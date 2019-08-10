@@ -83,14 +83,14 @@
  *
  */
 
-class Dot11_SsidScan : public LifetimeGlobal {
+class Dot11_SsidScan : public lifetime_global {
 public:
     static std::string global_name() { return "DOT11_SSIDSCAN"; }
 
     static std::shared_ptr<Dot11_SsidScan> create_ssidscan() {
         std::shared_ptr<Dot11_SsidScan> shared(new Dot11_SsidScan());
-        Globalreg::globalreg->RegisterLifetimeGlobal(shared);
-        Globalreg::globalreg->InsertGlobal(global_name(), shared);
+        Globalreg::globalreg->register_lifetime_global(shared);
+        Globalreg::globalreg->insert_global(global_name(), shared);
         return shared;
     }
 
@@ -161,10 +161,10 @@ protected:
     // Eventbus subscription for new datasources
     std::shared_ptr<Eventbus> eventbus;
     unsigned long eventbus_id;
-    void handle_eventbus_evt(std::shared_ptr<EventbusEvent> evt);
+    void handle_eventbus_evt(std::shared_ptr<eventbus_event> evt);
 
     // Database log for filtering
-    std::shared_ptr<KisDatabaseLogfile> databaselog;
+    std::shared_ptr<kis_database_logfile> databaselog;
 
     // Saved state for previous filtering and logging
     bool previous_dblog_default_packet;

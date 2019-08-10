@@ -126,11 +126,11 @@ protected:
 };
 
 // Take a C++ stream and use it as a response
-class Kis_Net_Httpd_CPPStream_Handler : public Kis_Net_Httpd_Handler {
+class kis_net_httpd_cppstream_handler : public Kis_Net_Httpd_Handler {
 public:
-    Kis_Net_Httpd_CPPStream_Handler() : 
+    kis_net_httpd_cppstream_handler() : 
         Kis_Net_Httpd_Handler() { }
-    virtual ~Kis_Net_Httpd_CPPStream_Handler() { };
+    virtual ~kis_net_httpd_cppstream_handler() { };
 
     virtual bool Httpd_VerifyPath(const char *path, const char *method) = 0;
 
@@ -151,7 +151,7 @@ public:
 };
 
 // Fallback handler to report that we can't serve static files
-class Kis_Net_Httpd_No_Files_Handler : public Kis_Net_Httpd_CPPStream_Handler {
+class Kis_Net_Httpd_No_Files_Handler : public kis_net_httpd_cppstream_handler {
 public:
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
 
@@ -226,9 +226,9 @@ protected:
 };
 
 // Ringbuf-based stream handler
-class Kis_Net_Httpd_Ringbuf_Stream_Handler : public Kis_Net_Httpd_Buffer_Stream_Handler {
+class kis_net_httpd_ringbuf_stream_handler : public Kis_Net_Httpd_Buffer_Stream_Handler {
 public:
-    Kis_Net_Httpd_Ringbuf_Stream_Handler() : Kis_Net_Httpd_Buffer_Stream_Handler() { }
+    kis_net_httpd_ringbuf_stream_handler() : Kis_Net_Httpd_Buffer_Stream_Handler() { }
 
 protected:
     virtual std::shared_ptr<BufferHandlerGeneric> allocate_buffer() {

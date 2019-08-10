@@ -21,9 +21,9 @@
 #include "streamtracker.h"
 #include "entrytracker.h"
 
-StreamTracker::StreamTracker(GlobalRegistry *in_globalreg) :
-    Kis_Net_Httpd_CPPStream_Handler(), 
-    LifetimeGlobal() {
+StreamTracker::StreamTracker(global_registry *in_globalreg) :
+    kis_net_httpd_cppstream_handler(), 
+    lifetime_global() {
 
     globalreg = in_globalreg;
 

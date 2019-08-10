@@ -54,7 +54,7 @@
 //
 // and
 //
-// int kis_plugin_activate(GlobalRegistry *)
+// int kis_plugin_activate(global_registry *)
 //      
 // which is responsible for activating the plugin and registering it
 // with the system.
@@ -221,7 +221,7 @@ protected:
 typedef std::shared_ptr<PluginRegistrationData> SharedPluginData;
 
 // Plugin activation and final activation function
-typedef int (*plugin_activation)(GlobalRegistry *);
+typedef int (*plugin_activation)(global_registry *);
 
 #define KIS_PLUGINTRACKER_VERSION   1
 
@@ -252,18 +252,18 @@ struct plugin_server_info {
 typedef int (*plugin_version_check)(plugin_server_info *);
 
 // Plugin management class
-class Plugintracker : public LifetimeGlobal,
-    public Kis_Net_Httpd_CPPStream_Handler {
+class Plugintracker : public lifetime_global,
+    public kis_net_httpd_cppstream_handler {
 public:
-    static std::shared_ptr<Plugintracker> create_plugintracker(GlobalRegistry *in_globalreg) {
+    static std::shared_ptr<Plugintracker> create_plugintracker(global_registry *in_globalreg) {
         std::shared_ptr<Plugintracker> mon(new Plugintracker(in_globalreg));
-        in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal("PLUGINTRACKER", mon);
+        in_globalreg->register_lifetime_global(mon);
+        in_globalreg->insert_global("PLUGINTRACKER", mon);
         return mon;
     }
 
 private:
-	Plugintracker(GlobalRegistry *in_globalreg);
+	Plugintracker(global_registry *in_globalreg);
 
 public:
 	static void Usage(char *name);
@@ -293,7 +293,7 @@ public:
 protected:
     kis_recursive_timed_mutex plugin_lock;
 
-	GlobalRegistry *globalreg;
+	global_registry *globalreg;
 	int plugins_active;
 
 	int ScanDirectory(DIR *in_dir, std::string in_path);

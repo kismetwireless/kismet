@@ -119,12 +119,12 @@ ClassfilterMacaddr::ClassfilterMacaddr(const std::string& in_id, const std::stri
     register_fields();
     reserve_fields(nullptr);
 
-	devicetracker = Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
+	devicetracker = Globalreg::FetchMandatoryGlobalAs<device_tracker>();
 
 	eventbus = Globalreg::FetchMandatoryGlobalAs<Eventbus>();
 	eb_id = 
 		eventbus->register_listener("NEW_PHY",
-				[this](std::shared_ptr<EventbusEvent> evt) {
+				[this](std::shared_ptr<eventbus_event> evt) {
 					update_phy_map(evt);
 				});
 
@@ -215,7 +215,7 @@ void ClassfilterMacaddr::set_filter(mac_addr in_mac, const std::string& in_phy, 
 	}
 
 	// Try to build the id-based lookup table
-	auto phy = devicetracker->FetchPhyHandlerByName(in_phy);
+	auto phy = devicetracker->fetch_phy_handler_by_name(in_phy);
 
 	// Cache unknown for future lookups
 	if (phy == nullptr) {
@@ -241,7 +241,7 @@ void ClassfilterMacaddr::remove_filter(mac_addr in_mac, const std::string& in_ph
 	}
 
 	// Remove it from the known and unknown internal tables
-	auto phy = devicetracker->FetchPhyHandlerByName(in_phy);
+	auto phy = devicetracker->fetch_phy_handler_by_name(in_phy);
 
 	if (phy == nullptr) {
 		auto unknown_phy = unknown_phy_mac_filter_map.find(in_phy);
@@ -269,7 +269,7 @@ void ClassfilterMacaddr::remove_filter(mac_addr in_mac, const std::string& in_ph
 
 }
 
-void ClassfilterMacaddr::update_phy_map(std::shared_ptr<EventbusEvent> evt) {
+void ClassfilterMacaddr::update_phy_map(std::shared_ptr<eventbus_event> evt) {
 	local_locker l(&mutex);
 
 	if (unknown_phy_mac_filter_map.size() == 0)
@@ -277,7 +277,7 @@ void ClassfilterMacaddr::update_phy_map(std::shared_ptr<EventbusEvent> evt) {
 
 	// Turn the generic event into the device event
 	auto phy_evt = 
-		std::static_pointer_cast<Devicetracker::EventNewPhy>(evt);
+		std::static_pointer_cast<device_tracker::EventNewPhy>(evt);
 
 	// Do we have any pending filters that match this key?
 	auto unknown_key = unknown_phy_mac_filter_map.find(phy_evt->phy->FetchPhyName());

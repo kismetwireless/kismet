@@ -91,22 +91,22 @@ protected:
     std::shared_ptr<tracker_element_uint8> deviceid;
 };
 
-class Kis_Zwave_Phy : public Kis_Phy_Handler, public Kis_Net_Httpd_CPPStream_Handler {
+class Kis_Zwave_Phy : public kis_phy_handler, public kis_net_httpd_cppstream_handler {
 public:
     virtual ~Kis_Zwave_Phy();
 
-    Kis_Zwave_Phy(GlobalRegistry *in_globalreg) :
-        Kis_Phy_Handler(in_globalreg),
-        Kis_Net_Httpd_CPPStream_Handler() { 
+    Kis_Zwave_Phy(global_registry *in_globalreg) :
+        kis_phy_handler(in_globalreg),
+        kis_net_httpd_cppstream_handler() { 
             Bind_Httpd_Server();
         };
 
 	// Build a strong version of ourselves
-	virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg, int in_phyid) {
+	virtual kis_phy_handler *CreatePhyHandler(global_registry *in_globalreg, int in_phyid) {
 		return new Kis_Zwave_Phy(in_globalreg, in_phyid);
 	}
 
-    Kis_Zwave_Phy(GlobalRegistry *in_globalreg, int in_phyid);
+    Kis_Zwave_Phy(global_registry *in_globalreg, int in_phyid);
 
     // HTTPD API
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
@@ -121,7 +121,7 @@ public:
 protected:
     std::shared_ptr<Packetchain> packetchain;
     std::shared_ptr<EntryTracker> entrytracker;
-    std::shared_ptr<Devicetracker> devicetracker;
+    std::shared_ptr<device_tracker> devicetracker;
 
     int zwave_device_id;
 

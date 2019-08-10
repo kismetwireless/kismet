@@ -302,7 +302,7 @@ int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
 }
 
 int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
-        int in_recurring, TimetrackerEvent *in_event) {
+        int in_recurring, time_tracker_event *in_event) {
     local_locker l(&time_mutex);
 
     timer_event *evt = new timer_event;

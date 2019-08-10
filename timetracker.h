@@ -38,11 +38,11 @@
 #define KIS_NEW_TIMER_PARM	1
 
 #define TIMEEVENT_PARMS Timetracker::timer_event *evt __attribute__ ((unused)), \
-    void *auxptr __attribute__ ((unused)), GlobalRegistry *globalreg __attribute__ ((unused))
+    void *auxptr __attribute__ ((unused)), global_registry *globalreg __attribute__ ((unused))
 
-class TimetrackerEvent;
+class time_tracker_event;
 
-class Timetracker : public LifetimeGlobal {
+class Timetracker : public lifetime_global {
 public:
     struct timer_event {
         int timer_id;
@@ -61,13 +61,13 @@ public:
         int recurring;
 
         // Event, if we were passed a class
-        TimetrackerEvent *event;
+        time_tracker_event *event;
 
         // Function if we were passed a lambda
         std::function<int (int)> event_func;
 
         // C function, if we weren't
-        int (*callback)(timer_event *, void *, GlobalRegistry *);
+        int (*callback)(timer_event *, void *, global_registry *);
         void *callback_parm;
     };
 
@@ -90,8 +90,8 @@ public:
     static std::shared_ptr<Timetracker> create_timetracker() {
         std::shared_ptr<Timetracker> mon(new Timetracker());
         Globalreg::globalreg->timetracker = mon.get();
-        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-        Globalreg::globalreg->InsertGlobal(global_name(), mon);
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
@@ -105,11 +105,11 @@ public:
     // the smallest linux can slice without getting into weird calls.
     int RegisterTimer(int in_timeslices, struct timeval *in_trigger,
                       int in_recurring, 
-                      int (*in_callback)(timer_event *, void *, GlobalRegistry *),
+                      int (*in_callback)(timer_event *, void *, global_registry *),
                       void *in_parm);
 
     int RegisterTimer(int timeslices, struct timeval *in_trigger,
-            int in_recurring, TimetrackerEvent *event);
+            int in_recurring, time_tracker_event *event);
 
     int RegisterTimer(int timeslices, struct timeval *in_trigger,
             int in_recurring, std::function<int (int)> event);
@@ -142,7 +142,7 @@ protected:
     std::atomic<bool> shutdown;
 };
 
-class TimetrackerEvent {
+class time_tracker_event {
 public:
     // Called when event triggers
     virtual int timetracker_event(int event_id __attribute__ ((unused))) { return 0; };

@@ -104,7 +104,7 @@ protected:
 
     virtual void register_fields() override;
 
-    std::shared_ptr<Devicetracker> devicetracker;
+    std::shared_ptr<device_tracker> devicetracker;
 
     std::shared_ptr<tracker_element_int32> battery_perc;
     std::shared_ptr<tracker_element_string> battery_charging;
@@ -131,14 +131,14 @@ protected:
     std::shared_ptr<tracker_element_string_map> sensors_temp;
 };
 
-class Systemmonitor : public LifetimeGlobal, public TimetrackerEvent {
+class Systemmonitor : public lifetime_global, public time_tracker_event {
 public:
     static std::string global_name() { return "SYSTEMMONITOR"; }
 
     static std::shared_ptr<Systemmonitor> create_systemmonitor() {
         std::shared_ptr<Systemmonitor> mon(new Systemmonitor());
-        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-        Globalreg::globalreg->InsertGlobal(global_name(), mon);
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
@@ -161,7 +161,7 @@ protected:
     std::shared_ptr<Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint> user_monitor_endp;
     std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> timestamp_endp;
 
-    std::shared_ptr<Devicetracker> devicetracker;
+    std::shared_ptr<device_tracker> devicetracker;
 
     std::shared_ptr<tracked_system_status> status;
 

@@ -96,19 +96,19 @@ protected:
     std::shared_ptr<tracker_element_uint64> timestamp;
 };
 
-class RestMessageClient : public MessageClient, public Kis_Net_Httpd_CPPStream_Handler,
-    public LifetimeGlobal {
+class RestMessageClient : public MessageClient, public kis_net_httpd_cppstream_handler,
+    public lifetime_global {
 public:
     static std::shared_ptr<RestMessageClient> 
-        create_messageclient(GlobalRegistry *in_globalreg) {
+        create_messageclient(global_registry *in_globalreg) {
         std::shared_ptr<RestMessageClient> mon(new RestMessageClient(in_globalreg, NULL));
-        in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal("REST_MSG_CLIENT", mon);
+        in_globalreg->register_lifetime_global(mon);
+        in_globalreg->insert_global("REST_MSG_CLIENT", mon);
         return mon;
     }
 
 private:
-    RestMessageClient(GlobalRegistry *in_globalreg, void *in_aux);
+    RestMessageClient(global_registry *in_globalreg, void *in_aux);
 
 public:
 	virtual ~RestMessageClient();

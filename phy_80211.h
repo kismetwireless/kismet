@@ -292,8 +292,8 @@ class dot11_ssid_alert {
         std::map<mac_addr, int> allow_mac_map;
 };
 
-class Kis_80211_Phy : public Kis_Phy_Handler, 
-    public Kis_Net_Httpd_CPPStream_Handler, public TimetrackerEvent {
+class Kis_80211_Phy : public kis_phy_handler, 
+    public kis_net_httpd_cppstream_handler, public time_tracker_event {
 
 public:
     using ie_tag_tuple = std::tuple<uint8_t, uint32_t, uint8_t>;
@@ -302,16 +302,16 @@ public:
     ~Kis_80211_Phy();
 
     // Inherited functionality
-    Kis_80211_Phy(GlobalRegistry *in_globalreg) :
-        Kis_Phy_Handler(in_globalreg) { };
+    Kis_80211_Phy(global_registry *in_globalreg) :
+        kis_phy_handler(in_globalreg) { };
 
     // Build a strong version of ourselves
-    virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg, int in_phyid) override {
+    virtual kis_phy_handler *CreatePhyHandler(global_registry *in_globalreg, int in_phyid) override {
         return new Kis_80211_Phy(in_globalreg, in_phyid);
     }
 
     // Strong constructor
-    Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid);
+    Kis_80211_Phy(global_registry *in_globalreg, int in_phyid);
 
     int WPACipherConv(uint8_t cipher_index);
     int WPAKeyMgtConv(uint8_t mgt_index);
@@ -382,11 +382,11 @@ public:
     static const std::string KhzToChannel(const double in_khz);
 
     // Eventbus event we inject when a handshake is captured
-    class EventDot11WPAHandshake : public EventbusEvent {
+    class EventDot11WPAHandshake : public eventbus_event {
     public:
         static std::string Event() { return "DOT11_WPA_HANDSHAKE"; }
         EventDot11WPAHandshake(std::shared_ptr<kis_tracked_device_base> base_device, std::shared_ptr<dot11_tracked_device> dot11_device) :
-            EventbusEvent(Event()),
+            eventbus_event(Event()),
             base_device{base_device},
             dot11_device{dot11_device} { }
         virtual ~EventDot11WPAHandshake() {}
@@ -396,10 +396,10 @@ public:
     };
 
 protected:
-    std::shared_ptr<Alertracker> alertracker;
+    std::shared_ptr<alert_tracker> alertracker;
     std::shared_ptr<Packetchain> packetchain;
     std::shared_ptr<Timetracker> timetracker;
-    std::shared_ptr<Devicetracker> devicetracker;
+    std::shared_ptr<device_tracker> devicetracker;
     std::shared_ptr<Eventbus> eventbus;
 
     // Checksum of recent packets for duplication filtering

@@ -34,8 +34,8 @@ public:
 
     static std::shared_ptr<Kis_DLT_PPI> create_dlt() {
         std::shared_ptr<Kis_DLT_PPI> mon(new Kis_DLT_PPI());
-        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-        Globalreg::globalreg->InsertGlobal(global_name(), mon);
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 

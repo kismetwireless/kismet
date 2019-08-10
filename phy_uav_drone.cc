@@ -77,16 +77,16 @@ bool uav_manuf_match::match_record(const mac_addr& in_mac, const std::string& in
 }
 
 
-Kis_UAV_Phy::Kis_UAV_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
-    Kis_Phy_Handler(in_globalreg, in_phyid),
-    Kis_Net_Httpd_CPPStream_Handler() {
+Kis_UAV_Phy::Kis_UAV_Phy(global_registry *in_globalreg, int in_phyid) :
+    kis_phy_handler(in_globalreg, in_phyid),
+    kis_net_httpd_cppstream_handler() {
 
     phyname = "UAV";
 
     packetchain =
         Globalreg::FetchMandatoryGlobalAs<Packetchain>();
     devicetracker =
-        Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
+        Globalreg::FetchMandatoryGlobalAs<device_tracker>();
 
 	pack_comp_common = 
 		packetchain->RegisterPacketComponent("COMMON");

@@ -41,7 +41,7 @@
 // interface for reading data coming in from the client.
 class TcpClientV2 : public Pollable {
 public:
-    TcpClientV2(GlobalRegistry *in_globalreg, std::shared_ptr<BufferHandlerGeneric> in_rbhandler);
+    TcpClientV2(global_registry *in_globalreg, std::shared_ptr<BufferHandlerGeneric> in_rbhandler);
     virtual ~TcpClientV2();
 
     virtual void SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
@@ -57,7 +57,7 @@ public:
     virtual int Poll(fd_set& in_rset, fd_set& in_wset);
 
 protected:
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
     std::shared_ptr<BufferHandlerGeneric> handler;
 
     std::shared_ptr<kis_recursive_timed_mutex> tcp_mutex;

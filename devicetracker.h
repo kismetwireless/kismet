@@ -60,7 +60,7 @@
 #define KIS_PHY_ANY	-1
 #define KIS_PHY_UNKNOWN -2
 
-class Kis_Phy_Handler;
+class kis_phy_handler;
 
 // Small database helper class for the state store; we need to be able to 
 // segregate it from the devicetracker store
@@ -88,12 +88,12 @@ public:
             mac_addr in_mac);
 
 protected:
-    devicetracker *devicetracker;
+    device_tracker *devicetracker;
 };
 
 
 class device_tracker : public kis_net_httpd_chain_stream_handler,
-    public timetracker_event, public lifetime_global, public kis_database {
+    public time_tracker_event, public lifetime_global, public kis_database {
 
 // Allow direct access for the state storing class
 friend class device_tracker_state_store;
@@ -127,7 +127,7 @@ public:
     public:
         static std::string event() { return "NEW_PHY"; }
 
-        event_new_phy(Kis_Phy_Handler *handler) :
+        event_new_phy(kis_phy_handler *handler) :
             eventbus_event(event()),
             phy{handler} { }
         virtual ~event_new_phy() {}
@@ -176,27 +176,27 @@ public:
     void match_on_devices_raw(std::shared_ptr<device_tracker_filter_worker> worker, 
             std::shared_ptr<tracker_element_vector> source_vec, bool batch = true);
     // Perform a readonly match
-    void MatchOnReadonlyDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker, 
+    void MatchOnReadonlyDevicesRaw(std::shared_ptr<device_tracker_filter_worker> worker, 
             std::shared_ptr<tracker_element_vector> source_vec, bool batch = true);
 
     // Perform a device filter as above, but provide a stl vector instead of the list of
     // ALL devices in the system; the source vector is duplicated under mutex and then processed.
-    void MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> worker,
+    void MatchOnDevices(std::shared_ptr<device_tracker_filter_worker> worker,
             const std::vector<std::shared_ptr<kis_tracked_device_base>>& source_vec,
             bool batch = true);
     // RO only
-    void MatchOnReadonlyDevices(std::shared_ptr<DevicetrackerFilterWorker> worker,
+    void MatchOnReadonlyDevices(std::shared_ptr<device_tracker_filter_worker> worker,
             const std::vector<std::shared_ptr<kis_tracked_device_base>>& source_vec,
             bool batch = true);
 
     // Perform a device filter as above, but provide a stl vector instead of the list of
     // ALL devices in the system; the source vector is not duplicated, the caller must ensure
     // this is a safe operation (the vector must not be modified during execution of the worker)
-    void MatchOnDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker,
+    void MatchOnDevicesRaw(std::shared_ptr<device_tracker_filter_worker> worker,
             const std::vector<std::shared_ptr<kis_tracked_device_base>>& source_vec,
             bool batch = true);
     // RO only
-    void MatchOnReadonlyDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker,
+    void MatchOnReadonlyDevicesRaw(std::shared_ptr<device_tracker_filter_worker> worker,
             const std::vector<std::shared_ptr<kis_tracked_device_base>>& source_vec,
             bool batch = true);
 
@@ -251,7 +251,7 @@ public:
 #define UCD_UPDATE_EMPTY_LOCATION   (1 << 8)
 
     std::shared_ptr<kis_tracked_device_base> UpdateCommonDevice(kis_common_info *pack_common,
-            mac_addr in_mac, Kis_Phy_Handler *phy, kis_packet *in_pack, unsigned int in_flags,
+            mac_addr in_mac, kis_phy_handler *phy, kis_packet *in_pack, unsigned int in_flags,
             std::string in_basic_type);
 
     // Set the common name of a device (and log it in the database for future runs)
@@ -308,7 +308,7 @@ public:
     virtual void remove_view_device(std::shared_ptr<kis_tracked_device_base> in_device);
 
 protected:
-	GlobalRegistry *globalreg;
+	global_registry *globalreg;
     std::shared_ptr<EntryTracker> entrytracker;
     std::shared_ptr<Packetchain> packetchain;
     std::shared_ptr<Eventbus> eventbus;
@@ -407,7 +407,7 @@ protected:
 
 	// Registered PHY types
 	int next_phy_id;
-    std::map<int, Kis_Phy_Handler *> phy_handler_map;
+    std::map<int, kis_phy_handler *> phy_handler_map;
 
     kis_recursive_timed_mutex devicelist_mutex;
 
@@ -423,7 +423,7 @@ protected:
     unsigned long persistent_storage_timeout;
 
     // Persistent database (independent of our tags, etc db)
-    DevicetrackerStateStore *statestore;
+    device_tracker_state_store *statestore;
 
     // Loading mode
     enum persistent_mode_e {
@@ -445,13 +445,13 @@ protected:
 
 protected:
     // Handle new datasources and create endpoints for them
-    void HandleNewDatasourceEvent(std::shared_ptr<EventbusEvent> evt);
+    void HandleNewDatasourceEvent(std::shared_ptr<eventbus_event> evt);
 
     // Insert a device directly into the records
     void AddDevice(std::shared_ptr<kis_tracked_device_base> device);
 
     // Load a specific device
-    virtual std::shared_ptr<kis_tracked_device_base> load_device(Kis_Phy_Handler *phy, 
+    virtual std::shared_ptr<kis_tracked_device_base> load_device(kis_phy_handler *phy, 
             mac_addr mac);
 
     // Common device interpretation layer
@@ -468,12 +468,12 @@ protected:
 
 class devicelist_scope_locker {
 public:
-    devicelist_scope_locker(Devicetracker *in_tracker) {
+    devicelist_scope_locker(device_tracker *in_tracker) {
         in_tracker->lock_devicelist();
         tracker = in_tracker;
     }
 
-    devicelist_scope_locker(std::shared_ptr<Devicetracker> in_tracker) {
+    devicelist_scope_locker(std::shared_ptr<device_tracker> in_tracker) {
         in_tracker->lock_devicelist();
         sharedtracker = in_tracker;
         tracker = NULL;
@@ -487,8 +487,8 @@ public:
     }
 
 private:
-    Devicetracker *tracker;
-    std::shared_ptr<Devicetracker> sharedtracker;
+    device_tracker *tracker;
+    std::shared_ptr<device_tracker> sharedtracker;
 };
 
 #endif

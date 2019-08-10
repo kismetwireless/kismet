@@ -50,7 +50,7 @@ class IPCRemoteV2Tracker;
 
 class IPCRemoteV2 {
 public:
-    IPCRemoteV2(GlobalRegistry *in_globalreg, std::shared_ptr<BufferHandlerGeneric> in_rbhandler);
+    IPCRemoteV2(global_registry *in_globalreg, std::shared_ptr<BufferHandlerGeneric> in_rbhandler);
     virtual ~IPCRemoteV2();
 
     virtual void SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
@@ -94,7 +94,7 @@ public:
     void set_tracker_free(bool in_free);
 
 protected:
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
 
     std::shared_ptr<kis_recursive_timed_mutex> ipc_mutex;
 
@@ -126,19 +126,19 @@ protected:
  * and shutdown.
  *
  */
-class IPCRemoteV2Tracker : public TimetrackerEvent, public LifetimeGlobal {
+class IPCRemoteV2Tracker : public time_tracker_event, public lifetime_global {
 public:
     static std::string global_name() { return "IPCHANDLER"; }
 
-    static std::shared_ptr<IPCRemoteV2Tracker> create_ipcremote(GlobalRegistry *in_globalreg) {
+    static std::shared_ptr<IPCRemoteV2Tracker> create_ipcremote(global_registry *in_globalreg) {
         std::shared_ptr<IPCRemoteV2Tracker> mon(new IPCRemoteV2Tracker(in_globalreg));
-        in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal(global_name(), mon);
+        in_globalreg->register_lifetime_global(mon);
+        in_globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-    IPCRemoteV2Tracker(GlobalRegistry *in_globalreg);
+    IPCRemoteV2Tracker(global_registry *in_globalreg);
 
 public:
     virtual ~IPCRemoteV2Tracker();
@@ -166,7 +166,7 @@ public:
 protected:
     kis_recursive_timed_mutex ipc_mutex;
 
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
 
     std::vector<std::shared_ptr<IPCRemoteV2>> process_vec;
     std::vector<std::shared_ptr<IPCRemoteV2>> cleanup_vec;

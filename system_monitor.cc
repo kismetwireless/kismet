@@ -41,9 +41,9 @@
 #include "version.h"
 
 Systemmonitor::Systemmonitor() :
-    LifetimeGlobal() {
+    lifetime_global() {
 
-    devicetracker = Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
+    devicetracker = Globalreg::FetchMandatoryGlobalAs<device_tracker>();
     eventbus = Globalreg::FetchMandatoryGlobalAs<Eventbus>();
 
     status = std::make_shared<tracked_system_status>();
@@ -140,7 +140,7 @@ Systemmonitor::Systemmonitor() :
         kismetdb_log_timer =
             timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * snap_time_s, nullptr, 1, 
                     [this](int) -> int {
-                        auto kismetdb = Globalreg::FetchGlobalAs<KisDatabaseLogfile>();
+                        auto kismetdb = Globalreg::FetchGlobalAs<kis_database_logfile>();
 
                         if (kismetdb == nullptr)
                             return 1;
@@ -165,9 +165,9 @@ Systemmonitor::Systemmonitor() :
 
     // Always drop a SYSTEM snapshot as soon as the log opens
     logopen_evt_id = 
-        eventbus->register_listener(KisDatabaseLogfile::EventDblogOpened::Event(),
-            [this](std::shared_ptr<EventbusEvent> evt) {
-                auto kismetdb = Globalreg::FetchGlobalAs<KisDatabaseLogfile>();
+        eventbus->register_listener(kis_database_logfile::EventDblogOpened::Event(),
+            [this](std::shared_ptr<eventbus_event> evt) {
+                auto kismetdb = Globalreg::FetchGlobalAs<kis_database_logfile>();
 
                 if (kismetdb == nullptr)
                     return;

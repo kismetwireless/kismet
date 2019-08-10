@@ -32,8 +32,8 @@
 #include "base64.h"
 #include "kis_databaselogfile.h"
 
-Alertracker::Alertracker() :
-    Kis_Net_Httpd_CPPStream_Handler() {
+alert_tracker::alert_tracker() :
+    kis_net_httpd_cppstream_handler() {
 
 	next_alert_id = 0;
 
@@ -72,13 +72,13 @@ Alertracker::Alertracker() :
 
 	// Register a KISMET alert type with no rate restrictions
     alert_ref_kismet =
-		RegisterAlert("KISMET", "Server events", sat_day, 0, sat_day, 0, KIS_PHY_ANY);
+		register_alert("KISMET", "Server events", sat_day, 0, sat_day, 0, KIS_PHY_ANY);
 
 
     Bind_Httpd_Server();
 
 	if (Globalreg::globalreg->kismet_config == NULL) {
-		fprintf(stderr, "FATAL OOPS:  Alertracker called with null config\n");
+		fprintf(stderr, "FATAL OOPS:  alert_tracker called with null config\n");
 		exit(1);
 	}
 
@@ -87,7 +87,7 @@ Alertracker::Alertracker() :
     int ret;
     ret = prelude_init(0, NULL);
     if (ret < 0) {
-        _MSG("Alertracker - Failed to initialize Prelude SIEM connection", MSGFLAG_FATAL);
+        _MSG("alert_tracker - Failed to initialize Prelude SIEM connection", MSGFLAG_FATAL);
         globalreg->fatal_condition = 1;
         return;
     }
@@ -117,7 +117,7 @@ Alertracker::Alertracker() :
     log_alerts = Globalreg::globalreg->kismet_config->FetchOptBoolean("kis_log_alerts", true);
 }
 
-Alertracker::~Alertracker() {
+alert_tracker::~alert_tracker() {
     local_locker lock(&alert_mutex);
 
     Globalreg::globalreg->RemoveGlobal("ALERTTRACKER");
@@ -129,7 +129,7 @@ Alertracker::~Alertracker() {
 #endif
 }
 
-void Alertracker::PreludeInitClient(const char *analyzer_name) {
+void alert_tracker::PreludeInitClient(const char *analyzer_name) {
 #ifdef PRELUDE
     try {
         string version = 
@@ -142,7 +142,7 @@ void Alertracker::PreludeInitClient(const char *analyzer_name) {
                     PRELUDE_ANALYZER_CLASS, PRELUDE_ANALYZER_MANUFACTURER, version.c_str());
         prelude_client->start();
     } catch (Prelude::PreludeError const & error) {
-        _MSG(std::string("Alertracker failed to initialize connection to Prelude: ") + 
+        _MSG(std::string("alert_tracker failed to initialize connection to Prelude: ") + 
                 error.what(), MSGFLAG_FATAL);
         globalreg->fatal_condition = 1;
 
@@ -151,7 +151,7 @@ void Alertracker::PreludeInitClient(const char *analyzer_name) {
 #endif
 }
 
-int Alertracker::RegisterAlert(std::string in_header, std::string in_description, 
+int alert_tracker::register_alert(std::string in_header, std::string in_description, 
         alert_time_unit in_unit, int in_rate, alert_time_unit in_burstunit,
         int in_burst, int in_phy) {
     local_locker lock(&alert_mutex);
@@ -197,7 +197,7 @@ int Alertracker::RegisterAlert(std::string in_header, std::string in_description
 	return arec->get_alert_ref();
 }
 
-int Alertracker::FetchAlertRef(std::string in_header) {
+int alert_tracker::fetch_alert_ref(std::string in_header) {
     local_locker lock(&alert_mutex);
 
     auto ni = alert_name_map.find(in_header);
@@ -208,7 +208,7 @@ int Alertracker::FetchAlertRef(std::string in_header) {
     return -1;
 }
 
-int Alertracker::CheckTimes(shared_alert_def arec) {
+int alert_tracker::check_times(shared_alert_def arec) {
     // Alerts limited to 0 are squelched
 	if (arec->get_limit_rate() == 0) {
 		return 0;
@@ -241,7 +241,7 @@ int Alertracker::CheckTimes(shared_alert_def arec) {
 	return 0;
 }
 
-int Alertracker::PotentialAlert(int in_ref) {
+int alert_tracker::PotentialAlert(int in_ref) {
     local_locker lock(&alert_mutex);
 
 	std::map<int, shared_alert_def>::iterator aritr = alert_ref_map.find(in_ref);
@@ -251,10 +251,10 @@ int Alertracker::PotentialAlert(int in_ref) {
 
 	shared_alert_def arec = aritr->second;
 
-	return CheckTimes(arec);
+	return check_times(arec);
 }
 
-int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
+int alert_tracker::raise_alert(int in_ref, kis_packet *in_pack,
 							mac_addr bssid, mac_addr source, mac_addr dest, 
 							mac_addr other, std::string in_channel, std::string in_text) {
 
@@ -269,7 +269,7 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 
 	shared_alert_def arec = aritr->second;
 
-	if (CheckTimes(arec) != 1)
+	if (check_times(arec) != 1)
 		return 0;
 
     lock.unlock();
@@ -320,7 +320,7 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 
 #ifdef PRELUDE
 	// Send alert to Prelude
-	RaisePreludeAlert(in_ref, in_pack, info->bssid, info->source, 
+	raise_prelude_alert(in_ref, in_pack, info->bssid, info->source, 
             info->dest, info->other, info->channel, info->text);
 #endif
 
@@ -329,7 +329,7 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 
     if (log_alerts) {
         auto dbf = 
-            Globalreg::FetchGlobalAs<KisDatabaseLogfile>("DATABASELOG");
+            Globalreg::FetchGlobalAs<kis_database_logfile>("DATABASELOG");
         if (dbf != NULL) {
             auto ta = std::make_shared<tracked_alert>(alert_entry_id);
             ta->from_alert_info(info);
@@ -340,7 +340,7 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 	return 1;
 }
 
-int Alertracker::RaiseOneShot(std::string in_header, std::string in_text, int in_phy) {
+int alert_tracker::raise_one_shot(std::string in_header, std::string in_text, int in_phy) {
     local_demand_locker lock(&alert_mutex);
 
 	kis_alert_info *info = new kis_alert_info;
@@ -368,7 +368,7 @@ int Alertracker::RaiseOneShot(std::string in_header, std::string in_text, int in
 
 #ifdef PRELUDE
 	// Send alert to Prelude
-	RaisePreludeOneShot(in_header, in_text);
+	raise_prelude_one_shot(in_header, in_text);
 #endif
 
 	// Send the text info
@@ -376,7 +376,7 @@ int Alertracker::RaiseOneShot(std::string in_header, std::string in_text, int in
 
     if (log_alerts) {
         auto dbf =
-            Globalreg::FetchGlobalAs<KisDatabaseLogfile>("DATABASELOG");
+            Globalreg::FetchGlobalAs<kis_database_logfile>("DATABASELOG");
         if (dbf != NULL) {
             auto ta = std::make_shared<tracked_alert>(alert_entry_id);
             ta->from_alert_info(info);
@@ -387,7 +387,7 @@ int Alertracker::RaiseOneShot(std::string in_header, std::string in_text, int in
 	return 1;
 }
 
-int Alertracker::RaisePreludeAlert(int in_ref, kis_packet *in_pack,
+int alert_tracker::raise_prelude_alert(int in_ref, kis_packet *in_pack,
         mac_addr bssid, mac_addr source, mac_addr dest,
         mac_addr other, std::string in_channel, std::string in_text) {
 
@@ -439,7 +439,7 @@ int Alertracker::RaisePreludeAlert(int in_ref, kis_packet *in_pack,
     return 0;
 }
 
-int Alertracker::RaisePreludeOneShot(std::string in_header, std::string in_text) {
+int alert_tracker::raise_prelude_one_shot(std::string in_header, std::string in_text) {
 #ifdef PRELUDE
     mac_addr emptymac = mac_addr(0);
 
@@ -462,7 +462,7 @@ int Alertracker::RaisePreludeOneShot(std::string in_header, std::string in_text)
     return 0;
 }
 
-int Alertracker::ParseAlertStr(std::string alert_str, std::string *ret_name, 
+int alert_tracker::parse_alert_str(std::string alert_str, std::string *ret_name, 
         alert_time_unit *ret_limit_unit, int *ret_limit_rate,
         alert_time_unit *ret_limit_burst, 
         int *ret_burst_rate) {
@@ -476,8 +476,8 @@ int Alertracker::ParseAlertStr(std::string alert_str, std::string *ret_name,
 
 	(*ret_name) = StrUpper(tokens[0]);
 
-	if (ParseRateUnit(StrLower(tokens[1]), ret_limit_unit, ret_limit_rate) != 1 ||
-		ParseRateUnit(StrLower(tokens[2]), ret_limit_burst, ret_burst_rate) != 1) {
+	if (parse_rate_unit(StrLower(tokens[1]), ret_limit_unit, ret_limit_rate) != 1 ||
+		parse_rate_unit(StrLower(tokens[2]), ret_limit_burst, ret_burst_rate) != 1) {
         _MSG_ERROR("Malformed limits for alert '{}'", alert_str);
 		return -1;
 	}
@@ -486,7 +486,7 @@ int Alertracker::ParseAlertStr(std::string alert_str, std::string *ret_name,
 }
 
 // Split up a rate/unit string into real values
-int Alertracker::ParseRateUnit(std::string in_ru, alert_time_unit *ret_unit,
+int alert_tracker::parse_rate_unit(std::string in_ru, alert_time_unit *ret_unit,
 							   int *ret_rate) {
 	std::vector<std::string> units = StrTokenize(in_ru, "/");
 
@@ -519,13 +519,13 @@ int Alertracker::ParseRateUnit(std::string in_ru, alert_time_unit *ret_unit,
 	return 1;
 }
 
-int Alertracker::ParseAlertConfig(ConfigFile *in_conf) {
+int alert_tracker::ParseAlertConfig(ConfigFile *in_conf) {
     std::vector<std::string> clines = in_conf->FetchOptVec("alert");
 
     for (unsigned int x = 0; x < clines.size(); x++) {
         alert_conf_rec *rec = new alert_conf_rec;
 
-        if (ParseAlertStr(clines[x], &(rec->header), &(rec->limit_unit), 
+        if (parse_alert_str(clines[x], &(rec->header), &(rec->limit_unit), 
                     &(rec->limit_rate), &(rec->burst_unit), 
                     &(rec->limit_burst)) < 0) {
             _MSG_FATAL("Invalid 'alert' config option {}; expected HEADER,rate,burstrate", clines[x]);
@@ -540,7 +540,7 @@ int Alertracker::ParseAlertConfig(ConfigFile *in_conf) {
     return 1;
 }
 
-int Alertracker::DefineAlert(std::string name, alert_time_unit limit_unit, int limit_rate,
+int alert_tracker::define_alert(std::string name, alert_time_unit limit_unit, int limit_rate,
         alert_time_unit burst_unit, int burst_rate) {
     local_locker lock(&alert_mutex);
 
@@ -562,11 +562,11 @@ int Alertracker::DefineAlert(std::string name, alert_time_unit limit_unit, int l
     return 1;
 }
 
-int Alertracker::ActivateConfiguredAlert(std::string in_header, std::string in_desc) {
-	return ActivateConfiguredAlert(in_header, in_desc, KIS_PHY_UNKNOWN);
+int alert_tracker::activate_configured_alert(std::string in_header, std::string in_desc) {
+	return activate_configured_alert(in_header, in_desc, KIS_PHY_UNKNOWN);
 }
 
-int Alertracker::ActivateConfiguredAlert(std::string in_header, std::string in_desc, int in_phy) {
+int alert_tracker::activate_configured_alert(std::string in_header, std::string in_desc, int in_phy) {
     alert_conf_rec *rec;
 
     {
@@ -578,7 +578,7 @@ int Alertracker::ActivateConfiguredAlert(std::string in_header, std::string in_d
 
         if (hi == alert_conf_map.end()) {
             _MSG_INFO("Using default rates of 10/min, 1/sec for alert '{}'", in_header);
-            DefineAlert(in_header, sat_minute, 10, sat_second, 1);
+            define_alert(in_header, sat_minute, 10, sat_second, 1);
 
             auto hi_full = alert_conf_map.find(hdr);
             if (hi_full == alert_conf_map.end()) {
@@ -592,11 +592,11 @@ int Alertracker::ActivateConfiguredAlert(std::string in_header, std::string in_d
         }
     }
 
-	return RegisterAlert(rec->header, in_desc, rec->limit_unit, rec->limit_rate, 
+	return register_alert(rec->header, in_desc, rec->limit_unit, rec->limit_rate, 
             rec->burst_unit, rec->limit_burst, in_phy);
 }
 
-int Alertracker::FindActivatedAlert(std::string in_header) {
+int alert_tracker::find_activated_alert(std::string in_header) {
     local_locker lock(&alert_mutex);
 
     for (auto x : alert_ref_map) {
@@ -607,7 +607,7 @@ int Alertracker::FindActivatedAlert(std::string in_header) {
     return -1;
 }
 
-bool Alertracker::Httpd_VerifyPath(const char *path, const char *method) {
+bool alert_tracker::Httpd_VerifyPath(const char *path, const char *method) {
     if (!Httpd_CanSerialize(path))
         return false;
 
@@ -651,7 +651,7 @@ bool Alertracker::Httpd_VerifyPath(const char *path, const char *method) {
     return false;
 }
 
-void Alertracker::Httpd_CreateStreamResponse(
+void alert_tracker::Httpd_CreateStreamResponse(
         Kis_Net_Httpd *httpd __attribute__((unused)),
         Kis_Net_Httpd_Connection *connection,
         const char *path, const char *method, const char *upload_data,
@@ -719,7 +719,7 @@ void Alertracker::Httpd_CreateStreamResponse(
     Httpd_Serialize(path, stream, transmit);
 }
 
-int Alertracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+int alert_tracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     std::string stripped = Httpd_StripSuffix(concls->url);
    
     if (!Httpd_CanSerialize(concls->url) ||
@@ -754,12 +754,12 @@ int Alertracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             alert_time_unit burst_unit;
             int burst_rate;
 
-            if (ParseRateUnit(StrLower(structdata->getKeyAsString("throttle", "")),
+            if (parse_rate_unit(StrLower(structdata->getKeyAsString("throttle", "")),
                         &limit_unit, &limit_rate) < 0) {
                 throw std::runtime_error("could not parse throttle limits");
             }
 
-            if (ParseRateUnit(StrLower(structdata->getKeyAsString("burst", "")),
+            if (parse_rate_unit(StrLower(structdata->getKeyAsString("burst", "")),
                         &burst_unit, &burst_rate) < 0) {
                 throw std::runtime_error("could not parse burst limits");
             }
@@ -770,8 +770,8 @@ int Alertracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
             if (phyname != "any" && phyname != "") {
                 auto devicetracker = 
-                    Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
-                Kis_Phy_Handler *phyh = devicetracker->FetchPhyHandlerByName(phyname);
+                    Globalreg::FetchMandatoryGlobalAs<device_tracker>();
+                kis_phy_handler *phyh = devicetracker->fetch_phy_handler_by_name(phyname);
 
                 if (phyh == NULL)
                     throw std::runtime_error("could not find phy");
@@ -779,12 +779,12 @@ int Alertracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 phyid = phyh->FetchPhyId();
             }
 
-            if (DefineAlert(name, limit_unit, limit_rate, burst_unit, burst_rate) < 0) {
+            if (define_alert(name, limit_unit, limit_rate, burst_unit, burst_rate) < 0) {
                 concls->httpcode = 503;
                 throw std::runtime_error("could not add alert");
             }
 
-            if (ActivateConfiguredAlert(name, desc, phyid) < 0) {
+            if (activate_configured_alert(name, desc, phyid) < 0) {
                 concls->httpcode = 504;
                 throw std::runtime_error("could not activate alert");
             }
@@ -795,7 +795,7 @@ int Alertracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         } else if (stripped == "/alerts/raise_alert") {
             std::string name = structdata->getKeyAsString("name");
     
-            int aref = FetchAlertRef(name);
+            int aref = fetch_alert_ref(name);
 
             if (aref < 0)
                 throw std::runtime_error("unknown alert type");
@@ -831,7 +831,7 @@ int Alertracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             if (!PotentialAlert(aref)) 
                 throw std::runtime_error("alert limit reached");
 
-            RaiseAlert(aref, NULL, bssid_mac, source_mac, dest_mac, other_mac,
+            raise_alert(aref, NULL, bssid_mac, source_mac, dest_mac, other_mac,
                     channel, text);
 
             concls->response_stream << "alert raised";

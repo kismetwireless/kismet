@@ -27,8 +27,8 @@
 #include "kis_httpd_registry.h"
 #include "manuf.h"
 
-Kis_RTLADSB_Phy::Kis_RTLADSB_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
-    Kis_Phy_Handler(in_globalreg, in_phyid) {
+Kis_RTLADSB_Phy::Kis_RTLADSB_Phy(global_registry *in_globalreg, int in_phyid) :
+    kis_phy_handler(in_globalreg, in_phyid) {
 
     SetPhyName("RTLADSB");
 
@@ -37,7 +37,7 @@ Kis_RTLADSB_Phy::Kis_RTLADSB_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
     entrytracker =
         Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
     devicetracker =
-        Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
+        Globalreg::FetchMandatoryGlobalAs<device_tracker>();
 
 	pack_comp_common = 
 		packetchain->RegisterPacketComponent("COMMON");

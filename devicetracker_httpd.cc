@@ -50,7 +50,7 @@
 #include "base64.h"
 
 // HTTP interfaces
-bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
+bool device_tracker::Httpd_VerifyPath(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
         // Simple fixed URLS
 
@@ -222,7 +222,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
     return false;
 }
 
-int Devicetracker::Httpd_CreateStreamResponse(
+int device_tracker::Httpd_CreateStreamResponse(
         Kis_Net_Httpd *httpd __attribute__((unused)),
         Kis_Net_Httpd_Connection *connection,
         const char *path, const char *method, const char *upload_data,
@@ -263,7 +263,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
         JsonAdapter::Serializer serial; 
 
         auto fw = std::make_shared<devicetracker_function_worker>(
-                [&stream, &serial](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
+                [&stream, &serial](device_tracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
                     serial.serialize(d, stream);
                     stream << "\n";
 
@@ -398,7 +398,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
             std::shared_ptr<tracker_element_vector> devvec;
 
             auto fw = std::make_shared<devicetracker_function_worker>(
-                    [devvec, lastts](Devicetracker *, 
+                    [devvec, lastts](device_tracker *, 
                         std::shared_ptr<kis_tracked_device_base> d) -> bool {
                         if (d->get_last_time() <= lastts)
                             return false;
@@ -418,7 +418,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
     return MHD_YES;
 }
 
-int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+int device_tracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     // Split URL and process
     std::vector<std::string> tokenurl = StrTokenize(concls->url, "/");
 
@@ -693,7 +693,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 auto regexdevs = std::make_shared<tracker_element_vector>();
 
                 auto tw = std::make_shared<devicetracker_function_worker>(
-                        [lastts](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
+                        [lastts](device_tracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
 
                         if (d->get_last_time() <= lastts)
                             return false;
@@ -738,7 +738,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     return MHD_YES;
 }
 
-unsigned int Devicetracker::multimac_endp_handler(std::ostream& stream, const std::string& uri,
+unsigned int device_tracker::multimac_endp_handler(std::ostream& stream, const std::string& uri,
         SharedStructured structured, Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) {
 
     try {
@@ -794,7 +794,7 @@ unsigned int Devicetracker::multimac_endp_handler(std::ostream& stream, const st
     return 500;
 }
 
-std::shared_ptr<tracker_element> Devicetracker::all_phys_endp_handler() {
+std::shared_ptr<tracker_element> device_tracker::all_phys_endp_handler() {
     auto ret_vec = 
         std::make_shared<tracker_element_vector>();
 

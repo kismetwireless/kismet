@@ -55,10 +55,10 @@ bool Phy_80211_Httpd_Pcap::Httpd_VerifyPath(const char *path, const char *method
             return false;
 
         auto devicetracker =
-            Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER");
+            Globalreg::FetchMandatoryGlobalAs<device_tracker>("DEVICETRACKER");
 
-        Kis_Phy_Handler *dot11phy = 
-            devicetracker->FetchPhyHandlerByName("IEEE802.11");
+        kis_phy_handler *dot11phy = 
+            devicetracker->fetch_phy_handler_by_name("IEEE802.11");
 
         if (dot11phy == NULL) {
             fprintf(stderr, "debug - couldn't find dot11phy\n");
@@ -86,10 +86,10 @@ int Phy_80211_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     }
 
     auto devicetracker =
-        Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER");
+        Globalreg::FetchMandatoryGlobalAs<device_tracker>("DEVICETRACKER");
 
-    Kis_Phy_Handler *dot11phy = 
-        devicetracker->FetchPhyHandlerByName("IEEE802.11");
+    kis_phy_handler *dot11phy = 
+        devicetracker->fetch_phy_handler_by_name("IEEE802.11");
 
     if (dot11phy == NULL)
         return MHD_YES;

@@ -35,21 +35,21 @@
  *
  */
 
-class Kis_Httpd_Registry : public Kis_Net_Httpd_CPPStream_Handler, 
-    public LifetimeGlobal {
+class Kis_Httpd_Registry : public kis_net_httpd_cppstream_handler, 
+    public lifetime_global {
 public:
     static std::string global_name() { return "WEBREGISTRY"; }
 
     static std::shared_ptr<Kis_Httpd_Registry> 
-        create_http_registry(GlobalRegistry *in_globalreg) {
+        create_http_registry(global_registry *in_globalreg) {
             std::shared_ptr<Kis_Httpd_Registry> mon(new Kis_Httpd_Registry(in_globalreg));
-            in_globalreg->RegisterLifetimeGlobal(mon);
-            in_globalreg->InsertGlobal(global_name(), mon);
+            in_globalreg->register_lifetime_global(mon);
+            in_globalreg->insert_global(global_name(), mon);
             return mon;
     }
 
 private:
-    Kis_Httpd_Registry(GlobalRegistry *in_globalreg);
+    Kis_Httpd_Registry(global_registry *in_globalreg);
 
 public:
     ~Kis_Httpd_Registry();
@@ -67,7 +67,7 @@ public:
 protected:
     kis_recursive_timed_mutex reg_lock;
 
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
 
     bool allow_userplugins;
 

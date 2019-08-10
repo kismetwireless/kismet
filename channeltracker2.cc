@@ -24,9 +24,9 @@
 #include "devicetracker_component.h"
 #include "packinfo_signal.h"
 
-Channeltracker_V2::Channeltracker_V2(GlobalRegistry *in_globalreg) :
+Channeltracker_V2::Channeltracker_V2(global_registry *in_globalreg) :
     tracker_component(),
-    Kis_Net_Httpd_CPPStream_Handler() {
+    kis_net_httpd_cppstream_handler() {
 
     // Number of seconds we consider a device to be active on a frequency 
     // after the last time we see it
@@ -44,7 +44,7 @@ Channeltracker_V2::Channeltracker_V2(GlobalRegistry *in_globalreg) :
 	pack_comp_l1data = packetchain->RegisterPacketComponent("RADIODATA");
 
     devicetracker =
-        Globalreg::FetchMandatoryGlobalAs<Devicetracker>("DEVICETRACKER");
+        Globalreg::FetchMandatoryGlobalAs<device_tracker>("DEVICETRACKER");
 
     struct timeval trigger_tm;
     trigger_tm.tv_sec = time(0) + 1;
@@ -121,7 +121,7 @@ void Channeltracker_V2::Httpd_CreateStreamResponse(
 
 }
 
-class channeltracker_v2_device_worker : public DevicetrackerFilterWorker {
+class channeltracker_v2_device_worker : public device_tracker_filter_worker {
 public:
     channeltracker_v2_device_worker(Channeltracker_V2 *channelv2) {
         this->channelv2 = channelv2;
@@ -132,7 +132,7 @@ public:
 
     // Count all the devices.  We use a filter worker but 'match' on all
     // and count them into our local map
-    virtual bool MatchDevice(Devicetracker *devicetracker __attribute__((unused)),
+    virtual bool MatchDevice(device_tracker *devicetracker __attribute__((unused)),
             std::shared_ptr<kis_tracked_device_base> device) {
         if (device == NULL)
             return false;
@@ -160,7 +160,7 @@ public:
     }
 
     // Send it back to our channel tracker
-    virtual void Finalize(Devicetracker *devicetracker __attribute__((unused))) {
+    virtual void Finalize(device_tracker *devicetracker __attribute__((unused))) {
         channelv2->update_device_counts(device_count);
     }
 

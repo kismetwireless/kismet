@@ -773,7 +773,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                                     "exploit attempt against Broadcom chipsets used in mobile " <<
                                     "devices.";
 
-                                alertracker->RaiseAlert(alert_11kneighborchan_ref, in_pack, 
+                                alertracker->raise_alert(alert_11kneighborchan_ref, in_pack, 
                                         packinfo->bssid_mac, packinfo->source_mac, 
                                         packinfo->dest_mac, packinfo->other_mac, 
                                         packinfo->channel, ss.str());
@@ -1596,7 +1596,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                         packinfo->source_mac, packinfo->dest_mac, packinfo->bssid_mac, 
                         3, 1, ie_tag->tag_len());
 
-                alertracker->RaiseAlert(alert_bad_fixlen_ie, in_pack, 
+                alertracker->raise_alert(alert_bad_fixlen_ie, in_pack, 
                         packinfo->bssid_mac, packinfo->source_mac, 
                         packinfo->dest_mac, packinfo->other_mac, 
                         packinfo->channel, al);
@@ -1802,7 +1802,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                     rsn->parse(ie_tag->tag_data_stream());
 
                     if (rsn->pairwise_count() > 1024) {
-                        alertracker->RaiseAlert(alert_atheros_rsnloop_ref, 
+                        alertracker->raise_alert(alert_atheros_rsnloop_ref, 
                                 in_pack,
                                 packinfo->bssid_mac, packinfo->source_mac, 
                                 packinfo->dest_mac, packinfo->other_mac,
@@ -1872,7 +1872,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                     "capability tags should have no more than 10 bytes, but saw {}.",
                     packinfo->bssid_mac, ie_tag->tag_len());
 
-                alertracker->RaiseAlert(alert_qcom_extended_ref, in_pack, 
+                alertracker->raise_alert(alert_qcom_extended_ref, in_pack, 
                         packinfo->bssid_mac, packinfo->source_mac, 
                         packinfo->dest_mac, packinfo->other_mac, 
                         packinfo->channel, al);
@@ -2011,7 +2011,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                         "indicate attempts to exploit driver vulnerabilities "
                         "such as BroadPwn";
 
-                    alertracker->RaiseAlert(alert_wmm_ref, in_pack, 
+                    alertracker->raise_alert(alert_wmm_ref, in_pack, 
                             packinfo->bssid_mac, packinfo->source_mac, 
                             packinfo->dest_mac, packinfo->other_mac, 
                             packinfo->channel, al);
@@ -2040,7 +2040,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                         "may be attempt to exploit embedded Atheros drivers using "
                         "CVE-2017-11013";
 
-                    alertracker->RaiseAlert(alert_atheros_wmmtspec_ref, in_pack, 
+                    alertracker->raise_alert(alert_atheros_wmmtspec_ref, in_pack, 
                             packinfo->bssid_mac, packinfo->source_mac, 
                             packinfo->dest_mac, packinfo->other_mac, 
                             packinfo->channel, al);
@@ -2682,7 +2682,7 @@ std::shared_ptr<dot11_tracked_eapol>
                 // Look for attempts to set an empty nonce; only on group keys
                 if (!rsnkey->key_info_pairwise_key() &&
                         rsnkey->wpa_key_nonce().find_first_not_of(std::string("\x00", 1)) == std::string::npos) {
-                    alertracker->RaiseAlert(alert_nonce_zero_ref, in_pack,
+                    alertracker->raise_alert(alert_nonce_zero_ref, in_pack,
                             packinfo->bssid_mac, packinfo->source_mac, 
                             packinfo->dest_mac, packinfo->other_mac,
                             packinfo->channel,

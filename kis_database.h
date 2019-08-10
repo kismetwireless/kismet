@@ -51,7 +51,7 @@
  *
  */
 
-class KisDatabase {
+class kis_database {
     // Subclasses must implement a public builder, typically one which returns a
     // shared pointer instance if the database is a standalone instance; if it is
     // integrated into a poly class it can be built directly via that classes state
@@ -59,10 +59,10 @@ class KisDatabase {
 protected:
     // Initialize a database w/ a known module name; opening the database is done with
     // Database_Open(...)
-    KisDatabase(GlobalRegistry *in_globalreg, std::string in_module_name);
+    kis_database(global_registry *in_globalreg, std::string in_module_name);
 
 public:
-    virtual ~KisDatabase();
+    virtual ~kis_database();
 
     // Open the database file and initialize the KISMET table; if in_path is empty,
     // the database is opened in the local-user settings dir and named according to
@@ -84,7 +84,7 @@ protected:
     // creating a new db
     virtual bool Database_SetDBVersion(unsigned int in_version);
 
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
 
     // Module name and target version, filled in by subclasses during initialization
     std::string ds_module_name;
@@ -97,9 +97,9 @@ protected:
 };
 
 /* Dynamic database query binder */
-class KisDatabaseBinder {
+class kis_database_binder {
 public:
-    KisDatabaseBinder() { }
+    kis_database_binder() { }
 
     template<typename T>
     void bind_field(const std::string& in_query, const T& in_value,

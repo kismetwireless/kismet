@@ -29,7 +29,7 @@
 #include "ipc_remote2.h"
 #include "pollabletracker.h"
 
-IPCRemoteV2::IPCRemoteV2(GlobalRegistry *in_globalreg, 
+IPCRemoteV2::IPCRemoteV2(global_registry *in_globalreg, 
         std::shared_ptr<BufferHandlerGeneric> in_rbhandler) :
         globalreg {Globalreg::globalreg},
         ipc_mutex {std::make_shared<kis_recursive_timed_mutex>()},
@@ -466,7 +466,7 @@ void IPCRemoteV2::notify_killed(int in_exit) {
     close_ipc();
 }
 
-IPCRemoteV2Tracker::IPCRemoteV2Tracker(GlobalRegistry *in_globalreg) {
+IPCRemoteV2Tracker::IPCRemoteV2Tracker(global_registry *in_globalreg) {
     globalreg = in_globalreg;
 
     timer_id = 

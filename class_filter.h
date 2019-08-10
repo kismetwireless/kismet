@@ -96,11 +96,11 @@ public:
     virtual void remove_filter(mac_addr in_mac, const std::string& in_phy);
 
 protected:
-	std::shared_ptr<Devicetracker> devicetracker;
+	std::shared_ptr<device_tracker> devicetracker;
 	std::shared_ptr<Eventbus> eventbus;
 	unsigned long eb_id;
 
-	void update_phy_map(std::shared_ptr<EventbusEvent> evt);
+	void update_phy_map(std::shared_ptr<eventbus_event> evt);
 
 	// Filters are stored in integer-indexed local form, but also a constructed tiered
 	// map for presentation out the rest interface:

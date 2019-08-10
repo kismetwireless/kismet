@@ -338,13 +338,13 @@ protected:
 // Fwd def of datasource pcap feed
 class Datasourcetracker_Httpd_Pcap;
 
-class Datasourcetracker : public Kis_Net_Httpd_CPPStream_Handler, 
-    public LifetimeGlobal, public DeferredStartup, public TcpServerV2 {
+class Datasourcetracker : public kis_net_httpd_cppstream_handler, 
+    public lifetime_global, public DeferredStartup, public TcpServerV2 {
 public:
     static std::shared_ptr<Datasourcetracker> create_dst() {
         auto mon = std::make_shared<Datasourcetracker>();
-        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-        Globalreg::globalreg->InsertGlobal(global_name(), mon);
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global(global_name(), mon);
         Globalreg::globalreg->RegisterDeferredGlobal(mon);
 
         auto pollabletracker =
@@ -371,11 +371,11 @@ public:
     virtual void Deferred_Shutdown() override;
 
     // Eventbus event we inject when a new ds is added
-    class EventNewDatasource : public EventbusEvent {
+    class EventNewDatasource : public eventbus_event {
     public:
         static std::string Event() { return "NEW_DATASOURCE"; }
         EventNewDatasource(std::shared_ptr<KisDatasource> source) :
-            EventbusEvent(Event()),
+            eventbus_event(Event()),
             datasource{source} { }
         virtual ~EventNewDatasource() {}
 
@@ -523,9 +523,9 @@ protected:
 
 /* This implements the core 'all data' pcap, and pcap filtered by datasource UUID.
  */
-class Datasourcetracker_Httpd_Pcap : public Kis_Net_Httpd_Ringbuf_Stream_Handler {
+class Datasourcetracker_Httpd_Pcap : public kis_net_httpd_ringbuf_stream_handler {
 public:
-    Datasourcetracker_Httpd_Pcap() : Kis_Net_Httpd_Ringbuf_Stream_Handler() { 
+    Datasourcetracker_Httpd_Pcap() : kis_net_httpd_ringbuf_stream_handler() { 
         Bind_Httpd_Server();
     }
 

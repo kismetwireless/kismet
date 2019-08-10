@@ -20,7 +20,7 @@
 #include "tcpserver2.h"
 #include "ringbuf2.h"
 
-TcpServerV2::TcpServerV2(GlobalRegistry *in_globalreg) {
+TcpServerV2::TcpServerV2(global_registry *in_globalreg) {
     globalreg = in_globalreg;
     valid = false;
     

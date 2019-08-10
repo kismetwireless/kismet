@@ -57,7 +57,7 @@ public:
         in_addr mask;
     };
 
-    TcpServerV2(GlobalRegistry *in_globalreg);
+    TcpServerV2(global_registry *in_globalreg);
     virtual ~TcpServerV2();
 
     virtual int ConfigureServer(short int in_port, unsigned int in_maxcli,
@@ -77,7 +77,7 @@ public:
     // Must be filled in
     virtual void NewConnection(std::shared_ptr<BufferHandlerGeneric> conn_handler) = 0;
 protected:
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
 
     kis_recursive_timed_mutex tcp_mutex;
 

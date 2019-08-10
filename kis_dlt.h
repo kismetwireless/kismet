@@ -27,7 +27,7 @@
 #include "packet.h"
 #include "packetchain.h"
 
-class Kis_DLT_Handler : public LifetimeGlobal {
+class Kis_DLT_Handler : public lifetime_global {
 public:
 	Kis_DLT_Handler();
 	virtual ~Kis_DLT_Handler();

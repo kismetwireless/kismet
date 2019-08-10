@@ -31,7 +31,7 @@
 
 LogTracker::LogTracker() :
     tracker_component(),
-    Kis_Net_Httpd_CPPStream_Handler() {
+    kis_net_httpd_cppstream_handler() {
 
     streamtracker =
         Globalreg::FetchMandatoryGlobalAs<StreamTracker>("STREAMTRACKER");
@@ -125,9 +125,9 @@ void LogTracker::Deferred_Startup() {
     }
 
     if (!Globalreg::globalreg->kismet_config->FetchOptBoolean("log_config_present", false)) {
-        std::shared_ptr<Alertracker> alertracker =
-            Globalreg::FetchMandatoryGlobalAs<Alertracker>("ALERTTRACKER");
-        alertracker->RaiseOneShot("CONFIGERROR", "It looks like Kismet is missing "
+        std::shared_ptr<alert_tracker> alertracker =
+            Globalreg::FetchMandatoryGlobalAs<alert_tracker>("ALERTTRACKER");
+        alertracker->raise_one_shot("CONFIGERROR", "It looks like Kismet is missing "
                 "the kismet_logging.conf config file.  This file was added recently "
                 "in development.  Without it, logging will not perform as expected.  "
                 "You should either install with 'make forceconfigs' from the Kismet "
@@ -170,9 +170,9 @@ void LogTracker::Deferred_Startup() {
     }
 
     if (!get_logging_enabled()) {
-        std::shared_ptr<Alertracker> alertracker =
-            Globalreg::FetchMandatoryGlobalAs<Alertracker>("ALERTTRACKER");
-        alertracker->RaiseOneShot("LOGDISABLED", "Logging has been disabled via the Kismet "
+        std::shared_ptr<alert_tracker> alertracker =
+            Globalreg::FetchMandatoryGlobalAs<alert_tracker>("ALERTTRACKER");
+        alertracker->raise_one_shot("LOGDISABLED", "Logging has been disabled via the Kismet "
                 "config files or the command line.  Pcap, database, and related logs "
                 "will not be saved.", -1);
         _MSG("Logging disabled, not enabling any log drivers.", MSGFLAG_INFO);

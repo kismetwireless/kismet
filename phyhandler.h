@@ -27,24 +27,24 @@
 #include "trackedelement.h"
 #include "devicetracker.h"
 
-class Devicetracker;
+class device_tracker;
 
 class kis_tracked_device_base;
 
-class Kis_Phy_Handler {
+class kis_phy_handler {
 public:
 	// Create a 'weak' handler which provides enough structure to call CreatePhyHandler
-    Kis_Phy_Handler(GlobalRegistry *in_globalreg) :
+    kis_phy_handler(global_registry *in_globalreg) :
         phyname {"NONE"},
         phyid {-1} { }
 
-    virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg, int in_phyid) = 0;
+    virtual kis_phy_handler *CreatePhyHandler(global_registry *in_globalreg, int in_phyid) = 0;
 
-    Kis_Phy_Handler(GlobalRegistry *in_globalreg, int in_phyid) :
+    kis_phy_handler(global_registry *in_globalreg, int in_phyid) :
         phyname {"NONE"},
         phyid {in_phyid} { }
 
-	virtual ~Kis_Phy_Handler() { }
+	virtual ~kis_phy_handler() { }
 
 	std::string FetchPhyName() { return phyname; }
 	int FetchPhyId() { return phyid; }

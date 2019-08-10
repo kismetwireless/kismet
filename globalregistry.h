@@ -32,7 +32,7 @@
 
 #include "fmt.h"
 
-class GlobalRegistry;
+class global_registry;
 
 // Pre-defs for all the things we point to
 class MessageBus;
@@ -40,10 +40,10 @@ class MessageBus;
 // Old network tracking core due to be removed
 class Netracker;
 // new multiphy tracking core
-class Devicetracker;
+class device_tracker;
 
 class Packetchain;
-class Alertracker;
+class alert_tracker;
 class Timetracker;
 class KisNetFramework;
 class KisDroneFramework;
@@ -127,10 +127,10 @@ class Kis_Net_Httpd;
 // DEPRECATED... Trying to switch to each component registering by name
 // and finding related component by name.  Try to avoid using _PCM etc
 // in future code
-#define _ALERT(x, y, z, a)	Globalreg::globalreg->alertracker->RaiseAlert((x), (y), \
+#define _ALERT(x, y, z, a)	Globalreg::globalreg->alertracker->raise_alert((x), (y), \
 	(z)->bssid_mac, (z)->source_mac, (z)->dest_mac, (z)->other_mac, \
 	(z)->channel, (a))
-#define _COMMONALERT(t, p, c, b, a)  Globalreg::globalreg->alertracker->RaiseAlert((t), (p), \
+#define _COMMONALERT(t, p, c, b, a)  Globalreg::globalreg->alertracker->raise_alert((t), (p), \
 	(b), (c)->source, (c)->dest, mac_addr(0), (c)->channel, (a))
 
 // Send a msg via gloablreg msgbus
@@ -167,9 +167,9 @@ public:
 };
 
 // Stub class for lifetime globals to inherit from to get auto-destroyed on exit
-class LifetimeGlobal : public SharedGlobalData {
+class lifetime_global : public SharedGlobalData {
 public:
-    virtual ~LifetimeGlobal() { }
+    virtual ~lifetime_global() { }
 };
 
 // Stub class for async objects that need to be triggered after the rest of the
@@ -187,7 +187,7 @@ public:
 // 
 // Really this just just a big ugly hack to do globals without looking like
 // we're doing globals, but it's a lot nicer for maintenance at least.
-class GlobalRegistry {
+class global_registry {
 public:
 	// argc and argv for modules to allow overrides
 	int argc;
@@ -220,10 +220,10 @@ public:
     // be migrated to the shared pointer references
 
 	// New multiphy tracker
-	Devicetracker *devicetracker;
+	device_tracker *devicetracker;
 
     Packetchain *packetchain;
-    Alertracker *alertracker;
+    alert_tracker *alertracker;
     Timetracker *timetracker;
     ConfigFile *kismet_config;
 	KisBuiltinDissector *builtindissector;
@@ -269,7 +269,7 @@ public:
     // Field name tracking
     EntryTracker *entrytracker;
     
-    GlobalRegistry();
+    global_registry();
 
     // External globals -- allow other things to tie structs to us
     int RegisterGlobal(std::string in_name);
@@ -278,8 +278,8 @@ public:
     std::shared_ptr<void> FetchGlobal(int in_ref);
 	std::shared_ptr<void> FetchGlobal(std::string in_name);
 
-    int InsertGlobal(int in_ref, std::shared_ptr<void> in_data);
-	int InsertGlobal(std::string in_name, std::shared_ptr<void> in_data);
+    int insert_global(int in_ref, std::shared_ptr<void> in_data);
+	int insert_global(std::string in_name, std::shared_ptr<void> in_data);
     void RemoveGlobal(int in_ref);
     void RemoveGlobal(std::string in_name);
 
@@ -293,9 +293,9 @@ public:
 	// whatever other conditions we use)
 	int checksum_packets;
 
-    void RegisterLifetimeGlobal(std::shared_ptr<LifetimeGlobal> in_g);
-    void RemoveLifetimeGlobal(std::shared_ptr<LifetimeGlobal> in_g);
-    void DeleteLifetimeGlobals();
+    void register_lifetime_global(std::shared_ptr<lifetime_global> in_g);
+    void Removelifetime_global(std::shared_ptr<lifetime_global> in_g);
+    void Deletelifetime_globals();
 
     void RegisterDeferredGlobal(std::shared_ptr<DeferredStartup> in_d);
     void RemoveDeferredGlobal(std::shared_ptr<DeferredStartup> in_d);
@@ -311,7 +311,7 @@ protected:
     std::atomic<int> next_ext_ref;
 
     kis_recursive_timed_mutex lifetime_mutex;
-    std::vector<std::shared_ptr<LifetimeGlobal> > lifetime_vec;
+    std::vector<std::shared_ptr<lifetime_global> > lifetime_vec;
 
     kis_recursive_timed_mutex deferred_mutex;
     bool deferred_started;
@@ -319,10 +319,10 @@ protected:
 };
 
 namespace Globalreg {
-    extern GlobalRegistry *globalreg;
+    extern global_registry *globalreg;
 
     template<typename T> 
-    std::shared_ptr<T> FetchGlobalAs(GlobalRegistry *in_globalreg, int in_ref) {
+    std::shared_ptr<T> FetchGlobalAs(global_registry *in_globalreg, int in_ref) {
         return std::static_pointer_cast<T>(in_globalreg->FetchGlobal(in_ref));
     }
 
@@ -332,7 +332,7 @@ namespace Globalreg {
     }
 
     template<typename T> 
-    std::shared_ptr<T> FetchGlobalAs(GlobalRegistry *in_globalreg, const std::string& in_name) {
+    std::shared_ptr<T> FetchGlobalAs(global_registry *in_globalreg, const std::string& in_name) {
         return std::static_pointer_cast<T>(in_globalreg->FetchGlobal(in_name));
     }
 
@@ -347,7 +347,7 @@ namespace Globalreg {
     }
 
     template<typename T> 
-    std::shared_ptr<T> FetchMandatoryGlobalAs(GlobalRegistry *in_globalreg, 
+    std::shared_ptr<T> FetchMandatoryGlobalAs(global_registry *in_globalreg, 
             const std::string& in_name) {
         std::shared_ptr<T> r = std::static_pointer_cast<T>(in_globalreg->FetchGlobal(in_name));
 

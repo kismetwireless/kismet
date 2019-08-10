@@ -38,8 +38,8 @@ public:
 
     static std::shared_ptr<Kis_DLT_Radiotap> create_dlt() {
         std::shared_ptr<Kis_DLT_Radiotap> mon(new Kis_DLT_Radiotap());
-        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-        Globalreg::globalreg->InsertGlobal(global_name(), mon);
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 

@@ -80,10 +80,10 @@ int ipdata_packethook(CHAINCALL_PARMS) {
 	return ((Kis_Dissector_IPdata *) auxdata)->HandlePacket(in_pack);
 }
 
-Kis_Dissector_IPdata::Kis_Dissector_IPdata(GlobalRegistry *in_globalreg) {
+Kis_Dissector_IPdata::Kis_Dissector_IPdata(global_registry *in_globalreg) {
 	globalreg = in_globalreg;
 
-	globalreg->InsertGlobal("DISSECTOR_IPDATA", std::shared_ptr<Kis_Dissector_IPdata>(this));
+	globalreg->insert_global("DISSECTOR_IPDATA", std::shared_ptr<Kis_Dissector_IPdata>(this));
 
 	globalreg->packetchain->RegisterHandler(&ipdata_packethook, this,
 		 									CHAINPOS_DATADISSECT, -100);
@@ -98,7 +98,7 @@ Kis_Dissector_IPdata::Kis_Dissector_IPdata(GlobalRegistry *in_globalreg) {
 		globalreg->packetchain->RegisterPacketComponent("COMMON");
 
 	alert_dhcpclient_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("DHCPCLIENTID",
+		globalreg->alertracker->activate_configured_alert("DHCPCLIENTID",
                 "A DHCP client sending a DHCP Discovery packet should "
                 "provide a Client-ID tag (Tag 61) which matches the source "
                 "MAC of the packet.  A client which fails to do so may "
@@ -107,7 +107,7 @@ Kis_Dissector_IPdata::Kis_Dissector_IPdata(GlobalRegistry *in_globalreg) {
 }
 
 Kis_Dissector_IPdata::~Kis_Dissector_IPdata() {
-	globalreg->InsertGlobal("DISSECTOR_IPDATA", NULL);
+	globalreg->insert_global("DISSECTOR_IPDATA", NULL);
 
 	globalreg->packetchain->RemoveHandler(&ipdata_packethook, CHAINPOS_DATADISSECT);
 }

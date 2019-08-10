@@ -362,21 +362,21 @@ protected:
 };
 
 /* Frankenphy which absorbs other phys */
-class Kis_UAV_Phy : public Kis_Phy_Handler, public Kis_Net_Httpd_CPPStream_Handler {
+class Kis_UAV_Phy : public kis_phy_handler, public kis_net_httpd_cppstream_handler {
 public:
     virtual ~Kis_UAV_Phy();
 
-    Kis_UAV_Phy(GlobalRegistry *in_globalreg) :
-        Kis_Phy_Handler(in_globalreg),
-        Kis_Net_Httpd_CPPStream_Handler() {
+    Kis_UAV_Phy(global_registry *in_globalreg) :
+        kis_phy_handler(in_globalreg),
+        kis_net_httpd_cppstream_handler() {
             Bind_Httpd_Server();
         }
 
-    virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg, int in_phyid) {
+    virtual kis_phy_handler *CreatePhyHandler(global_registry *in_globalreg, int in_phyid) {
         return new Kis_UAV_Phy(in_globalreg, in_phyid);
     }
 
-    Kis_UAV_Phy(GlobalRegistry *in_globalreg, int in_phyid);
+    Kis_UAV_Phy(global_registry *in_globalreg, int in_phyid);
 
     // Common classifier to make new UAV records
     static int CommonClassifier(CHAINCALL_PARMS);
@@ -401,7 +401,7 @@ protected:
     kis_recursive_timed_mutex uav_mutex;
 
     std::shared_ptr<Packetchain> packetchain;
-    std::shared_ptr<Devicetracker> devicetracker;
+    std::shared_ptr<device_tracker> devicetracker;
 
     /* We need to look at the dot11 packet to see if we've got a droneid ie tag */
     int pack_comp_common, pack_comp_80211, pack_comp_device;

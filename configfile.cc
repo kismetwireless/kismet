@@ -47,7 +47,7 @@ ConfigFile::ConfigFile() {
     checksum = 0;
 }
 
-ConfigFile::ConfigFile(GlobalRegistry *in_globalreg) {
+ConfigFile::ConfigFile(global_registry *in_globalreg) {
     checksum = 0;
 }
 

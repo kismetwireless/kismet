@@ -40,7 +40,7 @@
 // for reading incoming data.
 class SerialClientV2 : public Pollable {
 public:
-    SerialClientV2(GlobalRegistry *in_globalreg, std::shared_ptr<BufferHandlerGeneric> in_rbhandler);
+    SerialClientV2(global_registry *in_globalreg, std::shared_ptr<BufferHandlerGeneric> in_rbhandler);
     virtual ~SerialClientV2();
 
     virtual void SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
@@ -56,7 +56,7 @@ public:
     bool FetchConnected();
 
 protected:
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
 
     std::shared_ptr<kis_recursive_timed_mutex> serial_mutex;
 

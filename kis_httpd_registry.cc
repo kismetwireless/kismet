@@ -22,9 +22,9 @@
 #include "configfile.h"
 #include "kis_httpd_registry.h"
 
-Kis_Httpd_Registry::Kis_Httpd_Registry(GlobalRegistry *in_globalreg) :
-    Kis_Net_Httpd_CPPStream_Handler(), 
-    LifetimeGlobal() {
+Kis_Httpd_Registry::Kis_Httpd_Registry(global_registry *in_globalreg) :
+    kis_net_httpd_cppstream_handler(), 
+    lifetime_global() {
 
     globalreg = in_globalreg;
 

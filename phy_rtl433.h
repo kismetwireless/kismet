@@ -495,19 +495,19 @@ protected:
 
 };
 
-class Kis_RTL433_Phy : public Kis_Phy_Handler {
+class Kis_RTL433_Phy : public kis_phy_handler {
 public:
     virtual ~Kis_RTL433_Phy();
 
-    Kis_RTL433_Phy(GlobalRegistry *in_globalreg) :
-        Kis_Phy_Handler(in_globalreg) { };
+    Kis_RTL433_Phy(global_registry *in_globalreg) :
+        kis_phy_handler(in_globalreg) { };
 
 	// Build a strong version of ourselves
-	virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg, int in_phyid) override {
+	virtual kis_phy_handler *CreatePhyHandler(global_registry *in_globalreg, int in_phyid) override {
 		return new Kis_RTL433_Phy(in_globalreg, in_phyid);
 	}
 
-    Kis_RTL433_Phy(GlobalRegistry *in_globalreg, int in_phyid);
+    Kis_RTL433_Phy(global_registry *in_globalreg, int in_phyid);
 
     static int PacketHandler(CHAINCALL_PARMS);
 
@@ -537,7 +537,7 @@ protected:
 protected:
     std::shared_ptr<Packetchain> packetchain;
     std::shared_ptr<EntryTracker> entrytracker;
-    std::shared_ptr<Devicetracker> devicetracker;
+    std::shared_ptr<device_tracker> devicetracker;
 
     int rtl433_holder_id, rtl433_common_id, rtl433_thermometer_id, 
         rtl433_weatherstation_id, rtl433_tpms_id, rtl433_switch_id,

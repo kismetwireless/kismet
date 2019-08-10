@@ -34,20 +34,20 @@
 #include "kis_net_microhttpd.h"
 
 // Allocate and track named fields and give each one a custom int
-class EntryTracker : public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal {
+class EntryTracker : public kis_net_httpd_cppstream_handler, public lifetime_global {
 public:
     static std::string global_name() { return "ENTRYTRACKER"; }
 
-    static std::shared_ptr<EntryTracker> create_entrytracker(GlobalRegistry *in_globalreg) {
+    static std::shared_ptr<EntryTracker> create_entrytracker(global_registry *in_globalreg) {
         std::shared_ptr<EntryTracker> mon(new EntryTracker(in_globalreg));
         in_globalreg->entrytracker = mon.get();
-        in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal(global_name(), mon);
+        in_globalreg->register_lifetime_global(mon);
+        in_globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-    EntryTracker(GlobalRegistry *in_globalreg);
+    EntryTracker(global_registry *in_globalreg);
 
 public:
     virtual ~EntryTracker();
@@ -112,7 +112,7 @@ public:
             size_t *upload_data_size, std::stringstream &stream);
 
 protected:
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
 
     kis_recursive_timed_mutex entry_mutex;
     kis_recursive_timed_mutex serializer_mutex;

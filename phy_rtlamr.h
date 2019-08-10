@@ -213,19 +213,19 @@ protected:
 
 };
 
-class Kis_RTLAMR_Phy : public Kis_Phy_Handler {
+class Kis_RTLAMR_Phy : public kis_phy_handler {
 public:
     virtual ~Kis_RTLAMR_Phy();
 
-    Kis_RTLAMR_Phy(GlobalRegistry *in_globalreg) :
-        Kis_Phy_Handler(in_globalreg) { };
+    Kis_RTLAMR_Phy(global_registry *in_globalreg) :
+        kis_phy_handler(in_globalreg) { };
 
 	// Build a strong version of ourselves
-	virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg, int in_phyid) override {
+	virtual kis_phy_handler *CreatePhyHandler(global_registry *in_globalreg, int in_phyid) override {
 		return new Kis_RTLAMR_Phy(in_globalreg, in_phyid);
 	}
 
-    Kis_RTLAMR_Phy(GlobalRegistry *in_globalreg, int in_phyid);
+    Kis_RTLAMR_Phy(global_registry *in_globalreg, int in_phyid);
 
     static int PacketHandler(CHAINCALL_PARMS);
 
@@ -247,7 +247,7 @@ protected:
 protected:
     std::shared_ptr<Packetchain> packetchain;
     std::shared_ptr<EntryTracker> entrytracker;
-    std::shared_ptr<Devicetracker> devicetracker;
+    std::shared_ptr<device_tracker> devicetracker;
 
     int rtlamr_holder_id, rtlamr_common_id, rtlamr_powermeter_id;
 

@@ -56,17 +56,17 @@ public:
     // Handle a packet
     virtual int ProcessPacket(const packet_info *in_info) = 0;
 
-    int FetchAlertRef() { return alertid; }
+    int fetch_alert_ref() { return alertid; }
 
 protected:
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
     int alertid;
 };
 
 // Finite state automata to watch people who probe and never exchange data after an association
 class ProbeNoJoinAutomata : public FiniteAutomata {
 public:
-    ProbeNoJoinAutomata(GlobalRegistry *in_globalreg, alert_time_unit in_unit, 
+    ProbeNoJoinAutomata(global_registry *in_globalreg, alert_time_unit in_unit, 
                         int in_rate, int in_burstrate);
     ~ProbeNoJoinAutomata();
 
@@ -90,7 +90,7 @@ protected:
 // and Practical Solutions", Bellardo, J. and Savage, S.
 class DisassocTrafficAutomata : public FiniteAutomata {
 public:
-    DisassocTrafficAutomata(GlobalRegistry *in_globalreg, alert_time_unit in_unit, 
+    DisassocTrafficAutomata(global_registry *in_globalreg, alert_time_unit in_unit, 
                         int in_rate, int in_burstrate);
     ~DisassocTrafficAutomata();
 
@@ -118,7 +118,7 @@ public:
         uint64_t bss_timestamp;
     };
 
-    BssTimestampAutomata(GlobalRegistry *in_globalreg, alert_time_unit in_unit, 
+    BssTimestampAutomata(global_registry *in_globalreg, alert_time_unit in_unit, 
                          int in_rate, int in_burstrate);
     ~BssTimestampAutomata();
 
@@ -132,7 +132,7 @@ protected:
 // IV and ICV
 class WepRebroadcastAutomata : public FiniteAutomata {
 public:
-    WepRebroadcastAutomata(GlobalRegistry *in_globalreg, alert_time_unit in_unit, 
+    WepRebroadcastAutomata(global_registry *in_globalreg, alert_time_unit in_unit, 
                            int in_rate, int in_burstrate);
     ~WepRebroadcastAutomata();
 
@@ -153,7 +153,7 @@ protected:
 // Finite state automata to watch sequence numbers
 class SequenceSpoofAutomata : public FiniteAutomata {
 public:
-    SequenceSpoofAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
+    SequenceSpoofAutomata(Packetracker *in_ptracker, alert_tracker *in_atracker,
                           alert_time_unit in_unit, int in_rate, int in_burstrate);
     ~SequenceSpoofAutomata();
 

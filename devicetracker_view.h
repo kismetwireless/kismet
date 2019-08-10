@@ -166,9 +166,9 @@ protected:
     bool device_time_uri_endpoint_path(const std::vector<std::string>& path);
     std::shared_ptr<tracker_element> device_time_uri_endpoint(const std::vector<std::string>& path);
 
-    // Devicetracker has direct access to protected methods for new devices and purging devices,
+    // device_tracker has direct access to protected methods for new devices and purging devices,
     // nobody else should be calling those
-    friend class Devicetracker;
+    friend class device_tracker;
 
     // Called when a device is created; this should only be called by devicetracker itself.
     virtual void newDevice(std::shared_ptr<kis_tracked_device_base> device);

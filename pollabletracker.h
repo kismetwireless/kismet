@@ -38,15 +38,15 @@
 
 class Pollable;
 
-class PollableTracker : public LifetimeGlobal {
+class PollableTracker : public lifetime_global {
 public:
     static std::string global_name() { return "POLLABLETRACKER"; }
 
     static std::shared_ptr<PollableTracker> 
         create_pollabletracker() {
         std::shared_ptr<PollableTracker> mon(new PollableTracker());
-        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-        Globalreg::globalreg->InsertGlobal(global_name(), mon);
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 

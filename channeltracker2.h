@@ -137,20 +137,20 @@ protected:
 };
 
 class Channeltracker_V2 : public tracker_component, 
-    public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal, 
-    public TimetrackerEvent {
+    public kis_net_httpd_cppstream_handler, public lifetime_global, 
+    public time_tracker_event {
 public:
     static std::string global_name() { return "CHANNEL_TRACKER"; }
 
-    static std::shared_ptr<Channeltracker_V2> create_channeltracker(GlobalRegistry *in_globalreg) {
+    static std::shared_ptr<Channeltracker_V2> create_channeltracker(global_registry *in_globalreg) {
         std::shared_ptr<Channeltracker_V2> mon(new Channeltracker_V2(in_globalreg));
-        in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal(global_name(), mon);
+        in_globalreg->register_lifetime_global(mon);
+        in_globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-    Channeltracker_V2(GlobalRegistry *in_globalreg);
+    Channeltracker_V2(global_registry *in_globalreg);
 
 public:
     virtual ~Channeltracker_V2();
@@ -174,7 +174,7 @@ public:
 protected:
     kis_recursive_timed_mutex lock;
 
-    std::shared_ptr<Devicetracker> devicetracker;
+    std::shared_ptr<device_tracker> devicetracker;
     std::shared_ptr<Timetracker> timetracker;
 
     // Packetchain callback

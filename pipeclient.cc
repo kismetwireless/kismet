@@ -30,7 +30,7 @@
 #include "messagebus.h"
 #include "pollabletracker.h"
 
-PipeClient::PipeClient(GlobalRegistry *in_globalreg, 
+PipeClient::PipeClient(global_registry *in_globalreg, 
         std::shared_ptr<BufferHandlerGeneric> in_rbhandler) :
     globalreg {Globalreg::globalreg},
     pipe_mutex {std::make_shared<kis_recursive_timed_mutex>()},

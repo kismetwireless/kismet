@@ -66,7 +66,7 @@ std::string Kis_Net_Httpd_Handler::Httpd_StripSuffix(const std::string& path) {
     return httpd->StripSuffix(path);
 }
 
-int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *httpd, 
+int kis_net_httpd_cppstream_handler::Httpd_HandleGetRequest(Kis_Net_Httpd *httpd, 
         Kis_Net_Httpd_Connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
@@ -95,7 +95,7 @@ int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *httpd
     return MHD_YES;
 }
 
-int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *httpd, 
+int kis_net_httpd_cppstream_handler::Httpd_HandlePostRequest(Kis_Net_Httpd *httpd, 
         Kis_Net_Httpd_Connection *connection,
         const char *url, const char *method __attribute__((unused)), 
         const char *upload_data __attribute__((unused)),

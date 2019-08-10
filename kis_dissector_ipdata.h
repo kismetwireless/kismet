@@ -32,14 +32,14 @@ public:
 		exit(1); 
 	}
 
-	Kis_Dissector_IPdata(GlobalRegistry *in_globalreg);
+	Kis_Dissector_IPdata(global_registry *in_globalreg);
 
 	virtual int HandlePacket(kis_packet *in_pack);
 
 	~Kis_Dissector_IPdata();
 
 protected:
-	GlobalRegistry *globalreg;
+	global_registry *globalreg;
 
 	int pack_comp_datapayload, pack_comp_basicdata, pack_comp_common;
 	int alert_dhcpclient_ref;

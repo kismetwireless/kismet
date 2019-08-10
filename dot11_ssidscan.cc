@@ -32,14 +32,14 @@ Dot11_SsidScan::Dot11_SsidScan() {
         Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
 
     auto devicetracker =
-        Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
+        Globalreg::FetchMandatoryGlobalAs<device_tracker>();
 
     eventbus =
         Globalreg::FetchMandatoryGlobalAs<Eventbus>();
     eventbus_id = 0;
 
     databaselog =
-        Globalreg::FetchMandatoryGlobalAs<KisDatabaseLogfile>();
+        Globalreg::FetchMandatoryGlobalAs<kis_database_logfile>();
 
     // We aren't a tracked component so we register our sub elements directly
     ssidscan_enabled =
@@ -151,7 +151,7 @@ Dot11_SsidScan::Dot11_SsidScan() {
 
     eventbus_id =
         eventbus->register_listener("NEW_DATASOURCE",
-                [this](std::shared_ptr<EventbusEvent> evt) { handle_eventbus_evt(evt); });
+                [this](std::shared_ptr<eventbus_event> evt) { handle_eventbus_evt(evt); });
 
 }
 
@@ -162,7 +162,7 @@ Dot11_SsidScan::~Dot11_SsidScan() {
 
 }
 
-void Dot11_SsidScan::handle_eventbus_evt(std::shared_ptr<EventbusEvent> evt) {
+void Dot11_SsidScan::handle_eventbus_evt(std::shared_ptr<eventbus_event> evt) {
     auto source_evt = 
         std::static_pointer_cast<Datasourcetracker::EventNewDatasource>(evt);
 

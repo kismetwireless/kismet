@@ -193,19 +193,19 @@ protected:
     streaming_agent *agent;
 };
 
-class StreamTracker : public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal {
+class StreamTracker : public kis_net_httpd_cppstream_handler, public lifetime_global {
 public:
     static std::string global_name() { return "STREAMTRACKER"; }
 
-    static std::shared_ptr<StreamTracker> create_streamtracker(GlobalRegistry *in_globalreg) {
+    static std::shared_ptr<StreamTracker> create_streamtracker(global_registry *in_globalreg) {
         std::shared_ptr<StreamTracker> mon(new StreamTracker(in_globalreg));
-        in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal(global_name(), mon);
+        in_globalreg->register_lifetime_global(mon);
+        in_globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-    StreamTracker(GlobalRegistry *in_globalreg);
+    StreamTracker(global_registry *in_globalreg);
 
 public:
     virtual ~StreamTracker();
@@ -225,7 +225,7 @@ public:
 protected:
     kis_recursive_timed_mutex mutex;
 
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
 
     std::shared_ptr<tracker_element_double_map> tracked_stream_map;
 

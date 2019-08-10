@@ -18,7 +18,7 @@
 
 #include "streambuf_stream_buffer.h"
 
-Streambuf_Stream_Buffer::Streambuf_Stream_Buffer(GlobalRegistry *in_globalreg,
+Streambuf_Stream_Buffer::Streambuf_Stream_Buffer(global_registry *in_globalreg,
         std::shared_ptr<BufferHandlerGeneric> in_handler,
         bool in_blocking) :
         globalreg(in_globalreg), handler(in_handler), 

@@ -66,7 +66,7 @@ int alertsyslog_chain_hook(CHAINCALL_PARMS) {
 	return 1;
 }
 
-int alertsyslog_openlog(GlobalRegistry *in_globalreg) {
+int alertsyslog_openlog(global_registry *in_globalreg) {
     // We can't use the templated FetchGlobalAs here because the template object code
     // won't exist in the server object
     std::shared_ptr<Packetchain> packetchain =
@@ -98,11 +98,11 @@ extern "C" {
         return 1;
     }
 
-    int kis_plugin_activate(GlobalRegistry *in_globalreg) {
+    int kis_plugin_activate(global_registry *in_globalreg) {
         return 1;
     }
 
-    int kis_plugin_finalize(GlobalRegistry *in_globalreg) {
+    int kis_plugin_finalize(global_registry *in_globalreg) {
         return alertsyslog_openlog(in_globalreg);
     }
 

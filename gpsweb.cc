@@ -25,7 +25,7 @@
 // the stream_handler init
 GPSWeb::GPSWeb(SharedGpsBuilder in_builder) : 
     KisGps(in_builder),
-    Kis_Net_Httpd_CPPStream_Handler() {
+    kis_net_httpd_cppstream_handler() {
 
     last_heading_time = 0;
 }

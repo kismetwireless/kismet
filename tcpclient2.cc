@@ -30,7 +30,7 @@
 #include "messagebus.h"
 #include "pollabletracker.h"
 
-TcpClientV2::TcpClientV2(GlobalRegistry *in_globalreg, 
+TcpClientV2::TcpClientV2(global_registry *in_globalreg, 
         std::shared_ptr<BufferHandlerGeneric> in_rbhandler) :
     globalreg {Globalreg::globalreg},
     handler {in_rbhandler},

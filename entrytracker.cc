@@ -24,8 +24,8 @@
 #include "entrytracker.h"
 #include "messagebus.h"
 
-EntryTracker::EntryTracker(GlobalRegistry *in_globalreg) :
-    Kis_Net_Httpd_CPPStream_Handler() {
+EntryTracker::EntryTracker(global_registry *in_globalreg) :
+    kis_net_httpd_cppstream_handler() {
     globalreg = in_globalreg;
 
     next_field_num = 1;

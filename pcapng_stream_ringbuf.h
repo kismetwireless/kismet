@@ -20,7 +20,7 @@
 #define __PCAP_STREAM_RINGBUF__
 
 /* A streaming pcap generator that writes to the ringbuf contained in a 
- * Kis_Net_Httpd_Ringbuf_Stream_Handler.
+ * kis_net_httpd_ringbuf_stream_handler.
  *
  * Designed to be initiated from a stream handler sub-class to feed
  * pcap data from the packetchain into the ringbuffer.
@@ -51,7 +51,7 @@
  */
 class Pcap_Stream_Ringbuf : public streaming_agent {
 public:
-    Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg, 
+    Pcap_Stream_Ringbuf(global_registry *in_globalreg, 
             std::shared_ptr<BufferHandlerGeneric> in_handler,
             std::function<bool (kis_packet *)> accept_filter,
             std::function<kis_datachunk * (kis_packet *)> data_selector,
@@ -103,7 +103,7 @@ protected:
         return in;
     }
 
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
 
     std::shared_ptr<BufferHandlerGeneric> handler;
 
@@ -128,7 +128,7 @@ protected:
 
 class Pcap_Stream_Packetchain : public Pcap_Stream_Ringbuf {
 public:
-    Pcap_Stream_Packetchain(GlobalRegistry *in_globalreg, 
+    Pcap_Stream_Packetchain(global_registry *in_globalreg, 
             std::shared_ptr<BufferHandlerGeneric> in_handler,
             std::function<bool (kis_packet *)> accept_filter,
             std::function<kis_datachunk * (kis_packet *)> data_selector);

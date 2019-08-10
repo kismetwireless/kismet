@@ -35,7 +35,7 @@
 #include "macaddr.h"
 #include "packet_ieee80211.h"
 
-kis_packet::kis_packet(GlobalRegistry *in_globalreg) {
+kis_packet::kis_packet(global_registry *in_globalreg) {
 	globalreg = in_globalreg;
 
 	error = 0;

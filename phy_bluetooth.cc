@@ -35,17 +35,17 @@
 #include "devicetracker.h"
 #include "alertracker.h"
 
-Kis_Bluetooth_Phy::Kis_Bluetooth_Phy(GlobalRegistry *in_globalreg, int in_phyid) : 
-    Kis_Phy_Handler(in_globalreg, in_phyid) {
+Kis_Bluetooth_Phy::Kis_Bluetooth_Phy(global_registry *in_globalreg, int in_phyid) : 
+    kis_phy_handler(in_globalreg, in_phyid) {
 
     alertracker = 
-        Globalreg::FetchMandatoryGlobalAs<Alertracker>();
+        Globalreg::FetchMandatoryGlobalAs<alert_tracker>();
     packetchain = 
         Globalreg::FetchMandatoryGlobalAs<Packetchain>();
     entrytracker = 
         Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
     devicetracker =
-        Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
+        Globalreg::FetchMandatoryGlobalAs<device_tracker>();
 
     SetPhyName("Bluetooth");
 

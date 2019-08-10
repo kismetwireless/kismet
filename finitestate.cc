@@ -22,10 +22,10 @@
 #include "packetracker.h"
 #include "util.h"
 
-ProbeNoJoinAutomata::ProbeNoJoinAutomata(GlobalRegistry *in_globalreg,
+ProbeNoJoinAutomata::ProbeNoJoinAutomata(global_registry *in_globalreg,
                                          alert_time_unit in_unit, int in_rate, int in_burstrate) {
     globalreg = in_globalreg;
-    alertid = globalreg->alertracker->RegisterAlert("PROBENOJOIN", in_unit, in_rate, in_burstrate);
+    alertid = globalreg->alertracker->register_alert("PROBENOJOIN", in_unit, in_rate, in_burstrate);
 }
 
 ProbeNoJoinAutomata::~ProbeNoJoinAutomata() {
@@ -69,7 +69,7 @@ int ProbeNoJoinAutomata::ProcessPacket(const packet_info *in_info) {
                 char atext[STATUS_MAX];
                 snprintf(atext, STATUS_MAX, "Suspicious client %s - probing networks but never participating.",
                          iter->first.Mac2String().c_str());
-                globalreg->alertracker->RaiseAlert(alertid, 0, iter->first, 0, 0, in_info->channel, atext);
+                globalreg->alertracker->raise_alert(alertid, 0, iter->first, 0, 0, in_info->channel, atext);
             }
 
         }
@@ -98,10 +98,10 @@ int ProbeNoJoinAutomata::ProcessPacket(const packet_info *in_info) {
     return 0;
 }
 
-DisassocTrafficAutomata::DisassocTrafficAutomata(GlobalRegistry *in_globalreg,
+DisassocTrafficAutomata::DisassocTrafficAutomata(global_registry *in_globalreg,
                         alert_time_unit in_unit, int in_rate, int in_burstrate) {
     globalreg = in_globalreg;
-    alertid = globalreg->alertracker->RegisterAlert("DISASSOCTRAFFIC", in_unit, in_rate, in_burstrate);
+    alertid = globalreg->alertracker->register_alert("DISASSOCTRAFFIC", in_unit, in_rate, in_burstrate);
 }
 
 DisassocTrafficAutomata::~DisassocTrafficAutomata() {
@@ -156,7 +156,7 @@ int DisassocTrafficAutomata::ProcessPacket(const packet_info *in_info) {
 
             snprintf(atext, STATUS_MAX, "Suspicious traffic on %s.  Data traffic within 10 seconds of disassociate.",
                      in_info->source_mac.Mac2String().c_str());
-            globalreg->alertracker->RaiseAlert(alertid, in_info->bssid_mac, in_info->source_mac, 
+            globalreg->alertracker->raise_alert(alertid, in_info->bssid_mac, in_info->source_mac, 
                                                0, 0, in_info->channel, atext);
 
             return 1;
@@ -170,10 +170,10 @@ int DisassocTrafficAutomata::ProcessPacket(const packet_info *in_info) {
     return 0;
 }
 
-BssTimestampAutomata::BssTimestampAutomata(GlobalRegistry *in_globalreg,
+BssTimestampAutomata::BssTimestampAutomata(global_registry *in_globalreg,
                         alert_time_unit in_unit, int in_rate, int in_burstrate) {
     globalreg = in_globalreg;
-    alertid = globalreg->alertracker->RegisterAlert("BSSTIMESTAMP", in_unit, in_rate, in_burstrate);
+    alertid = globalreg->alertracker->register_alert("BSSTIMESTAMP", in_unit, in_rate, in_burstrate);
 }
 
 BssTimestampAutomata::~BssTimestampAutomata() {
@@ -210,7 +210,7 @@ int BssTimestampAutomata::ProcessPacket(const packet_info *in_info) {
                      "- got %llx, expected %llx - this could indicate AP spoofing",
                      in_info->bssid_mac.Mac2String().c_str(), in_info->timestamp,
                      elem->bss_timestamp);
-            globalreg->alertracker->RaiseAlert(alertid, in_info->bssid_mac, 0, 0, 0, in_info->channel, atext);
+            globalreg->alertracker->raise_alert(alertid, in_info->bssid_mac, 0, 0, 0, in_info->channel, atext);
 
             // Reset so we don't keep thrashing here
             elem->counter = 0;
@@ -230,10 +230,10 @@ int BssTimestampAutomata::ProcessPacket(const packet_info *in_info) {
     return 0;
 }
 
-WepRebroadcastAutomata::WepRebroadcastAutomata(GlobalRegistry *in_globalreg,
+WepRebroadcastAutomata::WepRebroadcastAutomata(global_registry *in_globalreg,
                                                alert_time_unit in_unit, int in_rate, int in_burstrate) {
     globalreg = in_globalreg;
-    alertid = globalreg->alertracker->RegisterAlert("WEPREBROADCAST", in_unit, in_rate, in_burstrate);
+    alertid = globalreg->alertracker->register_alert("WEPREBROADCAST", in_unit, in_rate, in_burstrate);
 }
 
 WepRebroadcastAutomata::~WepRebroadcastAutomata() {
@@ -244,11 +244,11 @@ int WepRebroadcastAutomata::ProcessPacket(const packet_info *in_info) {
 }
 
 #if 0
-SequenceSpoofAutomata::SequenceSpoofAutomata(Packetracker *in_ptracker, Alertracker *in_atracker,
+SequenceSpoofAutomata::SequenceSpoofAutomata(Packetracker *in_ptracker, alert_tracker *in_atracker,
                                              alert_time_unit in_unit, int in_rate, int in_burstrate) {
     atracker = in_atracker;
     ptracker = in_ptracker;
-    alertid = atracker->RegisterAlert("SEQUENCESPOOF", in_unit, in_rate, in_burstrate);
+    alertid = atracker->register_alert("SEQUENCESPOOF", in_unit, in_rate, in_burstrate);
 }
 
 SequenceSpoofAutomata::~SequenceSpoofAutomata() {
@@ -274,7 +274,7 @@ int SequenceSpoofAutomata::ProcessPacket(const packet_info *in_info) {
             (in_info->sequence_number < net->last_sequence)) {
             snprintf(atext, STATUS_MAX, "Suspicious sequence change - %s %d to %d.  Possible spoof attempt.",
                      net->bssid.Mac2String().c_str(), net->last_sequence, in_info->sequence_number);
-            atracker->RaiseAlert(alertid, atext);
+            atracker->raise_alert(alertid, atext);
         }
 
     }
@@ -290,7 +290,7 @@ int SequenceSpoofAutomata::ProcessPacket(const packet_info *in_info) {
         snprintf(atext, STATUS_MAX, "Suspicious sequence order - %s looks like %s (%d to %d).  Possible FakeAP.",
                  in_info->source_mac.Mac2String().c_str(), seq->source_mac.Mac2String().c_str(),
                  in_info->sequence_number, seq->seq_num);
-        atracker->RaiseAlert(alertid, atext);
+        atracker->raise_alert(alertid, atext);
         fprintf(stderr, "**FORCED** %s\n", atext);
         ret = 1;
     }

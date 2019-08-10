@@ -27,7 +27,7 @@
 #include "alertracker.h"
 
 Kis_Httpd_Websession::Kis_Httpd_Websession() :
-    Kis_Net_Httpd_CPPStream_Handler() {
+    kis_net_httpd_cppstream_handler() {
 
     activated = false;
 
@@ -38,7 +38,7 @@ Kis_Httpd_Websession::Kis_Httpd_Websession() :
 void Kis_Httpd_Websession::Deferred_Startup() {
     local_locker l(&mutex);
 
-    auto alertracker = Globalreg::FetchMandatoryGlobalAs<Alertracker>();
+    auto alertracker = Globalreg::FetchMandatoryGlobalAs<alert_tracker>();
 
     global_config = false;
     user_config = false;
@@ -57,12 +57,12 @@ void Kis_Httpd_Websession::Deferred_Startup() {
     if (conf_username != "" || conf_password != "") {
         int globalref;
 
-        alertracker->DefineAlert("GLOBALHTTPDUSER", sat_second, 1, sat_second, 1);
-        globalref = alertracker->ActivateConfiguredAlert("GLOBALHTTPDUSER", 
+        alertracker->define_alert("GLOBALHTTPDUSER", sat_second, 1, sat_second, 1);
+        globalref = alertracker->activate_configured_alert("GLOBALHTTPDUSER", 
                 fmt::format("Found httpd_username= and httpd_password= in a global Kismet config "
                 "file, such as kismet.conf or kismet_site.conf.  Any login in {} will be "
                 "ignored.", user_httpd_config_file));
-        alertracker->RaiseAlert(globalref, NULL, mac_addr(), mac_addr(),
+        alertracker->raise_alert(globalref, NULL, mac_addr(), mac_addr(),
                 mac_addr(), mac_addr(), "", 
                 fmt::format("Found httpd_username= and httpd_password= in a global Kismet config "
                 "file, such as kismet.conf or kismet_site.conf.  Any login in {} will be "

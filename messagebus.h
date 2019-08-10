@@ -56,7 +56,7 @@ public:
 		exit(1);
     }
 
-    MessageClient(GlobalRegistry *in_globalreg, void *in_aux) {
+    MessageClient(global_registry *in_globalreg, void *in_aux) {
         globalreg = in_globalreg;
 		auxptr = in_aux;
     }
@@ -65,32 +65,32 @@ public:
 
     virtual void ProcessMessage(std::string in_msg, int in_flags) = 0;
 protected:
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
 	void *auxptr;
 };
 
 class StdoutMessageClient : public MessageClient {
 public:
-    StdoutMessageClient(GlobalRegistry *in_globalreg, void *in_aux) :
+    StdoutMessageClient(global_registry *in_globalreg, void *in_aux) :
         MessageClient(in_globalreg, in_aux) { }
 	virtual ~StdoutMessageClient() { }
     void ProcessMessage(std::string in_msg, int in_flags);
 };
 
-class MessageBus : public LifetimeGlobal {
+class MessageBus : public lifetime_global {
 public:
     static std::string global_name() { return "MESSAGEBUS"; }
 
-    static std::shared_ptr<MessageBus> create_messagebus(GlobalRegistry *in_globalreg) {
+    static std::shared_ptr<MessageBus> create_messagebus(global_registry *in_globalreg) {
         std::shared_ptr<MessageBus> mon(new MessageBus(in_globalreg));
         in_globalreg->messagebus = mon.get();
-        in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal(global_name(), mon);
+        in_globalreg->register_lifetime_global(mon);
+        in_globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-    MessageBus(GlobalRegistry *in_globalreg);
+    MessageBus(global_registry *in_globalreg);
 
 public:
     virtual ~MessageBus();
@@ -103,7 +103,7 @@ public:
     void RemoveClient(MessageClient *in_unsubscriber);
 
 protected:
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
 
     kis_recursive_timed_mutex handler_mutex;
 

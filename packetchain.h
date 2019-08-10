@@ -80,21 +80,21 @@
 #define CHAINPOS_TRACKER		7
 #define CHAINPOS_LOGGING        8
 
-#define CHAINCALL_PARMS GlobalRegistry *globalreg __attribute__ ((unused)), \
+#define CHAINCALL_PARMS global_registry *globalreg __attribute__ ((unused)), \
     void *auxdata __attribute__ ((unused)), \
     kis_packet *in_pack
 
 class kis_packet;
 
-class Packetchain : public LifetimeGlobal {
+class Packetchain : public lifetime_global {
 public:
     static std::string global_name() { return "PACKETCHAIN"; }
 
     static std::shared_ptr<Packetchain> create_packetchain() {
         std::shared_ptr<Packetchain> mon(new Packetchain());
         Globalreg::globalreg->packetchain = mon.get();
-        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-        Globalreg::globalreg->InsertGlobal(global_name(), mon);
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 

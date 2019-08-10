@@ -328,14 +328,14 @@ protected:
 #define KIS_SESSION_COOKIE      "KISMET"
 #define KIS_HTTPD_POSTBUFFERSZ  (1024 * 32)
 
-class Kis_Net_Httpd : public LifetimeGlobal {
+class Kis_Net_Httpd : public lifetime_global {
 public:
     static std::string global_name() { return "HTTPD_SERVER"; }
 
     static std::shared_ptr<Kis_Net_Httpd> create_httpd() {
         std::shared_ptr<Kis_Net_Httpd> mon(new Kis_Net_Httpd());
-        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-        Globalreg::globalreg->InsertGlobal(global_name(), mon);
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 

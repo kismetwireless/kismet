@@ -41,7 +41,7 @@ class HeaderValueConfig;
 class ConfigFile {
 public:
     ConfigFile();
-	ConfigFile(GlobalRegistry *in_globalreg);
+	ConfigFile(global_registry *in_globalreg);
     ~ConfigFile();
 
     int ParseConfig(const char *in_fname);

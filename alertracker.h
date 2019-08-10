@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -308,7 +308,7 @@ protected:
 
 typedef std::shared_ptr<tracked_alert_definition> shared_alert_def;
 
-class Alertracker : public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal {
+class alert_tracker : public kis_net_httpd_cppstream_handler, public lifetime_global {
 public:
 	// Simple struct from reading config lines
 	struct alert_conf_rec {
@@ -321,49 +321,49 @@ public:
 
     static std::string global_name() { return "ALERTTRACKER"; }
 
-    static std::shared_ptr<Alertracker> create_alertracker() {
-        std::shared_ptr<Alertracker> mon(new Alertracker());
+    static std::shared_ptr<alert_tracker> create_alertracker() {
+        std::shared_ptr<alert_tracker> mon(new alert_tracker());
         Globalreg::globalreg->alertracker = mon.get();
-        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-        Globalreg::globalreg->InsertGlobal(global_name(), mon);
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-    Alertracker();
+    alert_tracker();
 
     // Raise an Prelude alert (requires prelude support compiled in)
-    int RaisePreludeAlert(int in_ref, kis_packet *in_pack, mac_addr bssid, mac_addr source,
+    int raise_prelude_alert(int in_ref, kis_packet *in_pack, mac_addr bssid, mac_addr source,
             mac_addr dest, mac_addr other, std::string in_channel, std::string in_text);
-    int RaisePreludeOneShot(std::string in_header, std::string in_text);
+    int raise_prelude_one_shot(std::string in_header, std::string in_text);
 
     // Initialize Prelude Client (requires prelude support compiled in)
     void PreludeInitClient(const char *analyzer_name);
 
 public:
-    virtual ~Alertracker();
+    virtual ~alert_tracker();
 
     // Register an alert and get an alert reference number back.
-    int RegisterAlert(std::string in_header, std::string in_desc, 
+    int register_alert(std::string in_header, std::string in_desc, 
             alert_time_unit in_unit, int in_rate, alert_time_unit in_burstunit, 
             int in_burst, int in_phy);
 
     // Find a reference from a name
-    int FetchAlertRef(std::string in_header);
+    int fetch_alert_ref(std::string in_header);
 
     // Will an alert succeed?
     int PotentialAlert(int in_ref);
 
     // Raise an alert ...
-    int RaiseAlert(int in_ref, kis_packet *in_pack,
+    int raise_alert(int in_ref, kis_packet *in_pack,
                    mac_addr bssid, mac_addr source, mac_addr dest, mac_addr other,
                    std::string in_channel, std::string in_text);
 
     // Raise a one-shot communications alert
-    int RaiseOneShot(std::string in_header, std::string in_text, int in_phy);
+    int raise_one_shot(std::string in_header, std::string in_text, int in_phy);
 
     // parse an alert config string
-	int ParseAlertStr(std::string alert_str, std::string *ret_name, 
+	int parse_alert_str(std::string alert_str, std::string *ret_name, 
 					  alert_time_unit *ret_limit_unit, int *ret_limit_rate,
 					  alert_time_unit *ret_limit_burst, int *ret_burst_rate);
 
@@ -371,15 +371,15 @@ public:
 	int ParseAlertConfig(ConfigFile *in_conf);
 
     // Define an alert and limits
-    int DefineAlert(std::string name, alert_time_unit limit_unit, int limit_rate,
+    int define_alert(std::string name, alert_time_unit limit_unit, int limit_rate,
             alert_time_unit limit_burst, int burst_rate);
 
 	// Activate a preconfigured alert from a file
-	int ActivateConfiguredAlert(std::string in_header, std::string in_desc);
-	int ActivateConfiguredAlert(std::string in_header, std::string in_desc, int in_phy);
+	int activate_configured_alert(std::string in_header, std::string in_desc);
+	int activate_configured_alert(std::string in_header, std::string in_desc, int in_phy);
 
     // Find an activated alert
-    int FindActivatedAlert(std::string in_header);
+    int find_activated_alert(std::string in_header);
 
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
 
@@ -399,10 +399,10 @@ protected:
     int alert_vec_id, alert_entry_id, alert_timestamp_id, alert_def_id;
 
     // Check and age times
-    int CheckTimes(shared_alert_def arec);
+    int check_times(shared_alert_def arec);
 
 	// Parse a foo/bar rate/unit option
-	int ParseRateUnit(std::string in_ru, alert_time_unit *ret_unit, int *ret_rate);
+	int parse_rate_unit(std::string in_ru, alert_time_unit *ret_unit, int *ret_rate);
 
     int pack_comp_alert;
     int alert_ref_kismet;

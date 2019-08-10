@@ -32,7 +32,7 @@ void StdoutMessageClient::ProcessMessage(std::string in_msg, int in_flags) {
     return;
 }
 
-MessageBus::MessageBus(GlobalRegistry *in_globalreg) {
+MessageBus::MessageBus(global_registry *in_globalreg) {
     globalreg = in_globalreg;
 
     shutdown = false;

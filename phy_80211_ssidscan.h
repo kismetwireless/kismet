@@ -27,14 +27,14 @@
 #include "trackedelement.h"
 #include "trackedcomponent.h"
 
-class Phy_80211_SsidScan : public LifetimeGlobal {
+class Phy_80211_SsidScan : public lifetime_global {
 public:
     static std::string global_name() { return "DOT11_SSIDSCAN"; }
 
     static std::shared_ptr<Phy_80211_SsidScan> create_ssidscan() {
         std::shared_ptr<Phy_80211_SsidScan> shared(new Phy_80211_SsidScan());
-        Globalreg::globalreg->RegisterLifetimeGlobal(shared);
-        Globalreg::globalreg->InsertGlobal(global_name(), shared);
+        Globalreg::globalreg->register_lifetime_global(shared);
+        Globalreg::globalreg->insert_global(global_name(), shared);
         return shared;
     }
 

@@ -45,9 +45,9 @@ void PluginRegistrationData::activate_external_http() {
     }
 }
 
-Plugintracker::Plugintracker(GlobalRegistry *in_globalreg) :
-    LifetimeGlobal(),
-    Kis_Net_Httpd_CPPStream_Handler() {
+Plugintracker::Plugintracker(global_registry *in_globalreg) :
+    lifetime_global(),
+    kis_net_httpd_cppstream_handler() {
     globalreg = in_globalreg;
 
     plugin_registry_vec = std::make_shared<tracker_element_vector>();

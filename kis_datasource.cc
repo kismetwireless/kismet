@@ -1594,9 +1594,9 @@ void KisDatasource::handle_source_error() {
                 "Remote sources are not locally reconnected; waiting for the remote source "
                 "to reconnect to resume capture.";
 
-            std::shared_ptr<Alertracker> alertracker =
-                Globalreg::FetchMandatoryGlobalAs<Alertracker>("ALERTTRACKER");
-            alertracker->RaiseOneShot("SOURCEERROR", ss.str(), -1);
+            std::shared_ptr<alert_tracker> alertracker =
+                Globalreg::FetchMandatoryGlobalAs<alert_tracker>("ALERTTRACKER");
+            alertracker->raise_one_shot("SOURCEERROR", ss.str(), -1);
 
             _MSG(ss.str(), MSGFLAG_ERROR);
         }
@@ -1616,9 +1616,9 @@ void KisDatasource::handle_source_error() {
                 "is not configured to automatically re-try opening; it will remain "
                 "closed.";
 
-            std::shared_ptr<Alertracker> alertracker =
-                Globalreg::FetchMandatoryGlobalAs<Alertracker>("ALERTTRACKER");
-            alertracker->RaiseOneShot("SOURCEERROR", ss.str(), -1);
+            std::shared_ptr<alert_tracker> alertracker =
+                Globalreg::FetchMandatoryGlobalAs<alert_tracker>("ALERTTRACKER");
+            alertracker->raise_one_shot("SOURCEERROR", ss.str(), -1);
 
             _MSG(ss.str(), MSGFLAG_ERROR);
         }
@@ -1654,9 +1654,9 @@ void KisDatasource::handle_source_error() {
             "Kismet will attempt to re-open the source in 5 seconds.  (" <<
             get_source_retry_attempts() << " failures)";
 
-        std::shared_ptr<Alertracker> alertracker =
-            Globalreg::FetchMandatoryGlobalAs<Alertracker>("ALERTTRACKER");
-        alertracker->RaiseOneShot("SOURCEERROR", ss.str(), -1);
+        std::shared_ptr<alert_tracker> alertracker =
+            Globalreg::FetchMandatoryGlobalAs<alert_tracker>("ALERTTRACKER");
+        alertracker->raise_one_shot("SOURCEERROR", ss.str(), -1);
 
         _MSG(ss.str(), MSGFLAG_ERROR);
 
@@ -1680,9 +1680,9 @@ void KisDatasource::handle_source_error() {
                             ss << "Source " << get_source_name() << " successfully "
                                 "re-opened";
 
-                            std::shared_ptr<Alertracker> alertracker =
-                                Globalreg::FetchMandatoryGlobalAs<Alertracker>("ALERTTRACKER");
-                            alertracker->RaiseOneShot("SOURCEOPEN", ss.str(), -1);
+                            std::shared_ptr<alert_tracker> alertracker =
+                                Globalreg::FetchMandatoryGlobalAs<alert_tracker>("ALERTTRACKER");
+                            alertracker->raise_one_shot("SOURCEOPEN", ss.str(), -1);
 
                             if (get_source_hopping()) {
                                 // Reset the channel hop if we're hopping

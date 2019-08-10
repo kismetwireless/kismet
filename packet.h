@@ -83,7 +83,7 @@ public:
 		fprintf(stderr, "FATAL: kis_packet()\n"); exit(1);
 	}
 
-	kis_packet(GlobalRegistry *in_globalreg);
+	kis_packet(global_registry *in_globalreg);
     ~kis_packet();
    
     void insert(const unsigned int index, packet_component *data);
@@ -104,7 +104,7 @@ public:
     std::vector<std::string> tag_vec;
 
 protected:
-	GlobalRegistry *globalreg;
+	global_registry *globalreg;
 };
 
 

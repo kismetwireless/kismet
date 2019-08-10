@@ -89,16 +89,16 @@ protected:
     }
 };
 
-class Kis_Mousejack_Phy : public Kis_Phy_Handler {
+class Kis_Mousejack_Phy : public kis_phy_handler {
 public:
-    Kis_Mousejack_Phy(GlobalRegistry *in_globalreg) :
-        Kis_Phy_Handler(in_globalreg) { }
+    Kis_Mousejack_Phy(global_registry *in_globalreg) :
+        kis_phy_handler(in_globalreg) { }
 
-    Kis_Mousejack_Phy(GlobalRegistry *in_globalreg, int in_phyid);
+    Kis_Mousejack_Phy(global_registry *in_globalreg, int in_phyid);
 
     virtual ~Kis_Mousejack_Phy();
 
-    virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg, int in_phyid) {
+    virtual kis_phy_handler *CreatePhyHandler(global_registry *in_globalreg, int in_phyid) {
         return new Kis_Mousejack_Phy(in_globalreg, in_phyid);
     }
 
@@ -112,7 +112,7 @@ public:
 protected:
     std::shared_ptr<Packetchain> packetchain;
     std::shared_ptr<EntryTracker> entrytracker;
-    std::shared_ptr<Devicetracker> devicetracker;
+    std::shared_ptr<device_tracker> devicetracker;
 
     int mousejack_device_entry_id;
     int dev_comp_common;

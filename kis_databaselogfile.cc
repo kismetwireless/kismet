@@ -31,11 +31,11 @@
 #include "structured.h"
 #include "sqlite3_cpp11.h"
 
-KisDatabaseLogfile::KisDatabaseLogfile():
+kis_database_logfile::kis_database_logfile():
     KisLogfile(SharedLogBuilder(NULL)), 
-    KisDatabase(Globalreg::globalreg, "kismetlog"),
-    LifetimeGlobal(),
-    Kis_Net_Httpd_Ringbuf_Stream_Handler(),
+    kis_database(Globalreg::globalreg, "kismetlog"),
+    lifetime_global(),
+    kis_net_httpd_ringbuf_stream_handler(),
     MessageClient(Globalreg::globalreg, nullptr) {
 
     std::shared_ptr<Packetchain> packetchain =
@@ -73,14 +73,14 @@ KisDatabaseLogfile::KisDatabaseLogfile():
     snapshot_pz = NULL;
 
     devicetracker =
-        Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
+        Globalreg::FetchMandatoryGlobalAs<device_tracker>();
 
     db_enabled = false;
 
     Bind_Httpd_Server();
 }
 
-KisDatabaseLogfile::~KisDatabaseLogfile() {
+kis_database_logfile::~kis_database_logfile() {
     auto messagebus = Globalreg::FetchGlobalAs<MessageBus>();
     if (messagebus != nullptr)
         messagebus->RemoveClient(this);
@@ -88,16 +88,16 @@ KisDatabaseLogfile::~KisDatabaseLogfile() {
     Log_Close();
 }
 
-void KisDatabaseLogfile::Deferred_Startup() {
+void kis_database_logfile::Deferred_Startup() {
     gpstracker = 
         Globalreg::FetchMandatoryGlobalAs<GpsTracker>();
 }
 
-void KisDatabaseLogfile::Deferred_Shutdown() {
+void kis_database_logfile::Deferred_Shutdown() {
 
 }
 
-bool KisDatabaseLogfile::Log_Open(std::string in_path) {
+bool kis_database_logfile::Log_Open(std::string in_path) {
     local_locker dbl(&ds_mutex);
 
     auto timetracker = 
@@ -136,7 +136,7 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
         std::shared_ptr<Packetchain> packetchain =
             Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
 
-        packetchain->RegisterHandler(&KisDatabaseLogfile::packet_handler, this, 
+        packetchain->RegisterHandler(&kis_database_logfile::packet_handler, this, 
                 CHAINPOS_LOGGING, -100);
     } else {
         _MSG_INFO("Packets will not be saved to the Kismet database log.");
@@ -400,7 +400,7 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
     return true;
 }
 
-void KisDatabaseLogfile::Log_Close() {
+void kis_database_logfile::Log_Close() {
     local_locker dblock(&ds_mutex);
 
     set_int_log_open(false);
@@ -427,7 +427,7 @@ void KisDatabaseLogfile::Log_Close() {
     auto packetchain =
         Globalreg::FetchGlobalAs<Packetchain>();
     if (packetchain != NULL) 
-        packetchain->RemoveHandler(&KisDatabaseLogfile::packet_handler, CHAINPOS_LOGGING);
+        packetchain->RemoveHandler(&kis_database_logfile::packet_handler, CHAINPOS_LOGGING);
 
     {
         if (device_stmt != NULL)
@@ -478,7 +478,7 @@ void KisDatabaseLogfile::Log_Close() {
     Database_Close();
 }
 
-int KisDatabaseLogfile::Database_UpgradeDB() {
+int kis_database_logfile::Database_UpgradeDB() {
     local_locker dblock(&ds_mutex);
 
     std::string sql;
@@ -720,7 +720,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &device_stmt, &device_pz);
 
     if (r != SQLITE_OK) {
-        _MSG("KisDatabaseLogfile unable to prepare database insert for devices in " +
+        _MSG("kis_database_logfile unable to prepare database insert for devices in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         Log_Close();
         return -1;
@@ -740,7 +740,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &packet_stmt, &packet_pz);
 
     if (r != SQLITE_OK) {
-        _MSG("KisDatabaseLogfile unable to prepare database insert for packets in " +
+        _MSG("kis_database_logfile unable to prepare database insert for packets in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         Log_Close();
         return -1;
@@ -758,7 +758,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &data_stmt, &data_pz);
 
     if (r != SQLITE_OK) {
-        _MSG("KisDatabaseLogfile unable to prepare database insert for data in " +
+        _MSG("kis_database_logfile unable to prepare database insert for data in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         Log_Close();
         return -1;
@@ -775,7 +775,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &datasource_stmt, &datasource_pz);
 
     if (r != SQLITE_OK) {
-        _MSG("KisDatabaseLogfile unable to prepare database insert for datasources in " +
+        _MSG("kis_database_logfile unable to prepare database insert for datasources in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         Log_Close();
         return -1;
@@ -792,7 +792,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &alert_stmt, &alert_pz);
 
     if (r != SQLITE_OK) {
-        _MSG("KisDatabaseLogfile unable to prepare database insert for alerts in " +
+        _MSG("kis_database_logfile unable to prepare database insert for alerts in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         Log_Close();
         return -1;
@@ -808,7 +808,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &msg_stmt, &msg_pz);
 
     if (r != SQLITE_OK) {
-        _MSG("KisDatabaseLogfile unable to prepare database insert for messages in " +
+        _MSG("kis_database_logfile unable to prepare database insert for messages in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         Log_Close();
         return -1;
@@ -824,7 +824,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &snapshot_stmt, &snapshot_pz);
 
     if (r != SQLITE_OK) {
-        _MSG("KisDatabaseLogfile unable to prepare database insert for snapshots in " +
+        _MSG("kis_database_logfile unable to prepare database insert for snapshots in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         Log_Close();
         return -1;
@@ -833,7 +833,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     return 1;
 }
 
-void KisDatabaseLogfile::ProcessMessage(std::string in_msg, int in_flags) {
+void kis_database_logfile::ProcessMessage(std::string in_msg, int in_flags) {
     if (!db_enabled)
         return;
 
@@ -879,7 +879,7 @@ void KisDatabaseLogfile::ProcessMessage(std::string in_msg, int in_flags) {
     }
 }
 
-int KisDatabaseLogfile::log_device(std::shared_ptr<kis_tracked_device_base> d) {
+int kis_database_logfile::log_device(std::shared_ptr<kis_tracked_device_base> d) {
     // We avoid using external mutexes here and try to let sqlite3 handle its own
     // internal locking state; we don't want a huge device list write to block packet
     // writes for instance
@@ -958,7 +958,7 @@ int KisDatabaseLogfile::log_device(std::shared_ptr<kis_tracked_device_base> d) {
                 streamstring.length(), SQLITE_TRANSIENT);
 
         if (sqlite3_step(device_stmt) != SQLITE_DONE) {
-            _MSG("KisDatabaseLogfile unable to insert device in " +
+            _MSG("kis_database_logfile unable to insert device in " +
                     ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
             Log_Close();
             return -1;
@@ -968,7 +968,7 @@ int KisDatabaseLogfile::log_device(std::shared_ptr<kis_tracked_device_base> d) {
     return 1;
 }
 
-int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
+int kis_database_logfile::log_packet(kis_packet *in_pack) {
     if (!db_enabled) {
         return 0;
     }
@@ -1003,7 +1003,7 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
     packet_metablob *metablob =
         (packet_metablob *) in_pack->fetch(pack_comp_metablob);
 
-    Kis_Phy_Handler *phyh = NULL;
+    kis_phy_handler *phyh = NULL;
 
     // Packets are no longer a 1:1 with a device
     keystring = "0";
@@ -1093,7 +1093,7 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
         sqlite3_bind_text(packet_stmt, sql_pos++, tagstream.str().c_str(), tagstream.str().length(), SQLITE_TRANSIENT);
 
         if (sqlite3_step(packet_stmt) != SQLITE_DONE) {
-            _MSG("KisDatabaseLogfile unable to insert packet in " +
+            _MSG("kis_database_logfile unable to insert packet in " +
                     ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
             Log_Close();
             return -1;
@@ -1119,7 +1119,7 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
     return 1;
 }
 
-int KisDatabaseLogfile::log_data(kis_gps_packinfo *gps, struct timeval tv, 
+int kis_database_logfile::log_data(kis_gps_packinfo *gps, struct timeval tv, 
         std::string phystring, mac_addr devmac, uuid datasource_uuid, 
         std::string type, std::string json) {
 
@@ -1161,7 +1161,7 @@ int KisDatabaseLogfile::log_data(kis_gps_packinfo *gps, struct timeval tv,
         sqlite3_bind_text(data_stmt, sql_pos++, json.data(), json.length(), SQLITE_TRANSIENT);
 
         if (sqlite3_step(data_stmt) != SQLITE_DONE) {
-            _MSG("KisDatabaseLogfile unable to insert data in " +
+            _MSG("kis_database_logfile unable to insert data in " +
                     ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
             Log_Close();
             return -1;
@@ -1171,7 +1171,7 @@ int KisDatabaseLogfile::log_data(kis_gps_packinfo *gps, struct timeval tv,
     return 1;
 }
 
-int KisDatabaseLogfile::log_datasources(shared_tracker_element in_datasource_vec) {
+int kis_database_logfile::log_datasources(shared_tracker_element in_datasource_vec) {
     int r;
 
     if (!db_enabled)
@@ -1187,7 +1187,7 @@ int KisDatabaseLogfile::log_datasources(shared_tracker_element in_datasource_vec
     return 1;
 }
 
-int KisDatabaseLogfile::log_datasource(shared_tracker_element in_datasource) {
+int kis_database_logfile::log_datasource(shared_tracker_element in_datasource) {
 
     if (!db_enabled)
         return 0;
@@ -1220,7 +1220,7 @@ int KisDatabaseLogfile::log_datasource(shared_tracker_element in_datasource) {
         sqlite3_bind_blob(datasource_stmt, 6, jsonstring.data(), jsonstring.length(), SQLITE_TRANSIENT);
 
         if (sqlite3_step(datasource_stmt) != SQLITE_DONE) {
-            _MSG("KisDatabaseLogfile unable to insert datasource in " +
+            _MSG("kis_database_logfile unable to insert datasource in " +
                     ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
             Log_Close();
             return -1;
@@ -1230,7 +1230,7 @@ int KisDatabaseLogfile::log_datasource(shared_tracker_element in_datasource) {
     return 1;
 }
 
-int KisDatabaseLogfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
+int kis_database_logfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
     if (!db_enabled)
         return 0;
 
@@ -1270,7 +1270,7 @@ int KisDatabaseLogfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
         sqlite3_bind_blob(alert_stmt, 8, jsonstring.data(), jsonstring.length(), SQLITE_TRANSIENT);
 
         if (sqlite3_step(alert_stmt) != SQLITE_DONE) {
-            _MSG("KisDatabaseLogfile unable to insert alert in " +
+            _MSG("kis_database_logfile unable to insert alert in " +
                     ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
             Log_Close();
             return -1;
@@ -1280,7 +1280,7 @@ int KisDatabaseLogfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
     return 1;
 }
 
-int KisDatabaseLogfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
+int kis_database_logfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
         std::string snaptype, std::string json) {
 
     if (!db_enabled)
@@ -1316,7 +1316,7 @@ int KisDatabaseLogfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
     sqlite3_bind_text(snapshot_stmt, 6, json.data(), json.length(), SQLITE_TRANSIENT);
 
     if (sqlite3_step(snapshot_stmt) != SQLITE_DONE) {
-        _MSG("KisDatabaseLogfile unable to insert snapshot in " +
+        _MSG("kis_database_logfile unable to insert snapshot in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         Log_Close();
         return -1;
@@ -1325,18 +1325,18 @@ int KisDatabaseLogfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
     return 1;
 }
 
-int KisDatabaseLogfile::packet_handler(CHAINCALL_PARMS) {
+int kis_database_logfile::packet_handler(CHAINCALL_PARMS) {
     // Extremely basic shim to our built-in logging
-    KisDatabaseLogfile *logfile = (KisDatabaseLogfile *) auxdata;
+    kis_database_logfile *logfile = (kis_database_logfile *) auxdata;
 
     return logfile->log_packet(in_pack);
 }
 
-void KisDatabaseLogfile::Usage(const char *argv0) {
+void kis_database_logfile::Usage(const char *argv0) {
 
 }
 
-bool KisDatabaseLogfile::Httpd_VerifyPath(const char *path, const char *method) {
+bool kis_database_logfile::Httpd_VerifyPath(const char *path, const char *method) {
     std::string stripped = Httpd_StripSuffix(path);
     std::string suffix = Httpd_GetSuffix(path);
 
@@ -1346,7 +1346,7 @@ bool KisDatabaseLogfile::Httpd_VerifyPath(const char *path, const char *method) 
     return false;
 }
 
-int KisDatabaseLogfile::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+int kis_database_logfile::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             Kis_Net_Httpd_Connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) {
@@ -1506,7 +1506,7 @@ int KisDatabaseLogfile::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     return MHD_YES;
 }
 
-int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+int kis_database_logfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     std::string stripped = Httpd_StripSuffix(concls->url);
     std::string suffix = Httpd_GetSuffix(concls->url);
 
@@ -1720,7 +1720,7 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     return MHD_YES;
 }
 
-unsigned int KisDatabaseLogfile::packet_drop_endpoint_handler(std::ostream& ostream,
+unsigned int kis_database_logfile::packet_drop_endpoint_handler(std::ostream& ostream,
         const std::string& uri,
         SharedStructured structured, Kis_Net_Httpd_Connection::variable_cache_map& postvars) {
 
@@ -1754,7 +1754,7 @@ unsigned int KisDatabaseLogfile::packet_drop_endpoint_handler(std::ostream& ostr
     return 200;
 }
 
-unsigned int KisDatabaseLogfile::make_poi_endp_handler(std::ostream& ostream, 
+unsigned int kis_database_logfile::make_poi_endp_handler(std::ostream& ostream, 
         const std::string& uri, SharedStructured structured,
         Kis_Net_Httpd_Connection::variable_cache_map& postvars) {
 
@@ -1786,11 +1786,11 @@ unsigned int KisDatabaseLogfile::make_poi_endp_handler(std::ostream& ostream,
     return 200;
 }
 
-std::shared_ptr<tracker_element> KisDatabaseLogfile::list_poi_endp_handler() {
+std::shared_ptr<tracker_element> kis_database_logfile::list_poi_endp_handler() {
     return std::make_shared<tracker_element_vector>();
 }
 
-Pcap_Stream_Database::Pcap_Stream_Database(GlobalRegistry *in_globalreg,
+Pcap_Stream_Database::Pcap_Stream_Database(global_registry *in_globalreg,
         std::shared_ptr<BufferHandlerGeneric> in_handler) :
         Pcap_Stream_Ringbuf(Globalreg::globalreg, in_handler, nullptr, nullptr, true),
         next_pcap_intf_id {0} {

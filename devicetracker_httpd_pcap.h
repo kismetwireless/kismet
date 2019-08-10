@@ -26,11 +26,11 @@
 /* This implements a devicetracker-wide pcapng stream, with optional
  * filtering per specific device key */
 
-class Devicetracker_Httpd_Pcap : public Kis_Net_Httpd_Ringbuf_Stream_Handler {
+class Devicetracker_Httpd_Pcap : public kis_net_httpd_ringbuf_stream_handler {
 public:
-    Devicetracker_Httpd_Pcap() : Kis_Net_Httpd_Ringbuf_Stream_Handler() {
+    Devicetracker_Httpd_Pcap() : kis_net_httpd_ringbuf_stream_handler() {
         devicetracker = 
-            Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
+            Globalreg::FetchMandatoryGlobalAs<device_tracker>();
 
         Bind_Httpd_Server();
     }
@@ -54,7 +54,7 @@ public:
     }
 
 protected:
-    std::shared_ptr<Devicetracker> devicetracker;
+    std::shared_ptr<device_tracker> devicetracker;
     
 };
 

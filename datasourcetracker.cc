@@ -297,7 +297,7 @@ void DST_DatasourceList::list_sources(std::function<void (std::vector<SharedInte
 
 
 Datasourcetracker::Datasourcetracker() :
-    Kis_Net_Httpd_CPPStream_Handler(),
+    kis_net_httpd_cppstream_handler(),
     TcpServerV2(Globalreg::globalreg) {
 
     timetracker = Globalreg::FetchMandatoryGlobalAs<Timetracker>();
@@ -387,8 +387,8 @@ void Datasourcetracker::databaselog_write_datasources() {
     if (!database_log_enabled)
         return;
 
-    std::shared_ptr<KisDatabaseLogfile> dbf =
-        Globalreg::FetchGlobalAs<KisDatabaseLogfile>("DATABASELOG");
+    std::shared_ptr<kis_database_logfile> dbf =
+        Globalreg::FetchGlobalAs<kis_database_logfile>("DATABASELOG");
     
     if (dbf == NULL)
         return;
@@ -540,10 +540,10 @@ void Datasourcetracker::Deferred_Startup() {
 
 
     // Create an alert for source errors
-    auto alertracker = Globalreg::FetchMandatoryGlobalAs<Alertracker>("ALERTTRACKER");
+    auto alertracker = Globalreg::FetchMandatoryGlobalAs<alert_tracker>("ALERTTRACKER");
 
-    alertracker->DefineAlert("SOURCEERROR", sat_second, 1, sat_second, 10);
-    alertracker->ActivateConfiguredAlert("SOURCEERROR",
+    alertracker->define_alert("SOURCEERROR", sat_second, 1, sat_second, 10);
+    alertracker->activate_configured_alert("SOURCEERROR",
             "A data source encountered an error.  Depending on the source configuration "
             "Kismet may automatically attempt to re-open the source.");
 
@@ -958,8 +958,8 @@ void Datasourcetracker::merge_source(SharedDatasource in_source) {
     calculate_source_hopping(in_source);
 
     if (database_log_enabled) {
-        std::shared_ptr<KisDatabaseLogfile> dbf =
-            Globalreg::FetchGlobalAs<KisDatabaseLogfile>("DATABASELOG");
+        std::shared_ptr<kis_database_logfile> dbf =
+            Globalreg::FetchGlobalAs<kis_database_logfile>("DATABASELOG");
 
         if (dbf != NULL) {
             dbf->log_datasource(in_source);

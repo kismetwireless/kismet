@@ -125,7 +125,7 @@ int glob_silent = 0;
 // Smart standard out client that understands the silence options
 class SmartStdoutMessageClient : public MessageClient {
 public:
-    SmartStdoutMessageClient(GlobalRegistry *in_globalreg, void *in_aux) :
+    SmartStdoutMessageClient(global_registry *in_globalreg, void *in_aux) :
         MessageClient(in_globalreg, in_aux) { }
     virtual ~SmartStdoutMessageClient() { }
     void ProcessMessage(std::string in_msg, int in_flags);
@@ -176,7 +176,7 @@ void SmartStdoutMessageClient::ProcessMessage(std::string in_msg, int in_flags) 
 // Queue of fatal alert conditions to spew back out at the end
 class FatalQueueMessageClient : public MessageClient {
 public:
-    FatalQueueMessageClient(GlobalRegistry *in_globalreg, void *in_aux) :
+    FatalQueueMessageClient(global_registry *in_globalreg, void *in_aux) :
         MessageClient(in_globalreg, in_aux) { }
     virtual ~FatalQueueMessageClient() { }
     void ProcessMessage(std::string in_msg, int in_flags);
@@ -220,7 +220,7 @@ char *configfile = NULL;
 int packnum = 0, localdropnum = 0;
 
 // Ultimate registry of global components
-GlobalRegistry *globalregistry = NULL;
+global_registry *globalregistry = NULL;
 
 void SpindownKismet(std::shared_ptr<PollableTracker> pollabletracker) {
     // Shut down the webserver first
@@ -229,7 +229,7 @@ void SpindownKismet(std::shared_ptr<PollableTracker> pollabletracker) {
         httpd->StopHttpd();
 
     auto devicetracker =
-        Globalreg::FetchGlobalAs<Devicetracker>("DEVICETRACKER");
+        Globalreg::FetchGlobalAs<device_tracker>("DEVICETRACKER");
     if (devicetracker != NULL) {
         devicetracker->store_all_devices();
         devicetracker->databaselog_write_devices();
@@ -276,7 +276,7 @@ void SpindownKismet(std::shared_ptr<PollableTracker> pollabletracker) {
         fprintf(stderr, "Kismet exiting.\n");
     }
 
-    globalregistry->DeleteLifetimeGlobals();
+    globalregistry->Deletelifetime_globals();
 
     globalregistry->complete = true;
 
@@ -319,7 +319,7 @@ int Usage(char *argv) {
 
     LogTracker::Usage(argv);
 
-    for (std::vector<GlobalRegistry::usage_func>::iterator i = 
+    for (std::vector<global_registry::usage_func>::iterator i = 
             globalregistry->usage_func_vec.begin();
             i != globalregistry->usage_func_vec.end(); ++i) {
         (*i)(argv);
@@ -366,7 +366,7 @@ void TerminationHandler() {
 }
 
 // Load a UUID
-void Load_Kismet_UUID(GlobalRegistry *globalreg) {
+void Load_Kismet_UUID(global_registry *globalreg) {
     // Look for a global override
     uuid confuuid(globalreg->kismet_config->FetchOpt("server_uuid"));
 
@@ -465,7 +465,7 @@ int main(int argc, char *argv[], char *envp[]) {
     std::string configfilename;
     ConfigFile *conf;
     int option_idx = 0;
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
 
     bool debug_mode = false;
 
@@ -522,7 +522,7 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     // Build the globalregistry
-    Globalreg::globalreg = new GlobalRegistry;
+    Globalreg::globalreg = new global_registry;
     globalregistry = Globalreg::globalreg;
     globalreg = globalregistry;
 
@@ -562,7 +562,7 @@ int main(int argc, char *argv[], char *envp[]) {
     globalregistry->envp = envp;
 
     // Set up usage functions
-    globalregistry->RegisterUsageFunc(Devicetracker::usage);
+    globalregistry->RegisterUsageFunc(device_tracker::usage);
 
     const int nlwc = globalregistry->getopt_long_num++;
     const int dwc = globalregistry->getopt_long_num++;
@@ -834,14 +834,14 @@ int main(int argc, char *argv[], char *envp[]) {
         SpindownKismet(pollabletracker);
 
     // Create the alert tracker
-    auto alertracker = Alertracker::create_alertracker();
+    auto alertracker = alert_tracker::create_alertracker();
 
     if (globalregistry->fatal_condition)
         SpindownKismet(pollabletracker);
 
     // Create the device tracker
     auto devicetracker = 
-        Devicetracker::create_devicetracker(globalregistry);
+        device_tracker::create_devicetracker(globalregistry);
 
     // Create the pcap tracker
     auto devicetracker_pcap =
@@ -888,13 +888,13 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceNrfMousejackBuilder()));
 
     // Create the database logger as a global because it's a special case
-    KisDatabaseLogfile::create_kisdatabaselog();
+    kis_database_logfile::create_kisdatabaselog();
 
     auto logtracker = 
         LogTracker::create_logtracker();
 
     logtracker->register_log(SharedLogBuilder(new KisPPILogfileBuilder()));
-    logtracker->register_log(SharedLogBuilder(new KisDatabaseLogfileBuilder()));
+    logtracker->register_log(SharedLogBuilder(new kis_database_logfile_builder()));
     logtracker->register_log(SharedLogBuilder(new KisPcapNGLogfileBuilder()));
 
     std::shared_ptr<Plugintracker> plugintracker;
@@ -941,14 +941,14 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Complain about running as root
     if (getuid() == 0) {
-        alertracker->DefineAlert("ROOTUSER", sat_second, 1, sat_second, 1);
-        auto userref = alertracker->ActivateConfiguredAlert("ROOTUSER",
+        alertracker->define_alert("ROOTUSER", sat_second, 1, sat_second, 1);
+        auto userref = alertracker->activate_configured_alert("ROOTUSER",
                 "Kismet is running as root; this is less secure than running Kismet "
                 "as an unprivileged user and installing it as suidroot.  Please consult "
                 "the Kismet README for more information about securely installing Kismet. "
                 "If you're starting Kismet on boot via systemd, be sure to use "
                 "'systemctl edit kismet.service' to configure the user.");
-        alertracker->RaiseAlert(userref, NULL, mac_addr(), mac_addr(), mac_addr(), mac_addr(), "",
+        alertracker->raise_alert(userref, NULL, mac_addr(), mac_addr(), mac_addr(), mac_addr(), "",
                 "Kismet is running as root; this is less secure.  If you are running "
                 "Kismet at boot via systemd, make sure to use `systemctl edit kismet.service` to "
                 "change the user.  For more information, see the Kismet README for setting up "

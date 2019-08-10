@@ -35,7 +35,7 @@
 #include "kis_databaselogfile.h"
 
 GpsTracker::GpsTracker() :
-    Kis_Net_Httpd_CPPStream_Handler() {
+    kis_net_httpd_cppstream_handler() {
 
     tracked_uuid_addition_id = 
         Globalreg::globalreg->entrytracker->RegisterField("kismet.common.location.gps_uuid", 
@@ -105,8 +105,8 @@ GpsTracker::~GpsTracker() {
 void GpsTracker::log_snapshot_gps() {
     // Look for the log file driver, if it's not available, we
     // just exit until the next time
-    std::shared_ptr<KisDatabaseLogfile> dbf =
-        Globalreg::FetchGlobalAs<KisDatabaseLogfile>("DATABASELOG");
+    std::shared_ptr<kis_database_logfile> dbf =
+        Globalreg::FetchGlobalAs<kis_database_logfile>("DATABASELOG");
 
     if (dbf == NULL)
         return;

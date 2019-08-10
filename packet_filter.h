@@ -141,11 +141,11 @@ protected:
                     "Any matching address type");
     }
 
-    std::shared_ptr<Devicetracker> devicetracker;
+    std::shared_ptr<device_tracker> devicetracker;
 	std::shared_ptr<Eventbus> eventbus;
 	unsigned long eb_id;
 
-	void update_phy_map(std::shared_ptr<EventbusEvent> evt);
+	void update_phy_map(std::shared_ptr<eventbus_event> evt);
 
     unsigned int pack_comp_common;
 

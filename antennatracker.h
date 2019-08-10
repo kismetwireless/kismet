@@ -96,12 +96,12 @@ protected:
 
 };
 
-class Antennatracker : public LifetimeGlobal {
+class Antennatracker : public lifetime_global {
 public:
     static std::shared_ptr<Antennatracker> create_at() {
         auto mon = std::make_shared<Antennatracker>();
-        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-        Globalreg::globalreg->InsertGlobal("ANTENNATRACKER", mon);
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global("ANTENNATRACKER", mon);
 
         return mon;
     }

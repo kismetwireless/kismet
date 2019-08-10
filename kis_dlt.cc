@@ -30,7 +30,7 @@ int kis_dlt_packethook(CHAINCALL_PARMS) {
 }
 
 Kis_DLT_Handler::Kis_DLT_Handler() :
-    LifetimeGlobal(), 
+    lifetime_global(), 
     dlt_name {"UNASSIGNED"},
     dlt {-1} {
 

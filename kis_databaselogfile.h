@@ -58,22 +58,22 @@
 // to exist as a global record; we build it like we do any other global record;
 // then the builder hooks it, sets the internal builder record, and passed it to
 // the logtracker
-class KisDatabaseLogfile : public KisLogfile, public KisDatabase, public LifetimeGlobal,
-    public Kis_Net_Httpd_Ringbuf_Stream_Handler, public MessageClient, public DeferredStartup {
+class kis_database_logfile : public KisLogfile, public kis_database, public lifetime_global,
+    public kis_net_httpd_ringbuf_stream_handler, public MessageClient, public DeferredStartup {
 public:
     static std::string global_name() { return "DATABASELOG"; }
 
-    static std::shared_ptr<KisDatabaseLogfile> 
+    static std::shared_ptr<kis_database_logfile> 
         create_kisdatabaselog() {
-            std::shared_ptr<KisDatabaseLogfile> mon(new KisDatabaseLogfile());
+            std::shared_ptr<kis_database_logfile> mon(new kis_database_logfile());
             Globalreg::globalreg->RegisterDeferredGlobal(mon);
-            Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-            Globalreg::globalreg->InsertGlobal(global_name(), mon);
+            Globalreg::globalreg->register_lifetime_global(mon);
+            Globalreg::globalreg->insert_global(global_name(), mon);
             return mon;
     }
 
-    KisDatabaseLogfile();
-    virtual ~KisDatabaseLogfile();
+    kis_database_logfile();
+    virtual ~kis_database_logfile();
 
     virtual void Deferred_Startup() override;
     virtual void Deferred_Shutdown() override;
@@ -145,11 +145,11 @@ public:
     }
 
     // Eventbus event we inject when the log is opened
-    class EventDblogOpened : public EventbusEvent {
+    class EventDblogOpened : public eventbus_event {
     public:
         static std::string Event() { return "KISMETDB_LOG_OPEN"; }
         EventDblogOpened() :
-            EventbusEvent(Event()) { }
+            eventbus_event(Event()) { }
         virtual ~EventDblogOpened() {}
     };
 
@@ -157,7 +157,7 @@ protected:
     // Is the database even enabled?
     std::atomic<bool> db_enabled;
 
-    std::shared_ptr<Devicetracker> devicetracker;
+    std::shared_ptr<device_tracker> devicetracker;
     std::shared_ptr<GpsTracker> gpstracker;
 
     int pack_comp_linkframe, pack_comp_gps, pack_comp_radiodata,
@@ -235,16 +235,16 @@ protected:
     std::shared_ptr<PacketfilterMacaddr> packet_mac_filter;
 };
 
-class KisDatabaseLogfileBuilder : public KisLogfileBuilder {
+class kis_database_logfile_builder : public KisLogfileBuilder {
 public:
-    KisDatabaseLogfileBuilder() :
+    kis_database_logfile_builder() :
         KisLogfileBuilder() {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    KisDatabaseLogfileBuilder(int in_id) :
+    kis_database_logfile_builder(int in_id) :
         KisLogfileBuilder(in_id) {
            
         register_fields();
@@ -252,7 +252,7 @@ public:
         initialize();
     }
 
-    KisDatabaseLogfileBuilder(int in_id, std::shared_ptr<tracker_element_map> e) :
+    kis_database_logfile_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
         KisLogfileBuilder(in_id, e) {
 
         register_fields();
@@ -260,13 +260,13 @@ public:
         initialize();
     }
 
-    virtual ~KisDatabaseLogfileBuilder() { }
+    virtual ~kis_database_logfile_builder() { }
 
     // Custom builder that fetches the global copy and shoves it back down to the 
     // logfile system instead
     virtual SharedLogfile build_logfile(SharedLogBuilder builder) {
-        std::shared_ptr<KisDatabaseLogfile> logfile =
-            Globalreg::FetchMandatoryGlobalAs<KisDatabaseLogfile>("DATABASELOG");
+        std::shared_ptr<kis_database_logfile> logfile =
+            Globalreg::FetchMandatoryGlobalAs<kis_database_logfile>("DATABASELOG");
         logfile->SetDatabaseBuilder(builder);
         return logfile;
     }
@@ -283,7 +283,7 @@ public:
 
 class Pcap_Stream_Database : public Pcap_Stream_Ringbuf {
 public:
-    Pcap_Stream_Database(GlobalRegistry *in_globalreg, 
+    Pcap_Stream_Database(global_registry *in_globalreg, 
             std::shared_ptr<BufferHandlerGeneric> in_handler);
 
     virtual ~Pcap_Stream_Database();

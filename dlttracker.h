@@ -47,12 +47,12 @@
 //
 // This provides an exceedingly minimal mechanism for assigning custom DLTs
 
-class DltTracker : public LifetimeGlobal {
+class DltTracker : public lifetime_global {
 public:
     static std::shared_ptr<DltTracker> create_dltt() {
         auto mon = std::make_shared<DltTracker>();
-        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-        Globalreg::globalreg->InsertGlobal("DLTTRACKER", mon);
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global("DLTTRACKER", mon);
 
         return mon;
     }

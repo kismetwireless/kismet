@@ -31,7 +31,7 @@
 // Accept GPS location from HTTP POST, allows using a phone browser as a
 // GPS source
 
-class GPSWeb : public KisGps, public Kis_Net_Httpd_CPPStream_Handler {
+class GPSWeb : public KisGps, public kis_net_httpd_cppstream_handler {
 public:
     GPSWeb(SharedGpsBuilder in_builder);
     virtual ~GPSWeb();

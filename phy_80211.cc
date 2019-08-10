@@ -81,12 +81,12 @@ int phydot11_packethook_dot11(CHAINCALL_PARMS) {
     return ((Kis_80211_Phy *) auxdata)->PacketDot11dissector(in_pack);
 }
 
-Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) : 
-    Kis_Phy_Handler(in_globalreg, in_phyid),
-    Kis_Net_Httpd_CPPStream_Handler() {
+Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) : 
+    kis_phy_handler(in_globalreg, in_phyid),
+    kis_net_httpd_cppstream_handler() {
 
         alertracker =
-            Globalreg::FetchMandatoryGlobalAs<Alertracker>();
+            Globalreg::FetchMandatoryGlobalAs<alert_tracker>();
 
         packetchain =
             Globalreg::FetchMandatoryGlobalAs<Packetchain>();
@@ -95,7 +95,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
             Globalreg::FetchMandatoryGlobalAs<Timetracker>();
 
         devicetracker =
-            Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
+            Globalreg::FetchMandatoryGlobalAs<device_tracker>();
 
         eventbus =
             Globalreg::FetchMandatoryGlobalAs<Eventbus>();
@@ -162,25 +162,25 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
         // Register the dissector alerts
         alert_netstumbler_ref = 
-            alertracker->ActivateConfiguredAlert("NETSTUMBLER", 
+            alertracker->activate_configured_alert("NETSTUMBLER", 
                     "Netstumbler (and similar older Windows tools) may generate unique "
                     "beacons which can be used to identify these tools in use.  These "
                     "tools and the cards which generate these frames are uncommon.",
                     phyid);
         alert_nullproberesp_ref =
-            alertracker->ActivateConfiguredAlert("NULLPROBERESP", 
+            alertracker->activate_configured_alert("NULLPROBERESP", 
                     "A probe response with a SSID length of 0 can be used to crash the "
                     "firmware in specific older Orinoco cards.  These cards are "
                     "unlikely to be in use in modern systems.",
                     phyid);
         alert_lucenttest_ref =
-            alertracker->ActivateConfiguredAlert("LUCENTTEST", 
+            alertracker->activate_configured_alert("LUCENTTEST", 
                     "Specific Lucent Orinoco test tools generate identifiable frames, "
                     "which can indicate these tools are in use.  These tools and the "
                     "cards which generate these frames are uncommon.",
                     phyid);
         alert_msfbcomssid_ref =
-            alertracker->ActivateConfiguredAlert("MSFBCOMSSID", 
+            alertracker->activate_configured_alert("MSFBCOMSSID", 
                     "Old versions of the Broadcom Windows drivers (and Linux NDIS drivers) "
                     "are vulnerable to overflow exploits.  The Metasploit framework "
                     "can attack these vulnerabilities.  These drivers are unlikely to "
@@ -188,7 +188,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                     "indicates an attempted attack is occurring.",
                     phyid);
         alert_msfdlinkrate_ref =
-            alertracker->ActivateConfiguredAlert("MSFDLINKRATE", 
+            alertracker->activate_configured_alert("MSFDLINKRATE", 
                     "Old versions of the D-Link Windows drivers are vulnerable to "
                     "malformed rate fields.  The Metasploit framework can attack these "
                     "vulnerabilities.  These drivers are unlikely to be found in "
@@ -196,7 +196,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                     "attempted attack is occurring.",
                     phyid);
         alert_msfnetgearbeacon_ref =
-            alertracker->ActivateConfiguredAlert("MSFNETGEARBEACON", 
+            alertracker->activate_configured_alert("MSFNETGEARBEACON", 
                     "Old versions of the Netgear windows drivers are vulnerable to "
                     "malformed beacons.  The Metasploit framework can attack these "
                     "vulnerabilities.  These drivers are unlikely to be found in "
@@ -204,14 +204,14 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                 "attempted attack is occurring.",
                 phyid);
     alert_longssid_ref =
-        alertracker->ActivateConfiguredAlert("LONGSSID", 
+        alertracker->activate_configured_alert("LONGSSID", 
                 "The Wi-Fi standard allows for 32 characters in a SSID. "
                 "Historically, some drivers have had vulnerabilities related to "
                 "invalid over-long SSID fields.  Seeing these frames indicates that "
                 "significant corruption or an attempted attack is occurring.",
                 phyid);
     alert_disconinvalid_ref =
-        alertracker->ActivateConfiguredAlert("DISCONCODEINVALID", 
+        alertracker->activate_configured_alert("DISCONCODEINVALID", 
                 "The 802.11 specification defines reason codes for disconnect "
                 "and deauthentication events.  Historically, various drivers "
                 "have been reported to improperly handle invalid reason codes.  "
@@ -219,7 +219,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                 "an attempted attack.",
                 phyid);
     alert_deauthinvalid_ref =
-        alertracker->ActivateConfiguredAlert("DEAUTHCODEINVALID", 
+        alertracker->activate_configured_alert("DEAUTHCODEINVALID", 
                 "The 802.11 specification defines reason codes for disconnect "
                 "and deauthentication events.  Historically, various drivers "
                 "have been reported to improperly handle invalid reason codes.  "
@@ -227,30 +227,30 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                 "an attempted attack.",
                 phyid);
     alert_wmm_ref =
-        alertracker->ActivateConfiguredAlert("WMMOVERFLOW",
+        alertracker->activate_configured_alert("WMMOVERFLOW",
                 "The Wi-Fi standard specifies 24 bytes for WMM IE tags.  Over-sized "
                 "WMM fields may indicate an attempt to exploit bugs in Broadcom chipsets "
                 "using the Broadpwn attack",
                 phyid);
 #if 0
     alert_dhcpclient_ref =
-        alertracker->ActivateConfiguredAlert("DHCPCLIENTID", phyid);
+        alertracker->activate_configured_alert("DHCPCLIENTID", phyid);
 #endif
     alert_chan_ref =
-        alertracker->ActivateConfiguredAlert("CHANCHANGE", 
+        alertracker->activate_configured_alert("CHANCHANGE", 
                 "An access point has changed channel.  This may occur on "
                 "enterprise equipment or on personal equipment with automatic "
                 "channel selection, but may also indicate a spoofed or "
                 "'evil twin' network.",
                 phyid);
 	alert_dhcpcon_ref =
-		alertracker->ActivateConfiguredAlert("DHCPCONFLICT", 
+		alertracker->activate_configured_alert("DHCPCONFLICT", 
                 "A DHCP exchange was observed and a client was given an IP via "
                 "DHCP, but is not using the assigned IP.  This may be a "
                 "mis-configured client device, or may indicate client spoofing.",
                 phyid);
 	alert_bcastdcon_ref =
-		alertracker->ActivateConfiguredAlert("BCASTDISCON", 
+		alertracker->activate_configured_alert("BCASTDISCON", 
                 "A broadcast disconnect packet forces all clients on a network "
                 "to disconnect.  While these may rarely occur in some environments, "
                 "typically a broadcast disconnect indicates a denial of service "
@@ -258,20 +258,20 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                 "clients to reconnect.",
                 phyid);
 	alert_airjackssid_ref = 
-		alertracker->ActivateConfiguredAlert("AIRJACKSSID", 
+		alertracker->activate_configured_alert("AIRJACKSSID", 
                 "Very old wireless tools used the SSID 'Airjack' while configuring "
                 "card state.  It is very unlikely to see these tools in operation "
                 "in modern environments.",
                 phyid);
 	alert_wepflap_ref =
-		alertracker->ActivateConfiguredAlert("CRYPTODROP", 
+		alertracker->activate_configured_alert("CRYPTODROP", 
                 "A previously encrypted SSID has stopped advertising encryption.  "
                 "This may rarely occur when a network is reconfigured to an open "
                 "state, but more likely indicates some form of network spoofing or "
                 "'evil twin' attack.",
                 phyid);
 	alert_dhcpname_ref =
-		alertracker->ActivateConfiguredAlert("DHCPNAMECHANGE", 
+		alertracker->activate_configured_alert("DHCPNAMECHANGE", 
                 "The DHCP protocol allows clients to put the host name and "
                 "DHCP client / vendor / operating system details in the DHCP "
                 "Discovery packet.  These values should old change if the client "
@@ -280,7 +280,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                 "spoofing or MAC cloning attempt.",
                 phyid);
 	alert_dhcpos_ref =
-		alertracker->ActivateConfiguredAlert("DHCPOSCHANGE", 
+		alertracker->activate_configured_alert("DHCPOSCHANGE", 
                 "The DHCP protocol allows clients to put the host name and "
                 "DHCP client / vendor / operating system details in the DHCP "
                 "Discovery packet.  These values should old change if the client "
@@ -289,20 +289,20 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                 "spoofing or MAC cloning attempt.",
                 phyid);
 	alert_adhoc_ref =
-		alertracker->ActivateConfiguredAlert("ADHOCCONFLICT", 
+		alertracker->activate_configured_alert("ADHOCCONFLICT", 
                 "The same SSID is being advertised as an access point and as an "
                 "ad-hoc network.  This may indicate a misconfigured or misbehaving "
                 "device, or could indicate an attempt at spoofing or an 'evil twin' "
                 "attack.",
                 phyid);
 	alert_ssidmatch_ref =
-		alertracker->ActivateConfiguredAlert("APSPOOF", 
+		alertracker->activate_configured_alert("APSPOOF", 
                 "Kismet may be given a list of authorized MAC addresses for "
                 "a SSID.  If a beacon or probe response is seen from a MAC address "
                 "not listed in the authorized list, this alert will be raised.",
                 phyid);
 	alert_dot11d_ref =
-		alertracker->ActivateConfiguredAlert("DOT11D", 
+		alertracker->activate_configured_alert("DOT11D", 
                 "Conflicting 802.11d (country code) data has been advertised by the "
                 "same SSID.  It is unlikely this is a normal configuration change, "
                 "and can indicate a spoofed or 'evil twin' network, or an attempt "
@@ -311,86 +311,86 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                 "seen on modern devices, but it is still supported by many systems.",
                 phyid);
 	alert_beaconrate_ref =
-		alertracker->ActivateConfiguredAlert("BEACONRATE", 
+		alertracker->activate_configured_alert("BEACONRATE", 
                 "The advertised beacon rate of a SSID has changed.  In an "
                 "enterprise or multi-SSID environment this may indicate a normal "
                 "configuration change, but can also indicate a spoofed or "
                 "'evil twin' network.",
                 phyid);
 	alert_cryptchange_ref =
-		alertracker->ActivateConfiguredAlert("ADVCRYPTCHANGE", 
+		alertracker->activate_configured_alert("ADVCRYPTCHANGE", 
                 "A SSID has changed the advertised supported encryption standards.  "
                 "This may be a normal change when reconfiguring an access point, "
                 "but can also indicate a spoofed or 'evil twin' attack.",
                 phyid);
 	alert_malformmgmt_ref =
-		alertracker->ActivateConfiguredAlert("MALFORMMGMT", 
+		alertracker->activate_configured_alert("MALFORMMGMT", 
                 "Malformed management frames may indicate errors in the capture "
                 "source driver (such as not discarding corrupted packets), but can "
                 "also be indicative of an attempted attack against drivers which may "
                 "not properly handle malformed frames.",
                 phyid);
 	alert_wpsbrute_ref =
-		alertracker->ActivateConfiguredAlert("WPSBRUTE", 
+		alertracker->activate_configured_alert("WPSBRUTE", 
                 "Excessive WPS events may indicate a malformed client, or an "
                 "attack on the WPS system by a tool such as Reaver.",
                 phyid);
     alert_l33t_ref = 
-        alertracker->ActivateConfiguredAlert("KARMAOUI",
+        alertracker->activate_configured_alert("KARMAOUI",
                 "Probe responses from MAC addresses with an OUI of 00:13:37 often "
                 "indicate an Karma AP impersonation attack.",
                 phyid);
     alert_tooloud_ref =
-        alertracker->ActivateConfiguredAlert("OVERPOWERED",
+        alertracker->activate_configured_alert("OVERPOWERED",
                 "Signal levels are abnormally high, when using an external amplifier "
                 "this could indicate that the gain is too high.  Over-amplified signals "
                 "may miss packets entirely.",
                 phyid);
     alert_nonce_zero_ref =
-        alertracker->ActivateConfiguredAlert("NONCEDEGRADE",
+        alertracker->activate_configured_alert("NONCEDEGRADE",
                 "A WPA handshake with an empty NONCE was observed; this could indicate "
                 "a WPA degradation attack such as the vanhoefm attack against BSD "
                 "(https://github.com/vanhoefm/blackhat17-pocs/tree/master/openbsd)",
                 phyid);
     alert_nonce_duplicate_ref =
-        alertracker->ActivateConfiguredAlert("NONCEREUSE",
+        alertracker->activate_configured_alert("NONCEREUSE",
                 "A WPA handshake has attempted to re-use a previous nonce value; this may "
                 "indicate an attack against the WPA keystream such as the vanhoefm "
                 "KRACK attack (https://www.krackattacks.com/)");
     alert_atheros_wmmtspec_ref =
-        alertracker->ActivateConfiguredAlert("WMMTSPEC",
+        alertracker->activate_configured_alert("WMMTSPEC",
                 "Too many WMMTSPEC options were seen in a probe response; this "
                 "may be triggered by CVE-2017-11013 as described at "
                 "https://pleasestopnamingvulnerabilities.com/");
     alert_atheros_rsnloop_ref =
-        alertracker->ActivateConfiguredAlert("RSNLOOP",
+        alertracker->activate_configured_alert("RSNLOOP",
                 "Invalid RSN (802.11i) tags in beacon frames can be used to cause "
                 "loops in some Atheros drivers, as described in "
                 "CVE-2017-9714 and https://pleasestopnamingvulnerabilities.com/");
     alert_11kneighborchan_ref =
-        alertracker->ActivateConfiguredAlert("BCOM11KCHAN",
+        alertracker->activate_configured_alert("BCOM11KCHAN",
                 "Invalid channels in 802.11k neighbor report frames "
                 "can be used to exploit certain Broadcom HardMAC implementations, typically used "
                 "in mobile devices, as described in "
                 "https://bugs.chromium.org/p/project-zero/issues/detail?id=1289");
     alert_bssts_ref =
-        alertracker->ActivateConfiguredAlert("BSSTIMESTAMP",
+        alertracker->activate_configured_alert("BSSTIMESTAMP",
                 "Access points transmit a high-precision millisecond timestamp to "
                 "coordinate power saving and other time-sensitive events.  Out-of-sequence "
                 "timestamps may indicate spoofing or an 'evil twin' style attack.");
     alert_probechan_ref =
-        alertracker->ActivateConfiguredAlert("PROBECHAN",
+        alertracker->activate_configured_alert("PROBECHAN",
                 "Probe responses may include the Wi-Fi channel; this ought to be "
                 "identical to the channel advertised in the beacon.  Incorrect channels "
                 "in the probe response may indicate a spoofing or 'evil twin' style attack, "
                 "but can also be indicative of a misbehaving access point or repeater.");
     alert_qcom_extended_ref =
-        alertracker->ActivateConfiguredAlert("QCOMEXTENDED",
+        alertracker->activate_configured_alert("QCOMEXTENDED",
                 "IE 127 Extended Capabilities tags should always be 8 bytes; Some versions "
                 "of the Qualcomm drivers are vulnerable to a buffer overflow resulting in "
                 "execution on the host, as detailed in CVE-2019-10539.");
     alert_bad_fixlen_ie =
-        alertracker->ActivateConfiguredAlert("BADFIXLENIE",
+        alertracker->activate_configured_alert("BADFIXLENIE",
                 "IE tags contain nested information in beacon and other management frames. "
                 "Some IE tags have constant fixed lengths; a tag advertising with the "
                 "incorrect length may indicate an attempted buffer overflow attack.  "
@@ -476,7 +476,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
 	ssid_conf = new ConfigFile(Globalreg::globalreg);
 	ssid_conf->ParseConfig(ssid_conf->ExpandLogPath(Globalreg::globalreg->kismet_config->FetchOpt("configdir") + "/" + "ssid_map.conf", "", "", 0, 1).c_str());
-    Globalreg::globalreg->InsertGlobal("SSID_CONF_FILE", std::shared_ptr<ConfigFile>(ssid_conf));
+    Globalreg::globalreg->insert_global("SSID_CONF_FILE", std::shared_ptr<ConfigFile>(ssid_conf));
 #endif
 
     httpd_pcap.reset(new Phy_80211_Httpd_Pcap());
@@ -930,7 +930,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             "be caused by misconfigured external amplifiers and lead to lost " <<
             "packets.";
 
-        d11phy->alertracker->RaiseAlert(d11phy->alert_tooloud_ref, in_pack, 
+        d11phy->alertracker->raise_alert(d11phy->alert_tooloud_ref, in_pack, 
                 dot11info->bssid_mac, dot11info->source_mac, 
                 dot11info->dest_mac, dot11info->other_mac, 
                 dot11info->channel, ss.str());
@@ -1125,7 +1125,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                     }
 
                     if (diff > bss_ts_wobble_s * 1000000L && bssid_dot11->bss_invalid_count > 5) {
-                        d11phy->alertracker->RaiseAlert(d11phy->alert_bssts_ref,
+                        d11phy->alertracker->raise_alert(d11phy->alert_bssts_ref,
                                 in_pack,
                                 dot11info->bssid_mac, dot11info->source_mac,
                                 dot11info->dest_mac, dot11info->other_mac,
@@ -1286,7 +1286,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                     "disassociation of all clients; Either the  AP is shutting down or there "
                     "is a possible denial of service.";
 
-                d11phy->alertracker->RaiseAlert(d11phy->alert_bcastdcon_ref, in_pack, 
+                d11phy->alertracker->raise_alert(d11phy->alert_bcastdcon_ref, in_pack, 
                         dot11info->bssid_mac, dot11info->source_mac, 
                         dot11info->dest_mac, dot11info->other_mac, 
                         dot11info->channel, al);
@@ -1413,7 +1413,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                         " previously advertised as AP network, now advertising as "
                         "Ad-Hoc/WDS which may indicate AP spoofing/impersonation";
 
-                    d11phy->alertracker->RaiseAlert(d11phy->alert_adhoc_ref, in_pack,
+                    d11phy->alertracker->raise_alert(d11phy->alert_adhoc_ref, in_pack,
                             dot11info->bssid_mac, dot11info->source_mac,
                             dot11info->dest_mac, dot11info->other_mac,
                             dot11info->channel, al);
@@ -1525,7 +1525,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                             " sending excessive number of WPS messages which may "
                             "indicate a WPS brute force attack such as Reaver";
 
-                        d11phy->alertracker->RaiseAlert(d11phy->alert_wpsbrute_ref, 
+                        d11phy->alertracker->raise_alert(d11phy->alert_wpsbrute_ref, 
                                 in_pack, 
                                 dot11info->bssid_mac, dot11info->source_mac, 
                                 dot11info->dest_mac, dot11info->other_mac, 
@@ -1835,7 +1835,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
                 "\"AirJack\" which implies an attempt to disrupt "
                 "networks.";
 
-            alertracker->RaiseAlert(alert_airjackssid_ref, in_pack, 
+            alertracker->raise_alert(alert_airjackssid_ref, in_pack, 
                     dot11info->bssid_mac, dot11info->source_mac, 
                     dot11info->dest_mac, dot11info->other_mac, 
                     dot11info->channel, al);
@@ -1866,7 +1866,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
                         "rule " + sa->get_group_name() + 
                         std::string(" which may indicate spoofing or impersonation.");
 
-                    alertracker->RaiseAlert(alert_ssidmatch_ref, in_pack, 
+                    alertracker->raise_alert(alert_ssidmatch_ref, in_pack, 
                             dot11info->bssid_mac, 
                             dot11info->source_mac, 
                             dot11info->dest_mac, 
@@ -2026,7 +2026,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
                 std::string al = "IEEE80211 probe response from OUI 00:13:37 seen, "
                     "which typically implies a Karma AP impersonation attack.";
 
-                alertracker->RaiseAlert(alert_l33t_ref, in_pack, 
+                alertracker->raise_alert(alert_l33t_ref, in_pack, 
                         dot11info->bssid_mac, dot11info->source_mac, 
                         dot11info->dest_mac, dot11info->other_mac, 
                         dot11info->channel, al);
@@ -2047,7 +2047,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
                 CryptToString(ssid->get_crypt_set()) + " to Open which may "
                 "indicate AP spoofing/impersonation";
 
-            alertracker->RaiseAlert(alert_wepflap_ref, in_pack, 
+            alertracker->raise_alert(alert_wepflap_ref, in_pack, 
                     dot11info->bssid_mac, dot11info->source_mac, 
                     dot11info->dest_mac, dot11info->other_mac, 
                     dot11info->channel, al);
@@ -2059,7 +2059,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
                     basedev->get_macaddr(), ssid->get_ssid(), CryptToString(ssid->get_crypt_set()),
                     CryptToString(dot11info->cryptset));
 
-            alertracker->RaiseAlert(alert_cryptchange_ref, in_pack, 
+            alertracker->raise_alert(alert_cryptchange_ref, in_pack, 
                     dot11info->bssid_mac, dot11info->source_mac, 
                     dot11info->dest_mac, dot11info->other_mac, 
                     dot11info->channel, al);
@@ -2079,7 +2079,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
                         "normal event where the AP seeks a less congested channel.",
                         basedev->get_macaddr(), ssid->get_ssid(), ssid->get_channel(), dot11info->channel);
 
-            alertracker->RaiseAlert(alert_chan_ref, in_pack, 
+            alertracker->raise_alert(alert_chan_ref, in_pack, 
                     dot11info->bssid_mac, dot11info->source_mac, 
                     dot11info->dest_mac, dot11info->other_mac, 
                     dot11info->channel, al);
@@ -2092,7 +2092,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
                         "impersonation, or may indicate a misconfigured or misbehaving access "
                         "point or repeater.",
                         basedev->get_macaddr(), ssid->get_ssid(), dot11info->channel, ssid->get_channel());
-            alertracker->RaiseAlert(alert_probechan_ref, in_pack,
+            alertracker->raise_alert(alert_probechan_ref, in_pack,
                     dot11info->bssid_mac, dot11info->source_mac, 
                     dot11info->dest_mac, dot11info->other_mac, 
                     dot11info->channel, al);
@@ -2131,7 +2131,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
                     ssid->get_ssid() + "\" advertised conflicting 802.11d "
                     "information which may indicate AP spoofing/impersonation";
 
-                alertracker->RaiseAlert(alert_dot11d_ref, in_pack, 
+                alertracker->raise_alert(alert_dot11d_ref, in_pack, 
                         dot11info->bssid_mac, dot11info->source_mac, 
                         dot11info->dest_mac, dot11info->other_mac, 
                         dot11info->channel, al);
@@ -2177,7 +2177,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
                 IntToString(Ieee80211Interval2NSecs(dot11info->beacon_interval)) + 
                 " which may indicate AP spoofing/impersonation";
 
-            alertracker->RaiseAlert(alert_beaconrate_ref, in_pack, 
+            alertracker->raise_alert(alert_beaconrate_ref, in_pack, 
                     dot11info->bssid_mac, dot11info->source_mac, 
                     dot11info->dest_mac, dot11info->other_mac, 
                     dot11info->channel, al);
@@ -2399,7 +2399,7 @@ void Kis_80211_Phy::ProcessClient(std::shared_ptr<kis_tracked_device_base> bssid
                             pack_datainfo->discover_vendor + "' which may indicate "
                             "client spoofing or impersonation";
 
-                        alertracker->RaiseAlert(alert_dhcpos_ref, in_pack,
+                        alertracker->raise_alert(alert_dhcpos_ref, in_pack,
                                 dot11info->bssid_mac, dot11info->source_mac,
                                 dot11info->dest_mac, dot11info->other_mac,
                                 dot11info->channel, al);
@@ -2421,7 +2421,7 @@ void Kis_80211_Phy::ProcessClient(std::shared_ptr<kis_tracked_device_base> bssid
                             pack_datainfo->discover_host + "' which may indicate "
                             "client spoofing or impersonation";
 
-                        alertracker->RaiseAlert(alert_dhcpname_ref, in_pack,
+                        alertracker->raise_alert(alert_dhcpname_ref, in_pack,
                                 dot11info->bssid_mac, dot11info->source_mac,
                                 dot11info->dest_mac, dot11info->other_mac,
                                 dot11info->channel, al);
@@ -2598,7 +2598,7 @@ void Kis_80211_Phy::ProcessWPAHandshake(std::shared_ptr<kis_tracked_device_base>
                         std::hex << (int) (nonce[b] & 0xFF);
                 }
 
-                alertracker->RaiseAlert(alert_nonce_duplicate_ref, in_pack,
+                alertracker->raise_alert(alert_nonce_duplicate_ref, in_pack,
                         dot11info->bssid_mac, dot11info->source_mac, 
                         dot11info->dest_mac, dot11info->other_mac,
                         dot11info->channel,
@@ -2667,7 +2667,7 @@ void Kis_80211_Phy::ProcessWPAHandshake(std::shared_ptr<kis_tracked_device_base>
                         std::hex << (int) (nonce[b] & 0xFF);
                 }
 
-                alertracker->RaiseAlert(alert_nonce_duplicate_ref, in_pack,
+                alertracker->raise_alert(alert_nonce_duplicate_ref, in_pack,
                         dot11info->bssid_mac, dot11info->source_mac, 
                         dot11info->dest_mac, dot11info->other_mac,
                         dot11info->channel,
@@ -3018,9 +3018,9 @@ int Kis_80211_Phy::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     return 1;
 }
 
-class phy80211_devicetracker_expire_worker : public DevicetrackerFilterWorker {
+class phy80211_devicetracker_expire_worker : public device_tracker_filter_worker {
 public:
-    phy80211_devicetracker_expire_worker(GlobalRegistry *in_globalreg, 
+    phy80211_devicetracker_expire_worker(global_registry *in_globalreg, 
             int in_timeout, unsigned int in_packets, int entry_id) {
         globalreg = in_globalreg;
         dot11_device_entry_id = entry_id;
@@ -3030,7 +3030,7 @@ public:
 
     virtual ~phy80211_devicetracker_expire_worker() { }
 
-    virtual bool MatchDevice(Devicetracker *devicetracker, 
+    virtual bool MatchDevice(device_tracker *devicetracker, 
             std::shared_ptr<kis_tracked_device_base> device) {
         auto dot11dev =
             device->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
@@ -3103,7 +3103,7 @@ public:
     }
 
 protected:
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
     int dot11_device_entry_id;
     int timeout;
     unsigned int packets;

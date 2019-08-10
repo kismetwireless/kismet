@@ -20,7 +20,7 @@
 
 #include "pcapng_stream_ringbuf.h"
 
-Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg,
+Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(global_registry *in_globalreg,
         std::shared_ptr<BufferHandlerGeneric> in_handler,
         std::function<bool (kis_packet *)> accept_filter,
         std::function<kis_datachunk * (kis_packet *)> data_selector,
@@ -548,7 +548,7 @@ void Pcap_Stream_Ringbuf::handle_packet(kis_packet *in_packet) {
     }
 }
 
-Pcap_Stream_Packetchain::Pcap_Stream_Packetchain(GlobalRegistry *in_globalreg,
+Pcap_Stream_Packetchain::Pcap_Stream_Packetchain(global_registry *in_globalreg,
         std::shared_ptr<BufferHandlerGeneric> in_handler,
         std::function<bool (kis_packet *)> accept_filter,
         std::function<kis_datachunk * (kis_packet *)> data_selector) :

@@ -30,7 +30,7 @@
 #include "messagebus.h"
 #include "pollabletracker.h"
 
-SerialClientV2::SerialClientV2(GlobalRegistry *in_globalreg, 
+SerialClientV2::SerialClientV2(global_registry *in_globalreg, 
         std::shared_ptr<BufferHandlerGeneric> in_rbhandler) :
     globalreg {in_globalreg},
     serial_mutex {std::make_shared<kis_recursive_timed_mutex>()},

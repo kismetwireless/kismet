@@ -25,9 +25,9 @@
 
 /* An 802.11-aware pcap-ng streamer */
 
-class Phy_80211_Httpd_Pcap : public Kis_Net_Httpd_Ringbuf_Stream_Handler {
+class Phy_80211_Httpd_Pcap : public kis_net_httpd_ringbuf_stream_handler {
 public:
-    Phy_80211_Httpd_Pcap() : Kis_Net_Httpd_Ringbuf_Stream_Handler() { 
+    Phy_80211_Httpd_Pcap() : kis_net_httpd_ringbuf_stream_handler() { 
         Bind_Httpd_Server();
     }
 
