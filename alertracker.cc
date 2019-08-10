@@ -241,7 +241,7 @@ int alert_tracker::check_times(shared_alert_def arec) {
 	return 0;
 }
 
-int alert_tracker::PotentialAlert(int in_ref) {
+int alert_tracker::potential_alert(int in_ref) {
     local_locker lock(&alert_mutex);
 
 	std::map<int, shared_alert_def>::iterator aritr = alert_ref_map.find(in_ref);
@@ -828,7 +828,7 @@ int alert_tracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 throw std::runtime_error("invalid mac");
             }
 
-            if (!PotentialAlert(aref)) 
+            if (!potential_alert(aref)) 
                 throw std::runtime_error("alert limit reached");
 
             raise_alert(aref, NULL, bssid_mac, source_mac, dest_mac, other_mac,

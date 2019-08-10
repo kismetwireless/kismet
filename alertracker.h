@@ -352,7 +352,7 @@ public:
     int fetch_alert_ref(std::string in_header);
 
     // Will an alert succeed?
-    int PotentialAlert(int in_ref);
+    int potential_alert(int in_ref);
 
     // Raise an alert ...
     int raise_alert(int in_ref, kis_packet *in_pack,

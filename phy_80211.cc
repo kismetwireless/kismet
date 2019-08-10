@@ -920,7 +920,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
 
     if (pack_l1info != NULL && pack_l1info->signal_dbm > d11phy->signal_too_loud_threshold
             && pack_l1info->signal_dbm < 0 && 
-            d11phy->alertracker->PotentialAlert(d11phy->alert_tooloud_ref)) {
+            d11phy->alertracker->potential_alert(d11phy->alert_tooloud_ref)) {
 
         std::stringstream ss;
 
@@ -1279,7 +1279,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             if  ((dot11info->subtype == packet_sub_disassociation ||
                         dot11info->subtype == packet_sub_deauthentication) &&
                     dot11info->dest_mac == globalreg->broadcast_mac &&
-                    d11phy->alertracker->PotentialAlert(d11phy->alert_bcastdcon_ref)) {
+                    d11phy->alertracker->potential_alert(d11phy->alert_bcastdcon_ref)) {
 
                 std::string al = "IEEE80211 Access Point BSSID " +
                     bssid_dev->get_macaddr().Mac2String() + " broadcast deauthentication or "
@@ -1407,7 +1407,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 // Throw alert if device changes between bss and adhoc
                 if (bssid_dev->bitcheck_basic_type_set(DOT11_DEVICE_TYPE_ADHOC) &&
                         !bssid_dev->bitcheck_basic_type_set(DOT11_DEVICE_TYPE_BEACON_AP) &&
-                        d11phy->alertracker->PotentialAlert(d11phy->alert_adhoc_ref)) {
+                        d11phy->alertracker->potential_alert(d11phy->alert_adhoc_ref)) {
                     std::string al = "IEEE80211 Network BSSID " + 
                         dot11info->bssid_mac.Mac2String() + 
                         " previously advertised as AP network, now advertising as "
@@ -1520,7 +1520,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 source_dot11->set_wps_m3_last(globalreg->timestamp.tv_sec);
 
                 if (source_dot11->get_wps_m3_count() > 5) {
-                    if (d11phy->alertracker->PotentialAlert(d11phy->alert_wpsbrute_ref)) {
+                    if (d11phy->alertracker->potential_alert(d11phy->alert_wpsbrute_ref)) {
                         std::string al = "IEEE80211 AP " + dot11info->bssid_mac.Mac2String() +
                             " sending excessive number of WPS messages which may "
                             "indicate a WPS brute force attack such as Reaver";
@@ -1827,7 +1827,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
 
         _MSG_INFO("802.11 Wi-Fi device {} advertising {}", basedev->get_macaddr(), ssidstr);
 
-        if (alertracker->PotentialAlert(alert_airjackssid_ref) &&
+        if (alertracker->potential_alert(alert_airjackssid_ref) &&
                 ssid->get_ssid() == "AirJack" ) {
 
             std::string al = "IEEE80211 Access Point BSSID " +
@@ -1850,7 +1850,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
         // If we have a new ssid and we can consider raising an alert, do the 
         // regex compares to see if we trigger apspoof
         if (dot11info->ssid_len != 0 &&
-                alertracker->PotentialAlert(alert_ssidmatch_ref)) {
+                alertracker->potential_alert(alert_ssidmatch_ref)) {
             for (auto s : *ssid_regex_vec) {
                 std::shared_ptr<dot11_tracked_ssid_alert> sa =
                     std::static_pointer_cast<dot11_tracked_ssid_alert>(s);
@@ -2022,7 +2022,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
         if (mac_addr((uint8_t *) "\x00\x13\x37\x00\x00\x00", 6, 24) == 
                 dot11info->source_mac) {
 
-            if (alertracker->PotentialAlert(alert_l33t_ref)) {
+            if (alertracker->potential_alert(alert_l33t_ref)) {
                 std::string al = "IEEE80211 probe response from OUI 00:13:37 seen, "
                     "which typically implies a Karma AP impersonation attack.";
 
@@ -2039,7 +2039,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
 
     if (ssid->get_crypt_set() != dot11info->cryptset) {
         if (ssid->get_crypt_set() && dot11info->cryptset == crypt_none &&
-                alertracker->PotentialAlert(alert_wepflap_ref)) {
+                alertracker->potential_alert(alert_wepflap_ref)) {
 
             std::string al = "IEEE80211 Access Point BSSID " +
                 basedev->get_macaddr().Mac2String() + " SSID \"" +
@@ -2052,7 +2052,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
                     dot11info->dest_mac, dot11info->other_mac, 
                     dot11info->channel, al);
         } else if (ssid->get_crypt_set() != dot11info->cryptset &&
-                alertracker->PotentialAlert(alert_cryptchange_ref)) {
+                alertracker->potential_alert(alert_cryptchange_ref)) {
 
             auto al = fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised "
                     "encryption from {} to {} which may indicate AP spoofing/impersonation",
@@ -2124,7 +2124,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
         }
 
         if (dot11dmismatch) {
-            if (alertracker->PotentialAlert(alert_dot11d_ref)) {
+            if (alertracker->potential_alert(alert_dot11d_ref)) {
 
                 std::string al = "IEEE80211 Access Point BSSID " +
                     basedev->get_macaddr().Mac2String() + " SSID \"" +
@@ -2169,7 +2169,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
             Ieee80211Interval2NSecs(dot11info->beacon_interval)) {
 
         if (ssid->get_beaconrate() != 0 && 
-                alertracker->PotentialAlert(alert_beaconrate_ref)) {
+                alertracker->potential_alert(alert_beaconrate_ref)) {
             std::string al = "IEEE80211 Access Point BSSID " +
                 basedev->get_macaddr().Mac2String() + " SSID \"" +
                 ssid->get_ssid() + "\" changed beacon rate from " +
@@ -2389,7 +2389,7 @@ void Kis_80211_Phy::ProcessClient(std::shared_ptr<kis_tracked_device_base> bssid
                 if (pack_datainfo->discover_vendor != "") {
                     if (client_record->get_dhcp_vendor() != "" &&
                             client_record->get_dhcp_vendor() != pack_datainfo->discover_vendor &&
-                            alertracker->PotentialAlert(alert_dhcpos_ref)) {
+                            alertracker->potential_alert(alert_dhcpos_ref)) {
                         std::string al = "IEEE80211 network BSSID " + 
                             client_record->get_bssid().Mac2String() +
                             " client " + 
@@ -2411,7 +2411,7 @@ void Kis_80211_Phy::ProcessClient(std::shared_ptr<kis_tracked_device_base> bssid
                 if (pack_datainfo->discover_host != "") {
                     if (client_record->get_dhcp_host() != "" &&
                             client_record->get_dhcp_host() != pack_datainfo->discover_host &&
-                            alertracker->PotentialAlert(alert_dhcpname_ref)) {
+                            alertracker->potential_alert(alert_dhcpname_ref)) {
                         std::string al = "IEEE80211 network BSSID " + 
                             client_record->get_bssid().Mac2String() +
                             " client " + 
