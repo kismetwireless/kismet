@@ -816,7 +816,7 @@ int main(int argc, char *argv[], char *envp[]) {
         SpindownKismet(pollabletracker);
 
     // Create the DLT tracker
-    auto dlttracker = DltTracker::create_dltt();
+    auto dlttracker = dlt_tracker::create_dltt();
 
     if (globalregistry->fatal_condition)
         SpindownKismet(pollabletracker);

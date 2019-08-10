@@ -58,7 +58,7 @@ Kis_Mousejack_Phy::Kis_Mousejack_Phy(global_registry *in_globalreg, int in_phyid
 
     // Extract the dynamic DLT
     auto dltt = 
-        Globalreg::fetch_mandatory_global_as<DltTracker>("DLTTRACKER");
+        Globalreg::fetch_mandatory_global_as<dlt_tracker>("DLTTRACKER");
     dlt = dltt->register_linktype("NRFMOUSEJACK");
 
     /*
