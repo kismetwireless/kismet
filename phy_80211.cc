@@ -3115,7 +3115,7 @@ int Kis_80211_Phy::timetracker_event(int eventid) {
         auto worker = 
             std::make_shared<phy80211_devicetracker_expire_worker>(Globalreg::globalreg,
                 device_idle_expiration, device_idle_min_packets, dot11_device_entry_id);
-        devicetracker->MatchOnDevices(worker);
+        devicetracker->do_device_work(worker);
     }
 
     // Loop

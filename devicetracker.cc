@@ -907,7 +907,7 @@ bool devicetracker_sort_internal_id(std::shared_ptr<kis_tracked_device_base> a,
 	return a->get_kis_internal_id() < b->get_kis_internal_id();
 }
 
-void device_tracker::MatchOnDevices(std::shared_ptr<device_tracker_filter_worker> worker, 
+void device_tracker::do_device_work(std::shared_ptr<device_tracker_filter_worker> worker, 
         std::shared_ptr<tracker_element_vector> vec, bool batch) {
 
     // Make a copy of the vector
@@ -987,7 +987,7 @@ void device_tracker::MatchOnReadonlyDevicesRaw(std::shared_ptr<device_tracker_fi
     worker->Finalize(this);
 }
 
-void device_tracker::MatchOnDevices(std::shared_ptr<device_tracker_filter_worker> worker,
+void device_tracker::do_device_work(std::shared_ptr<device_tracker_filter_worker> worker,
         const std::vector<std::shared_ptr<kis_tracked_device_base>>& vec, bool batch) {
 
     // Make a copy of the vector
@@ -1059,8 +1059,8 @@ void device_tracker::MatchOnReadonlyDevicesRaw(std::shared_ptr<device_tracker_fi
     worker->Finalize(this);
 }
 
-void device_tracker::MatchOnDevices(std::shared_ptr<device_tracker_filter_worker> worker, bool batch) {
-    MatchOnDevices(worker, immutable_tracked_vec, batch);
+void device_tracker::do_device_work(std::shared_ptr<device_tracker_filter_worker> worker, bool batch) {
+    do_device_work(worker, immutable_tracked_vec, batch);
 }
 
 void device_tracker::do_readonly_device_work(std::shared_ptr<device_tracker_filter_worker> worker, bool batch) {
@@ -2139,7 +2139,7 @@ int device_tracker_state_store::store_devices(std::shared_ptr<tracker_element_ve
 
     // Perform the write as a single transaction
     sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
-    devicetracker->MatchOnDevices(fw, devices);
+    devicetracker->do_device_work(fw, devices);
     sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
 
     sqlite3_finalize(stmt);

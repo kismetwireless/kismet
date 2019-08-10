@@ -181,7 +181,7 @@ public:
 
     // Perform a device filter as above, but provide a stl vector instead of the list of
     // ALL devices in the system; the source vector is duplicated under mutex and then processed.
-    void MatchOnDevices(std::shared_ptr<device_tracker_filter_worker> worker,
+    void do_device_work(std::shared_ptr<device_tracker_filter_worker> worker,
             const std::vector<std::shared_ptr<kis_tracked_device_base>>& source_vec,
             bool batch = true);
     // RO only
