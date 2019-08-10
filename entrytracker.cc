@@ -116,7 +116,7 @@ int entry_tracker::get_field_id(const std::string& in_name) {
     return iter->second->field_id;
 }
 
-std::string entry_tracker::GetFieldName(int in_id) {
+std::string entry_tracker::get_field_name(int in_id) {
     local_locker lock(&entry_mutex);
 
     auto iter = field_id_map.find(in_id);

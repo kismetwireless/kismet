@@ -21,11 +21,11 @@
 #include "trackedcomponent.h"
 
 std::string tracker_component::get_name() {
-    return Globalreg::globalreg->entrytracker->GetFieldName(get_id());
+    return Globalreg::globalreg->entrytracker->get_field_name(get_id());
 }
 
 std::string tracker_component::get_name(int in_id) {
-    return Globalreg::globalreg->entrytracker->GetFieldName(in_id);
+    return Globalreg::globalreg->entrytracker->get_field_name(in_id);
 }
 
 int tracker_component::register_field(const std::string& in_name, 

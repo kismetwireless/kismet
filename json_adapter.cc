@@ -338,10 +338,10 @@ void JsonAdapter::Pack(std::ostream &stream, shared_tracker_element e,
 
                     if (!named) {
                         if (i.second == NULL) {
-                            tname = Globalreg::globalreg->entrytracker->GetFieldName(i.first);
+                            tname = Globalreg::globalreg->entrytracker->get_field_name(i.first);
                         } else {
                             if ((tname = i.second->get_local_name()) == "")
-                                tname = Globalreg::globalreg->entrytracker->GetFieldName(i.first);
+                                tname = Globalreg::globalreg->entrytracker->get_field_name(i.first);
                         }
                     }
 
@@ -696,7 +696,7 @@ void StorageJsonAdapter::Pack(std::ostream &stream, shared_tracker_element e,
 
     // Name metadata; duplicate if we're a nested field object but consistent
     stream << "\"on\": \"";
-    stream << JsonAdapter::SanitizeString(Globalreg::globalreg->entrytracker->GetFieldName(e->get_id()));
+    stream << JsonAdapter::SanitizeString(Globalreg::globalreg->entrytracker->get_field_name(e->get_id()));
     stream << "\",";
 
     // Type metadata; raw element type
@@ -828,10 +828,10 @@ void StorageJsonAdapter::Pack(std::ostream &stream, shared_tracker_element e,
 
                 if (!named) {
                     if (i.second == NULL) {
-                        tname = Globalreg::globalreg->entrytracker->GetFieldName(i.first);
+                        tname = Globalreg::globalreg->entrytracker->get_field_name(i.first);
                     } else {
                         if ((tname = i.second->get_local_name()) == "")
-                            tname = Globalreg::globalreg->entrytracker->GetFieldName(i.first);
+                            tname = Globalreg::globalreg->entrytracker->get_field_name(i.first);
                     }
                 }
 

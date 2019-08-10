@@ -1094,7 +1094,7 @@ std::shared_ptr<tracker_element> SummarizeSingletracker_element(shared_tracker_e
                 if (lastid < 0)
                     f->set_local_name("unknown" + IntToString(fn));
                 else
-                    f->set_local_name(Globalreg::globalreg->entrytracker->GetFieldName(lastid));
+                    f->set_local_name(Globalreg::globalreg->entrytracker->get_field_name(lastid));
             }
         } 
 

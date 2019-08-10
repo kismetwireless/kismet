@@ -82,7 +82,7 @@ public:
     }
 
     int get_field_id(const std::string& in_name);
-    std::string GetFieldName(int in_id);
+    std::string get_field_name(int in_id);
     std::string GetFieldDescription(int in_id);
 
     // Generate a shared field instance, using the builder
