@@ -69,7 +69,7 @@ public:
 
     // Shortcuts for getting path info
     virtual std::string httpd_get_suffix(const std::string& path);
-    virtual std::string Httpd_StripSuffix(const std::string& path);
+    virtual std::string httpd_strip_suffix(const std::string& path);
 
 
     // By default, the Kismet HTTPD implementation will cache all POST variables

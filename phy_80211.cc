@@ -3003,7 +3003,7 @@ void Kis_80211_Phy::httpd_create_stream_response(kis_net_httpd *httpd,
 int Kis_80211_Phy::httpd_post_complete(kis_net_httpd_connection *concls) {
     bool handled = false;
 
-    std::string stripped = Httpd_StripSuffix(concls->url);
+    std::string stripped = httpd_strip_suffix(concls->url);
 
     // If we didn't handle it and got here, we don't know what it is, throw an
     // error.

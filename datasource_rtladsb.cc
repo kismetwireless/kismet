@@ -58,7 +58,7 @@ void kis_datasource_rtladsb::open_interface(std::string in_definition, unsigned 
 
 #if 0
 int kis_datasource_rtladsb::httpd_post_complete(kis_net_httpd_connection *concls) {
-    std::string stripped = Httpd_StripSuffix(concls->url);
+    std::string stripped = httpd_strip_suffix(concls->url);
     std::vector<std::string> tokenurl = StrTokenize(stripped, "/");
 
     // Anything involving POST here requires a login

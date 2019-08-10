@@ -146,7 +146,7 @@ void RestMessageClient::httpd_create_stream_response(
 
             since_time = lastts;
 
-        } else if (Httpd_StripSuffix(tokenurl[2]) != "all_messages") {
+        } else if (httpd_strip_suffix(tokenurl[2]) != "all_messages") {
             return;
         }
     }

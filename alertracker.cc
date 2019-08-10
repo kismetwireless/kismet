@@ -618,9 +618,9 @@ bool alert_tracker::httpd_verify_path(const char *path, const char *method) {
             return false;
 
         if (tokenurl[1] == "alerts") {
-            if (Httpd_StripSuffix(tokenurl[2]) == "definitions") {
+            if (httpd_strip_suffix(tokenurl[2]) == "definitions") {
                 return true;
-            } else if (Httpd_StripSuffix(tokenurl[2]) == "all_alerts") {
+            } else if (httpd_strip_suffix(tokenurl[2]) == "all_alerts") {
                 return true;
             } else if (tokenurl[2] == "last-time") {
                 if (tokenurl.size() < 5)
@@ -673,7 +673,7 @@ void alert_tracker::httpd_create_stream_response(
         return;
 
     if (tokenurl[1] == "alerts") {
-        if (Httpd_StripSuffix(tokenurl[2]) == "definitions") {
+        if (httpd_strip_suffix(tokenurl[2]) == "definitions") {
             httpd_serialize(path, stream, alert_defs_vec);
             return;
         } else if (tokenurl[2] == "last-time") {
@@ -720,7 +720,7 @@ void alert_tracker::httpd_create_stream_response(
 }
 
 int alert_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
-    std::string stripped = Httpd_StripSuffix(concls->url);
+    std::string stripped = httpd_strip_suffix(concls->url);
    
     if (!httpd_can_serialize(concls->url) ||
             (stripped != "/alerts/definitions/define_alert" &&

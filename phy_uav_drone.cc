@@ -302,7 +302,7 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
 
 bool Kis_UAV_Phy::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
-        std::string stripped = Httpd_StripSuffix(path);
+        std::string stripped = httpd_strip_suffix(path);
 
         if (stripped == "/phy/phyuav/manuf_matchers")
             return true;
@@ -321,7 +321,7 @@ void Kis_UAV_Phy::httpd_create_stream_response(kis_net_httpd *httpd,
         return;
     }
 
-    std::string stripped = Httpd_StripSuffix(url);
+    std::string stripped = httpd_strip_suffix(url);
 
     if (stripped == "/phy/phyuav/manuf_matchers") {
         local_locker lock(&uav_mutex);

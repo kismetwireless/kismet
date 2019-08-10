@@ -1251,7 +1251,7 @@ kis_net_httpd_simple_tracked_endpoint::kis_net_httpd_simple_tracked_endpoint(con
 }
 
 bool kis_net_httpd_simple_tracked_endpoint::httpd_verify_path(const char *path, const char *method) {
-    auto stripped = Httpd_StripSuffix(path);
+    auto stripped = httpd_strip_suffix(path);
 
     if (stripped == uri && httpd_can_serialize(path))
         return true;
@@ -1460,7 +1460,7 @@ kis_net_httpd_simple_unauth_tracked_endpoint::kis_net_httpd_simple_unauth_tracke
 }
 
 bool kis_net_httpd_simple_unauth_tracked_endpoint::httpd_verify_path(const char *path, const char *method) {
-    auto stripped = Httpd_StripSuffix(path);
+    auto stripped = httpd_strip_suffix(path);
 
     if (stripped == uri && httpd_can_serialize(path))
         return true;
@@ -1663,7 +1663,7 @@ bool kis_net_httpd_path_tracked_endpoint::httpd_verify_path(const char *in_path,
     if (!httpd_can_serialize(in_path))
         return false;
 
-    auto stripped = Httpd_StripSuffix(in_path);
+    auto stripped = httpd_strip_suffix(in_path);
     auto tokenurl = StrTokenize(stripped, "/");
 
     // Tokenized paths begin with / which yields a blank [0] element, so trim that
@@ -1713,7 +1713,7 @@ int kis_net_httpd_path_tracked_endpoint::httpd_create_stream_response(
 
     std::shared_ptr<tracker_element> output_content;
 
-    auto stripped = Httpd_StripSuffix(in_path);
+    auto stripped = httpd_strip_suffix(in_path);
     auto tokenurl = StrTokenize(stripped, "/");
 
     // Tokenized paths begin with / which yields a blank [0] element, so trim that
@@ -1758,7 +1758,7 @@ int kis_net_httpd_path_tracked_endpoint::httpd_post_complete(kis_net_httpd_conne
                 }
             });
 
-    auto stripped = Httpd_StripSuffix(concls->url);
+    auto stripped = httpd_strip_suffix(concls->url);
     auto tokenurl = StrTokenize(stripped, "/");
 
     // Tokenized paths begin with / which yields a blank [0] element, so trim that
@@ -1865,7 +1865,7 @@ bool kis_net_httpd_simple_post_endpoint::httpd_verify_path(const char *path, con
     if (strcmp(method, "POST") != 0)
         return false;
 
-    auto stripped = Httpd_StripSuffix(path);
+    auto stripped = httpd_strip_suffix(path);
 
     if (stripped == uri && httpd_can_serialize(path)) {
         return true;
@@ -1967,7 +1967,7 @@ bool kis_net_httpd_path_post_endpoint::httpd_verify_path(const char *in_path, co
     if (!httpd_can_serialize(in_path))
         return false;
 
-    auto stripped = Httpd_StripSuffix(in_path);
+    auto stripped = httpd_strip_suffix(in_path);
     auto tokenurl = StrTokenize(stripped, "/");
 
     // Tokenized paths begin with / which yields a blank [0] element, so trim that
@@ -2016,7 +2016,7 @@ int kis_net_httpd_path_post_endpoint::httpd_post_complete(kis_net_httpd_connecti
                 }
             });
 
-    auto stripped = Httpd_StripSuffix(concls->url);
+    auto stripped = httpd_strip_suffix(concls->url);
     auto tokenurl = StrTokenize(stripped, "/");
 
     // Tokenized paths begin with / which yields a blank [0] element, so trim that

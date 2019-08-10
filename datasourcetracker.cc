@@ -1314,7 +1314,7 @@ void datasource_tracker::queue_dead_remote(dst_incoming_remote *in_dead) {
 
 
 bool datasource_tracker::httpd_verify_path(const char *path, const char *method) {
-    std::string stripped = Httpd_StripSuffix(path);
+    std::string stripped = httpd_strip_suffix(path);
 
     if (strcmp(method, "POST") == 0) {
         if (stripped == "/datasource/add_source")
@@ -1338,11 +1338,11 @@ bool datasource_tracker::httpd_verify_path(const char *path, const char *method)
                 if (uuid_source_num_map.find(u) == uuid_source_num_map.end())
                     return false;
 
-                if (Httpd_StripSuffix(tokenurl[4]) == "set_channel") {
+                if (httpd_strip_suffix(tokenurl[4]) == "set_channel") {
                     return true;
                 }
 
-                if (Httpd_StripSuffix(tokenurl[4]) == "set_hop") {
+                if (httpd_strip_suffix(tokenurl[4]) == "set_hop") {
                     return true;
                 }
 
@@ -1377,25 +1377,25 @@ bool datasource_tracker::httpd_verify_path(const char *path, const char *method)
                         return false;
                 }
 
-                if (Httpd_StripSuffix(tokenurl[4]) == "source")
+                if (httpd_strip_suffix(tokenurl[4]) == "source")
                     return true;
 
-                if (Httpd_StripSuffix(tokenurl[4]) == "close_source")
+                if (httpd_strip_suffix(tokenurl[4]) == "close_source")
                     return true;
 
-                if (Httpd_StripSuffix(tokenurl[4]) == "open_source")
+                if (httpd_strip_suffix(tokenurl[4]) == "open_source")
                     return true;
 
-                if (Httpd_StripSuffix(tokenurl[4]) == "disable_source")
+                if (httpd_strip_suffix(tokenurl[4]) == "disable_source")
                     return true;
 
-                if (Httpd_StripSuffix(tokenurl[4]) == "enable_source")
+                if (httpd_strip_suffix(tokenurl[4]) == "enable_source")
                     return true;
 
-                if (Httpd_StripSuffix(tokenurl[4]) == "pause_source")
+                if (httpd_strip_suffix(tokenurl[4]) == "pause_source")
                     return true;
                 
-                if (Httpd_StripSuffix(tokenurl[4]) == "resume_source")
+                if (httpd_strip_suffix(tokenurl[4]) == "resume_source")
                     return true;
 
                 return false;
@@ -1416,7 +1416,7 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
         return;
     }
 
-    std::string stripped = Httpd_StripSuffix(path);
+    std::string stripped = httpd_strip_suffix(path);
 
     if (!httpd_can_serialize(path))
         return;
@@ -1456,13 +1456,13 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
                 return;
             }
 
-            if (Httpd_StripSuffix(tokenurl[4]) == "source") {
+            if (httpd_strip_suffix(tokenurl[4]) == "source") {
                 httpd_serialize(path, stream, ds);
                 return;
             }
 
-            if (Httpd_StripSuffix(tokenurl[4]) == "close_source" ||
-                    Httpd_StripSuffix(tokenurl[4]) == "disable_source") {
+            if (httpd_strip_suffix(tokenurl[4]) == "close_source" ||
+                    httpd_strip_suffix(tokenurl[4]) == "disable_source") {
                 if (ds->get_source_running()) {
                     _MSG("Closing source '" + ds->get_source_name() + "' from REST "
                             "interface request.", MSGFLAG_INFO);
@@ -1477,7 +1477,7 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
                 }
             }
 
-            if (Httpd_StripSuffix(tokenurl[4]) == "open_source") {
+            if (httpd_strip_suffix(tokenurl[4]) == "open_source") {
                 if (!ds->get_source_running()) {
                     _MSG("Re-opening source '" + ds->get_source_name() + "' from REST "
                             "interface request.", MSGFLAG_INFO);
@@ -1491,7 +1491,7 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
                 }
             }
 
-            if (Httpd_StripSuffix(tokenurl[4]) == "pause_source") {
+            if (httpd_strip_suffix(tokenurl[4]) == "pause_source") {
                 if (!ds->get_source_paused()) {
                     _MSG("Pausing source '" + ds->get_source_name() + "' from REST "
                             "interface request.", MSGFLAG_INFO);
@@ -1505,7 +1505,7 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
                 }
             }
 
-            if (Httpd_StripSuffix(tokenurl[4]) == "resume_source") {
+            if (httpd_strip_suffix(tokenurl[4]) == "resume_source") {
                 if (ds->get_source_paused()) {
                     _MSG("Resuming source '" + ds->get_source_name() + "' from REST "
                             "interface request.", MSGFLAG_INFO);
@@ -1537,7 +1537,7 @@ int datasource_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
         return MHD_YES;
     }
 
-    std::string stripped = Httpd_StripSuffix(concls->url);
+    std::string stripped = httpd_strip_suffix(concls->url);
 
     shared_structured structdata;
 
@@ -1630,7 +1630,7 @@ int datasource_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                 }
             }
 
-            if (Httpd_StripSuffix(tokenurl[4]) == "set_channel") {
+            if (httpd_strip_suffix(tokenurl[4]) == "set_channel") {
                 if (structdata->has_key("channel")) {
                     std::shared_ptr<conditional_locker<std::string> > cl(new conditional_locker<std::string>());
                     std::string ch = structdata->key_as_string("channel", "");
@@ -1732,7 +1732,7 @@ int datasource_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
 
                     return MHD_YES;
                 }
-            } else if (Httpd_StripSuffix(tokenurl[4]) == "set_hop") {
+            } else if (httpd_strip_suffix(tokenurl[4]) == "set_hop") {
                 _MSG("Setting source '" + ds->get_source_name() + "' channel hopping", 
                         MSGFLAG_INFO);
 

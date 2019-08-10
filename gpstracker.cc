@@ -262,7 +262,7 @@ bool gps_tracker::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0)
         return false;
 
-    std::string stripped = Httpd_StripSuffix(path);
+    std::string stripped = httpd_strip_suffix(path);
     
     if (!httpd_can_serialize(path))
         return false;
@@ -293,7 +293,7 @@ void gps_tracker::httpd_create_stream_response(
         return;
     }
 
-    std::string stripped = Httpd_StripSuffix(path);
+    std::string stripped = httpd_strip_suffix(path);
 
     if (stripped == "/gps/drivers") {
         Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(path), stream, 

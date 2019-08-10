@@ -54,7 +54,7 @@ bool device_tracker::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
         // Simple fixed URLS
 
-        std::string stripped = Httpd_StripSuffix(path);
+        std::string stripped = httpd_strip_suffix(path);
 
         // Explicit compare for .ekjson because it doesn't serialize the 
         // same way
@@ -89,7 +89,7 @@ bool device_tracker::httpd_verify_path(const char *path, const char *method) {
                 if (tmi == NULL)
                     return false;
 
-                std::string target = Httpd_StripSuffix(tokenurl[4]);
+                std::string target = httpd_strip_suffix(tokenurl[4]);
 
                 if (target == "device") {
                     // Try to find the exact field
@@ -182,7 +182,7 @@ bool device_tracker::httpd_verify_path(const char *path, const char *method) {
                 if (fetch_device(key) == NULL)
                     return false;
 
-                std::string target = Httpd_StripSuffix(tokenurl[4]);
+                std::string target = httpd_strip_suffix(tokenurl[4]);
 
                 if (target == "device") {
                     return true;
@@ -276,7 +276,7 @@ int device_tracker::httpd_create_stream_response(
         return MHD_YES;
     }
 
-    std::string stripped = Httpd_StripSuffix(path);
+    std::string stripped = httpd_strip_suffix(path);
 
     // fmt::print(stderr, "tokenizing path {}\n", path);
 
@@ -316,7 +316,7 @@ int device_tracker::httpd_create_stream_response(
                 return MHD_YES;
             }
 
-            std::string target = Httpd_StripSuffix(tokenurl[4]);
+            std::string target = httpd_strip_suffix(tokenurl[4]);
 
             if (target == "device") {
                 // Try to find the exact field
@@ -562,7 +562,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                 }
                 lock.unlock();
 
-                std::string target = Httpd_StripSuffix(tokenurl[4]);
+                std::string target = httpd_strip_suffix(tokenurl[4]);
 
                 if (target == "devices") {
                     auto devvec = std::make_shared<tracker_element_vector>();
@@ -606,7 +606,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     return MHD_YES;
                 }
 
-                std::string target = Httpd_StripSuffix(tokenurl[4]);
+                std::string target = httpd_strip_suffix(tokenurl[4]);
 
                 if (target == "device") {
                     local_shared_locker devlock(&(dev->device_mutex));

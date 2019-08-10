@@ -462,7 +462,7 @@ bool plugin_tracker::httpd_verify_path(const char *path, const char *method) {
     if (!httpd_can_serialize(path))
         return false;
 
-    std::string stripped = Httpd_StripSuffix(path);
+    std::string stripped = httpd_strip_suffix(path);
 
     if (stripped == "/plugins/all_plugins")
         return true;
@@ -475,7 +475,7 @@ void plugin_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
 
-    std::string stripped = Httpd_StripSuffix(path);
+    std::string stripped = httpd_strip_suffix(path);
 
     if (stripped == "/plugins/all_plugins") {
         local_locker locker(&plugin_lock);

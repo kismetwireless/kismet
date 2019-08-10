@@ -298,7 +298,7 @@ bool LogTracker::httpd_verify_path(const char *path, const char *method) {
         if (!httpd_can_serialize(path))
             return false;
 
-        std::string stripped = Httpd_StripSuffix(path);
+        std::string stripped = httpd_strip_suffix(path);
 
         if (stripped == "/logging/drivers")
             return true;
@@ -350,7 +350,7 @@ bool LogTracker::httpd_verify_path(const char *path, const char *method) {
         if (!httpd_can_serialize(path))
             return false;
 
-        std::string stripped = Httpd_StripSuffix(path);
+        std::string stripped = httpd_strip_suffix(path);
 
         std::vector<std::string> tokenurl = StrTokenize(stripped, "/");
 
@@ -387,7 +387,7 @@ void LogTracker::httpd_create_stream_response(kis_net_httpd *httpd,
 
     local_locker lock(&tracker_mutex);
 
-    std::string stripped = Httpd_StripSuffix(url);
+    std::string stripped = httpd_strip_suffix(url);
 
     if (stripped == "/logging/drivers") {
         Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(url), stream, 
@@ -510,7 +510,7 @@ int LogTracker::httpd_post_complete(kis_net_httpd_connection *concls) {
         return MHD_YES;
     }
 
-    std::string stripped = Httpd_StripSuffix(concls->url);
+    std::string stripped = httpd_strip_suffix(concls->url);
 
     std::vector<std::string> tokenurl = StrTokenize(stripped, "/");
 

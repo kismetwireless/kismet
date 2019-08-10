@@ -1337,7 +1337,7 @@ void kis_database_logfile::usage(const char *argv0) {
 }
 
 bool kis_database_logfile::httpd_verify_path(const char *path, const char *method) {
-    std::string stripped = Httpd_StripSuffix(path);
+    std::string stripped = httpd_strip_suffix(path);
     std::string suffix = httpd_get_suffix(path);
 
     if (stripped.find("/logging/kismetdb/pcap/") == 0 && suffix == "pcapng" && db_enabled)
@@ -1353,7 +1353,7 @@ int kis_database_logfile::httpd_create_stream_response(kis_net_httpd *httpd,
 
     using namespace kissqlite3;
 
-    std::string stripped = Httpd_StripSuffix(connection->url);
+    std::string stripped = httpd_strip_suffix(connection->url);
     std::string suffix = httpd_get_suffix(connection->url);
 
     if (!httpd->has_valid_session(connection, true)) {
@@ -1507,7 +1507,7 @@ int kis_database_logfile::httpd_create_stream_response(kis_net_httpd *httpd,
 }
 
 int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) {
-    std::string stripped = Httpd_StripSuffix(concls->url);
+    std::string stripped = httpd_strip_suffix(concls->url);
     std::string suffix = httpd_get_suffix(concls->url);
 
     shared_structured structdata;

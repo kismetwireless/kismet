@@ -173,7 +173,7 @@ bool kis_httpd_websession::validate_login(struct MHD_Connection *connection) {
 }
 
 bool kis_httpd_websession::httpd_verify_path(const char *path, const char *method) {
-    std::string stripped = Httpd_StripSuffix(path);
+    std::string stripped = httpd_strip_suffix(path);
 
     if (strcmp(method, "POST") == 0) {
         if (stripped == "/session/set_password")
@@ -201,7 +201,7 @@ void kis_httpd_websession::httpd_create_stream_response(kis_net_httpd *httpd,
         return;
     }
 
-    std::string stripped = Httpd_StripSuffix(url);
+    std::string stripped = httpd_strip_suffix(url);
 
     if (stripped == "/session/check_session") {
         if (httpd->has_valid_session(connection, true)) {

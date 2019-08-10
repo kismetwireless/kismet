@@ -91,7 +91,7 @@ bool channel_tracker_v2::httpd_verify_path(const char *path, const char *method)
     if (!httpd_can_serialize(path))
         return false;
 
-    std::string stripped = Httpd_StripSuffix(path);
+    std::string stripped = httpd_strip_suffix(path);
 
     if (stripped == "/channels/channels")
         return true;
@@ -111,7 +111,7 @@ void channel_tracker_v2::httpd_create_stream_response(
         return;
     }
 
-    std::string stripped = Httpd_StripSuffix(path);
+    std::string stripped = httpd_strip_suffix(path);
 
     if (stripped == "/channels/channels") {
         local_shared_locker locker(&lock);
