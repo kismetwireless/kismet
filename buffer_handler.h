@@ -208,7 +208,7 @@ public:
     // data.
     //
     // Automatically triggers buffer drain callbacks
-    virtual size_t consumer_read_buffer_data(size_t in_sz);
+    virtual size_t consume_read_buffer_data(size_t in_sz);
     virtual size_t ConsumeWriteBufferData(size_t in_sz);
 
     // Place data in read or write buffer.  Performs a copy of the existing data and

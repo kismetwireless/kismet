@@ -144,7 +144,7 @@ void buffer_handler_generic::peek_free_write_buffer_data(void *in_ptr) {
     return;
 }
 
-size_t buffer_handler_generic::consumer_read_buffer_data(size_t in_sz) {
+size_t buffer_handler_generic::consume_read_buffer_data(size_t in_sz) {
     size_t sz;
 
     if (read_buffer) {
