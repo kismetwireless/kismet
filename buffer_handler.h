@@ -253,7 +253,7 @@ public:
     //
     // Returns the amount of data available in the reserved block
     virtual ssize_t ZeroCopyReserveReadBufferData(void **in_ptr, size_t len);
-    virtual ssize_t ZeroCopyReserveWriteBufferData(void **in_ptr, size_t len);
+    virtual ssize_t zero_copy_reserve_write_buffer_data(void **in_ptr, size_t len);
     
 
     // Commit a pending reserved data block to the buffer
