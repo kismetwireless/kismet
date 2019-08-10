@@ -382,7 +382,7 @@ void Load_Kismet_UUID(global_registry *globalreg) {
     // Make a custom config
     std::string conf_dir_path_raw = globalreg->kismet_config->fetch_opt("configdir");
     std::string config_dir_path = 
-        globalreg->kismet_config->ExpandLogPath(conf_dir_path_raw, "", "", 0, 1);
+        globalreg->kismet_config->expand_log_path(conf_dir_path_raw, "", "", 0, 1);
 
     std::string uuidconfpath = config_dir_path + "/" + "kismet_server_id.conf";
 
@@ -674,7 +674,7 @@ int main(int argc, char *argv[], char *envp[]) {
     std::string configdir;
 
     if (conf->fetch_opt("configdir") != "") {
-        configdir = conf->ExpandLogPath(conf->fetch_opt("configdir"), "", "", 0, 1);
+        configdir = conf->expand_log_path(conf->fetch_opt("configdir"), "", "", 0, 1);
     } else {
         _MSG("No 'configdir' option in the config file; make sure that the "
                 "Kismet config files are installed and up to date.", MSGFLAG_FATAL);
@@ -682,7 +682,7 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     auto etcdir = 
-        globalreg->kismet_config->ExpandLogPath("%E", "", "", 0, 1);
+        globalreg->kismet_config->expand_log_path("%E", "", "", 0, 1);
     setenv("KISMET_ETC", etcdir.c_str(), 1);
 
     if (stat(configdir.c_str(), &fstat) == -1) {

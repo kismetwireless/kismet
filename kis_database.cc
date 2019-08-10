@@ -47,7 +47,7 @@ bool kis_database::Database_Open(std::string in_file_path) {
         std::string config_dir_path_raw = 
             globalreg->kismet_config->fetch_opt("configdir");
         std::string config_dir_path =
-            globalreg->kismet_config->ExpandLogPath(config_dir_path_raw, "", "", 0, 1);
+            globalreg->kismet_config->expand_log_path(config_dir_path_raw, "", "", 0, 1);
 
         ds_dbfile = config_dir_path + "/" + ds_module_name + ".db3"; 
     } else {

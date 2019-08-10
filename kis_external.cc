@@ -218,7 +218,7 @@ bool KisExternalInterface::check_ipc(const std::string& in_binary) {
 
     for (auto rp : bin_paths) {
         std::string fp = fmt::format("{}/{}",
-                Globalreg::globalreg->kismet_config->ExpandLogPath(rp, "", "", 0, 1),
+                Globalreg::globalreg->kismet_config->expand_log_path(rp, "", "", 0, 1),
                 in_binary);
 
         if (stat(fp.c_str(), &fstat) != -1) {
@@ -273,7 +273,7 @@ bool KisExternalInterface::run_ipc() {
 
     // Explode any expansion macros in the path and add it to the list we search
     for (auto i = bin_paths.begin(); i != bin_paths.end(); ++i) {
-        ipc_remote->add_path(Globalreg::globalreg->kismet_config->ExpandLogPath(*i, "", "", 0, 1));
+        ipc_remote->add_path(Globalreg::globalreg->kismet_config->expand_log_path(*i, "", "", 0, 1));
     }
 
     int ret = ipc_remote->launch_kis_binary(external_binary, external_binary_args);

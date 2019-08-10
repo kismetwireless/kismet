@@ -49,7 +49,7 @@ void Kis_Httpd_Websession::Deferred_Startup() {
                 "%h/.kismet/kismet_httpd.conf");
 
     user_httpd_config_file = 
-        Globalreg::globalreg->kismet_config->ExpandLogPath(conf_dir_path_raw, "", "", 0, 1);
+        Globalreg::globalreg->kismet_config->expand_log_path(conf_dir_path_raw, "", "", 0, 1);
 
     conf_username = Globalreg::globalreg->kismet_config->fetch_opt("httpd_username");
     conf_password = Globalreg::globalreg->kismet_config->fetch_opt("httpd_password");

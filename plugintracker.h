@@ -337,7 +337,7 @@ public:
         }
 
         for (auto p : bin_paths) 
-            ipc_remote->add_path(Globalreg::globalreg->kismet_config->ExpandLogPath(p, "", "", 0, 1));
+            ipc_remote->add_path(Globalreg::globalreg->kismet_config->expand_log_path(p, "", "", 0, 1));
 
         auto ret = ipc_remote->launch_kis_binary(external_binary, {});
 

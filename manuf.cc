@@ -48,7 +48,7 @@ Manuf::Manuf() {
     }
 
     for (auto f : fname) {
-        auto expanded = Globalreg::globalreg->kismet_config->ExpandLogPath(f, "", "", 0, 1);
+        auto expanded = Globalreg::globalreg->kismet_config->expand_log_path(f, "", "", 0, 1);
 
         if ((mfile = fopen(expanded.c_str(), "r")) != NULL) {
             _MSG("Opened OUI file '" + expanded, MSGFLAG_INFO);

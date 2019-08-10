@@ -133,7 +133,7 @@ int Plugintracker::ScanPlugins() {
         return 0;
     }
 
-    plugin_path = globalreg->kismet_config->ExpandLogPath(
+    plugin_path = globalreg->kismet_config->expand_log_path(
         config_path + "/plugins/", "", "", 0, 1);
     if ((plugdir = opendir(plugin_path.c_str())) == NULL) {
         _MSG("Did not find a user plugin directory (" + plugin_path +

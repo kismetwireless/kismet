@@ -108,12 +108,12 @@ public:
 	void set_opt_vec(const std::string& in_key, const std::vector<std::string>& in_val, int in_dirty);
 
     // Expand complete log templates for logfile filenames
-    std::string ExpandLogPath(const std::string& path, const std::string& logname, 
+    std::string expand_log_path(const std::string& path, const std::string& logname, 
             const std::string& type, int start, int overwrite = 0);
 
     // Expand placeholders but not full log type/number/etc, for included config references, etc
-    std::string ExpandLogPath(const std::string& path) {
-        return ExpandLogPath(path, "", "", 0, 1);
+    std::string expand_log_path(const std::string& path) {
+        return expand_log_path(path, "", "", 0, 1);
     }
 
 	// Fetches the load-time checksum of the config values.

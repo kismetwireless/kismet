@@ -136,7 +136,7 @@ int config_file::parse_config(const char *in_fname,
             }
 
             if (directive == "include") {
-                value = ExpandLogPath(value, "", "", 0, 1);
+                value = expand_log_path(value, "", "", 0, 1);
 
                 sstream << "Including sub-config file: " << value;
                 _MSG(sstream.str(), MSGFLAG_INFO);
@@ -147,12 +147,12 @@ int config_file::parse_config(const char *in_fname,
                     return -1;
                 }
             } else if (directive == "opt_include") {
-                if (ParseOptInclude(ExpandLogPath(value, "", "", 0, 1), target_map, 
+                if (ParseOptInclude(expand_log_path(value, "", "", 0, 1), target_map, 
                             target_map_dirty) < 0)
                     return -1;
             } else if (directive == "opt_override") {
                 // Store the override for parsing at the end
-                config_override_file_list.push_back(ExpandLogPath(value, "", "", 0, 1));
+                config_override_file_list.push_back(expand_log_path(value, "", "", 0, 1));
             } else {
                 config_entity e(value, in_fname);
                 target_map[StrLower(directive)].push_back(e);
@@ -373,7 +373,7 @@ void config_file::set_opt_vec(const std::string& in_key, const std::vector<std::
 // Logfile name to use
 // Logfile type to use
 // Starting number or desired number
-std::string config_file::ExpandLogPath(const std::string& path, const std::string& logname, 
+std::string config_file::expand_log_path(const std::string& path, const std::string& logname, 
         const std::string& type, int start, int overwrite) {
     local_locker lock(&config_locker);
 

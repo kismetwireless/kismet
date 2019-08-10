@@ -266,7 +266,7 @@ SharedLogfile LogTracker::open_log(SharedLogBuilder in_builder, std::string in_t
     logfile_vec->push_back(lf);
 
     std::string logpath =
-        Globalreg::globalreg->kismet_config->ExpandLogPath(get_log_template(),
+        Globalreg::globalreg->kismet_config->expand_log_path(get_log_template(),
                 in_title, lf->get_builder()->get_log_class(), 1, 0);
 
     if (!lf->Log_Open(logpath)) {

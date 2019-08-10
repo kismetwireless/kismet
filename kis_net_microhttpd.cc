@@ -160,7 +160,7 @@ kis_net_httpd::kis_net_httpd() {
         http_serve_files = false;
     } else {
         http_data_dir = 
-            Globalreg::globalreg->kismet_config->ExpandLogPath(http_data_dir, "", "", 0, 1);
+            Globalreg::globalreg->kismet_config->expand_log_path(http_data_dir, "", "", 0, 1);
         _MSG("Serving static content from '" + http_data_dir + "'",
                 MSGFLAG_INFO);
         http_serve_files = true;
@@ -175,7 +175,7 @@ kis_net_httpd::kis_net_httpd() {
         http_serve_user_files = false;
     } else {
         http_aux_data_dir = 
-            Globalreg::globalreg->kismet_config->ExpandLogPath(http_aux_data_dir, "", "", 0, 1);
+            Globalreg::globalreg->kismet_config->expand_log_path(http_aux_data_dir, "", "", 0, 1);
         _MSG("Serving static userdir content from '" + http_aux_data_dir + "'",
                 MSGFLAG_INFO);
         http_serve_user_files = true;
@@ -228,7 +228,7 @@ kis_net_httpd::kis_net_httpd() {
 
     if (sessiondb_file != "") {
         sessiondb_file = 
-            Globalreg::globalreg->kismet_config->ExpandLogPath(sessiondb_file, "", "", 0, 1);
+            Globalreg::globalreg->kismet_config->expand_log_path(sessiondb_file, "", "", 0, 1);
 
         session_db = new config_file(Globalreg::globalreg);
 
@@ -438,9 +438,9 @@ int kis_net_httpd::StartHttpd() {
         }
 
         pem_path =
-            Globalreg::globalreg->kismet_config->ExpandLogPath(pem_path, "", "", 0, 1);
+            Globalreg::globalreg->kismet_config->expand_log_path(pem_path, "", "", 0, 1);
         key_path =
-            Globalreg::globalreg->kismet_config->ExpandLogPath(key_path, "", "", 0, 1);
+            Globalreg::globalreg->kismet_config->expand_log_path(key_path, "", "", 0, 1);
 
         cert_pem = read_ssl_file(pem_path);
         cert_key = read_ssl_file(key_path);
