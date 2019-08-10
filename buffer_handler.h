@@ -240,7 +240,7 @@ public:
     //
     // Returns the amount of data allocated in the reserved block
     virtual ssize_t reserve_read_buffer_data(void **in_ptr, size_t len);
-    virtual ssize_t ReserveWriteBufferData(void **in_ptr, size_t len);
+    virtual ssize_t reserve_write_buffer_data(void **in_ptr, size_t len);
 
     // Reserve space in one of the buffers; Take excessive measures to make this a
     // zero-copy buffer, including reserving less size than requested.  This is most 

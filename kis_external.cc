@@ -336,7 +336,7 @@ unsigned int KisExternalInterface::send_packet(std::shared_ptr<KismetExternal::C
     kismet_external_frame_t *frame = nullptr;
 
     // Reserve the frame in the buffer
-    if (ringbuf_handler->ReserveWriteBufferData((void **) &frame, frame_sz) < frame_sz || frame == nullptr) {
+    if (ringbuf_handler->reserve_write_buffer_data((void **) &frame, frame_sz) < frame_sz || frame == nullptr) {
         ringbuf_handler->CommitWriteBufferData(NULL, 0);
         _MSG("Kismet external interface couldn't find space in the output buffer for "
                 "the next command, something may have stalled.", MSGFLAG_ERROR);

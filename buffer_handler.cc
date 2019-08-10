@@ -257,7 +257,7 @@ ssize_t buffer_handler_generic::reserve_read_buffer_data(void **in_ptr, size_t i
     return -1;
 }
 
-ssize_t buffer_handler_generic::ReserveWriteBufferData(void **in_ptr, size_t in_sz) {
+ssize_t buffer_handler_generic::reserve_write_buffer_data(void **in_ptr, size_t in_sz) {
     local_locker hlock(handler_mutex);
 
     if (write_buffer != NULL) {
