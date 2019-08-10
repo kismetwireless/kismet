@@ -106,7 +106,7 @@ void message_bus::msg_queue_dispatcher() {
     }
 }
 
-void message_bus::RegisterClient(MessageClient *in_subscriber, int in_mask) {
+void message_bus::RegisterClient(message_client *in_subscriber, int in_mask) {
     local_locker lock(&handler_mutex);
 
     busclient *bc = new busclient;
@@ -119,7 +119,7 @@ void message_bus::RegisterClient(MessageClient *in_subscriber, int in_mask) {
     return;
 }
 
-void message_bus::RemoveClient(MessageClient *in_unsubscriber) {
+void message_bus::RemoveClient(message_client *in_unsubscriber) {
     local_locker lock(&handler_mutex);
 
     for (unsigned int x = 0; x < subscribers.size(); x++) {

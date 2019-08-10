@@ -48,20 +48,20 @@
 
 // A subscriber to the message bus.  It subscribes with a mask of 
 // what messages it wants to handle
-class MessageClient {
+class message_client {
 public:
-    MessageClient() {
-        fprintf(stderr, "FATAL OOPS: MessageClient::MessageClient() called "
+    message_client() {
+        fprintf(stderr, "FATAL OOPS: message_client::message_client() called "
 				"with no global registry\n");
 		exit(1);
     }
 
-    MessageClient(global_registry *in_globalreg, void *in_aux) {
+    message_client(global_registry *in_globalreg, void *in_aux) {
         globalreg = in_globalreg;
 		auxptr = in_aux;
     }
 
-	virtual ~MessageClient() { }
+	virtual ~message_client() { }
 
     virtual void ProcessMessage(std::string in_msg, int in_flags) = 0;
 protected:
@@ -69,10 +69,10 @@ protected:
 	void *auxptr;
 };
 
-class StdoutMessageClient : public MessageClient {
+class StdoutMessageClient : public message_client {
 public:
     StdoutMessageClient(global_registry *in_globalreg, void *in_aux) :
-        MessageClient(in_globalreg, in_aux) { }
+        message_client(in_globalreg, in_aux) { }
 	virtual ~StdoutMessageClient() { }
     void ProcessMessage(std::string in_msg, int in_flags);
 };
@@ -99,8 +99,8 @@ public:
     void InjectMessage(std::string in_msg, int in_flags);
 
     // Link a meessage display system
-    void RegisterClient(MessageClient *in_subcriber, int in_mask);
-    void RemoveClient(MessageClient *in_unsubscriber);
+    void RegisterClient(message_client *in_subcriber, int in_mask);
+    void RemoveClient(message_client *in_unsubscriber);
 
 protected:
     global_registry *globalreg;
@@ -108,7 +108,7 @@ protected:
     kis_recursive_timed_mutex handler_mutex;
 
     typedef struct {
-        MessageClient *client;
+        message_client *client;
         int mask;
     } busclient;
 

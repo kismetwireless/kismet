@@ -24,7 +24,7 @@
 #include "json_adapter.h"
 
 RestMessageClient::RestMessageClient(global_registry *in_globalreg, void *in_aux) :
-    MessageClient(in_globalreg, in_aux),
+    message_client(in_globalreg, in_aux),
     kis_net_httpd_cppstream_handler() {
 
     globalreg = in_globalreg;

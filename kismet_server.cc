@@ -123,10 +123,10 @@ int glob_silent = 0;
 
 // Message clients that are attached at the master level
 // Smart standard out client that understands the silence options
-class SmartStdoutMessageClient : public MessageClient {
+class SmartStdoutMessageClient : public message_client {
 public:
     SmartStdoutMessageClient(global_registry *in_globalreg, void *in_aux) :
-        MessageClient(in_globalreg, in_aux) { }
+        message_client(in_globalreg, in_aux) { }
     virtual ~SmartStdoutMessageClient() { }
     void ProcessMessage(std::string in_msg, int in_flags);
 };
@@ -174,10 +174,10 @@ void SmartStdoutMessageClient::ProcessMessage(std::string in_msg, int in_flags) 
 }
 
 // Queue of fatal alert conditions to spew back out at the end
-class FatalQueueMessageClient : public MessageClient {
+class FatalQueueMessageClient : public message_client {
 public:
     FatalQueueMessageClient(global_registry *in_globalreg, void *in_aux) :
-        MessageClient(in_globalreg, in_aux) { }
+        message_client(in_globalreg, in_aux) { }
     virtual ~FatalQueueMessageClient() { }
     void ProcessMessage(std::string in_msg, int in_flags);
     void DumpFatals();

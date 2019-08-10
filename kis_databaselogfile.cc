@@ -36,7 +36,7 @@ kis_database_logfile::kis_database_logfile():
     kis_database(Globalreg::globalreg, "kismetlog"),
     lifetime_global(),
     kis_net_httpd_ringbuf_stream_handler(),
-    MessageClient(Globalreg::globalreg, nullptr) {
+    message_client(Globalreg::globalreg, nullptr) {
 
     std::shared_ptr<packet_chain> packetchain =
         Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");

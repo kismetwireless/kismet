@@ -96,7 +96,7 @@ protected:
     std::shared_ptr<tracker_element_uint64> timestamp;
 };
 
-class RestMessageClient : public MessageClient, public kis_net_httpd_cppstream_handler,
+class RestMessageClient : public message_client, public kis_net_httpd_cppstream_handler,
     public lifetime_global {
 public:
     static std::shared_ptr<RestMessageClient> 
