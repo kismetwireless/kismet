@@ -147,7 +147,7 @@ public:
     // object, which is expected to be a vector of [field, regex] pairs.
     // Results are filled into in_devvec_object which is expected to be a vector object
     // This MAY THROW EXCEPTIONS from structured parsing or the PCRE parsing!
-    devicetracker_pcre_worker(SharedStructured raw_pcre_vec);
+    devicetracker_pcre_worker(shared_structured raw_pcre_vec);
 
     // Shortcut function for building a PCRE from an incoming vector of filters
     // as a string.
@@ -161,7 +161,7 @@ public:
     // is expected to be a vector of filter strings.  Results are filled into
     // in_devvec_object which is expected to be a vector object.
     // This MAY THROW EXCEPTIONS from structured parsing or the PCRE parsing!
-    devicetracker_pcre_worker(const std::string& in_target, SharedStructured raw_pcre_vec);
+    devicetracker_pcre_worker(const std::string& in_target, shared_structured raw_pcre_vec);
 
     virtual ~devicetracker_pcre_worker();
 
@@ -192,11 +192,11 @@ public:
         throw(std::runtime_error("Kismet not compiled with PCRE support"));
     }
 
-    devicetracker_pcre_worker(SharedStructured raw_pcre_vec) {
+    devicetracker_pcre_worker(shared_structured raw_pcre_vec) {
         throw(std::runtime_error("Kismet not compiled with PCRE support"));
     }
 
-    devicetracker_pcre_worker(const std::string& in_target, SharedStructured raw_pcre_vec) {
+    devicetracker_pcre_worker(const std::string& in_target, shared_structured raw_pcre_vec) {
         throw(std::runtime_error("Kismet not compiled with PCRE support"));
     }
 

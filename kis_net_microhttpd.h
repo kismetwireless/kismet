@@ -59,7 +59,7 @@ namespace kishttpd {
     // Returns a summarized vector (if passed a vector) or summarized device (if passed
     // a summarized device)
     std::shared_ptr<tracker_element> SummarizeWithStructured(std::shared_ptr<tracker_element> in_data,
-            SharedStructured structured, std::shared_ptr<tracker_element_serializer::rename_map> rename_map);
+            shared_structured structured, std::shared_ptr<tracker_element_serializer::rename_map> rename_map);
 };
 
 // Connection data, generated for all requests by the processing system;
@@ -268,7 +268,7 @@ protected:
 class Kis_Net_Httpd_Simple_Post_Endpoint : public kis_net_httpd_chain_stream_handler {
 public:
     using handler_func = 
-        std::function<unsigned int (std::ostream& stream, const std::string& uri, SharedStructured post_structured,
+        std::function<unsigned int (std::ostream& stream, const std::string& uri, shared_structured post_structured,
                 kis_net_httpd_connection::variable_cache_map& variable_cache)>;
 
     Kis_Net_Httpd_Simple_Post_Endpoint(const std::string& in_uri, handler_func in_func,
@@ -300,7 +300,7 @@ public:
     using handler_func = 
         std::function<unsigned int (std::ostream& stream, 
                 const std::vector<std::string>& path, const std::string& uri, 
-                SharedStructured post_structured,
+                shared_structured post_structured,
                 kis_net_httpd_connection::variable_cache_map& variable_cache)>;
 
     Kis_Net_Httpd_Path_Post_Endpoint(path_func in_path, handler_func in_func);

@@ -148,7 +148,7 @@ public:
         return json.isMember(key);
     }
 
-    virtual SharedStructured getStructuredByKey(std::string key) {
+    virtual shared_structured getStructuredByKey(std::string key) {
         exceptIfNot(isDictionary(), "Dictionary/Map");
 
         if (!hasKey(key)) 
@@ -156,7 +156,7 @@ public:
 
         auto ki = json[key];
 
-        return SharedStructured(new StructuredJson(ki));
+        return shared_structured(new StructuredJson(ki));
     }
 
     virtual double getKeyAsNumber(std::string key) {
@@ -167,7 +167,7 @@ public:
         if (!hasKey(key))
             return def;
 
-        SharedStructured v = getStructuredByKey(key);
+        shared_structured v = getStructuredByKey(key);
 
         if (!v->isNumber())
             return def;
@@ -183,7 +183,7 @@ public:
         if (!hasKey(key))
             return def;
 
-        SharedStructured v = getStructuredByKey(key);
+        shared_structured v = getStructuredByKey(key);
 
         if (!v->isString())
             return def;
@@ -199,7 +199,7 @@ public:
         if (!hasKey(key))
             return def;
 
-        SharedStructured v = getStructuredByKey(key);
+        shared_structured v = getStructuredByKey(key);
 
         if (!v->isBool())
             return def;
@@ -213,7 +213,7 @@ public:
         structured_vec v;
 
         for (auto jvi : json) {
-            v.push_back(SharedStructured(new StructuredJson(jvi)));
+            v.push_back(shared_structured(new StructuredJson(jvi)));
         }
 
         return v;
@@ -231,7 +231,7 @@ public:
                 throw StructuredDataUnsuitable("got non-numerical key converting "
                         "to structured numerical map");
             
-            m[n] = SharedStructured(new StructuredJson(*jvi));
+            m[n] = shared_structured(new StructuredJson(*jvi));
         }
 
         return m;
@@ -243,7 +243,7 @@ public:
         structured_str_map m;
 
         for (Json::ValueIterator jvi = json.begin(); jvi != json.end(); ++jvi) {
-            m[jvi.key().asString()] = SharedStructured(new StructuredJson(*jvi));
+            m[jvi.key().asString()] = shared_structured(new StructuredJson(*jvi));
         }
 
         return m;

@@ -77,7 +77,7 @@ DevicetrackerViewRegexWorker::DevicetrackerViewRegexWorker(const std::vector<std
 #endif
 }
 
-DevicetrackerViewRegexWorker::DevicetrackerViewRegexWorker(SharedStructured shared_pcre_vec) {
+DevicetrackerViewRegexWorker::DevicetrackerViewRegexWorker(shared_structured shared_pcre_vec) {
 #ifdef HAVE_LIBPCRE
     auto vec = shared_pcre_vec->getStructuredArray();
 

@@ -96,7 +96,7 @@ std::string kishttpd::EscapeHtml(const std::string& in) {
 }
 
 std::shared_ptr<tracker_element> kishttpd::SummarizeWithStructured(std::shared_ptr<tracker_element> in_data,
-        SharedStructured structured, std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
+        shared_structured structured, std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
     auto summary_vec = std::vector<SharedElementSummary>{};
 
@@ -1362,7 +1362,7 @@ int kis_net_httpd_simple_tracked_endpoint::httpd_post_complete(kis_net_httpd_con
     }
 
     // Common structured API data
-    SharedStructured structdata;
+    shared_structured structdata;
     std::vector<SharedElementSummary> summary_vec;
     auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
 
@@ -1384,7 +1384,7 @@ int kis_net_httpd_simple_tracked_endpoint::httpd_post_complete(kis_net_httpd_con
 
     try {
         if (structdata->hasKey("fields")) {
-            SharedStructured fields = structdata->getStructuredByKey("fields");
+            shared_structured fields = structdata->getStructuredByKey("fields");
             StructuredData::structured_vec fvec = fields->getStructuredArray();
 
             for (const auto& i : fvec) {
@@ -1571,7 +1571,7 @@ int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_post_complete(kis_net_ht
     }
 
     // Common structured API data
-    SharedStructured structdata;
+    shared_structured structdata;
     std::vector<SharedElementSummary> summary_vec;
     auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
 
@@ -1593,7 +1593,7 @@ int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_post_complete(kis_net_ht
 
     try {
         if (structdata->hasKey("fields")) {
-            SharedStructured fields = structdata->getStructuredByKey("fields");
+            shared_structured fields = structdata->getStructuredByKey("fields");
             StructuredData::structured_vec fvec = fields->getStructuredArray();
 
             for (const auto& i : fvec) {
@@ -1776,7 +1776,7 @@ int Kis_Net_Httpd_Path_Tracked_Endpoint::httpd_post_complete(kis_net_httpd_conne
     }
 
     // Common structured API data
-    SharedStructured structdata;
+    shared_structured structdata;
     std::vector<SharedElementSummary> summary_vec;
     auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
 
@@ -1796,7 +1796,7 @@ int Kis_Net_Httpd_Path_Tracked_Endpoint::httpd_post_complete(kis_net_httpd_conne
 
     try {
         if (structdata->hasKey("fields")) {
-            SharedStructured fields = structdata->getStructuredByKey("fields");
+            shared_structured fields = structdata->getStructuredByKey("fields");
             StructuredData::structured_vec fvec = fields->getStructuredArray();
 
             for (const auto& i : fvec) {
@@ -1913,7 +1913,7 @@ int Kis_Net_Httpd_Simple_Post_Endpoint::httpd_post_complete(kis_net_httpd_connec
             });
 
     try {
-        SharedStructured structdata;
+        shared_structured structdata;
 
         if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
             structdata =
@@ -2024,7 +2024,7 @@ int Kis_Net_Httpd_Path_Post_Endpoint::httpd_post_complete(kis_net_httpd_connecti
         tokenurl = std::vector<std::string>(tokenurl.begin() + 1, tokenurl.end());
 
     try {
-        SharedStructured structdata;
+        shared_structured structdata;
 
         if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
             structdata =

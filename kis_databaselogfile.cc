@@ -249,7 +249,7 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
     packet_drop_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>("/logging/kismetdb/pcap/drop", 
                 [this](std::ostream& stream, const std::string& uri,
-                    SharedStructured post_structured, 
+                    shared_structured post_structured, 
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                     return packet_drop_endpoint_handler(stream, uri, post_structured, variable_cache);
                 }, nullptr);
@@ -257,7 +257,7 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
     make_poi_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>("/poi/create_poi", 
                 [this](std::ostream& stream, const std::string& uri,
-                    SharedStructured post_structured,
+                    shared_structured post_structured,
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                     return make_poi_endp_handler(stream, uri, post_structured, variable_cache);
                 });
@@ -1510,8 +1510,8 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
     std::string stripped = Httpd_StripSuffix(concls->url);
     std::string suffix = Httpd_GetSuffix(concls->url);
 
-    SharedStructured structdata;
-    SharedStructured filterdata;
+    shared_structured structdata;
+    shared_structured filterdata;
 
     if (!httpd->HasValidSession(concls, true)) {
         concls->httpcode = 503;
@@ -1722,7 +1722,7 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
 
 unsigned int kis_database_logfile::packet_drop_endpoint_handler(std::ostream& ostream,
         const std::string& uri,
-        SharedStructured structured, kis_net_httpd_connection::variable_cache_map& postvars) {
+        shared_structured structured, kis_net_httpd_connection::variable_cache_map& postvars) {
 
     using namespace kissqlite3;
 
@@ -1755,7 +1755,7 @@ unsigned int kis_database_logfile::packet_drop_endpoint_handler(std::ostream& os
 }
 
 unsigned int kis_database_logfile::make_poi_endp_handler(std::ostream& ostream, 
-        const std::string& uri, SharedStructured structured,
+        const std::string& uri, shared_structured structured,
         kis_net_httpd_connection::variable_cache_map& postvars) {
 
     if (!db_enabled) {

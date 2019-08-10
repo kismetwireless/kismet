@@ -44,7 +44,7 @@ DevicetrackerView::DevicetrackerView(const std::string& in_id, const std::string
     auto uri = fmt::format("/devices/views/{}/devices", in_id);
     device_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(uri, 
-                [this](std::ostream& stream, const std::string& uri, SharedStructured post_structured,
+                [this](std::ostream& stream, const std::string& uri, shared_structured post_structured,
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                     return device_endpoint_handler(stream, uri, post_structured, variable_cache);
                 });
@@ -83,7 +83,7 @@ DevicetrackerView::DevicetrackerView(const std::string& in_id, const std::string
     auto uri = fmt::format("/devices/views/{}/devices", in_id);
     device_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(uri, 
-                [this](std::ostream& stream, const std::string& uri, SharedStructured post_structured,
+                [this](std::ostream& stream, const std::string& uri, shared_structured post_structured,
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                     return device_endpoint_handler(stream, uri, post_structured, variable_cache);
                 });
@@ -108,7 +108,7 @@ DevicetrackerView::DevicetrackerView(const std::string& in_id, const std::string
     uri = fmt::format("/devices/views/{}devices", ss.str());
     device_uri_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(uri, 
-                [this](std::ostream& stream, const std::string& uri, SharedStructured post_structured,
+                [this](std::ostream& stream, const std::string& uri, shared_structured post_structured,
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                     return device_endpoint_handler(stream, uri, post_structured, variable_cache);
                 });
@@ -435,7 +435,7 @@ std::shared_ptr<tracker_element> DevicetrackerView::device_time_uri_endpoint(con
 }
 
 unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream, 
-        const std::string& uri, SharedStructured structured,
+        const std::string& uri, shared_structured structured,
         std::map<std::string, std::shared_ptr<std::stringstream>>& postvars) {
     // Summarization vector based on simplification part of shared data
     auto summary_vec = std::vector<SharedElementSummary>{};
@@ -456,7 +456,7 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
     auto order_field = std::vector<int>{};
 
     // Regular expression terms, if any
-    auto regex = SharedStructured{};
+    auto regex = shared_structured{};
 
     // Wrapper, if any, we insert under
     std::shared_ptr<tracker_element_string_map> wrapper_elem;

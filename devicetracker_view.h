@@ -155,7 +155,7 @@ protected:
 
     // Complex post endp handler
     unsigned int device_endpoint_handler(std::ostream& stream, const std::string& uri, 
-            SharedStructured structured, 
+            shared_structured structured, 
             kis_net_httpd_connection::variable_cache_map& postvars);
 
     // Time endp handler

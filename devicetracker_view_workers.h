@@ -88,9 +88,9 @@ public:
     DevicetrackerViewRegexWorker(const std::vector<std::shared_ptr<DevicetrackerViewRegexWorker::pcre_filter>>& filter_vec);
 
     // Build a PCRE from a standard regex description on a POST.
-    // The SharedStructured objeect is expected to be a vector of [field, regex] pairs.
+    // The shared_structured objeect is expected to be a vector of [field, regex] pairs.
     // std::runtime_error may be thrown if there is a parsing failure
-    DevicetrackerViewRegexWorker(SharedStructured shared_pcre_vec);
+    DevicetrackerViewRegexWorker(shared_structured shared_pcre_vec);
 
     // Build a PCRE from a vector of field:pcre pairs
     // std::runtime_error may be thrown if there is a parsing failure

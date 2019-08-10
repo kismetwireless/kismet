@@ -735,7 +735,7 @@ int alert_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
         return MHD_NO;
     }
 
-    SharedStructured structdata;
+    shared_structured structdata;
 
     try {
         if (concls->variable_cache.find("json") != concls->variable_cache.end()) {

@@ -131,15 +131,15 @@ public:
   
     // Dispatch function based on URI
     unsigned int mod_dispatch(std::ostream& stream, const std::vector<std::string>& path, 
-            SharedStructured structured);
+            shared_structured structured);
 
     // Fingerprint manipulation; all of these are called w/in the mutex lock held by 
     // the simple tracked and simple post endpoints
-    unsigned int update_fingerprint(std::ostream& stream, mac_addr mac, SharedStructured structured);
-    unsigned int insert_fingerprint(std::ostream& stream, SharedStructured structured);
-    unsigned int delete_fingerprint(std::ostream& stream, mac_addr mac, SharedStructured structured);
-    unsigned int bulk_delete_fingerprint(std::ostream& stream, SharedStructured structured);
-    unsigned int bulk_insert_fingerprint(std::ostream& stream, SharedStructured structured);
+    unsigned int update_fingerprint(std::ostream& stream, mac_addr mac, shared_structured structured);
+    unsigned int insert_fingerprint(std::ostream& stream, shared_structured structured);
+    unsigned int delete_fingerprint(std::ostream& stream, mac_addr mac, shared_structured structured);
+    unsigned int bulk_delete_fingerprint(std::ostream& stream, shared_structured structured);
+    unsigned int bulk_insert_fingerprint(std::ostream& stream, shared_structured structured);
 
     // Fetch a fingerprint, return nullptr if fingerprint not found
     std::shared_ptr<tracked_dot11_fingerprint> get_fingerprint(const mac_addr& mac);

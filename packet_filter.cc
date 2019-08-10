@@ -55,7 +55,7 @@ Packetfilter::Packetfilter(const std::string& in_id, const std::string& in_descr
         std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(
                 posturl, 
                 [this](std::ostream& stream, const std::string& uri,
-                    SharedStructured post_structured, 
+                    shared_structured post_structured, 
                     kis_net_httpd_connection::variable_cache_map& variable_cache) {
                     local_locker lock(&mutex);
                     return default_set_endp_handler(stream, post_structured);
@@ -63,7 +63,7 @@ Packetfilter::Packetfilter(const std::string& in_id, const std::string& in_descr
     
 }
 
-int Packetfilter::default_set_endp_handler(std::ostream& stream, SharedStructured structured) {
+int Packetfilter::default_set_endp_handler(std::ostream& stream, shared_structured structured) {
     try {
         if (structured->hasKey("default")) {
             set_filter_default(filterstring_to_bool(structured->getKeyAsString("default")));
@@ -168,7 +168,7 @@ PacketfilterMacaddr::PacketfilterMacaddr(const std::string& in_id, const std::st
                     return false;
                 },
                 [this](std::ostream& stream, const std::vector<std::string>& path, 
-                        const std::string& uri, SharedStructured post_structured, 
+                        const std::string& uri, shared_structured post_structured, 
                         kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                     return edit_endp_handler(stream, path, post_structured);
                 }, &mutex);
@@ -210,7 +210,7 @@ PacketfilterMacaddr::PacketfilterMacaddr(const std::string& in_id, const std::st
                     return false;
                 },
                 [this](std::ostream& stream, const std::vector<std::string>& path,
-                        const std::string& uri, SharedStructured post_structured,
+                        const std::string& uri, shared_structured post_structured,
                         kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                     return remove_endp_handler(stream, path, post_structured);
                 }, &mutex);
@@ -433,7 +433,7 @@ void PacketfilterMacaddr::remove_filter(mac_addr in_mac, const std::string& in_p
 }
 
 unsigned int PacketfilterMacaddr::edit_endp_handler(std::ostream& stream, 
-        const std::vector<std::string>& path, SharedStructured structured) {
+        const std::vector<std::string>& path, shared_structured structured) {
     // /filters/packet/[id]/[phy]/[block]/set_filter
     
     if (path.size() < 6) {
@@ -481,7 +481,7 @@ unsigned int PacketfilterMacaddr::edit_endp_handler(std::ostream& stream,
 }
 
 unsigned int PacketfilterMacaddr::remove_endp_handler(std::ostream& stream, 
-        const std::vector<std::string>& path, SharedStructured structured) {
+        const std::vector<std::string>& path, shared_structured structured) {
     // /filters/packet/[id]/[phy]/[block]/remove_filter
 
     if (path.size() < 5) {

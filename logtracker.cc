@@ -488,7 +488,7 @@ void LogTracker::httpd_create_stream_response(kis_net_httpd *httpd,
 }
 
 int LogTracker::httpd_post_complete(kis_net_httpd_connection *concls) {
-    SharedStructured structdata;
+    shared_structured structdata;
 
     // All the posts require login
     if (!httpd->HasValidSession(concls, true)) {

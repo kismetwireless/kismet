@@ -42,7 +42,7 @@
 #include <memory>
 
 class StructuredData;
-typedef std::shared_ptr<StructuredData> SharedStructured;
+typedef std::shared_ptr<StructuredData> shared_structured;
 
 // Top-level exception
 struct StructuredDataException : public std::runtime_error {
@@ -75,13 +75,13 @@ struct StructuredDataNoSuchKey : public StructuredDataException {
 
 class StructuredData {
 public:
-    typedef std::vector<SharedStructured> structured_vec;
+    typedef std::vector<shared_structured> structured_vec;
     typedef structured_vec::iterator structured_vec_iterator;
 
-    typedef std::map<double, SharedStructured> structured_num_map;
+    typedef std::map<double, shared_structured> structured_num_map;
     typedef structured_num_map::iterator structured_num_map_iterator;
 
-    typedef std::map<std::string, SharedStructured> structured_str_map;
+    typedef std::map<std::string, shared_structured> structured_str_map;
     typedef structured_str_map::iterator structured_str_map_iterator;
 
     typedef std::vector<double> number_vec;
@@ -114,7 +114,7 @@ public:
 
     // Get keyed values as...
     virtual bool hasKey(std::string key) = 0;
-    virtual SharedStructured getStructuredByKey(std::string key) = 0;
+    virtual shared_structured getStructuredByKey(std::string key) = 0;
     virtual double getKeyAsNumber(std::string key) = 0;
     virtual double getKeyAsNumber(std::string key, double def) = 0;
     virtual std::string getKeyAsString(std::string key, std::string def) = 0;

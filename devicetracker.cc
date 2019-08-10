@@ -401,7 +401,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
     // Unlocked endpoint, we dupe our map for searching
     multimac_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>("/devices/multimac/devices", 
-                [this](std::ostream& stream, const std::string& uri, SharedStructured structured,
+                [this](std::ostream& stream, const std::string& uri, shared_structured structured,
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                 return multimac_endp_handler(stream, uri, structured, variable_cache);
                 });
@@ -1478,7 +1478,7 @@ device_tracker::convert_stored_device(mac_addr macaddr,
         std::string uzbuf(std::istreambuf_iterator<char>(istream), {});
 
         // Read out the structured json
-        SharedStructured sjson(new StructuredJson(uzbuf));
+        shared_structured sjson(new StructuredJson(uzbuf));
 
         // Process structured object into a shared element
         shared_tracker_element e = 

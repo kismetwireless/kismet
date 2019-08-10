@@ -1539,7 +1539,7 @@ int Datasourcetracker::httpd_post_complete(kis_net_httpd_connection *concls) {
 
     std::string stripped = Httpd_StripSuffix(concls->url);
 
-    SharedStructured structdata;
+    shared_structured structdata;
 
     try {
         if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
@@ -1679,7 +1679,7 @@ int Datasourcetracker::httpd_post_complete(kis_net_httpd_connection *concls) {
 
                     // Get the channels as a vector, default to the source 
                     // default if the CGI doesn't define them
-                    SharedStructured chstruct;
+                    shared_structured chstruct;
                     std::vector<std::string> converted_channels;
 
                     if (structdata->hasKey("channels")) {

@@ -449,7 +449,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
     }
 
     // Common structured API data
-    SharedStructured structdata;
+    shared_structured structdata;
 
     // Summarization vector
     std::vector<SharedElementSummary> summary_vec;
@@ -460,7 +460,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
     // Rename cache generated during simplification
     auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
 
-    SharedStructured regexdata;
+    shared_structured regexdata;
 
     time_t post_ts = 0;
 
@@ -482,7 +482,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
 
     try {
         if (structdata->hasKey("fields")) {
-            SharedStructured fields = structdata->getStructuredByKey("fields");
+            shared_structured fields = structdata->getStructuredByKey("fields");
             StructuredData::structured_vec fvec = fields->getStructuredArray();
 
             for (const auto& i : fvec) {
@@ -739,7 +739,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
 }
 
 unsigned int device_tracker::multimac_endp_handler(std::ostream& stream, const std::string& uri,
-        SharedStructured structured, kis_net_httpd_connection::variable_cache_map& variable_cache) {
+        shared_structured structured, kis_net_httpd_connection::variable_cache_map& variable_cache) {
 
     try {
         auto ret_devices = std::make_shared<tracker_element_vector>();

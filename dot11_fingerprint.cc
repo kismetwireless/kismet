@@ -39,7 +39,7 @@ Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri) {
                     return std::get<0>(post_path(path)) != uri_endpoint::endp_unknown;
                 }, 
                 [this](std::ostream& stream, const std::vector<std::string>& path,
-                    const std::string& uri, SharedStructured post_structured,
+                    const std::string& uri, shared_structured post_structured,
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                     return mod_dispatch(stream, path, post_structured);
                 }, &mutex);
@@ -65,7 +65,7 @@ Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri,
                     return std::get<0>(post_path(path)) != uri_endpoint::endp_unknown;
                 }, 
                 [this](std::ostream& stream, const std::vector<std::string>& path,
-                    const std::string& uri, SharedStructured post_structured,
+                    const std::string& uri, shared_structured post_structured,
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                     return mod_dispatch(stream, path, post_structured);
                 }, &mutex);
@@ -138,7 +138,7 @@ Dot11FingerprintTracker::post_path(const std::vector<std::string>& path) {
 }
 
 unsigned int Dot11FingerprintTracker::mod_dispatch(std::ostream& stream,
-        const std::vector<std::string>& path, SharedStructured structured) {
+        const std::vector<std::string>& path, shared_structured structured) {
 
     auto path_extract = post_path(path);
 
@@ -165,7 +165,7 @@ unsigned int Dot11FingerprintTracker::mod_dispatch(std::ostream& stream,
 }
 
 unsigned int Dot11FingerprintTracker::update_fingerprint(std::ostream &stream,
-        mac_addr mac, SharedStructured structured) {
+        mac_addr mac, shared_structured structured) {
 
     auto fpi = fingerprint_map->find(mac);
 
@@ -201,7 +201,7 @@ unsigned int Dot11FingerprintTracker::update_fingerprint(std::ostream &stream,
 }
 
 unsigned int Dot11FingerprintTracker::insert_fingerprint(std::ostream& stream, 
-        SharedStructured structured) {
+        shared_structured structured) {
     try {
         if (!structured->hasKey("macaddr"))
             throw StructuredDataException("Missing 'macaddr' field in insert command");
@@ -239,7 +239,7 @@ unsigned int Dot11FingerprintTracker::insert_fingerprint(std::ostream& stream,
 }
 
 unsigned int Dot11FingerprintTracker::delete_fingerprint(std::ostream& stream, mac_addr mac,
-        SharedStructured structured) {
+        shared_structured structured) {
 
     auto fpi = fingerprint_map->find(mac);
 
@@ -257,7 +257,7 @@ unsigned int Dot11FingerprintTracker::delete_fingerprint(std::ostream& stream, m
 }
 
 unsigned int Dot11FingerprintTracker::bulk_delete_fingerprint(std::ostream& stream, 
-        SharedStructured structured) {
+        shared_structured structured) {
 
     try {
         auto fpv = structured->getStructuredByKey("fingerprints");
@@ -295,7 +295,7 @@ unsigned int Dot11FingerprintTracker::bulk_delete_fingerprint(std::ostream& stre
 }
 
 unsigned int Dot11FingerprintTracker::bulk_insert_fingerprint(std::ostream& stream,
-        SharedStructured structured) {
+        shared_structured structured) {
 
     try {
         auto fpv = structured->getStructuredByKey("fingerprints");

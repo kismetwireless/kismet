@@ -141,7 +141,7 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(
     error = false;
 }
 
-devicetracker_pcre_worker::devicetracker_pcre_worker(SharedStructured raw_pcre_vec) {
+devicetracker_pcre_worker::devicetracker_pcre_worker(shared_structured raw_pcre_vec) {
     error = false;
 
     // Process a structuredarray of sub-arrays of [target, filter]; throw any 
@@ -213,7 +213,7 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(const std::vector<std::pair
 }
 
 devicetracker_pcre_worker::devicetracker_pcre_worker(const std::string& in_target,
-        SharedStructured raw_pcre_vec) {
+        shared_structured raw_pcre_vec) {
 
     error = false;
 

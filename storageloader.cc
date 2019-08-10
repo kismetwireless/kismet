@@ -29,7 +29,7 @@
 #include "structured.h"
 #include "devicetracker.h"
 
-shared_tracker_element StorageLoader::storage_to_tracker(SharedStructured d) {
+shared_tracker_element StorageLoader::storage_to_tracker(shared_structured d) {
 
     // A '0' object is a NULL reference, skip it
     if (d->isNumber() && d->getNumber() == 0)
