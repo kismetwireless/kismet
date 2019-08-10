@@ -653,7 +653,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     tag = structdata->getKeyAsString("tagname");
                     content = structdata->getKeyAsString("tagvalue");
 
-                    SetDeviceTag(dev, tag, content);
+                    set_device_tag(dev, tag, content);
 
                     stream << "OK";
                     return MHD_YES;

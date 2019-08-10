@@ -1687,7 +1687,7 @@ void device_tracker::set_device_user_name(std::shared_ptr<kis_tracked_device_bas
     return;
 }
 
-void device_tracker::SetDeviceTag(std::shared_ptr<kis_tracked_device_base> in_dev,
+void device_tracker::set_device_tag(std::shared_ptr<kis_tracked_device_base> in_dev,
         std::string in_tag, std::string in_content) {
 
     // Lock the device itself

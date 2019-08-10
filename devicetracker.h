@@ -259,7 +259,7 @@ public:
             std::string in_username);
 
     // Set an arbitrary tag (and log it in the database for future runs)
-    void SetDeviceTag(std::shared_ptr<kis_tracked_device_base> in_dev,
+    void set_device_tag(std::shared_ptr<kis_tracked_device_base> in_dev,
             std::string in_tag, std::string in_content);
 
     // HTTP handlers
