@@ -47,7 +47,7 @@ protected:
 
     std::shared_ptr<buffer_handler_generic> handler;
 
-    BufferHandlerOStreambuf streambuf;
+    buffer_handler_ostream_buf streambuf;
 };
 
 #endif

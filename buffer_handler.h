@@ -345,13 +345,13 @@ public:
 };
 
 // A C++ streambuf-compatible wrapper around a buf handler
-struct BufferHandlerOStreambuf : public std::streambuf {
-    BufferHandlerOStreambuf(std::shared_ptr<buffer_handler_generic > in_rbhandler) :
+struct buffer_handler_ostream_buf : public std::streambuf {
+    buffer_handler_ostream_buf(std::shared_ptr<buffer_handler_generic > in_rbhandler) :
         rb_handler(in_rbhandler), blocking(false) { }
-    BufferHandlerOStreambuf(std::shared_ptr<buffer_handler_generic > in_rbhandler, bool in_blocking) :
+    buffer_handler_ostream_buf(std::shared_ptr<buffer_handler_generic > in_rbhandler, bool in_blocking) :
         rb_handler(in_rbhandler), blocking(in_blocking) { }
 
-    virtual ~BufferHandlerOStreambuf();
+    virtual ~buffer_handler_ostream_buf();
 
 protected:
     std::streamsize xsputn(const char_type *s, std::streamsize n) override;

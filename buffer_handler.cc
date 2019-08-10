@@ -448,14 +448,14 @@ buffer_interface::~buffer_interface() {
     }
 }
 
-BufferHandlerOStreambuf::~BufferHandlerOStreambuf() {
+buffer_handler_ostream_buf::~buffer_handler_ostream_buf() {
     if (rb_handler != NULL) {
         rb_handler->RemoveWriteBufferDrainCb();
         rb_handler = NULL;
     }
 }
 
-std::streamsize BufferHandlerOStreambuf::xsputn(const char_type *s, std::streamsize n) {
+std::streamsize buffer_handler_ostream_buf::xsputn(const char_type *s, std::streamsize n) {
     if (rb_handler == NULL) {
         // fprintf(stderr, "debug - no rb handler\n");
         return -1;
@@ -507,7 +507,7 @@ std::streamsize BufferHandlerOStreambuf::xsputn(const char_type *s, std::streams
     return n;
 }
 
-BufferHandlerOStreambuf::int_type BufferHandlerOStreambuf::overflow(int_type ch) {
+buffer_handler_ostream_buf::int_type buffer_handler_ostream_buf::overflow(int_type ch) {
     if (rb_handler == NULL)
         return -1;
 

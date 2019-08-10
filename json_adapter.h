@@ -27,7 +27,7 @@
 
 // Standard JSON serialization adapter; will form complete JSON objects out
 // of the input objects.  Best connected to a chainbuf output stream via a
-// BufferHandlerOStreambuf or similar
+// buffer_handler_ostream_buf or similar
 namespace JsonAdapter {
 
 // Basic packer with some defaulted options - prettyprint and depth used for
