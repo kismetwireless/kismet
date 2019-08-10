@@ -194,7 +194,7 @@ Kis_Net_Httpd_Buffer_Stream_Aux::Kis_Net_Httpd_Buffer_Stream_Aux(
         });
 
     // Lodge ourselves as the write handler
-    ringbuf_handler->SetWriteBufferInterface(this);
+    ringbuf_handler->set_write_buffer_interface(this);
 }
 
 Kis_Net_Httpd_Buffer_Stream_Aux::~Kis_Net_Httpd_Buffer_Stream_Aux() {

@@ -360,7 +360,7 @@ void buffer_handler_generic::set_read_buffer_interface(buffer_interface *in_inte
         rbuf_notify->BufferAvailable(pending);
 }
 
-void buffer_handler_generic::SetWriteBufferInterface(buffer_interface *in_interface) {
+void buffer_handler_generic::set_write_buffer_interface(buffer_interface *in_interface) {
     wbuf_notify_avail = false;
     wbuf_notify = in_interface;
     wbuf_notify_avail = true;
