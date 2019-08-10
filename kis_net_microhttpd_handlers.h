@@ -220,7 +220,7 @@ public:
     }
 
 protected:
-    virtual std::shared_ptr<BufferHandlerGeneric> allocate_buffer() = 0;
+    virtual std::shared_ptr<buffer_handler_generic> allocate_buffer() = 0;
 
     size_t k_n_h_r_ringbuf_size;
 };
@@ -231,8 +231,8 @@ public:
     kis_net_httpd_ringbuf_stream_handler() : kis_net_httpd_buffer_stream_handler() { }
 
 protected:
-    virtual std::shared_ptr<BufferHandlerGeneric> allocate_buffer() {
-        return std::static_pointer_cast<BufferHandlerGeneric>(std::shared_ptr<BufferHandler<RingbufV2> >(new BufferHandler<RingbufV2>(0, k_n_h_r_ringbuf_size)));
+    virtual std::shared_ptr<buffer_handler_generic> allocate_buffer() {
+        return std::static_pointer_cast<buffer_handler_generic>(std::shared_ptr<BufferHandler<RingbufV2> >(new BufferHandler<RingbufV2>(0, k_n_h_r_ringbuf_size)));
     }
 };
 
@@ -241,10 +241,10 @@ public:
     kis_net_httpd_chain_stream_handler() : kis_net_httpd_buffer_stream_handler() { }
 
 protected:
-    virtual std::shared_ptr<BufferHandlerGeneric> allocate_buffer() {
+    virtual std::shared_ptr<buffer_handler_generic> allocate_buffer() {
         // Allocate a buffer directly, in a multiple of the max output size for the webserver
         // buffer
-        return std::static_pointer_cast<BufferHandlerGeneric>(std::shared_ptr<BufferHandler<Chainbuf> >(new BufferHandler<Chainbuf>(NULL, new Chainbuf(64 * 1024, 512))));
+        return std::static_pointer_cast<buffer_handler_generic>(std::shared_ptr<BufferHandler<Chainbuf> >(new BufferHandler<Chainbuf>(NULL, new Chainbuf(64 * 1024, 512))));
     }
 
 };
@@ -258,7 +258,7 @@ class Kis_Net_Httpd_Buffer_Stream_Aux : public buffer_interface {
 public:
     Kis_Net_Httpd_Buffer_Stream_Aux(kis_net_httpd_buffer_stream_handler *in_handler,
             kis_net_httpd_connection *in_httpd_connection, 
-            std::shared_ptr<BufferHandlerGeneric> in_ringbuf_handler,
+            std::shared_ptr<buffer_handler_generic> in_ringbuf_handler,
             void *in_aux,
             std::function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> in_free_aux);
 
@@ -298,11 +298,11 @@ public:
     virtual void BufferAvailable(size_t in_amt);
 
     // Let the httpd callback pull the rb handler out
-    std::shared_ptr<BufferHandlerGeneric> get_rbhandler() { return ringbuf_handler; }
+    std::shared_ptr<buffer_handler_generic> get_rbhandler() { return ringbuf_handler; }
 
     // Block until data is available (called by the buffer_event_cb in the http
     // session)
-    void block_until_data(std::shared_ptr<BufferHandlerGeneric> rbh);
+    void block_until_data(std::shared_ptr<buffer_handler_generic> rbh);
 
     // Get the buffer event mutex
     kis_recursive_timed_mutex *get_buffer_event_mutex() {
@@ -320,7 +320,7 @@ public:
     kis_net_httpd_connection *httpd_connection;
 
     // Buffer handler
-    std::shared_ptr<BufferHandlerGeneric> ringbuf_handler;
+    std::shared_ptr<buffer_handler_generic> ringbuf_handler;
 
     // Conditional locker while waiting for the stream to have data
     std::shared_ptr<conditional_locker<int> > cl;

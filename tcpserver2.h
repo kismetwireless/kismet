@@ -64,7 +64,7 @@ public:
             std::string in_bindaddress, std::vector<std::string> in_filtervec);
 
     virtual void KillConnection(int in_fd);
-    virtual void KillConnection(std::shared_ptr<BufferHandlerGeneric> in_handler);
+    virtual void KillConnection(std::shared_ptr<buffer_handler_generic> in_handler);
 
     virtual void Shutdown();
 
@@ -75,7 +75,7 @@ public:
     virtual int Poll(fd_set& in_rset, fd_set& in_wset);
    
     // Must be filled in
-    virtual void NewConnection(std::shared_ptr<BufferHandlerGeneric> conn_handler) = 0;
+    virtual void NewConnection(std::shared_ptr<buffer_handler_generic> conn_handler) = 0;
 protected:
     global_registry *globalreg;
 
@@ -88,7 +88,7 @@ protected:
     virtual bool AllowConnection(int in_fd);
 
     // Allocate the connection
-    virtual std::shared_ptr<BufferHandlerGeneric> AllocateConnection(int in_fd);
+    virtual std::shared_ptr<buffer_handler_generic> AllocateConnection(int in_fd);
 
     bool valid;
 
@@ -105,9 +105,9 @@ protected:
     int server_fd;
 
     // FD to handler
-    std::map<int, std::shared_ptr<BufferHandlerGeneric> > handler_map;
+    std::map<int, std::shared_ptr<buffer_handler_generic> > handler_map;
 
-    std::map<int, std::shared_ptr<BufferHandlerGeneric> > kill_map;
+    std::map<int, std::shared_ptr<buffer_handler_generic> > kill_map;
 
 };
 

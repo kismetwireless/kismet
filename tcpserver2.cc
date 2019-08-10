@@ -198,7 +198,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
             return 0;
         }
 
-        std::shared_ptr<BufferHandlerGeneric> con_handler = AllocateConnection(accept_fd);
+        std::shared_ptr<buffer_handler_generic> con_handler = AllocateConnection(accept_fd);
 
         if (con_handler == NULL) {
             KillConnection(accept_fd);
@@ -340,7 +340,7 @@ void TcpServerV2::KillConnection(int in_fd) {
     }
 }
 
-void TcpServerV2::KillConnection(std::shared_ptr<BufferHandlerGeneric> in_handler) {
+void TcpServerV2::KillConnection(std::shared_ptr<buffer_handler_generic> in_handler) {
     local_locker l(&tcp_mutex);
 
     for (auto i : handler_map) {
@@ -438,9 +438,9 @@ bool TcpServerV2::AllowConnection(int in_fd) {
     return false;
 }
 
-std::shared_ptr<BufferHandlerGeneric> TcpServerV2::AllocateConnection(int in_fd) {
+std::shared_ptr<buffer_handler_generic> TcpServerV2::AllocateConnection(int in_fd) {
     // Basic allocation
-    std::shared_ptr<BufferHandlerGeneric> rbh(new BufferHandler<RingbufV2>(ringbuf_size, ringbuf_size));  
+    std::shared_ptr<buffer_handler_generic> rbh(new BufferHandler<RingbufV2>(ringbuf_size, ringbuf_size));  
 
     // Protocol errors kill the connection
     auto fd_alias = in_fd;

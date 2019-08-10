@@ -1061,10 +1061,10 @@ void Datasourcetracker::schedule_cleanup() {
     //fprintf(stderr, "debug - dst scheduling cleanup as %d\n", completion_cleanup_id);
 }
 
-void Datasourcetracker::NewConnection(std::shared_ptr<BufferHandlerGeneric> conn_handler) {
+void Datasourcetracker::NewConnection(std::shared_ptr<buffer_handler_generic> conn_handler) {
     dst_incoming_remote *incoming = new dst_incoming_remote(conn_handler, 
                 [this] (dst_incoming_remote *i, std::string in_type, std::string in_def, 
-                    uuid in_uuid, std::shared_ptr<BufferHandlerGeneric> in_handler) {
+                    uuid in_uuid, std::shared_ptr<buffer_handler_generic> in_handler) {
             in_handler->RemoveReadBufferInterface();
             open_remote_datasource(i, in_type, in_def, in_uuid, in_handler);
         });
@@ -1074,7 +1074,7 @@ void Datasourcetracker::NewConnection(std::shared_ptr<BufferHandlerGeneric> conn
 
 void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,
         const std::string& in_type, const std::string& in_definition, const uuid& in_uuid, 
-        std::shared_ptr<BufferHandlerGeneric> in_handler) {
+        std::shared_ptr<buffer_handler_generic> in_handler) {
     SharedDatasource merge_target_device;
      
     local_locker lock(&dst_lock);
@@ -1987,9 +1987,9 @@ int Datasourcetracker_Httpd_Pcap::httpd_create_stream_response(kis_net_httpd *ht
     return MHD_YES;
 }
 
-dst_incoming_remote::dst_incoming_remote(std::shared_ptr<BufferHandlerGeneric> in_rbufhandler,
+dst_incoming_remote::dst_incoming_remote(std::shared_ptr<buffer_handler_generic> in_rbufhandler,
         std::function<void (dst_incoming_remote *, std::string, std::string, 
-            uuid, std::shared_ptr<BufferHandlerGeneric>)> in_cb) :
+            uuid, std::shared_ptr<buffer_handler_generic>)> in_cb) :
     KisExternalInterface() {
     
     cb = in_cb;

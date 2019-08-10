@@ -50,7 +50,7 @@ class IPCRemoteV2Tracker;
 
 class IPCRemoteV2 {
 public:
-    IPCRemoteV2(global_registry *in_globalreg, std::shared_ptr<BufferHandlerGeneric> in_rbhandler);
+    IPCRemoteV2(global_registry *in_globalreg, std::shared_ptr<buffer_handler_generic> in_rbhandler);
     virtual ~IPCRemoteV2();
 
     virtual void SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
@@ -102,7 +102,7 @@ protected:
     std::shared_ptr<PollableTracker> pollabletracker;
 
     // Handler for proxying IPC results
-    std::shared_ptr<BufferHandlerGeneric> ipchandler;
+    std::shared_ptr<buffer_handler_generic> ipchandler;
 
     // Client that reads/writes from the pipes and populates the IPC
     std::shared_ptr<PipeClient> pipeclient;

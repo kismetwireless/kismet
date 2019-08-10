@@ -166,10 +166,10 @@ protected:
 //
 class buffer_handler_generic_locker;
 
-class BufferHandlerGeneric {
+class buffer_handler_generic {
 public:
-    BufferHandlerGeneric();
-    virtual ~BufferHandlerGeneric();
+    buffer_handler_generic();
+    virtual ~buffer_handler_generic();
 
     virtual void SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
 
@@ -323,7 +323,7 @@ protected:
 };
 
 template<class B> 
-class BufferHandler : public BufferHandlerGeneric {
+class BufferHandler : public buffer_handler_generic {
 public:
     // For one-way buffers, define a buffer as having a size of zero
     BufferHandler(size_t r_buffer_sz, size_t w_buffer_sz) {
@@ -346,9 +346,9 @@ public:
 
 // A C++ streambuf-compatible wrapper around a buf handler
 struct BufferHandlerOStreambuf : public std::streambuf {
-    BufferHandlerOStreambuf(std::shared_ptr<BufferHandlerGeneric > in_rbhandler) :
+    BufferHandlerOStreambuf(std::shared_ptr<buffer_handler_generic > in_rbhandler) :
         rb_handler(in_rbhandler), blocking(false) { }
-    BufferHandlerOStreambuf(std::shared_ptr<BufferHandlerGeneric > in_rbhandler, bool in_blocking) :
+    BufferHandlerOStreambuf(std::shared_ptr<buffer_handler_generic > in_rbhandler, bool in_blocking) :
         rb_handler(in_rbhandler), blocking(in_blocking) { }
 
     virtual ~BufferHandlerOStreambuf();
@@ -359,7 +359,7 @@ protected:
 
 private:
     // buf handler we bind to
-    std::shared_ptr<BufferHandlerGeneric > rb_handler;
+    std::shared_ptr<buffer_handler_generic > rb_handler;
 
     // Do we block when buffer is full?
     bool blocking;
@@ -371,7 +371,7 @@ private:
 // A C++ streambuf-compatible wrapper around a buf handler with an interstitial string
 // cache
 struct BufferHandlerOStringStreambuf : public std::stringbuf {
-    BufferHandlerOStringStreambuf(std::shared_ptr<BufferHandlerGeneric > in_rbhandler) :
+    BufferHandlerOStringStreambuf(std::shared_ptr<buffer_handler_generic > in_rbhandler) :
         rb_handler(in_rbhandler) { }
 
     virtual ~BufferHandlerOStringStreambuf();
@@ -387,7 +387,7 @@ private:
     kis_recursive_timed_mutex mutex;
 
     // buf handler we bind to
-    std::shared_ptr<BufferHandlerGeneric > rb_handler;
+    std::shared_ptr<buffer_handler_generic > rb_handler;
     
 };
 
@@ -405,7 +405,7 @@ public:
     virtual void BufferError(std::string in_error __attribute__((unused))) { }
 
 protected:
-    BufferHandlerGeneric *buffer_handler;
+    buffer_handler_generic *buffer_handler;
     bool read_handler;
     bool write_handler;
 };

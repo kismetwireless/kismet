@@ -170,7 +170,7 @@ void Kis_Net_Httpd_No_Files_Handler::httpd_create_stream_response(kis_net_httpd 
 Kis_Net_Httpd_Buffer_Stream_Aux::Kis_Net_Httpd_Buffer_Stream_Aux(
         kis_net_httpd_buffer_stream_handler *in_handler,
         kis_net_httpd_connection *in_httpd_connection,
-        std::shared_ptr<BufferHandlerGeneric> in_ringbuf_handler,
+        std::shared_ptr<buffer_handler_generic> in_ringbuf_handler,
         void *in_aux, std::function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> in_free_aux) :
     httpd_stream_handler(in_handler),
     httpd_connection(in_httpd_connection),
@@ -217,7 +217,7 @@ void Kis_Net_Httpd_Buffer_Stream_Aux::BufferAvailable(size_t in_amt __attribute_
     cl->unlock(1);
 }
 
-void Kis_Net_Httpd_Buffer_Stream_Aux::block_until_data(std::shared_ptr<BufferHandlerGeneric> rbh) {
+void Kis_Net_Httpd_Buffer_Stream_Aux::block_until_data(std::shared_ptr<buffer_handler_generic> rbh) {
     while (1) {
         { 
             local_locker lock(&aux_mutex);
@@ -256,7 +256,7 @@ ssize_t kis_net_httpd_buffer_stream_handler::buffer_event_cb(void *cls, uint64_t
     // let this end gracefully.
     stream_aux->get_buffer_event_mutex()->lock();
 
-    std::shared_ptr<BufferHandlerGeneric> rbh = stream_aux->get_rbhandler();
+    std::shared_ptr<buffer_handler_generic> rbh = stream_aux->get_rbhandler();
 
     // Target buffer before we send it out via MHD
     size_t read_sz = 0;
@@ -314,7 +314,7 @@ static void free_buffer_aux_callback(void *cls) {
     aux->ringbuf_handler->ProtocolError();
 
     // Consume any backlog if the thread is still processing
-    std::shared_ptr<BufferHandlerGeneric> rbh = aux->get_rbhandler();
+    std::shared_ptr<buffer_handler_generic> rbh = aux->get_rbhandler();
 
     size_t read_sz = 0;
     unsigned char *zbuf;
@@ -354,7 +354,7 @@ int kis_net_httpd_buffer_stream_handler::Httpd_HandleGetRequest(kis_net_httpd *h
     std::lock_guard<std::mutex> lk(connection->connection_mutex);
 
     if (connection->response == NULL) {
-        std::shared_ptr<BufferHandlerGeneric> rbh(allocate_buffer());
+        std::shared_ptr<buffer_handler_generic> rbh(allocate_buffer());
 
         Kis_Net_Httpd_Buffer_Stream_Aux *aux = 
             new Kis_Net_Httpd_Buffer_Stream_Aux(this, connection, rbh, NULL, NULL);
@@ -436,7 +436,7 @@ int kis_net_httpd_buffer_stream_handler::Httpd_HandlePostRequest(kis_net_httpd *
 
     if (connection->response == NULL) {
         // No read, default write
-        std::shared_ptr<BufferHandlerGeneric> rbh(allocate_buffer());
+        std::shared_ptr<buffer_handler_generic> rbh(allocate_buffer());
 
         Kis_Net_Httpd_Buffer_Stream_Aux *aux = 
             new Kis_Net_Httpd_Buffer_Stream_Aux(this, connection, rbh, NULL, NULL);

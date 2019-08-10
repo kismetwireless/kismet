@@ -279,7 +279,7 @@ public:
     // connection); This doesn't require async because we're just binding the
     // interface; anything we do with the buffer is itself async in the
     // future however
-    virtual void connect_remote(std::shared_ptr<BufferHandlerGeneric> in_ringbuf,
+    virtual void connect_remote(std::shared_ptr<buffer_handler_generic> in_ringbuf,
             std::string in_definition, open_callback_t in_cb);
 
 

@@ -303,9 +303,9 @@ protected:
 // is responsible for looking up the type, closing the connection if it is invalid, etc.
 class dst_incoming_remote : public KisExternalInterface {
 public:
-    dst_incoming_remote(std::shared_ptr<BufferHandlerGeneric> in_rbufhandler,
+    dst_incoming_remote(std::shared_ptr<buffer_handler_generic> in_rbufhandler,
             std::function<void (dst_incoming_remote *, std::string srctype, std::string srcdef,
-                uuid srcuuid, std::shared_ptr<BufferHandlerGeneric> handler)> in_cb);
+                uuid srcuuid, std::shared_ptr<buffer_handler_generic> handler)> in_cb);
     ~dst_incoming_remote();
 
     // Override the dispatch commands to handle the newsource
@@ -330,7 +330,7 @@ protected:
     int timerid;
 
     std::function<void (dst_incoming_remote *, std::string, std::string, uuid, 
-            std::shared_ptr<BufferHandlerGeneric> )> cb;
+            std::shared_ptr<buffer_handler_generic> )> cb;
 
     std::thread handshake_thread;
 };
@@ -414,7 +414,7 @@ public:
             const std::string& in_type, 
             const std::string& in_definition, 
             const uuid& in_uuid,
-            std::shared_ptr<BufferHandlerGeneric> in_handler);
+            std::shared_ptr<buffer_handler_generic> in_handler);
 
     // Find a datasource
     SharedDatasource find_datasource(const uuid& in_uuid);
@@ -439,7 +439,7 @@ public:
     void iterate_datasources(DST_Worker *in_worker);
 
     // TCPServerV2 API
-    virtual void NewConnection(std::shared_ptr<BufferHandlerGeneric> conn_handler) override;
+    virtual void NewConnection(std::shared_ptr<buffer_handler_generic> conn_handler) override;
 
     // Parse a rate string
     double string_to_rate(std::string in_str, double in_default);

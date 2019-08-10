@@ -31,7 +31,7 @@
 #include "pollabletracker.h"
 
 TcpClientV2::TcpClientV2(global_registry *in_globalreg, 
-        std::shared_ptr<BufferHandlerGeneric> in_rbhandler) :
+        std::shared_ptr<buffer_handler_generic> in_rbhandler) :
     globalreg {Globalreg::globalreg},
     handler {in_rbhandler},
     tcp_mutex {std::make_shared<kis_recursive_timed_mutex>()} ,

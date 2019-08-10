@@ -31,7 +31,7 @@
 #include "pollabletracker.h"
 
 PipeClient::PipeClient(global_registry *in_globalreg, 
-        std::shared_ptr<BufferHandlerGeneric> in_rbhandler) :
+        std::shared_ptr<buffer_handler_generic> in_rbhandler) :
     globalreg {Globalreg::globalreg},
     pipe_mutex {std::make_shared<kis_recursive_timed_mutex>()},
     handler {in_rbhandler},

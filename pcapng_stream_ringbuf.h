@@ -52,7 +52,7 @@
 class Pcap_Stream_Ringbuf : public streaming_agent {
 public:
     Pcap_Stream_Ringbuf(global_registry *in_globalreg, 
-            std::shared_ptr<BufferHandlerGeneric> in_handler,
+            std::shared_ptr<buffer_handler_generic> in_handler,
             std::function<bool (kis_packet *)> accept_filter,
             std::function<kis_datachunk * (kis_packet *)> data_selector,
             bool block_for_buffer);
@@ -105,7 +105,7 @@ protected:
 
     global_registry *globalreg;
 
-    std::shared_ptr<BufferHandlerGeneric> handler;
+    std::shared_ptr<buffer_handler_generic> handler;
 
     std::shared_ptr<packetchain> packetchain;
 
@@ -129,7 +129,7 @@ protected:
 class Pcap_Stream_Packetchain : public Pcap_Stream_Ringbuf {
 public:
     Pcap_Stream_Packetchain(global_registry *in_globalreg, 
-            std::shared_ptr<BufferHandlerGeneric> in_handler,
+            std::shared_ptr<buffer_handler_generic> in_handler,
             std::function<bool (kis_packet *)> accept_filter,
             std::function<kis_datachunk * (kis_packet *)> data_selector);
 

@@ -63,7 +63,7 @@ public:
     virtual ~KisExternalInterface();
 
     // Connect an existing buffer, such as a TCP socket or IPC pipe
-    virtual void connect_buffer(std::shared_ptr<BufferHandlerGeneric> in_ringbuf);
+    virtual void connect_buffer(std::shared_ptr<buffer_handler_generic> in_ringbuf);
 
     // Trigger an error condition and call all the related functions
     virtual void trigger_error(std::string reason);
@@ -113,7 +113,7 @@ protected:
 
     // Communications API.  We implement a buffer interface and listen to the
     // incoming read buffer, we're agnostic if it's a network or IPC buffer.
-    std::shared_ptr<BufferHandlerGeneric> ringbuf_handler;
+    std::shared_ptr<buffer_handler_generic> ringbuf_handler;
 
     // If we're an IPC instance, the IPC control.  The ringbuf_handler is associated
     // with the IPC instance.

@@ -23,7 +23,7 @@
 #include "util.h"
 #include "buffer_handler.h"
 
-BufferHandlerGeneric::BufferHandlerGeneric() :
+buffer_handler_generic::buffer_handler_generic() :
     read_buffer {nullptr},
     write_buffer {nullptr},
     wbuf_notify_avail {false},
@@ -34,7 +34,7 @@ BufferHandlerGeneric::BufferHandlerGeneric() :
     writebuf_drain_cb {nullptr},
     readbuf_drain_cb {nullptr} { }
 
-BufferHandlerGeneric::~BufferHandlerGeneric() {
+buffer_handler_generic::~buffer_handler_generic() {
     if (read_buffer)
         delete read_buffer;
 
@@ -42,7 +42,7 @@ BufferHandlerGeneric::~BufferHandlerGeneric() {
         delete write_buffer;
 }
 
-void BufferHandlerGeneric::SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
+void buffer_handler_generic::SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
     if (in_parent != nullptr && in_parent == handler_mutex)
         return;
 
@@ -54,49 +54,49 @@ void BufferHandlerGeneric::SetMutex(std::shared_ptr<kis_recursive_timed_mutex> i
         handler_mutex = std::make_shared<kis_recursive_timed_mutex>();
 }
 
-ssize_t BufferHandlerGeneric::GetReadBufferSize() {
+ssize_t buffer_handler_generic::GetReadBufferSize() {
     if (read_buffer)
         return read_buffer->size();
 
     return 0;
 }
 
-ssize_t BufferHandlerGeneric::GetWriteBufferSize() {
+ssize_t buffer_handler_generic::GetWriteBufferSize() {
     if (write_buffer)
         return write_buffer->size();
 
     return 0;
 }
 
-size_t BufferHandlerGeneric::GetReadBufferUsed() {
+size_t buffer_handler_generic::GetReadBufferUsed() {
     if (read_buffer)
         return read_buffer->used();
 
     return 0;
 }
 
-size_t BufferHandlerGeneric::GetWriteBufferUsed() {
+size_t buffer_handler_generic::GetWriteBufferUsed() {
     if (write_buffer)
         return write_buffer->used();
 
     return 0;
 }
 
-ssize_t BufferHandlerGeneric::GetReadBufferAvailable() {
+ssize_t buffer_handler_generic::GetReadBufferAvailable() {
     if (read_buffer)
         return read_buffer->available();
 
     return 0;
 }
 
-ssize_t BufferHandlerGeneric::GetWriteBufferAvailable() {
+ssize_t buffer_handler_generic::GetWriteBufferAvailable() {
     if (write_buffer)
         return write_buffer->available();
 
     return 0;
 }
 
-ssize_t BufferHandlerGeneric::PeekReadBufferData(void **in_ptr, size_t in_sz) {
+ssize_t buffer_handler_generic::PeekReadBufferData(void **in_ptr, size_t in_sz) {
     if (in_ptr == NULL)
         return 0;
 
@@ -106,14 +106,14 @@ ssize_t BufferHandlerGeneric::PeekReadBufferData(void **in_ptr, size_t in_sz) {
     return 0;
 }
 
-ssize_t BufferHandlerGeneric::PeekWriteBufferData(void **in_ptr, size_t in_sz) {
+ssize_t buffer_handler_generic::PeekWriteBufferData(void **in_ptr, size_t in_sz) {
     if (write_buffer)
         return write_buffer->peek((unsigned char **) in_ptr, in_sz);
 
     return 0;
 }
 
-ssize_t BufferHandlerGeneric::ZeroCopyPeekReadBufferData(void **in_ptr, size_t in_sz) {
+ssize_t buffer_handler_generic::ZeroCopyPeekReadBufferData(void **in_ptr, size_t in_sz) {
     if (in_ptr == NULL)
         return 0;
 
@@ -123,28 +123,28 @@ ssize_t BufferHandlerGeneric::ZeroCopyPeekReadBufferData(void **in_ptr, size_t i
     return 0;
 }
 
-ssize_t BufferHandlerGeneric::ZeroCopyPeekWriteBufferData(void **in_ptr, size_t in_sz) {
+ssize_t buffer_handler_generic::ZeroCopyPeekWriteBufferData(void **in_ptr, size_t in_sz) {
     if (write_buffer)
         return write_buffer->zero_copy_peek((unsigned char **) in_ptr, in_sz);
 
     return 0;
 }
 
-void BufferHandlerGeneric::PeekFreeReadBufferData(void *in_ptr) {
+void buffer_handler_generic::PeekFreeReadBufferData(void *in_ptr) {
     if (read_buffer)
         return read_buffer->peek_free((unsigned char *) in_ptr);
 
     return;
 }
 
-void BufferHandlerGeneric::PeekFreeWriteBufferData(void *in_ptr) {
+void buffer_handler_generic::PeekFreeWriteBufferData(void *in_ptr) {
     if (write_buffer)
         return write_buffer->peek_free((unsigned char *) in_ptr);
 
     return;
 }
 
-size_t BufferHandlerGeneric::ConsumeReadBufferData(size_t in_sz) {
+size_t buffer_handler_generic::ConsumeReadBufferData(size_t in_sz) {
     size_t sz;
 
     if (read_buffer) {
@@ -158,7 +158,7 @@ size_t BufferHandlerGeneric::ConsumeReadBufferData(size_t in_sz) {
     return 0;
 }
 
-size_t BufferHandlerGeneric::ConsumeWriteBufferData(size_t in_sz) {
+size_t buffer_handler_generic::ConsumeWriteBufferData(size_t in_sz) {
     size_t sz;
 
     if (write_buffer) {
@@ -173,7 +173,7 @@ size_t BufferHandlerGeneric::ConsumeWriteBufferData(size_t in_sz) {
 }
 
 
-size_t BufferHandlerGeneric::PutReadBufferData(void *in_ptr, size_t in_sz, 
+size_t buffer_handler_generic::PutReadBufferData(void *in_ptr, size_t in_sz, 
         bool in_atomic) {
     size_t ret;
 
@@ -202,20 +202,20 @@ size_t BufferHandlerGeneric::PutReadBufferData(void *in_ptr, size_t in_sz,
     return ret;
 }
 
-bool BufferHandlerGeneric::PutReadBufferData(std::string in_data) {
+bool buffer_handler_generic::PutReadBufferData(std::string in_data) {
     size_t r =
         PutReadBufferData((void *) in_data.data(), in_data.length(), true);
     return (r == in_data.length());
 }
 
-bool BufferHandlerGeneric::PutWriteBufferData(std::string in_data) {
+bool buffer_handler_generic::PutWriteBufferData(std::string in_data) {
     size_t r =
         PutWriteBufferData((void *) in_data.data(), in_data.length(), true);
     return (r == in_data.length());
 }
 
     
-size_t BufferHandlerGeneric::PutWriteBufferData(void *in_ptr, size_t in_sz, bool in_atomic) {
+size_t buffer_handler_generic::PutWriteBufferData(void *in_ptr, size_t in_sz, bool in_atomic) {
     size_t ret;
 
     {
@@ -247,7 +247,7 @@ size_t BufferHandlerGeneric::PutWriteBufferData(void *in_ptr, size_t in_sz, bool
     return ret;
 }
 
-ssize_t BufferHandlerGeneric::ReserveReadBufferData(void **in_ptr, size_t in_sz) {
+ssize_t buffer_handler_generic::ReserveReadBufferData(void **in_ptr, size_t in_sz) {
     local_locker hlock(handler_mutex);
 
     if (read_buffer != NULL) {
@@ -257,7 +257,7 @@ ssize_t BufferHandlerGeneric::ReserveReadBufferData(void **in_ptr, size_t in_sz)
     return -1;
 }
 
-ssize_t BufferHandlerGeneric::ReserveWriteBufferData(void **in_ptr, size_t in_sz) {
+ssize_t buffer_handler_generic::ReserveWriteBufferData(void **in_ptr, size_t in_sz) {
     local_locker hlock(handler_mutex);
 
     if (write_buffer != NULL) {
@@ -267,7 +267,7 @@ ssize_t BufferHandlerGeneric::ReserveWriteBufferData(void **in_ptr, size_t in_sz
     return -1;
 }
 
-ssize_t BufferHandlerGeneric::ZeroCopyReserveReadBufferData(void **in_ptr, size_t in_sz) {
+ssize_t buffer_handler_generic::ZeroCopyReserveReadBufferData(void **in_ptr, size_t in_sz) {
     local_locker hlock(handler_mutex);
 
     if (read_buffer != NULL) {
@@ -277,7 +277,7 @@ ssize_t BufferHandlerGeneric::ZeroCopyReserveReadBufferData(void **in_ptr, size_
     return -1;
 }
 
-ssize_t BufferHandlerGeneric::ZeroCopyReserveWriteBufferData(void **in_ptr, size_t in_sz) {
+ssize_t buffer_handler_generic::ZeroCopyReserveWriteBufferData(void **in_ptr, size_t in_sz) {
     local_locker hlock(handler_mutex);
 
     if (write_buffer != NULL) {
@@ -287,19 +287,19 @@ ssize_t BufferHandlerGeneric::ZeroCopyReserveWriteBufferData(void **in_ptr, size
     return -1;
 }
 
-void BufferHandlerGeneric::TriggerWriteCallback(size_t in_sz) {
+void buffer_handler_generic::TriggerWriteCallback(size_t in_sz) {
     if (wbuf_notify_avail && wbuf_notify) {
         wbuf_notify->BufferAvailable(in_sz);
     }
 }
 
-void BufferHandlerGeneric::TriggerReadCallback(size_t in_sz) {
+void buffer_handler_generic::TriggerReadCallback(size_t in_sz) {
     if (rbuf_notify_avail && rbuf_notify) {
         rbuf_notify->BufferAvailable(in_sz);
     }
 }
 
-bool BufferHandlerGeneric::CommitReadBufferData(void *in_ptr, size_t in_sz) {
+bool buffer_handler_generic::CommitReadBufferData(void *in_ptr, size_t in_sz) {
     bool s = false;
 
     {
@@ -320,7 +320,7 @@ bool BufferHandlerGeneric::CommitReadBufferData(void *in_ptr, size_t in_sz) {
     return s;
 }
 
-bool BufferHandlerGeneric::CommitWriteBufferData(void *in_ptr, size_t in_sz) {
+bool buffer_handler_generic::CommitWriteBufferData(void *in_ptr, size_t in_sz) {
     bool s = false;
 
     {
@@ -340,17 +340,17 @@ bool BufferHandlerGeneric::CommitWriteBufferData(void *in_ptr, size_t in_sz) {
     return s;
 }
 
-void BufferHandlerGeneric::ClearReadBuffer() {
+void buffer_handler_generic::ClearReadBuffer() {
     if (read_buffer)
         read_buffer->clear();
 }
 
-void BufferHandlerGeneric::ClearWriteBuffer() {
+void buffer_handler_generic::ClearWriteBuffer() {
     if (write_buffer)
         write_buffer->clear();
 }
 
-void BufferHandlerGeneric::SetReadBufferInterface(buffer_interface *in_interface) {
+void buffer_handler_generic::SetReadBufferInterface(buffer_interface *in_interface) {
     rbuf_notify_avail = false;
     rbuf_notify = in_interface;
     rbuf_notify_avail = true;
@@ -360,7 +360,7 @@ void BufferHandlerGeneric::SetReadBufferInterface(buffer_interface *in_interface
         rbuf_notify->BufferAvailable(pending);
 }
 
-void BufferHandlerGeneric::SetWriteBufferInterface(buffer_interface *in_interface) {
+void buffer_handler_generic::SetWriteBufferInterface(buffer_interface *in_interface) {
     wbuf_notify_avail = false;
     wbuf_notify = in_interface;
     wbuf_notify_avail = true;
@@ -371,60 +371,60 @@ void BufferHandlerGeneric::SetWriteBufferInterface(buffer_interface *in_interfac
         wbuf_notify->BufferAvailable(pending);
 }
 
-void BufferHandlerGeneric::RemoveReadBufferInterface() {
+void buffer_handler_generic::RemoveReadBufferInterface() {
     rbuf_notify_avail = false;
     rbuf_notify = nullptr;
 }
 
-void BufferHandlerGeneric::RemoveWriteBufferInterface() {
+void buffer_handler_generic::RemoveWriteBufferInterface() {
     wbuf_notify_avail = false;
     wbuf_notify = nullptr;
 }
 
-void BufferHandlerGeneric::SetReadBufferDrainCb(std::function<void (size_t)> in_cb) {
+void buffer_handler_generic::SetReadBufferDrainCb(std::function<void (size_t)> in_cb) {
     rbuf_drain_avail = false;
     readbuf_drain_cb = in_cb;
     rbuf_drain_avail = true;
 }
 
-void BufferHandlerGeneric::SetWriteBufferDrainCb(std::function<void (size_t)> in_cb) {
+void buffer_handler_generic::SetWriteBufferDrainCb(std::function<void (size_t)> in_cb) {
     wbuf_drain_avail = false;
     writebuf_drain_cb = in_cb;
     wbuf_drain_avail = true;
 }
 
-void BufferHandlerGeneric::RemoveReadBufferDrainCb() {
+void buffer_handler_generic::RemoveReadBufferDrainCb() {
     rbuf_drain_avail = false;
     readbuf_drain_cb = nullptr;
 }
 
-void BufferHandlerGeneric::RemoveWriteBufferDrainCb() {
+void buffer_handler_generic::RemoveWriteBufferDrainCb() {
     wbuf_drain_avail = false;
     writebuf_drain_cb = nullptr; 
 }
 
-void BufferHandlerGeneric::BufferError(std::string in_error) {
+void buffer_handler_generic::BufferError(std::string in_error) {
     ReadBufferError(in_error);
     WriteBufferError(in_error);
 }
 
-void BufferHandlerGeneric::ReadBufferError(std::string in_error) {
+void buffer_handler_generic::ReadBufferError(std::string in_error) {
     if (rbuf_notify_avail && rbuf_notify)
         rbuf_notify->BufferError(in_error);
 }
 
-void BufferHandlerGeneric::WriteBufferError(std::string in_error) {
+void buffer_handler_generic::WriteBufferError(std::string in_error) {
     if (wbuf_notify_avail && wbuf_notify)
         wbuf_notify->BufferError(in_error);
 }
 
-void BufferHandlerGeneric::SetProtocolErrorCb(std::function<void (void)> in_cb) {
+void buffer_handler_generic::SetProtocolErrorCb(std::function<void (void)> in_cb) {
     local_locker lock(handler_mutex);
 
     protoerror_cb = in_cb;
 }
 
-void BufferHandlerGeneric::ProtocolError() {
+void buffer_handler_generic::ProtocolError() {
     // Use a write locker because future things may need RW access, too
     local_locker lock(handler_mutex);
 

@@ -284,7 +284,7 @@ public:
 class Pcap_Stream_Database : public Pcap_Stream_Ringbuf {
 public:
     Pcap_Stream_Database(global_registry *in_globalreg, 
-            std::shared_ptr<BufferHandlerGeneric> in_handler);
+            std::shared_ptr<buffer_handler_generic> in_handler);
 
     virtual ~Pcap_Stream_Database();
 

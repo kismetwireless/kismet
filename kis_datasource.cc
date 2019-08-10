@@ -336,7 +336,7 @@ void KisDatasource::set_channel_hop_list(std::vector<std::string> in_chans,
             get_source_hop_offset(), in_transaction, in_cb);
 }
 
-void KisDatasource::connect_remote(std::shared_ptr<BufferHandlerGeneric> in_ringbuf,
+void KisDatasource::connect_remote(std::shared_ptr<buffer_handler_generic> in_ringbuf,
         std::string in_definition, open_callback_t in_cb) {
     local_locker lock(ext_mutex);
 

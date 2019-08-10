@@ -1791,7 +1791,7 @@ std::shared_ptr<tracker_element> kis_database_logfile::list_poi_endp_handler() {
 }
 
 Pcap_Stream_Database::Pcap_Stream_Database(global_registry *in_globalreg,
-        std::shared_ptr<BufferHandlerGeneric> in_handler) :
+        std::shared_ptr<buffer_handler_generic> in_handler) :
         Pcap_Stream_Ringbuf(Globalreg::globalreg, in_handler, nullptr, nullptr, true),
         next_pcap_intf_id {0} {
 

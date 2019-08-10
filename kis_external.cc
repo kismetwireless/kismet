@@ -56,7 +56,7 @@ KisExternalInterface::~KisExternalInterface() {
 
 }
 
-void KisExternalInterface::connect_buffer(std::shared_ptr<BufferHandlerGeneric> in_ringbuf) {
+void KisExternalInterface::connect_buffer(std::shared_ptr<buffer_handler_generic> in_ringbuf) {
     local_locker lock(ext_mutex);
 
     ringbuf_handler = in_ringbuf;
