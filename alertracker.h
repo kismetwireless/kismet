@@ -338,7 +338,7 @@ private:
     int raise_prelude_one_shot(std::string in_header, std::string in_text);
 
     // Initialize Prelude Client (requires prelude support compiled in)
-    void PreludeInitClient(const char *analyzer_name);
+    void prelude_init_client(const char *analyzer_name);
 
 public:
     virtual ~alert_tracker();

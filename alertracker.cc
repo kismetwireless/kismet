@@ -92,7 +92,7 @@ alert_tracker::alert_tracker() :
         return;
     }
 
-    PreludeInitClient(PRELUDE_ANALYZER_MODEL);
+    prelude_init_client(PRELUDE_ANALYZER_MODEL);
 #endif
 
 	if (Globalreg::globalreg->kismet_config->FetchOpt("alertbacklog") != "") {
@@ -129,7 +129,7 @@ alert_tracker::~alert_tracker() {
 #endif
 }
 
-void alert_tracker::PreludeInitClient(const char *analyzer_name) {
+void alert_tracker::prelude_init_client(const char *analyzer_name) {
 #ifdef PRELUDE
     try {
         string version = 
