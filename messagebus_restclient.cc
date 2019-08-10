@@ -31,17 +31,17 @@ RestMessageClient::RestMessageClient(GlobalRegistry *in_globalreg, void *in_aux)
 
     message_vec_id =
         globalreg->entrytracker->RegisterField("kismet.messagebus.list",
-                TrackerElementFactory<tracker_element_vector>(),
+                tracker_element_factory<tracker_element_vector>(),
                 "list of messages");
 
     message_timestamp_id =
         globalreg->entrytracker->RegisterField("kismet.messagebus.timestamp",
-                TrackerElementFactory<TrackerElementUInt64>(),
+                tracker_element_factory<tracker_element_uint64>(),
                 "message update timestamp");
 
     message_entry_id =
         globalreg->entrytracker->RegisterField("kismet.messagebus.message",
-                TrackerElementFactory<tracked_message>(),
+                tracker_element_factory<tracked_message>(),
                 "Kismet message");
 
     Globalreg::globalreg->messagebus->RegisterClient(this, MSGFLAG_ALL);
@@ -165,7 +165,7 @@ void RestMessageClient::Httpd_CreateStreamResponse(
             wrapper->insert(msgvec);
 
             auto ts =
-                std::make_shared<TrackerElementUInt64>(message_timestamp_id, time(0));
+                std::make_shared<tracker_element_uint64>(message_timestamp_id, time(0));
             wrapper->insert(ts);
 
             transmit = wrapper;

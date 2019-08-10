@@ -360,15 +360,15 @@ protected:
 
         second_entry_id = 
             RegisterField("kismet.common.rrd.second", 
-                    TrackerElementFactory<TrackerElementInt64>(),
+                    tracker_element_factory<tracker_element_int64>(),
                     "second value");
         minute_entry_id = 
             RegisterField("kismet.common.rrd.minute", 
-                    TrackerElementFactory<TrackerElementInt64>(),
+                    tracker_element_factory<tracker_element_int64>(),
                     "minute value");
         hour_entry_id = 
             RegisterField("kismet.common.rrd.hour", 
-                    TrackerElementFactory<TrackerElementInt64>(),
+                    tracker_element_factory<tracker_element_int64>(),
                     "hour value", NULL);
 
     } 
@@ -402,14 +402,14 @@ protected:
 
     }
 
-    std::shared_ptr<TrackerElementUInt64> last_time;
+    std::shared_ptr<tracker_element_uint64> last_time;
 
     std::shared_ptr<tracker_element_vector_double> minute_vec;
     std::shared_ptr<tracker_element_vector_double> hour_vec;
     std::shared_ptr<tracker_element_vector_double> day_vec;
 
-    std::shared_ptr<TrackerElementInt64> blank_val;
-    std::shared_ptr<TrackerElementString> aggregator_name;
+    std::shared_ptr<tracker_element_int64> blank_val;
+    std::shared_ptr<tracker_element_string> aggregator_name;
 
     int second_entry_id;
     int minute_entry_id;
@@ -552,7 +552,7 @@ protected:
 
         second_entry_id = 
             RegisterField("kismet.common.rrd.second", 
-                    TrackerElementFactory<TrackerElementInt64>(),
+                    tracker_element_factory<tracker_element_int64>(),
                     "second value");
 
         RegisterField("kismet.common.rrd.blank_val", "blank value", &blank_val);
@@ -577,10 +577,10 @@ protected:
         (*aggregator_name).set(agg.name());
     }
 
-    std::shared_ptr<TrackerElementUInt64> last_time;
+    std::shared_ptr<tracker_element_uint64> last_time;
     std::shared_ptr<tracker_element_vector_double> minute_vec;
-    std::shared_ptr<TrackerElementInt64> blank_val;
-    std::shared_ptr<TrackerElementString> aggregator_name;
+    std::shared_ptr<tracker_element_int64> blank_val;
+    std::shared_ptr<tracker_element_string> aggregator_name;
 
     int second_entry_id;
 

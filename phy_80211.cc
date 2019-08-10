@@ -107,7 +107,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
         dot11_device_entry_id =
             Globalreg::globalreg->entrytracker->RegisterField("dot11.device",
-                    TrackerElementFactory<dot11_tracked_device>(),
+                    tracker_element_factory<dot11_tracked_device>(),
                     "IEEE802.11 device");
 
         // Packet classifier - makes basic records plus dot11 data
@@ -152,12 +152,12 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
         ssid_regex_vec =
             Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<tracker_element_vector>("phy80211.ssid_alerts", 
-                    TrackerElementFactory<tracker_element_vector>(),
+                    tracker_element_factory<tracker_element_vector>(),
                     "Regex SSID alert configuration");
 
         ssid_regex_vec_element_id =
             Globalreg::globalreg->entrytracker->RegisterField("phy80211.ssid_alert", 
-                    TrackerElementFactory<dot11_tracked_ssid_alert>(),
+                    tracker_element_factory<dot11_tracked_ssid_alert>(),
                     "ssid alert");
 
         // Register the dissector alerts
@@ -698,7 +698,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
                         return cl;
 
                     for (auto ci : *dot11->get_associated_client_map()) {
-                        auto dk = std::static_pointer_cast<TrackerElementDeviceKey>(ci.second);
+                        auto dk = std::static_pointer_cast<tracker_element_device_key>(ci.second);
                         auto d = devicetracker->FetchDevice(dk->get());
                         if (d != nullptr)
                             cl->push_back(d);
@@ -782,7 +782,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
                         // For every client, repeat, looking for associated clients and shard APs
                         for (auto ci : *dot11->get_associated_client_map()) {
-                            auto dk = std::static_pointer_cast<TrackerElementDeviceKey>(ci.second);
+                            auto dk = std::static_pointer_cast<tracker_element_device_key>(ci.second);
                             auto d = devicetracker->FetchDevice(dk->get());
 
                             if (d != nullptr)

@@ -66,10 +66,10 @@ protected:
 
     std::string base_uri;
 
-    std::shared_ptr<TrackerElementString> filter_id;
-    std::shared_ptr<TrackerElementString> filter_description;
-    std::shared_ptr<TrackerElementString> filter_type;
-    std::shared_ptr<TrackerElementUInt8> filter_default;
+    std::shared_ptr<tracker_element_string> filter_id;
+    std::shared_ptr<tracker_element_string> filter_description;
+    std::shared_ptr<tracker_element_string> filter_type;
+    std::shared_ptr<tracker_element_uint8> filter_default;
 
     // Default endpoint
     std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> default_endp;
@@ -115,13 +115,13 @@ protected:
 
         // Mac based map filter_sub_mac_id =
         RegisterField("kismet.classfilter.macaddr.filter_block",
-                TrackerElementFactory<tracker_element_mac_map>(),
+                tracker_element_factory<tracker_element_mac_map>(),
                 "MAC address filters");
 
 		// Filter value
         filter_sub_value_id =
             RegisterField("kismet.classfilter.macaddr.value",
-                    TrackerElementFactory<TrackerElementUInt8>(),
+                    tracker_element_factory<tracker_element_uint8>(),
                     "Filter value");
     }
 

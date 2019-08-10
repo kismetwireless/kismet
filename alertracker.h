@@ -183,17 +183,17 @@ protected:
         RegisterField("kismet.alert.location", "location", &location);
     }
 
-    std::shared_ptr<TrackerElementDeviceKey> devicekey;
-    std::shared_ptr<TrackerElementString> header;
-    std::shared_ptr<TrackerElementUInt32> phy;
-    std::shared_ptr<TrackerElementDouble> timestamp;
-    std::shared_ptr<TrackerElementMacAddr> transmitter_mac;
-    std::shared_ptr<TrackerElementMacAddr> source_mac;
-    std::shared_ptr<TrackerElementMacAddr> dest_mac;
-    std::shared_ptr<TrackerElementMacAddr> other_mac;
-    std::shared_ptr<TrackerElementString> channel;
-    std::shared_ptr<TrackerElementDouble> frequency;
-    std::shared_ptr<TrackerElementString> text;
+    std::shared_ptr<tracker_element_device_key> devicekey;
+    std::shared_ptr<tracker_element_string> header;
+    std::shared_ptr<tracker_element_uint32> phy;
+    std::shared_ptr<tracker_element_double> timestamp;
+    std::shared_ptr<tracker_element_mac_addr> transmitter_mac;
+    std::shared_ptr<tracker_element_mac_addr> source_mac;
+    std::shared_ptr<tracker_element_mac_addr> dest_mac;
+    std::shared_ptr<tracker_element_mac_addr> other_mac;
+    std::shared_ptr<tracker_element_string> channel;
+    std::shared_ptr<tracker_element_double> frequency;
+    std::shared_ptr<tracker_element_string> text;
     std::shared_ptr<kis_tracked_location_triplet> location;
 };
 
@@ -286,23 +286,23 @@ protected:
     int alert_ref;
 
     // Alert type and description
-    std::shared_ptr<TrackerElementString> header;
-    std::shared_ptr<TrackerElementString> description;
+    std::shared_ptr<tracker_element_string> header;
+    std::shared_ptr<tracker_element_string> description;
     // Phynum this is linked to
-    std::shared_ptr<TrackerElementInt64> phy;
+    std::shared_ptr<tracker_element_int64> phy;
 
     // Units, rate limit, burst, and burst rate
-    std::shared_ptr<TrackerElementUInt64> limit_unit;
-    std::shared_ptr<TrackerElementUInt64> limit_rate;
-    std::shared_ptr<TrackerElementUInt64> burst_unit;
-    std::shared_ptr<TrackerElementUInt64> limit_burst;
+    std::shared_ptr<tracker_element_uint64> limit_unit;
+    std::shared_ptr<tracker_element_uint64> limit_rate;
+    std::shared_ptr<tracker_element_uint64> burst_unit;
+    std::shared_ptr<tracker_element_uint64> limit_burst;
 
     // Number of burst and total alerts we've sent of this type
-    std::shared_ptr<TrackerElementUInt64> burst_sent;
-    std::shared_ptr<TrackerElementUInt64> total_sent;
+    std::shared_ptr<tracker_element_uint64> burst_sent;
+    std::shared_ptr<tracker_element_uint64> total_sent;
 
     // Timestamp of the last time
-    std::shared_ptr<TrackerElementDouble> time_last;
+    std::shared_ptr<tracker_element_double> time_last;
 
 };
 

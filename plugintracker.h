@@ -201,18 +201,18 @@ protected:
 
     }
 
-    std::shared_ptr<TrackerElementString> plugin_name;
-    std::shared_ptr<TrackerElementString> plugin_author;
-    std::shared_ptr<TrackerElementString> plugin_description;
-    std::shared_ptr<TrackerElementString> plugin_version;
+    std::shared_ptr<tracker_element_string> plugin_name;
+    std::shared_ptr<tracker_element_string> plugin_author;
+    std::shared_ptr<tracker_element_string> plugin_description;
+    std::shared_ptr<tracker_element_string> plugin_version;
 
-    std::shared_ptr<TrackerElementString> plugin_so;
-    std::shared_ptr<TrackerElementString> plugin_http_external;
+    std::shared_ptr<tracker_element_string> plugin_so;
+    std::shared_ptr<tracker_element_string> plugin_http_external;
 
-    std::shared_ptr<TrackerElementString> plugin_dirname;
-    std::shared_ptr<TrackerElementString> plugin_path;
+    std::shared_ptr<tracker_element_string> plugin_dirname;
+    std::shared_ptr<tracker_element_string> plugin_path;
 
-    std::shared_ptr<TrackerElementString> plugin_js;
+    std::shared_ptr<tracker_element_string> plugin_js;
 
     void *dlfile;
 

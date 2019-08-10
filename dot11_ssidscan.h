@@ -104,7 +104,7 @@ protected:
     kis_recursive_timed_mutex mutex;
 
     // Are we active at all?
-    std::shared_ptr<TrackerElementUInt8> ssidscan_enabled;
+    std::shared_ptr<tracker_element_uint8> ssidscan_enabled;
 
     // Target SSIDs
     std::shared_ptr<tracker_element_vector_string> target_ssids;
@@ -114,23 +114,23 @@ protected:
     std::shared_ptr<tracker_element_vector> ssidscan_datasources;
 
     // Do we ignore a target bssid after we think we got a handshake?
-    std::shared_ptr<TrackerElementUInt8> ignore_after_handshake;
+    std::shared_ptr<tracker_element_uint8> ignore_after_handshake;
 
     // Maximum time spent capturing if no free source is in the 'hopping' pool
     // or if there are multiple target bssids
-    std::shared_ptr<TrackerElementUInt32> max_contend_cap_seconds;
+    std::shared_ptr<tracker_element_uint32> max_contend_cap_seconds;
 
     // Minimum time spent hopping looking for targets if no free source is in the 
     // 'locked' pool, even if there are targets in view
-    std::shared_ptr<TrackerElementUInt32> min_scan_seconds;
+    std::shared_ptr<tracker_element_uint32> min_scan_seconds;
 
     // Automatically set the log filters on startup to exclude all devices and 
     // packets except the ones we specify
-    std::shared_ptr<TrackerElementUInt8> initial_log_filters;
+    std::shared_ptr<tracker_element_uint8> initial_log_filters;
 
     // Filter logging; otherwise log all packets (or whatever the user configured)
     // and just manipulate the sources
-    std::shared_ptr<TrackerElementUInt8> filter_logs;
+    std::shared_ptr<tracker_element_uint8> filter_logs;
 
     // Status/config view endp
     std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> dot11_ssidscan_status_endp;

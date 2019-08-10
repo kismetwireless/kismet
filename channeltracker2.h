@@ -116,10 +116,10 @@ protected:
     }
 
     // Channel, as string - Logical channels
-    std::shared_ptr<TrackerElementString> channel;
+    std::shared_ptr<tracker_element_string> channel;
 
     // Frequency, for collating
-    std::shared_ptr<TrackerElementDouble> frequency;
+    std::shared_ptr<tracker_element_double> frequency;
 
     // Packets per second RRD
     std::shared_ptr<kis_tracked_rrd<> > packets_rrd;

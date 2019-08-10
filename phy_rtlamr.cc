@@ -48,17 +48,17 @@ Kis_RTLAMR_Phy::Kis_RTLAMR_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
     rtlamr_holder_id =
         Globalreg::globalreg->entrytracker->RegisterField("rtlamr.device", 
-                TrackerElementFactory<tracker_element_map>(),
+                tracker_element_factory<tracker_element_map>(),
                 "rtl_amr device");
 
     rtlamr_common_id =
         Globalreg::globalreg->entrytracker->RegisterField("rtlamr.device.common",
-                TrackerElementFactory<rtlamr_tracked_common>(),
+                tracker_element_factory<rtlamr_tracked_common>(),
                 "Common RTLAMR device info");
 
     rtlamr_powermeter_id =
         Globalreg::globalreg->entrytracker->RegisterField("rtlamr.device.powermeter",
-                TrackerElementFactory<rtlamr_tracked_powermeter>(),
+                tracker_element_factory<rtlamr_tracked_powermeter>(),
                 "RTLAMR powermeter");
 
     // Make the manuf string

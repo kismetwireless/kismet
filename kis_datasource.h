@@ -158,17 +158,17 @@ protected:
 
     int datasource_entity_id;
 
-    std::shared_ptr<TrackerElementString> source_type;
-    std::shared_ptr<TrackerElementString> source_description;
-    std::shared_ptr<TrackerElementUInt8> probe_capable;
-    std::shared_ptr<TrackerElementUInt8> probe_ipc;
-    std::shared_ptr<TrackerElementUInt8> list_capable;
-    std::shared_ptr<TrackerElementUInt8> list_ipc;
-    std::shared_ptr<TrackerElementUInt8> local_capable;
-    std::shared_ptr<TrackerElementUInt8> local_ipc;
-    std::shared_ptr<TrackerElementUInt8> remote_capable;
-    std::shared_ptr<TrackerElementUInt8> passive_capable;
-    std::shared_ptr<TrackerElementUInt8> tune_capable;
+    std::shared_ptr<tracker_element_string> source_type;
+    std::shared_ptr<tracker_element_string> source_description;
+    std::shared_ptr<tracker_element_uint8> probe_capable;
+    std::shared_ptr<tracker_element_uint8> probe_ipc;
+    std::shared_ptr<tracker_element_uint8> list_capable;
+    std::shared_ptr<tracker_element_uint8> list_ipc;
+    std::shared_ptr<tracker_element_uint8> local_capable;
+    std::shared_ptr<tracker_element_uint8> local_ipc;
+    std::shared_ptr<tracker_element_uint8> remote_capable;
+    std::shared_ptr<tracker_element_uint8> passive_capable;
+    std::shared_ptr<tracker_element_uint8> tune_capable;
 };
 
 
@@ -553,25 +553,25 @@ protected:
     std::shared_ptr<KisDatasourceBuilder> source_builder;
 
     // RW fields, they're relevant only to Kismet
-    std::shared_ptr<TrackerElementString> source_name;
-    std::shared_ptr<TrackerElementUUID> source_uuid;
+    std::shared_ptr<tracker_element_string> source_name;
+    std::shared_ptr<tracker_element_uuid> source_uuid;
     bool local_uuid;
-    std::shared_ptr<TrackerElementUInt32> source_key;
+    std::shared_ptr<tracker_element_uint32> source_key;
 
     // Read-only tracked element states
     
     // Raw definition
-    std::shared_ptr<TrackerElementString> source_definition;
+    std::shared_ptr<tracker_element_string> source_definition;
 
     // Network interface / filename
-    std::shared_ptr<TrackerElementString> source_interface;
+    std::shared_ptr<tracker_element_string> source_interface;
     // Optional interface we actually capture from - ie, linux wifi VIFs or resolved USB device paths
-    std::shared_ptr<TrackerElementString> source_cap_interface;
+    std::shared_ptr<tracker_element_string> source_cap_interface;
     // Optional hardware
-    std::shared_ptr<TrackerElementString> source_hardware;
+    std::shared_ptr<tracker_element_string> source_hardware;
 
     // Interface DLT
-    std::shared_ptr<TrackerElementUInt32> source_dlt;
+    std::shared_ptr<tracker_element_uint32> source_dlt;
 
     int channel_entry_id;
 
@@ -579,26 +579,26 @@ protected:
     std::shared_ptr<tracker_element_vector> source_channels_vec;
 
     // Warning to the user if something is funny in the source
-    std::shared_ptr<TrackerElementString> source_warning;
+    std::shared_ptr<tracker_element_string> source_warning;
 
     // Are we channel hopping?
-    std::shared_ptr<TrackerElementUInt8> source_hopping;
+    std::shared_ptr<tracker_element_uint8> source_hopping;
 
     // Current channel if we're not hopping
-    std::shared_ptr<TrackerElementString> source_channel;
+    std::shared_ptr<tracker_element_string> source_channel;
 
     // Current hop rate and vector of channels we hop through, if we're hopping
-    std::shared_ptr<TrackerElementDouble> source_hop_rate;
+    std::shared_ptr<tracker_element_double> source_hop_rate;
     std::shared_ptr<tracker_element_vector> source_hop_vec;
     int source_hop_vec_id;
 
-    std::shared_ptr<TrackerElementUInt8> source_hop_split;
-    std::shared_ptr<TrackerElementUInt32> source_hop_offset;
-    std::shared_ptr<TrackerElementUInt8> source_hop_shuffle;
-    std::shared_ptr<TrackerElementUInt32> source_hop_shuffle_skip;
+    std::shared_ptr<tracker_element_uint8> source_hop_split;
+    std::shared_ptr<tracker_element_uint32> source_hop_offset;
+    std::shared_ptr<tracker_element_uint8> source_hop_shuffle;
+    std::shared_ptr<tracker_element_uint32> source_hop_shuffle_skip;
 
-    std::shared_ptr<TrackerElementUInt32> source_num_packets;
-    std::shared_ptr<TrackerElementUInt32> source_num_error_packets;
+    std::shared_ptr<tracker_element_uint32> source_num_packets;
+    std::shared_ptr<tracker_element_uint32> source_num_error_packets;
 
     int packet_rate_rrd_id;
     std::shared_ptr<kis_tracked_minute_rrd<>> packet_rate_rrd;
@@ -607,10 +607,10 @@ protected:
     // Local ID number is an increasing number assigned to each 
     // unique UUID; it's used inside Kismet for fast mapping for seenby, 
     // etc.  DST maps this to unique UUIDs after an Open
-    std::shared_ptr<TrackerElementUInt64> source_number;
+    std::shared_ptr<tracker_element_uint64> source_number;
 
     // Is the source paused?  If so, we throw out packets from it for now
-    std::shared_ptr<TrackerElementUInt8> source_paused;
+    std::shared_ptr<tracker_element_uint8> source_paused;
 
 
     // Retry API
@@ -618,25 +618,25 @@ protected:
     
     // Are we in error state?
     __ProxySetMS(int_source_error, uint8_t, bool, source_error, ext_mutex);
-    std::shared_ptr<TrackerElementUInt8> source_error;
+    std::shared_ptr<tracker_element_uint8> source_error;
 
     // Why are we in error state?
     __ProxySetMS(int_source_error_reason, std::string, std::string, source_error_reason, ext_mutex);
-    std::shared_ptr<TrackerElementString> source_error_reason;
+    std::shared_ptr<tracker_element_string> source_error_reason;
 
     // Do we want to try to re-open automatically?
     __ProxySetMS(int_source_retry, uint8_t, bool, source_retry, ext_mutex);
-    std::shared_ptr<TrackerElementUInt8> source_retry;
+    std::shared_ptr<tracker_element_uint8> source_retry;
 
     // How many consecutive errors have we had?
     __ProxySetMS(int_source_retry_attempts, uint32_t, uint32_t, source_retry_attempts, ext_mutex);
     __ProxyIncDecMS(int_source_retry_attempts, uint32_t, uint32_t, source_retry_attempts, ext_mutex);
-    std::shared_ptr<TrackerElementUInt32> source_retry_attempts;
+    std::shared_ptr<tracker_element_uint32> source_retry_attempts;
 
     // How many total errors?
     __ProxySetMS(int_source_total_retry_attempts, uint32_t, uint32_t, source_total_retry_attempts, ext_mutex);
     __ProxyIncDecMS(int_source_total_retry_attempts, uint32_t, uint32_t, source_total_retry_attempts, ext_mutex);
-    std::shared_ptr<TrackerElementUInt32> source_total_retry_attempts;
+    std::shared_ptr<tracker_element_uint32> source_total_retry_attempts;
 
     // Timer ID for trying to recover from an error
     int error_timer_id;
@@ -650,34 +650,34 @@ protected:
 
 
     // Arbitrary data stored about the source, entered by the user
-    std::shared_ptr<TrackerElementString> source_info_antenna_type;
-    std::shared_ptr<TrackerElementDouble> source_info_antenna_gain;
-    std::shared_ptr<TrackerElementDouble> source_info_antenna_orientation;
-    std::shared_ptr<TrackerElementDouble> source_info_antenna_beamwidth;
+    std::shared_ptr<tracker_element_string> source_info_antenna_type;
+    std::shared_ptr<tracker_element_double> source_info_antenna_gain;
+    std::shared_ptr<tracker_element_double> source_info_antenna_orientation;
+    std::shared_ptr<tracker_element_double> source_info_antenna_beamwidth;
 
-    std::shared_ptr<TrackerElementString> source_info_amp_type;
-    std::shared_ptr<TrackerElementDouble> source_info_amp_gain;
+    std::shared_ptr<tracker_element_string> source_info_amp_type;
+    std::shared_ptr<tracker_element_double> source_info_amp_gain;
 
-    std::shared_ptr<TrackerElementUInt32> source_override_linktype;
+    std::shared_ptr<tracker_element_uint32> source_override_linktype;
     
 
     // Do we clobber the remote timestamp?
     bool clobber_timestamp;
 
     __ProxySetMS(int_source_remote, uint8_t, bool, source_remote, ext_mutex);
-    std::shared_ptr<TrackerElementUInt8> source_remote;
+    std::shared_ptr<tracker_element_uint8> source_remote;
 
     __ProxySetMS(int_source_passive, uint8_t, bool, source_passive, ext_mutex);
-    std::shared_ptr<TrackerElementUInt8> source_passive;
+    std::shared_ptr<tracker_element_uint8> source_passive;
 
     __ProxySetMS(int_source_running, uint8_t, bool, source_running, ext_mutex);
-    std::shared_ptr<TrackerElementUInt8> source_running;
+    std::shared_ptr<tracker_element_uint8> source_running;
 
     __ProxySetMS(int_source_ipc_binary, std::string, std::string, source_ipc_binary, ext_mutex);
-    std::shared_ptr<TrackerElementString> source_ipc_binary;
+    std::shared_ptr<tracker_element_string> source_ipc_binary;
 
     __ProxySetMS(int_source_ipc_pid, int64_t, pid_t, source_ipc_pid, ext_mutex);
-    std::shared_ptr<TrackerElementInt64> source_ipc_pid;
+    std::shared_ptr<tracker_element_int64> source_ipc_pid;
 
 
     // Interfaces we found via list
@@ -766,7 +766,7 @@ public:
 
         if (in_options.size() != 0) {
             for (auto i : *options_vec) {
-                auto o = std::make_shared<TrackerElementString>(options_entry_id, 
+                auto o = std::make_shared<tracker_element_string>(options_entry_id, 
                         GetTrackerValue<std::string>(i));
                 options_vec->push_back(o);
             }
@@ -783,7 +783,7 @@ protected:
 
         options_entry_id =
             RegisterField("kismet.datasource.probed.option",
-                    TrackerElementFactory<TrackerElementString>(),
+                    tracker_element_factory<tracker_element_string>(),
                     "Interface option");
 
         RegisterField("kismet.datasource.probed.in_use_uuid",
@@ -794,13 +794,13 @@ protected:
 
     }
 
-    std::shared_ptr<TrackerElementString> interface;
+    std::shared_ptr<tracker_element_string> interface;
     std::shared_ptr<tracker_element_vector> options_vec;
 
     std::shared_ptr<KisDatasourceBuilder> prototype;
 
-    std::shared_ptr<TrackerElementUUID> in_use_uuid;
-    std::shared_ptr<TrackerElementString> hardware;
+    std::shared_ptr<tracker_element_uuid> in_use_uuid;
+    std::shared_ptr<tracker_element_string> hardware;
 
     int options_entry_id;
 

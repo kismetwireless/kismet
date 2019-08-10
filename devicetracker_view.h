@@ -132,10 +132,10 @@ protected:
 
     kis_recursive_timed_mutex mutex;
 
-    std::shared_ptr<TrackerElementString> view_id;
-    std::shared_ptr<TrackerElementUUID> view_uuid;
-    std::shared_ptr<TrackerElementString> view_description;
-    std::shared_ptr<TrackerElementUInt64> list_sz;
+    std::shared_ptr<tracker_element_string> view_id;
+    std::shared_ptr<tracker_element_uuid> view_uuid;
+    std::shared_ptr<tracker_element_string> view_description;
+    std::shared_ptr<tracker_element_uint64> list_sz;
 
     new_device_cb new_cb;
     updated_device_cb update_cb;

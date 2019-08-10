@@ -46,7 +46,7 @@ Kis_Zwave_Phy::Kis_Zwave_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
     zwave_device_id =
         Globalreg::globalreg->entrytracker->RegisterField("zwave.device",
-                TrackerElementFactory<zwave_tracked_device>(),
+                tracker_element_factory<zwave_tracked_device>(),
                 "Z-Wave device");
 
     zwave_manuf = Globalreg::globalreg->manufdb->MakeManuf("Z-Wave");

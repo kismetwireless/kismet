@@ -65,10 +65,10 @@ protected:
 
     std::string base_uri;
 
-    std::shared_ptr<TrackerElementString> filter_id;
-    std::shared_ptr<TrackerElementString> filter_description;
-    std::shared_ptr<TrackerElementString> filter_type;
-    std::shared_ptr<TrackerElementUInt8> filter_default;
+    std::shared_ptr<tracker_element_string> filter_id;
+    std::shared_ptr<tracker_element_string> filter_description;
+    std::shared_ptr<tracker_element_string> filter_type;
+    std::shared_ptr<tracker_element_uint8> filter_default;
 
     // Default endpoint
     std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> default_endp;
@@ -112,32 +112,32 @@ protected:
 
         filter_sub_value_id =
             RegisterField("kismet.packetfilter.macaddr.value",
-                    TrackerElementFactory<TrackerElementUInt8>(),
+                    tracker_element_factory<tracker_element_uint8>(),
                     "Filter value");
 
         filter_source_id =
             RegisterField("kismet.packetfilter.macaddr.source", 
-                    TrackerElementFactory<tracker_element_mac_map>(),
+                    tracker_element_factory<tracker_element_mac_map>(),
                     "Source address filters");
 
         filter_dest_id =
             RegisterField("kismet.packetfilter.macaddr.destination", 
-                    TrackerElementFactory<tracker_element_mac_map>(),
+                    tracker_element_factory<tracker_element_mac_map>(),
                     "Destination address filters");
 
         filter_network_id =
             RegisterField("kismet.packetfilter.macaddr.network", 
-                    TrackerElementFactory<tracker_element_mac_map>(),
+                    tracker_element_factory<tracker_element_mac_map>(),
                     "Network/BSSID address filters");
 
         filter_other_id =
             RegisterField("kismet.packetfilter.macaddr.other", 
-                    TrackerElementFactory<tracker_element_mac_map>(),
+                    tracker_element_factory<tracker_element_mac_map>(),
                     "Other address filters");
 
         filter_any_id =
             RegisterField("kismet.packetfilter.macaddr.any", 
-                    TrackerElementFactory<tracker_element_mac_map>(),
+                    tracker_element_factory<tracker_element_mac_map>(),
                     "Any matching address type");
     }
 

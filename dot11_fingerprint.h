@@ -101,9 +101,9 @@ protected:
         RegisterField("ksimet.dot11.fingerprint.probe_hash", "Probe hash", &probe_hash);
     }
 
-    std::shared_ptr<TrackerElementUInt32> beacon_hash;
-    std::shared_ptr<TrackerElementUInt32> response_hash;
-    std::shared_ptr<TrackerElementUInt32> probe_hash;
+    std::shared_ptr<tracker_element_uint32> beacon_hash;
+    std::shared_ptr<tracker_element_uint32> response_hash;
+    std::shared_ptr<tracker_element_uint32> probe_hash;
 };
 
 

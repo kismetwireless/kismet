@@ -146,17 +146,17 @@ protected:
     }
 
     std::shared_ptr<kis_tracked_location_triplet> location;
-    std::shared_ptr<TrackerElementDouble> telem_ts;
-    std::shared_ptr<TrackerElementDouble> yaw;
-    std::shared_ptr<TrackerElementDouble> pitch;
-    std::shared_ptr<TrackerElementDouble> roll;
-    std::shared_ptr<TrackerElementDouble> height;
-    std::shared_ptr<TrackerElementDouble> v_north;
-    std::shared_ptr<TrackerElementDouble> v_east;
-    std::shared_ptr<TrackerElementDouble> v_up;
+    std::shared_ptr<tracker_element_double> telem_ts;
+    std::shared_ptr<tracker_element_double> yaw;
+    std::shared_ptr<tracker_element_double> pitch;
+    std::shared_ptr<tracker_element_double> roll;
+    std::shared_ptr<tracker_element_double> height;
+    std::shared_ptr<tracker_element_double> v_north;
+    std::shared_ptr<tracker_element_double> v_east;
+    std::shared_ptr<tracker_element_double> v_up;
 
-    std::shared_ptr<TrackerElementUInt8> motor_on;
-    std::shared_ptr<TrackerElementUInt8> airborne;
+    std::shared_ptr<tracker_element_uint8> motor_on;
+    std::shared_ptr<tracker_element_uint8> airborne;
 };
 
 // Match a manufacturer (such as OUI, SSID, or both)
@@ -240,12 +240,12 @@ protected:
                 "Allow partial matches (only manuf or only ssid)", &uav_manuf_partial);
     }
 
-    std::shared_ptr<TrackerElementString> uav_match_name;
-    std::shared_ptr<TrackerElementString> uav_manuf_name;
-    std::shared_ptr<TrackerElementString> uav_manuf_model;
-    std::shared_ptr<TrackerElementMacAddr> uav_manuf_mac;
-    std::shared_ptr<TrackerElementString> uav_manuf_ssid_regex;
-    std::shared_ptr<TrackerElementUInt8> uav_manuf_partial;
+    std::shared_ptr<tracker_element_string> uav_match_name;
+    std::shared_ptr<tracker_element_string> uav_manuf_name;
+    std::shared_ptr<tracker_element_string> uav_manuf_model;
+    std::shared_ptr<tracker_element_mac_addr> uav_manuf_mac;
+    std::shared_ptr<tracker_element_string> uav_manuf_ssid_regex;
+    std::shared_ptr<tracker_element_uint8> uav_manuf_partial;
 
 #ifdef HAVE_LIBPCRE
     pcre *re;
@@ -315,7 +315,7 @@ protected:
 
         telem_history_entry_id =
             RegisterField("uav.telemetry_entry",
-                    TrackerElementFactory<uav_tracked_telemetry>(),
+                    tracker_element_factory<uav_tracked_telemetry>(),
                     "historical telemetry");
 
         RegisterField("uav.match_type", "Match type (drone characteristics)", &uav_match_type);
@@ -341,9 +341,9 @@ protected:
         }
     }
 
-    std::shared_ptr<TrackerElementString> uav_manufacturer;
-    std::shared_ptr<TrackerElementString> uav_model;
-    std::shared_ptr<TrackerElementString> uav_serialnumber;
+    std::shared_ptr<tracker_element_string> uav_manufacturer;
+    std::shared_ptr<tracker_element_string> uav_model;
+    std::shared_ptr<tracker_element_string> uav_serialnumber;
 
     std::shared_ptr<uav_tracked_telemetry> last_telem_loc;
     int last_telem_loc_id;
@@ -352,7 +352,7 @@ protected:
 
     int telem_history_entry_id;
 
-    std::shared_ptr<TrackerElementString> uav_match_type;
+    std::shared_ptr<tracker_element_string> uav_match_type;
 
     std::shared_ptr<kis_tracked_location_triplet> home_location;
     int home_location_id;

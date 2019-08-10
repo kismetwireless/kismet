@@ -110,15 +110,15 @@ bool devicetracker_stringmatch_worker::MatchDevice(Devicetracker *devicetracker 
         } else if (field->get_type() == TrackerType::TrackerByteArray) {
             // Try a raw string match against a binary field
             matched = 
-                std::static_pointer_cast<TrackerElementByteArray>(field)->get().find(query) != std::string::npos;
+                std::static_pointer_cast<tracker_element_byte_array>(field)->get().find(query) != std::string::npos;
         } else if (field->get_type() == TrackerType::TrackerMac && mac_query_term_len != 0) {
             // If we were able to interpret the query term as a partial
             // mac address, do a mac compare
             matched =
-                std::static_pointer_cast<TrackerElementMacAddr>(field)->get().PartialSearch(mac_query_term, mac_query_term_len);
+                std::static_pointer_cast<tracker_element_mac_addr>(field)->get().PartialSearch(mac_query_term, mac_query_term_len);
         } else if (field->get_type() == TrackerType::TrackerUuid) {
             matched =
-                TrackerElement::safe_cast_as<TrackerElementUUID>(field)->get().asString().find(query) != std::string::npos;
+                TrackerElement::safe_cast_as<tracker_element_uuid>(field)->get().asString().find(query) != std::string::npos;
         }
 
         if (matched)
@@ -276,7 +276,7 @@ bool devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attri
             else if (fi->get_type() == TrackerType::TrackerUuid)
                 val = GetTrackerValue<uuid>(fi).UUID2String();
             else if (fi->get_type() == TrackerType::TrackerByteArray) 
-                val = std::static_pointer_cast<TrackerElementByteArray>(fi)->get();
+                val = std::static_pointer_cast<tracker_element_byte_array>(fi)->get();
             else
                 continue;
 

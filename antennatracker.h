@@ -88,11 +88,11 @@ protected:
         RegisterField("kismet.antenna.power_adjust", "Optional power adjustment", &power_adjust);
     }
 
-    std::shared_ptr<TrackerElementInt32> antenna_id;
-    std::shared_ptr<TrackerElementUUID> antenna_uuid;
-    std::shared_ptr<TrackerElementUUID> source_uuid;
-    std::shared_ptr<TrackerElementInt32> power_adjust;
-    std::shared_ptr<TrackerElementInt32> source_antnum;
+    std::shared_ptr<tracker_element_int32> antenna_id;
+    std::shared_ptr<tracker_element_uuid> antenna_uuid;
+    std::shared_ptr<tracker_element_uuid> source_uuid;
+    std::shared_ptr<tracker_element_int32> power_adjust;
+    std::shared_ptr<tracker_element_int32> source_antnum;
 
 };
 

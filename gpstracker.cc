@@ -39,7 +39,7 @@ GpsTracker::GpsTracker() :
 
     tracked_uuid_addition_id = 
         Globalreg::globalreg->entrytracker->RegisterField("kismet.common.location.gps_uuid", 
-                TrackerElementFactory<TrackerElementUUID>(),
+                tracker_element_factory<tracker_element_uuid>(),
                 "UUID of GPS reporting location");
 
     // Register the gps component
@@ -313,7 +313,7 @@ void GpsTracker::Httpd_CreateStreamResponse(
         auto loctrip =
             std::make_shared<kis_tracked_location_triplet>();
         auto ue =
-            std::make_shared<TrackerElementUUID>(tracked_uuid_addition_id);
+            std::make_shared<tracker_element_uuid>(tracked_uuid_addition_id);
 
         if (pi != NULL) {
             ue->set(pi->gpsuuid);

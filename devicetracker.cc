@@ -78,47 +78,47 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 
     device_base_id =
         entrytracker->RegisterField("kismet.device.base", 
-                TrackerElementFactory<kis_tracked_device_base>(),
+                tracker_element_factory<kis_tracked_device_base>(),
                 "core device record");
     device_list_base_id =
         entrytracker->RegisterField("kismet.device.list",
-                TrackerElementFactory<tracker_element_vector>(),
+                tracker_element_factory<tracker_element_vector>(),
                 "list of devices");
 
 
     device_summary_base_id =
         entrytracker->RegisterField("kismet.device.summary_list",
-                TrackerElementFactory<tracker_element_vector>(),
+                tracker_element_factory<tracker_element_vector>(),
                 "summary list of devices");
 
     device_update_required_id =
         entrytracker->RegisterField("kismet.devicelist.refresh",
-                TrackerElementFactory<TrackerElementUInt8>(),
+                tracker_element_factory<tracker_element_uint8>(),
                 "device list refresh recommended");
     device_update_timestamp_id =
         entrytracker->RegisterField("kismet.devicelist.timestamp",
-                TrackerElementFactory<TrackerElementUInt64>(),
+                tracker_element_factory<tracker_element_uint64>(),
                 "device list timestamp");
 
     // These need unique IDs to be put in the map for serialization.
     // They also need unique field names, we can rename them with setlocalname
     dt_length_id =
         entrytracker->RegisterField("kismet.datatables.recordsTotal", 
-                TrackerElementFactory<TrackerElementUInt64>(),
+                tracker_element_factory<tracker_element_uint64>(),
                 "datatable records total");
     dt_filter_id =
         entrytracker->RegisterField("kismet.datatables.recordsFiltered", 
-                TrackerElementFactory<TrackerElementUInt64>(),
+                tracker_element_factory<tracker_element_uint64>(),
                 "datatable records filtered");
     dt_draw_id =
         entrytracker->RegisterField("kismet.datatables.draw", 
-                TrackerElementFactory<TrackerElementUInt64>(),
+                tracker_element_factory<tracker_element_uint64>(),
                 "Datatable records draw ID");
 
     // Generate the system-wide packet RRD
     packets_rrd = 
         entrytracker->RegisterAndGetFieldAs<kis_tracked_rrd<>>("kismet.device.packets_rrd",
-            TrackerElementFactory<kis_tracked_rrd<>>(), "Packets seen RRD");
+            tracker_element_factory<kis_tracked_rrd<>>(), "Packets seen RRD");
 
 	num_packets = num_datapackets = num_errorpackets =
 		num_filterpackets = 0;
@@ -408,27 +408,27 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 
     phy_phyentry_id =
         entrytracker->RegisterField("kismet.phy.phy",
-                TrackerElementFactory<tracker_element_map>(),
+                tracker_element_factory<tracker_element_map>(),
                 "Kismet PHY handler");
 
     phy_phyname_id =
         entrytracker->RegisterField("kismet.phy.phy_name",
-                TrackerElementFactory<TrackerElementString>(),
+                tracker_element_factory<tracker_element_string>(),
                 "Phy name (consistent across executions)");
 
     phy_phyid_id =
         entrytracker->RegisterField("kismet.phy.phy_id",
-                TrackerElementFactory<TrackerElementUInt32>(),
+                tracker_element_factory<tracker_element_uint32>(),
                 "Phy ID (dynamic runtime index, may change between executions)");
 
     phy_devices_count_id =
         entrytracker->RegisterField("kismet.phy.device_count",
-                TrackerElementFactory<TrackerElementUInt64>(),
+                tracker_element_factory<tracker_element_uint64>(),
                 "Devices present in phy");
 
     phy_packets_count_id =
         entrytracker->RegisterField("kismet.phy.packet_count",
-                TrackerElementFactory<TrackerElementUInt64>(),
+                tracker_element_factory<tracker_element_uint64>(),
                 "Packets seen in phy");
 
     all_phys_endp = 
@@ -1620,7 +1620,7 @@ void Devicetracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> in
             tagstr = (const unsigned char *) sqlite3_column_text(stmt, 0);
             contentstr = (const unsigned char *) sqlite3_column_text(stmt, 1);
 
-            auto tagc = std::make_shared<TrackerElementString>();
+            auto tagc = std::make_shared<tracker_element_string>();
             tagc->set(std::string((const char *) contentstr));
 
             in_dev->get_tag_map()->insert(std::string((const char *) tagstr), tagc);
@@ -1693,7 +1693,7 @@ void Devicetracker::SetDeviceTag(std::shared_ptr<kis_tracked_device_base> in_dev
     // Lock the device itself
     local_locker devlocker(&(in_dev->device_mutex));
 
-    auto e = std::make_shared<TrackerElementString>();
+    auto e = std::make_shared<tracker_element_string>();
     e->set(in_content);
 
     auto sm = in_dev->get_tag_map();

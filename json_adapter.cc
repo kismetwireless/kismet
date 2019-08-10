@@ -645,7 +645,7 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
             break;
 
         case TrackerType::TrackerByteArray:
-            bytes = std::static_pointer_cast<TrackerElementByteArray>(e)->get();
+            bytes = std::static_pointer_cast<tracker_element_byte_array>(e)->get();
             bytes_c = bytes.data();
            
             fflags = stream.flags();
@@ -967,7 +967,7 @@ void StorageJsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
             stream << "}";
             break;
         case TrackerType::TrackerByteArray:
-            bytes = std::static_pointer_cast<TrackerElementByteArray>(e)->get();
+            bytes = std::static_pointer_cast<tracker_element_byte_array>(e)->get();
             bytes_c = bytes.data();
            
             fflags = stream.flags();

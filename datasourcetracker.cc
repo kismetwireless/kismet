@@ -305,21 +305,21 @@ Datasourcetracker::Datasourcetracker() :
 
     proto_id = 
         Globalreg::globalreg->entrytracker->RegisterField("kismet.datasourcetracker.driver",
-                TrackerElementFactory<KisDatasourceBuilder>(),
+                tracker_element_factory<KisDatasourceBuilder>(),
                 "Datasource driver information");
 
     source_id =
         Globalreg::globalreg->entrytracker->RegisterField("kismet.datasourcetracker.datasource",
-                TrackerElementFactory<KisDatasource>(nullptr),
+                tracker_element_factory<KisDatasource>(nullptr),
                 "Datasource");
 
     proto_vec =
         Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<tracker_element_vector>("kismet.datasourcetracker.drivers",
-                TrackerElementFactory<tracker_element_vector>(), "Known drivers");
+                tracker_element_factory<tracker_element_vector>(), "Known drivers");
 
     datasource_vec =
         Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<tracker_element_vector>("kismet.datasourcetracker.sources",
-                TrackerElementFactory<tracker_element_vector>(), "Configured sources");
+                tracker_element_factory<tracker_element_vector>(), "Configured sources");
 
     all_sources_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/datasource/all_sources",
@@ -419,7 +419,7 @@ void Datasourcetracker::Deferred_Startup() {
 
     config_defaults = 
         Globalreg::globalreg->entrytracker->RegisterAndGetFieldAs<datasourcetracker_defaults>("kismet.datasourcetracker.defaults",
-                TrackerElementFactory<datasourcetracker_defaults>(),
+                tracker_element_factory<datasourcetracker_defaults>(),
                 "Datasource default values");
 
     if (Globalreg::globalreg->kismet_config->FetchOptBoolean("channel_hop", true)) {

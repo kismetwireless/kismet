@@ -80,10 +80,10 @@ public:
 protected:
     virtual void register_fields() override;
 
-    std::shared_ptr<TrackerElementInt32> ip_type;
-    std::shared_ptr<TrackerElementUInt64> ip_addr_block;
-    std::shared_ptr<TrackerElementUInt64> ip_netmask;
-    std::shared_ptr<TrackerElementUInt64> ip_gateway;
+    std::shared_ptr<tracker_element_int32> ip_type;
+    std::shared_ptr<tracker_element_uint64> ip_addr_block;
+    std::shared_ptr<tracker_element_uint64> ip_netmask;
+    std::shared_ptr<tracker_element_uint64> ip_gateway;
 };
 
 // Component-tracker based signal data
@@ -131,23 +131,23 @@ public:
 protected:
     virtual void register_fields() override;
 
-    std::shared_ptr<TrackerElementInt32> last_signal;
-    std::shared_ptr<TrackerElementInt32> last_noise;
+    std::shared_ptr<tracker_element_int32> last_signal;
+    std::shared_ptr<tracker_element_int32> last_noise;
 
-    std::shared_ptr<TrackerElementInt32> min_signal;
-    std::shared_ptr<TrackerElementInt32> min_noise;
+    std::shared_ptr<tracker_element_int32> min_signal;
+    std::shared_ptr<tracker_element_int32> min_noise;
 
-    std::shared_ptr<TrackerElementInt32> max_signal;
-    std::shared_ptr<TrackerElementInt32> max_noise;
+    std::shared_ptr<tracker_element_int32> max_signal;
+    std::shared_ptr<tracker_element_int32> max_noise;
 
-    std::shared_ptr<TrackerElementString> signal_type;
+    std::shared_ptr<tracker_element_string> signal_type;
 
     int peak_loc_id;
     std::shared_ptr<kis_tracked_location_triplet> peak_loc;
 
-    std::shared_ptr<TrackerElementDouble> maxseenrate;
-    std::shared_ptr<TrackerElementUInt64> encodingset;
-    std::shared_ptr<TrackerElementUInt64> carrierset;
+    std::shared_ptr<tracker_element_double> maxseenrate;
+    std::shared_ptr<tracker_element_uint64> encodingset;
+    std::shared_ptr<tracker_element_uint64> carrierset;
 
     // Signal record over the past minute, either rssi or dbm.  Devices
     // should not mix rssi and dbm signal reporting.
@@ -189,10 +189,10 @@ public:
 protected:
     virtual void register_fields() override;
 
-    std::shared_ptr<TrackerElementUUID> src_uuid;
-    std::shared_ptr<TrackerElementUInt64> first_time;
-    std::shared_ptr<TrackerElementUInt64> last_time;
-    std::shared_ptr<TrackerElementUInt64> num_packets;
+    std::shared_ptr<tracker_element_uuid> src_uuid;
+    std::shared_ptr<tracker_element_uint64> first_time;
+    std::shared_ptr<tracker_element_uint64> last_time;
+    std::shared_ptr<tracker_element_uint64> num_packets;
 
     std::shared_ptr<tracker_element_double_mapDouble> freq_khz_map;
     int frequency_val_id;
@@ -399,7 +399,7 @@ public:
     __Proxy(channel, std::string, std::string, std::string, channel);
     __Proxy(frequency, double, double, double, frequency);
 
-    __ProxyTrackable(manuf, TrackerElementString, manuf);
+    __ProxyTrackable(manuf, tracker_element_string, manuf);
     __Proxy(manuf, std::string, std::string, std::string, manuf);
 
     __Proxy(num_alerts, uint32_t, unsigned int, unsigned int, alert);
@@ -457,57 +457,57 @@ protected:
     uint64_t kis_internal_id;
 
     // Unique key
-    std::shared_ptr<TrackerElementDeviceKey> key;
+    std::shared_ptr<tracker_element_device_key> key;
 
     // Mac address (probably the key, but could be different)
-    std::shared_ptr<TrackerElementMacAddr> macaddr;
+    std::shared_ptr<tracker_element_mac_addr> macaddr;
 
     // Phy name
-    std::shared_ptr<TrackerElementString> phyname;
-	std::shared_ptr<TrackerElementInt32> phyid;
+    std::shared_ptr<tracker_element_string> phyname;
+	std::shared_ptr<tracker_element_int32> phyid;
 
     // Printable name for UI summary.  For APs could be latest SSID, for BT the UAP guess, etc.
-    std::shared_ptr<TrackerElementString> devicename;
+    std::shared_ptr<tracker_element_string> devicename;
 
     // User name for arbitrary naming
-    std::shared_ptr<TrackerElementString> username;
+    std::shared_ptr<tracker_element_string> username;
     int username_id;
 
     // Common name connected via preserialize
-    std::shared_ptr<TrackerElementString> commonname;
+    std::shared_ptr<tracker_element_string> commonname;
 
     // Printable basic type relevant to the phy, ie "Wired", "AP", "Bluetooth", etc.
     // This can be set per-phy and is treated as a printable interpretation.
     // This should be empty if the phy layer is unable to add something intelligent
-    std::shared_ptr<TrackerElementString> type_string;
+    std::shared_ptr<tracker_element_string> type_string;
 
     // Basic phy-neutral type for sorting and classification
-    std::shared_ptr<TrackerElementUInt64> basic_type_set;
+    std::shared_ptr<tracker_element_uint64> basic_type_set;
 
     // Printable crypt string, which is set by the phy and is the best printable
     // representation of the phy crypt options.  This should be empty if the phy
     // layer hasn't added something intelligent.
-    std::shared_ptr<TrackerElementString> crypt_string;
+    std::shared_ptr<tracker_element_string> crypt_string;
 
     // Bitset of basic phy-neutral crypt options
-    std::shared_ptr<TrackerElementUInt64> basic_crypt_set;
+    std::shared_ptr<tracker_element_uint64> basic_crypt_set;
 
     // First and last seen
-    std::shared_ptr<TrackerElementUInt64> first_time;
-    std::shared_ptr<TrackerElementUInt64> last_time;
-    std::shared_ptr<TrackerElementUInt64> mod_time;
+    std::shared_ptr<tracker_element_uint64> first_time;
+    std::shared_ptr<tracker_element_uint64> last_time;
+    std::shared_ptr<tracker_element_uint64> mod_time;
 
     // Packet counts
-    std::shared_ptr<TrackerElementUInt64> packets;
-    std::shared_ptr<TrackerElementUInt64> tx_packets;
-    std::shared_ptr<TrackerElementUInt64> rx_packets;
-    std::shared_ptr<TrackerElementUInt64> llc_packets;
-    std::shared_ptr<TrackerElementUInt64> error_packets;
-    std::shared_ptr<TrackerElementUInt64> data_packets;
-    std::shared_ptr<TrackerElementUInt64> crypt_packets;
-    std::shared_ptr<TrackerElementUInt64> filter_packets;
+    std::shared_ptr<tracker_element_uint64> packets;
+    std::shared_ptr<tracker_element_uint64> tx_packets;
+    std::shared_ptr<tracker_element_uint64> rx_packets;
+    std::shared_ptr<tracker_element_uint64> llc_packets;
+    std::shared_ptr<tracker_element_uint64> error_packets;
+    std::shared_ptr<tracker_element_uint64> data_packets;
+    std::shared_ptr<tracker_element_uint64> crypt_packets;
+    std::shared_ptr<tracker_element_uint64> filter_packets;
 
-    std::shared_ptr<TrackerElementUInt64> datasize;
+    std::shared_ptr<tracker_element_uint64> datasize;
 
     // Packets and data RRDs
     int packets_rrd_id;
@@ -529,8 +529,8 @@ protected:
     std::shared_ptr<kis_tracked_minute_rrd<>> packet_rrd_bin_jumbo;
 
 	// Channel and frequency as per PHY type
-    std::shared_ptr<TrackerElementString> channel;
-    std::shared_ptr<TrackerElementDouble> frequency;
+    std::shared_ptr<tracker_element_string> channel;
+    std::shared_ptr<tracker_element_double> frequency;
 
     // Signal data
     int signal_data_id;
@@ -541,10 +541,10 @@ protected:
 
     // Manufacturer, if we're able to derive, either from OUI or 
     // from other data (phy-dependent)
-    std::shared_ptr<TrackerElementString> manuf;
+    std::shared_ptr<tracker_element_string> manuf;
 
     // Alerts triggered on this device
-    std::shared_ptr<TrackerElementUInt32> alert;
+    std::shared_ptr<tracker_element_uint32> alert;
 
     // Stringmap of tags
     std::shared_ptr<tracker_element_string_map> tag_map;
@@ -563,7 +563,7 @@ protected:
     int seenby_map_id;
 
     // Server UUID which generated this device
-    std::shared_ptr<TrackerElementUUID> server_uuid;
+    std::shared_ptr<tracker_element_uuid> server_uuid;
 
     // Non-exported local value for frequency count
     int frequency_val_id;

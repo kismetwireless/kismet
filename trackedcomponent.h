@@ -705,7 +705,7 @@ protected:
             std::shared_ptr<T> *in_dest) {
         using build_type = typename std::remove_reference<decltype(**in_dest)>::type;
 
-        return RegisterField(in_name, TrackerElementFactory<build_type>(), in_desc, 
+        return RegisterField(in_name, tracker_element_factory<build_type>(), in_desc, 
                 reinterpret_cast<SharedTrackerElement *>(in_dest));
     }
 
@@ -723,7 +723,7 @@ protected:
 
         int id = 
             Globalreg::globalreg->entrytracker->RegisterField(in_name, 
-                    TrackerElementFactory<build_type>(), in_desc);
+                    tracker_element_factory<build_type>(), in_desc);
 
         auto rf = std::unique_ptr<registered_field>(new registered_field(id, 
                     reinterpret_cast<SharedTrackerElement *>(in_dest), 

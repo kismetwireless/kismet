@@ -32,7 +32,7 @@ KisGps::KisGps(SharedGpsBuilder in_builder) :
 
     // Force the ID
     set_id(Globalreg::globalreg->entrytracker->RegisterField("kismet.gps.instance", 
-            TrackerElementFactory<tracker_element_map>(), "GPS"));
+            tracker_element_factory<tracker_element_map>(), "GPS"));
 
     // Link the builder
     gps_prototype = in_builder;

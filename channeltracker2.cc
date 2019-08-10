@@ -80,7 +80,7 @@ void Channeltracker_V2::register_fields() {
 
     channel_entry_id = 
         RegisterField("kismet.channeltracker.channel",
-                TrackerElementFactory<Channeltracker_V2_Channel>(),
+                tracker_element_factory<Channeltracker_V2_Channel>(),
                 "channel/frequency entry");
 }
 

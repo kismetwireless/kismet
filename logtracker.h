@@ -110,11 +110,11 @@ protected:
         RegisterField("kismet.logfile.type.description", "base description", &description);
     }
 
-    std::shared_ptr<TrackerElementString> log_class;
-    std::shared_ptr<TrackerElementString> log_name;
-    std::shared_ptr<TrackerElementUInt8> stream_log;
-    std::shared_ptr<TrackerElementUInt8> singleton;
-    std::shared_ptr<TrackerElementString> description;
+    std::shared_ptr<tracker_element_string> log_class;
+    std::shared_ptr<tracker_element_string> log_name;
+    std::shared_ptr<tracker_element_uint8> stream_log;
+    std::shared_ptr<tracker_element_uint8> singleton;
+    std::shared_ptr<tracker_element_string> description;
 };
 
 // Logfiles written to disk can be 'block' logs (like the device log), or they can be
@@ -217,10 +217,10 @@ protected:
 
     kis_recursive_timed_mutex log_mutex;
 
-    std::shared_ptr<TrackerElementUUID> log_uuid;
-    std::shared_ptr<TrackerElementString> log_description;
-    std::shared_ptr<TrackerElementString> log_path;
-    std::shared_ptr<TrackerElementUInt8> log_open;
+    std::shared_ptr<tracker_element_uuid> log_uuid;
+    std::shared_ptr<tracker_element_string> log_description;
+    std::shared_ptr<tracker_element_string> log_path;
+    std::shared_ptr<tracker_element_uint8> log_open;
 };
 
 class LogTracker : public tracker_component, public Kis_Net_Httpd_CPPStream_Handler, 
@@ -289,10 +289,10 @@ protected:
     int logfile_entry_id;
 
     // Various global config items common to all
-    std::shared_ptr<TrackerElementUInt8> logging_enabled;
-    std::shared_ptr<TrackerElementString> log_title;
-    std::shared_ptr<TrackerElementString> log_prefix;
-    std::shared_ptr<TrackerElementString> log_template;
+    std::shared_ptr<tracker_element_uint8> logging_enabled;
+    std::shared_ptr<tracker_element_string> log_title;
+    std::shared_ptr<tracker_element_string> log_prefix;
+    std::shared_ptr<tracker_element_string> log_template;
 
     std::shared_ptr<tracker_element_vector> log_types_vec;
 };

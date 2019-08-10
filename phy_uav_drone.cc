@@ -97,7 +97,7 @@ Kis_UAV_Phy::Kis_UAV_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
     uav_device_id =
         Globalreg::globalreg->entrytracker->RegisterField("uav.device",
-                TrackerElementFactory<uav_tracked_device>(),
+                tracker_element_factory<uav_tracked_device>(),
                 "UAV device");
 
     manuf_match_vec =

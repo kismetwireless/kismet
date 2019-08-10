@@ -327,7 +327,7 @@ void kis_tracked_seenby_data::register_fields() {
 
     frequency_val_id =
         RegisterField("kismet.common.seenby.frequency.count",
-                TrackerElementFactory<TrackerElementUInt64>(), "packets per frequency");
+                tracker_element_factory<tracker_element_uint64>(), "packets per frequency");
 
     signal_data_id =
         RegisterDynamicField("kismet.common.seenby.signal", "signal data", &signal_data);
@@ -431,7 +431,7 @@ void kis_tracked_device_base::register_fields() {
 
     tag_entry_id =
         RegisterField("kismet.device.base.tag", 
-                TrackerElementFactory<TrackerElementString>(), "arbitrary tag");
+                tracker_element_factory<tracker_element_string>(), "arbitrary tag");
 
     location_id =
         RegisterDynamicField("kismet.device.base.location", "location", &location);
@@ -444,11 +444,11 @@ void kis_tracked_device_base::register_fields() {
     // Packet count, not actual frequency, so uint64 not double
     frequency_val_id =
         RegisterField("kismet.device.base.frequency.count",
-                TrackerElementFactory<TrackerElementUInt64>(), "frequency packet count");
+                tracker_element_factory<tracker_element_uint64>(), "frequency packet count");
 
     seenby_val_id =
         RegisterField("kismet.device.base.seenby.data",
-                TrackerElementFactory<kis_tracked_seenby_data>(),
+                tracker_element_factory<kis_tracked_seenby_data>(),
                 "datasource seen-by data");
 
     packet_rrd_bin_250_id =
@@ -475,7 +475,7 @@ void kis_tracked_device_base::register_fields() {
 
     related_device_group_id =
         RegisterField("kismet.device.base.related_group", 
-                TrackerElementFactory<tracker_element_device_key_map>(), "Related devices, by key");
+                tracker_element_factory<tracker_element_device_key_map>(), "Related devices, by key");
 }
 
 void kis_tracked_device_base::reserve_fields(std::shared_ptr<tracker_element_map> e) {

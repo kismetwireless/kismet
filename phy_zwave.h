@@ -86,9 +86,9 @@ protected:
     }
 
     // 4-byte homeid
-    std::shared_ptr<TrackerElementUInt32> homeid;
+    std::shared_ptr<tracker_element_uint32> homeid;
     // 1 byte device id
-    std::shared_ptr<TrackerElementUInt8> deviceid;
+    std::shared_ptr<tracker_element_uint8> deviceid;
 };
 
 class Kis_Zwave_Phy : public Kis_Phy_Handler, public Kis_Net_Httpd_CPPStream_Handler {
@@ -133,7 +133,7 @@ protected:
     // if we can't do anything with it
     bool json_to_record(Json::Value in_json);
 
-    std::shared_ptr<TrackerElementString> zwave_manuf;
+    std::shared_ptr<tracker_element_string> zwave_manuf;
 
 };
 

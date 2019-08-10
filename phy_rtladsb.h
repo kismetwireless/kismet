@@ -144,16 +144,16 @@ protected:
         RegisterField("rtladsb.device.rtlchannel", "Sensor sub-channel", &rtlchannel);
     }
 
-    std::shared_ptr<TrackerElementString> model;
+    std::shared_ptr<tracker_element_string> model;
 
     // Device id, could be from the "id" or the "device" record
-    std::shared_ptr<TrackerElementString> rtlid;
+    std::shared_ptr<tracker_element_string> rtlid;
 
     // RTL subchannel, if one is available (many adsb messages report one)
-    std::shared_ptr<TrackerElementString> rtlchannel;
+    std::shared_ptr<tracker_element_string> rtlchannel;
 
     // Battery as a string
-    //std::shared_ptr<TrackerElementString> battery;
+    //std::shared_ptr<tracker_element_string> battery;
 };
 
 // Thermometer type rtl data, derived from the rtl device.  This adds new
@@ -227,16 +227,16 @@ protected:
 
     // Basic temp in C, from multiple sensors; we might have to convert to C
     // for some types of sensors
-    std::shared_ptr<TrackerElementString> icao;
-    std::shared_ptr<TrackerElementString> regid;
-    std::shared_ptr<TrackerElementString> mdl;
-    std::shared_ptr<TrackerElementString> atype;
-    std::shared_ptr<TrackerElementString> aoperator;
-    std::shared_ptr<TrackerElementString> callsign;
-    std::shared_ptr<TrackerElementDouble> altitude; 
-    std::shared_ptr<TrackerElementDouble> speed;
-    std::shared_ptr<TrackerElementDouble> heading;
-    std::shared_ptr<TrackerElementString> gsas;
+    std::shared_ptr<tracker_element_string> icao;
+    std::shared_ptr<tracker_element_string> regid;
+    std::shared_ptr<tracker_element_string> mdl;
+    std::shared_ptr<tracker_element_string> atype;
+    std::shared_ptr<tracker_element_string> aoperator;
+    std::shared_ptr<tracker_element_string> callsign;
+    std::shared_ptr<tracker_element_double> altitude; 
+    std::shared_ptr<tracker_element_double> speed;
+    std::shared_ptr<tracker_element_double> heading;
+    std::shared_ptr<tracker_element_string> gsas;
 
     //std::shared_ptr<kis_tracked_rrd<rtladsb_empty_aggregator>> consumption_rrd;
 
@@ -284,7 +284,7 @@ protected:
 
     int pack_comp_common, pack_comp_json, pack_comp_meta;
 
-    std::shared_ptr<TrackerElementString> rtl_manuf;
+    std::shared_ptr<tracker_element_string> rtl_manuf;
 
 };
 

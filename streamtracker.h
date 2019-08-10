@@ -175,20 +175,20 @@ protected:
         RegisterField("kismet.stream.paused", "Stream processing paused", &log_paused);
     }
 
-    std::shared_ptr<TrackerElementDouble> stream_id;
-    std::shared_ptr<TrackerElementUInt64> stream_time;
-    std::shared_ptr<TrackerElementString> log_name;
-    std::shared_ptr<TrackerElementString> log_type;
-    std::shared_ptr<TrackerElementString> log_path;
-    std::shared_ptr<TrackerElementString> log_description;
-    std::shared_ptr<TrackerElementUInt64> log_packets;
-    std::shared_ptr<TrackerElementUInt64> log_size;
+    std::shared_ptr<tracker_element_double> stream_id;
+    std::shared_ptr<tracker_element_uint64> stream_time;
+    std::shared_ptr<tracker_element_string> log_name;
+    std::shared_ptr<tracker_element_string> log_type;
+    std::shared_ptr<tracker_element_string> log_path;
+    std::shared_ptr<tracker_element_string> log_description;
+    std::shared_ptr<tracker_element_uint64> log_packets;
+    std::shared_ptr<tracker_element_uint64> log_size;
 
     // Maximum values, if any
-    std::shared_ptr<TrackerElementUInt64> max_packets;
-    std::shared_ptr<TrackerElementUInt64> max_size;
+    std::shared_ptr<tracker_element_uint64> max_packets;
+    std::shared_ptr<tracker_element_uint64> max_size;
 
-    std::shared_ptr<TrackerElementUInt8> log_paused;
+    std::shared_ptr<tracker_element_uint8> log_paused;
 
     streaming_agent *agent;
 };

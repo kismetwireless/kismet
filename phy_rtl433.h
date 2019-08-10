@@ -146,16 +146,16 @@ protected:
         RegisterField("rtl433.device.battery", "Sensor battery level", &battery);
     }
 
-    std::shared_ptr<TrackerElementString> model;
+    std::shared_ptr<tracker_element_string> model;
 
     // Device id, could be from the "id" or the "device" record
-    std::shared_ptr<TrackerElementString> rtlid;
+    std::shared_ptr<tracker_element_string> rtlid;
 
     // RTL subchannel, if one is available (many thermometers report one)
-    std::shared_ptr<TrackerElementString> rtlchannel;
+    std::shared_ptr<tracker_element_string> rtlchannel;
 
     // Battery as a string
-    std::shared_ptr<TrackerElementString> battery;
+    std::shared_ptr<tracker_element_string> battery;
 };
 
 // Thermometer type rtl data, derived from the rtl device.  This adds new
@@ -213,11 +213,11 @@ protected:
 
     // Basic temp in C, from multiple sensors; we might have to convert to C
     // for some types of sensors
-    std::shared_ptr<TrackerElementDouble> temperature;
+    std::shared_ptr<tracker_element_double> temperature;
     std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator>> temperature_rrd;
 
     // Basic humidity in percentage, from multiple sensors
-    std::shared_ptr<TrackerElementInt32> humidity;
+    std::shared_ptr<tracker_element_int32> humidity;
     std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator>> humidity_rrd;
 };
 
@@ -295,26 +295,26 @@ protected:
     }
 
     // Wind direction in degrees
-    std::shared_ptr<TrackerElementInt32> wind_dir;
+    std::shared_ptr<tracker_element_int32> wind_dir;
     std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator>> wind_dir_rrd;
 
     // Wind speed in kph (might have to convert for some sensors)
-    std::shared_ptr<TrackerElementInt32> wind_speed;
+    std::shared_ptr<tracker_element_int32> wind_speed;
     std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator>> wind_speed_rrd;
 
-    std::shared_ptr<TrackerElementInt32> wind_gust;
+    std::shared_ptr<tracker_element_int32> wind_gust;
     std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator>> wind_gust_rrd;
 
     // Rain (in whatever the sensor reports it in)
-    std::shared_ptr<TrackerElementInt32> rain;
+    std::shared_ptr<tracker_element_int32> rain;
     std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator>> rain_rrd;
 
     // UV
-    std::shared_ptr<TrackerElementInt32> uv_index;
+    std::shared_ptr<tracker_element_int32> uv_index;
     std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator>> uv_index_rrd;
 
     // Lux
-    std::shared_ptr<TrackerElementInt32> lux;
+    std::shared_ptr<tracker_element_int32> lux;
     std::shared_ptr<kis_tracked_rrd<rtl433_empty_aggregator>> lux_rrd;
 };
 
@@ -369,10 +369,10 @@ protected:
         RegisterField("rtl433.device.lightning_rfi", "Lightning radio frequency interference", &lightning_rfi);
     }
 
-    std::shared_ptr<TrackerElementUInt64> strike_count;
-    std::shared_ptr<TrackerElementUInt64> storm_distance;
-    std::shared_ptr<TrackerElementUInt8> storm_active;
-    std::shared_ptr<TrackerElementUInt64> lightning_rfi;
+    std::shared_ptr<tracker_element_uint64> strike_count;
+    std::shared_ptr<tracker_element_uint64> storm_distance;
+    std::shared_ptr<tracker_element_uint8> storm_active;
+    std::shared_ptr<tracker_element_uint64> lightning_rfi;
 };
 
 // TPMS tire pressure sensors
@@ -429,12 +429,12 @@ protected:
         RegisterField("rtl433.device.tpms.code", "TPMS code", &code);
     }
 
-    std::shared_ptr<TrackerElementDouble> pressure_bar;
-    std::shared_ptr<TrackerElementDouble> pressure_kpa;
-    std::shared_ptr<TrackerElementString> flags;
-    std::shared_ptr<TrackerElementString> state;
-    std::shared_ptr<TrackerElementString> checksum;
-    std::shared_ptr<TrackerElementString> code;
+    std::shared_ptr<tracker_element_double> pressure_bar;
+    std::shared_ptr<tracker_element_double> pressure_kpa;
+    std::shared_ptr<tracker_element_string> flags;
+    std::shared_ptr<tracker_element_string> state;
+    std::shared_ptr<tracker_element_string> checksum;
+    std::shared_ptr<tracker_element_string> code;
 };
 
 // Switch panels
@@ -477,7 +477,7 @@ public:
     __ProxyTrackable(switch_vec, tracker_element_vector, switch_vec);
 
     SharedTrackerElement make_switch_entry(int x) {
-        auto e = std::make_shared<TrackerElementInt32>(switch_vec_entry_id, x);
+        auto e = std::make_shared<tracker_element_int32>(switch_vec_entry_id, x);
         return e;
     }
 
@@ -486,7 +486,7 @@ protected:
         RegisterField("rtl433.device.switch_vec", "Switch settings", &switch_vec);
         switch_vec_entry_id = 
             RegisterField("rtl433.device.switch.position", 
-                    TrackerElementFactory<TrackerElementInt32>(),
+                    tracker_element_factory<tracker_element_int32>(),
                     "Switch position");
     }
 
@@ -545,7 +545,7 @@ protected:
 
     int pack_comp_common, pack_comp_json, pack_comp_meta;
 
-    std::shared_ptr<TrackerElementString> rtl_manuf;
+    std::shared_ptr<tracker_element_string> rtl_manuf;
 
 };
 

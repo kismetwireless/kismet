@@ -100,11 +100,11 @@ protected:
         RegisterField("kismet.gps.type.singleton", "Single instance of this gps type", &singleton);
     }
 
-    std::shared_ptr<TrackerElementString> gps_class;
-    std::shared_ptr<TrackerElementString> gps_class_description;
-    std::shared_ptr<TrackerElementInt32> gps_priority;
-    std::shared_ptr<TrackerElementString> gps_default_name;
-    std::shared_ptr<TrackerElementUInt8> singleton;
+    std::shared_ptr<tracker_element_string> gps_class;
+    std::shared_ptr<tracker_element_string> gps_class_description;
+    std::shared_ptr<tracker_element_int32> gps_priority;
+    std::shared_ptr<tracker_element_string> gps_default_name;
+    std::shared_ptr<tracker_element_uint8> singleton;
 };
 
 // GPS superclass; built by a GPS builder; GPS drivers implement the low-level GPS 
@@ -177,14 +177,14 @@ protected:
 
     std::shared_ptr<KisGpsBuilder> gps_prototype;
 
-    std::shared_ptr<TrackerElementString> gps_name;
-    std::shared_ptr<TrackerElementString> gps_description;
+    std::shared_ptr<tracker_element_string> gps_name;
+    std::shared_ptr<tracker_element_string> gps_description;
 
-    std::shared_ptr<TrackerElementUInt8> gps_connected;
+    std::shared_ptr<tracker_element_uint8> gps_connected;
 
-    std::shared_ptr<TrackerElementUInt8> gps_reconnect;
+    std::shared_ptr<tracker_element_uint8> gps_reconnect;
 
-    std::shared_ptr<TrackerElementInt32> gps_priority;
+    std::shared_ptr<tracker_element_int32> gps_priority;
 
     std::shared_ptr<kis_tracked_location_triplet> tracked_location;
     std::shared_ptr<kis_tracked_location_triplet> tracked_last_location;
@@ -192,10 +192,10 @@ protected:
     kis_gps_packinfo *gps_location;
     kis_gps_packinfo *gps_last_location;
 
-    std::shared_ptr<TrackerElementUUID> gps_uuid;
-    std::shared_ptr<TrackerElementString> gps_definition;
+    std::shared_ptr<tracker_element_uuid> gps_uuid;
+    std::shared_ptr<tracker_element_string> gps_definition;
 
-    std::shared_ptr<TrackerElementUInt8> gps_data_only;
+    std::shared_ptr<tracker_element_uint8> gps_data_only;
 };
 
 #endif

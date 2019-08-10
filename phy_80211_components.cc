@@ -47,7 +47,7 @@ void dot11_tracked_ssid_alert::register_fields() {
 
     allowed_mac_id =
         RegisterField("dot11.ssidalert.allowed_mac", 
-                TrackerElementFactory<TrackerElementMacAddr>(),
+                tracker_element_factory<tracker_element_mac_addr>(),
                 "mac address");
 }
 
@@ -90,7 +90,7 @@ void dot11_tracked_ssid_alert::set_allowed_macs(std::vector<mac_addr> mvec) {
 
     for (auto i : mvec) {
         auto e =
-            std::make_shared<TrackerElementMacAddr>(allowed_mac_id, i);
+            std::make_shared<tracker_element_mac_addr>(allowed_mac_id, i);
         allowed_macs_vec->push_back(e);
     }
 }
@@ -234,7 +234,7 @@ void dot11_advertised_ssid::register_fields() {
 
     dot11d_country_entry_id =
         RegisterField("dot11.advertisedssid.dot11d_entry", 
-                TrackerElementFactory<dot11_11d_tracked_range_info>(0),
+                tracker_element_factory<dot11_11d_tracked_range_info>(0),
                 "dot11d entry");
 
     wps_state_id =
@@ -287,7 +287,7 @@ void dot11_advertised_ssid::register_fields() {
                 "802.11 IE tag content of last beacon", &ie_tag_content);
     ie_tag_content_element_id =
         RegisterField("dot11.advertisedssid.ie_tag_content_entry",
-                TrackerElementFactory<dot11_tracked_ietag>(),
+                tracker_element_factory<dot11_tracked_ietag>(),
                 "802.11 IE tag content");
 }
 

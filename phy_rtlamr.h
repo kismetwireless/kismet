@@ -144,16 +144,16 @@ protected:
         RegisterField("rtlamr.device.rtlchannel", "Sensor sub-channel", &rtlchannel);
     }
 
-    std::shared_ptr<TrackerElementString> model;
+    std::shared_ptr<tracker_element_string> model;
 
     // Device id, could be from the "id" or the "device" record
-    std::shared_ptr<TrackerElementString> rtlid;
+    std::shared_ptr<tracker_element_string> rtlid;
 
     // RTL subchannel, if one is available (many powermeters report one)
-    std::shared_ptr<TrackerElementString> rtlchannel;
+    std::shared_ptr<tracker_element_string> rtlchannel;
 
     // Battery as a string
-    //std::shared_ptr<TrackerElementString> battery;
+    //std::shared_ptr<tracker_element_string> battery;
 };
 
 // Thermometer type rtl data, derived from the rtl device.  This adds new
@@ -208,7 +208,7 @@ protected:
 
     // Basic temp in C, from multiple sensors; we might have to convert to C
     // for some types of sensors
-    std::shared_ptr<TrackerElementDouble> consumption;
+    std::shared_ptr<tracker_element_double> consumption;
     std::shared_ptr<kis_tracked_rrd<rtlamr_empty_aggregator>> consumption_rrd;
 
 };
@@ -253,7 +253,7 @@ protected:
 
     int pack_comp_common, pack_comp_json, pack_comp_meta;
 
-    std::shared_ptr<TrackerElementString> rtl_manuf;
+    std::shared_ptr<tracker_element_string> rtl_manuf;
 
 };
 

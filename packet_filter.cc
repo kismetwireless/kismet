@@ -300,11 +300,11 @@ void PacketfilterMacaddr::set_filter(mac_addr in_mac, const std::string& in_phy,
     // Find the actual filter
     auto tracked_mac_key = target_block_map->find(in_mac);
     if (tracked_mac_key == target_block_map->end()) {
-        auto tracked_value = std::make_shared<TrackerElementUInt8>(filter_sub_value_id);
+        auto tracked_value = std::make_shared<tracker_element_uint8>(filter_sub_value_id);
         tracked_value->set(value);
         target_block_map->insert(in_mac, tracked_value);
     } else {
-        auto bool_value = TrackerElement::safe_cast_as<TrackerElementUInt8>(tracked_mac_key->second);
+        auto bool_value = TrackerElement::safe_cast_as<tracker_element_uint8>(tracked_mac_key->second);
         bool_value->set(value);
     }
 

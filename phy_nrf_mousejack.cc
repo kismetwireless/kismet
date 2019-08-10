@@ -50,7 +50,7 @@ Kis_Mousejack_Phy::Kis_Mousejack_Phy(GlobalRegistry *in_globalreg, int in_phyid)
 
     mousejack_device_entry_id =
         entrytracker->RegisterField("nrfmousejack.device",
-                TrackerElementFactory<mousejack_tracked_device>(),
+                tracker_element_factory<mousejack_tracked_device>(),
                 "NRF Mousejack device");
 
     pack_comp_common = packetchain->RegisterPacketComponent("COMMON");

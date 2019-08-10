@@ -29,7 +29,7 @@ StreamTracker::StreamTracker(GlobalRegistry *in_globalreg) :
 
     info_builder_id =
         Globalreg::globalreg->entrytracker->RegisterField("kismet.stream.stream",
-                TrackerElementFactory<streaming_info_record>(),
+                tracker_element_factory<streaming_info_record>(),
                 "Kismet data stream");
 
     tracked_stream_map =

@@ -91,9 +91,9 @@ protected:
         RegisterField("kismet.messagebus.message_time", "Message time_t", &timestamp);
     }
 
-    std::shared_ptr<TrackerElementString> message;
-    std::shared_ptr<TrackerElementInt32> flags;
-    std::shared_ptr<TrackerElementUInt64> timestamp;
+    std::shared_ptr<tracker_element_string> message;
+    std::shared_ptr<tracker_element_int32> flags;
+    std::shared_ptr<tracker_element_uint64> timestamp;
 };
 
 class RestMessageClient : public MessageClient, public Kis_Net_Httpd_CPPStream_Handler,

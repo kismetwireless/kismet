@@ -465,18 +465,18 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
     std::shared_ptr<TrackerElement> transmit;
 
     // Windowed response elements, used in datatables and others
-    auto length_elem = std::make_shared<TrackerElementUInt64>();
-    auto start_elem = std::make_shared<TrackerElementUInt64>();
+    auto length_elem = std::make_shared<tracker_element_uint64>();
+    auto start_elem = std::make_shared<tracker_element_uint64>();
 
     // Total and filtered output sizes
-    auto total_sz_elem = std::make_shared<TrackerElementUInt64>();
-    auto filtered_sz_elem = std::make_shared<TrackerElementUInt64>();
+    auto total_sz_elem = std::make_shared<tracker_element_uint64>();
+    auto filtered_sz_elem = std::make_shared<tracker_element_uint64>();
 
     // Output device list, should be copied into for final output
     auto output_devices_elem = std::make_shared<tracker_element_vector>();
 
     // Datatables specific draw element
-    auto dt_draw_elem = std::make_shared<TrackerElementUInt64>();
+    auto dt_draw_elem = std::make_shared<tracker_element_uint64>();
 
     try {
         // If the structured component has a 'fields' record, derive the fields

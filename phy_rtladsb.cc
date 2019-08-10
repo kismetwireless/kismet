@@ -48,17 +48,17 @@ Kis_RTLADSB_Phy::Kis_RTLADSB_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
     rtladsb_holder_id =
         Globalreg::globalreg->entrytracker->RegisterField("rtladsb.device", 
-                TrackerElementFactory<tracker_element_map>(),
+                tracker_element_factory<tracker_element_map>(),
                 "rtl_adsb device");
 
     rtladsb_common_id =
         Globalreg::globalreg->entrytracker->RegisterField("rtladsb.device.common",
-                TrackerElementFactory<rtladsb_tracked_common>(),
+                tracker_element_factory<rtladsb_tracked_common>(),
                 "Common RTLADSB device info");
 
     rtladsb_adsb_id =
         Globalreg::globalreg->entrytracker->RegisterField("rtladsb.device.adsb",
-                TrackerElementFactory<rtladsb_tracked_adsb>(),
+                tracker_element_factory<rtladsb_tracked_adsb>(),
                 "RTLADSB adsb");
 
     // Make the manuf string

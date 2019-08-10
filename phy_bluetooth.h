@@ -113,7 +113,7 @@ protected:
     }
 
     std::shared_ptr<tracker_element_vector> service_uuid_vec;
-    std::shared_ptr<TrackerElementInt16> txpower;
+    std::shared_ptr<tracker_element_int16> txpower;
 };
 
 class Kis_Bluetooth_Phy : public Kis_Phy_Handler {

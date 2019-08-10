@@ -309,7 +309,7 @@ int Systemmonitor::timetracker_event(int eventid) {
                             MungeToPrintable(adapter_name));
 
                     status->get_sensors_temp()->insert(synth_name, 
-                            std::make_shared<TrackerElementDouble>(0, val));
+                            std::make_shared<tracker_element_double>(0, val));
 
                     free(label);
 
@@ -332,7 +332,7 @@ int Systemmonitor::timetracker_event(int eventid) {
                             MungeToPrintable(adapter_name));
 
                     status->get_sensors_fans()->insert(synth_name, 
-                            std::make_shared<TrackerElementDouble>(0, val));
+                            std::make_shared<tracker_element_double>(0, val));
 
                     free(label);
 

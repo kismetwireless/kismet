@@ -276,24 +276,24 @@ protected:
     }
 
     // Double hoprate per second
-    std::shared_ptr<TrackerElementDouble> hop_rate;
+    std::shared_ptr<tracker_element_double> hop_rate;
 
     // Boolean, do we hop at all
-    std::shared_ptr<TrackerElementUInt8> hop;
+    std::shared_ptr<tracker_element_uint8> hop;
 
     // Boolean, do we try to split channels up among the same driver?
-    std::shared_ptr<TrackerElementUInt8> split_same_sources;
+    std::shared_ptr<tracker_element_uint8> split_same_sources;
 
     // Boolean, do we scramble the hop pattern?
-    std::shared_ptr<TrackerElementUInt8> random_channel_order;
+    std::shared_ptr<tracker_element_uint8> random_channel_order;
 
     // Boolean, do we retry on errors?
-    std::shared_ptr<TrackerElementUInt8> retry_on_error;
+    std::shared_ptr<tracker_element_uint8> retry_on_error;
 
     // Remote listen
-    std::shared_ptr<TrackerElementString> remote_cap_listen;
-    std::shared_ptr<TrackerElementUInt32> remote_cap_port;
-    std::shared_ptr<TrackerElementUInt8> remote_cap_timestamp;
+    std::shared_ptr<tracker_element_string> remote_cap_listen;
+    std::shared_ptr<tracker_element_uint32> remote_cap_port;
+    std::shared_ptr<tracker_element_uint8> remote_cap_timestamp;
 
 };
 

@@ -61,7 +61,7 @@ KisDatasource::KisDatasource(SharedDatasourceBuilder in_builder) :
 
     listed_interface_entry_id =
         Globalreg::globalreg->entrytracker->RegisterField("kismet.datasourcetracker.listed_interface",
-                TrackerElementFactory<KisDatasourceInterface>(),
+                tracker_element_factory<KisDatasourceInterface>(),
                 "automatically discovered available interface");
 
     last_pong = time(0);
@@ -294,7 +294,7 @@ void KisDatasource::set_channel_hop(double in_rate, std::vector<std::string> in_
     auto vec = std::make_shared<tracker_element_vector>(source_hop_vec_id);
 
     for (auto i : in_chans) {
-        auto c = std::make_shared<TrackerElementString>(channel_entry_id);
+        auto c = std::make_shared<tracker_element_string>(channel_entry_id);
         c->set(i);
         vec->push_back(c);
     }
@@ -701,7 +701,7 @@ void KisDatasource::handle_packet_probesource_report(uint32_t in_seqno,
 
         for (int x = 0; x < report.channels().channels_size(); x++) {
             auto chanstr =
-                std::make_shared<TrackerElementString>(channel_entry_id);
+                std::make_shared<tracker_element_string>(channel_entry_id);
             chanstr->set(report.channels().channels(x));
             source_channels_vec->push_back(chanstr);
         }
@@ -757,7 +757,7 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno,
 
         for (int x = 0; x < report.channels().channels_size(); x++) {
             auto chanstr = 
-                std::make_shared<TrackerElementString>(channel_entry_id);
+                std::make_shared<tracker_element_string>(channel_entry_id);
             chanstr->set(report.channels().channels(x));
 
             source_channels_vec->push_back(chanstr);
@@ -836,7 +836,7 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno,
         }
 
         if (append) {
-            auto dce = std::make_shared<TrackerElementString>(channel_entry_id, def_chan);
+            auto dce = std::make_shared<tracker_element_string>(channel_entry_id, def_chan);
             source_channels_vec->push_back(dce);
         }
     }
@@ -849,7 +849,7 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno,
         // If we override the channels, use our supplied list entirely, and we don't
         // care about the blocked channels
         for (auto dc : def_vec) {
-            auto dce = std::make_shared<TrackerElementString>(channel_entry_id, dc);
+            auto dce = std::make_shared<tracker_element_string>(channel_entry_id, dc);
             source_hop_vec->push_back(dce);
 
             // Do we need to add the custom channels to the list of channels the
@@ -891,7 +891,7 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno,
             }
 
             if (append) {
-                auto ace = std::make_shared<TrackerElementString>(channel_entry_id, ac);
+                auto ace = std::make_shared<tracker_element_string>(channel_entry_id, ac);
                 source_hop_vec->push_back(ace);
                 source_channels_vec->push_back(ace);
             }
@@ -1084,7 +1084,7 @@ void KisDatasource::handle_packet_configure_report(uint32_t in_seqno, const std:
         source_hop_vec->clear();
 
         for (auto c : report.hopping().channels()) {
-            auto chanstr = std::make_shared<TrackerElementString>(channel_entry_id, c);
+            auto chanstr = std::make_shared<tracker_element_string>(channel_entry_id, c);
             source_hop_vec->push_back(chanstr);
         }
     }
@@ -1519,7 +1519,7 @@ void KisDatasource::register_fields() {
 
     channel_entry_id = 
         RegisterField("kismet.datasource.channel_entry",
-                TrackerElementFactory<TrackerElementString>(),
+                tracker_element_factory<tracker_element_string>(),
                 "Channel");
 
     RegisterField("kismet.datasource.channels", "Supported channels", &source_channels_vec);

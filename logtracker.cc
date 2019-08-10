@@ -62,12 +62,12 @@ void LogTracker::register_fields() {
 
     logproto_entry_id =
         Globalreg::globalreg->entrytracker->RegisterField("kismet.logtracker.driver",
-                TrackerElementFactory<KisLogfileBuilder>(),
+                tracker_element_factory<KisLogfileBuilder>(),
                 "Log driver");
 
     logfile_entry_id =
         Globalreg::globalreg->entrytracker->RegisterField("kismet.logtracker.log",
-                TrackerElementFactory<KisLogfile>(),
+                tracker_element_factory<KisLogfile>(),
                 "Log file");
 
     RegisterField("kismet.logtracker.logging_enabled", "logging enabled", &logging_enabled);
@@ -164,7 +164,7 @@ void LogTracker::Deferred_Startup() {
         
 
     for (auto t : types) {
-        auto e = std::make_shared<TrackerElementString>();
+        auto e = std::make_shared<tracker_element_string>();
         e->set(t);
         log_types_vec->push_back(e);
     }

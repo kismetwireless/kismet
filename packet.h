@@ -151,7 +151,7 @@ public:
     __Proxy(dlt, uint64_t, uint64_t, uint64_t, dlt);
     __Proxy(source, uint64_t, uint64_t, uint64_t, source);
 
-    __ProxyTrackable(data, TrackerElementByteArray, data);
+    __ProxyTrackable(data, tracker_element_byte_array, data);
 
     virtual void copy_packet(std::shared_ptr<kis_tracked_packet> in) {
         set_ts_sec(in->get_ts_sec());
@@ -172,11 +172,11 @@ protected:
         RegisterField("kismet.packet.data", "packet data", &data);
     }
 
-    std::shared_ptr<TrackerElementUInt64> ts_sec;
-    std::shared_ptr<TrackerElementUInt64> ts_usec;
-    std::shared_ptr<TrackerElementUInt64> dlt;
-    std::shared_ptr<TrackerElementUInt64> source;
-    std::shared_ptr<TrackerElementByteArray> data;
+    std::shared_ptr<tracker_element_uint64> ts_sec;
+    std::shared_ptr<tracker_element_uint64> ts_usec;
+    std::shared_ptr<tracker_element_uint64> dlt;
+    std::shared_ptr<tracker_element_uint64> source;
+    std::shared_ptr<tracker_element_byte_array> data;
 };
 
 // Arbitrary data chunk, decapsulated from the link headers

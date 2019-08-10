@@ -43,10 +43,10 @@ public:
 
     void IndexOUI();
 
-    std::shared_ptr<TrackerElementString> LookupOUI(mac_addr in_mac);
-    std::shared_ptr<TrackerElementString> LookupOUI(uint32_t in_oui);
+    std::shared_ptr<tracker_element_string> LookupOUI(mac_addr in_mac);
+    std::shared_ptr<tracker_element_string> LookupOUI(uint32_t in_oui);
 
-    std::shared_ptr<TrackerElementString> MakeManuf(const std::string& in_manuf);
+    std::shared_ptr<tracker_element_string> MakeManuf(const std::string& in_manuf);
 
     struct index_pos {
         uint32_t oui;
@@ -55,10 +55,10 @@ public:
 
     struct manuf_data {
         uint32_t oui;
-        std::shared_ptr<TrackerElementString> manuf;
+        std::shared_ptr<tracker_element_string> manuf;
     }; 
 
-    bool IsUnknownManuf(std::shared_ptr<TrackerElementString> in_manuf);
+    bool IsUnknownManuf(std::shared_ptr<tracker_element_string> in_manuf);
 
 protected:
     kis_recursive_timed_mutex mutex;
@@ -71,7 +71,7 @@ protected:
 
     // IDs for manufacturer objects
     int manuf_id;
-    std::shared_ptr<TrackerElementString> unknown_manuf;
+    std::shared_ptr<tracker_element_string> unknown_manuf;
 };
 
 #endif

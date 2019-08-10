@@ -51,7 +51,7 @@ Kis_Bluetooth_Phy::Kis_Bluetooth_Phy(GlobalRegistry *in_globalreg, int in_phyid)
 
     bluetooth_device_entry_id =
         entrytracker->RegisterField("bluetooth.device", 
-                TrackerElementFactory<bluetooth_tracked_device>(),
+                tracker_element_factory<bluetooth_tracked_device>(),
                 "Bluetooth device");
 
     packetchain->RegisterHandler(&CommonClassifierBluetooth, this, CHAINPOS_CLASSIFIER, -100);
@@ -169,7 +169,7 @@ int Kis_Bluetooth_Phy::PacketTrackerBluetooth(CHAINCALL_PARMS) {
     uuid_vec->clear();
 
     for (auto u : btpi->service_uuid_vec) {
-        auto tu = std::make_shared<TrackerElementUUID>(0, u);
+        auto tu = std::make_shared<tracker_element_uuid>(0, u);
         uuid_vec->push_back(tu);
     }
 

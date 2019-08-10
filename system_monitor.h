@@ -73,8 +73,8 @@ public:
 
     __Proxy(timestamp_sec, uint64_t, uint64_t, uint64_t, timestamp_sec);
     __Proxy(timestamp_usec, uint64_t, uint64_t, uint64_t, timestamp_usec);
-    __ProxyTrackable(timestamp_sec, TrackerElementUInt64, timestamp_sec);
-    __ProxyTrackable(timestamp_usec, TrackerElementUInt64, timestamp_usec);
+    __ProxyTrackable(timestamp_sec, tracker_element_uint64, timestamp_sec);
+    __ProxyTrackable(timestamp_usec, tracker_element_uint64, timestamp_usec);
 
     __Proxy(timestamp_start_sec, uint64_t, time_t, time_t, timestamp_start_sec);
 
@@ -106,25 +106,25 @@ protected:
 
     std::shared_ptr<Devicetracker> devicetracker;
 
-    std::shared_ptr<TrackerElementInt32> battery_perc;
-    std::shared_ptr<TrackerElementString> battery_charging;
-    std::shared_ptr<TrackerElementUInt8> battery_ac;
-    std::shared_ptr<TrackerElementUInt32> battery_remaining;
-    std::shared_ptr<TrackerElementUInt64> timestamp_sec;
-    std::shared_ptr<TrackerElementUInt64> timestamp_usec;
-    std::shared_ptr<TrackerElementUInt64> timestamp_start_sec;
-    std::shared_ptr<TrackerElementUInt64> memory;
-    std::shared_ptr<TrackerElementString> username;
-    std::shared_ptr<TrackerElementUUID> server_uuid;
-    std::shared_ptr<TrackerElementString> server_name;
-    std::shared_ptr<TrackerElementString> server_description;
-    std::shared_ptr<TrackerElementString> server_location;
-    std::shared_ptr<TrackerElementString> server_version;
-    std::shared_ptr<TrackerElementString> server_git;
-    std::shared_ptr<TrackerElementString> build_time;
+    std::shared_ptr<tracker_element_int32> battery_perc;
+    std::shared_ptr<tracker_element_string> battery_charging;
+    std::shared_ptr<tracker_element_uint8> battery_ac;
+    std::shared_ptr<tracker_element_uint32> battery_remaining;
+    std::shared_ptr<tracker_element_uint64> timestamp_sec;
+    std::shared_ptr<tracker_element_uint64> timestamp_usec;
+    std::shared_ptr<tracker_element_uint64> timestamp_start_sec;
+    std::shared_ptr<tracker_element_uint64> memory;
+    std::shared_ptr<tracker_element_string> username;
+    std::shared_ptr<tracker_element_uuid> server_uuid;
+    std::shared_ptr<tracker_element_string> server_name;
+    std::shared_ptr<tracker_element_string> server_description;
+    std::shared_ptr<tracker_element_string> server_location;
+    std::shared_ptr<tracker_element_string> server_version;
+    std::shared_ptr<tracker_element_string> server_git;
+    std::shared_ptr<tracker_element_string> build_time;
 
     std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>> memory_rrd;
-    std::shared_ptr<TrackerElementUInt64> devices;
+    std::shared_ptr<tracker_element_uint64> devices;
     std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator> > devices_rrd;
 
     std::shared_ptr<tracker_element_string_map> sensors_fans;
