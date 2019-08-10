@@ -47,7 +47,7 @@ class alert_tracker;
 class time_tracker;
 class KisNetFramework;
 class KisDroneFramework;
-class ConfigFile;
+class config_file;
 class SoundControl;
 class Plugintracker;
 class KisBuiltinDissector;
@@ -225,7 +225,7 @@ public:
     packet_chain *packetchain;
     alert_tracker *alertracker;
     time_tracker *timetracker;
-    ConfigFile *kismet_config;
+    config_file *kismet_config;
 	KisBuiltinDissector *builtindissector;
 	Manuf *manufdb;
 

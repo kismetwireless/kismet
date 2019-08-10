@@ -230,7 +230,7 @@ kis_net_httpd::kis_net_httpd() {
         sessiondb_file = 
             Globalreg::globalreg->kismet_config->ExpandLogPath(sessiondb_file, "", "", 0, 1);
 
-        session_db = new ConfigFile(Globalreg::globalreg);
+        session_db = new config_file(Globalreg::globalreg);
 
         store_sessions = true;
 

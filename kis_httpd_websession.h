@@ -81,7 +81,7 @@ protected:
     bool user_config;
 
     std::string user_httpd_config_file;
-    ConfigFile *user_httpd_config;
+    config_file *user_httpd_config;
 
     std::string conf_username;
     std::string conf_password;

@@ -38,11 +38,11 @@
 
 class header_value_config;
 
-class ConfigFile {
+class config_file {
 public:
-    ConfigFile();
-	ConfigFile(global_registry *in_globalreg);
-    ~ConfigFile();
+    config_file();
+	config_file(global_registry *in_globalreg);
+    ~config_file();
 
     int ParseConfig(const char *in_fname);
     int ParseConfig(const std::string& in_fname) {

@@ -70,7 +70,7 @@ Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri,
                     return mod_dispatch(stream, path, post_structured);
                 }, &mutex);
 
-    configfile = std::make_shared<ConfigFile>();
+    configfile = std::make_shared<config_file>();
     configpath = configfile->ExpandLogPath(in_config);
     configvalue = in_confvalue;
     configfile->ParseConfig(in_config);

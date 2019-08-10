@@ -151,7 +151,7 @@ protected:
 
     std::string configpath;
     std::string configvalue;
-    std::shared_ptr<ConfigFile> configfile;
+    std::shared_ptr<config_file> configfile;
 
     std::vector<std::string> base_uri;
 

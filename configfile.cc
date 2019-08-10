@@ -43,19 +43,19 @@
 #define GLOB_TILDE 0
 #endif
 
-ConfigFile::ConfigFile() {
+config_file::config_file() {
     checksum = 0;
 }
 
-ConfigFile::ConfigFile(global_registry *in_globalreg) {
+config_file::config_file(global_registry *in_globalreg) {
     checksum = 0;
 }
 
-ConfigFile::~ConfigFile() {
+config_file::~config_file() {
     local_locker lock(&config_locker);
 }
 
-int ConfigFile::ParseConfig(const char *in_fname) {
+int config_file::ParseConfig(const char *in_fname) {
     int r;
 
     r = ParseConfig(in_fname, config_map, config_map_dirty);
@@ -82,7 +82,7 @@ int ConfigFile::ParseConfig(const char *in_fname) {
     return r;
 }
 
-int ConfigFile::ParseConfig(const char *in_fname,
+int config_file::ParseConfig(const char *in_fname,
         std::map<std::string, std::vector<config_entity> > &target_map,
         std::map<std::string, int> &target_map_dirty) {
     local_locker lock(&config_locker);
@@ -166,7 +166,7 @@ int ConfigFile::ParseConfig(const char *in_fname,
     return 1;
 }
 
-int ConfigFile::ParseOptInclude(const std::string path,
+int config_file::ParseOptInclude(const std::string path,
         std::map<std::string, std::vector<config_entity> > &target_map,
         std::map<std::string, int> &target_map_dirty) {
     glob_t globbed;
@@ -209,7 +209,7 @@ int ConfigFile::ParseOptInclude(const std::string path,
     return 1;
 }
 
-int ConfigFile::ParseOptOverride(const std::string path) {
+int config_file::ParseOptOverride(const std::string path) {
     std::map<std::string, std::vector<config_entity> > override_config_map;
     std::map<std::string, int> override_config_map_dirty;
     int r;
@@ -234,7 +234,7 @@ int ConfigFile::ParseOptOverride(const std::string path) {
 }
 
 
-int ConfigFile::SaveConfig(const char *in_fname) {
+int config_file::SaveConfig(const char *in_fname) {
     local_locker lock(&config_locker);
 
     std::stringstream sstream;
@@ -259,7 +259,7 @@ int ConfigFile::SaveConfig(const char *in_fname) {
     return 1;
 }
 
-std::string ConfigFile::FetchOpt(std::string in_key) {
+std::string config_file::FetchOpt(std::string in_key) {
     local_locker lock(&config_locker);
 
     auto cmitr = config_map.find(StrLower(in_key));
@@ -276,7 +276,7 @@ std::string ConfigFile::FetchOpt(std::string in_key) {
     return val;
 }
 
-std::string ConfigFile::FetchOptDfl(std::string in_key, std::string in_dfl) {
+std::string config_file::FetchOptDfl(std::string in_key, std::string in_dfl) {
     std::string r = FetchOpt(in_key);
 
     if (r.length() == 0)
@@ -285,7 +285,7 @@ std::string ConfigFile::FetchOptDfl(std::string in_key, std::string in_dfl) {
     return r;
 }
 
-std::vector<std::string> ConfigFile::FetchOptVec(std::string in_key) {
+std::vector<std::string> config_file::FetchOptVec(std::string in_key) {
     local_locker lock(&config_locker);
 
     // Empty vec to return
@@ -303,7 +303,7 @@ std::vector<std::string> ConfigFile::FetchOptVec(std::string in_key) {
     return eretvec;
 }
 
-int ConfigFile::FetchOptBoolean(std::string in_key, int dvalue) {
+int config_file::FetchOptBoolean(std::string in_key, int dvalue) {
     // Don't lock, we're locked in fetchopt
     // local_locker lock(&config_locker);
 
@@ -318,19 +318,19 @@ int ConfigFile::FetchOptBoolean(std::string in_key, int dvalue) {
     return r;
 }
 
-int ConfigFile::FetchOptInt(const std::string& in_key, int dvalue) {
+int config_file::FetchOptInt(const std::string& in_key, int dvalue) {
     return FetchOptAs<int>(in_key, dvalue);
 }
 
-unsigned int ConfigFile::FetchOptUInt(const std::string& in_key, unsigned int dvalue) {
+unsigned int config_file::FetchOptUInt(const std::string& in_key, unsigned int dvalue) {
     return FetchOptAs<unsigned int>(in_key, dvalue);
 }
 
-unsigned long ConfigFile::FetchOptULong(const std::string& in_key, unsigned long dvalue) {
+unsigned long config_file::FetchOptULong(const std::string& in_key, unsigned long dvalue) {
     return FetchOptAs<unsigned long>(in_key, dvalue);
 }
 
-int ConfigFile::FetchOptDirty(const std::string& in_key) {
+int config_file::FetchOptDirty(const std::string& in_key) {
     local_locker lock(&config_locker);
     if (config_map_dirty.find(StrLower(in_key)) == config_map_dirty.end())
         return 0;
@@ -338,12 +338,12 @@ int ConfigFile::FetchOptDirty(const std::string& in_key) {
     return config_map_dirty[StrLower(in_key)];
 }
 
-void ConfigFile::SetOptDirty(const std::string& in_key, int in_dirty) {
+void config_file::SetOptDirty(const std::string& in_key, int in_dirty) {
     local_locker lock(&config_locker);
     config_map_dirty[StrLower(in_key)] = in_dirty;
 }
 
-void ConfigFile::SetOpt(const std::string& in_key, const std::string& in_val, int in_dirty) {
+void config_file::SetOpt(const std::string& in_key, const std::string& in_val, int in_dirty) {
     local_locker lock(&config_locker);
 
     std::vector<config_entity> v;
@@ -353,7 +353,7 @@ void ConfigFile::SetOpt(const std::string& in_key, const std::string& in_val, in
     SetOptDirty(in_key, in_dirty);
 }
 
-void ConfigFile::SetOptVec(const std::string& in_key, const std::vector<std::string>& in_val, 
+void config_file::SetOptVec(const std::string& in_key, const std::vector<std::string>& in_val, 
         int in_dirty) {
     local_locker lock(&config_locker);
 
@@ -373,7 +373,7 @@ void ConfigFile::SetOptVec(const std::string& in_key, const std::vector<std::str
 // Logfile name to use
 // Logfile type to use
 // Starting number or desired number
-std::string ConfigFile::ExpandLogPath(const std::string& path, const std::string& logname, 
+std::string config_file::ExpandLogPath(const std::string& path, const std::string& logname, 
         const std::string& type, int start, int overwrite) {
     local_locker lock(&config_locker);
 
@@ -599,7 +599,7 @@ std::string ConfigFile::ExpandLogPath(const std::string& path, const std::string
     return logtemplate;
 }
 
-uint32_t ConfigFile::FetchFileChecksum() {
+uint32_t config_file::FetchFileChecksum() {
     local_locker lock(&config_locker);
 
     if (checksum == 0)
@@ -608,7 +608,7 @@ uint32_t ConfigFile::FetchFileChecksum() {
     return checksum;
 }
 
-void ConfigFile::CalculateChecksum() {
+void config_file::CalculateChecksum() {
     local_locker lock(&config_locker);
 
     std::string cks;

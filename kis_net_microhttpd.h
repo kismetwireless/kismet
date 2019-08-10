@@ -481,7 +481,7 @@ protected:
 
     bool store_sessions;
     std::string sessiondb_file;
-    ConfigFile *session_db;
+    config_file *session_db;
 
     std::shared_ptr<Kis_Httpd_Websession> websession;
     unsigned int session_timeout;

@@ -503,7 +503,7 @@ protected:
     int proto_ref_ssid, proto_ref_device, proto_ref_client;
 
     // SSID cloak file as a config file
-    ConfigFile *ssid_conf;
+    config_file *ssid_conf;
     time_t conf_save;
 
     // probe assoc to owning network
