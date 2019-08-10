@@ -24,7 +24,7 @@
 #include "devicetracker_component.h"
 #include "packinfo_signal.h"
 
-Channeltracker_V2::Channeltracker_V2(global_registry *in_globalreg) :
+channel_tracker_v2::channel_tracker_v2(global_registry *in_globalreg) :
     tracker_component(),
     kis_net_httpd_cppstream_handler() {
 
@@ -58,7 +58,7 @@ Channeltracker_V2::Channeltracker_V2(global_registry *in_globalreg) :
     Bind_Httpd_Server();
 }
 
-Channeltracker_V2::~Channeltracker_V2() {
+channel_tracker_v2::~channel_tracker_v2() {
     local_locker locker(&lock);
 
     auto timetracker = Globalreg::FetchGlobalAs<Timetracker>("TIMETRACKER");
@@ -72,7 +72,7 @@ Channeltracker_V2::~Channeltracker_V2() {
     Globalreg::globalreg->RemoveGlobal("CHANNEL_TRACKER");
 }
 
-void Channeltracker_V2::register_fields() {
+void channel_tracker_v2::register_fields() {
     tracker_component::register_fields();
 
     register_field("kismet.channeltracker.frequency_map", "Frequency use", &frequency_map);
@@ -84,7 +84,7 @@ void Channeltracker_V2::register_fields() {
                 "channel/frequency entry");
 }
 
-bool Channeltracker_V2::httpd_verify_path(const char *path, const char *method) {
+bool channel_tracker_v2::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0)
         return false;
 
@@ -99,7 +99,7 @@ bool Channeltracker_V2::httpd_verify_path(const char *path, const char *method) 
     return false;
 }
 
-void Channeltracker_V2::httpd_create_stream_response(
+void channel_tracker_v2::httpd_create_stream_response(
         kis_net_httpd *httpd __attribute__((unused)),
         kis_net_httpd_connection *connection __attribute__((unused)),
         const char *path, const char *method, 
@@ -115,7 +115,7 @@ void Channeltracker_V2::httpd_create_stream_response(
 
     if (stripped == "/channels/channels") {
         local_shared_locker locker(&lock);
-        auto cv2 = Globalreg::FetchMandatoryGlobalAs<Channeltracker_V2>("CHANNEL_TRACKER");
+        auto cv2 = Globalreg::FetchMandatoryGlobalAs<channel_tracker_v2>("CHANNEL_TRACKER");
         Httpd_Serialize(path, stream, cv2);
     }
 
@@ -123,7 +123,7 @@ void Channeltracker_V2::httpd_create_stream_response(
 
 class channeltracker_v2_device_worker : public device_tracker_filter_worker {
 public:
-    channeltracker_v2_device_worker(Channeltracker_V2 *channelv2) {
+    channeltracker_v2_device_worker(channel_tracker_v2 *channelv2) {
         this->channelv2 = channelv2;
         stime = time(0);
     }
@@ -165,7 +165,7 @@ public:
     }
 
 protected:
-    Channeltracker_V2 *channelv2;
+    channel_tracker_v2 *channelv2;
 
     std::map<double, unsigned int> device_count;
 
@@ -175,7 +175,7 @@ protected:
 };
 
 
-int Channeltracker_V2::timetracker_event(int event_id __attribute__((unused))) {
+int channel_tracker_v2::timetracker_event(int event_id __attribute__((unused))) {
     local_locker locker(&lock);
 
     auto worker = std::make_shared<channeltracker_v2_device_worker>(this);
@@ -191,7 +191,7 @@ int Channeltracker_V2::timetracker_event(int event_id __attribute__((unused))) {
     return 1;
 }
 
-void Channeltracker_V2::update_device_counts(std::map<double, unsigned int> in_counts) {
+void channel_tracker_v2::update_device_counts(std::map<double, unsigned int> in_counts) {
     local_locker locker(&lock);
     time_t ts = time(0);
 
@@ -207,8 +207,8 @@ void Channeltracker_V2::update_device_counts(std::map<double, unsigned int> in_c
     }
 }
 
-int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
-    Channeltracker_V2 *cv2 = (Channeltracker_V2 *) auxdata;
+int channel_tracker_v2::PacketChainHandler(CHAINCALL_PARMS) {
+    channel_tracker_v2 *cv2 = (channel_tracker_v2 *) auxdata;
 
     local_locker locker(&(cv2->lock));
 

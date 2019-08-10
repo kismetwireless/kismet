@@ -848,7 +848,7 @@ int main(int argc, char *argv[], char *envp[]) {
         std::make_shared<Devicetracker_Httpd_Pcap>();
 
     // Add channel tracking
-    Channeltracker_V2::create_channeltracker(globalregistry);
+    channel_tracker_v2::create_channeltracker(globalregistry);
 
     if (globalregistry->fatal_condition)
         SpindownKismet(pollabletracker);
