@@ -224,7 +224,7 @@ protected:
 };
 
 class LogTracker : public tracker_component, public kis_net_httpd_cppstream_handler, 
-    public lifetime_global, public DeferredStartup {
+    public lifetime_global, public deferred_startup {
 public:
     static std::string global_name() { return "LOGTRACKER"; }
 

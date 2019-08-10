@@ -174,9 +174,9 @@ public:
 
 // Stub class for async objects that need to be triggered after the rest of the
 // system has started up, such as the datasourcetracker and the log tracker
-class DeferredStartup {
+class deferred_startup {
 public:
-    virtual ~DeferredStartup() { }
+    virtual ~deferred_startup() { }
 
     virtual void Deferred_Startup() = 0;
     virtual void Deferred_Shutdown() = 0;
@@ -297,8 +297,8 @@ public:
     void Removelifetime_global(std::shared_ptr<lifetime_global> in_g);
     void Deletelifetime_globals();
 
-    void RegisterDeferredGlobal(std::shared_ptr<DeferredStartup> in_d);
-    void RemoveDeferredGlobal(std::shared_ptr<DeferredStartup> in_d);
+    void RegisterDeferredGlobal(std::shared_ptr<deferred_startup> in_d);
+    void RemoveDeferredGlobal(std::shared_ptr<deferred_startup> in_d);
     void Start_Deferred();
     void Shutdown_Deferred();
 
@@ -315,7 +315,7 @@ protected:
 
     kis_recursive_timed_mutex deferred_mutex;
     bool deferred_started;
-    std::vector<std::shared_ptr<DeferredStartup> > deferred_vec;
+    std::vector<std::shared_ptr<deferred_startup> > deferred_vec;
 };
 
 namespace Globalreg {

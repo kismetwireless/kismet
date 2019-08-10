@@ -30,7 +30,7 @@
 // generally act like a stream, we need to be able to directly manipulate the
 // response header
 class Kis_Httpd_Websession : public kis_net_httpd_cppstream_handler, 
-    public lifetime_global, public DeferredStartup {
+    public lifetime_global, public deferred_startup {
 public:
     static std::string global_name() { return "WEBSESSION"; }
 

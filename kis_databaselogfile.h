@@ -59,7 +59,7 @@
 // then the builder hooks it, sets the internal builder record, and passed it to
 // the logtracker
 class kis_database_logfile : public KisLogfile, public kis_database, public lifetime_global,
-    public kis_net_httpd_ringbuf_stream_handler, public MessageClient, public DeferredStartup {
+    public kis_net_httpd_ringbuf_stream_handler, public MessageClient, public deferred_startup {
 public:
     static std::string global_name() { return "DATABASELOG"; }
 

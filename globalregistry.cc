@@ -184,7 +184,7 @@ void global_registry::Deletelifetime_globals() {
     lifetime_vec.clear();
 }
 
-void global_registry::RegisterDeferredGlobal(std::shared_ptr<DeferredStartup> in_d) {
+void global_registry::RegisterDeferredGlobal(std::shared_ptr<deferred_startup> in_d) {
     local_locker lock(&deferred_mutex);
 
     deferred_vec.push_back(in_d);
@@ -193,7 +193,7 @@ void global_registry::RegisterDeferredGlobal(std::shared_ptr<DeferredStartup> in
         in_d->Deferred_Startup();
 }
 
-void global_registry::RemoveDeferredGlobal(std::shared_ptr<DeferredStartup> in_d) {
+void global_registry::RemoveDeferredGlobal(std::shared_ptr<deferred_startup> in_d) {
     local_locker lock(&deferred_mutex);
 
     for (auto i = deferred_vec.begin(); i != deferred_vec.end(); ++i) {
