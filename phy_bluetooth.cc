@@ -70,7 +70,7 @@ Kis_Bluetooth_Phy::Kis_Bluetooth_Phy(global_registry *in_globalreg, int in_phyid
 }
 
 Kis_Bluetooth_Phy::~Kis_Bluetooth_Phy() {
-    packetchain->RemoveHandler(&CommonClassifierBluetooth, CHAINPOS_CLASSIFIER);
+    packetchain->remove_handler(&CommonClassifierBluetooth, CHAINPOS_CLASSIFIER);
 }
 
 int Kis_Bluetooth_Phy::CommonClassifierBluetooth(CHAINCALL_PARMS) {

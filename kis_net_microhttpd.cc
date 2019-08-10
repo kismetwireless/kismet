@@ -389,7 +389,7 @@ void kis_net_httpd::register_handler(kis_net_httpd_handler *in_handler) {
     handler_vec.push_back(in_handler);
 }
 
-void kis_net_httpd::RemoveHandler(kis_net_httpd_handler *in_handler) {
+void kis_net_httpd::remove_handler(kis_net_httpd_handler *in_handler) {
     local_locker lock(&controller_mutex);
 
     for (unsigned int x = 0; x < handler_vec.size(); x++) {

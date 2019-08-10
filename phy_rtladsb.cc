@@ -73,7 +73,7 @@ Kis_RTLADSB_Phy::Kis_RTLADSB_Phy(global_registry *in_globalreg, int in_phyid) :
 }
 
 Kis_RTLADSB_Phy::~Kis_RTLADSB_Phy() {
-    packetchain->RemoveHandler(&PacketHandler, CHAINPOS_CLASSIFIER);
+    packetchain->remove_handler(&PacketHandler, CHAINPOS_CLASSIFIER);
 }
 
 mac_addr Kis_RTLADSB_Phy::json_to_mac(Json::Value json) {

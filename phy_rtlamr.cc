@@ -72,7 +72,7 @@ Kis_RTLAMR_Phy::Kis_RTLAMR_Phy(global_registry *in_globalreg, int in_phyid) :
 }
 
 Kis_RTLAMR_Phy::~Kis_RTLAMR_Phy() {
-    packetchain->RemoveHandler(&PacketHandler, CHAINPOS_CLASSIFIER);
+    packetchain->remove_handler(&PacketHandler, CHAINPOS_CLASSIFIER);
 }
 
 

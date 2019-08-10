@@ -484,7 +484,7 @@ int packet_chain::register_handler(std::function<int (kis_packet *)> in_cb, int 
     return RegisterIntHandler(NULL, NULL, in_cb, in_chain, in_prio);
 }
 
-int packet_chain::RemoveHandler(int in_id, int in_chain) {
+int packet_chain::remove_handler(int in_id, int in_chain) {
     return sync_service_threads([&](void) -> int {
         unsigned int x;
 
@@ -546,7 +546,7 @@ int packet_chain::RemoveHandler(int in_id, int in_chain) {
                 break;
 
             default:
-                _MSG("packet_chain::RemoveHandler requested unknown chain", 
+                _MSG("packet_chain::remove_handler requested unknown chain", 
                         MSGFLAG_ERROR);
                 return -1;
         }
@@ -557,7 +557,7 @@ int packet_chain::RemoveHandler(int in_id, int in_chain) {
 
 }
 
-int packet_chain::RemoveHandler(pc_callback in_cb, int in_chain) {
+int packet_chain::remove_handler(pc_callback in_cb, int in_chain) {
     return sync_service_threads([&](void) -> int {
         unsigned int x;
 
@@ -619,7 +619,7 @@ int packet_chain::RemoveHandler(pc_callback in_cb, int in_chain) {
                 break;
 
             default:
-                _MSG("packet_chain::RemoveHandler requested unknown chain", 
+                _MSG("packet_chain::remove_handler requested unknown chain", 
                         MSGFLAG_ERROR);
                 return -1;
         }

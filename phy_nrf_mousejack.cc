@@ -77,7 +77,7 @@ Kis_Mousejack_Phy::Kis_Mousejack_Phy(global_registry *in_globalreg, int in_phyid
 }
 
 Kis_Mousejack_Phy::~Kis_Mousejack_Phy() {
-    packetchain->RemoveHandler(&CommonClassifierMousejack, CHAINPOS_CLASSIFIER);
+    packetchain->remove_handler(&CommonClassifierMousejack, CHAINPOS_CLASSIFIER);
 }
 
 int Kis_Mousejack_Phy::DissectorMousejack(CHAINCALL_PARMS) {

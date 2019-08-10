@@ -561,7 +561,7 @@ Pcap_Stream_Packetchain::Pcap_Stream_Packetchain(global_registry *in_globalreg,
 }
 
 Pcap_Stream_Packetchain::~Pcap_Stream_Packetchain() {
-    packetchain->RemoveHandler(packethandler_id, CHAINPOS_LOGGING);
+    packetchain->remove_handler(packethandler_id, CHAINPOS_LOGGING);
     handler->protocol_error();
 }
 
@@ -569,7 +569,7 @@ void Pcap_Stream_Packetchain::stop_stream(std::string in_reason) {
     // We have to spawn a thread to deal with this because we're inside the locking
     // chain of the buffer handler when we get a stream stop event, sometimes
     std::thread t([this]() {
-            packetchain->RemoveHandler(packethandler_id, CHAINPOS_LOGGING);
+            packetchain->remove_handler(packethandler_id, CHAINPOS_LOGGING);
             });
 
     pcap_stream_ringbuf::stop_stream(in_reason);

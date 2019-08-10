@@ -92,9 +92,9 @@ gps_tracker::~gps_tracker() {
     local_locker lock(&gpsmanager_mutex);
 
     Globalreg::globalreg->RemoveGlobal("GPSTRACKER");
-    httpd->RemoveHandler(this);
+    httpd->remove_handler(this);
 
-    Globalreg::globalreg->packetchain->RemoveHandler(&kis_gpspack_hook, CHAINPOS_POSTCAP);
+    Globalreg::globalreg->packetchain->remove_handler(&kis_gpspack_hook, CHAINPOS_POSTCAP);
 
     std::shared_ptr<time_tracker> timetracker = 
         Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");

@@ -483,7 +483,7 @@ device_tracker::~device_tracker() {
     std::shared_ptr<packet_chain> packetchain =
         Globalreg::fetch_mandatory_global_as<packet_chain>(globalreg, "PACKETCHAIN");
     if (packetchain != NULL) {
-        packetchain->RemoveHandler(&Devicetracker_packethook_commontracker,
+        packetchain->remove_handler(&Devicetracker_packethook_commontracker,
                 CHAINPOS_TRACKER);
     }
 

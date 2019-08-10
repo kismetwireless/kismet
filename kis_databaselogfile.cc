@@ -427,7 +427,7 @@ void kis_database_logfile::log_close() {
     auto packetchain =
         Globalreg::FetchGlobalAs<packet_chain>();
     if (packetchain != NULL) 
-        packetchain->RemoveHandler(&kis_database_logfile::packet_handler, CHAINPOS_LOGGING);
+        packetchain->remove_handler(&kis_database_logfile::packet_handler, CHAINPOS_LOGGING);
 
     {
         if (device_stmt != NULL)

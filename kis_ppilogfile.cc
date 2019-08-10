@@ -108,7 +108,7 @@ void KisPPILogfile::log_close() {
     auto packetchain =
         Globalreg::FetchGlobalAs<packet_chain>("PACKETCHAIN");
     if (packetchain != NULL) 
-        packetchain->RemoveHandler(&KisPPILogfile::packet_handler, CHAINPOS_LOGGING);
+        packetchain->remove_handler(&KisPPILogfile::packet_handler, CHAINPOS_LOGGING);
 
     // Close files
     if (dumper != NULL) {

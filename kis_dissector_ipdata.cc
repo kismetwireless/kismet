@@ -109,7 +109,7 @@ kis_dissector_ip_data::kis_dissector_ip_data(global_registry *in_globalreg) {
 kis_dissector_ip_data::~kis_dissector_ip_data() {
 	globalreg->insert_global("DISSECTOR_IPDATA", NULL);
 
-	globalreg->packetchain->RemoveHandler(&ipdata_packethook, CHAINPOS_DATADISSECT);
+	globalreg->packetchain->remove_handler(&ipdata_packethook, CHAINPOS_DATADISSECT);
 }
 
 #define MDNS_PTR_MASK		0xC0

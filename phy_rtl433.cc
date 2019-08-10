@@ -93,7 +93,7 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(global_registry *in_globalreg, int in_phyid) :
 }
 
 Kis_RTL433_Phy::~Kis_RTL433_Phy() {
-    packetchain->RemoveHandler(&PacketHandler, CHAINPOS_CLASSIFIER);
+    packetchain->remove_handler(&PacketHandler, CHAINPOS_CLASSIFIER);
 }
 
 double Kis_RTL433_Phy::f_to_c(double f) {

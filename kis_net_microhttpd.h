@@ -356,7 +356,7 @@ public:
 
     // All standard handlers require a login
     void register_handler(kis_net_httpd_handler *in_handler);
-    void RemoveHandler(kis_net_httpd_handler *in_handler);
+    void remove_handler(kis_net_httpd_handler *in_handler);
 
     // Unauth handlers do not require a login; use of them should be very limited.
     void RegisterUnauthHandler(kis_net_httpd_handler *in_handler);

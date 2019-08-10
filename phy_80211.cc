@@ -802,16 +802,16 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
 }
 
 Kis_80211_Phy::~Kis_80211_Phy() {
-	packetchain->RemoveHandler(&phydot11_packethook_wep, CHAINPOS_DECRYPT);
-	packetchain->RemoveHandler(&phydot11_packethook_dot11, 
+	packetchain->remove_handler(&phydot11_packethook_wep, CHAINPOS_DECRYPT);
+	packetchain->remove_handler(&phydot11_packethook_dot11, 
 										  CHAINPOS_LLCDISSECT);
 	/*
-	globalreg->packetchain->RemoveHandler(&phydot11_packethook_dot11data, 
+	globalreg->packetchain->remove_handler(&phydot11_packethook_dot11data, 
 										  CHAINPOS_DATADISSECT);
-	globalreg->packetchain->RemoveHandler(&phydot11_packethook_dot11string,
+	globalreg->packetchain->remove_handler(&phydot11_packethook_dot11string,
 										  CHAINPOS_DATADISSECT);
 										  */
-	packetchain->RemoveHandler(&CommonClassifierDot11,
+	packetchain->remove_handler(&CommonClassifierDot11,
             CHAINPOS_CLASSIFIER);
 
     timetracker->RemoveTimer(device_idle_timer);
