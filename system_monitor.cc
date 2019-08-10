@@ -108,7 +108,7 @@ Systemmonitor::Systemmonitor() :
         std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/system/status", 
                 status, &monitor_mutex);
     user_monitor_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint>("/system/user_status", 
+        std::make_shared<kis_net_httpd_simple_unauth_tracked_endpoint>("/system/user_status", 
             [this](void) -> std::shared_ptr<tracker_element> {
                 auto use = std::make_shared<tracker_element_map>();
 

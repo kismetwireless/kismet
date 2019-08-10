@@ -1428,7 +1428,7 @@ int kis_net_httpd_simple_tracked_endpoint::httpd_post_complete(kis_net_httpd_con
     return MHD_YES;
 }
 
-Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint(const std::string& in_uri,
+kis_net_httpd_simple_unauth_tracked_endpoint::kis_net_httpd_simple_unauth_tracked_endpoint(const std::string& in_uri,
         std::shared_ptr<tracker_element> in_element, kis_recursive_timed_mutex *in_mutex) :
     kis_net_httpd_chain_stream_handler {},
     uri {in_uri},
@@ -1438,7 +1438,7 @@ Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::Kis_Net_Httpd_Simple_Unauth_Tracke
     httpd->RegisterUnauthHandler(this);
 }
 
-Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint(const std::string& in_uri,
+kis_net_httpd_simple_unauth_tracked_endpoint::kis_net_httpd_simple_unauth_tracked_endpoint(const std::string& in_uri,
         kis_net_httpd_simple_tracked_endpoint::gen_func in_func) :
     kis_net_httpd_chain_stream_handler {},
     uri {in_uri}, 
@@ -1448,7 +1448,7 @@ Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::Kis_Net_Httpd_Simple_Unauth_Tracke
     httpd->RegisterUnauthHandler(this);
 }
 
-Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint(const std::string& in_uri,
+kis_net_httpd_simple_unauth_tracked_endpoint::kis_net_httpd_simple_unauth_tracked_endpoint(const std::string& in_uri,
         kis_net_httpd_simple_tracked_endpoint::gen_func in_func,
         kis_recursive_timed_mutex *in_mutex) :
     kis_net_httpd_chain_stream_handler {},
@@ -1459,7 +1459,7 @@ Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::Kis_Net_Httpd_Simple_Unauth_Tracke
     httpd->RegisterUnauthHandler(this);
 }
 
-bool Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_verify_path(const char *path, const char *method) {
+bool kis_net_httpd_simple_unauth_tracked_endpoint::httpd_verify_path(const char *path, const char *method) {
     auto stripped = Httpd_StripSuffix(path);
 
     if (stripped == uri && Httpd_CanSerialize(path))
@@ -1468,7 +1468,7 @@ bool Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_verify_path(const char 
     return false;
 }
 
-int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_create_stream_response(
+int kis_net_httpd_simple_unauth_tracked_endpoint::httpd_create_stream_response(
         kis_net_httpd *httpd __attribute__((unused)),
         kis_net_httpd_connection *connection,
         const char *path, const char *method, const char *upload_data,
@@ -1526,7 +1526,7 @@ int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_create_stream_response(
     return MHD_YES;
 }
 
-int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_post_complete(kis_net_httpd_connection *concls) {
+int kis_net_httpd_simple_unauth_tracked_endpoint::httpd_post_complete(kis_net_httpd_connection *concls) {
     auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
     auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
