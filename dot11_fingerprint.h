@@ -157,7 +157,7 @@ protected:
 
     std::shared_ptr<tracker_element_mac_map> fingerprint_map;
 
-    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> fingerprint_endp;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> fingerprint_endp;
     std::shared_ptr<Kis_Net_Httpd_Path_Post_Endpoint> update_endp;
 
 };

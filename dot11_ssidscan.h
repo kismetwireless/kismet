@@ -133,7 +133,7 @@ protected:
     std::shared_ptr<tracker_element_uint8> filter_logs;
 
     // Status/config view endp
-    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> dot11_ssidscan_status_endp;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> dot11_ssidscan_status_endp;
 
     // Configure set endp
     std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> dot11_ssidscan_config_endp;

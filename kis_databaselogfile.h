@@ -225,7 +225,7 @@ protected:
     unsigned int make_poi_endp_handler(std::ostream& stream, const std::string& uri,
             SharedStructured structured, kis_net_httpd_connection::variable_cache_map& postvars);
 
-    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> list_poi_endp;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> list_poi_endp;
     std::shared_ptr<tracker_element> list_poi_endp_handler();
 
     // Device log filter

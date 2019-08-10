@@ -395,7 +395,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 
     // Initialize the view system
     view_vec = std::make_shared<tracker_element_vector>();
-    view_endp = std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/devices/views/all_views", 
+    view_endp = std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/devices/views/all_views", 
             view_vec, &view_mutex);
 
     // Unlocked endpoint, we dupe our map for searching
@@ -432,7 +432,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
                 "Packets seen in phy");
 
     all_phys_endp = 
-        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>(
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>(
                 "/phy/all_phys", 
                 [this]() -> std::shared_ptr<tracker_element> {
                     return all_phys_endp_handler();

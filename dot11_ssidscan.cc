@@ -110,7 +110,7 @@ Dot11_SsidScan::Dot11_SsidScan() {
     max_contend_cap_seconds->set(config->FetchOptUInt("dot11_ssidscan_maximum_lock", 30));
 
     dot11_ssidscan_status_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/phy/phy80211/ssidscan/status", true,
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/phy/phy80211/ssidscan/status", true,
                 [this]() -> std::shared_ptr<tracker_element> {
                     auto retmap = std::make_shared<tracker_element_map>();
 

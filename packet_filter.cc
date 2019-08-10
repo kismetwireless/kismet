@@ -43,7 +43,7 @@ Packetfilter::Packetfilter(const std::string& in_id, const std::string& in_descr
     auto url = fmt::format("{}/filter", base_uri);
 
     self_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>(
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>(
                 url, 
                 [this]() -> std::shared_ptr<tracker_element> {
                     local_locker lock(&mutex);

@@ -30,7 +30,7 @@ Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri) {
         base_uri = std::vector<std::string>(base_uri.begin() + 1, base_uri.end());
 
     fingerprint_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>(in_uri + "/all_fingerprints", 
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>(in_uri + "/all_fingerprints", 
                 fingerprint_map, &mutex);
 
     update_endp =
@@ -56,7 +56,7 @@ Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri,
         base_uri = std::vector<std::string>(base_uri.begin() + 1, base_uri.end());
 
     fingerprint_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>(in_uri + "/all_fingerprints", 
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>(in_uri + "/all_fingerprints", 
                 fingerprint_map, &mutex);
 
     update_endp =

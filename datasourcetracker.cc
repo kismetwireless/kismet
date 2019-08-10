@@ -322,7 +322,7 @@ Datasourcetracker::Datasourcetracker() :
                 tracker_element_factory<tracker_element_vector>(), "Configured sources");
 
     all_sources_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/datasource/all_sources",
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/datasource/all_sources",
                 [this]() -> std::shared_ptr<tracker_element> {
                     local_shared_locker sl(&dst_lock);
                     auto serial_vec = std::make_shared<tracker_element_vector>(datasource_vec);
@@ -330,15 +330,15 @@ Datasourcetracker::Datasourcetracker() :
                 });
 
     defaults_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/datasource/defaults",
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/datasource/defaults",
                 config_defaults, &dst_lock);
 
     types_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/datasource/types", 
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/datasource/types", 
                 proto_vec, &dst_lock);
 
     list_interfaces_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/datasource/list_interfaces", 
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/datasource/list_interfaces", 
                 [this]() -> std::shared_ptr<tracker_element> {
                     // Locker for waiting for the list callback
                     auto cl = std::make_shared<conditional_locker<std::vector<SharedInterface> >>();

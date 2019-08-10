@@ -173,18 +173,18 @@ public:
 class Kis_Httpd_Websession;
 
 // Do a simple dump of a tracked object into an endpoint
-class Kis_Net_Httpd_Simple_Tracked_Endpoint : public kis_net_httpd_chain_stream_handler {
+class kis_net_httpd_simple_tracked_endpoint : public kis_net_httpd_chain_stream_handler {
 public:
     using gen_func = std::function<std::shared_ptr<tracker_element> ()>;
 
-    Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri, 
+    kis_net_httpd_simple_tracked_endpoint(const std::string& in_uri, 
             std::shared_ptr<tracker_element> in_content, 
             kis_recursive_timed_mutex *in_mutex);
-    Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri, gen_func in_func);
-    Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri, gen_func in_func,
+    kis_net_httpd_simple_tracked_endpoint(const std::string& in_uri, gen_func in_func);
+    kis_net_httpd_simple_tracked_endpoint(const std::string& in_uri, gen_func in_func,
             kis_recursive_timed_mutex *in_mutex);
 
-    virtual ~Kis_Net_Httpd_Simple_Tracked_Endpoint() { }
+    virtual ~kis_net_httpd_simple_tracked_endpoint() { }
 
     // HTTP handlers
     virtual bool httpd_verify_path(const char *path, const char *method) override;

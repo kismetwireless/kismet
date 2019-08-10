@@ -157,9 +157,9 @@ protected:
     std::shared_ptr<Eventbus> eventbus;
     int logopen_evt_id;
 
-    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> monitor_endp;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> monitor_endp;
     std::shared_ptr<Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint> user_monitor_endp;
-    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> timestamp_endp;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> timestamp_endp;
 
     std::shared_ptr<device_tracker> devicetracker;
 

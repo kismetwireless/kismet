@@ -515,10 +515,10 @@ protected:
     int database_log_timer;
     bool database_log_enabled, database_logging;
 
-    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> all_sources_endp;
-    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> defaults_endp;
-    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> types_endp;
-    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> list_interfaces_endp;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> all_sources_endp;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> defaults_endp;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> types_endp;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> list_interfaces_endp;
 };
 
 /* This implements the core 'all data' pcap, and pcap filtered by datasource UUID.

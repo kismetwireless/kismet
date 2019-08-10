@@ -392,7 +392,7 @@ protected:
     // List of views using new API as we transition the rest to the new API
     kis_recursive_timed_mutex view_mutex;
     std::shared_ptr<tracker_element_vector> view_vec;
-    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> view_endp;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> view_endp;
 
     // Multimac endpoint using new http API
     std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> multimac_endp;
@@ -400,7 +400,7 @@ protected:
             SharedStructured structured, kis_net_httpd_connection::variable_cache_map& variable_cache);
 
     // /phys/all_phys.json endpoint using new simple endpoint API
-    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> all_phys_endp;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> all_phys_endp;
     std::shared_ptr<tracker_element> all_phys_endp_handler();
     int phy_phyentry_id, phy_phyname_id, phy_devices_count_id, 
         phy_packets_count_id, phy_phyid_id;

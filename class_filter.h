@@ -76,7 +76,7 @@ protected:
     int default_set_endp_handler(std::ostream& stream, SharedStructured post_structured);
 
     // Default display endpoint
-    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> self_endp;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> self_endp;
     // Build the return object; subfilters must implement this to bypass class hierarchy & call
     // build_self_content
     virtual std::shared_ptr<tracker_element_map> self_endp_handler() = 0;

@@ -263,7 +263,7 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
                 });
 
     list_poi_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/poi/list_poi", 
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/poi/list_poi", 
                 [this]() -> std::shared_ptr<tracker_element> {
                     return list_poi_endp_handler();
                 });
