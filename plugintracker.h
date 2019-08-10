@@ -187,17 +187,17 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.plugin.name", "plugin name", &plugin_name);
-        RegisterField("kismet.plugin.description", "plugin description", &plugin_description);
-        RegisterField("kismet.plugin.author", "plugin author", &plugin_author);
-        RegisterField("kismet.plugin.version", "plugin version", &plugin_version);
+        register_field("kismet.plugin.name", "plugin name", &plugin_name);
+        register_field("kismet.plugin.description", "plugin description", &plugin_description);
+        register_field("kismet.plugin.author", "plugin author", &plugin_author);
+        register_field("kismet.plugin.version", "plugin version", &plugin_version);
 
-        RegisterField("kismet.plugin.shared_object", "plugin shared object filename", &plugin_so);
-        RegisterField("kismet.plugin.http_helper", "plugin http helper", &plugin_http_external);
+        register_field("kismet.plugin.shared_object", "plugin shared object filename", &plugin_so);
+        register_field("kismet.plugin.http_helper", "plugin http helper", &plugin_http_external);
 
-        RegisterField("kismet.plugin.dirname", "plugin directory name", &plugin_dirname);
-        RegisterField("kismet.plugin.path", "path to plugin content", &plugin_path);
-        RegisterField("kismet.plugin.jsmodule", "Plugin javascript module", &plugin_js);
+        register_field("kismet.plugin.dirname", "plugin directory name", &plugin_dirname);
+        register_field("kismet.plugin.path", "path to plugin content", &plugin_path);
+        register_field("kismet.plugin.jsmodule", "Plugin javascript module", &plugin_js);
 
     }
 

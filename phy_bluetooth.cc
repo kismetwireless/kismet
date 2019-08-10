@@ -50,7 +50,7 @@ Kis_Bluetooth_Phy::Kis_Bluetooth_Phy(global_registry *in_globalreg, int in_phyid
     SetPhyName("Bluetooth");
 
     bluetooth_device_entry_id =
-        entrytracker->RegisterField("bluetooth.device", 
+        entrytracker->register_field("bluetooth.device", 
                 tracker_element_factory<bluetooth_tracked_device>(),
                 "Bluetooth device");
 

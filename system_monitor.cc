@@ -202,31 +202,31 @@ Systemmonitor::~Systemmonitor() {
 }
 
 void tracked_system_status::register_fields() {
-    RegisterField("kismet.system.battery.percentage", "remaining battery percentage", &battery_perc);
-    RegisterField("kismet.system.battery.charging", "battery charging state", &battery_charging);
-    RegisterField("kismet.system.battery.ac", "on AC power", &battery_ac);
-    RegisterField("kismet.system.battery.remaining", 
+    register_field("kismet.system.battery.percentage", "remaining battery percentage", &battery_perc);
+    register_field("kismet.system.battery.charging", "battery charging state", &battery_charging);
+    register_field("kismet.system.battery.ac", "on AC power", &battery_ac);
+    register_field("kismet.system.battery.remaining", 
             "battery remaining in seconds", &battery_remaining);
-    RegisterField("kismet.system.timestamp.sec", "system timestamp, seconds", &timestamp_sec);
-    RegisterField("kismet.system.timestamp.usec", "system timestamp, usec", &timestamp_usec);
-    RegisterField("kismet.system.timestamp.start_sec", 
+    register_field("kismet.system.timestamp.sec", "system timestamp, seconds", &timestamp_sec);
+    register_field("kismet.system.timestamp.usec", "system timestamp, usec", &timestamp_usec);
+    register_field("kismet.system.timestamp.start_sec", 
             "system startup timestamp, seconds", &timestamp_start_sec);
-    RegisterField("kismet.system.memory.rss", "memory RSS in kbytes", &memory);
-    RegisterField("kismet.system.devices.count", "number of devices in devicetracker", &devices);
-    RegisterField("kismet.system.user", "user Kismet is running as", &username);
-    RegisterField("kismet.system.version", "Kismet version string", &server_version);
-    RegisterField("kismet.system.git", "Git commit string", &server_git);
-    RegisterField("kismet.system.build_time", "Server build time", &build_time);
-    RegisterField("kismet.system.server_uuid", "UUID of kismet server", &server_uuid);
-    RegisterField("kismet.system.server_name", "Arbitrary name of server instance", &server_name);
-    RegisterField("kismet.system.server_description", "Arbitrary server description", &server_description);
-    RegisterField("kismet.system.server_location", "Arbitrary server location string", &server_location);
+    register_field("kismet.system.memory.rss", "memory RSS in kbytes", &memory);
+    register_field("kismet.system.devices.count", "number of devices in devicetracker", &devices);
+    register_field("kismet.system.user", "user Kismet is running as", &username);
+    register_field("kismet.system.version", "Kismet version string", &server_version);
+    register_field("kismet.system.git", "Git commit string", &server_git);
+    register_field("kismet.system.build_time", "Server build time", &build_time);
+    register_field("kismet.system.server_uuid", "UUID of kismet server", &server_uuid);
+    register_field("kismet.system.server_name", "Arbitrary name of server instance", &server_name);
+    register_field("kismet.system.server_description", "Arbitrary server description", &server_description);
+    register_field("kismet.system.server_location", "Arbitrary server location string", &server_location);
 
-    RegisterField("kismet.system.memory.rrd", "memory used RRD", &memory_rrd); 
-    RegisterField("kismet.system.devices.rrd", "device count RRD", &devices_rrd);
+    register_field("kismet.system.memory.rrd", "memory used RRD", &memory_rrd); 
+    register_field("kismet.system.devices.rrd", "device count RRD", &devices_rrd);
 
-    RegisterField("kismet.system.sensors.fan", "fan sensors", &sensors_fans);
-    RegisterField("kismet.system.sensors.temp", "temperature sensors", &sensors_temp);
+    register_field("kismet.system.sensors.fan", "fan sensors", &sensors_fans);
+    register_field("kismet.system.sensors.temp", "temperature sensors", &sensors_temp);
 }
 
 int Systemmonitor::timetracker_event(int eventid) {

@@ -86,9 +86,9 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.messagebus.message_string", "Message content", &message);
-        RegisterField("kismet.messagebus.message_flags", "Message flags (per messagebus.h)", &flags);
-        RegisterField("kismet.messagebus.message_time", "Message time_t", &timestamp);
+        register_field("kismet.messagebus.message_string", "Message content", &message);
+        register_field("kismet.messagebus.message_flags", "Message flags (per messagebus.h)", &flags);
+        register_field("kismet.messagebus.message_time", "Message time_t", &timestamp);
     }
 
     std::shared_ptr<tracker_element_string> message;

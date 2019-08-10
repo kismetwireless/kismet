@@ -131,18 +131,18 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("uav.telemetry.location", "UAV GPS location", &location);
-        RegisterField("uav.telemetry.timestamp", "timetamp (sec.usec)", &telem_ts);
-        RegisterField("uav.telemetry.yaw", "yaw", &yaw);
-        RegisterField("uav.telemetry.pitch", "pitch", &pitch);
-        RegisterField("uav.telemetry.roll", "roll", &roll);
-        RegisterField("uav.telemetry.height", "height above ground", &height);
-        RegisterField("uav.telemetry.v_north", "velocity relative to n/s", &v_north);
-        RegisterField("uav.telemetry.v_east", "velocity relative to e/w", &v_east);
-        RegisterField("uav.telemetry.v_up", "velocity relative to up/down", &v_up);
+        register_field("uav.telemetry.location", "UAV GPS location", &location);
+        register_field("uav.telemetry.timestamp", "timetamp (sec.usec)", &telem_ts);
+        register_field("uav.telemetry.yaw", "yaw", &yaw);
+        register_field("uav.telemetry.pitch", "pitch", &pitch);
+        register_field("uav.telemetry.roll", "roll", &roll);
+        register_field("uav.telemetry.height", "height above ground", &height);
+        register_field("uav.telemetry.v_north", "velocity relative to n/s", &v_north);
+        register_field("uav.telemetry.v_east", "velocity relative to e/w", &v_east);
+        register_field("uav.telemetry.v_up", "velocity relative to up/down", &v_up);
 
-        RegisterField("uav.telemetry.motor_on", "device reports motor enabled", &motor_on);
-        RegisterField("uav.telemetry.airborne", "device reports UAV is airborne", &airborne);
+        register_field("uav.telemetry.motor_on", "device reports motor enabled", &motor_on);
+        register_field("uav.telemetry.airborne", "device reports UAV is airborne", &airborne);
     }
 
     std::shared_ptr<kis_tracked_location_triplet> location;
@@ -229,14 +229,14 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("uav_match_name", "Match name", &uav_match_name);
-        RegisterField("uav.manufmatch.name", "Matched manufacturer name", &uav_manuf_name);
-        RegisterField("uav.manufmatch.model", "Matched model name", &uav_manuf_model);
+        register_field("uav_match_name", "Match name", &uav_match_name);
+        register_field("uav.manufmatch.name", "Matched manufacturer name", &uav_manuf_name);
+        register_field("uav.manufmatch.model", "Matched model name", &uav_manuf_model);
 
-        RegisterField("uav.manufmatch.mac", "Matching mac address fragment", &uav_manuf_mac);
-        RegisterField("uav.manufmatch.ssid_regex", "Matching SSID regex", &uav_manuf_ssid_regex);
+        register_field("uav.manufmatch.mac", "Matching mac address fragment", &uav_manuf_mac);
+        register_field("uav.manufmatch.ssid_regex", "Matching SSID regex", &uav_manuf_ssid_regex);
 
-        RegisterField("uav.manufmatch.partial", 
+        register_field("uav.manufmatch.partial", 
                 "Allow partial matches (only manuf or only ssid)", &uav_manuf_partial);
     }
 
@@ -304,28 +304,28 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("uav.manufacturer", "Manufacturer", &uav_manufacturer);
-        RegisterField("uav.model", "Model", &uav_model);
-        RegisterField("uav.serialnumber", "Serial number", &uav_serialnumber);
+        register_field("uav.manufacturer", "Manufacturer", &uav_manufacturer);
+        register_field("uav.model", "Model", &uav_model);
+        register_field("uav.serialnumber", "Serial number", &uav_serialnumber);
 
         last_telem_loc_id =
-            RegisterField("uav.last_telemetry", "Last drone telemetry location", &last_telem_loc);
+            register_field("uav.last_telemetry", "Last drone telemetry location", &last_telem_loc);
 
-        RegisterField("uav.telemetry_history", "Previous telemetry location data", &uav_telem_history);
+        register_field("uav.telemetry_history", "Previous telemetry location data", &uav_telem_history);
 
         telem_history_entry_id =
-            RegisterField("uav.telemetry_entry",
+            register_field("uav.telemetry_entry",
                     tracker_element_factory<uav_tracked_telemetry>(),
                     "historical telemetry");
 
-        RegisterField("uav.match_type", "Match type (drone characteristics)", &uav_match_type);
+        register_field("uav.match_type", "Match type (drone characteristics)", &uav_match_type);
 
         home_location_id =
-            RegisterField("uav.telemetry.home_location", "UAV takeoff/home location",
+            register_field("uav.telemetry.home_location", "UAV takeoff/home location",
                     &home_location);
 
         matched_type_id =
-            RegisterField("uav.type", "Matched device", &matched_type);
+            register_field("uav.type", "Matched device", &matched_type);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {

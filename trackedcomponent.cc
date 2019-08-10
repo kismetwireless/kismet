@@ -28,12 +28,12 @@ std::string tracker_component::get_name(int in_id) {
     return Globalreg::globalreg->entrytracker->GetFieldName(in_id);
 }
 
-int tracker_component::RegisterField(const std::string& in_name, 
+int tracker_component::register_field(const std::string& in_name, 
         std::unique_ptr<tracker_element> in_builder,
         const std::string& in_desc, shared_tracker_element *in_dest) {
 
     int id = 
-        Globalreg::globalreg->entrytracker->RegisterField(in_name, std::move(in_builder), in_desc);
+        Globalreg::globalreg->entrytracker->register_field(in_name, std::move(in_builder), in_desc);
 
     if (in_dest != NULL) {
         auto rf = std::unique_ptr<registered_field>(new registered_field(id, in_dest));

@@ -96,7 +96,7 @@ Kis_UAV_Phy::Kis_UAV_Phy(global_registry *in_globalreg, int in_phyid) :
         packetchain->RegisterPacketComponent("DEVICE");
 
     uav_device_id =
-        Globalreg::globalreg->entrytracker->RegisterField("uav.device",
+        Globalreg::globalreg->entrytracker->register_field("uav.device",
                 tracker_element_factory<uav_tracked_device>(),
                 "UAV device");
 

@@ -39,7 +39,7 @@ EntryTracker::~EntryTracker() {
     globalreg->RemoveGlobal("ENTRYTRACKER");
 }
 
-int EntryTracker::RegisterField(const std::string& in_name,
+int EntryTracker::register_field(const std::string& in_name,
         std::unique_ptr<tracker_element> in_builder,
         const std::string& in_desc) {
     local_locker lock(&entry_mutex);

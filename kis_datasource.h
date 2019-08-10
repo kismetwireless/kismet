@@ -125,34 +125,34 @@ protected:
 
         set_local_name("kismet.datasource.type_driver");
 
-        RegisterField("kismet.datasource.driver.type", "Type", &source_type);
-        RegisterField("kismet.datasource.driver.description", "Description", &source_description);
+        register_field("kismet.datasource.driver.type", "Type", &source_type);
+        register_field("kismet.datasource.driver.description", "Description", &source_description);
 
-        RegisterField("kismet.datasource.driver.probe_capable", 
+        register_field("kismet.datasource.driver.probe_capable", 
                 "Datasource can automatically probe", &probe_capable);
 
-        RegisterField("kismet.datasource.driver.probe_ipc", 
+        register_field("kismet.datasource.driver.probe_ipc", 
                 "Datasource requires IPC to probe", &probe_ipc);
 
-        RegisterField("kismet.datasource.driver.list_capable",
+        register_field("kismet.datasource.driver.list_capable",
                 "Datasource can list interfaces", &list_capable);
 
-        RegisterField("kismet.datasource.driver.list_ipc", 
+        register_field("kismet.datasource.driver.list_ipc", 
                 "Datasource requires IPC to list interfaces", &list_ipc);
 
-        RegisterField("kismet.datasource.driver.local_capable", 
+        register_field("kismet.datasource.driver.local_capable", 
                 "Datasource can support local interfaces", &local_capable);
 
-        RegisterField("kismet.datasource.driver.local_ipc", 
+        register_field("kismet.datasource.driver.local_ipc", 
                 "Datasource requires IPC for local interfaces", &local_ipc);
 
-        RegisterField("kismet.datasource.driver.remote_capable",
+        register_field("kismet.datasource.driver.remote_capable",
                 "Datasource can support remote interfaces", &remote_capable);
 
-        RegisterField("kismet.datasource.driver.passive_capable", 
+        register_field("kismet.datasource.driver.passive_capable", 
                 "Datasource can support passive interface-less data", &passive_capable);
 
-        RegisterField("kismet.datasource.driver.tuning_capable",
+        register_field("kismet.datasource.driver.tuning_capable",
                 "Datasource can control channels", &tune_capable);
     }
 
@@ -777,19 +777,19 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.datasource.probed.interface", "Interface name", &interface);
-        RegisterField("kismet.datasource.probed.options_vec",
+        register_field("kismet.datasource.probed.interface", "Interface name", &interface);
+        register_field("kismet.datasource.probed.options_vec",
                 "Interface options", &options_vec);
 
         options_entry_id =
-            RegisterField("kismet.datasource.probed.option",
+            register_field("kismet.datasource.probed.option",
                     tracker_element_factory<tracker_element_string>(),
                     "Interface option");
 
-        RegisterField("kismet.datasource.probed.in_use_uuid",
+        register_field("kismet.datasource.probed.in_use_uuid",
                 "Active source using this interface", &in_use_uuid);
 
-        RegisterField("kismet.datasource.probed.hardware",
+        register_field("kismet.datasource.probed.hardware",
                 "Hardware / chipset", &hardware);
 
     }

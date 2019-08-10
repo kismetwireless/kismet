@@ -29,7 +29,7 @@ Manuf::Manuf() {
     auto entrytracker = Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
 
     manuf_id = 
-        entrytracker->RegisterField("kismet.device.base.manuf", 
+        entrytracker->register_field("kismet.device.base.manuf", 
                 tracker_element_factory<tracker_element_string>(), "manufacturer name");
 
     unknown_manuf = std::make_shared<tracker_element_string>(manuf_id);

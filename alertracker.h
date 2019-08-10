@@ -169,18 +169,18 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.alert.device_key", "Device key of linked device", &devicekey);
-        RegisterField("kismet.alert.header", "Alert type", &header);
-        RegisterField("kismet.alert.phy_id", "ID of phy generating alert", &phy);
-        RegisterField("kismet.alert.timestamp", "Timestamp (sec.ms)", &timestamp);
-        RegisterField("kismet.alert.transmitter_mac", "Transmitter MAC address", &transmitter_mac);
-        RegisterField("kismet.alert.source_mac", "Source MAC address", &source_mac);
-        RegisterField("kismet.alert.dest_mac", "Destination MAC address", &dest_mac);
-        RegisterField("kismet.alert.other_mac", "Other / Extra MAC address", &other_mac);
-        RegisterField("kismet.alert.channel", "Phy-specific channel", &channel);
-        RegisterField("kismet.alert.frequency", "Frequency (khz)", &frequency);
-        RegisterField("kismet.alert.text", "Alert text", &text);
-        RegisterField("kismet.alert.location", "location", &location);
+        register_field("kismet.alert.device_key", "Device key of linked device", &devicekey);
+        register_field("kismet.alert.header", "Alert type", &header);
+        register_field("kismet.alert.phy_id", "ID of phy generating alert", &phy);
+        register_field("kismet.alert.timestamp", "Timestamp (sec.ms)", &timestamp);
+        register_field("kismet.alert.transmitter_mac", "Transmitter MAC address", &transmitter_mac);
+        register_field("kismet.alert.source_mac", "Source MAC address", &source_mac);
+        register_field("kismet.alert.dest_mac", "Destination MAC address", &dest_mac);
+        register_field("kismet.alert.other_mac", "Other / Extra MAC address", &other_mac);
+        register_field("kismet.alert.channel", "Phy-specific channel", &channel);
+        register_field("kismet.alert.frequency", "Frequency (khz)", &frequency);
+        register_field("kismet.alert.text", "Alert text", &text);
+        register_field("kismet.alert.location", "location", &location);
     }
 
     std::shared_ptr<tracker_element_device_key> devicekey;
@@ -267,18 +267,18 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.alert.definition.header", "Alert type", &header);
-        RegisterField("kismet.alert.definition.description", "Alert description", &description);
-        RegisterField("kismet.alert.definition.phyid", "Alert phy type", &phy);
-        RegisterField("kismet.alert.definition.limit_unit", 
+        register_field("kismet.alert.definition.header", "Alert type", &header);
+        register_field("kismet.alert.definition.description", "Alert description", &description);
+        register_field("kismet.alert.definition.phyid", "Alert phy type", &phy);
+        register_field("kismet.alert.definition.limit_unit", 
                 "Alert limit time unit (defined in alertracker.h)", &limit_unit);
-        RegisterField("kismet.alert.definition.limit_rate", "Alert rate limit", &limit_rate);
-        RegisterField("kismet.alert.definition.burst_unit", 
+        register_field("kismet.alert.definition.limit_rate", "Alert rate limit", &limit_rate);
+        register_field("kismet.alert.definition.burst_unit", 
                 "Burst limit time unit (defined in alertracker.h)", &burst_unit);
-        RegisterField("kismet.alert.definition.limit_burst", "Burst rate limit", &limit_burst);
-        RegisterField("kismet.alert.definition.burst_sent", "Alerts sent in burst", &burst_sent);
-        RegisterField("kismet.alert.definition.total_sent", "Total alerts sent", &total_sent);
-        RegisterField("kismet.alert.definition.time_last", 
+        register_field("kismet.alert.definition.limit_burst", "Burst rate limit", &limit_burst);
+        register_field("kismet.alert.definition.burst_sent", "Alerts sent in burst", &burst_sent);
+        register_field("kismet.alert.definition.total_sent", "Total alerts sent", &total_sent);
+        register_field("kismet.alert.definition.time_last", 
                 "Timestamp of last alert (sec.us)", &time_last);
     }
 

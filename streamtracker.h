@@ -161,18 +161,18 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.stream.stream_id", "Stream ID", &stream_id);
-        RegisterField("kismet.stream.time", 
+        register_field("kismet.stream.stream_id", "Stream ID", &stream_id);
+        register_field("kismet.stream.time", 
                 "Start time of stream (second since epoch)", &stream_time);
-        RegisterField("kismet.stream.name", "Stream / Log name", &log_name);
-        RegisterField("kismet.stream.type", "Stream / Log type", &log_type);
-        RegisterField("kismet.stream.path", "Log path or stream remote client", &log_path);
-        RegisterField("kismet.stream.description", "Stream / Log description", &log_description);
-        RegisterField("kismet.stream.packets", "Number of packets (if known)", &log_packets);
-        RegisterField("kismet.stream.size", "Size of log, if known, in bytes", &log_size);
-        RegisterField("kismet.stream.max_packets", "Maximum number of packets", &max_packets);
-        RegisterField("kismet.stream.max_size", "Maximum allowed size (bytes)", &max_size);
-        RegisterField("kismet.stream.paused", "Stream processing paused", &log_paused);
+        register_field("kismet.stream.name", "Stream / Log name", &log_name);
+        register_field("kismet.stream.type", "Stream / Log type", &log_type);
+        register_field("kismet.stream.path", "Log path or stream remote client", &log_path);
+        register_field("kismet.stream.description", "Stream / Log description", &log_description);
+        register_field("kismet.stream.packets", "Number of packets (if known)", &log_packets);
+        register_field("kismet.stream.size", "Size of log, if known, in bytes", &log_size);
+        register_field("kismet.stream.max_packets", "Maximum number of packets", &max_packets);
+        register_field("kismet.stream.max_size", "Maximum allowed size (bytes)", &max_size);
+        register_field("kismet.stream.paused", "Stream processing paused", &log_paused);
     }
 
     std::shared_ptr<tracker_element_double> stream_id;

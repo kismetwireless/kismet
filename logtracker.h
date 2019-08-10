@@ -102,12 +102,12 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.logfile.type.class", "class/type", &log_class);
-        RegisterField("kismet.logfile.type.name", "base type name", &log_name);
-        RegisterField("kismet.logfile.type.stream", "continual streaming", &stream_log);
-        RegisterField("kismet.logfile.type.singleton", 
+        register_field("kismet.logfile.type.class", "class/type", &log_class);
+        register_field("kismet.logfile.type.name", "base type name", &log_name);
+        register_field("kismet.logfile.type.stream", "continual streaming", &stream_log);
+        register_field("kismet.logfile.type.singleton", 
                 "single-instance of log type permitted", &singleton);
-        RegisterField("kismet.logfile.type.description", "base description", &description);
+        register_field("kismet.logfile.type.description", "base description", &description);
     }
 
     std::shared_ptr<tracker_element_string> log_class;
@@ -205,10 +205,10 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.logfile.uuid", "unique log id", &log_uuid);
-        RegisterField("kismet.logfile.description", "log description", &log_description);
-        RegisterField("kismet.logfile.path", "filesystem path to log", &log_path);
-        RegisterField("kismet.logfile.open", "log is currently open", &log_open);
+        register_field("kismet.logfile.uuid", "unique log id", &log_uuid);
+        register_field("kismet.logfile.description", "log description", &log_description);
+        register_field("kismet.logfile.path", "filesystem path to log", &log_path);
+        register_field("kismet.logfile.open", "log is currently open", &log_open);
 
     }
 

@@ -100,12 +100,12 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.channelrec.channel", "logical channel", &channel);
-        RegisterField("kismet.channelrec.frequency", "physical frequency", &frequency);
-        RegisterField("kismet.channelrec.packets_rrd", "packet count RRD", &packets_rrd);
-        RegisterField("kismet.channelrec.data_rrd", "byte count RRD", &data_rrd);
-        RegisterField("kismet.channelrec.device_rrd", "active devices RRD", &device_rrd);
-        RegisterField("kismet.channelrec.signal", "signal records", &signal_data);
+        register_field("kismet.channelrec.channel", "logical channel", &channel);
+        register_field("kismet.channelrec.frequency", "physical frequency", &frequency);
+        register_field("kismet.channelrec.packets_rrd", "packet count RRD", &packets_rrd);
+        register_field("kismet.channelrec.data_rrd", "byte count RRD", &data_rrd);
+        register_field("kismet.channelrec.device_rrd", "active devices RRD", &device_rrd);
+        register_field("kismet.channelrec.signal", "signal records", &signal_data);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {

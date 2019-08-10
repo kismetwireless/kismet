@@ -304,12 +304,12 @@ Datasourcetracker::Datasourcetracker() :
     eventbus = Globalreg::FetchMandatoryGlobalAs<Eventbus>();
 
     proto_id = 
-        Globalreg::globalreg->entrytracker->RegisterField("kismet.datasourcetracker.driver",
+        Globalreg::globalreg->entrytracker->register_field("kismet.datasourcetracker.driver",
                 tracker_element_factory<KisDatasourceBuilder>(),
                 "Datasource driver information");
 
     source_id =
-        Globalreg::globalreg->entrytracker->RegisterField("kismet.datasourcetracker.datasource",
+        Globalreg::globalreg->entrytracker->register_field("kismet.datasourcetracker.datasource",
                 tracker_element_factory<KisDatasource>(nullptr),
                 "Datasource");
 

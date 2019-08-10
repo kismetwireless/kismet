@@ -57,24 +57,24 @@ LogTracker::~LogTracker() {
 }
 
 void LogTracker::register_fields() { 
-    RegisterField("kismet.logtracker.drivers", "supported log types", &logproto_vec);
-    RegisterField("kismet.logtracker.logfiles", "active log files", &logfile_vec);
+    register_field("kismet.logtracker.drivers", "supported log types", &logproto_vec);
+    register_field("kismet.logtracker.logfiles", "active log files", &logfile_vec);
 
     logproto_entry_id =
-        Globalreg::globalreg->entrytracker->RegisterField("kismet.logtracker.driver",
+        Globalreg::globalreg->entrytracker->register_field("kismet.logtracker.driver",
                 tracker_element_factory<KisLogfileBuilder>(),
                 "Log driver");
 
     logfile_entry_id =
-        Globalreg::globalreg->entrytracker->RegisterField("kismet.logtracker.log",
+        Globalreg::globalreg->entrytracker->register_field("kismet.logtracker.log",
                 tracker_element_factory<KisLogfile>(),
                 "Log file");
 
-    RegisterField("kismet.logtracker.logging_enabled", "logging enabled", &logging_enabled);
-    RegisterField("kismet.logtracker.title", "session title", &log_title);
-    RegisterField("kismet.logtracker.prefix", "log prefix path", &log_prefix);
-    RegisterField("kismet.logtracker.template", "log name template", &log_template);
-    RegisterField("kismet.logtracker.log_types", "enabled log types", &log_types_vec);
+    register_field("kismet.logtracker.logging_enabled", "logging enabled", &logging_enabled);
+    register_field("kismet.logtracker.title", "session title", &log_title);
+    register_field("kismet.logtracker.prefix", "log prefix path", &log_prefix);
+    register_field("kismet.logtracker.template", "log name template", &log_template);
+    register_field("kismet.logtracker.log_types", "enabled log types", &log_types_vec);
 }
 
 void LogTracker::reserve_fields(std::shared_ptr<tracker_element_map> e) {

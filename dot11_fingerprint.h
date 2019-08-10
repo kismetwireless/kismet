@@ -96,9 +96,9 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.dot11.fingerprint.beacon_hash", "Beacon hash", &beacon_hash);
-        RegisterField("kismet.dot11.fingerprint.response_hash", "Response hash", &response_hash);
-        RegisterField("ksimet.dot11.fingerprint.probe_hash", "Probe hash", &probe_hash);
+        register_field("kismet.dot11.fingerprint.beacon_hash", "Beacon hash", &beacon_hash);
+        register_field("kismet.dot11.fingerprint.response_hash", "Response hash", &response_hash);
+        register_field("ksimet.dot11.fingerprint.probe_hash", "Probe hash", &probe_hash);
     }
 
     std::shared_ptr<tracker_element_uint32> beacon_hash;

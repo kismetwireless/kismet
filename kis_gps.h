@@ -93,11 +93,11 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.gps.type.class", "Class/type", &gps_class);
-        RegisterField("kismet.gps.type.description", "Class description", &gps_class_description);
-        RegisterField("kismet.gps.type.priority", "Default priority", &gps_priority);
-        RegisterField("kismet.gps.type.default_name", "Default name", &gps_default_name);
-        RegisterField("kismet.gps.type.singleton", "Single instance of this gps type", &singleton);
+        register_field("kismet.gps.type.class", "Class/type", &gps_class);
+        register_field("kismet.gps.type.description", "Class description", &gps_class_description);
+        register_field("kismet.gps.type.priority", "Default priority", &gps_priority);
+        register_field("kismet.gps.type.default_name", "Default name", &gps_default_name);
+        register_field("kismet.gps.type.singleton", "Single instance of this gps type", &singleton);
     }
 
     std::shared_ptr<tracker_element_string> gps_class;
@@ -153,22 +153,22 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.gps.name", "GPS instance name", &gps_name);
-        RegisterField("kismet.gps.description", "GPS instance description", &gps_description);
+        register_field("kismet.gps.name", "GPS instance name", &gps_name);
+        register_field("kismet.gps.description", "GPS instance description", &gps_description);
 
-        RegisterField("kismet.gps.connected", "GPS device is connected", &gps_connected);
+        register_field("kismet.gps.connected", "GPS device is connected", &gps_connected);
 
-        RegisterField("kismet.gps.reconnect", "GPS device will reconnect if there is an error", &gps_reconnect);
+        register_field("kismet.gps.reconnect", "GPS device will reconnect if there is an error", &gps_reconnect);
 
-        RegisterField("kismet.gps.location", "current location", &tracked_location);
-        RegisterField("kismet.gps.last_location", "previous location", &tracked_last_location);
+        register_field("kismet.gps.location", "current location", &tracked_location);
+        register_field("kismet.gps.last_location", "previous location", &tracked_last_location);
 
-        RegisterField("kismet.gps.uuid", "UUID", &gps_uuid);
-        RegisterField("kismet.gps.definition", "GPS definition", &gps_definition);
+        register_field("kismet.gps.uuid", "UUID", &gps_uuid);
+        register_field("kismet.gps.definition", "GPS definition", &gps_definition);
 
-        RegisterField("kismet.gps.priority", "Multi-gps priority", &gps_priority);
+        register_field("kismet.gps.priority", "Multi-gps priority", &gps_priority);
 
-        RegisterField("kismet.gps.data_only", 
+        register_field("kismet.gps.data_only", 
                 "GPS is used for populating data only, never for live location", &gps_data_only);
     }
 

@@ -695,17 +695,17 @@ protected:
     //
     // If in_dest is a nullptr, it will not be instantiated; this is useful for registering
     // sub-components of maps which may not be directly instantiated as top-level fields
-    int RegisterField(const std::string& in_name, std::unique_ptr<tracker_element> in_builder,
+    int register_field(const std::string& in_name, std::unique_ptr<tracker_element> in_builder,
             const std::string& in_desc, shared_tracker_element *in_dest = nullptr);
 
     // Register a field, automatically deriving its type from the provided destination
     // field.  The destination field must be specified.
     template<typename T>
-    int RegisterField(const std::string& in_name, const std::string& in_desc, 
+    int register_field(const std::string& in_name, const std::string& in_desc, 
             std::shared_ptr<T> *in_dest) {
         using build_type = typename std::remove_reference<decltype(**in_dest)>::type;
 
-        return RegisterField(in_name, tracker_element_factory<build_type>(), in_desc, 
+        return register_field(in_name, tracker_element_factory<build_type>(), in_desc, 
                 reinterpret_cast<shared_tracker_element *>(in_dest));
     }
 
@@ -722,7 +722,7 @@ protected:
         using build_type = typename std::remove_reference<decltype(**in_dest)>::type;
 
         int id = 
-            Globalreg::globalreg->entrytracker->RegisterField(in_name, 
+            Globalreg::globalreg->entrytracker->register_field(in_name, 
                     tracker_element_factory<build_type>(), in_desc);
 
         auto rf = std::unique_ptr<registered_field>(new registered_field(id, 

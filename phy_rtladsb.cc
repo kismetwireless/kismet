@@ -47,17 +47,17 @@ Kis_RTLADSB_Phy::Kis_RTLADSB_Phy(global_registry *in_globalreg, int in_phyid) :
         packetchain->RegisterPacketComponent("METABLOB");
 
     rtladsb_holder_id =
-        Globalreg::globalreg->entrytracker->RegisterField("rtladsb.device", 
+        Globalreg::globalreg->entrytracker->register_field("rtladsb.device", 
                 tracker_element_factory<tracker_element_map>(),
                 "rtl_adsb device");
 
     rtladsb_common_id =
-        Globalreg::globalreg->entrytracker->RegisterField("rtladsb.device.common",
+        Globalreg::globalreg->entrytracker->register_field("rtladsb.device.common",
                 tracker_element_factory<rtladsb_tracked_common>(),
                 "Common RTLADSB device info");
 
     rtladsb_adsb_id =
-        Globalreg::globalreg->entrytracker->RegisterField("rtladsb.device.adsb",
+        Globalreg::globalreg->entrytracker->register_field("rtladsb.device.adsb",
                 tracker_element_factory<rtladsb_tracked_adsb>(),
                 "RTLADSB adsb");
 

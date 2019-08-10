@@ -38,7 +38,7 @@ GpsTracker::GpsTracker() :
     kis_net_httpd_cppstream_handler() {
 
     tracked_uuid_addition_id = 
-        Globalreg::globalreg->entrytracker->RegisterField("kismet.common.location.gps_uuid", 
+        Globalreg::globalreg->entrytracker->register_field("kismet.common.location.gps_uuid", 
                 tracker_element_factory<tracker_element_uuid>(),
                 "UUID of GPS reporting location");
 

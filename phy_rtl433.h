@@ -140,10 +140,10 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("rtl433.device.model", "Sensor model", &model);
-        RegisterField("rtl433.device.id", "Sensor ID", &rtlid);
-        RegisterField("rtl433.device.rtlchannel", "Sensor sub-channel", &rtlchannel);
-        RegisterField("rtl433.device.battery", "Sensor battery level", &battery);
+        register_field("rtl433.device.model", "Sensor model", &model);
+        register_field("rtl433.device.id", "Sensor ID", &rtlid);
+        register_field("rtl433.device.rtlchannel", "Sensor sub-channel", &rtlchannel);
+        register_field("rtl433.device.battery", "Sensor battery level", &battery);
     }
 
     std::shared_ptr<tracker_element_string> model;
@@ -205,10 +205,10 @@ public:
 
 protected:
     virtual void register_fields() override {
-        RegisterField("rtl433.device.temperature", "Temperature in degrees Celsius", &temperature);
-        RegisterField("rtl433.device.temperature_rrd", "Temperature history RRD", &temperature_rrd);
-        RegisterField("rtl433.device.humidity", "Humidity", &humidity);
-        RegisterField("rtl433.device.humidity_rrd", "Humidity history RRD", &humidity_rrd);
+        register_field("rtl433.device.temperature", "Temperature in degrees Celsius", &temperature);
+        register_field("rtl433.device.temperature_rrd", "Temperature history RRD", &temperature_rrd);
+        register_field("rtl433.device.humidity", "Humidity", &humidity);
+        register_field("rtl433.device.humidity_rrd", "Humidity history RRD", &humidity_rrd);
     }
 
     // Basic temp in C, from multiple sensors; we might have to convert to C
@@ -275,23 +275,23 @@ public:
 
 protected:
     virtual void register_fields() override {
-        RegisterField("rtl433.device.wind_dir", "Wind direction in degrees", &wind_dir);
-        RegisterField("rtl433.device.wind_dir_rrd", "Wind direction RRD", &wind_dir_rrd);
+        register_field("rtl433.device.wind_dir", "Wind direction in degrees", &wind_dir);
+        register_field("rtl433.device.wind_dir_rrd", "Wind direction RRD", &wind_dir_rrd);
 
-        RegisterField("rtl433.device.weatherstation.wind_speed", "Wind speed in Kph", &wind_speed);
-        RegisterField("rtl433.device.wind_speed_rrd", "Wind speed RRD", &wind_speed_rrd);
+        register_field("rtl433.device.weatherstation.wind_speed", "Wind speed in Kph", &wind_speed);
+        register_field("rtl433.device.wind_speed_rrd", "Wind speed RRD", &wind_speed_rrd);
 
-        RegisterField("rtl433.device.wind_gust", "Wind gust in Kph", &wind_gust);
-        RegisterField("rtl433.device.wind_gust_rrd", "Wind gust RRD", &wind_gust_rrd);
+        register_field("rtl433.device.wind_gust", "Wind gust in Kph", &wind_gust);
+        register_field("rtl433.device.wind_gust_rrd", "Wind gust RRD", &wind_gust_rrd);
 
-        RegisterField("rtl433.device.rain", "Measured rain", &rain);
-        RegisterField("rtl433.device.rain_rrd", "Rain RRD", &rain_rrd);
+        register_field("rtl433.device.rain", "Measured rain", &rain);
+        register_field("rtl433.device.rain_rrd", "Rain RRD", &rain_rrd);
 
-        RegisterField("rtl433.device.uv_index", "UV index", &uv_index);
-        RegisterField("rtl433.device.uv_index_rrd", "UV Index RRD", &uv_index_rrd);
+        register_field("rtl433.device.uv_index", "UV index", &uv_index);
+        register_field("rtl433.device.uv_index_rrd", "UV Index RRD", &uv_index_rrd);
 
-        RegisterField("rtl433.device.lux", "Lux", &lux);
-        RegisterField("rtl433.device.lux_rrd", "Lux RRD", &lux_rrd);
+        register_field("rtl433.device.lux", "Lux", &lux);
+        register_field("rtl433.device.lux_rrd", "Lux RRD", &lux_rrd);
     }
 
     // Wind direction in degrees
@@ -363,10 +363,10 @@ protected:
     // {"time" : "2019-02-24 22:12:13", "model" : "Acurite Lightning 6045M", "id" : 15580, "channel" : "B", "temperature_F" : 38.300, "humidity" : 53, "strike_count" : 1, "storm_dist" : 8, "active" : 1, "rfi" : 0, "ussb1" : 0, "battery" : "OK", "exception" : 0, "raw_msg" : "bcdc6f354edb81886e"}
     
     virtual void register_fields() override {
-        RegisterField("rtl433.device.lightning_strike_count", "Strike count", &strike_count);
-        RegisterField("rtl433.device.lightning_storm_distance", "Storm distance (no unit)", &storm_distance);
-        RegisterField("rtl433.device.lightning_storm_active", "Storm active", &storm_active);
-        RegisterField("rtl433.device.lightning_rfi", "Lightning radio frequency interference", &lightning_rfi);
+        register_field("rtl433.device.lightning_strike_count", "Strike count", &strike_count);
+        register_field("rtl433.device.lightning_storm_distance", "Storm distance (no unit)", &storm_distance);
+        register_field("rtl433.device.lightning_storm_active", "Storm active", &storm_active);
+        register_field("rtl433.device.lightning_rfi", "Lightning radio frequency interference", &lightning_rfi);
     }
 
     std::shared_ptr<tracker_element_uint64> strike_count;
@@ -421,12 +421,12 @@ public:
 
 protected:
     virtual void register_fields() override {
-        RegisterField("rtl433.device.tpms.pressure_bar", "Pressure, in bars", &pressure_bar);
-        RegisterField("rtl433.device.tpms.pressure_kpa", "Pressure, in kPa", &pressure_kpa);
-        RegisterField("rtl433.device.tpms.flags", "TPMS flags", &flags);
-        RegisterField("rtl433.device.tpms.state", "TPMS state", &state);
-        RegisterField("rtl433.device.tpms.checksum", "TPMS checksum", &checksum);
-        RegisterField("rtl433.device.tpms.code", "TPMS code", &code);
+        register_field("rtl433.device.tpms.pressure_bar", "Pressure, in bars", &pressure_bar);
+        register_field("rtl433.device.tpms.pressure_kpa", "Pressure, in kPa", &pressure_kpa);
+        register_field("rtl433.device.tpms.flags", "TPMS flags", &flags);
+        register_field("rtl433.device.tpms.state", "TPMS state", &state);
+        register_field("rtl433.device.tpms.checksum", "TPMS checksum", &checksum);
+        register_field("rtl433.device.tpms.code", "TPMS code", &code);
     }
 
     std::shared_ptr<tracker_element_double> pressure_bar;
@@ -483,9 +483,9 @@ public:
 
 protected:
     virtual void register_fields() override {
-        RegisterField("rtl433.device.switch_vec", "Switch settings", &switch_vec);
+        register_field("rtl433.device.switch_vec", "Switch settings", &switch_vec);
         switch_vec_entry_id = 
-            RegisterField("rtl433.device.switch.position", 
+            register_field("rtl433.device.switch.position", 
                     tracker_element_factory<tracker_element_int32>(),
                     "Switch position");
     }

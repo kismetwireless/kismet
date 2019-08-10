@@ -41,17 +41,17 @@ alert_tracker::alert_tracker() :
     entrytracker = Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
 
     alert_vec_id =
-        entrytracker->RegisterField("kismet.alert.list",
+        entrytracker->register_field("kismet.alert.list",
                 tracker_element_factory<tracker_element_vector>(), 
                 "list of alerts");
 
     alert_timestamp_id =
-        entrytracker->RegisterField("kismet.alert.timestamp",
+        entrytracker->register_field("kismet.alert.timestamp",
                 tracker_element_factory<tracker_element_double>(), 
                 "alert update timestamp");
 
     alert_entry_id =
-        entrytracker->RegisterField("kismet.alert.alert",
+        entrytracker->register_field("kismet.alert.alert",
                 tracker_element_factory<tracked_alert>(),
                 "Kismet alert");
 
@@ -62,7 +62,7 @@ alert_tracker::alert_tracker() :
                 "Kismet alert definitions");
 
     alert_def_id =
-        entrytracker->RegisterField("kismet.alert.alert_definition",
+        entrytracker->register_field("kismet.alert.alert_definition",
                 tracker_element_factory<tracked_alert_definition>(),
                 "Kismet alert definition");
 

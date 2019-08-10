@@ -101,9 +101,9 @@ public:
 
 protected:
     virtual void register_fields() override {
-        RegisterField("bluetooth.device.service_uuid_vec",
+        register_field("bluetooth.device.service_uuid_vec",
                 "advertised service UUIDs", &service_uuid_vec);
-        RegisterField("bluetooth.device.txpower", 
+        register_field("bluetooth.device.txpower", 
                 "advertised transmit power", &txpower);
     }
 

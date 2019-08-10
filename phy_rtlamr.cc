@@ -47,17 +47,17 @@ Kis_RTLAMR_Phy::Kis_RTLAMR_Phy(global_registry *in_globalreg, int in_phyid) :
         packetchain->RegisterPacketComponent("METABLOB");
 
     rtlamr_holder_id =
-        Globalreg::globalreg->entrytracker->RegisterField("rtlamr.device", 
+        Globalreg::globalreg->entrytracker->register_field("rtlamr.device", 
                 tracker_element_factory<tracker_element_map>(),
                 "rtl_amr device");
 
     rtlamr_common_id =
-        Globalreg::globalreg->entrytracker->RegisterField("rtlamr.device.common",
+        Globalreg::globalreg->entrytracker->register_field("rtlamr.device.common",
                 tracker_element_factory<rtlamr_tracked_common>(),
                 "Common RTLAMR device info");
 
     rtlamr_powermeter_id =
-        Globalreg::globalreg->entrytracker->RegisterField("rtlamr.device.powermeter",
+        Globalreg::globalreg->entrytracker->register_field("rtlamr.device.powermeter",
                 tracker_element_factory<rtlamr_tracked_powermeter>(),
                 "RTLAMR powermeter");
 

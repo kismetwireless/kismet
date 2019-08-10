@@ -250,27 +250,27 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.datasourcetracker.default.hop_rate",
+        register_field("kismet.datasourcetracker.default.hop_rate",
                 "default hop rate for sources", &hop_rate);
-        RegisterField("kismet.datasourcetracker.default.hop", 
+        register_field("kismet.datasourcetracker.default.hop", 
                 "do sources hop by default", &hop);
-        RegisterField("kismet.datasourcetracker.default.split", 
+        register_field("kismet.datasourcetracker.default.split", 
                 "split channels among sources with the same type", 
                 &split_same_sources);
-        RegisterField("kismet.datasourcetracker.default.random_order", 
+        register_field("kismet.datasourcetracker.default.random_order", 
                 "scramble channel order to maximize use of overlap",
                 &random_channel_order);
-        RegisterField("kismet.datasourcetracker.default.retry_on_error", 
+        register_field("kismet.datasourcetracker.default.retry_on_error", 
                 "re-open sources if an error occurs", &retry_on_error);
 
-        RegisterField("kismet.datasourcetracker.default.remote_cap_listen", 
+        register_field("kismet.datasourcetracker.default.remote_cap_listen", 
                 "listen address for remote capture",
                 &remote_cap_listen);
-        RegisterField("kismet.datasourcetracker.default.remote_cap_port",
+        register_field("kismet.datasourcetracker.default.remote_cap_port",
                 "listen port for remote capture",
                 &remote_cap_port);
 
-        RegisterField("kismet.datasourcetracker.default.remote_cap_timestamp",
+        register_field("kismet.datasourcetracker.default.remote_cap_timestamp",
                 "overwrite remote capture timestamp with server timestamp",
                 &remote_cap_timestamp);
     }

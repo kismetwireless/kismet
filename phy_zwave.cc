@@ -45,7 +45,7 @@ Kis_Zwave_Phy::Kis_Zwave_Phy(global_registry *in_globalreg, int in_phyid) :
 		packetchain->RegisterPacketComponent("COMMON");
 
     zwave_device_id =
-        Globalreg::globalreg->entrytracker->RegisterField("zwave.device",
+        Globalreg::globalreg->entrytracker->register_field("zwave.device",
                 tracker_element_factory<zwave_tracked_device>(),
                 "Z-Wave device");
 

@@ -63,7 +63,7 @@ public:
     //
     // Return: Registered field number, or negative on error (such as field exists with
     // conflicting type)
-    int RegisterField(const std::string& in_name, 
+    int register_field(const std::string& in_name, 
             std::unique_ptr<tracker_element> in_builder,
             const std::string& in_desc);
 

@@ -122,9 +122,9 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.devices.view.id", "View ID/Endpoint", &view_id);
-        RegisterField("kismet.devices.view.description", "List description", &view_description);
-        RegisterField("kismet.devices.view.size", "Number of devices in list", &list_sz);
+        register_field("kismet.devices.view.id", "View ID/Endpoint", &view_id);
+        register_field("kismet.devices.view.description", "List description", &view_description);
+        register_field("kismet.devices.view.size", "Number of devices in list", &list_sz);
 
         // We don't register device_list as a field because we never want to dump it 
         // un-processed; use the view APIs for managing that

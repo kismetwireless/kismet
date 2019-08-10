@@ -47,37 +47,37 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(global_registry *in_globalreg, int in_phyid) :
         packetchain->RegisterPacketComponent("METABLOB");
 
     rtl433_holder_id =
-        Globalreg::globalreg->entrytracker->RegisterField("rtl433.device", 
+        Globalreg::globalreg->entrytracker->register_field("rtl433.device", 
                 tracker_element_factory<tracker_element_map>(),
                 "rtl_433 device");
 
     rtl433_common_id =
-        Globalreg::globalreg->entrytracker->RegisterField("rtl433.device.common",
+        Globalreg::globalreg->entrytracker->register_field("rtl433.device.common",
                 tracker_element_factory<rtl433_tracked_common>(),
                 "Common RTL433 device info");
 
     rtl433_thermometer_id =
-        Globalreg::globalreg->entrytracker->RegisterField("rtl433.device.thermometer",
+        Globalreg::globalreg->entrytracker->register_field("rtl433.device.thermometer",
                 tracker_element_factory<rtl433_tracked_thermometer>(),
                 "RTL433 thermometer");
 
     rtl433_tpms_id =
-        Globalreg::globalreg->entrytracker->RegisterField("rtl433.device.tpms",
+        Globalreg::globalreg->entrytracker->register_field("rtl433.device.tpms",
                 tracker_element_factory<rtl433_tracked_tpms>(),
                 "RTL433 TPMS tire pressure");
     
     rtl433_weatherstation_id =
-        Globalreg::globalreg->entrytracker->RegisterField("rtl433.device.weatherstation",
+        Globalreg::globalreg->entrytracker->register_field("rtl433.device.weatherstation",
                 tracker_element_factory<rtl433_tracked_weatherstation>(),
                 "RTL433 weather station");
 
     rtl433_switch_id =
-        Globalreg::globalreg->entrytracker->RegisterField("rtl433.device.switch",
+        Globalreg::globalreg->entrytracker->register_field("rtl433.device.switch",
                 tracker_element_factory<rtl433_tracked_switch>(),
                 "RTL433 power switch");
 
     rtl433_lightning_id =
-        Globalreg::globalreg->entrytracker->RegisterField("rtl433.device.lightningsensor",
+        Globalreg::globalreg->entrytracker->register_field("rtl433.device.lightningsensor",
                 tracker_element_factory<rtl433_tracked_lightningsensor>(),
                 "RTL433 lightning sensor");
 

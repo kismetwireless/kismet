@@ -75,11 +75,11 @@ Channeltracker_V2::~Channeltracker_V2() {
 void Channeltracker_V2::register_fields() {
     tracker_component::register_fields();
 
-    RegisterField("kismet.channeltracker.frequency_map", "Frequency use", &frequency_map);
-    RegisterField("kismet.channeltracker.channel_map", "Channel use", &channel_map);
+    register_field("kismet.channeltracker.frequency_map", "Frequency use", &frequency_map);
+    register_field("kismet.channeltracker.channel_map", "Channel use", &channel_map);
 
     channel_entry_id = 
-        RegisterField("kismet.channeltracker.channel",
+        register_field("kismet.channeltracker.channel",
                 tracker_element_factory<Channeltracker_V2_Channel>(),
                 "channel/frequency entry");
 }

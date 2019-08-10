@@ -81,11 +81,11 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.antenna.id", "Antenna ID for fast lookup", &antenna_id);
-        RegisterField("kismet.antenna.uuid", "Antenna UUID", &antenna_uuid);
-        RegisterField("kismet.antenna.source_uuid", "UUID of antenna source", &source_uuid);
-        RegisterField("kismet.antenna.source_antnum", "Antenna number on source", &source_antnum);
-        RegisterField("kismet.antenna.power_adjust", "Optional power adjustment", &power_adjust);
+        register_field("kismet.antenna.id", "Antenna ID for fast lookup", &antenna_id);
+        register_field("kismet.antenna.uuid", "Antenna UUID", &antenna_uuid);
+        register_field("kismet.antenna.source_uuid", "UUID of antenna source", &source_uuid);
+        register_field("kismet.antenna.source_antnum", "Antenna number on source", &source_antnum);
+        register_field("kismet.antenna.power_adjust", "Optional power adjustment", &power_adjust);
     }
 
     std::shared_ptr<tracker_element_int32> antenna_id;

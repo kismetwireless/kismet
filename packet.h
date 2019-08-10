@@ -165,11 +165,11 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.packet.ts_sec", "packet timestamp (second)", &ts_sec);
-        RegisterField("kismet.packet.ts_usec", "packet timestamp (usec)", &ts_usec);
-        RegisterField("kismet.packet.dlt", "packet DLT linktype", &dlt);
-        RegisterField("kismet.packet.source", "packetsource id", &source);
-        RegisterField("kismet.packet.data", "packet data", &data);
+        register_field("kismet.packet.ts_sec", "packet timestamp (second)", &ts_sec);
+        register_field("kismet.packet.ts_usec", "packet timestamp (usec)", &ts_usec);
+        register_field("kismet.packet.dlt", "packet DLT linktype", &dlt);
+        register_field("kismet.packet.source", "packetsource id", &source);
+        register_field("kismet.packet.data", "packet data", &data);
     }
 
     std::shared_ptr<tracker_element_uint64> ts_sec;

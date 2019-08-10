@@ -60,7 +60,7 @@ KisDatasource::KisDatasource(SharedDatasourceBuilder in_builder) :
     mode_listing = false;
 
     listed_interface_entry_id =
-        Globalreg::globalreg->entrytracker->RegisterField("kismet.datasourcetracker.listed_interface",
+        Globalreg::globalreg->entrytracker->register_field("kismet.datasourcetracker.listed_interface",
                 tracker_element_factory<KisDatasourceInterface>(),
                 "automatically discovered available interface");
 
@@ -1487,64 +1487,64 @@ unsigned int KisDatasource::send_list_interfaces(unsigned int in_transaction, li
 void KisDatasource::register_fields() {
     tracker_component::register_fields();
 
-    RegisterField("kismet.datasource.source_number", "internal source number per Kismet instance",
+    register_field("kismet.datasource.source_number", "internal source number per Kismet instance",
             &source_number);
-    RegisterField("kismet.datasource.source_key", "hashed UUID key", &source_key);
+    register_field("kismet.datasource.source_key", "hashed UUID key", &source_key);
 
-    RegisterField("kismet.datasource.paused", 
+    register_field("kismet.datasource.paused", 
             "capture is paused (no packets will be processed from this source)", &source_paused);
 
-    RegisterField("kismet.datasource.ipc_binary", "capture command", &source_ipc_binary);
-    RegisterField("kismet.datasource.ipc_pid", "capture process", &source_ipc_pid);
+    register_field("kismet.datasource.ipc_binary", "capture command", &source_ipc_binary);
+    register_field("kismet.datasource.ipc_pid", "capture process", &source_ipc_pid);
 
-    RegisterField("kismet.datasource.running", "capture is running", &source_running);
+    register_field("kismet.datasource.running", "capture is running", &source_running);
 
-    RegisterField("kismet.datasource.remote", 
+    register_field("kismet.datasource.remote", 
             "capture is connected from a remote server", &source_remote);
 
-    RegisterField("kismet.datasource.passive", 
+    register_field("kismet.datasource.passive", 
             "capture is a post-able passive capture", &source_passive);
 
-    RegisterField("kismet.datasource.name", "Human-readable name", &source_name);
-    RegisterField("kismet.datasource.uuid", "UUID", &source_uuid);
+    register_field("kismet.datasource.name", "Human-readable name", &source_name);
+    register_field("kismet.datasource.uuid", "UUID", &source_uuid);
 
-    RegisterField("kismet.datasource.definition", "Original source= definition", &source_definition);
-    RegisterField("kismet.datasource.interface", "Interface", &source_interface);
-    RegisterField("kismet.datasource.capture_interface", "Interface", &source_cap_interface);
-    RegisterField("kismet.datasource.hardware", "Hardware / chipset", &source_hardware);
+    register_field("kismet.datasource.definition", "Original source= definition", &source_definition);
+    register_field("kismet.datasource.interface", "Interface", &source_interface);
+    register_field("kismet.datasource.capture_interface", "Interface", &source_cap_interface);
+    register_field("kismet.datasource.hardware", "Hardware / chipset", &source_hardware);
 
-    RegisterField("kismet.datasource.dlt", "DLT (link type)", &source_dlt);
+    register_field("kismet.datasource.dlt", "DLT (link type)", &source_dlt);
 
-    RegisterField("kismet.datasource.warning", "Warning or unusual interface state", &source_warning);
+    register_field("kismet.datasource.warning", "Warning or unusual interface state", &source_warning);
 
     channel_entry_id = 
-        RegisterField("kismet.datasource.channel_entry",
+        register_field("kismet.datasource.channel_entry",
                 tracker_element_factory<tracker_element_string>(),
                 "Channel");
 
-    RegisterField("kismet.datasource.channels", "Supported channels", &source_channels_vec);
-    RegisterField("kismet.datasource.hopping", "Source is channel hopping", &source_hopping);
-    RegisterField("kismet.datasource.channel", "Current channel", &source_channel);
-    RegisterField("kismet.datasource.hop_rate", "Hop rate if channel hopping", &source_hop_rate);
+    register_field("kismet.datasource.channels", "Supported channels", &source_channels_vec);
+    register_field("kismet.datasource.hopping", "Source is channel hopping", &source_hopping);
+    register_field("kismet.datasource.channel", "Current channel", &source_channel);
+    register_field("kismet.datasource.hop_rate", "Hop rate if channel hopping", &source_hop_rate);
     source_hop_vec_id = 
-        RegisterField("kismet.datasource.hop_channels", "Hop pattern if hopping", &source_hop_vec);
-    RegisterField("kismet.datasource.hop_split", 
+        register_field("kismet.datasource.hop_channels", "Hop pattern if hopping", &source_hop_vec);
+    register_field("kismet.datasource.hop_split", 
             "Split hopping among same type interfaces", &source_hop_split);
-    RegisterField("kismet.datasource.hop_offset", 
+    register_field("kismet.datasource.hop_offset", 
             "Offset into hopping list for multiple sources", &source_hop_offset);
-    RegisterField("kismet.datasource.hop_shuffle", 
+    register_field("kismet.datasource.hop_shuffle", 
             "Shuffle channels while hopping", &source_hop_shuffle);
-    RegisterField("kismet.datasource.hop_shuffle_skip", 
+    register_field("kismet.datasource.hop_shuffle_skip", 
             "Number of channels skipped by source during hop shuffling", 
             &source_hop_shuffle_skip);
 
-    RegisterField("kismet.datasource.error", "Source is in error state", &source_error);
-    RegisterField("kismet.datasource.error_reason", 
+    register_field("kismet.datasource.error", "Source is in error state", &source_error);
+    register_field("kismet.datasource.error_reason", 
             "Last known reason for error state", &source_error_reason);
 
-    RegisterField("kismet.datasource.num_packets", 
+    register_field("kismet.datasource.num_packets", 
             "Number of packets seen by source", &source_num_packets);
-    RegisterField("kismet.datasource.num_error_packets", 
+    register_field("kismet.datasource.num_error_packets", 
             "Number of invalid/error packets seen by source",
             &source_num_error_packets);
 
@@ -1553,27 +1553,27 @@ void KisDatasource::register_fields() {
                 "detected packet rate over past 60 seconds",
                 &packet_rate_rrd);
 
-    RegisterField("kismet.datasource.retry", 
+    register_field("kismet.datasource.retry", 
             "Source will try to re-open after failure", &source_retry);
-    RegisterField("kismet.datasource.retry_attempts", 
+    register_field("kismet.datasource.retry_attempts", 
             "Consecutive unsuccessful retry attempts", &source_retry_attempts);
-    RegisterField("kismet.datasource.total_retry_attempts", 
+    register_field("kismet.datasource.total_retry_attempts", 
             "Total unsuccessful retry attempts", &source_total_retry_attempts);
 
-    RegisterField("kismet.datasource.info.antenna_type", 
+    register_field("kismet.datasource.info.antenna_type", 
             "User-supplied antenna type", &source_info_antenna_type);
-    RegisterField("kismet.datasource.info.antenna_gain", 
+    register_field("kismet.datasource.info.antenna_gain", 
             "User-supplied antenna gain in dB", &source_info_antenna_gain);
-    RegisterField("kismet.datasource.info.antenna_orientation", 
+    register_field("kismet.datasource.info.antenna_orientation", 
             "User-supplied antenna orientation", &source_info_antenna_orientation);
-    RegisterField("kismet.datasource.info.antenna_beamwidth", 
+    register_field("kismet.datasource.info.antenna_beamwidth", 
             "User-supplied antenna beamwidth", &source_info_antenna_beamwidth);
-    RegisterField("kismet.datasource.info.amp_type", 
+    register_field("kismet.datasource.info.amp_type", 
             "User-supplied amplifier type", &source_info_amp_type);
-    RegisterField("kismet.datasource.info.amp_gain", 
+    register_field("kismet.datasource.info.amp_gain", 
             "User-supplied amplifier gain in dB", &source_info_amp_gain);
 
-    RegisterField("kismet.datasource.linktype_override",
+    register_field("kismet.datasource.linktype_override",
             "Overridden linktype, usually used in custom capture types.", &source_override_linktype);
 
 }

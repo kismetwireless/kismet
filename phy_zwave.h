@@ -81,8 +81,8 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("zwave.device.home_id", "Z-Wave network Home ID packed as U32", &homeid);
-        RegisterField("zwave.device.device_id", "Z-Wave network device ID", &deviceid);
+        register_field("zwave.device.home_id", "Z-Wave network Home ID packed as U32", &homeid);
+        register_field("zwave.device.device_id", "Z-Wave network device ID", &deviceid);
     }
 
     // 4-byte homeid

@@ -105,15 +105,15 @@ kis_tracked_location_triplet&
 void kis_tracked_location_triplet::register_fields() {
     tracker_component::register_fields();
 
-    RegisterField("kismet.common.location.lat", "latitude", &lat);
-    RegisterField("kismet.common.location.lon", "longitude", &lon);
-    RegisterField("kismet.common.location.alt", "altitude", &alt);
-    RegisterField("kismet.common.location.speed", "speed", &spd);
-    RegisterField("kismet.common.location.heading", "heading", &heading);
-    RegisterField("kismet.common.location.fix", "gps fix", &fix);
-    RegisterField("kismet.common.location.valid", "valid location", &valid);
-    RegisterField("kismet.common.location.time_sec", "timestamp (seconds)", &time_sec);
-    RegisterField("kismet.common.location.time_usec", "timestamp (usec)", &time_usec);
+    register_field("kismet.common.location.lat", "latitude", &lat);
+    register_field("kismet.common.location.lon", "longitude", &lon);
+    register_field("kismet.common.location.alt", "altitude", &alt);
+    register_field("kismet.common.location.speed", "speed", &spd);
+    register_field("kismet.common.location.heading", "heading", &heading);
+    register_field("kismet.common.location.fix", "gps fix", &fix);
+    register_field("kismet.common.location.valid", "valid location", &valid);
+    register_field("kismet.common.location.time_sec", "timestamp (seconds)", &time_sec);
+    register_field("kismet.common.location.time_usec", "timestamp (usec)", &time_usec);
 }
 
 kis_tracked_location::kis_tracked_location() :
@@ -228,8 +228,8 @@ void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt,
 void kis_tracked_location::register_fields() {
     tracker_component::register_fields();
 
-    RegisterField("kismet.common.location.loc_valid", "location data valid", &loc_valid);
-    RegisterField("kismet.common.location.loc_fix", "location fix precision (2d/3d)", &loc_fix);
+    register_field("kismet.common.location.loc_valid", "location data valid", &loc_valid);
+    register_field("kismet.common.location.loc_fix", "location fix precision (2d/3d)", &loc_fix);
 
     min_loc_id = 
         RegisterDynamicField("kismet.common.location.min_loc",
@@ -241,11 +241,11 @@ void kis_tracked_location::register_fields() {
         RegisterDynamicField("kismet.common.location.avg_loc",
                 "Average GPS center of all samples", &avg_loc);
 
-    RegisterField("kismet.common.location.avg_lat", "run-time average latitude", &avg_lat);
-    RegisterField("kismet.common.location.avg_lon", "run-time average longitude", &avg_lon);
-    RegisterField("kismet.common.location.avg_alt", "run-time average altitude", &avg_alt);
-    RegisterField("kismet.common.location.avg_num", "number of run-time average samples", &num_avg);
-    RegisterField("kismet.common.location.avg_alt_num", 
+    register_field("kismet.common.location.avg_lat", "run-time average latitude", &avg_lat);
+    register_field("kismet.common.location.avg_lon", "run-time average longitude", &avg_lon);
+    register_field("kismet.common.location.avg_alt", "run-time average altitude", &avg_alt);
+    register_field("kismet.common.location.avg_num", "number of run-time average samples", &num_avg);
+    register_field("kismet.common.location.avg_alt_num", 
             "number of run-time average samples (altitude)", &num_alt_avg);
 
 }
@@ -271,14 +271,14 @@ kis_historic_location::kis_historic_location(int in_id, std::shared_ptr<tracker_
 void kis_historic_location::register_fields() {
     tracker_component::register_fields();
 
-    RegisterField("kismet.historic.location.lat", "latitude", &lat);
-    RegisterField("kismet.historic.location.lon", "longitude", &lon);
-    RegisterField("kismet.historic.location.alt", "altitude (m)", &alt);
-    RegisterField("kismet.historic.location.speed", "speed (kph)", &speed);
-    RegisterField("kismet.historic.location.heading", "heading (degrees)", &heading);
-    RegisterField("kismet.historic.location.signal", "signal", &signal);
-    RegisterField("kismet.historic.location.time_sec", "time (unix ts)", &time_sec);
-    RegisterField("kismet.historic.location.frequency", "frequency (khz)", &frequency);
+    register_field("kismet.historic.location.lat", "latitude", &lat);
+    register_field("kismet.historic.location.lon", "longitude", &lon);
+    register_field("kismet.historic.location.alt", "altitude (m)", &alt);
+    register_field("kismet.historic.location.speed", "speed (kph)", &speed);
+    register_field("kismet.historic.location.heading", "heading (degrees)", &heading);
+    register_field("kismet.historic.location.signal", "signal", &signal);
+    register_field("kismet.historic.location.time_sec", "time (unix ts)", &time_sec);
+    register_field("kismet.historic.location.frequency", "frequency (khz)", &frequency);
 }
 
 kis_location_history::kis_location_history() :
@@ -302,12 +302,12 @@ kis_location_history::kis_location_history(int in_id, std::shared_ptr<tracker_el
 void kis_location_history::register_fields() {
     tracker_component::register_fields();
 
-    RegisterField("kis.gps.rrd.samples_100", "last 100 historic GPS records", &samples_100);
-    RegisterField("kis.gps.rrd.samples_10k", 
+    register_field("kis.gps.rrd.samples_100", "last 100 historic GPS records", &samples_100);
+    register_field("kis.gps.rrd.samples_10k", 
             "last 10,000 historic GPS records, as averages of 100", &samples_10k);
-    RegisterField("kis.gps.rrd.samples_1m",
+    register_field("kis.gps.rrd.samples_1m",
             "last 1,000,000 historic GPS records, as averages of 10,000", &samples_1m);
-    RegisterField("kis.gps.rrd.last_sample_ts", "time (unix ts) of last sample", &last_sample_ts);
+    register_field("kis.gps.rrd.last_sample_ts", "time (unix ts) of last sample", &last_sample_ts);
 }
 
 void kis_location_history::reserve_fields(std::shared_ptr<tracker_element_map> e) {

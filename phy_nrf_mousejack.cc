@@ -49,7 +49,7 @@ Kis_Mousejack_Phy::Kis_Mousejack_Phy(global_registry *in_globalreg, int in_phyid
         Globalreg::FetchMandatoryGlobalAs<device_tracker>();
 
     mousejack_device_entry_id =
-        entrytracker->RegisterField("nrfmousejack.device",
+        entrytracker->register_field("nrfmousejack.device",
                 tracker_element_factory<mousejack_tracked_device>(),
                 "NRF Mousejack device");
 

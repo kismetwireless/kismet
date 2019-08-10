@@ -56,10 +56,10 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.classfilter.id", "Filter ID/Endpoint", &filter_id);
-        RegisterField("kismet.classfilter.description", "Filter description", &filter_description);
-        RegisterField("kismet.classfilter.type", "Filter mechanism", &filter_type);
-        RegisterField("kismet.classfilter.default", "Default filter (pass/reject)", &filter_default);
+        register_field("kismet.classfilter.id", "Filter ID/Endpoint", &filter_id);
+        register_field("kismet.classfilter.description", "Filter description", &filter_description);
+        register_field("kismet.classfilter.type", "Filter mechanism", &filter_type);
+        register_field("kismet.classfilter.default", "Default filter (pass/reject)", &filter_default);
     }
 
     kis_recursive_timed_mutex mutex;
@@ -110,17 +110,17 @@ protected:
         Classfilter::register_fields();
 
 		// Phy-based map
-        RegisterField("kismet.classfilter.macaddr.address_by_phy",
+        register_field("kismet.classfilter.macaddr.address_by_phy",
                 "MAC address filters", &filter_phy_block);
 
         // Mac based map filter_sub_mac_id =
-        RegisterField("kismet.classfilter.macaddr.filter_block",
+        register_field("kismet.classfilter.macaddr.filter_block",
                 tracker_element_factory<tracker_element_mac_map>(),
                 "MAC address filters");
 
 		// Filter value
         filter_sub_value_id =
-            RegisterField("kismet.classfilter.macaddr.value",
+            register_field("kismet.classfilter.macaddr.value",
                     tracker_element_factory<tracker_element_uint8>(),
                     "Filter value");
     }

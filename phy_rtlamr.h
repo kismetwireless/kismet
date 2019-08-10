@@ -139,9 +139,9 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("rtlamr.device.model", "Sensor model", &model);
-        RegisterField("rtlamr.device.id", "Sensor ID", &rtlid);
-        RegisterField("rtlamr.device.rtlchannel", "Sensor sub-channel", &rtlchannel);
+        register_field("rtlamr.device.model", "Sensor model", &model);
+        register_field("rtlamr.device.id", "Sensor ID", &rtlid);
+        register_field("rtlamr.device.rtlchannel", "Sensor sub-channel", &rtlchannel);
     }
 
     std::shared_ptr<tracker_element_string> model;
@@ -202,8 +202,8 @@ public:
 
 protected:
     virtual void register_fields() override {
-        RegisterField("rtlamr.device.consumption", "Consumption", &consumption);
-        RegisterField("rtlamr.device.consumption_rrd", "Consumption history RRD", &consumption_rrd);
+        register_field("rtlamr.device.consumption", "Consumption", &consumption);
+        register_field("rtlamr.device.consumption_rrd", "Consumption history RRD", &consumption_rrd);
     }
 
     // Basic temp in C, from multiple sensors; we might have to convert to C

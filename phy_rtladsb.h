@@ -139,9 +139,9 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("rtladsb.device.model", "Sensor model", &model);
-        RegisterField("rtladsb.device.id", "Sensor ID", &rtlid);
-        RegisterField("rtladsb.device.rtlchannel", "Sensor sub-channel", &rtlchannel);
+        register_field("rtladsb.device.model", "Sensor model", &model);
+        register_field("rtladsb.device.id", "Sensor ID", &rtlid);
+        register_field("rtladsb.device.rtlchannel", "Sensor sub-channel", &rtlchannel);
     }
 
     std::shared_ptr<tracker_element_string> model;
@@ -211,18 +211,18 @@ public:
 
 protected:
     virtual void register_fields() override {
-        RegisterField("rtladsb.device.icao", "ICAO", &icao);
-        RegisterField("rtladsb.device.regid", "REGID", &regid);
-        RegisterField("rtladsb.device.mdl", "MDL", &mdl);
-        RegisterField("rtladsb.device.atype", "Type", &atype);
-        RegisterField("rtladsb.device.aoperator", "Operator", &aoperator);
-        RegisterField("rtladsb.device.callsign", "Callsign", &callsign);
-        RegisterField("rtladsb.device.altitude", "Altitude", &altitude);
-        RegisterField("rtladsb.device.speed", "Speed", &speed);
-        RegisterField("rtladsb.device.heading", "Heading", &heading);
-        RegisterField("rtladsb.device.gsas", "GSAS", &gsas);
+        register_field("rtladsb.device.icao", "ICAO", &icao);
+        register_field("rtladsb.device.regid", "REGID", &regid);
+        register_field("rtladsb.device.mdl", "MDL", &mdl);
+        register_field("rtladsb.device.atype", "Type", &atype);
+        register_field("rtladsb.device.aoperator", "Operator", &aoperator);
+        register_field("rtladsb.device.callsign", "Callsign", &callsign);
+        register_field("rtladsb.device.altitude", "Altitude", &altitude);
+        register_field("rtladsb.device.speed", "Speed", &speed);
+        register_field("rtladsb.device.heading", "Heading", &heading);
+        register_field("rtladsb.device.gsas", "GSAS", &gsas);
 
-        //RegisterField("rtladsb.device.consumption_rrd", "Consumption history RRD", &consumption_rrd);
+        //register_field("rtladsb.device.consumption_rrd", "Consumption history RRD", &consumption_rrd);
     }
 
     // Basic temp in C, from multiple sensors; we might have to convert to C

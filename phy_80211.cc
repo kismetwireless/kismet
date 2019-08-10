@@ -106,7 +106,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
         SetPhyName("IEEE802.11");
 
         dot11_device_entry_id =
-            Globalreg::globalreg->entrytracker->RegisterField("dot11.device",
+            Globalreg::globalreg->entrytracker->register_field("dot11.device",
                     tracker_element_factory<dot11_tracked_device>(),
                     "IEEE802.11 device");
 
@@ -156,7 +156,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
                     "Regex SSID alert configuration");
 
         ssid_regex_vec_element_id =
-            Globalreg::globalreg->entrytracker->RegisterField("phy80211.ssid_alert", 
+            Globalreg::globalreg->entrytracker->register_field("phy80211.ssid_alert", 
                     tracker_element_factory<dot11_tracked_ssid_alert>(),
                     "ssid alert");
 

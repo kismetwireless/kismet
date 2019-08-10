@@ -349,25 +349,25 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.common.rrd.last_time", "last time udpated", &last_time);
+        register_field("kismet.common.rrd.last_time", "last time udpated", &last_time);
 
-        RegisterField("kismet.common.rrd.minute_vec", "past minute values per second", &minute_vec);
-        RegisterField("kismet.common.rrd.hour_vec", "past hour values per minute", &hour_vec);
-        RegisterField("kismet.common.rrd.day_vec", "past day values per hour", &day_vec);
+        register_field("kismet.common.rrd.minute_vec", "past minute values per second", &minute_vec);
+        register_field("kismet.common.rrd.hour_vec", "past hour values per minute", &hour_vec);
+        register_field("kismet.common.rrd.day_vec", "past day values per hour", &day_vec);
 
-        RegisterField("kismet.common.rrd.blank_val", "blank value", &blank_val);
-        RegisterField("kismet.common.rrd.aggregator", "aggregator name", &aggregator_name);
+        register_field("kismet.common.rrd.blank_val", "blank value", &blank_val);
+        register_field("kismet.common.rrd.aggregator", "aggregator name", &aggregator_name);
 
         second_entry_id = 
-            RegisterField("kismet.common.rrd.second", 
+            register_field("kismet.common.rrd.second", 
                     tracker_element_factory<tracker_element_int64>(),
                     "second value");
         minute_entry_id = 
-            RegisterField("kismet.common.rrd.minute", 
+            register_field("kismet.common.rrd.minute", 
                     tracker_element_factory<tracker_element_int64>(),
                     "minute value");
         hour_entry_id = 
-            RegisterField("kismet.common.rrd.hour", 
+            register_field("kismet.common.rrd.hour", 
                     tracker_element_factory<tracker_element_int64>(),
                     "hour value", NULL);
 
@@ -546,17 +546,17 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.common.rrd.last_time", "last time udpated", &last_time);
+        register_field("kismet.common.rrd.last_time", "last time udpated", &last_time);
 
-        RegisterField("kismet.common.rrd.minute_vec", "past minute values per second", &minute_vec);
+        register_field("kismet.common.rrd.minute_vec", "past minute values per second", &minute_vec);
 
         second_entry_id = 
-            RegisterField("kismet.common.rrd.second", 
+            register_field("kismet.common.rrd.second", 
                     tracker_element_factory<tracker_element_int64>(),
                     "second value");
 
-        RegisterField("kismet.common.rrd.blank_val", "blank value", &blank_val);
-        RegisterField("kismet.common.rrd.aggregator", "aggregator name", &aggregator_name);
+        register_field("kismet.common.rrd.blank_val", "blank value", &blank_val);
+        register_field("kismet.common.rrd.aggregator", "aggregator name", &aggregator_name);
     } 
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {

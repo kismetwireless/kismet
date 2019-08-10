@@ -55,10 +55,10 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.packetfilter.id", "Filter ID/Endpoint", &filter_id);
-        RegisterField("kismet.packetfilter.description", "Filter description", &filter_description);
-        RegisterField("kismet.packetfilter.type", "Filter mechanism", &filter_type);
-        RegisterField("kismet.packetfilter.default", "Default filter (pass/reject)", &filter_default);
+        register_field("kismet.packetfilter.id", "Filter ID/Endpoint", &filter_id);
+        register_field("kismet.packetfilter.description", "Filter description", &filter_description);
+        register_field("kismet.packetfilter.type", "Filter mechanism", &filter_type);
+        register_field("kismet.packetfilter.default", "Default filter (pass/reject)", &filter_default);
     }
 
     kis_recursive_timed_mutex mutex;
@@ -107,36 +107,36 @@ protected:
         Packetfilter::register_fields();
 
 		// Phy-based map
-        RegisterField("kismet.packetfilter.macaddr.blocks_by_phy",
+        register_field("kismet.packetfilter.macaddr.blocks_by_phy",
                 "MAC address filters", &filter_phy_blocks);
 
         filter_sub_value_id =
-            RegisterField("kismet.packetfilter.macaddr.value",
+            register_field("kismet.packetfilter.macaddr.value",
                     tracker_element_factory<tracker_element_uint8>(),
                     "Filter value");
 
         filter_source_id =
-            RegisterField("kismet.packetfilter.macaddr.source", 
+            register_field("kismet.packetfilter.macaddr.source", 
                     tracker_element_factory<tracker_element_mac_map>(),
                     "Source address filters");
 
         filter_dest_id =
-            RegisterField("kismet.packetfilter.macaddr.destination", 
+            register_field("kismet.packetfilter.macaddr.destination", 
                     tracker_element_factory<tracker_element_mac_map>(),
                     "Destination address filters");
 
         filter_network_id =
-            RegisterField("kismet.packetfilter.macaddr.network", 
+            register_field("kismet.packetfilter.macaddr.network", 
                     tracker_element_factory<tracker_element_mac_map>(),
                     "Network/BSSID address filters");
 
         filter_other_id =
-            RegisterField("kismet.packetfilter.macaddr.other", 
+            register_field("kismet.packetfilter.macaddr.other", 
                     tracker_element_factory<tracker_element_mac_map>(),
                     "Other address filters");
 
         filter_any_id =
-            RegisterField("kismet.packetfilter.macaddr.any", 
+            register_field("kismet.packetfilter.macaddr.any", 
                     tracker_element_factory<tracker_element_mac_map>(),
                     "Any matching address type");
     }

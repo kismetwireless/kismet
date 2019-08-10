@@ -77,41 +77,41 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 		Globalreg::FetchMandatoryGlobalAs<Eventbus>();
 
     device_base_id =
-        entrytracker->RegisterField("kismet.device.base", 
+        entrytracker->register_field("kismet.device.base", 
                 tracker_element_factory<kis_tracked_device_base>(),
                 "core device record");
     device_list_base_id =
-        entrytracker->RegisterField("kismet.device.list",
+        entrytracker->register_field("kismet.device.list",
                 tracker_element_factory<tracker_element_vector>(),
                 "list of devices");
 
 
     device_summary_base_id =
-        entrytracker->RegisterField("kismet.device.summary_list",
+        entrytracker->register_field("kismet.device.summary_list",
                 tracker_element_factory<tracker_element_vector>(),
                 "summary list of devices");
 
     device_update_required_id =
-        entrytracker->RegisterField("kismet.devicelist.refresh",
+        entrytracker->register_field("kismet.devicelist.refresh",
                 tracker_element_factory<tracker_element_uint8>(),
                 "device list refresh recommended");
     device_update_timestamp_id =
-        entrytracker->RegisterField("kismet.devicelist.timestamp",
+        entrytracker->register_field("kismet.devicelist.timestamp",
                 tracker_element_factory<tracker_element_uint64>(),
                 "device list timestamp");
 
     // These need unique IDs to be put in the map for serialization.
     // They also need unique field names, we can rename them with setlocalname
     dt_length_id =
-        entrytracker->RegisterField("kismet.datatables.recordsTotal", 
+        entrytracker->register_field("kismet.datatables.recordsTotal", 
                 tracker_element_factory<tracker_element_uint64>(),
                 "datatable records total");
     dt_filter_id =
-        entrytracker->RegisterField("kismet.datatables.recordsFiltered", 
+        entrytracker->register_field("kismet.datatables.recordsFiltered", 
                 tracker_element_factory<tracker_element_uint64>(),
                 "datatable records filtered");
     dt_draw_id =
-        entrytracker->RegisterField("kismet.datatables.draw", 
+        entrytracker->register_field("kismet.datatables.draw", 
                 tracker_element_factory<tracker_element_uint64>(),
                 "Datatable records draw ID");
 
@@ -407,27 +407,27 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
                 });
 
     phy_phyentry_id =
-        entrytracker->RegisterField("kismet.phy.phy",
+        entrytracker->register_field("kismet.phy.phy",
                 tracker_element_factory<tracker_element_map>(),
                 "Kismet PHY handler");
 
     phy_phyname_id =
-        entrytracker->RegisterField("kismet.phy.phy_name",
+        entrytracker->register_field("kismet.phy.phy_name",
                 tracker_element_factory<tracker_element_string>(),
                 "Phy name (consistent across executions)");
 
     phy_phyid_id =
-        entrytracker->RegisterField("kismet.phy.phy_id",
+        entrytracker->register_field("kismet.phy.phy_id",
                 tracker_element_factory<tracker_element_uint32>(),
                 "Phy ID (dynamic runtime index, may change between executions)");
 
     phy_devices_count_id =
-        entrytracker->RegisterField("kismet.phy.device_count",
+        entrytracker->register_field("kismet.phy.device_count",
                 tracker_element_factory<tracker_element_uint64>(),
                 "Devices present in phy");
 
     phy_packets_count_id =
-        entrytracker->RegisterField("kismet.phy.packet_count",
+        entrytracker->register_field("kismet.phy.packet_count",
                 tracker_element_factory<tracker_element_uint64>(),
                 "Packets seen in phy");
 

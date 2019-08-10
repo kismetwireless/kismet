@@ -30,17 +30,17 @@ RestMessageClient::RestMessageClient(global_registry *in_globalreg, void *in_aux
     globalreg = in_globalreg;
 
     message_vec_id =
-        globalreg->entrytracker->RegisterField("kismet.messagebus.list",
+        globalreg->entrytracker->register_field("kismet.messagebus.list",
                 tracker_element_factory<tracker_element_vector>(),
                 "list of messages");
 
     message_timestamp_id =
-        globalreg->entrytracker->RegisterField("kismet.messagebus.timestamp",
+        globalreg->entrytracker->register_field("kismet.messagebus.timestamp",
                 tracker_element_factory<tracker_element_uint64>(),
                 "message update timestamp");
 
     message_entry_id =
-        globalreg->entrytracker->RegisterField("kismet.messagebus.message",
+        globalreg->entrytracker->register_field("kismet.messagebus.message",
                 tracker_element_factory<tracked_message>(),
                 "Kismet message");
 
