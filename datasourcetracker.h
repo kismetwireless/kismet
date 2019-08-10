@@ -72,13 +72,13 @@
 
 class datasource_tracker;
 class kis_datasource;
-class DST_Worker;
+class datasource_tracker_worker;
 
 // Worker class used to perform work on the list of packet-sources in a thread
 // safe / continuity safe context.
-class DST_Worker {
+class datasource_tracker_worker {
 public:
-    DST_Worker() { };
+    datasource_tracker_worker() { };
 
     // Handle a data source when working on iterate_datasources
     virtual void handle_datasource(std::shared_ptr<kis_datasource> in_src __attribute__((unused))) { };
@@ -436,7 +436,7 @@ public:
 
     // Operate on all data sources currently defined.  The datasource tracker is locked
     // during this operation, making it thread safe.
-    void iterate_datasources(DST_Worker *in_worker);
+    void iterate_datasources(datasource_tracker_worker *in_worker);
 
     // TCPServerV2 API
     virtual void NewConnection(std::shared_ptr<buffer_handler_generic> conn_handler) override;

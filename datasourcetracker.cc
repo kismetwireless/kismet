@@ -684,7 +684,7 @@ void datasource_tracker::Deferred_Shutdown() {
     }
 }
 
-void datasource_tracker::iterate_datasources(DST_Worker *in_worker) {
+void datasource_tracker::iterate_datasources(datasource_tracker_worker *in_worker) {
     std::shared_ptr<tracker_element_vector> immutable_copy;
 
     {
@@ -1154,7 +1154,7 @@ void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
 
 // Basic DST worker for figuring out how many sources of the same type
 // exist, and are hopping
-class dst_chansplit_worker : public DST_Worker {
+class dst_chansplit_worker : public datasource_tracker_worker {
 public:
     dst_chansplit_worker(datasource_tracker *in_dst,
             std::shared_ptr<datasourcetracker_defaults> in_defaults, 
