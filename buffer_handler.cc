@@ -340,7 +340,7 @@ bool buffer_handler_generic::commit_write_buffer_data(void *in_ptr, size_t in_sz
     return s;
 }
 
-void buffer_handler_generic::ClearReadBuffer() {
+void buffer_handler_generic::clear_read_buffer() {
     if (read_buffer)
         read_buffer->clear();
 }

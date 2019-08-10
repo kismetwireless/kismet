@@ -135,7 +135,7 @@ bool GPSGpsdV2::open_gps(std::string in_opts) {
 
     // Clear the buffers
     if (tcphandler != nullptr) {
-        tcphandler->ClearReadBuffer();
+        tcphandler->clear_read_buffer();
         tcphandler->ClearWriteBuffer();
     }
 

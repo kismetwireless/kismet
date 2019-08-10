@@ -90,7 +90,7 @@ bool GPSTCP::open_gps(std::string in_opts) {
     }
 
     if (nmeahandler != nullptr) {
-        nmeahandler->ClearReadBuffer();
+        nmeahandler->clear_read_buffer();
         nmeahandler->ClearWriteBuffer();
     }
 

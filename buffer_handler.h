@@ -264,7 +264,7 @@ public:
     //
     // Completely empties a buffer, possibly freeing any memory associated with it 
     // if it's a dynamic buffer
-    virtual void ClearReadBuffer();
+    virtual void clear_read_buffer();
     virtual void ClearWriteBuffer();
 
     // Trigger callbacks directly
