@@ -393,7 +393,7 @@ public:
             kis_net_httpd_connection *connection, const char *url);
 
     // Queue a http response
-    static int SendHttpResponse(kis_net_httpd *httpd,
+    static int send_http_response(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection);
 
     // Send a standard HTTP response appending the session and standard 
