@@ -180,7 +180,7 @@ public:
     virtual size_t get_read_buffer_used();
     virtual size_t get_write_buffer_used();
 
-    virtual ssize_t GetReadBufferAvailable();
+    virtual ssize_t get_read_buffer_available();
     virtual ssize_t GetWriteBufferAvailable();
 
     // Fetch read and write buffer data, up to in_amt.  Does not consume data.

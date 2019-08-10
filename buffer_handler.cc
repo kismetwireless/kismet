@@ -82,7 +82,7 @@ size_t buffer_handler_generic::get_write_buffer_used() {
     return 0;
 }
 
-ssize_t buffer_handler_generic::GetReadBufferAvailable() {
+ssize_t buffer_handler_generic::get_read_buffer_available() {
     if (read_buffer)
         return read_buffer->available();
 

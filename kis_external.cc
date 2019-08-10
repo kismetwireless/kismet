@@ -141,7 +141,7 @@ void KisExternalInterface::BufferAvailable(size_t in_amt) {
 
             ss << "Kismet external interface got command frame which is too large to "
                 "be processed (" << frame_sz << " / " << 
-                ringbuf_handler->GetReadBufferAvailable() << "), this can happen when you "
+                ringbuf_handler->get_read_buffer_available() << "), this can happen when you "
                 "are using an old remote capture tool, make sure you have updated your "
                 "systems.";
 

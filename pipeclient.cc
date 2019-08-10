@@ -108,7 +108,7 @@ int PipeClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 
     // If we have room to read set the readfd, otherwise skip it for now
     if (read_fd > -1) {
-        if (handler->GetReadBufferAvailable() > 0) {
+        if (handler->get_read_buffer_available() > 0) {
             if (max_fd < read_fd)
                 max_fd = read_fd;
             FD_SET(read_fd, out_rset);
@@ -131,7 +131,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
     if (read_fd > -1 && FD_ISSET(read_fd, &in_rset) && handler != nullptr) {
         // Allocate the biggest buffer we can fit in the ring, read as much
         // as we can at once.
-        while ((avail = handler->GetReadBufferAvailable())) {
+        while ((avail = handler->get_read_buffer_available())) {
             len = handler->ZeroCopyReserveReadBufferData((void **) &buf, avail);
 
             if ((ret = read(read_fd, buf, len)) <= 0) {
@@ -217,9 +217,9 @@ int PipeClient::FlushRead() {
     ssize_t ret, iret;
 
     if (read_fd > -1 && handler != nullptr) {
-        while (handler->GetReadBufferAvailable() && read_fd > -1) {
+        while (handler->get_read_buffer_available() && read_fd > -1) {
             len = handler->ZeroCopyReserveReadBufferData((void **) &buf,
-                    handler->GetReadBufferAvailable());
+                    handler->get_read_buffer_available());
 
             if ((ret = read(read_fd, buf, len)) <= 0) {
                 if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {

@@ -146,7 +146,7 @@ int TcpServerV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     }
 
     for (auto i = handler_map.begin(); i != handler_map.end(); ++i) {
-        if (i->second->GetReadBufferAvailable() > 0) {
+        if (i->second->get_read_buffer_available() > 0) {
             FD_SET(i->first, out_rset);
 
             if (maxfd < i->first)
@@ -214,10 +214,10 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         // Process incoming data
         if (FD_ISSET(i->first, &in_rset)) {
 
-            while (i->second->GetReadBufferAvailable() > 0) {
+            while (i->second->get_read_buffer_available() > 0) {
                 // Read only as much as we can get w/ a direct reference
                 r_sz = i->second->ZeroCopyReserveReadBufferData((void **) &buf, 
-                        i->second->GetReadBufferAvailable());
+                        i->second->get_read_buffer_available());
 
                 if (r_sz < 0) {
                     break;

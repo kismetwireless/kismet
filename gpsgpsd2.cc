@@ -225,7 +225,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
     // We defer logging that we saw new data until we see a complete record, in case 
     // one of the weird failure conditions of GPSD is to send a partial record
 
-    if (tcphandler->GetReadBufferAvailable() == 0) {
+    if (tcphandler->get_read_buffer_available() == 0) {
         if (get_gps_reconnect())
             _MSG_ERROR("GPSDv2 read buffer filled without getting a valid record; "
                     "disconnecting and reconnecting.");
@@ -248,7 +248,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
 
     // Peek at all the data we have available
     buf_sz = tcphandler->PeekReadBufferData((void **) &buf, 
-            tcphandler->GetReadBufferAvailable());
+            tcphandler->get_read_buffer_available());
 
     // Aggregate into a new location; then copy into the main location
     // depending on what we found.  Locations can come in multiple sentences

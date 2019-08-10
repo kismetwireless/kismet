@@ -139,7 +139,7 @@ int SerialClientV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) 
         FD_SET(device_fd, out_wset);
 
     // We always want to read data if we have any space
-    if (handler->GetReadBufferAvailable() > 0)
+    if (handler->get_read_buffer_available() > 0)
         FD_SET(device_fd, out_rset);
 
     if (in_max_fd < device_fd)
@@ -162,15 +162,15 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
 
     if (FD_ISSET(device_fd, &in_rset)) {
         // Trigger an event on buffer full
-        if (handler->GetReadBufferAvailable() == 0)
+        if (handler->get_read_buffer_available() == 0)
             handler->TriggerReadCallback(0);
 
         // Allocate the biggest buffer we can fit in the ring, read as much
         // as we can at once.
         
-        while (handler->GetReadBufferAvailable() > 0) {
+        while (handler->get_read_buffer_available() > 0) {
             len = handler->ZeroCopyReserveReadBufferData((void **) &buf, 
-                    handler->GetReadBufferAvailable());
+                    handler->get_read_buffer_available());
 
             if ((ret = read(device_fd, buf, len)) <= 0) {
                 if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {

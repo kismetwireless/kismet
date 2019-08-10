@@ -200,15 +200,15 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
 
     if (FD_ISSET(cli_fd, &in_rset)) {
         // If we have pending data and the buffer is full, call the pending function immediately
-        if (handler->GetReadBufferAvailable() == 0)
+        if (handler->get_read_buffer_available() == 0)
             handler->TriggerReadCallback(0);
 
         // Allocate the biggest buffer we can fit in the ring, read as much
         // as we can at once.
        
-        while (connected && handler->GetReadBufferAvailable() > 0) {
+        while (connected && handler->get_read_buffer_available() > 0) {
             len = handler->ZeroCopyReserveReadBufferData((void **) &buf, 
-                    handler->GetReadBufferAvailable());
+                    handler->get_read_buffer_available());
 
             // We ought to never hit this because it ought to always be available
             // from the above while loop, but lets be extra cautious
