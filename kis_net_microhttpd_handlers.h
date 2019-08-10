@@ -68,7 +68,7 @@ public:
             std::shared_ptr<tracker_element_serializer::rename_map> rename = nullptr);
 
     // Shortcuts for getting path info
-    virtual std::string Httpd_GetSuffix(const std::string& path);
+    virtual std::string httpd_get_suffix(const std::string& path);
     virtual std::string Httpd_StripSuffix(const std::string& path);
 
 

@@ -58,7 +58,7 @@ void kis_net_httpd_handler::httpd_serialize(const std::string& path,
     Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(path), stream, elem, rename);
 }
 
-std::string kis_net_httpd_handler::Httpd_GetSuffix(const std::string& path) {
+std::string kis_net_httpd_handler::httpd_get_suffix(const std::string& path) {
     return httpd->get_suffix(path);
 }
 
