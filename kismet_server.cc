@@ -857,7 +857,7 @@ int main(int argc, char *argv[], char *envp[]) {
     Kis_DLT_PPI::create_dlt();
     Kis_DLT_Radiotap::create_dlt();
 
-    new Kis_Dissector_IPdata(globalregistry);
+    new kis_dissector_ip_data(globalregistry);
 
     // Register the base PHYs
     devicetracker->register_phy_handler(new Kis_80211_Phy(globalregistry));

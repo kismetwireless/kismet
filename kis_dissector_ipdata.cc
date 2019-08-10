@@ -77,13 +77,13 @@ int GetLengthTagOffsets(unsigned int init_offset,
 
 
 int ipdata_packethook(CHAINCALL_PARMS) {
-	return ((Kis_Dissector_IPdata *) auxdata)->HandlePacket(in_pack);
+	return ((kis_dissector_ip_data *) auxdata)->HandlePacket(in_pack);
 }
 
-Kis_Dissector_IPdata::Kis_Dissector_IPdata(global_registry *in_globalreg) {
+kis_dissector_ip_data::kis_dissector_ip_data(global_registry *in_globalreg) {
 	globalreg = in_globalreg;
 
-	globalreg->insert_global("DISSECTOR_IPDATA", std::shared_ptr<Kis_Dissector_IPdata>(this));
+	globalreg->insert_global("DISSECTOR_IPDATA", std::shared_ptr<kis_dissector_ip_data>(this));
 
 	globalreg->packetchain->RegisterHandler(&ipdata_packethook, this,
 		 									CHAINPOS_DATADISSECT, -100);
@@ -106,7 +106,7 @@ Kis_Dissector_IPdata::Kis_Dissector_IPdata(global_registry *in_globalreg) {
 
 }
 
-Kis_Dissector_IPdata::~Kis_Dissector_IPdata() {
+kis_dissector_ip_data::~kis_dissector_ip_data() {
 	globalreg->insert_global("DISSECTOR_IPDATA", NULL);
 
 	globalreg->packetchain->RemoveHandler(&ipdata_packethook, CHAINPOS_DATADISSECT);
@@ -212,7 +212,7 @@ std::string MDNS_Fetchname(kis_datachunk *chunk, unsigned int baseofft,
 	return dns_str;
 }
 
-int Kis_Dissector_IPdata::HandlePacket(kis_packet *in_pack) {
+int kis_dissector_ip_data::HandlePacket(kis_packet *in_pack) {
 	kis_data_packinfo *datainfo = NULL;
 
 	if (in_pack->error)
