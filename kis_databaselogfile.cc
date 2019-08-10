@@ -833,7 +833,7 @@ int kis_database_logfile::database_upgrade_db() {
     return 1;
 }
 
-void kis_database_logfile::ProcessMessage(std::string in_msg, int in_flags) {
+void kis_database_logfile::process_message(std::string in_msg, int in_flags) {
     if (!db_enabled)
         return;
 

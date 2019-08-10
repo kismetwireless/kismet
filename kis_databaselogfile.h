@@ -133,7 +133,7 @@ public:
     virtual int httpd_post_complete(kis_net_httpd_connection *concls) override;
 
     // Messagebus API
-    virtual void ProcessMessage(std::string in_msg, int in_flags) override;
+    virtual void process_message(std::string in_msg, int in_flags) override;
 
     // Direct access to the filters for setting programatically
     std::shared_ptr<PacketfilterMacaddr> GetPacketFilter() { 

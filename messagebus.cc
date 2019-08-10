@@ -23,7 +23,7 @@
 
 #include "util.h"
 
-void StdoutMessageClient::ProcessMessage(std::string in_msg, int in_flags) {
+void StdoutMessageClient::process_message(std::string in_msg, int in_flags) {
     if (in_flags & (MSGFLAG_ERROR | MSGFLAG_FATAL))
         fprintf(stderr, "ERROR: %s\n", in_msg.c_str());
     else
@@ -87,7 +87,7 @@ void message_bus::msg_queue_dispatcher() {
 
                 for (auto sub : subscribers) {
                     if (sub->mask & e->flags) 
-                        sub->client->ProcessMessage(e->msg, e->flags);
+                        sub->client->process_message(e->msg, e->flags);
                 }
             }
 

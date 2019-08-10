@@ -113,7 +113,7 @@ private:
 public:
 	virtual ~RestMessageClient();
 
-    virtual void ProcessMessage(std::string in_msg, int in_flags) override;
+    virtual void process_message(std::string in_msg, int in_flags) override;
 
     virtual bool httpd_verify_path(const char *path, const char *method) override;
 

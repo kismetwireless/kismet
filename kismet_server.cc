@@ -128,10 +128,10 @@ public:
     SmartStdoutMessageClient(global_registry *in_globalreg, void *in_aux) :
         message_client(in_globalreg, in_aux) { }
     virtual ~SmartStdoutMessageClient() { }
-    void ProcessMessage(std::string in_msg, int in_flags);
+    void process_message(std::string in_msg, int in_flags);
 };
 
-void SmartStdoutMessageClient::ProcessMessage(std::string in_msg, int in_flags) {
+void SmartStdoutMessageClient::process_message(std::string in_msg, int in_flags) {
     if (glob_silent)
         return;
 
@@ -179,13 +179,13 @@ public:
     FatalQueueMessageClient(global_registry *in_globalreg, void *in_aux) :
         message_client(in_globalreg, in_aux) { }
     virtual ~FatalQueueMessageClient() { }
-    void ProcessMessage(std::string in_msg, int in_flags);
+    void process_message(std::string in_msg, int in_flags);
     void DumpFatals();
 protected:
     std::vector<std::string> fatalqueue;
 };
 
-void FatalQueueMessageClient::ProcessMessage(std::string in_msg, int in_flags) {
+void FatalQueueMessageClient::process_message(std::string in_msg, int in_flags) {
     // Queue PRINT forced errors differently than fatal conditions
     if (in_flags & MSGFLAG_PRINT) {
         fatalqueue.push_back("ERROR: " + in_msg);

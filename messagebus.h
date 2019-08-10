@@ -63,7 +63,7 @@ public:
 
 	virtual ~message_client() { }
 
-    virtual void ProcessMessage(std::string in_msg, int in_flags) = 0;
+    virtual void process_message(std::string in_msg, int in_flags) = 0;
 protected:
     global_registry *globalreg;
 	void *auxptr;
@@ -74,7 +74,7 @@ public:
     StdoutMessageClient(global_registry *in_globalreg, void *in_aux) :
         message_client(in_globalreg, in_aux) { }
 	virtual ~StdoutMessageClient() { }
-    void ProcessMessage(std::string in_msg, int in_flags);
+    void process_message(std::string in_msg, int in_flags);
 };
 
 class message_bus : public lifetime_global {

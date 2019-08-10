@@ -59,7 +59,7 @@ RestMessageClient::~RestMessageClient() {
     message_list.clear();
 }
 
-void RestMessageClient::ProcessMessage(std::string in_msg, int in_flags) {
+void RestMessageClient::process_message(std::string in_msg, int in_flags) {
     // Don't propagate LOCAL or DEBUG messages
     if ((in_flags & MSGFLAG_LOCAL) || (in_flags & MSGFLAG_DEBUG))
         return;
