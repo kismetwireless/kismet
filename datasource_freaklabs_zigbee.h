@@ -24,7 +24,7 @@
 #include "kis_datasource.h"
 
 class kis_datasource_freaklabs_zigbee;
-typedef std::shared_ptr<kis_datasource_freaklabs_zigbee> SharedDatasourceFreaklabsZigbee;
+typedef std::shared_ptr<kis_datasource_freaklabs_zigbee> shared_datasource_freaklabs_zigbee;
 
 class kis_datasource_freaklabs_zigbee : public KisDatasource {
 public:
@@ -63,7 +63,7 @@ public:
     virtual ~datasource_freaklabs_zigbee_builder() { }
 
     virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) {
-        return SharedDatasourceFreaklabsZigbee(new kis_datasource_freaklabs_zigbee(in_sh_this));
+        return shared_datasource_freaklabs_zigbee(new kis_datasource_freaklabs_zigbee(in_sh_this));
     }
 
     virtual void initialize() {
