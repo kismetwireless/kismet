@@ -179,7 +179,7 @@ shared_tracker_element StorageLoader::storage_to_tracker(shared_structured d) {
             case tracker_type::tracker_int_map:
                 elem = std::make_shared<tracker_element_int_map>();
 
-                for (auto i : objdata->getStructuredNumMap()) {
+                for (auto i : objdata->as_number_map()) {
                     auto re = storage_to_tracker(i.second);
 
                     if (re != NULL) 
@@ -190,7 +190,7 @@ shared_tracker_element StorageLoader::storage_to_tracker(shared_structured d) {
             case tracker_type::tracker_double_map:
                 elem = std::make_shared<tracker_element_double_map>();
 
-                for (auto i : objdata->getStructuredNumMap()) {
+                for (auto i : objdata->as_number_map()) {
                     auto re = storage_to_tracker(i.second);
 
                     if (re != NULL) 

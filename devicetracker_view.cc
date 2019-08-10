@@ -535,7 +535,7 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
     try {
         // Extract the column number -> column fieldpath data
         if (structured->has_key("colmap")) 
-            column_number_map = structured->get_structured_by_key("colmap")->getStructuredNumMap();
+            column_number_map = structured->get_structured_by_key("colmap")->as_number_map();
 
         if (structured->key_as_bool("datatable", false)) {
             // Extract from the raw postvars 

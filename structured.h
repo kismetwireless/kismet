@@ -124,7 +124,7 @@ public:
 
     // Get structured sub-arrays
     virtual structured_vec as_vector() = 0;
-    virtual structured_num_map getStructuredNumMap() = 0;
+    virtual structured_num_map as_number_map() = 0;
     virtual structured_str_map getStructuredStrMap() = 0;
 
     // Convert a structured array of paired arrays, or a structured dictinary of k:v pairs, to

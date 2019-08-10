@@ -219,7 +219,7 @@ public:
         return v;
     }
 
-    virtual structured_num_map getStructuredNumMap() {
+    virtual structured_num_map as_number_map() {
         except_if_not(is_dictionary(), "dictionary/map");
 
         structured_num_map m;
