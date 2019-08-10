@@ -175,7 +175,7 @@ public:
 
     // Basic size ops
     virtual ssize_t get_read_buffer_size();
-    virtual ssize_t GetWriteBufferSize();
+    virtual ssize_t get_write_buffer_size();
 
     virtual size_t GetReadBufferUsed();
     virtual size_t GetWriteBufferUsed();

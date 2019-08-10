@@ -61,7 +61,7 @@ ssize_t buffer_handler_generic::get_read_buffer_size() {
     return 0;
 }
 
-ssize_t buffer_handler_generic::GetWriteBufferSize() {
+ssize_t buffer_handler_generic::get_write_buffer_size() {
     if (write_buffer)
         return write_buffer->size();
 
