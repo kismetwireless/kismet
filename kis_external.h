@@ -45,7 +45,7 @@ namespace kismet_external {
     class Command;
 };
 
-struct KisExternalHttpSession {
+struct kis_external_http_session {
     kis_net_httpd_connection *connection; 
     std::shared_ptr<conditional_locker<int> > locker;
 };
@@ -189,7 +189,7 @@ protected:
 
     // Map request identities
     uint32_t http_session_id;
-    std::map<uint32_t, std::shared_ptr<KisExternalHttpSession> > http_proxy_session_map;
+    std::map<uint32_t, std::shared_ptr<kis_external_http_session> > http_proxy_session_map;
 };
 
 

@@ -707,7 +707,7 @@ int KisExternalHttpInterface::httpd_create_stream_response(kis_net_httpd *httpd,
     for (auto e : m->second) {
         if (e->uri == std::string(url)) {
             // Make a session
-            std::shared_ptr<KisExternalHttpSession> s(new KisExternalHttpSession());
+            std::shared_ptr<kis_external_http_session> s(new kis_external_http_session());
             s->connection = connection;
             // Lock the waitlock
             s->locker.reset(new conditional_locker<int>());
@@ -767,7 +767,7 @@ int KisExternalHttpInterface::httpd_post_complete(kis_net_httpd_connection *conn
     for (auto e : m->second) {
         if (e->uri == std::string(connection->url)) {
             // Make a session
-            std::shared_ptr<KisExternalHttpSession> s(new KisExternalHttpSession());
+            std::shared_ptr<kis_external_http_session> s(new kis_external_http_session());
             s->connection = connection;
             // Lock the waitlock
             s->locker.reset(new conditional_locker<int>());
