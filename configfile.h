@@ -90,7 +90,7 @@ public:
         return conv_value;
     }
 
-	int FetchOptDirty(const std::string& in_key);
+	int fetch_opt_dirty(const std::string& in_key);
 	void SetOptDirty(const std::string& in_key, int in_dirty);
 
     // Set a value, converting the arbitrary input into a string

@@ -330,7 +330,7 @@ unsigned long config_file::fetch_opt_ulong(const std::string& in_key, unsigned l
     return fetch_opt_as<unsigned long>(in_key, dvalue);
 }
 
-int config_file::FetchOptDirty(const std::string& in_key) {
+int config_file::fetch_opt_dirty(const std::string& in_key) {
     local_locker lock(&config_locker);
     if (config_map_dirty.find(StrLower(in_key)) == config_map_dirty.end())
         return 0;
