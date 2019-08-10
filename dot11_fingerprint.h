@@ -112,7 +112,7 @@ protected:
 // and other types.
 // The URI directory should be a non-slash-terminated full path, such as:
 // /phy/phy80211/whitelist
-class Dot11FingerprintTracker {
+class dot11_fingerprint_tracker {
 public:
     // Simple list of endpoints the post_path can return
     enum class uri_endpoint {
@@ -120,10 +120,10 @@ public:
         endp_update, endp_insert, endp_delete, endp_bulk_insert, endp_bulk_delete
     };
 
-    Dot11FingerprintTracker(const std::string& uri_dir);
-    Dot11FingerprintTracker(const std::string& uri_dir, const std::string& config_file, 
+    dot11_fingerprint_tracker(const std::string& uri_dir);
+    dot11_fingerprint_tracker(const std::string& uri_dir, const std::string& config_file, 
             const std::string& config_value);
-    virtual ~Dot11FingerprintTracker();
+    virtual ~dot11_fingerprint_tracker();
 
     // Process the post path and return the type and target, or a tuple of uri_endpoint::endp_unknown
     // if it doesn't exist

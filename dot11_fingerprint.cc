@@ -20,7 +20,7 @@
 #include "configfile.h"
 #include "fmt.h"
 
-Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri) {
+dot11_fingerprint_tracker::dot11_fingerprint_tracker(const std::string& in_uri) {
     using namespace std::placeholders;
 
     base_uri = StrTokenize(in_uri, "/");
@@ -45,7 +45,7 @@ Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri) {
                 }, &mutex);
 }
 
-Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri,
+dot11_fingerprint_tracker::dot11_fingerprint_tracker(const std::string& in_uri,
     const std::string& in_config, const std::string& in_confvalue) {
     using namespace std::placeholders;
 
@@ -76,13 +76,13 @@ Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri,
     configfile->parse_config(in_config);
 }
 
-Dot11FingerprintTracker::~Dot11FingerprintTracker() {
+dot11_fingerprint_tracker::~dot11_fingerprint_tracker() {
     if (configfile != nullptr)
         configfile->save_config(configpath);
 }
 
-std::tuple<Dot11FingerprintTracker::uri_endpoint, mac_addr>
-Dot11FingerprintTracker::post_path(const std::vector<std::string>& path) {
+std::tuple<dot11_fingerprint_tracker::uri_endpoint, mac_addr>
+dot11_fingerprint_tracker::post_path(const std::vector<std::string>& path) {
     // Match against the base URI path
     if (path.size() <= base_uri.size())
         return std::make_tuple(uri_endpoint::endp_unknown, mac_addr {0});
@@ -137,7 +137,7 @@ Dot11FingerprintTracker::post_path(const std::vector<std::string>& path) {
     return std::make_tuple(uri_endpoint::endp_unknown, mac_addr {0});
 }
 
-unsigned int Dot11FingerprintTracker::mod_dispatch(std::ostream& stream,
+unsigned int dot11_fingerprint_tracker::mod_dispatch(std::ostream& stream,
         const std::vector<std::string>& path, shared_structured structured) {
 
     auto path_extract = post_path(path);
@@ -164,7 +164,7 @@ unsigned int Dot11FingerprintTracker::mod_dispatch(std::ostream& stream,
     return 401;
 }
 
-unsigned int Dot11FingerprintTracker::update_fingerprint(std::ostream &stream,
+unsigned int dot11_fingerprint_tracker::update_fingerprint(std::ostream &stream,
         mac_addr mac, shared_structured structured) {
 
     auto fpi = fingerprint_map->find(mac);
@@ -200,7 +200,7 @@ unsigned int Dot11FingerprintTracker::update_fingerprint(std::ostream &stream,
     return 500;
 }
 
-unsigned int Dot11FingerprintTracker::insert_fingerprint(std::ostream& stream, 
+unsigned int dot11_fingerprint_tracker::insert_fingerprint(std::ostream& stream, 
         shared_structured structured) {
     try {
         if (!structured->has_key("macaddr"))
@@ -238,7 +238,7 @@ unsigned int Dot11FingerprintTracker::insert_fingerprint(std::ostream& stream,
     return 500;
 }
 
-unsigned int Dot11FingerprintTracker::delete_fingerprint(std::ostream& stream, mac_addr mac,
+unsigned int dot11_fingerprint_tracker::delete_fingerprint(std::ostream& stream, mac_addr mac,
         shared_structured structured) {
 
     auto fpi = fingerprint_map->find(mac);
@@ -256,7 +256,7 @@ unsigned int Dot11FingerprintTracker::delete_fingerprint(std::ostream& stream, m
     return 200;
 }
 
-unsigned int Dot11FingerprintTracker::bulk_delete_fingerprint(std::ostream& stream, 
+unsigned int dot11_fingerprint_tracker::bulk_delete_fingerprint(std::ostream& stream, 
         shared_structured structured) {
 
     try {
@@ -294,7 +294,7 @@ unsigned int Dot11FingerprintTracker::bulk_delete_fingerprint(std::ostream& stre
     return 500;
 }
 
-unsigned int Dot11FingerprintTracker::bulk_insert_fingerprint(std::ostream& stream,
+unsigned int dot11_fingerprint_tracker::bulk_insert_fingerprint(std::ostream& stream,
         shared_structured structured) {
 
     try {
@@ -341,7 +341,7 @@ unsigned int Dot11FingerprintTracker::bulk_insert_fingerprint(std::ostream& stre
     return 500;
 }
 
-std::shared_ptr<tracked_dot11_fingerprint> Dot11FingerprintTracker::get_fingerprint(const mac_addr& mac) {
+std::shared_ptr<tracked_dot11_fingerprint> dot11_fingerprint_tracker::get_fingerprint(const mac_addr& mac) {
     auto fmi = fingerprint_map->find(mac);
 
     if (fmi == fingerprint_map->end())
@@ -350,7 +350,7 @@ std::shared_ptr<tracked_dot11_fingerprint> Dot11FingerprintTracker::get_fingerpr
     return std::static_pointer_cast<tracked_dot11_fingerprint>(fmi->second);
 }
 
-void Dot11FingerprintTracker::rebuild_config() {
+void dot11_fingerprint_tracker::rebuild_config() {
     local_locker l(&mutex);
 
     if (configfile == nullptr)
