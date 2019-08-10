@@ -282,13 +282,13 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
 
                 if (ret < 0) {
                     if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
-                        i->second->PeekFreeWriteBufferData(buf);
+                        i->second->peek_free_write_buffer_data(buf);
                         continue;
                     } else {
                         msg << "TCP server error writing to client " << i->first <<
                             " - " << kis_strerror_r(errno);
 
-                        i->second->PeekFreeWriteBufferData(buf);
+                        i->second->peek_free_write_buffer_data(buf);
                         i->second->BufferError(msg.str());
 
                         KillConnection(i->first);
@@ -297,17 +297,17 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                 } else if (ret == 0) {
                     msg << "TCP server closing client " << i->first <<
                         " - connection closed by remote side.";
-                    i->second->PeekFreeWriteBufferData(buf);
+                    i->second->peek_free_write_buffer_data(buf);
                     i->second->BufferError(msg.str());
                     KillConnection(i->first);
                     continue;
                 } else {
                     // Consume whatever we managed to write
-                    i->second->PeekFreeWriteBufferData(buf);
+                    i->second->peek_free_write_buffer_data(buf);
                     i->second->ConsumeWriteBufferData(ret);
                 }
             } else {
-                i->second->PeekFreeWriteBufferData(buf);
+                i->second->peek_free_write_buffer_data(buf);
             }
         }
     }

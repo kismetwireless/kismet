@@ -279,7 +279,7 @@ ssize_t kis_net_httpd_buffer_stream_handler::buffer_event_cb(void *cls, uint64_t
         // If we've got nothing left either it's the end of the buffer or we're pending
         // more data hitting the request
         if (read_sz == 0) {
-            rbh->PeekFreeWriteBufferData(zbuf);
+            rbh->peek_free_write_buffer_data(zbuf);
 
             if (stream_aux->get_in_error()) {
                 // fmt::print(stderr, "buffer hit end of stream, error flagged\n");
@@ -295,7 +295,7 @@ ssize_t kis_net_httpd_buffer_stream_handler::buffer_event_cb(void *cls, uint64_t
     }
 
     // Clean up the writebuffer access
-    rbh->PeekFreeWriteBufferData(zbuf);
+    rbh->peek_free_write_buffer_data(zbuf);
     rbh->ConsumeWriteBufferData(read_sz);
 
     // Unlock the stream
@@ -324,7 +324,7 @@ static void free_buffer_aux_callback(void *cls) {
 
         read_sz = rbh->zero_copy_peek_write_buffer_data((void **) &zbuf, 1024);
 
-        rbh->PeekFreeWriteBufferData(zbuf);
+        rbh->peek_free_write_buffer_data(zbuf);
         rbh->ConsumeWriteBufferData(read_sz);
 
         if (read_sz == 0)

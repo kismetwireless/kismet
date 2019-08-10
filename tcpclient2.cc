@@ -269,13 +269,13 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
 
         if (ret < 0) {
             if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
-                handler->PeekFreeWriteBufferData(buf);
+                handler->peek_free_write_buffer_data(buf);
                 return 0;
             } else {
                 msg = fmt::format("TCP client error writing to {}:{} - {} (errno {})",
                     host, port, kis_strerror_r(errno), errno);
 
-                handler->PeekFreeWriteBufferData(buf);
+                handler->peek_free_write_buffer_data(buf);
                 handler->BufferError(msg);
 
                 Disconnect();
@@ -284,13 +284,13 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
         } else if (ret == 0) {
             msg = fmt::format("TCP client connection to {}:{} closed by remote",
                     host, port);
-            handler->PeekFreeWriteBufferData(buf);
+            handler->peek_free_write_buffer_data(buf);
             handler->BufferError(msg);
             Disconnect();
             return 0;
         } else {
             // Consume whatever we managed to write
-            handler->PeekFreeWriteBufferData(buf);
+            handler->peek_free_write_buffer_data(buf);
             handler->ConsumeWriteBufferData(ret);
         }
     }

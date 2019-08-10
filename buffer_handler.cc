@@ -137,7 +137,7 @@ void buffer_handler_generic::peek_free_read_buffer_data(void *in_ptr) {
     return;
 }
 
-void buffer_handler_generic::PeekFreeWriteBufferData(void *in_ptr) {
+void buffer_handler_generic::peek_free_write_buffer_data(void *in_ptr) {
     if (write_buffer)
         return write_buffer->peek_free((unsigned char *) in_ptr);
 
