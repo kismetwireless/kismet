@@ -107,7 +107,7 @@ protected:
 // cheap way to keep track of how much we're flapping - we don't want a reboot of an AP to
 // generate an alert, but we DO want a spoofed AP beaconing in the same space to generate
 // one.
-class BssTimestampAutomata : public finite_automata {
+class dot11_bss_timestamp_automata : public finite_automata {
 public:
     class _bs_fsa_element : public finite_automata::_fsa_element {
     public:
@@ -118,14 +118,14 @@ public:
         uint64_t bss_timestamp;
     };
 
-    BssTimestampAutomata(global_registry *in_globalreg, alert_time_unit in_unit, 
+    dot11_bss_timestamp_automata(global_registry *in_globalreg, alert_time_unit in_unit, 
                          int in_rate, int in_burstrate);
-    ~BssTimestampAutomata();
+    ~dot11_bss_timestamp_automata();
 
     int process_packet(const packet_info *in_info);
 
 protected:
-    macmap<BssTimestampAutomata::_bs_fsa_element *> bss_map;
+    macmap<dot11_bss_timestamp_automata::_bs_fsa_element *> bss_map;
 };
 
 // Detect broadcast replay WEP attacks by looking for bursts of packets with the same

@@ -170,20 +170,20 @@ int DisassocTrafficAutomata::process_packet(const packet_info *in_info) {
     return 0;
 }
 
-BssTimestampAutomata::BssTimestampAutomata(global_registry *in_globalreg,
+dot11_bss_timestamp_automata::dot11_bss_timestamp_automata(global_registry *in_globalreg,
                         alert_time_unit in_unit, int in_rate, int in_burstrate) {
     globalreg = in_globalreg;
     alertid = globalreg->alertracker->register_alert("BSSTIMESTAMP", in_unit, in_rate, in_burstrate);
 }
 
-BssTimestampAutomata::~BssTimestampAutomata() {
-    for (macmap<BssTimestampAutomata::_bs_fsa_element *>::iterator iter = bss_map.begin();
+dot11_bss_timestamp_automata::~dot11_bss_timestamp_automata() {
+    for (macmap<dot11_bss_timestamp_automata::_bs_fsa_element *>::iterator iter = bss_map.begin();
          iter != bss_map.end(); ++iter) {
         delete iter->second;
     }
 }
 
-int BssTimestampAutomata::process_packet(const packet_info *in_info) {
+int dot11_bss_timestamp_automata::process_packet(const packet_info *in_info) {
     _bs_fsa_element *elem;
     char atext[1024];
 
@@ -192,7 +192,7 @@ int BssTimestampAutomata::process_packet(const packet_info *in_info) {
         in_info->subtype != packet_sub_beacon || in_info->distrib == adhoc_distribution)
         return 0;
 
-    macmap<BssTimestampAutomata::_bs_fsa_element *>::iterator iter = bss_map.find(in_info->bssid_mac);
+    macmap<dot11_bss_timestamp_automata::_bs_fsa_element *>::iterator iter = bss_map.find(in_info->bssid_mac);
     if (iter == bss_map.end()) {
         elem = new _bs_fsa_element;
         elem->bss_timestamp = in_info->timestamp;
