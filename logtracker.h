@@ -245,7 +245,7 @@ public:
             size_t *upload_data_size, std::stringstream &stream) override;
     virtual int httpd_post_complete(kis_net_httpd_connection *concls) override;
 
-    virtual void Deferred_Startup() override;
+    virtual void trigger_deferred_startup() override;
     virtual void Deferred_Shutdown() override;
 
     // Register a log type

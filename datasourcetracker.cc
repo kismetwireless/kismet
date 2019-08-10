@@ -408,7 +408,7 @@ std::shared_ptr<datasource_tracker_defaults> datasource_tracker::get_config_defa
     return config_defaults;
 }
 
-void datasource_tracker::Deferred_Startup() {
+void datasource_tracker::trigger_deferred_startup() {
     bool used_args = false;
 
     completion_cleanup_id = -1;

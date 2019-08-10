@@ -84,7 +84,7 @@ void LogTracker::reserve_fields(std::shared_ptr<tracker_element_map> e) {
     // types in logproto and logfile, but we don't snapshot state so we don't.
 }
 
-void LogTracker::Deferred_Startup() {
+void LogTracker::trigger_deferred_startup() {
 	int option_idx = 0;
 	std::string retfname;
 

@@ -190,7 +190,7 @@ void global_registry::register_deferred_global(std::shared_ptr<deferred_startup>
     deferred_vec.push_back(in_d);
 
     if (deferred_started)
-        in_d->Deferred_Startup();
+        in_d->trigger_deferred_startup();
 }
 
 void global_registry::RemoveDeferredGlobal(std::shared_ptr<deferred_startup> in_d) {
@@ -210,7 +210,7 @@ void global_registry::Start_Deferred() {
     deferred_started = true;
     
     for (auto i : deferred_vec) {
-        i->Deferred_Startup();
+        i->trigger_deferred_startup();
     }
 }
 

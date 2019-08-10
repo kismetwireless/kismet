@@ -178,7 +178,7 @@ class deferred_startup {
 public:
     virtual ~deferred_startup() { }
 
-    virtual void Deferred_Startup() = 0;
+    virtual void trigger_deferred_startup() = 0;
     virtual void Deferred_Shutdown() = 0;
 };
 

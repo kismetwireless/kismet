@@ -365,7 +365,7 @@ public:
 
     // Start up the system once kismet is up and running; this happens just before
     // the main select loop in kismet
-    virtual void Deferred_Startup() override;
+    virtual void trigger_deferred_startup() override;
 
     // Shut down all sources, this happens as kismet is terminating
     virtual void Deferred_Shutdown() override;

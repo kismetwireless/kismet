@@ -75,7 +75,7 @@ public:
     kis_database_logfile();
     virtual ~kis_database_logfile();
 
-    virtual void Deferred_Startup() override;
+    virtual void trigger_deferred_startup() override;
     virtual void Deferred_Shutdown() override;
 
     void SetDatabaseBuilder(SharedLogBuilder in_builder) {

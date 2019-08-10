@@ -35,7 +35,7 @@ Kis_Httpd_Websession::Kis_Httpd_Websession() :
     global_config = false;
 }
 
-void Kis_Httpd_Websession::Deferred_Startup() {
+void Kis_Httpd_Websession::trigger_deferred_startup() {
     local_locker l(&mutex);
 
     auto alertracker = Globalreg::FetchMandatoryGlobalAs<alert_tracker>();
