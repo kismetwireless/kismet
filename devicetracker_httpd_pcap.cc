@@ -95,7 +95,7 @@ int device_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *httpd
     if (dev == NULL)
         return MHD_YES;
 
-    if (!httpd->HasValidSession(connection)) {
+    if (!httpd->has_valid_session(connection)) {
         connection->httpcode = 503;
         return MHD_YES;
     }

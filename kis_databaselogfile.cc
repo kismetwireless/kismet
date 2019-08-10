@@ -1356,7 +1356,7 @@ int kis_database_logfile::httpd_create_stream_response(kis_net_httpd *httpd,
     std::string stripped = Httpd_StripSuffix(connection->url);
     std::string suffix = Httpd_GetSuffix(connection->url);
 
-    if (!httpd->HasValidSession(connection, true)) {
+    if (!httpd->has_valid_session(connection, true)) {
         connection->httpcode = 503;
         return MHD_YES;
     }
@@ -1513,7 +1513,7 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
     shared_structured structdata;
     shared_structured filterdata;
 
-    if (!httpd->HasValidSession(concls, true)) {
+    if (!httpd->has_valid_session(concls, true)) {
         concls->httpcode = 503;
         return MHD_YES;
     }

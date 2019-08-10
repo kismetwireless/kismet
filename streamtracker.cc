@@ -148,7 +148,7 @@ void StreamTracker::httpd_create_stream_response(
     }
 
     if (tokenurl[4] == "close_stream") {
-        if (!httpd->HasValidSession(connection)) {
+        if (!httpd->has_valid_session(connection)) {
             connection->httpcode = 400;
             return;
         }

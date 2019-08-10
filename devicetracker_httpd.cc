@@ -624,7 +624,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     std::string name;
 
                     // Must have a session to set the name
-                    if (!httpd->HasValidSession(concls)) 
+                    if (!httpd->has_valid_session(concls)) 
                         throw std::runtime_error("login required");
 
                     if (!structdata->has_key("username")) 
@@ -641,7 +641,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                 if (target == "set_tag") {
                     std::string tag, content;
 
-                    if (!httpd->HasValidSession(concls))
+                    if (!httpd->has_valid_session(concls))
                         throw std::runtime_error("login required");
 
                     if (!structdata->has_key("tagname"))

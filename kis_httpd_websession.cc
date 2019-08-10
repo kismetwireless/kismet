@@ -204,7 +204,7 @@ void kis_httpd_websession::httpd_create_stream_response(kis_net_httpd *httpd,
     std::string stripped = Httpd_StripSuffix(url);
 
     if (stripped == "/session/check_session") {
-        if (httpd->HasValidSession(connection, true)) {
+        if (httpd->has_valid_session(connection, true)) {
             stream << "Valid session\n";
         }
     } else if (stripped == "/session/check_login") {
@@ -217,7 +217,7 @@ void kis_httpd_websession::httpd_create_stream_response(kis_net_httpd *httpd,
             connection->httpcode = 403;
         } else {
             // Generate a session for the login, it's successful
-            httpd->HasValidSession(connection, false);
+            httpd->has_valid_session(connection, false);
             stream << "Valid login\n";
         }
     } else if (stripped == "/session/check_setup_ok") {
@@ -251,7 +251,7 @@ int kis_httpd_websession::httpd_post_complete(kis_net_httpd_connection *concls) 
 
         // Require login if we've set the user config
         if (user_config && conf_password != "") {
-            if (!httpd->HasValidSession(concls, true)) {
+            if (!httpd->has_valid_session(concls, true)) {
                 return MHD_YES;
             }
         }

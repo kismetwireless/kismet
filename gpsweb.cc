@@ -105,7 +105,7 @@ int kis_gps_web::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind,
     bool handled = false;
 
     // Anything involving POST here requires a login
-    if (!httpd->HasValidSession(concls)) {
+    if (!httpd->has_valid_session(concls)) {
         concls->response_stream << "Login required";
         concls->httpcode = 401;
         return 1;

@@ -552,7 +552,7 @@ void kis_net_httpd::MHD_Panic(void *cls, const char *file __attribute__((unused)
     httpd->microhttpd = NULL;
 }
 
-bool kis_net_httpd::HasValidSession(kis_net_httpd_connection *connection, bool send_invalid) {
+bool kis_net_httpd::has_valid_session(kis_net_httpd_connection *connection, bool send_invalid) {
     if (connection->session != NULL)
         return true;
 
@@ -821,7 +821,7 @@ int kis_net_httpd::http_request_handler(void *cls, struct MHD_Connection *connec
         if (handler == nullptr) {
             for (auto h : kishttpd->handler_vec) {
                 if (h->httpd_verify_path(url.c_str(), method)) {
-                    if (!kishttpd->HasValidSession(concls, true)) {
+                    if (!kishttpd->has_valid_session(concls, true)) {
                         /*
                         auto fourohone = fmt::format("<h1>401 - Access denied</h1>Login required to access this resource.\n");
                         fmt::print("no valid login for {}, {}\n", url, fourohone);

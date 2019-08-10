@@ -416,7 +416,7 @@ void LogTracker::httpd_create_stream_response(kis_net_httpd *httpd,
                 throw std::runtime_error("invalid uuid");
             }
 
-            if (!httpd->HasValidSession(connection)) {
+            if (!httpd->has_valid_session(connection)) {
                 connection->httpcode = 503;
                 return;
             }
@@ -491,7 +491,7 @@ int LogTracker::httpd_post_complete(kis_net_httpd_connection *concls) {
     shared_structured structdata;
 
     // All the posts require login
-    if (!httpd->HasValidSession(concls, true)) {
+    if (!httpd->has_valid_session(concls, true)) {
         return MHD_YES;
     }
 

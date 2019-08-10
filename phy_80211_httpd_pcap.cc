@@ -127,7 +127,7 @@ int Phy_80211_Httpd_Pcap::httpd_create_stream_response(kis_net_httpd *httpd,
     if ((dev = devicetracker->fetch_device(targetkey)) == NULL)
         return MHD_YES;
 
-    if (!httpd->HasValidSession(connection, true)) {
+    if (!httpd->has_valid_session(connection, true)) {
         connection->httpcode = 503;
         return MHD_YES;
     }

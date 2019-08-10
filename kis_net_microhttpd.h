@@ -377,7 +377,7 @@ public:
 
     // Interrogate the session handler and figure out if this connection has a
     // valid session; optionally sends basic auth failure automatically
-    bool HasValidSession(kis_net_httpd_connection *connection, bool send_reject = true);
+    bool has_valid_session(kis_net_httpd_connection *connection, bool send_reject = true);
 
     // Create a session; if connection is not null, insert session into connection.
     // If response is not null, append to the response

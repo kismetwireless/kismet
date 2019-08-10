@@ -730,7 +730,7 @@ int alert_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
         return 1;
     }
 
-    if (!httpd->HasValidSession(concls, true)) {
+    if (!httpd->has_valid_session(concls, true)) {
         concls->httpcode = 503;
         return MHD_NO;
     }
