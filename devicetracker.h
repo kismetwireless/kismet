@@ -160,14 +160,14 @@ public:
     // Typically used to build a subset of devices for serialization
     void match_on_devices(std::shared_ptr<device_tracker_filter_worker> worker, bool batch = true);
     // Perform a read-only match; MAY NOT edit devices in the worker!
-    void match_on_readonly_devices(std::shared_ptr<device_tracker_filter_worker> worker, bool batch = true);
+    void do_readonly_device_work(std::shared_ptr<device_tracker_filter_worker> worker, bool batch = true);
 
     // Perform a device filter as above, but provide a source vec rather than the
     // list of ALL devices.  The source vector is duplicated under mutex and then processed.
     void match_on_devices(std::shared_ptr<device_tracker_filter_worker> worker, 
             std::shared_ptr<tracker_element_vector> source_vec, bool batch = true);
     // Perform a readonly filter, MUST NOT modify devices
-    void match_on_readonly_devices(std::shared_ptr<device_tracker_filter_worker> worker, 
+    void do_readonly_device_work(std::shared_ptr<device_tracker_filter_worker> worker, 
             std::shared_ptr<tracker_element_vector> source_vec, bool batch = true);
 
     // Perform a device filter as above, but provide a source vec rather than the
