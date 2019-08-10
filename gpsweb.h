@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -31,10 +31,10 @@
 // Accept GPS location from HTTP POST, allows using a phone browser as a
 // GPS source
 
-class GPSWeb : public kis_gps, public kis_net_httpd_cppstream_handler {
+class kis_gps_web : public kis_gps, public kis_net_httpd_cppstream_handler {
 public:
-    GPSWeb(shared_gps_builder in_builder);
-    virtual ~GPSWeb();
+    kis_gps_web(shared_gps_builder in_builder);
+    virtual ~kis_gps_web();
 
     virtual bool open_gps(std::string in_opts);
 
@@ -76,7 +76,7 @@ public:
     }
 
     virtual shared_gps build_gps(shared_gps_builder in_builder) override {
-        return shared_gps(new GPSWeb(in_builder));
+        return shared_gps(new kis_gps_web(in_builder));
     }
 };
 

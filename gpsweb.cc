@@ -23,18 +23,18 @@
 
 // Don't bind to the http server until we're created, so pass a null to
 // the stream_handler init
-GPSWeb::GPSWeb(shared_gps_builder in_builder) : 
+kis_gps_web::kis_gps_web(shared_gps_builder in_builder) : 
     kis_gps(in_builder),
     kis_net_httpd_cppstream_handler() {
 
     last_heading_time = 0;
 }
 
-GPSWeb::~GPSWeb() {
+kis_gps_web::~kis_gps_web() {
 
 }
 
-bool GPSWeb::open_gps(std::string in_opts) {
+bool kis_gps_web::open_gps(std::string in_opts) {
     local_locker lock(gps_mutex);
 
     if (!kis_gps::open_gps(in_opts)) {
@@ -48,7 +48,7 @@ bool GPSWeb::open_gps(std::string in_opts) {
     return true;
 }
 
-bool GPSWeb::get_location_valid() {
+bool kis_gps_web::get_location_valid() {
     local_locker lock(gps_mutex);
 
     if (gps_location == NULL) {
@@ -67,7 +67,7 @@ bool GPSWeb::get_location_valid() {
     return true;
 }
 
-bool GPSWeb::get_device_connected() {
+bool kis_gps_web::get_device_connected() {
     if (gps_location == NULL)
         return false;
 
@@ -79,7 +79,7 @@ bool GPSWeb::get_device_connected() {
     return true;
 }
 
-bool GPSWeb::httpd_verify_path(const char *path, const char *method) {
+bool kis_gps_web::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "POST") == 0 &&
             strcmp(path, "/gps/web/update.cmd") == 0) {
         return true;
@@ -88,14 +88,14 @@ bool GPSWeb::httpd_verify_path(const char *path, const char *method) {
     return false;
 }
 
-void GPSWeb::httpd_create_stream_response(kis_net_httpd *httpd,
+void kis_gps_web::httpd_create_stream_response(kis_net_httpd *httpd,
         kis_net_httpd_connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
     return;
 }
 
-int GPSWeb::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind, 
+int kis_gps_web::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind, 
         const char *key, const char *filename, const char *content_type,
         const char *transfer_encoding, const char *data, 
         uint64_t off, size_t size) {
