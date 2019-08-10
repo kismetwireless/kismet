@@ -81,8 +81,8 @@ public:
         return json.is_bool();
     }
 
-    virtual bool isString() {
-        return json.isString();
+    virtual bool is_string() {
+        return json.is_string();
     }
 
     virtual bool isArray() {
@@ -95,7 +95,7 @@ public:
 
     // Binary in json is an encoded string
     virtual bool isBinary() {
-        return isString();
+        return is_string();
     }
 
     virtual double getNumber() {
@@ -104,17 +104,17 @@ public:
     }
 
     virtual std::string getString() {
-        except_if_not(isString(), "string");
+        except_if_not(is_string(), "string");
         return json.asString();
     }
 
     virtual std::string getBinaryStr() {
-        except_if_not(isString(), "binary string");
+        except_if_not(is_string(), "binary string");
         return hexstr_to_binstr(getString().c_str());
     }
 
     virtual bool getBool() {
-        except_if_not(is_bool() || isString(), "Boolean");
+        except_if_not(is_bool() || is_string(), "Boolean");
         return json.asBool();
     }
 
@@ -185,7 +185,7 @@ public:
 
         shared_structured v = getStructuredByKey(key);
 
-        if (!v->isString())
+        if (!v->is_string())
             return def;
 
         return v->getString();

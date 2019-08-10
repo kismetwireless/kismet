@@ -486,7 +486,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
             structured_data::structured_vec fvec = fields->getStructuredArray();
 
             for (const auto& i : fvec) {
-                if (i->isString()) {
+                if (i->is_string()) {
                     auto s = std::make_shared<tracker_element_summary>(i->getString());
                     summary_vec.push_back(s);
                 } else if (i->isArray()) {

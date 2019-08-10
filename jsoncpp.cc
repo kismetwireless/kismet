@@ -3901,7 +3901,7 @@ bool Value::isDouble() const { return type_ == intValue || type_ == uintValue ||
 
 bool Value::isNumeric() const { return isDouble(); }
 
-bool Value::isString() const { return type_ == stringValue; }
+bool Value::is_string() const { return type_ == stringValue; }
 
 bool Value::isArray() const { return type_ == arrayValue; }
 

@@ -105,7 +105,7 @@ std::shared_ptr<tracker_element> kishttpd::SummarizeWithStructured(std::shared_p
         auto fvec = fields->getStructuredArray();
 
         for (const auto& i : fvec) {
-            if (i->isString()) {
+            if (i->is_string()) {
                 auto s = std::make_shared<tracker_element_summary>(i->getString());
                 summary_vec.push_back(s);
             } else if (i->isArray()) {
@@ -1388,7 +1388,7 @@ int kis_net_httpd_simple_tracked_endpoint::httpd_post_complete(kis_net_httpd_con
             structured_data::structured_vec fvec = fields->getStructuredArray();
 
             for (const auto& i : fvec) {
-                if (i->isString()) {
+                if (i->is_string()) {
                     auto s = std::make_shared<tracker_element_summary>(i->getString());
                     summary_vec.push_back(s);
                 } else if (i->isArray()) {
@@ -1597,7 +1597,7 @@ int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_post_complete(kis_net_ht
             structured_data::structured_vec fvec = fields->getStructuredArray();
 
             for (const auto& i : fvec) {
-                if (i->isString()) {
+                if (i->is_string()) {
                     auto s = std::make_shared<tracker_element_summary>(i->getString());
                     summary_vec.push_back(s);
                 } else if (i->isArray()) {
@@ -1800,7 +1800,7 @@ int kis_net_httpd_path_tracked_endpoint::httpd_post_complete(kis_net_httpd_conne
             structured_data::structured_vec fvec = fields->getStructuredArray();
 
             for (const auto& i : fvec) {
-                if (i->isString()) {
+                if (i->is_string()) {
                     auto s = std::make_shared<tracker_element_summary>(i->getString());
                     summary_vec.push_back(s);
                 } else if (i->isArray()) {

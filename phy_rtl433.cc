@@ -118,7 +118,7 @@ mac_addr Kis_RTL433_Phy::json_to_mac(Json::Value json) {
 
     if (json.isMember("model")) {
         Json::Value m = json["model"];
-        if (m.isString()) {
+        if (m.is_string()) {
             smodel = m.asString();
         }
     }
@@ -180,7 +180,7 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
         Json::Value c = json["channel"];
         if (c.isNumeric()) {
             common->channel = IntToString(c.asInt());
-        } else if (c.isString()) {
+        } else if (c.is_string()) {
             common->channel = MungeToPrintable(c.asString());
         }
     }
@@ -235,7 +235,7 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
                 ss << id_j.asUInt64();
                 commondev->set_rtlid(ss.str());
                 set_id = true;
-            } else if (id_j.isString()) {
+            } else if (id_j.is_string()) {
                 commondev->set_rtlid(id_j.asString());
                 set_id = true;
             }
@@ -248,7 +248,7 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
                 ss << device_j.asUInt64();
                 commondev->set_rtlid(ss.str());
                 set_id = true;
-            } else if (device_j.isString()) {
+            } else if (device_j.is_string()) {
                 commondev->set_rtlid(device_j.asString());
                 set_id = true;
             }
@@ -266,14 +266,14 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
 
         if (channel_j.isNumeric())
             commondev->set_rtlchannel(IntToString(channel_j.asInt()));
-        else if (channel_j.isString())
+        else if (channel_j.is_string())
             commondev->set_rtlchannel(MungeToPrintable(channel_j.asString()));
     }
 
     if (json.isMember("battery")) {
         auto battery_j = json["battery"];
 
-        if (battery_j.isString())
+        if (battery_j.is_string())
             commondev->set_battery(MungeToPrintable(battery_j.asString()));
     }
 
@@ -342,7 +342,7 @@ bool Kis_RTL433_Phy::is_thermometer(Json::Value json) {
 bool Kis_RTL433_Phy::is_tpms(Json::Value json) {
     auto type_j = json["type"];
 
-    if (type_j.isString() && type_j.asString() == "TPMS")
+    if (type_j.is_string() && type_j.asString() == "TPMS")
         return true;
 
     return false;
@@ -481,7 +481,7 @@ void Kis_RTL433_Phy::add_tpms(Json::Value json, std::shared_ptr<tracker_element_
     auto state_j = json["state"];
     auto code_j = json["code"];
 
-    if (type_j.isString() && type_j.asString() == "TPMS") {
+    if (type_j.is_string() && type_j.asString() == "TPMS") {
         auto tpmsdev = 
             rtlholder->get_sub_as<rtl433_tracked_tpms>(rtl433_tpms_id);
 
@@ -499,19 +499,19 @@ void Kis_RTL433_Phy::add_tpms(Json::Value json, std::shared_ptr<tracker_element_
             tpmsdev->set_pressure_kpa(pressurekpa_j.asDouble());
         }
 
-        if (flags_j.isString()) {
+        if (flags_j.is_string()) {
             tpmsdev->set_flags(flags_j.asString());
         }
 
-        if (checksum_j.isString()) {
+        if (checksum_j.is_string()) {
             tpmsdev->set_checksum(checksum_j.asString());
         }
 
-        if (state_j.isString()) {
+        if (state_j.is_string()) {
             tpmsdev->set_state(state_j.asString());
         }
 
-        if (code_j.isString()) {
+        if (code_j.is_string()) {
             tpmsdev->set_code(code_j.asString());
         }
 
@@ -555,7 +555,7 @@ void Kis_RTL433_Phy::add_switch(Json::Value json, std::shared_ptr<tracker_elemen
             if (v_j.isNull())
                 break;
 
-            if (v_j.isString()) {
+            if (v_j.is_string()) {
                 if (v_j.asString() == "OPEN")
                     v = 1;
             } else if (v_j.isNumeric()) {
