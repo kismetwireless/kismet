@@ -158,7 +158,7 @@ size_t buffer_handler_generic::consume_read_buffer_data(size_t in_sz) {
     return 0;
 }
 
-size_t buffer_handler_generic::ConsumeWriteBufferData(size_t in_sz) {
+size_t buffer_handler_generic::consume_write_buffer_data(size_t in_sz) {
     size_t sz;
 
     if (write_buffer) {

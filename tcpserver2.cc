@@ -304,7 +304,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                 } else {
                     // Consume whatever we managed to write
                     i->second->peek_free_write_buffer_data(buf);
-                    i->second->ConsumeWriteBufferData(ret);
+                    i->second->consume_write_buffer_data(ret);
                 }
             } else {
                 i->second->peek_free_write_buffer_data(buf);

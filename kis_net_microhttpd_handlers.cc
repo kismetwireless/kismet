@@ -296,7 +296,7 @@ ssize_t kis_net_httpd_buffer_stream_handler::buffer_event_cb(void *cls, uint64_t
 
     // Clean up the writebuffer access
     rbh->peek_free_write_buffer_data(zbuf);
-    rbh->ConsumeWriteBufferData(read_sz);
+    rbh->consume_write_buffer_data(read_sz);
 
     // Unlock the stream
     stream_aux->get_buffer_event_mutex()->unlock();
@@ -325,7 +325,7 @@ static void free_buffer_aux_callback(void *cls) {
         read_sz = rbh->zero_copy_peek_write_buffer_data((void **) &zbuf, 1024);
 
         rbh->peek_free_write_buffer_data(zbuf);
-        rbh->ConsumeWriteBufferData(read_sz);
+        rbh->consume_write_buffer_data(read_sz);
 
         if (read_sz == 0)
             break;
