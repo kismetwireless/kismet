@@ -78,7 +78,7 @@ public:
     // If this is inappropriate for your endpoint, for instance if you are
     // implementing some sort of file upload, then this function should
     // return 'true' and you should implement it in Httpd_PostIterator
-    virtual bool Httpd_UseCustomPostIterator() {
+    virtual bool httpd_use_custom_post_iterator() {
         return false;
     }
 
@@ -88,7 +88,7 @@ public:
         return MHD_NO;
     }
 
-    // If Httpd_UseCustomPostIterator() is true, this is expected to perform
+    // If httpd_use_custom_post_iterator() is true, this is expected to perform
     // a custom handling of POST.  Properly handling post is non-trivial
     //
     // By default does nothing and bails on the post data.
@@ -111,7 +111,7 @@ public:
         return MHD_NO;
     }
 
-    // If Httpd_UseCustomPostIterator() is true, this is expected to perform
+    // If httpd_use_custom_post_iterator() is true, this is expected to perform
     // and cleanup at the end of handling a POST event, for instance, closing
     // files, etc
     virtual void Httpd_PostRequestCompleted(void *cls __attribute__((unused)),

@@ -947,7 +947,7 @@ int kis_net_httpd::http_post_handler(void *coninfo_cls, enum MHD_ValueKind kind,
 
     kis_net_httpd_connection *concls = (kis_net_httpd_connection *) coninfo_cls;
 
-    if (concls->httpdhandler->Httpd_UseCustomPostIterator()) {
+    if (concls->httpdhandler->httpd_use_custom_post_iterator()) {
         return (concls->httpdhandler)->Httpd_PostIterator(coninfo_cls, kind,
                 key, filename, content_type, transfer_encoding, data, off, size);
     } else {
