@@ -371,13 +371,13 @@ public:
     virtual void trigger_deferred_shutdown() override;
 
     // Eventbus event we inject when a new ds is added
-    class EventNewDatasource : public eventbus_event {
+    class event_new_datasource : public eventbus_event {
     public:
         static std::string Event() { return "NEW_DATASOURCE"; }
-        EventNewDatasource(std::shared_ptr<kis_datasource> source) :
+        event_new_datasource(std::shared_ptr<kis_datasource> source) :
             eventbus_event(Event()),
             datasource{source} { }
-        virtual ~EventNewDatasource() {}
+        virtual ~event_new_datasource() {}
 
         std::shared_ptr<kis_datasource> datasource;
     };

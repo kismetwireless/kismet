@@ -951,7 +951,7 @@ void datasource_tracker::merge_source(shared_datasource in_source) {
     } else {
         in_source->set_source_number(++next_source_num);
         uuid_source_num_map[u] = in_source->get_source_number();
-        eventbus->publish(std::make_shared<EventNewDatasource>(in_source));
+        eventbus->publish(std::make_shared<event_new_datasource>(in_source));
     }
 
     // Figure out channel hopping

@@ -164,7 +164,7 @@ Dot11_SsidScan::~Dot11_SsidScan() {
 
 void Dot11_SsidScan::handle_eventbus_evt(std::shared_ptr<eventbus_event> evt) {
     auto source_evt = 
-        std::static_pointer_cast<datasource_tracker::EventNewDatasource>(evt);
+        std::static_pointer_cast<datasource_tracker::event_new_datasource>(evt);
 
 }
 
