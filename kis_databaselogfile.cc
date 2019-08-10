@@ -1770,7 +1770,7 @@ unsigned int kis_database_logfile::make_poi_endp_handler(std::ostream& ostream,
     if (structured != nullptr) {
         if (structured->has_key("note")) {
             poi_data = "{\"note\": \"" +
-                json_adapter::SanitizeString(structured->getKeyAsString("note")) +
+                json_adapter::sanitize_string(structured->getKeyAsString("note")) +
                         "\"}";
         }
     }

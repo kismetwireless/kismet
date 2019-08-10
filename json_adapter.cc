@@ -36,7 +36,7 @@
 #include "devicetracker_component.h"
 #include "json_adapter.h"
 
-/* StringExtraSpace and SanitizeString taken from nlohmann's jsonhpp library,
+/* StringExtraSpace and sanitize_string taken from nlohmann's jsonhpp library,
    Copyright 2013-2015 Niels Lohmann. and under the MIT license */
 std::size_t json_adapter::StringExtraSpace(const std::string& s) noexcept {
     std::size_t result = 0;
@@ -71,7 +71,7 @@ std::size_t json_adapter::StringExtraSpace(const std::string& s) noexcept {
     return result;
 }
 
-std::string json_adapter::SanitizeString(const std::string& s) noexcept {
+std::string json_adapter::sanitize_string(const std::string& s) noexcept {
     const auto space = StringExtraSpace(s);
     if (space == 0) {
         return s;
@@ -196,7 +196,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
 
     switch (e->get_type()) {
         case tracker_type::tracker_string:
-            stream << "\"" << SanitizeString(GetTrackerValue<std::string>(e)) << "\"";
+            stream << "\"" << sanitize_string(GetTrackerValue<std::string>(e)) << "\"";
             break;
         case tracker_type::tracker_int8:
             stream << (int) GetTrackerValue<int8_t>(e);
@@ -345,16 +345,16 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                         }
                     }
 
-                    tname = SanitizeString(tname);
+                    tname = sanitize_string(tname);
 
                     if (prettyprint) {
                         stream << indent << "\"description." << tname << "\": ";
                         stream << "\"";
                         if (i.second != nullptr) {
-                            stream << SanitizeString(i.second->get_type_as_string());
+                            stream << sanitize_string(i.second->get_type_as_string());
                             stream << ", ";
                         }
-                        stream << SanitizeString(Globalreg::globalreg->entrytracker->get_field_description(i.first));
+                        stream << sanitize_string(Globalreg::globalreg->entrytracker->get_field_description(i.first));
                         stream << "\",";
                         stream << ppendl;
                     }
@@ -470,7 +470,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                 prepend_comma = true;
 
                 if (!as_vector) {
-                    stream << indent << "\"" << json_adapter::SanitizeString(i.first) << "\"";
+                    stream << indent << "\"" << json_adapter::sanitize_string(i.first) << "\"";
 
                     if (!as_key_vector)
                         stream << ": ";
@@ -696,12 +696,12 @@ void StorageJsonAdapter::pack(std::ostream &stream, shared_tracker_element e,
 
     // Name metadata; duplicate if we're a nested field object but consistent
     stream << "\"on\": \"";
-    stream << json_adapter::SanitizeString(Globalreg::globalreg->entrytracker->get_field_name(e->get_id()));
+    stream << json_adapter::sanitize_string(Globalreg::globalreg->entrytracker->get_field_name(e->get_id()));
     stream << "\",";
 
     // Type metadata; raw element type
     stream << "\"ot\": \"";
-    stream << json_adapter::SanitizeString(tracker_element::type_to_typestring(e->get_type()));
+    stream << json_adapter::sanitize_string(tracker_element::type_to_typestring(e->get_type()));
     stream << "\",";
 
     // Actual data blob for object
@@ -709,7 +709,7 @@ void StorageJsonAdapter::pack(std::ostream &stream, shared_tracker_element e,
 
     switch (e->get_type()) {
         case tracker_type::tracker_string:
-            stream << "\"" << json_adapter::SanitizeString(GetTrackerValue<std::string>(e)) << "\"";
+            stream << "\"" << json_adapter::sanitize_string(GetTrackerValue<std::string>(e)) << "\"";
             break;
         case tracker_type::tracker_int8:
             stream << (int) GetTrackerValue<int8_t>(e);
@@ -835,7 +835,7 @@ void StorageJsonAdapter::pack(std::ostream &stream, shared_tracker_element e,
                     }
                 }
 
-                tname = json_adapter::SanitizeString(tname);
+                tname = json_adapter::sanitize_string(tname);
 
                 stream << "\"" << tname << "\":";
 
@@ -892,7 +892,7 @@ void StorageJsonAdapter::pack(std::ostream &stream, shared_tracker_element e,
                     stream << ",";
                 prepend_comma = true;
 
-                stream << "\"" << json_adapter::SanitizeString(i.first) << "\": ";
+                stream << "\"" << json_adapter::sanitize_string(i.first) << "\": ";
                 StorageJsonAdapter::pack(stream, i.second, name_map);
             }
             stream << "}";
