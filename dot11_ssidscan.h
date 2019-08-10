@@ -83,22 +83,22 @@
  *
  */
 
-class Dot11_SsidScan : public lifetime_global {
+class dot11_ssid_scan : public lifetime_global {
 public:
     static std::string global_name() { return "DOT11_SSIDSCAN"; }
 
-    static std::shared_ptr<Dot11_SsidScan> create_ssidscan() {
-        std::shared_ptr<Dot11_SsidScan> shared(new Dot11_SsidScan());
+    static std::shared_ptr<dot11_ssid_scan> create_ssidscan() {
+        std::shared_ptr<dot11_ssid_scan> shared(new dot11_ssid_scan());
         Globalreg::globalreg->register_lifetime_global(shared);
         Globalreg::globalreg->insert_global(global_name(), shared);
         return shared;
     }
 
 private:
-    Dot11_SsidScan();
+    dot11_ssid_scan();
 
 public:
-    virtual ~Dot11_SsidScan();
+    virtual ~dot11_ssid_scan();
 
 protected:
     kis_recursive_timed_mutex mutex;

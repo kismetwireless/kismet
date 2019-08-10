@@ -22,7 +22,7 @@
 #include "dot11_ssidscan.h"
 #include "entrytracker.h"
 
-Dot11_SsidScan::Dot11_SsidScan() {
+dot11_ssid_scan::dot11_ssid_scan() {
     timetracker = 
         Globalreg::fetch_mandatory_global_as<time_tracker>();
     hopping_mode_end_timer = -1;
@@ -155,20 +155,20 @@ Dot11_SsidScan::Dot11_SsidScan() {
 
 }
 
-Dot11_SsidScan::~Dot11_SsidScan() {
+dot11_ssid_scan::~dot11_ssid_scan() {
     eventbus->remove_listener(eventbus_id);
     timetracker->RemoveTimer(hopping_mode_end_timer);
     timetracker->RemoveTimer(capture_mode_end_timer);
 
 }
 
-void Dot11_SsidScan::handle_eventbus_evt(std::shared_ptr<eventbus_event> evt) {
+void dot11_ssid_scan::handle_eventbus_evt(std::shared_ptr<eventbus_event> evt) {
     auto source_evt = 
         std::static_pointer_cast<datasource_tracker::event_new_datasource>(evt);
 
 }
 
-unsigned int Dot11_SsidScan::config_endp_handler(std::ostream& stream, const std::string& url,
+unsigned int dot11_ssid_scan::config_endp_handler(std::ostream& stream, const std::string& url,
         shared_structured post_structured, kis_net_httpd_connection::variable_cache_map& variable_cache) {
 
     try {
@@ -214,7 +214,7 @@ unsigned int Dot11_SsidScan::config_endp_handler(std::ostream& stream, const std
     return 500;
 }
 
-bool Dot11_SsidScan::enable_ssidscan() {
+bool dot11_ssid_scan::enable_ssidscan() {
     local_locker l(&mutex);
 
     ssidscan_enabled->set(true);
@@ -223,7 +223,7 @@ bool Dot11_SsidScan::enable_ssidscan() {
     return false;
 }
 
-bool Dot11_SsidScan::disable_ssidscan() {
+bool dot11_ssid_scan::disable_ssidscan() {
     local_locker l(&mutex);
 
     ssidscan_enabled->set(true);
