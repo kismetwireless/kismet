@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -35,24 +35,24 @@
  *
  */
 
-class Kis_Httpd_Registry : public kis_net_httpd_cppstream_handler, 
+class kis_httpd_registry : public kis_net_httpd_cppstream_handler, 
     public lifetime_global {
 public:
     static std::string global_name() { return "WEBREGISTRY"; }
 
-    static std::shared_ptr<Kis_Httpd_Registry> 
+    static std::shared_ptr<kis_httpd_registry> 
         create_http_registry(global_registry *in_globalreg) {
-            std::shared_ptr<Kis_Httpd_Registry> mon(new Kis_Httpd_Registry(in_globalreg));
+            std::shared_ptr<kis_httpd_registry> mon(new kis_httpd_registry(in_globalreg));
             in_globalreg->register_lifetime_global(mon);
             in_globalreg->insert_global(global_name(), mon);
             return mon;
     }
 
 private:
-    Kis_Httpd_Registry(global_registry *in_globalreg);
+    kis_httpd_registry(global_registry *in_globalreg);
 
 public:
-    ~Kis_Httpd_Registry();
+    ~kis_httpd_registry();
 
     // Register a javascript module
     virtual bool register_js_module(std::string in_module, std::string in_path);

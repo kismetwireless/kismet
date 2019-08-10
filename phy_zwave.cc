@@ -53,7 +53,7 @@ Kis_Zwave_Phy::Kis_Zwave_Phy(global_registry *in_globalreg, int in_phyid) :
 
     // Register js module for UI
     auto httpregistry = 
-        Globalreg::fetch_mandatory_global_as<Kis_Httpd_Registry>("WEBREGISTRY");
+        Globalreg::fetch_mandatory_global_as<kis_httpd_registry>("WEBREGISTRY");
     httpregistry->register_js_module("kismet_ui_zwave", "js/kismet.ui.zwave.js");
 }
 

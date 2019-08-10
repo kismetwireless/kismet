@@ -65,7 +65,7 @@ Kis_RTLAMR_Phy::Kis_RTLAMR_Phy(global_registry *in_globalreg, int in_phyid) :
     rtl_manuf = Globalreg::globalreg->manufdb->MakeManuf("RTLAMR");
 
     // Register js module for UI
-    auto httpregistry = Globalreg::fetch_mandatory_global_as<Kis_Httpd_Registry>();
+    auto httpregistry = Globalreg::fetch_mandatory_global_as<kis_httpd_registry>();
     httpregistry->register_js_module("kismet_ui_rtlamr", "js/kismet.ui.rtlamr.js");
 
 	packetchain->RegisterHandler(&PacketHandler, this, CHAINPOS_CLASSIFIER, -100);

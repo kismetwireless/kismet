@@ -63,7 +63,7 @@ Kis_Mousejack_Phy::Kis_Mousejack_Phy(global_registry *in_globalreg, int in_phyid
 
     /*
     auto httpregistry = 
-        Globalreg::fetch_mandatory_global_as<Kis_Httpd_Registry>("WEBREGISTRY");
+        Globalreg::fetch_mandatory_global_as<kis_httpd_registry>("WEBREGISTRY");
         */
 
     // Make the manuf string

@@ -22,7 +22,7 @@
 #include "configfile.h"
 #include "kis_httpd_registry.h"
 
-Kis_Httpd_Registry::Kis_Httpd_Registry(global_registry *in_globalreg) :
+kis_httpd_registry::kis_httpd_registry(global_registry *in_globalreg) :
     kis_net_httpd_cppstream_handler(), 
     lifetime_global() {
 
@@ -31,12 +31,12 @@ Kis_Httpd_Registry::Kis_Httpd_Registry(global_registry *in_globalreg) :
     Bind_Httpd_Server();
 }
 
-Kis_Httpd_Registry::~Kis_Httpd_Registry() {
+kis_httpd_registry::~kis_httpd_registry() {
     local_locker lock(&reg_lock);
 
 }
 
-bool Kis_Httpd_Registry::register_js_module(std::string in_module, std::string in_path) {
+bool kis_httpd_registry::register_js_module(std::string in_module, std::string in_path) {
     local_locker lock(&reg_lock);
 
     if (js_module_path_map.find(in_module) != js_module_path_map.end()) {
@@ -64,7 +64,7 @@ bool Kis_Httpd_Registry::register_js_module(std::string in_module, std::string i
     return true;
 }
 
-bool Kis_Httpd_Registry::httpd_verify_path(const char *path, const char *method) {
+bool kis_httpd_registry::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0)
         return false;
 
@@ -77,7 +77,7 @@ bool Kis_Httpd_Registry::httpd_verify_path(const char *path, const char *method)
     return false;
 }
 
-void Kis_Httpd_Registry::httpd_create_stream_response(kis_net_httpd *httpd,
+void kis_httpd_registry::httpd_create_stream_response(kis_net_httpd *httpd,
         kis_net_httpd_connection *connection,
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {

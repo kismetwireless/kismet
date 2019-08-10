@@ -804,7 +804,7 @@ int main(int argc, char *argv[], char *envp[]) {
         SpindownKismet(pollabletracker);
 
     // Add module registry
-    Kis_Httpd_Registry::create_http_registry(globalregistry);
+    kis_httpd_registry::create_http_registry(globalregistry);
 
     if (globalregistry->fatal_condition)
         SpindownKismet(pollabletracker);

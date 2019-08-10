@@ -483,8 +483,8 @@ void datasource_tracker::trigger_deferred_startup() {
     httpd_pcap = std::make_shared<datasource_tracker_httpd_pcap>();
 
     // Register js module for UI
-    std::shared_ptr<Kis_Httpd_Registry> httpregistry = 
-        Globalreg::fetch_mandatory_global_as<Kis_Httpd_Registry>("WEBREGISTRY");
+    std::shared_ptr<kis_httpd_registry> httpregistry = 
+        Globalreg::fetch_mandatory_global_as<kis_httpd_registry>("WEBREGISTRY");
     httpregistry->register_js_module("kismet_ui_datasources", 
             "js/kismet.ui.datasources.js");
 

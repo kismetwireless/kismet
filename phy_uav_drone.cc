@@ -109,7 +109,7 @@ Kis_UAV_Phy::Kis_UAV_Phy(global_registry *in_globalreg, int in_phyid) :
 
     // Register js module for UI
     auto httpregistry = 
-        Globalreg::fetch_mandatory_global_as<Kis_Httpd_Registry>();
+        Globalreg::fetch_mandatory_global_as<kis_httpd_registry>();
     httpregistry->register_js_module("kismet_ui_uav", "js/kismet.ui.uav.js");
 
     // Parse the ssid regex options
