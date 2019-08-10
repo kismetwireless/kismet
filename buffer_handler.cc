@@ -320,7 +320,7 @@ bool buffer_handler_generic::commit_read_buffer_data(void *in_ptr, size_t in_sz)
     return s;
 }
 
-bool buffer_handler_generic::CommitWriteBufferData(void *in_ptr, size_t in_sz) {
+bool buffer_handler_generic::commit_write_buffer_data(void *in_ptr, size_t in_sz) {
     bool s = false;
 
     {

@@ -367,7 +367,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
     ssize_t r = handler->reserve_write_buffer_data((void **) &retbuf, buf_sz);
 
     if (r != (ssize_t) buf_sz) {
-        handler->CommitWriteBufferData(NULL, 0);
+        handler->commit_write_buffer_data(NULL, 0);
         handler->ProtocolError();
         return -1;
     }
@@ -391,7 +391,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
     epb->original_length = aggregate_block_sz;
 
     // Write the header to the ringbuf
-    write_sz = handler->CommitWriteBufferData(retbuf, buf_sz);
+    write_sz = handler->commit_write_buffer_data(retbuf, buf_sz);
 
     if (!write_sz) {
         handler->ProtocolError();

@@ -337,7 +337,7 @@ unsigned int KisExternalInterface::send_packet(std::shared_ptr<KismetExternal::C
 
     // Reserve the frame in the buffer
     if (ringbuf_handler->reserve_write_buffer_data((void **) &frame, frame_sz) < frame_sz || frame == nullptr) {
-        ringbuf_handler->CommitWriteBufferData(NULL, 0);
+        ringbuf_handler->commit_write_buffer_data(NULL, 0);
         _MSG("Kismet external interface couldn't find space in the output buffer for "
                 "the next command, something may have stalled.", MSGFLAG_ERROR);
         trigger_error("write buffer full");
@@ -356,7 +356,7 @@ unsigned int KisExternalInterface::send_packet(std::shared_ptr<KismetExternal::C
     frame->data_checksum = kis_hton32(data_csum);
 
     // Commit our write buffer
-    ringbuf_handler->CommitWriteBufferData((void *) frame, frame_sz);
+    ringbuf_handler->commit_write_buffer_data((void *) frame, frame_sz);
 
     return c->seqno();
 }

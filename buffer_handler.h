@@ -234,7 +234,7 @@ public:
     // or of the pointer they are given.
     //
     // Callers must conclude the write operation with commit_read_buffer_data(..) or
-    // CommitWriteBufferData(..).
+    // commit_write_buffer_data(..).
     //
     // Only one block of data may be reserved at a time.
     //
@@ -247,7 +247,7 @@ public:
     // appropriate for incoming data streams being written to a buffer.
     //
     // Callers must conclude the write operation with commit_read_buffer_data(..) or
-    // CommitWriteBufferData(..)
+    // commit_write_buffer_data(..)
     //
     // Only one block of data may be reserved at a time.
     //
@@ -258,7 +258,7 @@ public:
 
     // Commit a pending reserved data block to the buffer
     virtual bool commit_read_buffer_data(void *in_ptr, size_t in_sz);
-    virtual bool CommitWriteBufferData(void *in_ptr, size_t in_sz);
+    virtual bool commit_write_buffer_data(void *in_ptr, size_t in_sz);
 
     // Clear a buffer
     //
