@@ -56,7 +56,7 @@
 #include "zstr.hpp"
 
 int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
-	return ((device_tracker *) auxdata)->CommonTracker(in_pack);
+	return ((device_tracker *) auxdata)->common_tracker(in_pack);
 }
 
 device_tracker::device_tracker(global_registry *in_globalreg) :
@@ -609,7 +609,7 @@ std::shared_ptr<kis_tracked_device_base> device_tracker::fetch_device(device_key
 	return NULL;
 }
 
-int device_tracker::CommonTracker(kis_packet *in_pack) {
+int device_tracker::common_tracker(kis_packet *in_pack) {
     local_locker lock(&devicelist_mutex);
 
 	if (in_pack->error) {

@@ -207,7 +207,7 @@ public:
 	static void usage(char *argv);
 
 	// Common classifier for keeping phy counts
-	int CommonTracker(kis_packet *in_packet);
+	int common_tracker(kis_packet *in_packet);
 
     // Add common into to a device.  If necessary, create the new device.
     //
