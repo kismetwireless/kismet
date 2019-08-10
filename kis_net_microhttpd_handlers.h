@@ -49,7 +49,7 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) = 0;
 
-    virtual int Httpd_HandlePostRequest(kis_net_httpd *httpd,
+    virtual int httpd_handle_post_request(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection, 
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) = 0;
@@ -144,7 +144,7 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size);
 
-    virtual int Httpd_HandlePostRequest(kis_net_httpd *httpd,
+    virtual int httpd_handle_post_request(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection, 
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size);
@@ -178,7 +178,7 @@ public:
             kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size);
-    virtual int Httpd_HandlePostRequest(kis_net_httpd *httpd,
+    virtual int httpd_handle_post_request(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection, 
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size);

@@ -95,7 +95,7 @@ int kis_net_httpd_cppstream_handler::httpd_handle_get_request(kis_net_httpd *htt
     return MHD_YES;
 }
 
-int kis_net_httpd_cppstream_handler::Httpd_HandlePostRequest(kis_net_httpd *httpd, 
+int kis_net_httpd_cppstream_handler::httpd_handle_post_request(kis_net_httpd *httpd, 
         kis_net_httpd_connection *connection,
         const char *url, const char *method __attribute__((unused)), 
         const char *upload_data __attribute__((unused)),
@@ -424,7 +424,7 @@ int kis_net_httpd_buffer_stream_handler::httpd_handle_get_request(kis_net_httpd 
     return MHD_NO;
 }
 
-int kis_net_httpd_buffer_stream_handler::Httpd_HandlePostRequest(kis_net_httpd *httpd,
+int kis_net_httpd_buffer_stream_handler::httpd_handle_post_request(kis_net_httpd *httpd,
         kis_net_httpd_connection *connection, 
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {

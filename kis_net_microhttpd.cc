@@ -916,7 +916,7 @@ int kis_net_httpd::http_request_handler(void *cls, struct MHD_Connection *connec
         concls->post_complete = true;
 
         // Handle a post req inside the processor and return the results
-        return (concls->httpdhandler)->Httpd_HandlePostRequest(kishttpd, concls, url.c_str(),
+        return (concls->httpdhandler)->httpd_handle_post_request(kishttpd, concls, url.c_str(),
                 method, upload_data, upload_data_size);
     } else {
         // Handle GET + any others
