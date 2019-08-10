@@ -608,7 +608,7 @@ int alert_tracker::find_activated_alert(std::string in_header) {
 }
 
 bool alert_tracker::httpd_verify_path(const char *path, const char *method) {
-    if (!Httpd_CanSerialize(path))
+    if (!httpd_can_serialize(path))
         return false;
 
     if (strcmp(method, "GET") == 0) {
@@ -626,7 +626,7 @@ bool alert_tracker::httpd_verify_path(const char *path, const char *method) {
                 if (tokenurl.size() < 5)
                     return false;
 
-                if (Httpd_CanSerialize(tokenurl[4]))
+                if (httpd_can_serialize(tokenurl[4]))
                     return true;
 
                 return false;
@@ -664,7 +664,7 @@ void alert_tracker::httpd_create_stream_response(
         return;
     }
 
-    if (!Httpd_CanSerialize(path))
+    if (!httpd_can_serialize(path))
         return;
 
     // Split URL and process
@@ -722,7 +722,7 @@ void alert_tracker::httpd_create_stream_response(
 int alert_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
     std::string stripped = Httpd_StripSuffix(concls->url);
    
-    if (!Httpd_CanSerialize(concls->url) ||
+    if (!httpd_can_serialize(concls->url) ||
             (stripped != "/alerts/definitions/define_alert" &&
              stripped != "/alerts/raise_alert")) {
         concls->response_stream << "Invalid request";

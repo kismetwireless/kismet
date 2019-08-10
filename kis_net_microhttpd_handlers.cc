@@ -47,7 +47,7 @@ void kis_net_httpd_handler::bind_httpd_server() {
     httpd->register_handler(this);
 }
 
-bool kis_net_httpd_handler::Httpd_CanSerialize(const std::string& path) {
+bool kis_net_httpd_handler::httpd_can_serialize(const std::string& path) {
     return Globalreg::globalreg->entrytracker->can_serialize(httpd->get_suffix(path));
 }
 

@@ -459,7 +459,7 @@ bool plugin_tracker::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0) 
         return false;
 
-    if (!Httpd_CanSerialize(path))
+    if (!httpd_can_serialize(path))
         return false;
 
     std::string stripped = Httpd_StripSuffix(path);

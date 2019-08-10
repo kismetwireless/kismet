@@ -59,7 +59,7 @@ public:
 
     // Shortcut to checking if the serializer can handle this, since most
     // endpoints will be implementing serialization
-    virtual bool Httpd_CanSerialize(const std::string& path);
+    virtual bool httpd_can_serialize(const std::string& path);
 
     // Shortcut for serializing; expects the path or the final element of the path
     virtual void Httpd_Serialize(const std::string& path, 

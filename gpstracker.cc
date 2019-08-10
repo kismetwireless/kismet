@@ -264,7 +264,7 @@ bool gps_tracker::httpd_verify_path(const char *path, const char *method) {
 
     std::string stripped = Httpd_StripSuffix(path);
     
-    if (!Httpd_CanSerialize(path))
+    if (!httpd_can_serialize(path))
         return false;
 
     if (stripped == "/gps/drivers")

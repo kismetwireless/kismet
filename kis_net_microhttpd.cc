@@ -1253,7 +1253,7 @@ kis_net_httpd_simple_tracked_endpoint::kis_net_httpd_simple_tracked_endpoint(con
 bool kis_net_httpd_simple_tracked_endpoint::httpd_verify_path(const char *path, const char *method) {
     auto stripped = Httpd_StripSuffix(path);
 
-    if (stripped == uri && Httpd_CanSerialize(path))
+    if (stripped == uri && httpd_can_serialize(path))
         return true;
 
     return false;
@@ -1462,7 +1462,7 @@ kis_net_httpd_simple_unauth_tracked_endpoint::kis_net_httpd_simple_unauth_tracke
 bool kis_net_httpd_simple_unauth_tracked_endpoint::httpd_verify_path(const char *path, const char *method) {
     auto stripped = Httpd_StripSuffix(path);
 
-    if (stripped == uri && Httpd_CanSerialize(path))
+    if (stripped == uri && httpd_can_serialize(path))
         return true;
 
     return false;
@@ -1660,7 +1660,7 @@ kis_net_httpd_path_tracked_endpoint::kis_net_httpd_path_tracked_endpoint(
 
 
 bool kis_net_httpd_path_tracked_endpoint::httpd_verify_path(const char *in_path, const char *in_method) {
-    if (!Httpd_CanSerialize(in_path))
+    if (!httpd_can_serialize(in_path))
         return false;
 
     auto stripped = Httpd_StripSuffix(in_path);
@@ -1867,7 +1867,7 @@ bool kis_net_httpd_simple_post_endpoint::httpd_verify_path(const char *path, con
 
     auto stripped = Httpd_StripSuffix(path);
 
-    if (stripped == uri && Httpd_CanSerialize(path)) {
+    if (stripped == uri && httpd_can_serialize(path)) {
         return true;
     }
 
@@ -1964,7 +1964,7 @@ bool kis_net_httpd_path_post_endpoint::httpd_verify_path(const char *in_path, co
     if (strcmp(in_method, "POST") != 0)
         return false;
 
-    if (!Httpd_CanSerialize(in_path))
+    if (!httpd_can_serialize(in_path))
         return false;
 
     auto stripped = Httpd_StripSuffix(in_path);

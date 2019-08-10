@@ -122,7 +122,7 @@ void RestMessageClient::httpd_create_stream_response(
     }
 
     // All paths end in final element
-    if (!Httpd_CanSerialize(path))
+    if (!httpd_can_serialize(path))
         return;
 
     // Split URL and process
@@ -135,7 +135,7 @@ void RestMessageClient::httpd_create_stream_response(
             if (tokenurl.size() < 5)
                 return;
 
-            if (!Httpd_CanSerialize(tokenurl[4]))
+            if (!httpd_can_serialize(tokenurl[4]))
                 return;
 
             long lastts;

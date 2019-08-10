@@ -81,7 +81,7 @@ bool device_tracker::httpd_verify_path(const char *path, const char *method) {
                 if (key.get_error())
                     return false;
 
-                if (!Httpd_CanSerialize(tokenurl[4]))
+                if (!httpd_can_serialize(tokenurl[4]))
                     return false;
 
                 auto tmi = fetch_device(key);
@@ -111,7 +111,7 @@ bool device_tracker::httpd_verify_path(const char *path, const char *method) {
                 if (tokenurl.size() < 5)
                     return false;
 
-                if (!Httpd_CanSerialize(tokenurl[4]))
+                if (!httpd_can_serialize(tokenurl[4]))
                     return false;
 
                 mac_addr mac = mac_addr(tokenurl[3]);
@@ -142,7 +142,7 @@ bool device_tracker::httpd_verify_path(const char *path, const char *method) {
                 if (tokenurl[4] == "devices.ekjson")
                     return true;
 
-                return Httpd_CanSerialize(tokenurl[4]);
+                return httpd_can_serialize(tokenurl[4]);
             }
         }
     } else if (strcmp(method, "POST") == 0) {
@@ -165,7 +165,7 @@ bool device_tracker::httpd_verify_path(const char *path, const char *method) {
                     return false;
                 }
 
-                return Httpd_CanSerialize(tokenurl[4]);
+                return httpd_can_serialize(tokenurl[4]);
             } else if (tokenurl[2] == "by-key") {
                 if (tokenurl.size() < 5) {
                     return false;
@@ -176,7 +176,7 @@ bool device_tracker::httpd_verify_path(const char *path, const char *method) {
                 if (key.get_error())
                     return false;
 
-                if (!Httpd_CanSerialize(tokenurl[4]))
+                if (!httpd_can_serialize(tokenurl[4]))
                     return false;
 
                 if (fetch_device(key) == NULL)
@@ -199,7 +199,7 @@ bool device_tracker::httpd_verify_path(const char *path, const char *method) {
                 if (tokenurl.size() < 5)
                     return false;
 
-                if (!Httpd_CanSerialize(tokenurl[4]))
+                if (!httpd_can_serialize(tokenurl[4]))
                     return false;
 
                 mac_addr mac = mac_addr(tokenurl[3]);
@@ -300,7 +300,7 @@ int device_tracker::httpd_create_stream_response(
                 return MHD_YES;
             }
 
-            if (!Httpd_CanSerialize(tokenurl[4])) {
+            if (!httpd_can_serialize(tokenurl[4])) {
                 _MSG_ERROR("HTTP request for {}; can't actually serialize.", path);
                 connection->httpcode = 500;
                 return MHD_YES;
@@ -356,7 +356,7 @@ int device_tracker::httpd_create_stream_response(
             if (tokenurl.size() < 5)
                 return MHD_YES;
 
-            if (!Httpd_CanSerialize(tokenurl[4]))
+            if (!httpd_can_serialize(tokenurl[4]))
                 return MHD_YES;
 
             local_shared_locker lock(&devicelist_mutex);
@@ -392,7 +392,7 @@ int device_tracker::httpd_create_stream_response(
                 lastts = now + lastts;
             }
 
-            if (!Httpd_CanSerialize(tokenurl[4]))
+            if (!httpd_can_serialize(tokenurl[4]))
                 return MHD_YES;
 
             std::shared_ptr<tracker_element_vector> devvec;
@@ -539,7 +539,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
 
                 local_demand_locker lock(&devicelist_mutex);
 
-                if (!Httpd_CanSerialize(tokenurl[4])) {
+                if (!httpd_can_serialize(tokenurl[4])) {
                     stream << "Invalid request: Cannot find serializer for file type\n";
                     concls->httpcode = 400;
                     return MHD_YES;
@@ -590,7 +590,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     return MHD_YES;
                 }
 
-                if (!Httpd_CanSerialize(tokenurl[4])) {
+                if (!httpd_can_serialize(tokenurl[4])) {
                     stream << "Invalid request: Cannot serialize field type";
                     concls->httpcode = 400;
                     return MHD_YES;
@@ -671,7 +671,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                 // Is the timestamp an int?
                 long lastts;
                 if (sscanf(tokenurl[3].c_str(), "%ld", &lastts) != 1 ||
-                        !Httpd_CanSerialize(tokenurl[4])) {
+                        !httpd_can_serialize(tokenurl[4])) {
                     stream << "Invalid request";
                     concls->httpcode = 400;
                     return MHD_YES;

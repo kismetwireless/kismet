@@ -1355,7 +1355,7 @@ bool datasource_tracker::httpd_verify_path(const char *path, const char *method)
 
     if (strcmp(method, "GET") == 0) {
         
-        if (!Httpd_CanSerialize(path))
+        if (!httpd_can_serialize(path))
             return false;
 
         std::vector<std::string> tokenurl = StrTokenize(path, "/");
@@ -1418,7 +1418,7 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
 
     std::string stripped = Httpd_StripSuffix(path);
 
-    if (!Httpd_CanSerialize(path))
+    if (!httpd_can_serialize(path))
         return;
 
 
@@ -1526,7 +1526,7 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
 }
 
 int datasource_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
-    if (!Httpd_CanSerialize(concls->url)) {
+    if (!httpd_can_serialize(concls->url)) {
         concls->response_stream << "Invalid request, cannot serialize URL";
         concls->httpcode = 400;
         return MHD_YES;
