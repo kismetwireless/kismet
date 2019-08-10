@@ -26,7 +26,7 @@
 #include "kis_datasource.h"
 
 class kis_datasource_osx_corewlan_wifi;
-typedef std::shared_ptr<kis_datasource_osx_corewlan_wifi> SharedDatasourceOsxCorewlanWifi;
+typedef std::shared_ptr<kis_datasource_osx_corewlan_wifi> shared_datasource_osx_corewlan_wifi;
 
 class kis_datasource_osx_corewlan_wifi : public kis_datasource {
 public:
@@ -76,7 +76,7 @@ public:
     virtual ~DatasourceOsxCorewlanWifiBuilder() { }
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) {
-        return SharedDatasourceOsxCorewlanWifi(new kis_datasource_osx_corewlan_wifi(in_sh_this));
+        return shared_datasource_osx_corewlan_wifi(new kis_datasource_osx_corewlan_wifi(in_sh_this));
     }
 
     virtual void initialize() {
