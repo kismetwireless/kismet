@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -34,15 +34,15 @@
 
 // Can appear in the list as either a numerical frequency or a named
 // channel
-class Channeltracker_V2_Channel : public tracker_component, public SharedGlobalData {
+class channeltracker_v2_channel : public tracker_component, public SharedGlobalData {
 public:
-    Channeltracker_V2_Channel() :
+    channeltracker_v2_channel() :
         tracker_component() {
         register_fields();
         reserve_fields(NULL);
     }
 
-    Channeltracker_V2_Channel(int in_id) :
+    channeltracker_v2_channel(int in_id) :
         tracker_component(in_id) { 
         register_fields();
         reserve_fields(NULL);
@@ -50,7 +50,7 @@ public:
         // last_device_sec = 0;
     }
 
-    Channeltracker_V2_Channel(int in_id, std::shared_ptr<tracker_element_map> e) : 
+    channeltracker_v2_channel(int in_id, std::shared_ptr<tracker_element_map> e) : 
         tracker_component(in_id) {
 
         register_fields();
@@ -60,7 +60,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return adler32_checksum("Channeltracker_V2_Channel");
+        return adler32_checksum("channeltracker_v2_channel");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {

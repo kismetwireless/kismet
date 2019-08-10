@@ -80,7 +80,7 @@ void Channeltracker_V2::register_fields() {
 
     channel_entry_id = 
         register_field("kismet.channeltracker.channel",
-                tracker_element_factory<Channeltracker_V2_Channel>(),
+                tracker_element_factory<channeltracker_v2_channel>(),
                 "channel/frequency entry");
 }
 
@@ -203,7 +203,7 @@ void Channeltracker_V2::update_device_counts(std::map<double, unsigned int> in_c
             continue;
 
         // Update the device RRD for the count
-        std::static_pointer_cast<Channeltracker_V2_Channel>(imi->second)->get_device_rrd()->add_sample(i.second, ts);
+        std::static_pointer_cast<channeltracker_v2_channel>(imi->second)->get_device_rrd()->add_sample(i.second, ts);
     }
 }
 
@@ -219,8 +219,8 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
     if (l1info == nullptr)
         return 1;
 
-    std::shared_ptr<Channeltracker_V2_Channel> freq_channel;
-    std::shared_ptr<Channeltracker_V2_Channel> chan_channel;
+    std::shared_ptr<channeltracker_v2_channel> freq_channel;
+    std::shared_ptr<channeltracker_v2_channel> chan_channel;
 
     // Find or make a frequency record if we know our frequency
     if (l1info->freq_khz != 0) {
@@ -228,11 +228,11 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
 
         if (imi == cv2->frequency_map->end()) {
             freq_channel =
-                std::make_shared<Channeltracker_V2_Channel>(cv2->channel_entry_id);
+                std::make_shared<channeltracker_v2_channel>(cv2->channel_entry_id);
             freq_channel->set_frequency(l1info->freq_khz);
             cv2->frequency_map->insert(l1info->freq_khz, freq_channel);
         } else {
-            freq_channel = std::static_pointer_cast<Channeltracker_V2_Channel>(imi->second);
+            freq_channel = std::static_pointer_cast<channeltracker_v2_channel>(imi->second);
         }
     }
 
@@ -242,12 +242,12 @@ int Channeltracker_V2::PacketChainHandler(CHAINCALL_PARMS) {
 
             if (smi == cv2->channel_map->end()) {
                 chan_channel =
-                    std::make_shared<Channeltracker_V2_Channel>(cv2->channel_entry_id);
+                    std::make_shared<channeltracker_v2_channel>(cv2->channel_entry_id);
 
                 chan_channel->set_channel(common->channel);
                 cv2->channel_map->insert(common->channel, chan_channel);
             } else {
-                chan_channel = std::static_pointer_cast<Channeltracker_V2_Channel>(smi->second);
+                chan_channel = std::static_pointer_cast<channeltracker_v2_channel>(smi->second);
             }
         }
     }
