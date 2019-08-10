@@ -35,7 +35,7 @@
 // This code replaces gpsserial with a new gps driver based on
 // a ringbuffer interface, serialclientv2, and new kis_gps interface.
 
-class GPSSerialV2 : public GPSNMEA {
+class GPSSerialV2 : public kis_gps_nmea {
 public:
     GPSSerialV2(shared_gps_builder in_builder);
     virtual ~GPSSerialV2();

@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -31,14 +31,14 @@
 
 // Generic NMEA parser for GPS
 
-class GPSNMEA : public kis_gps {
+class kis_gps_nmea : public kis_gps {
 public:
-    GPSNMEA(shared_gps_builder in_builder) :
+    kis_gps_nmea(shared_gps_builder in_builder) :
         kis_gps(in_builder),
         nmeahandler {nullptr},
         nmeainterface {nullptr, nullptr} { }
 
-    virtual ~GPSNMEA() { };
+    virtual ~kis_gps_nmea() { };
 
 protected:
     std::shared_ptr<buffer_handler<ringbuf_v2>> nmeahandler;

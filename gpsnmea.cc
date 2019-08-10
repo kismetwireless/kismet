@@ -25,7 +25,7 @@
 #include "gpstracker.h"
 #include "pollabletracker.h"
 
-void GPSNMEA::buffer_available(size_t in_amt) {
+void kis_gps_nmea::buffer_available(size_t in_amt) {
     local_locker lock(gps_mutex);
 
     size_t buf_sz;

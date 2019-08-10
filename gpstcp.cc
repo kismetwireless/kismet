@@ -26,7 +26,7 @@
 #include "pollabletracker.h"
 
 GPSTCP::GPSTCP(shared_gps_builder in_builder) : 
-    GPSNMEA(in_builder) {
+    kis_gps_nmea(in_builder) {
 
     // Defer making buffers until open, because we might be used to make a 
     // builder instance
