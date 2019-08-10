@@ -620,7 +620,7 @@ void ConfigFile::CalculateChecksum() {
         }
     }
 
-    checksum = Adler32Checksum(cks.c_str(), cks.length());
+    checksum = adler32_checksum(cks.c_str(), cks.length());
 }
 
 HeaderValueConfig::HeaderValueConfig(const std::string& in_confline) {

@@ -101,7 +101,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("kis_tracked_rrd");
+        return adler32_checksum("kis_tracked_rrd");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
@@ -448,7 +448,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("kis_tracked_minute_rrd");
+        return adler32_checksum("kis_tracked_minute_rrd");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {

@@ -108,8 +108,8 @@ bool KisGps::open_gps(std::string in_definition) {
         char ubuf[40];
 
         snprintf(ubuf, 40, "%08X-0000-0000-0000-0000%08X",
-                Adler32Checksum("kismet_gps", strlen("kismet_gps")) & 0xFFFFFFFF,
-                Adler32Checksum(id.c_str(), id.length()) & 0xFFFFFFFF);
+                adler32_checksum("kismet_gps", strlen("kismet_gps")) & 0xFFFFFFFF,
+                adler32_checksum(id.c_str(), id.length()) & 0xFFFFFFFF);
         uuid u(ubuf);
 
         set_int_gps_uuid(u);

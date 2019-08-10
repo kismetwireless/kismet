@@ -116,7 +116,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("rtl433_tracked_common");
+        return adler32_checksum("rtl433_tracked_common");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
@@ -181,7 +181,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("rtl433_tracked_thermometer");
+        return adler32_checksum("rtl433_tracked_thermometer");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
@@ -243,7 +243,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("rtl433_tracked_weatherstation");
+        return adler32_checksum("rtl433_tracked_weatherstation");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
@@ -339,7 +339,7 @@ public:
         }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("rtl433_tracked_lightningsensor");
+        return adler32_checksum("rtl433_tracked_lightningsensor");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
@@ -397,7 +397,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("rtl433_tracked_tpms");
+        return adler32_checksum("rtl433_tracked_tpms");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
@@ -459,7 +459,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("rtl433_tracked_switch");
+        return adler32_checksum("rtl433_tracked_switch");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {

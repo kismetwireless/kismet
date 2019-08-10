@@ -159,7 +159,7 @@ void KisExternalInterface::BufferAvailable(size_t in_amt) {
         }
 
         // We have a complete payload, checksum 
-        data_checksum = Adler32Checksum((const char *) frame->data, data_sz);
+        data_checksum = adler32_checksum((const char *) frame->data, data_sz);
 
         if (data_checksum != kis_ntoh32(frame->data_checksum)) {
             ringbuf_handler->PeekFreeReadBufferData(frame);
@@ -352,7 +352,7 @@ unsigned int KisExternalInterface::send_packet(std::shared_ptr<KismetExternal::C
     c->SerializeToArray(frame->data, content_sz);
 
     // Calculate the checksum and set it in the frame
-    data_csum = Adler32Checksum((const char *) frame->data, content_sz); 
+    data_csum = adler32_checksum((const char *) frame->data, content_sz); 
     frame->data_checksum = kis_hton32(data_csum);
 
     // Commit our write buffer

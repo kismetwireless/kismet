@@ -33,7 +33,7 @@ DltTracker::~DltTracker() {
 }
 
 uint32_t DltTracker::register_linktype(const std::string& in_linktype) {
-    uint32_t csum = Adler32Checksum(StrLower(in_linktype));
+    uint32_t csum = adler32_checksum(StrLower(in_linktype));
     
     if (csum < 4096)
         csum += 4096;

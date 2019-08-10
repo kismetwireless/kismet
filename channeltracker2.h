@@ -60,7 +60,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("Channeltracker_V2_Channel");
+        return adler32_checksum("Channeltracker_V2_Channel");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {

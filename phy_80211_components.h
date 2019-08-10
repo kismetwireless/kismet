@@ -64,7 +64,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("dot11_tracked_eapol");
+        return adler32_checksum("dot11_tracked_eapol");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
@@ -131,7 +131,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("dot11_tracked_nonce");
+        return adler32_checksum("dot11_tracked_nonce");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
@@ -217,7 +217,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("dot11_tracked_ssid_alert");
+        return adler32_checksum("dot11_tracked_ssid_alert");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
@@ -281,7 +281,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("dot11_11d_tracked_range_info");
+        return adler32_checksum("dot11_11d_tracked_range_info");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
@@ -333,7 +333,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("dot11_tracked_ietag");
+        return adler32_checksum("dot11_tracked_ietag");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
@@ -389,7 +389,7 @@ public:
         }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("dot11_probed_ssid");
+        return adler32_checksum("dot11_probed_ssid");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
@@ -500,7 +500,7 @@ public:
         }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("dot11_advertised_ssid");
+        return adler32_checksum("dot11_advertised_ssid");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
@@ -729,7 +729,7 @@ public:
         }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("dot11_client");
+        return adler32_checksum("dot11_client");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
@@ -919,7 +919,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("dot11_tracked_device");
+        return adler32_checksum("dot11_tracked_device");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {

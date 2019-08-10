@@ -59,7 +59,7 @@ public:
     virtual ~KisGpsBuilder() { }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("KisGpsBuilder");
+        return adler32_checksum("KisGpsBuilder");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {

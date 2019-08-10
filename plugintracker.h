@@ -146,7 +146,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("PluginRegistrationData");
+        return adler32_checksum("PluginRegistrationData");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {

@@ -220,7 +220,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("datasourcetracker_defaults");
+        return adler32_checksum("datasourcetracker_defaults");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {

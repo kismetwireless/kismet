@@ -116,7 +116,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("tracked_alert");
+        return adler32_checksum("tracked_alert");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
@@ -227,7 +227,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("tracked_alert_definition");
+        return adler32_checksum("tracked_alert_definition");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {

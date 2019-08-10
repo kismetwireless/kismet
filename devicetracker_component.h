@@ -257,7 +257,7 @@ public:
     virtual ~kis_tracked_device_base() { }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("kis_tracked_device_base");
+        return adler32_checksum("kis_tracked_device_base");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {

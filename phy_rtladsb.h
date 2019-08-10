@@ -116,7 +116,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("rtladsb_tracked_common");
+        return adler32_checksum("rtladsb_tracked_common");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
@@ -179,7 +179,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("rtladsb_tracked_adsb");
+        return adler32_checksum("rtladsb_tracked_adsb");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {

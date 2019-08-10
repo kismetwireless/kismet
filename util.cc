@@ -591,11 +591,11 @@ uint32_t Adler32IncrementalChecksum(const char *in_buf, size_t in_len,
     return (*s1 & 0xffff) + (*s2 << 16);
 }
 
-uint32_t Adler32Checksum(const std::string& in_buf) {
-    return Adler32Checksum(in_buf.data(), in_buf.length());
+uint32_t adler32_checksum(const std::string& in_buf) {
+    return adler32_checksum(in_buf.data(), in_buf.length());
 }
 
-uint32_t Adler32Checksum(const char *in_buf, size_t in_len) {
+uint32_t adler32_checksum(const char *in_buf, size_t in_len) {
     uint32_t s1, s2;
 
     s1 = 0;

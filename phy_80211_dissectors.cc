@@ -303,7 +303,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
         return 0;
 
     // Compare the checksum and see if we've recently seen this exact packet
-    uint32_t chunk_csum = Adler32Checksum((const char *) chunk->data, chunk->length);
+    uint32_t chunk_csum = adler32_checksum((const char *) chunk->data, chunk->length);
 
     for (unsigned int c = 0; c < recent_packet_checksums_sz; c++) {
         if (recent_packet_checksums[c] == 0)
@@ -854,7 +854,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                 packinfo->beacon_interval = kis_letoh16(fixparm->beacon);
 
             packinfo->ietag_csum = 
-                Adler32Checksum((const char *) (chunk->data + packinfo->header_offset),
+                adler32_checksum((const char *) (chunk->data + packinfo->header_offset),
                                 chunk->length - packinfo->header_offset);
 
         } else if (fc->subtype == packet_sub_deauthentication) {
@@ -1385,7 +1385,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
 
             packinfo->ssid_len = ie_tag->tag_data().length();
             packinfo->ssid_csum =
-                Adler32Checksum(ie_tag->tag_data().data(), ie_tag->tag_data().length());
+                adler32_checksum(ie_tag->tag_data().data(), ie_tag->tag_data().length());
 
             if (packinfo->ssid_len == 0) {
                 packinfo->ssid_blank = true;

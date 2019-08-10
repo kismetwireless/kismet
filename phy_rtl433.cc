@@ -123,7 +123,7 @@ mac_addr Kis_RTL433_Phy::json_to_mac(Json::Value json) {
         }
     }
 
-    *checksum = Adler32Checksum(smodel.c_str(), smodel.length());
+    *checksum = adler32_checksum(smodel.c_str(), smodel.length());
 
     bool set_model = false;
     if (json.isMember("id")) {

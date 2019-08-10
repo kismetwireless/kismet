@@ -59,7 +59,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("zwave_tracked_device");
+        return adler32_checksum("zwave_tracked_device");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {

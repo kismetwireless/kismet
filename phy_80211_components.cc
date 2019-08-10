@@ -356,7 +356,7 @@ void dot11_tracked_ietag::set_from_tag(std::shared_ptr<dot11_ie::dot11_ie_tag> t
 
             set_tag_vendor_or_sub(tag150.vendor_oui_type());
 
-            set_unique_tag_id(Adler32Checksum(fmt::format("{}{}{}", tag->tag_num(), tag150.vendor_oui_int(), tag150.vendor_oui_type())));
+            set_unique_tag_id(adler32_checksum(fmt::format("{}{}{}", tag->tag_num(), tag150.vendor_oui_int(), tag150.vendor_oui_type())));
 
             return;
         } catch (const std::exception& e) {
@@ -377,7 +377,7 @@ void dot11_tracked_ietag::set_from_tag(std::shared_ptr<dot11_ie::dot11_ie_tag> t
 
             set_tag_vendor_or_sub(tag221.vendor_oui_type());
 
-            set_unique_tag_id(Adler32Checksum(fmt::format("{}{}{}", tag->tag_num(), tag221.vendor_oui_int(), tag221.vendor_oui_type())));
+            set_unique_tag_id(adler32_checksum(fmt::format("{}{}{}", tag->tag_num(), tag221.vendor_oui_int(), tag221.vendor_oui_type())));
 
             return; 
         } catch (const std::exception& e) {
@@ -393,7 +393,7 @@ void dot11_tracked_ietag::set_from_tag(std::shared_ptr<dot11_ie::dot11_ie_tag> t
 
             set_tag_vendor_or_sub(tag255.subtag_num());
             
-            set_unique_tag_id(Adler32Checksum(fmt::format("{}{}", tag->tag_num(), tag255.subtag_num())));
+            set_unique_tag_id(adler32_checksum(fmt::format("{}{}", tag->tag_num(), tag255.subtag_num())));
             return;
         } catch (const std::exception& e) {
             // Do nothing; fall through to setting the tag num

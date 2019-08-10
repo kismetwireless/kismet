@@ -56,7 +56,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("tracked_antenna");
+        return adler32_checksum("tracked_antenna");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {

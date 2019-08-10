@@ -76,7 +76,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("KisDatasourceBuilder");
+        return adler32_checksum("KisDatasourceBuilder");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
@@ -201,7 +201,7 @@ public:
     virtual ~KisDatasource();
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("KisDatasource");
+        return adler32_checksum("KisDatasource");
     }
 
     // Fetch default per-source options.  These override the global defaults,
@@ -732,7 +732,7 @@ public:
     virtual ~KisDatasourceInterface() { };
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("KisDatasourceInterface");
+        return adler32_checksum("KisDatasourceInterface");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {

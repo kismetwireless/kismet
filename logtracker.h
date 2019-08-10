@@ -69,7 +69,7 @@ public:
     virtual ~KisLogfileBuilder() { };
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("KisLogfileBuilder");
+        return adler32_checksum("KisLogfileBuilder");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
@@ -165,7 +165,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("KisLogfile");
+        return adler32_checksum("KisLogfile");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {

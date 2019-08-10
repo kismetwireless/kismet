@@ -64,7 +64,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("uav_tracked_telemetry");
+        return adler32_checksum("uav_tracked_telemetry");
     }
 
     virtual ~uav_tracked_telemetry() { }
@@ -209,7 +209,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("uav_match");
+        return adler32_checksum("uav_match");
     }
 
     __Proxy(uav_match_name, std::string, std::string, std::string, uav_match_name);
@@ -279,7 +279,7 @@ public:
     virtual ~uav_tracked_device() { }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("uav_tracked_device");
+        return adler32_checksum("uav_tracked_device");
     }
 
     __Proxy(uav_manufacturer, std::string, std::string, std::string, uav_manufacturer);
