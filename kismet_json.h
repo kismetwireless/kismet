@@ -103,14 +103,14 @@ public:
         return json.asDouble();
     }
 
-    virtual std::string get_string() {
+    virtual std::string as_string() {
         except_if_not(is_string(), "string");
         return json.asString();
     }
 
     virtual std::string getBinaryStr() {
         except_if_not(is_string(), "binary string");
-        return hexstr_to_binstr(get_string().c_str());
+        return hexstr_to_binstr(as_string().c_str());
     }
 
     virtual bool getBool() {
@@ -176,7 +176,7 @@ public:
     }
 
     virtual std::string getKeyAsString(std::string key) {
-        return getStructuredByKey(key)->get_string();
+        return getStructuredByKey(key)->as_string();
     }
 
     virtual std::string getKeyAsString(std::string key, std::string def) {
@@ -188,7 +188,7 @@ public:
         if (!v->is_string())
             return def;
 
-        return v->get_string();
+        return v->as_string();
     }
 
     virtual bool getKeyAsBool(std::string key) {

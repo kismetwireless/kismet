@@ -487,7 +487,7 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
 
             for (const auto& i : fvec) {
                 if (i->is_string()) {
-                    auto s = std::make_shared<tracker_element_summary>(i->get_string());
+                    auto s = std::make_shared<tracker_element_summary>(i->as_string());
                     summary_vec.push_back(s);
                 } else if (i->is_array()) {
                     auto mapvec = i->getStringVec();

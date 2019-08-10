@@ -106,7 +106,7 @@ std::shared_ptr<tracker_element> kishttpd::SummarizeWithStructured(std::shared_p
 
         for (const auto& i : fvec) {
             if (i->is_string()) {
-                auto s = std::make_shared<tracker_element_summary>(i->get_string());
+                auto s = std::make_shared<tracker_element_summary>(i->as_string());
                 summary_vec.push_back(s);
             } else if (i->is_array()) {
                 auto mapvec = i->getStringVec();
@@ -1389,7 +1389,7 @@ int kis_net_httpd_simple_tracked_endpoint::httpd_post_complete(kis_net_httpd_con
 
             for (const auto& i : fvec) {
                 if (i->is_string()) {
-                    auto s = std::make_shared<tracker_element_summary>(i->get_string());
+                    auto s = std::make_shared<tracker_element_summary>(i->as_string());
                     summary_vec.push_back(s);
                 } else if (i->is_array()) {
                     structured_data::string_vec mapvec = i->getStringVec();
@@ -1598,7 +1598,7 @@ int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_post_complete(kis_net_ht
 
             for (const auto& i : fvec) {
                 if (i->is_string()) {
-                    auto s = std::make_shared<tracker_element_summary>(i->get_string());
+                    auto s = std::make_shared<tracker_element_summary>(i->as_string());
                     summary_vec.push_back(s);
                 } else if (i->is_array()) {
                     structured_data::string_vec mapvec = i->getStringVec();
@@ -1801,7 +1801,7 @@ int kis_net_httpd_path_tracked_endpoint::httpd_post_complete(kis_net_httpd_conne
 
             for (const auto& i : fvec) {
                 if (i->is_string()) {
-                    auto s = std::make_shared<tracker_element_summary>(i->get_string());
+                    auto s = std::make_shared<tracker_element_summary>(i->as_string());
                     summary_vec.push_back(s);
                 } else if (i->is_array()) {
                     structured_data::string_vec mapvec = i->getStringVec();

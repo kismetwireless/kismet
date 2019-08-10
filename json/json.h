@@ -821,7 +821,7 @@ Json::Value obj_value(Json::objectValue); // {}
   /** Get raw char* of string-value.
    *  \return false if !string. (Seg-fault if str or end are NULL.)
    */
-  bool get_string(
+  bool as_string(
       char const** begin, char const** end) const;
 #ifdef JSON_USE_CPPTL
   CppTL::ConstString asConstString() const;
