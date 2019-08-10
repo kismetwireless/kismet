@@ -24,7 +24,7 @@
 #include "kis_datasource.h"
 
 class kis_datasource_kismetdb;
-typedef std::shared_ptr<kis_datasource_kismetdb> SharedDatasourceKismetdb;
+typedef std::shared_ptr<kis_datasource_kismetdb> shared_datasource_kismetdb;
 
 class kis_datasource_kismetdb : public kis_datasource {
 public:
@@ -83,7 +83,7 @@ public:
     virtual ~DatasourceKismetdbBuilder() { }
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) {
-        return SharedDatasourceKismetdb(new kis_datasource_kismetdb(in_sh_this));
+        return shared_datasource_kismetdb(new kis_datasource_kismetdb(in_sh_this));
     }
 
     virtual void initialize() {
