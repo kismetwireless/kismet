@@ -43,10 +43,10 @@ GPSSerialV2::GPSSerialV2(SharedGpsBuilder in_builder) :
             });
 
     pollabletracker =
-        Globalreg::FetchMandatoryGlobalAs<PollableTracker>("POLLABLETRACKER");
+        Globalreg::fetch_mandatory_global-as<PollableTracker>("POLLABLETRACKER");
 
     auto timetracker = 
-        Globalreg::FetchMandatoryGlobalAs<time_tracker>("TIMETRACKER");
+        Globalreg::fetch_mandatory_global-as<time_tracker>("TIMETRACKER");
 
     error_reconnect_timer = 
         timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,

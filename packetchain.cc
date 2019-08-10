@@ -361,7 +361,7 @@ int packet_chain::ProcessPacket(kis_packet *in_pack) {
         if (offt > 30) {
             last_packet_queue_user_warning = time(0);
 
-            auto alertracker = Globalreg::FetchMandatoryGlobalAs<alert_tracker>();
+            auto alertracker = Globalreg::fetch_mandatory_global-as<alert_tracker>();
             alertracker->raise_one_shot("PACKETQUEUE", 
                     "The packet queue has a backlog of " + IntToString(packet_queue.size()) + 
                     " packets; if you have multiple data sources it's possible that your "
@@ -377,7 +377,7 @@ int packet_chain::ProcessPacket(kis_packet *in_pack) {
             last_packet_drop_user_warning = time(0);
 
             std::shared_ptr<alert_tracker> alertracker =
-                Globalreg::FetchMandatoryGlobalAs<alert_tracker>();
+                Globalreg::fetch_mandatory_global-as<alert_tracker>();
             alertracker->raise_one_shot("PACKETLOST", 
                     "Kismet has started to drop packets; the packet queue has a backlog "
                     "of " + IntToString(packet_queue.size()) + " packets.  Your system "

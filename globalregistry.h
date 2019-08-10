@@ -347,7 +347,7 @@ namespace Globalreg {
     }
 
     template<typename T> 
-    std::shared_ptr<T> FetchMandatoryGlobalAs(global_registry *in_globalreg, 
+    std::shared_ptr<T> fetch_mandatory_global-as(global_registry *in_globalreg, 
             const std::string& in_name) {
         std::shared_ptr<T> r = std::static_pointer_cast<T>(in_globalreg->FetchGlobal(in_name));
 
@@ -359,13 +359,13 @@ namespace Globalreg {
     }
 
     template<typename T> 
-    std::shared_ptr<T> FetchMandatoryGlobalAs(const std::string& in_name) {
-        return FetchMandatoryGlobalAs<T>(Globalreg::globalreg, in_name);
+    std::shared_ptr<T> fetch_mandatory_global-as(const std::string& in_name) {
+        return fetch_mandatory_global-as<T>(Globalreg::globalreg, in_name);
     }
 
     template<typename T>
-    std::shared_ptr<T> FetchMandatoryGlobalAs() {
-        return FetchMandatoryGlobalAs<T>(Globalreg::globalreg, T::global_name());
+    std::shared_ptr<T> fetch_mandatory_global-as() {
+        return fetch_mandatory_global-as<T>(Globalreg::globalreg, T::global_name());
     }
 }
 

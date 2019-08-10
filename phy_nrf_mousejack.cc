@@ -42,11 +42,11 @@ Kis_Mousejack_Phy::Kis_Mousejack_Phy(global_registry *in_globalreg, int in_phyid
     SetPhyName("NrfMousejack");
 
     packetchain = 
-        Globalreg::FetchMandatoryGlobalAs<packet_chain>();
+        Globalreg::fetch_mandatory_global-as<packet_chain>();
     entrytracker = 
-        Globalreg::FetchMandatoryGlobalAs<entry_tracker>();
+        Globalreg::fetch_mandatory_global-as<entry_tracker>();
     devicetracker =
-        Globalreg::FetchMandatoryGlobalAs<device_tracker>();
+        Globalreg::fetch_mandatory_global-as<device_tracker>();
 
     mousejack_device_entry_id =
         entrytracker->register_field("nrfmousejack.device",
@@ -58,12 +58,12 @@ Kis_Mousejack_Phy::Kis_Mousejack_Phy(global_registry *in_globalreg, int in_phyid
 
     // Extract the dynamic DLT
     auto dltt = 
-        Globalreg::FetchMandatoryGlobalAs<DltTracker>("DLTTRACKER");
+        Globalreg::fetch_mandatory_global-as<DltTracker>("DLTTRACKER");
     dlt = dltt->register_linktype("NRFMOUSEJACK");
 
     /*
     auto httpregistry = 
-        Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>("WEBREGISTRY");
+        Globalreg::fetch_mandatory_global-as<Kis_Httpd_Registry>("WEBREGISTRY");
         */
 
     // Make the manuf string

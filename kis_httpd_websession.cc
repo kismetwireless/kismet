@@ -38,7 +38,7 @@ Kis_Httpd_Websession::Kis_Httpd_Websession() :
 void Kis_Httpd_Websession::trigger_deferred_startup() {
     local_locker l(&mutex);
 
-    auto alertracker = Globalreg::FetchMandatoryGlobalAs<alert_tracker>();
+    auto alertracker = Globalreg::fetch_mandatory_global-as<alert_tracker>();
 
     global_config = false;
     user_config = false;
@@ -87,7 +87,7 @@ void Kis_Httpd_Websession::trigger_deferred_startup() {
 
     // Fetch our own shared pointer 
     auto websession = 
-        Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Websession>();
+        Globalreg::fetch_mandatory_global-as<Kis_Httpd_Websession>();
 
     httpd->RegisterSessionHandler(websession);
 

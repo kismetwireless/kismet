@@ -121,9 +121,9 @@ PacketfilterMacaddr::PacketfilterMacaddr(const std::string& in_id, const std::st
     register_fields();
     reserve_fields(nullptr);
 
-    devicetracker = Globalreg::FetchMandatoryGlobalAs<device_tracker>();
+    devicetracker = Globalreg::fetch_mandatory_global-as<device_tracker>();
 
-	eventbus = Globalreg::FetchMandatoryGlobalAs<event_bus>();
+	eventbus = Globalreg::fetch_mandatory_global-as<event_bus>();
 	eb_id = 
 		eventbus->register_listener("NEW_PHY",
 				[this](std::shared_ptr<eventbus_event> evt) {
@@ -215,7 +215,7 @@ PacketfilterMacaddr::PacketfilterMacaddr(const std::string& in_id, const std::st
                     return remove_endp_handler(stream, path, post_structured);
                 }, &mutex);
 
-    auto packetchain = Globalreg::FetchMandatoryGlobalAs<packet_chain>();
+    auto packetchain = Globalreg::fetch_mandatory_global-as<packet_chain>();
     pack_comp_common = packetchain->RegisterPacketComponent("COMMON");
 }
 

@@ -45,9 +45,9 @@ GPSTCP::GPSTCP(SharedGpsBuilder in_builder) :
                 buffer_error(in_err);
             });
 
-    pollabletracker = Globalreg::FetchMandatoryGlobalAs<PollableTracker>("POLLABLETRACKER");
+    pollabletracker = Globalreg::fetch_mandatory_global-as<PollableTracker>("POLLABLETRACKER");
 
-    auto timetracker = Globalreg::FetchMandatoryGlobalAs<time_tracker>("TIMETRACKER");
+    auto timetracker = Globalreg::fetch_mandatory_global-as<time_tracker>("TIMETRACKER");
     error_reconnect_timer = 
         timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                 [this](int) -> int {

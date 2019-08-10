@@ -39,7 +39,7 @@ kis_database_logfile::kis_database_logfile():
     MessageClient(Globalreg::globalreg, nullptr) {
 
     std::shared_ptr<packet_chain> packetchain =
-        Globalreg::FetchMandatoryGlobalAs<packet_chain>("PACKETCHAIN");
+        Globalreg::fetch_mandatory_global-as<packet_chain>("PACKETCHAIN");
 
     pack_comp_device = packetchain->RegisterPacketComponent("DEVICE");
     pack_comp_radiodata = packetchain->RegisterPacketComponent("RADIODATA");
@@ -73,7 +73,7 @@ kis_database_logfile::kis_database_logfile():
     snapshot_pz = NULL;
 
     devicetracker =
-        Globalreg::FetchMandatoryGlobalAs<device_tracker>();
+        Globalreg::fetch_mandatory_global-as<device_tracker>();
 
     db_enabled = false;
 
@@ -90,7 +90,7 @@ kis_database_logfile::~kis_database_logfile() {
 
 void kis_database_logfile::trigger_deferred_startup() {
     gpstracker = 
-        Globalreg::FetchMandatoryGlobalAs<GpsTracker>();
+        Globalreg::fetch_mandatory_global-as<GpsTracker>();
 }
 
 void kis_database_logfile::trigger_deferred_shutdown() {
@@ -101,7 +101,7 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
     local_locker dbl(&ds_mutex);
 
     auto timetracker = 
-        Globalreg::FetchMandatoryGlobalAs<time_tracker>("TIMETRACKER");
+        Globalreg::fetch_mandatory_global-as<time_tracker>("TIMETRACKER");
 
     bool dbr = Database_Open(in_path);
 
@@ -134,7 +134,7 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_packets", true)) {
         _MSG("Saving packets to the Kismet database log.", MSGFLAG_INFO);
         std::shared_ptr<packet_chain> packetchain =
-            Globalreg::FetchMandatoryGlobalAs<packet_chain>("PACKETCHAIN");
+            Globalreg::fetch_mandatory_global-as<packet_chain>("PACKETCHAIN");
 
         packetchain->RegisterHandler(&kis_database_logfile::packet_handler, this, 
                 CHAINPOS_LOGGING, -100);
@@ -365,7 +365,7 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
 
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_messages", true)) {
         auto messagebus = 
-            Globalreg::FetchMandatoryGlobalAs<MessageBus>();
+            Globalreg::fetch_mandatory_global-as<MessageBus>();
         messagebus->RegisterClient(this, MSGFLAG_ALL);
     }
 
@@ -394,7 +394,7 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
         });
 
     // Post that we've got the logfile ready
-    auto eventbus = Globalreg::FetchMandatoryGlobalAs<event_bus>();
+    auto eventbus = Globalreg::fetch_mandatory_global-as<event_bus>();
     eventbus->publish(std::make_shared<EventDblogOpened>());
 
     return true;
@@ -1464,7 +1464,7 @@ int kis_database_logfile::httpd_create_stream_response(kis_net_httpd *httpd,
         }
 
         Kis_Net_Httpd_Buffer_Stream_Aux *saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
-        auto streamtracker = Globalreg::FetchMandatoryGlobalAs<StreamTracker>();
+        auto streamtracker = Globalreg::fetch_mandatory_global-as<StreamTracker>();
 
         auto *dbrb = new Pcap_Stream_Database(Globalreg::globalreg, saux->get_rbhandler());
 
@@ -1679,7 +1679,7 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
     // std::cout << query << std::endl;
 
     Kis_Net_Httpd_Buffer_Stream_Aux *saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
-    auto streamtracker = Globalreg::FetchMandatoryGlobalAs<StreamTracker>();
+    auto streamtracker = Globalreg::fetch_mandatory_global-as<StreamTracker>();
 
     auto *dbrb = new Pcap_Stream_Database(Globalreg::globalreg, saux->get_rbhandler());
 

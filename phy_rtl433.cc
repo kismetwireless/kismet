@@ -33,11 +33,11 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(global_registry *in_globalreg, int in_phyid) :
     SetPhyName("RTL433");
 
     packetchain =
-        Globalreg::FetchMandatoryGlobalAs<packet_chain>();
+        Globalreg::fetch_mandatory_global-as<packet_chain>();
     entrytracker =
-        Globalreg::FetchMandatoryGlobalAs<entry_tracker>();
+        Globalreg::fetch_mandatory_global-as<entry_tracker>();
     devicetracker = 
-        Globalreg::FetchMandatoryGlobalAs<device_tracker>();
+        Globalreg::fetch_mandatory_global-as<device_tracker>();
 
 	pack_comp_common = 
 		packetchain->RegisterPacketComponent("COMMON");
@@ -86,7 +86,7 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(global_registry *in_globalreg, int in_phyid) :
 
     // Register js module for UI
     auto httpregistry =
-        Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>();
+        Globalreg::fetch_mandatory_global-as<Kis_Httpd_Registry>();
     httpregistry->register_js_module("kismet_ui_rtl433", "js/kismet.ui.rtl433.js");
 
 	packetchain->RegisterHandler(&PacketHandler, this, CHAINPOS_CLASSIFIER, -100);
