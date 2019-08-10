@@ -854,7 +854,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
     _MSG_INFO("Probing interface '{}' to find datasource type", interface);
 
     // Create a DSTProber to handle the probing
-    SharedDSTProbe dst_probe(new datasource_tracker_source_probe(in_source, proto_vec));
+    shared_dst_source_probe dst_probe(new datasource_tracker_source_probe(in_source, proto_vec));
     unsigned int probeid = ++next_probe_id;
 
     // Record and initiate it

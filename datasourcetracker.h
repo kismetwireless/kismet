@@ -141,7 +141,7 @@ protected:
     std::atomic<bool> cancelled;
 };
 
-typedef std::shared_ptr<datasource_tracker_source_probe> SharedDSTProbe;
+typedef std::shared_ptr<datasource_tracker_source_probe> shared_dst_source_probe;
 
 // List all interface supported by a phy
 //
@@ -473,11 +473,11 @@ protected:
     std::shared_ptr<tracker_element_vector> datasource_vec;
 
     // Sub-workers probing for a source definition
-    std::map<unsigned int, SharedDSTProbe> probing_map;
+    std::map<unsigned int, shared_dst_source_probe> probing_map;
     std::atomic<unsigned int> next_probe_id;
 
     // Sub-workers slated for being removed
-    std::vector<SharedDSTProbe> probing_complete_vec;
+    std::vector<shared_dst_source_probe> probing_complete_vec;
 
     // Sub-workers listing interfaces
     std::map<unsigned int, SharedDSTList> listing_map;
