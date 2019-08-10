@@ -181,10 +181,10 @@ double kis_gps::gps_calc_heading(double in_lat, double in_lon, double in_lat2,
 
     }
 
-    return (double) GpsRad2Deg(angle);
+    return (double) gps_rad_to_deg(angle);
 }
 
-double kis_gps::GpsRad2Deg(double x) {
+double kis_gps::gps_rad_to_deg(double x) {
     return (x/M_PI) * 180.0;
 }
 

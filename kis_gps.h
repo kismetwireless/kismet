@@ -139,7 +139,7 @@ public:
     // Various GPS transformation utility functions
     static double gps_calc_heading(double in_lat, double in_lon, double in_lat2, double in_lon2);
     static double gps_calc_rad(double lat);
-    static double GpsRad2Deg(double x);
+    static double gps_rad_to_deg(double x);
     static double GpsDeg2Rad(double x);
     static double GpsEarthDistance(double in_lat, double in_lon, double in_lat2, double in_lon2);
 
