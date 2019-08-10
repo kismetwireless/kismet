@@ -373,7 +373,7 @@ public:
 
     // Fixed alias/rewrites
     void register_alias(const std::string& in_alias, const std::string& in_dest);
-    void RemoveAlias(const std::string& in_alias);
+    void remove_alias(const std::string& in_alias);
 
     // Interrogate the session handler and figure out if this connection has a
     // valid session; optionally sends basic auth failure automatically

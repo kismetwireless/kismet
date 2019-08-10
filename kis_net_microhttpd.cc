@@ -369,7 +369,7 @@ void kis_net_httpd::register_alias(const std::string& in_alias, const std::strin
     alias_rewrite_map[in_alias] = in_dest;
 }
 
-void kis_net_httpd::RemoveAlias(const std::string& in_alias) {
+void kis_net_httpd::remove_alias(const std::string& in_alias) {
     local_locker lock(&controller_mutex);
 
     auto k = alias_rewrite_map.find(in_alias);
