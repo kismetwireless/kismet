@@ -651,7 +651,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
     httpregistry->register_js_module("kismet_ui_dot11", "js/kismet.ui.dot11.js");
 
     clients_of_endp =
-        std::make_shared<Kis_Net_Httpd_Path_Tracked_Endpoint>(
+        std::make_shared<kis_net_httpd_path_tracked_endpoint>(
                 [this](const std::vector<std::string>& path) -> bool {
                 // /phy/phy80211/clients-of/[key]/clients
                 
@@ -712,7 +712,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
                 });
 
     related_to_key_endp =
-        std::make_shared<Kis_Net_Httpd_Path_Tracked_Endpoint>(
+        std::make_shared<kis_net_httpd_path_tracked_endpoint>(
                 [this](const std::vector<std::string>& path) -> bool {
                 // /phy/phy80211/related-to/[key]/devices
 

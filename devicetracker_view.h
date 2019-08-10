@@ -150,8 +150,8 @@ protected:
     std::shared_ptr<kis_net_httpd_simple_post_endpoint> device_uri_endp;
 
     // Simpler time-based endpoints
-    std::shared_ptr<Kis_Net_Httpd_Path_Tracked_Endpoint> time_endp;
-    std::shared_ptr<Kis_Net_Httpd_Path_Tracked_Endpoint> time_uri_endp;
+    std::shared_ptr<kis_net_httpd_path_tracked_endpoint> time_endp;
+    std::shared_ptr<kis_net_httpd_path_tracked_endpoint> time_uri_endp;
 
     // Complex post endp handler
     unsigned int device_endpoint_handler(std::ostream& stream, const std::string& uri, 

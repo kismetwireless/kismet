@@ -50,7 +50,7 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
                 });
 
     time_endp =
-        std::make_shared<Kis_Net_Httpd_Path_Tracked_Endpoint>(
+        std::make_shared<kis_net_httpd_path_tracked_endpoint>(
                 [this](const std::vector<std::string>& path) -> bool {
                     return device_time_endpoint_path(path);
                 }, 
@@ -89,7 +89,7 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
                 });
 
     time_endp =
-        std::make_shared<Kis_Net_Httpd_Path_Tracked_Endpoint>(
+        std::make_shared<kis_net_httpd_path_tracked_endpoint>(
                 [this](const std::vector<std::string>& path) -> bool {
                     return device_time_endpoint_path(path);
                 }, 
@@ -114,7 +114,7 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
                 });
 
     time_uri_endp =
-        std::make_shared<Kis_Net_Httpd_Path_Tracked_Endpoint>(
+        std::make_shared<kis_net_httpd_path_tracked_endpoint>(
                 [this](const std::vector<std::string>& path) -> bool {
                     return device_time_uri_endpoint_path(path);
                 }, 

@@ -237,15 +237,15 @@ protected:
 
 // A similar simplified endpoint dump but with a callback function for the path processing
 // and for the endpoint generation; for more rest-like paths
-class Kis_Net_Httpd_Path_Tracked_Endpoint : public kis_net_httpd_chain_stream_handler {
+class kis_net_httpd_path_tracked_endpoint : public kis_net_httpd_chain_stream_handler {
 public:
     using gen_func = std::function<std::shared_ptr<tracker_element> (const std::vector<std::string>&)>;
     using path_func = std::function<bool (const std::vector<std::string>&)>;
 
-    Kis_Net_Httpd_Path_Tracked_Endpoint(path_func in_path, gen_func in_gen);
-    Kis_Net_Httpd_Path_Tracked_Endpoint(path_func in_path, gen_func in_gen,
+    kis_net_httpd_path_tracked_endpoint(path_func in_path, gen_func in_gen);
+    kis_net_httpd_path_tracked_endpoint(path_func in_path, gen_func in_gen,
             kis_recursive_timed_mutex *in_mutex);
-    virtual ~Kis_Net_Httpd_Path_Tracked_Endpoint() { }
+    virtual ~kis_net_httpd_path_tracked_endpoint() { }
 
     // HTTP handlers
     virtual bool httpd_verify_path(const char *path, const char *method) override;
