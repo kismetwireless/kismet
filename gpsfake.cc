@@ -21,12 +21,12 @@
 #include "gpstracker.h"
 #include "messagebus.h"
 
-GPSFake::GPSFake(SharedGpsBuilder in_builder) : 
+kis_gps_fake::kis_gps_fake(SharedGpsBuilder in_builder) : 
     KisGps(in_builder) { }
 
-GPSFake::~GPSFake() { }
+kis_gps_fake::~kis_gps_fake() { }
 
-bool GPSFake::open_gps(std::string in_opts) {
+bool kis_gps_fake::open_gps(std::string in_opts) {
     local_locker lock(gps_mutex);
 
     if (!KisGps::open_gps(in_opts)) {
@@ -84,7 +84,7 @@ bool GPSFake::open_gps(std::string in_opts) {
     return true;
 }
 
-kis_gps_packinfo *GPSFake::get_location() {
+kis_gps_packinfo *kis_gps_fake::get_location() {
     local_locker lock(gps_mutex);
 
     gettimeofday(&(gps_location->tv), NULL);
@@ -92,7 +92,7 @@ kis_gps_packinfo *GPSFake::get_location() {
     return gps_location;
 }
 
-kis_gps_packinfo *GPSFake::get_last_location() {
+kis_gps_packinfo *kis_gps_fake::get_last_location() {
     local_locker lock(gps_mutex);
 
     gettimeofday(&(gps_last_location->tv), NULL);
