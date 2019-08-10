@@ -97,7 +97,7 @@ void kis_datasource::list_interfaces(unsigned int in_transaction,
     if (!get_source_builder()->get_list_capable()) {
         if (in_cb != NULL) {
             lock.unlock();
-            in_cb(in_transaction, std::vector<SharedInterface>());
+            in_cb(in_transaction, std::vector<shared_interface>());
         }
 
         return;
@@ -107,7 +107,7 @@ void kis_datasource::list_interfaces(unsigned int in_transaction,
     if (!KisExternalInterface::check_ipc(get_source_ipc_binary())) {
         if (in_cb != NULL) {
             lock.unlock();
-            in_cb(in_transaction, std::vector<SharedInterface>());
+            in_cb(in_transaction, std::vector<shared_interface>());
         }
         return;
     }
@@ -119,7 +119,7 @@ void kis_datasource::list_interfaces(unsigned int in_transaction,
     if (!launch_ipc()) {
         if (in_cb != NULL) {
             lock.unlock();
-            in_cb(in_transaction, std::vector<SharedInterface>());
+            in_cb(in_transaction, std::vector<shared_interface>());
         }
 
         return;
@@ -595,7 +595,7 @@ void kis_datasource::cancel_command(uint32_t in_transaction, std::string in_erro
         if (cmd->list_cb != NULL) {
             list_callback_t cb = cmd->list_cb;
             cmd->list_cb = NULL;
-            cb(cmd->transaction, std::vector<SharedInterface>());
+            cb(cmd->transaction, std::vector<shared_interface>());
         } else if (cmd->probe_cb != NULL) {
             probe_callback_t cb = cmd->probe_cb;
             cmd->probe_cb = NULL;
@@ -1469,7 +1469,7 @@ unsigned int kis_datasource::send_list_interfaces(unsigned int in_transaction, l
 
     if (seqno == 0) {
         if (in_cb != NULL) {
-            in_cb(in_transaction, std::vector<SharedInterface>());
+            in_cb(in_transaction, std::vector<shared_interface>());
         }
 
         return 0;

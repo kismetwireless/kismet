@@ -160,12 +160,12 @@ public:
     datasource_tracker_source_list(std::shared_ptr<tracker_element_vector> in_protovec);
     virtual ~datasource_tracker_source_list();
 
-    void list_sources(std::function<void (std::vector<SharedInterface>)> in_cb);
+    void list_sources(std::function<void (std::vector<shared_interface>)> in_cb);
 
     std::string get_definition() { return definition; }
     
     // Complete a list - when the last one completes we're done
-    void complete_list(std::vector<SharedInterface> interfaces, unsigned int in_transaction);
+    void complete_list(std::vector<shared_interface> interfaces, unsigned int in_transaction);
 
     void cancel();
 
@@ -190,10 +190,10 @@ protected:
 
     std::string definition;
 
-    std::function<void (std::vector<SharedInterface>)> list_cb;
+    std::function<void (std::vector<shared_interface>)> list_cb;
     std::atomic<bool> cancelled;
 
-    std::vector<SharedInterface> listed_sources;
+    std::vector<shared_interface> listed_sources;
 };
 
 typedef std::shared_ptr<datasource_tracker_source_list> SharedDSTList;
@@ -422,7 +422,7 @@ public:
     // List potential sources
     //
     // Optional completion function will be called with list of possible sources.
-    void list_interfaces(const std::function<void (std::vector<SharedInterface>)>& in_cb);
+    void list_interfaces(const std::function<void (std::vector<shared_interface>)>& in_cb);
 
     // HTTP api
     virtual bool httpd_verify_path(const char *path, const char *method) override;

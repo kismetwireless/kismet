@@ -44,7 +44,7 @@ typedef std::shared_ptr<kis_datasource_builder> shared_datasource_builder;
 
 // Auto-discovered interface
 class KisDatasourceInterface;
-typedef std::shared_ptr<KisDatasourceInterface> SharedInterface;
+typedef std::shared_ptr<KisDatasourceInterface> shared_interface;
 
 // Simple keyed object derived from the low-level C protocol
 class KisDatasourceCapKeyedObject;
@@ -222,7 +222,7 @@ public:
     
     // 'List' callback - called with caller-supplied transaction id and contents,
     // if any, of the interface list command
-    typedef std::function<void (unsigned int, std::vector<SharedInterface>)> list_callback_t;
+    typedef std::function<void (unsigned int, std::vector<shared_interface>)> list_callback_t;
 
     // List all interfaces this source can support
     virtual void list_interfaces(unsigned int in_transaction, list_callback_t in_cb);
@@ -681,7 +681,7 @@ protected:
 
 
     // Interfaces we found via list
-    std::vector<SharedInterface> listed_interfaces;
+    std::vector<shared_interface> listed_interfaces;
     int listed_interface_entry_id;
 
     // Special modes which suppress error output and retry handling
