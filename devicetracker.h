@@ -69,7 +69,7 @@ public:
     device_tracker_state_store(global_registry *in_globalreg, device_tracker *in_devicetracker);
     virtual ~device_tracker_state_store() { }
 
-    virtual int database_upgradedb();
+    virtual int database_upgrade_db() override;
 
     // Store a selection of devices
     virtual int store_devices(std::shared_ptr<tracker_element_vector> devices);
