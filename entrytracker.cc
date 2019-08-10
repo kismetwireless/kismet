@@ -104,7 +104,7 @@ std::shared_ptr<tracker_element> entry_tracker::register_and_get_field(const std
 }
 
 
-int entry_tracker::GetFieldId(const std::string& in_name) {
+int entry_tracker::get_field_id(const std::string& in_name) {
     local_locker lock(&entry_mutex);
 
     std::string mod_name = StrLower(in_name);

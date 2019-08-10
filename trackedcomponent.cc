@@ -111,7 +111,7 @@ shared_tracker_element tracker_component::get_child_path(const std::vector<std::
         if (p.length() == 0)
             continue;
 
-        int id = Globalreg::globalreg->entrytracker->GetFieldId(p);
+        int id = Globalreg::globalreg->entrytracker->get_field_id(p);
 
         if (id < 0) 
             return nullptr;

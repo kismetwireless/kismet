@@ -76,7 +76,7 @@ shared_tracker_element StorageLoader::storage_to_tracker(shared_structured d) {
     else
         throw std::runtime_error("storage object missing 'od'/'objdata'");
 
-    elemid = Globalreg::globalreg->entrytracker->GetFieldId(objname);
+    elemid = Globalreg::globalreg->entrytracker->get_field_id(objname);
     // elem.reset(new tracker_element(objtype, elemid));
 
     try {

@@ -81,7 +81,7 @@ public:
                     in_desc));
     }
 
-    int GetFieldId(const std::string& in_name);
+    int get_field_id(const std::string& in_name);
     std::string GetFieldName(int in_id);
     std::string GetFieldDescription(int in_id);
 

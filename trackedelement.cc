@@ -688,7 +688,7 @@ void tracker_element_summary::parse_path(const std::vector<std::string>& in_path
         if (pe.length() == 0)
             continue;
 
-        auto id = Globalreg::globalreg->entrytracker->GetFieldId(pe);
+        auto id = Globalreg::globalreg->entrytracker->get_field_id(pe);
 
         if (id < 0)
             path_full = false;
@@ -724,7 +724,7 @@ shared_tracker_element Gettracker_elementPath(const std::vector<std::string>& in
         if (pe.length() == 0)
             continue;
 
-        auto id = Globalreg::globalreg->entrytracker->GetFieldId(pe);
+        auto id = Globalreg::globalreg->entrytracker->get_field_id(pe);
 
         if (id < 0)
             return nullptr;
@@ -804,7 +804,7 @@ std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::vecto
         if (x->length() == 0)
             continue;
 
-        auto id = Globalreg::globalreg->entrytracker->GetFieldId(*x);
+        auto id = Globalreg::globalreg->entrytracker->get_field_id(*x);
 
         if (id < 0) {
             return ret;
