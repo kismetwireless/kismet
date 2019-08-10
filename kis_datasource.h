@@ -694,8 +694,8 @@ protected:
     // Last time we saw a PONG
     time_t last_pong;
 
-    // Packetchain
-    std::shared_ptr<Packetchain> packetchain;
+    // packet_chain
+    std::shared_ptr<packet_chain> packetchain;
 
     // Packet components we inject
     int pack_comp_linkframe, pack_comp_l1info, pack_comp_gps, pack_comp_datasrc,

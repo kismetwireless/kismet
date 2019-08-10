@@ -215,7 +215,7 @@ PacketfilterMacaddr::PacketfilterMacaddr(const std::string& in_id, const std::st
                     return remove_endp_handler(stream, path, post_structured);
                 }, &mutex);
 
-    auto packetchain = Globalreg::FetchMandatoryGlobalAs<Packetchain>();
+    auto packetchain = Globalreg::FetchMandatoryGlobalAs<packet_chain>();
     pack_comp_common = packetchain->RegisterPacketComponent("COMMON");
 }
 

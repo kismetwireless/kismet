@@ -550,7 +550,7 @@ public:
 
 protected:
     std::shared_ptr<Datasourcetracker> datasourcetracker;
-    std::shared_ptr<Packetchain> packetchain;
+    std::shared_ptr<packet_chain> packetchain;
 
     int pack_comp_datasrc;
 };

@@ -35,7 +35,7 @@ channel_tracker_v2::channel_tracker_v2(global_registry *in_globalreg) :
     register_fields();
     reserve_fields(NULL);
 
-    auto packetchain = Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
+    auto packetchain = Globalreg::FetchMandatoryGlobalAs<packet_chain>("PACKETCHAIN");
 
     packetchain->RegisterHandler(&packet_chain_handler, this, CHAINPOS_LOGGING, 0);
 
@@ -65,7 +65,7 @@ channel_tracker_v2::~channel_tracker_v2() {
     if (timetracker != nullptr)
         timetracker->RemoveTimer(timer_id);
 
-    auto packetchain = Globalreg::FetchGlobalAs<Packetchain>("PACKETCHAIN");
+    auto packetchain = Globalreg::FetchGlobalAs<packet_chain>("PACKETCHAIN");
     if (packetchain != nullptr)
         packetchain->RemoveHandler(&packet_chain_handler, CHAINPOS_LOGGING);
 

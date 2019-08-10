@@ -123,8 +123,8 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 	num_packets = num_datapackets = num_errorpackets =
 		num_filterpackets = 0;
 
-    std::shared_ptr<Packetchain> packetchain =
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+    std::shared_ptr<packet_chain> packetchain =
+        Globalreg::FetchMandatoryGlobalAs<packet_chain>(globalreg, "PACKETCHAIN");
 
 	// Register global packet components used by the device tracker and
 	// subsequent parts
@@ -480,8 +480,8 @@ device_tracker::~device_tracker() {
     globalreg->devicetracker = NULL;
     globalreg->RemoveGlobal("DEVICETRACKER");
 
-    std::shared_ptr<Packetchain> packetchain =
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+    std::shared_ptr<packet_chain> packetchain =
+        Globalreg::FetchMandatoryGlobalAs<packet_chain>(globalreg, "PACKETCHAIN");
     if (packetchain != NULL) {
         packetchain->RemoveHandler(&Devicetracker_packethook_commontracker,
                 CHAINPOS_TRACKER);

@@ -400,7 +400,7 @@ protected:
 
     kis_recursive_timed_mutex uav_mutex;
 
-    std::shared_ptr<Packetchain> packetchain;
+    std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<device_tracker> devicetracker;
 
     /* We need to look at the dot11 packet to see if we've got a droneid ie tag */

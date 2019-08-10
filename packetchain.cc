@@ -35,15 +35,15 @@
 
 class SortLinkPriority {
 public:
-    inline bool operator() (const Packetchain::pc_link *x, 
-                            const Packetchain::pc_link *y) const {
+    inline bool operator() (const packet_chain::pc_link *x, 
+                            const packet_chain::pc_link *y) const {
         if (x->priority < y->priority)
             return 1;
         return 0;
     }
 };
 
-Packetchain::Packetchain() {
+packet_chain::packet_chain() {
     next_componentid = 1;
 	next_handlerid = 1;
 
@@ -83,7 +83,7 @@ Packetchain::Packetchain() {
     }
 }
 
-Packetchain::~Packetchain() {
+packet_chain::~packet_chain() {
     {
         // Tell the packet thread we're dying and unlock it
         packetchain_shutdown = true;
@@ -104,7 +104,7 @@ Packetchain::~Packetchain() {
         Globalreg::globalreg->RemoveGlobal("PACKETCHAIN");
         Globalreg::globalreg->packetchain = NULL;
 
-        std::vector<Packetchain::pc_link *>::iterator i;
+        std::vector<packet_chain::pc_link *>::iterator i;
 
         for (i = postcap_chain.begin(); i != postcap_chain.end(); ++i) {
             delete(*i);
@@ -137,7 +137,7 @@ Packetchain::~Packetchain() {
 
 }
 
-int Packetchain::RegisterPacketComponent(std::string in_component) {
+int packet_chain::RegisterPacketComponent(std::string in_component) {
     local_locker lock(&packetcomp_mutex);
 
     if (next_componentid >= MAX_PACKET_COMPONENTS) {
@@ -160,7 +160,7 @@ int Packetchain::RegisterPacketComponent(std::string in_component) {
     return num;
 }
 
-int Packetchain::RemovePacketComponent(int in_id) {
+int packet_chain::RemovePacketComponent(int in_id) {
     local_locker lock(&packetcomp_mutex);
 
     std::string str;
@@ -176,7 +176,7 @@ int Packetchain::RemovePacketComponent(int in_id) {
     return 1;
 }
 
-std::string Packetchain::FetchPacketComponentName(int in_id) {
+std::string packet_chain::FetchPacketComponentName(int in_id) {
     local_shared_locker lock(&packetcomp_mutex);
 
     if (component_id_map.find(in_id) == component_id_map.end()) {
@@ -186,13 +186,13 @@ std::string Packetchain::FetchPacketComponentName(int in_id) {
 	return component_id_map[in_id];
 }
 
-kis_packet *Packetchain::GeneratePacket() {
+kis_packet *packet_chain::GeneratePacket() {
     kis_packet *newpack = new kis_packet(Globalreg::globalreg);
 
     return newpack;
 }
 
-int Packetchain::sync_service_threads(std::function<int (void)> fn) {
+int packet_chain::sync_service_threads(std::function<int (void)> fn) {
     local_locker syncl(&packet_chain_sync_mutex);
 
     // Lock all the requests to the threads, so the workers can tell us they've synced and
@@ -240,7 +240,7 @@ int Packetchain::sync_service_threads(std::function<int (void)> fn) {
 
 }
 
-void Packetchain::packet_queue_processor(int slot_number) {
+void packet_chain::packet_queue_processor(int slot_number) {
     std::unique_lock<std::mutex> lock(packetqueue_cv_mutex);
 
     kis_packet *packet = NULL;
@@ -351,7 +351,7 @@ void Packetchain::packet_queue_processor(int slot_number) {
     }
 }
 
-int Packetchain::ProcessPacket(kis_packet *in_pack) {
+int packet_chain::ProcessPacket(kis_packet *in_pack) {
     std::unique_lock<std::mutex> lock(packetqueue_cv_mutex);
 
     if (packet_queue.size() > packet_queue_warning &&
@@ -400,12 +400,12 @@ int Packetchain::ProcessPacket(kis_packet *in_pack) {
     return 1;
 }
 
-void Packetchain::DestroyPacket(kis_packet *in_pack) {
+void packet_chain::DestroyPacket(kis_packet *in_pack) {
 
 	delete in_pack;
 }
 
-int Packetchain::RegisterIntHandler(pc_callback in_cb, void *in_aux,
+int packet_chain::RegisterIntHandler(pc_callback in_cb, void *in_aux,
         std::function<int (kis_packet *)> in_l_cb, 
         int in_chain, int in_prio) {
 
@@ -465,7 +465,7 @@ int Packetchain::RegisterIntHandler(pc_callback in_cb, void *in_aux,
 
             default:
                 delete link;
-                _MSG("Packetchain::RegisterHandler requested unknown chain", 
+                _MSG("packet_chain::RegisterHandler requested unknown chain", 
 	    			 MSGFLAG_ERROR);
                 return -1;
         }
@@ -476,15 +476,15 @@ int Packetchain::RegisterIntHandler(pc_callback in_cb, void *in_aux,
 
 }
 
-int Packetchain::RegisterHandler(pc_callback in_cb, void *in_aux, int in_chain, int in_prio) {
+int packet_chain::RegisterHandler(pc_callback in_cb, void *in_aux, int in_chain, int in_prio) {
     return RegisterIntHandler(in_cb, in_aux, NULL, in_chain, in_prio);
 }
 
-int Packetchain::RegisterHandler(std::function<int (kis_packet *)> in_cb, int in_chain, int in_prio) {
+int packet_chain::RegisterHandler(std::function<int (kis_packet *)> in_cb, int in_chain, int in_prio) {
     return RegisterIntHandler(NULL, NULL, in_cb, in_chain, in_prio);
 }
 
-int Packetchain::RemoveHandler(int in_id, int in_chain) {
+int packet_chain::RemoveHandler(int in_id, int in_chain) {
     return sync_service_threads([&](void) -> int {
         unsigned int x;
 
@@ -546,7 +546,7 @@ int Packetchain::RemoveHandler(int in_id, int in_chain) {
                 break;
 
             default:
-                _MSG("Packetchain::RemoveHandler requested unknown chain", 
+                _MSG("packet_chain::RemoveHandler requested unknown chain", 
                         MSGFLAG_ERROR);
                 return -1;
         }
@@ -557,7 +557,7 @@ int Packetchain::RemoveHandler(int in_id, int in_chain) {
 
 }
 
-int Packetchain::RemoveHandler(pc_callback in_cb, int in_chain) {
+int packet_chain::RemoveHandler(pc_callback in_cb, int in_chain) {
     return sync_service_threads([&](void) -> int {
         unsigned int x;
 
@@ -619,7 +619,7 @@ int Packetchain::RemoveHandler(pc_callback in_cb, int in_chain) {
                 break;
 
             default:
-                _MSG("Packetchain::RemoveHandler requested unknown chain", 
+                _MSG("packet_chain::RemoveHandler requested unknown chain", 
                         MSGFLAG_ERROR);
                 return -1;
         }

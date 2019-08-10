@@ -133,7 +133,7 @@ int Phy_80211_Httpd_Pcap::httpd_create_stream_response(kis_net_httpd *httpd,
     }
 
     auto streamtracker = Globalreg::FetchMandatoryGlobalAs<StreamTracker>("STREAMTRACKER");
-    auto packetchain = Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
+    auto packetchain = Globalreg::FetchMandatoryGlobalAs<packet_chain>("PACKETCHAIN");
     int pack_comp_dot11 = packetchain->RegisterPacketComponent("PHY80211");
 
     Kis_Net_Httpd_Buffer_Stream_Aux *saux = 

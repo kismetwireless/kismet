@@ -42,7 +42,7 @@ class Netracker;
 // new multiphy tracking core
 class device_tracker;
 
-class Packetchain;
+class packet_chain;
 class alert_tracker;
 class time_tracker;
 class KisNetFramework;
@@ -222,7 +222,7 @@ public:
 	// New multiphy tracker
 	device_tracker *devicetracker;
 
-    Packetchain *packetchain;
+    packet_chain *packetchain;
     alert_tracker *alertracker;
     time_tracker *timetracker;
     ConfigFile *kismet_config;

@@ -44,7 +44,7 @@ KisDatasource::KisDatasource(SharedDatasourceBuilder in_builder) :
         Globalreg::FetchMandatoryGlobalAs<time_tracker>("TIMETRACKER");
 
     packetchain =
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
+        Globalreg::FetchMandatoryGlobalAs<packet_chain>("PACKETCHAIN");
 
 	pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
     pack_comp_l1info = packetchain->RegisterPacketComponent("RADIODATA");

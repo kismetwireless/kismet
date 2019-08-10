@@ -33,7 +33,7 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(global_registry *in_globalreg, int in_phyid) :
     SetPhyName("RTL433");
 
     packetchain =
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>();
+        Globalreg::FetchMandatoryGlobalAs<packet_chain>();
     entrytracker =
         Globalreg::FetchMandatoryGlobalAs<entry_tracker>();
     devicetracker = 
