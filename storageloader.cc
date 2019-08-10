@@ -225,7 +225,7 @@ shared_tracker_element StorageLoader::storage_to_tracker(shared_structured d) {
                 // hexstr = hexstr_to_binstr(objdata->as_string().c_str());
                 elem = std::make_shared<tracker_element_byte_array>();
 
-                std::static_pointer_cast<tracker_element_byte_array>(elem)->set(objdata->getBinaryStr());
+                std::static_pointer_cast<tracker_element_byte_array>(elem)->set(objdata->as_binary_string());
 
                 break;
             default:

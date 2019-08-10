@@ -106,7 +106,7 @@ public:
     virtual double as_number() = 0;
     virtual std::string as_string() = 0;
     virtual bool getBool() = 0;
-    virtual std::string getBinaryStr() = 0;
+    virtual std::string as_binary_string() = 0;
 
     // Get vectors of numbers and strings
     virtual number_vec getNumberVec() = 0;

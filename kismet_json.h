@@ -108,7 +108,7 @@ public:
         return json.asString();
     }
 
-    virtual std::string getBinaryStr() {
+    virtual std::string as_binary_string() {
         except_if_not(is_string(), "binary string");
         return hexstr_to_binstr(as_string().c_str());
     }
