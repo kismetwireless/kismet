@@ -173,7 +173,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
 
         // Let the caller consider doing something with a full buffer
         if (len == 0)
-            handler->TriggerWriteCallback(0);
+            handler->trigger_write_callback(0);
 
         if (len > 0) {
             // Peek the data into our buffer

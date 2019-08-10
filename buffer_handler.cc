@@ -287,7 +287,7 @@ ssize_t buffer_handler_generic::zero_copy_reserve_write_buffer_data(void **in_pt
     return -1;
 }
 
-void buffer_handler_generic::TriggerWriteCallback(size_t in_sz) {
+void buffer_handler_generic::trigger_write_callback(size_t in_sz) {
     if (wbuf_notify_avail && wbuf_notify) {
         wbuf_notify->BufferAvailable(in_sz);
     }

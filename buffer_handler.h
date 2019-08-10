@@ -268,7 +268,7 @@ public:
     virtual void clear_write_buffer();
 
     // Trigger callbacks directly
-    virtual void TriggerWriteCallback(size_t in_sz);
+    virtual void trigger_write_callback(size_t in_sz);
     virtual void trigger_read_callback(size_t in_sz);
 
     // Set interface callbacks to be called when we have data in the buffers
