@@ -49,7 +49,7 @@ class entry_tracker;
 namespace kishttpd {
     std::string get_suffix(const std::string& path);
     std::string strip_suffix(const std::string& path);
-    std::string EscapeHtml(const std::string& path);
+    std::string escape_html(const std::string& path);
 
     // Summarize based on a summarization dictionary, if one is present.
     // MAY THROW EXCEPTIONS if summarization is malformed.
@@ -102,12 +102,12 @@ public:
         auto v = variable_cache.find(key);
 
         if (v == variable_cache.end())
-            throw std::runtime_error(fmt::format("variable '{}' not found", kishttpd::EscapeHtml(key)));
+            throw std::runtime_error(fmt::format("variable '{}' not found", kishttpd::escape_html(key)));
 
         *v->second >> t;
 
         if (v->second->fail())
-            throw std::runtime_error(fmt::format("unable to convert value of '{}'", kishttpd::EscapeHtml(key)));
+            throw std::runtime_error(fmt::format("unable to convert value of '{}'", kishttpd::escape_html(key)));
 
         return t;
     }

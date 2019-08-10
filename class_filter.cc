@@ -314,7 +314,7 @@ unsigned int class_filter_mac_addr::edit_endp_handler(std::ostream& stream,
 
             if (m.error) 
                 throw std::runtime_error(fmt::format("Invalid MAC address: '{}'",
-                            kishttpd::EscapeHtml(i.first)));
+                            kishttpd::escape_html(i.first)));
 
 			// /filters/class/[id]/[phyname]/cmd
 			set_filter(m, path[3], v);
@@ -352,7 +352,7 @@ unsigned int class_filter_mac_addr::remove_endp_handler(std::ostream& stream,
 
             if (m.error) 
                 throw std::runtime_error(fmt::format("Invalid MAC address: '{}'",
-                            kishttpd::EscapeHtml(i)));
+                            kishttpd::escape_html(i)));
 
 			// /filters/class/[id]/[phyname]/cmd
 			remove_filter(m, path[3]);

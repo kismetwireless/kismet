@@ -67,7 +67,7 @@ std::string kishttpd::strip_suffix(const std::string& url) {
     return url.substr(0, lastdot);
 }
 
-std::string kishttpd::EscapeHtml(const std::string& in) {
+std::string kishttpd::escape_html(const std::string& in) {
     std::stringstream ss;
 
     for (unsigned int c = 0; c < in.length(); c++) {
@@ -884,7 +884,7 @@ int kis_net_httpd::http_request_handler(void *cls, struct MHD_Connection *connec
             // fprintf(stderr, "   404 no handler for request %s\n", url);
 
             auto fourohfour = fmt::format("<h1>404</h1>Unable to find resource {}\n", 
-                    kishttpd::EscapeHtml(url));
+                    kishttpd::escape_html(url));
 
             struct MHD_Response *response = 
                 MHD_create_response_from_buffer(fourohfour.length(), 

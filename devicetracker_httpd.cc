@@ -755,7 +755,7 @@ unsigned int device_tracker::multimac_endp_handler(std::ostream& stream, const s
 
             if (ma.error) 
                 throw std::runtime_error(fmt::format("Invalid MAC address '{}' in 'devices' list",
-                            kishttpd::EscapeHtml(m->as_string())));
+                            kishttpd::escape_html(m->as_string())));
 
             macs.push_back(ma);
         }
