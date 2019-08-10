@@ -22,7 +22,7 @@
 #include "messagebus.h"
 #include "timetracker.h"
 
-kis_gps::kis_gps(SharedGpsBuilder in_builder) : 
+kis_gps::kis_gps(shared_gps_builder in_builder) : 
     tracker_component() {
 
     gps_mutex = std::make_shared<kis_recursive_timed_mutex>();

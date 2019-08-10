@@ -25,7 +25,7 @@
 #include "gpstracker.h"
 #include "pollabletracker.h"
 
-GPSSerialV2::GPSSerialV2(SharedGpsBuilder in_builder) : 
+GPSSerialV2::GPSSerialV2(shared_gps_builder in_builder) : 
     GPSNMEA(in_builder) {
 
     // Defer making buffers until open, because we might be used to make a 

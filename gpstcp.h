@@ -35,7 +35,7 @@
 
 class GPSTCP : public GPSNMEA {
 public:
-    GPSTCP(SharedGpsBuilder in_builder);
+    GPSTCP(shared_gps_builder in_builder);
     virtual ~GPSTCP();
 
     virtual bool open_gps(std::string in_opts);
@@ -83,7 +83,7 @@ public:
         set_int_singleton(false);
     }
 
-    virtual SharedGps build_gps(SharedGpsBuilder in_builder) override {
+    virtual SharedGps build_gps(shared_gps_builder in_builder) override {
         return SharedGps(new GPSTCP(in_builder));
     }
 };

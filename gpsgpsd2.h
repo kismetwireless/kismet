@@ -36,7 +36,7 @@
 
 class GPSGpsdV2 : public kis_gps {
 public:
-    GPSGpsdV2(SharedGpsBuilder in_builder);
+    GPSGpsdV2(shared_gps_builder in_builder);
     virtual ~GPSGpsdV2();
 
     virtual bool open_gps(std::string in_definition);
@@ -97,7 +97,7 @@ public:
         set_int_default_name("gpsd");
     }
 
-    virtual SharedGps build_gps(SharedGpsBuilder in_builder) {
+    virtual SharedGps build_gps(shared_gps_builder in_builder) {
         return SharedGps(new GPSGpsdV2(in_builder));
     }
 };

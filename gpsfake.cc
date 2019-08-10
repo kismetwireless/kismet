@@ -21,7 +21,7 @@
 #include "gpstracker.h"
 #include "messagebus.h"
 
-kis_gps_fake::kis_gps_fake(SharedGpsBuilder in_builder) : 
+kis_gps_fake::kis_gps_fake(shared_gps_builder in_builder) : 
     kis_gps(in_builder) { }
 
 kis_gps_fake::~kis_gps_fake() { }

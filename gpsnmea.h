@@ -33,7 +33,7 @@
 
 class GPSNMEA : public kis_gps {
 public:
-    GPSNMEA(SharedGpsBuilder in_builder) :
+    GPSNMEA(shared_gps_builder in_builder) :
         kis_gps(in_builder),
         nmeahandler {nullptr},
         nmeainterface {nullptr, nullptr} { }

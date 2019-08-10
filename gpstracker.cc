@@ -73,11 +73,11 @@ GpsTracker::GpsTracker() :
     }
 
     // Register the built-in GPS drivers
-    register_gps_builder(SharedGpsBuilder(new GPSSerialV2Builder()));
-    register_gps_builder(SharedGpsBuilder(new GPSTCPBuilder()));
-    register_gps_builder(SharedGpsBuilder(new GPSGpsdV2Builder()));
-    register_gps_builder(SharedGpsBuilder(new GPSFakeBuilder()));
-    register_gps_builder(SharedGpsBuilder(new GPSWebBuilder()));
+    register_gps_builder(shared_gps_builder(new GPSSerialV2Builder()));
+    register_gps_builder(shared_gps_builder(new GPSTCPBuilder()));
+    register_gps_builder(shared_gps_builder(new GPSGpsdV2Builder()));
+    register_gps_builder(shared_gps_builder(new GPSFakeBuilder()));
+    register_gps_builder(shared_gps_builder(new GPSWebBuilder()));
 
     // Process any gps options in the config file
     std::vector<std::string> gpsvec = Globalreg::globalreg->kismet_config->fetch_opt_vec("gps");
@@ -127,11 +127,11 @@ void GpsTracker::log_snapshot_gps() {
     return;
 }
 
-void GpsTracker::register_gps_builder(SharedGpsBuilder in_builder) {
+void GpsTracker::register_gps_builder(shared_gps_builder in_builder) {
     local_locker lock(&gpsmanager_mutex);
 
     for (auto x : *gps_prototypes_vec) {
-        SharedGpsBuilder gb = std::static_pointer_cast<KisGpsBuilder>(x);
+        shared_gps_builder gb = std::static_pointer_cast<KisGpsBuilder>(x);
 
         if (gb->get_gps_class() == in_builder->get_gps_class()) {
             _MSG("GPSTRACKER - tried to register a duplicate GPS driver for '" +
@@ -147,7 +147,7 @@ std::shared_ptr<kis_gps> GpsTracker::create_gps(std::string in_definition) {
     local_locker lock(&gpsmanager_mutex);
 
     SharedGps gps;
-    SharedGpsBuilder builder;
+    shared_gps_builder builder;
 
     size_t cpos = in_definition.find(":");
     std::string types;
@@ -161,7 +161,7 @@ std::shared_ptr<kis_gps> GpsTracker::create_gps(std::string in_definition) {
 
     // Find a driver
     for (auto p : *gps_prototypes_vec) {
-        SharedGpsBuilder optbuilder = std::static_pointer_cast<KisGpsBuilder>(p);
+        shared_gps_builder optbuilder = std::static_pointer_cast<KisGpsBuilder>(p);
 
         if (optbuilder->get_gps_class() == types) {
             builder = optbuilder;

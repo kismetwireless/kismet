@@ -23,7 +23,7 @@
 
 // Don't bind to the http server until we're created, so pass a null to
 // the stream_handler init
-GPSWeb::GPSWeb(SharedGpsBuilder in_builder) : 
+GPSWeb::GPSWeb(shared_gps_builder in_builder) : 
     kis_gps(in_builder),
     kis_net_httpd_cppstream_handler() {
 

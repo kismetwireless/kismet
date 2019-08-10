@@ -29,7 +29,7 @@
 #include "trackedlocation.h"
 
 class KisGpsBuilder;
-typedef std::shared_ptr<KisGpsBuilder> SharedGpsBuilder;
+typedef std::shared_ptr<KisGpsBuilder> shared_gps_builder;
 
 class kis_gps;
 typedef std::shared_ptr<kis_gps> SharedGps;
@@ -138,7 +138,7 @@ public:
             size_t *upload_data_size, std::stringstream &stream);
 
     // Register a gps builer prototype
-    void register_gps_builder(SharedGpsBuilder in_builder);
+    void register_gps_builder(shared_gps_builder in_builder);
 
     // Create a GPS from a definition string
     std::shared_ptr<kis_gps> create_gps(std::string in_definition);

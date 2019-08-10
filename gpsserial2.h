@@ -37,7 +37,7 @@
 
 class GPSSerialV2 : public GPSNMEA {
 public:
-    GPSSerialV2(SharedGpsBuilder in_builder);
+    GPSSerialV2(shared_gps_builder in_builder);
     virtual ~GPSSerialV2();
 
     virtual bool open_gps(std::string in_opts);
@@ -87,7 +87,7 @@ public:
         set_int_singleton(false);
     }
 
-    virtual SharedGps build_gps(SharedGpsBuilder in_builder) override {
+    virtual SharedGps build_gps(shared_gps_builder in_builder) override {
         return SharedGps(new GPSSerialV2(in_builder));
     }
 };

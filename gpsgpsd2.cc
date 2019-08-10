@@ -26,7 +26,7 @@
 #include "pollabletracker.h"
 #include "timetracker.h"
 
-GPSGpsdV2::GPSGpsdV2(SharedGpsBuilder in_builder) : 
+GPSGpsdV2::GPSGpsdV2(shared_gps_builder in_builder) : 
     kis_gps(in_builder),
     tcpinterface {
         [this](size_t in_amt) { 

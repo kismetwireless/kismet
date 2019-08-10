@@ -35,7 +35,7 @@ class Kis_Gps_Location;
 class kis_gps_packinfo;
 
 class KisGpsBuilder;
-typedef std::shared_ptr<KisGpsBuilder> SharedGpsBuilder;
+typedef std::shared_ptr<KisGpsBuilder> shared_gps_builder;
 
 class kis_gps;
 typedef std::shared_ptr<kis_gps> SharedGps;
@@ -78,7 +78,7 @@ public:
 
     // Take a shared_ptr reference to ourselves from the caller, because we can't 
     // consistently get a universal shared_ptr to 'this'
-    virtual SharedGps build_gps(SharedGpsBuilder) {
+    virtual SharedGps build_gps(shared_gps_builder) {
         return NULL;
     }
 
@@ -111,7 +111,7 @@ protected:
 // interaction (such as serial port, network, etc)
 class kis_gps : public tracker_component {
 public:
-    kis_gps(SharedGpsBuilder in_builder);
+    kis_gps(shared_gps_builder in_builder);
 
     virtual ~kis_gps();
 
