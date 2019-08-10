@@ -239,7 +239,7 @@ void kis_httpd_websession::httpd_create_stream_response(kis_net_httpd *httpd,
 int kis_httpd_websession::httpd_post_complete(kis_net_httpd_connection *concls) {
     local_locker l(&mutex);
 
-    auto stripped = kishttpd::StripSuffix(concls->url);
+    auto stripped = kishttpd::strip_suffix(concls->url);
 
     if (stripped == "/session/set_password") {
         // Reject if we've got a global site config

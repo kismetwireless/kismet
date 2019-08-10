@@ -53,7 +53,7 @@ bool StreamTracker::httpd_verify_path(const char *path, const char *method) {
     if (!Httpd_CanSerialize(path))
         return false;
 
-    std::string stripped = httpd->StripSuffix(path);
+    std::string stripped = httpd->strip_suffix(path);
 
     if (stripped == "/streams/all_streams") {
         return true;
@@ -106,7 +106,7 @@ void StreamTracker::httpd_create_stream_response(
     if (!Httpd_CanSerialize(path))
         return;
 
-    std::string stripped = httpd->StripSuffix(path);
+    std::string stripped = httpd->strip_suffix(path);
 
     if (stripped == "/streams/all_streams") {
         auto outvec = std::make_shared<tracker_element_vector>();

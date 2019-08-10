@@ -58,7 +58,7 @@ std::string kishttpd::get_suffix(const std::string& url) {
     return "";
 }
 
-std::string kishttpd::StripSuffix(const std::string& url) {
+std::string kishttpd::strip_suffix(const std::string& url) {
     size_t lastdot = url.find_last_of(".");
 
     if (lastdot == std::string::npos)
@@ -350,7 +350,7 @@ std::string kis_net_httpd::get_suffix(std::string url) {
     return "";
 }
 
-std::string kis_net_httpd::StripSuffix(std::string url) {
+std::string kis_net_httpd::strip_suffix(std::string url) {
     size_t lastdot = url.find_last_of(".");
 
     if (lastdot == std::string::npos)

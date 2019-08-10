@@ -63,7 +63,7 @@ std::string Kis_Net_Httpd_Handler::Httpd_GetSuffix(const std::string& path) {
 }
 
 std::string Kis_Net_Httpd_Handler::Httpd_StripSuffix(const std::string& path) {
-    return httpd->StripSuffix(path);
+    return httpd->strip_suffix(path);
 }
 
 int kis_net_httpd_cppstream_handler::Httpd_HandleGetRequest(kis_net_httpd *httpd, 

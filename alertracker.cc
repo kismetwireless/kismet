@@ -637,7 +637,7 @@ bool alert_tracker::httpd_verify_path(const char *path, const char *method) {
     } 
 
     if (strcmp(method, "POST") == 0) {
-        std::string stripped = httpd->StripSuffix(path);
+        std::string stripped = httpd->strip_suffix(path);
 
         if (stripped == "/alerts/definitions/define_alert")
             return true;
