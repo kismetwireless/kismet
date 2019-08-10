@@ -300,7 +300,7 @@ public:
     virtual int load_devices();
 
     // View API
-    virtual bool add_view(std::shared_ptr<DevicetrackerView> in_view);
+    virtual bool add_view(std::shared_ptr<device_tracker_view> in_view);
     virtual void remove_view(const std::string& in_view_id);
 
     virtual void new_view_device(std::shared_ptr<kis_tracked_device_base> in_device);
@@ -317,11 +317,11 @@ protected:
 
     // Map of seen-by views
     bool map_seenby_views;
-    std::map<uuid, std::shared_ptr<DevicetrackerView>> seenby_view_map;
+    std::map<uuid, std::shared_ptr<device_tracker_view>> seenby_view_map;
 
     // Map of phy views
     bool map_phy_views;
-    std::map<int, std::shared_ptr<DevicetrackerView>> phy_view_map;
+    std::map<int, std::shared_ptr<device_tracker_view>> phy_view_map;
 
     // Base IDs for tracker components
     int device_list_base_id, device_base_id;

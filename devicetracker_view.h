@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -49,9 +49,9 @@
 // /devices/view/[view id]/devices.json
 
 class kis_tracked_device;
-class DevicetrackerView;
+class device_tracker_view;
 
-class DevicetrackerView : public tracker_component {
+class device_tracker_view : public tracker_component {
 public:
     // The new device callback is called whenever a new device is created by the devicetracker;
     // it's also called for every device when a new view is created, to perform the initial 
@@ -67,16 +67,16 @@ public:
     using updated_device_cb = std::function<bool (std::shared_ptr<kis_tracked_device_base>)>;
 
     // Primary method; where the ID is the core access of the view
-    DevicetrackerView(const std::string& in_id, const std::string& in_description,
+    device_tracker_view(const std::string& in_id, const std::string& in_description,
             new_device_cb in_new_cb, updated_device_cb in_upd_cb);
 
     // Secondary method, where you can specify alternate paths to access; this is used for 
     // things like the per-source view organized by uuid (/devices/views/by-uuid/[uuid]/...)
-    DevicetrackerView(const std::string& in_id, const std::string& in_description,
+    device_tracker_view(const std::string& in_id, const std::string& in_description,
             const std::vector<std::string>& in_aux_path, 
             new_device_cb in_new_cb, updated_device_cb in_upd_cb);
 
-    virtual ~DevicetrackerView() {
+    virtual ~device_tracker_view() {
         local_locker l(&mutex);
     }
 

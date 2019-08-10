@@ -136,14 +136,14 @@ Dot11_SsidScan::Dot11_SsidScan() {
 
     // Make the views with no completion functions, we maintain them manually
     target_devices_view =
-        std::make_shared<DevicetrackerView>(
+        std::make_shared<device_tracker_view>(
                 "phydot11_ssidscan_targets",
                 "Devices matching ssid scan targets",
                 nullptr, nullptr);
     devicetracker->add_view(target_devices_view);
 
     completed_device_view =
-        std::make_shared<DevicetrackerView>(
+        std::make_shared<device_tracker_view>(
                 "phydot11_ssidscan_completed",
                 "SSID scan targets with completed handshakes",
                 nullptr, nullptr);

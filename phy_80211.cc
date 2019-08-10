@@ -609,7 +609,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
     // access-point view
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_view_accesspoints", true)) {
         ap_view = 
-            std::make_shared<DevicetrackerView>("phydot11_accesspoints", 
+            std::make_shared<device_tracker_view>("phydot11_accesspoints", 
                     "IEEE802.11 Access Points",
                     [this](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
                     auto dot11 =

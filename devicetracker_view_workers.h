@@ -44,7 +44,7 @@ public:
     }
 
 protected:
-    friend class DevicetrackerView;
+    friend class device_tracker_view;
 
     virtual void setMatchedDevices(std::shared_ptr<tracker_element_vector> devices);
 

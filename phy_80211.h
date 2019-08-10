@@ -531,7 +531,7 @@ protected:
     std::shared_ptr<Kis_Net_Httpd_Path_Tracked_Endpoint> related_to_key_endp;
 
     // AP view
-    std::shared_ptr<DevicetrackerView> ap_view;
+    std::shared_ptr<device_tracker_view> ap_view;
 
     // bssts time for grouping, in usec
     uint64_t bss_ts_group_usec;

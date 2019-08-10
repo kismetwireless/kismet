@@ -142,11 +142,11 @@ protected:
 
     // Reference we hold to the device view we populate with matched devices which may
     // include completed devices
-    std::shared_ptr<DevicetrackerView> target_devices_view;
+    std::shared_ptr<device_tracker_view> target_devices_view;
 
     // Reference we h old to the device view we populate with 'completed' devices that have
     // seen a wpa handshake
-    std::shared_ptr<DevicetrackerView> completed_device_view;
+    std::shared_ptr<device_tracker_view> completed_device_view;
 
     std::shared_ptr<time_tracker> timetracker;
     int hopping_mode_end_timer;

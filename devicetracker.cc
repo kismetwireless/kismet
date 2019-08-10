@@ -452,7 +452,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
     Bind_Httpd_Server();
 
     auto all_view =
-        std::make_shared<DevicetrackerView>("all", 
+        std::make_shared<device_tracker_view>("all", 
                 "All devices",
                 [](std::shared_ptr<kis_tracked_device_base>) -> bool {
                     return true;
@@ -571,7 +571,7 @@ int device_tracker::register_phy_handler(kis_phy_handler *in_weak_handler) {
         auto k = phy_view_map.find(phy_id);
         if (k == phy_view_map.end()) {
             auto phy_view = 
-                std::make_shared<DevicetrackerView>(fmt::format("phy-{}", strongphy->FetchPhyName()),
+                std::make_shared<device_tracker_view>(fmt::format("phy-{}", strongphy->FetchPhyName()),
                         fmt::format("{} devices", strongphy->FetchPhyName()),
                         std::vector<std::string>{"phy", strongphy->FetchPhyName()},
                         [phy_id](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
@@ -1301,11 +1301,11 @@ void device_tracker::AddDevice(std::shared_ptr<kis_tracked_device_base> device) 
     tracked_mac_multimap.emplace(mm_pair);
 }
 
-bool device_tracker::add_view(std::shared_ptr<DevicetrackerView> in_view) {
+bool device_tracker::add_view(std::shared_ptr<device_tracker_view> in_view) {
     local_locker l(&view_mutex);
 
     for (auto i : *view_vec) {
-        auto vi = std::static_pointer_cast<DevicetrackerView>(i);
+        auto vi = std::static_pointer_cast<device_tracker_view>(i);
         if (vi->get_view_id() == in_view->get_view_id()) 
             return false;
     }
@@ -1324,7 +1324,7 @@ void device_tracker::remove_view(const std::string& in_id) {
     local_locker l(&view_mutex);
         
     for (auto i = view_vec->begin(); i != view_vec->end(); ++i) {
-        auto vi = std::static_pointer_cast<DevicetrackerView>(*i);
+        auto vi = std::static_pointer_cast<device_tracker_view>(*i);
         if (vi->get_view_id() == in_id) {
             view_vec->erase(i);
             return;
@@ -1336,7 +1336,7 @@ void device_tracker::new_view_device(std::shared_ptr<kis_tracked_device_base> in
     local_shared_locker l(&view_mutex);
 
     for (auto i : *view_vec) {
-        auto vi = std::static_pointer_cast<DevicetrackerView>(i);
+        auto vi = std::static_pointer_cast<device_tracker_view>(i);
         vi->newDevice(in_device);
     }
 }
@@ -1345,7 +1345,7 @@ void device_tracker::update_view_device(std::shared_ptr<kis_tracked_device_base>
     local_shared_locker l(&view_mutex);
 
     for (auto i : *view_vec) {
-        auto vi = std::static_pointer_cast<DevicetrackerView>(i);
+        auto vi = std::static_pointer_cast<device_tracker_view>(i);
         vi->updateDevice(in_device);
     }
 }
@@ -1354,7 +1354,7 @@ void device_tracker::remove_view_device(std::shared_ptr<kis_tracked_device_base>
     local_shared_locker l(&view_mutex);
 
     for (auto i : *view_vec) {
-        auto vi = std::static_pointer_cast<DevicetrackerView>(i);
+        auto vi = std::static_pointer_cast<device_tracker_view>(i);
         vi->removeDevice(in_device);
     }
 }
@@ -1760,7 +1760,7 @@ void device_tracker::HandleNewDatasourceEvent(std::shared_ptr<eventbus_event> ev
 
         if (k == seenby_view_map.end()) {
             auto seenby_view =
-                std::make_shared<DevicetrackerView>(fmt::format("seenby-{}", source_uuid), 
+                std::make_shared<device_tracker_view>(fmt::format("seenby-{}", source_uuid), 
                         fmt::format("Devices seen by datasource {}", source_uuid),
                         std::vector<std::string>{"seenby-uuid", source_uuid.asString()},
                         [source_key](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
