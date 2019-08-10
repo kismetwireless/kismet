@@ -139,7 +139,7 @@ class tracker_component : public tracker_element_map {
     virtual shared_tracker_element get_tracker_##name() { \
         if (cvar == nullptr) { \
             using ttype = std::remove_pointer<decltype(cvar.get())>::type; \
-            cvar = Globalreg::globalreg->entrytracker->GetSharedInstanceAs<ttype>(id); \
+            cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ttype>(id); \
             if (cvar != nullptr) \
                 insert(cvar); \
         } \
@@ -148,7 +148,7 @@ class tracker_component : public tracker_element_map {
     virtual rtype get_##name() { \
         if (cvar == nullptr) { \
             using ttype = std::remove_pointer<decltype(cvar.get())>::type; \
-            cvar = Globalreg::globalreg->entrytracker->GetSharedInstanceAs<ttype>(id); \
+            cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ttype>(id); \
             if (cvar != nullptr) \
                 insert(cvar); \
         } \
@@ -157,7 +157,7 @@ class tracker_component : public tracker_element_map {
     virtual void set_##name(const itype& in) { \
         if (cvar == nullptr) { \
             using ttype = std::remove_pointer<decltype(cvar.get())>::type; \
-            cvar = Globalreg::globalreg->entrytracker->GetSharedInstanceAs<ttype>(id); \
+            cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ttype>(id); \
             if (cvar != nullptr) \
                 insert(cvar); \
         } \
@@ -166,7 +166,7 @@ class tracker_component : public tracker_element_map {
     virtual void set_only_##name(const itype& in) { \
         if (cvar == nullptr) { \
             using ttype = std::remove_pointer<decltype(cvar.get())>::type; \
-            cvar = Globalreg::globalreg->entrytracker->GetSharedInstanceAs<ttype>(id); \
+            cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ttype>(id); \
             if (cvar != nullptr) \
                 insert(cvar); \
         } \
@@ -182,7 +182,7 @@ class tracker_component : public tracker_element_map {
         local_locker l((kis_recursive_timed_mutex *) &mutex); \
         if (cvar == nullptr) { \
             using ttype = std::remove_pointer<decltype(cvar.get())>::type; \
-            cvar = Globalreg::globalreg->entrytracker->GetSharedInstanceAs<ttype>(id); \
+            cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ttype>(id); \
             if (cvar != nullptr) \
                 insert(cvar); \
         } \
@@ -192,7 +192,7 @@ class tracker_component : public tracker_element_map {
         local_locker l((kis_recursive_timed_mutex *) &mutex); \
         if (cvar == nullptr) { \
             using ttype = std::remove_pointer<decltype(cvar.get())>::type; \
-            cvar = Globalreg::globalreg->entrytracker->GetSharedInstanceAs<ttype>(id); \
+            cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ttype>(id); \
             if (cvar != nullptr) \
                 insert(cvar); \
         } \
@@ -202,7 +202,7 @@ class tracker_component : public tracker_element_map {
         local_locker l((kis_recursive_timed_mutex *) &mutex); \
         if (cvar == nullptr) { \
             using ttype = std::remove_pointer<decltype(cvar.get())>::type; \
-            cvar = Globalreg::globalreg->entrytracker->GetSharedInstanceAs<ttype>(id); \
+            cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ttype>(id); \
             if (cvar != nullptr) \
                 insert(cvar); \
         } \
@@ -212,7 +212,7 @@ class tracker_component : public tracker_element_map {
         local_locker l((kis_recursive_timed_mutex *) &mutex); \
         if (cvar == nullptr) { \
             using ttype = std::remove_pointer<decltype(cvar.get())>::type; \
-            cvar = Globalreg::globalreg->entrytracker->GetSharedInstanceAs<ttype>(id); \
+            cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ttype>(id); \
             if (cvar != nullptr) \
                 insert(cvar); \
         } \
@@ -229,7 +229,7 @@ class tracker_component : public tracker_element_map {
     virtual shared_tracker_element get_tracker_##name() { \
         if (cvar == nullptr) { \
             using ttype = std::remove_pointer<decltype(cvar.get())>::type; \
-            cvar = Globalreg::globalreg->entrytracker->GetSharedInstanceAs<ttype>(id); \
+            cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ttype>(id); \
             if (cvar != nullptr) \
                 insert(cvar); \
         } \
@@ -238,7 +238,7 @@ class tracker_component : public tracker_element_map {
     virtual rtype get_##name() { \
         if (cvar == nullptr) { \
             using ttype = std::remove_pointer<decltype(cvar.get())>::type; \
-            cvar = Globalreg::globalreg->entrytracker->GetSharedInstanceAs<ttype>(id); \
+            cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ttype>(id); \
             if (cvar != nullptr) \
                 insert(cvar); \
         } \
@@ -247,7 +247,7 @@ class tracker_component : public tracker_element_map {
     virtual bool set_##name(const itype& in) { \
         if (cvar == nullptr) { \
             using ttype = std::remove_pointer<decltype(cvar.get())>::type; \
-            cvar = Globalreg::globalreg->entrytracker->GetSharedInstanceAs<ttype>(id); \
+            cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ttype>(id); \
             if (cvar != nullptr) \
                 insert(cvar); \
         } \
@@ -257,7 +257,7 @@ class tracker_component : public tracker_element_map {
     virtual void set_only_##name(const itype& in) { \
         if (cvar == nullptr) { \
             using ttype = std::remove_pointer<decltype(cvar.get())>::type; \
-            cvar = Globalreg::globalreg->entrytracker->GetSharedInstanceAs<ttype>(id); \
+            cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ttype>(id); \
             if (cvar != nullptr) \
                 insert(cvar); \
         } \
@@ -523,7 +523,7 @@ class tracker_component : public tracker_element_map {
 #define __ProxyDynamicTrackable(name, ttype, cvar, id) \
     virtual std::shared_ptr<ttype> get_##name() { \
         if (cvar == NULL) { \
-            cvar = Globalreg::globalreg->entrytracker->GetSharedInstanceAs<ttype>(id); \
+            cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ttype>(id); \
             if (cvar != NULL) \
                 insert(cvar); \
         } \
@@ -551,7 +551,7 @@ class tracker_component : public tracker_element_map {
     virtual std::shared_ptr<ttype> get_##name() { \
         local_locker l((kis_recursive_timed_mutex *) &mutex); \
         if (cvar == NULL) { \
-            cvar = Globalreg::globalreg->entrytracker->GetSharedInstanceAs<ttype>(id); \
+            cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ttype>(id); \
             if (cvar != NULL) \
                 insert(cvar); \
         } \
@@ -582,7 +582,7 @@ class tracker_component : public tracker_element_map {
     virtual std::shared_ptr<ttype> get_##name() { \
         local_locker l(mutex); \
         if (cvar == NULL) { \
-            cvar = Globalreg::globalreg->entrytracker->GetSharedInstanceAs<ttype>(id); \
+            cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ttype>(id); \
             if (cvar != NULL) \
                 insert(cvar); \
         } \

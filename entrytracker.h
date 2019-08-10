@@ -86,12 +86,12 @@ public:
     std::string get_field_description(int in_id);
 
     // Generate a shared field instance, using the builder
-    template<class T> std::shared_ptr<T> GetSharedInstanceAs(const std::string& in_name) {
+    template<class T> std::shared_ptr<T> get_shared_instance_as(const std::string& in_name) {
         return std::static_pointer_cast<T>(GetSharedInstance(in_name));
     }
     std::shared_ptr<tracker_element> GetSharedInstance(const std::string& in_name);
 
-    template<class T> std::shared_ptr<T> GetSharedInstanceAs(int in_id) {
+    template<class T> std::shared_ptr<T> get_shared_instance_as(int in_id) {
         return std::static_pointer_cast<T>(GetSharedInstance(in_id));
     }
     std::shared_ptr<tracker_element> GetSharedInstance(int in_id);
