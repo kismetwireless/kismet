@@ -594,7 +594,7 @@ int device_tracker::register_phy_handler(kis_phy_handler *in_weak_handler) {
 	return num;
 }
 
-void device_tracker::UpdateFullRefresh() {
+void device_tracker::update_full_refresh() {
     full_refresh_time = globalreg->timestamp.tv_sec;
 }
 
@@ -1124,7 +1124,7 @@ int device_tracker::timetracker_event(int eventid) {
                     }), tracked_vec.end());
 
         if (purged)
-            UpdateFullRefresh();
+            update_full_refresh();
 
     } else if (eventid == max_devices_timer) {
 		local_locker lock(&devicelist_mutex);
@@ -1138,7 +1138,7 @@ int device_tracker::timetracker_event(int eventid) {
 			return 1;
 
         // Do an update since we're trimming something
-        UpdateFullRefresh();
+        update_full_refresh();
 
 		// Now things start getting expensive.  Start by sorting the
 		// vector of devices - anything else that has to sort the entire list

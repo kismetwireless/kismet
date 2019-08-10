@@ -3060,7 +3060,7 @@ public:
 
                 adv_ssid_map->erase(int_itr);
                 int_itr = adv_ssid_map->begin();
-                devicetracker->UpdateFullRefresh();
+                devicetracker->update_full_refresh();
             }
         }
 
@@ -3077,7 +3077,7 @@ public:
             if (time(0) - pssid->get_last_time() > timeout && device->get_packets() < packets) {
                 probe_map->erase(int_itr);
                 int_itr = probe_map->begin();
-                devicetracker->UpdateFullRefresh();
+                devicetracker->update_full_refresh();
             }
         }
 
@@ -3095,7 +3095,7 @@ public:
             if (time(0) - client->get_last_time() > timeout && device->get_packets() < packets) {
                 client_map->erase(mac_itr);
                 mac_itr = client_map->begin();
-                devicetracker->UpdateFullRefresh();
+                devicetracker->update_full_refresh();
             }
         }
 
