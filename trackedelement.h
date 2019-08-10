@@ -1528,12 +1528,12 @@ public:
 };
 
 // Double::Double map
-class tracker_element_double_mapDouble : public tracker_element_core_map<double, double> {
+class tracker_element_double_map_double : public tracker_element_core_map<double, double> {
 public:
-    tracker_element_double_mapDouble() :
+    tracker_element_double_map_double() :
         tracker_element_core_map<double, double>(tracker_type::tracker_double_map_double) { }
 
-    tracker_element_double_mapDouble(int id) :
+    tracker_element_double_map_double(int id) :
         tracker_element_core_map<double, double>(tracker_type::tracker_double_map_double, id) { }
 
     static tracker_type static_type() {

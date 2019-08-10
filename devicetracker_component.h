@@ -181,7 +181,7 @@ public:
     __Proxy(num_packets, uint64_t, uint64_t, uint64_t, num_packets);
     __ProxyIncDec(num_packets, uint64_t, uint64_t, num_packets);
 
-    __ProxyTrackable(freq_khz_map, tracker_element_double_mapDouble, freq_khz_map);
+    __ProxyTrackable(freq_khz_map, tracker_element_double_map_double, freq_khz_map);
     __ProxyDynamicTrackable(signal_data, kis_tracked_signal_data, signal_data, signal_data_id);
 
     void inc_frequency_count(int frequency);
@@ -194,7 +194,7 @@ protected:
     std::shared_ptr<tracker_element_uint64> last_time;
     std::shared_ptr<tracker_element_uint64> num_packets;
 
-    std::shared_ptr<tracker_element_double_mapDouble> freq_khz_map;
+    std::shared_ptr<tracker_element_double_map_double> freq_khz_map;
     int frequency_val_id;
 
     std::shared_ptr<kis_tracked_signal_data> signal_data;
@@ -407,7 +407,7 @@ public:
     __ProxyDynamicTrackable(signal_data, kis_tracked_signal_data, signal_data,
             signal_data_id);
 
-    __ProxyTrackable(freq_khz_map, tracker_element_double_mapDouble, freq_khz_map);
+    __ProxyTrackable(freq_khz_map, tracker_element_double_map_double, freq_khz_map);
 
     void inc_frequency_count(double frequency);
 
@@ -537,7 +537,7 @@ protected:
     std::shared_ptr<kis_tracked_signal_data> signal_data;
 
     // Global frequency distribution
-    std::shared_ptr<tracker_element_double_mapDouble> freq_khz_map;
+    std::shared_ptr<tracker_element_double_map_double> freq_khz_map;
 
     // Manufacturer, if we're able to derive, either from OUI or 
     // from other data (phy-dependent)

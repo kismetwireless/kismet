@@ -568,8 +568,8 @@ void JsonAdapter::Pack(std::ostream &stream, shared_tracker_element e,
 
             break;
         case tracker_type::tracker_double_map_double:
-            as_vector = std::static_pointer_cast<tracker_element_double_mapDouble>(e)->as_vector();
-            as_key_vector = std::static_pointer_cast<tracker_element_double_mapDouble>(e)->as_key_vector();
+            as_vector = std::static_pointer_cast<tracker_element_double_map_double>(e)->as_vector();
+            as_key_vector = std::static_pointer_cast<tracker_element_double_map_double>(e)->as_key_vector();
 
             if (as_vector || as_key_vector)
                 stream << ppendl << indent << "[" << ppendl;
@@ -577,7 +577,7 @@ void JsonAdapter::Pack(std::ostream &stream, shared_tracker_element e,
                 stream << ppendl << indent << "{" << ppendl;
 
             prepend_comma = false;
-            for (auto i : *(std::static_pointer_cast<tracker_element_double_mapDouble>(e))) {
+            for (auto i : *(std::static_pointer_cast<tracker_element_double_map_double>(e))) {
                 if (prepend_comma)
                     stream << ",";
 
@@ -937,7 +937,7 @@ void StorageJsonAdapter::Pack(std::ostream &stream, shared_tracker_element e,
             stream << "{";
 
             prepend_comma = false;
-            for (auto i : *(std::static_pointer_cast<tracker_element_double_mapDouble>(e))) {
+            for (auto i : *(std::static_pointer_cast<tracker_element_double_map_double>(e))) {
                 if (prepend_comma)
                     stream << ",";
                 prepend_comma = true;
