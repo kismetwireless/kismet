@@ -218,7 +218,7 @@ public:
     }
 
     // Erase a key; will not throw exception if key does not exist
-    void eraseKey(const std::string& in_key);
+    void erase_key(const std::string& in_key);
 
     // Encode to string.  All values will be quoted for safety.
     std::string toString();

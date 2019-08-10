@@ -686,7 +686,7 @@ std::string header_value_config::get_value(const std::string& in_str, const std:
     return vi->second;
 }
 
-void header_value_config::eraseKey(const std::string& in_key) {
+void header_value_config::erase_key(const std::string& in_key) {
     local_locker l(&mutex);
 
     auto vi = content_map.find(in_key);
