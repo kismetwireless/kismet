@@ -70,7 +70,7 @@ int config_file::parse_config(const char *in_fname) {
     }
 
     for (auto f : config_override_file_list) {
-        r = ParseOptOverride(f);
+        r = parse_opt_override(f);
 
         if (r < 0)
             break;
@@ -209,7 +209,7 @@ int config_file::parse_opt_include(const std::string path,
     return 1;
 }
 
-int config_file::ParseOptOverride(const std::string path) {
+int config_file::parse_opt_override(const std::string path) {
     std::map<std::string, std::vector<config_entity> > override_config_map;
     std::map<std::string, int> override_config_map_dirty;
     int r;

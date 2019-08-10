@@ -140,7 +140,7 @@ protected:
 
     // Option included override file, don't error if it's not found; parsed
     // at the END of the file parse cycle, for each 
-    int ParseOptOverride(const std::string path);
+    int parse_opt_override(const std::string path);
 
     int parse_config(const char *in_fname, 
             std::map<std::string, std::vector<config_entity> > &target_map,
