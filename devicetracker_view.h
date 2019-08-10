@@ -36,7 +36,7 @@
 // it requires assisting code in the appropriate areas (such as adding a SSID to a dot11 device).
 //
 // Views can be populated either by callbacks in the packet stream or by direct calls to
-// addDeviceDirect and addRemoveDirect, depending on how the view population code is written.
+// add_device_direct and addRemoveDirect, depending on how the view population code is written.
 //
 // Views are best suited to long-term alternate representations of data, such as 'all access points',
 // 'all devices of a given phy type', and so on.  The vector-backed system is not well optimized
@@ -115,7 +115,7 @@ public:
     // Direct calls to views that do not participate in the traditional view population 
     // and are instead directly manipulated by another component (such as the ssidscan system which
     // maintains a view by directly adding target devices)
-    virtual void addDeviceDirect(std::shared_ptr<kis_tracked_device_base> device);
+    virtual void add_device_direct(std::shared_ptr<kis_tracked_device_base> device);
     virtual void removeDeviceDirect(std::shared_ptr<kis_tracked_device_base> device);
 
 protected:
