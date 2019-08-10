@@ -309,7 +309,7 @@ public:
 
 protected:
 	global_registry *globalreg;
-    std::shared_ptr<EntryTracker> entrytracker;
+    std::shared_ptr<entry_tracker> entrytracker;
     std::shared_ptr<packetchain> packetchain;
     std::shared_ptr<Eventbus> eventbus;
 

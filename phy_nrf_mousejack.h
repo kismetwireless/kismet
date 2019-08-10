@@ -111,7 +111,7 @@ public:
 
 protected:
     std::shared_ptr<packetchain> packetchain;
-    std::shared_ptr<EntryTracker> entrytracker;
+    std::shared_ptr<entry_tracker> entrytracker;
     std::shared_ptr<device_tracker> devicetracker;
 
     int mousejack_device_entry_id;

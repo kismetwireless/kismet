@@ -71,7 +71,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
     immutable_tracked_vec = std::make_shared<tracker_element_vector>();
 
     entrytracker =
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
+        Globalreg::FetchMandatoryGlobalAs<entry_tracker>();
 
 	eventbus =
 		Globalreg::FetchMandatoryGlobalAs<Eventbus>();

@@ -24,7 +24,7 @@
 #include "entrytracker.h"
 #include "messagebus.h"
 
-EntryTracker::EntryTracker(global_registry *in_globalreg) :
+entry_tracker::entry_tracker(global_registry *in_globalreg) :
     kis_net_httpd_cppstream_handler() {
     globalreg = in_globalreg;
 
@@ -33,13 +33,13 @@ EntryTracker::EntryTracker(global_registry *in_globalreg) :
     Bind_Httpd_Server();
 }
 
-EntryTracker::~EntryTracker() {
+entry_tracker::~entry_tracker() {
     local_locker eolock(&entry_mutex);
 
     globalreg->RemoveGlobal("ENTRYTRACKER");
 }
 
-int EntryTracker::register_field(const std::string& in_name,
+int entry_tracker::register_field(const std::string& in_name,
         std::unique_ptr<tracker_element> in_builder,
         const std::string& in_desc) {
     local_locker lock(&entry_mutex);
@@ -71,7 +71,7 @@ int EntryTracker::register_field(const std::string& in_name,
     return definition->field_id;
 }
 
-std::shared_ptr<tracker_element> EntryTracker::RegisterAndGetField(const std::string& in_name,
+std::shared_ptr<tracker_element> entry_tracker::RegisterAndGetField(const std::string& in_name,
         std::unique_ptr<tracker_element> in_builder,
         const std::string& in_desc) {
     local_locker lock(&entry_mutex);
@@ -104,7 +104,7 @@ std::shared_ptr<tracker_element> EntryTracker::RegisterAndGetField(const std::st
 }
 
 
-int EntryTracker::GetFieldId(const std::string& in_name) {
+int entry_tracker::GetFieldId(const std::string& in_name) {
     local_locker lock(&entry_mutex);
 
     std::string mod_name = StrLower(in_name);
@@ -116,7 +116,7 @@ int EntryTracker::GetFieldId(const std::string& in_name) {
     return iter->second->field_id;
 }
 
-std::string EntryTracker::GetFieldName(int in_id) {
+std::string entry_tracker::GetFieldName(int in_id) {
     local_locker lock(&entry_mutex);
 
     auto iter = field_id_map.find(in_id);
@@ -126,7 +126,7 @@ std::string EntryTracker::GetFieldName(int in_id) {
     return iter->second->field_name;
 }
 
-std::string EntryTracker::GetFieldDescription(int in_id) {
+std::string entry_tracker::GetFieldDescription(int in_id) {
     local_locker lock(&entry_mutex);
 
     auto iter = field_id_map.find(in_id);
@@ -139,7 +139,7 @@ std::string EntryTracker::GetFieldDescription(int in_id) {
 }
 
 
-std::shared_ptr<tracker_element> EntryTracker::GetSharedInstance(int in_id) {
+std::shared_ptr<tracker_element> entry_tracker::GetSharedInstance(int in_id) {
     local_locker lock(&entry_mutex);
 
     auto iter = field_id_map.find(in_id);
@@ -150,7 +150,7 @@ std::shared_ptr<tracker_element> EntryTracker::GetSharedInstance(int in_id) {
     return iter->second->builder->clone_type(iter->second->field_id);
 }
 
-std::shared_ptr<tracker_element> EntryTracker::GetSharedInstance(const std::string& in_name) {
+std::shared_ptr<tracker_element> entry_tracker::GetSharedInstance(const std::string& in_name) {
     local_locker lock(&entry_mutex);
 
     auto lname = StrLower(in_name);
@@ -163,7 +163,7 @@ std::shared_ptr<tracker_element> EntryTracker::GetSharedInstance(const std::stri
     return iter->second->builder->clone_type(iter->second->field_id);
 }
 
-bool EntryTracker::httpd_verify_path(const char *path, const char *method) {
+bool entry_tracker::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0)
         return false;
 
@@ -173,7 +173,7 @@ bool EntryTracker::httpd_verify_path(const char *path, const char *method) {
     return false;
 }
 
-void EntryTracker::httpd_create_stream_response(
+void entry_tracker::httpd_create_stream_response(
         Kis_Net_Httpd *httpd __attribute__((unused)),
         Kis_Net_Httpd_Connection *connection __attribute__((unused)),
         const char *path, const char *method, 
@@ -219,7 +219,7 @@ void EntryTracker::httpd_create_stream_response(
 
 }
 
-void EntryTracker::RegisterSerializer(const std::string& in_name, 
+void entry_tracker::RegisterSerializer(const std::string& in_name, 
         std::shared_ptr<tracker_element_serializer> in_ser) {
     local_locker lock(&serializer_mutex);
     
@@ -234,7 +234,7 @@ void EntryTracker::RegisterSerializer(const std::string& in_name,
     serializer_map[mod_type] = in_ser;
 }
 
-void EntryTracker::RemoveSerializer(const std::string& in_name) {
+void entry_tracker::RemoveSerializer(const std::string& in_name) {
     local_locker lock(&serializer_mutex);
 
     std::string mod_type = StrLower(in_name);
@@ -245,7 +245,7 @@ void EntryTracker::RemoveSerializer(const std::string& in_name) {
     }
 }
 
-bool EntryTracker::CanSerialize(const std::string& in_name) {
+bool entry_tracker::CanSerialize(const std::string& in_name) {
     local_locker lock(&serializer_mutex);
 
     std::string mod_type = StrLower(in_name);
@@ -258,7 +258,7 @@ bool EntryTracker::CanSerialize(const std::string& in_name) {
     return false;
 }
 
-bool EntryTracker::Serialize(const std::string& in_name, std::ostream &stream,
+bool entry_tracker::Serialize(const std::string& in_name, std::ostream &stream,
         shared_tracker_element e,
         std::shared_ptr<tracker_element_serializer::rename_map> name_map) {
 

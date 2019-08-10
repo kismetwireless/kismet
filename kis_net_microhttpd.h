@@ -44,7 +44,7 @@ class Kis_Net_Httpd_Session;
 class Kis_Net_Httpd_Connection;
 class Kis_Net_Httpd_Handler;
 
-class EntryTracker;
+class entry_tracker;
 
 namespace kishttpd {
     std::string GetSuffix(const std::string& path);

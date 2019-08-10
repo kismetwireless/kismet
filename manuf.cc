@@ -26,7 +26,7 @@
 #include "manuf.h"
 
 Manuf::Manuf() {
-    auto entrytracker = Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
+    auto entrytracker = Globalreg::FetchMandatoryGlobalAs<entry_tracker>();
 
     manuf_id = 
         entrytracker->register_field("kismet.device.base.manuf", 

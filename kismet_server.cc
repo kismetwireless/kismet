@@ -746,8 +746,8 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Allocate some other critical stuff like the entry tracker and the
     // serializers
-    std::shared_ptr<EntryTracker> entrytracker =
-        EntryTracker::create_entrytracker(Globalreg::globalreg);
+    std::shared_ptr<entry_tracker> entrytracker =
+        entry_tracker::create_entrytracker(Globalreg::globalreg);
 
     // Create the manuf db
     globalregistry->manufdb = new Manuf();

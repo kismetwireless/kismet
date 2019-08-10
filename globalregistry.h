@@ -60,7 +60,7 @@ class KisPanelInterface;
 // Manuf db
 class Manuf;
 // Field name resolver
-class EntryTracker;
+class entry_tracker;
 // HTTP server
 class Kis_Net_Httpd;
 
@@ -267,7 +267,7 @@ public:
     std::vector<critical_fail> critfail_vec;
 
     // Field name tracking
-    EntryTracker *entrytracker;
+    entry_tracker *entrytracker;
     
     global_registry();
 

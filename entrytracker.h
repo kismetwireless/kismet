@@ -34,12 +34,12 @@
 #include "kis_net_microhttpd.h"
 
 // Allocate and track named fields and give each one a custom int
-class EntryTracker : public kis_net_httpd_cppstream_handler, public lifetime_global {
+class entry_tracker : public kis_net_httpd_cppstream_handler, public lifetime_global {
 public:
     static std::string global_name() { return "ENTRYTRACKER"; }
 
-    static std::shared_ptr<EntryTracker> create_entrytracker(global_registry *in_globalreg) {
-        std::shared_ptr<EntryTracker> mon(new EntryTracker(in_globalreg));
+    static std::shared_ptr<entry_tracker> create_entrytracker(global_registry *in_globalreg) {
+        std::shared_ptr<entry_tracker> mon(new entry_tracker(in_globalreg));
         in_globalreg->entrytracker = mon.get();
         in_globalreg->register_lifetime_global(mon);
         in_globalreg->insert_global(global_name(), mon);
@@ -47,10 +47,10 @@ public:
     }
 
 private:
-    EntryTracker(global_registry *in_globalreg);
+    entry_tracker(global_registry *in_globalreg);
 
 public:
-    virtual ~EntryTracker();
+    virtual ~entry_tracker();
 
     // Register a field name; field names are plain strings, and must be unique for
     // each type; Using namespaces is recommended, ie "plugin.foo.some_field".

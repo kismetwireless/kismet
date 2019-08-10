@@ -37,7 +37,7 @@
 #include "macaddr.h"
 #include "uuid.h"
 
-class EntryTracker;
+class entry_tracker;
 class tracker_element;
 
 using shared_tracker_element = std::shared_ptr<tracker_element>;

@@ -29,7 +29,7 @@ Dot11_SsidScan::Dot11_SsidScan() {
     capture_mode_end_timer = -1;
 
     auto entrytracker = 
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
+        Globalreg::FetchMandatoryGlobalAs<entry_tracker>();
 
     auto devicetracker =
         Globalreg::FetchMandatoryGlobalAs<device_tracker>();

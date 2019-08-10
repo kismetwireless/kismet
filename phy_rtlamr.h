@@ -246,7 +246,7 @@ protected:
 
 protected:
     std::shared_ptr<packetchain> packetchain;
-    std::shared_ptr<EntryTracker> entrytracker;
+    std::shared_ptr<entry_tracker> entrytracker;
     std::shared_ptr<device_tracker> devicetracker;
 
     int rtlamr_holder_id, rtlamr_common_id, rtlamr_powermeter_id;
