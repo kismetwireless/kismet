@@ -385,7 +385,7 @@ public:
             struct MHD_Response *response, time_t in_lifetime);
 
     // Append a session cookie if we have a valid session for this connection
-    static void AppendHttpSession(kis_net_httpd *httpd,
+    static void append_http_session(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection);
 
     // Append timestamp and mime headers

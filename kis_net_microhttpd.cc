@@ -1136,7 +1136,7 @@ int kis_net_httpd::handle_static_file(void *cls, kis_net_httpd_connection *conne
     return -1;
 }
 
-void kis_net_httpd::AppendHttpSession(kis_net_httpd *httpd __attribute__((unused)),
+void kis_net_httpd::append_http_session(kis_net_httpd *httpd __attribute__((unused)),
         kis_net_httpd_connection *connection) {
 
     if (connection->session != NULL) {
@@ -1212,7 +1212,7 @@ int kis_net_httpd::SendHttpResponse(kis_net_httpd *httpd __attribute__((unused))
 
 int kis_net_httpd::SendStandardHttpResponse(kis_net_httpd *httpd,
         kis_net_httpd_connection *connection, const char *url) {
-    AppendHttpSession(httpd, connection);
+    append_http_session(httpd, connection);
     AppendStandardHeaders(httpd, connection, url);
     return SendHttpResponse(httpd, connection);
 }
