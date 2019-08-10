@@ -139,7 +139,7 @@ bool kis_gps::open_gps(std::string in_definition) {
 
 double kis_gps::gps_calc_heading(double in_lat, double in_lon, double in_lat2, 
 							   double in_lon2) {
-    double r = GpsCalcRad((double) in_lat2);
+    double r = gps_calc_rad((double) in_lat2);
 
     double lat1 = GpsDeg2Rad((double) in_lat);
     double lon1 = GpsDeg2Rad((double) in_lon);
@@ -194,20 +194,20 @@ double kis_gps::GpsDeg2Rad(double x) {
 
 double kis_gps::GpsEarthDistance(double in_lat, double in_lon, 
         double in_lat2, double in_lon2) {
-    double x1 = GpsCalcRad(in_lat) * cos(GpsDeg2Rad(in_lon)) * sin(GpsDeg2Rad(90-in_lat));
+    double x1 = gps_calc_rad(in_lat) * cos(GpsDeg2Rad(in_lon)) * sin(GpsDeg2Rad(90-in_lat));
     double x2 = 
-        GpsCalcRad(in_lat2) * cos(GpsDeg2Rad(in_lon2)) * sin(GpsDeg2Rad(90-in_lat2));
-    double y1 = GpsCalcRad(in_lat) * sin(GpsDeg2Rad(in_lon)) * sin(GpsDeg2Rad(90-in_lat));
+        gps_calc_rad(in_lat2) * cos(GpsDeg2Rad(in_lon2)) * sin(GpsDeg2Rad(90-in_lat2));
+    double y1 = gps_calc_rad(in_lat) * sin(GpsDeg2Rad(in_lon)) * sin(GpsDeg2Rad(90-in_lat));
     double y2 = 
-        GpsCalcRad(in_lat2) * sin(GpsDeg2Rad(in_lon2)) * sin(GpsDeg2Rad(90-in_lat2));
-    double z1 = GpsCalcRad(in_lat) * cos(GpsDeg2Rad(90-in_lat));
-    double z2 = GpsCalcRad(in_lat2) * cos(GpsDeg2Rad(90-in_lat2));
+        gps_calc_rad(in_lat2) * sin(GpsDeg2Rad(in_lon2)) * sin(GpsDeg2Rad(90-in_lat2));
+    double z1 = gps_calc_rad(in_lat) * cos(GpsDeg2Rad(90-in_lat));
+    double z2 = gps_calc_rad(in_lat2) * cos(GpsDeg2Rad(90-in_lat2));
     double a = 
-        acos((x1*x2 + y1*y2 + z1*z2)/pow(GpsCalcRad((double) (in_lat+in_lat2)/2),2));
-    return GpsCalcRad((double) (in_lat+in_lat2) / 2) * a;
+        acos((x1*x2 + y1*y2 + z1*z2)/pow(gps_calc_rad((double) (in_lat+in_lat2)/2),2));
+    return gps_calc_rad((double) (in_lat+in_lat2) / 2) * a;
 }
 
-double kis_gps::GpsCalcRad(double lat) {
+double kis_gps::gps_calc_rad(double lat) {
     double a = 6378.137, r, sc, x, y, z;
     double e2 = 0.081082 * 0.081082;
 
