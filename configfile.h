@@ -134,7 +134,7 @@ protected:
 	void calculate_file_checksum();
 
     // Optional included file, don't error if it's not found
-    int ParseOptInclude(const std::string path,
+    int parse_opt_include(const std::string path,
             std::map<std::string, std::vector<config_entity> > &target_map,
             std::map<std::string, int> &target_map_dirty);
 

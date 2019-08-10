@@ -147,7 +147,7 @@ int config_file::parse_config(const char *in_fname,
                     return -1;
                 }
             } else if (directive == "opt_include") {
-                if (ParseOptInclude(expand_log_path(value, "", "", 0, 1), target_map, 
+                if (parse_opt_include(expand_log_path(value, "", "", 0, 1), target_map, 
                             target_map_dirty) < 0)
                     return -1;
             } else if (directive == "opt_override") {
@@ -166,7 +166,7 @@ int config_file::parse_config(const char *in_fname,
     return 1;
 }
 
-int config_file::ParseOptInclude(const std::string path,
+int config_file::parse_opt_include(const std::string path,
         std::map<std::string, std::vector<config_entity> > &target_map,
         std::map<std::string, int> &target_map_dirty) {
     glob_t globbed;
@@ -217,7 +217,7 @@ int config_file::ParseOptOverride(const std::string path) {
     _MSG("Loading config override file '" + path + "'", MSGFLAG_INFO);
 
     // Parse into our submaps
-    r = ParseOptInclude(path, override_config_map, override_config_map_dirty);
+    r = parse_opt_include(path, override_config_map, override_config_map_dirty);
 
     // If we hit a legit error or a missing file, bail
     if (r <= 0)
