@@ -33,10 +33,10 @@
 #include <pcre.h>
 #endif
 
-class DevicetrackerViewWorker {
+class device_tracker_view_worker {
 public:
-    DevicetrackerViewWorker() { }
-    virtual ~DevicetrackerViewWorker() { }
+    device_tracker_view_worker() { }
+    virtual ~device_tracker_view_worker() { }
 
     virtual bool matchDevice(std::shared_ptr<kis_tracked_device_base> device) = 0;
     virtual std::shared_ptr<tracker_element_vector> getMatchedDevices() {
@@ -52,7 +52,7 @@ protected:
     std::shared_ptr<tracker_element_vector> matched;
 };
 
-class DevicetrackerViewFunctionWorker : public DevicetrackerViewWorker {
+class DevicetrackerViewFunctionWorker : public device_tracker_view_worker {
 public:
     using filter_cb = std::function<bool (std::shared_ptr<kis_tracked_device_base>)>;
 
@@ -71,7 +71,7 @@ protected:
 };
 
 // Field:Regex matcher
-class DevicetrackerViewRegexWorker : public DevicetrackerViewWorker {
+class DevicetrackerViewRegexWorker : public device_tracker_view_worker {
 public:
     struct pcre_filter {
 #ifdef HAVE_LIBPCRE
@@ -112,7 +112,7 @@ protected:
 
 // Generic string search for any string-like value (and a few more complex values, like MAC addresses).
 // Searches multiple fields for a given string
-class DevicetrackerViewStringmatchWorker : public DevicetrackerViewWorker {
+class DevicetrackerViewStringmatchWorker : public device_tracker_view_worker {
 public:
     // Match a given string against a list of resovled field paths
     DevicetrackerViewStringmatchWorker(const std::string& in_query,
@@ -139,7 +139,7 @@ protected:
 
 // Generic string search for any string-like value (and a few more complex values, like MAC addresses).
 // Searches multiple fields for a given string
-class DevicetrackerViewICaseStringmatchWorker : public DevicetrackerViewWorker {
+class DevicetrackerViewICaseStringmatchWorker : public device_tracker_view_worker {
 public:
     // Match a given string against a list of resovled field paths
     DevicetrackerViewICaseStringmatchWorker(const std::string& in_query,
