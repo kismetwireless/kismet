@@ -73,7 +73,7 @@ Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri,
     configfile = std::make_shared<config_file>();
     configpath = configfile->ExpandLogPath(in_config);
     configvalue = in_confvalue;
-    configfile->ParseConfig(in_config);
+    configfile->parse_config(in_config);
 }
 
 Dot11FingerprintTracker::~Dot11FingerprintTracker() {

@@ -101,7 +101,7 @@ void Kis_Httpd_Websession::userdir_login() {
     // Parse the config file in the user directory, if it exists
     struct stat buf;
     if (stat(user_httpd_config_file.c_str(), &buf) == 0) {
-        user_httpd_config->ParseConfig(user_httpd_config_file.c_str());
+        user_httpd_config->parse_config(user_httpd_config_file.c_str());
 
         conf_username = user_httpd_config->FetchOpt("httpd_username");
         conf_password = user_httpd_config->FetchOpt("httpd_password");

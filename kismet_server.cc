@@ -387,7 +387,7 @@ void Load_Kismet_UUID(global_registry *globalreg) {
     std::string uuidconfpath = config_dir_path + "/" + "kismet_server_id.conf";
 
     config_file uuidconf(globalreg);
-    uuidconf.ParseConfig(uuidconfpath.c_str());
+    uuidconf.parse_config(uuidconfpath.c_str());
 
     // Look for a saved uuid
     confuuid = uuid(uuidconf.FetchOpt("server_uuid"));
@@ -665,7 +665,7 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     conf = new config_file(globalregistry);
-    if (conf->ParseConfig(configfilename) < 0) {
+    if (conf->parse_config(configfilename) < 0) {
         exit(1);
     }
     globalregistry->kismet_config = conf;

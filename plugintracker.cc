@@ -170,7 +170,7 @@ int Plugintracker::ScanDirectory(DIR *in_dir, std::string in_path) {
 
         std::string manifest = in_path + "/" + plugfile->d_name + "/manifest.conf";
 
-        cf.ParseConfig(manifest.c_str());
+        cf.parse_config(manifest.c_str());
 
         SharedPluginData preg(new PluginRegistrationData());
 

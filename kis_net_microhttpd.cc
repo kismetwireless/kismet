@@ -236,7 +236,7 @@ kis_net_httpd::kis_net_httpd() {
 
         struct stat buf;
         if (stat(sessiondb_file.c_str(), &buf) == 0) {
-            session_db->ParseConfig(sessiondb_file.c_str());
+            session_db->parse_config(sessiondb_file.c_str());
 
             std::vector<std::string> oldsessions = session_db->FetchOptVec("session");
 

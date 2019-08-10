@@ -44,9 +44,9 @@ public:
 	config_file(global_registry *in_globalreg);
     ~config_file();
 
-    int ParseConfig(const char *in_fname);
-    int ParseConfig(const std::string& in_fname) {
-        return ParseConfig(in_fname.c_str());
+    int parse_config(const char *in_fname);
+    int parse_config(const std::string& in_fname) {
+        return parse_config(in_fname.c_str());
     }
 
 	int SaveConfig(const char *in_fname);
@@ -142,7 +142,7 @@ protected:
     // at the END of the file parse cycle, for each 
     int ParseOptOverride(const std::string path);
 
-    int ParseConfig(const char *in_fname, 
+    int parse_config(const char *in_fname, 
             std::map<std::string, std::vector<config_entity> > &target_map,
             std::map<std::string, int> &target_map_dirty);
 

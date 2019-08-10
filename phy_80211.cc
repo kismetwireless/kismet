@@ -475,7 +475,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
 	conf_save = Globalreg::globalreg->timestamp.tv_sec;
 
 	ssid_conf = new config_file(Globalreg::globalreg);
-	ssid_conf->ParseConfig(ssid_conf->ExpandLogPath(Globalreg::globalreg->kismet_config->FetchOpt("configdir") + "/" + "ssid_map.conf", "", "", 0, 1).c_str());
+	ssid_conf->parse_config(ssid_conf->ExpandLogPath(Globalreg::globalreg->kismet_config->FetchOpt("configdir") + "/" + "ssid_map.conf", "", "", 0, 1).c_str());
     Globalreg::globalreg->insert_global("SSID_CONF_FILE", std::shared_ptr<config_file>(ssid_conf));
 #endif
 

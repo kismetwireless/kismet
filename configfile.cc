@@ -55,10 +55,10 @@ config_file::~config_file() {
     local_locker lock(&config_locker);
 }
 
-int config_file::ParseConfig(const char *in_fname) {
+int config_file::parse_config(const char *in_fname) {
     int r;
 
-    r = ParseConfig(in_fname, config_map, config_map_dirty);
+    r = parse_config(in_fname, config_map, config_map_dirty);
 
     if (r < 0)
         return r;
@@ -82,7 +82,7 @@ int config_file::ParseConfig(const char *in_fname) {
     return r;
 }
 
-int config_file::ParseConfig(const char *in_fname,
+int config_file::parse_config(const char *in_fname,
         std::map<std::string, std::vector<config_entity> > &target_map,
         std::map<std::string, int> &target_map_dirty) {
     local_locker lock(&config_locker);
@@ -142,7 +142,7 @@ int config_file::ParseConfig(const char *in_fname,
                 _MSG(sstream.str(), MSGFLAG_INFO);
                 sstream.str("");
 
-                if (ParseConfig(value.c_str(), target_map, target_map_dirty) < 0) {
+                if (parse_config(value.c_str(), target_map, target_map_dirty) < 0) {
                     fclose(configf);
                     return -1;
                 }
@@ -189,7 +189,7 @@ int config_file::ParseOptInclude(const std::string path,
             _MSG(sstream.str(), MSGFLAG_INFO);
             sstream.str("");
 
-            if (ParseConfig(globbed.gl_pathv[i], target_map, target_map_dirty) < 0) {
+            if (parse_config(globbed.gl_pathv[i], target_map, target_map_dirty) < 0) {
                 sstream << "Parsing failed for optional sub-config file: " << 
                     globbed.gl_pathv[i];
                 _MSG(sstream.str(), MSGFLAG_ERROR);
