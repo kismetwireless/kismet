@@ -67,7 +67,7 @@ public:
 
     virtual ~structured_json() { }
 
-    void exceptIfNot(bool match, std::string t) {
+    void except_if_not(bool match, std::string t) {
         if (!match) {
             throw StructuredDataUnsuitable("JSON field is not " + t);
         }
@@ -99,27 +99,27 @@ public:
     }
 
     virtual double getNumber() {
-        exceptIfNot(isNumber(), "number");
+        except_if_not(isNumber(), "number");
         return json.asDouble();
     }
 
     virtual std::string getString() {
-        exceptIfNot(isString(), "string");
+        except_if_not(isString(), "string");
         return json.asString();
     }
 
     virtual std::string getBinaryStr() {
-        exceptIfNot(isString(), "binary string");
+        except_if_not(isString(), "binary string");
         return hexstr_to_binstr(getString().c_str());
     }
 
     virtual bool getBool() {
-        exceptIfNot(isBool() || isString(), "Boolean");
+        except_if_not(isBool() || isString(), "Boolean");
         return json.asBool();
     }
 
     virtual number_vec getNumberVec() {
-        exceptIfNot(isArray(), "Array/Vector");
+        except_if_not(isArray(), "Array/Vector");
 
         number_vec v;
 
@@ -132,7 +132,7 @@ public:
     }
 
     virtual string_vec getStringVec() {
-        exceptIfNot(isArray(), "Array/Vector");
+        except_if_not(isArray(), "Array/Vector");
 
         string_vec v;
 
@@ -149,7 +149,7 @@ public:
     }
 
     virtual shared_structured getStructuredByKey(std::string key) {
-        exceptIfNot(isDictionary(), "Dictionary/Map");
+        except_if_not(isDictionary(), "Dictionary/Map");
 
         if (!has_key(key)) 
             throw StructuredDataNoSuchKey("No such key: " + key);
@@ -208,7 +208,7 @@ public:
     }
 
     virtual structured_vec getStructuredArray() {
-        exceptIfNot(isArray(), "array/vector");
+        except_if_not(isArray(), "array/vector");
 
         structured_vec v;
 
@@ -220,7 +220,7 @@ public:
     }
 
     virtual structured_num_map getStructuredNumMap() {
-        exceptIfNot(isDictionary(), "dictionary/map");
+        except_if_not(isDictionary(), "dictionary/map");
 
         structured_num_map m;
 
@@ -238,7 +238,7 @@ public:
     }
 
     virtual structured_str_map getStructuredStrMap() {
-        exceptIfNot(isDictionary(), "dictionary/map");
+        except_if_not(isDictionary(), "dictionary/map");
 
         structured_str_map m;
 
