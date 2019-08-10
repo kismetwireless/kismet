@@ -37,7 +37,7 @@ GPSTCP::GPSTCP(SharedGpsBuilder in_builder) :
 
     last_heading_time = time(0);
 
-    nmeainterface = BufferInterfaceFunc(
+    nmeainterface = buffer_interface_func(
             [this](size_t in_avail) {
                 BufferAvailable(in_avail);
             },

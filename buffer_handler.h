@@ -410,15 +410,15 @@ protected:
     bool write_handler;
 };
 
-class BufferInterfaceFunc : public buffer_interface {
+class buffer_interface_func : public buffer_interface {
 public:
-    BufferInterfaceFunc(std::function<void (size_t)> in_available_cb,
+    buffer_interface_func(std::function<void (size_t)> in_available_cb,
             std::function<void (std::string)> in_error_cb) : 
         buffer_interface(),
         available_fn {in_available_cb},
         error_fn {in_error_cb} { }
 
-    virtual ~BufferInterfaceFunc() { }
+    virtual ~buffer_interface_func() { }
 
     virtual void BufferAvailable(size_t in_amt) {
         if (available_fn != nullptr)

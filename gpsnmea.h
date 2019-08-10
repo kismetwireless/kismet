@@ -42,7 +42,7 @@ public:
 
 protected:
     std::shared_ptr<buffer_handler<RingbufV2>> nmeahandler;
-    BufferInterfaceFunc nmeainterface;
+    buffer_interface_func nmeainterface;
 
     // buffer_interface API
     virtual void BufferAvailable(size_t in_amt);

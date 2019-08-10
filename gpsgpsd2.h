@@ -48,7 +48,7 @@ protected:
 
     std::shared_ptr<TcpClientV2> tcpclient;
     std::shared_ptr<buffer_handler<RingbufV2>> tcphandler;
-    BufferInterfaceFunc tcpinterface;
+    buffer_interface_func tcpinterface;
 
     // Called by our tcpinterface 
     virtual void BufferAvailable(size_t in_amt);

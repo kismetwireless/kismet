@@ -34,7 +34,7 @@ GPSSerialV2::GPSSerialV2(SharedGpsBuilder in_builder) :
     ever_seen_gps = false;
     last_heading_time = time(0);
 
-    nmeainterface = BufferInterfaceFunc(
+    nmeainterface = buffer_interface_func(
             [this](size_t in_avail) {
                 BufferAvailable(in_avail);
             },
