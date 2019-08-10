@@ -841,7 +841,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Create the device tracker
     auto devicetracker = 
-        device_tracker::create_devicetracker(globalregistry);
+        device_tracker::create_device_tracker(globalregistry);
 
     // Create the pcap tracker
     auto devicetracker_pcap =
