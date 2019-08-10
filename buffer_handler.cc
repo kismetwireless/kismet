@@ -433,18 +433,17 @@ void buffer_handler_generic::protocol_error() {
 
 }
 
-buffer_interface::buffer_interface() {
-    buffer_handler = NULL;
-    read_handler = false;
-    write_handler = false;
-}
+buffer_interface::buffer_interface() :
+    bufferhandler {nullptr},
+    read_handler {false},
+    write_handler {false} {}
 
 buffer_interface::~buffer_interface() {
-    if (buffer_handler != NULL) {
+    if (bufferhandler != nullptr) {
         if (read_handler)
-            buffer_handler->remove_read_buffer_interface();
+            bufferhandler->remove_read_buffer_interface();
         if (write_handler)
-            buffer_handler->remove_write_buffer_interface();
+            bufferhandler->remove_write_buffer_interface();
     }
 }
 

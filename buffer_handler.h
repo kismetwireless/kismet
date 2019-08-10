@@ -405,7 +405,7 @@ public:
     virtual void buffer_error(std::string in_error __attribute__((unused))) { }
 
 protected:
-    buffer_handler_generic *buffer_handler;
+    buffer_handler_generic *bufferhandler;
     bool read_handler;
     bool write_handler;
 };

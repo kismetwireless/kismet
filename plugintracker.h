@@ -103,6 +103,7 @@
 #include "globalregistry.h"
 #include "kis_mutex.h"
 
+#include "buffer_handler.h"
 #include "configfile.h"
 #include "kis_external.h"
 #include "kis_net_microhttpd.h"
