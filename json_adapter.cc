@@ -354,7 +354,7 @@ void JsonAdapter::Pack(std::ostream &stream, shared_tracker_element e,
                             stream << SanitizeString(i.second->get_type_as_string());
                             stream << ", ";
                         }
-                        stream << SanitizeString(Globalreg::globalreg->entrytracker->GetFieldDescription(i.first));
+                        stream << SanitizeString(Globalreg::globalreg->entrytracker->get_field_description(i.first));
                         stream << "\",";
                         stream << ppendl;
                     }
