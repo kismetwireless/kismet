@@ -922,7 +922,7 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     // Create the GPS components
-    GpsTracker::create_gpsmanager();
+    gps_tracker::create_gpsmanager();
 
     // Add system monitor 
     Systemmonitor::create_systemmonitor();

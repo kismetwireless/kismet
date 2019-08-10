@@ -34,7 +34,7 @@
 #include "gpsweb.h"
 #include "kis_databaselogfile.h"
 
-GpsTracker::GpsTracker() :
+gps_tracker::gps_tracker() :
     kis_net_httpd_cppstream_handler() {
 
     tracked_uuid_addition_id = 
@@ -88,7 +88,7 @@ GpsTracker::GpsTracker() :
     Bind_Httpd_Server();
 }
 
-GpsTracker::~GpsTracker() {
+gps_tracker::~gps_tracker() {
     local_locker lock(&gpsmanager_mutex);
 
     Globalreg::globalreg->RemoveGlobal("GPSTRACKER");
@@ -102,7 +102,7 @@ GpsTracker::~GpsTracker() {
     timetracker->RemoveTimer(log_snapshot_timer);
 }
 
-void GpsTracker::log_snapshot_gps() {
+void gps_tracker::log_snapshot_gps() {
     // Look for the log file driver, if it's not available, we
     // just exit until the next time
     std::shared_ptr<kis_database_logfile> dbf =
@@ -127,7 +127,7 @@ void GpsTracker::log_snapshot_gps() {
     return;
 }
 
-void GpsTracker::register_gps_builder(shared_gps_builder in_builder) {
+void gps_tracker::register_gps_builder(shared_gps_builder in_builder) {
     local_locker lock(&gpsmanager_mutex);
 
     for (auto x : *gps_prototypes_vec) {
@@ -143,7 +143,7 @@ void GpsTracker::register_gps_builder(shared_gps_builder in_builder) {
     gps_prototypes_vec->push_back(in_builder);
 }
 
-std::shared_ptr<kis_gps> GpsTracker::create_gps(std::string in_definition) {
+std::shared_ptr<kis_gps> gps_tracker::create_gps(std::string in_definition) {
     local_locker lock(&gpsmanager_mutex);
 
     shared_gps gps;
@@ -213,7 +213,7 @@ std::shared_ptr<kis_gps> GpsTracker::create_gps(std::string in_definition) {
     return gps;
 }
 
-kis_gps_packinfo *GpsTracker::get_best_location() {
+kis_gps_packinfo *gps_tracker::get_best_location() {
     local_shared_locker lock(&gpsmanager_mutex);
 
     // Iterate 
@@ -236,11 +236,11 @@ kis_gps_packinfo *GpsTracker::get_best_location() {
     return NULL;
 }
 
-int GpsTracker::kis_gpspack_hook(CHAINCALL_PARMS) {
-    // We're an 'external user' of GpsTracker despite being inside it,
-    // so don't do thread locking - that's up to GpsTracker internals
+int gps_tracker::kis_gpspack_hook(CHAINCALL_PARMS) {
+    // We're an 'external user' of gps_tracker despite being inside it,
+    // so don't do thread locking - that's up to gps_tracker internals
     
-    GpsTracker *gpstracker = (GpsTracker *) auxdata;
+    gps_tracker *gpstracker = (gps_tracker *) auxdata;
 
     // Don't override if this packet already has a location, which could
     // come from a drone or from a PPI file
@@ -258,7 +258,7 @@ int GpsTracker::kis_gpspack_hook(CHAINCALL_PARMS) {
     return 1;
 }
 
-bool GpsTracker::httpd_verify_path(const char *path, const char *method) {
+bool gps_tracker::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0)
         return false;
 
@@ -279,7 +279,7 @@ bool GpsTracker::httpd_verify_path(const char *path, const char *method) {
     return false;
 }
 
-void GpsTracker::httpd_create_stream_response(
+void gps_tracker::httpd_create_stream_response(
         kis_net_httpd *httpd __attribute__((unused)),
         kis_net_httpd_connection *connection __attribute__((unused)),
         const char *path, const char *method, 

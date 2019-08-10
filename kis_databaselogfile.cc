@@ -90,7 +90,7 @@ kis_database_logfile::~kis_database_logfile() {
 
 void kis_database_logfile::trigger_deferred_startup() {
     gpstracker = 
-        Globalreg::fetch_mandatory_global_as<GpsTracker>();
+        Globalreg::fetch_mandatory_global_as<gps_tracker>();
 }
 
 void kis_database_logfile::trigger_deferred_shutdown() {

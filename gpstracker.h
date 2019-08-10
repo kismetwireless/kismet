@@ -113,22 +113,22 @@ public:
 
 /* GPS manager which handles configuring GPS sources and deciding which one
  * is going to be used */
-class GpsTracker : public kis_net_httpd_cppstream_handler, public lifetime_global {
+class gps_tracker : public kis_net_httpd_cppstream_handler, public lifetime_global {
 public:
     static std::string global_name() { return "GPSTRACKER"; }
 
-    static std::shared_ptr<GpsTracker> create_gpsmanager() {
-        std::shared_ptr<GpsTracker> mon(new GpsTracker());
+    static std::shared_ptr<gps_tracker> create_gpsmanager() {
+        std::shared_ptr<gps_tracker> mon(new gps_tracker());
         Globalreg::globalreg->register_lifetime_global(mon);
         Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-    GpsTracker();
+    gps_tracker();
 
 public:
-    virtual ~GpsTracker();
+    virtual ~gps_tracker();
 
     virtual bool httpd_verify_path(const char *path, const char *method);
 
