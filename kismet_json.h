@@ -77,8 +77,8 @@ public:
         return json.isNumeric();
     }
 
-    virtual bool isBool() {
-        return json.isBool();
+    virtual bool is_bool() {
+        return json.is_bool();
     }
 
     virtual bool isString() {
@@ -114,7 +114,7 @@ public:
     }
 
     virtual bool getBool() {
-        except_if_not(isBool() || isString(), "Boolean");
+        except_if_not(is_bool() || isString(), "Boolean");
         return json.asBool();
     }
 
@@ -201,7 +201,7 @@ public:
 
         shared_structured v = getStructuredByKey(key);
 
-        if (!v->isBool())
+        if (!v->is_bool())
             return def;
 
         return v->getBool();

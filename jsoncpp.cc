@@ -3793,7 +3793,7 @@ static bool IsIntegral(double d) {
 
 bool Value::isNull() const { return type_ == nullValue; }
 
-bool Value::isBool() const { return type_ == booleanValue; }
+bool Value::is_bool() const { return type_ == booleanValue; }
 
 bool Value::isInt() const {
   switch (type_) {

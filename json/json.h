@@ -839,7 +839,7 @@ Json::Value obj_value(Json::objectValue); // {}
   bool asBool() const;
 
   bool isNull() const;
-  bool isBool() const;
+  bool is_bool() const;
   bool isInt() const;
   bool isInt64() const;
   bool isUInt() const;

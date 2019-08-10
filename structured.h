@@ -97,7 +97,7 @@ public:
 
     // Describe this current object
     virtual bool is_number() = 0;
-    virtual bool isBool() = 0;
+    virtual bool is_bool() = 0;
     virtual bool isString() = 0;
     virtual bool isArray() = 0;
     virtual bool isDictionary() = 0;
