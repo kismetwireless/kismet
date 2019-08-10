@@ -632,7 +632,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
 
                     name = structdata->getKeyAsString("username");
 
-                    SetDeviceUserName(dev, name);
+                    set_device_user_name(dev, name);
 
                     stream << "OK";
                     return MHD_YES;

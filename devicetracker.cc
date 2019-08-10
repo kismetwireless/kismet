@@ -1636,7 +1636,7 @@ void device_tracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> i
     sqlite3_finalize(stmt);
 }
 
-void device_tracker::SetDeviceUserName(std::shared_ptr<kis_tracked_device_base> in_dev,
+void device_tracker::set_device_user_name(std::shared_ptr<kis_tracked_device_base> in_dev,
         std::string in_username) {
 
     // Lock the device itself

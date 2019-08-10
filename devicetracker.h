@@ -255,7 +255,7 @@ public:
             std::string in_basic_type);
 
     // Set the common name of a device (and log it in the database for future runs)
-    void SetDeviceUserName(std::shared_ptr<kis_tracked_device_base> in_dev,
+    void set_device_user_name(std::shared_ptr<kis_tracked_device_base> in_dev,
             std::string in_username);
 
     // Set an arbitrary tag (and log it in the database for future runs)
