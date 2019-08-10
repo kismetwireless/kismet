@@ -58,7 +58,7 @@ public:
         std::shared_ptr<tracker_element_string> manuf;
     }; 
 
-    bool IsUnknownManuf(std::shared_ptr<tracker_element_string> in_manuf);
+    bool is_unknown_manuf(std::shared_ptr<tracker_element_string> in_manuf);
 
 protected:
     kis_recursive_timed_mutex mutex;

@@ -314,7 +314,7 @@ std::shared_ptr<tracker_element_string> kis_manuf::MakeManuf(const std::string& 
     return manuf;
 }
 
-bool kis_manuf::IsUnknownManuf(std::shared_ptr<tracker_element_string> in_manuf) {
+bool kis_manuf::is_unknown_manuf(std::shared_ptr<tracker_element_string> in_manuf) {
     return in_manuf == unknown_manuf;
 }
 
