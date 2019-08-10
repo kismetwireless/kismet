@@ -63,8 +63,8 @@ struct StructuredDataNull : public StructuredDataException {
 };
 
 // Can't extract the type asked for
-struct StructuredDataUnsuitable : public StructuredDataException {
-    StructuredDataUnsuitable(std::string const& message) : 
+struct structured_data_unsuitable : public StructuredDataException {
+    structured_data_unsuitable(std::string const& message) : 
         StructuredDataException(message) {}
 };
 
@@ -136,13 +136,13 @@ public:
         if (is_array()) {
             for (auto i : as_vector()) {
                 if (!i->is_array()) 
-                    throw StructuredDataUnsuitable("Cannot parse object as vector of pairs for converstion to "
+                    throw structured_data_unsuitable("Cannot parse object as vector of pairs for converstion to "
                             "pair list");
 
                 auto sub = i->as_vector();
 
                 if (sub.size() != 2) 
-                    throw StructuredDataUnsuitable("Cannot parse object as vector of pairs, expected 2"
+                    throw structured_data_unsuitable("Cannot parse object as vector of pairs, expected 2"
                             "elements in nested list, cannot convert to pair list");
 
                 ret.push_back(std::make_pair(sub[0]->as_string(), sub[1]->as_string()));
@@ -152,7 +152,7 @@ public:
                 ret.push_back(std::make_pair(i.first, i.second->as_string()));
             }
         } else {
-            throw StructuredDataUnsuitable("Cannot parse object as vector or dictionary for conversion "
+            throw structured_data_unsuitable("Cannot parse object as vector or dictionary for conversion "
                     "to pair list");
         }
 

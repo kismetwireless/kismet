@@ -69,7 +69,7 @@ public:
 
     void except_if_not(bool match, std::string t) {
         if (!match) {
-            throw StructuredDataUnsuitable("JSON field is not " + t);
+            throw structured_data_unsuitable("JSON field is not " + t);
         }
     }
 
@@ -228,7 +228,7 @@ public:
             double n;
            
             if (sscanf(jvi.key().asString().c_str(), "%lf", &n) != 1)
-                throw StructuredDataUnsuitable("got non-numerical key converting "
+                throw structured_data_unsuitable("got non-numerical key converting "
                         "to structured numerical map");
             
             m[n] = shared_structured(new structured_json(*jvi));
