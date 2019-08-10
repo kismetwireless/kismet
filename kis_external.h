@@ -117,7 +117,7 @@ protected:
 
     // If we're an IPC instance, the IPC control.  The ringbuf_handler is associated
     // with the IPC instance.
-    std::shared_ptr<IPCRemoteV2> ipc_remote;
+    std::shared_ptr<ipc_remote_v2> ipc_remote;
 
     std::shared_ptr<time_tracker> timetracker;
 

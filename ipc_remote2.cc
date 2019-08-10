@@ -29,7 +29,7 @@
 #include "ipc_remote2.h"
 #include "pollabletracker.h"
 
-IPCRemoteV2::IPCRemoteV2(global_registry *in_globalreg, 
+ipc_remote_v2::ipc_remote_v2(global_registry *in_globalreg, 
         std::shared_ptr<buffer_handler_generic> in_rbhandler) :
         globalreg {Globalreg::globalreg},
         ipc_mutex {std::make_shared<kis_recursive_timed_mutex>()},
@@ -52,7 +52,7 @@ IPCRemoteV2::IPCRemoteV2(global_registry *in_globalreg,
 
 }
 
-void IPCRemoteV2::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
+void ipc_remote_v2::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
     local_locker l(ipc_mutex);
 
     if (in_parent != nullptr)
@@ -64,7 +64,7 @@ void IPCRemoteV2::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent
         pipeclient->set_mutex(in_parent);
 }
 
-IPCRemoteV2::~IPCRemoteV2() {
+ipc_remote_v2::~ipc_remote_v2() {
     if (pipeclient != nullptr) {
         pollabletracker->RemovePollable(pipeclient);
         pipeclient->ClosePipes();
@@ -78,12 +78,12 @@ IPCRemoteV2::~IPCRemoteV2() {
     hard_kill();
 }
 
-void IPCRemoteV2::add_path(std::string in_path) {
+void ipc_remote_v2::add_path(std::string in_path) {
     local_locker lock(ipc_mutex);
     path_vec.push_back(in_path);
 }
 
-std::string IPCRemoteV2::FindBinaryPath(std::string in_cmd) {
+std::string ipc_remote_v2::FindBinaryPath(std::string in_cmd) {
     local_locker lock(ipc_mutex);
 
     for (unsigned int x = 0; x < path_vec.size(); x++) {
@@ -102,7 +102,7 @@ std::string IPCRemoteV2::FindBinaryPath(std::string in_cmd) {
     return "";
 }
 
-void IPCRemoteV2::close_ipc() {
+void ipc_remote_v2::close_ipc() {
     local_locker lock(ipc_mutex);
 
     if (pipeclient != nullptr) {
@@ -121,7 +121,7 @@ void IPCRemoteV2::close_ipc() {
     hard_kill();
 }
 
-int IPCRemoteV2::launch_kis_binary(std::string cmd, std::vector<std::string> args) {
+int ipc_remote_v2::launch_kis_binary(std::string cmd, std::vector<std::string> args) {
     std::string fullcmd = FindBinaryPath(cmd);
 
     if (fullcmd == "") {
@@ -132,7 +132,7 @@ int IPCRemoteV2::launch_kis_binary(std::string cmd, std::vector<std::string> arg
     return launch_kis_explicit_binary(fullcmd, args);
 }
 
-int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std::string> args) {
+int ipc_remote_v2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std::string> args) {
     struct stat buf;
     char **cmdarg;
     std::stringstream arg;
@@ -298,7 +298,7 @@ int IPCRemoteV2::launch_kis_explicit_binary(std::string cmdpath, std::vector<std
     return 1;
 }
 
-int IPCRemoteV2::launch_standard_binary(std::string cmd, std::vector<std::string> args) {
+int ipc_remote_v2::launch_standard_binary(std::string cmd, std::vector<std::string> args) {
     std::string fullcmd = FindBinaryPath(cmd);
 
     if (fullcmd == "") {
@@ -309,7 +309,7 @@ int IPCRemoteV2::launch_standard_binary(std::string cmd, std::vector<std::string
     return launch_standard_explicit_binary(fullcmd, args);
 }
 
-int IPCRemoteV2::launch_standard_explicit_binary(std::string cmdpath, std::vector<std::string> args) {
+int ipc_remote_v2::launch_standard_explicit_binary(std::string cmdpath, std::vector<std::string> args) {
     struct stat buf;
     char **cmdarg;
     std::stringstream arg;
@@ -412,16 +412,16 @@ int IPCRemoteV2::launch_standard_explicit_binary(std::string cmdpath, std::vecto
     return 1;
 }
 
-pid_t IPCRemoteV2::get_pid() {
+pid_t ipc_remote_v2::get_pid() {
     return child_pid;
 }
 
-void IPCRemoteV2::set_tracker_free(bool in_free) {
+void ipc_remote_v2::set_tracker_free(bool in_free) {
     local_locker lock(ipc_mutex);
     tracker_free = in_free;
 }
 
-int IPCRemoteV2::soft_kill() {
+int ipc_remote_v2::soft_kill() {
     local_locker lock(ipc_mutex);
 
     if (pipeclient != nullptr) {
@@ -435,7 +435,7 @@ int IPCRemoteV2::soft_kill() {
     return kill(child_pid, SIGTERM);
 }
 
-int IPCRemoteV2::hard_kill() {
+int ipc_remote_v2::hard_kill() {
     local_locker lock(ipc_mutex);
 
     if (pipeclient != nullptr) {
@@ -450,7 +450,7 @@ int IPCRemoteV2::hard_kill() {
     return kill(child_pid, SIGKILL);
 }
 
-void IPCRemoteV2::notify_killed(int in_exit) {
+void ipc_remote_v2::notify_killed(int in_exit) {
     std::stringstream ss;
 
     // Pull anything left in the buffer and process it
@@ -481,7 +481,7 @@ ipc_remote_v2_tracker::~ipc_remote_v2_tracker() {
     globalreg->timetracker->RemoveTimer(cleanup_timer_id);
 }
 
-void ipc_remote_v2_tracker::add_ipc(std::shared_ptr<IPCRemoteV2> in_remote) {
+void ipc_remote_v2_tracker::add_ipc(std::shared_ptr<ipc_remote_v2> in_remote) {
     local_locker lock(&ipc_mutex);
 
     if (in_remote == nullptr) {
@@ -506,10 +506,10 @@ void ipc_remote_v2_tracker::add_ipc(std::shared_ptr<IPCRemoteV2> in_remote) {
     // fmt::print(stderr, "debug - + ipc {} process vec {}\n", in_remote->get_pid(), process_vec.size());
 }
 
-std::shared_ptr<IPCRemoteV2> ipc_remote_v2_tracker::remove_ipc(IPCRemoteV2 *in_remote) {
+std::shared_ptr<ipc_remote_v2> ipc_remote_v2_tracker::remove_ipc(ipc_remote_v2 *in_remote) {
     local_locker lock(&ipc_mutex);
 
-    std::shared_ptr<IPCRemoteV2> ret;
+    std::shared_ptr<ipc_remote_v2> ret;
 
     for (unsigned int x = 0; x < process_vec.size(); x++) {
         if (process_vec[x].get() == in_remote) {
@@ -542,10 +542,10 @@ void ipc_remote_v2_tracker::schedule_cleanup() {
 
 }
 
-std::shared_ptr<IPCRemoteV2> ipc_remote_v2_tracker::remove_ipc(pid_t in_pid) {
+std::shared_ptr<ipc_remote_v2> ipc_remote_v2_tracker::remove_ipc(pid_t in_pid) {
     local_locker lock(&ipc_mutex);
 
-    std::shared_ptr<IPCRemoteV2> ret;
+    std::shared_ptr<ipc_remote_v2> ret;
 
     for (unsigned int x = 0; x < process_vec.size(); x++) {
         if (process_vec[x]->get_pid() == in_pid) {
@@ -591,7 +591,7 @@ int ipc_remote_v2_tracker::ensure_all_ipc_killed(int in_soft_delay, int in_max_d
     while (1) {
         int pid_status;
         pid_t caught_pid;
-        std::shared_ptr<IPCRemoteV2> killed_remote;
+        std::shared_ptr<ipc_remote_v2> killed_remote;
 
         caught_pid = waitpid(-1, &pid_status, WNOHANG);
 
@@ -636,7 +636,7 @@ int ipc_remote_v2_tracker::ensure_all_ipc_killed(int in_soft_delay, int in_max_d
         while (1) {
             int pid_status;
             pid_t caught_pid;
-            std::shared_ptr<IPCRemoteV2> killed_remote;
+            std::shared_ptr<ipc_remote_v2> killed_remote;
 
             caught_pid = waitpid(-1, &pid_status, WNOHANG);
 
@@ -675,7 +675,7 @@ int ipc_remote_v2_tracker::timetracker_event(int event_id __attribute__((unused)
     local_locker l(&ipc_mutex);
 
     std::stringstream str;
-    std::shared_ptr<IPCRemoteV2> dead_remote;
+    std::shared_ptr<ipc_remote_v2> dead_remote;
 
     for (unsigned int x = 0; x < 1024 && x < globalreg->sigchild_vec_pos; x++) {
         pid_t caught_pid = globalreg->sigchild_vec[x];

@@ -326,7 +326,7 @@ public:
         ringbuf_handler.reset(new buffer_handler<ringbuf_v2>((1024*1024), (1024*1024)));
         ringbuf_handler->set_read_buffer_interface(this);
 
-        ipc_remote.reset(new IPCRemoteV2(Globalreg::globalreg, ringbuf_handler));
+        ipc_remote.reset(new ipc_remote_v2(Globalreg::globalreg, ringbuf_handler));
 
         // Get the allowed paths for binaries and populate
         auto bin_paths = Globalreg::globalreg->kismet_config->fetch_opt_vec("helper_binary_path");

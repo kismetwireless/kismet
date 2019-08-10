@@ -257,7 +257,7 @@ bool kis_external_interface::run_ipc() {
     ringbuf_handler->set_mutex(ext_mutex);
     ringbuf_handler->set_read_buffer_interface(this);
 
-    ipc_remote.reset(new IPCRemoteV2(Globalreg::globalreg, ringbuf_handler));
+    ipc_remote.reset(new ipc_remote_v2(Globalreg::globalreg, ringbuf_handler));
     ipc_remote->set_mutex(ext_mutex);
 
     // Get allowed paths for binaries
