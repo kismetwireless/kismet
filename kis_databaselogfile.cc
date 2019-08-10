@@ -1192,8 +1192,8 @@ int kis_database_logfile::log_datasource(shared_tracker_element in_datasource) {
     if (!db_enabled)
         return 0;
 
-    std::shared_ptr<KisDatasource> ds =
-        std::static_pointer_cast<KisDatasource>(in_datasource);
+    std::shared_ptr<kis_datasource> ds =
+        std::static_pointer_cast<kis_datasource>(in_datasource);
 
     std::string uuidstring = ds->get_source_uuid().UUID2String();
     std::string typestring = ds->get_source_builder()->get_source_type();

@@ -28,10 +28,10 @@
 class KisDatasourceLinuxWifi;
 typedef std::shared_ptr<KisDatasourceLinuxWifi> SharedDatasourceLinuxWifi;
 
-class KisDatasourceLinuxWifi : public KisDatasource {
+class KisDatasourceLinuxWifi : public kis_datasource {
 public:
     KisDatasourceLinuxWifi(shared_datasource_builder in_builder) :
-        KisDatasource(in_builder) {
+        kis_datasource(in_builder) {
 
         // Set the capture binary
         set_int_source_ipc_binary("kismet_cap_linux_wifi");

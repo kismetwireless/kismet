@@ -42,7 +42,7 @@
 #include "trackedrrd.h"
 #include "packinfo_signal.h"
 
-class KisDatasource;
+class kis_datasource;
 
 enum kis_ipdata_type {
 	ipdata_unknown = 0,
@@ -413,7 +413,7 @@ public:
 
     __ProxyTrackable(seenby_map, tracker_element_int_map, seenby_map);
 
-    void inc_seenby_count(KisDatasource *source, time_t tv_sec, int frequency,
+    void inc_seenby_count(kis_datasource *source, time_t tv_sec, int frequency,
             Packinfo_Sig_Combo *siginfo, bool update_rrd);
 
     __ProxyTrackable(tag_map, tracker_element_string_map, tag_map);

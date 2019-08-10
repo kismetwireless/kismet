@@ -76,7 +76,7 @@ protected:
 };
 
 // Spectrum-specific sub-type of Kismet data sources
-class SpectrumDatasource : public KisDatasource {
+class SpectrumDatasource : public kis_datasource {
 public:
     SpectrumDatasource(global_registry *in_globalreg, shared_datasource_builder in_builder);
 

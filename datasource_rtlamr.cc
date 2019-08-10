@@ -23,7 +23,7 @@
 #include "phy_rtlamr.h"
 
 KisDatasourceRtlamr::KisDatasourceRtlamr(shared_datasource_builder in_builder, bool in_mqtt) :
-    KisDatasource(in_builder) {
+    kis_datasource(in_builder) {
 
     std::string devnum = MungeToPrintable(get_definition_opt("device"));
     if (devnum != "") {
@@ -48,7 +48,7 @@ KisDatasourceRtlamr::~KisDatasourceRtlamr() {
 
 void KisDatasourceRtlamr::open_interface(std::string in_definition, unsigned int in_transaction,
         open_callback_t in_cb) {
-    KisDatasource::open_interface(in_definition, in_transaction, in_cb);
+    kis_datasource::open_interface(in_definition, in_transaction, in_cb);
 
     if (get_source_interface().find("rtl-mqtt") == 0) {
         set_int_source_hopping(false);

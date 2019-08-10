@@ -82,7 +82,7 @@ protected:
     virtual int pcapng_make_shb(std::string in_hw, std::string in_os, std::string in_app);
 
     // Create a new interface record from an existing datasource
-    virtual int pcapng_make_idb(KisDatasource *in_datasource);
+    virtual int pcapng_make_idb(kis_datasource *in_datasource);
 
     // Low-level datasource creation
     virtual int pcapng_make_idb(unsigned int in_sourcenumber, std::string in_interface, 

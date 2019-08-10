@@ -26,10 +26,10 @@
 class KisDatasourceKismetdb;
 typedef std::shared_ptr<KisDatasourceKismetdb> SharedDatasourceKismetdb;
 
-class KisDatasourceKismetdb : public KisDatasource {
+class KisDatasourceKismetdb : public kis_datasource {
 public:
     KisDatasourceKismetdb(shared_datasource_builder in_builder) :
-        KisDatasource(in_builder) {
+        kis_datasource(in_builder) {
 
         // Set the capture binary
         set_int_source_ipc_binary("kismet_cap_kismetdb");

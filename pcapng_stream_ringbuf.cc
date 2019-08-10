@@ -210,7 +210,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_shb(std::string in_hw, std::string in_os, s
     return 1;
 }
 
-int Pcap_Stream_Ringbuf::pcapng_make_idb(KisDatasource *in_datasource) {
+int Pcap_Stream_Ringbuf::pcapng_make_idb(kis_datasource *in_datasource) {
     
     std::string ifname;
     ifname = in_datasource->get_source_name();

@@ -26,10 +26,10 @@
 class KisDatasourcePcapfile;
 typedef std::shared_ptr<KisDatasourcePcapfile> SharedDatasourcePcapfile;
 
-class KisDatasourcePcapfile : public KisDatasource {
+class KisDatasourcePcapfile : public kis_datasource {
 public:
     KisDatasourcePcapfile(shared_datasource_builder in_builder) :
-        KisDatasource(in_builder) {
+        kis_datasource(in_builder) {
 
         // Set the capture binary
         set_int_source_ipc_binary("kismet_cap_pcapfile");

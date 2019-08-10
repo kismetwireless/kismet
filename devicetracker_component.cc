@@ -346,7 +346,7 @@ void kis_tracked_device_base::inc_frequency_count(double frequency) {
     }
 }
 
-void kis_tracked_device_base::inc_seenby_count(KisDatasource *source, 
+void kis_tracked_device_base::inc_seenby_count(kis_datasource *source, 
         time_t tv_sec, int frequency, Packinfo_Sig_Combo *siginfo,
         bool update_rrd) {
     std::shared_ptr<kis_tracked_seenby_data> seenby;

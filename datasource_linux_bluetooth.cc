@@ -26,7 +26,7 @@
 #ifdef HAVE_LINUX_BLUETOOTH_DATASOURCE
 
 KisDatasourceLinuxBluetooth::KisDatasourceLinuxBluetooth(shared_datasource_builder in_builder) : 
-    KisDatasource(in_builder) {
+    kis_datasource(in_builder) {
     // Set the capture binary
     set_int_source_ipc_binary("kismet_cap_linux_bluetooth");
 
@@ -35,7 +35,7 @@ KisDatasourceLinuxBluetooth::KisDatasourceLinuxBluetooth(shared_datasource_build
 }
 
 bool KisDatasourceLinuxBluetooth::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
-    if (KisDatasource::dispatch_rx_packet(c))
+    if (kis_datasource::dispatch_rx_packet(c))
         return true;
 
     if (c->command() == "LBTDATAREPORT") {

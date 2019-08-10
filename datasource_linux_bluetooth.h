@@ -28,7 +28,7 @@
 class KisDatasourceLinuxBluetooth;
 typedef std::shared_ptr<KisDatasourceLinuxBluetooth> SharedDatasourceLinuxBluetooth;
 
-class KisDatasourceLinuxBluetooth : public KisDatasource {
+class KisDatasourceLinuxBluetooth : public kis_datasource {
 public:
     KisDatasourceLinuxBluetooth(shared_datasource_builder in_builder);
 

@@ -26,10 +26,10 @@
 class kis_datasource_freaklabs_zigbee;
 typedef std::shared_ptr<kis_datasource_freaklabs_zigbee> shared_datasource_freaklabs_zigbee;
 
-class kis_datasource_freaklabs_zigbee : public KisDatasource {
+class kis_datasource_freaklabs_zigbee : public kis_datasource {
 public:
     kis_datasource_freaklabs_zigbee(shared_datasource_builder in_builder) :
-        KisDatasource(in_builder) { 
+        kis_datasource(in_builder) { 
         set_int_source_ipc_binary("kismet_cap_freaklabs_zigbee");
     };
     virtual ~kis_datasource_freaklabs_zigbee() { };

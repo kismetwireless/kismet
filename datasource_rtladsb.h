@@ -26,7 +26,7 @@
 class KisDatasourceRtladsb;
 typedef std::shared_ptr<KisDatasourceRtladsb> SharedDatasourceRtladsb;
 
-class KisDatasourceRtladsb : public KisDatasource {
+class KisDatasourceRtladsb : public kis_datasource {
 public:
     KisDatasourceRtladsb(shared_datasource_builder in_builder, bool in_mqtt);
     virtual ~KisDatasourceRtladsb();

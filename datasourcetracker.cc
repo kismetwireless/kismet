@@ -310,7 +310,7 @@ Datasourcetracker::Datasourcetracker() :
 
     source_id =
         Globalreg::globalreg->entrytracker->register_field("kismet.datasourcetracker.datasource",
-                tracker_element_factory<KisDatasource>(nullptr),
+                tracker_element_factory<kis_datasource>(nullptr),
                 "Datasource");
 
     proto_vec =
@@ -680,7 +680,7 @@ void Datasourcetracker::Deferred_Shutdown() {
     local_locker lock(&dst_lock);
 
     for (auto i : *datasource_vec) {
-        std::static_pointer_cast<KisDatasource>(i)->close_source();
+        std::static_pointer_cast<kis_datasource>(i)->close_source();
     }
 }
 
@@ -693,7 +693,7 @@ void Datasourcetracker::iterate_datasources(DST_Worker *in_worker) {
     }
 
     for (auto kds : *immutable_copy) {
-        in_worker->handle_datasource(std::static_pointer_cast<KisDatasource>(kds));
+        in_worker->handle_datasource(std::static_pointer_cast<kis_datasource>(kds));
     }
 
     in_worker->finalize();
@@ -704,7 +704,7 @@ bool Datasourcetracker::remove_datasource(const uuid& in_uuid) {
 
     // Look for it in the sources vec and fully close it and get rid of it
     for (auto i = datasource_vec->begin(); i != datasource_vec->end(); ++i) {
-        SharedDatasource kds = std::static_pointer_cast<KisDatasource>(*i);
+        SharedDatasource kds = std::static_pointer_cast<kis_datasource>(*i);
 
         if (kds->get_source_uuid() == in_uuid) {
             std::stringstream ss;
@@ -730,7 +730,7 @@ SharedDatasource Datasourcetracker::find_datasource(const uuid& in_uuid) {
     local_shared_locker lock(&dst_lock);
 
     for (auto i : *datasource_vec) {
-        SharedDatasource kds = std::static_pointer_cast<KisDatasource>(i);
+        SharedDatasource kds = std::static_pointer_cast<kis_datasource>(i);
 
         if (kds->get_source_uuid() == in_uuid) 
             return kds;
@@ -743,7 +743,7 @@ bool Datasourcetracker::close_datasource(const uuid& in_uuid) {
     local_locker lock(&dst_lock);
 
     for (auto i : *datasource_vec) {
-        SharedDatasource kds = std::static_pointer_cast<KisDatasource>(i);
+        SharedDatasource kds = std::static_pointer_cast<kis_datasource>(i);
 
         if (kds->get_source_uuid() == in_uuid) {
             _MSG_INFO("Closing source '{}'", kds->get_source_name());
@@ -1003,7 +1003,7 @@ void Datasourcetracker::list_interfaces(const std::function<void (std::vector<Sh
         // UUID records in the listing
         for (auto il = interfaces.begin(); il != interfaces.end(); ++il) {
             for (auto s : *datasource_vec) {
-                SharedDatasource sds = std::static_pointer_cast<KisDatasource>(s);
+                SharedDatasource sds = std::static_pointer_cast<kis_datasource>(s);
                 if (!sds->get_source_remote() &&
                         ((*il)->get_interface() == sds->get_source_interface() ||
                          (*il)->get_interface() == sds->get_source_cap_interface())) {
@@ -1081,7 +1081,7 @@ void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,
 
     // Look for an existing datasource with the same UUID
     for (auto p : *datasource_vec) {
-        SharedDatasource d = std::static_pointer_cast<KisDatasource>(p);
+        SharedDatasource d = std::static_pointer_cast<kis_datasource>(p);
 
         if (!d->get_source_builder()->get_remote_capable())
             continue;
@@ -1442,7 +1442,7 @@ void Datasourcetracker::httpd_create_stream_response(kis_net_httpd *httpd,
             {
                 local_shared_locker lock(&dst_lock);
                 for (auto i : *datasource_vec) {
-                    SharedDatasource dsi = std::static_pointer_cast<KisDatasource>(i);
+                    SharedDatasource dsi = std::static_pointer_cast<kis_datasource>(i);
 
                     if (dsi->get_source_uuid() == u) {
                         ds = dsi;
@@ -1617,7 +1617,7 @@ int Datasourcetracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     throw std::runtime_error("Could not find a source with that UUID");
 
                 for (auto i : *datasource_vec) {
-                    SharedDatasource dsi = std::static_pointer_cast<KisDatasource>(i);
+                    SharedDatasource dsi = std::static_pointer_cast<kis_datasource>(i);
 
                     if (dsi->get_source_uuid() == u) {
                         ds = dsi;

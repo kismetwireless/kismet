@@ -50,7 +50,7 @@ typedef std::shared_ptr<KisDatasourceInterface> SharedInterface;
 class KisDatasourceCapKeyedObject;
 
 class Datasourcetracker;
-class KisDatasource;
+class kis_datasource;
 
 class KisDatasourceBuilder : public tracker_component {
 public:
@@ -101,7 +101,7 @@ public:
     // in the input.
     // Typical implementation:
     // return SharedDatasource(new SomeKismetDatasource(globalreg, in_shared_builder));
-    virtual std::shared_ptr<KisDatasource> build_datasource(std::shared_ptr<KisDatasourceBuilder>
+    virtual std::shared_ptr<kis_datasource> build_datasource(std::shared_ptr<KisDatasourceBuilder>
             in_shared_builder __attribute__((unused))) { return NULL; };
 
     __Proxy(source_type, std::string, std::string, std::string, source_type);
@@ -172,36 +172,36 @@ protected:
 };
 
 
-class KisDatasource : public tracker_component, public KisExternalInterface {
+class kis_datasource : public tracker_component, public KisExternalInterface {
 public:
     // Initialize and tell us what sort of builder
-    KisDatasource(shared_datasource_builder in_builder);
+    kis_datasource(shared_datasource_builder in_builder);
 
-    KisDatasource() :
+    kis_datasource() :
         tracker_component(0),
         KisExternalInterface() {
         register_fields();
         reserve_fields(NULL);
     }
 
-    KisDatasource(int in_id) :
+    kis_datasource(int in_id) :
         tracker_component(in_id),
         KisExternalInterface() {
         register_fields();
         reserve_fields(NULL);
     }
 
-    KisDatasource(int in_id, std::shared_ptr<tracker_element_map> e) :
+    kis_datasource(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id),
         KisExternalInterface() {
         register_fields();
         reserve_fields(e);
     }
 
-    virtual ~KisDatasource();
+    virtual ~kis_datasource();
 
     virtual uint32_t get_signature() const override {
-        return adler32_checksum("KisDatasource");
+        return adler32_checksum("kis_datasource");
     }
 
     // Fetch default per-source options.  These override the global defaults,
@@ -429,7 +429,7 @@ protected:
     // Tracker object for our map of commands which haven't finished
     class tracked_command {
     public:
-        tracked_command(unsigned int in_trans, uint32_t in_seq, KisDatasource *in_src) {
+        tracked_command(unsigned int in_trans, uint32_t in_seq, kis_datasource *in_src) {
             transaction = in_trans;
             command_seq = in_seq;
             command_time = time(0);
@@ -469,10 +469,10 @@ protected:
     };
 
     // Tracked commands we need to ack
-    std::map<uint32_t, std::shared_ptr<KisDatasource::tracked_command> > command_ack_map;
+    std::map<uint32_t, std::shared_ptr<kis_datasource::tracked_command> > command_ack_map;
 
     // Get a command
-    virtual std::shared_ptr<KisDatasource::tracked_command> get_command(uint32_t in_transaction);
+    virtual std::shared_ptr<kis_datasource::tracked_command> get_command(uint32_t in_transaction);
 
     // Cancel a specific command; exposed as a function for easy callbacks
     virtual void cancel_command(uint32_t in_transaction, std::string in_reason);
@@ -703,7 +703,7 @@ protected:
 
 };
 
-typedef std::shared_ptr<KisDatasource> SharedDatasource;
+typedef std::shared_ptr<kis_datasource> SharedDatasource;
 
 // KisDatasourceInterface
 // An automatically discovered interface, and any parameters needed to instantiate
@@ -810,7 +810,7 @@ protected:
 // for the lifetime of the packet being processed
 class packetchain_comp_datasource : public packet_component {
 public:
-    KisDatasource *ref_source;
+    kis_datasource *ref_source;
 
     packetchain_comp_datasource() {
         self_destruct = 1;

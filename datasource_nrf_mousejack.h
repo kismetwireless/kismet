@@ -29,10 +29,10 @@
 class KisDatasourceNrfMousejack;
 typedef std::shared_ptr<KisDatasourceNrfMousejack> SharedDatasourceNrfMousejack;
 
-class KisDatasourceNrfMousejack : public KisDatasource {
+class KisDatasourceNrfMousejack : public kis_datasource {
 public:
     KisDatasourceNrfMousejack(shared_datasource_builder in_builder) :
-        KisDatasource(in_builder) {
+        kis_datasource(in_builder) {
 
         // Set the capture binary
         set_int_source_ipc_binary("kismet_cap_nrf_mousejack");

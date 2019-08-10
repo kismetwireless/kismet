@@ -71,7 +71,7 @@
  */
 
 class Datasourcetracker;
-class KisDatasource;
+class kis_datasource;
 class DST_Worker;
 
 // Worker class used to perform work on the list of packet-sources in a thread
@@ -81,7 +81,7 @@ public:
     DST_Worker() { };
 
     // Handle a data source when working on iterate_datasources
-    virtual void handle_datasource(std::shared_ptr<KisDatasource> in_src __attribute__((unused))) { };
+    virtual void handle_datasource(std::shared_ptr<kis_datasource> in_src __attribute__((unused))) { };
 
     // All data sources have been processed in iterate_datasources
     virtual void finalize() { };
@@ -374,12 +374,12 @@ public:
     class EventNewDatasource : public eventbus_event {
     public:
         static std::string Event() { return "NEW_DATASOURCE"; }
-        EventNewDatasource(std::shared_ptr<KisDatasource> source) :
+        EventNewDatasource(std::shared_ptr<kis_datasource> source) :
             eventbus_event(Event()),
             datasource{source} { }
         virtual ~EventNewDatasource() {}
 
-        std::shared_ptr<KisDatasource> datasource;
+        std::shared_ptr<kis_datasource> datasource;
     };
 
     // Add a driver

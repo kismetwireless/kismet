@@ -26,7 +26,7 @@
 class KisDatasourceRtlamr;
 typedef std::shared_ptr<KisDatasourceRtlamr> SharedDatasourceRtlamr;
 
-class KisDatasourceRtlamr : public KisDatasource {
+class KisDatasourceRtlamr : public kis_datasource {
 public:
     KisDatasourceRtlamr(shared_datasource_builder in_builder, bool in_mqtt);
     virtual ~KisDatasourceRtlamr();

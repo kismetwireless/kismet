@@ -28,10 +28,10 @@
 class KisDatasourceOsxCorewlanWifi;
 typedef std::shared_ptr<KisDatasourceOsxCorewlanWifi> SharedDatasourceOsxCorewlanWifi;
 
-class KisDatasourceOsxCorewlanWifi : public KisDatasource {
+class KisDatasourceOsxCorewlanWifi : public kis_datasource {
 public:
     KisDatasourceOsxCorewlanWifi(shared_datasource_builder in_builder) :
-        KisDatasource(in_builder) {
+        kis_datasource(in_builder) {
 
         // Set the capture binary
         set_int_source_ipc_binary("kismet_cap_osx_corewlan_wifi");
