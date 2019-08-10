@@ -27,7 +27,7 @@
 #include "dlttracker.h"
 
 class kis_datasource_nrf_mousejack;
-typedef std::shared_ptr<kis_datasource_nrf_mousejack> SharedDatasourceNrfMousejack;
+typedef std::shared_ptr<kis_datasource_nrf_mousejack> shared_datasource_nrf_mousejack;
 
 class kis_datasource_nrf_mousejack : public kis_datasource {
 public:
@@ -77,7 +77,7 @@ public:
     virtual ~DatasourceNrfMousejackBuilder() { }
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) {
-        return SharedDatasourceNrfMousejack(new kis_datasource_nrf_mousejack(in_sh_this));
+        return shared_datasource_nrf_mousejack(new kis_datasource_nrf_mousejack(in_sh_this));
     }
 
     virtual void initialize() {
