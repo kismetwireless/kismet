@@ -210,7 +210,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_
     return ret;
 }
 
-void device_tracker_view::newDevice(std::shared_ptr<kis_tracked_device_base> device) {
+void device_tracker_view::new_device(std::shared_ptr<kis_tracked_device_base> device) {
     if (new_cb != nullptr) {
         local_locker l(&mutex);
 

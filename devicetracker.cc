@@ -1314,7 +1314,7 @@ bool device_tracker::add_view(std::shared_ptr<device_tracker_view> in_view) {
 
     for (auto i : *immutable_tracked_vec) {
         auto di = std::static_pointer_cast<kis_tracked_device_base>(i);
-        in_view->newDevice(di);
+        in_view->new_device(di);
     }
 
     return true;
@@ -1337,7 +1337,7 @@ void device_tracker::new_view_device(std::shared_ptr<kis_tracked_device_base> in
 
     for (auto i : *view_vec) {
         auto vi = std::static_pointer_cast<device_tracker_view>(i);
-        vi->newDevice(in_device);
+        vi->new_device(in_device);
     }
 }
 

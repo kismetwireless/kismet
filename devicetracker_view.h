@@ -171,7 +171,7 @@ protected:
     friend class device_tracker;
 
     // Called when a device is created; this should only be called by devicetracker itself.
-    virtual void newDevice(std::shared_ptr<kis_tracked_device_base> device);
+    virtual void new_device(std::shared_ptr<kis_tracked_device_base> device);
 
     // Remove a device from any views; this is called when the devicetracker times out a 
     // device record.
