@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -37,9 +37,9 @@
 
 #include "trackedelement.h"
 
-class Manuf {
+class kis_manuf {
 public:
-    Manuf();
+    kis_manuf();
 
     void IndexOUI();
 

@@ -25,7 +25,7 @@
 #include "util.h"
 #include "manuf.h"
 
-Manuf::Manuf() {
+kis_manuf::kis_manuf() {
     auto entrytracker = Globalreg::fetch_mandatory_global_as<entry_tracker>();
 
     manuf_id = 
@@ -67,7 +67,7 @@ Manuf::Manuf() {
     IndexOUI();
 }
 
-void Manuf::IndexOUI() {
+void kis_manuf::IndexOUI() {
     char buf[1024];
     int line = 0;
     fpos_t prev_pos;
@@ -102,7 +102,7 @@ void Manuf::IndexOUI() {
                 oui |= (uint32_t) m[2];
 
                 if (oui < last_oui) {
-                    _MSG("Warning:  Manuf file appears to be out of order, expected "
+                    _MSG("Warning:  kis_manuf file appears to be out of order, expected "
                             "sorted manuf OUI data", MSGFLAG_ERROR);
                 }
 
@@ -128,7 +128,7 @@ void Manuf::IndexOUI() {
          IntToString(index_vec.size()) + " indexes", MSGFLAG_INFO);
 }
 
-std::shared_ptr<tracker_element_string> Manuf::LookupOUI(mac_addr in_mac) {
+std::shared_ptr<tracker_element_string> kis_manuf::LookupOUI(mac_addr in_mac) {
     uint32_t soui = in_mac.OUI(), toui;
     int matched = -1;
     char buf[1024];
@@ -218,7 +218,7 @@ std::shared_ptr<tracker_element_string> Manuf::LookupOUI(mac_addr in_mac) {
     return unknown_manuf;
 }
 
-std::shared_ptr<tracker_element_string> Manuf::LookupOUI(uint32_t in_oui) {
+std::shared_ptr<tracker_element_string> kis_manuf::LookupOUI(uint32_t in_oui) {
     uint32_t soui = in_oui, toui;
     int matched = -1;
     char buf[1024];
@@ -308,13 +308,13 @@ std::shared_ptr<tracker_element_string> Manuf::LookupOUI(uint32_t in_oui) {
     return unknown_manuf;
 }
 
-std::shared_ptr<tracker_element_string> Manuf::MakeManuf(const std::string& in_manuf) {
+std::shared_ptr<tracker_element_string> kis_manuf::MakeManuf(const std::string& in_manuf) {
     auto manuf = std::make_shared<tracker_element_string>(manuf_id);
     manuf->set(in_manuf);
     return manuf;
 }
 
-bool Manuf::IsUnknownManuf(std::shared_ptr<tracker_element_string> in_manuf) {
+bool kis_manuf::IsUnknownManuf(std::shared_ptr<tracker_element_string> in_manuf) {
     return in_manuf == unknown_manuf;
 }
 

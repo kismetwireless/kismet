@@ -48,8 +48,8 @@ class plugin_tracker;
 class KisBuiltinDissector;
 // We need these for the vectors of subservices to poll
 class kis_pollable;
-// Manuf db
-class Manuf;
+// kis_manuf db
+class kis_manuf;
 // Field name resolver
 class entry_tracker;
 // HTTP server
@@ -172,7 +172,7 @@ public:
     time_tracker *timetracker;
     config_file *kismet_config;
 	KisBuiltinDissector *builtindissector;
-	Manuf *manufdb;
+	kis_manuf *manufdb;
 
     std::string log_prefix;
 

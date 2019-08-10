@@ -2158,7 +2158,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
     if (dot11info->wps_uuid_e != "")
         ssid->set_wps_uuid_e(dot11info->wps_uuid_e);
 
-    /* Manuf should be the IEEE manuf, not inherited from WPS.
+    /* kis_manuf should be the IEEE manuf, not inherited from WPS.
      * Also, never do this - this clobbers the universal 'unknown' manuf.
     // Do we not know the basedev manuf?
     if (Globalreg::globalreg->manufdb->IsUnknownManuf(basedev->get_manuf()) && dot11info->wps_manuf != "")

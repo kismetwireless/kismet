@@ -750,7 +750,7 @@ int main(int argc, char *argv[], char *envp[]) {
         entry_tracker::create_entrytracker(Globalreg::globalreg);
 
     // Create the manuf db
-    globalregistry->manufdb = new Manuf();
+    globalregistry->manufdb = new kis_manuf();
     if (globalregistry->fatal_condition)
         SpindownKismet(pollabletracker);
 
