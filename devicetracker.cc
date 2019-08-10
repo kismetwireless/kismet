@@ -586,7 +586,7 @@ int device_tracker::register_phy_handler(kis_phy_handler *in_weak_handler) {
         }
     }
 
-	eventbus->publish(std::make_shared<EventNewPhy>(strongphy));
+	eventbus->publish(std::make_shared<event_new_phy>(strongphy));
 
 	_MSG("Registered PHY handler '" + strongphy->FetchPhyName() + "' as ID " +
 		 IntToString(num), MSGFLAG_INFO);
