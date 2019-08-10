@@ -24,7 +24,7 @@
 #include "kis_datasource.h"
 
 class kis_datasource_pcapfile;
-typedef std::shared_ptr<kis_datasource_pcapfile> SharedDatasourcePcapfile;
+typedef std::shared_ptr<kis_datasource_pcapfile> shared_datasource_pcapfile;
 
 class kis_datasource_pcapfile : public kis_datasource {
 public:
@@ -83,7 +83,7 @@ public:
     virtual ~DatasourcePcapfileBuilder() { }
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) {
-        return SharedDatasourcePcapfile(new kis_datasource_pcapfile(in_sh_this));
+        return shared_datasource_pcapfile(new kis_datasource_pcapfile(in_sh_this));
     }
 
     virtual void initialize() {
