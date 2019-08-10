@@ -346,7 +346,7 @@ public:
     virtual ~kis_net_httpd();
 
     int start_httpd();
-    int StopHttpd();
+    int stop_httpd();
 
     bool HttpdRunning() { return running; }
     unsigned int FetchPort() { return http_port; };

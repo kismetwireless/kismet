@@ -226,7 +226,7 @@ void SpindownKismet(std::shared_ptr<pollable_tracker> pollabletracker) {
     // Shut down the webserver first
     auto httpd = Globalreg::FetchGlobalAs<kis_net_httpd>("HTTPD_SERVER");
     if (httpd != NULL)
-        httpd->StopHttpd();
+        httpd->stop_httpd();
 
     auto devicetracker =
         Globalreg::FetchGlobalAs<device_tracker>("DEVICETRACKER");

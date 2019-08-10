@@ -281,7 +281,7 @@ kis_net_httpd::~kis_net_httpd() {
     handler_vec.erase(handler_vec.begin(), handler_vec.end());
 
     if (running)
-        StopHttpd();
+        stop_httpd();
 
     if (session_db) {
         delete(session_db);
@@ -507,7 +507,7 @@ int kis_net_httpd::start_httpd() {
     return 1;
 }
 
-int kis_net_httpd::StopHttpd() {
+int kis_net_httpd::stop_httpd() {
     local_locker lock(&controller_mutex);
 
     handler_vec.clear();
