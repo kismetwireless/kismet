@@ -253,23 +253,23 @@ struct plugin_server_info {
 typedef int (*plugin_version_check)(plugin_server_info *);
 
 // Plugin management class
-class Plugintracker : public lifetime_global,
+class plugin_tracker : public lifetime_global,
     public kis_net_httpd_cppstream_handler {
 public:
-    static std::shared_ptr<Plugintracker> create_plugintracker(global_registry *in_globalreg) {
-        std::shared_ptr<Plugintracker> mon(new Plugintracker(in_globalreg));
+    static std::shared_ptr<plugin_tracker> create_plugintracker(global_registry *in_globalreg) {
+        std::shared_ptr<plugin_tracker> mon(new plugin_tracker(in_globalreg));
         in_globalreg->register_lifetime_global(mon);
         in_globalreg->insert_global("PLUGINTRACKER", mon);
         return mon;
     }
 
 private:
-	Plugintracker(global_registry *in_globalreg);
+	plugin_tracker(global_registry *in_globalreg);
 
 public:
 	static void Usage(char *name);
 
-	virtual ~Plugintracker();
+	virtual ~plugin_tracker();
 
     // Look for plugins
     int ScanPlugins();

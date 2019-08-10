@@ -253,8 +253,8 @@ void SpindownKismet(std::shared_ptr<PollableTracker> pollabletracker) {
     }
 
     fprintf(stderr, "Shutting down plugins...\n");
-    std::shared_ptr<Plugintracker> plugintracker =
-        Globalreg::FetchGlobalAs<Plugintracker>(globalregistry, "PLUGINTRACKER");
+    std::shared_ptr<plugin_tracker> plugintracker =
+        Globalreg::FetchGlobalAs<plugin_tracker>(globalregistry, "PLUGINTRACKER");
     if (plugintracker != NULL)
         plugintracker->ShutdownPlugins();
 
@@ -897,11 +897,11 @@ int main(int argc, char *argv[], char *envp[]) {
     logtracker->register_log(SharedLogBuilder(new kis_database_logfile_builder()));
     logtracker->register_log(SharedLogBuilder(new KisPcapNGLogfileBuilder()));
 
-    std::shared_ptr<Plugintracker> plugintracker;
+    std::shared_ptr<plugin_tracker> plugintracker;
 
     // Start the plugin handler
     if (plugins) {
-        plugintracker = Plugintracker::create_plugintracker(globalregistry);
+        plugintracker = plugin_tracker::create_plugintracker(globalregistry);
     } else {
         globalregistry->messagebus->InjectMessage(
             "Plugins disabled on the command line, plugins will NOT be loaded...",

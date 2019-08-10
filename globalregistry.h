@@ -44,7 +44,7 @@ class packet_chain;
 class alert_tracker;
 class time_tracker;
 class config_file;
-class Plugintracker;
+class plugin_tracker;
 class KisBuiltinDissector;
 // We need these for the vectors of subservices to poll
 class Pollable;

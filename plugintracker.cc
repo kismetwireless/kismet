@@ -45,7 +45,7 @@ void PluginRegistrationData::activate_external_http() {
     }
 }
 
-Plugintracker::Plugintracker(global_registry *in_globalreg) :
+plugin_tracker::plugin_tracker(global_registry *in_globalreg) :
     lifetime_global(),
     kis_net_httpd_cppstream_handler() {
     globalreg = in_globalreg;
@@ -94,20 +94,20 @@ Plugintracker::Plugintracker(global_registry *in_globalreg) :
     Bind_Httpd_Server();
 }
 
-Plugintracker::~Plugintracker() {
+plugin_tracker::~plugin_tracker() {
     local_locker lock(&plugin_lock);
 
     // Call the main shutdown, which should kill the vector allocations
     ShutdownPlugins();
 }
 
-void Plugintracker::Usage(char *name __attribute__((unused))) {
+void plugin_tracker::Usage(char *name __attribute__((unused))) {
     printf(" *** Plugin Options ***\n");
     printf("     --disable-plugins		  Turn off the plugin "
            "system\n");
 }
 
-int Plugintracker::ScanPlugins() {
+int plugin_tracker::ScanPlugins() {
     local_locker lock(&plugin_lock);
 
     // Bail if plugins disabled
@@ -150,7 +150,7 @@ int Plugintracker::ScanPlugins() {
 }
 
 // Scans a directory for sub-directories
-int Plugintracker::ScanDirectory(DIR *in_dir, std::string in_path) {
+int plugin_tracker::ScanDirectory(DIR *in_dir, std::string in_path) {
     struct dirent *plugfile;
 
     while ((plugfile = readdir(in_dir)) != NULL) {
@@ -285,7 +285,7 @@ void PluginServerSignalHandler(int sig __attribute__((unused))) {
     exit(1);
 }
 
-int Plugintracker::ActivatePlugins() {
+int plugin_tracker::ActivatePlugins() {
 #ifdef SYS_CYGWIN
     _sig_func_ptr old_segv = SIG_DFL;
 #else
@@ -419,7 +419,7 @@ int Plugintracker::ActivatePlugins() {
     return 1;
 }
 
-int Plugintracker::FinalizePlugins() {
+int plugin_tracker::FinalizePlugins() {
     // Look only at plugins that have a dl file, and attempt to run the finalize
     // function in each
     for (auto x : *plugin_registry_vec) {
@@ -445,7 +445,7 @@ int Plugintracker::FinalizePlugins() {
     return 1;
 }
 
-int Plugintracker::ShutdownPlugins() {
+int plugin_tracker::ShutdownPlugins() {
     local_locker lock(&plugin_lock);
 
     _MSG("Shutting down plugins...", MSGFLAG_INFO);
@@ -455,7 +455,7 @@ int Plugintracker::ShutdownPlugins() {
     return 0;
 }
 
-bool Plugintracker::httpd_verify_path(const char *path, const char *method) {
+bool plugin_tracker::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0) 
         return false;
 
@@ -470,7 +470,7 @@ bool Plugintracker::httpd_verify_path(const char *path, const char *method) {
     return false;
 }
 
-void Plugintracker::httpd_create_stream_response(kis_net_httpd *httpd,
+void plugin_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
         kis_net_httpd_connection *connection,
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
