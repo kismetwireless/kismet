@@ -162,7 +162,7 @@ void DST_DatasourceProbe::probe_sources(std::function<void (shared_datasource_bu
         unsigned int transaction = ++transaction_id;
 
         // Instantiate a local prober datasource
-        SharedDatasource pds = b->build_datasource(b);
+        shared_datasource pds = b->build_datasource(b);
 
         {
             local_locker lock(&probe_lock);
@@ -276,7 +276,7 @@ void DST_DatasourceList::list_sources(std::function<void (std::vector<SharedInte
         unsigned int transaction = ++transaction_id;
 
         // Instantiate a local lister 
-        SharedDatasource pds = b->build_datasource(b);
+        shared_datasource pds = b->build_datasource(b);
 
         {
             local_locker lock(&list_lock);
@@ -610,7 +610,7 @@ void Datasourcetracker::Deferred_Startup() {
 
     auto launch_func = [](Datasourcetracker *dst, std::string src) {
             dst->open_datasource(src, 
-                    [src](bool success, std::string reason, SharedDatasource) {
+                    [src](bool success, std::string reason, shared_datasource) {
                 if (success) {
                     _MSG_INFO("Data source '{}' launched successfully", src);
                 } else {
@@ -704,7 +704,7 @@ bool Datasourcetracker::remove_datasource(const uuid& in_uuid) {
 
     // Look for it in the sources vec and fully close it and get rid of it
     for (auto i = datasource_vec->begin(); i != datasource_vec->end(); ++i) {
-        SharedDatasource kds = std::static_pointer_cast<kis_datasource>(*i);
+        shared_datasource kds = std::static_pointer_cast<kis_datasource>(*i);
 
         if (kds->get_source_uuid() == in_uuid) {
             std::stringstream ss;
@@ -726,11 +726,11 @@ bool Datasourcetracker::remove_datasource(const uuid& in_uuid) {
     return false;
 }
 
-SharedDatasource Datasourcetracker::find_datasource(const uuid& in_uuid) {
+shared_datasource Datasourcetracker::find_datasource(const uuid& in_uuid) {
     local_shared_locker lock(&dst_lock);
 
     for (auto i : *datasource_vec) {
-        SharedDatasource kds = std::static_pointer_cast<kis_datasource>(i);
+        shared_datasource kds = std::static_pointer_cast<kis_datasource>(i);
 
         if (kds->get_source_uuid() == in_uuid) 
             return kds;
@@ -743,7 +743,7 @@ bool Datasourcetracker::close_datasource(const uuid& in_uuid) {
     local_locker lock(&dst_lock);
 
     for (auto i : *datasource_vec) {
-        SharedDatasource kds = std::static_pointer_cast<kis_datasource>(i);
+        shared_datasource kds = std::static_pointer_cast<kis_datasource>(i);
 
         if (kds->get_source_uuid() == in_uuid) {
             _MSG_INFO("Closing source '{}'", kds->get_source_name());
@@ -779,7 +779,7 @@ int Datasourcetracker::register_datasource(shared_datasource_builder in_builder)
 }
 
 void Datasourcetracker::open_datasource(const std::string& in_source, 
-        const std::function<void (bool, std::string, SharedDatasource)>& in_cb) {
+        const std::function<void (bool, std::string, shared_datasource)>& in_cb) {
     // fprintf(stderr, "debug - DST open source %s\n", in_source.c_str());
 
     // Open a datasource only from the string definition
@@ -910,11 +910,11 @@ void Datasourcetracker::open_datasource(const std::string& in_source,
 
 void Datasourcetracker::open_datasource(const std::string& in_source, 
         shared_datasource_builder in_proto,
-        const std::function<void (bool, std::string, SharedDatasource)>& in_cb) {
+        const std::function<void (bool, std::string, shared_datasource)>& in_cb) {
     local_locker lock(&dst_lock);
 
     // Make a data source from the builder
-    SharedDatasource ds = in_proto->build_datasource(in_proto);
+    shared_datasource ds = in_proto->build_datasource(in_proto);
 
     ds->open_interface(in_source, 0, 
         [this, ds, in_cb] (unsigned int, bool success, std::string reason) {
@@ -938,7 +938,7 @@ void Datasourcetracker::open_datasource(const std::string& in_source,
         });
 }
 
-void Datasourcetracker::merge_source(SharedDatasource in_source) {
+void Datasourcetracker::merge_source(shared_datasource in_source) {
     local_locker lock(&dst_lock);
 
     // Get the UUID and compare it to our map; re-use a UUID if we knew
@@ -1003,7 +1003,7 @@ void Datasourcetracker::list_interfaces(const std::function<void (std::vector<Sh
         // UUID records in the listing
         for (auto il = interfaces.begin(); il != interfaces.end(); ++il) {
             for (auto s : *datasource_vec) {
-                SharedDatasource sds = std::static_pointer_cast<kis_datasource>(s);
+                shared_datasource sds = std::static_pointer_cast<kis_datasource>(s);
                 if (!sds->get_source_remote() &&
                         ((*il)->get_interface() == sds->get_source_interface() ||
                          (*il)->get_interface() == sds->get_source_cap_interface())) {
@@ -1075,13 +1075,13 @@ void Datasourcetracker::NewConnection(std::shared_ptr<buffer_handler_generic> co
 void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,
         const std::string& in_type, const std::string& in_definition, const uuid& in_uuid, 
         std::shared_ptr<buffer_handler_generic> in_handler) {
-    SharedDatasource merge_target_device;
+    shared_datasource merge_target_device;
      
     local_locker lock(&dst_lock);
 
     // Look for an existing datasource with the same UUID
     for (auto p : *datasource_vec) {
-        SharedDatasource d = std::static_pointer_cast<kis_datasource>(p);
+        shared_datasource d = std::static_pointer_cast<kis_datasource>(p);
 
         if (!d->get_source_builder()->get_remote_capable())
             continue;
@@ -1131,7 +1131,7 @@ void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,
             lock.unlock();
 
             // Make a data source from the builder
-            SharedDatasource ds = b->build_datasource(b);
+            shared_datasource ds = b->build_datasource(b);
             ds->connect_remote(in_handler, in_definition,
                 [this, ds](unsigned int, bool success, std::string msg) {
                     if (success)
@@ -1158,7 +1158,7 @@ class dst_chansplit_worker : public DST_Worker {
 public:
     dst_chansplit_worker(Datasourcetracker *in_dst,
             std::shared_ptr<datasourcetracker_defaults> in_defaults, 
-            SharedDatasource in_ds) {
+            shared_datasource in_ds) {
         dst = in_dst;
         defaults = in_defaults;
         target_sources.push_back(in_ds);
@@ -1166,7 +1166,7 @@ public:
         match_type = in_ds->get_source_builder()->get_source_type();
     }
 
-    virtual void handle_datasource(SharedDatasource in_src) {
+    virtual void handle_datasource(shared_datasource in_src) {
         // Don't dupe ourselves
         if (in_src == initial_ds)
             return;
@@ -1257,14 +1257,14 @@ protected:
 
     Datasourcetracker *dst;
 
-    SharedDatasource initial_ds;
-    std::vector<SharedDatasource> target_sources;
+    shared_datasource initial_ds;
+    std::vector<shared_datasource> target_sources;
 
     std::shared_ptr<datasourcetracker_defaults> defaults;
 
 };
 
-void Datasourcetracker::calculate_source_hopping(SharedDatasource in_ds) {
+void Datasourcetracker::calculate_source_hopping(shared_datasource in_ds) {
     if (!in_ds->get_definition_opt_bool("channel_hop", true)) {
         // Source doesn't hop regardless of defaults
         return;
@@ -1437,12 +1437,12 @@ void Datasourcetracker::httpd_create_stream_response(kis_net_httpd *httpd,
                 return;
             }
 
-            SharedDatasource ds;
+            shared_datasource ds;
 
             {
                 local_shared_locker lock(&dst_lock);
                 for (auto i : *datasource_vec) {
-                    SharedDatasource dsi = std::static_pointer_cast<kis_datasource>(i);
+                    shared_datasource dsi = std::static_pointer_cast<kis_datasource>(i);
 
                     if (dsi->get_source_uuid() == u) {
                         ds = dsi;
@@ -1550,9 +1550,9 @@ int Datasourcetracker::httpd_post_complete(kis_net_httpd_connection *concls) {
 
         if (stripped == "/datasource/add_source") {
             // Locker for waiting for the open callback
-            std::shared_ptr<conditional_locker<SharedDatasource> > cl(new conditional_locker<SharedDatasource>());
+            std::shared_ptr<conditional_locker<shared_datasource> > cl(new conditional_locker<shared_datasource>());
 
-            SharedDatasource r;
+            shared_datasource r;
             std::string error_reason;
 
             if (!structdata->has_key("definition")) {
@@ -1566,7 +1566,7 @@ int Datasourcetracker::httpd_post_complete(kis_net_httpd_connection *concls) {
             // Initiate the open
             open_datasource(structdata->getKeyAsString("definition"),
                     [&error_reason, cl, &cmd_complete_success](bool success, std::string reason, 
-                        SharedDatasource ds) {
+                        shared_datasource ds) {
 
                         cmd_complete_success = success;
 
@@ -1608,7 +1608,7 @@ int Datasourcetracker::httpd_post_complete(kis_net_httpd_connection *concls) {
             if (u.error) 
                 throw std::runtime_error("Invalid UUID");
 
-            SharedDatasource ds;
+            shared_datasource ds;
 
             {
                 local_shared_locker lock(&dst_lock);
@@ -1617,7 +1617,7 @@ int Datasourcetracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     throw std::runtime_error("Could not find a source with that UUID");
 
                 for (auto i : *datasource_vec) {
-                    SharedDatasource dsi = std::static_pointer_cast<kis_datasource>(i);
+                    shared_datasource dsi = std::static_pointer_cast<kis_datasource>(i);
 
                     if (dsi->get_source_uuid() == u) {
                         ds = dsi;
@@ -1854,7 +1854,7 @@ bool Datasourcetracker_Httpd_Pcap::httpd_verify_path(const char *path, const cha
                         pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");
                     }
 
-                    SharedDatasource ds = datasourcetracker->find_datasource(u);
+                    shared_datasource ds = datasourcetracker->find_datasource(u);
                     
                     if (ds != NULL)
                         return true;;
@@ -1928,7 +1928,7 @@ int Datasourcetracker_Httpd_Pcap::httpd_create_stream_response(kis_net_httpd *ht
                     Globalreg::FetchMandatoryGlobalAs<packet_chain>("PACKETCHAIN");
                 pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");
 
-                SharedDatasource ds = datasourcetracker->find_datasource(u);
+                shared_datasource ds = datasourcetracker->find_datasource(u);
 
                 if (ds == NULL)
                     return MHD_YES;

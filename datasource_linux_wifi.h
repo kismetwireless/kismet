@@ -75,7 +75,7 @@ public:
 
     virtual ~DatasourceLinuxWifiBuilder() { }
 
-    virtual SharedDatasource build_datasource(shared_datasource_builder in_sh_this) {
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) {
         return SharedDatasourceLinuxWifi(new KisDatasourceLinuxWifi(in_sh_this));
     }
 

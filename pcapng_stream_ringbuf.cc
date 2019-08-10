@@ -473,7 +473,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
 int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet, kis_datachunk *in_data) {
     local_locker lg(packet_mutex);
 
-    SharedDatasource kis_datasource;
+    shared_datasource kis_datasource;
 
     packetchain_comp_datasource *datasrcinfo = 
         (packetchain_comp_datasource *) in_packet->fetch(pack_comp_datasrc);

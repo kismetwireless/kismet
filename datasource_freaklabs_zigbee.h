@@ -62,7 +62,7 @@ public:
 
     virtual ~datasource_freaklabs_zigbee_builder() { }
 
-    virtual SharedDatasource build_datasource(shared_datasource_builder in_sh_this) {
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) {
         return shared_datasource_freaklabs_zigbee(new kis_datasource_freaklabs_zigbee(in_sh_this));
     }
 

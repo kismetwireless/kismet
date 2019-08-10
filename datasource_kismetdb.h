@@ -82,7 +82,7 @@ public:
 
     virtual ~DatasourceKismetdbBuilder() { }
 
-    virtual SharedDatasource build_datasource(shared_datasource_builder in_sh_this) {
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) {
         return SharedDatasourceKismetdb(new KisDatasourceKismetdb(in_sh_this));
     }
 

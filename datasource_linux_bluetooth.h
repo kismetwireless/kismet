@@ -70,7 +70,7 @@ public:
 
     virtual ~DatasourceLinuxBluetoothBuilder() override { }
 
-    virtual SharedDatasource build_datasource(shared_datasource_builder in_sh_this) override {
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) override {
         return std::make_shared<KisDatasourceLinuxBluetooth>(in_sh_this);
     }
 

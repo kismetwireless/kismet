@@ -75,7 +75,7 @@ public:
 
     virtual ~DatasourceOsxCorewlanWifiBuilder() { }
 
-    virtual SharedDatasource build_datasource(shared_datasource_builder in_sh_this) {
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) {
         return SharedDatasourceOsxCorewlanWifi(new KisDatasourceOsxCorewlanWifi(in_sh_this));
     }
 

@@ -63,7 +63,7 @@ public:
 
     virtual ~DatasourceRtladsbBuilder() { }
 
-    virtual SharedDatasource build_datasource(shared_datasource_builder in_sh_this) override {
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) override {
         return SharedDatasourceRtladsb(new KisDatasourceRtladsb(in_sh_this, false));
     }
 
@@ -105,7 +105,7 @@ public:
 
     virtual ~DatasourceRtladsbMqttBuilder() { }
 
-    virtual SharedDatasource build_datasource(shared_datasource_builder in_sh_this) override {
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) override {
         return SharedDatasourceRtladsb(new KisDatasourceRtladsb(in_sh_this, true));
     }
 

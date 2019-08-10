@@ -119,12 +119,12 @@ protected:
     std::shared_ptr<time_tracker> timetracker;
 
     // Probing instances
-    std::map<unsigned int, SharedDatasource> ipc_probe_map;
+    std::map<unsigned int, shared_datasource> ipc_probe_map;
 
     std::shared_ptr<tracker_element_vector> proto_vec;
 
     // Vector of sources which are complete and waiting for cleanup
-    std::vector<SharedDatasource> complete_vec;
+    std::vector<shared_datasource> complete_vec;
 
     // Vector of timer events to make sure are dead before we destruct
     std::vector<int> cancel_timer_vec;
@@ -175,15 +175,15 @@ protected:
     std::shared_ptr<time_tracker> timetracker;
 
     // Probing instances
-    std::map<unsigned int, SharedDatasource> ipc_list_map;
+    std::map<unsigned int, shared_datasource> ipc_list_map;
 
     std::shared_ptr<tracker_element_vector> proto_vec;
 
     // Vector of sources we're still waiting to return from listing 
-    std::vector<SharedDatasource> list_vec;
+    std::vector<shared_datasource> list_vec;
 
     // Vector of sources which are complete and waiting for cleanup
-    std::vector<SharedDatasource> complete_vec;
+    std::vector<shared_datasource> complete_vec;
 
     // Transaction ID
     unsigned int transaction_id;
@@ -393,14 +393,14 @@ public:
     // Optional completion function will be called, asynchronously,
     // on completion.
     void open_datasource(const std::string& in_source, 
-            const std::function<void (bool, std::string, SharedDatasource)>& in_cb);
+            const std::function<void (bool, std::string, shared_datasource)>& in_cb);
 
     // Launch a source with a known prototype, given a basic source line
     // and a prototype.
     //
     // Optional completion function will be called on error or success
     void open_datasource(const std::string& in_source, shared_datasource_builder in_proto,
-            const std::function<void (bool, std::string, SharedDatasource)>& in_cb);
+            const std::function<void (bool, std::string, shared_datasource)>& in_cb);
 
     // Close a datasource - stop it if necessary, and place it into a closed state
     // without automatic reconnection.
@@ -417,7 +417,7 @@ public:
             std::shared_ptr<buffer_handler_generic> in_handler);
 
     // Find a datasource
-    SharedDatasource find_datasource(const uuid& in_uuid);
+    shared_datasource find_datasource(const uuid& in_uuid);
 
     // List potential sources
     //
@@ -452,7 +452,7 @@ public:
 
 protected:
     // Merge a source into the source list, preserving UUID and source number
-    virtual void merge_source(SharedDatasource in_source);
+    virtual void merge_source(shared_datasource in_source);
 
     // Log the datasources
     virtual void databaselog_write_datasources();
@@ -488,7 +488,7 @@ protected:
 
     // Sources which could not be opened in any way and which do not have a UUID
     // assignment (mis-defined startup sources, for instance)
-    std::vector<SharedDatasource> broken_source_vec;
+    std::vector<shared_datasource> broken_source_vec;
 
     // Remote connections slated to be removed
     std::vector<dst_incoming_remote *> dst_remote_complete_vec;
@@ -506,7 +506,7 @@ protected:
 
     // Re-assign channel hopping because we've opened a new source
     // and want to do channel split
-    void calculate_source_hopping(SharedDatasource in_ds);
+    void calculate_source_hopping(shared_datasource in_ds);
 
     // Our pcap http interface
     std::shared_ptr<Datasourcetracker_Httpd_Pcap> httpd_pcap;

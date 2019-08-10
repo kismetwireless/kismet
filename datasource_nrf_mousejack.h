@@ -76,7 +76,7 @@ public:
 
     virtual ~DatasourceNrfMousejackBuilder() { }
 
-    virtual SharedDatasource build_datasource(shared_datasource_builder in_sh_this) {
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) {
         return SharedDatasourceNrfMousejack(new KisDatasourceNrfMousejack(in_sh_this));
     }
 

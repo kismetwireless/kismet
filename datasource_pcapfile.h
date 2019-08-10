@@ -82,7 +82,7 @@ public:
 
     virtual ~DatasourcePcapfileBuilder() { }
 
-    virtual SharedDatasource build_datasource(shared_datasource_builder in_sh_this) {
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) {
         return SharedDatasourcePcapfile(new KisDatasourcePcapfile(in_sh_this));
     }
 

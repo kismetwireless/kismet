@@ -100,7 +100,7 @@ public:
     // to the instantiated datasource, so we need to take a pointer to ourselves 
     // in the input.
     // Typical implementation:
-    // return SharedDatasource(new SomeKismetDatasource(globalreg, in_shared_builder));
+    // return shared_datasource(new SomeKismetDatasource(globalreg, in_shared_builder));
     virtual std::shared_ptr<kis_datasource> build_datasource(std::shared_ptr<kis_datasource_builder>
             in_shared_builder __attribute__((unused))) { return NULL; };
 
@@ -703,7 +703,7 @@ protected:
 
 };
 
-typedef std::shared_ptr<kis_datasource> SharedDatasource;
+typedef std::shared_ptr<kis_datasource> shared_datasource;
 
 // KisDatasourceInterface
 // An automatically discovered interface, and any parameters needed to instantiate
