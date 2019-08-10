@@ -29,7 +29,7 @@
 #include "protobuf_cpp/kismet.pb.h"
 #include "protobuf_cpp/http.pb.h"
 
-KisExternalInterface::KisExternalInterface() :
+kis_external_interface::kis_external_interface() :
     buffer_interface(),
     ext_mutex {std::make_shared<kis_recursive_timed_mutex>()},
     timetracker {Globalreg::FetchMandatoryGlobalAs<time_tracker>()},
@@ -37,7 +37,7 @@ KisExternalInterface::KisExternalInterface() :
     last_pong {0},
     ping_timer_id {-1} { }
 
-KisExternalInterface::~KisExternalInterface() {
+kis_external_interface::~kis_external_interface() {
     timetracker->RemoveTimer(ping_timer_id);
 
     if (ipc_remote != nullptr) {
@@ -56,7 +56,7 @@ KisExternalInterface::~KisExternalInterface() {
 
 }
 
-void KisExternalInterface::connect_buffer(std::shared_ptr<buffer_handler_generic> in_ringbuf) {
+void kis_external_interface::connect_buffer(std::shared_ptr<buffer_handler_generic> in_ringbuf) {
     local_locker lock(ext_mutex);
 
     ringbuf_handler = in_ringbuf;
@@ -64,7 +64,7 @@ void KisExternalInterface::connect_buffer(std::shared_ptr<buffer_handler_generic
     ringbuf_handler->set_read_buffer_interface(this);
 }
 
-void KisExternalInterface::trigger_error(std::string in_error) {
+void kis_external_interface::trigger_error(std::string in_error) {
     local_locker lock(ext_mutex);
 
     timetracker->RemoveTimer(ping_timer_id);
@@ -87,7 +87,7 @@ void KisExternalInterface::trigger_error(std::string in_error) {
     buffer_error(in_error);
 }
 
-void KisExternalInterface::buffer_available(size_t in_amt) {
+void kis_external_interface::buffer_available(size_t in_amt) {
     if (in_amt == 0)
         return;
 
@@ -199,14 +199,14 @@ void KisExternalInterface::buffer_available(size_t in_amt) {
     }
 }
 
-void KisExternalInterface::buffer_error(std::string in_error) {
+void kis_external_interface::buffer_error(std::string in_error) {
     // Try to read anything left in the buffer in case we're exiting w/ pending valid data
     buffer_available(0);
     
     close_external();
 }
 
-bool KisExternalInterface::check_ipc(const std::string& in_binary) {
+bool kis_external_interface::check_ipc(const std::string& in_binary) {
     struct stat fstat;
 
     std::vector<std::string> bin_paths = 
@@ -233,7 +233,7 @@ bool KisExternalInterface::check_ipc(const std::string& in_binary) {
     return false;
 }
 
-bool KisExternalInterface::run_ipc() {
+bool kis_external_interface::run_ipc() {
     local_locker l(ext_mutex);
 
     std::stringstream ss;
@@ -292,7 +292,7 @@ bool KisExternalInterface::run_ipc() {
     return true;
 }
 
-void KisExternalInterface::close_external() {
+void kis_external_interface::close_external() {
     local_locker lock(ext_mutex);
 
     timetracker->RemoveTimer(ping_timer_id);
@@ -310,7 +310,7 @@ void KisExternalInterface::close_external() {
     ringbuf_handler.reset();
 }
 
-unsigned int KisExternalInterface::send_packet(std::shared_ptr<KismetExternal::Command> c) {
+unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal::Command> c) {
     local_locker lock(ext_mutex);
 
     if (ringbuf_handler == NULL)
@@ -361,7 +361,7 @@ unsigned int KisExternalInterface::send_packet(std::shared_ptr<KismetExternal::C
     return c->seqno();
 }
 
-bool KisExternalInterface::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
+bool kis_external_interface::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
     // Simple dispatcher; this should be called by child implementations who
     // add their own commands
     if (c->command() == "MESSAGE") {
@@ -381,7 +381,7 @@ bool KisExternalInterface::dispatch_rx_packet(std::shared_ptr<KismetExternal::Co
     return false;
 }
 
-void KisExternalInterface::handle_packet_message(uint32_t in_seqno, const std::string& in_content) {
+void kis_external_interface::handle_packet_message(uint32_t in_seqno, const std::string& in_content) {
     KismetExternal::MsgbusMessage m;
 
     if (!m.ParseFromString(in_content)) {
@@ -393,11 +393,11 @@ void KisExternalInterface::handle_packet_message(uint32_t in_seqno, const std::s
     handle_msg_proxy(m.msgtext(), m.msgtype());
 }
 
-void KisExternalInterface::handle_packet_ping(uint32_t in_seqno, const std::string& in_content) {
+void kis_external_interface::handle_packet_ping(uint32_t in_seqno, const std::string& in_content) {
     send_pong(in_seqno);
 }
 
-void KisExternalInterface::handle_packet_pong(uint32_t in_seqno, const std::string& in_content) {
+void kis_external_interface::handle_packet_pong(uint32_t in_seqno, const std::string& in_content) {
     local_locker lock(ext_mutex);
 
     KismetExternal::Pong p;
@@ -410,7 +410,7 @@ void KisExternalInterface::handle_packet_pong(uint32_t in_seqno, const std::stri
     last_pong = time(0);
 }
 
-void KisExternalInterface::handle_packet_shutdown(uint32_t in_seqno, const std::string& in_content) {
+void kis_external_interface::handle_packet_shutdown(uint32_t in_seqno, const std::string& in_content) {
     local_locker lock(ext_mutex);
 
     KismetExternal::ExternalShutdown s;
@@ -424,7 +424,7 @@ void KisExternalInterface::handle_packet_shutdown(uint32_t in_seqno, const std::
     trigger_error(std::string("Remote connection requesting shutdown: ") + s.reason());
 }
 
-unsigned int KisExternalInterface::send_ping() {
+unsigned int kis_external_interface::send_ping() {
     std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
 
     c->set_command("PING");
@@ -435,7 +435,7 @@ unsigned int KisExternalInterface::send_ping() {
     return send_packet(c);
 }
 
-unsigned int KisExternalInterface::send_pong(uint32_t ping_seqno) {
+unsigned int kis_external_interface::send_pong(uint32_t ping_seqno) {
     std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
 
     c->set_command("PONG");
@@ -448,7 +448,7 @@ unsigned int KisExternalInterface::send_pong(uint32_t ping_seqno) {
     return send_packet(c);
 }
 
-unsigned int KisExternalInterface::send_shutdown(std::string reason) {
+unsigned int kis_external_interface::send_shutdown(std::string reason) {
     std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
 
     c->set_command("SHUTDOWN");
@@ -462,7 +462,7 @@ unsigned int KisExternalInterface::send_shutdown(std::string reason) {
 }
 
 KisExternalHttpInterface::KisExternalHttpInterface() :
-    KisExternalInterface(), 
+    kis_external_interface(), 
     kis_net_httpd_chain_stream_handler() {
 
     http_session_id = 0;
@@ -495,11 +495,11 @@ void KisExternalHttpInterface::trigger_error(std::string in_error) {
         s.second->locker->unlock();
     }
 
-    KisExternalInterface::trigger_error(in_error);
+    kis_external_interface::trigger_error(in_error);
 }
 
 bool KisExternalHttpInterface::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
-    if (KisExternalInterface::dispatch_rx_packet(c))
+    if (kis_external_interface::dispatch_rx_packet(c))
         return true;
 
     if (c->command() == "HTTPREGISTERURI") {

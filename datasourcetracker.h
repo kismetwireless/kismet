@@ -301,7 +301,7 @@ protected:
 // simple packet protocol enough to get a NEWSOURCE command; The resulting source
 // type, definition, uuid, and rbufhandler is passed to the callback function; the cb
 // is responsible for looking up the type, closing the connection if it is invalid, etc.
-class dst_incoming_remote : public KisExternalInterface {
+class dst_incoming_remote : public kis_external_interface {
 public:
     dst_incoming_remote(std::shared_ptr<buffer_handler_generic> in_rbufhandler,
             std::function<void (dst_incoming_remote *, std::string srctype, std::string srcdef,

@@ -172,28 +172,28 @@ protected:
 };
 
 
-class kis_datasource : public tracker_component, public KisExternalInterface {
+class kis_datasource : public tracker_component, public kis_external_interface {
 public:
     // Initialize and tell us what sort of builder
     kis_datasource(shared_datasource_builder in_builder);
 
     kis_datasource() :
         tracker_component(0),
-        KisExternalInterface() {
+        kis_external_interface() {
         register_fields();
         reserve_fields(NULL);
     }
 
     kis_datasource(int in_id) :
         tracker_component(in_id),
-        KisExternalInterface() {
+        kis_external_interface() {
         register_fields();
         reserve_fields(NULL);
     }
 
     kis_datasource(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id),
-        KisExternalInterface() {
+        kis_external_interface() {
         register_fields();
         reserve_fields(e);
     }

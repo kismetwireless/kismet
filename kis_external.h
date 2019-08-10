@@ -57,10 +57,10 @@ struct KisExternalHttpUri {
 };
 
 // Basic external interface, implements the core ping/pong/id/message/etc protocols
-class KisExternalInterface : public buffer_interface {
+class kis_external_interface : public buffer_interface {
 public:
-    KisExternalInterface();
-    virtual ~KisExternalInterface();
+    kis_external_interface();
+    virtual ~kis_external_interface();
 
     // Connect an existing buffer, such as a TCP socket or IPC pipe
     virtual void connect_buffer(std::shared_ptr<buffer_handler_generic> in_ringbuf);
@@ -130,7 +130,7 @@ protected:
     int ping_timer_id;
 };
 
-class KisExternalHttpInterface : public KisExternalInterface, kis_net_httpd_chain_stream_handler {
+class KisExternalHttpInterface : public kis_external_interface, kis_net_httpd_chain_stream_handler {
 public:
     KisExternalHttpInterface();
     virtual ~KisExternalHttpInterface();

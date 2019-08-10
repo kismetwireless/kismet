@@ -30,7 +30,7 @@
 // record so we always re-allocate ourselves
 kis_datasource::kis_datasource(shared_datasource_builder in_builder) :
     tracker_component(),
-    KisExternalInterface() {
+    kis_external_interface() {
     
     register_fields();
     reserve_fields(nullptr);
@@ -104,7 +104,7 @@ void kis_datasource::list_interfaces(unsigned int in_transaction,
     }
 
     // If we don't have our local binary, die and call cb instantly
-    if (!KisExternalInterface::check_ipc(get_source_ipc_binary())) {
+    if (!kis_external_interface::check_ipc(get_source_ipc_binary())) {
         if (in_cb != NULL) {
             lock.unlock();
             in_cb(in_transaction, std::vector<shared_interface>());
@@ -151,7 +151,7 @@ void kis_datasource::probe_interface(std::string in_definition, unsigned int in_
     }
 
     // If we don't have our local binary, die and call cb instantly
-    if (!KisExternalInterface::check_ipc(get_source_ipc_binary())) {
+    if (!kis_external_interface::check_ipc(get_source_ipc_binary())) {
         if (in_cb != NULL) {
             lock.unlock();
             in_cb(in_transaction, false, "Capture tool not installed");
@@ -241,7 +241,7 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
     }
 
     // If we don't have our local binary, die and call cb instantly
-    if (!KisExternalInterface::check_ipc(get_source_ipc_binary())) {
+    if (!kis_external_interface::check_ipc(get_source_ipc_binary())) {
         if (in_cb != NULL) {
             lock.unlock();
             in_cb(in_transaction, false, "Capture tool not installed");
@@ -635,7 +635,7 @@ bool kis_datasource::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command>
     // Handle all the default options first; ping, pong, message, etc are all
     // handled for us by the overhead of the KismetExternal protocol, we only need
     // to worry about our specific ones
-    if (KisExternalInterface::dispatch_rx_packet(c))
+    if (kis_external_interface::dispatch_rx_packet(c))
         return true;
 
     // Handle all the KisDataSource sub-protocols

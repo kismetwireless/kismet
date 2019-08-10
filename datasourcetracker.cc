@@ -1990,7 +1990,7 @@ int Datasourcetracker_Httpd_Pcap::httpd_create_stream_response(kis_net_httpd *ht
 dst_incoming_remote::dst_incoming_remote(std::shared_ptr<buffer_handler_generic> in_rbufhandler,
         std::function<void (dst_incoming_remote *, std::string, std::string, 
             uuid, std::shared_ptr<buffer_handler_generic>)> in_cb) :
-    KisExternalInterface() {
+    kis_external_interface() {
     
     cb = in_cb;
 
@@ -2020,7 +2020,7 @@ dst_incoming_remote::~dst_incoming_remote() {
     handshake_thread.join();
 }
 
-bool dst_incoming_remote::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) { if (KisExternalInterface::dispatch_rx_packet(c))
+bool dst_incoming_remote::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) { if (kis_external_interface::dispatch_rx_packet(c))
         return true;
 
     // Simple dispatch override, all we do is look for the new source
