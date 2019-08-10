@@ -30,7 +30,7 @@ typedef std::shared_ptr<KisDatasourceLinuxWifi> SharedDatasourceLinuxWifi;
 
 class KisDatasourceLinuxWifi : public KisDatasource {
 public:
-    KisDatasourceLinuxWifi(SharedDatasourceBuilder in_builder) :
+    KisDatasourceLinuxWifi(shared_datasource_builder in_builder) :
         KisDatasource(in_builder) {
 
         // Set the capture binary
@@ -75,7 +75,7 @@ public:
 
     virtual ~DatasourceLinuxWifiBuilder() { }
 
-    virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) {
+    virtual SharedDatasource build_datasource(shared_datasource_builder in_sh_this) {
         return SharedDatasourceLinuxWifi(new KisDatasourceLinuxWifi(in_sh_this));
     }
 

@@ -28,7 +28,7 @@ typedef std::shared_ptr<KisDatasourcePcapfile> SharedDatasourcePcapfile;
 
 class KisDatasourcePcapfile : public KisDatasource {
 public:
-    KisDatasourcePcapfile(SharedDatasourceBuilder in_builder) :
+    KisDatasourcePcapfile(shared_datasource_builder in_builder) :
         KisDatasource(in_builder) {
 
         // Set the capture binary
@@ -82,7 +82,7 @@ public:
 
     virtual ~DatasourcePcapfileBuilder() { }
 
-    virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) {
+    virtual SharedDatasource build_datasource(shared_datasource_builder in_sh_this) {
         return SharedDatasourcePcapfile(new KisDatasourcePcapfile(in_sh_this));
     }
 

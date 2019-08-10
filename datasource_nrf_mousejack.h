@@ -31,7 +31,7 @@ typedef std::shared_ptr<KisDatasourceNrfMousejack> SharedDatasourceNrfMousejack;
 
 class KisDatasourceNrfMousejack : public KisDatasource {
 public:
-    KisDatasourceNrfMousejack(SharedDatasourceBuilder in_builder) :
+    KisDatasourceNrfMousejack(shared_datasource_builder in_builder) :
         KisDatasource(in_builder) {
 
         // Set the capture binary
@@ -76,7 +76,7 @@ public:
 
     virtual ~DatasourceNrfMousejackBuilder() { }
 
-    virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) {
+    virtual SharedDatasource build_datasource(shared_datasource_builder in_sh_this) {
         return SharedDatasourceNrfMousejack(new KisDatasourceNrfMousejack(in_sh_this));
     }
 

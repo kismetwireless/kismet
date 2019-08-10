@@ -28,7 +28,7 @@ typedef std::shared_ptr<KisDatasourceKismetdb> SharedDatasourceKismetdb;
 
 class KisDatasourceKismetdb : public KisDatasource {
 public:
-    KisDatasourceKismetdb(SharedDatasourceBuilder in_builder) :
+    KisDatasourceKismetdb(shared_datasource_builder in_builder) :
         KisDatasource(in_builder) {
 
         // Set the capture binary
@@ -82,7 +82,7 @@ public:
 
     virtual ~DatasourceKismetdbBuilder() { }
 
-    virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) {
+    virtual SharedDatasource build_datasource(shared_datasource_builder in_sh_this) {
         return SharedDatasourceKismetdb(new KisDatasourceKismetdb(in_sh_this));
     }
 

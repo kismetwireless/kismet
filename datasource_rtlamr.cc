@@ -22,7 +22,7 @@
 #include "kismet_json.h"
 #include "phy_rtlamr.h"
 
-KisDatasourceRtlamr::KisDatasourceRtlamr(SharedDatasourceBuilder in_builder, bool in_mqtt) :
+KisDatasourceRtlamr::KisDatasourceRtlamr(shared_datasource_builder in_builder, bool in_mqtt) :
     KisDatasource(in_builder) {
 
     std::string devnum = MungeToPrintable(get_definition_opt("device"));

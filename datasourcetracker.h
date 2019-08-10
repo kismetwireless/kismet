@@ -102,11 +102,11 @@ public:
     DST_DatasourceProbe(std::string in_definition, std::shared_ptr<tracker_element_vector> in_protovec);
     virtual ~DST_DatasourceProbe();
 
-    void probe_sources(std::function<void (SharedDatasourceBuilder)> in_cb);
+    void probe_sources(std::function<void (shared_datasource_builder)> in_cb);
 
     std::string get_definition() { return definition; }
 
-    SharedDatasourceBuilder get_proto();
+    shared_datasource_builder get_proto();
 
     // Complete a probe - when the last one completes we're done
     void complete_probe(bool in_success, unsigned int in_transaction, std::string in_reason);
@@ -130,14 +130,14 @@ protected:
     std::vector<int> cancel_timer_vec;
 
     // Prototype we found
-    SharedDatasourceBuilder source_builder;
+    shared_datasource_builder source_builder;
 
     // Transaction ID
     std::atomic<unsigned int> transaction_id;
 
     std::string definition;
 
-    std::function<void (SharedDatasourceBuilder)> probe_cb;
+    std::function<void (shared_datasource_builder)> probe_cb;
     std::atomic<bool> cancelled;
 };
 
@@ -383,7 +383,7 @@ public:
     };
 
     // Add a driver
-    int register_datasource(SharedDatasourceBuilder in_builder);
+    int register_datasource(shared_datasource_builder in_builder);
 
     // Handle everything about launching a source, given a basic source line
     //
@@ -399,7 +399,7 @@ public:
     // and a prototype.
     //
     // Optional completion function will be called on error or success
-    void open_datasource(const std::string& in_source, SharedDatasourceBuilder in_proto,
+    void open_datasource(const std::string& in_source, shared_datasource_builder in_proto,
             const std::function<void (bool, std::string, SharedDatasource)>& in_cb);
 
     // Close a datasource - stop it if necessary, and place it into a closed state

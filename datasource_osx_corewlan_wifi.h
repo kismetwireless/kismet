@@ -30,7 +30,7 @@ typedef std::shared_ptr<KisDatasourceOsxCorewlanWifi> SharedDatasourceOsxCorewla
 
 class KisDatasourceOsxCorewlanWifi : public KisDatasource {
 public:
-    KisDatasourceOsxCorewlanWifi(SharedDatasourceBuilder in_builder) :
+    KisDatasourceOsxCorewlanWifi(shared_datasource_builder in_builder) :
         KisDatasource(in_builder) {
 
         // Set the capture binary
@@ -75,7 +75,7 @@ public:
 
     virtual ~DatasourceOsxCorewlanWifiBuilder() { }
 
-    virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) {
+    virtual SharedDatasource build_datasource(shared_datasource_builder in_sh_this) {
         return SharedDatasourceOsxCorewlanWifi(new KisDatasourceOsxCorewlanWifi(in_sh_this));
     }
 

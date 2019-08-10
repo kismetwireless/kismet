@@ -85,7 +85,7 @@ void DST_DatasourceProbe::cancel() {
         probe_cb(source_builder);
 }
 
-SharedDatasourceBuilder DST_DatasourceProbe::get_proto() {
+shared_datasource_builder DST_DatasourceProbe::get_proto() {
     local_locker lock(&probe_lock);
     return source_builder;
 }
@@ -129,13 +129,13 @@ void DST_DatasourceProbe::complete_probe(bool in_success, unsigned int in_transa
     }
 }
 
-void DST_DatasourceProbe::probe_sources(std::function<void (SharedDatasourceBuilder)> in_cb) {
+void DST_DatasourceProbe::probe_sources(std::function<void (shared_datasource_builder)> in_cb) {
     {
         local_locker lock(&probe_lock);
         probe_cb = in_cb;
     }
 
-    std::vector<SharedDatasourceBuilder> remote_builders;
+    std::vector<shared_datasource_builder> remote_builders;
 
     unsigned int ncreated = 0;
 
@@ -263,12 +263,12 @@ void DST_DatasourceList::complete_list(std::vector<SharedInterface> in_list, uns
 void DST_DatasourceList::list_sources(std::function<void (std::vector<SharedInterface>)> in_cb) {
     list_cb = in_cb;
 
-    std::vector<SharedDatasourceBuilder> remote_builders;
+    std::vector<shared_datasource_builder> remote_builders;
 
     bool created_ipc = false;
 
     for (auto i : *proto_vec) {
-        SharedDatasourceBuilder b = std::static_pointer_cast<KisDatasourceBuilder>(i);
+        shared_datasource_builder b = std::static_pointer_cast<KisDatasourceBuilder>(i);
 
         if (!b->get_list_capable())
             continue;
@@ -759,11 +759,11 @@ bool Datasourcetracker::close_datasource(const uuid& in_uuid) {
     return false;
 }
 
-int Datasourcetracker::register_datasource(SharedDatasourceBuilder in_builder) {
+int Datasourcetracker::register_datasource(shared_datasource_builder in_builder) {
     local_locker lock(&dst_lock);
 
     for (auto i : *proto_vec) {
-        SharedDatasourceBuilder b = std::static_pointer_cast<KisDatasourceBuilder>(i);
+        shared_datasource_builder b = std::static_pointer_cast<KisDatasourceBuilder>(i);
 
         if (StrLower(b->get_source_type()) == StrLower(in_builder->get_source_type())) {
             _MSG_ERROR("Already registered a data source for type '{}', check that you don't have "
@@ -815,7 +815,7 @@ void Datasourcetracker::open_datasource(const std::string& in_source,
         local_demand_locker lock(&dst_lock);
         lock.lock();
 
-        SharedDatasourceBuilder proto;
+        shared_datasource_builder proto;
 
         bool proto_found = false;
 
@@ -864,7 +864,7 @@ void Datasourcetracker::open_datasource(const std::string& in_source,
     }
 
     // Initiate the probe
-    dst_probe->probe_sources([this, probeid, in_cb](SharedDatasourceBuilder builder) {
+    dst_probe->probe_sources([this, probeid, in_cb](shared_datasource_builder builder) {
         // Lock on completion
         local_demand_locker lock(&dst_lock);
         lock.lock();
@@ -909,7 +909,7 @@ void Datasourcetracker::open_datasource(const std::string& in_source,
 }
 
 void Datasourcetracker::open_datasource(const std::string& in_source, 
-        SharedDatasourceBuilder in_proto,
+        shared_datasource_builder in_proto,
         const std::function<void (bool, std::string, SharedDatasource)>& in_cb) {
     local_locker lock(&dst_lock);
 
@@ -1121,7 +1121,7 @@ void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,
 
     // Otherwise look for a prototype that can handle it
     for (auto p : *proto_vec) {
-        SharedDatasourceBuilder b = std::static_pointer_cast<KisDatasourceBuilder>(p);
+        shared_datasource_builder b = std::static_pointer_cast<KisDatasourceBuilder>(p);
 
         if (!b->get_remote_capable())
             continue;

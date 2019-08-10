@@ -28,7 +28,7 @@ typedef std::shared_ptr<KisDatasourceRtl433> SharedDatasourceRtl433;
 
 class KisDatasourceRtl433 : public KisDatasource {
 public:
-    KisDatasourceRtl433(SharedDatasourceBuilder in_builder, bool in_mqtt);
+    KisDatasourceRtl433(shared_datasource_builder in_builder, bool in_mqtt);
     virtual ~KisDatasourceRtl433();
 
 protected:
@@ -63,7 +63,7 @@ public:
 
     virtual ~DatasourceRtl433Builder() { }
 
-    virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) override {
+    virtual SharedDatasource build_datasource(shared_datasource_builder in_sh_this) override {
         return SharedDatasourceRtl433(new KisDatasourceRtl433(in_sh_this, false));
     }
 
@@ -105,7 +105,7 @@ public:
 
     virtual ~DatasourceRtl433MqttBuilder() { }
 
-    virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) override {
+    virtual SharedDatasource build_datasource(shared_datasource_builder in_sh_this) override {
         return SharedDatasourceRtl433(new KisDatasourceRtl433(in_sh_this, true));
     }
 

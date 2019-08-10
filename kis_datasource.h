@@ -40,7 +40,7 @@
 
 // Builder class responsible for making an instance of this datasource
 class KisDatasourceBuilder;
-typedef std::shared_ptr<KisDatasourceBuilder> SharedDatasourceBuilder;
+typedef std::shared_ptr<KisDatasourceBuilder> shared_datasource_builder;
 
 // Auto-discovered interface
 class KisDatasourceInterface;
@@ -175,7 +175,7 @@ protected:
 class KisDatasource : public tracker_component, public KisExternalInterface {
 public:
     // Initialize and tell us what sort of builder
-    KisDatasource(SharedDatasourceBuilder in_builder);
+    KisDatasource(shared_datasource_builder in_builder);
 
     KisDatasource() :
         tracker_component(0),

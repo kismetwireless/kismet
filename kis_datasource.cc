@@ -28,7 +28,7 @@
 
 // We never instantiate from a generic tracker component or from a stored
 // record so we always re-allocate ourselves
-KisDatasource::KisDatasource(SharedDatasourceBuilder in_builder) :
+KisDatasource::KisDatasource(shared_datasource_builder in_builder) :
     tracker_component(),
     KisExternalInterface() {
     

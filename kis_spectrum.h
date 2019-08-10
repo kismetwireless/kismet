@@ -78,7 +78,7 @@ protected:
 // Spectrum-specific sub-type of Kismet data sources
 class SpectrumDatasource : public KisDatasource {
 public:
-    SpectrumDatasource(global_registry *in_globalreg, SharedDatasourceBuilder in_builder);
+    SpectrumDatasource(global_registry *in_globalreg, shared_datasource_builder in_builder);
 
     // Configure sweeping
     virtual void set_sweep(uint64_t in_start_mhz, uint64_t in_end_mhz, uint64_t in_num_per_freq,

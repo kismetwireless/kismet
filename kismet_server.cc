@@ -873,19 +873,19 @@ int main(int argc, char *argv[], char *envp[]) {
         SpindownKismet(pollabletracker);
 
     // Add the datasources
-    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourcePcapfileBuilder()));
-    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceKismetdbBuilder()));
-    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceLinuxWifiBuilder()));
-    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceLinuxBluetoothBuilder()));
-    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceOsxCorewlanWifiBuilder()));
-    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtl433Builder()));
-    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtl433MqttBuilder()));
-    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtlamrBuilder()));
-    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtlamrMqttBuilder()));
-    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtladsbBuilder()));
-    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceRtladsbMqttBuilder()));
-    datasourcetracker->register_datasource(SharedDatasourceBuilder(new datasource_freaklabs_zigbee_builder()));
-    datasourcetracker->register_datasource(SharedDatasourceBuilder(new DatasourceNrfMousejackBuilder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new DatasourcePcapfileBuilder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceKismetdbBuilder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceLinuxWifiBuilder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceLinuxBluetoothBuilder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceOsxCorewlanWifiBuilder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceRtl433Builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceRtl433MqttBuilder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceRtlamrBuilder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceRtlamrMqttBuilder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceRtladsbBuilder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceRtladsbMqttBuilder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_freaklabs_zigbee_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceNrfMousejackBuilder()));
 
     // Create the database logger as a global because it's a special case
     kis_database_logfile::create_kisdatabaselog();

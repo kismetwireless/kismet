@@ -30,7 +30,7 @@ typedef std::shared_ptr<KisDatasourceLinuxBluetooth> SharedDatasourceLinuxBlueto
 
 class KisDatasourceLinuxBluetooth : public KisDatasource {
 public:
-    KisDatasourceLinuxBluetooth(SharedDatasourceBuilder in_builder);
+    KisDatasourceLinuxBluetooth(shared_datasource_builder in_builder);
 
     virtual ~KisDatasourceLinuxBluetooth() { };
 
@@ -70,7 +70,7 @@ public:
 
     virtual ~DatasourceLinuxBluetoothBuilder() override { }
 
-    virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) override {
+    virtual SharedDatasource build_datasource(shared_datasource_builder in_sh_this) override {
         return std::make_shared<KisDatasourceLinuxBluetooth>(in_sh_this);
     }
 
