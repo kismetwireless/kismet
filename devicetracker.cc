@@ -548,7 +548,7 @@ int device_tracker::fetch_num_devices() {
     return tracked_map.size();
 }
 
-int device_tracker::FetchNumPackets() {
+int device_tracker::fetch_num_packets() {
     return num_packets;
 }
 
