@@ -363,7 +363,7 @@ void Dot11FingerprintTracker::rebuild_config() {
         v.push_back(fp->asConfigComplex(fpi.first).toString());
     }
 
-    configfile->SetOptVec(configvalue, v, true);
+    configfile->set_opt_vec(configvalue, v, true);
     configfile->save_config(configpath);
 }
 

@@ -353,7 +353,7 @@ void config_file::set_opt(const std::string& in_key, const std::string& in_val, 
     set_opt_dirty(in_key, in_dirty);
 }
 
-void config_file::SetOptVec(const std::string& in_key, const std::vector<std::string>& in_val, 
+void config_file::set_opt_vec(const std::string& in_key, const std::vector<std::string>& in_val, 
         int in_dirty) {
     local_locker lock(&config_locker);
 

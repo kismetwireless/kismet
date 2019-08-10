@@ -722,7 +722,7 @@ void kis_net_httpd::WriteSessions() {
         }
     }
 
-    session_db->SetOptVec("session", sessions, true);
+    session_db->set_opt_vec("session", sessions, true);
 
     // Ignore failures here I guess?
     session_db->save_config(sessiondb_file.c_str());

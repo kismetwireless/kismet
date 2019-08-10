@@ -105,7 +105,7 @@ public:
     }
 
 	void set_opt(const std::string& in_key, const std::string& in_val, int in_dirty);
-	void SetOptVec(const std::string& in_key, const std::vector<std::string>& in_val, int in_dirty);
+	void set_opt_vec(const std::string& in_key, const std::vector<std::string>& in_val, int in_dirty);
 
     // Expand complete log templates for logfile filenames
     std::string ExpandLogPath(const std::string& path, const std::string& logname, 
