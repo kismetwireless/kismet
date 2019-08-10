@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -26,12 +26,12 @@
 #include "kis_datasource.h"
 #include "dlttracker.h"
 
-class KisDatasourceNrfMousejack;
-typedef std::shared_ptr<KisDatasourceNrfMousejack> SharedDatasourceNrfMousejack;
+class kis_datasource_nrf_mousejack;
+typedef std::shared_ptr<kis_datasource_nrf_mousejack> SharedDatasourceNrfMousejack;
 
-class KisDatasourceNrfMousejack : public kis_datasource {
+class kis_datasource_nrf_mousejack : public kis_datasource {
 public:
-    KisDatasourceNrfMousejack(shared_datasource_builder in_builder) :
+    kis_datasource_nrf_mousejack(shared_datasource_builder in_builder) :
         kis_datasource(in_builder) {
 
         // Set the capture binary
@@ -44,7 +44,7 @@ public:
         set_int_source_override_linktype(dltt->register_linktype("NRFMOUSEJACK"));
     }
 
-    virtual ~KisDatasourceNrfMousejack() { };
+    virtual ~kis_datasource_nrf_mousejack() { };
 };
 
 
@@ -77,7 +77,7 @@ public:
     virtual ~DatasourceNrfMousejackBuilder() { }
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) {
-        return SharedDatasourceNrfMousejack(new KisDatasourceNrfMousejack(in_sh_this));
+        return SharedDatasourceNrfMousejack(new kis_datasource_nrf_mousejack(in_sh_this));
     }
 
     virtual void initialize() {
