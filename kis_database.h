@@ -104,7 +104,7 @@ public:
     template<typename T>
     void bind_field(const std::string& in_query, const T& in_value,
             std::function<int (sqlite3_stmt *, int, T)> in_binder) {
-        auto binding = std::make_shared<Binding<T>>(in_query, in_value, in_binder);
+        auto binding = std::make_shared<binding<T>>(in_query, in_value, in_binder);
         bindings.push_back(binding);
     }
 
@@ -134,14 +134,14 @@ protected:
     };
 
     template<typename T>
-    class Binding : public binding_interface {
+    class binding : public binding_interface {
     public:
-        Binding(const std::string& in_query, const T& in_value,
+        binding(const std::string& in_query, const T& in_value,
                 std::function<int (sqlite3_stmt *, int, T)> in_binder) :
             query {in_query},
             value {in_value},
             binder {in_binder} { }
-        virtual ~Binding() { }
+        virtual ~binding() { }
 
         virtual std::string get_query() override {
             return query;
