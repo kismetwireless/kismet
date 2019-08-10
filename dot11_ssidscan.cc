@@ -173,7 +173,7 @@ unsigned int dot11_ssid_scan::config_endp_handler(std::ostream& stream, const st
 
     try {
         if (post_structured->has_key("ssidscan_enabled")) {
-            auto enabled = post_structured->getKeyAsBool("ssidscan_enabled");
+            auto enabled = post_structured->key_as_bool("ssidscan_enabled");
 
             if (enabled != ssidscan_enabled->get()) {
                 if (enabled) {
@@ -187,7 +187,7 @@ unsigned int dot11_ssid_scan::config_endp_handler(std::ostream& stream, const st
         }
 
         if (post_structured->has_key("ignore_after_handshake"))
-            ignore_after_handshake->set(post_structured->getKeyAsBool("ignore_after_handshake"));
+            ignore_after_handshake->set(post_structured->key_as_bool("ignore_after_handshake"));
 
         if (post_structured->has_key("max_capture_seconds")) 
             max_contend_cap_seconds->set(post_structured->key_as_number("max_capture_seconds"));
@@ -196,7 +196,7 @@ unsigned int dot11_ssid_scan::config_endp_handler(std::ostream& stream, const st
             min_scan_seconds->set(post_structured->key_as_number("min_scan_seconds"));
 
         if (post_structured->has_key("restrict_log_filters")) {
-            auto enabled = post_structured->getKeyAsBool("restrict_log_filters");
+            auto enabled = post_structured->key_as_bool("restrict_log_filters");
 
             if (enabled != filter_logs->get()) {
                 filter_logs->set(enabled);

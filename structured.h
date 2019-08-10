@@ -119,8 +119,8 @@ public:
     virtual double key_as_number(std::string key, double def) = 0;
     virtual std::string key_as_string(std::string key, std::string def) = 0;
     virtual std::string key_as_string(std::string key) = 0;
-    virtual bool getKeyAsBool(std::string key) = 0;
-    virtual bool getKeyAsBool(std::string key, bool def) = 0;
+    virtual bool key_as_bool(std::string key) = 0;
+    virtual bool key_as_bool(std::string key, bool def) = 0;
 
     // Get structured sub-arrays
     virtual structured_vec getStructuredArray() = 0;

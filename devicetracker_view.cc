@@ -537,7 +537,7 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
         if (structured->has_key("colmap")) 
             column_number_map = structured->get_structured_by_key("colmap")->getStructuredNumMap();
 
-        if (structured->getKeyAsBool("datatable", false)) {
+        if (structured->key_as_bool("datatable", false)) {
             // Extract from the raw postvars 
             if (postvars.find("start") != postvars.end())
                 *(postvars["start"]) >> in_window_start;

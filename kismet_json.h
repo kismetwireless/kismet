@@ -191,11 +191,11 @@ public:
         return v->as_string();
     }
 
-    virtual bool getKeyAsBool(std::string key) {
+    virtual bool key_as_bool(std::string key) {
         return get_structured_by_key(key)->as_bool();
     }
 
-    virtual bool getKeyAsBool(std::string key, bool def) {
+    virtual bool key_as_bool(std::string key, bool def) {
         if (!has_key(key))
             return def;
 
