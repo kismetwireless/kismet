@@ -364,7 +364,7 @@ void kis_net_httpd::register_mime_type(std::string suffix, std::string mimetype)
     mime_type_map[StrLower(suffix)] = mimetype;
 }
 
-void kis_net_httpd::RegisterAlias(const std::string& in_alias, const std::string& in_dest) {
+void kis_net_httpd::register_alias(const std::string& in_alias, const std::string& in_dest) {
     local_locker lock(&controller_mutex);
     alias_rewrite_map[in_alias] = in_dest;
 }

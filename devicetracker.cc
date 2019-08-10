@@ -462,7 +462,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
                 });
     add_view(all_view);
 
-    httpd->RegisterAlias("/devices/summary/devices.json", "/devices/views/all/devices.json");
+    httpd->register_alias("/devices/summary/devices.json", "/devices/views/all/devices.json");
 }
 
 device_tracker::~device_tracker() {

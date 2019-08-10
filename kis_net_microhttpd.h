@@ -372,7 +372,7 @@ public:
     void register_static_dir(std::string in_url_prefix, std::string in_path);
 
     // Fixed alias/rewrites
-    void RegisterAlias(const std::string& in_alias, const std::string& in_dest);
+    void register_alias(const std::string& in_alias, const std::string& in_dest);
     void RemoveAlias(const std::string& in_alias);
 
     // Interrogate the session handler and figure out if this connection has a
