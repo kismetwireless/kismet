@@ -26,7 +26,7 @@
 #include "kis_dlt.h"
 
 int kis_dlt_packethook(CHAINCALL_PARMS) {
-	return ((Kis_DLT_Handler *) auxdata)->HandlePacket(in_pack);
+	return ((Kis_DLT_Handler *) auxdata)->handle_packet(in_pack);
 }
 
 Kis_DLT_Handler::Kis_DLT_Handler() :

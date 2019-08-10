@@ -127,7 +127,7 @@ Kis_DLT_Radiotap::Kis_DLT_Radiotap() :
 #define BITNO_4(x) (((x) >> 2) ? 2 + BITNO_2((x) >> 2) : BITNO_2((x)))
 #define BITNO_2(x) (((x) & 2) ? 1 : 0)
 #define BIT(n)	(1 << n)
-int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
+int Kis_DLT_Radiotap::handle_packet(kis_packet *in_pack) {
     static int packnum = 0;
 
     packnum++;

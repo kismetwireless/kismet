@@ -49,7 +49,7 @@ private:
 public:
 	virtual ~Kis_DLT_Radiotap() { };
 
-	virtual int HandlePacket(kis_packet *in_pack);
+	virtual int handle_packet(kis_packet *in_pack);
 
 protected:
     unsigned int update_crc32_80211(unsigned int crc, const unsigned char *data,

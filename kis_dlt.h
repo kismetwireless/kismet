@@ -32,7 +32,7 @@ public:
 	Kis_DLT_Handler();
 	virtual ~Kis_DLT_Handler();
 
-	virtual int HandlePacket(kis_packet *in_pack) = 0;
+	virtual int handle_packet(kis_packet *in_pack) = 0;
 
 	virtual int FetchDLT() { return dlt; }
 	virtual std::string FetchDLTName() { return dlt_name; }

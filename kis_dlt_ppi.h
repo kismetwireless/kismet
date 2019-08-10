@@ -45,7 +45,7 @@ private:
 public:
 	virtual ~Kis_DLT_PPI() { };
 
-	virtual int HandlePacket(kis_packet *in_pack);
+	virtual int handle_packet(kis_packet *in_pack);
 };
 
 #endif

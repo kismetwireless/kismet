@@ -34,7 +34,7 @@ public:
 
 	kis_dissector_ip_data(global_registry *in_globalreg);
 
-	virtual int HandlePacket(kis_packet *in_pack);
+	virtual int handle_packet(kis_packet *in_pack);
 
 	~kis_dissector_ip_data();
 
