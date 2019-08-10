@@ -445,7 +445,7 @@ protected:
 
 protected:
     // Handle new datasources and create endpoints for them
-    void HandleNewDatasourceEvent(std::shared_ptr<eventbus_event> evt);
+    void handle_new_datasource_event(std::shared_ptr<eventbus_event> evt);
 
     // Insert a device directly into the records
     void AddDevice(std::shared_ptr<kis_tracked_device_base> device);

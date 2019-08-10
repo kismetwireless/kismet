@@ -446,7 +446,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
     new_datasource_evt_id = 
         eventbus->register_listener("NEW_DATASOURCE",
             [this](std::shared_ptr<eventbus_event> evt) {
-                HandleNewDatasourceEvent(evt);
+                handle_new_datasource_event(evt);
             });
 
     Bind_Httpd_Server();
@@ -1749,7 +1749,7 @@ void device_tracker::set_device_tag(std::shared_ptr<kis_tracked_device_base> in_
     return;
 }
 
-void device_tracker::HandleNewDatasourceEvent(std::shared_ptr<eventbus_event> evt) {
+void device_tracker::handle_new_datasource_event(std::shared_ptr<eventbus_event> evt) {
     auto ds_evt = std::static_pointer_cast<datasource_tracker::event_new_datasource>(evt);
 
     if (map_seenby_views) {
