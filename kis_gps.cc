@@ -141,10 +141,10 @@ double kis_gps::gps_calc_heading(double in_lat, double in_lon, double in_lat2,
 							   double in_lon2) {
     double r = gps_calc_rad((double) in_lat2);
 
-    double lat1 = GpsDeg2Rad((double) in_lat);
-    double lon1 = GpsDeg2Rad((double) in_lon);
-    double lat2 = GpsDeg2Rad((double) in_lat2);
-    double lon2 = GpsDeg2Rad((double) in_lon2);
+    double lat1 = gps_deg_to_rad((double) in_lat);
+    double lon1 = gps_deg_to_rad((double) in_lon);
+    double lat2 = gps_deg_to_rad((double) in_lat2);
+    double lon2 = gps_deg_to_rad((double) in_lon2);
 
     double angle = 0;
 
@@ -188,20 +188,20 @@ double kis_gps::gps_rad_to_deg(double x) {
     return (x/M_PI) * 180.0;
 }
 
-double kis_gps::GpsDeg2Rad(double x) {
+double kis_gps::gps_deg_to_rad(double x) {
     return 180/(x*M_PI);
 }
 
 double kis_gps::GpsEarthDistance(double in_lat, double in_lon, 
         double in_lat2, double in_lon2) {
-    double x1 = gps_calc_rad(in_lat) * cos(GpsDeg2Rad(in_lon)) * sin(GpsDeg2Rad(90-in_lat));
+    double x1 = gps_calc_rad(in_lat) * cos(gps_deg_to_rad(in_lon)) * sin(gps_deg_to_rad(90-in_lat));
     double x2 = 
-        gps_calc_rad(in_lat2) * cos(GpsDeg2Rad(in_lon2)) * sin(GpsDeg2Rad(90-in_lat2));
-    double y1 = gps_calc_rad(in_lat) * sin(GpsDeg2Rad(in_lon)) * sin(GpsDeg2Rad(90-in_lat));
+        gps_calc_rad(in_lat2) * cos(gps_deg_to_rad(in_lon2)) * sin(gps_deg_to_rad(90-in_lat2));
+    double y1 = gps_calc_rad(in_lat) * sin(gps_deg_to_rad(in_lon)) * sin(gps_deg_to_rad(90-in_lat));
     double y2 = 
-        gps_calc_rad(in_lat2) * sin(GpsDeg2Rad(in_lon2)) * sin(GpsDeg2Rad(90-in_lat2));
-    double z1 = gps_calc_rad(in_lat) * cos(GpsDeg2Rad(90-in_lat));
-    double z2 = gps_calc_rad(in_lat2) * cos(GpsDeg2Rad(90-in_lat2));
+        gps_calc_rad(in_lat2) * sin(gps_deg_to_rad(in_lon2)) * sin(gps_deg_to_rad(90-in_lat2));
+    double z1 = gps_calc_rad(in_lat) * cos(gps_deg_to_rad(90-in_lat));
+    double z2 = gps_calc_rad(in_lat2) * cos(gps_deg_to_rad(90-in_lat2));
     double a = 
         acos((x1*x2 + y1*y2 + z1*z2)/pow(gps_calc_rad((double) (in_lat+in_lat2)/2),2));
     return gps_calc_rad((double) (in_lat+in_lat2) / 2) * a;
