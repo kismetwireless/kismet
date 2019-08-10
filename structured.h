@@ -104,7 +104,7 @@ public:
     virtual bool is_binary() = 0;
 
     virtual double get_number() = 0;
-    virtual std::string getString() = 0;
+    virtual std::string get_string() = 0;
     virtual bool getBool() = 0;
     virtual std::string getBinaryStr() = 0;
 
@@ -145,11 +145,11 @@ public:
                     throw StructuredDataUnsuitable("Cannot parse object as vector of pairs, expected 2"
                             "elements in nested list, cannot convert to pair list");
 
-                ret.push_back(std::make_pair(sub[0]->getString(), sub[1]->getString()));
+                ret.push_back(std::make_pair(sub[0]->get_string(), sub[1]->get_string()));
             }
         } else if (is_dictionary()) {
             for (auto i : getStructuredStrMap()) {
-                ret.push_back(std::make_pair(i.first, i.second->getString()));
+                ret.push_back(std::make_pair(i.first, i.second->get_string()));
             }
         } else {
             throw StructuredDataUnsuitable("Cannot parse object as vector or dictionary for conversion "

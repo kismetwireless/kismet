@@ -87,8 +87,8 @@ device_tracker_view_regex_worker::device_tracker_view_regex_worker(shared_struct
         if (rpair.size() != 2)
             throw std::runtime_error("expected [field, regex] pair from incoming filter");
 
-        auto field = rpair[0]->getString();
-        auto regex = rpair[1]->getString();
+        auto field = rpair[0]->get_string();
+        auto regex = rpair[1]->get_string();
 
         auto worker_filter = std::make_shared<device_tracker_view_regex_worker::pcre_filter>(field, regex);
 

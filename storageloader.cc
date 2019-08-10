@@ -125,19 +125,19 @@ shared_tracker_element StorageLoader::storage_to_tracker(shared_structured d) {
                 // String and string-like types are directly coerced
             case tracker_type::tracker_string:
                 elem = std::make_shared<tracker_element_string>();
-                elem->coercive_set(objdata->getString());
+                elem->coercive_set(objdata->get_string());
                 break;
             case tracker_type::tracker_mac_addr:
                 elem = std::make_shared<tracker_element_mac_addr>();
-                elem->coercive_set(objdata->getString());
+                elem->coercive_set(objdata->get_string());
                 break;
             case tracker_type::tracker_uuid:
                 elem = std::make_shared<tracker_element_uuid>();
-                elem->coercive_set(objdata->getString());
+                elem->coercive_set(objdata->get_string());
                 break;
             case tracker_type::tracker_key:
                 elem = std::make_shared<tracker_element_device_key>();
-                elem->coercive_set(objdata->getString());
+                elem->coercive_set(objdata->get_string());
                 break;
                 // Map and vector types need to be iteratively processed
             case tracker_type::tracker_vector:
@@ -222,7 +222,7 @@ shared_tracker_element StorageLoader::storage_to_tracker(shared_structured d) {
                 }
                 break;
             case tracker_type::tracker_byte_array:
-                // hexstr = hexstr_to_binstr(objdata->getString().c_str());
+                // hexstr = hexstr_to_binstr(objdata->get_string().c_str());
                 elem = std::make_shared<tracker_element_byte_array>();
 
                 std::static_pointer_cast<tracker_element_byte_array>(elem)->set(objdata->getBinaryStr());

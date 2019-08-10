@@ -3103,7 +3103,7 @@ unsigned Value::getCStringLength() const {
 }
 #endif
 
-bool Value::getString(char const** str, char const** cend) const {
+bool Value::get_string(char const** str, char const** cend) const {
   if (type_ != stringValue) return false;
   if (value_.string_ == 0) return false;
   unsigned length;
@@ -4538,7 +4538,7 @@ void FastWriter::writeValue(const Value& value) {
     // Is NULL possible for value.string_? No.
     char const* str;
     char const* end;
-    bool ok = value.getString(&str, &end);
+    bool ok = value.get_string(&str, &end);
     if (ok) document_ += valueToQuotedStringN(str, static_cast<unsigned>(end-str));
     break;
   }
@@ -4608,7 +4608,7 @@ void StyledWriter::writeValue(const Value& value) {
     // Is NULL possible for value.string_? No.
     char const* str;
     char const* end;
-    bool ok = value.getString(&str, &end);
+    bool ok = value.get_string(&str, &end);
     if (ok) pushValue(valueToQuotedStringN(str, static_cast<unsigned>(end-str)));
     else pushValue("");
     break;
@@ -4825,7 +4825,7 @@ void StyledStreamWriter::writeValue(const Value& value) {
     // Is NULL possible for value.string_? No.
     char const* str;
     char const* end;
-    bool ok = value.getString(&str, &end);
+    bool ok = value.get_string(&str, &end);
     if (ok) pushValue(valueToQuotedStringN(str, static_cast<unsigned>(end-str)));
     else pushValue("");
     break;
@@ -5106,7 +5106,7 @@ void BuiltStyledStreamWriter::writeValue(Value const& value) {
     // Is NULL is possible for value.string_? No.
     char const* str;
     char const* end;
-    bool ok = value.getString(&str, &end);
+    bool ok = value.get_string(&str, &end);
     if (ok) pushValue(valueToQuotedStringN(str, static_cast<unsigned>(end-str)));
     else pushValue("");
     break;

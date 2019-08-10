@@ -154,8 +154,8 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(shared_structured raw_pcre_
         if (rpair.size() != 2)
             throw StructuredDataException("expected [field, regex] pair");
 
-        std::string field = rpair[0]->getString();
-        std::string regex = rpair[1]->getString();
+        std::string field = rpair[0]->get_string();
+        std::string regex = rpair[1]->get_string();
 
         std::shared_ptr<pcre_filter> filter(new pcre_filter());
         filter->target = field;
@@ -222,7 +222,7 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(const std::string& in_targe
 
     structured_data::structured_vec rawvec = raw_pcre_vec->getStructuredArray();
     for (auto i : rawvec) {
-        std::string regex = i->getString();
+        std::string regex = i->get_string();
 
         std::shared_ptr<pcre_filter> filter(new pcre_filter());
         filter->target = in_target; 

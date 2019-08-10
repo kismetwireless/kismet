@@ -487,7 +487,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
 
             for (const auto& i : fvec) {
                 if (i->is_string()) {
-                    auto s = std::make_shared<tracker_element_summary>(i->getString());
+                    auto s = std::make_shared<tracker_element_summary>(i->get_string());
                     summary_vec.push_back(s);
                 } else if (i->is_array()) {
                     structured_data::string_vec mapvec = i->getStringVec();
@@ -751,11 +751,11 @@ unsigned int device_tracker::multimac_endp_handler(std::ostream& stream, const s
         auto maclist = structured->getStructuredByKey("devices")->getStructuredArray();
 
         for (auto m : maclist) {
-            mac_addr ma{m->getString()};
+            mac_addr ma{m->get_string()};
 
             if (ma.error) 
                 throw std::runtime_error(fmt::format("Invalid MAC address '{}' in 'devices' list",
-                            kishttpd::EscapeHtml(m->getString())));
+                            kishttpd::EscapeHtml(m->get_string())));
 
             macs.push_back(ma);
         }
