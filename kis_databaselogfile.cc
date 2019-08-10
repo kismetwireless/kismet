@@ -475,7 +475,7 @@ void kis_database_logfile::Log_Close() {
     sqlite3_exec(db, "BEGIN_EXCLUSIVE", NULL, NULL, NULL);
     sqlite3_exec(db, "COMMIT", NULL, NULL, NULL);
 
-    Database_Close();
+    database_close();
 }
 
 int kis_database_logfile::database_upgrade_db() {

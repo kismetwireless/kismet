@@ -100,7 +100,7 @@ bool kis_database::database_open(std::string in_file_path) {
     return true;
 }
 
-void kis_database::Database_Close() {
+void kis_database::database_close() {
     local_locker dblock(&ds_mutex);
 
     if (db != NULL) {
