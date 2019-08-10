@@ -521,14 +521,14 @@ kis_phy_handler *device_tracker::fetch_phy_handler(int in_phy) {
 
 kis_phy_handler *device_tracker::fetch_phy_handler_by_name(std::string in_name) {
     for (auto i = phy_handler_map.begin(); i != phy_handler_map.end(); ++i) {
-        if (i->second->FetchPhyName() == in_name) {
+        if (i->second->fetch_phy_name() == in_name) {
             return i->second;
         }
     }
     return NULL;
 }
 
-std::string device_tracker::FetchPhyName(int in_phy) {
+std::string device_tracker::fetch_phy_name(int in_phy) {
     if (in_phy == KIS_PHY_ANY) {
         return "ANY";
     }
@@ -539,7 +539,7 @@ std::string device_tracker::FetchPhyName(int in_phy) {
         return "UNKNOWN";
     }
 
-    return phyh->FetchPhyName();
+    return phyh->fetch_phy_name();
 }
 
 int device_tracker::fetch_num_devices() {
@@ -571,9 +571,9 @@ int device_tracker::register_phy_handler(kis_phy_handler *in_weak_handler) {
         auto k = phy_view_map.find(phy_id);
         if (k == phy_view_map.end()) {
             auto phy_view = 
-                std::make_shared<device_tracker_view>(fmt::format("phy-{}", strongphy->FetchPhyName()),
-                        fmt::format("{} devices", strongphy->FetchPhyName()),
-                        std::vector<std::string>{"phy", strongphy->FetchPhyName()},
+                std::make_shared<device_tracker_view>(fmt::format("phy-{}", strongphy->fetch_phy_name()),
+                        fmt::format("{} devices", strongphy->fetch_phy_name()),
+                        std::vector<std::string>{"phy", strongphy->fetch_phy_name()},
                         [phy_id](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
                             return dev->get_phyid() == phy_id;
                         },
@@ -588,7 +588,7 @@ int device_tracker::register_phy_handler(kis_phy_handler *in_weak_handler) {
 
 	eventbus->publish(std::make_shared<event_new_phy>(strongphy));
 
-	_MSG("Registered PHY handler '" + strongphy->FetchPhyName() + "' as ID " +
+	_MSG("Registered PHY handler '" + strongphy->fetch_phy_name() + "' as ID " +
 		 IntToString(num), MSGFLAG_INFO);
 
 	return num;
@@ -716,7 +716,7 @@ std::shared_ptr<kis_tracked_device_base>
 
         device->set_key(key);
         device->set_macaddr(in_mac);
-        device->set_phyname(in_phy->FetchPhyName());
+        device->set_phyname(in_phy->fetch_phy_name());
 		device->set_phyid(in_phy->FetchPhyId());
 
         device->set_server_uuid(globalreg->server_uuid);
@@ -2006,7 +2006,7 @@ device_tracker_state_store::load_device(kis_phy_handler *in_phy, mac_addr in_mac
 
     std::string sql;
     std::string macstring = in_mac.Mac2String();
-    std::string phystring = in_phy->FetchPhyName();
+    std::string phystring = in_phy->fetch_phy_name();
 
     int r;
     sqlite3_stmt *stmt = NULL;

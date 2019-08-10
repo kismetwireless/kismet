@@ -803,7 +803,7 @@ std::shared_ptr<tracker_element> device_tracker::all_phys_endp_handler() {
             std::make_shared<tracker_element_map>(phy_phyentry_id);
 
         auto tracked_name =
-            std::make_shared<tracker_element_string>(phy_phyname_id, i.second->FetchPhyName());
+            std::make_shared<tracker_element_string>(phy_phyname_id, i.second->fetch_phy_name());
         auto tracked_id =
             std::make_shared<tracker_element_uint32>(phy_phyid_id, i.second->FetchPhyId());
         auto tracked_dev_count =

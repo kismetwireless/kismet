@@ -46,7 +46,7 @@ public:
 
 	virtual ~kis_phy_handler() { }
 
-	std::string FetchPhyName() { return phyname; }
+	std::string fetch_phy_name() { return phyname; }
 	int FetchPhyId() { return phyid; }
     uint32_t FetchPhynameHash() { return phyname_hash; }
 

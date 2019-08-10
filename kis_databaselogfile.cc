@@ -1024,7 +1024,7 @@ int kis_database_logfile::log_packet(kis_packet *in_pack) {
     if (phyh == NULL)
         phystring = "Unknown";
     else
-        phystring = phyh->FetchPhyName();
+        phystring = phyh->fetch_phy_name();
 
 
     if (datasrc != NULL) {
@@ -1235,7 +1235,7 @@ int kis_database_logfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
         return 0;
 
     std::string macstring = in_alert->get_transmitter_mac().Mac2String();
-    std::string phystring = devicetracker->FetchPhyName(in_alert->get_phy());
+    std::string phystring = devicetracker->fetch_phy_name(in_alert->get_phy());
     std::string headerstring = in_alert->get_header();
 
     std::stringstream ss;

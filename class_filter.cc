@@ -280,7 +280,7 @@ void class_filter_mac_addr::update_phy_map(std::shared_ptr<eventbus_event> evt) 
 		std::static_pointer_cast<device_tracker::event_new_phy>(evt);
 
 	// Do we have any pending filters that match this key?
-	auto unknown_key = unknown_phy_mac_filter_map.find(phy_evt->phy->FetchPhyName());
+	auto unknown_key = unknown_phy_mac_filter_map.find(phy_evt->phy->fetch_phy_name());
 
 	if (unknown_key == unknown_phy_mac_filter_map.end())
 		return;
