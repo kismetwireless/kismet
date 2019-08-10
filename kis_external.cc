@@ -189,7 +189,7 @@ void KisExternalInterface::BufferAvailable(size_t in_amt) {
         // Consume the buffer now that we're done; we only consume the 
         // frame size because we could have peeked a much larger buffer
         ringbuf_handler->peek_free_read_buffer_data(frame);
-        ringbuf_handler->ConsumeReadBufferData(frame_sz);
+        ringbuf_handler->consumer_read_buffer_data(frame_sz);
 
         // Unlock before processing, individual commands will lock as needed
         lock.unlock();

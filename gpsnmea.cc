@@ -61,7 +61,7 @@ void GPSNMEA::BufferAvailable(size_t in_amt) {
     // TODO fix assumptions about token length and spacing...
     for (unsigned int it = 0; it < inptok.size(); it++) {
         // Consume the data from the ringbuffer
-        nmeahandler->ConsumeReadBufferData(inptok[it].length() + 1);
+        nmeahandler->consumer_read_buffer_data(inptok[it].length() + 1);
 
         if (inptok[it].length() < 4)
             continue;

@@ -276,7 +276,7 @@ void GPSGpsdV2::BufferAvailable(size_t in_amt) {
 
     for (unsigned int it = 0; it < inptok.size(); it++) {
         // Consume the data from the ringbuffer
-        tcphandler->ConsumeReadBufferData(inptok[it].length() + 1);
+        tcphandler->consumer_read_buffer_data(inptok[it].length() + 1);
 
         // We don't know what we're going to get from GPSD.  If it starts with 
         // { then it probably is json, try to parse it
