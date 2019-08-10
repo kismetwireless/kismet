@@ -162,8 +162,8 @@ std::string JsonAdapter::SanitizeString(const std::string& s) noexcept {
     return result;
 }
 
-void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e, 
-        std::shared_ptr<TrackerElementSerializer::rename_map> name_map,
+void JsonAdapter::Pack(std::ostream &stream, shared_tracker_element e, 
+        std::shared_ptr<tracker_element_serializer::rename_map> name_map,
         bool prettyprint, unsigned int depth) {
 
     std::string indent;
@@ -329,7 +329,7 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
                     bool named = false;
 
                     if (name_map != NULL) {
-                        TrackerElementSerializer::rename_map::iterator nmi = name_map->find(i.second);
+                        tracker_element_serializer::rename_map::iterator nmi = name_map->find(i.second);
                         if (nmi != name_map->end() && nmi->second->rename.length() != 0) {
                             tname = nmi->second->rename;
                             named = true;
@@ -668,8 +668,8 @@ void JsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
 
 // An unfortunate duplication of code but overloading the json/prettyjson to also do
 // storage tagging would get a bit out of hand
-void StorageJsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e, 
-        std::shared_ptr<TrackerElementSerializer::rename_map> name_map) {
+void StorageJsonAdapter::Pack(std::ostream &stream, shared_tracker_element e, 
+        std::shared_ptr<tracker_element_serializer::rename_map> name_map) {
 
     if (e == nullptr) {
         stream << "0";
@@ -701,7 +701,7 @@ void StorageJsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
 
     // Type metadata; raw element type
     stream << "\"ot\": \"";
-    stream << JsonAdapter::SanitizeString(TrackerElement::type_to_typestring(e->get_type()));
+    stream << JsonAdapter::SanitizeString(tracker_element::type_to_typestring(e->get_type()));
     stream << "\",";
 
     // Actual data blob for object
@@ -819,7 +819,7 @@ void StorageJsonAdapter::Pack(std::ostream &stream, SharedTrackerElement e,
                 bool named = false;
 
                 if (name_map != NULL) {
-                    TrackerElementSerializer::rename_map::iterator nmi = name_map->find(i.second);
+                    tracker_element_serializer::rename_map::iterator nmi = name_map->find(i.second);
                     if (nmi != name_map->end() && nmi->second->rename.length() != 0) {
                         tname = nmi->second->rename;
                         named = true;

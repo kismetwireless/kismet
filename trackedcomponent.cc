@@ -29,8 +29,8 @@ std::string tracker_component::get_name(int in_id) {
 }
 
 int tracker_component::RegisterField(const std::string& in_name, 
-        std::unique_ptr<TrackerElement> in_builder,
-        const std::string& in_desc, SharedTrackerElement *in_dest) {
+        std::unique_ptr<tracker_element> in_builder,
+        const std::string& in_desc, shared_tracker_element *in_dest) {
 
     int id = 
         Globalreg::globalreg->entrytracker->RegisterField(in_name, std::move(in_builder), in_desc);
@@ -52,7 +52,7 @@ void tracker_component::reserve_fields(std::shared_ptr<tracker_element_map> e) {
                 // If the variable is dynamic set the assignment container to null so that
                 // proxydynamictrackable can fill it in;
                 *(rf->assign) = nullptr;
-                insert(rf->id, std::shared_ptr<TrackerElement>());
+                insert(rf->id, std::shared_ptr<tracker_element>());
             } else {
                 // otherwise generate a variable for the destination
                 *(rf->assign) = import_or_new(e, rf->id);
@@ -61,8 +61,8 @@ void tracker_component::reserve_fields(std::shared_ptr<tracker_element_map> e) {
     }
 }
 
-SharedTrackerElement tracker_component::import_or_new(std::shared_ptr<tracker_element_map> e, int i) {
-    SharedTrackerElement r;
+shared_tracker_element tracker_component::import_or_new(std::shared_ptr<tracker_element_map> e, int i) {
+    shared_tracker_element r;
 
     // Find the value of any known fields in the importer element; only try
     // if the imported element is a map
@@ -95,16 +95,16 @@ SharedTrackerElement tracker_component::import_or_new(std::shared_ptr<tracker_el
     return r;
 }
 
-SharedTrackerElement tracker_component::get_child_path(const std::string& in_path) {
+shared_tracker_element tracker_component::get_child_path(const std::string& in_path) {
     std::vector<std::string> tok = StrTokenize(in_path, "/");
     return get_child_path(tok);
 }
 
-SharedTrackerElement tracker_component::get_child_path(const std::vector<std::string>& in_path) {
+shared_tracker_element tracker_component::get_child_path(const std::vector<std::string>& in_path) {
     if (in_path.size() < 1)
         return nullptr;
 
-    SharedTrackerElement next_elem = nullptr;
+    shared_tracker_element next_elem = nullptr;
 
     for (auto p : in_path) {
         // Skip empty path elements

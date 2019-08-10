@@ -70,13 +70,13 @@ public:
         return Adler32Checksum("mousejack_tracked_device");
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
+    virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
@@ -105,8 +105,8 @@ public:
     static int DissectorMousejack(CHAINCALL_PARMS);
     static int CommonClassifierMousejack(CHAINCALL_PARMS);
 
-    virtual void LoadPhyStorage(SharedTrackerElement in_storage,
-            SharedTrackerElement in_device);
+    virtual void LoadPhyStorage(shared_tracker_element in_storage,
+            shared_tracker_element in_device);
 
 
 protected:

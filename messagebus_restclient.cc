@@ -154,7 +154,7 @@ void RestMessageClient::Httpd_CreateStreamResponse(
     {
         local_locker lock(&msg_mutex);
 
-        std::shared_ptr<TrackerElement> transmit;
+        std::shared_ptr<tracker_element> transmit;
         std::shared_ptr<tracker_element_map> wrapper;
         auto msgvec = std::make_shared<tracker_element_vector>(message_vec_id);
        

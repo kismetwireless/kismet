@@ -45,7 +45,7 @@ Packetfilter::Packetfilter(const std::string& in_id, const std::string& in_descr
     self_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>(
                 url, 
-                [this]() -> std::shared_ptr<TrackerElement> {
+                [this]() -> std::shared_ptr<tracker_element> {
                     local_locker lock(&mutex);
                     return self_endp_handler();
                 });
@@ -291,7 +291,7 @@ void PacketfilterMacaddr::set_filter(mac_addr in_mac, const std::string& in_phy,
 
         filter_phy_blocks->insert(in_phy, tracked_phy_map);
 	} else {
-        tracked_phy_map = TrackerElement::safe_cast_as<tracker_element_map>(tracked_phy_key->second);
+        tracked_phy_map = tracker_element::safe_cast_as<tracker_element_map>(tracked_phy_key->second);
 	}
 
     // Find the target filter block
@@ -304,7 +304,7 @@ void PacketfilterMacaddr::set_filter(mac_addr in_mac, const std::string& in_phy,
         tracked_value->set(value);
         target_block_map->insert(in_mac, tracked_value);
     } else {
-        auto bool_value = TrackerElement::safe_cast_as<tracker_element_uint8>(tracked_mac_key->second);
+        auto bool_value = tracker_element::safe_cast_as<tracker_element_uint8>(tracked_mac_key->second);
         bool_value->set(value);
     }
 
@@ -368,7 +368,7 @@ void PacketfilterMacaddr::remove_filter(mac_addr in_mac, const std::string& in_p
 	if (tracked_phy_key == filter_phy_blocks->end()) {
         return;
 	} else {
-        tracked_phy_map = TrackerElement::safe_cast_as<tracker_element_map>(tracked_phy_key->second);
+        tracked_phy_map = tracker_element::safe_cast_as<tracker_element_map>(tracked_phy_key->second);
 	}
 
     // Find the target filter block

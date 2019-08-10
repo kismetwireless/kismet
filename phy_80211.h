@@ -374,8 +374,8 @@ public:
     virtual int timetracker_event(int eventid) override;
 
     // Restore stored dot11 records
-    virtual void LoadPhyStorage(SharedTrackerElement in_storage,
-            SharedTrackerElement in_device) override;
+    virtual void LoadPhyStorage(shared_tracker_element in_storage,
+            shared_tracker_element in_device) override;
 
     // Convert a frequency in KHz to an IEEE 80211 channel name; MAY THROW AN EXCEPTION
     // if this cannot be converted or is an invalid frequency

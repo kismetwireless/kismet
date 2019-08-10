@@ -64,18 +64,18 @@ public:
     // Return: Registered field number, or negative on error (such as field exists with
     // conflicting type)
     int RegisterField(const std::string& in_name, 
-            std::unique_ptr<TrackerElement> in_builder,
+            std::unique_ptr<tracker_element> in_builder,
             const std::string& in_desc);
 
     // Reserve a field name, and return an instance.  If the field ALREADY EXISTS, return
     // an instance.
-    std::shared_ptr<TrackerElement> RegisterAndGetField(const std::string& in_name, 
-            std::unique_ptr<TrackerElement> in_builder,
+    std::shared_ptr<tracker_element> RegisterAndGetField(const std::string& in_name, 
+            std::unique_ptr<tracker_element> in_builder,
             const std::string& in_desc);
 
     template<typename TE> 
     std::shared_ptr<TE> RegisterAndGetFieldAs(const std::string& in_name,
-            std::unique_ptr<TrackerElement> in_builder,
+            std::unique_ptr<tracker_element> in_builder,
             const std::string& in_desc) {
         return std::static_pointer_cast<TE>(RegisterAndGetField(in_name, std::move(in_builder),
                     in_desc));
@@ -89,19 +89,19 @@ public:
     template<class T> std::shared_ptr<T> GetSharedInstanceAs(const std::string& in_name) {
         return std::static_pointer_cast<T>(GetSharedInstance(in_name));
     }
-    std::shared_ptr<TrackerElement> GetSharedInstance(const std::string& in_name);
+    std::shared_ptr<tracker_element> GetSharedInstance(const std::string& in_name);
 
     template<class T> std::shared_ptr<T> GetSharedInstanceAs(int in_id) {
         return std::static_pointer_cast<T>(GetSharedInstance(in_id));
     }
-    std::shared_ptr<TrackerElement> GetSharedInstance(int in_id);
+    std::shared_ptr<tracker_element> GetSharedInstance(int in_id);
 
     // Register a serializer for auto-serialization based on type
-    void RegisterSerializer(const std::string& type, std::shared_ptr<TrackerElementSerializer> in_ser);
+    void RegisterSerializer(const std::string& type, std::shared_ptr<tracker_element_serializer> in_ser);
     void RemoveSerializer(const std::string& type);
     bool CanSerialize(const std::string& type);
-    bool Serialize(const std::string& type, std::ostream &stream, SharedTrackerElement elem,
-            std::shared_ptr<TrackerElementSerializer::rename_map> name_map = nullptr);
+    bool Serialize(const std::string& type, std::ostream &stream, shared_tracker_element elem,
+            std::shared_ptr<tracker_element_serializer::rename_map> name_map = nullptr);
 
     // HTTP api
     virtual bool Httpd_VerifyPath(const char *path, const char *method);
@@ -128,25 +128,25 @@ protected:
         std::string field_description;
 
         // Builder instance
-        std::unique_ptr<TrackerElement> builder;
+        std::unique_ptr<tracker_element> builder;
     };
 
     std::map<std::string, std::shared_ptr<reserved_field> > field_name_map;
     std::map<int, std::shared_ptr<reserved_field> > field_id_map;
-    std::map<std::string, std::shared_ptr<TrackerElementSerializer> > serializer_map;
+    std::map<std::string, std::shared_ptr<tracker_element_serializer> > serializer_map;
 };
 
 class SerializerScope {
 public:
-    SerializerScope(SharedTrackerElement e, 
-            std::shared_ptr<TrackerElementSerializer::rename_map> name_map) {
+    SerializerScope(shared_tracker_element e, 
+            std::shared_ptr<tracker_element_serializer::rename_map> name_map) {
         elem = e;
         rnmap = name_map;
 
         if (rnmap != NULL) {
             auto nmi = rnmap->find(elem);
             if (nmi != rnmap->end()) {
-                TrackerElementSerializer::pre_serialize_path(nmi->second);
+                tracker_element_serializer::pre_serialize_path(nmi->second);
             } else {
                 elem->pre_serialize();
             } 
@@ -159,7 +159,7 @@ public:
         if (rnmap != NULL) {
             auto nmi = rnmap->find(elem);
             if (nmi != rnmap->end()) {
-                TrackerElementSerializer::post_serialize_path(nmi->second);
+                tracker_element_serializer::post_serialize_path(nmi->second);
             } else {
                 elem->post_serialize();
             } 
@@ -170,8 +170,8 @@ public:
     }
 
 protected:
-    SharedTrackerElement elem;
-    std::shared_ptr<TrackerElementSerializer::rename_map> rnmap;
+    shared_tracker_element elem;
+    std::shared_ptr<tracker_element_serializer::rename_map> rnmap;
 };
 
 #endif

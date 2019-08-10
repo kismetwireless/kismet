@@ -681,7 +681,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
                 return true;
                 },
-                [this](const std::vector<std::string>& path) -> std::shared_ptr<TrackerElement> {
+                [this](const std::vector<std::string>& path) -> std::shared_ptr<tracker_element> {
                 auto cl = std::make_shared<tracker_element_vector>();
 
                 try {
@@ -742,7 +742,7 @@ Kis_80211_Phy::Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
                 return true;
                 },
-                [this](const std::vector<std::string>& path) -> std::shared_ptr<TrackerElement> {
+                [this](const std::vector<std::string>& path) -> std::shared_ptr<tracker_element> {
                 auto cl = std::make_shared<tracker_element_vector>();
 
                 try {
@@ -3122,7 +3122,7 @@ int Kis_80211_Phy::timetracker_event(int eventid) {
     return 1;
 }
 
-void Kis_80211_Phy::LoadPhyStorage(SharedTrackerElement in_storage, SharedTrackerElement in_device) {
+void Kis_80211_Phy::LoadPhyStorage(shared_tracker_element in_storage, shared_tracker_element in_device) {
     if (in_storage == NULL || in_device == NULL)
         return;
 

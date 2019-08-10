@@ -29,7 +29,7 @@
 #include "structured.h"
 #include "devicetracker.h"
 
-SharedTrackerElement StorageLoader::storage_to_tracker(SharedStructured d) {
+shared_tracker_element StorageLoader::storage_to_tracker(SharedStructured d) {
 
     // A '0' object is a NULL reference, skip it
     if (d->isNumber() && d->getNumber() == 0)
@@ -48,7 +48,7 @@ SharedTrackerElement StorageLoader::storage_to_tracker(SharedStructured d) {
 
     std::shared_ptr<StructuredData> objdata;
 
-    SharedTrackerElement elem;
+    shared_tracker_element elem;
     int elemid;
 
     std::string hexstr;
@@ -67,7 +67,7 @@ SharedTrackerElement StorageLoader::storage_to_tracker(SharedStructured d) {
     else
         throw std::runtime_error("storage object missing 'ot'/'objtype'");
 
-    objtype = TrackerElement::typestring_to_type(objtypestr);
+    objtype = tracker_element::typestring_to_type(objtypestr);
 
     if (d->hasKey("od"))
         objdata = d->getStructuredByKey("od");
@@ -77,7 +77,7 @@ SharedTrackerElement StorageLoader::storage_to_tracker(SharedStructured d) {
         throw std::runtime_error("storage object missing 'od'/'objdata'");
 
     elemid = Globalreg::globalreg->entrytracker->GetFieldId(objname);
-    // elem.reset(new TrackerElement(objtype, elemid));
+    // elem.reset(new tracker_element(objtype, elemid));
 
     try {
         switch (objtype) {

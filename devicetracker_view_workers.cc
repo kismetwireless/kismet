@@ -119,7 +119,7 @@ bool DevicetrackerViewRegexWorker::matchDevice(std::shared_ptr<kis_tracked_devic
     bool matched = false;
 
     for (auto i : filter_vec) {
-        auto fields = GetTrackerElementMultiPath(i->target, device);
+        auto fields = Gettracker_elementMultiPath(i->target, device);
 
         for (auto fi : fields) {
             std::string val;
@@ -168,7 +168,7 @@ bool DevicetrackerViewStringmatchWorker::matchDevice(std::shared_ptr<kis_tracked
     bool matched = false;
 
     for (auto i : fieldpaths) {
-        auto field = GetTrackerElementPath(i, device);
+        auto field = Gettracker_elementPath(i, device);
 
         if (field == nullptr)
             continue;
@@ -216,7 +216,7 @@ bool DevicetrackerViewICaseStringmatchWorker::matchDevice(std::shared_ptr<kis_tr
     };
 
     for (auto i : fieldpaths) {
-        auto field = GetTrackerElementPath(i, device);
+        auto field = Gettracker_elementPath(i, device);
 
         if (field == nullptr)
             continue;

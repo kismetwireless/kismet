@@ -124,12 +124,12 @@ Kis_UAV_Phy::~Kis_UAV_Phy() {
 }
 
 
-void Kis_UAV_Phy::LoadPhyStorage(SharedTrackerElement in_storage, SharedTrackerElement in_device) {
+void Kis_UAV_Phy::LoadPhyStorage(shared_tracker_element in_storage, shared_tracker_element in_device) {
     if (in_storage == NULL || in_device == NULL)
         return;
 
     auto storage_map =
-        TrackerElement::safe_cast_as<tracker_element_map>(in_storage);
+        tracker_element::safe_cast_as<tracker_element_map>(in_storage);
 
     // Does the imported record have UAV?
     auto devi = storage_map->find(uav_device_id);
@@ -137,9 +137,9 @@ void Kis_UAV_Phy::LoadPhyStorage(SharedTrackerElement in_storage, SharedTrackerE
     if (devi != storage_map->end()) {
         auto uavdev =
             std::make_shared<uav_tracked_device>(uav_device_id, 
-                    TrackerElement::safe_cast_as<tracker_element_map>(devi->second));
+                    tracker_element::safe_cast_as<tracker_element_map>(devi->second));
 
-        TrackerElement::safe_cast_as<tracker_element_map>(in_device)->insert(uavdev);
+        tracker_element::safe_cast_as<tracker_element_map>(in_device)->insert(uavdev);
     }
 }
 

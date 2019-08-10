@@ -127,7 +127,7 @@ void dot11_tracked_nonce::register_fields() {
     RegisterField("dot11.eapol.nonce.nonce", "eapol rsn nonce", &eapol_nonce);
 }
 
-void dot11_tracked_nonce::set_from_eapol(SharedTrackerElement in_tracked_eapol) {
+void dot11_tracked_nonce::set_from_eapol(shared_tracker_element in_tracked_eapol) {
     std::shared_ptr<dot11_tracked_eapol> e =
         std::static_pointer_cast<dot11_tracked_eapol>(in_tracked_eapol);
 

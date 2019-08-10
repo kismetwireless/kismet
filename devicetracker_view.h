@@ -160,11 +160,11 @@ protected:
 
     // Time endp handler
     bool device_time_endpoint_path(const std::vector<std::string>& path);
-    std::shared_ptr<TrackerElement> device_time_endpoint(const std::vector<std::string>& path);
+    std::shared_ptr<tracker_element> device_time_endpoint(const std::vector<std::string>& path);
 
     std::vector<std::string> uri_extras;
     bool device_time_uri_endpoint_path(const std::vector<std::string>& path);
-    std::shared_ptr<TrackerElement> device_time_uri_endpoint(const std::vector<std::string>& path);
+    std::shared_ptr<tracker_element> device_time_uri_endpoint(const std::vector<std::string>& path);
 
     // Devicetracker has direct access to protected methods for new devices and purging devices,
     // nobody else should be calling those

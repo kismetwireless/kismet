@@ -54,8 +54,8 @@ public:
     // a stored record; This function is expected to inspect the abstract object
     // tree 'in_storage', generate a proper phy tracked object if the data is present,
     // and insert it into the device record in in_device
-    virtual void LoadPhyStorage(SharedTrackerElement in_storage __attribute__((unused)), 
-            SharedTrackerElement in_device __attribute__((unused))) { }
+    virtual void LoadPhyStorage(shared_tracker_element in_storage __attribute__((unused)), 
+            shared_tracker_element in_device __attribute__((unused))) { }
 
 protected:
     void SetPhyName(std::string in_phyname) {

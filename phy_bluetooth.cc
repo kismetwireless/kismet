@@ -176,8 +176,8 @@ int Kis_Bluetooth_Phy::PacketTrackerBluetooth(CHAINCALL_PARMS) {
     return 0;
 }
 
-void Kis_Bluetooth_Phy::LoadPhyStorage(SharedTrackerElement in_storage, 
-        SharedTrackerElement in_device) {
+void Kis_Bluetooth_Phy::LoadPhyStorage(shared_tracker_element in_storage, 
+        shared_tracker_element in_device) {
 
     if (in_storage == nullptr || in_device == nullptr)
         return;

@@ -95,8 +95,8 @@ std::string kishttpd::EscapeHtml(const std::string& in) {
     return ss.str();
 }
 
-std::shared_ptr<TrackerElement> kishttpd::SummarizeWithStructured(std::shared_ptr<TrackerElement> in_data,
-        SharedStructured structured, std::shared_ptr<TrackerElementSerializer::rename_map> rename_map) {
+std::shared_ptr<tracker_element> kishttpd::SummarizeWithStructured(std::shared_ptr<tracker_element> in_data,
+        SharedStructured structured, std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
     auto summary_vec = std::vector<SharedElementSummary>{};
 
@@ -106,7 +106,7 @@ std::shared_ptr<TrackerElement> kishttpd::SummarizeWithStructured(std::shared_pt
 
         for (const auto& i : fvec) {
             if (i->isString()) {
-                auto s = std::make_shared<TrackerElementSummary>(i->getString());
+                auto s = std::make_shared<tracker_element_summary>(i->getString());
                 summary_vec.push_back(s);
             } else if (i->isArray()) {
                 auto mapvec = i->getStringVec();
@@ -115,7 +115,7 @@ std::shared_ptr<TrackerElement> kishttpd::SummarizeWithStructured(std::shared_pt
                     throw StructuredDataException("Invalid field mapping, expected "
                             "[field, rename]");
 
-                auto s = std::make_shared<TrackerElementSummary>(mapvec[0], mapvec[1]);
+                auto s = std::make_shared<tracker_element_summary>(mapvec[0], mapvec[1]);
                 summary_vec.push_back(s);
             } else {
                 throw StructuredDataException("Invalid field mapping, expected "
@@ -124,7 +124,7 @@ std::shared_ptr<TrackerElement> kishttpd::SummarizeWithStructured(std::shared_pt
         }
     }
 
-    return SummarizeTrackerElement(in_data, summary_vec, rename_map);
+    return Summarizetracker_element(in_data, summary_vec, rename_map);
 }
 
 Kis_Net_Httpd::Kis_Net_Httpd() {
@@ -1218,7 +1218,7 @@ int Kis_Net_Httpd::SendStandardHttpResponse(Kis_Net_Httpd *httpd,
 }
 
 Kis_Net_Httpd_Simple_Tracked_Endpoint::Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri,
-        std::shared_ptr<TrackerElement> in_element, kis_recursive_timed_mutex *in_mutex) :
+        std::shared_ptr<tracker_element> in_element, kis_recursive_timed_mutex *in_mutex) :
     Kis_Net_Httpd_Chain_Stream_Handler {},
     uri {in_uri},
     content {in_element},
@@ -1294,7 +1294,7 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_CreateStreamResponse(
             });
 
     try {
-        std::shared_ptr<TrackerElement> output_content;
+        std::shared_ptr<tracker_element> output_content;
 
         if (content == nullptr && generator == nullptr) {
             stream << "Invalid request: No backing content present";
@@ -1348,7 +1348,7 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Conn
         return MHD_YES;
     }
 
-    std::shared_ptr<TrackerElement> output_content;
+    std::shared_ptr<tracker_element> output_content;
 
     try {
         if (generator != nullptr)
@@ -1364,7 +1364,7 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Conn
     // Common structured API data
     SharedStructured structdata;
     std::vector<SharedElementSummary> summary_vec;
-    auto rename_map = std::make_shared<TrackerElementSerializer::rename_map>();
+    auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
 
     try {
         if (concls->variable_cache.find("json") != 
@@ -1389,7 +1389,7 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Conn
 
             for (const auto& i : fvec) {
                 if (i->isString()) {
-                    auto s = std::make_shared<TrackerElementSummary>(i->getString());
+                    auto s = std::make_shared<tracker_element_summary>(i->getString());
                     summary_vec.push_back(s);
                 } else if (i->isArray()) {
                     StructuredData::string_vec mapvec = i->getStringVec();
@@ -1402,7 +1402,7 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Conn
                     }
 
                     auto s = 
-                        std::make_shared<TrackerElementSummary>(mapvec[0], mapvec[1]);
+                        std::make_shared<tracker_element_summary>(mapvec[0], mapvec[1]);
                     summary_vec.push_back(s);
                 }
             }
@@ -1416,7 +1416,7 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Conn
 
     if (summary_vec.size()) {
         auto simple = 
-            SummarizeTrackerElement(output_content, summary_vec, rename_map);
+            Summarizetracker_element(output_content, summary_vec, rename_map);
 
         Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(concls->url), stream, 
                 simple, rename_map);
@@ -1429,7 +1429,7 @@ int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Conn
 }
 
 Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint(const std::string& in_uri,
-        std::shared_ptr<TrackerElement> in_element, kis_recursive_timed_mutex *in_mutex) :
+        std::shared_ptr<tracker_element> in_element, kis_recursive_timed_mutex *in_mutex) :
     Kis_Net_Httpd_Chain_Stream_Handler {},
     uri {in_uri},
     content {in_element},
@@ -1503,7 +1503,7 @@ int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::Httpd_CreateStreamResponse(
             });
 
     try {
-        std::shared_ptr<TrackerElement> output_content;
+        std::shared_ptr<tracker_element> output_content;
 
         if (content == nullptr && generator == nullptr) {
             stream << "Invalid request: No backing content present";
@@ -1557,7 +1557,7 @@ int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Htt
         return MHD_YES;
     }
 
-    std::shared_ptr<TrackerElement> output_content;
+    std::shared_ptr<tracker_element> output_content;
 
     try {
         if (generator != nullptr)
@@ -1573,7 +1573,7 @@ int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Htt
     // Common structured API data
     SharedStructured structdata;
     std::vector<SharedElementSummary> summary_vec;
-    auto rename_map = std::make_shared<TrackerElementSerializer::rename_map>();
+    auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
 
     try {
         if (concls->variable_cache.find("json") != 
@@ -1598,7 +1598,7 @@ int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Htt
 
             for (const auto& i : fvec) {
                 if (i->isString()) {
-                    auto s = std::make_shared<TrackerElementSummary>(i->getString());
+                    auto s = std::make_shared<tracker_element_summary>(i->getString());
                     summary_vec.push_back(s);
                 } else if (i->isArray()) {
                     StructuredData::string_vec mapvec = i->getStringVec();
@@ -1611,7 +1611,7 @@ int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Htt
                     }
 
                     auto s = 
-                        std::make_shared<TrackerElementSummary>(mapvec[0], mapvec[1]);
+                        std::make_shared<tracker_element_summary>(mapvec[0], mapvec[1]);
                     summary_vec.push_back(s);
                 }
             }
@@ -1625,7 +1625,7 @@ int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Htt
 
     if (summary_vec.size()) {
         auto simple = 
-            SummarizeTrackerElement(output_content, summary_vec, rename_map);
+            Summarizetracker_element(output_content, summary_vec, rename_map);
 
         Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(concls->url), stream, 
                 simple, rename_map);
@@ -1711,7 +1711,7 @@ int Kis_Net_Httpd_Path_Tracked_Endpoint::Httpd_CreateStreamResponse(
                 }
             });
 
-    std::shared_ptr<TrackerElement> output_content;
+    std::shared_ptr<tracker_element> output_content;
 
     auto stripped = Httpd_StripSuffix(in_path);
     auto tokenurl = StrTokenize(stripped, "/");
@@ -1765,7 +1765,7 @@ int Kis_Net_Httpd_Path_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connec
     if (tokenurl.size())
         tokenurl = std::vector<std::string>(tokenurl.begin() + 1, tokenurl.end());
 
-    std::shared_ptr<TrackerElement> output_content;
+    std::shared_ptr<tracker_element> output_content;
 
     try {
         output_content = generator(tokenurl);
@@ -1778,7 +1778,7 @@ int Kis_Net_Httpd_Path_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connec
     // Common structured API data
     SharedStructured structdata;
     std::vector<SharedElementSummary> summary_vec;
-    auto rename_map = std::make_shared<TrackerElementSerializer::rename_map>();
+    auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
 
     try {
         if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
@@ -1801,7 +1801,7 @@ int Kis_Net_Httpd_Path_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connec
 
             for (const auto& i : fvec) {
                 if (i->isString()) {
-                    auto s = std::make_shared<TrackerElementSummary>(i->getString());
+                    auto s = std::make_shared<tracker_element_summary>(i->getString());
                     summary_vec.push_back(s);
                 } else if (i->isArray()) {
                     StructuredData::string_vec mapvec = i->getStringVec();
@@ -1814,7 +1814,7 @@ int Kis_Net_Httpd_Path_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connec
                     }
 
                     auto s = 
-                        std::make_shared<TrackerElementSummary>(mapvec[0], mapvec[1]);
+                        std::make_shared<tracker_element_summary>(mapvec[0], mapvec[1]);
                     summary_vec.push_back(s);
                 }
             }
@@ -1828,7 +1828,7 @@ int Kis_Net_Httpd_Path_Tracked_Endpoint::Httpd_PostComplete(Kis_Net_Httpd_Connec
 
     if (summary_vec.size()) {
         auto simple = 
-            SummarizeTrackerElement(output_content, summary_vec, rename_map);
+            Summarizetracker_element(output_content, summary_vec, rename_map);
 
         Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(concls->url), stream, 
                 simple, rename_map);

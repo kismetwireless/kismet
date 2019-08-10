@@ -32,14 +32,14 @@ public:
         reserve_fields(NULL);
     }
 
-    Spectrum_Sweep(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e) :
+    Spectrum_Sweep(GlobalRegistry *in_globalreg, int in_id, shared_tracker_element e) :
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(e);
     }
 
-    virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new Spectrum_Sweep(globalreg, get_id()));
+    virtual shared_tracker_element clone_type() {
+        return shared_tracker_element(new Spectrum_Sweep(globalreg, get_id()));
     }
 
     virtual void register_fields() {
@@ -66,12 +66,12 @@ public:
 
 protected:
 
-    SharedTrackerElement num_samples_sweep;
-    SharedTrackerElement start_mhz;
-    SharedTrackerElement sample_hz_width;
-    SharedTrackerElement samples_per_freq;
+    shared_tracker_element num_samples_sweep;
+    shared_tracker_element start_mhz;
+    shared_tracker_element sample_hz_width;
+    shared_tracker_element samples_per_freq;
 
-    SharedTrackerElement sample_vec;
+    shared_tracker_element sample_vec;
 
 };
 
@@ -172,26 +172,26 @@ protected:
     __ProxySet(int_spectrum_gain_baseband_max, uint64_t, uint64_t, spectrum_gain_baseband_max);
     __ProxySet(int_spectrum_gain_baseband_step, uint64_t, uint64_t, spectrum_gain_baseband_step);
 
-    SharedTrackerElement spectrum_configurable;
+    shared_tracker_element spectrum_configurable;
 
-    SharedTrackerElement spectrum_min_mhz;
-    SharedTrackerElement spectrum_max_mhz;
-    SharedTrackerElement spectrum_min_bin_hz;
-    SharedTrackerElement spectrum_max_bin_hz;
-    SharedTrackerElement spectrum_min_num_samples_per;
-    SharedTrackerElement spectrum_max_num_samples_per;
+    shared_tracker_element spectrum_min_mhz;
+    shared_tracker_element spectrum_max_mhz;
+    shared_tracker_element spectrum_min_bin_hz;
+    shared_tracker_element spectrum_max_bin_hz;
+    shared_tracker_element spectrum_min_num_samples_per;
+    shared_tracker_element spectrum_max_num_samples_per;
 
-    SharedTrackerElement spectrum_amp;
+    shared_tracker_element spectrum_amp;
 
-    SharedTrackerElement spectrum_gain_if;
-    SharedTrackerElement spectrum_gain_if_min;
-    SharedTrackerElement spectrum_gain_if_max;
-    SharedTrackerElement spectrum_gain_if_step;
+    shared_tracker_element spectrum_gain_if;
+    shared_tracker_element spectrum_gain_if_min;
+    shared_tracker_element spectrum_gain_if_max;
+    shared_tracker_element spectrum_gain_if_step;
 
-    SharedTrackerElement spectrum_gain_baseband;
-    SharedTrackerElement spectrum_gain_baseband_min;
-    SharedTrackerElement spectrum_gain_baseband_max;
-    SharedTrackerElement spectrum_gain_baseband_step;
+    shared_tracker_element spectrum_gain_baseband;
+    shared_tracker_element spectrum_gain_baseband_min;
+    shared_tracker_element spectrum_gain_baseband_max;
+    shared_tracker_element spectrum_gain_baseband_step;
     
     
 };

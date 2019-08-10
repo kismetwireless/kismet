@@ -401,7 +401,7 @@ protected:
 
     // /phys/all_phys.json endpoint using new simple endpoint API
     std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> all_phys_endp;
-    std::shared_ptr<TrackerElement> all_phys_endp_handler();
+    std::shared_ptr<tracker_element> all_phys_endp_handler();
     int phy_phyentry_id, phy_phyname_id, phy_devices_count_id, 
         phy_packets_count_id, phy_phyid_id;
 

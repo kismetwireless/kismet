@@ -58,8 +58,8 @@ namespace kishttpd {
     // Modifies the rename_map field, which must be provided by the caller.
     // Returns a summarized vector (if passed a vector) or summarized device (if passed
     // a summarized device)
-    std::shared_ptr<TrackerElement> SummarizeWithStructured(std::shared_ptr<TrackerElement> in_data,
-            SharedStructured structured, std::shared_ptr<TrackerElementSerializer::rename_map> rename_map);
+    std::shared_ptr<tracker_element> SummarizeWithStructured(std::shared_ptr<tracker_element> in_data,
+            SharedStructured structured, std::shared_ptr<tracker_element_serializer::rename_map> rename_map);
 };
 
 // Connection data, generated for all requests by the processing system;
@@ -175,10 +175,10 @@ class Kis_Httpd_Websession;
 // Do a simple dump of a tracked object into an endpoint
 class Kis_Net_Httpd_Simple_Tracked_Endpoint : public Kis_Net_Httpd_Chain_Stream_Handler {
 public:
-    using gen_func = std::function<std::shared_ptr<TrackerElement> ()>;
+    using gen_func = std::function<std::shared_ptr<tracker_element> ()>;
 
     Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri, 
-            std::shared_ptr<TrackerElement> in_content, 
+            std::shared_ptr<tracker_element> in_content, 
             kis_recursive_timed_mutex *in_mutex);
     Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri, gen_func in_func);
     Kis_Net_Httpd_Simple_Tracked_Endpoint(const std::string& in_uri, gen_func in_func,
@@ -198,7 +198,7 @@ public:
 
 protected:
     std::string uri;
-    std::shared_ptr<TrackerElement> content;
+    std::shared_ptr<tracker_element> content;
     gen_func generator;
     kis_recursive_timed_mutex *mutex;
 };
@@ -207,10 +207,10 @@ protected:
 // This should be very rarely used.
 class Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint : public Kis_Net_Httpd_Chain_Stream_Handler {
 public:
-    using gen_func = std::function<std::shared_ptr<TrackerElement> ()>;
+    using gen_func = std::function<std::shared_ptr<tracker_element> ()>;
 
     Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint(const std::string& in_uri, 
-            std::shared_ptr<TrackerElement> in_content, 
+            std::shared_ptr<tracker_element> in_content, 
             kis_recursive_timed_mutex *in_mutex);
     Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint(const std::string& in_uri, gen_func in_func);
     Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint(const std::string& in_uri, gen_func in_func,
@@ -230,7 +230,7 @@ public:
 
 protected:
     std::string uri;
-    std::shared_ptr<TrackerElement> content;
+    std::shared_ptr<tracker_element> content;
     gen_func generator;
     kis_recursive_timed_mutex *mutex;
 };
@@ -239,7 +239,7 @@ protected:
 // and for the endpoint generation; for more rest-like paths
 class Kis_Net_Httpd_Path_Tracked_Endpoint : public Kis_Net_Httpd_Chain_Stream_Handler {
 public:
-    using gen_func = std::function<std::shared_ptr<TrackerElement> (const std::vector<std::string>&)>;
+    using gen_func = std::function<std::shared_ptr<tracker_element> (const std::vector<std::string>&)>;
     using path_func = std::function<bool (const std::vector<std::string>&)>;
 
     Kis_Net_Httpd_Path_Tracked_Endpoint(path_func in_path, gen_func in_gen);

@@ -264,7 +264,7 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
 
     list_poi_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/poi/list_poi", 
-                [this]() -> std::shared_ptr<TrackerElement> {
+                [this]() -> std::shared_ptr<tracker_element> {
                     return list_poi_endp_handler();
                 });
 
@@ -1171,7 +1171,7 @@ int KisDatabaseLogfile::log_data(kis_gps_packinfo *gps, struct timeval tv,
     return 1;
 }
 
-int KisDatabaseLogfile::log_datasources(SharedTrackerElement in_datasource_vec) {
+int KisDatabaseLogfile::log_datasources(shared_tracker_element in_datasource_vec) {
     int r;
 
     if (!db_enabled)
@@ -1187,7 +1187,7 @@ int KisDatabaseLogfile::log_datasources(SharedTrackerElement in_datasource_vec) 
     return 1;
 }
 
-int KisDatabaseLogfile::log_datasource(SharedTrackerElement in_datasource) {
+int KisDatabaseLogfile::log_datasource(shared_tracker_element in_datasource) {
 
     if (!db_enabled)
         return 0;
@@ -1786,7 +1786,7 @@ unsigned int KisDatabaseLogfile::make_poi_endp_handler(std::ostream& ostream,
     return 200;
 }
 
-std::shared_ptr<TrackerElement> KisDatabaseLogfile::list_poi_endp_handler() {
+std::shared_ptr<tracker_element> KisDatabaseLogfile::list_poi_endp_handler() {
     return std::make_shared<tracker_element_vector>();
 }
 

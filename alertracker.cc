@@ -687,7 +687,7 @@ void Alertracker::Httpd_CreateStreamResponse(
         }
     }
 
-    std::shared_ptr<TrackerElement> transmit;
+    std::shared_ptr<tracker_element> transmit;
     std::shared_ptr<tracker_element_map> wrapper;
     std::shared_ptr<tracker_element_vector> msgvec = std::make_shared<tracker_element_vector>(alert_vec_id);
 

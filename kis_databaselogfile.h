@@ -108,9 +108,9 @@ public:
             std::string type, std::string json);
 
     // Log datasources
-    virtual int log_datasources(SharedTrackerElement in_datasource_vec);
+    virtual int log_datasources(shared_tracker_element in_datasource_vec);
     // Log a single datasource
-    virtual int log_datasource(SharedTrackerElement in_datasource);
+    virtual int log_datasource(shared_tracker_element in_datasource);
 
     // Log an alert; takes a standard tracked_alert element
     virtual int log_alert(std::shared_ptr<tracked_alert> in_alert);
@@ -226,7 +226,7 @@ protected:
             SharedStructured structured, Kis_Net_Httpd_Connection::variable_cache_map& postvars);
 
     std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> list_poi_endp;
-    std::shared_ptr<TrackerElement> list_poi_endp_handler();
+    std::shared_ptr<tracker_element> list_poi_endp_handler();
 
     // Device log filter
     std::shared_ptr<ClassfilterMacaddr> device_mac_filter;

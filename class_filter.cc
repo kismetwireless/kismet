@@ -43,7 +43,7 @@ Classfilter::Classfilter(const std::string& in_id, const std::string& in_descrip
     self_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>(
                 url, 
-                [this]() -> std::shared_ptr<TrackerElement> {
+                [this]() -> std::shared_ptr<tracker_element> {
                     local_locker lock(&mutex);
                     return self_endp_handler();
                 });
@@ -201,7 +201,7 @@ void ClassfilterMacaddr::set_filter(mac_addr in_mac, const std::string& in_phy, 
 		tracked_mac_map = std::make_shared<tracker_element_mac_map>(filter_sub_mac_id);
 		filter_phy_block->insert(in_phy, tracked_mac_map);
 	} else {
-		tracked_mac_map = TrackerElement::safe_cast_as<tracker_element_mac_map>(tracked_phy_key->second);
+		tracked_mac_map = tracker_element::safe_cast_as<tracker_element_mac_map>(tracked_phy_key->second);
 	}
 
 	auto tracked_mac_key = tracked_mac_map->find(in_mac);
@@ -210,7 +210,7 @@ void ClassfilterMacaddr::set_filter(mac_addr in_mac, const std::string& in_phy, 
 		tracked_value->set(value);
 		tracked_mac_map->insert(in_mac, tracked_value);
 	} else {
-		auto bool_value = TrackerElement::safe_cast_as<tracker_element_uint8>(tracked_mac_key->second);
+		auto bool_value = tracker_element::safe_cast_as<tracker_element_uint8>(tracked_mac_key->second);
 		bool_value->set(value);
 	}
 
@@ -233,7 +233,7 @@ void ClassfilterMacaddr::remove_filter(mac_addr in_mac, const std::string& in_ph
 	// Remove it from the tracked version we display
 	auto tracked_phy_key = filter_phy_block->find(in_phy);
 	if (tracked_phy_key != filter_phy_block->end()) {
-		auto tracked_mac_map = TrackerElement::safe_cast_as<tracker_element_mac_map>(tracked_phy_key->second);
+		auto tracked_mac_map = tracker_element::safe_cast_as<tracker_element_mac_map>(tracked_phy_key->second);
 		auto tracked_mac_key = tracked_mac_map->find(in_mac);
 
 		if (tracked_mac_key != tracked_mac_map->end())

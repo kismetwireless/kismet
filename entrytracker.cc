@@ -40,7 +40,7 @@ EntryTracker::~EntryTracker() {
 }
 
 int EntryTracker::RegisterField(const std::string& in_name,
-        std::unique_ptr<TrackerElement> in_builder,
+        std::unique_ptr<tracker_element> in_builder,
         const std::string& in_desc) {
     local_locker lock(&entry_mutex);
 
@@ -71,8 +71,8 @@ int EntryTracker::RegisterField(const std::string& in_name,
     return definition->field_id;
 }
 
-std::shared_ptr<TrackerElement> EntryTracker::RegisterAndGetField(const std::string& in_name,
-        std::unique_ptr<TrackerElement> in_builder,
+std::shared_ptr<tracker_element> EntryTracker::RegisterAndGetField(const std::string& in_name,
+        std::unique_ptr<tracker_element> in_builder,
         const std::string& in_desc) {
     local_locker lock(&entry_mutex);
 
@@ -139,7 +139,7 @@ std::string EntryTracker::GetFieldDescription(int in_id) {
 }
 
 
-std::shared_ptr<TrackerElement> EntryTracker::GetSharedInstance(int in_id) {
+std::shared_ptr<tracker_element> EntryTracker::GetSharedInstance(int in_id) {
     local_locker lock(&entry_mutex);
 
     auto iter = field_id_map.find(in_id);
@@ -150,7 +150,7 @@ std::shared_ptr<TrackerElement> EntryTracker::GetSharedInstance(int in_id) {
     return iter->second->builder->clone_type(iter->second->field_id);
 }
 
-std::shared_ptr<TrackerElement> EntryTracker::GetSharedInstance(const std::string& in_name) {
+std::shared_ptr<tracker_element> EntryTracker::GetSharedInstance(const std::string& in_name) {
     local_locker lock(&entry_mutex);
 
     auto lname = StrLower(in_name);
@@ -220,7 +220,7 @@ void EntryTracker::Httpd_CreateStreamResponse(
 }
 
 void EntryTracker::RegisterSerializer(const std::string& in_name, 
-        std::shared_ptr<TrackerElementSerializer> in_ser) {
+        std::shared_ptr<tracker_element_serializer> in_ser) {
     local_locker lock(&serializer_mutex);
     
     std::string mod_type = StrLower(in_name);
@@ -259,8 +259,8 @@ bool EntryTracker::CanSerialize(const std::string& in_name) {
 }
 
 bool EntryTracker::Serialize(const std::string& in_name, std::ostream &stream,
-        SharedTrackerElement e,
-        std::shared_ptr<TrackerElementSerializer::rename_map> name_map) {
+        shared_tracker_element e,
+        std::shared_ptr<tracker_element_serializer::rename_map> name_map) {
 
     local_demand_locker lock(&serializer_mutex);
 

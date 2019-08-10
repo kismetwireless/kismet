@@ -64,8 +64,8 @@ public:
     // Shortcut for serializing; expects the path or the final element of the path
     virtual void Httpd_Serialize(const std::string& path, 
             std::ostream& stream,
-            std::shared_ptr<TrackerElement> elem, 
-            std::shared_ptr<TrackerElementSerializer::rename_map> rename = nullptr);
+            std::shared_ptr<tracker_element> elem, 
+            std::shared_ptr<tracker_element_serializer::rename_map> rename = nullptr);
 
     // Shortcuts for getting path info
     virtual std::string Httpd_GetSuffix(const std::string& path);

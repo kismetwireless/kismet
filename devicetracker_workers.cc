@@ -99,7 +99,7 @@ bool devicetracker_stringmatch_worker::MatchDevice(Devicetracker *devicetracker 
     for (auto i = fieldpaths.begin(); i != fieldpaths.end(); ++i) {
         // We should never have to search nested vectors so we don't use
         // multipath
-        SharedTrackerElement field = GetTrackerElementPath(*i, device);
+        shared_tracker_element field = Gettracker_elementPath(*i, device);
 
         if (field == NULL)
             continue;
@@ -118,7 +118,7 @@ bool devicetracker_stringmatch_worker::MatchDevice(Devicetracker *devicetracker 
                 std::static_pointer_cast<tracker_element_mac_addr>(field)->get().PartialSearch(mac_query_term, mac_query_term_len);
         } else if (field->get_type() == TrackerType::TrackerUuid) {
             matched =
-                TrackerElement::safe_cast_as<tracker_element_uuid>(field)->get().asString().find(query) != std::string::npos;
+                tracker_element::safe_cast_as<tracker_element_uuid>(field)->get().asString().find(query) != std::string::npos;
         }
 
         if (matched)
@@ -262,8 +262,8 @@ bool devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attri
     for (auto i : filter_vec) {
         // Get complex fields - this lets us search nested vectors
         // or strings or whatnot
-        std::vector<SharedTrackerElement> fields = 
-            GetTrackerElementMultiPath(i->target, device);
+        std::vector<shared_tracker_element> fields = 
+            Gettracker_elementMultiPath(i->target, device);
 
         for (auto fi : fields) {
             std::string val;

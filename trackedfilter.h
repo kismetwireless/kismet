@@ -72,7 +72,7 @@ public:
     // Generate a numerical option (< > <= >= B& == !=)
     tracked_filter_operation(std::string in_op, std::string in_field, double in_number);
 
-    bool compute(SharedTrackerElement e);
+    bool compute(shared_tracker_element e);
 
 protected:
     std::string m_field;

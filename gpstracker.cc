@@ -203,7 +203,7 @@ std::shared_ptr<KisGps> GpsTracker::create_gps(std::string in_definition) {
 
     // Sort running GPS by priority
     sort(gps_instances_vec->begin(), gps_instances_vec->end(), 
-            [](const SharedTrackerElement a, const SharedTrackerElement b) -> bool {
+            [](const shared_tracker_element a, const shared_tracker_element b) -> bool {
                 SharedGps ga = std::static_pointer_cast<KisGps>(a);
                 SharedGps gb = std::static_pointer_cast<KisGps>(b);
 

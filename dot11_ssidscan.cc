@@ -111,7 +111,7 @@ Dot11_SsidScan::Dot11_SsidScan() {
 
     dot11_ssidscan_status_endp =
         std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/phy/phy80211/ssidscan/status", true,
-                [this]() -> std::shared_ptr<TrackerElement> {
+                [this]() -> std::shared_ptr<tracker_element> {
                     auto retmap = std::make_shared<tracker_element_map>();
 
                     retmap->insert(ssidscan_enabled);

@@ -434,7 +434,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     all_phys_endp = 
         std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>(
                 "/phy/all_phys", 
-                [this]() -> std::shared_ptr<TrackerElement> {
+                [this]() -> std::shared_ptr<tracker_element> {
                     return all_phys_endp_handler();
                 },
                 &devicelist_mutex);
@@ -937,7 +937,7 @@ void Devicetracker::MatchOnReadonlyDevices(std::shared_ptr<DevicetrackerFilterWo
 void Devicetracker::MatchOnDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker, 
         std::shared_ptr<tracker_element_vector> vec, bool batch) {
 
-    kismet__for_each(vec->begin(), vec->end(), [&](SharedTrackerElement val) {
+    kismet__for_each(vec->begin(), vec->end(), [&](shared_tracker_element val) {
            if (val == nullptr)
                return;
 
@@ -965,7 +965,7 @@ void Devicetracker::MatchOnReadonlyDevicesRaw(std::shared_ptr<DevicetrackerFilte
     if (vec == nullptr)
         return;
 
-    kismet__for_each(vec->begin(), vec->end(), [&](SharedTrackerElement val) {
+    kismet__for_each(vec->begin(), vec->end(), [&](shared_tracker_element val) {
            if (val == nullptr)
                return;
 
@@ -1016,7 +1016,7 @@ void Devicetracker::MatchOnReadonlyDevices(std::shared_ptr<DevicetrackerFilterWo
 void Devicetracker::MatchOnDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker,
         const std::vector<std::shared_ptr<kis_tracked_device_base>>& vec, bool batch) {
 
-    kismet__for_each(vec.begin(), vec.end(), [&](SharedTrackerElement val) {
+    kismet__for_each(vec.begin(), vec.end(), [&](shared_tracker_element val) {
             if (val == nullptr)
                 return;
 
@@ -1039,7 +1039,7 @@ void Devicetracker::MatchOnDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker>
 void Devicetracker::MatchOnReadonlyDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker,
         const std::vector<std::shared_ptr<kis_tracked_device_base>>& vec, bool batch) {
 
-    kismet__for_each(vec.begin(), vec.end(), [&](SharedTrackerElement val) {
+    kismet__for_each(vec.begin(), vec.end(), [&](shared_tracker_element val) {
             if (val == nullptr)
                 return;
 
@@ -1481,7 +1481,7 @@ Devicetracker::convert_stored_device(mac_addr macaddr,
         SharedStructured sjson(new StructuredJson(uzbuf));
 
         // Process structured object into a shared element
-        SharedTrackerElement e = 
+        shared_tracker_element e = 
             StorageLoader::storage_to_tracker(sjson);
 
         if (e->get_type() != TrackerType::TrackerMap) 

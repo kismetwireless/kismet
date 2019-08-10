@@ -327,7 +327,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
 
                     local_shared_locker devlocker(&(dev->device_mutex));
 
-                    SharedTrackerElement sub = dev->get_child_path(fpath);
+                    shared_tracker_element sub = dev->get_child_path(fpath);
 
                     if (sub == nullptr) {
                         _MSG_ERROR("HTTP request for {}; could not map child path to a device record node.", path);
@@ -458,7 +458,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     std::string wrapper_name;
 
     // Rename cache generated during simplification
-    auto rename_map = std::make_shared<TrackerElementSerializer::rename_map>();
+    auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
 
     SharedStructured regexdata;
 
@@ -487,7 +487,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
             for (const auto& i : fvec) {
                 if (i->isString()) {
-                    auto s = std::make_shared<TrackerElementSummary>(i->getString());
+                    auto s = std::make_shared<tracker_element_summary>(i->getString());
                     summary_vec.push_back(s);
                 } else if (i->isArray()) {
                     StructuredData::string_vec mapvec = i->getStringVec();
@@ -500,7 +500,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     }
 
                     auto s = 
-                        std::make_shared<TrackerElementSummary>(mapvec[0], mapvec[1]);
+                        std::make_shared<tracker_element_summary>(mapvec[0], mapvec[1]);
                     summary_vec.push_back(s);
                 }
             }
@@ -572,7 +572,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     lock.unlock();
 
                     for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) 
-                        devvec->push_back(SummarizeSingleTrackerElement(mmpi->second, summary_vec, rename_map));
+                        devvec->push_back(SummarizeSingletracker_element(mmpi->second, summary_vec, rename_map));
 
                     Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
                             devvec, rename_map);
@@ -612,7 +612,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     local_shared_locker devlock(&(dev->device_mutex));
 
                     auto simple = 
-                        SummarizeSingleTrackerElement(dev, summary_vec, rename_map);
+                        SummarizeSingletracker_element(dev, summary_vec, rename_map);
 
                     Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), 
                             stream, simple, rename_map);
@@ -684,7 +684,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 }
 
                 // Rename cache generated during simplification
-                auto rename_map = std::make_shared<TrackerElementSerializer::rename_map>();
+                auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
 
                 // List of devices that pass the timestamp filter
                 std::shared_ptr<tracker_element_vector> timedevs;
@@ -718,7 +718,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     auto rd = std::static_pointer_cast<kis_tracked_device_base>(rei);
                     local_shared_locker lock(&rd->device_mutex);
 
-                    outdevs->push_back(SummarizeSingleTrackerElement(rd, summary_vec, rename_map));
+                    outdevs->push_back(SummarizeSingletracker_element(rd, summary_vec, rename_map));
                 }
 
                 Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
@@ -776,7 +776,7 @@ unsigned int Devicetracker::multimac_endp_handler(std::ostream& stream, const st
         }
 
         // Summarize it all at once
-        auto rename_map = std::make_shared<TrackerElementSerializer::rename_map>();
+        auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
 
         auto output = 
             kishttpd::SummarizeWithStructured(ret_devices, structured, rename_map);
@@ -794,7 +794,7 @@ unsigned int Devicetracker::multimac_endp_handler(std::ostream& stream, const st
     return 500;
 }
 
-std::shared_ptr<TrackerElement> Devicetracker::all_phys_endp_handler() {
+std::shared_ptr<tracker_element> Devicetracker::all_phys_endp_handler() {
     auto ret_vec = 
         std::make_shared<tracker_element_vector>();
 
