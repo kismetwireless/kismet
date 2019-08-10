@@ -998,7 +998,7 @@ static void free_callback(void *cls) {
     fclose(file);
 }
 
-std::string kis_net_httpd::GetMimeType(std::string ext) {
+std::string kis_net_httpd::get_mime_type(std::string ext) {
     std::map<std::string, std::string>::iterator mi = mime_type_map.find(ext);
     if (mi != mime_type_map.end()) {
         return mi->second;
@@ -1108,7 +1108,7 @@ int kis_net_httpd::handle_static_file(void *cls, kis_net_httpd_connection *conne
             MHD_add_response_header(response, "Last-Modified", lastmod);
 
             std::string suffix = get_suffix(surl);
-            std::string mime = kishttpd->GetMimeType(suffix);
+            std::string mime = kishttpd->get_mime_type(suffix);
 
             if (mime != "") {
                 MHD_add_response_header(response, "Content-Type", mime.c_str());
@@ -1171,7 +1171,7 @@ void kis_net_httpd::AppendStandardHeaders(kis_net_httpd *httpd,
     else
         suffix = get_suffix(connection->url);
 
-    std::string mime = httpd->GetMimeType(suffix);
+    std::string mime = httpd->get_mime_type(suffix);
 
     if (mime != "") {
         MHD_add_response_header(connection->response, "Content-Type", mime.c_str());
