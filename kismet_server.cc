@@ -880,7 +880,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_osx_corewlan_wifi_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rtl433_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceRtl433MqttBuilder()));
-    datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceRtlamrBuilder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rtlamr_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceRtlamrMqttBuilder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rtladsb_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceRtladsbMqttBuilder()));
