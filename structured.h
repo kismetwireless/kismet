@@ -103,7 +103,7 @@ public:
     virtual bool is_dictionary() = 0;
     virtual bool is_binary() = 0;
 
-    virtual double get_number() = 0;
+    virtual double as_number() = 0;
     virtual std::string get_string() = 0;
     virtual bool getBool() = 0;
     virtual std::string getBinaryStr() = 0;

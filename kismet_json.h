@@ -98,7 +98,7 @@ public:
         return is_string();
     }
 
-    virtual double get_number() {
+    virtual double as_number() {
         except_if_not(is_number(), "number");
         return json.asDouble();
     }
@@ -160,7 +160,7 @@ public:
     }
 
     virtual double getKeyAsNumber(std::string key) {
-        return getStructuredByKey(key)->get_number();
+        return getStructuredByKey(key)->as_number();
     }
 
     virtual double getKeyAsNumber(std::string key, double def) {
@@ -172,7 +172,7 @@ public:
         if (!v->is_number())
             return def;
 
-        return v->get_number();
+        return v->as_number();
     }
 
     virtual std::string getKeyAsString(std::string key) {
