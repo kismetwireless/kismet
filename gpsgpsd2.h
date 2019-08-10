@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -34,10 +34,10 @@
 // This code uses the new buffer handler interface for communicating with a 
 // gpsd host over TCP
 
-class GPSGpsdV2 : public kis_gps {
+class gps_gpsd_v2 : public kis_gps {
 public:
-    GPSGpsdV2(shared_gps_builder in_builder);
-    virtual ~GPSGpsdV2();
+    gps_gpsd_v2(shared_gps_builder in_builder);
+    virtual ~gps_gpsd_v2();
 
     virtual bool open_gps(std::string in_definition);
 
@@ -98,7 +98,7 @@ public:
     }
 
     virtual shared_gps build_gps(shared_gps_builder in_builder) {
-        return shared_gps(new GPSGpsdV2(in_builder));
+        return shared_gps(new gps_gpsd_v2(in_builder));
     }
 };
 
