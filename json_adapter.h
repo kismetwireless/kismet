@@ -32,7 +32,7 @@ namespace json_adapter {
 
 // Basic packer with some defaulted options - prettyprint and depth used for
 // recursive indenting and prettifying the output
-void Pack(std::ostream &stream, shared_tracker_element e,
+void pack(std::ostream &stream, shared_tracker_element e,
         std::shared_ptr<tracker_element_serializer::rename_map> name_map = nullptr,
         bool prettyprint = false, unsigned int depth = 0);
 
@@ -46,7 +46,7 @@ public:
 
     virtual void serialize(shared_tracker_element in_elem, std::ostream &stream,
             std::shared_ptr<rename_map> name_map = nullptr) override {
-        Pack(stream, in_elem, name_map);
+        pack(stream, in_elem, name_map);
     }
 };
 
@@ -70,11 +70,11 @@ public:
 
         if (in_elem->get_type() == tracker_type::tracker_vector) {
             for (auto i : *(std::static_pointer_cast<tracker_element_vector>(in_elem))) {
-                json_adapter::Pack(stream, i, name_map);
+                json_adapter::pack(stream, i, name_map);
                 stream << "\n";
             }
         } else {
-            json_adapter::Pack(stream, in_elem, name_map);
+            json_adapter::pack(stream, in_elem, name_map);
         }
     }
 };
@@ -93,7 +93,7 @@ public:
     virtual void serialize(shared_tracker_element in_elem, std::ostream &stream,
             std::shared_ptr<rename_map> name_map = nullptr) override {
         // Call the packer in pretty mode
-        json_adapter::Pack(stream, in_elem, name_map, true, 1);
+        json_adapter::pack(stream, in_elem, name_map, true, 1);
     }
 
 };
@@ -128,7 +128,7 @@ public:
 
 namespace StorageJsonAdapter {
 
-void Pack(std::ostream &stream, shared_tracker_element e,
+void pack(std::ostream &stream, shared_tracker_element e,
         std::shared_ptr<tracker_element_serializer::rename_map> name_map = nullptr);
 
 class Serializer : public tracker_element_serializer {
@@ -139,7 +139,7 @@ public:
     virtual void serialize(shared_tracker_element in_elem, std::ostream &stream,
             std::shared_ptr<rename_map> name_map = nullptr) override {
         // Call the packer in pretty mode
-        Pack(stream, in_elem, name_map);
+        pack(stream, in_elem, name_map);
     }
 
 };

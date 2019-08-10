@@ -910,7 +910,7 @@ int kis_database_logfile::log_device(std::shared_ptr<kis_tracked_device_base> d)
     std::stringstream sstr;
 
     // serialize the device
-    json_adapter::Pack(sstr, d, NULL);
+    json_adapter::pack(sstr, d, NULL);
     std::string streamstring = sstr.str();
 
     {
@@ -1204,7 +1204,7 @@ int kis_database_logfile::log_datasource(shared_tracker_element in_datasource) {
     std::stringstream ss;
     std::string jsonstring;
 
-    json_adapter::Pack(ss, in_datasource, NULL);
+    json_adapter::pack(ss, in_datasource, NULL);
     jsonstring = ss.str();
 
     {
@@ -1241,7 +1241,7 @@ int kis_database_logfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
     std::stringstream ss;
     std::string jsonstring;
 
-    json_adapter::Pack(ss, in_alert, NULL);
+    json_adapter::pack(ss, in_alert, NULL);
     jsonstring = ss.str();
 
     // Break the double timestamp into two integers

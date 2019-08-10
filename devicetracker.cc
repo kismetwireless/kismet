@@ -2111,10 +2111,10 @@ int device_tracker_state_store::store_devices(std::shared_ptr<tracker_element_ve
                 sbuf.str("");
                 sqlite3_reset(stmt);
 
-                // Pack a storage formatted blob
+                // pack a storage formatted blob
                 {
                     local_locker lock(&(devicetracker->devicelist_mutex));
-                    StorageJsonAdapter::Pack(*serialstream, d, NULL);
+                    StorageJsonAdapter::pack(*serialstream, d, NULL);
                 }
 
                 // Sync the buffers
