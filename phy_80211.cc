@@ -111,11 +111,11 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
                     "IEEE802.11 device");
 
         // Packet classifier - makes basic records plus dot11 data
-        packetchain->RegisterHandler(&CommonClassifierDot11, this,
+        packetchain->register_handler(&CommonClassifierDot11, this,
                 CHAINPOS_CLASSIFIER, -100);
-        packetchain->RegisterHandler(&phydot11_packethook_wep, this,
+        packetchain->register_handler(&phydot11_packethook_wep, this,
                 CHAINPOS_DECRYPT, -100);
-        packetchain->RegisterHandler(&phydot11_packethook_dot11, this,
+        packetchain->register_handler(&phydot11_packethook_dot11, this,
                 CHAINPOS_LLCDISSECT, -100);
 
         // If we haven't registered packet components yet, do so.  We have to

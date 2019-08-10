@@ -383,7 +383,7 @@ void kis_net_httpd::RegisterStaticDir(std::string in_prefix, std::string in_path
     static_dir_vec.push_back(static_dir(in_prefix, in_path));
 }
 
-void kis_net_httpd::RegisterHandler(kis_net_httpd_handler *in_handler) {
+void kis_net_httpd::register_handler(kis_net_httpd_handler *in_handler) {
     local_locker lock(&controller_mutex);
 
     handler_vec.push_back(in_handler);

@@ -89,7 +89,7 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(global_registry *in_globalreg, int in_phyid) :
         Globalreg::fetch_mandatory_global_as<kis_httpd_registry>();
     httpregistry->register_js_module("kismet_ui_rtl433", "js/kismet.ui.rtl433.js");
 
-	packetchain->RegisterHandler(&PacketHandler, this, CHAINPOS_CLASSIFIER, -100);
+	packetchain->register_handler(&PacketHandler, this, CHAINPOS_CLASSIFIER, -100);
 }
 
 Kis_RTL433_Phy::~Kis_RTL433_Phy() {

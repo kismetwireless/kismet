@@ -136,7 +136,7 @@ bool kis_database_logfile::log_open(std::string in_path) {
         std::shared_ptr<packet_chain> packetchain =
             Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
 
-        packetchain->RegisterHandler(&kis_database_logfile::packet_handler, this, 
+        packetchain->register_handler(&kis_database_logfile::packet_handler, this, 
                 CHAINPOS_LOGGING, -100);
     } else {
         _MSG_INFO("Packets will not be saved to the Kismet database log.");

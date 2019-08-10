@@ -72,8 +72,8 @@ Kis_Mousejack_Phy::Kis_Mousejack_Phy(global_registry *in_globalreg, int in_phyid
     mj_manuf_microsoft = Globalreg::globalreg->manufdb->MakeManuf("Microsoft");
     mj_manuf_nrf = Globalreg::globalreg->manufdb->MakeManuf("nRF/Mousejack HID");
 
-    packetchain->RegisterHandler(&DissectorMousejack, this, CHAINPOS_LLCDISSECT, -100);
-    packetchain->RegisterHandler(&CommonClassifierMousejack, this, CHAINPOS_CLASSIFIER, -100);
+    packetchain->register_handler(&DissectorMousejack, this, CHAINPOS_LLCDISSECT, -100);
+    packetchain->register_handler(&CommonClassifierMousejack, this, CHAINPOS_CLASSIFIER, -100);
 }
 
 Kis_Mousejack_Phy::~Kis_Mousejack_Phy() {

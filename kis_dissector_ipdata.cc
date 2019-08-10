@@ -85,7 +85,7 @@ kis_dissector_ip_data::kis_dissector_ip_data(global_registry *in_globalreg) {
 
 	globalreg->insert_global("DISSECTOR_IPDATA", std::shared_ptr<kis_dissector_ip_data>(this));
 
-	globalreg->packetchain->RegisterHandler(&ipdata_packethook, this,
+	globalreg->packetchain->register_handler(&ipdata_packethook, this,
 		 									CHAINPOS_DATADISSECT, -100);
 
 	pack_comp_basicdata = 

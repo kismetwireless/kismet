@@ -95,7 +95,7 @@ bool KisPPILogfile::log_open(std::string in_path) {
 
     set_int_log_open(true);
 
-	packetchain->RegisterHandler(&KisPPILogfile::packet_handler, this, CHAINPOS_LOGGING, -100);
+	packetchain->register_handler(&KisPPILogfile::packet_handler, this, CHAINPOS_LOGGING, -100);
 
     return true;
 }

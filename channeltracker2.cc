@@ -37,7 +37,7 @@ channel_tracker_v2::channel_tracker_v2(global_registry *in_globalreg) :
 
     auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
 
-    packetchain->RegisterHandler(&packet_chain_handler, this, CHAINPOS_LOGGING, 0);
+    packetchain->register_handler(&packet_chain_handler, this, CHAINPOS_LOGGING, 0);
 
 	pack_comp_device = packetchain->RegisterPacketComponent("DEVICE");
 	pack_comp_common = packetchain->RegisterPacketComponent("COMMON");

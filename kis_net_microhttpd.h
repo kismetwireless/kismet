@@ -355,7 +355,7 @@ public:
     void register_session_handler(std::shared_ptr<kis_httpd_websession> in_session);
 
     // All standard handlers require a login
-    void RegisterHandler(kis_net_httpd_handler *in_handler);
+    void register_handler(kis_net_httpd_handler *in_handler);
     void RemoveHandler(kis_net_httpd_handler *in_handler);
 
     // Unauth handlers do not require a login; use of them should be very limited.

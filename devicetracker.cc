@@ -150,7 +150,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 		packetchain->RegisterPacketComponent("KISDATASRC");
 
 	// Common tracker, very early in the tracker chain
-	packetchain->RegisterHandler(&Devicetracker_packethook_commontracker,
+	packetchain->register_handler(&Devicetracker_packethook_commontracker,
 											this, CHAINPOS_TRACKER, -100);
 
     std::shared_ptr<time_tracker> timetracker = 

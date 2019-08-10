@@ -554,7 +554,7 @@ Pcap_Stream_Packetchain::Pcap_Stream_Packetchain(global_registry *in_globalreg,
         std::function<kis_datachunk * (kis_packet *)> data_selector) :
     pcap_stream_ringbuf(in_globalreg, in_handler, accept_filter, data_selector, false) {
 
-    packethandler_id = packetchain->RegisterHandler([this](kis_packet *packet) {
+    packethandler_id = packetchain->register_handler([this](kis_packet *packet) {
             handle_packet(packet);
             return 1;
         }, CHAINPOS_LOGGING, -100);

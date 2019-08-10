@@ -54,8 +54,8 @@ Kis_Bluetooth_Phy::Kis_Bluetooth_Phy(global_registry *in_globalreg, int in_phyid
                 tracker_element_factory<bluetooth_tracked_device>(),
                 "Bluetooth device");
 
-    packetchain->RegisterHandler(&CommonClassifierBluetooth, this, CHAINPOS_CLASSIFIER, -100);
-    packetchain->RegisterHandler(&PacketTrackerBluetooth, this, CHAINPOS_TRACKER, -100);
+    packetchain->register_handler(&CommonClassifierBluetooth, this, CHAINPOS_CLASSIFIER, -100);
+    packetchain->register_handler(&PacketTrackerBluetooth, this, CHAINPOS_TRACKER, -100);
     
     pack_comp_btdevice = packetchain->RegisterPacketComponent("BTDEVICE");
 	pack_comp_common = packetchain->RegisterPacketComponent("COMMON");

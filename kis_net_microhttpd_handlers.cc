@@ -44,7 +44,7 @@ kis_net_httpd_handler::~kis_net_httpd_handler() {
 }
 
 void kis_net_httpd_handler::Bind_Httpd_Server() {
-    httpd->RegisterHandler(this);
+    httpd->register_handler(this);
 }
 
 bool kis_net_httpd_handler::Httpd_CanSerialize(const std::string& path) {

@@ -105,7 +105,7 @@ Kis_UAV_Phy::Kis_UAV_Phy(global_registry *in_globalreg, int in_phyid) :
 
     // Tag into the packet chain at the very end so we've gotten all the other tracker
     // elements already
-    packetchain->RegisterHandler(Kis_UAV_Phy::CommonClassifier, this, CHAINPOS_TRACKER, 65535);
+    packetchain->register_handler(Kis_UAV_Phy::CommonClassifier, this, CHAINPOS_TRACKER, 65535);
 
     // Register js module for UI
     auto httpregistry = 

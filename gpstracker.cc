@@ -47,7 +47,7 @@ gps_tracker::gps_tracker() :
         Globalreg::globalreg->packetchain->RegisterPacketComponent("gps");
 
     // Register the packet chain hook
-    Globalreg::globalreg->packetchain->RegisterHandler(&kis_gpspack_hook, this,
+    Globalreg::globalreg->packetchain->register_handler(&kis_gpspack_hook, this,
             CHAINPOS_POSTCAP, -100);
 
     gps_prototypes_vec = std::make_shared<tracker_element_vector>();

@@ -38,7 +38,7 @@ kis_dlt_handler::kis_dlt_handler() :
         Globalreg::fetch_mandatory_global_as<packet_chain>();
 
 	chainid = 
-		packetchain->RegisterHandler(&kis_dlt_packethook, this,
+		packetchain->register_handler(&kis_dlt_packethook, this,
                 CHAINPOS_POSTCAP, 0);
 
 	pack_comp_linkframe =

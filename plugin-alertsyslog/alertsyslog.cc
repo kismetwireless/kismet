@@ -82,7 +82,7 @@ int alertsyslog_openlog(global_registry *in_globalreg) {
 
     openlog(in_globalreg->servername.c_str(), LOG_NDELAY, LOG_USER);
 
-    packetchain->RegisterHandler(&alertsyslog_chain_hook, NULL,
+    packetchain->register_handler(&alertsyslog_chain_hook, NULL,
             CHAINPOS_LOGGING, -100);
 
     return 1;

@@ -465,7 +465,7 @@ int packet_chain::RegisterIntHandler(pc_callback in_cb, void *in_aux,
 
             default:
                 delete link;
-                _MSG("packet_chain::RegisterHandler requested unknown chain", 
+                _MSG("packet_chain::register_handler requested unknown chain", 
 	    			 MSGFLAG_ERROR);
                 return -1;
         }
@@ -476,11 +476,11 @@ int packet_chain::RegisterIntHandler(pc_callback in_cb, void *in_aux,
 
 }
 
-int packet_chain::RegisterHandler(pc_callback in_cb, void *in_aux, int in_chain, int in_prio) {
+int packet_chain::register_handler(pc_callback in_cb, void *in_aux, int in_chain, int in_prio) {
     return RegisterIntHandler(in_cb, in_aux, NULL, in_chain, in_prio);
 }
 
-int packet_chain::RegisterHandler(std::function<int (kis_packet *)> in_cb, int in_chain, int in_prio) {
+int packet_chain::register_handler(std::function<int (kis_packet *)> in_cb, int in_chain, int in_prio) {
     return RegisterIntHandler(NULL, NULL, in_cb, in_chain, in_prio);
 }
 
