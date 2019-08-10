@@ -668,7 +668,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
 
 // An unfortunate duplication of code but overloading the json/prettyjson to also do
 // storage tagging would get a bit out of hand
-void StorageJsonAdapter::pack(std::ostream &stream, shared_tracker_element e, 
+void storage_json_adapter::pack(std::ostream &stream, shared_tracker_element e, 
         std::shared_ptr<tracker_element_serializer::rename_map> name_map) {
 
     if (e == nullptr) {
@@ -772,7 +772,7 @@ void StorageJsonAdapter::pack(std::ostream &stream, shared_tracker_element e,
                     stream << ",";
                 prepend_comma = true;
 
-                StorageJsonAdapter::pack(stream, i, name_map);
+                storage_json_adapter::pack(stream, i, name_map);
             }
             stream << "]";
             break;
@@ -839,7 +839,7 @@ void StorageJsonAdapter::pack(std::ostream &stream, shared_tracker_element e,
 
                 stream << "\"" << tname << "\":";
 
-                StorageJsonAdapter::pack(stream, i.second, name_map);
+                storage_json_adapter::pack(stream, i.second, name_map);
             }
             stream << "}";
 
@@ -858,7 +858,7 @@ void StorageJsonAdapter::pack(std::ostream &stream, shared_tracker_element e,
 
                 // Integer dictionary keys in json are still quoted as strings
                 stream << "\"" << i.first << "\": ";
-                StorageJsonAdapter::pack(stream, i.second, name_map);
+                storage_json_adapter::pack(stream, i.second, name_map);
             }
             stream << "}";
             break;
@@ -876,7 +876,7 @@ void StorageJsonAdapter::pack(std::ostream &stream, shared_tracker_element e,
 
                 // Mac keys are strings and we push only the mac not the mask */
                 stream << "\"" << i.first << "\": ";
-                StorageJsonAdapter::pack(stream, i.second, name_map);
+                storage_json_adapter::pack(stream, i.second, name_map);
             }
             stream << "}";
             break;
@@ -893,7 +893,7 @@ void StorageJsonAdapter::pack(std::ostream &stream, shared_tracker_element e,
                 prepend_comma = true;
 
                 stream << "\"" << json_adapter::sanitize_string(i.first) << "\": ";
-                StorageJsonAdapter::pack(stream, i.second, name_map);
+                storage_json_adapter::pack(stream, i.second, name_map);
             }
             stream << "}";
             break;
@@ -911,7 +911,7 @@ void StorageJsonAdapter::pack(std::ostream &stream, shared_tracker_element e,
 
                 // Double keys are handled as strings in json
                 stream << "\"" << std::fixed << i.first << "\": ";
-                StorageJsonAdapter::pack(stream, i.second, name_map);
+                storage_json_adapter::pack(stream, i.second, name_map);
             }
             stream << "}";
             break;
@@ -929,7 +929,7 @@ void StorageJsonAdapter::pack(std::ostream &stream, shared_tracker_element e,
 
                 // Double keys are handled as strings in json
                 stream << "\"" << std::fixed << i.first << "\": ";
-                StorageJsonAdapter::pack(stream, i.second, name_map);
+                storage_json_adapter::pack(stream, i.second, name_map);
             }
             stream << "}";
             break;
@@ -962,7 +962,7 @@ void StorageJsonAdapter::pack(std::ostream &stream, shared_tracker_element e,
 
                 // Keymap keys are handled as strings
                 stream << "\"" << i.first << "\": ";
-                StorageJsonAdapter::pack(stream, i.second, name_map);
+                storage_json_adapter::pack(stream, i.second, name_map);
             }
             stream << "}";
             break;

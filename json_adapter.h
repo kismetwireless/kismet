@@ -126,7 +126,7 @@ public:
 // ...
 // }
 
-namespace StorageJsonAdapter {
+namespace storage_json_adapter {
 
 void pack(std::ostream &stream, shared_tracker_element e,
         std::shared_ptr<tracker_element_serializer::rename_map> name_map = nullptr);

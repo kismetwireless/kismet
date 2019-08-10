@@ -2114,7 +2114,7 @@ int device_tracker_state_store::store_devices(std::shared_ptr<tracker_element_ve
                 // pack a storage formatted blob
                 {
                     local_locker lock(&(devicetracker->devicelist_mutex));
-                    StorageJsonAdapter::pack(*serialstream, d, NULL);
+                    storage_json_adapter::pack(*serialstream, d, NULL);
                 }
 
                 // Sync the buffers

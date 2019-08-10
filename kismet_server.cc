@@ -758,7 +758,7 @@ int main(int argc, char *argv[], char *envp[]) {
     entrytracker->register_serializer("json", std::make_shared<json_adapter::serializer>());
     entrytracker->register_serializer("ekjson", std::make_shared<ek_json_adapter::serializer>());
     entrytracker->register_serializer("prettyjson", std::make_shared<pretty_json_adapter::serializer>());
-    entrytracker->register_serializer("storagejson", std::make_shared<StorageJsonAdapter::serializer>());
+    entrytracker->register_serializer("storagejson", std::make_shared<storage_json_adapter::serializer>());
 
     entrytracker->register_serializer("jcmd", std::make_shared<json_adapter::serializer>());
     entrytracker->register_serializer("cmd", std::make_shared<json_adapter::serializer>());
