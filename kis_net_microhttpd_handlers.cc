@@ -66,7 +66,7 @@ std::string kis_net_httpd_handler::Httpd_StripSuffix(const std::string& path) {
     return httpd->strip_suffix(path);
 }
 
-int kis_net_httpd_cppstream_handler::Httpd_HandleGetRequest(kis_net_httpd *httpd, 
+int kis_net_httpd_cppstream_handler::httpd_handle_get_request(kis_net_httpd *httpd, 
         kis_net_httpd_connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
@@ -343,7 +343,7 @@ static void free_buffer_aux_callback(void *cls) {
     delete(aux);
 }
 
-int kis_net_httpd_buffer_stream_handler::Httpd_HandleGetRequest(kis_net_httpd *httpd, 
+int kis_net_httpd_buffer_stream_handler::httpd_handle_get_request(kis_net_httpd *httpd, 
         kis_net_httpd_connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {

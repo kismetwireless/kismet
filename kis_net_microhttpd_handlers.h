@@ -44,7 +44,7 @@ public:
     // Handle a GET request; must allocate the response mechanism via
     // MHD_create_response_from_... and will typically call some other
     // function to generate the data for the response
-    virtual int Httpd_HandleGetRequest(kis_net_httpd *httpd,
+    virtual int httpd_handle_get_request(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) = 0;
@@ -139,7 +139,7 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream) = 0;
 
-    virtual int Httpd_HandleGetRequest(kis_net_httpd *httpd, 
+    virtual int httpd_handle_get_request(kis_net_httpd *httpd, 
             kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size);
@@ -174,7 +174,7 @@ public:
     }
     virtual ~kis_net_httpd_buffer_stream_handler();
 
-    virtual int Httpd_HandleGetRequest(kis_net_httpd *httpd,
+    virtual int httpd_handle_get_request(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size);

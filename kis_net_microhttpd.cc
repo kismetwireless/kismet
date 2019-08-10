@@ -933,7 +933,7 @@ int kis_net_httpd::http_request_handler(void *cls, struct MHD_Connection *connec
                     return MHD_YES;
                 }, concls);
        
-        ret = (concls->httpdhandler)->Httpd_HandleGetRequest(kishttpd, concls, url.c_str(), method, 
+        ret = (concls->httpdhandler)->httpd_handle_get_request(kishttpd, concls, url.c_str(), method, 
                 upload_data, upload_data_size);
     }
 
