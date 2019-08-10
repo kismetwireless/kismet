@@ -208,7 +208,7 @@ unsigned int kis_database::database_get_db_version() {
     return v;
 }
 
-bool kis_database::Database_SetDBVersion(unsigned int version) {
+bool kis_database::database_set_db_version(unsigned int version) {
     local_locker dblock(&ds_mutex);
 
     if (db == NULL)

@@ -82,7 +82,7 @@ protected:
 
     // Force-set db version, to be called after upgrading the db or
     // creating a new db
-    virtual bool Database_SetDBVersion(unsigned int in_version);
+    virtual bool database_set_db_version(unsigned int in_version);
 
     global_registry *globalreg;
 

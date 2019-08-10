@@ -705,7 +705,7 @@ int kis_database_logfile::database_upgrade_db() {
         return -1;
     }
 
-    Database_SetDBVersion(6);
+    database_set_db_version(6);
 
     // Prepare the statements we'll need later
     //

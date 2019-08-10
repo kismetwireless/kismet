@@ -1275,7 +1275,7 @@ int device_tracker::database_upgrade_db() {
         }
     }
 
-    Database_SetDBVersion(4);
+    database_set_db_version(4);
 
     return 0;
 }
@@ -1843,7 +1843,7 @@ int device_tracker_state_store::database_upgrade_db() {
         }
     }
 
-    Database_SetDBVersion(2);
+    database_set_db_version(2);
 
     return 0;
 }
