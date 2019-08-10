@@ -348,7 +348,7 @@ public:
     int start_httpd();
     int stop_httpd();
 
-    bool HttpdRunning() { return running; }
+    bool httpd_running() { return running; }
     unsigned int FetchPort() { return http_port; };
     bool FetchUsingSSL() { return use_ssl; };
 
