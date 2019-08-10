@@ -532,7 +532,7 @@ void kis_external_http_interface::handle_packet_http_register(uint32_t in_seqno,
         return;
     }
 
-    struct KisExternalHttpUri *exturi = new KisExternalHttpUri();
+    struct kis_external_http_uri *exturi = new kis_external_http_uri();
     
     exturi->uri = uri.uri();
     exturi->method = uri.method();

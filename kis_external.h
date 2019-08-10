@@ -50,7 +50,7 @@ struct kis_external_http_session {
     std::shared_ptr<conditional_locker<int> > locker;
 };
 
-struct KisExternalHttpUri {
+struct kis_external_http_uri {
     std::string uri;
     std::string method;
     bool auth_req;
@@ -185,7 +185,7 @@ protected:
     // Valid URIs, mapped by method (GET, POST, etc); these are matched in
     // httpd_verify_path and then passed on; if a URI is present here, it's mapped
     // to true
-    std::map<std::string, std::vector<struct KisExternalHttpUri *> > http_proxy_uri_map;
+    std::map<std::string, std::vector<struct kis_external_http_uri *> > http_proxy_uri_map;
 
     // Map request identities
     uint32_t http_session_id;
