@@ -34,13 +34,13 @@
 class buffer_interface;
 
 // Common minimal API for a buffer
-class CommonBuffer {
+class common_buffer {
 public:
-    CommonBuffer() :
+    common_buffer() :
         write_reserved {false},
         peek_reserved {false} { }
 
-    virtual ~CommonBuffer() { };
+    virtual ~common_buffer() { };
 
     // Clear all data (and free memory used, for dynamic buffers)
     virtual void clear() = 0;
@@ -189,7 +189,7 @@ public:
     //
     // Consumers MUST conclude a peek operation with PeekFreeReadBufferData(...) or
     // PeekFreeWriteBufferData(...), and may not perform multiple peeks simultaneously;
-    // refer to the comments for CommonBuffer
+    // refer to the comments for common_buffer
     //
     // Returns amount peeked
     virtual ssize_t PeekReadBufferData(void **in_ptr, size_t in_sz);
@@ -304,8 +304,8 @@ public:
 
 protected:
     // Generic buffers
-    CommonBuffer *read_buffer;
-    CommonBuffer *write_buffer;
+    common_buffer *read_buffer;
+    common_buffer *write_buffer;
 
     // Interfaces we notify when there has been activity on a buffer; use atomic booleans
     // to indicate if the function is available

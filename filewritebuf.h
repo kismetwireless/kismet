@@ -29,7 +29,7 @@
 //
 // MAY THROW EXCEPTIONS on construction if the file cannot be opened
 
-class FileWritebuf : public CommonBuffer {
+class FileWritebuf : public common_buffer {
 public:
     // Specify a file and a block size
     FileWritebuf(std::string in_path, size_t chunk_sz);
