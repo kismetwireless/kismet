@@ -23,19 +23,19 @@
 
 #include "kis_datasource.h"
 
-class KisDatasourceKismetdb;
-typedef std::shared_ptr<KisDatasourceKismetdb> SharedDatasourceKismetdb;
+class kis_datasource_kismetdb;
+typedef std::shared_ptr<kis_datasource_kismetdb> SharedDatasourceKismetdb;
 
-class KisDatasourceKismetdb : public kis_datasource {
+class kis_datasource_kismetdb : public kis_datasource {
 public:
-    KisDatasourceKismetdb(shared_datasource_builder in_builder) :
+    kis_datasource_kismetdb(shared_datasource_builder in_builder) :
         kis_datasource(in_builder) {
 
         // Set the capture binary
         set_int_source_ipc_binary("kismet_cap_kismetdb");
     }
 
-    virtual ~KisDatasourceKismetdb() { };
+    virtual ~kis_datasource_kismetdb() { };
 
     // Almost all of the logic is implemented in the capture binary and derived
     // from our prototype; all the list, probe, etc functions proxy to our binary
@@ -83,7 +83,7 @@ public:
     virtual ~DatasourceKismetdbBuilder() { }
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) {
-        return SharedDatasourceKismetdb(new KisDatasourceKismetdb(in_sh_this));
+        return SharedDatasourceKismetdb(new kis_datasource_kismetdb(in_sh_this));
     }
 
     virtual void initialize() {
