@@ -295,7 +295,7 @@ public:
     // Propagate a protocol-layer error to any line-drivers (protocol parser
     // to line drivers).  We don't pass a string to the line drivers because
     // the protocol driver should present the error usefully
-    virtual void ProtocolError();
+    virtual void protocol_error();
     // Set a protocol error callback; line level drivers should set this and initiate
     // a shutdown of the line connections
     virtual void SetProtocolErrorCb(std::function<void (void)> in_cb);

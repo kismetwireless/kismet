@@ -1148,7 +1148,7 @@ void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,
             "'{}' defined as '{}'; make sure that Kismet was compiled with all the "
             "data source drivers and that any necessary plugins have been loaded.",
             in_type, in_definition);
-    in_handler->ProtocolError();
+    in_handler->protocol_error();
 
 }
 

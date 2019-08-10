@@ -311,7 +311,7 @@ static void free_buffer_aux_callback(void *cls) {
 
     aux->get_buffer_event_mutex()->lock();
 
-    aux->ringbuf_handler->ProtocolError();
+    aux->ringbuf_handler->protocol_error();
 
     // Consume any backlog if the thread is still processing
     std::shared_ptr<buffer_handler_generic> rbh = aux->get_rbhandler();

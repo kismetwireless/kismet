@@ -424,7 +424,7 @@ void buffer_handler_generic::SetProtocolErrorCb(std::function<void (void)> in_cb
     protoerror_cb = in_cb;
 }
 
-void buffer_handler_generic::ProtocolError() {
+void buffer_handler_generic::protocol_error() {
     // Use a write locker because future things may need RW access, too
     local_locker lock(handler_mutex);
 

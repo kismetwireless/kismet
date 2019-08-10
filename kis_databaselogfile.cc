@@ -1803,7 +1803,7 @@ Pcap_Stream_Database::~Pcap_Stream_Database() {
 }
 
 void Pcap_Stream_Database::stop_stream(std::string in_reason) {
-    handler->ProtocolError();
+    handler->protocol_error();
 }
 
 void Pcap_Stream_Database::add_database_interface(const std::string& in_uuid, const std::string& in_interface,

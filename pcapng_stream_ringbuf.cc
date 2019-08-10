@@ -57,7 +57,7 @@ Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(global_registry *in_globalreg,
 }
 
 Pcap_Stream_Ringbuf::~Pcap_Stream_Ringbuf() {
-    handler->ProtocolError();
+    handler->protocol_error();
 }
 
 int Pcap_Stream_Ringbuf::lock_until_writeable(ssize_t req_bytes) {
@@ -185,7 +185,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_shb(std::string in_hw, std::string in_os, s
     write_sz = handler->put_write_buffer_data(buf, buf_sz, true);
 
     if (write_sz != buf_sz) {
-        handler->ProtocolError();
+        handler->protocol_error();
         delete[] buf;
         return -1;
     }
@@ -198,7 +198,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_shb(std::string in_hw, std::string in_os, s
     write_sz = handler->put_write_buffer_data(end_sz, 4, true);
 
     if (write_sz != 4) {
-        handler->ProtocolError();
+        handler->protocol_error();
         delete[] buf;
         return -1;
     }
@@ -300,7 +300,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, std::stri
     write_sz = handler->put_write_buffer_data(retbuf, buf_sz, true);
 
     if (write_sz != buf_sz) {
-        handler->ProtocolError();
+        handler->protocol_error();
         delete[] retbuf;
         return -1;
     }
@@ -313,7 +313,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, std::stri
     write_sz = handler->put_write_buffer_data(end_sz, 4, true);
 
     if (write_sz != 4) {
-        handler->ProtocolError();
+        handler->protocol_error();
         delete[] retbuf;
         return -1;
     }
@@ -368,7 +368,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
 
     if (r != (ssize_t) buf_sz) {
         handler->commit_write_buffer_data(NULL, 0);
-        handler->ProtocolError();
+        handler->protocol_error();
         return -1;
     }
 
@@ -394,7 +394,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
     write_sz = handler->commit_write_buffer_data(retbuf, buf_sz);
 
     if (!write_sz) {
-        handler->ProtocolError();
+        handler->protocol_error();
         return -1;
     }
 
@@ -406,7 +406,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
         write_sz = handler->put_write_buffer_data(db.data, db.len, true);
 
         if (write_sz != db.len) {
-            handler->ProtocolError();
+            handler->protocol_error();
             return -1;
         }
 
@@ -423,7 +423,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
         write_sz = handler->put_write_buffer_data(&pad, pad_sz, true);
 
         if (write_sz != pad_sz) {
-            handler->ProtocolError();
+            handler->protocol_error();
             return -1;
         }
 
@@ -434,7 +434,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
     retbuf = new uint8_t[sizeof(pcapng_option_t)];
 
     if (retbuf == NULL) {
-        handler->ProtocolError();
+        handler->protocol_error();
         return -1;
     }
 
@@ -446,7 +446,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
     write_sz = handler->put_write_buffer_data(retbuf, sizeof(pcapng_option_t), true);
 
     if (write_sz != sizeof(pcapng_option_t)) {
-        handler->ProtocolError();
+        handler->protocol_error();
         delete[] retbuf;
         return -1;
     }
@@ -461,7 +461,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
     write_sz = handler->put_write_buffer_data(end_sz, 4, true);
 
     if (write_sz != 4) {
-        handler->ProtocolError();
+        handler->protocol_error();
         return -1;
     }
 
@@ -544,7 +544,7 @@ void Pcap_Stream_Ringbuf::handle_packet(kis_packet *in_packet) {
 
     // Bail if this pushes us over the max
     if (check_over_size() || check_over_packets()) {
-        handler->ProtocolError();
+        handler->protocol_error();
     }
 }
 
@@ -562,7 +562,7 @@ Pcap_Stream_Packetchain::Pcap_Stream_Packetchain(global_registry *in_globalreg,
 
 Pcap_Stream_Packetchain::~Pcap_Stream_Packetchain() {
     packetchain->RemoveHandler(packethandler_id, CHAINPOS_LOGGING);
-    handler->ProtocolError();
+    handler->protocol_error();
 }
 
 void Pcap_Stream_Packetchain::stop_stream(std::string in_reason) {

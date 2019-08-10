@@ -25,11 +25,11 @@ Streambuf_Stream_Buffer::Streambuf_Stream_Buffer(global_registry *in_globalreg,
         streambuf(in_handler, in_blocking) { }
 
 Streambuf_Stream_Buffer::~Streambuf_Stream_Buffer() {
-    handler->ProtocolError();
+    handler->protocol_error();
 }
 
 void Streambuf_Stream_Buffer::stop_stream(std::string in_reason __attribute__((unused))) {
-    handler->ProtocolError();
+    handler->protocol_error();
 }
 
 std::ostream *Streambuf_Stream_Buffer::get_ostream() {

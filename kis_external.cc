@@ -48,7 +48,7 @@ KisExternalInterface::~KisExternalInterface() {
     // to shut it down, and delete our shared reference to it
     if (ringbuf_handler != nullptr) {
         ringbuf_handler->remove_read_buffer_interface();
-        ringbuf_handler->ProtocolError();
+        ringbuf_handler->protocol_error();
     }
 
     ipc_remote.reset();
@@ -77,7 +77,7 @@ void KisExternalInterface::trigger_error(std::string in_error) {
     // to shut it down, and delete our shared reference to it
     if (ringbuf_handler != nullptr) {
         ringbuf_handler->remove_read_buffer_interface();
-        ringbuf_handler->ProtocolError();
+        ringbuf_handler->protocol_error();
     }
 
     // Remove the IPC remote reference
@@ -249,7 +249,7 @@ bool KisExternalInterface::run_ipc() {
 
     if (ringbuf_handler != nullptr) {
         ringbuf_handler->remove_read_buffer_interface();
-        ringbuf_handler->ProtocolError();
+        ringbuf_handler->protocol_error();
     }
 
     // Make a new handler and new ipc.  Give a generous buffer.
@@ -303,7 +303,7 @@ void KisExternalInterface::close_external() {
 
     if (ringbuf_handler != nullptr) {
         ringbuf_handler->remove_read_buffer_interface();
-        ringbuf_handler->ProtocolError();
+        ringbuf_handler->protocol_error();
     }
 
     ipc_remote.reset();
