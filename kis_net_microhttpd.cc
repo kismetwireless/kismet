@@ -417,7 +417,7 @@ void kis_net_httpd::RemoveUnauthHandler(kis_net_httpd_handler *in_handler) {
     }
 }
 
-int kis_net_httpd::StartHttpd() {
+int kis_net_httpd::start_httpd() {
     local_locker lock(&controller_mutex);
 
     if (use_ssl) {

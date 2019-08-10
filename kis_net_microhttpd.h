@@ -345,7 +345,7 @@ private:
 public:
     virtual ~kis_net_httpd();
 
-    int StartHttpd();
+    int start_httpd();
     int StopHttpd();
 
     bool HttpdRunning() { return running; }
