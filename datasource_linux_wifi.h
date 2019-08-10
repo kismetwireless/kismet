@@ -47,10 +47,10 @@ public:
 };
 
 
-class DatasourceLinuxWifiBuilder : public KisDatasourceBuilder {
+class DatasourceLinuxWifiBuilder : public kis_datasource_builder {
 public:
     DatasourceLinuxWifiBuilder(int in_id) :
-        KisDatasourceBuilder(in_id) {
+        kis_datasource_builder(in_id) {
 
         register_fields();
         reserve_fields(NULL);
@@ -58,7 +58,7 @@ public:
     }
 
     DatasourceLinuxWifiBuilder(int in_id, std::shared_ptr<tracker_element_map> e) :
-        KisDatasourceBuilder(in_id, e) {
+        kis_datasource_builder(in_id, e) {
 
         register_fields();
         reserve_fields(e);
@@ -66,7 +66,7 @@ public:
     }
 
     DatasourceLinuxWifiBuilder() :
-        KisDatasourceBuilder() {
+        kis_datasource_builder() {
 
         register_fields();
         reserve_fields(NULL);

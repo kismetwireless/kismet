@@ -154,7 +154,7 @@ void DST_DatasourceProbe::probe_sources(std::function<void (shared_datasource_bu
     }
 
     for (auto i : *proto_vec) {
-        auto b = std::static_pointer_cast<KisDatasourceBuilder>(i);
+        auto b = std::static_pointer_cast<kis_datasource_builder>(i);
 
         if (!b->get_probe_capable())
             continue;
@@ -268,7 +268,7 @@ void DST_DatasourceList::list_sources(std::function<void (std::vector<SharedInte
     bool created_ipc = false;
 
     for (auto i : *proto_vec) {
-        shared_datasource_builder b = std::static_pointer_cast<KisDatasourceBuilder>(i);
+        shared_datasource_builder b = std::static_pointer_cast<kis_datasource_builder>(i);
 
         if (!b->get_list_capable())
             continue;
@@ -305,7 +305,7 @@ Datasourcetracker::Datasourcetracker() :
 
     proto_id = 
         Globalreg::globalreg->entrytracker->register_field("kismet.datasourcetracker.driver",
-                tracker_element_factory<KisDatasourceBuilder>(),
+                tracker_element_factory<kis_datasource_builder>(),
                 "Datasource driver information");
 
     source_id =
@@ -763,7 +763,7 @@ int Datasourcetracker::register_datasource(shared_datasource_builder in_builder)
     local_locker lock(&dst_lock);
 
     for (auto i : *proto_vec) {
-        shared_datasource_builder b = std::static_pointer_cast<KisDatasourceBuilder>(i);
+        shared_datasource_builder b = std::static_pointer_cast<kis_datasource_builder>(i);
 
         if (StrLower(b->get_source_type()) == StrLower(in_builder->get_source_type())) {
             _MSG_ERROR("Already registered a data source for type '{}', check that you don't have "
@@ -820,7 +820,7 @@ void Datasourcetracker::open_datasource(const std::string& in_source,
         bool proto_found = false;
 
         for (auto i : *proto_vec) {
-            proto = std::static_pointer_cast<KisDatasourceBuilder>(i);
+            proto = std::static_pointer_cast<kis_datasource_builder>(i);
 
             if (StrLower(proto->get_source_type()) == StrLower(type)) {
                 proto_found = true;
@@ -1121,7 +1121,7 @@ void Datasourcetracker::open_remote_datasource(dst_incoming_remote *incoming,
 
     // Otherwise look for a prototype that can handle it
     for (auto p : *proto_vec) {
-        shared_datasource_builder b = std::static_pointer_cast<KisDatasourceBuilder>(p);
+        shared_datasource_builder b = std::static_pointer_cast<kis_datasource_builder>(p);
 
         if (!b->get_remote_capable())
             continue;

@@ -39,8 +39,8 @@
 #include "protobuf_cpp/datasource.pb.h"
 
 // Builder class responsible for making an instance of this datasource
-class KisDatasourceBuilder;
-typedef std::shared_ptr<KisDatasourceBuilder> shared_datasource_builder;
+class kis_datasource_builder;
+typedef std::shared_ptr<kis_datasource_builder> shared_datasource_builder;
 
 // Auto-discovered interface
 class KisDatasourceInterface;
@@ -52,23 +52,23 @@ class KisDatasourceCapKeyedObject;
 class Datasourcetracker;
 class kis_datasource;
 
-class KisDatasourceBuilder : public tracker_component {
+class kis_datasource_builder : public tracker_component {
 public:
-    KisDatasourceBuilder() :
+    kis_datasource_builder() :
         tracker_component(0) {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    KisDatasourceBuilder(int in_id) :
+    kis_datasource_builder(int in_id) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    KisDatasourceBuilder(int in_id, std::shared_ptr<tracker_element_map> e) :
+    kis_datasource_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -76,7 +76,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return adler32_checksum("KisDatasourceBuilder");
+        return adler32_checksum("kis_datasource_builder");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
@@ -91,7 +91,7 @@ public:
         return std::move(dup);
     }
 
-    virtual ~KisDatasourceBuilder() { };
+    virtual ~kis_datasource_builder() { };
 
     virtual void initialize() { };
 
@@ -101,7 +101,7 @@ public:
     // in the input.
     // Typical implementation:
     // return SharedDatasource(new SomeKismetDatasource(globalreg, in_shared_builder));
-    virtual std::shared_ptr<kis_datasource> build_datasource(std::shared_ptr<KisDatasourceBuilder>
+    virtual std::shared_ptr<kis_datasource> build_datasource(std::shared_ptr<kis_datasource_builder>
             in_shared_builder __attribute__((unused))) { return NULL; };
 
     __Proxy(source_type, std::string, std::string, std::string, source_type);
@@ -314,7 +314,7 @@ public:
     __ProxyMS(source_key, uint32_t, uint32_t, uint32_t, source_key, ext_mutex);
 
     // Prototype/driver definition
-    __ProxyTrackableMS(source_builder, KisDatasourceBuilder, source_builder, ext_mutex);
+    __ProxyTrackableMS(source_builder, kis_datasource_builder, source_builder, ext_mutex);
 
     // Read-only access to the source state; this mirrors the state in the capture
     // binary. Set commands queue a command to the binary and then update as
@@ -550,7 +550,7 @@ protected:
     __ProxyTrackableMS(int_source_hop_vec, tracker_element_vector, source_hop_vec, ext_mutex);
 
     // Prototype object which created us, defines our overall capabilities
-    std::shared_ptr<KisDatasourceBuilder> source_builder;
+    std::shared_ptr<kis_datasource_builder> source_builder;
 
     // RW fields, they're relevant only to Kismet
     std::shared_ptr<tracker_element_string> source_name;
@@ -750,7 +750,7 @@ public:
     __Proxy(interface, std::string, std::string, std::string, interface);
     __ProxyTrackable(options_vec, tracker_element_vector, options_vec);
 
-    __ProxyTrackable(prototype, KisDatasourceBuilder, prototype);
+    __ProxyTrackable(prototype, kis_datasource_builder, prototype);
 
     __Proxy(in_use_uuid, uuid, uuid, uuid, in_use_uuid);
 
@@ -797,7 +797,7 @@ protected:
     std::shared_ptr<tracker_element_string> interface;
     std::shared_ptr<tracker_element_vector> options_vec;
 
-    std::shared_ptr<KisDatasourceBuilder> prototype;
+    std::shared_ptr<kis_datasource_builder> prototype;
 
     std::shared_ptr<tracker_element_uuid> in_use_uuid;
     std::shared_ptr<tracker_element_string> hardware;

@@ -37,24 +37,24 @@ protected:
 
 };
 
-class DatasourceRtladsbBuilder : public KisDatasourceBuilder {
+class DatasourceRtladsbBuilder : public kis_datasource_builder {
 public:
     DatasourceRtladsbBuilder() :
-        KisDatasourceBuilder() {
+        kis_datasource_builder() {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
     DatasourceRtladsbBuilder(int in_id) :
-        KisDatasourceBuilder(in_id) {
+        kis_datasource_builder(in_id) {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
     DatasourceRtladsbBuilder(int in_id, std::shared_ptr<tracker_element_map> e) :
-        KisDatasourceBuilder(in_id, e) {
+        kis_datasource_builder(in_id, e) {
 
         register_fields();
         reserve_fields(e);
@@ -80,24 +80,24 @@ public:
     }
 };
 
-class DatasourceRtladsbMqttBuilder : public KisDatasourceBuilder {
+class DatasourceRtladsbMqttBuilder : public kis_datasource_builder {
 public:
     DatasourceRtladsbMqttBuilder() :
-        KisDatasourceBuilder() {
+        kis_datasource_builder() {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
     DatasourceRtladsbMqttBuilder(int in_id) :
-        KisDatasourceBuilder(in_id) {
+        kis_datasource_builder(in_id) {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
     DatasourceRtladsbMqttBuilder(int in_id, std::shared_ptr<tracker_element_map> e) :
-        KisDatasourceBuilder(in_id, e) {
+        kis_datasource_builder(in_id, e) {
         register_fields();
         reserve_fields(e);
         initialize();
