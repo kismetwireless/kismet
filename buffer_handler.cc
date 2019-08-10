@@ -299,7 +299,7 @@ void buffer_handler_generic::TriggerReadCallback(size_t in_sz) {
     }
 }
 
-bool buffer_handler_generic::CommitReadBufferData(void *in_ptr, size_t in_sz) {
+bool buffer_handler_generic::commit_read_buffer_data(void *in_ptr, size_t in_sz) {
     bool s = false;
 
     {

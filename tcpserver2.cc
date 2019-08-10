@@ -229,14 +229,14 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                 if (ret < 0) {
                     if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
                         // Dump the commit, we didn't get any data
-                        i->second->CommitReadBufferData(buf, 0);
+                        i->second->commit_read_buffer_data(buf, 0);
 
                         break;
                     } else {
                         // Push the error upstream if we failed to read here
 
                         // Dump the commit
-                        i->second->CommitReadBufferData(buf, 0);
+                        i->second->commit_read_buffer_data(buf, 0);
                         i->second->BufferError(msg.str());
 
                         KillConnection(i->first);
@@ -248,7 +248,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                         " - connection closed by remote side";
                     _MSG(msg.str(), MSGFLAG_ERROR);
                     // Dump the commit
-                    i->second->CommitReadBufferData(buf, 0);
+                    i->second->commit_read_buffer_data(buf, 0);
                     i->second->BufferError(msg.str());
 
                     KillConnection(i->first);
@@ -256,7 +256,7 @@ int TcpServerV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                     break;
                 } else {
                     // Commit the data
-                    iret = i->second->CommitReadBufferData(buf, ret);
+                    iret = i->second->commit_read_buffer_data(buf, ret);
 
                     if (!iret) {
                         // Die if we somehow couldn't insert all our data once we

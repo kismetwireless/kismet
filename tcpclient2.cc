@@ -213,7 +213,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
             // We ought to never hit this because it ought to always be available
             // from the above while loop, but lets be extra cautious
             if (len <= 0) {
-                handler->CommitReadBufferData(buf, 0);
+                handler->commit_read_buffer_data(buf, 0);
                 break;
             }
 
@@ -222,7 +222,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
             if (ret < 0) {
                 if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
                     // Dump the commit, we didn't get any data
-                    handler->CommitReadBufferData(buf, 0);
+                    handler->commit_read_buffer_data(buf, 0);
 
                     break;
                 } else {
@@ -231,7 +231,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                             host, port, kis_strerror_r(errno), errno);
 
                     // Dump the commit
-                    handler->CommitReadBufferData(buf, 0);
+                    handler->commit_read_buffer_data(buf, 0);
                     handler->BufferError(msg);
 
                     Disconnect();
@@ -241,14 +241,14 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                 msg = fmt::format("TCP client closing connection to {}:{}, connection closed by remote",
                         host, port);
                 // Dump the commit
-                handler->CommitReadBufferData(buf, 0);
+                handler->commit_read_buffer_data(buf, 0);
                 handler->BufferError(msg);
 
                 Disconnect();
                 return 0;
             } else {
                 // Process the data we got
-                iret = handler->CommitReadBufferData(buf, ret);
+                iret = handler->commit_read_buffer_data(buf, ret);
 
                 if (!iret) {
                     // Die if we couldn't insert all our data, the error is already going

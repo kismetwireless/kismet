@@ -143,7 +143,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
                         msg << "Pipe client error reading - " << kis_strerror_r(errno);
                     }
 
-                    handler->CommitReadBufferData(buf, 0);
+                    handler->commit_read_buffer_data(buf, 0);
                     handler->BufferError(msg.str());
 
                     ClosePipes();
@@ -151,12 +151,12 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
                     return 0;
                 } else {
                     // Jump out of read loop
-                    handler->CommitReadBufferData(buf, 0);
+                    handler->commit_read_buffer_data(buf, 0);
                     break;
                 }
             } else {
                 // Insert into buffer
-                iret = handler->CommitReadBufferData(buf, ret);
+                iret = handler->commit_read_buffer_data(buf, ret);
 
                 if (!iret) {
                     // Die if we couldn't insert all our data, the error is already going
@@ -229,7 +229,7 @@ int PipeClient::FlushRead() {
                         msg << "Pipe client error reading - " << kis_strerror_r(errno);
                     }
 
-                    handler->CommitReadBufferData(buf, 0);
+                    handler->commit_read_buffer_data(buf, 0);
                     handler->BufferError(msg.str());
 
                     ClosePipes();
@@ -237,11 +237,11 @@ int PipeClient::FlushRead() {
                     return 0;
                 } else {
                     // Jump out of read loop
-                    handler->CommitReadBufferData(buf, 0);
+                    handler->commit_read_buffer_data(buf, 0);
                     break;
                 }
             } else {
-                iret = handler->CommitReadBufferData(buf, ret);
+                iret = handler->commit_read_buffer_data(buf, ret);
 
                 if (!iret) {
                     ClosePipes();

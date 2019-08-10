@@ -183,18 +183,18 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                             baud << " - " << kis_strerror_r(errno);
                     }
 
-                    handler->CommitReadBufferData(buf, 0);
+                    handler->commit_read_buffer_data(buf, 0);
                     handler->BufferError(msg.str());
 
                     Close();
                     return 0;
                 } else {
-                    handler->CommitReadBufferData(buf, 0);
+                    handler->commit_read_buffer_data(buf, 0);
                     break;
                 }
             } else {
                 // Insert into buffer
-                iret = handler->CommitReadBufferData(buf, ret);
+                iret = handler->commit_read_buffer_data(buf, ret);
 
                 if (!iret) {
                     // Die if we couldn't insert all our data, the error is already going
