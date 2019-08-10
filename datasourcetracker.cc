@@ -36,7 +36,7 @@
 #include "endian_magic.h"
 #include "kis_databaselogfile.h"
 
-DST_DatasourceProbe::DST_DatasourceProbe(std::string in_definition, 
+datasource_tracker_source_probe::datasource_tracker_source_probe(std::string in_definition, 
         std::shared_ptr<tracker_element_vector> in_protovec) {
 
     timetracker = Globalreg::FetchMandatoryGlobalAs<time_tracker>("TIMETRACKER");
@@ -49,7 +49,7 @@ DST_DatasourceProbe::DST_DatasourceProbe(std::string in_definition,
     cancelled = false;
 }
 
-DST_DatasourceProbe::~DST_DatasourceProbe() {
+datasource_tracker_source_probe::~datasource_tracker_source_probe() {
     // Cancel any timers
     for (auto i : cancel_timer_vec)
         timetracker->RemoveTimer(i);
@@ -59,7 +59,7 @@ DST_DatasourceProbe::~DST_DatasourceProbe() {
         i.second->close_source();
 }
 
-void DST_DatasourceProbe::cancel() {
+void datasource_tracker_source_probe::cancel() {
     {
         local_locker lock(&probe_lock);
 
@@ -85,12 +85,12 @@ void DST_DatasourceProbe::cancel() {
         probe_cb(source_builder);
 }
 
-shared_datasource_builder DST_DatasourceProbe::get_proto() {
+shared_datasource_builder datasource_tracker_source_probe::get_proto() {
     local_locker lock(&probe_lock);
     return source_builder;
 }
 
-void DST_DatasourceProbe::complete_probe(bool in_success, unsigned int in_transaction,
+void datasource_tracker_source_probe::complete_probe(bool in_success, unsigned int in_transaction,
         std::string in_reason __attribute__((unused))) {
     local_locker lock(&probe_lock);
 
@@ -129,7 +129,7 @@ void DST_DatasourceProbe::complete_probe(bool in_success, unsigned int in_transa
     }
 }
 
-void DST_DatasourceProbe::probe_sources(std::function<void (shared_datasource_builder)> in_cb) {
+void datasource_tracker_source_probe::probe_sources(std::function<void (shared_datasource_builder)> in_cb) {
     {
         local_locker lock(&probe_lock);
         probe_cb = in_cb;
@@ -854,7 +854,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
     _MSG_INFO("Probing interface '{}' to find datasource type", interface);
 
     // Create a DSTProber to handle the probing
-    SharedDSTProbe dst_probe(new DST_DatasourceProbe(in_source, proto_vec));
+    SharedDSTProbe dst_probe(new datasource_tracker_source_probe(in_source, proto_vec));
     unsigned int probeid = ++next_probe_id;
 
     // Record and initiate it

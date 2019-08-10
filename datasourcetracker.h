@@ -97,10 +97,10 @@ public:
 // probes are cancelled.
 //
 // After 5 seconds, probing is cancelled.
-class DST_DatasourceProbe {
+class datasource_tracker_source_probe {
 public:
-    DST_DatasourceProbe(std::string in_definition, std::shared_ptr<tracker_element_vector> in_protovec);
-    virtual ~DST_DatasourceProbe();
+    datasource_tracker_source_probe(std::string in_definition, std::shared_ptr<tracker_element_vector> in_protovec);
+    virtual ~datasource_tracker_source_probe();
 
     void probe_sources(std::function<void (shared_datasource_builder)> in_cb);
 
@@ -141,7 +141,7 @@ protected:
     std::atomic<bool> cancelled;
 };
 
-typedef std::shared_ptr<DST_DatasourceProbe> SharedDSTProbe;
+typedef std::shared_ptr<datasource_tracker_source_probe> SharedDSTProbe;
 
 // List all interface supported by a phy
 //
