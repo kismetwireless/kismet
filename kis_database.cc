@@ -40,7 +40,7 @@ kis_database::~kis_database() {
     }
 }
 
-bool kis_database::Database_Open(std::string in_file_path) {
+bool kis_database::database_open(std::string in_file_path) {
     char *sErrMsg = NULL;
 
     if (in_file_path.length() == 0) {

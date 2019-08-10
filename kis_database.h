@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -58,7 +58,7 @@ class kis_database {
     // system
 protected:
     // Initialize a database w/ a known module name; opening the database is done with
-    // Database_Open(...)
+    // database_open(...)
     kis_database(global_registry *in_globalreg, std::string in_module_name);
 
 public:
@@ -67,7 +67,7 @@ public:
     // Open the database file and initialize the KISMET table; if in_path is empty,
     // the database is opened in the local-user settings dir and named according to
     // the module name
-    virtual bool Database_Open(std::string in_path);
+    virtual bool database_open(std::string in_path);
     virtual void Database_Close();
 
     virtual bool Database_Valid();

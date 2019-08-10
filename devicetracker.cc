@@ -440,7 +440,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
                 &devicelist_mutex);
 
     // Open and upgrade the DB, default path
-    Database_Open("");
+    database_open("");
     database_upgrade_db();
 
     new_datasource_evt_id = 
@@ -1782,7 +1782,7 @@ device_tracker_state_store::device_tracker_state_store(global_registry *in_globa
     devicetracker = in_devicetracker;
 
     // Open and upgrade the DB, default path
-    Database_Open("");
+    database_open("");
     database_upgrade_db();
 }
 

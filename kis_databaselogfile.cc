@@ -103,7 +103,7 @@ bool kis_database_logfile::Log_Open(std::string in_path) {
     auto timetracker = 
         Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
 
-    bool dbr = Database_Open(in_path);
+    bool dbr = database_open(in_path);
 
     if (!dbr) {
         _MSG_FATAL("Unable to open KismetDB log at '{}'; check that the directory exists "
