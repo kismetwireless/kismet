@@ -91,7 +91,7 @@ bool GPSTCP::open_gps(std::string in_opts) {
 
     if (nmeahandler != nullptr) {
         nmeahandler->clear_read_buffer();
-        nmeahandler->ClearWriteBuffer();
+        nmeahandler->clear_write_buffer();
     }
 
     std::string proto_name;

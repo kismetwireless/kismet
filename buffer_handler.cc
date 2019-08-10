@@ -345,7 +345,7 @@ void buffer_handler_generic::clear_read_buffer() {
         read_buffer->clear();
 }
 
-void buffer_handler_generic::ClearWriteBuffer() {
+void buffer_handler_generic::clear_write_buffer() {
     if (write_buffer)
         write_buffer->clear();
 }
