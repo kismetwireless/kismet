@@ -239,7 +239,7 @@ public:
     // Only one block of data may be reserved at a time.
     //
     // Returns the amount of data allocated in the reserved block
-    virtual ssize_t ReserveReadBufferData(void **in_ptr, size_t len);
+    virtual ssize_t reserve_read_buffer_data(void **in_ptr, size_t len);
     virtual ssize_t ReserveWriteBufferData(void **in_ptr, size_t len);
 
     // Reserve space in one of the buffers; Take excessive measures to make this a
