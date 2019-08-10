@@ -37,8 +37,8 @@ public:
 
 protected:
     Pcap_Stream_Packetchain *pcapng_stream;
-    std::shared_ptr<buffer_handler<FileWritebuf> > bufferhandler;
-    FileWritebuf *pcapng_file;
+    std::shared_ptr<buffer_handler<file_write_buffer> > bufferhandler;
+    file_write_buffer *pcapng_file;
 };
 
 class KisPcapNGLogfileBuilder : public KisLogfileBuilder {

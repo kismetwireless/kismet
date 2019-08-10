@@ -38,7 +38,7 @@ bool KisPcapNGLogfile::Log_Open(std::string in_path) {
 
     // Try to open the logfile for writing as a buffer
     try {
-        pcapng_file = new FileWritebuf(in_path, 16384);
+        pcapng_file = new file_write_buffer(in_path, 16384);
     } catch (std::exception& e) {
         _MSG("Failed to open pcapng dump file '" + in_path + "': " +
                 e.what(), MSGFLAG_ERROR);
@@ -46,7 +46,7 @@ bool KisPcapNGLogfile::Log_Open(std::string in_path) {
     }
 
     // Make a buffer handler stub to write to our file
-    bufferhandler.reset(new buffer_handler<FileWritebuf>(NULL, pcapng_file));
+    bufferhandler.reset(new buffer_handler<file_write_buffer>(NULL, pcapng_file));
 
     // Generate the pcap stream itself
     pcapng_stream = new Pcap_Stream_Packetchain(Globalreg::globalreg, bufferhandler, NULL, NULL);
