@@ -279,7 +279,7 @@ bool GpsTracker::httpd_verify_path(const char *path, const char *method) {
     return false;
 }
 
-void GpsTracker::Httpd_CreateStreamResponse(
+void GpsTracker::httpd_create_stream_response(
         Kis_Net_Httpd *httpd __attribute__((unused)),
         Kis_Net_Httpd_Connection *connection __attribute__((unused)),
         const char *path, const char *method, 

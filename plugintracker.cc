@@ -470,7 +470,7 @@ bool Plugintracker::httpd_verify_path(const char *path, const char *method) {
     return false;
 }
 
-void Plugintracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+void Plugintracker::httpd_create_stream_response(Kis_Net_Httpd *httpd,
         Kis_Net_Httpd_Connection *connection,
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {

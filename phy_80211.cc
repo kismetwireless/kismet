@@ -2960,7 +2960,7 @@ void Kis_80211_Phy::GenerateHandshakePcap(std::shared_ptr<kis_tracked_device_bas
     }
 }
 
-void Kis_80211_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+void Kis_80211_Phy::httpd_create_stream_response(Kis_Net_Httpd *httpd,
         Kis_Net_Httpd_Connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {

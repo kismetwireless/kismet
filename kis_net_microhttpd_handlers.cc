@@ -79,7 +79,7 @@ int kis_net_httpd_cppstream_handler::Httpd_HandleGetRequest(Kis_Net_Httpd *httpd
 
     std::lock_guard<std::mutex> lk(connection->connection_mutex);
 
-    Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
+    httpd_create_stream_response(httpd, connection, url, method, upload_data,
             upload_data_size, stream);
 
     if (connection->response == NULL) {
@@ -143,7 +143,7 @@ bool Kis_Net_Httpd_No_Files_Handler::httpd_verify_path(const char *path,
     return false;
 }
 
-void Kis_Net_Httpd_No_Files_Handler::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd __attribute__((unused)),
+void Kis_Net_Httpd_No_Files_Handler::httpd_create_stream_response(Kis_Net_Httpd *httpd __attribute__((unused)),
         Kis_Net_Httpd_Connection *connection __attribute__((unused)),
         const char *url __attribute__((unused)), 
         const char *method __attribute__((unused)), 
@@ -394,7 +394,7 @@ int kis_net_httpd_buffer_stream_handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
                 // in the generator and it's not going to clean itself up.
                 try {
                     size_t sz = upload_data_copy.size();
-                    int r = Httpd_CreateStreamResponse(httpd, connection, url_copy.c_str(), 
+                    int r = httpd_create_stream_response(httpd, connection, url_copy.c_str(), 
                             method_copy.c_str(), upload_data_copy.data(), &sz);
 
                     // fmt::print(stderr, "generator completed callback\n");

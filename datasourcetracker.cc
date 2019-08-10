@@ -1407,7 +1407,7 @@ bool Datasourcetracker::httpd_verify_path(const char *path, const char *method) 
     return false;
 }
 
-void Datasourcetracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+void Datasourcetracker::httpd_create_stream_response(Kis_Net_Httpd *httpd,
         Kis_Net_Httpd_Connection *connection,
        const char *path, const char *method, const char *upload_data,
        size_t *upload_data_size, std::stringstream &stream) {
@@ -1866,7 +1866,7 @@ bool Datasourcetracker_Httpd_Pcap::httpd_verify_path(const char *path, const cha
     return false;
 }
 
-int Datasourcetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+int Datasourcetracker_Httpd_Pcap::httpd_create_stream_response(Kis_Net_Httpd *httpd,
         Kis_Net_Httpd_Connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {

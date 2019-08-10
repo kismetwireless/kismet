@@ -1259,7 +1259,7 @@ bool Kis_Net_Httpd_Simple_Tracked_Endpoint::httpd_verify_path(const char *path, 
     return false;
 }
 
-int Kis_Net_Httpd_Simple_Tracked_Endpoint::Httpd_CreateStreamResponse(
+int Kis_Net_Httpd_Simple_Tracked_Endpoint::httpd_create_stream_response(
         Kis_Net_Httpd *httpd __attribute__((unused)),
         Kis_Net_Httpd_Connection *connection,
         const char *path, const char *method, const char *upload_data,
@@ -1468,7 +1468,7 @@ bool Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_verify_path(const char 
     return false;
 }
 
-int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::Httpd_CreateStreamResponse(
+int Kis_Net_Httpd_Simple_Unauth_Tracked_Endpoint::httpd_create_stream_response(
         Kis_Net_Httpd *httpd __attribute__((unused)),
         Kis_Net_Httpd_Connection *connection,
         const char *path, const char *method, const char *upload_data,
@@ -1677,7 +1677,7 @@ bool Kis_Net_Httpd_Path_Tracked_Endpoint::httpd_verify_path(const char *in_path,
     return path(tokenurl);
 }
 
-int Kis_Net_Httpd_Path_Tracked_Endpoint::Httpd_CreateStreamResponse(
+int Kis_Net_Httpd_Path_Tracked_Endpoint::httpd_create_stream_response(
         Kis_Net_Httpd *httpd __attribute__((unused)),
         Kis_Net_Httpd_Connection *connection,
         const char *in_path, const char *in_method, const char *upload_data,
@@ -1874,7 +1874,7 @@ bool Kis_Net_Httpd_Simple_Post_Endpoint::httpd_verify_path(const char *path, con
     return false;
 }
 
-int Kis_Net_Httpd_Simple_Post_Endpoint::Httpd_CreateStreamResponse(
+int Kis_Net_Httpd_Simple_Post_Endpoint::httpd_create_stream_response(
         Kis_Net_Httpd *httpd __attribute__((unused)),
         Kis_Net_Httpd_Connection *connection,
         const char *path, const char *method, const char *upload_data,
@@ -1981,7 +1981,7 @@ bool Kis_Net_Httpd_Path_Post_Endpoint::httpd_verify_path(const char *in_path, co
     return path(tokenurl, in_path);
 }
 
-int Kis_Net_Httpd_Path_Post_Endpoint::Httpd_CreateStreamResponse(
+int Kis_Net_Httpd_Path_Post_Endpoint::httpd_create_stream_response(
         Kis_Net_Httpd *httpd __attribute__((unused)),
         Kis_Net_Httpd_Connection *connection,
         const char *in_path, const char *in_method, const char *upload_data,

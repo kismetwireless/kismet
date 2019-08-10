@@ -99,7 +99,7 @@ bool Channeltracker_V2::httpd_verify_path(const char *path, const char *method) 
     return false;
 }
 
-void Channeltracker_V2::Httpd_CreateStreamResponse(
+void Channeltracker_V2::httpd_create_stream_response(
         Kis_Net_Httpd *httpd __attribute__((unused)),
         Kis_Net_Httpd_Connection *connection __attribute__((unused)),
         const char *path, const char *method, 

@@ -222,7 +222,7 @@ bool device_tracker::httpd_verify_path(const char *path, const char *method) {
     return false;
 }
 
-int device_tracker::Httpd_CreateStreamResponse(
+int device_tracker::httpd_create_stream_response(
         Kis_Net_Httpd *httpd __attribute__((unused)),
         Kis_Net_Httpd_Connection *connection,
         const char *path, const char *method, const char *upload_data,

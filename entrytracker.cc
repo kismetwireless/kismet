@@ -173,7 +173,7 @@ bool EntryTracker::httpd_verify_path(const char *path, const char *method) {
     return false;
 }
 
-void EntryTracker::Httpd_CreateStreamResponse(
+void EntryTracker::httpd_create_stream_response(
         Kis_Net_Httpd *httpd __attribute__((unused)),
         Kis_Net_Httpd_Connection *connection __attribute__((unused)),
         const char *path, const char *method, 

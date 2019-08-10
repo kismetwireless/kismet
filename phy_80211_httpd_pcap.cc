@@ -76,7 +76,7 @@ bool Phy_80211_Httpd_Pcap::httpd_verify_path(const char *path, const char *metho
     return false;
 }
 
-int Phy_80211_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
+int Phy_80211_Httpd_Pcap::httpd_create_stream_response(Kis_Net_Httpd *httpd,
         Kis_Net_Httpd_Connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
