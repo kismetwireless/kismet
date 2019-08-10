@@ -725,7 +725,7 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
         transmit = output_devices_elem;
 
     // serialize
-    Globalreg::globalreg->entrytracker->serialize(kishttpd::GetSuffix(uri), stream, transmit, rename_map);
+    Globalreg::globalreg->entrytracker->serialize(kishttpd::get_suffix(uri), stream, transmit, rename_map);
 
     // And done
     return 200;

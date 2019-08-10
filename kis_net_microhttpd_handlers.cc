@@ -48,18 +48,18 @@ void Kis_Net_Httpd_Handler::Bind_Httpd_Server() {
 }
 
 bool Kis_Net_Httpd_Handler::Httpd_CanSerialize(const std::string& path) {
-    return Globalreg::globalreg->entrytracker->can_serialize(httpd->GetSuffix(path));
+    return Globalreg::globalreg->entrytracker->can_serialize(httpd->get_suffix(path));
 }
 
 void Kis_Net_Httpd_Handler::Httpd_Serialize(const std::string& path, 
         std::ostream& stream,
         std::shared_ptr<tracker_element> elem, 
         std::shared_ptr<tracker_element_serializer::rename_map> rename) {
-    Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(path), stream, elem, rename);
+    Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(path), stream, elem, rename);
 }
 
 std::string Kis_Net_Httpd_Handler::Httpd_GetSuffix(const std::string& path) {
-    return httpd->GetSuffix(path);
+    return httpd->get_suffix(path);
 }
 
 std::string Kis_Net_Httpd_Handler::Httpd_StripSuffix(const std::string& path) {

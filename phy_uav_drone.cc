@@ -325,7 +325,7 @@ void Kis_UAV_Phy::httpd_create_stream_response(kis_net_httpd *httpd,
 
     if (stripped == "/phy/phyuav/manuf_matchers") {
         local_locker lock(&uav_mutex);
-        Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(url), stream, 
+        Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(url), stream, 
                 manuf_match_vec, NULL);
         return;
     }

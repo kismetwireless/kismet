@@ -390,11 +390,11 @@ void LogTracker::httpd_create_stream_response(kis_net_httpd *httpd,
     std::string stripped = Httpd_StripSuffix(url);
 
     if (stripped == "/logging/drivers") {
-        Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(url), stream, 
+        Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(url), stream, 
                 logproto_vec, NULL);
         return;
     } else if (stripped == "/logging/active") {
-        Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(url), stream, 
+        Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(url), stream, 
                 logfile_vec, NULL);
         return;
     }
@@ -470,7 +470,7 @@ void LogTracker::httpd_create_stream_response(kis_net_httpd *httpd,
                 if (logf == NULL) 
                     throw std::runtime_error("unable to open log");
 
-                Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(url), stream, 
+                Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(url), stream, 
                         logf, NULL);
 
                 return;
@@ -553,7 +553,7 @@ int LogTracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                 if (logf == NULL) 
                     throw std::runtime_error("unable to open log");
 
-                Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(concls->url),
+                Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url),
                         concls->response_stream, logf, NULL);
                 return MHD_YES;
             }

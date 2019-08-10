@@ -296,13 +296,13 @@ void gps_tracker::httpd_create_stream_response(
     std::string stripped = Httpd_StripSuffix(path);
 
     if (stripped == "/gps/drivers") {
-        Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(path), stream, 
+        Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(path), stream, 
                 gps_prototypes_vec, NULL);
         return;
     }
 
     if (stripped == "/gps/all_gps") {
-        Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(path), stream, 
+        Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(path), stream, 
                 gps_instances_vec, NULL);
         return;
     }
@@ -333,7 +333,7 @@ void gps_tracker::httpd_create_stream_response(
             loctrip->set_valid(false);
         }
 
-        Globalreg::globalreg->entrytracker->serialize(httpd->GetSuffix(path), stream, loctrip, NULL);
+        Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(path), stream, loctrip, NULL);
         return;
     }
 

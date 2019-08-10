@@ -47,7 +47,7 @@ class Kis_Net_Httpd_Handler;
 class entry_tracker;
 
 namespace kishttpd {
-    std::string GetSuffix(const std::string& path);
+    std::string get_suffix(const std::string& path);
     std::string StripSuffix(const std::string& path);
     std::string EscapeHtml(const std::string& path);
 
@@ -362,7 +362,7 @@ public:
     void RegisterUnauthHandler(Kis_Net_Httpd_Handler *in_handler);
     void RemoveUnauthHandler(Kis_Net_Httpd_Handler *in_handler);
 
-    static std::string GetSuffix(std::string url);
+    static std::string get_suffix(std::string url);
     static std::string StripSuffix(std::string url);
 
     void RegisterMimeType(std::string suffix, std::string mimetype);
