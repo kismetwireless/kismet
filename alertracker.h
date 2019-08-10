@@ -368,7 +368,7 @@ public:
 					  alert_time_unit *ret_limit_burst, int *ret_burst_rate);
 
 	// Load alert rates from a config file
-	int ParseAlertConfig(ConfigFile *in_conf);
+	int parse_alert_config(ConfigFile *in_conf);
 
     // Define an alert and limits
     int define_alert(std::string name, alert_time_unit limit_unit, int limit_rate,

@@ -108,7 +108,7 @@ alert_tracker::alert_tracker() :
 	}
 
 	// Parse config file vector of all alerts
-	if (ParseAlertConfig(Globalreg::globalreg->kismet_config) < 0) {
+	if (parse_alert_config(Globalreg::globalreg->kismet_config) < 0) {
 		_MSG("Failed to parse alert values from Kismet config file", MSGFLAG_FATAL);
         Globalreg::globalreg->fatal_condition = 1;
 		return;
@@ -519,7 +519,7 @@ int alert_tracker::parse_rate_unit(std::string in_ru, alert_time_unit *ret_unit,
 	return 1;
 }
 
-int alert_tracker::ParseAlertConfig(ConfigFile *in_conf) {
+int alert_tracker::parse_alert_config(ConfigFile *in_conf) {
     std::vector<std::string> clines = in_conf->FetchOptVec("alert");
 
     for (unsigned int x = 0; x < clines.size(); x++) {
