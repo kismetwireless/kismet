@@ -30,10 +30,10 @@ void device_tracker_view_worker::setMatchedDevices(std::shared_ptr<tracker_eleme
     matched = devs;
 }
 
-DevicetrackerViewFunctionWorker::DevicetrackerViewFunctionWorker(filter_cb cb) :
+device_tracker_view_function_worker::device_tracker_view_function_worker(filter_cb cb) :
     filter {cb} { }
 
-bool DevicetrackerViewFunctionWorker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
+bool device_tracker_view_function_worker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
     return filter(device);
 }
 

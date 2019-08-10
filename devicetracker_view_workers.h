@@ -52,17 +52,17 @@ protected:
     std::shared_ptr<tracker_element_vector> matched;
 };
 
-class DevicetrackerViewFunctionWorker : public device_tracker_view_worker {
+class device_tracker_view_function_worker : public device_tracker_view_worker {
 public:
     using filter_cb = std::function<bool (std::shared_ptr<kis_tracked_device_base>)>;
 
-    DevicetrackerViewFunctionWorker(filter_cb cb);
-    DevicetrackerViewFunctionWorker(const DevicetrackerViewFunctionWorker& w) {
+    device_tracker_view_function_worker(filter_cb cb);
+    device_tracker_view_function_worker(const device_tracker_view_function_worker& w) {
         filter = w.filter;
         matched = w.matched;
     }
 
-    virtual ~DevicetrackerViewFunctionWorker() { }
+    virtual ~device_tracker_view_function_worker() { }
 
     virtual bool matchDevice(std::shared_ptr<kis_tracked_device_base> device) override;
 

@@ -1059,7 +1059,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
                 // If we have a new device, look for related devices; use the apview to search other APs
                 if ((bsts == 0 || dot11info->new_device) && d11phy->ap_view != nullptr) {
                     auto bss_worker = 
-                        DevicetrackerViewFunctionWorker([in_pack, dot11info, d11phy, bssid_dev](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+                        device_tracker_view_function_worker([in_pack, dot11info, d11phy, bssid_dev](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
                             auto bssid_dot11 =
                                 dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
 

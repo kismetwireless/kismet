@@ -358,7 +358,7 @@ std::shared_ptr<tracker_element> device_tracker_view::device_time_endpoint(const
         ts = tv;
 
     auto worker = 
-        DevicetrackerViewFunctionWorker([&](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+        device_tracker_view_function_worker([&](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
                 if (dev->get_last_time() < ts)
                     return false;
 
@@ -424,7 +424,7 @@ std::shared_ptr<tracker_element> device_tracker_view::device_time_uri_endpoint(c
         ts = tv;
 
     auto worker = 
-        DevicetrackerViewFunctionWorker([&](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+        device_tracker_view_function_worker([&](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
                 if (dev->get_last_time() < ts)
                     return false;
 
@@ -638,7 +638,7 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
     // If we have a time filter, apply that first, it's the fastest.
     if (timestamp_min > 0) {
         auto worker = 
-            DevicetrackerViewFunctionWorker([timestamp_min] (std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+            device_tracker_view_function_worker([timestamp_min] (std::shared_ptr<kis_tracked_device_base> dev) -> bool {
                     if (dev->get_last_time() < timestamp_min)
                         return false;
                     return true;
