@@ -106,7 +106,7 @@ public:
 
     int register_packet_component(std::string in_component);
     int remove_packet_component(int in_id);
-    std::string FetchPacketComponentName(int in_id);
+    std::string fetch_packet_component_name(int in_id);
 
     // Generate a packet and hand it back
     kis_packet *GeneratePacket();

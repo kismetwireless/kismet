@@ -69,7 +69,7 @@ void kis_packet::insert(const unsigned int index, packet_component *data) {
 	if (content_vec[index] != NULL)
 		fprintf(stderr, "DEBUG/WARNING: Leaking packet component %u/%s, inserting "
 				"on top of existing\n", index,
-				globalreg->packetchain->FetchPacketComponentName(index).c_str());
+				globalreg->packetchain->fetch_packet_component_name(index).c_str());
 	content_vec[index] = data;
 }
 

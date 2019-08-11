@@ -176,7 +176,7 @@ int packet_chain::remove_packet_component(int in_id) {
     return 1;
 }
 
-std::string packet_chain::FetchPacketComponentName(int in_id) {
+std::string packet_chain::fetch_packet_component_name(int in_id) {
     local_shared_locker lock(&packetcomp_mutex);
 
     if (component_id_map.find(in_id) == component_id_map.end()) {
