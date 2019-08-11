@@ -776,7 +776,7 @@ int main(int argc, char *argv[], char *envp[]) {
         else
             globalregistry->servername = std::string(hostname);
     } else {
-        globalregistry->servername = MungeToPrintable(conf->fetch_opt("servername"));
+        globalregistry->servername = munge_to_printable(conf->fetch_opt("servername"));
     }
 
     // Create the IPC handler

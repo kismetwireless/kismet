@@ -152,7 +152,7 @@ bool Kis_RTLAMR_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
         if (c.isNumeric()) {
             common->channel = IntToString(c.asInt());
         } else if (c.isString()) {
-            common->channel = MungeToPrintable(c.asString());
+            common->channel = munge_to_printable(c.asString());
         }
     }
 
@@ -247,7 +247,7 @@ bool Kis_RTLAMR_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
         if (channel_j.isNumeric())
             commondev->set_rtlchannel(IntToString(channel_j.asInt()));
         else if (channel_j.isString())
-            commondev->set_rtlchannel(MungeToPrintable(channel_j.asString()));
+            commondev->set_rtlchannel(munge_to_printable(channel_j.asString()));
     }
 
     if (is_powermeter(json))

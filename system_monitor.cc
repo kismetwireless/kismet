@@ -304,9 +304,9 @@ int Systemmonitor::timetracker_event(int eventid) {
                     sensors_get_value(chip, sf->number, &val);
 
                     synth_name = fmt::format("{}-{}-{}", 
-                            MungeToPrintable(chipname),
-                            MungeToPrintable(label),
-                            MungeToPrintable(adapter_name));
+                            munge_to_printable(chipname),
+                            munge_to_printable(label),
+                            munge_to_printable(adapter_name));
 
                     status->get_sensors_temp()->insert(synth_name, 
                             std::make_shared<tracker_element_double>(0, val));
@@ -327,9 +327,9 @@ int Systemmonitor::timetracker_event(int eventid) {
                     sensors_get_value(chip, sf->number, &val);
 
                     synth_name = fmt::format("{}-{}-{}", 
-                            MungeToPrintable(chipname),
-                            MungeToPrintable(label),
-                            MungeToPrintable(adapter_name));
+                            munge_to_printable(chipname),
+                            munge_to_printable(label),
+                            munge_to_printable(adapter_name));
 
                     status->get_sensors_fans()->insert(synth_name, 
                             std::make_shared<tracker_element_double>(0, val));

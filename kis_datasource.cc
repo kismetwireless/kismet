@@ -1058,7 +1058,7 @@ void kis_datasource::handle_packet_configure_report(uint32_t in_seqno, const std
         msg = report.message().msgtext();
 
     if (report.has_warning())
-        set_int_source_warning(MungeToPrintable(report.warning()));
+        set_int_source_warning(munge_to_printable(report.warning()));
 
     if (report.has_channel()) {
         set_int_source_hopping(false);

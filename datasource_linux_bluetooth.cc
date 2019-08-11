@@ -99,7 +99,7 @@ void kis_datasource_linux_bluetooth::handle_packet_linuxbtdevice(uint32_t in_seq
     }
 
     bpi->address = mac_addr(report.btdevice().address());
-    bpi->name = MungeToPrintable(report.btdevice().name());
+    bpi->name = munge_to_printable(report.btdevice().name());
     bpi->txpower = report.btdevice().txpower();
     bpi->type = report.btdevice().type();
 

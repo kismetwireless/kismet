@@ -1184,7 +1184,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
                             memcpy(rawid, &(chunk->data[offset + 5]), rawlen);
                             rawid[rawlen] = 0;
 
-                            datainfo->auxstring = MungeToPrintable(rawid, rawlen, 1);
+                            datainfo->auxstring = munge_to_printable(rawid, rawlen, 1);
                             delete[] rawid;
                         }
 
@@ -1396,7 +1396,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 if (ie_tag->tag_data().find_first_not_of('\0') == std::string::npos) {
                     packinfo->ssid_blank = true;
                 } else {
-                    packinfo->ssid = MungeToPrintable(ie_tag->tag_data().data());
+                    packinfo->ssid = munge_to_printable(ie_tag->tag_data().data());
                 }
             } else { 
                 _ALERT(alert_longssid_ref, in_pack, packinfo,
@@ -1616,7 +1616,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 dot11d.set_allow_fragments(true);
                 dot11d.parse(ie_tag->tag_data_stream());
 
-                packinfo->dot11d_country = MungeToPrintable(dot11d.country_code());
+                packinfo->dot11d_country = munge_to_printable(dot11d.country_code());
 
                 for (auto c : *(dot11d.country_list())) {
                     dot11_packinfo_dot11d_entry ri;
@@ -1855,7 +1855,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
             try {
                 std::shared_ptr<dot11_ie_133_cisco_ccx> ccx1(new dot11_ie_133_cisco_ccx());
                 ccx1->parse(ie_tag->tag_data_stream());
-                packinfo->beacon_info = MungeToPrintable(ccx1->ap_name());
+                packinfo->beacon_info = munge_to_printable(ccx1->ap_name());
             } catch (const std::exception& e) {
                 fprintf(stderr, "debug - ccx error %s\n", e.what());
                 continue;
@@ -2123,32 +2123,32 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
 
                         auto device_name = wpselem->sub_element_name();
                         if (device_name != NULL) {
-                            packinfo->wps_device_name = MungeToPrintable(device_name->str());
+                            packinfo->wps_device_name = munge_to_printable(device_name->str());
 
                             continue;
                         }
 
                         auto manuf = wpselem->sub_element_manuf();
                         if (manuf != NULL) {
-                            packinfo->wps_manuf = MungeToPrintable(manuf->str());
+                            packinfo->wps_manuf = munge_to_printable(manuf->str());
                             continue;
                         }
 
                         auto model = wpselem->sub_element_model();
                         if (model != NULL) {
-                            packinfo->wps_model_name = MungeToPrintable(model->str());
+                            packinfo->wps_model_name = munge_to_printable(model->str());
                             continue;
                         }
 
                         auto model_num = wpselem->sub_element_model_num();
                         if (model_num != NULL) {
-                            packinfo->wps_model_number = MungeToPrintable(model_num->str());
+                            packinfo->wps_model_number = munge_to_printable(model_num->str());
                             continue;
                         }
 
                         auto serial_num = wpselem->sub_element_serial();
                         if (serial_num != NULL) {
-                            packinfo->wps_serial_number = MungeToPrintable(serial_num->str());
+                            packinfo->wps_serial_number = munge_to_printable(serial_num->str());
                             continue;
                         }
 

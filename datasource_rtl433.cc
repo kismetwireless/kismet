@@ -25,7 +25,7 @@
 kis_datasource_rtl433::kis_datasource_rtl433(shared_datasource_builder in_builder, bool in_mqtt) :
     kis_datasource(in_builder) {
 
-    std::string devnum = MungeToPrintable(get_definition_opt("device"));
+    std::string devnum = munge_to_printable(get_definition_opt("device"));
     if (devnum != "") {
         set_int_source_cap_interface("rtl433usb#" + devnum);
     } else {

@@ -74,7 +74,7 @@
 
 // Munge text down to printable characters only.  Simpler, cleaner munger than
 // before (and more blatant when munging)
-std::string MungeToPrintable(const char *in_data, unsigned int max, int nullterm) {
+std::string munge_to_printable(const char *in_data, unsigned int max, int nullterm) {
     std::stringstream ret;
 	unsigned int i;
 
@@ -95,8 +95,8 @@ std::string MungeToPrintable(const char *in_data, unsigned int max, int nullterm
 	return ret.str();
 }
 
-std::string MungeToPrintable(const std::string& in_str) {
-	return MungeToPrintable(in_str.c_str(), in_str.length(), 1);
+std::string munge_to_printable(const std::string& in_str) {
+	return munge_to_printable(in_str.c_str(), in_str.length(), 1);
 }
 
 std::string StrLower(const std::string& in_str) {

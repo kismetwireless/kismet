@@ -1805,7 +1805,7 @@ void kis_80211_phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
         if (dot11info->owe_transition != nullptr) {
             ssid->set_owe_bssid(dot11info->owe_transition->bssid());
             ssid->set_owe_ssid_len(dot11info->owe_transition->ssid().length());
-            ssid->set_owe_ssid(MungeToPrintable(dot11info->owe_transition->ssid()));
+            ssid->set_owe_ssid(munge_to_printable(dot11info->owe_transition->ssid()));
         }
 
         std::string ssidstr;
@@ -1814,7 +1814,7 @@ void kis_80211_phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
             if (dot11info->owe_transition != nullptr) {
                 if (dot11info->owe_transition->ssid().length() != 0)
                     ssidstr = fmt::format("an OWE SSID '{}' for BSSID {}", 
-                            MungeToPrintable(dot11info->owe_transition->ssid()),
+                            munge_to_printable(dot11info->owe_transition->ssid()),
                             dot11info->owe_transition->bssid());
                 else
                 {} {}                    ssidstr = "a cloaked SSID";
@@ -2015,7 +2015,7 @@ void kis_80211_phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
         if (dot11info->owe_transition != nullptr) {
             ssid->set_owe_bssid(dot11info->owe_transition->bssid());
             ssid->set_owe_ssid_len(dot11info->owe_transition->ssid().length());
-            ssid->set_owe_ssid(MungeToPrintable(dot11info->owe_transition->ssid()));
+            ssid->set_owe_ssid(munge_to_printable(dot11info->owe_transition->ssid()));
         }
 
     } else if (dot11info->subtype == packet_sub_probe_resp) {

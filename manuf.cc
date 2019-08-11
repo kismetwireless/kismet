@@ -199,7 +199,7 @@ std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(mac_addr in_mac) {
                     md.oui = soui;
 
                     md.manuf = std::make_shared<tracker_element_string>(manuf_id);
-                    md.manuf->set(MungeToPrintable(std::string(buf + 9, mlen)));
+                    md.manuf->set(munge_to_printable(std::string(buf + 9, mlen)));
                     oui_map[soui] = md;
                     return md.manuf;
                 }
@@ -289,7 +289,7 @@ std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(uint32_t in_oui) {
                     md.oui = soui;
 
                     md.manuf = std::make_shared<tracker_element_string>(manuf_id);
-                    md.manuf->set(MungeToPrintable(std::string(buf + 9, mlen)));
+                    md.manuf->set(munge_to_printable(std::string(buf + 9, mlen)));
                     oui_map[soui] = md;
                     return md.manuf;
                 }

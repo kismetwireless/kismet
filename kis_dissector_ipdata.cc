@@ -197,7 +197,7 @@ std::string MDNS_Fetchname(kis_datachunk *chunk, unsigned int baseofft,
 		}
 
 		std::string ret = 
-			MungeToPrintable((char *) &(chunk->data[offt]), len, 0);
+			munge_to_printable((char *) &(chunk->data[offt]), len, 0);
 
 		offt += len;
 
@@ -273,7 +273,7 @@ int kis_dissector_ip_data::handle_packet(kis_packet *in_pack) {
 				}
 
 				datainfo->cdp_dev_id = 
-					MungeToPrintable((char *) &(chunk->data[offset + 4]), 
+					munge_to_printable((char *) &(chunk->data[offset + 4]), 
 									 elemlen - 4, 0);
 				gotinfo = 1;
 			} else if (elemtype == 0x03) {
@@ -285,7 +285,7 @@ int kis_dissector_ip_data::handle_packet(kis_packet *in_pack) {
 				}
 
 				datainfo->cdp_port_id = 
-					MungeToPrintable((char *) &(chunk->data[offset + 4]), 
+					munge_to_printable((char *) &(chunk->data[offset + 4]), 
 									 elemlen - 4, 0);
 				gotinfo = 1;
 			}
@@ -380,7 +380,7 @@ int kis_dissector_ip_data::handle_packet(kis_packet *in_pack) {
 							break;
 
 						packinfo->ssid = 
-							MungeToPrintable((char *) &(pdu[3]), pdu_len, 0);
+							munge_to_printable((char *) &(pdu[3]), pdu_len, 0);
 						break;
 					case iapp_pdu_bssid:
 						if (pdu_len != PHY80211_MAC_LEN)
@@ -514,7 +514,7 @@ int kis_dissector_ip_data::handle_packet(kis_packet *in_pack) {
 						std::string((char *) &(chunk->data[dhcp_tag_map[12][0] + 1]), 
 							   chunk->data[dhcp_tag_map[12][0]]);
 
-					datainfo->discover_host = MungeToPrintable(datainfo->discover_host);
+					datainfo->discover_host = munge_to_printable(datainfo->discover_host);
 				}
 
 				if (dhcp_tag_map.find(60) != dhcp_tag_map.end() &&
@@ -524,7 +524,7 @@ int kis_dissector_ip_data::handle_packet(kis_packet *in_pack) {
 						std::string((char *) &(chunk->data[dhcp_tag_map[60][0] + 1]), 
 							   chunk->data[dhcp_tag_map[60][0]]);
 					datainfo->discover_vendor = 
-						MungeToPrintable(datainfo->discover_vendor);
+						munge_to_printable(datainfo->discover_vendor);
 				}
 
 				if (dhcp_tag_map.find(61) != dhcp_tag_map.end() &&
