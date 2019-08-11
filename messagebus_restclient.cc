@@ -23,7 +23,7 @@
 
 #include "json_adapter.h"
 
-RestMessageClient::RestMessageClient(global_registry *in_globalreg, void *in_aux) :
+rest_message_client::rest_message_client(global_registry *in_globalreg, void *in_aux) :
     message_client(in_globalreg, in_aux),
     kis_net_httpd_cppstream_handler() {
 
@@ -49,7 +49,7 @@ RestMessageClient::RestMessageClient(global_registry *in_globalreg, void *in_aux
     bind_httpd_server();
 }
 
-RestMessageClient::~RestMessageClient() {
+rest_message_client::~rest_message_client() {
     local_eol_locker lock(&msg_mutex);
 
     globalreg->messagebus->remove_client(this);
@@ -59,7 +59,7 @@ RestMessageClient::~RestMessageClient() {
     message_list.clear();
 }
 
-void RestMessageClient::process_message(std::string in_msg, int in_flags) {
+void rest_message_client::process_message(std::string in_msg, int in_flags) {
     // Don't propagate LOCAL or DEBUG messages
     if ((in_flags & MSGFLAG_LOCAL) || (in_flags & MSGFLAG_DEBUG))
         return;
@@ -81,7 +81,7 @@ void RestMessageClient::process_message(std::string in_msg, int in_flags) {
     }
 }
 
-bool RestMessageClient::httpd_verify_path(const char *path, const char *method) {
+bool rest_message_client::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0) {
         return false;
     }
@@ -108,7 +108,7 @@ bool RestMessageClient::httpd_verify_path(const char *path, const char *method) 
     return false;
 }
 
-void RestMessageClient::httpd_create_stream_response(
+void rest_message_client::httpd_create_stream_response(
         kis_net_httpd *httpd __attribute__((unused)),
         kis_net_httpd_connection *connection __attribute__((unused)),
         const char *path, const char *method, const char *upload_data,

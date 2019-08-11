@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -96,22 +96,22 @@ protected:
     std::shared_ptr<tracker_element_uint64> timestamp;
 };
 
-class RestMessageClient : public message_client, public kis_net_httpd_cppstream_handler,
+class rest_message_client : public message_client, public kis_net_httpd_cppstream_handler,
     public lifetime_global {
 public:
-    static std::shared_ptr<RestMessageClient> 
+    static std::shared_ptr<rest_message_client> 
         create_messageclient(global_registry *in_globalreg) {
-        std::shared_ptr<RestMessageClient> mon(new RestMessageClient(in_globalreg, NULL));
+        std::shared_ptr<rest_message_client> mon(new rest_message_client(in_globalreg, NULL));
         in_globalreg->register_lifetime_global(mon);
         in_globalreg->insert_global("REST_MSG_CLIENT", mon);
         return mon;
     }
 
 private:
-    RestMessageClient(global_registry *in_globalreg, void *in_aux);
+    rest_message_client(global_registry *in_globalreg, void *in_aux);
 
 public:
-	virtual ~RestMessageClient();
+	virtual ~rest_message_client();
 
     virtual void process_message(std::string in_msg, int in_flags) override;
 
