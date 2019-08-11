@@ -110,7 +110,7 @@
 #include "trackedelement.h"
 #include "trackedcomponent.h"
 
-class ExternalHttpPluginHarness;
+class external_http_plugin_harness;
 
 // The registration object is created by the plugintracker and given to
 // a Kismet plugin; the plugin fills in the relevant information during
@@ -217,7 +217,7 @@ protected:
 
     void *dlfile;
 
-    std::shared_ptr<ExternalHttpPluginHarness> external_http;
+    std::shared_ptr<external_http_plugin_harness> external_http;
 };
 typedef std::shared_ptr<PluginRegistrationData> SharedPluginData;
 
@@ -308,9 +308,9 @@ protected:
 
 /* External plugin loader for plugins only using the external http interface; no need for them
  * to implement a C++ component; this will get instantiated in the plugin finalization layer */
-class ExternalHttpPluginHarness : public kis_external_http_interface {
+class external_http_plugin_harness : public kis_external_http_interface {
 public:
-    ExternalHttpPluginHarness(std::string plugin_name, std::string binary) : 
+    external_http_plugin_harness(std::string plugin_name, std::string binary) : 
         kis_external_http_interface() {
 
         // Look for someone playing hijinks

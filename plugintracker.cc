@@ -41,7 +41,7 @@ void PluginRegistrationData::activate_external_http() {
     // If we have a http proxy, instantiate and load it
     if (get_plugin_http_external() != "") {
         external_http = 
-            std::make_shared<ExternalHttpPluginHarness>(get_plugin_name(), get_plugin_http_external());
+            std::make_shared<external_http_plugin_harness>(get_plugin_name(), get_plugin_http_external());
     }
 }
 
