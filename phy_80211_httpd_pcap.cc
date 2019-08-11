@@ -67,7 +67,7 @@ bool phy_80211_httpd_pcap::httpd_verify_path(const char *path, const char *metho
 
 
         // Does it exist?
-        device_key targetkey(dot11phy->FetchPhynameHash(), dmac);
+        device_key targetkey(dot11phy->fetch_phyname_hash(), dmac);
 
         if (devicetracker->fetch_device(targetkey) != NULL)
             return true;
@@ -121,7 +121,7 @@ int phy_80211_httpd_pcap::httpd_create_stream_response(kis_net_httpd *httpd,
         return MHD_YES;
 
     // Does it exist?
-    device_key targetkey(dot11phy->FetchPhynameHash(), dmac);
+    device_key targetkey(dot11phy->fetch_phyname_hash(), dmac);
 
     std::shared_ptr<kis_tracked_device_base> dev;
     if ((dev = devicetracker->fetch_device(targetkey)) == NULL)

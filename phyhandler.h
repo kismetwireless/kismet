@@ -48,7 +48,7 @@ public:
 
 	std::string fetch_phy_name() { return phyname; }
 	int fetch_phy_id() { return phyid; }
-    uint32_t FetchPhynameHash() { return phyname_hash; }
+    uint32_t fetch_phyname_hash() { return phyname_hash; }
 
     // Called for all instantiated phys when restoring a network object from
     // a stored record; This function is expected to inspect the abstract object

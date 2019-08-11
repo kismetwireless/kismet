@@ -702,7 +702,7 @@ std::shared_ptr<kis_tracked_device_base>
     std::shared_ptr<kis_tracked_device_base> device = NULL;
     device_key key;
 
-    key = device_key(in_phy->FetchPhynameHash(), in_mac);
+    key = device_key(in_phy->fetch_phyname_hash(), in_mac);
 
 	if ((device = fetch_device(key)) == NULL) {
         if (in_flags & UCD_UPDATE_EXISTING_ONLY)
