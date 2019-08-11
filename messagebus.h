@@ -99,7 +99,7 @@ public:
     void inject_message(std::string in_msg, int in_flags);
 
     // Link a meessage display system
-    void RegisterClient(message_client *in_subcriber, int in_mask);
+    void register_client(message_client *in_subcriber, int in_mask);
     void RemoveClient(message_client *in_unsubscriber);
 
 protected:

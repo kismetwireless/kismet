@@ -366,7 +366,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_messages", true)) {
         auto messagebus = 
             Globalreg::fetch_mandatory_global_as<message_bus>();
-        messagebus->RegisterClient(this, MSGFLAG_ALL);
+        messagebus->register_client(this, MSGFLAG_ALL);
     }
 
 

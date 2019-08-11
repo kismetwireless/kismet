@@ -44,7 +44,7 @@ RestMessageClient::RestMessageClient(global_registry *in_globalreg, void *in_aux
                 tracker_element_factory<tracked_message>(),
                 "Kismet message");
 
-    Globalreg::globalreg->messagebus->RegisterClient(this, MSGFLAG_ALL);
+    Globalreg::globalreg->messagebus->register_client(this, MSGFLAG_ALL);
 
     bind_httpd_server();
 }

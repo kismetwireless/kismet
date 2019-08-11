@@ -647,9 +647,9 @@ int main(int argc, char *argv[], char *envp[]) {
     fqmescli = new FatalQueueMessageClient(globalregistry, NULL);
 
     // Register the fatal queue with fatal and error messages
-    globalregistry->messagebus->RegisterClient(fqmescli, MSGFLAG_FATAL | MSGFLAG_ERROR);
+    globalregistry->messagebus->register_client(fqmescli, MSGFLAG_FATAL | MSGFLAG_ERROR);
     // Register the smart msg printer for everything
-    globalregistry->messagebus->RegisterClient(smartmsgcli, MSGFLAG_ALL);
+    globalregistry->messagebus->register_client(smartmsgcli, MSGFLAG_ALL);
 
 	// Create the event bus
 	event_bus::create_eventbus();

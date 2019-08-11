@@ -106,7 +106,7 @@ void message_bus::msg_queue_dispatcher() {
     }
 }
 
-void message_bus::RegisterClient(message_client *in_subscriber, int in_mask) {
+void message_bus::register_client(message_client *in_subscriber, int in_mask) {
     local_locker lock(&handler_mutex);
 
     busclient *bc = new busclient;
