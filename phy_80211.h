@@ -348,7 +348,7 @@ public:
     static int packet_dot11_common_classifier(CHAINCALL_PARMS);
 
     // Dot11 tracker for building phy-specific elements
-    int TrackerDot11(kis_packet *in_pack);
+    int tracker_dot11(kis_packet *in_pack);
 
     int AddFilter(std::string in_filter);
     int AddNetcliFilter(std::string in_filter);
