@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -24,22 +24,22 @@
 #include "kis_datasource.h"
 
 // Sweep record with full data
-class Spectrum_Sweep : public tracker_component {
+class spectrum_sweep : public tracker_component {
 public:
-    Spectrum_Sweep(global_registry *in_globalreg, int in_id) :
+    spectrum_sweep(global_registry *in_globalreg, int in_id) :
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(NULL);
     }
 
-    Spectrum_Sweep(global_registry *in_globalreg, int in_id, shared_tracker_element e) :
+    spectrum_sweep(global_registry *in_globalreg, int in_id, shared_tracker_element e) :
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(e);
     }
 
     virtual shared_tracker_element clone_type() {
-        return shared_tracker_element(new Spectrum_Sweep(globalreg, get_id()));
+        return shared_tracker_element(new spectrum_sweep(globalreg, get_id()));
     }
 
     virtual void register_fields() {
