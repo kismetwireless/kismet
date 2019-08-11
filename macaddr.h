@@ -332,7 +332,7 @@ struct mac_addr {
         return longmac;
     }
 
-    inline std::string MacFull2String() const {
+    inline std::string mac_full_to_string() const {
         return fmt::format("{}/{}", mac_to_string(), mac_mask_to_string());
     }
 
