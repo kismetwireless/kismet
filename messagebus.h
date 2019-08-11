@@ -69,11 +69,11 @@ protected:
 	void *auxptr;
 };
 
-class StdoutMessageClient : public message_client {
+class stdout_message_client : public message_client {
 public:
-    StdoutMessageClient(global_registry *in_globalreg, void *in_aux) :
+    stdout_message_client(global_registry *in_globalreg, void *in_aux) :
         message_client(in_globalreg, in_aux) { }
-	virtual ~StdoutMessageClient() { }
+	virtual ~stdout_message_client() { }
     void process_message(std::string in_msg, int in_flags);
 };
 

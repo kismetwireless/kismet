@@ -23,7 +23,7 @@
 
 #include "util.h"
 
-void StdoutMessageClient::process_message(std::string in_msg, int in_flags) {
+void stdout_message_client::process_message(std::string in_msg, int in_flags) {
     if (in_flags & (MSGFLAG_ERROR | MSGFLAG_FATAL))
         fprintf(stderr, "ERROR: %s\n", in_msg.c_str());
     else
