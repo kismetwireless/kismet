@@ -78,7 +78,7 @@ public:
 
 protected:
 	// Common internal startup
-	void Startup_Dumpfile();
+	void startup_dumpfile();
 
 	pcap_t *dumpfile;
 	pcap_dumper_t *dumper;
