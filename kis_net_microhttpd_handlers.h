@@ -114,7 +114,7 @@ public:
     // If httpd_use_custom_post_iterator() is true, this is expected to perform
     // and cleanup at the end of handling a POST event, for instance, closing
     // files, etc
-    virtual void Httpd_PostRequestCompleted(void *cls __attribute__((unused)),
+    virtual void httpd_post_request_completed(void *cls __attribute__((unused)),
             struct MHD_Connection *connection __attribute__((unused)),
             void **con_cls __attribute__((unused)),
             enum MHD_RequestTerminationCode toe __attribute__((unused))) {
