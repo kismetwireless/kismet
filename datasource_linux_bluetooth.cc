@@ -73,7 +73,7 @@ void kis_datasource_linux_bluetooth::handle_packet_linuxbtdevice(uint32_t in_seq
     if (report.has_warning())
         set_int_source_warning(report.warning());
 
-    kis_packet *packet = packetchain->GeneratePacket();
+    kis_packet *packet = packetchain->generate_packet();
     bluetooth_packinfo *bpi = new bluetooth_packinfo();
 
     packet->insert(pack_comp_btdevice, bpi);

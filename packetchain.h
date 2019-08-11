@@ -109,7 +109,7 @@ public:
     std::string fetch_packet_component_name(int in_id);
 
     // Generate a packet and hand it back
-    kis_packet *GeneratePacket();
+    kis_packet *generate_packet();
     // Inject a packet into the chain
     int process_packet(kis_packet *in_pack);
     // Destroy a packet at the end of its life

@@ -1136,7 +1136,7 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno, const std::str
     if (report.has_warning())
         set_int_source_warning(report.warning());
 
-    kis_packet *packet = packetchain->GeneratePacket();
+    kis_packet *packet = packetchain->generate_packet();
 
     // Process the data chunk
     if (report.has_packet()) {

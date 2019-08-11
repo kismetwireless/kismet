@@ -186,7 +186,7 @@ std::string packet_chain::fetch_packet_component_name(int in_id) {
 	return component_id_map[in_id];
 }
 
-kis_packet *packet_chain::GeneratePacket() {
+kis_packet *packet_chain::generate_packet() {
     kis_packet *newpack = new kis_packet(Globalreg::globalreg);
 
     return newpack;
