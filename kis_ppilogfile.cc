@@ -143,7 +143,7 @@ void kis_ppi_logfile::register_ppi_callback(dumpfile_ppi_cb in_cb, void *in_aux)
 	ppi_cb_vec.push_back(r);
 }
 
-void kis_ppi_logfile::RemovePPICallback(dumpfile_ppi_cb in_cb, void *in_aux) {
+void kis_ppi_logfile::remove_ppi_callback(dumpfile_ppi_cb in_cb, void *in_aux) {
 	for (unsigned int x = 0; x < ppi_cb_vec.size(); x++) {
 		if (ppi_cb_vec[x].cb == in_cb && ppi_cb_vec[x].aux == in_aux) {
 			ppi_cb_vec.erase(ppi_cb_vec.begin() + x);
