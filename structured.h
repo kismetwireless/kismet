@@ -130,7 +130,7 @@ public:
     // Convert a structured array of paired arrays, or a structured dictinary of k:v pairs, to
     // a std::pair<string, string> structure useful in other functions.  May throw its own exceptions
     // OR other structured exceptions.
-    std::vector<std::pair<std::string, std::string>> getAsPairVector() {
+    std::vector<std::pair<std::string, std::string>> as_pair_vector() {
         auto ret = std::vector<std::pair<std::string, std::string>>();
 
         if (is_array()) {
