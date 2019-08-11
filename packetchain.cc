@@ -148,14 +148,14 @@ int packet_chain::register_packet_component(std::string in_component) {
         return -1;
     }
 
-    if (component_str_map.find(StrLower(in_component)) != component_str_map.end()) {
-        return component_str_map[StrLower(in_component)];
+    if (component_str_map.find(str_lower(in_component)) != component_str_map.end()) {
+        return component_str_map[str_lower(in_component)];
     }
 
     int num = next_componentid++;
 
-    component_str_map[StrLower(in_component)] = num;
-    component_id_map[num] = StrLower(in_component);
+    component_str_map[str_lower(in_component)] = num;
+    component_id_map[num] = str_lower(in_component);
 
     return num;
 }

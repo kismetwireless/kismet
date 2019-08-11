@@ -155,8 +155,8 @@ int config_file::parse_config(const char *in_fname,
                 config_override_file_list.push_back(expand_log_path(value, "", "", 0, 1));
             } else {
                 config_entity e(value, in_fname);
-                target_map[StrLower(directive)].push_back(e);
-                target_map_dirty[StrLower(directive)] = 1;
+                target_map[str_lower(directive)].push_back(e);
+                target_map_dirty[str_lower(directive)] = 1;
             }
         }
     }
@@ -262,7 +262,7 @@ int config_file::save_config(const char *in_fname) {
 std::string config_file::fetch_opt(std::string in_key) {
     local_locker lock(&config_locker);
 
-    auto cmitr = config_map.find(StrLower(in_key));
+    auto cmitr = config_map.find(str_lower(in_key));
     // No such key
     if (cmitr == config_map.end())
         return "";
@@ -291,7 +291,7 @@ std::vector<std::string> config_file::fetch_opt_vec(std::string in_key) {
     // Empty vec to return
     std::vector<std::string> eretvec;
 
-    auto cmitr = config_map.find(StrLower(in_key));
+    auto cmitr = config_map.find(str_lower(in_key));
     // No such key
     if (cmitr == config_map.end())
         return eretvec;
@@ -307,7 +307,7 @@ int config_file::fetch_opt_bool(std::string in_key, int dvalue) {
     // Don't lock, we're locked in fetchopt
     // local_locker lock(&config_locker);
 
-    std::string v = StrLower(fetch_opt(in_key));
+    std::string v = str_lower(fetch_opt(in_key));
     int r;
 
     r = StringToBool(v);
@@ -332,15 +332,15 @@ unsigned long config_file::fetch_opt_ulong(const std::string& in_key, unsigned l
 
 int config_file::fetch_opt_dirty(const std::string& in_key) {
     local_locker lock(&config_locker);
-    if (config_map_dirty.find(StrLower(in_key)) == config_map_dirty.end())
+    if (config_map_dirty.find(str_lower(in_key)) == config_map_dirty.end())
         return 0;
 
-    return config_map_dirty[StrLower(in_key)];
+    return config_map_dirty[str_lower(in_key)];
 }
 
 void config_file::set_opt_dirty(const std::string& in_key, int in_dirty) {
     local_locker lock(&config_locker);
-    config_map_dirty[StrLower(in_key)] = in_dirty;
+    config_map_dirty[str_lower(in_key)] = in_dirty;
 }
 
 void config_file::set_opt(const std::string& in_key, const std::string& in_val, int in_dirty) {
@@ -349,7 +349,7 @@ void config_file::set_opt(const std::string& in_key, const std::string& in_val, 
     std::vector<config_entity> v;
     config_entity e(in_val, "::dynamic::");
     v.push_back(e);
-    config_map[StrLower(in_key)] = v;
+    config_map[str_lower(in_key)] = v;
     set_opt_dirty(in_key, in_dirty);
 }
 
@@ -363,7 +363,7 @@ void config_file::set_opt_vec(const std::string& in_key, const std::vector<std::
         cev.push_back(ce);
     }
 
-    config_map[StrLower(in_key)] = cev;
+    config_map[str_lower(in_key)] = cev;
     set_opt_dirty(in_key, in_dirty);
 }
 

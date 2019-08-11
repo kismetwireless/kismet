@@ -765,7 +765,7 @@ int datasource_tracker::register_datasource(shared_datasource_builder in_builder
     for (auto i : *proto_vec) {
         shared_datasource_builder b = std::static_pointer_cast<kis_datasource_builder>(i);
 
-        if (StrLower(b->get_source_type()) == StrLower(in_builder->get_source_type())) {
+        if (str_lower(b->get_source_type()) == str_lower(in_builder->get_source_type())) {
             _MSG_ERROR("Already registered a data source for type '{}', check that you don't have "
                     "two copies of the same plugin installed in different locations or under "
                     "different names.", b->get_source_type());
@@ -801,7 +801,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
 
         StringToOpts(options, ",", &opt_vec);
 
-        type = StrLower(fetch_opt("type", &opt_vec));
+        type = str_lower(fetch_opt("type", &opt_vec));
 
         if (type == "")
             type = "auto";
@@ -822,7 +822,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
         for (auto i : *proto_vec) {
             proto = std::static_pointer_cast<kis_datasource_builder>(i);
 
-            if (StrLower(proto->get_source_type()) == StrLower(type)) {
+            if (str_lower(proto->get_source_type()) == str_lower(type)) {
                 proto_found = true;
                 break;
             }

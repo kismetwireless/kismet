@@ -89,7 +89,7 @@ void packet_filter::build_self_content(std::shared_ptr<tracker_element_map> cont
 }
 
 bool packet_filter::filterstring_to_bool(const std::string& str) {
-    auto cstr = StrLower(str);
+    auto cstr = str_lower(str);
 
     if (cstr == "1")
         return true;

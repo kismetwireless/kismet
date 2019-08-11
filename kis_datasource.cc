@@ -450,7 +450,7 @@ void kis_datasource::buffer_error(std::string in_error) {
 }
 
 std::string kis_datasource::get_definition_opt(std::string in_opt) {
-    auto i = source_definition_opts.find(StrLower(in_opt));
+    auto i = source_definition_opts.find(str_lower(in_opt));
 
     if (i == source_definition_opts.end())
         return override_default_option(in_opt);
@@ -459,7 +459,7 @@ std::string kis_datasource::get_definition_opt(std::string in_opt) {
 }
 
 bool kis_datasource::get_definition_opt_bool(std::string in_opt, bool in_def) {
-    auto i = source_definition_opts.find(StrLower(in_opt));
+    auto i = source_definition_opts.find(str_lower(in_opt));
     std::string opt;
 
     if (i != source_definition_opts.end())
@@ -471,7 +471,7 @@ bool kis_datasource::get_definition_opt_bool(std::string in_opt, bool in_def) {
 }
 
 double kis_datasource::get_definition_opt_double(std::string in_opt, double in_def) {
-    auto i = source_definition_opts.find(StrLower(in_opt));
+    auto i = source_definition_opts.find(str_lower(in_opt));
     std::string opt;
 
     if (i != source_definition_opts.end())
@@ -516,7 +516,7 @@ bool kis_datasource::parse_interface_definition(std::string in_definition) {
 
         // Throw into a nice keyed dictionary so other elements of the DS can use it
         for (auto i = options.begin(); i != options.end(); ++i) {
-            source_definition_opts[StrLower((*i).opt)] = (*i).val;
+            source_definition_opts[str_lower((*i).opt)] = (*i).val;
         }
     }
 
@@ -870,7 +870,7 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
         for (auto c : *source_channels_vec) {
             bool skip = false;
             for (auto bchan : block_vec) {
-                if (StrLower(GetTrackerValue<std::string>(c)) == StrLower(bchan)) {
+                if (str_lower(GetTrackerValue<std::string>(c)) == str_lower(bchan)) {
                     skip = true;
                     break;
                 }
@@ -902,7 +902,7 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
         for (auto c : *source_channels_vec) {
             bool skip = false;
             for (auto bchan : block_vec) {
-                if (StrLower(GetTrackerValue<std::string>(c)) == StrLower(bchan)) {
+                if (str_lower(GetTrackerValue<std::string>(c)) == str_lower(bchan)) {
                     skip = true;
                     break;
                 }

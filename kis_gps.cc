@@ -78,7 +78,7 @@ bool kis_gps::open_gps(std::string in_definition) {
         }
 
         for (auto i = options.begin(); i != options.end(); ++i) {
-            source_definition_opts[StrLower((*i).opt)] = (*i).val;
+            source_definition_opts[str_lower((*i).opt)] = (*i).val;
         }
     }
 

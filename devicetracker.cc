@@ -239,7 +239,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
                         });
 
             std::string pertype = 
-                StrLower(globalreg->kismet_config->fetch_opt("persistent_load"));
+                str_lower(globalreg->kismet_config->fetch_opt("persistent_load"));
 
             if (pertype == "onstart") {
                 persistent_mode = MODE_ONSTART;

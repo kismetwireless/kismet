@@ -476,8 +476,8 @@ int alert_tracker::parse_alert_str(std::string alert_str, std::string *ret_name,
 
 	(*ret_name) = StrUpper(tokens[0]);
 
-	if (parse_rate_unit(StrLower(tokens[1]), ret_limit_unit, ret_limit_rate) != 1 ||
-		parse_rate_unit(StrLower(tokens[2]), ret_limit_burst, ret_burst_rate) != 1) {
+	if (parse_rate_unit(str_lower(tokens[1]), ret_limit_unit, ret_limit_rate) != 1 ||
+		parse_rate_unit(str_lower(tokens[2]), ret_limit_burst, ret_burst_rate) != 1) {
         _MSG_ERROR("Malformed limits for alert '{}'", alert_str);
 		return -1;
 	}
@@ -754,12 +754,12 @@ int alert_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
             alert_time_unit burst_unit;
             int burst_rate;
 
-            if (parse_rate_unit(StrLower(structdata->key_as_string("throttle", "")),
+            if (parse_rate_unit(str_lower(structdata->key_as_string("throttle", "")),
                         &limit_unit, &limit_rate) < 0) {
                 throw std::runtime_error("could not parse throttle limits");
             }
 
-            if (parse_rate_unit(StrLower(structdata->key_as_string("burst", "")),
+            if (parse_rate_unit(str_lower(structdata->key_as_string("burst", "")),
                         &burst_unit, &burst_rate) < 0) {
                 throw std::runtime_error("could not parse burst limits");
             }

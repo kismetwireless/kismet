@@ -33,14 +33,14 @@ dlt_tracker::~dlt_tracker() {
 }
 
 uint32_t dlt_tracker::register_linktype(const std::string& in_linktype) {
-    uint32_t csum = adler32_checksum(StrLower(in_linktype));
+    uint32_t csum = adler32_checksum(str_lower(in_linktype));
     
     if (csum < 4096)
         csum += 4096;
 
     local_locker l(&mutex);
 
-    dlt_to_name_map[csum] = StrLower(in_linktype);
+    dlt_to_name_map[csum] = str_lower(in_linktype);
 
     return csum;
 }

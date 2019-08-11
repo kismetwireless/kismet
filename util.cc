@@ -99,7 +99,7 @@ std::string munge_to_printable(const std::string& in_str) {
 	return munge_to_printable(in_str.c_str(), in_str.length(), 1);
 }
 
-std::string StrLower(const std::string& in_str) {
+std::string str_lower(const std::string& in_str) {
     std::string retstr(in_str);
     std::transform(retstr.begin(), retstr.end(), retstr.begin(), (int(*)(int)) std::tolower);
     return retstr;
@@ -373,7 +373,7 @@ int fetch_opt_bool(const std::string& in_key, const std::map<std::string, std::s
 }
 
 std::vector<std::string> fetch_opt_vec(const std::string& in_key, std::vector<opt_pair> *in_vec) {
-    std::string lkey = StrLower(in_key);
+    std::string lkey = str_lower(in_key);
     std::vector<std::string> ret;
 
     if (in_vec == NULL)
@@ -437,7 +437,7 @@ int StringToOpts(const std::string& in_line, const std::string& in_sep, std::vec
 void AddOptToOpts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec) {
 	opt_pair optp;
 
-	optp.opt = StrLower(opt);
+	optp.opt = str_lower(opt);
 	optp.val = val;
 
 	in_vec->push_back(optp);
@@ -446,7 +446,7 @@ void AddOptToOpts(const std::string& opt, const std::string& val, std::vector<op
 void ReplaceAllOpts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec) {
 	opt_pair optp;
 
-	optp.opt = StrLower(opt);
+	optp.opt = str_lower(opt);
 	optp.val = val;
 
 	for (unsigned int x = 0; x < in_vec->size(); x++) {
@@ -856,7 +856,7 @@ u_int32_t double_to_ns(double in) {
 }
 
 int StringToBool(const std::string& s, int dvalue) {
-    std::string ls = StrLower(s);
+    std::string ls = str_lower(s);
 
 	if (ls == "true" || ls == "t") {
 		return 1;

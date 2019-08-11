@@ -75,7 +75,7 @@ public:
     T fetch_opt_as(const std::string& in_key, const T& dvalue) {
         local_locker l(&config_locker);
 
-        auto ki = config_map.find(StrLower(in_key));
+        auto ki = config_map.find(str_lower(in_key));
 
         if (ki == config_map.end())
             return dvalue;
@@ -100,7 +100,7 @@ public:
         std::vector<config_entity> v;
         config_entity e(fmt::format("{}", in_value), "::dynamic::");
         v.push_back(e);
-        config_map[StrLower(in_key)] = v;
+        config_map[str_lower(in_key)] = v;
         set_opt_dirty(in_key, in_dirty);
     }
 
@@ -195,7 +195,7 @@ public:
     T get_value_as(const std::string& in_key, const T& dvalue) {
         local_locker l(&mutex);
 
-        auto ki = content_map.find(StrLower(in_key));
+        auto ki = content_map.find(str_lower(in_key));
 
         if (ki == content_map.end())
             return dvalue;

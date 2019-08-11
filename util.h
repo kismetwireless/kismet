@@ -62,7 +62,7 @@
 std::string munge_to_printable(const char *in_data, unsigned int max, int nullterm);
 std::string munge_to_printable(const std::string& in_str);
 
-std::string StrLower(const std::string& in_str);
+std::string str_lower(const std::string& in_str);
 std::string StrUpper(const std::string& in_str);
 std::string StrStrip(const std::string& in_str);
 

@@ -204,7 +204,7 @@ int log_tracker::register_log(shared_log_builder in_builder) {
     for (auto i : *logproto_vec) {
         auto b = std::static_pointer_cast<kis_logfile_builder>(i);
 
-        if (StrLower(b->get_log_class()) == StrLower(in_builder->get_log_class())) {
+        if (str_lower(b->get_log_class()) == str_lower(in_builder->get_log_class())) {
             _MSG("A logfile driver has already been registered for '" + 
                     in_builder->get_log_class() + "', cannot register it twice.",
                     MSGFLAG_ERROR);

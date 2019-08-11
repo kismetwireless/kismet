@@ -78,12 +78,12 @@ int global_registry::RegisterGlobal(std::string in_name) {
 
     std::map<std::string, int>::iterator i;
 
-	if ((i = ext_name_map.find(StrLower(in_name))) != ext_name_map.end())
+	if ((i = ext_name_map.find(str_lower(in_name))) != ext_name_map.end())
 		return i->second;
 
 	next_ext_ref++;
 
-	ext_name_map[StrLower(in_name)] = next_ext_ref;
+	ext_name_map[str_lower(in_name)] = next_ext_ref;
 
 	return next_ext_ref;
 }
@@ -91,7 +91,7 @@ int global_registry::RegisterGlobal(std::string in_name) {
 int global_registry::FetchGlobalRef(std::string in_name) {
     local_shared_locker lock(&ext_mutex);
 
-    auto extref = ext_name_map.find(StrLower(in_name));
+    auto extref = ext_name_map.find(str_lower(in_name));
 
     if (extref == ext_name_map.end())
         return -1;
