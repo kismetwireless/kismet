@@ -71,9 +71,9 @@ std::string multi_replace_all(const std::string& in, const std::string& match, c
 int hex_str_to_uint8(const std::string& in_str, uint8_t *in_buf, int in_buflen);
 std::string uint8_to_hex_str(uint8_t *in_buf, int in_buflen);
 
-template<class t> class NtoString {
+template<class t> class n_to_string {
 public:
-	NtoString(t in_n, int in_precision = 0, int in_hex = 0) { 
+	n_to_string(t in_n, int in_precision = 0, int in_hex = 0) { 
         std::ostringstream osstr;
 
 		if (in_hex)
@@ -92,12 +92,12 @@ public:
     std::string s;
 };
 
-#define IntToString(I)			NtoString<int>((I)).Str()
-#define UIntToString(I)			NtoString<unsigned int>((I)).Str()
-#define HexIntToString(I)		NtoString<unsigned int>((I), 0, 1).Str()
-#define LongIntToString(L)		NtoString<long int>((L)).Str()
-#define ULongToString(L)		NtoString<unsigned long int>((L)).Str()
-#define FloatToString(F)		NtoString<float>((F)).Str()
+#define IntToString(I)			n_to_string<int>((I)).Str()
+#define UIntToString(I)			n_to_string<unsigned int>((I)).Str()
+#define HexIntToString(I)		n_to_string<unsigned int>((I), 0, 1).Str()
+#define LongIntToString(L)		n_to_string<long int>((L)).Str()
+#define ULongToString(L)		n_to_string<unsigned long int>((L)).Str()
+#define FloatToString(F)		n_to_string<float>((F)).Str()
 
 void SubtractTimeval(struct timeval *in_tv1, struct timeval *in_tv2,
         struct timeval *out_tv);
