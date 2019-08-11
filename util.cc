@@ -161,7 +161,7 @@ int hex_str_to_uint8(const std::string& in_str, uint8_t *in_buf, int in_buflen) 
 	return decode_pos;
 }
 
-int XtoI(char x) {
+int x_to_i(char x) {
     if (isxdigit(x)) {
         if (x <= '9')
             return x - '0';
@@ -188,9 +188,9 @@ int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr) {
                 return 0;
 
             int d1, d2;
-            if ((d1 = XtoI(in_hex[strpos++])) == -1)
+            if ((d1 = x_to_i(in_hex[strpos++])) == -1)
                 return 0;
-            if ((d2 = XtoI(in_hex[strpos])) == -1)
+            if ((d2 = x_to_i(in_hex[strpos])) == -1)
                 return 0;
 
             in_chr[chrpos++] = (d1 * 16) + d2;
