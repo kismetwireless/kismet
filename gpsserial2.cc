@@ -128,7 +128,7 @@ bool kis_gps_serial_v2::open_gps(std::string in_opts) {
         // Link it to a serial port
         serialclient = std::make_shared<SerialClientV2>(Globalreg::globalreg, nmeahandler);
         serialclient->set_mutex(gps_mutex);
-        pollabletracker->RegisterPollable(serialclient);
+        pollabletracker->register_pollable(serialclient);
     }
 
     serial_device = proto_device;

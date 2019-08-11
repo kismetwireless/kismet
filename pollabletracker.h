@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -57,7 +57,7 @@ public:
     virtual ~pollable_tracker();
 
     // Add a pollable item
-    void RegisterPollable(std::shared_ptr<kis_pollable> in_pollable);
+    void register_pollable(std::shared_ptr<kis_pollable> in_pollable);
 
     // Schedule a pollable item to be removed as soon as the current
     // operation completes (or the next one begins); This allows errored sources

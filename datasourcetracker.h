@@ -349,7 +349,7 @@ public:
 
         auto pollabletracker =
             Globalreg::fetch_mandatory_global_as<pollable_tracker>("POLLABLETRACKER");
-        pollabletracker->RegisterPollable(mon);
+        pollabletracker->register_pollable(mon);
 
         mon->datasourcetracker = mon;
         return mon;

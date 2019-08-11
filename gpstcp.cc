@@ -132,7 +132,7 @@ bool kis_gps_tcp::open_gps(std::string in_opts) {
         // Link to a tcp connection
         tcpclient = std::make_shared<tcp_client_v2>(Globalreg::globalreg, nmeahandler);
         tcpclient->set_mutex(gps_mutex);
-        pollabletracker->RegisterPollable(std::static_pointer_cast<kis_pollable>(tcpclient));
+        pollabletracker->register_pollable(std::static_pointer_cast<kis_pollable>(tcpclient));
     }
 
     host = proto_host;
