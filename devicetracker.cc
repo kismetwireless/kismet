@@ -1482,7 +1482,7 @@ device_tracker::convert_stored_device(mac_addr macaddr,
 
         // Process structured object into a shared element
         shared_tracker_element e = 
-            StorageLoader::storage_to_tracker(sjson);
+            storage_loader::storage_to_tracker(sjson);
 
         if (e->get_type() != tracker_type::tracker_map) 
             throw StructuredDataException(fmt::format("Expected a tracker_map from loading the storage "

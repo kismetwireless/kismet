@@ -35,7 +35,7 @@
  *
  */
 
-namespace StorageLoader {
+namespace storage_loader {
 
 shared_tracker_element storage_to_tracker(shared_structured d); 
 
