@@ -244,7 +244,7 @@ void SpindownKismet(std::shared_ptr<pollable_tracker> pollabletracker) {
         fprintf(stderr, "\n*** KISMET IS SHUTTING DOWN ***\n");
 
     if (pollabletracker != nullptr)
-        pollabletracker->Selectloop(true);
+        pollabletracker->select_loop(true);
 
     // Be noisy
     if (globalregistry->fatal_condition) {
@@ -960,7 +960,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Independent time and select threads, which has had problems with timing conflicts
     timetracker->SpawnTimetrackerThread();
-    pollabletracker->Selectloop(false);
+    pollabletracker->select_loop(false);
 
     SpindownKismet(pollabletracker);
 }

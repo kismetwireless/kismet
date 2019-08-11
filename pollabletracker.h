@@ -65,7 +65,7 @@ public:
     void remove_pollable(std::shared_ptr<kis_pollable> in_pollable);
 
     // Perform a select loop; blocks until polling exits
-    void Selectloop(bool spindown_loop);
+    void select_loop(bool spindown_loop);
 
     // Perform a cleanup of any operations, like adding a pollable to the list or removing it
     void Maintenance();

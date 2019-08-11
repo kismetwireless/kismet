@@ -59,7 +59,7 @@ void pollable_tracker::Maintenance() {
     add_vec.clear();
 }
 
-void pollable_tracker::Selectloop(bool spindown_mode) {
+void pollable_tracker::select_loop(bool spindown_mode) {
     int max_fd;
     fd_set rset, wset;
     struct timeval tm;
