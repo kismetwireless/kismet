@@ -149,7 +149,7 @@ T string_to_n(const std::string& s, T dvalue) {
 }
 
 // String compare, 1 true 0 false -1 unknown, or default value as provided
-int StringToBool(const std::string& s, int dvalue = -1);
+int string_to_bool(const std::string& s, int dvalue = -1);
 
 // String to integer.  Throws exception if not an integer!
 int StringToInt(const std::string& s);

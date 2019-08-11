@@ -310,7 +310,7 @@ int config_file::fetch_opt_bool(std::string in_key, int dvalue) {
     std::string v = str_lower(fetch_opt(in_key));
     int r;
 
-    r = StringToBool(v);
+    r = string_to_bool(v);
 
     if (r == -1)
         return dvalue;

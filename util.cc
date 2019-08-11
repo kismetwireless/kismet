@@ -359,7 +359,7 @@ std::string fetch_opt(const std::string& in_key, const std::map<std::string, std
 int fetch_opt_bool(const std::string& in_key, std::vector<opt_pair> *in_vec, int dvalue) {
     std::string s = fetch_opt(in_key, in_vec);
 
-	return StringToBool(s, dvalue);
+	return string_to_bool(s, dvalue);
 }
 
 
@@ -369,7 +369,7 @@ int fetch_opt_bool(const std::string& in_key, const std::map<std::string, std::s
     if (i == in_map.end())
         return dvalue;
 
-    return StringToBool(i->second, dvalue);
+    return string_to_bool(i->second, dvalue);
 }
 
 std::vector<std::string> fetch_opt_vec(const std::string& in_key, std::vector<opt_pair> *in_vec) {
@@ -855,7 +855,7 @@ u_int32_t double_to_ns(double in) {
     return ret;
 }
 
-int StringToBool(const std::string& s, int dvalue) {
+int string_to_bool(const std::string& s, int dvalue) {
     std::string ls = str_lower(s);
 
 	if (ls == "true" || ls == "t") {

@@ -467,7 +467,7 @@ bool kis_datasource::get_definition_opt_bool(std::string in_opt, bool in_def) {
     else
         opt = override_default_option(in_opt);
 
-    return StringToBool(opt, in_def);
+    return string_to_bool(opt, in_def);
 }
 
 double kis_datasource::get_definition_opt_double(std::string in_opt, double in_def) {
