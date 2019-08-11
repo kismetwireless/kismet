@@ -1213,7 +1213,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             if (dot11info->subtype == packet_sub_probe_req ||
                     dot11info->subtype == packet_sub_association_req ||
                     dot11info->subtype == packet_sub_reassociation_req) {
-                d11phy->HandleProbedSSID(source_dev, source_dot11, in_pack, dot11info, pack_gpsinfo);
+                d11phy->handle_probed_ssid(source_dev, source_dot11, in_pack, dot11info, pack_gpsinfo);
             }
 
             d11phy->devicetracker->update_view_device(source_dev);
@@ -2197,20 +2197,20 @@ void kis_80211_phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
 
 }
 
-void kis_80211_phy::HandleProbedSSID(std::shared_ptr<kis_tracked_device_base> basedev,
+void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> basedev,
         std::shared_ptr<dot11_tracked_device> dot11dev,
         kis_packet *in_pack,
         dot11_packinfo *dot11info,
         kis_gps_packinfo *pack_gpsinfo) {
 
     if (dot11info == nullptr)
-        throw std::runtime_error("HandleProbedSSID with null dot11dev");
+        throw std::runtime_error("handle_probed_ssid with null dot11dev");
 
     if (basedev == nullptr) 
-        throw std::runtime_error("HandleProbedSSID with null basedev");
+        throw std::runtime_error("handle_probed_ssid with null basedev");
 
     if (dot11dev == nullptr)
-        throw std::runtime_error("HandleProbedSSID with null dot11dev");
+        throw std::runtime_error("handle_probed_ssid with null dot11dev");
 
     auto probemap(dot11dev->get_probed_ssid_map());
 

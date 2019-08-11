@@ -415,7 +415,7 @@ protected:
             kis_gps_packinfo *pack_gpsinfo);
 
     // Handle probed SSIDs
-    void HandleProbedSSID(std::shared_ptr<kis_tracked_device_base> basedev, 
+    void handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> basedev, 
             std::shared_ptr<dot11_tracked_device> dot11dev,
             kis_packet *in_pack,
             dot11_packinfo *dot11info,
