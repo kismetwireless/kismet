@@ -225,7 +225,7 @@ static const uint32_t dot11_wep_crc32_table[256] = {
 };
 
 // Convert WPA cipher elements into crypt_set stuff
-int kis_80211_phy::WPACipherConv(uint8_t cipher_index) {
+int kis_80211_phy::wpa_cipher_conv(uint8_t cipher_index) {
     int ret = crypt_wpa;
 
     // TODO fix cipher methodology for new standards, rewrite basic 
@@ -1763,11 +1763,11 @@ int kis_80211_phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
 
                 // Merge the group cipher
                 packinfo->cryptset |= 
-                    WPACipherConv(rsn->group_cipher()->cipher_type());
+                    wpa_cipher_conv(rsn->group_cipher()->cipher_type());
 
                 // Merge the unicast ciphers
                 for (auto i : *(rsn->pairwise_ciphers())) {
-                    packinfo->cryptset |= WPACipherConv(i->cipher_type());
+                    packinfo->cryptset |= wpa_cipher_conv(i->cipher_type());
                 }
 
                 // Merge the authkey types
@@ -2062,11 +2062,11 @@ int kis_80211_phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
 
                     // Merge the group cipher
                     packinfo->cryptset |= 
-                        WPACipherConv(wpa->multicast_cipher()->cipher_type());
+                        wpa_cipher_conv(wpa->multicast_cipher()->cipher_type());
 
                     // Merge the unicast ciphers
                     for (auto i : *(wpa->unicast_ciphers())) {
-                        packinfo->cryptset |= WPACipherConv(i->cipher_type());
+                        packinfo->cryptset |= wpa_cipher_conv(i->cipher_type());
                     }
 
                     // Merge the authkey types
@@ -2212,7 +2212,7 @@ int kis_80211_phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                             continue;
 
                         packinfo->cryptset |= 
-                            WPACipherConv(chunk->data[tag_orig + offt + 3]);
+                            wpa_cipher_conv(chunk->data[tag_orig + offt + 3]);
 
                         // We don't care about parsing the number of ciphers,
                         // we'll just iterate, so skip the cipher number
@@ -2223,7 +2223,7 @@ int kis_80211_phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                             if (memcmp(&(chunk->data[tag_orig + offt]), 
                                       WPA_OUI, sizeof(WPA_OUI)) == 0) {
                                 packinfo->cryptset |= 
-                                    WPACipherConv(chunk->data[tag_orig + offt + 3]);
+                                    wpa_cipher_conv(chunk->data[tag_orig + offt + 3]);
                                 offt += 4;
                             } else {
                                 break;

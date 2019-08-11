@@ -313,7 +313,7 @@ public:
     // Strong constructor
     kis_80211_phy(global_registry *in_globalreg, int in_phyid);
 
-    int WPACipherConv(uint8_t cipher_index);
+    int wpa_cipher_conv(uint8_t cipher_index);
     int WPAKeyMgtConv(uint8_t mgt_index);
 
     // Dot11 decoders, wep decryptors, etc
