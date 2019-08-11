@@ -443,7 +443,7 @@ void append_to_opts(const std::string& opt, const std::string& val, std::vector<
 	in_vec->push_back(optp);
 }
 
-void ReplaceAllOpts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec) {
+void replace_all_opts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec) {
 	opt_pair optp;
 
 	optp.opt = str_lower(opt);

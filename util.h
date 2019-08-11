@@ -124,7 +124,7 @@ int fetch_opt_bool(const std::string& in_key, const std::map<std::string, std::s
 
 int string_to_opts(const std::string& in_line, const std::string& in_sep, std::vector<opt_pair> *in_vec);
 void append_to_opts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec);
-void ReplaceAllOpts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec);
+void replace_all_opts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec);
 
 template<typename T>
 T StringTo(const std::string& s) {
