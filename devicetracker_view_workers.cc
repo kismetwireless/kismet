@@ -161,7 +161,7 @@ device_tracker_view_stringmatch_worker::device_tracker_view_stringmatch_worker(c
     fieldpaths { in_paths } {
 
     // Generate cached match for mac addresses
-    mac_addr::PrepareSearchTerm(query, mac_query_term, mac_query_term_len);
+    mac_addr::prepare_search_term(query, mac_query_term, mac_query_term_len);
 }
 
 bool device_tracker_view_stringmatch_worker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
@@ -201,7 +201,7 @@ device_tracker_view_icasestringmatch_worker::device_tracker_view_icasestringmatc
     fieldpaths { in_paths } {
 
     // Generate cached match for mac addresses
-    mac_addr::PrepareSearchTerm(query, mac_query_term, mac_query_term_len);
+    mac_addr::prepare_search_term(query, mac_query_term, mac_query_term_len);
 }
 
 bool device_tracker_view_icasestringmatch_worker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {

@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -173,7 +173,7 @@ struct mac_addr {
 
     // Convert a string to a positional search fragment, places fragent
     // in ret_term and length of fragment in ret_len
-    inline static bool PrepareSearchTerm(const std::string& s, uint64_t &ret_term, unsigned int &ret_len) {
+    inline static bool prepare_search_term(const std::string& s, uint64_t &ret_term, unsigned int &ret_len) {
         short unsigned int byte;
         int nbyte = 0;
         const char *in = s.c_str();
@@ -216,7 +216,7 @@ struct mac_addr {
         return true;
     }
 
-    // Match against a partial MAC address, prepared with PrepareSearchTerm
+    // Match against a partial MAC address, prepared with prepare_search_term
     bool PartialSearch(uint64_t in_term, unsigned int in_len) const {
         unsigned char *rt = (uint8_t *) &in_term;
         unsigned char *rlm = (uint8_t *) &longmac;

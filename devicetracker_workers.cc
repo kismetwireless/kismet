@@ -85,7 +85,7 @@ devicetracker_stringmatch_worker::devicetracker_stringmatch_worker(const std::st
     fieldpaths = in_paths;
 
     // Preemptively try to compute a mac address partial search term
-    mac_addr::PrepareSearchTerm(query, mac_query_term, mac_query_term_len);
+    mac_addr::prepare_search_term(query, mac_query_term, mac_query_term_len);
 }
 
 devicetracker_stringmatch_worker::~devicetracker_stringmatch_worker() {
