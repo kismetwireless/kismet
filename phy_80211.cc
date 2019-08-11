@@ -2526,7 +2526,7 @@ void kis_80211_phy::ProcessWPAHandshake(std::shared_ptr<kis_tracked_device_base>
 
         bssid_dot11->set_wpa_present_handshake(keymask);
 
-        eventbus->publish(std::make_shared<EventDot11WPAHandshake>(bssid_dev, bssid_dot11));
+        eventbus->publish(std::make_shared<event_dot11_wpa_handshake>(bssid_dev, bssid_dot11));
 
     }
 
