@@ -153,7 +153,7 @@ int string_to_bool(const std::string& s, int dvalue = -1);
 
 // String to integer.  Throws exception if not an integer!
 int string_to_int(const std::string& s);
-unsigned int StringToUInt(const std::string& s);
+unsigned int string_to_uint(const std::string& s);
 
 // Append to a string, with a delimiter if applicable
 std::string StringAppend(const std::string& s, const std::string& a, const std::string& d = " ");

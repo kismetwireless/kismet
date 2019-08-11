@@ -876,7 +876,7 @@ int string_to_int(const std::string& s) {
     return r;
 }
 
-unsigned int StringToUInt(const std::string& s) {
+unsigned int string_to_uint(const std::string& s) {
     unsigned int r;
 
     if (sscanf(s.c_str(), "%u", &r) != 1)
