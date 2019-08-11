@@ -382,7 +382,7 @@ public:
     static int CommonClassifier(CHAINCALL_PARMS);
 
     // Restore stored UAV records
-    virtual void LoadPhyStorage(shared_tracker_element in_storage,
+    virtual void load_phy_storage(shared_tracker_element in_storage,
             shared_tracker_element in_device);
 
     // HTTPD API

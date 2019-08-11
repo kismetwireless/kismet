@@ -124,7 +124,7 @@ Kis_UAV_Phy::~Kis_UAV_Phy() {
 }
 
 
-void Kis_UAV_Phy::LoadPhyStorage(shared_tracker_element in_storage, shared_tracker_element in_device) {
+void Kis_UAV_Phy::load_phy_storage(shared_tracker_element in_storage, shared_tracker_element in_device) {
     if (in_storage == NULL || in_device == NULL)
         return;
 

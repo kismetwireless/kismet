@@ -1494,7 +1494,7 @@ device_tracker::convert_stored_device(mac_addr macaddr,
 
         // Give all the phys a shot at it
         for (auto p : phy_handler_map)
-            p.second->LoadPhyStorage(e, kdb);
+            p.second->load_phy_storage(e, kdb);
 
         // Update the server uuid in case we don't have it
         if (kdb->get_server_uuid().error)

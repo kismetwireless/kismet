@@ -141,7 +141,7 @@ public:
 	static int PacketTrackerBluetooth(CHAINCALL_PARMS);
 
     // Load stored data
-    virtual void LoadPhyStorage(shared_tracker_element in_storage, 
+    virtual void load_phy_storage(shared_tracker_element in_storage, 
             shared_tracker_element in_device);
 
 protected:

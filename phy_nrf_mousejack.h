@@ -105,7 +105,7 @@ public:
     static int DissectorMousejack(CHAINCALL_PARMS);
     static int CommonClassifierMousejack(CHAINCALL_PARMS);
 
-    virtual void LoadPhyStorage(shared_tracker_element in_storage,
+    virtual void load_phy_storage(shared_tracker_element in_storage,
             shared_tracker_element in_device);
 
 

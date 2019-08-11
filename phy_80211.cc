@@ -3122,7 +3122,7 @@ int kis_80211_phy::timetracker_event(int eventid) {
     return 1;
 }
 
-void kis_80211_phy::LoadPhyStorage(shared_tracker_element in_storage, shared_tracker_element in_device) {
+void kis_80211_phy::load_phy_storage(shared_tracker_element in_storage, shared_tracker_element in_device) {
     if (in_storage == NULL || in_device == NULL)
         return;
 
