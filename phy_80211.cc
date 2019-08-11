@@ -1794,7 +1794,7 @@ void kis_80211_phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
         ssid->set_crypt_set(dot11info->cryptset);
         ssid->set_first_time(in_pack->ts.tv_sec);
 
-        basedev->set_crypt_string(CryptToSimpleString(dot11info->cryptset));
+        basedev->set_crypt_string(crypt_to_simple_string(dot11info->cryptset));
 
         // TODO handle loading SSID from the stored file
         ssid->set_ssid(dot11info->ssid);
@@ -2066,7 +2066,7 @@ void kis_80211_phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
         }
 
         ssid->set_crypt_set(dot11info->cryptset);
-        basedev->set_crypt_string(CryptToSimpleString(dot11info->cryptset));
+        basedev->set_crypt_string(crypt_to_simple_string(dot11info->cryptset));
     }
 
     if (ssid->get_channel().length() > 0 &&
@@ -2764,7 +2764,7 @@ std::string kis_80211_phy::crypt_to_string(uint64_t cryptset) {
     return ret;
 }
 
-std::string kis_80211_phy::CryptToSimpleString(uint64_t cryptset) {
+std::string kis_80211_phy::crypt_to_simple_string(uint64_t cryptset) {
     std::string ret;
 
     if (cryptset == crypt_none)
