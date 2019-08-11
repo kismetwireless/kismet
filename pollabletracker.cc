@@ -116,7 +116,7 @@ int pollable_tracker::MergePollableFds(fd_set *rset, fd_set *wset) {
     FD_ZERO(wset);
 
     for (auto i : pollable_vec) {
-        max_fd = i->MergeSet(max_fd, rset, wset);
+        max_fd = i->pollable_merge_set(max_fd, rset, wset);
     }
 
     return max_fd;

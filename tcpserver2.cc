@@ -131,7 +131,7 @@ int tcp_server_v2::ConfigureServer(short int in_port, unsigned int in_maxcli,
     return 1;
 }
 
-int tcp_server_v2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
+int tcp_server_v2::pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     local_locker l(&tcp_mutex);
 
     int maxfd = in_max_fd;

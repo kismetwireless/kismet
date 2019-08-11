@@ -91,7 +91,7 @@ bool pipe_client::FetchConnected() {
     return handler == nullptr || read_fd > -1 || write_fd > -1;
 }
 
-int pipe_client::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
+int pipe_client::pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     local_locker lock(pipe_mutex);
 
     if (handler == nullptr)

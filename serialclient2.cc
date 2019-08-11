@@ -128,7 +128,7 @@ bool SerialClientV2::FetchConnected() {
     return device_fd > -1;
 }
 
-int SerialClientV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
+int SerialClientV2::pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     local_locker l(serial_mutex);
 
     if (device_fd < 0)

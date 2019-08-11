@@ -121,7 +121,7 @@ int tcp_client_v2::Connect(std::string in_host, unsigned int in_port) {
     return 0;
 }
 
-int tcp_client_v2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
+int tcp_client_v2::pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     local_locker l(tcp_mutex);
 
     // All we fill in is the descriptor for writing if we're still trying to
