@@ -127,7 +127,7 @@ void kis_ppi_logfile::close_log() {
 }
 
 kis_ppi_logfile::~kis_ppi_logfile() {
-    log_close();
+    close_log();
 }
 
 void kis_ppi_logfile::register_ppi_callback(dumpfile_ppi_cb in_cb, void *in_aux) {

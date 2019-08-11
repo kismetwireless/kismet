@@ -32,8 +32,8 @@ public:
     kis_pcapng_logfile(shared_log_builder in_builder);
     virtual ~kis_pcapng_logfile();
 
-    virtual bool log_open(std::string in_path) override;
-    virtual void log_close() override;
+    virtual bool open_log(std::string in_path) override;
+    virtual void close_log() override;
 
 protected:
     pcap_stream_packetchain *pcapng_stream;

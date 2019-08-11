@@ -28,10 +28,10 @@ kis_pcapng_logfile::kis_pcapng_logfile(shared_log_builder in_builder) :
 }
 
 kis_pcapng_logfile::~kis_pcapng_logfile() {
-    log_close();
+    close_log();
 }
 
-bool kis_pcapng_logfile::log_open(std::string in_path) {
+bool kis_pcapng_logfile::open_log(std::string in_path) {
     local_locker lock(&log_mutex);
 
     set_int_log_path(in_path);
@@ -58,7 +58,7 @@ bool kis_pcapng_logfile::log_open(std::string in_path) {
     return true;
 }
 
-void kis_pcapng_logfile::log_close() {
+void kis_pcapng_logfile::close_log() {
     local_locker lock(&log_mutex);
 
     set_int_log_open(false);
