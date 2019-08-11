@@ -767,7 +767,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                                 std::stringstream ss;
 
                                 ss << "IEE80211 Access Point BSSID " <<
-                                    packinfo->bssid_mac.Mac2String() << " reporting an 802.11k " <<
+                                    packinfo->bssid_mac.mac_to_string() << " reporting an 802.11k " <<
                                     "neighbor channel of " << ie_rmm.channel_number() << " which is " <<
                                     "greater than the maximum channel, 224.  This may be an " << 
                                     "exploit attempt against Broadcom chipsets used in mobile " <<
@@ -864,7 +864,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                 _ALERT(alert_deauthinvalid_ref, in_pack, packinfo,
                        "Unknown deauthentication code " +
                        HexIntToString(packinfo->mgt_reason_code) + 
-                       " from network " + packinfo->bssid_mac.Mac2String());
+                       " from network " + packinfo->bssid_mac.mac_to_string());
             }
         } else if (fc->subtype == packet_sub_disassociation) {
             if ((packinfo->mgt_reason_code >= 25 && packinfo->mgt_reason_code <= 31) ||
@@ -873,7 +873,7 @@ int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
                 _ALERT(alert_disconinvalid_ref, in_pack, packinfo,
                        "Unknown disassociation code " +
                        HexIntToString(packinfo->mgt_reason_code) + 
-                       " from network " + packinfo->bssid_mac.Mac2String());
+                       " from network " + packinfo->bssid_mac.mac_to_string());
             }
         }
 
@@ -1433,7 +1433,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
             if (ie_tag->tag_data().find("\x75\xEB\x49") != std::string::npos) {
                 _ALERT(alert_msfdlinkrate_ref, in_pack, packinfo,
                         "MSF-style poisoned rate field in beacon for network " +
-                        packinfo->bssid_mac.Mac2String() + ", exploit attempt "
+                        packinfo->bssid_mac.mac_to_string() + ", exploit attempt "
                         "against D-Link drivers");
 
                 packinfo->corrupt = 1;
@@ -2006,7 +2006,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                         ie_tag->tag_data().length() > 24) {
 
                     std::string al = "IEEE80211 Access Point BSSID " + 
-                        packinfo->bssid_mac.Mac2String() + " sent association "
+                        packinfo->bssid_mac.mac_to_string() + " sent association "
                         "response with an invalid WMM length; this may "
                         "indicate attempts to exploit driver vulnerabilities "
                         "such as BroadPwn";
@@ -2035,7 +2035,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                 // Overflow of responses
                 if (wmmtspec_responses > 4) {
                     std::string al = "IEEE80211 Access Point BSSID " + 
-                        packinfo->bssid_mac.Mac2String() + " sent association "
+                        packinfo->bssid_mac.mac_to_string() + " sent association "
                         "response with more than 4 WMM-TSPEC responses; this "
                         "may be attempt to exploit embedded Atheros drivers using "
                         "CVE-2017-11013";
@@ -2822,7 +2822,7 @@ int KisBuiltinDissector::cmd_addwepkey(CLIENT_PARMS) {
 
     snprintf(errstr, 1024, "Added key %s length %d for BSSID %s",
              (*parsedcmdline)[0].word.c_str(), len, 
-             bssid.Mac2String().c_str());
+             bssid.mac_to_string().c_str());
 
     _MSG(errstr, MSGFLAG_INFO);
 
@@ -2856,7 +2856,7 @@ int KisBuiltinDissector::cmd_delwepkey(CLIENT_PARMS) {
     wepkeys.erase(bssid_mac);
 
     snprintf(errstr, 1024, "Deleted key for BSSID %s", 
-             bssid_mac.Mac2String().c_str());
+             bssid_mac.mac_to_string().c_str());
     _MSG(errstr, MSGFLAG_INFO);
 
     return 1;
@@ -2895,10 +2895,10 @@ int KisBuiltinDissector::cmd_strings(CLIENT_PARMS) {
 
         if (req) {
             string_nets.insert(ma, 1);
-            _MSG("String dissection turned on for " + ma.Mac2String(), MSGFLAG_INFO);
+            _MSG("String dissection turned on for " + ma.mac_to_string(), MSGFLAG_INFO);
         } else {
             string_nets.erase(ma);
-            _MSG("String dissection turned off for " + ma.Mac2String(), MSGFLAG_INFO);
+            _MSG("String dissection turned off for " + ma.mac_to_string(), MSGFLAG_INFO);
         }
 
     } else {

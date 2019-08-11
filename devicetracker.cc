@@ -1284,7 +1284,7 @@ void device_tracker::add_device(std::shared_ptr<kis_tracked_device_base> device)
     local_locker lock(&devicelist_mutex);
 
     if (fetch_device(device->get_key()) != NULL) {
-        _MSG("device_tracker tried to add device " + device->get_macaddr().Mac2String() + 
+        _MSG("device_tracker tried to add device " + device->get_macaddr().mac_to_string() + 
                 " which already exists", MSGFLAG_ERROR);
         return;
     }
@@ -1506,19 +1506,19 @@ device_tracker::convert_stored_device(mac_addr macaddr,
 
         return kdb;
     } catch (const zstr::Exception& e) {
-        _MSG("Unable to decompress stored device data (" + macaddr.Mac2String() + "); the "
+        _MSG("Unable to decompress stored device data (" + macaddr.mac_to_string() + "); the "
                 "stored device will be skipped: " + std::string(e.what()), MSGFLAG_ERROR);
         return NULL;
     } catch (const StructuredDataException& e) {
-        _MSG("Could not parse stored device data (" + macaddr.Mac2String() + "); the "
+        _MSG("Could not parse stored device data (" + macaddr.mac_to_string() + "); the "
                 "stored device will be skipped: " + std::string(e.what()), MSGFLAG_ERROR);
         return NULL;
     } catch (const std::runtime_error&e ) {
-        _MSG("Could not parse stored device data (" + macaddr.Mac2String() + "); the "
+        _MSG("Could not parse stored device data (" + macaddr.mac_to_string() + "); the "
                 "stored device will be skipped: " + std::string(e.what()), MSGFLAG_ERROR);
         return NULL;
     } catch (const std::exception& e) {
-        _MSG("Unable to load a stored device (" + macaddr.Mac2String() + "); the stored "
+        _MSG("Unable to load a stored device (" + macaddr.mac_to_string() + "); the stored "
                 "device will be skipped: " + std::string(e.what()), MSGFLAG_ERROR);
         return NULL;
     }
@@ -2005,7 +2005,7 @@ device_tracker_state_store::load_device(kis_phy_handler *in_phy, mac_addr in_mac
     local_locker dblock(&ds_mutex);
 
     std::string sql;
-    std::string macstring = in_mac.Mac2String();
+    std::string macstring = in_mac.mac_to_string();
     std::string phystring = in_phy->fetch_phy_name();
 
     int r;
@@ -2123,7 +2123,7 @@ int device_tracker_state_store::store_devices(std::shared_ptr<tracker_element_ve
 
                 serialstring = sbuf.str();
 
-                macstring = kdb->get_macaddr().Mac2String();
+                macstring = kdb->get_macaddr().mac_to_string();
                 phystring = kdb->get_phyname();
 
                 sqlite3_bind_int(stmt, 1, kdb->get_first_time());

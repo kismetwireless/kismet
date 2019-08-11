@@ -402,13 +402,13 @@ int alert_tracker::raise_prelude_alert(int in_ref, kis_packet *in_pack,
     // Source
     if (source != emptymac) {
         idmef.set("alert.source(0).node.address(0).category", "mac");
-        idmef.set("alert.source(0).node.address(0).address", source.Mac2String().c_str());
+        idmef.set("alert.source(0).node.address(0).address", source.mac_to_string().c_str());
     }
 
     // Target
     if (dest != emptymac) {
         idmef.set("alert.target(0).node.address(0).category", "mac");
-        idmef.set("alert.target(0).node.address(0).address", dest.Mac2String().c_str());
+        idmef.set("alert.target(0).node.address(0).address", dest.mac_to_string().c_str());
     }
 
     // Assessment
@@ -419,12 +419,12 @@ int alert_tracker::raise_prelude_alert(int in_ref, kis_packet *in_pack,
     // Additional Data
     if (bssid != emptymac) {
         idmef.set("alert.additional_data(>>).meaning", "BSSID");
-        idmef.set("alert.additional_data(-1).data", bssid.Mac2String().c_str());
+        idmef.set("alert.additional_data(-1).data", bssid.mac_to_string().c_str());
     }
 
     if (other != emptymac) {
         idmef.set("alert.additional_data(>>).meaning", "Other");
-        idmef.set("alert.additional_data(-1).data", other.Mac2String().c_str());
+        idmef.set("alert.additional_data(-1).data", other.mac_to_string().c_str());
     }
 
     idmef.set("alert.additional_data(>>).meaning", "Channel");

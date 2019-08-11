@@ -131,7 +131,7 @@ int Kis_Bluetooth_Phy::PacketTrackerBluetooth(CHAINCALL_PARMS) {
 
     if (btdev == nullptr) {
         std::stringstream ss;
-        ss << "Detected new Bluetooth device " << btpi->address.Mac2String();
+        ss << "Detected new Bluetooth device " << btpi->address.mac_to_string();
         if (btpi->name.length() > 0) 
             ss << " (" << btpi->name << ")";
         _MSG(ss.str(), MSGFLAG_INFO);
@@ -157,7 +157,7 @@ int Kis_Bluetooth_Phy::PacketTrackerBluetooth(CHAINCALL_PARMS) {
     if (btpi->name.length() > 0)
         basedev->set_devicename(btpi->name);
     else if (basedev->get_devicename().length() == 0) {
-        basedev->set_devicename(basedev->get_macaddr().Mac2String());
+        basedev->set_devicename(basedev->get_macaddr().mac_to_string());
     }
 
     // Set the new tx power

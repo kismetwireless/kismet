@@ -68,7 +68,7 @@ int dot11_probe_nojoin_automata::process_packet(const packet_info *in_info) {
             if (elem->counter > 25) {
                 char atext[STATUS_MAX];
                 snprintf(atext, STATUS_MAX, "Suspicious client %s - probing networks but never participating.",
-                         iter->first.Mac2String().c_str());
+                         iter->first.mac_to_string().c_str());
                 globalreg->alertracker->raise_alert(alertid, 0, iter->first, 0, 0, in_info->channel, atext);
             }
 
@@ -155,7 +155,7 @@ int DisassocTrafficAutomata::process_packet(const packet_info *in_info) {
             elem->counter++;
 
             snprintf(atext, STATUS_MAX, "Suspicious traffic on %s.  Data traffic within 10 seconds of disassociate.",
-                     in_info->source_mac.Mac2String().c_str());
+                     in_info->source_mac.mac_to_string().c_str());
             globalreg->alertracker->raise_alert(alertid, in_info->bssid_mac, in_info->source_mac, 
                                                0, 0, in_info->channel, atext);
 
@@ -208,7 +208,7 @@ int dot11_bss_timestamp_automata::process_packet(const packet_info *in_info) {
 
             snprintf(atext, STATUS_MAX, "Out-of-sequence BSS timestamp on %s "
                      "- got %llx, expected %llx - this could indicate AP spoofing",
-                     in_info->bssid_mac.Mac2String().c_str(), in_info->timestamp,
+                     in_info->bssid_mac.mac_to_string().c_str(), in_info->timestamp,
                      elem->bss_timestamp);
             globalreg->alertracker->raise_alert(alertid, in_info->bssid_mac, 0, 0, 0, in_info->channel, atext);
 
@@ -273,7 +273,7 @@ int dot11_sequence_spoof_automata::process_packet(const packet_info *in_info) {
         if (net->last_sequence < 4000 && net->last_sequence != 0 &&
             (in_info->sequence_number < net->last_sequence)) {
             snprintf(atext, STATUS_MAX, "Suspicious sequence change - %s %d to %d.  Possible spoof attempt.",
-                     net->bssid.Mac2String().c_str(), net->last_sequence, in_info->sequence_number);
+                     net->bssid.mac_to_string().c_str(), net->last_sequence, in_info->sequence_number);
             atracker->raise_alert(alertid, atext);
         }
 
@@ -288,7 +288,7 @@ int dot11_sequence_spoof_automata::process_packet(const packet_info *in_info) {
     if (count > 2) {
         char atext[STATUS_MAX];
         snprintf(atext, STATUS_MAX, "Suspicious sequence order - %s looks like %s (%d to %d).  Possible FakeAP.",
-                 in_info->source_mac.Mac2String().c_str(), seq->source_mac.Mac2String().c_str(),
+                 in_info->source_mac.mac_to_string().c_str(), seq->source_mac.mac_to_string().c_str(),
                  in_info->sequence_number, seq->seq_num);
         atracker->raise_alert(alertid, atext);
         fprintf(stderr, "**FORCED** %s\n", atext);

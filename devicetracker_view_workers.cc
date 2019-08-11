@@ -127,7 +127,7 @@ bool device_tracker_view_regex_worker::matchDevice(std::shared_ptr<kis_tracked_d
             if (fi->get_type() == tracker_type::tracker_string)
                 val = GetTrackerValue<std::string>(fi);
             else if (fi->get_type() == tracker_type::tracker_mac_addr)
-                val = GetTrackerValue<mac_addr>(fi).Mac2String();
+                val = GetTrackerValue<mac_addr>(fi).mac_to_string();
             else if (fi->get_type() == tracker_type::tracker_uuid)
                 val = GetTrackerValue<uuid>(fi).UUID2String();
             else if (fi->get_type() == tracker_type::tracker_byte_array) 

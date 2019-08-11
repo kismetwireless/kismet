@@ -901,7 +901,7 @@ int kis_database_logfile::log_device(std::shared_ptr<kis_tracked_device_base> d)
         return 0;
 
     phystring = d->get_phyname();
-    macstring = d->get_macaddr().Mac2String();
+    macstring = d->get_macaddr().mac_to_string();
     typestring = d->get_type_string();
     keystring = d->get_key().as_string();
 
@@ -1010,9 +1010,9 @@ int kis_database_logfile::log_packet(kis_packet *in_pack) {
 
     if (commoninfo != NULL) {
         phyh = devicetracker->fetch_phy_handler(commoninfo->phyid);
-        macstring = commoninfo->source.Mac2String();
-        deststring = commoninfo->dest.Mac2String();
-        transstring = commoninfo->transmitter.Mac2String();
+        macstring = commoninfo->source.mac_to_string();
+        deststring = commoninfo->dest.mac_to_string();
+        transstring = commoninfo->transmitter.mac_to_string();
         frequency = commoninfo->freq_khz;
     } else {
         macstring = "00:00:00:00:00:00";
@@ -1126,7 +1126,7 @@ int kis_database_logfile::log_data(kis_gps_packinfo *gps, struct timeval tv,
     if (!db_enabled)
         return 0;
 
-    std::string macstring = devmac.Mac2String();
+    std::string macstring = devmac.mac_to_string();
     std::string uuidstring = datasource_uuid.UUID2String();
 
     {
@@ -1234,7 +1234,7 @@ int kis_database_logfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
     if (!db_enabled)
         return 0;
 
-    std::string macstring = in_alert->get_transmitter_mac().Mac2String();
+    std::string macstring = in_alert->get_transmitter_mac().mac_to_string();
     std::string phystring = devicetracker->fetch_phy_name(in_alert->get_phy());
     std::string headerstring = in_alert->get_header();
 

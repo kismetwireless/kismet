@@ -132,9 +132,9 @@ int device_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *httpd
             }
         });
 
-    streamtracker->register_streamer(psrb, dev->get_macaddr().Mac2String() + ".pcapng",
+    streamtracker->register_streamer(psrb, dev->get_macaddr().mac_to_string() + ".pcapng",
             "pcapng", "httpd", 
-            "pcapng of all packets for device " + dev->get_macaddr().Mac2String());
+            "pcapng of all packets for device " + dev->get_macaddr().mac_to_string());
 
     return MHD_NO;
 }

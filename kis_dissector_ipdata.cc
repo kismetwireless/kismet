@@ -536,9 +536,9 @@ int kis_dissector_ip_data::handle_packet(kis_packet *in_pack) {
                         _COMMONALERT(alert_dhcpclient_ref, in_pack, common, 
                                 common->network,
                                 std::string("DHCP request from ") +
-                                common->source.Mac2String() + 
+                                common->source.mac_to_string() + 
                                 std::string(" doesn't match DHCP DISCOVER client id ") +
-                                clmac.Mac2String() + std::string(" which can indicate "
+                                clmac.mac_to_string() + std::string(" which can indicate "
                                     "a DHCP spoofing attack"));
 					}
 				}

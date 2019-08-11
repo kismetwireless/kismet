@@ -56,9 +56,9 @@ int alertsyslog_chain_hook(CHAINCALL_PARMS) {
 		syslog(LOG_CRIT, "%s server-ts=%u bssid=%s source=%s dest=%s channel=%s %s",
 			   alrtinfo->alert_vec[x]->header.c_str(),
 			   (unsigned int) alrtinfo->alert_vec[x]->tm.tv_sec,
-			   alrtinfo->alert_vec[x]->bssid.Mac2String().c_str(),
-			   alrtinfo->alert_vec[x]->source.Mac2String().c_str(),
-			   alrtinfo->alert_vec[x]->dest.Mac2String().c_str(),
+			   alrtinfo->alert_vec[x]->bssid.mac_to_string().c_str(),
+			   alrtinfo->alert_vec[x]->source.mac_to_string().c_str(),
+			   alrtinfo->alert_vec[x]->dest.mac_to_string().c_str(),
 			   alrtinfo->alert_vec[x]->channel.c_str(),
 			   alrtinfo->alert_vec[x]->text.c_str());
 	}

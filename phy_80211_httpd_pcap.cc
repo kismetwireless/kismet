@@ -165,9 +165,9 @@ int Phy_80211_Httpd_Pcap::httpd_create_stream_response(kis_net_httpd *httpd,
             }
         });
 
-    streamtracker->register_streamer(psrb, "phy80211-" + dmac.Mac2String() + " .pcapng",
+    streamtracker->register_streamer(psrb, "phy80211-" + dmac.mac_to_string() + " .pcapng",
             "pcapng", "httpd", 
-            "pcapng of all packets on phy80211 BSSID " + dmac.Mac2String());
+            "pcapng of all packets on phy80211 BSSID " + dmac.mac_to_string());
 
     return MHD_NO;
 }

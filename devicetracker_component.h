@@ -279,7 +279,7 @@ public:
 
             // Only set the mac as the common name to the mac if it's empty
             if (get_commonname() == "")
-                set_commonname(m.Mac2String());
+                set_commonname(m.mac_to_string());
 
             return true;
             
