@@ -51,8 +51,8 @@ struct structured_data_exception : public std::runtime_error {
 };
 
 // Can't parse the initial data given (json/msgpack error)
-struct StructuredDataUnparseable : public structured_data_exception {
-    StructuredDataUnparseable(std::string const& message) : 
+struct structured_data_unparseable : public structured_data_exception {
+    structured_data_unparseable(std::string const& message) : 
         structured_data_exception(message) {}
 };
 
