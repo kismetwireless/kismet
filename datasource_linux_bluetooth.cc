@@ -34,7 +34,7 @@ kis_datasource_linux_bluetooth::kis_datasource_linux_bluetooth(shared_datasource
     pack_comp_meta = packetchain->register_packet_component("METABLOB");
 }
 
-bool kis_datasource_linux_bluetooth::dispatch_rx_packet(std::shared_ptr<kismet_external::Command> c) {
+bool kis_datasource_linux_bluetooth::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
     if (kis_datasource::dispatch_rx_packet(c))
         return true;
 

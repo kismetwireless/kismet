@@ -309,7 +309,7 @@ public:
     ~dst_incoming_remote();
 
     // Override the dispatch commands to handle the newsource
-    virtual bool dispatch_rx_packet(std::shared_ptr<kismet_external::Command> c) override;
+    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) override;
 
     virtual void handle_msg_proxy(const std::string& msg, const int msgtype) override {
         _MSG(fmt::format("(Remote) - {}", msg), msgtype);

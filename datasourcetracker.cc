@@ -2020,7 +2020,7 @@ dst_incoming_remote::~dst_incoming_remote() {
     handshake_thread.join();
 }
 
-bool dst_incoming_remote::dispatch_rx_packet(std::shared_ptr<kismet_external::Command> c) { if (kis_external_interface::dispatch_rx_packet(c))
+bool dst_incoming_remote::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) { if (kis_external_interface::dispatch_rx_packet(c))
         return true;
 
     // Simple dispatch override, all we do is look for the new source

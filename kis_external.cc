@@ -172,7 +172,7 @@ void kis_external_interface::buffer_available(size_t in_amt) {
         }
 
         // Process the data payload as a protobuf frame
-        std::shared_ptr<kismet_external::Command> cmd(new kismet_external::Command());
+        std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
 
         if (!cmd->ParseFromArray(frame->data, data_sz)) {
             ringbuf_handler->peek_free_read_buffer_data(frame);
@@ -310,7 +310,7 @@ void kis_external_interface::close_external() {
     ringbuf_handler.reset();
 }
 
-unsigned int kis_external_interface::send_packet(std::shared_ptr<kismet_external::Command> c) {
+unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal::Command> c) {
     local_locker lock(ext_mutex);
 
     if (ringbuf_handler == NULL)
@@ -361,7 +361,7 @@ unsigned int kis_external_interface::send_packet(std::shared_ptr<kismet_external
     return c->seqno();
 }
 
-bool kis_external_interface::dispatch_rx_packet(std::shared_ptr<kismet_external::Command> c) {
+bool kis_external_interface::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
     // Simple dispatcher; this should be called by child implementations who
     // add their own commands
     if (c->command() == "MESSAGE") {
@@ -382,7 +382,7 @@ bool kis_external_interface::dispatch_rx_packet(std::shared_ptr<kismet_external:
 }
 
 void kis_external_interface::handle_packet_message(uint32_t in_seqno, const std::string& in_content) {
-    kismet_external::MsgbusMessage m;
+    KismetExternal::MsgbusMessage m;
 
     if (!m.ParseFromString(in_content)) {
         _MSG("Kismet external interface got an unparseable MESSAGE", MSGFLAG_ERROR);
@@ -400,7 +400,7 @@ void kis_external_interface::handle_packet_ping(uint32_t in_seqno, const std::st
 void kis_external_interface::handle_packet_pong(uint32_t in_seqno, const std::string& in_content) {
     local_locker lock(ext_mutex);
 
-    kismet_external::Pong p;
+    KismetExternal::Pong p;
     if (!p.ParseFromString(in_content)) {
         _MSG("Kismet external interface got an unparseable PONG packet", MSGFLAG_ERROR);
         trigger_error("Invalid PONG");
@@ -413,7 +413,7 @@ void kis_external_interface::handle_packet_pong(uint32_t in_seqno, const std::st
 void kis_external_interface::handle_packet_shutdown(uint32_t in_seqno, const std::string& in_content) {
     local_locker lock(ext_mutex);
 
-    kismet_external::ExternalShutdown s;
+    KismetExternal::ExternalShutdown s;
     if (!s.ParseFromString(in_content)) {
         _MSG("Kismet external interface got an unparseable SHUTDOWN", MSGFLAG_ERROR);
         trigger_error("invalid SHUTDOWN");
@@ -425,22 +425,22 @@ void kis_external_interface::handle_packet_shutdown(uint32_t in_seqno, const std
 }
 
 unsigned int kis_external_interface::send_ping() {
-    std::shared_ptr<kismet_external::Command> c(new kismet_external::Command());
+    std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
 
     c->set_command("PING");
 
-    kismet_external::Ping p;
+    KismetExternal::Ping p;
     c->set_content(p.SerializeAsString());
 
     return send_packet(c);
 }
 
 unsigned int kis_external_interface::send_pong(uint32_t ping_seqno) {
-    std::shared_ptr<kismet_external::Command> c(new kismet_external::Command());
+    std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
 
     c->set_command("PONG");
 
-    kismet_external::Pong p;
+    KismetExternal::Pong p;
     p.set_ping_seqno(ping_seqno);
 
     c->set_content(p.SerializeAsString());
@@ -449,11 +449,11 @@ unsigned int kis_external_interface::send_pong(uint32_t ping_seqno) {
 }
 
 unsigned int kis_external_interface::send_shutdown(std::string reason) {
-    std::shared_ptr<kismet_external::Command> c(new kismet_external::Command());
+    std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
 
     c->set_command("SHUTDOWN");
 
-    kismet_external::ExternalShutdown s;
+    KismetExternal::ExternalShutdown s;
     s.set_reason(reason);
 
     c->set_content(s.SerializeAsString());
@@ -498,7 +498,7 @@ void kis_external_http_interface::trigger_error(std::string in_error) {
     kis_external_interface::trigger_error(in_error);
 }
 
-bool kis_external_http_interface::dispatch_rx_packet(std::shared_ptr<kismet_external::Command> c) {
+bool kis_external_http_interface::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
     if (kis_external_interface::dispatch_rx_packet(c))
         return true;
 
@@ -623,7 +623,7 @@ void kis_external_http_interface::handle_packet_http_auth_request(uint32_t in_se
 
 unsigned int kis_external_http_interface::send_http_request(uint32_t in_http_sequence, std::string in_uri,
         std::string in_method, std::map<std::string, std::string> in_vardata) {
-    std::shared_ptr<kismet_external::Command> c(new kismet_external::Command());
+    std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
 
     c->set_command("HTTPREQUEST");
 
@@ -644,7 +644,7 @@ unsigned int kis_external_http_interface::send_http_request(uint32_t in_http_seq
 }
 
 unsigned int kis_external_http_interface::send_http_auth(std::string in_cookie) {
-    std::shared_ptr<kismet_external::Command> c(new kismet_external::Command());
+    std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
 
     c->set_command("HTTPAUTH");
 
