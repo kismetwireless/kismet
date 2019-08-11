@@ -489,7 +489,7 @@ int kis_net_httpd::start_httpd() {
 
 
     if (microhttpd == NULL) {
-        _MSG("Failed to start http server on port " + UIntToString(http_port),
+        _MSG("Failed to start http server on port " + uint_to_string(http_port),
                 MSGFLAG_FATAL);
         Globalreg::globalreg->fatal_condition = 1;
         return -1;

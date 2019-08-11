@@ -494,7 +494,7 @@ void datasource_tracker::trigger_deferred_startup() {
         unsigned int lograte =
             Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_datasource_rate", 30);
 
-        _MSG("Saving datasources to the Kismet database log every " + UIntToString(lograte) + 
+        _MSG("Saving datasources to the Kismet database log every " + uint_to_string(lograte) + 
                 " seconds.", MSGFLAG_INFO);
 
         database_log_enabled = true;
@@ -565,7 +565,7 @@ void datasource_tracker::trigger_deferred_startup() {
     if (config_defaults->get_remote_cap_listen().length() != 0 && 
             config_defaults->get_remote_cap_port() != 0) {
         _MSG("Launching remote capture server on " + listen + ":" + 
-                UIntToString(listenport), MSGFLAG_INFO);
+                uint_to_string(listenport), MSGFLAG_INFO);
         if (ConfigureServer(listenport, 1024, listen, std::vector<std::string>()) < 0) {
             _MSG("Failed to launch remote capture TCP server, check your "
                     "remote_capture_listen= and remote_capture_port= lines in "

@@ -200,7 +200,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 
             _MSG("Persistent device storage enabled.  Kismet will remember devices and "
                     "other information between launches.  Kismet will store devices "
-                    "every " + UIntToString(storerate) + " seconds and on exit.", 
+                    "every " + uint_to_string(storerate) + " seconds and on exit.", 
                     MSGFLAG_INFO);
 
             devices_storing = false;
@@ -285,7 +285,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
         unsigned int lograte = 
             globalreg->kismet_config->fetch_opt_uint("kis_log_device_rate", 30);
 
-        _MSG("Saving devices to the Kismet database log every " + UIntToString(lograte) + 
+        _MSG("Saving devices to the Kismet database log every " + uint_to_string(lograte) + 
                 " seconds.", MSGFLAG_INFO);
 
         databaselog_logging = false;
