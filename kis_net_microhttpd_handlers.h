@@ -254,15 +254,15 @@ protected:
 //
 // Free_aux_cb is called to free any aux data added into this record; the stream_aux
 // itself will be freed by the httpd system.
-class Kis_Net_Httpd_Buffer_Stream_Aux : public buffer_interface {
+class kis_net_httpd_buffer_stream_aux : public buffer_interface {
 public:
-    Kis_Net_Httpd_Buffer_Stream_Aux(kis_net_httpd_buffer_stream_handler *in_handler,
+    kis_net_httpd_buffer_stream_aux(kis_net_httpd_buffer_stream_handler *in_handler,
             kis_net_httpd_connection *in_httpd_connection, 
             std::shared_ptr<buffer_handler_generic> in_ringbuf_handler,
             void *in_aux,
-            std::function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> in_free_aux);
+            std::function<void (kis_net_httpd_buffer_stream_aux *)> in_free_aux);
 
-    virtual ~Kis_Net_Httpd_Buffer_Stream_Aux();
+    virtual ~kis_net_httpd_buffer_stream_aux();
 
     bool get_in_error() { 
         return in_error;
@@ -274,14 +274,14 @@ public:
     }
 
     void set_aux(void *in_aux, 
-            std::function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> in_free_aux) {
+            std::function<void (kis_net_httpd_buffer_stream_aux *)> in_free_aux) {
         local_locker lock(&aux_mutex);
 
         aux = in_aux;
         free_aux_cb = in_free_aux;
     }
 
-    void set_sync(std::function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> in_cb) {
+    void set_sync(std::function<void (kis_net_httpd_buffer_stream_aux *)> in_cb) {
         local_locker lock(&aux_mutex);
 
         sync_cb = in_cb;
@@ -336,11 +336,11 @@ public:
     void *aux;
 
     // Free function
-    std::function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> free_aux_cb;
+    std::function<void (kis_net_httpd_buffer_stream_aux *)> free_aux_cb;
 
     // Sync function; called to make sure the buffer is flushed and fully synced 
     // prior to flagging it complete
-    std::function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> sync_cb;
+    std::function<void (kis_net_httpd_buffer_stream_aux *)> sync_cb;
     
 };
 

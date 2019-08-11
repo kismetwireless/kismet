@@ -100,8 +100,8 @@ int device_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *httpd
         return MHD_YES;
     }
 
-    Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
-        (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
+    kis_net_httpd_buffer_stream_aux *saux = 
+        (kis_net_httpd_buffer_stream_aux *) connection->custom_extension;
       
     // Filter based on the device key
     auto *psrb = new Pcap_Stream_Packetchain(Globalreg::globalreg,
@@ -125,10 +125,10 @@ int device_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *httpd
     auto streamtracker = Globalreg::fetch_mandatory_global_as<StreamTracker>("STREAMTRACKER");
 
     saux->set_aux(psrb, 
-        [psrb, streamtracker](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+        [psrb, streamtracker](kis_net_httpd_buffer_stream_aux *aux) {
             streamtracker->remove_streamer(psrb->get_stream_id());
             if (aux->aux != NULL) {
-                delete (Kis_Net_Httpd_Buffer_Stream_Aux *) (aux->aux);
+                delete (kis_net_httpd_buffer_stream_aux *) (aux->aux);
             }
         });
 

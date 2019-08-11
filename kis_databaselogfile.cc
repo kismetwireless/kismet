@@ -1463,13 +1463,13 @@ int kis_database_logfile::httpd_create_stream_response(kis_net_httpd *httpd,
             return MHD_YES;
         }
 
-        Kis_Net_Httpd_Buffer_Stream_Aux *saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
+        kis_net_httpd_buffer_stream_aux *saux = (kis_net_httpd_buffer_stream_aux *) connection->custom_extension;
         auto streamtracker = Globalreg::fetch_mandatory_global_as<StreamTracker>();
 
         auto *dbrb = new pcap_stream_database(Globalreg::globalreg, saux->get_rbhandler());
 
         saux->set_aux(dbrb,
-                [dbrb,streamtracker](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+                [dbrb,streamtracker](kis_net_httpd_buffer_stream_aux *aux) {
                 streamtracker->remove_streamer(dbrb->get_stream_id());
                 if (aux->aux != NULL) {
                 delete (pcap_stream_database *) (aux->aux);
@@ -1540,20 +1540,20 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
                 }
             }
         } catch(const StructuredDataException& e) {
-            auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
+            auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
             auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
             std::ostream stream(streambuf);
 
             saux->set_aux(streambuf, 
-                    [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+                    [](kis_net_httpd_buffer_stream_aux *aux) {
                     if (aux->aux != NULL)
                     delete((buffer_handler_ostringstream_buf *) (aux->aux));
                     });
 
             // Set our sync function which is called by the webserver side before we
             // clean up...
-            saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+            saux->set_sync([](kis_net_httpd_buffer_stream_aux *aux) {
                     if (aux->aux != NULL) {
                     ((buffer_handler_ostringstream_buf *) aux->aux)->pubsync();
                     }
@@ -1650,20 +1650,20 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
                 query.append_clause(LIMIT, filterdata->key_as_number("limit"));
 
         } catch (const StructuredDataException& e) {
-            auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
+            auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
             auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
             std::ostream stream(streambuf);
 
             saux->set_aux(streambuf, 
-                    [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+                    [](kis_net_httpd_buffer_stream_aux *aux) {
                     if (aux->aux != NULL)
                     delete((buffer_handler_ostringstream_buf *) (aux->aux));
                     });
 
             // Set our sync function which is called by the webserver side before we
             // clean up...
-            saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+            saux->set_sync([](kis_net_httpd_buffer_stream_aux *aux) {
                     if (aux->aux != NULL) {
                     ((buffer_handler_ostringstream_buf *) aux->aux)->pubsync();
                     }
@@ -1678,13 +1678,13 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
 
     // std::cout << query << std::endl;
 
-    Kis_Net_Httpd_Buffer_Stream_Aux *saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
+    kis_net_httpd_buffer_stream_aux *saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
     auto streamtracker = Globalreg::fetch_mandatory_global_as<StreamTracker>();
 
     auto *dbrb = new pcap_stream_database(Globalreg::globalreg, saux->get_rbhandler());
 
     saux->set_aux(dbrb,
-            [dbrb,streamtracker](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+            [dbrb,streamtracker](kis_net_httpd_buffer_stream_aux *aux) {
                 streamtracker->remove_streamer(dbrb->get_stream_id());
                 if (aux->aux != NULL) {
                     delete (pcap_stream_database *) (aux->aux);

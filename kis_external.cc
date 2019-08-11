@@ -563,8 +563,8 @@ void kis_external_http_interface::handle_packet_http_response(uint32_t in_seqno,
 
     auto session = si->second;
 
-    Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
-        (Kis_Net_Httpd_Buffer_Stream_Aux *) session->connection->custom_extension;
+    kis_net_httpd_buffer_stream_aux *saux = 
+        (kis_net_httpd_buffer_stream_aux *) session->connection->custom_extension;
 
     // First off, process any headers we're trying to add, they need to come 
     // before data

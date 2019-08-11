@@ -1883,8 +1883,8 @@ int datasource_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *h
         // ringbuf aux; We can create our pcap ringbuf stream and attach it.
         // We need to close down the pcapringbuf during teardown.
        
-        Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
-            (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
+        kis_net_httpd_buffer_stream_aux *saux = 
+            (kis_net_httpd_buffer_stream_aux *) connection->custom_extension;
        
         auto *psrb = new Pcap_Stream_Packetchain(Globalreg::globalreg,
                 saux->get_rbhandler(), NULL, NULL);
@@ -1895,7 +1895,7 @@ int datasource_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *h
         auto id = psrb->get_stream_id();
 
         saux->set_aux(psrb, 
-            [id, streamtracker](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+            [id, streamtracker](kis_net_httpd_buffer_stream_aux *aux) {
                 streamtracker->remove_streamer(id);
                 if (aux->aux != NULL) {
                     delete (Pcap_Stream_Packetchain *) (aux->aux);
@@ -1942,8 +1942,8 @@ int datasource_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *h
                 unsigned int dsnum = ds->get_source_number();
 
                 // Create the pcap stream and attach it to our ringbuf
-                Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
-                    (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
+                kis_net_httpd_buffer_stream_aux *saux = 
+                    (kis_net_httpd_buffer_stream_aux *) connection->custom_extension;
 
                 // Fetch the datasource component and compare *source numbers*, not
                 // actual UUIDs - a UUID compare is expensive, a numeric compare is not!
@@ -1965,10 +1965,10 @@ int datasource_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *h
 
 
                 saux->set_aux(psrb, 
-                    [psrb, streamtracker](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+                    [psrb, streamtracker](kis_net_httpd_buffer_stream_aux *aux) {
                         streamtracker->remove_streamer(psrb->get_stream_id());
                         if (aux->aux != NULL) {
-                            delete (Kis_Net_Httpd_Buffer_Stream_Aux *) (aux->aux);
+                            delete (kis_net_httpd_buffer_stream_aux *) (aux->aux);
                         }
                     });
 

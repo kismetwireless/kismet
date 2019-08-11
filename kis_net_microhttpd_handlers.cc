@@ -167,11 +167,11 @@ void kis_net_httpd_no_files_handler::httpd_create_stream_response(kis_net_httpd 
     stream << "</html>";
 }
 
-Kis_Net_Httpd_Buffer_Stream_Aux::Kis_Net_Httpd_Buffer_Stream_Aux(
+kis_net_httpd_buffer_stream_aux::kis_net_httpd_buffer_stream_aux(
         kis_net_httpd_buffer_stream_handler *in_handler,
         kis_net_httpd_connection *in_httpd_connection,
         std::shared_ptr<buffer_handler_generic> in_ringbuf_handler,
-        void *in_aux, std::function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> in_free_aux) :
+        void *in_aux, std::function<void (kis_net_httpd_buffer_stream_aux *)> in_free_aux) :
     httpd_stream_handler(in_handler),
     httpd_connection(in_httpd_connection),
     ringbuf_handler(in_ringbuf_handler),
@@ -197,7 +197,7 @@ Kis_Net_Httpd_Buffer_Stream_Aux::Kis_Net_Httpd_Buffer_Stream_Aux(
     ringbuf_handler->set_write_buffer_interface(this);
 }
 
-Kis_Net_Httpd_Buffer_Stream_Aux::~Kis_Net_Httpd_Buffer_Stream_Aux() {
+kis_net_httpd_buffer_stream_aux::~kis_net_httpd_buffer_stream_aux() {
     // Get out of the lock and flag an error so we end
     in_error = true;
 
@@ -209,7 +209,7 @@ Kis_Net_Httpd_Buffer_Stream_Aux::~Kis_Net_Httpd_Buffer_Stream_Aux() {
     cl->unlock(0);
 }
 
-void Kis_Net_Httpd_Buffer_Stream_Aux::buffer_available(size_t in_amt __attribute__((unused))) {
+void kis_net_httpd_buffer_stream_aux::buffer_available(size_t in_amt __attribute__((unused))) {
     // All we need to do here is unlock the conditional lock; the 
     // buffer_event_cb callback will unlock and read from the buffer, then
     // re-lock and block
@@ -217,7 +217,7 @@ void Kis_Net_Httpd_Buffer_Stream_Aux::buffer_available(size_t in_amt __attribute
     cl->unlock(1);
 }
 
-void Kis_Net_Httpd_Buffer_Stream_Aux::block_until_data(std::shared_ptr<buffer_handler_generic> rbh) {
+void kis_net_httpd_buffer_stream_aux::block_until_data(std::shared_ptr<buffer_handler_generic> rbh) {
     while (1) {
         { 
             local_locker lock(&aux_mutex);
@@ -248,7 +248,7 @@ kis_net_httpd_buffer_stream_handler::~kis_net_httpd_buffer_stream_handler() {
 
 ssize_t kis_net_httpd_buffer_stream_handler::buffer_event_cb(void *cls, uint64_t pos,
         char *buf, size_t max) {
-    Kis_Net_Httpd_Buffer_Stream_Aux *stream_aux = (Kis_Net_Httpd_Buffer_Stream_Aux *) cls;
+    kis_net_httpd_buffer_stream_aux *stream_aux = (kis_net_httpd_buffer_stream_aux *) cls;
 
     // Protect that we have to exit the buffer cb before the stream can be killed, don't
     // use an automatic locker because we can't let it time out.  This could sit locked for
@@ -305,7 +305,7 @@ ssize_t kis_net_httpd_buffer_stream_handler::buffer_event_cb(void *cls, uint64_t
 }
 
 static void free_buffer_aux_callback(void *cls) {
-    Kis_Net_Httpd_Buffer_Stream_Aux *aux = (Kis_Net_Httpd_Buffer_Stream_Aux *) cls;
+    kis_net_httpd_buffer_stream_aux *aux = (kis_net_httpd_buffer_stream_aux *) cls;
 
     // fprintf(stderr, "debug - free_buffer_aux\n");
 
@@ -356,8 +356,8 @@ int kis_net_httpd_buffer_stream_handler::httpd_handle_get_request(kis_net_httpd 
     if (connection->response == NULL) {
         std::shared_ptr<buffer_handler_generic> rbh(allocate_buffer());
 
-        Kis_Net_Httpd_Buffer_Stream_Aux *aux = 
-            new Kis_Net_Httpd_Buffer_Stream_Aux(this, connection, rbh, NULL, NULL);
+        kis_net_httpd_buffer_stream_aux *aux = 
+            new kis_net_httpd_buffer_stream_aux(this, connection, rbh, NULL, NULL);
         connection->custom_extension = aux;
 
         std::promise<int> launch_promise;
@@ -438,8 +438,8 @@ int kis_net_httpd_buffer_stream_handler::httpd_handle_post_request(kis_net_httpd
         // No read, default write
         std::shared_ptr<buffer_handler_generic> rbh(allocate_buffer());
 
-        Kis_Net_Httpd_Buffer_Stream_Aux *aux = 
-            new Kis_Net_Httpd_Buffer_Stream_Aux(this, connection, rbh, NULL, NULL);
+        kis_net_httpd_buffer_stream_aux *aux = 
+            new kis_net_httpd_buffer_stream_aux(this, connection, rbh, NULL, NULL);
         connection->custom_extension = aux;
 
         // fprintf(stderr, "debug - made post aux %p\n", aux);
