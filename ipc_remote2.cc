@@ -284,7 +284,7 @@ int ipc_remote_v2::launch_kis_explicit_binary(std::string cmdpath, std::vector<s
     pipeclient->set_mutex(ipc_mutex);
 
     // Read from the child write pair, write to the child read pair
-    pipeclient->OpenPipes(outpipepair[0], inpipepair[1]);
+    pipeclient->open_pipes(outpipepair[0], inpipepair[1]);
 
     pollabletracker->RegisterPollable(pipeclient);
 
@@ -400,7 +400,7 @@ int ipc_remote_v2::launch_standard_explicit_binary(std::string cmdpath, std::vec
 
     // We read from the read end of the out pair, and write to the write end of the in
     // pair.  Confused?
-    pipeclient->OpenPipes(outpipepair[0], inpipepair[1]);
+    pipeclient->open_pipes(outpipepair[0], inpipepair[1]);
 
     binary_path = cmdpath;
     binary_args = args;

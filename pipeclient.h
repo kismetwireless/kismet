@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -48,7 +48,7 @@ public:
     virtual void set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
 
     // Bind to a r/w pair of pipes
-    int OpenPipes(int rpipe, int wpipe);
+    int open_pipes(int rpipe, int wpipe);
     void ClosePipes();
 
     // kis_pollable interface

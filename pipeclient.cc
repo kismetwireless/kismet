@@ -62,7 +62,7 @@ void pipe_client::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent
         pipe_mutex = std::make_shared<kis_recursive_timed_mutex>();
 }
 
-int pipe_client::OpenPipes(int rpipe, int wpipe) {
+int pipe_client::open_pipes(int rpipe, int wpipe) {
     local_locker lock(pipe_mutex);
 
     if (read_fd > -1 || write_fd > -1) {
