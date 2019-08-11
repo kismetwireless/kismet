@@ -180,7 +180,7 @@ struct smart_word_token {
     }
 };
 
-std::vector<smart_word_token> BaseStrTokenize(const std::string& in_str, 
+std::vector<smart_word_token> base_str_tokenize(const std::string& in_str, 
         const std::string& in_split, const std::string& in_quote);
 
 // Simplified quoted string tokenizer, expects " ' to start at the beginning

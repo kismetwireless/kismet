@@ -205,7 +205,7 @@ int hex_to_uchar(unsigned char *in_hex, unsigned char *in_chr) {
 // "foo","bar","baz,foo",something
 // and network protocols like
 // foo bar \001baz foo\001
-std::vector<smart_word_token> BaseStrTokenize(const std::string& in_str, 
+std::vector<smart_word_token> base_str_tokenize(const std::string& in_str, 
         const std::string& in_split, const std::string& in_quote) {
 	size_t begin = 0;
 	size_t end = 0;
@@ -303,7 +303,7 @@ std::vector<std::string> QuoteStrTokenize(const std::string& in_str, const std::
     std::vector<std::string> ret;
     std::vector<smart_word_token> bret;
 
-	bret = BaseStrTokenize(in_str, in_split, "\"");
+	bret = base_str_tokenize(in_str, in_split, "\"");
 
 	for (unsigned int b = 0; b < bret.size(); b++) {
 		ret.push_back(bret[b].word);
