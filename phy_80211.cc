@@ -430,7 +430,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
 	dissect_all_strings = 0;
 
 	// Load the wep keys from the config file
-	if (LoadWepkeys() < 0) {
+	if (load_wepkeys() < 0) {
         Globalreg::globalreg->fatal_condition = 1;
 		return;
 	}
@@ -839,7 +839,7 @@ const std::string kis_80211_phy::khz_to_channel(const double in_khz) {
         return fmt::format("{}", mhz);
 }
 
-int kis_80211_phy::LoadWepkeys() {
+int kis_80211_phy::load_wepkeys() {
     // Convert the WEP mappings to our real map
     std::vector<std::string> raw_wepmap_vec;
     raw_wepmap_vec = Globalreg::globalreg->kismet_config->fetch_opt_vec("wepkey");

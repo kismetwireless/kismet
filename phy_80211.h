@@ -444,7 +444,7 @@ protected:
 
     int dot11_device_entry_id;
 
-    int LoadWepkeys();
+    int load_wepkeys();
 
     std::map<mac_addr, std::string> bssid_cloak_map;
 
