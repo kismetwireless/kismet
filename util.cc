@@ -543,7 +543,7 @@ std::vector<int> str_to_int_vector(const std::string& in_text) {
 }
 
 #ifdef SYS_LINUX
-int FetchSysLoadAvg(uint8_t *in_avgmaj, uint8_t *in_avgmin) {
+int fetch_sys_loadavg(uint8_t *in_avgmaj, uint8_t *in_avgmin) {
     FILE *lf;
     short unsigned int tmaj, tmin;
 
