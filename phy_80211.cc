@@ -111,7 +111,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                     "IEEE802.11 device");
 
         // Packet classifier - makes basic records plus dot11 data
-        packetchain->register_handler(&CommonClassifierDot11, this,
+        packetchain->register_handler(&packet_dot11_common_classifier, this,
                 CHAINPOS_CLASSIFIER, -100);
         packetchain->register_handler(&phydot11_packethook_wep, this,
                 CHAINPOS_DECRYPT, -100);
@@ -811,7 +811,7 @@ kis_80211_phy::~kis_80211_phy() {
 	globalreg->packetchain->remove_handler(&phydot11_packethook_dot11string,
 										  CHAINPOS_DATADISSECT);
 										  */
-	packetchain->remove_handler(&CommonClassifierDot11,
+	packetchain->remove_handler(&packet_dot11_common_classifier,
             CHAINPOS_CLASSIFIER);
 
     timetracker->RemoveTimer(device_idle_timer);
@@ -891,7 +891,7 @@ int kis_80211_phy::LoadWepkeys() {
 
 // Common classifier responsible for generating the common devices & mapping wifi packets
 // to those devices
-int kis_80211_phy::CommonClassifierDot11(CHAINCALL_PARMS) {
+int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
     // packetnum++;
 
     kis_80211_phy *d11phy = (kis_80211_phy *) auxdata;
