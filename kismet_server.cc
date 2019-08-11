@@ -895,7 +895,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
     logtracker->register_log(shared_log_builder(new KisPPILogfileBuilder()));
     logtracker->register_log(shared_log_builder(new kis_database_logfile_builder()));
-    logtracker->register_log(shared_log_builder(new KisPcapNGLogfileBuilder()));
+    logtracker->register_log(shared_log_builder(new pcapng_logfile_builder()));
 
     std::shared_ptr<plugin_tracker> plugintracker;
 
