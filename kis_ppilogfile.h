@@ -65,7 +65,7 @@ public:
 
 	static int packet_handler(CHAINCALL_PARMS);
 
-	virtual void RegisterPPICallback(dumpfile_ppi_cb in_cb, void *in_aux);
+	virtual void register_ppi_callback(dumpfile_ppi_cb in_cb, void *in_aux);
 	virtual void RemovePPICallback(dumpfile_ppi_cb in_cb, void *in_aux);
 
     virtual bool open_log(std::string in_path) override;
