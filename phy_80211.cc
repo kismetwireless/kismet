@@ -864,7 +864,7 @@ int kis_80211_phy::load_wepkeys() {
         std::string rawkey = wepline.substr(rwsplit + 1, wepline.length() - (rwsplit + 1));
 
         unsigned char key[WEPKEY_MAX];
-        int len = Hex2UChar((unsigned char *) rawkey.c_str(), key);
+        int len = hex_to_uchar((unsigned char *) rawkey.c_str(), key);
 
         if (len != 5 && len != 13 && len != 16) {
 			_MSG("Invalid key '" + rawkey + "' length " + int_to_string(len) + 

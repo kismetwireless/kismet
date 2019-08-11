@@ -159,7 +159,7 @@ unsigned int string_to_uint(const std::string& s);
 std::string string_append(const std::string& s, const std::string& a, const std::string& d = " ");
 
 int x_to_i(char x);
-int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr);
+int hex_to_uchar(unsigned char *in_hex, unsigned char *in_chr);
 
 std::vector<std::string> StrTokenize(const std::string& in_str, const std::string& in_split, 
         int return_partial = 1);

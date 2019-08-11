@@ -2816,7 +2816,7 @@ int KisBuiltinDissector::cmd_addwepkey(CLIENT_PARMS) {
     }
 
     unsigned char key[WEPKEY_MAX];
-    int len = Hex2UChar((unsigned char *) keyvec[1].c_str(), key);
+    int len = hex_to_uchar((unsigned char *) keyvec[1].c_str(), key);
 
     add_wep_key(bssid, key, len, 1);
 
