@@ -328,7 +328,7 @@ bool device_tracker_view::device_time_endpoint_path(const std::vector<std::strin
         return false;
 
     try {
-       StringTo<int64_t>(path[4]);
+       string_to_n<int64_t>(path[4]);
     } catch (const std::exception& e) {
         return false;
     }
@@ -345,7 +345,7 @@ std::shared_ptr<tracker_element> device_tracker_view::device_time_endpoint(const
     if (path.size() < 6)
         return ret;
 
-    auto tv = StringTo<int64_t>(path[4], 0);
+    auto tv = string_to_n<int64_t>(path[4], 0);
     time_t ts;
 
     // Don't allow 'all' devices b/c it's really expensive
@@ -390,7 +390,7 @@ bool device_tracker_view::device_time_uri_endpoint_path(const std::vector<std::s
     }
 
     try {
-        StringTo<int64_t>(path[3 + extras_sz]);
+        string_to_n<int64_t>(path[3 + extras_sz]);
     } catch (const std::exception& e) {
         return false;
     }
@@ -411,7 +411,7 @@ std::shared_ptr<tracker_element> device_tracker_view::device_time_uri_endpoint(c
     if (path.size() < (5 + extras_sz))
         return ret;
 
-    auto tv = StringTo<int64_t>(path[3 + extras_sz], 0);
+    auto tv = string_to_n<int64_t>(path[3 + extras_sz], 0);
     time_t ts;
 
     // Don't allow 'all' devices b/c it's really expensive

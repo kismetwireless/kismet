@@ -663,7 +663,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                     return false;
 
                 try {
-                    auto key = StringTo<device_key>(path[3]);
+                    auto key = string_to_n<device_key>(path[3]);
                     auto dev = devicetracker->fetch_device(key);
 
                     if (dev == nullptr)
@@ -685,7 +685,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 auto cl = std::make_shared<tracker_element_vector>();
 
                 try {
-                    auto key = StringTo<device_key>(path[3]);
+                    auto key = string_to_n<device_key>(path[3]);
                     auto dev = devicetracker->fetch_device(key);
 
                     if (dev == nullptr)
@@ -724,7 +724,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 return false;
 
                 try {
-                auto key = StringTo<device_key>(path[3]);
+                auto key = string_to_n<device_key>(path[3]);
                 auto dev = devicetracker->fetch_device(key);
 
                 if (dev == nullptr)
@@ -746,7 +746,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 auto cl = std::make_shared<tracker_element_vector>();
 
                 try {
-                    auto key = StringTo<device_key>(path[3]);
+                    auto key = string_to_n<device_key>(path[3]);
                     auto dev = devicetracker->fetch_device(key);
 
                     if (dev == nullptr)

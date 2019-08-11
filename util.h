@@ -127,7 +127,7 @@ void append_to_opts(const std::string& opt, const std::string& val, std::vector<
 void replace_all_opts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec);
 
 template<typename T>
-T StringTo(const std::string& s) {
+T string_to_n(const std::string& s) {
     std::stringstream ss(s);
     T t;
 
@@ -140,9 +140,9 @@ T StringTo(const std::string& s) {
 }
 
 template<typename T>
-T StringTo(const std::string& s, T dvalue) {
+T string_to_n(const std::string& s, T dvalue) {
     try {
-        return StringTo<T>(s);
+        return string_to_n<T>(s);
     } catch (const std::exception& e) {
         return dvalue;
     }

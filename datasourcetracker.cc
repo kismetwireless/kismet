@@ -1791,7 +1791,7 @@ double datasource_tracker::string_to_rate(std::string in_str, double in_default)
     if (toks.size() != 2)
         throw std::runtime_error("Expected [value]/sec or [value]/min or [value]/dwell");
 
-    v = StringTo<double>(toks[0]);
+    v = string_to_n<double>(toks[0]);
 
     if (toks[1] == "sec") {
         return v;
