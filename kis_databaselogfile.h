@@ -85,8 +85,8 @@ public:
             insert(builder);
     }
 
-    virtual bool log_open(std::string in_path) override;
-    virtual void log_close() override;
+    virtual bool open_log(std::string in_path) override;
+    virtual void close_log() override;
 
     virtual int database_upgrade_db() override;
 

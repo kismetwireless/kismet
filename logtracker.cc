@@ -49,7 +49,7 @@ log_tracker::~log_tracker() {
 
     for (auto i : *logfile_vec) {
         shared_logfile f = std::static_pointer_cast<kis_logfile>(i);
-        f->log_close();
+        f->close_log();
     }
 
     logproto_vec.reset();
@@ -192,7 +192,7 @@ void log_tracker::trigger_deferred_shutdown() {
     for (auto l : *logfile_vec) {
         shared_logfile lf = std::static_pointer_cast<kis_logfile>(l);
 
-        lf->log_close();
+        lf->close_log();
     }
 
     return;
@@ -280,7 +280,7 @@ shared_logfile log_tracker::open_log(shared_log_builder in_builder, std::string 
 int log_tracker::close_log(shared_logfile in_logfile) {
     local_locker lock(&tracker_mutex);
 
-    in_logfile->log_close();
+    in_logfile->close_log();
 
     return 1;
 }
@@ -441,7 +441,7 @@ void log_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
             _MSG("Closing log file " + logfile->get_log_uuid().UUID2String() + " (" + 
                     logfile->get_log_path() + ")", MSGFLAG_INFO);
 
-            logfile->log_close();
+            logfile->close_log();
 
             stream << "OK";
             return;
