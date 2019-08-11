@@ -77,7 +77,7 @@ public:
     // httpd_post_complete(connection, stream&) to generate the output.
     // If this is inappropriate for your endpoint, for instance if you are
     // implementing some sort of file upload, then this function should
-    // return 'true' and you should implement it in Httpd_PostIterator
+    // return 'true' and you should implement it in httpd_post_iterator
     virtual bool httpd_use_custom_post_iterator() {
         return false;
     }
@@ -98,7 +98,7 @@ public:
     // a post system which takes multiple values you will need to index the state
     // via the connection info and parse them all as you are called from the
     // microhttpd handler.
-    virtual int Httpd_PostIterator(void *coninfo_cls __attribute__((unused)), 
+    virtual int httpd_post_iterator(void *coninfo_cls __attribute__((unused)), 
             enum MHD_ValueKind kind __attribute__((unused)), 
             const char *key __attribute__((unused)), 
             const char *filename __attribute__((unused)), 

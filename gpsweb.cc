@@ -95,7 +95,7 @@ void kis_gps_web::httpd_create_stream_response(kis_net_httpd *httpd,
     return;
 }
 
-int kis_gps_web::Httpd_PostIterator(void *coninfo_cls, enum MHD_ValueKind kind, 
+int kis_gps_web::httpd_post_iterator(void *coninfo_cls, enum MHD_ValueKind kind, 
         const char *key, const char *filename, const char *content_type,
         const char *transfer_encoding, const char *data, 
         uint64_t off, size_t size) {
