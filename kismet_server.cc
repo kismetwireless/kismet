@@ -256,7 +256,7 @@ void SpindownKismet(std::shared_ptr<pollable_tracker> pollabletracker) {
     std::shared_ptr<plugin_tracker> plugintracker =
         Globalreg::FetchGlobalAs<plugin_tracker>(globalregistry, "PLUGINTRACKER");
     if (plugintracker != NULL)
-        plugintracker->ShutdownPlugins();
+        plugintracker->shutdown_plugins();
 
     // Dump fatal errors again
     if (fqmescli != NULL) //  && globalregistry->fatal_condition) 

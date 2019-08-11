@@ -281,7 +281,7 @@ public:
     int finalize_plugins();
 
 	// Shut down the plugins and close the shared files
-	int ShutdownPlugins();
+	int shutdown_plugins();
 
     // HTTP API
     virtual bool httpd_verify_path(const char *path, const char *method);

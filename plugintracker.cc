@@ -98,7 +98,7 @@ plugin_tracker::~plugin_tracker() {
     local_locker lock(&plugin_lock);
 
     // Call the main shutdown, which should kill the vector allocations
-    ShutdownPlugins();
+    shutdown_plugins();
 }
 
 void plugin_tracker::usage(char *name __attribute__((unused))) {
@@ -445,7 +445,7 @@ int plugin_tracker::finalize_plugins() {
     return 1;
 }
 
-int plugin_tracker::ShutdownPlugins() {
+int plugin_tracker::shutdown_plugins() {
     local_locker lock(&plugin_lock);
 
     _MSG("Shutting down plugins...", MSGFLAG_INFO);
