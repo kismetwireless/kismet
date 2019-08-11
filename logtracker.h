@@ -223,13 +223,13 @@ protected:
     std::shared_ptr<tracker_element_uint8> log_open;
 };
 
-class LogTracker : public tracker_component, public kis_net_httpd_cppstream_handler, 
+class log_tracker : public tracker_component, public kis_net_httpd_cppstream_handler, 
     public lifetime_global, public deferred_startup {
 public:
     static std::string global_name() { return "LOGTRACKER"; }
 
-    static std::shared_ptr<LogTracker> create_logtracker() {
-        std::shared_ptr<LogTracker> mon(new LogTracker());
+    static std::shared_ptr<log_tracker> create_logtracker() {
+        std::shared_ptr<log_tracker> mon(new log_tracker());
         Globalreg::globalreg->register_lifetime_global(mon);
         Globalreg::globalreg->register_deferred_global(mon);
         Globalreg::globalreg->insert_global(global_name(), mon);
@@ -262,10 +262,10 @@ public:
 
     static void usage(const char *argv0);
 private:
-    LogTracker();
+    log_tracker();
 
 public:
-    virtual ~LogTracker();
+    virtual ~log_tracker();
 
     __ProxyPrivSplit(logging_enabled, uint8_t, bool, bool, logging_enabled);
     __ProxyPrivSplit(log_title, std::string, std::string, std::string, log_title);

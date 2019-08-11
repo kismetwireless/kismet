@@ -29,7 +29,7 @@
 #include "kismet_json.h"
 #include "base64.h"
 
-LogTracker::LogTracker() :
+log_tracker::log_tracker() :
     tracker_component(),
     kis_net_httpd_cppstream_handler() {
 
@@ -42,7 +42,7 @@ LogTracker::LogTracker() :
     bind_httpd_server();
 }
 
-LogTracker::~LogTracker() {
+log_tracker::~log_tracker() {
     local_locker lock(&tracker_mutex);
 
     Globalreg::globalreg->RemoveGlobal("LOGTRACKER");
@@ -56,7 +56,7 @@ LogTracker::~LogTracker() {
     logfile_vec.reset();
 }
 
-void LogTracker::register_fields() { 
+void log_tracker::register_fields() { 
     register_field("kismet.logtracker.drivers", "supported log types", &logproto_vec);
     register_field("kismet.logtracker.logfiles", "active log files", &logfile_vec);
 
@@ -77,14 +77,14 @@ void LogTracker::register_fields() {
     register_field("kismet.logtracker.log_types", "enabled log types", &log_types_vec);
 }
 
-void LogTracker::reserve_fields(std::shared_ptr<tracker_element_map> e) {
+void log_tracker::reserve_fields(std::shared_ptr<tracker_element_map> e) {
     tracker_component::reserve_fields(e);
 
     // Normally we'd need to implement vector repair for the complex nested
     // types in logproto and logfile, but we don't snapshot state so we don't.
 }
 
-void LogTracker::trigger_deferred_startup() {
+void log_tracker::trigger_deferred_startup() {
 	int option_idx = 0;
 	std::string retfname;
 
@@ -188,7 +188,7 @@ void LogTracker::trigger_deferred_startup() {
     return;
 }
 
-void LogTracker::trigger_deferred_shutdown() {
+void log_tracker::trigger_deferred_shutdown() {
     for (auto l : *logfile_vec) {
         shared_logfile lf = std::static_pointer_cast<kis_logfile>(l);
 
@@ -198,7 +198,7 @@ void LogTracker::trigger_deferred_shutdown() {
     return;
 }
 
-int LogTracker::register_log(shared_log_builder in_builder) {
+int log_tracker::register_log(shared_log_builder in_builder) {
     local_locker lock(&tracker_mutex);
 
     for (auto i : *logproto_vec) {
@@ -217,11 +217,11 @@ int LogTracker::register_log(shared_log_builder in_builder) {
     return 1;
 }
 
-shared_logfile LogTracker::open_log(std::string in_class) {
+shared_logfile log_tracker::open_log(std::string in_class) {
     return open_log(in_class, get_log_title());
 }
 
-shared_logfile LogTracker::open_log(std::string in_class, std::string in_title) {
+shared_logfile log_tracker::open_log(std::string in_class, std::string in_title) {
     local_locker lock(&tracker_mutex);
 
     shared_log_builder target_builder;
@@ -237,11 +237,11 @@ shared_logfile LogTracker::open_log(std::string in_class, std::string in_title) 
     return 0;
 }
 
-shared_logfile LogTracker::open_log(shared_log_builder in_builder) {
+shared_logfile log_tracker::open_log(shared_log_builder in_builder) {
     return open_log(in_builder, get_log_title());
 }
 
-shared_logfile LogTracker::open_log(shared_log_builder in_builder, std::string in_title) {
+shared_logfile log_tracker::open_log(shared_log_builder in_builder, std::string in_title) {
     local_locker lock(&tracker_mutex);
 
     if (in_builder == NULL)
@@ -277,7 +277,7 @@ shared_logfile LogTracker::open_log(shared_log_builder in_builder, std::string i
     return lf;
 }
 
-int LogTracker::close_log(shared_logfile in_logfile) {
+int log_tracker::close_log(shared_logfile in_logfile) {
     local_locker lock(&tracker_mutex);
 
     in_logfile->log_close();
@@ -285,7 +285,7 @@ int LogTracker::close_log(shared_logfile in_logfile) {
     return 1;
 }
 
-void LogTracker::usage(const char *argv0) {
+void log_tracker::usage(const char *argv0) {
     printf(" *** Logging Options ***\n");
 	printf(" -T, --log-types <types>      Override activated log types\n"
 		   " -t, --log-title <title>      Override default log title\n"
@@ -293,7 +293,7 @@ void LogTracker::usage(const char *argv0) {
 		   " -n, --no-logging             Disable logging entirely\n");
 }
 
-bool LogTracker::httpd_verify_path(const char *path, const char *method) {
+bool log_tracker::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
         if (!httpd_can_serialize(path))
             return false;
@@ -380,7 +380,7 @@ bool LogTracker::httpd_verify_path(const char *path, const char *method) {
     return false;
 }
 
-void LogTracker::httpd_create_stream_response(kis_net_httpd *httpd,
+void log_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream) {
@@ -487,7 +487,7 @@ void LogTracker::httpd_create_stream_response(kis_net_httpd *httpd,
 
 }
 
-int LogTracker::httpd_post_complete(kis_net_httpd_connection *concls) {
+int log_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
     shared_structured structdata;
 
     // All the posts require login

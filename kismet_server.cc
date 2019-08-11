@@ -317,7 +317,7 @@ int usage(char *argv) {
            "                               compile time.\n"
            );
 
-    LogTracker::usage(argv);
+    log_tracker::usage(argv);
 
     for (std::vector<global_registry::usage_func>::iterator i = 
             globalregistry->usage_func_vec.begin();
@@ -891,7 +891,7 @@ int main(int argc, char *argv[], char *envp[]) {
     kis_database_logfile::create_kisdatabaselog();
 
     auto logtracker = 
-        LogTracker::create_logtracker();
+        log_tracker::create_logtracker();
 
     logtracker->register_log(shared_log_builder(new KisPPILogfileBuilder()));
     logtracker->register_log(shared_log_builder(new kis_database_logfile_builder()));
