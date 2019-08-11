@@ -1662,7 +1662,7 @@ int cf_handler_remote_server(kis_capture_handler_t *caph) {
     if (caph->remote_host == NULL)
         return 0;
 
-    /* Close the fd if it's open */
+    /* close the fd if it's open */
     if (caph->tcp_fd >= 0) {
         close(caph->tcp_fd);
         caph->tcp_fd = -1;
@@ -1807,7 +1807,7 @@ int cf_handler_remote_server(kis_capture_handler_t *caph) {
 
     fcntl(caph->tcp_fd, F_SETFL, fcntl(caph->tcp_fd, F_GETFL, 0) | O_NONBLOCK);
 
-    /* Close the server because we only allow one connection; in the future this might
+    /* close the server because we only allow one connection; in the future this might
      * be an opportunity to define an error message and return that.
      */
     close(caph->listen_fd);
@@ -1842,7 +1842,7 @@ int cf_handler_remote_connect(kis_capture_handler_t *caph) {
     if (caph->remote_host == NULL)
         return 0;
 
-    /* Close the fd if it's open */
+    /* close the fd if it's open */
     if (caph->tcp_fd >= 0) {
         close(caph->tcp_fd);
         caph->tcp_fd = -1;

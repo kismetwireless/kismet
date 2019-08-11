@@ -80,7 +80,7 @@ bool kis_ppi_logfile::open_log(std::string in_path) {
         return false;
     }
 
-    // Close it on exec
+    // close it on exec
     fcntl(fileno(dump_filep), F_SETFL, fcntl(fileno(dump_filep), F_GETFL, 0) | O_CLOEXEC);
 
 	dumper = pcap_dump_fopen(dumpfile, dump_filep);
@@ -110,7 +110,7 @@ void kis_ppi_logfile::close_log() {
     if (packetchain != NULL) 
         packetchain->remove_handler(&kis_ppi_logfile::packet_handler, CHAINPOS_LOGGING);
 
-    // Close files
+    // close files
     if (dumper != NULL) {
         pcap_dump_flush(dumper);
         pcap_dump_close(dumper);

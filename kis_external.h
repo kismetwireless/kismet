@@ -85,7 +85,7 @@ public:
     // datasources are the primary exception
     virtual bool run_ipc();
 
-    // Close the external interface
+    // close the external interface
     virtual void close_external();
 
 protected:

@@ -255,7 +255,7 @@ int ipc_remote_v2::launch_kis_explicit_binary(std::string cmdpath, std::vector<s
 
         cmdarg[args.size() + 3] = NULL;
 
-        // Close the unused half of the pairs on the child
+        // close the unused half of the pairs on the child
         close(inpipepair[1]);
         close(outpipepair[0]);
 
@@ -272,7 +272,7 @@ int ipc_remote_v2::launch_kis_explicit_binary(std::string cmdpath, std::vector<s
     // fprintf(stderr, "debug - ipcremote2 creating pipeclient\n");
     
     
-    // Close the remote side of the pipes from the parent, they're open in the child
+    // close the remote side of the pipes from the parent, they're open in the child
     close(inpipepair[0]);
     close(outpipepair[1]);
 
@@ -378,7 +378,7 @@ int ipc_remote_v2::launch_standard_explicit_binary(std::string cmdpath, std::vec
         dup2(inpipepair[0], STDIN_FILENO);
         dup2(outpipepair[1], STDOUT_FILENO);
 
-        // Close the remote side of the pipes
+        // close the remote side of the pipes
         close(inpipepair[0]);
         close(outpipepair[1]);
 
@@ -389,7 +389,7 @@ int ipc_remote_v2::launch_standard_explicit_binary(std::string cmdpath, std::vec
 
     // Only reach here if we're the parent process
     
-    // Close the remote side of the pipes
+    // close the remote side of the pipes
     close(inpipepair[1]);
     close(outpipepair[0]);
 

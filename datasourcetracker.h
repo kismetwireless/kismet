@@ -402,7 +402,7 @@ public:
     void open_datasource(const std::string& in_source, shared_datasource_builder in_proto,
             const std::function<void (bool, std::string, shared_datasource)>& in_cb);
 
-    // Close a datasource - stop it if necessary, and place it into a closed state
+    // close a datasource - stop it if necessary, and place it into a closed state
     // without automatic reconnection.
     bool close_datasource(const uuid& in_uuid);
 

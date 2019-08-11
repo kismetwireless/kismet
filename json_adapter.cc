@@ -987,6 +987,6 @@ void storage_json_adapter::pack(std::ostream &stream, shared_tracker_element e,
             break;
     }
 
-    // Close wrapping object
+    // close wrapping object
     stream << "}";
 }

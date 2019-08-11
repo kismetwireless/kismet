@@ -630,7 +630,7 @@ std::list<_kis_lex_rec> LexString(std::string in_line, std::string& errstr) {
 				continue;
 			}
 
-			// Close paren
+			// close paren
 			if (c == ')') {
 				cpr.type = _kis_lex_pclose;
 				ret.push_back(cpr);

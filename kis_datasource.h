@@ -283,7 +283,7 @@ public:
             std::string in_definition, open_callback_t in_cb);
 
 
-    // Close the source
+    // close the source
     // Cancels any current activity (probe, open, pending commands) and sends a
     // terminate command to the capture binary.
     // Closing sends a failure result to any pending async commands

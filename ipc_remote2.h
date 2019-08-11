@@ -59,7 +59,7 @@ public:
     // they are added
     void add_path(std::string in_path);
 
-    // Close IPC and issue a soft-kill
+    // close IPC and issue a soft-kill
     void close_ipc();
 
     // Launch a binary with specified arguments.

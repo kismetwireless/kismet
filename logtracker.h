@@ -257,7 +257,7 @@ public:
     shared_logfile open_log(std::string in_class, std::string in_title);
     shared_logfile open_log(shared_log_builder in_builder, std::string in_title);
 
-    // Close a log
+    // close a log
     int close_log(shared_logfile in_logfile);
 
     static void usage(const char *argv0);

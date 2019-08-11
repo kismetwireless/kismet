@@ -712,7 +712,7 @@ bool datasource_tracker::remove_datasource(const uuid& in_uuid) {
             _MSG_INFO("Closing source '{}' and removing it from the list of available "
                     "datasources.", kds->get_source_name());
 
-            // Close it
+            // close it
             kds->close_source();
 
             // Remove it
@@ -748,7 +748,7 @@ bool datasource_tracker::close_datasource(const uuid& in_uuid) {
         if (kds->get_source_uuid() == in_uuid) {
             _MSG_INFO("Closing source '{}'", kds->get_source_name());
 
-            // Close it
+            // close it
             kds->close_source();
 
             // Done
