@@ -1913,7 +1913,7 @@ void kis_80211_phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
     }
 
     if (dot11info->subtype == packet_sub_beacon) {
-        auto tag_hash = xxHashCPP{};
+        auto tag_hash = xx_hash_cpp{};
 
         for (auto i : beacon_ie_fingerprint_list) {
 
@@ -2288,7 +2288,7 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
         for (auto ti : taglist) 
             probessid->get_ie_tag_list()->push_back(std::get<0>(ti));
 
-        auto tag_hash = xxHashCPP{};
+        auto tag_hash = xx_hash_cpp{};
 
         for (auto i : probe_ie_fingerprint_list) {
             auto te = dot11info->ietag_hash_map.find(i);
