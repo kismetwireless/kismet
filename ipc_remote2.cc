@@ -455,7 +455,7 @@ void ipc_remote_v2::notify_killed(int in_exit) {
 
     // Pull anything left in the buffer and process it
     if (pipeclient != nullptr) {
-        pipeclient->FlushRead();
+        pipeclient->flush_read();
     }
 
     if (ipchandler != nullptr) {

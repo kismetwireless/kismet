@@ -56,7 +56,7 @@ public:
     virtual int pollable_poll(fd_set& in_rset, fd_set& in_wset);
 
     // Flush out the read pipe if the process has exited
-    virtual int FlushRead();
+    virtual int flush_read();
 
     bool FetchConnected();
 

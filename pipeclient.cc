@@ -207,7 +207,7 @@ int pipe_client::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
     return 0;
 }
 
-int pipe_client::FlushRead() {
+int pipe_client::flush_read() {
     local_locker lock(pipe_mutex);
 
     std::stringstream msg;
