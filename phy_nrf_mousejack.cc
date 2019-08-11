@@ -39,7 +39,7 @@
 Kis_Mousejack_Phy::Kis_Mousejack_Phy(global_registry *in_globalreg, int in_phyid) :
     kis_phy_handler(in_globalreg, in_phyid) {
 
-    SetPhyName("NrfMousejack");
+    set_phy_name("NrfMousejack");
 
     packetchain = 
         Globalreg::fetch_mandatory_global_as<packet_chain>();

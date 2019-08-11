@@ -103,7 +103,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
         // Initialize the crc tables
         crc32_init_table_80211(Globalreg::globalreg->crc32_table);
 
-        SetPhyName("IEEE802.11");
+        set_phy_name("IEEE802.11");
 
         dot11_device_entry_id =
             Globalreg::globalreg->entrytracker->register_field("dot11.device",

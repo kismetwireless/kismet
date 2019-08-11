@@ -58,7 +58,7 @@ public:
             shared_tracker_element in_device __attribute__((unused))) { }
 
 protected:
-    void SetPhyName(std::string in_phyname) {
+    void set_phy_name(std::string in_phyname) {
         phyname = in_phyname;
         phyname_hash = device_key::gen_pkey(phyname);
     }

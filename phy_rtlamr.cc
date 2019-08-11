@@ -30,7 +30,7 @@
 Kis_RTLAMR_Phy::Kis_RTLAMR_Phy(global_registry *in_globalreg, int in_phyid) :
     kis_phy_handler(in_globalreg, in_phyid) {
 
-    SetPhyName("RTLAMR");
+    set_phy_name("RTLAMR");
 
     packetchain =
         Globalreg::fetch_mandatory_global_as<packet_chain>();

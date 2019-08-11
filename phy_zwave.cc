@@ -32,7 +32,7 @@ Kis_Zwave_Phy::Kis_Zwave_Phy(global_registry *in_globalreg, int in_phyid) :
     kis_phy_handler(in_globalreg, in_phyid),
     kis_net_httpd_cppstream_handler() {
 
-    SetPhyName("Z-Wave");
+    set_phy_name("Z-Wave");
 
     packetchain =
         Globalreg::fetch_mandatory_global_as<packet_chain>();
