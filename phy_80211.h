@@ -314,7 +314,7 @@ public:
     kis_80211_phy(global_registry *in_globalreg, int in_phyid);
 
     int wpa_cipher_conv(uint8_t cipher_index);
-    int WPAKeyMgtConv(uint8_t mgt_index);
+    int wpa_key_mgt_conv(uint8_t mgt_index);
 
     // Dot11 decoders, wep decryptors, etc
     int PacketWepDecryptor(kis_packet *in_pack);

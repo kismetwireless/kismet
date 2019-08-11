@@ -257,7 +257,7 @@ int kis_80211_phy::wpa_cipher_conv(uint8_t cipher_index) {
 }
 
 // Convert WPA key management elements into crypt_set stuff
-int kis_80211_phy::WPAKeyMgtConv(uint8_t mgt_index) {
+int kis_80211_phy::wpa_key_mgt_conv(uint8_t mgt_index) {
     int ret = crypt_wpa;
 
     switch (mgt_index) {
@@ -1772,7 +1772,7 @@ int kis_80211_phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
 
                 // Merge the authkey types
                 for (auto i : *(rsn->akm_ciphers())) {
-                    packinfo->cryptset |= WPAKeyMgtConv(i->management_type());
+                    packinfo->cryptset |= wpa_key_mgt_conv(i->management_type());
                 }
 
                 // IF we're advertised using IE48 RSN, we're wpa2 or wpa3.  WPA3
@@ -2071,7 +2071,7 @@ int kis_80211_phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
 
                     // Merge the authkey types
                     for (auto i : *(wpa->akm_ciphers())) {
-                        packinfo->cryptset |= WPAKeyMgtConv(i->cipher_type());
+                        packinfo->cryptset |= wpa_key_mgt_conv(i->cipher_type());
                     }
 
                     if (wpa->wpa_version() == 1)
@@ -2242,7 +2242,7 @@ int kis_80211_phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
                             if (memcmp(&(chunk->data[tag_orig + offt]), 
                                       WPA_OUI, sizeof(WPA_OUI)) == 0) {
                                 packinfo->cryptset |= 
-                                    WPAKeyMgtConv(chunk->data[tag_orig + offt + 3]);
+                                    wpa_key_mgt_conv(chunk->data[tag_orig + offt + 3]);
                                 offt += 4;
                             } else {
                                 break;
