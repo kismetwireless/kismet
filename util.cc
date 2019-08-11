@@ -566,7 +566,7 @@ int fetch_sys_loadavg(uint8_t *in_avgmaj, uint8_t *in_avgmin) {
 }
 #endif
 
-uint32_t Adler32IncrementalChecksum(const char *in_buf, size_t in_len,
+uint32_t adler32_incremental_checksum(const char *in_buf, size_t in_len,
         uint32_t *s1, uint32_t *s2) {
     size_t i;
     const uint8_t *buf = (const uint8_t *) in_buf;
@@ -601,7 +601,7 @@ uint32_t adler32_checksum(const char *in_buf, size_t in_len) {
     s1 = 0;
     s2 = 0;
 
-    return Adler32IncrementalChecksum(in_buf, in_len, &s1, &s2);
+    return adler32_incremental_checksum(in_buf, in_len, &s1, &s2);
 }
 
 std::list<_kis_lex_rec> LexString(std::string in_line, std::string& errstr) {

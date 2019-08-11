@@ -210,7 +210,7 @@ uint32_t adler32_checksum(const std::string& buf1);
 // multiple records.
 // Caller must set s1 and s2 to 0 for the initial call and provide them for
 // subsequent calls.
-uint32_t Adler32IncrementalChecksum(const char *buf1, size_t len, 
+uint32_t adler32_incremental_checksum(const char *buf1, size_t len, 
         uint32_t *s1, uint32_t *s2);
 
 // 802.11 checksum functions, derived from the BBN USRP 802.11 code
