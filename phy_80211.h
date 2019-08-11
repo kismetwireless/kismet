@@ -332,7 +332,7 @@ public:
     int packet_dot11_wps_m3(kis_packet *in_pack);
 
     // Is the packet a WPA handshake?  Return an eapol tracker element if so
-    std::shared_ptr<dot11_tracked_eapol> PacketDot11EapolHandshake(kis_packet *in_pack,
+    std::shared_ptr<dot11_tracked_eapol> packet_dot11_eapol_handshake(kis_packet *in_pack,
             std::shared_ptr<dot11_tracked_device> dot11device);
 
     // static incase some other component wants to use it

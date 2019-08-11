@@ -2469,7 +2469,7 @@ void kis_80211_phy::ProcessWPAHandshake(std::shared_ptr<kis_tracked_device_base>
         kis_packet *in_pack,
         dot11_packinfo *dot11info) {
 
-    std::shared_ptr<dot11_tracked_eapol> eapol = PacketDot11EapolHandshake(in_pack, bssid_dot11);
+    std::shared_ptr<dot11_tracked_eapol> eapol = packet_dot11_eapol_handshake(in_pack, bssid_dot11);
 
     if (eapol == NULL)
         return;

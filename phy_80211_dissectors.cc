@@ -2570,7 +2570,7 @@ int kis_80211_phy::packet_dot11_wps_m3(kis_packet *in_pack) {
 }
 
 std::shared_ptr<dot11_tracked_eapol> 
-    kis_80211_phy::PacketDot11EapolHandshake(kis_packet *in_pack,
+    kis_80211_phy::packet_dot11_eapol_handshake(kis_packet *in_pack,
             std::shared_ptr<dot11_tracked_device> dot11dev) {
 
     if (in_pack->error) {
