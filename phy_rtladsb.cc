@@ -94,8 +94,8 @@ mac_addr Kis_RTLADSB_Phy::json_to_mac(Json::Value json) {
 
     if (json.isMember("icao")) {
         Json::Value m = json["icao"];
-        if (m.is_string()) {
-            smodel = m.as_string();
+        if (m.isString()) {
+            smodel = m.asString();
         }
     }
 
@@ -105,9 +105,9 @@ mac_addr Kis_RTLADSB_Phy::json_to_mac(Json::Value json) {
 
     if (json.isMember("icao")) {
         Json::Value i = json["icao"];
-        if (i.is_string()) {
-	    //*model = i.as_string();
-	    std::string icaotmp = i.as_string();
+        if (i.isString()) {
+	    //*model = i.asString();
+	    std::string icaotmp = i.asString();
 	    int icaoint = std::stoi(icaotmp, 0, 16);
             *model = kis_hton16((uint16_t) icaoint);
             set_model = true;
@@ -160,8 +160,8 @@ bool Kis_RTLADSB_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
         Json::Value c = json["channel"];
         if (c.isNumeric()) {
             common->channel = IntToString(c.asInt());
-        } else if (c.is_string()) {
-            common->channel = MungeToPrintable(c.as_string());
+        } else if (c.isString()) {
+            common->channel = MungeToPrintable(c.asString());
         }
     }
 
@@ -179,8 +179,8 @@ bool Kis_RTLADSB_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     std::string dn = "Airplane";
 
     auto icao_j = json["icao"];
-    if (icao_j.is_string()) {
-        dn = icao_j.as_string();
+    if (icao_j.isString()) {
+        dn = icao_j.asString();
     }
 
     basedev->set_manuf(rtl_manuf);
@@ -216,8 +216,8 @@ bool Kis_RTLADSB_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
             //Json::Value id_j = json["icao"];
 	    auto icao_j = json["icao"];
             //std::fprintf(stderr, "RTLADSB: ID? %d\n", id_j);
-            if (icao_j.is_string()) {
-                commondev->set_rtlid(icao_j.as_string());
+            if (icao_j.isString()) {
+                commondev->set_rtlid(icao_j.asString());
                 set_id = true;
             }
         }
@@ -234,8 +234,8 @@ bool Kis_RTLADSB_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
 
         if (channel_j.isNumeric())
             commondev->set_rtlchannel(IntToString(channel_j.asInt()));
-        else if (channel_j.is_string())
-            commondev->set_rtlchannel(MungeToPrintable(channel_j.as_string()));
+        else if (channel_j.isString())
+            commondev->set_rtlchannel(MungeToPrintable(channel_j.asString()));
     }
 
     if (is_adsb(json))
@@ -282,40 +282,40 @@ void Kis_RTLADSB_Phy::add_adsb(Json::Value json, std::shared_ptr<tracker_element
             rtlholder->insert(adsbdev);
         }
 
-        adsbdev->set_icao(icao_j.as_string());
+        adsbdev->set_icao(icao_j.asString());
 	
         if (json.isMember("regid")) {
             auto regid_j = json["regid"];
-            if (regid_j.is_string()) {
-                adsbdev->set_regid(regid_j.as_string());
+            if (regid_j.isString()) {
+                adsbdev->set_regid(regid_j.asString());
             }
         }
 
         if (json.isMember("mdl")) {
             auto mdl_j = json["mdl"];
-            if (mdl_j.is_string()) {
-                adsbdev->set_mdl(mdl_j.as_string());
+            if (mdl_j.isString()) {
+                adsbdev->set_mdl(mdl_j.asString());
             }
         }
 
         if (json.isMember("type")) {
             auto type_j = json["type"];
-            if (type_j.is_string()) {
-                adsbdev->set_atype(type_j.as_string());
+            if (type_j.isString()) {
+                adsbdev->set_atype(type_j.asString());
             }
         }
 
         if (json.isMember("operator")) {
             auto operator_j = json["operator"];
-            if (operator_j.is_string()) {
-                adsbdev->set_aoperator(operator_j.as_string());
+            if (operator_j.isString()) {
+                adsbdev->set_aoperator(operator_j.asString());
             }
         }
 
         if (json.isMember("callsign")) {
             auto callsign_j = json["callsign"];
-            if (callsign_j.is_string()) {
-                adsbdev->set_callsign(callsign_j.as_string());
+            if (callsign_j.isString()) {
+                adsbdev->set_callsign(callsign_j.asString());
             }
         }
 
@@ -342,8 +342,8 @@ void Kis_RTLADSB_Phy::add_adsb(Json::Value json, std::shared_ptr<tracker_element
 
         if (json.isMember("gsas")) {
             auto gsas_j = json["gsas"];
-            if (gsas_j.is_string()) {
-                adsbdev->set_gsas(gsas_j.as_string());
+            if (gsas_j.isString()) {
+                adsbdev->set_gsas(gsas_j.asString());
             }
         }
     }

@@ -287,10 +287,10 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
                 std::stringstream ss(inptok[it]);
                 ss >> json;
 
-                std::string msg_class = json["class"].as_string();
+                std::string msg_class = json["class"].asString();
 
                 if (msg_class == "VERSION") {
-                    std::string version  = MungeToPrintable(json["release"].as_string());
+                    std::string version  = MungeToPrintable(json["release"].asString());
 
                     _MSG("kis_gps_gpsd_v2 connected to a JSON-enabled GPSD version " +
                             version + ", turning on JSON mode", MSGFLAG_INFO);

@@ -94,8 +94,8 @@ mac_addr Kis_RTLAMR_Phy::json_to_mac(Json::Value json) {
 
     if (json.isMember("model")) {
         Json::Value m = json["model"];
-        if (m.is_string()) {
-            smodel = m.as_string();
+        if (m.isString()) {
+            smodel = m.asString();
         }
     }
 
@@ -151,8 +151,8 @@ bool Kis_RTLAMR_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
         Json::Value c = json["channel"];
         if (c.isNumeric()) {
             common->channel = IntToString(c.asInt());
-        } else if (c.is_string()) {
-            common->channel = MungeToPrintable(c.as_string());
+        } else if (c.isString()) {
+            common->channel = MungeToPrintable(c.asString());
         }
     }
 
@@ -174,7 +174,7 @@ bool Kis_RTLAMR_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
       if (msgjson.isMember("ID")) {
           Json::Value i = msgjson["ID"];
           if (i.isNumeric()) {
-              dn = i.as_string();
+              dn = i.asString();
           }
       }
     }
@@ -211,11 +211,11 @@ bool Kis_RTLAMR_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
               Json::Value id_j = msgjson["ID"];
               if (id_j.isNumeric()) {
                   std::stringstream ss;
-                  ss << id_j.as_string();
+                  ss << id_j.asString();
                   commondev->set_rtlid(ss.str());
                   set_id = true;
-              } else if (id_j.is_string()) {
-                  commondev->set_rtlid(id_j.as_string());
+              } else if (id_j.isString()) {
+                  commondev->set_rtlid(id_j.asString());
                   set_id = true;
               }
           }
@@ -227,8 +227,8 @@ bool Kis_RTLAMR_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
                   ss << consumption_j.asDouble();
                   commondev->set_rtlid(ss.str());
                   set_id = true;
-              } else if (consumption_j.is_string()) {
-                  commondev->set_rtlid(consumption_j.as_string());
+              } else if (consumption_j.isString()) {
+                  commondev->set_rtlid(consumption_j.asString());
                   set_id = true;
               }
           }
@@ -246,8 +246,8 @@ bool Kis_RTLAMR_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
 
         if (channel_j.isNumeric())
             commondev->set_rtlchannel(IntToString(channel_j.asInt()));
-        else if (channel_j.is_string())
-            commondev->set_rtlchannel(MungeToPrintable(channel_j.as_string()));
+        else if (channel_j.isString())
+            commondev->set_rtlchannel(MungeToPrintable(channel_j.asString()));
     }
 
     if (is_powermeter(json))
