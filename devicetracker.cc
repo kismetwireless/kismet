@@ -566,7 +566,7 @@ int device_tracker::register_phy_handler(kis_phy_handler *in_weak_handler) {
 	phy_filterpackets[num] = 0;
 
     if (map_phy_views) {
-        auto phy_id = strongphy->FetchPhyId();
+        auto phy_id = strongphy->fetch_phy_id();
 
         auto k = phy_view_map.find(phy_id);
         if (k == phy_view_map.end()) {
@@ -717,7 +717,7 @@ std::shared_ptr<kis_tracked_device_base>
         device->set_key(key);
         device->set_macaddr(in_mac);
         device->set_phyname(in_phy->fetch_phy_name());
-		device->set_phyid(in_phy->FetchPhyId());
+		device->set_phyid(in_phy->fetch_phy_id());
 
         device->set_server_uuid(globalreg->server_uuid);
 

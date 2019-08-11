@@ -151,7 +151,7 @@ bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
     kis_common_info *common = new kis_common_info();
 
     common->type = packet_basic_data;
-    common->phyid = FetchPhyId();
+    common->phyid = fetch_phy_id();
     common->datasize = datasize;
 
     common->freq_khz = frequency;

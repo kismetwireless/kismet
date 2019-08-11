@@ -224,7 +224,7 @@ void class_filter_mac_addr::set_filter(mac_addr in_mac, const std::string& in_ph
 	}
 
 	// Set known phy types
-	phy_mac_filter_map[phy->FetchPhyId()][in_mac] = value;
+	phy_mac_filter_map[phy->fetch_phy_id()][in_mac] = value;
 }
 
 void class_filter_mac_addr::remove_filter(mac_addr in_mac, const std::string& in_phy) {
@@ -257,7 +257,7 @@ void class_filter_mac_addr::remove_filter(mac_addr in_mac, const std::string& in
 		return;
 	}
 
-	auto known_phy = phy_mac_filter_map.find(phy->FetchPhyId());
+	auto known_phy = phy_mac_filter_map.find(phy->fetch_phy_id());
 
 	if (known_phy == phy_mac_filter_map.end())
 		return;
@@ -286,7 +286,7 @@ void class_filter_mac_addr::update_phy_map(std::shared_ptr<eventbus_event> evt) 
 		return;
 
 	// Copy the map over to the known key
-	phy_mac_filter_map[phy_evt->phy->FetchPhyId()] = unknown_key->second;
+	phy_mac_filter_map[phy_evt->phy->fetch_phy_id()] = unknown_key->second;
 
 	// Purge the unknown record
 	unknown_phy_mac_filter_map.erase(unknown_key);

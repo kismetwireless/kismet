@@ -244,7 +244,7 @@ void packet_filter_mac_addr::update_phy_map(std::shared_ptr<eventbus_event> evt)
     // if we can't activate the filter b/c the phy is unknown
 
     // Copy the filter-engine code over to the new one
-	phy_mac_filter_map[phy_evt->phy->FetchPhyId()] = unknown_key->second;
+	phy_mac_filter_map[phy_evt->phy->fetch_phy_id()] = unknown_key->second;
 	unknown_phy_mac_filter_map.erase(unknown_key);
 }
 
@@ -328,15 +328,15 @@ void packet_filter_mac_addr::set_filter(mac_addr in_mac, const std::string& in_p
 
 	// Set known phy types
     if (in_block == "source")
-        phy_mac_filter_map[phy->FetchPhyId()].filter_source[in_mac] = value;
+        phy_mac_filter_map[phy->fetch_phy_id()].filter_source[in_mac] = value;
     else if (in_block == "destination")
-        phy_mac_filter_map[phy->FetchPhyId()].filter_dest[in_mac] = value;
+        phy_mac_filter_map[phy->fetch_phy_id()].filter_dest[in_mac] = value;
     else if (in_block == "network")
-        phy_mac_filter_map[phy->FetchPhyId()].filter_network[in_mac] = value;
+        phy_mac_filter_map[phy->fetch_phy_id()].filter_network[in_mac] = value;
     else if (in_block == "other")
-        phy_mac_filter_map[phy->FetchPhyId()].filter_other[in_mac] = value;
+        phy_mac_filter_map[phy->fetch_phy_id()].filter_other[in_mac] = value;
     else if (in_block == "any")
-        phy_mac_filter_map[phy->FetchPhyId()].filter_any[in_mac] = value;
+        phy_mac_filter_map[phy->fetch_phy_id()].filter_any[in_mac] = value;
 }
 
 void packet_filter_mac_addr::remove_filter(mac_addr in_mac, const std::string& in_phy, const std::string& in_block) {
@@ -410,25 +410,25 @@ void packet_filter_mac_addr::remove_filter(mac_addr in_mac, const std::string& i
 	}
 
     if (in_block == "source") {
-        auto k = phy_mac_filter_map[phy->FetchPhyId()].filter_source.find(in_mac);
-        if (k != phy_mac_filter_map[phy->FetchPhyId()].filter_source.end())
-            phy_mac_filter_map[phy->FetchPhyId()].filter_source.erase(k);
+        auto k = phy_mac_filter_map[phy->fetch_phy_id()].filter_source.find(in_mac);
+        if (k != phy_mac_filter_map[phy->fetch_phy_id()].filter_source.end())
+            phy_mac_filter_map[phy->fetch_phy_id()].filter_source.erase(k);
     } else if (in_block == "destination") {
-        auto k = phy_mac_filter_map[phy->FetchPhyId()].filter_dest.find(in_mac);
-        if (k != phy_mac_filter_map[phy->FetchPhyId()].filter_dest.end())
-            phy_mac_filter_map[phy->FetchPhyId()].filter_dest.erase(k);
+        auto k = phy_mac_filter_map[phy->fetch_phy_id()].filter_dest.find(in_mac);
+        if (k != phy_mac_filter_map[phy->fetch_phy_id()].filter_dest.end())
+            phy_mac_filter_map[phy->fetch_phy_id()].filter_dest.erase(k);
     } else if (in_block == "network") {
-        auto k = phy_mac_filter_map[phy->FetchPhyId()].filter_network.find(in_mac);
-        if (k != phy_mac_filter_map[phy->FetchPhyId()].filter_network.end())
-            phy_mac_filter_map[phy->FetchPhyId()].filter_network.erase(k);
+        auto k = phy_mac_filter_map[phy->fetch_phy_id()].filter_network.find(in_mac);
+        if (k != phy_mac_filter_map[phy->fetch_phy_id()].filter_network.end())
+            phy_mac_filter_map[phy->fetch_phy_id()].filter_network.erase(k);
     } else if (in_block == "other") {
-        auto k = phy_mac_filter_map[phy->FetchPhyId()].filter_other.find(in_mac);
-        if (k != phy_mac_filter_map[phy->FetchPhyId()].filter_other.end())
-            phy_mac_filter_map[phy->FetchPhyId()].filter_other.erase(k);
+        auto k = phy_mac_filter_map[phy->fetch_phy_id()].filter_other.find(in_mac);
+        if (k != phy_mac_filter_map[phy->fetch_phy_id()].filter_other.end())
+            phy_mac_filter_map[phy->fetch_phy_id()].filter_other.erase(k);
     } else if (in_block == "any") {
-        auto k = phy_mac_filter_map[phy->FetchPhyId()].filter_any.find(in_mac);
-        if (k != phy_mac_filter_map[phy->FetchPhyId()].filter_any.end())
-            phy_mac_filter_map[phy->FetchPhyId()].filter_any.erase(k);
+        auto k = phy_mac_filter_map[phy->fetch_phy_id()].filter_any.find(in_mac);
+        if (k != phy_mac_filter_map[phy->fetch_phy_id()].filter_any.end())
+            phy_mac_filter_map[phy->fetch_phy_id()].filter_any.erase(k);
     }
 }
 

@@ -776,7 +776,7 @@ int alert_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                 if (phyh == NULL)
                     throw std::runtime_error("could not find phy");
 
-                phyid = phyh->FetchPhyId();
+                phyid = phyh->fetch_phy_id();
             }
 
             if (define_alert(name, limit_unit, limit_rate, burst_unit, burst_rate) < 0) {

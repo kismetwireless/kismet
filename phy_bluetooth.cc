@@ -90,7 +90,7 @@ int Kis_Bluetooth_Phy::CommonClassifierBluetooth(CHAINCALL_PARMS) {
         in_pack->insert(btphy->pack_comp_common, ci);
     }
 
-    ci->phyid = btphy->FetchPhyId();
+    ci->phyid = btphy->fetch_phy_id();
     ci->type = packet_basic_mgmt;
     ci->source = btpi->address;
     ci->transmitter = btpi->address;

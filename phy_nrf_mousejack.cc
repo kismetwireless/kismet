@@ -104,7 +104,7 @@ int Kis_Mousejack_Phy::DissectorMousejack(CHAINCALL_PARMS) {
 
     common = new kis_common_info;
 
-    common->phyid = mphy->FetchPhyId();
+    common->phyid = mphy->fetch_phy_id();
     common->basic_crypt_set = crypt_none;
     common->type = packet_basic_data;
     common->source = mac_addr(packdata->data, 6);

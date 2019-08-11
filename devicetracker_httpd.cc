@@ -805,13 +805,13 @@ std::shared_ptr<tracker_element> device_tracker::all_phys_endp_handler() {
         auto tracked_name =
             std::make_shared<tracker_element_string>(phy_phyname_id, i.second->fetch_phy_name());
         auto tracked_id =
-            std::make_shared<tracker_element_uint32>(phy_phyid_id, i.second->FetchPhyId());
+            std::make_shared<tracker_element_uint32>(phy_phyid_id, i.second->fetch_phy_id());
         auto tracked_dev_count =
             std::make_shared<tracker_element_uint64>(phy_devices_count_id);
         auto tracked_packet_count =
-            std::make_shared<tracker_element_uint64>(phy_packets_count_id, phy_packets[i.second->FetchPhyId()]);
+            std::make_shared<tracker_element_uint64>(phy_packets_count_id, phy_packets[i.second->fetch_phy_id()]);
 
-        auto pv_key = phy_view_map.find(i.second->FetchPhyId());
+        auto pv_key = phy_view_map.find(i.second->fetch_phy_id());
         if (pv_key != phy_view_map.end())
             tracked_dev_count->set(pv_key->second->get_list_sz());
 
