@@ -105,7 +105,7 @@ void pollable_tracker::select_loop(bool spindown_mode) {
         // Run maintenance again so we don't gather purged records after the select()
         maintenance();
 
-        ProcessPollableSelect(rset, wset);
+        process_pollable_select(rset, wset);
     }
 }
 
@@ -122,7 +122,7 @@ int pollable_tracker::merge_pollable_fds(fd_set *rset, fd_set *wset) {
     return max_fd;
 }
 
-int pollable_tracker::ProcessPollableSelect(fd_set rset, fd_set wset) {
+int pollable_tracker::process_pollable_select(fd_set rset, fd_set wset) {
     int r;
     int num = 0;
 

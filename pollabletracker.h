@@ -82,7 +82,7 @@ public:
     // returns:
     // 0+   Number of pollable items processed
     // -1   Error
-    int ProcessPollableSelect(fd_set rset, fd_set wset);
+    int process_pollable_select(fd_set rset, fd_set wset);
 
 protected:
     kis_recursive_timed_mutex pollable_mutex, maintenance_mutex;
