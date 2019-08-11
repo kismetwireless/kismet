@@ -379,7 +379,7 @@ public:
 
     // Convert a frequency in KHz to an IEEE 80211 channel name; MAY THROW AN EXCEPTION
     // if this cannot be converted or is an invalid frequency
-    static const std::string KhzToChannel(const double in_khz);
+    static const std::string khz_to_channel(const double in_khz);
 
     // event_bus event we inject when a handshake is captured
     class EventDot11WPAHandshake : public eventbus_event {
