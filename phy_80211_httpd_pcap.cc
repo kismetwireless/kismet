@@ -140,7 +140,7 @@ int Phy_80211_Httpd_Pcap::httpd_create_stream_response(kis_net_httpd *httpd,
         (kis_net_httpd_buffer_stream_aux *) connection->custom_extension;
       
     // Filter based on the device key
-    auto *psrb = new Pcap_Stream_Packetchain(Globalreg::globalreg,
+    auto *psrb = new pcap_stream_packetchain(Globalreg::globalreg,
             saux->get_rbhandler(), 
             [dmac, pack_comp_dot11](kis_packet *packet) -> bool {
                 dot11_packinfo *dot11info =
@@ -161,7 +161,7 @@ int Phy_80211_Httpd_Pcap::httpd_create_stream_response(kis_net_httpd *httpd,
         [psrb, streamtracker](kis_net_httpd_buffer_stream_aux *aux) {
             streamtracker->remove_streamer(psrb->get_stream_id());
             if (aux->aux != NULL) {
-                delete (Pcap_Stream_Packetchain *) (aux->aux);
+                delete (pcap_stream_packetchain *) (aux->aux);
             }
         });
 

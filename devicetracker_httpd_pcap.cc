@@ -104,7 +104,7 @@ int device_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *httpd
         (kis_net_httpd_buffer_stream_aux *) connection->custom_extension;
       
     // Filter based on the device key
-    auto *psrb = new Pcap_Stream_Packetchain(Globalreg::globalreg,
+    auto *psrb = new pcap_stream_packetchain(Globalreg::globalreg,
             saux->get_rbhandler(), 
             [key, pack_comp_device](kis_packet *packet) -> bool {
                 kis_tracked_device_info *devinfo = 

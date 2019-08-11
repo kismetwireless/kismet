@@ -1886,7 +1886,7 @@ int datasource_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *h
         kis_net_httpd_buffer_stream_aux *saux = 
             (kis_net_httpd_buffer_stream_aux *) connection->custom_extension;
        
-        auto *psrb = new Pcap_Stream_Packetchain(Globalreg::globalreg,
+        auto *psrb = new pcap_stream_packetchain(Globalreg::globalreg,
                 saux->get_rbhandler(), NULL, NULL);
 
         streamtracker->register_streamer(psrb, "all_sources.pcapng",
@@ -1898,7 +1898,7 @@ int datasource_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *h
             [id, streamtracker](kis_net_httpd_buffer_stream_aux *aux) {
                 streamtracker->remove_streamer(id);
                 if (aux->aux != NULL) {
-                    delete (Pcap_Stream_Packetchain *) (aux->aux);
+                    delete (pcap_stream_packetchain *) (aux->aux);
                 }
             });
 
@@ -1947,7 +1947,7 @@ int datasource_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *h
 
                 // Fetch the datasource component and compare *source numbers*, not
                 // actual UUIDs - a UUID compare is expensive, a numeric compare is not!
-                auto *psrb = new Pcap_Stream_Packetchain(Globalreg::globalreg,
+                auto *psrb = new pcap_stream_packetchain(Globalreg::globalreg,
                         saux->get_rbhandler(), 
                         [this, dsnum] (kis_packet *packet) -> bool {
                             packetchain_comp_datasource *datasrcinfo = 

@@ -49,7 +49,7 @@ bool kis_pcapng_logfile::log_open(std::string in_path) {
     bufferhandler.reset(new buffer_handler<file_write_buffer>(NULL, pcapng_file));
 
     // Generate the pcap stream itself
-    pcapng_stream = new Pcap_Stream_Packetchain(Globalreg::globalreg, bufferhandler, NULL, NULL);
+    pcapng_stream = new pcap_stream_packetchain(Globalreg::globalreg, bufferhandler, NULL, NULL);
 
     _MSG("Opened pcapng log file '" + in_path + "'", MSGFLAG_INFO);
 

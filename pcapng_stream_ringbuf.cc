@@ -548,7 +548,7 @@ void pcap_stream_ringbuf::handle_packet(kis_packet *in_packet) {
     }
 }
 
-Pcap_Stream_Packetchain::Pcap_Stream_Packetchain(global_registry *in_globalreg,
+pcap_stream_packetchain::pcap_stream_packetchain(global_registry *in_globalreg,
         std::shared_ptr<buffer_handler_generic> in_handler,
         std::function<bool (kis_packet *)> accept_filter,
         std::function<kis_datachunk * (kis_packet *)> data_selector) :
@@ -560,12 +560,12 @@ Pcap_Stream_Packetchain::Pcap_Stream_Packetchain(global_registry *in_globalreg,
         }, CHAINPOS_LOGGING, -100);
 }
 
-Pcap_Stream_Packetchain::~Pcap_Stream_Packetchain() {
+pcap_stream_packetchain::~pcap_stream_packetchain() {
     packetchain->remove_handler(packethandler_id, CHAINPOS_LOGGING);
     handler->protocol_error();
 }
 
-void Pcap_Stream_Packetchain::stop_stream(std::string in_reason) {
+void pcap_stream_packetchain::stop_stream(std::string in_reason) {
     // We have to spawn a thread to deal with this because we're inside the locking
     // chain of the buffer handler when we get a stream stop event, sometimes
     std::thread t([this]() {
