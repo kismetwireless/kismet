@@ -434,7 +434,7 @@ int string_to_opts(const std::string& in_line, const std::string& in_sep, std::v
 	return 1;
 }
 
-void AddOptToOpts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec) {
+void append_to_opts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec) {
 	opt_pair optp;
 
 	optp.opt = str_lower(opt);
