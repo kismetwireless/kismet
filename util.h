@@ -197,7 +197,7 @@ void float_to_pair(float in_float, int16_t *primary, int64_t *mantissa);
 float pair_to_float(int16_t primary, int64_t mantissa);
 
 #ifdef SYS_LINUX
-int fech_sys_loadavg(uint8_t *in_avgmaj, uint8_t *in_avgmin);
+int FetchSysLoadAvg(uint8_t *in_avgmaj, uint8_t *in_avgmin);
 #endif
 
 // Adler-32 checksum, derived from rsync, adler-32
