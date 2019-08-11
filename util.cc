@@ -504,7 +504,7 @@ std::vector<std::string> LineWrap(const std::string& in_txt, unsigned int in_hdr
 	return ret;
 }
 
-std::string InLineWrap(const std::string& in_txt, unsigned int in_hdr_len, 
+std::string in_line_wrap(const std::string& in_txt, unsigned int in_hdr_len, 
 				  unsigned int in_maxlen) {
     std::vector<std::string> raw = LineWrap(in_txt, in_hdr_len, in_maxlen);
     std::stringstream ss;
