@@ -217,7 +217,7 @@ struct mac_addr {
     }
 
     // Match against a partial MAC address, prepared with prepare_search_term
-    bool PartialSearch(uint64_t in_term, unsigned int in_len) const {
+    bool partial_search(uint64_t in_term, unsigned int in_len) const {
         unsigned char *rt = (uint8_t *) &in_term;
         unsigned char *rlm = (uint8_t *) &longmac;
 

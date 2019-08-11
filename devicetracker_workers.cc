@@ -115,7 +115,7 @@ bool devicetracker_stringmatch_worker::MatchDevice(device_tracker *devicetracker
             // If we were able to interpret the query term as a partial
             // mac address, do a mac compare
             matched =
-                std::static_pointer_cast<tracker_element_mac_addr>(field)->get().PartialSearch(mac_query_term, mac_query_term_len);
+                std::static_pointer_cast<tracker_element_mac_addr>(field)->get().partial_search(mac_query_term, mac_query_term_len);
         } else if (field->get_type() == tracker_type::tracker_uuid) {
             matched =
                 tracker_element::safe_cast_as<tracker_element_uuid>(field)->get().asString().find(query) != std::string::npos;

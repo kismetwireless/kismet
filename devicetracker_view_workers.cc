@@ -185,7 +185,7 @@ bool device_tracker_view_stringmatch_worker::matchDevice(std::shared_ptr<kis_tra
             // If we were able to interpret the query term as a partial
             // mac address, do a mac compare
             matched =
-                std::static_pointer_cast<tracker_element_mac_addr>(field)->get().PartialSearch(mac_query_term, mac_query_term_len);
+                std::static_pointer_cast<tracker_element_mac_addr>(field)->get().partial_search(mac_query_term, mac_query_term_len);
         }
 
         if (matched)
@@ -231,7 +231,7 @@ bool device_tracker_view_icasestringmatch_worker::matchDevice(std::shared_ptr<ki
             // If we were able to interpret the query term as a partial
             // mac address, do a mac compare
             matched =
-                std::static_pointer_cast<tracker_element_mac_addr>(field)->get().PartialSearch(mac_query_term, mac_query_term_len);
+                std::static_pointer_cast<tracker_element_mac_addr>(field)->get().partial_search(mac_query_term, mac_query_term_len);
         }
 
         if (matched)
