@@ -911,7 +911,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Process plugins and activate them
     if (plugintracker != nullptr) {
-        plugintracker->ScanPlugins();
+        plugintracker->scan_plugins();
         plugintracker->ActivatePlugins();
 
         if (globalregistry->fatal_condition) {

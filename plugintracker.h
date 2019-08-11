@@ -272,7 +272,7 @@ public:
 	virtual ~plugin_tracker();
 
     // Look for plugins
-    int ScanPlugins();
+    int scan_plugins();
 
     // First-pass at activating plugins
 	int ActivatePlugins();

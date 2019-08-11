@@ -107,7 +107,7 @@ void plugin_tracker::usage(char *name __attribute__((unused))) {
            "system\n");
 }
 
-int plugin_tracker::ScanPlugins() {
+int plugin_tracker::scan_plugins() {
     local_locker lock(&plugin_lock);
 
     // Bail if plugins disabled
