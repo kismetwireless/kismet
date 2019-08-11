@@ -885,7 +885,7 @@ unsigned int string_to_uint(const std::string& s) {
     return r;
 }
 
-std::string StringAppend(const std::string& s, const std::string& a, const std::string& d) {
+std::string string_append(const std::string& s, const std::string& a, const std::string& d) {
     std::stringstream ss;
 
 	if (s.length() == 0)

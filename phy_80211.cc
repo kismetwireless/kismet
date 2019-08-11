@@ -2692,7 +2692,7 @@ std::string kis_80211_phy::crypt_to_string(uint64_t cryptset) {
         ret = "WPS";
 
     if ((cryptset & crypt_protectmask) == crypt_wep)
-        return StringAppend(ret, "WEP");
+        return string_append(ret, "WEP");
 
     if (cryptset & crypt_wpa_owe)
         return "OWE";
@@ -2706,60 +2706,60 @@ std::string kis_80211_phy::crypt_to_string(uint64_t cryptset) {
         WPAVER = "WPA3";
 
     if (cryptset & crypt_wpa)
-        ret = StringAppend(ret, WPAVER);
+        ret = string_append(ret, WPAVER);
 
     if (cryptset & crypt_psk)
-        ret = StringAppend(ret, fmt::format("{}-PSK", WPAVER));
+        ret = string_append(ret, fmt::format("{}-PSK", WPAVER));
 
     if (cryptset & crypt_sae)
-        ret = StringAppend(ret, fmt::format("{}-SAE", WPAVER));
+        ret = string_append(ret, fmt::format("{}-SAE", WPAVER));
 
     if (cryptset & crypt_eap)
-        ret = StringAppend(ret, "EAP");
+        ret = string_append(ret, "EAP");
 
     if (cryptset & crypt_peap)
-        ret = StringAppend(ret, fmt::format("{}-PEAP", WPAVER));
+        ret = string_append(ret, fmt::format("{}-PEAP", WPAVER));
     if (cryptset & crypt_leap)
-        ret = StringAppend(ret, fmt::format("{}-LEAP", WPAVER));
+        ret = string_append(ret, fmt::format("{}-LEAP", WPAVER));
     if (cryptset & crypt_ttls)
-        ret = StringAppend(ret, fmt::format("{}-TTLS", WPAVER));
+        ret = string_append(ret, fmt::format("{}-TTLS", WPAVER));
     if (cryptset & crypt_tls)
-        ret = StringAppend(ret, fmt::format("{}-TLS", WPAVER));
+        ret = string_append(ret, fmt::format("{}-TLS", WPAVER));
 
     if (cryptset & crypt_wpa_migmode)
-        ret = StringAppend(ret, "WPA-MIGRATION");
+        ret = string_append(ret, "WPA-MIGRATION");
 
     if (cryptset & crypt_wep40)
-        ret = StringAppend(ret, "WEP40");
+        ret = string_append(ret, "WEP40");
     if (cryptset & crypt_wep104)
-        ret = StringAppend(ret, "WEP104");
+        ret = string_append(ret, "WEP104");
     if (cryptset & crypt_tkip)
-        ret = StringAppend(ret, "TKIP");
+        ret = string_append(ret, "TKIP");
     if (cryptset & crypt_aes_ocb)
-        ret = StringAppend(ret, "AES-OCB");
+        ret = string_append(ret, "AES-OCB");
     if (cryptset & crypt_aes_ccm)
-        ret = StringAppend(ret, "AES-CCMP");
+        ret = string_append(ret, "AES-CCMP");
 
     if (cryptset & crypt_layer3)
-        ret = StringAppend(ret, "Layer 3");
+        ret = string_append(ret, "Layer 3");
 
     if (cryptset & crypt_isakmp)
-        ret = StringAppend(ret, "ISA KMP");
+        ret = string_append(ret, "ISA KMP");
 
     if (cryptset & crypt_pptp)
-        ret = StringAppend(ret, "PPTP");
+        ret = string_append(ret, "PPTP");
 
     if (cryptset & crypt_fortress)
-        ret = StringAppend(ret, "Fortress");
+        ret = string_append(ret, "Fortress");
 
     if (cryptset & crypt_keyguard)
-        ret = StringAppend(ret, "Keyguard");
+        ret = string_append(ret, "Keyguard");
 
     if (cryptset & crypt_unknown_protected)
-        ret = StringAppend(ret, "L3/Unknown");
+        ret = string_append(ret, "L3/Unknown");
 
     if (cryptset & crypt_unknown_nonwep)
-        ret = StringAppend(ret, "Non-WEP/Unknown");
+        ret = string_append(ret, "Non-WEP/Unknown");
 
     return ret;
 }

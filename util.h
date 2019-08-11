@@ -156,7 +156,7 @@ int string_to_int(const std::string& s);
 unsigned int string_to_uint(const std::string& s);
 
 // Append to a string, with a delimiter if applicable
-std::string StringAppend(const std::string& s, const std::string& a, const std::string& d = " ");
+std::string string_append(const std::string& s, const std::string& a, const std::string& d = " ");
 
 int XtoI(char x);
 int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr);
