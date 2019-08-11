@@ -97,16 +97,16 @@ protected:
     kis_recursive_timed_mutex packet_mutex;
 };
 
-class KisPPILogfileBuilder : public kis_logfile_builder {
+class ppi_logfile_builder : public kis_logfile_builder {
 public:
-    KisPPILogfileBuilder() :
+    ppi_logfile_builder() :
         kis_logfile_builder() {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    KisPPILogfileBuilder(int in_id) :
+    ppi_logfile_builder(int in_id) :
         kis_logfile_builder(in_id) {
            
         register_fields();
@@ -114,7 +114,7 @@ public:
         initialize();
     }
 
-    KisPPILogfileBuilder(int in_id, std::shared_ptr<tracker_element_map> e) :
+    ppi_logfile_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
         kis_logfile_builder(in_id, e) {
 
         register_fields();
@@ -122,7 +122,7 @@ public:
         initialize();
     }
 
-    virtual ~KisPPILogfileBuilder() { }
+    virtual ~ppi_logfile_builder() { }
 
     virtual shared_logfile build_logfile(shared_log_builder builder) override {
         return shared_logfile(new kis_ppi_logfile(builder));

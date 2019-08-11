@@ -893,7 +893,7 @@ int main(int argc, char *argv[], char *envp[]) {
     auto logtracker = 
         log_tracker::create_logtracker();
 
-    logtracker->register_log(shared_log_builder(new KisPPILogfileBuilder()));
+    logtracker->register_log(shared_log_builder(new ppi_logfile_builder()));
     logtracker->register_log(shared_log_builder(new kis_database_logfile_builder()));
     logtracker->register_log(shared_log_builder(new pcapng_logfile_builder()));
 
