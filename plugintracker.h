@@ -278,7 +278,7 @@ public:
 	int activate_plugins();
 
     // Final chance at activating plugins
-    int FinalizePlugins();
+    int finalize_plugins();
 
 	// Shut down the plugins and close the shared files
 	int ShutdownPlugins();

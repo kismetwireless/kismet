@@ -419,7 +419,7 @@ int plugin_tracker::activate_plugins() {
     return 1;
 }
 
-int plugin_tracker::FinalizePlugins() {
+int plugin_tracker::finalize_plugins() {
     // Look only at plugins that have a dl file, and attempt to run the finalize
     // function in each
     for (auto x : *plugin_registry_vec) {

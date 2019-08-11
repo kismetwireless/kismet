@@ -934,7 +934,7 @@ int main(int argc, char *argv[], char *envp[]) {
     glob_silent = local_silent;
 
     // Finalize any plugins which were waiting for other code to load
-    plugintracker->FinalizePlugins();
+    plugintracker->finalize_plugins();
 
     // We can't call this as a deferred because we don't want to mix
     devicetracker->load_devices();
