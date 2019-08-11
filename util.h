@@ -96,7 +96,7 @@ public:
 #define uint_to_string(I)			n_to_string<unsigned int>((I)).Str()
 #define hex_int_to_string(I)		n_to_string<unsigned int>((I), 0, 1).Str()
 #define long_int_to_string(L)		n_to_string<long int>((L)).Str()
-#define ULongToString(L)		n_to_string<unsigned long int>((L)).Str()
+#define ulong_int_to_string(L)		n_to_string<unsigned long int>((L)).Str()
 #define FloatToString(F)		n_to_string<float>((F)).Str()
 
 void SubtractTimeval(struct timeval *in_tv1, struct timeval *in_tv2,
