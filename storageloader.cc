@@ -231,7 +231,7 @@ shared_tracker_element storage_loader::storage_to_tracker(shared_structured d) {
             default:
                 throw std::runtime_error("unknown trackerelement type " + objtypestr);
         }
-    } catch (const StructuredDataException &e) {
+    } catch (const structured_data_exception &e) {
         throw std::runtime_error("unable to process field '" + objname + "' type '" + 
                 objtypestr + "' " + std::string(e.what()));
     }

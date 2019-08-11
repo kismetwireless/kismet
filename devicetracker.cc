@@ -1485,7 +1485,7 @@ device_tracker::convert_stored_device(mac_addr macaddr,
             storage_loader::storage_to_tracker(sjson);
 
         if (e->get_type() != tracker_type::tracker_map) 
-            throw StructuredDataException(fmt::format("Expected a tracker_map from loading the storage "
+            throw structured_data_exception(fmt::format("Expected a tracker_map from loading the storage "
                     "element, but got {}", e->type_to_typestring(e->get_type())));
 
         // Adopt it into a device
@@ -1509,7 +1509,7 @@ device_tracker::convert_stored_device(mac_addr macaddr,
         _MSG("Unable to decompress stored device data (" + macaddr.mac_to_string() + "); the "
                 "stored device will be skipped: " + std::string(e.what()), MSGFLAG_ERROR);
         return NULL;
-    } catch (const StructuredDataException& e) {
+    } catch (const structured_data_exception& e) {
         _MSG("Could not parse stored device data (" + macaddr.mac_to_string() + "); the "
                 "stored device will be skipped: " + std::string(e.what()), MSGFLAG_ERROR);
         return NULL;

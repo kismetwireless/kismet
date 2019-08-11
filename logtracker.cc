@@ -501,9 +501,9 @@ int log_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                 concls->variable_cache.end()) {
             structdata.reset(new structured_json(concls->variable_cache["json"]->str()));
         } else {
-            throw StructuredDataException("Missing data");
+            throw structured_data_exception("Missing data");
         }
-    } catch(const StructuredDataException& e) {
+    } catch(const structured_data_exception& e) {
         concls->response_stream << "Invalid request: ";
         concls->response_stream << e.what();
         concls->httpcode = 400;

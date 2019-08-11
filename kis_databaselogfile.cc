@@ -1535,11 +1535,11 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
                         filterdata = structdata->get_structured_by_key("filter");
 
                         if (!filterdata->is_dictionary()) 
-                            throw StructuredDataException("expected filter to be a dictionary");
+                            throw structured_data_exception("expected filter to be a dictionary");
                     }
                 }
             }
-        } catch(const StructuredDataException& e) {
+        } catch(const structured_data_exception& e) {
             auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
             auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
@@ -1649,7 +1649,7 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
             if (filterdata->has_key("limit"))
                 query.append_clause(LIMIT, filterdata->key_as_number("limit"));
 
-        } catch (const StructuredDataException& e) {
+        } catch (const structured_data_exception& e) {
             auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
             auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 

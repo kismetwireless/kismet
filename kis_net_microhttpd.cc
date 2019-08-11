@@ -112,13 +112,13 @@ std::shared_ptr<tracker_element> kishttpd::summarize_with_structured(std::shared
                 auto mapvec = i->as_string_vector();
 
                 if (mapvec.size() != 2)
-                    throw StructuredDataException("Invalid field mapping, expected "
+                    throw structured_data_exception("Invalid field mapping, expected "
                             "[field, rename]");
 
                 auto s = std::make_shared<tracker_element_summary>(mapvec[0], mapvec[1]);
                 summary_vec.push_back(s);
             } else {
-                throw StructuredDataException("Invalid field mapping, expected "
+                throw structured_data_exception("Invalid field mapping, expected "
                         "field or [field,rename]");
             }
         }
@@ -1373,9 +1373,9 @@ int kis_net_httpd_simple_tracked_endpoint::httpd_post_complete(kis_net_httpd_con
                 std::make_shared<structured_json>(concls->variable_cache["json"]->str());
         } else {
             // fprintf(stderr, "debug - missing data\n");
-            throw StructuredDataException("Missing data");
+            throw structured_data_exception("Missing data");
         }
-    } catch(const StructuredDataException& e) {
+    } catch(const structured_data_exception& e) {
         stream << "Invalid request: ";
         stream << e.what();
         concls->httpcode = 400;
@@ -1407,7 +1407,7 @@ int kis_net_httpd_simple_tracked_endpoint::httpd_post_complete(kis_net_httpd_con
                 }
             }
         }
-    } catch(const StructuredDataException& e) {
+    } catch(const structured_data_exception& e) {
         stream << "Invalid request: ";
         stream << e.what();
         concls->httpcode = 400;
@@ -1582,9 +1582,9 @@ int kis_net_httpd_simple_unauth_tracked_endpoint::httpd_post_complete(kis_net_ht
                 std::make_shared<structured_json>(concls->variable_cache["json"]->str());
         } else {
             // fprintf(stderr, "debug - missing data\n");
-            throw StructuredDataException("Missing data");
+            throw structured_data_exception("Missing data");
         }
-    } catch(const StructuredDataException& e) {
+    } catch(const structured_data_exception& e) {
         stream << "Invalid request: ";
         stream << e.what();
         concls->httpcode = 400;
@@ -1616,7 +1616,7 @@ int kis_net_httpd_simple_unauth_tracked_endpoint::httpd_post_complete(kis_net_ht
                 }
             }
         }
-    } catch(const StructuredDataException& e) {
+    } catch(const structured_data_exception& e) {
         stream << "Invalid request: ";
         stream << e.what();
         concls->httpcode = 400;
@@ -1788,7 +1788,7 @@ int kis_net_httpd_path_tracked_endpoint::httpd_post_complete(kis_net_httpd_conne
             structdata =
                 std::make_shared<structured_json>(std::string{"{}"});
         }
-    } catch(const StructuredDataException& e) {
+    } catch(const structured_data_exception& e) {
         stream << "Invalid request: " << e.what() << "\n";
         concls->httpcode = 400;
         return MHD_YES;
@@ -1819,7 +1819,7 @@ int kis_net_httpd_path_tracked_endpoint::httpd_post_complete(kis_net_httpd_conne
                 }
             }
         }
-    } catch(const StructuredDataException& e) {
+    } catch(const structured_data_exception& e) {
         stream << "Invalid request: ";
         stream << e.what();
         concls->httpcode = 400;

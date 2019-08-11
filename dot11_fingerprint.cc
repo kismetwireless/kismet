@@ -191,7 +191,7 @@ unsigned int dot11_fingerprint_tracker::update_fingerprint(std::ostream &stream,
         stream << "Fingerprint updated\n";
         return 200;
 
-    } catch (const StructuredDataException& e) {
+    } catch (const structured_data_exception& e) {
         stream << "Malformed update: " << e.what() << "\n";
         return 500;
     }
@@ -204,16 +204,16 @@ unsigned int dot11_fingerprint_tracker::insert_fingerprint(std::ostream& stream,
         shared_structured structured) {
     try {
         if (!structured->has_key("macaddr"))
-            throw StructuredDataException("Missing 'macaddr' field in insert command");
+            throw structured_data_exception("Missing 'macaddr' field in insert command");
 
         auto mac = mac_addr { structured->key_as_string("macaddr") };
         if (mac.error)
-            throw StructuredDataException("Invalid 'macaddr' field in insert command");
+            throw structured_data_exception("Invalid 'macaddr' field in insert command");
 
         auto fpi = fingerprint_map->find(mac);
 
         if (fpi != fingerprint_map->end())
-            throw StructuredDataException("Fingerprint MAC address already exists, delete or edit "
+            throw structured_data_exception("Fingerprint MAC address already exists, delete or edit "
                     "it instead.");
 
         auto fp = std::make_shared<tracked_dot11_fingerprint>();
@@ -229,7 +229,7 @@ unsigned int dot11_fingerprint_tracker::insert_fingerprint(std::ostream& stream,
         stream << "Fingerprint added\n";
         return 200;
 
-    } catch (const StructuredDataException& e) {
+    } catch (const structured_data_exception& e) {
         stream << "Malformed insert: " << e.what() << "\n";
         return 500;
     }
@@ -269,7 +269,7 @@ unsigned int dot11_fingerprint_tracker::bulk_delete_fingerprint(std::ostream& st
             mac_addr mac { fpi };
 
             if (mac.error)
-                throw StructuredDataException("Invalid MAC address");
+                throw structured_data_exception("Invalid MAC address");
 
             auto fmi = fingerprint_map->find(mac);
 
@@ -285,7 +285,7 @@ unsigned int dot11_fingerprint_tracker::bulk_delete_fingerprint(std::ostream& st
 
         stream << "Erased " << num_erased << " fingerprints\n";
         return 200;
-    } catch (const StructuredDataException& e) {
+    } catch (const structured_data_exception& e) {
         stream << "Erasing fingerprints failed: " << e.what() << "\n";
         return 500;
     }
@@ -306,16 +306,16 @@ unsigned int dot11_fingerprint_tracker::bulk_insert_fingerprint(std::ostream& st
         for (auto fpi : fingerprints) {
             // Get the sub-dictionarys from the vector
             if (!fpi->has_key("macaddr"))
-                throw StructuredDataException("Fingerprint dictionary missing 'macaddr'");
+                throw structured_data_exception("Fingerprint dictionary missing 'macaddr'");
 
             auto mac = mac_addr { fpi->key_as_string("macaddr") };
             if (mac.error)
-                throw StructuredDataException("Invalid MAC address in 'macaddr'");
+                throw structured_data_exception("Invalid MAC address in 'macaddr'");
 
             // Make sure it doesn't exist
             auto fmi = fingerprint_map->find(mac);
             if (fmi != fingerprint_map->end())
-                throw StructuredDataException(fmt::format("MAC address {} already present in "
+                throw structured_data_exception(fmt::format("MAC address {} already present in "
                             "fingerprint list", mac));
 
             auto fp = std::make_shared<tracked_dot11_fingerprint>();
@@ -332,7 +332,7 @@ unsigned int dot11_fingerprint_tracker::bulk_insert_fingerprint(std::ostream& st
 
         stream << "Inserted " << num_added << " fingerprints\n";
         return 200;
-    } catch (const StructuredDataException& e) {
+    } catch (const structured_data_exception& e) {
         stream << "Error: " << e.what() << "\n";
         return 500;
     }

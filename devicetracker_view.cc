@@ -493,13 +493,13 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
                     auto mapvec = i->as_string_vector();
 
                     if (mapvec.size() != 2)
-                        throw StructuredDataException("Invalid field mapping, expected "
+                        throw structured_data_exception("Invalid field mapping, expected "
                                 "[field, rename]");
 
                     auto s = std::make_shared<tracker_element_summary>(mapvec[0], mapvec[1]);
                     summary_vec.push_back(s);
                 } else {
-                    throw StructuredDataException("Invalid field mapping, expected "
+                    throw structured_data_exception("Invalid field mapping, expected "
                             "field or [field,rename]");
                 }
             }
@@ -516,7 +516,7 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
         if (structured->has_key("regex"))
             regex = structured->get_structured_by_key("regex");
 
-    } catch (const StructuredDataException& e) {
+    } catch (const structured_data_exception& e) {
         stream << "Invalid request: " << e.what() << "\n";
         return 400;
     }

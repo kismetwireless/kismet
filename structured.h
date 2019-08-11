@@ -45,32 +45,32 @@ class structured_data;
 typedef std::shared_ptr<structured_data> shared_structured;
 
 // Top-level exception
-struct StructuredDataException : public std::runtime_error {
-    StructuredDataException(std::string const& message) : 
+struct structured_data_exception : public std::runtime_error {
+    structured_data_exception(std::string const& message) : 
         std::runtime_error(message) {}
 };
 
 // Can't parse the initial data given (json/msgpack error)
-struct StructuredDataUnparseable : public StructuredDataException {
+struct StructuredDataUnparseable : public structured_data_exception {
     StructuredDataUnparseable(std::string const& message) : 
-        StructuredDataException(message) {}
+        structured_data_exception(message) {}
 };
 
 // No data available
-struct StructuredDataNull : public StructuredDataException {
+struct StructuredDataNull : public structured_data_exception {
     StructuredDataNull(std::string const& message) : 
-        StructuredDataException(message) {}
+        structured_data_exception(message) {}
 };
 
 // Can't extract the type asked for
-struct structured_data_unsuitable : public StructuredDataException {
+struct structured_data_unsuitable : public structured_data_exception {
     structured_data_unsuitable(std::string const& message) : 
-        StructuredDataException(message) {}
+        structured_data_exception(message) {}
 };
 
-struct structured_data_no_such_key : public StructuredDataException {
+struct structured_data_no_such_key : public structured_data_exception {
     structured_data_no_such_key(std::string const& message) : 
-        StructuredDataException(message) {}
+        structured_data_exception(message) {}
 };
 
 class structured_data {

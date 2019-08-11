@@ -471,9 +471,9 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                 std::make_shared<structured_json>(concls->variable_cache["json"]->str());
         } else {
             // fprintf(stderr, "debug - missing data\n");
-            throw StructuredDataException("Missing data; expected command dictionary in json= field");
+            throw structured_data_exception("Missing data; expected command dictionary in json= field");
         }
-    } catch(const StructuredDataException& e) {
+    } catch(const structured_data_exception& e) {
         stream << "Invalid request: ";
         stream << e.what();
         concls->httpcode = 400;
@@ -521,7 +521,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
             else
                 post_ts = rawt;
         }
-    } catch(const StructuredDataException& e) {
+    } catch(const structured_data_exception& e) {
         stream << "Invalid request: Malformed command dictionary, ";
         stream << e.what();
         concls->httpcode = 400;
