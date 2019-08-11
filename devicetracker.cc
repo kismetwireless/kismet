@@ -589,7 +589,7 @@ int device_tracker::register_phy_handler(kis_phy_handler *in_weak_handler) {
 	eventbus->publish(std::make_shared<event_new_phy>(strongphy));
 
 	_MSG("Registered PHY handler '" + strongphy->fetch_phy_name() + "' as ID " +
-		 IntToString(num), MSGFLAG_INFO);
+		 int_to_string(num), MSGFLAG_INFO);
 
 	return num;
 }
@@ -648,7 +648,7 @@ int device_tracker::common_tracker(kis_packet *in_pack) {
 
 	// Make sure our PHY is sane
 	if (phy_handler_map.find(pack_common->phyid) == phy_handler_map.end()) {
-		_MSG("Invalid phy id " + IntToString(pack_common->phyid) + " in packet "
+		_MSG("Invalid phy id " + int_to_string(pack_common->phyid) + " in packet "
 			 "something is wrong.", MSGFLAG_ERROR);
 		return 0;
 	}

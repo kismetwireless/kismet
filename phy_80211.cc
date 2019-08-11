@@ -867,7 +867,7 @@ int kis_80211_phy::load_wepkeys() {
         int len = Hex2UChar((unsigned char *) rawkey.c_str(), key);
 
         if (len != 5 && len != 13 && len != 16) {
-			_MSG("Invalid key '" + rawkey + "' length " + IntToString(len) + 
+			_MSG("Invalid key '" + rawkey + "' length " + int_to_string(len) + 
 				 " in a wepkey= config file entry", MSGFLAG_FATAL);
             Globalreg::globalreg->fatal_condition = 1;
 			return -1;
@@ -1969,7 +1969,7 @@ void kis_80211_phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
         // seen VHT without HT.  We handle HT only later on.
         if (dot11info->dot11vht != nullptr && dot11info->dot11ht != nullptr) {
             // Grab the primary channel from the HT data
-            ssid->set_channel(IntToString(dot11info->dot11ht->primary_channel()));
+            ssid->set_channel(int_to_string(dot11info->dot11ht->primary_channel()));
 
             if (dot11info->dot11vht->channel_width() == dot11_ie_192_vht_op::ch_80) {
                 ssid->set_ht_mode("HT80");
@@ -2008,7 +2008,7 @@ void kis_80211_phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
 
             ssid->set_ht_center_1(0);
             ssid->set_ht_center_2(0);
-            ssid->set_channel(IntToString(dot11info->dot11ht->primary_channel()));
+            ssid->set_channel(int_to_string(dot11info->dot11ht->primary_channel()));
         }
 
         // Update OWE
@@ -2173,8 +2173,8 @@ void kis_80211_phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
             std::string al = "IEEE80211 Access Point BSSID " +
                 basedev->get_macaddr().mac_to_string() + " SSID \"" +
                 ssid->get_ssid() + "\" changed beacon rate from " +
-                IntToString(ssid->get_beaconrate()) + " to " + 
-                IntToString(Ieee80211Interval2NSecs(dot11info->beacon_interval)) + 
+                int_to_string(ssid->get_beaconrate()) + " to " + 
+                int_to_string(Ieee80211Interval2NSecs(dot11info->beacon_interval)) + 
                 " which may indicate AP spoofing/impersonation";
 
             alertracker->raise_alert(alert_beaconrate_ref, in_pack, 

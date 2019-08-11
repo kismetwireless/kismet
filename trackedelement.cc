@@ -1079,7 +1079,7 @@ std::shared_ptr<tracker_element> SummarizeSingletracker_element(shared_tracker_e
             Gettracker_elementPath((*si)->resolved_path, in);
 
         if (f == NULL) {
-            f = Globalreg::globalreg->entrytracker->register_and_get_field("unknown" + IntToString(fn),
+            f = Globalreg::globalreg->entrytracker->register_and_get_field("unknown" + int_to_string(fn),
                     tracker_element_factory<tracker_element_int8>(),
                     "unallocated field");
 
@@ -1092,7 +1092,7 @@ std::shared_ptr<tracker_element> SummarizeSingletracker_element(shared_tracker_e
                 int lastid = (*si)->resolved_path[(*si)->resolved_path.size() - 1];
 
                 if (lastid < 0)
-                    f->set_local_name("unknown" + IntToString(fn));
+                    f->set_local_name("unknown" + int_to_string(fn));
                 else
                     f->set_local_name(Globalreg::globalreg->entrytracker->get_field_name(lastid));
             }

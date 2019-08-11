@@ -363,7 +363,7 @@ int packet_chain::process_packet(kis_packet *in_pack) {
 
             auto alertracker = Globalreg::fetch_mandatory_global_as<alert_tracker>();
             alertracker->raise_one_shot("PACKETQUEUE", 
-                    "The packet queue has a backlog of " + IntToString(packet_queue.size()) + 
+                    "The packet queue has a backlog of " + int_to_string(packet_queue.size()) + 
                     " packets; if you have multiple data sources it's possible that your "
                     "system is not fast enough.  Kismet will continue to process "
                     "packets, this may be a momentary spike in packet load.", -1);
@@ -380,7 +380,7 @@ int packet_chain::process_packet(kis_packet *in_pack) {
                 Globalreg::fetch_mandatory_global_as<alert_tracker>();
             alertracker->raise_one_shot("PACKETLOST", 
                     "Kismet has started to drop packets; the packet queue has a backlog "
-                    "of " + IntToString(packet_queue.size()) + " packets.  Your system "
+                    "of " + int_to_string(packet_queue.size()) + " packets.  Your system "
                     "may not be fast enough to process the number of packets being seen. "
                     "You change this behavior in 'kismet_memory.conf'.", -1);
         }

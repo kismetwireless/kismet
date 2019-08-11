@@ -150,7 +150,7 @@ bool Kis_RTLAMR_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     if (json.isMember("channel")) {
         Json::Value c = json["channel"];
         if (c.isNumeric()) {
-            common->channel = IntToString(c.asInt());
+            common->channel = int_to_string(c.asInt());
         } else if (c.isString()) {
             common->channel = munge_to_printable(c.asString());
         }
@@ -245,7 +245,7 @@ bool Kis_RTLAMR_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
         auto channel_j = json["channel"];
 
         if (channel_j.isNumeric())
-            commondev->set_rtlchannel(IntToString(channel_j.asInt()));
+            commondev->set_rtlchannel(int_to_string(channel_j.asInt()));
         else if (channel_j.isString())
             commondev->set_rtlchannel(munge_to_printable(channel_j.asString()));
     }

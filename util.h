@@ -92,7 +92,7 @@ public:
     std::string s;
 };
 
-#define IntToString(I)			n_to_string<int>((I)).Str()
+#define int_to_string(I)			n_to_string<int>((I)).Str()
 #define UIntToString(I)			n_to_string<unsigned int>((I)).Str()
 #define HexIntToString(I)		n_to_string<unsigned int>((I), 0, 1).Str()
 #define LongIntToString(L)		n_to_string<long int>((L)).Str()
