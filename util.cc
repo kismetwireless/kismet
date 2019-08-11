@@ -299,7 +299,7 @@ std::string str_join(const std::vector<std::string>& in_content, const std::stri
 }
 
 // Collapse into basic tokenizer rewrite
-std::vector<std::string> QuoteStrTokenize(const std::string& in_str, const std::string& in_split) {
+std::vector<std::string> quote_str_tokenize(const std::string& in_str, const std::string& in_split) {
     std::vector<std::string> ret;
     std::vector<smart_word_token> bret;
 

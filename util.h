@@ -185,7 +185,7 @@ std::vector<smart_word_token> base_str_tokenize(const std::string& in_str,
 
 // Simplified quoted string tokenizer, expects " ' to start at the beginning
 // of the token, no abc"def ghi"
-std::vector<std::string> QuoteStrTokenize(const std::string& in_str, const std::string& in_split);
+std::vector<std::string> quote_str_tokenize(const std::string& in_str, const std::string& in_split);
 
 int TokenNullJoin(std::string *ret_str, const char **in_list);
 
