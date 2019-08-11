@@ -34,7 +34,7 @@ log_tracker::log_tracker() :
     kis_net_httpd_cppstream_handler() {
 
     streamtracker =
-        Globalreg::fetch_mandatory_global_as<StreamTracker>("STREAMTRACKER");
+        Globalreg::fetch_mandatory_global_as<stream_tracker>("STREAMTRACKER");
 
     register_fields();
     reserve_fields(NULL);

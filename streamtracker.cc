@@ -21,7 +21,7 @@
 #include "streamtracker.h"
 #include "entrytracker.h"
 
-StreamTracker::StreamTracker(global_registry *in_globalreg) :
+stream_tracker::stream_tracker(global_registry *in_globalreg) :
     kis_net_httpd_cppstream_handler(), 
     lifetime_global() {
 
@@ -40,11 +40,11 @@ StreamTracker::StreamTracker(global_registry *in_globalreg) :
     bind_httpd_server();
 }
 
-StreamTracker::~StreamTracker() {
+stream_tracker::~stream_tracker() {
     local_locker lock(&mutex);
 }
 
-bool StreamTracker::httpd_verify_path(const char *path, const char *method) {
+bool stream_tracker::httpd_verify_path(const char *path, const char *method) {
     local_demand_locker lock(&mutex);
 
     if (strcmp(method, "GET") != 0) 
@@ -91,7 +91,7 @@ bool StreamTracker::httpd_verify_path(const char *path, const char *method) {
     return false;
 }
 
-void StreamTracker::httpd_create_stream_response(
+void stream_tracker::httpd_create_stream_response(
         kis_net_httpd *httpd __attribute__((unused)),
         kis_net_httpd_connection *connection,
         const char *path, const char *method, const char *upload_data,
@@ -164,7 +164,7 @@ void StreamTracker::httpd_create_stream_response(
     }
 }
 
-void StreamTracker::register_streamer(streaming_agent *in_agent,
+void stream_tracker::register_streamer(streaming_agent *in_agent,
         std::string in_name, std::string in_type, std::string in_path, std::string in_description) {
 
     local_locker lock(&mutex);
@@ -183,7 +183,7 @@ void StreamTracker::register_streamer(streaming_agent *in_agent,
     tracked_stream_map->insert(in_agent->get_stream_id(), streamrec);
 }
 
-void StreamTracker::remove_streamer(double in_id) {
+void stream_tracker::remove_streamer(double in_id) {
     local_locker lock(&mutex);
 
     auto si = tracked_stream_map->find(in_id);

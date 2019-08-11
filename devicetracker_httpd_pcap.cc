@@ -122,7 +122,7 @@ int device_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *httpd
                 return false;
             }, NULL);
 
-    auto streamtracker = Globalreg::fetch_mandatory_global_as<StreamTracker>("STREAMTRACKER");
+    auto streamtracker = Globalreg::fetch_mandatory_global_as<stream_tracker>("STREAMTRACKER");
 
     saux->set_aux(psrb, 
         [psrb, streamtracker](kis_net_httpd_buffer_stream_aux *aux) {

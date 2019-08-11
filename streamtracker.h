@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -193,22 +193,22 @@ protected:
     streaming_agent *agent;
 };
 
-class StreamTracker : public kis_net_httpd_cppstream_handler, public lifetime_global {
+class stream_tracker : public kis_net_httpd_cppstream_handler, public lifetime_global {
 public:
     static std::string global_name() { return "STREAMTRACKER"; }
 
-    static std::shared_ptr<StreamTracker> create_streamtracker(global_registry *in_globalreg) {
-        std::shared_ptr<StreamTracker> mon(new StreamTracker(in_globalreg));
+    static std::shared_ptr<stream_tracker> create_streamtracker(global_registry *in_globalreg) {
+        std::shared_ptr<stream_tracker> mon(new stream_tracker(in_globalreg));
         in_globalreg->register_lifetime_global(mon);
         in_globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-    StreamTracker(global_registry *in_globalreg);
+    stream_tracker(global_registry *in_globalreg);
 
 public:
-    virtual ~StreamTracker();
+    virtual ~stream_tracker();
 
     void register_streamer(streaming_agent *in_agent, std::string in_name,
             std::string in_type, std::string in_path, std::string in_description);

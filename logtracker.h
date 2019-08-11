@@ -157,8 +157,8 @@ public:
         local_locker l(&log_mutex);
 
         if (builder != NULL && builder->get_stream()) {
-            std::shared_ptr<StreamTracker> streamtracker = 
-                Globalreg::fetch_mandatory_global_as<StreamTracker>("STREAMTRACKER");
+            std::shared_ptr<stream_tracker> streamtracker = 
+                Globalreg::fetch_mandatory_global_as<stream_tracker>("STREAMTRACKER");
 
             streamtracker->remove_streamer(get_stream_id());
         }
@@ -278,7 +278,7 @@ protected:
 
     kis_recursive_timed_mutex tracker_mutex;
 
-    std::shared_ptr<StreamTracker> streamtracker;
+    std::shared_ptr<stream_tracker> streamtracker;
 
     // Vector of prototypes
     std::shared_ptr<tracker_element_vector> logproto_vec;

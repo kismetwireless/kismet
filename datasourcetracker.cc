@@ -1875,7 +1875,7 @@ int datasource_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *h
         return MHD_YES;
     }
 
-    auto streamtracker = Globalreg::fetch_mandatory_global_as<StreamTracker>("STREAMTRACKER");
+    auto streamtracker = Globalreg::fetch_mandatory_global_as<stream_tracker>("STREAMTRACKER");
 
     if (strcmp(url, "/pcap/all_packets.pcapng") == 0 ||
             strcmp(url, "/datasource/pcap/all_sources.pcapng") == 0) {

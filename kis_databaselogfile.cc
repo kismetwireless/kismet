@@ -1464,7 +1464,7 @@ int kis_database_logfile::httpd_create_stream_response(kis_net_httpd *httpd,
         }
 
         kis_net_httpd_buffer_stream_aux *saux = (kis_net_httpd_buffer_stream_aux *) connection->custom_extension;
-        auto streamtracker = Globalreg::fetch_mandatory_global_as<StreamTracker>();
+        auto streamtracker = Globalreg::fetch_mandatory_global_as<stream_tracker>();
 
         auto *dbrb = new pcap_stream_database(Globalreg::globalreg, saux->get_rbhandler());
 
@@ -1679,7 +1679,7 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
     // std::cout << query << std::endl;
 
     kis_net_httpd_buffer_stream_aux *saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
-    auto streamtracker = Globalreg::fetch_mandatory_global_as<StreamTracker>();
+    auto streamtracker = Globalreg::fetch_mandatory_global_as<stream_tracker>();
 
     auto *dbrb = new pcap_stream_database(Globalreg::globalreg, saux->get_rbhandler());
 
