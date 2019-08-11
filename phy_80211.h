@@ -350,7 +350,7 @@ public:
     // Dot11 tracker for building phy-specific elements
     int tracker_dot11(kis_packet *in_pack);
 
-    int AddFilter(std::string in_filter);
+    int add_filter(std::string in_filter);
     int AddNetcliFilter(std::string in_filter);
 
     void SetStringExtract(int in_extr);
