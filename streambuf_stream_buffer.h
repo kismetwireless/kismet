@@ -30,13 +30,13 @@
 #include "globalregistry.h"
 #include "streamtracker.h"
 
-class Streambuf_Stream_Buffer : public streaming_agent {
+class streambuf_stream_buffer : public streaming_agent {
 public:
-    Streambuf_Stream_Buffer(global_registry *in_globalreg,
+    streambuf_stream_buffer(global_registry *in_globalreg,
             std::shared_ptr<buffer_handler_generic> in_handler,
             bool in_blocking);
 
-    virtual ~Streambuf_Stream_Buffer();
+    virtual ~streambuf_stream_buffer();
 
     virtual void stop_stream(std::string in_reason);
 
