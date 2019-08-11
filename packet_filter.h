@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -29,12 +29,12 @@
 // Filters act on 'true' results:  Default behavior of 'true' defaults to BLOCKING packets.
 // Default behavior of 'false' defaults to PASSING packets.
 
-class Packetfilter : public tracker_component {
+class packet_filter : public tracker_component {
 public:
-    Packetfilter(const std::string& in_id, const std::string& in_description,
+    packet_filter(const std::string& in_id, const std::string& in_description,
             const std::string& in_type);
 
-    virtual ~Packetfilter() {
+    virtual ~packet_filter() {
         local_locker l(&mutex);
     }
 
@@ -88,7 +88,7 @@ protected:
 // (in wifi terms, source, dest, bssid, or 4mac transmitter for wds).
 // Filters are true (filter/reject packet), or false (pass packet).  Packets not matched
 // by any filter are passed to the default filter term.
-class packet_filter_mac_addr : public Packetfilter {
+class packet_filter_mac_addr : public packet_filter {
 public:
     packet_filter_mac_addr(const std::string& in_id, const std::string& in_description);
     virtual ~packet_filter_mac_addr();
@@ -104,7 +104,7 @@ public:
 
 protected:
     virtual void register_fields() override {
-        Packetfilter::register_fields();
+        packet_filter::register_fields();
 
 		// Phy-based map
         register_field("kismet.packetfilter.macaddr.blocks_by_phy",

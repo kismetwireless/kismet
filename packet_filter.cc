@@ -25,7 +25,7 @@
 #include "packetchain.h"
 #include "devicetracker.h"
 
-Packetfilter::Packetfilter(const std::string& in_id, const std::string& in_description,
+packet_filter::packet_filter(const std::string& in_id, const std::string& in_description,
         const std::string& in_type) :
     tracker_component() {
 
@@ -63,7 +63,7 @@ Packetfilter::Packetfilter(const std::string& in_id, const std::string& in_descr
     
 }
 
-int Packetfilter::default_set_endp_handler(std::ostream& stream, shared_structured structured) {
+int packet_filter::default_set_endp_handler(std::ostream& stream, shared_structured structured) {
     try {
         if (structured->has_key("default")) {
             set_filter_default(filterstring_to_bool(structured->key_as_string("default")));
@@ -81,14 +81,14 @@ int Packetfilter::default_set_endp_handler(std::ostream& stream, shared_structur
     return 500;
 }
 
-void Packetfilter::build_self_content(std::shared_ptr<tracker_element_map> content) {
+void packet_filter::build_self_content(std::shared_ptr<tracker_element_map> content) {
     content->insert(filter_id);
     content->insert(filter_description);
     content->insert(filter_type);
     content->insert(filter_default);
 }
 
-bool Packetfilter::filterstring_to_bool(const std::string& str) {
+bool packet_filter::filterstring_to_bool(const std::string& str) {
     auto cstr = StrLower(str);
 
     if (cstr == "1")
@@ -116,7 +116,7 @@ bool Packetfilter::filterstring_to_bool(const std::string& str) {
 }
 
 packet_filter_mac_addr::packet_filter_mac_addr(const std::string& in_id, const std::string& in_description) :
-    Packetfilter(in_id, in_description, "mac_addr") {
+    packet_filter(in_id, in_description, "mac_addr") {
 
     register_fields();
     reserve_fields(nullptr);
@@ -586,7 +586,7 @@ std::shared_ptr<tracker_element_map> packet_filter_mac_addr::self_endp_handler()
 }
 
 void packet_filter_mac_addr::build_self_content(std::shared_ptr<tracker_element_map> content) { 
-    Packetfilter::build_self_content(content);
+    packet_filter::build_self_content(content);
 
     content->insert(filter_phy_blocks);
 }
