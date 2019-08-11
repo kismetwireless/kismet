@@ -392,7 +392,7 @@ void Load_Kismet_UUID(global_registry *globalreg) {
     // Look for a saved uuid
     confuuid = uuid(uuidconf.fetch_opt("server_uuid"));
     if (confuuid.error) {
-        confuuid.GenerateTimeUUID((uint8_t *) "KISMET");
+        confuuid.generate_time_uuid((uint8_t *) "KISMET");
         _MSG("Generated server UUID " + confuuid.UUID2String() + " and storing in " +
                 uuidconfpath, MSGFLAG_INFO);
         uuidconf.set_opt("server_uuid", confuuid.UUID2String(), true);

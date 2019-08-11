@@ -71,7 +71,7 @@ public:
     }
 
     uuid(uint8_t *in_node) {
-        GenerateTimeUUID(in_node);
+        generate_time_uuid(in_node);
     }
 
     void from_string(const std::string& in) {
@@ -114,7 +114,7 @@ public:
         error = 0;
     }
 
-    void GenerateTimeUUID(uint8_t *in_node) {
+    void generate_time_uuid(uint8_t *in_node) {
         uint32_t clock_mid;
 
         get_clock(&clock_mid, time_low, clock_seq);

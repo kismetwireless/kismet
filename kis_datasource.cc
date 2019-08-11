@@ -209,7 +209,7 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
         if (get_source_uuid().error && !local_uuid) {
             uuid nuuid;
 
-            nuuid.GenerateTimeUUID((uint8_t *) "\x00\x00\x00\x00\x00\x00");
+            nuuid.generate_time_uuid((uint8_t *) "\x00\x00\x00\x00\x00\x00");
 
             set_source_uuid(nuuid);
             set_source_key(adler32_checksum(nuuid.UUID2String()));
@@ -800,7 +800,7 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
         set_source_key(adler32_checksum(u.UUID2String()));
     } else if (!local_uuid) {
         uuid nuuid;
-        nuuid.GenerateTimeUUID((uint8_t *) "\x00\x00\x00\x00\x00\x00");
+        nuuid.generate_time_uuid((uint8_t *) "\x00\x00\x00\x00\x00\x00");
         set_source_uuid(nuuid);
         set_source_key(adler32_checksum(nuuid.UUID2String()));
     }
