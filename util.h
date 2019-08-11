@@ -69,7 +69,7 @@ std::string str_strip(const std::string& in_str);
 std::string multi_replace_all(const std::string& in, const std::string& match, const std::string& repl);
 
 int hex_str_to_uint8(const std::string& in_str, uint8_t *in_buf, int in_buflen);
-std::string HexStrFromUint8(uint8_t *in_buf, int in_buflen);
+std::string uint8_to_hex_str(uint8_t *in_buf, int in_buflen);
 
 template<class t> class NtoString {
 public:
