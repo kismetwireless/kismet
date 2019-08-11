@@ -339,7 +339,7 @@ void packet_chain::packet_queue_processor(int slot_number) {
                     pcl->l_callback(packet);
             }
 
-            DestroyPacket(packet);
+            destroy_packet(packet);
 
             lock.lock();
 
@@ -400,7 +400,7 @@ int packet_chain::process_packet(kis_packet *in_pack) {
     return 1;
 }
 
-void packet_chain::DestroyPacket(kis_packet *in_pack) {
+void packet_chain::destroy_packet(kis_packet *in_pack) {
 
 	delete in_pack;
 }

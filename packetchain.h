@@ -113,7 +113,7 @@ public:
     // Inject a packet into the chain
     int process_packet(kis_packet *in_pack);
     // Destroy a packet at the end of its life
-    void DestroyPacket(kis_packet *in_pack);
+    void destroy_packet(kis_packet *in_pack);
  
     // Callback and information 
     typedef int (*pc_callback)(CHAINCALL_PARMS);
