@@ -280,7 +280,7 @@ std::vector<std::string> str_tokenize(const std::string& in_str, const std::stri
     return ret;
 }
 
-std::string StrJoin(const std::vector<std::string>& in_content, const std::string& in_delim, bool in_first) {
+std::string str_join(const std::vector<std::string>& in_content, const std::string& in_delim, bool in_first) {
     std::ostringstream ostr;
 
     bool d = false;

@@ -163,7 +163,7 @@ int hex_to_uchar(unsigned char *in_hex, unsigned char *in_chr);
 
 std::vector<std::string> str_tokenize(const std::string& in_str, const std::string& in_split, 
         int return_partial = 1);
-std::string StrJoin(const std::vector<std::string>& in_content, const std::string& in_delim, 
+std::string str_join(const std::vector<std::string>& in_content, const std::string& in_delim, 
         bool in_first = false);
 
 // 'smart' tokenizeing with start/end positions
