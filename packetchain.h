@@ -135,7 +135,7 @@ protected:
     void packet_queue_processor(int slot_number);
 
     // Common function for both insertion methods
-    int RegisterIntHandler(pc_callback in_cb, void *in_aux, 
+    int register_int_handler(pc_callback in_cb, void *in_aux, 
             std::function<int (kis_packet *)> in_l_cb, 
             int in_chain, int in_prio);
 

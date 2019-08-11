@@ -405,7 +405,7 @@ void packet_chain::destroy_packet(kis_packet *in_pack) {
 	delete in_pack;
 }
 
-int packet_chain::RegisterIntHandler(pc_callback in_cb, void *in_aux,
+int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux,
         std::function<int (kis_packet *)> in_l_cb, 
         int in_chain, int in_prio) {
 
@@ -477,11 +477,11 @@ int packet_chain::RegisterIntHandler(pc_callback in_cb, void *in_aux,
 }
 
 int packet_chain::register_handler(pc_callback in_cb, void *in_aux, int in_chain, int in_prio) {
-    return RegisterIntHandler(in_cb, in_aux, NULL, in_chain, in_prio);
+    return register_int_handler(in_cb, in_aux, NULL, in_chain, in_prio);
 }
 
 int packet_chain::register_handler(std::function<int (kis_packet *)> in_cb, int in_chain, int in_prio) {
-    return RegisterIntHandler(NULL, NULL, in_cb, in_chain, in_prio);
+    return register_int_handler(NULL, NULL, in_cb, in_chain, in_prio);
 }
 
 int packet_chain::remove_handler(int in_id, int in_chain) {
