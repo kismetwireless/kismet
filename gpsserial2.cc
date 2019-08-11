@@ -62,7 +62,7 @@ kis_gps_serial_v2::kis_gps_serial_v2(shared_gps_builder in_builder) :
 
 kis_gps_serial_v2::~kis_gps_serial_v2() {
     if (serialclient != nullptr) {
-        pollabletracker->RemovePollable(serialclient);
+        pollabletracker->remove_pollable(serialclient);
     }
 
     if (nmeahandler != nullptr) {

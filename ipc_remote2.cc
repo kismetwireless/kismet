@@ -66,7 +66,7 @@ void ipc_remote_v2::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_pare
 
 ipc_remote_v2::~ipc_remote_v2() {
     if (pipeclient != nullptr) {
-        pollabletracker->RemovePollable(pipeclient);
+        pollabletracker->remove_pollable(pipeclient);
         pipeclient->close_pipes();
     }
 
@@ -106,7 +106,7 @@ void ipc_remote_v2::close_ipc() {
     local_locker lock(ipc_mutex);
 
     if (pipeclient != nullptr) {
-        pollabletracker->RemovePollable(pipeclient);
+        pollabletracker->remove_pollable(pipeclient);
         pipeclient->close_pipes();
     }
 
@@ -425,7 +425,7 @@ int ipc_remote_v2::soft_kill() {
     local_locker lock(ipc_mutex);
 
     if (pipeclient != nullptr) {
-        pollabletracker->RemovePollable(pipeclient);
+        pollabletracker->remove_pollable(pipeclient);
         pipeclient->close_pipes();
     }
 
@@ -439,7 +439,7 @@ int ipc_remote_v2::hard_kill() {
     local_locker lock(ipc_mutex);
 
     if (pipeclient != nullptr) {
-        pollabletracker->RemovePollable(pipeclient);
+        pollabletracker->remove_pollable(pipeclient);
         pipeclient->close_pipes();
     }
 

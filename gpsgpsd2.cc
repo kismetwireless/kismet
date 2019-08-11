@@ -102,7 +102,7 @@ kis_gps_gpsd_v2::kis_gps_gpsd_v2(shared_gps_builder in_builder) :
 
 kis_gps_gpsd_v2::~kis_gps_gpsd_v2() {
     if (tcpclient != nullptr) {
-        pollabletracker->RemovePollable(tcpclient);
+        pollabletracker->remove_pollable(tcpclient);
     }
 
     tcpclient.reset();
@@ -751,7 +751,7 @@ void kis_gps_gpsd_v2::buffer_error(std::string in_error) {
 
     // Delete any existing interface before we parse options
     if (tcpclient != NULL) {
-        pollabletracker->RemovePollable(tcpclient);
+        pollabletracker->remove_pollable(tcpclient);
         tcpclient.reset();
     }
 

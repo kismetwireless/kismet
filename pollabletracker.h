@@ -62,7 +62,7 @@ public:
     // Schedule a pollable item to be removed as soon as the current
     // operation completes (or the next one begins); This allows errored sources
     // to remove themselves once their tasks are complete.
-    void RemovePollable(std::shared_ptr<kis_pollable> in_pollable);
+    void remove_pollable(std::shared_ptr<kis_pollable> in_pollable);
 
     // Perform a select loop; blocks until polling exits
     void Selectloop(bool spindown_loop);

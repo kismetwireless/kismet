@@ -65,7 +65,7 @@ kis_gps_tcp::kis_gps_tcp(shared_gps_builder in_builder) :
 
 kis_gps_tcp::~kis_gps_tcp() {
     if (tcpclient != nullptr) {
-        pollabletracker->RemovePollable(tcpclient);
+        pollabletracker->remove_pollable(tcpclient);
     }
 
     if (nmeahandler != nullptr) {
