@@ -900,7 +900,7 @@ std::string StringAppend(const std::string& s, const std::string& a, const std::
     return ss.str();
 }
 
-std::string MultiReplaceAll(const std::string& in, const std::string& match, const std::string& repl) {
+std::string multi_replace_all(const std::string& in, const std::string& match, const std::string& repl) {
     std::string work = in;
 
     for (size_t pos = 0; (pos = in.find(match, pos)) != std::string::npos;
