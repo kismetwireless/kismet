@@ -808,7 +808,7 @@ std::shared_ptr<kis_tracked_device_base>
             if (pack_l1info->freq_khz != 0)
                 device->set_frequency(pack_l1info->freq_khz);
 
-            Packinfo_Sig_Combo *sc = new Packinfo_Sig_Combo(pack_l1info, pack_gpsinfo);
+            packinfo_sig_combo *sc = new packinfo_sig_combo(pack_l1info, pack_gpsinfo);
             device->get_signal_data()->append_signal(*sc, !ram_no_rrd, in_pack->ts.tv_sec);
 
             delete(sc);
@@ -861,14 +861,14 @@ std::shared_ptr<kis_tracked_device_base>
 	if ((in_flags & UCD_UPDATE_SEENBY) && pack_datasrc != NULL) {
         double f = -1;
 
-        Packinfo_Sig_Combo *sc = NULL;
+        packinfo_sig_combo *sc = NULL;
 
         if (pack_l1info != NULL)
             f = pack_l1info->freq_khz;
 
         // Generate a signal record if we're following per-source signal
         if (track_persource_history) {
-            sc = new Packinfo_Sig_Combo(pack_l1info, pack_gpsinfo);
+            sc = new packinfo_sig_combo(pack_l1info, pack_gpsinfo);
         }
 
         device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f, sc, !ram_no_rrd);

@@ -167,7 +167,7 @@ void  kis_tracked_signal_data::append_signal(const kis_layer1_packinfo& lay1, bo
     }
 }
 
-void kis_tracked_signal_data::append_signal(const Packinfo_Sig_Combo& in, bool update_rrd, time_t rrd_ts) {
+void kis_tracked_signal_data::append_signal(const packinfo_sig_combo& in, bool update_rrd, time_t rrd_ts) {
     if (in.lay1 != NULL) {
         if (in.lay1->signal_type == kis_l1_signal_type_dbm && (sig_type == 0 || sig_type == 1)) {
             if (sig_type == 0) {
@@ -347,7 +347,7 @@ void kis_tracked_device_base::inc_frequency_count(double frequency) {
 }
 
 void kis_tracked_device_base::inc_seenby_count(kis_datasource *source, 
-        time_t tv_sec, int frequency, Packinfo_Sig_Combo *siginfo,
+        time_t tv_sec, int frequency, packinfo_sig_combo *siginfo,
         bool update_rrd) {
     std::shared_ptr<kis_tracked_seenby_data> seenby;
 

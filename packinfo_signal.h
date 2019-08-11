@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -36,9 +36,9 @@
 #include "gpstracker.h"
 #include "packet.h"
 
-class Packinfo_Sig_Combo {
+class packinfo_sig_combo {
     public:
-        Packinfo_Sig_Combo(kis_layer1_packinfo *l1, kis_gps_packinfo *gp) {
+        packinfo_sig_combo(kis_layer1_packinfo *l1, kis_gps_packinfo *gp) {
             lay1 = l1;
             gps = gp;
         }

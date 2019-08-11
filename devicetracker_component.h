@@ -107,7 +107,7 @@ public:
     }
 
     void append_signal(const kis_layer1_packinfo& lay1, bool update_rrd, time_t rrd_ts);
-    void append_signal(const Packinfo_Sig_Combo& in, bool update_rrd, time_t rrd_ts);
+    void append_signal(const packinfo_sig_combo& in, bool update_rrd, time_t rrd_ts);
 
     __ProxyGet(signal_type, std::string, std::string, signal_type);
 
@@ -414,7 +414,7 @@ public:
     __ProxyTrackable(seenby_map, tracker_element_int_map, seenby_map);
 
     void inc_seenby_count(kis_datasource *source, time_t tv_sec, int frequency,
-            Packinfo_Sig_Combo *siginfo, bool update_rrd);
+            packinfo_sig_combo *siginfo, bool update_rrd);
 
     __ProxyTrackable(tag_map, tracker_element_string_map, tag_map);
 
