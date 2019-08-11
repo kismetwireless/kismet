@@ -130,7 +130,7 @@ int kis_net_httpd_cppstream_handler::httpd_handle_post_request(kis_net_httpd *ht
     return MHD_YES;
 }
 
-bool Kis_Net_Httpd_No_Files_Handler::httpd_verify_path(const char *path, 
+bool kis_net_httpd_no_files_handler::httpd_verify_path(const char *path, 
         const char *method) {
 
     if (strcmp(method, "GET") != 0)
@@ -143,7 +143,7 @@ bool Kis_Net_Httpd_No_Files_Handler::httpd_verify_path(const char *path,
     return false;
 }
 
-void Kis_Net_Httpd_No_Files_Handler::httpd_create_stream_response(kis_net_httpd *httpd __attribute__((unused)),
+void kis_net_httpd_no_files_handler::httpd_create_stream_response(kis_net_httpd *httpd __attribute__((unused)),
         kis_net_httpd_connection *connection __attribute__((unused)),
         const char *url __attribute__((unused)), 
         const char *method __attribute__((unused)), 

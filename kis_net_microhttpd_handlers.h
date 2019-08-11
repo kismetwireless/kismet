@@ -151,7 +151,7 @@ public:
 };
 
 // Fallback handler to report that we can't serve static files
-class Kis_Net_Httpd_No_Files_Handler : public kis_net_httpd_cppstream_handler {
+class kis_net_httpd_no_files_handler : public kis_net_httpd_cppstream_handler {
 public:
     virtual bool httpd_verify_path(const char *path, const char *method);
 

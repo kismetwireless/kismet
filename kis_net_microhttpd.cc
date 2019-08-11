@@ -185,7 +185,7 @@ kis_net_httpd::kis_net_httpd() {
     }
 
     if (http_serve_files == false && http_serve_user_files == false) {
-        register_unauth_handler(new Kis_Net_Httpd_No_Files_Handler());
+        register_unauth_handler(new kis_net_httpd_no_files_handler());
     }
 
     session_timeout = 
