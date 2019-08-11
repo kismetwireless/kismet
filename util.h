@@ -63,7 +63,7 @@ std::string munge_to_printable(const char *in_data, unsigned int max, int nullte
 std::string munge_to_printable(const std::string& in_str);
 
 std::string str_lower(const std::string& in_str);
-std::string StrUpper(const std::string& in_str);
+std::string str_upper(const std::string& in_str);
 std::string StrStrip(const std::string& in_str);
 
 std::string MultiReplaceAll(const std::string& in, const std::string& match, const std::string& repl);

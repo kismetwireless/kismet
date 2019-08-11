@@ -180,7 +180,7 @@ int alert_tracker::register_alert(std::string in_header, std::string in_descript
         std::make_shared<tracked_alert_definition>(alert_def_id);
 
     arec->set_alert_ref(next_alert_id++);
-    arec->set_header(StrUpper(in_header));
+    arec->set_header(str_upper(in_header));
     arec->set_description(in_description);
     arec->set_limit_unit(in_unit);
     arec->set_limit_rate(in_rate);
@@ -474,7 +474,7 @@ int alert_tracker::parse_alert_str(std::string alert_str, std::string *ret_name,
 		return -1;
 	}
 
-	(*ret_name) = StrUpper(tokens[0]);
+	(*ret_name) = str_upper(tokens[0]);
 
 	if (parse_rate_unit(str_lower(tokens[1]), ret_limit_unit, ret_limit_rate) != 1 ||
 		parse_rate_unit(str_lower(tokens[2]), ret_limit_burst, ret_burst_rate) != 1) {
@@ -544,14 +544,14 @@ int alert_tracker::define_alert(std::string name, alert_time_unit limit_unit, in
         alert_time_unit burst_unit, int burst_rate) {
     local_locker lock(&alert_mutex);
 
-    auto ai = alert_conf_map.find(StrUpper(name));
+    auto ai = alert_conf_map.find(str_upper(name));
     if (ai != alert_conf_map.end()) {
         _MSG_ERROR("alerttracker - tried to define alert '{}' twice.", name);
         return -1;
     }
 
     alert_conf_rec *rec = new alert_conf_rec;
-    rec->header = StrUpper(name);
+    rec->header = str_upper(name);
     rec->limit_unit = limit_unit;
     rec->limit_rate = limit_rate;
     rec->burst_unit = burst_unit;
@@ -572,7 +572,7 @@ int alert_tracker::activate_configured_alert(std::string in_header, std::string 
     {
         local_locker lock(&alert_mutex);
 
-        std::string hdr = StrUpper(in_header);
+        std::string hdr = str_upper(in_header);
 
         auto hi = alert_conf_map.find(hdr);
 
