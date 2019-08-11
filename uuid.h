@@ -67,14 +67,14 @@ public:
     }
 
     uuid(const std::string& in) {
-        FromString(in);
+        from_string(in);
     }
 
     uuid(uint8_t *in_node) {
         GenerateTimeUUID(in_node);
     }
 
-    void FromString(const std::string& in) {
+    void from_string(const std::string& in) {
         memset(uuid_block, 0, 16);
         time_low = (uint32_t *) &(uuid_block[0]);
         time_mid = (uint16_t *) &(uuid_block[4]);
