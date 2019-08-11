@@ -2747,7 +2747,7 @@ std::shared_ptr<dot11_tracked_eapol>
 
 
 #if 0
-void KisBuiltinDissector::AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len, 
+void KisBuiltinDissector::add_wep_key(mac_addr bssid, uint8_t *key, unsigned int len, 
                                     int temp) {
     if (len > WEPKEY_MAX)
         return;
@@ -2818,7 +2818,7 @@ int KisBuiltinDissector::cmd_addwepkey(CLIENT_PARMS) {
     unsigned char key[WEPKEY_MAX];
     int len = Hex2UChar((unsigned char *) keyvec[1].c_str(), key);
 
-    AddWepKey(bssid, key, len, 1);
+    add_wep_key(bssid, key, len, 1);
 
     snprintf(errstr, 1024, "Added key %s length %d for BSSID %s",
              (*parsedcmdline)[0].word.c_str(), len, 

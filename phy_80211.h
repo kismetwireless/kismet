@@ -355,7 +355,7 @@ public:
 
     void set_string_extract(int in_extr);
 
-    void AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len, int temp);
+    void add_wep_key(mac_addr bssid, uint8_t *key, unsigned int len, int temp);
 
     static std::string CryptToString(uint64_t cryptset);
     static std::string CryptToSimpleString(uint64_t cryptset);

@@ -1687,7 +1687,7 @@ void kis_80211_phy::set_string_extract(int in_extr) {
     dissect_all_strings = in_extr;
 }
 
-void kis_80211_phy::AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len, 
+void kis_80211_phy::add_wep_key(mac_addr bssid, uint8_t *key, unsigned int len, 
         int temp) {
     if (len > WEPKEY_MAX)
         return;
