@@ -751,7 +751,7 @@ unsigned int crc32_le_80211(unsigned int *crc32_table, const unsigned char *buf,
 	return crc;
 }
 
-void SubtractTimeval(struct timeval *in_tv1, struct timeval *in_tv2,
+void subtract_timeval(struct timeval *in_tv1, struct timeval *in_tv2,
 					 struct timeval *out_tv) {
 	if (in_tv1->tv_sec < in_tv2->tv_sec ||
 		(in_tv1->tv_sec == in_tv2->tv_sec && in_tv1->tv_usec < in_tv2->tv_usec) ||
