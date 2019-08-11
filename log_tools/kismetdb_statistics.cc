@@ -251,7 +251,7 @@ int main(int argc, char *argv[]) {
                 ds_root["hardware"] = json["kismet.datasource.hardware"];
                 ds_root["packets"] = json["kismet.datasource.num_packets"];
             } else {
-                fmt::print("      Hardware: {}\n", json["kismet.datasource.hardware"].asString());
+                fmt::print("      Hardware: {}\n", json["kismet.datasource.hardware"].as_string());
                 fmt::print("      Packets: {}\n", json["kismet.datasource.num_packets"].asDouble());
             }
 
@@ -280,7 +280,7 @@ int main(int argc, char *argv[]) {
 
                         comma = true;
 
-                        chan_ss << c.asString();
+                        chan_ss << c.as_string();
                     }
 
                     if (chan_ss.str().length()) {
@@ -288,7 +288,7 @@ int main(int argc, char *argv[]) {
                     }
                 }
             } else {
-                auto chan = json["kismet.datasource.channel"].asString();
+                auto chan = json["kismet.datasource.channel"].as_string();
                 if (chan.length()) {
                     if (outputjson) {
                         ds_root["channel"] = chan;

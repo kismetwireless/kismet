@@ -119,7 +119,7 @@ mac_addr Kis_RTL433_Phy::json_to_mac(Json::Value json) {
     if (json.isMember("model")) {
         Json::Value m = json["model"];
         if (m.is_string()) {
-            smodel = m.asString();
+            smodel = m.as_string();
         }
     }
 
@@ -181,7 +181,7 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
         if (c.isNumeric()) {
             common->channel = IntToString(c.asInt());
         } else if (c.is_string()) {
-            common->channel = MungeToPrintable(c.asString());
+            common->channel = MungeToPrintable(c.as_string());
         }
     }
 
@@ -199,7 +199,7 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     std::string dn = "Sensor";
 
     if (json.isMember("model")) {
-        dn = MungeToPrintable(json["model"].asString());
+        dn = MungeToPrintable(json["model"].as_string());
     }
 
     basedev->set_manuf(rtl_manuf);
@@ -236,7 +236,7 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
                 commondev->set_rtlid(ss.str());
                 set_id = true;
             } else if (id_j.is_string()) {
-                commondev->set_rtlid(id_j.asString());
+                commondev->set_rtlid(id_j.as_string());
                 set_id = true;
             }
         }
@@ -249,7 +249,7 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
                 commondev->set_rtlid(ss.str());
                 set_id = true;
             } else if (device_j.is_string()) {
-                commondev->set_rtlid(device_j.asString());
+                commondev->set_rtlid(device_j.as_string());
                 set_id = true;
             }
         }
@@ -267,14 +267,14 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
         if (channel_j.isNumeric())
             commondev->set_rtlchannel(IntToString(channel_j.asInt()));
         else if (channel_j.is_string())
-            commondev->set_rtlchannel(MungeToPrintable(channel_j.asString()));
+            commondev->set_rtlchannel(MungeToPrintable(channel_j.as_string()));
     }
 
     if (json.isMember("battery")) {
         auto battery_j = json["battery"];
 
         if (battery_j.is_string())
-            commondev->set_battery(MungeToPrintable(battery_j.asString()));
+            commondev->set_battery(MungeToPrintable(battery_j.as_string()));
     }
 
     if (is_thermometer(json))
@@ -342,7 +342,7 @@ bool Kis_RTL433_Phy::is_thermometer(Json::Value json) {
 bool Kis_RTL433_Phy::is_tpms(Json::Value json) {
     auto type_j = json["type"];
 
-    if (type_j.is_string() && type_j.asString() == "TPMS")
+    if (type_j.is_string() && type_j.as_string() == "TPMS")
         return true;
 
     return false;
@@ -481,7 +481,7 @@ void Kis_RTL433_Phy::add_tpms(Json::Value json, std::shared_ptr<tracker_element_
     auto state_j = json["state"];
     auto code_j = json["code"];
 
-    if (type_j.is_string() && type_j.asString() == "TPMS") {
+    if (type_j.is_string() && type_j.as_string() == "TPMS") {
         auto tpmsdev = 
             rtlholder->get_sub_as<rtl433_tracked_tpms>(rtl433_tpms_id);
 
@@ -500,19 +500,19 @@ void Kis_RTL433_Phy::add_tpms(Json::Value json, std::shared_ptr<tracker_element_
         }
 
         if (flags_j.is_string()) {
-            tpmsdev->set_flags(flags_j.asString());
+            tpmsdev->set_flags(flags_j.as_string());
         }
 
         if (checksum_j.is_string()) {
-            tpmsdev->set_checksum(checksum_j.asString());
+            tpmsdev->set_checksum(checksum_j.as_string());
         }
 
         if (state_j.is_string()) {
-            tpmsdev->set_state(state_j.asString());
+            tpmsdev->set_state(state_j.as_string());
         }
 
         if (code_j.is_string()) {
-            tpmsdev->set_code(code_j.asString());
+            tpmsdev->set_code(code_j.as_string());
         }
 
     }
@@ -556,7 +556,7 @@ void Kis_RTL433_Phy::add_switch(Json::Value json, std::shared_ptr<tracker_elemen
                 break;
 
             if (v_j.is_string()) {
-                if (v_j.asString() == "OPEN")
+                if (v_j.as_string() == "OPEN")
                     v = 1;
             } else if (v_j.isNumeric()) {
                 v = v_j.asInt();

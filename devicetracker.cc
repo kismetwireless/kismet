@@ -1762,7 +1762,7 @@ void device_tracker::handle_new_datasource_event(std::shared_ptr<eventbus_event>
             auto seenby_view =
                 std::make_shared<device_tracker_view>(fmt::format("seenby-{}", source_uuid), 
                         fmt::format("Devices seen by datasource {}", source_uuid),
-                        std::vector<std::string>{"seenby-uuid", source_uuid.asString()},
+                        std::vector<std::string>{"seenby-uuid", source_uuid.as_string()},
                         [source_key](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
                             return dev->get_seenby_map()->find(source_key) != dev->get_seenby_map()->end();
                         },

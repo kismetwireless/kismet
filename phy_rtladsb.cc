@@ -95,7 +95,7 @@ mac_addr Kis_RTLADSB_Phy::json_to_mac(Json::Value json) {
     if (json.isMember("icao")) {
         Json::Value m = json["icao"];
         if (m.is_string()) {
-            smodel = m.asString();
+            smodel = m.as_string();
         }
     }
 
@@ -106,8 +106,8 @@ mac_addr Kis_RTLADSB_Phy::json_to_mac(Json::Value json) {
     if (json.isMember("icao")) {
         Json::Value i = json["icao"];
         if (i.is_string()) {
-	    //*model = i.asString();
-	    std::string icaotmp = i.asString();
+	    //*model = i.as_string();
+	    std::string icaotmp = i.as_string();
 	    int icaoint = std::stoi(icaotmp, 0, 16);
             *model = kis_hton16((uint16_t) icaoint);
             set_model = true;
@@ -161,7 +161,7 @@ bool Kis_RTLADSB_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
         if (c.isNumeric()) {
             common->channel = IntToString(c.asInt());
         } else if (c.is_string()) {
-            common->channel = MungeToPrintable(c.asString());
+            common->channel = MungeToPrintable(c.as_string());
         }
     }
 
@@ -180,7 +180,7 @@ bool Kis_RTLADSB_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
 
     auto icao_j = json["icao"];
     if (icao_j.is_string()) {
-        dn = icao_j.asString();
+        dn = icao_j.as_string();
     }
 
     basedev->set_manuf(rtl_manuf);
@@ -217,7 +217,7 @@ bool Kis_RTLADSB_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
 	    auto icao_j = json["icao"];
             //std::fprintf(stderr, "RTLADSB: ID? %d\n", id_j);
             if (icao_j.is_string()) {
-                commondev->set_rtlid(icao_j.asString());
+                commondev->set_rtlid(icao_j.as_string());
                 set_id = true;
             }
         }
@@ -235,7 +235,7 @@ bool Kis_RTLADSB_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
         if (channel_j.isNumeric())
             commondev->set_rtlchannel(IntToString(channel_j.asInt()));
         else if (channel_j.is_string())
-            commondev->set_rtlchannel(MungeToPrintable(channel_j.asString()));
+            commondev->set_rtlchannel(MungeToPrintable(channel_j.as_string()));
     }
 
     if (is_adsb(json))
@@ -282,40 +282,40 @@ void Kis_RTLADSB_Phy::add_adsb(Json::Value json, std::shared_ptr<tracker_element
             rtlholder->insert(adsbdev);
         }
 
-        adsbdev->set_icao(icao_j.asString());
+        adsbdev->set_icao(icao_j.as_string());
 	
         if (json.isMember("regid")) {
             auto regid_j = json["regid"];
             if (regid_j.is_string()) {
-                adsbdev->set_regid(regid_j.asString());
+                adsbdev->set_regid(regid_j.as_string());
             }
         }
 
         if (json.isMember("mdl")) {
             auto mdl_j = json["mdl"];
             if (mdl_j.is_string()) {
-                adsbdev->set_mdl(mdl_j.asString());
+                adsbdev->set_mdl(mdl_j.as_string());
             }
         }
 
         if (json.isMember("type")) {
             auto type_j = json["type"];
             if (type_j.is_string()) {
-                adsbdev->set_atype(type_j.asString());
+                adsbdev->set_atype(type_j.as_string());
             }
         }
 
         if (json.isMember("operator")) {
             auto operator_j = json["operator"];
             if (operator_j.is_string()) {
-                adsbdev->set_aoperator(operator_j.asString());
+                adsbdev->set_aoperator(operator_j.as_string());
             }
         }
 
         if (json.isMember("callsign")) {
             auto callsign_j = json["callsign"];
             if (callsign_j.is_string()) {
-                adsbdev->set_callsign(callsign_j.asString());
+                adsbdev->set_callsign(callsign_j.as_string());
             }
         }
 
@@ -343,7 +343,7 @@ void Kis_RTLADSB_Phy::add_adsb(Json::Value json, std::shared_ptr<tracker_element
         if (json.isMember("gsas")) {
             auto gsas_j = json["gsas"];
             if (gsas_j.is_string()) {
-                adsbdev->set_gsas(gsas_j.asString());
+                adsbdev->set_gsas(gsas_j.as_string());
             }
         }
     }

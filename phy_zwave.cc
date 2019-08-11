@@ -95,7 +95,7 @@ bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
     auto homeid_j = json["home_id"];
 
     if (homeid_j.is_string()) {
-        tempstr = homeid_j.asString();
+        tempstr = homeid_j.as_string();
     } else {
         return false;
     }

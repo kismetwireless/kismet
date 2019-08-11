@@ -95,7 +95,7 @@ mac_addr Kis_RTLAMR_Phy::json_to_mac(Json::Value json) {
     if (json.isMember("model")) {
         Json::Value m = json["model"];
         if (m.is_string()) {
-            smodel = m.asString();
+            smodel = m.as_string();
         }
     }
 
@@ -152,7 +152,7 @@ bool Kis_RTLAMR_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
         if (c.isNumeric()) {
             common->channel = IntToString(c.asInt());
         } else if (c.is_string()) {
-            common->channel = MungeToPrintable(c.asString());
+            common->channel = MungeToPrintable(c.as_string());
         }
     }
 
@@ -174,7 +174,7 @@ bool Kis_RTLAMR_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
       if (msgjson.isMember("ID")) {
           Json::Value i = msgjson["ID"];
           if (i.isNumeric()) {
-              dn = i.asString();
+              dn = i.as_string();
           }
       }
     }
@@ -211,11 +211,11 @@ bool Kis_RTLAMR_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
               Json::Value id_j = msgjson["ID"];
               if (id_j.isNumeric()) {
                   std::stringstream ss;
-                  ss << id_j.asString();
+                  ss << id_j.as_string();
                   commondev->set_rtlid(ss.str());
                   set_id = true;
               } else if (id_j.is_string()) {
-                  commondev->set_rtlid(id_j.asString());
+                  commondev->set_rtlid(id_j.as_string());
                   set_id = true;
               }
           }
@@ -228,7 +228,7 @@ bool Kis_RTLAMR_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
                   commondev->set_rtlid(ss.str());
                   set_id = true;
               } else if (consumption_j.is_string()) {
-                  commondev->set_rtlid(consumption_j.asString());
+                  commondev->set_rtlid(consumption_j.as_string());
                   set_id = true;
               }
           }
@@ -247,7 +247,7 @@ bool Kis_RTLAMR_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
         if (channel_j.isNumeric())
             commondev->set_rtlchannel(IntToString(channel_j.asInt()));
         else if (channel_j.is_string())
-            commondev->set_rtlchannel(MungeToPrintable(channel_j.asString()));
+            commondev->set_rtlchannel(MungeToPrintable(channel_j.as_string()));
     }
 
     if (is_powermeter(json))

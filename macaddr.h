@@ -312,7 +312,7 @@ struct mac_addr {
         return (val[0] << 16) | (val[1] << 8) | val[2];
     }
 
-    inline std::string asString() const {
+    inline std::string as_string() const {
         return mac_to_string();
     }
 

@@ -136,7 +136,7 @@ public:
         error = 0;
     }
 
-    std::string asString() const {
+    std::string as_string() const {
         return UUID2String();
     }
 
