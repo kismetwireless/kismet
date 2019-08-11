@@ -1262,7 +1262,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             // populate the per-client records for any which have mgmt communication
             
             if (source_dev != NULL)
-                d11phy->ProcessClient(bssid_dev, bssid_dot11, source_dev, source_dot11, 
+                d11phy->process_client(bssid_dev, bssid_dot11, source_dev, source_dot11, 
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
 
             if (dest_dev != NULL) {
@@ -1270,7 +1270,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                         dot11info->subtype == packet_sub_probe_resp) {
                     // Don't map probe respsonses as clients
                 } else {
-                    d11phy->ProcessClient(bssid_dev, bssid_dot11, dest_dev, dest_dot11, 
+                    d11phy->process_client(bssid_dev, bssid_dot11, dest_dev, dest_dot11, 
                             in_pack, dot11info, pack_gpsinfo, pack_datainfo);
                 }
             }
@@ -1642,14 +1642,14 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         if (bssid_dev != NULL) {
             // Map clients
             if (source_dev != NULL) {
-                d11phy->ProcessClient(bssid_dev, bssid_dot11, source_dev, source_dot11, 
+                d11phy->process_client(bssid_dev, bssid_dot11, source_dev, source_dot11, 
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
                 d11phy->ProcessWPAHandshake(bssid_dev, bssid_dot11, source_dev, source_dot11,
                         in_pack, dot11info);
             }
 
             if (dest_dev != NULL) {
-                d11phy->ProcessClient(bssid_dev, bssid_dot11, dest_dev, dest_dot11, 
+                d11phy->process_client(bssid_dev, bssid_dot11, dest_dev, dest_dot11, 
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
                 d11phy->ProcessWPAHandshake(bssid_dev, bssid_dot11, dest_dev, dest_dot11,
                         in_pack, dot11info);
@@ -1658,15 +1658,15 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
         if (other_dev != NULL) {
             if (bssid_dev != NULL)
-                d11phy->ProcessClient(other_dev, other_dot11, bssid_dev, bssid_dot11, 
+                d11phy->process_client(other_dev, other_dot11, bssid_dev, bssid_dot11, 
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
 
             if (source_dev != NULL)
-                d11phy->ProcessClient(other_dev, other_dot11, source_dev, source_dot11, 
+                d11phy->process_client(other_dev, other_dot11, source_dev, source_dot11, 
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
 
             if (dest_dev != NULL)
-                d11phy->ProcessClient(other_dev, other_dot11, dest_dev, dest_dot11, 
+                d11phy->process_client(other_dev, other_dot11, dest_dev, dest_dot11, 
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
         }
     }
@@ -2310,7 +2310,7 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
 }
 
 // Associate a client device and a dot11 access point
-void kis_80211_phy::ProcessClient(std::shared_ptr<kis_tracked_device_base> bssiddev,
+void kis_80211_phy::process_client(std::shared_ptr<kis_tracked_device_base> bssiddev,
         std::shared_ptr<dot11_tracked_device> bssiddot11,
         std::shared_ptr<kis_tracked_device_base> clientdev,
         std::shared_ptr<dot11_tracked_device> clientdot11,

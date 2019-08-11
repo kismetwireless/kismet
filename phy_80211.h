@@ -423,7 +423,7 @@ protected:
 
     // Map a device as a client of an acceess point, fill in any data in the
     // per-client records
-    void ProcessClient(std::shared_ptr<kis_tracked_device_base> bssiddev,
+    void process_client(std::shared_ptr<kis_tracked_device_base> bssiddev,
             std::shared_ptr<dot11_tracked_device> bssiddot11,
             std::shared_ptr<kis_tracked_device_base> clientdev,
             std::shared_ptr<dot11_tracked_device> clientdot11,
