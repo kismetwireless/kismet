@@ -319,7 +319,7 @@ public:
     // Dot11 decoders, wep decryptors, etc
     int packet_wep_decryptor(kis_packet *in_pack);
     // Top-level dissector; decodes basic type and populates the dot11 packet
-    int PacketDot11dissector(kis_packet *in_pack);
+    int packet_dot11_dissector(kis_packet *in_pack);
     // Expects an existing dot11 packet with the basic type intact, interprets
     // IE tags to the best of our ability
     int PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *in_dot11info);

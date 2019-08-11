@@ -279,7 +279,7 @@ int kis_80211_phy::wpa_key_mgt_conv(uint8_t mgt_index) {
 }
 
 // This needs to be optimized and it needs to not use casting to do its magic
-int kis_80211_phy::PacketDot11dissector(kis_packet *in_pack) {
+int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
     if (in_pack->error) {
         return 0;
     }
