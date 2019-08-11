@@ -57,7 +57,7 @@ public:
             std::stringstream ss(data);
             ss >> json;
         } catch (std::exception& e) {
-            throw StructuredDataUnparseable(e.what());
+            throw structured_data_unparseable(e.what());
         }
     }
 
