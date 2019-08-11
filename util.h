@@ -152,7 +152,7 @@ T string_to_n(const std::string& s, T dvalue) {
 int string_to_bool(const std::string& s, int dvalue = -1);
 
 // String to integer.  Throws exception if not an integer!
-int StringToInt(const std::string& s);
+int string_to_int(const std::string& s);
 unsigned int StringToUInt(const std::string& s);
 
 // Append to a string, with a delimiter if applicable

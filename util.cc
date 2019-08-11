@@ -867,7 +867,7 @@ int string_to_bool(const std::string& s, int dvalue) {
 	return dvalue;
 }
 
-int StringToInt(const std::string& s) {
+int string_to_int(const std::string& s) {
     int r;
 
     if (sscanf(s.c_str(), "%d", &r) != 1)
