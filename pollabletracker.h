@@ -75,7 +75,7 @@ public:
     // returns:
     // 0+   Maximum FD to be passed to select()
     // -1   Error
-    int MergePollableFds(fd_set *rset, fd_set *wset);
+    int merge_pollable_fds(fd_set *rset, fd_set *wset);
    
     // pollable_poll each item in a set
     //

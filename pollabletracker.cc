@@ -82,7 +82,7 @@ void pollable_tracker::select_loop(bool spindown_mode) {
 
         maintenance();
 
-        max_fd = MergePollableFds(&rset, &wset);
+        max_fd = merge_pollable_fds(&rset, &wset);
 
         if (select(max_fd + 1, &rset, &wset, NULL, &tm) < 0) {
             if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -109,7 +109,7 @@ void pollable_tracker::select_loop(bool spindown_mode) {
     }
 }
 
-int pollable_tracker::MergePollableFds(fd_set *rset, fd_set *wset) {
+int pollable_tracker::merge_pollable_fds(fd_set *rset, fd_set *wset) {
     int max_fd = 0;
 
     FD_ZERO(rset);
