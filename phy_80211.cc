@@ -2044,7 +2044,7 @@ void kis_80211_phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
             std::string al = "IEEE80211 Access Point BSSID " +
                 basedev->get_macaddr().mac_to_string() + " SSID \"" +
                 ssid->get_ssid() + "\" changed advertised encryption from " +
-                CryptToString(ssid->get_crypt_set()) + " to Open which may "
+                crypt_to_string(ssid->get_crypt_set()) + " to Open which may "
                 "indicate AP spoofing/impersonation";
 
             alertracker->raise_alert(alert_wepflap_ref, in_pack, 
@@ -2056,8 +2056,8 @@ void kis_80211_phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
 
             auto al = fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised "
                     "encryption from {} to {} which may indicate AP spoofing/impersonation",
-                    basedev->get_macaddr(), ssid->get_ssid(), CryptToString(ssid->get_crypt_set()),
-                    CryptToString(dot11info->cryptset));
+                    basedev->get_macaddr(), ssid->get_ssid(), crypt_to_string(ssid->get_crypt_set()),
+                    crypt_to_string(dot11info->cryptset));
 
             alertracker->raise_alert(alert_cryptchange_ref, in_pack, 
                     dot11info->bssid_mac, dot11info->source_mac, 
@@ -2679,7 +2679,7 @@ void kis_80211_phy::ProcessWPAHandshake(std::shared_ptr<kis_tracked_device_base>
     }
 }
 
-std::string kis_80211_phy::CryptToString(uint64_t cryptset) {
+std::string kis_80211_phy::crypt_to_string(uint64_t cryptset) {
     std::string ret;
 
     if (cryptset == crypt_none)

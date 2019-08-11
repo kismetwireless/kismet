@@ -357,7 +357,7 @@ public:
 
     void add_wep_key(mac_addr bssid, uint8_t *key, unsigned int len, int temp);
 
-    static std::string CryptToString(uint64_t cryptset);
+    static std::string crypt_to_string(uint64_t cryptset);
     static std::string CryptToSimpleString(uint64_t cryptset);
 
     // HTTPD API
