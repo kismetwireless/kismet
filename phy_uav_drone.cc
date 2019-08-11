@@ -361,7 +361,7 @@ bool Kis_UAV_Phy::parse_manuf_definition(std::string in_def) {
     }
 
     std::vector<opt_pair> optvec;
-    StringToOpts(in_def.substr(cpos + 1, in_def.length()), ",", &optvec);
+    string_to_opts(in_def.substr(cpos + 1, in_def.length()), ",", &optvec);
 
     std::string manuf_name = fetch_opt("name", &optvec);
     std::string manuf_model = fetch_opt("model", &optvec);

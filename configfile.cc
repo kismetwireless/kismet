@@ -642,7 +642,7 @@ void header_value_config::parse_line(const std::string& in_confline) {
     } else {
         header = in_confline.substr(0, cpos);
         std::vector<opt_pair> opt_vec;
-        StringToOpts(in_confline.substr(cpos + 1, in_confline.size() - cpos), ",", &opt_vec);
+        string_to_opts(in_confline.substr(cpos + 1, in_confline.size() - cpos), ",", &opt_vec);
 
         for (auto oi : opt_vec)
             content_map[oi.opt] = oi.val;

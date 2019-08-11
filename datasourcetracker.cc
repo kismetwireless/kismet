@@ -799,7 +799,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
         interface = in_source.substr(0, cpos);
         options = in_source.substr(cpos + 1, in_source.size() - cpos);
 
-        StringToOpts(options, ",", &opt_vec);
+        string_to_opts(options, ",", &opt_vec);
 
         type = str_lower(fetch_opt("type", &opt_vec));
 

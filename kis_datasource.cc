@@ -509,7 +509,7 @@ bool kis_datasource::parse_interface_definition(std::string in_definition) {
         set_int_source_interface(in_definition.substr(0, cpos));
 
         // Blow up if we fail parsing
-        if (StringToOpts(in_definition.substr(cpos + 1, 
+        if (string_to_opts(in_definition.substr(cpos + 1, 
                         in_definition.size() - cpos - 1), ",", &options) < 0) {
             return false;
         }

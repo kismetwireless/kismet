@@ -387,7 +387,7 @@ std::vector<std::string> fetch_opt_vec(const std::string& in_key, std::vector<op
     return ret;
 }
 
-int StringToOpts(const std::string& in_line, const std::string& in_sep, std::vector<opt_pair> *in_vec) {
+int string_to_opts(const std::string& in_line, const std::string& in_sep, std::vector<opt_pair> *in_vec) {
     std::vector<std::string> optv;
 	opt_pair optp;
 

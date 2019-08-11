@@ -505,7 +505,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
         std::string name = l.substr(0, cpos);
 
         std::vector<opt_pair> optvec;
-        StringToOpts(l.substr(cpos + 1, l.length()), ",", &optvec);
+        string_to_opts(l.substr(cpos + 1, l.length()), ",", &optvec);
 
         std::string ssid = fetch_opt("ssid", &optvec);
 
