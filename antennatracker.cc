@@ -46,7 +46,7 @@ int Antennatracker::add_antenna(uuid in_src, int in_srcnum, int in_adjustment) {
     auto ant = std::make_shared<tracked_antenna>();
 
     uuid u;
-    u.GenerateRandomTimeUUID();
+    u.generate_random_time_uuid();
     
     ant->set_id(next_ant_id++);
     ant->set_source_uuid(in_src);

@@ -149,7 +149,7 @@ public:
             insert(builder);
 
         uuid luuid;
-        luuid.GenerateRandomTimeUUID();
+        luuid.generate_random_time_uuid();
         set_int_log_uuid(luuid);
     }
 

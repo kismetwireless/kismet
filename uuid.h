@@ -102,7 +102,7 @@ public:
         }
     }
 
-    void GenerateRandomTimeUUID() {
+    void generate_random_time_uuid() {
         uint32_t clock_mid;
 
         get_clock(&clock_mid, time_low, clock_seq);
