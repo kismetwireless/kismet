@@ -1320,7 +1320,7 @@ bool datasource_tracker::httpd_verify_path(const char *path, const char *method)
         if (stripped == "/datasource/add_source")
             return true;
 
-        std::vector<std::string> tokenurl = StrTokenize(path, "/");
+        std::vector<std::string> tokenurl = str_tokenize(path, "/");
 
         if (tokenurl.size() < 5)
             return false;
@@ -1358,7 +1358,7 @@ bool datasource_tracker::httpd_verify_path(const char *path, const char *method)
         if (!httpd_can_serialize(path))
             return false;
 
-        std::vector<std::string> tokenurl = StrTokenize(path, "/");
+        std::vector<std::string> tokenurl = str_tokenize(path, "/");
 
         if (tokenurl.size() < 5)
             return false;
@@ -1422,7 +1422,7 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
         return;
 
 
-    std::vector<std::string> tokenurl = StrTokenize(path, "/");
+    std::vector<std::string> tokenurl = str_tokenize(path, "/");
 
     if (tokenurl.size() < 5) {
         return;
@@ -1594,7 +1594,7 @@ int datasource_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
         } 
 
         // No single url we liked, split and look at the path
-        std::vector<std::string> tokenurl = StrTokenize(concls->url, "/");
+        std::vector<std::string> tokenurl = str_tokenize(concls->url, "/");
 
         if (tokenurl.size() < 5) {
             throw std::runtime_error("Unknown URI");
@@ -1786,7 +1786,7 @@ int datasource_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
 double datasource_tracker::string_to_rate(std::string in_str, double in_default) {
     double v, dv;
 
-    std::vector<std::string> toks = StrTokenize(in_str, "/");
+    std::vector<std::string> toks = str_tokenize(in_str, "/");
 
     if (toks.size() != 2)
         throw std::runtime_error("Expected [value]/sec or [value]/min or [value]/dwell");
@@ -1829,7 +1829,7 @@ bool datasource_tracker_httpd_pcap::httpd_verify_path(const char *path, const ch
         // Alternately, per-source capture:
         // /datasource/pcap/by-uuid/aa-bb-cc-dd/aa-bb-cc-dd.pcapng
 
-        std::vector<std::string> tokenurl = StrTokenize(path, "/");
+        std::vector<std::string> tokenurl = str_tokenize(path, "/");
 
         if (tokenurl.size() < 6) {
             return false;
@@ -1906,7 +1906,7 @@ int datasource_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *h
     }
 
     // Find per-uuid and make a filtering pcapng
-    std::vector<std::string> tokenurl = StrTokenize(url, "/");
+    std::vector<std::string> tokenurl = str_tokenize(url, "/");
 
     if (tokenurl.size() < 6) {
         return MHD_YES;

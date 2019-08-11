@@ -261,7 +261,7 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
     bool set_heading;
     bool set_error;
 
-    std::vector<std::string> inptok = StrTokenize(std::string(buf, buf_sz), "\n", 0);
+    std::vector<std::string> inptok = str_tokenize(std::string(buf, buf_sz), "\n", 0);
     tcphandler->peek_free_read_buffer_data(buf);
 
     if (inptok.size() < 1) {
@@ -452,7 +452,7 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
             si_raw = 1;
         } else if (poll_mode < 10 && inptok[it].substr(0, 7) == "GPSD,L=") {
             // Look for the version response
-            std::vector<std::string> lvec = StrTokenize(inptok[it], " ");
+            std::vector<std::string> lvec = str_tokenize(inptok[it], " ");
             int gma, gmi;
 
             if (lvec.size() < 3) {
@@ -493,7 +493,7 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
 
         } else if (poll_mode < 10 && inptok[it].substr(0, 7) == "GPSD,P=") {
             // pollable_poll lines
-            std::vector<std::string> pollvec = StrTokenize(inptok[it], ",");
+            std::vector<std::string> pollvec = str_tokenize(inptok[it], ",");
 
             if (pollvec.size() < 5) {
                 continue;
@@ -530,7 +530,7 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
 
         } else if (poll_mode < 10 && inptok[it].substr(0, 7) == "GPSD,O=") {
             // Look for O= watch lines
-            std::vector<std::string> ggavec = StrTokenize(inptok[it], " ");
+            std::vector<std::string> ggavec = str_tokenize(inptok[it], " ");
 
             if (ggavec.size() < 15) {
                 continue;
@@ -584,7 +584,7 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
             set_fix = true;
             set_lat_lon = true;
         } else if (poll_mode < 10 && si_raw && inptok[it].substr(0, 6) == "$GPGSA") {
-            std::vector<std::string> savec = StrTokenize(inptok[it], ",");
+            std::vector<std::string> savec = str_tokenize(inptok[it], ",");
 
             if (savec.size() != 18)
                 continue;
@@ -594,7 +594,7 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
 
             set_fix = true;
         } else if (si_raw && inptok[it].substr(0, 6) == "$GPVTG") {
-            std::vector<std::string> vtvec = StrTokenize(inptok[it], ",");
+            std::vector<std::string> vtvec = str_tokenize(inptok[it], ",");
 
             if (vtvec.size() != 10)
                 continue;
@@ -604,7 +604,7 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
 
             set_speed = true;
         } else if (poll_mode < 10 && si_raw && inptok[it].substr(0, 6) == "$GPGGA") {
-            std::vector<std::string> gavec = StrTokenize(inptok[it], ",");
+            std::vector<std::string> gavec = str_tokenize(inptok[it], ",");
             int tint;
             float tfloat;
 
@@ -650,7 +650,7 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
 
             gps_connected = 1;
 
-            vector<string> svvec = StrTokenize(inptok[it], ",");
+            vector<string> svvec = str_tokenize(inptok[it], ",");
             GPSCore::sat_pos sp;
 
             if (svvec.size() < 6)

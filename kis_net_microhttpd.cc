@@ -207,7 +207,7 @@ kis_net_httpd::kis_net_httpd() {
 
     std::vector<std::string> mimeopts = Globalreg::globalreg->kismet_config->fetch_opt_vec("httpd_mime");
     for (unsigned int i = 0; i < mimeopts.size(); i++) {
-        std::vector<std::string> mime_comps = StrTokenize(mimeopts[i], ":");
+        std::vector<std::string> mime_comps = str_tokenize(mimeopts[i], ":");
 
         if (mime_comps.size() != 2) {
             _MSG("Expected httpd_mime=extension:type", MSGFLAG_ERROR);
@@ -244,7 +244,7 @@ kis_net_httpd::kis_net_httpd() {
                 _MSG("Loading saved HTTP sessions", MSGFLAG_INFO);
 
             for (unsigned int s = 0; s < oldsessions.size(); s++) {
-                std::vector<std::string> sestok = StrTokenize(oldsessions[s], ",");
+                std::vector<std::string> sestok = str_tokenize(oldsessions[s], ",");
 
                 if (sestok.size() != 4)
                     continue;
@@ -1664,7 +1664,7 @@ bool kis_net_httpd_path_tracked_endpoint::httpd_verify_path(const char *in_path,
         return false;
 
     auto stripped = httpd_strip_suffix(in_path);
-    auto tokenurl = StrTokenize(stripped, "/");
+    auto tokenurl = str_tokenize(stripped, "/");
 
     // Tokenized paths begin with / which yields a blank [0] element, so trim that
     if (tokenurl.size())
@@ -1714,7 +1714,7 @@ int kis_net_httpd_path_tracked_endpoint::httpd_create_stream_response(
     std::shared_ptr<tracker_element> output_content;
 
     auto stripped = httpd_strip_suffix(in_path);
-    auto tokenurl = StrTokenize(stripped, "/");
+    auto tokenurl = str_tokenize(stripped, "/");
 
     // Tokenized paths begin with / which yields a blank [0] element, so trim that
     if (tokenurl.size())
@@ -1759,7 +1759,7 @@ int kis_net_httpd_path_tracked_endpoint::httpd_post_complete(kis_net_httpd_conne
             });
 
     auto stripped = httpd_strip_suffix(concls->url);
-    auto tokenurl = StrTokenize(stripped, "/");
+    auto tokenurl = str_tokenize(stripped, "/");
 
     // Tokenized paths begin with / which yields a blank [0] element, so trim that
     if (tokenurl.size())
@@ -1968,7 +1968,7 @@ bool kis_net_httpd_path_post_endpoint::httpd_verify_path(const char *in_path, co
         return false;
 
     auto stripped = httpd_strip_suffix(in_path);
-    auto tokenurl = StrTokenize(stripped, "/");
+    auto tokenurl = str_tokenize(stripped, "/");
 
     // Tokenized paths begin with / which yields a blank [0] element, so trim that
     if (tokenurl.size())
@@ -2017,7 +2017,7 @@ int kis_net_httpd_path_post_endpoint::httpd_post_complete(kis_net_httpd_connecti
             });
 
     auto stripped = httpd_strip_suffix(concls->url);
-    auto tokenurl = StrTokenize(stripped, "/");
+    auto tokenurl = str_tokenize(stripped, "/");
 
     // Tokenized paths begin with / which yields a blank [0] element, so trim that
     if (tokenurl.size())

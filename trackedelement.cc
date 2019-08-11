@@ -649,7 +649,7 @@ tracker_element_summary::tracker_element_summary(const SharedElementSummary& in_
 
 tracker_element_summary::tracker_element_summary(const std::string& in_path, 
         const std::string& in_rename) {
-    parse_path(StrTokenize(in_path, "/"), in_rename);
+    parse_path(str_tokenize(in_path, "/"), in_rename);
 }
 
 tracker_element_summary::tracker_element_summary(const std::vector<std::string>& in_path,
@@ -658,7 +658,7 @@ tracker_element_summary::tracker_element_summary(const std::vector<std::string>&
 }
 
 tracker_element_summary::tracker_element_summary(const std::string& in_path) {
-    parse_path(StrTokenize(in_path, "/"), "");
+    parse_path(str_tokenize(in_path, "/"), "");
 }
 
 tracker_element_summary::tracker_element_summary(const std::vector<std::string>& in_path) {
@@ -705,7 +705,7 @@ void tracker_element_summary::parse_path(const std::vector<std::string>& in_path
 
 shared_tracker_element Gettracker_elementPath(const std::string& in_path, 
         shared_tracker_element elem) {
-    return Gettracker_elementPath(StrTokenize(in_path, "/"), elem);
+    return Gettracker_elementPath(str_tokenize(in_path, "/"), elem);
 }
 
 shared_tracker_element Gettracker_elementPath(const std::vector<std::string>& in_path, 
@@ -784,7 +784,7 @@ shared_tracker_element Gettracker_elementPath(const std::vector<int>& in_path,
 
 std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::string& in_path, 
         shared_tracker_element elem) {
-    return Gettracker_elementMultiPath(StrTokenize(in_path, "/"), elem);
+    return Gettracker_elementMultiPath(str_tokenize(in_path, "/"), elem);
 }
 
 std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::vector<std::string>& in_path, 

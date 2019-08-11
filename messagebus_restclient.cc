@@ -87,7 +87,7 @@ bool rest_message_client::httpd_verify_path(const char *path, const char *method
     }
 
     // Split URL and process
-    std::vector<std::string> tokenurl = StrTokenize(path, "/");
+    std::vector<std::string> tokenurl = str_tokenize(path, "/");
     if (tokenurl.size() < 3)
         return false;
 
@@ -126,7 +126,7 @@ void rest_message_client::httpd_create_stream_response(
         return;
 
     // Split URL and process
-    std::vector<std::string> tokenurl = StrTokenize(path, "/");
+    std::vector<std::string> tokenurl = str_tokenize(path, "/");
     if (tokenurl.size() < 3)
         return;
 

@@ -46,7 +46,7 @@ int tcp_server_v2::ConfigureServer(short int in_port, unsigned int in_maxcli,
 
     // Parse the filters
     for (auto i = in_filtervec.begin(); i != in_filtervec.end(); ++i) {
-        std::vector<std::string> fv = StrTokenize(*i, "/");
+        std::vector<std::string> fv = str_tokenize(*i, "/");
 
         ipfilter ipf;
 

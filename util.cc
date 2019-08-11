@@ -258,7 +258,7 @@ std::vector<smart_word_token> BaseStrTokenize(const std::string& in_str,
 }
 
 // No-frills tokenize with no intelligence about nested delimiters
-std::vector<std::string> StrTokenize(const std::string& in_str, const std::string& in_split, 
+std::vector<std::string> str_tokenize(const std::string& in_str, const std::string& in_split, 
         int return_partial) {
     size_t begin = 0;
     size_t end = in_str.find(in_split);
@@ -526,7 +526,7 @@ float Pair2Float(int16_t primary, int64_t mantissa) {
 }
 
 std::vector<int> Str2IntVec(const std::string& in_text) {
-    std::vector<std::string> optlist = StrTokenize(in_text, ",");
+    std::vector<std::string> optlist = str_tokenize(in_text, ",");
     std::vector<int> ret;
     int ch;
 

@@ -841,9 +841,9 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
         }
     }
 
-    std::vector<std::string> def_vec = StrTokenize(get_definition_opt("channels"), ",");
-    std::vector<std::string> add_vec = StrTokenize(get_definition_opt("add_channels"), ",");
-    std::vector<std::string> block_vec = StrTokenize(get_definition_opt("block_channels"), ",");
+    std::vector<std::string> def_vec = str_tokenize(get_definition_opt("channels"), ",");
+    std::vector<std::string> add_vec = str_tokenize(get_definition_opt("add_channels"), ",");
+    std::vector<std::string> block_vec = str_tokenize(get_definition_opt("block_channels"), ",");
 
     if (def_vec.size() != 0) {
         // If we override the channels, use our supplied list entirely, and we don't

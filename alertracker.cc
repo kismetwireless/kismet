@@ -467,7 +467,7 @@ int alert_tracker::parse_alert_str(std::string alert_str, std::string *ret_name,
         alert_time_unit *ret_limit_burst, 
         int *ret_burst_rate) {
 
-	std::vector<std::string> tokens = StrTokenize(alert_str, ",");
+	std::vector<std::string> tokens = str_tokenize(alert_str, ",");
 
 	if (tokens.size() != 3) {
         _MSG_ERROR("Malformed limits for alert '{}'", alert_str);
@@ -488,7 +488,7 @@ int alert_tracker::parse_alert_str(std::string alert_str, std::string *ret_name,
 // Split up a rate/unit string into real values
 int alert_tracker::parse_rate_unit(std::string in_ru, alert_time_unit *ret_unit,
 							   int *ret_rate) {
-	std::vector<std::string> units = StrTokenize(in_ru, "/");
+	std::vector<std::string> units = str_tokenize(in_ru, "/");
 
 	if (units.size() == 1) {
 		// Unit is per minute if not specified
@@ -613,7 +613,7 @@ bool alert_tracker::httpd_verify_path(const char *path, const char *method) {
 
     if (strcmp(method, "GET") == 0) {
         // Split URL and process
-        std::vector<std::string> tokenurl = StrTokenize(path, "/");
+        std::vector<std::string> tokenurl = str_tokenize(path, "/");
         if (tokenurl.size() < 3)
             return false;
 
@@ -668,7 +668,7 @@ void alert_tracker::httpd_create_stream_response(
         return;
 
     // Split URL and process
-    std::vector<std::string> tokenurl = StrTokenize(path, "/");
+    std::vector<std::string> tokenurl = str_tokenize(path, "/");
     if (tokenurl.size() < 3)
         return;
 

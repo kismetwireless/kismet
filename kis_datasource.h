@@ -757,7 +757,7 @@ public:
     __Proxy(hardware, std::string, std::string, std::string, hardware);
 
     void populate(std::string in_interface, std::string in_options) {
-        std::vector<std::string> optvec = StrTokenize(in_options, ",");
+        std::vector<std::string> optvec = str_tokenize(in_options, ",");
         populate(in_interface, optvec);
     }
 

@@ -256,7 +256,7 @@ int Systemmonitor::timetracker_event(int eventid) {
 
         if (paren != std::string::npos) {
             std::vector<std::string> toks = 
-                StrTokenize(procline.substr(paren + 1, procline.length()), " ");
+                str_tokenize(procline.substr(paren + 1, procline.length()), " ");
 
             if (toks.size() > 22) {
                 unsigned long int m;

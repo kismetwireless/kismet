@@ -59,7 +59,7 @@ void kis_datasource_rtl433::open_interface(std::string in_definition, unsigned i
 #if 0
 int kis_datasource_rtl433::httpd_post_complete(kis_net_httpd_connection *concls) {
     std::string stripped = httpd_strip_suffix(concls->url);
-    std::vector<std::string> tokenurl = StrTokenize(stripped, "/");
+    std::vector<std::string> tokenurl = str_tokenize(stripped, "/");
 
     // Anything involving POST here requires a login
     if (!httpd->has_valid_session(concls, true)) {

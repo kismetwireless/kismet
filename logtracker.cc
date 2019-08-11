@@ -158,9 +158,9 @@ void log_tracker::trigger_deferred_startup() {
     std::vector<std::string> types;
    
     if (argtypes.length() == 0)
-        types = StrTokenize(Globalreg::globalreg->kismet_config->fetch_opt("log_types"), ",");
+        types = str_tokenize(Globalreg::globalreg->kismet_config->fetch_opt("log_types"), ",");
     else
-        types = StrTokenize(argtypes, ",");
+        types = str_tokenize(argtypes, ",");
         
 
     for (auto t : types) {
@@ -306,7 +306,7 @@ bool log_tracker::httpd_verify_path(const char *path, const char *method) {
         if (stripped == "/logging/active")
             return true;
 
-        std::vector<std::string> tokenurl = StrTokenize(stripped, "/");
+        std::vector<std::string> tokenurl = str_tokenize(stripped, "/");
 
         // /logging/by-uuid/[foo]/stop 
 
@@ -352,7 +352,7 @@ bool log_tracker::httpd_verify_path(const char *path, const char *method) {
 
         std::string stripped = httpd_strip_suffix(path);
 
-        std::vector<std::string> tokenurl = StrTokenize(stripped, "/");
+        std::vector<std::string> tokenurl = str_tokenize(stripped, "/");
 
         // /logging/by-class/[foo]/start + post vars
 
@@ -399,7 +399,7 @@ void log_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
         return;
     }
 
-    std::vector<std::string> tokenurl = StrTokenize(stripped, "/");
+    std::vector<std::string> tokenurl = str_tokenize(stripped, "/");
 
     // /logging/by-uuid/[foo]/stop + post vars
 
@@ -512,7 +512,7 @@ int log_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
 
     std::string stripped = httpd_strip_suffix(concls->url);
 
-    std::vector<std::string> tokenurl = StrTokenize(stripped, "/");
+    std::vector<std::string> tokenurl = str_tokenize(stripped, "/");
 
     // /logging/by-class/[foo]/start + post vars
 

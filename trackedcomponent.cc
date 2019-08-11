@@ -96,7 +96,7 @@ shared_tracker_element tracker_component::import_or_new(std::shared_ptr<tracker_
 }
 
 shared_tracker_element tracker_component::get_child_path(const std::string& in_path) {
-    std::vector<std::string> tok = StrTokenize(in_path, "/");
+    std::vector<std::string> tok = str_tokenize(in_path, "/");
     return get_child_path(tok);
 }
 

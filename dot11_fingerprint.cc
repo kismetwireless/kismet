@@ -23,7 +23,7 @@
 dot11_fingerprint_tracker::dot11_fingerprint_tracker(const std::string& in_uri) {
     using namespace std::placeholders;
 
-    base_uri = StrTokenize(in_uri, "/");
+    base_uri = str_tokenize(in_uri, "/");
 
     // Tokenized paths begin with / which yields a blank [0] element, so trim that
     if (base_uri.size())
@@ -49,7 +49,7 @@ dot11_fingerprint_tracker::dot11_fingerprint_tracker(const std::string& in_uri,
     const std::string& in_config, const std::string& in_confvalue) {
     using namespace std::placeholders;
 
-    base_uri = StrTokenize(in_uri, "/");
+    base_uri = str_tokenize(in_uri, "/");
 
     // Tokenized paths begin with / which yields a blank [0] element, so trim that
     if (base_uri.size())

@@ -27,7 +27,7 @@ bool device_tracker_httpd_pcap::httpd_verify_path(const char *path, const char *
     if (strcmp(method, "GET") == 0) {
         // /devices/by-key/[key]/pcap/[key].pcapng
        
-        std::vector<std::string> tokenurl = StrTokenize(path, "/");
+        std::vector<std::string> tokenurl = str_tokenize(path, "/");
         if (tokenurl.size() < 6)
             return false;
 
@@ -74,7 +74,7 @@ int device_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *httpd
 
     // /devices/by-key/[key]/pcap/[key].pcapng
 
-    std::vector<std::string> tokenurl = StrTokenize(url, "/");
+    std::vector<std::string> tokenurl = str_tokenize(url, "/");
     if (tokenurl.size() < 6)
         return MHD_YES;
 

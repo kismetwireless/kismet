@@ -62,7 +62,7 @@ bool device_tracker::httpd_verify_path(const char *path, const char *method) {
             return true;
 
         // Split URL and process
-        std::vector<std::string> tokenurl = StrTokenize(path, "/");
+        std::vector<std::string> tokenurl = str_tokenize(path, "/");
         if (tokenurl.size() < 2)
             return false;
 
@@ -147,7 +147,7 @@ bool device_tracker::httpd_verify_path(const char *path, const char *method) {
         }
     } else if (strcmp(method, "POST") == 0) {
         // Split URL and process
-        std::vector<std::string> tokenurl = StrTokenize(path, "/");
+        std::vector<std::string> tokenurl = str_tokenize(path, "/");
         if (tokenurl.size() < 2)
             return false;
 
@@ -280,7 +280,7 @@ int device_tracker::httpd_create_stream_response(
 
     // fmt::print(stderr, "tokenizing path {}\n", path);
 
-    std::vector<std::string> tokenurl = StrTokenize(path, "/");
+    std::vector<std::string> tokenurl = str_tokenize(path, "/");
 
     // fmt::print(stderr, "path {} tokenized to size {}\n", path, tokenurl.size());
 
@@ -420,7 +420,7 @@ int device_tracker::httpd_create_stream_response(
 
 int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
     // Split URL and process
-    std::vector<std::string> tokenurl = StrTokenize(concls->url, "/");
+    std::vector<std::string> tokenurl = str_tokenize(concls->url, "/");
 
     auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
     auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());

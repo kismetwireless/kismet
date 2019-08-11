@@ -59,7 +59,7 @@ bool stream_tracker::httpd_verify_path(const char *path, const char *method) {
         return true;
     }
 
-    std::vector<std::string> tokenurl = StrTokenize(stripped, "/");
+    std::vector<std::string> tokenurl = str_tokenize(stripped, "/");
 
     // /streams/by-id/[NUM]/stream_info
     // /streams/by-id/[NUM]/close_stream
@@ -119,7 +119,7 @@ void stream_tracker::httpd_create_stream_response(
         return;
     }
 
-    std::vector<std::string> tokenurl = StrTokenize(stripped, "/");
+    std::vector<std::string> tokenurl = str_tokenize(stripped, "/");
 
     // /streams/by-id/[NUM]/stream_info
     // /streams/by-id/[NUM]/close_stream

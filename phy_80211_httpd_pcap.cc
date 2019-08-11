@@ -26,7 +26,7 @@
 
 bool phy_80211_httpd_pcap::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
-        std::vector<std::string> tokenurl = StrTokenize(path, "/");
+        std::vector<std::string> tokenurl = str_tokenize(path, "/");
 
         // /phy/phy80211/by-bssid/[mac]/pcap/[mac].pcapng
         if (tokenurl.size() < 7)
@@ -94,7 +94,7 @@ int phy_80211_httpd_pcap::httpd_create_stream_response(kis_net_httpd *httpd,
     if (dot11phy == NULL)
         return MHD_YES;
 
-    std::vector<std::string> tokenurl = StrTokenize(url, "/");
+    std::vector<std::string> tokenurl = str_tokenize(url, "/");
 
     // /phy/phy80211/by-bssid/[mac]/pcap/[mac].pcapng
     if (tokenurl.size() < 7)

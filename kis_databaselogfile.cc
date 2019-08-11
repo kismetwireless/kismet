@@ -291,7 +291,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
         Globalreg::globalreg->kismet_config->fetch_opt_vec("kis_log_device_filter");
     for (auto dfi : device_filter_vec) {
         // phy,mac,value
-        auto filter_toks = StrTokenize(dfi, ",");
+        auto filter_toks = str_tokenize(dfi, ",");
 
         if (filter_toks.size() != 3) {
             _MSG_ERROR("Skipping invalid kis_log_device_filter option '{}', expected phyname,mac,filtertype.", dfi);
@@ -335,7 +335,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
         Globalreg::globalreg->kismet_config->fetch_opt_vec("kis_log_packet_filter");
     for (auto dfi : packet_filter_vec) {
         // phy,block,mac,value
-        auto filter_toks = StrTokenize(dfi, ",");
+        auto filter_toks = str_tokenize(dfi, ",");
 
         if (filter_toks.size() != 4) {
             _MSG_ERROR("Skipping invalid kis_log_packet_filter option '{}', expected phyname,filterblock,mac,filtertype.", dfi);

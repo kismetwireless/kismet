@@ -2803,7 +2803,7 @@ int KisBuiltinDissector::cmd_addwepkey(CLIENT_PARMS) {
         return -1;
     }
 
-    vector<string> keyvec = StrTokenize((*parsedcmdline)[1].word, ",");
+    vector<string> keyvec = str_tokenize((*parsedcmdline)[1].word, ",");
     if (keyvec.size() != 2) {
         snprintf(errstr, 1024, "Illegal addwepkey request");
         return -1;

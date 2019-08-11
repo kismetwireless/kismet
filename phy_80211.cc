@@ -516,7 +516,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
         }
 
         std::vector<mac_addr> macvec;
-        for (auto m : StrTokenize(fetch_opt("validmacs", &optvec), ",", true)) {
+        for (auto m : str_tokenize(fetch_opt("validmacs", &optvec), ",", true)) {
             mac_addr ma(m);
 
             if (ma.error) {
@@ -2831,7 +2831,7 @@ std::string kis_80211_phy::crypt_to_simple_string(uint64_t cryptset) {
 
 bool kis_80211_phy::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
-        std::vector<std::string> tokenurl = StrTokenize(path, "/");
+        std::vector<std::string> tokenurl = str_tokenize(path, "/");
 
         // we care about
         // /phy/phy80211/by-key/[key]/pcap/[mac]-handshake.pcap
@@ -2893,7 +2893,7 @@ void kis_80211_phy::generate_handshake_pcap(std::shared_ptr<kis_tracked_device_b
         uint32_t caplen;
     } pkt_hdr;
 
-    std::vector<std::string> tokenurl = StrTokenize(connection->url, "/");
+    std::vector<std::string> tokenurl = str_tokenize(connection->url, "/");
 
     if (tokenurl.size() < 7) {
         stream << "malformed query\n";
@@ -2969,7 +2969,7 @@ void kis_80211_phy::httpd_create_stream_response(kis_net_httpd *httpd,
         return;
     }
 
-    std::vector<std::string> tokenurl = StrTokenize(url, "/");
+    std::vector<std::string> tokenurl = str_tokenize(url, "/");
 
     // Most of this is sanity checked in the URL verifier, we just want to make sure
     // things are still OK
