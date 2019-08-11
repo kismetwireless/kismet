@@ -38,10 +38,10 @@
 // This doesn't need to implement a ringbuffer interface directly because
 // it checks using the poll() sequence.  The consumer will use a rb interface
 // for reading incoming data.
-class SerialClientV2 : public kis_pollable {
+class serial_client_v2 : public kis_pollable {
 public:
-    SerialClientV2(global_registry *in_globalreg, std::shared_ptr<buffer_handler_generic> in_rbhandler);
-    virtual ~SerialClientV2();
+    serial_client_v2(global_registry *in_globalreg, std::shared_ptr<buffer_handler_generic> in_rbhandler);
+    virtual ~serial_client_v2();
 
     virtual void set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
 

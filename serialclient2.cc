@@ -30,18 +30,18 @@
 #include "messagebus.h"
 #include "pollabletracker.h"
 
-SerialClientV2::SerialClientV2(global_registry *in_globalreg, 
+serial_client_v2::serial_client_v2(global_registry *in_globalreg, 
         std::shared_ptr<buffer_handler_generic> in_rbhandler) :
     globalreg {in_globalreg},
     serial_mutex {std::make_shared<kis_recursive_timed_mutex>()},
     handler {in_rbhandler},
     device_fd {-1} { }
 
-SerialClientV2::~SerialClientV2() {
+serial_client_v2::~serial_client_v2() {
     Close();
 }
 
-void SerialClientV2::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
+void serial_client_v2::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
     local_locker l(serial_mutex);
 
     if (in_parent != nullptr)
@@ -50,7 +50,7 @@ void SerialClientV2::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_par
         serial_mutex = std::make_shared<kis_recursive_timed_mutex>(); 
 }
 
-int SerialClientV2::OpenDevice(std::string in_device, unsigned int in_baud) {
+int serial_client_v2::OpenDevice(std::string in_device, unsigned int in_baud) {
     local_locker l(serial_mutex);
 
     std::stringstream msg;
@@ -122,13 +122,13 @@ int SerialClientV2::OpenDevice(std::string in_device, unsigned int in_baud) {
     return 0;
 }
 
-bool SerialClientV2::get_connected() {
+bool serial_client_v2::get_connected() {
     local_shared_locker ls(serial_mutex);
 
     return device_fd > -1;
 }
 
-int SerialClientV2::pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
+int serial_client_v2::pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     local_locker l(serial_mutex);
 
     if (device_fd < 0)
@@ -148,7 +148,7 @@ int SerialClientV2::pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *
     return in_max_fd;
 }
 
-int SerialClientV2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
+int serial_client_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
     local_locker l(serial_mutex);
 
     std::stringstream msg;
@@ -238,7 +238,7 @@ int SerialClientV2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
     return 0;
 }
 
-void SerialClientV2::Close() {
+void serial_client_v2::Close() {
     local_locker l(serial_mutex);
 
     if (device_fd > -1) {
