@@ -34,7 +34,7 @@ class kis_logfile_builder;
 typedef std::shared_ptr<kis_logfile_builder> shared_log_builder;
 
 class kis_logfile;
-typedef std::shared_ptr<kis_logfile> SharedLogfile;
+typedef std::shared_ptr<kis_logfile> shared_logfile;
 
 // Logfile builders are responsible for telling the logging tracker what sort of 
 // log we are, the type and default name, if we're a singleton log that can't have multiple
@@ -86,7 +86,7 @@ public:
 
     // Take a shared_ptr reference to ourselves from the caller, because we can't 
     // consistently get a universal shared_ptr to 'this'
-    virtual SharedLogfile build_logfile(shared_log_builder) {
+    virtual shared_logfile build_logfile(shared_log_builder) {
         return NULL;
     }
 
@@ -252,13 +252,13 @@ public:
     int register_log(shared_log_builder in_builder);
 
     // Open a log
-    SharedLogfile open_log(std::string in_class);
-    SharedLogfile open_log(shared_log_builder in_builder);
-    SharedLogfile open_log(std::string in_class, std::string in_title);
-    SharedLogfile open_log(shared_log_builder in_builder, std::string in_title);
+    shared_logfile open_log(std::string in_class);
+    shared_logfile open_log(shared_log_builder in_builder);
+    shared_logfile open_log(std::string in_class, std::string in_title);
+    shared_logfile open_log(shared_log_builder in_builder, std::string in_title);
 
     // Close a log
-    int close_log(SharedLogfile in_logfile);
+    int close_log(shared_logfile in_logfile);
 
     static void usage(const char *argv0);
 private:

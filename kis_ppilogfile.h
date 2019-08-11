@@ -124,8 +124,8 @@ public:
 
     virtual ~KisPPILogfileBuilder() { }
 
-    virtual SharedLogfile build_logfile(shared_log_builder builder) override {
-        return SharedLogfile(new KisPPILogfile(builder));
+    virtual shared_logfile build_logfile(shared_log_builder builder) override {
+        return shared_logfile(new KisPPILogfile(builder));
     }
 
     virtual void initialize() override {

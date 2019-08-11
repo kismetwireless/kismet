@@ -264,7 +264,7 @@ public:
 
     // Custom builder that fetches the global copy and shoves it back down to the 
     // logfile system instead
-    virtual SharedLogfile build_logfile(shared_log_builder builder) {
+    virtual shared_logfile build_logfile(shared_log_builder builder) {
         std::shared_ptr<kis_database_logfile> logfile =
             Globalreg::fetch_mandatory_global_as<kis_database_logfile>("DATABASELOG");
         logfile->set_database_builder(builder);

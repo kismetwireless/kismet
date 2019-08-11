@@ -66,8 +66,8 @@ public:
 
     virtual ~pcapng_logfile_builder() { }
 
-    virtual SharedLogfile build_logfile(shared_log_builder builder) {
-        return SharedLogfile(new kis_pcapng_logfile(builder));
+    virtual shared_logfile build_logfile(shared_log_builder builder) {
+        return shared_logfile(new kis_pcapng_logfile(builder));
     }
 
     virtual void initialize() {

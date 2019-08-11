@@ -48,7 +48,7 @@ LogTracker::~LogTracker() {
     Globalreg::globalreg->RemoveGlobal("LOGTRACKER");
 
     for (auto i : *logfile_vec) {
-        SharedLogfile f = std::static_pointer_cast<kis_logfile>(i);
+        shared_logfile f = std::static_pointer_cast<kis_logfile>(i);
         f->log_close();
     }
 
@@ -190,7 +190,7 @@ void LogTracker::trigger_deferred_startup() {
 
 void LogTracker::trigger_deferred_shutdown() {
     for (auto l : *logfile_vec) {
-        SharedLogfile lf = std::static_pointer_cast<kis_logfile>(l);
+        shared_logfile lf = std::static_pointer_cast<kis_logfile>(l);
 
         lf->log_close();
     }
@@ -217,11 +217,11 @@ int LogTracker::register_log(shared_log_builder in_builder) {
     return 1;
 }
 
-SharedLogfile LogTracker::open_log(std::string in_class) {
+shared_logfile LogTracker::open_log(std::string in_class) {
     return open_log(in_class, get_log_title());
 }
 
-SharedLogfile LogTracker::open_log(std::string in_class, std::string in_title) {
+shared_logfile LogTracker::open_log(std::string in_class, std::string in_title) {
     local_locker lock(&tracker_mutex);
 
     shared_log_builder target_builder;
@@ -237,11 +237,11 @@ SharedLogfile LogTracker::open_log(std::string in_class, std::string in_title) {
     return 0;
 }
 
-SharedLogfile LogTracker::open_log(shared_log_builder in_builder) {
+shared_logfile LogTracker::open_log(shared_log_builder in_builder) {
     return open_log(in_builder, get_log_title());
 }
 
-SharedLogfile LogTracker::open_log(shared_log_builder in_builder, std::string in_title) {
+shared_logfile LogTracker::open_log(shared_log_builder in_builder, std::string in_title) {
     local_locker lock(&tracker_mutex);
 
     if (in_builder == NULL)
@@ -261,7 +261,7 @@ SharedLogfile LogTracker::open_log(shared_log_builder in_builder, std::string in
         }
     }
 
-    SharedLogfile lf = in_builder->build_logfile(in_builder);
+    shared_logfile lf = in_builder->build_logfile(in_builder);
     lf->set_id(logfile_entry_id);
     logfile_vec->push_back(lf);
 
@@ -277,7 +277,7 @@ SharedLogfile LogTracker::open_log(shared_log_builder in_builder, std::string in
     return lf;
 }
 
-int LogTracker::close_log(SharedLogfile in_logfile) {
+int LogTracker::close_log(shared_logfile in_logfile) {
     local_locker lock(&tracker_mutex);
 
     in_logfile->log_close();
@@ -463,7 +463,7 @@ void LogTracker::httpd_create_stream_response(kis_net_httpd *httpd,
                 throw std::runtime_error("invalid logclass");
 
             if (tokenurl[4] == "start") {
-                SharedLogfile logf;
+                shared_logfile logf;
 
                 logf = open_log(builder);
 
@@ -546,7 +546,7 @@ int LogTracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                 if (title == "")
                     title = get_log_title();
 
-                SharedLogfile logf;
+                shared_logfile logf;
 
                 logf = open_log(builder, title);
 
