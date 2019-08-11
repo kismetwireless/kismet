@@ -285,7 +285,7 @@ void PluginServerSignalHandler(int sig __attribute__((unused))) {
     exit(1);
 }
 
-int plugin_tracker::ActivatePlugins() {
+int plugin_tracker::activate_plugins() {
 #ifdef SYS_CYGWIN
     _sig_func_ptr old_segv = SIG_DFL;
 #else

@@ -275,7 +275,7 @@ public:
     int scan_plugins();
 
     // First-pass at activating plugins
-	int ActivatePlugins();
+	int activate_plugins();
 
     // Final chance at activating plugins
     int FinalizePlugins();

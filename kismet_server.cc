@@ -912,7 +912,7 @@ int main(int argc, char *argv[], char *envp[]) {
     // Process plugins and activate them
     if (plugintracker != nullptr) {
         plugintracker->scan_plugins();
-        plugintracker->ActivatePlugins();
+        plugintracker->activate_plugins();
 
         if (globalregistry->fatal_condition) {
             _MSG_FATAL("Failure activating Kismet plugins, make sure that all your plugins "
