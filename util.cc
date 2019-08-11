@@ -460,7 +460,7 @@ void replace_all_opts(const std::string& opt, const std::string& val, std::vecto
 	in_vec->push_back(optp);
 }
 
-std::vector<std::string> LineWrap(const std::string& in_txt, unsigned int in_hdr_len,
+std::vector<std::string> line_wrap(const std::string& in_txt, unsigned int in_hdr_len,
         unsigned int in_maxlen) {
     std::vector<std::string> ret;
 
@@ -506,7 +506,7 @@ std::vector<std::string> LineWrap(const std::string& in_txt, unsigned int in_hdr
 
 std::string in_line_wrap(const std::string& in_txt, unsigned int in_hdr_len, 
 				  unsigned int in_maxlen) {
-    std::vector<std::string> raw = LineWrap(in_txt, in_hdr_len, in_maxlen);
+    std::vector<std::string> raw = line_wrap(in_txt, in_hdr_len, in_maxlen);
     std::stringstream ss;
 
 	for (unsigned int x = 0; x < raw.size(); x++) {

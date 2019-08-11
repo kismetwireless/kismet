@@ -190,7 +190,7 @@ std::vector<std::string> quote_str_tokenize(const std::string& in_str, const std
 int TokenNullJoin(std::string *ret_str, const char **in_list);
 
 std::string in_line_wrap(const std::string& in_txt, unsigned int in_hdr_len, unsigned int in_max_len);
-std::vector<std::string> LineWrap(const std::string& in_txt, unsigned int in_hdr_len, unsigned int in_maxlen);
+std::vector<std::string> line_wrap(const std::string& in_txt, unsigned int in_hdr_len, unsigned int in_maxlen);
 std::vector<int> Str2IntVec(const std::string& in_text);
 
 void Float2Pair(float in_float, int16_t *primary, int64_t *mantissa);
