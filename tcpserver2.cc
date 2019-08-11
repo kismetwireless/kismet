@@ -165,7 +165,7 @@ int tcp_server_v2::pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *o
 }
 
 
-int tcp_server_v2::Poll(fd_set& in_rset, fd_set& in_wset) {
+int tcp_server_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
     std::stringstream msg;
     int ret, iret;
     size_t len;

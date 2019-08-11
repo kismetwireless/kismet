@@ -32,7 +32,7 @@
 class kis_pollable {
 public:
 	virtual int pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset) = 0;
-	virtual int Poll(fd_set& in_rset, fd_set& in_wset) = 0;
+	virtual int pollable_poll(fd_set& in_rset, fd_set& in_wset) = 0;
 };
 
 #endif

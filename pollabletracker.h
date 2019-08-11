@@ -77,7 +77,7 @@ public:
     // -1   Error
     int MergePollableFds(fd_set *rset, fd_set *wset);
    
-    // Poll each item in a set
+    // pollable_poll each item in a set
     //
     // returns:
     // 0+   Number of pollable items processed

@@ -118,7 +118,7 @@ int pipe_client::pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out
     return max_fd;
 }
 
-int pipe_client::Poll(fd_set& in_rset, fd_set& in_wset) {
+int pipe_client::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
     local_locker lock(pipe_mutex);
 
     std::stringstream msg;

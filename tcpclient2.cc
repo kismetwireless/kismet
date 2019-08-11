@@ -150,7 +150,7 @@ int tcp_client_v2::pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *o
     return in_max_fd;
 }
 
-int tcp_client_v2::Poll(fd_set& in_rset, fd_set& in_wset) {
+int tcp_client_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
     local_locker l(tcp_mutex);
     
     std::string msg;

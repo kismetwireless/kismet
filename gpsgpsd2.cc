@@ -492,7 +492,7 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
 
 
         } else if (poll_mode < 10 && inptok[it].substr(0, 7) == "GPSD,P=") {
-            // Poll lines
+            // pollable_poll lines
             std::vector<std::string> pollvec = StrTokenize(inptok[it], ",");
 
             if (pollvec.size() < 5) {

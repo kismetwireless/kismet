@@ -127,7 +127,7 @@ int pollable_tracker::ProcessPollableSelect(fd_set rset, fd_set wset) {
     int num = 0;
 
     for (auto i : pollable_vec) {
-        r = i->Poll(rset, wset);
+        r = i->pollable_poll(rset, wset);
 
         if (r >= 0)
             num++;

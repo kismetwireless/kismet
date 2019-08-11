@@ -148,7 +148,7 @@ int SerialClientV2::pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *
     return in_max_fd;
 }
 
-int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
+int SerialClientV2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
     local_locker l(serial_mutex);
 
     std::stringstream msg;

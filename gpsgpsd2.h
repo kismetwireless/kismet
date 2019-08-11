@@ -74,7 +74,7 @@ protected:
     int num_reconnects;
     static int time_event_reconnect(TIMEEVENT_PARMS);
 
-    // Poll mode (do we know we're JSON, etc
+    // pollable_poll mode (do we know we're JSON, etc
     int poll_mode;
     // Units - different gpsd variants return it different ways
     int si_units;
