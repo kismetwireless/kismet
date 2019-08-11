@@ -39,7 +39,7 @@ void pollable_tracker::remove_pollable(std::shared_ptr<kis_pollable> in_pollable
     remove_map[in_pollable] = 1;
 }
 
-void pollable_tracker::Maintenance() {
+void pollable_tracker::maintenance() {
     local_locker lock(&pollable_mutex);
 
     for (auto r : remove_map) {
@@ -80,7 +80,7 @@ void pollable_tracker::select_loop(bool spindown_mode) {
         tm.tv_sec = 0;
         tm.tv_usec = 100000;
 
-        Maintenance();
+        maintenance();
 
         max_fd = MergePollableFds(&rset, &wset);
 
@@ -103,7 +103,7 @@ void pollable_tracker::select_loop(bool spindown_mode) {
         consec_badfd = 0;
 
         // Run maintenance again so we don't gather purged records after the select()
-        Maintenance();
+        maintenance();
 
         ProcessPollableSelect(rset, wset);
     }

@@ -68,7 +68,7 @@ public:
     void select_loop(bool spindown_loop);
 
     // Perform a cleanup of any operations, like adding a pollable to the list or removing it
-    void Maintenance();
+    void maintenance();
 
     // populate the FD sets for polling, populates rset and wset
     //
