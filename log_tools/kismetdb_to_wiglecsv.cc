@@ -504,13 +504,13 @@ int main(int argc, char *argv[]) {
                 auto timestamp = json["kismet.device.base.first_time"].asUInt64();
                 auto name = std::string{""};
                 auto crypt = std::string{""};
-                auto type = json["kismet.device.base.type"].as_string();
+                auto type = json["kismet.device.base.type"].asString();
 
                 if (phy == "IEEE802.11") {
                     if (type != "Wi-Fi AP")
                         continue;
 
-                    name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid"].as_string());
+                    name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid"].asString());
 
                     auto last_ssid_key = 
                         json["dot11.device"]["dot11.device.last_beaconed_ssid_checksum"].asUInt64();

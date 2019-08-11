@@ -463,7 +463,7 @@ int main(int argc, char *argv[]) {
                 p.alt = 0;
 
                 kml_placemark pl;
-                pl.name = json["kismet.device.base.commonname"].as_string();
+                pl.name = json["kismet.device.base.commonname"].asString();
                 pl.point_vec.push_back(p);
 
                 placemark_vec.push_back(pl);
@@ -497,7 +497,7 @@ int main(int argc, char *argv[]) {
 
             try {
                 ss >> json;
-                pl.name = json["kismet.device.base.commonname"].as_string();
+                pl.name = json["kismet.device.base.commonname"].asString();
             } catch (const std::exception& e) {
                 fmt::print(stderr, "WARNING:  Could not process device info for '{}', skipping\n", json);
                 continue;
