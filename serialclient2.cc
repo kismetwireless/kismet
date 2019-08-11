@@ -38,7 +38,7 @@ serial_client_v2::serial_client_v2(global_registry *in_globalreg,
     device_fd {-1} { }
 
 serial_client_v2::~serial_client_v2() {
-    close();
+    close_device();
 }
 
 void serial_client_v2::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
@@ -186,7 +186,7 @@ int serial_client_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
                     handler->commit_read_buffer_data(buf, 0);
                     handler->buffer_error(msg.str());
 
-                    close();
+                    close_device();
                     return 0;
                 } else {
                     handler->commit_read_buffer_data(buf, 0);
@@ -199,7 +199,7 @@ int serial_client_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
                 if (!iret) {
                     // Die if we couldn't insert all our data, the error is already going
                     // upstream.
-                    close();
+                    close_device();
                     return 0;
                 }
             }
@@ -223,7 +223,7 @@ int serial_client_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
                 handler->peek_free_write_buffer_data(buf);
                 handler->buffer_error(msg.str());
 
-                close();
+                close_device();
                 return 0;
             }
         } else {
@@ -238,7 +238,7 @@ int serial_client_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
     return 0;
 }
 
-void serial_client_v2::close() {
+void serial_client_v2::close_device() {
     local_locker l(serial_mutex);
 
     if (device_fd > -1) {

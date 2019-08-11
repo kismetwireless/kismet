@@ -83,7 +83,7 @@ bool kis_gps_serial_v2::open_gps(std::string in_opts) {
     set_int_device_connected(false);
 
     if (serialclient != nullptr) {
-        serialclient->close();
+        serialclient->close_device();
     }
 
     if (nmeahandler != nullptr) {

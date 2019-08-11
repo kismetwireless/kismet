@@ -47,7 +47,7 @@ public:
 
     // Open a serial port @ a given baud rate
     int open_device(std::string in_device, unsigned int in_baud);
-    void close();
+    void close_device();
 
     // kis_pollable interface
     virtual int pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
