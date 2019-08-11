@@ -1296,7 +1296,7 @@ std::vector<kis_80211_phy::ie_tag_tuple> kis_80211_phy::PacketDot11IElist(kis_pa
     return ret;
 }
 
-int kis_80211_phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *packinfo) {
+int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo *packinfo) {
     // If we can't have IE tags at all
     if (packinfo->type != packet_management || !(
                 packinfo->subtype == packet_sub_beacon ||

@@ -1751,7 +1751,7 @@ void kis_80211_phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
     dot11dev->set_last_adv_ie_csum(dot11info->ietag_csum);
 
     // If we fail parsing...
-    if (PacketDot11IEdissector(in_pack, dot11info) < 0) {
+    if (packet_dot11_ie_dissector(in_pack, dot11info) < 0) {
         return;
     }
 
@@ -2217,7 +2217,7 @@ void kis_80211_phy::HandleProbedSSID(std::shared_ptr<kis_tracked_device_base> ba
     std::shared_ptr<dot11_probed_ssid> probessid;
 
     // Parse IE tags on probe req, assoc, reassoc
-    if (PacketDot11IEdissector(in_pack, dot11info) < 0) {
+    if (packet_dot11_ie_dissector(in_pack, dot11info) < 0) {
         return;
     }
 

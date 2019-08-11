@@ -322,7 +322,7 @@ public:
     int packet_dot11_dissector(kis_packet *in_pack);
     // Expects an existing dot11 packet with the basic type intact, interprets
     // IE tags to the best of our ability
-    int PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *in_dot11info);
+    int packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo *in_dot11info);
     // Generate a list of IE tag numbers
     std::vector<ie_tag_tuple> PacketDot11IElist(kis_packet *in_pack, dot11_packinfo *in_dot11info);
 
