@@ -50,7 +50,7 @@ void serial_client_v2::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_p
         serial_mutex = std::make_shared<kis_recursive_timed_mutex>(); 
 }
 
-int serial_client_v2::OpenDevice(std::string in_device, unsigned int in_baud) {
+int serial_client_v2::open_device(std::string in_device, unsigned int in_baud) {
     local_locker l(serial_mutex);
 
     std::stringstream msg;

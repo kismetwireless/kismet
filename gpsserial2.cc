@@ -134,7 +134,7 @@ bool kis_gps_serial_v2::open_gps(std::string in_opts) {
     serial_device = proto_device;
     baud = proto_baud;
 
-    serialclient->OpenDevice(proto_device, proto_baud);
+    serialclient->open_device(proto_device, proto_baud);
     set_int_device_connected(true);
 
     return 1;

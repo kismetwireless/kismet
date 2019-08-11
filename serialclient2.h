@@ -46,7 +46,7 @@ public:
     virtual void set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
 
     // Open a serial port @ a given baud rate
-    int OpenDevice(std::string in_device, unsigned int in_baud);
+    int open_device(std::string in_device, unsigned int in_baud);
     void Close();
 
     // kis_pollable interface
