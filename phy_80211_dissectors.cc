@@ -2462,7 +2462,7 @@ int kis_80211_phy::packet_wep_decryptor(kis_packet *in_pack) {
     return 1;
 }
 
-int kis_80211_phy::PacketDot11WPSM3(kis_packet *in_pack) {
+int kis_80211_phy::packet_dot11_wps_m3(kis_packet *in_pack) {
     if (in_pack->error) {
         return 0;
     }

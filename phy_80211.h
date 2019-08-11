@@ -329,7 +329,7 @@ public:
     // Special decoders, not called as part of a chain
 
     // Is packet a WPS M3 message?  Used to detect Reaver, etc
-    int PacketDot11WPSM3(kis_packet *in_pack);
+    int packet_dot11_wps_m3(kis_packet *in_pack);
 
     // Is the packet a WPA handshake?  Return an eapol tracker element if so
     std::shared_ptr<dot11_tracked_eapol> PacketDot11EapolHandshake(kis_packet *in_pack,

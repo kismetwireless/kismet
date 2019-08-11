@@ -1508,7 +1508,7 @@ int kis_80211_phy::CommonClassifierDot11(CHAINCALL_PARMS) {
             }
 
             // Look for WPS floods
-            int wps = d11phy->PacketDot11WPSM3(in_pack);
+            int wps = d11phy->packet_dot11_wps_m3(in_pack);
 
             if (wps) {
                 // if we're w/in time of the last one, update, otherwise clear
