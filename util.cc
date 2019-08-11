@@ -525,7 +525,7 @@ float Pair2Float(int16_t primary, int64_t mantissa) {
     return (double) primary + ((double) mantissa / 1000000);
 }
 
-std::vector<int> Str2IntVec(const std::string& in_text) {
+std::vector<int> str_to_int_vector(const std::string& in_text) {
     std::vector<std::string> optlist = str_tokenize(in_text, ",");
     std::vector<int> ret;
     int ch;
