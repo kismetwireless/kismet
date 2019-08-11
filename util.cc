@@ -138,7 +138,7 @@ std::string str_strip(const std::string& in_str) {
     return in_str.substr(start, end-start+1);
 }
 
-int HexStrToUint8(const std::string& in_str, uint8_t *in_buf, int in_buflen) {
+int hex_str_to_uint8(const std::string& in_str, uint8_t *in_buf, int in_buflen) {
 	int decode_pos = 0;
 	int str_pos = 0;
 
