@@ -322,7 +322,7 @@ struct mac_addr {
                 index64(longmac, 3), index64(longmac, 4), index64(longmac, 5));
     }
 
-    inline std::string MacMask2String() const {
+    inline std::string mac_mask_to_string() const {
         return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
                 index64(longmask, 0), index64(longmask, 1), index64(longmask, 2),
                 index64(longmask, 3), index64(longmask, 4), index64(longmask, 5));
@@ -333,7 +333,7 @@ struct mac_addr {
     }
 
     inline std::string MacFull2String() const {
-        return fmt::format("{}/{}", mac_to_string(), MacMask2String());
+        return fmt::format("{}/{}", mac_to_string(), mac_mask_to_string());
     }
 
     friend std::ostream& operator<<(std::ostream& os, const mac_addr& m);
