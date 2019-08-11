@@ -105,7 +105,7 @@ public:
     virtual ~packet_chain();
 
     int register_packet_component(std::string in_component);
-    int RemovePacketComponent(int in_id);
+    int remove_packet_component(int in_id);
     std::string FetchPacketComponentName(int in_id);
 
     // Generate a packet and hand it back

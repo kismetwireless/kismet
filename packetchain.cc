@@ -160,7 +160,7 @@ int packet_chain::register_packet_component(std::string in_component) {
     return num;
 }
 
-int packet_chain::RemovePacketComponent(int in_id) {
+int packet_chain::remove_packet_component(int in_id) {
     local_locker lock(&packetcomp_mutex);
 
     std::string str;
