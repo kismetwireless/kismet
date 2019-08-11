@@ -328,7 +328,7 @@ struct mac_addr {
                 index64(longmask, 3), index64(longmask, 4), index64(longmask, 5));
     }
 
-    constexpr17 uint64_t GetAsLong() const {
+    constexpr17 uint64_t get_as_long() const {
         return longmac;
     }
 
