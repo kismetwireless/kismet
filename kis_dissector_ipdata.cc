@@ -89,13 +89,13 @@ kis_dissector_ip_data::kis_dissector_ip_data(global_registry *in_globalreg) {
 		 									CHAINPOS_DATADISSECT, -100);
 
 	pack_comp_basicdata = 
-		globalreg->packetchain->RegisterPacketComponent("BASICDATA");
+		globalreg->packetchain->register_packet_component("BASICDATA");
 
 	pack_comp_datapayload =
-		globalreg->packetchain->RegisterPacketComponent("DATAPAYLOAD");
+		globalreg->packetchain->register_packet_component("DATAPAYLOAD");
 
 	pack_comp_common = 
-		globalreg->packetchain->RegisterPacketComponent("COMMON");
+		globalreg->packetchain->register_packet_component("COMMON");
 
 	alert_dhcpclient_ref =
 		globalreg->alertracker->activate_configured_alert("DHCPCLIENTID",

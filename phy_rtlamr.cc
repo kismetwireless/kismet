@@ -40,11 +40,11 @@ Kis_RTLAMR_Phy::Kis_RTLAMR_Phy(global_registry *in_globalreg, int in_phyid) :
         Globalreg::fetch_mandatory_global_as<device_tracker>();
 
 	pack_comp_common = 
-		packetchain->RegisterPacketComponent("COMMON");
+		packetchain->register_packet_component("COMMON");
     pack_comp_json = 
-        packetchain->RegisterPacketComponent("JSON");
+        packetchain->register_packet_component("JSON");
     pack_comp_meta =
-        packetchain->RegisterPacketComponent("METABLOB");
+        packetchain->register_packet_component("METABLOB");
 
     rtlamr_holder_id =
         Globalreg::globalreg->entrytracker->register_field("rtlamr.device", 

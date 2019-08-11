@@ -104,7 +104,7 @@ private:
 public:
     virtual ~packet_chain();
 
-    int RegisterPacketComponent(std::string in_component);
+    int register_packet_component(std::string in_component);
     int RemovePacketComponent(int in_id);
     std::string FetchPacketComponentName(int in_id);
 

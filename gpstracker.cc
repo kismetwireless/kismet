@@ -44,7 +44,7 @@ gps_tracker::gps_tracker() :
 
     // Register the gps component
     pack_comp_gps =
-        Globalreg::globalreg->packetchain->RegisterPacketComponent("gps");
+        Globalreg::globalreg->packetchain->register_packet_component("gps");
 
     // Register the packet chain hook
     Globalreg::globalreg->packetchain->register_handler(&kis_gpspack_hook, this,

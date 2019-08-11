@@ -39,9 +39,9 @@ channel_tracker_v2::channel_tracker_v2(global_registry *in_globalreg) :
 
     packetchain->register_handler(&packet_chain_handler, this, CHAINPOS_LOGGING, 0);
 
-	pack_comp_device = packetchain->RegisterPacketComponent("DEVICE");
-	pack_comp_common = packetchain->RegisterPacketComponent("COMMON");
-	pack_comp_l1data = packetchain->RegisterPacketComponent("RADIODATA");
+	pack_comp_device = packetchain->register_packet_component("DEVICE");
+	pack_comp_common = packetchain->register_packet_component("COMMON");
+	pack_comp_l1data = packetchain->register_packet_component("RADIODATA");
 
     devicetracker =
         Globalreg::fetch_mandatory_global_as<device_tracker>("DEVICETRACKER");

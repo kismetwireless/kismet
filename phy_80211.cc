@@ -121,34 +121,34 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
         // If we haven't registered packet components yet, do so.  We have to
         // co-exist with the old tracker core for some time
         pack_comp_80211 =
-            packetchain->RegisterPacketComponent("PHY80211");
+            packetchain->register_packet_component("PHY80211");
 
         pack_comp_basicdata = 
-            packetchain->RegisterPacketComponent("BASICDATA");
+            packetchain->register_packet_component("BASICDATA");
 
         pack_comp_mangleframe = 
-            packetchain->RegisterPacketComponent("MANGLEDATA");
+            packetchain->register_packet_component("MANGLEDATA");
 
         pack_comp_checksum =
-            packetchain->RegisterPacketComponent("CHECKSUM");
+            packetchain->register_packet_component("CHECKSUM");
 
         pack_comp_linkframe = 
-            packetchain->RegisterPacketComponent("LINKFRAME");
+            packetchain->register_packet_component("LINKFRAME");
 
         pack_comp_decap =
-            packetchain->RegisterPacketComponent("DECAP");
+            packetchain->register_packet_component("DECAP");
 
         pack_comp_common = 
-            packetchain->RegisterPacketComponent("COMMON");
+            packetchain->register_packet_component("COMMON");
 
         pack_comp_datapayload =
-            packetchain->RegisterPacketComponent("DATAPAYLOAD");
+            packetchain->register_packet_component("DATAPAYLOAD");
 
         pack_comp_gps =
-            packetchain->RegisterPacketComponent("GPS");
+            packetchain->register_packet_component("GPS");
 
         pack_comp_l1info =
-            packetchain->RegisterPacketComponent("RADIODATA");
+            packetchain->register_packet_component("RADIODATA");
 
         ssid_regex_vec =
             Globalreg::globalreg->entrytracker->register_and_get_field_as<tracker_element_vector>("phy80211.ssid_alerts", 

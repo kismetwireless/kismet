@@ -57,10 +57,10 @@ Kis_Bluetooth_Phy::Kis_Bluetooth_Phy(global_registry *in_globalreg, int in_phyid
     packetchain->register_handler(&CommonClassifierBluetooth, this, CHAINPOS_CLASSIFIER, -100);
     packetchain->register_handler(&PacketTrackerBluetooth, this, CHAINPOS_TRACKER, -100);
     
-    pack_comp_btdevice = packetchain->RegisterPacketComponent("BTDEVICE");
-	pack_comp_common = packetchain->RegisterPacketComponent("COMMON");
-    pack_comp_l1info = packetchain->RegisterPacketComponent("RADIODATA");
-    pack_comp_meta = packetchain->RegisterPacketComponent("METABLOB");
+    pack_comp_btdevice = packetchain->register_packet_component("BTDEVICE");
+	pack_comp_common = packetchain->register_packet_component("COMMON");
+    pack_comp_l1info = packetchain->register_packet_component("RADIODATA");
+    pack_comp_meta = packetchain->register_packet_component("METABLOB");
 
     // Register js module for UI
     auto httpregistry = 

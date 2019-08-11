@@ -129,25 +129,25 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 	// Register global packet components used by the device tracker and
 	// subsequent parts
 	pack_comp_device = 
-		packetchain->RegisterPacketComponent("DEVICE");
+		packetchain->register_packet_component("DEVICE");
 
 	pack_comp_common =  
-		packetchain->RegisterPacketComponent("COMMON");
+		packetchain->register_packet_component("COMMON");
 
 	pack_comp_basicdata = 
-		packetchain->RegisterPacketComponent("BASICDATA");
+		packetchain->register_packet_component("BASICDATA");
 
     pack_comp_mangleframe =
-		packetchain->RegisterPacketComponent("MANGLEDATA");
+		packetchain->register_packet_component("MANGLEDATA");
 
 	pack_comp_radiodata =
-		packetchain->RegisterPacketComponent("RADIODATA");
+		packetchain->register_packet_component("RADIODATA");
 
 	pack_comp_gps =
-		packetchain->RegisterPacketComponent("GPS");
+		packetchain->register_packet_component("GPS");
 
 	pack_comp_datasrc = 
-		packetchain->RegisterPacketComponent("KISDATASRC");
+		packetchain->register_packet_component("KISDATASRC");
 
 	// Common tracker, very early in the tracker chain
 	packetchain->register_handler(&Devicetracker_packethook_commontracker,

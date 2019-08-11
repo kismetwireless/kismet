@@ -89,11 +89,11 @@ Kis_UAV_Phy::Kis_UAV_Phy(global_registry *in_globalreg, int in_phyid) :
         Globalreg::fetch_mandatory_global_as<device_tracker>();
 
 	pack_comp_common = 
-		packetchain->RegisterPacketComponent("COMMON");
+		packetchain->register_packet_component("COMMON");
     pack_comp_80211 =
-        packetchain->RegisterPacketComponent("PHY80211");
+        packetchain->register_packet_component("PHY80211");
     pack_comp_device =
-        packetchain->RegisterPacketComponent("DEVICE");
+        packetchain->register_packet_component("DEVICE");
 
     uav_device_id =
         Globalreg::globalreg->entrytracker->register_field("uav.device",

@@ -37,8 +37,8 @@ pcap_stream_ringbuf::pcap_stream_ringbuf(global_registry *in_globalreg,
     packetchain = 
         std::static_pointer_cast<packet_chain>(globalreg->FetchGlobal("PACKETCHAIN"));
 
-    pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
-    pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");
+    pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
+    pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");
 
     // Set the buffer locker
     if (block_for_buffer) {

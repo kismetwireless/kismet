@@ -78,7 +78,7 @@ int alertsyslog_openlog(global_registry *in_globalreg) {
         return -1;
     }
 
-    pack_comp_alert = packetchain->RegisterPacketComponent("alert");
+    pack_comp_alert = packetchain->register_packet_component("alert");
 
     openlog(in_globalreg->servername.c_str(), LOG_NDELAY, LOG_USER);
 

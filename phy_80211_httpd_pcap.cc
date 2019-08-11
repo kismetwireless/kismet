@@ -134,7 +134,7 @@ int Phy_80211_Httpd_Pcap::httpd_create_stream_response(kis_net_httpd *httpd,
 
     auto streamtracker = Globalreg::fetch_mandatory_global_as<StreamTracker>("STREAMTRACKER");
     auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
-    int pack_comp_dot11 = packetchain->RegisterPacketComponent("PHY80211");
+    int pack_comp_dot11 = packetchain->register_packet_component("PHY80211");
 
     kis_net_httpd_buffer_stream_aux *saux = 
         (kis_net_httpd_buffer_stream_aux *) connection->custom_extension;

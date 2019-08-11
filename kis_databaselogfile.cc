@@ -41,13 +41,13 @@ kis_database_logfile::kis_database_logfile():
     std::shared_ptr<packet_chain> packetchain =
         Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
 
-    pack_comp_device = packetchain->RegisterPacketComponent("DEVICE");
-    pack_comp_radiodata = packetchain->RegisterPacketComponent("RADIODATA");
-    pack_comp_gps = packetchain->RegisterPacketComponent("GPS");
-    pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
-    pack_comp_datasource = packetchain->RegisterPacketComponent("KISDATASRC");
-    pack_comp_common = packetchain->RegisterPacketComponent("COMMON");
-    pack_comp_metablob = packetchain->RegisterPacketComponent("METABLOB");
+    pack_comp_device = packetchain->register_packet_component("DEVICE");
+    pack_comp_radiodata = packetchain->register_packet_component("RADIODATA");
+    pack_comp_gps = packetchain->register_packet_component("GPS");
+    pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
+    pack_comp_datasource = packetchain->register_packet_component("KISDATASRC");
+    pack_comp_common = packetchain->register_packet_component("COMMON");
+    pack_comp_metablob = packetchain->register_packet_component("METABLOB");
 
     last_device_log = 0;
 

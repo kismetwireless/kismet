@@ -42,17 +42,17 @@ kis_dlt_handler::kis_dlt_handler() :
                 CHAINPOS_POSTCAP, 0);
 
 	pack_comp_linkframe =
-		packetchain->RegisterPacketComponent("LINKFRAME");
+		packetchain->register_packet_component("LINKFRAME");
 	pack_comp_decap =
-		packetchain->RegisterPacketComponent("DECAP");
+		packetchain->register_packet_component("DECAP");
 	pack_comp_datasrc =
-		packetchain->RegisterPacketComponent("KISDATASRC");
+		packetchain->register_packet_component("KISDATASRC");
 	pack_comp_radiodata = 
-		packetchain->RegisterPacketComponent("RADIODATA");
+		packetchain->register_packet_component("RADIODATA");
 	pack_comp_gps =
-		packetchain->RegisterPacketComponent("GPS");
+		packetchain->register_packet_component("GPS");
 	pack_comp_checksum =
-		packetchain->RegisterPacketComponent("CHECKSUM");
+		packetchain->register_packet_component("CHECKSUM");
 
 }
 

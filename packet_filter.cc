@@ -216,7 +216,7 @@ packet_filter_mac_addr::packet_filter_mac_addr(const std::string& in_id, const s
                 }, &mutex);
 
     auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
-    pack_comp_common = packetchain->RegisterPacketComponent("COMMON");
+    pack_comp_common = packetchain->register_packet_component("COMMON");
 }
 
 packet_filter_mac_addr::~packet_filter_mac_addr() {

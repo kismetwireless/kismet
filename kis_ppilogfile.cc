@@ -43,13 +43,13 @@ KisPPILogfile::KisPPILogfile(shared_log_builder in_builder) :
 
     auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
 
-    pack_comp_80211 = packetchain->RegisterPacketComponent("PHY80211");
-    pack_comp_mangleframe = packetchain->RegisterPacketComponent("MANGLEDATA");
-    pack_comp_radiodata = packetchain->RegisterPacketComponent("RADIODATA");
-    pack_comp_gps = packetchain->RegisterPacketComponent("GPS");
-    pack_comp_checksum = packetchain->RegisterPacketComponent("CHECKSUM");
-    pack_comp_decap = packetchain->RegisterPacketComponent("DECAP");
-    pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
+    pack_comp_80211 = packetchain->register_packet_component("PHY80211");
+    pack_comp_mangleframe = packetchain->register_packet_component("MANGLEDATA");
+    pack_comp_radiodata = packetchain->register_packet_component("RADIODATA");
+    pack_comp_gps = packetchain->register_packet_component("GPS");
+    pack_comp_checksum = packetchain->register_packet_component("CHECKSUM");
+    pack_comp_decap = packetchain->register_packet_component("DECAP");
+    pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
 }
 
 bool KisPPILogfile::log_open(std::string in_path) {

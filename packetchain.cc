@@ -137,7 +137,7 @@ packet_chain::~packet_chain() {
 
 }
 
-int packet_chain::RegisterPacketComponent(std::string in_component) {
+int packet_chain::register_packet_component(std::string in_component) {
     local_locker lock(&packetcomp_mutex);
 
     if (next_componentid >= MAX_PACKET_COMPONENTS) {

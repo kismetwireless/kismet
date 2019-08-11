@@ -46,12 +46,12 @@ kis_datasource::kis_datasource(shared_datasource_builder in_builder) :
     packetchain =
         Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
 
-	pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
-    pack_comp_l1info = packetchain->RegisterPacketComponent("RADIODATA");
-    pack_comp_gps = packetchain->RegisterPacketComponent("GPS");
-	pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");
-    pack_comp_json = packetchain->RegisterPacketComponent("JSON");
-    pack_comp_protobuf = packetchain->RegisterPacketComponent("PROTOBUF");
+	pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
+    pack_comp_l1info = packetchain->register_packet_component("RADIODATA");
+    pack_comp_gps = packetchain->register_packet_component("GPS");
+	pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");
+    pack_comp_json = packetchain->register_packet_component("JSON");
+    pack_comp_protobuf = packetchain->register_packet_component("PROTOBUF");
 
     error_timer_id = -1;
     ping_timer_id = -1;

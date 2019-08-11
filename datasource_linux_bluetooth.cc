@@ -30,8 +30,8 @@ kis_datasource_linux_bluetooth::kis_datasource_linux_bluetooth(shared_datasource
     // Set the capture binary
     set_int_source_ipc_binary("kismet_cap_linux_bluetooth");
 
-    pack_comp_btdevice = packetchain->RegisterPacketComponent("BTDEVICE");
-    pack_comp_meta = packetchain->RegisterPacketComponent("METABLOB");
+    pack_comp_btdevice = packetchain->register_packet_component("BTDEVICE");
+    pack_comp_meta = packetchain->register_packet_component("METABLOB");
 }
 
 bool kis_datasource_linux_bluetooth::dispatch_rx_packet(std::shared_ptr<kismet_external::Command> c) {

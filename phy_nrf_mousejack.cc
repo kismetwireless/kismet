@@ -53,8 +53,8 @@ Kis_Mousejack_Phy::Kis_Mousejack_Phy(global_registry *in_globalreg, int in_phyid
                 tracker_element_factory<mousejack_tracked_device>(),
                 "NRF Mousejack device");
 
-    pack_comp_common = packetchain->RegisterPacketComponent("COMMON");
-	pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
+    pack_comp_common = packetchain->register_packet_component("COMMON");
+	pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
 
     // Extract the dynamic DLT
     auto dltt = 

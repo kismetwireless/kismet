@@ -68,7 +68,7 @@ alert_tracker::alert_tracker() :
 
 	// Register the alert component
     pack_comp_alert =
-		packetchain->RegisterPacketComponent("alert");
+		packetchain->register_packet_component("alert");
 
 	// Register a KISMET alert type with no rate restrictions
     alert_ref_kismet =
