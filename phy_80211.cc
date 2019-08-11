@@ -1644,14 +1644,14 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             if (source_dev != NULL) {
                 d11phy->process_client(bssid_dev, bssid_dot11, source_dev, source_dot11, 
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
-                d11phy->ProcessWPAHandshake(bssid_dev, bssid_dot11, source_dev, source_dot11,
+                d11phy->process_wpa_handshake(bssid_dev, bssid_dot11, source_dev, source_dot11,
                         in_pack, dot11info);
             }
 
             if (dest_dev != NULL) {
                 d11phy->process_client(bssid_dev, bssid_dot11, dest_dev, dest_dot11, 
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
-                d11phy->ProcessWPAHandshake(bssid_dev, bssid_dot11, dest_dev, dest_dot11,
+                d11phy->process_wpa_handshake(bssid_dev, bssid_dot11, dest_dev, dest_dot11,
                         in_pack, dot11info);
             }
         }
@@ -2462,7 +2462,7 @@ void kis_80211_phy::process_client(std::shared_ptr<kis_tracked_device_base> bssi
     }
 }
 
-void kis_80211_phy::ProcessWPAHandshake(std::shared_ptr<kis_tracked_device_base> bssid_dev,
+void kis_80211_phy::process_wpa_handshake(std::shared_ptr<kis_tracked_device_base> bssid_dev,
         std::shared_ptr<dot11_tracked_device> bssid_dot11,
         std::shared_ptr<kis_tracked_device_base> dest_dev,
         std::shared_ptr<dot11_tracked_device> dest_dot11,

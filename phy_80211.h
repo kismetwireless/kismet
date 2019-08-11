@@ -432,7 +432,7 @@ protected:
             kis_gps_packinfo *pack_gpsinfo,
             kis_data_packinfo *pack_datainfo);
 
-    void ProcessWPAHandshake(std::shared_ptr<kis_tracked_device_base> bssid_dev,
+    void process_wpa_handshake(std::shared_ptr<kis_tracked_device_base> bssid_dev,
             std::shared_ptr<dot11_tracked_device> bssid_dot11,
             std::shared_ptr<kis_tracked_device_base> dest_dev,
             std::shared_ptr<dot11_tracked_device> dest_dot11,
