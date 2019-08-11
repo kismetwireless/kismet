@@ -64,7 +64,7 @@ std::string munge_to_printable(const std::string& in_str);
 
 std::string str_lower(const std::string& in_str);
 std::string str_upper(const std::string& in_str);
-std::string StrStrip(const std::string& in_str);
+std::string str_strip(const std::string& in_str);
 
 std::string MultiReplaceAll(const std::string& in, const std::string& match, const std::string& repl);
 

@@ -110,7 +110,7 @@ int config_file::parse_config(const char *in_fname,
         lineno++;
 
         // It's easier to parse this using C++ functions
-        std::string parsestr = StrStrip(confline);
+        std::string parsestr = str_strip(confline);
         std::string directive, value;
 
         if (parsestr.length() == 0)
@@ -124,8 +124,8 @@ int config_file::parse_config(const char *in_fname,
             directive = parsestr;
             value = "";
         } else {
-            directive = StrStrip(parsestr.substr(0, eq));
-            value = StrStrip(parsestr.substr(eq+1, parsestr.length()));
+            directive = str_strip(parsestr.substr(0, eq));
+            value = str_strip(parsestr.substr(eq+1, parsestr.length()));
 
             if (value == "") {
                 sstream << "Illegal config option in '" << in_fname << "' line " <<

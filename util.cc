@@ -111,7 +111,7 @@ std::string str_upper(const std::string& in_str) {
     return retstr;
 }
 
-std::string StrStrip(const std::string& in_str) {
+std::string str_strip(const std::string& in_str) {
     std::string temp;
     unsigned int start, end;
 
