@@ -24,7 +24,7 @@
 #include "devicetracker.h"
 #include "phy_80211.h"
 
-bool Phy_80211_Httpd_Pcap::httpd_verify_path(const char *path, const char *method) {
+bool phy_80211_httpd_pcap::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
         std::vector<std::string> tokenurl = StrTokenize(path, "/");
 
@@ -76,7 +76,7 @@ bool Phy_80211_Httpd_Pcap::httpd_verify_path(const char *path, const char *metho
     return false;
 }
 
-int Phy_80211_Httpd_Pcap::httpd_create_stream_response(kis_net_httpd *httpd,
+int phy_80211_httpd_pcap::httpd_create_stream_response(kis_net_httpd *httpd,
         kis_net_httpd_connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {

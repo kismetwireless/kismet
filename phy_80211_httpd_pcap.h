@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -25,13 +25,13 @@
 
 /* An 802.11-aware pcap-ng streamer */
 
-class Phy_80211_Httpd_Pcap : public kis_net_httpd_ringbuf_stream_handler {
+class phy_80211_httpd_pcap : public kis_net_httpd_ringbuf_stream_handler {
 public:
-    Phy_80211_Httpd_Pcap() : kis_net_httpd_ringbuf_stream_handler() { 
+    phy_80211_httpd_pcap() : kis_net_httpd_ringbuf_stream_handler() { 
         bind_httpd_server();
     }
 
-    virtual ~Phy_80211_Httpd_Pcap() { };
+    virtual ~phy_80211_httpd_pcap() { };
 
     // HandleGetRequest handles generating a stream so we don't need to implement that
     // Same for HandlePostRequest

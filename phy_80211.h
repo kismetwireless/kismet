@@ -515,7 +515,7 @@ protected:
     unsigned int device_idle_min_packets;
 
     // Pcap handlers
-    std::unique_ptr<Phy_80211_Httpd_Pcap> httpd_pcap;
+    std::unique_ptr<phy_80211_httpd_pcap> httpd_pcap;
 
     // Do we process control and phy frames?
     bool process_ctl_phy;

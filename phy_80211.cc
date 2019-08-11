@@ -479,7 +479,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
     Globalreg::globalreg->insert_global("SSID_CONF_FILE", std::shared_ptr<config_file>(ssid_conf));
 #endif
 
-    httpd_pcap.reset(new Phy_80211_Httpd_Pcap());
+    httpd_pcap.reset(new phy_80211_httpd_pcap());
 
     // Set up the de-duplication list
     recent_packet_checksums_sz = 
