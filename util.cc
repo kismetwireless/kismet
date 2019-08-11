@@ -521,7 +521,7 @@ void float_to_pair(float in_float, int16_t *primary, int64_t *mantissa) {
     *mantissa = (long) (1000000 * ((in_float) - *primary));
 }
 
-float Pair2Float(int16_t primary, int64_t mantissa) {
+float pair_to_float(int16_t primary, int64_t mantissa) {
     return (double) primary + ((double) mantissa / 1000000);
 }
 
