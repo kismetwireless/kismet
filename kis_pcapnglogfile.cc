@@ -20,18 +20,18 @@
 
 #include "kis_pcapnglogfile.h"
 
-KisPcapNGLogfile::KisPcapNGLogfile(shared_log_builder in_builder) :
+kis_pcapng_logfile::kis_pcapng_logfile(shared_log_builder in_builder) :
     kis_logfile(in_builder) {
 
     pcapng_stream = NULL;
     pcapng_file = NULL;
 }
 
-KisPcapNGLogfile::~KisPcapNGLogfile() {
+kis_pcapng_logfile::~kis_pcapng_logfile() {
     log_close();
 }
 
-bool KisPcapNGLogfile::log_open(std::string in_path) {
+bool kis_pcapng_logfile::log_open(std::string in_path) {
     local_locker lock(&log_mutex);
 
     set_int_log_path(in_path);
@@ -58,7 +58,7 @@ bool KisPcapNGLogfile::log_open(std::string in_path) {
     return true;
 }
 
-void KisPcapNGLogfile::log_close() {
+void kis_pcapng_logfile::log_close() {
     local_locker lock(&log_mutex);
 
     set_int_log_open(false);

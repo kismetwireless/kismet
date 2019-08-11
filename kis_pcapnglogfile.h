@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -27,10 +27,10 @@
 #include "pcapng_stream_ringbuf.h"
 #include "filewritebuf.h"
 
-class KisPcapNGLogfile : public kis_logfile {
+class kis_pcapng_logfile : public kis_logfile {
 public:
-    KisPcapNGLogfile(shared_log_builder in_builder);
-    virtual ~KisPcapNGLogfile();
+    kis_pcapng_logfile(shared_log_builder in_builder);
+    virtual ~kis_pcapng_logfile();
 
     virtual bool log_open(std::string in_path) override;
     virtual void log_close() override;
@@ -67,7 +67,7 @@ public:
     virtual ~KisPcapNGLogfileBuilder() { }
 
     virtual SharedLogfile build_logfile(shared_log_builder builder) {
-        return SharedLogfile(new KisPcapNGLogfile(builder));
+        return SharedLogfile(new kis_pcapng_logfile(builder));
     }
 
     virtual void initialize() {
