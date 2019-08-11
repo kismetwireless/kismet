@@ -215,7 +215,7 @@ public:
     // buf to have data available to write.
     static ssize_t buffer_event_cb(void *cls, uint64_t pos, char *buf, size_t max);
 
-    virtual void Httpd_Set_Buffer_Size(size_t in_sz) {
+    virtual void httpd_set_buffer_size(size_t in_sz) {
         k_n_h_r_ringbuf_size = in_sz;
     }
 
