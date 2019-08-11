@@ -2386,7 +2386,7 @@ kis_datachunk *kis_80211_phy::DecryptWEP(dot11_packinfo *in_packinfo,
     return manglechunk;
 }
 
-int kis_80211_phy::PacketWepDecryptor(kis_packet *in_pack) {
+int kis_80211_phy::packet_wep_decryptor(kis_packet *in_pack) {
     kis_datachunk *manglechunk = NULL;
 
     if (in_pack->error)

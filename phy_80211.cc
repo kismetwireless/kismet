@@ -74,7 +74,7 @@ unsigned int Ieee80211Interval2NSecs(int in_interval) {
 }
 
 int phydot11_packethook_wep(CHAINCALL_PARMS) {
-    return ((kis_80211_phy *) auxdata)->PacketWepDecryptor(in_pack);
+    return ((kis_80211_phy *) auxdata)->packet_wep_decryptor(in_pack);
 }
 
 int phydot11_packethook_dot11(CHAINCALL_PARMS) {

@@ -317,7 +317,7 @@ public:
     int wpa_key_mgt_conv(uint8_t mgt_index);
 
     // Dot11 decoders, wep decryptors, etc
-    int PacketWepDecryptor(kis_packet *in_pack);
+    int packet_wep_decryptor(kis_packet *in_pack);
     // Top-level dissector; decodes basic type and populates the dot11 packet
     int PacketDot11dissector(kis_packet *in_pack);
     // Expects an existing dot11 packet with the basic type intact, interprets
