@@ -863,7 +863,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
 
                 _ALERT(alert_deauthinvalid_ref, in_pack, packinfo,
                        "Unknown deauthentication code " +
-                       HexIntToString(packinfo->mgt_reason_code) + 
+                       hex_int_to_string(packinfo->mgt_reason_code) + 
                        " from network " + packinfo->bssid_mac.mac_to_string());
             }
         } else if (fc->subtype == packet_sub_disassociation) {
@@ -872,7 +872,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
 
                 _ALERT(alert_disconinvalid_ref, in_pack, packinfo,
                        "Unknown disassociation code " +
-                       HexIntToString(packinfo->mgt_reason_code) + 
+                       hex_int_to_string(packinfo->mgt_reason_code) + 
                        " from network " + packinfo->bssid_mac.mac_to_string());
             }
         }
