@@ -98,7 +98,7 @@ public:
 
     virtual ~Kis_Mousejack_Phy();
 
-    virtual kis_phy_handler *CreatePhyHandler(global_registry *in_globalreg, int in_phyid) {
+    virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg, int in_phyid) {
         return new Kis_Mousejack_Phy(in_globalreg, in_phyid);
     }
 

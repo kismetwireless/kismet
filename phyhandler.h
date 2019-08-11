@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -33,12 +33,12 @@ class kis_tracked_device_base;
 
 class kis_phy_handler {
 public:
-	// Create a 'weak' handler which provides enough structure to call CreatePhyHandler
+	// Create a 'weak' handler which provides enough structure to call create_phy_handler
     kis_phy_handler(global_registry *in_globalreg) :
         phyname {"NONE"},
         phyid {-1} { }
 
-    virtual kis_phy_handler *CreatePhyHandler(global_registry *in_globalreg, int in_phyid) = 0;
+    virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg, int in_phyid) = 0;
 
     kis_phy_handler(global_registry *in_globalreg, int in_phyid) :
         phyname {"NONE"},

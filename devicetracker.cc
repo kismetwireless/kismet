@@ -556,7 +556,7 @@ int device_tracker::fetch_num_packets() {
 int device_tracker::register_phy_handler(kis_phy_handler *in_weak_handler) {
 	int num = next_phy_id++;
 
-	kis_phy_handler *strongphy = in_weak_handler->CreatePhyHandler(globalreg, num);
+	kis_phy_handler *strongphy = in_weak_handler->create_phy_handler(globalreg, num);
 
 	phy_handler_map[num] = strongphy;
 

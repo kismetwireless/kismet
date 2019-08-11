@@ -126,7 +126,7 @@ public:
 		kis_phy_handler(in_globalreg) { };
 
 	// Build a strong version of ourselves
-	virtual kis_phy_handler *CreatePhyHandler(global_registry *in_globalreg,
+	virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg,
 											  int in_phyid) {
 		return new Kis_Bluetooth_Phy(in_globalreg, in_phyid);
 	}

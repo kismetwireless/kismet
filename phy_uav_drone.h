@@ -372,7 +372,7 @@ public:
             bind_httpd_server();
         }
 
-    virtual kis_phy_handler *CreatePhyHandler(global_registry *in_globalreg, int in_phyid) {
+    virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg, int in_phyid) {
         return new Kis_UAV_Phy(in_globalreg, in_phyid);
     }
 
