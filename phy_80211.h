@@ -438,7 +438,7 @@ protected:
             std::shared_ptr<dot11_tracked_device> dest_dot11,
             kis_packet *in_pack, dot11_packinfo *dot11info);
 
-    void GenerateHandshakePcap(std::shared_ptr<kis_tracked_device_base> dev, 
+    void generate_handshake_pcap(std::shared_ptr<kis_tracked_device_base> dev, 
             kis_net_httpd_connection *connection,
             std::stringstream &stream);
 

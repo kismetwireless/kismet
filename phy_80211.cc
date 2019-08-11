@@ -2871,7 +2871,7 @@ bool kis_80211_phy::httpd_verify_path(const char *path, const char *method) {
     return false;
 }
 
-void kis_80211_phy::GenerateHandshakePcap(std::shared_ptr<kis_tracked_device_base> dev, 
+void kis_80211_phy::generate_handshake_pcap(std::shared_ptr<kis_tracked_device_base> dev, 
         kis_net_httpd_connection *connection, std::stringstream &stream) {
 
     // Hardcode the pcap header
@@ -2995,7 +2995,7 @@ void kis_80211_phy::httpd_create_stream_response(kis_net_httpd *httpd,
         return;
     }
 
-    GenerateHandshakePcap(devicetracker->fetch_device(key), connection, stream);
+    generate_handshake_pcap(devicetracker->fetch_device(key), connection, stream);
 
     return;
 }
