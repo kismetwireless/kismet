@@ -55,7 +55,7 @@ message_bus::~message_bus() {
     globalreg->messagebus = NULL;
 }
 
-void message_bus::InjectMessage(std::string in_msg, int in_flags) {
+void message_bus::inject_message(std::string in_msg, int in_flags) {
     local_locker lock(&msg_mutex);
 
     auto msg = std::make_shared<message_bus::message>(in_msg, in_flags);

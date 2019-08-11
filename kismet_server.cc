@@ -903,7 +903,7 @@ int main(int argc, char *argv[], char *envp[]) {
     if (plugins) {
         plugintracker = plugin_tracker::create_plugintracker(globalregistry);
     } else {
-        globalregistry->messagebus->InjectMessage(
+        globalregistry->messagebus->inject_message(
             "Plugins disabled on the command line, plugins will NOT be loaded...",
             MSGFLAG_INFO);
     }

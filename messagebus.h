@@ -96,7 +96,7 @@ public:
     virtual ~message_bus();
 
     // Inject a message into the bus
-    void InjectMessage(std::string in_msg, int in_flags);
+    void inject_message(std::string in_msg, int in_flags);
 
     // Link a meessage display system
     void RegisterClient(message_client *in_subcriber, int in_mask);

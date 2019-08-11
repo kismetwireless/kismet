@@ -196,7 +196,7 @@ int kis_dlt_radiotap::handle_packet(kis_packet *in_pack) {
 
     if (linkchunk->length < sizeof(*hdr)) {
 		// snprintf(errstr, STATUS_MAX, "pcap radiotap converter got corrupted " "Radiotap header length");
-		// globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+		// globalreg->messagebus->inject_message(errstr, MSGFLAG_ERROR);
         return 0;
     }
 
@@ -204,7 +204,7 @@ int kis_dlt_radiotap::handle_packet(kis_packet *in_pack) {
     hdr = (struct ieee80211_radiotap_header *) linkchunk->data;
     if (linkchunk->length < EXTRACT_LE_16BITS(&hdr->it_len)) {
 		// snprintf(errstr, STATUS_MAX, "pcap radiotap converter got corrupted " "Radiotap header length");
-		// globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+		// globalreg->messagebus->inject_message(errstr, MSGFLAG_ERROR);
         return 0;
     }
 
@@ -217,7 +217,7 @@ int kis_dlt_radiotap::handle_packet(kis_packet *in_pack) {
     /* are there more bitmap extensions than bytes in header? */
     if ((EXTRACT_LE_32BITS(last_presentp) & BIT(IEEE80211_RADIOTAP_EXT)) != 0) {
 		// snprintf(errstr, STATUS_MAX, "pcap radiotap converter got corrupted " "Radiotap bitmap length");
-		// globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+		// globalreg->messagebus->inject_message(errstr, MSGFLAG_ERROR);
         return 0;
     }
 

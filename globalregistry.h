@@ -79,23 +79,23 @@ class kis_net_httpd;
 	(b), (c)->source, (c)->dest, mac_addr(0), (c)->channel, (a))
 
 // Send a msg via gloablreg msgbus
-#define _MSG(x, y)	Globalreg::globalreg->messagebus->InjectMessage((x), (y))
+#define _MSG(x, y)	Globalreg::globalreg->messagebus->inject_message((x), (y))
 
 // fmt-enabled msgbus
 #define _MSG_DEBUG(...) \
-    Globalreg::globalreg->messagebus->InjectMessage(fmt::format(__VA_ARGS__), MSGFLAG_DEBUG)
+    Globalreg::globalreg->messagebus->inject_message(fmt::format(__VA_ARGS__), MSGFLAG_DEBUG)
 
 #define _MSG_INFO(...) \
-    Globalreg::globalreg->messagebus->InjectMessage(fmt::format(__VA_ARGS__), MSGFLAG_INFO)
+    Globalreg::globalreg->messagebus->inject_message(fmt::format(__VA_ARGS__), MSGFLAG_INFO)
 
 #define _MSG_ERROR(...) \
-    Globalreg::globalreg->messagebus->InjectMessage(fmt::format(__VA_ARGS__), MSGFLAG_ERROR)
+    Globalreg::globalreg->messagebus->inject_message(fmt::format(__VA_ARGS__), MSGFLAG_ERROR)
 
 #define _MSG_ALERT(...) \
-    Globalreg::globalreg->messagebus->InjectMessage(fmt::format(__VA_ARGS__), MSGFLAG_ALERT)
+    Globalreg::globalreg->messagebus->inject_message(fmt::format(__VA_ARGS__), MSGFLAG_ALERT)
 
 #define _MSG_FATAL(...) \
-    Globalreg::globalreg->messagebus->InjectMessage(fmt::format(__VA_ARGS__), MSGFLAG_FATAL)
+    Globalreg::globalreg->messagebus->inject_message(fmt::format(__VA_ARGS__), MSGFLAG_FATAL)
 
 // Record of how we failed critically.  We want to spin a critfail message out
 // to the client so it can do something intelligent.  A critical fail is something
