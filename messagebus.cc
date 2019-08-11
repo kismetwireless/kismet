@@ -119,7 +119,7 @@ void message_bus::register_client(message_client *in_subscriber, int in_mask) {
     return;
 }
 
-void message_bus::RemoveClient(message_client *in_unsubscriber) {
+void message_bus::remove_client(message_client *in_unsubscriber) {
     local_locker lock(&handler_mutex);
 
     for (unsigned int x = 0; x < subscribers.size(); x++) {

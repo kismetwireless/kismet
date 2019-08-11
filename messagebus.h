@@ -100,7 +100,7 @@ public:
 
     // Link a meessage display system
     void register_client(message_client *in_subcriber, int in_mask);
-    void RemoveClient(message_client *in_unsubscriber);
+    void remove_client(message_client *in_unsubscriber);
 
 protected:
     global_registry *globalreg;

@@ -52,7 +52,7 @@ RestMessageClient::RestMessageClient(global_registry *in_globalreg, void *in_aux
 RestMessageClient::~RestMessageClient() {
     local_eol_locker lock(&msg_mutex);
 
-    globalreg->messagebus->RemoveClient(this);
+    globalreg->messagebus->remove_client(this);
 
     globalreg->RemoveGlobal("REST_MSG_CLIENT");
 

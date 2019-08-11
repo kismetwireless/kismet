@@ -83,7 +83,7 @@ kis_database_logfile::kis_database_logfile():
 kis_database_logfile::~kis_database_logfile() {
     auto messagebus = Globalreg::FetchGlobalAs<message_bus>();
     if (messagebus != nullptr)
-        messagebus->RemoveClient(this);
+        messagebus->remove_client(this);
 
     close_log();
 }

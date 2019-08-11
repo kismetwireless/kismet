@@ -765,8 +765,8 @@ int main(int argc, char *argv[], char *envp[]) {
 
     if (daemonize) {
         // remove messagebus clients so we stop printing
-        globalregistry->messagebus->RemoveClient(fqmescli);
-        globalregistry->messagebus->RemoveClient(smartmsgcli);
+        globalregistry->messagebus->remove_client(fqmescli);
+        globalregistry->messagebus->remove_client(smartmsgcli);
     }
 
     if (conf->fetch_opt("servername") == "") {
