@@ -64,7 +64,7 @@ kis_gps_gpsd_v2::kis_gps_gpsd_v2(shared_gps_builder in_builder) :
                     if (!get_gps_reconnect())
                         return 1;
 
-                    if (tcpclient != nullptr && tcpclient->FetchConnected())
+                    if (tcpclient != nullptr && tcpclient->get_connected())
                         return 1;
                 }
 
@@ -80,7 +80,7 @@ kis_gps_gpsd_v2::kis_gps_gpsd_v2(shared_gps_builder in_builder) :
                 {
                     local_shared_locker l(gps_mutex);
 
-                    if (tcpclient == nullptr || (tcpclient != nullptr && !tcpclient->FetchConnected()))
+                    if (tcpclient == nullptr || (tcpclient != nullptr && !tcpclient->get_connected()))
                         return 1;
                 }
 

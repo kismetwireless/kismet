@@ -166,7 +166,7 @@ bool kis_gps_serial_v2::get_device_connected() {
     if (serialclient == NULL)
         return false;
 
-    return serialclient->FetchConnected();
+    return serialclient->get_connected();
 }
 
 void kis_gps_serial_v2::buffer_error(std::string in_error) {

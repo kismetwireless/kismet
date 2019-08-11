@@ -58,7 +58,7 @@ public:
     // Flush out the read pipe if the process has exited
     virtual int flush_read();
 
-    bool FetchConnected();
+    bool get_connected();
 
 protected:
     global_registry *globalreg;

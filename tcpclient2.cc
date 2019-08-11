@@ -312,7 +312,7 @@ void tcp_client_v2::Disconnect() {
     connected = false;
 }
 
-bool tcp_client_v2::FetchConnected() {
+bool tcp_client_v2::get_connected() {
     local_shared_locker l(tcp_mutex);
 
     if (connected || pending_connect)

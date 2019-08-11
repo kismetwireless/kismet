@@ -172,7 +172,7 @@ bool kis_gps_tcp::get_device_connected() {
     if (tcpclient == NULL)
         return false;
 
-    return tcpclient->FetchConnected();
+    return tcpclient->get_connected();
 }
 
 void kis_gps_tcp::buffer_error(std::string in_error) {

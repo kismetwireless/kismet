@@ -122,7 +122,7 @@ int SerialClientV2::OpenDevice(std::string in_device, unsigned int in_baud) {
     return 0;
 }
 
-bool SerialClientV2::FetchConnected() {
+bool SerialClientV2::get_connected() {
     local_shared_locker ls(serial_mutex);
 
     return device_fd > -1;

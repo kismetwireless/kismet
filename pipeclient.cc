@@ -85,7 +85,7 @@ int pipe_client::open_pipes(int rpipe, int wpipe) {
     return 0;
 }
 
-bool pipe_client::FetchConnected() {
+bool pipe_client::get_connected() {
     local_shared_locker lock(pipe_mutex);
 
     return handler == nullptr || read_fd > -1 || write_fd > -1;

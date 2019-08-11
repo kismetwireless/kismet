@@ -50,7 +50,7 @@ public:
     int Connect(std::string in_host, unsigned int in_port);
     void Disconnect();
 
-    bool FetchConnected();
+    bool get_connected();
 
     // kis_pollable interface
     virtual int pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
