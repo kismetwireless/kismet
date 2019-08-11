@@ -351,7 +351,7 @@ public:
     int tracker_dot11(kis_packet *in_pack);
 
     int add_filter(std::string in_filter);
-    int AddNetcliFilter(std::string in_filter);
+    int add_netcli_filter(std::string in_filter);
 
     void SetStringExtract(int in_extr);
 
