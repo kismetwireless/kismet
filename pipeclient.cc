@@ -146,7 +146,7 @@ int pipe_client::Poll(fd_set& in_rset, fd_set& in_wset) {
                     handler->commit_read_buffer_data(buf, 0);
                     handler->buffer_error(msg.str());
 
-                    ClosePipes();
+                    close_pipes();
 
                     return 0;
                 } else {
@@ -161,7 +161,7 @@ int pipe_client::Poll(fd_set& in_rset, fd_set& in_wset) {
                 if (!iret) {
                     // Die if we couldn't insert all our data, the error is already going
                     // upstream.
-                    ClosePipes();
+                    close_pipes();
                     return 0;
                 }
             }
@@ -190,7 +190,7 @@ int pipe_client::Poll(fd_set& in_rset, fd_set& in_wset) {
                     // Push the error upstream
                     handler->buffer_error(msg.str());
 
-                    ClosePipes();
+                    close_pipes();
 
                     return 0;
                 }
@@ -232,7 +232,7 @@ int pipe_client::FlushRead() {
                     handler->commit_read_buffer_data(buf, 0);
                     handler->buffer_error(msg.str());
 
-                    ClosePipes();
+                    close_pipes();
 
                     return 0;
                 } else {
@@ -244,7 +244,7 @@ int pipe_client::FlushRead() {
                 iret = handler->commit_read_buffer_data(buf, ret);
 
                 if (!iret) {
-                    ClosePipes();
+                    close_pipes();
                     return 0;
                 }
             }
@@ -254,7 +254,7 @@ int pipe_client::FlushRead() {
     return 0;
 }
 
-void pipe_client::ClosePipes() {
+void pipe_client::close_pipes() {
     // printf("%p looking for pipe lock lock %p\n", this, &pipe_lock);
     local_locker lock(pipe_mutex);
     // printf("%p got pipe lock\n", this);

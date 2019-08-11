@@ -49,7 +49,7 @@ public:
 
     // Bind to a r/w pair of pipes
     int open_pipes(int rpipe, int wpipe);
-    void ClosePipes();
+    void close_pipes();
 
     // kis_pollable interface
     virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
