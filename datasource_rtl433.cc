@@ -75,7 +75,7 @@ int kis_datasource_rtl433::httpd_post_complete(kis_net_httpd_connection *concls)
     if (tokenurl[2] != "by-uuid")
         return MHD_NO;
 
-    if (tokenurl[3] != get_source_uuid().UUID2String())
+    if (tokenurl[3] != get_source_uuid().uuid_to_string())
         return MHD_NO;
 
     if (tokenurl[4] == "update") {

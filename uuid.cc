@@ -19,7 +19,7 @@
 #include "uuid.h"
 
 std::ostream& operator<<(std::ostream& os, const uuid& u) {
-    os << u.UUID2String();
+    os << u.uuid_to_string();
     return os;
 }
 

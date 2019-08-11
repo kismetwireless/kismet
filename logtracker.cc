@@ -438,7 +438,7 @@ void log_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
                 throw std::runtime_error("invalid log uuid");
             }
 
-            _MSG("Closing log file " + logfile->get_log_uuid().UUID2String() + " (" + 
+            _MSG("Closing log file " + logfile->get_log_uuid().uuid_to_string() + " (" + 
                     logfile->get_log_path() + ")", MSGFLAG_INFO);
 
             logfile->close_log();

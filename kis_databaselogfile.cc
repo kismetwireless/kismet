@@ -1028,7 +1028,7 @@ int kis_database_logfile::log_packet(kis_packet *in_pack) {
 
 
     if (datasrc != NULL) {
-        sourceuuidstring = datasrc->ref_source->get_source_uuid().UUID2String();
+        sourceuuidstring = datasrc->ref_source->get_source_uuid().uuid_to_string();
     } else {
         sourceuuidstring = "00000000-0000-0000-0000-000000000000";
     }
@@ -1127,7 +1127,7 @@ int kis_database_logfile::log_data(kis_gps_packinfo *gps, struct timeval tv,
         return 0;
 
     std::string macstring = devmac.mac_to_string();
-    std::string uuidstring = datasource_uuid.UUID2String();
+    std::string uuidstring = datasource_uuid.uuid_to_string();
 
     {
         local_locker dblock(&ds_mutex);
@@ -1195,7 +1195,7 @@ int kis_database_logfile::log_datasource(shared_tracker_element in_datasource) {
     std::shared_ptr<kis_datasource> ds =
         std::static_pointer_cast<kis_datasource>(in_datasource);
 
-    std::string uuidstring = ds->get_source_uuid().UUID2String();
+    std::string uuidstring = ds->get_source_uuid().uuid_to_string();
     std::string typestring = ds->get_source_builder()->get_source_type();
     std::string defstring = ds->get_source_definition();
     std::string namestring = ds->get_source_name();

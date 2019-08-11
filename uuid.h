@@ -137,10 +137,10 @@ public:
     }
 
     std::string as_string() const {
-        return UUID2String();
+        return uuid_to_string();
     }
 
-    std::string UUID2String() const {
+    std::string uuid_to_string() const {
         return fmt::format("{:08X}-{:04X}-{:04X}-{:04X}-{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}",
                 *time_low, *time_mid, *time_hi, *clock_seq,
                 node[0], node[1], node[2], node[3], node[4], node[5]);

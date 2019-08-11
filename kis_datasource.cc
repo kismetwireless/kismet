@@ -212,7 +212,7 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
             nuuid.generate_time_uuid((uint8_t *) "\x00\x00\x00\x00\x00\x00");
 
             set_source_uuid(nuuid);
-            set_source_key(adler32_checksum(nuuid.UUID2String()));
+            set_source_key(adler32_checksum(nuuid.uuid_to_string()));
         }
 
         set_int_source_retry_attempts(0);
@@ -543,7 +543,7 @@ bool kis_datasource::parse_interface_definition(std::string in_definition) {
 
         set_source_uuid(u);
         local_uuid = true;
-        set_source_key(adler32_checksum(u.UUID2String()));
+        set_source_key(adler32_checksum(u.uuid_to_string()));
     }
 
     auto datasourcetracker =
@@ -797,12 +797,12 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
     if (report.has_uuid()) {
         uuid u(report.uuid());
         set_source_uuid(u);
-        set_source_key(adler32_checksum(u.UUID2String()));
+        set_source_key(adler32_checksum(u.uuid_to_string()));
     } else if (!local_uuid) {
         uuid nuuid;
         nuuid.generate_time_uuid((uint8_t *) "\x00\x00\x00\x00\x00\x00");
         set_source_uuid(nuuid);
-        set_source_key(adler32_checksum(nuuid.UUID2String()));
+        set_source_key(adler32_checksum(nuuid.uuid_to_string()));
     }
 
     if (report.has_capture_interface()) {

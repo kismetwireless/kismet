@@ -1097,11 +1097,11 @@ void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
             _MSG_ERROR("Incoming remote connection for source '{}' matches existing source '{}', "
                     "which is still running.  The running instance will be closed; make sure "
                     "that multiple remote captures are not running for the same source.",
-                    in_uuid.UUID2String(), merge_target_device->get_source_name());
+                    in_uuid.uuid_to_string(), merge_target_device->get_source_name());
             merge_target_device->close_source();
         } else {
             _MSG_INFO("Matching new remote source '{}' with known source with UUID '{}'",
-                    in_definition, in_uuid.UUID2String());
+                    in_definition, in_uuid.uuid_to_string());
         }
                     
         // Explicitly unlock our mutex before running a thread
@@ -1467,11 +1467,11 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
                     _MSG("Closing source '" + ds->get_source_name() + "' from REST "
                             "interface request.", MSGFLAG_INFO);
                     ds->disable_source();
-                    stream << "Closing source " << ds->get_source_uuid().UUID2String();
+                    stream << "Closing source " << ds->get_source_uuid().uuid_to_string();
                     return;
                 } else {
                     stream << "Source already closed, disabling source " <<
-                        ds->get_source_uuid().UUID2String();
+                        ds->get_source_uuid().uuid_to_string();
                     ds->disable_source();
                     return;
                 }

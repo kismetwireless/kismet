@@ -274,7 +274,7 @@ bool devicetracker_pcre_worker::MatchDevice(device_tracker *devicetracker __attr
             else if (fi->get_type() == tracker_type::tracker_mac_addr)
                 val = GetTrackerValue<mac_addr>(fi).mac_to_string();
             else if (fi->get_type() == tracker_type::tracker_uuid)
-                val = GetTrackerValue<uuid>(fi).UUID2String();
+                val = GetTrackerValue<uuid>(fi).uuid_to_string();
             else if (fi->get_type() == tracker_type::tracker_byte_array) 
                 val = std::static_pointer_cast<tracker_element_byte_array>(fi)->get();
             else
