@@ -353,7 +353,7 @@ public:
     int add_filter(std::string in_filter);
     int add_netcli_filter(std::string in_filter);
 
-    void SetStringExtract(int in_extr);
+    void set_string_extract(int in_extr);
 
     void AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len, int temp);
 

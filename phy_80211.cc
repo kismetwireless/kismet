@@ -1675,9 +1675,9 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
     return 1;
 }
 
-void kis_80211_phy::SetStringExtract(int in_extr) {
+void kis_80211_phy::set_string_extract(int in_extr) {
     if (in_extr == 0 && dissect_strings == 2) {
-        _MSG("SetStringExtract(): String dissection cannot be disabled because "
+        _MSG("set_string_extract(): String dissection cannot be disabled because "
                 "it is required by another active component.", MSGFLAG_ERROR);
         return;
     }
