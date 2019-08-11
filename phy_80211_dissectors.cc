@@ -225,7 +225,7 @@ static const uint32_t dot11_wep_crc32_table[256] = {
 };
 
 // Convert WPA cipher elements into crypt_set stuff
-int Kis_80211_Phy::WPACipherConv(uint8_t cipher_index) {
+int kis_80211_phy::WPACipherConv(uint8_t cipher_index) {
     int ret = crypt_wpa;
 
     // TODO fix cipher methodology for new standards, rewrite basic 
@@ -257,7 +257,7 @@ int Kis_80211_Phy::WPACipherConv(uint8_t cipher_index) {
 }
 
 // Convert WPA key management elements into crypt_set stuff
-int Kis_80211_Phy::WPAKeyMgtConv(uint8_t mgt_index) {
+int kis_80211_phy::WPAKeyMgtConv(uint8_t mgt_index) {
     int ret = crypt_wpa;
 
     switch (mgt_index) {
@@ -279,7 +279,7 @@ int Kis_80211_Phy::WPAKeyMgtConv(uint8_t mgt_index) {
 }
 
 // This needs to be optimized and it needs to not use casting to do its magic
-int Kis_80211_Phy::PacketDot11dissector(kis_packet *in_pack) {
+int kis_80211_phy::PacketDot11dissector(kis_packet *in_pack) {
     if (in_pack->error) {
         return 0;
     }
@@ -1222,7 +1222,7 @@ eap_end:
     return 1;
 }
 
-std::vector<Kis_80211_Phy::ie_tag_tuple> Kis_80211_Phy::PacketDot11IElist(kis_packet *in_pack, 
+std::vector<kis_80211_phy::ie_tag_tuple> kis_80211_phy::PacketDot11IElist(kis_packet *in_pack, 
         dot11_packinfo *packinfo) {
     auto ret = std::vector<ie_tag_tuple>{};
 
@@ -1296,7 +1296,7 @@ std::vector<Kis_80211_Phy::ie_tag_tuple> Kis_80211_Phy::PacketDot11IElist(kis_pa
     return ret;
 }
 
-int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *packinfo) {
+int kis_80211_phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *packinfo) {
     // If we can't have IE tags at all
     if (packinfo->type != packet_management || !(
                 packinfo->subtype == packet_sub_beacon ||
@@ -2259,7 +2259,7 @@ int Kis_80211_Phy::PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *p
 
 }
 
-kis_datachunk *Kis_80211_Phy::DecryptWEP(dot11_packinfo *in_packinfo,
+kis_datachunk *kis_80211_phy::DecryptWEP(dot11_packinfo *in_packinfo,
                                                kis_datachunk *in_chunk,
                                                unsigned char *in_key, int in_key_len,
                                                unsigned char *in_id) {
@@ -2386,7 +2386,7 @@ kis_datachunk *Kis_80211_Phy::DecryptWEP(dot11_packinfo *in_packinfo,
     return manglechunk;
 }
 
-int Kis_80211_Phy::PacketWepDecryptor(kis_packet *in_pack) {
+int kis_80211_phy::PacketWepDecryptor(kis_packet *in_pack) {
     kis_datachunk *manglechunk = NULL;
 
     if (in_pack->error)
@@ -2462,7 +2462,7 @@ int Kis_80211_Phy::PacketWepDecryptor(kis_packet *in_pack) {
     return 1;
 }
 
-int Kis_80211_Phy::PacketDot11WPSM3(kis_packet *in_pack) {
+int kis_80211_phy::PacketDot11WPSM3(kis_packet *in_pack) {
     if (in_pack->error) {
         return 0;
     }
@@ -2570,7 +2570,7 @@ int Kis_80211_Phy::PacketDot11WPSM3(kis_packet *in_pack) {
 }
 
 std::shared_ptr<dot11_tracked_eapol> 
-    Kis_80211_Phy::PacketDot11EapolHandshake(kis_packet *in_pack,
+    kis_80211_phy::PacketDot11EapolHandshake(kis_packet *in_pack,
             std::shared_ptr<dot11_tracked_device> dot11dev) {
 
     if (in_pack->error) {

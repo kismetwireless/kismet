@@ -74,14 +74,14 @@ unsigned int Ieee80211Interval2NSecs(int in_interval) {
 }
 
 int phydot11_packethook_wep(CHAINCALL_PARMS) {
-    return ((Kis_80211_Phy *) auxdata)->PacketWepDecryptor(in_pack);
+    return ((kis_80211_phy *) auxdata)->PacketWepDecryptor(in_pack);
 }
 
 int phydot11_packethook_dot11(CHAINCALL_PARMS) {
-    return ((Kis_80211_Phy *) auxdata)->PacketDot11dissector(in_pack);
+    return ((kis_80211_phy *) auxdata)->PacketDot11dissector(in_pack);
 }
 
-Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) : 
+kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) : 
     kis_phy_handler(in_globalreg, in_phyid),
     kis_net_httpd_cppstream_handler() {
 
@@ -801,7 +801,7 @@ Kis_80211_Phy::Kis_80211_Phy(global_registry *in_globalreg, int in_phyid) :
     bind_httpd_server();
 }
 
-Kis_80211_Phy::~Kis_80211_Phy() {
+kis_80211_phy::~kis_80211_phy() {
 	packetchain->remove_handler(&phydot11_packethook_wep, CHAINPOS_DECRYPT);
 	packetchain->remove_handler(&phydot11_packethook_dot11, 
 										  CHAINPOS_LLCDISSECT);
@@ -819,7 +819,7 @@ Kis_80211_Phy::~Kis_80211_Phy() {
     delete[] recent_packet_checksums;
 }
 
-const std::string Kis_80211_Phy::KhzToChannel(const double in_khz) {
+const std::string kis_80211_phy::KhzToChannel(const double in_khz) {
     if (in_khz == 0)
         throw std::runtime_error("invalid freq");
 
@@ -839,7 +839,7 @@ const std::string Kis_80211_Phy::KhzToChannel(const double in_khz) {
         return fmt::format("{}", mhz);
 }
 
-int Kis_80211_Phy::LoadWepkeys() {
+int kis_80211_phy::LoadWepkeys() {
     // Convert the WEP mappings to our real map
     std::vector<std::string> raw_wepmap_vec;
     raw_wepmap_vec = Globalreg::globalreg->kismet_config->fetch_opt_vec("wepkey");
@@ -891,10 +891,10 @@ int Kis_80211_Phy::LoadWepkeys() {
 
 // Common classifier responsible for generating the common devices & mapping wifi packets
 // to those devices
-int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
+int kis_80211_phy::CommonClassifierDot11(CHAINCALL_PARMS) {
     // packetnum++;
 
-    Kis_80211_Phy *d11phy = (Kis_80211_Phy *) auxdata;
+    kis_80211_phy *d11phy = (kis_80211_phy *) auxdata;
 
     // Don't process errors, blocked, or dupes
     if (in_pack->error || in_pack->filtered || in_pack->duplicate)
@@ -1675,7 +1675,7 @@ int Kis_80211_Phy::CommonClassifierDot11(CHAINCALL_PARMS) {
     return 1;
 }
 
-void Kis_80211_Phy::SetStringExtract(int in_extr) {
+void kis_80211_phy::SetStringExtract(int in_extr) {
     if (in_extr == 0 && dissect_strings == 2) {
         _MSG("SetStringExtract(): String dissection cannot be disabled because "
                 "it is required by another active component.", MSGFLAG_ERROR);
@@ -1687,7 +1687,7 @@ void Kis_80211_Phy::SetStringExtract(int in_extr) {
     dissect_all_strings = in_extr;
 }
 
-void Kis_80211_Phy::AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len, 
+void kis_80211_phy::AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len, 
         int temp) {
     if (len > WEPKEY_MAX)
         return;
@@ -1712,7 +1712,7 @@ void Kis_80211_Phy::AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len,
     wepkeys.insert(std::make_pair(winfo->bssid, winfo));
 }
 
-void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
+void kis_80211_phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
         std::shared_ptr<dot11_tracked_device> dot11dev,
         kis_packet *in_pack,
         dot11_packinfo *dot11info,
@@ -2197,7 +2197,7 @@ void Kis_80211_Phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
 
 }
 
-void Kis_80211_Phy::HandleProbedSSID(std::shared_ptr<kis_tracked_device_base> basedev,
+void kis_80211_phy::HandleProbedSSID(std::shared_ptr<kis_tracked_device_base> basedev,
         std::shared_ptr<dot11_tracked_device> dot11dev,
         kis_packet *in_pack,
         dot11_packinfo *dot11info,
@@ -2310,7 +2310,7 @@ void Kis_80211_Phy::HandleProbedSSID(std::shared_ptr<kis_tracked_device_base> ba
 }
 
 // Associate a client device and a dot11 access point
-void Kis_80211_Phy::ProcessClient(std::shared_ptr<kis_tracked_device_base> bssiddev,
+void kis_80211_phy::ProcessClient(std::shared_ptr<kis_tracked_device_base> bssiddev,
         std::shared_ptr<dot11_tracked_device> bssiddot11,
         std::shared_ptr<kis_tracked_device_base> clientdev,
         std::shared_ptr<dot11_tracked_device> clientdot11,
@@ -2462,7 +2462,7 @@ void Kis_80211_Phy::ProcessClient(std::shared_ptr<kis_tracked_device_base> bssid
     }
 }
 
-void Kis_80211_Phy::ProcessWPAHandshake(std::shared_ptr<kis_tracked_device_base> bssid_dev,
+void kis_80211_phy::ProcessWPAHandshake(std::shared_ptr<kis_tracked_device_base> bssid_dev,
         std::shared_ptr<dot11_tracked_device> bssid_dot11,
         std::shared_ptr<kis_tracked_device_base> dest_dev,
         std::shared_ptr<dot11_tracked_device> dest_dot11,
@@ -2679,7 +2679,7 @@ void Kis_80211_Phy::ProcessWPAHandshake(std::shared_ptr<kis_tracked_device_base>
     }
 }
 
-std::string Kis_80211_Phy::CryptToString(uint64_t cryptset) {
+std::string kis_80211_phy::CryptToString(uint64_t cryptset) {
     std::string ret;
 
     if (cryptset == crypt_none)
@@ -2764,7 +2764,7 @@ std::string Kis_80211_Phy::CryptToString(uint64_t cryptset) {
     return ret;
 }
 
-std::string Kis_80211_Phy::CryptToSimpleString(uint64_t cryptset) {
+std::string kis_80211_phy::CryptToSimpleString(uint64_t cryptset) {
     std::string ret;
 
     if (cryptset == crypt_none)
@@ -2829,7 +2829,7 @@ std::string Kis_80211_Phy::CryptToSimpleString(uint64_t cryptset) {
     return "Other";
 }
 
-bool Kis_80211_Phy::httpd_verify_path(const char *path, const char *method) {
+bool kis_80211_phy::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
         std::vector<std::string> tokenurl = StrTokenize(path, "/");
 
@@ -2871,7 +2871,7 @@ bool Kis_80211_Phy::httpd_verify_path(const char *path, const char *method) {
     return false;
 }
 
-void Kis_80211_Phy::GenerateHandshakePcap(std::shared_ptr<kis_tracked_device_base> dev, 
+void kis_80211_phy::GenerateHandshakePcap(std::shared_ptr<kis_tracked_device_base> dev, 
         kis_net_httpd_connection *connection, std::stringstream &stream) {
 
     // Hardcode the pcap header
@@ -2960,7 +2960,7 @@ void Kis_80211_Phy::GenerateHandshakePcap(std::shared_ptr<kis_tracked_device_bas
     }
 }
 
-void Kis_80211_Phy::httpd_create_stream_response(kis_net_httpd *httpd,
+void kis_80211_phy::httpd_create_stream_response(kis_net_httpd *httpd,
         kis_net_httpd_connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
@@ -3000,7 +3000,7 @@ void Kis_80211_Phy::httpd_create_stream_response(kis_net_httpd *httpd,
     return;
 }
 
-int Kis_80211_Phy::httpd_post_complete(kis_net_httpd_connection *concls) {
+int kis_80211_phy::httpd_post_complete(kis_net_httpd_connection *concls) {
     bool handled = false;
 
     std::string stripped = httpd_strip_suffix(concls->url);
@@ -3109,7 +3109,7 @@ protected:
     unsigned int packets;
 };
 
-int Kis_80211_Phy::timetracker_event(int eventid) {
+int kis_80211_phy::timetracker_event(int eventid) {
     // Spawn a worker to handle this
     if (eventid == device_idle_timer) {
         auto worker = 
@@ -3122,7 +3122,7 @@ int Kis_80211_Phy::timetracker_event(int eventid) {
     return 1;
 }
 
-void Kis_80211_Phy::LoadPhyStorage(shared_tracker_element in_storage, shared_tracker_element in_device) {
+void kis_80211_phy::LoadPhyStorage(shared_tracker_element in_storage, shared_tracker_element in_device) {
     if (in_storage == NULL || in_device == NULL)
         return;
 

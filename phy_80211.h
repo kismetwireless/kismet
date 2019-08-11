@@ -292,26 +292,26 @@ class dot11_ssid_alert {
         std::map<mac_addr, int> allow_mac_map;
 };
 
-class Kis_80211_Phy : public kis_phy_handler, 
+class kis_80211_phy : public kis_phy_handler, 
     public kis_net_httpd_cppstream_handler, public time_tracker_event {
 
 public:
     using ie_tag_tuple = std::tuple<uint8_t, uint32_t, uint8_t>;
 
     // Stub
-    ~Kis_80211_Phy();
+    ~kis_80211_phy();
 
     // Inherited functionality
-    Kis_80211_Phy(global_registry *in_globalreg) :
+    kis_80211_phy(global_registry *in_globalreg) :
         kis_phy_handler(in_globalreg) { };
 
     // Build a strong version of ourselves
     virtual kis_phy_handler *CreatePhyHandler(global_registry *in_globalreg, int in_phyid) override {
-        return new Kis_80211_Phy(in_globalreg, in_phyid);
+        return new kis_80211_phy(in_globalreg, in_phyid);
     }
 
     // Strong constructor
-    Kis_80211_Phy(global_registry *in_globalreg, int in_phyid);
+    kis_80211_phy(global_registry *in_globalreg, int in_phyid);
 
     int WPACipherConv(uint8_t cipher_index);
     int WPAKeyMgtConv(uint8_t mgt_index);

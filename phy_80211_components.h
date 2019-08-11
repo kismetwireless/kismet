@@ -880,7 +880,7 @@ protected:
 //
 // Device-level data, additional data stored in the client and ssid arrays
 class dot11_tracked_device : public tracker_component {
-    friend class Kis_80211_Phy;
+    friend class kis_80211_phy;
 public:
     dot11_tracked_device() :
         tracker_component() {
