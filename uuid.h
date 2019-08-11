@@ -126,7 +126,7 @@ public:
         error = 0;
     }
 
-    void GenerateStoredUUID(uint32_t in_low, uint16_t in_mid, uint16_t in_hi,
+    void generate_stored_uuid(uint32_t in_low, uint16_t in_mid, uint16_t in_hi,
             uint16_t in_seq, uint8_t *in_node) {
         *time_low = in_low;
         *time_mid = in_mid;
