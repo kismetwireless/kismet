@@ -104,8 +104,8 @@ public:
     template<typename T>
     void bind_field(const std::string& in_query, const T& in_value,
             std::function<int (sqlite3_stmt *, int, T)> in_binder) {
-        auto binding = std::make_shared<binding<T>>(in_query, in_value, in_binder);
-        bindings.push_back(binding);
+        auto b = std::make_shared<binding<T>>(in_query, in_value, in_binder);
+        bindings.push_back(b);
     }
 
     sqlite3_stmt *make_query(sqlite3 *db, std::string base); 
