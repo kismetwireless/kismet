@@ -193,7 +193,7 @@ std::string in_line_wrap(const std::string& in_txt, unsigned int in_hdr_len, uns
 std::vector<std::string> line_wrap(const std::string& in_txt, unsigned int in_hdr_len, unsigned int in_maxlen);
 std::vector<int> str_to_int_vector(const std::string& in_text);
 
-void Float2Pair(float in_float, int16_t *primary, int64_t *mantissa);
+void float_to_pair(float in_float, int16_t *primary, int64_t *mantissa);
 float Pair2Float(int16_t primary, int64_t mantissa);
 
 #ifdef SYS_LINUX

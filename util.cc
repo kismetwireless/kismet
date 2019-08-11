@@ -516,7 +516,7 @@ std::string in_line_wrap(const std::string& in_txt, unsigned int in_hdr_len,
 	return ss.str();
 }
 
-void Float2Pair(float in_float, int16_t *primary, int64_t *mantissa) {
+void float_to_pair(float in_float, int16_t *primary, int64_t *mantissa) {
     *primary = (int) in_float;
     *mantissa = (long) (1000000 * ((in_float) - *primary));
 }
