@@ -41,7 +41,7 @@
 //
 //
 // Plugins are responsible for completing the record passed to them
-// from Kismet and filling in the PluginRegistrationData record
+// from Kismet and filling in the plugin_registration_data record
 // 
 // Plugins must define two core functions, in the C name space:
 //
@@ -115,16 +115,16 @@ class external_http_plugin_harness;
 // The registration object is created by the plugintracker and given to
 // a Kismet plugin; the plugin fills in the relevant information during
 // the registration process
-class PluginRegistrationData : public tracker_component {
+class plugin_registration_data : public tracker_component {
 public:
-    PluginRegistrationData() :
+    plugin_registration_data() :
         tracker_component() {
         register_fields();
         reserve_fields(NULL);
         dlfile = NULL;
     }
 
-    PluginRegistrationData(int in_id) :
+    plugin_registration_data(int in_id) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(NULL);
@@ -132,7 +132,7 @@ public:
         dlfile = NULL;
     }
 
-    PluginRegistrationData(int in_id, std::shared_ptr<tracker_element_map> e) :
+    plugin_registration_data(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
 
         register_fields();
@@ -141,13 +141,13 @@ public:
         dlfile = NULL;
     }
 
-    virtual ~PluginRegistrationData() {
+    virtual ~plugin_registration_data() {
         if (dlfile != NULL)
             dlclose(dlfile);
     }
 
     virtual uint32_t get_signature() const override {
-        return adler32_checksum("PluginRegistrationData");
+        return adler32_checksum("plugin_registration_data");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
@@ -219,7 +219,7 @@ protected:
 
     std::shared_ptr<external_http_plugin_harness> external_http;
 };
-typedef std::shared_ptr<PluginRegistrationData> SharedPluginData;
+typedef std::shared_ptr<plugin_registration_data> SharedPluginData;
 
 // Plugin activation and final activation function
 typedef int (*plugin_activation)(global_registry *);

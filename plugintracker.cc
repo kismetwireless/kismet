@@ -37,7 +37,7 @@
 #include "version.h"
 #include "kis_httpd_registry.h"
 
-void PluginRegistrationData::activate_external_http() {
+void plugin_registration_data::activate_external_http() {
     // If we have a http proxy, instantiate and load it
     if (get_plugin_http_external() != "") {
         external_http = 
@@ -172,7 +172,7 @@ int plugin_tracker::ScanDirectory(DIR *in_dir, std::string in_path) {
 
         cf.parse_config(manifest.c_str());
 
-        SharedPluginData preg(new PluginRegistrationData());
+        SharedPluginData preg(new plugin_registration_data());
 
         preg->set_plugin_path(in_path + "/" + plugfile->d_name + "/");
         preg->set_plugin_dirname(plugfile->d_name);
@@ -423,7 +423,7 @@ int plugin_tracker::FinalizePlugins() {
     // Look only at plugins that have a dl file, and attempt to run the finalize
     // function in each
     for (auto x : *plugin_registry_vec) {
-        SharedPluginData pd = std::dynamic_pointer_cast<PluginRegistrationData>(x);
+        SharedPluginData pd = std::dynamic_pointer_cast<plugin_registration_data>(x);
 
         void *dlfile;
 
