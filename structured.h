@@ -57,8 +57,8 @@ struct structured_data_unparseable : public structured_data_exception {
 };
 
 // No data available
-struct StructuredDataNull : public structured_data_exception {
-    StructuredDataNull(std::string const& message) : 
+struct structured_data_null : public structured_data_exception {
+    structured_data_null(std::string const& message) : 
         structured_data_exception(message) {}
 };
 
