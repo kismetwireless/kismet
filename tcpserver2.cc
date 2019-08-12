@@ -30,7 +30,7 @@ tcp_server_v2::tcp_server_v2(global_registry *in_globalreg) {
 }
 
 tcp_server_v2::~tcp_server_v2() {
-    Shutdown();
+    shutdown();
 }
 
 void tcp_server_v2::SetBufferSize(unsigned int in_sz) {
@@ -451,7 +451,7 @@ std::shared_ptr<buffer_handler_generic> tcp_server_v2::AllocateConnection(int in
     return rbh;
 }
 
-void tcp_server_v2::Shutdown() {
+void tcp_server_v2::shutdown() {
     local_locker l(&tcp_mutex);
 
     for (auto i = handler_map.begin(); i != handler_map.end(); ++i) {

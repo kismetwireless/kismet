@@ -66,7 +66,7 @@ public:
     virtual void kill_connection(int in_fd);
     virtual void kill_connection(std::shared_ptr<buffer_handler_generic> in_handler);
 
-    virtual void Shutdown();
+    virtual void shutdown();
 
     virtual void SetBufferSize(unsigned int in_sz);
 

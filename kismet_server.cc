@@ -235,7 +235,7 @@ void SpindownKismet(std::shared_ptr<pollable_tracker> pollabletracker) {
         devicetracker->databaselog_write_devices();
     }
 
-    // Shutdown everything
+    // shutdown everything
     globalregistry->Shutdown_Deferred();
     globalregistry->spindown = 1;
 
