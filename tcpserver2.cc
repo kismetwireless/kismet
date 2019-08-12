@@ -198,7 +198,7 @@ int tcp_server_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
             return 0;
         }
 
-        std::shared_ptr<buffer_handler_generic> con_handler = AllocateConnection(accept_fd);
+        std::shared_ptr<buffer_handler_generic> con_handler = allocate_connection(accept_fd);
 
         if (con_handler == NULL) {
             kill_connection(accept_fd);
@@ -438,7 +438,7 @@ bool tcp_server_v2::allow_connection(int in_fd) {
     return false;
 }
 
-std::shared_ptr<buffer_handler_generic> tcp_server_v2::AllocateConnection(int in_fd) {
+std::shared_ptr<buffer_handler_generic> tcp_server_v2::allocate_connection(int in_fd) {
     // Basic allocation
     std::shared_ptr<buffer_handler_generic> rbh(new buffer_handler<ringbuf_v2>(ringbuf_size, ringbuf_size));  
 

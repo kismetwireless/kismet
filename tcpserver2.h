@@ -88,7 +88,7 @@ protected:
     virtual bool allow_connection(int in_fd);
 
     // Allocate the connection
-    virtual std::shared_ptr<buffer_handler_generic> AllocateConnection(int in_fd);
+    virtual std::shared_ptr<buffer_handler_generic> allocate_connection(int in_fd);
 
     bool valid;
 
