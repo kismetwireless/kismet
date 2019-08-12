@@ -193,7 +193,7 @@ int tcp_server_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
         if ((accept_fd = accept_connection()) <= 0)
             return 0;
 
-        if (!AllowConnection(accept_fd)) {
+        if (!allow_connection(accept_fd)) {
             kill_connection(accept_fd);
             return 0;
         }
@@ -404,7 +404,7 @@ int tcp_server_v2::accept_connection() {
     return new_fd;
 }
 
-bool tcp_server_v2::AllowConnection(int in_fd) {
+bool tcp_server_v2::allow_connection(int in_fd) {
     struct sockaddr_in client_addr;
 #ifdef HAVE_SOCKLEN_T
     socklen_t client_len;

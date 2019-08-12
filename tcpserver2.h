@@ -85,7 +85,7 @@ protected:
     virtual int accept_connection();
 
     // Filter against the filter list
-    virtual bool AllowConnection(int in_fd);
+    virtual bool allow_connection(int in_fd);
 
     // Allocate the connection
     virtual std::shared_ptr<buffer_handler_generic> AllocateConnection(int in_fd);
