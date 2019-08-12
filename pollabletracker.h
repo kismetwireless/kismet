@@ -21,7 +21,10 @@
 
 #include "config.h"
 
+#include <queue>
 #include <vector>
+
+#include <sys/time.h>
 
 #include "kis_mutex.h"
 #include "globalregistry.h"
@@ -85,6 +88,35 @@ public:
     int process_pollable_select(fd_set rset, fd_set wset);
 
 protected:
+    void poll_queue_processor();
+
+    class pollable_event {
+        public:
+            pollable_event(fd_set in_rset, fd_set in_wset, std::shared_ptr<kis_pollable> in_pollable) :
+                rset {in_rset},
+                wset {in_wset},
+                pollable {in_pollable} { }
+
+            fd_set rset, wset;
+            std::shared_ptr<kis_pollable> pollable;
+    };
+
+    std::queue<pollable_event> pollable_queue;
+    bool pollable_shutdown;
+
+    std::vector<std::thread> pollable_threads;
+
+    // Poll notification cv
+    std::mutex pollqueue_cv_mutex;
+    std::condition_variable pollqueue_cv;
+
+    // We don't need as complex a synchronization method because we don't modify
+    // ta callback chain like we do for the packet chain; we just don't dispatch 
+    // a pollable.  Pollable items should engage a mutex during poll so it shouldn't
+    // be a problem to just remove them from the main pollable vector through
+    // the normal method of placing it into a queue that gets cleaned up by the 
+    // maintenance cycle
+
     kis_recursive_timed_mutex pollable_mutex, maintenance_mutex;
 
     std::vector<std::shared_ptr<kis_pollable>> pollable_vec;
