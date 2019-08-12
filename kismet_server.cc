@@ -408,8 +408,6 @@ static sigset_t core_signal_mask;
 void signal_thread_handler() {
     int sig_caught;
     int r;
-    int status;
-    pid_t pid;
 
     while (!Globalreg::globalreg->complete) {
         r = sigwait(&core_signal_mask, &sig_caught);
@@ -441,16 +439,8 @@ void signal_thread_handler() {
                 break;
 
             case SIGCHLD:
-                // Reap any child processes
-                while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
-                    if (globalregistry->sigchild_vec_pos < 1024) {
-                        while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
-                            unsigned int pos = globalregistry->sigchild_vec_pos++;
-                            globalregistry->sigchild_vec[pos] = pid;
-                        }
-                    }
-                }
-
+                // Flag that we need to do a waitpid to reap child processes
+                Globalreg::globalreg->reap_child_procs = true;
                 break;
         }
     }

@@ -450,6 +450,8 @@ int ipc_remote_v2::hard_kill() {
 }
 
 void ipc_remote_v2::notify_killed(int in_exit) {
+    local_locker l(ipc_mutex);
+
     std::stringstream ss;
 
     // Pull anything left in the buffer and process it
@@ -671,33 +673,29 @@ int ipc_remote_v2_tracker::ensure_all_ipc_killed(int in_soft_delay, int in_max_d
 }
 
 int ipc_remote_v2_tracker::timetracker_event(int event_id __attribute__((unused))) {
-    local_locker l(&ipc_mutex);
-
     std::stringstream str;
     std::shared_ptr<ipc_remote_v2> dead_remote;
 
-    for (unsigned int x = 0; x < 1024 && x < globalreg->sigchild_vec_pos; x++) {
-        pid_t caught_pid = globalreg->sigchild_vec[x];
+    int pid_status;
+    pid_t caught_pid;
 
-        // fmt::print(stderr, "debug - harvesting dead pid {}\n", caught_pid);
+    if (globalreg->reap_child_procs) {
+        globalreg->reap_child_procs = false;
 
-        // Find the IPC record for this remote
-        dead_remote = remove_ipc(caught_pid);
+        while ((caught_pid = waitpid(-1, &pid_status, WNOHANG | WUNTRACED)) > 0) {
+            // Find the IPC record for this remote
+            dead_remote = remove_ipc(caught_pid);
 
-        // Kill it
-        if (dead_remote != nullptr) {
-            dead_remote->notify_killed(0);
-            dead_remote->close_ipc();
+            // Kill it
+            if (dead_remote != nullptr) {
+                dead_remote->notify_killed(0);
+                dead_remote->close_ipc();
+            }
         }
     }
 
-    globalreg->sigchild_vec_pos = 0;
-
     // fmt::print(stderr, "debug - process vec size {}\n", process_vec.size());
     for (auto p : process_vec) {
-        int pid_status;
-        pid_t caught_pid;
-      
         if (p == nullptr)
             continue;
 

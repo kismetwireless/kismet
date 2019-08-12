@@ -182,9 +182,7 @@ public:
     std::string version_git_rev;
     std::string build_date;
 
-	// Vector of child signals
-    pid_t sigchild_vec[1024];
-    std::atomic<unsigned int> sigchild_vec_pos;
+    std::atomic<bool> reap_child_procs;
 	
     time_t start_time;
     std::string servername;

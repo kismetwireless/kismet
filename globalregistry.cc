@@ -66,10 +66,6 @@ global_registry::global_registry() {
 	checksum_packets = 0;
 
     deferred_started = false;
-
-    for (int x = 0; x < 1024; x++)
-        sigchild_vec[x] = 0;
-    sigchild_vec_pos = 0;
 }
 
 // External globals -- allow other things to tie structs to us
