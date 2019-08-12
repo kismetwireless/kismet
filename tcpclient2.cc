@@ -40,7 +40,7 @@ tcp_client_v2::tcp_client_v2(global_registry *in_globalreg,
     cli_fd {-1} { }
 
 tcp_client_v2::~tcp_client_v2() {
-    Disconnect();
+    disconnect();
 }
 
 void tcp_client_v2::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
@@ -52,7 +52,7 @@ void tcp_client_v2::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_pare
         tcp_mutex = std::make_shared<kis_recursive_timed_mutex>();
 }
 
-int tcp_client_v2::Connect(std::string in_host, unsigned int in_port) {
+int tcp_client_v2::connect(std::string in_host, unsigned int in_port) {
     local_locker l(tcp_mutex);
 
     std::stringstream msg;
@@ -93,7 +93,7 @@ int tcp_client_v2::Connect(std::string in_host, unsigned int in_port) {
 
     int ret;
 
-    if ((ret = connect(cli_fd, (struct sockaddr *) &client_sock, 
+    if ((ret = ::connect(cli_fd, (struct sockaddr *) &client_sock, 
                     sizeof(client_sock))) < 0) {
         if (errno == EINPROGRESS) {
             pending_connect = true;
@@ -234,7 +234,7 @@ int tcp_client_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
                     handler->commit_read_buffer_data(buf, 0);
                     handler->buffer_error(msg);
 
-                    Disconnect();
+                    disconnect();
                     return 0;
                 }
             } else if (ret == 0) {
@@ -244,7 +244,7 @@ int tcp_client_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
                 handler->commit_read_buffer_data(buf, 0);
                 handler->buffer_error(msg);
 
-                Disconnect();
+                disconnect();
                 return 0;
             } else {
                 // Process the data we got
@@ -253,7 +253,7 @@ int tcp_client_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
                 if (!iret) {
                     // Die if we couldn't insert all our data, the error is already going
                     // upstream.
-                    Disconnect();
+                    disconnect();
                     return 0;
                 }
             }
@@ -278,7 +278,7 @@ int tcp_client_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
                 handler->peek_free_write_buffer_data(buf);
                 handler->buffer_error(msg);
 
-                Disconnect();
+                disconnect();
                 return 0;
             }
         } else if (ret == 0) {
@@ -286,7 +286,7 @@ int tcp_client_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
                     host, port);
             handler->peek_free_write_buffer_data(buf);
             handler->buffer_error(msg);
-            Disconnect();
+            disconnect();
             return 0;
         } else {
             // Consume whatever we managed to write
@@ -298,7 +298,7 @@ int tcp_client_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
     return 0;
 }
 
-void tcp_client_v2::Disconnect() {
+void tcp_client_v2::disconnect() {
     local_locker l(tcp_mutex);
 
     if (pending_connect || connected) {

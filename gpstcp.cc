@@ -86,7 +86,7 @@ bool kis_gps_tcp::open_gps(std::string in_opts) {
     set_int_device_connected(false);
 
     if (tcpclient != nullptr) {
-        tcpclient->Disconnect();
+        tcpclient->disconnect();
     }
 
     if (nmeahandler != nullptr) {
@@ -138,7 +138,7 @@ bool kis_gps_tcp::open_gps(std::string in_opts) {
 
     _MSG_INFO("kis_gps_tcp connecting to GPS NMEA server on {}:{}", host, port);
 
-    tcpclient->Connect(proto_host, proto_port);
+    tcpclient->connect(proto_host, proto_port);
     set_int_device_connected(true);
 
     return 1;

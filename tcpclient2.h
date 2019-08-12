@@ -47,8 +47,8 @@ public:
     virtual void set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
 
     // Connect to a host, returns 0 if connection initiated and negative if fail
-    int Connect(std::string in_host, unsigned int in_port);
-    void Disconnect();
+    int connect(std::string in_host, unsigned int in_port);
+    void disconnect();
 
     bool get_connected();
 

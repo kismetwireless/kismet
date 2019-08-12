@@ -91,7 +91,7 @@ kis_gps_gpsd_v2::kis_gps_gpsd_v2(shared_gps_builder in_builder) :
                     else
                         _MSG_ERROR("GPSDv2 didn't get data from gpsd in over 30 seconds, disconnecting");
 
-                    tcpclient->Disconnect();
+                    tcpclient->disconnect();
                     set_int_device_connected(false);
                 }
 
@@ -130,7 +130,7 @@ bool kis_gps_gpsd_v2::open_gps(std::string in_opts) {
 
     // Disconnect the client if it still exists
     if (tcpclient != nullptr) {
-        tcpclient->Disconnect();
+        tcpclient->disconnect();
     }
 
     // Clear the buffers
@@ -186,7 +186,7 @@ bool kis_gps_gpsd_v2::open_gps(std::string in_opts) {
     set_int_device_connected(0);
 
     // Connect
-    tcpclient->Connect(proto_host, proto_port);
+    tcpclient->connect(proto_host, proto_port);
 
     return 1;
 }
@@ -230,7 +230,7 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
         else
             _MSG_ERROR("GPSDv2 read buffer filled without getting a valid record; disconnecting.");
 
-        tcpclient->Disconnect();
+        tcpclient->disconnect();
         set_int_device_connected(false);
         return;
     }
@@ -413,7 +413,7 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
             } catch (std::exception& e) {
                 _MSG_ERROR("GPSGPSDv2 got an invalid JSON record from GPSD: '{}'", e.what());
 
-                tcpclient->Disconnect();
+                tcpclient->disconnect();
                 set_int_device_connected(false);
 
                 continue;
