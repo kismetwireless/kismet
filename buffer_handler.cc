@@ -398,7 +398,7 @@ void buffer_handler_generic::remove_read_buffer_drain_cb() {
     readbuf_drain_cb = nullptr;
 }
 
-void buffer_handler_generic::RemoveWriteBufferDrainCb() {
+void buffer_handler_generic::remove_write_buffer_drain_cb() {
     wbuf_drain_avail = false;
     writebuf_drain_cb = nullptr; 
 }
@@ -449,7 +449,7 @@ buffer_interface::~buffer_interface() {
 
 buffer_handler_ostream_buf::~buffer_handler_ostream_buf() {
     if (rb_handler != NULL) {
-        rb_handler->RemoveWriteBufferDrainCb();
+        rb_handler->remove_write_buffer_drain_cb();
         rb_handler = NULL;
     }
 }
@@ -490,7 +490,7 @@ std::streamsize buffer_handler_ostream_buf::xsputn(const char_type *s, std::stre
         written = rb_handler->put_write_buffer_data((void *) (s + wpos), n - wpos, true);
 
         if (wpos + written == n) {
-            rb_handler->RemoveWriteBufferDrainCb();
+            rb_handler->remove_write_buffer_drain_cb();
             return n;
         }
 
@@ -501,7 +501,7 @@ std::streamsize buffer_handler_ostream_buf::xsputn(const char_type *s, std::stre
         blocking_cl->block_until();
     }
 
-    rb_handler->RemoveWriteBufferDrainCb();
+    rb_handler->remove_write_buffer_drain_cb();
 
     return n;
 }
@@ -529,14 +529,14 @@ buffer_handler_ostream_buf::int_type buffer_handler_ostream_buf::overflow(int_ty
 
     while (1) {
         if (rb_handler->put_write_buffer_data((void *) &ch, 1, true) == 1) {
-            rb_handler->RemoveWriteBufferDrainCb();
+            rb_handler->remove_write_buffer_drain_cb();
             return 1;
         }
 
         blocking_cl->block_until();
     }
 
-    rb_handler->RemoveWriteBufferDrainCb();
+    rb_handler->remove_write_buffer_drain_cb();
 
     return 1;
 }
