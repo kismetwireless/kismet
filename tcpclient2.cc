@@ -260,7 +260,7 @@ int tcp_client_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
         }
     }
 
-    if (connected && FD_ISSET(cli_fd, &in_wset)) {
+    if (connected && FD_ISSET(cli_fd, &in_wset) && handler->get_write_buffer_used()) {
         // Peek the entire data 
         len = handler->zero_copy_peek_write_buffer_data((void **) &buf, 
                 handler->get_write_buffer_used());

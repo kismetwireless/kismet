@@ -124,7 +124,8 @@ int socket_client::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
                     return -1;
                 }
             } else if (ret == 0) {
-                msg = fmt::format("TCP socket fd {} closed by remote peer", cli_fd);
+                msg = fmt::format("TCP socket fd {} closed by remote peer during read: {} (errno {})", 
+                        cli_fd, kis_strerror_r(errno), errno);
                 // Dump the commit
                 handler->commit_read_buffer_data(buf, 0);
                 handler->buffer_error(msg);
@@ -144,7 +145,7 @@ int socket_client::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
         }
     }
 
-    if (connected && FD_ISSET(cli_fd, &in_wset)) {
+    if (connected && FD_ISSET(cli_fd, &in_wset) && handler->get_write_buffer_used()) {
         // Peek the entire data 
         len = handler->zero_copy_peek_write_buffer_data((void **) &buf, 
                 handler->get_write_buffer_used());
@@ -166,7 +167,8 @@ int socket_client::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
                 return -1;
             }
         } else if (ret == 0) {
-            msg = fmt::format("TCP socket fd {} closed by remote peer", cli_fd);
+            msg = fmt::format("TCP socket fd {} closed by remote peer during write: {} (errno {})", 
+                    cli_fd, kis_strerror_r(errno), errno);
             handler->peek_free_write_buffer_data(buf);
             handler->buffer_error(msg);
             disconnect();
