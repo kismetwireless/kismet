@@ -190,7 +190,7 @@ int tcp_server_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
 
     int accept_fd = 0;
     if (server_fd >= 0 && FD_ISSET(server_fd, &in_rset)) {
-        if ((accept_fd = AcceptConnection()) <= 0)
+        if ((accept_fd = accept_connection()) <= 0)
             return 0;
 
         if (!AllowConnection(accept_fd)) {
@@ -352,7 +352,7 @@ void tcp_server_v2::kill_connection(std::shared_ptr<buffer_handler_generic> in_h
     }
 }
 
-int tcp_server_v2::AcceptConnection() {
+int tcp_server_v2::accept_connection() {
     int new_fd;
     struct sockaddr_in client_addr;
 #ifdef HAVE_SOCKLEN_T

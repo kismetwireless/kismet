@@ -82,7 +82,7 @@ protected:
     kis_recursive_timed_mutex tcp_mutex;
 
     // Perform the TCP accept
-    virtual int AcceptConnection();
+    virtual int accept_connection();
 
     // Filter against the filter list
     virtual bool AllowConnection(int in_fd);
