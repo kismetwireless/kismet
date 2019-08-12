@@ -339,23 +339,18 @@ protected:
 class datasource_tracker_httpd_pcap;
 
 class datasource_tracker : public kis_net_httpd_cppstream_handler, 
-    public lifetime_global, public deferred_startup, public tcp_server_v2 {
+    public lifetime_global, public deferred_startup {
 public:
     static std::shared_ptr<datasource_tracker> create_dst() {
         auto mon = std::make_shared<datasource_tracker>();
         Globalreg::globalreg->register_lifetime_global(mon);
         Globalreg::globalreg->insert_global(global_name(), mon);
         Globalreg::globalreg->register_deferred_global(mon);
-
-        auto pollabletracker =
-            Globalreg::fetch_mandatory_global_as<pollable_tracker>("POLLABLETRACKER");
-        pollabletracker->register_pollable(mon);
-
         mon->datasourcetracker = mon;
         return mon;
     }
 
-    // Must be public to accomodate make_shared but should not be called directly
+    // Must be public to accommodate make_shared but should not be called directly
     datasource_tracker();
 
 public:
@@ -438,9 +433,6 @@ public:
     // during this operation, making it thread safe.
     void iterate_datasources(datasource_tracker_worker *in_worker);
 
-    // TCPServerV2 API
-    virtual void new_connection(std::shared_ptr<buffer_handler_generic> conn_handler) override;
-
     // Parse a rate string
     double string_to_rate(std::string in_str, double in_default);
 
@@ -454,8 +446,13 @@ protected:
     // Merge a source into the source list, preserving UUID and source number
     virtual void merge_source(shared_datasource in_source);
 
+    // Callback registered with the tcp server for a new connection
+    void new_remote_tcp_connection(int in_fd);
+
     // Log the datasources
     virtual void databaselog_write_datasources();
+
+    std::shared_ptr<tcp_server_v2> remote_tcp_server;
 
     std::shared_ptr<datasource_tracker> datasourcetracker;
     std::shared_ptr<time_tracker> timetracker;

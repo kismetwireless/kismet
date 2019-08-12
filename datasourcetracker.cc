@@ -20,21 +20,22 @@
 
 #include <string.h>
 
-#include "configfile.h"
-#include "getopt.h"
-#include "datasourcetracker.h"
-#include "messagebus.h"
-#include "globalregistry.h"
 #include "alertracker.h"
-#include "kismet_json.h"
-#include "timetracker.h"
-#include "structured.h"
 #include "base64.h"
-#include "pcapng_stream_ringbuf.h"
-#include "streamtracker.h"
-#include "kis_httpd_registry.h"
+#include "configfile.h"
+#include "datasourcetracker.h"
 #include "endian_magic.h"
+#include "getopt.h"
+#include "globalregistry.h"
+#include "kismet_json.h"
 #include "kis_databaselogfile.h"
+#include "kis_httpd_registry.h"
+#include "messagebus.h"
+#include "pcapng_stream_ringbuf.h"
+#include "socketclient.h"
+#include "streamtracker.h"
+#include "structured.h"
+#include "timetracker.h"
 
 datasource_tracker_source_probe::datasource_tracker_source_probe(std::string in_definition, 
         std::shared_ptr<tracker_element_vector> in_protovec) {
@@ -297,8 +298,7 @@ void datasource_tracker_source_list::list_sources(std::function<void (std::vecto
 
 
 datasource_tracker::datasource_tracker() :
-    kis_net_httpd_cppstream_handler(),
-    tcp_server_v2(Globalreg::globalreg) {
+    kis_net_httpd_cppstream_handler() {
 
     timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
     eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
@@ -368,6 +368,13 @@ datasource_tracker::datasource_tracker() :
 datasource_tracker::~datasource_tracker() {
     Globalreg::globalreg->RemoveGlobal("DATASOURCETRACKER");
 
+    if (remote_tcp_server != nullptr) {
+        auto pollabletracker = 
+            Globalreg::fetch_mandatory_global_as<pollable_tracker>();
+        remote_tcp_server->shutdown();
+        pollabletracker->remove_pollable(remote_tcp_server);
+    }
+
     if (completion_cleanup_id >= 0)
         timetracker->RemoveTimer(completion_cleanup_id);
 
@@ -436,7 +443,7 @@ void datasource_tracker::trigger_deferred_startup() {
             _MSG("Setting default channel hop rate to " + optval, MSGFLAG_INFO);
         } catch (const std::exception& e) {
             _MSG_FATAL("Could not parse channel_hop_speed= config: {}", e.what());
-            globalreg->fatal_condition = 1;
+            Globalreg::globalreg->fatal_condition = 1;
             return;
         }
     } else {
@@ -566,12 +573,20 @@ void datasource_tracker::trigger_deferred_startup() {
             config_defaults->get_remote_cap_port() != 0) {
         _MSG("Launching remote capture server on " + listen + ":" + 
                 uint_to_string(listenport), MSGFLAG_INFO);
-        if (configure_server(listenport, 1024, listen, std::vector<std::string>()) < 0) {
+        remote_tcp_server = std::make_shared<tcp_server_v2>();
+        if (remote_tcp_server->configure_server(listenport, 1024, listen, std::vector<std::string>()) < 0) {
             _MSG("Failed to launch remote capture TCP server, check your "
                     "remote_capture_listen= and remote_capture_port= lines in "
                     "kismet.conf", MSGFLAG_FATAL);
             Globalreg::globalreg->fatal_condition = 1;
         }
+        remote_tcp_server->set_new_connection_cb([this](int fd) -> void {
+                new_remote_tcp_connection(fd);
+                });
+
+        auto pollabletracker =
+            Globalreg::fetch_mandatory_global_as<pollable_tracker>();
+        pollabletracker->register_pollable(remote_tcp_server);
     }
 
     remote_complete_timer = -1;
@@ -1061,15 +1076,29 @@ void datasource_tracker::schedule_cleanup() {
     //fprintf(stderr, "debug - dst scheduling cleanup as %d\n", completion_cleanup_id);
 }
 
-void datasource_tracker::new_connection(std::shared_ptr<buffer_handler_generic> conn_handler) {
-    dst_incoming_remote *incoming = new dst_incoming_remote(conn_handler, 
+void datasource_tracker::new_remote_tcp_connection(int in_fd) {
+    // Make a new connection handler with its own mutex
+    auto conn_handler = 
+        std::make_shared<buffer_handler<ringbuf_v2>>((1024 * 1024), (1024 * 1024));
+
+    // Bind it to the tcp socket
+    auto socketcli = 
+        std::make_shared<socket_client>(in_fd, conn_handler);
+
+    // Bind a new incoming remote which will pivot to the proper data source type
+    auto incoming_remote = new dst_incoming_remote(conn_handler, 
                 [this] (dst_incoming_remote *i, std::string in_type, std::string in_def, 
                     uuid in_uuid, std::shared_ptr<buffer_handler_generic> in_handler) {
             in_handler->remove_read_buffer_interface();
             open_remote_datasource(i, in_type, in_def, in_uuid, in_handler);
         });
 
-    conn_handler->set_read_buffer_interface(incoming);
+    conn_handler->set_read_buffer_interface(incoming_remote);
+
+    // Register the connection as pollable
+    auto pollabletracker = 
+        Globalreg::fetch_mandatory_global_as<pollable_tracker>();
+    pollabletracker->register_pollable(socketcli);
 }
 
 void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,

@@ -369,6 +369,9 @@ void kis_datasource::connect_remote(std::shared_ptr<buffer_handler_generic> in_r
 
     // Send an opensource
     send_open_source(in_definition, 0, in_cb);
+
+    // Inherit the mutex from the incoming remote
+    ext_mutex = in_ringbuf->get_mutex();
 }
 
 void kis_datasource::close_source() {

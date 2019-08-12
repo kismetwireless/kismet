@@ -45,10 +45,9 @@
 #define MAXHOSTNAMELEN 64
 #endif
 
-// New TCP server code
-//
-// This code replaces tcpserver and netframework with a cleaner TCP implementation
-// which interacts with a bufferhandler
+// A callback-oriented tcpserver implementation which triggers a callback 
+// with the incoming file descriptor of incoming connections.  Basic hostname
+// filtering is implemented.
 
 class tcp_server_v2 : public kis_pollable {
 public:
@@ -57,28 +56,21 @@ public:
         in_addr mask;
     };
 
-    tcp_server_v2(global_registry *in_globalreg);
+    tcp_server_v2();
     virtual ~tcp_server_v2();
 
     virtual int configure_server(short int in_port, unsigned int in_maxcli,
             std::string in_bindaddress, std::vector<std::string> in_filtervec);
 
-    virtual void kill_connection(int in_fd);
-    virtual void kill_connection(std::shared_ptr<buffer_handler_generic> in_handler);
+    void set_new_connection_cb(std::function<void (int)> cb);
+    void remove_new_connection_cb();
 
     virtual void shutdown();
-
-    virtual void set_buffer_size(unsigned int in_sz);
 
     // kis_pollable
     virtual int pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
     virtual int pollable_poll(fd_set& in_rset, fd_set& in_wset);
-   
-    // Must be filled in
-    virtual void new_connection(std::shared_ptr<buffer_handler_generic> conn_handler) = 0;
 protected:
-    global_registry *globalreg;
-
     kis_recursive_timed_mutex tcp_mutex;
 
     // Perform the TCP accept
@@ -87,12 +79,7 @@ protected:
     // Filter against the filter list
     virtual bool allow_connection(int in_fd);
 
-    // Allocate the connection
-    virtual std::shared_ptr<buffer_handler_generic> allocate_connection(int in_fd);
-
     bool valid;
-
-    unsigned int ringbuf_size;
 
     char hostname[MAXHOSTNAMELEN];
     short int port;
@@ -104,11 +91,7 @@ protected:
 
     int server_fd;
 
-    // FD to handler
-    std::map<int, std::shared_ptr<buffer_handler_generic> > handler_map;
-
-    std::map<int, std::shared_ptr<buffer_handler_generic> > kill_map;
-
+    std::function<void (int)> new_connection_cb;
 };
 
 #endif

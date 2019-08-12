@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -20,21 +20,22 @@
 #include "tcpserver2.h"
 #include "ringbuf2.h"
 
-tcp_server_v2::tcp_server_v2(global_registry *in_globalreg) {
-    globalreg = in_globalreg;
-    valid = false;
-    
-    server_fd = -1;
-
-    ringbuf_size = 128 * 1024;
-}
+tcp_server_v2::tcp_server_v2() :
+    valid {false},
+    server_fd {-1} { }
 
 tcp_server_v2::~tcp_server_v2() {
     shutdown();
 }
 
-void tcp_server_v2::set_buffer_size(unsigned int in_sz) {
-    ringbuf_size = in_sz;
+void tcp_server_v2::set_new_connection_cb(std::function<void (int)> in_cb) {
+    local_locker l(&tcp_mutex);
+    new_connection_cb = in_cb;
+}
+
+void tcp_server_v2::remove_new_connection_cb() {
+    local_locker l(&tcp_mutex);
+    new_connection_cb = nullptr;
 }
 
 int tcp_server_v2::configure_server(short int in_port, unsigned int in_maxcli,
@@ -46,20 +47,20 @@ int tcp_server_v2::configure_server(short int in_port, unsigned int in_maxcli,
 
     // Parse the filters
     for (auto i = in_filtervec.begin(); i != in_filtervec.end(); ++i) {
-        std::vector<std::string> fv = str_tokenize(*i, "/");
+        auto fv = str_tokenize(*i, "/");
 
         ipfilter ipf;
 
         if (inet_aton(fv[0].c_str(), &(ipf.network)) != 1) {
-            _MSG("TCP server unable to parse allowed network range '" + 
-                    fv[0] + "'", MSGFLAG_ERROR);
+            _MSG_ERROR("Unable to configure TCP server for port {}:  Unable to parse "
+                    "allowed network range '{}'", in_port, fv[0]);
             return -1;
         }
 
         if (fv.size() == 2) {
             if (inet_aton(fv[1].c_str(), &(ipf.mask)) != 1) {
-                _MSG("TCP server unable to parse allowed network mask '" +
-                        fv[1] + "'", MSGFLAG_ERROR);
+                _MSG_ERROR("Unable to configure TCP server for port {}:  Unable to parse "
+                        "allowed network mask '{}'", in_port, fv[0]);
                 return -1;
             }
         } else {
@@ -70,8 +71,8 @@ int tcp_server_v2::configure_server(short int in_port, unsigned int in_maxcli,
     }
 
     if (gethostname(hostname, MAXHOSTNAMELEN) < 0) {
-        _MSG("TCP server gethostname() failed: " + kis_strerror_r(errno),
-                MSGFLAG_ERROR);
+        _MSG_ERROR("Unable to configure TCP server for port {}, unable to fetch "
+                "local hostname: {}", in_port, kis_strerror_r(errno));
         return -1;
     }
 
@@ -86,14 +87,14 @@ int tcp_server_v2::configure_server(short int in_port, unsigned int in_maxcli,
     // Make a socket that closes on execve
 #ifdef SOCK_CLOEXEC
     if ((server_fd = socket(AF_INET, SOCK_CLOEXEC | SOCK_STREAM, 0)) < 0) {
-        _MSG("TCP server socket() failed: " + kis_strerror_r(errno),
-                MSGFLAG_ERROR);
+        _MSG_ERROR("Unable to configure TCP server for port {}, unable to make socket: {}",
+                in_port, kis_strerror_r(errno));
         return -1;
     }
 #else
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        _MSG("TCP server socket() failed: " + kis_strerror_r(errno),
-                MSGFLAG_ERROR);
+        _MSG_ERROR("Unable to configure TCP server for port {}, unable to make socket: {}",
+                in_port, kis_strerror_r(errno));
         return -1;
     }
     fcntl(server_fd, F_SETFL, fcntl(server_fd, F_GETFL, 0) | O_CLOEXEC);
@@ -102,23 +103,23 @@ int tcp_server_v2::configure_server(short int in_port, unsigned int in_maxcli,
     // Set reuse addr
     int i = 2;
     if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &i, sizeof(i)) == -1) {
-        _MSG("TCP server setsockopt(REUSEADDR) failed: " + kis_strerror_r(errno),
-                MSGFLAG_ERROR);
+        _MSG_ERROR("Unable to configure TCP server for port {}, unable to set socket options: {}",
+                in_port, kis_strerror_r(errno));
         close(server_fd);
         return -1;
     }
 
     if (::bind(server_fd, (struct sockaddr *) &serv_sock, sizeof(serv_sock)) < 0) {
-        _MSG("TCP server bind() failed: " + kis_strerror_r(errno),
-                MSGFLAG_ERROR);
+        _MSG_ERROR("Unable to configure TCP server for port {}, unable to bind socket: {}",
+                in_port, kis_strerror_r(errno));
         close(server_fd);
         return -1;
     }
 
     // Enable listening
     if (listen(server_fd, 20) < 0) {
-        _MSG("TCP server listen() failed : " + kis_strerror_r(errno),
-                MSGFLAG_ERROR);
+        _MSG_ERROR("Unable to configure TCP server for port {}, unable to listen on socket: {}",
+                in_port, kis_strerror_r(errno));
         close(server_fd);
         return -1;
     }
@@ -145,48 +146,15 @@ int tcp_server_v2::pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *o
             maxfd = server_fd;
     }
 
-    for (auto i = handler_map.begin(); i != handler_map.end(); ++i) {
-        if (i->second->get_read_buffer_available() > 0) {
-            FD_SET(i->first, out_rset);
-
-            if (maxfd < i->first)
-                maxfd = i->first;
-        }
-
-        if (i->second->get_write_buffer_used() > 0) {
-            FD_SET(i->first, out_wset);
-
-            if (maxfd < i->first)
-                maxfd = i->first;
-        }
-    }
-
     return maxfd;
 }
 
 
 int tcp_server_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
-    std::stringstream msg;
-    int ret, iret;
-    size_t len;
-    unsigned char *buf;
-    ssize_t r_sz;
-
     local_locker l(&tcp_mutex);
 
     if (!valid)
         return -1;
-
-    // Reap any pending closures
-    for (auto i = kill_map.begin(); i != kill_map.end(); ++i) {
-        auto h = handler_map.find(i->first);
-        
-        if (h != kill_map.end()) {
-            close(h->first);
-            handler_map.erase(h);
-        }
-    }
-    kill_map.clear();
 
     int accept_fd = 0;
     if (server_fd >= 0 && FD_ISSET(server_fd, &in_rset)) {
@@ -194,162 +162,21 @@ int tcp_server_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
             return 0;
 
         if (!allow_connection(accept_fd)) {
-            kill_connection(accept_fd);
+            close(accept_fd);
             return 0;
         }
 
-        std::shared_ptr<buffer_handler_generic> con_handler = allocate_connection(accept_fd);
-
-        if (con_handler == NULL) {
-            kill_connection(accept_fd);
+        if (new_connection_cb == nullptr) {
+            close(accept_fd);
+            _MSG_ERROR("TCP server on port {} cannot accept new connections as "
+                    "no new connection callback has been registered.", port);
             return 0;
         }
 
-        handler_map[accept_fd] = con_handler;
-
-        new_connection(con_handler);
+        new_connection_cb(accept_fd);
     }
-
-    for (auto i = handler_map.begin(); i != handler_map.end(); ++i) {
-        // Process incoming data
-        if (FD_ISSET(i->first, &in_rset)) {
-
-            while (i->second->get_read_buffer_available() > 0) {
-                // Read only as much as we can get w/ a direct reference
-                r_sz = i->second->zero_copy_reserve_read_buffer_data((void **) &buf, 
-                        i->second->get_read_buffer_available());
-
-                if (r_sz < 0) {
-                    break;
-                }
-
-
-                ret = recv(i->first, buf, r_sz, MSG_DONTWAIT);
-
-                if (ret < 0) {
-                    if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
-                        // Dump the commit, we didn't get any data
-                        i->second->commit_read_buffer_data(buf, 0);
-
-                        break;
-                    } else {
-                        // Push the error upstream if we failed to read here
-
-                        // Dump the commit
-                        i->second->commit_read_buffer_data(buf, 0);
-                        i->second->buffer_error(msg.str());
-
-                        kill_connection(i->first);
-
-                        break;
-                    }
-                } else if (ret == 0) {
-                    msg << "TCP server closing connection from client " << i->first <<
-                        " - connection closed by remote side";
-                    _MSG(msg.str(), MSGFLAG_ERROR);
-                    // Dump the commit
-                    i->second->commit_read_buffer_data(buf, 0);
-                    i->second->buffer_error(msg.str());
-
-                    kill_connection(i->first);
-
-                    break;
-                } else {
-                    // Commit the data
-                    iret = i->second->commit_read_buffer_data(buf, ret);
-
-                    if (!iret) {
-                        // Die if we somehow couldn't insert all our data once we
-                        // read it from the socket since we can't put it back on the
-                        // input queue.  This should never happen because we're the
-                        // only input source but we'll handle it
-                        msg << "Could not commit read data for client " << i->first;
-                        _MSG(msg.str(), MSGFLAG_ERROR);
-
-                        kill_connection(i->first);
-                        break;
-                    }
-                }
-            }
-        }
-
-        if (FD_ISSET(i->first, &in_wset)) {
-            len = i->second->zero_copy_peek_write_buffer_data((void **) &buf, 
-                    i->second->get_write_buffer_used());
-
-            if (len > 0) {
-                ret = send(i->first, buf, len, MSG_DONTWAIT);
-
-                if (ret < 0) {
-                    if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
-                        i->second->peek_free_write_buffer_data(buf);
-                        continue;
-                    } else {
-                        msg << "TCP server error writing to client " << i->first <<
-                            " - " << kis_strerror_r(errno);
-
-                        i->second->peek_free_write_buffer_data(buf);
-                        i->second->buffer_error(msg.str());
-
-                        kill_connection(i->first);
-                        continue;
-                    }
-                } else if (ret == 0) {
-                    msg << "TCP server closing client " << i->first <<
-                        " - connection closed by remote side.";
-                    i->second->peek_free_write_buffer_data(buf);
-                    i->second->buffer_error(msg.str());
-                    kill_connection(i->first);
-                    continue;
-                } else {
-                    // Consume whatever we managed to write
-                    i->second->peek_free_write_buffer_data(buf);
-                    i->second->consume_write_buffer_data(ret);
-                }
-            } else {
-                i->second->peek_free_write_buffer_data(buf);
-            }
-        }
-    }
-
-    // Reap any pending closures
-    for (auto i = kill_map.begin(); i != kill_map.end(); ++i) {
-        auto h = handler_map.find(i->first);
-        
-        if (h != kill_map.end()) {
-            close(h->first);
-            handler_map.erase(h);
-        }
-    }
-    kill_map.clear();
 
     return 0;
-}
-
-void tcp_server_v2::kill_connection(int in_fd) {
-    local_locker l(&tcp_mutex);
-
-    if (in_fd < 0)
-        return;
-
-    auto i = handler_map.find(in_fd);
-
-    if (i != handler_map.end()) {
-        kill_map[i->first] = i->second;
-        i->second->buffer_error("TCP connection closed");
-    }
-}
-
-void tcp_server_v2::kill_connection(std::shared_ptr<buffer_handler_generic> in_handler) {
-    local_locker l(&tcp_mutex);
-
-    for (auto i : handler_map) {
-        if (i.second == in_handler) {
-            kill_map[i.first] = i.second;
-            i.second->buffer_error("TCP connection closed");
-            return;
-        }
-    }
 }
 
 int tcp_server_v2::accept_connection() {
@@ -369,7 +196,8 @@ int tcp_server_v2::accept_connection() {
     if ((new_fd = accept4(server_fd, (struct sockaddr *) &client_addr, 
                     &client_len, SOCK_CLOEXEC)) < 0) {
         if (errno != EAGAIN && errno != EWOULDBLOCK) {
-            _MSG("TCP server accept() failed: " + kis_strerror_r(errno), MSGFLAG_ERROR);
+            _MSG_ERROR("TCP server on port {}, unable to accept connection: {}",
+                    port, kis_strerror_r(errno));
             return -1;
         }
 
@@ -379,7 +207,8 @@ int tcp_server_v2::accept_connection() {
     if ((new_fd = accept(server_fd, (struct sockaddr *) &client_addr, 
                     &client_len)) < 0) {
         if (errno != EAGAIN && errno != EWOULDBLOCK) {
-            _MSG("TCP server accept() failed: " + kis_strerror_r(errno), MSGFLAG_ERROR);
+            _MSG_ERROR("TCP server on port {}, unable to accept connection: {}",
+                    port, kis_strerror_r(errno));
             return -1;
         }
 
@@ -388,13 +217,6 @@ int tcp_server_v2::accept_connection() {
 
     fcntl(new_fd, F_SETFL, fcntl(new_fd, F_GETFL, 0) | O_CLOEXEC);
 #endif
-
-    if (handler_map.size() >= maxcli) {
-        _MSG("TCP server maximum number of clients reached, cannot accept new "
-                "connection.", MSGFLAG_ERROR);
-        close(new_fd);
-        return -1;
-    }
 
     // Nonblocking, don't clone
     fcntl(new_fd, F_SETFL, fcntl(new_fd, F_GETFL, 0) | O_NONBLOCK);
@@ -416,8 +238,8 @@ bool tcp_server_v2::allow_connection(int in_fd) {
     client_len = sizeof(struct sockaddr_in);
 
     if (getsockname(in_fd, (struct sockaddr *) &client_addr, &client_len) < 0) {
-        _MSG("TCP server failed getsockname(): " + kis_strerror_r(errno),
-                MSGFLAG_ERROR);
+        _MSG_ERROR("TCP server on port {}, unable to accept connection, could not get socket name: {}",
+                port, kis_strerror_r(errno));
         return false;
     }
 
@@ -432,31 +254,14 @@ bool tcp_server_v2::allow_connection(int in_fd) {
         }
     }
 
-    _MSG_ERROR("TCP server refusing connection from unauthorized address {}", 
-            inet_ntoa(client_addr.sin_addr));
+    _MSG_ERROR("TCP server on port {}, refusing connection from unauthorized address {}",
+            port, inet_ntoa(client_addr.sin_addr));
 
     return false;
 }
 
-std::shared_ptr<buffer_handler_generic> tcp_server_v2::allocate_connection(int in_fd) {
-    // Basic allocation
-    std::shared_ptr<buffer_handler_generic> rbh(new buffer_handler<ringbuf_v2>(ringbuf_size, ringbuf_size));  
-
-    // Protocol errors kill the connection
-    auto fd_alias = in_fd;
-    rbh->set_protocol_error_cb([this, fd_alias]() {
-        kill_connection(fd_alias);
-    });
-
-    return rbh;
-}
-
 void tcp_server_v2::shutdown() {
     local_locker l(&tcp_mutex);
-
-    for (auto i = handler_map.begin(); i != handler_map.end(); ++i) {
-        kill_connection(i->first);
-    }
 
     close(server_fd);
 
