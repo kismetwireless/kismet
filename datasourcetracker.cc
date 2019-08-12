@@ -566,7 +566,7 @@ void datasource_tracker::trigger_deferred_startup() {
             config_defaults->get_remote_cap_port() != 0) {
         _MSG("Launching remote capture server on " + listen + ":" + 
                 uint_to_string(listenport), MSGFLAG_INFO);
-        if (ConfigureServer(listenport, 1024, listen, std::vector<std::string>()) < 0) {
+        if (configure_server(listenport, 1024, listen, std::vector<std::string>()) < 0) {
             _MSG("Failed to launch remote capture TCP server, check your "
                     "remote_capture_listen= and remote_capture_port= lines in "
                     "kismet.conf", MSGFLAG_FATAL);

@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -60,7 +60,7 @@ public:
     tcp_server_v2(global_registry *in_globalreg);
     virtual ~tcp_server_v2();
 
-    virtual int ConfigureServer(short int in_port, unsigned int in_maxcli,
+    virtual int configure_server(short int in_port, unsigned int in_maxcli,
             std::string in_bindaddress, std::vector<std::string> in_filtervec);
 
     virtual void KillConnection(int in_fd);

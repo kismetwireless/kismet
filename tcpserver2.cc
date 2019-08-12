@@ -37,7 +37,7 @@ void tcp_server_v2::SetBufferSize(unsigned int in_sz) {
     ringbuf_size = in_sz;
 }
 
-int tcp_server_v2::ConfigureServer(short int in_port, unsigned int in_maxcli,
+int tcp_server_v2::configure_server(short int in_port, unsigned int in_maxcli,
         std::string in_bindaddress, std::vector<std::string> in_filtervec) {
     local_locker l(&tcp_mutex);
 
