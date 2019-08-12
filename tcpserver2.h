@@ -63,8 +63,8 @@ public:
     virtual int configure_server(short int in_port, unsigned int in_maxcli,
             std::string in_bindaddress, std::vector<std::string> in_filtervec);
 
-    virtual void KillConnection(int in_fd);
-    virtual void KillConnection(std::shared_ptr<buffer_handler_generic> in_handler);
+    virtual void kill_connection(int in_fd);
+    virtual void kill_connection(std::shared_ptr<buffer_handler_generic> in_handler);
 
     virtual void Shutdown();
 

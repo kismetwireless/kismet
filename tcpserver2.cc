@@ -194,14 +194,14 @@ int tcp_server_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
             return 0;
 
         if (!AllowConnection(accept_fd)) {
-            KillConnection(accept_fd);
+            kill_connection(accept_fd);
             return 0;
         }
 
         std::shared_ptr<buffer_handler_generic> con_handler = AllocateConnection(accept_fd);
 
         if (con_handler == NULL) {
-            KillConnection(accept_fd);
+            kill_connection(accept_fd);
             return 0;
         }
 
@@ -239,7 +239,7 @@ int tcp_server_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
                         i->second->commit_read_buffer_data(buf, 0);
                         i->second->buffer_error(msg.str());
 
-                        KillConnection(i->first);
+                        kill_connection(i->first);
 
                         break;
                     }
@@ -251,7 +251,7 @@ int tcp_server_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
                     i->second->commit_read_buffer_data(buf, 0);
                     i->second->buffer_error(msg.str());
 
-                    KillConnection(i->first);
+                    kill_connection(i->first);
 
                     break;
                 } else {
@@ -266,7 +266,7 @@ int tcp_server_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
                         msg << "Could not commit read data for client " << i->first;
                         _MSG(msg.str(), MSGFLAG_ERROR);
 
-                        KillConnection(i->first);
+                        kill_connection(i->first);
                         break;
                     }
                 }
@@ -291,7 +291,7 @@ int tcp_server_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
                         i->second->peek_free_write_buffer_data(buf);
                         i->second->buffer_error(msg.str());
 
-                        KillConnection(i->first);
+                        kill_connection(i->first);
                         continue;
                     }
                 } else if (ret == 0) {
@@ -299,7 +299,7 @@ int tcp_server_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
                         " - connection closed by remote side.";
                     i->second->peek_free_write_buffer_data(buf);
                     i->second->buffer_error(msg.str());
-                    KillConnection(i->first);
+                    kill_connection(i->first);
                     continue;
                 } else {
                     // Consume whatever we managed to write
@@ -326,7 +326,7 @@ int tcp_server_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
     return 0;
 }
 
-void tcp_server_v2::KillConnection(int in_fd) {
+void tcp_server_v2::kill_connection(int in_fd) {
     local_locker l(&tcp_mutex);
 
     if (in_fd < 0)
@@ -340,7 +340,7 @@ void tcp_server_v2::KillConnection(int in_fd) {
     }
 }
 
-void tcp_server_v2::KillConnection(std::shared_ptr<buffer_handler_generic> in_handler) {
+void tcp_server_v2::kill_connection(std::shared_ptr<buffer_handler_generic> in_handler) {
     local_locker l(&tcp_mutex);
 
     for (auto i : handler_map) {
@@ -445,7 +445,7 @@ std::shared_ptr<buffer_handler_generic> tcp_server_v2::AllocateConnection(int in
     // Protocol errors kill the connection
     auto fd_alias = in_fd;
     rbh->set_protocol_error_cb([this, fd_alias]() {
-        KillConnection(fd_alias);
+        kill_connection(fd_alias);
     });
 
     return rbh;
@@ -455,7 +455,7 @@ void tcp_server_v2::Shutdown() {
     local_locker l(&tcp_mutex);
 
     for (auto i = handler_map.begin(); i != handler_map.end(); ++i) {
-        KillConnection(i->first);
+        kill_connection(i->first);
     }
 
     close(server_fd);
