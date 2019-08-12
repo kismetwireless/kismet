@@ -283,7 +283,7 @@ public:
     virtual void set_read_buffer_drain_cb(std::function<void (size_t)> in_cb);
     virtual void set_write_buffer_drain_cb(std::function<void (size_t)> in_cb);
 
-    virtual void RemoveReadBufferDrainCb();
+    virtual void remove_read_buffer_drain_cb();
     virtual void RemoveWriteBufferDrainCb();
 
     // Propagate a line-layer buffer error to any listeners (line IO system to interfaces)

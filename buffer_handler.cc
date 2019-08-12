@@ -393,7 +393,7 @@ void buffer_handler_generic::set_write_buffer_drain_cb(std::function<void (size_
     wbuf_drain_avail = true;
 }
 
-void buffer_handler_generic::RemoveReadBufferDrainCb() {
+void buffer_handler_generic::remove_read_buffer_drain_cb() {
     rbuf_drain_avail = false;
     readbuf_drain_cb = nullptr;
 }
