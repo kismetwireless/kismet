@@ -409,12 +409,12 @@ void kis_database_logfile::close_log() {
     auto timetracker = 
         Globalreg::FetchGlobalAs<time_tracker>();
     if (timetracker != NULL) {
-        timetracker->RemoveTimer(transaction_timer);
-        timetracker->RemoveTimer(packet_timeout_timer);
-        timetracker->RemoveTimer(alert_timeout_timer);
-        timetracker->RemoveTimer(device_timeout_timer);
-        timetracker->RemoveTimer(message_timeout_timer);
-        timetracker->RemoveTimer(snapshot_timeout_timer);
+        timetracker->remove_timer(transaction_timer);
+        timetracker->remove_timer(packet_timeout_timer);
+        timetracker->remove_timer(alert_timeout_timer);
+        timetracker->remove_timer(device_timeout_timer);
+        timetracker->remove_timer(message_timeout_timer);
+        timetracker->remove_timer(snapshot_timeout_timer);
     }
 
     // End the transaction

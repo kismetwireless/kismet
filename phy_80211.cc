@@ -814,7 +814,7 @@ kis_80211_phy::~kis_80211_phy() {
 	packetchain->remove_handler(&packet_dot11_common_classifier,
             CHAINPOS_CLASSIFIER);
 
-    timetracker->RemoveTimer(device_idle_timer);
+    timetracker->remove_timer(device_idle_timer);
 
     delete[] recent_packet_checksums;
 }

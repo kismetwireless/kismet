@@ -53,7 +53,7 @@ datasource_tracker_source_probe::datasource_tracker_source_probe(std::string in_
 datasource_tracker_source_probe::~datasource_tracker_source_probe() {
     // Cancel any timers
     for (auto i : cancel_timer_vec)
-        timetracker->RemoveTimer(i);
+        timetracker->remove_timer(i);
 
     // Cancel any existing transactions
     for (auto i : ipc_probe_map)
@@ -68,7 +68,7 @@ void datasource_tracker_source_probe::cancel() {
 
         // Cancel any timers
         for (auto i : cancel_timer_vec)
-            timetracker->RemoveTimer(i);
+            timetracker->remove_timer(i);
 
         // Cancel any other competing probing sources; this may trigger the callbacks
         // which will call the completion function, but we'll ignore them because
@@ -185,7 +185,7 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (shared_d
 
         pds->probe_interface(definition, transaction, 
                 [cancel_timer, this](unsigned int transaction, bool success, std::string reason) {
-                    timetracker->RemoveTimer(cancel_timer);
+                    timetracker->remove_timer(cancel_timer);
                     complete_probe(success, transaction, reason);
                 });
     }
@@ -376,10 +376,10 @@ datasource_tracker::~datasource_tracker() {
     }
 
     if (completion_cleanup_id >= 0)
-        timetracker->RemoveTimer(completion_cleanup_id);
+        timetracker->remove_timer(completion_cleanup_id);
 
     if (database_log_timer >= 0) {
-        timetracker->RemoveTimer(database_log_timer);
+        timetracker->remove_timer(database_log_timer);
         databaselog_write_datasources();
     }
 
@@ -1009,7 +1009,7 @@ void datasource_tracker::list_interfaces(const std::function<void (std::vector<s
     // Initiate the probe
     dst_list->list_sources([this, cancel_timer, listid, in_cb](std::vector<shared_interface> interfaces) {
         // We're complete; cancel the timer if it's still around.
-        timetracker->RemoveTimer(cancel_timer);
+        timetracker->remove_timer(cancel_timer);
 
         local_demand_locker lock(&dst_lock);
         lock.lock();
@@ -2039,7 +2039,7 @@ dst_incoming_remote::dst_incoming_remote(std::shared_ptr<buffer_handler_generic>
 
 dst_incoming_remote::~dst_incoming_remote() {
     // Kill the error timer
-    timetracker->RemoveTimer(timerid);
+    timetracker->remove_timer(timerid);
 
     // Remove ourselves as a handler
     if (ringbuf_handler != NULL)
@@ -2064,7 +2064,7 @@ bool dst_incoming_remote::dispatch_rx_packet(std::shared_ptr<KismetExternal::Com
 
 void dst_incoming_remote::kill() {
     // Kill the error timer
-    timetracker->RemoveTimer(timerid);
+    timetracker->remove_timer(timerid);
 
     close_external();
 

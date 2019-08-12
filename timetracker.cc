@@ -390,7 +390,7 @@ int time_tracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
     return evt->timer_id;
 }
 
-int time_tracker::RemoveTimer(int in_timerid) {
+int time_tracker::remove_timer(int in_timerid) {
     // Removing a timer sets the atomic cancelled and puts us on the abort list;
     // we'll get cleaned out of the main list the next iteration through the main code.
     

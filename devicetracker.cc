@@ -490,9 +490,9 @@ device_tracker::~device_tracker() {
     std::shared_ptr<time_tracker> timetracker = 
         Globalreg::FetchGlobalAs<time_tracker>(globalreg, "TIMETRACKER");
     if (timetracker != NULL) {
-        timetracker->RemoveTimer(device_idle_timer);
-        timetracker->RemoveTimer(max_devices_timer);
-        timetracker->RemoveTimer(device_storage_timer);
+        timetracker->remove_timer(device_idle_timer);
+        timetracker->remove_timer(max_devices_timer);
+        timetracker->remove_timer(device_storage_timer);
     }
 
     // TODO broken for now

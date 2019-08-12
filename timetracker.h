@@ -115,7 +115,7 @@ public:
             int in_recurring, std::function<int (int)> event);
 
     // Remove a timer that's going to execute
-    int RemoveTimer(int timer_id);
+    int remove_timer(int timer_id);
 
     void Tick();
 

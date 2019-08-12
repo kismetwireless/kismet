@@ -99,7 +99,7 @@ gps_tracker::~gps_tracker() {
     std::shared_ptr<time_tracker> timetracker = 
         Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
 
-    timetracker->RemoveTimer(log_snapshot_timer);
+    timetracker->remove_timer(log_snapshot_timer);
 }
 
 void gps_tracker::log_snapshot_gps() {

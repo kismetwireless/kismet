@@ -194,8 +194,8 @@ Systemmonitor::~Systemmonitor() {
 
     auto timetracker = Globalreg::FetchGlobalAs<time_tracker>("TIMETRACKER");
     if (timetracker != nullptr) {
-        timetracker->RemoveTimer(timer_id);
-        timetracker->RemoveTimer(kismetdb_log_timer);
+        timetracker->remove_timer(timer_id);
+        timetracker->remove_timer(kismetdb_log_timer);
     }
 
     eventbus->remove_listener(logopen_evt_id);

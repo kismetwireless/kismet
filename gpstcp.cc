@@ -74,7 +74,7 @@ kis_gps_tcp::~kis_gps_tcp() {
 
     std::shared_ptr<time_tracker> timetracker = Globalreg::FetchGlobalAs<time_tracker>("TIMETRACKER");
     if (timetracker != nullptr)
-        timetracker->RemoveTimer(error_reconnect_timer);
+        timetracker->remove_timer(error_reconnect_timer);
 }
 
 bool kis_gps_tcp::open_gps(std::string in_opts) {

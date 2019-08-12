@@ -157,8 +157,8 @@ dot11_ssid_scan::dot11_ssid_scan() {
 
 dot11_ssid_scan::~dot11_ssid_scan() {
     eventbus->remove_listener(eventbus_id);
-    timetracker->RemoveTimer(hopping_mode_end_timer);
-    timetracker->RemoveTimer(capture_mode_end_timer);
+    timetracker->remove_timer(hopping_mode_end_timer);
+    timetracker->remove_timer(capture_mode_end_timer);
 
 }
 

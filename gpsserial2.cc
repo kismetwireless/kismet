@@ -71,7 +71,7 @@ kis_gps_serial_v2::~kis_gps_serial_v2() {
 
     auto timetracker = Globalreg::FetchGlobalAs<time_tracker>();
     if (timetracker != nullptr)
-        timetracker->RemoveTimer(error_reconnect_timer);
+        timetracker->remove_timer(error_reconnect_timer);
 }
 
 bool kis_gps_serial_v2::open_gps(std::string in_opts) {

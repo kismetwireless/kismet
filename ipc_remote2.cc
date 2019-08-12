@@ -476,8 +476,8 @@ ipc_remote_v2_tracker::ipc_remote_v2_tracker(global_registry *in_globalreg) {
 ipc_remote_v2_tracker::~ipc_remote_v2_tracker() {
     globalreg->RemoveGlobal("IPCHANDLER");
 
-    globalreg->timetracker->RemoveTimer(timer_id);
-    globalreg->timetracker->RemoveTimer(cleanup_timer_id);
+    globalreg->timetracker->remove_timer(timer_id);
+    globalreg->timetracker->remove_timer(cleanup_timer_id);
 }
 
 void ipc_remote_v2_tracker::add_ipc(std::shared_ptr<ipc_remote_v2> in_remote) {

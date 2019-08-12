@@ -38,7 +38,7 @@ kis_external_interface::kis_external_interface() :
     ping_timer_id {-1} { }
 
 kis_external_interface::~kis_external_interface() {
-    timetracker->RemoveTimer(ping_timer_id);
+    timetracker->remove_timer(ping_timer_id);
 
     if (ipc_remote != nullptr) {
         ipc_remote->close_ipc();
@@ -67,7 +67,7 @@ void kis_external_interface::connect_buffer(std::shared_ptr<buffer_handler_gener
 void kis_external_interface::trigger_error(std::string in_error) {
     local_locker lock(ext_mutex);
 
-    timetracker->RemoveTimer(ping_timer_id);
+    timetracker->remove_timer(ping_timer_id);
 
     if (ipc_remote != nullptr) {
         ipc_remote->close_ipc();
@@ -294,7 +294,7 @@ bool kis_external_interface::run_ipc() {
 void kis_external_interface::close_external() {
     local_locker lock(ext_mutex);
 
-    timetracker->RemoveTimer(ping_timer_id);
+    timetracker->remove_timer(ping_timer_id);
 
     if (ipc_remote != nullptr) {
         ipc_remote->soft_kill();

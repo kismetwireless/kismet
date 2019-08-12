@@ -449,7 +449,7 @@ protected:
 
         ~tracked_command() {
             if (timer_id > -1) {
-                timetracker->RemoveTimer(timer_id);
+                timetracker->remove_timer(timer_id);
                 timer_id = -1;
             }
         }

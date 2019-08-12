@@ -73,8 +73,8 @@ kis_datasource::kis_datasource(shared_datasource_builder in_builder) :
 
 kis_datasource::~kis_datasource() {
     // Cancel any timer
-    timetracker->RemoveTimer(error_timer_id);
-    timetracker->RemoveTimer(ping_timer_id);
+    timetracker->remove_timer(error_timer_id);
+    timetracker->remove_timer(ping_timer_id);
 
     cancel_all_commands("source deleted");
 
@@ -252,7 +252,7 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
 
     // If we have an error callback that's going to try to re-open us, cancel it
     if (error_timer_id > 0)
-        timetracker->RemoveTimer(error_timer_id);
+        timetracker->remove_timer(error_timer_id);
 
     // Launch the IPC
     launch_ipc();
@@ -348,7 +348,7 @@ void kis_datasource::connect_remote(std::shared_ptr<buffer_handler_generic> in_r
 
     // Kill any error handlers
     if (error_timer_id > 0)
-        timetracker->RemoveTimer(error_timer_id);
+        timetracker->remove_timer(error_timer_id);
 
     // Connect the buffer
     connect_buffer(in_ringbuf);
@@ -378,7 +378,7 @@ void kis_datasource::close_source() {
     local_locker lock(ext_mutex);
 
     if (ping_timer_id > 0) {
-        timetracker->RemoveTimer(ping_timer_id);
+        timetracker->remove_timer(ping_timer_id);
         ping_timer_id = -1;
     }
 
@@ -417,7 +417,7 @@ void kis_datasource::disable_source() {
 
     // cancel any timers
     if (error_timer_id > 0)
-        timetracker->RemoveTimer(error_timer_id);
+        timetracker->remove_timer(error_timer_id);
 
     error_timer_id = -1;
 }
@@ -586,7 +586,7 @@ void kis_datasource::cancel_command(uint32_t in_transaction, std::string in_erro
 
         // Cancel any timers
         if (cmd->timer_id > -1) {
-            timetracker->RemoveTimer(cmd->timer_id);
+            timetracker->remove_timer(cmd->timer_id);
             cmd->timer_id = -1;
         }
 
@@ -1605,7 +1605,7 @@ void kis_datasource::handle_source_error() {
         }
 
         if (ping_timer_id > 0) {
-            timetracker->RemoveTimer(ping_timer_id);
+            timetracker->remove_timer(ping_timer_id);
             ping_timer_id = -1;
         }
 
@@ -1627,7 +1627,7 @@ void kis_datasource::handle_source_error() {
         }
 
         if (ping_timer_id > 0) {
-            timetracker->RemoveTimer(ping_timer_id);
+            timetracker->remove_timer(ping_timer_id);
             ping_timer_id = -1;
         }
 
@@ -1637,7 +1637,7 @@ void kis_datasource::handle_source_error() {
     }
     
     if (ping_timer_id > 0) {
-        timetracker->RemoveTimer(ping_timer_id);
+        timetracker->remove_timer(ping_timer_id);
         ping_timer_id = -1;
     }
 
