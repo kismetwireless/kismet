@@ -68,7 +68,7 @@ public:
 
     virtual void shutdown();
 
-    virtual void SetBufferSize(unsigned int in_sz);
+    virtual void set_buffer_size(unsigned int in_sz);
 
     // kis_pollable
     virtual int pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset);

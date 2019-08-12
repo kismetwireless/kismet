@@ -33,7 +33,7 @@ tcp_server_v2::~tcp_server_v2() {
     shutdown();
 }
 
-void tcp_server_v2::SetBufferSize(unsigned int in_sz) {
+void tcp_server_v2::set_buffer_size(unsigned int in_sz) {
     ringbuf_size = in_sz;
 }
 
