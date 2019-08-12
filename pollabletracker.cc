@@ -19,13 +19,9 @@
 #include "pollabletracker.h"
 #include "pollable.h"
 
-pollable_tracker::pollable_tracker() {
+pollable_tracker::pollable_tracker() { }
 
-}
-
-pollable_tracker::~pollable_tracker() {
-
-}
+pollable_tracker::~pollable_tracker() { }
 
 void pollable_tracker::register_pollable(std::shared_ptr<kis_pollable> in_pollable) {
     local_locker lock(&pollable_mutex);
@@ -116,7 +112,14 @@ int pollable_tracker::merge_pollable_fds(fd_set *rset, fd_set *wset) {
     FD_ZERO(wset);
 
     for (auto i : pollable_vec) {
-        max_fd = i->pollable_merge_set(max_fd, rset, wset);
+        int r = i->pollable_merge_set(max_fd, rset, wset);
+
+        if (r < 0) {
+            remove_pollable(i);
+            continue;
+        }
+
+        max_fd = r;
     }
 
     return max_fd;
@@ -124,15 +127,16 @@ int pollable_tracker::merge_pollable_fds(fd_set *rset, fd_set *wset) {
 
 int pollable_tracker::process_pollable_select(fd_set rset, fd_set wset) {
     int r;
-    int num = 0;
 
     for (auto i : pollable_vec) {
         r = i->pollable_poll(rset, wset);
 
-        if (r >= 0)
-            num++;
+        if (r < 0) {
+            remove_pollable(i);
+            continue;
+        }
     }
 
-    return num;
+    return 1;
 }
 
