@@ -169,9 +169,11 @@ class buffer_handler_generic_locker;
 class buffer_handler_generic {
 public:
     buffer_handler_generic();
+    buffer_handler_generic(std::shared_ptr<kis_recursive_timed_mutex> m);
     virtual ~buffer_handler_generic();
 
     virtual void set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
+    virtual std::shared_ptr<kis_recursive_timed_mutex> get_mutex();
 
     // Basic size ops
     virtual ssize_t get_read_buffer_size();
@@ -326,7 +328,21 @@ template<class B>
 class buffer_handler : public buffer_handler_generic {
 public:
     // For one-way buffers, define a buffer as having a size of zero
-    buffer_handler(size_t r_buffer_sz, size_t w_buffer_sz) {
+    buffer_handler(size_t r_buffer_sz, size_t w_buffer_sz) :
+        buffer_handler_generic() {
+        if (r_buffer_sz != 0)
+            read_buffer = new B(r_buffer_sz);
+        else
+            read_buffer = NULL;
+
+        if (w_buffer_sz != 0)
+            write_buffer = new B(w_buffer_sz);
+        else
+            write_buffer = NULL;
+    }
+
+    buffer_handler(size_t r_buffer_sz, size_t w_buffer_sz, std::shared_ptr<kis_recursive_timed_mutex> m) :
+        buffer_handler_generic(m) {
         if (r_buffer_sz != 0)
             read_buffer = new B(r_buffer_sz);
         else

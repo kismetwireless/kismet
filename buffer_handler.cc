@@ -34,6 +34,17 @@ buffer_handler_generic::buffer_handler_generic() :
     writebuf_drain_cb {nullptr},
     readbuf_drain_cb {nullptr} { }
 
+buffer_handler_generic::buffer_handler_generic(std::shared_ptr<kis_recursive_timed_mutex> m) :
+    read_buffer {nullptr},
+    write_buffer {nullptr},
+    wbuf_notify_avail {false},
+    rbuf_notify_avail {false},
+    handler_mutex {m},
+    wbuf_drain_avail {false},
+    rbuf_drain_avail {false},
+    writebuf_drain_cb {nullptr},
+    readbuf_drain_cb {nullptr} { }
+
 buffer_handler_generic::~buffer_handler_generic() {
     if (read_buffer)
         delete read_buffer;
@@ -46,12 +57,20 @@ void buffer_handler_generic::set_mutex(std::shared_ptr<kis_recursive_timed_mutex
     if (in_parent != nullptr && in_parent == handler_mutex)
         return;
 
+    if (in_parent == nullptr)
+        in_parent = std::make_shared<kis_recursive_timed_mutex>();
+
+    // Lock as we acquire parent
+    local_locker l(in_parent);
+
+    // Any lock holding the handler mutex should already have it
+    handler_mutex = in_parent;
+}
+
+std::shared_ptr<kis_recursive_timed_mutex> buffer_handler_generic::get_mutex() {
     local_locker l(handler_mutex);
 
-    if (in_parent != nullptr)
-        handler_mutex = in_parent;
-    else
-        handler_mutex = std::make_shared<kis_recursive_timed_mutex>();
+    return handler_mutex;
 }
 
 ssize_t buffer_handler_generic::get_read_buffer_size() {

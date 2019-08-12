@@ -32,7 +32,6 @@
 ipc_remote_v2::ipc_remote_v2(global_registry *in_globalreg, 
         std::shared_ptr<buffer_handler_generic> in_rbhandler) :
         globalreg {Globalreg::globalreg},
-        ipc_mutex {std::make_shared<kis_recursive_timed_mutex>()},
         tracker_free {false},
         child_pid {0} {
 
@@ -44,6 +43,9 @@ ipc_remote_v2::ipc_remote_v2(global_registry *in_globalreg,
 
     tracker_free = false;
 
+    // Inherit the mutex from the rbhandler
+    ipc_mutex = in_rbhandler->get_mutex();
+
     ipchandler = in_rbhandler;
 
     ipchandler->set_protocol_error_cb([this]() {
@@ -53,15 +55,14 @@ ipc_remote_v2::ipc_remote_v2(global_registry *in_globalreg,
 }
 
 void ipc_remote_v2::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
+    if (in_parent == nullptr)
+        in_parent = std::make_shared<kis_recursive_timed_mutex>();
+
     local_locker l(ipc_mutex);
 
-    if (in_parent != nullptr)
-        ipc_mutex = in_parent;
-    else
-        ipc_mutex = std::make_shared<kis_recursive_timed_mutex>();
+    ipc_mutex = in_parent;
 
-    if (pipeclient != nullptr)
-        pipeclient->set_mutex(in_parent);
+    pipeclient->set_mutex(ipc_mutex);
 }
 
 ipc_remote_v2::~ipc_remote_v2() {
@@ -281,7 +282,6 @@ int ipc_remote_v2::launch_kis_explicit_binary(std::string cmdpath, std::vector<s
     }
 
     pipeclient.reset(new pipe_client(globalreg, ipchandler));
-    pipeclient->set_mutex(ipc_mutex);
 
     // Read from the child write pair, write to the child read pair
     pipeclient->open_pipes(outpipepair[0], inpipepair[1]);
@@ -394,7 +394,6 @@ int ipc_remote_v2::launch_standard_explicit_binary(std::string cmdpath, std::vec
     close(outpipepair[0]);
 
     pipeclient.reset(new pipe_client(globalreg, ipchandler));
-    pipeclient->set_mutex(ipc_mutex);
 
     pollabletracker->register_pollable(pipeclient);
 

@@ -119,15 +119,13 @@ bool kis_gps_serial_v2::open_gps(std::string in_opts) {
     // Initial setup as needed
     if (nmeahandler == nullptr) {
         // We never write to a serial gps so don't make a write buffer
-        nmeahandler = std::make_shared<buffer_handler<ringbuf_v2>>(2048, 0);
-        nmeahandler->set_mutex(gps_mutex);
+        nmeahandler = std::make_shared<buffer_handler<ringbuf_v2>>(2048, 0, gps_mutex);
         nmeahandler->set_read_buffer_interface(&nmeainterface);
     }
 
     if (serialclient == nullptr) {
         // Link it to a serial port
         serialclient = std::make_shared<serial_client_v2>(Globalreg::globalreg, nmeahandler);
-        serialclient->set_mutex(gps_mutex);
         pollabletracker->register_pollable(serialclient);
     }
 

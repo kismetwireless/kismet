@@ -33,7 +33,7 @@
 pipe_client::pipe_client(global_registry *in_globalreg, 
         std::shared_ptr<buffer_handler_generic> in_rbhandler) :
     globalreg {Globalreg::globalreg},
-    pipe_mutex {std::make_shared<kis_recursive_timed_mutex>()},
+    pipe_mutex {in_rbhandler->get_mutex()},
     handler {in_rbhandler},
     read_fd {-1},
     write_fd {-1} { }

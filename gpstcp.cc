@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -123,15 +123,13 @@ bool kis_gps_tcp::open_gps(std::string in_opts) {
 
     if (nmeahandler == nullptr) {
         // We never write to a serial gps so don't make a write buffer
-        nmeahandler =  std::make_shared<buffer_handler<ringbuf_v2>>(2048, 0);
-        nmeahandler->set_mutex(gps_mutex);
+        nmeahandler =  std::make_shared<buffer_handler<ringbuf_v2>>(2048, 0, gps_mutex);
         nmeahandler->set_read_buffer_interface(&nmeainterface);
     }
 
     if (tcpclient == nullptr) {
         // Link to a tcp connection
         tcpclient = std::make_shared<tcp_client_v2>(Globalreg::globalreg, nmeahandler);
-        tcpclient->set_mutex(gps_mutex);
         pollabletracker->register_pollable(std::static_pointer_cast<kis_pollable>(tcpclient));
     }
 

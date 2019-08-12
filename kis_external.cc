@@ -252,13 +252,12 @@ bool kis_external_interface::run_ipc() {
         ringbuf_handler->protocol_error();
     }
 
-    // Make a new handler and new ipc.  Give a generous buffer.
-    ringbuf_handler = std::make_shared<buffer_handler<ringbuf_v2>>((1024 * 1024), (1024 * 1024));
-    ringbuf_handler->set_mutex(ext_mutex);
+    // Make a new handler and new ipc.  Give a generous buffer.  Give it our mutex so that all
+    // future related objects inherit from us.
+    ringbuf_handler = std::make_shared<buffer_handler<ringbuf_v2>>((1024 * 1024), (1024 * 1024), ext_mutex);
     ringbuf_handler->set_read_buffer_interface(this);
 
     ipc_remote.reset(new ipc_remote_v2(Globalreg::globalreg, ringbuf_handler));
-    ipc_remote->set_mutex(ext_mutex);
 
     // Get allowed paths for binaries
     std::vector<std::string> bin_paths = 
