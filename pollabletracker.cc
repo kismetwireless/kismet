@@ -19,7 +19,10 @@
 #include "pollabletracker.h"
 #include "pollable.h"
 
+#undef KIS_USE_POLLABLE_QUEUE
+
 pollable_tracker::pollable_tracker() {
+#ifdef KIS_USE_POLLABLE_QUEUE
     pollable_shutdown = false;
 
     for (unsigned int i = 0; i < std::thread::hardware_concurrency(); i++) {
@@ -28,15 +31,18 @@ pollable_tracker::pollable_tracker() {
             poll_queue_processor();
         }));
 	}
+#endif
 }
 
 pollable_tracker::~pollable_tracker() {
+#ifdef KIS_USE_POLLABLE_QUEUE
     // Cancel, wake up, and collect all the service threads
     pollable_shutdown = true;
     pollqueue_cv.notify_all();
 
     for (auto& t : pollable_threads)
         t.join();
+#endif
 }
 
 void pollable_tracker::register_pollable(std::shared_ptr<kis_pollable> in_pollable) {
@@ -142,7 +148,17 @@ int pollable_tracker::merge_pollable_fds(fd_set *rset, fd_set *wset) {
 }
 
 int pollable_tracker::process_pollable_select(fd_set rset, fd_set wset) {
-#if 0
+#ifdef KIS_USE_POLLABLE_QUEUE
+    // Push all into the pollable vector and let the service threads do the work
+    
+    std::unique_lock<std::mutex> lock(pollqueue_cv_mutex);
+
+    for (auto p : pollable_vec) 
+        pollable_queue.push(pollable_event(rset, wset, p));
+
+    lock.unlock();
+    pollqueue_cv.notify_all();
+#else
     int r;
 
     for (auto i : pollable_vec) {
@@ -154,16 +170,6 @@ int pollable_tracker::process_pollable_select(fd_set rset, fd_set wset) {
         }
     }
 #endif
-
-    // Push all into the pollable vector and let the service threads do the work
-    
-    std::unique_lock<std::mutex> lock(pollqueue_cv_mutex);
-
-    for (auto p : pollable_vec) 
-        pollable_queue.push(pollable_event(rset, wset, p));
-
-    lock.unlock();
-    pollqueue_cv.notify_all();
 
     return 1;
 }
