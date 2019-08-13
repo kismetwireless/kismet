@@ -39,8 +39,6 @@ pipe_client::pipe_client(global_registry *in_globalreg,
     write_fd {-1} { }
 
 pipe_client::~pipe_client() {
-    local_locker l(pipe_mutex);
-
     // printf("~pipeclient %p\n", this);
     if (read_fd > -1) {
         close(read_fd);

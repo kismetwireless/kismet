@@ -68,7 +68,7 @@ void kis_external_interface::connect_buffer(std::shared_ptr<buffer_handler_gener
     local_locker lock(ext_mutex);
 
     ringbuf_handler = in_ringbuf;
-    ringbuf_handler->set_mutex(ext_mutex);
+    ext_mutex = in_ringbuf->get_mutex();
     ringbuf_handler->set_read_buffer_interface(this);
 }
 

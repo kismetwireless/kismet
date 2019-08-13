@@ -206,9 +206,11 @@ datasource_tracker_source_list::~datasource_tracker_source_list() {
     cancelled = true;
 
     // Cancel any probing sources and delete them
-    for (auto i = list_vec.begin(); i != list_vec.end(); ++i) {
-        (*i)->close_source();
-    }
+    for (auto s : list_vec)
+        s->close_source();
+
+    for (auto s : complete_vec)
+        s->close_source();
 }
 
 void datasource_tracker_source_list::cancel() {
@@ -274,6 +276,7 @@ void datasource_tracker_source_list::list_sources(std::function<void (std::vecto
         {
             local_locker lock(list_lock);
             ipc_list_map[transaction] = pds;
+            list_vec.push_back(pds);
             created_ipc = true;
         }
 
@@ -977,17 +980,14 @@ void datasource_tracker::merge_source(shared_datasource in_source) {
 }
 
 void datasource_tracker::list_interfaces(const std::function<void (std::vector<shared_interface>)>& in_cb) {
+    local_locker lock(&dst_lock);
+
     // Create a DSTProber to handle the probing
     auto dst_list = std::make_shared<datasource_tracker_source_list>(proto_vec);
-    unsigned int listid = 0;
-   
-    {
-        local_locker lock(&dst_lock);
-        listid = ++next_list_id;
+    unsigned int listid = ++next_list_id;
 
-        // Record it
-        listing_map[listid] = dst_list;
-    }
+    // Record it
+    listing_map[listid] = dst_list;
 
     // Set up a cancellation timer
     int cancel_timer = 
@@ -1043,7 +1043,7 @@ void datasource_tracker::schedule_cleanup() {
         return;
 
     completion_cleanup_id = 
-        timetracker->RegisterTimer(2, NULL, 0, [this] (int) -> int {
+        timetracker->RegisterTimer(1, NULL, 0, [this] (int) -> int {
             local_demand_locker lock(&dst_lock);
            
             lock.lock();
