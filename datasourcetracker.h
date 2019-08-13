@@ -114,7 +114,7 @@ public:
     void cancel();
 
 protected:
-    kis_recursive_timed_mutex probe_lock;
+    std::shared_ptr<kis_recursive_timed_mutex> probe_lock;
 
     std::shared_ptr<time_tracker> timetracker;
 
@@ -170,7 +170,7 @@ public:
     void cancel();
 
 protected:
-    kis_recursive_timed_mutex list_lock;
+    std::shared_ptr<kis_recursive_timed_mutex> list_lock;
 
     std::shared_ptr<time_tracker> timetracker;
 

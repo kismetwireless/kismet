@@ -28,8 +28,9 @@ typedef std::shared_ptr<kis_datasource_freaklabs_zigbee> shared_datasource_freak
 
 class kis_datasource_freaklabs_zigbee : public kis_datasource {
 public:
-    kis_datasource_freaklabs_zigbee(shared_datasource_builder in_builder) :
-        kis_datasource(in_builder) { 
+    kis_datasource_freaklabs_zigbee(shared_datasource_builder in_builder, 
+            std::shared_ptr<kis_recursive_timed_mutex> mutex) :
+        kis_datasource(in_builder, mutex) { 
         set_int_source_ipc_binary("kismet_cap_freaklabs_zigbee");
     };
     virtual ~kis_datasource_freaklabs_zigbee() { };
@@ -62,11 +63,12 @@ public:
 
     virtual ~datasource_freaklabs_zigbee_builder() { }
 
-    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) {
-        return shared_datasource_freaklabs_zigbee(new kis_datasource_freaklabs_zigbee(in_sh_this));
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this,
+            std::shared_ptr<kis_recursive_timed_mutex> mutex) override {
+        return shared_datasource_freaklabs_zigbee(new kis_datasource_freaklabs_zigbee(in_sh_this, mutex));
     }
 
-    virtual void initialize() {
+    virtual void initialize() override {
         set_source_type("freaklabszigbee");
         set_source_description("Freaklabs Zigbee adapter");
 

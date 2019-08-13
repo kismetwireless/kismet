@@ -28,8 +28,9 @@ typedef std::shared_ptr<kis_datasource_kismetdb> shared_datasource_kismetdb;
 
 class kis_datasource_kismetdb : public kis_datasource {
 public:
-    kis_datasource_kismetdb(shared_datasource_builder in_builder) :
-        kis_datasource(in_builder) {
+    kis_datasource_kismetdb(shared_datasource_builder in_builder,
+            std::shared_ptr<kis_recursive_timed_mutex> mutex) :
+        kis_datasource(in_builder, mutex) {
 
         // Set the capture binary
         set_int_source_ipc_binary("kismet_cap_kismetdb");
@@ -42,9 +43,9 @@ public:
     // and we communicate using only standard Kismet functions so we don't need
     // to do anything else
    
-    // Override defaults for kismetdb - we don't want to reload a ksimetdb once
+    // Override defaults for kismetdb - we don't want to reload a kismetdb once
     // it finishes unless we're explicitly told to loop it
-    virtual std::string override_default_option(std::string in_opt) {
+    virtual std::string override_default_option(std::string in_opt) override {
         if (in_opt == "retry")
             return "false";
 
@@ -82,11 +83,12 @@ public:
 
     virtual ~datasource_kismetdb_builder() { }
 
-    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) {
-        return shared_datasource_kismetdb(new kis_datasource_kismetdb(in_sh_this));
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this,
+            std::shared_ptr<kis_recursive_timed_mutex> mutex) override {
+        return shared_datasource_kismetdb(new kis_datasource_kismetdb(in_sh_this, mutex));
     }
 
-    virtual void initialize() {
+    virtual void initialize() override {
         // Set up our basic parameters for the kismetdb driver
         
         set_source_type("kismetdb");

@@ -101,8 +101,9 @@ public:
     // in the input.
     // Typical implementation:
     // return shared_datasource(new SomeKismetDatasource(globalreg, in_shared_builder));
-    virtual std::shared_ptr<kis_datasource> build_datasource(std::shared_ptr<kis_datasource_builder>
-            in_shared_builder __attribute__((unused))) { return NULL; };
+    virtual std::shared_ptr<kis_datasource> 
+        build_datasource(std::shared_ptr<kis_datasource_builder> in_shared_builder,
+                std::shared_ptr<kis_recursive_timed_mutex> mutex) { return nullptr; };
 
     __Proxy(source_type, std::string, std::string, std::string, source_type);
     __Proxy(source_description, std::string, std::string, std::string, source_description);
@@ -174,8 +175,9 @@ protected:
 
 class kis_datasource : public tracker_component, public kis_external_interface {
 public:
-    // Initialize and tell us what sort of builder
-    kis_datasource(shared_datasource_builder in_builder);
+    // Initialize and tell us what sort of builder and mutex; if nullptr, external
+    // will allocate its own mutex
+    kis_datasource(shared_datasource_builder in_builder, std::shared_ptr<kis_recursive_timed_mutex> mutex);
 
     kis_datasource() :
         tracker_component(0),

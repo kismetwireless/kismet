@@ -37,6 +37,14 @@ kis_external_interface::kis_external_interface() :
     last_pong {0},
     ping_timer_id {-1} { }
 
+kis_external_interface::kis_external_interface(std::shared_ptr<kis_recursive_timed_mutex> mutex) :
+    buffer_interface(),
+    ext_mutex {mutex != nullptr ? mutex : std::make_shared<kis_recursive_timed_mutex>()},
+    timetracker {Globalreg::fetch_mandatory_global_as<time_tracker>()},
+    seqno {0},
+    last_pong {0},
+    ping_timer_id {-1} { }
+
 kis_external_interface::~kis_external_interface() {
     timetracker->remove_timer(ping_timer_id);
 

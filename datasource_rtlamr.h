@@ -28,7 +28,8 @@ typedef std::shared_ptr<kis_datasource_rtlamr> shared_datasource_rtlamr;
 
 class kis_datasource_rtlamr : public kis_datasource {
 public:
-    kis_datasource_rtlamr(shared_datasource_builder in_builder, bool in_mqtt);
+    kis_datasource_rtlamr(shared_datasource_builder in_builder, 
+            std::shared_ptr<kis_recursive_timed_mutex> mutex, bool in_mqtt);
     virtual ~kis_datasource_rtlamr();
 
 protected:
@@ -63,8 +64,9 @@ public:
 
     virtual ~datasource_rtlamr_builder() { }
 
-    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) override {
-        return shared_datasource_rtlamr(new kis_datasource_rtlamr(in_sh_this, false));
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this,
+            std::shared_ptr<kis_recursive_timed_mutex> mutex) override {
+        return shared_datasource_rtlamr(new kis_datasource_rtlamr(in_sh_this, mutex, false));
     }
 
     virtual void initialize() override {
@@ -105,8 +107,9 @@ public:
 
     virtual ~DatasourceRtlamrMqttBuilder() { }
 
-    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) override {
-        return shared_datasource_rtlamr(new kis_datasource_rtlamr(in_sh_this, true));
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this,
+            std::shared_ptr<kis_recursive_timed_mutex> mutex) override {
+        return shared_datasource_rtlamr(new kis_datasource_rtlamr(in_sh_this, mutex, true));
     }
 
     virtual void initialize() override {

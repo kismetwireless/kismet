@@ -22,8 +22,9 @@
 #include "kismet_json.h"
 #include "phy_rtlamr.h"
 
-kis_datasource_rtlamr::kis_datasource_rtlamr(shared_datasource_builder in_builder, bool in_mqtt) :
-    kis_datasource(in_builder) {
+kis_datasource_rtlamr::kis_datasource_rtlamr(shared_datasource_builder in_builder, 
+        std::shared_ptr<kis_recursive_timed_mutex> mutex, bool in_mqtt) :
+    kis_datasource(in_builder, mutex) {
 
     std::string devnum = munge_to_printable(get_definition_opt("device"));
     if (devnum != "") {

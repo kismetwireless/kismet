@@ -38,17 +38,13 @@
 #include "timetracker.h"
 
 datasource_tracker_source_probe::datasource_tracker_source_probe(std::string in_definition, 
-        std::shared_ptr<tracker_element_vector> in_protovec) {
-
-    timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
-
-    definition = in_definition;
-    proto_vec = in_protovec;
-
-    transaction_id = 0;
-
-    cancelled = false;
-}
+        std::shared_ptr<tracker_element_vector> in_protovec) :
+    probe_lock {std::make_shared<kis_recursive_timed_mutex>()},
+    timetracker {Globalreg::fetch_mandatory_global_as<time_tracker>()},
+    proto_vec {in_protovec},
+    transaction_id {0},
+    definition {in_definition},
+    cancelled {false} { }
 
 datasource_tracker_source_probe::~datasource_tracker_source_probe() {
     // Cancel any timers
@@ -62,7 +58,7 @@ datasource_tracker_source_probe::~datasource_tracker_source_probe() {
 
 void datasource_tracker_source_probe::cancel() {
     {
-        local_locker lock(&probe_lock);
+        local_locker lock(probe_lock);
 
         cancelled = true;
 
@@ -87,13 +83,13 @@ void datasource_tracker_source_probe::cancel() {
 }
 
 shared_datasource_builder datasource_tracker_source_probe::get_proto() {
-    local_locker lock(&probe_lock);
+    local_locker lock(probe_lock);
     return source_builder;
 }
 
 void datasource_tracker_source_probe::complete_probe(bool in_success, unsigned int in_transaction,
         std::string in_reason __attribute__((unused))) {
-    local_locker lock(&probe_lock);
+    local_locker lock(probe_lock);
 
     // If we're already in cancelled state these callbacks mean nothing, ignore them, we're going
     // to be torn down so we don't even need to find our transaction
@@ -132,7 +128,7 @@ void datasource_tracker_source_probe::complete_probe(bool in_success, unsigned i
 
 void datasource_tracker_source_probe::probe_sources(std::function<void (shared_datasource_builder)> in_cb) {
     {
-        local_locker lock(&probe_lock);
+        local_locker lock(probe_lock);
         probe_cb = in_cb;
     }
 
@@ -163,10 +159,10 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (shared_d
         unsigned int transaction = ++transaction_id;
 
         // Instantiate a local prober datasource
-        shared_datasource pds = b->build_datasource(b);
+        shared_datasource pds = b->build_datasource(b, probe_lock);
 
         {
-            local_locker lock(&probe_lock);
+            local_locker lock(probe_lock);
             ipc_probe_map[transaction] = pds;
             ncreated++;
         }
@@ -199,16 +195,12 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (shared_d
 
 }
 
-datasource_tracker_source_list::datasource_tracker_source_list(std::shared_ptr<tracker_element_vector> in_protovec) {
-    timetracker = 
-        Globalreg::fetch_mandatory_global_as<time_tracker>();
-
-    proto_vec = in_protovec;
-
-    transaction_id = 0;
-
-    cancelled = false;
-}
+datasource_tracker_source_list::datasource_tracker_source_list(std::shared_ptr<tracker_element_vector> in_protovec) :
+    list_lock {std::make_shared<kis_recursive_timed_mutex>()},
+    timetracker {Globalreg::fetch_mandatory_global_as<time_tracker>()},
+    proto_vec {in_protovec},
+    transaction_id {0},
+    cancelled {false} { }
 
 datasource_tracker_source_list::~datasource_tracker_source_list() {
     cancelled = true;
@@ -220,7 +212,7 @@ datasource_tracker_source_list::~datasource_tracker_source_list() {
 }
 
 void datasource_tracker_source_list::cancel() {
-    local_locker lock(&list_lock);
+    local_locker lock(list_lock);
 
     if (cancelled)
         return;
@@ -238,7 +230,7 @@ void datasource_tracker_source_list::cancel() {
 }
 
 void datasource_tracker_source_list::complete_list(std::vector<shared_interface> in_list, unsigned int in_transaction) {
-    local_locker lock(&list_lock);
+    local_locker lock(list_lock);
 
     // If we're already in cancelled state these callbacks mean nothing, ignore them
     if (cancelled)
@@ -277,10 +269,10 @@ void datasource_tracker_source_list::list_sources(std::function<void (std::vecto
         unsigned int transaction = ++transaction_id;
 
         // Instantiate a local lister 
-        shared_datasource pds = b->build_datasource(b);
+        shared_datasource pds = b->build_datasource(b, list_lock);
 
         {
-            local_locker lock(&list_lock);
+            local_locker lock(list_lock);
             ipc_list_map[transaction] = pds;
             created_ipc = true;
         }
@@ -310,7 +302,7 @@ datasource_tracker::datasource_tracker() :
 
     source_id =
         Globalreg::globalreg->entrytracker->register_field("kismet.datasourcetracker.datasource",
-                tracker_element_factory<kis_datasource>(nullptr),
+                tracker_element_factory<kis_datasource>(nullptr, nullptr),
                 "Datasource");
 
     proto_vec =
@@ -929,7 +921,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
     local_locker lock(&dst_lock);
 
     // Make a data source from the builder
-    shared_datasource ds = in_proto->build_datasource(in_proto);
+    shared_datasource ds = in_proto->build_datasource(in_proto, nullptr);
 
     ds->open_interface(in_source, 0, 
         [this, ds, in_cb] (unsigned int, bool success, std::string reason) {
@@ -1160,7 +1152,7 @@ void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
             lock.unlock();
 
             // Make a data source from the builder
-            shared_datasource ds = b->build_datasource(b);
+            shared_datasource ds = b->build_datasource(b, in_handler->get_mutex());
             ds->connect_remote(in_handler, in_definition,
                 [this, ds](unsigned int, bool success, std::string msg) {
                     if (success)

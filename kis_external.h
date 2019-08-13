@@ -60,6 +60,7 @@ struct kis_external_http_uri {
 class kis_external_interface : public buffer_interface {
 public:
     kis_external_interface();
+    kis_external_interface(std::shared_ptr<kis_recursive_timed_mutex> mutex);
     virtual ~kis_external_interface();
 
     // Connect an existing buffer, such as a TCP socket or IPC pipe

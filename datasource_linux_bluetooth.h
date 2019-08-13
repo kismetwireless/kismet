@@ -30,12 +30,13 @@ typedef std::shared_ptr<kis_datasource_linux_bluetooth> shared_datasource_linux_
 
 class kis_datasource_linux_bluetooth : public kis_datasource {
 public:
-    kis_datasource_linux_bluetooth(shared_datasource_builder in_builder);
+    kis_datasource_linux_bluetooth(shared_datasource_builder in_builder,
+            std::shared_ptr<kis_recursive_timed_mutex> mutex);
 
     virtual ~kis_datasource_linux_bluetooth() { };
 
 protected:
-    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c);
+    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) override;
   
     virtual void handle_packet_linuxbtdevice(uint32_t in_seqno, std::string in_content);
 
@@ -70,8 +71,9 @@ public:
 
     virtual ~datasource_linux_bluetooth_builder() override { }
 
-    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) override {
-        return std::make_shared<kis_datasource_linux_bluetooth>(in_sh_this);
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this,
+            std::shared_ptr<kis_recursive_timed_mutex> mutex) override {
+        return std::make_shared<kis_datasource_linux_bluetooth>(in_sh_this, mutex);
     }
 
     virtual void initialize() override {

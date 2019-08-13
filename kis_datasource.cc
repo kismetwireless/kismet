@@ -28,9 +28,9 @@
 
 // We never instantiate from a generic tracker component or from a stored
 // record so we always re-allocate ourselves
-kis_datasource::kis_datasource(shared_datasource_builder in_builder) :
+kis_datasource::kis_datasource(shared_datasource_builder in_builder, std::shared_ptr<kis_recursive_timed_mutex> mutex) :
     tracker_component(),
-    kis_external_interface() {
+    kis_external_interface(mutex) {
     
     register_fields();
     reserve_fields(nullptr);
@@ -369,9 +369,6 @@ void kis_datasource::connect_remote(std::shared_ptr<buffer_handler_generic> in_r
 
     // Send an opensource
     send_open_source(in_definition, 0, in_cb);
-
-    // Inherit the mutex from the incoming remote
-    ext_mutex = in_ringbuf->get_mutex();
 }
 
 void kis_datasource::close_source() {

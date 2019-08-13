@@ -173,8 +173,7 @@ void pollable_tracker::poll_queue_processor() {
 
     // We only monitor our own shutdown and global complete; we need to continue doing
     // IO to do a graceful spindown
-    while (!pollable_shutdown &&
-            !Globalreg::globalreg->complete) {
+    while (!pollable_shutdown && !Globalreg::globalreg->complete) {
 
         pollqueue_cv.wait(lock, [this] {
             return (pollable_queue.size() || pollable_shutdown);

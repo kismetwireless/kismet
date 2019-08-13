@@ -25,8 +25,9 @@
 
 #ifdef HAVE_LINUX_BLUETOOTH_DATASOURCE
 
-kis_datasource_linux_bluetooth::kis_datasource_linux_bluetooth(shared_datasource_builder in_builder) : 
-    kis_datasource(in_builder) {
+kis_datasource_linux_bluetooth::kis_datasource_linux_bluetooth(shared_datasource_builder in_builder,
+        std::shared_ptr<kis_recursive_timed_mutex> mutex) : 
+    kis_datasource(in_builder, mutex) {
     // Set the capture binary
     set_int_source_ipc_binary("kismet_cap_linux_bluetooth");
 

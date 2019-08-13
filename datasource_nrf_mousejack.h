@@ -31,8 +31,9 @@ typedef std::shared_ptr<kis_datasource_nrf_mousejack> shared_datasource_nrf_mous
 
 class kis_datasource_nrf_mousejack : public kis_datasource {
 public:
-    kis_datasource_nrf_mousejack(shared_datasource_builder in_builder) :
-        kis_datasource(in_builder) {
+    kis_datasource_nrf_mousejack(shared_datasource_builder in_builder, 
+            std::shared_ptr<kis_recursive_timed_mutex> mutex) :
+        kis_datasource(in_builder, mutex) {
 
         // Set the capture binary
         set_int_source_ipc_binary("kismet_cap_nrf_mousejack");
@@ -76,11 +77,12 @@ public:
 
     virtual ~datasource_nrf_mousejack_builder() { }
 
-    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) {
-        return shared_datasource_nrf_mousejack(new kis_datasource_nrf_mousejack(in_sh_this));
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this,
+            std::shared_ptr<kis_recursive_timed_mutex> mutex) override {
+        return shared_datasource_nrf_mousejack(new kis_datasource_nrf_mousejack(in_sh_this, mutex));
     }
 
-    virtual void initialize() {
+    virtual void initialize() override {
         // Set up our basic parameters for the linux wifi driver
         
         set_source_type("nrfmousejack");
