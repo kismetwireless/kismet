@@ -57,6 +57,7 @@ class KismetRtl433(object):
         self.opts['gain'] = None
         self.opts['device'] = None
         self.opts['uuid'] = None
+        self.opts['ppm'] = None
 
         # Thread that runs the RTL popen
         self.rtl_thread = None
@@ -198,6 +199,10 @@ class KismetRtl433(object):
         if self.opts['channel'] is not None:
             cmd.append('-f')
             cmd.append("{}".format(self.opts['channel']))
+
+        if self.opts['ppm'] is not None:
+            cmd.append('-p')
+            cmd.append("{}".format(self.opts['ppm']))
 
         seen_any_valid = False
         failed_once = False
@@ -452,6 +457,12 @@ class KismetRtl433(object):
 
             if 'channel' in options:
                 self.opts['channel'] = options['channel']
+
+            if 'gain' in options:
+                self.opts['gain'] = options['gain']
+
+            if 'ppm_error' in options:
+                self.opts['ppm'] = options['ppm_error']
 
             ret['hardware'] = self.rtl_get_device_name(intnum)
             if ('uuid' in options):
