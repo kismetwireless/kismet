@@ -383,12 +383,12 @@ bool kis_database_logfile::open_log(std::string in_path) {
 
             local_locker dblock(&ds_mutex);
 
+            in_transaction_sync = true;
+
             sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
-
-            // Flush the filesystem
-            // sync();
-
             sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+
+            in_transaction_sync = false;
 
             return 1;
         });
@@ -401,7 +401,9 @@ bool kis_database_logfile::open_log(std::string in_path) {
 }
 
 void kis_database_logfile::close_log() {
-    local_locker dblock(&ds_mutex);
+    local_demand_locker dblock(&ds_mutex);
+
+    db_lock_with_sync_check(dblock, return);
 
     set_int_log_open(false);
 
@@ -837,7 +839,9 @@ void kis_database_logfile::process_message(std::string in_msg, int in_flags) {
     if (!db_enabled)
         return;
 
-    local_locker dblock(&ds_mutex);
+    local_demand_locker dblock(&ds_mutex);
+    db_lock_with_sync_check(dblock, return);
+
     sqlite3_reset(msg_stmt);
 
     unsigned int spos = 1;
@@ -914,7 +918,9 @@ int kis_database_logfile::log_device(std::shared_ptr<kis_tracked_device_base> d)
     std::string streamstring = sstr.str();
 
     {
-        local_locker dblock(&ds_mutex);
+        local_demand_locker dblock(&ds_mutex);
+        db_lock_with_sync_check(dblock, return -1);
+
         sqlite3_reset(device_stmt);
 
         sqlite3_bind_int64(device_stmt, spos++, d->get_first_time());
@@ -1035,7 +1041,9 @@ int kis_database_logfile::log_packet(kis_packet *in_pack) {
 
     // Log into the PACKET table if we're a loggable packet (ie, have a link frame)
     if (chunk != nullptr) {
-        local_locker dblock(&ds_mutex);
+        local_demand_locker dblock(&ds_mutex);
+        db_lock_with_sync_check(dblock, return -1);
+
         sqlite3_reset(packet_stmt);
 
         int sql_pos = 1;
@@ -1130,7 +1138,9 @@ int kis_database_logfile::log_data(kis_gps_packinfo *gps, struct timeval tv,
     std::string uuidstring = datasource_uuid.uuid_to_string();
 
     {
-        local_locker dblock(&ds_mutex);
+        local_demand_locker dblock(&ds_mutex);
+        db_lock_with_sync_check(dblock, return -1);
+
         sqlite3_reset(data_stmt);
 
         int sql_pos = 1;
@@ -1208,7 +1218,9 @@ int kis_database_logfile::log_datasource(shared_tracker_element in_datasource) {
     jsonstring = ss.str();
 
     {
-        local_locker dblock(&ds_mutex);
+        local_demand_locker dblock(&ds_mutex);
+        db_lock_with_sync_check(dblock, return -1);
+
         sqlite3_reset(datasource_stmt);
 
         sqlite3_bind_text(datasource_stmt, 1, uuidstring.data(), uuidstring.length(), SQLITE_TRANSIENT);
@@ -1249,7 +1261,9 @@ int kis_database_logfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
     fractpart = modf(in_alert->get_timestamp(), &intpart);
 
     {
-        local_locker dblock(&ds_mutex);
+        local_demand_locker dblock(&ds_mutex);
+        db_lock_with_sync_check(dblock, return -1);
+
         sqlite3_reset(alert_stmt);
 
         sqlite3_bind_int64(alert_stmt, 1, intpart);
@@ -1286,7 +1300,9 @@ int kis_database_logfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
     if (!db_enabled)
         return 0;
 
-    local_locker dblock(&ds_mutex);
+    local_demand_locker dblock(&ds_mutex);
+    db_lock_with_sync_check(dblock, return -1);
+
     sqlite3_reset(snapshot_stmt);
 
     sqlite3_bind_int64(snapshot_stmt, 1, tv.tv_sec);

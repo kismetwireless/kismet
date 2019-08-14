@@ -166,6 +166,25 @@ protected:
 
     std::atomic<time_t> last_device_log;
 
+    std::atomic<bool> in_transaction_sync;
+
+    // Nasty define hack for checking if we're blocked on a really slow
+    // device by comparing the transaction sync
+#define db_lock_with_sync_check(locker, errcode) \
+    try { \
+        locker.lock(); \
+    } catch (const std::runtime_error& e) { \
+        if (in_transaction_sync) { \
+            _MSG_FATAL("kismetdb log couldn't finish a database transaction within the " \
+                    "timeout window for threads ({} seconds).  Usually this happens when " \
+                    "the disk you are logging to can not perform adequately, such as a " \
+                    "micro-sd.  Try moving logging to a USB device.", KIS_THREAD_DEADLOCK_TIMEOUT); \
+            Globalreg::globalreg->fatal_condition = 1; \
+            errcode; \
+        } \
+        throw(e); \
+    }
+
     // Prebaked parameterized statements
     sqlite3_stmt *device_stmt;
     const char *device_pz;
