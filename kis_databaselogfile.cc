@@ -147,7 +147,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
 
     if (packet_timeout != 0) {
         packet_timeout_timer = 
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
+            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 15, NULL, 1,
                     [this](int) -> int {
 
                     auto pkt_delete = 
