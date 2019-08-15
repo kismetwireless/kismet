@@ -175,12 +175,12 @@ protected:
         locker.lock(); \
     } catch (const std::runtime_error& e) { \
         if (in_transaction_sync) { \
-            _MSG_FATAL("kismetdb log couldn't finish a database transaction within the " \
+            fmt::print(stderr, "FATAL: kismetdb log couldn't finish a database transaction within the " \
                     "timeout window for threads ({} seconds).  Usually this happens when " \
                     "the disk you are logging to can not perform adequately, such as a " \
                     "micro-sd.  Try moving logging to a USB device.", KIS_THREAD_DEADLOCK_TIMEOUT); \
             Globalreg::globalreg->fatal_condition = 1; \
-            errcode; \
+            throw std::runtime_error("disk too slow for logging"); \
         } \
         throw(e); \
     }
