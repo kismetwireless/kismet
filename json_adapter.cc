@@ -162,6 +162,62 @@ std::string json_adapter::sanitize_string(const std::string& s) noexcept {
     return result;
 }
 
+void json_adapter::serialize_structured(std::shared_ptr<structured_data> data, std::ostream& stream) {
+    // This is much simpler than turning a tracked object into a json stream because a sharedstructured
+    // is almost the same as json in the first place; it only has bool, number, string, vector, and array.
+    
+    if (data == nullptr)
+        return;
+
+    if (data->is_string()) {
+        stream << "\"" + sanitize_string(data->as_string()) + "\"";
+        return;
+    }
+
+    if (data->is_number()) {
+        stream << data->as_number();
+        return;
+    }
+
+    if (data->is_bool()) {
+        if (data->as_bool())
+            stream << "True";
+        else
+            stream << "False";
+        return;
+    }
+
+    if (data->is_array()) {
+        stream << "[";
+        bool need_comma = false;
+
+        for (auto s : data->as_vector()) {
+            if (need_comma)
+                stream << ",";
+            need_comma = true;
+
+            serialize_structured(s, stream);
+        }
+
+        return;
+    }
+
+    if (data->is_dictionary()) {
+        stream << "{";
+        bool need_comma = false;
+
+        for (auto i : data->as_string_map()) {
+            if (need_comma)
+                stream << ",";
+            need_comma = true;
+
+            stream << "\"" << sanitize_string(i.first) << "\":";
+
+            serialize_structured(i.second, stream);
+        }
+    }
+}
+
 void json_adapter::pack(std::ostream &stream, shared_tracker_element e, 
         std::shared_ptr<tracker_element_serializer::rename_map> name_map,
         bool prettyprint, unsigned int depth) {

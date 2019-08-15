@@ -39,6 +39,8 @@ void pack(std::ostream &stream, shared_tracker_element e,
 std::string sanitize_string(const std::string& in) noexcept;
 std::size_t sanitize_extra_space(const std::string& in) noexcept;
 
+void serialize_structured(std::shared_ptr<structured_data> data, std::ostream& stream);
+
 class serializer : public tracker_element_serializer {
 public:
     serializer() :
