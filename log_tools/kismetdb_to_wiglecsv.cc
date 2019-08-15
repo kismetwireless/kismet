@@ -419,6 +419,9 @@ int main(int argc, char *argv[]) {
     unsigned long n_discarded_logs_zones = 0;
     unsigned long n_division = (n_packets_db / 20);
 
+    if (n_division <= 0)
+        n_division = 1;
+
     for (auto p : query) {
         // Brute-force cache maintenance; if we're full at the start of the 
         // processing loop, nuke the ENTIRE cache and rebuild it; this is

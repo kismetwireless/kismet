@@ -216,6 +216,9 @@ int main(int argc, char *argv[]) {
     unsigned long n_logs = 0;
     unsigned long n_division = (n_devices_db / 20);
 
+    if (n_division <= 0)
+        n_division = 1;
+
     bool newline = false;
 
     for (auto d : query) {
