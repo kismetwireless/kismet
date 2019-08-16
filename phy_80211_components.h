@@ -987,11 +987,6 @@ public:
 
     __ProxyDynamic(last_bssid, mac_addr, mac_addr, mac_addr, last_bssid, last_bssid_id);
 
-    __ProxyDynamic(last_probed_ssid, std::string, std::string, std::string, last_probed_ssid,
-            last_probed_ssid_id);
-    __Proxy(last_probed_ssid_csum, uint32_t, uint32_t, 
-            uint32_t, last_probed_ssid_csum);
-
     __Proxy(last_beacon_timestamp, uint64_t, time_t, 
             time_t, last_beacon_timestamp);
 
@@ -1054,6 +1049,9 @@ public:
     __ProxyDynamicTrackable(last_beaconed_ssid_record, tracker_element_alias, 
             last_beaconed_ssid_record, last_beaconed_ssid_record_id);
 
+    __ProxyDynamicTrackable(last_probed_ssid_record, tracker_element_alias, 
+            last_probed_ssid_record, last_probed_ssid_record_id);
+
 protected:
 
     virtual void register_fields() override {
@@ -1111,11 +1109,6 @@ protected:
 
         register_field("dot11.device.datasize", "data in bytes", &datasize);
         register_field("dot11.device.datasize_retry", "retried data in bytes", &datasize_retry);
-
-        last_probed_ssid_id =
-            register_dynamic_field("dot11.device.last_probed_ssid", "last probed ssid", &last_probed_ssid);
-        register_field("dot11.device.last_probed_ssid_csum", 
-                "last probed ssid checksum", &last_probed_ssid_csum);
 
         last_bssid_id =
             register_dynamic_field("dot11.device.last_bssid", "last BSSID", &last_bssid);
@@ -1175,6 +1168,9 @@ protected:
         last_beaconed_ssid_record_id =
             register_dynamic_field("dot11.device.last_beaconed_ssid_record", 
                     "last beaconed ssid, complete record", &last_beaconed_ssid_record);
+        last_probed_ssid_record_id =
+            register_dynamic_field("dot11.device.last_probed_ssid_record", 
+                    "last probed ssid, complete record", &last_probed_ssid_record);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -1262,11 +1258,6 @@ protected:
     std::shared_ptr<tracker_element_uint64> datasize;
     std::shared_ptr<tracker_element_uint64> datasize_retry;
 
-    std::shared_ptr<tracker_element_string> last_probed_ssid;
-    int last_probed_ssid_id;
-
-    std::shared_ptr<tracker_element_uint32> last_probed_ssid_csum;
-
     std::shared_ptr<tracker_element_mac_addr> last_bssid;
     int last_bssid_id;
 
@@ -1309,6 +1300,9 @@ protected:
 
     int last_beaconed_ssid_record_id;
     std::shared_ptr<tracker_element_alias> last_beaconed_ssid_record;
+
+    int last_probed_ssid_record_id;
+    std::shared_ptr<tracker_element_alias> last_probed_ssid_record;
 };
 
 #endif

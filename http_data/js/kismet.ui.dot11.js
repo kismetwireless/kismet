@@ -363,13 +363,27 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 field: 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.ssid',
                 title: "Last Beaconed SSID (AP)",
                 empty: "<i>None</i>",
+                render: function(opts) {
+                    if (typeof(opts['value']) === 'undefined')
+                        return '<i>None</i>';
+                    if (opts['value'].replace(/\s/g, '').length == 0) 
+                        return '<i>Empty (' + opts['value'].length + ' spaces)</i>';
+                    return opts['value'];
+                },
                 help: "If present, the last SSID (network name) advertised by a device as an access point beacon or as an access point issuing a probe response",
             },
             {
-                field: "dot11.device/dot11.device.last_probed_ssid",
+                field: "dot11.device/dot11.device.last_probed_ssid_record/dot11.probedssid.ssid",
                 title: "Last Probed SSID (Client)",
                 empty: "<i>None</i>",
                 help: "If present, the last SSID (network name) probed for by a device as a client looking for a network.",
+                render: function(opts) {
+                    if (typeof(opts['value']) === 'undefined')
+                        return '<i>None</i>';
+                    if (opts['value'].replace(/\s/g, '').length == 0) 
+                        return '<i>Empty (' + opts['value'].length + ' spaces)</i>'
+                    return opts['value'];
+                },
             },
             {
                 field: "dot11.device/dot11.device.last_bssid",
@@ -678,6 +692,9 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     if (lastpssid === '')
                         lastpssid = "<i>Broadcast</i>";
 
+                    if (lastpssid.replace(/\s/g, '').length == 0) 
+                        lastpssid = '<i>Empty (' + lastpssid.length + ' spaces)</i>'
+
                     return '<a id="' + key + '" class="expander collapsed" data-expander-target="#probed_ssid" href="#">Probed SSID ' + lastpssid + '</a>';
                 },
 
@@ -689,7 +706,14 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 {
                     field: "dot11.probedssid.ssid",
                     title: "Probed SSID",
-                    empty: "<i>Broadcast</i>"
+                    empty: "<i>Broadcast</i>",
+                    render: function(opts) {
+                        if (typeof(opts['value']) === 'undefined')
+                            return '<i>None</i>';
+                        if (opts['value'].replace(/\s/g, '').length == 0) 
+                            return 'Empty (' + opts['value'].length + ' spaces)'
+                        return opts['value'];
+                    },
                 },
                 {
                     field: "dot11.probedssid.wpa_mfp_required",

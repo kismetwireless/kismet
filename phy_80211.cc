@@ -2253,8 +2253,9 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
             probessid->set_dot11r_mobility_domain_id(dot11info->dot11r_mobility->mobility_domain());
         }
 
-        dot11dev->set_last_probed_ssid(probessid->get_ssid());
-        dot11dev->set_last_probed_ssid_csum(dot11info->ssid_csum);
+        // Alias the last ssid snapshot
+        auto lpr = dot11dev->get_last_probed_ssid_record();
+        lpr->set(probessid);
 
         // Update MFP
         if (dot11info->rsn != nullptr) {
