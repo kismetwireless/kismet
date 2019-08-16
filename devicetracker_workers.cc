@@ -106,7 +106,7 @@ bool devicetracker_stringmatch_worker::MatchDevice(device_tracker *devicetracker
 
         if (field->get_type() == tracker_type::tracker_string) {
             // We can only do a straight string match against string fields
-            matched = GetTrackerValue<std::string>(field).find(query) != std::string::npos;
+            matched = get_tracker_value<std::string>(field).find(query) != std::string::npos;
         } else if (field->get_type() == tracker_type::tracker_byte_array) {
             // Try a raw string match against a binary field
             matched = 
@@ -270,11 +270,11 @@ bool devicetracker_pcre_worker::MatchDevice(device_tracker *devicetracker __attr
 
             // Process a few different types
             if (fi->get_type() == tracker_type::tracker_string)
-                val = GetTrackerValue<std::string>(fi);
+                val = get_tracker_value<std::string>(fi);
             else if (fi->get_type() == tracker_type::tracker_mac_addr)
-                val = GetTrackerValue<mac_addr>(fi).mac_to_string();
+                val = get_tracker_value<mac_addr>(fi).mac_to_string();
             else if (fi->get_type() == tracker_type::tracker_uuid)
-                val = GetTrackerValue<uuid>(fi).uuid_to_string();
+                val = get_tracker_value<uuid>(fi).uuid_to_string();
             else if (fi->get_type() == tracker_type::tracker_byte_array) 
                 val = std::static_pointer_cast<tracker_element_byte_array>(fi)->get();
             else

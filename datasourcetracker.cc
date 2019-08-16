@@ -1212,8 +1212,8 @@ public:
             bool matched_cur_chan = false;
 
             for (auto comp_chan : *compare_channels) {
-                if (GetTrackerValue<std::string>(first_chan) == 
-                        GetTrackerValue<std::string>(comp_chan)) {
+                if (get_tracker_value<std::string>(first_chan) == 
+                        get_tracker_value<std::string>(comp_chan)) {
                     matched_cur_chan = true;
                     break;
                 }
@@ -1708,7 +1708,7 @@ int datasource_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                         converted_channels = chstruct->as_string_vector();
                     } else {
                         for (auto c : *(ds->get_source_hop_vec()))
-                            converted_channels.push_back(GetTrackerValue<std::string>(c));
+                            converted_channels.push_back(get_tracker_value<std::string>(c));
                     }
 
                     std::shared_ptr<conditional_locker<std::string> > cl(new conditional_locker<std::string>());

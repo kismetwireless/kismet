@@ -829,7 +829,7 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
     if (def_chan != "") {
         bool append = true;
         for (auto sci : *source_hop_vec) {
-            if (strcasecmp(GetTrackerValue<std::string>(sci).c_str(), def_chan.c_str()) == 0) {
+            if (strcasecmp(get_tracker_value<std::string>(sci).c_str(), def_chan.c_str()) == 0) {
                 append = false;
                 break;
             }
@@ -856,7 +856,7 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
             // source supports?
             bool append = true;
             for (auto sci : *source_channels_vec) {
-                if (strcasecmp(GetTrackerValue<std::string>(sci).c_str(), dc.c_str()) == 0) {
+                if (strcasecmp(get_tracker_value<std::string>(sci).c_str(), dc.c_str()) == 0) {
                     append = false;
                     break;
                 }
@@ -870,7 +870,7 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
         for (auto c : *source_channels_vec) {
             bool skip = false;
             for (auto bchan : block_vec) {
-                if (str_lower(GetTrackerValue<std::string>(c)) == str_lower(bchan)) {
+                if (str_lower(get_tracker_value<std::string>(c)) == str_lower(bchan)) {
                     skip = true;
                     break;
                 }
@@ -884,7 +884,7 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
             // Add any new channels from the add_vec, we don't filter blocked channels here
             bool append = true;
             for (auto sci : *source_channels_vec) {
-                if (strcasecmp(GetTrackerValue<std::string>(sci).c_str(), ac.c_str()) == 0) {
+                if (strcasecmp(get_tracker_value<std::string>(sci).c_str(), ac.c_str()) == 0) {
                     append = false;
                     break;
                 }
@@ -902,7 +902,7 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
         for (auto c : *source_channels_vec) {
             bool skip = false;
             for (auto bchan : block_vec) {
-                if (str_lower(GetTrackerValue<std::string>(c)) == str_lower(bchan)) {
+                if (str_lower(get_tracker_value<std::string>(c)) == str_lower(bchan)) {
                     skip = true;
                     break;
                 }
@@ -1426,7 +1426,7 @@ unsigned int kis_datasource::send_configure_channel_hop(double in_rate,
     ch->set_offset(in_offt);
 
     for (auto chi : *in_chans)  {
-        ch->add_channels(GetTrackerValue<std::string>(chi));
+        ch->add_channels(get_tracker_value<std::string>(chi));
     }
 
     o.set_allocated_hopping(ch);

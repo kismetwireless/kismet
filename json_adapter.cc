@@ -200,56 +200,56 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
 
     switch (e->get_type()) {
         case tracker_type::tracker_string:
-            stream << "\"" << sanitize_string(GetTrackerValue<std::string>(e)) << "\"";
+            stream << "\"" << sanitize_string(get_tracker_value<std::string>(e)) << "\"";
             break;
         case tracker_type::tracker_int8:
-            stream << (int) GetTrackerValue<int8_t>(e);
+            stream << (int) get_tracker_value<int8_t>(e);
             break;
         case tracker_type::tracker_uint8:
-            stream << (unsigned int) GetTrackerValue<uint8_t>(e);
+            stream << (unsigned int) get_tracker_value<uint8_t>(e);
             break;
         case tracker_type::tracker_int16:
-            stream << (int) GetTrackerValue<int16_t>(e);
+            stream << (int) get_tracker_value<int16_t>(e);
             break;
         case tracker_type::tracker_uint16:
-            stream << (unsigned int) GetTrackerValue<uint16_t>(e);
+            stream << (unsigned int) get_tracker_value<uint16_t>(e);
             break;
         case tracker_type::tracker_int32:
-            stream << GetTrackerValue<int32_t>(e);
+            stream << get_tracker_value<int32_t>(e);
             break;
         case tracker_type::tracker_uint32:
-            stream << GetTrackerValue<uint32_t>(e);
+            stream << get_tracker_value<uint32_t>(e);
             break;
         case tracker_type::tracker_int64:
-            stream << GetTrackerValue<int64_t>(e);
+            stream << get_tracker_value<int64_t>(e);
             break;
         case tracker_type::tracker_uint64:
-            stream << GetTrackerValue<uint64_t>(e);
+            stream << get_tracker_value<uint64_t>(e);
             break;
         case tracker_type::tracker_float:
-            if (std::isnan(GetTrackerValue<float>(e)) || std::isinf(GetTrackerValue<float>(e)))
+            if (std::isnan(get_tracker_value<float>(e)) || std::isinf(get_tracker_value<float>(e)))
                 stream << 0;
             else
-                stream << std::fixed << GetTrackerValue<float>(e);
+                stream << std::fixed << get_tracker_value<float>(e);
             break;
         case tracker_type::tracker_double:
-            if (std::isnan(GetTrackerValue<double>(e)) || std::isinf(GetTrackerValue<double>(e)))
+            if (std::isnan(get_tracker_value<double>(e)) || std::isinf(get_tracker_value<double>(e)))
                 stream << 0;
             else
-                stream << std::fixed << GetTrackerValue<double>(e);
+                stream << std::fixed << get_tracker_value<double>(e);
             break;
         case tracker_type::tracker_mac_addr:
-            mac = GetTrackerValue<mac_addr>(e);
+            mac = get_tracker_value<mac_addr>(e);
             // Mac is quoted as a string value, mac only
             stream << "\"" << mac << "\"";
             break;
         case tracker_type::tracker_uuid:
-            euuid = GetTrackerValue<uuid>(e);
+            euuid = get_tracker_value<uuid>(e);
             // UUID is quoted as a string value
             stream << "\"" << euuid << "\"";
             break;
         case tracker_type::tracker_key:
-            stream << "\"" << GetTrackerValue<device_key>(e) << "\"";
+            stream << "\"" << get_tracker_value<device_key>(e) << "\"";
             break;
         case tracker_type::tracker_vector:
             stream << ppendl << indent << "[" << ppendl;
@@ -717,56 +717,56 @@ void storage_json_adapter::pack(std::ostream &stream, shared_tracker_element e,
 
     switch (e->get_type()) {
         case tracker_type::tracker_string:
-            stream << "\"" << json_adapter::sanitize_string(GetTrackerValue<std::string>(e)) << "\"";
+            stream << "\"" << json_adapter::sanitize_string(get_tracker_value<std::string>(e)) << "\"";
             break;
         case tracker_type::tracker_int8:
-            stream << (int) GetTrackerValue<int8_t>(e);
+            stream << (int) get_tracker_value<int8_t>(e);
             break;
         case tracker_type::tracker_uint8:
-            stream << (unsigned int) GetTrackerValue<uint8_t>(e);
+            stream << (unsigned int) get_tracker_value<uint8_t>(e);
             break;
         case tracker_type::tracker_int16:
-            stream << (int) GetTrackerValue<int16_t>(e);
+            stream << (int) get_tracker_value<int16_t>(e);
             break;
         case tracker_type::tracker_uint16:
-            stream << (unsigned int) GetTrackerValue<uint16_t>(e);
+            stream << (unsigned int) get_tracker_value<uint16_t>(e);
             break;
         case tracker_type::tracker_int32:
-            stream << GetTrackerValue<int32_t>(e);
+            stream << get_tracker_value<int32_t>(e);
             break;
         case tracker_type::tracker_uint32:
-            stream << GetTrackerValue<uint32_t>(e);
+            stream << get_tracker_value<uint32_t>(e);
             break;
         case tracker_type::tracker_int64:
-            stream << GetTrackerValue<int64_t>(e);
+            stream << get_tracker_value<int64_t>(e);
             break;
         case tracker_type::tracker_uint64:
-            stream << GetTrackerValue<uint64_t>(e);
+            stream << get_tracker_value<uint64_t>(e);
             break;
         case tracker_type::tracker_float:
-            if (std::isnan(GetTrackerValue<float>(e)) || std::isinf(GetTrackerValue<float>(e)))
+            if (std::isnan(get_tracker_value<float>(e)) || std::isinf(get_tracker_value<float>(e)))
                 stream << 0;
             else
-                stream << std::fixed << GetTrackerValue<float>(e);
+                stream << std::fixed << get_tracker_value<float>(e);
             break;
         case tracker_type::tracker_double:
-            if (std::isnan(GetTrackerValue<double>(e)) || std::isinf(GetTrackerValue<double>(e)))
+            if (std::isnan(get_tracker_value<double>(e)) || std::isinf(get_tracker_value<double>(e)))
                 stream << 0;
             else
-                stream << std::fixed << GetTrackerValue<double>(e);
+                stream << std::fixed << get_tracker_value<double>(e);
             break;
         case tracker_type::tracker_mac_addr:
-            mac = GetTrackerValue<mac_addr>(e);
+            mac = get_tracker_value<mac_addr>(e);
             // Mac is quoted as a string value, mac only
             stream << "\"" << mac << "\"";
             break;
         case tracker_type::tracker_uuid:
-            euuid = GetTrackerValue<uuid>(e);
+            euuid = get_tracker_value<uuid>(e);
             // UUID is quoted as a string value
             stream << "\"" << euuid << "\"";
             break;
         case tracker_type::tracker_key:
-            stream << "\"" << GetTrackerValue<device_key>(e) << "\"";
+            stream << "\"" << get_tracker_value<device_key>(e) << "\"";
             break;
         case tracker_type::tracker_vector:
             stream << "[";

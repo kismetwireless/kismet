@@ -196,13 +196,13 @@ void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt,
 
     double calc_lat, calc_lon, calc_alt;
 
-    calc_lat = (double) (GetTrackerValue<int64_t>(avg_lat) / 
-            GetTrackerValue<int64_t>(num_avg)) / precision_multiplier;
-    calc_lon = (double) (GetTrackerValue<int64_t>(avg_lon) / 
-            GetTrackerValue<int64_t>(num_avg)) / precision_multiplier;
-    if (GetTrackerValue<int64_t>(num_alt_avg) != 0) {
-        calc_alt = (double) (GetTrackerValue<int64_t>(avg_alt) / 
-                GetTrackerValue<int64_t>(num_alt_avg)) / precision_multiplier;
+    calc_lat = (double) (get_tracker_value<int64_t>(avg_lat) / 
+            get_tracker_value<int64_t>(num_avg)) / precision_multiplier;
+    calc_lon = (double) (get_tracker_value<int64_t>(avg_lon) / 
+            get_tracker_value<int64_t>(num_avg)) / precision_multiplier;
+    if (get_tracker_value<int64_t>(num_alt_avg) != 0) {
+        calc_alt = (double) (get_tracker_value<int64_t>(avg_alt) / 
+                get_tracker_value<int64_t>(num_alt_avg)) / precision_multiplier;
     } else {
         calc_alt = 0;
     }
@@ -212,11 +212,11 @@ void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt,
     // This would take a really long time but we might as well be safe.  We're
     // throwing away some of the highest ranges but it's a cheap compare.
     uint64_t max_size_mask = 0xF000000000000000LL;
-    if ((GetTrackerValue<int64_t>(avg_lat) & max_size_mask) ||
-            (GetTrackerValue<int64_t>(avg_lon) & max_size_mask) ||
-            (GetTrackerValue<int64_t>(avg_alt) & max_size_mask) ||
-            (GetTrackerValue<int64_t>(num_avg) & max_size_mask) ||
-            (GetTrackerValue<int64_t>(num_alt_avg) & max_size_mask)) {
+    if ((get_tracker_value<int64_t>(avg_lat) & max_size_mask) ||
+            (get_tracker_value<int64_t>(avg_lon) & max_size_mask) ||
+            (get_tracker_value<int64_t>(avg_alt) & max_size_mask) ||
+            (get_tracker_value<int64_t>(num_avg) & max_size_mask) ||
+            (get_tracker_value<int64_t>(num_alt_avg) & max_size_mask)) {
         avg_lat->set((int64_t) (calc_lat * precision_multiplier));
         avg_lon->set((int64_t) (calc_lon * precision_multiplier));
         avg_alt->set((int64_t) (calc_alt * precision_multiplier));

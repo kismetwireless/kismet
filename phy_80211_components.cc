@@ -106,7 +106,7 @@ bool dot11_tracked_ssid_alert::compare_ssid(std::string ssid, mac_addr mac) {
 
     if (rc > 0) {
         for (auto m : *allowed_macs_vec) {
-            if (GetTrackerValue<mac_addr>(m) != mac)
+            if (get_tracker_value<mac_addr>(m) != mac)
                 return true;
         }
     }

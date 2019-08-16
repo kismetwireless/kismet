@@ -1823,21 +1823,21 @@ public:
 
 // Templated generic access functions
 
-template<typename T> T GetTrackerValue(const shared_tracker_element&);
-template<> std::string GetTrackerValue(const shared_tracker_element& e);
-template<> int8_t GetTrackerValue(const shared_tracker_element& e);
-template<> uint8_t GetTrackerValue(const shared_tracker_element& e);
-template<> int16_t GetTrackerValue(const shared_tracker_element& e);
-template<> uint16_t GetTrackerValue(const shared_tracker_element& e);
-template<> int32_t GetTrackerValue(const shared_tracker_element& e);
-template<> uint32_t GetTrackerValue(const shared_tracker_element& e);
-template<> int64_t GetTrackerValue(const shared_tracker_element& e);
-template<> uint64_t GetTrackerValue(const shared_tracker_element& e);
-template<> float GetTrackerValue(const shared_tracker_element& e);
-template<> double GetTrackerValue(const shared_tracker_element& e);
-template<> mac_addr GetTrackerValue(const shared_tracker_element& e);
-template<> uuid GetTrackerValue(const shared_tracker_element& e);
-template<> device_key GetTrackerValue(const shared_tracker_element& e);
+template<typename T> T get_tracker_value(const shared_tracker_element&);
+template<> std::string get_tracker_value(const shared_tracker_element& e);
+template<> int8_t get_tracker_value(const shared_tracker_element& e);
+template<> uint8_t get_tracker_value(const shared_tracker_element& e);
+template<> int16_t get_tracker_value(const shared_tracker_element& e);
+template<> uint16_t get_tracker_value(const shared_tracker_element& e);
+template<> int32_t get_tracker_value(const shared_tracker_element& e);
+template<> uint32_t get_tracker_value(const shared_tracker_element& e);
+template<> int64_t get_tracker_value(const shared_tracker_element& e);
+template<> uint64_t get_tracker_value(const shared_tracker_element& e);
+template<> float get_tracker_value(const shared_tracker_element& e);
+template<> double get_tracker_value(const shared_tracker_element& e);
+template<> mac_addr get_tracker_value(const shared_tracker_element& e);
+template<> uuid get_tracker_value(const shared_tracker_element& e);
+template<> device_key get_tracker_value(const shared_tracker_element& e);
 
 template<typename T> void SetTrackerValue(const shared_tracker_element& e, const T& v);
 template<> void SetTrackerValue(const shared_tracker_element& e, const std::string& v);

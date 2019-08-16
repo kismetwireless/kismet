@@ -769,7 +769,7 @@ public:
         if (in_options.size() != 0) {
             for (auto i : *options_vec) {
                 auto o = std::make_shared<tracker_element_string>(options_entry_id, 
-                        GetTrackerValue<std::string>(i));
+                        get_tracker_value<std::string>(i));
                 options_vec->push_back(o);
             }
         }

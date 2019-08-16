@@ -125,11 +125,11 @@ bool device_tracker_view_regex_worker::matchDevice(std::shared_ptr<kis_tracked_d
             std::string val;
 
             if (fi->get_type() == tracker_type::tracker_string)
-                val = GetTrackerValue<std::string>(fi);
+                val = get_tracker_value<std::string>(fi);
             else if (fi->get_type() == tracker_type::tracker_mac_addr)
-                val = GetTrackerValue<mac_addr>(fi).mac_to_string();
+                val = get_tracker_value<mac_addr>(fi).mac_to_string();
             else if (fi->get_type() == tracker_type::tracker_uuid)
-                val = GetTrackerValue<uuid>(fi).uuid_to_string();
+                val = get_tracker_value<uuid>(fi).uuid_to_string();
             else if (fi->get_type() == tracker_type::tracker_byte_array) 
                 val = std::static_pointer_cast<tracker_element_byte_array>(fi)->get();
             else
@@ -175,7 +175,7 @@ bool device_tracker_view_stringmatch_worker::matchDevice(std::shared_ptr<kis_tra
 
         if (field->get_type() == tracker_type::tracker_string) {
             // We can only do a straight string match against string fields
-            matched = GetTrackerValue<std::string>(field).find(query) != std::string::npos;
+            matched = get_tracker_value<std::string>(field).find(query) != std::string::npos;
         } else if (field->get_type() == tracker_type::tracker_byte_array) {
             // Try a raw string match against a binary field
             matched = 
@@ -223,7 +223,7 @@ bool device_tracker_view_icasestringmatch_worker::matchDevice(std::shared_ptr<ki
 
         if (field->get_type() == tracker_type::tracker_string) {
             // We can only do a straight string match against string fields
-            matched = icasesearch(GetTrackerValue<std::string>(field), query);
+            matched = icasesearch(get_tracker_value<std::string>(field), query);
         } else if (field->get_type() == tracker_type::tracker_byte_array) {
             // Try a raw string match against a binary field
             matched = icasesearch(std::static_pointer_cast<tracker_element_byte_array>(field)->get(), query);

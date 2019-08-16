@@ -69,7 +69,7 @@ class tracker_component : public tracker_element_map {
         return (std::shared_ptr<tracker_element>) cvar; \
     } \
     virtual rtype get_##name() const { \
-        return (rtype) GetTrackerValue<ptype>(cvar); \
+        return (rtype) get_tracker_value<ptype>(cvar); \
     } \
     virtual void set_##name(const itype& in) { \
         SetTrackerValue<ptype>(cvar, static_cast<ptype>(in)); \
@@ -84,7 +84,7 @@ class tracker_component : public tracker_element_map {
     } \
     virtual rtype get_##name() { \
         local_shared_locker l((kis_recursive_timed_mutex *) &mvar); \
-        auto r = GetTrackerValue<ptype>(cvar); \
+        auto r = get_tracker_value<ptype>(cvar); \
         return (rtype) r; \
     } \
     virtual void set_##name(const itype& in) { \
@@ -101,7 +101,7 @@ class tracker_component : public tracker_element_map {
     } \
     virtual rtype get_##name() { \
         local_shared_locker l(mvar); \
-        auto r = GetTrackerValue<ptype>(cvar); \
+        auto r = get_tracker_value<ptype>(cvar); \
         return (rtype) r; \
     } \
     virtual void set_##name(const itype& in) { \
@@ -123,7 +123,7 @@ class tracker_component : public tracker_element_map {
         return (std::shared_ptr<tracker_element>) cvar; \
     } \
     virtual rtype get_##name() const { \
-        return (rtype) GetTrackerValue<ptype>(cvar); \
+        return (rtype) get_tracker_value<ptype>(cvar); \
     } \
     virtual bool set_##name(const itype& in) { \
         cvar->set((ptype) in); \
@@ -152,7 +152,7 @@ class tracker_component : public tracker_element_map {
             if (cvar != nullptr) \
                 insert(cvar); \
         } \
-        return (rtype) GetTrackerValue<ptype>(cvar); \
+        return (rtype) get_tracker_value<ptype>(cvar); \
     } \
     virtual void set_##name(const itype& in) { \
         if (cvar == nullptr) { \
@@ -196,7 +196,7 @@ class tracker_component : public tracker_element_map {
             if (cvar != nullptr) \
                 insert(cvar); \
         } \
-        return (rtype) GetTrackerValue<ptype>(cvar); \
+        return (rtype) get_tracker_value<ptype>(cvar); \
     } \
     virtual void set_##name(const itype& in) { \
         local_locker l((kis_recursive_timed_mutex *) &mutex); \
@@ -242,7 +242,7 @@ class tracker_component : public tracker_element_map {
             if (cvar != nullptr) \
                 insert(cvar); \
         } \
-        return (rtype) GetTrackerValue<ptype>(cvar); \
+        return (rtype) get_tracker_value<ptype>(cvar); \
     } \
     virtual bool set_##name(const itype& in) { \
         if (cvar == nullptr) { \
@@ -271,7 +271,7 @@ class tracker_component : public tracker_element_map {
 // Only proxy a Get function
 #define __ProxyGet(name, ptype, rtype, cvar) \
     virtual rtype get_##name() { \
-        return (rtype) GetTrackerValue<ptype>(cvar); \
+        return (rtype) get_tracker_value<ptype>(cvar); \
     } 
 
 // Only proxy a Set function for overload
@@ -285,7 +285,7 @@ class tracker_component : public tracker_element_map {
 #define __ProxyGetM(name, ptype, rtype, cvar, mutex) \
     virtual rtype get_##name() { \
         local_shared_locker l((kis_recursive_timed_mutex *) &mutex); \
-        return (rtype) GetTrackerValue<ptype>(cvar); \
+        return (rtype) get_tracker_value<ptype>(cvar); \
     } 
 #define __ProxySetM(name, ptype, stype, cvar, mutex) \
     virtual void set_##name(const stype& in) { \
@@ -297,7 +297,7 @@ class tracker_component : public tracker_element_map {
 #define __ProxyGetMS(name, ptype, rtype, cvar, mutex) \
     virtual rtype get_##name() { \
         local_shared_locker l(mutex); \
-        return (rtype) GetTrackerValue<ptype>(cvar); \
+        return (rtype) get_tracker_value<ptype>(cvar); \
     } 
 #define __ProxySetMS(name, ptype, stype, cvar, mutex) \
     virtual void set_##name(const stype& in) { \
@@ -310,7 +310,7 @@ class tracker_component : public tracker_element_map {
 #define __ProxyPrivSplit(name, ptype, itype, rtype, cvar) \
     public: \
     virtual rtype get_##name() { \
-        return (rtype) GetTrackerValue<ptype>(cvar); \
+        return (rtype) get_tracker_value<ptype>(cvar); \
     } \
     protected: \
     virtual void set_int_##name(const itype& in) { \
@@ -325,7 +325,7 @@ class tracker_component : public tracker_element_map {
     public: \
     virtual rtype get_##name() { \
         local_shared_locker l((kis_recursive_timed_mutex *) &mutex); \
-        return (rtype) GetTrackerValue<ptype>(cvar); \
+        return (rtype) get_tracker_value<ptype>(cvar); \
     } \
     protected: \
     virtual void set_int_##name(const itype& in) { \
@@ -341,7 +341,7 @@ class tracker_component : public tracker_element_map {
     public: \
     virtual rtype get_##name() { \
         local_shared_locker l(mutex); \
-        return (rtype) GetTrackerValue<ptype>(cvar); \
+        return (rtype) get_tracker_value<ptype>(cvar); \
     } \
     protected: \
     virtual void set_int_##name(const itype& in) { \
@@ -616,7 +616,7 @@ class tracker_component : public tracker_element_map {
         (*cvar) &= ~(bs); \
     } \
     virtual dtype bitcheck_##name(dtype bs) { \
-        return (dtype) (GetTrackerValue<dtype>(cvar) & bs); \
+        return (dtype) (get_tracker_value<dtype>(cvar) & bs); \
     }
 
 // Proxy bitset functions (name, trackable type, data type, class var), with mutex
@@ -631,7 +631,7 @@ class tracker_component : public tracker_element_map {
     } \
     virtual dtype bitcheck_##name(dtype bs) { \
         local_shared_locker l((kis_recursive_timed_mutex *) &mutex); \
-        return (dtype) (GetTrackerValue<dtype>(cvar) & bs); \
+        return (dtype) (get_tracker_value<dtype>(cvar) & bs); \
     }
 
 // Proxy bitset functions (name, trackable type, data type, class var), with mutex
@@ -646,7 +646,7 @@ class tracker_component : public tracker_element_map {
     } \
     virtual dtype bitcheck_##name(dtype bs) { \
         local_shared_locker l(mutex); \
-        return (dtype) (GetTrackerValue<dtype>(cvar) & bs); \
+        return (dtype) (get_tracker_value<dtype>(cvar) & bs); \
     }
 
 public:
