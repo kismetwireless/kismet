@@ -119,7 +119,7 @@ bool device_tracker_view_regex_worker::matchDevice(std::shared_ptr<kis_tracked_d
     bool matched = false;
 
     for (auto i : filter_vec) {
-        auto fields = Gettracker_elementMultiPath(i->target, device);
+        auto fields = get_tracker_element_multi_path(i->target, device);
 
         for (auto fi : fields) {
             std::string val;

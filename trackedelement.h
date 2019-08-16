@@ -1926,13 +1926,13 @@ shared_tracker_element get_tracker_element_path(const std::vector<int>& in_path,
 // 'dot11.device/dot11.device.advertised.ssid.map/dot11.advertised.ssid'
 // it would return a vector of dot11.advertised.ssid for every SSID in
 // the dot11.device.advertised.ssid.map keyed map
-std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::string& in_path,
+std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::string& in_path,
         shared_tracker_element elem);
 // Split std::string path
-std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::vector<std::string>& in_path, 
+std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::vector<std::string>& in_path, 
         shared_tracker_element elem);
 // Resolved field ID path
-std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::vector<int>& in_path, 
+std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::vector<int>& in_path, 
         shared_tracker_element elem);
 
 // Summarize a complex record using a collection of summary elements.  The summarized

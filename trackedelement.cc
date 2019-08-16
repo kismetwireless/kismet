@@ -794,12 +794,12 @@ shared_tracker_element get_tracker_element_path(const std::vector<int>& in_path,
     return next_elem;
 }
 
-std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::string& in_path, 
+std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::string& in_path, 
         shared_tracker_element elem) {
-    return Gettracker_elementMultiPath(str_tokenize(in_path, "/"), elem);
+    return get_tracker_element_multi_path(str_tokenize(in_path, "/"), elem);
 }
 
-std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::vector<std::string>& in_path, 
+std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::vector<std::string>& in_path, 
         shared_tracker_element elem) {
 
     std::vector<shared_tracker_element> ret;
@@ -855,7 +855,7 @@ std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::vecto
 
                 for (auto i : *cn) {
                     std::vector<shared_tracker_element> subret =
-                        Gettracker_elementMultiPath(sub_path, i);
+                        get_tracker_element_multi_path(sub_path, i);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
@@ -869,7 +869,7 @@ std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::vecto
 
                 for (auto i : *cn) {
                     std::vector<shared_tracker_element> subret =
-                        Gettracker_elementMultiPath(sub_path, i.second);
+                        get_tracker_element_multi_path(sub_path, i.second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
@@ -883,7 +883,7 @@ std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::vecto
 
                 for (auto i : *cn) {
                     std::vector<shared_tracker_element> subret =
-                        Gettracker_elementMultiPath(sub_path, i.second);
+                        get_tracker_element_multi_path(sub_path, i.second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
@@ -897,7 +897,7 @@ std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::vecto
 
                 for (auto i : *cn) {
                     std::vector<shared_tracker_element> subret =
-                        Gettracker_elementMultiPath(sub_path, i.second);
+                        get_tracker_element_multi_path(sub_path, i.second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
@@ -911,7 +911,7 @@ std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::vecto
 
                 for (auto i : *cn) {
                     std::vector<shared_tracker_element> subret =
-                        Gettracker_elementMultiPath(sub_path, i.second);
+                        get_tracker_element_multi_path(sub_path, i.second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
@@ -928,7 +928,7 @@ std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::vecto
     return ret;
 }
 
-std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::vector<int>& in_path, 
+std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::vector<int>& in_path, 
         shared_tracker_element elem) {
 
     std::vector<shared_tracker_element> ret;
@@ -979,7 +979,7 @@ std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::vecto
 
                 for (auto i : *cn) {
                     std::vector<shared_tracker_element> subret =
-                        Gettracker_elementMultiPath(sub_path, i);
+                        get_tracker_element_multi_path(sub_path, i);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
@@ -993,7 +993,7 @@ std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::vecto
 
                 for (auto i : *cn) {
                     std::vector<shared_tracker_element> subret =
-                        Gettracker_elementMultiPath(sub_path, i.second);
+                        get_tracker_element_multi_path(sub_path, i.second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
@@ -1007,7 +1007,7 @@ std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::vecto
 
                 for (auto i : *cn) {
                     std::vector<shared_tracker_element> subret =
-                        Gettracker_elementMultiPath(sub_path, i.second);
+                        get_tracker_element_multi_path(sub_path, i.second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
@@ -1021,7 +1021,7 @@ std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::vecto
 
                 for (auto i : *cn) {
                     std::vector<shared_tracker_element> subret =
-                        Gettracker_elementMultiPath(sub_path, i.second);
+                        get_tracker_element_multi_path(sub_path, i.second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
@@ -1035,7 +1035,7 @@ std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::vecto
 
                 for (auto i : *cn) {
                     std::vector<shared_tracker_element> subret =
-                        Gettracker_elementMultiPath(sub_path, i.second);
+                        get_tracker_element_multi_path(sub_path, i.second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }

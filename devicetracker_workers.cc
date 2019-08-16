@@ -263,7 +263,7 @@ bool devicetracker_pcre_worker::MatchDevice(device_tracker *devicetracker __attr
         // Get complex fields - this lets us search nested vectors
         // or strings or whatnot
         std::vector<shared_tracker_element> fields = 
-            Gettracker_elementMultiPath(i->target, device);
+            get_tracker_element_multi_path(i->target, device);
 
         for (auto fi : fields) {
             std::string val;
