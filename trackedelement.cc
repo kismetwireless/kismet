@@ -599,6 +599,10 @@ void tracker_element_serializer::pre_serialize_path(const SharedElementSummary& 
     if (inter == nullptr)
         return;
 
+    // Descend down the alias trail
+    if (inter->get_type() == tracker_type::tracker_alias)
+        inter = std::static_pointer_cast<tracker_element_alias>(inter)->get();
+
     try {
         for (auto p : in_summary->resolved_path) {
 #if TE_TYPE_SAFETY == 1
@@ -609,6 +613,10 @@ void tracker_element_serializer::pre_serialize_path(const SharedElementSummary& 
 
             if (inter == nullptr)
                 return;
+
+            // Descend down the alias trail
+            if (inter->get_type() == tracker_type::tracker_alias)
+                inter = std::static_pointer_cast<tracker_element_alias>(inter)->get();
 
             inter->pre_serialize();
         }
@@ -628,6 +636,10 @@ void tracker_element_serializer::post_serialize_path(const SharedElementSummary&
     if (inter == nullptr)
         return;
 
+    // Descend down the alias trail
+    if (inter->get_type() == tracker_type::tracker_alias)
+        inter = std::static_pointer_cast<tracker_element_alias>(inter)->get();
+
     try {
         for (auto p : in_summary->resolved_path) {
 #if TE_TYPE_SAFETY == 1
@@ -638,6 +650,10 @@ void tracker_element_serializer::post_serialize_path(const SharedElementSummary&
 
             if (inter == nullptr)
                 return;
+
+            // Descend down the alias trail
+            if (inter->get_type() == tracker_type::tracker_alias)
+                inter = std::static_pointer_cast<tracker_element_alias>(inter)->get();
 
             inter->post_serialize();
         }
@@ -811,6 +827,10 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
 
     bool complex_fulfilled = false;
 
+    // Descend down the alias trail
+    if (elem->get_type() == tracker_type::tracker_alias)
+        elem = std::static_pointer_cast<tracker_element_alias>(elem)->get();
+
     for (auto x = in_path.begin(); x != in_path.end(); ++x) {
         // Skip empty path element
         if (x->length() == 0)
@@ -937,6 +957,10 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
         return ret;
 
     shared_tracker_element next_elem = nullptr;
+
+    // Descend down the alias trail
+    if (elem->get_type() == tracker_type::tracker_alias)
+        elem = std::static_pointer_cast<tracker_element_alias>(elem)->get();
 
     bool complex_fulfilled = false;
     for (auto x = in_path.begin(); x != in_path.end(); ++x) {
