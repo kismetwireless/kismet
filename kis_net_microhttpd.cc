@@ -124,7 +124,7 @@ std::shared_ptr<tracker_element> kishttpd::summarize_with_structured(std::shared
         }
     }
 
-    return Summarizetracker_element(in_data, summary_vec, rename_map);
+    return summarize_tracker_element(in_data, summary_vec, rename_map);
 }
 
 kis_net_httpd::kis_net_httpd() {
@@ -1416,7 +1416,7 @@ int kis_net_httpd_simple_tracked_endpoint::httpd_post_complete(kis_net_httpd_con
 
     if (summary_vec.size()) {
         auto simple = 
-            Summarizetracker_element(output_content, summary_vec, rename_map);
+            summarize_tracker_element(output_content, summary_vec, rename_map);
 
         Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, 
                 simple, rename_map);
@@ -1625,7 +1625,7 @@ int kis_net_httpd_simple_unauth_tracked_endpoint::httpd_post_complete(kis_net_ht
 
     if (summary_vec.size()) {
         auto simple = 
-            Summarizetracker_element(output_content, summary_vec, rename_map);
+            summarize_tracker_element(output_content, summary_vec, rename_map);
 
         Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, 
                 simple, rename_map);
@@ -1828,7 +1828,7 @@ int kis_net_httpd_path_tracked_endpoint::httpd_post_complete(kis_net_httpd_conne
 
     if (summary_vec.size()) {
         auto simple = 
-            Summarizetracker_element(output_content, summary_vec, rename_map);
+            summarize_tracker_element(output_content, summary_vec, rename_map);
 
         Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, 
                 simple, rename_map);

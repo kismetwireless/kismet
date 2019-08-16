@@ -1076,7 +1076,7 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
     return ret;
 }
 
-std::shared_ptr<tracker_element> Summarizetracker_element(shared_tracker_element in, 
+std::shared_ptr<tracker_element> summarize_tracker_element(shared_tracker_element in, 
         const std::vector<SharedElementSummary>& in_summarization, 
         std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
