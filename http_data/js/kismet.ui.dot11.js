@@ -342,7 +342,7 @@ kismet_ui.AddDeviceColumn('wifi_qbss_usage', {
         if (d != 0)
             perc = Number.parseFloat(d).toPrecision(4) + "%";
 
-        return '<div class="percentage-border"><div class="percentage-fill" style="height:15px;width:' + d + '%"><b class="percentage-text">' + perc + '</b></div></div>';
+        return '<div class="percentage-border"><span class="percentage-text">' + perc + '</span><div class="percentage-fill" style="width:' + d + '%"></div></div>';
     }
 });
 
