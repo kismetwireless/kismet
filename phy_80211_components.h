@@ -992,11 +992,6 @@ public:
     __Proxy(last_probed_ssid_csum, uint32_t, uint32_t, 
             uint32_t, last_probed_ssid_csum);
 
-    __ProxyDynamic(last_beaconed_ssid, std::string, std::string, std::string, last_beaconed_ssid,
-            last_beaconed_ssid_id);
-    __Proxy(last_beaconed_ssid_csum, uint32_t, uint32_t, 
-            uint32_t, last_beaconed_ssid_csum);
-
     __Proxy(last_beacon_timestamp, uint64_t, time_t, 
             time_t, last_beacon_timestamp);
 
@@ -1121,12 +1116,6 @@ protected:
             register_dynamic_field("dot11.device.last_probed_ssid", "last probed ssid", &last_probed_ssid);
         register_field("dot11.device.last_probed_ssid_csum", 
                 "last probed ssid checksum", &last_probed_ssid_csum);
-
-        last_beaconed_ssid_id =
-            register_dynamic_field("dot11.device.last_beaconed_ssid", 
-                    "last beaconed ssid", &last_beaconed_ssid);
-        register_field("dot11.device.last_beaconed_ssid_checksum", 
-                "last beaconed ssid checksum", &last_beaconed_ssid_csum);
 
         last_bssid_id =
             register_dynamic_field("dot11.device.last_bssid", "last BSSID", &last_bssid);
@@ -1277,11 +1266,6 @@ protected:
     int last_probed_ssid_id;
 
     std::shared_ptr<tracker_element_uint32> last_probed_ssid_csum;
-
-    std::shared_ptr<tracker_element_string> last_beaconed_ssid;
-    int last_beaconed_ssid_id;
-
-    std::shared_ptr<tracker_element_uint32> last_beaconed_ssid_csum;
 
     std::shared_ptr<tracker_element_mac_addr> last_bssid;
     int last_bssid_id;

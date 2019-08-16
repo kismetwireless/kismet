@@ -1896,10 +1896,7 @@ void kis_80211_phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
     if (keep_ie_tags_per_bssid)
         ssid->set_ietag_content_from_packet(dot11info->ie_tags);
 
-    // Update the base device records
-    dot11dev->set_last_beaconed_ssid(ssid->get_ssid());
-    dot11dev->set_last_beaconed_ssid_csum(dot11info->ssid_csum);
-
+    // Alias the last ssid snapshot
     auto lbr = dot11dev->get_last_beaconed_ssid_record();
     lbr->set(ssid);
 

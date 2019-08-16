@@ -360,7 +360,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
             "id": "dot11DeviceData",
             "fields": [
             {
-                field: "dot11.device/dot11.device.last_beaconed_ssid",
+                field: 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.ssid',
                 title: "Last Beaconed SSID (AP)",
                 empty: "<i>None</i>",
                 help: "If present, the last SSID (network name) advertised by a device as an access point beacon or as an access point issuing a probe response",
@@ -1198,7 +1198,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         data = kismet.sanitizeObject(data);
 
                         try {
-                            var ssid = data['dot11.device']['dot11.device.last_beaconed_ssid'];
+                            var ssid = data['dot11.device']['dot11.device.last_beaconed_ssid_record']['dot11.advertisedssid.ssid'];
                             var mac = data['kismet.device.base.macaddr'];
                         } catch {
 
@@ -1270,7 +1270,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     var mac = kismet.ObjectByString(opts['data'], opts['basekey'] + 'dot11.client.bssid');
                     var alink = $('a#' + key, opts['container']);
                     $.get(local_uri_prefix + "devices/by-key/" + key +
-                            "/device.json/dot11.device/dot11.device.last_beaconed_ssid")
+                        "dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.ssid")
                     .done(function(clidata) {
                         clidata = kismet.sanitizeObject(clidata);
 
@@ -1325,7 +1325,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     title: "Last SSID",
                     draw: function(opts) {
                         $.get(local_uri_prefix + "devices/by-key/" + opts['value'] +
-                                "/device.json/dot11.device/dot11.device.last_beaconed_ssid")
+                            'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.ssid')
                         .fail(function() {
                             opts['container'].html('<i>Unknown</i>');
                         })
