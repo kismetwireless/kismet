@@ -1047,15 +1047,15 @@ std::shared_ptr<tracker_element> Summarizetracker_element(shared_tracker_element
         auto inv = std::static_pointer_cast<tracker_element_vector>(in);
 
         for (auto i : *inv) 
-            ret->push_back(SummarizeSingletracker_element(i, in_summarization, rename_map));
+            ret->push_back(summarize_single_tracker_element(i, in_summarization, rename_map));
 
         return ret;
     }
 
-    return SummarizeSingletracker_element(in, in_summarization, rename_map);
+    return summarize_single_tracker_element(in, in_summarization, rename_map);
 }
 
-std::shared_ptr<tracker_element> SummarizeSingletracker_element(shared_tracker_element in, 
+std::shared_ptr<tracker_element> summarize_single_tracker_element(shared_tracker_element in, 
         const std::vector<SharedElementSummary>& in_summarization, 
         std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 

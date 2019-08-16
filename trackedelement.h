@@ -1945,7 +1945,7 @@ std::shared_ptr<tracker_element> Summarizetracker_element(shared_tracker_element
 // Summarize a complex record using a collection of summary elements.  The summarized
 // element is returned, and the rename mapping for serialization is updated in rename.
 // DOES NOT descend into vectors, only performs summarization on the object provided.
-std::shared_ptr<tracker_element> SummarizeSingletracker_element(shared_tracker_element in, 
+std::shared_ptr<tracker_element> summarize_single_tracker_element(shared_tracker_element in, 
         const std::vector<SharedElementSummary>& in_summarization, 
         std::shared_ptr<tracker_element_serializer::rename_map> rename_map);
 

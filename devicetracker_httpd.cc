@@ -572,7 +572,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     lock.unlock();
 
                     for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) 
-                        devvec->push_back(SummarizeSingletracker_element(mmpi->second, summary_vec, rename_map));
+                        devvec->push_back(summarize_single_tracker_element(mmpi->second, summary_vec, rename_map));
 
                     Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(tokenurl[4]), stream, 
                             devvec, rename_map);
@@ -612,7 +612,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     local_shared_locker devlock(&(dev->device_mutex));
 
                     auto simple = 
-                        SummarizeSingletracker_element(dev, summary_vec, rename_map);
+                        summarize_single_tracker_element(dev, summary_vec, rename_map);
 
                     Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(tokenurl[4]), 
                             stream, simple, rename_map);
@@ -718,7 +718,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     auto rd = std::static_pointer_cast<kis_tracked_device_base>(rei);
                     local_shared_locker lock(&rd->device_mutex);
 
-                    outdevs->push_back(SummarizeSingletracker_element(rd, summary_vec, rename_map));
+                    outdevs->push_back(summarize_single_tracker_element(rd, summary_vec, rename_map));
                 }
 
                 Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(tokenurl[4]), stream, 
