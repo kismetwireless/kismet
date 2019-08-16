@@ -337,12 +337,13 @@ kismet_ui.AddDeviceColumn('wifi_qbss_usage', {
     sortable: true,
     searchable: true,
     visiable: false,
-    /*
     renderfunc: function(d, t, r, m) {
-        return "abc";
-        // return '<div class="percentage-border"><div class="percentage-fill" style="height:24px;width:' + d + '%"></div></div>';
+        var perc = "n/a";
+        if (d != 0)
+            perc = Number.parseFloat(d).toPrecision(4) + "%";
+
+        return '<div class="percentage-border"><div class="percentage-fill" style="height:15px;width:' + d + '%"><b class="percentage-text">' + perc + '</b></div></div>';
     }
-    */
 });
 
 /* Custom device details for dot11 data */
