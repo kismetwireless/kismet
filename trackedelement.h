@@ -1950,7 +1950,7 @@ std::shared_ptr<tracker_element> summarize_single_tracker_element(shared_tracker
         std::shared_ptr<tracker_element_serializer::rename_map> rename_map);
 
 // Handle comparing fields
-bool Sorttracker_elementLess(const std::shared_ptr<tracker_element> lhs, 
+bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs, 
         const std::shared_ptr<tracker_element> rhs);
 
 // Compare fields, in a faster, but not type-safe, way.  This should be used only when
