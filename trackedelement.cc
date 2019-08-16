@@ -776,7 +776,13 @@ shared_tracker_element get_tracker_element_path(const std::vector<int>& in_path,
 #endif
             next_elem = std::static_pointer_cast<tracker_element_map>(elem)->get_sub(pe);
         } else {
+            // Descend down the alias trail
+            if (next_elem->get_type() == tracker_type::tracker_alias)
+                next_elem = std::static_pointer_cast<tracker_element_alias>(next_elem)->get();
+
+#if TE_TYPE_SAFETY == 1
             next_elem->enforce_type(tracker_type::tracker_map);
+#endif
             next_elem = std::static_pointer_cast<tracker_element_map>(next_elem)->get_sub(pe);
         }
 
@@ -822,6 +828,10 @@ std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::vecto
 #endif
             next_elem = std::static_pointer_cast<tracker_element_map>(elem)->get_sub(id);
         } else {
+            // Descend down the alias trail
+            if (next_elem->get_type() == tracker_type::tracker_alias)
+                next_elem = std::static_pointer_cast<tracker_element_alias>(next_elem)->get();
+
 #if TE_TYPE_SAFETY == 1
             next_elem->enforce_type(tracker_type::tracker_map);
 #endif
@@ -942,6 +952,10 @@ std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::vecto
 #endif
             next_elem = std::static_pointer_cast<tracker_element_map>(elem)->get_sub(id);
         } else {
+            // Descend down the alias trail
+            if (next_elem->get_type() == tracker_type::tracker_alias)
+                next_elem = std::static_pointer_cast<tracker_element_alias>(next_elem)->get();
+
 #if TE_TYPE_SAFETY == 1
             next_elem->enforce_type(tracker_type::tracker_map);
 #endif
