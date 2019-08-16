@@ -1218,7 +1218,7 @@ bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
     return false;
 }
 
-bool FastSorttracker_elementLess(const std::shared_ptr<tracker_element> lhs, 
+bool fast_sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs, 
         const std::shared_ptr<tracker_element> rhs) noexcept {
 
     switch (lhs->get_type()) {

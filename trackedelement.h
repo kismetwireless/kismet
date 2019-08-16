@@ -1956,7 +1956,7 @@ bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
 // Compare fields, in a faster, but not type-safe, way.  This should be used only when
 // the caller is positive that both fields are of the same type, but avoids a number of
 // compares.
-bool FastSorttracker_elementLess(const std::shared_ptr<tracker_element> lhs, 
+bool fast_sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs, 
         const std::shared_ptr<tracker_element> rhs) noexcept;
 
 #endif

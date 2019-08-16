@@ -709,9 +709,9 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
                     return in_order_direction != 0;
 
                 if (in_order_direction == 0)
-                    return FastSorttracker_elementLess(fa, fb);
+                    return fast_sort_tracker_element_less(fa, fb);
 
-                return FastSorttracker_elementLess(fb, fa);
+                return fast_sort_tracker_element_less(fb, fa);
             });
     }
 
