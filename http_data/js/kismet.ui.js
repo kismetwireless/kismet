@@ -288,7 +288,7 @@ exports.AddDeviceColumn = function(id, options) {
 
     // Bypass datatable/jquery pathing
     coldef.mData = function(row, type, set) {
-        kismet.ObjectByString(row, f);
+        return kismet.ObjectByString(row, f);
     }
 
     // Datatable render function
