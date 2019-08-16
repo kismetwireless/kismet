@@ -330,6 +330,10 @@ public:
         return alias_element;
     }
 
+    void set(std::shared_ptr<tracker_element> ae) {
+        alias_element = ae;
+    }
+
 protected:
     std::shared_ptr<tracker_element> alias_element;
 
