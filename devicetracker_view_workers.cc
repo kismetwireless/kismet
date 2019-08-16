@@ -168,7 +168,7 @@ bool device_tracker_view_stringmatch_worker::matchDevice(std::shared_ptr<kis_tra
     bool matched = false;
 
     for (auto i : fieldpaths) {
-        auto field = get_tracker_element_path(i, device);
+        auto field = Gettracker_elementPath(i, device);
 
         if (field == nullptr)
             continue;
@@ -216,7 +216,7 @@ bool device_tracker_view_icasestringmatch_worker::matchDevice(std::shared_ptr<ki
     };
 
     for (auto i : fieldpaths) {
-        auto field = get_tracker_element_path(i, device);
+        auto field = Gettracker_elementPath(i, device);
 
         if (field == nullptr)
             continue;

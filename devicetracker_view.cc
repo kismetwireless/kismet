@@ -699,8 +699,8 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
                 shared_tracker_element fa;
                 shared_tracker_element fb;
 
-                fa = get_tracker_element_path(order_field, a);
-                fb = get_tracker_element_path(order_field, b);
+                fa = Gettracker_elementPath(order_field, a);
+                fb = Gettracker_elementPath(order_field, b);
 
                 if (fa == nullptr) 
                     return in_order_direction == 0;

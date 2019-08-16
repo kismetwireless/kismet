@@ -328,23 +328,6 @@ kismet_ui.AddDeviceColumn('wifi_bss_uptime', {
     },
 });
 
-kismet_ui.AddDeviceColumn('wifi_qbss_usage', {
-    sTitle: 'Chan Usage',
-    // field: 'dot11.device/dot11.device.bss_timestamp',
-    field: 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.dot11e_channel_utilization_perc',
-    description: '802.11e QBSS channel utilization',
-    width: '5em;',
-    sortable: true,
-    searchable: true,
-    visiable: false,
-    /*
-    renderfunc: function(d, t, r, m) {
-        return "abc";
-        // return '<div class="percentage-border"><div class="percentage-fill" style="height:24px;width:' + d + '%"></div></div>';
-    }
-    */
-});
-
 /* Custom device details for dot11 data */
 kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
     filter: function(data) {

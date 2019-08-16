@@ -99,7 +99,7 @@ bool devicetracker_stringmatch_worker::MatchDevice(device_tracker *devicetracker
     for (auto i = fieldpaths.begin(); i != fieldpaths.end(); ++i) {
         // We should never have to search nested vectors so we don't use
         // multipath
-        shared_tracker_element field = get_tracker_element_path(*i, device);
+        shared_tracker_element field = Gettracker_elementPath(*i, device);
 
         if (field == NULL)
             continue;
