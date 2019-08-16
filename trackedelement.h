@@ -154,6 +154,9 @@ enum class tracker_type {
 
     // Hash-keyed map, using size_t as the keying element
     tracker_hashkey_map = 25,
+
+    // Alias of another field
+    tracker_alias = 26,
 };
 
 class tracker_element {
@@ -274,6 +277,63 @@ std::unique_ptr<tracker_element> tracker_element_factory(const Args& ... args) {
     auto dup = std::unique_ptr<SUB>(new SUB(args...));
     return std::move(dup);
 }
+
+// Aliased element used to link one element to anothers name, for instance to
+// allow the dot11 tracker a way to link the most recently used ssid from the
+// map to a custom field
+class tracker_element_alias : public tracker_element {
+public:
+    tracker_element_alias() :
+        tracker_element(tracker_type::tracker_alias) { }
+
+    tracker_element_alias(int in_id) :
+        tracker_element(tracker_type::tracker_alias, in_id) { }
+
+    tracker_element_alias(int id, std::shared_ptr<tracker_element> e) :
+        tracker_element(tracker_type::tracker_alias, id),
+        alias_element(e) { }
+
+    tracker_element_alias(const std::string& al, std::shared_ptr<tracker_element> e) :
+        tracker_element{tracker_type::tracker_alias},
+        alias_element{e} {
+            local_name = al;
+        }
+
+    static tracker_type static_type() {
+        return tracker_type::tracker_alias;
+    }
+
+    virtual void coercive_set(const std::string& in_str) override {
+        throw std::runtime_error("cannot coercively set aliases");
+    }
+    virtual void coercive_set(double in_num) override {
+        throw std::runtime_error("cannot coercively set aliases");
+    }
+
+    virtual void coercive_set(const shared_tracker_element& e) override {
+        throw std::runtime_error("cannot coercively set aliases");
+    }
+
+    virtual std::unique_ptr<tracker_element> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t());
+        return std::move(dup);
+    }
+
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        return std::move(dup);
+    }
+
+    std::shared_ptr<tracker_element> get() {
+        return alias_element;
+    }
+
+protected:
+    std::shared_ptr<tracker_element> alias_element;
+
+};
 
 // Superclass for generic components for pod-like scalar attributes, though
 // they don't need to be explicitly POD

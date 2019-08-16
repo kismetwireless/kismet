@@ -194,6 +194,10 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
 
     bool as_vector, as_key_vector;
 
+    // If we're serializing an alias, remap as the aliased element
+    if (e->get_type() == tracker_type::tracker_alias)
+        e = std::static_pointer_cast<tracker_element_alias>(e)->get();
+
     switch (e->get_type()) {
         case tracker_type::tracker_string:
             stream << "\"" << sanitize_string(GetTrackerValue<std::string>(e)) << "\"";
@@ -706,6 +710,10 @@ void storage_json_adapter::pack(std::ostream &stream, shared_tracker_element e,
 
     // Actual data blob for object
     stream << "\"od\": ";
+
+    // If we're serializing an alias, remap as the aliased element
+    if (e->get_type() == tracker_type::tracker_alias)
+        e = std::static_pointer_cast<tracker_element_alias>(e)->get();
 
     switch (e->get_type()) {
         case tracker_type::tracker_string:

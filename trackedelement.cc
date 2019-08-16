@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -266,6 +266,8 @@ std::string tracker_element::type_to_string(tracker_type t) {
             return "vector[string]";
         case tracker_type::tracker_hashkey_map:
             return "vector[size_t]";
+        case tracker_type::tracker_alias:
+            return "alias";
     }
 
     return "unknown";
@@ -325,6 +327,8 @@ std::string tracker_element::type_to_typestring(tracker_type t) {
             return "tracker_vector_string";
         case tracker_type::tracker_hashkey_map:
             return "tracker_hashkey_map";
+        case tracker_type::tracker_alias:
+            return "tracker_alias";
     }
 
     return "TrackerUnknown";
@@ -383,6 +387,8 @@ tracker_type tracker_element::typestring_to_type(const std::string& s) {
         return tracker_type::tracker_vector_string;
     if (s == "tracker_hashkey_map")
         return tracker_type::tracker_hashkey_map;
+    if (s == "tracker_alias")
+        return tracker_type::tracker_alias;
 
     throw std::runtime_error("Unable to interpret tracker type " + s);
 }
@@ -1166,6 +1172,7 @@ bool Sorttracker_elementLess(const std::shared_ptr<tracker_element> lhs,
         case tracker_type::tracker_double_map_double:
         case tracker_type::tracker_vector_string:
         case tracker_type::tracker_hashkey_map:
+        case tracker_type::tracker_alias:
             throw std::runtime_error(fmt::format("Attempted to compare a complex field type, {}",
                         lhs->get_type_as_string()));
     }
@@ -1217,6 +1224,7 @@ bool FastSorttracker_elementLess(const std::shared_ptr<tracker_element> lhs,
         case tracker_type::tracker_double_map_double:
         case tracker_type::tracker_vector_string:
         case tracker_type::tracker_hashkey_map:
+        case tracker_type::tracker_alias:
             return false;
     }
 
