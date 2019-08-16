@@ -162,3 +162,13 @@ div.viewselector {
     height: 200px;
 }
 
+.percentage-border {
+    border: 1px solid #ccc !important;
+}
+
+.percentage-fill {
+    color: #000 !important;
+    background-color: #9e9e9e !important;
+}
+
+
