@@ -1549,7 +1549,7 @@ void kis_datasource::register_fields() {
             &source_num_error_packets);
 
     packet_rate_rrd_id = 
-        RegisterDynamicField("kismet.datasource.packets_rrd", 
+        register_dynamic_field("kismet.datasource.packets_rrd", 
                 "detected packet rate over past 60 seconds",
                 &packet_rate_rrd);
 

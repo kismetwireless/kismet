@@ -788,21 +788,21 @@ protected:
         register_field("dot11.client.last_time", "last time seen", &last_time);
         register_field("dot11.client.type", "type of client", &client_type);
         dhcp_host_id =
-            RegisterDynamicField("dot11.client.dhcp_host", "dhcp host", &dhcp_host);
+            register_dynamic_field("dot11.client.dhcp_host", "dhcp host", &dhcp_host);
         dhcp_vendor_id =
-            RegisterDynamicField("dot11.client.dhcp_vendor", "dhcp vendor", &dhcp_vendor);
+            register_dynamic_field("dot11.client.dhcp_vendor", "dhcp vendor", &dhcp_vendor);
         register_field("dot11.client.tx_cryptset", "bitset of transmitted encryption", &tx_cryptset);
         register_field("dot11.client.rx_cryptset", "bitset of received enryption", &rx_cryptset);
         eap_identity_id = 
-            RegisterDynamicField("dot11.client.eap_identity", "EAP identity", &eap_identity);
+            register_dynamic_field("dot11.client.eap_identity", "EAP identity", &eap_identity);
         cdp_device_id = 
-            RegisterDynamicField("dot11.client.cdp_device", "CDP device", &cdp_device);
+            register_dynamic_field("dot11.client.cdp_device", "CDP device", &cdp_device);
         cdp_port_id =
-            RegisterDynamicField("dot11.client.cdp_port", "CDP port", &cdp_port);
+            register_dynamic_field("dot11.client.cdp_port", "CDP port", &cdp_port);
         register_field("dot11.client.decrypted", "client decrypted", &decrypted);
         
         ipdata_id =
-            RegisterDynamicField("dot11.client.ipdata", "IPv4 information", &ipdata);
+            register_dynamic_field("dot11.client.ipdata", "IPv4 information", &ipdata);
 
         register_field("dot11.client.datasize", "data in bytes", &datasize);
         register_field("dot11.client.datasize_retry", "retry data in bytes", &datasize_retry);
@@ -810,7 +810,7 @@ protected:
         register_field("dot11.client.num_retries", "number of retried packets", &num_retries);
 
         location_id =
-            RegisterDynamicField("dot11.client.location", "location", &location);
+            register_dynamic_field("dot11.client.location", "location", &location);
 
     }
 
@@ -1115,18 +1115,18 @@ protected:
         register_field("dot11.device.datasize_retry", "retried data in bytes", &datasize_retry);
 
         last_probed_ssid_id =
-            RegisterDynamicField("dot11.device.last_probed_ssid", "last probed ssid", &last_probed_ssid);
+            register_dynamic_field("dot11.device.last_probed_ssid", "last probed ssid", &last_probed_ssid);
         register_field("dot11.device.last_probed_ssid_csum", 
                 "last probed ssid checksum", &last_probed_ssid_csum);
 
         last_beaconed_ssid_id =
-            RegisterDynamicField("dot11.device.last_beaconed_ssid", 
+            register_dynamic_field("dot11.device.last_beaconed_ssid", 
                     "last beaconed ssid", &last_beaconed_ssid);
         register_field("dot11.device.last_beaconed_ssid_checksum", 
                 "last beaconed ssid checksum", &last_beaconed_ssid_csum);
 
         last_bssid_id =
-            RegisterDynamicField("dot11.device.last_bssid", "last BSSID", &last_bssid);
+            register_dynamic_field("dot11.device.last_bssid", "last BSSID", &last_bssid);
 
         register_field("dot11.device.last_beacon_timestamp",
                 "unix timestamp of last beacon frame", 
@@ -1155,11 +1155,11 @@ protected:
                     "WPA nonce exchange");
 
         ssid_beacon_packet_id =
-            RegisterDynamicField("dot11.device.ssid_beacon_packet",
+            register_dynamic_field("dot11.device.ssid_beacon_packet",
                     "snapshotted beacon packet", &ssid_beacon_packet);
 
         pmkid_packet_id =
-            RegisterDynamicField("dot11.device.pmkid_packet",
+            register_dynamic_field("dot11.device.pmkid_packet",
                     "snapshotted RSN PMKID packet", &pmkid_packet);
 
         register_field("dot11.device.min_tx_power", "Minimum advertised TX power", &min_tx_power);
@@ -1179,6 +1179,10 @@ protected:
         register_field("dot11.device.probe_fingerprint", "Probe (Client->AP) fingerprint", &probe_fingerprint);
         register_field("dot11.device.response_fingerprint", "Respose (AP->Client) fingerprint", 
                 &response_fingerprint);
+
+        last_beaconed_ssid_record_id =
+            register_field("dot11.device.last_beaconed_ssid_record", 
+                    tracker_element_factory<tracker_element_alias>(), "last beaconed ssid complete record");
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -1315,6 +1319,8 @@ protected:
     std::shared_ptr<tracker_element_uint32> beacon_fingerprint;
     std::shared_ptr<tracker_element_uint32> probe_fingerprint;
     std::shared_ptr<tracker_element_uint32> response_fingerprint;
+
+    int last_beaconed_ssid_record_id;
 };
 
 #endif

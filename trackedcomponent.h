@@ -717,7 +717,7 @@ protected:
     //
     // This field should be mapped via the __ProxyDynamicTrackable call
     template<typename T>
-    int RegisterDynamicField(const std::string& in_name, const std::string& in_desc, 
+    int register_dynamic_field(const std::string& in_name, const std::string& in_desc, 
             std::shared_ptr<T> *in_dest) {
         using build_type = typename std::remove_reference<decltype(**in_dest)>::type;
 

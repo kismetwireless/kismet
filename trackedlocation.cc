@@ -232,13 +232,13 @@ void kis_tracked_location::register_fields() {
     register_field("kismet.common.location.loc_fix", "location fix precision (2d/3d)", &loc_fix);
 
     min_loc_id = 
-        RegisterDynamicField("kismet.common.location.min_loc",
+        register_dynamic_field("kismet.common.location.min_loc",
                 "Minimum corner of bounding rectangle", &min_loc);
     max_loc_id = 
-        RegisterDynamicField("kismet.common.location.max_loc",
+        register_dynamic_field("kismet.common.location.max_loc",
                 "Maximume corner of bounding rectangle", &max_loc);
     avg_loc_id = 
-        RegisterDynamicField("kismet.common.location.avg_loc",
+        register_dynamic_field("kismet.common.location.avg_loc",
                 "Average GPS center of all samples", &avg_loc);
 
     register_field("kismet.common.location.avg_lat", "run-time average latitude", &avg_lat);

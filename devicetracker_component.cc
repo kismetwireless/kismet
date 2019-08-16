@@ -270,7 +270,7 @@ void kis_tracked_signal_data::register_fields() {
     register_field("kismet.common.signal.max_noise", "maximum noise", &max_noise);
 
     peak_loc_id =
-        RegisterDynamicField("kismet.common.signal.peak_loc",
+        register_dynamic_field("kismet.common.signal.peak_loc",
                 "location of strongest observed signal", &peak_loc);
 
     register_field("kismet.common.signal.maxseenrate",
@@ -281,7 +281,7 @@ void kis_tracked_signal_data::register_fields() {
             "bitset of observed carrier types", &carrierset);
 
     signal_min_rrd_id =
-        RegisterDynamicField("kismet.common.signal.signal_rrd",
+        register_dynamic_field("kismet.common.signal.signal_rrd",
                 "past minute of signal data", &signal_min_rrd);
 }
 
@@ -330,7 +330,7 @@ void kis_tracked_seenby_data::register_fields() {
                 tracker_element_factory<tracker_element_uint64>(), "packets per frequency");
 
     signal_data_id =
-        RegisterDynamicField("kismet.common.seenby.signal", "signal data", &signal_data);
+        register_dynamic_field("kismet.common.seenby.signal", "signal data", &signal_data);
 }
 
 void kis_tracked_device_base::inc_frequency_count(double frequency) {
@@ -393,7 +393,7 @@ void kis_tracked_device_base::register_fields() {
 	register_field("kismet.device.base.phyid", "phy internal id", &phyid);
     register_field("kismet.device.base.name", "printable device name", &devicename);
     username_id = 
-        RegisterDynamicField("kismet.device.base.username", "user name", &username);
+        register_dynamic_field("kismet.device.base.username", "user name", &username);
     register_field("kismet.device.base.commonname", 
             "common name alias of custom or device names", &commonname);
     register_field("kismet.device.base.type", "printable device type", &type_string);
@@ -416,11 +416,11 @@ void kis_tracked_device_base::register_fields() {
     register_field("kismet.device.base.datasize", "transmitted data in bytes", &datasize);
     
     packets_rrd_id =
-        RegisterDynamicField("kismet.device.base.packets.rrd", "packet rate rrd", &packets_rrd);
+        register_dynamic_field("kismet.device.base.packets.rrd", "packet rate rrd", &packets_rrd);
     data_rrd_id =
-        RegisterDynamicField("kismet.device.base.datasize.rrd", "packet size rrd", &data_rrd);
+        register_dynamic_field("kismet.device.base.datasize.rrd", "packet size rrd", &data_rrd);
     signal_data_id =
-        RegisterDynamicField("kismet.device.base.signal", "signal data", &signal_data);
+        register_dynamic_field("kismet.device.base.signal", "signal data", &signal_data);
 
     register_field("kismet.device.base.freq_khz_map", "packets seen per frequency (khz)", &freq_khz_map);
     register_field("kismet.device.base.channel", "channel (phy specific)", &channel);
@@ -434,9 +434,9 @@ void kis_tracked_device_base::register_fields() {
                 tracker_element_factory<tracker_element_string>(), "arbitrary tag");
 
     location_id =
-        RegisterDynamicField("kismet.device.base.location", "location", &location);
+        register_dynamic_field("kismet.device.base.location", "location", &location);
     location_cloud_id =
-        RegisterDynamicField("kismet.device.base.location_cloud", 
+        register_dynamic_field("kismet.device.base.location_cloud", 
                 "historic location cloud", &location_cloud);
 
     register_field("kismet.device.base.seenby", "sources that have seen this device", &seenby_map);
@@ -452,19 +452,19 @@ void kis_tracked_device_base::register_fields() {
                 "datasource seen-by data");
 
     packet_rrd_bin_250_id =
-        RegisterDynamicField("kismet.device.base.packet.bin.250", "RRD of packets up to 250 bytes",
+        register_dynamic_field("kismet.device.base.packet.bin.250", "RRD of packets up to 250 bytes",
                 &packet_rrd_bin_250);
     packet_rrd_bin_500_id =
-        RegisterDynamicField("kismet.device.base.packet.bin.500", "RRD of packets up to 500 bytes",
+        register_dynamic_field("kismet.device.base.packet.bin.500", "RRD of packets up to 500 bytes",
                 &packet_rrd_bin_500);
     packet_rrd_bin_1000_id =
-        RegisterDynamicField("kismet.device.base.packet.bin.1000", "RRD of packets up to 1000 bytes",
+        register_dynamic_field("kismet.device.base.packet.bin.1000", "RRD of packets up to 1000 bytes",
                 &packet_rrd_bin_1000);
     packet_rrd_bin_1500_id =
-        RegisterDynamicField("kismet.device.base.packet.bin.1500", "RRD of packets up to 1500 bytes",
+        register_dynamic_field("kismet.device.base.packet.bin.1500", "RRD of packets up to 1500 bytes",
                 &packet_rrd_bin_1500);
     packet_rrd_bin_jumbo_id =
-        RegisterDynamicField("kismet.device.base.packet.bin.jumbo", "RRD of packets over 1500 bytes",
+        register_dynamic_field("kismet.device.base.packet.bin.jumbo", "RRD of packets over 1500 bytes",
                 &packet_rrd_bin_jumbo);
 
     register_field("kismet.device.base.server_uuid", 
