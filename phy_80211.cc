@@ -1900,6 +1900,9 @@ void kis_80211_phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
     dot11dev->set_last_beaconed_ssid(ssid->get_ssid());
     dot11dev->set_last_beaconed_ssid_csum(dot11info->ssid_csum);
 
+    auto lbr = dot11dev->get_last_beaconed_ssid_record();
+    lbr->set(ssid);
+
     if (ssid->get_last_time() < in_pack->ts.tv_sec)
         ssid->set_last_time(in_pack->ts.tv_sec);
 

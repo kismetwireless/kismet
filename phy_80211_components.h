@@ -1056,6 +1056,9 @@ public:
     bool get_pmkid_needed() { return pmkid_packet == nullptr; }
     bool get_pmkid_present() { return pmkid_packet != nullptr; }
 
+    __ProxyDynamicTrackable(last_beaconed_ssid_record, tracker_element_alias, 
+            last_beaconed_ssid_record, last_beaconed_ssid_record_id);
+
 protected:
 
     virtual void register_fields() override {
@@ -1181,8 +1184,8 @@ protected:
                 &response_fingerprint);
 
         last_beaconed_ssid_record_id =
-            register_field("dot11.device.last_beaconed_ssid_record", 
-                    tracker_element_factory<tracker_element_alias>(), "last beaconed ssid complete record");
+            register_dynamic_field("dot11.device.last_beaconed_ssid_record", 
+                    "last beaconed ssid, complete record", &last_beaconed_ssid_record);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -1321,6 +1324,7 @@ protected:
     std::shared_ptr<tracker_element_uint32> response_fingerprint;
 
     int last_beaconed_ssid_record_id;
+    std::shared_ptr<tracker_element_alias> last_beaconed_ssid_record;
 };
 
 #endif
