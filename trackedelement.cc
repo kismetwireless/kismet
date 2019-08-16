@@ -709,12 +709,12 @@ void tracker_element_summary::parse_path(const std::vector<std::string>& in_path
     }
 }
 
-shared_tracker_element Gettracker_elementPath(const std::string& in_path, 
+shared_tracker_element get_tracker_element_path(const std::string& in_path, 
         shared_tracker_element elem) {
-    return Gettracker_elementPath(str_tokenize(in_path, "/"), elem);
+    return get_tracker_element_path(str_tokenize(in_path, "/"), elem);
 }
 
-shared_tracker_element Gettracker_elementPath(const std::vector<std::string>& in_path, 
+shared_tracker_element get_tracker_element_path(const std::vector<std::string>& in_path, 
         shared_tracker_element elem) {
 
     if (in_path.size() < 1)
@@ -755,7 +755,7 @@ shared_tracker_element Gettracker_elementPath(const std::vector<std::string>& in
     return next_elem;
 }
 
-shared_tracker_element Gettracker_elementPath(const std::vector<int>& in_path, 
+shared_tracker_element get_tracker_element_path(const std::vector<int>& in_path, 
         shared_tracker_element elem) {
 
     if (in_path.size() < 1)
@@ -1082,7 +1082,7 @@ std::shared_ptr<tracker_element> SummarizeSingletracker_element(shared_tracker_e
             continue;
 
         shared_tracker_element f =
-            Gettracker_elementPath((*si)->resolved_path, in);
+            get_tracker_element_path((*si)->resolved_path, in);
 
         if (f == NULL) {
             f = Globalreg::globalreg->entrytracker->register_and_get_field("unknown" + int_to_string(fn),

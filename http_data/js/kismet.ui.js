@@ -161,8 +161,6 @@ function deviceview_selector_dynamic_update() {
                     var dsdata = kismet.sanitizeObject(dsdata);
                     var synth_view = 'seenby-' + dsdata['kismet.datasource.uuid'];
 
-                    console.log(synth_view);
-
                     existing_views[synth_view] = 1;
 
                     exports.AddDeviceView(dsdata['kismet.datasource.name'], synth_view, ds_priority, 'Datasources');
@@ -290,7 +288,7 @@ exports.AddDeviceColumn = function(id, options) {
 
     // Bypass datatable/jquery pathing
     coldef.mData = function(row, type, set) {
-        return kismet.ObjectByString(row, f);
+        kismet.ObjectByString(row, f);
     }
 
     // Datatable render function
