@@ -1912,12 +1912,12 @@ protected:
 
 // Get an element using path semantics
 // Full std::string path
-shared_tracker_element Gettracker_elementPath(const std::string& in_path, shared_tracker_element elem);
+shared_tracker_element get_tracker_element_path(const std::string& in_path, shared_tracker_element elem);
 // Split std::string path
-shared_tracker_element Gettracker_elementPath(const std::vector<std::string>& in_path, 
+shared_tracker_element get_tracker_element_path(const std::vector<std::string>& in_path, 
         shared_tracker_element elem);
 // Resolved field ID path
-shared_tracker_element Gettracker_elementPath(const std::vector<int>& in_path, 
+shared_tracker_element get_tracker_element_path(const std::vector<int>& in_path, 
         shared_tracker_element elem);
 
 // Get a list of elements from a complex path which may include vectors
