@@ -168,10 +168,10 @@ public:
 // inside a connection object.
 class kis_net_httpd_buffer_stream_handler : public kis_net_httpd_handler {
 public:
-    kis_net_httpd_buffer_stream_handler() : kis_net_httpd_handler() {
-        // Default rb size
-        k_n_h_r_ringbuf_size = 1024*1024*4;
-    }
+    kis_net_httpd_buffer_stream_handler() : 
+        kis_net_httpd_handler(),
+        k_n_h_r_ringbuf_size {1024 * 1024 * 4} { }
+
     virtual ~kis_net_httpd_buffer_stream_handler();
 
     virtual int httpd_handle_get_request(kis_net_httpd *httpd,
