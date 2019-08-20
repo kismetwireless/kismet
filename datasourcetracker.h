@@ -516,6 +516,9 @@ protected:
     std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> defaults_endp;
     std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> types_endp;
     std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> list_interfaces_endp;
+
+    // Buffer sizes
+    size_t tcp_buffer_sz;
 };
 
 /* This implements the core 'all data' pcap, and pcap filtered by datasource UUID.

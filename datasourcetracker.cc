@@ -419,6 +419,9 @@ void datasource_tracker::trigger_deferred_startup() {
 
     next_source_num = 0;
 
+    tcp_buffer_sz = 
+        Globalreg::globalreg->kismet_config->fetch_opt_as<size_t>("tcp_buffer_kb", 512);
+
     config_defaults = 
         Globalreg::globalreg->entrytracker->register_and_get_field_as<datasource_tracker_defaults>("kismet.datasourcetracker.defaults",
                 tracker_element_factory<datasource_tracker_defaults>(),
@@ -1071,7 +1074,7 @@ void datasource_tracker::schedule_cleanup() {
 void datasource_tracker::new_remote_tcp_connection(int in_fd) {
     // Make a new connection handler with its own mutex
     auto conn_handler = 
-        std::make_shared<buffer_handler<ringbuf_v2>>((1024 * 1024), (1024 * 1024));
+        std::make_shared<buffer_handler<ringbuf_v2>>((tcp_buffer_sz * 1024), (tcp_buffer_sz * 1024));
 
     // Bind it to the tcp socket
     auto socketcli = 

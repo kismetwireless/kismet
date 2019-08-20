@@ -260,9 +260,12 @@ bool kis_external_interface::run_ipc() {
         ringbuf_handler->protocol_error();
     }
 
+    ipc_buffer_sz = 
+        Globalreg::globalreg->kismet_config->fetch_opt_as<size_t>("ipc_buffer_kb", 512);
+
     // Make a new handler and new ipc.  Give a generous buffer.  Give it our mutex so that all
     // future related objects inherit from us.
-    ringbuf_handler = std::make_shared<buffer_handler<ringbuf_v2>>((1024 * 1024), (1024 * 1024), ext_mutex);
+    ringbuf_handler = std::make_shared<buffer_handler<ringbuf_v2>>((ipc_buffer_sz * 1024), (ipc_buffer_sz * 1024), ext_mutex);
     ringbuf_handler->set_read_buffer_interface(this);
 
     ipc_remote.reset(new ipc_remote_v2(Globalreg::globalreg, ringbuf_handler));

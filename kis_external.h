@@ -129,6 +129,8 @@ protected:
     std::vector<std::string> external_binary_args;
 
     int ping_timer_id;
+
+    size_t ipc_buffer_sz;
 };
 
 class kis_external_http_interface : public kis_external_interface, kis_net_httpd_chain_stream_handler {
