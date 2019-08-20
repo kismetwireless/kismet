@@ -993,6 +993,107 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     return 1;
 }
 
+int build_localdev_filter(char **filter) {
+    typedef struct macaddr_list {
+        uint8_t macaddr[6];
+        struct macaddr_list *next;
+    } macaddr_list_t;
+
+    macaddr_list_t *macs = NULL;
+    size_t num_macs = 0;
+    size_t filtered_macs = 0;
+    macaddr_list_t *mi = NULL, *mb = NULL;
+
+    int mode;
+
+    size_t filter_len = 0;
+    unsigned int need_and = 0;
+    size_t fpos = 0;
+
+    DIR *devdir;
+    struct dirent *devfile;
+    char errstr[STATUS_MAX];
+
+    if ((devdir = opendir("/sys/class/net/")) == NULL) {
+        *filter = NULL;
+        return 0;
+    }
+
+    /* Look at the files in the sys dir and see if they're wi-fi */
+    while ((devfile = readdir(devdir)) != NULL) {
+        /* Skip interfaces which are down */
+        if (ifconfig_get_flags(devfile->d_name, errstr, &mode) < 0) 
+            continue;
+
+        if ((mode & IFF_UP) == 0 && (mode & IFF_RUNNING) == 0)
+            continue;
+
+        mi = (macaddr_list_t *) malloc(sizeof(macaddr_list_t));
+
+        if (ifconfig_get_hwaddr(devfile->d_name, errstr, mi->macaddr) < 0) {
+            free(mi);
+            continue;
+        }
+
+        /* Skip interfaces with a 0 mac */
+        if (memcmp(mi->macaddr, "\x00\x00\x00\x00\x00\x00", 6) == 0) {
+            free(mi);
+            continue;
+        }
+
+        mi->next = macs;
+        macs = mi;
+
+        num_macs++;
+    }
+
+    closedir(devdir);
+
+    if (num_macs == 0) {
+        *filter = NULL;
+        return 0;
+    }
+
+    /*
+       For now write the filter as a string and compile it
+       'not ether host aa:bb:cc:dd:ee:ff'
+       32 bytes per mac 
+       ' and '
+       6 bytes per join
+    */
+   
+    filter_len = (num_macs * 32) + ((num_macs - 1) * 6) + 1;
+
+    *filter = (char *) malloc(filter_len);
+
+    mi = macs;
+
+    while (mi != NULL) {
+        if (filtered_macs < 8) {
+            filtered_macs++; 
+
+            if (need_and) {
+                snprintf(*filter + fpos, filter_len - fpos, " and ");
+                fpos += 5;
+            }
+            need_and = 1;
+
+            snprintf(*filter + fpos, filter_len - fpos, 
+                    "not ether host %02x:%02x:%02x:%02x:%02x:%02x",
+                    mi->macaddr[0], mi->macaddr[1], mi->macaddr[2], 
+                    mi->macaddr[3], mi->macaddr[4], mi->macaddr[5]);
+            fpos += 32;
+        }
+
+        mb = mi->next;
+        free(mi);
+        mi = mb;
+    }
+
+    return num_macs;
+}
+
+
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
         cf_params_interface_t **ret_interface,
@@ -1040,12 +1141,16 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     int ret;
 
-    char regdom[5];
+    /* char regdom[5]; */
 
     char driver[32] = "";
 
     char *localchanstr = NULL;
     local_channel_t *localchan = NULL;
+
+    int filter_locals = 0;
+    char *ignore_filter = NULL;
+    struct bpf_program bpf;
 
 #ifdef HAVE_LIBNM
     NMClient *nmclient = NULL;
@@ -1115,6 +1220,16 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             local_wifi->verbose_statistics = 0;
         } else if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
             local_wifi->verbose_statistics = 1;
+        }
+    }
+
+    /* Do we ignore any other interfaces on this device? */
+    if ((placeholder_len = 
+                cf_find_flag(&placeholder, "filter_locals", definition)) > 0) {
+        if (strncasecmp(placeholder, "false", placeholder_len) == 0) {
+            filter_locals = 0;
+        } else if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+            filter_locals = 1;
         }
     }
 
@@ -1741,6 +1856,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     (*ret_interface)->hardware = strdup(driver);
 
+#if 0
     /* Get the iw regdom and see if it makes sense */
     if (linux_sys_get_regdom(regdom) == 0) {
         if (strcmp(regdom, "00") == 0) {
@@ -1752,6 +1868,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             cf_send_warning(caph, errstr);
         }
     }
+#endif
 
     /* Open the pcap */
     local_wifi->pd = pcap_open_live(local_wifi->cap_interface, 
@@ -1762,6 +1879,33 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 "as a pcap capture: %s", local_wifi->name, local_wifi->cap_interface, 
                 local_wifi->interface, pcap_errstr);
         return -1;
+    }
+
+    if (filter_locals) {
+        if ((ret = build_localdev_filter(&ignore_filter)) > 0) {
+            if (ret > 8) {
+                snprintf(errstr, STATUS_MAX, "%s found more than 8 local interfaces (%d), limiting "
+                        "the exclusion filter to the first 8 because of limited kernel filter memory.",
+                        local_wifi->name, ret);
+                cf_send_message(caph, errstr, MSGFLAG_INFO);
+            }
+
+            if (pcap_compile(local_wifi->pd, &bpf, ignore_filter, 0, 0) < 0) {
+                snprintf(errstr, STATUS_MAX, "%s unable to compile filter to exclude other "
+                        "local interfaces: %s",
+                        local_wifi->name, pcap_geterr(local_wifi->pd));
+                cf_send_message(caph, errstr, MSGFLAG_INFO);
+            } else {
+                if (pcap_setfilter(local_wifi->pd, &bpf) < 0) {
+                    snprintf(errstr, STATUS_MAX, "%s unable to assign filter to exclude other "
+                            "local interfaces: %s",
+                            local_wifi->name, pcap_geterr(local_wifi->pd));
+                    cf_send_message(caph, errstr, MSGFLAG_INFO);
+                }
+            }
+
+            free(ignore_filter);
+        }
     }
 
     local_wifi->datalink_type = pcap_datalink(local_wifi->pd);
