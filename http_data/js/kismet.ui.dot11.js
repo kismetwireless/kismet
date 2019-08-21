@@ -303,7 +303,7 @@ kismet_ui.AddDeviceRowHighlight({
 kismet_ui.AddDeviceColumn('wifi_clients', {
     sTitle: 'Clients',
     field: 'dot11.device/dot11.device.num_associated_clients',
-    description: 'Count of associated Wi-Fi clients',
+    description: 'Related Wi-Fi devices (associated and bridged)',
     width: '2em'
 });
 
