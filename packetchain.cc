@@ -55,8 +55,6 @@ packet_chain::packet_chain() {
     packet_queue_drop =
         Globalreg::globalreg->kismet_config->fetch_opt_uint("packet_backlog_limit", 8192);
 
-    packet_chain_pause = false;
-
     packetchain_shutdown = false;
 
 #if 0
@@ -74,13 +72,10 @@ packet_chain::packet_chain() {
     // Force to a single thread for now
     int num_chain_threads = 1;
 
-    for (int i = 0; i < num_chain_threads; i++) {
-        packet_threads.push_back(std::thread([this, i]() { 
+    packet_thread = std::thread([this]() {
             thread_set_process_name("packethandler");
-            packet_queue_processor(i);
-        }));
-        packet_thread_cls.push_back(new conditional_locker<int>());
-    }
+            packet_queue_processor();
+            });
 }
 
 packet_chain::~packet_chain() {
@@ -89,17 +84,12 @@ packet_chain::~packet_chain() {
         packetchain_shutdown = true;
         packetqueue_cv.notify_all();
 
-        for (auto& t : packet_threads)
-            t.join();
+        packet_thread.join();
     }
 
     {
         // Stall until a sync is done
-        local_eol_locker syncl(&packet_chain_sync_mutex);
-
-        for (auto t : packet_thread_cls) {
-            delete(t);
-        }
+        local_eol_locker syncl(&packetchain_mutex);
 
         Globalreg::globalreg->RemoveGlobal("PACKETCHAIN");
         Globalreg::globalreg->packetchain = NULL;
@@ -192,55 +182,7 @@ kis_packet *packet_chain::generate_packet() {
     return newpack;
 }
 
-int packet_chain::sync_service_threads(std::function<int (void)> fn) {
-    local_locker syncl(&packet_chain_sync_mutex);
-
-    // Lock all the requests to the threads, so the workers can tell us they've synced and
-    // locked.
-    for (auto cl : packet_thread_cls)
-        cl->lock();
-
-    // Lock the pause complete condition
-    packet_chain_pause_cl.lock();
-
-    // Tell all the threads to lock
-    packet_chain_pause = true;
-
-    packetqueue_cv.notify_all();
-
-    // Wait for all the requests to unlock; we need them all to unlock so it doesn't matter
-    // if they complete out of order, we'll get to it
-    int num = 0;
-    for (auto cl : packet_thread_cls) {
-        cl->block_until();
-        num++;
-    }
-
-    {
-        // We're now locked, do work
-
-        auto r = fn();
-
-        packet_chain_pause = false;
-
-        // Now lock all the conditionals again, and let the threads tell us they're DONE syncing
-        for (auto cl : packet_thread_cls)
-            cl->lock();
-
-        packet_chain_pause_cl.unlock(0);
-
-        int num = 0;
-        for (auto cl : packet_thread_cls) {
-            cl->block_until();
-            num++;
-        }
-
-        return r;
-    }
-
-}
-
-void packet_chain::packet_queue_processor(int slot_number) {
+void packet_chain::packet_queue_processor() {
     std::unique_lock<std::mutex> lock(packetqueue_cv_mutex);
 
     kis_packet *packet = NULL;
@@ -251,37 +193,22 @@ void packet_chain::packet_queue_processor(int slot_number) {
             !Globalreg::globalreg->complete) {
 
         packetqueue_cv.wait(lock, [this] {
-            return (packet_queue.size() || packet_chain_pause);
+            return (packet_queue.size() ||
+                    packetchain_shutdown || 
+                    Globalreg::globalreg->spindown || 
+                    Globalreg::globalreg->fatal_condition ||
+                    Globalreg::globalreg->complete);
             });
 
         // At this point we own lock, and it is locked, we need to re-lock it before we leave the loop
-
-        // Do we need to pause?
-        if (packet_chain_pause) {
-            // Let go of the lock
-            lock.unlock();
-
-            // We've been asked to pause.  unlock the conditional to indicate we're in the sync block.
-            packet_thread_cls[slot_number]->unlock();
-
-            // Wait until we get the master unlock that all threads are synchronized
-
-            // Block on the master unlock
-            packet_chain_pause_cl.block_until();
-
-            // We're done with the sync block; unlock the response
-            packet_thread_cls[slot_number]->unlock();
-
-            // Grab the lock again
-            lock.lock();
-
-            continue;
-        }
 
         if (packet_queue.size() != 0) {
             // Get the next packet
             packet = packet_queue.front();
             packet_queue.pop();
+
+            // Lock the chain mutexes until we're done processing this packet
+            local_locker chainl(&packetchain_mutex);
 
             // Unlock the queue while we process that packet
             lock.unlock();
@@ -409,71 +336,68 @@ int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux,
         std::function<int (kis_packet *)> in_l_cb, 
         int in_chain, int in_prio) {
 
-    return sync_service_threads([&](void) -> int {
-        pc_link *link = NULL;
-        
-        // Generate packet, we'll nuke it if it's invalid later
-        link = new pc_link;
-        link->priority = in_prio;
-        link->callback = in_cb;
-        link->l_callback = in_l_cb;
-        link->auxdata = in_aux;
-	    link->id = next_handlerid++;
-                
-        switch (in_chain) {
-            case CHAINPOS_POSTCAP:
-                postcap_chain.push_back(link);
-                stable_sort(postcap_chain.begin(), postcap_chain.end(), 
-	    					SortLinkPriority());
-                break;
+    local_locker l(&packetchain_mutex);
 
-            case CHAINPOS_LLCDISSECT:
-                llcdissect_chain.push_back(link);
-                stable_sort(llcdissect_chain.begin(), llcdissect_chain.end(), 
-	    					SortLinkPriority());
-                break;
+    pc_link *link = NULL;
 
-            case CHAINPOS_DECRYPT:
-                decrypt_chain.push_back(link);
-                stable_sort(decrypt_chain.begin(), decrypt_chain.end(), 
-	    					SortLinkPriority());
-                break;
-                
-            case CHAINPOS_DATADISSECT:
-                datadissect_chain.push_back(link);
-                stable_sort(datadissect_chain.begin(), datadissect_chain.end(), 
-	    					SortLinkPriority());
-                break;
+    // Generate packet, we'll nuke it if it's invalid later
+    link = new pc_link;
+    link->priority = in_prio;
+    link->callback = in_cb;
+    link->l_callback = in_l_cb;
+    link->auxdata = in_aux;
+    link->id = next_handlerid++;
 
-            case CHAINPOS_CLASSIFIER:
-                classifier_chain.push_back(link);
-                stable_sort(classifier_chain.begin(), classifier_chain.end(), 
-	    					SortLinkPriority());
-                break;
+    switch (in_chain) {
+        case CHAINPOS_POSTCAP:
+            postcap_chain.push_back(link);
+            stable_sort(postcap_chain.begin(), postcap_chain.end(), 
+                    SortLinkPriority());
+            break;
 
-            case CHAINPOS_TRACKER:
-                tracker_chain.push_back(link);
-                stable_sort(tracker_chain.begin(), tracker_chain.end(), 
-	    					SortLinkPriority());
-                break;
+        case CHAINPOS_LLCDISSECT:
+            llcdissect_chain.push_back(link);
+            stable_sort(llcdissect_chain.begin(), llcdissect_chain.end(), 
+                    SortLinkPriority());
+            break;
 
-            case CHAINPOS_LOGGING:
-                logging_chain.push_back(link);
-                stable_sort(logging_chain.begin(), logging_chain.end(), 
-	    					SortLinkPriority());
-                break;
+        case CHAINPOS_DECRYPT:
+            decrypt_chain.push_back(link);
+            stable_sort(decrypt_chain.begin(), decrypt_chain.end(), 
+                    SortLinkPriority());
+            break;
 
-            default:
-                delete link;
-                _MSG("packet_chain::register_handler requested unknown chain", 
-	    			 MSGFLAG_ERROR);
-                return -1;
-        }
+        case CHAINPOS_DATADISSECT:
+            datadissect_chain.push_back(link);
+            stable_sort(datadissect_chain.begin(), datadissect_chain.end(), 
+                    SortLinkPriority());
+            break;
 
-        return link->id;
+        case CHAINPOS_CLASSIFIER:
+            classifier_chain.push_back(link);
+            stable_sort(classifier_chain.begin(), classifier_chain.end(), 
+                    SortLinkPriority());
+            break;
 
-        });
+        case CHAINPOS_TRACKER:
+            tracker_chain.push_back(link);
+            stable_sort(tracker_chain.begin(), tracker_chain.end(), 
+                    SortLinkPriority());
+            break;
 
+        case CHAINPOS_LOGGING:
+            logging_chain.push_back(link);
+            stable_sort(logging_chain.begin(), logging_chain.end(), 
+                    SortLinkPriority());
+            break;
+
+        default:
+            delete link;
+            _MSG("packet_chain::register_handler requested unknown chain", MSGFLAG_ERROR);
+            return -1;
+    }
+
+    return link->id;
 }
 
 int packet_chain::register_handler(pc_callback in_cb, void *in_aux, int in_chain, int in_prio) {
@@ -485,146 +409,144 @@ int packet_chain::register_handler(std::function<int (kis_packet *)> in_cb, int 
 }
 
 int packet_chain::remove_handler(int in_id, int in_chain) {
-    return sync_service_threads([&](void) -> int {
-        unsigned int x;
+    local_locker l(&packetchain_mutex);
 
-        switch (in_chain) {
-            case CHAINPOS_POSTCAP:
-                for (x = 0; x < postcap_chain.size(); x++) {
-                    if (postcap_chain[x]->id == in_id) {
-                        postcap_chain.erase(postcap_chain.begin() + x);
-                    }
+    unsigned int x;
+
+    switch (in_chain) {
+        case CHAINPOS_POSTCAP:
+            for (x = 0; x < postcap_chain.size(); x++) {
+                if (postcap_chain[x]->id == in_id) {
+                    postcap_chain.erase(postcap_chain.begin() + x);
                 }
-                break;
+            }
+            break;
 
-            case CHAINPOS_LLCDISSECT:
-                for (x = 0; x < llcdissect_chain.size(); x++) {
-                    if (llcdissect_chain[x]->id == in_id) {
-                        llcdissect_chain.erase(llcdissect_chain.begin() + x);
-                    }
+        case CHAINPOS_LLCDISSECT:
+            for (x = 0; x < llcdissect_chain.size(); x++) {
+                if (llcdissect_chain[x]->id == in_id) {
+                    llcdissect_chain.erase(llcdissect_chain.begin() + x);
                 }
-                break;
+            }
+            break;
 
-            case CHAINPOS_DECRYPT:
-                for (x = 0; x < decrypt_chain.size(); x++) {
-                    if (decrypt_chain[x]->id == in_id) {
-                        decrypt_chain.erase(decrypt_chain.begin() + x);
-                    }
+        case CHAINPOS_DECRYPT:
+            for (x = 0; x < decrypt_chain.size(); x++) {
+                if (decrypt_chain[x]->id == in_id) {
+                    decrypt_chain.erase(decrypt_chain.begin() + x);
                 }
-                break;
+            }
+            break;
 
-            case CHAINPOS_DATADISSECT:
-                for (x = 0; x < datadissect_chain.size(); x++) {
-                    if (datadissect_chain[x]->id == in_id) {
-                        datadissect_chain.erase(datadissect_chain.begin() + x);
-                    }
+        case CHAINPOS_DATADISSECT:
+            for (x = 0; x < datadissect_chain.size(); x++) {
+                if (datadissect_chain[x]->id == in_id) {
+                    datadissect_chain.erase(datadissect_chain.begin() + x);
                 }
-                break;
+            }
+            break;
 
-            case CHAINPOS_CLASSIFIER:
-                for (x = 0; x < classifier_chain.size(); x++) {
-                    if (classifier_chain[x]->id == in_id) {
-                        classifier_chain.erase(classifier_chain.begin() + x);
-                    }
+        case CHAINPOS_CLASSIFIER:
+            for (x = 0; x < classifier_chain.size(); x++) {
+                if (classifier_chain[x]->id == in_id) {
+                    classifier_chain.erase(classifier_chain.begin() + x);
                 }
-                break;
+            }
+            break;
 
-            case CHAINPOS_TRACKER:
-                for (x = 0; x < tracker_chain.size(); x++) {
-                    if (tracker_chain[x]->id == in_id) {
-                        tracker_chain.erase(tracker_chain.begin() + x);
-                    }
+        case CHAINPOS_TRACKER:
+            for (x = 0; x < tracker_chain.size(); x++) {
+                if (tracker_chain[x]->id == in_id) {
+                    tracker_chain.erase(tracker_chain.begin() + x);
                 }
-                break;
+            }
+            break;
 
-            case CHAINPOS_LOGGING:
-                for (x = 0; x < logging_chain.size(); x++) {
-                    if (logging_chain[x]->id == in_id) {
-                        logging_chain.erase(logging_chain.begin() + x);
-                    }
+        case CHAINPOS_LOGGING:
+            for (x = 0; x < logging_chain.size(); x++) {
+                if (logging_chain[x]->id == in_id) {
+                    logging_chain.erase(logging_chain.begin() + x);
                 }
-                break;
+            }
+            break;
 
-            default:
-                _MSG("packet_chain::remove_handler requested unknown chain", 
-                        MSGFLAG_ERROR);
-                return -1;
-        }
+        default:
+            _MSG("packet_chain::remove_handler requested unknown chain", 
+                    MSGFLAG_ERROR);
+            return -1;
+    }
 
-        return 1;
-
-        });
-
+    return 1;
 }
 
 int packet_chain::remove_handler(pc_callback in_cb, int in_chain) {
-    return sync_service_threads([&](void) -> int {
-        unsigned int x;
+    local_locker l(&packetchain_mutex);
 
-        switch (in_chain) {
-            case CHAINPOS_POSTCAP:
-                for (x = 0; x < postcap_chain.size(); x++) {
-                    if (postcap_chain[x]->callback == in_cb) {
-                        postcap_chain.erase(postcap_chain.begin() + x);
-                    }
+    unsigned int x;
+
+    switch (in_chain) {
+        case CHAINPOS_POSTCAP:
+            for (x = 0; x < postcap_chain.size(); x++) {
+                if (postcap_chain[x]->callback == in_cb) {
+                    postcap_chain.erase(postcap_chain.begin() + x);
                 }
-                break;
+            }
+            break;
 
-            case CHAINPOS_LLCDISSECT:
-                for (x = 0; x < llcdissect_chain.size(); x++) {
-                    if (llcdissect_chain[x]->callback == in_cb) {
-                        llcdissect_chain.erase(llcdissect_chain.begin() + x);
-                    }
+        case CHAINPOS_LLCDISSECT:
+            for (x = 0; x < llcdissect_chain.size(); x++) {
+                if (llcdissect_chain[x]->callback == in_cb) {
+                    llcdissect_chain.erase(llcdissect_chain.begin() + x);
                 }
-                break;
+            }
+            break;
 
-            case CHAINPOS_DECRYPT:
-                for (x = 0; x < decrypt_chain.size(); x++) {
-                    if (decrypt_chain[x]->callback == in_cb) {
-                        decrypt_chain.erase(decrypt_chain.begin() + x);
-                    }
+        case CHAINPOS_DECRYPT:
+            for (x = 0; x < decrypt_chain.size(); x++) {
+                if (decrypt_chain[x]->callback == in_cb) {
+                    decrypt_chain.erase(decrypt_chain.begin() + x);
                 }
-                break;
+            }
+            break;
 
-            case CHAINPOS_DATADISSECT:
-                for (x = 0; x < datadissect_chain.size(); x++) {
-                    if (datadissect_chain[x]->callback == in_cb) {
-                        datadissect_chain.erase(datadissect_chain.begin() + x);
-                    }
+        case CHAINPOS_DATADISSECT:
+            for (x = 0; x < datadissect_chain.size(); x++) {
+                if (datadissect_chain[x]->callback == in_cb) {
+                    datadissect_chain.erase(datadissect_chain.begin() + x);
                 }
-                break;
+            }
+            break;
 
-            case CHAINPOS_CLASSIFIER:
-                for (x = 0; x < classifier_chain.size(); x++) {
-                    if (classifier_chain[x]->callback == in_cb) {
-                        classifier_chain.erase(classifier_chain.begin() + x);
-                    }
+        case CHAINPOS_CLASSIFIER:
+            for (x = 0; x < classifier_chain.size(); x++) {
+                if (classifier_chain[x]->callback == in_cb) {
+                    classifier_chain.erase(classifier_chain.begin() + x);
                 }
-                break;
+            }
+            break;
 
-            case CHAINPOS_TRACKER:
-                for (x = 0; x < tracker_chain.size(); x++) {
-                    if (tracker_chain[x]->callback == in_cb) {
-                        tracker_chain.erase(tracker_chain.begin() + x);
-                    }
+        case CHAINPOS_TRACKER:
+            for (x = 0; x < tracker_chain.size(); x++) {
+                if (tracker_chain[x]->callback == in_cb) {
+                    tracker_chain.erase(tracker_chain.begin() + x);
                 }
-                break;
+            }
+            break;
 
-            case CHAINPOS_LOGGING:
-                for (x = 0; x < logging_chain.size(); x++) {
-                    if (logging_chain[x]->callback == in_cb) {
-                        logging_chain.erase(logging_chain.begin() + x);
-                    }
+        case CHAINPOS_LOGGING:
+            for (x = 0; x < logging_chain.size(); x++) {
+                if (logging_chain[x]->callback == in_cb) {
+                    logging_chain.erase(logging_chain.begin() + x);
                 }
-                break;
+            }
+            break;
 
-            default:
-                _MSG("packet_chain::remove_handler requested unknown chain", 
-                        MSGFLAG_ERROR);
-                return -1;
-        }
+        default:
+            _MSG("packet_chain::remove_handler requested unknown chain", 
+                    MSGFLAG_ERROR);
+            return -1;
+    }
 
-        return 1;
-        });
+    return 1;
 }
 
