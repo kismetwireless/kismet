@@ -329,7 +329,7 @@ kismet_ui.AddDeviceColumn('wifi_bss_uptime', {
 });
 
 kismet_ui.AddDeviceColumn('wifi_qbss_usage', {
-    sTitle: 'Chan Usage',
+    sTitle: 'Channel Usage',
     // field: 'dot11.device/dot11.device.bss_timestamp',
     field: 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.dot11e_channel_utilization_perc',
     description: '802.11e QBSS channel utilization',
