@@ -328,8 +328,19 @@ kismet_ui.AddDeviceColumn('wifi_bss_uptime', {
     },
 });
 
+// Hidden column to fetch qbss state
+kismet_ui.AddDeviceColumn('column_qbss_hidden', {
+    sTitle: 'qbss_available',
+    field: 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.dot11e_qbss',
+    name: 'qbss_available',
+    searchable: false,
+    visible: false,
+    selectable: false,
+    orderable: false
+});
+
 kismet_ui.AddDeviceColumn('wifi_qbss_usage', {
-    sTitle: 'Channel Usage',
+    sTitle: 'QBSS Chan Usage',
     // field: 'dot11.device/dot11.device.bss_timestamp',
     field: 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.dot11e_channel_utilization_perc',
     description: '802.11e QBSS channel utilization',
@@ -339,10 +350,30 @@ kismet_ui.AddDeviceColumn('wifi_qbss_usage', {
     visiable: false,
     renderfunc: function(d, t, r, m) {
         var perc = "n/a";
-        if (d != 0)
-            perc = Number.parseFloat(d).toPrecision(4) + "%";
+
+        if (r['dot11.advertisedssid.dot11e_qbss'] == 1) {
+            if (d == 0)
+                perc = "0%";
+            else
+                perc = Number.parseFloat(d).toPrecision(4) + "%";
+        }
 
         return '<div class="percentage-border"><span class="percentage-text">' + perc + '</span><div class="percentage-fill" style="width:' + d + '%"></div></div>';
+    }
+});
+
+kismet_ui.AddDeviceColumn('wifi_qbss_clients', {
+    sTitle: 'QBSS Users',
+    field: 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.dot11e_qbss_stations',
+    description: '802.11e QBSS user count',
+    sortable: true,
+    visiable: false,
+    renderfunc: function(d, t, r, m) {
+        if (r['dot11.advertisedssid.dot11e_qbss'] == 1) {
+            return d;
+        }
+
+        return "<i>n/a</i>"
     }
 });
 
