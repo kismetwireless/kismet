@@ -261,17 +261,15 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                     continue;
 
                 if (prepend_comma)
-                    stream << ",";
+                    stream << "," << ppendl;
                 prepend_comma = true;
 
                 if (prettyprint)
                     stream << indent;
 
                 json_adapter::pack(stream, i, name_map, prettyprint, depth + 1);
-
-                stream << ppendl;
             }
-            stream << indent << "]";
+            stream << ppendl << indent << "]";
             break;
         case tracker_type::tracker_vector_double:
             stream << ppendl << indent << "[" << ppendl;
@@ -280,17 +278,15 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
 
             for (auto i : *(std::static_pointer_cast<tracker_element_vector_double>(e))) {
                 if (prepend_comma)
-                    stream << ",";
+                    stream << "," << ppendl;
                 prepend_comma = true;
 
                 if (prettyprint)
                     stream << indent;
 
                 stream << i;
-
-                stream << ppendl;
             }
-            stream << indent << "]";
+            stream << ppendl << indent << "]";
             break;
         case tracker_type::tracker_vector_string:
             stream << ppendl << indent << "[" << ppendl;
@@ -299,17 +295,15 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
 
             for (auto i : *(std::static_pointer_cast<tracker_element_vector_string>(e))) {
                 if (prepend_comma)
-                    stream << ",";
+                    stream << "," << ppendl;
                 prepend_comma = true;
 
                 if (prettyprint)
                     stream << indent;
 
                 stream << i;
-
-                stream << ppendl;
             }
-            stream << indent << "]";
+            stream << ppendl << indent << "]";
             break;
         case tracker_type::tracker_map:
             as_vector = std::static_pointer_cast<tracker_element_map>(e)->as_vector();
@@ -325,8 +319,13 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                 if (i.second == NULL)
                     continue;
 
-                if (prepend_comma)
-                    stream << ",";
+                if (prepend_comma) {
+                    stream << "," << ppendl;
+
+                    if (prettyprint)
+                        stream << ppendl;
+                }
+
                 prepend_comma = true;
 
                 if (!as_vector) {
@@ -359,8 +358,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                             stream << ", ";
                         }
                         stream << sanitize_string(Globalreg::globalreg->entrytracker->get_field_description(i.first));
-                        stream << "\",";
-                        stream << ppendl;
+                        stream << "\"," << ppendl;
                     }
 
                     stream << indent << "\"" << tname << "\": ";
@@ -368,13 +366,12 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
 
                 json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1);
 
-                stream << ppendl << ppendl;
             }
 
             if (as_vector || as_key_vector)
-                stream << indent << "]";
+                stream << ppendl << indent << "]";
             else
-                stream << indent << "}";
+                stream << ppendl << indent << "}";
 
             break;
         case tracker_type::tracker_int_map:
@@ -392,7 +389,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                     continue;
 
                 if (prepend_comma)
-                    stream << ",";
+                    stream << "," << ppendl;
                 prepend_comma = true;
 
                 if (!as_vector) {
@@ -406,14 +403,12 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                 if (!as_key_vector) {
                     json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1);
                 }
-
-                stream << ppendl;
             }
 
             if (as_vector || as_key_vector)
-                stream << indent << "]";
+                stream << indent << "]" << ppendl;
             else
-                stream << indent << "}";
+                stream << indent << "}" << ppendl;
 
             break;
         case tracker_type::tracker_mac_map:
@@ -431,7 +426,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                     continue;
 
                 if (prepend_comma)
-                    stream << ",";
+                    stream << "," << ppendl;
                 prepend_comma = true;
 
                 if (!as_vector) {
@@ -445,14 +440,12 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                 if (!as_key_vector) {
                     json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1);
                 }
-
-                stream << ppendl;
             }
 
             if (as_vector || as_key_vector)
-                stream << indent << "]";
+                stream << ppendl << indent << "]";
             else
-                stream << indent << "}";
+                stream << ppendl << indent << "}";
 
             break;
         case tracker_type::tracker_string_map:
@@ -470,7 +463,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                     continue;
 
                 if (prepend_comma)
-                    stream << ",";
+                    stream << "," << ppendl;
                 prepend_comma = true;
 
                 if (!as_vector) {
@@ -483,14 +476,12 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                 if (!as_key_vector) {
                     json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1);
                 }
-
-                stream << ppendl;
             }
 
             if (as_vector || as_key_vector)
-                stream << indent << "]";
+                stream << ppendl << indent << "]";
             else
-                stream << indent << "}";
+                stream << ppendl << indent << "}";
 
             break;
         case tracker_type::tracker_double_map:
@@ -508,7 +499,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                     continue;
 
                 if (prepend_comma)
-                    stream << ",";
+                    stream << "," << ppendl;
                 prepend_comma = true;
 
                 if (!as_vector) {
@@ -522,12 +513,10 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                 if (!as_key_vector) {
                     json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1);
                 }
-
-                stream << ppendl;
             }
 
             if (as_vector || as_key_vector)
-                stream << indent << "]";
+                stream << ppendl << indent << "]";
             else
                 stream << indent << "}";
 
@@ -547,7 +536,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                     continue;
 
                 if (prepend_comma)
-                    stream << ",";
+                    stream << "," << ppendl;
                 prepend_comma = true;
 
                 if (!as_vector) {
@@ -561,14 +550,12 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                 if (!as_key_vector) {
                     json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1);
                 }
-
-                stream << ppendl;
             }
     
             if (as_vector || as_key_vector)
-                stream << indent << "]";
+                stream << ppendl << indent << "]";
             else
-                stream << indent << "}";
+                stream << ppendl << indent << "}";
 
             break;
         case tracker_type::tracker_double_map_double:
@@ -583,7 +570,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
             prepend_comma = false;
             for (auto i : *(std::static_pointer_cast<tracker_element_double_map_double>(e))) {
                 if (prepend_comma)
-                    stream << ",";
+                    stream << "," << ppendl;
 
                 prepend_comma = true;
 
@@ -598,14 +585,12 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                 if (!as_key_vector) {
                     stream << i.second;
                 }
-
-                stream << ppendl;
             }
 
             if (as_vector || as_key_vector)
-                stream << indent << "]";
+                stream << ppendl << indent << "]";
             else
-                stream << indent << "}";
+                stream << ppendl << indent << "}";
 
             break;
         case tracker_type::tracker_key_map:
@@ -623,7 +608,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                     continue;
 
                 if (prepend_comma)
-                    stream << ",";
+                    stream << "," << ppendl;
                 prepend_comma = true;
 
                 if (!as_vector) {
@@ -637,14 +622,12 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                 if (!as_key_vector) {
                     json_adapter::pack(stream,i.second, name_map, prettyprint, depth + 1);
                 }
-
-                stream << ppendl;
             }
 
             if (as_vector || as_key_vector)
-                stream << indent << "]";
+                stream << ppendl << indent << "]";
             else
-                stream << indent << "}";
+                stream << ppendl << indent << "}";
 
             break;
 
