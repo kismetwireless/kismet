@@ -189,4 +189,6 @@ div.viewselector {
     text-align: center;
 }
 
+tr.alternating:nth-child(even) { background: #DDD; }
+
 

@@ -362,12 +362,11 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
             {
                 field: 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.ssid',
                 title: "Last Beaconed SSID (AP)",
-                empty: "<i>None</i>",
                 render: function(opts) {
                     if (typeof(opts['value']) === 'undefined')
                         return '<i>None</i>';
                     if (opts['value'].replace(/\s/g, '').length == 0) 
-                        return '<i>Empty (' + opts['value'].length + ' spaces)</i>';
+                        return '<i>Cloaked / Empty (' + opts['value'].length + ' spaces)</i>';
                     return opts['value'];
                 },
                 help: "If present, the last SSID (network name) advertised by a device as an access point beacon or as an access point issuing a probe response",
@@ -833,11 +832,11 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     field: "dot11.advertisedssid.ssid",
                     title: "SSID",
                     render: function(opts) {
-                        if (opts['value'] === '') {
+                        if (opts['value'].replace(/\s/g, '').length == 0) {
                             if ('dot11.advertisedssid.owe_ssid' in opts['base']) {
                                 return "<i>SSID advertised as OWE</i>";
                             } else {
-                                return "<i>Unknown / Cloaked</i>";
+                                return '<i>Cloaked / Empty (' + opts['value'].length + ' spaces)</i>';
                             }
                         }
 
@@ -1070,9 +1069,12 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                             var tag = opts['value'][ie];
 
                             var pretty_tag = 
-                                $('<tr>')
+                                $('<tr>', {
+                                    class: 'alternating'
+                                })
                                 .append(
                                     $('<td>', {
+                                        width: "25%",
                                         id: "tagno"
                                     })
                                     .append(
