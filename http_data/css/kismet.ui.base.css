@@ -187,6 +187,7 @@ div.viewselector {
     height: 15px;
     line-height: 15px;
     text-align: center;
+    z-index: 1;
 }
 
 tr.alternating:nth-child(even) { background: #DDD; }
