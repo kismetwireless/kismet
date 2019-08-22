@@ -21,7 +21,7 @@
 #include "util.h"
 #include "filewritebuf.h"
 
-FileWritebuf::FileWritebuf(std::string in_filename, size_t in_chunk) {
+file_write_buffer::file_write_buffer(std::string in_filename, size_t in_chunk) {
     filename = in_filename;
     chunk_sz = in_chunk;
 
@@ -37,7 +37,7 @@ FileWritebuf::FileWritebuf(std::string in_filename, size_t in_chunk) {
     reserve_chunk = new uint8_t[chunk_sz];
 }
 
-FileWritebuf::~FileWritebuf() {
+file_write_buffer::~file_write_buffer() {
     local_locker lock(&write_mutex);
 
     if (backfile != NULL) {
@@ -51,7 +51,7 @@ FileWritebuf::~FileWritebuf() {
        
 }
 
-void FileWritebuf::clear() {
+void file_write_buffer::clear() {
     local_locker lock(&write_mutex);
    
     if (backfile != NULL) {
@@ -63,7 +63,7 @@ void FileWritebuf::clear() {
     }
 }
 
-size_t FileWritebuf::used() {
+size_t file_write_buffer::used() {
     local_locker lock(&write_mutex);
 
     if (backfile != NULL) 
@@ -72,7 +72,7 @@ size_t FileWritebuf::used() {
     return 0;
 }
 
-size_t FileWritebuf::total() {
+size_t file_write_buffer::total() {
     local_locker lock(&write_mutex);
 
     if (backfile != NULL)
@@ -81,7 +81,7 @@ size_t FileWritebuf::total() {
     return 0;
 }
 
-ssize_t FileWritebuf::write(uint8_t *in_data, size_t in_sz) {
+ssize_t file_write_buffer::write(uint8_t *in_data, size_t in_sz) {
     local_locker lock(&write_mutex);
 
     if (backfile == NULL)
@@ -95,7 +95,7 @@ ssize_t FileWritebuf::write(uint8_t *in_data, size_t in_sz) {
     return 0;
 }
 
-ssize_t FileWritebuf::reserve(unsigned char **data, size_t in_sz) {
+ssize_t file_write_buffer::reserve(unsigned char **data, size_t in_sz) {
     local_eol_locker lock(&write_mutex);
 
     if (write_reserved) {
@@ -116,11 +116,11 @@ ssize_t FileWritebuf::reserve(unsigned char **data, size_t in_sz) {
 
 }
 
-ssize_t FileWritebuf::zero_copy_reserve(unsigned char **data, size_t in_sz) {
+ssize_t file_write_buffer::zero_copy_reserve(unsigned char **data, size_t in_sz) {
     return reserve(data, in_sz);
 }
 
-bool FileWritebuf::commit(unsigned char *data, size_t in_sz) {
+bool file_write_buffer::commit(unsigned char *data, size_t in_sz) {
     local_unlocker unwritelock(&write_mutex);
 
     if (!write_reserved) 

@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -34,23 +34,23 @@
 #include "kis_net_microhttpd.h"
 
 // Allocate and track named fields and give each one a custom int
-class EntryTracker : public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal {
+class entry_tracker : public kis_net_httpd_cppstream_handler, public lifetime_global {
 public:
     static std::string global_name() { return "ENTRYTRACKER"; }
 
-    static std::shared_ptr<EntryTracker> create_entrytracker(GlobalRegistry *in_globalreg) {
-        std::shared_ptr<EntryTracker> mon(new EntryTracker(in_globalreg));
+    static std::shared_ptr<entry_tracker> create_entrytracker(global_registry *in_globalreg) {
+        std::shared_ptr<entry_tracker> mon(new entry_tracker(in_globalreg));
         in_globalreg->entrytracker = mon.get();
-        in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal(global_name(), mon);
+        in_globalreg->register_lifetime_global(mon);
+        in_globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-    EntryTracker(GlobalRegistry *in_globalreg);
+    entry_tracker(global_registry *in_globalreg);
 
 public:
-    virtual ~EntryTracker();
+    virtual ~entry_tracker();
 
     // Register a field name; field names are plain strings, and must be unique for
     // each type; Using namespaces is recommended, ie "plugin.foo.some_field".
@@ -63,56 +63,56 @@ public:
     //
     // Return: Registered field number, or negative on error (such as field exists with
     // conflicting type)
-    int RegisterField(const std::string& in_name, 
-            std::unique_ptr<TrackerElement> in_builder,
+    int register_field(const std::string& in_name, 
+            std::unique_ptr<tracker_element> in_builder,
             const std::string& in_desc);
 
     // Reserve a field name, and return an instance.  If the field ALREADY EXISTS, return
     // an instance.
-    std::shared_ptr<TrackerElement> RegisterAndGetField(const std::string& in_name, 
-            std::unique_ptr<TrackerElement> in_builder,
+    std::shared_ptr<tracker_element> register_and_get_field(const std::string& in_name, 
+            std::unique_ptr<tracker_element> in_builder,
             const std::string& in_desc);
 
     template<typename TE> 
-    std::shared_ptr<TE> RegisterAndGetFieldAs(const std::string& in_name,
-            std::unique_ptr<TrackerElement> in_builder,
+    std::shared_ptr<TE> register_and_get_field_as(const std::string& in_name,
+            std::unique_ptr<tracker_element> in_builder,
             const std::string& in_desc) {
-        return std::static_pointer_cast<TE>(RegisterAndGetField(in_name, std::move(in_builder),
+        return std::static_pointer_cast<TE>(register_and_get_field(in_name, std::move(in_builder),
                     in_desc));
     }
 
-    int GetFieldId(const std::string& in_name);
-    std::string GetFieldName(int in_id);
-    std::string GetFieldDescription(int in_id);
+    int get_field_id(const std::string& in_name);
+    std::string get_field_name(int in_id);
+    std::string get_field_description(int in_id);
 
     // Generate a shared field instance, using the builder
-    template<class T> std::shared_ptr<T> GetSharedInstanceAs(const std::string& in_name) {
-        return std::static_pointer_cast<T>(GetSharedInstance(in_name));
+    template<class T> std::shared_ptr<T> get_shared_instance_as(const std::string& in_name) {
+        return std::static_pointer_cast<T>(get_shared_instance(in_name));
     }
-    std::shared_ptr<TrackerElement> GetSharedInstance(const std::string& in_name);
+    std::shared_ptr<tracker_element> get_shared_instance(const std::string& in_name);
 
-    template<class T> std::shared_ptr<T> GetSharedInstanceAs(int in_id) {
-        return std::static_pointer_cast<T>(GetSharedInstance(in_id));
+    template<class T> std::shared_ptr<T> get_shared_instance_as(int in_id) {
+        return std::static_pointer_cast<T>(get_shared_instance(in_id));
     }
-    std::shared_ptr<TrackerElement> GetSharedInstance(int in_id);
+    std::shared_ptr<tracker_element> get_shared_instance(int in_id);
 
     // Register a serializer for auto-serialization based on type
-    void RegisterSerializer(const std::string& type, std::shared_ptr<TrackerElementSerializer> in_ser);
-    void RemoveSerializer(const std::string& type);
-    bool CanSerialize(const std::string& type);
-    bool Serialize(const std::string& type, std::ostream &stream, SharedTrackerElement elem,
-            std::shared_ptr<TrackerElementSerializer::rename_map> name_map = nullptr);
+    void register_serializer(const std::string& type, std::shared_ptr<tracker_element_serializer> in_ser);
+    void remove_serializer(const std::string& type);
+    bool can_serialize(const std::string& type);
+    bool serialize(const std::string& type, std::ostream &stream, shared_tracker_element elem,
+            std::shared_ptr<tracker_element_serializer::rename_map> name_map = nullptr);
 
     // HTTP api
-    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+    virtual bool httpd_verify_path(const char *path, const char *method);
 
-    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
 
 protected:
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
 
     kis_recursive_timed_mutex entry_mutex;
     kis_recursive_timed_mutex serializer_mutex;
@@ -128,25 +128,25 @@ protected:
         std::string field_description;
 
         // Builder instance
-        std::unique_ptr<TrackerElement> builder;
+        std::unique_ptr<tracker_element> builder;
     };
 
     std::map<std::string, std::shared_ptr<reserved_field> > field_name_map;
     std::map<int, std::shared_ptr<reserved_field> > field_id_map;
-    std::map<std::string, std::shared_ptr<TrackerElementSerializer> > serializer_map;
+    std::map<std::string, std::shared_ptr<tracker_element_serializer> > serializer_map;
 };
 
-class SerializerScope {
+class serializer_scope {
 public:
-    SerializerScope(SharedTrackerElement e, 
-            std::shared_ptr<TrackerElementSerializer::rename_map> name_map) {
+    serializer_scope(shared_tracker_element e, 
+            std::shared_ptr<tracker_element_serializer::rename_map> name_map) {
         elem = e;
         rnmap = name_map;
 
         if (rnmap != NULL) {
             auto nmi = rnmap->find(elem);
             if (nmi != rnmap->end()) {
-                TrackerElementSerializer::pre_serialize_path(nmi->second);
+                tracker_element_serializer::pre_serialize_path(nmi->second);
             } else {
                 elem->pre_serialize();
             } 
@@ -155,11 +155,11 @@ public:
         }
     }
 
-    virtual ~SerializerScope() {
+    virtual ~serializer_scope() {
         if (rnmap != NULL) {
             auto nmi = rnmap->find(elem);
             if (nmi != rnmap->end()) {
-                TrackerElementSerializer::post_serialize_path(nmi->second);
+                tracker_element_serializer::post_serialize_path(nmi->second);
             } else {
                 elem->post_serialize();
             } 
@@ -170,8 +170,8 @@ public:
     }
 
 protected:
-    SharedTrackerElement elem;
-    std::shared_ptr<TrackerElementSerializer::rename_map> rnmap;
+    shared_tracker_element elem;
+    std::shared_ptr<tracker_element_serializer::rename_map> rnmap;
 };
 
 #endif

@@ -27,15 +27,15 @@
 #include "packet.h"
 #include "packetchain.h"
 
-class Kis_DLT_Handler : public LifetimeGlobal {
+class kis_dlt_handler : public lifetime_global {
 public:
-	Kis_DLT_Handler();
-	virtual ~Kis_DLT_Handler();
+	kis_dlt_handler();
+	virtual ~kis_dlt_handler();
 
-	virtual int HandlePacket(kis_packet *in_pack) = 0;
+	virtual int handle_packet(kis_packet *in_pack) = 0;
 
-	virtual int FetchDLT() { return dlt; }
-	virtual std::string FetchDLTName() { return dlt_name; }
+	virtual int fetch_dlt() { return dlt; }
+	virtual std::string fetch_dlt_name() { return dlt_name; }
 
 protected:
 	std::string dlt_name;

@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -20,7 +20,7 @@
 #define __PCAP_STREAM_RINGBUF__
 
 /* A streaming pcap generator that writes to the ringbuf contained in a 
- * Kis_Net_Httpd_Ringbuf_Stream_Handler.
+ * kis_net_httpd_ringbuf_stream_handler.
  *
  * Designed to be initiated from a stream handler sub-class to feed
  * pcap data from the packetchain into the ringbuffer.
@@ -49,14 +49,14 @@
  * of the packet destined for export.
  *
  */
-class Pcap_Stream_Ringbuf : public streaming_agent {
+class pcap_stream_ringbuf : public streaming_agent {
 public:
-    Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg, 
-            std::shared_ptr<BufferHandlerGeneric> in_handler,
+    pcap_stream_ringbuf(global_registry *in_globalreg, 
+            std::shared_ptr<buffer_handler_generic> in_handler,
             std::function<bool (kis_packet *)> accept_filter,
             std::function<kis_datachunk * (kis_packet *)> data_selector,
             bool block_for_buffer);
-    virtual ~Pcap_Stream_Ringbuf();
+    virtual ~pcap_stream_ringbuf();
 
     virtual void set_blocking(bool in_block) {
         block_for_buffer = in_block;
@@ -82,7 +82,7 @@ protected:
     virtual int pcapng_make_shb(std::string in_hw, std::string in_os, std::string in_app);
 
     // Create a new interface record from an existing datasource
-    virtual int pcapng_make_idb(KisDatasource *in_datasource);
+    virtual int pcapng_make_idb(kis_datasource *in_datasource);
 
     // Low-level datasource creation
     virtual int pcapng_make_idb(unsigned int in_sourcenumber, std::string in_interface, 
@@ -103,11 +103,11 @@ protected:
         return in;
     }
 
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
 
-    std::shared_ptr<BufferHandlerGeneric> handler;
+    std::shared_ptr<buffer_handler_generic> handler;
 
-    std::shared_ptr<Packetchain> packetchain;
+    std::shared_ptr<packet_chain> packetchain;
 
     int pack_comp_linkframe, pack_comp_datasrc;
 
@@ -126,14 +126,14 @@ protected:
     kis_recursive_timed_mutex required_bytes_mutex;
 };
 
-class Pcap_Stream_Packetchain : public Pcap_Stream_Ringbuf {
+class pcap_stream_packetchain : public pcap_stream_ringbuf {
 public:
-    Pcap_Stream_Packetchain(GlobalRegistry *in_globalreg, 
-            std::shared_ptr<BufferHandlerGeneric> in_handler,
+    pcap_stream_packetchain(global_registry *in_globalreg, 
+            std::shared_ptr<buffer_handler_generic> in_handler,
             std::function<bool (kis_packet *)> accept_filter,
             std::function<kis_datachunk * (kis_packet *)> data_selector);
 
-    virtual ~Pcap_Stream_Packetchain();
+    virtual ~pcap_stream_packetchain();
 
     virtual void stop_stream(std::string in_reason) override;
 

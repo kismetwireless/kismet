@@ -30,12 +30,12 @@
 // Filters act on 'true' results:  Default behavior of 'true' defaults to BLOCKING
 // the action, behavior of 'false' defaults to PASSING actions.
 
-class Classfilter : public tracker_component {
+class class_filter : public tracker_component {
 public:
-    Classfilter(const std::string& in_id, const std::string& in_description,
+    class_filter(const std::string& in_id, const std::string& in_description,
             const std::string& in_type);
 
-    virtual ~Classfilter() {
+    virtual ~class_filter() {
         local_locker l(&mutex);
     }
 
@@ -56,39 +56,39 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.classfilter.id", "Filter ID/Endpoint", &filter_id);
-        RegisterField("kismet.classfilter.description", "Filter description", &filter_description);
-        RegisterField("kismet.classfilter.type", "Filter mechanism", &filter_type);
-        RegisterField("kismet.classfilter.default", "Default filter (pass/reject)", &filter_default);
+        register_field("kismet.classfilter.id", "Filter ID/Endpoint", &filter_id);
+        register_field("kismet.classfilter.description", "Filter description", &filter_description);
+        register_field("kismet.classfilter.type", "Filter mechanism", &filter_type);
+        register_field("kismet.classfilter.default", "Default filter (pass/reject)", &filter_default);
     }
 
     kis_recursive_timed_mutex mutex;
 
     std::string base_uri;
 
-    std::shared_ptr<TrackerElementString> filter_id;
-    std::shared_ptr<TrackerElementString> filter_description;
-    std::shared_ptr<TrackerElementString> filter_type;
-    std::shared_ptr<TrackerElementUInt8> filter_default;
+    std::shared_ptr<tracker_element_string> filter_id;
+    std::shared_ptr<tracker_element_string> filter_description;
+    std::shared_ptr<tracker_element_string> filter_type;
+    std::shared_ptr<tracker_element_uint8> filter_default;
 
     // Default endpoint
-    std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> default_endp;
-    int default_set_endp_handler(std::ostream& stream, SharedStructured post_structured);
+    std::shared_ptr<kis_net_httpd_simple_post_endpoint> default_endp;
+    int default_set_endp_handler(std::ostream& stream, shared_structured post_structured);
 
     // Default display endpoint
-    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> self_endp;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> self_endp;
     // Build the return object; subfilters must implement this to bypass class hierarchy & call
     // build_self_content
-    virtual std::shared_ptr<TrackerElementMap> self_endp_handler() = 0;
+    virtual std::shared_ptr<tracker_element_map> self_endp_handler() = 0;
     // Cascading build
-    virtual void build_self_content(std::shared_ptr<TrackerElementMap> content);
+    virtual void build_self_content(std::shared_ptr<tracker_element_map> content);
 };
 
 // MAC based filter
-class ClassfilterMacaddr : public Classfilter {
+class class_filter_mac_addr : public class_filter {
 public:
-    ClassfilterMacaddr(const std::string& in_id, const std::string& in_descripton);
-    virtual ~ClassfilterMacaddr();
+    class_filter_mac_addr(const std::string& in_id, const std::string& in_descripton);
+    virtual ~class_filter_mac_addr();
 
     virtual bool filter(mac_addr in_mac, unsigned int in_phy);
 
@@ -96,36 +96,36 @@ public:
     virtual void remove_filter(mac_addr in_mac, const std::string& in_phy);
 
 protected:
-	std::shared_ptr<Devicetracker> devicetracker;
-	std::shared_ptr<Eventbus> eventbus;
+	std::shared_ptr<device_tracker> devicetracker;
+	std::shared_ptr<event_bus> eventbus;
 	unsigned long eb_id;
 
-	void update_phy_map(std::shared_ptr<EventbusEvent> evt);
+	void update_phy_map(std::shared_ptr<eventbus_event> evt);
 
 	// Filters are stored in integer-indexed local form, but also a constructed tiered
 	// map for presentation out the rest interface:
 	// map[string, phy] -> map[mac, boolean].
 
     virtual void register_fields() override {
-        Classfilter::register_fields();
+        class_filter::register_fields();
 
 		// Phy-based map
-        RegisterField("kismet.classfilter.macaddr.address_by_phy",
+        register_field("kismet.classfilter.macaddr.address_by_phy",
                 "MAC address filters", &filter_phy_block);
 
         // Mac based map filter_sub_mac_id =
-        RegisterField("kismet.classfilter.macaddr.filter_block",
-                TrackerElementFactory<TrackerElementMacMap>(),
+        register_field("kismet.classfilter.macaddr.filter_block",
+                tracker_element_factory<tracker_element_mac_map>(),
                 "MAC address filters");
 
 		// Filter value
         filter_sub_value_id =
-            RegisterField("kismet.classfilter.macaddr.value",
-                    TrackerElementFactory<TrackerElementUInt8>(),
+            register_field("kismet.classfilter.macaddr.value",
+                    tracker_element_factory<tracker_element_uint8>(),
                     "Filter value");
     }
 
-	std::shared_ptr<TrackerElementStringMap> filter_phy_block;
+	std::shared_ptr<tracker_element_string_map> filter_phy_block;
 
 	// Nested phy types
     int filter_sub_mac_id, filter_sub_value_id;
@@ -137,16 +137,16 @@ protected:
 	std::map<std::string, std::map<mac_addr, bool>> unknown_phy_mac_filter_map;
 
     // Address management endpoint keyed on path
-    std::shared_ptr<Kis_Net_Httpd_Path_Post_Endpoint> macaddr_edit_endp;
+    std::shared_ptr<kis_net_httpd_path_post_endpoint> macaddr_edit_endp;
     unsigned int edit_endp_handler(std::ostream& stream, const std::vector<std::string>& path, 
-            SharedStructured structured);
+            shared_structured structured);
 
-    std::shared_ptr<Kis_Net_Httpd_Path_Post_Endpoint> macaddr_remove_endp;
+    std::shared_ptr<kis_net_httpd_path_post_endpoint> macaddr_remove_endp;
     unsigned int remove_endp_handler(std::ostream& stream, const std::vector<std::string> &path,
-            SharedStructured structured);
+            shared_structured structured);
 
-    virtual std::shared_ptr<TrackerElementMap> self_endp_handler() override;
-    virtual void build_self_content(std::shared_ptr<TrackerElementMap> content) override;
+    virtual std::shared_ptr<tracker_element_map> self_endp_handler() override;
+    virtual void build_self_content(std::shared_ptr<tracker_element_map> content) override;
 
 };
 

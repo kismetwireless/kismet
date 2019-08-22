@@ -31,16 +31,16 @@
 #include "util.h"
 #include "kis_mutex.h"
 
-class BufferInterface;
+class buffer_interface;
 
 // Common minimal API for a buffer
-class CommonBuffer {
+class common_buffer {
 public:
-    CommonBuffer() :
+    common_buffer() :
         write_reserved {false},
         peek_reserved {false} { }
 
-    virtual ~CommonBuffer() { };
+    virtual ~common_buffer() { };
 
     // Clear all data (and free memory used, for dynamic buffers)
     virtual void clear() = 0;
@@ -160,56 +160,58 @@ protected:
 //
 // Typically a buffer handler is created for each async communication task
 // (ie client connection, server socket, serial port, etc) and connected to 
-// the low-level IO driver (often a Pollable) which reads and writes directly
+// the low-level IO driver (often a kis_pollable) which reads and writes directly
 // to the ring buffers.  The buffer handler then automatically calls bound 
 // handlers for read/write events.
 //
-class BufferHandlerGenericLocker;
+class buffer_handler_generic_locker;
 
-class BufferHandlerGeneric {
+class buffer_handler_generic {
 public:
-    BufferHandlerGeneric();
-    virtual ~BufferHandlerGeneric();
+    buffer_handler_generic();
+    buffer_handler_generic(std::shared_ptr<kis_recursive_timed_mutex> m);
+    virtual ~buffer_handler_generic();
 
-    virtual void SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
+    virtual void set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
+    virtual std::shared_ptr<kis_recursive_timed_mutex> get_mutex();
 
     // Basic size ops
-    virtual ssize_t GetReadBufferSize();
-    virtual ssize_t GetWriteBufferSize();
+    virtual ssize_t get_read_buffer_size();
+    virtual ssize_t get_write_buffer_size();
 
-    virtual size_t GetReadBufferUsed();
-    virtual size_t GetWriteBufferUsed();
+    virtual size_t get_read_buffer_used();
+    virtual size_t get_write_buffer_used();
 
-    virtual ssize_t GetReadBufferAvailable();
-    virtual ssize_t GetWriteBufferAvailable();
+    virtual ssize_t get_read_buffer_available();
+    virtual ssize_t get_write_buffer_available();
 
     // Fetch read and write buffer data, up to in_amt.  Does not consume data.
     // When possible, minimizes copies; actual copy and memory use depends on the
     // lower-level buffer, and consumers should not rely on specific behaviors.
     //
-    // Consumers MUST conclude a peek operation with PeekFreeReadBufferData(...) or
-    // PeekFreeWriteBufferData(...), and may not perform multiple peeks simultaneously;
-    // refer to the comments for CommonBuffer
+    // Consumers MUST conclude a peek operation with peek_free_read_buffer_data(...) or
+    // peek_free_write_buffer_data(...), and may not perform multiple peeks simultaneously;
+    // refer to the comments for common_buffer
     //
     // Returns amount peeked
-    virtual ssize_t PeekReadBufferData(void **in_ptr, size_t in_sz);
-    virtual ssize_t PeekWriteBufferData(void **in_ptr, size_t in_sz);
+    virtual ssize_t peek_read_buffer_data(void **in_ptr, size_t in_sz);
+    virtual ssize_t peek_write_buffer_data(void **in_ptr, size_t in_sz);
 
     // Perform a zero-copy (when possible) peek of the buffer.  Does not consume
     // data.  When possible, minimizes copying of data (or performs no copy of data),
     // and is suitable for draining a buffer to the IO system.
-    virtual ssize_t ZeroCopyPeekReadBufferData(void **in_ptr, size_t in_sz);
-    virtual ssize_t ZeroCopyPeekWriteBufferData(void **in_ptr, size_t in_sz);
+    virtual ssize_t zero_copy_peek_read_buffer_data(void **in_ptr, size_t in_sz);
+    virtual ssize_t zero_copy_peek_write_buffer_data(void **in_ptr, size_t in_sz);
 
-    virtual void PeekFreeReadBufferData(void *in_ptr);
-    virtual void PeekFreeWriteBufferData(void *in_ptr);
+    virtual void peek_free_read_buffer_data(void *in_ptr);
+    virtual void peek_free_write_buffer_data(void *in_ptr);
 
     // Consume data from the buffer.  Must not be called while there is pending 'peek'd 
     // data.
     //
     // Automatically triggers buffer drain callbacks
-    virtual size_t ConsumeReadBufferData(size_t in_sz);
-    virtual size_t ConsumeWriteBufferData(size_t in_sz);
+    virtual size_t consume_read_buffer_data(size_t in_sz);
+    virtual size_t consume_write_buffer_data(size_t in_sz);
 
     // Place data in read or write buffer.  Performs a copy of the existing data and
     // writes it into the buffer.
@@ -217,13 +219,13 @@ public:
     // Automatically triggers callbacks
     //
     // Returns amount of data actually written
-    virtual size_t PutReadBufferData(void *in_ptr, size_t in_sz, bool in_atomic);
-    virtual size_t PutWriteBufferData(void *in_ptr, size_t in_sz, bool in_atomic);
+    virtual size_t put_read_buffer_data(void *in_ptr, size_t in_sz, bool in_atomic);
+    virtual size_t put_write_buffer_data(void *in_ptr, size_t in_sz, bool in_atomic);
 
     // Place data, as a string, into the buffer as an atomic op; returns success 
     // or failure on placing the entire record.
-    virtual bool PutReadBufferData(std::string in_data);
-    virtual bool PutWriteBufferData(std::string in_data);
+    virtual bool put_read_buffer_data(std::string in_data);
+    virtual bool put_write_buffer_data(std::string in_data);
 
     // Reserve space in the buffers; the returned pointer is suitable for direct
     // writing.  Whenever possible, this will be a zero-copy operation, however on
@@ -233,85 +235,85 @@ public:
     // Callers must not make assumptions about the underlying structure of the buffer
     // or of the pointer they are given.
     //
-    // Callers must conclude the write operation with CommitReadBufferData(..) or
-    // CommitWriteBufferData(..).
+    // Callers must conclude the write operation with commit_read_buffer_data(..) or
+    // commit_write_buffer_data(..).
     //
     // Only one block of data may be reserved at a time.
     //
     // Returns the amount of data allocated in the reserved block
-    virtual ssize_t ReserveReadBufferData(void **in_ptr, size_t len);
-    virtual ssize_t ReserveWriteBufferData(void **in_ptr, size_t len);
+    virtual ssize_t reserve_read_buffer_data(void **in_ptr, size_t len);
+    virtual ssize_t reserve_write_buffer_data(void **in_ptr, size_t len);
 
     // Reserve space in one of the buffers; Take excessive measures to make this a
     // zero-copy buffer, including reserving less size than requested.  This is most 
     // appropriate for incoming data streams being written to a buffer.
     //
-    // Callers must conclude the write operation with CommitReadBufferData(..) or
-    // CommitWriteBufferData(..)
+    // Callers must conclude the write operation with commit_read_buffer_data(..) or
+    // commit_write_buffer_data(..)
     //
     // Only one block of data may be reserved at a time.
     //
     // Returns the amount of data available in the reserved block
-    virtual ssize_t ZeroCopyReserveReadBufferData(void **in_ptr, size_t len);
-    virtual ssize_t ZeroCopyReserveWriteBufferData(void **in_ptr, size_t len);
+    virtual ssize_t zero_copy_reserve_read_buffer_data(void **in_ptr, size_t len);
+    virtual ssize_t zero_copy_reserve_write_buffer_data(void **in_ptr, size_t len);
     
 
     // Commit a pending reserved data block to the buffer
-    virtual bool CommitReadBufferData(void *in_ptr, size_t in_sz);
-    virtual bool CommitWriteBufferData(void *in_ptr, size_t in_sz);
+    virtual bool commit_read_buffer_data(void *in_ptr, size_t in_sz);
+    virtual bool commit_write_buffer_data(void *in_ptr, size_t in_sz);
 
     // Clear a buffer
     //
     // Completely empties a buffer, possibly freeing any memory associated with it 
     // if it's a dynamic buffer
-    virtual void ClearReadBuffer();
-    virtual void ClearWriteBuffer();
+    virtual void clear_read_buffer();
+    virtual void clear_write_buffer();
 
     // Trigger callbacks directly
-    virtual void TriggerWriteCallback(size_t in_sz);
-    virtual void TriggerReadCallback(size_t in_sz);
+    virtual void trigger_write_callback(size_t in_sz);
+    virtual void trigger_read_callback(size_t in_sz);
 
     // Set interface callbacks to be called when we have data in the buffers
-    virtual void SetReadBufferInterface(BufferInterface *in_interface);
-    virtual void SetWriteBufferInterface(BufferInterface *in_interface);
+    virtual void set_read_buffer_interface(buffer_interface *in_interface);
+    virtual void set_write_buffer_interface(buffer_interface *in_interface);
 
-    virtual void RemoveReadBufferInterface();
-    virtual void RemoveWriteBufferInterface();
+    virtual void remove_read_buffer_interface();
+    virtual void remove_write_buffer_interface();
 
     // Set simple functional callbacks to be called when we drain an interface; used to
     // allow quick unlocking of blocked writers
-    virtual void SetReadBufferDrainCb(std::function<void (size_t)> in_cb);
-    virtual void SetWriteBufferDrainCb(std::function<void (size_t)> in_cb);
+    virtual void set_read_buffer_drain_cb(std::function<void (size_t)> in_cb);
+    virtual void set_write_buffer_drain_cb(std::function<void (size_t)> in_cb);
 
-    virtual void RemoveReadBufferDrainCb();
-    virtual void RemoveWriteBufferDrainCb();
+    virtual void remove_read_buffer_drain_cb();
+    virtual void remove_write_buffer_drain_cb();
 
     // Propagate a line-layer buffer error to any listeners (line IO system to interfaces)
-    virtual void BufferError(std::string in_error);
+    virtual void buffer_error(std::string in_error);
     // Propagate an error to a specific listener
-    virtual void ReadBufferError(std::string in_error);
-    virtual void WriteBufferError(std::string in_error);
+    virtual void read_buffer_error(std::string in_error);
+    virtual void write_buffer_error(std::string in_error);
 
     // Propagate a protocol-layer error to any line-drivers (protocol parser
     // to line drivers).  We don't pass a string to the line drivers because
     // the protocol driver should present the error usefully
-    virtual void ProtocolError();
+    virtual void protocol_error();
     // Set a protocol error callback; line level drivers should set this and initiate
     // a shutdown of the line connections
-    virtual void SetProtocolErrorCb(std::function<void (void)> in_cb);
+    virtual void set_protocol_error_cb(std::function<void (void)> in_cb);
 
-    friend class BufferHandlerGenericLocker;
+    friend class buffer_handler_generic_locker;
 
 protected:
     // Generic buffers
-    CommonBuffer *read_buffer;
-    CommonBuffer *write_buffer;
+    common_buffer *read_buffer;
+    common_buffer *write_buffer;
 
     // Interfaces we notify when there has been activity on a buffer; use atomic booleans
     // to indicate if the function is available
     std::atomic<bool> wbuf_notify_avail, rbuf_notify_avail;
-    BufferInterface *wbuf_notify;
-    BufferInterface *rbuf_notify;
+    buffer_interface *wbuf_notify;
+    buffer_interface *rbuf_notify;
 
     std::shared_ptr<kis_recursive_timed_mutex> handler_mutex;
 
@@ -323,10 +325,11 @@ protected:
 };
 
 template<class B> 
-class BufferHandler : public BufferHandlerGeneric {
+class buffer_handler : public buffer_handler_generic {
 public:
     // For one-way buffers, define a buffer as having a size of zero
-    BufferHandler(size_t r_buffer_sz, size_t w_buffer_sz) {
+    buffer_handler(size_t r_buffer_sz, size_t w_buffer_sz) :
+        buffer_handler_generic() {
         if (r_buffer_sz != 0)
             read_buffer = new B(r_buffer_sz);
         else
@@ -338,20 +341,33 @@ public:
             write_buffer = NULL;
     }
 
-    BufferHandler(B *r_buf, B *w_buf) {
+    buffer_handler(size_t r_buffer_sz, size_t w_buffer_sz, std::shared_ptr<kis_recursive_timed_mutex> m) :
+        buffer_handler_generic(m) {
+        if (r_buffer_sz != 0)
+            read_buffer = new B(r_buffer_sz);
+        else
+            read_buffer = NULL;
+
+        if (w_buffer_sz != 0)
+            write_buffer = new B(w_buffer_sz);
+        else
+            write_buffer = NULL;
+    }
+
+    buffer_handler(B *r_buf, B *w_buf) {
         read_buffer = r_buf;
         write_buffer = w_buf;
     }
 };
 
 // A C++ streambuf-compatible wrapper around a buf handler
-struct BufferHandlerOStreambuf : public std::streambuf {
-    BufferHandlerOStreambuf(std::shared_ptr<BufferHandlerGeneric > in_rbhandler) :
+struct buffer_handler_ostream_buf : public std::streambuf {
+    buffer_handler_ostream_buf(std::shared_ptr<buffer_handler_generic > in_rbhandler) :
         rb_handler(in_rbhandler), blocking(false) { }
-    BufferHandlerOStreambuf(std::shared_ptr<BufferHandlerGeneric > in_rbhandler, bool in_blocking) :
+    buffer_handler_ostream_buf(std::shared_ptr<buffer_handler_generic > in_rbhandler, bool in_blocking) :
         rb_handler(in_rbhandler), blocking(in_blocking) { }
 
-    virtual ~BufferHandlerOStreambuf();
+    virtual ~buffer_handler_ostream_buf();
 
 protected:
     std::streamsize xsputn(const char_type *s, std::streamsize n) override;
@@ -359,7 +375,7 @@ protected:
 
 private:
     // buf handler we bind to
-    std::shared_ptr<BufferHandlerGeneric > rb_handler;
+    std::shared_ptr<buffer_handler_generic > rb_handler;
 
     // Do we block when buffer is full?
     bool blocking;
@@ -370,11 +386,11 @@ private:
 
 // A C++ streambuf-compatible wrapper around a buf handler with an interstitial string
 // cache
-struct BufferHandlerOStringStreambuf : public std::stringbuf {
-    BufferHandlerOStringStreambuf(std::shared_ptr<BufferHandlerGeneric > in_rbhandler) :
+struct buffer_handler_ostringstream_buf : public std::stringbuf {
+    buffer_handler_ostringstream_buf(std::shared_ptr<buffer_handler_generic > in_rbhandler) :
         rb_handler(in_rbhandler) { }
 
-    virtual ~BufferHandlerOStringStreambuf();
+    virtual ~buffer_handler_ostringstream_buf();
 
 protected:
     // Wrap the stringbuf functions 
@@ -387,45 +403,45 @@ private:
     kis_recursive_timed_mutex mutex;
 
     // buf handler we bind to
-    std::shared_ptr<BufferHandlerGeneric > rb_handler;
+    std::shared_ptr<buffer_handler_generic > rb_handler;
     
 };
 
 
 // buffer interface, interacts with a buffer handler 
-class BufferInterface {
+class buffer_interface {
 public:
-    BufferInterface();
-    virtual ~BufferInterface();
+    buffer_interface();
+    virtual ~buffer_interface();
 
     // Called when the linked buffer has new data available
-    virtual void BufferAvailable(size_t in_amt) = 0;
+    virtual void buffer_available(size_t in_amt) = 0;
 
     // Called when a buffer encounters an error
-    virtual void BufferError(std::string in_error __attribute__((unused))) { }
+    virtual void buffer_error(std::string in_error __attribute__((unused))) { }
 
 protected:
-    BufferHandlerGeneric *buffer_handler;
+    buffer_handler_generic *bufferhandler;
     bool read_handler;
     bool write_handler;
 };
 
-class BufferInterfaceFunc : public BufferInterface {
+class buffer_interface_func : public buffer_interface {
 public:
-    BufferInterfaceFunc(std::function<void (size_t)> in_available_cb,
+    buffer_interface_func(std::function<void (size_t)> in_available_cb,
             std::function<void (std::string)> in_error_cb) : 
-        BufferInterface(),
+        buffer_interface(),
         available_fn {in_available_cb},
         error_fn {in_error_cb} { }
 
-    virtual ~BufferInterfaceFunc() { }
+    virtual ~buffer_interface_func() { }
 
-    virtual void BufferAvailable(size_t in_amt) {
+    virtual void buffer_available(size_t in_amt) {
         if (available_fn != nullptr)
             available_fn(in_amt);
     }
 
-    virtual void BufferError(std::string in_error) {
+    virtual void buffer_error(std::string in_error) {
         if (error_fn != nullptr)
             error_fn(in_error);
     }

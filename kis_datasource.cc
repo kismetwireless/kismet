@@ -28,9 +28,9 @@
 
 // We never instantiate from a generic tracker component or from a stored
 // record so we always re-allocate ourselves
-KisDatasource::KisDatasource(SharedDatasourceBuilder in_builder) :
+kis_datasource::kis_datasource(shared_datasource_builder in_builder, std::shared_ptr<kis_recursive_timed_mutex> mutex) :
     tracker_component(),
-    KisExternalInterface() {
+    kis_external_interface(mutex) {
     
     register_fields();
     reserve_fields(nullptr);
@@ -41,17 +41,17 @@ KisDatasource::KisDatasource(SharedDatasourceBuilder in_builder) :
     }
 
     timetracker = 
-        Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
+        Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
 
     packetchain =
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
+        Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
 
-	pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
-    pack_comp_l1info = packetchain->RegisterPacketComponent("RADIODATA");
-    pack_comp_gps = packetchain->RegisterPacketComponent("GPS");
-	pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");
-    pack_comp_json = packetchain->RegisterPacketComponent("JSON");
-    pack_comp_protobuf = packetchain->RegisterPacketComponent("PROTOBUF");
+	pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
+    pack_comp_l1info = packetchain->register_packet_component("RADIODATA");
+    pack_comp_gps = packetchain->register_packet_component("GPS");
+	pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");
+    pack_comp_json = packetchain->register_packet_component("JSON");
+    pack_comp_protobuf = packetchain->register_packet_component("PROTOBUF");
 
     error_timer_id = -1;
     ping_timer_id = -1;
@@ -60,8 +60,8 @@ KisDatasource::KisDatasource(SharedDatasourceBuilder in_builder) :
     mode_listing = false;
 
     listed_interface_entry_id =
-        Globalreg::globalreg->entrytracker->RegisterField("kismet.datasourcetracker.listed_interface",
-                TrackerElementFactory<KisDatasourceInterface>(),
+        Globalreg::globalreg->entrytracker->register_field("kismet.datasourcetracker.listed_interface",
+                tracker_element_factory<kis_datasource_interface>(),
                 "automatically discovered available interface");
 
     last_pong = time(0);
@@ -71,10 +71,10 @@ KisDatasource::KisDatasource(SharedDatasourceBuilder in_builder) :
     set_int_source_running(false);
 }
 
-KisDatasource::~KisDatasource() {
+kis_datasource::~kis_datasource() {
     // Cancel any timer
-    timetracker->RemoveTimer(error_timer_id);
-    timetracker->RemoveTimer(ping_timer_id);
+    timetracker->remove_timer(error_timer_id);
+    timetracker->remove_timer(ping_timer_id);
 
     cancel_all_commands("source deleted");
 
@@ -85,7 +85,7 @@ KisDatasource::~KisDatasource() {
     // be completed!
 }
 
-void KisDatasource::list_interfaces(unsigned int in_transaction, 
+void kis_datasource::list_interfaces(unsigned int in_transaction, 
         list_callback_t in_cb) {
     local_demand_locker lock(ext_mutex);
     lock.lock();
@@ -97,17 +97,17 @@ void KisDatasource::list_interfaces(unsigned int in_transaction,
     if (!get_source_builder()->get_list_capable()) {
         if (in_cb != NULL) {
             lock.unlock();
-            in_cb(in_transaction, std::vector<SharedInterface>());
+            in_cb(in_transaction, std::vector<shared_interface>());
         }
 
         return;
     }
 
     // If we don't have our local binary, die and call cb instantly
-    if (!KisExternalInterface::check_ipc(get_source_ipc_binary())) {
+    if (!kis_external_interface::check_ipc(get_source_ipc_binary())) {
         if (in_cb != NULL) {
             lock.unlock();
-            in_cb(in_transaction, std::vector<SharedInterface>());
+            in_cb(in_transaction, std::vector<shared_interface>());
         }
         return;
     }
@@ -119,7 +119,7 @@ void KisDatasource::list_interfaces(unsigned int in_transaction,
     if (!launch_ipc()) {
         if (in_cb != NULL) {
             lock.unlock();
-            in_cb(in_transaction, std::vector<SharedInterface>());
+            in_cb(in_transaction, std::vector<shared_interface>());
         }
 
         return;
@@ -130,7 +130,7 @@ void KisDatasource::list_interfaces(unsigned int in_transaction,
     send_list_interfaces(in_transaction, in_cb);
 }
 
-void KisDatasource::probe_interface(std::string in_definition, unsigned int in_transaction,
+void kis_datasource::probe_interface(std::string in_definition, unsigned int in_transaction,
         probe_callback_t in_cb) {
     local_demand_locker lock(ext_mutex);
     lock.lock();
@@ -151,7 +151,7 @@ void KisDatasource::probe_interface(std::string in_definition, unsigned int in_t
     }
 
     // If we don't have our local binary, die and call cb instantly
-    if (!KisExternalInterface::check_ipc(get_source_ipc_binary())) {
+    if (!kis_external_interface::check_ipc(get_source_ipc_binary())) {
         if (in_cb != NULL) {
             lock.unlock();
             in_cb(in_transaction, false, "Capture tool not installed");
@@ -187,7 +187,7 @@ void KisDatasource::probe_interface(std::string in_definition, unsigned int in_t
     }
 }
 
-void KisDatasource::open_interface(std::string in_definition, unsigned int in_transaction, 
+void kis_datasource::open_interface(std::string in_definition, unsigned int in_transaction, 
         open_callback_t in_cb) {
     local_demand_locker lock(ext_mutex);
     lock.lock();
@@ -209,10 +209,10 @@ void KisDatasource::open_interface(std::string in_definition, unsigned int in_tr
         if (get_source_uuid().error && !local_uuid) {
             uuid nuuid;
 
-            nuuid.GenerateTimeUUID((uint8_t *) "\x00\x00\x00\x00\x00\x00");
+            nuuid.generate_time_uuid((uint8_t *) "\x00\x00\x00\x00\x00\x00");
 
             set_source_uuid(nuuid);
-            set_source_key(Adler32Checksum(nuuid.UUID2String()));
+            set_source_key(adler32_checksum(nuuid.uuid_to_string()));
         }
 
         set_int_source_retry_attempts(0);
@@ -241,7 +241,7 @@ void KisDatasource::open_interface(std::string in_definition, unsigned int in_tr
     }
 
     // If we don't have our local binary, die and call cb instantly
-    if (!KisExternalInterface::check_ipc(get_source_ipc_binary())) {
+    if (!kis_external_interface::check_ipc(get_source_ipc_binary())) {
         if (in_cb != NULL) {
             lock.unlock();
             in_cb(in_transaction, false, "Capture tool not installed");
@@ -252,7 +252,7 @@ void KisDatasource::open_interface(std::string in_definition, unsigned int in_tr
 
     // If we have an error callback that's going to try to re-open us, cancel it
     if (error_timer_id > 0)
-        timetracker->RemoveTimer(error_timer_id);
+        timetracker->remove_timer(error_timer_id);
 
     // Launch the IPC
     launch_ipc();
@@ -261,7 +261,7 @@ void KisDatasource::open_interface(std::string in_definition, unsigned int in_tr
     send_open_source(in_definition, in_transaction, in_cb);
 }
 
-void KisDatasource::set_channel(std::string in_channel, unsigned int in_transaction,
+void kis_datasource::set_channel(std::string in_channel, unsigned int in_transaction,
         configure_callback_t in_cb) {
     local_demand_locker lock(ext_mutex);
     lock.lock();
@@ -278,7 +278,7 @@ void KisDatasource::set_channel(std::string in_channel, unsigned int in_transact
     send_configure_channel(in_channel, in_transaction, in_cb);
 }
 
-void KisDatasource::set_channel_hop(double in_rate, std::vector<std::string> in_chans,
+void kis_datasource::set_channel_hop(double in_rate, std::vector<std::string> in_chans,
         bool in_shuffle, unsigned int in_offt, unsigned int in_transaction, 
         configure_callback_t in_cb) {
     local_locker lock(ext_mutex);
@@ -291,10 +291,10 @@ void KisDatasource::set_channel_hop(double in_rate, std::vector<std::string> in_
     }
 
     // Convert the std::vector to a channel vector
-    auto vec = std::make_shared<TrackerElementVector>(source_hop_vec_id);
+    auto vec = std::make_shared<tracker_element_vector>(source_hop_vec_id);
 
     for (auto i : in_chans) {
-        auto c = std::make_shared<TrackerElementString>(channel_entry_id);
+        auto c = std::make_shared<tracker_element_string>(channel_entry_id);
         c->set(i);
         vec->push_back(c);
     }
@@ -303,8 +303,8 @@ void KisDatasource::set_channel_hop(double in_rate, std::vector<std::string> in_
     set_channel_hop(in_rate, vec, in_shuffle, in_offt, in_transaction, in_cb);
 }
 
-void KisDatasource::set_channel_hop(double in_rate, 
-        std::shared_ptr<TrackerElementVector> in_chans,
+void kis_datasource::set_channel_hop(double in_rate, 
+        std::shared_ptr<tracker_element_vector> in_chans,
         bool in_shuffle, unsigned int in_offt, unsigned int in_transaction, 
         configure_callback_t in_cb) {
     local_locker lock(ext_mutex);
@@ -321,7 +321,7 @@ void KisDatasource::set_channel_hop(double in_rate,
             in_transaction, in_cb);
 }
 
-void KisDatasource::set_channel_hop_rate(double in_rate, unsigned int in_transaction,
+void kis_datasource::set_channel_hop_rate(double in_rate, unsigned int in_transaction,
         configure_callback_t in_cb) {
     // Don't bother checking if we can set channel since we're just calling a function
     // that already checks that
@@ -329,14 +329,14 @@ void KisDatasource::set_channel_hop_rate(double in_rate, unsigned int in_transac
             get_source_hop_offset(), in_transaction, in_cb);
 }
 
-void KisDatasource::set_channel_hop_list(std::vector<std::string> in_chans,
+void kis_datasource::set_channel_hop_list(std::vector<std::string> in_chans,
         unsigned int in_transaction, configure_callback_t in_cb) {
     // Again don't bother, we're just an API shim
     set_channel_hop(get_source_hop_rate(), in_chans, get_source_hop_shuffle(),
             get_source_hop_offset(), in_transaction, in_cb);
 }
 
-void KisDatasource::connect_remote(std::shared_ptr<BufferHandlerGeneric> in_ringbuf,
+void kis_datasource::connect_remote(std::shared_ptr<buffer_handler_generic> in_ringbuf,
         std::string in_definition, open_callback_t in_cb) {
     local_locker lock(ext_mutex);
 
@@ -348,7 +348,7 @@ void KisDatasource::connect_remote(std::shared_ptr<BufferHandlerGeneric> in_ring
 
     // Kill any error handlers
     if (error_timer_id > 0)
-        timetracker->RemoveTimer(error_timer_id);
+        timetracker->remove_timer(error_timer_id);
 
     // Connect the buffer
     connect_buffer(in_ringbuf);
@@ -371,16 +371,16 @@ void KisDatasource::connect_remote(std::shared_ptr<BufferHandlerGeneric> in_ring
     send_open_source(in_definition, 0, in_cb);
 }
 
-void KisDatasource::close_source() {
+void kis_datasource::close_source() {
     local_locker lock(ext_mutex);
 
     if (ping_timer_id > 0) {
-        timetracker->RemoveTimer(ping_timer_id);
+        timetracker->remove_timer(ping_timer_id);
         ping_timer_id = -1;
     }
 
     if (ringbuf_handler != nullptr) {
-        ringbuf_handler->RemoveReadBufferInterface();
+        ringbuf_handler->remove_read_buffer_interface();
         send_shutdown("closing source");
     }
 
@@ -404,7 +404,7 @@ void KisDatasource::close_source() {
     set_int_source_running(false);
 }
 
-void KisDatasource::disable_source() {
+void kis_datasource::disable_source() {
     local_locker lock(ext_mutex);
 
     close_source();
@@ -414,12 +414,12 @@ void KisDatasource::disable_source() {
 
     // cancel any timers
     if (error_timer_id > 0)
-        timetracker->RemoveTimer(error_timer_id);
+        timetracker->remove_timer(error_timer_id);
 
     error_timer_id = -1;
 }
 
-void KisDatasource::trigger_error(std::string in_error) {
+void kis_datasource::trigger_error(std::string in_error) {
     local_locker lock(ext_mutex);
 
     // fprintf(stderr, "DEBUG - trigger error %s\n", in_error.c_str());
@@ -443,14 +443,14 @@ void KisDatasource::trigger_error(std::string in_error) {
     cancel_all_commands(in_error);
 }
 
-void KisDatasource::BufferError(std::string in_error) {
-    BufferAvailable(0);
+void kis_datasource::buffer_error(std::string in_error) {
+    buffer_available(0);
 
     trigger_error(in_error);
 }
 
-std::string KisDatasource::get_definition_opt(std::string in_opt) {
-    auto i = source_definition_opts.find(StrLower(in_opt));
+std::string kis_datasource::get_definition_opt(std::string in_opt) {
+    auto i = source_definition_opts.find(str_lower(in_opt));
 
     if (i == source_definition_opts.end())
         return override_default_option(in_opt);
@@ -458,8 +458,8 @@ std::string KisDatasource::get_definition_opt(std::string in_opt) {
     return i->second;
 }
 
-bool KisDatasource::get_definition_opt_bool(std::string in_opt, bool in_def) {
-    auto i = source_definition_opts.find(StrLower(in_opt));
+bool kis_datasource::get_definition_opt_bool(std::string in_opt, bool in_def) {
+    auto i = source_definition_opts.find(str_lower(in_opt));
     std::string opt;
 
     if (i != source_definition_opts.end())
@@ -467,11 +467,11 @@ bool KisDatasource::get_definition_opt_bool(std::string in_opt, bool in_def) {
     else
         opt = override_default_option(in_opt);
 
-    return StringToBool(opt, in_def);
+    return string_to_bool(opt, in_def);
 }
 
-double KisDatasource::get_definition_opt_double(std::string in_opt, double in_def) {
-    auto i = source_definition_opts.find(StrLower(in_opt));
+double kis_datasource::get_definition_opt_double(std::string in_opt, double in_def) {
+    auto i = source_definition_opts.find(str_lower(in_opt));
     std::string opt;
 
     if (i != source_definition_opts.end())
@@ -488,7 +488,7 @@ double KisDatasource::get_definition_opt_double(std::string in_opt, double in_de
     return d;
 }
 
-bool KisDatasource::parse_interface_definition(std::string in_definition) {
+bool kis_datasource::parse_interface_definition(std::string in_definition) {
     local_locker lock(ext_mutex);
 
     local_uuid = false;
@@ -509,14 +509,14 @@ bool KisDatasource::parse_interface_definition(std::string in_definition) {
         set_int_source_interface(in_definition.substr(0, cpos));
 
         // Blow up if we fail parsing
-        if (StringToOpts(in_definition.substr(cpos + 1, 
+        if (string_to_opts(in_definition.substr(cpos + 1, 
                         in_definition.size() - cpos - 1), ",", &options) < 0) {
             return false;
         }
 
         // Throw into a nice keyed dictionary so other elements of the DS can use it
         for (auto i = options.begin(); i != options.end(); ++i) {
-            source_definition_opts[StrLower((*i).opt)] = (*i).val;
+            source_definition_opts[str_lower((*i).opt)] = (*i).val;
         }
     }
 
@@ -543,11 +543,11 @@ bool KisDatasource::parse_interface_definition(std::string in_definition) {
 
         set_source_uuid(u);
         local_uuid = true;
-        set_source_key(Adler32Checksum(u.UUID2String()));
+        set_source_key(adler32_checksum(u.uuid_to_string()));
     }
 
     auto datasourcetracker =
-        Globalreg::FetchMandatoryGlobalAs<Datasourcetracker>("DATASOURCETRACKER");
+        Globalreg::fetch_mandatory_global_as<datasource_tracker>("DATASOURCETRACKER");
 
     set_int_source_retry(get_definition_opt_bool("retry", 
                 datasourcetracker->get_config_defaults()->get_retry_on_error()));
@@ -565,7 +565,7 @@ bool KisDatasource::parse_interface_definition(std::string in_definition) {
     return true;
 }
 
-std::shared_ptr<KisDatasource::tracked_command> KisDatasource::get_command(uint32_t in_transaction) {
+std::shared_ptr<kis_datasource::tracked_command> kis_datasource::get_command(uint32_t in_transaction) {
     auto i = command_ack_map.find(in_transaction);
 
     if (i == command_ack_map.end())
@@ -574,7 +574,7 @@ std::shared_ptr<KisDatasource::tracked_command> KisDatasource::get_command(uint3
     return i->second;
 }
 
-void KisDatasource::cancel_command(uint32_t in_transaction, std::string in_error) {
+void kis_datasource::cancel_command(uint32_t in_transaction, std::string in_error) {
     local_locker lock(ext_mutex);
 
     auto i = command_ack_map.find(in_transaction);
@@ -583,7 +583,7 @@ void KisDatasource::cancel_command(uint32_t in_transaction, std::string in_error
 
         // Cancel any timers
         if (cmd->timer_id > -1) {
-            timetracker->RemoveTimer(cmd->timer_id);
+            timetracker->remove_timer(cmd->timer_id);
             cmd->timer_id = -1;
         }
 
@@ -595,7 +595,7 @@ void KisDatasource::cancel_command(uint32_t in_transaction, std::string in_error
         if (cmd->list_cb != NULL) {
             list_callback_t cb = cmd->list_cb;
             cmd->list_cb = NULL;
-            cb(cmd->transaction, std::vector<SharedInterface>());
+            cb(cmd->transaction, std::vector<shared_interface>());
         } else if (cmd->probe_cb != NULL) {
             probe_callback_t cb = cmd->probe_cb;
             cmd->probe_cb = NULL;
@@ -614,7 +614,7 @@ void KisDatasource::cancel_command(uint32_t in_transaction, std::string in_error
     }
 }
 
-void KisDatasource::cancel_all_commands(std::string in_error) {
+void kis_datasource::cancel_all_commands(std::string in_error) {
     local_locker lock(ext_mutex);
 
     // fprintf(stderr, "debug - cancel all commands\n");
@@ -631,11 +631,11 @@ void KisDatasource::cancel_all_commands(std::string in_error) {
     command_ack_map.clear();
 }
 
-bool KisDatasource::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
+bool kis_datasource::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
     // Handle all the default options first; ping, pong, message, etc are all
     // handled for us by the overhead of the KismetExternal protocol, we only need
     // to worry about our specific ones
-    if (KisExternalInterface::dispatch_rx_packet(c))
+    if (kis_external_interface::dispatch_rx_packet(c))
         return true;
 
     // Handle all the KisDataSource sub-protocols
@@ -667,14 +667,14 @@ bool KisDatasource::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> 
     return false;
 }
 
-void KisDatasource::handle_msg_proxy(const std::string& msg, const int type) {
+void kis_datasource::handle_msg_proxy(const std::string& msg, const int type) {
     if (get_source_remote())
         _MSG(fmt::format("{} - {}", get_source_name(), msg), type);
     else
         _MSG(msg, type);
 }
 
-void KisDatasource::handle_packet_probesource_report(uint32_t in_seqno, 
+void kis_datasource::handle_packet_probesource_report(uint32_t in_seqno, 
         const std::string& in_content) {
     local_demand_locker lock(ext_mutex);
     lock.lock();
@@ -701,7 +701,7 @@ void KisDatasource::handle_packet_probesource_report(uint32_t in_seqno,
 
         for (int x = 0; x < report.channels().channels_size(); x++) {
             auto chanstr =
-                std::make_shared<TrackerElementString>(channel_entry_id);
+                std::make_shared<tracker_element_string>(channel_entry_id);
             chanstr->set(report.channels().channels(x));
             source_channels_vec->push_back(chanstr);
         }
@@ -731,7 +731,7 @@ void KisDatasource::handle_packet_probesource_report(uint32_t in_seqno,
 
 }
 
-void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno, 
+void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno, 
         const std::string& in_content) {
     local_demand_locker lock(ext_mutex);
 
@@ -757,7 +757,7 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno,
 
         for (int x = 0; x < report.channels().channels_size(); x++) {
             auto chanstr = 
-                std::make_shared<TrackerElementString>(channel_entry_id);
+                std::make_shared<tracker_element_string>(channel_entry_id);
             chanstr->set(report.channels().channels(x));
 
             source_channels_vec->push_back(chanstr);
@@ -797,12 +797,12 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno,
     if (report.has_uuid()) {
         uuid u(report.uuid());
         set_source_uuid(u);
-        set_source_key(Adler32Checksum(u.UUID2String()));
+        set_source_key(adler32_checksum(u.uuid_to_string()));
     } else if (!local_uuid) {
         uuid nuuid;
-        nuuid.GenerateTimeUUID((uint8_t *) "\x00\x00\x00\x00\x00\x00");
+        nuuid.generate_time_uuid((uint8_t *) "\x00\x00\x00\x00\x00\x00");
         set_source_uuid(nuuid);
-        set_source_key(Adler32Checksum(nuuid.UUID2String()));
+        set_source_key(adler32_checksum(nuuid.uuid_to_string()));
     }
 
     if (report.has_capture_interface()) {
@@ -829,34 +829,34 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno,
     if (def_chan != "") {
         bool append = true;
         for (auto sci : *source_hop_vec) {
-            if (strcasecmp(GetTrackerValue<std::string>(sci).c_str(), def_chan.c_str()) == 0) {
+            if (strcasecmp(get_tracker_value<std::string>(sci).c_str(), def_chan.c_str()) == 0) {
                 append = false;
                 break;
             }
         }
 
         if (append) {
-            auto dce = std::make_shared<TrackerElementString>(channel_entry_id, def_chan);
+            auto dce = std::make_shared<tracker_element_string>(channel_entry_id, def_chan);
             source_channels_vec->push_back(dce);
         }
     }
 
-    std::vector<std::string> def_vec = StrTokenize(get_definition_opt("channels"), ",");
-    std::vector<std::string> add_vec = StrTokenize(get_definition_opt("add_channels"), ",");
-    std::vector<std::string> block_vec = StrTokenize(get_definition_opt("block_channels"), ",");
+    std::vector<std::string> def_vec = str_tokenize(get_definition_opt("channels"), ",");
+    std::vector<std::string> add_vec = str_tokenize(get_definition_opt("add_channels"), ",");
+    std::vector<std::string> block_vec = str_tokenize(get_definition_opt("block_channels"), ",");
 
     if (def_vec.size() != 0) {
         // If we override the channels, use our supplied list entirely, and we don't
         // care about the blocked channels
         for (auto dc : def_vec) {
-            auto dce = std::make_shared<TrackerElementString>(channel_entry_id, dc);
+            auto dce = std::make_shared<tracker_element_string>(channel_entry_id, dc);
             source_hop_vec->push_back(dce);
 
             // Do we need to add the custom channels to the list of channels the
             // source supports?
             bool append = true;
             for (auto sci : *source_channels_vec) {
-                if (strcasecmp(GetTrackerValue<std::string>(sci).c_str(), dc.c_str()) == 0) {
+                if (strcasecmp(get_tracker_value<std::string>(sci).c_str(), dc.c_str()) == 0) {
                     append = false;
                     break;
                 }
@@ -870,7 +870,7 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno,
         for (auto c : *source_channels_vec) {
             bool skip = false;
             for (auto bchan : block_vec) {
-                if (StrLower(GetTrackerValue<std::string>(c)) == StrLower(bchan)) {
+                if (str_lower(get_tracker_value<std::string>(c)) == str_lower(bchan)) {
                     skip = true;
                     break;
                 }
@@ -884,14 +884,14 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno,
             // Add any new channels from the add_vec, we don't filter blocked channels here
             bool append = true;
             for (auto sci : *source_channels_vec) {
-                if (strcasecmp(GetTrackerValue<std::string>(sci).c_str(), ac.c_str()) == 0) {
+                if (strcasecmp(get_tracker_value<std::string>(sci).c_str(), ac.c_str()) == 0) {
                     append = false;
                     break;
                 }
             }
 
             if (append) {
-                auto ace = std::make_shared<TrackerElementString>(channel_entry_id, ac);
+                auto ace = std::make_shared<tracker_element_string>(channel_entry_id, ac);
                 source_hop_vec->push_back(ace);
                 source_channels_vec->push_back(ace);
             }
@@ -902,7 +902,7 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno,
         for (auto c : *source_channels_vec) {
             bool skip = false;
             for (auto bchan : block_vec) {
-                if (StrLower(GetTrackerValue<std::string>(c)) == StrLower(bchan)) {
+                if (str_lower(get_tracker_value<std::string>(c)) == str_lower(bchan)) {
                     skip = true;
                     break;
                 }
@@ -959,7 +959,7 @@ void KisDatasource::handle_packet_opensource_report(uint32_t in_seqno,
     }
 }
 
-void KisDatasource::handle_packet_interfaces_report(uint32_t in_seqno, 
+void kis_datasource::handle_packet_interfaces_report(uint32_t in_seqno, 
         const std::string& in_content) {
     local_demand_locker lock(ext_mutex);
     lock.lock();
@@ -984,7 +984,7 @@ void KisDatasource::handle_packet_interfaces_report(uint32_t in_seqno,
 
     for (auto rintf : report.interfaces()) {
         auto intf = 
-            std::make_shared<KisDatasourceInterface>(listed_interface_entry_id);
+            std::make_shared<kis_datasource_interface>(listed_interface_entry_id);
 
         intf->populate(rintf.interface(), rintf.flags());
         intf->set_prototype(get_source_builder());
@@ -1017,7 +1017,7 @@ void KisDatasource::handle_packet_interfaces_report(uint32_t in_seqno,
 
 }
 
-void KisDatasource::handle_packet_error_report(uint32_t in_seqno, const std::string& in_content) {
+void kis_datasource::handle_packet_error_report(uint32_t in_seqno, const std::string& in_content) {
     local_locker lock(ext_mutex);
 
     KismetDatasource::ErrorReport report;
@@ -1038,7 +1038,7 @@ void KisDatasource::handle_packet_error_report(uint32_t in_seqno, const std::str
     }
 }
 
-void KisDatasource::handle_packet_configure_report(uint32_t in_seqno, const std::string& in_content) {
+void kis_datasource::handle_packet_configure_report(uint32_t in_seqno, const std::string& in_content) {
     local_demand_locker lock(ext_mutex);
     lock.lock();
 
@@ -1058,7 +1058,7 @@ void KisDatasource::handle_packet_configure_report(uint32_t in_seqno, const std:
         msg = report.message().msgtext();
 
     if (report.has_warning())
-        set_int_source_warning(MungeToPrintable(report.warning()));
+        set_int_source_warning(munge_to_printable(report.warning()));
 
     if (report.has_channel()) {
         set_int_source_hopping(false);
@@ -1084,7 +1084,7 @@ void KisDatasource::handle_packet_configure_report(uint32_t in_seqno, const std:
         source_hop_vec->clear();
 
         for (auto c : report.hopping().channels()) {
-            auto chanstr = std::make_shared<TrackerElementString>(channel_entry_id, c);
+            auto chanstr = std::make_shared<tracker_element_string>(channel_entry_id, c);
             source_hop_vec->push_back(chanstr);
         }
     }
@@ -1111,7 +1111,7 @@ void KisDatasource::handle_packet_configure_report(uint32_t in_seqno, const std:
 
 }
 
-void KisDatasource::handle_packet_data_report(uint32_t in_seqno, const std::string& in_content) {
+void kis_datasource::handle_packet_data_report(uint32_t in_seqno, const std::string& in_content) {
     // If we're paused, throw away this packet
     {
         local_locker lock(ext_mutex);
@@ -1136,7 +1136,7 @@ void KisDatasource::handle_packet_data_report(uint32_t in_seqno, const std::stri
     if (report.has_warning())
         set_int_source_warning(report.warning());
 
-    kis_packet *packet = packetchain->GeneratePacket();
+    kis_packet *packet = packetchain->generate_packet();
 
     // Process the data chunk
     if (report.has_packet()) {
@@ -1221,11 +1221,11 @@ void KisDatasource::handle_packet_data_report(uint32_t in_seqno, const std::stri
     get_source_packet_rrd()->add_sample(1, time(0));
 
     // Inject the packet into the packetchain if we have one
-    packetchain->ProcessPacket(packet);
+    packetchain->process_packet(packet);
 
 }
 
-void KisDatasource::handle_packet_warning_report(uint32_t in_seqno, const std::string& in_content) {
+void kis_datasource::handle_packet_warning_report(uint32_t in_seqno, const std::string& in_content) {
     local_locker lock(ext_mutex);
 
     KismetDatasource::WarningReport report;
@@ -1242,7 +1242,7 @@ void KisDatasource::handle_packet_warning_report(uint32_t in_seqno, const std::s
     set_int_source_warning(report.warning());
 }
 
-kis_layer1_packinfo *KisDatasource::handle_sub_signal(KismetDatasource::SubSignal in_sig) {
+kis_layer1_packinfo *kis_datasource::handle_sub_signal(KismetDatasource::SubSignal in_sig) {
     // Extract l1 info from a KV pair so we can add it to a packet
     
     kis_layer1_packinfo *siginfo = new kis_layer1_packinfo();
@@ -1279,7 +1279,7 @@ kis_layer1_packinfo *KisDatasource::handle_sub_signal(KismetDatasource::SubSigna
     return siginfo;
 }
 
-kis_gps_packinfo *KisDatasource::handle_sub_gps(KismetDatasource::SubGps in_gps) {
+kis_gps_packinfo *kis_datasource::handle_sub_gps(KismetDatasource::SubGps in_gps) {
     // Extract a GPS record from a packet and turn it into a packinfo gps log
     kis_gps_packinfo *gpsinfo = new kis_gps_packinfo();
 
@@ -1298,7 +1298,7 @@ kis_gps_packinfo *KisDatasource::handle_sub_gps(KismetDatasource::SubGps in_gps)
     return gpsinfo;
 }
 
-unsigned int KisDatasource::send_probe_source(std::string in_definition,
+unsigned int kis_datasource::send_probe_source(std::string in_definition,
         unsigned int in_transaction, probe_callback_t in_cb) {
     local_locker lock(ext_mutex);
 
@@ -1332,7 +1332,7 @@ unsigned int KisDatasource::send_probe_source(std::string in_definition,
     return seqno;
 }
 
-unsigned int KisDatasource::send_open_source(std::string in_definition,
+unsigned int kis_datasource::send_open_source(std::string in_definition,
         unsigned int in_transaction, open_callback_t in_cb) {
     local_locker lock(ext_mutex);
 
@@ -1366,7 +1366,7 @@ unsigned int KisDatasource::send_open_source(std::string in_definition,
     return seqno;
 }
 
-unsigned int KisDatasource::send_configure_channel(std::string in_chan,
+unsigned int kis_datasource::send_configure_channel(std::string in_chan,
         unsigned int in_transaction, configure_callback_t in_cb) {
     local_locker lock(ext_mutex);
 
@@ -1403,8 +1403,8 @@ unsigned int KisDatasource::send_configure_channel(std::string in_chan,
     return seqno;
 }
 
-unsigned int KisDatasource::send_configure_channel_hop(double in_rate, 
-        std::shared_ptr<TrackerElementVector> in_chans,
+unsigned int kis_datasource::send_configure_channel_hop(double in_rate, 
+        std::shared_ptr<tracker_element_vector> in_chans,
         bool in_shuffle, unsigned int in_offt,
         unsigned int in_transaction,
         configure_callback_t in_cb) {
@@ -1426,7 +1426,7 @@ unsigned int KisDatasource::send_configure_channel_hop(double in_rate,
     ch->set_offset(in_offt);
 
     for (auto chi : *in_chans)  {
-        ch->add_channels(GetTrackerValue<std::string>(chi));
+        ch->add_channels(get_tracker_value<std::string>(chi));
     }
 
     o.set_allocated_hopping(ch);
@@ -1451,7 +1451,7 @@ unsigned int KisDatasource::send_configure_channel_hop(double in_rate,
     return seqno;
 }
 
-unsigned int KisDatasource::send_list_interfaces(unsigned int in_transaction, list_callback_t in_cb) {
+unsigned int kis_datasource::send_list_interfaces(unsigned int in_transaction, list_callback_t in_cb) {
     local_locker lock(ext_mutex);
 
     std::shared_ptr<tracked_command> cmd;
@@ -1469,7 +1469,7 @@ unsigned int KisDatasource::send_list_interfaces(unsigned int in_transaction, li
 
     if (seqno == 0) {
         if (in_cb != NULL) {
-            in_cb(in_transaction, std::vector<SharedInterface>());
+            in_cb(in_transaction, std::vector<shared_interface>());
         }
 
         return 0;
@@ -1484,101 +1484,101 @@ unsigned int KisDatasource::send_list_interfaces(unsigned int in_transaction, li
 }
 
 
-void KisDatasource::register_fields() {
+void kis_datasource::register_fields() {
     tracker_component::register_fields();
 
-    RegisterField("kismet.datasource.source_number", "internal source number per Kismet instance",
+    register_field("kismet.datasource.source_number", "internal source number per Kismet instance",
             &source_number);
-    RegisterField("kismet.datasource.source_key", "hashed UUID key", &source_key);
+    register_field("kismet.datasource.source_key", "hashed UUID key", &source_key);
 
-    RegisterField("kismet.datasource.paused", 
+    register_field("kismet.datasource.paused", 
             "capture is paused (no packets will be processed from this source)", &source_paused);
 
-    RegisterField("kismet.datasource.ipc_binary", "capture command", &source_ipc_binary);
-    RegisterField("kismet.datasource.ipc_pid", "capture process", &source_ipc_pid);
+    register_field("kismet.datasource.ipc_binary", "capture command", &source_ipc_binary);
+    register_field("kismet.datasource.ipc_pid", "capture process", &source_ipc_pid);
 
-    RegisterField("kismet.datasource.running", "capture is running", &source_running);
+    register_field("kismet.datasource.running", "capture is running", &source_running);
 
-    RegisterField("kismet.datasource.remote", 
+    register_field("kismet.datasource.remote", 
             "capture is connected from a remote server", &source_remote);
 
-    RegisterField("kismet.datasource.passive", 
+    register_field("kismet.datasource.passive", 
             "capture is a post-able passive capture", &source_passive);
 
-    RegisterField("kismet.datasource.name", "Human-readable name", &source_name);
-    RegisterField("kismet.datasource.uuid", "UUID", &source_uuid);
+    register_field("kismet.datasource.name", "Human-readable name", &source_name);
+    register_field("kismet.datasource.uuid", "UUID", &source_uuid);
 
-    RegisterField("kismet.datasource.definition", "Original source= definition", &source_definition);
-    RegisterField("kismet.datasource.interface", "Interface", &source_interface);
-    RegisterField("kismet.datasource.capture_interface", "Interface", &source_cap_interface);
-    RegisterField("kismet.datasource.hardware", "Hardware / chipset", &source_hardware);
+    register_field("kismet.datasource.definition", "Original source= definition", &source_definition);
+    register_field("kismet.datasource.interface", "Interface", &source_interface);
+    register_field("kismet.datasource.capture_interface", "Interface", &source_cap_interface);
+    register_field("kismet.datasource.hardware", "Hardware / chipset", &source_hardware);
 
-    RegisterField("kismet.datasource.dlt", "DLT (link type)", &source_dlt);
+    register_field("kismet.datasource.dlt", "DLT (link type)", &source_dlt);
 
-    RegisterField("kismet.datasource.warning", "Warning or unusual interface state", &source_warning);
+    register_field("kismet.datasource.warning", "Warning or unusual interface state", &source_warning);
 
     channel_entry_id = 
-        RegisterField("kismet.datasource.channel_entry",
-                TrackerElementFactory<TrackerElementString>(),
+        register_field("kismet.datasource.channel_entry",
+                tracker_element_factory<tracker_element_string>(),
                 "Channel");
 
-    RegisterField("kismet.datasource.channels", "Supported channels", &source_channels_vec);
-    RegisterField("kismet.datasource.hopping", "Source is channel hopping", &source_hopping);
-    RegisterField("kismet.datasource.channel", "Current channel", &source_channel);
-    RegisterField("kismet.datasource.hop_rate", "Hop rate if channel hopping", &source_hop_rate);
+    register_field("kismet.datasource.channels", "Supported channels", &source_channels_vec);
+    register_field("kismet.datasource.hopping", "Source is channel hopping", &source_hopping);
+    register_field("kismet.datasource.channel", "Current channel", &source_channel);
+    register_field("kismet.datasource.hop_rate", "Hop rate if channel hopping", &source_hop_rate);
     source_hop_vec_id = 
-        RegisterField("kismet.datasource.hop_channels", "Hop pattern if hopping", &source_hop_vec);
-    RegisterField("kismet.datasource.hop_split", 
+        register_field("kismet.datasource.hop_channels", "Hop pattern if hopping", &source_hop_vec);
+    register_field("kismet.datasource.hop_split", 
             "Split hopping among same type interfaces", &source_hop_split);
-    RegisterField("kismet.datasource.hop_offset", 
+    register_field("kismet.datasource.hop_offset", 
             "Offset into hopping list for multiple sources", &source_hop_offset);
-    RegisterField("kismet.datasource.hop_shuffle", 
+    register_field("kismet.datasource.hop_shuffle", 
             "Shuffle channels while hopping", &source_hop_shuffle);
-    RegisterField("kismet.datasource.hop_shuffle_skip", 
+    register_field("kismet.datasource.hop_shuffle_skip", 
             "Number of channels skipped by source during hop shuffling", 
             &source_hop_shuffle_skip);
 
-    RegisterField("kismet.datasource.error", "Source is in error state", &source_error);
-    RegisterField("kismet.datasource.error_reason", 
+    register_field("kismet.datasource.error", "Source is in error state", &source_error);
+    register_field("kismet.datasource.error_reason", 
             "Last known reason for error state", &source_error_reason);
 
-    RegisterField("kismet.datasource.num_packets", 
+    register_field("kismet.datasource.num_packets", 
             "Number of packets seen by source", &source_num_packets);
-    RegisterField("kismet.datasource.num_error_packets", 
+    register_field("kismet.datasource.num_error_packets", 
             "Number of invalid/error packets seen by source",
             &source_num_error_packets);
 
     packet_rate_rrd_id = 
-        RegisterDynamicField("kismet.datasource.packets_rrd", 
+        register_dynamic_field("kismet.datasource.packets_rrd", 
                 "detected packet rate over past 60 seconds",
                 &packet_rate_rrd);
 
-    RegisterField("kismet.datasource.retry", 
+    register_field("kismet.datasource.retry", 
             "Source will try to re-open after failure", &source_retry);
-    RegisterField("kismet.datasource.retry_attempts", 
+    register_field("kismet.datasource.retry_attempts", 
             "Consecutive unsuccessful retry attempts", &source_retry_attempts);
-    RegisterField("kismet.datasource.total_retry_attempts", 
+    register_field("kismet.datasource.total_retry_attempts", 
             "Total unsuccessful retry attempts", &source_total_retry_attempts);
 
-    RegisterField("kismet.datasource.info.antenna_type", 
+    register_field("kismet.datasource.info.antenna_type", 
             "User-supplied antenna type", &source_info_antenna_type);
-    RegisterField("kismet.datasource.info.antenna_gain", 
+    register_field("kismet.datasource.info.antenna_gain", 
             "User-supplied antenna gain in dB", &source_info_antenna_gain);
-    RegisterField("kismet.datasource.info.antenna_orientation", 
+    register_field("kismet.datasource.info.antenna_orientation", 
             "User-supplied antenna orientation", &source_info_antenna_orientation);
-    RegisterField("kismet.datasource.info.antenna_beamwidth", 
+    register_field("kismet.datasource.info.antenna_beamwidth", 
             "User-supplied antenna beamwidth", &source_info_antenna_beamwidth);
-    RegisterField("kismet.datasource.info.amp_type", 
+    register_field("kismet.datasource.info.amp_type", 
             "User-supplied amplifier type", &source_info_amp_type);
-    RegisterField("kismet.datasource.info.amp_gain", 
+    register_field("kismet.datasource.info.amp_gain", 
             "User-supplied amplifier gain in dB", &source_info_amp_gain);
 
-    RegisterField("kismet.datasource.linktype_override",
+    register_field("kismet.datasource.linktype_override",
             "Overridden linktype, usually used in custom capture types.", &source_override_linktype);
 
 }
 
-void KisDatasource::handle_source_error() {
+void kis_datasource::handle_source_error() {
     local_locker lock(ext_mutex);
 
     // If we're probing or listing we don't do any special handling
@@ -1594,15 +1594,15 @@ void KisDatasource::handle_source_error() {
                 "Remote sources are not locally reconnected; waiting for the remote source "
                 "to reconnect to resume capture.";
 
-            std::shared_ptr<Alertracker> alertracker =
-                Globalreg::FetchMandatoryGlobalAs<Alertracker>("ALERTTRACKER");
-            alertracker->RaiseOneShot("SOURCEERROR", ss.str(), -1);
+            std::shared_ptr<alert_tracker> alertracker =
+                Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
+            alertracker->raise_one_shot("SOURCEERROR", ss.str(), -1);
 
             _MSG(ss.str(), MSGFLAG_ERROR);
         }
 
         if (ping_timer_id > 0) {
-            timetracker->RemoveTimer(ping_timer_id);
+            timetracker->remove_timer(ping_timer_id);
             ping_timer_id = -1;
         }
 
@@ -1616,15 +1616,15 @@ void KisDatasource::handle_source_error() {
                 "is not configured to automatically re-try opening; it will remain "
                 "closed.";
 
-            std::shared_ptr<Alertracker> alertracker =
-                Globalreg::FetchMandatoryGlobalAs<Alertracker>("ALERTTRACKER");
-            alertracker->RaiseOneShot("SOURCEERROR", ss.str(), -1);
+            std::shared_ptr<alert_tracker> alertracker =
+                Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
+            alertracker->raise_one_shot("SOURCEERROR", ss.str(), -1);
 
             _MSG(ss.str(), MSGFLAG_ERROR);
         }
 
         if (ping_timer_id > 0) {
-            timetracker->RemoveTimer(ping_timer_id);
+            timetracker->remove_timer(ping_timer_id);
             ping_timer_id = -1;
         }
 
@@ -1634,7 +1634,7 @@ void KisDatasource::handle_source_error() {
     }
     
     if (ping_timer_id > 0) {
-        timetracker->RemoveTimer(ping_timer_id);
+        timetracker->remove_timer(ping_timer_id);
         ping_timer_id = -1;
     }
 
@@ -1654,9 +1654,9 @@ void KisDatasource::handle_source_error() {
             "Kismet will attempt to re-open the source in 5 seconds.  (" <<
             get_source_retry_attempts() << " failures)";
 
-        std::shared_ptr<Alertracker> alertracker =
-            Globalreg::FetchMandatoryGlobalAs<Alertracker>("ALERTTRACKER");
-        alertracker->RaiseOneShot("SOURCEERROR", ss.str(), -1);
+        std::shared_ptr<alert_tracker> alertracker =
+            Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
+        alertracker->raise_one_shot("SOURCEERROR", ss.str(), -1);
 
         _MSG(ss.str(), MSGFLAG_ERROR);
 
@@ -1680,9 +1680,9 @@ void KisDatasource::handle_source_error() {
                             ss << "Source " << get_source_name() << " successfully "
                                 "re-opened";
 
-                            std::shared_ptr<Alertracker> alertracker =
-                                Globalreg::FetchMandatoryGlobalAs<Alertracker>("ALERTTRACKER");
-                            alertracker->RaiseOneShot("SOURCEOPEN", ss.str(), -1);
+                            std::shared_ptr<alert_tracker> alertracker =
+                                Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
+                            alertracker->raise_one_shot("SOURCEOPEN", ss.str(), -1);
 
                             if (get_source_hopping()) {
                                 // Reset the channel hop if we're hopping
@@ -1704,7 +1704,7 @@ void KisDatasource::handle_source_error() {
     }
 }
 
-bool KisDatasource::launch_ipc() {
+bool kis_datasource::launch_ipc() {
     local_locker lock(ext_mutex);
 
     std::stringstream ss;

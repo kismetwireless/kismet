@@ -31,44 +31,44 @@
 #include "entrytracker.h"
 #include "devicetracker_component.h"
 
-class Kis_Gps_Location;
+class kis_gps_location;
 class kis_gps_packinfo;
 
-class KisGpsBuilder;
-typedef std::shared_ptr<KisGpsBuilder> SharedGpsBuilder;
+class kis_gps_builder;
+typedef std::shared_ptr<kis_gps_builder> shared_gps_builder;
 
-class KisGps;
-typedef std::shared_ptr<KisGps> SharedGps;
+class kis_gps;
+typedef std::shared_ptr<kis_gps> shared_gps;
 
 // GPS builders are responsible for telling the GPS tracker what sort of GPS,
 // the basic priority, the type and default name, and so on.
-class KisGpsBuilder : public tracker_component {
+class kis_gps_builder : public tracker_component {
 public:
-    KisGpsBuilder() :
+    kis_gps_builder() :
         tracker_component() {
         register_fields();
         reserve_fields(NULL);
     }
 
-    KisGpsBuilder(int in_id) :
+    kis_gps_builder(int in_id) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(NULL);
     }
 
-    virtual ~KisGpsBuilder() { }
+    virtual ~kis_gps_builder() { }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("KisGpsBuilder");
+        return adler32_checksum("kis_gps_builder");
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
+    virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
@@ -78,7 +78,7 @@ public:
 
     // Take a shared_ptr reference to ourselves from the caller, because we can't 
     // consistently get a universal shared_ptr to 'this'
-    virtual SharedGps build_gps(SharedGpsBuilder) {
+    virtual shared_gps build_gps(shared_gps_builder) {
         return NULL;
     }
 
@@ -93,27 +93,27 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.gps.type.class", "Class/type", &gps_class);
-        RegisterField("kismet.gps.type.description", "Class description", &gps_class_description);
-        RegisterField("kismet.gps.type.priority", "Default priority", &gps_priority);
-        RegisterField("kismet.gps.type.default_name", "Default name", &gps_default_name);
-        RegisterField("kismet.gps.type.singleton", "Single instance of this gps type", &singleton);
+        register_field("kismet.gps.type.class", "Class/type", &gps_class);
+        register_field("kismet.gps.type.description", "Class description", &gps_class_description);
+        register_field("kismet.gps.type.priority", "Default priority", &gps_priority);
+        register_field("kismet.gps.type.default_name", "Default name", &gps_default_name);
+        register_field("kismet.gps.type.singleton", "Single instance of this gps type", &singleton);
     }
 
-    std::shared_ptr<TrackerElementString> gps_class;
-    std::shared_ptr<TrackerElementString> gps_class_description;
-    std::shared_ptr<TrackerElementInt32> gps_priority;
-    std::shared_ptr<TrackerElementString> gps_default_name;
-    std::shared_ptr<TrackerElementUInt8> singleton;
+    std::shared_ptr<tracker_element_string> gps_class;
+    std::shared_ptr<tracker_element_string> gps_class_description;
+    std::shared_ptr<tracker_element_int32> gps_priority;
+    std::shared_ptr<tracker_element_string> gps_default_name;
+    std::shared_ptr<tracker_element_uint8> singleton;
 };
 
 // GPS superclass; built by a GPS builder; GPS drivers implement the low-level GPS 
 // interaction (such as serial port, network, etc)
-class KisGps : public tracker_component {
+class kis_gps : public tracker_component {
 public:
-    KisGps(SharedGpsBuilder in_builder);
+    kis_gps(shared_gps_builder in_builder);
 
-    virtual ~KisGps();
+    virtual ~kis_gps();
 
     virtual void initialize() { };
 
@@ -125,7 +125,7 @@ public:
     __ProxyPrivSplit(gps_data_only, uint8_t, bool, bool, gps_data_only);
     __ProxyPrivSplit(device_connected, uint8_t, bool, bool, gps_connected);
     __ProxyPrivSplit(gps_reconnect, uint8_t, bool, bool, gps_reconnect);
-    __ProxyTrackable(gps_prototype, KisGpsBuilder, gps_prototype);
+    __ProxyTrackable(gps_prototype, kis_gps_builder, gps_prototype);
 
     virtual kis_gps_packinfo *get_location() { return gps_location; }
     virtual kis_gps_packinfo *get_last_location() { return gps_last_location; }
@@ -137,11 +137,11 @@ public:
     virtual bool open_gps(std::string in_definition);
 
     // Various GPS transformation utility functions
-    static double GpsCalcHeading(double in_lat, double in_lon, double in_lat2, double in_lon2);
-    static double GpsCalcRad(double lat);
-    static double GpsRad2Deg(double x);
-    static double GpsDeg2Rad(double x);
-    static double GpsEarthDistance(double in_lat, double in_lon, double in_lat2, double in_lon2);
+    static double gps_calc_heading(double in_lat, double in_lon, double in_lat2, double in_lon2);
+    static double gps_calc_rad(double lat);
+    static double gps_rad_to_deg(double x);
+    static double gps_deg_to_rad(double x);
+    static double gps_earth_distance(double in_lat, double in_lon, double in_lat2, double in_lon2);
 
 protected:
     // We share mutexes down to the driver engines so we use a shared
@@ -153,38 +153,38 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.gps.name", "GPS instance name", &gps_name);
-        RegisterField("kismet.gps.description", "GPS instance description", &gps_description);
+        register_field("kismet.gps.name", "GPS instance name", &gps_name);
+        register_field("kismet.gps.description", "GPS instance description", &gps_description);
 
-        RegisterField("kismet.gps.connected", "GPS device is connected", &gps_connected);
+        register_field("kismet.gps.connected", "GPS device is connected", &gps_connected);
 
-        RegisterField("kismet.gps.reconnect", "GPS device will reconnect if there is an error", &gps_reconnect);
+        register_field("kismet.gps.reconnect", "GPS device will reconnect if there is an error", &gps_reconnect);
 
-        RegisterField("kismet.gps.location", "current location", &tracked_location);
-        RegisterField("kismet.gps.last_location", "previous location", &tracked_last_location);
+        register_field("kismet.gps.location", "current location", &tracked_location);
+        register_field("kismet.gps.last_location", "previous location", &tracked_last_location);
 
-        RegisterField("kismet.gps.uuid", "UUID", &gps_uuid);
-        RegisterField("kismet.gps.definition", "GPS definition", &gps_definition);
+        register_field("kismet.gps.uuid", "UUID", &gps_uuid);
+        register_field("kismet.gps.definition", "GPS definition", &gps_definition);
 
-        RegisterField("kismet.gps.priority", "Multi-gps priority", &gps_priority);
+        register_field("kismet.gps.priority", "Multi-gps priority", &gps_priority);
 
-        RegisterField("kismet.gps.data_only", 
+        register_field("kismet.gps.data_only", 
                 "GPS is used for populating data only, never for live location", &gps_data_only);
     }
 
     // Push the locations into the tracked locations and swap
     virtual void update_locations();
 
-    std::shared_ptr<KisGpsBuilder> gps_prototype;
+    std::shared_ptr<kis_gps_builder> gps_prototype;
 
-    std::shared_ptr<TrackerElementString> gps_name;
-    std::shared_ptr<TrackerElementString> gps_description;
+    std::shared_ptr<tracker_element_string> gps_name;
+    std::shared_ptr<tracker_element_string> gps_description;
 
-    std::shared_ptr<TrackerElementUInt8> gps_connected;
+    std::shared_ptr<tracker_element_uint8> gps_connected;
 
-    std::shared_ptr<TrackerElementUInt8> gps_reconnect;
+    std::shared_ptr<tracker_element_uint8> gps_reconnect;
 
-    std::shared_ptr<TrackerElementInt32> gps_priority;
+    std::shared_ptr<tracker_element_int32> gps_priority;
 
     std::shared_ptr<kis_tracked_location_triplet> tracked_location;
     std::shared_ptr<kis_tracked_location_triplet> tracked_last_location;
@@ -192,10 +192,10 @@ protected:
     kis_gps_packinfo *gps_location;
     kis_gps_packinfo *gps_last_location;
 
-    std::shared_ptr<TrackerElementUUID> gps_uuid;
-    std::shared_ptr<TrackerElementString> gps_definition;
+    std::shared_ptr<tracker_element_uuid> gps_uuid;
+    std::shared_ptr<tracker_element_string> gps_definition;
 
-    std::shared_ptr<TrackerElementUInt8> gps_data_only;
+    std::shared_ptr<tracker_element_uint8> gps_data_only;
 };
 
 #endif

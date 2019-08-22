@@ -101,6 +101,19 @@ int mac80211_set_frequency_cache(int ifidx, void *nl_sock, int nl80211_id,
         unsigned int control_freq, unsigned int chan_width, unsigned int center_freq1, 
         unsigned int center_freq2, char *errstr);
 
+/* Get frequency info about the interface, if we can.
+ * All values from control_freq to errstr are filled in by this call.
+ *
+ * Returns: 
+ * -1   Error
+ *  0   Success
+ *
+ */
+int mac80211_get_frequency_cache(int ifidx, void *nl_sock, int nl80211_id,
+        unsigned int *control_freq, unsigned int *chan_type, 
+        unsigned int *chan_width, unsigned int *center_freq1,
+        unsigned int *center_freq2, char *errstr);
+
 /* Get the parent phy of an interface.
  *
  * Returns:
@@ -152,6 +165,7 @@ char *mac80211_find_parent(const char *interface);
 int mac80211_get_chanlist(const char *interface, unsigned int extended_flags, char *errstr,
         unsigned int default_ht20, unsigned int expand_ht20,
         char ***ret_chanlist, size_t *ret_chanlist_len);
+
 
 #endif
 

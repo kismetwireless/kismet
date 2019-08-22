@@ -27,26 +27,26 @@
 
 // Standard JSON serialization adapter; will form complete JSON objects out
 // of the input objects.  Best connected to a chainbuf output stream via a
-// BufferHandlerOStreambuf or similar
-namespace JsonAdapter {
+// buffer_handler_ostream_buf or similar
+namespace json_adapter {
 
 // Basic packer with some defaulted options - prettyprint and depth used for
 // recursive indenting and prettifying the output
-void Pack(std::ostream &stream, SharedTrackerElement e,
-        std::shared_ptr<TrackerElementSerializer::rename_map> name_map = nullptr,
+void pack(std::ostream &stream, shared_tracker_element e,
+        std::shared_ptr<tracker_element_serializer::rename_map> name_map = nullptr,
         bool prettyprint = false, unsigned int depth = 0);
 
-std::string SanitizeString(const std::string& in) noexcept;
-std::size_t StringExtraSpace(const std::string& in) noexcept;
+std::string sanitize_string(const std::string& in) noexcept;
+std::size_t sanitize_extra_space(const std::string& in) noexcept;
 
-class Serializer : public TrackerElementSerializer {
+class serializer : public tracker_element_serializer {
 public:
-    Serializer() :
-        TrackerElementSerializer() { }
+    serializer() :
+        tracker_element_serializer() { }
 
-    virtual void serialize(SharedTrackerElement in_elem, std::ostream &stream,
+    virtual void serialize(shared_tracker_element in_elem, std::ostream &stream,
             std::shared_ptr<rename_map> name_map = nullptr) override {
-        Pack(stream, in_elem, name_map);
+        pack(stream, in_elem, name_map);
     }
 };
 
@@ -57,24 +57,24 @@ public:
 // type*, it will serialize each member of the vector independently as a complete
 // JSON object separated by newlines.  This allows for a 'streamed' JSON output
 // which will not require loading the entire object into RAM
-namespace EkJsonAdapter {
+namespace ek_json_adapter {
 
-class Serializer : public TrackerElementSerializer {
+class serializer : public tracker_element_serializer {
 public:
-    Serializer() :
-        TrackerElementSerializer() { }
+    serializer() :
+        tracker_element_serializer() { }
 
-    virtual void serialize(SharedTrackerElement in_elem, std::ostream &stream,
+    virtual void serialize(shared_tracker_element in_elem, std::ostream &stream,
             std::shared_ptr<rename_map> name_map = nullptr) override {
         local_locker lock(&mutex);
 
-        if (in_elem->get_type() == TrackerType::TrackerVector) {
-            for (auto i : *(std::static_pointer_cast<TrackerElementVector>(in_elem))) {
-                JsonAdapter::Pack(stream, i, name_map);
+        if (in_elem->get_type() == tracker_type::tracker_vector) {
+            for (auto i : *(std::static_pointer_cast<tracker_element_vector>(in_elem))) {
+                json_adapter::pack(stream, i, name_map);
                 stream << "\n";
             }
         } else {
-            JsonAdapter::Pack(stream, in_elem, name_map);
+            json_adapter::pack(stream, in_elem, name_map);
         }
     }
 };
@@ -83,17 +83,17 @@ public:
 
 // "Pretty" JSON adapter.  This will include metadata about the fields, and format
 // it to be human readable.
-namespace PrettyJsonAdapter {
+namespace pretty_json_adapter {
 
-class Serializer : public TrackerElementSerializer {
+class serializer : public tracker_element_serializer {
 public:
-    Serializer() :
-        TrackerElementSerializer() { }
+    serializer() :
+        tracker_element_serializer() { }
 
-    virtual void serialize(SharedTrackerElement in_elem, std::ostream &stream,
+    virtual void serialize(shared_tracker_element in_elem, std::ostream &stream,
             std::shared_ptr<rename_map> name_map = nullptr) override {
         // Call the packer in pretty mode
-        JsonAdapter::Pack(stream, in_elem, name_map, true, 1);
+        json_adapter::pack(stream, in_elem, name_map, true, 1);
     }
 
 };
@@ -109,7 +109,7 @@ public:
 // top-level record would be represented as:
 // {
 //    "objname": "kismet.device.base",
-//    "objtype": "TrackerMap",
+//    "objtype": "tracker_map",
 //    "objdata": {
 //       ... device fields
 //     }
@@ -120,26 +120,26 @@ public:
 // ...
 //    "kismet.device.base.key": {
 //        "objname": "kismet.device.base.key",
-//        "objtype": "TrackerUInt64",
+//        "objtype": "tracker_uint64",
 //        "objdata": 31777509604288
 //     }
 // ...
 // }
 
-namespace StorageJsonAdapter {
+namespace storage_json_adapter {
 
-void Pack(std::ostream &stream, SharedTrackerElement e,
-        std::shared_ptr<TrackerElementSerializer::rename_map> name_map = nullptr);
+void pack(std::ostream &stream, shared_tracker_element e,
+        std::shared_ptr<tracker_element_serializer::rename_map> name_map = nullptr);
 
-class Serializer : public TrackerElementSerializer {
+class serializer : public tracker_element_serializer {
 public:
-    Serializer() :
-        TrackerElementSerializer() { }
+    serializer() :
+        tracker_element_serializer() { }
 
-    virtual void serialize(SharedTrackerElement in_elem, std::ostream &stream,
+    virtual void serialize(shared_tracker_element in_elem, std::ostream &stream,
             std::shared_ptr<rename_map> name_map = nullptr) override {
         // Call the packer in pretty mode
-        Pack(stream, in_elem, name_map);
+        pack(stream, in_elem, name_map);
     }
 
 };

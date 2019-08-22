@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -58,18 +58,18 @@ typedef int (*dumpfile_ppi_cb)(DUMPFILE_PPI_PARMS);
 typedef kis_datachunk *(*dumpfile_pcap_filter_cb)(DUMPFILE_PCAP_FILTER_PARMS);
 
 // Pcap-based packet writer
-class KisPPILogfile : public KisLogfile {
+class kis_ppi_logfile : public kis_logfile {
 public:
-    KisPPILogfile(SharedLogBuilder in_builder);
-    virtual ~KisPPILogfile();
+    kis_ppi_logfile(shared_log_builder in_builder);
+    virtual ~kis_ppi_logfile();
 
 	static int packet_handler(CHAINCALL_PARMS);
 
-	virtual void RegisterPPICallback(dumpfile_ppi_cb in_cb, void *in_aux);
-	virtual void RemovePPICallback(dumpfile_ppi_cb in_cb, void *in_aux);
+	virtual void register_ppi_callback(dumpfile_ppi_cb in_cb, void *in_aux);
+	virtual void remove_ppi_callback(dumpfile_ppi_cb in_cb, void *in_aux);
 
-    virtual bool Log_Open(std::string in_path) override;
-    virtual void Log_Close() override;
+    virtual bool open_log(std::string in_path) override;
+    virtual void close_log() override;
 
 	struct ppi_cb_rec {
 		dumpfile_ppi_cb cb;
@@ -78,7 +78,7 @@ public:
 
 protected:
 	// Common internal startup
-	void Startup_Dumpfile();
+	void startup_dumpfile();
 
 	pcap_t *dumpfile;
 	pcap_dumper_t *dumper;
@@ -97,35 +97,35 @@ protected:
     kis_recursive_timed_mutex packet_mutex;
 };
 
-class KisPPILogfileBuilder : public KisLogfileBuilder {
+class ppi_logfile_builder : public kis_logfile_builder {
 public:
-    KisPPILogfileBuilder() :
-        KisLogfileBuilder() {
+    ppi_logfile_builder() :
+        kis_logfile_builder() {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    KisPPILogfileBuilder(int in_id) :
-        KisLogfileBuilder(in_id) {
+    ppi_logfile_builder(int in_id) :
+        kis_logfile_builder(in_id) {
            
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    KisPPILogfileBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
-        KisLogfileBuilder(in_id, e) {
+    ppi_logfile_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
+        kis_logfile_builder(in_id, e) {
 
         register_fields();
         reserve_fields(e);
         initialize();
     }
 
-    virtual ~KisPPILogfileBuilder() { }
+    virtual ~ppi_logfile_builder() { }
 
-    virtual SharedLogfile build_logfile(SharedLogBuilder builder) override {
-        return SharedLogfile(new KisPPILogfile(builder));
+    virtual shared_logfile build_logfile(shared_log_builder builder) override {
+        return shared_logfile(new kis_ppi_logfile(builder));
     }
 
     virtual void initialize() override {

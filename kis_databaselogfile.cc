@@ -31,23 +31,23 @@
 #include "structured.h"
 #include "sqlite3_cpp11.h"
 
-KisDatabaseLogfile::KisDatabaseLogfile():
-    KisLogfile(SharedLogBuilder(NULL)), 
-    KisDatabase(Globalreg::globalreg, "kismetlog"),
-    LifetimeGlobal(),
-    Kis_Net_Httpd_Ringbuf_Stream_Handler(),
-    MessageClient(Globalreg::globalreg, nullptr) {
+kis_database_logfile::kis_database_logfile():
+    kis_logfile(shared_log_builder(NULL)), 
+    kis_database(Globalreg::globalreg, "kismetlog"),
+    lifetime_global(),
+    kis_net_httpd_ringbuf_stream_handler(),
+    message_client(Globalreg::globalreg, nullptr) {
 
-    std::shared_ptr<Packetchain> packetchain =
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
+    std::shared_ptr<packet_chain> packetchain =
+        Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
 
-    pack_comp_device = packetchain->RegisterPacketComponent("DEVICE");
-    pack_comp_radiodata = packetchain->RegisterPacketComponent("RADIODATA");
-    pack_comp_gps = packetchain->RegisterPacketComponent("GPS");
-    pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
-    pack_comp_datasource = packetchain->RegisterPacketComponent("KISDATASRC");
-    pack_comp_common = packetchain->RegisterPacketComponent("COMMON");
-    pack_comp_metablob = packetchain->RegisterPacketComponent("METABLOB");
+    pack_comp_device = packetchain->register_packet_component("DEVICE");
+    pack_comp_radiodata = packetchain->register_packet_component("RADIODATA");
+    pack_comp_gps = packetchain->register_packet_component("GPS");
+    pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
+    pack_comp_datasource = packetchain->register_packet_component("KISDATASRC");
+    pack_comp_common = packetchain->register_packet_component("COMMON");
+    pack_comp_metablob = packetchain->register_packet_component("METABLOB");
 
     last_device_log = 0;
 
@@ -73,37 +73,37 @@ KisDatabaseLogfile::KisDatabaseLogfile():
     snapshot_pz = NULL;
 
     devicetracker =
-        Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
+        Globalreg::fetch_mandatory_global_as<device_tracker>();
 
     db_enabled = false;
 
-    Bind_Httpd_Server();
+    bind_httpd_server();
 }
 
-KisDatabaseLogfile::~KisDatabaseLogfile() {
-    auto messagebus = Globalreg::FetchGlobalAs<MessageBus>();
+kis_database_logfile::~kis_database_logfile() {
+    auto messagebus = Globalreg::FetchGlobalAs<message_bus>();
     if (messagebus != nullptr)
-        messagebus->RemoveClient(this);
+        messagebus->remove_client(this);
 
-    Log_Close();
+    close_log();
 }
 
-void KisDatabaseLogfile::Deferred_Startup() {
+void kis_database_logfile::trigger_deferred_startup() {
     gpstracker = 
-        Globalreg::FetchMandatoryGlobalAs<GpsTracker>();
+        Globalreg::fetch_mandatory_global_as<gps_tracker>();
 }
 
-void KisDatabaseLogfile::Deferred_Shutdown() {
+void kis_database_logfile::trigger_deferred_shutdown() {
 
 }
 
-bool KisDatabaseLogfile::Log_Open(std::string in_path) {
+bool kis_database_logfile::open_log(std::string in_path) {
     local_locker dbl(&ds_mutex);
 
     auto timetracker = 
-        Globalreg::FetchMandatoryGlobalAs<Timetracker>("TIMETRACKER");
+        Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
 
-    bool dbr = Database_Open(in_path);
+    bool dbr = database_open(in_path);
 
     if (!dbr) {
         _MSG_FATAL("Unable to open KismetDB log at '{}'; check that the directory exists "
@@ -112,7 +112,7 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
         return false;
     }
 
-    dbr = Database_UpgradeDB();
+    dbr = database_upgrade_db();
 
     if (!dbr) {
         _MSG_FATAL("Unable to update existing KismetDB log at {}", in_path);
@@ -125,27 +125,29 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
 
 	_MSG("Opened kismetdb log file '" + in_path + "'", MSGFLAG_INFO);
 
-    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("kis_log_ephemeral_dangerous", false)) {
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_ephemeral_dangerous", false)) {
         _MSG_INFO("KISMETDB LOG IS IN EPHEMERAL MODE.  LOG WILL *** NOT *** BE PRESERVED WHEN "
                 "KISMET EXITS.");
         unlink(in_path.c_str());
     }
 
-    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("kis_log_packets", true)) {
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_packets", true)) {
         _MSG("Saving packets to the Kismet database log.", MSGFLAG_INFO);
-        std::shared_ptr<Packetchain> packetchain =
-            Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
+        std::shared_ptr<packet_chain> packetchain =
+            Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
 
-        packetchain->RegisterHandler(&KisDatabaseLogfile::packet_handler, this, 
+        packetchain->register_handler(&kis_database_logfile::packet_handler, this, 
                 CHAINPOS_LOGGING, -100);
+    } else {
+        _MSG_INFO("Packets will not be saved to the Kismet database log.");
     }
    
     packet_timeout =
-        Globalreg::globalreg->kismet_config->FetchOptUInt("kis_log_packet_timeout", 0);
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_packet_timeout", 0);
 
     if (packet_timeout != 0) {
         packet_timeout_timer = 
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
+            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 15, NULL, 1,
                     [this](int) -> int {
 
                     auto pkt_delete = 
@@ -165,7 +167,7 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
     }
 
     device_timeout =
-        Globalreg::globalreg->kismet_config->FetchOptUInt("kis_log_device_timeout", 0);
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_device_timeout", 0);
 
     if (device_timeout != 0) {
         device_timeout_timer = 
@@ -185,7 +187,7 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
     }
 
     message_timeout =
-        Globalreg::globalreg->kismet_config->FetchOptUInt("kis_log_message_timeout", 0);
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_message_timeout", 0);
 
     if (message_timeout != 0) {
         message_timeout_timer = 
@@ -205,7 +207,7 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
     }
 
     alert_timeout =
-        Globalreg::globalreg->kismet_config->FetchOptUInt("kis_log_alert_timeout", 0);
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_alert_timeout", 0);
 
     if (alert_timeout != 0) {
         alert_timeout_timer = 
@@ -225,7 +227,7 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
     }
 
     snapshot_timeout =
-        Globalreg::globalreg->kismet_config->FetchOptUInt("kis_log_snapshot_timeout", 0);
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_snapshot_timeout", 0);
 
     if (snapshot_timeout != 0) {
         snapshot_timeout_timer = 
@@ -245,36 +247,36 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
     }
 
     packet_drop_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>("/logging/kismetdb/pcap/drop", 
+        std::make_shared<kis_net_httpd_simple_post_endpoint>("/logging/kismetdb/pcap/drop", 
                 [this](std::ostream& stream, const std::string& uri,
-                    SharedStructured post_structured, 
-                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
+                    shared_structured post_structured, 
+                    kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                     return packet_drop_endpoint_handler(stream, uri, post_structured, variable_cache);
                 }, nullptr);
 
     make_poi_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>("/poi/create_poi", 
+        std::make_shared<kis_net_httpd_simple_post_endpoint>("/poi/create_poi", 
                 [this](std::ostream& stream, const std::string& uri,
-                    SharedStructured post_structured,
-                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
+                    shared_structured post_structured,
+                    kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                     return make_poi_endp_handler(stream, uri, post_structured, variable_cache);
                 });
 
     list_poi_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/poi/list_poi", 
-                [this]() -> std::shared_ptr<TrackerElement> {
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/poi/list_poi", 
+                [this]() -> std::shared_ptr<tracker_element> {
                     return list_poi_endp_handler();
                 });
 
     device_mac_filter = 
-        std::make_shared<ClassfilterMacaddr>("kismetdb_devices", 
+        std::make_shared<class_filter_mac_addr>("kismetdb_devices", 
                 "Kismetdb device MAC filtering");
     packet_mac_filter = 
-        std::make_shared<PacketfilterMacaddr>("kismetdb_packets", 
+        std::make_shared<packet_filter_mac_addr>("kismetdb_packets", 
                 "Kismetdb packet MAC filtering");
 
     auto device_filter_dfl = 
-        Globalreg::globalreg->kismet_config->FetchOptDfl("kis_log_device_filter_default", "pass");
+        Globalreg::globalreg->kismet_config->fetch_opt_dfl("kis_log_device_filter_default", "pass");
 
     if (device_filter_dfl == "pass" || device_filter_dfl == "false") {
         device_mac_filter->set_filter_default(false);
@@ -286,10 +288,10 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
     }
 
     auto device_filter_vec =
-        Globalreg::globalreg->kismet_config->FetchOptVec("kis_log_device_filter");
+        Globalreg::globalreg->kismet_config->fetch_opt_vec("kis_log_device_filter");
     for (auto dfi : device_filter_vec) {
         // phy,mac,value
-        auto filter_toks = StrTokenize(dfi, ",");
+        auto filter_toks = str_tokenize(dfi, ",");
 
         if (filter_toks.size() != 3) {
             _MSG_ERROR("Skipping invalid kis_log_device_filter option '{}', expected phyname,mac,filtertype.", dfi);
@@ -318,7 +320,7 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
     }
 
     auto packet_filter_dfl = 
-        Globalreg::globalreg->kismet_config->FetchOptDfl("kis_log_packet_filter_default", "pass");
+        Globalreg::globalreg->kismet_config->fetch_opt_dfl("kis_log_packet_filter_default", "pass");
 
     if (packet_filter_dfl == "pass" || packet_filter_dfl == "false") {
         packet_mac_filter->set_filter_default(false);
@@ -330,10 +332,10 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
     }
 
     auto packet_filter_vec =
-        Globalreg::globalreg->kismet_config->FetchOptVec("kis_log_packet_filter");
+        Globalreg::globalreg->kismet_config->fetch_opt_vec("kis_log_packet_filter");
     for (auto dfi : packet_filter_vec) {
         // phy,block,mac,value
-        auto filter_toks = StrTokenize(dfi, ",");
+        auto filter_toks = str_tokenize(dfi, ",");
 
         if (filter_toks.size() != 4) {
             _MSG_ERROR("Skipping invalid kis_log_packet_filter option '{}', expected phyname,filterblock,mac,filtertype.", dfi);
@@ -361,10 +363,10 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
         packet_mac_filter->set_filter(m, filter_toks[0], filter_toks[1], filter_opt);
     }
 
-    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("kis_log_messages", true)) {
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_messages", true)) {
         auto messagebus = 
-            Globalreg::FetchMandatoryGlobalAs<MessageBus>();
-        messagebus->RegisterClient(this, MSGFLAG_ALL);
+            Globalreg::fetch_mandatory_global_as<message_bus>();
+        messagebus->register_client(this, MSGFLAG_ALL);
     }
 
 
@@ -381,38 +383,40 @@ bool KisDatabaseLogfile::Log_Open(std::string in_path) {
 
             local_locker dblock(&ds_mutex);
 
+            in_transaction_sync = true;
+
             sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
-
-            // Flush the filesystem
-            // sync();
-
             sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+
+            in_transaction_sync = false;
 
             return 1;
         });
 
     // Post that we've got the logfile ready
-    auto eventbus = Globalreg::FetchMandatoryGlobalAs<Eventbus>();
-    eventbus->publish(std::make_shared<EventDblogOpened>());
+    auto eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
+    eventbus->publish(std::make_shared<event_dblog_opened>());
 
     return true;
 }
 
-void KisDatabaseLogfile::Log_Close() {
-    local_locker dblock(&ds_mutex);
+void kis_database_logfile::close_log() {
+    local_demand_locker dblock(&ds_mutex);
+
+    db_lock_with_sync_check(dblock, return);
 
     set_int_log_open(false);
 
     // Kill the timers
     auto timetracker = 
-        Globalreg::FetchGlobalAs<Timetracker>();
+        Globalreg::FetchGlobalAs<time_tracker>();
     if (timetracker != NULL) {
-        timetracker->RemoveTimer(transaction_timer);
-        timetracker->RemoveTimer(packet_timeout_timer);
-        timetracker->RemoveTimer(alert_timeout_timer);
-        timetracker->RemoveTimer(device_timeout_timer);
-        timetracker->RemoveTimer(message_timeout_timer);
-        timetracker->RemoveTimer(snapshot_timeout_timer);
+        timetracker->remove_timer(transaction_timer);
+        timetracker->remove_timer(packet_timeout_timer);
+        timetracker->remove_timer(alert_timeout_timer);
+        timetracker->remove_timer(device_timeout_timer);
+        timetracker->remove_timer(message_timeout_timer);
+        timetracker->remove_timer(snapshot_timeout_timer);
     }
 
     // End the transaction
@@ -423,9 +427,9 @@ void KisDatabaseLogfile::Log_Close() {
     db_enabled = false;
 
     auto packetchain =
-        Globalreg::FetchGlobalAs<Packetchain>();
+        Globalreg::FetchGlobalAs<packet_chain>();
     if (packetchain != NULL) 
-        packetchain->RemoveHandler(&KisDatabaseLogfile::packet_handler, CHAINPOS_LOGGING);
+        packetchain->remove_handler(&kis_database_logfile::packet_handler, CHAINPOS_LOGGING);
 
     {
         if (device_stmt != NULL)
@@ -473,10 +477,10 @@ void KisDatabaseLogfile::Log_Close() {
     sqlite3_exec(db, "BEGIN_EXCLUSIVE", NULL, NULL, NULL);
     sqlite3_exec(db, "COMMIT", NULL, NULL, NULL);
 
-    Database_Close();
+    database_close();
 }
 
-int KisDatabaseLogfile::Database_UpgradeDB() {
+int kis_database_logfile::database_upgrade_db() {
     local_locker dblock(&ds_mutex);
 
     std::string sql;
@@ -521,7 +525,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     if (r != SQLITE_OK) {
         _MSG("Kismet log was unable to create devices table in " + ds_dbfile + ": " +
                 std::string(sErrMsg), MSGFLAG_ERROR);
-        Log_Close();
+        close_log();
         return -1;
     }
 
@@ -567,7 +571,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     if (r != SQLITE_OK) {
         _MSG("Kismet log was unable to create packet table in " + ds_dbfile + ": " +
                 std::string(sErrMsg), MSGFLAG_ERROR);
-        Log_Close();
+        close_log();
         return -1;
     }
 
@@ -599,7 +603,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     if (r != SQLITE_OK) {
         _MSG("Kismet log was unable to create data table in " + ds_dbfile + ": " +
                 std::string(sErrMsg), MSGFLAG_ERROR);
-        Log_Close();
+        close_log();
         return -1;
     }
 
@@ -623,7 +627,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     if (r != SQLITE_OK) {
         _MSG("Kismet log was unable to create datasource table in " + ds_dbfile + ": " +
                 std::string(sErrMsg), MSGFLAG_ERROR);
-        Log_Close();
+        close_log();
         return -1;
     }
 
@@ -650,7 +654,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     if (r != SQLITE_OK) {
         _MSG("Kismet log was unable to create alerts table in " + ds_dbfile + ": " +
                 std::string(sErrMsg), MSGFLAG_ERROR);
-        Log_Close();
+        close_log();
         return -1;
     }
 
@@ -674,7 +678,7 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     if (r != SQLITE_OK) {
         _MSG("Kismet log was unable to create messages table in " + ds_dbfile + ": " +
                 std::string(sErrMsg), MSGFLAG_ERROR);
-        Log_Close();
+        close_log();
         return -1;
     }
 
@@ -699,11 +703,11 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     if (r != SQLITE_OK) {
         _MSG("Kismet log was unable to create messages table in " + ds_dbfile + ": " +
                 std::string(sErrMsg), MSGFLAG_ERROR);
-        Log_Close();
+        close_log();
         return -1;
     }
 
-    Database_SetDBVersion(6);
+    database_set_db_version(6);
 
     // Prepare the statements we'll need later
     //
@@ -718,9 +722,9 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &device_stmt, &device_pz);
 
     if (r != SQLITE_OK) {
-        _MSG("KisDatabaseLogfile unable to prepare database insert for devices in " +
+        _MSG("kis_database_logfile unable to prepare database insert for devices in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        Log_Close();
+        close_log();
         return -1;
     }
 
@@ -738,9 +742,9 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &packet_stmt, &packet_pz);
 
     if (r != SQLITE_OK) {
-        _MSG("KisDatabaseLogfile unable to prepare database insert for packets in " +
+        _MSG("kis_database_logfile unable to prepare database insert for packets in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        Log_Close();
+        close_log();
         return -1;
     }
 
@@ -756,9 +760,9 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &data_stmt, &data_pz);
 
     if (r != SQLITE_OK) {
-        _MSG("KisDatabaseLogfile unable to prepare database insert for data in " +
+        _MSG("kis_database_logfile unable to prepare database insert for data in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        Log_Close();
+        close_log();
         return -1;
     }
 
@@ -773,9 +777,9 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &datasource_stmt, &datasource_pz);
 
     if (r != SQLITE_OK) {
-        _MSG("KisDatabaseLogfile unable to prepare database insert for datasources in " +
+        _MSG("kis_database_logfile unable to prepare database insert for datasources in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        Log_Close();
+        close_log();
         return -1;
     }
 
@@ -790,9 +794,9 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &alert_stmt, &alert_pz);
 
     if (r != SQLITE_OK) {
-        _MSG("KisDatabaseLogfile unable to prepare database insert for alerts in " +
+        _MSG("kis_database_logfile unable to prepare database insert for alerts in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        Log_Close();
+        close_log();
         return -1;
     }
 
@@ -806,9 +810,9 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &msg_stmt, &msg_pz);
 
     if (r != SQLITE_OK) {
-        _MSG("KisDatabaseLogfile unable to prepare database insert for messages in " +
+        _MSG("kis_database_logfile unable to prepare database insert for messages in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        Log_Close();
+        close_log();
         return -1;
     }
 
@@ -822,20 +826,22 @@ int KisDatabaseLogfile::Database_UpgradeDB() {
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &snapshot_stmt, &snapshot_pz);
 
     if (r != SQLITE_OK) {
-        _MSG("KisDatabaseLogfile unable to prepare database insert for snapshots in " +
+        _MSG("kis_database_logfile unable to prepare database insert for snapshots in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        Log_Close();
+        close_log();
         return -1;
     }
 
     return 1;
 }
 
-void KisDatabaseLogfile::ProcessMessage(std::string in_msg, int in_flags) {
+void kis_database_logfile::process_message(std::string in_msg, int in_flags) {
     if (!db_enabled)
         return;
 
-    local_locker dblock(&ds_mutex);
+    local_demand_locker dblock(&ds_mutex);
+    db_lock_with_sync_check(dblock, return);
+
     sqlite3_reset(msg_stmt);
 
     unsigned int spos = 1;
@@ -872,12 +878,12 @@ void KisDatabaseLogfile::ProcessMessage(std::string in_msg, int in_flags) {
     sqlite3_bind_text(msg_stmt, spos++, in_msg.c_str(), in_msg.length(), SQLITE_TRANSIENT);
 
     if (sqlite3_step(msg_stmt) != SQLITE_DONE) {
-        Log_Close();
+        close_log();
         _MSG_ERROR("Unable to insert message into {}: {}", ds_dbfile, sqlite3_errmsg(db));
     }
 }
 
-int KisDatabaseLogfile::log_device(std::shared_ptr<kis_tracked_device_base> d) {
+int kis_database_logfile::log_device(std::shared_ptr<kis_tracked_device_base> d) {
     // We avoid using external mutexes here and try to let sqlite3 handle its own
     // internal locking state; we don't want a huge device list write to block packet
     // writes for instance
@@ -899,7 +905,7 @@ int KisDatabaseLogfile::log_device(std::shared_ptr<kis_tracked_device_base> d) {
         return 0;
 
     phystring = d->get_phyname();
-    macstring = d->get_macaddr().Mac2String();
+    macstring = d->get_macaddr().mac_to_string();
     typestring = d->get_type_string();
     keystring = d->get_key().as_string();
 
@@ -907,12 +913,14 @@ int KisDatabaseLogfile::log_device(std::shared_ptr<kis_tracked_device_base> d) {
 
     std::stringstream sstr;
 
-    // Serialize the device
-    JsonAdapter::Pack(sstr, d, NULL);
+    // serialize the device
+    json_adapter::pack(sstr, d, NULL);
     std::string streamstring = sstr.str();
 
     {
-        local_locker dblock(&ds_mutex);
+        local_demand_locker dblock(&ds_mutex);
+        db_lock_with_sync_check(dblock, return -1);
+
         sqlite3_reset(device_stmt);
 
         sqlite3_bind_int64(device_stmt, spos++, d->get_first_time());
@@ -956,9 +964,9 @@ int KisDatabaseLogfile::log_device(std::shared_ptr<kis_tracked_device_base> d) {
                 streamstring.length(), SQLITE_TRANSIENT);
 
         if (sqlite3_step(device_stmt) != SQLITE_DONE) {
-            _MSG("KisDatabaseLogfile unable to insert device in " +
+            _MSG("kis_database_logfile unable to insert device in " +
                     ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-            Log_Close();
+            close_log();
             return -1;
         }
     }
@@ -966,7 +974,7 @@ int KisDatabaseLogfile::log_device(std::shared_ptr<kis_tracked_device_base> d) {
     return 1;
 }
 
-int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
+int kis_database_logfile::log_packet(kis_packet *in_pack) {
     if (!db_enabled) {
         return 0;
     }
@@ -1001,16 +1009,16 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
     packet_metablob *metablob =
         (packet_metablob *) in_pack->fetch(pack_comp_metablob);
 
-    Kis_Phy_Handler *phyh = NULL;
+    kis_phy_handler *phyh = NULL;
 
     // Packets are no longer a 1:1 with a device
     keystring = "0";
 
     if (commoninfo != NULL) {
-        phyh = devicetracker->FetchPhyHandler(commoninfo->phyid);
-        macstring = commoninfo->source.Mac2String();
-        deststring = commoninfo->dest.Mac2String();
-        transstring = commoninfo->transmitter.Mac2String();
+        phyh = devicetracker->fetch_phy_handler(commoninfo->phyid);
+        macstring = commoninfo->source.mac_to_string();
+        deststring = commoninfo->dest.mac_to_string();
+        transstring = commoninfo->transmitter.mac_to_string();
         frequency = commoninfo->freq_khz;
     } else {
         macstring = "00:00:00:00:00:00";
@@ -1022,18 +1030,20 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
     if (phyh == NULL)
         phystring = "Unknown";
     else
-        phystring = phyh->FetchPhyName();
+        phystring = phyh->fetch_phy_name();
 
 
     if (datasrc != NULL) {
-        sourceuuidstring = datasrc->ref_source->get_source_uuid().UUID2String();
+        sourceuuidstring = datasrc->ref_source->get_source_uuid().uuid_to_string();
     } else {
         sourceuuidstring = "00000000-0000-0000-0000-000000000000";
     }
 
     // Log into the PACKET table if we're a loggable packet (ie, have a link frame)
     if (chunk != nullptr) {
-        local_locker dblock(&ds_mutex);
+        local_demand_locker dblock(&ds_mutex);
+        db_lock_with_sync_check(dblock, return -1);
+
         sqlite3_reset(packet_stmt);
 
         int sql_pos = 1;
@@ -1091,9 +1101,9 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
         sqlite3_bind_text(packet_stmt, sql_pos++, tagstream.str().c_str(), tagstream.str().length(), SQLITE_TRANSIENT);
 
         if (sqlite3_step(packet_stmt) != SQLITE_DONE) {
-            _MSG("KisDatabaseLogfile unable to insert packet in " +
+            _MSG("kis_database_logfile unable to insert packet in " +
                     ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-            Log_Close();
+            close_log();
             return -1;
         }
     }
@@ -1117,18 +1127,20 @@ int KisDatabaseLogfile::log_packet(kis_packet *in_pack) {
     return 1;
 }
 
-int KisDatabaseLogfile::log_data(kis_gps_packinfo *gps, struct timeval tv, 
+int kis_database_logfile::log_data(kis_gps_packinfo *gps, struct timeval tv, 
         std::string phystring, mac_addr devmac, uuid datasource_uuid, 
         std::string type, std::string json) {
 
     if (!db_enabled)
         return 0;
 
-    std::string macstring = devmac.Mac2String();
-    std::string uuidstring = datasource_uuid.UUID2String();
+    std::string macstring = devmac.mac_to_string();
+    std::string uuidstring = datasource_uuid.uuid_to_string();
 
     {
-        local_locker dblock(&ds_mutex);
+        local_demand_locker dblock(&ds_mutex);
+        db_lock_with_sync_check(dblock, return -1);
+
         sqlite3_reset(data_stmt);
 
         int sql_pos = 1;
@@ -1159,9 +1171,9 @@ int KisDatabaseLogfile::log_data(kis_gps_packinfo *gps, struct timeval tv,
         sqlite3_bind_text(data_stmt, sql_pos++, json.data(), json.length(), SQLITE_TRANSIENT);
 
         if (sqlite3_step(data_stmt) != SQLITE_DONE) {
-            _MSG("KisDatabaseLogfile unable to insert data in " +
+            _MSG("kis_database_logfile unable to insert data in " +
                     ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-            Log_Close();
+            close_log();
             return -1;
         }
     }
@@ -1169,13 +1181,13 @@ int KisDatabaseLogfile::log_data(kis_gps_packinfo *gps, struct timeval tv,
     return 1;
 }
 
-int KisDatabaseLogfile::log_datasources(SharedTrackerElement in_datasource_vec) {
+int kis_database_logfile::log_datasources(shared_tracker_element in_datasource_vec) {
     int r;
 
     if (!db_enabled)
         return 0;
 
-    for (auto ds : *(std::static_pointer_cast<TrackerElementVector>(in_datasource_vec))) {
+    for (auto ds : *(std::static_pointer_cast<tracker_element_vector>(in_datasource_vec))) {
         r = log_datasource(ds);
 
         if (r < 0)
@@ -1185,15 +1197,15 @@ int KisDatabaseLogfile::log_datasources(SharedTrackerElement in_datasource_vec) 
     return 1;
 }
 
-int KisDatabaseLogfile::log_datasource(SharedTrackerElement in_datasource) {
+int kis_database_logfile::log_datasource(shared_tracker_element in_datasource) {
 
     if (!db_enabled)
         return 0;
 
-    std::shared_ptr<KisDatasource> ds =
-        std::static_pointer_cast<KisDatasource>(in_datasource);
+    std::shared_ptr<kis_datasource> ds =
+        std::static_pointer_cast<kis_datasource>(in_datasource);
 
-    std::string uuidstring = ds->get_source_uuid().UUID2String();
+    std::string uuidstring = ds->get_source_uuid().uuid_to_string();
     std::string typestring = ds->get_source_builder()->get_source_type();
     std::string defstring = ds->get_source_definition();
     std::string namestring = ds->get_source_name();
@@ -1202,11 +1214,13 @@ int KisDatabaseLogfile::log_datasource(SharedTrackerElement in_datasource) {
     std::stringstream ss;
     std::string jsonstring;
 
-    JsonAdapter::Pack(ss, in_datasource, NULL);
+    json_adapter::pack(ss, in_datasource, NULL);
     jsonstring = ss.str();
 
     {
-        local_locker dblock(&ds_mutex);
+        local_demand_locker dblock(&ds_mutex);
+        db_lock_with_sync_check(dblock, return -1);
+
         sqlite3_reset(datasource_stmt);
 
         sqlite3_bind_text(datasource_stmt, 1, uuidstring.data(), uuidstring.length(), SQLITE_TRANSIENT);
@@ -1218,9 +1232,9 @@ int KisDatabaseLogfile::log_datasource(SharedTrackerElement in_datasource) {
         sqlite3_bind_blob(datasource_stmt, 6, jsonstring.data(), jsonstring.length(), SQLITE_TRANSIENT);
 
         if (sqlite3_step(datasource_stmt) != SQLITE_DONE) {
-            _MSG("KisDatabaseLogfile unable to insert datasource in " +
+            _MSG("kis_database_logfile unable to insert datasource in " +
                     ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-            Log_Close();
+            close_log();
             return -1;
         }
     }
@@ -1228,18 +1242,18 @@ int KisDatabaseLogfile::log_datasource(SharedTrackerElement in_datasource) {
     return 1;
 }
 
-int KisDatabaseLogfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
+int kis_database_logfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
     if (!db_enabled)
         return 0;
 
-    std::string macstring = in_alert->get_transmitter_mac().Mac2String();
-    std::string phystring = devicetracker->FetchPhyName(in_alert->get_phy());
+    std::string macstring = in_alert->get_transmitter_mac().mac_to_string();
+    std::string phystring = devicetracker->fetch_phy_name(in_alert->get_phy());
     std::string headerstring = in_alert->get_header();
 
     std::stringstream ss;
     std::string jsonstring;
 
-    JsonAdapter::Pack(ss, in_alert, NULL);
+    json_adapter::pack(ss, in_alert, NULL);
     jsonstring = ss.str();
 
     // Break the double timestamp into two integers
@@ -1247,7 +1261,9 @@ int KisDatabaseLogfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
     fractpart = modf(in_alert->get_timestamp(), &intpart);
 
     {
-        local_locker dblock(&ds_mutex);
+        local_demand_locker dblock(&ds_mutex);
+        db_lock_with_sync_check(dblock, return -1);
+
         sqlite3_reset(alert_stmt);
 
         sqlite3_bind_int64(alert_stmt, 1, intpart);
@@ -1268,9 +1284,9 @@ int KisDatabaseLogfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
         sqlite3_bind_blob(alert_stmt, 8, jsonstring.data(), jsonstring.length(), SQLITE_TRANSIENT);
 
         if (sqlite3_step(alert_stmt) != SQLITE_DONE) {
-            _MSG("KisDatabaseLogfile unable to insert alert in " +
+            _MSG("kis_database_logfile unable to insert alert in " +
                     ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-            Log_Close();
+            close_log();
             return -1;
         }
     }
@@ -1278,13 +1294,15 @@ int KisDatabaseLogfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
     return 1;
 }
 
-int KisDatabaseLogfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
+int kis_database_logfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
         std::string snaptype, std::string json) {
 
     if (!db_enabled)
         return 0;
 
-    local_locker dblock(&ds_mutex);
+    local_demand_locker dblock(&ds_mutex);
+    db_lock_with_sync_check(dblock, return -1);
+
     sqlite3_reset(snapshot_stmt);
 
     sqlite3_bind_int64(snapshot_stmt, 1, tv.tv_sec);
@@ -1314,29 +1332,29 @@ int KisDatabaseLogfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
     sqlite3_bind_text(snapshot_stmt, 6, json.data(), json.length(), SQLITE_TRANSIENT);
 
     if (sqlite3_step(snapshot_stmt) != SQLITE_DONE) {
-        _MSG("KisDatabaseLogfile unable to insert snapshot in " +
+        _MSG("kis_database_logfile unable to insert snapshot in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        Log_Close();
+        close_log();
         return -1;
     }
 
     return 1;
 }
 
-int KisDatabaseLogfile::packet_handler(CHAINCALL_PARMS) {
+int kis_database_logfile::packet_handler(CHAINCALL_PARMS) {
     // Extremely basic shim to our built-in logging
-    KisDatabaseLogfile *logfile = (KisDatabaseLogfile *) auxdata;
+    kis_database_logfile *logfile = (kis_database_logfile *) auxdata;
 
     return logfile->log_packet(in_pack);
 }
 
-void KisDatabaseLogfile::Usage(const char *argv0) {
+void kis_database_logfile::usage(const char *argv0) {
 
 }
 
-bool KisDatabaseLogfile::Httpd_VerifyPath(const char *path, const char *method) {
-    std::string stripped = Httpd_StripSuffix(path);
-    std::string suffix = Httpd_GetSuffix(path);
+bool kis_database_logfile::httpd_verify_path(const char *path, const char *method) {
+    std::string stripped = httpd_strip_suffix(path);
+    std::string suffix = httpd_get_suffix(path);
 
     if (stripped.find("/logging/kismetdb/pcap/") == 0 && suffix == "pcapng" && db_enabled)
         return true;
@@ -1344,17 +1362,17 @@ bool KisDatabaseLogfile::Httpd_VerifyPath(const char *path, const char *method) 
     return false;
 }
 
-int KisDatabaseLogfile::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+int kis_database_logfile::httpd_create_stream_response(kis_net_httpd *httpd,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) {
 
     using namespace kissqlite3;
 
-    std::string stripped = Httpd_StripSuffix(connection->url);
-    std::string suffix = Httpd_GetSuffix(connection->url);
+    std::string stripped = httpd_strip_suffix(connection->url);
+    std::string suffix = httpd_get_suffix(connection->url);
 
-    if (!httpd->HasValidSession(connection, true)) {
+    if (!httpd->has_valid_session(connection, true)) {
         connection->httpcode = 503;
         return MHD_YES;
     }
@@ -1461,16 +1479,16 @@ int KisDatabaseLogfile::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
             return MHD_YES;
         }
 
-        Kis_Net_Httpd_Buffer_Stream_Aux *saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
-        auto streamtracker = Globalreg::FetchMandatoryGlobalAs<StreamTracker>();
+        kis_net_httpd_buffer_stream_aux *saux = (kis_net_httpd_buffer_stream_aux *) connection->custom_extension;
+        auto streamtracker = Globalreg::fetch_mandatory_global_as<stream_tracker>();
 
-        auto *dbrb = new Pcap_Stream_Database(Globalreg::globalreg, saux->get_rbhandler());
+        auto *dbrb = new pcap_stream_database(Globalreg::globalreg, saux->get_rbhandler());
 
         saux->set_aux(dbrb,
-                [dbrb,streamtracker](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+                [dbrb,streamtracker](kis_net_httpd_buffer_stream_aux *aux) {
                 streamtracker->remove_streamer(dbrb->get_stream_id());
                 if (aux->aux != NULL) {
-                delete (Pcap_Stream_Database *) (aux->aux);
+                delete (pcap_stream_database *) (aux->aux);
                 }
                 });
 
@@ -1504,14 +1522,14 @@ int KisDatabaseLogfile::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     return MHD_YES;
 }
 
-int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
-    std::string stripped = Httpd_StripSuffix(concls->url);
-    std::string suffix = Httpd_GetSuffix(concls->url);
+int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) {
+    std::string stripped = httpd_strip_suffix(concls->url);
+    std::string suffix = httpd_get_suffix(concls->url);
 
-    SharedStructured structdata;
-    SharedStructured filterdata;
+    shared_structured structdata;
+    shared_structured filterdata;
 
-    if (!httpd->HasValidSession(concls, true)) {
+    if (!httpd->has_valid_session(concls, true)) {
         concls->httpcode = 503;
         return MHD_YES;
     }
@@ -1526,34 +1544,34 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             if (concls->variable_cache.find("json") != 
                     concls->variable_cache.end()) {
                 structdata =
-                    std::make_shared<StructuredJson>(concls->variable_cache["json"]->str());
+                    std::make_shared<structured_json>(concls->variable_cache["json"]->str());
 
                 if (structdata != nullptr) {
-                    if (structdata->hasKey("filter")) {
-                        filterdata = structdata->getStructuredByKey("filter");
+                    if (structdata->has_key("filter")) {
+                        filterdata = structdata->get_structured_by_key("filter");
 
-                        if (!filterdata->isDictionary()) 
-                            throw StructuredDataException("expected filter to be a dictionary");
+                        if (!filterdata->is_dictionary()) 
+                            throw structured_data_exception("expected filter to be a dictionary");
                     }
                 }
             }
-        } catch(const StructuredDataException& e) {
-            auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
-            auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
+        } catch(const structured_data_exception& e) {
+            auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
+            auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
             std::ostream stream(streambuf);
 
             saux->set_aux(streambuf, 
-                    [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+                    [](kis_net_httpd_buffer_stream_aux *aux) {
                     if (aux->aux != NULL)
-                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
+                    delete((buffer_handler_ostringstream_buf *) (aux->aux));
                     });
 
             // Set our sync function which is called by the webserver side before we
             // clean up...
-            saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+            saux->set_sync([](kis_net_httpd_buffer_stream_aux *aux) {
                     if (aux->aux != NULL) {
-                    ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                    ((buffer_handler_ostringstream_buf *) aux->aux)->pubsync();
                     }
                     });
 
@@ -1569,101 +1587,101 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
     if (filterdata != nullptr) {
         try {
-            if (filterdata->hasKey("timestamp_start")) 
+            if (filterdata->has_key("timestamp_start")) 
                 query.append_where(AND, 
-                        _WHERE("ts_sec", GE, filterdata->getKeyAsNumber("timestamp_start")));
+                        _WHERE("ts_sec", GE, filterdata->key_as_number("timestamp_start")));
 
-            if (filterdata->hasKey("timestamp_end")) 
+            if (filterdata->has_key("timestamp_end")) 
                 query.append_where(AND, 
-                        _WHERE("ts_sec", LE, filterdata->getKeyAsNumber("timestamp_end")));
+                        _WHERE("ts_sec", LE, filterdata->key_as_number("timestamp_end")));
 
-            if (filterdata->hasKey("datasource")) 
+            if (filterdata->has_key("datasource")) 
                 query.append_where(AND, 
-                        _WHERE("datasource", LIKE, filterdata->getKeyAsString("datasource")));
+                        _WHERE("datasource", LIKE, filterdata->key_as_string("datasource")));
 
-            if (filterdata->hasKey("device_id")) 
-                query.append_where(AND, _WHERE("devkey", LIKE, filterdata->getKeyAsString("device_id")));
+            if (filterdata->has_key("device_id")) 
+                query.append_where(AND, _WHERE("devkey", LIKE, filterdata->key_as_string("device_id")));
 
-            if (filterdata->hasKey("dlt")) 
-                query.append_where(AND, _WHERE("dlt", EQ, filterdata->getKeyAsNumber("dlt")));
+            if (filterdata->has_key("dlt")) 
+                query.append_where(AND, _WHERE("dlt", EQ, filterdata->key_as_number("dlt")));
 
-            if (filterdata->hasKey("frequency")) 
+            if (filterdata->has_key("frequency")) 
                 query.append_where(AND, 
-                        _WHERE("frequency", EQ, filterdata->getKeyAsNumber("frequency")));
+                        _WHERE("frequency", EQ, filterdata->key_as_number("frequency")));
 
-            if (filterdata->hasKey("frequency_min")) 
+            if (filterdata->has_key("frequency_min")) 
                 query.append_where(AND, 
-                        _WHERE("frequency", GE, filterdata->getKeyAsNumber("frequency_min")));
+                        _WHERE("frequency", GE, filterdata->key_as_number("frequency_min")));
 
-            if (filterdata->hasKey("frequency_max")) 
+            if (filterdata->has_key("frequency_max")) 
                 query.append_where(AND, 
-                        _WHERE("frequency", LE, filterdata->getKeyAsNumber("frequency_max")));
+                        _WHERE("frequency", LE, filterdata->key_as_number("frequency_max")));
 
             /*
-            if (filterdata->hasKey("channel")) 
-                query.append_where(AND, _WHERE("CHANNEL", LIKE, filterdata->getKeyAsNumber("channel")));
+            if (filterdata->has_key("channel")) 
+                query.append_where(AND, _WHERE("CHANNEL", LIKE, filterdata->key_as_number("channel")));
                 */
 
-            if (filterdata->hasKey("signal_min"))
-                query.append_where(AND, _WHERE("signal", GE, filterdata->getKeyAsNumber("signal_min")));
+            if (filterdata->has_key("signal_min"))
+                query.append_where(AND, _WHERE("signal", GE, filterdata->key_as_number("signal_min")));
 
-            if (filterdata->hasKey("signal_max"))
-                query.append_where(AND, _WHERE("signal", LE, filterdata->getKeyAsNumber("signal_max")));
+            if (filterdata->has_key("signal_max"))
+                query.append_where(AND, _WHERE("signal", LE, filterdata->key_as_number("signal_max")));
 
-            if (filterdata->hasKey("address_source")) 
+            if (filterdata->has_key("address_source")) 
                 query.append_where(AND, 
-                        _WHERE("sourcemac", LIKE, filterdata->getKeyAsString("address_source")));
+                        _WHERE("sourcemac", LIKE, filterdata->key_as_string("address_source")));
 
-            if (filterdata->hasKey("address_dest")) 
+            if (filterdata->has_key("address_dest")) 
                 query.append_where(AND, 
-                        _WHERE("destmac", LIKE, filterdata->getKeyAsString("address_dest")));
+                        _WHERE("destmac", LIKE, filterdata->key_as_string("address_dest")));
 
-            if (filterdata->hasKey("address_trans")) 
+            if (filterdata->has_key("address_trans")) 
                 query.append_where(AND, 
-                        _WHERE("transmac", LIKE, filterdata->getKeyAsString("address_trans")));
+                        _WHERE("transmac", LIKE, filterdata->key_as_string("address_trans")));
 
-            if (filterdata->hasKey("location_lat_min"))
+            if (filterdata->has_key("location_lat_min"))
                 query.append_where(AND, 
-                        _WHERE("lat", GE, filterdata->getKeyAsNumber("location_lat_min")));
+                        _WHERE("lat", GE, filterdata->key_as_number("location_lat_min")));
 
-            if (filterdata->hasKey("location_lon_min"))
+            if (filterdata->has_key("location_lon_min"))
                 query.append_where(AND, 
-                        _WHERE("lon", GE, filterdata->getKeyAsNumber("location_lon_min")));
+                        _WHERE("lon", GE, filterdata->key_as_number("location_lon_min")));
 
-            if (filterdata->hasKey("location_lat_max"))
+            if (filterdata->has_key("location_lat_max"))
                 query.append_where(AND, 
-                        _WHERE("lat", LE, filterdata->getKeyAsNumber("location_lat_max")));
+                        _WHERE("lat", LE, filterdata->key_as_number("location_lat_max")));
 
-            if (filterdata->hasKey("location_lon_max"))
+            if (filterdata->has_key("location_lon_max"))
                 query.append_where(AND, 
-                        _WHERE("lon", LE, filterdata->getKeyAsNumber("location_lon_max")));
+                        _WHERE("lon", LE, filterdata->key_as_number("location_lon_max")));
 
-            if (filterdata->hasKey("size_min"))
-                query.append_where(AND, _WHERE("size", GE, filterdata->getKeyAsNumber("size_min")));
+            if (filterdata->has_key("size_min"))
+                query.append_where(AND, _WHERE("size", GE, filterdata->key_as_number("size_min")));
 
-            if (filterdata->hasKey("size_max"))
-                query.append_where(AND, _WHERE("size_max", LE, filterdata->getKeyAsNumber("size_max")));
+            if (filterdata->has_key("size_max"))
+                query.append_where(AND, _WHERE("size_max", LE, filterdata->key_as_number("size_max")));
 
-            if (filterdata->hasKey("limit"))
-                query.append_clause(LIMIT, filterdata->getKeyAsNumber("limit"));
+            if (filterdata->has_key("limit"))
+                query.append_clause(LIMIT, filterdata->key_as_number("limit"));
 
-        } catch (const StructuredDataException& e) {
-            auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
-            auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
+        } catch (const structured_data_exception& e) {
+            auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
+            auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
             std::ostream stream(streambuf);
 
             saux->set_aux(streambuf, 
-                    [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+                    [](kis_net_httpd_buffer_stream_aux *aux) {
                     if (aux->aux != NULL)
-                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
+                    delete((buffer_handler_ostringstream_buf *) (aux->aux));
                     });
 
             // Set our sync function which is called by the webserver side before we
             // clean up...
-            saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+            saux->set_sync([](kis_net_httpd_buffer_stream_aux *aux) {
                     if (aux->aux != NULL) {
-                    ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                    ((buffer_handler_ostringstream_buf *) aux->aux)->pubsync();
                     }
                     });
 
@@ -1676,16 +1694,16 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
     // std::cout << query << std::endl;
 
-    Kis_Net_Httpd_Buffer_Stream_Aux *saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
-    auto streamtracker = Globalreg::FetchMandatoryGlobalAs<StreamTracker>();
+    kis_net_httpd_buffer_stream_aux *saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
+    auto streamtracker = Globalreg::fetch_mandatory_global_as<stream_tracker>();
 
-    auto *dbrb = new Pcap_Stream_Database(Globalreg::globalreg, saux->get_rbhandler());
+    auto *dbrb = new pcap_stream_database(Globalreg::globalreg, saux->get_rbhandler());
 
     saux->set_aux(dbrb,
-            [dbrb,streamtracker](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+            [dbrb,streamtracker](kis_net_httpd_buffer_stream_aux *aux) {
                 streamtracker->remove_streamer(dbrb->get_stream_id());
                 if (aux->aux != NULL) {
-                    delete (Pcap_Stream_Database *) (aux->aux);
+                    delete (pcap_stream_database *) (aux->aux);
                 }
             });
 
@@ -1718,9 +1736,9 @@ int KisDatabaseLogfile::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     return MHD_YES;
 }
 
-unsigned int KisDatabaseLogfile::packet_drop_endpoint_handler(std::ostream& ostream,
+unsigned int kis_database_logfile::packet_drop_endpoint_handler(std::ostream& ostream,
         const std::string& uri,
-        SharedStructured structured, Kis_Net_Httpd_Connection::variable_cache_map& postvars) {
+        shared_structured structured, kis_net_httpd_connection::variable_cache_map& postvars) {
 
     using namespace kissqlite3;
 
@@ -1735,10 +1753,10 @@ unsigned int KisDatabaseLogfile::packet_drop_endpoint_handler(std::ostream& ostr
     }
 
     try {
-        if (structured->hasKey("drop_before")) {
+        if (structured->has_key("drop_before")) {
             auto drop_query = 
                 _DELETE(db, "packets", _WHERE("ts_sec", LE, 
-                            structured->getKeyAsNumber("drop_before")));
+                            structured->key_as_number("drop_before")));
 
         } else {
             throw std::runtime_error("Expected 'drop_before' in command dictionary");
@@ -1752,9 +1770,9 @@ unsigned int KisDatabaseLogfile::packet_drop_endpoint_handler(std::ostream& ostr
     return 200;
 }
 
-unsigned int KisDatabaseLogfile::make_poi_endp_handler(std::ostream& ostream, 
-        const std::string& uri, SharedStructured structured,
-        Kis_Net_Httpd_Connection::variable_cache_map& postvars) {
+unsigned int kis_database_logfile::make_poi_endp_handler(std::ostream& ostream, 
+        const std::string& uri, shared_structured structured,
+        kis_net_httpd_connection::variable_cache_map& postvars) {
 
     if (!db_enabled) {
         ostream << "Illegal request: kismetdb log not enabled\n";
@@ -1766,9 +1784,9 @@ unsigned int KisDatabaseLogfile::make_poi_endp_handler(std::ostream& ostream,
     std::string poi_data;
 
     if (structured != nullptr) {
-        if (structured->hasKey("note")) {
+        if (structured->has_key("note")) {
             poi_data = "{\"note\": \"" +
-                JsonAdapter::SanitizeString(structured->getKeyAsString("note")) +
+                json_adapter::sanitize_string(structured->key_as_string("note")) +
                         "\"}";
         }
     }
@@ -1784,27 +1802,27 @@ unsigned int KisDatabaseLogfile::make_poi_endp_handler(std::ostream& ostream,
     return 200;
 }
 
-std::shared_ptr<TrackerElement> KisDatabaseLogfile::list_poi_endp_handler() {
-    return std::make_shared<TrackerElementVector>();
+std::shared_ptr<tracker_element> kis_database_logfile::list_poi_endp_handler() {
+    return std::make_shared<tracker_element_vector>();
 }
 
-Pcap_Stream_Database::Pcap_Stream_Database(GlobalRegistry *in_globalreg,
-        std::shared_ptr<BufferHandlerGeneric> in_handler) :
-        Pcap_Stream_Ringbuf(Globalreg::globalreg, in_handler, nullptr, nullptr, true),
+pcap_stream_database::pcap_stream_database(global_registry *in_globalreg,
+        std::shared_ptr<buffer_handler_generic> in_handler) :
+        pcap_stream_ringbuf(Globalreg::globalreg, in_handler, nullptr, nullptr, true),
         next_pcap_intf_id {0} {
 
     // Populate a junk interface
     add_database_interface("0", "lo", "Placeholder for missing interface");
 }
 
-Pcap_Stream_Database::~Pcap_Stream_Database() {
+pcap_stream_database::~pcap_stream_database() {
 }
 
-void Pcap_Stream_Database::stop_stream(std::string in_reason) {
-    handler->ProtocolError();
+void pcap_stream_database::stop_stream(std::string in_reason) {
+    handler->protocol_error();
 }
 
-void Pcap_Stream_Database::add_database_interface(const std::string& in_uuid, const std::string& in_interface,
+void pcap_stream_database::add_database_interface(const std::string& in_uuid, const std::string& in_interface,
         const std::string& in_name) {
     
     if (db_uuid_intf_map.find(in_uuid) != db_uuid_intf_map.end())
@@ -1817,7 +1835,7 @@ void Pcap_Stream_Database::add_database_interface(const std::string& in_uuid, co
     db_uuid_intf_map[in_uuid] = intf;
 }
 
-int Pcap_Stream_Database::pcapng_write_database_packet(uint64_t time_s, uint64_t time_us,
+int pcap_stream_database::pcapng_write_database_packet(uint64_t time_s, uint64_t time_us,
         const std::string& interface_uuid, unsigned int dlt, const std::string& data) {
 
     auto pcap_intf_i = db_uuid_intf_map.find(interface_uuid);

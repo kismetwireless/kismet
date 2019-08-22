@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -34,25 +34,25 @@
 // This code uses the new buffer handler interface for communicating with a 
 // gpsd host over TCP
 
-class GPSGpsdV2 : public KisGps {
+class kis_gps_gpsd_v2 : public kis_gps {
 public:
-    GPSGpsdV2(SharedGpsBuilder in_builder);
-    virtual ~GPSGpsdV2();
+    kis_gps_gpsd_v2(shared_gps_builder in_builder);
+    virtual ~kis_gps_gpsd_v2();
 
     virtual bool open_gps(std::string in_definition);
 
     virtual bool get_location_valid();
 
 protected:
-    std::shared_ptr<PollableTracker> pollabletracker;
+    std::shared_ptr<pollable_tracker> pollabletracker;
 
-    std::shared_ptr<TcpClientV2> tcpclient;
-    std::shared_ptr<BufferHandler<RingbufV2>> tcphandler;
-    BufferInterfaceFunc tcpinterface;
+    std::shared_ptr<tcp_client_v2> tcpclient;
+    std::shared_ptr<buffer_handler<ringbuf_v2>> tcphandler;
+    buffer_interface_func tcpinterface;
 
     // Called by our tcpinterface 
-    virtual void BufferAvailable(size_t in_amt);
-    virtual void BufferError(std::string in_err);
+    virtual void buffer_available(size_t in_amt);
+    virtual void buffer_error(std::string in_err);
 
     // Device
     std::string host;
@@ -74,7 +74,7 @@ protected:
     int num_reconnects;
     static int time_event_reconnect(TIMEEVENT_PARMS);
 
-    // Poll mode (do we know we're JSON, etc
+    // pollable_poll mode (do we know we're JSON, etc
     int poll_mode;
     // Units - different gpsd variants return it different ways
     int si_units;
@@ -82,10 +82,10 @@ protected:
     int si_raw;
 };
 
-class GPSGpsdV2Builder : public KisGpsBuilder {
+class gps_gpsd_v2_builder : public kis_gps_builder {
 public:
-    GPSGpsdV2Builder() : 
-        KisGpsBuilder() { 
+    gps_gpsd_v2_builder() : 
+        kis_gps_builder() { 
         initialize();
     }
 
@@ -97,8 +97,8 @@ public:
         set_int_default_name("gpsd");
     }
 
-    virtual SharedGps build_gps(SharedGpsBuilder in_builder) {
-        return SharedGps(new GPSGpsdV2(in_builder));
+    virtual shared_gps build_gps(shared_gps_builder in_builder) {
+        return shared_gps(new kis_gps_gpsd_v2(in_builder));
     }
 };
 

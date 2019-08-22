@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -29,12 +29,12 @@
 // Filters act on 'true' results:  Default behavior of 'true' defaults to BLOCKING packets.
 // Default behavior of 'false' defaults to PASSING packets.
 
-class Packetfilter : public tracker_component {
+class packet_filter : public tracker_component {
 public:
-    Packetfilter(const std::string& in_id, const std::string& in_description,
+    packet_filter(const std::string& in_id, const std::string& in_description,
             const std::string& in_type);
 
-    virtual ~Packetfilter() {
+    virtual ~packet_filter() {
         local_locker l(&mutex);
     }
 
@@ -55,32 +55,32 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.packetfilter.id", "Filter ID/Endpoint", &filter_id);
-        RegisterField("kismet.packetfilter.description", "Filter description", &filter_description);
-        RegisterField("kismet.packetfilter.type", "Filter mechanism", &filter_type);
-        RegisterField("kismet.packetfilter.default", "Default filter (pass/reject)", &filter_default);
+        register_field("kismet.packetfilter.id", "Filter ID/Endpoint", &filter_id);
+        register_field("kismet.packetfilter.description", "Filter description", &filter_description);
+        register_field("kismet.packetfilter.type", "Filter mechanism", &filter_type);
+        register_field("kismet.packetfilter.default", "Default filter (pass/reject)", &filter_default);
     }
 
     kis_recursive_timed_mutex mutex;
 
     std::string base_uri;
 
-    std::shared_ptr<TrackerElementString> filter_id;
-    std::shared_ptr<TrackerElementString> filter_description;
-    std::shared_ptr<TrackerElementString> filter_type;
-    std::shared_ptr<TrackerElementUInt8> filter_default;
+    std::shared_ptr<tracker_element_string> filter_id;
+    std::shared_ptr<tracker_element_string> filter_description;
+    std::shared_ptr<tracker_element_string> filter_type;
+    std::shared_ptr<tracker_element_uint8> filter_default;
 
     // Default endpoint
-    std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> default_endp;
-    int default_set_endp_handler(std::ostream& stream, SharedStructured post_structured);
+    std::shared_ptr<kis_net_httpd_simple_post_endpoint> default_endp;
+    int default_set_endp_handler(std::ostream& stream, shared_structured post_structured);
 
     // Default display endpoint
-    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> self_endp;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> self_endp;
     // Build the return object; subfilters must implement this to bypass class heirarchy & call
     // build_self_content
-    virtual std::shared_ptr<TrackerElementMap> self_endp_handler() = 0;
+    virtual std::shared_ptr<tracker_element_map> self_endp_handler() = 0;
     // Cascading build
-    virtual void build_self_content(std::shared_ptr<TrackerElementMap> content);
+    virtual void build_self_content(std::shared_ptr<tracker_element_map> content);
 };
 
 // Mac-address based filter.
@@ -88,10 +88,10 @@ protected:
 // (in wifi terms, source, dest, bssid, or 4mac transmitter for wds).
 // Filters are true (filter/reject packet), or false (pass packet).  Packets not matched
 // by any filter are passed to the default filter term.
-class PacketfilterMacaddr : public Packetfilter {
+class packet_filter_mac_addr : public packet_filter {
 public:
-    PacketfilterMacaddr(const std::string& in_id, const std::string& in_description);
-    virtual ~PacketfilterMacaddr();
+    packet_filter_mac_addr(const std::string& in_id, const std::string& in_description);
+    virtual ~packet_filter_mac_addr();
 
     virtual bool filter_packet(kis_packet *packet) override;
 
@@ -104,48 +104,48 @@ public:
 
 protected:
     virtual void register_fields() override {
-        Packetfilter::register_fields();
+        packet_filter::register_fields();
 
 		// Phy-based map
-        RegisterField("kismet.packetfilter.macaddr.blocks_by_phy",
+        register_field("kismet.packetfilter.macaddr.blocks_by_phy",
                 "MAC address filters", &filter_phy_blocks);
 
         filter_sub_value_id =
-            RegisterField("kismet.packetfilter.macaddr.value",
-                    TrackerElementFactory<TrackerElementUInt8>(),
+            register_field("kismet.packetfilter.macaddr.value",
+                    tracker_element_factory<tracker_element_uint8>(),
                     "Filter value");
 
         filter_source_id =
-            RegisterField("kismet.packetfilter.macaddr.source", 
-                    TrackerElementFactory<TrackerElementMacMap>(),
+            register_field("kismet.packetfilter.macaddr.source", 
+                    tracker_element_factory<tracker_element_mac_map>(),
                     "Source address filters");
 
         filter_dest_id =
-            RegisterField("kismet.packetfilter.macaddr.destination", 
-                    TrackerElementFactory<TrackerElementMacMap>(),
+            register_field("kismet.packetfilter.macaddr.destination", 
+                    tracker_element_factory<tracker_element_mac_map>(),
                     "Destination address filters");
 
         filter_network_id =
-            RegisterField("kismet.packetfilter.macaddr.network", 
-                    TrackerElementFactory<TrackerElementMacMap>(),
+            register_field("kismet.packetfilter.macaddr.network", 
+                    tracker_element_factory<tracker_element_mac_map>(),
                     "Network/BSSID address filters");
 
         filter_other_id =
-            RegisterField("kismet.packetfilter.macaddr.other", 
-                    TrackerElementFactory<TrackerElementMacMap>(),
+            register_field("kismet.packetfilter.macaddr.other", 
+                    tracker_element_factory<tracker_element_mac_map>(),
                     "Other address filters");
 
         filter_any_id =
-            RegisterField("kismet.packetfilter.macaddr.any", 
-                    TrackerElementFactory<TrackerElementMacMap>(),
+            register_field("kismet.packetfilter.macaddr.any", 
+                    tracker_element_factory<tracker_element_mac_map>(),
                     "Any matching address type");
     }
 
-    std::shared_ptr<Devicetracker> devicetracker;
-	std::shared_ptr<Eventbus> eventbus;
+    std::shared_ptr<device_tracker> devicetracker;
+	std::shared_ptr<event_bus> eventbus;
 	unsigned long eb_id;
 
-	void update_phy_map(std::shared_ptr<EventbusEvent> evt);
+	void update_phy_map(std::shared_ptr<eventbus_event> evt);
 
     unsigned int pack_comp_common;
 
@@ -153,7 +153,7 @@ protected:
         filter_network_id, filter_other_id, filter_any_id;
 
     // Externally exposed tracked table
-    std::shared_ptr<TrackerElementStringMap> filter_phy_blocks;
+    std::shared_ptr<tracker_element_string_map> filter_phy_blocks;
 
     struct phy_filter_group {
         std::map<mac_addr, bool> filter_source;
@@ -169,15 +169,15 @@ protected:
 	std::map<std::string, struct phy_filter_group> unknown_phy_mac_filter_map;
 
     // Address management endpoint keyed on path
-    std::shared_ptr<Kis_Net_Httpd_Path_Post_Endpoint> macaddr_edit_endp;
+    std::shared_ptr<kis_net_httpd_path_post_endpoint> macaddr_edit_endp;
     unsigned int edit_endp_handler(std::ostream& stream, const std::vector<std::string>& path, 
-            SharedStructured structured);
+            shared_structured structured);
 
-    std::shared_ptr<Kis_Net_Httpd_Path_Post_Endpoint> macaddr_remove_endp;
+    std::shared_ptr<kis_net_httpd_path_post_endpoint> macaddr_remove_endp;
     unsigned int remove_endp_handler(std::ostream& stream, const std::vector<std::string> &path,
-            SharedStructured structured);
+            shared_structured structured);
 
-    virtual std::shared_ptr<TrackerElementMap> self_endp_handler() override;
-    virtual void build_self_content(std::shared_ptr<TrackerElementMap> content) override;
+    virtual std::shared_ptr<tracker_element_map> self_endp_handler() override;
+    virtual void build_self_content(std::shared_ptr<tracker_element_map> content) override;
 };
 

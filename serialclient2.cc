@@ -30,18 +30,18 @@
 #include "messagebus.h"
 #include "pollabletracker.h"
 
-SerialClientV2::SerialClientV2(GlobalRegistry *in_globalreg, 
-        std::shared_ptr<BufferHandlerGeneric> in_rbhandler) :
+serial_client_v2::serial_client_v2(global_registry *in_globalreg, 
+        std::shared_ptr<buffer_handler_generic> in_rbhandler) :
     globalreg {in_globalreg},
-    serial_mutex {std::make_shared<kis_recursive_timed_mutex>()},
+    serial_mutex {in_rbhandler->get_mutex()},
     handler {in_rbhandler},
     device_fd {-1} { }
 
-SerialClientV2::~SerialClientV2() {
-    Close();
+serial_client_v2::~serial_client_v2() {
+    close_device();
 }
 
-void SerialClientV2::SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
+void serial_client_v2::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
     local_locker l(serial_mutex);
 
     if (in_parent != nullptr)
@@ -50,7 +50,7 @@ void SerialClientV2::SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_pare
         serial_mutex = std::make_shared<kis_recursive_timed_mutex>(); 
 }
 
-int SerialClientV2::OpenDevice(std::string in_device, unsigned int in_baud) {
+int serial_client_v2::open_device(std::string in_device, unsigned int in_baud) {
     local_locker l(serial_mutex);
 
     std::stringstream msg;
@@ -122,24 +122,24 @@ int SerialClientV2::OpenDevice(std::string in_device, unsigned int in_baud) {
     return 0;
 }
 
-bool SerialClientV2::FetchConnected() {
+bool serial_client_v2::get_connected() {
     local_shared_locker ls(serial_mutex);
 
     return device_fd > -1;
 }
 
-int SerialClientV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
+int serial_client_v2::pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     local_locker l(serial_mutex);
 
     if (device_fd < 0)
         return in_max_fd;
 
     // If we have data waiting to be written, fill it in
-    if (handler->GetWriteBufferUsed())
+    if (handler->get_write_buffer_used())
         FD_SET(device_fd, out_wset);
 
     // We always want to read data if we have any space
-    if (handler->GetReadBufferAvailable() > 0)
+    if (handler->get_read_buffer_available() > 0)
         FD_SET(device_fd, out_rset);
 
     if (in_max_fd < device_fd)
@@ -148,7 +148,7 @@ int SerialClientV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) 
     return in_max_fd;
 }
 
-int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
+int serial_client_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
     local_locker l(serial_mutex);
 
     std::stringstream msg;
@@ -162,15 +162,15 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
 
     if (FD_ISSET(device_fd, &in_rset)) {
         // Trigger an event on buffer full
-        if (handler->GetReadBufferAvailable() == 0)
-            handler->TriggerReadCallback(0);
+        if (handler->get_read_buffer_available() == 0)
+            handler->trigger_read_callback(0);
 
         // Allocate the biggest buffer we can fit in the ring, read as much
         // as we can at once.
         
-        while (handler->GetReadBufferAvailable() > 0) {
-            len = handler->ZeroCopyReserveReadBufferData((void **) &buf, 
-                    handler->GetReadBufferAvailable());
+        while (handler->get_read_buffer_available() > 0) {
+            len = handler->zero_copy_reserve_read_buffer_data((void **) &buf, 
+                    handler->get_read_buffer_available());
 
             if ((ret = read(device_fd, buf, len)) <= 0) {
                 if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -183,23 +183,23 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                             baud << " - " << kis_strerror_r(errno);
                     }
 
-                    handler->CommitReadBufferData(buf, 0);
-                    handler->BufferError(msg.str());
+                    handler->commit_read_buffer_data(buf, 0);
+                    handler->buffer_error(msg.str());
 
-                    Close();
+                    close_device();
                     return 0;
                 } else {
-                    handler->CommitReadBufferData(buf, 0);
+                    handler->commit_read_buffer_data(buf, 0);
                     break;
                 }
             } else {
                 // Insert into buffer
-                iret = handler->CommitReadBufferData(buf, ret);
+                iret = handler->commit_read_buffer_data(buf, ret);
 
                 if (!iret) {
                     // Die if we couldn't insert all our data, the error is already going
                     // upstream.
-                    Close();
+                    close_device();
                     return 0;
                 }
             }
@@ -209,10 +209,10 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
     }
 
     if (FD_ISSET(device_fd, &in_wset)) {
-        len = handler->GetWriteBufferUsed();
+        len = handler->get_write_buffer_used();
 
         // Peek the data into our buffer
-        ret = handler->ZeroCopyPeekWriteBufferData((void **) &buf, len);
+        ret = handler->zero_copy_peek_write_buffer_data((void **) &buf, len);
 
         if ((iret = write(device_fd, buf, ret)) < 0) {
             if (errno != EINTR && errno != EAGAIN) {
@@ -220,16 +220,16 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                 msg << "Serial client error writing to " << device << "@" << baud <<
                     " - " << kis_strerror_r(errno);
 
-                handler->PeekFreeWriteBufferData(buf);
-                handler->BufferError(msg.str());
+                handler->peek_free_write_buffer_data(buf);
+                handler->buffer_error(msg.str());
 
-                Close();
+                close_device();
                 return 0;
             }
         } else {
             // Consume whatever we managed to write
-            handler->PeekFreeWriteBufferData(buf);
-            handler->ConsumeWriteBufferData(iret);
+            handler->peek_free_write_buffer_data(buf);
+            handler->consume_write_buffer_data(iret);
         }
 
         delete[] buf;
@@ -238,7 +238,7 @@ int SerialClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
     return 0;
 }
 
-void SerialClientV2::Close() {
+void serial_client_v2::close_device() {
     local_locker l(serial_mutex);
 
     if (device_fd > -1) {

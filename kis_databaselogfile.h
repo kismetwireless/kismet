@@ -58,37 +58,37 @@
 // to exist as a global record; we build it like we do any other global record;
 // then the builder hooks it, sets the internal builder record, and passed it to
 // the logtracker
-class KisDatabaseLogfile : public KisLogfile, public KisDatabase, public LifetimeGlobal,
-    public Kis_Net_Httpd_Ringbuf_Stream_Handler, public MessageClient, public DeferredStartup {
+class kis_database_logfile : public kis_logfile, public kis_database, public lifetime_global,
+    public kis_net_httpd_ringbuf_stream_handler, public message_client, public deferred_startup {
 public:
     static std::string global_name() { return "DATABASELOG"; }
 
-    static std::shared_ptr<KisDatabaseLogfile> 
+    static std::shared_ptr<kis_database_logfile> 
         create_kisdatabaselog() {
-            std::shared_ptr<KisDatabaseLogfile> mon(new KisDatabaseLogfile());
-            Globalreg::globalreg->RegisterDeferredGlobal(mon);
-            Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-            Globalreg::globalreg->InsertGlobal(global_name(), mon);
+            std::shared_ptr<kis_database_logfile> mon(new kis_database_logfile());
+            Globalreg::globalreg->register_deferred_global(mon);
+            Globalreg::globalreg->register_lifetime_global(mon);
+            Globalreg::globalreg->insert_global(global_name(), mon);
             return mon;
     }
 
-    KisDatabaseLogfile();
-    virtual ~KisDatabaseLogfile();
+    kis_database_logfile();
+    virtual ~kis_database_logfile();
 
-    virtual void Deferred_Startup() override;
-    virtual void Deferred_Shutdown() override;
+    virtual void trigger_deferred_startup() override;
+    virtual void trigger_deferred_shutdown() override;
 
-    void SetDatabaseBuilder(SharedLogBuilder in_builder) {
+    void set_database_builder(shared_log_builder in_builder) {
         builder = in_builder;
 
         if (builder != nullptr)
             insert(builder);
     }
 
-    virtual bool Log_Open(std::string in_path) override;
-    virtual void Log_Close() override;
+    virtual bool open_log(std::string in_path) override;
+    virtual void close_log() override;
 
-    virtual int Database_UpgradeDB() override;
+    virtual int database_upgrade_db() override;
 
     // Log a vector of multiple devices, replacing any old device records
     virtual int log_device(std::shared_ptr<kis_tracked_device_base> in_device);
@@ -108,9 +108,9 @@ public:
             std::string type, std::string json);
 
     // Log datasources
-    virtual int log_datasources(SharedTrackerElement in_datasource_vec);
+    virtual int log_datasources(shared_tracker_element in_datasource_vec);
     // Log a single datasource
-    virtual int log_datasource(SharedTrackerElement in_datasource);
+    virtual int log_datasource(shared_tracker_element in_datasource);
 
     // Log an alert; takes a standard tracked_alert element
     virtual int log_alert(std::shared_ptr<tracked_alert> in_alert);
@@ -120,51 +120,70 @@ public:
     virtual int log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
             std::string snaptype, std::string json);
 
-    static void Usage(const char *argv0);
+    static void usage(const char *argv0);
 
     // HTTP handlers
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
+    virtual bool httpd_verify_path(const char *path, const char *method) override;
 
-    virtual int Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+    virtual int httpd_create_stream_response(kis_net_httpd *httpd,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) override;
 
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) override;
+    virtual int httpd_post_complete(kis_net_httpd_connection *concls) override;
 
     // Messagebus API
-    virtual void ProcessMessage(std::string in_msg, int in_flags) override;
+    virtual void process_message(std::string in_msg, int in_flags) override;
 
     // Direct access to the filters for setting programatically
-    std::shared_ptr<PacketfilterMacaddr> GetPacketFilter() { 
+    std::shared_ptr<packet_filter_mac_addr> get_packet_filter() { 
         return packet_mac_filter;
     }
 
-    std::shared_ptr<ClassfilterMacaddr> GetDeviceFilter() {
+    std::shared_ptr<class_filter_mac_addr> get_device_filter() {
         return device_mac_filter;
     }
 
-    // Eventbus event we inject when the log is opened
-    class EventDblogOpened : public EventbusEvent {
+    // event_bus event we inject when the log is opened
+    class event_dblog_opened : public eventbus_event {
     public:
         static std::string Event() { return "KISMETDB_LOG_OPEN"; }
-        EventDblogOpened() :
-            EventbusEvent(Event()) { }
-        virtual ~EventDblogOpened() {}
+        event_dblog_opened() :
+            eventbus_event(Event()) { }
+        virtual ~event_dblog_opened() {}
     };
 
 protected:
     // Is the database even enabled?
     std::atomic<bool> db_enabled;
 
-    std::shared_ptr<Devicetracker> devicetracker;
-    std::shared_ptr<GpsTracker> gpstracker;
+    std::shared_ptr<device_tracker> devicetracker;
+    std::shared_ptr<gps_tracker> gpstracker;
 
     int pack_comp_linkframe, pack_comp_gps, pack_comp_radiodata,
         pack_comp_device, pack_comp_datasource, pack_comp_common,
         pack_comp_metablob;
 
     std::atomic<time_t> last_device_log;
+
+    std::atomic<bool> in_transaction_sync;
+
+    // Nasty define hack for checking if we're blocked on a really slow
+    // device by comparing the transaction sync
+#define db_lock_with_sync_check(locker, errcode) \
+    try { \
+        locker.lock(); \
+    } catch (const std::runtime_error& e) { \
+        if (in_transaction_sync) { \
+            fmt::print(stderr, "FATAL: kismetdb log couldn't finish a database transaction within the " \
+                    "timeout window for threads ({} seconds).  Usually this happens when " \
+                    "the disk you are logging to can not perform adequately, such as a " \
+                    "micro-sd.  Try moving logging to a USB device.", KIS_THREAD_DEADLOCK_TIMEOUT); \
+            Globalreg::globalreg->fatal_condition = 1; \
+            throw std::runtime_error("disk too slow for logging"); \
+        } \
+        throw(e); \
+    }
 
     // Prebaked parameterized statements
     sqlite3_stmt *device_stmt;
@@ -216,58 +235,58 @@ protected:
     int alert_timeout_timer;
 
     // Packet clearing API
-    std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> packet_drop_endp;
+    std::shared_ptr<kis_net_httpd_simple_post_endpoint> packet_drop_endp;
     unsigned int packet_drop_endpoint_handler(std::ostream& stream, const std::string& uri,
-            SharedStructured structured, Kis_Net_Httpd_Connection::variable_cache_map& postvars);
+            shared_structured structured, kis_net_httpd_connection::variable_cache_map& postvars);
 
     // POI API
-    std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> make_poi_endp;
+    std::shared_ptr<kis_net_httpd_simple_post_endpoint> make_poi_endp;
     unsigned int make_poi_endp_handler(std::ostream& stream, const std::string& uri,
-            SharedStructured structured, Kis_Net_Httpd_Connection::variable_cache_map& postvars);
+            shared_structured structured, kis_net_httpd_connection::variable_cache_map& postvars);
 
-    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> list_poi_endp;
-    std::shared_ptr<TrackerElement> list_poi_endp_handler();
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> list_poi_endp;
+    std::shared_ptr<tracker_element> list_poi_endp_handler();
 
     // Device log filter
-    std::shared_ptr<ClassfilterMacaddr> device_mac_filter;
+    std::shared_ptr<class_filter_mac_addr> device_mac_filter;
 
     // Packet log filter
-    std::shared_ptr<PacketfilterMacaddr> packet_mac_filter;
+    std::shared_ptr<packet_filter_mac_addr> packet_mac_filter;
 };
 
-class KisDatabaseLogfileBuilder : public KisLogfileBuilder {
+class kis_database_logfile_builder : public kis_logfile_builder {
 public:
-    KisDatabaseLogfileBuilder() :
-        KisLogfileBuilder() {
+    kis_database_logfile_builder() :
+        kis_logfile_builder() {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    KisDatabaseLogfileBuilder(int in_id) :
-        KisLogfileBuilder(in_id) {
+    kis_database_logfile_builder(int in_id) :
+        kis_logfile_builder(in_id) {
            
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    KisDatabaseLogfileBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
-        KisLogfileBuilder(in_id, e) {
+    kis_database_logfile_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
+        kis_logfile_builder(in_id, e) {
 
         register_fields();
         reserve_fields(e);
         initialize();
     }
 
-    virtual ~KisDatabaseLogfileBuilder() { }
+    virtual ~kis_database_logfile_builder() { }
 
     // Custom builder that fetches the global copy and shoves it back down to the 
     // logfile system instead
-    virtual SharedLogfile build_logfile(SharedLogBuilder builder) {
-        std::shared_ptr<KisDatabaseLogfile> logfile =
-            Globalreg::FetchMandatoryGlobalAs<KisDatabaseLogfile>("DATABASELOG");
-        logfile->SetDatabaseBuilder(builder);
+    virtual shared_logfile build_logfile(shared_log_builder builder) {
+        std::shared_ptr<kis_database_logfile> logfile =
+            Globalreg::fetch_mandatory_global_as<kis_database_logfile>("DATABASELOG");
+        logfile->set_database_builder(builder);
         return logfile;
     }
 
@@ -281,12 +300,12 @@ public:
     }
 };
 
-class Pcap_Stream_Database : public Pcap_Stream_Ringbuf {
+class pcap_stream_database : public pcap_stream_ringbuf {
 public:
-    Pcap_Stream_Database(GlobalRegistry *in_globalreg, 
-            std::shared_ptr<BufferHandlerGeneric> in_handler);
+    pcap_stream_database(global_registry *in_globalreg, 
+            std::shared_ptr<buffer_handler_generic> in_handler);
 
-    virtual ~Pcap_Stream_Database();
+    virtual ~pcap_stream_database();
 
     virtual void stop_stream(std::string in_reason);
 

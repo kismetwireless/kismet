@@ -45,7 +45,7 @@ kis_tracked_ip_data::kis_tracked_ip_data(int in_id) :
     reserve_fields(NULL);
 } 
 
-kis_tracked_ip_data::kis_tracked_ip_data(int in_id, std::shared_ptr<TrackerElementMap> e) : 
+kis_tracked_ip_data::kis_tracked_ip_data(int in_id, std::shared_ptr<tracker_element_map> e) : 
     tracker_component(in_id) {
     register_fields();
     reserve_fields(e);
@@ -54,10 +54,10 @@ kis_tracked_ip_data::kis_tracked_ip_data(int in_id, std::shared_ptr<TrackerEleme
 void kis_tracked_ip_data::register_fields() {
     tracker_component::register_fields();
 
-    RegisterField("kismet.common.ipdata.type", "ipdata type enum", &ip_type);
-    RegisterField("kismet.common.ipdata.address", "ip address", &ip_addr_block);
-    RegisterField("kismet.common.ipdata.netmask", "ip netmask", &ip_netmask);
-    RegisterField("kismet.common.ipdata.gateway", "ip gateway", &ip_gateway);
+    register_field("kismet.common.ipdata.type", "ipdata type enum", &ip_type);
+    register_field("kismet.common.ipdata.address", "ip address", &ip_addr_block);
+    register_field("kismet.common.ipdata.netmask", "ip netmask", &ip_netmask);
+    register_field("kismet.common.ipdata.gateway", "ip gateway", &ip_gateway);
 }
 
 kis_tracked_signal_data::kis_tracked_signal_data() :
@@ -78,7 +78,7 @@ kis_tracked_signal_data::kis_tracked_signal_data(int in_id) :
     signal_type->set("none");
 } 
 
-kis_tracked_signal_data::kis_tracked_signal_data(int in_id, std::shared_ptr<TrackerElementMap> e) : 
+kis_tracked_signal_data::kis_tracked_signal_data(int in_id, std::shared_ptr<tracker_element_map> e) : 
     tracker_component(in_id) {
     register_fields();
     reserve_fields(e);
@@ -92,7 +92,7 @@ kis_tracked_signal_data::kis_tracked_signal_data(int in_id, std::shared_ptr<Trac
 
 }
 
-void  kis_tracked_signal_data::append_signal(const kis_layer1_packinfo& lay1, bool update_rrd) {
+void  kis_tracked_signal_data::append_signal(const kis_layer1_packinfo& lay1, bool update_rrd, time_t rrd_ts) {
     if (lay1.signal_type == kis_l1_signal_type_dbm && (sig_type == 0 || sig_type == 1)) {
         if (sig_type == 0) {
             signal_type->set("dbm");
@@ -111,7 +111,7 @@ void  kis_tracked_signal_data::append_signal(const kis_layer1_packinfo& lay1, bo
             }
 
             if (update_rrd)
-                get_signal_min_rrd()->add_sample(lay1.signal_dbm, time(0));
+                get_signal_min_rrd()->add_sample(lay1.signal_dbm, rrd_ts);
         }
 
         if (lay1.noise_dbm != 0) {
@@ -143,7 +143,7 @@ void  kis_tracked_signal_data::append_signal(const kis_layer1_packinfo& lay1, bo
             }
 
             if (update_rrd)
-                get_signal_min_rrd()->add_sample(lay1.signal_rssi, time(0));
+                get_signal_min_rrd()->add_sample(lay1.signal_rssi, rrd_ts);
         }
 
         if (lay1.noise_rssi != 0) {
@@ -167,7 +167,7 @@ void  kis_tracked_signal_data::append_signal(const kis_layer1_packinfo& lay1, bo
     }
 }
 
-void kis_tracked_signal_data::append_signal(const Packinfo_Sig_Combo& in, bool update_rrd) {
+void kis_tracked_signal_data::append_signal(const packinfo_sig_combo& in, bool update_rrd, time_t rrd_ts) {
     if (in.lay1 != NULL) {
         if (in.lay1->signal_type == kis_l1_signal_type_dbm && (sig_type == 0 || sig_type == 1)) {
             if (sig_type == 0) {
@@ -192,7 +192,7 @@ void kis_tracked_signal_data::append_signal(const Packinfo_Sig_Combo& in, bool u
                 }
 
                 if (update_rrd)
-                    get_signal_min_rrd()->add_sample(in.lay1->signal_dbm, time(0));
+                    get_signal_min_rrd()->add_sample(in.lay1->signal_dbm, rrd_ts);
             }
 
             if (in.lay1->noise_dbm != 0) {
@@ -229,7 +229,7 @@ void kis_tracked_signal_data::append_signal(const Packinfo_Sig_Combo& in, bool u
                 }
 
                 if (update_rrd)
-                    get_signal_min_rrd()->add_sample(in.lay1->signal_rssi, time(0));
+                    get_signal_min_rrd()->add_sample(in.lay1->signal_rssi, rrd_ts);
             }
 
             if (in.lay1->noise_rssi != 0) {
@@ -258,30 +258,30 @@ void kis_tracked_signal_data::append_signal(const Packinfo_Sig_Combo& in, bool u
 void kis_tracked_signal_data::register_fields() {
     tracker_component::register_fields();
 
-    RegisterField("kismet.common.signal.type", "signal type", &signal_type);
+    register_field("kismet.common.signal.type", "signal type", &signal_type);
 
-    RegisterField("kismet.common.signal.last_signal", "most recent signal", &last_signal);
-    RegisterField("kismet.common.signal.last_noise", "most recent noise", &last_noise);
+    register_field("kismet.common.signal.last_signal", "most recent signal", &last_signal);
+    register_field("kismet.common.signal.last_noise", "most recent noise", &last_noise);
 
-    RegisterField("kismet.common.signal.min_signal", "minimum signal", &min_signal);
-    RegisterField("kismet.common.signal.min_noise", "minimum noise", &min_noise);
+    register_field("kismet.common.signal.min_signal", "minimum signal", &min_signal);
+    register_field("kismet.common.signal.min_noise", "minimum noise", &min_noise);
 
-    RegisterField("kismet.common.signal.max_signal", "maximum signal", &max_signal);
-    RegisterField("kismet.common.signal.max_noise", "maximum noise", &max_noise);
+    register_field("kismet.common.signal.max_signal", "maximum signal", &max_signal);
+    register_field("kismet.common.signal.max_noise", "maximum noise", &max_noise);
 
     peak_loc_id =
-        RegisterDynamicField("kismet.common.signal.peak_loc",
+        register_dynamic_field("kismet.common.signal.peak_loc",
                 "location of strongest observed signal", &peak_loc);
 
-    RegisterField("kismet.common.signal.maxseenrate",
+    register_field("kismet.common.signal.maxseenrate",
             "maximum observed data rate (phy dependent)", &maxseenrate);
-    RegisterField("kismet.common.signal.encodingset", 
+    register_field("kismet.common.signal.encodingset", 
             "bitset of observed encodings", &encodingset);
-    RegisterField("kismet.common.signal.carrierset", 
+    register_field("kismet.common.signal.carrierset", 
             "bitset of observed carrier types", &carrierset);
 
     signal_min_rrd_id =
-        RegisterDynamicField("kismet.common.signal.signal_rrd",
+        register_dynamic_field("kismet.common.signal.signal_rrd",
                 "past minute of signal data", &signal_min_rrd);
 }
 
@@ -297,7 +297,7 @@ kis_tracked_seenby_data::kis_tracked_seenby_data(int in_id) :
     reserve_fields(NULL);
 } 
 
-kis_tracked_seenby_data::kis_tracked_seenby_data(int in_id, std::shared_ptr<TrackerElementMap> e) :
+kis_tracked_seenby_data::kis_tracked_seenby_data(int in_id, std::shared_ptr<tracker_element_map> e) :
     tracker_component(in_id) {
     register_fields();
     reserve_fields(e);
@@ -316,21 +316,21 @@ void kis_tracked_seenby_data::inc_frequency_count(int frequency) {
 void kis_tracked_seenby_data::register_fields() {
     tracker_component::register_fields();
 
-    RegisterField("kismet.common.seenby.uuid", "UUID of source", &src_uuid);
-    RegisterField("kismet.common.seenby.first_time", "first time seen time_t", &first_time);
-    RegisterField("kismet.common.seenby.last_time", "last time seen time_t", &last_time);
-    RegisterField("kismet.common.seenby.num_packets", 
+    register_field("kismet.common.seenby.uuid", "UUID of source", &src_uuid);
+    register_field("kismet.common.seenby.first_time", "first time seen time_t", &first_time);
+    register_field("kismet.common.seenby.last_time", "last time seen time_t", &last_time);
+    register_field("kismet.common.seenby.num_packets", 
             "number of packets seen by this device", &num_packets);
 
-    RegisterField("kismet.common.seenby.freq_khz_map", 
+    register_field("kismet.common.seenby.freq_khz_map", 
             "packets seen per frequency (khz)", &freq_khz_map);
 
     frequency_val_id =
-        RegisterField("kismet.common.seenby.frequency.count",
-                TrackerElementFactory<TrackerElementUInt64>(), "packets per frequency");
+        register_field("kismet.common.seenby.frequency.count",
+                tracker_element_factory<tracker_element_uint64>(), "packets per frequency");
 
     signal_data_id =
-        RegisterDynamicField("kismet.common.seenby.signal", "signal data", &signal_data);
+        register_dynamic_field("kismet.common.seenby.signal", "signal data", &signal_data);
 }
 
 void kis_tracked_device_base::inc_frequency_count(double frequency) {
@@ -346,8 +346,8 @@ void kis_tracked_device_base::inc_frequency_count(double frequency) {
     }
 }
 
-void kis_tracked_device_base::inc_seenby_count(KisDatasource *source, 
-        time_t tv_sec, int frequency, Packinfo_Sig_Combo *siginfo,
+void kis_tracked_device_base::inc_seenby_count(kis_datasource *source, 
+        time_t tv_sec, int frequency, packinfo_sig_combo *siginfo,
         bool update_rrd) {
     std::shared_ptr<kis_tracked_seenby_data> seenby;
 
@@ -366,7 +366,7 @@ void kis_tracked_device_base::inc_seenby_count(KisDatasource *source,
             seenby->inc_frequency_count(frequency);
 
         if (siginfo != NULL)
-            (seenby->get_signal_data())->append_signal(*siginfo, update_rrd);
+            (seenby->get_signal_data())->append_signal(*siginfo, update_rrd, tv_sec);
 
         seenby_map->insert(source->get_source_key(), seenby);
 
@@ -380,105 +380,105 @@ void kis_tracked_device_base::inc_seenby_count(KisDatasource *source,
             seenby->inc_frequency_count(frequency);
 
         if (siginfo != NULL)
-            seenby->get_signal_data()->append_signal(*siginfo, update_rrd);
+            seenby->get_signal_data()->append_signal(*siginfo, update_rrd, tv_sec);
     }
 }
 
 void kis_tracked_device_base::register_fields() {
     tracker_component::register_fields();
 
-    RegisterField("kismet.device.base.key", "unique device key across phy and server", &key);
-    RegisterField("kismet.device.base.macaddr", "mac address", &macaddr);
-    RegisterField("kismet.device.base.phyname", "phy name", &phyname);
-	RegisterField("kismet.device.base.phyid", "phy internal id", &phyid);
-    RegisterField("kismet.device.base.name", "printable device name", &devicename);
+    register_field("kismet.device.base.key", "unique device key across phy and server", &key);
+    register_field("kismet.device.base.macaddr", "mac address", &macaddr);
+    register_field("kismet.device.base.phyname", "phy name", &phyname);
+	register_field("kismet.device.base.phyid", "phy internal id", &phyid);
+    register_field("kismet.device.base.name", "printable device name", &devicename);
     username_id = 
-        RegisterDynamicField("kismet.device.base.username", "user name", &username);
-    RegisterField("kismet.device.base.commonname", 
+        register_dynamic_field("kismet.device.base.username", "user name", &username);
+    register_field("kismet.device.base.commonname", 
             "common name alias of custom or device names", &commonname);
-    RegisterField("kismet.device.base.type", "printable device type", &type_string);
-    RegisterField("kismet.device.base.basic_type_set", "bitset of basic type", &basic_type_set);
-    RegisterField("kismet.device.base.crypt", "printable encryption type", &crypt_string);
-    RegisterField("kismet.device.base.basic_crypt_set", 
+    register_field("kismet.device.base.type", "printable device type", &type_string);
+    register_field("kismet.device.base.basic_type_set", "bitset of basic type", &basic_type_set);
+    register_field("kismet.device.base.crypt", "printable encryption type", &crypt_string);
+    register_field("kismet.device.base.basic_crypt_set", 
             "bitset of basic encryption", &basic_crypt_set);
-    RegisterField("kismet.device.base.first_time", "first time seen time_t", &first_time);
-    RegisterField("kismet.device.base.last_time", "last time seen time_t", &last_time);
-    RegisterField("kismet.device.base.mod_time", 
+    register_field("kismet.device.base.first_time", "first time seen time_t", &first_time);
+    register_field("kismet.device.base.last_time", "last time seen time_t", &last_time);
+    register_field("kismet.device.base.mod_time", 
             "internal timestamp of last record change", &mod_time);
-    RegisterField("kismet.device.base.packets.total", "total packets seen of all types", &packets);
-    RegisterField("kismet.device.base.packets.rx", "observed packets sent to device", &rx_packets);
-    RegisterField("kismet.device.base.packets.tx", "observed packets from device", &tx_packets);
-    RegisterField("kismet.device.base.packets.llc", "observed protocol control packets", &llc_packets);
-    RegisterField("kismet.device.base.packets.error", "corrupt/error packets", &error_packets);
-    RegisterField("kismet.device.base.packets.data", "data packets", &data_packets);
-    RegisterField("kismet.device.base.packets.crypt", "data packets using encryption", &crypt_packets);
-    RegisterField("kismet.device.base.packets.filtered", "packets dropped by filter", &filter_packets);
-    RegisterField("kismet.device.base.datasize", "transmitted data in bytes", &datasize);
+    register_field("kismet.device.base.packets.total", "total packets seen of all types", &packets);
+    register_field("kismet.device.base.packets.rx", "observed packets sent to device", &rx_packets);
+    register_field("kismet.device.base.packets.tx", "observed packets from device", &tx_packets);
+    register_field("kismet.device.base.packets.llc", "observed protocol control packets", &llc_packets);
+    register_field("kismet.device.base.packets.error", "corrupt/error packets", &error_packets);
+    register_field("kismet.device.base.packets.data", "data packets", &data_packets);
+    register_field("kismet.device.base.packets.crypt", "data packets using encryption", &crypt_packets);
+    register_field("kismet.device.base.packets.filtered", "packets dropped by filter", &filter_packets);
+    register_field("kismet.device.base.datasize", "transmitted data in bytes", &datasize);
     
     packets_rrd_id =
-        RegisterDynamicField("kismet.device.base.packets.rrd", "packet rate rrd", &packets_rrd);
+        register_dynamic_field("kismet.device.base.packets.rrd", "packet rate rrd", &packets_rrd);
     data_rrd_id =
-        RegisterDynamicField("kismet.device.base.datasize.rrd", "packet size rrd", &data_rrd);
+        register_dynamic_field("kismet.device.base.datasize.rrd", "packet size rrd", &data_rrd);
     signal_data_id =
-        RegisterDynamicField("kismet.device.base.signal", "signal data", &signal_data);
+        register_dynamic_field("kismet.device.base.signal", "signal data", &signal_data);
 
-    RegisterField("kismet.device.base.freq_khz_map", "packets seen per frequency (khz)", &freq_khz_map);
-    RegisterField("kismet.device.base.channel", "channel (phy specific)", &channel);
-    RegisterField("kismet.device.base.frequency", "frequency", &frequency);
-    RegisterField("kismet.device.base.manuf", "manufacturer name", &manuf);
-    RegisterField("kismet.device.base.num_alerts", "number of alerts on this device", &alert);
-    RegisterField("kismet.device.base.tags", "set of arbitrary tags, including user notes", &tag_map);
+    register_field("kismet.device.base.freq_khz_map", "packets seen per frequency (khz)", &freq_khz_map);
+    register_field("kismet.device.base.channel", "channel (phy specific)", &channel);
+    register_field("kismet.device.base.frequency", "frequency", &frequency);
+    register_field("kismet.device.base.manuf", "manufacturer name", &manuf);
+    register_field("kismet.device.base.num_alerts", "number of alerts on this device", &alert);
+    register_field("kismet.device.base.tags", "set of arbitrary tags, including user notes", &tag_map);
 
     tag_entry_id =
-        RegisterField("kismet.device.base.tag", 
-                TrackerElementFactory<TrackerElementString>(), "arbitrary tag");
+        register_field("kismet.device.base.tag", 
+                tracker_element_factory<tracker_element_string>(), "arbitrary tag");
 
     location_id =
-        RegisterDynamicField("kismet.device.base.location", "location", &location);
+        register_dynamic_field("kismet.device.base.location", "location", &location);
     location_cloud_id =
-        RegisterDynamicField("kismet.device.base.location_cloud", 
+        register_dynamic_field("kismet.device.base.location_cloud", 
                 "historic location cloud", &location_cloud);
 
-    RegisterField("kismet.device.base.seenby", "sources that have seen this device", &seenby_map);
+    register_field("kismet.device.base.seenby", "sources that have seen this device", &seenby_map);
 
     // Packet count, not actual frequency, so uint64 not double
     frequency_val_id =
-        RegisterField("kismet.device.base.frequency.count",
-                TrackerElementFactory<TrackerElementUInt64>(), "frequency packet count");
+        register_field("kismet.device.base.frequency.count",
+                tracker_element_factory<tracker_element_uint64>(), "frequency packet count");
 
     seenby_val_id =
-        RegisterField("kismet.device.base.seenby.data",
-                TrackerElementFactory<kis_tracked_seenby_data>(),
+        register_field("kismet.device.base.seenby.data",
+                tracker_element_factory<kis_tracked_seenby_data>(),
                 "datasource seen-by data");
 
     packet_rrd_bin_250_id =
-        RegisterDynamicField("kismet.device.base.packet.bin.250", "RRD of packets up to 250 bytes",
+        register_dynamic_field("kismet.device.base.packet.bin.250", "RRD of packets up to 250 bytes",
                 &packet_rrd_bin_250);
     packet_rrd_bin_500_id =
-        RegisterDynamicField("kismet.device.base.packet.bin.500", "RRD of packets up to 500 bytes",
+        register_dynamic_field("kismet.device.base.packet.bin.500", "RRD of packets up to 500 bytes",
                 &packet_rrd_bin_500);
     packet_rrd_bin_1000_id =
-        RegisterDynamicField("kismet.device.base.packet.bin.1000", "RRD of packets up to 1000 bytes",
+        register_dynamic_field("kismet.device.base.packet.bin.1000", "RRD of packets up to 1000 bytes",
                 &packet_rrd_bin_1000);
     packet_rrd_bin_1500_id =
-        RegisterDynamicField("kismet.device.base.packet.bin.1500", "RRD of packets up to 1500 bytes",
+        register_dynamic_field("kismet.device.base.packet.bin.1500", "RRD of packets up to 1500 bytes",
                 &packet_rrd_bin_1500);
     packet_rrd_bin_jumbo_id =
-        RegisterDynamicField("kismet.device.base.packet.bin.jumbo", "RRD of packets over 1500 bytes",
+        register_dynamic_field("kismet.device.base.packet.bin.jumbo", "RRD of packets over 1500 bytes",
                 &packet_rrd_bin_jumbo);
 
-    RegisterField("kismet.device.base.server_uuid", 
+    register_field("kismet.device.base.server_uuid", 
             "UUID of server which saw this device", &server_uuid);
 
-    RegisterField("kismet.device.base.related_devices",
+    register_field("kismet.device.base.related_devices",
             "Related devices, organized by relationship", &related_devices_map);
 
     related_device_group_id =
-        RegisterField("kismet.device.base.related_group", 
-                TrackerElementFactory<TrackerElementDeviceKeyMap>(), "Related devices, by key");
+        register_field("kismet.device.base.related_group", 
+                tracker_element_factory<tracker_element_device_key_map>(), "Related devices, by key");
 }
 
-void kis_tracked_device_base::reserve_fields(std::shared_ptr<TrackerElementMap> e) {
+void kis_tracked_device_base::reserve_fields(std::shared_ptr<tracker_element_map> e) {
     tracker_component::reserve_fields(e);
 
     seenby_map->set_as_vector(true);
@@ -490,7 +490,7 @@ void kis_tracked_device_base::reserve_fields(std::shared_ptr<TrackerElementMap> 
             // Build a proper seenby record for each item in the list
             auto sbd = 
                 std::make_shared<kis_tracked_seenby_data>(seenby_val_id, 
-                        std::static_pointer_cast<TrackerElementMap>(s.second));
+                        std::static_pointer_cast<tracker_element_map>(s.second));
             // And assign it over the same key
             s.second = sbd;
         }
@@ -501,12 +501,12 @@ void kis_tracked_device_base::add_related_device(const std::string& in_relations
     auto related_group_i = related_devices_map->find(in_relationship);
 
     if (related_group_i == related_devices_map->end()) {
-        auto related_group = std::make_shared<TrackerElementDeviceKeyMap>(related_device_group_id);
+        auto related_group = std::make_shared<tracker_element_device_key_map>(related_device_group_id);
         related_group->set_as_key_vector(true);
         related_group->insert(in_key, nullptr);
         related_devices_map->insert(in_relationship, related_group);
     } else {
-        auto related_group = std::static_pointer_cast<TrackerElementDeviceKeyMap>(related_group_i->second);
+        auto related_group = std::static_pointer_cast<tracker_element_device_key_map>(related_group_i->second);
         related_group->insert(in_key, nullptr);
     }
 }

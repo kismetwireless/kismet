@@ -33,36 +33,36 @@
 #include <pcre.h>
 #endif
 
-class DevicetrackerViewWorker {
+class device_tracker_view_worker {
 public:
-    DevicetrackerViewWorker() { }
-    virtual ~DevicetrackerViewWorker() { }
+    device_tracker_view_worker() { }
+    virtual ~device_tracker_view_worker() { }
 
     virtual bool matchDevice(std::shared_ptr<kis_tracked_device_base> device) = 0;
-    virtual std::shared_ptr<TrackerElementVector> getMatchedDevices() {
+    virtual std::shared_ptr<tracker_element_vector> getMatchedDevices() {
         return matched;
     }
 
 protected:
-    friend class DevicetrackerView;
+    friend class device_tracker_view;
 
-    virtual void setMatchedDevices(std::shared_ptr<TrackerElementVector> devices);
+    virtual void setMatchedDevices(std::shared_ptr<tracker_element_vector> devices);
 
     kis_recursive_timed_mutex mutex;
-    std::shared_ptr<TrackerElementVector> matched;
+    std::shared_ptr<tracker_element_vector> matched;
 };
 
-class DevicetrackerViewFunctionWorker : public DevicetrackerViewWorker {
+class device_tracker_view_function_worker : public device_tracker_view_worker {
 public:
     using filter_cb = std::function<bool (std::shared_ptr<kis_tracked_device_base>)>;
 
-    DevicetrackerViewFunctionWorker(filter_cb cb);
-    DevicetrackerViewFunctionWorker(const DevicetrackerViewFunctionWorker& w) {
+    device_tracker_view_function_worker(filter_cb cb);
+    device_tracker_view_function_worker(const device_tracker_view_function_worker& w) {
         filter = w.filter;
         matched = w.matched;
     }
 
-    virtual ~DevicetrackerViewFunctionWorker() { }
+    virtual ~device_tracker_view_function_worker() { }
 
     virtual bool matchDevice(std::shared_ptr<kis_tracked_device_base> device) override;
 
@@ -71,7 +71,7 @@ protected:
 };
 
 // Field:Regex matcher
-class DevicetrackerViewRegexWorker : public DevicetrackerViewWorker {
+class device_tracker_view_regex_worker : public device_tracker_view_worker {
 public:
     struct pcre_filter {
 #ifdef HAVE_LIBPCRE
@@ -85,39 +85,39 @@ public:
     };
 
     // Filter baed on a prepared vector
-    DevicetrackerViewRegexWorker(const std::vector<std::shared_ptr<DevicetrackerViewRegexWorker::pcre_filter>>& filter_vec);
+    device_tracker_view_regex_worker(const std::vector<std::shared_ptr<device_tracker_view_regex_worker::pcre_filter>>& filter_vec);
 
     // Build a PCRE from a standard regex description on a POST.
-    // The SharedStructured objeect is expected to be a vector of [field, regex] pairs.
+    // The shared_structured objeect is expected to be a vector of [field, regex] pairs.
     // std::runtime_error may be thrown if there is a parsing failure
-    DevicetrackerViewRegexWorker(SharedStructured shared_pcre_vec);
+    device_tracker_view_regex_worker(shared_structured shared_pcre_vec);
 
     // Build a PCRE from a vector of field:pcre pairs
     // std::runtime_error may be thrown if there is a parsing failure
-    DevicetrackerViewRegexWorker(const std::vector<std::pair<std::string, std::string>>& str_pcre_vec);
+    device_tracker_view_regex_worker(const std::vector<std::pair<std::string, std::string>>& str_pcre_vec);
 
-    DevicetrackerViewRegexWorker(const DevicetrackerViewRegexWorker& w) {
+    device_tracker_view_regex_worker(const device_tracker_view_regex_worker& w) {
         filter_vec = w.filter_vec;
         matched = w.matched;
     }
 
-    virtual ~DevicetrackerViewRegexWorker() { }
+    virtual ~device_tracker_view_regex_worker() { }
 
     virtual bool matchDevice(std::shared_ptr<kis_tracked_device_base> device) override;
 
 protected:
-    std::vector<std::shared_ptr<DevicetrackerViewRegexWorker::pcre_filter>> filter_vec;
+    std::vector<std::shared_ptr<device_tracker_view_regex_worker::pcre_filter>> filter_vec;
 
 };
 
 // Generic string search for any string-like value (and a few more complex values, like MAC addresses).
 // Searches multiple fields for a given string
-class DevicetrackerViewStringmatchWorker : public DevicetrackerViewWorker {
+class device_tracker_view_stringmatch_worker : public device_tracker_view_worker {
 public:
     // Match a given string against a list of resovled field paths
-    DevicetrackerViewStringmatchWorker(const std::string& in_query,
+    device_tracker_view_stringmatch_worker(const std::string& in_query,
             const std::vector<std::vector<int>>& in_paths);
-    DevicetrackerViewStringmatchWorker(const DevicetrackerViewStringmatchWorker& w) {
+    device_tracker_view_stringmatch_worker(const device_tracker_view_stringmatch_worker& w) {
         query = w.query;
         fieldpaths = w.fieldpaths;
         mac_query_term = w.mac_query_term;
@@ -125,7 +125,7 @@ public:
         matched = w.matched;
     }
 
-    virtual ~DevicetrackerViewStringmatchWorker() { }
+    virtual ~device_tracker_view_stringmatch_worker() { }
 
     virtual bool matchDevice(std::shared_ptr<kis_tracked_device_base> device) override;
 
@@ -139,12 +139,12 @@ protected:
 
 // Generic string search for any string-like value (and a few more complex values, like MAC addresses).
 // Searches multiple fields for a given string
-class DevicetrackerViewICaseStringmatchWorker : public DevicetrackerViewWorker {
+class device_tracker_view_icasestringmatch_worker : public device_tracker_view_worker {
 public:
     // Match a given string against a list of resovled field paths
-    DevicetrackerViewICaseStringmatchWorker(const std::string& in_query,
+    device_tracker_view_icasestringmatch_worker(const std::string& in_query,
             const std::vector<std::vector<int>>& in_paths);
-    DevicetrackerViewICaseStringmatchWorker(const DevicetrackerViewICaseStringmatchWorker& w) {
+    device_tracker_view_icasestringmatch_worker(const device_tracker_view_icasestringmatch_worker& w) {
         query = w.query;
         fieldpaths = w.fieldpaths;
         mac_query_term = w.mac_query_term;
@@ -152,7 +152,7 @@ public:
         matched = w.matched;
     }
 
-    virtual ~DevicetrackerViewICaseStringmatchWorker() { }
+    virtual ~device_tracker_view_icasestringmatch_worker() { }
 
     virtual bool matchDevice(std::shared_ptr<kis_tracked_device_base> device) override;
 

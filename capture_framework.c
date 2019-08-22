@@ -825,7 +825,7 @@ void cf_print_help(kis_capture_handler_t *caph, const char *argv0) {
     
     if (caph->remote_capable) {
         fprintf(stderr, "\n%s supports sending data to a remote Kismet server\n"
-                "Usage: %s [options]\n"
+                "usage: %s [options]\n"
                 " --connect [host]:[port]     Connect to remote Kismet server on [host] \n"
                 "                             and [port]; typically Kismet accepts remote \n"
                 "                             capture on port 3501.\n"
@@ -1662,7 +1662,7 @@ int cf_handler_remote_server(kis_capture_handler_t *caph) {
     if (caph->remote_host == NULL)
         return 0;
 
-    /* Close the fd if it's open */
+    /* close the fd if it's open */
     if (caph->tcp_fd >= 0) {
         close(caph->tcp_fd);
         caph->tcp_fd = -1;
@@ -1807,7 +1807,7 @@ int cf_handler_remote_server(kis_capture_handler_t *caph) {
 
     fcntl(caph->tcp_fd, F_SETFL, fcntl(caph->tcp_fd, F_GETFL, 0) | O_NONBLOCK);
 
-    /* Close the server because we only allow one connection; in the future this might
+    /* close the server because we only allow one connection; in the future this might
      * be an opportunity to define an error message and return that.
      */
     close(caph->listen_fd);
@@ -1842,7 +1842,7 @@ int cf_handler_remote_connect(kis_capture_handler_t *caph) {
     if (caph->remote_host == NULL)
         return 0;
 
-    /* Close the fd if it's open */
+    /* close the fd if it's open */
     if (caph->tcp_fd >= 0) {
         close(caph->tcp_fd);
         caph->tcp_fd = -1;
@@ -2256,7 +2256,7 @@ int cf_send_packet(kis_capture_handler_t *caph, const char *packtype,
     frame->signature = htonl(KIS_EXTERNAL_PROTO_SIG);
     frame->data_sz = htonl(data_sz);
 
-    /* Serialize into the data payload of the frame */
+    /* serialize into the data payload of the frame */
     kismet_external__command__pack(&cmd, frame->data);
 
     /* Checksum the data payload */

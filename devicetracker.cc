@@ -36,13 +36,13 @@
 #include "configfile.h"
 #include "messagebus.h"
 #include "packetchain.h"
-#include "devicetracker.h"
 #include "datasourcetracker.h"
 #include "packet.h"
 #include "gpstracker.h"
 #include "alertracker.h"
 #include "manuf.h"
 #include "entrytracker.h"
+#include "devicetracker.h"
 #include "devicetracker_component.h"
 #include "devicetracker_view.h"
 #include "json_adapter.h"
@@ -56,105 +56,105 @@
 #include "zstr.hpp"
 
 int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
-	return ((Devicetracker *) auxdata)->CommonTracker(in_pack);
+	return ((device_tracker *) auxdata)->common_tracker(in_pack);
 }
 
-Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
-    Kis_Net_Httpd_Chain_Stream_Handler(),
-    KisDatabase(in_globalreg, "devicetracker") {
+device_tracker::device_tracker(global_registry *in_globalreg) :
+    kis_net_httpd_chain_stream_handler(),
+    kis_database(in_globalreg, "devicetracker") {
 
 	globalreg = in_globalreg;
 
     next_phy_id = 0;
 
     // create a vector
-    immutable_tracked_vec = std::make_shared<TrackerElementVector>();
+    immutable_tracked_vec = std::make_shared<tracker_element_vector>();
 
     entrytracker =
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
+        Globalreg::fetch_mandatory_global_as<entry_tracker>();
 
 	eventbus =
-		Globalreg::FetchMandatoryGlobalAs<Eventbus>();
+		Globalreg::fetch_mandatory_global_as<event_bus>();
 
     device_base_id =
-        entrytracker->RegisterField("kismet.device.base", 
-                TrackerElementFactory<kis_tracked_device_base>(),
+        entrytracker->register_field("kismet.device.base", 
+                tracker_element_factory<kis_tracked_device_base>(),
                 "core device record");
     device_list_base_id =
-        entrytracker->RegisterField("kismet.device.list",
-                TrackerElementFactory<TrackerElementVector>(),
+        entrytracker->register_field("kismet.device.list",
+                tracker_element_factory<tracker_element_vector>(),
                 "list of devices");
 
 
     device_summary_base_id =
-        entrytracker->RegisterField("kismet.device.summary_list",
-                TrackerElementFactory<TrackerElementVector>(),
+        entrytracker->register_field("kismet.device.summary_list",
+                tracker_element_factory<tracker_element_vector>(),
                 "summary list of devices");
 
     device_update_required_id =
-        entrytracker->RegisterField("kismet.devicelist.refresh",
-                TrackerElementFactory<TrackerElementUInt8>(),
+        entrytracker->register_field("kismet.devicelist.refresh",
+                tracker_element_factory<tracker_element_uint8>(),
                 "device list refresh recommended");
     device_update_timestamp_id =
-        entrytracker->RegisterField("kismet.devicelist.timestamp",
-                TrackerElementFactory<TrackerElementUInt64>(),
+        entrytracker->register_field("kismet.devicelist.timestamp",
+                tracker_element_factory<tracker_element_uint64>(),
                 "device list timestamp");
 
     // These need unique IDs to be put in the map for serialization.
     // They also need unique field names, we can rename them with setlocalname
     dt_length_id =
-        entrytracker->RegisterField("kismet.datatables.recordsTotal", 
-                TrackerElementFactory<TrackerElementUInt64>(),
+        entrytracker->register_field("kismet.datatables.recordsTotal", 
+                tracker_element_factory<tracker_element_uint64>(),
                 "datatable records total");
     dt_filter_id =
-        entrytracker->RegisterField("kismet.datatables.recordsFiltered", 
-                TrackerElementFactory<TrackerElementUInt64>(),
+        entrytracker->register_field("kismet.datatables.recordsFiltered", 
+                tracker_element_factory<tracker_element_uint64>(),
                 "datatable records filtered");
     dt_draw_id =
-        entrytracker->RegisterField("kismet.datatables.draw", 
-                TrackerElementFactory<TrackerElementUInt64>(),
+        entrytracker->register_field("kismet.datatables.draw", 
+                tracker_element_factory<tracker_element_uint64>(),
                 "Datatable records draw ID");
 
     // Generate the system-wide packet RRD
     packets_rrd = 
-        entrytracker->RegisterAndGetFieldAs<kis_tracked_rrd<>>("kismet.device.packets_rrd",
-            TrackerElementFactory<kis_tracked_rrd<>>(), "Packets seen RRD");
+        entrytracker->register_and_get_field_as<kis_tracked_rrd<>>("kismet.device.packets_rrd",
+            tracker_element_factory<kis_tracked_rrd<>>(), "Packets seen RRD");
 
 	num_packets = num_datapackets = num_errorpackets =
 		num_filterpackets = 0;
 
-    std::shared_ptr<Packetchain> packetchain =
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+    std::shared_ptr<packet_chain> packetchain =
+        Globalreg::fetch_mandatory_global_as<packet_chain>(globalreg, "PACKETCHAIN");
 
 	// Register global packet components used by the device tracker and
 	// subsequent parts
 	pack_comp_device = 
-		packetchain->RegisterPacketComponent("DEVICE");
+		packetchain->register_packet_component("DEVICE");
 
 	pack_comp_common =  
-		packetchain->RegisterPacketComponent("COMMON");
+		packetchain->register_packet_component("COMMON");
 
 	pack_comp_basicdata = 
-		packetchain->RegisterPacketComponent("BASICDATA");
+		packetchain->register_packet_component("BASICDATA");
 
     pack_comp_mangleframe =
-		packetchain->RegisterPacketComponent("MANGLEDATA");
+		packetchain->register_packet_component("MANGLEDATA");
 
 	pack_comp_radiodata =
-		packetchain->RegisterPacketComponent("RADIODATA");
+		packetchain->register_packet_component("RADIODATA");
 
 	pack_comp_gps =
-		packetchain->RegisterPacketComponent("GPS");
+		packetchain->register_packet_component("GPS");
 
 	pack_comp_datasrc = 
-		packetchain->RegisterPacketComponent("KISDATASRC");
+		packetchain->register_packet_component("KISDATASRC");
 
 	// Common tracker, very early in the tracker chain
-	packetchain->RegisterHandler(&Devicetracker_packethook_commontracker,
+	packetchain->register_handler(&Devicetracker_packethook_commontracker,
 											this, CHAINPOS_TRACKER, -100);
 
-    std::shared_ptr<Timetracker> timetracker = 
-        Globalreg::FetchMandatoryGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+    std::shared_ptr<time_tracker> timetracker = 
+        Globalreg::fetch_mandatory_global_as<time_tracker>(globalreg, "TIMETRACKER");
 
    
     // Always disable persistent storage for now
@@ -165,15 +165,15 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     persistent_storage_timeout = 0;
 
 #if 0
-    if (!globalreg->kismet_config->FetchOptBoolean("persistent_config_present", false)) {
+    if (!globalreg->kismet_config->fetch_opt_bool("persistent_config_present", false)) {
         _MSG("Kismet has recently added persistent device storage; it looks like you "
                 "need to update your Kismet configs; install the latest configs with "
                 "'make forceconfigs' from the Kismet source directory.",
                 MSGFLAG_ERROR);
 
-        std::shared_ptr<Alertracker> alertracker =
-            Globalreg::FetchMandatoryGlobalAs<Alertracker>(globalreg, "ALERTTRACKER");
-        alertracker->RaiseOneShot("CONFIGERROR", 
+        std::shared_ptr<alert_tracker> alertracker =
+            Globalreg::fetch_mandatory_global_as<alert_tracker>(globalreg, "ALERTTRACKER");
+        alertracker->raise_one_shot("CONFIGERROR", 
                 "Kismet has recently added persistent device storage; it looks like "
                 "kismet_storage.conf is missing; You should install the latest Kismet "
                 "configs with 'make forceconfigs' from the Kismet source directory, or "
@@ -186,21 +186,21 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
         persistent_storage_timeout = 0;
     } else {
         persistent_storage =
-            globalreg->kismet_config->FetchOptBoolean("persistent_state", false);
+            globalreg->kismet_config->fetch_opt_bool("persistent_state", false);
 
         if (!persistent_storage) {
             _MSG("Persistent storage has been disabled.  Kismet will not remember devices "
                     "between launches.", MSGFLAG_INFO);
             statestore = NULL;
         } else {
-            statestore = new DevicetrackerStateStore(globalreg, this);
+            statestore = new device_tracker_state_store(globalreg, this);
 
             unsigned int storerate = 
-                globalreg->kismet_config->FetchOptUInt("persistent_storage_rate", 60);
+                globalreg->kismet_config->fetch_opt_uint("persistent_storage_rate", 60);
 
             _MSG("Persistent device storage enabled.  Kismet will remember devices and "
                     "other information between launches.  Kismet will store devices "
-                    "every " + UIntToString(storerate) + " seconds and on exit.", 
+                    "every " + uint_to_string(storerate) + " seconds and on exit.", 
                     MSGFLAG_INFO);
 
             devices_storing = false;
@@ -239,7 +239,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
                         });
 
             std::string pertype = 
-                StrLower(globalreg->kismet_config->FetchOpt("persistent_load"));
+                str_lower(globalreg->kismet_config->fetch_opt("persistent_load"));
 
             if (pertype == "onstart") {
                 persistent_mode = MODE_ONSTART;
@@ -252,40 +252,40 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
             }
 
             persistent_compression = 
-                globalreg->kismet_config->FetchOptBoolean("persistent_compression", true);
+                globalreg->kismet_config->fetch_opt_bool("persistent_compression", true);
 
             persistent_storage_timeout =
-                globalreg->kismet_config->FetchOptULong("persistent_timeout", 86400);
+                globalreg->kismet_config->fetch_opt_ulong("persistent_timeout", 86400);
         }
     }
 #endif
 
-    if (!globalreg->kismet_config->FetchOptBoolean("track_device_rrds", true)) {
+    if (!globalreg->kismet_config->fetch_opt_bool("track_device_rrds", true)) {
         _MSG("Not tracking historical packet data to save RAM", MSGFLAG_INFO);
         ram_no_rrd = true;
     } else {
         ram_no_rrd = false;
     }
 
-    if (!globalreg->kismet_config->FetchOptBoolean("track_device_seenby_views", true)) {
+    if (!globalreg->kismet_config->fetch_opt_bool("track_device_seenby_views", true)) {
         _MSG("Not building device seenby views to save RAM", MSGFLAG_INFO);
         map_seenby_views = false;
     } else {
         map_seenby_views = true;
     }
 
-    if (!globalreg->kismet_config->FetchOptBoolean("track_device_phy_views", true)) {
+    if (!globalreg->kismet_config->fetch_opt_bool("track_device_phy_views", true)) {
         _MSG("Not building device phy views to save RAM", MSGFLAG_INFO);
         map_phy_views = false;
     } else {
         map_phy_views = true;
     }
 
-    if (globalreg->kismet_config->FetchOptBoolean("kis_log_devices", true)) {
+    if (globalreg->kismet_config->fetch_opt_bool("kis_log_devices", true)) {
         unsigned int lograte = 
-            globalreg->kismet_config->FetchOptUInt("kis_log_device_rate", 30);
+            globalreg->kismet_config->fetch_opt_uint("kis_log_device_rate", 30);
 
-        _MSG("Saving devices to the Kismet database log every " + UIntToString(lograte) + 
+        _MSG("Saving devices to the Kismet database log every " + uint_to_string(lograte) + 
                 " seconds.", MSGFLAG_INFO);
 
         databaselog_logging = false;
@@ -330,18 +330,18 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
 
     // Preload the vector for speed
     unsigned int preload_sz = 
-        globalreg->kismet_config->FetchOptUInt("tracker_device_presize", 1000);
+        globalreg->kismet_config->fetch_opt_uint("tracker_device_presize", 1000);
 
     tracked_vec.reserve(preload_sz);
     immutable_tracked_vec->reserve(preload_sz);
 
     // Set up the device timeout
     device_idle_expiration =
-        globalreg->kismet_config->FetchOptInt("tracker_device_timeout", 0);
+        globalreg->kismet_config->fetch_opt_int("tracker_device_timeout", 0);
 
     if (device_idle_expiration != 0) {
         device_idle_min_packets =
-            globalreg->kismet_config->FetchOptUInt("tracker_device_packets", 0);
+            globalreg->kismet_config->fetch_opt_uint("tracker_device_packets", 0);
 
         std::stringstream ss;
         ss << "Removing tracked devices which have been inactive for more than " <<
@@ -360,7 +360,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     }
 
 	max_num_devices =
-		globalreg->kismet_config->FetchOptUInt("tracker_max_devices", 0);
+		globalreg->kismet_config->fetch_opt_uint("tracker_max_devices", 0);
 
 	if (max_num_devices > 0) {
         _MSG_INFO("Limiting maximum number of devices to {}, older devices will be "
@@ -376,7 +376,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     full_refresh_time = globalreg->timestamp.tv_sec;
 
     track_history_cloud =
-        globalreg->kismet_config->FetchOptBoolean("keep_location_cloud_history", true);
+        globalreg->kismet_config->fetch_opt_bool("keep_location_cloud_history", true);
 
     if (!track_history_cloud) {
         _MSG("Location history cloud tracking disabled.  This may prevent some plugins "
@@ -385,7 +385,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     }
 
     track_persource_history =
-        globalreg->kismet_config->FetchOptBoolean("keep_datasource_signal_history", true);
+        globalreg->kismet_config->fetch_opt_bool("keep_datasource_signal_history", true);
 
     if (!track_persource_history) {
         _MSG("Per-source signal history tracking disabled.  This may prevent some plugins "
@@ -394,65 +394,65 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
     }
 
     // Initialize the view system
-    view_vec = std::make_shared<TrackerElementVector>();
-    view_endp = std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/devices/views/all_views", 
+    view_vec = std::make_shared<tracker_element_vector>();
+    view_endp = std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/devices/views/all_views", 
             view_vec, &view_mutex);
 
     // Unlocked endpoint, we dupe our map for searching
     multimac_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>("/devices/multimac/devices", 
-                [this](std::ostream& stream, const std::string& uri, SharedStructured structured,
-                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
+        std::make_shared<kis_net_httpd_simple_post_endpoint>("/devices/multimac/devices", 
+                [this](std::ostream& stream, const std::string& uri, shared_structured structured,
+                    kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                 return multimac_endp_handler(stream, uri, structured, variable_cache);
                 });
 
     phy_phyentry_id =
-        entrytracker->RegisterField("kismet.phy.phy",
-                TrackerElementFactory<TrackerElementMap>(),
+        entrytracker->register_field("kismet.phy.phy",
+                tracker_element_factory<tracker_element_map>(),
                 "Kismet PHY handler");
 
     phy_phyname_id =
-        entrytracker->RegisterField("kismet.phy.phy_name",
-                TrackerElementFactory<TrackerElementString>(),
+        entrytracker->register_field("kismet.phy.phy_name",
+                tracker_element_factory<tracker_element_string>(),
                 "Phy name (consistent across executions)");
 
     phy_phyid_id =
-        entrytracker->RegisterField("kismet.phy.phy_id",
-                TrackerElementFactory<TrackerElementUInt32>(),
+        entrytracker->register_field("kismet.phy.phy_id",
+                tracker_element_factory<tracker_element_uint32>(),
                 "Phy ID (dynamic runtime index, may change between executions)");
 
     phy_devices_count_id =
-        entrytracker->RegisterField("kismet.phy.device_count",
-                TrackerElementFactory<TrackerElementUInt64>(),
+        entrytracker->register_field("kismet.phy.device_count",
+                tracker_element_factory<tracker_element_uint64>(),
                 "Devices present in phy");
 
     phy_packets_count_id =
-        entrytracker->RegisterField("kismet.phy.packet_count",
-                TrackerElementFactory<TrackerElementUInt64>(),
+        entrytracker->register_field("kismet.phy.packet_count",
+                tracker_element_factory<tracker_element_uint64>(),
                 "Packets seen in phy");
 
     all_phys_endp = 
-        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>(
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>(
                 "/phy/all_phys", 
-                [this]() -> std::shared_ptr<TrackerElement> {
+                [this]() -> std::shared_ptr<tracker_element> {
                     return all_phys_endp_handler();
                 },
                 &devicelist_mutex);
 
     // Open and upgrade the DB, default path
-    Database_Open("");
-    Database_UpgradeDB();
+    database_open("");
+    database_upgrade_db();
 
     new_datasource_evt_id = 
         eventbus->register_listener("NEW_DATASOURCE",
-            [this](std::shared_ptr<EventbusEvent> evt) {
-                HandleNewDatasourceEvent(evt);
+            [this](std::shared_ptr<eventbus_event> evt) {
+                handle_new_datasource_event(evt);
             });
 
-    Bind_Httpd_Server();
+    bind_httpd_server();
 
     auto all_view =
-        std::make_shared<DevicetrackerView>("all", 
+        std::make_shared<device_tracker_view>("all", 
                 "All devices",
                 [](std::shared_ptr<kis_tracked_device_base>) -> bool {
                     return true;
@@ -462,10 +462,10 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
                 });
     add_view(all_view);
 
-    httpd->RegisterAlias("/devices/summary/devices.json", "/devices/views/all/devices.json");
+    httpd->register_alias("/devices/summary/devices.json", "/devices/views/all/devices.json");
 }
 
-Devicetracker::~Devicetracker() {
+device_tracker::~device_tracker() {
     local_locker lock(&devicelist_mutex);
 
     if (eventbus != nullptr) {
@@ -480,19 +480,19 @@ Devicetracker::~Devicetracker() {
     globalreg->devicetracker = NULL;
     globalreg->RemoveGlobal("DEVICETRACKER");
 
-    std::shared_ptr<Packetchain> packetchain =
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>(globalreg, "PACKETCHAIN");
+    std::shared_ptr<packet_chain> packetchain =
+        Globalreg::fetch_mandatory_global_as<packet_chain>(globalreg, "PACKETCHAIN");
     if (packetchain != NULL) {
-        packetchain->RemoveHandler(&Devicetracker_packethook_commontracker,
+        packetchain->remove_handler(&Devicetracker_packethook_commontracker,
                 CHAINPOS_TRACKER);
     }
 
-    std::shared_ptr<Timetracker> timetracker = 
-        Globalreg::FetchGlobalAs<Timetracker>(globalreg, "TIMETRACKER");
+    std::shared_ptr<time_tracker> timetracker = 
+        Globalreg::FetchGlobalAs<time_tracker>(globalreg, "TIMETRACKER");
     if (timetracker != NULL) {
-        timetracker->RemoveTimer(device_idle_timer);
-        timetracker->RemoveTimer(max_devices_timer);
-        timetracker->RemoveTimer(device_storage_timer);
+        timetracker->remove_timer(device_idle_timer);
+        timetracker->remove_timer(max_devices_timer);
+        timetracker->remove_timer(device_storage_timer);
     }
 
     // TODO broken for now
@@ -510,8 +510,8 @@ Devicetracker::~Devicetracker() {
     tracked_mac_multimap.clear();
 }
 
-Kis_Phy_Handler *Devicetracker::FetchPhyHandler(int in_phy) {
-	std::map<int, Kis_Phy_Handler *>::iterator i = phy_handler_map.find(in_phy);
+kis_phy_handler *device_tracker::fetch_phy_handler(int in_phy) {
+	std::map<int, kis_phy_handler *>::iterator i = phy_handler_map.find(in_phy);
 
 	if (i == phy_handler_map.end())
 		return NULL;
@@ -519,44 +519,44 @@ Kis_Phy_Handler *Devicetracker::FetchPhyHandler(int in_phy) {
 	return i->second;
 }
 
-Kis_Phy_Handler *Devicetracker::FetchPhyHandlerByName(std::string in_name) {
+kis_phy_handler *device_tracker::fetch_phy_handler_by_name(std::string in_name) {
     for (auto i = phy_handler_map.begin(); i != phy_handler_map.end(); ++i) {
-        if (i->second->FetchPhyName() == in_name) {
+        if (i->second->fetch_phy_name() == in_name) {
             return i->second;
         }
     }
     return NULL;
 }
 
-std::string Devicetracker::FetchPhyName(int in_phy) {
+std::string device_tracker::fetch_phy_name(int in_phy) {
     if (in_phy == KIS_PHY_ANY) {
         return "ANY";
     }
 
-    Kis_Phy_Handler *phyh = FetchPhyHandler(in_phy);
+    kis_phy_handler *phyh = fetch_phy_handler(in_phy);
 
     if (phyh == NULL) {
         return "UNKNOWN";
     }
 
-    return phyh->FetchPhyName();
+    return phyh->fetch_phy_name();
 }
 
-int Devicetracker::FetchNumDevices() {
+int device_tracker::fetch_num_devices() {
     local_shared_locker lock(&devicelist_mutex);
 
     return tracked_map.size();
 }
 
-int Devicetracker::FetchNumPackets() {
+int device_tracker::fetch_num_packets() {
     return num_packets;
 }
 
 
-int Devicetracker::RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler) {
+int device_tracker::register_phy_handler(kis_phy_handler *in_weak_handler) {
 	int num = next_phy_id++;
 
-	Kis_Phy_Handler *strongphy = in_weak_handler->CreatePhyHandler(globalreg, num);
+	kis_phy_handler *strongphy = in_weak_handler->create_phy_handler(globalreg, num);
 
 	phy_handler_map[num] = strongphy;
 
@@ -566,14 +566,14 @@ int Devicetracker::RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler) {
 	phy_filterpackets[num] = 0;
 
     if (map_phy_views) {
-        auto phy_id = strongphy->FetchPhyId();
+        auto phy_id = strongphy->fetch_phy_id();
 
         auto k = phy_view_map.find(phy_id);
         if (k == phy_view_map.end()) {
             auto phy_view = 
-                std::make_shared<DevicetrackerView>(fmt::format("phy-{}", strongphy->FetchPhyName()),
-                        fmt::format("{} devices", strongphy->FetchPhyName()),
-                        std::vector<std::string>{"phy", strongphy->FetchPhyName()},
+                std::make_shared<device_tracker_view>(fmt::format("phy-{}", strongphy->fetch_phy_name()),
+                        fmt::format("{} devices", strongphy->fetch_phy_name()),
+                        std::vector<std::string>{"phy", strongphy->fetch_phy_name()},
                         [phy_id](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
                             return dev->get_phyid() == phy_id;
                         },
@@ -586,19 +586,19 @@ int Devicetracker::RegisterPhyHandler(Kis_Phy_Handler *in_weak_handler) {
         }
     }
 
-	eventbus->publish(std::make_shared<EventNewPhy>(strongphy));
+	eventbus->publish(std::make_shared<event_new_phy>(strongphy));
 
-	_MSG("Registered PHY handler '" + strongphy->FetchPhyName() + "' as ID " +
-		 IntToString(num), MSGFLAG_INFO);
+	_MSG("Registered PHY handler '" + strongphy->fetch_phy_name() + "' as ID " +
+		 int_to_string(num), MSGFLAG_INFO);
 
 	return num;
 }
 
-void Devicetracker::UpdateFullRefresh() {
+void device_tracker::update_full_refresh() {
     full_refresh_time = globalreg->timestamp.tv_sec;
 }
 
-std::shared_ptr<kis_tracked_device_base> Devicetracker::FetchDevice(device_key in_key) {
+std::shared_ptr<kis_tracked_device_base> device_tracker::fetch_device(device_key in_key) {
     local_shared_locker lock(&devicelist_mutex);
 
 	device_itr i = tracked_map.find(in_key);
@@ -609,7 +609,7 @@ std::shared_ptr<kis_tracked_device_base> Devicetracker::FetchDevice(device_key i
 	return NULL;
 }
 
-int Devicetracker::CommonTracker(kis_packet *in_pack) {
+int device_tracker::common_tracker(kis_packet *in_pack) {
     local_locker lock(&devicelist_mutex);
 
 	if (in_pack->error) {
@@ -648,7 +648,7 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 
 	// Make sure our PHY is sane
 	if (phy_handler_map.find(pack_common->phyid) == phy_handler_map.end()) {
-		_MSG("Invalid phy id " + IntToString(pack_common->phyid) + " in packet "
+		_MSG("Invalid phy id " + int_to_string(pack_common->phyid) + " in packet "
 			 "something is wrong.", MSGFLAG_ERROR);
 		return 0;
 	}
@@ -680,8 +680,8 @@ int Devicetracker::CommonTracker(kis_packet *in_pack) {
 // the access point, source, and destination devices), only the specific common device 
 // being passed will be updated.
 std::shared_ptr<kis_tracked_device_base> 
-    Devicetracker::UpdateCommonDevice(kis_common_info *pack_common, 
-            mac_addr in_mac, Kis_Phy_Handler *in_phy, kis_packet *in_pack, 
+    device_tracker::update_common_device(kis_common_info *pack_common, 
+            mac_addr in_mac, kis_phy_handler *in_phy, kis_packet *in_pack, 
             unsigned int in_flags, std::string in_basic_type) {
 
     // The device list has to be locked for the duration of the device assignment and
@@ -702,9 +702,9 @@ std::shared_ptr<kis_tracked_device_base>
     std::shared_ptr<kis_tracked_device_base> device = NULL;
     device_key key;
 
-    key = device_key(in_phy->FetchPhynameHash(), in_mac);
+    key = device_key(in_phy->fetch_phyname_hash(), in_mac);
 
-	if ((device = FetchDevice(key)) == NULL) {
+	if ((device = fetch_device(key)) == NULL) {
         if (in_flags & UCD_UPDATE_EXISTING_ONLY)
             return NULL;
 
@@ -716,8 +716,8 @@ std::shared_ptr<kis_tracked_device_base>
 
         device->set_key(key);
         device->set_macaddr(in_mac);
-        device->set_phyname(in_phy->FetchPhyName());
-		device->set_phyid(in_phy->FetchPhyId());
+        device->set_phyname(in_phy->fetch_phy_name());
+		device->set_phyid(in_phy->fetch_phy_id());
 
         device->set_server_uuid(globalreg->server_uuid);
 
@@ -726,7 +726,7 @@ std::shared_ptr<kis_tracked_device_base>
         device->set_type_string(in_basic_type);
 
         if (globalreg->manufdb != NULL) {
-            device->set_manuf(globalreg->manufdb->LookupOUI(in_mac));
+            device->set_manuf(globalreg->manufdb->lookup_oui(in_mac));
         }
 
         load_stored_username(device);
@@ -808,8 +808,8 @@ std::shared_ptr<kis_tracked_device_base>
             if (pack_l1info->freq_khz != 0)
                 device->set_frequency(pack_l1info->freq_khz);
 
-            Packinfo_Sig_Combo *sc = new Packinfo_Sig_Combo(pack_l1info, pack_gpsinfo);
-            device->get_signal_data()->append_signal(*sc, !ram_no_rrd);
+            packinfo_sig_combo *sc = new packinfo_sig_combo(pack_l1info, pack_gpsinfo);
+            device->get_signal_data()->append_signal(*sc, !ram_no_rrd, in_pack->ts.tv_sec);
 
             delete(sc);
 
@@ -861,14 +861,14 @@ std::shared_ptr<kis_tracked_device_base>
 	if ((in_flags & UCD_UPDATE_SEENBY) && pack_datasrc != NULL) {
         double f = -1;
 
-        Packinfo_Sig_Combo *sc = NULL;
+        packinfo_sig_combo *sc = NULL;
 
         if (pack_l1info != NULL)
             f = pack_l1info->freq_khz;
 
         // Generate a signal record if we're following per-source signal
         if (track_persource_history) {
-            sc = new Packinfo_Sig_Combo(pack_l1info, pack_gpsinfo);
+            sc = new packinfo_sig_combo(pack_l1info, pack_gpsinfo);
         }
 
         device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f, sc, !ram_no_rrd);
@@ -907,37 +907,37 @@ bool devicetracker_sort_internal_id(std::shared_ptr<kis_tracked_device_base> a,
 	return a->get_kis_internal_id() < b->get_kis_internal_id();
 }
 
-void Devicetracker::MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, 
-        std::shared_ptr<TrackerElementVector> vec, bool batch) {
+void device_tracker::do_device_work(std::shared_ptr<device_tracker_filter_worker> worker, 
+        std::shared_ptr<tracker_element_vector> vec, bool batch) {
 
     // Make a copy of the vector
-    std::shared_ptr<TrackerElementVector> immutable_copy;
+    std::shared_ptr<tracker_element_vector> immutable_copy;
     {
         local_shared_locker locker(&devicelist_mutex);
-        immutable_copy = std::make_shared<TrackerElementVector>(vec);
+        immutable_copy = std::make_shared<tracker_element_vector>(vec);
     }
 
-    MatchOnDevicesRaw(worker, immutable_copy, batch);
+    do_device_work_raw(worker, immutable_copy, batch);
 }
 
-void Devicetracker::MatchOnReadonlyDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, 
-        std::shared_ptr<TrackerElementVector> vec, bool batch) {
+void device_tracker::do_readonly_device_work(std::shared_ptr<device_tracker_filter_worker> worker, 
+        std::shared_ptr<tracker_element_vector> vec, bool batch) {
 
     // Make a copy of the vector
-    std::shared_ptr<TrackerElementVector> immutable_copy;
+    std::shared_ptr<tracker_element_vector> immutable_copy;
     {
         local_shared_locker locker(&devicelist_mutex);
-        immutable_copy = std::make_shared<TrackerElementVector>(vec);
+        immutable_copy = std::make_shared<tracker_element_vector>(vec);
     }
 
-    MatchOnReadonlyDevicesRaw(worker, immutable_copy, batch);
+    do_readonly_device_work_raw(worker, immutable_copy, batch);
 
 }
 
-void Devicetracker::MatchOnDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker, 
-        std::shared_ptr<TrackerElementVector> vec, bool batch) {
+void device_tracker::do_device_work_raw(std::shared_ptr<device_tracker_filter_worker> worker, 
+        std::shared_ptr<tracker_element_vector> vec, bool batch) {
 
-    kismet__for_each(vec->begin(), vec->end(), [&](SharedTrackerElement val) {
+    kismet__for_each(vec->begin(), vec->end(), [&](shared_tracker_element val) {
            if (val == nullptr)
                return;
 
@@ -959,13 +959,13 @@ void Devicetracker::MatchOnDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker>
     worker->Finalize(this);
 }
 
-void Devicetracker::MatchOnReadonlyDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker, 
-        std::shared_ptr<TrackerElementVector> vec, bool batch) {
+void device_tracker::do_readonly_device_work_raw(std::shared_ptr<device_tracker_filter_worker> worker, 
+        std::shared_ptr<tracker_element_vector> vec, bool batch) {
 
     if (vec == nullptr)
         return;
 
-    kismet__for_each(vec->begin(), vec->end(), [&](SharedTrackerElement val) {
+    kismet__for_each(vec->begin(), vec->end(), [&](shared_tracker_element val) {
            if (val == nullptr)
                return;
 
@@ -987,7 +987,7 @@ void Devicetracker::MatchOnReadonlyDevicesRaw(std::shared_ptr<DevicetrackerFilte
     worker->Finalize(this);
 }
 
-void Devicetracker::MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> worker,
+void device_tracker::do_device_work(std::shared_ptr<device_tracker_filter_worker> worker,
         const std::vector<std::shared_ptr<kis_tracked_device_base>>& vec, bool batch) {
 
     // Make a copy of the vector
@@ -997,10 +997,10 @@ void Devicetracker::MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> wo
         copy_vec = vec;
     }
 
-    MatchOnDevicesRaw(worker, copy_vec, batch);
+    do_device_work_raw(worker, copy_vec, batch);
 }
 
-void Devicetracker::MatchOnReadonlyDevices(std::shared_ptr<DevicetrackerFilterWorker> worker,
+void device_tracker::do_readonly_device_work(std::shared_ptr<device_tracker_filter_worker> worker,
         const std::vector<std::shared_ptr<kis_tracked_device_base>>& vec, bool batch) {
 
     // Make a copy of the vector
@@ -1010,13 +1010,13 @@ void Devicetracker::MatchOnReadonlyDevices(std::shared_ptr<DevicetrackerFilterWo
         copy_vec = vec;
     }
 
-    MatchOnReadonlyDevicesRaw(worker, copy_vec, batch);
+    do_readonly_device_work_raw(worker, copy_vec, batch);
 }
 
-void Devicetracker::MatchOnDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker,
+void device_tracker::do_device_work_raw(std::shared_ptr<device_tracker_filter_worker> worker,
         const std::vector<std::shared_ptr<kis_tracked_device_base>>& vec, bool batch) {
 
-    kismet__for_each(vec.begin(), vec.end(), [&](SharedTrackerElement val) {
+    kismet__for_each(vec.begin(), vec.end(), [&](shared_tracker_element val) {
             if (val == nullptr)
                 return;
 
@@ -1036,10 +1036,10 @@ void Devicetracker::MatchOnDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker>
     worker->Finalize(this);
 }
 
-void Devicetracker::MatchOnReadonlyDevicesRaw(std::shared_ptr<DevicetrackerFilterWorker> worker,
+void device_tracker::do_readonly_device_work_raw(std::shared_ptr<device_tracker_filter_worker> worker,
         const std::vector<std::shared_ptr<kis_tracked_device_base>>& vec, bool batch) {
 
-    kismet__for_each(vec.begin(), vec.end(), [&](SharedTrackerElement val) {
+    kismet__for_each(vec.begin(), vec.end(), [&](shared_tracker_element val) {
             if (val == nullptr)
                 return;
 
@@ -1059,12 +1059,12 @@ void Devicetracker::MatchOnReadonlyDevicesRaw(std::shared_ptr<DevicetrackerFilte
     worker->Finalize(this);
 }
 
-void Devicetracker::MatchOnDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, bool batch) {
-    MatchOnDevices(worker, immutable_tracked_vec, batch);
+void device_tracker::do_device_work(std::shared_ptr<device_tracker_filter_worker> worker, bool batch) {
+    do_device_work(worker, immutable_tracked_vec, batch);
 }
 
-void Devicetracker::MatchOnReadonlyDevices(std::shared_ptr<DevicetrackerFilterWorker> worker, bool batch) {
-    MatchOnReadonlyDevices(worker, immutable_tracked_vec, batch);
+void device_tracker::do_readonly_device_work(std::shared_ptr<device_tracker_filter_worker> worker, bool batch) {
+    do_readonly_device_work(worker, immutable_tracked_vec, batch);
 }
 
 // Simple std::sort comparison function to order by the least frequently
@@ -1075,7 +1075,7 @@ bool devicetracker_sort_lastseen(std::shared_ptr<kis_tracked_device_base> a,
 	return a->get_last_time() < b->get_last_time();
 }
 
-int Devicetracker::timetracker_event(int eventid) {
+int device_tracker::timetracker_event(int eventid) {
     if (eventid == device_idle_timer) {
         local_locker lock(&devicelist_mutex);
 
@@ -1124,7 +1124,7 @@ int Devicetracker::timetracker_event(int eventid) {
                     }), tracked_vec.end());
 
         if (purged)
-            UpdateFullRefresh();
+            update_full_refresh();
 
     } else if (eventid == max_devices_timer) {
 		local_locker lock(&devicelist_mutex);
@@ -1138,7 +1138,7 @@ int Devicetracker::timetracker_event(int eventid) {
 			return 1;
 
         // Do an update since we're trimming something
-        UpdateFullRefresh();
+        update_full_refresh();
 
 		// Now things start getting expensive.  Start by sorting the
 		// vector of devices - anything else that has to sort the entire list
@@ -1180,25 +1180,25 @@ int Devicetracker::timetracker_event(int eventid) {
     return 1;
 }
 
-void Devicetracker::usage(const char *name __attribute__((unused))) {
+void device_tracker::usage(const char *name __attribute__((unused))) {
     printf("\n");
 	printf(" *** Device Tracking Options ***\n");
 	printf("     --device-timeout=n       Expire devices after N seconds\n"
           );
 }
 
-void Devicetracker::lock_devicelist() {
+void device_tracker::lock_devicelist() {
     local_eol_locker lock(&devicelist_mutex);
 }
 
-void Devicetracker::unlock_devicelist() {
+void device_tracker::unlock_devicelist() {
     local_unlocker unlock(&devicelist_mutex);
 }
 
-int Devicetracker::Database_UpgradeDB() {
+int device_tracker::database_upgrade_db() {
     local_locker dblock(&ds_mutex);
 
-    unsigned int dbv = Database_GetDBVersion();
+    unsigned int dbv = database_get_db_version();
     std::string sql;
     int r;
     char *sErrMsg = NULL;
@@ -1247,7 +1247,7 @@ int Devicetracker::Database_UpgradeDB() {
                 [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
 
         if (r != SQLITE_OK) {
-            _MSG("Devicetracker unable to create device_names table in " + ds_dbfile + ": " +
+            _MSG("device_tracker unable to create device_names table in " + ds_dbfile + ": " +
                     std::string(sErrMsg), MSGFLAG_ERROR);
             sqlite3_close(db);
             db = NULL;
@@ -1267,7 +1267,7 @@ int Devicetracker::Database_UpgradeDB() {
                 [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
 
         if (r != SQLITE_OK) {
-            _MSG("Devicetracker unable to create device_tags table in " + ds_dbfile + ": " +
+            _MSG("device_tracker unable to create device_tags table in " + ds_dbfile + ": " +
                     std::string(sErrMsg), MSGFLAG_ERROR);
             sqlite3_close(db);
             db = NULL;
@@ -1275,16 +1275,16 @@ int Devicetracker::Database_UpgradeDB() {
         }
     }
 
-    Database_SetDBVersion(4);
+    database_set_db_version(4);
 
     return 0;
 }
 
-void Devicetracker::AddDevice(std::shared_ptr<kis_tracked_device_base> device) {
+void device_tracker::add_device(std::shared_ptr<kis_tracked_device_base> device) {
     local_locker lock(&devicelist_mutex);
 
-    if (FetchDevice(device->get_key()) != NULL) {
-        _MSG("Devicetracker tried to add device " + device->get_macaddr().Mac2String() + 
+    if (fetch_device(device->get_key()) != NULL) {
+        _MSG("device_tracker tried to add device " + device->get_macaddr().mac_to_string() + 
                 " which already exists", MSGFLAG_ERROR);
         return;
     }
@@ -1301,11 +1301,11 @@ void Devicetracker::AddDevice(std::shared_ptr<kis_tracked_device_base> device) {
     tracked_mac_multimap.emplace(mm_pair);
 }
 
-bool Devicetracker::add_view(std::shared_ptr<DevicetrackerView> in_view) {
+bool device_tracker::add_view(std::shared_ptr<device_tracker_view> in_view) {
     local_locker l(&view_mutex);
 
     for (auto i : *view_vec) {
-        auto vi = std::static_pointer_cast<DevicetrackerView>(i);
+        auto vi = std::static_pointer_cast<device_tracker_view>(i);
         if (vi->get_view_id() == in_view->get_view_id()) 
             return false;
     }
@@ -1314,17 +1314,17 @@ bool Devicetracker::add_view(std::shared_ptr<DevicetrackerView> in_view) {
 
     for (auto i : *immutable_tracked_vec) {
         auto di = std::static_pointer_cast<kis_tracked_device_base>(i);
-        in_view->newDevice(di);
+        in_view->new_device(di);
     }
 
     return true;
 }
 
-void Devicetracker::remove_view(const std::string& in_id) {
+void device_tracker::remove_view(const std::string& in_id) {
     local_locker l(&view_mutex);
         
     for (auto i = view_vec->begin(); i != view_vec->end(); ++i) {
-        auto vi = std::static_pointer_cast<DevicetrackerView>(*i);
+        auto vi = std::static_pointer_cast<device_tracker_view>(*i);
         if (vi->get_view_id() == in_id) {
             view_vec->erase(i);
             return;
@@ -1332,36 +1332,36 @@ void Devicetracker::remove_view(const std::string& in_id) {
     }
 }
 
-void Devicetracker::new_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
+void device_tracker::new_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
     local_shared_locker l(&view_mutex);
 
     for (auto i : *view_vec) {
-        auto vi = std::static_pointer_cast<DevicetrackerView>(i);
-        vi->newDevice(in_device);
+        auto vi = std::static_pointer_cast<device_tracker_view>(i);
+        vi->new_device(in_device);
     }
 }
 
-void Devicetracker::update_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
+void device_tracker::update_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
     local_shared_locker l(&view_mutex);
 
     for (auto i : *view_vec) {
-        auto vi = std::static_pointer_cast<DevicetrackerView>(i);
-        vi->updateDevice(in_device);
+        auto vi = std::static_pointer_cast<device_tracker_view>(i);
+        vi->update_device(in_device);
     }
 }
 
-void Devicetracker::remove_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
+void device_tracker::remove_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
     local_shared_locker l(&view_mutex);
 
     for (auto i : *view_vec) {
-        auto vi = std::static_pointer_cast<DevicetrackerView>(i);
-        vi->removeDevice(in_device);
+        auto vi = std::static_pointer_cast<device_tracker_view>(i);
+        vi->remove_device(in_device);
     }
 }
 
-int Devicetracker::store_devices() {
-    auto devs = std::make_shared<TrackerElementVector>();
-    auto immutable_copy = std::make_shared<TrackerElementVector>(immutable_tracked_vec);
+int device_tracker::store_devices() {
+    auto devs = std::make_shared<tracker_element_vector>();
+    auto immutable_copy = std::make_shared<tracker_element_vector>(immutable_tracked_vec);
 
     // Find anything that has changed
     for (auto v : *immutable_copy) {
@@ -1378,14 +1378,14 @@ int Devicetracker::store_devices() {
     return store_devices(devs);
 }
 
-int Devicetracker::store_all_devices() {
-    auto immutable_copy = std::make_shared<TrackerElementVector>(immutable_tracked_vec);
+int device_tracker::store_all_devices() {
+    auto immutable_copy = std::make_shared<tracker_element_vector>(immutable_tracked_vec);
     last_devicelist_saved = time(0);
 
     return store_devices(immutable_copy);
 }
 
-int Devicetracker::store_devices(std::shared_ptr<TrackerElementVector> devices) {
+int device_tracker::store_devices(std::shared_ptr<tracker_element_vector> devices) {
     if (!persistent_storage)
         return 0;
 
@@ -1397,14 +1397,14 @@ int Devicetracker::store_devices(std::shared_ptr<TrackerElementVector> devices) 
     return r;
 }
 
-void Devicetracker::databaselog_write_devices() {
-    auto dbf = Globalreg::FetchGlobalAs<KisDatabaseLogfile>();
+void device_tracker::databaselog_write_devices() {
+    auto dbf = Globalreg::FetchGlobalAs<kis_database_logfile>();
     
     if (dbf == nullptr)
         return;
 
     auto worker = 
-        std::make_shared<devicetracker_function_worker>([this, dbf](Devicetracker *, std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+        std::make_shared<devicetracker_function_worker>([this, dbf](device_tracker *, std::shared_ptr<kis_tracked_device_base> dev) -> bool {
             if (dev->get_mod_time() >= last_database_logged) {
                 dbf->log_device(dev);
             }
@@ -1412,10 +1412,10 @@ void Devicetracker::databaselog_write_devices() {
             return false;
         }, nullptr);
 
-    MatchOnReadonlyDevices(worker);
+    do_readonly_device_work(worker);
 }
 
-int Devicetracker::load_devices() {
+int device_tracker::load_devices() {
     // Deliberately don't lock the db and device list - adding to the device list should
     // always be safe and handled by the add device locking, and the database should
     // be quiet during startup; we don't want a long load process to break the
@@ -1424,7 +1424,7 @@ int Devicetracker::load_devices() {
     if (!persistent_storage || persistent_mode != MODE_ONSTART || statestore == NULL)
         return 0;
 
-    if (!Database_Valid())
+    if (!database_valid())
         return 0;
 
     int r;
@@ -1441,20 +1441,20 @@ int Devicetracker::load_devices() {
 
 // Attempt to load a single device from the database, return NULL if it wasn't found
 // or if there was an error
-std::shared_ptr<kis_tracked_device_base> Devicetracker::load_device(Kis_Phy_Handler *in_phy,
+std::shared_ptr<kis_tracked_device_base> device_tracker::load_device(kis_phy_handler *in_phy,
         mac_addr in_mac) {
 
     if (!persistent_storage || persistent_mode != MODE_ONDEMAND || statestore == NULL)
         return NULL;
 
-    if (!statestore->Database_Valid())
+    if (!statestore->database_valid())
         return NULL;
 
     return statestore->load_device(in_phy, in_mac);
 }
 
 std::shared_ptr<kis_tracked_device_base> 
-Devicetracker::convert_stored_device(mac_addr macaddr,
+device_tracker::convert_stored_device(mac_addr macaddr,
         const unsigned char *raw_stored_data, unsigned long stored_len) {
 
     try {
@@ -1478,23 +1478,23 @@ Devicetracker::convert_stored_device(mac_addr macaddr,
         std::string uzbuf(std::istreambuf_iterator<char>(istream), {});
 
         // Read out the structured json
-        SharedStructured sjson(new StructuredJson(uzbuf));
+        shared_structured sjson(new structured_json(uzbuf));
 
         // Process structured object into a shared element
-        SharedTrackerElement e = 
-            StorageLoader::storage_to_tracker(sjson);
+        shared_tracker_element e = 
+            storage_loader::storage_to_tracker(sjson);
 
-        if (e->get_type() != TrackerType::TrackerMap) 
-            throw StructuredDataException(fmt::format("Expected a TrackerMap from loading the storage "
+        if (e->get_type() != tracker_type::tracker_map) 
+            throw structured_data_exception(fmt::format("Expected a tracker_map from loading the storage "
                     "element, but got {}", e->type_to_typestring(e->get_type())));
 
         // Adopt it into a device
         auto kdb = std::make_shared<kis_tracked_device_base>(device_base_id, 
-                std::static_pointer_cast<TrackerElementMap>(e));
+                std::static_pointer_cast<tracker_element_map>(e));
 
         // Give all the phys a shot at it
         for (auto p : phy_handler_map)
-            p.second->LoadPhyStorage(e, kdb);
+            p.second->load_phy_storage(e, kdb);
 
         // Update the server uuid in case we don't have it
         if (kdb->get_server_uuid().error)
@@ -1502,23 +1502,23 @@ Devicetracker::convert_stored_device(mac_addr macaddr,
 
         // Update the manuf in case we added a manuf db
         if (globalreg->manufdb != NULL)
-            kdb->set_manuf(globalreg->manufdb->LookupOUI(kdb->get_macaddr()));
+            kdb->set_manuf(globalreg->manufdb->lookup_oui(kdb->get_macaddr()));
 
         return kdb;
     } catch (const zstr::Exception& e) {
-        _MSG("Unable to decompress stored device data (" + macaddr.Mac2String() + "); the "
+        _MSG("Unable to decompress stored device data (" + macaddr.mac_to_string() + "); the "
                 "stored device will be skipped: " + std::string(e.what()), MSGFLAG_ERROR);
         return NULL;
-    } catch (const StructuredDataException& e) {
-        _MSG("Could not parse stored device data (" + macaddr.Mac2String() + "); the "
+    } catch (const structured_data_exception& e) {
+        _MSG("Could not parse stored device data (" + macaddr.mac_to_string() + "); the "
                 "stored device will be skipped: " + std::string(e.what()), MSGFLAG_ERROR);
         return NULL;
     } catch (const std::runtime_error&e ) {
-        _MSG("Could not parse stored device data (" + macaddr.Mac2String() + "); the "
+        _MSG("Could not parse stored device data (" + macaddr.mac_to_string() + "); the "
                 "stored device will be skipped: " + std::string(e.what()), MSGFLAG_ERROR);
         return NULL;
     } catch (const std::exception& e) {
-        _MSG("Unable to load a stored device (" + macaddr.Mac2String() + "); the stored "
+        _MSG("Unable to load a stored device (" + macaddr.mac_to_string() + "); the stored "
                 "device will be skipped: " + std::string(e.what()), MSGFLAG_ERROR);
         return NULL;
     }
@@ -1526,11 +1526,11 @@ Devicetracker::convert_stored_device(mac_addr macaddr,
     return NULL;
 }
 
-void Devicetracker::load_stored_username(std::shared_ptr<kis_tracked_device_base> in_dev) {
+void device_tracker::load_stored_username(std::shared_ptr<kis_tracked_device_base> in_dev) {
     // Lock the database; we're doing a single query
     local_locker dblock(&ds_mutex);
 
-    if (!Database_Valid())
+    if (!database_valid())
         return;
 
     // Lock the device itself
@@ -1549,7 +1549,7 @@ void Devicetracker::load_stored_username(std::shared_ptr<kis_tracked_device_base
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
 
     if (r != SQLITE_OK) {
-        _MSG("Devicetracker unable to prepare database query for stored devicename in " +
+        _MSG("device_tracker unable to prepare database query for stored devicename in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         return;
     }
@@ -1570,7 +1570,7 @@ void Devicetracker::load_stored_username(std::shared_ptr<kis_tracked_device_base
         } else if (r == SQLITE_DONE) {
             break;
         } else {
-            _MSG("Devicetracker encountered an error loading stored device username: " + 
+            _MSG("device_tracker encountered an error loading stored device username: " + 
                     std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
             break;
         }
@@ -1579,11 +1579,11 @@ void Devicetracker::load_stored_username(std::shared_ptr<kis_tracked_device_base
     sqlite3_finalize(stmt);
 }
 
-void Devicetracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> in_dev) {
+void device_tracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> in_dev) {
     // Lock the database; we're doing a single query
     local_locker dblock(&ds_mutex);
 
-    if (!Database_Valid())
+    if (!database_valid())
         return;
 
     // Lock the device itself
@@ -1602,7 +1602,7 @@ void Devicetracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> in
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
 
     if (r != SQLITE_OK) {
-        _MSG("Devicetracker unable to prepare database query for stored devicetag in " +
+        _MSG("device_tracker unable to prepare database query for stored devicetag in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         return;
     }
@@ -1620,14 +1620,14 @@ void Devicetracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> in
             tagstr = (const unsigned char *) sqlite3_column_text(stmt, 0);
             contentstr = (const unsigned char *) sqlite3_column_text(stmt, 1);
 
-            auto tagc = std::make_shared<TrackerElementString>();
+            auto tagc = std::make_shared<tracker_element_string>();
             tagc->set(std::string((const char *) contentstr));
 
             in_dev->get_tag_map()->insert(std::string((const char *) tagstr), tagc);
         } else if (r == SQLITE_DONE) {
             break;
         } else {
-            _MSG("Devicetracker encountered an error loading stored device username: " + 
+            _MSG("device_tracker encountered an error loading stored device username: " + 
                     std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
             break;
         }
@@ -1636,7 +1636,7 @@ void Devicetracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> in
     sqlite3_finalize(stmt);
 }
 
-void Devicetracker::SetDeviceUserName(std::shared_ptr<kis_tracked_device_base> in_dev,
+void device_tracker::set_device_user_name(std::shared_ptr<kis_tracked_device_base> in_dev,
         std::string in_username) {
 
     // Lock the device itself
@@ -1644,7 +1644,7 @@ void Devicetracker::SetDeviceUserName(std::shared_ptr<kis_tracked_device_base> i
 
     in_dev->set_username(in_username);
 
-    if (!Database_Valid()) {
+    if (!database_valid()) {
         _MSG("Unable to store device name to permanent storage, the database connection "
                 "is not available", MSGFLAG_ERROR);
         return;
@@ -1666,7 +1666,7 @@ void Devicetracker::SetDeviceUserName(std::shared_ptr<kis_tracked_device_base> i
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
 
     if (r != SQLITE_OK) {
-        _MSG("Devicetracker unable to prepare database insert for device name in " +
+        _MSG("device_tracker unable to prepare database insert for device name in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         return;
     }
@@ -1687,13 +1687,13 @@ void Devicetracker::SetDeviceUserName(std::shared_ptr<kis_tracked_device_base> i
     return;
 }
 
-void Devicetracker::SetDeviceTag(std::shared_ptr<kis_tracked_device_base> in_dev,
+void device_tracker::set_device_tag(std::shared_ptr<kis_tracked_device_base> in_dev,
         std::string in_tag, std::string in_content) {
 
     // Lock the device itself
     local_locker devlocker(&(in_dev->device_mutex));
 
-    auto e = std::make_shared<TrackerElementString>();
+    auto e = std::make_shared<tracker_element_string>();
     e->set(in_content);
 
     auto sm = in_dev->get_tag_map();
@@ -1705,7 +1705,7 @@ void Devicetracker::SetDeviceTag(std::shared_ptr<kis_tracked_device_base> in_dev
         sm->insert(in_tag, e);
     }
 
-    if (!Database_Valid()) {
+    if (!database_valid()) {
         _MSG("Unable to store device name to permanent storage, the database connection "
                 "is not available", MSGFLAG_ERROR);
         return;
@@ -1727,7 +1727,7 @@ void Devicetracker::SetDeviceTag(std::shared_ptr<kis_tracked_device_base> in_dev
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
 
     if (r != SQLITE_OK) {
-        _MSG("Devicetracker unable to prepare database insert for device tags in " +
+        _MSG("device_tracker unable to prepare database insert for device tags in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         return;
     }
@@ -1749,8 +1749,8 @@ void Devicetracker::SetDeviceTag(std::shared_ptr<kis_tracked_device_base> in_dev
     return;
 }
 
-void Devicetracker::HandleNewDatasourceEvent(std::shared_ptr<EventbusEvent> evt) {
-    auto ds_evt = std::static_pointer_cast<Datasourcetracker::EventNewDatasource>(evt);
+void device_tracker::handle_new_datasource_event(std::shared_ptr<eventbus_event> evt) {
+    auto ds_evt = std::static_pointer_cast<datasource_tracker::event_new_datasource>(evt);
 
     if (map_seenby_views) {
         auto source_uuid = ds_evt->datasource->get_source_uuid();
@@ -1760,9 +1760,9 @@ void Devicetracker::HandleNewDatasourceEvent(std::shared_ptr<EventbusEvent> evt)
 
         if (k == seenby_view_map.end()) {
             auto seenby_view =
-                std::make_shared<DevicetrackerView>(fmt::format("seenby-{}", source_uuid), 
+                std::make_shared<device_tracker_view>(fmt::format("seenby-{}", source_uuid), 
                         fmt::format("Devices seen by datasource {}", source_uuid),
-                        std::vector<std::string>{"seenby-uuid", source_uuid.asString()},
+                        std::vector<std::string>{"seenby-uuid", source_uuid.as_string()},
                         [source_key](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
                             return dev->get_seenby_map()->find(source_key) != dev->get_seenby_map()->end();
                         },
@@ -1775,21 +1775,21 @@ void Devicetracker::HandleNewDatasourceEvent(std::shared_ptr<EventbusEvent> evt)
     }
 }
 
-DevicetrackerStateStore::DevicetrackerStateStore(GlobalRegistry *in_globalreg,
-        Devicetracker *in_devicetracker) :
-    KisDatabase(in_globalreg, "devicestate") {
+device_tracker_state_store::device_tracker_state_store(global_registry *in_globalreg,
+        device_tracker *in_devicetracker) :
+    kis_database(in_globalreg, "devicestate") {
 
     devicetracker = in_devicetracker;
 
     // Open and upgrade the DB, default path
-    Database_Open("");
-    Database_UpgradeDB();
+    database_open("");
+    database_upgrade_db();
 }
 
-int DevicetrackerStateStore::Database_UpgradeDB() {
+int device_tracker_state_store::database_upgrade_db() {
     local_locker dblock(&ds_mutex);
 
-    unsigned int dbv = Database_GetDBVersion();
+    unsigned int dbv = database_get_db_version();
     std::string sql;
     int r;
     char *sErrMsg = NULL;
@@ -1814,7 +1814,7 @@ int DevicetrackerStateStore::Database_UpgradeDB() {
                 [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
 
         if (r != SQLITE_OK) {
-            _MSG("Devicetracker unable to create device_storage table in " + ds_dbfile + ": " +
+            _MSG("device_tracker unable to create device_storage table in " + ds_dbfile + ": " +
                     std::string(sErrMsg), MSGFLAG_ERROR);
             sqlite3_close(db);
             db = NULL;
@@ -1835,7 +1835,7 @@ int DevicetrackerStateStore::Database_UpgradeDB() {
                 [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
 
         if (r != SQLITE_OK) {
-            _MSG("Devicetracker unable to clear device_storage table in " + ds_dbfile + ": " +
+            _MSG("device_tracker unable to clear device_storage table in " + ds_dbfile + ": " +
                     std::string(sErrMsg), MSGFLAG_ERROR);
             sqlite3_close(db);
             db = NULL;
@@ -1843,12 +1843,12 @@ int DevicetrackerStateStore::Database_UpgradeDB() {
         }
     }
 
-    Database_SetDBVersion(2);
+    database_set_db_version(2);
 
     return 0;
 }
 
-int DevicetrackerStateStore::clear_old_devices() {
+int device_tracker_state_store::clear_old_devices() {
     local_locker dblock(&ds_mutex);
 
     std::string sql;
@@ -1856,7 +1856,7 @@ int DevicetrackerStateStore::clear_old_devices() {
     int r;
     char *sErrMsg = NULL;
 
-    if (!Database_Valid())
+    if (!database_valid())
         return 0;
 
     if (devicetracker->persistent_storage_timeout == 0)
@@ -1871,7 +1871,7 @@ int DevicetrackerStateStore::clear_old_devices() {
     r = sqlite3_exec(db, sql.c_str(), NULL, NULL, &sErrMsg);
 
     if (r != SQLITE_OK) {
-        _MSG("Devicetracker unable to delete timed out devices in " + ds_dbfile + ": " +
+        _MSG("device_tracker unable to delete timed out devices in " + ds_dbfile + ": " +
                 std::string(sErrMsg), MSGFLAG_ERROR);
         sqlite3_close(db);
         db = NULL;
@@ -1881,7 +1881,7 @@ int DevicetrackerStateStore::clear_old_devices() {
     return 1;
 }
 
-int DevicetrackerStateStore::clear_all_devices() {
+int device_tracker_state_store::clear_all_devices() {
     local_locker dblock(&ds_mutex);
 
     std::string sql;
@@ -1889,7 +1889,7 @@ int DevicetrackerStateStore::clear_all_devices() {
     int r;
     char *sErrMsg = NULL;
 
-    if (!Database_Valid())
+    if (!database_valid())
         return 0;
 
     if (devicetracker->persistent_storage_timeout == 0)
@@ -1900,7 +1900,7 @@ int DevicetrackerStateStore::clear_all_devices() {
     r = sqlite3_exec(db, sql.c_str(), NULL, NULL, &sErrMsg);
 
     if (r != SQLITE_OK) {
-        _MSG("Devicetracker unable to delete timed out devices in " + ds_dbfile + ": " +
+        _MSG("device_tracker unable to delete timed out devices in " + ds_dbfile + ": " +
                 std::string(sErrMsg), MSGFLAG_ERROR);
         sqlite3_close(db);
         db = NULL;
@@ -1911,8 +1911,8 @@ int DevicetrackerStateStore::clear_all_devices() {
 }
 
 
-int DevicetrackerStateStore::load_devices() {
-    if (!Database_Valid())
+int device_tracker_state_store::load_devices() {
+    if (!database_valid())
         return 0;
 
     std::string sql;
@@ -1938,7 +1938,7 @@ int DevicetrackerStateStore::load_devices() {
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
 
     if (r != SQLITE_OK) {
-        _MSG("Devicetracker unable to prepare database query for stored devices in " +
+        _MSG("device_tracker unable to prepare database query for stored devices in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         return -1;
     }
@@ -1977,7 +1977,7 @@ int DevicetrackerStateStore::load_devices() {
                 devicetracker->convert_stored_device(m, rowstr, rowlen);
 
             if (kdb != NULL) {
-                devicetracker->AddDevice(kdb);
+                devicetracker->add_device(kdb);
                 num_devices++;
             }
         } else if (r == SQLITE_DONE) {
@@ -1997,16 +1997,16 @@ int DevicetrackerStateStore::load_devices() {
 // Attempt to load a single device from the database, return NULL if it wasn't found
 // or if there was an error
 std::shared_ptr<kis_tracked_device_base> 
-DevicetrackerStateStore::load_device(Kis_Phy_Handler *in_phy, mac_addr in_mac) {
-    if (!Database_Valid())
+device_tracker_state_store::load_device(kis_phy_handler *in_phy, mac_addr in_mac) {
+    if (!database_valid())
         return NULL;
 
     // Lock the database; we're doing a single query
     local_locker dblock(&ds_mutex);
 
     std::string sql;
-    std::string macstring = in_mac.Mac2String();
-    std::string phystring = in_phy->FetchPhyName();
+    std::string macstring = in_mac.mac_to_string();
+    std::string phystring = in_phy->fetch_phy_name();
 
     int r;
     sqlite3_stmt *stmt = NULL;
@@ -2019,7 +2019,7 @@ DevicetrackerStateStore::load_device(Kis_Phy_Handler *in_phy, mac_addr in_mac) {
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
 
     if (r != SQLITE_OK) {
-        _MSG("Devicetracker unable to prepare database query for stored device in " +
+        _MSG("device_tracker unable to prepare database query for stored device in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         return NULL;
     }
@@ -2053,10 +2053,10 @@ DevicetrackerStateStore::load_device(Kis_Phy_Handler *in_phy, mac_addr in_mac) {
     return NULL;
 }
 
-int DevicetrackerStateStore::store_devices(std::shared_ptr<TrackerElementVector> devices) {
+int device_tracker_state_store::store_devices(std::shared_ptr<tracker_element_vector> devices) {
     local_locker lock(&ds_mutex);
 
-    if (!Database_Valid()) {
+    if (!database_valid()) {
         _MSG("Unable to snapshot device records!  The database connection to " +
                 ds_dbfile + " is invalid...", MSGFLAG_ERROR);
         return 0;
@@ -2076,7 +2076,7 @@ int DevicetrackerStateStore::store_devices(std::shared_ptr<TrackerElementVector>
     r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
 
     if (r != SQLITE_OK) {
-        _MSG("Devicetracker unable to prepare database insert for devices in " +
+        _MSG("device_tracker unable to prepare database insert for devices in " +
                 ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
         return -1;
     }
@@ -2084,7 +2084,7 @@ int DevicetrackerStateStore::store_devices(std::shared_ptr<TrackerElementVector>
     // Use a function worker to insert it into the db
     auto fw = std::make_shared<devicetracker_function_worker>(
             [this, &stmt] 
-                (Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
+                (device_tracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
                 std::shared_ptr<kis_tracked_device_base> kdb =
                     std::static_pointer_cast<kis_tracked_device_base>(d);
 
@@ -2111,10 +2111,10 @@ int DevicetrackerStateStore::store_devices(std::shared_ptr<TrackerElementVector>
                 sbuf.str("");
                 sqlite3_reset(stmt);
 
-                // Pack a storage formatted blob
+                // pack a storage formatted blob
                 {
                     local_locker lock(&(devicetracker->devicelist_mutex));
-                    StorageJsonAdapter::Pack(*serialstream, d, NULL);
+                    storage_json_adapter::pack(*serialstream, d, NULL);
                 }
 
                 // Sync the buffers
@@ -2123,7 +2123,7 @@ int DevicetrackerStateStore::store_devices(std::shared_ptr<TrackerElementVector>
 
                 serialstring = sbuf.str();
 
-                macstring = kdb->get_macaddr().Mac2String();
+                macstring = kdb->get_macaddr().mac_to_string();
                 phystring = kdb->get_phyname();
 
                 sqlite3_bind_int(stmt, 1, kdb->get_first_time());
@@ -2139,7 +2139,7 @@ int DevicetrackerStateStore::store_devices(std::shared_ptr<TrackerElementVector>
 
     // Perform the write as a single transaction
     sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
-    devicetracker->MatchOnDevices(fw, devices);
+    devicetracker->do_device_work(fw, devices);
     sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
 
     sqlite3_finalize(stmt);

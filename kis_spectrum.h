@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -24,37 +24,37 @@
 #include "kis_datasource.h"
 
 // Sweep record with full data
-class Spectrum_Sweep : public tracker_component {
+class spectrum_sweep : public tracker_component {
 public:
-    Spectrum_Sweep(GlobalRegistry *in_globalreg, int in_id) :
+    spectrum_sweep(global_registry *in_globalreg, int in_id) :
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(NULL);
     }
 
-    Spectrum_Sweep(GlobalRegistry *in_globalreg, int in_id, SharedTrackerElement e) :
+    spectrum_sweep(global_registry *in_globalreg, int in_id, shared_tracker_element e) :
         tracker_component(in_globalreg, in_id) {
         register_fields();
         reserve_fields(e);
     }
 
-    virtual SharedTrackerElement clone_type() {
-        return SharedTrackerElement(new Spectrum_Sweep(globalreg, get_id()));
+    virtual shared_tracker_element clone_type() {
+        return shared_tracker_element(new spectrum_sweep(globalreg, get_id()));
     }
 
     virtual void register_fields() {
         tracker_component::register_fields();
 
-        RegisterField("kismet.spectrum.sweep.num_samples", TrackerUInt64,
+        register_field("kismet.spectrum.sweep.num_samples", tracker_uint64,
                 "Number of samples per sweep record", &num_samples_sweep);
-        RegisterField("kismet.spectrum.sweep.start_mhz", TrackerUInt64,
+        register_field("kismet.spectrum.sweep.start_mhz", tracker_uint64,
                 "Starting frequency of sweep (MHz)", &start_mhz);
-        RegisterField("kismet.spectrum.sweep.bin_hz", TrackerUInt64,
+        register_field("kismet.spectrum.sweep.bin_hz", tracker_uint64,
                 "Sample width / Bin size (Hz)", &sample_hz_width);
-        RegisterField("kismet.spectrum.sweep.samples_per_freq,", TrackerUInt64,
+        register_field("kismet.spectrum.sweep.samples_per_freq,", tracker_uint64,
                 "Samples per frequency", &samples_per_freq);
 
-        RegisterField("kismet.spectrum.samples", TrackerVector, 
+        register_field("kismet.spectrum.samples", tracker_vector, 
                 "Vector of sample data, in dbm", &sample_vec);
 
     }
@@ -66,19 +66,19 @@ public:
 
 protected:
 
-    SharedTrackerElement num_samples_sweep;
-    SharedTrackerElement start_mhz;
-    SharedTrackerElement sample_hz_width;
-    SharedTrackerElement samples_per_freq;
+    shared_tracker_element num_samples_sweep;
+    shared_tracker_element start_mhz;
+    shared_tracker_element sample_hz_width;
+    shared_tracker_element samples_per_freq;
 
-    SharedTrackerElement sample_vec;
+    shared_tracker_element sample_vec;
 
 };
 
 // Spectrum-specific sub-type of Kismet data sources
-class SpectrumDatasource : public KisDatasource {
+class spectrum_datasource : public kis_datasource {
 public:
-    SpectrumDatasource(GlobalRegistry *in_globalreg, SharedDatasourceBuilder in_builder);
+    spectrum_datasource(global_registry *in_globalreg, shared_datasource_builder in_builder);
 
     // Configure sweeping
     virtual void set_sweep(uint64_t in_start_mhz, uint64_t in_end_mhz, uint64_t in_num_per_freq,
@@ -113,41 +113,41 @@ protected:
     virtual void register_fields() {
         tracker_component::register_fields();
 
-        RegisterField("kismet.spectrum.device.configurable", TrackerUInt8,
+        register_field("kismet.spectrum.device.configurable", tracker_uint8,
                 "spectrum range is configurable (bool)", &spectrum_configurable);
 
-        RegisterField("kismet.spectrum.device.min_mhz", TrackerUInt64,
+        register_field("kismet.spectrum.device.min_mhz", tracker_uint64,
                 "minimum frequency of spectrum sweep (Hz)", &spectrum_min_mhz);
-        RegisterField("kismet.spectrum.device.max_mhz", TrackerUInt64,
+        register_field("kismet.spectrum.device.max_mhz", tracker_uint64,
                 "maximum frequency of spectrum sweep (Hz)", &spectrum_max_mhz);
-        RegisterField("kismet.spectrum.device.min_bin_mhz", TrackerUInt64,
+        register_field("kismet.spectrum.device.min_bin_mhz", tracker_uint64,
                 "minimum size of frequency bin (Hz)", &spectrum_min_bin_mhz);
-        RegisterField("kismet.spectrum.device.max_bin_mhz", TrackerUInt64,
+        register_field("kismet.spectrum.device.max_bin_mhz", tracker_uint64,
                 "maximum size of frequency bin (Hz)", &spectrum_max_bin_mhz);
-        RegisterField("kismet.spectrum.device.min_num_samples_per", TrackerUInt64,
+        register_field("kismet.spectrum.device.min_num_samples_per", tracker_uint64,
                 "minimum number of samples per frequency bin", &spectrum_min_num_samples_per);
-        RegisterField("kismet.spectrum.device.max_num_samples_per", TrackerUInt64,
+        register_field("kismet.spectrum.device.max_num_samples_per", tracker_uint64,
                 "maximum number of samples per frequency bin", &spectrum_max_num_samples_per);
 
-        RegisterField("kismet.spectrum.device.amp", TrackerUInt8,
+        register_field("kismet.spectrum.device.amp", tracker_uint8,
                 "amplifier enabled", &spectrum_amp);
 
-        RegisterField("kismet.spectrum.device.gain_if", TrackerUInt64,
+        register_field("kismet.spectrum.device.gain_if", tracker_uint64,
                 "lna/if gain", &spectrum_gain_if);
-        RegisterField("kismet.spectrum.device.gain_if_min", TrackerUInt64,
+        register_field("kismet.spectrum.device.gain_if_min", tracker_uint64,
                 "lna/if minimum gain", &spectrum_gain_if_min);
-        RegisterField("kismet.spectrum.device.gain_if_max", TrackerUInt64,
+        register_field("kismet.spectrum.device.gain_if_max", tracker_uint64,
                 "lna/if maximum gain", &spectrum_gain_if_max);
-        RegisterField("kismet.spectrum.device.gain_if_step", TrackerUInt64,
+        register_field("kismet.spectrum.device.gain_if_step", tracker_uint64,
                 "lna/if gain step", &spectrum_gain_if_step);
 
-        RegisterField("kismet.spectrum.device.gain_baseband", TrackerUInt64,
+        register_field("kismet.spectrum.device.gain_baseband", tracker_uint64,
                 "VGA/baseband gain", &spectrum_gain_baseband);
-        RegisterField("kismet.spectrum.device.gain_baseband_min", TrackerUInt64,
+        register_field("kismet.spectrum.device.gain_baseband_min", tracker_uint64,
                 "VGA/baseband minimum gain", &spectrum_gain_baseband_min);
-        RegisterField("kismet.spectrum.device.gain_baseband_max", TrackerUInt64,
+        register_field("kismet.spectrum.device.gain_baseband_max", tracker_uint64,
                 "VGA/baseband maximum gain", &spectrum_gain_baseband_max);
-        RegisterField("kismet.spectrum.device.gain_baseband_step", TrackerUInt64,
+        register_field("kismet.spectrum.device.gain_baseband_step", tracker_uint64,
                 "VGA/baseband gain step", &spectrum_gain_baseband_step);
 
     }
@@ -172,26 +172,26 @@ protected:
     __ProxySet(int_spectrum_gain_baseband_max, uint64_t, uint64_t, spectrum_gain_baseband_max);
     __ProxySet(int_spectrum_gain_baseband_step, uint64_t, uint64_t, spectrum_gain_baseband_step);
 
-    SharedTrackerElement spectrum_configurable;
+    shared_tracker_element spectrum_configurable;
 
-    SharedTrackerElement spectrum_min_mhz;
-    SharedTrackerElement spectrum_max_mhz;
-    SharedTrackerElement spectrum_min_bin_hz;
-    SharedTrackerElement spectrum_max_bin_hz;
-    SharedTrackerElement spectrum_min_num_samples_per;
-    SharedTrackerElement spectrum_max_num_samples_per;
+    shared_tracker_element spectrum_min_mhz;
+    shared_tracker_element spectrum_max_mhz;
+    shared_tracker_element spectrum_min_bin_hz;
+    shared_tracker_element spectrum_max_bin_hz;
+    shared_tracker_element spectrum_min_num_samples_per;
+    shared_tracker_element spectrum_max_num_samples_per;
 
-    SharedTrackerElement spectrum_amp;
+    shared_tracker_element spectrum_amp;
 
-    SharedTrackerElement spectrum_gain_if;
-    SharedTrackerElement spectrum_gain_if_min;
-    SharedTrackerElement spectrum_gain_if_max;
-    SharedTrackerElement spectrum_gain_if_step;
+    shared_tracker_element spectrum_gain_if;
+    shared_tracker_element spectrum_gain_if_min;
+    shared_tracker_element spectrum_gain_if_max;
+    shared_tracker_element spectrum_gain_if_step;
 
-    SharedTrackerElement spectrum_gain_baseband;
-    SharedTrackerElement spectrum_gain_baseband_min;
-    SharedTrackerElement spectrum_gain_baseband_max;
-    SharedTrackerElement spectrum_gain_baseband_step;
+    shared_tracker_element spectrum_gain_baseband;
+    shared_tracker_element spectrum_gain_baseband_min;
+    shared_tracker_element spectrum_gain_baseband_max;
+    shared_tracker_element spectrum_gain_baseband_step;
     
     
 };

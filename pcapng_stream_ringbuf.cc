@@ -20,8 +20,8 @@
 
 #include "pcapng_stream_ringbuf.h"
 
-Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg,
-        std::shared_ptr<BufferHandlerGeneric> in_handler,
+pcap_stream_ringbuf::pcap_stream_ringbuf(global_registry *in_globalreg,
+        std::shared_ptr<buffer_handler_generic> in_handler,
         std::function<bool (kis_packet *)> accept_filter,
         std::function<kis_datachunk * (kis_packet *)> data_selector,
         bool block_for_buffer) : 
@@ -35,16 +35,16 @@ Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg,
     locker_required_bytes {0} {
 
     packetchain = 
-        std::static_pointer_cast<Packetchain>(globalreg->FetchGlobal("PACKETCHAIN"));
+        std::static_pointer_cast<packet_chain>(globalreg->FetchGlobal("PACKETCHAIN"));
 
-    pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
-    pack_comp_datasrc = packetchain->RegisterPacketComponent("KISDATASRC");
+    pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
+    pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");
 
     // Set the buffer locker
     if (block_for_buffer) {
-        handler->SetReadBufferDrainCb([this](size_t) {
+        handler->set_read_buffer_drain_cb([this](size_t) {
             local_locker l(&required_bytes_mutex);
-            if (locker_required_bytes != 0 && handler->GetWriteBufferAvailable() > locker_required_bytes) {
+            if (locker_required_bytes != 0 && handler->get_write_buffer_available() > locker_required_bytes) {
                 buffer_available_locker.unlock(1);
                 locker_required_bytes = 0;
             }
@@ -56,13 +56,13 @@ Pcap_Stream_Ringbuf::Pcap_Stream_Ringbuf(GlobalRegistry *in_globalreg,
         return;
 }
 
-Pcap_Stream_Ringbuf::~Pcap_Stream_Ringbuf() {
-    handler->ProtocolError();
+pcap_stream_ringbuf::~pcap_stream_ringbuf() {
+    handler->protocol_error();
 }
 
-int Pcap_Stream_Ringbuf::lock_until_writeable(ssize_t req_bytes) {
+int pcap_stream_ringbuf::lock_until_writeable(ssize_t req_bytes) {
     // Got the space already?  We're fine.
-    if (handler->GetWriteBufferAvailable() >= req_bytes) {
+    if (handler->get_write_buffer_available() >= req_bytes) {
         return 1;
     }
 
@@ -86,19 +86,19 @@ int Pcap_Stream_Ringbuf::lock_until_writeable(ssize_t req_bytes) {
     return 1;
 }
 
-void Pcap_Stream_Ringbuf::stop_stream(std::string in_reason) {
+void pcap_stream_ringbuf::stop_stream(std::string in_reason) {
     // Unlock the conditional with an error
     buffer_available_locker.unlock(-1);
 }
 
-ssize_t Pcap_Stream_Ringbuf::buffer_available() {
+ssize_t pcap_stream_ringbuf::buffer_available() {
     if (handler != nullptr) 
-        return handler->GetWriteBufferAvailable();
+        return handler->get_write_buffer_available();
 
     return 0;
 }
 
-int Pcap_Stream_Ringbuf::pcapng_make_shb(std::string in_hw, std::string in_os, std::string in_app) {
+int pcap_stream_ringbuf::pcapng_make_shb(std::string in_hw, std::string in_os, std::string in_app) {
     uint8_t *buf = NULL;
     pcapng_shb *shb;
 
@@ -182,10 +182,10 @@ int Pcap_Stream_Ringbuf::pcapng_make_shb(std::string in_hw, std::string in_os, s
     opt->option_code = PCAPNG_OPT_ENDOFOPT;
     opt->option_length = 0;
 
-    write_sz = handler->PutWriteBufferData(buf, buf_sz, true);
+    write_sz = handler->put_write_buffer_data(buf, buf_sz, true);
 
     if (write_sz != buf_sz) {
-        handler->ProtocolError();
+        handler->protocol_error();
         delete[] buf;
         return -1;
     }
@@ -195,10 +195,10 @@ int Pcap_Stream_Ringbuf::pcapng_make_shb(std::string in_hw, std::string in_os, s
     // Put the trailing size
     *end_sz += 4;
     
-    write_sz = handler->PutWriteBufferData(end_sz, 4, true);
+    write_sz = handler->put_write_buffer_data(end_sz, 4, true);
 
     if (write_sz != 4) {
-        handler->ProtocolError();
+        handler->protocol_error();
         delete[] buf;
         return -1;
     }
@@ -210,7 +210,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_shb(std::string in_hw, std::string in_os, s
     return 1;
 }
 
-int Pcap_Stream_Ringbuf::pcapng_make_idb(KisDatasource *in_datasource) {
+int pcap_stream_ringbuf::pcapng_make_idb(kis_datasource *in_datasource) {
     
     std::string ifname;
     ifname = in_datasource->get_source_name();
@@ -224,7 +224,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(KisDatasource *in_datasource) {
             in_datasource->get_source_dlt());
 }
 
-int Pcap_Stream_Ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, std::string in_interface, 
+int pcap_stream_ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, std::string in_interface, 
         std::string in_desc, int in_dlt) {
     // Put it in the map of datasource IDs to local log IDs.  The sequential 
     // position in the list of IDBs is the size of the map because we never
@@ -297,10 +297,10 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, std::stri
     opt->option_code = PCAPNG_OPT_ENDOFOPT;
     opt->option_length = 0;
 
-    write_sz = handler->PutWriteBufferData(retbuf, buf_sz, true);
+    write_sz = handler->put_write_buffer_data(retbuf, buf_sz, true);
 
     if (write_sz != buf_sz) {
-        handler->ProtocolError();
+        handler->protocol_error();
         delete[] retbuf;
         return -1;
     }
@@ -310,10 +310,10 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, std::stri
     // Put the trailing size
     *end_sz += 4;
     
-    write_sz = handler->PutWriteBufferData(end_sz, 4, true);
+    write_sz = handler->put_write_buffer_data(end_sz, 4, true);
 
     if (write_sz != 4) {
-        handler->ProtocolError();
+        handler->protocol_error();
         delete[] retbuf;
         return -1;
     }
@@ -325,7 +325,7 @@ int Pcap_Stream_Ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, std::stri
     return logid;
 }
 
-int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber, 
+int pcap_stream_ringbuf::pcapng_write_packet(unsigned int in_sourcenumber, 
         struct timeval *in_tv, std::vector<data_block> in_blocks) {
     local_locker lg(packet_mutex);
 
@@ -364,11 +364,11 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
         return 0;
     }
 
-    ssize_t r = handler->ReserveWriteBufferData((void **) &retbuf, buf_sz);
+    ssize_t r = handler->reserve_write_buffer_data((void **) &retbuf, buf_sz);
 
     if (r != (ssize_t) buf_sz) {
-        handler->CommitWriteBufferData(NULL, 0);
-        handler->ProtocolError();
+        handler->commit_write_buffer_data(NULL, 0);
+        handler->protocol_error();
         return -1;
     }
 
@@ -391,10 +391,10 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
     epb->original_length = aggregate_block_sz;
 
     // Write the header to the ringbuf
-    write_sz = handler->CommitWriteBufferData(retbuf, buf_sz);
+    write_sz = handler->commit_write_buffer_data(retbuf, buf_sz);
 
     if (!write_sz) {
-        handler->ProtocolError();
+        handler->protocol_error();
         return -1;
     }
 
@@ -403,10 +403,10 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
     // Write all the incoming blocks sequentially
     for (auto db : in_blocks) {
         // Write the data to the ringbuf
-        write_sz = handler->PutWriteBufferData(db.data, db.len, true);
+        write_sz = handler->put_write_buffer_data(db.data, db.len, true);
 
         if (write_sz != db.len) {
-            handler->ProtocolError();
+            handler->protocol_error();
             return -1;
         }
 
@@ -420,10 +420,10 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
     pad_sz = PAD_TO_32BIT(aggregate_block_sz) - aggregate_block_sz;
 
     if (pad_sz > 0) {
-        write_sz = handler->PutWriteBufferData(&pad, pad_sz, true);
+        write_sz = handler->put_write_buffer_data(&pad, pad_sz, true);
 
         if (write_sz != pad_sz) {
-            handler->ProtocolError();
+            handler->protocol_error();
             return -1;
         }
 
@@ -434,7 +434,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
     retbuf = new uint8_t[sizeof(pcapng_option_t)];
 
     if (retbuf == NULL) {
-        handler->ProtocolError();
+        handler->protocol_error();
         return -1;
     }
 
@@ -443,10 +443,10 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
     opt->option_code = PCAPNG_OPT_ENDOFOPT;
     opt->option_length = 0;
 
-    write_sz = handler->PutWriteBufferData(retbuf, sizeof(pcapng_option_t), true);
+    write_sz = handler->put_write_buffer_data(retbuf, sizeof(pcapng_option_t), true);
 
     if (write_sz != sizeof(pcapng_option_t)) {
-        handler->ProtocolError();
+        handler->protocol_error();
         delete[] retbuf;
         return -1;
     }
@@ -458,10 +458,10 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
     // Put the trailing size
     *end_sz += 4;
     
-    write_sz = handler->PutWriteBufferData(end_sz, 4, true);
+    write_sz = handler->put_write_buffer_data(end_sz, 4, true);
 
     if (write_sz != 4) {
-        handler->ProtocolError();
+        handler->protocol_error();
         return -1;
     }
 
@@ -470,10 +470,10 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
     return 1;
 }
 
-int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet, kis_datachunk *in_data) {
+int pcap_stream_ringbuf::pcapng_write_packet(kis_packet *in_packet, kis_datachunk *in_data) {
     local_locker lg(packet_mutex);
 
-    SharedDatasource kis_datasource;
+    shared_datasource kis_datasource;
 
     packetchain_comp_datasource *datasrcinfo = 
         (packetchain_comp_datasource *) in_packet->fetch(pack_comp_datasrc);
@@ -510,7 +510,7 @@ int Pcap_Stream_Ringbuf::pcapng_write_packet(kis_packet *in_packet, kis_datachun
 //
 // Interface descriptors are automatically created during packet insertion, and
 // packets linked to the proper interface.
-void Pcap_Stream_Ringbuf::handle_packet(kis_packet *in_packet) {
+void pcap_stream_ringbuf::handle_packet(kis_packet *in_packet) {
     kis_datachunk *target_datachunk;
 
     // If we have an accept filter and it rejects, we're done
@@ -544,35 +544,35 @@ void Pcap_Stream_Ringbuf::handle_packet(kis_packet *in_packet) {
 
     // Bail if this pushes us over the max
     if (check_over_size() || check_over_packets()) {
-        handler->ProtocolError();
+        handler->protocol_error();
     }
 }
 
-Pcap_Stream_Packetchain::Pcap_Stream_Packetchain(GlobalRegistry *in_globalreg,
-        std::shared_ptr<BufferHandlerGeneric> in_handler,
+pcap_stream_packetchain::pcap_stream_packetchain(global_registry *in_globalreg,
+        std::shared_ptr<buffer_handler_generic> in_handler,
         std::function<bool (kis_packet *)> accept_filter,
         std::function<kis_datachunk * (kis_packet *)> data_selector) :
-    Pcap_Stream_Ringbuf(in_globalreg, in_handler, accept_filter, data_selector, false) {
+    pcap_stream_ringbuf(in_globalreg, in_handler, accept_filter, data_selector, false) {
 
-    packethandler_id = packetchain->RegisterHandler([this](kis_packet *packet) {
+    packethandler_id = packetchain->register_handler([this](kis_packet *packet) {
             handle_packet(packet);
             return 1;
         }, CHAINPOS_LOGGING, -100);
 }
 
-Pcap_Stream_Packetchain::~Pcap_Stream_Packetchain() {
-    packetchain->RemoveHandler(packethandler_id, CHAINPOS_LOGGING);
-    handler->ProtocolError();
+pcap_stream_packetchain::~pcap_stream_packetchain() {
+    packetchain->remove_handler(packethandler_id, CHAINPOS_LOGGING);
+    handler->protocol_error();
 }
 
-void Pcap_Stream_Packetchain::stop_stream(std::string in_reason) {
+void pcap_stream_packetchain::stop_stream(std::string in_reason) {
     // We have to spawn a thread to deal with this because we're inside the locking
     // chain of the buffer handler when we get a stream stop event, sometimes
     std::thread t([this]() {
-            packetchain->RemoveHandler(packethandler_id, CHAINPOS_LOGGING);
+            packetchain->remove_handler(packethandler_id, CHAINPOS_LOGGING);
             });
 
-    Pcap_Stream_Ringbuf::stop_stream(in_reason);
+    pcap_stream_ringbuf::stop_stream(in_reason);
     t.join();
 }
 

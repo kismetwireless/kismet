@@ -28,11 +28,11 @@
 #include "kis_net_microhttpd.h"
 #include "trackedlocation.h"
 
-class KisGpsBuilder;
-typedef std::shared_ptr<KisGpsBuilder> SharedGpsBuilder;
+class kis_gps_builder;
+typedef std::shared_ptr<kis_gps_builder> shared_gps_builder;
 
-class KisGps;
-typedef std::shared_ptr<KisGps> SharedGps;
+class kis_gps;
+typedef std::shared_ptr<kis_gps> shared_gps;
 
 // Packet info attached to each packet, if there isn't already GPS info present
 class kis_gps_packinfo : public packet_component {
@@ -113,35 +113,35 @@ public:
 
 /* GPS manager which handles configuring GPS sources and deciding which one
  * is going to be used */
-class GpsTracker : public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal {
+class gps_tracker : public kis_net_httpd_cppstream_handler, public lifetime_global {
 public:
     static std::string global_name() { return "GPSTRACKER"; }
 
-    static std::shared_ptr<GpsTracker> create_gpsmanager() {
-        std::shared_ptr<GpsTracker> mon(new GpsTracker());
-        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-        Globalreg::globalreg->InsertGlobal(global_name(), mon);
+    static std::shared_ptr<gps_tracker> create_gpsmanager() {
+        std::shared_ptr<gps_tracker> mon(new gps_tracker());
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-    GpsTracker();
+    gps_tracker();
 
 public:
-    virtual ~GpsTracker();
+    virtual ~gps_tracker();
 
-    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+    virtual bool httpd_verify_path(const char *path, const char *method);
 
-    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
 
     // Register a gps builer prototype
-    void register_gps_builder(SharedGpsBuilder in_builder);
+    void register_gps_builder(shared_gps_builder in_builder);
 
     // Create a GPS from a definition string
-    std::shared_ptr<KisGps> create_gps(std::string in_definition);
+    std::shared_ptr<kis_gps> create_gps(std::string in_definition);
 
     // Remove a GPS by UUID
     bool remove_gps(uuid in_uuid);
@@ -159,11 +159,11 @@ public:
 protected:
     kis_recursive_timed_mutex gpsmanager_mutex;
 
-    std::shared_ptr<TrackerElementVector> gps_prototypes_vec;
+    std::shared_ptr<tracker_element_vector> gps_prototypes_vec;
 
     // GPS instances, as a vector, sorted by priority; we don't mind doing a 
     // linear search because we'll typically have very few GPS devices
-    std::shared_ptr<TrackerElementVector> gps_instances_vec;
+    std::shared_ptr<tracker_element_vector> gps_instances_vec;
 
     // Extra field we insert into a location triplet
     int tracked_uuid_addition_id;

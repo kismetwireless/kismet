@@ -28,7 +28,7 @@
  * Needed to handle b64 encoded post data for the webserver
  */
 
-class Base64 {
+class base64 {
 public:
     /* Decode a string; return raw data if it was valid */
     static std::string decode(std::string in_str);

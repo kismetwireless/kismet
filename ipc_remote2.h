@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -46,20 +46,20 @@
  *
  */
 
-class IPCRemoteV2Tracker;
+class ipc_remote_v2_tracker;
 
-class IPCRemoteV2 {
+class ipc_remote_v2 {
 public:
-    IPCRemoteV2(GlobalRegistry *in_globalreg, std::shared_ptr<BufferHandlerGeneric> in_rbhandler);
-    virtual ~IPCRemoteV2();
+    ipc_remote_v2(global_registry *in_globalreg, std::shared_ptr<buffer_handler_generic> in_rbhandler);
+    virtual ~ipc_remote_v2();
 
-    virtual void SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
+    virtual void set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
 
     // Add paths to look for binary in.  Paths are searched in the order
     // they are added
     void add_path(std::string in_path);
 
-    // Close IPC and issue a soft-kill
+    // close IPC and issue a soft-kill
     void close_ipc();
 
     // Launch a binary with specified arguments.
@@ -94,18 +94,18 @@ public:
     void set_tracker_free(bool in_free);
 
 protected:
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
 
     std::shared_ptr<kis_recursive_timed_mutex> ipc_mutex;
 
-    std::shared_ptr<IPCRemoteV2Tracker> remotehandler;
-    std::shared_ptr<PollableTracker> pollabletracker;
+    std::shared_ptr<ipc_remote_v2_tracker> remotehandler;
+    std::shared_ptr<pollable_tracker> pollabletracker;
 
     // Handler for proxying IPC results
-    std::shared_ptr<BufferHandlerGeneric> ipchandler;
+    std::shared_ptr<buffer_handler_generic> ipchandler;
 
     // Client that reads/writes from the pipes and populates the IPC
-    std::shared_ptr<PipeClient> pipeclient;
+    std::shared_ptr<pipe_client> pipeclient;
 
     bool tracker_free;
 
@@ -126,31 +126,31 @@ protected:
  * and shutdown.
  *
  */
-class IPCRemoteV2Tracker : public TimetrackerEvent, public LifetimeGlobal {
+class ipc_remote_v2_tracker : public time_tracker_event, public lifetime_global {
 public:
     static std::string global_name() { return "IPCHANDLER"; }
 
-    static std::shared_ptr<IPCRemoteV2Tracker> create_ipcremote(GlobalRegistry *in_globalreg) {
-        std::shared_ptr<IPCRemoteV2Tracker> mon(new IPCRemoteV2Tracker(in_globalreg));
-        in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal(global_name(), mon);
+    static std::shared_ptr<ipc_remote_v2_tracker> create_ipcremote(global_registry *in_globalreg) {
+        std::shared_ptr<ipc_remote_v2_tracker> mon(new ipc_remote_v2_tracker(in_globalreg));
+        in_globalreg->register_lifetime_global(mon);
+        in_globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-    IPCRemoteV2Tracker(GlobalRegistry *in_globalreg);
+    ipc_remote_v2_tracker(global_registry *in_globalreg);
 
 public:
-    virtual ~IPCRemoteV2Tracker();
+    virtual ~ipc_remote_v2_tracker();
 
     // Add an IPC handler to tracking
-    void add_ipc(std::shared_ptr<IPCRemoteV2> in_remote);
+    void add_ipc(std::shared_ptr<ipc_remote_v2> in_remote);
     // Remove an IPC handler from tracking.  Does NOT destroy or close the IPC
     // handler.  Return the handler which was removed.  Searches by raw pointer.
-    std::shared_ptr<IPCRemoteV2> remove_ipc(IPCRemoteV2 *in_remote);
+    std::shared_ptr<ipc_remote_v2> remove_ipc(ipc_remote_v2 *in_remote);
     // Remove an IPC handler from tracking by PID.  Does NOT destroy or close
     // the IPC handler.  Return the handler which was removed.
-    std::shared_ptr<IPCRemoteV2> remove_ipc(pid_t in_pid);
+    std::shared_ptr<ipc_remote_v2> remove_ipc(pid_t in_pid);
 
     // Kill all spawned processes
     void kill_all_ipc(bool in_hardkill);
@@ -160,16 +160,16 @@ public:
     // more than in_max_delay.
     int ensure_all_ipc_killed(int in_soft_delay, int in_max_delay);
 
-    // Timetracker API
+    // time_tracker API
     virtual int timetracker_event(int event_id);
 
 protected:
     kis_recursive_timed_mutex ipc_mutex;
 
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
 
-    std::vector<std::shared_ptr<IPCRemoteV2>> process_vec;
-    std::vector<std::shared_ptr<IPCRemoteV2>> cleanup_vec;
+    std::vector<std::shared_ptr<ipc_remote_v2>> process_vec;
+    std::vector<std::shared_ptr<ipc_remote_v2>> cleanup_vec;
 
     int timer_id, cleanup_timer_id;
 

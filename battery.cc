@@ -534,7 +534,7 @@ int Fetch_Battery_NetBSD(kis_battery_info *out __attribute__((unused))) {
     return 0;
 }
 
-int Fetch_Battery_Info(kis_battery_info *out) {
+int fetch_battery_info(kis_battery_info *out) {
 	out->percentage = 0;
 	out->charging = 0;
 	out->remaining_sec = 0;

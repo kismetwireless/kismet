@@ -70,18 +70,18 @@
  *
  */
 
-class Datasourcetracker;
-class KisDatasource;
-class DST_Worker;
+class datasource_tracker;
+class kis_datasource;
+class datasource_tracker_worker;
 
 // Worker class used to perform work on the list of packet-sources in a thread
 // safe / continuity safe context.
-class DST_Worker {
+class datasource_tracker_worker {
 public:
-    DST_Worker() { };
+    datasource_tracker_worker() { };
 
     // Handle a data source when working on iterate_datasources
-    virtual void handle_datasource(std::shared_ptr<KisDatasource> in_src __attribute__((unused))) { };
+    virtual void handle_datasource(std::shared_ptr<kis_datasource> in_src __attribute__((unused))) { };
 
     // All data sources have been processed in iterate_datasources
     virtual void finalize() { };
@@ -97,16 +97,16 @@ public:
 // probes are cancelled.
 //
 // After 5 seconds, probing is cancelled.
-class DST_DatasourceProbe {
+class datasource_tracker_source_probe {
 public:
-    DST_DatasourceProbe(std::string in_definition, std::shared_ptr<TrackerElementVector> in_protovec);
-    virtual ~DST_DatasourceProbe();
+    datasource_tracker_source_probe(std::string in_definition, std::shared_ptr<tracker_element_vector> in_protovec);
+    virtual ~datasource_tracker_source_probe();
 
-    void probe_sources(std::function<void (SharedDatasourceBuilder)> in_cb);
+    void probe_sources(std::function<void (shared_datasource_builder)> in_cb);
 
     std::string get_definition() { return definition; }
 
-    SharedDatasourceBuilder get_proto();
+    shared_datasource_builder get_proto();
 
     // Complete a probe - when the last one completes we're done
     void complete_probe(bool in_success, unsigned int in_transaction, std::string in_reason);
@@ -114,34 +114,34 @@ public:
     void cancel();
 
 protected:
-    kis_recursive_timed_mutex probe_lock;
+    std::shared_ptr<kis_recursive_timed_mutex> probe_lock;
 
-    std::shared_ptr<Timetracker> timetracker;
+    std::shared_ptr<time_tracker> timetracker;
 
     // Probing instances
-    std::map<unsigned int, SharedDatasource> ipc_probe_map;
+    std::map<unsigned int, shared_datasource> ipc_probe_map;
 
-    std::shared_ptr<TrackerElementVector> proto_vec;
+    std::shared_ptr<tracker_element_vector> proto_vec;
 
     // Vector of sources which are complete and waiting for cleanup
-    std::vector<SharedDatasource> complete_vec;
+    std::vector<shared_datasource> complete_vec;
 
     // Vector of timer events to make sure are dead before we destruct
     std::vector<int> cancel_timer_vec;
 
     // Prototype we found
-    SharedDatasourceBuilder source_builder;
+    shared_datasource_builder source_builder;
 
     // Transaction ID
     std::atomic<unsigned int> transaction_id;
 
     std::string definition;
 
-    std::function<void (SharedDatasourceBuilder)> probe_cb;
+    std::function<void (shared_datasource_builder)> probe_cb;
     std::atomic<bool> cancelled;
 };
 
-typedef std::shared_ptr<DST_DatasourceProbe> SharedDSTProbe;
+typedef std::shared_ptr<datasource_tracker_source_probe> shared_dst_source_probe;
 
 // List all interface supported by a phy
 //
@@ -155,81 +155,81 @@ typedef std::shared_ptr<DST_DatasourceProbe> SharedDSTProbe;
 // IPC sources spawned concurrently, and results aggregated.
 //
 // List requests cancelled after 5 seconds
-class DST_DatasourceList {
+class datasource_tracker_source_list {
 public:
-    DST_DatasourceList(std::shared_ptr<TrackerElementVector> in_protovec);
-    virtual ~DST_DatasourceList();
+    datasource_tracker_source_list(std::shared_ptr<tracker_element_vector> in_protovec);
+    virtual ~datasource_tracker_source_list();
 
-    void list_sources(std::function<void (std::vector<SharedInterface>)> in_cb);
+    void list_sources(std::function<void (std::vector<shared_interface>)> in_cb);
 
     std::string get_definition() { return definition; }
     
     // Complete a list - when the last one completes we're done
-    void complete_list(std::vector<SharedInterface> interfaces, unsigned int in_transaction);
+    void complete_list(std::vector<shared_interface> interfaces, unsigned int in_transaction);
 
     void cancel();
 
 protected:
-    kis_recursive_timed_mutex list_lock;
+    std::shared_ptr<kis_recursive_timed_mutex> list_lock;
 
-    std::shared_ptr<Timetracker> timetracker;
+    std::shared_ptr<time_tracker> timetracker;
 
     // Probing instances
-    std::map<unsigned int, SharedDatasource> ipc_list_map;
+    std::map<unsigned int, shared_datasource> ipc_list_map;
 
-    std::shared_ptr<TrackerElementVector> proto_vec;
+    std::shared_ptr<tracker_element_vector> proto_vec;
 
     // Vector of sources we're still waiting to return from listing 
-    std::vector<SharedDatasource> list_vec;
+    std::vector<shared_datasource> list_vec;
 
     // Vector of sources which are complete and waiting for cleanup
-    std::vector<SharedDatasource> complete_vec;
+    std::vector<shared_datasource> complete_vec;
 
     // Transaction ID
     unsigned int transaction_id;
 
     std::string definition;
 
-    std::function<void (std::vector<SharedInterface>)> list_cb;
+    std::function<void (std::vector<shared_interface>)> list_cb;
     std::atomic<bool> cancelled;
 
-    std::vector<SharedInterface> listed_sources;
+    std::vector<shared_interface> listed_sources;
 };
 
-typedef std::shared_ptr<DST_DatasourceList> SharedDSTList;
+typedef std::shared_ptr<datasource_tracker_source_list> shared_dst_source_list;
 
 // Tracker/serializable record of default values used for all datasources
-class datasourcetracker_defaults : public tracker_component {
+class datasource_tracker_defaults : public tracker_component {
 public:
-    datasourcetracker_defaults() :
+    datasource_tracker_defaults() :
         tracker_component(0) {
         register_fields();
         reserve_fields(NULL);
     }
 
-    datasourcetracker_defaults(int in_id) :
+    datasource_tracker_defaults(int in_id) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(NULL);
     }
 
-    datasourcetracker_defaults(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    datasource_tracker_defaults(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("datasourcetracker_defaults");
+        return adler32_checksum("datasource_tracker_defaults");
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
+    virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
@@ -250,50 +250,50 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.datasourcetracker.default.hop_rate",
+        register_field("kismet.datasourcetracker.default.hop_rate",
                 "default hop rate for sources", &hop_rate);
-        RegisterField("kismet.datasourcetracker.default.hop", 
+        register_field("kismet.datasourcetracker.default.hop", 
                 "do sources hop by default", &hop);
-        RegisterField("kismet.datasourcetracker.default.split", 
+        register_field("kismet.datasourcetracker.default.split", 
                 "split channels among sources with the same type", 
                 &split_same_sources);
-        RegisterField("kismet.datasourcetracker.default.random_order", 
+        register_field("kismet.datasourcetracker.default.random_order", 
                 "scramble channel order to maximize use of overlap",
                 &random_channel_order);
-        RegisterField("kismet.datasourcetracker.default.retry_on_error", 
+        register_field("kismet.datasourcetracker.default.retry_on_error", 
                 "re-open sources if an error occurs", &retry_on_error);
 
-        RegisterField("kismet.datasourcetracker.default.remote_cap_listen", 
+        register_field("kismet.datasourcetracker.default.remote_cap_listen", 
                 "listen address for remote capture",
                 &remote_cap_listen);
-        RegisterField("kismet.datasourcetracker.default.remote_cap_port",
+        register_field("kismet.datasourcetracker.default.remote_cap_port",
                 "listen port for remote capture",
                 &remote_cap_port);
 
-        RegisterField("kismet.datasourcetracker.default.remote_cap_timestamp",
+        register_field("kismet.datasourcetracker.default.remote_cap_timestamp",
                 "overwrite remote capture timestamp with server timestamp",
                 &remote_cap_timestamp);
     }
 
     // Double hoprate per second
-    std::shared_ptr<TrackerElementDouble> hop_rate;
+    std::shared_ptr<tracker_element_double> hop_rate;
 
     // Boolean, do we hop at all
-    std::shared_ptr<TrackerElementUInt8> hop;
+    std::shared_ptr<tracker_element_uint8> hop;
 
     // Boolean, do we try to split channels up among the same driver?
-    std::shared_ptr<TrackerElementUInt8> split_same_sources;
+    std::shared_ptr<tracker_element_uint8> split_same_sources;
 
     // Boolean, do we scramble the hop pattern?
-    std::shared_ptr<TrackerElementUInt8> random_channel_order;
+    std::shared_ptr<tracker_element_uint8> random_channel_order;
 
     // Boolean, do we retry on errors?
-    std::shared_ptr<TrackerElementUInt8> retry_on_error;
+    std::shared_ptr<tracker_element_uint8> retry_on_error;
 
     // Remote listen
-    std::shared_ptr<TrackerElementString> remote_cap_listen;
-    std::shared_ptr<TrackerElementUInt32> remote_cap_port;
-    std::shared_ptr<TrackerElementUInt8> remote_cap_timestamp;
+    std::shared_ptr<tracker_element_string> remote_cap_listen;
+    std::shared_ptr<tracker_element_uint32> remote_cap_port;
+    std::shared_ptr<tracker_element_uint8> remote_cap_timestamp;
 
 };
 
@@ -301,11 +301,11 @@ protected:
 // simple packet protocol enough to get a NEWSOURCE command; The resulting source
 // type, definition, uuid, and rbufhandler is passed to the callback function; the cb
 // is responsible for looking up the type, closing the connection if it is invalid, etc.
-class dst_incoming_remote : public KisExternalInterface {
+class dst_incoming_remote : public kis_external_interface {
 public:
-    dst_incoming_remote(std::shared_ptr<BufferHandlerGeneric> in_rbufhandler,
+    dst_incoming_remote(std::shared_ptr<buffer_handler_generic> in_rbufhandler,
             std::function<void (dst_incoming_remote *, std::string srctype, std::string srcdef,
-                uuid srcuuid, std::shared_ptr<BufferHandlerGeneric> handler)> in_cb);
+                uuid srcuuid, std::shared_ptr<buffer_handler_generic> handler)> in_cb);
     ~dst_incoming_remote();
 
     // Override the dispatch commands to handle the newsource
@@ -323,67 +323,62 @@ public:
         std::swap(handshake_thread, t);
     }
 
-    virtual void BufferError(std::string in_error) override;
+    virtual void buffer_error(std::string in_error) override;
 
 protected:
     // Timeout for killing this connection
     int timerid;
 
     std::function<void (dst_incoming_remote *, std::string, std::string, uuid, 
-            std::shared_ptr<BufferHandlerGeneric> )> cb;
+            std::shared_ptr<buffer_handler_generic> )> cb;
 
     std::thread handshake_thread;
 };
 
 // Fwd def of datasource pcap feed
-class Datasourcetracker_Httpd_Pcap;
+class datasource_tracker_httpd_pcap;
 
-class Datasourcetracker : public Kis_Net_Httpd_CPPStream_Handler, 
-    public LifetimeGlobal, public DeferredStartup, public TcpServerV2 {
+class datasource_tracker : public kis_net_httpd_cppstream_handler, 
+    public lifetime_global, public deferred_startup {
 public:
-    static std::shared_ptr<Datasourcetracker> create_dst() {
-        auto mon = std::make_shared<Datasourcetracker>();
-        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-        Globalreg::globalreg->InsertGlobal(global_name(), mon);
-        Globalreg::globalreg->RegisterDeferredGlobal(mon);
-
-        auto pollabletracker =
-            Globalreg::FetchMandatoryGlobalAs<PollableTracker>("POLLABLETRACKER");
-        pollabletracker->RegisterPollable(mon);
-
+    static std::shared_ptr<datasource_tracker> create_dst() {
+        auto mon = std::make_shared<datasource_tracker>();
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global(global_name(), mon);
+        Globalreg::globalreg->register_deferred_global(mon);
         mon->datasourcetracker = mon;
         return mon;
     }
 
-    // Must be public to accomodate make_shared but should not be called directly
-    Datasourcetracker();
+    // Must be public to accommodate make_shared but should not be called directly
+    datasource_tracker();
 
 public:
-    virtual ~Datasourcetracker();
+    virtual ~datasource_tracker();
 
     static std::string global_name() { return "DATASOURCETRACKER"; }
 
     // Start up the system once kismet is up and running; this happens just before
     // the main select loop in kismet
-    virtual void Deferred_Startup() override;
+    virtual void trigger_deferred_startup() override;
 
     // Shut down all sources, this happens as kismet is terminating
-    virtual void Deferred_Shutdown() override;
+    virtual void trigger_deferred_shutdown() override;
 
-    // Eventbus event we inject when a new ds is added
-    class EventNewDatasource : public EventbusEvent {
+    // event_bus event we inject when a new ds is added
+    class event_new_datasource : public eventbus_event {
     public:
         static std::string Event() { return "NEW_DATASOURCE"; }
-        EventNewDatasource(std::shared_ptr<KisDatasource> source) :
-            EventbusEvent(Event()),
+        event_new_datasource(std::shared_ptr<kis_datasource> source) :
+            eventbus_event(Event()),
             datasource{source} { }
-        virtual ~EventNewDatasource() {}
+        virtual ~event_new_datasource() {}
 
-        std::shared_ptr<KisDatasource> datasource;
+        std::shared_ptr<kis_datasource> datasource;
     };
 
     // Add a driver
-    int register_datasource(SharedDatasourceBuilder in_builder);
+    int register_datasource(shared_datasource_builder in_builder);
 
     // Handle everything about launching a source, given a basic source line
     //
@@ -393,16 +388,16 @@ public:
     // Optional completion function will be called, asynchronously,
     // on completion.
     void open_datasource(const std::string& in_source, 
-            const std::function<void (bool, std::string, SharedDatasource)>& in_cb);
+            const std::function<void (bool, std::string, shared_datasource)>& in_cb);
 
     // Launch a source with a known prototype, given a basic source line
     // and a prototype.
     //
     // Optional completion function will be called on error or success
-    void open_datasource(const std::string& in_source, SharedDatasourceBuilder in_proto,
-            const std::function<void (bool, std::string, SharedDatasource)>& in_cb);
+    void open_datasource(const std::string& in_source, shared_datasource_builder in_proto,
+            const std::function<void (bool, std::string, shared_datasource)>& in_cb);
 
-    // Close a datasource - stop it if necessary, and place it into a closed state
+    // close a datasource - stop it if necessary, and place it into a closed state
     // without automatic reconnection.
     bool close_datasource(const uuid& in_uuid);
 
@@ -414,52 +409,54 @@ public:
             const std::string& in_type, 
             const std::string& in_definition, 
             const uuid& in_uuid,
-            std::shared_ptr<BufferHandlerGeneric> in_handler);
+            std::shared_ptr<buffer_handler_generic> in_handler);
 
     // Find a datasource
-    SharedDatasource find_datasource(const uuid& in_uuid);
+    shared_datasource find_datasource(const uuid& in_uuid);
 
     // List potential sources
     //
     // Optional completion function will be called with list of possible sources.
-    void list_interfaces(const std::function<void (std::vector<SharedInterface>)>& in_cb);
+    void list_interfaces(const std::function<void (std::vector<shared_interface>)>& in_cb);
 
     // HTTP api
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
+    virtual bool httpd_verify_path(const char *path, const char *method) override;
 
-    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream) override;
 
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) override;
+    virtual int httpd_post_complete(kis_net_httpd_connection *concls) override;
 
     // Operate on all data sources currently defined.  The datasource tracker is locked
     // during this operation, making it thread safe.
-    void iterate_datasources(DST_Worker *in_worker);
-
-    // TCPServerV2 API
-    virtual void NewConnection(std::shared_ptr<BufferHandlerGeneric> conn_handler) override;
+    void iterate_datasources(datasource_tracker_worker *in_worker);
 
     // Parse a rate string
     double string_to_rate(std::string in_str, double in_default);
 
     // Access the defaults
-    std::shared_ptr<datasourcetracker_defaults> get_config_defaults();
+    std::shared_ptr<datasource_tracker_defaults> get_config_defaults();
 
     // Queue a remote handler to be removed
     void queue_dead_remote(dst_incoming_remote *in_dead);
 
 protected:
     // Merge a source into the source list, preserving UUID and source number
-    virtual void merge_source(SharedDatasource in_source);
+    virtual void merge_source(shared_datasource in_source);
+
+    // Callback registered with the tcp server for a new connection
+    void new_remote_tcp_connection(int in_fd);
 
     // Log the datasources
     virtual void databaselog_write_datasources();
 
-    std::shared_ptr<Datasourcetracker> datasourcetracker;
-    std::shared_ptr<Timetracker> timetracker;
-    std::shared_ptr<Eventbus> eventbus;
+    std::shared_ptr<tcp_server_v2> remote_tcp_server;
+
+    std::shared_ptr<datasource_tracker> datasourcetracker;
+    std::shared_ptr<time_tracker> timetracker;
+    std::shared_ptr<event_bus> eventbus;
 
     kis_recursive_timed_mutex dst_lock;
 
@@ -467,28 +464,28 @@ protected:
     int source_id;
 
     // Available prototypes
-    std::shared_ptr<TrackerElementVector> proto_vec;
+    std::shared_ptr<tracker_element_vector> proto_vec;
 
     // Active data sources
-    std::shared_ptr<TrackerElementVector> datasource_vec;
+    std::shared_ptr<tracker_element_vector> datasource_vec;
 
     // Sub-workers probing for a source definition
-    std::map<unsigned int, SharedDSTProbe> probing_map;
+    std::map<unsigned int, shared_dst_source_probe> probing_map;
     std::atomic<unsigned int> next_probe_id;
 
     // Sub-workers slated for being removed
-    std::vector<SharedDSTProbe> probing_complete_vec;
+    std::vector<shared_dst_source_probe> probing_complete_vec;
 
     // Sub-workers listing interfaces
-    std::map<unsigned int, SharedDSTList> listing_map;
+    std::map<unsigned int, shared_dst_source_list> listing_map;
     std::atomic<unsigned int> next_list_id;
 
     // Sub-workers slated for being removed
-    std::vector<SharedDSTList> listing_complete_vec;
+    std::vector<shared_dst_source_list> listing_complete_vec;
 
     // Sources which could not be opened in any way and which do not have a UUID
     // assignment (mis-defined startup sources, for instance)
-    std::vector<SharedDatasource> broken_source_vec;
+    std::vector<shared_datasource> broken_source_vec;
 
     // Remote connections slated to be removed
     std::vector<dst_incoming_remote *> dst_remote_complete_vec;
@@ -502,55 +499,58 @@ protected:
     unsigned int next_source_num;
     std::map<uuid, unsigned int> uuid_source_num_map;
 
-    std::shared_ptr<datasourcetracker_defaults> config_defaults;
+    std::shared_ptr<datasource_tracker_defaults> config_defaults;
 
     // Re-assign channel hopping because we've opened a new source
     // and want to do channel split
-    void calculate_source_hopping(SharedDatasource in_ds);
+    void calculate_source_hopping(shared_datasource in_ds);
 
     // Our pcap http interface
-    std::shared_ptr<Datasourcetracker_Httpd_Pcap> httpd_pcap;
+    std::shared_ptr<datasource_tracker_httpd_pcap> httpd_pcap;
 
     // Datasource logging
     int database_log_timer;
     bool database_log_enabled, database_logging;
 
-    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> all_sources_endp;
-    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> defaults_endp;
-    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> types_endp;
-    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> list_interfaces_endp;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> all_sources_endp;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> defaults_endp;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> types_endp;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> list_interfaces_endp;
+
+    // Buffer sizes
+    size_t tcp_buffer_sz;
 };
 
 /* This implements the core 'all data' pcap, and pcap filtered by datasource UUID.
  */
-class Datasourcetracker_Httpd_Pcap : public Kis_Net_Httpd_Ringbuf_Stream_Handler {
+class datasource_tracker_httpd_pcap : public kis_net_httpd_ringbuf_stream_handler {
 public:
-    Datasourcetracker_Httpd_Pcap() : Kis_Net_Httpd_Ringbuf_Stream_Handler() { 
-        Bind_Httpd_Server();
+    datasource_tracker_httpd_pcap() : kis_net_httpd_ringbuf_stream_handler() { 
+        bind_httpd_server();
     }
 
-    virtual ~Datasourcetracker_Httpd_Pcap() { };
+    virtual ~datasource_tracker_httpd_pcap() { };
 
     // HandleGetRequest handles generating a stream so we don't need to implement that
     // Same for HandlePostRequest
    
     // Standard path validation
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
+    virtual bool httpd_verify_path(const char *path, const char *method) override;
 
     // We use this to attach the pcap stream
-    virtual int Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+    virtual int httpd_create_stream_response(kis_net_httpd *httpd,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) override; 
 
     // We don't currently handle POSTed data
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *con __attribute__((unused))) override {
+    virtual int httpd_post_complete(kis_net_httpd_connection *con __attribute__((unused))) override {
         return 0;
     }
 
 protected:
-    std::shared_ptr<Datasourcetracker> datasourcetracker;
-    std::shared_ptr<Packetchain> packetchain;
+    std::shared_ptr<datasource_tracker> datasourcetracker;
+    std::shared_ptr<packet_chain> packetchain;
 
     int pack_comp_datasrc;
 };

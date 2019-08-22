@@ -26,44 +26,44 @@
 
 #include "xxhash_cpp.h"
 
-template<> void boost_like::hash_combine(xxHashCPP& hash, const std::string& val) {
+template<> void boost_like::hash_combine(xx_hash_cpp& hash, const std::string& val) {
     hash.update(val.data(), val.length());
 }
 
-template<> void boost_like::hash_combine(xxHashCPP& hash, const uint8_t& val) {
+template<> void boost_like::hash_combine(xx_hash_cpp& hash, const uint8_t& val) {
     hash.update(&val, sizeof(uint8_t));
 }
 
-template<> void boost_like::hash_combine(xxHashCPP& hash, const int8_t& val) {
+template<> void boost_like::hash_combine(xx_hash_cpp& hash, const int8_t& val) {
     hash.update(&val, sizeof(int8_t));
 }
 
-template<> void boost_like::hash_combine(xxHashCPP& hash, const uint16_t& val) {
+template<> void boost_like::hash_combine(xx_hash_cpp& hash, const uint16_t& val) {
     auto le = htole16(val);
     hash.update(&le, sizeof(uint16_t));
 }
 
-template<> void boost_like::hash_combine(xxHashCPP& hash, const int16_t& val) {
+template<> void boost_like::hash_combine(xx_hash_cpp& hash, const int16_t& val) {
     auto le = htole16(val);
     hash.update(&le, sizeof(int16_t));
 }
 
-template<> void boost_like::hash_combine(xxHashCPP& hash, const uint32_t& val) {
+template<> void boost_like::hash_combine(xx_hash_cpp& hash, const uint32_t& val) {
     auto le = htole32(val);
     hash.update(&le, sizeof(uint32_t));
 }
 
-template<> void boost_like::hash_combine(xxHashCPP& hash, const int32_t& val) {
+template<> void boost_like::hash_combine(xx_hash_cpp& hash, const int32_t& val) {
     auto le = htole32(val);
     hash.update(&le, sizeof(int32_t));
 }
 
-template<> void boost_like::hash_combine(xxHashCPP& hash, const uint64_t& val) {
+template<> void boost_like::hash_combine(xx_hash_cpp& hash, const uint64_t& val) {
     auto le = htole64(val);
     hash.update(&le, sizeof(uint64_t));
 }
 
-template<> void boost_like::hash_combine(xxHashCPP& hash, const int64_t& val) {
+template<> void boost_like::hash_combine(xx_hash_cpp& hash, const int64_t& val) {
     auto le = htole64(val);
     hash.update(&le, sizeof(int64_t));
 }

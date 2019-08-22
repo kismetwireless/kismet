@@ -32,61 +32,61 @@ class kis_tracked_device_base;
 
 // Filter-handler class.  Subclassed by a filter supplicant to be passed to the
 // device filter functions.
-class DevicetrackerFilterWorker {
-    friend class Devicetracker;
+class device_tracker_filter_worker {
+    friend class device_tracker;
 
 public:
-    DevicetrackerFilterWorker() {
-        matched_devices = std::make_shared<TrackerElementVector>();
+    device_tracker_filter_worker() {
+        matched_devices = std::make_shared<tracker_element_vector>();
     };
-    virtual ~DevicetrackerFilterWorker() { };
+    virtual ~device_tracker_filter_worker() { };
 
     // Perform a match on a device
-    virtual bool MatchDevice(Devicetracker *devicetracker,
+    virtual bool MatchDevice(device_tracker *devicetracker,
             std::shared_ptr<kis_tracked_device_base> base) = 0;
 
     // Finalize operations
-    virtual void Finalize(Devicetracker *devicetracker __attribute__((unused))) { }
+    virtual void Finalize(device_tracker *devicetracker __attribute__((unused))) { }
 
-    virtual std::shared_ptr<TrackerElementVector> GetMatchedDevices() {
+    virtual std::shared_ptr<tracker_element_vector> GetMatchedDevices() {
         return matched_devices;
     }
 
 protected:
-    virtual void MatchedDevice(SharedTrackerElement d) {
+    virtual void MatchedDevice(shared_tracker_element d) {
         local_locker lock(&worker_mutex);
         matched_devices->push_back(d);
     }
 
     kis_recursive_timed_mutex worker_mutex;
-    std::shared_ptr<TrackerElementVector> matched_devices;
+    std::shared_ptr<tracker_element_vector> matched_devices;
 };
 
 // C++ lambda matcher
-class devicetracker_function_worker : public DevicetrackerFilterWorker {
+class devicetracker_function_worker : public device_tracker_filter_worker {
 public:
     devicetracker_function_worker(
-            const std::function<bool (Devicetracker *, 
+            const std::function<bool (device_tracker *, 
                 std::shared_ptr<kis_tracked_device_base>)>& in_mcb,
-            const std::function<void (Devicetracker *)>& in_fcb);
+            const std::function<void (device_tracker *)>& in_fcb);
     virtual ~devicetracker_function_worker();
 
-    virtual bool MatchDevice(Devicetracker *devicetracker,
+    virtual bool MatchDevice(device_tracker *devicetracker,
             std::shared_ptr<kis_tracked_device_base> device);
 
-    virtual void Finalize(Devicetracker *devicetracker);
+    virtual void Finalize(device_tracker *devicetracker);
 
 protected:
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
 
-    std::function<bool (Devicetracker *, 
+    std::function<bool (device_tracker *, 
             std::shared_ptr<kis_tracked_device_base>)> mcb;
-    std::function<void (Devicetracker *)> fcb;
+    std::function<void (device_tracker *)> fcb;
 };
 
 // Matching worker to match fields against a string search term
 
-class devicetracker_stringmatch_worker : public DevicetrackerFilterWorker {
+class devicetracker_stringmatch_worker : public device_tracker_filter_worker {
 public:
     // Prepare the worker with the query and the vector of paths we
     // query against.  The vector of paths is equivalent to a field
@@ -99,10 +99,10 @@ public:
 
     virtual ~devicetracker_stringmatch_worker();
 
-    virtual bool MatchDevice(Devicetracker *devicetracker,
+    virtual bool MatchDevice(device_tracker *devicetracker,
             std::shared_ptr<kis_tracked_device_base> device);
 
-    virtual void Finalize(Devicetracker *devicetracker);
+    virtual void Finalize(device_tracker *devicetracker);
 
 protected:
     std::string query;
@@ -116,7 +116,7 @@ protected:
 #ifdef HAVE_LIBPCRE
 // Retrieve a list of devices based on complex field paths and
 // return them in a vector sharedtrackerelement
-class devicetracker_pcre_worker : public DevicetrackerFilterWorker {
+class devicetracker_pcre_worker : public device_tracker_filter_worker {
 public:
     class pcre_filter {
     public:
@@ -147,7 +147,7 @@ public:
     // object, which is expected to be a vector of [field, regex] pairs.
     // Results are filled into in_devvec_object which is expected to be a vector object
     // This MAY THROW EXCEPTIONS from structured parsing or the PCRE parsing!
-    devicetracker_pcre_worker(SharedStructured raw_pcre_vec);
+    devicetracker_pcre_worker(shared_structured raw_pcre_vec);
 
     // Shortcut function for building a PCRE from an incoming vector of filters
     // as a string.
@@ -161,16 +161,16 @@ public:
     // is expected to be a vector of filter strings.  Results are filled into
     // in_devvec_object which is expected to be a vector object.
     // This MAY THROW EXCEPTIONS from structured parsing or the PCRE parsing!
-    devicetracker_pcre_worker(const std::string& in_target, SharedStructured raw_pcre_vec);
+    devicetracker_pcre_worker(const std::string& in_target, shared_structured raw_pcre_vec);
 
     virtual ~devicetracker_pcre_worker();
 
     bool get_error() { return error; }
 
-    virtual bool MatchDevice(Devicetracker *devicetracker,
+    virtual bool MatchDevice(device_tracker *devicetracker,
             std::shared_ptr<kis_tracked_device_base> device);
 
-    virtual void Finalize(Devicetracker *devicetracker);
+    virtual void Finalize(device_tracker *devicetracker);
 
 protected:
     int pcre_match_id;
@@ -179,7 +179,7 @@ protected:
     bool error;
 };
 #else
-class devicetracker_pcre_worker : public DevicetrackerFilterWorker {
+class devicetracker_pcre_worker : public device_tracker_filter_worker {
 public:
     class pcre_filter {
     public:
@@ -192,11 +192,11 @@ public:
         throw(std::runtime_error("Kismet not compiled with PCRE support"));
     }
 
-    devicetracker_pcre_worker(SharedStructured raw_pcre_vec) {
+    devicetracker_pcre_worker(shared_structured raw_pcre_vec) {
         throw(std::runtime_error("Kismet not compiled with PCRE support"));
     }
 
-    devicetracker_pcre_worker(const std::string& in_target, SharedStructured raw_pcre_vec) {
+    devicetracker_pcre_worker(const std::string& in_target, shared_structured raw_pcre_vec) {
         throw(std::runtime_error("Kismet not compiled with PCRE support"));
     }
 
@@ -204,10 +204,10 @@ public:
 
     bool get_error() { return true; }
 
-    virtual bool MatchDevice(Devicetracker *devicetracker,
+    virtual bool MatchDevice(device_tracker *devicetracker,
             std::shared_ptr<kis_tracked_device_base> device) { return false; };
 
-    virtual void Finalize(Devicetracker *devicetracker) { };
+    virtual void Finalize(device_tracker *devicetracker) { };
 };
 
 

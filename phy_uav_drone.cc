@@ -77,43 +77,43 @@ bool uav_manuf_match::match_record(const mac_addr& in_mac, const std::string& in
 }
 
 
-Kis_UAV_Phy::Kis_UAV_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
-    Kis_Phy_Handler(in_globalreg, in_phyid),
-    Kis_Net_Httpd_CPPStream_Handler() {
+Kis_UAV_Phy::Kis_UAV_Phy(global_registry *in_globalreg, int in_phyid) :
+    kis_phy_handler(in_globalreg, in_phyid),
+    kis_net_httpd_cppstream_handler() {
 
     phyname = "UAV";
 
     packetchain =
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>();
+        Globalreg::fetch_mandatory_global_as<packet_chain>();
     devicetracker =
-        Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
+        Globalreg::fetch_mandatory_global_as<device_tracker>();
 
 	pack_comp_common = 
-		packetchain->RegisterPacketComponent("COMMON");
+		packetchain->register_packet_component("COMMON");
     pack_comp_80211 =
-        packetchain->RegisterPacketComponent("PHY80211");
+        packetchain->register_packet_component("PHY80211");
     pack_comp_device =
-        packetchain->RegisterPacketComponent("DEVICE");
+        packetchain->register_packet_component("DEVICE");
 
     uav_device_id =
-        Globalreg::globalreg->entrytracker->RegisterField("uav.device",
-                TrackerElementFactory<uav_tracked_device>(),
+        Globalreg::globalreg->entrytracker->register_field("uav.device",
+                tracker_element_factory<uav_tracked_device>(),
                 "UAV device");
 
     manuf_match_vec =
-        std::make_shared<TrackerElementVector>();
+        std::make_shared<tracker_element_vector>();
 
     // Tag into the packet chain at the very end so we've gotten all the other tracker
     // elements already
-    packetchain->RegisterHandler(Kis_UAV_Phy::CommonClassifier, this, CHAINPOS_TRACKER, 65535);
+    packetchain->register_handler(Kis_UAV_Phy::CommonClassifier, this, CHAINPOS_TRACKER, 65535);
 
     // Register js module for UI
     auto httpregistry = 
-        Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>();
+        Globalreg::fetch_mandatory_global_as<kis_httpd_registry>();
     httpregistry->register_js_module("kismet_ui_uav", "js/kismet.ui.uav.js");
 
     // Parse the ssid regex options
-    auto uav_lines = Globalreg::globalreg->kismet_config->FetchOptVec("uav_match");
+    auto uav_lines = Globalreg::globalreg->kismet_config->fetch_opt_vec("uav_match");
     for (auto l : uav_lines)
         parse_manuf_definition(l);
 
@@ -124,12 +124,12 @@ Kis_UAV_Phy::~Kis_UAV_Phy() {
 }
 
 
-void Kis_UAV_Phy::LoadPhyStorage(SharedTrackerElement in_storage, SharedTrackerElement in_device) {
+void Kis_UAV_Phy::load_phy_storage(shared_tracker_element in_storage, shared_tracker_element in_device) {
     if (in_storage == NULL || in_device == NULL)
         return;
 
     auto storage_map =
-        TrackerElement::safe_cast_as<TrackerElementMap>(in_storage);
+        tracker_element::safe_cast_as<tracker_element_map>(in_storage);
 
     // Does the imported record have UAV?
     auto devi = storage_map->find(uav_device_id);
@@ -137,9 +137,9 @@ void Kis_UAV_Phy::LoadPhyStorage(SharedTrackerElement in_storage, SharedTrackerE
     if (devi != storage_map->end()) {
         auto uavdev =
             std::make_shared<uav_tracked_device>(uav_device_id, 
-                    TrackerElement::safe_cast_as<TrackerElementMap>(devi->second));
+                    tracker_element::safe_cast_as<tracker_element_map>(devi->second));
 
-        TrackerElement::safe_cast_as<TrackerElementMap>(in_device)->insert(uavdev);
+        tracker_element::safe_cast_as<tracker_element_map>(in_device)->insert(uavdev);
     }
 }
 
@@ -216,7 +216,7 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
                     }
 
                     if (flightinfo->state_serial_valid()) {
-                        uavdev->set_uav_serialnumber(MungeToPrintable(flightinfo->serialnumber()));
+                        uavdev->set_uav_serialnumber(munge_to_printable(flightinfo->serialnumber()));
                     }
 
                     std::shared_ptr<uav_tracked_telemetry> telem = uavdev->new_telemetry();
@@ -255,7 +255,7 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
                         basedev->insert(uavdev);
                     }
 
-                    uavdev->set_uav_serialnumber(MungeToPrintable(flightpurpose->serialnumber()));
+                    uavdev->set_uav_serialnumber(munge_to_printable(flightpurpose->serialnumber()));
                     uavdev->set_uav_match_type("DroneID");
 
                     if (uavdev->get_uav_manufacturer() == "")
@@ -300,9 +300,9 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
 }
 
 
-bool Kis_UAV_Phy::Httpd_VerifyPath(const char *path, const char *method) {
+bool Kis_UAV_Phy::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
-        std::string stripped = Httpd_StripSuffix(path);
+        std::string stripped = httpd_strip_suffix(path);
 
         if (stripped == "/phy/phyuav/manuf_matchers")
             return true;
@@ -312,8 +312,8 @@ bool Kis_UAV_Phy::Httpd_VerifyPath(const char *path, const char *method) {
     return false;
 }
 
-void Kis_UAV_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-        Kis_Net_Httpd_Connection *connection,
+void Kis_UAV_Phy::httpd_create_stream_response(kis_net_httpd *httpd,
+        kis_net_httpd_connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
 
@@ -321,11 +321,11 @@ void Kis_UAV_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         return;
     }
 
-    std::string stripped = Httpd_StripSuffix(url);
+    std::string stripped = httpd_strip_suffix(url);
 
     if (stripped == "/phy/phyuav/manuf_matchers") {
         local_locker lock(&uav_mutex);
-        Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(url), stream, 
+        Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(url), stream, 
                 manuf_match_vec, NULL);
         return;
     }
@@ -333,7 +333,7 @@ void Kis_UAV_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     return;
 }
 
-int Kis_UAV_Phy::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+int Kis_UAV_Phy::httpd_post_complete(kis_net_httpd_connection *concls) {
     return 0;
 }
 
@@ -361,13 +361,13 @@ bool Kis_UAV_Phy::parse_manuf_definition(std::string in_def) {
     }
 
     std::vector<opt_pair> optvec;
-    StringToOpts(in_def.substr(cpos + 1, in_def.length()), ",", &optvec);
+    string_to_opts(in_def.substr(cpos + 1, in_def.length()), ",", &optvec);
 
-    std::string manuf_name = FetchOpt("name", &optvec);
-    std::string manuf_model = FetchOpt("model", &optvec);
-    std::string macstr = FetchOpt("mac", &optvec);
-    std::string ssid = FetchOpt("ssid", &optvec);
-    bool matchany = FetchOptBoolean("match_any", &optvec, false);
+    std::string manuf_name = fetch_opt("name", &optvec);
+    std::string manuf_model = fetch_opt("model", &optvec);
+    std::string macstr = fetch_opt("mac", &optvec);
+    std::string ssid = fetch_opt("ssid", &optvec);
+    bool matchany = fetch_opt_bool("match_any", &optvec, false);
 
     if (manuf_name == "") {
         _MSG("Invalid 'uav_match' configuration line, expected 'name=\"...\"' in definition, "

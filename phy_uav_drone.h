@@ -57,25 +57,25 @@ public:
         reserve_fields(NULL);
     }
 
-    uav_tracked_telemetry(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    uav_tracked_telemetry(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("uav_tracked_telemetry");
+        return adler32_checksum("uav_tracked_telemetry");
     }
 
     virtual ~uav_tracked_telemetry() { }
 
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
+    virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
@@ -131,32 +131,32 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("uav.telemetry.location", "UAV GPS location", &location);
-        RegisterField("uav.telemetry.timestamp", "timetamp (sec.usec)", &telem_ts);
-        RegisterField("uav.telemetry.yaw", "yaw", &yaw);
-        RegisterField("uav.telemetry.pitch", "pitch", &pitch);
-        RegisterField("uav.telemetry.roll", "roll", &roll);
-        RegisterField("uav.telemetry.height", "height above ground", &height);
-        RegisterField("uav.telemetry.v_north", "velocity relative to n/s", &v_north);
-        RegisterField("uav.telemetry.v_east", "velocity relative to e/w", &v_east);
-        RegisterField("uav.telemetry.v_up", "velocity relative to up/down", &v_up);
+        register_field("uav.telemetry.location", "UAV GPS location", &location);
+        register_field("uav.telemetry.timestamp", "timetamp (sec.usec)", &telem_ts);
+        register_field("uav.telemetry.yaw", "yaw", &yaw);
+        register_field("uav.telemetry.pitch", "pitch", &pitch);
+        register_field("uav.telemetry.roll", "roll", &roll);
+        register_field("uav.telemetry.height", "height above ground", &height);
+        register_field("uav.telemetry.v_north", "velocity relative to n/s", &v_north);
+        register_field("uav.telemetry.v_east", "velocity relative to e/w", &v_east);
+        register_field("uav.telemetry.v_up", "velocity relative to up/down", &v_up);
 
-        RegisterField("uav.telemetry.motor_on", "device reports motor enabled", &motor_on);
-        RegisterField("uav.telemetry.airborne", "device reports UAV is airborne", &airborne);
+        register_field("uav.telemetry.motor_on", "device reports motor enabled", &motor_on);
+        register_field("uav.telemetry.airborne", "device reports UAV is airborne", &airborne);
     }
 
     std::shared_ptr<kis_tracked_location_triplet> location;
-    std::shared_ptr<TrackerElementDouble> telem_ts;
-    std::shared_ptr<TrackerElementDouble> yaw;
-    std::shared_ptr<TrackerElementDouble> pitch;
-    std::shared_ptr<TrackerElementDouble> roll;
-    std::shared_ptr<TrackerElementDouble> height;
-    std::shared_ptr<TrackerElementDouble> v_north;
-    std::shared_ptr<TrackerElementDouble> v_east;
-    std::shared_ptr<TrackerElementDouble> v_up;
+    std::shared_ptr<tracker_element_double> telem_ts;
+    std::shared_ptr<tracker_element_double> yaw;
+    std::shared_ptr<tracker_element_double> pitch;
+    std::shared_ptr<tracker_element_double> roll;
+    std::shared_ptr<tracker_element_double> height;
+    std::shared_ptr<tracker_element_double> v_north;
+    std::shared_ptr<tracker_element_double> v_east;
+    std::shared_ptr<tracker_element_double> v_up;
 
-    std::shared_ptr<TrackerElementUInt8> motor_on;
-    std::shared_ptr<TrackerElementUInt8> airborne;
+    std::shared_ptr<tracker_element_uint8> motor_on;
+    std::shared_ptr<tracker_element_uint8> airborne;
 };
 
 // Match a manufacturer (such as OUI, SSID, or both)
@@ -186,7 +186,7 @@ public:
         reserve_fields(NULL);
     }
 
-    uav_manuf_match(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    uav_manuf_match(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
 
 #ifdef HAVE_LIBPCRE
@@ -209,7 +209,7 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("uav_match");
+        return adler32_checksum("uav_match");
     }
 
     __Proxy(uav_match_name, std::string, std::string, std::string, uav_match_name);
@@ -229,23 +229,23 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("uav_match_name", "Match name", &uav_match_name);
-        RegisterField("uav.manufmatch.name", "Matched manufacturer name", &uav_manuf_name);
-        RegisterField("uav.manufmatch.model", "Matched model name", &uav_manuf_model);
+        register_field("uav_match_name", "Match name", &uav_match_name);
+        register_field("uav.manufmatch.name", "Matched manufacturer name", &uav_manuf_name);
+        register_field("uav.manufmatch.model", "Matched model name", &uav_manuf_model);
 
-        RegisterField("uav.manufmatch.mac", "Matching mac address fragment", &uav_manuf_mac);
-        RegisterField("uav.manufmatch.ssid_regex", "Matching SSID regex", &uav_manuf_ssid_regex);
+        register_field("uav.manufmatch.mac", "Matching mac address fragment", &uav_manuf_mac);
+        register_field("uav.manufmatch.ssid_regex", "Matching SSID regex", &uav_manuf_ssid_regex);
 
-        RegisterField("uav.manufmatch.partial", 
+        register_field("uav.manufmatch.partial", 
                 "Allow partial matches (only manuf or only ssid)", &uav_manuf_partial);
     }
 
-    std::shared_ptr<TrackerElementString> uav_match_name;
-    std::shared_ptr<TrackerElementString> uav_manuf_name;
-    std::shared_ptr<TrackerElementString> uav_manuf_model;
-    std::shared_ptr<TrackerElementMacAddr> uav_manuf_mac;
-    std::shared_ptr<TrackerElementString> uav_manuf_ssid_regex;
-    std::shared_ptr<TrackerElementUInt8> uav_manuf_partial;
+    std::shared_ptr<tracker_element_string> uav_match_name;
+    std::shared_ptr<tracker_element_string> uav_manuf_name;
+    std::shared_ptr<tracker_element_string> uav_manuf_model;
+    std::shared_ptr<tracker_element_mac_addr> uav_manuf_mac;
+    std::shared_ptr<tracker_element_string> uav_manuf_ssid_regex;
+    std::shared_ptr<tracker_element_uint8> uav_manuf_partial;
 
 #ifdef HAVE_LIBPCRE
     pcre *re;
@@ -269,7 +269,7 @@ public:
         reserve_fields(NULL);
     }
 
-    uav_tracked_device(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    uav_tracked_device(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
 
         register_fields();
@@ -279,7 +279,7 @@ public:
     virtual ~uav_tracked_device() { }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("uav_tracked_device");
+        return adler32_checksum("uav_tracked_device");
     }
 
     __Proxy(uav_manufacturer, std::string, std::string, std::string, uav_manufacturer);
@@ -292,7 +292,7 @@ public:
         return std::make_shared<uav_tracked_telemetry>(telem_history_entry_id);
     }
 
-    __ProxyTrackable(uav_telem_history, TrackerElementVector, uav_telem_history);
+    __ProxyTrackable(uav_telem_history, tracker_element_vector, uav_telem_history);
 
     __Proxy(uav_match_type, std::string, std::string, std::string, uav_match_type);
 
@@ -304,55 +304,55 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("uav.manufacturer", "Manufacturer", &uav_manufacturer);
-        RegisterField("uav.model", "Model", &uav_model);
-        RegisterField("uav.serialnumber", "Serial number", &uav_serialnumber);
+        register_field("uav.manufacturer", "Manufacturer", &uav_manufacturer);
+        register_field("uav.model", "Model", &uav_model);
+        register_field("uav.serialnumber", "Serial number", &uav_serialnumber);
 
         last_telem_loc_id =
-            RegisterField("uav.last_telemetry", "Last drone telemetry location", &last_telem_loc);
+            register_field("uav.last_telemetry", "Last drone telemetry location", &last_telem_loc);
 
-        RegisterField("uav.telemetry_history", "Previous telemetry location data", &uav_telem_history);
+        register_field("uav.telemetry_history", "Previous telemetry location data", &uav_telem_history);
 
         telem_history_entry_id =
-            RegisterField("uav.telemetry_entry",
-                    TrackerElementFactory<uav_tracked_telemetry>(),
+            register_field("uav.telemetry_entry",
+                    tracker_element_factory<uav_tracked_telemetry>(),
                     "historical telemetry");
 
-        RegisterField("uav.match_type", "Match type (drone characteristics)", &uav_match_type);
+        register_field("uav.match_type", "Match type (drone characteristics)", &uav_match_type);
 
         home_location_id =
-            RegisterField("uav.telemetry.home_location", "UAV takeoff/home location",
+            register_field("uav.telemetry.home_location", "UAV takeoff/home location",
                     &home_location);
 
         matched_type_id =
-            RegisterField("uav.type", "Matched device", &matched_type);
+            register_field("uav.type", "Matched device", &matched_type);
     }
 
-    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override {
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
         tracker_component::reserve_fields(e);
 
         if (e != NULL) {
             for (auto l = uav_telem_history->begin(); l != uav_telem_history->end(); ++l) {
                 auto telem =
                     std::make_shared<uav_tracked_telemetry>(telem_history_entry_id,
-                            std::static_pointer_cast<TrackerElementMap>(*l));
+                            std::static_pointer_cast<tracker_element_map>(*l));
                 *l = telem;
             }
         }
     }
 
-    std::shared_ptr<TrackerElementString> uav_manufacturer;
-    std::shared_ptr<TrackerElementString> uav_model;
-    std::shared_ptr<TrackerElementString> uav_serialnumber;
+    std::shared_ptr<tracker_element_string> uav_manufacturer;
+    std::shared_ptr<tracker_element_string> uav_model;
+    std::shared_ptr<tracker_element_string> uav_serialnumber;
 
     std::shared_ptr<uav_tracked_telemetry> last_telem_loc;
     int last_telem_loc_id;
 
-    std::shared_ptr<TrackerElementVector> uav_telem_history;
+    std::shared_ptr<tracker_element_vector> uav_telem_history;
 
     int telem_history_entry_id;
 
-    std::shared_ptr<TrackerElementString> uav_match_type;
+    std::shared_ptr<tracker_element_string> uav_match_type;
 
     std::shared_ptr<kis_tracked_location_triplet> home_location;
     int home_location_id;
@@ -362,53 +362,53 @@ protected:
 };
 
 /* Frankenphy which absorbs other phys */
-class Kis_UAV_Phy : public Kis_Phy_Handler, public Kis_Net_Httpd_CPPStream_Handler {
+class Kis_UAV_Phy : public kis_phy_handler, public kis_net_httpd_cppstream_handler {
 public:
     virtual ~Kis_UAV_Phy();
 
-    Kis_UAV_Phy(GlobalRegistry *in_globalreg) :
-        Kis_Phy_Handler(in_globalreg),
-        Kis_Net_Httpd_CPPStream_Handler() {
-            Bind_Httpd_Server();
+    Kis_UAV_Phy(global_registry *in_globalreg) :
+        kis_phy_handler(in_globalreg),
+        kis_net_httpd_cppstream_handler() {
+            bind_httpd_server();
         }
 
-    virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg, int in_phyid) {
+    virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg, int in_phyid) {
         return new Kis_UAV_Phy(in_globalreg, in_phyid);
     }
 
-    Kis_UAV_Phy(GlobalRegistry *in_globalreg, int in_phyid);
+    Kis_UAV_Phy(global_registry *in_globalreg, int in_phyid);
 
     // Common classifier to make new UAV records
     static int CommonClassifier(CHAINCALL_PARMS);
 
     // Restore stored UAV records
-    virtual void LoadPhyStorage(SharedTrackerElement in_storage,
-            SharedTrackerElement in_device);
+    virtual void load_phy_storage(shared_tracker_element in_storage,
+            shared_tracker_element in_device);
 
     // HTTPD API
-    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+    virtual bool httpd_verify_path(const char *path, const char *method);
 
-    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
 
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls);
+    virtual int httpd_post_complete(kis_net_httpd_connection *concls);
 
 protected:
     bool parse_manuf_definition(std::string def);
 
     kis_recursive_timed_mutex uav_mutex;
 
-    std::shared_ptr<Packetchain> packetchain;
-    std::shared_ptr<Devicetracker> devicetracker;
+    std::shared_ptr<packet_chain> packetchain;
+    std::shared_ptr<device_tracker> devicetracker;
 
     /* We need to look at the dot11 packet to see if we've got a droneid ie tag */
     int pack_comp_common, pack_comp_80211, pack_comp_device;
 
     int uav_device_id;
 
-    std::shared_ptr<TrackerElementVector> manuf_match_vec;
+    std::shared_ptr<tracker_element_vector> manuf_match_vec;
 };
 
 #endif

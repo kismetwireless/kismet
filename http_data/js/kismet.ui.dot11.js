@@ -51,6 +51,82 @@ exports.crypt_version_wpa3 = (1 << 29);
 exports.crypt_l3_mask = 0x300004;
 exports.crypt_l2_mask = 0xFBFA;
 
+// Some hex and ascii manipulation
+function hexstr_to_bytes(hex) {
+    var bytes = [];
+
+    try {
+        for (var i = 0; i < hex.length - 1; i += 2) {
+            bytes.push(parseInt(hex.substr(i, 2), 16));
+        }
+    } catch (error) {
+        ;
+    }
+
+    return bytes;
+}
+
+function hexdump(b) {
+    if (typeof(b) === 'undefined' || b.length == 0)
+        return "..".repeat(8);
+
+    return b.reduce((output, elem) =>
+        (output + ('0' + elem.toString(16)).slice(-2) + ""), '') + "..".repeat(8 - b.length);
+}
+
+function asciidump(b) {
+    var ret = "";
+
+    if (typeof(b) === 'undefined' || b.length == 0)
+        return '.'.repeat(8);
+
+    for (var i = 0; i < b.length; i++) {
+        if (b[i] >= 32 && b[i] <= 127) {
+            var c = String.fromCharCode(b[i]);
+
+            if (c == "<")
+                c = "&lt;";
+            if (c == ">")
+                c = "&gt;";
+            if (c == "&")
+                c = "&amp;";
+
+            ret = ret + c;
+        } else {
+            ret = ret + ".";
+        }
+    }
+
+    ret = ret + ".".repeat(8 - b.length);
+
+    return ret;
+}
+
+function pretty_hexdump(b) {
+    var groups = [];
+    var ret_groups = [];
+
+    if (typeof(b) === 'undefined')
+        return "";
+
+    for (var i = 0; i < b.length; i += 8) {
+        groups.push(b.slice(i, i + 8));
+    }
+
+    if (b.length % 2)
+        b.push([]);
+
+    // Print 2 groups of 8, followed by ascii
+    for (var i = 0; i < groups.length; i += 2) {
+        var hex_str = hexdump(groups[i]) + "  " + hexdump(groups[i + 1]);
+        var ascii_str = asciidump(groups[i]) + "  " + asciidump(groups[i + 1]);
+
+        ret_groups.push(hex_str + '&nbsp;&nbsp;&nbsp;&nbsp;' + ascii_str);
+    }
+
+    return ret_groups;
+}
+
 exports.CryptToHumanReadable = function(cryptset) {
     var ret = [];
 
@@ -227,7 +303,7 @@ kismet_ui.AddDeviceRowHighlight({
 kismet_ui.AddDeviceColumn('wifi_clients', {
     sTitle: 'Clients',
     field: 'dot11.device/dot11.device.num_associated_clients',
-    description: 'Count of associated Wi-Fi clients',
+    description: 'Related Wi-Fi devices (associated and bridged)',
     width: '2em'
 });
 
@@ -252,12 +328,61 @@ kismet_ui.AddDeviceColumn('wifi_bss_uptime', {
     },
 });
 
+// Hidden column to fetch qbss state
+kismet_ui.AddDeviceColumn('column_qbss_hidden', {
+    sTitle: 'qbss_available',
+    field: 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.dot11e_qbss',
+    name: 'qbss_available',
+    searchable: false,
+    visible: false,
+    selectable: false,
+    orderable: false
+});
+
+kismet_ui.AddDeviceColumn('wifi_qbss_usage', {
+    sTitle: 'QBSS Chan Usage',
+    // field: 'dot11.device/dot11.device.bss_timestamp',
+    field: 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.dot11e_channel_utilization_perc',
+    description: '802.11e QBSS channel utilization',
+    width: '5em;',
+    sortable: true,
+    searchable: true,
+    visiable: false,
+    renderfunc: function(d, t, r, m) {
+        var perc = "n/a";
+
+        if (r['dot11.advertisedssid.dot11e_qbss'] == 1) {
+            if (d == 0)
+                perc = "0%";
+            else
+                perc = Number.parseFloat(d).toPrecision(4) + "%";
+        }
+
+        return '<div class="percentage-border"><span class="percentage-text">' + perc + '</span><div class="percentage-fill" style="width:' + d + '%"></div></div>';
+    }
+});
+
+kismet_ui.AddDeviceColumn('wifi_qbss_clients', {
+    sTitle: 'QBSS Users',
+    field: 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.dot11e_qbss_stations',
+    description: '802.11e QBSS user count',
+    sortable: true,
+    visiable: false,
+    renderfunc: function(d, t, r, m) {
+        if (r['dot11.advertisedssid.dot11e_qbss'] == 1) {
+            return d;
+        }
+
+        return "<i>n/a</i>"
+    }
+});
+
 /* Custom device details for dot11 data */
 kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
     filter: function(data) {
         try {
             return (data['kismet.device.base.phyname'] === "IEEE802.11");
-        } catch {
+        } catch (error) {
             return false;
         }
     },
@@ -266,16 +391,29 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
             "id": "dot11DeviceData",
             "fields": [
             {
-                field: "dot11.device/dot11.device.last_beaconed_ssid",
+                field: 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.ssid',
                 title: "Last Beaconed SSID (AP)",
-                empty: "<i>None</i>",
+                render: function(opts) {
+                    if (typeof(opts['value']) === 'undefined')
+                        return '<i>None</i>';
+                    if (opts['value'].replace(/\s/g, '').length == 0) 
+                        return '<i>Cloaked / Empty (' + opts['value'].length + ' spaces)</i>';
+                    return opts['value'];
+                },
                 help: "If present, the last SSID (network name) advertised by a device as an access point beacon or as an access point issuing a probe response",
             },
             {
-                field: "dot11.device/dot11.device.last_probed_ssid",
+                field: "dot11.device/dot11.device.last_probed_ssid_record/dot11.probedssid.ssid",
                 title: "Last Probed SSID (Client)",
                 empty: "<i>None</i>",
                 help: "If present, the last SSID (network name) probed for by a device as a client looking for a network.",
+                render: function(opts) {
+                    if (typeof(opts['value']) === 'undefined')
+                        return '<i>None</i>';
+                    if (opts['value'].replace(/\s/g, '').length == 0) 
+                        return '<i>Empty (' + opts['value'].length + ' spaces)</i>'
+                    return opts['value'];
+                },
             },
             {
                 field: "dot11.device/dot11.device.last_bssid",
@@ -435,7 +573,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                             return true;
 
                         return false;
-                    } catch {
+                    } catch (error) {
                         return false;
                     }
                     
@@ -461,14 +599,14 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     filter: function(opts) {
                         try {
                             return (opts['data']['dot11.device']['dot11.device.supported_channels'].length);
-                        } catch {
+                        } catch (error) {
                             return false;
                         }
                     },
                     render: function(opts) { 
                         try {
                             return opts['data']['dot11.device']['dot11.device.supported_channels'].join(',');
-                        } catch {
+                        } catch (error) {
                             return "<i>n/a</i>";
                         }
                     }
@@ -483,7 +621,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (opts['data']['dot11.device']['dot11.device.wpa_handshake_list'].length);
-                    } catch {
+                    } catch (error) {
                         return false;
                     }
                 },
@@ -554,7 +692,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.device']['dot11.device.probed_ssid_map']).length >= 1);
-                    } catch {
+                    } catch (error) {
                         return false;
                     }
                 },
@@ -569,7 +707,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.device']['dot11.device.probed_ssid_map']).length >= 1);
-                    } catch {
+                    } catch (error) {
                         return false;
                     }
                 },
@@ -584,6 +722,9 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     if (lastpssid === '')
                         lastpssid = "<i>Broadcast</i>";
 
+                    if (lastpssid.replace(/\s/g, '').length == 0) 
+                        lastpssid = '<i>Empty (' + lastpssid.length + ' spaces)</i>'
+
                     return '<a id="' + key + '" class="expander collapsed" data-expander-target="#probed_ssid" href="#">Probed SSID ' + lastpssid + '</a>';
                 },
 
@@ -595,7 +736,14 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 {
                     field: "dot11.probedssid.ssid",
                     title: "Probed SSID",
-                    empty: "<i>Broadcast</i>"
+                    empty: "<i>Broadcast</i>",
+                    render: function(opts) {
+                        if (typeof(opts['value']) === 'undefined')
+                            return '<i>None</i>';
+                        if (opts['value'].replace(/\s/g, '').length == 0) 
+                            return 'Empty (' + opts['value'].length + ' spaces)'
+                        return opts['value'];
+                    },
                 },
                 {
                     field: "dot11.probedssid.wpa_mfp_required",
@@ -675,7 +823,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.device']['dot11.device.advertised_ssid_map']).length >= 1);
-                    } catch {
+                    } catch (error) {
                         return false;
                     }
                 },
@@ -690,7 +838,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.device']['dot11.device.advertised_ssid_map']).length >= 1);
-                    } catch {
+                    } catch (error) {
                         return false;
                     }
                 },
@@ -715,11 +863,11 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     field: "dot11.advertisedssid.ssid",
                     title: "SSID",
                     render: function(opts) {
-                        if (opts['value'] === '') {
+                        if (opts['value'].replace(/\s/g, '').length == 0) {
                             if ('dot11.advertisedssid.owe_ssid' in opts['base']) {
                                 return "<i>SSID advertised as OWE</i>";
                             } else {
-                                return "<i>Unknown / Cloaked</i>";
+                                return '<i>Cloaked / Empty (' + opts['value'].length + ' spaces)</i>';
                             }
                         }
 
@@ -824,7 +972,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     filter: function(opts) {
                         try {
                             return (opts['base']['dot11.advertisedssid.dot11e_qbss'] == 1);
-                        } catch {
+                        } catch (error) {
                             return false;
                         }
                     }
@@ -839,7 +987,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     filter: function(opts) {
                         try {
                             return (opts['base']['dot11.advertisedssid.dot11e_qbss'] == 1);
-                        } catch {
+                        } catch (error) {
                             return false;
                         }
                     }
@@ -929,7 +1077,6 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the device serial number in the WPS advertisements.  This information is not always valid or useful.  WPS is not recommended due to security flaws.",
                 },
 
-                /*
                 {
                     field: "dot11.advertisedssid.ie_tag_content",
                     filterOnEmpty: true,
@@ -942,7 +1089,74 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     field: "dot11.advertisedssid.ie_tag_content",
                     id: "advertised_ietags",
                     filterOnEmpty: true,
+                    span: true,
 
+                    render: function(opts) {
+                        return '<table id="tagdump" border="0" />';
+                    },
+
+                    draw: function(opts) {
+                        for (var ie in opts['value']) {
+                            var tag = opts['value'][ie];
+
+                            var pretty_tag = 
+                                $('<tr>', {
+                                    class: 'alternating'
+                                })
+                                .append(
+                                    $('<td>', {
+                                        width: "25%",
+                                        id: "tagno"
+                                    })
+                                    .append(
+                                        $('<div>')
+                                        .html("<b>" + tag['dot11.ietag.number'] + "</b>")
+                                    )
+                                )
+                                .append(
+                                    $('<td>', {
+                                        id: "hexdump"
+                                    })
+                                );
+
+                            if (tag['dot11.ietag.oui'] != 0) {
+                                var oui = ("000000" + tag['dot11.ietag.oui'].toString(16)).substr(-6).replace(/(..)/g, '$1:').slice(0, -1);
+
+                                if (tag['dot11.ietag.oui_manuf'].length != 0)
+                                    oui = oui + " (" + tag['dot11.ietag.oui_manuf'] + ")";
+
+                                $('#tagno', pretty_tag).append(
+                                    $('<div>')
+                                    .text(oui)
+                                );
+                            }
+
+                            if (tag['dot11.ietag.subtag'] >= 0) {
+                                $('#tagno', pretty_tag).append(
+                                    $('<div>')
+                                    .text("Subtag " + tag['dot11.ietag.subtag'])
+                                )
+                            }
+
+                            var hexdumps = pretty_hexdump(hexstr_to_bytes(tag['dot11.ietag.data']));
+
+                            for (var i in hexdumps) {
+                                $('#hexdump', pretty_tag).append(
+                                    $('<div>')
+                                    .append(
+                                        $('<code>')
+                                        .html(hexdumps[i])
+                                    )
+                                )
+                            }
+
+                            $('#tagdump', opts['container']).append(pretty_tag);
+                        }
+                    },
+
+                },
+
+                /*
                     groupIterate: true,
                     iterateTitle: function(opts) {
                         var ie  = opts['value'][opts['index']]['dot11.ietag.number'];
@@ -1003,7 +1217,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['kismet.device.base.related_devices']['dot11_bssts_similar']).length >= 1);
-                    } catch {
+                    } catch (error) {
                         return false;
                     }
                 },
@@ -1017,7 +1231,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['kismet.device.base.related_devices']['dot11_bssts_similar']).length >= 1);
-                    } catch {
+                    } catch (error) {
                         return false;
                     }
                 },
@@ -1041,9 +1255,9 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         data = kismet.sanitizeObject(data);
 
                         try {
-                            var ssid = data['dot11.device']['dot11.device.last_beaconed_ssid'];
+                            var ssid = data['dot11.device']['dot11.device.last_beaconed_ssid_record']['dot11.advertisedssid.ssid'];
                             var mac = data['kismet.device.base.macaddr'];
-                        } catch {
+                        } catch (error) {
 
                         }
 
@@ -1078,7 +1292,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.device']['dot11.device.client_map']).length >= 1);
-                    } catch {
+                    } catch (error) {
                         return false;
                     }
                 },
@@ -1092,7 +1306,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.device']['dot11.device.client_map']).length >= 1);
-                    } catch {
+                    } catch (error) {
                         return false;
                     }
                 },
@@ -1113,7 +1327,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     var mac = kismet.ObjectByString(opts['data'], opts['basekey'] + 'dot11.client.bssid');
                     var alink = $('a#' + key, opts['container']);
                     $.get(local_uri_prefix + "devices/by-key/" + key +
-                            "/device.json/dot11.device/dot11.device.last_beaconed_ssid")
+                        "dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.ssid")
                     .done(function(clidata) {
                         clidata = kismet.sanitizeObject(clidata);
 
@@ -1168,7 +1382,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     title: "Last SSID",
                     draw: function(opts) {
                         $.get(local_uri_prefix + "devices/by-key/" + opts['value'] +
-                                "/device.json/dot11.device/dot11.device.last_beaconed_ssid")
+                            'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.ssid')
                         .fail(function() {
                             opts['container'].html('<i>Unknown</i>');
                         })
@@ -1285,7 +1499,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.device']['dot11.device.associated_client_map']).length >= 1);
-                    } catch {
+                    } catch (error) {
                         return false;
                     }
                 },
@@ -1300,7 +1514,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.device']['dot11.device.associated_client_map']).length >= 1);
-                    } catch {
+                    } catch (error) {
                         return false;
                     }
                 },

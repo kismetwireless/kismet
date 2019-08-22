@@ -1,5 +1,3 @@
-#!/usr/bin/env python2
-
 """
 rtladsb Kismet data source
 

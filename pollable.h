@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -27,12 +27,25 @@
 
 #include "globalregistry.h"
 
-// Basic pollable object that anything that gets fed into the select()
-// loop in main() should be descended from
-class Pollable {
+// Basic pollable object that plugs into the main pollable system; anything which can
+// respond to a poll() or select() should go in this system.  
+//
+// pollable_merge_set is called to create the FD_SET passed to select(); implementations
+// should inspect their buffers and determine if they hold data which should be included
+// in the next select loop.  pollable_merge_set must return either the largest FD in the
+// set (if larger than in_max_fd), or in the case of unrecoverable error, -1, which will
+// remove this pollable from the system forever.  Recoverable errors should return the
+// maximum fd number provided.
+//
+// pollable_poll is called for the results of a select; implementations should check if
+// any monitored fds are included in the poll and perform the according read or write
+// operations.  Success and recoverable errors should return 0 or a positive number;
+// exceptional unrecoverable failures should return -1, which will remove this pollable
+// from the polling system forever.
+class kis_pollable {
 public:
-	virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) = 0;
-	virtual int Poll(fd_set& in_rset, fd_set& in_wset) = 0;
+	virtual int pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset) = 0;
+	virtual int pollable_poll(fd_set& in_rset, fd_set& in_wset) = 0;
 };
 
 #endif

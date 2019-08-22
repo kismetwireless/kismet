@@ -62,7 +62,7 @@ double distance_meters(double lat0, double lon0, double lat1, double lon1) {
 
 void print_help(char *argv) {
     printf("Kismetdb statistics\n");
-    printf("Usage: %s [OPTION]\n", argv);
+    printf("usage: %s [OPTION]\n", argv);
     printf(" -i, --in [filename]          Input kismetdb file\n"
            " -s, --skip-clean             Don't clean (sql vacuum) input database\n"
            " -j, --json                   Dump stats as a JSON dictionary");

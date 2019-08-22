@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -26,61 +26,63 @@
 #include "kis_datasource.h"
 #include "dlttracker.h"
 
-class KisDatasourceNrfMousejack;
-typedef std::shared_ptr<KisDatasourceNrfMousejack> SharedDatasourceNrfMousejack;
+class kis_datasource_nrf_mousejack;
+typedef std::shared_ptr<kis_datasource_nrf_mousejack> shared_datasource_nrf_mousejack;
 
-class KisDatasourceNrfMousejack : public KisDatasource {
+class kis_datasource_nrf_mousejack : public kis_datasource {
 public:
-    KisDatasourceNrfMousejack(SharedDatasourceBuilder in_builder) :
-        KisDatasource(in_builder) {
+    kis_datasource_nrf_mousejack(shared_datasource_builder in_builder, 
+            std::shared_ptr<kis_recursive_timed_mutex> mutex) :
+        kis_datasource(in_builder, mutex) {
 
         // Set the capture binary
         set_int_source_ipc_binary("kismet_cap_nrf_mousejack");
 
         // Get and register a DLT
         auto dltt = 
-            Globalreg::FetchMandatoryGlobalAs<DltTracker>("DLTTRACKER");
+            Globalreg::fetch_mandatory_global_as<dlt_tracker>("DLTTRACKER");
 
         set_int_source_override_linktype(dltt->register_linktype("NRFMOUSEJACK"));
     }
 
-    virtual ~KisDatasourceNrfMousejack() { };
+    virtual ~kis_datasource_nrf_mousejack() { };
 };
 
 
-class DatasourceNrfMousejackBuilder : public KisDatasourceBuilder {
+class datasource_nrf_mousejack_builder : public kis_datasource_builder {
 public:
-    DatasourceNrfMousejackBuilder(int in_id) :
-        KisDatasourceBuilder(in_id) {
+    datasource_nrf_mousejack_builder(int in_id) :
+        kis_datasource_builder(in_id) {
 
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    DatasourceNrfMousejackBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
-        KisDatasourceBuilder(in_id, e) {
+    datasource_nrf_mousejack_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
+        kis_datasource_builder(in_id, e) {
 
         register_fields();
         reserve_fields(e);
         initialize();
     }
 
-    DatasourceNrfMousejackBuilder() :
-        KisDatasourceBuilder() {
+    datasource_nrf_mousejack_builder() :
+        kis_datasource_builder() {
 
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    virtual ~DatasourceNrfMousejackBuilder() { }
+    virtual ~datasource_nrf_mousejack_builder() { }
 
-    virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) {
-        return SharedDatasourceNrfMousejack(new KisDatasourceNrfMousejack(in_sh_this));
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this,
+            std::shared_ptr<kis_recursive_timed_mutex> mutex) override {
+        return shared_datasource_nrf_mousejack(new kis_datasource_nrf_mousejack(in_sh_this, mutex));
     }
 
-    virtual void initialize() {
+    virtual void initialize() override {
         // Set up our basic parameters for the linux wifi driver
         
         set_source_type("nrfmousejack");

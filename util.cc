@@ -74,7 +74,7 @@
 
 // Munge text down to printable characters only.  Simpler, cleaner munger than
 // before (and more blatant when munging)
-std::string MungeToPrintable(const char *in_data, unsigned int max, int nullterm) {
+std::string munge_to_printable(const char *in_data, unsigned int max, int nullterm) {
     std::stringstream ret;
 	unsigned int i;
 
@@ -95,23 +95,23 @@ std::string MungeToPrintable(const char *in_data, unsigned int max, int nullterm
 	return ret.str();
 }
 
-std::string MungeToPrintable(const std::string& in_str) {
-	return MungeToPrintable(in_str.c_str(), in_str.length(), 1);
+std::string munge_to_printable(const std::string& in_str) {
+	return munge_to_printable(in_str.c_str(), in_str.length(), 1);
 }
 
-std::string StrLower(const std::string& in_str) {
+std::string str_lower(const std::string& in_str) {
     std::string retstr(in_str);
     std::transform(retstr.begin(), retstr.end(), retstr.begin(), (int(*)(int)) std::tolower);
     return retstr;
 }
 
-std::string StrUpper(const std::string& in_str) {
+std::string str_upper(const std::string& in_str) {
     std::string retstr(in_str);
     std::transform(retstr.begin(), retstr.end(), retstr.begin(), (int(*)(int)) std::tolower);
     return retstr;
 }
 
-std::string StrStrip(const std::string& in_str) {
+std::string str_strip(const std::string& in_str) {
     std::string temp;
     unsigned int start, end;
 
@@ -138,7 +138,7 @@ std::string StrStrip(const std::string& in_str) {
     return in_str.substr(start, end-start+1);
 }
 
-int HexStrToUint8(const std::string& in_str, uint8_t *in_buf, int in_buflen) {
+int hex_str_to_uint8(const std::string& in_str, uint8_t *in_buf, int in_buflen) {
 	int decode_pos = 0;
 	int str_pos = 0;
 
@@ -161,7 +161,7 @@ int HexStrToUint8(const std::string& in_str, uint8_t *in_buf, int in_buflen) {
 	return decode_pos;
 }
 
-int XtoI(char x) {
+int x_to_i(char x) {
     if (isxdigit(x)) {
         if (x <= '9')
             return x - '0';
@@ -171,7 +171,7 @@ int XtoI(char x) {
     return -1;
 }
 
-int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr) {
+int hex_to_uchar(unsigned char *in_hex, unsigned char *in_chr) {
     memset(in_chr, 0, sizeof(unsigned char) * WEPKEY_MAX);
     int chrpos = 0;
 
@@ -188,9 +188,9 @@ int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr) {
                 return 0;
 
             int d1, d2;
-            if ((d1 = XtoI(in_hex[strpos++])) == -1)
+            if ((d1 = x_to_i(in_hex[strpos++])) == -1)
                 return 0;
-            if ((d2 = XtoI(in_hex[strpos])) == -1)
+            if ((d2 = x_to_i(in_hex[strpos])) == -1)
                 return 0;
 
             in_chr[chrpos++] = (d1 * 16) + d2;
@@ -205,7 +205,7 @@ int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr) {
 // "foo","bar","baz,foo",something
 // and network protocols like
 // foo bar \001baz foo\001
-std::vector<smart_word_token> BaseStrTokenize(const std::string& in_str, 
+std::vector<smart_word_token> base_str_tokenize(const std::string& in_str, 
         const std::string& in_split, const std::string& in_quote) {
 	size_t begin = 0;
 	size_t end = 0;
@@ -258,7 +258,7 @@ std::vector<smart_word_token> BaseStrTokenize(const std::string& in_str,
 }
 
 // No-frills tokenize with no intelligence about nested delimiters
-std::vector<std::string> StrTokenize(const std::string& in_str, const std::string& in_split, 
+std::vector<std::string> str_tokenize(const std::string& in_str, const std::string& in_split, 
         int return_partial) {
     size_t begin = 0;
     size_t end = in_str.find(in_split);
@@ -280,7 +280,7 @@ std::vector<std::string> StrTokenize(const std::string& in_str, const std::strin
     return ret;
 }
 
-std::string StrJoin(const std::vector<std::string>& in_content, const std::string& in_delim, bool in_first) {
+std::string str_join(const std::vector<std::string>& in_content, const std::string& in_delim, bool in_first) {
     std::ostringstream ostr;
 
     bool d = false;
@@ -299,11 +299,11 @@ std::string StrJoin(const std::vector<std::string>& in_content, const std::strin
 }
 
 // Collapse into basic tokenizer rewrite
-std::vector<std::string> QuoteStrTokenize(const std::string& in_str, const std::string& in_split) {
+std::vector<std::string> quote_str_tokenize(const std::string& in_str, const std::string& in_split) {
     std::vector<std::string> ret;
     std::vector<smart_word_token> bret;
 
-	bret = BaseStrTokenize(in_str, in_split, "\"");
+	bret = base_str_tokenize(in_str, in_split, "\"");
 
 	for (unsigned int b = 0; b < bret.size(); b++) {
 		ret.push_back(bret[b].word);
@@ -332,7 +332,7 @@ int TokenNullJoin(std::string *ret_str, const char **in_list) {
 }
 
 // Quick fetch of strings from a map of options
-std::string FetchOpt(const std::string& in_key, std::vector<opt_pair> *in_vec,
+std::string fetch_opt(const std::string& in_key, std::vector<opt_pair> *in_vec,
         const std::string& dvalue) {
     if (in_vec == nullptr)
         return dvalue;
@@ -345,7 +345,7 @@ std::string FetchOpt(const std::string& in_key, std::vector<opt_pair> *in_vec,
     return dvalue;
 }
 
-std::string FetchOpt(const std::string& in_key, const std::map<std::string, std::string>& in_map, 
+std::string fetch_opt(const std::string& in_key, const std::map<std::string, std::string>& in_map, 
         std::string dvalue) {
 
     auto i = in_map.find(in_key);
@@ -356,24 +356,24 @@ std::string FetchOpt(const std::string& in_key, const std::map<std::string, std:
     return i->second;
 }
 
-int FetchOptBoolean(const std::string& in_key, std::vector<opt_pair> *in_vec, int dvalue) {
-    std::string s = FetchOpt(in_key, in_vec);
+int fetch_opt_bool(const std::string& in_key, std::vector<opt_pair> *in_vec, int dvalue) {
+    std::string s = fetch_opt(in_key, in_vec);
 
-	return StringToBool(s, dvalue);
+	return string_to_bool(s, dvalue);
 }
 
 
-int FetchOptBoolean(const std::string& in_key, const std::map<std::string, std::string>& in_map, int dvalue) {
+int fetch_opt_bool(const std::string& in_key, const std::map<std::string, std::string>& in_map, int dvalue) {
     auto i = in_map.find(in_key);
 
     if (i == in_map.end())
         return dvalue;
 
-    return StringToBool(i->second, dvalue);
+    return string_to_bool(i->second, dvalue);
 }
 
-std::vector<std::string> FetchOptVec(const std::string& in_key, std::vector<opt_pair> *in_vec) {
-    std::string lkey = StrLower(in_key);
+std::vector<std::string> fetch_opt_vec(const std::string& in_key, std::vector<opt_pair> *in_vec) {
+    std::string lkey = str_lower(in_key);
     std::vector<std::string> ret;
 
     if (in_vec == NULL)
@@ -387,7 +387,7 @@ std::vector<std::string> FetchOptVec(const std::string& in_key, std::vector<opt_
     return ret;
 }
 
-int StringToOpts(const std::string& in_line, const std::string& in_sep, std::vector<opt_pair> *in_vec) {
+int string_to_opts(const std::string& in_line, const std::string& in_sep, std::vector<opt_pair> *in_vec) {
     std::vector<std::string> optv;
 	opt_pair optp;
 
@@ -434,19 +434,19 @@ int StringToOpts(const std::string& in_line, const std::string& in_sep, std::vec
 	return 1;
 }
 
-void AddOptToOpts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec) {
+void append_to_opts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec) {
 	opt_pair optp;
 
-	optp.opt = StrLower(opt);
+	optp.opt = str_lower(opt);
 	optp.val = val;
 
 	in_vec->push_back(optp);
 }
 
-void ReplaceAllOpts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec) {
+void replace_all_opts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec) {
 	opt_pair optp;
 
-	optp.opt = StrLower(opt);
+	optp.opt = str_lower(opt);
 	optp.val = val;
 
 	for (unsigned int x = 0; x < in_vec->size(); x++) {
@@ -460,7 +460,7 @@ void ReplaceAllOpts(const std::string& opt, const std::string& val, std::vector<
 	in_vec->push_back(optp);
 }
 
-std::vector<std::string> LineWrap(const std::string& in_txt, unsigned int in_hdr_len,
+std::vector<std::string> line_wrap(const std::string& in_txt, unsigned int in_hdr_len,
         unsigned int in_maxlen) {
     std::vector<std::string> ret;
 
@@ -504,9 +504,9 @@ std::vector<std::string> LineWrap(const std::string& in_txt, unsigned int in_hdr
 	return ret;
 }
 
-std::string InLineWrap(const std::string& in_txt, unsigned int in_hdr_len, 
+std::string in_line_wrap(const std::string& in_txt, unsigned int in_hdr_len, 
 				  unsigned int in_maxlen) {
-    std::vector<std::string> raw = LineWrap(in_txt, in_hdr_len, in_maxlen);
+    std::vector<std::string> raw = line_wrap(in_txt, in_hdr_len, in_maxlen);
     std::stringstream ss;
 
 	for (unsigned int x = 0; x < raw.size(); x++) {
@@ -516,17 +516,17 @@ std::string InLineWrap(const std::string& in_txt, unsigned int in_hdr_len,
 	return ss.str();
 }
 
-void Float2Pair(float in_float, int16_t *primary, int64_t *mantissa) {
+void float_to_pair(float in_float, int16_t *primary, int64_t *mantissa) {
     *primary = (int) in_float;
     *mantissa = (long) (1000000 * ((in_float) - *primary));
 }
 
-float Pair2Float(int16_t primary, int64_t mantissa) {
+float pair_to_float(int16_t primary, int64_t mantissa) {
     return (double) primary + ((double) mantissa / 1000000);
 }
 
-std::vector<int> Str2IntVec(const std::string& in_text) {
-    std::vector<std::string> optlist = StrTokenize(in_text, ",");
+std::vector<int> str_to_int_vector(const std::string& in_text) {
+    std::vector<std::string> optlist = str_tokenize(in_text, ",");
     std::vector<int> ret;
     int ch;
 
@@ -543,7 +543,7 @@ std::vector<int> Str2IntVec(const std::string& in_text) {
 }
 
 #ifdef SYS_LINUX
-int FetchSysLoadAvg(uint8_t *in_avgmaj, uint8_t *in_avgmin) {
+int fetch_sys_loadavg(uint8_t *in_avgmaj, uint8_t *in_avgmin) {
     FILE *lf;
     short unsigned int tmaj, tmin;
 
@@ -566,7 +566,7 @@ int FetchSysLoadAvg(uint8_t *in_avgmaj, uint8_t *in_avgmin) {
 }
 #endif
 
-uint32_t Adler32IncrementalChecksum(const char *in_buf, size_t in_len,
+uint32_t adler32_incremental_checksum(const char *in_buf, size_t in_len,
         uint32_t *s1, uint32_t *s2) {
     size_t i;
     const uint8_t *buf = (const uint8_t *) in_buf;
@@ -591,17 +591,17 @@ uint32_t Adler32IncrementalChecksum(const char *in_buf, size_t in_len,
     return (*s1 & 0xffff) + (*s2 << 16);
 }
 
-uint32_t Adler32Checksum(const std::string& in_buf) {
-    return Adler32Checksum(in_buf.data(), in_buf.length());
+uint32_t adler32_checksum(const std::string& in_buf) {
+    return adler32_checksum(in_buf.data(), in_buf.length());
 }
 
-uint32_t Adler32Checksum(const char *in_buf, size_t in_len) {
+uint32_t adler32_checksum(const char *in_buf, size_t in_len) {
     uint32_t s1, s2;
 
     s1 = 0;
     s2 = 0;
 
-    return Adler32IncrementalChecksum(in_buf, in_len, &s1, &s2);
+    return adler32_incremental_checksum(in_buf, in_len, &s1, &s2);
 }
 
 std::list<_kis_lex_rec> LexString(std::string in_line, std::string& errstr) {
@@ -630,7 +630,7 @@ std::list<_kis_lex_rec> LexString(std::string in_line, std::string& errstr) {
 				continue;
 			}
 
-			// Close paren
+			// close paren
 			if (c == ')') {
 				cpr.type = _kis_lex_pclose;
 				ret.push_back(cpr);
@@ -751,7 +751,7 @@ unsigned int crc32_le_80211(unsigned int *crc32_table, const unsigned char *buf,
 	return crc;
 }
 
-void SubtractTimeval(struct timeval *in_tv1, struct timeval *in_tv2,
+void subtract_timeval(struct timeval *in_tv1, struct timeval *in_tv2,
 					 struct timeval *out_tv) {
 	if (in_tv1->tv_sec < in_tv2->tv_sec ||
 		(in_tv1->tv_sec == in_tv2->tv_sec && in_tv1->tv_usec < in_tv2->tv_usec) ||
@@ -855,8 +855,8 @@ u_int32_t double_to_ns(double in) {
     return ret;
 }
 
-int StringToBool(const std::string& s, int dvalue) {
-    std::string ls = StrLower(s);
+int string_to_bool(const std::string& s, int dvalue) {
+    std::string ls = str_lower(s);
 
 	if (ls == "true" || ls == "t") {
 		return 1;
@@ -867,7 +867,7 @@ int StringToBool(const std::string& s, int dvalue) {
 	return dvalue;
 }
 
-int StringToInt(const std::string& s) {
+int string_to_int(const std::string& s) {
     int r;
 
     if (sscanf(s.c_str(), "%d", &r) != 1)
@@ -876,7 +876,7 @@ int StringToInt(const std::string& s) {
     return r;
 }
 
-unsigned int StringToUInt(const std::string& s) {
+unsigned int string_to_uint(const std::string& s) {
     unsigned int r;
 
     if (sscanf(s.c_str(), "%u", &r) != 1)
@@ -885,7 +885,7 @@ unsigned int StringToUInt(const std::string& s) {
     return r;
 }
 
-std::string StringAppend(const std::string& s, const std::string& a, const std::string& d) {
+std::string string_append(const std::string& s, const std::string& a, const std::string& d) {
     std::stringstream ss;
 
 	if (s.length() == 0)
@@ -900,7 +900,7 @@ std::string StringAppend(const std::string& s, const std::string& a, const std::
     return ss.str();
 }
 
-std::string MultiReplaceAll(const std::string& in, const std::string& match, const std::string& repl) {
+std::string multi_replace_all(const std::string& in, const std::string& match, const std::string& repl) {
     std::string work = in;
 
     for (size_t pos = 0; (pos = in.find(match, pos)) != std::string::npos;

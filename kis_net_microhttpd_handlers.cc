@@ -26,48 +26,48 @@
 #include "kis_net_microhttpd.h"
 #include "messagebus.h"
 
-Kis_Net_Httpd_Handler::Kis_Net_Httpd_Handler() {
-    httpd = Globalreg::FetchMandatoryGlobalAs<Kis_Net_Httpd>();
+kis_net_httpd_handler::kis_net_httpd_handler() {
+    httpd = Globalreg::fetch_mandatory_global_as<kis_net_httpd>();
 
-    // Bind_Httpd_Server(Globalreg::globalreg);
+    // bind_httpd_server(Globalreg::globalreg);
 }
 
-Kis_Net_Httpd_Handler::~Kis_Net_Httpd_Handler() {
+kis_net_httpd_handler::~kis_net_httpd_handler() {
     httpd = 
-        Globalreg::FetchGlobalAs<Kis_Net_Httpd>("HTTPD_SERVER");
+        Globalreg::FetchGlobalAs<kis_net_httpd>("HTTPD_SERVER");
 
     // Remove as both type of handlers for safety
     if (httpd != nullptr) {
-        httpd->RemoveHandler(this);
-        httpd->RemoveUnauthHandler(this);
+        httpd->remove_handler(this);
+        httpd->remove_unauth_handler(this);
     }
 }
 
-void Kis_Net_Httpd_Handler::Bind_Httpd_Server() {
-    httpd->RegisterHandler(this);
+void kis_net_httpd_handler::bind_httpd_server() {
+    httpd->register_handler(this);
 }
 
-bool Kis_Net_Httpd_Handler::Httpd_CanSerialize(const std::string& path) {
-    return Globalreg::globalreg->entrytracker->CanSerialize(httpd->GetSuffix(path));
+bool kis_net_httpd_handler::httpd_can_serialize(const std::string& path) {
+    return Globalreg::globalreg->entrytracker->can_serialize(httpd->get_suffix(path));
 }
 
-void Kis_Net_Httpd_Handler::Httpd_Serialize(const std::string& path, 
+void kis_net_httpd_handler::httpd_serialize(const std::string& path, 
         std::ostream& stream,
-        std::shared_ptr<TrackerElement> elem, 
-        std::shared_ptr<TrackerElementSerializer::rename_map> rename) {
-    Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(path), stream, elem, rename);
+        std::shared_ptr<tracker_element> elem, 
+        std::shared_ptr<tracker_element_serializer::rename_map> rename) {
+    Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(path), stream, elem, rename);
 }
 
-std::string Kis_Net_Httpd_Handler::Httpd_GetSuffix(const std::string& path) {
-    return httpd->GetSuffix(path);
+std::string kis_net_httpd_handler::httpd_get_suffix(const std::string& path) {
+    return httpd->get_suffix(path);
 }
 
-std::string Kis_Net_Httpd_Handler::Httpd_StripSuffix(const std::string& path) {
-    return httpd->StripSuffix(path);
+std::string kis_net_httpd_handler::httpd_strip_suffix(const std::string& path) {
+    return httpd->strip_suffix(path);
 }
 
-int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *httpd, 
-        Kis_Net_Httpd_Connection *connection,
+int kis_net_httpd_cppstream_handler::httpd_handle_get_request(kis_net_httpd *httpd, 
+        kis_net_httpd_connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
@@ -79,7 +79,7 @@ int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *httpd
 
     std::lock_guard<std::mutex> lk(connection->connection_mutex);
 
-    Httpd_CreateStreamResponse(httpd, connection, url, method, upload_data,
+    httpd_create_stream_response(httpd, connection, url, method, upload_data,
             upload_data_size, stream);
 
     if (connection->response == NULL) {
@@ -87,7 +87,7 @@ int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *httpd
             MHD_create_response_from_buffer(stream.str().length(),
                     (void *) stream.str().data(), MHD_RESPMEM_MUST_COPY);
 
-        ret = httpd->SendStandardHttpResponse(httpd, connection, url);
+        ret = httpd->send_standard_http_response(httpd, connection, url);
 
         return ret;
     }
@@ -95,8 +95,8 @@ int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *httpd
     return MHD_YES;
 }
 
-int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *httpd, 
-        Kis_Net_Httpd_Connection *connection,
+int kis_net_httpd_cppstream_handler::httpd_handle_post_request(kis_net_httpd *httpd, 
+        kis_net_httpd_connection *connection,
         const char *url, const char *method __attribute__((unused)), 
         const char *upload_data __attribute__((unused)),
         size_t *upload_data_size __attribute__((unused))) {
@@ -108,14 +108,14 @@ int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *http
     std::lock_guard<std::mutex> lk(connection->connection_mutex);
 
     try {
-        Httpd_PostComplete(connection);
+        httpd_post_complete(connection);
     } catch (const std::exception& e) {
         auto err = fmt::format("Server error:  Uncaught exception '{}'\n", e.what());
 
         connection->response = 
             MHD_create_response_from_buffer(err.length(), (void *) err.c_str(), MHD_RESPMEM_MUST_COPY);
         connection->httpcode = 500;
-        return httpd->SendStandardHttpResponse(httpd, connection, url);
+        return httpd->send_standard_http_response(httpd, connection, url);
     }
 
     if (connection->response == NULL) {
@@ -124,13 +124,13 @@ int Kis_Net_Httpd_CPPStream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *http
                     (void *) connection->response_stream.str().data(), 
                     MHD_RESPMEM_MUST_COPY);
 
-        return httpd->SendStandardHttpResponse(httpd, connection, url);
+        return httpd->send_standard_http_response(httpd, connection, url);
     } 
 
     return MHD_YES;
 }
 
-bool Kis_Net_Httpd_No_Files_Handler::Httpd_VerifyPath(const char *path, 
+bool kis_net_httpd_no_files_handler::httpd_verify_path(const char *path, 
         const char *method) {
 
     if (strcmp(method, "GET") != 0)
@@ -143,8 +143,8 @@ bool Kis_Net_Httpd_No_Files_Handler::Httpd_VerifyPath(const char *path,
     return false;
 }
 
-void Kis_Net_Httpd_No_Files_Handler::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd __attribute__((unused)),
-        Kis_Net_Httpd_Connection *connection __attribute__((unused)),
+void kis_net_httpd_no_files_handler::httpd_create_stream_response(kis_net_httpd *httpd __attribute__((unused)),
+        kis_net_httpd_connection *connection __attribute__((unused)),
         const char *url __attribute__((unused)), 
         const char *method __attribute__((unused)), 
         const char *upload_data __attribute__((unused)),
@@ -167,11 +167,11 @@ void Kis_Net_Httpd_No_Files_Handler::Httpd_CreateStreamResponse(Kis_Net_Httpd *h
     stream << "</html>";
 }
 
-Kis_Net_Httpd_Buffer_Stream_Aux::Kis_Net_Httpd_Buffer_Stream_Aux(
-        Kis_Net_Httpd_Buffer_Stream_Handler *in_handler,
-        Kis_Net_Httpd_Connection *in_httpd_connection,
-        std::shared_ptr<BufferHandlerGeneric> in_ringbuf_handler,
-        void *in_aux, std::function<void (Kis_Net_Httpd_Buffer_Stream_Aux *)> in_free_aux) :
+kis_net_httpd_buffer_stream_aux::kis_net_httpd_buffer_stream_aux(
+        kis_net_httpd_buffer_stream_handler *in_handler,
+        kis_net_httpd_connection *in_httpd_connection,
+        std::shared_ptr<buffer_handler_generic> in_ringbuf_handler,
+        void *in_aux, std::function<void (kis_net_httpd_buffer_stream_aux *)> in_free_aux) :
     httpd_stream_handler(in_handler),
     httpd_connection(in_httpd_connection),
     ringbuf_handler(in_ringbuf_handler),
@@ -189,27 +189,27 @@ Kis_Net_Httpd_Buffer_Stream_Aux::Kis_Net_Httpd_Buffer_Stream_Aux(
     cl->lock();
 
     // If the buffer encounters an error, unlock the variable and set the error state
-    ringbuf_handler->SetProtocolErrorCb([this]() {
+    ringbuf_handler->set_protocol_error_cb([this]() {
             trigger_error();
         });
 
     // Lodge ourselves as the write handler
-    ringbuf_handler->SetWriteBufferInterface(this);
+    ringbuf_handler->set_write_buffer_interface(this);
 }
 
-Kis_Net_Httpd_Buffer_Stream_Aux::~Kis_Net_Httpd_Buffer_Stream_Aux() {
+kis_net_httpd_buffer_stream_aux::~kis_net_httpd_buffer_stream_aux() {
     // Get out of the lock and flag an error so we end
     in_error = true;
 
     if (ringbuf_handler) {
-        ringbuf_handler->RemoveWriteBufferInterface();
-        ringbuf_handler->SetProtocolErrorCb(NULL);
+        ringbuf_handler->remove_write_buffer_interface();
+        ringbuf_handler->set_protocol_error_cb(NULL);
     }
 
     cl->unlock(0);
 }
 
-void Kis_Net_Httpd_Buffer_Stream_Aux::BufferAvailable(size_t in_amt __attribute__((unused))) {
+void kis_net_httpd_buffer_stream_aux::buffer_available(size_t in_amt __attribute__((unused))) {
     // All we need to do here is unlock the conditional lock; the 
     // buffer_event_cb callback will unlock and read from the buffer, then
     // re-lock and block
@@ -217,15 +217,15 @@ void Kis_Net_Httpd_Buffer_Stream_Aux::BufferAvailable(size_t in_amt __attribute_
     cl->unlock(1);
 }
 
-void Kis_Net_Httpd_Buffer_Stream_Aux::block_until_data(std::shared_ptr<BufferHandlerGeneric> rbh) {
+void kis_net_httpd_buffer_stream_aux::block_until_data(std::shared_ptr<buffer_handler_generic> rbh) {
     while (1) {
         { 
             local_locker lock(&aux_mutex);
 
-            // fmt::print(stderr, "buffer block until sees {}\n", rbh->GetReadBufferUsed());
+            // fmt::print(stderr, "buffer block until sees {}\n", rbh->get_read_buffer_used());
 
             // Immediately return if we have pending data
-            if (rbh->GetReadBufferUsed()) {
+            if (rbh->get_read_buffer_used()) {
                 return;
             }
 
@@ -242,13 +242,13 @@ void Kis_Net_Httpd_Buffer_Stream_Aux::block_until_data(std::shared_ptr<BufferHan
     }
 }
 
-Kis_Net_Httpd_Buffer_Stream_Handler::~Kis_Net_Httpd_Buffer_Stream_Handler() {
+kis_net_httpd_buffer_stream_handler::~kis_net_httpd_buffer_stream_handler() {
 
 }
 
-ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t pos,
+ssize_t kis_net_httpd_buffer_stream_handler::buffer_event_cb(void *cls, uint64_t pos,
         char *buf, size_t max) {
-    Kis_Net_Httpd_Buffer_Stream_Aux *stream_aux = (Kis_Net_Httpd_Buffer_Stream_Aux *) cls;
+    kis_net_httpd_buffer_stream_aux *stream_aux = (kis_net_httpd_buffer_stream_aux *) cls;
 
     // Protect that we have to exit the buffer cb before the stream can be killed, don't
     // use an automatic locker because we can't let it time out.  This could sit locked for
@@ -256,7 +256,7 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
     // let this end gracefully.
     stream_aux->get_buffer_event_mutex()->lock();
 
-    std::shared_ptr<BufferHandlerGeneric> rbh = stream_aux->get_rbhandler();
+    std::shared_ptr<buffer_handler_generic> rbh = stream_aux->get_rbhandler();
 
     // Target buffer before we send it out via MHD
     size_t read_sz = 0;
@@ -272,14 +272,14 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
         // We want to send everything we had in the buffer, even if we're in an error 
         // state, because the error text might be in the buffer (or the buffer generator
         // has completed and it's time to return)
-        read_sz = rbh->ZeroCopyPeekWriteBufferData((void **) &zbuf, max);
+        read_sz = rbh->zero_copy_peek_write_buffer_data((void **) &zbuf, max);
 
         // fmt::print(stderr, "buffer read sz {}\n", read_sz);
 
         // If we've got nothing left either it's the end of the buffer or we're pending
         // more data hitting the request
         if (read_sz == 0) {
-            rbh->PeekFreeWriteBufferData(zbuf);
+            rbh->peek_free_write_buffer_data(zbuf);
 
             if (stream_aux->get_in_error()) {
                 // fmt::print(stderr, "buffer hit end of stream, error flagged\n");
@@ -295,8 +295,8 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
     }
 
     // Clean up the writebuffer access
-    rbh->PeekFreeWriteBufferData(zbuf);
-    rbh->ConsumeWriteBufferData(read_sz);
+    rbh->peek_free_write_buffer_data(zbuf);
+    rbh->consume_write_buffer_data(read_sz);
 
     // Unlock the stream
     stream_aux->get_buffer_event_mutex()->unlock();
@@ -305,16 +305,16 @@ ssize_t Kis_Net_Httpd_Buffer_Stream_Handler::buffer_event_cb(void *cls, uint64_t
 }
 
 static void free_buffer_aux_callback(void *cls) {
-    Kis_Net_Httpd_Buffer_Stream_Aux *aux = (Kis_Net_Httpd_Buffer_Stream_Aux *) cls;
+    kis_net_httpd_buffer_stream_aux *aux = (kis_net_httpd_buffer_stream_aux *) cls;
 
     // fprintf(stderr, "debug - free_buffer_aux\n");
 
     aux->get_buffer_event_mutex()->lock();
 
-    aux->ringbuf_handler->ProtocolError();
+    aux->ringbuf_handler->protocol_error();
 
     // Consume any backlog if the thread is still processing
-    std::shared_ptr<BufferHandlerGeneric> rbh = aux->get_rbhandler();
+    std::shared_ptr<buffer_handler_generic> rbh = aux->get_rbhandler();
 
     size_t read_sz = 0;
     unsigned char *zbuf;
@@ -322,10 +322,10 @@ static void free_buffer_aux_callback(void *cls) {
     while (aux->get_in_error() == false) {
         // aux->block_until_data(rbh);
 
-        read_sz = rbh->ZeroCopyPeekWriteBufferData((void **) &zbuf, 1024);
+        read_sz = rbh->zero_copy_peek_write_buffer_data((void **) &zbuf, 1024);
 
-        rbh->PeekFreeWriteBufferData(zbuf);
-        rbh->ConsumeWriteBufferData(read_sz);
+        rbh->peek_free_write_buffer_data(zbuf);
+        rbh->consume_write_buffer_data(read_sz);
 
         if (read_sz == 0)
             break;
@@ -343,8 +343,8 @@ static void free_buffer_aux_callback(void *cls) {
     delete(aux);
 }
 
-int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *httpd, 
-        Kis_Net_Httpd_Connection *connection,
+int kis_net_httpd_buffer_stream_handler::httpd_handle_get_request(kis_net_httpd *httpd, 
+        kis_net_httpd_connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
@@ -354,10 +354,10 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
     std::lock_guard<std::mutex> lk(connection->connection_mutex);
 
     if (connection->response == NULL) {
-        std::shared_ptr<BufferHandlerGeneric> rbh(allocate_buffer());
+        std::shared_ptr<buffer_handler_generic> rbh(allocate_buffer());
 
-        Kis_Net_Httpd_Buffer_Stream_Aux *aux = 
-            new Kis_Net_Httpd_Buffer_Stream_Aux(this, connection, rbh, NULL, NULL);
+        kis_net_httpd_buffer_stream_aux *aux = 
+            new kis_net_httpd_buffer_stream_aux(this, connection, rbh, NULL, NULL);
         connection->custom_extension = aux;
 
         std::promise<int> launch_promise;
@@ -394,7 +394,7 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
                 // in the generator and it's not going to clean itself up.
                 try {
                     size_t sz = upload_data_copy.size();
-                    int r = Httpd_CreateStreamResponse(httpd, connection, url_copy.c_str(), 
+                    int r = httpd_create_stream_response(httpd, connection, url_copy.c_str(), 
                             method_copy.c_str(), upload_data_copy.data(), &sz);
 
                     // fmt::print(stderr, "generator completed callback\n");
@@ -418,14 +418,14 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandleGetRequest(Kis_Net_Httpd *h
             MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, 32 * 1024,
                     &buffer_event_cb, aux, &free_buffer_aux_callback);
 
-        return httpd->SendStandardHttpResponse(httpd, connection, url);
+        return httpd->send_standard_http_response(httpd, connection, url);
     }
 
     return MHD_NO;
 }
 
-int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *httpd,
-        Kis_Net_Httpd_Connection *connection, 
+int kis_net_httpd_buffer_stream_handler::httpd_handle_post_request(kis_net_httpd *httpd,
+        kis_net_httpd_connection *connection, 
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
@@ -436,10 +436,10 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *
 
     if (connection->response == NULL) {
         // No read, default write
-        std::shared_ptr<BufferHandlerGeneric> rbh(allocate_buffer());
+        std::shared_ptr<buffer_handler_generic> rbh(allocate_buffer());
 
-        Kis_Net_Httpd_Buffer_Stream_Aux *aux = 
-            new Kis_Net_Httpd_Buffer_Stream_Aux(this, connection, rbh, NULL, NULL);
+        kis_net_httpd_buffer_stream_aux *aux = 
+            new kis_net_httpd_buffer_stream_aux(this, connection, rbh, NULL, NULL);
         connection->custom_extension = aux;
 
         // fprintf(stderr, "debug - made post aux %p\n", aux);
@@ -458,7 +458,7 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *
                 cl.unlock(1);
 
                 try {
-                    int r = Httpd_PostComplete(connection);
+                    int r = httpd_post_complete(connection);
                     if (r == MHD_YES) {
                         // fprintf(stderr, "debug - triggering complete\n");
                         aux->sync();
@@ -478,7 +478,7 @@ int Kis_Net_Httpd_Buffer_Stream_Handler::Httpd_HandlePostRequest(Kis_Net_Httpd *
             MHD_create_response_from_callback(MHD_SIZE_UNKNOWN, 32 * 1024,
                     &buffer_event_cb, aux, &free_buffer_aux_callback);
 
-        return httpd->SendStandardHttpResponse(httpd, connection, url);
+        return httpd->send_standard_http_response(httpd, connection, url);
     }
 
     return MHD_NO;

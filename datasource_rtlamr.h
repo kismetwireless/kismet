@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -23,13 +23,14 @@
 
 #include "kis_datasource.h"
 
-class KisDatasourceRtlamr;
-typedef std::shared_ptr<KisDatasourceRtlamr> SharedDatasourceRtlamr;
+class kis_datasource_rtlamr;
+typedef std::shared_ptr<kis_datasource_rtlamr> shared_datasource_rtlamr;
 
-class KisDatasourceRtlamr : public KisDatasource {
+class kis_datasource_rtlamr : public kis_datasource {
 public:
-    KisDatasourceRtlamr(SharedDatasourceBuilder in_builder, bool in_mqtt);
-    virtual ~KisDatasourceRtlamr();
+    kis_datasource_rtlamr(shared_datasource_builder in_builder, 
+            std::shared_ptr<kis_recursive_timed_mutex> mutex, bool in_mqtt);
+    virtual ~kis_datasource_rtlamr();
 
 protected:
     virtual void open_interface(std::string in_definition, unsigned int in_transaction,
@@ -37,34 +38,35 @@ protected:
 
 };
 
-class DatasourceRtlamrBuilder : public KisDatasourceBuilder {
+class datasource_rtlamr_builder : public kis_datasource_builder {
 public:
-    DatasourceRtlamrBuilder() :
-        KisDatasourceBuilder() {
+    datasource_rtlamr_builder() :
+        kis_datasource_builder() {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    DatasourceRtlamrBuilder(int in_id) :
-        KisDatasourceBuilder(in_id) {
+    datasource_rtlamr_builder(int in_id) :
+        kis_datasource_builder(in_id) {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    DatasourceRtlamrBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
-        KisDatasourceBuilder(in_id, e) {
+    datasource_rtlamr_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
+        kis_datasource_builder(in_id, e) {
 
         register_fields();
         reserve_fields(e);
         initialize();
     }
 
-    virtual ~DatasourceRtlamrBuilder() { }
+    virtual ~datasource_rtlamr_builder() { }
 
-    virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) override {
-        return SharedDatasourceRtlamr(new KisDatasourceRtlamr(in_sh_this, false));
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this,
+            std::shared_ptr<kis_recursive_timed_mutex> mutex) override {
+        return shared_datasource_rtlamr(new kis_datasource_rtlamr(in_sh_this, mutex, false));
     }
 
     virtual void initialize() override {
@@ -80,24 +82,24 @@ public:
     }
 };
 
-class DatasourceRtlamrMqttBuilder : public KisDatasourceBuilder {
+class DatasourceRtlamrMqttBuilder : public kis_datasource_builder {
 public:
     DatasourceRtlamrMqttBuilder() :
-        KisDatasourceBuilder() {
+        kis_datasource_builder() {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
     DatasourceRtlamrMqttBuilder(int in_id) :
-        KisDatasourceBuilder(in_id) {
+        kis_datasource_builder(in_id) {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    DatasourceRtlamrMqttBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
-        KisDatasourceBuilder(in_id, e) {
+    DatasourceRtlamrMqttBuilder(int in_id, std::shared_ptr<tracker_element_map> e) :
+        kis_datasource_builder(in_id, e) {
         register_fields();
         reserve_fields(e);
         initialize();
@@ -105,8 +107,9 @@ public:
 
     virtual ~DatasourceRtlamrMqttBuilder() { }
 
-    virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) override {
-        return SharedDatasourceRtlamr(new KisDatasourceRtlamr(in_sh_this, true));
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this,
+            std::shared_ptr<kis_recursive_timed_mutex> mutex) override {
+        return shared_datasource_rtlamr(new kis_datasource_rtlamr(in_sh_this, mutex, true));
     }
 
     virtual void initialize() override {

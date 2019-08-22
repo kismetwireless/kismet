@@ -27,58 +27,58 @@
 #include "kis_httpd_registry.h"
 #include "manuf.h"
 
-Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
-    Kis_Phy_Handler(in_globalreg, in_phyid) {
+Kis_RTL433_Phy::Kis_RTL433_Phy(global_registry *in_globalreg, int in_phyid) :
+    kis_phy_handler(in_globalreg, in_phyid) {
 
-    SetPhyName("RTL433");
+    set_phy_name("RTL433");
 
     packetchain =
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>();
+        Globalreg::fetch_mandatory_global_as<packet_chain>();
     entrytracker =
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
+        Globalreg::fetch_mandatory_global_as<entry_tracker>();
     devicetracker = 
-        Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
+        Globalreg::fetch_mandatory_global_as<device_tracker>();
 
 	pack_comp_common = 
-		packetchain->RegisterPacketComponent("COMMON");
+		packetchain->register_packet_component("COMMON");
     pack_comp_json = 
-        packetchain->RegisterPacketComponent("JSON");
+        packetchain->register_packet_component("JSON");
     pack_comp_meta =
-        packetchain->RegisterPacketComponent("METABLOB");
+        packetchain->register_packet_component("METABLOB");
 
     rtl433_holder_id =
-        Globalreg::globalreg->entrytracker->RegisterField("rtl433.device", 
-                TrackerElementFactory<TrackerElementMap>(),
+        Globalreg::globalreg->entrytracker->register_field("rtl433.device", 
+                tracker_element_factory<tracker_element_map>(),
                 "rtl_433 device");
 
     rtl433_common_id =
-        Globalreg::globalreg->entrytracker->RegisterField("rtl433.device.common",
-                TrackerElementFactory<rtl433_tracked_common>(),
+        Globalreg::globalreg->entrytracker->register_field("rtl433.device.common",
+                tracker_element_factory<rtl433_tracked_common>(),
                 "Common RTL433 device info");
 
     rtl433_thermometer_id =
-        Globalreg::globalreg->entrytracker->RegisterField("rtl433.device.thermometer",
-                TrackerElementFactory<rtl433_tracked_thermometer>(),
+        Globalreg::globalreg->entrytracker->register_field("rtl433.device.thermometer",
+                tracker_element_factory<rtl433_tracked_thermometer>(),
                 "RTL433 thermometer");
 
     rtl433_tpms_id =
-        Globalreg::globalreg->entrytracker->RegisterField("rtl433.device.tpms",
-                TrackerElementFactory<rtl433_tracked_tpms>(),
+        Globalreg::globalreg->entrytracker->register_field("rtl433.device.tpms",
+                tracker_element_factory<rtl433_tracked_tpms>(),
                 "RTL433 TPMS tire pressure");
     
     rtl433_weatherstation_id =
-        Globalreg::globalreg->entrytracker->RegisterField("rtl433.device.weatherstation",
-                TrackerElementFactory<rtl433_tracked_weatherstation>(),
+        Globalreg::globalreg->entrytracker->register_field("rtl433.device.weatherstation",
+                tracker_element_factory<rtl433_tracked_weatherstation>(),
                 "RTL433 weather station");
 
     rtl433_switch_id =
-        Globalreg::globalreg->entrytracker->RegisterField("rtl433.device.switch",
-                TrackerElementFactory<rtl433_tracked_switch>(),
+        Globalreg::globalreg->entrytracker->register_field("rtl433.device.switch",
+                tracker_element_factory<rtl433_tracked_switch>(),
                 "RTL433 power switch");
 
     rtl433_lightning_id =
-        Globalreg::globalreg->entrytracker->RegisterField("rtl433.device.lightningsensor",
-                TrackerElementFactory<rtl433_tracked_lightningsensor>(),
+        Globalreg::globalreg->entrytracker->register_field("rtl433.device.lightningsensor",
+                tracker_element_factory<rtl433_tracked_lightningsensor>(),
                 "RTL433 lightning sensor");
 
     // Make the manuf string
@@ -86,14 +86,14 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
     // Register js module for UI
     auto httpregistry =
-        Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>();
+        Globalreg::fetch_mandatory_global_as<kis_httpd_registry>();
     httpregistry->register_js_module("kismet_ui_rtl433", "js/kismet.ui.rtl433.js");
 
-	packetchain->RegisterHandler(&PacketHandler, this, CHAINPOS_CLASSIFIER, -100);
+	packetchain->register_handler(&PacketHandler, this, CHAINPOS_CLASSIFIER, -100);
 }
 
 Kis_RTL433_Phy::~Kis_RTL433_Phy() {
-    packetchain->RemoveHandler(&PacketHandler, CHAINPOS_CLASSIFIER);
+    packetchain->remove_handler(&PacketHandler, CHAINPOS_CLASSIFIER);
 }
 
 double Kis_RTL433_Phy::f_to_c(double f) {
@@ -123,7 +123,7 @@ mac_addr Kis_RTL433_Phy::json_to_mac(Json::Value json) {
         }
     }
 
-    *checksum = Adler32Checksum(smodel.c_str(), smodel.length());
+    *checksum = adler32_checksum(smodel.c_str(), smodel.length());
 
     bool set_model = false;
     if (json.isMember("id")) {
@@ -172,16 +172,16 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     }
 
     common->type = packet_basic_data;
-    common->phyid = FetchPhyId();
+    common->phyid = fetch_phy_id();
     common->datasize = 0;
 
     // If this json record has a channel
     if (json.isMember("channel")) {
         Json::Value c = json["channel"];
         if (c.isNumeric()) {
-            common->channel = IntToString(c.asInt());
+            common->channel = int_to_string(c.asInt());
         } else if (c.isString()) {
-            common->channel = MungeToPrintable(c.asString());
+            common->channel = munge_to_printable(c.asString());
         }
     }
 
@@ -190,7 +190,7 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     common->transmitter = rtlmac;
 
     std::shared_ptr<kis_tracked_device_base> basedev =
-        devicetracker->UpdateCommonDevice(common, common->source, this, packet,
+        devicetracker->update_common_device(common, common->source, this, packet,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY), "RTL433 Sensor");
 
@@ -199,7 +199,7 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     std::string dn = "Sensor";
 
     if (json.isMember("model")) {
-        dn = MungeToPrintable(json["model"].asString());
+        dn = munge_to_printable(json["model"].asString());
     }
 
     basedev->set_manuf(rtl_manuf);
@@ -207,12 +207,12 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     basedev->set_type_string("Sensor");
     basedev->set_devicename(dn);
 
-    auto rtlholder = basedev->get_sub_as<TrackerElementMap>(rtl433_holder_id);
+    auto rtlholder = basedev->get_sub_as<tracker_element_map>(rtl433_holder_id);
     bool newrtl = false;
 
     if (rtlholder == NULL) {
         rtlholder =
-            std::make_shared<TrackerElementMap>(rtl433_holder_id);
+            std::make_shared<tracker_element_map>(rtl433_holder_id);
         basedev->insert(rtlholder);
         newrtl = true;
     }
@@ -265,16 +265,16 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
         auto channel_j = json["channel"];
 
         if (channel_j.isNumeric())
-            commondev->set_rtlchannel(IntToString(channel_j.asInt()));
+            commondev->set_rtlchannel(int_to_string(channel_j.asInt()));
         else if (channel_j.isString())
-            commondev->set_rtlchannel(MungeToPrintable(channel_j.asString()));
+            commondev->set_rtlchannel(munge_to_printable(channel_j.asString()));
     }
 
     if (json.isMember("battery")) {
         auto battery_j = json["battery"];
 
         if (battery_j.isString())
-            commondev->set_battery(MungeToPrintable(battery_j.asString()));
+            commondev->set_battery(munge_to_printable(battery_j.asString()));
     }
 
     if (is_thermometer(json))
@@ -371,7 +371,7 @@ bool Kis_RTL433_Phy::is_lightning(Json::Value json) {
 }
 
 void Kis_RTL433_Phy::add_weather_station(Json::Value json, 
-        std::shared_ptr<TrackerElementMap> rtlholder) {
+        std::shared_ptr<tracker_element_map> rtlholder) {
     auto direction_j = json["direction_deg"];
     auto windstrength_j = json["windstrength"];
     auto winddirection_j = json["winddirection"];
@@ -438,7 +438,7 @@ void Kis_RTL433_Phy::add_weather_station(Json::Value json,
     }
 }
 
-void Kis_RTL433_Phy::add_thermometer(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder) {
+void Kis_RTL433_Phy::add_thermometer(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
     auto humidity_j = json["humidity"];
     auto moisture_j = json["moisture"];
     auto temp_f_j = json["temperature_F"];
@@ -472,7 +472,7 @@ void Kis_RTL433_Phy::add_thermometer(Json::Value json, std::shared_ptr<TrackerEl
     }
 }
 
-void Kis_RTL433_Phy::add_tpms(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder) {
+void Kis_RTL433_Phy::add_tpms(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
     auto type_j = json["type"];
     auto pressure_j = json["pressure_bar"];
     auto pressurekpa_j = json["pressure_kPa"];
@@ -519,7 +519,7 @@ void Kis_RTL433_Phy::add_tpms(Json::Value json, std::shared_ptr<TrackerElementMa
 
 }
 
-void Kis_RTL433_Phy::add_switch(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder) {
+void Kis_RTL433_Phy::add_switch(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
     auto sw0_j = json["switch0"];
     auto sw1_j = json["switch1"];
 
@@ -570,7 +570,7 @@ void Kis_RTL433_Phy::add_switch(Json::Value json, std::shared_ptr<TrackerElement
     }
 }
 
-void Kis_RTL433_Phy::add_lightning(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder) {
+void Kis_RTL433_Phy::add_lightning(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
     // {"time" : "2019-02-24 22:12:13", "model" : "Acurite Lightning 6045M", "id" : 15580, "channel" : "B", "temperature_F" : 38.300, "humidity" : 53, "strike_count" : 1, "storm_dist" : 8, "active" : 1, "rfi" : 0, "ussb1" : 0, "battery" : "OK", "exception" : 0, "raw_msg" : "bcdc6f354edb81886e"}
     auto strike_j = json["strike_count"];
     auto storm_j = json["storm_dist"];

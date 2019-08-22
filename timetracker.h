@@ -37,12 +37,12 @@
 // For ubertooth and a few older plugins that compile against both svn and old
 #define KIS_NEW_TIMER_PARM	1
 
-#define TIMEEVENT_PARMS Timetracker::timer_event *evt __attribute__ ((unused)), \
-    void *auxptr __attribute__ ((unused)), GlobalRegistry *globalreg __attribute__ ((unused))
+#define TIMEEVENT_PARMS time_tracker::timer_event *evt __attribute__ ((unused)), \
+    void *auxptr __attribute__ ((unused)), global_registry *globalreg __attribute__ ((unused))
 
-class TimetrackerEvent;
+class time_tracker_event;
 
-class Timetracker : public LifetimeGlobal {
+class time_tracker : public lifetime_global {
 public:
     struct timer_event {
         int timer_id;
@@ -61,21 +61,21 @@ public:
         int recurring;
 
         // Event, if we were passed a class
-        TimetrackerEvent *event;
+        time_tracker_event *event;
 
         // Function if we were passed a lambda
         std::function<int (int)> event_func;
 
         // C function, if we weren't
-        int (*callback)(timer_event *, void *, GlobalRegistry *);
+        int (*callback)(timer_event *, void *, global_registry *);
         void *callback_parm;
     };
 
     // Sort alerts by alert trigger time
     class SortTimerEventsTrigger {
     public:
-        inline bool operator() (const Timetracker::timer_event *x, 
-								const Timetracker::timer_event *y) const {
+        inline bool operator() (const time_tracker::timer_event *x, 
+								const time_tracker::timer_event *y) const {
             if ((x->trigger_tm.tv_sec < y->trigger_tm.tv_sec) ||
                 ((x->trigger_tm.tv_sec == y->trigger_tm.tv_sec) && 
 				 (x->trigger_tm.tv_usec < y->trigger_tm.tv_usec)))
@@ -87,35 +87,35 @@ public:
 
     static std::string global_name() { return "TIMETRACKER"; }
 
-    static std::shared_ptr<Timetracker> create_timetracker() {
-        std::shared_ptr<Timetracker> mon(new Timetracker());
+    static std::shared_ptr<time_tracker> create_timetracker() {
+        std::shared_ptr<time_tracker> mon(new time_tracker());
         Globalreg::globalreg->timetracker = mon.get();
-        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-        Globalreg::globalreg->InsertGlobal(global_name(), mon);
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-    Timetracker();
+    time_tracker();
 
 public:
-    virtual ~Timetracker();
+    virtual ~time_tracker();
 
     // Register an optionally recurring timer.  Slices are 1/100th of a second,
     // the smallest linux can slice without getting into weird calls.
     int RegisterTimer(int in_timeslices, struct timeval *in_trigger,
                       int in_recurring, 
-                      int (*in_callback)(timer_event *, void *, GlobalRegistry *),
+                      int (*in_callback)(timer_event *, void *, global_registry *),
                       void *in_parm);
 
     int RegisterTimer(int timeslices, struct timeval *in_trigger,
-            int in_recurring, TimetrackerEvent *event);
+            int in_recurring, time_tracker_event *event);
 
     int RegisterTimer(int timeslices, struct timeval *in_trigger,
             int in_recurring, std::function<int (int)> event);
 
     // Remove a timer that's going to execute
-    int RemoveTimer(int timer_id);
+    int remove_timer(int timer_id);
 
     void Tick();
 
@@ -142,7 +142,7 @@ protected:
     std::atomic<bool> shutdown;
 };
 
-class TimetrackerEvent {
+class time_tracker_event {
 public:
     // Called when event triggers
     virtual int timetracker_event(int event_id __attribute__ ((unused))) { return 0; };

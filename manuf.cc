@@ -25,22 +25,22 @@
 #include "util.h"
 #include "manuf.h"
 
-Manuf::Manuf() {
-    auto entrytracker = Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
+kis_manuf::kis_manuf() {
+    auto entrytracker = Globalreg::fetch_mandatory_global_as<entry_tracker>();
 
     manuf_id = 
-        entrytracker->RegisterField("kismet.device.base.manuf", 
-                TrackerElementFactory<TrackerElementString>(), "manufacturer name");
+        entrytracker->register_field("kismet.device.base.manuf", 
+                tracker_element_factory<tracker_element_string>(), "manufacturer name");
 
-    unknown_manuf = std::make_shared<TrackerElementString>(manuf_id);
+    unknown_manuf = std::make_shared<tracker_element_string>(manuf_id);
     unknown_manuf->set("Unknown");
 
-    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("manuf_lookup", true) == false) {
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("manuf_lookup", true) == false) {
         _MSG("Disabling OUI lookup.", MSGFLAG_INFO);
         return;
     }
 
-    auto fname = Globalreg::globalreg->kismet_config->FetchOptVec("ouifile");
+    auto fname = Globalreg::globalreg->kismet_config->fetch_opt_vec("ouifile");
     if (fname.size() == 0) {
         _MSG("Missing 'ouifile' option in config, will not resolve manufacturer "
              "names for MAC addresses", MSGFLAG_ERROR);
@@ -48,7 +48,7 @@ Manuf::Manuf() {
     }
 
     for (auto f : fname) {
-        auto expanded = Globalreg::globalreg->kismet_config->ExpandLogPath(f, "", "", 0, 1);
+        auto expanded = Globalreg::globalreg->kismet_config->expand_log_path(f, "", "", 0, 1);
 
         if ((mfile = fopen(expanded.c_str(), "r")) != NULL) {
             _MSG("Opened OUI file '" + expanded, MSGFLAG_INFO);
@@ -67,7 +67,7 @@ Manuf::Manuf() {
     IndexOUI();
 }
 
-void Manuf::IndexOUI() {
+void kis_manuf::IndexOUI() {
     char buf[1024];
     int line = 0;
     fpos_t prev_pos;
@@ -102,7 +102,7 @@ void Manuf::IndexOUI() {
                 oui |= (uint32_t) m[2];
 
                 if (oui < last_oui) {
-                    _MSG("Warning:  Manuf file appears to be out of order, expected "
+                    _MSG("Warning:  kis_manuf file appears to be out of order, expected "
                             "sorted manuf OUI data", MSGFLAG_ERROR);
                 }
 
@@ -124,11 +124,11 @@ void Manuf::IndexOUI() {
         line++;
     }
 
-    _MSG("Completed indexing manufacturer db, " + IntToString(line) + " lines " +
-         IntToString(index_vec.size()) + " indexes", MSGFLAG_INFO);
+    _MSG("Completed indexing manufacturer db, " + int_to_string(line) + " lines " +
+         int_to_string(index_vec.size()) + " indexes", MSGFLAG_INFO);
 }
 
-std::shared_ptr<TrackerElementString> Manuf::LookupOUI(mac_addr in_mac) {
+std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(mac_addr in_mac) {
     uint32_t soui = in_mac.OUI(), toui;
     int matched = -1;
     char buf[1024];
@@ -198,8 +198,8 @@ std::shared_ptr<TrackerElementString> Manuf::LookupOUI(mac_addr in_mac) {
                     manuf_data md;
                     md.oui = soui;
 
-                    md.manuf = std::make_shared<TrackerElementString>(manuf_id);
-                    md.manuf->set(MungeToPrintable(std::string(buf + 9, mlen)));
+                    md.manuf = std::make_shared<tracker_element_string>(manuf_id);
+                    md.manuf->set(munge_to_printable(std::string(buf + 9, mlen)));
                     oui_map[soui] = md;
                     return md.manuf;
                 }
@@ -218,7 +218,7 @@ std::shared_ptr<TrackerElementString> Manuf::LookupOUI(mac_addr in_mac) {
     return unknown_manuf;
 }
 
-std::shared_ptr<TrackerElementString> Manuf::LookupOUI(uint32_t in_oui) {
+std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(uint32_t in_oui) {
     uint32_t soui = in_oui, toui;
     int matched = -1;
     char buf[1024];
@@ -288,8 +288,8 @@ std::shared_ptr<TrackerElementString> Manuf::LookupOUI(uint32_t in_oui) {
                     manuf_data md;
                     md.oui = soui;
 
-                    md.manuf = std::make_shared<TrackerElementString>(manuf_id);
-                    md.manuf->set(MungeToPrintable(std::string(buf + 9, mlen)));
+                    md.manuf = std::make_shared<tracker_element_string>(manuf_id);
+                    md.manuf->set(munge_to_printable(std::string(buf + 9, mlen)));
                     oui_map[soui] = md;
                     return md.manuf;
                 }
@@ -308,13 +308,13 @@ std::shared_ptr<TrackerElementString> Manuf::LookupOUI(uint32_t in_oui) {
     return unknown_manuf;
 }
 
-std::shared_ptr<TrackerElementString> Manuf::MakeManuf(const std::string& in_manuf) {
-    auto manuf = std::make_shared<TrackerElementString>(manuf_id);
+std::shared_ptr<tracker_element_string> kis_manuf::MakeManuf(const std::string& in_manuf) {
+    auto manuf = std::make_shared<tracker_element_string>(manuf_id);
     manuf->set(in_manuf);
     return manuf;
 }
 
-bool Manuf::IsUnknownManuf(std::shared_ptr<TrackerElementString> in_manuf) {
+bool kis_manuf::is_unknown_manuf(std::shared_ptr<tracker_element_string> in_manuf) {
     return in_manuf == unknown_manuf;
 }
 

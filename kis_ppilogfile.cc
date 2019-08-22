@@ -28,8 +28,8 @@
 #include "kis_ppi.h"
 #include "phy_80211.h"
 
-KisPPILogfile::KisPPILogfile(SharedLogBuilder in_builder) : 
-    KisLogfile(in_builder) {
+kis_ppi_logfile::kis_ppi_logfile(shared_log_builder in_builder) : 
+    kis_logfile(in_builder) {
 
 	// Default to dot11
 	dlt = DLT_IEEE802_11;
@@ -41,18 +41,18 @@ KisPPILogfile::KisPPILogfile(SharedLogBuilder in_builder) :
 	dumper = NULL;
     dump_filep = NULL;
 
-    auto packetchain = Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
+    auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
 
-    pack_comp_80211 = packetchain->RegisterPacketComponent("PHY80211");
-    pack_comp_mangleframe = packetchain->RegisterPacketComponent("MANGLEDATA");
-    pack_comp_radiodata = packetchain->RegisterPacketComponent("RADIODATA");
-    pack_comp_gps = packetchain->RegisterPacketComponent("GPS");
-    pack_comp_checksum = packetchain->RegisterPacketComponent("CHECKSUM");
-    pack_comp_decap = packetchain->RegisterPacketComponent("DECAP");
-    pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
+    pack_comp_80211 = packetchain->register_packet_component("PHY80211");
+    pack_comp_mangleframe = packetchain->register_packet_component("MANGLEDATA");
+    pack_comp_radiodata = packetchain->register_packet_component("RADIODATA");
+    pack_comp_gps = packetchain->register_packet_component("GPS");
+    pack_comp_checksum = packetchain->register_packet_component("CHECKSUM");
+    pack_comp_decap = packetchain->register_packet_component("DECAP");
+    pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
 }
 
-bool KisPPILogfile::Log_Open(std::string in_path) {
+bool kis_ppi_logfile::open_log(std::string in_path) {
     local_locker lock(&log_mutex);
 
     set_int_log_path(in_path);
@@ -62,7 +62,7 @@ bool KisPPILogfile::Log_Open(std::string in_path) {
     dump_filep = NULL;
 
     auto packetchain =
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
+        Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
 
 	dumpfile = pcap_open_dead(DLT_PPI, MAX_PACKET_LEN);
 
@@ -80,7 +80,7 @@ bool KisPPILogfile::Log_Open(std::string in_path) {
         return false;
     }
 
-    // Close it on exec
+    // close it on exec
     fcntl(fileno(dump_filep), F_SETFL, fcntl(fileno(dump_filep), F_GETFL, 0) | O_CLOEXEC);
 
 	dumper = pcap_dump_fopen(dumpfile, dump_filep);
@@ -95,22 +95,22 @@ bool KisPPILogfile::Log_Open(std::string in_path) {
 
     set_int_log_open(true);
 
-	packetchain->RegisterHandler(&KisPPILogfile::packet_handler, this, CHAINPOS_LOGGING, -100);
+	packetchain->register_handler(&kis_ppi_logfile::packet_handler, this, CHAINPOS_LOGGING, -100);
 
     return true;
 }
 
-void KisPPILogfile::Log_Close() {
+void kis_ppi_logfile::close_log() {
     local_locker lock(&log_mutex);
 
     set_int_log_open(false);
 
     auto packetchain =
-        Globalreg::FetchGlobalAs<Packetchain>("PACKETCHAIN");
+        Globalreg::FetchGlobalAs<packet_chain>("PACKETCHAIN");
     if (packetchain != NULL) 
-        packetchain->RemoveHandler(&KisPPILogfile::packet_handler, CHAINPOS_LOGGING);
+        packetchain->remove_handler(&kis_ppi_logfile::packet_handler, CHAINPOS_LOGGING);
 
-    // Close files
+    // close files
     if (dumper != NULL) {
         pcap_dump_flush(dumper);
         pcap_dump_close(dumper);
@@ -126,11 +126,11 @@ void KisPPILogfile::Log_Close() {
 
 }
 
-KisPPILogfile::~KisPPILogfile() {
-    Log_Close();
+kis_ppi_logfile::~kis_ppi_logfile() {
+    close_log();
 }
 
-void KisPPILogfile::RegisterPPICallback(dumpfile_ppi_cb in_cb, void *in_aux) {
+void kis_ppi_logfile::register_ppi_callback(dumpfile_ppi_cb in_cb, void *in_aux) {
 	for (unsigned int x = 0; x < ppi_cb_vec.size(); x++) {
 		if (ppi_cb_vec[x].cb == in_cb && ppi_cb_vec[x].aux == in_aux)
 			return;
@@ -143,7 +143,7 @@ void KisPPILogfile::RegisterPPICallback(dumpfile_ppi_cb in_cb, void *in_aux) {
 	ppi_cb_vec.push_back(r);
 }
 
-void KisPPILogfile::RemovePPICallback(dumpfile_ppi_cb in_cb, void *in_aux) {
+void kis_ppi_logfile::remove_ppi_callback(dumpfile_ppi_cb in_cb, void *in_aux) {
 	for (unsigned int x = 0; x < ppi_cb_vec.size(); x++) {
 		if (ppi_cb_vec[x].cb == in_cb && ppi_cb_vec[x].aux == in_aux) {
 			ppi_cb_vec.erase(ppi_cb_vec.begin() + x);
@@ -152,8 +152,8 @@ void KisPPILogfile::RemovePPICallback(dumpfile_ppi_cb in_cb, void *in_aux) {
 	}
 }
 
-int KisPPILogfile::packet_handler(CHAINCALL_PARMS) {
-    KisPPILogfile *ppilog = (KisPPILogfile *) auxdata;
+int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
+    kis_ppi_logfile *ppilog = (kis_ppi_logfile *) auxdata;
 
     local_locker lg(&(ppilog->packet_mutex));
 

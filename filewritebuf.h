@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -29,11 +29,11 @@
 //
 // MAY THROW EXCEPTIONS on construction if the file cannot be opened
 
-class FileWritebuf : public CommonBuffer {
+class file_write_buffer : public common_buffer {
 public:
     // Specify a file and a block size
-    FileWritebuf(std::string in_path, size_t chunk_sz);
-    virtual ~FileWritebuf();
+    file_write_buffer(std::string in_path, size_t chunk_sz);
+    virtual ~file_write_buffer();
 
     virtual void clear();
 

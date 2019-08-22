@@ -20,69 +20,69 @@
 #include "configfile.h"
 #include "fmt.h"
 
-Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri) {
+dot11_fingerprint_tracker::dot11_fingerprint_tracker(const std::string& in_uri) {
     using namespace std::placeholders;
 
-    base_uri = StrTokenize(in_uri, "/");
+    base_uri = str_tokenize(in_uri, "/");
 
     // Tokenized paths begin with / which yields a blank [0] element, so trim that
     if (base_uri.size())
         base_uri = std::vector<std::string>(base_uri.begin() + 1, base_uri.end());
 
     fingerprint_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>(in_uri + "/all_fingerprints", 
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>(in_uri + "/all_fingerprints", 
                 fingerprint_map, &mutex);
 
     update_endp =
-        std::make_shared<Kis_Net_Httpd_Path_Post_Endpoint>(
+        std::make_shared<kis_net_httpd_path_post_endpoint>(
                 [this](const std::vector<std::string>& path, const std::string& uri) -> bool {
                     return std::get<0>(post_path(path)) != uri_endpoint::endp_unknown;
                 }, 
                 [this](std::ostream& stream, const std::vector<std::string>& path,
-                    const std::string& uri, SharedStructured post_structured,
-                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
+                    const std::string& uri, shared_structured post_structured,
+                    kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                     return mod_dispatch(stream, path, post_structured);
                 }, &mutex);
 }
 
-Dot11FingerprintTracker::Dot11FingerprintTracker(const std::string& in_uri,
+dot11_fingerprint_tracker::dot11_fingerprint_tracker(const std::string& in_uri,
     const std::string& in_config, const std::string& in_confvalue) {
     using namespace std::placeholders;
 
-    base_uri = StrTokenize(in_uri, "/");
+    base_uri = str_tokenize(in_uri, "/");
 
     // Tokenized paths begin with / which yields a blank [0] element, so trim that
     if (base_uri.size())
         base_uri = std::vector<std::string>(base_uri.begin() + 1, base_uri.end());
 
     fingerprint_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>(in_uri + "/all_fingerprints", 
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>(in_uri + "/all_fingerprints", 
                 fingerprint_map, &mutex);
 
     update_endp =
-        std::make_shared<Kis_Net_Httpd_Path_Post_Endpoint>(
+        std::make_shared<kis_net_httpd_path_post_endpoint>(
                 [this](const std::vector<std::string>& path, const std::string& uri) -> bool {
                     return std::get<0>(post_path(path)) != uri_endpoint::endp_unknown;
                 }, 
                 [this](std::ostream& stream, const std::vector<std::string>& path,
-                    const std::string& uri, SharedStructured post_structured,
-                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
+                    const std::string& uri, shared_structured post_structured,
+                    kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                     return mod_dispatch(stream, path, post_structured);
                 }, &mutex);
 
-    configfile = std::make_shared<ConfigFile>();
-    configpath = configfile->ExpandLogPath(in_config);
+    configfile = std::make_shared<config_file>();
+    configpath = configfile->expand_log_path(in_config);
     configvalue = in_confvalue;
-    configfile->ParseConfig(in_config);
+    configfile->parse_config(in_config);
 }
 
-Dot11FingerprintTracker::~Dot11FingerprintTracker() {
+dot11_fingerprint_tracker::~dot11_fingerprint_tracker() {
     if (configfile != nullptr)
-        configfile->SaveConfig(configpath);
+        configfile->save_config(configpath);
 }
 
-std::tuple<Dot11FingerprintTracker::uri_endpoint, mac_addr>
-Dot11FingerprintTracker::post_path(const std::vector<std::string>& path) {
+std::tuple<dot11_fingerprint_tracker::uri_endpoint, mac_addr>
+dot11_fingerprint_tracker::post_path(const std::vector<std::string>& path) {
     // Match against the base URI path
     if (path.size() <= base_uri.size())
         return std::make_tuple(uri_endpoint::endp_unknown, mac_addr {0});
@@ -137,8 +137,8 @@ Dot11FingerprintTracker::post_path(const std::vector<std::string>& path) {
     return std::make_tuple(uri_endpoint::endp_unknown, mac_addr {0});
 }
 
-unsigned int Dot11FingerprintTracker::mod_dispatch(std::ostream& stream,
-        const std::vector<std::string>& path, SharedStructured structured) {
+unsigned int dot11_fingerprint_tracker::mod_dispatch(std::ostream& stream,
+        const std::vector<std::string>& path, shared_structured structured) {
 
     auto path_extract = post_path(path);
 
@@ -164,8 +164,8 @@ unsigned int Dot11FingerprintTracker::mod_dispatch(std::ostream& stream,
     return 401;
 }
 
-unsigned int Dot11FingerprintTracker::update_fingerprint(std::ostream &stream,
-        mac_addr mac, SharedStructured structured) {
+unsigned int dot11_fingerprint_tracker::update_fingerprint(std::ostream &stream,
+        mac_addr mac, shared_structured structured) {
 
     auto fpi = fingerprint_map->find(mac);
 
@@ -177,21 +177,21 @@ unsigned int Dot11FingerprintTracker::update_fingerprint(std::ostream &stream,
     auto fp = std::static_pointer_cast<tracked_dot11_fingerprint>(fpi->second);
 
     try {
-        if (structured->hasKey("beacon_hash"))
-            fp->set_beacon_hash(structured->getKeyAsNumber("beacon_hash"));
+        if (structured->has_key("beacon_hash"))
+            fp->set_beacon_hash(structured->key_as_number("beacon_hash"));
 
-        if (structured->hasKey("response_hash"))
-            fp->set_response_hash(structured->getKeyAsNumber("response_hash"));
+        if (structured->has_key("response_hash"))
+            fp->set_response_hash(structured->key_as_number("response_hash"));
 
-        if (structured->hasKey("probe_hash"))
-            fp->set_probe_hash(structured->getKeyAsNumber("probe_hash"));
+        if (structured->has_key("probe_hash"))
+            fp->set_probe_hash(structured->key_as_number("probe_hash"));
 
         rebuild_config();
 
         stream << "Fingerprint updated\n";
         return 200;
 
-    } catch (const StructuredDataException& e) {
+    } catch (const structured_data_exception& e) {
         stream << "Malformed update: " << e.what() << "\n";
         return 500;
     }
@@ -200,27 +200,27 @@ unsigned int Dot11FingerprintTracker::update_fingerprint(std::ostream &stream,
     return 500;
 }
 
-unsigned int Dot11FingerprintTracker::insert_fingerprint(std::ostream& stream, 
-        SharedStructured structured) {
+unsigned int dot11_fingerprint_tracker::insert_fingerprint(std::ostream& stream, 
+        shared_structured structured) {
     try {
-        if (!structured->hasKey("macaddr"))
-            throw StructuredDataException("Missing 'macaddr' field in insert command");
+        if (!structured->has_key("macaddr"))
+            throw structured_data_exception("Missing 'macaddr' field in insert command");
 
-        auto mac = mac_addr { structured->getKeyAsString("macaddr") };
+        auto mac = mac_addr { structured->key_as_string("macaddr") };
         if (mac.error)
-            throw StructuredDataException("Invalid 'macaddr' field in insert command");
+            throw structured_data_exception("Invalid 'macaddr' field in insert command");
 
         auto fpi = fingerprint_map->find(mac);
 
         if (fpi != fingerprint_map->end())
-            throw StructuredDataException("Fingerprint MAC address already exists, delete or edit "
+            throw structured_data_exception("Fingerprint MAC address already exists, delete or edit "
                     "it instead.");
 
         auto fp = std::make_shared<tracked_dot11_fingerprint>();
 
-        fp->set_probe_hash(structured->getKeyAsNumber("beacon_hash", 0));
-        fp->set_response_hash(structured->getKeyAsNumber("response_hash", 0));
-        fp->set_probe_hash(structured->getKeyAsNumber("probe_hash", 0));
+        fp->set_probe_hash(structured->key_as_number("beacon_hash", 0));
+        fp->set_response_hash(structured->key_as_number("response_hash", 0));
+        fp->set_probe_hash(structured->key_as_number("probe_hash", 0));
 
         fingerprint_map->insert(std::make_pair(mac, fp));
 
@@ -229,7 +229,7 @@ unsigned int Dot11FingerprintTracker::insert_fingerprint(std::ostream& stream,
         stream << "Fingerprint added\n";
         return 200;
 
-    } catch (const StructuredDataException& e) {
+    } catch (const structured_data_exception& e) {
         stream << "Malformed insert: " << e.what() << "\n";
         return 500;
     }
@@ -238,8 +238,8 @@ unsigned int Dot11FingerprintTracker::insert_fingerprint(std::ostream& stream,
     return 500;
 }
 
-unsigned int Dot11FingerprintTracker::delete_fingerprint(std::ostream& stream, mac_addr mac,
-        SharedStructured structured) {
+unsigned int dot11_fingerprint_tracker::delete_fingerprint(std::ostream& stream, mac_addr mac,
+        shared_structured structured) {
 
     auto fpi = fingerprint_map->find(mac);
 
@@ -256,12 +256,12 @@ unsigned int Dot11FingerprintTracker::delete_fingerprint(std::ostream& stream, m
     return 200;
 }
 
-unsigned int Dot11FingerprintTracker::bulk_delete_fingerprint(std::ostream& stream, 
-        SharedStructured structured) {
+unsigned int dot11_fingerprint_tracker::bulk_delete_fingerprint(std::ostream& stream, 
+        shared_structured structured) {
 
     try {
-        auto fpv = structured->getStructuredByKey("fingerprints");
-        auto fingerprints = fpv->getStringVec();
+        auto fpv = structured->get_structured_by_key("fingerprints");
+        auto fingerprints = fpv->as_string_vector();
 
         int num_erased = 0;
 
@@ -269,7 +269,7 @@ unsigned int Dot11FingerprintTracker::bulk_delete_fingerprint(std::ostream& stre
             mac_addr mac { fpi };
 
             if (mac.error)
-                throw StructuredDataException("Invalid MAC address");
+                throw structured_data_exception("Invalid MAC address");
 
             auto fmi = fingerprint_map->find(mac);
 
@@ -285,7 +285,7 @@ unsigned int Dot11FingerprintTracker::bulk_delete_fingerprint(std::ostream& stre
 
         stream << "Erased " << num_erased << " fingerprints\n";
         return 200;
-    } catch (const StructuredDataException& e) {
+    } catch (const structured_data_exception& e) {
         stream << "Erasing fingerprints failed: " << e.what() << "\n";
         return 500;
     }
@@ -294,35 +294,35 @@ unsigned int Dot11FingerprintTracker::bulk_delete_fingerprint(std::ostream& stre
     return 500;
 }
 
-unsigned int Dot11FingerprintTracker::bulk_insert_fingerprint(std::ostream& stream,
-        SharedStructured structured) {
+unsigned int dot11_fingerprint_tracker::bulk_insert_fingerprint(std::ostream& stream,
+        shared_structured structured) {
 
     try {
-        auto fpv = structured->getStructuredByKey("fingerprints");
-        auto fingerprints = fpv->getStructuredArray();
+        auto fpv = structured->get_structured_by_key("fingerprints");
+        auto fingerprints = fpv->as_vector();
 
         int num_added = 0;
 
         for (auto fpi : fingerprints) {
             // Get the sub-dictionarys from the vector
-            if (!fpi->hasKey("macaddr"))
-                throw StructuredDataException("Fingerprint dictionary missing 'macaddr'");
+            if (!fpi->has_key("macaddr"))
+                throw structured_data_exception("Fingerprint dictionary missing 'macaddr'");
 
-            auto mac = mac_addr { fpi->getKeyAsString("macaddr") };
+            auto mac = mac_addr { fpi->key_as_string("macaddr") };
             if (mac.error)
-                throw StructuredDataException("Invalid MAC address in 'macaddr'");
+                throw structured_data_exception("Invalid MAC address in 'macaddr'");
 
             // Make sure it doesn't exist
             auto fmi = fingerprint_map->find(mac);
             if (fmi != fingerprint_map->end())
-                throw StructuredDataException(fmt::format("MAC address {} already present in "
+                throw structured_data_exception(fmt::format("MAC address {} already present in "
                             "fingerprint list", mac));
 
             auto fp = std::make_shared<tracked_dot11_fingerprint>();
 
-            fp->set_probe_hash(fpi->getKeyAsNumber("beacon_hash", 0));
-            fp->set_response_hash(fpi->getKeyAsNumber("response_hash", 0));
-            fp->set_probe_hash(fpi->getKeyAsNumber("probe_hash", 0));
+            fp->set_probe_hash(fpi->key_as_number("beacon_hash", 0));
+            fp->set_response_hash(fpi->key_as_number("response_hash", 0));
+            fp->set_probe_hash(fpi->key_as_number("probe_hash", 0));
 
             fingerprint_map->insert(std::make_pair(mac, fp));
             num_added++;
@@ -332,7 +332,7 @@ unsigned int Dot11FingerprintTracker::bulk_insert_fingerprint(std::ostream& stre
 
         stream << "Inserted " << num_added << " fingerprints\n";
         return 200;
-    } catch (const StructuredDataException& e) {
+    } catch (const structured_data_exception& e) {
         stream << "Error: " << e.what() << "\n";
         return 500;
     }
@@ -341,7 +341,7 @@ unsigned int Dot11FingerprintTracker::bulk_insert_fingerprint(std::ostream& stre
     return 500;
 }
 
-std::shared_ptr<tracked_dot11_fingerprint> Dot11FingerprintTracker::get_fingerprint(const mac_addr& mac) {
+std::shared_ptr<tracked_dot11_fingerprint> dot11_fingerprint_tracker::get_fingerprint(const mac_addr& mac) {
     auto fmi = fingerprint_map->find(mac);
 
     if (fmi == fingerprint_map->end())
@@ -350,7 +350,7 @@ std::shared_ptr<tracked_dot11_fingerprint> Dot11FingerprintTracker::get_fingerpr
     return std::static_pointer_cast<tracked_dot11_fingerprint>(fmi->second);
 }
 
-void Dot11FingerprintTracker::rebuild_config() {
+void dot11_fingerprint_tracker::rebuild_config() {
     local_locker l(&mutex);
 
     if (configfile == nullptr)
@@ -360,11 +360,11 @@ void Dot11FingerprintTracker::rebuild_config() {
 
     for (auto fpi : *fingerprint_map) {
         auto fp = std::static_pointer_cast<tracked_dot11_fingerprint>(fpi.second);
-        v.push_back(fp->asConfigComplex(fpi.first).toString());
+        v.push_back(fp->as_config_complex(fpi.first).to_string());
     }
 
-    configfile->SetOptVec(configvalue, v, true);
-    configfile->SaveConfig(configpath);
+    configfile->set_opt_vec(configvalue, v, true);
+    configfile->save_config(configpath);
 }
 
 

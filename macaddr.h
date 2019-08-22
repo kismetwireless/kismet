@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -173,7 +173,7 @@ struct mac_addr {
 
     // Convert a string to a positional search fragment, places fragent
     // in ret_term and length of fragment in ret_len
-    inline static bool PrepareSearchTerm(const std::string& s, uint64_t &ret_term, unsigned int &ret_len) {
+    inline static bool prepare_search_term(const std::string& s, uint64_t &ret_term, unsigned int &ret_len) {
         short unsigned int byte;
         int nbyte = 0;
         const char *in = s.c_str();
@@ -216,8 +216,8 @@ struct mac_addr {
         return true;
     }
 
-    // Match against a partial MAC address, prepared with PrepareSearchTerm
-    bool PartialSearch(uint64_t in_term, unsigned int in_len) const {
+    // Match against a partial MAC address, prepared with prepare_search_term
+    bool partial_search(uint64_t in_term, unsigned int in_len) const {
         unsigned char *rt = (uint8_t *) &in_term;
         unsigned char *rlm = (uint8_t *) &longmac;
 
@@ -312,28 +312,28 @@ struct mac_addr {
         return (val[0] << 16) | (val[1] << 8) | val[2];
     }
 
-    inline std::string asString() const {
-        return Mac2String();
+    inline std::string as_string() const {
+        return mac_to_string();
     }
 
-    inline std::string Mac2String() const {
+    inline std::string mac_to_string() const {
         return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
                 index64(longmac, 0), index64(longmac, 1), index64(longmac, 2),
                 index64(longmac, 3), index64(longmac, 4), index64(longmac, 5));
     }
 
-    inline std::string MacMask2String() const {
+    inline std::string mac_mask_to_string() const {
         return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
                 index64(longmask, 0), index64(longmask, 1), index64(longmask, 2),
                 index64(longmask, 3), index64(longmask, 4), index64(longmask, 5));
     }
 
-    constexpr17 uint64_t GetAsLong() const {
+    constexpr17 uint64_t get_as_long() const {
         return longmac;
     }
 
-    inline std::string MacFull2String() const {
-        return fmt::format("{}/{}", Mac2String(), MacMask2String());
+    inline std::string mac_full_to_string() const {
+        return fmt::format("{}/{}", mac_to_string(), mac_mask_to_string());
     }
 
     friend std::ostream& operator<<(std::ostream& os, const mac_addr& m);

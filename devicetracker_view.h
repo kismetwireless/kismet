@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -36,7 +36,7 @@
 // it requires assisting code in the appropriate areas (such as adding a SSID to a dot11 device).
 //
 // Views can be populated either by callbacks in the packet stream or by direct calls to
-// addDeviceDirect and addRemoveDirect, depending on how the view population code is written.
+// add_device_direct and addRemoveDirect, depending on how the view population code is written.
 //
 // Views are best suited to long-term alternate representations of data, such as 'all access points',
 // 'all devices of a given phy type', and so on.  The vector-backed system is not well optimized
@@ -49,9 +49,9 @@
 // /devices/view/[view id]/devices.json
 
 class kis_tracked_device;
-class DevicetrackerView;
+class device_tracker_view;
 
-class DevicetrackerView : public tracker_component {
+class device_tracker_view : public tracker_component {
 public:
     // The new device callback is called whenever a new device is created by the devicetracker;
     // it's also called for every device when a new view is created, to perform the initial 
@@ -67,16 +67,16 @@ public:
     using updated_device_cb = std::function<bool (std::shared_ptr<kis_tracked_device_base>)>;
 
     // Primary method; where the ID is the core access of the view
-    DevicetrackerView(const std::string& in_id, const std::string& in_description,
+    device_tracker_view(const std::string& in_id, const std::string& in_description,
             new_device_cb in_new_cb, updated_device_cb in_upd_cb);
 
     // Secondary method, where you can specify alternate paths to access; this is used for 
     // things like the per-source view organized by uuid (/devices/views/by-uuid/[uuid]/...)
-    DevicetrackerView(const std::string& in_id, const std::string& in_description,
+    device_tracker_view(const std::string& in_id, const std::string& in_description,
             const std::vector<std::string>& in_aux_path, 
             new_device_cb in_new_cb, updated_device_cb in_upd_cb);
 
-    virtual ~DevicetrackerView() {
+    virtual ~device_tracker_view() {
         local_locker l(&mutex);
     }
 
@@ -95,36 +95,36 @@ public:
 
     // Do work on the base list of all devices in this view; this makes an immutable copy
     // before performing work
-    virtual std::shared_ptr<TrackerElementVector> doDeviceWork(DevicetrackerViewWorker& worker);
+    virtual std::shared_ptr<tracker_element_vector> do_device_work(device_tracker_view_worker& worker);
     // Do read-only work; this MAY NOT modify devices in the worker!
-    virtual std::shared_ptr<TrackerElementVector> doReadonlyDeviceWork(DevicetrackerViewWorker& worker);
+    virtual std::shared_ptr<tracker_element_vector> do_readonly_device_work(device_tracker_view_worker& worker);
 
     // Do work on a specific vector; this does NOT make an immutable copy of the vector.  You
     // must not call this on a vector which can be altered in another thread.
-    virtual std::shared_ptr<TrackerElementVector> doDeviceWork(DevicetrackerViewWorker& worker,
-            std::shared_ptr<TrackerElementVector> vec);
+    virtual std::shared_ptr<tracker_element_vector> do_device_work(device_tracker_view_worker& worker,
+            std::shared_ptr<tracker_element_vector> vec);
     // Do read-only work; this MAY NOT modify devices in the worker!
-    virtual std::shared_ptr<TrackerElementVector> doReadonlyDeviceWork(DevicetrackerViewWorker& worker,
-            std::shared_ptr<TrackerElementVector> vec);
+    virtual std::shared_ptr<tracker_element_vector> do_readonly_device_work(device_tracker_view_worker& worker,
+            std::shared_ptr<tracker_element_vector> vec);
 
     // Called when a device undergoes a change that might make it eligible for inclusion
     // into a view; Integration with view filtering needs to be added to other locations
     // to activate this.
-    virtual void updateDevice(std::shared_ptr<kis_tracked_device_base> device);
+    virtual void update_device(std::shared_ptr<kis_tracked_device_base> device);
 
     // Direct calls to views that do not participate in the traditional view population 
     // and are instead directly manipulated by another component (such as the ssidscan system which
     // maintains a view by directly adding target devices)
-    virtual void addDeviceDirect(std::shared_ptr<kis_tracked_device_base> device);
-    virtual void removeDeviceDirect(std::shared_ptr<kis_tracked_device_base> device);
+    virtual void add_device_direct(std::shared_ptr<kis_tracked_device_base> device);
+    virtual void remove_device_direct(std::shared_ptr<kis_tracked_device_base> device);
 
 protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.devices.view.id", "View ID/Endpoint", &view_id);
-        RegisterField("kismet.devices.view.description", "List description", &view_description);
-        RegisterField("kismet.devices.view.size", "Number of devices in list", &list_sz);
+        register_field("kismet.devices.view.id", "View ID/Endpoint", &view_id);
+        register_field("kismet.devices.view.description", "List description", &view_description);
+        register_field("kismet.devices.view.size", "Number of devices in list", &list_sz);
 
         // We don't register device_list as a field because we never want to dump it 
         // un-processed; use the view APIs for managing that
@@ -132,50 +132,50 @@ protected:
 
     kis_recursive_timed_mutex mutex;
 
-    std::shared_ptr<TrackerElementString> view_id;
-    std::shared_ptr<TrackerElementUUID> view_uuid;
-    std::shared_ptr<TrackerElementString> view_description;
-    std::shared_ptr<TrackerElementUInt64> list_sz;
+    std::shared_ptr<tracker_element_string> view_id;
+    std::shared_ptr<tracker_element_uuid> view_uuid;
+    std::shared_ptr<tracker_element_string> view_description;
+    std::shared_ptr<tracker_element_uint64> list_sz;
 
     new_device_cb new_cb;
     updated_device_cb update_cb;
 
     // Main vector of devices
-    std::shared_ptr<TrackerElementVector> device_list;
+    std::shared_ptr<tracker_element_vector> device_list;
     // Map of device presence in our list for fast referece during updates
     std::map<device_key, bool> device_presence_map;
 
     // Complex endpoint and optional extended URI endpoint
-    std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> device_endp;
-    std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> device_uri_endp;
+    std::shared_ptr<kis_net_httpd_simple_post_endpoint> device_endp;
+    std::shared_ptr<kis_net_httpd_simple_post_endpoint> device_uri_endp;
 
     // Simpler time-based endpoints
-    std::shared_ptr<Kis_Net_Httpd_Path_Tracked_Endpoint> time_endp;
-    std::shared_ptr<Kis_Net_Httpd_Path_Tracked_Endpoint> time_uri_endp;
+    std::shared_ptr<kis_net_httpd_path_tracked_endpoint> time_endp;
+    std::shared_ptr<kis_net_httpd_path_tracked_endpoint> time_uri_endp;
 
     // Complex post endp handler
     unsigned int device_endpoint_handler(std::ostream& stream, const std::string& uri, 
-            SharedStructured structured, 
-            Kis_Net_Httpd_Connection::variable_cache_map& postvars);
+            shared_structured structured, 
+            kis_net_httpd_connection::variable_cache_map& postvars);
 
     // Time endp handler
     bool device_time_endpoint_path(const std::vector<std::string>& path);
-    std::shared_ptr<TrackerElement> device_time_endpoint(const std::vector<std::string>& path);
+    std::shared_ptr<tracker_element> device_time_endpoint(const std::vector<std::string>& path);
 
     std::vector<std::string> uri_extras;
     bool device_time_uri_endpoint_path(const std::vector<std::string>& path);
-    std::shared_ptr<TrackerElement> device_time_uri_endpoint(const std::vector<std::string>& path);
+    std::shared_ptr<tracker_element> device_time_uri_endpoint(const std::vector<std::string>& path);
 
-    // Devicetracker has direct access to protected methods for new devices and purging devices,
+    // device_tracker has direct access to protected methods for new devices and purging devices,
     // nobody else should be calling those
-    friend class Devicetracker;
+    friend class device_tracker;
 
     // Called when a device is created; this should only be called by devicetracker itself.
-    virtual void newDevice(std::shared_ptr<kis_tracked_device_base> device);
+    virtual void new_device(std::shared_ptr<kis_tracked_device_base> device);
 
     // Remove a device from any views; this is called when the devicetracker times out a 
     // device record.
-    virtual void removeDevice(std::shared_ptr<kis_tracked_device_base> device);
+    virtual void remove_device(std::shared_ptr<kis_tracked_device_base> device);
 
 };
 

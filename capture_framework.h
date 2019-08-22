@@ -482,7 +482,7 @@ cf_params_spectrum_t *cf_params_spectrum_new();
 void cf_params_spectrum_free(cf_params_spectrum_t *si);
 
 
-/* Shutdown immediately - dies at the start of the next select() loop, regardless
+/* shutdown immediately - dies at the start of the next select() loop, regardless
  * of pending data.
  *
  * It is not safe to destroy the capture_handler record until the select() blocking

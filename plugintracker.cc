@@ -37,20 +37,20 @@
 #include "version.h"
 #include "kis_httpd_registry.h"
 
-void PluginRegistrationData::activate_external_http() {
+void plugin_registration_data::activate_external_http() {
     // If we have a http proxy, instantiate and load it
     if (get_plugin_http_external() != "") {
         external_http = 
-            std::make_shared<ExternalHttpPluginHarness>(get_plugin_name(), get_plugin_http_external());
+            std::make_shared<external_http_plugin_harness>(get_plugin_name(), get_plugin_http_external());
     }
 }
 
-Plugintracker::Plugintracker(GlobalRegistry *in_globalreg) :
-    LifetimeGlobal(),
-    Kis_Net_Httpd_CPPStream_Handler() {
+plugin_tracker::plugin_tracker(global_registry *in_globalreg) :
+    lifetime_global(),
+    kis_net_httpd_cppstream_handler() {
     globalreg = in_globalreg;
 
-    plugin_registry_vec = std::make_shared<TrackerElementVector>();
+    plugin_registry_vec = std::make_shared<tracker_element_vector>();
 
     int option_idx = 0;
     int cmdline_disable = 0;
@@ -74,7 +74,7 @@ Plugintracker::Plugintracker(GlobalRegistry *in_globalreg) :
         }
     }
 
-    if (globalreg->kismet_config->FetchOpt("allowplugins") == "true") {
+    if (globalreg->kismet_config->fetch_opt("allowplugins") == "true") {
         config_disable = 0;
     } else {
         config_disable = 1;
@@ -91,23 +91,23 @@ Plugintracker::Plugintracker(GlobalRegistry *in_globalreg) :
 
     plugins_active = 1;
 
-    Bind_Httpd_Server();
+    bind_httpd_server();
 }
 
-Plugintracker::~Plugintracker() {
+plugin_tracker::~plugin_tracker() {
     local_locker lock(&plugin_lock);
 
     // Call the main shutdown, which should kill the vector allocations
-    ShutdownPlugins();
+    shutdown_plugins();
 }
 
-void Plugintracker::Usage(char *name __attribute__((unused))) {
+void plugin_tracker::usage(char *name __attribute__((unused))) {
     printf(" *** Plugin Options ***\n");
     printf("     --disable-plugins		  Turn off the plugin "
            "system\n");
 }
 
-int Plugintracker::ScanPlugins() {
+int plugin_tracker::scan_plugins() {
     local_locker lock(&plugin_lock);
 
     // Bail if plugins disabled
@@ -125,7 +125,7 @@ int Plugintracker::ScanPlugins() {
     }
 
     std::string config_path;
-    if ((config_path = globalreg->kismet_config->FetchOpt("configdir")) == "") {
+    if ((config_path = globalreg->kismet_config->fetch_opt("configdir")) == "") {
         _MSG(
             "Failed to find a 'configdir' path in the Kismet config file, "
             "ignoring local plugins.",
@@ -133,7 +133,7 @@ int Plugintracker::ScanPlugins() {
         return 0;
     }
 
-    plugin_path = globalreg->kismet_config->ExpandLogPath(
+    plugin_path = globalreg->kismet_config->expand_log_path(
         config_path + "/plugins/", "", "", 0, 1);
     if ((plugdir = opendir(plugin_path.c_str())) == NULL) {
         _MSG("Did not find a user plugin directory (" + plugin_path +
@@ -150,7 +150,7 @@ int Plugintracker::ScanPlugins() {
 }
 
 // Scans a directory for sub-directories
-int Plugintracker::ScanDirectory(DIR *in_dir, std::string in_path) {
+int plugin_tracker::ScanDirectory(DIR *in_dir, std::string in_path) {
     struct dirent *plugfile;
 
     while ((plugfile = readdir(in_dir)) != NULL) {
@@ -166,20 +166,20 @@ int Plugintracker::ScanDirectory(DIR *in_dir, std::string in_path) {
             continue;
 
         // Load the plugin manifest
-        ConfigFile cf(globalreg);
+        config_file cf(globalreg);
 
         std::string manifest = in_path + "/" + plugfile->d_name + "/manifest.conf";
 
-        cf.ParseConfig(manifest.c_str());
+        cf.parse_config(manifest.c_str());
 
-        SharedPluginData preg(new PluginRegistrationData());
+        SharedPluginData preg(new plugin_registration_data());
 
         preg->set_plugin_path(in_path + "/" + plugfile->d_name + "/");
         preg->set_plugin_dirname(plugfile->d_name);
 
         std::string s;
 
-        if ((s = cf.FetchOpt("name")) == "") {
+        if ((s = cf.fetch_opt("name")) == "") {
             _MSG("Missing 'name=' in plugin manifest '" + manifest + "', "
                     "cannot load plugin", MSGFLAG_ERROR);
             continue;
@@ -187,7 +187,7 @@ int Plugintracker::ScanDirectory(DIR *in_dir, std::string in_path) {
 
         preg->set_plugin_name(s);
 
-        if ((s = cf.FetchOpt("description")) == "") {
+        if ((s = cf.fetch_opt("description")) == "") {
             _MSG("Missing 'description=' in plugin manifest '" + manifest + "', "
                     "cannot load plugin", MSGFLAG_ERROR);
             continue;
@@ -196,7 +196,7 @@ int Plugintracker::ScanDirectory(DIR *in_dir, std::string in_path) {
         preg->set_plugin_description(s);
 
 
-        if ((s = cf.FetchOpt("author")) == "") {
+        if ((s = cf.fetch_opt("author")) == "") {
             _MSG("Missing 'author=' in plugin manifest '" + manifest + "', "
                     "cannot load plugin", MSGFLAG_ERROR);
             continue;
@@ -205,7 +205,7 @@ int Plugintracker::ScanDirectory(DIR *in_dir, std::string in_path) {
         preg->set_plugin_author(s);
 
 
-        if ((s = cf.FetchOpt("version")) == "") {
+        if ((s = cf.fetch_opt("version")) == "") {
             _MSG("Missing 'version=' in plugin manifest '" + manifest + "', "
                     "cannot load plugin", MSGFLAG_ERROR);
             continue;
@@ -214,7 +214,7 @@ int Plugintracker::ScanDirectory(DIR *in_dir, std::string in_path) {
         preg->set_plugin_version(s);
 
 
-        if ((s = cf.FetchOpt("object")) != "") {
+        if ((s = cf.fetch_opt("object")) != "") {
             if (s.find("/") != std::string::npos) {
                 _MSG("Found path in 'object=' in plugin manifest '" + manifest +
                         "', object= should define the file name only", MSGFLAG_ERROR);
@@ -224,7 +224,7 @@ int Plugintracker::ScanDirectory(DIR *in_dir, std::string in_path) {
             preg->set_plugin_so(s);
         }
 
-        if ((s = cf.FetchOpt("httpexternal")) != "") {
+        if ((s = cf.fetch_opt("httpexternal")) != "") {
             if (s.find("/") != std::string::npos) {
                 _MSG_ERROR("Found path in 'httpexternal=' in plugin manifest '{}', "
                         "httpexternal= should define the binary name only.", manifest);
@@ -234,7 +234,7 @@ int Plugintracker::ScanDirectory(DIR *in_dir, std::string in_path) {
             preg->set_plugin_http_external(s);
         }
 
-        if ((s = cf.FetchOpt("js")) != "") {
+        if ((s = cf.fetch_opt("js")) != "") {
             if (s.find(",") == std::string::npos) {
                 _MSG("Found an invalid 'js=' in plugin manifest '" + manifest +
                         "', js= should define module,path", MSGFLAG_ERROR);
@@ -285,7 +285,7 @@ void PluginServerSignalHandler(int sig __attribute__((unused))) {
     exit(1);
 }
 
-int Plugintracker::ActivatePlugins() {
+int plugin_tracker::activate_plugins() {
 #ifdef SYS_CYGWIN
     _sig_func_ptr old_segv = SIG_DFL;
 #else
@@ -294,8 +294,8 @@ int Plugintracker::ActivatePlugins() {
 
     local_locker lock(&plugin_lock);
 
-    std::shared_ptr<Kis_Httpd_Registry> httpdregistry =
-        Globalreg::FetchGlobalAs<Kis_Httpd_Registry>(globalreg, "WEBREGISTRY");
+    std::shared_ptr<kis_httpd_registry> httpdregistry =
+        Globalreg::FetchGlobalAs<kis_httpd_registry>(globalreg, "WEBREGISTRY");
 
     // Set the new signal handler, remember the old one; if something goes
     // wrong loading the plugins we need to catch it and return a special
@@ -403,7 +403,7 @@ int Plugintracker::ActivatePlugins() {
         x->activate_external_http();
 
         // Alias the plugin directory
-        httpd->RegisterStaticDir("/plugin/" + x->get_plugin_dirname() + "/",
+        httpd->register_static_dir("/plugin/" + x->get_plugin_dirname() + "/",
                 x->get_plugin_path() + "/httpd/");
 
         _MSG("Plugin '" + x->get_plugin_name() + "' loaded...", MSGFLAG_INFO);
@@ -419,11 +419,11 @@ int Plugintracker::ActivatePlugins() {
     return 1;
 }
 
-int Plugintracker::FinalizePlugins() {
+int plugin_tracker::finalize_plugins() {
     // Look only at plugins that have a dl file, and attempt to run the finalize
     // function in each
     for (auto x : *plugin_registry_vec) {
-        SharedPluginData pd = std::dynamic_pointer_cast<PluginRegistrationData>(x);
+        SharedPluginData pd = std::dynamic_pointer_cast<plugin_registration_data>(x);
 
         void *dlfile;
 
@@ -445,7 +445,7 @@ int Plugintracker::FinalizePlugins() {
     return 1;
 }
 
-int Plugintracker::ShutdownPlugins() {
+int plugin_tracker::shutdown_plugins() {
     local_locker lock(&plugin_lock);
 
     _MSG("Shutting down plugins...", MSGFLAG_INFO);
@@ -455,14 +455,14 @@ int Plugintracker::ShutdownPlugins() {
     return 0;
 }
 
-bool Plugintracker::Httpd_VerifyPath(const char *path, const char *method) {
+bool plugin_tracker::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") != 0) 
         return false;
 
-    if (!Httpd_CanSerialize(path))
+    if (!httpd_can_serialize(path))
         return false;
 
-    std::string stripped = Httpd_StripSuffix(path);
+    std::string stripped = httpd_strip_suffix(path);
 
     if (stripped == "/plugins/all_plugins")
         return true;
@@ -470,16 +470,16 @@ bool Plugintracker::Httpd_VerifyPath(const char *path, const char *method) {
     return false;
 }
 
-void Plugintracker::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-        Kis_Net_Httpd_Connection *connection,
+void plugin_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
+        kis_net_httpd_connection *connection,
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
 
-    std::string stripped = Httpd_StripSuffix(path);
+    std::string stripped = httpd_strip_suffix(path);
 
     if (stripped == "/plugins/all_plugins") {
         local_locker locker(&plugin_lock);
 
-        Httpd_Serialize(path, stream, plugin_registry_vec);
+        httpd_serialize(path, stream, plugin_registry_vec);
     }
 }

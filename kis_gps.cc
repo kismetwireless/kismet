@@ -22,7 +22,7 @@
 #include "messagebus.h"
 #include "timetracker.h"
 
-KisGps::KisGps(SharedGpsBuilder in_builder) : 
+kis_gps::kis_gps(shared_gps_builder in_builder) : 
     tracker_component() {
 
     gps_mutex = std::make_shared<kis_recursive_timed_mutex>();
@@ -31,8 +31,8 @@ KisGps::KisGps(SharedGpsBuilder in_builder) :
     reserve_fields(NULL);
 
     // Force the ID
-    set_id(Globalreg::globalreg->entrytracker->RegisterField("kismet.gps.instance", 
-            TrackerElementFactory<TrackerElementMap>(), "GPS"));
+    set_id(Globalreg::globalreg->entrytracker->register_field("kismet.gps.instance", 
+            tracker_element_factory<tracker_element_map>(), "GPS"));
 
     // Link the builder
     gps_prototype = in_builder;
@@ -42,11 +42,11 @@ KisGps::KisGps(SharedGpsBuilder in_builder) :
     gps_last_location = new kis_gps_packinfo();
 }
 
-KisGps::~KisGps() {
+kis_gps::~kis_gps() {
 
 }
 
-bool KisGps::open_gps(std::string in_definition) {
+bool kis_gps::open_gps(std::string in_definition) {
     local_locker lock(gps_mutex);
 
     set_int_device_connected(false);
@@ -72,24 +72,24 @@ bool KisGps::open_gps(std::string in_definition) {
         types = in_definition.substr(0, cpos);
 
         // Blow up if we fail parsing
-        if (StringToOpts(in_definition.substr(cpos + 1, 
+        if (string_to_opts(in_definition.substr(cpos + 1, 
                         in_definition.size() - cpos - 1), ",", &options) < 0) {
             return false;
         }
 
         for (auto i = options.begin(); i != options.end(); ++i) {
-            source_definition_opts[StrLower((*i).opt)] = (*i).val;
+            source_definition_opts[str_lower((*i).opt)] = (*i).val;
         }
     }
 
-    std::string sname = FetchOpt("name", source_definition_opts);
+    std::string sname = fetch_opt("name", source_definition_opts);
     if (sname != "") {
         set_int_gps_name(sname);
     } else {
         set_int_gps_name(gps_prototype->get_default_name());
     }
 
-    std::string suuid = FetchOpt("uuid", source_definition_opts);
+    std::string suuid = fetch_opt("uuid", source_definition_opts);
     if (suuid != "") {
         // Use the static UUID from the defintion
         uuid u(suuid);
@@ -108,14 +108,14 @@ bool KisGps::open_gps(std::string in_definition) {
         char ubuf[40];
 
         snprintf(ubuf, 40, "%08X-0000-0000-0000-0000%08X",
-                Adler32Checksum("kismet_gps", strlen("kismet_gps")) & 0xFFFFFFFF,
-                Adler32Checksum(id.c_str(), id.length()) & 0xFFFFFFFF);
+                adler32_checksum("kismet_gps", strlen("kismet_gps")) & 0xFFFFFFFF,
+                adler32_checksum(id.c_str(), id.length()) & 0xFFFFFFFF);
         uuid u(ubuf);
 
         set_int_gps_uuid(u);
     }
 
-    std::string sprio = FetchOpt("priority", source_definition_opts);
+    std::string sprio = fetch_opt("priority", source_definition_opts);
     if (sprio != "") {
         int priority;
 
@@ -128,23 +128,23 @@ bool KisGps::open_gps(std::string in_definition) {
         set_int_gps_priority(gps_prototype->get_gps_priority());
     }
 
-    set_int_gps_data_only(FetchOptBoolean("dataonly", source_definition_opts, false));
+    set_int_gps_data_only(fetch_opt_bool("dataonly", source_definition_opts, false));
 
-    set_int_gps_reconnect(FetchOptBoolean("reconnect", source_definition_opts, false));
+    set_int_gps_reconnect(fetch_opt_bool("reconnect", source_definition_opts, false));
 
     set_int_device_connected(true);
 
     return true;
 }
 
-double KisGps::GpsCalcHeading(double in_lat, double in_lon, double in_lat2, 
+double kis_gps::gps_calc_heading(double in_lat, double in_lon, double in_lat2, 
 							   double in_lon2) {
-    double r = GpsCalcRad((double) in_lat2);
+    double r = gps_calc_rad((double) in_lat2);
 
-    double lat1 = GpsDeg2Rad((double) in_lat);
-    double lon1 = GpsDeg2Rad((double) in_lon);
-    double lat2 = GpsDeg2Rad((double) in_lat2);
-    double lon2 = GpsDeg2Rad((double) in_lon2);
+    double lat1 = gps_deg_to_rad((double) in_lat);
+    double lon1 = gps_deg_to_rad((double) in_lon);
+    double lat2 = gps_deg_to_rad((double) in_lat2);
+    double lon2 = gps_deg_to_rad((double) in_lon2);
 
     double angle = 0;
 
@@ -181,33 +181,33 @@ double KisGps::GpsCalcHeading(double in_lat, double in_lon, double in_lat2,
 
     }
 
-    return (double) GpsRad2Deg(angle);
+    return (double) gps_rad_to_deg(angle);
 }
 
-double KisGps::GpsRad2Deg(double x) {
+double kis_gps::gps_rad_to_deg(double x) {
     return (x/M_PI) * 180.0;
 }
 
-double KisGps::GpsDeg2Rad(double x) {
+double kis_gps::gps_deg_to_rad(double x) {
     return 180/(x*M_PI);
 }
 
-double KisGps::GpsEarthDistance(double in_lat, double in_lon, 
+double kis_gps::gps_earth_distance(double in_lat, double in_lon, 
         double in_lat2, double in_lon2) {
-    double x1 = GpsCalcRad(in_lat) * cos(GpsDeg2Rad(in_lon)) * sin(GpsDeg2Rad(90-in_lat));
+    double x1 = gps_calc_rad(in_lat) * cos(gps_deg_to_rad(in_lon)) * sin(gps_deg_to_rad(90-in_lat));
     double x2 = 
-        GpsCalcRad(in_lat2) * cos(GpsDeg2Rad(in_lon2)) * sin(GpsDeg2Rad(90-in_lat2));
-    double y1 = GpsCalcRad(in_lat) * sin(GpsDeg2Rad(in_lon)) * sin(GpsDeg2Rad(90-in_lat));
+        gps_calc_rad(in_lat2) * cos(gps_deg_to_rad(in_lon2)) * sin(gps_deg_to_rad(90-in_lat2));
+    double y1 = gps_calc_rad(in_lat) * sin(gps_deg_to_rad(in_lon)) * sin(gps_deg_to_rad(90-in_lat));
     double y2 = 
-        GpsCalcRad(in_lat2) * sin(GpsDeg2Rad(in_lon2)) * sin(GpsDeg2Rad(90-in_lat2));
-    double z1 = GpsCalcRad(in_lat) * cos(GpsDeg2Rad(90-in_lat));
-    double z2 = GpsCalcRad(in_lat2) * cos(GpsDeg2Rad(90-in_lat2));
+        gps_calc_rad(in_lat2) * sin(gps_deg_to_rad(in_lon2)) * sin(gps_deg_to_rad(90-in_lat2));
+    double z1 = gps_calc_rad(in_lat) * cos(gps_deg_to_rad(90-in_lat));
+    double z2 = gps_calc_rad(in_lat2) * cos(gps_deg_to_rad(90-in_lat2));
     double a = 
-        acos((x1*x2 + y1*y2 + z1*z2)/pow(GpsCalcRad((double) (in_lat+in_lat2)/2),2));
-    return GpsCalcRad((double) (in_lat+in_lat2) / 2) * a;
+        acos((x1*x2 + y1*y2 + z1*z2)/pow(gps_calc_rad((double) (in_lat+in_lat2)/2),2));
+    return gps_calc_rad((double) (in_lat+in_lat2) / 2) * a;
 }
 
-double KisGps::GpsCalcRad(double lat) {
+double kis_gps::gps_calc_rad(double lat) {
     double a = 6378.137, r, sc, x, y, z;
     double e2 = 0.081082 * 0.081082;
 
@@ -222,7 +222,7 @@ double KisGps::GpsCalcRad(double lat) {
     return r;
 }
 
-void KisGps::update_locations() {
+void kis_gps::update_locations() {
     tracked_last_location->set_lat(gps_last_location->lat);
     tracked_last_location->set_lon(gps_last_location->lon);
     tracked_last_location->set_alt(gps_last_location->alt);

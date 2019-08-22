@@ -65,8 +65,8 @@
 #define IEEE80211_RADIOTAP_F_BADFCS     0x40    /* frame has bad FCS */
 #endif
 
-Kis_DLT_Radiotap::Kis_DLT_Radiotap() :
-	Kis_DLT_Handler() {
+kis_dlt_radiotap::kis_dlt_radiotap() :
+	kis_dlt_handler() {
 
 	dlt_name = "Radiotap";
 	dlt = DLT_IEEE802_11_RADIO;
@@ -127,7 +127,7 @@ Kis_DLT_Radiotap::Kis_DLT_Radiotap() :
 #define BITNO_4(x) (((x) >> 2) ? 2 + BITNO_2((x) >> 2) : BITNO_2((x)))
 #define BITNO_2(x) (((x) & 2) ? 1 : 0)
 #define BIT(n)	(1 << n)
-int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
+int kis_dlt_radiotap::handle_packet(kis_packet *in_pack) {
     static int packnum = 0;
 
     packnum++;
@@ -196,7 +196,7 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
 
     if (linkchunk->length < sizeof(*hdr)) {
 		// snprintf(errstr, STATUS_MAX, "pcap radiotap converter got corrupted " "Radiotap header length");
-		// globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+		// globalreg->messagebus->inject_message(errstr, MSGFLAG_ERROR);
         return 0;
     }
 
@@ -204,7 +204,7 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
     hdr = (struct ieee80211_radiotap_header *) linkchunk->data;
     if (linkchunk->length < EXTRACT_LE_16BITS(&hdr->it_len)) {
 		// snprintf(errstr, STATUS_MAX, "pcap radiotap converter got corrupted " "Radiotap header length");
-		// globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+		// globalreg->messagebus->inject_message(errstr, MSGFLAG_ERROR);
         return 0;
     }
 
@@ -217,7 +217,7 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
     /* are there more bitmap extensions than bytes in header? */
     if ((EXTRACT_LE_32BITS(last_presentp) & BIT(IEEE80211_RADIOTAP_EXT)) != 0) {
 		// snprintf(errstr, STATUS_MAX, "pcap radiotap converter got corrupted " "Radiotap bitmap length");
-		// globalreg->messagebus->InjectMessage(errstr, MSGFLAG_ERROR);
+		// globalreg->messagebus->inject_message(errstr, MSGFLAG_ERROR);
         return 0;
     }
 
@@ -508,7 +508,7 @@ int Kis_DLT_Radiotap::HandlePacket(kis_packet *in_pack) {
 #undef BIT
 
 // Taken from the BBN USRP 802.11 encoding code
-unsigned int Kis_DLT_Radiotap::update_crc32_80211(unsigned int crc, const unsigned char *data,
+unsigned int kis_dlt_radiotap::update_crc32_80211(unsigned int crc, const unsigned char *data,
         int len, unsigned int poly) {
 	int i, j;
 	unsigned short ch;
@@ -527,7 +527,7 @@ unsigned int Kis_DLT_Radiotap::update_crc32_80211(unsigned int crc, const unsign
 	return crc;
 }
 
-void Kis_DLT_Radiotap::crc32_init_table_80211(unsigned int *crc32_table) {
+void kis_dlt_radiotap::crc32_init_table_80211(unsigned int *crc32_table) {
 	int i;
 	unsigned char c;
 
@@ -537,7 +537,7 @@ void Kis_DLT_Radiotap::crc32_init_table_80211(unsigned int *crc32_table) {
 	}
 }
 
-unsigned int Kis_DLT_Radiotap::crc32_le_80211(unsigned int *crc32_table, 
+unsigned int kis_dlt_radiotap::crc32_le_80211(unsigned int *crc32_table, 
         const unsigned char *buf, int len) {
 	int i;
 	unsigned int crc = 0xFFFFFFFF;

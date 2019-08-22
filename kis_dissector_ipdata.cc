@@ -77,28 +77,28 @@ int GetLengthTagOffsets(unsigned int init_offset,
 
 
 int ipdata_packethook(CHAINCALL_PARMS) {
-	return ((Kis_Dissector_IPdata *) auxdata)->HandlePacket(in_pack);
+	return ((kis_dissector_ip_data *) auxdata)->handle_packet(in_pack);
 }
 
-Kis_Dissector_IPdata::Kis_Dissector_IPdata(GlobalRegistry *in_globalreg) {
+kis_dissector_ip_data::kis_dissector_ip_data(global_registry *in_globalreg) {
 	globalreg = in_globalreg;
 
-	globalreg->InsertGlobal("DISSECTOR_IPDATA", std::shared_ptr<Kis_Dissector_IPdata>(this));
+	globalreg->insert_global("DISSECTOR_IPDATA", std::shared_ptr<kis_dissector_ip_data>(this));
 
-	globalreg->packetchain->RegisterHandler(&ipdata_packethook, this,
+	globalreg->packetchain->register_handler(&ipdata_packethook, this,
 		 									CHAINPOS_DATADISSECT, -100);
 
 	pack_comp_basicdata = 
-		globalreg->packetchain->RegisterPacketComponent("BASICDATA");
+		globalreg->packetchain->register_packet_component("BASICDATA");
 
 	pack_comp_datapayload =
-		globalreg->packetchain->RegisterPacketComponent("DATAPAYLOAD");
+		globalreg->packetchain->register_packet_component("DATAPAYLOAD");
 
 	pack_comp_common = 
-		globalreg->packetchain->RegisterPacketComponent("COMMON");
+		globalreg->packetchain->register_packet_component("COMMON");
 
 	alert_dhcpclient_ref =
-		globalreg->alertracker->ActivateConfiguredAlert("DHCPCLIENTID",
+		globalreg->alertracker->activate_configured_alert("DHCPCLIENTID",
                 "A DHCP client sending a DHCP Discovery packet should "
                 "provide a Client-ID tag (Tag 61) which matches the source "
                 "MAC of the packet.  A client which fails to do so may "
@@ -106,10 +106,10 @@ Kis_Dissector_IPdata::Kis_Dissector_IPdata(GlobalRegistry *in_globalreg) {
 
 }
 
-Kis_Dissector_IPdata::~Kis_Dissector_IPdata() {
-	globalreg->InsertGlobal("DISSECTOR_IPDATA", NULL);
+kis_dissector_ip_data::~kis_dissector_ip_data() {
+	globalreg->insert_global("DISSECTOR_IPDATA", NULL);
 
-	globalreg->packetchain->RemoveHandler(&ipdata_packethook, CHAINPOS_DATADISSECT);
+	globalreg->packetchain->remove_handler(&ipdata_packethook, CHAINPOS_DATADISSECT);
 }
 
 #define MDNS_PTR_MASK		0xC0
@@ -197,7 +197,7 @@ std::string MDNS_Fetchname(kis_datachunk *chunk, unsigned int baseofft,
 		}
 
 		std::string ret = 
-			MungeToPrintable((char *) &(chunk->data[offt]), len, 0);
+			munge_to_printable((char *) &(chunk->data[offt]), len, 0);
 
 		offt += len;
 
@@ -212,7 +212,7 @@ std::string MDNS_Fetchname(kis_datachunk *chunk, unsigned int baseofft,
 	return dns_str;
 }
 
-int Kis_Dissector_IPdata::HandlePacket(kis_packet *in_pack) {
+int kis_dissector_ip_data::handle_packet(kis_packet *in_pack) {
 	kis_data_packinfo *datainfo = NULL;
 
 	if (in_pack->error)
@@ -273,7 +273,7 @@ int Kis_Dissector_IPdata::HandlePacket(kis_packet *in_pack) {
 				}
 
 				datainfo->cdp_dev_id = 
-					MungeToPrintable((char *) &(chunk->data[offset + 4]), 
+					munge_to_printable((char *) &(chunk->data[offset + 4]), 
 									 elemlen - 4, 0);
 				gotinfo = 1;
 			} else if (elemtype == 0x03) {
@@ -285,7 +285,7 @@ int Kis_Dissector_IPdata::HandlePacket(kis_packet *in_pack) {
 				}
 
 				datainfo->cdp_port_id = 
-					MungeToPrintable((char *) &(chunk->data[offset + 4]), 
+					munge_to_printable((char *) &(chunk->data[offset + 4]), 
 									 elemlen - 4, 0);
 				gotinfo = 1;
 			}
@@ -380,7 +380,7 @@ int Kis_Dissector_IPdata::HandlePacket(kis_packet *in_pack) {
 							break;
 
 						packinfo->ssid = 
-							MungeToPrintable((char *) &(pdu[3]), pdu_len, 0);
+							munge_to_printable((char *) &(pdu[3]), pdu_len, 0);
 						break;
 					case iapp_pdu_bssid:
 						if (pdu_len != PHY80211_MAC_LEN)
@@ -514,7 +514,7 @@ int Kis_Dissector_IPdata::HandlePacket(kis_packet *in_pack) {
 						std::string((char *) &(chunk->data[dhcp_tag_map[12][0] + 1]), 
 							   chunk->data[dhcp_tag_map[12][0]]);
 
-					datainfo->discover_host = MungeToPrintable(datainfo->discover_host);
+					datainfo->discover_host = munge_to_printable(datainfo->discover_host);
 				}
 
 				if (dhcp_tag_map.find(60) != dhcp_tag_map.end() &&
@@ -524,7 +524,7 @@ int Kis_Dissector_IPdata::HandlePacket(kis_packet *in_pack) {
 						std::string((char *) &(chunk->data[dhcp_tag_map[60][0] + 1]), 
 							   chunk->data[dhcp_tag_map[60][0]]);
 					datainfo->discover_vendor = 
-						MungeToPrintable(datainfo->discover_vendor);
+						munge_to_printable(datainfo->discover_vendor);
 				}
 
 				if (dhcp_tag_map.find(61) != dhcp_tag_map.end() &&
@@ -536,9 +536,9 @@ int Kis_Dissector_IPdata::HandlePacket(kis_packet *in_pack) {
                         _COMMONALERT(alert_dhcpclient_ref, in_pack, common, 
                                 common->network,
                                 std::string("DHCP request from ") +
-                                common->source.Mac2String() + 
+                                common->source.mac_to_string() + 
                                 std::string(" doesn't match DHCP DISCOVER client id ") +
-                                clmac.Mac2String() + std::string(" which can indicate "
+                                clmac.mac_to_string() + std::string(" which can indicate "
                                     "a DHCP spoofing attack"));
 					}
 				}

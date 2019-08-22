@@ -162,3 +162,34 @@ div.viewselector {
     height: 200px;
 }
 
+.percentage-border {
+    border: 1px solid #ccc !important;
+    position: relative;
+    left: 0;
+    top: 0;
+    height: 15px;
+}
+
+.percentage-fill {
+    color: #000 !important;
+    background-color: #9e9e9e !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 15px;
+    line-height: 15px;
+}
+
+.percentage-text {
+    padding-left: 2px;
+    position: absolute;
+    left: 50%;
+    height: 15px;
+    line-height: 15px;
+    text-align: center;
+    z-index: 1;
+}
+
+tr.alternating:nth-child(even) { background: #DDD; }
+
+

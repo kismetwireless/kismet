@@ -45,36 +45,37 @@ namespace KismetExternal {
     class Command;
 };
 
-struct KisExternalHttpSession {
-    Kis_Net_Httpd_Connection *connection; 
+struct kis_external_http_session {
+    kis_net_httpd_connection *connection; 
     std::shared_ptr<conditional_locker<int> > locker;
 };
 
-struct KisExternalHttpUri {
+struct kis_external_http_uri {
     std::string uri;
     std::string method;
     bool auth_req;
 };
 
 // Basic external interface, implements the core ping/pong/id/message/etc protocols
-class KisExternalInterface : public BufferInterface {
+class kis_external_interface : public buffer_interface {
 public:
-    KisExternalInterface();
-    virtual ~KisExternalInterface();
+    kis_external_interface();
+    kis_external_interface(std::shared_ptr<kis_recursive_timed_mutex> mutex);
+    virtual ~kis_external_interface();
 
     // Connect an existing buffer, such as a TCP socket or IPC pipe
-    virtual void connect_buffer(std::shared_ptr<BufferHandlerGeneric> in_ringbuf);
+    virtual void connect_buffer(std::shared_ptr<buffer_handler_generic> in_ringbuf);
 
     // Trigger an error condition and call all the related functions
     virtual void trigger_error(std::string reason);
 
     // Buffer interface - called when the attached ringbuffer has data available.
-    virtual void BufferAvailable(size_t in_amt);
+    virtual void buffer_available(size_t in_amt);
 
     // Buffer interface - handles error on IPC or TCP, called when there is a 
     // low-level error on the communications stack (process death, etc).
     // Passes error to the the internal source_error function
-    virtual void BufferError(std::string in_error);
+    virtual void buffer_error(std::string in_error);
 
     // Check to see if an IPC binary is available
     static bool check_ipc(const std::string& in_binary);
@@ -85,7 +86,7 @@ public:
     // datasources are the primary exception
     virtual bool run_ipc();
 
-    // Close the external interface
+    // close the external interface
     virtual void close_external();
 
 protected:
@@ -113,13 +114,13 @@ protected:
 
     // Communications API.  We implement a buffer interface and listen to the
     // incoming read buffer, we're agnostic if it's a network or IPC buffer.
-    std::shared_ptr<BufferHandlerGeneric> ringbuf_handler;
+    std::shared_ptr<buffer_handler_generic> ringbuf_handler;
 
     // If we're an IPC instance, the IPC control.  The ringbuf_handler is associated
     // with the IPC instance.
-    std::shared_ptr<IPCRemoteV2> ipc_remote;
+    std::shared_ptr<ipc_remote_v2> ipc_remote;
 
-    std::shared_ptr<Timetracker> timetracker;
+    std::shared_ptr<time_tracker> timetracker;
 
     std::atomic<uint32_t> seqno;
     std::atomic<time_t> last_pong;
@@ -128,18 +129,20 @@ protected:
     std::vector<std::string> external_binary_args;
 
     int ping_timer_id;
+
+    size_t ipc_buffer_sz;
 };
 
-class KisExternalHttpInterface : public KisExternalInterface, Kis_Net_Httpd_Chain_Stream_Handler {
+class kis_external_http_interface : public kis_external_interface, kis_net_httpd_chain_stream_handler {
 public:
-    KisExternalHttpInterface();
-    virtual ~KisExternalHttpInterface();
+    kis_external_http_interface();
+    virtual ~kis_external_http_interface();
 
     // Trigger an error condition and call all the related functions
     virtual void trigger_error(std::string reason) override;
 
     // Webserver proxy interface - standard verifypath
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
+    virtual bool httpd_verify_path(const char *path, const char *method) override;
 
     // Called as a connection is being set up;  brokers access with the http
     // proxy
@@ -151,8 +154,8 @@ public:
     //  MHD_YES - Streambuffer should automatically close the buffer when the
     //            streamresponse is complete, typically used when streaming a finite
     //            amount of data through a memchunk buffer like a json serialization
-    virtual int Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+    virtual int httpd_create_stream_response(kis_net_httpd *httpd,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) override;
 
@@ -163,7 +166,7 @@ public:
     //  MHD_NO  - Streambuffer should not automatically close out the buffer
     //  MHD_YES - Streambuffer should automatically close the buffer when the
     //            streamresponse is complete
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *con __attribute__((unused))) override;
+    virtual int httpd_post_complete(kis_net_httpd_connection *con __attribute__((unused))) override;
 
 protected:
     // Central packet dispatch handler
@@ -183,13 +186,13 @@ protected:
     // Webserver proxy code
     
     // Valid URIs, mapped by method (GET, POST, etc); these are matched in
-    // Httpd_VerifyPath and then passed on; if a URI is present here, it's mapped
+    // httpd_verify_path and then passed on; if a URI is present here, it's mapped
     // to true
-    std::map<std::string, std::vector<struct KisExternalHttpUri *> > http_proxy_uri_map;
+    std::map<std::string, std::vector<struct kis_external_http_uri *> > http_proxy_uri_map;
 
     // Map request identities
     uint32_t http_session_id;
-    std::map<uint32_t, std::shared_ptr<KisExternalHttpSession> > http_proxy_session_map;
+    std::map<uint32_t, std::shared_ptr<kis_external_http_session> > http_proxy_session_map;
 };
 
 

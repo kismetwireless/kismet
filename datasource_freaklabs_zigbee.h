@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -23,50 +23,52 @@
 
 #include "kis_datasource.h"
 
-class KisDatasourceFreaklabsZigbee;
-typedef std::shared_ptr<KisDatasourceFreaklabsZigbee> SharedDatasourceFreaklabsZigbee;
+class kis_datasource_freaklabs_zigbee;
+typedef std::shared_ptr<kis_datasource_freaklabs_zigbee> shared_datasource_freaklabs_zigbee;
 
-class KisDatasourceFreaklabsZigbee : public KisDatasource {
+class kis_datasource_freaklabs_zigbee : public kis_datasource {
 public:
-    KisDatasourceFreaklabsZigbee(SharedDatasourceBuilder in_builder) :
-        KisDatasource(in_builder) { 
+    kis_datasource_freaklabs_zigbee(shared_datasource_builder in_builder, 
+            std::shared_ptr<kis_recursive_timed_mutex> mutex) :
+        kis_datasource(in_builder, mutex) { 
         set_int_source_ipc_binary("kismet_cap_freaklabs_zigbee");
     };
-    virtual ~KisDatasourceFreaklabsZigbee() { };
+    virtual ~kis_datasource_freaklabs_zigbee() { };
 };
 
-class DatasourceFreaklabsZigbeeBuilder : public KisDatasourceBuilder {
+class datasource_freaklabs_zigbee_builder : public kis_datasource_builder {
 public:
-    DatasourceFreaklabsZigbeeBuilder(int in_id) :
-        KisDatasourceBuilder(in_id) {
+    datasource_freaklabs_zigbee_builder(int in_id) :
+        kis_datasource_builder(in_id) {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    DatasourceFreaklabsZigbeeBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
-        KisDatasourceBuilder(in_id, e) {
+    datasource_freaklabs_zigbee_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
+        kis_datasource_builder(in_id, e) {
 
         register_fields();
         reserve_fields(e);
         initialize();
     }
 
-    DatasourceFreaklabsZigbeeBuilder() :
-        KisDatasourceBuilder(0) {
+    datasource_freaklabs_zigbee_builder() :
+        kis_datasource_builder(0) {
 
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    virtual ~DatasourceFreaklabsZigbeeBuilder() { }
+    virtual ~datasource_freaklabs_zigbee_builder() { }
 
-    virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) {
-        return SharedDatasourceFreaklabsZigbee(new KisDatasourceFreaklabsZigbee(in_sh_this));
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this,
+            std::shared_ptr<kis_recursive_timed_mutex> mutex) override {
+        return shared_datasource_freaklabs_zigbee(new kis_datasource_freaklabs_zigbee(in_sh_this, mutex));
     }
 
-    virtual void initialize() {
+    virtual void initialize() override {
         set_source_type("freaklabszigbee");
         set_source_description("Freaklabs Zigbee adapter");
 

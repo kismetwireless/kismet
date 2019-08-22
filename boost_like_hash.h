@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -31,20 +31,20 @@
 
 namespace boost_like {
 
-template<typename T> void hash_combine(xxHashCPP& hash, const T& val);
+template<typename T> void hash_combine(xx_hash_cpp& hash, const T& val);
 
-template<> void hash_combine(xxHashCPP& hash, const std::string& val);
-template<> void hash_combine(xxHashCPP& hash, const uint8_t& val);
-template<> void hash_combine(xxHashCPP& hash, const int8_t& val);
-template<> void hash_combine(xxHashCPP& hash, const uint16_t& val);
-template<> void hash_combine(xxHashCPP& hash, const int16_t& val);
-template<> void hash_combine(xxHashCPP& hash, const uint32_t& val);
-template<> void hash_combine(xxHashCPP& hash, const int32_t& val);
-template<> void hash_combine(xxHashCPP& hash, const uint64_t& val);
-template<> void hash_combine(xxHashCPP& hash, const int64_t& val);
+template<> void hash_combine(xx_hash_cpp& hash, const std::string& val);
+template<> void hash_combine(xx_hash_cpp& hash, const uint8_t& val);
+template<> void hash_combine(xx_hash_cpp& hash, const int8_t& val);
+template<> void hash_combine(xx_hash_cpp& hash, const uint16_t& val);
+template<> void hash_combine(xx_hash_cpp& hash, const int16_t& val);
+template<> void hash_combine(xx_hash_cpp& hash, const uint32_t& val);
+template<> void hash_combine(xx_hash_cpp& hash, const int32_t& val);
+template<> void hash_combine(xx_hash_cpp& hash, const uint64_t& val);
+template<> void hash_combine(xx_hash_cpp& hash, const int64_t& val);
 
 template<typename T, typename... Ts>
-void hash_combine(xxHashCPP& hash, const T& arg1, const Ts&... args) {
+void hash_combine(xx_hash_cpp& hash, const T& arg1, const Ts&... args) {
     hash_combine(hash, arg1);
     hash_combine(hash, args...);
 } 

@@ -50,11 +50,11 @@
 #include "base64.h"
 
 // HTTP interfaces
-bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
+bool device_tracker::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
         // Simple fixed URLS
 
-        std::string stripped = Httpd_StripSuffix(path);
+        std::string stripped = httpd_strip_suffix(path);
 
         // Explicit compare for .ekjson because it doesn't serialize the 
         // same way
@@ -62,7 +62,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
             return true;
 
         // Split URL and process
-        std::vector<std::string> tokenurl = StrTokenize(path, "/");
+        std::vector<std::string> tokenurl = str_tokenize(path, "/");
         if (tokenurl.size() < 2)
             return false;
 
@@ -81,15 +81,15 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 if (key.get_error())
                     return false;
 
-                if (!Httpd_CanSerialize(tokenurl[4]))
+                if (!httpd_can_serialize(tokenurl[4]))
                     return false;
 
-                auto tmi = FetchDevice(key);
+                auto tmi = fetch_device(key);
 
                 if (tmi == NULL)
                     return false;
 
-                std::string target = Httpd_StripSuffix(tokenurl[4]);
+                std::string target = httpd_strip_suffix(tokenurl[4]);
 
                 if (target == "device") {
                     // Try to find the exact field
@@ -111,7 +111,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 if (tokenurl.size() < 5)
                     return false;
 
-                if (!Httpd_CanSerialize(tokenurl[4]))
+                if (!httpd_can_serialize(tokenurl[4]))
                     return false;
 
                 mac_addr mac = mac_addr(tokenurl[3]);
@@ -142,12 +142,12 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 if (tokenurl[4] == "devices.ekjson")
                     return true;
 
-                return Httpd_CanSerialize(tokenurl[4]);
+                return httpd_can_serialize(tokenurl[4]);
             }
         }
     } else if (strcmp(method, "POST") == 0) {
         // Split URL and process
-        std::vector<std::string> tokenurl = StrTokenize(path, "/");
+        std::vector<std::string> tokenurl = str_tokenize(path, "/");
         if (tokenurl.size() < 2)
             return false;
 
@@ -165,7 +165,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                     return false;
                 }
 
-                return Httpd_CanSerialize(tokenurl[4]);
+                return httpd_can_serialize(tokenurl[4]);
             } else if (tokenurl[2] == "by-key") {
                 if (tokenurl.size() < 5) {
                     return false;
@@ -176,13 +176,13 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 if (key.get_error())
                     return false;
 
-                if (!Httpd_CanSerialize(tokenurl[4]))
+                if (!httpd_can_serialize(tokenurl[4]))
                     return false;
 
-                if (FetchDevice(key) == NULL)
+                if (fetch_device(key) == NULL)
                     return false;
 
-                std::string target = Httpd_StripSuffix(tokenurl[4]);
+                std::string target = httpd_strip_suffix(tokenurl[4]);
 
                 if (target == "device") {
                     return true;
@@ -199,7 +199,7 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
                 if (tokenurl.size() < 5)
                     return false;
 
-                if (!Httpd_CanSerialize(tokenurl[4]))
+                if (!httpd_can_serialize(tokenurl[4]))
                     return false;
 
                 mac_addr mac = mac_addr(tokenurl[3]);
@@ -222,9 +222,9 @@ bool Devicetracker::Httpd_VerifyPath(const char *path, const char *method) {
     return false;
 }
 
-int Devicetracker::Httpd_CreateStreamResponse(
-        Kis_Net_Httpd *httpd __attribute__((unused)),
-        Kis_Net_Httpd_Connection *connection,
+int device_tracker::httpd_create_stream_response(
+        kis_net_httpd *httpd __attribute__((unused)),
+        kis_net_httpd_connection *connection,
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
@@ -235,35 +235,35 @@ int Devicetracker::Httpd_CreateStreamResponse(
     }
 
     // Allocate our buffer aux
-    Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
-        (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
+    kis_net_httpd_buffer_stream_aux *saux = 
+        (kis_net_httpd_buffer_stream_aux *) connection->custom_extension;
 
-    BufferHandlerOStringStreambuf *streambuf = 
-        new BufferHandlerOStringStreambuf(saux->get_rbhandler());
+    buffer_handler_ostringstream_buf *streambuf = 
+        new buffer_handler_ostringstream_buf(saux->get_rbhandler());
     std::ostream stream(streambuf);
 
     // Set our cleanup function
     saux->set_aux(streambuf, 
-            [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+            [](kis_net_httpd_buffer_stream_aux *aux) {
                 if (aux->aux != NULL)
-                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
+                    delete((buffer_handler_ostringstream_buf *) (aux->aux));
             });
 
     // Set our sync function which is called by the webserver side before we
     // clean up...
-    saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+    saux->set_sync([](kis_net_httpd_buffer_stream_aux *aux) {
             if (aux->aux != NULL) {
-                ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                ((buffer_handler_ostringstream_buf *) aux->aux)->pubsync();
                 }
             });
 
 
     if (strcmp(path, "/devices/all_devices.ekjson") == 0) {
         // Instantiate a manual serializer
-        JsonAdapter::Serializer serial; 
+        json_adapter::serializer serial; 
 
         auto fw = std::make_shared<devicetracker_function_worker>(
-                [&stream, &serial](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
+                [&stream, &serial](device_tracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
                     serial.serialize(d, stream);
                     stream << "\n";
 
@@ -272,15 +272,15 @@ int Devicetracker::Httpd_CreateStreamResponse(
                     return false;
                 }, nullptr);
 
-        MatchOnReadonlyDevices(fw);
+        do_readonly_device_work(fw);
         return MHD_YES;
     }
 
-    std::string stripped = Httpd_StripSuffix(path);
+    std::string stripped = httpd_strip_suffix(path);
 
     // fmt::print(stderr, "tokenizing path {}\n", path);
 
-    std::vector<std::string> tokenurl = StrTokenize(path, "/");
+    std::vector<std::string> tokenurl = str_tokenize(path, "/");
 
     // fmt::print(stderr, "path {} tokenized to size {}\n", path, tokenurl.size());
 
@@ -300,14 +300,14 @@ int Devicetracker::Httpd_CreateStreamResponse(
                 return MHD_YES;
             }
 
-            if (!Httpd_CanSerialize(tokenurl[4])) {
+            if (!httpd_can_serialize(tokenurl[4])) {
                 _MSG_ERROR("HTTP request for {}; can't actually serialize.", path);
                 connection->httpcode = 500;
                 return MHD_YES;
             }
 
             device_key key(tokenurl[3]);
-            auto dev = FetchDevice(key);
+            auto dev = fetch_device(key);
 
             if (dev == nullptr) {
                 _MSG_ERROR("HTTP request for {}; invalid device key {}", path, tokenurl[3]);
@@ -316,7 +316,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
                 return MHD_YES;
             }
 
-            std::string target = Httpd_StripSuffix(tokenurl[4]);
+            std::string target = httpd_strip_suffix(tokenurl[4]);
 
             if (target == "device") {
                 // Try to find the exact field
@@ -327,7 +327,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
 
                     local_shared_locker devlocker(&(dev->device_mutex));
 
-                    SharedTrackerElement sub = dev->get_child_path(fpath);
+                    shared_tracker_element sub = dev->get_child_path(fpath);
 
                     if (sub == nullptr) {
                         _MSG_ERROR("HTTP request for {}; could not map child path to a device record node.", path);
@@ -339,11 +339,11 @@ int Devicetracker::Httpd_CreateStreamResponse(
                     // Set the mime component of the url
                     connection->mime_url = tokenurl[4];
 
-                    Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, sub, NULL);
+                    Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(tokenurl[4]), stream, sub, NULL);
                     return MHD_YES;
                 }
 
-                Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, dev, NULL);
+                Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(tokenurl[4]), stream, dev, NULL);
                 // fmt::print(stderr, "Wrote data for key {}", key);
 
                 return MHD_YES;
@@ -356,7 +356,7 @@ int Devicetracker::Httpd_CreateStreamResponse(
             if (tokenurl.size() < 5)
                 return MHD_YES;
 
-            if (!Httpd_CanSerialize(tokenurl[4]))
+            if (!httpd_can_serialize(tokenurl[4]))
                 return MHD_YES;
 
             local_shared_locker lock(&devicelist_mutex);
@@ -367,14 +367,14 @@ int Devicetracker::Httpd_CreateStreamResponse(
                 return MHD_YES;
             }
 
-            auto devvec = std::make_shared<TrackerElementVector>();
+            auto devvec = std::make_shared<tracker_element_vector>();
 
             const auto& mmp = tracked_mac_multimap.equal_range(mac);
             for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
                 devvec->push_back(mmpi->second);
             }
 
-            Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, devvec, NULL);
+            Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(tokenurl[4]), stream, devvec, NULL);
 
             return MHD_YES;
         } else if (tokenurl[2] == "last-time") {
@@ -392,23 +392,23 @@ int Devicetracker::Httpd_CreateStreamResponse(
                 lastts = now + lastts;
             }
 
-            if (!Httpd_CanSerialize(tokenurl[4]))
+            if (!httpd_can_serialize(tokenurl[4]))
                 return MHD_YES;
 
-            std::shared_ptr<TrackerElementVector> devvec;
+            std::shared_ptr<tracker_element_vector> devvec;
 
             auto fw = std::make_shared<devicetracker_function_worker>(
-                    [devvec, lastts](Devicetracker *, 
+                    [devvec, lastts](device_tracker *, 
                         std::shared_ptr<kis_tracked_device_base> d) -> bool {
                         if (d->get_last_time() <= lastts)
                             return false;
 
                         return true;
                     }, nullptr);
-            MatchOnReadonlyDevices(fw);
+            do_readonly_device_work(fw);
             devvec = fw->GetMatchedDevices();
 
-            Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, devvec, NULL);
+            Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(tokenurl[4]), stream, devvec, NULL);
 
             return MHD_YES;
         }
@@ -418,26 +418,26 @@ int Devicetracker::Httpd_CreateStreamResponse(
     return MHD_YES;
 }
 
-int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
     // Split URL and process
-    std::vector<std::string> tokenurl = StrTokenize(concls->url, "/");
+    std::vector<std::string> tokenurl = str_tokenize(concls->url, "/");
 
-    auto saux = (Kis_Net_Httpd_Buffer_Stream_Aux *) concls->custom_extension;
-    auto streambuf = new BufferHandlerOStringStreambuf(saux->get_rbhandler());
+    auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
+    auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
     std::ostream stream(streambuf);
 
     saux->set_aux(streambuf, 
-            [](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+            [](kis_net_httpd_buffer_stream_aux *aux) {
                 if (aux->aux != NULL)
-                    delete((BufferHandlerOStringStreambuf *) (aux->aux));
+                    delete((buffer_handler_ostringstream_buf *) (aux->aux));
             });
 
     // Set our sync function which is called by the webserver side before we
     // clean up...
-    saux->set_sync([](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+    saux->set_sync([](kis_net_httpd_buffer_stream_aux *aux) {
             if (aux->aux != NULL) {
-                ((BufferHandlerOStringStreambuf *) aux->aux)->pubsync();
+                ((buffer_handler_ostringstream_buf *) aux->aux)->pubsync();
                 }
             });
 
@@ -449,7 +449,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     }
 
     // Common structured API data
-    SharedStructured structdata;
+    shared_structured structdata;
 
     // Summarization vector
     std::vector<SharedElementSummary> summary_vec;
@@ -458,9 +458,9 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     std::string wrapper_name;
 
     // Rename cache generated during simplification
-    auto rename_map = std::make_shared<TrackerElementSerializer::rename_map>();
+    auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
 
-    SharedStructured regexdata;
+    shared_structured regexdata;
 
     time_t post_ts = 0;
 
@@ -468,12 +468,12 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         if (concls->variable_cache.find("json") != 
                 concls->variable_cache.end()) {
             structdata =
-                std::make_shared<StructuredJson>(concls->variable_cache["json"]->str());
+                std::make_shared<structured_json>(concls->variable_cache["json"]->str());
         } else {
             // fprintf(stderr, "debug - missing data\n");
-            throw StructuredDataException("Missing data; expected command dictionary in json= field");
+            throw structured_data_exception("Missing data; expected command dictionary in json= field");
         }
-    } catch(const StructuredDataException& e) {
+    } catch(const structured_data_exception& e) {
         stream << "Invalid request: ";
         stream << e.what();
         concls->httpcode = 400;
@@ -481,16 +481,16 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     }
 
     try {
-        if (structdata->hasKey("fields")) {
-            SharedStructured fields = structdata->getStructuredByKey("fields");
-            StructuredData::structured_vec fvec = fields->getStructuredArray();
+        if (structdata->has_key("fields")) {
+            shared_structured fields = structdata->get_structured_by_key("fields");
+            structured_data::structured_vec fvec = fields->as_vector();
 
             for (const auto& i : fvec) {
-                if (i->isString()) {
-                    auto s = std::make_shared<TrackerElementSummary>(i->getString());
+                if (i->is_string()) {
+                    auto s = std::make_shared<tracker_element_summary>(i->as_string());
                     summary_vec.push_back(s);
-                } else if (i->isArray()) {
-                    StructuredData::string_vec mapvec = i->getStringVec();
+                } else if (i->is_array()) {
+                    structured_data::string_vec mapvec = i->as_string_vector();
 
                     if (mapvec.size() != 2) {
                         // fprintf(stderr, "debug - malformed rename pair\n");
@@ -500,28 +500,28 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     }
 
                     auto s = 
-                        std::make_shared<TrackerElementSummary>(mapvec[0], mapvec[1]);
+                        std::make_shared<tracker_element_summary>(mapvec[0], mapvec[1]);
                     summary_vec.push_back(s);
                 }
             }
         }
 
         // Get the wrapper, if one exists, default to empty if it doesn't
-        wrapper_name = structdata->getKeyAsString("wrapper", "");
+        wrapper_name = structdata->key_as_string("wrapper", "");
 
-        if (structdata->hasKey("regex")) {
-            regexdata = structdata->getStructuredByKey("regex");
+        if (structdata->has_key("regex")) {
+            regexdata = structdata->get_structured_by_key("regex");
         }
 
-        if (structdata->hasKey("last_time")) {
-            int64_t rawt = structdata->getKeyAsNumber("last_time");
+        if (structdata->has_key("last_time")) {
+            int64_t rawt = structdata->key_as_number("last_time");
 
             if (rawt < 0)
                 post_ts = time(0) + rawt;
             else
                 post_ts = rawt;
         }
-    } catch(const StructuredDataException& e) {
+    } catch(const structured_data_exception& e) {
         stream << "Invalid request: Malformed command dictionary, ";
         stream << e.what();
         concls->httpcode = 400;
@@ -539,7 +539,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                 local_demand_locker lock(&devicelist_mutex);
 
-                if (!Httpd_CanSerialize(tokenurl[4])) {
+                if (!httpd_can_serialize(tokenurl[4])) {
                     stream << "Invalid request: Cannot find serializer for file type\n";
                     concls->httpcode = 400;
                     return MHD_YES;
@@ -562,19 +562,19 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 }
                 lock.unlock();
 
-                std::string target = Httpd_StripSuffix(tokenurl[4]);
+                std::string target = httpd_strip_suffix(tokenurl[4]);
 
                 if (target == "devices") {
-                    auto devvec = std::make_shared<TrackerElementVector>();
+                    auto devvec = std::make_shared<tracker_element_vector>();
 
                     lock.lock();
                     auto mmp = tracked_mac_multimap.equal_range(mac);
                     lock.unlock();
 
                     for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) 
-                        devvec->push_back(SummarizeSingleTrackerElement(mmpi->second, summary_vec, rename_map));
+                        devvec->push_back(summarize_single_tracker_element(mmpi->second, summary_vec, rename_map));
 
-                    Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
+                    Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(tokenurl[4]), stream, 
                             devvec, rename_map);
 
                     return MHD_YES;
@@ -590,7 +590,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     return MHD_YES;
                 }
 
-                if (!Httpd_CanSerialize(tokenurl[4])) {
+                if (!httpd_can_serialize(tokenurl[4])) {
                     stream << "Invalid request: Cannot serialize field type";
                     concls->httpcode = 400;
                     return MHD_YES;
@@ -598,7 +598,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
 
                 device_key key(tokenurl[3]);
 
-                auto dev = FetchDevice(key);
+                auto dev = fetch_device(key);
 
                 if (dev == NULL) {
                     stream << "Invalid request: No device with that key";
@@ -606,15 +606,15 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     return MHD_YES;
                 }
 
-                std::string target = Httpd_StripSuffix(tokenurl[4]);
+                std::string target = httpd_strip_suffix(tokenurl[4]);
 
                 if (target == "device") {
                     local_shared_locker devlock(&(dev->device_mutex));
 
                     auto simple = 
-                        SummarizeSingleTrackerElement(dev, summary_vec, rename_map);
+                        summarize_single_tracker_element(dev, summary_vec, rename_map);
 
-                    Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), 
+                    Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(tokenurl[4]), 
                             stream, simple, rename_map);
 
                     return MHD_YES;
@@ -624,15 +624,15 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                     std::string name;
 
                     // Must have a session to set the name
-                    if (!httpd->HasValidSession(concls)) 
+                    if (!httpd->has_valid_session(concls)) 
                         throw std::runtime_error("login required");
 
-                    if (!structdata->hasKey("username")) 
+                    if (!structdata->has_key("username")) 
                         throw std::runtime_error("expected username in command dictionary");
 
-                    name = structdata->getKeyAsString("username");
+                    name = structdata->key_as_string("username");
 
-                    SetDeviceUserName(dev, name);
+                    set_device_user_name(dev, name);
 
                     stream << "OK";
                     return MHD_YES;
@@ -641,19 +641,19 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 if (target == "set_tag") {
                     std::string tag, content;
 
-                    if (!httpd->HasValidSession(concls))
+                    if (!httpd->has_valid_session(concls))
                         throw std::runtime_error("login required");
 
-                    if (!structdata->hasKey("tagname"))
+                    if (!structdata->has_key("tagname"))
                         throw std::runtime_error("expected tagname in command dictionary");
 
-                    if (!structdata->hasKey("tagvalue"))
+                    if (!structdata->has_key("tagvalue"))
                         throw std::runtime_error("expected tagvalue in command dictionary");
 
-                    tag = structdata->getKeyAsString("tagname");
-                    content = structdata->getKeyAsString("tagvalue");
+                    tag = structdata->key_as_string("tagname");
+                    content = structdata->key_as_string("tagvalue");
 
-                    SetDeviceTag(dev, tag, content);
+                    set_device_tag(dev, tag, content);
 
                     stream << "OK";
                     return MHD_YES;
@@ -671,7 +671,7 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 // Is the timestamp an int?
                 long lastts;
                 if (sscanf(tokenurl[3].c_str(), "%ld", &lastts) != 1 ||
-                        !Httpd_CanSerialize(tokenurl[4])) {
+                        !httpd_can_serialize(tokenurl[4])) {
                     stream << "Invalid request";
                     concls->httpcode = 400;
                     return MHD_YES;
@@ -684,44 +684,44 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 }
 
                 // Rename cache generated during simplification
-                auto rename_map = std::make_shared<TrackerElementSerializer::rename_map>();
+                auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
 
                 // List of devices that pass the timestamp filter
-                std::shared_ptr<TrackerElementVector> timedevs;
+                std::shared_ptr<tracker_element_vector> timedevs;
 
                 //  List of devices that pass the regex filter
-                auto regexdevs = std::make_shared<TrackerElementVector>();
+                auto regexdevs = std::make_shared<tracker_element_vector>();
 
                 auto tw = std::make_shared<devicetracker_function_worker>(
-                        [lastts](Devicetracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
+                        [lastts](device_tracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
 
                         if (d->get_last_time() <= lastts)
                             return false;
 
                         return true;
                         }, nullptr);
-                MatchOnReadonlyDevices(tw);
+                do_readonly_device_work(tw);
                 timedevs = tw->GetMatchedDevices();
 
                 if (regexdata != NULL) {
                     auto worker = std::make_shared<devicetracker_pcre_worker>(regexdata);
-                    MatchOnReadonlyDevices(worker, timedevs);
+                    do_readonly_device_work(worker, timedevs);
                     regexdevs = worker->GetMatchedDevices();
                 } else {
                     regexdevs = timedevs;
                 }
 
                 // Final devices being simplified and sent out
-                auto outdevs = std::make_shared<TrackerElementVector>();
+                auto outdevs = std::make_shared<tracker_element_vector>();
 
                 for (const auto& rei : *regexdevs) {
                     auto rd = std::static_pointer_cast<kis_tracked_device_base>(rei);
                     local_shared_locker lock(&rd->device_mutex);
 
-                    outdevs->push_back(SummarizeSingleTrackerElement(rd, summary_vec, rename_map));
+                    outdevs->push_back(summarize_single_tracker_element(rd, summary_vec, rename_map));
                 }
 
-                Globalreg::globalreg->entrytracker->Serialize(httpd->GetSuffix(tokenurl[4]), stream, 
+                Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(tokenurl[4]), stream, 
                         outdevs, rename_map);
                 return MHD_YES;
             }
@@ -738,24 +738,24 @@ int Devicetracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     return MHD_YES;
 }
 
-unsigned int Devicetracker::multimac_endp_handler(std::ostream& stream, const std::string& uri,
-        SharedStructured structured, Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) {
+unsigned int device_tracker::multimac_endp_handler(std::ostream& stream, const std::string& uri,
+        shared_structured structured, kis_net_httpd_connection::variable_cache_map& variable_cache) {
 
     try {
-        auto ret_devices = std::make_shared<TrackerElementVector>();
+        auto ret_devices = std::make_shared<tracker_element_vector>();
         auto macs = std::vector<mac_addr>{};
 
-        if (!structured->hasKey("devices"))
+        if (!structured->has_key("devices"))
             throw std::runtime_error("Missing 'devices' key in command dictionary");
         
-        auto maclist = structured->getStructuredByKey("devices")->getStructuredArray();
+        auto maclist = structured->get_structured_by_key("devices")->as_vector();
 
         for (auto m : maclist) {
-            mac_addr ma{m->getString()};
+            mac_addr ma{m->as_string()};
 
             if (ma.error) 
                 throw std::runtime_error(fmt::format("Invalid MAC address '{}' in 'devices' list",
-                            kishttpd::EscapeHtml(m->getString())));
+                            kishttpd::escape_html(m->as_string())));
 
             macs.push_back(ma);
         }
@@ -776,12 +776,12 @@ unsigned int Devicetracker::multimac_endp_handler(std::ostream& stream, const st
         }
 
         // Summarize it all at once
-        auto rename_map = std::make_shared<TrackerElementSerializer::rename_map>();
+        auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
 
         auto output = 
-            kishttpd::SummarizeWithStructured(ret_devices, structured, rename_map);
+            kishttpd::summarize_with_structured(ret_devices, structured, rename_map);
 
-        Globalreg::globalreg->entrytracker->Serialize(kishttpd::GetSuffix(uri), stream, output, rename_map);
+        Globalreg::globalreg->entrytracker->serialize(kishttpd::get_suffix(uri), stream, output, rename_map);
 
         return 200;
 
@@ -794,24 +794,24 @@ unsigned int Devicetracker::multimac_endp_handler(std::ostream& stream, const st
     return 500;
 }
 
-std::shared_ptr<TrackerElement> Devicetracker::all_phys_endp_handler() {
+std::shared_ptr<tracker_element> device_tracker::all_phys_endp_handler() {
     auto ret_vec = 
-        std::make_shared<TrackerElementVector>();
+        std::make_shared<tracker_element_vector>();
 
     for (auto i : phy_handler_map) {
         auto tracked_phy =
-            std::make_shared<TrackerElementMap>(phy_phyentry_id);
+            std::make_shared<tracker_element_map>(phy_phyentry_id);
 
         auto tracked_name =
-            std::make_shared<TrackerElementString>(phy_phyname_id, i.second->FetchPhyName());
+            std::make_shared<tracker_element_string>(phy_phyname_id, i.second->fetch_phy_name());
         auto tracked_id =
-            std::make_shared<TrackerElementUInt32>(phy_phyid_id, i.second->FetchPhyId());
+            std::make_shared<tracker_element_uint32>(phy_phyid_id, i.second->fetch_phy_id());
         auto tracked_dev_count =
-            std::make_shared<TrackerElementUInt64>(phy_devices_count_id);
+            std::make_shared<tracker_element_uint64>(phy_devices_count_id);
         auto tracked_packet_count =
-            std::make_shared<TrackerElementUInt64>(phy_packets_count_id, phy_packets[i.second->FetchPhyId()]);
+            std::make_shared<tracker_element_uint64>(phy_packets_count_id, phy_packets[i.second->fetch_phy_id()]);
 
-        auto pv_key = phy_view_map.find(i.second->FetchPhyId());
+        auto pv_key = phy_view_map.find(i.second->fetch_phy_id());
         if (pv_key != phy_view_map.end())
             tracked_dev_count->set(pv_key->second->get_list_sz());
 

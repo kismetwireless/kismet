@@ -65,7 +65,7 @@ public:
     }
 
     // Simple average
-    static int64_t combine_vector(std::shared_ptr<TrackerElementVectorDouble> e) {
+    static int64_t combine_vector(std::shared_ptr<tracker_element_vector_double> e) {
         int64_t avg = 0;
         int64_t avg_c = 0;
 
@@ -109,23 +109,23 @@ public:
         }
 
     rtlamr_tracked_common(int in_id, 
-            std::shared_ptr<TrackerElementMap> e) :
+            std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("rtlamr_tracked_common");
+        return adler32_checksum("rtlamr_tracked_common");
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
+    virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
@@ -139,21 +139,21 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("rtlamr.device.model", "Sensor model", &model);
-        RegisterField("rtlamr.device.id", "Sensor ID", &rtlid);
-        RegisterField("rtlamr.device.rtlchannel", "Sensor sub-channel", &rtlchannel);
+        register_field("rtlamr.device.model", "Sensor model", &model);
+        register_field("rtlamr.device.id", "Sensor ID", &rtlid);
+        register_field("rtlamr.device.rtlchannel", "Sensor sub-channel", &rtlchannel);
     }
 
-    std::shared_ptr<TrackerElementString> model;
+    std::shared_ptr<tracker_element_string> model;
 
     // Device id, could be from the "id" or the "device" record
-    std::shared_ptr<TrackerElementString> rtlid;
+    std::shared_ptr<tracker_element_string> rtlid;
 
     // RTL subchannel, if one is available (many powermeters report one)
-    std::shared_ptr<TrackerElementString> rtlchannel;
+    std::shared_ptr<tracker_element_string> rtlchannel;
 
     // Battery as a string
-    //std::shared_ptr<TrackerElementString> battery;
+    //std::shared_ptr<tracker_element_string> battery;
 };
 
 // Thermometer type rtl data, derived from the rtl device.  This adds new
@@ -172,23 +172,23 @@ public:
             reserve_fields(NULL);
         }
 
-    rtlamr_tracked_powermeter(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    rtlamr_tracked_powermeter(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("rtlamr_tracked_powermeter");
+        return adler32_checksum("rtlamr_tracked_powermeter");
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
+    virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
@@ -202,30 +202,30 @@ public:
 
 protected:
     virtual void register_fields() override {
-        RegisterField("rtlamr.device.consumption", "Consumption", &consumption);
-        RegisterField("rtlamr.device.consumption_rrd", "Consumption history RRD", &consumption_rrd);
+        register_field("rtlamr.device.consumption", "Consumption", &consumption);
+        register_field("rtlamr.device.consumption_rrd", "Consumption history RRD", &consumption_rrd);
     }
 
     // Basic temp in C, from multiple sensors; we might have to convert to C
     // for some types of sensors
-    std::shared_ptr<TrackerElementDouble> consumption;
+    std::shared_ptr<tracker_element_double> consumption;
     std::shared_ptr<kis_tracked_rrd<rtlamr_empty_aggregator>> consumption_rrd;
 
 };
 
-class Kis_RTLAMR_Phy : public Kis_Phy_Handler {
+class Kis_RTLAMR_Phy : public kis_phy_handler {
 public:
     virtual ~Kis_RTLAMR_Phy();
 
-    Kis_RTLAMR_Phy(GlobalRegistry *in_globalreg) :
-        Kis_Phy_Handler(in_globalreg) { };
+    Kis_RTLAMR_Phy(global_registry *in_globalreg) :
+        kis_phy_handler(in_globalreg) { };
 
 	// Build a strong version of ourselves
-	virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg, int in_phyid) override {
+	virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg, int in_phyid) override {
 		return new Kis_RTLAMR_Phy(in_globalreg, in_phyid);
 	}
 
-    Kis_RTLAMR_Phy(GlobalRegistry *in_globalreg, int in_phyid);
+    Kis_RTLAMR_Phy(global_registry *in_globalreg, int in_phyid);
 
     static int PacketHandler(CHAINCALL_PARMS);
 
@@ -239,21 +239,21 @@ protected:
 
     bool is_powermeter(Json::Value json);
 
-    void add_powermeter(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder);
+    void add_powermeter(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder);
 
     double f_to_c(double f);
 
 
 protected:
-    std::shared_ptr<Packetchain> packetchain;
-    std::shared_ptr<EntryTracker> entrytracker;
-    std::shared_ptr<Devicetracker> devicetracker;
+    std::shared_ptr<packet_chain> packetchain;
+    std::shared_ptr<entry_tracker> entrytracker;
+    std::shared_ptr<device_tracker> devicetracker;
 
     int rtlamr_holder_id, rtlamr_common_id, rtlamr_powermeter_id;
 
     int pack_comp_common, pack_comp_json, pack_comp_meta;
 
-    std::shared_ptr<TrackerElementString> rtl_manuf;
+    std::shared_ptr<tracker_element_string> rtl_manuf;
 
 };
 

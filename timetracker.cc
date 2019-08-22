@@ -25,7 +25,7 @@
 
 #include "timetracker.h"
 
-Timetracker::Timetracker() {
+time_tracker::time_tracker() {
     next_timer_id = 0;
 
     timer_sort_required = true;
@@ -45,7 +45,7 @@ Timetracker::Timetracker() {
 
 }
 
-void Timetracker::SpawnTimetrackerThread() {
+void time_tracker::SpawnTimetrackerThread() {
     time_dispatch_t =
         std::thread([this]() {
                 thread_set_process_name("timers");
@@ -53,7 +53,7 @@ void Timetracker::SpawnTimetrackerThread() {
             });
 }
 
-Timetracker::~Timetracker() {
+time_tracker::~time_tracker() {
     shutdown = true;
 
     if (time_dispatch_t.joinable())
@@ -70,7 +70,7 @@ Timetracker::~Timetracker() {
         delete x->second;
 }
 
-void Timetracker::Tick() {
+void time_tracker::Tick() {
     local_demand_locker lock(&time_mutex);
 
     // Handle scheduled events
@@ -160,7 +160,7 @@ void Timetracker::Tick() {
     }
 }
 
-void Timetracker::time_dispatcher() {
+void time_tracker::time_dispatcher() {
     while (!shutdown && !Globalreg::globalreg->spindown && !Globalreg::globalreg->fatal_condition) {
         local_demand_locker lock(&time_mutex);
 
@@ -266,7 +266,7 @@ void Timetracker::time_dispatcher() {
     }
 }
 
-int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
+int time_tracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
                                int in_recurring, 
                                int (*in_callback)(TIMEEVENT_PARMS),
                                void *in_parm) {
@@ -301,8 +301,8 @@ int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
     return evt->timer_id;
 }
 
-int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
-        int in_recurring, TimetrackerEvent *in_event) {
+int time_tracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
+        int in_recurring, time_tracker_event *in_event) {
     local_locker l(&time_mutex);
 
     timer_event *evt = new timer_event;
@@ -345,7 +345,7 @@ int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
     return evt->timer_id;
 }
 
-int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
+int time_tracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
         int in_recurring, std::function<int (int)> in_event) {
     local_locker l(&time_mutex);
 
@@ -390,7 +390,7 @@ int Timetracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
     return evt->timer_id;
 }
 
-int Timetracker::RemoveTimer(int in_timerid) {
+int time_tracker::remove_timer(int in_timerid) {
     // Removing a timer sets the atomic cancelled and puts us on the abort list;
     // we'll get cleaned out of the main list the next iteration through the main code.
     

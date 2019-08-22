@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -25,21 +25,21 @@
 #include "packet.h"
 #include "packetchain.h"
 
-class Kis_Dissector_IPdata : public SharedGlobalData {
+class kis_dissector_ip_data : public shared_global_data {
 public:
-	Kis_Dissector_IPdata() { 
-		fprintf(stderr, "FATAL OOPS: Kis_Dissector_IPdata()\n"); 
+	kis_dissector_ip_data() { 
+		fprintf(stderr, "FATAL OOPS: kis_dissector_ip_data()\n"); 
 		exit(1); 
 	}
 
-	Kis_Dissector_IPdata(GlobalRegistry *in_globalreg);
+	kis_dissector_ip_data(global_registry *in_globalreg);
 
-	virtual int HandlePacket(kis_packet *in_pack);
+	virtual int handle_packet(kis_packet *in_pack);
 
-	~Kis_Dissector_IPdata();
+	~kis_dissector_ip_data();
 
 protected:
-	GlobalRegistry *globalreg;
+	global_registry *globalreg;
 
 	int pack_comp_datapayload, pack_comp_basicdata, pack_comp_common;
 	int alert_dhcpclient_ref;

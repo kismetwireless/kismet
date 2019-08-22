@@ -18,7 +18,7 @@
 
 #include "eventbus.h"
 
-Eventbus::Eventbus() {
+event_bus::event_bus() {
     next_cbl_id = 1;
 
     shutdown = false;
@@ -33,14 +33,14 @@ Eventbus::Eventbus() {
 
 }
 
-Eventbus::~Eventbus() {
+event_bus::~event_bus() {
     shutdown = true;
 
     event_cl.unlock(0);
     event_dispatch_t.join();
 }
 
-void Eventbus::event_queue_dispatcher() {
+void event_bus::event_queue_dispatcher() {
     local_demand_locker l(&mutex);
 
     while (!shutdown && 
@@ -90,7 +90,7 @@ void Eventbus::event_queue_dispatcher() {
     }
 }
 
-unsigned long Eventbus::register_listener(const std::string& channel, cb_func cb) {
+unsigned long event_bus::register_listener(const std::string& channel, cb_func cb) {
     local_locker l(&handler_mutex);
 
     auto cbl = std::make_shared<callback_listener>(std::list<std::string>{channel}, cb, next_cbl_id++);
@@ -101,7 +101,7 @@ unsigned long Eventbus::register_listener(const std::string& channel, cb_func cb
     return cbl->id;
 }
 
-unsigned long Eventbus::register_listener(const std::list<std::string>& channels, cb_func cb) {
+unsigned long event_bus::register_listener(const std::list<std::string>& channels, cb_func cb) {
     local_locker l(&handler_mutex);
 
     auto cbl = std::make_shared<callback_listener>(channels, cb, next_cbl_id++);
@@ -115,7 +115,7 @@ unsigned long Eventbus::register_listener(const std::list<std::string>& channels
     return cbl->id;
 }
 
-void Eventbus::remove_listener(unsigned long id) {
+void event_bus::remove_listener(unsigned long id) {
     local_locker l(&handler_mutex);
 
     // Find matching cbl

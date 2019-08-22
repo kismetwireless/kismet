@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -30,14 +30,14 @@
 #include "entrytracker.h"
 #include "structured.h"
 
-/* Storage loaders convert common StructuredData elements to tracked element object trees,
+/* Storage loaders convert common structured_data elements to tracked element object trees,
  * which can then be adopted by complete classes.
  *
  */
 
-namespace StorageLoader {
+namespace storage_loader {
 
-SharedTrackerElement storage_to_tracker(SharedStructured d); 
+shared_tracker_element storage_to_tracker(shared_structured d); 
 
 };
 

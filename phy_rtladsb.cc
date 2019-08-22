@@ -27,38 +27,38 @@
 #include "kis_httpd_registry.h"
 #include "manuf.h"
 
-Kis_RTLADSB_Phy::Kis_RTLADSB_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
-    Kis_Phy_Handler(in_globalreg, in_phyid) {
+Kis_RTLADSB_Phy::Kis_RTLADSB_Phy(global_registry *in_globalreg, int in_phyid) :
+    kis_phy_handler(in_globalreg, in_phyid) {
 
-    SetPhyName("RTLADSB");
+    set_phy_name("RTLADSB");
 
     packetchain =
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>();
+        Globalreg::fetch_mandatory_global_as<packet_chain>();
     entrytracker =
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
+        Globalreg::fetch_mandatory_global_as<entry_tracker>();
     devicetracker =
-        Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
+        Globalreg::fetch_mandatory_global_as<device_tracker>();
 
 	pack_comp_common = 
-		packetchain->RegisterPacketComponent("COMMON");
+		packetchain->register_packet_component("COMMON");
     pack_comp_json = 
-        packetchain->RegisterPacketComponent("JSON");
+        packetchain->register_packet_component("JSON");
     pack_comp_meta =
-        packetchain->RegisterPacketComponent("METABLOB");
+        packetchain->register_packet_component("METABLOB");
 
     rtladsb_holder_id =
-        Globalreg::globalreg->entrytracker->RegisterField("rtladsb.device", 
-                TrackerElementFactory<TrackerElementMap>(),
+        Globalreg::globalreg->entrytracker->register_field("rtladsb.device", 
+                tracker_element_factory<tracker_element_map>(),
                 "rtl_adsb device");
 
     rtladsb_common_id =
-        Globalreg::globalreg->entrytracker->RegisterField("rtladsb.device.common",
-                TrackerElementFactory<rtladsb_tracked_common>(),
+        Globalreg::globalreg->entrytracker->register_field("rtladsb.device.common",
+                tracker_element_factory<rtladsb_tracked_common>(),
                 "Common RTLADSB device info");
 
     rtladsb_adsb_id =
-        Globalreg::globalreg->entrytracker->RegisterField("rtladsb.device.adsb",
-                TrackerElementFactory<rtladsb_tracked_adsb>(),
+        Globalreg::globalreg->entrytracker->register_field("rtladsb.device.adsb",
+                tracker_element_factory<rtladsb_tracked_adsb>(),
                 "RTLADSB adsb");
 
     // Make the manuf string
@@ -66,14 +66,14 @@ Kis_RTLADSB_Phy::Kis_RTLADSB_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
 
     // Register js module for UI
     auto httpregistry =
-        Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>();
+        Globalreg::fetch_mandatory_global_as<kis_httpd_registry>();
     httpregistry->register_js_module("kismet_ui_rtladsb", "js/kismet.ui.rtladsb.js");
 
-	packetchain->RegisterHandler(&PacketHandler, this, CHAINPOS_CLASSIFIER, -100);
+	packetchain->register_handler(&PacketHandler, this, CHAINPOS_CLASSIFIER, -100);
 }
 
 Kis_RTLADSB_Phy::~Kis_RTLADSB_Phy() {
-    packetchain->RemoveHandler(&PacketHandler, CHAINPOS_CLASSIFIER);
+    packetchain->remove_handler(&PacketHandler, CHAINPOS_CLASSIFIER);
 }
 
 mac_addr Kis_RTLADSB_Phy::json_to_mac(Json::Value json) {
@@ -99,7 +99,7 @@ mac_addr Kis_RTLADSB_Phy::json_to_mac(Json::Value json) {
         }
     }
 
-    *checksum = Adler32Checksum(smodel.c_str(), smodel.length());
+    *checksum = adler32_checksum(smodel.c_str(), smodel.length());
 
     bool set_model = false;
 
@@ -152,16 +152,16 @@ bool Kis_RTLADSB_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     }
 
     common->type = packet_basic_data;
-    common->phyid = FetchPhyId();
+    common->phyid = fetch_phy_id();
     common->datasize = 0;
 
     // If this json record has a channel
     if (json.isMember("channel")) {
         Json::Value c = json["channel"];
         if (c.isNumeric()) {
-            common->channel = IntToString(c.asInt());
+            common->channel = int_to_string(c.asInt());
         } else if (c.isString()) {
-            common->channel = MungeToPrintable(c.asString());
+            common->channel = munge_to_printable(c.asString());
         }
     }
 
@@ -170,7 +170,7 @@ bool Kis_RTLADSB_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     common->transmitter = rtlmac;
 
     std::shared_ptr<kis_tracked_device_base> basedev =
-        devicetracker->UpdateCommonDevice(common, common->source, this, packet,
+        devicetracker->update_common_device(common, common->source, this, packet,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY), "RTLADSB Sensor");
 
@@ -188,12 +188,12 @@ bool Kis_RTLADSB_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     basedev->set_type_string("Airplane");
     basedev->set_devicename(dn);
 
-    auto rtlholder = basedev->get_sub_as<TrackerElementMap>(rtladsb_holder_id);
+    auto rtlholder = basedev->get_sub_as<tracker_element_map>(rtladsb_holder_id);
     bool newrtl = false;
 
     if (rtlholder == NULL) {
         rtlholder =
-            std::make_shared<TrackerElementMap>(rtladsb_holder_id);
+            std::make_shared<tracker_element_map>(rtladsb_holder_id);
         basedev->insert(rtlholder);
         newrtl = true;
     }
@@ -233,9 +233,9 @@ bool Kis_RTLADSB_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
         auto channel_j = json["channel"];
 
         if (channel_j.isNumeric())
-            commondev->set_rtlchannel(IntToString(channel_j.asInt()));
+            commondev->set_rtlchannel(int_to_string(channel_j.asInt()));
         else if (channel_j.isString())
-            commondev->set_rtlchannel(MungeToPrintable(channel_j.asString()));
+            commondev->set_rtlchannel(munge_to_printable(channel_j.asString()));
     }
 
     if (is_adsb(json))
@@ -268,7 +268,7 @@ bool Kis_RTLADSB_Phy::is_adsb(Json::Value json) {
     return false;
 }
 
-void Kis_RTLADSB_Phy::add_adsb(Json::Value json, std::shared_ptr<TrackerElementMap> rtlholder) {
+void Kis_RTLADSB_Phy::add_adsb(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
     auto icao_j = json["icao"];
 
     if (!icao_j.isNull()) {

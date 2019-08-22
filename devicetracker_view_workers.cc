@@ -25,20 +25,20 @@
 #include "kis_mutex.h"
 #include "kismet_algorithm.h"
 
-void DevicetrackerViewWorker::setMatchedDevices(std::shared_ptr<TrackerElementVector> devs) {
+void device_tracker_view_worker::setMatchedDevices(std::shared_ptr<tracker_element_vector> devs) {
     local_locker l(&mutex);
     matched = devs;
 }
 
-DevicetrackerViewFunctionWorker::DevicetrackerViewFunctionWorker(filter_cb cb) :
+device_tracker_view_function_worker::device_tracker_view_function_worker(filter_cb cb) :
     filter {cb} { }
 
-bool DevicetrackerViewFunctionWorker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
+bool device_tracker_view_function_worker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
     return filter(device);
 }
 
 #ifdef HAVE_LIBPCRE
-DevicetrackerViewRegexWorker::pcre_filter::pcre_filter(const std::string& in_target,
+device_tracker_view_regex_worker::pcre_filter::pcre_filter(const std::string& in_target,
         const std::string& in_regex) {
 
     const char *compile_error, *study_error;
@@ -60,7 +60,7 @@ DevicetrackerViewRegexWorker::pcre_filter::pcre_filter(const std::string& in_tar
     }
 }
 
-DevicetrackerViewRegexWorker::pcre_filter::~pcre_filter() {
+device_tracker_view_regex_worker::pcre_filter::~pcre_filter() {
     if (re != NULL)
         pcre_free(re);
     if (study != NULL)
@@ -69,7 +69,7 @@ DevicetrackerViewRegexWorker::pcre_filter::~pcre_filter() {
 
 #endif
 
-DevicetrackerViewRegexWorker::DevicetrackerViewRegexWorker(const std::vector<std::shared_ptr<DevicetrackerViewRegexWorker::pcre_filter>>& in_filter_vec) {
+device_tracker_view_regex_worker::device_tracker_view_regex_worker(const std::vector<std::shared_ptr<device_tracker_view_regex_worker::pcre_filter>>& in_filter_vec) {
 #ifdef HAVE_LIBPCRE
     filter_vec = in_filter_vec;
 #else
@@ -77,20 +77,20 @@ DevicetrackerViewRegexWorker::DevicetrackerViewRegexWorker(const std::vector<std
 #endif
 }
 
-DevicetrackerViewRegexWorker::DevicetrackerViewRegexWorker(SharedStructured shared_pcre_vec) {
+device_tracker_view_regex_worker::device_tracker_view_regex_worker(shared_structured shared_pcre_vec) {
 #ifdef HAVE_LIBPCRE
-    auto vec = shared_pcre_vec->getStructuredArray();
+    auto vec = shared_pcre_vec->as_vector();
 
     for (auto i : vec) {
-        auto rpair = i->getStructuredArray();
+        auto rpair = i->as_vector();
 
         if (rpair.size() != 2)
             throw std::runtime_error("expected [field, regex] pair from incoming filter");
 
-        auto field = rpair[0]->getString();
-        auto regex = rpair[1]->getString();
+        auto field = rpair[0]->as_string();
+        auto regex = rpair[1]->as_string();
 
-        auto worker_filter = std::make_shared<DevicetrackerViewRegexWorker::pcre_filter>(field, regex);
+        auto worker_filter = std::make_shared<device_tracker_view_regex_worker::pcre_filter>(field, regex);
 
         filter_vec.push_back(worker_filter);
     }
@@ -99,13 +99,13 @@ DevicetrackerViewRegexWorker::DevicetrackerViewRegexWorker(SharedStructured shar
 #endif
 }
 
-DevicetrackerViewRegexWorker::DevicetrackerViewRegexWorker(const std::vector<std::pair<std::string, std::string>>& str_pcre_vec) {
+device_tracker_view_regex_worker::device_tracker_view_regex_worker(const std::vector<std::pair<std::string, std::string>>& str_pcre_vec) {
 #ifdef HAVE_LIBPCRE
     for (auto i : str_pcre_vec) {
         auto field = std::get<0>(i);
         auto regex = std::get<1>(i);
 
-        auto worker_filter = std::make_shared<DevicetrackerViewRegexWorker::pcre_filter>(field, regex);
+        auto worker_filter = std::make_shared<device_tracker_view_regex_worker::pcre_filter>(field, regex);
 
         filter_vec.push_back(worker_filter);
     }
@@ -114,24 +114,24 @@ DevicetrackerViewRegexWorker::DevicetrackerViewRegexWorker(const std::vector<std
 #endif
 }
 
-bool DevicetrackerViewRegexWorker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
+bool device_tracker_view_regex_worker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
 #ifdef HAVE_LIBPCRE
     bool matched = false;
 
     for (auto i : filter_vec) {
-        auto fields = GetTrackerElementMultiPath(i->target, device);
+        auto fields = get_tracker_element_multi_path(i->target, device);
 
         for (auto fi : fields) {
             std::string val;
 
-            if (fi->get_type() == TrackerType::TrackerString)
-                val = GetTrackerValue<std::string>(fi);
-            else if (fi->get_type() == TrackerType::TrackerMac)
-                val = GetTrackerValue<mac_addr>(fi).Mac2String();
-            else if (fi->get_type() == TrackerType::TrackerUuid)
-                val = GetTrackerValue<uuid>(fi).UUID2String();
-            else if (fi->get_type() == TrackerType::TrackerByteArray) 
-                val = std::static_pointer_cast<TrackerElementByteArray>(fi)->get();
+            if (fi->get_type() == tracker_type::tracker_string)
+                val = get_tracker_value<std::string>(fi);
+            else if (fi->get_type() == tracker_type::tracker_mac_addr)
+                val = get_tracker_value<mac_addr>(fi).mac_to_string();
+            else if (fi->get_type() == tracker_type::tracker_uuid)
+                val = get_tracker_value<uuid>(fi).uuid_to_string();
+            else if (fi->get_type() == tracker_type::tracker_byte_array) 
+                val = std::static_pointer_cast<tracker_element_byte_array>(fi)->get();
             else
                 continue;
 
@@ -155,37 +155,37 @@ bool DevicetrackerViewRegexWorker::matchDevice(std::shared_ptr<kis_tracked_devic
     return false;
 }
 
-DevicetrackerViewStringmatchWorker::DevicetrackerViewStringmatchWorker(const std::string& in_query,
+device_tracker_view_stringmatch_worker::device_tracker_view_stringmatch_worker(const std::string& in_query,
         const std::vector<std::vector<int>>& in_paths) :
     query { in_query },
     fieldpaths { in_paths } {
 
     // Generate cached match for mac addresses
-    mac_addr::PrepareSearchTerm(query, mac_query_term, mac_query_term_len);
+    mac_addr::prepare_search_term(query, mac_query_term, mac_query_term_len);
 }
 
-bool DevicetrackerViewStringmatchWorker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
+bool device_tracker_view_stringmatch_worker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
     bool matched = false;
 
     for (auto i : fieldpaths) {
-        auto field = GetTrackerElementPath(i, device);
+        auto field = get_tracker_element_path(i, device);
 
         if (field == nullptr)
             continue;
 
-        if (field->get_type() == TrackerType::TrackerString) {
+        if (field->get_type() == tracker_type::tracker_string) {
             // We can only do a straight string match against string fields
-            matched = GetTrackerValue<std::string>(field).find(query) != std::string::npos;
-        } else if (field->get_type() == TrackerType::TrackerByteArray) {
+            matched = get_tracker_value<std::string>(field).find(query) != std::string::npos;
+        } else if (field->get_type() == tracker_type::tracker_byte_array) {
             // Try a raw string match against a binary field
             matched = 
-                std::static_pointer_cast<TrackerElementByteArray>(field)->get().find(query) != 
+                std::static_pointer_cast<tracker_element_byte_array>(field)->get().find(query) != 
                 std::string::npos;
-        } else if (field->get_type() == TrackerType::TrackerMac && mac_query_term_len != 0) {
+        } else if (field->get_type() == tracker_type::tracker_mac_addr && mac_query_term_len != 0) {
             // If we were able to interpret the query term as a partial
             // mac address, do a mac compare
             matched =
-                std::static_pointer_cast<TrackerElementMacAddr>(field)->get().PartialSearch(mac_query_term, mac_query_term_len);
+                std::static_pointer_cast<tracker_element_mac_addr>(field)->get().partial_search(mac_query_term, mac_query_term_len);
         }
 
         if (matched)
@@ -195,16 +195,16 @@ bool DevicetrackerViewStringmatchWorker::matchDevice(std::shared_ptr<kis_tracked
     return false;
 }
 
-DevicetrackerViewICaseStringmatchWorker::DevicetrackerViewICaseStringmatchWorker(const std::string& in_query,
+device_tracker_view_icasestringmatch_worker::device_tracker_view_icasestringmatch_worker(const std::string& in_query,
         const std::vector<std::vector<int>>& in_paths) :
     query { in_query },
     fieldpaths { in_paths } {
 
     // Generate cached match for mac addresses
-    mac_addr::PrepareSearchTerm(query, mac_query_term, mac_query_term_len);
+    mac_addr::prepare_search_term(query, mac_query_term, mac_query_term_len);
 }
 
-bool DevicetrackerViewICaseStringmatchWorker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
+bool device_tracker_view_icasestringmatch_worker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
     bool matched = false;
 
     auto icasesearch = [](const std::string& haystack, const std::string& needle) -> bool {
@@ -216,22 +216,22 @@ bool DevicetrackerViewICaseStringmatchWorker::matchDevice(std::shared_ptr<kis_tr
     };
 
     for (auto i : fieldpaths) {
-        auto field = GetTrackerElementPath(i, device);
+        auto field = get_tracker_element_path(i, device);
 
         if (field == nullptr)
             continue;
 
-        if (field->get_type() == TrackerType::TrackerString) {
+        if (field->get_type() == tracker_type::tracker_string) {
             // We can only do a straight string match against string fields
-            matched = icasesearch(GetTrackerValue<std::string>(field), query);
-        } else if (field->get_type() == TrackerType::TrackerByteArray) {
+            matched = icasesearch(get_tracker_value<std::string>(field), query);
+        } else if (field->get_type() == tracker_type::tracker_byte_array) {
             // Try a raw string match against a binary field
-            matched = icasesearch(std::static_pointer_cast<TrackerElementByteArray>(field)->get(), query);
-        } else if (field->get_type() == TrackerType::TrackerMac && mac_query_term_len != 0) {
+            matched = icasesearch(std::static_pointer_cast<tracker_element_byte_array>(field)->get(), query);
+        } else if (field->get_type() == tracker_type::tracker_mac_addr && mac_query_term_len != 0) {
             // If we were able to interpret the query term as a partial
             // mac address, do a mac compare
             matched =
-                std::static_pointer_cast<TrackerElementMacAddr>(field)->get().PartialSearch(mac_query_term, mac_query_term_len);
+                std::static_pointer_cast<tracker_element_mac_addr>(field)->get().partial_search(mac_query_term, mac_query_term_len);
         }
 
         if (matched)

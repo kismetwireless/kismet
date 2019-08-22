@@ -16,8 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __SERIALCLIENT_V2_H__
-#define __SERIALCLIENT_V2_H__
+#ifndef __SOCKETCLIENT_H__
+#define __SOCKETCLIENT_H__
 
 #include "config.h"
 
@@ -29,43 +29,33 @@
 #include "globalregistry.h"
 #include "buffer_handler.h"
 #include "pollable.h"
+#include "kis_mutex.h"
 
-// New serial client code
-//
-// This code replaces serialclient and clinetframework with a cleaner serial
-// implementation which interacts with a bufferhandler
-//
-// This doesn't need to implement a ringbuffer interface directly because
-// it checks using the poll() sequence.  The consumer will use a rb interface
-// for reading incoming data.
-class serial_client_v2 : public kis_pollable {
+// Generic socket client code which operates on a bidirectional tcp socket.  It inherits
+// the mutex of the provided ringbuf handler automatically.  The socket is expected to
+// be created already via a tcp client connect() or a server accept()
+class socket_client : public kis_pollable {
 public:
-    serial_client_v2(global_registry *in_globalreg, std::shared_ptr<buffer_handler_generic> in_rbhandler);
-    virtual ~serial_client_v2();
+    socket_client(int fd, std::shared_ptr<buffer_handler_generic> in_rbhandler);
+    virtual ~socket_client();
 
     virtual void set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
 
-    // Open a serial port @ a given baud rate
-    int open_device(std::string in_device, unsigned int in_baud);
-    void close_device();
+    virtual void disconnect();
+    bool get_connected();
 
     // kis_pollable interface
     virtual int pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
     virtual int pollable_poll(fd_set& in_rset, fd_set& in_wset);
 
-    bool get_connected();
-
 protected:
-    global_registry *globalreg;
-
-    std::shared_ptr<kis_recursive_timed_mutex> serial_mutex;
-
     std::shared_ptr<buffer_handler_generic> handler;
 
-    int device_fd;
+    std::shared_ptr<kis_recursive_timed_mutex> tcp_mutex;
 
-    std::string device;
-    unsigned int baud;
+    std::atomic<int> cli_fd;
+    std::atomic<bool> connected;
 };
 
 #endif
+

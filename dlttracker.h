@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -47,18 +47,18 @@
 //
 // This provides an exceedingly minimal mechanism for assigning custom DLTs
 
-class DltTracker : public LifetimeGlobal {
+class dlt_tracker : public lifetime_global {
 public:
-    static std::shared_ptr<DltTracker> create_dltt() {
-        auto mon = std::make_shared<DltTracker>();
-        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-        Globalreg::globalreg->InsertGlobal("DLTTRACKER", mon);
+    static std::shared_ptr<dlt_tracker> create_dltt() {
+        auto mon = std::make_shared<dlt_tracker>();
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global("DLTTRACKER", mon);
 
         return mon;
     }
 
-    DltTracker();
-    virtual ~DltTracker();
+    dlt_tracker();
+    virtual ~dlt_tracker();
 
     uint32_t register_linktype(const std::string& in_linktype);
     std::string get_linktype_name(uint32_t in_dlt);

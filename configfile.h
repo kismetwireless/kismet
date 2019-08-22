@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -36,46 +36,46 @@
 #include "macaddr.h"
 #include "kis_mutex.h"
 
-class HeaderValueConfig;
+class header_value_config;
 
-class ConfigFile {
+class config_file {
 public:
-    ConfigFile();
-	ConfigFile(GlobalRegistry *in_globalreg);
-    ~ConfigFile();
+    config_file();
+	config_file(global_registry *in_globalreg);
+    ~config_file();
 
-    int ParseConfig(const char *in_fname);
-    int ParseConfig(const std::string& in_fname) {
-        return ParseConfig(in_fname.c_str());
+    int parse_config(const char *in_fname);
+    int parse_config(const std::string& in_fname) {
+        return parse_config(in_fname.c_str());
     }
 
-	int SaveConfig(const char *in_fname);
-    int SaveConfig(const std::string& in_fname) {
-        return SaveConfig(in_fname.c_str());
+	int save_config(const char *in_fname);
+    int save_config(const std::string& in_fname) {
+        return save_config(in_fname.c_str());
     }
 
-    std::string FetchOpt(std::string in_key);
-    std::string FetchOptDfl(std::string in_key, std::string in_dfl);
-    std::string FetchOpt_nl(std::string in_key);
-    std::vector<std::string> FetchOptVec(std::string in_key);
+    std::string fetch_opt(std::string in_key);
+    std::string fetch_opt_dfl(std::string in_key, std::string in_dfl);
+    std::string fetch_opt_nl(std::string in_key);
+    std::vector<std::string> fetch_opt_vec(std::string in_key);
 
 	// Fetch a true/false t/f value with a default (ie value returned if not
 	// equal to true, or missing.)
-	int FetchOptBoolean(std::string in_key, int dvalue);
+	int fetch_opt_bool(std::string in_key, int dvalue);
 
     // Older API
-    int FetchOptInt(const std::string& in_key, int dvalue);
-    unsigned int FetchOptUInt(const std::string& in_key, unsigned int dvalue);
-    unsigned long int FetchOptULong(const std::string& in_key, unsigned long dvalue);
+    int fetch_opt_int(const std::string& in_key, int dvalue);
+    unsigned int fetch_opt_uint(const std::string& in_key, unsigned int dvalue);
+    unsigned long int fetch_opt_ulong(const std::string& in_key, unsigned long dvalue);
 
     // New C++ api; fetch an opt as a dynamic type dervied via '>>' assignment; will thow
     // std::runtime_error if the type can not be converted.  If the key is not found, the
     // default value is used.
     template<typename T>
-    T FetchOptAs(const std::string& in_key, const T& dvalue) {
+    T fetch_opt_as(const std::string& in_key, const T& dvalue) {
         local_locker l(&config_locker);
 
-        auto ki = config_map.find(StrLower(in_key));
+        auto ki = config_map.find(str_lower(in_key));
 
         if (ki == config_map.end())
             return dvalue;
@@ -90,34 +90,34 @@ public:
         return conv_value;
     }
 
-	int FetchOptDirty(const std::string& in_key);
-	void SetOptDirty(const std::string& in_key, int in_dirty);
+	int fetch_opt_dirty(const std::string& in_key);
+	void set_opt_dirty(const std::string& in_key, int in_dirty);
 
     // Set a value, converting the arbitrary input into a string
     template<typename T>
-    void SetOpt(const std::string& in_key, const T in_value, int in_dirty) {
+    void set_opt(const std::string& in_key, const T in_value, int in_dirty) {
         local_locker l(&config_locker); 
         std::vector<config_entity> v;
         config_entity e(fmt::format("{}", in_value), "::dynamic::");
         v.push_back(e);
-        config_map[StrLower(in_key)] = v;
-        SetOptDirty(in_key, in_dirty);
+        config_map[str_lower(in_key)] = v;
+        set_opt_dirty(in_key, in_dirty);
     }
 
-	void SetOpt(const std::string& in_key, const std::string& in_val, int in_dirty);
-	void SetOptVec(const std::string& in_key, const std::vector<std::string>& in_val, int in_dirty);
+	void set_opt(const std::string& in_key, const std::string& in_val, int in_dirty);
+	void set_opt_vec(const std::string& in_key, const std::vector<std::string>& in_val, int in_dirty);
 
     // Expand complete log templates for logfile filenames
-    std::string ExpandLogPath(const std::string& path, const std::string& logname, 
+    std::string expand_log_path(const std::string& path, const std::string& logname, 
             const std::string& type, int start, int overwrite = 0);
 
     // Expand placeholders but not full log type/number/etc, for included config references, etc
-    std::string ExpandLogPath(const std::string& path) {
-        return ExpandLogPath(path, "", "", 0, 1);
+    std::string expand_log_path(const std::string& path) {
+        return expand_log_path(path, "", "", 0, 1);
     }
 
 	// Fetches the load-time checksum of the config values.
-	uint32_t FetchFileChecksum();
+	uint32_t fetch_file_checksum();
 
 protected:
     class config_entity {
@@ -131,18 +131,18 @@ protected:
         std::string sourcefile;
     };
 
-	void CalculateChecksum();
+	void calculate_file_checksum();
 
     // Optional included file, don't error if it's not found
-    int ParseOptInclude(const std::string path,
+    int parse_opt_include(const std::string path,
             std::map<std::string, std::vector<config_entity> > &target_map,
             std::map<std::string, int> &target_map_dirty);
 
     // Option included override file, don't error if it's not found; parsed
     // at the END of the file parse cycle, for each 
-    int ParseOptOverride(const std::string path);
+    int parse_opt_override(const std::string path);
 
-    int ParseConfig(const char *in_fname, 
+    int parse_config(const char *in_fname, 
             std::map<std::string, std::vector<config_entity> > &target_map,
             std::map<std::string, int> &target_map_dirty);
 
@@ -164,38 +164,38 @@ protected:
 //
 // Values may also be quoted:
 // confvalue=header:key1="value1,1a,1b",key2=value2,...
-class HeaderValueConfig {
+class header_value_config {
 public:
-    HeaderValueConfig(const HeaderValueConfig& hc) {
+    header_value_config(const header_value_config& hc) {
         header = hc.header;
         content_map = std::map<std::string, std::string> {hc.content_map};
     }
 
-    HeaderValueConfig(const std::string& in_confline);
-    HeaderValueConfig();
+    header_value_config(const std::string& in_confline);
+    header_value_config();
 
-    void parseLine(const std::string& in_confline);
+    void parse_line(const std::string& in_confline);
 
-    std::string getHeader();
-    void setHeader(const std::string& in_str);
+    std::string get_header();
+    void set_header(const std::string& in_str);
 
     // Does a key exist?
-    bool hasKey(const std::string& in_key);
+    bool has_key(const std::string& in_key);
 
     // Get a value by key, value MUST exist or std::runtime_exception is thrown
-    std::string getValue(const std::string& in_key);
+    std::string get_value(const std::string& in_key);
 
     // Get a value by key, if value is not present, return default value
-    std::string getValue(const std::string& in_key, const std::string& in_default);
+    std::string get_value(const std::string& in_key, const std::string& in_default);
 
     // Get a value by key, coercing string content to another type; will throw 
     // std::runtime_error if the content cannot be coerced.  
     // If the key is not present, return the defautl value
     template<typename T>
-    T getValueAs(const std::string& in_key, const T& dvalue) {
+    T get_value_as(const std::string& in_key, const T& dvalue) {
         local_locker l(&mutex);
 
-        auto ki = content_map.find(StrLower(in_key));
+        auto ki = content_map.find(str_lower(in_key));
 
         if (ki == content_map.end())
             return dvalue;
@@ -212,18 +212,18 @@ public:
 
     // Set a value, converting the arbitrary input into a string
     template<typename T>
-    void setValue(const std::string& in_key, T in_value) {
+    void set_value(const std::string& in_key, T in_value) {
         local_locker l(&mutex); 
         content_map[in_key] = fmt::format("{}", in_value);
     }
 
     // Erase a key; will not throw exception if key does not exist
-    void eraseKey(const std::string& in_key);
+    void erase_key(const std::string& in_key);
 
     // Encode to string.  All values will be quoted for safety.
-    std::string toString();
-    friend std::ostream& operator<<(std::ostream& os, const HeaderValueConfig& c);
-    friend std::istream& operator>>(std::istream& is, HeaderValueConfig& c);
+    std::string to_string();
+    friend std::ostream& operator<<(std::ostream& os, const header_value_config& c);
+    friend std::istream& operator>>(std::istream& is, header_value_config& c);
 
 protected:
     kis_recursive_timed_mutex mutex;
@@ -233,8 +233,8 @@ protected:
 
 };
 
-std::ostream& operator<<(std::ostream& os, const HeaderValueConfig& h);
-std::istream& operator>>(std::istream& is, HeaderValueConfig& h);
+std::ostream& operator<<(std::ostream& os, const header_value_config& h);
+std::istream& operator>>(std::istream& is, header_value_config& h);
 
 #endif
 

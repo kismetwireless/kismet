@@ -23,11 +23,11 @@
 #include "pcapng_stream_ringbuf.h"
 #include "devicetracker.h"
 
-bool Devicetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path, const char *method) {
+bool device_tracker_httpd_pcap::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "GET") == 0) {
         // /devices/by-key/[key]/pcap/[key].pcapng
        
-        std::vector<std::string> tokenurl = StrTokenize(path, "/");
+        std::vector<std::string> tokenurl = str_tokenize(path, "/");
         if (tokenurl.size() < 6)
             return false;
 
@@ -44,7 +44,7 @@ bool Devicetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path, const char *me
         if (key.get_error())
             return false;
 
-        if (devicetracker->FetchDevice(key) == NULL)
+        if (devicetracker->fetch_device(key) == NULL)
             return false;
 
         std::string keyurl = tokenurl[3] + ".pcapng";
@@ -60,8 +60,8 @@ bool Devicetracker_Httpd_Pcap::Httpd_VerifyPath(const char *path, const char *me
 
 }
 
-int Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-        Kis_Net_Httpd_Connection *connection,
+int device_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *httpd,
+        kis_net_httpd_connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
@@ -69,12 +69,12 @@ int Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
         return MHD_YES;
     }
 
-    auto packetchain = Globalreg::FetchMandatoryGlobalAs<Packetchain>("PACKETCHAIN");
-    int pack_comp_device = packetchain->RegisterPacketComponent("DEVICE");
+    auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
+    int pack_comp_device = packetchain->register_packet_component("DEVICE");
 
     // /devices/by-key/[key]/pcap/[key].pcapng
 
-    std::vector<std::string> tokenurl = StrTokenize(url, "/");
+    std::vector<std::string> tokenurl = str_tokenize(url, "/");
     if (tokenurl.size() < 6)
         return MHD_YES;
 
@@ -91,20 +91,20 @@ int Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
     if (key.get_error())
         return MHD_YES;
 
-    std::shared_ptr<kis_tracked_device_base> dev = devicetracker->FetchDevice(key);
+    std::shared_ptr<kis_tracked_device_base> dev = devicetracker->fetch_device(key);
     if (dev == NULL)
         return MHD_YES;
 
-    if (!httpd->HasValidSession(connection)) {
+    if (!httpd->has_valid_session(connection)) {
         connection->httpcode = 503;
         return MHD_YES;
     }
 
-    Kis_Net_Httpd_Buffer_Stream_Aux *saux = 
-        (Kis_Net_Httpd_Buffer_Stream_Aux *) connection->custom_extension;
+    kis_net_httpd_buffer_stream_aux *saux = 
+        (kis_net_httpd_buffer_stream_aux *) connection->custom_extension;
       
     // Filter based on the device key
-    auto *psrb = new Pcap_Stream_Packetchain(Globalreg::globalreg,
+    auto *psrb = new pcap_stream_packetchain(Globalreg::globalreg,
             saux->get_rbhandler(), 
             [key, pack_comp_device](kis_packet *packet) -> bool {
                 kis_tracked_device_info *devinfo = 
@@ -122,19 +122,19 @@ int Devicetracker_Httpd_Pcap::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
                 return false;
             }, NULL);
 
-    auto streamtracker = Globalreg::FetchMandatoryGlobalAs<StreamTracker>("STREAMTRACKER");
+    auto streamtracker = Globalreg::fetch_mandatory_global_as<stream_tracker>("STREAMTRACKER");
 
     saux->set_aux(psrb, 
-        [psrb, streamtracker](Kis_Net_Httpd_Buffer_Stream_Aux *aux) {
+        [psrb, streamtracker](kis_net_httpd_buffer_stream_aux *aux) {
             streamtracker->remove_streamer(psrb->get_stream_id());
             if (aux->aux != NULL) {
-                delete (Kis_Net_Httpd_Buffer_Stream_Aux *) (aux->aux);
+                delete (kis_net_httpd_buffer_stream_aux *) (aux->aux);
             }
         });
 
-    streamtracker->register_streamer(psrb, dev->get_macaddr().Mac2String() + ".pcapng",
+    streamtracker->register_streamer(psrb, dev->get_macaddr().mac_to_string() + ".pcapng",
             "pcapng", "httpd", 
-            "pcapng of all packets for device " + dev->get_macaddr().Mac2String());
+            "pcapng of all packets for device " + dev->get_macaddr().mac_to_string());
 
     return MHD_NO;
 }
