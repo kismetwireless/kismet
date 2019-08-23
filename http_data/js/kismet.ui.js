@@ -617,11 +617,15 @@ exports.DeviceDetailWindow = function(key) {
 
                     panel.headerTitle(fulldata['kismet_device_base_name']);
 
-                    var accordion = $('<div />', {
-                        id: 'accordion'
-                    });
+                    var accordion = $('div#accordion', content);
+                    
+                    if (accordion.length == 0) {
+                        accordion = $('<div />', {
+                            id: 'accordion'
+                        });
 
-                    content.append(accordion);
+                        content.append(accordion);
+                    }
 
                     var detailslist = kismet_ui.GetDeviceDetails();
 
@@ -636,24 +640,31 @@ exports.DeviceDetailWindow = function(key) {
                             }
                         }
 
-                        var vheader = $('<h3 />', {
-                            id: "header" + di.id,
-                            html: di.title
-                        });
+                        var vheader = $('h3#header' + di.id, accordion);
+                        
+                        if (vheader.length == 0) {
+                            vheader = $('<h3 />', {
+                                id: "header" + di.id,
+                                html: di.title
+                            });
 
-                        var vcontent = $('<div />', {
-                            id: di.id,
-                            //class: 'autosize'
-                        });
+                            accordion.append(vheader);
+                        }
+
+                        var vcontent = $('div#' + di.id, accordion);
+                        
+                        if (vcontent.length == 0) {
+                            vcontent = $('<div />', {
+                                id: di.id,
+                            });
+                            accordion.append(vcontent);
+                        }
 
                         // Do we have pre-rendered content?
                         if ('render' in di.options &&
                                 typeof(di.options.render) === 'function') {
                             vcontent.html(di.options.render(fulldata));
                         }
-
-                        accordion.append(vheader);
-                        accordion.append(vcontent);
 
                         if ('draw' in di.options &&
                                 typeof(di.options.draw) === 'function') {
