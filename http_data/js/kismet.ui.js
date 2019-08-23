@@ -915,35 +915,6 @@ exports.CreateDeviceTable = function(element) {
 
     var dt = exports.InitializeDeviceTable(element);
 
-    // Set an onclick handler to spawn the device details dialog
-    $('tbody', element).on('click', 'tr', function () {
-        kismet_ui.DeviceDetailWindow(this.id);
-
-        // Use the ID above we insert in the row creation, instead of looking in the
-        // device list data
-        // Fetch the data of the row that got clicked
-        // var device_dt = element.DataTable();
-        // var data = device_dt.row( this ).data();
-        // var key = data['kismet.device.base.key'];
-        // kismet_ui.DeviceDetailWindow(key);
-    } );
-
-    $('tbody', element)
-        .on( 'mouseenter', 'td', function () {
-            var device_dt = element.DataTable();
-
-            if (typeof(device_dt.cell(this).index()) === 'Undefined')
-                return;
-
-            var colIdx = device_dt.cell(this).index().column;
-            var rowIdx = device_dt.cell(this).index().row;
-
-            // Remove from all cells
-            $(device_dt.cells().nodes()).removeClass('kismet-highlight');
-            // Highlight the td in this row
-            $('td', device_dt.row(rowIdx).nodes()).addClass('kismet-highlight');
-        } );
-
     dt.draw(false);
 
     // Start the auto-updating
@@ -1075,6 +1046,36 @@ exports.InitializeDeviceTable = function(element) {
     var saved_search = kismet.getStorage('kismet.base.devicetable.search', "");
     if (saved_search !== "")
         device_dt.search(JSON.parse(saved_search));
+
+    // Set an onclick handler to spawn the device details dialog
+    $('tbody', element).on('click', 'tr', function () {
+        kismet_ui.DeviceDetailWindow(this.id);
+
+        // Use the ID above we insert in the row creation, instead of looking in the
+        // device list data
+        // Fetch the data of the row that got clicked
+        // var device_dt = element.DataTable();
+        // var data = device_dt.row( this ).data();
+        // var key = data['kismet.device.base.key'];
+        // kismet_ui.DeviceDetailWindow(key);
+    } );
+
+    $('tbody', element)
+        .on( 'mouseenter', 'td', function () {
+            var device_dt = element.DataTable();
+
+            if (typeof(device_dt.cell(this).index()) === 'Undefined')
+                return;
+
+            var colIdx = device_dt.cell(this).index().column;
+            var rowIdx = device_dt.cell(this).index().row;
+
+            // Remove from all cells
+            $(device_dt.cells().nodes()).removeClass('kismet-highlight');
+            // Highlight the td in this row
+            $('td', device_dt.row(rowIdx).nodes()).addClass('kismet-highlight');
+        } );
+
 
     return device_dt;
 }
