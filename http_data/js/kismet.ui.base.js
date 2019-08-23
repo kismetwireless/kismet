@@ -519,10 +519,10 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                         return (Object.keys(opts['data']['kismet.device.base.freq_khz_map']).length >= 1);
                     },
                     render: function(opts) {
-                        return '<center>Packet Frequency Distribution</center><div class="freqbar" id="' + opts['key'] + '" />';
+                        return '<center>Packet Frequency Distribution</center><div class="freqbar" id="' + kismet.sanitizeId(opts['key']) + '" />';
                     },
                     draw: function(opts) {
-                        var bardiv = $('div', opts['container']);
+                        var bardiv = $('div.freqbar#' + kismet.sanitizeId(opts['key']), opts['container']);
 
                         // Make an array morris likes using our whole data record
                         var moddata = new Array();

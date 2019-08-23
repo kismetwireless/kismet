@@ -292,6 +292,12 @@ exports.RecalcRrdData = function(start, now, type, data, opt = {}) {
     return adj_data;
 }
 
+exports.sanitizeId = function(s) {
+    return String(s).replace(/[&<>"'`=\/\(\)\[\] ]/g, function (s) {
+            return '_';
+    });
+}
+
 exports.sanitizeHTML = function(s) {
     var remap = {
         '&': '&amp;',

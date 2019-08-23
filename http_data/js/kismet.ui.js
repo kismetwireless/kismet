@@ -607,10 +607,18 @@ exports.DeviceDetailWindow = function(key) {
             $('div#accordion', this.content).accordion("refresh");
         },
 
+        onclosed: function() {
+            clearTimeout(this.timerid);
+            this.active = false;
+        },
+
         callback: function() {
             var panel = this;
             var content = this.content;
 
+            this.active = true;
+
+            this.updater = function() {
             $.get(local_uri_prefix + "devices/by-key/" + key + "/device.json")
                 .done(function(fulldata) {
                     fulldata = kismet.sanitizeObject(fulldata);
@@ -640,13 +648,13 @@ exports.DeviceDetailWindow = function(key) {
                             }
                         }
 
-                        var vheader = $('h3#header' + di.id, accordion);
+                        var vheader = $('h3#header_' + di.id, accordion);
                         
                         if (vheader.length == 0) {
-                            vheader = $('<h3 />', {
-                                id: "header" + di.id,
-                                html: di.title
-                            });
+                            vheader = $('<h3>', {
+                                id: "header_" + di.id,
+                            })
+                            .html(di.title);
 
                             accordion.append(vheader);
                         }
@@ -654,7 +662,7 @@ exports.DeviceDetailWindow = function(key) {
                         var vcontent = $('div#' + di.id, accordion);
                         
                         if (vcontent.length == 0) {
-                            vcontent = $('<div />', {
+                            vcontent = $('<div>', {
                                 id: di.id,
                             });
                             accordion.append(vcontent);
@@ -676,7 +684,15 @@ exports.DeviceDetailWindow = function(key) {
             .fail(function(jqxhr, texterror) {
                 content.html("<div style=\"padding: 10px;\"><h1>Oops!</h1><p>An error occurred loading device details for key <code>" + key + 
                         "</code>: HTTP code <code>" + jqxhr.status + "</code>, " + texterror + "</div>");
-            });
+            })
+            .always(function() {
+                return;
+                if (panel.active) 
+                    panel.timerid = setTimeout(panel.updater(), 5000);
+            })
+            };
+
+            this.updater();
         }
     }).resize({
         width: w,
