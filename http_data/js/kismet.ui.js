@@ -593,7 +593,6 @@ exports.DeviceDetailWindow = function(key) {
 
         resizable: {
             minWidth: 450,
-            maxWidth: 600,
             minHeight: 400,
             stop: function(event, ui) {
                 $('div#accordion', ui.element).accordion("refresh");
