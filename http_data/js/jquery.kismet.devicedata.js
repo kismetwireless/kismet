@@ -299,76 +299,85 @@
             }
 
             // Standard row
-            var drow = $('<tr />', {
-                "id": "tr_" + id,
-            });
+            var drow = $('tr.kismet_devicedata_groupdata#tr_' + id, subtable);
 
-            if (v["span"]) {
-                drow.append($('<td />', {
-                    "colspan": 2,
-                    "class": "kismet_devicedata_span"
-                }));
-            } else {
-                drow.html('<td class="kismet_devicedata_td_title" /><td class="kismet_devicedata_td_content" />');
-            }
+            if (drow.length == 0) {
+                drow = $('<tr>', {
+                    class: 'kismet_devicedata_groupdata',
+                    id: 'tr_' + id
+                });
 
-            subtable.append(drow);
+                var td;
 
-            var td;
-
-            if (v["span"]) {
-                td = $('td:eq(0)', drow);
-            } else {
-                var titletd = $('td:eq(0)', drow);
-                
-                titletd.html(v['title']);
-
-                if (v['help']) {
-                    fn = make_help_func(v, v['title']);
-
-                    titletd.append($('<i>', {
-                        class: 'k_dd_td_help pseudolink fa fa-question-circle'
-                    })
-                    .on('click', fn)
-                    );
-
-                }
-
-                td = $('td:eq(1)', drow);
-            }
-
-            if ('render' in v) {
-                if (typeof(v['render']) === 'function') {
-                    td.html(v['render'](callopts));
-                } else if (typeof(v['render']) === 'string') {
-                    td.html(v['render']);
-                }
-            } else {
-                if ('empty' in v && 
-                        (typeof(d) === 'undefined' ||
-                         (typeof(d) !== 'undefined' && d.length == 0))) {
-                    if (typeof(v['empty']) === 'string')
-                        td.html(v['empty']);
-                    else if (typeof(v['empty']) === 'function')
-                        td.html(v['empty'](callopts));
-                } else if ('zero' in v &&
-                        (typeof(d) === 'undefined' ||
-                         (typeof(d) === 'number' && d == 0))) {
-                    if (typeof(v['zero']) === 'string')
-                        td.html(v['zero']);
-                    else if (typeof(v['zero']) === 'function')
-                        td.html(v['zero'](callopts));
+                if (v["span"]) {
+                    td = $('<td>', {
+                        colspan: 2,
+                        class: 'kismet_devicedata_span kismet_devicedata_td_content'
+                    });
+                    drow.append(td);
                 } else {
-                    td.html(d);
+                    var title = $('<td>', {
+                        class: 'kismet_devicedata_td_title'
+                    });
+                    var content = $('<td>', {
+                        class: 'kismet_devicedata_td_content'
+                    });
+
+                    td = content;
+
+                    drow.append(title);
+                    drow.append(content);
+
+                    title.html(v['title']);
+
+                    if (v['help']) {
+                        fn = make_help_func(v, v['title']);
+
+                        title.append($('<i>', {
+                            class: 'k_dd_td_help pseudolink fa fa-question-circle'
+                        })
+                            .on('click', fn)
+                        );
+
+                    }
                 }
+
+                if ('render' in v) {
+                    if (typeof(v['render']) === 'function') {
+                        td.html(v['render'](callopts));
+                    } else if (typeof(v['render']) === 'string') {
+                        td.html(v['render']);
+                    }
+
+                }
+
+                subtable.append(drow);
             }
+
+            var td = $('td.kismet_devicedata_td_content', drow);
 
             // Apply the draw function after the row is created
             if ('draw' in v && typeof(v.draw) === 'function') {
                 callopts['container'] = td;
-
                 v.draw(callopts);
+            } else if ('empty' in v && 
+                (typeof(d) === 'undefined' ||
+                    (typeof(d) !== 'undefined' && d.length == 0))) {
+                if (typeof(v['empty']) === 'string')
+                td.html(v['empty']);
+                else if (typeof(v['empty']) === 'function')
+                td.html(v['empty'](callopts));
+            } else if ('zero' in v &&
+                (typeof(d) === 'undefined' ||
+                    (typeof(d) === 'number' && d == 0))) {
+                if (typeof(v['zero']) === 'string')
+                td.html(v['zero']);
+                else if (typeof(v['zero']) === 'function')
+                td.html(v['zero'](callopts));
+            } else {
+                td.html(d);
             }
+
         }
         );
     };
