@@ -52,10 +52,13 @@
 
         // Optional string or function for rendering that should return html, taking
         // the original key, data, and resolved value; this is used to create any 
-        // necessary wrapper objects
+        // necessary wrapper objects.
         "render": string | function(opts) {}  
 
-        // Optional function for drawing data, called repeatedly as data is updated
+        // Optional function for drawing data, called repeatedly as data is updated; 
+        // This function can return nothing and manipulate only the content it is
+        // given, or it can return a string or object which replaces the current 
+        // content of the cell
         "draw": function(opts) {}
 
         // Optional function for
@@ -110,7 +113,7 @@
             "sanitize": true,
         }, options);
 
-        var subtable = $('table #' + kismet.sanitizeId(settings['id']), this);
+        var subtable = $('table.kismet_devicedata#' + kismet.sanitizeId(settings['id']), this);
 
         // Do we need to make a table to hold our stuff?
         if (subtable.length == 0) {
@@ -123,7 +126,12 @@
         }
 
         settings.fields.forEach(function(v, index, array) {
-            var id = kismet.sanitizeId(settings.baseobject + v['field']);
+            var id;
+
+            if ('id' in v)
+                id = kismet.sanitizeId(settings.baseobject + v['id']);
+            else
+                id = kismet.sanitizeId(settings.baseobject + v['field']);
 
             // Do we have a function for rendering this?
             var d = kismet.ObjectByString(data, settings.baseobject + v['field']);
@@ -133,7 +141,8 @@
                 basekey: settings.baseobject,
                 base: kismet.ObjectByString(data, settings.baseobject),
                 data: data,
-                value: d
+                value: d,
+                id: id
             };
 
             if ('index' in settings) {
@@ -178,6 +187,14 @@
 
                     drow.append(cell);
 
+                    var contentdiv = $('<div>', {
+                        id: 'cd_' + id
+                    });
+
+                    callopts['container'] = contentdiv;
+                    callopts['cell'] = cell;
+                    callopts['containerid'] = 'cd_' + id;
+
                     var gt = "";
 
                     if (typeof(v['groupTitle']) === 'string')
@@ -200,29 +217,31 @@
 
                     cell.append($('<br>'));
 
-                    var contentdiv = $('<div>', {
-                        id: 'cd_' + id
-                    });
-
                     cell.append(contentdiv);
 
                     if ('render' in v && typeof(v.render) === 'function') {
-                        callopts['container'] = contentdiv;
                         contentdiv.html(v.render(callopts));
                     }
 
-                    // Recursively fill in the div with the sub-settings
-                    contentdiv.devicedata(data, v);
                 }
 
                 var cell = $('td', drow);
                 var contentdiv = $('div#cd_' + id, drow);
 
+                callopts['container'] = cell;
+                callopts['cell'] = cell;
+                callopts['containerid'] = 'cd_' + id;
+
+                // Recursively fill in the div with the sub-settings
+                contentdiv.devicedata(data, v);
+
                 // Apply the draw function after the subgroup is created
                 if ('draw' in v && typeof(v.draw) === 'function') {
-                    callopts['container'] = cell;
 
-                    v.draw(callopts);
+                    var r = v.draw(callopts);
+
+                    if (typeof(r) !== 'undefined' && typeof(r) !== 'none') 
+                        cell.html(r);
                 }
 
                 return;
@@ -235,24 +254,38 @@
                     callopts['basekey'] = v['field'] + '[' + idx + ']' + '/';
                     callopts['base'] = kismet.ObjectByString(data, callopts['basekey']);
 
-                    // If we have a title, make a span row for it
-                    if ('iterateTitle' in v) {
-                        var subid = kismet.sanitizeId(id + '[' + idx + ']');
+                    var subid = kismet.sanitizeId(id + '[' + idx + ']');
+                    callopts['id'] = subid;
 
-                        var drow = $('tr.kismet_devicedata_groupdata#tr_' + subid, subtable);
+                    var drow = $('tr.kismet_devicedata_groupdata#tr_' + subid, subtable);
 
-                        if (drow.length == 0) {
-                            drow = $('<tr>', {
-                                class: 'kismet_devicedata_groupdata',
-                                id: 'tr_' + subid
-                            });
+                    if (drow.length == 0) {
+                        drow = $('<tr>', {
+                            class: 'kismet_devicedata_groupdata',
+                            id: 'tr_' + subid
+                        });
 
-                            subtable.append(drow);
+                        subtable.append(drow);
 
-                            var cell = $('<td>', {
-                                class: 'kismet_devicedata_span', 
-                                colspan: 2
-                            });
+                        var cell = $('<td>', {
+                            class: 'kismet_devicedata_span', 
+                            colspan: 2
+                        });
+
+                        drow.append(cell);
+
+                        // Make the content div for it all the time
+                        var contentdiv = $('<div>', {
+                            id: 'cd_' + subid
+                        });
+
+                        callopts['container'] = contentdiv;
+                        callopts['cell'] = cell;
+                        callopts['containerid'] = 'cd_' + subid;
+
+                        // If we have a title, make a span row for it
+                        if ('iterateTitle' in v) {
+                            // console.log('iteratetitle', subid);
 
                             var it = "";
 
@@ -265,20 +298,19 @@
                             cell.append($('<br />'));
                         }
 
-                        var contentdiv = $('<div>', {
-                            id: 'cd_' + id
-                        });
-
                         cell.append(contentdiv);
 
                         if ('render' in v && typeof(v.render) === 'function') {
-                            callopts['container'] = contentdiv;
                             contentdiv.html(v.render(callopts));
                         }
                     }
 
                     var cell = $('td', drow);
-                    var contentdiv = $('div#cd_' + id, drow);
+                    var contentdiv = $('div#cd_' + subid, drow);
+
+                    callopts['cell'] = cell;
+                    callopts['container'] = contentdiv;
+                    callopts['containerid'] = 'cd_' + subid;
 
                     // index the subobject
                     v['baseobject'] = v['field'] + '[' + idx + ']' + '/';
@@ -288,11 +320,11 @@
 
                     // Apply the draw function after the iterative group is processed
                     if ('draw' in v && typeof(v.draw) === 'function') {
-                        callopts['container'] = cell;
+                        var r = v.draw(callopts);
 
-                        v.draw(callopts);
+                        if (typeof(r) !== 'undefined' && typeof(r) !== 'none') 
+                            contentdiv.html(r);
                     }
-
                 }
 
                 return;
@@ -359,7 +391,10 @@
             // Apply the draw function after the row is created
             if ('draw' in v && typeof(v.draw) === 'function') {
                 callopts['container'] = td;
-                v.draw(callopts);
+                var r = v.draw(callopts);
+
+                if (typeof(r) !== 'undefined' && typeof(r) !== 'none') 
+                    td.html(r);
             } else if ('empty' in v && 
                 (typeof(d) === 'undefined' ||
                     (typeof(d) !== 'undefined' && d.length == 0))) {

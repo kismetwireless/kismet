@@ -387,7 +387,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 field: "kismet.device.base.name",
                 title: "Name",
                 help: "Device name, derived from device characteristics or set as a custom name by the user.",
-                render: function(opts) {
+                draw: function(opts) {
                     var name = opts['data']['kismet.device.base.username'];
                     
                     if (typeof(name) == 'undefined' || name == "")
@@ -402,19 +402,15 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                         })
                         .html(name);
 
-                    exports.LoginCheck(function(success) { 
-                        if (success) {
-                            nameobj.editable({
-                                type: 'text',
-                                mode: 'inline',
-                                success: function(response, newvalue) {
-                                    var jscmd = {
-                                        "username": newvalue
-                                    };
-                                    var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
-                                    $.post(local_uri_prefix + "devices/by-key/" + opts['data']['kismet.device.base.key'] + "/set_name.cmd", postdata, "json");
-                                }
-                            });
+                    nameobj.editable({
+                        type: 'text',
+                        mode: 'inline',
+                        success: function(response, newvalue) {
+                            var jscmd = {
+                                "username": newvalue
+                            };
+                            var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
+                            $.post(local_uri_prefix + "devices/by-key/" + opts['data']['kismet.device.base.key'] + "/set_name.cmd", postdata, "json");
                         }
                     });
 
@@ -426,7 +422,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 field: "kismet.device.base.tags/notes",
                 title: "Notes",
                 help: "Abritrary notes",
-                render: function(opts) {
+                draw: function(opts) {
                     var notes = opts['data']['kismet.device.base.tags']['notes'];
 
                     if (notes == null)
@@ -439,20 +435,16 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                         })
                         .html(notes.convertNewlines());
 
-                    exports.LoginCheck(function(success) { 
-                        if (success) {
-                            notesobj.editable({
-                                type: 'text',
-                                mode: 'inline',
-                                success: function(response, newvalue) {
-                                    var jscmd = {
-                                        "tagname": "notes",
-                                        "tagvalue": newvalue.escapeSpecialChars(),
-                                    };
-                                    var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
-                                    $.post(local_uri_prefix + "devices/by-key/" + opts['data']['kismet.device.base.key'] + "/set_tag.cmd", postdata, "json");
-                                }
-                            });
+                    notesobj.editable({
+                        type: 'text',
+                        mode: 'inline',
+                        success: function(response, newvalue) {
+                            var jscmd = {
+                                "tagname": "notes",
+                                "tagvalue": newvalue.escapeSpecialChars(),
+                            };
+                            var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
+                            $.post(local_uri_prefix + "devices/by-key/" + opts['data']['kismet.device.base.key'] + "/set_tag.cmd", postdata, "json");
                         }
                     });
 
@@ -480,14 +472,14 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
             {
                 field: "kismet.device.base.first_time",
                 title: "First Seen",
-                render: function(opts) {
+                draw: function(opts) {
                     return new Date(opts['value'] * 1000);
                 }
             },
             {
                 field: "kismet.device.base.last_time",
                 title: "Last Seen",
-                render: function(opts) {
+                draw: function(opts) {
                     return new Date(opts['value'] * 1000);
                 }
             },
@@ -507,7 +499,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     field: "kismet.device.base.frequency",
                     title: "Main Frequency",
                     help: "The primary frequency of the device, if known.  Not all phy types advertise a fixed frequency in packets.",
-                    render: function(opts) {
+                    draw: function(opts) {
                         return kismet.HumanReadableFrequency(opts['value']);
                     },
                     filterOnZero: true,
@@ -631,7 +623,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     field: "kismet.device.base.signal/kismet.common.signal.last_signal",
                     title: "Latest Signal",
                     help: "Most recent signal level seen.  Signal levels may vary significantly depending on the data rates used by the device, and often, wireless drivers and devices cannot report strictly accurate signal levels.",
-                    render: function(opts) {
+                    draw: function(opts) {
                         return opts['value'] + " " + data["kismet.device.base.signal"]["kismet.common.signal.type"];
                     },
                     filterOnZero: true,
@@ -640,7 +632,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     field: "kismet.device.base.signal/kismet.common.signal.last_noise",
                     title: "Latest Noise",
                     help: "Most recent noise level seen.  Few drivers can report noise levels.",
-                    render: function(opts) {
+                    draw: function(opts) {
                         return opts['value'] + " " + data["kismet.device.base.signal"]["kismet.common.signal.type"];
                     },
                     filterOnZero: true,
@@ -649,7 +641,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     field: "kismet.device.base.signal/kismet.common.signal.min_signal",
                     title: "Min. Signal",
                     help: "Weakest signal level seen.  Signal levels may vary significantly depending on the data rates used by the device, and often, wireless drivers and devices cannot report strictly accurate signal levels.",
-                    render: function(opts) {
+                    draw: function(opts) {
                         return opts['value'] + " " + data["kismet.device.base.signal"]["kismet.common.signal.type"];
                     },
                     filterOnZero: true,
@@ -658,7 +650,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     field: "kismet.device.base.signal/kismet.common.signal.max_signal",
                     title: "Max. Signal",
                     help: "Strongest signal level seen.  Signal levels may vary significantly depending on the data rates used by the device, and often, wireless drivers and devices cannot report strictly accurate signal levels.",
-                    render: function(opts) {
+                    draw: function(opts) {
                         return opts['value'] + " " + data["kismet.device.base.signal"]["kismet.common.signal.type"];
                     },
                     filterOnZero: true,
@@ -668,7 +660,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     title: "Min. Noise",
                     filterOnZero: true,
                     help: "Least amount of interference or noise seen.  Most capture drivers are not capable of measuring noise levels.",
-                    render: function(opts) {
+                    draw: function(opts) {
                         return opts['value'] + " " + data["kismet.device.base.signal"]["kismet.common.signal.type"];
                     },
                 },
@@ -677,7 +669,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     title: "Max. Noise",
                     filterOnZero: true,
                     help: "Largest amount of interference or noise seen.  Most capture drivers are not capable of measuring noise levels.",
-                    render: function(opts) {
+                    draw: function(opts) {
                         return opts['value'] + " " + data["kismet.device.base.signal"]["kismet.common.signal.type"];
                     },
                 },
@@ -688,7 +680,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     filter: function(opts) {
                         return kismet.ObjectByString(opts['data'], "kismet.device.base.signal/kismet.common.signal.peak_loc/kismet.common.location.valid") == 1;
                     },
-                    render: function(opts) {
+                    draw: function(opts) {
                         var loc =
                             kismet.ObjectByString(opts['data'], "kismet.device.base.signal/kismet.common.signal.peak_loc/kismet.common.location.lat") + ", " +
                             kismet.ObjectByString(opts['data'], "kismet.device.base.signal/kismet.common.signal.peak_loc/kismet.common.location.lon");
@@ -709,10 +701,10 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     field: "graph_field_overall",
                     span: true,
                     render: function(opts) {
-                        return '<div class="donut" id="' + opts['key'] + '" />';
+                        return '<div class="donut" id="' + kismet.sanitizeId(opts['key']) + '" />';
                     },
                     draw: function(opts) {
-                        var donutdiv = $('div', opts['container']);
+                        var donutdiv = $('div#' + kismet.sanitizeId(opts['key']), opts['container']);
 
                         // Make an array morris likes using our whole data record
                         var moddata = [
@@ -766,7 +758,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     field: "kismet.device.base.datasize",
                     title: "Data Transferred",
                     help: "Amount of data transferred",
-                    render: function(opts) {
+                    draw: function(opts) {
                         return kismet.HumanReadableSize(opts['value']);
                     }
                 }

@@ -293,7 +293,7 @@ exports.RecalcRrdData = function(start, now, type, data, opt = {}) {
 }
 
 exports.sanitizeId = function(s) {
-    return String(s).replace(/[&<>"'`=\/\(\)\[\] ]/g, function (s) {
+    return String(s).replace(/[:.&<>"'`=\/\(\)\[\] ]/g, function (s) {
             return '_';
     });
 }
