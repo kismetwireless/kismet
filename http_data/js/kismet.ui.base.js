@@ -511,10 +511,21 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                         return (Object.keys(opts['data']['kismet.device.base.freq_khz_map']).length >= 1);
                     },
                     render: function(opts) {
-                        return '<center>Packet Frequency Distribution</center><div class="freqbar" id="' + kismet.sanitizeId(opts['key']) + '" />';
+                        var d = 
+                            $('<div>')
+                            .append($('<center>').html('Packet Frequency Distribution'))
+                            .append($('<div>', {
+                                id: opts['id'],
+                                class: 'freqbar'
+                            }));
+                        
+                        return d;
+
                     },
                     draw: function(opts) {
-                        var bardiv = $('div.freqbar#' + kismet.sanitizeId(opts['key']), opts['container']);
+                        var bardiv = $('div.freqbar', opts['container']);
+
+                        bardiv.empty();
 
                         // Make an array morris likes using our whole data record
                         var moddata = new Array();
@@ -717,6 +728,8 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                         if (opts['data']['kismet.device.base.packets.error'] != 0)
                             moddata.push({ label: "Error",
                                 value: opts['data']['kismet.device.base.packets.error'] });
+
+                        donutdiv.empty();
 
                         Morris.Donut({
                             element: donutdiv,

@@ -686,9 +686,10 @@ exports.DeviceDetailWindow = function(key) {
                         "</code>: HTTP code <code>" + jqxhr.status + "</code>, " + texterror + "</div>");
             })
             .always(function() {
-                return;
+                /*
                 if (panel.active) 
                     panel.timerid = setTimeout(panel.updater(), 5000);
+                */
             })
             };
 
