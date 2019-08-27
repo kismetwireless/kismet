@@ -1236,7 +1236,6 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
                 groupIterate: true,
                 iterateTitle: function(opts) {
-                    console.log(opts['containerid']);
                     var key = kismet.ObjectByString(opts['data'], opts['basekey']);
                     if (key != 0) {
                         return '<a id="' + key + '" class="expander collapsed" data-expander-target="#' + opts['containerid'] + '" href="#">Shared with ' + opts['data'] + '</a>';
@@ -1245,8 +1244,6 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     return '<a class="expander collapsed" data-expander-target="#' + opts['containerid'] + '" href="#">Shared with ' + opts['data'] + '</a>';
                 },
                 draw: function(opts) {
-                    console.log(opts['containerid'], opts['cell']);
-
                     var tb = $('.expander', opts['cell']).simpleexpand();
 
                     var key = kismet.ObjectByString(opts['data'], opts['basekey']);

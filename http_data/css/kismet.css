@@ -216,4 +216,16 @@ div.k-c-p-c-notes {
     width: 10em;
 }
 
+.toggle.expander.expanded {
+    padding-left: 13px;
+    background-position: left center;
+    background-repeat: no-repeat;
+    background-image: url(../images/expanded.gif);
+}
 
+.toggle.expander.collapsed {
+    padding-left: 13px;
+    background-position: left center;
+    background-repeat: no-repeat;
+    background-image: url(../images/collapsed.gif);
+}        
