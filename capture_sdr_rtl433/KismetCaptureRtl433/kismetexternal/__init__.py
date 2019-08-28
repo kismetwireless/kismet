@@ -27,14 +27,14 @@ import google.protobuf
 
 if not '__version__' in dir(google.protobuf) and sys.version_info > (3, 0):
     print("It looks like you have Python3 but a very old protobuf library, these are ")
-    print("not compatible; please update to python-protobuf >= 3.0.0")
+    print("not compatible; please update to python3-protobuf >= 3.0.0")
     sys.exit(1)
 
 from . import kismet_pb2
 from . import http_pb2
 from . import datasource_pb2
 
-__version__ = "2019.05.02"
+__version__ = "2019.08.02"
 
 class ExternalInterface(object):
     """ 
@@ -169,14 +169,14 @@ class ExternalInterface(object):
                     self.kill_ioloop = True
                     return
 
-                if self.infd >= 0:
+                if self.infd is not None and self.infd >= 0:
                     in_fd_alias = self.infd
                 elif self.remote_sock is not None:
                     in_fd_alias = self.remote_sock
                 else:
                     raise RuntimeError("No valid input socket")
 
-                if self.outfd >= 0:
+                if self.outfd is not None and self.outfd >= 0:
                     out_fd_alias = self.outfd
                 elif self.remote_sock is not None:
                     out_fd_alias = self.remote_sock
@@ -263,7 +263,6 @@ class ExternalInterface(object):
             print(content.encode('hex'))
             raise BufferError("Invalid checksum in packet header {} vs {}".format(calc_csum, checksum))
 
-        # Kluge around old protobuf still found on Ubuntu 16.04
         if not '__version__' in dir(google.protobuf):
             content = str(content)
 
@@ -562,7 +561,7 @@ class Datasource(ExternalInterface):
 
         :return: UUID string
         """
-        driverhex = "{:02X}".format(ExternalInterface.adler32(bytearray(driver, 'ascii')))
+        driverhex = "{:02X}".format(ExternalInterface.adler32(bytearray(driver, 'utf-8')))
         return "{}-0000-0000-0000-{}".format(driverhex[:8], address[:12])
 
     def set_listinterfaces_cb(self, cb):
