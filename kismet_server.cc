@@ -482,13 +482,16 @@ int main(int argc, char *argv[], char *envp[]) {
 
         if (r == 'w') {
             wrapper = false; 
+            glob_linewrap = false;
         } else if (r == 'p') {
             show_pass = true;
         } else if (r == 'd') {
             debug_mode = true;
             wrapper = false;
+            glob_linewrap = false;
         } else if (r == 'D') {
             wrapper = false;
+            glob_linewrap = false;
         }
     }
 
