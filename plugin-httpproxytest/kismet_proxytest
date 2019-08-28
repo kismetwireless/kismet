@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 # A very basic example of how to create a python-native extension to Kismet
 # that interfaces over the external API
