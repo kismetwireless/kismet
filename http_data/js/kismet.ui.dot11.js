@@ -982,12 +982,14 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "dot11.advertisedssid.owe_ssid",
+                    liveupdate: true,
                     title: "OWE SSID",
                     filterOnEmpty: true,
                     help: "Opportunistic Wireless Encryption (OWE) advertises the original SSID on an alternate BSSID.",
                 },
                 {
                     field: "dot11.advertisedssid.owe_bssid",
+                    liveupdate: true,
                     title: "OWE BSSID",
                     filterOnEmpty: true,
                     help: "Opportunistic Wireless Encryption (OWE) advertises the original SSID with a reference to the linked BSSID.",
@@ -1012,6 +1014,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "dot11.advertisedssid.crypt_set",
+                    liveupdate: true,
                     title: "Encryption",
                     draw: function(opts) {
                         return exports.CryptToHumanReadable(opts['value']);
@@ -1020,6 +1023,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "dot11.advertisedssid.wpa_mfp_required",
+                    liveupdate: true,
                     title: "MFP",
                     help: "Management Frame Protection (MFP) attempts to mitigate denial of service attacks by authenticating management packets.  It can be part of the Wi-Fi 802.11w standard or a custom Cisco extension.",
                     draw: function(opts) {
@@ -1037,17 +1041,20 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "dot11.advertisedssid.channel",
+                    liveupdate: true,
                     title: "Channel",
                     help: "Wi-Fi networks on 2.4GHz (channels 1 through 14) are required to include a channel in the advertisement because channel overlap makes it impossible to determine the exact channel the access point is transmitting on.  Networks on 5GHz channels are typically not required to include the channel.",
                 },
                 {
                     field: "dot11.advertisedssid.ht_mode",
+                    liveupdate: true,
                     title: "HT Mode",
                     help: "802.11n and 802.11AC networks operate on expanded channels; HT40, HT80 HT160, or HT80+80 (found only on 802.11ac wave2 gear).",
                     filterOnEmpty: true
                 },
                 {
                     field: "dot11.advertisedssid.ht_center_1",
+                    liveupdate: true,
                     title: "HT Freq",
                     help: "802.11AC networks operate on expanded channels.  This is the frequency of the center of the expanded channel.",
                     filterOnZero: true,
@@ -1057,6 +1064,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "dot11.advertisedssid.ht_center_2",
+                    liveupdate: true,
                     title: "HT Freq2",
                     help: "802.11AC networks operate on expanded channels.  This is the frequency of the center of the expanded secondary channel.  Secondary channels are only found on 802.11AC wave-2 80+80 gear.",
                     filterOnZero: true,
@@ -1066,12 +1074,14 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "dot11.advertisedssid.beacon_info",
+                    liveupdate: true,
                     title: "Beacon Info",
                     filterOnEmpty: true,
                     help: "Some access points, such as those made by Cisco, can include arbitrary custom info in beacons.  Typically this is used by the network administrators to map where access points are deployed.",
                 },
                 {
                     field: "dot11.advertisedssid.dot11e_qbss_stations",
+                    liveupdate: true,
                     title: "Connected Stations",
                     help: "Access points which provide 802.11e / QBSS report the number of stations observed on the channel as part of the channel quality of service.",
                     filter: function(opts) {
@@ -1084,10 +1094,19 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "dot11.advertisedssid.dot11e_channel_utilization_perc",
+                    liveupdate: true,
                     title: "Channel Utilization",
                     help: "Access points which provide 802.11e / QBSS calculate the estimated channel saturation as part of the channel quality of service.",
                     draw: function(opts) {
-                        return opts['value'].toFixed(2) + '%';
+                        var perc = "n/a";
+
+                        if (opts['value'] == 0) {
+                            perc = "0%";
+                        } else {
+                            perc = Number.parseFloat(opts['value']).toPrecision(4) + "%";
+                        }
+
+                        return '<div class="percentage-border"><span class="percentage-text">' + perc + '</span><div class="percentage-fill" style="width:' + opts['value'] + '%"></div></div>';
                     },
                     filter: function(opts) {
                         try {
@@ -1099,6 +1118,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "dot11.advertisedssid.ccx_txpower",
+                    liveupdate: true,
                     title: "Cisco CCX TxPower",
                     filterOnZero: true,
                     help: "Cisco access points may advertise their transmit power in a Cisco CCX IE tag.  Typically this is found on enterprise-level access points, where multiple APs service the same area.",
@@ -1108,6 +1128,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "dot11.advertisedssid.dot11r_mobility",
+                    liveupdate: true,
                     title: "802.11r Mobility",
                     filterOnZero: true,
                     help: "The 802.11r standard allows for fast roaming between access points on the same network.  Typically this is found on enterprise-level access points, on a network where multiple APs service the same area.",
@@ -1115,22 +1136,26 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "dot11.advertisedssid.dot11r_mobility_domain_id",
+                    liveupdate: true,
                     title: "Mobility Domain",
                     filterOnZero: true,
                     help: "The 802.11r standard allows for fast roaming between access points on the same network."
                 },
                 {
                     field: "dot11.advertisedssid.first_time",
+                    liveupdate: true,
                     title: "First Seen",
                     draw: kismet_ui.RenderTrimmedTime,
                 },
                 {
                     field: "dot11.advertisedssid.last_time",
+                    liveupdate: true,
                     title: "Last Seen",
                     draw: kismet_ui.RenderTrimmedTime,
                 },
                 {
                     field: "dot11.advertisedssid.beaconrate",
+                    liveupdate: true,
                     title: "Beacon Rate",
                     draw: function(opts) {
                         return opts['value'] + '/sec';
@@ -1139,6 +1164,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "dot11.advertisedssid.maxrate",
+                    liveupdate: true,
                     title: "Max. Rate",
                     draw: function(opts) {
                         return opts['value'] + ' mbit';
@@ -1147,36 +1173,42 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "dot11.advertisedssid.dot11d_country",
+                    liveupdate: true,
                     title: "802.11d Country",
                     filterOnEmpty: true,
                     help: "The 802.11d standard required access points to identify their operating country code and signal levels.  This caused clients connecting to those access points to adopt the same regulatory requirements.  802.11d has been phased out and is not found on most modern access points but may still be seen on older hardware.",
                 },
                 {
                     field: "dot11.advertisedssid.wps_manuf",
+                    liveupdate: true,
                     title: "WPS Manufacturer",
                     filterOnEmpty: true,
                     help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the device manufacturer in the WPS advertisements.  WPS is not recommended due to security flaws."
                 },
                 {
                     field: "dot11.advertisedssid.wps_device_name",
+                    liveupdate: true,
                     title: "WPS Device",
                     filterOnEmpty: true,
                     help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the device name in the WPS advertisements.  WPS is not recommended due to security flaws.",
                 },
                 {
                     field: "dot11.advertisedssid.wps_model_name",
+                    liveupdate: true,
                     title: "WPS Model",
                     filterOnEmpty: true,
                     help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the specific device model name in the WPS advertisements.  WPS is not recommended due to security flaws.",
                 },
                 {
                     field: "dot11.advertisedssid.wps_model_number",
+                    liveupdate: true,
                     title: "WPS Model #",
                     filterOnEmpty: true,
                     help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the specific model number in the WPS advertisements.  WPS is not recommended due to security flaws.",
                 },
                 {
                     field: "dot11.advertisedssid.wps_serial_number",
+                    liveupdate: true,
                     title: "WPS Serial #",
                     filterOnEmpty: true,
                     help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the device serial number in the WPS advertisements.  This information is not always valid or useful.  WPS is not recommended due to security flaws.",
@@ -1184,6 +1216,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
                 {
                     field: "dot11.advertisedssid.ie_tag_content",
+                    liveupdate: true,
                     filterOnEmpty: true,
                     id: "dot11_ssid_ietags",
                     title: '<b class="k_padding_title">IE tags</b>',
@@ -1192,6 +1225,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
                 {
                     field: "dot11.advertisedssid.ie_tag_content",
+                    liveupdate: true,
                     id: "advertised_ietags",
                     filterOnEmpty: true,
                     span: true,
