@@ -490,6 +490,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                                 $('<div>', {
                                     style: 'width: 50%; height: 200px; padding-bottom: 5px; float: left;',
                                 })
+                                .append('<div><b><center>Overall Packets</center></b></div>')
                                 .append(
                                     $('<canvas>', {
                                         id: 'overalldonut',
@@ -500,6 +501,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                                 $('<div>', {
                                     style: 'width: 50%; height: 200px; padding-bottom: 5px; float: right;',
                                 })
+                                .append('<div><b><center>Data Packets</center></b></div>')
                                 .append(
                                     $('<canvas>', {
                                         id: 'datadonut',
@@ -586,7 +588,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                             window[storage].dot11datadonut = 
                                 new Chart($('#datadonut', opts['container']), {
                                     type: 'doughnut',
-                                    data: barChartData,
+                                    data: databarChartData,
                                     options: {
                                         global: {
                                             maintainAspectRatio: false,
