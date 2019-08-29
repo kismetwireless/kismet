@@ -50,6 +50,14 @@
         fields should reference fields as 'val1' and 'val2' to get automatically
         indexed by reference
 
+        // A storage object passed to render and draw in opts['storage'], for 
+        // holding js-scope variables
+        "storage": {}
+
+        // Perform live updates on this field by calling draw() when new data is
+        // available
+        "liveupdate": bool
+
         // Optional string or function for rendering that should return html, taking
         // the original key, data, and resolved value; this is used to create any 
         // necessary wrapper objects.
@@ -111,6 +119,7 @@
             "fields": [],
             "baseobject": "",
             "sanitize": true,
+            "storage": {},
         }, options);
 
         var subtable = $('table.kismet_devicedata#' + kismet.sanitizeId(settings['id']), this);
@@ -127,11 +136,15 @@
 
         settings.fields.forEach(function(v, index, array) {
             var id;
+            var liveupdate = false;
 
             if ('id' in v)
                 id = kismet.sanitizeId(settings.baseobject + v['id']);
             else
                 id = kismet.sanitizeId(settings.baseobject + v['field']);
+
+            if ('liveupdate' in v)
+                liveupdate = v['liveupdate'];
 
             // Do we have a function for rendering this?
             var d = kismet.ObjectByString(data, settings.baseobject + v['field']);
@@ -142,7 +155,8 @@
                 base: kismet.ObjectByString(data, settings.baseobject),
                 data: data,
                 value: d,
-                id: id
+                id: id,
+                storage: settings['storage']
             };
 
             if ('index' in settings) {
@@ -222,7 +236,10 @@
                     if ('render' in v && typeof(v.render) === 'function') {
                         contentdiv.html(v.render(callopts));
                     }
-
+                } else if (!liveupdate) {
+                    var contentdiv = $('div#cd_' + id, drow);
+                    contentdiv.devicedata(data, v);
+                    return;
                 }
 
                 var cell = $('td', drow);
@@ -237,7 +254,6 @@
 
                 // Apply the draw function after the subgroup is created
                 if ('draw' in v && typeof(v.draw) === 'function') {
-
                     var r = v.draw(callopts);
 
                     if (typeof(r) !== 'undefined' && typeof(r) !== 'none') 
@@ -250,6 +266,10 @@
             // Iterative group
             if ('groupIterate' in v && v['groupIterate'] == true) {
                 for (var idx in d) {
+                    // index the subobject
+                    v['baseobject'] = v['field'] + '[' + idx + ']' + '/';
+                    v['index'] = idx;
+
                     callopts['index'] = idx;
                     callopts['basekey'] = v['field'] + '[' + idx + ']' + '/';
                     callopts['base'] = kismet.ObjectByString(data, callopts['basekey']);
@@ -303,6 +323,11 @@
                         if ('render' in v && typeof(v.render) === 'function') {
                             contentdiv.html(v.render(callopts));
                         }
+                    } else if (!liveupdate) {
+                        var contentdiv = $('div#cd_' + subid, drow);
+                        contentdiv.devicedata(data, v);
+
+                        return;
                     }
 
                     var cell = $('td', drow);
@@ -311,10 +336,6 @@
                     callopts['cell'] = cell;
                     callopts['container'] = contentdiv;
                     callopts['containerid'] = 'cd_' + subid;
-
-                    // index the subobject
-                    v['baseobject'] = v['field'] + '[' + idx + ']' + '/';
-                    v['index'] = idx;
 
                     contentdiv.devicedata(data, v);
 
@@ -384,6 +405,8 @@
                 }
 
                 subtable.append(drow);
+            } else if (!liveupdate) {
+                return;
             }
 
             var td = $('td.kismet_devicedata_td_content', drow);

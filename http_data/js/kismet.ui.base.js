@@ -379,8 +379,13 @@ kismet_ui.AddDeviceColumn('column_manuf', {
 //
 // The draw function will populate the kismet devicedata when pinged
 kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
-    draw: function(data, target) {
+    draw: function(data, target, options) {
+        var settings = $.extend({
+            storage: {},
+        }, options);
+
         target.devicedata(data, {
+            "storage": settings['storage'],
             "id": "genericDeviceData",
             "fields": [
             {
@@ -466,11 +471,13 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
             },
             {
                 field: "kismet.device.base.type",
+                liveupdate: true,
                 title: "Type",
                 empty: "<i>Unknown</i>"
             },
             {
                 field: "kismet.device.base.first_time",
+                liveupdate: true,
                 title: "First Seen",
                 draw: function(opts) {
                     return new Date(opts['value'] * 1000);
@@ -478,6 +485,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
             },
             {
                 field: "kismet.device.base.last_time",
+                liveupdate: true,
                 title: "Last Seen",
                 draw: function(opts) {
                     return new Date(opts['value'] * 1000);
@@ -487,6 +495,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 field: "group_frequency",
                 groupTitle: "Frequencies",
                 id: "group_frequency",
+                liveupdate: true,
 
                 fields: [
                 {
@@ -507,44 +516,71 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 {
                     field: "frequency_map",
                     span: true,
+                    liveupdate: true,
                     filter: function(opts) {
                         return (Object.keys(opts['data']['kismet.device.base.freq_khz_map']).length >= 1);
                     },
                     render: function(opts) {
                         var d = 
-                            $('<div>')
-                            .append($('<center>').html('Packet Frequency Distribution'))
-                            .append($('<div>', {
-                                id: opts['id'],
-                                class: 'freqbar'
-                            }));
-                        
+                            $('<div>', {
+                                style: 'width: 90%; height: 250px',
+                            })
+                            .append(
+                                $('<canvas>', {
+                                    id: 'freqdist',
+                                })
+                            );
+
                         return d;
 
                     },
                     draw: function(opts) {
-                        var bardiv = $('div.freqbar', opts['container']);
-
-                        bardiv.empty();
-
-                        // Make an array morris likes using our whole data record
-                        var moddata = new Array();
+                        var legend = new Array();
+                        var data = new Array();
 
                         for (var fk in opts['data']['kismet.device.base.freq_khz_map']) {
-                            moddata.push({
-                                y: kismet.HumanReadableFrequency(parseInt(fk)),
-                                c: opts['data']['kismet.device.base.freq_khz_map'][fk]
-                            });
+                            legend.push(kismet.HumanReadableFrequency(parseInt(fk)));
+                            data.push(opts['data']['kismet.device.base.freq_khz_map'][fk]);
                         }
 
-                        Morris.Bar({
-                            element: bardiv,
-                            data: moddata,
-                            xkey: 'y',
-                            ykeys: ['c'],
-                            labels: ['Packets'],
-                            hideHover: 'auto'
-                        });
+                        var barChartData = {
+                            labels: legend,
+
+                            datasets: [{
+                                label: 'Dataset 1',
+                                backgroundColor: 'rgba(46, 99, 162, 1)',
+                                borderWidth: 0,
+                                data: data,
+                            }]
+
+                        };
+
+                        if ('freqchart' in opts['storage']) {
+                            var chart = opts['storage']['freqchart'];
+
+                            chart.data.labels = legend;
+                            chart.data.datasets[0] = data;
+                    
+                            chart.update();
+                        } else {
+                            opts['storage']['freqchart'] = new Chart($('canvas', opts['container']), {
+                                type: 'bar',
+                                data: barChartData,
+                                options: {
+                                    maintainAspectRatio: false,
+                                    animation: false,
+                                    legend: {
+                                        display: false,
+                                    },
+                                    title: {
+                                        display: true,
+                                        text: 'Packet frequency distribution'
+                                    }
+                                }
+                            });
+
+                            opts['storage']['freqchart'].update();
+                        }
                     }
                 },
                 ]
@@ -632,6 +668,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 },
                 {
                     field: "kismet.device.base.signal/kismet.common.signal.last_signal",
+                    liveupdate: true,
                     title: "Latest Signal",
                     help: "Most recent signal level seen.  Signal levels may vary significantly depending on the data rates used by the device, and often, wireless drivers and devices cannot report strictly accurate signal levels.",
                     draw: function(opts) {
@@ -641,6 +678,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 },
                 { 
                     field: "kismet.device.base.signal/kismet.common.signal.last_noise",
+                    liveupdate: true,
                     title: "Latest Noise",
                     help: "Most recent noise level seen.  Few drivers can report noise levels.",
                     draw: function(opts) {
@@ -650,6 +688,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 },
                 { 
                     field: "kismet.device.base.signal/kismet.common.signal.min_signal",
+                    liveupdate: true,
                     title: "Min. Signal",
                     help: "Weakest signal level seen.  Signal levels may vary significantly depending on the data rates used by the device, and often, wireless drivers and devices cannot report strictly accurate signal levels.",
                     draw: function(opts) {
@@ -657,8 +696,10 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     },
                     filterOnZero: true,
                 },
+
                 { 
                     field: "kismet.device.base.signal/kismet.common.signal.max_signal",
+                    liveupdate: true,
                     title: "Max. Signal",
                     help: "Strongest signal level seen.  Signal levels may vary significantly depending on the data rates used by the device, and often, wireless drivers and devices cannot report strictly accurate signal levels.",
                     draw: function(opts) {
@@ -668,6 +709,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 },
                 { 
                     field: "kismet.device.base.signal/kismet.common.signal.min_noise",
+                    liveupdate: true,
                     title: "Min. Noise",
                     filterOnZero: true,
                     help: "Least amount of interference or noise seen.  Most capture drivers are not capable of measuring noise levels.",
@@ -677,6 +719,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 },
                 { 
                     field: "kismet.device.base.signal/kismet.common.signal.max_noise",
+                    liveupdate: true,
                     title: "Max. Noise",
                     filterOnZero: true,
                     help: "Largest amount of interference or noise seen.  Most capture drivers are not capable of measuring noise levels.",
@@ -686,6 +729,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 },
                 { // Pseudo-field of aggregated location, only show when the location is valid
                     field: "kismet.device.base.signal/kismet.common.signal.peak_loc",
+                    liveupdate: true,
                     title: "Peak Location",
                     help: "When a GPS location is available, the peak location is the coordinates at which the strongest signal level was recorded for this device.",
                     filter: function(opts) {
@@ -711,64 +755,113 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 {
                     field: "graph_field_overall",
                     span: true,
+                    liveupdate: true,
                     render: function(opts) {
-                        return '<div class="donut" id="' + kismet.sanitizeId(opts['key']) + '" />';
+                        var d = 
+                            $('<div>', {
+                                // style: 'width: 90%; max-height: 200px',
+                            })
+                            .append(
+                                $('<canvas>', {
+                                    id: 'packetdonut',
+                                    width: '90%',
+                                    height: '200px'
+                                })
+                            );
+
+                        return d;
                     },
                     draw: function(opts) {
-                        var donutdiv = $('div#' + kismet.sanitizeId(opts['key']), opts['container']);
-
-                        // Make an array morris likes using our whole data record
-                        var moddata = [
-                        { label: "LLC/Management",
-                            value: opts['data']['kismet.device.base.packets.llc'] },
-                        { label: "Data",
-                            value: opts['data']['kismet.device.base.packets.data'] }
+                        var legend = ['LLC/Management', 'Data'];
+                        var data = [
+                            opts['data']['kismet.device.base.packets.llc'],
+                            opts['data']['kismet.device.base.packets.data'],
+                        ];
+                        var colors = [
+                            'rgba(46, 99, 162, 1)',
+                            'rgba(96, 149, 212, 1)',
                         ];
 
-                        if (opts['data']['kismet.device.base.packets.error'] != 0)
-                            moddata.push({ label: "Error",
-                                value: opts['data']['kismet.device.base.packets.error'] });
+                        var barChartData = {
+                            labels: legend,
 
-                        donutdiv.empty();
+                            datasets: [{
+                                label: 'Dataset 1',
+                                backgroundColor: colors,
+                                borderWidth: 0,
+                                data: data,
+                            }],
+                        };
 
-                        Morris.Donut({
-                            element: donutdiv,
-                            data: moddata
-                        });
-                    }
+                        if ('packetdonut' in opts['storage']) {
+                            var chart = opts['storage']['packetdonut'];
+
+                            chart.data.datasets[0] = data;
+                    
+                            chart.update();
+                        } else {
+                            opts['storage']['packetdonut'] = new Chart($('canvas', opts['container']), {
+                                type: 'doughnut',
+                                data: barChartData,
+                                options: {
+                                    global: {
+                                        maintainAspectRatio: false,
+                                    },
+                                    animation: false,
+                                    legend: {
+                                        display: true,
+                                    },
+                                    title: {
+                                        display: true,
+                                        text: 'Packet Types'
+                                    },
+                                    height: '200px',
+                                }
+                            });
+
+                            opts['storage']['packetdonut'].render();
+                        }
+                    },
                 },
                 {
                     field: "kismet.device.base.packets.total",
+                    liveupdate: true,
                     title: "Total Packets",
                     help: "Count of all packets of all types",
                 },
                 {
                     field: "kismet.device.base.packets.llc",
+                    liveupdate: true,
                     title: "LLC/Management",
                     help: "LLC (Link Layer Control) and Management packets are typically used for controlling and defining wireless networks.  Typically they do not carry data.",
                 },
                 {
                     field: "kismet.device.base.packets.error",
+                    liveupdate: true,
                     title: "Error/Invalid",
                     help: "Error and invalid packets indicate a packet was received and was partially processable, but was damaged or incorrect in some way.  Most error packets are dropped completely as it is not possible to associate them with a specific device.",
                 },
                 {
                     field: "kismet.device.base.packets.data",
+                    liveupdate: true,
                     title: "Data",
                     help: "Data frames carry messages and content for the device.",
                 },
                 {
                     field: "kismet.device.base.packets.crypt",
+                    liveupdate: true,
                     title: "Encrypted",
                     help: "Some data frames can be identified by Kismet as carrying encryption, either by the contents or by packet flags, depending on the phy type",
                 },
                 {
                     field: "kismet.device.base.packets.filtered",
+                    liveupdate: true,
                     title: "Filtered",
                     help: "Filtered packets are ignored by Kismet",
                 },
                 {
                     field: "kismet.device.base.datasize",
+                    liveupdate: true,
                     title: "Data Transferred",
                     help: "Amount of data transferred",
                     draw: function(opts) {
@@ -914,8 +1007,13 @@ kismet_ui.AddDeviceDetail("seenby", "Seen By", 900, {
     filter: function(data) {
         return (Object.keys(data['kismet.device.base.seenby']).length > 1);
     },
-    draw: function(data, target) {
+    draw: function(data, target, options) {
+        var settings = $.extend({
+            storage: {},
+        }, options);
+
         target.devicedata(data, {
+            storage: settings['storage'],
             id: "seenbyDeviceData",
 
             fields: [

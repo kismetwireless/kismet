@@ -557,6 +557,10 @@ exports.DeviceDetailWindow = function(key) {
         return;
     }
 
+    var options = {
+        storage: {}
+    };
+
     var h = $(window).height() - 5;
 
     // If we're on a wide-screen browser, try to split it into 3 details windows
@@ -619,6 +623,7 @@ exports.DeviceDetailWindow = function(key) {
             this.active = true;
 
             this.updater = function() {
+            console.log("updater called");
             $.get(local_uri_prefix + "devices/by-key/" + key + "/device.json")
                 .done(function(fulldata) {
                     fulldata = kismet.sanitizeObject(fulldata);
@@ -676,7 +681,7 @@ exports.DeviceDetailWindow = function(key) {
 
                         if ('draw' in di.options &&
                                 typeof(di.options.draw) === 'function') {
-                            di.options.draw(fulldata, vcontent);
+                            di.options.draw(fulldata, vcontent, options);
                         }
                     }
                     accordion.accordion({ heightStyle: 'fill' });
@@ -686,10 +691,9 @@ exports.DeviceDetailWindow = function(key) {
                         "</code>: HTTP code <code>" + jqxhr.status + "</code>, " + texterror + "</div>");
             })
             .always(function() {
-                /*
-                if (panel.active) 
-                    panel.timerid = setTimeout(panel.updater(), 5000);
-                */
+                if (panel.active) {
+                    panel.timerid = setTimeout(function() { panel.updater(); }, 1000);
+                }
             })
             };
 
