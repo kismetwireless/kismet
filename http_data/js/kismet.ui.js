@@ -614,6 +614,7 @@ exports.DeviceDetailWindow = function(key) {
         onclosed: function() {
             clearTimeout(this.timerid);
             this.active = false;
+            window['storage_devlist_' + key] = {};
         },
 
         callback: function() {
@@ -622,8 +623,11 @@ exports.DeviceDetailWindow = function(key) {
 
             this.active = true;
 
+            window['storage_devlist_' + key] = {};
+
+            window['storage_devlist_' + key]['foobar'] = 'bar';
+
             this.updater = function() {
-            console.log("updater called");
             $.get(local_uri_prefix + "devices/by-key/" + key + "/device.json")
                 .done(function(fulldata) {
                     fulldata = kismet.sanitizeObject(fulldata);
@@ -681,7 +685,7 @@ exports.DeviceDetailWindow = function(key) {
 
                         if ('draw' in di.options &&
                                 typeof(di.options.draw) === 'function') {
-                            di.options.draw(fulldata, vcontent, options);
+                            di.options.draw(fulldata, vcontent, options, 'storage_devlist_' + key);
                         }
                     }
                     accordion.accordion({ heightStyle: 'fill' });

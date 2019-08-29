@@ -386,13 +386,14 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
             return false;
         }
     },
-    draw: function(data, target) {
+    draw: function(data, target, options, storage) {
         target.devicedata(data, {
             "id": "dot11DeviceData",
             "fields": [
             {
                 field: 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.ssid',
                 title: "Last Beaconed SSID (AP)",
+                liveupdate: true,
                 draw: function(opts) {
                     if (typeof(opts['value']) === 'undefined')
                         return '<i>None</i>';
@@ -404,6 +405,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
             },
             {
                 field: "dot11.device/dot11.device.last_probed_ssid_record/dot11.probedssid.ssid",
+                liveupdate: true,
                 title: "Last Probed SSID (Client)",
                 empty: "<i>None</i>",
                 help: "If present, the last SSID (network name) probed for by a device as a client looking for a network.",
@@ -417,6 +419,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
             },
             {
                 field: "dot11.device/dot11.device.last_bssid",
+                liveupdate: true,
                 title: "Last BSSID",
                 filter: function(opts) {
                     return opts['value'] !== '00:00:00:00:00:00';
@@ -425,6 +428,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
             },
             {
                 field: "dot11.device/dot11.device.bss_timestamp",
+                liveupdate: true,
                 title: "Uptime",
                 draw: function(opts) {
                     if (opts['value'] == 0)
@@ -454,11 +458,13 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
             {
                 field: "dot11_fingerprint_group",
+                liveupdate: true,
                 groupTitle: "Fingerprints",
                 id: "dot11_fingerprint_group",
                 fields: [
                 {
                     field: "dot11.device/dot11.device.beacon_fingerprint",
+                    liveupdate: true,
                     title: "Beacon",
                     empty: "<i>None</i>",
                     help: "Kismet uses attributes included in beacons to build a fingerprint of a device.  This fingerprint is used to identify spoofed devices, whitelist devices, and to attempt to provide attestation about devices.  The beacon fingerprint is only available when a beacon is seen from an access point.",
@@ -468,85 +474,187 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
             {
                 field: "dot11_packet_group",
+                liveupdate: true,
                 groupTitle: "Packets",
                 id: "dot11_packet_group",
 
                 fields: [
                 {
                     field: "graph_field_dot11",
+                    liveupdate: true,
                     span: true,
                     render: function(opts) {
-                        return '<div class="smalldonut" id="overall" style="float: left;" />' +
-                            '<div class="smalldonut" id="data" style="float: right;" />';
+                        var d = 
+                            $('<div>')
+                            .append(
+                                $('<div>', {
+                                    style: 'width: 50%; height: 200px; padding-bottom: 5px; float: left;',
+                                })
+                                .append(
+                                    $('<canvas>', {
+                                        id: 'overalldonut',
+                                    })
+                                )
+                            )
+                            .append(
+                                $('<div>', {
+                                    style: 'width: 50%; height: 200px; padding-bottom: 5px; float: right;',
+                                })
+                                .append(
+                                    $('<canvas>', {
+                                        id: 'datadonut',
+                                    })
+                                )
+                            );
+
+                        return d;
                     },
                     draw: function(opts) {
-                        var overalldiv = $('#overall', opts['container']);
-                        var datadiv = $('#data', opts['container']);
 
-                        // Make an array morris likes using our whole data record
-                        var modoverall = [
-                        { label: "Mgmt", value: opts['data']['kismet.device.base.packets.llc'] },
-                        { label: "Data", value: opts['data']['kismet.device.base.packets.data'] }
+                        var overalllegend = ['Management', 'Data'];
+                        var overalldata = [
+                            opts['data']['kismet.device.base.packets.llc'],
+                            opts['data']['kismet.device.base.packets.data'],
+                        ];
+                        var colors = [
+                            'rgba(46, 99, 162, 1)',
+                            'rgba(96, 149, 212, 1)',
+                            'rgba(136, 189, 252, 1)',
                         ];
 
-                        if (opts['data']['kismet.device.base.packets.error'] != 0)
-                            modoverall.push({ label: "Error", value: opts['data']['kismet.device.base.packets.error'] });
+                        var barChartData = {
+                            labels: overalllegend,
 
-                        Morris.Donut({
-                            element: overalldiv,
-                            data: modoverall
-                        });
+                            datasets: [{
+                                label: 'Dataset 1',
+                                backgroundColor: colors,
+                                borderWidth: 0,
+                                data: overalldata,
+                            }],
+                        };
 
-                        var moddata = [
-                        { label: "Data", value: opts['data']['kismet.device.base.packets.data'] },
-                        { label: "Retry", value: opts['data']['dot11.device']['dot11.device.num_retries'] },
-                        { label: "Frag", value: opts['data']['dot11.device']['dot11.device.num_fragments'] }
+                        if ('dot11overalldonut' in window[storage]) {
+                            window[storage].dot11overalldonut.data.datasets[0].data = overalldata;
+                            window[storage].dot11overalldonut.update();
+                        } else {
+                            window[storage].dot11overalldonut = 
+                                new Chart($('#overalldonut', opts['container']), {
+                                    type: 'doughnut',
+                                    data: barChartData,
+                                    options: {
+                                        global: {
+                                            maintainAspectRatio: false,
+                                        },
+                                        animation: false,
+                                        legend: {
+                                            display: true,
+                                            position: 'bottom',
+                                        },
+                                        title: {
+                                            display: false,
+                                            text: 'Packet Types'
+                                        },
+                                        height: '200px',
+                                    }
+                                });
+
+                            window[storage].dot11overalldonut.render();
+                        }
+
+                        var datalegend = ['Data', 'Retry', 'Frag'];
+                        var datadata = [
+                            opts['data']['kismet.device.base.packets.data'],
+                            opts['data']['dot11.device']['dot11.device.num_retries'],
+                            opts['data']['dot11.device']['dot11.device.num_fragments'],
                         ];
 
-                        Morris.Donut({
-                            element: datadiv,
-                            data: moddata
-                        });
+                        var databarChartData = {
+                            labels: datalegend,
+
+                            datasets: [{
+                                label: 'Dataset 1',
+                                backgroundColor: colors,
+                                borderWidth: 0,
+                                data: datadata,
+                            }],
+                        };
+
+                        if ('dot11datadonut' in window[storage]) {
+                            window[storage].dot11datadonut.data.datasets[0].data = datadata;
+                            window[storage].dot11datadonut.update();
+                        } else {
+                            window[storage].dot11datadonut = 
+                                new Chart($('#datadonut', opts['container']), {
+                                    type: 'doughnut',
+                                    data: barChartData,
+                                    options: {
+                                        global: {
+                                            maintainAspectRatio: false,
+                                        },
+                                        animation: false,
+                                        legend: {
+                                            display: true,
+                                            position: 'bottom'
+                                        },
+                                        title: {
+                                            display: false,
+                                            text: 'Packet Types'
+                                        },
+                                        height: '200px',
+                                    }
+                                });
+
+                            window[storage].dot11datadonut.render();
+                        }
+
                     }
                 },
                 {
                     field: "kismet.device.base.packets.total",
+                    liveupdate: true,
                     title: "Total Packets",
                     help: "Total packet count seen of all packet types",
                 },
                 {
                     field: "kismet.device.base.packets.llc",
+                    liveupdate: true,
                     title: "LLC/Management",
                     help: "LLC and Management packets define Wi-Fi networks.  They include packets like beacons, probe requests and responses, and other packets.  Access points will almost always have significantly more management packets than any other type.",
                 },
                 {
                     field: "kismet.device.base.packets.data",
+                    liveupdate: true,
                     title: "Data Packets",
                     help: "Wi-Fi data packets encode the actual data being sent by the device.",
                 },
                 {
                     field: "kismet.device.base.packets.error",
+                    liveupdate: true,
                     title: "Error/Invalid Packets",
                     help: "Invalid Wi-Fi packets are packets which have become corrupted in the air or which are otherwise invalid.  Typically these packets are discarded instead of tracked because the validity of their contents cannot be verified, so this will often be 0.",
                 },
                 {
                     field: "dot11.device/dot11.device.num_fragments",
+                    liveupdate: true,
                     title: "Fragmented Packets",
                     help: "The data being sent over Wi-Fi can be fragmented into smaller packets.  Typically this is not desirable because it increases the packet load and can add latency to TCP connections.",
                 },
                 {
                     field: "dot11.device/dot11.device.num_retries",
+                    liveupdate: true,
                     title: "Retried Packets",
                     help: "If a Wi-Fi data packet cannot be transmitted (due to weak signal, interference, or collisions with other packets transmitted at the same time), the Wi-Fi layer will automatically attempt to retransmit it a number of times.  In busy environments, a retransmit rate of 50% or higher is not unusual.",
                 },
                 {
                     field: "dot11.device/dot11.device.datasize",
+                    liveupdate: true,
                     title: "Data (size)",
                     draw: kismet_ui.RenderHumanSize,
                     help: "The amount of data transmitted by this device",
                 },
                 {
                     field: "dot11.device/dot11.device.datasize.retry",
+                    liveupdate: true,
                     title: "Retried Data",
                     draw: kismet_ui.RenderHumanSize,
                     help: "The amount of data re-transmitted by this device, due to lost packets and automatic retry.",
@@ -1598,7 +1706,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 ]
             },
             ]
-        });
+        }, storage);
     }
 });
 

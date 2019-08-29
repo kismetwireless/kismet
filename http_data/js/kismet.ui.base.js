@@ -379,13 +379,8 @@ kismet_ui.AddDeviceColumn('column_manuf', {
 //
 // The draw function will populate the kismet devicedata when pinged
 kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
-    draw: function(data, target, options) {
-        var settings = $.extend({
-            storage: {},
-        }, options);
-
+    draw: function(data, target, options, storage) {
         target.devicedata(data, {
-            "storage": settings['storage'],
             "id": "genericDeviceData",
             "fields": [
             {
@@ -523,7 +518,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     render: function(opts) {
                         var d = 
                             $('<div>', {
-                                style: 'width: 90%; height: 250px',
+                                style: 'width: 80%; height: 250px',
                             })
                             .append(
                                 $('<canvas>', {
@@ -555,31 +550,29 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
 
                         };
 
-                        if ('freqchart' in opts['storage']) {
-                            var chart = opts['storage']['freqchart'];
-
-                            chart.data.labels = legend;
-                            chart.data.datasets[0] = data;
-                    
-                            chart.update();
+                        if ('freqchart' in window[storage]) {
+                            window[storage].freqchart.data.labels = legend;
+                            window[storage].freqchart.data.datasets[0].data = data;
+                            window[storage].freqchart.update();
                         } else {
-                            opts['storage']['freqchart'] = new Chart($('canvas', opts['container']), {
-                                type: 'bar',
-                                data: barChartData,
-                                options: {
-                                    maintainAspectRatio: false,
-                                    animation: false,
-                                    legend: {
-                                        display: false,
-                                    },
-                                    title: {
-                                        display: true,
-                                        text: 'Packet frequency distribution'
+                            window[storage].freqchart = 
+                                new Chart($('canvas', opts['container']), {
+                                    type: 'bar',
+                                    data: barChartData,
+                                    options: {
+                                        maintainAspectRatio: false,
+                                        animation: false,
+                                        legend: {
+                                            display: false,
+                                        },
+                                        title: {
+                                            display: true,
+                                            text: 'Packet frequency distribution'
+                                        }
                                     }
-                                }
-                            });
+                                });
 
-                            opts['storage']['freqchart'].update();
+                            window[storage].freqchart.update();
                         }
                     }
                 },
@@ -759,13 +752,11 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     render: function(opts) {
                         var d = 
                             $('<div>', {
-                                // style: 'width: 90%; max-height: 200px',
+                                style: 'width: 80%; height: 250px; padding-bottom: 5px;',
                             })
                             .append(
                                 $('<canvas>', {
                                     id: 'packetdonut',
-                                    width: '90%',
-                                    height: '200px'
                                 })
                             );
 
@@ -793,33 +784,31 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                             }],
                         };
 
-                        if ('packetdonut' in opts['storage']) {
-                            var chart = opts['storage']['packetdonut'];
-
-                            chart.data.datasets[0] = data;
-                    
-                            chart.update();
+                        if ('packetdonut' in window[storage]) {
+                            window[storage].packetdonut.data.datasets[0].data = data;
+                            window[storage].packetdonut.update();
                         } else {
-                            opts['storage']['packetdonut'] = new Chart($('canvas', opts['container']), {
-                                type: 'doughnut',
-                                data: barChartData,
-                                options: {
-                                    global: {
-                                        maintainAspectRatio: false,
-                                    },
-                                    animation: false,
-                                    legend: {
-                                        display: true,
-                                    },
-                                    title: {
-                                        display: true,
-                                        text: 'Packet Types'
-                                    },
-                                    height: '200px',
-                                }
-                            });
+                            window[storage].packetdonut = 
+                                new Chart($('canvas', opts['container']), {
+                                    type: 'doughnut',
+                                    data: barChartData,
+                                    options: {
+                                        global: {
+                                            maintainAspectRatio: false,
+                                        },
+                                        animation: false,
+                                        legend: {
+                                            display: true,
+                                        },
+                                        title: {
+                                            display: true,
+                                            text: 'Packet Types'
+                                        },
+                                        height: '200px',
+                                    }
+                                });
 
-                            opts['storage']['packetdonut'].render();
+                            window[storage].packetdonut.render();
                         }
                     },
                 },
@@ -907,7 +896,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 ],
             }
             ]
-        });
+        }, storage);
     }
 });
 
@@ -1007,13 +996,8 @@ kismet_ui.AddDeviceDetail("seenby", "Seen By", 900, {
     filter: function(data) {
         return (Object.keys(data['kismet.device.base.seenby']).length > 1);
     },
-    draw: function(data, target, options) {
-        var settings = $.extend({
-            storage: {},
-        }, options);
-
+    draw: function(data, target, options, storage) {
         target.devicedata(data, {
-            storage: settings['storage'],
             id: "seenbyDeviceData",
 
             fields: [
