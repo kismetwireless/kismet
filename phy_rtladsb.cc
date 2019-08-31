@@ -238,11 +238,49 @@ bool Kis_RTLADSB_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
             commondev->set_rtlchannel(munge_to_printable(channel_j.asString()));
     }
 
+    std::shared_ptr<rtladsb_tracked_adsb> adsbdev;
     if (is_adsb(json))
-        add_adsb(json, rtlholder);
+        adsbdev = add_adsb(json, rtlholder);
+
+    if (adsbdev != nullptr) {
+        std::stringstream ss;
+        bool need_space = false;
+
+        if (adsbdev->get_atype() != "") {
+            ss << adsbdev->get_atype();
+            need_space = true;
+
+            if (adsbdev->get_callsign() != "") {
+                if (need_space) ss << " ";
+                ss << adsbdev->get_callsign();
+                need_space = true;
+
+                if (adsbdev->get_aoperator() != "") {
+                    if (need_space) ss << " ";
+                    ss << adsbdev->get_aoperator();
+                    need_space = true;
+                }
+
+                basedev->set_devicename(ss.str());
+            } else if (adsbdev->get_regid() != "") {
+                if (need_space) ss << " ";
+                ss << adsbdev->get_regid();
+                need_space = true;
+
+                if (adsbdev->get_aoperator() != "") {
+                    if (need_space) ss << " ";
+                    ss << adsbdev->get_aoperator();
+                    need_space = true;
+                }
+
+            }
+
+            basedev->set_devicename(ss.str());
+        }
+    }
 
     if (newrtl && commondev != NULL) {
-        std::string info = "Detected new RTLADSB RF device '" + commondev->get_model() + "'";
+        std::string info = "Detected new RTLADSB RF device '" + basedev->get_devicename() + "' model '" + commondev->get_model() + "'";
 
         if (commondev->get_rtlid() != "") 
             info += " ID " + commondev->get_rtlid();
@@ -268,7 +306,7 @@ bool Kis_RTLADSB_Phy::is_adsb(Json::Value json) {
     return false;
 }
 
-void Kis_RTLADSB_Phy::add_adsb(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
+std::shared_ptr<rtladsb_tracked_adsb> Kis_RTLADSB_Phy::add_adsb(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
     auto icao_j = json["icao"];
 
     if (!icao_j.isNull()) {
@@ -346,7 +384,11 @@ void Kis_RTLADSB_Phy::add_adsb(Json::Value json, std::shared_ptr<tracker_element
                 adsbdev->set_gsas(gsas_j.asString());
             }
         }
+        
+        return adsbdev;
     }
+
+    return nullptr;
 }
 
 int Kis_RTLADSB_Phy::PacketHandler(CHAINCALL_PARMS) {

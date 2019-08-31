@@ -268,7 +268,7 @@ protected:
 
     bool is_adsb(Json::Value json);
 
-    void add_adsb(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder);
+    std::shared_ptr<rtladsb_tracked_adsb> add_adsb(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder);
 
     double f_to_c(double f);
 

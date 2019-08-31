@@ -50,56 +50,67 @@ kismet_ui.AddDeviceDetail("rtladsb", "RTLADSB (SDR)", 0, {
             "fields": [
             {
                 field: "rtladsb.device/rtladsb.device.common/rtladsb.device.model",
+                liveupdate: true,
                 title: "Model",
                 empty: "<i>Unknown</i>"
             },
             {
                 field: "rtladsb.device/rtladsb.device.common/rtladsb.device.id",
+                liveupdate: true,
                 title: "Plane ICAO",
                 empty: "<i>Unknown</i>"
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.regid",
+                liveupdate: true,
                 title: "REG ID",
                 filterOnZero: true,
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.mdl",
+                liveupdate: true,
                 title: "MDL",
                 filterOnZero: true,
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.atype",
+                liveupdate: true,
                 title: "Aircraft Type",
                 filterOnZero: true,
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.aoperator",
+                liveupdate: true,
                 title: "Aircraft Operator",
                 filterOnZero: true,
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.callsign",
+                liveupdate: true,
                 title: "Callsign",
                 filterOnZero: true,
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.altitude",
+                liveupdate: true,
                 title: "Altitude",
                 filterOnZero: true,
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.speed",
+                liveupdate: true,
                 title: "Speed",
                 filterOnZero: true,
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.heading",
+                liveupdate: true,
                 title: "Heading",
                 filterOnZero: true,
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.asgs",
+                liveupdate: true,
                 title: "Airspeed(AS) / Groundspeed (GS)",
                 filterOnZero: true,
             },
@@ -124,8 +135,6 @@ kismet_ui.AddDeviceDetail("rtladsb", "RTLADSB (SDR)", 0, {
         });
     },
 });
-
-console.log("kismet.ui.rtladsb.js returning, we think we loaded everything?");
 
 // We're done loading
 exports.load_complete = 1;
