@@ -65,30 +65,46 @@ kismet_ui.AddDeviceDetail("rtladsb", "RTLADSB (SDR)", 0, {
                 liveupdate: true,
                 title: "REG ID",
                 filterOnZero: true,
+                filterOnEmpty: true,
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.mdl",
                 liveupdate: true,
                 title: "MDL",
                 filterOnZero: true,
+                filterOnEmpty: true,
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.atype",
                 liveupdate: true,
                 title: "Aircraft Type",
                 filterOnZero: true,
+                filterOnEmpty: true,
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.aoperator",
                 liveupdate: true,
                 title: "Aircraft Operator",
                 filterOnZero: true,
+                filterOnEmpty: true,
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.callsign",
                 liveupdate: true,
                 title: "Callsign",
                 filterOnZero: true,
+                filterOnEmpty: true,
+            },
+            {
+                field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.callsign",
+                id: "fa_callsign",
+                liveupdate: true,
+                title: "Flightaware",
+                filterOnZero: true,
+                FilterOnEmpty: true,
+                draw: function(opts) {
+                    return '<a href="https://flightaware.com/live/flight/' + opts['value'] + '" target="_new">Track ' + opts['value'] + ' on FlightAware</a>';
+                },
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.altitude",
