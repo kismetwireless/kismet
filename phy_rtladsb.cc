@@ -186,7 +186,7 @@ bool Kis_RTLADSB_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     basedev->set_manuf(rtl_manuf);
 
     basedev->set_type_string("Airplane");
-    basedev->set_devicename(dn);
+    basedev->set_devicename(fmt::format("ADSB {}", dn));
 
     auto rtlholder = basedev->get_sub_as<tracker_element_map>(rtladsb_holder_id);
     bool newrtl = false;
@@ -353,7 +353,17 @@ std::shared_ptr<rtladsb_tracked_adsb> Kis_RTLADSB_Phy::add_adsb(Json::Value json
         if (json.isMember("callsign")) {
             auto callsign_j = json["callsign"];
             if (callsign_j.isString()) {
-                adsbdev->set_callsign(callsign_j.asString());
+                auto raw_cs = callsign_j.asString();
+
+                std::string mangle_cs;
+
+                for (size_t i = 0; i < raw_cs.length(); i++) {
+                    if (raw_cs[i] != '_') {
+                        mangle_cs += raw_cs[i];
+                    }
+                }
+
+                adsbdev->set_callsign(mangle_cs);
             }
         }
 
