@@ -244,6 +244,10 @@ except ImportError:
 
 class KismetRtladsb(object):
     def __init__(self, mqtt = False):
+        # Let the kernel reap sigchild and see if that helps us error out instead of falling
+        # into a zombie state
+        signal.signal(signal.SIGCHLD, signal.SIG_IGN)
+
         self.mqtt_mode = mqtt
 
         self.opts = {}
@@ -399,10 +403,6 @@ class KismetRtladsb(object):
 
         seen_any_valid = False
         failed_once = False
-
-        # Let the kernel reap sigchild and see if that helps us error out instead of falling
-        # into a zombie state
-        signal.signal(signal.SIGCHLD, signal.SIG_IGN)
 
         try:
             FNULL = open(os.devnull, 'w')
