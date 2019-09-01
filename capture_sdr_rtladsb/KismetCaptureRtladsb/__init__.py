@@ -408,7 +408,7 @@ class KismetRtladsb(object):
             FNULL = open(os.devnull, 'w')
             self.rtl_exec = subprocess.Popen(cmd, stderr=FNULL, stdout=subprocess.PIPE)
 
-            while True:
+            while self.rtl_exec.poll() is None:
                 hex_data = self.rtl_exec.stdout.readline().decode('ascii').strip()[1:-1]
                 if crc(hex_data) == "000000000000000000000000":
                     for row in self.airplanes:
@@ -416,11 +416,12 @@ class KismetRtladsb(object):
                             msg = { "icao": row[0] , "regid": row[1] , "mdl": row[2] , "type": row[3] , "operator": row[4] }
                     if 1 <= typecode(hex_data) <= 4:
                         msg = { "icao": hex_data[2:8], "callsign": callsign(hex_data) }
-                    if 5 <= typecode(hex_data) <= 8:
+                    elif 5 <= typecode(hex_data) <= 8:
                         msg = { "icao": hex_data[2:8], "altitude": altitude(hex_data) }
-                    if typecode(hex_data) == 19:
+                    elif typecode(hex_data) == 19:
                         airborneInfo = airborne_velocity(hex_data)
-                        msg = { "icao": hex_data[2:8], "speed": airborneInfo[0], "heading": airborneInfo[1], "altitude": airborneInfo[2], "GSAS": airborneInfo[3] }
+                        msg = { "icao": hex_data[2:8], "speed": airborneInfo[0], "heading": airborneInfo[1], "altitude-velocity": airborneInfo[2], "GSAS": airborneInfo[3] }
+
                     l = json.dumps(msg)
 
                     if not self.handle_json(l):
