@@ -441,6 +441,7 @@ class KismetRtladsb(object):
             self.rtl_exec = subprocess.Popen(cmd, stderr=FNULL, stdout=subprocess.PIPE)
 
             while self.rtl_exec.returncode is None:
+                self.rtl_exec.poll()
                 time.sleep(0.1)
                 for line in self.rtl_exec.stdout:
                     msg = bytearray.fromhex(line.decode('UTF-8').strip()[1:-1])
@@ -496,7 +497,7 @@ class KismetRtladsb(object):
                             msgalt = adsb_msg_get_ac13_altitude(msg)
                             output['altitude'] = msgalt
 
-                        print(output)
+                        # print(output)
 
                         l = json.dumps(output)
 
@@ -504,8 +505,6 @@ class KismetRtladsb(object):
                             raise RuntimeError('could not process response from rtladsb')
 
                         seen_any_valid = True
-
-                self.rtl_exec.poll()
 
             raise RuntimeError('rtl_adsb process exited')
 
