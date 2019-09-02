@@ -29,7 +29,6 @@ import ctypes
 from datetime import datetime
 import json
 import os
-import signal
 import subprocess
 import sys
 import threading
@@ -46,8 +45,6 @@ except ImportError:
 
 class KismetRtlamr(object):
     def __init__(self, mqtt = False):
-        signal.signal(signal.SIGCHLD, signal.SIG_IGN)
-
         self.mqtt_mode = mqtt
 
         self.opts = {}
@@ -201,7 +198,9 @@ class KismetRtlamr(object):
             FNULL = open(os.devnull, 'w')
             self.rtl_exec = subprocess.Popen(cmd, stderr=FNULL, stdout=subprocess.PIPE)
 
-            while self.rtl_exec.poll() is None:
+            while self.rtl_exec.returncode is None:
+                self.rtl_exec.poll()
+
                 l = self.rtl_exec.stdout.readline()
 
                 if not self.handle_json(l):
