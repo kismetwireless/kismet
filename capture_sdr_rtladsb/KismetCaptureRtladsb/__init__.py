@@ -30,7 +30,6 @@ import ctypes
 from datetime import datetime
 import json
 import math
-import signal
 
 try:
     import numpy as np
@@ -45,195 +44,6 @@ import threading
 import time
 import uuid
 
-### THE NEXT CODE BLOCK IS FROM THE WORK OF myModeS AVAILABLE AT      ###
-###            https://pypi.org/project/pyModeS/                      ###
-### IT IS INCLUDED HERE IN THIS VERSION STRIPPED DOWN AND MODIFIED    ###
-### DUE TO UPSTEAM CHANGES IN THE ORIGINAL CODEBASE THAT ARENT NEEDED ###
-def hex2bin(hexstr):
-    """Convert a hexdecimal string to binary string, with zero fillings. """
-    num_of_bits = len(hexstr) * 4
-    binstr = bin(int(hexstr, 16))[2:].zfill(int(num_of_bits))
-    return binstr
-
-def bin2int(binstr):
-    """Convert a binary string to integer. """
-    return int(binstr, 2)
-
-def hex2int(hexstr):
-    """Convert a hexdecimal string to integer. """
-    return int(hexstr, 16)
-
-def bin2np(binstr):
-    """Convert a binary string to numpy array. """
-    return np.array([int(i) for i in binstr])
-
-def np2bin(npbin):
-    """Convert a binary numpy array to string. """
-    return np.array2string(npbin, separator='')[1:-1]
-
-def df(msg):
-    """Decode Downlink Format vaule, bits 1 to 5."""
-    msgbin = hex2bin(msg)
-    return min( bin2int(msgbin[0:5]) , 24 )
-
-def crc(msg, encode=False):
-    """Mode-S Cyclic Redundancy Check
-    Detect if bit error occurs in the Mode-S message
-    Args:
-        msg (string): 28 bytes hexadecimal message string
-        encode (bool): True to encode the date only and return the checksum
-    Returns:
-        string: message checksum, or partity bits (encoder)
-    """
-
-    # the polynominal generattor code for CRC [1111111111111010000001001]
-    generator = np.array([1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,0,0,0,0,0,0,1,0,0,1])
-    ng = len(generator)
-
-    msgnpbin = bin2np(hex2bin(msg))
-
-    if encode:
-        msgnpbin[-24:] = [0] * 24
-
-    # loop all bits, except last 24 piraty bits
-    for i in range(len(msgnpbin)-24):
-        if msgnpbin[i] == 0:
-            continue
-
-        # perform XOR, when 1
-        msgnpbin[i:i+ng] = np.bitwise_xor(msgnpbin[i:i+ng], generator)
-
-    # last 24 bits
-    reminder = np2bin(msgnpbin[-24:])
-    return reminder
-
-def icao(msg):
-    """Calculate the ICAO address from an Mode-S message
-    with DF4, DF5, DF20, DF21
-    Args:
-        msg (String): 28 bytes hexadecimal message string
-    Returns:
-        String: ICAO address in 6 bytes hexadecimal string
-    """
-    DF = df(msg)
-
-    if DF in (11, 17, 18):
-        addr = msg[2:8]
-    elif DF in (0, 4, 5, 16, 20, 21):
-        c0 = bin2int(crc(msg, encode=True))
-        c1 = hex2int(msg[-6:])
-        addr = '%06X' % (c0 ^ c1)
-    else:
-        addr = None
-
-    return addr
-
-def typecode(msg):
-    """Type code of ADS-B message
-    Args:
-        msg (string): 28 bytes hexadecimal message string
-    Returns:
-        int: type code number
-    """
-    if df(msg) not in (17, 18):
-        return None
-
-    msgbin = hex2bin(msg)
-    return bin2int(msgbin[32:37])
-
-def data(msg):
-    """Return the data frame in the message, bytes 9 to 22"""
-    return msg[8:-6]
-
-def airborne_velocity(msg):
-    """Calculate the speed, track (or heading), and vertical rate
-
-    Args:
-        msg (string): 28 bytes hexadecimal message string
-
-    Returns:
-        (int, float, int, string): speed (kt), ground track or heading (degree),
-            rate of climb/descend (ft/min), and speed type
-            ('GS' for ground speed, 'AS' for airspeed)
-    """
-
-    if typecode(msg) != 19:
-        raise RuntimeError("%s: Not a airborne velocity message, expecting TC=19" % msg)
-
-    msgbin = hex2bin(msg)
-
-    subtype = bin2int(msgbin[37:40])
-
-    if bin2int(msgbin[46:56]) == 0 or bin2int(msgbin[57:67]) == 0:
-        return None
-
-    if subtype in (1, 2):
-        v_ew_sign = -1 if int(msgbin[45]) else 1
-        v_ew = bin2int(msgbin[46:56]) - 1       # east-west velocity
-
-        v_ns_sign = -1 if int(msgbin[56]) else 1
-        v_ns = bin2int(msgbin[57:67]) - 1       # north-south velocity
-
-
-        v_we = v_ew_sign * v_ew
-        v_sn = v_ns_sign * v_ns
-
-        spd = math.sqrt(v_sn*v_sn + v_we*v_we)  # unit in kts
-
-        trk = math.atan2(v_we, v_sn)
-        trk = math.degrees(trk)                 # convert to degrees
-        trk = trk if trk >= 0 else trk + 360    # no negative val
-
-        tag = 'GS'
-        trk_or_hdg = trk
-
-    else:
-        hdg = bin2int(msgbin[46:56]) / 1024.0 * 360.0
-        spd = bin2int(msgbin[57:67])
-
-        tag = 'AS'
-        trk_or_hdg = hdg
-
-    vr_sign = -1 if int(msgbin[68]) else 1
-    vr = (bin2int(msgbin[69:78]) - 1) * 64     # vertical rate, fpm
-    rocd = vr_sign * vr
-
-    return int(spd), round(trk_or_hdg, 1), int(rocd), tag
-
-def callsign(msg):
-    """Aircraft callsign
-
-    Args:
-        msg (string): 28 bytes hexadecimal message string
-
-    Returns:
-        string: callsign
-    """
-
-    if typecode(msg) < 1 or typecode(msg) > 4:
-        raise RuntimeError("%s: Not a identification message" % msg)
-
-    chars = '#ABCDEFGHIJKLMNOPQRSTUVWXYZ#####_###############0123456789######'
-    msgbin = hex2bin(msg)
-    csbin = msgbin[40:96]
-
-    cs = ''
-    cs += chars[bin2int(csbin[0:6])]
-    cs += chars[bin2int(csbin[6:12])]
-    cs += chars[bin2int(csbin[12:18])]
-    cs += chars[bin2int(csbin[18:24])]
-    cs += chars[bin2int(csbin[24:30])]
-    cs += chars[bin2int(csbin[30:36])]
-    cs += chars[bin2int(csbin[36:42])]
-    cs += chars[bin2int(csbin[42:48])]
-
-    # clean string, remove spaces and marks, if any.
-    # cs = cs.replace('_', '')
-    cs = cs.replace('#', '')
-    return cs
-
-### END BLOCK ###
-
 from . import kismetexternal
 
 try:
@@ -242,12 +52,234 @@ try:
 except ImportError:
     has_mqtt = False
 
+# ADSB parsing functions ported fromthe dump1090 C implementation, MIT licensed
+def adsb_crc(data, bits):
+    """
+    Compute the checksum a message *should* have
+
+    data - bytearray 
+    bits - number of bits in message
+
+    return - 24-bit checksum
+    """
+    modes_checksum_table = [
+            0x3935ea, 0x1c9af5, 0xf1b77e, 0x78dbbf, 0xc397db, 0x9e31e9, 
+            0xb0e2f0, 0x587178, 0x2c38bc, 0x161c5e, 0x0b0e2f, 0xfa7d13, 
+            0x82c48d, 0xbe9842, 0x5f4c21, 0xd05c14, 0x682e0a, 0x341705, 
+            0xe5f186, 0x72f8c3, 0xc68665, 0x9cb936, 0x4e5c9b, 0xd8d449,
+            0x939020, 0x49c810, 0x24e408, 0x127204, 0x093902, 0x049c81, 
+            0xfdb444, 0x7eda22, 0x3f6d11, 0xe04c8c, 0x702646, 0x381323, 
+            0xe3f395, 0x8e03ce, 0x4701e7, 0xdc7af7, 0x91c77f, 0xb719bb, 
+            0xa476d9, 0xadc168, 0x56e0b4, 0x2b705a, 0x15b82d, 0xf52612,
+            0x7a9309, 0xc2b380, 0x6159c0, 0x30ace0, 0x185670, 0x0c2b38, 
+            0x06159c, 0x030ace, 0x018567, 0xff38b7, 0x80665f, 0xbfc92b, 
+            0xa01e91, 0xaff54c, 0x57faa6, 0x2bfd53, 0xea04ad, 0x8af852, 
+            0x457c29, 0xdd4410, 0x6ea208, 0x375104, 0x1ba882, 0x0dd441,
+            0xf91024, 0x7c8812, 0x3e4409, 0xe0d800, 0x706c00, 0x383600, 
+            0x1c1b00, 0x0e0d80, 0x0706c0, 0x038360, 0x01c1b0, 0x00e0d8, 
+            0x00706c, 0x003836, 0x001c1b, 0xfff409, 0x000000, 0x000000, 
+            0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
+            0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 
+            0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 
+            0x000000, 0x000000, 0x000000, 0x000000 ]
+
+    crc = 0
+    offset = 0
+
+    if bits != 112:
+        offset = 112 - 56
+
+    for j in range(0, bits):
+        byte = int(j / 8)
+        bit = j % 8
+        bitmask = 1 << (7 - bit)
+
+        if data[byte] & bitmask:
+            crc ^= modes_checksum_table[j + offset]
+
+    return crc & 0x00FFFFFF
+
+def adsb_len_by_type(type):
+    """
+    Get expected length of message in bits based on the type
+    """
+
+    if type == 16 or type == 17 or type == 19 or type == 20 or type == 21:
+        return 112
+
+    return 56
+
+def adsb_msg_get_crc(data, bits):
+    """
+    Extract the crc encoded in a message
+
+    data - bytearray of message input
+    bits - number of bits in message
+
+    return - 24bit checksum as encoded in message
+    """
+
+    crc = (data[int(bits / 8) - 3] << 16)
+    crc |= (data[int(bits / 8) - 2] << 8) 
+    crc |= (data[int(bits / 8) - 1])
+
+    return crc
+    
+def adsb_msg_get_type(data):
+    """
+    Get message type
+    """
+
+    return data[0] >> 3
+
+def adsb_msg_get_icao(data):
+    """
+    Get ICAO
+    """
+    return data[1:4]
+
+def adsb_msg_get_fs(data):
+    """
+    Extract flight status from 4, 5, 20, 21
+    """
+    return data[0] & 7
+
+def adsb_msg_get_me_subme(data):
+    """
+    Extract message 17 metype and mesub type
+
+    Returns:
+    (type,subtype) tuple
+    """
+
+    return (data[4] >> 3, data[4] & 7)
+
+def adsb_msg_get_ac13_altitude(data):
+    """
+    Extract 13 bit altitude (in feet) from 0, 4, 16, 20
+    """
+
+    m_bit = data[3] & (1 << 6)
+    q_bit = data[3] & (1 << 4)
+
+    if not m_bit:
+        if q_bit:
+            # N is the 11 bit integer resulting in the removal of bit q and m
+            n = (data[2] & 31) << 6
+            n |= (data[3] & 0x80) >> 2
+            n |= (data[3] & 0x20) >> 1
+            n |= (data[3] & 0x15)
+
+            return n * 25 - 1000
+
+    return 0
+
+def adsb_msg_get_ac12_altitude(data):
+    """
+    Extract 12 bit altitude (in feet) from 17
+    """
+
+    q_bit = data[5] & 1
+
+    if q_bit:
+        # N is the 11 bit integer resulting from the removal of bit Q
+        n = (data[5] >> 1) << 4
+        n |= (data[6] & 0xF0) >> 4
+
+        return n * 25 - 1000
+
+    return 0
+
+def adsb_msg_get_flight(data):
+    """
+    Extract flight name
+    """
+
+    ais_charset = "?ABCDEFGHIJKLMNOPQRSTUVWXYZ????? ???????????????0123456789??????"
+
+    flight = ""
+
+    flight += ais_charset[data[5] >> 2]
+    flight += ais_charset[((data[5] & 3) << 4) | (data[6] >> 4)]
+    flight += ais_charset[((data[6] & 15) << 2) | (data[7] >> 6)]
+    flight += ais_charset[data[7] & 63]
+    flight += ais_charset[data[8] >> 2]
+    flight += ais_charset[((data[8] & 3) << 4) | (data[9] >> 4)]
+    flight += ais_charset[((data[9] & 15) << 2) | (data[10] >> 6)]
+    flight += ais_charset[data[10] & 63]
+
+    return flight.strip()
+
+def adsb_msg_get_airborne_position(data):
+    """
+    Airborne position message from message 17
+
+    Return:
+    (pair, lat, lon) raw tuple of even (0) or odd (1) and raw lat/lon
+    """
+
+    paireven = (data[6] & (1 << 2)) != 0
+
+    lat = (data[6] & 3) << 15
+    lat |= data[7] << 7
+    lat |= data[8] >> 1
+
+    lon = (data[8] & 1) << 16
+    lon |= data[9] << 8
+    lon |= data[10]
+
+    return (paireven, lat, lon)
+
+def adsb_msg_get_airborne_velocity(data):
+    """
+    Airborne velocity from message 17, synthesized from EW/NS velocities
+    """
+
+    ew_dir = (data[5] & 4) >> 2
+    ew_velocity = ((data[5] & 3) << 8) | data[6]
+    ns_dir = (data[7] & 0x80) >> 7
+    ns_velocity = ((data[7] & 0x7f) << 3) | ((data[8] & 0xe0) >> 5)
+
+    # Compute velocity from two speed components
+    velocity = math.sqrt(ns_velocity * ns_velocity + ew_velocity * ew_velocity)
+
+    return velocity
+
+def adsb_msg_get_airborne_heading(data):
+    """
+    Airborne heading from message 17, synthesized from EW/NS velocities
+
+    Returns:
+        Heading in degrees
+    """
+
+    ew_dir = (data[5] & 4) >> 2
+    ew_velocity = ((data[5] & 3) << 8) | data[6]
+    ns_dir = (data[7] & 0x80) >> 7
+    ns_velocity = ((data[7] & 0x7f) << 3) | ((data[8] & 0xe0) >> 5)
+
+    ewv = ew_velocity
+    nsv = ns_velocity
+
+    if ew_dir:
+        ewv *= -1
+
+    if ns_dir:
+        nsv *= -1
+
+    heading = math.atan2(ewv, nsv)
+
+    # Convert to degrees
+    heading = heading * 360 / (math.pi * 2)
+
+    if heading < 0:
+        heading += 360
+
+    return heading
+
+
 class KismetRtladsb(object):
     def __init__(self, mqtt = False):
-        # Let the kernel reap sigchild and see if that helps us error out instead of falling
-        # into a zombie state
-        signal.signal(signal.SIGCHLD, signal.SIG_IGN)
-
         self.mqtt_mode = mqtt
 
         self.opts = {}
@@ -408,27 +440,74 @@ class KismetRtladsb(object):
             FNULL = open(os.devnull, 'w')
             self.rtl_exec = subprocess.Popen(cmd, stderr=FNULL, stdout=subprocess.PIPE)
 
-            while self.rtl_exec.poll() is None:
-                hex_data = self.rtl_exec.stdout.readline().decode('ascii').strip()[1:-1]
-                if crc(hex_data) == "000000000000000000000000":
+            while self.rtl_exec.returncode is None:
+                time.sleep(0.1)
+                for line in self.rtl_exec.stdout:
+                    msg = bytearray.fromhex(line.decode('UTF-8').strip()[1:-1])
+
+                    output = {}
+
+                    msgtype = adsb_msg_get_type(msg)
+                    msgbits = adsb_len_by_type(msgtype)
+                    msgcrc = adsb_msg_get_crc(msg, msgbits)
+                    msgcrc2 = adsb_crc(msg, msgbits)
+
+                    # Skip invalid CRC types; in the future, add 1bit recovery from dump1090
+                    if msgcrc != msgcrc2:
+                        continue
+
+                    msgicao = adsb_msg_get_icao(msg).hex()
+
+                    output['icao'] = msgicao
+
+                    # Look up ICAO in the airplane database
                     for row in self.airplanes:
-                        if hex_data[2:8] == row[0]:
-                            msg = { "icao": row[0] , "regid": row[1] , "mdl": row[2] , "type": row[3] , "operator": row[4] }
-                    if 1 <= typecode(hex_data) <= 4:
-                        msg = { "icao": hex_data[2:8], "callsign": callsign(hex_data) }
-                    elif 5 <= typecode(hex_data) <= 8:
-                        msg = { "icao": hex_data[2:8], "altitude": altitude(hex_data) }
-                    elif typecode(hex_data) == 19:
-                        airborneInfo = airborne_velocity(hex_data)
-                        msg = { "icao": hex_data[2:8], "speed": airborneInfo[0], "heading": airborneInfo[1], "altitude-velocity": airborneInfo[2], "GSAS": airborneInfo[3] }
+                        if msgicao == row[0]:
+                            output['regid'] = row[1]
+                            output['mdl'] = row[2]
+                            output['type'] = row[3]
+                            output['operator'] = row[4]
 
-                    l = json.dumps(msg)
+                    if msgtype == 17:
+                        msgme, msgsubme = adsb_msg_get_me_subme(msg)
 
-                    if not self.handle_json(l):
-                        raise RuntimeError('could not process response from rtladsb')
+                        if msgme >= 1 and msgme <= 4:
+                            msgflight = adsb_msg_get_flight(msg)
+                            output['callsign'] = msgflight
 
-                    seen_any_valid = True
+                        if msgme == 19 and (msgsubme >= 1 and msgsubme <= 4):
+                            msgpair, msglat, msglon = adsb_msg_get_airborne_position(msg)
+                            output['coordpair_even'] = msgpair
+                            output['raw_lat'] = msglat
+                            output['raw_lon'] = msglon
+            
+                            msgalt = adsb_msg_get_ac12_altitude(msg)
+                            output['altitude'] = msgalt
+            
+                            if msgsubme == 1 or msgsubme == 2:
+                                msgvelocity = adsb_msg_get_airborne_velocity(msg)
+                                msgheading = adsb_msg_get_airborne_heading(msg)
 
+                                output['speed'] = msgvelocity
+                                output['heading'] = msgheading
+            
+            
+                        elif msgtype == 0 or msgtype == 4 or msgtype == 16 or msgtype == 20:
+                            msgalt = adsb_msg_get_ac13_altitude(msg)
+                            output['altitude'] = msgalt
+
+                        print(output)
+
+                        l = json.dumps(output)
+
+                        if not self.handle_json(l):
+                            raise RuntimeError('could not process response from rtladsb')
+
+                        seen_any_valid = True
+
+                self.rtl_exec.poll()
+
+            raise RuntimeError('rtl_adsb process exited')
 
         except Exception as e:
             # Catch all errors, but don't die if we're reconfiguring rtl; then we need
