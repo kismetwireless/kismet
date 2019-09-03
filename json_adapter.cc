@@ -229,11 +229,15 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
         case tracker_type::tracker_float:
             if (std::isnan(get_tracker_value<float>(e)) || std::isinf(get_tracker_value<float>(e)))
                 stream << 0;
+            else if (get_tracker_value<float>(e) == 0)
+                stream << 0;
             else
                 stream << std::fixed << get_tracker_value<float>(e);
             break;
         case tracker_type::tracker_double:
             if (std::isnan(get_tracker_value<double>(e)) || std::isinf(get_tracker_value<double>(e)))
+                stream << 0;
+            else if (get_tracker_value<double>(e) == 0)
                 stream << 0;
             else
                 stream << std::fixed << get_tracker_value<double>(e);
@@ -729,11 +733,15 @@ void storage_json_adapter::pack(std::ostream &stream, shared_tracker_element e,
         case tracker_type::tracker_float:
             if (std::isnan(get_tracker_value<float>(e)) || std::isinf(get_tracker_value<float>(e)))
                 stream << 0;
+            else if (get_tracker_value<float>(e) == 0)
+                stream << 0;
             else
                 stream << std::fixed << get_tracker_value<float>(e);
             break;
         case tracker_type::tracker_double:
             if (std::isnan(get_tracker_value<double>(e)) || std::isinf(get_tracker_value<double>(e)))
+                stream << 0;
+            else if (get_tracker_value<double>(e) == 0)
                 stream << 0;
             else
                 stream << std::fixed << get_tracker_value<double>(e);
@@ -935,7 +943,11 @@ void storage_json_adapter::pack(std::ostream &stream, shared_tracker_element e,
 
                 // Double keys are handled as strings in json
                 stream << "\"" << std::fixed << i.first << "\": ";
-                stream << i.second;
+
+                if (i.second == 0)
+                    stream << i.second;
+                else
+                    stream << std::fixed << i.second;
             }
             stream << "}";
             break;
