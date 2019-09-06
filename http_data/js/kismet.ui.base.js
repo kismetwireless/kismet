@@ -1919,7 +1919,7 @@ exports.login_pending = false;
 
 exports.ProvisionedPasswordCheck = function(cb) {
     $.ajax({
-        url: "session/check_setup_ok",
+        url: local_uri_prefix + "session/check_setup_ok",
 
         error: function(jqXHR, textStatus, errorThrown) {
             cb(jqXHR.status);
@@ -1936,7 +1936,7 @@ exports.LoginCheck = function(cb, user, pw) {
     pw = pw || kismet.getStorage('kismet.base.login.password', '');
 
     $.ajax({
-        url: "session/check_login",
+        url: local_uri_prefix + "session/check_login",
 
         beforeSend: function (xhr) {
             xhr.setRequestHeader ("Authorization", "Basic " + btoa(user + ":" + pw));
@@ -2273,7 +2273,7 @@ exports.FirstLoginCheck = function(first_login_done_cb) {
 
             $.ajax({
                 type: "POST",
-                url: "session/set_password",
+                url: local_uri_prefix + "session/set_password",
                 data: postdata,
                 error: function(jqXHR, textStatus, errorThrown) {
                     alert("Could not set login, check your kismet server logs.")
