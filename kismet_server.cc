@@ -695,7 +695,7 @@ int main(int argc, char *argv[], char *envp[]) {
     if (wrapper) {
         // Direct ansi calls to set the top margin and invert colors
         std::string banner_ansi = "\u001b[2J\u001b[2;r\u001b[1m\u001b[7m";
-        std::string banner = "KISMET - Point your browser to http://localhost:2501 "
+        std::string banner = "KISMET - Point your browser to http://localhost:2501 (or the address of this system) "
             "for the Kismet UI";
         std::string banner_tail_ansi = "\u001b[0m";
 
