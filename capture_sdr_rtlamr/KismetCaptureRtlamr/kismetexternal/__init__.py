@@ -702,23 +702,24 @@ class Datasource(ExternalInterface):
 
         if source is None:
             self.send_datasource_probe_report(seqno, success=False)
+            self.spindown()
             return
 
         if self.probesource is None:
             self.send_datasource_probe_report(seqno, success=False)
-            # self.spindown()
+            self.spindown()
             return
 
         opts = self.probesource(source, options)
 
         if opts is None:
             self.send_datasource_probe_report(seqno, success=False)
-            # self.spindown()
+            self.spindown()
             return
 
         self.send_datasource_probe_report(seqno, **opts)
 
-        # self.spindown()
+        self.spindown()
 
     def __handle_kds_listinterfaces(self, seqno, packet):
         cmd = datasource_pb2.ListInterfaces()
@@ -729,7 +730,7 @@ class Datasource(ExternalInterface):
         else:
             self.listinterfaces(seqno)
 
-        # self.spindown()
+        self.spindown()
 
     def send_datasource_error_report(self, seqno=0, message=None):
         """
