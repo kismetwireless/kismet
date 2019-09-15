@@ -719,7 +719,7 @@ class Datasource(ExternalInterface):
 
         self.send_datasource_probe_report(seqno, **opts)
 
-         self.spindown()
+        self.spindown()
 
     def __handle_kds_listinterfaces(self, seqno, packet):
         cmd = datasource_pb2.ListInterfaces()
