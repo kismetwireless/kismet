@@ -26,6 +26,7 @@ Additionally accepts:
     mqtt_channel      MQTT channel (default rtl433)
 
 """
+from __future__ import print_function
 
 import argparse
 import ctypes
@@ -207,32 +208,36 @@ class KismetRtl433(object):
         seen_any_valid = False
         failed_once = False
 
-        try:
-            FNULL = open(os.devnull, 'w')
-            self.rtl_exec = subprocess.Popen(cmd, stderr=FNULL, stdout=subprocess.PIPE)
+        while True:
+            try:
+                FNULL = open(os.devnull, 'w')
+                self.rtl_exec = subprocess.Popen(cmd, stderr=FNULL, stdout=subprocess.PIPE)
 
-            while self.rtl_exec.returncode is None:
-                self.rtl_exec.poll()
+                while self.rtl_exec.returncode is None:
+                    self.rtl_exec.poll()
 
-                l = self.rtl_exec.stdout.readline()
+                    l = self.rtl_exec.stdout.readline()
 
-                if not self.handle_json(l):
-                    raise RuntimeError('could not process response from rtl_433')
+                    if not self.handle_json(l):
+                        raise RuntimeError('could not process response from rtl_433')
 
-                seen_any_valid = True
+                    seen_any_valid = True
 
+            except Exception as e:
+                # Catch all errors, but don't die if we're reconfiguring rtl; then we need
+                # to relaunch the binary
+                if not self.rtl_reconfigure:
+                    self.kismet.send_datasource_error_report(message = "Unable to process output from rtl_433: {}".format(e))
 
-        except Exception as e:
-            # Catch all errors, but don't die if we're reconfiguring rtl; then we need
-            # to relaunch the binary
-            if not self.rtl_reconfigure:
-                self.kismet.send_datasource_error_report(message = "Unable to process output from rtl_433: {}".format(e))
-        finally:
-            if not seen_any_valid and not self.rtl_reconfigure:
-                self.kismet.send_datasource_error_report(message = "An error occurred in rtl_433 and no valid devices were seen; is your USB device plugged in?  Try running rtl_433 in a terminal and confirm that it can connect to your device.")
+                continue
+            finally:
+                self.rtl_exec.kill()
+
+                print("An error occurred in rtl_433; is your USB device plugged in?  Try running rtl_433 in a terminal and confirm it cannot to your device.  Make sure that no other programs are using this rtlsdr radio.", file=sys.stderr);
+
+                self.kismet.send_datasource_error_report(message = "An error occurred in rtl_433; is your USB device plugged in?  Try running rtl_433 in a terminal and confirm that it can connect to your device.")
                 self.kismet.spindown()
-
-            self.rtl_exec.kill()
+                return
 
 
     def run_rtl433(self):
