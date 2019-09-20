@@ -1047,17 +1047,25 @@ exports.InitializeDeviceTable = function(element) {
                     }
 
                     // Call the draw callback if one exists
-                    col.kismetdrawfunc(col, dt, this);
+                    try {
+                        col.kismetdrawfunc(col, dt, this);
+                    } catch (error) {
+                        ;
+                    }
                 }
 
                 for (var r in DeviceRowHighlights) {
-                    var rowh = DeviceRowHighlights[r];
+                    try {
+                        var rowh = DeviceRowHighlights[r];
 
-                    if (rowh['enable']) {
-                        if (rowh['selector'](this.data())) {
-                            $('td', this.node()).css('background-color', rowh['color']);
-                            break;
+                        if (rowh['enable']) {
+                            if (rowh['selector'](this.data())) {
+                                $('td', this.node()).css('background-color', rowh['color']);
+                                break;
+                            }
                         }
+                    } catch (error) {
+                        ;
                     }
                 }
             }
