@@ -24,6 +24,8 @@ Additionally accepts:
 
 """
 
+from __future__ import print_function
+
 import argparse
 import csv
 import ctypes
@@ -124,6 +126,78 @@ def adsb_msg_get_crc(data, bits):
     crc |= (data[int(bits / 8) - 1])
 
     return crc
+
+def adsb_msg_fix_single_bit(data, bits):
+    """
+    Try to fix single bit errors using the checksum.  On success
+    returns modified bytearray
+
+    data - bytearray of message input
+    bits - length in bits
+    """
+
+    for j in range(0, bits):
+        byte = int(j / 8)
+        bit = j % 8
+        bitmask = 1 << (7 - bit)
+
+        aux = data[:]
+
+        # Flip the j-th bit
+        aux[byte] ^= bitmask
+
+        crc1 = (aux[int(bits / 8) - 3] << 16)
+        crc1 |= (aux[int(bits / 8) - 2] << 8) 
+        crc1 |= (aux[int(bits / 8) - 1])
+
+        crc2 = adsb_crc(aux, bits)
+
+        if crc1 == crc2:
+            # The error is fixed; return the new buffer
+            return aux
+
+    return None
+
+def adsb_msg_fix_double_bit(data, bits):
+    """
+    Try to fix double bit errors using the checksum, like fix_single_bit.
+    This is very slow and should only be tried against DF17 messages.
+    
+    If successful returns the modified bytearray.
+
+    data - bytearray of message input
+    bits - length in bits
+    """
+
+    for j in range(0, bits):
+        byte1 = int(j / 8)
+        bitmask1 = 1 << (7 - (j % 8))
+
+        # Don't check the same pairs multiple times, so i starts from j+1
+        for i in range(j + 1, bits):
+            byte2 = int(i / 8)
+            bitmask2 = 1 << (7 - (i % 8))
+
+            aux = data[:]
+
+            # Flip the jth bit
+            aux[byte1] ^= bitmask1
+            # Flip the ith bit
+            aux[byte2] ^= bitmask2
+
+            crc1 = (aux[int(bits / 8) - 3] << 16)
+            crc1 |= (aux[int(bits / 8) - 2] << 8) 
+            crc1 |= (aux[int(bits / 8) - 1])
+
+            crc2 = adsb_crc(aux, bits)
+
+            if crc1 == crc2:
+                # The error is fixed; return the new buffer
+                return aux
+
+    return None
+
+
     
 def adsb_msg_get_type(data):
     """
@@ -186,6 +260,7 @@ def adsb_msg_get_ac12_altitude(data):
         n = (data[5] >> 1) << 4
         n |= (data[6] & 0xF0) >> 4
 
+        # print("Raw bytes {} {} return {}".format(data[5], data[6], n * 25 - 1000))
         return n * 25 - 1000
 
     return 0
@@ -288,6 +363,7 @@ class KismetRtladsb(object):
         self.opts['channel'] = "1090.000MHz"
         self.opts['gain'] = None
         self.opts['device'] = None
+        self.opts['debug'] = None
 
         # Thread that runs the RTL popen
         self.rtl_thread = None
@@ -433,71 +509,103 @@ class KismetRtladsb(object):
             cmd.append('-g')
             cmd.append("{}".format(self.opts['gain']))
 
+        print_stderr = False
         seen_any_valid = False
         failed_once = False
 
-        try:
-            FNULL = open(os.devnull, 'w')
-            self.rtl_exec = subprocess.Popen(cmd, stderr=FNULL, stdout=subprocess.PIPE)
+        if self.opts['debug'] is not None and self.opts['debug']:
+            print_stderr = True
 
-            while self.rtl_exec.returncode is None:
-                self.rtl_exec.poll()
-                time.sleep(0.1)
-                for line in self.rtl_exec.stdout:
-                    msg = bytearray.fromhex(line.decode('UTF-8').strip()[1:-1])
+        while True:
+            try:
+                FNULL = open(os.devnull, 'w')
+                self.rtl_exec = subprocess.Popen(cmd, stderr=FNULL, stdout=subprocess.PIPE)
 
-                    output = {}
+                while self.rtl_exec.returncode is None:
+                    self.rtl_exec.poll()
 
-                    msgtype = adsb_msg_get_type(msg)
-                    msgbits = adsb_len_by_type(msgtype)
-                    msgcrc = adsb_msg_get_crc(msg, msgbits)
-                    msgcrc2 = adsb_crc(msg, msgbits)
+                    for line in self.rtl_exec.stdout:
+                        raw_msg = line.decode('UTF-8').strip()[1:-1]
+                        msg = bytearray.fromhex(raw_msg)
 
-                    # Skip invalid CRC types; in the future, add 1bit recovery from dump1090
-                    if msgcrc != msgcrc2:
-                        continue
+                        output = {}
 
-                    msgicao = adsb_msg_get_icao(msg).hex()
+                        msgtype = adsb_msg_get_type(msg)
+                        msgbits = adsb_len_by_type(msgtype)
+                        msgcrc = adsb_msg_get_crc(msg, msgbits)
+                        msgcrc2 = adsb_crc(msg, msgbits)
 
-                    output['icao'] = msgicao
+                        output['adsb_msg_type'] = msgtype
+                        output['adsb_msg'] = raw_msg
+                        output['crc_valid'] = False
 
-                    # Look up ICAO in the airplane database
-                    for row in self.airplanes:
-                        if msgicao == row[0]:
-                            output['regid'] = row[1]
-                            output['mdl'] = row[2]
-                            output['type'] = row[3]
-                            output['operator'] = row[4]
+                        # Skip invalid CRC types; in the future, add 1bit recovery from dump1090
+                        if msgcrc != msgcrc2:
+                            if msgtype == 11 or msgtype == 17:
+                                msg2 = adsb_msg_fix_single_bit(msg, msgbits)
 
-                    if msgtype == 17:
-                        msgme, msgsubme = adsb_msg_get_me_subme(msg)
+                                if msg2 == None:
+                                    # Only try to fix double bits on msg17
+                                    if msgtype == 17:
+                                        msg2 = adsb_msg_fix_double_bit(msg, msgbits)
 
-                        if msgme >= 1 and msgme <= 4:
-                            msgflight = adsb_msg_get_flight(msg)
-                            output['callsign'] = msgflight
+                                        # Fixed double-bit error
+                                        if msg2 != None:
+                                            output['crc_valid'] = True
+                                            output['crc_recovered'] = 2
+                                            msg = msg2
+                                            continue
+                                else:
+                                    # Fixed single-bit error
+                                    output['crc_valid'] = True
+                                    output['crc_recovered'] = 1
+                                    msg = msg2
+                        else:
+                            output['crc_valid'] = True
 
-                        if msgme == 19 and (msgsubme >= 1 and msgsubme <= 4):
-                            msgpair, msglat, msglon = adsb_msg_get_airborne_position(msg)
-                            output['coordpair_even'] = msgpair
-                            output['raw_lat'] = msglat
-                            output['raw_lon'] = msglon
-            
-                            msgalt = adsb_msg_get_ac12_altitude(msg)
-                            output['altitude'] = msgalt
-            
-                            if msgsubme == 1 or msgsubme == 2:
-                                msgvelocity = adsb_msg_get_airborne_velocity(msg)
-                                msgheading = adsb_msg_get_airborne_heading(msg)
+                        # Process valid messages
+                        if output['crc_valid']:
+                            msgicao = adsb_msg_get_icao(msg).hex()
 
-                                output['speed'] = msgvelocity
-                                output['heading'] = msgheading
-            
-            
-                        elif msgtype == 0 or msgtype == 4 or msgtype == 16 or msgtype == 20:
-                            msgalt = adsb_msg_get_ac13_altitude(msg)
-                            output['altitude'] = msgalt
+                            output['icao'] = msgicao
 
-                        # print(output)
+                            # Look up ICAO in the airplane database
+                            for row in self.airplanes:
+                                if msgicao == row[0]:
+                                    output['regid'] = row[1]
+                                    output['mdl'] = row[2]
+                                    output['type'] = row[3]
+                                    output['operator'] = row[4]
+
+                            if msgtype == 17:
+                                msgme, msgsubme = adsb_msg_get_me_subme(msg)
+
+                                if msgme >= 1 and msgme <= 4:
+                                    msgflight = adsb_msg_get_flight(msg)
+                                    output['callsign'] = msgflight
+
+                                if msgme == 19 and (msgsubme >= 1 and msgsubme <= 4):
+                                    msgpair, msglat, msglon = adsb_msg_get_airborne_position(msg)
+                                    output['coordpair_even'] = msgpair
+                                    output['raw_lat'] = msglat
+                                    output['raw_lon'] = msglon
+                
+                                    msgalt = adsb_msg_get_ac12_altitude(msg)
+                                    output['altitude'] = msgalt
+                
+                                    if msgsubme == 1 or msgsubme == 2:
+                                        msgvelocity = adsb_msg_get_airborne_velocity(msg)
+                                        msgheading = adsb_msg_get_airborne_heading(msg)
+
+                                        output['speed'] = msgvelocity
+                                        output['heading'] = msgheading
+                
+                            elif msgtype == 0 or msgtype == 4 or msgtype == 16 or msgtype == 20:
+                                msgalt = adsb_msg_get_ac13_altitude(msg)
+                                output['altitude'] = msgalt
+
+                        if print_stderr:
+                            print(output, file=sys.stderr)
 
                         l = json.dumps(output)
 
@@ -506,20 +614,23 @@ class KismetRtladsb(object):
 
                         seen_any_valid = True
 
-            raise RuntimeError('rtl_adsb process exited')
+                raise RuntimeError('rtl_adsb process exited')
 
-        except Exception as e:
-            # Catch all errors, but don't die if we're reconfiguring rtl; then we need
-            # to relaunch the binary
-            if not self.rtl_reconfigure:
-                self.kismet.send_datasource_error_report(message = "Unable to process output from rtladsb: {}".format(e))
-        finally:
-            if not seen_any_valid and not self.rtl_reconfigure:
-                self.kismet.send_datasource_error_report(message = "An error occurred in rtladsb and no valid devices were seen; is your USB device plugged in?  Try running rtladsb in a terminal and confirm that it can connect to your device.")
+            except Exception as e:
+                # Catch all errors, but don't die if we're reconfiguring rtl; then we need
+                # to relaunch the binary
+                if not self.rtl_reconfigure:
+                    self.kismet.send_datasource_error_report(message = "Error handling data from rtladsb: {}".format(e))
+
+                continue
+            finally:
+                self.rtl_exec.kill()
+
+                print("An error occurred in rtl_adsb; is your USB device plugged in?  Try running rtl_adsb in a terminal and confirm it can connect to your device.  Make sure that no other programs are using this rtlsdr radio.", file=sys.stderr);
+
+                self.kismet.send_datasource_error_report(message = "An error occurred in rtladsb; is your USB device plugged in?  Try running rtladsb in a terminal and confirm that it can connect to your device.  Make sure that no other programs are using this radio.")
                 self.kismet.spindown()
-
-            self.rtl_exec.kill()
-
+                return
 
     def run_rtladsb(self):
         if self.rtl_thread != None:
@@ -653,10 +764,12 @@ class KismetRtladsb(object):
                 # Otherwise we've found a device
                 found_interface = True
 
-            # Do nothing with exceptions; they just mean we need to look at it like a 
-            # serial number
             except ValueError:
+                # A value error means we just need to look at it as a device num
                 pass
+            except:
+                # Otherwise something failed in querying the hw at a deeper level
+                return None
 
             # Try it as a serial number
             if not found_interface:
@@ -727,10 +840,14 @@ class KismetRtladsb(object):
                 # Otherwise we've found a device
                 found_interface = True
 
-            # Do nothing with exceptions; they just mean we need to look at it like a 
-            # serial number
             except ValueError:
+                # A value error means we just need to look at it as a device num
                 pass
+            except:
+                # Otherwise something failed in querying the hw at a deeper level
+                ret["success"] = False
+                ret["message"] = "could not find probe rtlsdr interface"
+                return ret
 
             # Try it as a serial number
             if not found_interface:
@@ -741,6 +858,10 @@ class KismetRtladsb(object):
                 ret['success'] = False
                 ret['message'] = "Could not find rtl-sdr device {}".format(devselector)
                 return ret
+
+            if 'debug' in options:
+                if options['debug'] == 'True' or options['debug'] == 'true':
+                    self.opts['debug'] = True
 
             if 'channel' in options:
                 self.opts['channel'] = options['channel']
@@ -758,7 +879,7 @@ class KismetRtladsb(object):
         if not self.mqtt_mode:
             if not self.check_rtl_bin():
                ret['success'] = False
-               ret['message'] = "Could not find rtladsb binary; make sure you've installed rtladsb, check the Kismet README for more information."
+               ret['message'] = "Could not find the rtl_adsb program; make sure you've installed rtladsb, check the Kismet README for more information."
                return
 
         ret['success'] = True
