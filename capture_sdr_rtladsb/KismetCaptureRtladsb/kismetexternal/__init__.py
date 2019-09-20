@@ -13,6 +13,8 @@ datasource capture, etc.
 Datasources are expanded in KismetDatasource.py
 """
 
+from __future__ import print_function
+
 import errno
 import fcntl
 import os
@@ -21,6 +23,7 @@ import socket
 import struct
 import sys
 import threading
+import traceback
 import time
 
 import google.protobuf
@@ -34,7 +37,7 @@ from . import kismet_pb2
 from . import http_pb2
 from . import datasource_pb2
 
-__version__ = "2019.08.02"
+__version__ = "2019.09.01"
 
 class ExternalInterface(object):
     """ 
@@ -661,15 +664,24 @@ class Datasource(ExternalInterface):
         if self.configuresource is None:
             self.send_datasource_configure_report(seqno, success=False,
                                                   message="helper does not support source configuration")
-            # self.spindown()
+            self.spindown()
             return
-            
-        opts = self.configuresource(seqno, conf)
+           
+        try:
+            opts = self.configuresource(seqno, conf)
+        except Exception as e:
+            print("Unhandled exception in configuresource callback", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+            self.send_datasource_configure_report(seqno, success=False,
+                    message="unhandled exception {} in configuresource callback".format(e))
+            self.spindown()
+            return
+
         
         if opts is None:
             self.send_datasource_configure_report(seqno, success=False,
                                                   message="helper does not support source configuration")
-            # self.spindown()
+            self.spindown()
             return
 
         self.send_datasource_configure_report(seqno, **opts)
@@ -683,10 +695,19 @@ class Datasource(ExternalInterface):
         if self.opensource is None:
             self.send_datasource_open_report(seqno, success=False,
                                              message="helper does not support opening sources")
-            # self.spindown()
+            self.spindown()
             return
 
-        opts = self.opensource(source, options)
+        try:
+            opts = self.opensource(source, options)
+        except Exception as e:
+            print("Unhandled exception in opensource callback", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+            self.send_datasource_oen_report(seqno, success=False,
+                    message="unhandled exception {} in opensource callback".format(e))
+            self.spindown()
+            return
+
 
         if opts is None:
             self.send_datasource_open_report(seqno, success=False,
@@ -710,7 +731,14 @@ class Datasource(ExternalInterface):
             self.spindown()
             return
 
-        opts = self.probesource(source, options)
+        try:
+            opts = self.probesource(source, options)
+        except Exception as e:
+            print("Unhandled exception in probesource callback", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+            self.send_probesource_data_report(seqno, success=False)
+            self.spindown()
+            return
 
         if opts is None:
             self.send_datasource_probe_report(seqno, success=False)
@@ -727,8 +755,17 @@ class Datasource(ExternalInterface):
 
         if self.listinterfaces is None:
             self.send_datasource_interfaces_report(seqno, success=True)
-        else:
+            self.spindown()
+            return
+
+        try:
             self.listinterfaces(seqno)
+        except Exception as e:
+            print("Unhandled exception in listinterfaces callback", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+            self.send_datasource_interfaces_report(seqno, success=True)
+            self.spindown()
+            return
 
         self.spindown()
 
