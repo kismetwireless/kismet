@@ -541,25 +541,26 @@ class KismetRtladsb(object):
 
                         # Skip invalid CRC types; in the future, add 1bit recovery from dump1090
                         if msgcrc != msgcrc2:
-                            if msgtype == 11 or msgtype == 17:
-                                msg2 = adsb_msg_fix_single_bit(msg, msgbits)
+                            # if msgtype == 11 or msgtype == 17:
+                            #     msg2 = adsb_msg_fix_single_bit(msg, msgbits)
 
-                                if msg2 == None:
-                                    # Only try to fix double bits on msg17
-                                    if msgtype == 17:
-                                        msg2 = adsb_msg_fix_double_bit(msg, msgbits)
+                            #     if msg2 == None:
+                            #         # Only try to fix double bits on msg17
+                            #         if msgtype == 17:
+                            #             msg2 = adsb_msg_fix_double_bit(msg, msgbits)
 
-                                        # Fixed double-bit error
-                                        if msg2 != None:
-                                            output['crc_valid'] = True
-                                            output['crc_recovered'] = 2
-                                            msg = msg2
-                                            continue
-                                else:
-                                    # Fixed single-bit error
-                                    output['crc_valid'] = True
-                                    output['crc_recovered'] = 1
-                                    msg = msg2
+                            #             # Fixed double-bit error
+                            #             if msg2 != None:
+                            #                 output['crc_valid'] = True
+                            #                 output['crc_recovered'] = 2
+                            #                 msg = msg2
+                            #                 continue
+                            #     else:
+                            #         # Fixed single-bit error
+                            #         output['crc_valid'] = True
+                            #         output['crc_recovered'] = 1
+                            #         msg = msg2
+                            pass
                         else:
                             output['crc_valid'] = True
 

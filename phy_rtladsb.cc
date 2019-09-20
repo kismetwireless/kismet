@@ -83,7 +83,7 @@ mac_addr Kis_RTLADSB_Phy::json_to_mac(Json::Value json) {
     // then we use the model as a (potentially) 16bit int
     //
     // Finally we set the locally assigned bit on the first octet
-
+    
     uint8_t bytes[6];
     uint16_t *model = (uint16_t *) bytes;
     uint32_t *checksum = (uint32_t *) (bytes + 2);
@@ -135,6 +135,13 @@ mac_addr Kis_RTLADSB_Phy::json_to_mac(Json::Value json) {
 bool Kis_RTLADSB_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     std::string err;
     std::string v;
+
+    if (json.isMember("crc_valid")) {
+        if (!json["crc_valid"].asBool()) {
+            return false;
+        }
+    }
+
 
     // synth a mac out of it
     mac_addr rtlmac = json_to_mac(json);
