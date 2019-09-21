@@ -11,7 +11,6 @@ setup(name='KismetCaptureRtladsb',
       entry_points={
           'console_scripts': [
               'kismet_cap_sdr_rtladsb = KismetCaptureRtladsb.kismet_cap_sdr_rtladsb:main',
-              'kismet_cap_sdr_rtladsb_mqtt = KismetCaptureRtladsb.kismet_cap_sdr_rtladsb_mqtt:main',
               ],
           },
       package_data={'KismetCaptureRtladsb': ['data/aircraft_db.csv']},
