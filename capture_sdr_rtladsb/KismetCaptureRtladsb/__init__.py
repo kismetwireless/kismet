@@ -125,8 +125,7 @@ def adsb_msg_fix_single_bit(data, bits):
 
     for j in range(0, bits):
         byte = int(j / 8)
-        bit = j % 8
-        bitmask = 1 << (7 - bit)
+        bitmask = 1 << (7 - (j % 8))
 
         aux = data[:]
 
@@ -541,36 +540,33 @@ class KismetRtladsb(object):
                 msgcrc2 = adsb_crc(msg, msgbits)
 
                 output['adsb_msg_type'] = msgtype
-                output['adsb_msg'] = raw_msg
+                output['adsb_raw_msg'] = raw_msg
                 output['crc_valid'] = False
 
                 # Skip invalid CRC types; in the future, add 1bit recovery from dump1090
                 if msgcrc != msgcrc2:
-                    # if msgtype == 11 or msgtype == 17:
-                    #     msg2 = adsb_msg_fix_single_bit(msg, msgbits)
+                    if msgtype == 11 or msgtype == 17:
+                        msg2 = adsb_msg_fix_single_bit(msg, msgbits)
 
-                    #     if msg2 == None:
-                    #         # Only try to fix double bits on msg17
-                    #         if msgtype == 17:
-                    #             msg2 = adsb_msg_fix_double_bit(msg, msgbits)
+                        if msg2 != None:
+                            msg = msg2
+                            output['crc_valid'] = True
+                            output['crc_recovered'] = 1
+                        elif msgtype == 17:
+                            msg2 = adsb_msg_fix_double_bit(msg, msgbits)
 
-                    #             # Fixed double-bit error
-                    #             if msg2 != None:
-                    #                 output['crc_valid'] = True
-                    #                 output['crc_recovered'] = 2
-                    #                 msg = msg2
-                    #                 continue
-                    #     else:
-                    #         # Fixed single-bit error
-                    #         output['crc_valid'] = True
-                    #         output['crc_recovered'] = 1
-                    #         msg = msg2
-                    pass
+                            if msg2 != None:
+                                msg = msg2
+                                output['crc_valid'] = True
+                                output['crc_recovered'] = 2
+
                 else:
                     output['crc_valid'] = True
 
                 # Process valid messages
                 if output['crc_valid']:
+                    output['adsb_msg'] = msg.hex()
+
                     msgicao = adsb_msg_get_icao(msg).hex()
 
                     output['icao'] = msgicao
