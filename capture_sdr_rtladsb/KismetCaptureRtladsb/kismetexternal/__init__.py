@@ -307,8 +307,16 @@ class ExternalInterface(object):
         return
 
     def add_task(self, task, args = []):
+        """
+        Create a task from the provided async function, associating it
+        with the main loop and returning the task record.  The task will
+        be automatically cancelled when the external interface exits
+
+        :return: asyncio task
+        """
         t = self.loop.create_task(task(*args))
         self.additional_tasks.append(t)
+        return t
 
     def add_exit_callback(self, callback):
         self.exit_callbacks.append(callback)
