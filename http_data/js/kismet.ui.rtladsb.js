@@ -49,12 +49,6 @@ kismet_ui.AddDeviceDetail("rtladsb", "RTLADSB (SDR)", 0, {
             "id": "rtladsbData",
             "fields": [
             {
-                field: "rtladsb.device/rtladsb.device.common/rtladsb.device.model",
-                liveupdate: true,
-                title: "Model",
-                empty: "<i>Unknown</i>"
-            },
-            {
                 field: "rtladsb.device/rtladsb.device.common/rtladsb.device.id",
                 liveupdate: true,
                 title: "Plane ICAO",
@@ -123,6 +117,11 @@ kismet_ui.AddDeviceDetail("rtladsb", "RTLADSB (SDR)", 0, {
                 liveupdate: true,
                 title: "Heading",
                 filterOnZero: true,
+                draw: function(opts) {
+
+                    return Math.round(opts['value']) + '&deg; <i class="fa fa-plane" style="transform: rotate(' + (opts['value'] -45) + 'deg)" />';
+
+                }
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.asgs",
