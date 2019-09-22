@@ -338,6 +338,21 @@ def adsb_msg_get_airborne_heading(data):
 
     return heading
 
+def adsb_msg_get_sub3_heading(data):
+    """
+    Direct heading from msg 17 sub 3 and 4
+
+    Returns:
+        Heading in degrees
+    """
+
+    valid = data[5] & (1 << 2)
+    heading = (data[5] & 3) << 5
+    heading |= data[6] >> 3
+    heading = heading * (360.0 / 128)
+
+    return valid, heading
+
 
 class KismetRtladsb(object):
     def __init__(self):
@@ -586,7 +601,16 @@ class KismetRtladsb(object):
                             msgflight = adsb_msg_get_flight(msg)
                             output['callsign'] = msgflight
 
-                        if msgme == 19 and (msgsubme >= 1 and msgsubme <= 4):
+                        elif msgme >= 9 and msgme <= 18:
+                            msgalt = adsb_msg_get_ac12_altitude(msg)
+                            output['altitude'] = msgalt
+
+                            msgpair, msglat, msglon = adsb_msg_get_airborne_position(msg)
+                            output['coordpair_even'] = msgpair
+                            output['raw_lat'] = msglat
+                            output['raw_lon'] = msglon
+
+                        elif msgme == 19 and (msgsubme >= 1 and msgsubme <= 4):
                             msgpair, msglat, msglon = adsb_msg_get_airborne_position(msg)
                             output['coordpair_even'] = msgpair
                             output['raw_lat'] = msglat
@@ -601,6 +625,10 @@ class KismetRtladsb(object):
 
                                 output['speed'] = msgvelocity
                                 output['heading'] = msgheading
+                            elif msgsubme == 3 or msgsubme == 4:
+                                msgheadvalid, msgheading = adsb_msg_get_airborne_heading(msg)
+                                if msgheadvalid:
+                                    out['heading'] = heading
             
                     elif msgtype == 0 or msgtype == 4 or msgtype == 16 or msgtype == 20:
                         msgalt = adsb_msg_get_ac13_altitude(msg)
