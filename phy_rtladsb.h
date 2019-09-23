@@ -204,7 +204,17 @@ public:
     __Proxy(speed, double, double, double, speed);
     __Proxy(heading, double, double, double, heading);
     __Proxy(gsas, std::string, std::string, std::string, gsas);
-    //__Proxy(icao, double, double, double, icao);
+
+    __Proxy(odd_raw_lat, double, double, double, odd_raw_lat);
+    __Proxy(odd_raw_lon, double, double, double, odd_raw_lon);
+    __Proxy(odd_ts, uint64_t, time_t, time_t, odd_ts);
+    __Proxy(even_raw_lat, double, double, double, even_raw_lat);
+    __Proxy(even_raw_lon, double, double, double, even_raw_lon);
+    __Proxy(even_ts, uint64_t, time_t, time_t, even_ts);
+
+    __Proxy(latitude, double, double, double, latitude);
+    __Proxy(longitude, double, double, double, longitude);
+
 
     //typedef kis_tracked_rrd<rtladsb_empty_aggregator> rrdt;
     //__ProxyTrackable(consumption_rrd, rrdt, consumption_rrd);
@@ -222,7 +232,15 @@ protected:
         register_field("rtladsb.device.heading", "Heading", &heading);
         register_field("rtladsb.device.gsas", "GSAS", &gsas);
 
-        //register_field("rtladsb.device.consumption_rrd", "Consumption history RRD", &consumption_rrd);
+        register_field("rtladsb.device.odd_raw_lat", "Odd-packet raw latitude", &odd_raw_lat);
+        register_field("rtladsb.device.odd_raw_lon", "Odd-packet raw longitude", &odd_raw_lon);
+        register_field("rtladsb.device.odd_ts", "Timestamp of last odd-packet", &odd_ts);
+        register_field("rtladsb.device.even_raw_lat", "even-packet raw latitude", &even_raw_lat);
+        register_field("rtladsb.device.even_raw_lon", "even-packet raw longitude", &even_raw_lon);
+        register_field("rtladsb.device.even_ts", "Timestamp of last even-packet", &even_ts);
+
+        register_field("rtladsb.device.latitude", "Calculated latitude", &latitude);
+        register_field("rtladsb.device.longitude", "Calculated longitude", &longitude);
     }
 
     // Basic temp in C, from multiple sensors; we might have to convert to C
@@ -238,25 +256,35 @@ protected:
     std::shared_ptr<tracker_element_double> heading;
     std::shared_ptr<tracker_element_string> gsas;
 
-    //std::shared_ptr<kis_tracked_rrd<rtladsb_empty_aggregator>> consumption_rrd;
+    // Aggregate location records from multiple packets to derive the actual
+    // location.  These are raw adsb locations.
+    std::shared_ptr<tracker_element_double> odd_raw_lat;
+    std::shared_ptr<tracker_element_double> odd_raw_lon;
+    std::shared_ptr<tracker_element_uint64> odd_ts;
+    std::shared_ptr<tracker_element_double> even_raw_lat;
+    std::shared_ptr<tracker_element_double> even_raw_lon;
+    std::shared_ptr<tracker_element_uint64> even_ts;
 
+    // Calculated lat/lon
+    std::shared_ptr<tracker_element_double> latitude;
+    std::shared_ptr<tracker_element_double> longitude;
 };
 
-class Kis_RTLADSB_Phy : public kis_phy_handler {
+class kis_rtladsb_phy : public kis_phy_handler {
 public:
-    virtual ~Kis_RTLADSB_Phy();
+    virtual ~kis_rtladsb_phy();
 
-    Kis_RTLADSB_Phy(global_registry *in_globalreg) :
+    kis_rtladsb_phy(global_registry *in_globalreg) :
         kis_phy_handler(in_globalreg) { };
 
 	// Build a strong version of ourselves
 	virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg, int in_phyid) override {
-		return new Kis_RTLADSB_Phy(in_globalreg, in_phyid);
+		return new kis_rtladsb_phy(in_globalreg, in_phyid);
 	}
 
-    Kis_RTLADSB_Phy(global_registry *in_globalreg, int in_phyid);
+    kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid);
 
-    static int PacketHandler(CHAINCALL_PARMS);
+    static int packet_handler(CHAINCALL_PARMS);
 
 protected:
     // Convert a JSON record to a RTL-based device key
@@ -272,8 +300,12 @@ protected:
 
     double f_to_c(double f);
 
+    int cpr_mod(int a, int b);
+    int cpr_nl(double lat);
+    int cpr_n(double lat, int odd);
+    double cpr_dlon(double lat, int odd);
+    void decode_cpr(std::shared_ptr<rtladsb_tracked_adsb> adsb);
 
-protected:
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<entry_tracker> entrytracker;
     std::shared_ptr<device_tracker> devicetracker;

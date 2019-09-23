@@ -276,10 +276,10 @@ def adsb_msg_get_airborne_position(data):
     Airborne position message from message 17
 
     Return:
-    (pair, lat, lon) raw tuple of even (0) or odd (1) and raw lat/lon
+    (pair, lat, lon) raw tuple of even or odd and raw lat/lon
     """
 
-    paireven = (data[6] & (1 << 2)) != 0
+    paireven = (data[6] & (1 << 2)) == 0
 
     lat = (data[6] & 3) << 15
     lat |= data[7] << 7
@@ -563,17 +563,20 @@ class KismetRtladsb(object):
                     if msgtype == 11 or msgtype == 17:
                         msg2 = adsb_msg_fix_single_bit(msg, msgbits)
 
-                        if msg2 != None:
-                            msg = msg2
-                            output['crc_valid'] = True
-                            output['crc_recovered'] = 1
-                        elif msgtype == 17:
-                            msg2 = adsb_msg_fix_double_bit(msg, msgbits)
+                    # This causes a *significant* slowdown, and may return 
+                    # bogus data; bypass for now
+                    #
+                    #    if msg2 != None:
+                    #        msg = msg2
+                    #        output['crc_valid'] = True
+                    #        output['crc_recovered'] = 1
+                    #    elif msgtype == 17:
+                    #        msg2 = adsb_msg_fix_double_bit(msg, msgbits)
 
-                            if msg2 != None:
-                                msg = msg2
-                                output['crc_valid'] = True
-                                output['crc_recovered'] = 2
+                    #        if msg2 != None:
+                    #            msg = msg2
+                    #            output['crc_valid'] = True
+                    #            output['crc_recovered'] = 2
 
                 else:
                     output['crc_valid'] = True
@@ -611,14 +614,6 @@ class KismetRtladsb(object):
                             output['raw_lon'] = msglon
 
                         elif msgme == 19 and (msgsubme >= 1 and msgsubme <= 4):
-                            msgpair, msglat, msglon = adsb_msg_get_airborne_position(msg)
-                            output['coordpair_even'] = msgpair
-                            output['raw_lat'] = msglat
-                            output['raw_lon'] = msglon
-            
-                            msgalt = adsb_msg_get_ac12_altitude(msg)
-                            output['altitude'] = msgalt
-            
                             if msgsubme == 1 or msgsubme == 2:
                                 msgvelocity = adsb_msg_get_airborne_velocity(msg)
                                 msgheading = adsb_msg_get_airborne_heading(msg)

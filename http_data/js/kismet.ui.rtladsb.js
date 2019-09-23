@@ -121,7 +121,22 @@ kismet_ui.AddDeviceDetail("rtladsb", "RTLADSB (SDR)", 0, {
 
                     return Math.round(opts['value']) + '&deg; <i class="fa fa-plane" style="transform: rotate(' + (opts['value'] -45) + 'deg)" />';
 
-                }
+                },
+            },
+            {
+                field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.latitude",
+                liveupdate: true,
+                title: "Location",
+                filterOnZero: true,
+                filterOnEmpty: true,
+                draw: function(opts) {
+                    try {
+                        return opts['data']['rtladsb.device']['rtladsb.device.adsb']['rtladsb.device.latitude'] + ', ' + opts['data']['rtladsb.device']['rtladsb.device.adsb']['rtladsb.device.longitude'] + ' <a target="_new" href="https://openstreetmap.org/?&mlat=' + opts['data']['rtladsb.device']['rtladsb.device.adsb']['rtladsb.device.latitude'] + '&mlon=' + opts['data']['rtladsb.device']['rtladsb.device.adsb']['rtladsb.device.longitude'] + '">View on Open Street Maps</a>';
+                    } catch (error) {
+                        return 'n/a'
+                    }
+
+                },
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.asgs",
