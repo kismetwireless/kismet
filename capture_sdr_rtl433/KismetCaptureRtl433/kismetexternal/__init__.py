@@ -203,8 +203,13 @@ class ExternalInterface(object):
                 # Process the packet buffer and see if we've read enough to
                 # form a full packet
                 self.__recv_packet()
+        except Exception as e:
+            print("FATAL:  Encountered an error writing to Kismet", e, file=sys.stderr)
+            self.kill()
+            return
         finally:
             self.running = False
+            self.kill()
 
         return
 
@@ -287,6 +292,7 @@ class ExternalInterface(object):
 
         self.loop.add_signal_handler(signal.SIGINT, self.kill)
         self.loop.add_signal_handler(signal.SIGTERM, self.kill)
+        self.loop.add_signal_handler(signal.SIGQUIT, self.kill)
 
         self.main_io_task = self.loop.create_task(self.__io_loop())
 
@@ -314,6 +320,7 @@ class ExternalInterface(object):
 
         :return: asyncio task
         """
+
         t = self.loop.create_task(task(*args))
         self.additional_tasks.append(t)
         return t
@@ -395,7 +402,11 @@ class ExternalInterface(object):
         :return: None
         """
         self.graceful_spindown = True
-        self.loop.run_until_complete(self.ext_writer.drain())
+        try:
+            self.loop.run_until_complete(self.ext_writer.drain())
+        except Exception as e:
+            # Silently ignore any errors draining, we just need to get out and die
+            pass
 
         self.kill()
 
@@ -408,18 +419,24 @@ class ExternalInterface(object):
 
         :return: None
         """
-        signature = 0xDECAFBAD
-        serial = bytearray(kedata.SerializeToString())
 
-        checksum = ExternalInterface.adler32(serial)
-        length = len(serial)
+        try:
+            signature = 0xDECAFBAD
+            serial = bytearray(kedata.SerializeToString())
 
-        packet = bytearray(struct.pack("!III", signature, checksum, length))
+            checksum = ExternalInterface.adler32(serial)
+            length = len(serial)
 
-        # Drop it on the asyncio writer and queue it to go out
-        self.ext_writer.write(packet)
-        self.ext_writer.write(serial)
-        self.ext_writer.drain()
+            packet = bytearray(struct.pack("!III", signature, checksum, length))
+
+            # Drop it on the asyncio writer and queue it to go out
+            self.ext_writer.write(packet)
+            self.ext_writer.write(serial)
+            self.ext_writer.drain()
+        except Exception as e:
+            # If we failed a low-level write we're just screwed, exit
+            print("FATAL:  Encountered error writing to kismet: ", e, file=sys.stderr)
+            self.kill()
 
     def write_ext_packet(self, cmdtype, content):
         """
