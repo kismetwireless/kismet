@@ -7,6 +7,7 @@ setup(name='KismetCaptureRtladsb',
       author_email='russell@handorf.com',
       url='https://www.handorf.com/',
       install_requires=['numpy', 'protobuf'],
+      python_requires='>=3.2',
       packages=find_packages(),
       entry_points={
           'console_scripts': [

@@ -7,6 +7,7 @@ setup(name='KismetCaptureRtl433',
       author_email='dragorn@kismetwireless.net',
       url='https://www.kismetwireless.net/',
       install_requires=['protobuf'],
+      python_requires='>=3.2',
       packages=find_packages(),
       entry_points={
           'console_scripts': [

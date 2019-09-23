@@ -775,7 +775,6 @@ enable_capture_tools_only
 enable_element_typesafety
 enable_protobuflite
 enable_python_tools
-enable_python2
 with_python_interpreter
 enable_largefile
 enable_mutextimeout
@@ -1458,8 +1457,6 @@ Optional Features:
                           protobuf
   --disable-python-tools  Disable building Python modules and Python-only data
                           sources
-  --enable-python2        Force building with python2 instead of the modern
-                          python3
   --disable-largefile     omit support for large files
   --disable-mutextimeout  Disable failsafe thread mutex timer, use with
                           caution
@@ -8424,15 +8421,6 @@ fi
 
 PYTHON=python3
 PYTHON_VERSION=3
-# Check whether --enable-python2 was given.
-if test "${enable_python2+set}" = set; then :
-  enableval=$enable_python2; case "${enableval}" in
-	  yes) PYTHON_INTERPRETER=python2;
-           PYTHON=python2 ;
-           PYTHON_VERSION=2 ;;
-	 esac
-fi
-
 
 
 # Check whether --with-python-interpreter was given.
@@ -8461,28 +8449,6 @@ else
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking python3 module: setuptools" >&5
 $as_echo_n "checking python3 module: setuptools... " >&6; }
 	python3 -c "import setuptools" 2>/dev/null
-	if test $? -eq 0;
-	then
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-		eval HAVE_PYMOD_SETUPTOOLS=yes
-	else
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-		eval HAVE_PYMOD_SETUPTOOLS=no
-		#
-		if test -n ""
-		then
-			as_fn_error $? "failed to find required module setuptools" "$LINENO" 5
-			exit 1
-		fi
-	fi
-
-    else
-
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking python module: setuptools" >&5
-$as_echo_n "checking python module: setuptools... " >&6; }
-	python2 -c "import setuptools" 2>/dev/null
 	if test $? -eq 0;
 	then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
@@ -13774,13 +13740,6 @@ if test "$havelibnm" != "yes" -a "$linux" = "yes"; then
     echo "Kismet uses libnm to prevent NetworkManager from reconfiguring monitor mode "
     echo "interfaces while Kismet is running; without this library you will need to manually "
     echo "disable NetworkManager or manually tell it to ignore specific interaces."
-fi
-
-if test "$PYTHON_VERSION" != 3; then
-    echo
-    echo "*** WARNING ***"
-    echo "Building for python2; you may need to provide your own python packages of some "
-    echo "modules like numpy, which now require python3."
 fi
 
 if test "$want_asan" = "yes" -a "$want_tsan" = "yes"; then

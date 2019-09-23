@@ -327,15 +327,6 @@ AC_ARG_ENABLE([python-tools],
 
 PYTHON=python3
 PYTHON_VERSION=3
-AC_ARG_ENABLE([python2],
-    AS_HELP_STRING([--enable-python2], [Force building with python2 instead of the modern python3]),
-	[case "${enableval}" in
-	  yes) PYTHON_INTERPRETER=python2;
-           PYTHON=python2 ;
-           PYTHON_VERSION=2 ;;
-	 esac],
-	[]
-)
 
 AC_ARG_WITH([python-interpreter],
     AS_HELP_STRING([--with-python-interpreter=PATH], [Custom location of python interpreter if not in normal PATH]))
@@ -357,8 +348,6 @@ if test "$want_python"x == "no"x; then
 else
     if test "$PYTHON_VERSION" == 3; then
         AC_PYTHON3_MODULE(setuptools)
-    else
-        AC_PYTHON_MODULE(setuptools)
     fi
 
     if test "$HAVE_PYMOD_SETUPTOOLS" == "no"; then
@@ -1729,13 +1718,6 @@ if test "$havelibnm" != "yes" -a "$linux" = "yes"; then
     echo "Kismet uses libnm to prevent NetworkManager from reconfiguring monitor mode "
     echo "interfaces while Kismet is running; without this library you will need to manually "
     echo "disable NetworkManager or manually tell it to ignore specific interaces."
-fi
-
-if test "$PYTHON_VERSION" != 3; then
-    echo
-    echo "*** WARNING ***"
-    echo "Building for python2; you may need to provide your own python packages of some "
-    echo "modules like numpy, which now require python3."
 fi
 
 if test "$want_asan" = "yes" -a "$want_tsan" = "yes"; then
