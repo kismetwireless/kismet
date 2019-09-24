@@ -39,7 +39,7 @@ from . import kismet_pb2
 from . import http_pb2
 from . import datasource_pb2
 
-__version__ = "2019.09.02"
+__version__ = "2019.09.03"
 
 class ExternalInterface(object):
     """ 
@@ -106,38 +106,48 @@ class ExternalInterface(object):
         self.MSG_FATAL = kismet_pb2.MsgbusMessage.FATAL
 
     async def __async_open_fds(self):
-        r_file = os.fdopen(self.infd, 'rb')
-        w_file = os.fdopen(self.outfd, 'wb')
+        try:
+            r_file = os.fdopen(self.infd, 'rb')
+            w_file = os.fdopen(self.outfd, 'wb')
 
-        reader = asyncio.StreamReader(loop=self.loop)
-        r_protocol = asyncio.StreamReaderProtocol(reader)
+            reader = asyncio.StreamReader(loop=self.loop)
+            r_protocol = asyncio.StreamReaderProtocol(reader)
 
-        await self.loop.connect_read_pipe(lambda: r_protocol, r_file)
+            await self.loop.connect_read_pipe(lambda: r_protocol, r_file)
 
-        w_transport, w_protocol = await self.loop.connect_write_pipe(asyncio.streams.FlowControlMixin, w_file)
+            w_transport, w_protocol = await self.loop.connect_write_pipe(asyncio.streams.FlowControlMixin, w_file)
 
-        writer = asyncio.StreamWriter(transport=w_transport, reader=None, loop=self.loop, protocol=w_protocol)
+            writer = asyncio.StreamWriter(transport=w_transport, reader=None, loop=self.loop, protocol=w_protocol)
 
-        return reader, writer
+            return reader, writer
+        except Exception as e:
+            print("Failed to open file descriptor pair:", e, file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+            self.kill()
 
     async def __async_open_remote(self, remote):
-        eq = remote.find(":")
+        try:
+            eq = remote.find(":")
 
-        if eq == -1:
-            raise RuntimeError("Expected host:port for remote")
+            if eq == -1:
+                raise RuntimeError("Expected host:port for remote")
 
-        self.remote_host = remote[:eq]
-        self.remote_port = int(remote[eq+1:])
+            self.remote_host = remote[:eq]
+            self.remote_port = int(remote[eq+1:])
 
-        if self.debug:
-            print("Opening connection to remote host {}:{}".format(self.remote_host, self.remote_port))
+            if self.debug:
+                print("Opening connection to remote host {}:{}".format(self.remote_host, self.remote_port))
 
-        reader, writer = await asyncio.open_connection(self.remote_host, self.remote_port)
+            reader, writer = await asyncio.open_connection(self.remote_host, self.remote_port)
 
-        if self.debug:
-            print("Remote connection established.")
+            if self.debug:
+                print("Remote connection established.")
 
-        return reader, writer
+            return reader, writer
+        except Exception as e:
+            print("Failed to connect to remote host:", e, file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+            self.kill()
 
     @staticmethod
     def adler32(data):
@@ -284,24 +294,30 @@ class ExternalInterface(object):
         Enter a blocking loop until the IO exits
         """
 
-        # Bring up the IO loop task; it's the only task we absolutely care 
-        # about.  Other tasks can come and go, if this one dies, we have 
-        # to shut down.
+        try:
+            # Bring up the IO loop task; it's the only task we absolutely care 
+            # about.  Other tasks can come and go, if this one dies, we have 
+            # to shut down.
 
-        # From this point onwards we exist inside this asyncio wait
+            # From this point onwards we exist inside this asyncio wait
 
-        self.loop.add_signal_handler(signal.SIGINT, self.kill)
-        self.loop.add_signal_handler(signal.SIGTERM, self.kill)
-        self.loop.add_signal_handler(signal.SIGQUIT, self.kill)
+            self.loop.add_signal_handler(signal.SIGINT, self.kill)
+            self.loop.add_signal_handler(signal.SIGTERM, self.kill)
+            self.loop.add_signal_handler(signal.SIGQUIT, self.kill)
 
-        self.main_io_task = self.loop.create_task(self.__io_loop())
+            self.main_io_task = self.loop.create_task(self.__io_loop())
 
-        if self.debug:
-            print("kismetexternal api running async loop forever")
+            if self.debug:
+                print("kismetexternal api running async loop forever")
 
-        self.loop.run_forever()
+            self.loop.run_forever()
 
-        self.running = False
+            self.running = False
+
+            self.kill()
+        except Exception as e:
+            if self.running:
+                self.kill()
 
     def start(self):
         """
@@ -320,10 +336,14 @@ class ExternalInterface(object):
 
         :return: asyncio task
         """
-
-        t = self.loop.create_task(task(*args))
-        self.additional_tasks.append(t)
-        return t
+        try:
+            t = self.loop.create_task(task(*args))
+            self.additional_tasks.append(t)
+            return t
+        except Exception as e:
+            print("Failed to add asyncio task:", e)
+            traceback.print_exc(file=sys.stderr)
+            self.kill()
 
     def add_exit_callback(self, callback):
         self.exit_callbacks.append(callback)
@@ -393,7 +413,12 @@ class ExternalInterface(object):
         if not self.main_io_task == None:
             self.main_io_task.cancel()
 
-        self.loop.stop()
+        # Try to mask python 3.5 signal handling bugs, as per
+        # https://github.com/python/asyncio/issues/396
+        try:
+            self.loop.stop()
+        except TypeError:
+            pass
 
     def spindown(self):
         """
