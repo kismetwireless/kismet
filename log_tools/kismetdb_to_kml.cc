@@ -50,8 +50,17 @@ std::string MungeForXML(const std::string& in_data) {
 	std::string ret;
 
 	for (size_t i = 0; i < in_data.length(); i++) {
-		if ((unsigned char) in_data[i] >= 32 && (unsigned char) in_data[i] <= 126 &&
-				in_data[i] != '<' && in_data[i] != '>' && in_data[i] != '\"' ) {
+        if (in_data[i] == '<') {
+            ret += "&lt;";
+        } else if (in_data[i] == '>') {
+            ret += "&gt;";
+        } else if (in_data[i] == '&') {
+            ret += "&amp;";
+        } else if (in_data[i] == '"') { 
+            ret += "&quot;";
+        } else if (in_data[i] == '\'') {
+            ret += "&apos;";
+        } else if ((unsigned char) in_data[i] >= 32 && (unsigned char) in_data[i] <= 126) {
 			ret += in_data[i];
 		} else {
 			ret += '\\';

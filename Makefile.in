@@ -483,6 +483,10 @@ manuf:
 	@echo "Generating kismet_manuf.txt"
 	@python tools/create_oui_db.py > conf/kismet_manuf.txt
 
+extcappy:
+	@echo "Updating kismetexternal python"
+	@find ./ -path *kismetexternal* -name __init__.py -not  -path *build* -exec cp ../python-kismet-external/kismetexternal/__init__.py {} \; 
+
 rpm:
 	@echo "Disabling SUID installation (RPM will handle setting the SUID bit.)"
 	@( export SUID="no"; export INSTGRP=`id -g`; export MANGRP=`id -g`; \

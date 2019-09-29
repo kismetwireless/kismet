@@ -49,57 +49,98 @@ kismet_ui.AddDeviceDetail("rtladsb", "RTLADSB (SDR)", 0, {
             "id": "rtladsbData",
             "fields": [
             {
-                field: "rtladsb.device/rtladsb.device.common/rtladsb.device.model",
-                title: "Model",
-                empty: "<i>Unknown</i>"
-            },
-            {
                 field: "rtladsb.device/rtladsb.device.common/rtladsb.device.id",
+                liveupdate: true,
                 title: "Plane ICAO",
                 empty: "<i>Unknown</i>"
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.regid",
+                liveupdate: true,
                 title: "REG ID",
                 filterOnZero: true,
+                filterOnEmpty: true,
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.mdl",
+                liveupdate: true,
                 title: "MDL",
                 filterOnZero: true,
+                filterOnEmpty: true,
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.atype",
+                liveupdate: true,
                 title: "Aircraft Type",
                 filterOnZero: true,
+                filterOnEmpty: true,
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.aoperator",
+                liveupdate: true,
                 title: "Aircraft Operator",
                 filterOnZero: true,
+                filterOnEmpty: true,
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.callsign",
+                liveupdate: true,
                 title: "Callsign",
                 filterOnZero: true,
+                filterOnEmpty: true,
+            },
+            {
+                field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.callsign",
+                id: "fa_callsign",
+                liveupdate: true,
+                title: "Flightaware",
+                filterOnZero: true,
+                filterOnEmpty: true,
+                draw: function(opts) {
+                    return '<a href="https://flightaware.com/live/flight/' + opts['value'] + '" target="_new">Track ' + opts['value'] + ' on FlightAware</a>';
+                },
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.altitude",
+                liveupdate: true,
                 title: "Altitude",
                 filterOnZero: true,
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.speed",
+                liveupdate: true,
                 title: "Speed",
                 filterOnZero: true,
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.heading",
+                liveupdate: true,
                 title: "Heading",
                 filterOnZero: true,
+                draw: function(opts) {
+
+                    return Math.round(opts['value']) + '&deg; <i class="fa fa-plane" style="transform: rotate(' + (opts['value'] -45) + 'deg)" />';
+
+                },
+            },
+            {
+                field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.latitude",
+                liveupdate: true,
+                title: "Location",
+                filterOnZero: true,
+                filterOnEmpty: true,
+                draw: function(opts) {
+                    try {
+                        return opts['data']['rtladsb.device']['rtladsb.device.adsb']['rtladsb.device.latitude'] + ', ' + opts['data']['rtladsb.device']['rtladsb.device.adsb']['rtladsb.device.longitude'] + ' <a target="_new" href="https://openstreetmap.org/?&mlat=' + opts['data']['rtladsb.device']['rtladsb.device.adsb']['rtladsb.device.latitude'] + '&mlon=' + opts['data']['rtladsb.device']['rtladsb.device.adsb']['rtladsb.device.longitude'] + '">View on Open Street Maps</a>';
+                    } catch (error) {
+                        return 'n/a'
+                    }
+
+                },
             },
             {
                 field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.asgs",
+                liveupdate: true,
                 title: "Airspeed(AS) / Groundspeed (GS)",
                 filterOnZero: true,
             },
@@ -124,8 +165,6 @@ kismet_ui.AddDeviceDetail("rtladsb", "RTLADSB (SDR)", 0, {
         });
     },
 });
-
-console.log("kismet.ui.rtladsb.js returning, we think we loaded everything?");
 
 // We're done loading
 exports.load_complete = 1;

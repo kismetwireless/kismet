@@ -482,13 +482,16 @@ int main(int argc, char *argv[], char *envp[]) {
 
         if (r == 'w') {
             wrapper = false; 
+            glob_linewrap = false;
         } else if (r == 'p') {
             show_pass = true;
         } else if (r == 'd') {
             debug_mode = true;
             wrapper = false;
+            glob_linewrap = false;
         } else if (r == 'D') {
             wrapper = false;
+            glob_linewrap = false;
         }
     }
 
@@ -692,7 +695,7 @@ int main(int argc, char *argv[], char *envp[]) {
     if (wrapper) {
         // Direct ansi calls to set the top margin and invert colors
         std::string banner_ansi = "\u001b[2J\u001b[2;r\u001b[1m\u001b[7m";
-        std::string banner = "KISMET - Point your browser to http://localhost:2501 "
+        std::string banner = "KISMET - Point your browser to http://localhost:2501 (or the address of this system) "
             "for the Kismet UI";
         std::string banner_tail_ansi = "\u001b[0m";
 
@@ -857,7 +860,7 @@ int main(int argc, char *argv[], char *envp[]) {
     devicetracker->register_phy_handler(new Kis_UAV_Phy(globalregistry));
     devicetracker->register_phy_handler(new Kis_Mousejack_Phy(globalregistry));
     devicetracker->register_phy_handler(new Kis_RTLAMR_Phy(globalregistry));
-    devicetracker->register_phy_handler(new Kis_RTLADSB_Phy(globalregistry));
+    devicetracker->register_phy_handler(new kis_rtladsb_phy(globalregistry));
 
     if (globalregistry->fatal_condition) 
         SpindownKismet(pollabletracker);

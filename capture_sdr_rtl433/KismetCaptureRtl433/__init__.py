@@ -4,9 +4,7 @@ rtl_433 Kismet data source
 (c) 2018 Mike Kershaw / Dragorn
 Licensed under GPL2 or above
 
-Supports both local usb rtlsdr devices via the rtl_433 binary, remote capture
-from a usb rtlsdr, and remote capture from a mqtt stream, if paho mqtt is
-installed.
+Supports both local usb rtlsdr devices via the rtl_433 binary
 
 Sources are generated as rtl433-XYZ when multiple rtl radios are detected.
 
@@ -16,17 +14,10 @@ Accepts standard options:
     channel=freq      (in raw hz to rtl_433)
 
     channels="a,b,c"  Pass hopping list to rtl433_bin
-
-Additionally accepts:
-    ppm_error         Passed as -p to rtl_433
-    gain              Passed as -g to rtl_433
-
-    mqtt              MQTT server
-    mqtt_port         MQTT port (default 1883)
-    mqtt_channel      MQTT channel (default rtl433)
-
 """
+from __future__ import print_function
 
+import asyncio
 import argparse
 import ctypes
 from datetime import datetime
@@ -35,21 +26,14 @@ import os
 import subprocess
 import sys
 import threading
+import traceback
 import time
 import uuid
 
 from . import kismetexternal
 
-try:
-    import paho.mqtt.client as mqtt
-    has_mqtt = True
-except ImportError:
-    has_mqtt = False
-
 class KismetRtl433(object):
-    def __init__(self, mqtt = False):
-        self.mqtt_mode = mqtt
-
+    def __init__(self):
         self.opts = {}
 
         self.opts['rtlbin'] = 'rtl_433'
@@ -58,11 +42,13 @@ class KismetRtl433(object):
         self.opts['device'] = None
         self.opts['uuid'] = None
         self.opts['ppm'] = None
+        self.opts['debug'] = None
 
-        # Thread that runs the RTL popen
-        self.rtl_thread = None
-        # The popen'd RTL binary
-        self.rtl_exec = None
+        # The subprocess
+        self.rtl_proc = None
+
+        # The task so we can kill it during reconfigure
+        self.rtl_task = None
 
         # Are we killing rtl because we're reconfiguring?
         self.rtl_reconfigure = False
@@ -73,30 +59,27 @@ class KismetRtl433(object):
         # Do we have librtl?
         self.have_librtl = False
 
-        if not self.mqtt_mode:
-            self.driverid = "rtl433"
-            # Use ctypes to load librtlsdr and probe for supported USB devices
-            try:
-                self.rtllib = ctypes.CDLL("librtlsdr.so.0")
+        self.driverid = "rtl433"
+        # Use ctypes to load librtlsdr and probe for supported USB devices
+        try:
+            self.rtllib = ctypes.CDLL("librtlsdr.so.0")
 
-                self.rtl_get_device_count = self.rtllib.rtlsdr_get_device_count
+            self.rtl_get_device_count = self.rtllib.rtlsdr_get_device_count
 
-                self.rtl_get_device_name = self.rtllib.rtlsdr_get_device_name
-                self.rtl_get_device_name.argtypes = [ctypes.c_int]
-                self.rtl_get_device_name.restype = ctypes.c_char_p
+            self.rtl_get_device_name = self.rtllib.rtlsdr_get_device_name
+            self.rtl_get_device_name.argtypes = [ctypes.c_int]
+            self.rtl_get_device_name.restype = ctypes.c_char_p
 
-                self.rtl_get_usb_strings = self.rtllib.rtlsdr_get_device_usb_strings
-                self.rtl_get_usb_strings.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
+            self.rtl_get_usb_strings = self.rtllib.rtlsdr_get_device_usb_strings
+            self.rtl_get_usb_strings.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
 
-                self.rtl_get_index_by_serial = self.rtllib.rtlsdr_get_index_by_serial
-                self.rtl_get_index_by_serial.argtypes = [ctypes.c_char_p]
-                self.rtl_get_index_by_serial.restype = ctypes.c_int
+            self.rtl_get_index_by_serial = self.rtllib.rtlsdr_get_index_by_serial
+            self.rtl_get_index_by_serial.argtypes = [ctypes.c_char_p]
+            self.rtl_get_index_by_serial.restype = ctypes.c_int
 
-                self.have_librtl = True
-            except OSError:
-                self.have_librtl = False
-        else:
-            self.driverid = "rtl433mqtt"
+            self.have_librtl = True
+        except OSError:
+            self.have_librtl = False
 
         parser = argparse.ArgumentParser(description='RTL433 to Kismet bridge - Creates a rtl433 data source on a Kismet server and passes JSON-based records from the rtl_433 binary',
                 epilog='Requires the rtl_433 tool (install your distributions package or compile from https://github.com/merbanan/rtl_433)')
@@ -139,19 +122,25 @@ class KismetRtl433(object):
 
             print("Connecting to remote server {}".format(self.config.connect))
 
+
+    def run(self):
         self.kismet = kismetexternal.Datasource(self.config.infd, self.config.outfd, remote = self.config.connect)
+
+        # self.kismet.debug = True
 
         self.kismet.set_configsource_cb(self.datasource_configure)
         self.kismet.set_listinterfaces_cb(self.datasource_listinterfaces)
         self.kismet.set_opensource_cb(self.datasource_opensource)
         self.kismet.set_probesource_cb(self.datasource_probesource)
 
+        self.kismet.start()
+
         # If we're connecting remote, kick a newsource
         if self.proberet:
             print("Registering remote source {} {}".format(self.driverid, self.config.source))
             self.kismet.send_datasource_newsource(self.config.source, self.driverid, self.proberet['uuid'])
 
-        self.kismet.start()
+        self.kismet.run()
 
     def is_running(self):
         return self.kismet.is_running()
@@ -184,92 +173,83 @@ class KismetRtl433(object):
 
         return True
 
-    def __rtl_thread(self):
-        """ Internal thread for running the rtl binary """
-        cmd = [ self.opts['rtlbin'], '-F', 'json', '-G' ]
-
-        if self.opts['device'] is not None:
-            cmd.append('-d')
-            cmd.append("{}".format(self.opts['device']))
-
-        if self.opts['gain'] is not None:
-            cmd.append('-g')
-            cmd.append("{}".format(self.opts['gain']))
-
-        if self.opts['channel'] is not None:
-            cmd.append('-f')
-            cmd.append("{}".format(self.opts['channel']))
-
-        if self.opts['ppm'] is not None:
-            cmd.append('-p')
-            cmd.append("{}".format(self.opts['ppm']))
-
-        seen_any_valid = False
-        failed_once = False
+    async def __rtl_433_task(self):
+        """
+        asyncio task for consuming output from the rtl_433 process
+        """
 
         try:
-            FNULL = open(os.devnull, 'w')
-            self.rtl_exec = subprocess.Popen(cmd, stderr=FNULL, stdout=subprocess.PIPE)
+            self.kill_433()
 
-            while True:
-                l = self.rtl_exec.stdout.readline()
+            cmd = [ self.opts['rtlbin'], '-F', 'json', '-G' ]
 
-                if not self.handle_json(l):
+            if self.opts['device'] is not None:
+                cmd.append('-d')
+                cmd.append("{}".format(self.opts['device']))
+
+            if self.opts['gain'] is not None:
+                cmd.append('-g')
+                cmd.append("{}".format(self.opts['gain']))
+
+            if self.opts['channel'] is not None:
+                cmd.append('-f')
+                cmd.append("{}".format(self.opts['channel']))
+
+            if self.opts['ppm'] is not None:
+                cmd.append('-p')
+                cmd.append("{}".format(self.opts['ppm']))
+
+            seen_any_valid = False
+            failed_once = False
+            print_stderr = False
+
+            if self.opts['debug'] is not None and self.opts['debug']:
+                print_stderr = True
+
+            self.rtl_proc = await asyncio.create_subprocess_exec(*cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.DEVNULL)
+
+            while not self.kismet.kill_ioloop:
+                line = await self.rtl_proc.stdout.readline()
+
+                if not line:
+                    break
+
+                msg = line.decode('UTF-8').strip()
+
+                if print_stderr:
+                    print("RTL433", msg, file=sys.stderr)
+
+                if not self.handle_json(msg):
                     raise RuntimeError('could not process response from rtl_433')
 
                 seen_any_valid = True
 
+            raise RuntimeError('rtl_433 process exited')
 
         except Exception as e:
-            # Catch all errors, but don't die if we're reconfiguring rtl; then we need
-            # to relaunch the binary
             if not self.rtl_reconfigure:
-                self.kismet.send_datasource_error_report(message = "Unable to process output from rtl_433: {}".format(e))
+                trackeback.print_exc(file=sys.stderr)
+                print("An error occurred in rtl_433; is your USB device plugged in?  Try running rtl_433 in a terminal and confirm it can connect to your device.  Make sure that no other programs are using this rtlsdr radio.", file=sys.stderr)
+
+                self.kismet.send_datasource_error_report(message="Error handling data from rtl_433: {}".format(e))
+
         finally:
-            if not seen_any_valid and not self.rtl_reconfigure:
-                self.kismet.send_datasource_error_report(message = "An error occurred in rtl_433 and no valid devices were seen; is your USB device plugged in?  Try running rtl_433 in a terminal and confirm that it can connect to your device.")
+            self.kill_433()
+            if not self.rtl_configure:
                 self.kismet.spindown()
 
-            self.rtl_exec.kill()
-
+    def kill_433(self):
+        try:
+            if not self.rtl_proc == None:
+                self.rtl_proc.kill()
+        except Exception as e:
+            pass
 
     def run_rtl433(self):
-        if self.rtl_thread != None:
-            # Turn on reconfigure mode
-            if self.rtl_exec != None:
-                self.rtl_reconfigure = True
-                self.rtl_exec.kill(9)
-
-            # Let the thread spin down and turn off reconfigure mode
-            self.rtl_thread.join()
-            self.rtl_reconfigure = False
-
-        self.rtl_thread = threading.Thread(target=self.__rtl_thread)
-        self.rtl_thread.daemon = True
-        self.rtl_thread.start()
-
-    def __mqtt_thread(self):
-        self.mq.loop_forever()
-
-    def run_mqtt(self, options):
-        def on_msg(client, user, msg):
-            if not self.handle_json(msg.payload):
-                raise RuntimeError('could not post data')
-
-        opts = options
-        opts.setdefault("mqtt", 'localhost')
-        opts.setdefault("mqtt_port", '1883')
-        opts.setdefault("mqtt_channel", 'rtl433')
-
-        self.mq = mqtt.Client()
-        self.mq.on_message = on_msg
-        self.mq.connect(opts['mqtt'], int(opts['mqtt_port']))
-        self.mq.subscribe(opts['mqtt_channel'])
-
-        self.mq_thread = threading.Thread(target=self.__mqtt_thread)
-        self.mq_thread.daemon = True
-        self.mq_thread.start()
-
+        self.kismet.add_exit_callback(self.kill_433)
+        self.kismet.add_task(self.__rtl_433_task)
 
     # Implement the listinterfaces callback for the datasource api;
     def datasource_listinterfaces(self, seqno):
@@ -298,17 +278,6 @@ class KismetRtl433(object):
 
         self.kismet.send_datasource_interfaces_report(seqno, interfaces)
 
-    def __get_mqtt_uuid(self, options):
-        opts = options
-        opts.setdefault('mqtt', 'localhost')
-        opts.setdefault('mqtt_port', '1883')
-        opts.setdefault('mqtt_channel', 'kismet')
-
-        mqhash = kismetexternal.Datasource.adler32("{}{}{}".format(opts['mqtt'], opts['mqtt_port'], opts['mqtt_channel']))
-        mqhex = "0000{:02X}".format(mqhash)
-
-        return kismetexternal.Datasource.make_uuid("kismet_cap_sdr_rtl433", mqhex)
-
     def __get_rtlsdr_uuid(self, intnum):
         # Get the USB info
         (manuf, product, serial) = self.get_rtl_usb_info(intnum)
@@ -327,63 +296,48 @@ class KismetRtl433(object):
         if not source[:7] == "rtl433-":
             return None
 
-        if source[7:] == "mqtt":
-            if not 'mqtt' in options:
-                return None
-            if not has_mqtt:
-                return None
+        # Do we have librtl?
+        if not self.have_librtl:
+            return None
 
-            ret['hardware'] = "MQTT"
-            if ('uuid' in options):
-                ret['uuid'] = options['uuid']
-            else:
-                ret['uuid'] = self.__get_mqtt_uuid(options)
+        if not self.check_rtl_bin():
+            return None
+
+        # Device selector could be integer position, or it could be a serial number
+        devselector = source[7:]
+        found_interface = False
+        intnum = -1
+
+        # Try to find the device as an index
+        try:
+            intnum = int(devselector)
+
+            # Abort if we're not w/in the range
+            if intnum >= self.rtl_get_device_count():
+                raise ValueError("n/a")
+
+            # Otherwise we've found a device
+            found_interface = True
+
+        # Do nothing with exceptions; they just mean we need to look at it like a 
+        # serial number
+        except ValueError:
+            pass
+
+        # Try it as a serial number
+        if not found_interface:
+            intnum = self.rtl_get_index_by_serial(devselector.encode('utf-8'))
+
+        # We've failed as both a serial and as an index, give up
+        if intnum < 0:
+            return None
+
+        ret['hardware'] = self.rtl_get_device_name(intnum)
+
+        if ('uuid' in options):
+            ret['uuid'] = options['uuid']
         else:
-            # Do we have librtl?
-            if not self.have_librtl:
-                return None
-
-            if self.mqtt_mode:
-                return None
-
-            if not self.check_rtl_bin():
-                return None
-
-            # Device selector could be integer position, or it could be a serial number
-            devselector = source[7:]
-            found_interface = False
-            intnum = -1
-
-            # Try to find the device as an index
-            try:
-                intnum = int(devselector)
-
-                # Abort if we're not w/in the range
-                if intnum >= self.rtl_get_device_count():
-                    raise ValueError("n/a")
-
-                # Otherwise we've found a device
-                found_interface = True
-
-            # Do nothing with exceptions; they just mean we need to look at it like a 
-            # serial number
-            except ValueError:
-                pass
-
-            # Try it as a serial number
-            if not found_interface:
-                intnum = self.rtl_get_index_by_serial(devselector.encode('utf-8'))
-
-            # We've failed as both a serial and as an index, give up
-            if intnum < 0:
-                return None
-
-            ret['hardware'] = self.rtl_get_device_name(intnum)
-
-            if ('uuid' in options):
-                ret['uuid'] = options['uuid']
-            else:
-                ret['uuid'] = self.__get_rtlsdr_uuid(intnum)
+            ret['uuid'] = self.__get_rtlsdr_uuid(intnum)
 
         ret['channel'] = self.opts['channel']
         ret['channels'] = [self.opts['channel']]
@@ -401,91 +355,66 @@ class KismetRtl433(object):
 
         intnum = -1
 
-        if source[7:] == "mqtt":
-            if not 'mqtt' in options:
-                ret["success"] = False
-                ret["message"] = "MQTT requested, but no mqtt=xyz option in source definition"
-                return ret
-            if not has_mqtt:
-                ret["success"] = False
-                ret["message"] = "MQTT requested, but the python paho mqtt package is not installed"
-                return ret
-            
-            ret['hardware'] = "MQTT"
-            if ('uuid' in options):
-                ret['uuid'] = options['uuid']
-            else:
-                ret['uuid'] = self.__get_mqtt_uuid(options)
+        if not self.have_librtl:
+            ret['success'] = False
+            ret['message'] = "could not find librtlsdr, unable to configure rtlsdr interfaces"
+            return ret
 
-            self.mqtt_mode = True
+        # Device selector could be integer position, or it could be a serial number
+        devselector = source[7:]
+        found_interface = False
+        intnum = -1
+
+        # Try to find the device as an index
+        try:
+            intnum = int(devselector)
+
+            # Abort if we're not w/in the range
+            if intnum >= self.rtl_get_device_count():
+                raise ValueError("n/a")
+
+            # Otherwise we've found a device
+            found_interface = True
+
+        # Do nothing with exceptions; they just mean we need to look at it like a 
+        # serial number
+        except ValueError:
+            pass
+
+        # Try it as a serial number
+        if not found_interface:
+            intnum = self.rtl_get_index_by_serial(devselector.encode('utf-8'))
+
+        # We've failed as both a serial and as an index, give up
+        if intnum < 0:
+            ret['success'] = False
+            ret['message'] = "Could not find rtl-sdr device {}".format(devselector)
+            return ret
+
+        if 'channel' in options:
+            self.opts['channel'] = options['channel']
+
+        if 'gain' in options:
+            self.opts['gain'] = options['gain']
+
+        if 'ppm_error' in options:
+            self.opts['ppm'] = options['ppm_error']
+
+        if 'debug' in options:
+            if options['debug'] == 'True' or options['debug'] == 'true':
+                self.opts['debug'] = True
+
+        ret['hardware'] = self.rtl_get_device_name(intnum)
+        if ('uuid' in options):
+            ret['uuid'] = options['uuid']
         else:
-            if not self.have_librtl:
-                ret['success'] = False
-                ret['message'] = "could not find librtlsdr, unable to configure rtlsdr interfaces"
-                return ret
+            ret['uuid'] = self.__get_rtlsdr_uuid(intnum)
 
-            # Device selector could be integer position, or it could be a serial number
-            devselector = source[7:]
-            found_interface = False
-            intnum = -1
-
-            # Try to find the device as an index
-            try:
-                intnum = int(devselector)
-
-                # Abort if we're not w/in the range
-                if intnum >= self.rtl_get_device_count():
-                    raise ValueError("n/a")
-
-                # Otherwise we've found a device
-                found_interface = True
-
-            # Do nothing with exceptions; they just mean we need to look at it like a 
-            # serial number
-            except ValueError:
-                pass
-
-            # Try it as a serial number
-            if not found_interface:
-                intnum = self.rtl_get_index_by_serial(devselector.encode('utf-8'))
-
-            # We've failed as both a serial and as an index, give up
-            if intnum < 0:
-                ret['success'] = False
-                ret['message'] = "Could not find rtl-sdr device {}".format(devselector)
-                return ret
-
-            if 'channel' in options:
-                self.opts['channel'] = options['channel']
-
-            if 'gain' in options:
-                self.opts['gain'] = options['gain']
-
-            if 'ppm_error' in options:
-                self.opts['ppm'] = options['ppm_error']
-
-            ret['hardware'] = self.rtl_get_device_name(intnum)
-            if ('uuid' in options):
-                ret['uuid'] = options['uuid']
-            else:
-                ret['uuid'] = self.__get_rtlsdr_uuid(intnum)
-
-            self.opts['device'] = intnum
-
-            self.mqtt_mode = False
-
-        if not self.mqtt_mode:
-            if not self.check_rtl_bin():
-               ret['success'] = False
-               ret['message'] = "Could not find rtl_433 binary; make sure you've installed rtl_433, check the Kismet README for more information."
-               return
+        self.opts['device'] = intnum
 
         ret['success'] = True
 
-        if self.mqtt_mode:
-            self.run_mqtt(options)
-        else:
-            self.run_rtl433()
+        self.run_rtl433()
 
         return ret
 

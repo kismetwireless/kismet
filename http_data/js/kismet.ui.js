@@ -557,6 +557,10 @@ exports.DeviceDetailWindow = function(key) {
         return;
     }
 
+    var options = {
+        storage: {}
+    };
+
     var h = $(window).height() - 5;
 
     // If we're on a wide-screen browser, try to split it into 3 details windows
@@ -610,6 +614,7 @@ exports.DeviceDetailWindow = function(key) {
         onclosed: function() {
             clearTimeout(this.timerid);
             this.active = false;
+            window['storage_devlist_' + key] = {};
         },
 
         callback: function() {
@@ -617,6 +622,10 @@ exports.DeviceDetailWindow = function(key) {
             var content = this.content;
 
             this.active = true;
+
+            window['storage_devlist_' + key] = {};
+
+            window['storage_devlist_' + key]['foobar'] = 'bar';
 
             this.updater = function() {
             $.get(local_uri_prefix + "devices/by-key/" + key + "/device.json")
@@ -676,7 +685,7 @@ exports.DeviceDetailWindow = function(key) {
 
                         if ('draw' in di.options &&
                                 typeof(di.options.draw) === 'function') {
-                            di.options.draw(fulldata, vcontent);
+                            di.options.draw(fulldata, vcontent, options, 'storage_devlist_' + key);
                         }
                     }
                     accordion.accordion({ heightStyle: 'fill' });
@@ -686,9 +695,9 @@ exports.DeviceDetailWindow = function(key) {
                         "</code>: HTTP code <code>" + jqxhr.status + "</code>, " + texterror + "</div>");
             })
             .always(function() {
-                return;
-                if (panel.active) 
-                    panel.timerid = setTimeout(panel.updater(), 5000);
+                if (panel.active) {
+                    panel.timerid = setTimeout(function() { panel.updater(); }, 1000);
+                }
             })
             };
 
@@ -1038,17 +1047,25 @@ exports.InitializeDeviceTable = function(element) {
                     }
 
                     // Call the draw callback if one exists
-                    col.kismetdrawfunc(col, dt, this);
+                    try {
+                        col.kismetdrawfunc(col, dt, this);
+                    } catch (error) {
+                        ;
+                    }
                 }
 
                 for (var r in DeviceRowHighlights) {
-                    var rowh = DeviceRowHighlights[r];
+                    try {
+                        var rowh = DeviceRowHighlights[r];
 
-                    if (rowh['enable']) {
-                        if (rowh['selector'](this.data())) {
-                            $('td', this.node()).css('background-color', rowh['color']);
-                            break;
+                        if (rowh['enable']) {
+                            if (rowh['selector'](this.data())) {
+                                $('td', this.node()).css('background-color', rowh['color']);
+                                break;
+                            }
                         }
+                    } catch (error) {
+                        ;
                     }
                 }
             }

@@ -50,9 +50,24 @@
         fields should reference fields as 'val1' and 'val2' to get automatically
         indexed by reference
 
+        // A storage object passed to render and draw in opts['storage'], for 
+        // holding js-scope variables
+        "storage": {}
+
+        // Perform live updates on this field by calling draw() when new data is
+        // available
+        "liveupdate": bool
+
         // Optional string or function for rendering that should return html, taking
-        // the original key, data, and resolved value
+        // the original key, data, and resolved value; this is used to create any 
+        // necessary wrapper objects.
         "render": string | function(opts) {}  
+
+        // Optional function for drawing data, called repeatedly as data is updated; 
+        // This function can return nothing and manipulate only the content it is
+        // given, or it can return a string or object which replaces the current 
+        // content of the cell
+        "draw": function(opts) {}
 
         // Optional function for
 
@@ -104,24 +119,32 @@
             "fields": [],
             "baseobject": "",
             "sanitize": true,
+            "storage": {},
         }, options);
 
-        var subtable = $('table #' + settings['id'], this);
+        var subtable = $('table.kismet_devicedata#' + kismet.sanitizeId(settings['id']), this);
 
         // Do we need to make a table to hold our stuff?
         if (subtable.length == 0) {
             subtable = $('<table />', {
-                    "id": settings['id'],
+                    "id": kismet.sanitizeId(settings['id']),
                     "class": "kismet_devicedata",
                     "width": "100%",
                 });
             this.append(subtable);
-        } else {
-            subtable.empty();
         }
 
         settings.fields.forEach(function(v, index, array) {
-            var id = (settings.baseobject + v['field']).replace(/[.\[\]\(\)]/g, '_');
+            var id;
+            var liveupdate = false;
+
+            if ('id' in v)
+                id = kismet.sanitizeId(settings.baseobject + v['id']);
+            else
+                id = kismet.sanitizeId(settings.baseobject + v['field']);
+
+            if ('liveupdate' in v)
+                liveupdate = v['liveupdate'];
 
             // Do we have a function for rendering this?
             var d = kismet.ObjectByString(data, settings.baseobject + v['field']);
@@ -131,7 +154,9 @@
                 basekey: settings.baseobject,
                 base: kismet.ObjectByString(data, settings.baseobject),
                 data: data,
-                value: d
+                value: d,
+                id: id,
+                storage: settings['storage']
             };
 
             if ('index' in settings) {
@@ -159,52 +184,80 @@
 
             // Do we have a sub-group or group list?
             if ('groupTitle' in v) {
-                var drow = $('<tr class="kismet_devicedata_grouptitle" />', {
-                    "id": "tr_" + id
-                });
+                var drow = $('tr.kismet_devicedata_grouptitle#tr_' + id, subtable);
 
-                subtable.append(drow);
+                if (drow.length == 0) {
+                    drow = $('<tr>', {
+                        class: 'kismet_devicedata_grouptitle',
+                        id: 'tr_' + id
+                    });
 
-                drow.append($('<td />', {
-                    "class": "kismet_devicedata_span",
-                    "colspan": 2
-                }));
+                    subtable.append(drow);
 
-                var cell = $('td:eq(0)', drow);
+                    var cell = $('<td>', {
+                        class: 'kismet_devicedata_span',
+                        colspan: 2
+                    });
 
-                var gt = "";
+                    drow.append(cell);
 
-                if (typeof(v['groupTitle']) === 'string')
-                    gt = v['groupTitle'];
-                else if (typeof(v['groupTitle']) === 'function')
-                    gt = v['groupTitle'](callopts);
+                    var contentdiv = $('<div>', {
+                        id: 'cd_' + id
+                    });
 
-                cell.append($('<b class="devicedata_subgroup_header">' + gt + '</b>'));
+                    callopts['container'] = contentdiv;
+                    callopts['cell'] = cell;
+                    callopts['containerid'] = 'cd_' + id;
 
-                if ('help' in v && v['help']) {
-                    fn = make_help_func(v, gt);
+                    var gt = "";
 
-                    cell.append($('<i>', {
-                        class: 'k_dd_td_help pseudolink fa fa-question-circle'
-                    })
-                    .on('click', fn)
-                    );
+                    if (typeof(v['groupTitle']) === 'string')
+                        gt = v['groupTitle'];
+                    else if (typeof(v['groupTitle']) === 'function')
+                        gt = v['groupTitle'](callopts);
 
+                    cell.append($('<b class="devicedata_subgroup_header">' + gt + '</b>'));
+
+                    if ('help' in v && v['help']) {
+                        fn = make_help_func(v, gt);
+
+                        cell.append($('<i>', {
+                            class: 'k_dd_td_help pseudolink fa fa-question-circle'
+                        })
+                            .on('click', fn)
+                        );
+
+                    }
+
+                    cell.append($('<br>'));
+
+                    cell.append(contentdiv);
+
+                    if ('render' in v && typeof(v.render) === 'function') {
+                        contentdiv.html(v.render(callopts));
+                    }
+                } else if (!liveupdate) {
+                    var contentdiv = $('div#cd_' + id, drow);
+                    contentdiv.devicedata(data, v);
+                    return;
                 }
 
-                cell.append($('<br />'));
-                cell.append($('<div />'));
+                var cell = $('td', drow);
+                var contentdiv = $('div#cd_' + id, drow);
 
-                var contentdiv = $('div', cell);
+                callopts['container'] = cell;
+                callopts['cell'] = cell;
+                callopts['containerid'] = 'cd_' + id;
 
                 // Recursively fill in the div with the sub-settings
                 contentdiv.devicedata(data, v);
 
                 // Apply the draw function after the subgroup is created
                 if ('draw' in v && typeof(v.draw) === 'function') {
-                    callopts['container'] = cell;
+                    var r = v.draw(callopts);
 
-                    v.draw(callopts);
+                    if (typeof(r) !== 'undefined' && typeof(r) !== 'none') 
+                        cell.html(r);
                 }
 
                 return;
@@ -213,132 +266,176 @@
             // Iterative group
             if ('groupIterate' in v && v['groupIterate'] == true) {
                 for (var idx in d) {
+                    // index the subobject
+                    v['baseobject'] = v['field'] + '[' + idx + ']' + '/';
+                    v['index'] = idx;
+
                     callopts['index'] = idx;
                     callopts['basekey'] = v['field'] + '[' + idx + ']' + '/';
                     callopts['base'] = kismet.ObjectByString(data, callopts['basekey']);
 
-                    // If we have a title, make a span row for it
-                    if ('iterateTitle' in v) {
-                        var subid = (id + '[' + idx + ']').replace(/[.\[\]\(\)]/g, '_');
+                    var subid = kismet.sanitizeId(id + '[' + idx + ']');
+                    callopts['id'] = subid;
 
-                        var drow = $('<tr class="kismet_devicedata_groupdata" />', {
-                            "id": "tr_" + subid
+                    var drow = $('tr.kismet_devicedata_groupdata#tr_' + subid, subtable);
+
+                    if (drow.length == 0) {
+                        drow = $('<tr>', {
+                            class: 'kismet_devicedata_groupdata',
+                            id: 'tr_' + subid
                         });
 
                         subtable.append(drow);
 
-                        drow.append($('<td />', {
-                            "class": "kismet_devicedata_span",
-                            "colspan": 2
-                        }));
+                        var cell = $('<td>', {
+                            class: 'kismet_devicedata_span', 
+                            colspan: 2
+                        });
 
-                        var cell = $('td:eq(0)', drow);
+                        drow.append(cell);
 
-                        var it = "";
+                        // Make the content div for it all the time
+                        var contentdiv = $('<div>', {
+                            id: 'cd_' + subid
+                        });
 
-                        if (typeof(v['iterateTitle']) === 'string')
-                            it = v['iterateTitle'];
-                        else if (typeof(v['iterateTitle']) === 'function')
-                            it = v['iterateTitle'](callopts);
+                        callopts['container'] = contentdiv;
+                        callopts['cell'] = cell;
+                        callopts['containerid'] = 'cd_' + subid;
 
-                        cell.append($('<b class="devicedata_subgroup_header">' + it + '</b>'));
+                        // If we have a title, make a span row for it
+                        if ('iterateTitle' in v) {
+                            // console.log('iteratetitle', subid);
 
-                        cell.append($('<br />'));
+                            var it = "";
+
+                            if (typeof(v['iterateTitle']) === 'string')
+                                it = v['iterateTitle'];
+                            else if (typeof(v['iterateTitle']) === 'function')
+                                it = v['iterateTitle'](callopts);
+
+                            cell.append($('<b class="devicedata_subgroup_header">' + it + '</b>'));
+                            cell.append($('<br />'));
+                        }
+
+                        cell.append(contentdiv);
+
+                        if ('render' in v && typeof(v.render) === 'function') {
+                            contentdiv.html(v.render(callopts));
+                        }
+                    } else if (!liveupdate) {
+                        var contentdiv = $('div#cd_' + subid, drow);
+                        contentdiv.devicedata(data, v);
+
+                        return;
                     }
 
-                    cell.append($('<div />'));
+                    var cell = $('td', drow);
+                    var contentdiv = $('div#cd_' + subid, drow);
 
-                    var contentdiv = $('div', cell);
-
-                    // index the subobject
-                    v['baseobject'] = v['field'] + '[' + idx + ']' + '/';
-                    v['index'] = idx;
+                    callopts['cell'] = cell;
+                    callopts['container'] = contentdiv;
+                    callopts['containerid'] = 'cd_' + subid;
 
                     contentdiv.devicedata(data, v);
 
                     // Apply the draw function after the iterative group is processed
                     if ('draw' in v && typeof(v.draw) === 'function') {
-                        callopts['container'] = cell;
+                        var r = v.draw(callopts);
 
-                        v.draw(callopts);
+                        if (typeof(r) !== 'undefined' && typeof(r) !== 'none') 
+                            contentdiv.html(r);
                     }
-
                 }
 
                 return;
             }
 
             // Standard row
-            var drow = $('<tr />', {
-                "id": "tr_" + id,
-            });
+            var drow = $('tr.kismet_devicedata_groupdata#tr_' + id, subtable);
 
-            if (v["span"]) {
-                drow.append($('<td />', {
-                    "colspan": 2,
-                    "class": "kismet_devicedata_span"
-                }));
-            } else {
-                drow.html('<td class="kismet_devicedata_td_title" /><td class="kismet_devicedata_td_content" />');
-            }
+            if (drow.length == 0) {
+                drow = $('<tr>', {
+                    class: 'kismet_devicedata_groupdata',
+                    id: 'tr_' + id
+                });
 
-            subtable.append(drow);
+                var td;
 
-            var td;
-
-            if (v["span"]) {
-                td = $('td:eq(0)', drow);
-            } else {
-                var titletd = $('td:eq(0)', drow);
-                
-                titletd.html(v['title']);
-
-                if (v['help']) {
-                    fn = make_help_func(v, v['title']);
-
-                    titletd.append($('<i>', {
-                        class: 'k_dd_td_help pseudolink fa fa-question-circle'
-                    })
-                    .on('click', fn)
-                    );
-
-                }
-
-                td = $('td:eq(1)', drow);
-            }
-
-            if ('render' in v) {
-                if (typeof(v['render']) === 'function') {
-                    td.html(v['render'](callopts));
-                } else if (typeof(v['render']) === 'string') {
-                    td.html(v['render']);
-                }
-            } else {
-                if ('empty' in v && 
-                        (typeof(d) === 'undefined' ||
-                         (typeof(d) !== 'undefined' && d.length == 0))) {
-                    if (typeof(v['empty']) === 'string')
-                        td.html(v['empty']);
-                    else if (typeof(v['empty']) === 'function')
-                        td.html(v['empty'](callopts));
-                } else if ('zero' in v &&
-                        (typeof(d) === 'undefined' ||
-                         (typeof(d) === 'number' && d == 0))) {
-                    if (typeof(v['zero']) === 'string')
-                        td.html(v['zero']);
-                    else if (typeof(v['zero']) === 'function')
-                        td.html(v['zero'](callopts));
+                if (v["span"]) {
+                    td = $('<td>', {
+                        colspan: 2,
+                        class: 'kismet_devicedata_span kismet_devicedata_td_content'
+                    });
+                    drow.append(td);
                 } else {
-                    td.html(d);
+                    var title = $('<td>', {
+                        class: 'kismet_devicedata_td_title'
+                    });
+                    var content = $('<td>', {
+                        class: 'kismet_devicedata_td_content'
+                    });
+
+                    td = content;
+
+                    drow.append(title);
+                    drow.append(content);
+
+                    title.html(v['title']);
+
+                    if (v['help']) {
+                        fn = make_help_func(v, v['title']);
+
+                        title.append($('<i>', {
+                            class: 'k_dd_td_help pseudolink fa fa-question-circle'
+                        })
+                            .on('click', fn)
+                        );
+
+                    }
                 }
+
+                if ('render' in v) {
+                    if (typeof(v['render']) === 'function') {
+                        td.html(v['render'](callopts));
+                    } else if (typeof(v['render']) === 'string') {
+                        td.html(v['render']);
+                    }
+
+                }
+
+                subtable.append(drow);
+            } else if (!liveupdate) {
+                return;
             }
+
+            var td = $('td.kismet_devicedata_td_content', drow);
 
             // Apply the draw function after the row is created
             if ('draw' in v && typeof(v.draw) === 'function') {
                 callopts['container'] = td;
+                var r = v.draw(callopts);
 
-                v.draw(callopts);
+                if (typeof(r) !== 'undefined' && typeof(r) !== 'none') 
+                    td.html(r);
+            } else if ('empty' in v && 
+                (typeof(d) === 'undefined' ||
+                    (typeof(d) !== 'undefined' && d.length == 0))) {
+                if (typeof(v['empty']) === 'string')
+                td.html(v['empty']);
+                else if (typeof(v['empty']) === 'function')
+                td.html(v['empty'](callopts));
+            } else if ('zero' in v &&
+                (typeof(d) === 'undefined' ||
+                    (typeof(d) === 'number' && d == 0))) {
+                if (typeof(v['zero']) === 'string')
+                td.html(v['zero']);
+                else if (typeof(v['zero']) === 'function')
+                td.html(v['zero'](callopts));
+            } else {
+                td.html(d);
             }
+
         }
         );
     };

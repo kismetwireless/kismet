@@ -513,7 +513,13 @@ int main(int argc, char *argv[]) {
                     if (type != "Wi-Fi AP")
                         continue;
 
-                    name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid"].asString());
+                    if (json["dot11.device"]["dot11.device.last_beaconed_ssid"].isString()) {
+                        name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid"].asString());
+                    } else if (json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.ssid"].isString()) {
+                        name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.ssid"].asString());
+                    } else {
+                        name = "";
+                    }
 
                     auto last_ssid_key = 
                         json["dot11.device"]["dot11.device.last_beaconed_ssid_checksum"].asUInt64();

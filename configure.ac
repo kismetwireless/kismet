@@ -327,15 +327,6 @@ AC_ARG_ENABLE([python-tools],
 
 PYTHON=python3
 PYTHON_VERSION=3
-AC_ARG_ENABLE([python2],
-    AS_HELP_STRING([--enable-python2], [Force building with python2 instead of the modern python3]),
-	[case "${enableval}" in
-	  yes) PYTHON_INTERPRETER=python2;
-           PYTHON=python2 ;
-           PYTHON_VERSION=2 ;;
-	 esac],
-	[]
-)
 
 AC_ARG_WITH([python-interpreter],
     AS_HELP_STRING([--with-python-interpreter=PATH], [Custom location of python interpreter if not in normal PATH]))
@@ -357,8 +348,6 @@ if test "$want_python"x == "no"x; then
 else
     if test "$PYTHON_VERSION" == 3; then
         AC_PYTHON3_MODULE(setuptools)
-    else
-        AC_PYTHON_MODULE(setuptools)
     fi
 
     if test "$HAVE_PYMOD_SETUPTOOLS" == "no"; then
@@ -1091,34 +1080,32 @@ AC_SUBST(pcap)
 
 PKG_PROG_PKG_CONFIG
 
-if test "$caponly" = 0; then
-    # We only *require* protobuf for C++
-    PKG_CHECK_MODULES([protobuf], [${PROTOBUF}], have_protobuf_pkg=yes)
-    if test x"$have_protobuf_pkg" != "xyes"; then
-        AC_MSG_ERROR([missing google libprotobuf])
-    fi
-    
-    AC_ARG_WITH(protoc,
-    	[  --with-protoc[=PATH]     Custom location of the protoc protobuf compiler],
-        [ ])
-    
-    if test x"$with_protoc" == "x"; then
-        PROTOCBIN=protoc
-        AC_CHECK_PROG(protoc, [protoc], yes)
-        if test x"$protoc" != x"yes"; then
-            AC_MSG_ERROR([missing google libprotobuf protoc compiler])
-        fi
-    else
-        PROTOCBIN=$with_protoc
-    fi
-    
-    PROTOLIBS=`pkg-config --libs ${PROTOBUF}`
-    PROTOCFLAGS=`pkg-config --cflags ${PROTOBUF}`
+# We always need proto-c because it's required to compile the python protobuf instances
+PKG_CHECK_MODULES([protobuf], [${PROTOBUF}], have_protobuf_pkg=yes)
+if test x"$have_protobuf_pkg" != "xyes"; then
+    AC_MSG_ERROR([missing google libprotobuf])
+fi
 
-    # Enable the C++ targets
-    PROTOBUF_CPP_O_TARGET='$(PROTOBUF_CPP_O)'
-    PROTOBUF_CPP_H_TARGET='$(PROTOBUF_CPP_H)'
-fi  # caponly
+AC_ARG_WITH(protoc,
+	[  --with-protoc[=PATH]     Custom location of the protoc protobuf compiler],
+    [ ])
+
+if test x"$with_protoc" == "x"; then
+    PROTOCBIN=protoc
+    AC_CHECK_PROG(protoc, [protoc], yes)
+    if test x"$protoc" != x"yes"; then
+        AC_MSG_ERROR([missing google libprotobuf protoc compiler])
+    fi
+else
+    PROTOCBIN=$with_protoc
+fi
+
+PROTOLIBS=`pkg-config --libs ${PROTOBUF}`
+PROTOCFLAGS=`pkg-config --cflags ${PROTOBUF}`
+
+# Enable the C++ targets
+PROTOBUF_CPP_O_TARGET='$(PROTOBUF_CPP_O)'
+PROTOBUF_CPP_H_TARGET='$(PROTOBUF_CPP_H)'
 
 # We need protobuf-c all the time
 PKG_CHECK_MODULES([libprotobufc], [libprotobuf-c], have_protobufc_pkg=yes, have_protobufc_pkg=no)
@@ -1731,13 +1718,6 @@ if test "$havelibnm" != "yes" -a "$linux" = "yes"; then
     echo "Kismet uses libnm to prevent NetworkManager from reconfiguring monitor mode "
     echo "interfaces while Kismet is running; without this library you will need to manually "
     echo "disable NetworkManager or manually tell it to ignore specific interaces."
-fi
-
-if test "$PYTHON_VERSION" != 3; then
-    echo
-    echo "*** WARNING ***"
-    echo "Building for python2; you may need to provide your own python packages of some "
-    echo "modules like numpy, which now require python3."
 fi
 
 if test "$want_asan" = "yes" -a "$want_tsan" = "yes"; then

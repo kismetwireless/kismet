@@ -13,6 +13,8 @@ datasource capture, etc.
 Datasources are expanded in KismetDatasource.py
 """
 
+from __future__ import print_function
+
 import errno
 import fcntl
 import os
@@ -21,20 +23,21 @@ import socket
 import struct
 import sys
 import threading
+import traceback
 import time
 
 import google.protobuf
 
 if not '__version__' in dir(google.protobuf) and sys.version_info > (3, 0):
     print("It looks like you have Python3 but a very old protobuf library, these are ")
-    print("not compatible; please update to python-protobuf >= 3.0.0")
+    print("not compatible; please update to python3-protobuf >= 3.0.0")
     sys.exit(1)
 
 from . import kismet_pb2
 from . import http_pb2
 from . import datasource_pb2
 
-__version__ = "2019.05.02"
+__version__ = "2019.09.01"
 
 class ExternalInterface(object):
     """ 
@@ -169,14 +172,14 @@ class ExternalInterface(object):
                     self.kill_ioloop = True
                     return
 
-                if self.infd >= 0:
+                if self.infd is not None and self.infd >= 0:
                     in_fd_alias = self.infd
                 elif self.remote_sock is not None:
                     in_fd_alias = self.remote_sock
                 else:
                     raise RuntimeError("No valid input socket")
 
-                if self.outfd >= 0:
+                if self.outfd is not None and self.outfd >= 0:
                     out_fd_alias = self.outfd
                 elif self.remote_sock is not None:
                     out_fd_alias = self.remote_sock
@@ -263,7 +266,6 @@ class ExternalInterface(object):
             print(content.encode('hex'))
             raise BufferError("Invalid checksum in packet header {} vs {}".format(calc_csum, checksum))
 
-        # Kluge around old protobuf still found on Ubuntu 16.04
         if not '__version__' in dir(google.protobuf):
             content = str(content)
 
@@ -562,7 +564,7 @@ class Datasource(ExternalInterface):
 
         :return: UUID string
         """
-        driverhex = "{:02X}".format(ExternalInterface.adler32(bytearray(driver, 'ascii')))
+        driverhex = "{:02X}".format(ExternalInterface.adler32(bytearray(driver, 'utf-8')))
         return "{}-0000-0000-0000-{}".format(driverhex[:8], address[:12])
 
     def set_listinterfaces_cb(self, cb):
@@ -662,15 +664,24 @@ class Datasource(ExternalInterface):
         if self.configuresource is None:
             self.send_datasource_configure_report(seqno, success=False,
                                                   message="helper does not support source configuration")
-            # self.spindown()
+            self.spindown()
             return
-            
-        opts = self.configuresource(seqno, conf)
+           
+        try:
+            opts = self.configuresource(seqno, conf)
+        except Exception as e:
+            print("Unhandled exception in configuresource callback", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+            self.send_datasource_configure_report(seqno, success=False,
+                    message="unhandled exception {} in configuresource callback".format(e))
+            self.spindown()
+            return
+
         
         if opts is None:
             self.send_datasource_configure_report(seqno, success=False,
                                                   message="helper does not support source configuration")
-            # self.spindown()
+            self.spindown()
             return
 
         self.send_datasource_configure_report(seqno, **opts)
@@ -684,10 +695,19 @@ class Datasource(ExternalInterface):
         if self.opensource is None:
             self.send_datasource_open_report(seqno, success=False,
                                              message="helper does not support opening sources")
-            # self.spindown()
+            self.spindown()
             return
 
-        opts = self.opensource(source, options)
+        try:
+            opts = self.opensource(source, options)
+        except Exception as e:
+            print("Unhandled exception in opensource callback", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+            self.send_datasource_oen_report(seqno, success=False,
+                    message="unhandled exception {} in opensource callback".format(e))
+            self.spindown()
+            return
+
 
         if opts is None:
             self.send_datasource_open_report(seqno, success=False,
@@ -703,23 +723,31 @@ class Datasource(ExternalInterface):
 
         if source is None:
             self.send_datasource_probe_report(seqno, success=False)
+            self.spindown()
             return
 
         if self.probesource is None:
             self.send_datasource_probe_report(seqno, success=False)
-            # self.spindown()
+            self.spindown()
             return
 
-        opts = self.probesource(source, options)
+        try:
+            opts = self.probesource(source, options)
+        except Exception as e:
+            print("Unhandled exception in probesource callback", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+            self.send_probesource_data_report(seqno, success=False)
+            self.spindown()
+            return
 
         if opts is None:
             self.send_datasource_probe_report(seqno, success=False)
-            # self.spindown()
+            self.spindown()
             return
 
         self.send_datasource_probe_report(seqno, **opts)
 
-        # self.spindown()
+        self.spindown()
 
     def __handle_kds_listinterfaces(self, seqno, packet):
         cmd = datasource_pb2.ListInterfaces()
@@ -727,10 +755,19 @@ class Datasource(ExternalInterface):
 
         if self.listinterfaces is None:
             self.send_datasource_interfaces_report(seqno, success=True)
-        else:
-            self.listinterfaces(seqno)
+            self.spindown()
+            return
 
-        # self.spindown()
+        try:
+            self.listinterfaces(seqno)
+        except Exception as e:
+            print("Unhandled exception in listinterfaces callback", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+            self.send_datasource_interfaces_report(seqno, success=True)
+            self.spindown()
+            return
+
+        self.spindown()
 
     def send_datasource_error_report(self, seqno=0, message=None):
         """
