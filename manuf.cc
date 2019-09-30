@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -38,6 +38,36 @@ kis_manuf::kis_manuf() {
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("manuf_lookup", true) == false) {
         _MSG("Disabling OUI lookup.", MSGFLAG_INFO);
         return;
+    }
+
+    for (auto m : Globalreg::globalreg->kismet_config->fetch_opt_vec("manuf")) {
+        auto m_pair = str_tokenize(m, ",");
+        short int si[3];
+
+        if (m_pair.size() != 2) {
+            _MSG_ERROR("Expected 'manuf=AA:BB:CC,Name' for a config file manuf record.");
+            continue;
+        }
+
+        if (sscanf(m_pair[0].c_str(), "%hx:%hx:%hx", &(si[0]), &(si[1]), &(si[2])) == 3) {
+            uint32_t oui;
+
+            oui = 0;
+            oui |= (uint32_t) si[0] << 16;
+            oui |= (uint32_t) si[1] << 8;
+            oui |= (uint32_t) si[2];
+
+            manuf_data md;
+            md.oui = oui;
+            md.manuf = std::make_shared<tracker_element_string>(manuf_id);
+            md.manuf->set(m_pair[1]);
+            oui_map[oui] = md;
+
+            printf("Loaded manuf %s\n", m_pair[1].c_str());
+        } else {
+            _MSG_ERROR("Expected 'manuf=AA:BB:CC,Name' for a config file manuf record.");
+            continue;
+        }
     }
 
     auto fname = Globalreg::globalreg->kismet_config->fetch_opt_vec("ouifile");
