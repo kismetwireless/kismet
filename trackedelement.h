@@ -425,6 +425,9 @@ public:
     tracker_element_string(tracker_type t, int id, const std::string& s) :
         tracker_element_core_scalar<std::string>(t, id, s) { }
 
+    tracker_element_string(const std::string& s) :
+        tracker_element_core_scalar<std::string>(tracker_type::tracker_string, 0, s) { }
+
     static tracker_type static_type() {
         return tracker_type::tracker_string;
     }
