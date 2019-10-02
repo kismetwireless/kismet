@@ -53,7 +53,7 @@ public:
     }
 
 protected:
-    virtual void MatchedDevice(shared_tracker_element d) {
+    virtual void matched_device(shared_tracker_element d) {
         local_locker lock(&worker_mutex);
         matched_devices->push_back(d);
     }
