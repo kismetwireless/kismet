@@ -46,7 +46,7 @@ public:
 protected:
     friend class device_tracker_view;
 
-    virtual void setMatchedDevices(std::shared_ptr<tracker_element_vector> devices);
+    virtual void set_matched_devices(std::shared_ptr<tracker_element_vector> devices);
 
     kis_recursive_timed_mutex mutex;
     std::shared_ptr<tracker_element_vector> matched;

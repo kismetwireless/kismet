@@ -173,7 +173,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(devi
 
         });
 
-    worker.setMatchedDevices(ret);
+    worker.set_matched_devices(ret);
 
     return ret;
 }
@@ -205,7 +205,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_
 
         });
 
-    worker.setMatchedDevices(ret);
+    worker.set_matched_devices(ret);
 
     return ret;
 }
