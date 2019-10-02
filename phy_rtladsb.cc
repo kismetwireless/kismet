@@ -639,7 +639,7 @@ std::shared_ptr<tracker_element> kis_rtladsb_phy::adsb_map_endp_handler() {
 
     if (adsb_view == nullptr) {
         auto error = std::make_shared<tracker_element_string>("PHY view tracking disabled or no ADSB devices seen.");
-        error->set_local_name("kismet.common.error");
+        error->set_dynamic_entity("kismet.common.error");
         ret_map->insert(error);
         return ret_map;
     }
@@ -649,17 +649,65 @@ std::shared_ptr<tracker_element> kis_rtladsb_phy::adsb_map_endp_handler() {
     auto max_lat = std::make_shared<tracker_element_double>();
     auto max_lon = std::make_shared<tracker_element_double>();
 
-    min_lat->set_local_name("kismet.adsb.map.min_lat");
-    min_lon->set_local_name("kismet.adsb.map.min_lon");
-    max_lat->set_local_name("kismet.adsb.map.max_lat");
-    max_lon->set_local_name("kismet.adsb.map.max_lon");
+    min_lat->set_dynamic_entity("kismet.adsb.map.min_lat");
+    min_lon->set_dynamic_entity("kismet.adsb.map.min_lon");
+    max_lat->set_dynamic_entity("kismet.adsb.map.max_lat");
+    max_lon->set_dynamic_entity("kismet.adsb.map.max_lon");
 
     ret_map->insert(min_lat);
     ret_map->insert(min_lon);
     ret_map->insert(max_lat);
     ret_map->insert(max_lon);
 
-    
+    auto recent_devs = std::make_shared<tracker_element_vector>();
+    recent_devs->set_dynamic_entity("kismet.adsb.map.devices");
+    ret_map->insert(recent_devs);
+
+    auto now = time(0);
+
+    kis_recursive_timed_mutex response_mutex;
+
+    // Find all devices active w/in the last 10 minutes, and set their bounding box
+    auto recent_worker = 
+        device_tracker_view_function_worker([this, now, recent_devs, min_lat, 
+                min_lon, max_lat, max_lon, &response_mutex](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+            auto rtlholder =
+                dev->get_sub_as<tracker_element_map>(rtladsb_holder_id);
+
+            if (rtlholder == nullptr) {
+                return false;
+            }
+
+            auto adsbdev = 
+                rtlholder->get_sub_as<rtladsb_tracked_adsb>(rtladsb_adsb_id);
+ 
+            if (adsbdev == nullptr) {
+                return false;
+            }
+
+            if (dev->get_last_time() < now - (60 * 60 * 10)) {
+                return false;
+            }
+
+            local_locker l(&response_mutex);
+
+            recent_devs->push_back(dev);
+
+            if (adsbdev->get_latitude() != 0 && adsbdev->get_longitude() != 0) {
+                if (adsbdev->get_latitude() < min_lat->get() || min_lat->get() == 0)
+                    min_lat->set(adsbdev->get_latitude());
+                if (adsbdev->get_longitude() < min_lon->get() || min_lon->get() == 0)
+                    min_lon->set(adsbdev->get_longitude());
+
+                if (adsbdev->get_latitude() > max_lat->get() || max_lat->get() == 0)
+                    max_lat->set(adsbdev->get_latitude());
+                if (adsbdev->get_longitude() > max_lon->get() || max_lon->get() == 0)
+                    max_lon->set(adsbdev->get_longitude());
+            }
+
+            return false;
+        });
+    adsb_view->do_readonly_device_work(recent_worker);
 
     return ret_map;
 }
