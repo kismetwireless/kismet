@@ -949,7 +949,7 @@ void device_tracker::do_device_work_raw(std::shared_ptr<device_tracker_filter_wo
            // Lock the device itself inside the worker op
            {
                local_locker devlocker(&(v->device_mutex));
-               m = worker->MatchDevice(this, v);
+               m = worker->match_device(this, v);
            }
 
            if (m) 
@@ -977,7 +977,7 @@ void device_tracker::do_readonly_device_work_raw(std::shared_ptr<device_tracker_
            // Lock the device itself inside the worker op
            {
                local_shared_locker devlocker(&(v->device_mutex));
-               m = worker->MatchDevice(this, v);
+               m = worker->match_device(this, v);
            }
 
            if (m) 
@@ -1026,7 +1026,7 @@ void device_tracker::do_device_work_raw(std::shared_ptr<device_tracker_filter_wo
 
             {
                 local_locker devlocker(&v->device_mutex);
-                m = worker->MatchDevice(this, v);
+                m = worker->match_device(this, v);
             }
 
             if (m)
@@ -1049,7 +1049,7 @@ void device_tracker::do_readonly_device_work_raw(std::shared_ptr<device_tracker_
 
             {
                 local_shared_locker devlocker(&v->device_mutex);
-                m = worker->MatchDevice(this, v);
+                m = worker->match_device(this, v);
             }
 
             if (m)

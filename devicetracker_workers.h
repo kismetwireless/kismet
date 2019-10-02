@@ -42,7 +42,7 @@ public:
     virtual ~device_tracker_filter_worker() { };
 
     // Perform a match on a device
-    virtual bool MatchDevice(device_tracker *devicetracker,
+    virtual bool match_device(device_tracker *devicetracker,
             std::shared_ptr<kis_tracked_device_base> base) = 0;
 
     // Finalize operations
@@ -71,7 +71,7 @@ public:
             const std::function<void (device_tracker *)>& in_fcb);
     virtual ~devicetracker_function_worker();
 
-    virtual bool MatchDevice(device_tracker *devicetracker,
+    virtual bool match_device(device_tracker *devicetracker,
             std::shared_ptr<kis_tracked_device_base> device);
 
     virtual void Finalize(device_tracker *devicetracker);
@@ -99,7 +99,7 @@ public:
 
     virtual ~devicetracker_stringmatch_worker();
 
-    virtual bool MatchDevice(device_tracker *devicetracker,
+    virtual bool match_device(device_tracker *devicetracker,
             std::shared_ptr<kis_tracked_device_base> device);
 
     virtual void Finalize(device_tracker *devicetracker);
@@ -167,7 +167,7 @@ public:
 
     bool get_error() { return error; }
 
-    virtual bool MatchDevice(device_tracker *devicetracker,
+    virtual bool match_device(device_tracker *devicetracker,
             std::shared_ptr<kis_tracked_device_base> device);
 
     virtual void Finalize(device_tracker *devicetracker);
@@ -204,7 +204,7 @@ public:
 
     bool get_error() { return true; }
 
-    virtual bool MatchDevice(device_tracker *devicetracker,
+    virtual bool match_device(device_tracker *devicetracker,
             std::shared_ptr<kis_tracked_device_base> device) { return false; };
 
     virtual void Finalize(device_tracker *devicetracker) { };

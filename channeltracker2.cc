@@ -132,7 +132,7 @@ public:
 
     // Count all the devices.  We use a filter worker but 'match' on all
     // and count them into our local map
-    virtual bool MatchDevice(device_tracker *devicetracker __attribute__((unused)),
+    virtual bool match_device(device_tracker *devicetracker __attribute__((unused)),
             std::shared_ptr<kis_tracked_device_base> device) {
         if (device == NULL)
             return false;

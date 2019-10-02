@@ -62,7 +62,7 @@ devicetracker_function_worker::devicetracker_function_worker(
 devicetracker_function_worker::~devicetracker_function_worker() {
 }
 
-bool devicetracker_function_worker::MatchDevice(device_tracker *devicetracker,
+bool devicetracker_function_worker::match_device(device_tracker *devicetracker,
         std::shared_ptr<kis_tracked_device_base> device) {
 
     if (mcb == NULL)
@@ -91,7 +91,7 @@ devicetracker_stringmatch_worker::devicetracker_stringmatch_worker(const std::st
 devicetracker_stringmatch_worker::~devicetracker_stringmatch_worker() {
 }
 
-bool devicetracker_stringmatch_worker::MatchDevice(device_tracker *devicetracker __attribute__((unused)),
+bool devicetracker_stringmatch_worker::match_device(device_tracker *devicetracker __attribute__((unused)),
         std::shared_ptr<kis_tracked_device_base> device) {
     bool matched = false;
 
@@ -254,7 +254,7 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(const std::string& in_targe
 devicetracker_pcre_worker::~devicetracker_pcre_worker() {
 }
 
-bool devicetracker_pcre_worker::MatchDevice(device_tracker *devicetracker __attribute__((unused)),
+bool devicetracker_pcre_worker::match_device(device_tracker *devicetracker __attribute__((unused)),
         std::shared_ptr<kis_tracked_device_base> device) {
     bool matched = false;
 

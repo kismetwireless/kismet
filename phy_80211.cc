@@ -3031,7 +3031,7 @@ public:
 
     virtual ~phy80211_devicetracker_expire_worker() { }
 
-    virtual bool MatchDevice(device_tracker *devicetracker, 
+    virtual bool match_device(device_tracker *devicetracker, 
             std::shared_ptr<kis_tracked_device_base> device) {
         auto dot11dev =
             device->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
