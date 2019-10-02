@@ -318,6 +318,9 @@ protected:
 
     std::shared_ptr<tracker_element_string> rtl_manuf;
 
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> adsb_map_endp;
+    std::shared_ptr<tracker_element> adsb_map_endp_handler();
+
 };
 
 #endif

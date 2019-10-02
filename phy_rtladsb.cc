@@ -70,6 +70,13 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
     httpregistry->register_js_module("kismet_ui_rtladsb", "js/kismet.ui.rtladsb.js");
 
 	packetchain->register_handler(&packet_handler, this, CHAINPOS_CLASSIFIER, -100);
+
+    adsb_map_endp = 
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>(
+                "/phy/RTLADSB/map_data", 
+                [this]() -> std::shared_ptr<tracker_element> {
+                    return adsb_map_endp_handler();
+                });
 }
 
 kis_rtladsb_phy::~kis_rtladsb_phy() {
@@ -624,6 +631,37 @@ void kis_rtladsb_phy::decode_cpr(std::shared_ptr<rtladsb_tracked_adsb> adsb) {
         adsb->set_longitude(adsb->get_longitude() - 360);
 
     // fmt::print(stderr, "adsb got lat {} lon {} raw {},{} {},{}\n", adsb->get_latitude(), adsb->get_longitude(), adsb->get_odd_raw_lat(), adsb->get_odd_raw_lon(), adsb->get_even_raw_lat(), adsb->get_even_raw_lon());
+}
+
+std::shared_ptr<tracker_element> kis_rtladsb_phy::adsb_map_endp_handler() {
+    auto ret_map = std::make_shared<tracker_element_map>();
+    auto adsb_view = devicetracker->get_phy_view(phyid);
+
+    if (adsb_view == nullptr) {
+        auto error = std::make_shared<tracker_element_string>("PHY view tracking disabled or no ADSB devices seen.");
+        error->set_local_name("kismet.common.error");
+        ret_map->insert(error);
+        return ret_map;
+    }
+
+    auto min_lat = std::make_shared<tracker_element_double>();
+    auto min_lon = std::make_shared<tracker_element_double>();
+    auto max_lat = std::make_shared<tracker_element_double>();
+    auto max_lon = std::make_shared<tracker_element_double>();
+
+    min_lat->set_local_name("kismet.adsb.map.min_lat");
+    min_lon->set_local_name("kismet.adsb.map.min_lon");
+    max_lat->set_local_name("kismet.adsb.map.max_lat");
+    max_lon->set_local_name("kismet.adsb.map.max_lon");
+
+    ret_map->insert(min_lat);
+    ret_map->insert(min_lon);
+    ret_map->insert(max_lat);
+    ret_map->insert(max_lon);
+
+    
+
+    return ret_map;
 }
 
 

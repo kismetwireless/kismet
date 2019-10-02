@@ -307,6 +307,9 @@ public:
     virtual void update_view_device(std::shared_ptr<kis_tracked_device_base> in_device);
     virtual void remove_view_device(std::shared_ptr<kis_tracked_device_base> in_device);
 
+    // Get phy views
+    std::shared_ptr<device_tracker_view> get_phy_view(int in_phy);
+
 protected:
 	global_registry *globalreg;
     std::shared_ptr<entry_tracker> entrytracker;

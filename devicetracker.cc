@@ -1359,6 +1359,16 @@ void device_tracker::remove_view_device(std::shared_ptr<kis_tracked_device_base>
     }
 }
 
+std::shared_ptr<device_tracker_view> device_tracker::get_phy_view(int in_phyid) {
+    local_shared_locker l(&view_mutex);
+
+    auto vk = phy_view_map.find(in_phyid);
+    if (vk != phy_view_map.end())
+        return vk->second;
+
+    return nullptr;
+}
+
 int device_tracker::store_devices() {
     auto devs = std::make_shared<tracker_element_vector>();
     auto immutable_copy = std::make_shared<tracker_element_vector>(immutable_tracked_vec);
