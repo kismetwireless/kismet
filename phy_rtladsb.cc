@@ -685,7 +685,7 @@ std::shared_ptr<tracker_element> kis_rtladsb_phy::adsb_map_endp_handler() {
                 return false;
             }
 
-            if (dev->get_last_time() < now - (60 * 60 * 10)) {
+            if (dev->get_last_time() < now - (60 * 10)) {
                 return false;
             }
 

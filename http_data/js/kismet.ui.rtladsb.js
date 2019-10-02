@@ -8,6 +8,10 @@
 
 var exports = {};
 
+var local_uri_prefix = ""; 
+if (typeof(KISMET_URI_PREFIX) !== 'undefined')
+    local_uri_prefix = KISMET_URI_PREFIX;
+
 // Flag we're still loading
 exports.load_complete = 0;
 
@@ -165,6 +169,46 @@ kismet_ui.AddDeviceDetail("rtladsb", "RTLADSB (SDR)", 0, {
         });
     },
 });
+
+
+kismet_ui_sidebar.AddSidebarItem({
+    id: 'adsb_map',
+    listTitle: '<i class="fa fa-plane"></i> ADSB Live Map',
+    priority: 99999,
+    clickCallback: function() {
+        exports.ADSBLiveMap();
+    },
+});
+
+exports.ADSBLiveMap = function() {
+
+    var w = $(window).width() * 0.95;
+    var h = $(window).height() * 0.95;
+
+    $.jsPanel({
+        id: "adsb-live-map",
+        headerTitle: '<i class="fa fa-plane"></i> Live Map',
+        headerControls: {
+            controls: 'closeonly',
+            iconfont: 'jsglyph',
+        },
+        contentIframe: {
+            src: local_uri_prefix + '/adsb_map_panel.html?parent_url=' + parent.document.URL + '&local_uri_prefix=' + local_uri_prefix
+        },
+    })
+    .resize({
+        width: w,
+        height: h
+    })
+    .reposition({
+        my: 'center-top',
+        at: 'center-top',
+        of: 'window',
+    })
+    .contentResize();
+
+
+}
 
 // We're done loading
 exports.load_complete = 1;
