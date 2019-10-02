@@ -45,8 +45,8 @@ public:
     virtual bool match_device(device_tracker *devicetracker,
             std::shared_ptr<kis_tracked_device_base> base) = 0;
 
-    // Finalize operations
-    virtual void Finalize(device_tracker *devicetracker __attribute__((unused))) { }
+    // finalize operations
+    virtual void finalize(device_tracker *devicetracker __attribute__((unused))) { }
 
     virtual std::shared_ptr<tracker_element_vector> GetMatchedDevices() {
         return matched_devices;
@@ -74,7 +74,7 @@ public:
     virtual bool match_device(device_tracker *devicetracker,
             std::shared_ptr<kis_tracked_device_base> device);
 
-    virtual void Finalize(device_tracker *devicetracker);
+    virtual void finalize(device_tracker *devicetracker);
 
 protected:
     global_registry *globalreg;
@@ -102,7 +102,7 @@ public:
     virtual bool match_device(device_tracker *devicetracker,
             std::shared_ptr<kis_tracked_device_base> device);
 
-    virtual void Finalize(device_tracker *devicetracker);
+    virtual void finalize(device_tracker *devicetracker);
 
 protected:
     std::string query;
@@ -170,7 +170,7 @@ public:
     virtual bool match_device(device_tracker *devicetracker,
             std::shared_ptr<kis_tracked_device_base> device);
 
-    virtual void Finalize(device_tracker *devicetracker);
+    virtual void finalize(device_tracker *devicetracker);
 
 protected:
     int pcre_match_id;
@@ -207,7 +207,7 @@ public:
     virtual bool match_device(device_tracker *devicetracker,
             std::shared_ptr<kis_tracked_device_base> device) { return false; };
 
-    virtual void Finalize(device_tracker *devicetracker) { };
+    virtual void finalize(device_tracker *devicetracker) { };
 };
 
 

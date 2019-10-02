@@ -956,7 +956,7 @@ void device_tracker::do_device_work_raw(std::shared_ptr<device_tracker_filter_wo
                worker->MatchedDevice(v);
        });
 
-    worker->Finalize(this);
+    worker->finalize(this);
 }
 
 void device_tracker::do_readonly_device_work_raw(std::shared_ptr<device_tracker_filter_worker> worker, 
@@ -984,7 +984,7 @@ void device_tracker::do_readonly_device_work_raw(std::shared_ptr<device_tracker_
                worker->MatchedDevice(v);
        });
 
-    worker->Finalize(this);
+    worker->finalize(this);
 }
 
 void device_tracker::do_device_work(std::shared_ptr<device_tracker_filter_worker> worker,
@@ -1033,7 +1033,7 @@ void device_tracker::do_device_work_raw(std::shared_ptr<device_tracker_filter_wo
                 worker->MatchedDevice(v);
         });
 
-    worker->Finalize(this);
+    worker->finalize(this);
 }
 
 void device_tracker::do_readonly_device_work_raw(std::shared_ptr<device_tracker_filter_worker> worker,
@@ -1056,7 +1056,7 @@ void device_tracker::do_readonly_device_work_raw(std::shared_ptr<device_tracker_
                 worker->MatchedDevice(v);
         });
 
-    worker->Finalize(this);
+    worker->finalize(this);
 }
 
 void device_tracker::do_device_work(std::shared_ptr<device_tracker_filter_worker> worker, bool batch) {

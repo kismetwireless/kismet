@@ -71,7 +71,7 @@ bool devicetracker_function_worker::match_device(device_tracker *devicetracker,
     return mcb(devicetracker, device);
 }
 
-void devicetracker_function_worker::Finalize(device_tracker *devicetracker) {
+void devicetracker_function_worker::finalize(device_tracker *devicetracker) {
     if (fcb != NULL) {
         fcb(devicetracker);
     }
@@ -128,7 +128,7 @@ bool devicetracker_stringmatch_worker::match_device(device_tracker *devicetracke
     return false;
 }
 
-void devicetracker_stringmatch_worker::Finalize(device_tracker *devicetracker __attribute__((unused))) {
+void devicetracker_stringmatch_worker::finalize(device_tracker *devicetracker __attribute__((unused))) {
 
 }
 
@@ -300,7 +300,7 @@ bool devicetracker_pcre_worker::match_device(device_tracker *devicetracker __att
     return false;
 }
 
-void devicetracker_pcre_worker::Finalize(device_tracker *devicetracker __attribute__((unused))) {
+void devicetracker_pcre_worker::finalize(device_tracker *devicetracker __attribute__((unused))) {
 
 }
 

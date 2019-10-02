@@ -160,7 +160,7 @@ public:
     }
 
     // Send it back to our channel tracker
-    virtual void Finalize(device_tracker *devicetracker __attribute__((unused))) {
+    virtual void finalize(device_tracker *devicetracker __attribute__((unused))) {
         channelv2->update_device_counts(device_count);
     }
 
