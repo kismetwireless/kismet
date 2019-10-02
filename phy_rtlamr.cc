@@ -27,7 +27,7 @@
 #include "kis_httpd_registry.h"
 #include "manuf.h"
 
-Kis_RTLAMR_Phy::Kis_RTLAMR_Phy(global_registry *in_globalreg, int in_phyid) :
+kis_rtlamr_phy::kis_rtlamr_phy(global_registry *in_globalreg, int in_phyid) :
     kis_phy_handler(in_globalreg, in_phyid) {
 
     set_phy_name("RTLAMR");
@@ -71,12 +71,12 @@ Kis_RTLAMR_Phy::Kis_RTLAMR_Phy(global_registry *in_globalreg, int in_phyid) :
 	packetchain->register_handler(&PacketHandler, this, CHAINPOS_CLASSIFIER, -100);
 }
 
-Kis_RTLAMR_Phy::~Kis_RTLAMR_Phy() {
+kis_rtlamr_phy::~kis_rtlamr_phy() {
     packetchain->remove_handler(&PacketHandler, CHAINPOS_CLASSIFIER);
 }
 
 
-mac_addr Kis_RTLAMR_Phy::json_to_mac(Json::Value json) {
+mac_addr kis_rtlamr_phy::json_to_mac(Json::Value json) {
     // Derive a mac addr from the model and device id data
     //
     // We turn the model string into 4 bytes using the adler32 checksum,
@@ -123,7 +123,7 @@ mac_addr Kis_RTLAMR_Phy::json_to_mac(Json::Value json) {
     return mac_addr(bytes, 6);
 }
 
-bool Kis_RTLAMR_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
+bool kis_rtlamr_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     std::string err;
     std::string v;
 
@@ -268,7 +268,7 @@ bool Kis_RTLAMR_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     return true;
 }
 
-bool Kis_RTLAMR_Phy::is_powermeter(Json::Value json) {
+bool kis_rtlamr_phy::is_powermeter(Json::Value json) {
 
     auto msgjson = json["Message"];
     auto id_j = msgjson["ID"];
@@ -281,7 +281,7 @@ bool Kis_RTLAMR_Phy::is_powermeter(Json::Value json) {
     return false;
 }
 
-void Kis_RTLAMR_Phy::add_powermeter(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
+void kis_rtlamr_phy::add_powermeter(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
     auto msgjson = json["Message"];
     auto id_j = msgjson["ID"];
     auto consumption_j = msgjson["Consumption"];
@@ -309,8 +309,8 @@ void Kis_RTLAMR_Phy::add_powermeter(Json::Value json, std::shared_ptr<tracker_el
 
 
 
-int Kis_RTLAMR_Phy::PacketHandler(CHAINCALL_PARMS) {
-    Kis_RTLAMR_Phy *rtlamr = (Kis_RTLAMR_Phy *) auxdata;
+int kis_rtlamr_phy::PacketHandler(CHAINCALL_PARMS) {
+    kis_rtlamr_phy *rtlamr = (kis_rtlamr_phy *) auxdata;
 
     if (in_pack->error || in_pack->filtered || in_pack->duplicate)
         return 0;

@@ -213,19 +213,19 @@ protected:
 
 };
 
-class Kis_RTLAMR_Phy : public kis_phy_handler {
+class kis_rtlamr_phy : public kis_phy_handler {
 public:
-    virtual ~Kis_RTLAMR_Phy();
+    virtual ~kis_rtlamr_phy();
 
-    Kis_RTLAMR_Phy(global_registry *in_globalreg) :
+    kis_rtlamr_phy(global_registry *in_globalreg) :
         kis_phy_handler(in_globalreg) { };
 
 	// Build a strong version of ourselves
 	virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg, int in_phyid) override {
-		return new Kis_RTLAMR_Phy(in_globalreg, in_phyid);
+		return new kis_rtlamr_phy(in_globalreg, in_phyid);
 	}
 
-    Kis_RTLAMR_Phy(global_registry *in_globalreg, int in_phyid);
+    kis_rtlamr_phy(global_registry *in_globalreg, int in_phyid);
 
     static int PacketHandler(CHAINCALL_PARMS);
 
