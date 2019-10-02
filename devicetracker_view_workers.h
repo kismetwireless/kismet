@@ -38,7 +38,7 @@ public:
     device_tracker_view_worker() { }
     virtual ~device_tracker_view_worker() { }
 
-    virtual bool matchDevice(std::shared_ptr<kis_tracked_device_base> device) = 0;
+    virtual bool match_device(std::shared_ptr<kis_tracked_device_base> device) = 0;
     virtual std::shared_ptr<tracker_element_vector> getMatchedDevices() {
         return matched;
     }
@@ -64,7 +64,7 @@ public:
 
     virtual ~device_tracker_view_function_worker() { }
 
-    virtual bool matchDevice(std::shared_ptr<kis_tracked_device_base> device) override;
+    virtual bool match_device(std::shared_ptr<kis_tracked_device_base> device) override;
 
 protected:
     filter_cb filter;
@@ -103,7 +103,7 @@ public:
 
     virtual ~device_tracker_view_regex_worker() { }
 
-    virtual bool matchDevice(std::shared_ptr<kis_tracked_device_base> device) override;
+    virtual bool match_device(std::shared_ptr<kis_tracked_device_base> device) override;
 
 protected:
     std::vector<std::shared_ptr<device_tracker_view_regex_worker::pcre_filter>> filter_vec;
@@ -127,7 +127,7 @@ public:
 
     virtual ~device_tracker_view_stringmatch_worker() { }
 
-    virtual bool matchDevice(std::shared_ptr<kis_tracked_device_base> device) override;
+    virtual bool match_device(std::shared_ptr<kis_tracked_device_base> device) override;
 
 protected:
     std::string query;
@@ -154,7 +154,7 @@ public:
 
     virtual ~device_tracker_view_icasestringmatch_worker() { }
 
-    virtual bool matchDevice(std::shared_ptr<kis_tracked_device_base> device) override;
+    virtual bool match_device(std::shared_ptr<kis_tracked_device_base> device) override;
 
 protected:
     std::string query;

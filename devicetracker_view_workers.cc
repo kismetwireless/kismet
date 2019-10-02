@@ -33,7 +33,7 @@ void device_tracker_view_worker::setMatchedDevices(std::shared_ptr<tracker_eleme
 device_tracker_view_function_worker::device_tracker_view_function_worker(filter_cb cb) :
     filter {cb} { }
 
-bool device_tracker_view_function_worker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
+bool device_tracker_view_function_worker::match_device(std::shared_ptr<kis_tracked_device_base> device) {
     return filter(device);
 }
 
@@ -114,7 +114,7 @@ device_tracker_view_regex_worker::device_tracker_view_regex_worker(const std::ve
 #endif
 }
 
-bool device_tracker_view_regex_worker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
+bool device_tracker_view_regex_worker::match_device(std::shared_ptr<kis_tracked_device_base> device) {
 #ifdef HAVE_LIBPCRE
     bool matched = false;
 
@@ -164,7 +164,7 @@ device_tracker_view_stringmatch_worker::device_tracker_view_stringmatch_worker(c
     mac_addr::prepare_search_term(query, mac_query_term, mac_query_term_len);
 }
 
-bool device_tracker_view_stringmatch_worker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
+bool device_tracker_view_stringmatch_worker::match_device(std::shared_ptr<kis_tracked_device_base> device) {
     bool matched = false;
 
     for (auto i : fieldpaths) {
@@ -204,7 +204,7 @@ device_tracker_view_icasestringmatch_worker::device_tracker_view_icasestringmatc
     mac_addr::prepare_search_term(query, mac_query_term, mac_query_term_len);
 }
 
-bool device_tracker_view_icasestringmatch_worker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
+bool device_tracker_view_icasestringmatch_worker::match_device(std::shared_ptr<kis_tracked_device_base> device) {
     bool matched = false;
 
     auto icasesearch = [](const std::string& haystack, const std::string& needle) -> bool {

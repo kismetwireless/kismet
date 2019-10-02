@@ -163,7 +163,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(devi
             bool m;
             {
                 local_locker devlocker(&dev->device_mutex);
-                m = worker.matchDevice(dev);
+                m = worker.match_device(dev);
             }
 
             if (m) {
@@ -195,7 +195,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_
             bool m;
             {
                 local_shared_locker devlocker(&dev->device_mutex);
-                m = worker.matchDevice(dev);
+                m = worker.match_device(dev);
             }
 
             if (m) {
