@@ -222,6 +222,11 @@ public:
         return local_name;
     }
 
+    void set_dynamic_entity(const std::string& in_name) {
+        set_local_name(in_name);
+        set_id(adler32_checksum(in_name));
+    }
+
     void set_type(tracker_type type);
 
     tracker_type get_type() const { 
