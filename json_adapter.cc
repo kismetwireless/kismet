@@ -288,7 +288,10 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                 if (prettyprint)
                     stream << indent;
 
-                stream << i;
+                if (i == 0)
+                    stream << "0";
+                else
+                    stream << i;
             }
             stream << ppendl << indent << "]";
             break;
@@ -785,7 +788,10 @@ void storage_json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                     stream << ",";
                 prepend_comma = true;
 
-                stream << i;
+                if (i == 0)
+                    stream << "0";
+                else
+                    stream << i;
             }
             stream << "]";
             break;
