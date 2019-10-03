@@ -35,6 +35,32 @@
 
         var mymap = null;
 
+        function wrap_closure_mouseover(k) {
+            return function() {
+                if (markers[k]['path'] != null) {
+                    markers[k]['path'].setStyle({
+                        weight: 4,
+                    });
+                }
+
+                $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('color', 'red');
+                $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('font-size', '24px');
+            }
+        };
+
+        function wrap_closure_mouseoout(k) {
+            return function() {
+                if (markers[k]['path'] != null) {
+                    markers[k]['path'].setStyle({
+                        weight: 2,
+                    });
+                }
+
+                $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('color', 'black');
+                $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('font-size', '18px');
+            }
+        };
+
         function map_cb(d) {
             data = kismet.sanitizeObject(d);
 
@@ -67,40 +93,13 @@
 
                     var myIcon = L.divIcon({
                         className: 'plane-icon', 
-                        html: '<div style="width: 18px; height: 18px; text-align: center; transform: rotate(' + (heading - 45) + 'deg); font-size: 18px;"><i class="fa fa-plane"></div>'
+                        html: '<div id="adsb_marker_"' + kismet.sanitizeId(key) + '" style="width: 24px; height: 24px; transform-origin: center; transform: rotate(' + (heading - 45) + 'deg);"><i id="adsb_marker_icon_' + kismet.sanitizeId(key) + '" class="center fa fa-plane" style="font-size: 18px;"></div>',
+                        iconAnchor: [12, 12],
                     });
 
                     if (key in markers) {
                         marker = markers[key]['marker'];
                         markers[key]['keep'] = true;
-
-                        /*
-                        function make_key_wrap_closure_over(k) {
-                            return function() {
-                                var myIcon = L.divIcon({className: 'plane-icon', html: '<div class="fa fa-plane" style="border: 0; transform: rotate(' + (markers[k]['heading'] - 45) + 'deg); font-size: 24px; color: red;" />'});
-
-                                if (markers[k]['path'] != null) {
-                                    markers[k]['path'].setStyle({
-                                        weight: 3,
-                                    });
-                                }
-                                markers[k]['marker'].setIcon(myIcon);
-                            }
-                        };
-
-                        function make_key_wrap_closure_out(k) {
-                            return function() {
-                                var myIcon = L.divIcon({className: 'plane-icon', html: '<div class="fa fa-plane" style="border: 0; transform: rotate(' + (markers[k]['heading'] - 45) + 'deg); font-size: 24px; width: 24px; height: 24px" />'});
-
-                                if (markers[k]['path'] != null) {
-                                    markers[k]['path'].setStyle({
-                                        weight: 1,
-                                    });
-                                }
-                                markers[k]['marker'].setIcon(myIcon);
-                            }
-                        };
-                        */
 
                         if (markers[key]['last_lat'] != lat || markers[key]['last_lon'] != lon) {
                             markers[key]['pathlist'].push([lat, lon]);
@@ -110,29 +109,29 @@
                             markers[key]['heading'] = heading;
 
                             if (markers[key]['path'] != null) {
-                                mymap.removeLayer(markers[key]['path']);
+                                markers[key]['path'].addLatLng([lat, lon]);
+                            } else {
+                                markers[key]['path'] = L.polyline(markers[key]['pathlist'], {
+                                    color: 'red',
+                                    weight: 2,
+                                    opacity: 0.85,
+                                    smoothFactor: 1,
+                                }).addTo(mymap);
+
+                                /*
+                                markers[key]['path'].on('mouseenter', wrap_closure_mouseover(key));
+                                markers[key]['path'].on('mouseleave', wrap_closure_mouseout(key));
+                                */
                             }
-
-                            markers[key]['path'] = L.polyline(markers[key]['pathlist'], {
-                                color: 'red',
-                                weight: 2,
-                            }).addTo(mymap);
-
-                            /*
-                            markers[key]['path'].on('mouseover', make_key_wrap_closure_over(key));
-                            markers[key]['path'].on('mouseout', make_key_wrap_closure_out(key));
-                            */
 
                         }
 
+                        // Move the marker
                         var new_loc = new L.LatLng(lat, lon);
                         marker.setLatLng(new_loc); 
-                        marker.setIcon(myIcon);
-                        
-                        /*
-                        markers[key]['marker'].on('mouseover', make_key_wrap_closure_over(key));
-                        markers[key]['marker'].on('mouseout', make_key_wrap_closure_out(key));
-                        */
+
+                        // Set the heading by spinning the div directly
+                        $('#adsb_marker_' + kismet.sanitizeId(key)).css('transform', 'rotate(' + (heading - 45) + 'deg)');
 
                     } else {
                         var marker = L.marker([lat, lon], { icon: myIcon} ).addTo(mymap);
@@ -144,6 +143,12 @@
                         markers[key]['last_lon'] = lon;
                         markers[key]['heading'] = heading;
                         markers[key]['path'] = null;
+
+                        /*
+                        markers[key]['marker'].on('mouseenter', wrap_closure_mouseover(key));
+                        markers[key]['marker'].on('mouseleave', wrap_closure_mouseout(key));
+                        */
+
                     }
                 } catch (error) {
                     ;
@@ -194,6 +199,23 @@
 #mapid {
     height: 100%;
     width: 100%;
+}
+
+.vertical-center {
+    margin: 0;
+    position: absolute;
+    top: 50%;
+    -ms-transform: translateY(-50%);
+    transform: translateY(-50%);
+}
+
+.center {
+    margin: 0;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    -ms-transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%);
 }
 </style>
 
