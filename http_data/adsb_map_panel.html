@@ -65,12 +65,16 @@
 
                     key = data['kismet.adsb.map.devices'][d]['kismet.device.base.key'];
 
-                    var myIcon = L.divIcon({className: 'plane-icon', html: '<div class="fa fa-plane" style="border: 0; transform: rotate(' + (heading - 45) + 'deg); font-size: 24px;" />'});
+                    var myIcon = L.divIcon({
+                        className: 'plane-icon', 
+                        html: '<div class="fa fa-plane" style="width: 24px; height: 24px; transform: rotate(' + (heading - 45) + 'deg); font-size: 24px;" />'
+                    });
 
                     if (key in markers) {
                         marker = markers[key]['marker'];
                         markers[key]['keep'] = true;
 
+                        /*
                         function make_key_wrap_closure_over(k) {
                             return function() {
                                 var myIcon = L.divIcon({className: 'plane-icon', html: '<div class="fa fa-plane" style="border: 0; transform: rotate(' + (markers[k]['heading'] - 45) + 'deg); font-size: 24px; color: red;" />'});
@@ -86,7 +90,7 @@
 
                         function make_key_wrap_closure_out(k) {
                             return function() {
-                                var myIcon = L.divIcon({className: 'plane-icon', html: '<div class="fa fa-plane" style="border: 0; transform: rotate(' + (markers[k]['heading'] - 45) + 'deg); font-size: 24px;" />'});
+                                var myIcon = L.divIcon({className: 'plane-icon', html: '<div class="fa fa-plane" style="border: 0; transform: rotate(' + (markers[k]['heading'] - 45) + 'deg); font-size: 24px; width: 24px; height: 24px" />'});
 
                                 if (markers[k]['path'] != null) {
                                     markers[k]['path'].setStyle({
@@ -96,6 +100,8 @@
                                 markers[k]['marker'].setIcon(myIcon);
                             }
                         };
+                        */
+
                         if (markers[key]['last_lat'] != lat || markers[key]['last_lon'] != lon) {
                             markers[key]['pathlist'].push([lat, lon]);
 

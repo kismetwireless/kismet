@@ -208,7 +208,6 @@ exports.ADSBLiveMap = function() {
     })
     .contentResize();
 
-
 }
 
 // We're done loading
