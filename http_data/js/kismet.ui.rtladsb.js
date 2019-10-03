@@ -189,8 +189,9 @@ exports.ADSBLiveMap = function() {
         id: "adsb-live-map",
         headerTitle: '<i class="fa fa-plane"></i> Live Map',
         headerControls: {
-            controls: 'closeonly',
             iconfont: 'jsglyph',
+            minimize: 'remove',
+            smallify: 'remove',
         },
         contentIframe: {
             src: local_uri_prefix + '/adsb_map_panel.html?parent_url=' + parent.document.URL + '&local_uri_prefix=' + local_uri_prefix

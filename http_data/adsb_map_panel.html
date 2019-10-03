@@ -109,19 +109,24 @@
 
                             markers[key]['path'] = L.polyline(markers[key]['pathlist'], {
                                 color: 'red',
-                                weight: 1,
+                                weight: 2,
                             }).addTo(mymap);
 
+                            /*
                             markers[key]['path'].on('mouseover', make_key_wrap_closure_over(key));
                             markers[key]['path'].on('mouseout', make_key_wrap_closure_out(key));
+                            */
 
                         }
 
                         var new_loc = new L.LatLng(lat, lon);
                         marker.setLatLng(new_loc); 
                         marker.setIcon(myIcon);
+                        
+                        /*
                         markers[key]['marker'].on('mouseover', make_key_wrap_closure_over(key));
                         markers[key]['marker'].on('mouseout', make_key_wrap_closure_out(key));
+                        */
 
                     } else {
                         var marker = L.marker([lat, lon], { icon: myIcon} ).addTo(mymap);
