@@ -65,25 +65,64 @@
 
                     key = data['kismet.adsb.map.devices'][d]['kismet.device.base.key'];
 
-                    var myIcon = L.divIcon({className: 'plane-icon', html: '<div class="fa fa-plane" style="border: 0; transform: rotate(' + (heading - 45) + 'deg); font-size: 18px;" />'});
+                    var myIcon = L.divIcon({className: 'plane-icon', html: '<div class="fa fa-plane" style="border: 0; transform: rotate(' + (heading - 45) + 'deg); font-size: 24px;" />'});
 
                     if (key in markers) {
                         marker = markers[key]['marker'];
                         markers[key]['keep'] = true;
 
+                        function make_key_wrap_closure_over(k) {
+                            return function() {
+                                var myIcon = L.divIcon({className: 'plane-icon', html: '<div class="fa fa-plane" style="border: 0; transform: rotate(' + (markers[k]['heading'] - 45) + 'deg); font-size: 24px; color: red;" />'});
+
+                                if (markers[k]['path'] != null) {
+                                    markers[k]['path'].setStyle({
+                                        weight: 3,
+                                    });
+                                }
+                                markers[k]['marker'].setIcon(myIcon);
+                            }
+                        };
+
+                        function make_key_wrap_closure_out(k) {
+                            return function() {
+                                var myIcon = L.divIcon({className: 'plane-icon', html: '<div class="fa fa-plane" style="border: 0; transform: rotate(' + (markers[k]['heading'] - 45) + 'deg); font-size: 24px;" />'});
+
+                                if (markers[k]['path'] != null) {
+                                    markers[k]['path'].setStyle({
+                                        weight: 1,
+                                    });
+                                }
+                                markers[k]['marker'].setIcon(myIcon);
+                            }
+                        };
                         if (markers[key]['last_lat'] != lat || markers[key]['last_lon'] != lon) {
                             markers[key]['pathlist'].push([lat, lon]);
+
+                            markers[key]['last_lat'] = lat;
+                            markers[key]['last_lon'] = lon;
+                            markers[key]['heading'] = heading;
 
                             if (markers[key]['path'] != null) {
                                 mymap.removeLayer(markers[key]['path']);
                             }
 
-                            markers[key]['path'] = L.polyline(markers[key]['pathlist'], {color: 'red'}).addTo(mymap);
+                            markers[key]['path'] = L.polyline(markers[key]['pathlist'], {
+                                color: 'red',
+                                weight: 1,
+                            }).addTo(mymap);
+
+                            markers[key]['path'].on('mouseover', make_key_wrap_closure_over(key));
+                            markers[key]['path'].on('mouseout', make_key_wrap_closure_out(key));
+
                         }
 
                         var new_loc = new L.LatLng(lat, lon);
                         marker.setLatLng(new_loc); 
                         marker.setIcon(myIcon);
+                        markers[key]['marker'].on('mouseover', make_key_wrap_closure_over(key));
+                        markers[key]['marker'].on('mouseout', make_key_wrap_closure_out(key));
+
                     } else {
                         var marker = L.marker([lat, lon], { icon: myIcon} ).addTo(mymap);
                         markers[key] = {};
@@ -92,6 +131,7 @@
                         markers[key]['pathlist'] = [[lat, lon]];
                         markers[key]['last_lat'] = lat;
                         markers[key]['last_lon'] = lon;
+                        markers[key]['heading'] = heading;
                         markers[key]['path'] = null;
                     }
                 } catch (error) {
