@@ -93,7 +93,7 @@
 
                     var myIcon = L.divIcon({
                         className: 'plane-icon', 
-                        html: '<div id="adsb_marker_"' + kismet.sanitizeId(key) + '" style="width: 24px; height: 24px; transform-origin: center; transform: rotate(' + (heading - 45) + 'deg);"><i id="adsb_marker_icon_' + kismet.sanitizeId(key) + '" class="center fa fa-plane" style="font-size: 18px;"></div>',
+                        html: '<div id="adsb_marker_' + kismet.sanitizeId(key) + '" style="width: 24px; height: 24px; transform-origin: center;"><i id="adsb_marker_icon_' + kismet.sanitizeId(key) + '" class="center fa fa-plane" style="font-size: 18px;"></div>',
                         iconAnchor: [12, 12],
                     });
 
@@ -127,14 +127,16 @@
                         }
 
                         // Move the marker
+                        $('#adsb_marker_' + kismet.sanitizeId(key)).css('transform', 'rotate(' + (heading - 45) + 'deg)');
                         var new_loc = new L.LatLng(lat, lon);
                         marker.setLatLng(new_loc); 
 
-                        // Set the heading by spinning the div directly
+                    } else {
+                        /* Make a new marker */
+
+                        var marker = L.marker([lat, lon], { icon: myIcon} ).addTo(mymap);
                         $('#adsb_marker_' + kismet.sanitizeId(key)).css('transform', 'rotate(' + (heading - 45) + 'deg)');
 
-                    } else {
-                        var marker = L.marker([lat, lon], { icon: myIcon} ).addTo(mymap);
                         markers[key] = {};
                         markers[key]['marker'] = marker;
                         markers[key]['keep'] = true;
