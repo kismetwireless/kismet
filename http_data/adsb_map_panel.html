@@ -39,7 +39,8 @@
             return function() {
                 if (markers[k]['path'] != null) {
                     markers[k]['path'].setStyle({
-                        weight: 4,
+                        weight: 3,
+                        dashArray: '',
                     });
                 }
 
@@ -48,11 +49,12 @@
             }
         };
 
-        function wrap_closure_mouseoout(k) {
+        function wrap_closure_mouseout(k) {
             return function() {
                 if (markers[k]['path'] != null) {
                     markers[k]['path'].setStyle({
                         weight: 2,
+                        dashArray: '3',
                     });
                 }
 
@@ -101,6 +103,11 @@
                         marker = markers[key]['marker'];
                         markers[key]['keep'] = true;
 
+                        // Move the marker
+                        $('#adsb_marker_' + kismet.sanitizeId(key)).css('transform', 'rotate(' + (heading - 45) + 'deg)');
+                        var new_loc = new L.LatLng(lat, lon);
+                        marker.setLatLng(new_loc); 
+
                         if (markers[key]['last_lat'] != lat || markers[key]['last_lon'] != lon) {
                             markers[key]['pathlist'].push([lat, lon]);
 
@@ -114,22 +121,16 @@
                                 markers[key]['path'] = L.polyline(markers[key]['pathlist'], {
                                     color: 'red',
                                     weight: 2,
+                                    dashArray: '3',
                                     opacity: 0.85,
                                     smoothFactor: 1,
                                 }).addTo(mymap);
 
-                                /*
-                                markers[key]['path'].on('mouseenter', wrap_closure_mouseover(key));
-                                markers[key]['path'].on('mouseleave', wrap_closure_mouseout(key));
-                                */
+                                markers[key]['path'].on('mouseover', wrap_closure_mouseover(key));
+                                markers[key]['path'].on('mouseout', wrap_closure_mouseout(key));
                             }
 
                         }
-
-                        // Move the marker
-                        $('#adsb_marker_' + kismet.sanitizeId(key)).css('transform', 'rotate(' + (heading - 45) + 'deg)');
-                        var new_loc = new L.LatLng(lat, lon);
-                        marker.setLatLng(new_loc); 
 
                     } else {
                         /* Make a new marker */
@@ -146,11 +147,8 @@
                         markers[key]['heading'] = heading;
                         markers[key]['path'] = null;
 
-                        /*
-                        markers[key]['marker'].on('mouseenter', wrap_closure_mouseover(key));
-                        markers[key]['marker'].on('mouseleave', wrap_closure_mouseout(key));
-                        */
-
+                        markers[key]['marker'].on('mouseover', wrap_closure_mouseover(key));
+                        markers[key]['marker'].on('mouseout', wrap_closure_mouseout(key));
                     }
                 } catch (error) {
                     ;
