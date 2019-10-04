@@ -34,7 +34,9 @@ namespace json_adapter {
 // recursive indenting and prettifying the output
 void pack(std::ostream &stream, shared_tracker_element e,
         std::shared_ptr<tracker_element_serializer::rename_map> name_map = nullptr,
-        bool prettyprint = false, unsigned int depth = 0);
+        bool prettyprint = false, unsigned int depth = 0,
+        std::function<std::string (const std::string&)> name_permuter = 
+            [](const std::string& s) -> std::string { return s; });
 
 std::string sanitize_string(const std::string& in) noexcept;
 std::size_t sanitize_extra_space(const std::string& in) noexcept;
@@ -53,12 +55,47 @@ public:
 }
 
 // "ELK-style" JSON adapter.  This will behave the same as the normal JSON
-// serializer with one important difference:  If the top-level object *is a vector
-// type*, it will serialize each member of the vector independently as a complete
-// JSON object separated by newlines.  This allows for a 'streamed' JSON output
-// which will not require loading the entire object into RAM
+// serializer with a few important differences:  
+// 1. If the top-level object *is a vector type*, it will serialize each 
+// member of the vector independently as a complete JSON object separated 
+// by newlines.  This allows for a 'streamed' JSON output which will not 
+// require loading the entire object into RAM.
+// 2. To avoid conflicts with the ELK interpretation of field names, all 
+// dots are converted to underscores
 namespace ek_json_adapter {
 
+class serializer : public tracker_element_serializer {
+public:
+    serializer() :
+        tracker_element_serializer() { }
+
+    virtual void serialize(shared_tracker_element in_elem, std::ostream &stream,
+            std::shared_ptr<rename_map> name_map = nullptr) override {
+        local_locker lock(&mutex);
+
+        if (in_elem->get_type() == tracker_type::tracker_vector) {
+            for (auto i : *(std::static_pointer_cast<tracker_element_vector>(in_elem))) {
+                json_adapter::pack(stream, i, name_map, false, 0,
+                        [](const std::string& s) { 
+                            return multi_replace_all(s, ".", "_");
+                        });
+                stream << "\n";
+            }
+        } else {
+            json_adapter::pack(stream, in_elem, name_map, false, 0,
+                        [](const std::string& s) { 
+                            return multi_replace_all(s, ".", "_");
+                        });
+        }
+    }
+};
+
+}
+
+// Iterative JSON
+// The 'old' ekjson format, iterative json converts all *vector objects* into *an object per
+// newline*.  This retains the existing kismet names for fields.
+namespace it_json_adapter {
 class serializer : public tracker_element_serializer {
 public:
     serializer() :

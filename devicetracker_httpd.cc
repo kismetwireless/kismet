@@ -138,8 +138,8 @@ bool device_tracker::httpd_verify_path(const char *path, const char *method) {
                     return false;
                 }
 
-                // Explicit catch of ekjson
-                if (tokenurl[4] == "devices.ekjson")
+                // Explicit catch of ekjson and itjson
+                if (tokenurl[4] == "devices.ekjson" || tokenurl[4] == "devices.itjson")
                     return true;
 
                 return httpd_can_serialize(tokenurl[4]);

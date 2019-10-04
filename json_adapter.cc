@@ -164,7 +164,8 @@ std::string json_adapter::sanitize_string(const std::string& s) noexcept {
 
 void json_adapter::pack(std::ostream &stream, shared_tracker_element e, 
         std::shared_ptr<tracker_element_serializer::rename_map> name_map,
-        bool prettyprint, unsigned int depth) {
+        bool prettyprint, unsigned int depth,
+        std::function<std::string (const std::string&)> name_permuter) {
 
     std::string indent;
     std::string ppendl;
@@ -271,7 +272,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                 if (prettyprint)
                     stream << indent;
 
-                json_adapter::pack(stream, i, name_map, prettyprint, depth + 1);
+                json_adapter::pack(stream, i, name_map, prettyprint, depth + 1, name_permuter);
             }
             stream << ppendl << indent << "]";
             break;
@@ -355,7 +356,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                         }
                     }
 
-                    tname = sanitize_string(tname);
+                    tname = json_adapter::sanitize_string(name_permuter(tname));
 
                     if (prettyprint) {
                         stream << indent << "\"description." << tname << "\": ";
@@ -371,7 +372,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                     stream << indent << "\"" << tname << "\": ";
                 }
 
-                json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1);
+                json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
 
             }
 
@@ -408,7 +409,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                 }
 
                 if (!as_key_vector) {
-                    json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1);
+                    json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
                 }
             }
 
@@ -445,7 +446,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                 }
 
                 if (!as_key_vector) {
-                    json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1);
+                    json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
                 }
             }
 
@@ -481,7 +482,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                 }
 
                 if (!as_key_vector) {
-                    json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1);
+                    json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
                 }
             }
 
@@ -518,7 +519,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                 }
 
                 if (!as_key_vector) {
-                    json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1);
+                    json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
                 }
             }
 
@@ -555,7 +556,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                 }
 
                 if (!as_key_vector) {
-                    json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1);
+                    json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
                 }
             }
     
@@ -627,7 +628,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                 }
 
                 if (!as_key_vector) {
-                    json_adapter::pack(stream,i.second, name_map, prettyprint, depth + 1);
+                    json_adapter::pack(stream,i.second, name_map, prettyprint, depth + 1, name_permuter);
                 }
             }
 

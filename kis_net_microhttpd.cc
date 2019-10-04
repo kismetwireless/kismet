@@ -203,6 +203,7 @@ kis_net_httpd::kis_net_httpd() {
     register_mime_type("ico", "image/x-icon");
     register_mime_type("json", "application/json");
     register_mime_type("ekjson", "application/json");
+    register_mime_type("itjson", "application/json");
     register_mime_type("pcap", "application/vnd.tcpdump.pcap");
 
     std::vector<std::string> mimeopts = Globalreg::globalreg->kismet_config->fetch_opt_vec("httpd_mime");
