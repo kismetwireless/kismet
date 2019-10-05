@@ -665,7 +665,7 @@ class KismetRtladsb(object):
         adsb_frame = bytearray(np.packbits(message_buf[:frame_len]).tobytes())
         
         if frame_len > self.short_frame:
-            print("*{};".format(adsb_frame.hex()))
+            # print("*{};".format(adsb_frame.hex()))
             self.kismet.add_task(self.message_queue.put, [adsb_frame])
 
     def rtl_data_cb(self, buf, buflen, ctx):
