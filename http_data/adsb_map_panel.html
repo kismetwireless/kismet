@@ -66,6 +66,8 @@
         function map_cb(d) {
             data = kismet.sanitizeObject(d);
 
+            $('#count').html("Active in the last 10 minutes: " + data['kismet.adsb.map.devices'].length);
+
             if (!map_configured) {
                 var lat1 = data['kismet.adsb.map.min_lat'];
                 var lon1 = data['kismet.adsb.map.min_lon'];
@@ -221,6 +223,7 @@
 
 </head>
 <body>
+    <div id="count"></div>
     <div id="mapid"></div>
 </body>
 </html>

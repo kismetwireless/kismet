@@ -200,9 +200,6 @@ public:
     __Proxy(atype, std::string, std::string, std::string, atype);
     __Proxy(aoperator, std::string, std::string, std::string, aoperator);
     __Proxy(callsign, std::string, std::string, std::string, callsign);
-    __Proxy(altitude, double, double, double, altitude);
-    __Proxy(speed, double, double, double, speed);
-    __Proxy(heading, double, double, double, heading);
     __Proxy(gsas, std::string, std::string, std::string, gsas);
 
     __Proxy(odd_raw_lat, double, double, double, odd_raw_lat);
@@ -212,12 +209,10 @@ public:
     __Proxy(even_raw_lon, double, double, double, even_raw_lon);
     __Proxy(even_ts, uint64_t, time_t, time_t, even_ts);
 
-    __Proxy(latitude, double, double, double, latitude);
-    __Proxy(longitude, double, double, double, longitude);
+    __ProxyDynamicTrackable(last_location, tracker_element_alias, 
+            last_location, last_location_id);
 
-
-    //typedef kis_tracked_rrd<rtladsb_empty_aggregator> rrdt;
-    //__ProxyTrackable(consumption_rrd, rrdt, consumption_rrd);
+    __ProxyDynamicTrackable(location_track, tracker_element_vector, location_track, location_track_id);
 
 protected:
     virtual void register_fields() override {
@@ -227,9 +222,6 @@ protected:
         register_field("rtladsb.device.atype", "Type", &atype);
         register_field("rtladsb.device.aoperator", "Operator", &aoperator);
         register_field("rtladsb.device.callsign", "Callsign", &callsign);
-        register_field("rtladsb.device.altitude", "Altitude", &altitude);
-        register_field("rtladsb.device.speed", "Speed", &speed);
-        register_field("rtladsb.device.heading", "Heading", &heading);
         register_field("rtladsb.device.gsas", "GSAS", &gsas);
 
         register_field("rtladsb.device.odd_raw_lat", "Odd-packet raw latitude", &odd_raw_lat);
@@ -239,8 +231,11 @@ protected:
         register_field("rtladsb.device.even_raw_lon", "even-packet raw longitude", &even_raw_lon);
         register_field("rtladsb.device.even_ts", "Timestamp of last even-packet", &even_ts);
 
-        register_field("rtladsb.device.latitude", "Calculated latitude", &latitude);
-        register_field("rtladsb.device.longitude", "Calculated longitude", &longitude);
+
+        location_track_id =
+            register_dynamic_field("rtladsb.device.location.track", "Location track", &location_track);
+        last_location_id =
+            register_dynamic_field("rtladsb.device.last_location", "Last location", &last_location);
     }
 
     // Basic temp in C, from multiple sensors; we might have to convert to C
@@ -251,10 +246,8 @@ protected:
     std::shared_ptr<tracker_element_string> atype;
     std::shared_ptr<tracker_element_string> aoperator;
     std::shared_ptr<tracker_element_string> callsign;
-    std::shared_ptr<tracker_element_double> altitude; 
-    std::shared_ptr<tracker_element_double> speed;
-    std::shared_ptr<tracker_element_double> heading;
     std::shared_ptr<tracker_element_string> gsas;
+
 
     // Aggregate location records from multiple packets to derive the actual
     // location.  These are raw adsb locations.
@@ -265,9 +258,12 @@ protected:
     std::shared_ptr<tracker_element_double> even_raw_lon;
     std::shared_ptr<tracker_element_uint64> even_ts;
 
-    // Calculated lat/lon
-    std::shared_ptr<tracker_element_double> latitude;
-    std::shared_ptr<tracker_element_double> longitude;
+    std::shared_ptr<tracker_element_vector> location_track;
+    int location_track_id;
+
+    std::shared_ptr<tracker_element_alias> last_location;
+    int last_location_id;
+
 };
 
 class kis_rtladsb_phy : public kis_phy_handler {
