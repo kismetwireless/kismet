@@ -29,7 +29,7 @@ typedef std::shared_ptr<kis_datasource_rtladsb> shared_datasource_rtladsb;
 class kis_datasource_rtladsb : public kis_datasource {
 public:
     kis_datasource_rtladsb(shared_datasource_builder in_builder, 
-            std::shared_ptr<kis_recursive_timed_mutex> mutex, bool in_mqtt);
+            std::shared_ptr<kis_recursive_timed_mutex> mutex);
     virtual ~kis_datasource_rtladsb();
 
 protected:
@@ -66,7 +66,7 @@ public:
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this, 
             std::shared_ptr<kis_recursive_timed_mutex> mutex) override {
-        return shared_datasource_rtladsb(new kis_datasource_rtladsb(in_sh_this, mutex, false));
+        return shared_datasource_rtladsb(new kis_datasource_rtladsb(in_sh_this, mutex));
     }
 
     virtual void initialize() override {
@@ -79,49 +79,6 @@ public:
         set_remote_capable(true);
         set_passive_capable(false);
         set_tune_capable(true);
-    }
-};
-
-class DatasourceRtladsbMqttBuilder : public kis_datasource_builder {
-public:
-    DatasourceRtladsbMqttBuilder() :
-        kis_datasource_builder() {
-        register_fields();
-        reserve_fields(NULL);
-        initialize();
-    }
-
-    DatasourceRtladsbMqttBuilder(int in_id) :
-        kis_datasource_builder(in_id) {
-        register_fields();
-        reserve_fields(NULL);
-        initialize();
-    }
-
-    DatasourceRtladsbMqttBuilder(int in_id, std::shared_ptr<tracker_element_map> e) :
-        kis_datasource_builder(in_id, e) {
-        register_fields();
-        reserve_fields(e);
-        initialize();
-    }
-
-    virtual ~DatasourceRtladsbMqttBuilder() { }
-
-    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this,
-            std::shared_ptr<kis_recursive_timed_mutex> mutex) override {
-        return shared_datasource_rtladsb(new kis_datasource_rtladsb(in_sh_this, mutex, true));
-    }
-
-    virtual void initialize() override {
-        set_source_type("rtladsbmqtt");
-        set_source_description("rtl_adsb MQTT feed");
-
-        set_probe_capable(true);
-        set_list_capable(false);
-        set_local_capable(true);
-        set_remote_capable(true);
-        set_passive_capable(false);
-        set_tune_capable(false);
     }
 };
 
