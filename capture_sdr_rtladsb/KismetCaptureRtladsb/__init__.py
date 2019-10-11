@@ -63,6 +63,11 @@ class KismetRtladsb(object):
         self.allowed_errors = 5
         self.usb_buf_sz = 16 * 16384
 
+        self.square_lut = np.zeros(256)
+        for i in range(0, 256):
+            self.square_lut[i] = abs(127 - i)
+            self.square_lut[i] *= self.square_lut[i]
+
         # We're usually not remote
         self.proberet = None
 
@@ -541,8 +546,10 @@ class KismetRtladsb(object):
         Convert IQ to magnitude
         """
 
-        nb = np.ctypeslib.as_array(buf, shape=(buflen,)).astype(np.uint16)
-        self.magnitude_buf = ((np.abs(127 - nb[::2]) ** 2) + (np.abs(127 - nb[1::2]) ** 2))
+        nb = np.ctypeslib.as_array(buf, shape=(buflen,)).astype(np.uint8)
+
+        self.magnitude_buf = np.add(self.square_lut[nb[::2]], self.square_lut[nb[1::2]])
+        # self.magnitude_buf = ((np.abs(127 - nb[::2]) ** 2) + (np.abs(127 - nb[1::2]) ** 2))
 
     def _single_manchester(self, a, b, c, d):
         bit_p = a > b
@@ -677,6 +684,9 @@ class KismetRtladsb(object):
         # This function blocks forever until cancelled
         self.rtl_read_async(self.rtlradio, self.rtl_read_async_cb, None, 12, self.usb_buf_sz)
 
+        # Always make sure we die
+        self.kill_adsb()
+        self.kismet.spindown()
 
     def open_radio(self, rnum):
         self.rtlradio = ctypes.c_void_p(0)
