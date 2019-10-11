@@ -1641,6 +1641,10 @@ public:
     tracker_element_core_vector(tracker_type t, int id) :
         tracker_element(t, id) { }
 
+    tracker_element_core_vector(tracker_type t, int id, const vector_t& init_v) :
+        tracker_element(t, id),
+        vector{init_v} { }
+
     virtual void coercive_set(const std::string& in_str) override {
         throw(std::runtime_error("Cannot coercive_set a scalar vector from a string"));
     }
@@ -1658,8 +1662,16 @@ public:
         vector = vector_t(a, b);
     }
 
+    virtual void set(const vector_t& v) {
+        vector = vector_t{v};
+    }
+
     vector_t& get() {
         return vector;
+    }
+
+    T& at(size_t idx) {
+        return vector.at(idx);
     }
 
     iterator begin() {
@@ -1741,6 +1753,9 @@ public:
         vector = vector_t(a, b);
     }
 
+    tracker_element_vector(tracker_type t, int id, const vector_t& init_v) :
+        tracker_element_core_vector(t, id, init_v) { }
+
     static tracker_type static_type() {
         return tracker_type::tracker_vector;
     }
@@ -1781,6 +1796,9 @@ public:
         vector = vector_t(v);
     }
 
+    tracker_element_vector_double(tracker_type t, int id, const vector_t& init_v) :
+        tracker_element_core_vector(t, id, init_v) { }
+
     static tracker_type static_type() {
         return tracker_type::tracker_vector_double;
     }
@@ -1815,6 +1833,9 @@ public:
         tracker_element_core_vector(tracker_type::tracker_vector) { 
         vector = vector_t(a, b);
     }
+
+    tracker_element_vector_string(tracker_type t, int id, const vector_t& init_v) :
+        tracker_element_core_vector(t, id, init_v) { }
 
     static tracker_type static_type() {
         return tracker_type::tracker_vector_string;
