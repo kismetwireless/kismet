@@ -60,19 +60,19 @@ public:
 
     // lat/lon are encoded in the geopoint
     const double get_lat() const {
-        return geopoint->at(0);
-    }
-
-    void set_lat(double lat) {
-        geopoint->at(0) = lat;
-    }
-
-    const double get_lon() const {
         return geopoint->at(1);
     }
 
+    void set_lat(double lat) {
+        geopoint->at(1) = lat;
+    }
+
+    const double get_lon() const {
+        return geopoint->at(0);
+    }
+
     void set_lon(double lon) {
-        geopoint->at(1) = lon;
+        geopoint->at(0) = lon;
     }
 
     __Proxy(alt, double, double, double, alt);
@@ -187,19 +187,19 @@ public:
 
     // lat/lon are encoded in the geopoint
     const double get_lat() const {
-        return geopoint->at(0);
-    }
-
-    void set_lat(double lat) {
-        geopoint->at(0) = lat;
-    }
-
-    const double get_lon() const {
         return geopoint->at(1);
     }
 
+    void set_lat(double lat) {
+        geopoint->at(1) = lat;
+    }
+
+    const double get_lon() const {
+        return geopoint->at(0);
+    }
+
     void set_lon(double lon) {
-        geopoint->at(1) = lon;
+        geopoint->at(0) = lon;
     }
 
     __Proxy(heading, double, double, double, heading);

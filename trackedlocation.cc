@@ -105,7 +105,7 @@ kis_tracked_location_triplet&
 void kis_tracked_location_triplet::register_fields() {
     tracker_component::register_fields();
 
-    register_field("kismet.common.location.geopoint", "[lat, lon] point", &geopoint);
+    register_field("kismet.common.location.geopoint", "[lon, lat] point", &geopoint);
     register_field("kismet.common.location.alt", "altitude", &alt);
     register_field("kismet.common.location.speed", "speed", &spd);
     register_field("kismet.common.location.heading", "heading", &heading);
@@ -276,7 +276,7 @@ void kis_historic_location::register_fields() {
     tracker_component::register_fields();
 
 
-    register_field("kismet.historic.location.geopoint", "[lat, lon] point", &geopoint);
+    register_field("kismet.historic.location.geopoint", "[lon, lat] point", &geopoint);
     register_field("kismet.historic.location.alt", "altitude (m)", &alt);
     register_field("kismet.historic.location.speed", "speed (kph)", &speed);
     register_field("kismet.historic.location.heading", "heading (degrees)", &heading);
