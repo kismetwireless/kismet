@@ -315,6 +315,7 @@ protected:
     std::shared_ptr<entry_tracker> entrytracker;
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<event_bus> eventbus;
+    std::shared_ptr<alert_tracker> alertracker;
 
     unsigned long new_datasource_evt_id;
 
@@ -377,6 +378,26 @@ protected:
     int pack_comp_device, pack_comp_common, pack_comp_basicdata,
         pack_comp_radiodata, pack_comp_gps, pack_comp_datasrc,
         pack_comp_mangleframe;
+
+
+    // Generic device alert based on flagged MACs
+    int alert_macdevice_found_ref, alert_macdevice_lost_ref;
+    // Timeouts
+    int devicefound_timeout;
+    int devicelost_timeout;
+    // Configuration map for devices we look for
+    // 1 = seen only
+    // 2 = lost only
+    // 2 = seen and lost
+    std::map<mac_addr, unsigned int> macdevice_alert_conf_map;
+    // Timeout event
+    int macdevice_alert_timeout_timer;
+    // Trigger event called to see if we need to alert devices have
+    // stopped transmitting
+    void macdevice_timer_event();
+
+    // Devices we've flagged for timeout alerts
+    std::map<device_key, time_t> macdevice_leaving_map;
 
 	// Tracked devices
     device_map_t tracked_map;

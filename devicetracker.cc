@@ -76,6 +76,9 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 	eventbus =
 		Globalreg::fetch_mandatory_global_as<event_bus>();
 
+    alertracker =
+        Globalreg::fetch_mandatory_global_as<alert_tracker>();
+
     device_base_id =
         entrytracker->register_field("kismet.device.base", 
                 tracker_element_factory<kis_tracked_device_base>(),
@@ -462,6 +465,57 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
                 });
     add_view(all_view);
 
+    devicefound_timeout =
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("devicefound_timeout", 60);
+    devicelost_timeout =
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("devicelost_timeout", 60);
+
+    alert_macdevice_found_ref =
+        alertracker->activate_configured_alert("DEVICEFOUND",
+                "A target device has been seen", -1);
+    alert_macdevice_lost_ref =
+        alertracker->activate_configured_alert("DEVICELOST",
+                "A target device has timed out", -1);
+
+    auto found_vec = 
+        Globalreg::globalreg->kismet_config->fetch_opt_vec("devicefound");
+    for (auto m : found_vec) {
+        auto mac = mac_addr(m);
+
+        if (mac.error) {
+            _MSG_ERROR("Invalid 'devicefound=' option, expected MAC address "
+                    "or MAC address mask");
+            continue;
+        }
+
+        macdevice_alert_conf_map[mac] = 1;
+    }
+
+    auto lost_vec =
+        Globalreg::globalreg->kismet_config->fetch_opt_vec("devicelost");
+    for (auto m : lost_vec) {
+        auto mac = mac_addr(m);
+
+        if (mac.error) {
+            _MSG_ERROR("Invalid 'devicelost=' option, expected MAC address "
+                    "or MAC address mask.");
+            continue;
+        }
+
+        auto k = macdevice_alert_conf_map.find(mac);
+        if (k != macdevice_alert_conf_map.end())
+            k->second = 3;
+        else
+            macdevice_alert_conf_map[mac] = 2;
+    }
+
+    macdevice_alert_timeout_timer =
+        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 30, NULL, 1,
+                [this](int) -> int {
+                    macdevice_timer_event();
+                    return 1;
+                });
+
     httpd->register_alias("/devices/summary/devices.json", "/devices/views/all/devices.json");
 }
 
@@ -508,6 +562,10 @@ device_tracker::~device_tracker() {
     tracked_vec.clear();
     immutable_tracked_vec->clear();
     tracked_mac_multimap.clear();
+}
+
+void device_tracker::macdevice_timer_event() {
+
 }
 
 kis_phy_handler *device_tracker::fetch_phy_handler(int in_phy) {
