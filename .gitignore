@@ -20,6 +20,7 @@ callgrind*
 *.pb-c.c
 *.pb-c.h
 *_pb2.py
+*-E
 
 # Autogen'd version
 version.c
@@ -44,7 +45,7 @@ python_modules/*/dist/
 capture_nrf_mousejack/kismet_cap_nrf_mousejack
 capture_linux_bluetooth/kismet_cap_linux_bluetooth
 capture_linux_wifi/kismet_cap_linux_wifi
-capture_osx_corewlan_wifi/kismet_cap_osx_corewlan
+capture_osx_corewlan_wifi/kismet_cap_osx_corewlan_wifi
 kismet_cap_pcapfile
 kismet_cap_kismetdb
 
