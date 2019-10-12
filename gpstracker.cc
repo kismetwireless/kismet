@@ -66,7 +66,7 @@ gps_tracker::gps_tracker() :
             Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
 
         log_snapshot_timer =
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1, 
+            timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1, 
                     [this](int) -> int { log_snapshot_gps(); return 1; });
     } else {
         _MSG("GPS track logging disabled", MSGFLAG_INFO);

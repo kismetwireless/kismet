@@ -209,7 +209,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
             devices_storing = false;
 
             device_storage_timer =
-                timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * storerate, NULL, 1,
+                timetracker->register_timer(SERVER_TIMESLICES_SEC * storerate, NULL, 1,
                         [this](int) -> int {
                             local_locker l(&storing_mutex);
 
@@ -294,7 +294,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
         databaselog_logging = false;
 
         databaselog_timer =
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * lograte, NULL, 1,
+            timetracker->register_timer(SERVER_TIMESLICES_SEC * lograte, NULL, 1,
                 [this](int) -> int {
                     local_locker l(&databaselog_mutex);
 
@@ -357,7 +357,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 
 		// Schedule device idle reaping every minute
         device_idle_timer =
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 1, this);
+            timetracker->register_timer(SERVER_TIMESLICES_SEC * 60, NULL, 1, this);
     } else {
         device_idle_timer = -1;
     }
@@ -371,7 +371,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 
 		// Schedule max device reaping every 5 seconds
 		max_devices_timer =
-			timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5, NULL, 1, this);
+			timetracker->register_timer(SERVER_TIMESLICES_SEC * 5, NULL, 1, this);
 	} else {
 		max_devices_timer = -1;
 	}
@@ -510,7 +510,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
     }
 
     macdevice_alert_timeout_timer =
-        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 30, NULL, 1,
+        timetracker->register_timer(SERVER_TIMESLICES_SEC * 30, NULL, 1,
                 [this](int) -> int {
                     macdevice_timer_event();
                     return 1;
