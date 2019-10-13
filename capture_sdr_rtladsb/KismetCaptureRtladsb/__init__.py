@@ -39,12 +39,147 @@ import uuid
 
 from . import kismetexternal
 
+class RadioMissingLibrtlsdr(Exception):
+    pass
+
+class RadioOpenError(Exception):
+    pass
+
+class RadioConfigError(RadioOpenError):
+    pass
+
+class RtlSdr(object):
+    def __init__(self):
+        try:
+            self.rtllib = ctypes.CDLL("librtlsdr.so.0")
+
+            self.rtl_get_device_count = self.rtllib.rtlsdr_get_device_count
+
+            self.rtl_get_device_name = self.rtllib.rtlsdr_get_device_name
+            self.rtl_get_device_name.argtypes = [ctypes.c_int]
+            self.rtl_get_device_name.restype = ctypes.c_char_p
+
+            self.rtl_get_usb_strings = self.rtllib.rtlsdr_get_device_usb_strings
+            self.rtl_get_usb_strings.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
+
+            self.rtl_get_index_by_serial = self.rtllib.rtlsdr_get_index_by_serial
+            self.rtl_get_index_by_serial.argtypes = [ctypes.c_char_p]
+            self.rtl_get_index_by_serial.restype = ctypes.c_int
+
+            self.rtl_open = self.rtllib.rtlsdr_open
+            self.rtl_open.argtypes = [ctypes.POINTER(ctypes.c_void_p), ctypes.c_uint]
+            self.rtl_open.restype = ctypes.c_int
+
+            self.rtl_set_tuner_gain_mode = self.rtllib.rtlsdr_set_tuner_gain_mode
+            self.rtl_set_tuner_gain_mode.argtypes = [ctypes.c_void_p, ctypes.c_int]
+            self.rtl_set_tuner_gain_mode.restype = ctypes.c_int
+
+            self.rtl_set_tuner_gain = self.rtllib.rtlsdr_set_tuner_gain
+            self.rtl_set_tuner_gain.argtypes = [ctypes.c_void_p, ctypes.c_int]
+            self.rtl_set_tuner_gain.restype = ctypes.c_int
+
+            self.rtl_set_agc_mode = self.rtllib.rtlsdr_set_agc_mode
+            self.rtl_set_agc_mode.argtypes = [ctypes.c_void_p, ctypes.c_int]
+            self.rtl_set_agc_mode.restype = ctypes.c_int
+
+            self.rtl_set_freq_correction = self.rtllib.rtlsdr_set_freq_correction
+            self.rtl_set_freq_correction.argtypes = [ctypes.c_void_p, ctypes.c_int]
+            self.rtl_set_freq_correction.restype = ctypes.c_int
+
+            self.rtl_set_center_freq = self.rtllib.rtlsdr_set_center_freq
+            self.rtl_set_center_freq.argtypes = [ctypes.c_void_p, ctypes.c_uint]
+            self.rtl_set_center_freq.restype = ctypes.c_int
+
+            self.rtl_get_center_freq = self.rtllib.rtlsdr_get_center_freq
+            self.rtl_get_center_freq.argtypes = [ctypes.c_void_p]
+            self.rtl_get_center_freq.restype = ctypes.c_int
+
+            self.rtl_set_sample_rate = self.rtllib.rtlsdr_set_sample_rate
+            self.rtl_set_sample_rate.argtypes = [ctypes.c_void_p, ctypes.c_int]
+            self.rtl_set_sample_rate.restype = ctypes.c_int
+
+            self.rtl_reset_buffer = self.rtllib.rtlsdr_reset_buffer
+            self.rtl_reset_buffer.argtypes = [ctypes.c_void_p]
+            self.rtl_reset_buffer.restype = ctypes.c_int
+
+            self.rtl_read_async_cb_t = ctypes.CFUNCTYPE(None, ctypes.POINTER(ctypes.c_ubyte), ctypes.c_uint, ctypes.c_void_p)
+            # self.rtl_read_async_cb = self.rtl_read_async_cb_t(self.rtl_data_cb)
+
+            self.rtl_read_async = self.rtllib.rtlsdr_read_async
+            self.rtl_read_async.argtypes = [ctypes.c_void_p, self.rtl_read_async_cb_t, ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint]
+            self.rtl_read_async.restype = None
+
+            self.rtl_cancel_async = self.rtllib.rtlsdr_cancel_async
+            self.rtl_cancel_async.argtypes = [ctypes.c_void_p]
+            self.rtl_cancel_async.restype = None
+
+            self.rtl_set_freq_correction = self.rtllib.rtlsdr_set_freq_correction
+            self.rtl_set_freq_correction.argtypes = [ctypes.c_void_p, ctypes.c_int]
+            self.rtl_set_freq_correction.restype = ctypes.c_int
+        except OSError:
+            raise RadioMissingLibrtlsdr("missing librtlsdr")
+
+    def cancel(self):
+        self.rtl_cancel_async(self.rtlradio)
+
+    def open_radio(self, rnum, frequency, rate, gain = -1, autogain = False, ppm = 0):
+        self.rtlradio = ctypes.c_void_p(0)
+
+        r = self.rtl_open(ctypes.byref(self.rtlradio), rnum)
+        if not r == 0:
+            raise RadioOpenError("Could not open radio")
+
+        if not gain < 0:
+            r = self.rtl_set_tuner_gain_mode(self.rtlradio, 1)
+            if not r == 0:
+                raise RadioConfigError("Could not set tuner gain mode")
+
+            r = self.rtl_set_tuner_gain(self.rtlradio, gain)
+            if not r == 0:
+                raise RadioConfigError("Could not set gain {}".format(gain))
+        elif autogain:
+            r = self.rtl_set_tuner_gain_mode(self.rtlradio, 0)
+            if not r == 0:
+                raise RadioConfigError("Could not set tuner gain mode")
+            
+            r = self.rtl_set_agc_mode(self.rtlradio, 1)
+            if not r == 0:
+                raise RadioConfigError("Could not set agc mode")
+
+        r = self.rtl_set_center_freq(self.rtlradio, frequency)
+        if not r == 0:
+            raise RadioConfigError("Could not set frequency")
+
+        r = self.rtl_set_sample_rate(self.rtlradio, rate)
+        if not r == 0:
+            raise RadioConfigError("Could not set rate")
+
+        if not ppm == 0:
+            r = self.rtl_set_freq_correction(self.rtlradio, ppm)
+            if not r == 0:
+                raise RadioConfigError("Could not set PPM correction")
+
+        r = self.rtl_reset_buffer(self.rtlradio)
+        if not r == 0:
+            raise RadioConfigError("Could not reset radio buffer")
+
+    def read_samples(self, callback, nbufs, bufsz):
+        """
+        Read samples, calling the callback 'callback' which must be a
+        rtl_read_async_cb_t function.
+        """
+        
+        rtl_read_async_cb = self.rtl_read_async_cb_t(callback)
+        self.rtl_read_async(self.rtlradio, rtl_read_async_cb, None, nbufs, bufsz)
+
+
 class KismetRtladsb(object):
     def __init__(self):
         self.opts = {}
 
         self.opts['channel'] = "1090.000MHz"
-        self.opts['gain'] = None
+        self.opts['gain'] = -1
+        self.opts['ppm'] = 0
         self.opts['device'] = None
         self.opts['debug'] = None
 
@@ -80,66 +215,8 @@ class KismetRtladsb(object):
 
         self.driverid = "rtladsb"
 
-        # Map the librtlsdr api
         try:
-            self.rtllib = ctypes.CDLL("librtlsdr.so.0")
-
-            self.rtl_get_device_count = self.rtllib.rtlsdr_get_device_count
-
-            self.rtl_get_device_name = self.rtllib.rtlsdr_get_device_name
-            self.rtl_get_device_name.argtypes = [ctypes.c_int]
-            self.rtl_get_device_name.restype = ctypes.c_char_p
-
-            self.rtl_get_usb_strings = self.rtllib.rtlsdr_get_device_usb_strings
-            self.rtl_get_usb_strings.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
-
-            self.rtl_get_index_by_serial = self.rtllib.rtlsdr_get_index_by_serial
-            self.rtl_get_index_by_serial.argtypes = [ctypes.c_char_p]
-            self.rtl_get_index_by_serial.restype = ctypes.c_int
-
-            self.rtl_open = self.rtllib.rtlsdr_open
-            self.rtl_open.argtypes = [ctypes.POINTER(ctypes.c_void_p), ctypes.c_uint]
-            self.rtl_open.restype = ctypes.c_int
-
-            self.rtl_set_tuner_gain_mode = self.rtllib.rtlsdr_set_tuner_gain_mode
-            self.rtl_set_tuner_gain_mode.argtypes = [ctypes.c_void_p, ctypes.c_int]
-            self.rtl_set_tuner_gain_mode.restype = ctypes.c_int
-
-            self.rtl_set_agc_mode = self.rtllib.rtlsdr_set_agc_mode
-            self.rtl_set_agc_mode.argtypes = [ctypes.c_void_p, ctypes.c_int]
-            self.rtl_set_agc_mode.restype = ctypes.c_int
-
-            self.rtl_set_freq_correction = self.rtllib.rtlsdr_set_freq_correction
-            self.rtl_set_freq_correction.argtypes = [ctypes.c_void_p, ctypes.c_int]
-            self.rtl_set_freq_correction.restype = ctypes.c_int
-
-            self.rtl_set_center_freq = self.rtllib.rtlsdr_set_center_freq
-            self.rtl_set_center_freq.argtypes = [ctypes.c_void_p, ctypes.c_uint]
-            self.rtl_set_center_freq.restype = ctypes.c_int
-
-            self.rtl_get_center_freq = self.rtllib.rtlsdr_get_center_freq
-            self.rtl_get_center_freq.argtypes = [ctypes.c_void_p]
-            self.rtl_get_center_freq.restype = ctypes.c_int
-
-            self.rtl_set_sample_rate = self.rtllib.rtlsdr_set_sample_rate
-            self.rtl_set_sample_rate.argtypes = [ctypes.c_void_p, ctypes.c_int]
-            self.rtl_set_sample_rate.restype = ctypes.c_int
-
-            self.rtl_reset_buffer = self.rtllib.rtlsdr_reset_buffer
-            self.rtl_reset_buffer.argtypes = [ctypes.c_void_p]
-            self.rtl_reset_buffer.restype = ctypes.c_int
-
-            self.rtl_read_async_cb_t = ctypes.CFUNCTYPE(None, ctypes.POINTER(ctypes.c_ubyte), ctypes.c_uint, ctypes.c_void_p)
-            self.rtl_read_async_cb = self.rtl_read_async_cb_t(self.rtl_data_cb)
-
-            self.rtl_read_async = self.rtllib.rtlsdr_read_async
-            self.rtl_read_async.argtypes = [ctypes.c_void_p, self.rtl_read_async_cb_t, ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint]
-            self.rtl_read_async.restype = None
-
-            self.rtl_cancel_async = self.rtllib.rtlsdr_cancel_async
-            self.rtl_cancel_async.argtypes = [ctypes.c_void_p]
-            self.rtl_cancel_async.restype = None
-
+            self.rtlsdr = RtlSdr()
             self.have_librtl = True
         except OSError:
             self.have_librtl = False
@@ -231,7 +308,7 @@ class KismetRtladsb(object):
         usb_serial = (ctypes.c_char * 256)()
        
         # Call the library
-        self.rtl_get_usb_strings(index, usb_manuf, usb_product, usb_serial)
+        self.rtlsdr.rtl_get_usb_strings(index, usb_manuf, usb_product, usb_serial)
        
         # If there's a smarter way to do this, patches welcome
         m = bytearray(usb_manuf)
@@ -341,15 +418,13 @@ class KismetRtladsb(object):
             self.kismet.send_datasource_error_report(message = "Error handling ADSB: {}".format(e))
 
         finally:
-            print("Error, killing")
             self.kill_adsb()
             self.kismet.spindown()
             return
 
     def kill_adsb(self):
-        print("kill_adsb")
         try:
-            self.rtl_cancel_async(self.rtlradio)
+            self.rtlsdr.rtl_cancel_async(self.rtlradio)
         except:
             pass
 
@@ -363,7 +438,7 @@ class KismetRtladsb(object):
         interfaces = []
 
         if self.rtllib != None:
-            for i in range(0, self.rtl_get_device_count()):
+            for i in range(0, self.rtlsdr.rtl_get_device_count()):
                 (manuf, product, serial) = self.get_rtl_usb_info(i)
 
                 dev_index = i
@@ -376,7 +451,7 @@ class KismetRtladsb(object):
                 intf = kismetexternal.datasource_pb2.SubInterface()
                 intf.interface = "rtladsb-{}".format(dev_index)
                 intf.flags = ""
-                intf.hardware = self.rtl_get_device_name(i)
+                intf.hardware = self.rtlsdr.rtl_get_device_name(i)
                 interfaces.append(intf)
 
         self.kismet.send_datasource_interfaces_report(seqno, interfaces)
@@ -403,7 +478,7 @@ class KismetRtladsb(object):
             intnum = int(devselector)
 
             # Abort if we're not w/in the range
-            if intnum >= self.rtl_get_device_count():
+            if intnum >= self.rtlsdr.rtl_get_device_count():
                 raise ValueError("n/a")
 
             # Otherwise we've found a device
@@ -418,13 +493,13 @@ class KismetRtladsb(object):
 
         # Try it as a serial number
         if not found_interface:
-            intnum = self.rtl_get_index_by_serial(devselector.encode('utf-8'))
+            intnum = self.rtlsdr.rtl_get_index_by_serial(devselector.encode('utf-8'))
 
         # We've failed as both a serial and as an index, give up
         if intnum < 0:
             return None
 
-        ret['hardware'] = self.rtl_get_device_name(intnum)
+        ret['hardware'] = self.rtlsdr.rtl_get_device_name(intnum)
         if ('uuid' in options):
             ret['uuid'] = options['uuid']
         else:
@@ -461,7 +536,7 @@ class KismetRtladsb(object):
             intnum = int(devselector)
 
             # Abort if we're not w/in the range
-            if intnum >= self.rtl_get_device_count():
+            if intnum >= self.rtlsdr.rtl_get_device_count():
                 raise ValueError("n/a")
 
             # Otherwise we've found a device
@@ -478,7 +553,7 @@ class KismetRtladsb(object):
 
         # Try it as a serial number
         if not found_interface:
-            intnum = self.rtl_get_index_by_serial(devselector.encode('utf-8'))
+            intnum = self.rtlsdr.rtl_get_index_by_serial(devselector.encode('utf-8'))
 
         # We've failed as both a serial and as an index, give up
         if intnum < 0:
@@ -493,7 +568,13 @@ class KismetRtladsb(object):
         if 'channel' in options:
             self.opts['channel'] = options['channel']
 
-        ret['hardware'] = self.rtl_get_device_name(intnum)
+        if 'ppm' in options:
+            self.opts['ppm'] = options['ppm']
+
+        if 'gain' in options:
+            self.opts['gain'] = options['gain']
+
+        ret['hardware'] = self.rtlsdr.rtl_get_device_name(intnum)
         if ('uuid' in options):
             ret['uuid'] = options['uuid']
         else:
@@ -682,32 +763,19 @@ class KismetRtladsb(object):
 
     def __async_radio_thread(self):
         # This function blocks forever until cancelled
-        self.rtl_read_async(self.rtlradio, self.rtl_read_async_cb, None, 12, self.usb_buf_sz)
+        self.rtlsdr.read_samples(self.rtl_data_cb, 12, self.usb_buf_sz)
 
         # Always make sure we die
         self.kill_adsb()
         self.kismet.spindown()
 
     def open_radio(self, rnum):
-        self.rtlradio = ctypes.c_void_p(0)
-
-        r = self.rtl_open(ctypes.byref(self.rtlradio), rnum)
-        # print("Open", r == 0)
-
-        r = self.rtl_set_tuner_gain_mode(self.rtlradio, 0)
-        # print("Gain mode", r == 0)
-
-        r = self.rtl_set_agc_mode(self.rtlradio, 1)
-        # print("Autogain", r == 0)
-
-        r = self.rtl_set_center_freq(self.rtlradio, self.frequency)
-        # print("Frequency", r == 0)
-
-        r = self.rtl_set_sample_rate(self.rtlradio, self.rate)
-        # print("Rate", r == 0)
-
-        r = self.rtl_reset_buffer(self.rtlradio)
-        # print("Buffer reset", r == 0)
+        try:
+            self.rtlsdr.open_radio(rnum, self.frequency, self.rate, gain=self.opts['gain'], autogain=True, ppm=self.opts['ppm'])
+        except Exception as e:
+            self.kismet.send_datasource_error_report(message = "Error opening RTLSDR for ADSB: {}".format(e.args[0]))
+            self.kill_adsb()
+            self.kismet.spindown()
 
         self.rtl_thread = threading.Thread(target=self.__async_radio_thread)
         self.rtl_thread.daemon = True
