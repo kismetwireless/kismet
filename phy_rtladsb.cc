@@ -40,11 +40,13 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
         Globalreg::fetch_mandatory_global_as<device_tracker>();
 
 	pack_comp_common = 
-		packetchain->register_packet_component("COMMON");
+        packetchain->register_packet_component("COMMON");
     pack_comp_json = 
         packetchain->register_packet_component("JSON");
     pack_comp_meta =
         packetchain->register_packet_component("METABLOB");
+	pack_comp_gps =
+        packetchain->register_packet_component("GPS");
 
     rtladsb_holder_id =
         Globalreg::globalreg->entrytracker->register_field("rtladsb.device", 
@@ -113,7 +115,6 @@ mac_addr kis_rtladsb_phy::json_to_mac(Json::Value json) {
     if (json.isMember("icao")) {
         Json::Value i = json["icao"];
         if (i.isString()) {
-	    //*model = i.asString();
 	    std::string icaotmp = i.asString();
 	    int icaoint = std::stoi(icaotmp, 0, 16);
             *model = kis_hton16((uint16_t) icaoint);
@@ -121,14 +122,6 @@ mac_addr kis_rtladsb_phy::json_to_mac(Json::Value json) {
         }
     }
   
-    /* if (!set_model && json.isMember("device")) {
-        Json::Value d = json["device"];
-        if (d.isNumeric()) {
-            *model = kis_hton16((uint16_t) d.asUInt());
-            set_model = true;
-        }
-    } */
-
     if (!set_model) {
         *model = 0x0000;
     }
@@ -183,9 +176,12 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     common->source = rtlmac;
     common->transmitter = rtlmac;
 
+    // Update the base dev without setting location, because we want to
+    // override that location ourselves later once we've gotten our
+    // adsb device and possibly merged packets
     std::shared_ptr<kis_tracked_device_base> basedev =
         devicetracker->update_common_device(common, common->source, this, packet,
-                (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
+                (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
                  UCD_UPDATE_SEENBY), "RTLADSB Sensor");
 
     local_locker bssidlock(&(basedev->device_mutex));
@@ -254,7 +250,7 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
 
     std::shared_ptr<rtladsb_tracked_adsb> adsbdev;
     if (is_adsb(json))
-        adsbdev = add_adsb(json, rtlholder);
+        adsbdev = add_adsb(packet, json, rtlholder);
 
     if (adsbdev != nullptr) {
         std::stringstream ss;
@@ -320,8 +316,10 @@ bool kis_rtladsb_phy::is_adsb(Json::Value json) {
     return false;
 }
 
-std::shared_ptr<rtladsb_tracked_adsb> kis_rtladsb_phy::add_adsb(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
+std::shared_ptr<rtladsb_tracked_adsb> kis_rtladsb_phy::add_adsb(kis_packet *packet,
+        Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
     auto icao_j = json["icao"];
+    kis_gps_packinfo *gpsinfo = nullptr;
 
     if (!icao_j.isNull()) {
         //fprintf(stderr, "RTLADSB: Detected new adsb\n");
@@ -384,21 +382,33 @@ std::shared_ptr<rtladsb_tracked_adsb> kis_rtladsb_phy::add_adsb(Json::Value json
         if (json.isMember("altitude")) {
             auto altitude_j = json["altitude"];
             if (altitude_j.isDouble()) {
-                adsbdev->set_altitude(altitude_j.asDouble());
+                if (gpsinfo == nullptr)
+                    gpsinfo = new kis_gps_packinfo();
+
+                gpsinfo->alt = altitude_j.asDouble();
+                gpsinfo->merge_partial = true;
             }
         }
 
         if (json.isMember("speed")) {
             auto speed_j = json["speed"];
             if (speed_j.isDouble()) {
-                adsbdev->set_speed(speed_j.asDouble());
+                if (gpsinfo == nullptr)
+                    gpsinfo = new kis_gps_packinfo();
+
+                gpsinfo->speed = speed_j.asDouble();
+                gpsinfo->merge_partial = true;
             }
         }
 
         if (json.isMember("heading")) {
             auto heading_j = json["heading"];
             if (heading_j.isDouble()) {
-                adsbdev->set_heading(heading_j.asDouble());
+                if (gpsinfo == nullptr)
+                    gpsinfo = new kis_gps_packinfo();
+
+                gpsinfo->heading = heading_j.asDouble();
+                gpsinfo->merge_partial = true;
             }
         }
 
@@ -408,6 +418,9 @@ std::shared_ptr<rtladsb_tracked_adsb> kis_rtladsb_phy::add_adsb(Json::Value json
                 adsbdev->set_gsas(gsas_j.asString());
             }
         }
+
+        if (gpsinfo != nullptr)
+            packet->insert(pack_comp_gps, gpsinfo);
 
         if (json.isMember("raw_lat") && json.isMember("raw_lon") &&
                 json.isMember("coordpair_even")) {
@@ -434,7 +447,7 @@ std::shared_ptr<rtladsb_tracked_adsb> kis_rtladsb_phy::add_adsb(Json::Value json
             }
 
             if (calc_coords)
-                decode_cpr(adsbdev);
+                decode_cpr(adsbdev, packet);
         }
         
         return adsbdev;

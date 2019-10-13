@@ -209,11 +209,6 @@ public:
     __Proxy(even_raw_lon, double, double, double, even_raw_lon);
     __Proxy(even_ts, uint64_t, time_t, time_t, even_ts);
 
-    __ProxyDynamicTrackable(last_location, tracker_element_alias, 
-            last_location, last_location_id);
-
-    __ProxyDynamicTrackable(location_track, tracker_element_vector, location_track, location_track_id);
-
 protected:
     virtual void register_fields() override {
         register_field("rtladsb.device.icao", "ICAO", &icao);
@@ -230,12 +225,6 @@ protected:
         register_field("rtladsb.device.even_raw_lat", "even-packet raw latitude", &even_raw_lat);
         register_field("rtladsb.device.even_raw_lon", "even-packet raw longitude", &even_raw_lon);
         register_field("rtladsb.device.even_ts", "Timestamp of last even-packet", &even_ts);
-
-
-        location_track_id =
-            register_dynamic_field("rtladsb.device.location.track", "Location track", &location_track);
-        last_location_id =
-            register_dynamic_field("rtladsb.device.last_location", "Last location", &last_location);
     }
 
     // Basic temp in C, from multiple sensors; we might have to convert to C
@@ -257,13 +246,6 @@ protected:
     std::shared_ptr<tracker_element_double> even_raw_lat;
     std::shared_ptr<tracker_element_double> even_raw_lon;
     std::shared_ptr<tracker_element_uint64> even_ts;
-
-    std::shared_ptr<tracker_element_vector> location_track;
-    int location_track_id;
-
-    std::shared_ptr<tracker_element_alias> last_location;
-    int last_location_id;
-
 };
 
 class kis_rtladsb_phy : public kis_phy_handler {
@@ -283,6 +265,8 @@ public:
     static int packet_handler(CHAINCALL_PARMS);
 
 protected:
+    int pack_comp_gps;
+
     // Convert a JSON record to a RTL-based device key
     mac_addr json_to_mac(Json::Value in_json);
 
@@ -292,7 +276,8 @@ protected:
 
     bool is_adsb(Json::Value json);
 
-    std::shared_ptr<rtladsb_tracked_adsb> add_adsb(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder);
+    std::shared_ptr<rtladsb_tracked_adsb> add_adsb(kis_packet *packet, 
+            Json::Value json, std::shared_ptr<tracker_element_map> rtlholder);
 
     double f_to_c(double f);
 
@@ -300,15 +285,13 @@ protected:
     int cpr_nl(double lat);
     int cpr_n(double lat, int odd);
     double cpr_dlon(double lat, int odd);
-    void decode_cpr(std::shared_ptr<rtladsb_tracked_adsb> adsb);
+    void decode_cpr(std::shared_ptr<rtladsb_tracked_adsb> adsb, kis_packet *packet);
 
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<entry_tracker> entrytracker;
     std::shared_ptr<device_tracker> devicetracker;
 
     int rtladsb_holder_id, rtladsb_common_id, rtladsb_adsb_id;
-    //std::string rtladsb_icao_id;
-    //FIX HERE, rtladsb_powermeter_id;
 
     int pack_comp_common, pack_comp_json, pack_comp_meta;
 

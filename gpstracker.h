@@ -36,12 +36,23 @@ class kis_gps;
 typedef std::shared_ptr<kis_gps> shared_gps;
 
 // Packet info attached to each packet, if there isn't already GPS info present
+
+// Optional merge flags for partial records
+#define GPS_PACKINFO_MERGE_LOC      (1 << 1)
+#define GPS_PACKINFO_MERGE_ALT      (1 << 2)
+#define GPS_PACKINFO_MERGE_SPEED    (1 << 3)
+#define GPS_PACKINFO_MERGE_HEADING  (1 << 4)
+#define GPS_PACKINFO_MERGE_REST     (1 << 128)
+
 class kis_gps_packinfo : public packet_component {
 public:
     kis_gps_packinfo() {
         self_destruct = 1;
-        lat = lon = alt = speed = heading = 0;
+
         merge_partial = false;
+        merge_flags = 0;
+
+        lat = lon = alt = speed = heading = 0;
         precision = 0;
         fix = 0;
         tv.tv_sec = 0;
@@ -55,9 +66,11 @@ public:
         if (src != NULL) {
             self_destruct = src->self_destruct;
 
+            merge_partial = src->merge_partial;
+            merge_flags = src->merge_flags;
+
             lat = src->lat;
             lon = src->lon;
-            merge_partial = src->merge_partial;
             alt = src->alt;
             speed = src->speed;
             heading = src->heading;
@@ -103,6 +116,7 @@ public:
     // location info?  Used for sources like adsb which receive location
     // in multiple records
     bool merge_partial;
+    uint8_t merge_flags;
 
     // If we know it, 2d vs 3d fix
     int fix;
