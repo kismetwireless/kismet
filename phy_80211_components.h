@@ -1224,6 +1224,9 @@ protected:
                 *k = anonce;
             }
         }
+
+        advertised_ssid_map->set_as_vector(true);
+        probed_ssid_map->set_as_vector(true);
     }
 
     // Do we need to snap the next beacon because we're trying to add a beacon

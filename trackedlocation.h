@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -58,9 +58,23 @@ public:
         return std::move(dup);
     }
 
-    // Use proxy macro to define get/set
-    __Proxy(lat, double, double, double, lat);
-    __Proxy(lon, double, double, double, lon);
+    // lat/lon are encoded in the geopoint
+    const double get_lat() const {
+        return geopoint->at(1);
+    }
+
+    void set_lat(double lat) {
+        geopoint->at(1) = lat;
+    }
+
+    const double get_lon() const {
+        return geopoint->at(0);
+    }
+
+    void set_lon(double lon) {
+        geopoint->at(0) = lon;
+    }
+
     __Proxy(alt, double, double, double, alt);
     __Proxy(speed, double, double, double, spd);
     __Proxy(heading, double, double, double, heading);
@@ -82,9 +96,9 @@ public:
 
 protected:
     virtual void register_fields() override;
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;
 
-    std::shared_ptr<tracker_element_double> lat;
-    std::shared_ptr<tracker_element_double> lon;
+    std::shared_ptr<tracker_element_vector_double> geopoint;
     std::shared_ptr<tracker_element_double> alt;
     std::shared_ptr<tracker_element_double> spd;
     std::shared_ptr<tracker_element_double> heading;
@@ -171,8 +185,23 @@ public:
         return std::move(dup);
     }
 
-    __Proxy(lat, double, double, double, lat);
-    __Proxy(lon, double, double, double, lon);
+    // lat/lon are encoded in the geopoint
+    const double get_lat() const {
+        return geopoint->at(1);
+    }
+
+    void set_lat(double lat) {
+        geopoint->at(1) = lat;
+    }
+
+    const double get_lon() const {
+        return geopoint->at(0);
+    }
+
+    void set_lon(double lon) {
+        geopoint->at(0) = lon;
+    }
+
     __Proxy(heading, double, double, double, heading);
     __Proxy(alt, double, double, double, alt);
     __Proxy(speed, double, double, double, speed);
@@ -182,9 +211,9 @@ public:
 
 protected:
     virtual void register_fields() override;
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;
 
-    std::shared_ptr<tracker_element_double> lat;
-    std::shared_ptr<tracker_element_double> lon;
+    std::shared_ptr<tracker_element_vector_double> geopoint;
     std::shared_ptr<tracker_element_double> alt;
     std::shared_ptr<tracker_element_double> heading; 
     std::shared_ptr<tracker_element_double> speed;

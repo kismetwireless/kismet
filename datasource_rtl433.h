@@ -29,8 +29,7 @@ typedef std::shared_ptr<kis_datasource_rtl433> shared_datasource_rtl433;
 class kis_datasource_rtl433 : public kis_datasource {
 public:
     kis_datasource_rtl433(shared_datasource_builder in_builder, 
-            std::shared_ptr<kis_recursive_timed_mutex> mutex, 
-            bool in_mqtt);
+            std::shared_ptr<kis_recursive_timed_mutex> mutex );
     virtual ~kis_datasource_rtl433();
 
 protected:
@@ -67,7 +66,7 @@ public:
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this,
             std::shared_ptr<kis_recursive_timed_mutex> mutex) override {
-        return shared_datasource_rtl433(new kis_datasource_rtl433(in_sh_this, mutex, false));
+        return shared_datasource_rtl433(new kis_datasource_rtl433(in_sh_this, mutex));
     }
 
     virtual void initialize() override {
@@ -80,49 +79,6 @@ public:
         set_remote_capable(true);
         set_passive_capable(false);
         set_tune_capable(true);
-    }
-};
-
-class DatasourceRtl433MqttBuilder : public kis_datasource_builder {
-public:
-    DatasourceRtl433MqttBuilder() :
-        kis_datasource_builder() {
-        register_fields();
-        reserve_fields(NULL);
-        initialize();
-    }
-
-    DatasourceRtl433MqttBuilder(int in_id) :
-        kis_datasource_builder(in_id) {
-        register_fields();
-        reserve_fields(NULL);
-        initialize();
-    }
-
-    DatasourceRtl433MqttBuilder(int in_id, std::shared_ptr<tracker_element_map> e) :
-        kis_datasource_builder(in_id, e) {
-        register_fields();
-        reserve_fields(e);
-        initialize();
-    }
-
-    virtual ~DatasourceRtl433MqttBuilder() { }
-
-    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this,
-            std::shared_ptr<kis_recursive_timed_mutex> mutex) override {
-        return shared_datasource_rtl433(new kis_datasource_rtl433(in_sh_this, mutex, true));
-    }
-
-    virtual void initialize() override {
-        set_source_type("rtl433mqtt");
-        set_source_description("rtl_433 MQTT feed");
-
-        set_probe_capable(true);
-        set_list_capable(false);
-        set_local_capable(true);
-        set_remote_capable(true);
-        set_passive_capable(false);
-        set_tune_capable(false);
     }
 };
 

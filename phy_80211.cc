@@ -465,7 +465,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
         _MSG(ss.str(), MSGFLAG_INFO);
 
         device_idle_timer =
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 
+            timetracker->register_timer(SERVER_TIMESLICES_SEC * 60, NULL, 
                 1, this);
     } else {
         device_idle_timer = -1;

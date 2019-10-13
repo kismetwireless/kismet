@@ -59,7 +59,7 @@ Systemmonitor::Systemmonitor() :
 
     auto timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
     timer_id = 
-        timetracker->RegisterTimer(0, &trigger_tm, 0, this);
+        timetracker->register_timer(0, &trigger_tm, 0, this);
 
     // Link the RRD out of the devicetracker
     status->insert(devicetracker->get_packets_rrd());
@@ -138,7 +138,7 @@ Systemmonitor::Systemmonitor() :
             Globalreg::globalreg->kismet_config->fetch_opt_as<unsigned int>("kis_log_system_status_rate", 30);
 
         kismetdb_log_timer =
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * snap_time_s, nullptr, 1, 
+            timetracker->register_timer(SERVER_TIMESLICES_SEC * snap_time_s, nullptr, 1, 
                     [this](int) -> int {
                         auto kismetdb = Globalreg::FetchGlobalAs<kis_database_logfile>();
 
@@ -352,7 +352,7 @@ int Systemmonitor::timetracker_event(int eventid) {
     trigger_tm.tv_usec = 0;
 
     timer_id = 
-        Globalreg::globalreg->timetracker->RegisterTimer(0, &trigger_tm, 0, this);
+        Globalreg::globalreg->timetracker->register_timer(0, &trigger_tm, 0, this);
 
     return 1;
 }

@@ -23,7 +23,7 @@
 #include "phy_rtladsb.h"
 
 kis_datasource_rtladsb::kis_datasource_rtladsb(shared_datasource_builder in_builder, 
-        std::shared_ptr<kis_recursive_timed_mutex> mutex, bool in_mqtt) :
+        std::shared_ptr<kis_recursive_timed_mutex> mutex) :
     kis_datasource(in_builder, mutex) {
 
     std::string devnum = munge_to_printable(get_definition_opt("device"));
@@ -32,15 +32,6 @@ kis_datasource_rtladsb::kis_datasource_rtladsb(shared_datasource_builder in_buil
     } else {
         set_int_source_cap_interface("rtladsbusb");
     }
-
-    if (!in_mqtt) {
-        set_int_source_hardware("rtlsdr");
-        set_int_source_ipc_binary("kismet_cap_sdr_rtladsb");
-    } else {
-        set_int_source_hardware("rtlsdr-mqtt");
-        set_int_source_ipc_binary("kismet_cap_sdr_rtladsb_mqtt");
-    }
-
 }
 
 kis_datasource_rtladsb::~kis_datasource_rtladsb() {
@@ -50,11 +41,6 @@ kis_datasource_rtladsb::~kis_datasource_rtladsb() {
 void kis_datasource_rtladsb::open_interface(std::string in_definition, unsigned int in_transaction,
         open_callback_t in_cb) {
     kis_datasource::open_interface(in_definition, in_transaction, in_cb);
-
-    if (get_source_interface().find("rtl-mqtt") == 0) {
-        set_int_source_hopping(false);
-    }
-
 }
 
 #if 0

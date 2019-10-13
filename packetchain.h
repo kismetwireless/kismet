@@ -38,7 +38,6 @@
 
 #include "globalregistry.h"
 #include "kis_mutex.h"
-#include "packet.h"
 
 
 /* Packets are added to the packet queue from any thread (including the main 

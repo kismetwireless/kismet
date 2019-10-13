@@ -730,8 +730,8 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     },
                     draw: function(opts) {
                         var loc =
-                            kismet.ObjectByString(opts['data'], "kismet.device.base.signal/kismet.common.signal.peak_loc/kismet.common.location.lat") + ", " +
-                            kismet.ObjectByString(opts['data'], "kismet.device.base.signal/kismet.common.signal.peak_loc/kismet.common.location.lon");
+                            kismet.ObjectByString(opts['data'], "kismet.device.base.signal/kismet.common.signal.peak_loc/kismet.common.location.geopoint[1]") + ", " +
+                            kismet.ObjectByString(opts['data'], "kismet.device.base.signal/kismet.common.signal.peak_loc/kismet.common.location.geopoint[0]");
 
                         return loc;
                     },
@@ -878,12 +878,15 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 // Fields in subgroup
                 fields: [
                 {
-                    field: "kismet.device.base.location/kismet.common.location.avg_loc/kismet.common.location.lat",
-                    title: "Latitude"
-                },
-                {
-                    field: "kismet.device.base.location/kismet.common.location.avg_loc/kismet.common.location.lon",
-                    title: "Longitude"
+                    field: "kismet.device.base.location/kismet.common.location.avg_loc/kismet.common.location.geopoint",
+                    title: "Location",
+                    draw: function(opts) {
+                        try {
+                            return opts['value'][1] + ", " + opts['value'][0]
+                        } catch (error) {
+                            return "<i>Unknown</i>"
+                        }
+                    }
                 },
                 {
                     field: "kismet.device.base.location/kismet.common.location.avg_loc/kismet.common.location.alt",

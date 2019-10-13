@@ -224,7 +224,7 @@
                     }
 
                     $('#time', gps_popup_content).html(d);
-                    $('#location', gps_popup_content).html(last_gps['kismet.common.location.lat'] + " x " + last_gps['kismet.common.location.lon']);
+                    $('#location', gps_popup_content).html(last_gps['kismet.common.location.geopoint'][1] + " x " + last_gps['kismet.common.location.geopoint'][0]);
                     $('#speed', gps_popup_content).html(kismet_ui.renderSpeed(last_gps['kismet.common.location.speed']));
                     $('#heading', gps_popup_content).html(last_gps['kismet.common.location.heading']);
                 } else {
@@ -246,14 +246,14 @@
                 } else if (last_gps['kismet.common.location.fix'] == 2) {
                     gpsicon.removeClass('kg-icon-3d');
                     gpsicon.addClass('kg-icon-2d');
-                    element.tooltipster('content', 'GPS fix' +  last_gps['kismet.common.location.lat'] + ' x ' +
-                        last_gps['kismet.common.location.lon']);
+                    element.tooltipster('content', 'GPS fix' +  last_gps['kismet.common.location.geopoint'][1] + ' x ' +
+                        last_gps['kismet.common.location.geopoint'][0]);
                 } else if (last_gps['kismet.common.location.fix'] == 3) {
                     gpsicon.removeClass('kg-icon-2d');
                     gpsicon.addClass('kg-icon-3d');
                     element.tooltipster('content', 'GPS fix ' +
-                        last_gps['kismet.common.location.lat'] + ' x ' +
-                        last_gps['kismet.common.location.lon'] + ' ' +
+                        last_gps['kismet.common.location.geopoint'][1] + ' x ' +
+                        last_gps['kismet.common.location.geopoint'][0] + ' ' +
                         kismet_ui.renderDistance(last_gps['kismet.common.location.alt'] / 1000, 0));
                 }
             })

@@ -368,9 +368,9 @@ public:
     // event_bus event we inject when a new ds is added
     class event_new_datasource : public eventbus_event {
     public:
-        static std::string Event() { return "NEW_DATASOURCE"; }
+        static std::string event() { return "NEW_DATASOURCE"; }
         event_new_datasource(std::shared_ptr<kis_datasource> source) :
-            eventbus_event(Event()),
+            eventbus_event(event()),
             datasource{source} { }
         virtual ~event_new_datasource() {}
 

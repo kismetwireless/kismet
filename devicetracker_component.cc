@@ -404,7 +404,7 @@ void kis_tracked_device_base::register_fields() {
     register_field("kismet.device.base.first_time", "first time seen time_t", &first_time);
     register_field("kismet.device.base.last_time", "last time seen time_t", &last_time);
     register_field("kismet.device.base.mod_time", 
-            "internal timestamp of last record change", &mod_time);
+            "timestamp of last seen time (local clock)", &mod_time);
     register_field("kismet.device.base.packets.total", "total packets seen of all types", &packets);
     register_field("kismet.device.base.packets.rx", "observed packets sent to device", &rx_packets);
     register_field("kismet.device.base.packets.tx", "observed packets from device", &tx_packets);

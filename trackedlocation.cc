@@ -105,8 +105,7 @@ kis_tracked_location_triplet&
 void kis_tracked_location_triplet::register_fields() {
     tracker_component::register_fields();
 
-    register_field("kismet.common.location.lat", "latitude", &lat);
-    register_field("kismet.common.location.lon", "longitude", &lon);
+    register_field("kismet.common.location.geopoint", "[lon, lat] point", &geopoint);
     register_field("kismet.common.location.alt", "altitude", &alt);
     register_field("kismet.common.location.speed", "speed", &spd);
     register_field("kismet.common.location.heading", "heading", &heading);
@@ -114,6 +113,11 @@ void kis_tracked_location_triplet::register_fields() {
     register_field("kismet.common.location.valid", "valid location", &valid);
     register_field("kismet.common.location.time_sec", "timestamp (seconds)", &time_sec);
     register_field("kismet.common.location.time_usec", "timestamp (usec)", &time_usec);
+}
+
+void kis_tracked_location_triplet::reserve_fields(std::shared_ptr<tracker_element_map> e) {
+    tracker_component::reserve_fields(e);
+    geopoint->set({0, 0});
 }
 
 kis_tracked_location::kis_tracked_location() :
@@ -271,14 +275,19 @@ kis_historic_location::kis_historic_location(int in_id, std::shared_ptr<tracker_
 void kis_historic_location::register_fields() {
     tracker_component::register_fields();
 
-    register_field("kismet.historic.location.lat", "latitude", &lat);
-    register_field("kismet.historic.location.lon", "longitude", &lon);
+
+    register_field("kismet.historic.location.geopoint", "[lon, lat] point", &geopoint);
     register_field("kismet.historic.location.alt", "altitude (m)", &alt);
     register_field("kismet.historic.location.speed", "speed (kph)", &speed);
     register_field("kismet.historic.location.heading", "heading (degrees)", &heading);
     register_field("kismet.historic.location.signal", "signal", &signal);
     register_field("kismet.historic.location.time_sec", "time (unix ts)", &time_sec);
     register_field("kismet.historic.location.frequency", "frequency (khz)", &frequency);
+}
+
+void kis_historic_location::reserve_fields(std::shared_ptr<tracker_element_map> e) {
+    tracker_component::reserve_fields(e);
+    geopoint->set({0, 0});
 }
 
 kis_location_history::kis_location_history() :

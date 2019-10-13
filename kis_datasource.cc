@@ -944,7 +944,7 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
 
     // If we got here we're valid; start a PING timer
     if (ping_timer_id <= 0) {
-        ping_timer_id = timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL,
+        ping_timer_id = timetracker->register_timer(SERVER_TIMESLICES_SEC, NULL,
                 1, [this](int) -> int {
             local_locker lock(ext_mutex);
             
@@ -1661,7 +1661,7 @@ void kis_datasource::handle_source_error() {
         _MSG(ss.str(), MSGFLAG_ERROR);
 
         // Set a new event to try to re-open the interface
-        error_timer_id = timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5,
+        error_timer_id = timetracker->register_timer(SERVER_TIMESLICES_SEC * 5,
                 NULL, 0, [this](int) -> int {
                 local_locker lock(ext_mutex);
 
