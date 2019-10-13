@@ -22,10 +22,11 @@
 #include "config.h"
 
 
-#include "kis_mutex.h"
-#include "packetchain.h"
 #include "globalregistry.h"
+#include "kis_mutex.h"
 #include "kis_net_microhttpd.h"
+#include "packet.h"
+#include "packetchain.h"
 #include "trackedlocation.h"
 
 class kis_gps_builder;

@@ -33,6 +33,7 @@
 #include <vector>
 #include <map>
 
+#include "eventbus.h"
 #include "globalregistry.h"
 #include "macaddr.h"
 #include "packet_ieee80211.h"
@@ -74,6 +75,11 @@ public:
 
     // Are we a duplicate?
     int duplicate;
+
+    // Did this packet trigger creation of a new device?  Since a 
+    // single packet can create multiple devices in some phys, maintain
+    // a vector of device events to publish
+    std::vector<std::shared_ptr<eventbus_event>> process_complete_events;
 
     // Actual vector of bits in the packet
     std::vector<packet_component *> content_vec;

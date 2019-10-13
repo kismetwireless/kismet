@@ -31,28 +31,27 @@
 #include <string>
 #include <sstream>
 
-#include "globalregistry.h"
-#include "util.h"
-#include "configfile.h"
-#include "messagebus.h"
-#include "packetchain.h"
-#include "datasourcetracker.h"
-#include "packet.h"
-#include "gpstracker.h"
 #include "alertracker.h"
-#include "manuf.h"
-#include "entrytracker.h"
+#include "base64.h"
+#include "configfile.h"
+#include "datasourcetracker.h"
 #include "devicetracker.h"
 #include "devicetracker_component.h"
 #include "devicetracker_view.h"
+#include "entrytracker.h"
+#include "globalregistry.h"
+#include "gpstracker.h"
 #include "json_adapter.h"
-#include "structured.h"
-#include "kismet_json.h"
-#include "storageloader.h"
-#include "base64.h"
 #include "kis_datasource.h"
 #include "kis_databaselogfile.h"
-
+#include "kismet_json.h"
+#include "manuf.h"
+#include "messagebus.h"
+#include "packet.h"
+#include "packetchain.h"
+#include "structured.h"
+#include "storageloader.h"
+#include "util.h"
 #include "zstr.hpp"
 
 int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
@@ -155,6 +154,18 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 	// Common tracker, very early in the tracker chain
 	packetchain->register_handler(&Devicetracker_packethook_commontracker,
 											this, CHAINPOS_TRACKER, -100);
+
+    // Post any events related to the device generated during tracking mode
+    // (like a new device being created) at the very END of tracking, so that
+    // the device has as complete a view as possible; if we trigger it at the
+    // BEGINNING of the chain, we get only the generic device with none of the
+    // phy-specific attachments.
+    packetchain_tracking_done_id =
+        packetchain->register_handler([this](kis_packet *in_packet) -> int {
+            for (auto e : in_packet->process_complete_events)
+                eventbus->publish(e);
+            return 1;
+        }, CHAINPOS_TRACKER, 0x7FFF'FFFF);
 
     std::shared_ptr<time_tracker> timetracker = 
         Globalreg::fetch_mandatory_global_as<time_tracker>(globalreg, "TIMETRACKER");
@@ -447,10 +458,16 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
     database_upgrade_db();
 
     new_datasource_evt_id = 
-        eventbus->register_listener("NEW_DATASOURCE",
-            [this](std::shared_ptr<eventbus_event> evt) {
-                handle_new_datasource_event(evt);
-            });
+        eventbus->register_listener(datasource_tracker::event_new_datasource::event(),
+                [this](std::shared_ptr<eventbus_event> evt) {
+                    handle_new_datasource_event(evt);
+                });
+
+    new_device_evt_id = 
+        eventbus->register_listener(event_new_device::event(),
+                [this](std::shared_ptr<eventbus_event> evt) {
+                    handle_new_device_event(evt);
+                });
 
     bind_httpd_server();
 
@@ -524,6 +541,7 @@ device_tracker::~device_tracker() {
 
     if (eventbus != nullptr) {
         eventbus->remove_listener(new_datasource_evt_id);
+        eventbus->remove_listener(new_device_evt_id);
     }
 
     if (statestore != NULL) {
@@ -539,6 +557,7 @@ device_tracker::~device_tracker() {
     if (packetchain != NULL) {
         packetchain->remove_handler(&Devicetracker_packethook_commontracker,
                 CHAINPOS_TRACKER);
+        packetchain->remove_handler(packetchain_tracking_done_id, CHAINPOS_TRACKER);
     }
 
     std::shared_ptr<time_tracker> timetracker = 
@@ -565,7 +584,29 @@ device_tracker::~device_tracker() {
 }
 
 void device_tracker::macdevice_timer_event() {
+    local_locker lock(&devicelist_mutex);
 
+    time_t now = time(0);
+
+    // Put the ones we still monitor into a new vector and swap
+    // at the end
+    auto keep_vec = std::vector<std::shared_ptr<kis_tracked_device_base>>{};
+    for (auto k : macdevice_flagged_vec) {
+        if (now - k->get_mod_time() > devicelost_timeout) {
+            auto alrt = 
+                fmt::format("Monitored device {} ({}) hasn't been seen for {} "
+                        "seconds.", k->get_macaddr(), k->get_devicename(),
+                        devicelost_timeout);
+            alertracker->raise_alert(alert_macdevice_lost_ref,
+                    nullptr, k->get_macaddr(), mac_addr{0}, 
+                    mac_addr{0}, mac_addr{0}, k->get_channel(), 
+                    alrt);
+        } else {
+            keep_vec.push_back(k);
+        }
+    }
+
+    macdevice_flagged_vec = keep_vec;
 }
 
 kis_phy_handler *device_tracker::fetch_phy_handler(int in_phy) {
@@ -811,6 +852,22 @@ std::shared_ptr<kis_tracked_device_base>
     // Update the mod data
     device->update_modtime();
 
+    // Raise alerts for new devices or devices which have been
+    // idle and re-appeared
+    if (new_device || (device->get_last_time() < in_pack->ts.tv_sec &&
+                in_pack->ts.tv_sec - device->get_last_time() > devicefound_timeout)) {
+        auto k = macdevice_alert_conf_map.find(device->get_macaddr());
+        if (k != macdevice_alert_conf_map.end() && k->second & 0x1) {
+            auto alrt =
+                fmt::format("Monitored device {} ({}) has been found.",
+                        device->get_macaddr(), device->get_devicename());
+            alertracker->raise_alert(alert_macdevice_lost_ref,
+                    in_pack, device->get_macaddr(), mac_addr{0}, 
+                    mac_addr{0}, mac_addr{0}, device->get_channel(), 
+                    alrt);
+        }
+    }
+
     if (device->get_last_time() < in_pack->ts.tv_sec)
         device->set_last_time(in_pack->ts.tv_sec);
 
@@ -953,7 +1010,16 @@ std::shared_ptr<kis_tracked_device_base>
 
         // Unlock the device list before adding it to the device views
         list_locker.unlock();
-        new_view_device(device);
+
+        // If we have no packet info, add it to the device list immediately,
+        // otherwise, flag the packet to trigger a new device event at the
+        // end of the packet processing stage of the chain
+        if (in_pack == nullptr) {
+            new_view_device(device);
+            eventbus->publish(std::make_shared<event_new_device>(device));
+        } else {
+            in_pack->process_complete_events.push_back(std::make_shared<event_new_device>(device));
+        }
     }
 
     return device;
@@ -1841,6 +1907,11 @@ void device_tracker::handle_new_datasource_event(std::shared_ptr<eventbus_event>
             add_view(seenby_view);
         }
     }
+}
+
+void device_tracker::handle_new_device_event(std::shared_ptr<eventbus_event> evt) {
+    auto dev_evt = std::static_pointer_cast<event_new_device>(evt);
+    new_view_device(dev_evt->device);
 }
 
 device_tracker_state_store::device_tracker_state_store(global_registry *in_globalreg,

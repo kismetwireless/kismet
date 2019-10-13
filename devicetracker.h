@@ -40,7 +40,6 @@
 #include "kis_mutex.h"
 #include "trackedelement.h"
 #include "entrytracker.h"
-#include "packet.h"
 #include "packetchain.h"
 #include "timetracker.h"
 #include "uuid.h"
@@ -91,6 +90,7 @@ protected:
     device_tracker *devicetracker;
 };
 
+class kis_packet;
 
 class device_tracker : public kis_net_httpd_chain_stream_handler,
     public time_tracker_event, public lifetime_global, public kis_database {
@@ -133,6 +133,19 @@ public:
         virtual ~event_new_phy() {}
 
         kis_phy_handler *phy;
+    };
+
+    // Eventbus event for a device *once it is completely added*.
+    class event_new_device : public eventbus_event {
+    public:
+        static std::string event() { return "NEW_DEVICE"; }
+
+        event_new_device(std::shared_ptr<kis_tracked_device_base> device) :
+            eventbus_event(event()),
+            device{device} { }
+        virtual ~event_new_device() {}
+
+        std::shared_ptr<kis_tracked_device_base> device;
     };
 
     std::string fetch_phy_name(int in_phy);
@@ -317,7 +330,9 @@ protected:
     std::shared_ptr<event_bus> eventbus;
     std::shared_ptr<alert_tracker> alertracker;
 
-    unsigned long new_datasource_evt_id;
+    unsigned long new_datasource_evt_id, new_device_evt_id;
+
+    int packetchain_tracking_done_id;
 
     // Map of seen-by views
     bool map_seenby_views;
@@ -388,16 +403,15 @@ protected:
     // Configuration map for devices we look for
     // 1 = seen only
     // 2 = lost only
-    // 2 = seen and lost
+    // 3 = seen and lost
     std::map<mac_addr, unsigned int> macdevice_alert_conf_map;
     // Timeout event
     int macdevice_alert_timeout_timer;
     // Trigger event called to see if we need to alert devices have
     // stopped transmitting
     void macdevice_timer_event();
-
     // Devices we've flagged for timeout alerts
-    std::map<device_key, time_t> macdevice_leaving_map;
+    std::vector<std::shared_ptr<kis_tracked_device_base>> macdevice_flagged_vec;
 
 	// Tracked devices
     device_map_t tracked_map;
@@ -470,6 +484,9 @@ protected:
 protected:
     // Handle new datasources and create endpoints for them
     void handle_new_datasource_event(std::shared_ptr<eventbus_event> evt);
+
+    // Handle a new device & add it to views, trigger alerts, etc
+    void handle_new_device_event(std::shared_ptr<eventbus_event> evt);
 
     // Insert a device directly into the records
     void add_device(std::shared_ptr<kis_tracked_device_base> device);

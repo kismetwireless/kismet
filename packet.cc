@@ -26,14 +26,16 @@
 #endif
 
 #include <algorithm>
+#include <map>
 #include <string>
 #include <vector>
-#include <map>
 
 #include "globalregistry.h"
-#include "packetchain.h"
 #include "macaddr.h"
+#include "packet.h"
+#include "packetchain.h"
 #include "packet_ieee80211.h"
+
 
 kis_packet::kis_packet(global_registry *in_globalreg) {
 	globalreg = in_globalreg;
