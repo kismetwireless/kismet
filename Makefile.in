@@ -524,6 +524,7 @@ clean:
 	@(cd capture_sdr_rtl433 && make clean)
 	@(cd capture_sdr_rtlamr && make clean)
 	@(cd capture_sdr_rtladsb && make clean)
+	@(cd capture_nrf_mousejack && make clean)
 
 distclean:
 	@-$(MAKE) clean
