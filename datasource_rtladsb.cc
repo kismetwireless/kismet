@@ -32,6 +32,9 @@ kis_datasource_rtladsb::kis_datasource_rtladsb(shared_datasource_builder in_buil
     } else {
         set_int_source_cap_interface("rtladsbusb");
     }
+
+    set_int_source_hardware("rtlsdr");
+    set_int_source_ipc_binary("kismet_cap_sdr_rtladsb");
 }
 
 kis_datasource_rtladsb::~kis_datasource_rtladsb() {
