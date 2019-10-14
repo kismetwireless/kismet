@@ -147,7 +147,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
 
     if (packet_timeout != 0) {
         packet_timeout_timer = 
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 15, NULL, 1,
+            timetracker->register_timer(SERVER_TIMESLICES_SEC * 15, NULL, 1,
                     [this](int) -> int {
 
                     auto pkt_delete = 
@@ -171,7 +171,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
 
     if (device_timeout != 0) {
         device_timeout_timer = 
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
+            timetracker->register_timer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
                     [this](int) -> int {
 
                     auto pkt_delete = 
@@ -191,7 +191,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
 
     if (message_timeout != 0) {
         message_timeout_timer = 
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
+            timetracker->register_timer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
                     [this](int) -> int {
 
                     auto pkt_delete = 
@@ -211,7 +211,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
 
     if (alert_timeout != 0) {
         alert_timeout_timer = 
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
+            timetracker->register_timer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
                     [this](int) -> int {
 
                     auto pkt_delete = 
@@ -231,7 +231,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
 
     if (snapshot_timeout != 0) {
         snapshot_timeout_timer = 
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
+            timetracker->register_timer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
                     [this](int) -> int {
 
                     auto pkt_delete = 
@@ -378,7 +378,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
     sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
     transaction_timer = 
-        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
+        timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
             [this](int) -> int {
 
             local_locker dblock(&ds_mutex);

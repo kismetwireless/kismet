@@ -103,15 +103,15 @@ public:
 
     // Register an optionally recurring timer.  Slices are 1/100th of a second,
     // the smallest linux can slice without getting into weird calls.
-    int RegisterTimer(int in_timeslices, struct timeval *in_trigger,
+    int register_timer(int in_timeslices, struct timeval *in_trigger,
                       int in_recurring, 
                       int (*in_callback)(timer_event *, void *, global_registry *),
                       void *in_parm);
 
-    int RegisterTimer(int timeslices, struct timeval *in_trigger,
+    int register_timer(int timeslices, struct timeval *in_trigger,
             int in_recurring, time_tracker_event *event);
 
-    int RegisterTimer(int timeslices, struct timeval *in_trigger,
+    int register_timer(int timeslices, struct timeval *in_trigger,
             int in_recurring, std::function<int (int)> event);
 
     // Remove a timer that's going to execute

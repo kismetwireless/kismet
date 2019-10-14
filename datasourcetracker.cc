@@ -169,7 +169,7 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (shared_d
 
         // Set up the cancellation timer
         int cancel_timer = 
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
+            timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
                     [this] (int) -> int {
                         _MSG_ERROR("Datasource {} cancelling source probe due to timeout", definition);
                         cancel();
@@ -506,7 +506,7 @@ void datasource_tracker::trigger_deferred_startup() {
         database_logging = false;
 
         database_log_timer =
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * lograte, NULL, 1, 
+            timetracker->register_timer(SERVER_TIMESLICES_SEC * lograte, NULL, 1, 
                     [this](int) -> int {
 
                         {
@@ -994,7 +994,7 @@ void datasource_tracker::list_interfaces(const std::function<void (std::vector<s
 
     // Set up a cancellation timer
     int cancel_timer = 
-        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
+        timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
             [dst_list] (int) -> int {
                 dst_list->cancel();
                 return 0;
@@ -1046,7 +1046,7 @@ void datasource_tracker::schedule_cleanup() {
         return;
 
     completion_cleanup_id = 
-        timetracker->RegisterTimer(1, NULL, 0, [this] (int) -> int {
+        timetracker->register_timer(1, NULL, 0, [this] (int) -> int {
             local_demand_locker lock(&dst_lock);
            
             lock.lock();
@@ -1319,7 +1319,7 @@ void datasource_tracker::queue_dead_remote(dst_incoming_remote *in_dead) {
 
     if (remote_complete_timer <= 0) {
         remote_complete_timer =
-            timetracker->RegisterTimer(1, NULL, 0, 
+            timetracker->register_timer(1, NULL, 0, 
                 [this] (int) -> int {
                     local_locker lock(&dst_lock);
 
@@ -2021,7 +2021,7 @@ dst_incoming_remote::dst_incoming_remote(std::shared_ptr<buffer_handler_generic>
     connect_buffer(in_rbufhandler);
 
     timerid =
-        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
+        timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
             [this] (int) -> int {
                 _MSG("Remote source connected but didn't send a NEWSOURCE control, "
                         "closing connection.", MSGFLAG_ERROR);

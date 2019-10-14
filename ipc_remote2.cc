@@ -471,7 +471,7 @@ ipc_remote_v2_tracker::ipc_remote_v2_tracker(global_registry *in_globalreg) {
     globalreg = in_globalreg;
 
     timer_id = 
-        globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, this);
+        globalreg->timetracker->register_timer(SERVER_TIMESLICES_SEC, NULL, 1, this);
     cleanup_timer_id = -1;
 }
 
@@ -533,7 +533,7 @@ void ipc_remote_v2_tracker::schedule_cleanup() {
         return;
 
     cleanup_timer_id = 
-        Globalreg::globalreg->timetracker->RegisterTimer(2, NULL, 0, 
+        Globalreg::globalreg->timetracker->register_timer(2, NULL, 0, 
                 [this] (int) -> int {
                     local_locker lock(&ipc_mutex);
                     cleanup_vec.clear();

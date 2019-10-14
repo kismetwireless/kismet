@@ -53,7 +53,7 @@ channel_tracker_v2::channel_tracker_v2(global_registry *in_globalreg) :
     timetracker =
         Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
 
-    timer_id = timetracker->RegisterTimer(0, &trigger_tm, 0, this);
+    timer_id = timetracker->register_timer(0, &trigger_tm, 0, this);
 
     bind_httpd_server();
 }
@@ -186,7 +186,7 @@ int channel_tracker_v2::timetracker_event(int event_id __attribute__((unused))) 
     trigger_tm.tv_sec = time(0) + 1;
     trigger_tm.tv_usec = 0;
 
-    timer_id = timetracker->RegisterTimer(0, &trigger_tm, 0, this);
+    timer_id = timetracker->register_timer(0, &trigger_tm, 0, this);
 
     return 1;
 }

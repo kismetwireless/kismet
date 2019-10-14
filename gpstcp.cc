@@ -49,7 +49,7 @@ kis_gps_tcp::kis_gps_tcp(shared_gps_builder in_builder) :
 
     auto timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
     error_reconnect_timer = 
-        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
+        timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                 [this](int) -> int {
                     if (!get_gps_reconnect())
                         return 1;

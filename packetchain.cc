@@ -27,11 +27,12 @@
 
 #include <pthread.h>
 
+#include "alertracker.h"
+#include "configfile.h"
 #include "globalregistry.h"
 #include "messagebus.h"
-#include "configfile.h"
+#include "packet.h"
 #include "packetchain.h"
-#include "alertracker.h"
 
 class SortLinkPriority {
 public:
