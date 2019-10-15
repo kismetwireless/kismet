@@ -4,13 +4,11 @@ rtladsb Kismet data source
 Sources are generated as rtladsb-XYZ when multiple rtl radios are detected.
 
 Accepts standard options:
-    channel=freqMHz   (in mhz)
-    channel=freqKHz   (in khz)
-    channel=freq      (in raw hz to rtladsb)
+    channel=freq      (in raw hz)
 
 Additionally accepts:
-    ppm_error         Passed as -p to rtladsb
-    gain              Passed as -g to rtladsb
+    ppm     error offset 
+    gain    fixed gain 
 
 """
 
