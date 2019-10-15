@@ -32,6 +32,9 @@ kis_datasource_rtl433::kis_datasource_rtl433(shared_datasource_builder in_builde
     } else {
         set_int_source_cap_interface("rtl433usb");
     }
+
+    set_int_source_hardware("rtlsdr");
+    set_int_source_ipc_binary("kismet_cap_sdr_rtl433");
 }
 
 kis_datasource_rtl433::~kis_datasource_rtl433() {
