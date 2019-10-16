@@ -487,6 +487,10 @@ extcappy:
 	@echo "Updating kismetexternal python"
 	@find ./ -path *kismetexternal* -name __init__.py -not  -path *build* -exec cp ../python-kismet-external/kismetexternal/__init__.py {} \; 
 
+rtlsdrpy:
+	@echo "Updating kismet rtlsdr python"
+	@find ./ -path *rtlsdr* -name __init__.py -not -path *build* -exec cp ../python-rtlsdr/rtlsdr/__init__.py {} \;
+
 rpm:
 	@echo "Disabling SUID installation (RPM will handle setting the SUID bit.)"
 	@( export SUID="no"; export INSTGRP=`id -g`; export MANGRP=`id -g`; \
