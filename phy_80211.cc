@@ -396,6 +396,11 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 "incorrect length may indicate an attempted buffer overflow attack.  "
                 "Specific attacks have their own alerts; this indicates a general, but "
                 "otherwise unknown, malformed tag.");
+	alert_rtlwifi_p2p_ref =
+		alertracker->activate_configured_alert("RTLWIFIP2P",
+				"A bug in the Linux RTLWIFI P2P parsers could result in a crash "
+				"or potential code execution due to malformed notification of "
+				"absence records, as detailed in CVE-2019-17666");
 
     // Threshold
     signal_too_loud_threshold = 
