@@ -65,6 +65,7 @@
 #include "dot11_parsers/dot11_ie_221_cisco_client_mfp.h"
 #include "dot11_parsers/dot11_ie_221_wpa_transition.h"
 #include "dot11_parsers/dot11_ie_221_rsn_pmkid.h"
+#include "dot11_parsers/dot11_ie_221_wfa.h"
 
 // For 802.11n MCS calculations
 const int CH20GI800 = 0;
@@ -2100,6 +2101,35 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                         owe_trans->parse(vendor->vendor_tag_stream());
                         packinfo->owe_transition = owe_trans;
                         packinfo->cryptset |= crypt_wpa_owe;
+                    }
+                }
+
+                // Look for WFA p2p to check the rtlwifi exploit
+                if (vendor->vendor_oui_int() == dot11_ie_221_wfa::wfa_oui()) {
+                    auto wfa = std::make_shared<dot11_ie_221_wfa>();
+                    wfa->parse(vendor->vendor_tag_stream());
+
+                    if (wfa->wfa_subtype() == dot11_ie_221_wfa::wfa_sub_p2p()) {
+                        std::shared_ptr<dot11_ie> ietags(new dot11_ie());
+                        ietags->parse(wfa->wfa_content_stream());
+
+                        for (auto ie_tag : *(ietags->tags())) {
+                            if (ie_tag->tag_num() == 12) {
+                                // Affected code in rtlwifi:
+                                // noa_num = (noa_len - 2) / 13;
+                                // if (noa_num > P2P_MAX_NOA_NUM) 
+                                // and P2P_MAX_NOA_NUM is 2, therefor:
+                                if (ie_tag->tag_len() > 28) {
+                                    alertracker->raise_alert(alert_rtlwifi_p2p_ref, in_pack,
+                                            packinfo->bssid_mac, packinfo->source_mac, 
+                                            packinfo->dest_mac, packinfo->other_mac,
+                                            packinfo->channel,
+                                            "A Wi-Fi Direct P2P packet with an over-long Notification of Absence report "
+                                            "seen.  This may indicate an attempt to exploit a bug "
+                                            "in the Linux RTLWIFI drivers as detailed in CVE-2019-17666");
+                                }
+                            }
+                        }
                     }
                 }
 
