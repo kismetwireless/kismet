@@ -1011,7 +1011,7 @@ class KismetRtladsb(object):
                     elif msgsubme == 3 or msgsubme == 4:
                         msgheadvalid, msgheading = self.adsb_msg_get_airborne_heading(msg)
                         if msgheadvalid:
-                            out['heading'] = heading
+                            out['heading'] = msgheading
      
             elif msgtype == 0 or msgtype == 4 or msgtype == 16 or msgtype == 20:
                 msgalt = self.adsb_msg_get_ac13_altitude(msg)
