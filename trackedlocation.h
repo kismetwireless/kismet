@@ -132,7 +132,8 @@ public:
         return std::move(dup);
     }
 
-    void add_loc(double in_lat, double in_lon, double in_alt, unsigned int fix);
+    void add_loc(double in_lat, double in_lon, double in_alt, unsigned int fix,
+            double in_speed, double in_heading);
 
     __Proxy(valid, uint8_t, bool, bool, loc_valid);
     __Proxy(fix, uint8_t, unsigned int, unsigned int, loc_fix);

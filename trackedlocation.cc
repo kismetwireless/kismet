@@ -144,7 +144,7 @@ kis_tracked_location::kis_tracked_location(int in_id, std::shared_ptr<tracker_el
 }
 
 void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt, 
-        unsigned int fix) {
+        unsigned int fix, double in_speed, double in_heading) {
     set_valid(1);
 
     if (fix > get_fix()) {
@@ -175,6 +175,8 @@ void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt,
     last_loc->set_lon(in_lon);
     last_loc->set_alt(in_alt);
     last_loc->set_fix(fix);
+    last_loc->set_speed(in_speed);
+    last_loc->set_heading(in_heading);
     last_loc->set_valid(1);
 
     if (in_lat < min_loc->get_lat() || min_loc->get_lat() == 0) {

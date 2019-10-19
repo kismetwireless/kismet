@@ -2196,7 +2196,8 @@ void kis_80211_phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
     // Add the location data, if any
     if (pack_gpsinfo != NULL && pack_gpsinfo->fix > 1) {
         ssid->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                pack_gpsinfo->alt, pack_gpsinfo->fix);
+                pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
+                pack_gpsinfo->heading);
 
     }
 
@@ -2250,7 +2251,8 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
         // Add the location data, if any
         if (pack_gpsinfo != nullptr && pack_gpsinfo->fix > 1) {
             probessid->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                    pack_gpsinfo->alt, pack_gpsinfo->fix);
+                    pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
+                    pack_gpsinfo->heading);
         }
 
         if (dot11info->dot11r_mobility != nullptr) {
@@ -2450,7 +2452,8 @@ void kis_80211_phy::process_client(std::shared_ptr<kis_tracked_device_base> bssi
         // Update the GPS info
         if (pack_gpsinfo != NULL && pack_gpsinfo->fix > 1) {
             client_record->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                    pack_gpsinfo->alt, pack_gpsinfo->fix);
+                    pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
+                    pack_gpsinfo->heading);
         }
 
         // Update the forward map to the bssid
