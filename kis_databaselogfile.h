@@ -160,9 +160,8 @@ protected:
     std::shared_ptr<device_tracker> devicetracker;
     std::shared_ptr<gps_tracker> gpstracker;
 
-    int pack_comp_linkframe, pack_comp_gps, pack_comp_radiodata,
-        pack_comp_device, pack_comp_datasource, pack_comp_common,
-        pack_comp_metablob;
+    int pack_comp_linkframe, pack_comp_gps, pack_comp_no_gps, pack_comp_radiodata,
+        pack_comp_device, pack_comp_datasource, pack_comp_common, pack_comp_metablob;
 
     std::atomic<time_t> last_device_log;
 

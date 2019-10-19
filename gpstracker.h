@@ -133,6 +133,15 @@ public:
     std::string gpsname;
 };
 
+// Packet component used to tell other components NOT to include gps info
+// from the live GPS
+class kis_no_gps_packinfo : public packet_component {
+public:
+    kis_no_gps_packinfo() {
+        self_destruct = 1;
+    }
+};
+
 /* GPS manager which handles configuring GPS sources and deciding which one
  * is going to be used */
 class gps_tracker : public kis_net_httpd_cppstream_handler, public lifetime_global {
@@ -198,7 +207,7 @@ protected:
     // Timer for logging GPS path as a snapshot
     int log_snapshot_timer;
 
-    int pack_comp_gps;
+    int pack_comp_gps, pack_comp_no_gps;
 };
 
 #endif

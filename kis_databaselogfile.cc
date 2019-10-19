@@ -44,6 +44,7 @@ kis_database_logfile::kis_database_logfile():
     pack_comp_device = packetchain->register_packet_component("DEVICE");
     pack_comp_radiodata = packetchain->register_packet_component("RADIODATA");
     pack_comp_gps = packetchain->register_packet_component("GPS");
+    pack_comp_no_gps = packetchain->register_packet_component("NOGPS");
     pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
     pack_comp_datasource = packetchain->register_packet_component("KISDATASRC");
     pack_comp_common = packetchain->register_packet_component("COMMON");

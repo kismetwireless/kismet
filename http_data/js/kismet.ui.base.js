@@ -882,6 +882,9 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     title: "Location",
                     draw: function(opts) {
                         try {
+                            if (opts['value'][1] == 0 || opts['value'][0] == 0)
+                                return "<i>Unknown</i>";
+
                             return opts['value'][1] + ", " + opts['value'][0]
                         } catch (error) {
                             return "<i>Unknown</i>"

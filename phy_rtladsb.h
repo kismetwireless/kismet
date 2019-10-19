@@ -164,18 +164,27 @@ public:
         tracker_component() {
         register_fields();
         reserve_fields(NULL);
+
+        lat = lon = alt = heading = speed = 0;
+        update_location = false;
     }
 
     rtladsb_tracked_adsb(int in_id) :
        tracker_component(in_id) {
-            register_fields();
-            reserve_fields(NULL);
+        register_fields();
+        reserve_fields(NULL);
+
+        lat = lon = alt = heading = speed = 0;
+        update_location = false;
         }
 
     rtladsb_tracked_adsb(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
+
+        lat = lon = alt = heading = speed = 0;
+        update_location = false;
     }
 
     virtual uint32_t get_signature() const override {
@@ -227,8 +236,6 @@ protected:
         register_field("rtladsb.device.even_ts", "Timestamp of last even-packet", &even_ts);
     }
 
-    // Basic temp in C, from multiple sensors; we might have to convert to C
-    // for some types of sensors
     std::shared_ptr<tracker_element_string> icao;
     std::shared_ptr<tracker_element_string> regid;
     std::shared_ptr<tracker_element_string> mdl;
@@ -246,6 +253,12 @@ protected:
     std::shared_ptr<tracker_element_double> even_raw_lat;
     std::shared_ptr<tracker_element_double> even_raw_lon;
     std::shared_ptr<tracker_element_uint64> even_ts;
+
+    // Aggregated location turned into a packet location later
+    double lat, lon, alt, heading, speed;
+    bool update_location;
+
+    friend class kis_rtladsb_phy;
 };
 
 class kis_rtladsb_phy : public kis_phy_handler {

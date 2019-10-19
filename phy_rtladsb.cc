@@ -182,7 +182,7 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     std::shared_ptr<kis_tracked_device_base> basedev =
         devicetracker->update_common_device(common, common->source, this, packet,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
-                 UCD_UPDATE_SEENBY), "RTLADSB Sensor");
+                 UCD_UPDATE_SEENBY), "RTLADSB Transmitter");
 
     local_locker bssidlock(&(basedev->device_mutex));
 
@@ -301,6 +301,29 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
         _MSG(info, MSGFLAG_INFO);
     }
 
+    if (adsbdev->update_location) {
+        adsbdev->update_location = false;
+
+        // Update the common device with location if we've got a location record now
+        auto gpsinfo = new kis_gps_packinfo();
+
+        gpsinfo->lat = adsbdev->lat;
+        gpsinfo->lon = adsbdev->lon;
+        gpsinfo->speed = adsbdev->speed;
+        gpsinfo->alt = adsbdev->alt;
+        gpsinfo->heading = adsbdev->heading;
+
+        if (adsbdev->alt != 0)
+            gpsinfo->fix = 3;
+
+        gettimeofday(&gpsinfo->tv, NULL);
+
+        packet->insert(pack_comp_gps, gpsinfo);
+
+        devicetracker->update_common_device(common, common->source, this, packet,
+                (UCD_UPDATE_LOCATION), "RTLADSB Transmitter");
+    }
+
     return true;
 }
 
@@ -319,7 +342,6 @@ bool kis_rtladsb_phy::is_adsb(Json::Value json) {
 std::shared_ptr<rtladsb_tracked_adsb> kis_rtladsb_phy::add_adsb(kis_packet *packet,
         Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
     auto icao_j = json["icao"];
-    kis_gps_packinfo *gpsinfo = nullptr;
 
     if (!icao_j.isNull()) {
         //fprintf(stderr, "RTLADSB: Detected new adsb\n");
@@ -382,33 +404,24 @@ std::shared_ptr<rtladsb_tracked_adsb> kis_rtladsb_phy::add_adsb(kis_packet *pack
         if (json.isMember("altitude")) {
             auto altitude_j = json["altitude"];
             if (altitude_j.isDouble()) {
-                if (gpsinfo == nullptr)
-                    gpsinfo = new kis_gps_packinfo();
-
-                gpsinfo->alt = altitude_j.asDouble();
-                gpsinfo->merge_partial = true;
+                adsbdev->alt = altitude_j.asDouble() * 0.3048;
+                adsbdev->update_location = true;
             }
         }
 
         if (json.isMember("speed")) {
             auto speed_j = json["speed"];
             if (speed_j.isDouble()) {
-                if (gpsinfo == nullptr)
-                    gpsinfo = new kis_gps_packinfo();
-
-                gpsinfo->speed = speed_j.asDouble();
-                gpsinfo->merge_partial = true;
+                adsbdev->speed = speed_j.asDouble() * 1.60934;
+                adsbdev->update_location = true;
             }
         }
 
         if (json.isMember("heading")) {
             auto heading_j = json["heading"];
             if (heading_j.isDouble()) {
-                if (gpsinfo == nullptr)
-                    gpsinfo = new kis_gps_packinfo();
-
-                gpsinfo->heading = heading_j.asDouble();
-                gpsinfo->merge_partial = true;
+                adsbdev->heading = heading_j.asDouble();
+                adsbdev->update_location = true;
             }
         }
 
@@ -418,9 +431,6 @@ std::shared_ptr<rtladsb_tracked_adsb> kis_rtladsb_phy::add_adsb(kis_packet *pack
                 adsbdev->set_gsas(gsas_j.asString());
             }
         }
-
-        if (gpsinfo != nullptr)
-            packet->insert(pack_comp_gps, gpsinfo);
 
         if (json.isMember("raw_lat") && json.isMember("raw_lon") &&
                 json.isMember("coordpair_even")) {
@@ -591,7 +601,8 @@ double kis_rtladsb_phy::cpr_dlon(double lat, int odd) {
     return 360.0 / cpr_n(lat, odd);
 }
 
-void kis_rtladsb_phy::decode_cpr(std::shared_ptr<rtladsb_tracked_adsb> adsb) {
+void kis_rtladsb_phy::decode_cpr(std::shared_ptr<rtladsb_tracked_adsb> adsb,
+        kis_packet *packet) {
     /* This algorithm comes from:
      * http://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html.
      *
@@ -630,20 +641,21 @@ void kis_rtladsb_phy::decode_cpr(std::shared_ptr<rtladsb_tracked_adsb> adsb) {
         int ni = cpr_n(rlat0, 0);
         int m = floor((((lon0 * (cpr_nl(rlat0) - 1)) -
                         (lon1 * cpr_nl(rlat0))) / 131072) + 0.5);
-        adsb->set_longitude(cpr_dlon(rlat0, 0) * (cpr_mod(m, ni) + lon0 / 131072));
-        adsb->set_latitude(rlat0);
+
+        adsb->lon = cpr_dlon(rlat0, 0) * (cpr_mod(m, ni) + lon0 / 131072);
+        adsb->lat = rlat0;
     } else {
         int ni = cpr_n(rlat1, 1);
         int m = floor((((lon0 * (cpr_nl(rlat1) - 1)) -
                         (lon1 * cpr_nl(rlat1))) / 131072.0) + 0.5);
-        adsb->set_longitude(cpr_dlon(rlat1, 1) * (cpr_mod(m, ni) + lon1 / 131072));
-        adsb->set_latitude(rlat1);
+        adsb->lon = cpr_dlon(rlat1, 1) * (cpr_mod(m, ni) + lon1 / 131072);
+        adsb->lat = rlat1;
     }
 
-    if (adsb->get_longitude() > 180)
-        adsb->set_longitude(adsb->get_longitude() - 360);
+    if (adsb->lon > 180)
+        adsb->lon -= 360;
 
-    // fmt::print(stderr, "adsb got lat {} lon {} raw {},{} {},{}\n", adsb->get_latitude(), adsb->get_longitude(), adsb->get_odd_raw_lat(), adsb->get_odd_raw_lon(), adsb->get_even_raw_lat(), adsb->get_even_raw_lon());
+    adsb->update_location = true;
 }
 
 std::shared_ptr<tracker_element> kis_rtladsb_phy::adsb_map_endp_handler() {
@@ -706,20 +718,27 @@ std::shared_ptr<tracker_element> kis_rtladsb_phy::adsb_map_endp_handler() {
 
             recent_devs->push_back(dev);
 
-            if (adsbdev->get_latitude() != 0 && adsbdev->get_longitude() != 0) {
-                if (adsbdev->get_latitude() < min_lat->get() || min_lat->get() == 0)
-                    min_lat->set(adsbdev->get_latitude());
-                if (adsbdev->get_longitude() < min_lon->get() || min_lon->get() == 0)
-                    min_lon->set(adsbdev->get_longitude());
+            auto loc = dev->get_location();
 
-                if (adsbdev->get_latitude() > max_lat->get() || max_lat->get() == 0)
-                    max_lat->set(adsbdev->get_latitude());
-                if (adsbdev->get_longitude() > max_lon->get() || max_lon->get() == 0)
-                    max_lon->set(adsbdev->get_longitude());
+            if (loc != nullptr) {
+                auto last_loc = loc->get_last_loc();
+
+                if (last_loc != nullptr) {
+                    if (last_loc->get_lat() < min_lat->get() || min_lat->get() == 0)
+                        min_lat->set(last_loc->get_lat());
+                    if (last_loc->get_lon() < min_lon->get() || min_lon->get() == 0)
+                        min_lon->set(last_loc->get_lon());
+
+                    if (last_loc->get_lat() > max_lat->get() || max_lat->get() == 0)
+                        max_lat->set(last_loc->get_lat());
+                    if (last_loc->get_lon() > max_lon->get() || max_lon->get() == 0)
+                        max_lon->set(last_loc->get_lon());
+                }
             }
 
             return false;
         });
+
     adsb_view->do_readonly_device_work(recent_worker);
 
     return ret_map;

@@ -44,7 +44,9 @@ gps_tracker::gps_tracker() :
 
     // Register the gps component
     pack_comp_gps =
-        Globalreg::globalreg->packetchain->register_packet_component("gps");
+        Globalreg::globalreg->packetchain->register_packet_component("GPS");
+    pack_comp_no_gps =
+        Globalreg::globalreg->packetchain->register_packet_component("NOGPS");
 
     // Register the packet chain hook
     Globalreg::globalreg->packetchain->register_handler(&kis_gpspack_hook, this,
@@ -245,6 +247,9 @@ int gps_tracker::kis_gpspack_hook(CHAINCALL_PARMS) {
     // Don't override if this packet already has a location, which could
     // come from a drone or from a PPI file
     if (in_pack->fetch(gpstracker->pack_comp_gps) != NULL)
+        return 1;
+
+    if (in_pack->fetch(gpstracker->pack_comp_no_gps) != NULL)
         return 1;
 
     kis_gps_packinfo *gpsloc = gpstracker->get_best_location();

@@ -166,6 +166,17 @@ void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt,
         insert(avg_loc);
     }
 
+    if (last_loc == nullptr) {
+        last_loc = std::make_shared<kis_tracked_location_triplet>(last_loc_id);
+        insert(last_loc);
+    }
+
+    last_loc->set_lat(in_lat);
+    last_loc->set_lon(in_lon);
+    last_loc->set_alt(in_alt);
+    last_loc->set_fix(fix);
+    last_loc->set_valid(1);
+
     if (in_lat < min_loc->get_lat() || min_loc->get_lat() == 0) {
         min_loc->set_lat(in_lat);
     }
@@ -248,6 +259,9 @@ void kis_tracked_location::register_fields() {
     avg_loc_id = 
         register_dynamic_field("kismet.common.location.avg_loc",
                 "Average GPS center of all samples", &avg_loc);
+    last_loc_id =
+        register_dynamic_field("kismet.common.location.last",
+                "Last location", &last_loc);
 
     register_field("kismet.common.location.avg_lat", "run-time average latitude", &avg_lat);
     register_field("kismet.common.location.avg_lon", "run-time average longitude", &avg_lon);

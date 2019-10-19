@@ -49,9 +49,12 @@ kis_datasource::kis_datasource(shared_datasource_builder in_builder, std::shared
 	pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
     pack_comp_l1info = packetchain->register_packet_component("RADIODATA");
     pack_comp_gps = packetchain->register_packet_component("GPS");
+    pack_comp_no_gps = packetchain->register_packet_component("NOGPS");
 	pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");
     pack_comp_json = packetchain->register_packet_component("JSON");
     pack_comp_protobuf = packetchain->register_packet_component("PROTOBUF");
+
+    suppress_gps = false;
 
     error_timer_id = -1;
     ping_timer_id = -1;
@@ -1208,6 +1211,9 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno, const std::str
         kis_gps_packinfo *gpsinfo = NULL;
         gpsinfo = handle_sub_gps(report.gps());
         packet->insert(pack_comp_gps, gpsinfo);
+    } else if (suppress_gps) {
+        auto nogpsinfo = new kis_no_gps_packinfo();
+        packet->insert(pack_comp_no_gps, nogpsinfo);
     }
 
     // TODO handle spectrum

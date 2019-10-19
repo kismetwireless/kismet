@@ -141,6 +141,8 @@ public:
     std::shared_ptr<kis_tracked_location_triplet> get_max_loc() { return max_loc; }
     std::shared_ptr<kis_tracked_location_triplet> get_avg_loc() { return avg_loc; }
 
+    std::shared_ptr<kis_tracked_location_triplet> get_last_loc() { return last_loc; }
+
     __Proxy(agg_lat, uint64_t, uint64_t, uint64_t, avg_lat);
     __Proxy(agg_lon, uint64_t, uint64_t, uint64_t, avg_lon);
     __Proxy(agg_alt, uint64_t, uint64_t, uint64_t, avg_alt);
@@ -151,8 +153,8 @@ protected:
     virtual void register_fields() override;
 
     // We save the IDs here because we dynamically generate them
-    std::shared_ptr<kis_tracked_location_triplet> min_loc, max_loc, avg_loc;
-    int min_loc_id, max_loc_id, avg_loc_id;
+    std::shared_ptr<kis_tracked_location_triplet> min_loc, max_loc, avg_loc, last_loc;
+    int min_loc_id, max_loc_id, avg_loc_id, last_loc_id;
 
     std::shared_ptr<tracker_element_uint8> loc_valid;
     std::shared_ptr<tracker_element_uint8> loc_fix;
