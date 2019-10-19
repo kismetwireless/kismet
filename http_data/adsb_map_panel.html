@@ -86,9 +86,9 @@
 
             for (var d = 0; d < data['kismet.adsb.map.devices'].length; d++) {
                 try {
-                    lat = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.adsb']['rtladsb.device.latitude'];
-                    lon = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.adsb']['rtladsb.device.longitude'];
-                    heading = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.adsb']['rtladsb.device.heading'];
+                    lat = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.geopoint'][1];
+                    lon = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.geopoint'][0];
+                    heading = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.heading'];
 
                     if (lat == 0 || lon == 0)
                         continue;

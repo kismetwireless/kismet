@@ -887,17 +887,23 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
 
                             return opts['value'][1] + ", " + opts['value'][0]
                         } catch (error) {
-                            return "<i>Unknown</i>"
+                            return "<i>Unknown</i>";
                         }
                     }
                 },
                 {
                     field: "kismet.device.base.location/kismet.common.location.avg_loc/kismet.common.location.alt",
-                    title: "Altitude (meters)",
+                    title: "Altitude",
                     filter: function(opts) {
                         return (kismet.ObjectByString(opts['data'], "kismet.device.base.location/kismet.common.location.avg_loc/kismet.common.location.fix") >= 3);
-                    }
-
+                    },
+                    draw: function(opts) {
+                        try {
+                            return kismet_ui.renderHeightDistance(opts['value']);
+                        } catch (error) {
+                            return "<i>Unknown</i>";
+                        }
+                    },
                 }
                 ],
             }
