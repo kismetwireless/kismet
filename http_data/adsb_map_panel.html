@@ -110,6 +110,7 @@
                         var new_loc = new L.LatLng(lat, lon);
                         marker.setLatLng(new_loc); 
 
+                        /*
                         if (markers[key]['last_lat'] != lat || markers[key]['last_lon'] != lon) {
                             markers[key]['pathlist'].push([lat, lon]);
 
@@ -131,8 +132,8 @@
                                 markers[key]['path'].on('mouseover', wrap_closure_mouseover(key));
                                 markers[key]['path'].on('mouseout', wrap_closure_mouseout(key));
                             }
-
                         }
+                        */
 
                     } else {
                         /* Make a new marker */
@@ -148,10 +149,49 @@
                         markers[key]['last_lon'] = lon;
                         markers[key]['heading'] = heading;
                         markers[key]['path'] = null;
+                        markers[key]['last_path_ts'] = 0
 
                         markers[key]['marker'].on('mouseover', wrap_closure_mouseover(key));
                         markers[key]['marker'].on('mouseout', wrap_closure_mouseout(key));
                     }
+
+                    // Assign the historic path, if location history is available
+                    try {
+                        var history = data['kismet.adsb.map.devices'][d]['kismet.device.base.location_cloud']['kis.gps.rrd.samples_100'];
+
+                        for (var s in history) {
+                            // Ignore non-location historic points (caused by heading/altitude before we got 
+                            // a location lock
+                            var s_lat = history[s]['kismet.historic.location.geopoint'][1];
+                            var s_lon = history[s]['kismet.historic.location.geopoint'][0];
+                            var s_ts = history[s]['kismet.historic.location.time_sec'];
+
+                            if (s_lat == 0 || s_lon == 0 || s_ts < markers[key]['last_path_ts'])
+                                continue
+
+                            markers[key]['last_path_ts'] = s_ts;
+
+                            if (markers[key]['path'] != null) {
+                                markers[key]['path'].addLatLng([s_lat, s_lon]);
+                            } else {
+                                markers[key]['path'] = L.polyline([[s_lat, s_lon], [s_lat, s_lon]], {
+                                    color: 'red',
+                                    weight: 2,
+                                    dashArray: '3',
+                                    opacity: 0.85,
+                                    smoothFactor: 1,
+                                }).addTo(mymap);
+
+                                markers[key]['path'].on('mouseover', wrap_closure_mouseover(key));
+                                markers[key]['path'].on('mouseout', wrap_closure_mouseout(key));
+                            }
+
+                        }
+
+                    } catch (error) {
+                        ;
+                    }
+
                 } catch (error) {
                     ;
                 }

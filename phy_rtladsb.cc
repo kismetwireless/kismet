@@ -723,7 +723,8 @@ std::shared_ptr<tracker_element> kis_rtladsb_phy::adsb_map_endp_handler() {
             if (loc != nullptr) {
                 auto last_loc = loc->get_last_loc();
 
-                if (last_loc != nullptr) {
+                if (last_loc != nullptr && last_loc->get_lat() != 0 &&
+                        last_loc->get_lon() != 0) {
                     if (last_loc->get_lat() < min_lat->get() || min_lat->get() == 0)
                         min_lat->set(last_loc->get_lat());
                     if (last_loc->get_lon() < min_lon->get() || min_lon->get() == 0)
