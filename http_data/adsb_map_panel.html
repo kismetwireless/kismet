@@ -1,12 +1,59 @@
+<!DOCTYPE html>
 <html>
 <head>
+    <title>live adsb map</title>
 
-    <link rel="stylesheet" type="text/css" href="css/leaflet.css">
     <link rel="stylesheet" type="text/css" href="css/font-awesome.min.css">
-    <script src="js/js.storage.min.js"></script>
-    <script src="js/leaflet.js"></script>
+    <link rel="stylesheet" href="css/leaflet.css" />
+
     <script src="js/jquery-3.1.0.min.js"></script>
+    <script src="js/leaflet.js"></script>
+
+    <script src="js/js.storage.min.js"></script>
     <script src="js/kismet.utils.js"></script>
+    <script src="js/kismet.units.js"></script>
+
+    <style>
+        body {
+            padding: 0;
+            margin: 0;
+        }
+
+        html, body, #map {
+            height: 100%;
+            font: 10pt "Helvetica Neue", Arial, Helvetica, sans-serif;
+        }
+
+        .marker-center {
+            margin: 0;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            -ms-transform: translate(-50%, -50%);
+            transform: translate(-50%, -50%);
+        }
+
+        .right-sidebar {
+            position: absolute;
+            top: 10px;
+            bottom: 10px;
+            right: 10px;
+            width: 20%;
+            border: 1px solid black;
+            background: white;
+            z-index: 999;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="right-sidebar">
+        <i class="fa fa-plane" style="padding-right: 1em;"></i><span id="numplanes">0</span> planes in the past 10 minutes
+        <div id="plane-detail" style="padding-top: 10px;">
+        </div>
+    </div>
+
 
     <script>
         $.urlParam = function(name){
@@ -33,7 +80,7 @@
 
         var tid = -1;
 
-        var mymap = null;
+        var map = null;
 
         function wrap_closure_mouseover(k) {
             return function() {
@@ -46,6 +93,12 @@
 
                 $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('color', 'red');
                 $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('font-size', '24px');
+
+                $('#plane-detail').html("<b>Flight:</b> " + markers[k]['callsign'] + "<br>" +
+                    "<b>Model:</b> " + markers[k]['model'] + "<br>" + 
+                    "<b>Operator: </b>" + markers[k]['operator'] + "<br>" + 
+                    "<b>Altitude: </b>" + kismet_units.renderHeightDistance(markers[k]['altitude'], 0, true) + "<br>" + 
+                    "<b>Speed: </b>" + kismet_units.renderSpeed(markers[k]['speed'], 0) + "<br>");
             }
         };
 
@@ -66,7 +119,8 @@
         function map_cb(d) {
             data = kismet.sanitizeObject(d);
 
-            $('#count').html("Active in the last 10 minutes: " + data['kismet.adsb.map.devices'].length);
+            // $('#count').html("Active in the last 10 minutes: " + data['kismet.adsb.map.devices'].length);
+            $('#numplanes').html(data['kismet.adsb.map.devices'].length);
 
             if (!map_configured) {
                 var lat1 = data['kismet.adsb.map.min_lat'];
@@ -74,21 +128,23 @@
                 var lat2 = data['kismet.adsb.map.max_lat'];
                 var lon2 = data['kismet.adsb.map.max_lon'];
 
-                mymap = L.map('mapid');
-                mymap.fitBounds([[lat1, lon1], [lat2, lon2]])
+                map = L.map('map');
+                map.fitBounds([[lat1, lon1], [lat2, lon2]])
                 L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     maxZoom: 19,
                     attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                }).addTo(mymap);
+                }).addTo(map);
 
                 map_configured = true;
             }
 
             for (var d = 0; d < data['kismet.adsb.map.devices'].length; d++) {
                 try {
-                    lat = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.geopoint'][1];
-                    lon = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.geopoint'][0];
-                    heading = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.heading'];
+                    var lat = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.geopoint'][1];
+                    var lon = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.geopoint'][0];
+                    var heading = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.heading'];
+                    var altitude = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.alt'];
+                    var speed = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.speed'];
 
                     if (lat == 0 || lon == 0)
                         continue;
@@ -97,7 +153,7 @@
 
                     var myIcon = L.divIcon({
                         className: 'plane-icon', 
-                        html: '<div id="adsb_marker_' + kismet.sanitizeId(key) + '" style="width: 24px; height: 24px; transform-origin: center;"><i id="adsb_marker_icon_' + kismet.sanitizeId(key) + '" class="center fa fa-plane" style="font-size: 18px;"></div>',
+                        html: '<div id="adsb_marker_' + kismet.sanitizeId(key) + '" style="width: 24px; height: 24px; transform-origin: center;"><i id="adsb_marker_icon_' + kismet.sanitizeId(key) + '" class="marker-center fa fa-plane" style="font-size: 18px;"></div>',
                         iconAnchor: [12, 12],
                     });
 
@@ -127,7 +183,7 @@
                                     dashArray: '3',
                                     opacity: 0.85,
                                     smoothFactor: 1,
-                                }).addTo(mymap);
+                                }).addTo(map);
 
                                 markers[key]['path'].on('mouseover', wrap_closure_mouseover(key));
                                 markers[key]['path'].on('mouseout', wrap_closure_mouseout(key));
@@ -138,22 +194,30 @@
                     } else {
                         /* Make a new marker */
 
-                        var marker = L.marker([lat, lon], { icon: myIcon} ).addTo(mymap);
+                        var marker = L.marker([lat, lon], { icon: myIcon} ).addTo(map);
                         $('#adsb_marker_' + kismet.sanitizeId(key)).css('transform', 'rotate(' + (heading - 45) + 'deg)');
 
                         markers[key] = {};
                         markers[key]['marker'] = marker;
                         markers[key]['keep'] = true;
                         markers[key]['pathlist'] = [[lat, lon]];
-                        markers[key]['last_lat'] = lat;
-                        markers[key]['last_lon'] = lon;
-                        markers[key]['heading'] = heading;
                         markers[key]['path'] = null;
                         markers[key]['last_path_ts'] = 0
+
+                        markers[key]['model'] = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.adsb']['rtladsb.device.atype']
+                        markers[key]['operator'] = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.adsb']['rtladsb.device.aoperator']
+                        markers[key]['callsign'] = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.adsb']['rtladsb.device.callsign']
 
                         markers[key]['marker'].on('mouseover', wrap_closure_mouseover(key));
                         markers[key]['marker'].on('mouseout', wrap_closure_mouseout(key));
                     }
+
+                    markers[key]['altitude'] = altitude;
+                    markers[key]['heading'] = heading;
+                    markers[key]['speed'] = speed;
+                    markers[key]['last_lat'] = lat;
+                    markers[key]['last_lon'] = lon;
+
 
                     // Assign the historic path, if location history is available
                     try {
@@ -180,7 +244,7 @@
                                     dashArray: '3',
                                     opacity: 0.85,
                                     smoothFactor: 1,
-                                }).addTo(mymap);
+                                }).addTo(map);
 
                                 markers[key]['path'].on('mouseover', wrap_closure_mouseover(key));
                                 markers[key]['path'].on('mouseout', wrap_closure_mouseout(key));
@@ -204,9 +268,9 @@
                 }
 
                 if (markers[k]['marker'] != null)
-                    mymap.removeLayer(markers[k]['marker']);
+                    map.removeLayer(markers[k]['marker']);
                 if (markers[k]['path'] != null)
-                    mymap.removeLayer(markers[k]['path']);
+                    map.removeLayer(markers[k]['path']);
 
                 delete(markers[k]);
             }
@@ -222,49 +286,16 @@
                 });
         }
 
-        // jquery onload complete
-        $(function() {
-            // Set a global timeout
-            $.ajaxSetup({
-                timeout:5000,
-                xhrFields: {
-                    withCredentials: true
-                }
-            });
+        // Set a global timeout
+        $.ajaxSetup({
+            timeout:5000,
+            xhrFields: {
+                withCredentials: true
+            }
+        });
 
-            poll_map();
+        poll_map();
 
-        }); // onload
     </script>
-
-<style>
-#mapid {
-    height: 100%;
-    width: 100%;
-}
-
-.vertical-center {
-    margin: 0;
-    position: absolute;
-    top: 50%;
-    -ms-transform: translateY(-50%);
-    transform: translateY(-50%);
-}
-
-.center {
-    margin: 0;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    -ms-transform: translate(-50%, -50%);
-    transform: translate(-50%, -50%);
-}
-</style>
-
-</head>
-<body>
-    <div id="count"></div>
-    <div id="mapid"></div>
 </body>
 </html>
-
