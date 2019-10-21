@@ -1,7 +1,6 @@
 include ../Makefile.inc
 
 MONITOR_BIN = kismet_cap_sdr_rtlamr
-MQTTMONITOR_BIN = kismet_cap_sdr_rtlamr_mqtt
 
 all: 
 	( cd KismetCaptureRtlamr/kismetexternal; \
@@ -12,9 +11,6 @@ all:
 
 install:
 	$(PYTHON) ./setup.py install
-	# These are now part of the setup.py install
-	# $(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(MONITOR_BIN) $(BIN)/$(MONITOR_BIN)
-	# $(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(MQTTMONITOR_BIN) $(BIN)/$(MQTTMONITOR_BIN)
 
 protobuf:
 	$(PROTOCBIN) -I ../protobuf_definitions --python_out=./KismetCaptureRtlamr ../protobuf_definitions/*.proto
