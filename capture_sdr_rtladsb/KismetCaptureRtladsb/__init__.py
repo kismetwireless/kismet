@@ -283,9 +283,9 @@ class KismetRtladsb(object):
     def datasource_listinterfaces(self, seqno):
         interfaces = []
 
-        if self.rtllib != None:
-            for i in range(0, self.rtlsdr.rtl_get_device_count()):
-                (manuf, product, serial) = self.get_rtl_usb_info(i)
+        if self.rtlsdr != None:
+            for i in range(0, self.rtlsdr.get_device_count()):
+                (manuf, product, serial) = self.rtlsdr.get_rtl_usb_info(i)
 
                 dev_index = i
 

@@ -85,6 +85,26 @@ class RtlSdr(object):
         except OSError:
             raise RadioMissingLibrtlsdr("missing librtlsdr")
 
+    def get_device_count(self):
+        return self.rtl_get_device_count()
+
+    def get_rtl_usb_info(self, index):
+        # Allocate memory buffers
+        usb_manuf = (ctypes.c_char * 256)()
+        usb_product = (ctypes.c_char * 256)()
+        usb_serial = (ctypes.c_char * 256)()
+       
+        # Call the library
+        self.rtl_get_usb_strings(index, usb_manuf, usb_product, usb_serial)
+       
+        # If there's a smarter way to do this, patches welcome
+        m = bytearray(usb_manuf)
+        p = bytearray(usb_product)
+        s = bytearray(usb_serial)
+
+        # Return tuple
+        return (m.partition(b'\0')[0].decode('UTF-8'), p.partition(b'\0')[0].decode('UTF-8'), s.partition(b'\0')[0].decode('UTF-8'))
+
     def cancel(self):
         self.rtl_cancel_async(self.rtlradio)
 
