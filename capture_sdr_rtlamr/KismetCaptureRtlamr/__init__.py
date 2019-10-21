@@ -69,12 +69,26 @@ class KismetRtlamr(object):
         self.scm_preamble_len = len(self.scm_preamble)
         self.scm_preamble_len_s = self.scm_preamble_len * self.symbol_len
 
+        # Generate the normalized squares for converting IQ via lookup
         self.square_lut = np.zeros(256)
         for i in range(0, 256):
             self.square_lut[i] = (127.5 - float(i)) / 127.5
             self.square_lut[i] *= self.square_lut[i]
 
-        self.buffer = np.array([])
+        # BCH checksum polynomial
+        self.bch_poly = 0x6F63
+
+        # Generate the polynomial table
+        self.bch_table = np.zeros(256).astype(np.uint16)
+        for i in range(0, 256):
+            crc = i << 8
+            for n in range(0, 8):
+                if not (crc & 0x8000) == 0:
+                    crc = (crc << 1) ^ self.bch_poly
+                else:
+                    crc = crc << 1
+
+            self.bch_table[i] = int(crc)
 
         # The higher the decimation the more CPU we save; we decimate AFTER
         # quantization and this seems to be consistently usable with a very high
@@ -435,6 +449,15 @@ class KismetRtlamr(object):
         self.process(nb)
         return 
 
+    def bch_checksum(self, buf, init = 0):
+        crc = init
+
+        for b in buf:
+            crc &= 0xFFFF
+            crc = crc << 8 ^ self.bch_table[crc >> 8 ^ b]
+
+        return crc & 0xFFFF
+
     def cumsum(self, data, w):
         ret = np.cumsum(data)
         ret[w:] = ret[w:] - ret[:-w]
@@ -591,23 +614,52 @@ class KismetRtlamr(object):
                 # [ 80 : 96 ] 16 Checksum
 
                 msgbuf = msgbuf[1:]
-                
+                bytestr = np.packbits(msgbuf);
+
+                report_msg = {
+                        "amr_scm": bytearray(bytestr).hex(),
+                        "valid": False,
+                        "type": "SCM",
+                        }
+
+                checksum = self.get_bits_as_int(msgbuf[80:96])
+
+                # Anything with a checksum of 0 is summarily useless, don't even report it, it's
+                # a malformed fragment
+                if checksum == 0:
+                    continue
+
+                calc_checksum = self.bch_checksum(bytestr[2:10])
+
+                # Defer power calc until we know we have something sane-ish
                 pwr = self._power_estimate(buf, p, 14*8*2)
 
-                # Queue a message to be sent upstream
-                self.kismet.add_task(self.message_queue.put, [{"amr": bytearray(np.packbits(msgbuf)).hex(), "signal": pwr}])
+                report_msg["signal"] = pwr
 
+                # Bounce invalid messages but report the signal anyhow
+                if checksum != calc_checksum:
+                    if self.opts['debug']:
+                        print(report_msg)
+                    self.kismet.add_task(self.message_queue.put, [report_msg])
+                    continue
 
-                # print(bytearray(np.packbits(msgbuf)).hex())
+                # Flag as valid and start populating
+                report_msg["valid"] = True
 
+                meterid = (self.get_bits_as_int(msgbuf[21:23]) << 24)
+                meterid |= self.get_bits_as_int(msgbuf[56:80])
+
+                report_msg["meterid"] = meterid
+                report_msg["metertype"] = self.get_bits_as_int(msgbuf[26:30])
+                report_msg["consumption"] = self.get_bits_as_int(msgbuf[32:56])
+                report_msg["phytamper"] = self.get_bits_as_int(msgbuf[24:26])
+                report_msg["endptamper"] = self.get_bits_as_int(msgbuf[30:32])
+                
                 if self.opts['debug']:
-                    meterid = (self.get_bits_as_int(msgbuf[21:23]) << 24)
-                    meterid |= self.get_bits_as_int(msgbuf[56:80])
-                    metertype = self.get_bits_as_int(msgbuf[26:30])
-                    consumption = self.get_bits_as_int(msgbuf[32:56])
-                    checksum = self.get_bits_as_int(msgbuf[80:96])
+                    print(report_msg)
 
-                    print(time.time(), "pwr", pwr, "id", meterid, "type", metertype, "tamper: {phy", msgbuf[24:26], ", endtamper", msgbuf[30:32], "} consumption", consumption, "checksum", hex(checksum))
+                self.kismet.add_task(self.message_queue.put, [report_msg])
+
             else:
                 break
 
