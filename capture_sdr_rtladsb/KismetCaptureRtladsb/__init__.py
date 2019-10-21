@@ -87,8 +87,7 @@ class KismetRtladsb(object):
         except OSError:
             self.have_librtl = False
 
-        parser = argparse.ArgumentParser(description='RTLadsb to Kismet bridge - Creates a rtladsb data source on a Kismet server and passes JSON-based records from the rtladsb binary',
-                epilog='Requires the rtladsb tool (install your distributions package or compile from https://github.com/bemasher/rtladsb)')
+        parser = argparse.ArgumentParser(description='RTLadsb to Kismet bridge - Creates a rtladsb data source on a Kismet server and passes JSON-based records from the rtladsb binary')
         
         parser.add_argument('--in-fd', action="store", type=int, dest="infd")
         parser.add_argument('--out-fd', action="store", type=int, dest="outfd")
@@ -167,7 +166,7 @@ class KismetRtladsb(object):
 
     async def __rtl_adsb_task(self):
         """
-        asyncio task that consumes the output from the adsb process
+        asyncio task that consumes the output from the radio
         """
         print_stderr = False
 
@@ -260,7 +259,7 @@ class KismetRtladsb(object):
                     raise RuntimeError('could not process response from rtladsb')
         except Exception as e:
             traceback.print_exc(file=sys.stderr)
-            print("An error occurred in rtl_adsb; is your USB device plugged in?  Make sure that no other programs are using this rtlsdr radio.", file=sys.stderr);
+            print("An error occurred reading from the rtlsdr; is your USB device plugged in?  Make sure that no other programs are using this rtlsdr radio.", file=sys.stderr);
 
             self.kismet.send_datasource_error_report(message = "Error handling ADSB: {}".format(e))
 
@@ -462,10 +461,10 @@ class KismetRtladsb(object):
 
             self.kismet.send_datasource_data_report(full_json=report)
         except ValueError as e:
-            self.kismet.send_datasource_error_report(message = "Could not parse JSON output of rtladsb")
+            self.kismet.send_datasource_error_report(message = "Could handle JSON output")
             return False
         except Exception as e:
-            self.kismet.send_datasource_error_report(message = "Could not process output of rtladsb")
+            self.kismet.send_datasource_error_report(message = "Could not handle output")
             return False
 
         return True
