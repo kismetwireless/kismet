@@ -48,18 +48,8 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
 	pack_comp_gps =
         packetchain->register_packet_component("GPS");
 
-    rtladsb_holder_id =
-        Globalreg::globalreg->entrytracker->register_field("rtladsb.device", 
-                tracker_element_factory<tracker_element_map>(),
-                "rtl_adsb device");
-
-    rtladsb_common_id =
-        Globalreg::globalreg->entrytracker->register_field("rtladsb.device.common",
-                tracker_element_factory<rtladsb_tracked_common>(),
-                "Common RTLADSB device info");
-
     rtladsb_adsb_id =
-        Globalreg::globalreg->entrytracker->register_field("rtladsb.device.adsb",
+        Globalreg::globalreg->entrytracker->register_field("rtladsb.device",
                 tracker_element_factory<rtladsb_tracked_adsb>(),
                 "RTLADSB adsb");
 
@@ -198,59 +188,9 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     basedev->set_type_string("Airplane");
     basedev->set_devicename(fmt::format("ADSB {}", dn));
 
-    auto rtlholder = basedev->get_sub_as<tracker_element_map>(rtladsb_holder_id);
-    bool newrtl = false;
-
-    if (rtlholder == NULL) {
-        rtlholder =
-            std::make_shared<tracker_element_map>(rtladsb_holder_id);
-        basedev->insert(rtlholder);
-        newrtl = true;
-    }
-
-    auto commondev =
-        rtlholder->get_sub_as<rtladsb_tracked_common>(rtladsb_common_id);
-
-    if (commondev == NULL) {
-        commondev =
-            std::make_shared<rtladsb_tracked_common>(rtladsb_common_id);
-        rtlholder->insert(commondev);
-
-        commondev->set_model(dn);
-
-        bool set_id = false;
-        //std::fprintf(stderr, "RTLADSB: ID? %d\n", json["Message"]["ID"]);
-        //std::fprintf(stderr, "RTLADSB: Detected Message\n");
-        if (json.isMember("icao")) {
-            //std::fprintf(stderr, "RTLADSB: ID Detected\n");
-            //Json::Value id_j = json["icao"];
-	    auto icao_j = json["icao"];
-            //std::fprintf(stderr, "RTLADSB: ID? %d\n", id_j);
-            if (icao_j.isString()) {
-                commondev->set_rtlid(icao_j.asString());
-                set_id = true;
-            }
-        }
-
-        if (!set_id) {
-            commondev->set_rtlid("");
-        }
-
-        commondev->set_rtlchannel("0");
-    }
-
-    if (json.isMember("channel")) {
-        auto channel_j = json["channel"];
-
-        if (channel_j.isNumeric())
-            commondev->set_rtlchannel(int_to_string(channel_j.asInt()));
-        else if (channel_j.isString())
-            commondev->set_rtlchannel(munge_to_printable(channel_j.asString()));
-    }
-
     std::shared_ptr<rtladsb_tracked_adsb> adsbdev;
     if (is_adsb(json))
-        adsbdev = add_adsb(packet, json, rtlholder);
+        adsbdev = add_adsb(packet, json, basedev);
 
     if (adsbdev != nullptr) {
         std::stringstream ss;
@@ -287,18 +227,6 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
 
             basedev->set_devicename(ss.str());
         }
-    }
-
-    if (newrtl && commondev != NULL) {
-        std::string info = "Detected new RTLADSB RF device '" + basedev->get_devicename() + "' model '" + commondev->get_model() + "'";
-
-        if (commondev->get_rtlid() != "") 
-            info += " ID " + commondev->get_rtlid();
-
-        if (commondev->get_rtlchannel() != "0")
-            info += " Channel " + commondev->get_rtlchannel();
-
-        _MSG(info, MSGFLAG_INFO);
     }
 
     if (adsbdev->update_location) {
@@ -340,11 +268,12 @@ bool kis_rtladsb_phy::is_adsb(Json::Value json) {
 }
 
 std::shared_ptr<rtladsb_tracked_adsb> kis_rtladsb_phy::add_adsb(kis_packet *packet,
-        Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
+        Json::Value json, std::shared_ptr<kis_tracked_device_base> rtlholder) {
     auto icao_j = json["icao"];
+    bool new_adsb = false;
+    std::stringstream new_ss;
 
     if (!icao_j.isNull()) {
-        //fprintf(stderr, "RTLADSB: Detected new adsb\n");
         auto adsbdev = 
             rtlholder->get_sub_as<rtladsb_tracked_adsb>(rtladsb_adsb_id);
 
@@ -352,6 +281,9 @@ std::shared_ptr<rtladsb_tracked_adsb> kis_rtladsb_phy::add_adsb(kis_packet *pack
             adsbdev = 
                 std::make_shared<rtladsb_tracked_adsb>(rtladsb_adsb_id);
             rtlholder->insert(adsbdev);
+            new_adsb = true;
+
+            new_ss << "Detected new ADSB device ICAO " << icao_j.asString();
         }
 
         adsbdev->set_icao(icao_j.asString());
@@ -374,6 +306,8 @@ std::shared_ptr<rtladsb_tracked_adsb> kis_rtladsb_phy::add_adsb(kis_packet *pack
             auto type_j = json["type"];
             if (type_j.isString()) {
                 adsbdev->set_atype(type_j.asString());
+                if (adsbdev->get_mdl() != "")
+                    new_ss << " type '" << adsbdev->get_mdl() << "'";
             }
         }
 
@@ -381,6 +315,8 @@ std::shared_ptr<rtladsb_tracked_adsb> kis_rtladsb_phy::add_adsb(kis_packet *pack
             auto operator_j = json["operator"];
             if (operator_j.isString()) {
                 adsbdev->set_aoperator(operator_j.asString());
+                if (adsbdev->get_aoperator() != "")
+                    new_ss << " operator '" << adsbdev->get_aoperator() << "'";
             }
         }
 
@@ -398,6 +334,8 @@ std::shared_ptr<rtladsb_tracked_adsb> kis_rtladsb_phy::add_adsb(kis_packet *pack
                 }
 
                 adsbdev->set_callsign(mangle_cs);
+                if (adsbdev->get_callsign() != "")
+                    new_ss << " callsign '" << adsbdev->get_callsign() << "'";
             }
         }
 
@@ -459,6 +397,10 @@ std::shared_ptr<rtladsb_tracked_adsb> kis_rtladsb_phy::add_adsb(kis_packet *pack
             if (calc_coords)
                 decode_cpr(adsbdev, packet);
         }
+
+        if (new_adsb) {
+            _MSG_INFO("{}", new_ss.str());
+        }
         
         return adsbdev;
     }
@@ -490,8 +432,6 @@ int kis_rtladsb_phy::packet_handler(CHAINCALL_PARMS) {
     try {
         ss >> device_json;
 
-        //std::fprintf(stderr, "RTLADSB: json? %s\n", json->json_string.c_str());
-        //std::fprintf(stderr, "RTLADSB: json? %s\n", device_json);
         // Copy the JSON as the meta field for logging, if it's valid
         if (rtladsb->json_to_rtl(device_json, in_pack)) {
             packet_metablob *metablob = in_pack->fetch<packet_metablob>(rtladsb->pack_comp_meta);
@@ -696,15 +636,8 @@ std::shared_ptr<tracker_element> kis_rtladsb_phy::adsb_map_endp_handler() {
     auto recent_worker = 
         device_tracker_view_function_worker([this, now, recent_devs, min_lat, 
                 min_lon, max_lat, max_lon, &response_mutex](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
-            auto rtlholder =
-                dev->get_sub_as<tracker_element_map>(rtladsb_holder_id);
-
-            if (rtlholder == nullptr) {
-                return false;
-            }
-
             auto adsbdev = 
-                rtlholder->get_sub_as<rtladsb_tracked_adsb>(rtladsb_adsb_id);
+                dev->get_sub_as<rtladsb_tracked_adsb>(rtladsb_adsb_id);
  
             if (adsbdev == nullptr) {
                 return false;

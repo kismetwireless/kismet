@@ -204,9 +204,9 @@
                         markers[key]['path'] = null;
                         markers[key]['last_path_ts'] = 0
 
-                        markers[key]['model'] = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.adsb']['rtladsb.device.atype']
-                        markers[key]['operator'] = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.adsb']['rtladsb.device.aoperator']
-                        markers[key]['callsign'] = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.adsb']['rtladsb.device.callsign']
+                        markers[key]['model'] = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.atype']
+                        markers[key]['operator'] = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.aoperator']
+                        markers[key]['callsign'] = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.callsign']
 
                         markers[key]['marker'].on('mouseover', wrap_closure_mouseover(key));
                         markers[key]['marker'].on('mouseout', wrap_closure_mouseout(key));

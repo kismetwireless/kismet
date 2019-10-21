@@ -28,134 +28,6 @@
 #include "phyhandler.h"
 #include "kismet_json.h"
 
-/* Similar to the extreme aggregator, a consumption aggregator which ignores empty
- * slots while aggregating and otherwise selects the most extreme value when a 
- * slot overlaps.  This fits a lot of generic situations in RTLADSB sensors which
- * only report a few times a second (if that).
- */
-class rtladsb_empty_aggregator {
-public:
-    // Select the most extreme value
-    static int64_t combine_element(const int64_t a, const int64_t b) {
-        if (a == default_val())
-            return b;
-
-        if (b == default_val())
-            return a;
-
-        if (a < 0 && b < 0) {
-            if (a < b)
-                return a;
-
-            return b;
-        } else if (a > 0 && b > 0) {
-            if (a > b)
-                return a;
-
-            return b;
-        } else if (a == 0) {
-            return b;
-        } else if (b == 0) {
-            return a;
-        } else if (a < b) {
-            return a;
-        }
-
-        return b;
-    }
-
-    // Simple average
-    static int64_t combine_vector(std::shared_ptr<tracker_element_vector_double> e) {
-        int64_t avg = 0;
-        int64_t avg_c = 0;
-
-        for (auto i : *e) {
-            if (i != default_val()) {
-                avg += i;
-                avg_c++;
-            }
-        }
-
-        if (avg_c == 0)
-            return default_val();
-
-        return avg / avg_c;
-    }
-
-    // Default 'empty' value, no legit signal would be 0
-    static int64_t default_val() {
-        return (int64_t) -9999;
-    }
-
-    static std::string name() {
-        return "rtladsb_empty";
-    }
-};
-
-
-// Base rtl device record
-class rtladsb_tracked_common : public tracker_component {
-public:
-    rtladsb_tracked_common() :
-        tracker_component() {
-        register_fields();
-        reserve_fields(NULL);
-    }
-
-    rtladsb_tracked_common(int in_id) :
-        tracker_component(in_id) {
-            register_fields();
-            reserve_fields(NULL);
-        }
-
-    rtladsb_tracked_common(int in_id, 
-            std::shared_ptr<tracker_element_map> e) :
-        tracker_component(in_id) {
-        register_fields();
-        reserve_fields(e);
-    }
-
-    virtual uint32_t get_signature() const override {
-        return adler32_checksum("rtladsb_tracked_common");
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return std::move(dup);
-    }
-
-    __Proxy(model, std::string, std::string, std::string, model);
-    __Proxy(rtlid, std::string, std::string, std::string, rtlid);
-    __Proxy(rtlchannel, std::string, std::string, std::string, rtlchannel);
-
-protected:
-    virtual void register_fields() override {
-        tracker_component::register_fields();
-
-        register_field("rtladsb.device.model", "Sensor model", &model);
-        register_field("rtladsb.device.id", "Sensor ID", &rtlid);
-        register_field("rtladsb.device.rtlchannel", "Sensor sub-channel", &rtlchannel);
-    }
-
-    std::shared_ptr<tracker_element_string> model;
-
-    // Device id, could be from the "id" or the "device" record
-    std::shared_ptr<tracker_element_string> rtlid;
-
-    // RTL subchannel, if one is available (many adsb messages report one)
-    std::shared_ptr<tracker_element_string> rtlchannel;
-
-    // Battery as a string
-    //std::shared_ptr<tracker_element_string> battery;
-};
-
 // Thermometer type rtl data, derived from the rtl device.  This adds new
 // fields for adsb but uses the same base IDs
 class rtladsb_tracked_adsb : public tracker_component {
@@ -290,7 +162,7 @@ protected:
     bool is_adsb(Json::Value json);
 
     std::shared_ptr<rtladsb_tracked_adsb> add_adsb(kis_packet *packet, 
-            Json::Value json, std::shared_ptr<tracker_element_map> rtlholder);
+            Json::Value json, std::shared_ptr<kis_tracked_device_base> rtlholder);
 
     double f_to_c(double f);
 
@@ -304,7 +176,7 @@ protected:
     std::shared_ptr<entry_tracker> entrytracker;
     std::shared_ptr<device_tracker> devicetracker;
 
-    int rtladsb_holder_id, rtladsb_common_id, rtladsb_adsb_id;
+    int rtladsb_adsb_id;
 
     int pack_comp_common, pack_comp_json, pack_comp_meta;
 
