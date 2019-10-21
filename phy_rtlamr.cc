@@ -46,20 +46,10 @@ kis_rtlamr_phy::kis_rtlamr_phy(global_registry *in_globalreg, int in_phyid) :
     pack_comp_meta =
         packetchain->register_packet_component("METABLOB");
 
-    rtlamr_holder_id =
-        Globalreg::globalreg->entrytracker->register_field("rtlamr.device", 
-                tracker_element_factory<tracker_element_map>(),
-                "rtl_amr device");
-
-    rtlamr_common_id =
-        Globalreg::globalreg->entrytracker->register_field("rtlamr.device.common",
-                tracker_element_factory<rtlamr_tracked_common>(),
-                "Common RTLAMR device info");
-
-    rtlamr_powermeter_id =
-        Globalreg::globalreg->entrytracker->register_field("rtlamr.device.powermeter",
-                tracker_element_factory<rtlamr_tracked_powermeter>(),
-                "RTLAMR powermeter");
+    rtlamr_meter_id =
+        Globalreg::globalreg->entrytracker->register_field("rtlamr.device",
+                tracker_element_factory<rtlamr_tracked_meter>(),
+                "RTLAMR meter");
 
     // Make the manuf string
     rtl_manuf = Globalreg::globalreg->manufdb->MakeManuf("RTLAMR");
@@ -86,35 +76,17 @@ mac_addr kis_rtlamr_phy::json_to_mac(Json::Value json) {
 
     uint8_t bytes[6];
     uint16_t *model = (uint16_t *) bytes;
-    uint32_t *checksum = (uint32_t *) (bytes + 2);
+    uint32_t *deviceid = (uint32_t *) (bytes + 2);
 
     memset(bytes, 0, 6);
 
-    std::string smodel = "unk";
-
-    if (json.isMember("model")) {
-        Json::Value m = json["model"];
-        if (m.isString()) {
-            smodel = m.asString();
-        }
-    }
-
-    *checksum = adler32_checksum(smodel.c_str(), smodel.length());
-
-    bool set_model = false;
-    if (json.isMember("Message")) {
-      auto msgjson = json["Message"];
-      if (msgjson.isMember("ID")) {
-          Json::Value i = msgjson["ID"];
-          if (i.isNumeric()) {
-              *model = kis_hton16((uint16_t) i.asUInt());
-              set_model = true;
-          }
-      }
-    }
-  
-    if (!set_model) {
-        *model = 0x0000;
+    try {
+        *model = json["model"].asUInt();
+        *deviceid = json["meterid"].asUInt();
+    } catch (const std::exception& e) {
+        mac_addr m;
+        m.error = true;
+        return m;
     }
 
     // Set the local bit
@@ -127,7 +99,25 @@ bool kis_rtlamr_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     std::string err;
     std::string v;
 
-    // synth a mac out of it
+    // If we're not valid from the capture engine, drop entirely
+    try {
+        if (!json["valid"].asBool())
+            return false;
+    } catch (const std::exception& e) {
+        return false;
+    }
+
+    auto id_j = json["meterid"];
+    auto type_j = json["metertype"];
+    auto phy_j = json["phytamper"];
+    auto end_j = json["endptamper"];
+    auto consumption_j = json["consumption"];
+
+    // We need at least an id, type, and consumption
+    if (id_j.isNull() || type_j.isNull() || consumption_j.isNull())
+        return false;
+
+    // synth a mac out of of the type and id
     mac_addr rtlmac = json_to_mac(json);
 
     if (rtlmac.error) {
@@ -146,16 +136,6 @@ bool kis_rtlamr_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     common->phyid = fetch_phy_id();
     common->datasize = 0;
 
-    // If this json record has a channel
-    if (json.isMember("channel")) {
-        Json::Value c = json["channel"];
-        if (c.isNumeric()) {
-            common->channel = int_to_string(c.asInt());
-        } else if (c.isString()) {
-            common->channel = munge_to_printable(c.asString());
-        }
-    }
-
     common->freq_khz = 912600;
     common->source = rtlmac;
     common->transmitter = rtlmac;
@@ -163,150 +143,66 @@ bool kis_rtlamr_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     std::shared_ptr<kis_tracked_device_base> basedev =
         devicetracker->update_common_device(common, common->source, this, packet,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
-                 UCD_UPDATE_SEENBY), "RTLAMR Sensor");
+                 UCD_UPDATE_SEENBY), "AMR Meter");
 
     local_locker bssidlock(&(basedev->device_mutex));
 
-    std::string dn = "PowerMeter";
+    auto meterdev = 
+        basedev->get_sub_as<rtlamr_tracked_meter>(rtlamr_meter_id);
 
-    if (json.isMember("Message")) {
-      auto msgjson = json["Message"];
-      if (msgjson.isMember("ID")) {
-          Json::Value i = msgjson["ID"];
-          if (i.isNumeric()) {
-              dn = i.asString();
-          }
-      }
-    }
+    if (meterdev == nullptr) {
+        meterdev = 
+            std::make_shared<rtlamr_tracked_meter>(rtlamr_meter_id);
 
-    basedev->set_manuf(rtl_manuf);
+        basedev->set_manuf(rtl_manuf);
 
-    basedev->set_type_string("Power Meter");
-    basedev->set_devicename(dn);
+        basedev->set_type_string("Meter");
+        basedev->set_devicename(fmt::format("{}", id_j.asUInt()));
 
-    auto rtlholder = basedev->get_sub_as<tracker_element_map>(rtlamr_holder_id);
-    bool newrtl = false;
+        basedev->insert(meterdev);
 
-    if (rtlholder == NULL) {
-        rtlholder =
-            std::make_shared<tracker_element_map>(rtlamr_holder_id);
-        basedev->insert(rtlholder);
-        newrtl = true;
-    }
+        meterdev->set_meter_id(id_j.asUInt());
+        meterdev->set_meter_type_code(type_j.asUInt());
 
-    auto commondev =
-        rtlholder->get_sub_as<rtlamr_tracked_common>(rtlamr_common_id);
-
-    if (commondev == NULL) {
-        commondev =
-            std::make_shared<rtlamr_tracked_common>(rtlamr_common_id);
-        rtlholder->insert(commondev);
-
-        commondev->set_model(dn);
-
-        bool set_id = false;
-        if (json.isMember("Message")) {
-	  auto msgjson = json["Message"];
-          if (msgjson.isMember("ID")) {
-              Json::Value id_j = msgjson["ID"];
-              if (id_j.isNumeric()) {
-                  std::stringstream ss;
-                  ss << id_j.asString();
-                  commondev->set_rtlid(ss.str());
-                  set_id = true;
-              } else if (id_j.isString()) {
-                  commondev->set_rtlid(id_j.asString());
-                  set_id = true;
-              }
-          }
-
-          if (!set_id && msgjson.isMember("Consumption")) {
-              Json::Value consumption_j = msgjson["Consumption"];
-              if (consumption_j.isNumeric()) {
-                  std::stringstream ss;
-                  ss << consumption_j.asDouble();
-                  commondev->set_rtlid(ss.str());
-                  set_id = true;
-              } else if (consumption_j.isString()) {
-                  commondev->set_rtlid(consumption_j.asString());
-                  set_id = true;
-              }
-          }
+        switch (meterdev->get_meter_type_code()) {
+            case 4:
+            case 5:
+            case 7:
+            case 8:
+                meterdev->set_meter_type("Electric");
+                basedev->set_type_string("Power Meter");
+                break;
+            case 2:
+            case 9:
+            case 12:
+                meterdev->set_meter_type("Gas");
+                basedev->set_type_string("Gas Meter");
+                break;
+            case 11:
+            case 13:
+                meterdev->set_meter_type("Water");
+                basedev->set_type_string("Water Meter");
+                break;
+            default:
+                meterdev->set_meter_type("Unknown");
+                basedev->set_type_string("Meter");
+                break;
         }
 
-        if (!set_id) {
-            commondev->set_rtlid("");
-        }
-
-        commondev->set_rtlchannel("0");
+        _MSG_INFO("Detected new AMR {} id {}",
+                basedev->get_type_string(), meterdev->get_meter_id());
     }
 
-    if (json.isMember("channel")) {
-        auto channel_j = json["channel"];
+    if (!phy_j.isNull())
+        meterdev->set_phy_tamper_flags(phy_j.asUInt());
+    if (!end_j.isNull())
+        meterdev->set_endpoint_tamper_flags(end_j.asUInt());
 
-        if (channel_j.isNumeric())
-            commondev->set_rtlchannel(int_to_string(channel_j.asInt()));
-        else if (channel_j.isString())
-            commondev->set_rtlchannel(munge_to_printable(channel_j.asString()));
-    }
-
-    if (is_powermeter(json))
-        add_powermeter(json, rtlholder);
-
-    if (newrtl && commondev != NULL) {
-        std::string info = "Detected new RTLAMR RF device '" + commondev->get_model() + "'";
-
-        if (commondev->get_rtlid() != "") 
-            info += " ID " + commondev->get_rtlid();
-
-        if (commondev->get_rtlchannel() != "0")
-            info += " Channel " + commondev->get_rtlchannel();
-
-        _MSG(info, MSGFLAG_INFO);
-    }
+    meterdev->set_consumption(consumption_j.asUInt());
+    meterdev->get_consumption_rrd()->add_sample(meterdev->get_consumption(), time(0));
 
     return true;
 }
-
-bool kis_rtlamr_phy::is_powermeter(Json::Value json) {
-
-    auto msgjson = json["Message"];
-    auto id_j = msgjson["ID"];
-    auto consumption_j = msgjson["Consumption"];
-
-    if (!id_j.isNull() || !consumption_j.isNull()) {
-        return true;
-    }
-
-    return false;
-}
-
-void kis_rtlamr_phy::add_powermeter(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
-    auto msgjson = json["Message"];
-    auto id_j = msgjson["ID"];
-    auto consumption_j = msgjson["Consumption"];
-
-    if (!id_j.isNull() || !consumption_j.isNull()) {
-        auto powermeterdev = 
-            rtlholder->get_sub_as<rtlamr_tracked_powermeter>(rtlamr_powermeter_id);
-
-        if (powermeterdev == NULL) {
-            powermeterdev = 
-                std::make_shared<rtlamr_tracked_powermeter>(rtlamr_powermeter_id);
-            rtlholder->insert(powermeterdev);
-        }
-
-        if (id_j.isNumeric()) {
-            powermeterdev->set_id(id_j.asDouble());
-        }
-
-        if (consumption_j.isNumeric()) {
-            powermeterdev->set_consumption(consumption_j.asDouble());
-        }
-
-    }
-}
-
 
 
 int kis_rtlamr_phy::PacketHandler(CHAINCALL_PARMS) {

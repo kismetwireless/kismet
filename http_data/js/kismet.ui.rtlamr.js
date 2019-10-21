@@ -35,48 +35,24 @@ kismet_ui.AddDeviceDetail("rtlamr", "RTLAMR (SDR)", 0, {
             "id": "rtlamrData",
             "fields": [
             {
-                field: "rtlamr.device/rtlamr.device.common/rtlamr.device.model",
-                title: "Model",
+                field: "rtlamr.device/rtlamr.device.meter_id",
+                title: "Meter ID",
                 empty: "<i>Unknown</i>"
             },
             {
-                field: "rtlamr.device/rtlamr.device.common/rtlamr.device.id",
-                title: "Device ID",
+                field: "rtlamr.device/rtlamr.device.meter_type",
+                title: "Meter Type",
                 empty: "<i>Unknown</i>"
             },
             {
-                field: "rtlamr.device/rtlamr.device.powermeter/rtlamr.device.consumption",
-                title: "Current Reading",
+                field: "rtlamr.device/rtlamr.device.consumption",
+                title: "Consumption",
                 empty: "<i>Unknown</i>"
             },
-            {
-                field: "rtlamr.device/rtlamr.device.common/rtlamr.device.rtlchannel",
-                title: "Channel",
-                filterOnZero: true,
-            },
-            //{
-            //    field: "rtlamr.device/rtlamr.device.powermeter",
-            //    groupTitle: "Powermeter",
-            //    id: "group_power_data",
-            //    filterOnEmpty: true,
-            //    fields: [
-            //    {
-            //        field: "rtlamr.device/rtlamr.device.powermeter/rtlamr.device.consumption",
-            //        title: "Consumption",
-            //        filterOnEmpty: true,
-            //        render: function(opts) {
-            //            return kismet_ui.renderConsumption(opts['value'], 2);
-            //        }
-            //    },
-            //    ]
-            //},
-
             ],
         });
     },
 });
-
-console.log("kismet.ui.rtlamr.js returning, we think we loaded everything?");
 
 // We're done loading
 exports.load_complete = 1;
