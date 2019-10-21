@@ -380,7 +380,10 @@ std::string kis_strerror_r(int errnum);
 double ts_to_double(struct timeval ts);
 double ts_now_to_double();
 
-std::string hexstr_to_binstr(const char *hs);
+// Flexible method to convert a hex string to a binary string; accepts
+// both upper and lower case hex, and prepends '0' to the first byte if 
+// an odd number of bytes in the original string
+std::string hex_to_bytes(const std::string& in);
 
 void thread_set_process_name(const std::string& name);
 
