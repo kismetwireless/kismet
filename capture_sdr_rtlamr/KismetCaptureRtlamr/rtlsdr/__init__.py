@@ -78,12 +78,19 @@ class RtlSdr(object):
             self.rtl_set_freq_correction.argtypes = [ctypes.c_void_p, ctypes.c_int]
             self.rtl_set_freq_correction.restype = ctypes.c_int
 
-            self.rtl_set_bias_tee = self.rtllib.rtlsdr_set_bias_tee
-            self.rtl_set_bias_tee.argtypes = [ctypes.c_void_p, ctypes.c_int]
-            self.rtl_set_bias_tee.restype = ctypes.c_int
+            try:
+                self.rtl_set_bias_tee = self.rtllib.rtlsdr_set_bias_tee
+                self.rtl_set_bias_tee.argtypes = [ctypes.c_void_p, ctypes.c_int]
+                self.rtl_set_bias_tee.restype = ctypes.c_int
+            except AttributeError:
+                self.rtl_set_bias_tee = self.no_set_bias_tee
 
         except OSError:
             raise RadioMissingLibrtlsdr("missing librtlsdr")
+
+    def no_set_bias_tee(self, foo, bar):
+        print("This version of librtlsdr does not support enabling bias-tee, please upgrade your librtlsdr")
+        return 0
 
     def get_device_count(self):
         return self.rtl_get_device_count()
