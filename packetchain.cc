@@ -58,21 +58,6 @@ packet_chain::packet_chain() {
 
     packetchain_shutdown = false;
 
-#if 0
-    auto num_chain_threads =
-        Globalreg::globalreg->kismet_config->fetch_opt_int("packetprocess_max_threads", -1);
-
-    if (num_chain_threads > 0) {
-        _MSG_INFO("Limiting packet processing to {} threads max ({} cores available)",
-                num_chain_threads, std::thread::hardware_concurrency());
-    } else {
-        num_chain_threads = std::thread::hardware_concurrency();
-    }
-#endif
-
-    // Force to a single thread for now
-    int num_chain_threads = 1;
-
     packet_thread = std::thread([this]() {
             thread_set_process_name("packethandler");
             packet_queue_processor();
