@@ -651,7 +651,7 @@ std::shared_ptr<tracker_element> kis_rtladsb_phy::adsb_map_endp_handler() {
 
             recent_devs->push_back(dev);
 
-            auto loc = dev->get_location();
+            auto loc = dev->get_tracker_location();
 
             if (loc != nullptr) {
                 auto last_loc = loc->get_last_loc();
