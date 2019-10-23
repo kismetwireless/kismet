@@ -1481,7 +1481,7 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
             }
 
             if (httpd_strip_suffix(tokenurl[4]) == "source") {
-                httpd_serialize(path, stream, ds);
+                httpd_serialize(path, stream, ds, nullptr, connection);
                 return;
             }
 
@@ -1607,7 +1607,7 @@ int datasource_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
             r = cl->block_until();
 
             if (cmd_complete_success) {
-                httpd_serialize(concls->url, concls->response_stream, r);
+                httpd_serialize(concls->url, concls->response_stream, r, nullptr, concls);
                 concls->httpcode = 200;
             } else {
                 concls->response_stream << error_reason;

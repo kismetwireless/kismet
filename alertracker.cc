@@ -674,7 +674,7 @@ void alert_tracker::httpd_create_stream_response(
 
     if (tokenurl[1] == "alerts") {
         if (httpd_strip_suffix(tokenurl[2]) == "definitions") {
-            httpd_serialize(path, stream, alert_defs_vec);
+            httpd_serialize(path, stream, alert_defs_vec, nullptr, connection);
             return;
         } else if (tokenurl[2] == "last-time") {
             if (tokenurl.size() < 5)
@@ -716,7 +716,7 @@ void alert_tracker::httpd_create_stream_response(
         }
     }
 
-    httpd_serialize(path, stream, transmit);
+    httpd_serialize(path, stream, transmit, nullptr, connection);
 }
 
 int alert_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {

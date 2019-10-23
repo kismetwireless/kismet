@@ -1927,7 +1927,7 @@ public:
         local_locker lock(&mutex);
     }
 
-    virtual void serialize(shared_tracker_element in_elem, 
+    virtual int serialize(shared_tracker_element in_elem, 
             std::ostream &stream, std::shared_ptr<rename_map> name_map) = 0;
 
     // Fields extracted from a summary path need to preserialize their parent

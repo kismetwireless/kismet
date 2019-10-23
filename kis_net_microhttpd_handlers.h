@@ -65,7 +65,8 @@ public:
     virtual void httpd_serialize(const std::string& path, 
             std::ostream& stream,
             std::shared_ptr<tracker_element> elem, 
-            std::shared_ptr<tracker_element_serializer::rename_map> rename = nullptr);
+            std::shared_ptr<tracker_element_serializer::rename_map> rename,
+            kis_net_httpd_connection *connection);
 
     // Shortcuts for getting path info
     virtual std::string httpd_get_suffix(const std::string& path);

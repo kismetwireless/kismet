@@ -46,9 +46,10 @@ public:
     serializer() :
         tracker_element_serializer() { }
 
-    virtual void serialize(shared_tracker_element in_elem, std::ostream &stream,
+    virtual int serialize(shared_tracker_element in_elem, std::ostream &stream,
             std::shared_ptr<rename_map> name_map = nullptr) override {
         pack(stream, in_elem, name_map);
+        return 0;
     }
 };
 
@@ -69,7 +70,7 @@ public:
     serializer() :
         tracker_element_serializer() { }
 
-    virtual void serialize(shared_tracker_element in_elem, std::ostream &stream,
+    virtual int serialize(shared_tracker_element in_elem, std::ostream &stream,
             std::shared_ptr<rename_map> name_map = nullptr) override {
         local_locker lock(&mutex);
 
@@ -82,11 +83,12 @@ public:
                 stream << "\n";
             }
         } else {
-            json_adapter::pack(stream, in_elem, name_map, false, 0,
-                        [](const std::string& s) { 
-                            return multi_replace_all(s, ".", "_");
-                        });
+            // No longer accept invalid data for ekjson, it MUST be a vector as the top-level object
+            stream << "<h1>Invalid format for ekjson</h1>ekjson endpoints can only be used with array or list results\n";
+            return -1;
         }
+
+        return 0;
     }
 };
 
@@ -101,7 +103,7 @@ public:
     serializer() :
         tracker_element_serializer() { }
 
-    virtual void serialize(shared_tracker_element in_elem, std::ostream &stream,
+    virtual int serialize(shared_tracker_element in_elem, std::ostream &stream,
             std::shared_ptr<rename_map> name_map = nullptr) override {
         local_locker lock(&mutex);
 
@@ -111,8 +113,12 @@ public:
                 stream << "\n";
             }
         } else {
-            json_adapter::pack(stream, in_elem, name_map);
+            stream << "<h1>Invalid format for itjson</h1>itjson endpoints can only be used with array or list results\n";
+            return -1;
+            // json_adapter::pack(stream, in_elem, name_map);
         }
+
+        return 1;
     }
 };
 
@@ -127,10 +133,12 @@ public:
     serializer() :
         tracker_element_serializer() { }
 
-    virtual void serialize(shared_tracker_element in_elem, std::ostream &stream,
+    virtual int serialize(shared_tracker_element in_elem, std::ostream &stream,
             std::shared_ptr<rename_map> name_map = nullptr) override {
         // Call the packer in pretty mode
         json_adapter::pack(stream, in_elem, name_map, true, 1);
+
+        return 1;
     }
 
 };
@@ -173,10 +181,12 @@ public:
     serializer() :
         tracker_element_serializer() { }
 
-    virtual void serialize(shared_tracker_element in_elem, std::ostream &stream,
+    virtual int serialize(shared_tracker_element in_elem, std::ostream &stream,
             std::shared_ptr<rename_map> name_map = nullptr) override {
         // Call the packer in pretty mode
         pack(stream, in_elem, name_map);
+
+        return 1;
     }
 
 };
