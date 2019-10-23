@@ -490,8 +490,8 @@ class tracker_component : public tracker_element_map {
 
 // Proxy ONLY the get_tracker_* functions
 #define __ProxyOnlyTrackable(name, ttype, cvar) \
-    virtual shared_tracker_element get_tracker_##name() { \
-        return std::static_pointer_cast<tracker_element>(cvar); \
+    virtual std::shared_ptr<ttype> get_tracker_##name() { \
+        return cvar; \
     } 
 
 // Proxy sub-trackable (name, trackable type, class variable, set function)
@@ -538,8 +538,8 @@ class tracker_component : public tracker_element_map {
             insert(std::static_pointer_cast<tracker_element>(cvar)); \
         } \
     } \
-    virtual shared_tracker_element get_tracker_##name() { \
-        return std::static_pointer_cast<tracker_element>(cvar); \
+    virtual std::shared_ptr<ttype> get_tracker_##name() { \
+        return cvar; \
     } \
     virtual bool has_##name() const { \
         return cvar != NULL; \
@@ -567,9 +567,9 @@ class tracker_component : public tracker_element_map {
             insert(std::static_pointer_cast<tracker_element>(cvar)); \
         } \
     } \
-    virtual shared_tracker_element get_tracker_##name() { \
+    virtual std::shared_ptr<ttype> get_tracker_##name() { \
         local_shared_locker l((kis_recursive_timed_mutex *) &mutex); \
-        return std::static_pointer_cast<tracker_element>(cvar); \
+        return cvar; \
     } \
     virtual bool has_##name() const { \
         local_shared_locker l((kis_recursive_timed_mutex *) &mutex); \
