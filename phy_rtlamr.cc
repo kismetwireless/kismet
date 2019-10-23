@@ -170,7 +170,7 @@ bool kis_rtlamr_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
             case 7:
             case 8:
                 meterdev->set_meter_type("Electric");
-                basedev->set_type_string("Power Meter");
+                basedev->set_type_string("Electric Meter");
                 break;
             case 2:
             case 9:
