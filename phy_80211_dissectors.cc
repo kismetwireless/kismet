@@ -2025,6 +2025,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                         vendor->vendor_oui_int() == 0x0050f2 &&
                         vendor->vendor_oui_type() == 2) {
                     dot11_ie_221_ms_wmm wmm;
+                    vendor->vendor_tag_stream()->seek(0);
                     wmm.parse(vendor->vendor_tag_stream());
 
                     if (wmm.wme_subtype() == 0x02) {
@@ -2050,6 +2051,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 // Look for DJI DroneID OUIs
                 if (vendor->vendor_oui_int() == dot11_ie_221_dji_droneid::vendor_oui()) {
                     std::shared_ptr<dot11_ie_221_dji_droneid> droneid(new dot11_ie_221_dji_droneid());
+                    vendor->vendor_tag_stream()->seek(0);
                     droneid->parse(vendor->vendor_tag_stream());
 
                     packinfo->droneid = droneid;
@@ -2059,6 +2061,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 if (vendor->vendor_oui_int() == dot11_ie_221_wfa_wpa::ms_wps_oui() && 
                         vendor->vendor_oui_type() == dot11_ie_221_wfa_wpa::wfa_wpa_subtype()) {
                     std::shared_ptr<dot11_ie_221_wfa_wpa> wpa(new dot11_ie_221_wfa_wpa());
+                    vendor->vendor_tag_stream()->seek(0);
                     wpa->parse(vendor->vendor_tag_stream());
 
                     // Merge the group cipher
@@ -2089,6 +2092,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 if (vendor->vendor_oui_int() == dot11_ie_221_cisco_client_mfp::cisco_oui() &&
                         vendor->vendor_oui_type() == dot11_ie_221_cisco_client_mfp::client_mfp_subtype()) {
                     auto mfp = std::make_shared<dot11_ie_221_cisco_client_mfp>();
+                    vendor->vendor_tag_stream()->seek(0);
                     mfp->parse(vendor->vendor_tag_stream());
 
                     packinfo->cisco_client_mfp = mfp->client_mfp();
@@ -2098,6 +2102,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 if (vendor->vendor_oui_int() == dot11_ie_221_owe_transition::vendor_oui()) {
                     if (vendor->vendor_oui_type() == dot11_ie_221_owe_transition::owe_transition_subtype()) {
                         auto owe_trans = std::make_shared<dot11_ie_221_owe_transition>();
+                        vendor->vendor_tag_stream()->seek(0);
                         owe_trans->parse(vendor->vendor_tag_stream());
                         packinfo->owe_transition = owe_trans;
                         packinfo->cryptset |= crypt_wpa_owe;
@@ -2107,6 +2112,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 // Look for WFA p2p to check the rtlwifi exploit
                 if (vendor->vendor_oui_int() == dot11_ie_221_wfa::wfa_oui()) {
                     auto wfa = std::make_shared<dot11_ie_221_wfa>();
+                    vendor->vendor_tag_stream()->seek(0);
                     wfa->parse(vendor->vendor_tag_stream());
 
                     if (wfa->wfa_subtype() == dot11_ie_221_wfa::wfa_sub_p2p()) {
@@ -2137,6 +2143,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 if (vendor->vendor_oui_int() == dot11_ie_221_ms_wps::ms_wps_oui() && 
                         vendor->vendor_oui_type() == dot11_ie_221_ms_wps::ms_wps_subtype()) {
                     auto wps = std::make_shared<dot11_ie_221_ms_wps>();
+                    vendor->vendor_tag_stream()->seek(0);
                     wps->parse(vendor->vendor_tag_stream());
 
                     for (auto wpselem : *(wps->wps_elements())) {
