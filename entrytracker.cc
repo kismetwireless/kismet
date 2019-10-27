@@ -258,7 +258,7 @@ bool entry_tracker::can_serialize(const std::string& in_name) {
     return false;
 }
 
-bool entry_tracker::serialize(const std::string& in_name, std::ostream &stream,
+int entry_tracker::serialize(const std::string& in_name, std::ostream &stream,
         shared_tracker_element e,
         std::shared_ptr<tracker_element_serializer::rename_map> name_map) {
 
@@ -269,14 +269,14 @@ bool entry_tracker::serialize(const std::string& in_name, std::ostream &stream,
     auto i = serializer_map.find(in_name);
 
     if (i == serializer_map.end()) {
-        return false;
+        return -1;
     }
     lock.unlock();
 
     // Call the serializer
-    i->second->serialize(e, stream, name_map);
+    auto r = i->second->serialize(e, stream, name_map);
 
-    return true;
+    return r;
 }
 
 

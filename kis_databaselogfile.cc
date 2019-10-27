@@ -915,7 +915,14 @@ int kis_database_logfile::log_device(std::shared_ptr<kis_tracked_device_base> d)
     std::stringstream sstr;
 
     // serialize the device
-    json_adapter::pack(sstr, d, NULL);
+    int r = Globalreg::globalreg->entrytracker->serialize("json", sstr, d, nullptr);
+   
+    if (r < 0) {
+        _MSG_ERROR("Failure serializing device key {} to the kisdatabaselog", d->get_key());
+        return 0;
+    }
+
+
     std::string streamstring = sstr.str();
 
     {
