@@ -35,7 +35,7 @@ extern const char *VERSION_BUILD_TIME;
 
 version = sys.argv[1]
 
-major, minor, tiny = version.split(".")
+major, minor, tiny = version.split("-")
 
 print(version_h.format(major, minor, tiny))
 
