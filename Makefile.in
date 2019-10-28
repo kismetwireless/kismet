@@ -492,6 +492,18 @@ rtlsdrpy:
 	@echo "Updating kismet rtlsdr python"
 	@find ./ -path *rtlsdr* -name __init__.py -not -path *build* -exec cp ../python-rtlsdr/rtlsdr/__init__.py {} \;
 
+release-%:
+	@echo $*
+	@git checkout -b kismet-`echo $* | cut -d- -f1,2`
+	@git submodule update --remote docs/
+	@git commit docs -m "Doc update for $*\n\nUpdate docs submodule for release $*"
+	@./tools/make_version_h.py $* > version.h
+	@git commit version.h -m "Version bump for $*\n\nBump versioning for release $*"
+	@git tag kismet-$*
+	@git archive --format tar --prefix kismet-$*/ kismet-$* | xz > ../kismet-$*.tar.gz
+	@git push origin kismet-`echo $* | cut -d- -f1,2` --tags
+	@git checkout master
+
 rpm:
 	@echo "Disabling SUID installation (RPM will handle setting the SUID bit.)"
 	@( export SUID="no"; export INSTGRP=`id -g`; export MANGRP=`id -g`; \
