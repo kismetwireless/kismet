@@ -26,6 +26,9 @@
 #include "timetracker.h"
 
 time_tracker::time_tracker() {
+    time_mutex.set_name("time_tracker");
+    removed_id_mutex.set_name("time_tracker_removed_id");
+
     next_timer_id = 0;
 
     timer_sort_required = true;

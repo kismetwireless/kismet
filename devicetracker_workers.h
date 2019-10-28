@@ -37,6 +37,7 @@ class device_tracker_filter_worker {
 
 public:
     device_tracker_filter_worker() {
+        worker_mutex.set_name("devicetracker_worker");
         matched_devices = std::make_shared<tracker_element_vector>();
     };
     virtual ~device_tracker_filter_worker() { };

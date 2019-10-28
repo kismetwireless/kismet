@@ -31,6 +31,8 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
     new_cb {in_new_cb},
     update_cb {in_update_cb} {
 
+    mutex.set_name(fmt::format("devicetracker_view({})", in_id));
+
     using namespace std::placeholders;
 
     register_fields();

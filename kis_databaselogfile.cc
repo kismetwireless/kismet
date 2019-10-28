@@ -38,6 +38,8 @@ kis_database_logfile::kis_database_logfile():
     kis_net_httpd_ringbuf_stream_handler(),
     message_client(Globalreg::globalreg, nullptr) {
 
+    transaction_mutex.set_name("kis_database_logfile_transaction");
+
     std::shared_ptr<packet_chain> packetchain =
         Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
 

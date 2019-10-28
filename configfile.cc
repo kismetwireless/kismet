@@ -44,10 +44,12 @@
 #endif
 
 config_file::config_file() {
+    config_locker.set_name("configfile_locker");
     checksum = 0;
 }
 
 config_file::config_file(global_registry *in_globalreg) {
+    config_locker.set_name("configfile_locker");
     checksum = 0;
 }
 

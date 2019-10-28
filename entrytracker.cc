@@ -26,6 +26,9 @@
 
 entry_tracker::entry_tracker(global_registry *in_globalreg) :
     kis_net_httpd_cppstream_handler() {
+    entry_mutex.set_name("entry_tracker");
+    serializer_mutex.set_name("entry_tracker_serializer");
+
     globalreg = in_globalreg;
 
     next_field_num = 1;

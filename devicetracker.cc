@@ -814,6 +814,8 @@ std::shared_ptr<kis_tracked_device_base>
         device->set_kis_internal_id(immutable_tracked_vec->size());
 
         device->set_key(key);
+
+        device->device_mutex.set_name(fmt::format("kis_tracked_device({})", key));
         device->set_macaddr(in_mac);
         device->set_phyname(in_phy->fetch_phy_name());
 		device->set_phyid(in_phy->fetch_phy_id());

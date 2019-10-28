@@ -35,6 +35,8 @@
 alert_tracker::alert_tracker() :
     kis_net_httpd_cppstream_handler() {
 
+    alert_mutex.set_name("alertracker");
+
 	next_alert_id = 0;
 
     packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();

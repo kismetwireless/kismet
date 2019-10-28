@@ -19,6 +19,9 @@
 #include "eventbus.h"
 
 event_bus::event_bus() {
+    mutex.set_name("event_bus");
+    handler_mutex.set_name("event_bus_handler");
+
     next_cbl_id = 1;
 
     shutdown = false;

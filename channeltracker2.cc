@@ -28,6 +28,8 @@ channel_tracker_v2::channel_tracker_v2(global_registry *in_globalreg) :
     tracker_component(),
     kis_net_httpd_cppstream_handler() {
 
+    lock.set_name("channeltrackerv2");
+
     // Number of seconds we consider a device to be active on a frequency 
     // after the last time we see it
     device_decay = 5;

@@ -468,6 +468,8 @@ void ipc_remote_v2::notify_killed(int in_exit) {
 }
 
 ipc_remote_v2_tracker::ipc_remote_v2_tracker(global_registry *in_globalreg) {
+    ipc_mutex.set_name("ipc_remote_v2_tracker");
+
     globalreg = in_globalreg;
 
     timer_id = 

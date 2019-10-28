@@ -31,6 +31,13 @@
 kis_datasource::kis_datasource(shared_datasource_builder in_builder, std::shared_ptr<kis_recursive_timed_mutex> mutex) :
     tracker_component(),
     kis_external_interface(mutex) {
+
+    if (mutex == nullptr) {
+        if (in_builder != nullptr)
+            ext_mutex->set_name(fmt::format("kis_datasource({})", in_builder->get_source_type()));
+        else
+            ext_mutex->set_name("kis_datasource");
+    }
     
     register_fields();
     reserve_fields(nullptr);

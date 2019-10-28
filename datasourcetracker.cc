@@ -295,6 +295,8 @@ void datasource_tracker_source_list::list_sources(std::function<void (std::vecto
 datasource_tracker::datasource_tracker() :
     kis_net_httpd_cppstream_handler() {
 
+    dst_lock.set_name("datasourcetracker");
+
     timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
     eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
 

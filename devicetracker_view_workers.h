@@ -35,7 +35,9 @@
 
 class device_tracker_view_worker {
 public:
-    device_tracker_view_worker() { }
+    device_tracker_view_worker() {
+        mutex.set_name("device_tracker_view_worker");
+    }
     virtual ~device_tracker_view_worker() { }
 
     virtual bool match_device(std::shared_ptr<kis_tracked_device_base> device) = 0;

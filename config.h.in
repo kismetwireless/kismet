@@ -24,6 +24,9 @@
 /* system data directory */
 #undef DATA_LOC
 
+/* Named mutex debugging */
+#undef DEBUG_MUTEX_NAME
+
 /* cannot support backtrace dumping */
 #undef DISABLE_BACKWARD
 

@@ -272,6 +272,14 @@ AC_SUBST(BASE_DIR)
 # Check for endian
 AC_C_BIGENDIAN
 
+# Enable thread debugging
+AC_ARG_ENABLE([mutex-name-debug],
+    AS_HELP_STRING([--enable-mutex-name-debug], [Enable naming of mutexes to help in debugging, this will use more RAM]),
+    [case "${enableval}" in
+     yes) AC_DEFINE(DEBUG_MUTEX_NAME, 1, Named mutex debugging) ;;
+       *) ;;
+    esac], [])
+
 # Configure for a remote-capture-only build
 caponly=0
 AC_ARG_ENABLE(capture-tools-only,

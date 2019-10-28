@@ -37,6 +37,8 @@
 gps_tracker::gps_tracker() :
     kis_net_httpd_cppstream_handler() {
 
+    gpsmanager_mutex.set_name("gps_tracker");
+
     tracked_uuid_addition_id = 
         Globalreg::globalreg->entrytracker->register_field("kismet.common.location.gps_uuid", 
                 tracker_element_factory<tracker_element_uuid>(),

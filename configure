@@ -771,6 +771,7 @@ SHELL'
 ac_subst_files=''
 ac_user_opts='
 enable_option_checking
+enable_mutex_name_debug
 enable_capture_tools_only
 enable_element_typesafety
 enable_protobuflite
@@ -1449,6 +1450,9 @@ Optional Features:
   --disable-option-checking  ignore unrecognized --enable/--with options
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
+  --enable-mutex-name-debug
+                          Enable naming of mutexes to help in debugging, this
+                          will use more RAM
   --enable-capture-tools-only  Configure and build for capture tools and remote only
   --disable-element-typesafety
                           Disable runtime type safety of the tracked element
@@ -8351,6 +8355,18 @@ $as_echo "#define AC_APPLE_UNIVERSAL_BUILD 1" >>confdefs.h
      as_fn_error $? "unknown endianness
  presetting ac_cv_c_bigendian=no (or yes) will help" "$LINENO" 5 ;;
  esac
+
+
+# Enable thread debugging
+# Check whether --enable-mutex-name-debug was given.
+if test "${enable_mutex_name_debug+set}" = set; then :
+  enableval=$enable_mutex_name_debug; case "${enableval}" in
+     yes)
+$as_echo "#define DEBUG_MUTEX_NAME 1" >>confdefs.h
+ ;;
+       *) ;;
+    esac
+fi
 
 
 # Configure for a remote-capture-only build

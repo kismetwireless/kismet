@@ -128,6 +128,9 @@ std::shared_ptr<tracker_element> kishttpd::summarize_with_structured(std::shared
 }
 
 kis_net_httpd::kis_net_httpd() {
+    controller_mutex.set_name("kis_net_httpd_controller");
+    session_mutex.set_name("kis_net_httpd_session");
+
     running = false;
 
     use_ssl = false;
