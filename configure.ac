@@ -36,6 +36,8 @@ BUILD_CAPTURE_SDR_RTLAMR=1
 BUILD_CAPTURE_SDR_RTLADSB=1
 BUILD_CAPTURE_FREAKLABS_ZIGBEE=1
 BUILD_CAPTURE_NRF_MOUSEJACK=0
+BUILD_CAPTURE_TI_CC_2540=0
+BUILD_CAPTURE_TI_CC_2531=0
 
 DATASOURCE_BINS="\$(CAPTURE_KISMETDB)"
 
@@ -1401,6 +1403,18 @@ if test "$have_usb" = "yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NRF_MOUSEJACK)"
 fi
 
+BUILD_CAPTURE_TI_CC_2540=0
+if test "$have_usb" = "yes"; then
+    BUILD_CAPTURE_TI_CC_2540=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_TI_CC_2540)"
+fi
+
+BUILD_CAPTURE_TI_CC_2531=0
+if test "$have_usb" = "yes"; then
+    BUILD_CAPTURE_TI_CC_2531=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_TI_CC_2531)"
+fi
+
 BUILD_CAPTURE_LINUX_BLUETOOTH=0
 if test "$linux" = "yes"; then
     BUILD_CAPTURE_LINUX_BLUETOOTH=1
@@ -1527,12 +1541,14 @@ AC_SUBST(BUILD_CAPTURE_SDR_RTLAMR)
 AC_SUBST(BUILD_CAPTURE_SDR_RTLADSB)
 AC_SUBST(BUILD_CAPTURE_FREAKLABS_ZIGBEE)
 AC_SUBST(BUILD_CAPTURE_NRF_MOUSEJACK)
+AC_SUBST(BUILD_CAPTURE_TI_CC_2540)
+AC_SUBST(BUILD_CAPTURE_TI_CC_2531)
 
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-AC_CONFIG_FILES([Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_sdr_rtlamr/Makefile capture_sdr_rtladsb/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile])
+AC_CONFIG_FILES([Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_sdr_rtlamr/Makefile capture_sdr_rtladsb/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile])
 AC_OUTPUT
 
 echo
@@ -1616,6 +1632,21 @@ if test "$BUILD_CAPTURE_NRF_MOUSEJACK" = 1; then
 else
 	echo "no (libusb-1.0 not available)";
 fi
+
+printf "         TI CC 2540: "
+if test "$BUILD_CAPTURE_TI_CC_2540" = 1; then
+        echo "yes";
+else
+        echo "no (libusb-1.0 not available)";
+fi
+
+printf "         TI CC 2531: "
+if test "$BUILD_CAPTURE_TI_CC_2531" = 1; then
+        echo "yes";
+else
+        echo "no (libusb-1.0 not available)";
+fi
+
 
 printf "        Python Modules: "
 if test "$BUILD_PYTHON_MODULES" = 1; then

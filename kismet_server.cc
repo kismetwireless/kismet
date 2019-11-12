@@ -71,6 +71,8 @@
 #include "datasource_rtladsb.h"
 #include "datasource_freaklabs_zigbee.h"
 #include "datasource_nrf_mousejack.h"
+#include "datasource_ti_cc_2540.h"
+#include "datasource_ti_cc_2531.h"
 
 #include "logtracker.h"
 #include "kis_ppilogfile.h"
@@ -101,6 +103,8 @@
 #include "phy_bluetooth.h"
 #include "phy_uav_drone.h"
 #include "phy_nrf_mousejack.h"
+#include "phy_ti_cc_2540.h"
+#include "phy_ti_cc_2531.h"
 
 #include "ipc_remote2.h"
 #include "manuf.h"
@@ -860,6 +864,8 @@ int main(int argc, char *argv[], char *envp[]) {
     devicetracker->register_phy_handler(new Kis_Bluetooth_Phy(globalregistry));
     devicetracker->register_phy_handler(new Kis_UAV_Phy(globalregistry));
     devicetracker->register_phy_handler(new Kis_Mousejack_Phy(globalregistry));
+    devicetracker->register_phy_handler(new Kis_TICC2540_Phy(globalregistry));
+    devicetracker->register_phy_handler(new Kis_TICC2531_Phy(globalregistry));
     devicetracker->register_phy_handler(new kis_rtlamr_phy(globalregistry));
     devicetracker->register_phy_handler(new kis_rtladsb_phy(globalregistry));
 
@@ -877,6 +883,8 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rtladsb_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_freaklabs_zigbee_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_nrf_mousejack_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_TICC2540_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_TICC2531_builder()));
 
     // Create the database logger as a global because it's a special case
     kis_database_logfile::create_kisdatabaselog();
