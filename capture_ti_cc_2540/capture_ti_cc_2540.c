@@ -14,9 +14,6 @@
 
 #include "../capture_framework.h"
 
-/* USB command timeout */
-#define TICC2540_USB_TIMEOUT     1000
-
 /* Unique instance data passed around by capframework */
 typedef struct {
     libusb_context *libusb_ctx;
@@ -29,6 +26,9 @@ typedef struct {
     /* we don't want to do a channel query every data response, we just want to 
      * remember the last channel used */
     unsigned int channel;
+
+    /*keep track of our errors so we can reset if needed*/
+    unsigned char error_ctr;
 
     kis_capture_handler_t *caph;
 } local_ticc2540_t;
@@ -99,10 +99,17 @@ int ticc2540_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_
     pthread_mutex_lock(&(localticc2540->usb_mutex));
     r = libusb_bulk_transfer(localticc2540->ticc2540_handle, TICC2540_DATA_EP, rx_buf, rx_max, &actual_len, TICC2540_TIMEOUT);
     pthread_mutex_unlock(&(localticc2540->usb_mutex));
-    if(r == LIBUSB_ERROR_TIMEOUT)
-        r = 1;
+    if(r == LIBUSB_ERROR_TIMEOUT) {
+        localticc2540->error_ctr++;
+        if(localticc2540->error_ctr >= 5)
+            return r;
+        else
+            return 1;/*continue on for now*/
+    }
+        
     if (r < 0)
         return r;
+    localticc2540->error_ctr = 0;/*we got something valid so reset*/
     return actual_len;
 }//mutex inside
 
@@ -483,8 +490,8 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     if (privchan == NULL) {
         return 0;
     }
-
-    r = ticc2540_set_channel(caph, channel->channel);
+    if(privchan != channel->channel)
+        r = ticc2540_set_channel(caph, channel->channel);
 
     if (r < 0)
         return -1;
@@ -570,6 +577,7 @@ int main(int argc, char *argv[]) {
         .libusb_ctx = NULL,
         .ticc2540_handle = NULL,
         .caph = NULL,
+        .error_ctr = 0,
     };
 
     pthread_mutex_init(&(localticc2540.usb_mutex), NULL);

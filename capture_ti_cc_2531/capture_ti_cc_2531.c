@@ -15,9 +15,6 @@
 
 #include "../capture_framework.h"
 
-/* USB command timeout */
-#define TICC2531_USB_TIMEOUT     1000
-
 /* Unique instance data passed around by capframework */
 typedef struct {
     libusb_context *libusb_ctx;
@@ -30,6 +27,9 @@ typedef struct {
     /* we don't want to do a channel query every data response, we just want to 
      * remember the last channel used */
     unsigned int channel;
+
+    /*keep track of our errors so we can reset if needed*/
+    unsigned char error_ctr;
 
     kis_capture_handler_t *caph;
 } local_ticc2531_t;
@@ -103,13 +103,17 @@ int ticc2531_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_
     pthread_mutex_lock(&(localticc2531->usb_mutex));
     r = libusb_bulk_transfer(localticc2531->ticc2531_handle, TICC2531_DATA_EP, rx_buf, rx_max, &actual_len, TICC2531_TIMEOUT);
     pthread_mutex_unlock(&(localticc2531->usb_mutex));
-
-    if(r == LIBUSB_ERROR_TIMEOUT)
-        r = 1;
-
+    if(r == LIBUSB_ERROR_TIMEOUT) {
+        localticc2531->error_ctr++;
+        if(localticc2531->error_ctr >= 5)
+            return r;
+        else
+            return 1;/*continue on for now*/
+    }
+        
     if (r < 0)
         return r;
-
+    localticc2531->error_ctr = 0;/*we got something valid so reset*/
     return actual_len;
 }//mutex inside
 
@@ -501,8 +505,8 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     if (privchan == NULL) {
         return 0;
     }
-
-    r = ticc2531_set_channel(caph, channel->channel);
+    if(privchan != channel->channel)
+        r = ticc2531_set_channel(caph, channel->channel);
 
     if (r < 0)
         return -1;
@@ -514,105 +518,106 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
 
 bool verify_packet(unsigned char *data, int len) {
 
-     unsigned char payload[128];memset(payload,0x00,128);
-     int pkt_len = data[1];
-     if(pkt_len != (len-3)) {
-     	printf("packet length mismatch\n");
-         return false;
-     }
+    unsigned char payload[128];memset(payload,0x00,128);
+    int pkt_len = data[1];
+    if(pkt_len != (len-3)) {
+    printf("packet length mismatch\n");
+        return false;
+    }
+    /*
+    unsigned char header[4];
+    int h_ctr=0;
+    for(int i=3;i<7;i++) {
+    header[h_ctr] = data[i];h_ctr++;
+    }
+    */
+    //get the paylaod
+    int p_ctr=0;
+    for(int i=8;i<(len-2);i++) {
+        payload[p_ctr] = data[i];p_ctr++;
+    }
+    int payload_len = data[7] - 0x02;
+    if(p_ctr != payload_len) {
+            printf("payload size mismatch\n");
+            return false;
+    }
 
-     unsigned char header[4];
-     int h_ctr=0;
-     for(int i=3;i<7;i++) {
-     	header[h_ctr] = data[i];h_ctr++;
-     }
-     //get the paylaod
-     int p_ctr=0;
-     for(int i=8;i<(len-2);i++) {
-	     payload[p_ctr] = data[i];p_ctr++;
-     }
-     int payload_len = data[7] - 0x02;
-     if(p_ctr != payload_len) {
-              printf("payload size mismatch\n");
-              return false;
-     }
-
-     unsigned char fcs1 = data[len-2];
-     unsigned char fcs2 = data[len-1];
-    //rssi is the signed value at fcs1
-     int rssi = (fcs1 + (int)pow(2,7)) % (int)pow(2,8) - (int)pow(2,7) - 73;
-     unsigned char crc_ok = fcs2 & (1 << 7);
-     unsigned char corr = fcs2 & 0x7f;
-     if(crc_ok > 0) {
-        unsigned char plen = data[7];
-        unsigned short frame_control = (data[9] << 8) + data[8];
-        unsigned char seq_num = data[10];
-          //beacon packet
+    unsigned char fcs1 = data[len-2];
+    unsigned char fcs2 = data[len-1];
+//rssi is the signed value at fcs1
+    int rssi = (fcs1 + (int)pow(2,7)) % (int)pow(2,8) - (int)pow(2,7) - 73;
+    unsigned char crc_ok = fcs2 & (1 << 7);
+    unsigned char corr = fcs2 & 0x7f;
+    if(crc_ok > 0) {
+    unsigned char plen = data[7];
+    unsigned short frame_control = (data[9] << 8) + data[8];
+    unsigned char seq_num = data[10];
+        //beacon packet
 //          unsigned short frame_control = (data[9] << 8) + data[8];//0x8000
 //        unsigned char seq_num = data[10];
 if(frame_control == 0x8000)
 {
-        unsigned short source_pan = (data[12] << 8) + data[11];
-        unsigned short source_address = (data[14] << 8) + data[13];
-        unsigned short superrf_spec = (data[16] << 8) + data[15];
-        unsigned short gts_fields = (data[18] << 8) + data[17];
-        printf("\n");
-        printf("    BEACON FRAME\n");
-        printf("    frame_control:%04X\n",frame_control);
-        printf("    seq_num:%02X\n",seq_num);
-        printf("    source_pan:%04X\n",source_pan);
-        printf("    source_address:%04X\n",source_address);
-        printf("    superrf_spec:%04X\n",superrf_spec);
-        printf("    gts_fields:%04X\n",gts_fields);
-        printf("\n");
+    unsigned short source_pan = (data[12] << 8) + data[11];
+    unsigned short source_address = (data[14] << 8) + data[13];
+    unsigned short superrf_spec = (data[16] << 8) + data[15];
+    unsigned short gts_fields = (data[18] << 8) + data[17];
+    printf("\n");
+    printf("    BEACON FRAME\n");
+    printf("    frame_control:%04X\n",frame_control);
+    printf("    seq_num:%02X\n",seq_num);
+    printf("    source_pan:%04X\n",source_pan);
+    printf("    source_address:%04X\n",source_address);
+    printf("    superrf_spec:%04X\n",superrf_spec);
+    printf("    gts_fields:%04X\n",gts_fields);
+    printf("\n");
 }
-          //command packet
+        //command packet
 //          unsigned short frame_control = (data[9] << 8) + data[8];//0x8023
 //          unsigned char seq_num = data[10];
 else if(frame_control == 0x8023)
 {
-        unsigned short source_pan = (data[12] << 8) + data[11];
-        unsigned short source_address = (data[14] << 8) + data[13];
-        unsigned short cmd_frame_id = data[15];
-        printf("\n");
-        printf("    COMMAND FRAME\n");
-        printf("    frame_control:%04X\n",frame_control);
-        printf("    seq_num:%02X\n",seq_num);
-        printf("    source_pan:%04X\n",source_pan);
-        printf("    source_address:%04X\n",source_address);
-        printf("    cmd_frame_id:%02X\n",cmd_frame_id);
-        printf("\n");
+    unsigned short source_pan = (data[12] << 8) + data[11];
+    unsigned short source_address = (data[14] << 8) + data[13];
+    unsigned short cmd_frame_id = data[15];
+    printf("\n");
+    printf("    COMMAND FRAME\n");
+    printf("    frame_control:%04X\n",frame_control);
+    printf("    seq_num:%02X\n",seq_num);
+    printf("    source_pan:%04X\n",source_pan);
+    printf("    source_address:%04X\n",source_address);
+    printf("    cmd_frame_id:%02X\n",cmd_frame_id);
+    printf("\n");
 }
-          //data packet
- //         unsigned char plen = data[7];
- //         unsigned short frame_control = (data[9] << 8) + data[8];//0x8841
- //         unsigned char seq_num = data[10];
+        //data packet
+//         unsigned char plen = data[7];
+//         unsigned short frame_control = (data[9] << 8) + data[8];//0x8841
+//         unsigned char seq_num = data[10];
 else if(frame_control == 0x8841)
 {
-        unsigned short dest_pan = (data[12] << 8) + data[11];
-        unsigned short dest_address = (data[14] << 8) + data[13];
-        unsigned short source_address = (data[16] << 8) + data[15];
-        //unsigned short mac_payload = (data[18] << 8) + data[17];//I think this can be variable.... so use plen
-        unsigned short mac_payload_length = plen - 9 - 2;//length of stuff from plen to the payload minus the fcs
-        printf("\n");
-        printf("    DATA PACKET\n");
-        printf("    plen:%02X\n",plen);
-        printf("    frame_control:%04X\n",frame_control);
-        printf("    seq_num:%02X\n",seq_num);
-        printf("    dest_pan:%04X\n",dest_pan);
-        printf("    dest_address:%04X\n",dest_address);
-        printf("    source_address:%04X\n",source_address);
-        //printf("    mac_payload:%04X\n",mac_payload);
-        printf("    payload:");
-        for(int i=0;i < mac_payload_length;i++)
-        printf("%02X",data[17+i]);
-        printf("\n");
+    unsigned short dest_pan = (data[12] << 8) + data[11];
+    unsigned short dest_address = (data[14] << 8) + data[13];
+    unsigned short source_address = (data[16] << 8) + data[15];
+    //unsigned short mac_payload = (data[18] << 8) + data[17];//I think this can be variable.... so use plen
+    unsigned short mac_payload_length = plen - 9 - 2;//length of stuff from plen to the payload minus the fcs
+    printf("\n");
+    printf("    DATA PACKET\n");
+    printf("    plen:%02X\n",plen);
+    printf("    frame_control:%04X\n",frame_control);
+    printf("    seq_num:%02X\n",seq_num);
+    printf("    dest_pan:%04X\n",dest_pan);
+    printf("    dest_address:%04X\n",dest_address);
+    printf("    source_address:%04X\n",source_address);
+    //printf("    mac_payload:%04X\n",mac_payload);
+    printf("    payload:");
+    for(int i=0;i < mac_payload_length;i++)
+    printf("%02X",data[17+i]);
+    printf("\n");
 }
 
-          return true;
-     }
-     else
-          return false;
+        return true;
+    }
+    else
+        return false;
 }
 
 /* Run a standard glib mainloop inside the capture thread */
