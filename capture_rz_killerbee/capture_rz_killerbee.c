@@ -1,7 +1,7 @@
 
 #include "../config.h"
 
-#include "ti_cc2531.h"
+#include "rz_killerbee.h"
 
 #include <libusb-1.0/libusb.h>
 
@@ -11,14 +11,13 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-#include <math.h>
 
 #include "../capture_framework.h"
 
 /* Unique instance data passed around by capframework */
 typedef struct {
     libusb_context *libusb_ctx;
-    libusb_device_handle *ticc2531_handle;
+    libusb_device_handle *rz_killerbee_handle;
 
     unsigned int devno, busno;
 
@@ -32,88 +31,137 @@ typedef struct {
     unsigned char error_ctr;
 
     kis_capture_handler_t *caph;
-} local_ticc2531_t;
+} local_rz_killerbee_t;
 
 /* Most basic of channel definitions */
 typedef struct {
     unsigned int channel;
 } local_channel_t;
 
-int ticc2531_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
-    /* printf("channel %u\n", channel); */
-    local_ticc2531_t *localticc2531 = (local_ticc2531_t *) caph->userdata;
-
+int rz_killerbee_init(kis_capture_handler_t *caph) {
+    local_rz_killerbee_t *localrz_killerbee = (local_rz_killerbee_t *) caph->userdata;
     int ret;
-    uint8_t data;
 
-    data = channel & 0xFF;
-    pthread_mutex_lock(&(localticc2531->usb_mutex));
-    ret = libusb_control_transfer(localticc2531->ticc2531_handle, TICC2531_DIR_OUT, TICC2531_SET_CHAN, 0x00, 0x00, &data, 1, TICC2531_TIMEOUT);
-    pthread_mutex_unlock(&(localticc2531->usb_mutex));
-    if (ret < 0) {
-        return ret;
-    }
-    data = (channel >> 8) & 0xFF;
-    pthread_mutex_lock(&(localticc2531->usb_mutex));
-    ret = libusb_control_transfer(localticc2531->ticc2531_handle, TICC2531_DIR_OUT, TICC2531_SET_CHAN, 0x00, 0x01, &data, 1, TICC2531_TIMEOUT);
-    pthread_mutex_unlock(&(localticc2531->usb_mutex));
-    if (ret < 0) {
-        return ret;
-    }
+    printf("libusb_reset_device\n");
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    ret = libusb_reset_device(localrz_killerbee->rz_killerbee_handle);
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+    printf("libusb_reset_device ret:%d\n",ret);
+    //assert(ret < 0);
+
+    //set the configurationlibusb_set_configuration
+    printf("set the configuration\n");
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    ret = libusb_set_configuration(localrz_killerbee->rz_killerbee_handle, 1);
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+    //assert(ret < 0);
+    printf("libusb_set_configuration ret:%d\n",ret);
+
+    printf("libusb_claim_interface\n");
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    ret = libusb_claim_interface(localrz_killerbee->rz_killerbee_handle, 0);
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+    printf("libusb_claim_interface ret:%d\n",ret);
+    //assert(ret < 0);
+
+    printf("libusb_set_interface_alt_setting\n");
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    ret = libusb_set_interface_alt_setting(localrz_killerbee->rz_killerbee_handle,0x00,0x00);
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+    printf("libusb_set_interface_alt_setting ret:%d\n",ret);
+    //assert(ret < 0);
+
+    return ret;
+}
+
+int rz_killerbee_set_mode(kis_capture_handler_t *caph, uint8_t mode) {
+
+    local_rz_killerbee_t *localrz_killerbee = (local_rz_killerbee_t *) caph->userdata;
+    int ret;
+
+    printf("set mode\n");
+    int xfer = 0;
+    unsigned char data[2];
+    data[0]=RZ_KILLERBEE_SET_MODE;
+    data[1]=RZ_KILLERBEE_CMD_MODE_AC;
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    ret = libusb_bulk_transfer(localrz_killerbee->rz_killerbee_handle, RZ_KILLERBEE_CMD_EP, data, sizeof(data), &xfer, RZ_KILLERBEE_TIMEOUT);
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+    printf("set mode:%d xfer:%d\n",ret,xfer);
+    printf("rz_killerbee_set_mode ret:%d\n",ret);
+    return ret;
+}
+
+int rz_killerbee_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
+    /* printf("channel %u\n", channel); */
+    local_rz_killerbee_t *localrz_killerbee = (local_rz_killerbee_t *) caph->userdata;
+    int ret;
+    int xfer = 0;
+    unsigned char data[2];
+    printf("set channel\n");
+    data[0]=RZ_KILLERBEE_SET_CHANNEL;
+    data[1]=11;//channel;
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    ret = libusb_bulk_transfer(localrz_killerbee->rz_killerbee_handle, RZ_KILLERBEE_CMD_EP, data, sizeof(data), &xfer, RZ_KILLERBEE_TIMEOUT);
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+    printf("set channel:%d xfer:%d\n",channel,xfer);
+
+    printf("rz_killerbee_set_channel ret:%d\n",ret); 
     return ret;
 }///mutex inside
 
-int ticc2531_set_power(kis_capture_handler_t *caph,uint8_t power, int retries) {
+int rz_killerbee_open_stream(kis_capture_handler_t *caph) {
     int ret;
-    local_ticc2531_t *localticc2531 = (local_ticc2531_t *) caph->userdata;
-    pthread_mutex_lock(&(localticc2531->usb_mutex));
-    // set power
-    ret = libusb_control_transfer(localticc2531->ticc2531_handle, TICC2531_DIR_OUT, TICC2531_SET_POWER, 0x00, power, NULL, 0, TICC2531_TIMEOUT);
-    // get power until it is the same as configured in set_power
-    int i;
-    for (i = 0; i < retries; i++)
-    {
-        uint8_t data;
-        ret = libusb_control_transfer(localticc2531->ticc2531_handle, 0xC0, TICC2531_GET_POWER, 0x00, 0x00, &data, 1, TICC2531_TIMEOUT);
-        if (ret < 0) {
-            pthread_mutex_unlock(&(localticc2531->usb_mutex));
-            return ret;
-        }
-        if (data == power) {
-            pthread_mutex_unlock(&(localticc2531->usb_mutex));
-            return 0;
-        }
-    }
-    pthread_mutex_unlock(&(localticc2531->usb_mutex));
+    int xfer = 0;
+    local_rz_killerbee_t *localrz_killerbee = (local_rz_killerbee_t *) caph->userdata;
+    unsigned char data[2];
+    //open stream
+    printf("open stream\n");
+    data[0]=RZ_KILLERBEE_OPEN_STREAM;
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    ret = libusb_bulk_transfer(localrz_killerbee->rz_killerbee_handle, RZ_KILLERBEE_CMD_EP, data, sizeof(data)-1, &xfer, RZ_KILLERBEE_TIMEOUT);
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+    printf("open stream:%d xfer:%d\n",ret,xfer);
+ 
+    printf("rz_killerbee_open_stream ret:%d\n",ret);
     return ret;
 }//mutex inside
 
-int ticc2531_enter_promisc_mode(kis_capture_handler_t *caph) {
+int rz_killerbee_close_stream(kis_capture_handler_t *caph) {
     int ret;
-    local_ticc2531_t *localticc2531 = (local_ticc2531_t *) caph->userdata;
-    pthread_mutex_lock(&(localticc2531->usb_mutex));
-    ret = libusb_control_transfer(localticc2531->ticc2531_handle, TICC2531_DIR_OUT, TICC2531_SET_START, 0x00, 0x00, NULL, 0, TICC2531_TIMEOUT);
-    pthread_mutex_unlock(&(localticc2531->usb_mutex));
+    int xfer = 0;
+    local_rz_killerbee_t *localrz_killerbee = (local_rz_killerbee_t *) caph->userdata;
+    unsigned char data[2];
+    //open stream
+    printf("close stream\n");
+    data[0]=RZ_KILLERBEE_CLOSE_STREAM;
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    ret = libusb_bulk_transfer(localrz_killerbee->rz_killerbee_handle, RZ_KILLERBEE_CMD_EP, data, sizeof(data)-1, &xfer, RZ_KILLERBEE_TIMEOUT);
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+    printf("close stream:%d xfer:%d\n",ret,xfer);
+
+    printf("rz_killerbee_open_stream ret:%d\n",ret);
     return ret;
 }//mutex inside
 
-int ticc2531_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_max) {
-    local_ticc2531_t *localticc2531 = (local_ticc2531_t *) caph->userdata;
+int rz_killerbee_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_max) {
+    local_rz_killerbee_t *localrz_killerbee = (local_rz_killerbee_t *) caph->userdata;
     int actual_len, r;
-    pthread_mutex_lock(&(localticc2531->usb_mutex));
-    r = libusb_bulk_transfer(localticc2531->ticc2531_handle, TICC2531_DATA_EP, rx_buf, rx_max, &actual_len, TICC2531_TIMEOUT);
-    pthread_mutex_unlock(&(localticc2531->usb_mutex));
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    r = libusb_bulk_transfer(localrz_killerbee->rz_killerbee_handle, RZ_KILLERBEE_REP_EP, rx_buf, rx_max, &actual_len, RZ_KILLERBEE_TIMEOUT);
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+    printf("rz_killerbee_receive_payload channel:%d r:%d actual_len:%d\n",localrz_killerbee->channel,r,actual_len);
     if(r == LIBUSB_ERROR_TIMEOUT) {
-        localticc2531->error_ctr++;
-        if(localticc2531->error_ctr >= 5)
-            return r;
-        else
+//        localrz_killerbee->error_ctr++;
+//        if(localrz_killerbee->error_ctr >= 50)
+//            return r;
+//        else
             return 1;/*continue on for now*/
     }
         
     if (r < 0)
         return r;
-    localticc2531->error_ctr = 0;/*we got something valid so reset*/
+    localrz_killerbee->error_ctr = 0;/*we got something valid so reset*/
     return actual_len;
 }//mutex inside
 
@@ -121,7 +169,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         char *msg, char **uuid, KismetExternal__Command *frame,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
-   
+ 
     char *placeholder = NULL;
     int placeholder_len;
     char *interface;
@@ -139,7 +187,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     int matched_device = 0;
 
-    local_ticc2531_t *localticc2531 = (local_ticc2531_t *) caph->userdata;
+    local_rz_killerbee_t *localrz_killerbee = (local_rz_killerbee_t *) caph->userdata;
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
@@ -149,21 +197,21 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     interface = strndup(placeholder, placeholder_len);
 
     /* Look for the interface type */
-    if (strstr(interface, "ticc2531") != interface) {
+    if (strstr(interface, "rz_killerbee") != interface) {
         free(interface);
         return 0;
     }
 
     /* Look for interface-bus-dev */
-    x = sscanf(interface, "ticc2531-%d-%d", &busno, &devno);
+    x = sscanf(interface, "rz_killerbee-%d-%d", &busno, &devno);
     free(interface);
 
     /* If we don't have a valid busno/devno or malformed interface name */
     if (x != -1 && x != 2) {
         return 0;
     }
-    pthread_mutex_lock(&(localticc2531->usb_mutex));
-    libusb_devices_cnt = libusb_get_device_list(localticc2531->libusb_ctx, &libusb_devs);
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    libusb_devices_cnt = libusb_get_device_list(localrz_killerbee->libusb_ctx, &libusb_devs);
 
     if (libusb_devices_cnt < 0) {
         return 0;
@@ -178,7 +226,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
             continue;
         }
 
-        if (dev.idVendor == TICC2531_USB_VENDOR && dev.idProduct == TICC2531_USB_PRODUCT) {
+        if (dev.idVendor == RZ_KILLERBEE_USB_VENDOR && dev.idProduct == RZ_KILLERBEE_USB_PRODUCT) {
             if (busno >= 0) {
                 if (busno == libusb_get_bus_number(libusb_devs[i]) &&
                         devno == libusb_get_device_address(libusb_devs[i])) {
@@ -194,17 +242,17 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         }
     }
     libusb_free_device_list(libusb_devs, 1);
-    pthread_mutex_unlock(&(localticc2531->usb_mutex));
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
 
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
      * and the location in the bus */
     snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%06X%06X",
-            adler32_csum((unsigned char *) "kismet_cap_ti_cc2531", 
-                strlen("kismet_cap_ti_cc2531")) & 0xFFFFFFFF,
+            adler32_csum((unsigned char *) "kismet_cap_rz_killerbee", 
+                strlen("kismet_cap_rz_killerbee")) & 0xFFFFFFFF,
             busno, devno);
     *uuid = strdup(errstr);
 
-    /* TI CC 2531 supports 27-29 */
+    /* RZ KILLERBEE */
     (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 16);
     for (int i = 11; i < 27; i++) {
         char chstr[4];
@@ -213,36 +261,34 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     }
 
     (*ret_interface)->channels_len = 16;
+
     return 1;
 }/////mutex inside
 
 int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
         char *msg, cf_params_list_interface_t ***interfaces) {
     /* Basic list of devices */
-    typedef struct ticc2531_list {
+    typedef struct rz_killerbee_list {
         char *device;
-        struct ticc2531_list *next;
-    } ticc2531_list_t; 
+        struct rz_killerbee_list *next;
+    } rz_killerbee_list_t; 
 
-    ticc2531_list_t *devs = NULL;
+    rz_killerbee_list_t *devs = NULL;
     size_t num_devs = 0;
-
     libusb_device **libusb_devs = NULL;
     ssize_t libusb_devices_cnt = 0;
     int r;
-
     char devname[32];
-
     unsigned int i;
 
-    local_ticc2531_t *localticc2531 = (local_ticc2531_t *) caph->userdata;
-    pthread_mutex_lock(&(localticc2531->usb_mutex));
-    libusb_devices_cnt = libusb_get_device_list(localticc2531->libusb_ctx, &libusb_devs);
-    pthread_mutex_unlock(&(localticc2531->usb_mutex));
+    local_rz_killerbee_t *localrz_killerbee = (local_rz_killerbee_t *) caph->userdata;
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    libusb_devices_cnt = libusb_get_device_list(localrz_killerbee->libusb_ctx, &libusb_devs);
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
     if (libusb_devices_cnt < 0) {
         return 0;
     }
-    pthread_mutex_lock(&(localticc2531->usb_mutex));
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
     for (ssize_t i = 0; i < libusb_devices_cnt; i++) {
         struct libusb_device_descriptor dev;
 
@@ -252,12 +298,12 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
             continue;
         }
 
-        if (dev.idVendor == TICC2531_USB_VENDOR && dev.idProduct == TICC2531_USB_PRODUCT) {
-            snprintf(devname, 32, "ticc2531-%u-%u",
+        if (dev.idVendor == RZ_KILLERBEE_USB_VENDOR && dev.idProduct == RZ_KILLERBEE_USB_PRODUCT) {
+            snprintf(devname, 32, "rz_killerbee-%u-%u",
                 libusb_get_bus_number(libusb_devs[i]),
                 libusb_get_device_address(libusb_devs[i]));
 
-            ticc2531_list_t *d = (ticc2531_list_t *) malloc(sizeof(ticc2531_list_t));
+            rz_killerbee_list_t *d = (rz_killerbee_list_t *) malloc(sizeof(rz_killerbee_list_t));
             num_devs++;
             d->device = strdup(devname);
             d->next = devs;
@@ -265,7 +311,7 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
         }
     }
     libusb_free_device_list(libusb_devs, 1);
-    pthread_mutex_unlock(&(localticc2531->usb_mutex));
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
     if (num_devs == 0) {
         *interfaces = NULL;
         return 0;
@@ -277,13 +323,13 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
     i = 0;
 
     while (devs != NULL) {
-        ticc2531_list_t *td = devs->next;
+        rz_killerbee_list_t *td = devs->next;
         (*interfaces)[i] = (cf_params_list_interface_t *) malloc(sizeof(cf_params_list_interface_t));
         memset((*interfaces)[i], 0, sizeof(cf_params_list_interface_t));
 
         (*interfaces)[i]->interface = devs->device;
         (*interfaces)[i]->flags = NULL;
-        (*interfaces)[i]->hardware = strdup("ticc2531");
+        (*interfaces)[i]->hardware = strdup("rz_killerbee");
 
         free(devs);
         devs = td;
@@ -317,7 +363,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     int matched_device = 0;
     char cap_if[32];
 
-    local_ticc2531_t *localticc2531 = (local_ticc2531_t *) caph->userdata;
+    local_rz_killerbee_t *localrz_killerbee = (local_rz_killerbee_t *) caph->userdata;
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
@@ -327,31 +373,30 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     interface = strndup(placeholder, placeholder_len);
 
     /* Look for the interface type */
-    if (strstr(interface, "ticc2531") != interface) {
-        snprintf(msg, STATUS_MAX, "Unable to find ti cc2531 interface"); 
+    if (strstr(interface, "rz_killerbee") != interface) {
+        snprintf(msg, STATUS_MAX, "Unable to find rz killerbee interface"); 
         free(interface);
         return -1;
     }
 
     /* Look for interface-bus-dev */
-    x = sscanf(interface, "ticc2531-%d-%d", &busno, &devno);
-
+    x = sscanf(interface, "rz_killerbee-%d-%d", &busno, &devno);
     free(interface);
 
     /* If we don't have a valid busno/devno or malformed interface name */
     if (x != -1 && x != 2) {
-        snprintf(msg, STATUS_MAX, "Malformed ticc2531 interface, expected 'ticc2531' or "
-                "'ticc2531-bus#-dev#'"); 
+        snprintf(msg, STATUS_MAX, "Malformed rz_killerbee interface, expected 'rz_killerbee' or "
+                "'rz_killerbee-bus#-dev#'"); 
         return -1;
     }
-    pthread_mutex_lock(&(localticc2531->usb_mutex));
-    libusb_devices_cnt = libusb_get_device_list(localticc2531->libusb_ctx, &libusb_devs);
-    pthread_mutex_unlock(&(localticc2531->usb_mutex));
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    libusb_devices_cnt = libusb_get_device_list(localrz_killerbee->libusb_ctx, &libusb_devs);
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
     if (libusb_devices_cnt < 0) {
         snprintf(msg, STATUS_MAX, "Unable to iterate USB devices"); 
         return -1;
     }
-    pthread_mutex_lock(&(localticc2531->usb_mutex));
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
     for (ssize_t i = 0; i < libusb_devices_cnt; i++) {
         struct libusb_device_descriptor dev;
 
@@ -361,7 +406,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             continue;
         }
 
-        if (dev.idVendor == TICC2531_USB_VENDOR && dev.idProduct == TICC2531_USB_PRODUCT) {
+        if (dev.idVendor == RZ_KILLERBEE_USB_VENDOR && dev.idProduct == RZ_KILLERBEE_USB_PRODUCT) {
             if (busno >= 0) {
                 if (busno == libusb_get_bus_number(libusb_devs[i]) &&
                         devno == libusb_get_device_address(libusb_devs[i])) {
@@ -380,30 +425,30 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     if (!matched_device) {
-        snprintf(msg, STATUS_MAX, "Unable to find ticc2531 USB device");
+        snprintf(msg, STATUS_MAX, "Unable to find rz_killerbee USB device");
         return -1;
     }
 
     libusb_free_device_list(libusb_devs, 1);
-    pthread_mutex_unlock(&(localticc2531->usb_mutex));
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
 
-    snprintf(cap_if, 32, "ticc2531-%u-%u", busno, devno);
+    snprintf(cap_if, 32, "rz_killerbee-%u-%u", busno, devno);
 
-    localticc2531->devno = devno;
-    localticc2531->busno = busno;
+    localrz_killerbee->devno = devno;
+    localrz_killerbee->busno = busno;
 
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
      * and the location in the bus */
     snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%06X%06X",
-            adler32_csum((unsigned char *) "kismet_cap_ti_cc2531", 
-                strlen("kismet_cap_ti_cc2531")) & 0xFFFFFFFF,
+            adler32_csum((unsigned char *) "kismet_cap_rz_killerbee", 
+                strlen("kismet_cap_rz_killerbee")) & 0xFFFFFFFF,
             busno, devno);
     *uuid = strdup(errstr);
 
     (*ret_interface)->capif = strdup(cap_if);
-    (*ret_interface)->hardware = strdup("ticc2531");
+    (*ret_interface)->hardware = strdup("rz_killerbee");
 
-    /* BTLE supports 27-29 */
+    /* RZ KILLERBEE */
     (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 16);
     for (int i = 11; i < 27; i++) {
         char chstr[4];
@@ -413,62 +458,22 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     (*ret_interface)->channels_len = 16;
 
-    pthread_mutex_lock(&(localticc2531->usb_mutex));
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
     /* Try to open it */
-    r = libusb_open(matched_dev, &localticc2531->ticc2531_handle);
-    pthread_mutex_unlock(&(localticc2531->usb_mutex));
+    r = libusb_open(matched_dev, &localrz_killerbee->rz_killerbee_handle);
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
     if (r < 0) {
-        snprintf(errstr, STATUS_MAX, "Unable to open ticc2531 USB interface: %s", 
+        snprintf(errstr, STATUS_MAX, "Unable to open rz_killerbee USB interface: %s", 
                 libusb_strerror((enum libusb_error) r));
-        pthread_mutex_unlock(&(localticc2531->usb_mutex));
+        pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
         return -1;
     }
-    pthread_mutex_lock(&(localticc2531->usb_mutex));
-    if(libusb_kernel_driver_active(localticc2531->ticc2531_handle, 0)) {
-        r = libusb_detach_kernel_driver(localticc2531->ticc2531_handle, 0); // detach driver
-        assert(r == 0);
-    }
 
-    /* Try to claim it */
-    r = libusb_claim_interface(localticc2531->ticc2531_handle, 0);
-    if (r < 0) {
-        if (r == LIBUSB_ERROR_BUSY) {
-            /* Try to detach the kernel driver */
-            r = libusb_detach_kernel_driver(localticc2531->ticc2531_handle, 0);
-            if (r < 0) {
-                snprintf(errstr, STATUS_MAX, "Unable to open ticc2531 USB interface, and unable "
-                        "to disconnect existing driver: %s", 
-                        libusb_strerror((enum libusb_error) r));
-                pthread_mutex_unlock(&(localticc2531->usb_mutex));
-                return -1;
-            }
-        } else {
-            snprintf(errstr, STATUS_MAX, "Unable to open ticc2531 USB interface: %s",
-                    libusb_strerror((enum libusb_error) r));
-            pthread_mutex_unlock(&(localticc2531->usb_mutex));
-            return -1;
-        }
-    }
-    r = libusb_set_configuration(localticc2531->ticc2531_handle, -1);
-    assert(r < 0);
+    rz_killerbee_init(caph); 
+    rz_killerbee_set_mode(caph,RZ_KILLERBEE_CMD_MODE_AC);
+    rz_killerbee_set_channel(caph, 11);
+    rz_killerbee_open_stream(caph);
 
-    // read ident
-    uint8_t ident[32];
-    int ret;
-    ret = libusb_control_transfer(localticc2531->ticc2531_handle, TICC2531_DIR_IN, TICC2531_GET_IDENT, 0x00, 0x00, ident, sizeof(ident), TICC2531_TIMEOUT);
-/*
-    if (ret > 0)
-    {
-        printf("IDENT:");
-        for (int i = 0; i < ret; i++)
-            printf(" %02X", ident[i]);
-        printf("\n");
-    }
-*/
-    pthread_mutex_unlock(&(localticc2531->usb_mutex));
-
-    ticc2531_set_power(caph,0x04, TICC2531_POWER_RETRIES);
-    ticc2531_enter_promisc_mode(caph);
     return 1;
 }///mutex inside
 
@@ -478,18 +483,19 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
     char errstr[STATUS_MAX];
 
     if (sscanf(chanstr, "%u", &parsechan) != 1) {
-        snprintf(errstr, STATUS_MAX, "1 unable to parse requested channel '%s'; ticc2531 channels "
+        snprintf(errstr, STATUS_MAX, "1 unable to parse requested channel '%s'; rz killerbee channels "
                 "are from 11 to 26", chanstr);
         cf_send_message(caph, errstr, MSGFLAG_INFO);
         return NULL;
     }
 
     if (parsechan > 26 || parsechan < 11) {
-        snprintf(errstr, STATUS_MAX, "2 unable to parse requested channel '%u'; ticc2531 channels "
+        snprintf(errstr, STATUS_MAX, "2 unable to parse requested channel '%u'; rz killerbee channels "
                 "are from 11 to 26", parsechan);
         cf_send_message(caph, errstr, MSGFLAG_INFO);
         return NULL;
     }
+
 
     ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
     ret_localchan->channel = parsechan;
@@ -498,7 +504,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
 
 int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *privchan,
         char *msg) {
-    local_ticc2531_t *localticc2531 = (local_ticc2531_t *) caph->userdata;
+    local_rz_killerbee_t *localrz_killerbee = (local_rz_killerbee_t *) caph->userdata;
     local_channel_t *channel = (local_channel_t *) privchan;
     int r;
 
@@ -506,68 +512,43 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
         return 0;
     }
     if(privchan != channel->channel)
-        r = ticc2531_set_channel(caph, channel->channel);
+        r = rz_killerbee_set_channel(caph, channel->channel);
 
     if (r < 0)
         return -1;
 
-    localticc2531->channel = channel->channel;
+    localrz_killerbee->channel = channel->channel;
    
     return 1;
 }///
 
-bool verify_packet(unsigned char *data, int len) {
-
-    unsigned char payload[128];memset(payload,0x00,128);
-    int pkt_len = data[1];
-    if(pkt_len != (len-3)) {
-        printf("packet length mismatch\n");
-        return false;
-    }
-    //get the paylaod
-    int p_ctr=0;
-    for(int i=8;i<(len-2);i++) {
-        payload[p_ctr] = data[i];p_ctr++;
-    }
-    int payload_len = data[7] - 0x02;
-    if(p_ctr != payload_len) {
-        printf("payload size mismatch\n");
-        return false;
-    }
-
-    unsigned char fcs1 = data[len-2];
-    unsigned char fcs2 = data[len-1];
-//rssi is the signed value at fcs1
-    int rssi = (fcs1 + (int)pow(2,7)) % (int)pow(2,8) - (int)pow(2,7) - 73;
-    unsigned char crc_ok = fcs2 & (1 << 7);
-    unsigned char corr = fcs2 & 0x7f;
-    if(crc_ok > 0) {
-        return true;
-    }
-    else
-        return false;
-}
-
 /* Run a standard glib mainloop inside the capture thread */
 void capture_thread(kis_capture_handler_t *caph) {
-    local_ticc2531_t *localticc2531 = (local_ticc2531_t *) caph->userdata;
+    local_rz_killerbee_t *localrz_killerbee = (local_rz_killerbee_t *) caph->userdata;
     char errstr[STATUS_MAX];
+
     uint8_t usb_buf[256];
+
     int buf_rx_len, r;
+
     while (1) {
         if (caph->spindown) {
+            /*shutdown the adapter?*/
+            rz_killerbee_close_stream(caph);
+            rz_killerbee_set_mode(caph,RZ_KILLERBEE_CMD_MODE_NONE);
+
             /* close usb */
-            if (localticc2531->ticc2531_handle) {
-                libusb_close(localticc2531->ticc2531_handle);
-                localticc2531->ticc2531_handle = NULL;
+            if (localrz_killerbee->rz_killerbee_handle) {
+                libusb_close(localrz_killerbee->rz_killerbee_handle);
+                localrz_killerbee->rz_killerbee_handle = NULL;
             }
 
             break;
         }
-        buf_rx_len = ticc2531_receive_payload(caph, usb_buf, 256);
+        buf_rx_len = rz_killerbee_receive_payload(caph, usb_buf, 256);
         if (buf_rx_len < 0) {
-            snprintf(errstr, STATUS_MAX, "TI CC 2531 interface 'ticc2531-%u-%u' closed "
-                    "unexpectedly", localticc2531->busno, localticc2531->devno);
+            snprintf(errstr, STATUS_MAX, "RZ KILLERBEE interface 'rz_killerbee-%u-%u' closed "
+                    "unexpectedly", localrz_killerbee->busno, localrz_killerbee->devno);
             cf_send_error(caph, 0, errstr);
             cf_handler_spindown(caph);
             break;
@@ -578,22 +559,19 @@ void capture_thread(kis_capture_handler_t *caph) {
             continue;
 
         //the devices look to report a 4 byte counter/heartbeat, skip it
-        //if(buf_rx_len <= 7)
-            //continue;
+        if(buf_rx_len <= 7)
+            continue;
 
-        if(!verify_packet(usb_buf, buf_rx_len)) {
-        printf("invalid packet\n");continue;}
-
-        /*
+        /**/
         if (buf_rx_len > 1) {
-            fprintf(stderr, "ti cc 2531 saw %d ", buf_rx_len);
+            fprintf(stderr, "rz killerbee saw %d ", buf_rx_len);
 
             for (int bb = 0; bb < buf_rx_len; bb++) {
                 fprintf(stderr, "%02X ", usb_buf[bb] & 0xFF);
             }
             fprintf(stderr, "\n");
         }
-        */
+        /**/
 
         while (1) {
             struct timeval tv;
@@ -620,15 +598,16 @@ void capture_thread(kis_capture_handler_t *caph) {
 }///
 
 int main(int argc, char *argv[]) {
-    local_ticc2531_t localticc2531 = {
+    local_rz_killerbee_t localrz_killerbee = {
         .libusb_ctx = NULL,
-        .ticc2531_handle = NULL,
+        .rz_killerbee_handle = NULL,
         .caph = NULL,
+        .error_ctr = 0,
     };
 
-    pthread_mutex_init(&(localticc2531.usb_mutex), NULL);
+    pthread_mutex_init(&(localrz_killerbee.usb_mutex), NULL);
 
-    kis_capture_handler_t *caph = cf_handler_init("ticc2531");
+    kis_capture_handler_t *caph = cf_handler_init("rz_killerbee");
     int r;
 
     if (caph == NULL) {
@@ -637,17 +616,17 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    r = libusb_init(&localticc2531.libusb_ctx);
+    r = libusb_init(&localrz_killerbee.libusb_ctx);
     if (r < 0) {
         return -1;
     }
 
-    libusb_set_debug(localticc2531.libusb_ctx, 3);
+    libusb_set_debug(localrz_killerbee.libusb_ctx, 3);
 
-    localticc2531.caph = caph;
+    localrz_killerbee.caph = caph;
 
     /* Set the local data ptr */
-    cf_handler_set_userdata(caph, &localticc2531);
+    cf_handler_set_userdata(caph, &localrz_killerbee);
 
     /* Set the callback for opening  */
     cf_handler_set_open_cb(caph, open_callback);
@@ -680,8 +659,8 @@ int main(int argc, char *argv[]) {
     cf_drop_most_caps(caph);
 
     cf_handler_loop(caph);
-    libusb_exit(localticc2531.libusb_ctx);
-
+    libusb_exit(localrz_killerbee.libusb_ctx);
+    
     return 0;
 }
 

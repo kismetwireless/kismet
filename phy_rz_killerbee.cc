@@ -13,18 +13,18 @@
 #include "globalregistry.h"
 #include "packetchain.h"
 #include "timetracker.h"
-#include "phy_ti_cc_2531.h"
+#include "phy_rz_killerbee.h"
 #include "kis_httpd_registry.h"
 #include "devicetracker.h"
 #include "dlttracker.h"
 #include "manuf.h"
 
-Kis_TICC2531_Phy::Kis_TICC2531_Phy(global_registry *in_globalreg, int in_phyid) :
+Kis_RZ_KILLERBEE_Phy::Kis_RZ_KILLERBEE_Phy(global_registry *in_globalreg, int in_phyid) :
     kis_phy_handler(in_globalreg, in_phyid) {
 
     //globalreg = in_globalreg;
 
-    set_phy_name("TICC2531");
+    set_phy_name("RZKILLERBEE");
 
     packetchain = 
         Globalreg::fetch_mandatory_global_as<packet_chain>();
@@ -33,10 +33,10 @@ Kis_TICC2531_Phy::Kis_TICC2531_Phy(global_registry *in_globalreg, int in_phyid) 
     devicetracker =
         Globalreg::fetch_mandatory_global_as<device_tracker>();
 
-    ticc2531_device_entry_id =
-        entrytracker->register_field("ticc2531.device",
-                tracker_element_factory<ticc2531_tracked_device>(),
-                "TI CC2531 device");
+    rzkillerbee_device_entry_id =
+        entrytracker->register_field("rzkillerbee.device",
+                tracker_element_factory<rzkillerbee_tracked_device>(),
+                "RZ KILLERBEE device");
 
     pack_comp_common = packetchain->register_packet_component("COMMON");
 	pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
@@ -44,7 +44,7 @@ Kis_TICC2531_Phy::Kis_TICC2531_Phy(global_registry *in_globalreg, int in_phyid) 
     // Extract the dynamic DLT
     auto dltt = 
         Globalreg::fetch_mandatory_global_as<dlt_tracker>("DLTTRACKER");
-    dlt = dltt->register_linktype("TICC2531");
+    dlt = dltt->register_linktype("RZKILLERBEE");
 
     /*
     auto httpregistry = 
@@ -52,21 +52,18 @@ Kis_TICC2531_Phy::Kis_TICC2531_Phy(global_registry *in_globalreg, int in_phyid) 
         */
 
     // Make the manuf string
-    //mj_manuf_amazon = Globalreg::globalreg->manufdb->MakeManuf("Amazon");
-    //mj_manuf_logitech = Globalreg::globalreg->manufdb->MakeManuf("Logitech");
-    //mj_manuf_microsoft = Globalreg::globalreg->manufdb->MakeManuf("Microsoft");
-    mj_manuf_ti = Globalreg::globalreg->manufdb->MakeManuf("Texas Instruments");
+    mj_manuf_rzkb = Globalreg::globalreg->manufdb->MakeManuf("RZ Killerbee");
 
-    packetchain->register_handler(&DissectorTICC2531, this, CHAINPOS_LLCDISSECT, -100);
-    packetchain->register_handler(&CommonClassifierTICC2531, this, CHAINPOS_CLASSIFIER, -100);
+    packetchain->register_handler(&DissectorRZ_KILLERBEE, this, CHAINPOS_LLCDISSECT, -100);
+    packetchain->register_handler(&CommonClassifierRZ_KILLERBEE, this, CHAINPOS_CLASSIFIER, -100);
 }
 
-Kis_TICC2531_Phy::~Kis_TICC2531_Phy() {
-    packetchain->remove_handler(&CommonClassifierTICC2531, CHAINPOS_CLASSIFIER);
+Kis_RZ_KILLERBEE_Phy::~Kis_RZ_KILLERBEE_Phy() {
+    packetchain->remove_handler(&CommonClassifierRZ_KILLERBEE, CHAINPOS_CLASSIFIER);
 }
 
-int Kis_TICC2531_Phy::DissectorTICC2531(CHAINCALL_PARMS) {
-    auto mphy = static_cast<Kis_TICC2531_Phy *>(auxdata);
+int Kis_RZ_KILLERBEE_Phy::DissectorRZ_KILLERBEE(CHAINCALL_PARMS) {
+    auto mphy = static_cast<Kis_RZ_KILLERBEE_Phy *>(auxdata);
 
     auto packdata = in_pack->fetch<kis_datachunk>(mphy->pack_comp_linkframe);
 
@@ -98,8 +95,8 @@ int Kis_TICC2531_Phy::DissectorTICC2531(CHAINCALL_PARMS) {
     return 1;
 }
 
-int Kis_TICC2531_Phy::CommonClassifierTICC2531(CHAINCALL_PARMS) {
-    auto mphy = static_cast<Kis_TICC2531_Phy *>(auxdata);
+int Kis_RZ_KILLERBEE_Phy::CommonClassifierRZ_KILLERBEE(CHAINCALL_PARMS) {
+    auto mphy = static_cast<Kis_RZ_KILLERBEE_Phy *>(auxdata);
 
     auto packdata = in_pack->fetch<kis_datachunk>(mphy->pack_comp_linkframe);
 
@@ -216,33 +213,33 @@ else if(frame_control == 0x8841)
                  UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
                 "TI");
-    auto ticc2531 =
-        device->get_sub_as<ticc2531_tracked_device>(mphy->ticc2531_device_entry_id);
+    auto rzkillerbee =
+        device->get_sub_as<rzkillerbee_tracked_device>(mphy->rzkillerbee_device_entry_id);
 
-    if (ticc2531 == NULL) {
-        _MSG_INFO("Detected new TI CC 2531 device {}",
+    if (rzkillerbee == NULL) {
+        _MSG_INFO("Detected new RZ KILLERBEE device {}",
                 common->source.mac_to_string());
-        ticc2531 = std::make_shared<ticc2531_tracked_device>(mphy->ticc2531_device_entry_id);
-        device->insert(ticc2531);
+        rzkillerbee = std::make_shared<rzkillerbee_tracked_device>(mphy->rzkillerbee_device_entry_id);
+        device->insert(rzkillerbee);
     }
 /**/
     return 1;
 }
 
-void Kis_TICC2531_Phy::load_phy_storage(shared_tracker_element in_storage,
+void Kis_RZ_KILLERBEE_Phy::load_phy_storage(shared_tracker_element in_storage,
         shared_tracker_element in_device) {
     if (in_storage == nullptr || in_device == nullptr)
         return;
 
     auto storage = std::static_pointer_cast<tracker_element_map>(in_storage);
 
-    auto ticc2531devi = storage->find(ticc2531_device_entry_id);
+    auto rzkillerbeedevi = storage->find(rzkillerbee_device_entry_id);
 
-    if (ticc2531devi != storage->end()) {
-        auto ticc2531dev =
-            std::make_shared<ticc2531_tracked_device>(ticc2531_device_entry_id,
-                    std::static_pointer_cast<tracker_element_map>(ticc2531devi->second));
-        std::static_pointer_cast<tracker_element_map>(in_device)->insert(ticc2531dev);
+    if (rzkillerbeedevi != storage->end()) {
+        auto rzkillerbeedev =
+            std::make_shared<rzkillerbee_tracked_device>(rzkillerbee_device_entry_id,
+                    std::static_pointer_cast<tracker_element_map>(rzkillerbeedevi->second));
+        std::static_pointer_cast<tracker_element_map>(in_device)->insert(rzkillerbeedev);
     }
 }
 
