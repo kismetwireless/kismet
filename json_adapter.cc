@@ -195,6 +195,8 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
 
     bool as_vector, as_key_vector;
 
+    double d_v;
+
     // If we're serializing an alias, remap as the aliased element
     if (e->get_type() == tracker_type::tracker_alias)
         e = std::static_pointer_cast<tracker_element_alias>(e)->get();
@@ -228,20 +230,26 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
             stream << get_tracker_value<uint64_t>(e);
             break;
         case tracker_type::tracker_float:
-            if (std::isnan(get_tracker_value<float>(e)) || std::isinf(get_tracker_value<float>(e)))
+            d_v = get_tracker_value<float>(e);
+
+            if (std::isnan(d_v) || std::isinf(d_v))
                 stream << 0;
-            else if (get_tracker_value<float>(e) == 0)
-                stream << 0;
+            else if (floor(d_v) == d_v) 
+                stream << d_v;
             else
-                stream << std::fixed << get_tracker_value<float>(e);
+                stream << std::fixed << d_v;
+
             break;
         case tracker_type::tracker_double:
-            if (std::isnan(get_tracker_value<double>(e)) || std::isinf(get_tracker_value<double>(e)))
+            d_v = get_tracker_value<double>(e);
+
+            if (std::isnan(d_v) || std::isinf(d_v))
                 stream << 0;
-            else if (get_tracker_value<double>(e) == 0)
-                stream << 0;
+            else if (floor(d_v) == d_v) 
+                stream << d_v;
             else
-                stream << std::fixed << get_tracker_value<double>(e);
+                stream << std::fixed << d_v;
+
             break;
         case tracker_type::tracker_mac_addr:
             mac = get_tracker_value<mac_addr>(e);
@@ -289,8 +297,8 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                 if (prettyprint)
                     stream << indent;
 
-                if (i == 0)
-                    stream << "0";
+                if (floor(i) == i)
+                    stream << i;
                 else
                     stream << i;
             }
@@ -512,7 +520,12 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
 
                 if (!as_vector) {
                     // Double keys are handled as strings in json
-                    stream << indent << "\"" << std::fixed << i.first << "\"";
+                    if (std::isnan(i.first) || std::isinf(i.first))
+                        stream << indent << "\"0\"";
+                    else if (floor(i.first) == i.first) 
+                        stream << indent << "\"" << i.first << "\"";
+                    else
+                        stream << indent << "\"" << std::fixed << i.first << "\"";
 
                     if (!as_key_vector)
                         stream << ": ";
@@ -549,7 +562,12 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
 
                 if (!as_vector) {
                     // Double keys are handled as strings in json
-                    stream << indent << "\"" << std::fixed << i.first << "\"";
+                    if (std::isnan(i.first) || std::isinf(i.first))
+                        stream << indent << "\"0\"";
+                    else if (floor(i.first) == i.first) 
+                        stream << indent << "\"" << i.first << "\"";
+                    else
+                        stream << indent << "\"" << std::fixed << i.first << "\"";
 
                     if (!as_key_vector)
                         stream << ": ";
@@ -584,7 +602,12 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
 
                 if (!as_vector) {
                     // Double keys are handled as strings in json
-                    stream << indent << "\"" << std::fixed << i.first << "\"";
+                    if (std::isnan(i.first) || std::isinf(i.first))
+                        stream << indent << "\"0\"";
+                    else if (floor(i.first) == i.first) 
+                        stream << indent << "\"" << i.first << "\"";
+                    else
+                        stream << indent << "\"" << std::fixed << i.first << "\"";
 
                     if (!as_key_vector)
                         stream << ": ";
@@ -686,6 +709,8 @@ void storage_json_adapter::pack(std::ostream &stream, shared_tracker_element e,
 
     bool prepend_comma;
 
+    double d_v;
+
     // Every record gets wrapped into it's own object export with metadata
     stream << "{";
 
@@ -735,20 +760,26 @@ void storage_json_adapter::pack(std::ostream &stream, shared_tracker_element e,
             stream << get_tracker_value<uint64_t>(e);
             break;
         case tracker_type::tracker_float:
-            if (std::isnan(get_tracker_value<float>(e)) || std::isinf(get_tracker_value<float>(e)))
+            d_v = get_tracker_value<float>(e);
+
+            if (std::isnan(d_v) || std::isinf(d_v))
                 stream << 0;
-            else if (get_tracker_value<float>(e) == 0)
-                stream << 0;
+            else if (floor(d_v) == d_v) 
+                stream << d_v;
             else
-                stream << std::fixed << get_tracker_value<float>(e);
+                stream << std::fixed << d_v;
+
             break;
         case tracker_type::tracker_double:
-            if (std::isnan(get_tracker_value<double>(e)) || std::isinf(get_tracker_value<double>(e)))
+            d_v = get_tracker_value<float>(e);
+
+            if (std::isnan(d_v) || std::isinf(d_v))
                 stream << 0;
-            else if (get_tracker_value<double>(e) == 0)
-                stream << 0;
+            else if (floor(d_v) == d_v) 
+                stream << d_v;
             else
-                stream << std::fixed << get_tracker_value<double>(e);
+                stream << std::fixed << d_v;
+
             break;
         case tracker_type::tracker_mac_addr:
             mac = get_tracker_value<mac_addr>(e);
@@ -789,8 +820,8 @@ void storage_json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                     stream << ",";
                 prepend_comma = true;
 
-                if (i == 0)
-                    stream << "0";
+                if (floor(i) == i)
+                    stream << i;
                 else
                     stream << i;
             }
@@ -916,7 +947,13 @@ void storage_json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                 prepend_comma = true;
 
                 // Double keys are handled as strings in json
-                stream << "\"" << std::fixed << i.first << "\": ";
+                if (std::isnan(i.first) || std::isinf(i.first))
+                    stream << "\"0\":";
+                else if (floor(i.first) == i.first) 
+                    stream << "\"" << i.first << "\":";
+                else
+                    stream << "\"" << std::fixed << i.first << "\":";
+
                 storage_json_adapter::pack(stream, i.second, name_map);
             }
             stream << "}";
@@ -933,7 +970,6 @@ void storage_json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                     stream << ",";
                 prepend_comma = true;
 
-                // Double keys are handled as strings in json
                 stream << "\"" << std::fixed << i.first << "\": ";
                 storage_json_adapter::pack(stream, i.second, name_map);
             }
@@ -949,9 +985,14 @@ void storage_json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                 prepend_comma = true;
 
                 // Double keys are handled as strings in json
-                stream << "\"" << std::fixed << i.first << "\": ";
+                if (std::isnan(i.first) || std::isinf(i.first))
+                    stream << "\"0\":";
+                else if (floor(i.first) == i.first) 
+                    stream << "\"" << i.first << "\":";
+                else
+                    stream << "\"" << std::fixed << i.first << "\":";
 
-                if (i.second == 0)
+                if (floor(i.second) == i.second)
                     stream << i.second;
                 else
                     stream << std::fixed << i.second;
