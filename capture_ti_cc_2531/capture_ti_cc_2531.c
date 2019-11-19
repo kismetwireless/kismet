@@ -578,13 +578,13 @@ void capture_thread(kis_capture_handler_t *caph) {
             continue;
 
         //the devices look to report a 4 byte counter/heartbeat, skip it
-        //if(buf_rx_len <= 7)
-            //continue;
+        if(buf_rx_len <= 7)
+            continue;
 
-        if(!verify_packet(usb_buf, buf_rx_len)) {
-        printf("invalid packet\n");continue;}
+        //if(!verify_packet(usb_buf, buf_rx_len)) {
+        //printf("invalid packet\n");continue;}
 
-        /*
+        /**/
         if (buf_rx_len > 1) {
             fprintf(stderr, "ti cc 2531 saw %d ", buf_rx_len);
 
@@ -593,7 +593,7 @@ void capture_thread(kis_capture_handler_t *caph) {
             }
             fprintf(stderr, "\n");
         }
-        */
+        /**/
 
         while (1) {
             struct timeval tv;

@@ -1641,21 +1641,21 @@ else
 	echo "no (libusb-1.0 not available)";
 fi
 
-printf "         TI CC 2540: "
+printf "            TI CC 2540: "
 if test "$BUILD_CAPTURE_TI_CC_2540" = 1; then
         echo "yes";
 else
         echo "no (libusb-1.0 not available)";
 fi
 
-printf "         TI CC 2531: "
+printf "            TI CC 2531: "
 if test "$BUILD_CAPTURE_TI_CC_2531" = 1; then
         echo "yes";
 else
         echo "no (libusb-1.0 not available)";
 fi
 
-printf "         RZ KILLERBEE: "
+printf "          RZ KILLERBEE: "
 if test "$BUILD_CAPTURE_RZ_KILLERBEE" = 1; then
         echo "yes";
 else

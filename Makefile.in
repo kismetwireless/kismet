@@ -301,7 +301,7 @@ $(CAPTURE_TI_CC_2531): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_ti_cc_2531 && $(MAKE))
 
 $(CAPTURE_RZ_KILLERBEE): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
-        (cd capture_rz_killerbee && $(MAKE))
+	(cd capture_rz_killerbee && $(MAKE))
 
 $(CAPTURE_FREAKLABS_ZIGBEE): FORCE
 	(cd capture_freaklabs_zigbee && $(MAKE))

@@ -444,12 +444,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
     r = libusb_set_configuration(localticc2540->ticc2540_handle, -1);
     assert(r < 0);
-/*
-    // read ident
-    uint8_t ident[32];
-    int ret;
-    ret = libusb_control_transfer(localticc2540->ticc2540_handle, TICC2540_DIR_IN, TICC2540_GET_IDENT, 0x00, 0x00, ident, sizeof(ident), TICC2540_TIMEOUT);
-*/
+    
     pthread_mutex_unlock(&(localticc2540->usb_mutex));
 
     ticc2540_set_power(caph,0x04, TICC2540_POWER_RETRIES);

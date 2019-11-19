@@ -48,34 +48,42 @@ printf("ready set to false\n");
     localrz_killerbee->ready = false;
 
     printf("libusb_reset_device\n");
-    printf("mutexlock");pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexlock");
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
     ret = libusb_reset_device(localrz_killerbee->rz_killerbee_handle);
-    printf("mutexunlock");pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexunlock");
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
     printf("libusb_reset_device ret:%d\n",ret);
     if(ret < 0)
         return -1; 
 
     //set the configurationlibusb_set_configuration
     printf("set the configuration\n");
-    printf("mutexlock");pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexlock");
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
     ret = libusb_set_configuration(localrz_killerbee->rz_killerbee_handle, 1);
-    printf("mutexunlock");pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexunlock");
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
     printf("libusb_set_configuration ret:%d\n",ret);
     if(ret < 0)
         return -1;
 
     printf("libusb_claim_interface\n");
-    printf("mutexlock");pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexlock");
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
     ret = libusb_claim_interface(localrz_killerbee->rz_killerbee_handle, 0);
-    printf("mutexunlock");pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexunlock");
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
     printf("libusb_claim_interface ret:%d\n",ret);
     if(ret < 0)
         return -1;
 
     printf("libusb_set_interface_alt_setting\n");
-    printf("mutexlock");pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexlock");
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
     ret = libusb_set_interface_alt_setting(localrz_killerbee->rz_killerbee_handle,0x00,0x00);
-    printf("mutexunlock");pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexunlock");
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
     printf("libusb_set_interface_alt_setting ret:%d\n",ret);
     if(ret < 0)
         return -1;
@@ -93,9 +101,11 @@ int rz_killerbee_set_mode(kis_capture_handler_t *caph, uint8_t mode) {
     unsigned char data[2];
     data[0]=RZ_KILLERBEE_SET_MODE;
     data[1]=RZ_KILLERBEE_CMD_MODE_AC;
-    printf("mutexlock");pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexlock");
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
     ret = libusb_bulk_transfer(localrz_killerbee->rz_killerbee_handle, RZ_KILLERBEE_CMD_EP, data, sizeof(data), &xfer, RZ_KILLERBEE_CMD_TIMEOUT);
-    printf("mutexunlock");pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexunlock");
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
     printf("set mode:%d xfer:%d\n",ret,xfer);
     printf("rz_killerbee_set_mode ret:%d\n",ret);
     return ret;
@@ -110,9 +120,11 @@ int rz_killerbee_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
     printf("rz_killerbee_set_channel\n");
     data[0]=RZ_KILLERBEE_SET_CHANNEL;
     data[1]=channel;
-    printf("mutexlock");pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexlock");
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
     ret = libusb_bulk_transfer(localrz_killerbee->rz_killerbee_handle, RZ_KILLERBEE_CMD_EP, data, sizeof(data), &xfer, RZ_KILLERBEE_CMD_TIMEOUT);
-    printf("mutexunlock");pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexunlock");
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
     printf("set channel:%d xfer:%d\n",channel,xfer);
 
     printf("rz_killerbee_set_channel ret:%d\n",ret); 
@@ -127,9 +139,11 @@ int rz_killerbee_open_stream(kis_capture_handler_t *caph) {
     //open stream
     printf("rz_killerbee_open_stream\n");
     data[0]=RZ_KILLERBEE_OPEN_STREAM;
-    printf("mutexlock");pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexlock");
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
     ret = libusb_bulk_transfer(localrz_killerbee->rz_killerbee_handle, RZ_KILLERBEE_CMD_EP, data, sizeof(data)-1, &xfer, RZ_KILLERBEE_CMD_TIMEOUT);
-    printf("mutexunlock");pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexunlock");
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
     printf("open stream:%d xfer:%d\n",ret,xfer);
 
     printf("rz_killerbee_open_stream ret:%d\n",ret);
@@ -151,9 +165,11 @@ printf("ready set to false\n");
     //open stream
     printf("rz_killerbee_close_stream\n");
     data[0]=RZ_KILLERBEE_CLOSE_STREAM;
-    printf("mutexlock");pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexlock");
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
     ret = libusb_bulk_transfer(localrz_killerbee->rz_killerbee_handle, RZ_KILLERBEE_CMD_EP, data, sizeof(data)-1, &xfer, RZ_KILLERBEE_CMD_TIMEOUT);
-    printf("mutexunlock");pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexunlock");
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
     printf("close stream:%d xfer:%d\n",ret,xfer);
 
     printf("rz_killerbee_close_stream ret:%d\n",ret);
@@ -414,14 +430,17 @@ printf("open_callback\n");
                 "'rz_killerbee-bus#-dev#'"); 
         return -1;
     }
-    printf("mutexlock");pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexlock");
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
     libusb_devices_cnt = libusb_get_device_list(localrz_killerbee->libusb_ctx, &libusb_devs);
-    printf("mutexunlock");pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexunlock");
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
     if (libusb_devices_cnt < 0) {
         snprintf(msg, STATUS_MAX, "Unable to iterate USB devices"); 
         return -1;
     }
-    printf("mutexlock");pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexlock");
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
     for (ssize_t i = 0; i < libusb_devices_cnt; i++) {
         struct libusb_device_descriptor dev;
 
@@ -483,14 +502,17 @@ printf("open_callback\n");
 
     (*ret_interface)->channels_len = 16;
 
-    printf("mutexlock");pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexlock");
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
     /* Try to open it */
     r = libusb_open(matched_dev, &localrz_killerbee->rz_killerbee_handle);
-    printf("mutexunlock");pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexunlock");
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
     if (r < 0) {
         snprintf(errstr, STATUS_MAX, "Unable to open rz_killerbee USB interface: %s", 
                 libusb_strerror((enum libusb_error) r));
-        printf("mutexunlock");pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+        //printf("mutexunlock");
+        pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
         return -1;
     }
 

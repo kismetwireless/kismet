@@ -19,7 +19,7 @@ public:
         kis_datasource(in_builder, mutex) {
 
         // Set the capture binary
-        set_int_source_ipc_binary("kismet_cap_ti_cc2540");
+        set_int_source_ipc_binary("kismet_cap_ti_cc_2540");
 
         // Get and register a DLT
         auto dltt = 

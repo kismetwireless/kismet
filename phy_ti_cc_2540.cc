@@ -109,7 +109,7 @@ int Kis_TICC2540_Phy::CommonClassifierTICC2540(CHAINCALL_PARMS) {
     // Is it a packet we care about?
     if (packdata->dlt != mphy->dlt)
         return 0;
-/**
+/**/
     // Did we classify this?
     auto common = in_pack->fetch<kis_common_info>(mphy->pack_comp_common);
 
