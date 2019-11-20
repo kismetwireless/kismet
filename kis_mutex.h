@@ -478,7 +478,7 @@ public:
             throw(std::runtime_error("threading failure: mutex is null"));
 
 #ifdef DISABLE_MUTEX_TIMEOUT
-        cpplock->shared_lock();
+        cpplock->lock_shared();
 #else
         if (!cpplock->try_lock_shared_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
 #ifdef DEBUG_MUTEX_NAME
@@ -501,7 +501,7 @@ public:
             throw(std::runtime_error("threading failure: mutex is null"));
 
 #ifdef DISABLE_MUTEX_TIMEOUT
-        s_cpplock->shared_lock();
+        s_cpplock->lock_shared();
 #else
         if (!s_cpplock->try_lock_shared_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT))) {
 #ifdef DEBUG_MUTEX_NAME
