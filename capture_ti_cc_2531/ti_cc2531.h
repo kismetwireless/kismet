@@ -14,8 +14,8 @@
 #define TICC2531_SET_CHAN  0xD2 // 0x0d (idx 0) + data)0x00 (idx 1)
 #define TICC2531_DIR_OUT   0x40
 #define TICC2531_DIR_IN    0xC0
-#define TICC2531_TIMEOUT   2500 
-
+#define TICC2531_TIMEOUT   100 // 2500
+#define TICC2531_DATA_TIMEOUT   200
 
 #define TICC2531_POWER_RETRIES 10
 

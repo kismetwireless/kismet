@@ -41,7 +41,7 @@ typedef struct {
 } local_channel_t;
 
 int ticc2540_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
-    /* printf("channel %u\n", channel); */
+    printf("channel %u\n", channel);
     local_ticc2540_t *localticc2540 = (local_ticc2540_t *) caph->userdata;
     int ret;
     uint8_t data;
@@ -103,11 +103,14 @@ int ticc2540_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_
     local_ticc2540_t *localticc2540 = (local_ticc2540_t *) caph->userdata;
     int actual_len, r;
     pthread_mutex_lock(&(localticc2540->usb_mutex));
-    r = libusb_bulk_transfer(localticc2540->ticc2540_handle, TICC2540_DATA_EP, rx_buf, rx_max, &actual_len, TICC2540_TIMEOUT);
+    r = libusb_bulk_transfer(localticc2540->ticc2540_handle, TICC2540_DATA_EP, rx_buf, rx_max, &actual_len, TICC2540_DATA_TIMEOUT);
     pthread_mutex_unlock(&(localticc2540->usb_mutex));
+
+//printf("r:%d actual_len:%d\n",r,actual_len);
+
     if(r == LIBUSB_ERROR_TIMEOUT) {
         localticc2540->error_ctr++;
-        if(localticc2540->error_ctr >= 5)
+        if(localticc2540->error_ctr >= 500)
             return r;
         else
             return 1;/*continue on for now*/
@@ -207,14 +210,14 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     *uuid = strdup(errstr);
 
     /* TI CC 2540 supports 37-39 */
-    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 4);
-    for (int i = 37; i < 40; i++) {
+    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 2);
+    for (int i = 37; i < 39; i++) {
         char chstr[4];
         snprintf(chstr, 4, "%d", i);
         (*ret_interface)->channels[i - 37] = strdup(chstr);
     }
 
-    (*ret_interface)->channels_len = 3;
+    (*ret_interface)->channels_len = 2;
     return 1;
 }/////mutex inside
 
@@ -402,14 +405,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     (*ret_interface)->hardware = strdup("ticc2540");
 
     /* BTLE supports 37-39 */
-    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 4);
-    for (int i = 37; i < 40; i++) {
+    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 2);
+    for (int i = 37; i < 39; i++) {
         char chstr[4];
         snprintf(chstr, 4, "%d", i);
         (*ret_interface)->channels[i - 37] = strdup(chstr);
     }
 
-    (*ret_interface)->channels_len = 3;
+    (*ret_interface)->channels_len = 2;
 
     pthread_mutex_lock(&(localticc2540->usb_mutex));
     /* Try to open it */
@@ -491,8 +494,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     if (privchan == NULL) {
         return 0;
     }
-    if(privchan != channel->channel)
-        r = ticc2540_set_channel(caph, channel->channel);
+    r = ticc2540_set_channel(caph, channel->channel);
 
     if (r < 0)
         return -1;
@@ -542,7 +544,7 @@ if(localticc2540->ready)
 
         /**/
         if (buf_rx_len > 1) {
-            fprintf(stderr, "ti cc 2540 saw %d ", buf_rx_len);
+            fprintf(stderr, "ti cc 2540 saw %d -- ", buf_rx_len);
 
             for (int bb = 0; bb < buf_rx_len; bb++) {
                 fprintf(stderr, "%02X ", usb_buf[bb] & 0xFF);

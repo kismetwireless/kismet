@@ -42,7 +42,7 @@ typedef struct {
 } local_channel_t;
 
 int ticc2531_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
-    /* printf("channel %u\n", channel); */
+//    printf("channel %u\n", channel);
     local_ticc2531_t *localticc2531 = (local_ticc2531_t *) caph->userdata;
 
     int ret;
@@ -107,11 +107,11 @@ int ticc2531_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_
     local_ticc2531_t *localticc2531 = (local_ticc2531_t *) caph->userdata;
     int actual_len, r;
     pthread_mutex_lock(&(localticc2531->usb_mutex));
-    r = libusb_bulk_transfer(localticc2531->ticc2531_handle, TICC2531_DATA_EP, rx_buf, rx_max, &actual_len, TICC2531_TIMEOUT);
+    r = libusb_bulk_transfer(localticc2531->ticc2531_handle, TICC2531_DATA_EP, rx_buf, rx_max, &actual_len, TICC2531_DATA_TIMEOUT);
     pthread_mutex_unlock(&(localticc2531->usb_mutex));
     if(r == LIBUSB_ERROR_TIMEOUT) {
         localticc2531->error_ctr++;
-        if(localticc2531->error_ctr >= 5)
+        if(localticc2531->error_ctr >= 500)
             return r;
         else
             return 1;/*continue on for now*/
@@ -210,7 +210,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
             busno, devno);
     *uuid = strdup(errstr);
 
-    /* TI CC 2531 supports 27-29 */
+    /* TI CC 2531 supports 11-26 */
     (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 16);
     for (int i = 11; i < 27; i++) {
         char chstr[4];
@@ -409,7 +409,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     (*ret_interface)->capif = strdup(cap_if);
     (*ret_interface)->hardware = strdup("ticc2531");
 
-    /* BTLE supports 27-29 */
+    /* zigbee supports 11-26 */
     (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 16);
     for (int i = 11; i < 27; i++) {
         char chstr[4];
@@ -511,7 +511,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     if (privchan == NULL) {
         return 0;
     }
-    if(privchan != channel->channel)
+//    if(privchan != channel->channel)
         r = ticc2531_set_channel(caph, channel->channel);
 
     if (r < 0)
@@ -573,6 +573,7 @@ void capture_thread(kis_capture_handler_t *caph) {
 if(localticc2531->ready)
 {
         buf_rx_len = ticc2531_receive_payload(caph, usb_buf, 256);
+//	printf("ticc2531_receive_payload:%d\n",buf_rx_len);
         if (buf_rx_len < 0) {
             snprintf(errstr, STATUS_MAX, "TI CC 2531 interface 'ticc2531-%u-%u' closed "
                     "unexpectedly", localticc2531->busno, localticc2531->devno);
@@ -589,12 +590,12 @@ if(localticc2531->ready)
         if(buf_rx_len <= 7)
             continue;
 
-        //if(!verify_packet(usb_buf, buf_rx_len)) {
-        //printf("invalid packet\n");continue;}
+        if(!verify_packet(usb_buf, buf_rx_len)) {
+            printf("invalid packet\n");}
 
         /**/
         if (buf_rx_len > 1) {
-            fprintf(stderr, "ti cc 2531 saw %d ", buf_rx_len);
+            fprintf(stderr, "ti cc 2531 saw %d -- ", buf_rx_len);
 
             for (int bb = 0; bb < buf_rx_len; bb++) {
                 fprintf(stderr, "%02X ", usb_buf[bb] & 0xFF);

@@ -96,28 +96,28 @@ int rz_killerbee_set_mode(kis_capture_handler_t *caph, uint8_t mode) {
     local_rz_killerbee_t *localrz_killerbee = (local_rz_killerbee_t *) caph->userdata;
     int ret;
 
-    printf("set mode\n");
+    //printf("set mode\n");
     int xfer = 0;
     unsigned char data[2];
     data[0]=RZ_KILLERBEE_SET_MODE;
-    data[1]=RZ_KILLERBEE_CMD_MODE_AC;
+    data[1]=mode;
     //printf("mutexlock");
     pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
     ret = libusb_bulk_transfer(localrz_killerbee->rz_killerbee_handle, RZ_KILLERBEE_CMD_EP, data, sizeof(data), &xfer, RZ_KILLERBEE_CMD_TIMEOUT);
     //printf("mutexunlock");
     pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
-    printf("set mode:%d xfer:%d\n",ret,xfer);
-    printf("rz_killerbee_set_mode ret:%d\n",ret);
+    //printf("set mode:%d xfer:%d\n",ret,xfer);
+    //printf("rz_killerbee_set_mode ret:%d\n",ret);
     return ret;
 }
 
 int rz_killerbee_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
-    printf("channel %u\n", channel);
+    //printf("channel %u\n", channel);
     local_rz_killerbee_t *localrz_killerbee = (local_rz_killerbee_t *) caph->userdata;
     int ret;
     int xfer = 0;
     unsigned char data[2];
-    printf("rz_killerbee_set_channel\n");
+    //printf("rz_killerbee_set_channel\n");
     data[0]=RZ_KILLERBEE_SET_CHANNEL;
     data[1]=channel;
     //printf("mutexlock");
@@ -125,9 +125,9 @@ int rz_killerbee_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
     ret = libusb_bulk_transfer(localrz_killerbee->rz_killerbee_handle, RZ_KILLERBEE_CMD_EP, data, sizeof(data), &xfer, RZ_KILLERBEE_CMD_TIMEOUT);
     //printf("mutexunlock");
     pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
-    printf("set channel:%d xfer:%d\n",channel,xfer);
+    //printf("set channel:%d xfer:%d\n",channel,xfer);
 
-    printf("rz_killerbee_set_channel ret:%d\n",ret); 
+    //printf("rz_killerbee_set_channel ret:%d\n",ret); 
     return ret;
 }///mutex inside
 
@@ -137,18 +137,18 @@ int rz_killerbee_open_stream(kis_capture_handler_t *caph) {
     local_rz_killerbee_t *localrz_killerbee = (local_rz_killerbee_t *) caph->userdata;
     unsigned char data[2];
     //open stream
-    printf("rz_killerbee_open_stream\n");
+    //printf("rz_killerbee_open_stream\n");
     data[0]=RZ_KILLERBEE_OPEN_STREAM;
     //printf("mutexlock");
     pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
     ret = libusb_bulk_transfer(localrz_killerbee->rz_killerbee_handle, RZ_KILLERBEE_CMD_EP, data, sizeof(data)-1, &xfer, RZ_KILLERBEE_CMD_TIMEOUT);
     //printf("mutexunlock");
     pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
-    printf("open stream:%d xfer:%d\n",ret,xfer);
+    //printf("open stream:%d xfer:%d\n",ret,xfer);
 
-    printf("rz_killerbee_open_stream ret:%d\n",ret);
+    //printf("rz_killerbee_open_stream ret:%d\n",ret);
 
-printf("ready set to true\n");
+//printf("ready set to true\n");
     localrz_killerbee->ready = true;
 
     return ret;
@@ -160,19 +160,19 @@ int rz_killerbee_close_stream(kis_capture_handler_t *caph) {
     local_rz_killerbee_t *localrz_killerbee = (local_rz_killerbee_t *) caph->userdata;
     unsigned char data[2];
 
-printf("ready set to false\n");
+//printf("ready set to false\n");
     localrz_killerbee->ready = false;
     //open stream
-    printf("rz_killerbee_close_stream\n");
+    //printf("rz_killerbee_close_stream\n");
     data[0]=RZ_KILLERBEE_CLOSE_STREAM;
     //printf("mutexlock");
     pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
     ret = libusb_bulk_transfer(localrz_killerbee->rz_killerbee_handle, RZ_KILLERBEE_CMD_EP, data, sizeof(data)-1, &xfer, RZ_KILLERBEE_CMD_TIMEOUT);
     //printf("mutexunlock");
     pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
-    printf("close stream:%d xfer:%d\n",ret,xfer);
+    //printf("close stream:%d xfer:%d\n",ret,xfer);
 
-    printf("rz_killerbee_close_stream ret:%d\n",ret);
+    //printf("rz_killerbee_close_stream ret:%d\n",ret);
 
     return ret;
 }//mutex inside
@@ -183,17 +183,20 @@ int rz_killerbee_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, s
     //printf("rz_killerbee_receive_payload \n");
     //printf("mutexlock");
     pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
-    r = libusb_bulk_transfer(localrz_killerbee->rz_killerbee_handle, RZ_KILLERBEE_REP_EP, rx_buf, rx_max, &actual_len, RZ_KILLERBEE_READ_TIMEOUT);
+    r = libusb_bulk_transfer(localrz_killerbee->rz_killerbee_handle, RZ_KILLERBEE_PKT_EP, rx_buf, rx_max, &actual_len, RZ_KILLERBEE_READ_TIMEOUT);
     //printf("mutexunlock");
     pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
-//    printf("rz_killerbee_receive_payload r:%d actual_len:%d\n",r,actual_len);
+    //printf("rz_killerbee_receive_payload r:%d actual_len:%d\n",r,actual_len);
     if(r == LIBUSB_ERROR_TIMEOUT) {
-//        localrz_killerbee->error_ctr++;
-//        if(localrz_killerbee->error_ctr >= 50)
-//            return r;
-//        else
+        localrz_killerbee->error_ctr++;
+        if(localrz_killerbee->error_ctr >= 500)
+            return r;
+        else
 //printf("return 1\n");
             return 1;/*continue on for now*/
+    }
+    else {
+        printf("%02X ", rx_buf[0] & 0xFF);
     }
         
     if (r < 0)
@@ -206,7 +209,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         char *msg, char **uuid, KismetExternal__Command *frame,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
-printf("probe_callback\n"); 
+//printf("probe_callback\n"); 
     char *placeholder = NULL;
     int placeholder_len;
     char *interface;
@@ -291,7 +294,7 @@ printf("probe_callback\n");
             busno, devno);
     *uuid = strdup(errstr);
 
-    /* RZ KILLERBEE */
+    /* RZ KILLERBEE 11 - 26*/
     (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 16);
     for (int i = 11; i < 27; i++) {
         char chstr[4];
@@ -312,7 +315,7 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
         struct rz_killerbee_list *next;
     } rz_killerbee_list_t; 
 
-printf("list_callback\n");
+//printf("list_callback\n");
 
     rz_killerbee_list_t *devs = NULL;
     size_t num_devs = 0;
@@ -389,7 +392,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
 
-printf("open_callback\n");
+//printf("open_callback\n");
 
     char *placeholder = NULL;
     int placeholder_len;
@@ -499,7 +502,7 @@ printf("open_callback\n");
     (*ret_interface)->capif = strdup(cap_if);
     (*ret_interface)->hardware = strdup("rz_killerbee");
 
-    /* RZ KILLERBEE */
+    /* RZ KILLERBEE i11 - 26*/
     (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 16);
     for (int i = 11; i < 27; i++) {
         char chstr[4];
@@ -525,9 +528,8 @@ printf("open_callback\n");
 
     rz_killerbee_init(caph); 
     rz_killerbee_set_mode(caph,RZ_KILLERBEE_CMD_MODE_AC);
+    rz_killerbee_set_channel(caph, 11);
     rz_killerbee_open_stream(caph);
-    //rz_killerbee_set_channel(caph, 11);
-    //rz_killerbee_open_stream(caph);
 
     return 1;
 }///mutex inside
@@ -537,7 +539,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
     unsigned int parsechan;
     char errstr[STATUS_MAX];
 
-printf("chantranslate_callback\n");
+//printf("chantranslate_callback\n");
 
     if (sscanf(chanstr, "%u", &parsechan) != 1) {
         snprintf(errstr, STATUS_MAX, "1 unable to parse requested channel '%s'; rz killerbee channels "
@@ -565,17 +567,19 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     local_channel_t *channel = (local_channel_t *) privchan;
     int r;
 
-printf("chancontrol_callback\n");
+//printf("chancontrol_callback\n");
 
     if (privchan == NULL) {
         return 0;
     }
 
     rz_killerbee_close_stream(caph);
+    
+    //rz_killerbee_set_mode(caph,RZ_KILLERBEE_CMD_MODE_NONE);
 
     r = rz_killerbee_set_channel(caph, channel->channel);
 
-    printf("chancontrol_callback r:%d\n",r);
+    //printf("chancontrol_callback r:%d\n",r);
 
     if (r < 0)
         return -1;
@@ -631,7 +635,7 @@ if(localrz_killerbee->ready)
 
         /**/
         if (buf_rx_len > 1) {
-            fprintf(stderr, "rz killerbee saw %d ", buf_rx_len);
+            fprintf(stderr, "rz killerbee saw %d -- ", buf_rx_len);
 
             for (int bb = 0; bb < buf_rx_len; bb++) {
                 fprintf(stderr, "%02X ", usb_buf[bb] & 0xFF);
