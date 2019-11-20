@@ -31,6 +31,8 @@ typedef struct {
     /*keep track of our errors so we can reset if needed*/
     unsigned char error_ctr;
 
+    bool ready;
+
     kis_capture_handler_t *caph;
 } local_ticc2531_t;
 
@@ -46,6 +48,8 @@ int ticc2531_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
     int ret;
     uint8_t data;
 
+    localticc2531->ready = false;
+
     data = channel & 0xFF;
     pthread_mutex_lock(&(localticc2531->usb_mutex));
     ret = libusb_control_transfer(localticc2531->ticc2531_handle, TICC2531_DIR_OUT, TICC2531_SET_CHAN, 0x00, 0x00, &data, 1, TICC2531_TIMEOUT);
@@ -60,6 +64,8 @@ int ticc2531_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
     if (ret < 0) {
         return ret;
     }
+    localticc2531->ready = true;
+
     return ret;
 }///mutex inside
 
@@ -564,6 +570,8 @@ void capture_thread(kis_capture_handler_t *caph) {
 
             break;
         }
+if(localticc2531->ready)
+{
         buf_rx_len = ticc2531_receive_payload(caph, usb_buf, 256);
         if (buf_rx_len < 0) {
             snprintf(errstr, STATUS_MAX, "TI CC 2531 interface 'ticc2531-%u-%u' closed "
@@ -614,6 +622,8 @@ void capture_thread(kis_capture_handler_t *caph) {
                 break;
             }
         }
+}
+
     }
 
     cf_handler_spindown(caph);

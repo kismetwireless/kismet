@@ -30,6 +30,8 @@ typedef struct {
     /*keep track of our errors so we can reset if needed*/
     unsigned char error_ctr;
 
+    bool ready;
+
     kis_capture_handler_t *caph;
 } local_ticc2540_t;
 
@@ -44,6 +46,8 @@ int ticc2540_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
     int ret;
     uint8_t data;
 
+    localticc2540->ready = false;
+
     data = channel & 0xFF;
     pthread_mutex_lock(&(localticc2540->usb_mutex));
     ret = libusb_control_transfer(localticc2540->ticc2540_handle, TICC2540_DIR_OUT, TICC2540_SET_CHAN, 0x00, 0x00, &data, 1, TICC2540_TIMEOUT);
@@ -56,6 +60,8 @@ int ticc2540_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
     pthread_mutex_unlock(&(localticc2540->usb_mutex));
     if (ret < 0)
         printf("setting channel (LSB) failed!\n");
+
+    localticc2540->ready = true;
     return ret;
 }///mutex inside
 
@@ -515,6 +521,8 @@ void capture_thread(kis_capture_handler_t *caph) {
 
             break;
         }
+if(localticc2540->ready)
+{
         buf_rx_len = ticc2540_receive_payload(caph, usb_buf, 256);
         if (buf_rx_len < 0) {
             snprintf(errstr, STATUS_MAX, "TI CC 2540 interface 'ticc2540-%u-%u' closed "
@@ -562,6 +570,7 @@ void capture_thread(kis_capture_handler_t *caph) {
                 break;
             }
         }
+}
     }
 
     cf_handler_spindown(caph);

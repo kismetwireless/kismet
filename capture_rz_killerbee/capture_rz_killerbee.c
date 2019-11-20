@@ -247,7 +247,8 @@ printf("probe_callback\n");
     if (x != -1 && x != 2) {
         return 0;
     }
-    printf("mutexlock");pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexlock");
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
     libusb_devices_cnt = libusb_get_device_list(localrz_killerbee->libusb_ctx, &libusb_devs);
 
     if (libusb_devices_cnt < 0) {
@@ -279,7 +280,8 @@ printf("probe_callback\n");
         }
     }
     libusb_free_device_list(libusb_devs, 1);
-    printf("mutexunlock");pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexunlock");
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
 
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
      * and the location in the bus */
@@ -321,13 +323,16 @@ printf("list_callback\n");
     unsigned int i;
 
     local_rz_killerbee_t *localrz_killerbee = (local_rz_killerbee_t *) caph->userdata;
-    printf("mutexlock");pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexlock");
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
     libusb_devices_cnt = libusb_get_device_list(localrz_killerbee->libusb_ctx, &libusb_devs);
-    printf("mutexunlock");pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexunlock");
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
     if (libusb_devices_cnt < 0) {
         return 0;
     }
-    printf("mutexlock");pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexlock");
+    pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
     for (ssize_t i = 0; i < libusb_devices_cnt; i++) {
         struct libusb_device_descriptor dev;
 
@@ -350,7 +355,8 @@ printf("list_callback\n");
         }
     }
     libusb_free_device_list(libusb_devs, 1);
-    printf("mutexunlock");pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexunlock");
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
     if (num_devs == 0) {
         *interfaces = NULL;
         return 0;
@@ -474,7 +480,8 @@ printf("open_callback\n");
     }
 
     libusb_free_device_list(libusb_devs, 1);
-    printf("mutexunlock");pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
+    //printf("mutexunlock");
+    pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
 
     snprintf(cap_if, 32, "rz_killerbee-%u-%u", busno, devno);
 
