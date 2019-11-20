@@ -210,14 +210,14 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     *uuid = strdup(errstr);
 
     /* TI CC 2540 supports 37-39 */
-    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 2);
-    for (int i = 37; i < 39; i++) {
+    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 3);
+    for (int i = 37; i < 40; i++) {
         char chstr[4];
         snprintf(chstr, 4, "%d", i);
         (*ret_interface)->channels[i - 37] = strdup(chstr);
     }
 
-    (*ret_interface)->channels_len = 2;
+    (*ret_interface)->channels_len = 3;
     return 1;
 }/////mutex inside
 
@@ -405,14 +405,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     (*ret_interface)->hardware = strdup("ticc2540");
 
     /* BTLE supports 37-39 */
-    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 2);
-    for (int i = 37; i < 39; i++) {
+    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 3);
+    for (int i = 37; i < 40; i++) {
         char chstr[4];
         snprintf(chstr, 4, "%d", i);
         (*ret_interface)->channels[i - 37] = strdup(chstr);
     }
 
-    (*ret_interface)->channels_len = 2;
+    (*ret_interface)->channels_len = 3;
 
     pthread_mutex_lock(&(localticc2540->usb_mutex));
     /* Try to open it */
