@@ -301,10 +301,12 @@ public:
     // Database API
     virtual int database_upgrade_db();
 
-    // Store all devices to the database
+#if 0
+    // Store all devices to the state database
     virtual int store_devices();
     virtual int store_all_devices();
     virtual int store_devices(std::shared_ptr<tracker_element_vector> devices);
+#endif
 
     // Store all devices to the database
     virtual void databaselog_write_devices();
@@ -449,8 +451,10 @@ protected:
 
     kis_recursive_timed_mutex devicelist_mutex;
 
+#if 0
     // Timestamp of the last time we wrote the device list, if we're storing state
     std::atomic<time_t> last_devicelist_saved;
+#endif
 
     kis_recursive_timed_mutex storing_mutex;
     std::atomic<bool> devices_storing;
