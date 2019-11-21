@@ -299,7 +299,7 @@ Devicetracker::Devicetracker(GlobalRegistry *in_globalreg) :
                         _MSG("Attempting to log devices, but devices are still being "
                                 "saved from the last logging attempt.  It's possible your "
                                 "system is slow or you have a very large number of devices "
-                                "to log.  Try increasing the delay in 'kis_log_storage_rate' "
+                                "to log.  Try increasing the delay in 'kis_log_device_rate' "
                                 "in kismet_logging.conf", MSGFLAG_ERROR);
                         return 1;
                     }
