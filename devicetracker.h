@@ -26,6 +26,7 @@
 #include <time.h>
 #include <list>
 #include <map>
+#include <unordered_map>
 #include <vector>
 #include <algorithm>
 #include <string>
@@ -213,7 +214,7 @@ public:
             const std::vector<std::shared_ptr<kis_tracked_device_base>>& source_vec,
             bool batch = true);
 
-    using device_map_t = std::map<device_key, std::shared_ptr<kis_tracked_device_base>>;
+    using device_map_t = std::unordered_map<device_key, std::shared_ptr<kis_tracked_device_base>>;
     using device_itr = device_map_t::iterator;
     using const_device_itr = device_map_t::const_iterator;
 

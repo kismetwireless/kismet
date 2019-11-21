@@ -24,6 +24,8 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#include <functional>
+
 #include <string>
 #include <stdexcept>
 
@@ -78,6 +80,14 @@ public:
 
     bool get_error() { return error; }
 
+    uint64_t get_spkey() const {
+        return spkey;
+    }
+
+    uint64_t get_dkey() const {
+        return dkey;
+    }
+
 protected:
     uint64_t spkey, dkey;
     bool error;
@@ -87,6 +97,16 @@ bool operator <(const device_key& x, const device_key& y);
 bool operator ==(const device_key& x, const device_key& y);
 std::ostream& operator<<(std::ostream& os, const device_key& k);
 std::istream& operator>>(std::istream& is, device_key& k);
+
+namespace std {
+    template<> struct hash<device_key> {
+        std::size_t operator()(device_key const& d) const noexcept {
+            std::size_t h1 = std::hash<uint64_t>{}(d.get_spkey());
+            std::size_t h2 = std::hash<uint64_t>{}(d.get_dkey());
+            return h1 ^ (h2 << 1);
+        }
+    };
+}
 
 // Types of fields we can track and automatically resolve
 // Statically assigned type numbers which MUST NOT CHANGE as things go forwards for 
