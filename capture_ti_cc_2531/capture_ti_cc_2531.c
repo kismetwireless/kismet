@@ -219,14 +219,14 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     *uuid = strdup(errstr);
 
     /* TI CC 2531 supports 11-26 */
-    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 5);
-    for (int i = 11; i < 16; i++) {
+    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 16);
+    for (int i = 11; i < 27; i++) {
         char chstr[4];
         snprintf(chstr, 4, "%d", i);
         (*ret_interface)->channels[i - 11] = strdup(chstr);
     }
 
-    (*ret_interface)->channels_len = 5;
+    (*ret_interface)->channels_len = 16;
     return 1;
 }/////mutex inside
 
@@ -418,14 +418,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     (*ret_interface)->hardware = strdup("ticc2531");
 
     /* zigbee supports 11-26 */
-    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 5);
-    for (int i = 11; i < 16; i++) {
+    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 16);
+    for (int i = 11; i < 27; i++) {
         char chstr[4];
         snprintf(chstr, 4, "%d", i);
         (*ret_interface)->channels[i - 11] = strdup(chstr);
     }
 
-    (*ret_interface)->channels_len = 5;
+    (*ret_interface)->channels_len = 16;
 
     pthread_mutex_lock(&(localticc2531->usb_mutex));
     /* Try to open it */
