@@ -339,7 +339,10 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
         databaselog_timer = -1;
     }
 
+#if 0
     last_devicelist_saved = 0;
+#endif
+
     last_database_logged = 0;
 
     // Preload the vector for speed
@@ -1500,6 +1503,7 @@ std::shared_ptr<device_tracker_view> device_tracker::get_phy_view(int in_phyid) 
     return nullptr;
 }
 
+#if 0
 int device_tracker::store_devices() {
     auto devs = std::make_shared<tracker_element_vector>();
     auto immutable_copy = std::make_shared<tracker_element_vector>(immutable_tracked_vec);
@@ -1510,7 +1514,7 @@ int device_tracker::store_devices() {
             continue;
 
         auto kdb = std::static_pointer_cast<kis_tracked_device_base>(v);
-        if (kdb->get_mod_time() > last_database_logged)
+        if (kdb->get_mod_time() > last_devicelist_saved)
             devs->push_back(v);
     }
 
@@ -1537,6 +1541,7 @@ int device_tracker::store_devices(std::shared_ptr<tracker_element_vector> device
 
     return r;
 }
+#endif
 
 void device_tracker::databaselog_write_devices() {
     auto dbf = Globalreg::FetchGlobalAs<kis_database_logfile>();
@@ -1553,7 +1558,14 @@ void device_tracker::databaselog_write_devices() {
             return false;
         }, nullptr);
 
+    // Remember the time BEFORE we spend time looking at all the dvices
+    auto log_time = time(0);
+
     do_readonly_device_work(worker);
+
+    // Then update the log; we might catch a few high-change devices twice, but this is
+    // safer by far
+    last_database_logged = log_time;
 }
 
 int device_tracker::load_devices() {

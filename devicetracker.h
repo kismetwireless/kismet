@@ -26,6 +26,7 @@
 #include <time.h>
 #include <list>
 #include <map>
+#include <unordered_map>
 #include <vector>
 #include <algorithm>
 #include <string>
@@ -213,7 +214,7 @@ public:
             const std::vector<std::shared_ptr<kis_tracked_device_base>>& source_vec,
             bool batch = true);
 
-    using device_map_t = std::map<device_key, std::shared_ptr<kis_tracked_device_base>>;
+    using device_map_t = std::unordered_map<device_key, std::shared_ptr<kis_tracked_device_base>>;
     using device_itr = device_map_t::iterator;
     using const_device_itr = device_map_t::const_iterator;
 
@@ -301,10 +302,12 @@ public:
     // Database API
     virtual int database_upgrade_db();
 
-    // Store all devices to the database
+#if 0
+    // Store all devices to the state database
     virtual int store_devices();
     virtual int store_all_devices();
     virtual int store_devices(std::shared_ptr<tracker_element_vector> devices);
+#endif
 
     // Store all devices to the database
     virtual void databaselog_write_devices();
@@ -449,8 +452,10 @@ protected:
 
     kis_recursive_timed_mutex devicelist_mutex;
 
+#if 0
     // Timestamp of the last time we wrote the device list, if we're storing state
     std::atomic<time_t> last_devicelist_saved;
+#endif
 
     kis_recursive_timed_mutex storing_mutex;
     std::atomic<bool> devices_storing;
