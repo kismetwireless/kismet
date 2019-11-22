@@ -627,7 +627,7 @@ if(localticc2531->ready)
             tmp_usb_buf[p_ctr] = usb_buf[i];p_ctr++;
 	}
 	memset(usb_buf,0x00,256);
-	for(int i=8;i<buf_rx_len;i++) {
+	for(int i=0;i<p_ctr;i++) {
             usb_buf[i] = tmp_usb_buf[i];
         }
         buf_rx_len = p_ctr;
