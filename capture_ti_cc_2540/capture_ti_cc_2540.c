@@ -41,12 +41,10 @@ typedef struct {
 } local_channel_t;
 
 int ticc2540_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
-    printf("channel %u\n", channel);
+    /* printf("channel %u\n", channel); */
     local_ticc2540_t *localticc2540 = (local_ticc2540_t *) caph->userdata;
     int ret;
     uint8_t data;
-
-    localticc2540->ready = false;
 
     data = channel & 0xFF;
     pthread_mutex_lock(&(localticc2540->usb_mutex));
@@ -61,7 +59,6 @@ int ticc2540_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
     if (ret < 0)
         printf("setting channel (LSB) failed!\n");
 
-    localticc2540->ready = true;
     return ret;
 }///mutex inside
 
@@ -95,6 +92,15 @@ int ticc2540_enter_promisc_mode(kis_capture_handler_t *caph) {
     local_ticc2540_t *localticc2540 = (local_ticc2540_t *) caph->userdata;
     pthread_mutex_lock(&(localticc2540->usb_mutex));
     ret = libusb_control_transfer(localticc2540->ticc2540_handle, TICC2540_DIR_OUT, TICC2540_SET_START, 0x00, 0x00, NULL, 0, TICC2540_TIMEOUT);
+    pthread_mutex_unlock(&(localticc2540->usb_mutex));
+    return ret;
+}//mutex inside
+
+int ticc2540_exit_promisc_mode(kis_capture_handler_t *caph) {
+    int ret;
+    local_ticc2540_t *localticc2540 = (local_ticc2540_t *) caph->userdata;
+    pthread_mutex_lock(&(localticc2540->usb_mutex));
+    ret = libusb_control_transfer(localticc2540->ticc2540_handle, TICC2540_DIR_OUT, TICC2540_SET_END, 0x00, 0x00, NULL, 0, TICC2540_TIMEOUT);
     pthread_mutex_unlock(&(localticc2540->usb_mutex));
     return ret;
 }//mutex inside
@@ -494,12 +500,21 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     if (privchan == NULL) {
         return 0;
     }
+
+    localticc2540->ready = false;
+
+    ticc2540_exit_promisc_mode(caph);
+
     r = ticc2540_set_channel(caph, channel->channel);
 
     if (r < 0)
         return -1;
 
     localticc2540->channel = channel->channel;
+
+    ticc2540_enter_promisc_mode(caph);
+
+    localticc2540->ready = true;
    
     return 1;
 }///
@@ -552,6 +567,18 @@ if(localticc2540->ready)
             fprintf(stderr, "\n");
         }
         /**/
+
+        /*strip the header*/
+        uint8_t tmp_usb_buf[256];
+        int p_ctr=0;
+        for(int i=8;i<buf_rx_len;i++) {
+            tmp_usb_buf[p_ctr] = usb_buf[i];p_ctr++;
+        }
+        memset(usb_buf,0x00,256);
+        for(int i=8;i<buf_rx_len;i++) {
+            usb_buf[i] = tmp_usb_buf[i];
+        }
+        buf_rx_len = p_ctr;
 
         while (1) {
             struct timeval tv;

@@ -25,7 +25,7 @@ public:
         auto dltt = 
             Globalreg::fetch_mandatory_global_as<dlt_tracker>("DLTTRACKER");
 
-        set_int_source_override_linktype(dltt->register_linktype("TICC2531"));
+        set_int_source_override_linktype(dltt->register_linktype("Z-Wave"));//TICC2531
     }
 
     virtual ~kis_datasource_TICC2531() { };

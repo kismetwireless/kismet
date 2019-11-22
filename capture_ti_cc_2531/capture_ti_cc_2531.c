@@ -42,13 +42,11 @@ typedef struct {
 } local_channel_t;
 
 int ticc2531_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
-//    printf("channel %u\n", channel);
+    /* printf("channel %u\n", channel); */
     local_ticc2531_t *localticc2531 = (local_ticc2531_t *) caph->userdata;
 
     int ret;
     uint8_t data;
-
-    localticc2531->ready = false;
 
     data = channel & 0xFF;
     pthread_mutex_lock(&(localticc2531->usb_mutex));
@@ -64,7 +62,6 @@ int ticc2531_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
     if (ret < 0) {
         return ret;
     }
-    localticc2531->ready = true;
 
     return ret;
 }///mutex inside
@@ -103,15 +100,26 @@ int ticc2531_enter_promisc_mode(kis_capture_handler_t *caph) {
     return ret;
 }//mutex inside
 
+int ticc2531_exit_promisc_mode(kis_capture_handler_t *caph) {
+    int ret;
+    local_ticc2531_t *localticc2531 = (local_ticc2531_t *) caph->userdata;
+    pthread_mutex_lock(&(localticc2531->usb_mutex));
+    ret = libusb_control_transfer(localticc2531->ticc2531_handle, TICC2531_DIR_OUT, TICC2531_SET_END, 0x00, 0x00, NULL, 0, TICC2531_TIMEOUT);
+    pthread_mutex_unlock(&(localticc2531->usb_mutex));
+    return ret;
+}//mutex inside
+
+
 int ticc2531_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_max) {
     local_ticc2531_t *localticc2531 = (local_ticc2531_t *) caph->userdata;
     int actual_len, r;
     pthread_mutex_lock(&(localticc2531->usb_mutex));
     r = libusb_bulk_transfer(localticc2531->ticc2531_handle, TICC2531_DATA_EP, rx_buf, rx_max, &actual_len, TICC2531_DATA_TIMEOUT);
     pthread_mutex_unlock(&(localticc2531->usb_mutex));
+
     if(r == LIBUSB_ERROR_TIMEOUT) {
         localticc2531->error_ctr++;
-        if(localticc2531->error_ctr >= 500)
+        if(localticc2531->error_ctr >= 5000)
             return r;
         else
             return 1;/*continue on for now*/
@@ -211,14 +219,14 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     *uuid = strdup(errstr);
 
     /* TI CC 2531 supports 11-26 */
-    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 16);
-    for (int i = 11; i < 27; i++) {
+    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 5);
+    for (int i = 11; i < 16; i++) {
         char chstr[4];
         snprintf(chstr, 4, "%d", i);
         (*ret_interface)->channels[i - 11] = strdup(chstr);
     }
 
-    (*ret_interface)->channels_len = 16;
+    (*ret_interface)->channels_len = 5;
     return 1;
 }/////mutex inside
 
@@ -410,14 +418,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     (*ret_interface)->hardware = strdup("ticc2531");
 
     /* zigbee supports 11-26 */
-    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 16);
-    for (int i = 11; i < 27; i++) {
+    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 5);
+    for (int i = 11; i < 16; i++) {
         char chstr[4];
         snprintf(chstr, 4, "%d", i);
         (*ret_interface)->channels[i - 11] = strdup(chstr);
     }
 
-    (*ret_interface)->channels_len = 16;
+    (*ret_interface)->channels_len = 5;
 
     pthread_mutex_lock(&(localticc2531->usb_mutex));
     /* Try to open it */
@@ -462,7 +470,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     uint8_t ident[32];
     int ret;
     ret = libusb_control_transfer(localticc2531->ticc2531_handle, TICC2531_DIR_IN, TICC2531_GET_IDENT, 0x00, 0x00, ident, sizeof(ident), TICC2531_TIMEOUT);
-/*
+
     if (ret > 0)
     {
         printf("IDENT:");
@@ -470,7 +478,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             printf(" %02X", ident[i]);
         printf("\n");
     }
-*/
+
     pthread_mutex_unlock(&(localticc2531->usb_mutex));
 
     ticc2531_set_power(caph,0x04, TICC2531_POWER_RETRIES);
@@ -511,14 +519,22 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     if (privchan == NULL) {
         return 0;
     }
-//    if(privchan != channel->channel)
-        r = ticc2531_set_channel(caph, channel->channel);
+
+    localticc2531->ready = false;
+
+    ticc2531_exit_promisc_mode(caph);
+
+    r = ticc2531_set_channel(caph, channel->channel);
 
     if (r < 0)
         return -1;
 
     localticc2531->channel = channel->channel;
+
+    ticc2531_enter_promisc_mode(caph);
    
+    localticc2531->ready = true;
+
     return 1;
 }///
 
@@ -603,6 +619,18 @@ if(localticc2531->ready)
             fprintf(stderr, "\n");
         }
         /**/
+
+	/*strip the header*/
+	uint8_t tmp_usb_buf[256];
+	int p_ctr=0;
+	for(int i=8;i<buf_rx_len;i++) {
+            tmp_usb_buf[p_ctr] = usb_buf[i];p_ctr++;
+	}
+	memset(usb_buf,0x00,256);
+	for(int i=8;i<buf_rx_len;i++) {
+            usb_buf[i] = tmp_usb_buf[i];
+        }
+        buf_rx_len = p_ctr;
 
         while (1) {
             struct timeval tv;
