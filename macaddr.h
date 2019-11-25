@@ -343,5 +343,18 @@ struct mac_addr {
 std::ostream& operator<<(std::ostream& os, const mac_addr& m);
 std::istream& operator>>(std::istream& is, mac_addr& m);
 
+// A hash algorithm which is unique by mask.
+//
+// This does NOT make a std::unordered_map suitable for masked comparisons!  For a data
+// structure which supports masking, you MUST use a std::map; the operator< function applies
+// the mask to both sides of the comparison.
+namespace std {
+    template<> struct hash<mac_addr> {
+        std::size_t operator()(mac_addr const& m) const noexcept {
+            return std::hash<uint64_t>{}(m.longmac & m.longmask);
+        }
+    };
+}
+
 #endif
 

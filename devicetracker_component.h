@@ -21,13 +21,15 @@
 
 #include "config.h"
 
-#include <stdio.h>
-#include <time.h>
+#include <algorithm>
 #include <list>
 #include <map>
-#include <vector>
-#include <algorithm>
 #include <string>
+#include <unordered_map>
+#include <vector>
+
+#include <stdio.h>
+#include <time.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -584,7 +586,8 @@ public:
 		self_destruct = 1;
 	}
 
-    std::map<mac_addr, std::shared_ptr<kis_tracked_device_base> > devrefs;
+    // We don't use mac masks here so an unordered map is safe
+    std::unordered_map<mac_addr, std::shared_ptr<kis_tracked_device_base> > devrefs;
 };
 
 #endif
