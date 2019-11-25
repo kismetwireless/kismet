@@ -32,6 +32,7 @@
 #include <vector>
 #include <map>
 #include <memory>
+#include <unordered_map>
 
 #include "fmt.h"
 
@@ -1222,11 +1223,13 @@ public:
 };
 
 
-// Superclass for generic access to maps via multiple key structures
-template <typename K, typename V>
+// Superclass for generic access to maps via multiple key structures; use a std::map tree
+// map;  alternate implementation available as core_unordered_map for structures which don't
+// need comparator operations
+template <typename MT, typename K, typename V>
 class tracker_element_core_map : public tracker_element {
 public:
-    using map_t = std::map<K, V>;
+    using map_t = MT;
     using iterator = typename map_t::iterator;
     using const_iterator = typename map_t::const_iterator;
     using pair = std::pair<K, V>;
@@ -1360,13 +1363,13 @@ protected:
 };
 
 // Dictionary / map-by-id
-class tracker_element_map : public tracker_element_core_map<int, std::shared_ptr<tracker_element>> {
+class tracker_element_map : public tracker_element_core_map<std::unordered_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>> {
 public:
     tracker_element_map() :
-        tracker_element_core_map<int, std::shared_ptr<tracker_element>>(tracker_type::tracker_map) { }
+        tracker_element_core_map<std::unordered_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>>(tracker_type::tracker_map) { }
 
     tracker_element_map(int id) :
-        tracker_element_core_map<int, std::shared_ptr<tracker_element>>(tracker_type::tracker_map, id) { }
+        tracker_element_core_map<std::unordered_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>>(tracker_type::tracker_map, id) { }
 
     static tracker_type static_type() {
         return tracker_type::tracker_map;
@@ -1462,13 +1465,13 @@ public:
 };
 
 // Int-keyed map
-class tracker_element_int_map : public tracker_element_core_map<int, std::shared_ptr<tracker_element>> {
+class tracker_element_int_map : public tracker_element_core_map<std::unordered_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>> {
 public:
     tracker_element_int_map() :
-        tracker_element_core_map<int, std::shared_ptr<tracker_element>>(tracker_type::tracker_int_map) { }
+        tracker_element_core_map<std::unordered_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>>(tracker_type::tracker_int_map) { }
 
     tracker_element_int_map(int id) :
-        tracker_element_core_map<int, std::shared_ptr<tracker_element>>(tracker_type::tracker_int_map, id) { }
+        tracker_element_core_map<std::unordered_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>>(tracker_type::tracker_int_map, id) { }
 
     static tracker_type static_type() {
         return tracker_type::tracker_int_map;
@@ -1489,13 +1492,13 @@ public:
 };
 
 // Hash key compatible map
-class tracker_element_hashkey_map : public tracker_element_core_map<size_t, std::shared_ptr<tracker_element>> {
+class tracker_element_hashkey_map : public tracker_element_core_map<std::unordered_map<size_t, std::shared_ptr<tracker_element>>, size_t, std::shared_ptr<tracker_element>> {
 public:
     tracker_element_hashkey_map() :
-        tracker_element_core_map<size_t, std::shared_ptr<tracker_element>>(tracker_type::tracker_hashkey_map) { }
+        tracker_element_core_map<std::unordered_map<size_t, std::shared_ptr<tracker_element>>, size_t, std::shared_ptr<tracker_element>>(tracker_type::tracker_hashkey_map) { }
 
     tracker_element_hashkey_map(int id) :
-        tracker_element_core_map<size_t, std::shared_ptr<tracker_element>>(tracker_type::tracker_hashkey_map, id) { }
+        tracker_element_core_map<std::unordered_map<size_t, std::shared_ptr<tracker_element>>, size_t, std::shared_ptr<tracker_element>>(tracker_type::tracker_hashkey_map, id) { }
 
     static tracker_type static_type() {
         return tracker_type::tracker_int_map;
@@ -1516,13 +1519,13 @@ public:
 };
 
 // Double-keyed map
-class tracker_element_double_map : public tracker_element_core_map<double, std::shared_ptr<tracker_element>> {
+class tracker_element_double_map : public tracker_element_core_map<std::unordered_map<double, std::shared_ptr<tracker_element>>, double, std::shared_ptr<tracker_element>> {
 public:
     tracker_element_double_map() :
-        tracker_element_core_map<double, std::shared_ptr<tracker_element>>(tracker_type::tracker_double_map) { }
+        tracker_element_core_map<std::unordered_map<double, std::shared_ptr<tracker_element>>, double, std::shared_ptr<tracker_element>>(tracker_type::tracker_double_map) { }
 
     tracker_element_double_map(int id) :
-        tracker_element_core_map<double, std::shared_ptr<tracker_element>>(tracker_type::tracker_double_map, id) { }
+        tracker_element_core_map<std::unordered_map<double, std::shared_ptr<tracker_element>>, double, std::shared_ptr<tracker_element>>(tracker_type::tracker_double_map, id) { }
 
     static tracker_type static_type() {
         return tracker_type::tracker_double_map;
@@ -1541,14 +1544,14 @@ public:
     }
 };
 
-// Mac-keyed map
-class tracker_element_mac_map : public tracker_element_core_map<mac_addr, std::shared_ptr<tracker_element>> {
+// Mac-keyed map, MUST be normal std::map to enable mask handling!
+class tracker_element_mac_map : public tracker_element_core_map<std::map<mac_addr, std::shared_ptr<tracker_element>>, mac_addr, std::shared_ptr<tracker_element>> {
 public:
     tracker_element_mac_map() :
-        tracker_element_core_map<mac_addr, std::shared_ptr<tracker_element>>(tracker_type::tracker_mac_map) { }
+        tracker_element_core_map<std::map<mac_addr, std::shared_ptr<tracker_element>>, mac_addr, std::shared_ptr<tracker_element>>(tracker_type::tracker_mac_map) { }
 
     tracker_element_mac_map(int id) :
-        tracker_element_core_map<mac_addr, std::shared_ptr<tracker_element>>(tracker_type::tracker_mac_map, id) { }
+        tracker_element_core_map<std::map<mac_addr, std::shared_ptr<tracker_element>>, mac_addr, std::shared_ptr<tracker_element>>(tracker_type::tracker_mac_map, id) { }
 
     static tracker_type static_type() {
         return tracker_type::tracker_mac_map;
@@ -1568,13 +1571,13 @@ public:
 };
 
 // String-keyed map
-class tracker_element_string_map : public tracker_element_core_map<std::string, std::shared_ptr<tracker_element>> {
+class tracker_element_string_map : public tracker_element_core_map<std::map<std::string, std::shared_ptr<tracker_element>>, std::string, std::shared_ptr<tracker_element>> {
 public:
     tracker_element_string_map() :
-        tracker_element_core_map<std::string, std::shared_ptr<tracker_element>>(tracker_type::tracker_string_map) { }
+        tracker_element_core_map<std::map<std::string, std::shared_ptr<tracker_element>>, std::string, std::shared_ptr<tracker_element>>(tracker_type::tracker_string_map) { }
 
     tracker_element_string_map(int id) :
-        tracker_element_core_map<std::string, std::shared_ptr<tracker_element>>(tracker_type::tracker_string_map, id) { }
+        tracker_element_core_map<std::map<std::string, std::shared_ptr<tracker_element>>, std::string, std::shared_ptr<tracker_element>>(tracker_type::tracker_string_map, id) { }
 
     static tracker_type static_type() {
         return tracker_type::tracker_string_map;
@@ -1594,13 +1597,13 @@ public:
 };
 
 // Device-key map
-class tracker_element_device_key_map : public tracker_element_core_map<device_key, std::shared_ptr<tracker_element>> {
+class tracker_element_device_key_map : public tracker_element_core_map<std::unordered_map<device_key, std::shared_ptr<tracker_element>>, device_key, std::shared_ptr<tracker_element>> {
 public:
     tracker_element_device_key_map() :
-        tracker_element_core_map<device_key, std::shared_ptr<tracker_element>>(tracker_type::tracker_key_map) { }
+        tracker_element_core_map<std::unordered_map<device_key, std::shared_ptr<tracker_element>>, device_key, std::shared_ptr<tracker_element>>(tracker_type::tracker_key_map) { }
 
     tracker_element_device_key_map(int id) :
-        tracker_element_core_map<device_key, std::shared_ptr<tracker_element>>(tracker_type::tracker_key_map, id) { }
+        tracker_element_core_map<std::unordered_map<device_key, std::shared_ptr<tracker_element>>, device_key, std::shared_ptr<tracker_element>>(tracker_type::tracker_key_map, id) { }
 
     static tracker_type static_type() {
         return tracker_type::tracker_key_map;
@@ -1620,13 +1623,13 @@ public:
 };
 
 // Double::Double map
-class tracker_element_double_map_double : public tracker_element_core_map<double, double> {
+class tracker_element_double_map_double : public tracker_element_core_map<std::unordered_map<double, double>, double, double> {
 public:
     tracker_element_double_map_double() :
-        tracker_element_core_map<double, double>(tracker_type::tracker_double_map_double) { }
+        tracker_element_core_map<std::unordered_map<double, double>, double, double>(tracker_type::tracker_double_map_double) { }
 
     tracker_element_double_map_double(int id) :
-        tracker_element_core_map<double, double>(tracker_type::tracker_double_map_double, id) { }
+        tracker_element_core_map<std::unordered_map<double, double>, double, double>(tracker_type::tracker_double_map_double, id) { }
 
     static tracker_type static_type() {
         return tracker_type::tracker_double_map_double;
