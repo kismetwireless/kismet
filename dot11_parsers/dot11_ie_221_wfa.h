@@ -84,13 +84,13 @@ public:
     }
 
     std::shared_ptr<kaitai::kstream> wfa_content_stream() const {
-        return m_wfa_content_steam;
+        return m_wfa_content_stream;
     }
 
 protected:
     uint8_t m_wfa_subtype;
     std::string m_wfa_content;
-    std::shared_ptr<kaitai::kstream> m_wfa_content_steam;
+    std::shared_ptr<kaitai::kstream> m_wfa_content_stream;
 };
 
 
