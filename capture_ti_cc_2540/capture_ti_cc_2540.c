@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <math.h>
 
 #include "../capture_framework.h"
 
@@ -519,6 +520,39 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     return 1;
 }///
 
+bool verify_packet(unsigned char *data, int len) {
+
+    unsigned char payload[256];memset(payload,0x00,256);
+    int pkt_len = data[1];
+    if(pkt_len != (len-3)) {
+        printf("packet length mismatch\n");
+        return false;
+    }
+    //get the paylaod
+    int p_ctr=0;
+    for(int i=8;i<(len-2);i++) {
+        payload[p_ctr] = data[i];p_ctr++;
+    }
+    int payload_len = data[7] - 0x02;
+    if(p_ctr != payload_len) {
+        printf("payload size mismatch\n");
+        return false;
+    }
+
+    unsigned char fcs1 = data[len-2];
+    unsigned char fcs2 = data[len-1];
+//rssi is the signed value at fcs1
+    int rssi = (fcs1 + (int)pow(2,7)) % (int)pow(2,8) - (int)pow(2,7) - 73;
+    unsigned char crc_ok = fcs2 & (1 << 7);
+    unsigned char channel = fcs2 & 0x7f;
+    if(crc_ok > 0) {
+        printf("valid\n");
+        return true;
+    }
+    else
+        return false;
+}
+
 /* Run a standard glib mainloop inside the capture thread */
 void capture_thread(kis_capture_handler_t *caph) {
     local_ticc2540_t *localticc2540 = (local_ticc2540_t *) caph->userdata;
@@ -557,53 +591,60 @@ if(localticc2540->ready)
         if(buf_rx_len <= 7)
             continue;
 
-        /**/
-        if (buf_rx_len > 1) {
-            fprintf(stderr, "ti cc 2540 saw %d -- ", buf_rx_len);
+        if(!verify_packet(usb_buf, buf_rx_len)) {
+            printf("invalid packet\n");continue;}
+        else {
+            /**/
+            if (buf_rx_len > 1) {
+                fprintf(stderr, "ti cc 2540 saw %d -- ", buf_rx_len);
 
-            for (int bb = 0; bb < buf_rx_len; bb++) {
-                fprintf(stderr, "%02X ", usb_buf[bb] & 0xFF);
+                for (int bb = 0; bb < buf_rx_len; bb++) {
+                    fprintf(stderr, "%02X ", usb_buf[bb] & 0xFF);
+                }
+                fprintf(stderr, "\n");
             }
-            fprintf(stderr, "\n");
-        }
-        /**/
+            /**/
 
-        /*strip the header*/
-        uint8_t tmp_usb_buf[256];
-        int p_ctr=0;
-        for(int i=8;i<buf_rx_len;i++) {
-            tmp_usb_buf[p_ctr] = usb_buf[i];p_ctr++;
-        }
-        memset(usb_buf,0x00,256);
-        for(int i=0;i<p_ctr;i++) {
-            usb_buf[i] = tmp_usb_buf[i];
-        }
-        buf_rx_len = p_ctr;
-
-        while (1) {
-            struct timeval tv;
-
-            gettimeofday(&tv, NULL);
-
-            if ((r = cf_send_data(caph,
-                            NULL, NULL, NULL,
-                            tv,
-                            0,
-                            buf_rx_len, usb_buf)) < 0) {
-                cf_send_error(caph, 0, "unable to send DATA frame");
-                cf_handler_spindown(caph);
-            } else if (r == 0) {
-                cf_handler_wait_ringbuffer(caph);
-                continue;
-            } else {
-                break;
+            /*strip the header*/
+            uint8_t tmp_usb_buf[256];
+            int p_ctr=0;
+            for(int i=8;i<buf_rx_len;i++) {
+                tmp_usb_buf[p_ctr] = usb_buf[i];p_ctr++;
             }
-        }
+            memset(usb_buf,0x00,256);
+            for(int i=0;i<p_ctr;i++) {
+                usb_buf[i] = tmp_usb_buf[i];
+            }
+            buf_rx_len = p_ctr;
+
+            while (1) {
+                struct timeval tv;
+
+                gettimeofday(&tv, NULL);
+
+                if ((r = cf_send_data(caph,
+                                NULL, NULL, NULL,
+                                tv,
+                                0,
+                                buf_rx_len, usb_buf)) < 0) {
+                    cf_send_error(caph, 0, "unable to send DATA frame");
+                    cf_handler_spindown(caph);
+                } else if (r == 0) {
+                    cf_handler_wait_ringbuffer(caph);
+                    continue;
+                } else {
+                    break;
+                }
+            }
+        }//else of valid
 }
     }
 
     cf_handler_spindown(caph);
 }///
+
+
+
 
 int main(int argc, char *argv[]) {
     local_ticc2540_t localticc2540 = {

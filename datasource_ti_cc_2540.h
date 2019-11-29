@@ -25,7 +25,7 @@ public:
         auto dltt = 
             Globalreg::fetch_mandatory_global_as<dlt_tracker>("DLTTRACKER");
 
-        set_int_source_override_linktype(dltt->register_linktype("Bluetooth"));//TICC2540
+        set_int_source_override_linktype(dltt->register_linktype("TICC2540"));//TICC2540
     }
 
     virtual ~kis_datasource_TICC2540() { };

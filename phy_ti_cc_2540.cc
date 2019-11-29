@@ -81,6 +81,14 @@ int Kis_TICC2540_Phy::DissectorTICC2540(CHAINCALL_PARMS) {
     if (packdata->length < 6)
         return 0;
 
+    //get the mac address
+    unsigned char l_mac[6];memset(l_mac,0x00,6);
+    l_mac[0] = packdata->data[19-8];
+    l_mac[1] = packdata->data[18-8];
+    l_mac[2] = packdata->data[17-8];
+    l_mac[3] = packdata->data[16-8];
+    l_mac[4] = packdata->data[15-8];
+    l_mac[5] = packdata->data[14-8];
     // Did something already classify this?
     auto common = in_pack->fetch<kis_common_info>(mphy->pack_comp_common);
 
@@ -89,9 +97,13 @@ int Kis_TICC2540_Phy::DissectorTICC2540(CHAINCALL_PARMS) {
 
     common = new kis_common_info;
 
+    //printf("chan :%d\n",(packdata->data[packdata->length-1] & 0x7f));
+
+    common->phyid = mphy->fetch_phy_id();
+    common->channel = int_to_string(packdata->data[packdata->length-1] & 0x7f);
     common->basic_crypt_set = crypt_none;
     common->type = packet_basic_data;
-    common->source = mac_addr(packdata->data, 6);
+    common->source = mac_addr(l_mac, 6);//mac_addr(packdata->data, 6);
 
     in_pack->insert(mphy->pack_comp_common, common);
 

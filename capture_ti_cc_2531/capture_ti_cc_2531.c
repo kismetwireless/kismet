@@ -540,7 +540,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
 
 bool verify_packet(unsigned char *data, int len) {
 
-    unsigned char payload[128];memset(payload,0x00,128);
+    unsigned char payload[256];memset(payload,0x00,256);
     int pkt_len = data[1];
     if(pkt_len != (len-3)) {
         printf("packet length mismatch\n");
@@ -607,7 +607,7 @@ if(localticc2531->ready)
             continue;
 
         if(!verify_packet(usb_buf, buf_rx_len)) {
-            printf("invalid packet\n");}
+            fprintf(stderr,"invalid packet\n");continue;}
 
         /**/
         if (buf_rx_len > 1) {
