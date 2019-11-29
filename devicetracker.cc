@@ -1071,23 +1071,23 @@ void device_tracker::do_readonly_device_work(std::shared_ptr<device_tracker_filt
 void device_tracker::do_device_work_raw(std::shared_ptr<device_tracker_filter_worker> worker, 
         std::shared_ptr<tracker_element_vector> vec, bool batch) {
 
-    kismet__for_each(vec->begin(), vec->end(), [&](shared_tracker_element val) {
-           if (val == nullptr)
-               return;
+    kismet__for_each(vec->begin(), vec->end(), [this, worker](shared_tracker_element val) {
+            if (val == nullptr)
+                return;
 
-           std::shared_ptr<kis_tracked_device_base> v = 
-               std::static_pointer_cast<kis_tracked_device_base>(val);
+            std::shared_ptr<kis_tracked_device_base> v = 
+                std::static_pointer_cast<kis_tracked_device_base>(val);
 
-           bool m;
+            bool m;
 
-           // Lock the device itself inside the worker op
-           {
-               local_locker devlocker(&(v->device_mutex));
-               m = worker->match_device(this, v);
-           }
+            // Lock the device itself inside the worker op
+            {
+                local_locker devlocker(&(v->device_mutex));
+                m = worker->match_device(this, v);
+            }
 
-           if (m) 
-               worker->matched_device(v);
+            if (m) 
+                worker->matched_device(v);
        });
 
     worker->finalize(this);
@@ -1100,22 +1100,22 @@ void device_tracker::do_readonly_device_work_raw(std::shared_ptr<device_tracker_
         return;
 
     kismet__for_each(vec->begin(), vec->end(), [&](shared_tracker_element val) {
-           if (val == nullptr)
-               return;
+            if (val == nullptr)
+                return;
 
-           std::shared_ptr<kis_tracked_device_base> v = 
-               std::static_pointer_cast<kis_tracked_device_base>(val);
+            std::shared_ptr<kis_tracked_device_base> v = 
+                std::static_pointer_cast<kis_tracked_device_base>(val);
 
-           bool m;
+            bool m;
 
-           // Lock the device itself inside the worker op
-           {
-               local_shared_locker devlocker(&(v->device_mutex));
-               m = worker->match_device(this, v);
-           }
+            // Lock the device itself inside the worker op
+            {
+                local_shared_locker devlocker(&(v->device_mutex));
+                m = worker->match_device(this, v);
+            }
 
-           if (m) 
-               worker->matched_device(v);
+            if (m) 
+                worker->matched_device(v);
        });
 
     worker->finalize(this);
