@@ -123,9 +123,6 @@ public:
     virtual bool match_device(device_tracker *devicetracker __attribute__((unused)),
             std::shared_ptr<kis_tracked_device_base> device) {
 
-        if (device == nullptr)
-            return false;
-
         auto freq = device->get_frequency();
         if (freq == 0)
             return false;
