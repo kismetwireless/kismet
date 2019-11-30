@@ -1320,6 +1320,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         cf_send_warning(caph, errstr);
 
         local_wifi->use_mac80211_vif = 0;
+    } else if (strcmp(driver, "rtl88x2bu") == 0) {
+        snprintf(errstr, STATUS_MAX, "%s interface '%s' looks to use the rtl88x2bu driver, "
+                "these drivers may have reliability problems, and do not work with VIFs."
+                "We'll continue, but there may be errors.", 
+                local_wifi->name, local_wifi->interface);
+        cf_send_warning(caph, errstr);
+        local_wifi->use_mac80211_vif = 0;
+        local_wifi->use_mac80211_channels = 0;
     } else if (strcmp(driver, "ath10k_pci") == 0) {
         snprintf(errstr, STATUS_MAX, "%s interface '%s' looks to use the ath10k_pci "
                 "driver, which is known to report large numbers of invalid packets. "
