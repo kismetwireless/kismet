@@ -21,7 +21,6 @@
 
 #include "config.h"
 
-#include <string>
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -32,6 +31,10 @@
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif
+
+#include <unordered_map>
+#include <string>
+
 #include "util.h"
 #include "globalregistry.h"
 
@@ -65,7 +68,7 @@ protected:
 
     std::vector<index_pos> index_vec;
 
-    std::map<uint32_t, manuf_data> oui_map;
+    std::unordered_map<uint32_t, manuf_data> oui_map;
 
     FILE *mfile;
 

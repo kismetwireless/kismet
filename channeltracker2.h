@@ -21,8 +21,9 @@
 
 #include "config.h"
 
-#include <string>
 #include <map>
+#include <string>
+#include <unordered_map>
 
 #include "globalregistry.h"
 #include "kis_mutex.h"
@@ -136,9 +137,7 @@ protected:
 
 };
 
-class channel_tracker_v2 : public tracker_component, 
-    public kis_net_httpd_cppstream_handler, public lifetime_global, 
-    public time_tracker_event {
+class channel_tracker_v2 : public lifetime_global {
 public:
     static std::string global_name() { return "CHANNEL_TRACKER"; }
 
@@ -155,36 +154,24 @@ private:
 public:
     virtual ~channel_tracker_v2();
 
-    // HTTP API
-    virtual bool httpd_verify_path(const char *path, const char *method);
-
-    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream);
-
-    // time_tracker API
-    virtual int timetracker_event(int event_id);
-
-    // Update device counts
-    void update_device_counts(std::map<double, unsigned int> in_counts);
-
+    // Update device counts - kept public so that the worker can access it
     int device_decay;
+    void update_device_counts(std::unordered_map<double, unsigned int> in_counts, time_t in_ts);
 
 protected:
     kis_recursive_timed_mutex lock;
 
     std::shared_ptr<device_tracker> devicetracker;
     std::shared_ptr<time_tracker> timetracker;
+    std::shared_ptr<entry_tracker> entrytracker;
+
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> channels_endp;
+    std::shared_ptr<tracker_element_map> channels_endp_handler();
 
     // packetchain callback
     static int packet_chain_handler(CHAINCALL_PARMS);
 
-    // Tracker component
-    virtual void register_fields();
-
-    // Seen channels as string-named channels, so logical channel allocation
-    // per phy
+    // Seen channels as string-named channels, aggregated across all the phys
     std::shared_ptr<tracker_element_string_map> channel_map;
 
     // Collapsed frequency information, multi-phy, spec-an, etc
@@ -196,6 +183,9 @@ protected:
     int pack_comp_l1data, pack_comp_devinfo, pack_comp_common, pack_comp_device;
 
     int timer_id;
+    int gather_devices_event(int event_id);
+
+
 };
 
 #endif

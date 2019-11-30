@@ -41,13 +41,14 @@
 
 #include "config.h"
 
-#include <memory>
-#include <string>
-#include <vector>
-#include <list>
-#include <queue>
-#include <thread>
 #include <functional>
+#include <list>
+#include <memory>
+#include <queue>
+#include <string>
+#include <thread>
+#include <unordered_map>
+#include <vector>
 
 #include "globalregistry.h"
 #include "kis_mutex.h"
@@ -120,8 +121,8 @@ protected:
     };
 
     // Map of event IDs to listener objects
-    std::map<std::string, std::vector<std::shared_ptr<callback_listener>>> callback_table;
-    std::map<unsigned long, std::shared_ptr<callback_listener>> callback_id_table;
+    std::unordered_map<std::string, std::vector<std::shared_ptr<callback_listener>>> callback_table;
+    std::unordered_map<unsigned long, std::shared_ptr<callback_listener>> callback_id_table;
 
     // Event pool and handler thread
     std::queue<std::shared_ptr<eventbus_event>> event_queue;

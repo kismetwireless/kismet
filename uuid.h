@@ -48,6 +48,9 @@ class uuid {
 public:
     uuid() {
         memset(uuid_block, 0, 16);
+        uuid_block_h = (uint64_t *) &(uuid_block[0]);
+        uuid_block_l = (uint64_t *) &(uuid_block[8]);
+
         time_low = (uint32_t *) &(uuid_block[0]);
         time_mid = (uint16_t *) &(uuid_block[4]);
         time_hi = (uint16_t *) &(uuid_block[6]);
@@ -58,6 +61,10 @@ public:
 
     uuid(const uuid& u) {
         memcpy(uuid_block, u.uuid_block, 16);
+
+        uuid_block_h = (uint64_t *) &(uuid_block[0]);
+        uuid_block_l = (uint64_t *) &(uuid_block[8]);
+
         time_low = (uint32_t *) &(uuid_block[0]);
         time_mid = (uint16_t *) &(uuid_block[4]);
         time_hi = (uint16_t *) &(uuid_block[6]);
@@ -76,6 +83,10 @@ public:
 
     void from_string(const std::string& in) {
         memset(uuid_block, 0, 16);
+
+        uuid_block_h = (uint64_t *) &(uuid_block[0]);
+        uuid_block_l = (uint64_t *) &(uuid_block[8]);
+
         time_low = (uint32_t *) &(uuid_block[0]);
         time_mid = (uint16_t *) &(uuid_block[4]);
         time_hi = (uint16_t *) &(uuid_block[6]);
@@ -163,12 +174,19 @@ public:
     }
 
     uuid& operator= (const uuid& op) {
-        memcpy(uuid_block, op.uuid_block, 16);
+        // memcpy(uuid_block, op.uuid_block, 16);
+        *uuid_block_h = *op.uuid_block_h;
+        *uuid_block_l = *op.uuid_block_l;
+
         error = op.error;
         return *this;
     }
 
     uint8_t uuid_block[16];
+
+    uint64_t *uuid_block_h;
+    uint64_t *uuid_block_l;
+
     uint32_t *time_low;
     uint16_t *time_mid;
     uint16_t *time_hi;
@@ -256,6 +274,16 @@ try_again:
 
 std::ostream& operator<<(std::ostream& os, const uuid& u);
 std::istream& operator>>(std::istream &is, uuid& u);
+
+namespace std {
+    template<> struct hash<uuid> {
+        std::size_t operator()(uuid const& u) const noexcept {
+            std::size_t h1 = std::hash<uint64_t>{}(*u.uuid_block_h);
+            std::size_t h2 = std::hash<uint64_t>{}(*u.uuid_block_l);
+            return h1 ^ (h2 << 1);
+        }
+    };
+}
 
 #endif
 

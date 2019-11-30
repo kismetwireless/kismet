@@ -232,23 +232,29 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
         case tracker_type::tracker_float:
             d_v = get_tracker_value<float>(e);
 
-            if (std::isnan(d_v) || std::isinf(d_v))
+            if (std::isnan(d_v) || std::isinf(d_v)) {
                 stream << 0;
-            else if (floor(d_v) == d_v) 
-                stream << d_v;
-            else
+            } else if (floor(d_v) == d_v) {
+                auto prec = stream.precision(0);
                 stream << std::fixed << d_v;
+                stream.precision(prec);
+            } else {
+                stream << std::fixed << d_v;
+            }
 
             break;
         case tracker_type::tracker_double:
             d_v = get_tracker_value<double>(e);
 
-            if (std::isnan(d_v) || std::isinf(d_v))
+            if (std::isnan(d_v) || std::isinf(d_v)) {
                 stream << 0;
-            else if (floor(d_v) == d_v) 
-                stream << d_v;
-            else
+            } else if (floor(d_v) == d_v) {
+                auto prec = stream.precision(0);
                 stream << std::fixed << d_v;
+                stream.precision(prec);
+            } else {
+                stream << std::fixed << d_v;
+            }
 
             break;
         case tracker_type::tracker_mac_addr:
@@ -520,12 +526,15 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
 
                 if (!as_vector) {
                     // Double keys are handled as strings in json
-                    if (std::isnan(i.first) || std::isinf(i.first))
+                    if (std::isnan(i.first) || std::isinf(i.first)) {
                         stream << indent << "\"0\"";
-                    else if (floor(i.first) == i.first) 
-                        stream << indent << "\"" << i.first << "\"";
-                    else
+                    } else if (floor(i.first) == i.first)  {
+                        auto prec = stream.precision(0);
                         stream << indent << "\"" << std::fixed << i.first << "\"";
+                        stream.precision(prec);
+                    } else {
+                        stream << indent << "\"" << std::fixed << i.first << "\"";
+                    }
 
                     if (!as_key_vector)
                         stream << ": ";
@@ -562,12 +571,15 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
 
                 if (!as_vector) {
                     // Double keys are handled as strings in json
-                    if (std::isnan(i.first) || std::isinf(i.first))
+                    if (std::isnan(i.first) || std::isinf(i.first)) {
                         stream << indent << "\"0\"";
-                    else if (floor(i.first) == i.first) 
-                        stream << indent << "\"" << i.first << "\"";
-                    else
+                    } else if (floor(i.first) == i.first)  {
+                        auto prec = stream.precision(0);
                         stream << indent << "\"" << std::fixed << i.first << "\"";
+                        stream.precision(prec);
+                    } else {
+                        stream << indent << "\"" << std::fixed << i.first << "\"";
+                    }
 
                     if (!as_key_vector)
                         stream << ": ";
@@ -602,12 +614,15 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
 
                 if (!as_vector) {
                     // Double keys are handled as strings in json
-                    if (std::isnan(i.first) || std::isinf(i.first))
+                    if (std::isnan(i.first) || std::isinf(i.first)) {
                         stream << indent << "\"0\"";
-                    else if (floor(i.first) == i.first) 
-                        stream << indent << "\"" << i.first << "\"";
-                    else
+                    } else if (floor(i.first) == i.first)  {
+                        auto prec = stream.precision(0);
                         stream << indent << "\"" << std::fixed << i.first << "\"";
+                        stream.precision(prec);
+                    } else {
+                        stream << indent << "\"" << std::fixed << i.first << "\"";
+                    }
 
                     if (!as_key_vector)
                         stream << ": ";
@@ -762,12 +777,16 @@ void storage_json_adapter::pack(std::ostream &stream, shared_tracker_element e,
         case tracker_type::tracker_float:
             d_v = get_tracker_value<float>(e);
 
-            if (std::isnan(d_v) || std::isinf(d_v))
+            if (std::isnan(d_v) || std::isinf(d_v)) {
                 stream << 0;
-            else if (floor(d_v) == d_v) 
-                stream << d_v;
-            else
+            } else if (floor(d_v) == d_v) {
+                auto prec = stream.precision();
+                stream.precision(0);
                 stream << std::fixed << d_v;
+                stream.precision(prec);
+            } else {
+                stream << std::fixed << d_v;
+            }
 
             break;
         case tracker_type::tracker_double:
@@ -947,12 +966,15 @@ void storage_json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                 prepend_comma = true;
 
                 // Double keys are handled as strings in json
-                if (std::isnan(i.first) || std::isinf(i.first))
+                if (std::isnan(i.first) || std::isinf(i.first)) {
                     stream << "\"0\":";
-                else if (floor(i.first) == i.first) 
-                    stream << "\"" << i.first << "\":";
-                else
+                } else if (floor(i.first) == i.first) {
+                    auto prec = stream.precision(0);
                     stream << "\"" << std::fixed << i.first << "\":";
+                    stream.precision(prec);
+                } else {
+                    stream << "\"" << std::fixed << i.first << "\":";
+                }
 
                 storage_json_adapter::pack(stream, i.second, name_map);
             }
@@ -985,17 +1007,23 @@ void storage_json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                 prepend_comma = true;
 
                 // Double keys are handled as strings in json
-                if (std::isnan(i.first) || std::isinf(i.first))
+                if (std::isnan(i.first) || std::isinf(i.first)) {
                     stream << "\"0\":";
-                else if (floor(i.first) == i.first) 
-                    stream << "\"" << i.first << "\":";
-                else
+                } else if (floor(i.first) == i.first) {
+                    auto prec = stream.precision(0);
                     stream << "\"" << std::fixed << i.first << "\":";
+                    stream.precision(prec);
+                } else {
+                    stream << "\"" << std::fixed << i.first << "\":";
+                }
 
-                if (floor(i.second) == i.second)
-                    stream << i.second;
-                else
+                if (floor(i.second) == i.second) {
+                    auto prec = stream.precision(0);
                     stream << std::fixed << i.second;
+                    stream.precision(prec);
+                } else {
+                    stream << std::fixed << i.second;
+                }
             }
             stream << "}";
             break;

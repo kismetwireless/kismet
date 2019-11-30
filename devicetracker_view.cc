@@ -154,7 +154,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(devi
     ret->reserve(devices->size());
     kis_recursive_timed_mutex ret_mutex;
 
-    kismet__for_each(devices->begin(), devices->end(),
+    std::for_each(devices->begin(), devices->end(),
             [&](shared_tracker_element val) {
 
             if (val == nullptr)
@@ -186,7 +186,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_
     ret->reserve(devices->size());
     kis_recursive_timed_mutex ret_mutex;
 
-    kismet__for_each(devices->begin(), devices->end(),
+    std::for_each(devices->begin(), devices->end(),
             [&](shared_tracker_element val) {
 
             if (val == nullptr)
@@ -696,7 +696,7 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
 
     // Unfortunately we need to do a stable sort to get a consistent display
     if (in_order_column_num >= 0 && order_field.size() > 0) {
-        kismet__stable_sort(next_work_vec->begin(), next_work_vec->end(),
+        std::stable_sort(next_work_vec->begin(), next_work_vec->end(),
                 [&](shared_tracker_element a, shared_tracker_element b) -> bool {
                 shared_tracker_element fa;
                 shared_tracker_element fb;

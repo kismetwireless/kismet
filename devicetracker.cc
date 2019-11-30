@@ -313,7 +313,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
                         _MSG("Attempting to log devices, but devices are still being "
                                 "saved from the last logging attempt.  It's possible your "
                                 "system is slow or you have a very large number of devices "
-                                "to log.  Try increasing the delay in 'kis_log_storage_rate' "
+                                "to log.  Try increasing the delay in 'kis_log_device_rate' "
                                 "in kismet_logging.conf", MSGFLAG_ERROR);
                         return 1;
                     }
@@ -1071,24 +1071,24 @@ void device_tracker::do_readonly_device_work(std::shared_ptr<device_tracker_filt
 void device_tracker::do_device_work_raw(std::shared_ptr<device_tracker_filter_worker> worker, 
         std::shared_ptr<tracker_element_vector> vec, bool batch) {
 
-    kismet__for_each(vec->begin(), vec->end(), [&](shared_tracker_element val) {
-           if (val == nullptr)
-               return;
+    std::for_each(vec->begin(), vec->end(), [this, worker](shared_tracker_element val) {
+            if (val == nullptr)
+                return;
 
-           std::shared_ptr<kis_tracked_device_base> v = 
-               std::static_pointer_cast<kis_tracked_device_base>(val);
+            std::shared_ptr<kis_tracked_device_base> v = 
+                std::static_pointer_cast<kis_tracked_device_base>(val);
 
-           bool m;
+            bool m;
 
-           // Lock the device itself inside the worker op
-           {
-               local_locker devlocker(&(v->device_mutex));
-               m = worker->match_device(this, v);
-           }
+            // Lock the device itself inside the worker op
+            {
+                local_locker devlocker(&(v->device_mutex));
+                m = worker->match_device(this, v);
+            }
 
-           if (m) 
-               worker->matched_device(v);
-       });
+            if (m) 
+                worker->matched_device(v);
+        });
 
     worker->finalize(this);
 }
@@ -1099,23 +1099,23 @@ void device_tracker::do_readonly_device_work_raw(std::shared_ptr<device_tracker_
     if (vec == nullptr)
         return;
 
-    kismet__for_each(vec->begin(), vec->end(), [&](shared_tracker_element val) {
-           if (val == nullptr)
-               return;
+    std::for_each(vec->begin(), vec->end(), [&](shared_tracker_element val) {
+            if (val == nullptr)
+                return;
 
-           std::shared_ptr<kis_tracked_device_base> v = 
-               std::static_pointer_cast<kis_tracked_device_base>(val);
+            std::shared_ptr<kis_tracked_device_base> v = 
+                std::static_pointer_cast<kis_tracked_device_base>(val);
 
-           bool m;
+            bool m;
 
-           // Lock the device itself inside the worker op
-           {
-               local_shared_locker devlocker(&(v->device_mutex));
-               m = worker->match_device(this, v);
-           }
+            // Lock the device itself inside the worker op
+            {
+                local_shared_locker devlocker(&(v->device_mutex));
+                m = worker->match_device(this, v);
+            }
 
-           if (m) 
-               worker->matched_device(v);
+            if (m) 
+                worker->matched_device(v);
        });
 
     worker->finalize(this);
@@ -1150,7 +1150,7 @@ void device_tracker::do_readonly_device_work(std::shared_ptr<device_tracker_filt
 void device_tracker::do_device_work_raw(std::shared_ptr<device_tracker_filter_worker> worker,
         const std::vector<std::shared_ptr<kis_tracked_device_base>>& vec, bool batch) {
 
-    kismet__for_each(vec.begin(), vec.end(), [&](shared_tracker_element val) {
+    std::for_each(vec.begin(), vec.end(), [&](shared_tracker_element val) {
             if (val == nullptr)
                 return;
 
@@ -1173,7 +1173,9 @@ void device_tracker::do_device_work_raw(std::shared_ptr<device_tracker_filter_wo
 void device_tracker::do_readonly_device_work_raw(std::shared_ptr<device_tracker_filter_worker> worker,
         const std::vector<std::shared_ptr<kis_tracked_device_base>>& vec, bool batch) {
 
-    kismet__for_each(vec.begin(), vec.end(), [&](shared_tracker_element val) {
+    local_shared_locker locker(&devicelist_mutex);
+
+    std::for_each(vec.begin(), vec.end(), [&](shared_tracker_element val) {
             if (val == nullptr)
                 return;
 
@@ -1277,7 +1279,7 @@ int device_tracker::timetracker_event(int eventid) {
 		// Now things start getting expensive.  Start by sorting the
 		// vector of devices - anything else that has to sort the entire list
         // has to sort it themselves
-		kismet__stable_sort(tracked_vec.begin(), tracked_vec.end(), 
+        std::stable_sort(tracked_vec.begin(), tracked_vec.end(), 
                 devicetracker_sort_lastseen);
 
         tracked_vec.erase(std::remove_if(tracked_vec.begin() + max_num_devices, tracked_vec.end(),
