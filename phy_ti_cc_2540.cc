@@ -102,8 +102,9 @@ int Kis_TICC2540_Phy::DissectorTICC2540(CHAINCALL_PARMS) {
     common->phyid = mphy->fetch_phy_id();
     common->channel = int_to_string(packdata->data[packdata->length-1] & 0x7f);
     common->basic_crypt_set = crypt_none;
-    common->type = packet_basic_data;
+    common->type = packet_basic_mgmt;
     common->source = mac_addr(l_mac, 6);//mac_addr(packdata->data, 6);
+    common->transmitter = mac_addr(l_mac, 6);//mac_addr(packdata->data, 6);
 
     in_pack->insert(mphy->pack_comp_common, common);
 

@@ -470,7 +470,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     uint8_t ident[32];
     int ret;
     ret = libusb_control_transfer(localticc2531->ticc2531_handle, TICC2531_DIR_IN, TICC2531_GET_IDENT, 0x00, 0x00, ident, sizeof(ident), TICC2531_TIMEOUT);
-
+    /*
     if (ret > 0)
     {
         printf("IDENT:");
@@ -478,7 +478,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             printf(" %02X", ident[i]);
         printf("\n");
     }
-
+    */
     pthread_mutex_unlock(&(localticc2531->usb_mutex));
 
     ticc2531_set_power(caph,0x04, TICC2531_POWER_RETRIES);
@@ -620,15 +620,15 @@ if(localticc2531->ready)
         }
         /**/
 
-	/*strip the header*/
-	uint8_t tmp_usb_buf[256];
-	int p_ctr=0;
-	for(int i=8;i<buf_rx_len;i++) {
-            tmp_usb_buf[p_ctr] = usb_buf[i];p_ctr++;
-	}
-	memset(usb_buf,0x00,256);
-	for(int i=0;i<p_ctr;i++) {
-            usb_buf[i] = tmp_usb_buf[i];
+        /*strip the header*/
+        uint8_t tmp_usb_buf[256];
+        int p_ctr=0;
+        for(int i=8;i<buf_rx_len;i++) {
+                tmp_usb_buf[p_ctr] = usb_buf[i];p_ctr++;
+        }
+        memset(usb_buf,0x00,256);
+        for(int i=0;i<p_ctr;i++) {
+                usb_buf[i] = tmp_usb_buf[i];
         }
         buf_rx_len = p_ctr;
 
