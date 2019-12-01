@@ -538,8 +538,10 @@ int main(int argc, char *argv[]) {
                 }
 
                 std::time_t timet(timestamp);
-                std::tm tm = *std::localtime(&timet);
+                std::tm tm;
                 std::stringstream ts;
+
+                gmtime_r(&timet, &tm);
 
                 ts << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
 
