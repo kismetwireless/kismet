@@ -2946,8 +2946,10 @@ double cf_parse_frequency(const char *freq) {
         return 0;
 
     /* Make a buffer at least as big as the total string to hold the frequency component */
-    ufreq = (char *) malloc(strlen(freq));
+    ufreq = (char *) malloc(strlen(freq) + 1);
 
+    /* sscanf w/ unbounded string component is still 'safe' here because ufreq is the length
+     * of the entire field, so must be able to fit any sub-component of the field.  */
     i = sscanf(freq, "%lf%s", &v, ufreq);
 
     if (i == 1 || strlen(ufreq) == 0) {
