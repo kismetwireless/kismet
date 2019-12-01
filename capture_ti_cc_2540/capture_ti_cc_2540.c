@@ -525,7 +525,7 @@ bool verify_packet(unsigned char *data, int len) {
     unsigned char payload[256];memset(payload,0x00,256);
     int pkt_len = data[1];
     if(pkt_len != (len-3)) {
-        printf("packet length mismatch\n");
+        /*printf("packet length mismatch\n");*/
         return false;
     }
     //get the paylaod
@@ -535,7 +535,7 @@ bool verify_packet(unsigned char *data, int len) {
     }
     int payload_len = data[7] - 0x02;
     if(p_ctr != payload_len) {
-        printf("payload size mismatch\n");
+        /*printf("payload size mismatch\n");*/
         return false;
     }
 
@@ -546,7 +546,7 @@ bool verify_packet(unsigned char *data, int len) {
     unsigned char crc_ok = fcs2 & (1 << 7);
     unsigned char channel = fcs2 & 0x7f;
     if(crc_ok > 0) {
-        printf("valid\n");
+        /*printf("valid\n");*/
         return true;
     }
     else
@@ -592,9 +592,10 @@ if(localticc2540->ready)
             continue;
 
         if(!verify_packet(usb_buf, buf_rx_len)) {
-            printf("invalid packet\n");continue;}
+            /*printf("invalid packet\n");*/
+            continue;}
         else {
-            /**/
+            /**
             if (buf_rx_len > 1) {
                 fprintf(stderr, "ti cc 2540 saw %d -- ", buf_rx_len);
 

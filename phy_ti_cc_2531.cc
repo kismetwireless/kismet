@@ -87,8 +87,83 @@ int Kis_TICC2531_Phy::DissectorTICC2531(CHAINCALL_PARMS) {
     if (common != NULL)
         return 0;
 
+    unsigned short frame_control = (packdata->data[9-8] << 8) + packdata->data[8-8];
+    unsigned char seq_num = packdata->data[10-8];
+
+    printf("    frame_control:%04X\n",frame_control);
+    printf("    seq_num:%02X\n",seq_num);
+
+    if(frame_control == 0x8000)
+    {
+        unsigned short source_pan = (packdata->data[12-8] << 8) + packdata->data[11-8];
+        unsigned short source_address = (packdata->data[14-8] << 8) + packdata->data[13-8];
+        unsigned short superrf_spec = (packdata->data[16-8] << 8) + packdata->data[15-8];
+        unsigned short gts_fields = (packdata->data[18-8] << 8) + packdata->data[17-8];
+
+        printf("\n");
+        printf("    BEACON FRAME\n");
+        printf("    frame_control:%04X\n",frame_control);
+        printf("    seq_num:%02X\n",seq_num);
+        printf("    source_pan:%04X\n",source_pan);
+        printf("    source_address:%04X\n",source_address);
+        printf("    superrf_spec:%04X\n",superrf_spec);
+        printf("    gts_fields:%04X\n",gts_fields);
+        printf("\n");
+    }
+    else if(frame_control == 0x8023)
+    {
+        unsigned short source_pan = (packdata->data[12-8] << 8) + packdata->data[11-8];
+        unsigned short source_address = (packdata->data[14-8] << 8) + packdata->data[13-8];
+        unsigned short cmd_frame_id = packdata->data[15-8];
+
+        printf("\n");
+        printf("    COMMAND FRAME\n");
+        printf("    frame_control:%04X\n",frame_control);
+        printf("    seq_num:%02X\n",seq_num);
+        printf("    source_pan:%04X\n",source_pan);
+        printf("    source_address:%04X\n",source_address);
+        printf("    cmd_frame_id:%02X\n",cmd_frame_id);
+        printf("\n");
+    }
+    else if(frame_control == 0x8841)
+    { 
+        unsigned short dest_pan = (packdata->data[12-8] << 8) + packdata->data[11-8];
+        unsigned short dest_address = (packdata->data[14-8] << 8) + packdata->data[13-8];
+        unsigned short source_address = (packdata->data[16-8] << 8) + packdata->data[15-8];
+
+        printf("\n");
+        printf("    DATA PACKET\n");
+        printf("    frame_control:%04X\n",frame_control);
+        printf("    seq_num:%02X\n",seq_num);
+        printf("    dest_pan:%04X\n",dest_pan);
+        printf("    dest_address:%04X\n",dest_address);
+        printf("    source_address:%04X\n",source_address);
+        printf("\n");
+    }
+    else if(frame_control == 0x8841)
+    {
+        unsigned int dest_address = (packdata->data[17-8] << 32) + (packdata->data[16-8] << 16) + (packdata->data[15-8] << 8) + packdata->data[14-8];
+        unsigned int source_address = (packdata->data[21-8] << 32) + (packdata->data[20-8] << 16) + (packdata->data[19-8] << 8) + packdata->data[18-8];
+        unsigned char port = packdata->data[22-8];
+        unsigned char device_info = packdata->data[23-8];
+        unsigned char trans_id = packdata->data[24-8];
+
+        printf("\n");
+        printf("    simpliciTI ping packet\n");
+        printf("    frame_control:%04X\n",frame_control);
+        printf("    seq_num:%02X\n",seq_num);
+        printf("    dest_address:%08X\n",dest_address);
+        printf("    source_address:%08X\n",source_address);
+        printf("    port:%02X\n",port);
+        printf("    device_info:%02X\n",device_info);
+        printf("    trans_id:%02X\n",trans_id);
+        printf("\n");
+    }
+
+
     common = new kis_common_info;
 
+    common->phyid = mphy->fetch_phy_id();
     common->basic_crypt_set = crypt_none;
     common->type = packet_basic_data;
     common->source = mac_addr(packdata->data, 6);
