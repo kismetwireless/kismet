@@ -31,6 +31,7 @@ typedef struct {
     /*keep track of our errors so we can reset if needed*/
     unsigned char error_ctr;
 
+    /*flag to let use know when we are ready to capture*/
     bool ready;
 
     kis_capture_handler_t *caph;
@@ -46,7 +47,7 @@ int ticc2540_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
     local_ticc2540_t *localticc2540 = (local_ticc2540_t *) caph->userdata;
     int ret;
     uint8_t data;
-
+    /* two step channel process*/
     data = channel & 0xFF;
     pthread_mutex_lock(&(localticc2540->usb_mutex));
     ret = libusb_control_transfer(localticc2540->ticc2540_handle, TICC2540_DIR_OUT, TICC2540_SET_CHAN, 0x00, 0x00, &data, 1, TICC2540_TIMEOUT);
@@ -525,28 +526,30 @@ bool verify_packet(unsigned char *data, int len) {
     unsigned char payload[256];memset(payload,0x00,256);
     int pkt_len = data[1];
     if(pkt_len != (len-3)) {
-        /*printf("packet length mismatch\n");*/
+        /* printf("packet length mismatch\n"); */
         return false;
     }
-    //get the paylaod
+    /* get the payload */
     int p_ctr=0;
     for(int i=8;i<(len-2);i++) {
         payload[p_ctr] = data[i];p_ctr++;
     }
     int payload_len = data[7] - 0x02;
     if(p_ctr != payload_len) {
-        /*printf("payload size mismatch\n");*/
+        /* printf("payload size mismatch\n"); */
         return false;
     }
 
     unsigned char fcs1 = data[len-2];
     unsigned char fcs2 = data[len-1];
-//rssi is the signed value at fcs1
+    /* rssi is the signed value at fcs1 */
     int rssi = (fcs1 + (int)pow(2,7)) % (int)pow(2,8) - (int)pow(2,7) - 73;
     unsigned char crc_ok = fcs2 & (1 << 7);
     unsigned char channel = fcs2 & 0x7f;
+    if(channel < 37 || channel > 39)
+        return false;
     if(crc_ok > 0) {
-        /*printf("valid\n");*/
+        /* printf("valid\n"); */
         return true;
     }
     else
@@ -592,10 +595,10 @@ if(localticc2540->ready)
             continue;
 
         if(!verify_packet(usb_buf, buf_rx_len)) {
-            /*printf("invalid packet\n");*/
+            /* printf("invalid packet\n"); */
             continue;}
         else {
-            /**
+            /*
             if (buf_rx_len > 1) {
                 fprintf(stderr, "ti cc 2540 saw %d -- ", buf_rx_len);
 
@@ -604,9 +607,9 @@ if(localticc2540->ready)
                 }
                 fprintf(stderr, "\n");
             }
-            /**/
+            */
 
-            /*strip the header*/
+            /* strip the header from TI */
             uint8_t tmp_usb_buf[256];
             int p_ctr=0;
             for(int i=8;i<buf_rx_len;i++) {
