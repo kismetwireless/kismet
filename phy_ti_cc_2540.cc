@@ -83,12 +83,12 @@ int Kis_TICC2540_Phy::DissectorTICC2540(CHAINCALL_PARMS) {
 
     //get the mac address
     unsigned char l_mac[6];memset(l_mac,0x00,6);
-    l_mac[0] = packdata->data[19-8];
-    l_mac[1] = packdata->data[18-8];
-    l_mac[2] = packdata->data[17-8];
-    l_mac[3] = packdata->data[16-8];
-    l_mac[4] = packdata->data[15-8];
-    l_mac[5] = packdata->data[14-8];
+    l_mac[0] = packdata->data[11];
+    l_mac[1] = packdata->data[10];
+    l_mac[2] = packdata->data[9];
+    l_mac[3] = packdata->data[8];
+    l_mac[4] = packdata->data[7];
+    l_mac[5] = packdata->data[6];
     // Did something already classify this?
     auto common = in_pack->fetch<kis_common_info>(mphy->pack_comp_common);
 
