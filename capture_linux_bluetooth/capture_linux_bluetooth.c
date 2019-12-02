@@ -341,13 +341,13 @@ void evt_controller_discovering(local_bluetooth_t *localbt, uint16_t len, const 
 }
 
 static char *eir_get_name(const uint8_t *eir, uint16_t eir_len) {
-    uint8_t parsed = 0;
+    uint16_t parsed = 0;
 
     if (eir_len < 2)
         return NULL;
 
     while (parsed < eir_len - 1) {
-        uint8_t field_len = eir[0];
+        uint16_t field_len = eir[0];
 
         if (field_len == 0)
             break;

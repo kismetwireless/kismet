@@ -395,51 +395,48 @@ std::string config_file::expand_log_path(const std::string& path, const std::str
             logtemplate.insert(nl, logname);
         else if (op == 'd') {
             time_t tnow;
-            struct tm *now;
+            struct tm now;
 
-            // tnow = time(0);
             tnow = Globalreg::globalreg->start_time;
-            now = localtime(&tnow);
+            gmtime_r(&tnow, &now);
 
             char datestr[24];
-            strftime(datestr, 24, "%b-%d-%Y", now);
+            strftime(datestr, 24, "%b-%d-%Y", &now);
 
             logtemplate.insert(nl, datestr);
         }
         else if (op == 'D') {
             time_t tnow;
-            struct tm *now;
+            struct tm now;
 
-            // tnow = time(0);
             tnow = Globalreg::globalreg->start_time;
-            now = localtime(&tnow);
+            gmtime_r(&tnow, &now);
 
             char datestr[24];
-            strftime(datestr, 24, "%Y%m%d", now);
+            strftime(datestr, 24, "%Y%m%d", &now);
 
             logtemplate.insert(nl, datestr);
         } else if (op == 't') {
             time_t tnow;
-            struct tm *now;
+            struct tm now;
 
-            // tnow = time(0);
             tnow = Globalreg::globalreg->start_time;
-            now = localtime(&tnow);
+            gmtime_r(&tnow, &now);
 
             char timestr[12];
-            strftime(timestr, 12, "%H-%M-%S", now);
+            strftime(timestr, 12, "%H-%M-%S", &now);
 
             logtemplate.insert(nl, timestr);
         } else if (op == 'T') {
             time_t tnow;
-            struct tm *now;
+            struct tm now;
 
             // tnow = time(0);
             tnow = Globalreg::globalreg->start_time;
-            now = localtime(&tnow);
+            gmtime_r(&tnow, &now);
 
             char timestr[12];
-            strftime(timestr, 12, "%H%M%S", now);
+            strftime(timestr, 12, "%H%M%S", &now);
 
             logtemplate.insert(nl, timestr);
         } else if (op == 'l') {
