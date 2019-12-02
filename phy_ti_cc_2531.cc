@@ -81,20 +81,28 @@ int Kis_TICC2531_Phy::DissectorTICC2531(CHAINCALL_PARMS) {
     if (packdata->length < 6)
         return 0;
 
+    //get the mac address
+    unsigned char s_mac[6];memset(s_mac,0x00,6);
+    unsigned char d_mac[6];memset(d_mac,0x00,6);
+
     // Did something already classify this?
     auto common = in_pack->fetch<kis_common_info>(mphy->pack_comp_common);
 
     if (common != NULL)
         return 0;
 
-    unsigned short frame_control = (packdata->data[9-8] << 8) + packdata->data[8-8];
-    unsigned char seq_num = packdata->data[10-8];
-
+    unsigned short frame_control = (packdata->data[1] << 8) + packdata->data[0];
+    unsigned char seq_num = packdata->data[2];
+/*
     printf("    frame_control:%04X\n",frame_control);
     printf("    seq_num:%02X\n",seq_num);
-
+*/
     if(frame_control == 0x8000)
     {
+        /* source address */
+        s_mac[0] = packdata->data[4];
+        s_mac[1] = packdata->data[3];
+/*
         unsigned short source_pan = (packdata->data[12-8] << 8) + packdata->data[11-8];
         unsigned short source_address = (packdata->data[14-8] << 8) + packdata->data[13-8];
         unsigned short superrf_spec = (packdata->data[16-8] << 8) + packdata->data[15-8];
@@ -109,9 +117,15 @@ int Kis_TICC2531_Phy::DissectorTICC2531(CHAINCALL_PARMS) {
         printf("    superrf_spec:%04X\n",superrf_spec);
         printf("    gts_fields:%04X\n",gts_fields);
         printf("\n");
+*/ 
     }
     else if(frame_control == 0x8023)
     {
+        /* source address */
+        s_mac[0] = packdata->data[6];
+        s_mac[1] = packdata->data[5];
+
+/*
         unsigned short source_pan = (packdata->data[12-8] << 8) + packdata->data[11-8];
         unsigned short source_address = (packdata->data[14-8] << 8) + packdata->data[13-8];
         unsigned short cmd_frame_id = packdata->data[15-8];
@@ -124,9 +138,19 @@ int Kis_TICC2531_Phy::DissectorTICC2531(CHAINCALL_PARMS) {
         printf("    source_address:%04X\n",source_address);
         printf("    cmd_frame_id:%02X\n",cmd_frame_id);
         printf("\n");
+*/
     }
     else if(frame_control == 0x8841)
     { 
+        /* source address */
+        s_mac[0] = packdata->data[8];
+        s_mac[1] = packdata->data[7];
+
+        /* dest address */
+        d_mac[0] = packdata->data[6];
+        d_mac[1] = packdata->data[5];
+
+/*
         unsigned short dest_pan = (packdata->data[12-8] << 8) + packdata->data[11-8];
         unsigned short dest_address = (packdata->data[14-8] << 8) + packdata->data[13-8];
         unsigned short source_address = (packdata->data[16-8] << 8) + packdata->data[15-8];
@@ -139,9 +163,23 @@ int Kis_TICC2531_Phy::DissectorTICC2531(CHAINCALL_PARMS) {
         printf("    dest_address:%04X\n",dest_address);
         printf("    source_address:%04X\n",source_address);
         printf("\n");
+*/
     }
     else if(frame_control == 0x8841)
     {
+        /* source address */
+        s_mac[0] = packdata->data[13];
+        s_mac[1] = packdata->data[12];
+        s_mac[2] = packdata->data[11];
+        s_mac[3] = packdata->data[10];
+
+        /* dest address */
+        d_mac[0] = packdata->data[9];
+        d_mac[1] = packdata->data[8];
+        d_mac[2] = packdata->data[7];
+        d_mac[3] = packdata->data[6];
+
+/*
         unsigned int dest_address = (packdata->data[17-8] << 32) + (packdata->data[16-8] << 16) + (packdata->data[15-8] << 8) + packdata->data[14-8];
         unsigned int source_address = (packdata->data[21-8] << 32) + (packdata->data[20-8] << 16) + (packdata->data[19-8] << 8) + packdata->data[18-8];
         unsigned char port = packdata->data[22-8];
@@ -158,6 +196,7 @@ int Kis_TICC2531_Phy::DissectorTICC2531(CHAINCALL_PARMS) {
         printf("    device_info:%02X\n",device_info);
         printf("    trans_id:%02X\n",trans_id);
         printf("\n");
+*/
     }
 
 
@@ -166,7 +205,8 @@ int Kis_TICC2531_Phy::DissectorTICC2531(CHAINCALL_PARMS) {
     common->phyid = mphy->fetch_phy_id();
     common->basic_crypt_set = crypt_none;
     common->type = packet_basic_data;
-    common->source = mac_addr(packdata->data, 6);
+    common->source = mac_addr(s_mac, 6);
+    common->dest = mac_addr(d_mac, 6);
 
     in_pack->insert(mphy->pack_comp_common, common);
 

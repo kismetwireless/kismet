@@ -543,7 +543,7 @@ bool verify_packet(unsigned char *data, int len) {
     unsigned char payload[256];memset(payload,0x00,256);
     int pkt_len = data[1];
     if(pkt_len != (len-3)) {
-        printf("packet length mismatch\n");
+        /* printf("packet length mismatch\n"); */
         return false;
     }
     //get the paylaod
@@ -553,7 +553,7 @@ bool verify_packet(unsigned char *data, int len) {
     }
     int payload_len = data[7] - 0x02;
     if(p_ctr != payload_len) {
-        printf("payload size mismatch\n");
+        /* printf("payload size mismatch\n"); */
         return false;
     }
 
@@ -609,7 +609,7 @@ if(localticc2531->ready)
         if(!verify_packet(usb_buf, buf_rx_len)) {
             fprintf(stderr,"invalid packet\n");continue;}
 
-        /**/
+        /*
         if (buf_rx_len > 1) {
             fprintf(stderr, "ti cc 2531 saw %d -- ", buf_rx_len);
 
@@ -618,7 +618,7 @@ if(localticc2531->ready)
             }
             fprintf(stderr, "\n");
         }
-        /**/
+        */
 
         /*strip the header*/
         uint8_t tmp_usb_buf[256];
