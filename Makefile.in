@@ -124,9 +124,6 @@ BUILD_CAPTURE_TI_CC_2540 = @BUILD_CAPTURE_TI_CC_2540@
 CAPTURE_TI_CC_2531 = capture_ti_cc_2531/kismet_cap_ti_cc_2531
 BUILD_CAPTURE_TI_CC_2531 = @BUILD_CAPTURE_TI_CC_2531@
 
-CAPTURE_RZ_KILLERBEE = capture_rz_killerbee/kismet_cap_rz_killerbee
-BUILD_CAPTURE_RZ_KILLERBEE = @BUILD_CAPTURE_RZ_KILLERBEE@
-
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
@@ -206,7 +203,7 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	$(PARSERS) \
 	phy_80211.cc.o phy_80211_components.cc.o phy_80211_dissectors.cc.o \
 	phy_rtl433.cc.o phy_rtlamr.cc.o phy_rtladsb.cc.o phy_zwave.cc.o \
-	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_ti_cc_2540.cc.o phy_ti_cc_2531.cc.o phy_rz_killerbee.cc.o\
+	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_ti_cc_2540.cc.o phy_ti_cc_2531.cc.o\
 	dot11_fingerprint.cc.o kis_dissector_ipdata.cc.o \
 	manuf.cc.o \
 	logtracker.cc.o kis_ppilogfile.cc.o kis_databaselogfile.cc.o kis_pcapnglogfile.cc.o \
@@ -301,9 +298,6 @@ $(CAPTURE_TI_CC_2540): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_TI_CC_2531): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_ti_cc_2531 && $(MAKE))
 
-$(CAPTURE_RZ_KILLERBEE): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
-	(cd capture_rz_killerbee && $(MAKE))
-
 $(CAPTURE_FREAKLABS_ZIGBEE): FORCE
 	(cd capture_freaklabs_zigbee && $(MAKE))
 
@@ -339,10 +333,6 @@ binsuidinstall: $(DATASOURCE_BINS)
 
 	@if test "$(BUILD_CAPTURE_TI_CC_2531)"x = "1"x; then \
                 $(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_TI_CC_2531) $(BIN)/`basename $(CAPTURE_TI_CC_2531)`; \
-        fi;
-
-	@if test "$(BUILD_CAPTURE_RZ_KILLERBEE)"x = "1"x; then \
-                $(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_RZ_KILLERBEE) $(BIN)/`basename $(CAPTURE_RZ_KILLERBEE)`; \
         fi;
 
 commoninstall: $(INSTBINS)
@@ -397,10 +387,6 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_TI_CC_2531)"x = "1"x; then \
                 $(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_TI_CC_2531) $(BIN)/`basename $(CAPTURE_TI_CC_2531)`; \
-        fi;
-
-	@if test "$(BUILD_CAPTURE_RZ_KILLERBEE)"x = "1"x; then \
-                $(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_RZ_KILLERBEE) $(BIN)/`basename $(CAPTURE_RZ_KILLERBEE)`; \
         fi;
 
 	@if test "$(BUILD_CAPTURE_SDR_RTL433)"x = "1"x; then \
@@ -587,7 +573,6 @@ clean:
 	@(cd capture_nrf_mousejack && make clean)
 	@(cd capture_ti_cc_2540 && make clean)
 	@(cd capture_ti_cc_2531 && make clean)
-	@(cd capture_rz_killerbee && make clean)
 
 distclean:
 	@-$(MAKE) clean
