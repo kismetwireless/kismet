@@ -103,8 +103,8 @@
 #include "phy_bluetooth.h"
 #include "phy_uav_drone.h"
 #include "phy_nrf_mousejack.h"
-#include "phy_ti_cc_2540.h"
-#include "phy_ti_cc_2531.h"
+#include "phy_btle.h"
+// #include "phy_ti_cc_2531.h"
 
 #include "ipc_remote2.h"
 #include "manuf.h"
