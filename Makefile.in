@@ -124,6 +124,9 @@ BUILD_CAPTURE_TI_CC_2540 = @BUILD_CAPTURE_TI_CC_2540@
 CAPTURE_TI_CC_2531 = capture_ti_cc_2531/kismet_cap_ti_cc_2531
 BUILD_CAPTURE_TI_CC_2531 = @BUILD_CAPTURE_TI_CC_2531@
 
+CAPTURE_NRF_51822 = capture_nrf_51822/kismet_cap_nrf_51822
+BUILD_CAPTURE_NRF_51822 = @BUILD_CAPTURE_NRF_51822@
+
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
@@ -203,7 +206,7 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	$(PARSERS) \
 	phy_80211.cc.o phy_80211_components.cc.o phy_80211_dissectors.cc.o \
 	phy_rtl433.cc.o phy_rtlamr.cc.o phy_rtladsb.cc.o phy_zwave.cc.o \
-	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_ti_cc_2540.cc.o phy_ti_cc_2531.cc.o\
+	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_ti_cc_2540.cc.o phy_ti_cc_2531.cc.o phy_nrf_51822.cc.o\
 	dot11_fingerprint.cc.o kis_dissector_ipdata.cc.o \
 	manuf.cc.o \
 	logtracker.cc.o kis_ppilogfile.cc.o kis_databaselogfile.cc.o kis_pcapnglogfile.cc.o \
@@ -297,6 +300,9 @@ $(CAPTURE_TI_CC_2540): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 
 $(CAPTURE_TI_CC_2531): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_ti_cc_2531 && $(MAKE))
+
+$(CAPTURE_NRF_51822): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_nrf_51822 && $(MAKE))
 
 $(CAPTURE_FREAKLABS_ZIGBEE): FORCE
 	(cd capture_freaklabs_zigbee && $(MAKE))
@@ -573,6 +579,7 @@ clean:
 	@(cd capture_nrf_mousejack && make clean)
 	@(cd capture_ti_cc_2540 && make clean)
 	@(cd capture_ti_cc_2531 && make clean)
+	@(cd capture_nrf_51822 && make clean)
 
 distclean:
 	@-$(MAKE) clean
