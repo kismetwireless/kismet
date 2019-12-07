@@ -467,9 +467,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     ticc2540_set_power(caph,0x04, TICC2540_POWER_RETRIES);
     ticc2540_enter_promisc_mode(caph);
 
-    // Fixed DLT of DLT_BLUETOOTH_LE_LL
-    *dlt = 251;
-
     return 1;
 }///mutex inside
 
