@@ -867,7 +867,6 @@ int main(int argc, char *argv[], char *envp[]) {
     devicetracker->register_phy_handler(new Kis_UAV_Phy(globalregistry));
     devicetracker->register_phy_handler(new Kis_Mousejack_Phy(globalregistry));
     devicetracker->register_phy_handler(new kis_btle_phy(globalregistry));
-    // devicetracker->register_phy_handler(new Kis_TICC2531_Phy(globalregistry));
     devicetracker->register_phy_handler(new kis_rtlamr_phy(globalregistry));
     devicetracker->register_phy_handler(new kis_rtladsb_phy(globalregistry));
 

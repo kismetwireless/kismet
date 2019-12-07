@@ -243,7 +243,7 @@ int pcap_stream_ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, std::stri
     size_t write_sz;
 
     uint32_t *end_sz = (uint32_t *) &buf_sz;
-    
+
     buf_sz = sizeof(pcapng_idb);
 
     // Allocate an end-of-options entry

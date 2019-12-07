@@ -29,7 +29,7 @@
 class kis_datasource_ticc2540;
 typedef std::shared_ptr<kis_datasource_ticc2540> shared_datasource_ticc2540;
 
-#define KDLT_BTLE_RADIO             161
+#define KDLT_BTLE_RADIO             256
 
 class kis_datasource_ticc2540 : public kis_datasource {
 public:
@@ -40,16 +40,14 @@ public:
         // Set the capture binary
         set_int_source_ipc_binary("kismet_cap_ti_cc_2540");
 
-        pack_comp_ble =
-            packetchain->register_packet_component("BTLE");
+        // We synthesize BTLE_LL_RADIO headers
+        set_int_source_dlt(KDLT_BTLE_RADIO);
     }
 
     virtual ~kis_datasource_ticc2540() { };
 
 protected:
     virtual void handle_rx_packet(kis_packet *packet) override;
-
-    int pack_comp_ble;
 };
 
 
