@@ -117,8 +117,8 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
     return 1;
 }
 
-int Kis_TICC2540_Phy::CommonClassifierTICC2540(CHAINCALL_PARMS) {
-    auto mphy = static_cast<Kis_TICC2540_Phy *>(auxdata);
+int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
+    auto mphy = static_cast<kis_btle_phy *>(auxdata);
 
     auto packdata = in_pack->fetch<kis_datachunk>(mphy->pack_comp_linkframe);
 
@@ -143,32 +143,32 @@ int Kis_TICC2540_Phy::CommonClassifierTICC2540(CHAINCALL_PARMS) {
                 (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                  UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
-                "TI");
+                "BTLE Device");
     auto ticc2540 =
-        device->get_sub_as<ticc2540_tracked_device>(mphy->ticc2540_device_entry_id);
+        device->get_sub_as<btle_tracked_device>(mphy->btle_device_id);
 
     if (ticc2540 == NULL) {
-        _MSG_INFO("Detected new TI CC 2540 device {}",
+        _MSG_INFO("Detected new BTLE device {}",
                 common->source.mac_to_string());
-        ticc2540 = std::make_shared<ticc2540_tracked_device>(mphy->ticc2540_device_entry_id);
+        ticc2540 = std::make_shared<btle_tracked_device>(mphy->btle_device_id);
         device->insert(ticc2540);
     }
 /**/
     return 1;
 }
 
-void Kis_TICC2540_Phy::load_phy_storage(shared_tracker_element in_storage,
+void kis_btle_phy::load_phy_storage(shared_tracker_element in_storage,
         shared_tracker_element in_device) {
     if (in_storage == nullptr || in_device == nullptr)
         return;
 
     auto storage = std::static_pointer_cast<tracker_element_map>(in_storage);
 
-    auto nrfdevi = storage->find(ticc2540_device_entry_id);
+    auto nrfdevi = storage->find(btle_device_id);
 
     if (nrfdevi != storage->end()) {
         auto nrfdev =
-            std::make_shared<ticc2540_tracked_device>(ticc2540_device_entry_id,
+            std::make_shared<btle_tracked_device>(btle_device_id,
                     std::static_pointer_cast<tracker_element_map>(nrfdevi->second));
         std::static_pointer_cast<tracker_element_map>(in_device)->insert(nrfdev);
     }
