@@ -24,7 +24,7 @@ void kis_datasource_ticc2540::handle_rx_packet(kis_packet *packet) {
         int8_t signal;
         int8_t noise;
         uint8_t access_offenses;
-        uint32_t reference_access_address_le;
+        uint8_t reference_access_address[4];
         uint16_t flags_le;
         uint8_t payload[0];
     } __attribute__((packed)) btle_rf;
@@ -96,16 +96,34 @@ void kis_datasource_ticc2540::handle_rx_packet(kis_packet *packet) {
     // RSSI is a signed value at fcs1; convert it from the CC value to signed dbm
     conv_header->signal = (fcs1 + (int) pow(2, 7)) % (int) pow(2, 8) - (int) pow(2, 7) - 73;
 
-    uint16_t crcbits = btle_rf_crc_checked;
+    uint16_t bits = btle_rf_crc_checked;
     if (fcs2 & (1 << 7))
-        crcbits += btle_rf_crc_valid;
+        bits += btle_rf_crc_valid;
+
+    if (cc_payload_len >= 4) {
+        memcpy(conv_header->reference_access_address, conv_header->payload, 4);
+        bits += btle_rf_flag_reference_access_valid;
+    }
 
     conv_header->flags_le = 
-        htole16(crcbits + btle_rf_flag_signalvalid + btle_rf_flag_dewhitened);
+        htole16(bits + btle_rf_flag_signalvalid + btle_rf_flag_dewhitened);
    
     // Replace the existing packet data with this and update the DLT
     cc_chunk->set_data((uint8_t *) conv_header, conv_buf_len, false);
     cc_chunk->dlt = KDLT_BTLE_RADIO;
+
+    // Generate a l1 radio header and a decap header since we have it computed already
+    auto radioheader = new kis_layer1_packinfo();
+    radioheader->signal_type = kis_l1_signal_type_dbm;
+    radioheader->signal_dbm = conv_header->signal;
+    radioheader->freq_khz = (2400 + (fcs2 & 0x7F)) * 1000;
+    radioheader->channel = (fcs2 & 0x7F);
+    packet->insert(pack_comp_radiodata, radioheader);
+
+    auto decapchunk = new kis_datachunk;
+    decapchunk->set_data(conv_header->payload, cc_payload_len, false);
+    decapchunk->dlt = KDLT_BLUETOOTH_LE_LL;
+    packet->insert(pack_comp_decap, decapchunk);
 
     // Pass the packet on
     packetchain->process_packet(packet);

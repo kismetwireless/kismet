@@ -29,7 +29,13 @@
 class kis_datasource_ticc2540;
 typedef std::shared_ptr<kis_datasource_ticc2540> shared_datasource_ticc2540;
 
+#ifndef KDLT_BLUETOOTH_LE_LL
+#define KDLT_BLUETOOTH_LE_LL        251
+#endif
+
+#ifndef KDLT_BTLE_RADIO
 #define KDLT_BTLE_RADIO             256
+#endif
 
 class kis_datasource_ticc2540 : public kis_datasource {
 public:
@@ -42,12 +48,19 @@ public:
 
         // We synthesize BTLE_LL_RADIO headers
         set_int_source_dlt(KDLT_BTLE_RADIO);
+
+        pack_comp_decap =
+            packetchain->register_packet_component("DECAP");
+        pack_comp_radiodata = 
+            packetchain->register_packet_component("RADIODATA");
     }
 
     virtual ~kis_datasource_ticc2540() { };
 
 protected:
     virtual void handle_rx_packet(kis_packet *packet) override;
+
+    int pack_comp_decap, pack_comp_radiodata;
 };
 
 
