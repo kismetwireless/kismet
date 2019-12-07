@@ -1,3 +1,20 @@
+/*
+    This file is part of Kismet
+
+    Kismet is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    Kismet is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Kismet; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
 
 #ifndef __DATASOURCE_TI_CC2540_H__
 #define __DATASOURCE_TI_CC2540_H__
@@ -9,32 +26,36 @@
 #include "kis_datasource.h"
 #include "dlttracker.h"
 
-class kis_datasource_TICC2540;
-typedef std::shared_ptr<kis_datasource_TICC2540> shared_datasource_TICC2540;
+class kis_datasource_ticc2540;
+typedef std::shared_ptr<kis_datasource_ticc2540> shared_datasource_ticc2540;
 
-class kis_datasource_TICC2540 : public kis_datasource {
+#define KDLT_BTLE_RADIO             161
+
+class kis_datasource_ticc2540 : public kis_datasource {
 public:
-    kis_datasource_TICC2540(shared_datasource_builder in_builder,
+    kis_datasource_ticc2540(shared_datasource_builder in_builder,
             std::shared_ptr<kis_recursive_timed_mutex> mutex) :
         kis_datasource(in_builder, mutex) {
 
         // Set the capture binary
         set_int_source_ipc_binary("kismet_cap_ti_cc_2540");
 
-        // Get and register a DLT
-        auto dltt = 
-            Globalreg::fetch_mandatory_global_as<dlt_tracker>("DLTTRACKER");
-
-        set_int_source_override_linktype(dltt->register_linktype("TICC2540"));//TICC2540
+        pack_comp_ble =
+            packetchain->register_packet_component("BTLE");
     }
 
-    virtual ~kis_datasource_TICC2540() { };
+    virtual ~kis_datasource_ticc2540() { };
+
+protected:
+    virtual void handle_rx_packet(kis_packet *packet) override;
+
+    int pack_comp_ble;
 };
 
 
-class datasource_TICC2540_builder : public kis_datasource_builder {
+class datasource_ticc2540_builder : public kis_datasource_builder {
 public:
-    datasource_TICC2540_builder(int in_id) :
+    datasource_ticc2540_builder(int in_id) :
         kis_datasource_builder(in_id) {
 
         register_fields();
@@ -42,7 +63,7 @@ public:
         initialize();
     }
 
-    datasource_TICC2540_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
+    datasource_ticc2540_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
         kis_datasource_builder(in_id, e) {
 
         register_fields();
@@ -50,7 +71,7 @@ public:
         initialize();
     }
 
-    datasource_TICC2540_builder() :
+    datasource_ticc2540_builder() :
         kis_datasource_builder() {
 
         register_fields();
@@ -58,11 +79,11 @@ public:
         initialize();
     }
 
-    virtual ~datasource_TICC2540_builder() { }
+    virtual ~datasource_ticc2540_builder() { }
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this,
             std::shared_ptr<kis_recursive_timed_mutex> mutex) override {
-        return shared_datasource_TICC2540(new kis_datasource_TICC2540(in_sh_this, mutex));
+        return shared_datasource_ticc2540(new kis_datasource_ticc2540(in_sh_this, mutex));
     }
 
     virtual void initialize() override {
