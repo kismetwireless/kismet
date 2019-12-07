@@ -497,6 +497,10 @@ protected:
     virtual void handle_packet_probesource_report(uint32_t in_seqno, const std::string& in_packet);
     virtual void handle_packet_warning_report(uint32_t in_seqno, const std::string& in_packet);
 
+    // Handle injecting packets into the packet chain after the data report has been received
+    // and processed.  Subclasses can override this to manipulate packet content.
+    virtual void handle_rx_packet(kis_packet *packet);
+
     virtual unsigned int send_configure_channel(std::string in_channel, unsigned int in_transaction,
             configure_callback_t in_cb);
     virtual unsigned int send_configure_channel_hop(double in_rate,
