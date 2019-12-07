@@ -800,7 +800,8 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
         set_int_source_hardware(report.hardware());
     }
 
-    if (report.has_dlt()) {
+    // Only override the source level dlt if it hasn't been set
+    if (report.has_dlt() && get_source_dlt() == 0) {
         set_int_source_dlt(report.dlt());
     }
 
