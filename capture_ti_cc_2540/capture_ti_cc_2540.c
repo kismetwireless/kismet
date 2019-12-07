@@ -576,51 +576,24 @@ void capture_thread(kis_capture_handler_t *caph) {
 
             break;
         }
-if(localticc2540->ready)
-{
-        buf_rx_len = ticc2540_receive_payload(caph, usb_buf, 256);
-        if (buf_rx_len < 0) {
-            snprintf(errstr, STATUS_MAX, "TI CC 2540 interface 'ticc2540-%u-%u' closed "
-                    "unexpectedly", localticc2540->busno, localticc2540->devno);
-            cf_send_error(caph, 0, errstr);
-            cf_handler_spindown(caph);
-            break;
-        }
 
-        /* Skip runt packets caused by timeouts */
-        if (buf_rx_len == 1)
-            continue;
-
-        //the devices look to report a 4 byte counter/heartbeat, skip it
-        if(buf_rx_len <= 7)
-            continue;
-
-        if(!verify_packet(usb_buf, buf_rx_len)) {
-            /* printf("invalid packet\n"); */
-            continue;}
-        else {
-            /*
-            if (buf_rx_len > 1) {
-                fprintf(stderr, "ti cc 2540 saw %d -- ", buf_rx_len);
-
-                for (int bb = 0; bb < buf_rx_len; bb++) {
-                    fprintf(stderr, "%02X ", usb_buf[bb] & 0xFF);
-                }
-                fprintf(stderr, "\n");
+        if(localticc2540->ready) {
+            buf_rx_len = ticc2540_receive_payload(caph, usb_buf, 256);
+            if (buf_rx_len < 0) {
+                snprintf(errstr, STATUS_MAX, "TI CC 2540 interface 'ticc2540-%u-%u' closed "
+                        "unexpectedly", localticc2540->busno, localticc2540->devno);
+                cf_send_error(caph, 0, errstr);
+                cf_handler_spindown(caph);
+                break;
             }
-            */
 
-            /* strip the header from TI */
-            uint8_t tmp_usb_buf[256];
-            int p_ctr=0;
-            for(int i=8;i<buf_rx_len;i++) {
-                tmp_usb_buf[p_ctr] = usb_buf[i];p_ctr++;
-            }
-            memset(usb_buf,0x00,256);
-            for(int i=0;i<p_ctr;i++) {
-                usb_buf[i] = tmp_usb_buf[i];
-            }
-            buf_rx_len = p_ctr;
+            /* Skip runt packets caused by timeouts */
+            if (buf_rx_len == 1)
+                continue;
+
+            /* the devices look to report a 4 byte counter/heartbeat, skip it */
+            if(buf_rx_len <= 7)
+                continue;
 
             while (1) {
                 struct timeval tv;
@@ -641,14 +614,11 @@ if(localticc2540->ready)
                     break;
                 }
             }
-        }//else of valid
-}
+        }
     }
 
     cf_handler_spindown(caph);
-}///
-
-
+}
 
 
 int main(int argc, char *argv[]) {
