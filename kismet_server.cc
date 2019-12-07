@@ -54,6 +54,7 @@
 
 #include "kis_dlt_ppi.h"
 #include "kis_dlt_radiotap.h"
+#include "kis_dlt_btle_ll_radio.h"
 
 #include "kis_dissector_ipdata.h"
 
@@ -856,6 +857,7 @@ int main(int argc, char *argv[], char *envp[]) {
     // Register the DLT handlers
     kis_dlt_ppi::create_dlt();
     kis_dlt_radiotap::create_dlt();
+    kis_dlt_btle_ll_radio::create_dlt();
 
     new kis_dissector_ip_data(globalregistry);
 

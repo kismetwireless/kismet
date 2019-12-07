@@ -117,7 +117,7 @@ void kis_datasource_ticc2540::handle_rx_packet(kis_packet *packet) {
     radioheader->signal_type = kis_l1_signal_type_dbm;
     radioheader->signal_dbm = conv_header->signal;
     radioheader->freq_khz = (2400 + (fcs2 & 0x7F)) * 1000;
-    radioheader->channel = (fcs2 & 0x7F);
+    radioheader->channel = fmt::format("{}", (fcs2 & 0x7F));
     packet->insert(pack_comp_radiodata, radioheader);
 
     auto decapchunk = new kis_datachunk;
