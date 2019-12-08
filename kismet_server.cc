@@ -73,6 +73,7 @@
 #include "datasource_nrf_mousejack.h"
 #include "datasource_ti_cc_2540.h"
 #include "datasource_ti_cc_2531.h"
+#include "datasource_nrf_51822.h"
 
 #include "logtracker.h"
 #include "kis_ppilogfile.h"
@@ -105,6 +106,7 @@
 #include "phy_nrf_mousejack.h"
 #include "phy_ti_cc_2540.h"
 #include "phy_ti_cc_2531.h"
+#include "phy_nrf_51822.h"
 
 #include "ipc_remote2.h"
 #include "manuf.h"
@@ -868,6 +870,7 @@ int main(int argc, char *argv[], char *envp[]) {
     devicetracker->register_phy_handler(new Kis_Mousejack_Phy(globalregistry));
     devicetracker->register_phy_handler(new Kis_TICC2540_Phy(globalregistry));
     devicetracker->register_phy_handler(new Kis_TICC2531_Phy(globalregistry));
+    devicetracker->register_phy_handler(new Kis_NRF51822_Phy(globalregistry));
     devicetracker->register_phy_handler(new kis_rtlamr_phy(globalregistry));
     devicetracker->register_phy_handler(new kis_rtladsb_phy(globalregistry));
 
@@ -887,6 +890,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_nrf_mousejack_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_TICC2540_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_TICC2531_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_NRF_51822_builder()));
 
     // Create the database logger as a global because it's a special case
     kis_database_logfile::create_kisdatabaselog();

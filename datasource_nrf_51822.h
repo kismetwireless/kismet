@@ -25,7 +25,7 @@ public:
         auto dltt = 
             Globalreg::fetch_mandatory_global_as<dlt_tracker>("DLTTRACKER");
 
-        set_int_source_override_linktype(dltt->register_linktype("NRF_51822"));
+        set_int_source_override_linktype(dltt->register_linktype("NRF51822"));
     }
 
     virtual ~kis_datasource_NRF_51822() { };
@@ -71,7 +71,7 @@ public:
         set_source_type("nrf51822");
         set_source_description("nrf 51822 with sniffer firmware");
 
-        set_probe_capable(false);
+        set_probe_capable(true);
         set_list_capable(false);
         set_local_capable(true);
         set_remote_capable(true);

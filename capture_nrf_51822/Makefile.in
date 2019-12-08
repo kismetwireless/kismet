@@ -6,11 +6,8 @@ MONITOR_BIN = kismet_cap_nrf_51822
 
 all: $(MONITOR_BIN)
 
-LIBUSBCFLAGS=@LIBUSBCFLAGS@
-LIBUSBLIBS=@LIBUSBLIBS@
-
 $(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
-		$(CCLD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a $(DATASOURCE_LIBS) $(LIBUSBLIBS)
+		$(CCLD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a $(DATASOURCE_LIBS)
 
 clean:
 	@-rm -f $(MONITOR_BIN)
@@ -19,7 +16,7 @@ clean:
 
 %.c.o:	%.c
 %.c.o : %.c %.c.d
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(LIBUSBCFLAGS) -c $*.c -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@
 
 %.c.d:	%.c
 	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
