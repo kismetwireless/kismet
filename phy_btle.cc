@@ -99,7 +99,18 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
         bluetooth_btle btle;
         btle.parse(btle_stream);
 
-        fmt::print(stderr, "debug - got btle {} len {}\n", btle.advertising_address(), btle.length());
+        // TODO parse flags and name into common and btle components
+
+        fmt::print(stderr, "debug - got btle {} len {} pdu {} data fields {}\n", btle.advertising_address(), btle.length(), btle.pdu_type(), btle.advertised_data()->size());
+
+        for (auto ad : *btle.advertised_data()) {
+            if (ad->type() == 0x01) {
+
+            } else if (ad->type() == 0x09) {
+                fmt::print(stderr, "    {}\n", ad->data());
+            }
+
+        }
 
     } catch (const std::exception& e) {
         fmt::print(stderr, "debug - failed to parse btle\n");

@@ -86,10 +86,38 @@ public:
         return std::move(dup);
     }
 
+   __Proxy(le_limited_discoverable, uint8_t, bool, bool, le_limited_discoverable);
+   __Proxy(le_general_discoverable, uint8_t, bool, bool, le_general_discoverable);
+   __Proxy(br_edr_unsupported, uint8_t, bool, bool, br_edr_unsupported);
+   __Proxy(simultaneous_br_edr_controller, uint8_t, bool, bool, simultaneous_br_edr_controller);
+   __Proxy(simultaneous_br_edr_host, uint8_t, bool, bool, simultaneous_br_edr_host);
+
 protected:
     virtual void register_fields() override { 
         tracker_component::register_fields();
+
+        register_field("btle.le_limited_discoverable",
+                "BT LE limited discoverable mode",
+                &le_limited_discoverable);
+        register_field("btle.le_general_discoverable",
+                "BT LE general discoverable mode",
+                &le_general_discoverable);
+        register_field("btle.br_edr_unsupported",
+                "BT LE BR/EDR unsupported",
+                &br_edr_unsupported);
+        register_field("btle.simultaneous_br_edr_controller",
+                "BT LE simultaneous BR/EDR controller mode",
+                &simultaneous_br_edr_controller);
+        register_field("btle.simultaneous_br_edr_host",
+                "BT LE simultaneous BR/EDR host mode",
+                &simultaneous_br_edr_host);
     }
+
+    std::shared_ptr<tracker_element_uint8> le_limited_discoverable;
+    std::shared_ptr<tracker_element_uint8> le_general_discoverable;
+    std::shared_ptr<tracker_element_uint8> br_edr_unsupported;
+    std::shared_ptr<tracker_element_uint8> simultaneous_br_edr_controller;
+    std::shared_ptr<tracker_element_uint8> simultaneous_br_edr_host;
 };
 
 class kis_btle_phy : public kis_phy_handler {
