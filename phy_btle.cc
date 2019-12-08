@@ -38,6 +38,17 @@
 
 #include "phy_btle.h"
 
+#include "kaitai/kaitaistream.h"
+#include "bluetooth_parsers/btle.h"
+
+#ifndef KDLT_BLUETOOTH_LE_LL
+#define KDLT_BLUETOOTH_LE_LL        251
+#endif
+
+#ifndef KDLT_BTLE_RADIO
+#define KDLT_BTLE_RADIO             256
+#endif
+
 kis_btle_phy::kis_btle_phy(global_registry *in_globalreg, int in_phyid) :
     kis_phy_handler(in_globalreg, in_phyid) {
 
@@ -52,8 +63,7 @@ kis_btle_phy::kis_btle_phy(global_registry *in_globalreg, int in_phyid) :
 
     pack_comp_common = packetchain->register_packet_component("COMMON");
 	pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
-
-    dlt = DLT_BLUETOOTH_LE_LL;
+    pack_comp_decap = packetchain->register_packet_component("DECAP");
 
     packetchain->register_handler(&dissector, this, CHAINPOS_LLCDISSECT, -100);
     packetchain->register_handler(&common_classifier, this, CHAINPOS_CLASSIFIER, -100);
@@ -74,26 +84,31 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
 
     auto packdata = in_pack->fetch<kis_datachunk>(mphy->pack_comp_linkframe);
 
-    if (packdata == NULL)
+    if (packdata == NULL || (packdata != NULL && packdata->dlt != KDLT_BLUETOOTH_LE_LL))
+        packdata = in_pack->fetch<kis_datachunk>(mphy->pack_comp_decap);
+
+    if (packdata == NULL || (packdata != NULL && packdata->dlt != KDLT_BLUETOOTH_LE_LL))
         return 0;
 
-    // Is it a packet we care about?
-    if (packdata->dlt != mphy->dlt)
-        return 0;
+    membuf btle_membuf((char *) packdata->data, (char *) &packdata->data[packdata->length]);
+    std::istream btle_istream(&btle_membuf);
+    auto btle_stream = 
+        std::make_shared<kaitai::kstream>(&btle_istream);
 
-    // Do we have enough data for an OUI?
-    if (packdata->length < 6)
-        return 0;
+    try {
+        bluetooth_btle btle;
+        btle.parse(btle_stream);
 
-    // get the mac address
-    unsigned char l_mac[6];
-    memset(l_mac, 0x00, 6);
-    l_mac[0] = packdata->data[11];
-    l_mac[1] = packdata->data[10];
-    l_mac[2] = packdata->data[9];
-    l_mac[3] = packdata->data[8];
-    l_mac[4] = packdata->data[7];
-    l_mac[5] = packdata->data[6];
+        fmt::print(stderr, "debug - got btle {} len {}\n", btle.advertising_address(), btle.length());
+
+    } catch (const std::exception& e) {
+        fmt::print(stderr, "debug - failed to parse btle\n");
+
+    }
+
+    return 0;
+
+#if 0
 
     // Did something already classify this?
     auto common = in_pack->fetch<kis_common_info>(mphy->pack_comp_common);
@@ -115,6 +130,7 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
     in_pack->insert(mphy->pack_comp_common, common);
 
     return 1;
+#endif
 }
 
 int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
@@ -126,7 +142,7 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
         return 0;
 
     // Is it a packet we care about?
-    if (packdata->dlt != mphy->dlt)
+    if (packdata->dlt != KDLT_BLUETOOTH_LE_LL)
         return 0;
 /**/
     // Did we classify this?
@@ -154,6 +170,7 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
         device->insert(ticc2540);
     }
 /**/
+
     return 1;
 }
 

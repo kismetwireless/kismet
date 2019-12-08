@@ -118,9 +118,7 @@ protected:
     std::shared_ptr<device_tracker> devicetracker;
 
     int dev_comp_common;
-    int pack_comp_common, pack_comp_linkframe;
-
-    int dlt;
+    int pack_comp_common, pack_comp_linkframe, pack_comp_decap;
 
     int btle_device_id;
 };
