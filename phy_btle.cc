@@ -188,6 +188,9 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
         device->insert(btle_dev);
     }
 
+    if (btle_info->btle_decode->is_txaddr_random())
+        device->set_manuf(Globalreg::globalreg->manufdb->get_random_manuf());
+
     for (auto ad : *btle_info->btle_decode->advertised_data()) {
         if (ad->type() == BTLE_ADVDATA_FLAGS && ad->length() == 2) {
             uint8_t flags = ad->data().data()[0];
