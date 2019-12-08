@@ -96,20 +96,16 @@ protected:
     virtual void register_fields() override { 
         tracker_component::register_fields();
 
-        register_field("btle.le_limited_discoverable",
-                "BT LE limited discoverable mode",
+        register_field("btle.le_limited_discoverable", "BT LE limited discoverable mode",
                 &le_limited_discoverable);
-        register_field("btle.le_general_discoverable",
-                "BT LE general discoverable mode",
+        register_field("btle.le_general_discoverable", "BT LE general discoverable mode",
                 &le_general_discoverable);
-        register_field("btle.br_edr_unsupported",
-                "BT LE BR/EDR unsupported",
+        register_field("btle.br_edr_unsupported", "BT LE BR/EDR unsupported",
                 &br_edr_unsupported);
         register_field("btle.simultaneous_br_edr_controller",
                 "BT LE simultaneous BR/EDR controller mode",
                 &simultaneous_br_edr_controller);
-        register_field("btle.simultaneous_br_edr_host",
-                "BT LE simultaneous BR/EDR host mode",
+        register_field("btle.simultaneous_br_edr_host", "BT LE simultaneous BR/EDR host mode",
                 &simultaneous_br_edr_host);
     }
 
@@ -145,8 +141,7 @@ protected:
     std::shared_ptr<entry_tracker> entrytracker;
     std::shared_ptr<device_tracker> devicetracker;
 
-    int dev_comp_common;
-    int pack_comp_common, pack_comp_linkframe, pack_comp_decap;
+    int pack_comp_common, pack_comp_linkframe, pack_comp_decap, pack_comp_btle;
 
     int btle_device_id;
 };

@@ -49,6 +49,26 @@
 #define KDLT_BTLE_RADIO             256
 #endif
 
+class btle_packinfo : public packet_component {
+public:
+    btle_packinfo() {
+        self_destruct = 1;
+    }
+
+    std::shared_ptr<bluetooth_btle> btle_decode;
+};
+
+#define BTLE_ADVDATA_FLAGS                      0x01
+#define BTLE_ADVDATA_SERVICE_UUID_INCOMPLETE    0x02
+#define BTLE_ADVDATA_DEVICE_NAME                0x09
+
+#define BTLE_ADVDATA_FLAG_LIMITED_DISCOVERABLE      (1 << 0)
+#define BTLE_ADVDATA_FLAG_GENERAL_DISCOVERABLE      (1 << 1)
+#define BTLE_ADVDATA_FLAG_BREDR_NONSUPP             (1 << 2)
+#define BTLE_ADVDATA_FLAG_SIMUL_BREDR_CONTROLLER    (1 << 3)
+#define BTLE_ADVDATA_FLAG_SIMUL_BREDR_HOST          (1 << 4)
+
+
 kis_btle_phy::kis_btle_phy(global_registry *in_globalreg, int in_phyid) :
     kis_phy_handler(in_globalreg, in_phyid) {
 
@@ -64,6 +84,7 @@ kis_btle_phy::kis_btle_phy(global_registry *in_globalreg, int in_phyid) :
     pack_comp_common = packetchain->register_packet_component("COMMON");
 	pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
     pack_comp_decap = packetchain->register_packet_component("DECAP");
+    pack_comp_btle = packetchain->register_packet_component("BTLE");
 
     packetchain->register_handler(&dissector, this, CHAINPOS_LLCDISSECT, -100);
     packetchain->register_handler(&common_classifier, this, CHAINPOS_CLASSIFIER, -100);
@@ -82,6 +103,11 @@ kis_btle_phy::~kis_btle_phy() {
 int kis_btle_phy::dissector(CHAINCALL_PARMS) {
     auto mphy = static_cast<kis_btle_phy *>(auxdata);
 
+    // Don't reclassify something that's already been seen
+    auto common = in_pack->fetch<kis_common_info>(mphy->pack_comp_common);
+    if (common != NULL)
+        return 0;
+
     auto packdata = in_pack->fetch<kis_datachunk>(mphy->pack_comp_linkframe);
 
     if (packdata == NULL || (packdata != NULL && packdata->dlt != KDLT_BLUETOOTH_LE_LL))
@@ -95,71 +121,47 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
     auto btle_stream = 
         std::make_shared<kaitai::kstream>(&btle_istream);
 
+    common = new kis_common_info();
+    common->phyid = mphy->fetch_phy_id();
+    common->basic_crypt_set = crypt_none;
+    common->type = packet_basic_mgmt;
+
+    auto btle_info = new btle_packinfo();
+
     try {
-        bluetooth_btle btle;
-        btle.parse(btle_stream);
+        auto btle = std::make_shared<bluetooth_btle>();
+        btle->parse(btle_stream);
 
-        // TODO parse flags and name into common and btle components
+        common->source = btle->advertising_address();
+        common->transmitter = btle->advertising_address();
+        // We don't set the channel or freq because it's already in l1info and gets picked 
+        // up from there automatically
 
-        fmt::print(stderr, "debug - got btle {} len {} pdu {} data fields {}\n", btle.advertising_address(), btle.length(), btle.pdu_type(), btle.advertised_data()->size());
+        btle_info->btle_decode = btle;
 
-        for (auto ad : *btle.advertised_data()) {
-            if (ad->type() == 0x01) {
-
-            } else if (ad->type() == 0x09) {
-                fmt::print(stderr, "    {}\n", ad->data());
-            }
-
-        }
-
+        in_pack->insert(mphy->pack_comp_common, common);
+        in_pack->insert(mphy->pack_comp_btle, btle_info);
     } catch (const std::exception& e) {
-        fmt::print(stderr, "debug - failed to parse btle\n");
-
+        delete(common);
+        delete(btle_info);
+        return 0;
     }
 
     return 0;
-
-#if 0
-
-    // Did something already classify this?
-    auto common = in_pack->fetch<kis_common_info>(mphy->pack_comp_common);
-
-    if (common != NULL)
-        return 0;
-
-    common = new kis_common_info;
-
-    //printf("chan :%d\n",(packdata->data[packdata->length-1] & 0x7f));
-
-    common->phyid = mphy->fetch_phy_id();
-    common->channel = int_to_string(packdata->data[packdata->length-1] & 0x7f);
-    common->basic_crypt_set = crypt_none;
-    common->type = packet_basic_mgmt;
-    common->source = mac_addr(l_mac, 6);//mac_addr(packdata->data, 6);
-    common->transmitter = mac_addr(l_mac, 6);//mac_addr(packdata->data, 6);
-
-    in_pack->insert(mphy->pack_comp_common, common);
-
-    return 1;
-#endif
 }
 
 int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
     auto mphy = static_cast<kis_btle_phy *>(auxdata);
 
-    auto packdata = in_pack->fetch<kis_datachunk>(mphy->pack_comp_linkframe);
-
-    if (packdata == nullptr)
+    auto btle_info = in_pack->fetch<btle_packinfo>(mphy->pack_comp_btle);
+    if (btle_info == nullptr)
         return 0;
 
-    // Is it a packet we care about?
-    if (packdata->dlt != KDLT_BLUETOOTH_LE_LL)
-        return 0;
-/**/
-    // Did we classify this?
     auto common = in_pack->fetch<kis_common_info>(mphy->pack_comp_common);
+    if (common == nullptr)
+        return 0;
 
-    if (common == NULL)
+    if (btle_info->btle_decode == nullptr)
         return 0;
 
     // Update with all the options in case we can add signal and frequency
@@ -171,16 +173,24 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
                  UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
                 "BTLE Device");
+
     auto ticc2540 =
         device->get_sub_as<btle_tracked_device>(mphy->btle_device_id);
 
     if (ticc2540 == NULL) {
-        _MSG_INFO("Detected new BTLE device {}",
-                common->source.mac_to_string());
+        _MSG_INFO("Detected new BTLE device {}", common->source.mac_to_string());
+
         ticc2540 = std::make_shared<btle_tracked_device>(mphy->btle_device_id);
         device->insert(ticc2540);
     }
-/**/
+
+    for (auto ad : *btle_info->btle_decode->advertised_data()) {
+        if (ad->type() == BTLE_ADVDATA_FLAGS && ad->length() == 2) {
+
+        } else if (ad->type() == BTLE_ADVDATA_DEVICE_NAME && ad->length() >= 2) {
+            device->set_devicename(munge_to_printable(ad->data()));
+        }
+    }
 
     return 1;
 }
