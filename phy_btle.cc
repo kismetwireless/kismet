@@ -93,6 +93,10 @@ kis_btle_phy::kis_btle_phy(global_registry *in_globalreg, int in_phyid) :
         entrytracker->register_field("btle.device",
                 tracker_element_factory<btle_tracked_device>(),
                 "BTLE device");
+
+    // Register js module for UI
+    auto httpregistry = Globalreg::fetch_mandatory_global_as<kis_httpd_registry>();
+    httpregistry->register_js_module("kismet_ui_btle", "js/kismet.ui.btle.js");
 }
 
 kis_btle_phy::~kis_btle_phy() {
@@ -174,18 +178,25 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
                  UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
                 "BTLE Device");
 
-    auto ticc2540 =
+    auto btle_dev =
         device->get_sub_as<btle_tracked_device>(mphy->btle_device_id);
 
-    if (ticc2540 == NULL) {
+    if (btle_dev == nullptr) {
         _MSG_INFO("Detected new BTLE device {}", common->source.mac_to_string());
 
-        ticc2540 = std::make_shared<btle_tracked_device>(mphy->btle_device_id);
-        device->insert(ticc2540);
+        btle_dev = std::make_shared<btle_tracked_device>(mphy->btle_device_id);
+        device->insert(btle_dev);
     }
 
     for (auto ad : *btle_info->btle_decode->advertised_data()) {
         if (ad->type() == BTLE_ADVDATA_FLAGS && ad->length() == 2) {
+            uint8_t flags = ad->data().data()[0];
+
+            btle_dev->set_le_limited_discoverable(flags & BTLE_ADVDATA_FLAG_LIMITED_DISCOVERABLE);
+            btle_dev->set_le_general_discoverable(flags & BTLE_ADVDATA_FLAG_GENERAL_DISCOVERABLE);
+            btle_dev->set_br_edr_unsupported(flags & BTLE_ADVDATA_FLAG_BREDR_NONSUPP);
+            btle_dev->set_simultaneous_br_edr_host(flags & BTLE_ADVDATA_FLAG_SIMUL_BREDR_HOST);
+            btle_dev->set_simultaneous_br_edr_controller(flags & BTLE_ADVDATA_FLAG_SIMUL_BREDR_CONTROLLER);
 
         } else if (ad->type() == BTLE_ADVDATA_DEVICE_NAME && ad->length() >= 2) {
             device->set_devicename(munge_to_printable(ad->data()));
