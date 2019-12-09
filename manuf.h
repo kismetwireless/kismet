@@ -49,7 +49,11 @@ public:
     std::shared_ptr<tracker_element_string> lookup_oui(mac_addr in_mac);
     std::shared_ptr<tracker_element_string> lookup_oui(uint32_t in_oui);
 
-    std::shared_ptr<tracker_element_string> MakeManuf(const std::string& in_manuf);
+    std::shared_ptr<tracker_element_string> make_manuf(const std::string& in_manuf);
+
+    std::shared_ptr<tracker_element_string> get_random_manuf() const {
+        return random_manuf;
+    }
 
     struct index_pos {
         uint32_t oui;
@@ -75,6 +79,7 @@ protected:
     // IDs for manufacturer objects
     int manuf_id;
     std::shared_ptr<tracker_element_string> unknown_manuf;
+    std::shared_ptr<tracker_element_string> random_manuf;
 };
 
 #endif

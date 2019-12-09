@@ -35,6 +35,9 @@ kis_manuf::kis_manuf() {
     unknown_manuf = std::make_shared<tracker_element_string>(manuf_id);
     unknown_manuf->set("Unknown");
 
+    random_manuf = std::make_shared<tracker_element_string>(manuf_id);
+    random_manuf->set("Randomized");
+
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("manuf_lookup", true) == false) {
         _MSG("Disabling OUI lookup.", MSGFLAG_INFO);
         return;
@@ -338,7 +341,7 @@ std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(uint32_t in_oui) {
     return unknown_manuf;
 }
 
-std::shared_ptr<tracker_element_string> kis_manuf::MakeManuf(const std::string& in_manuf) {
+std::shared_ptr<tracker_element_string> kis_manuf::make_manuf(const std::string& in_manuf) {
     auto manuf = std::make_shared<tracker_element_string>(manuf_id);
     manuf->set(in_manuf);
     return manuf;

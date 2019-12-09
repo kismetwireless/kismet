@@ -49,7 +49,7 @@ Kis_Zwave_Phy::Kis_Zwave_Phy(global_registry *in_globalreg, int in_phyid) :
                 tracker_element_factory<zwave_tracked_device>(),
                 "Z-Wave device");
 
-    zwave_manuf = Globalreg::globalreg->manufdb->MakeManuf("Z-Wave");
+    zwave_manuf = Globalreg::globalreg->manufdb->make_manuf("Z-Wave");
 
     // Register js module for UI
     auto httpregistry = 

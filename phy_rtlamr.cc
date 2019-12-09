@@ -52,7 +52,7 @@ kis_rtlamr_phy::kis_rtlamr_phy(global_registry *in_globalreg, int in_phyid) :
                 "RTLAMR meter");
 
     // Make the manuf string
-    rtl_manuf = Globalreg::globalreg->manufdb->MakeManuf("RTLAMR");
+    rtl_manuf = Globalreg::globalreg->manufdb->make_manuf("RTLAMR");
 
     // Register js module for UI
     auto httpregistry = Globalreg::fetch_mandatory_global_as<kis_httpd_registry>();
