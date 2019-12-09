@@ -121,9 +121,6 @@ BUILD_CAPTURE_NRF_MOUSEJACK = @BUILD_CAPTURE_NRF_MOUSEJACK@
 CAPTURE_TI_CC_2540 = capture_ti_cc_2540/kismet_cap_ti_cc_2540
 BUILD_CAPTURE_TI_CC_2540 = @BUILD_CAPTURE_TI_CC_2540@
 
-CAPTURE_TI_CC_2531 = capture_ti_cc_2531/kismet_cap_ti_cc_2531
-BUILD_CAPTURE_TI_CC_2531 = @BUILD_CAPTURE_TI_CC_2531@
-
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
@@ -296,9 +293,6 @@ $(CAPTURE_NRF_MOUSEJACK): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_TI_CC_2540): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_ti_cc_2540 && $(MAKE))
 
-$(CAPTURE_TI_CC_2531): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
-	(cd capture_ti_cc_2531 && $(MAKE))
-
 $(CAPTURE_FREAKLABS_ZIGBEE): FORCE
 	(cd capture_freaklabs_zigbee && $(MAKE))
 
@@ -330,10 +324,6 @@ binsuidinstall: $(DATASOURCE_BINS)
 
 	@if test "$(BUILD_CAPTURE_TI_CC_2540)"x = "1"x; then \
                 $(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_TI_CC_2540) $(BIN)/`basename $(CAPTURE_TI_CC_2540)`; \
-        fi;
-
-	@if test "$(BUILD_CAPTURE_TI_CC_2531)"x = "1"x; then \
-                $(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_TI_CC_2531) $(BIN)/`basename $(CAPTURE_TI_CC_2531)`; \
         fi;
 
 commoninstall: $(INSTBINS)
@@ -384,10 +374,6 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_TI_CC_2540)"x = "1"x; then \
                 $(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_TI_CC_2540) $(BIN)/`basename $(CAPTURE_TI_CC_2540)`; \
-        fi;
-
-	@if test "$(BUILD_CAPTURE_TI_CC_2531)"x = "1"x; then \
-                $(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_TI_CC_2531) $(BIN)/`basename $(CAPTURE_TI_CC_2531)`; \
         fi;
 
 	@if test "$(BUILD_CAPTURE_SDR_RTL433)"x = "1"x; then \
@@ -573,7 +559,6 @@ clean:
 	@(cd capture_sdr_rtladsb && make clean)
 	@(cd capture_nrf_mousejack && make clean)
 	@(cd capture_ti_cc_2540 && make clean)
-	@(cd capture_ti_cc_2531 && make clean)
 
 distclean:
 	@-$(MAKE) clean

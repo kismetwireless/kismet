@@ -73,7 +73,6 @@
 #include "datasource_freaklabs_zigbee.h"
 #include "datasource_nrf_mousejack.h"
 #include "datasource_ti_cc_2540.h"
-#include "datasource_ti_cc_2531.h"
 
 #include "logtracker.h"
 #include "kis_ppilogfile.h"
@@ -105,7 +104,6 @@
 #include "phy_uav_drone.h"
 #include "phy_nrf_mousejack.h"
 #include "phy_btle.h"
-// #include "phy_ti_cc_2531.h"
 
 #include "ipc_remote2.h"
 #include "manuf.h"
@@ -887,7 +885,6 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_freaklabs_zigbee_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_nrf_mousejack_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_ticc2540_builder()));
-    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_TICC2531_builder()));
 
     // Create the database logger as a global because it's a special case
     kis_database_logfile::create_kisdatabaselog();
