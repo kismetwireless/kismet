@@ -19,6 +19,8 @@ volatile int STOP=FALSE;
 #define MODEMDEVICE "/dev/ttyUSB0"
 # define CRTSCTS  020000000000 /*should be defined but isn't with the C99*/
 
+#define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
+
 /* Unique instance data passed around by capframework */
 typedef struct {
 
@@ -155,8 +157,9 @@ void capture_thread(kis_capture_handler_t *caph) {
     int pkt_len = 0;
     int pld_ctr = 0;
     int pkt_ctr = 0;
+    bool valid_pkt = false;
 
-    int r=0;
+    int r = 0;
 
     while(1) {
 	    if(caph->spindown) {
@@ -164,7 +167,7 @@ void capture_thread(kis_capture_handler_t *caph) {
                 tcsetattr(localnrf->fd,TCSANOW,&localnrf->oldtio);
 		break;
 	    }
-
+        valid_pkt = false;
         buf_rx_len = nrf_receive_payload(caph, buf, 256);
         if (buf_rx_len < 0) {
             cf_send_error(caph, 0, errstr);
@@ -194,30 +197,59 @@ for(int xp=0;xp<buf_rx_len;xp++)
                 //printf("header length:%02X - %d\n",hdr_len,hdr_len);
                 //printf("payload length:%02X - %d\n",pkt_len,pkt_len);
         }
-        /*
+        /**/
         printf(" HEADER \n");
         for(int hctr=(pkt_start+1);hctr<(hdr_len+pkt_start+1);hctr++)
         {
-                printf("%02X ",buf[hctr]);xp++;
+                printf("%02X ",buf[hctr]);
+                xp++;
         }
         printf("\n");
-        */
-        pld_ctr = 0;
-        pkt_ctr = 0;
-        memset(pkt,0x00,255);
-        //printf(" PAYLOAD \n");
-        for(int hctr=(pkt_start+1+hdr_len);hctr<(pkt_len+pkt_start+1+hdr_len);hctr++)
+        /**/
+        printf("pkt_type:%02X\n",buf[pkt_start+6]);
+        //check the packet_type from the header
+        if(buf[pkt_start+6] == 0x06)
         {
-                //printf("%02X ",buf[hctr]);xp++;
-                pld_ctr++;
-                if(pld_ctr > 10 && pld_ctr != 17)//there is a pad at 17....
-                {
-                        pkt[pkt_ctr] = buf[hctr]; pkt_ctr++;
-                }
+            valid_pkt = true;
+            pld_ctr = 0;
+            pkt_ctr = 0;
+            memset(pkt,0x00,255);
+            printf(" PAYLOAD \n");
+            for(int hctr=(pkt_start+1+hdr_len);hctr<(pkt_len+pkt_start+1+hdr_len);hctr++)
+            {
+                    xp++;
+                    pld_ctr++;
+                    printf("%02X ",buf[hctr]);
+                    if(pld_ctr == 2)
+                    {
+//                        printf("check_bit:%d\n",(CHECK_BIT(buf[hctr],0)));
+
+                        if(CHECK_BIT(buf[hctr],0))//crcok is first bit
+                            valid_pkt = true;
+                        else {
+                            valid_pkt = false;
+                        }
+                    }
+                    if(pld_ctr > 10 && pld_ctr != 17)//there is a pad at 17....
+                    {
+                            pkt[pkt_ctr] = buf[hctr]; pkt_ctr++;
+                    }
+            }
+            printf("\n");
+    /**/
+            printf("--pkt--\n");
+            for(int re=0;re<pkt_ctr;re++)
+            {
+                printf("%02X ",pkt[re]);
+            }
+            printf("\n");
+    /**/
         }
-        //printf("\n");
+
+        printf("valid pkt:%d\n",valid_pkt);
 
         //send the packet along
+        if(pkt_ctr > 0 && valid_pkt)
         while (1) {
             struct timeval tv;
 
