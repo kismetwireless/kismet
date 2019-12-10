@@ -124,6 +124,9 @@ BUILD_CAPTURE_TI_CC_2540 = @BUILD_CAPTURE_TI_CC_2540@
 CAPTURE_UBERTOOTH_ONE = capture_ubertooth_one/kismet_cap_ubertooth_one
 BUILD_CAPTURE_UBERTOOTH_ONE = @BUILD_CAPTURE_UBERTOOTH_ONE@
 
+CAPTURE_NRF_51822 = capture_nrf_51822/kismet_cap_nrf_51822
+BUILD_CAPTURE_NRF_51822 = @BUILD_CAPTURE_NRF_51822@
+
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
@@ -187,7 +190,7 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	$(PROTOBUF_CPP_O_TARGET) kis_external.cc.o \
 	dlttracker.cc.o antennatracker.cc.o datasourcetracker.cc.o kis_datasource.cc.o \
 	datasource_linux_bluetooth.cc.o datasource_rtl433.cc.o datasource_rtlamr.cc.o datasource_rtladsb.cc.o \
-	datasource_ti_cc_2540.cc.o \
+	datasource_ti_cc_2540.cc.o datasource_nrf_51822.cc.o\
 	kis_net_microhttpd.cc.o kis_net_microhttpd_handlers.cc.o system_monitor.cc.o base64.cc.o \
 	kis_httpd_websession.cc.o kis_httpd_registry.cc.o \
 	gpstracker.cc.o kis_gps.cc.o gpsnmea.cc.o gpsserial2.cc.o gpstcp.cc.o \
@@ -299,6 +302,9 @@ $(CAPTURE_TI_CC_2540): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_UBERTOOTH_ONE): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_ubertooth_one && $(MAKE))
 
+$(CAPTURE_NRF_51822): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_nrf_51822 && $(MAKE))
+
 $(CAPTURE_FREAKLABS_ZIGBEE): FORCE
 	(cd capture_freaklabs_zigbee && $(MAKE))
 
@@ -335,6 +341,11 @@ binsuidinstall: $(DATASOURCE_BINS)
 	@if test "$(BUILD_CAPTURE_UBERTOOTH_ONE)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_UBERTOOTH_ONE) $(BIN)/`basename $(CAPTURE_UBERTOOTH_ONE)`; \
 	fi;
+
+	@if test "$(BUILD_CAPTURE_NRF_51822)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_NRF_51822) $(BIN)/`basename $(CAPTURE_NRF_51822)`; \
+	fi;
+
 
 commoninstall: $(INSTBINS)
 	mkdir -p $(ETC)
@@ -388,6 +399,10 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_UBERTOOTH_ONE)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_UBERTOOTH_ONE) $(BIN)/`basename $(CAPTURE_UBERTOOTH_ONE)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_NRF_51822)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_NRF_51822) $(BIN)/`basename $(CAPTURE_NRF_51822)`; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_SDR_RTL433)"x = "1"x; then \
@@ -574,6 +589,7 @@ clean:
 	@(cd capture_nrf_mousejack && make clean)
 	@(cd capture_ti_cc_2540 && make clean)
 	@(cd capture_ubertooth_one && make clean)
+	@(cd capture_nrf_51822 && make clean)
 
 distclean:
 	@-$(MAKE) clean
