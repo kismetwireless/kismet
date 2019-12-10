@@ -622,6 +622,7 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+BUILD_CAPTURE_UBERTOOTH_ONE
 BUILD_CAPTURE_TI_CC_2540
 BUILD_CAPTURE_NRF_MOUSEJACK
 BUILD_CAPTURE_FREAKLABS_ZIGBEE
@@ -638,6 +639,12 @@ DATASOURCE_BINS
 sharedatadir
 KSLIBS
 suidgroup
+LIBUBERTOOTHCFLAGS
+LIBUBERTOOTHLIBS
+btbb_LIBS
+btbb_CFLAGS
+ubertooth_LIBS
+ubertooth_CFLAGS
 LIBUSBCFLAGS
 LIBUSBLIBS
 libusb_LIBS
@@ -828,7 +835,11 @@ libnl20_LIBS
 libnl1_CFLAGS
 libnl1_LIBS
 libusb_CFLAGS
-libusb_LIBS'
+libusb_LIBS
+ubertooth_CFLAGS
+ubertooth_LIBS
+btbb_CFLAGS
+btbb_LIBS'
 
 
 # Initialize some variables set by options.
@@ -1537,6 +1548,12 @@ Some influential environment variables:
   libusb_CFLAGS
               C compiler flags for libusb, overriding pkg-config
   libusb_LIBS linker flags for libusb, overriding pkg-config
+  ubertooth_CFLAGS
+              C compiler flags for ubertooth, overriding pkg-config
+  ubertooth_LIBS
+              linker flags for ubertooth, overriding pkg-config
+  btbb_CFLAGS C compiler flags for btbb, overriding pkg-config
+  btbb_LIBS   linker flags for btbb, overriding pkg-config
 
 Use these variables to override the choices made by `configure' or to help
 it to find libraries and programs with nonstandard names/locations.
@@ -4127,6 +4144,7 @@ BUILD_CAPTURE_SDR_RTLADSB=1
 BUILD_CAPTURE_FREAKLABS_ZIGBEE=1
 BUILD_CAPTURE_NRF_MOUSEJACK=0
 BUILD_CAPTURE_TI_CC_2540=0
+BUILD_CAPTURE_UBERTOOTH_ONE=0
 
 DATASOURCE_BINS="\$(CAPTURE_KISMETDB)"
 
@@ -12062,6 +12080,235 @@ fi
 
 
 
+if test "xwant_ubertooth" != "xno"; then :
+
+    CANT_BUILD_UBERTOOTH=0
+    LIBUBERTOOTHLIBS=""
+    LIBUBERTOOTHCFLAGS=""
+
+    if test x"have_usb" != "xyes"; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: missing libusb, ubertooth-one support will not be built" >&5
+$as_echo "$as_me: WARNING: missing libusb, ubertooth-one support will not be built" >&2;}
+        CANT_BUILD_UBERTOOTH=1
+    fi
+
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ubertooth" >&5
+$as_echo_n "checking for ubertooth... " >&6; }
+
+if test -n "$ubertooth_CFLAGS"; then
+    pkg_cv_ubertooth_CFLAGS="$ubertooth_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"ubertooth\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "ubertooth") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_ubertooth_CFLAGS=`$PKG_CONFIG --cflags "ubertooth" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$ubertooth_LIBS"; then
+    pkg_cv_ubertooth_LIBS="$ubertooth_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"ubertooth\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "ubertooth") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_ubertooth_LIBS=`$PKG_CONFIG --libs "ubertooth" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        ubertooth_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "ubertooth" 2>&1`
+        else
+	        ubertooth_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "ubertooth" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$ubertooth_PKG_ERRORS" >&5
+
+	as_fn_error $? "Package requirements (ubertooth) were not met:
+
+$ubertooth_PKG_ERRORS
+
+Consider adjusting the PKG_CONFIG_PATH environment variable if you
+installed software in a non-standard prefix.
+
+Alternatively, you may set the environment variables ubertooth_CFLAGS
+and ubertooth_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details." "$LINENO" 5
+elif test $pkg_failed = untried; then
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+	{ { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "The pkg-config script could not be found or is too old.  Make sure it
+is in your PATH or set the PKG_CONFIG environment variable to the full
+path to pkg-config.
+
+Alternatively, you may set the environment variables ubertooth_CFLAGS
+and ubertooth_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details.
+
+To get pkg-config, see <http://pkg-config.freedesktop.org/>.
+See \`config.log' for more details" "$LINENO" 5; }
+else
+	ubertooth_CFLAGS=$pkg_cv_ubertooth_CFLAGS
+	ubertooth_LIBS=$pkg_cv_ubertooth_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	have_libubertooth_pkg=yes
+fi
+    if test x"$have_libubertooth_pkg" != "xyes"; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: missing libubertooth, ubertooth-one support will not be built" >&5
+$as_echo "$as_me: WARNING: missing libubertooth, ubertooth-one support will not be built" >&2;}
+        CANT_BUILD_UBERTOOTH=1
+    else
+        LIBUBERTOOTHCFLAGS=`pkg-config --cflags ubertooth`
+        LIBUBERTOOTHLIBS=`pkg-config --libs ubertooth`
+    fi
+
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for btbb" >&5
+$as_echo_n "checking for btbb... " >&6; }
+
+if test -n "$btbb_CFLAGS"; then
+    pkg_cv_btbb_CFLAGS="$btbb_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libbtbb\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libbtbb") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_btbb_CFLAGS=`$PKG_CONFIG --cflags "libbtbb" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$btbb_LIBS"; then
+    pkg_cv_btbb_LIBS="$btbb_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libbtbb\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libbtbb") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_btbb_LIBS=`$PKG_CONFIG --libs "libbtbb" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        btbb_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libbtbb" 2>&1`
+        else
+	        btbb_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libbtbb" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$btbb_PKG_ERRORS" >&5
+
+	as_fn_error $? "Package requirements (libbtbb) were not met:
+
+$btbb_PKG_ERRORS
+
+Consider adjusting the PKG_CONFIG_PATH environment variable if you
+installed software in a non-standard prefix.
+
+Alternatively, you may set the environment variables btbb_CFLAGS
+and btbb_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details." "$LINENO" 5
+elif test $pkg_failed = untried; then
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+	{ { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "The pkg-config script could not be found or is too old.  Make sure it
+is in your PATH or set the PKG_CONFIG environment variable to the full
+path to pkg-config.
+
+Alternatively, you may set the environment variables btbb_CFLAGS
+and btbb_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details.
+
+To get pkg-config, see <http://pkg-config.freedesktop.org/>.
+See \`config.log' for more details" "$LINENO" 5; }
+else
+	btbb_CFLAGS=$pkg_cv_btbb_CFLAGS
+	btbb_LIBS=$pkg_cv_btbb_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	have_liblibbtbb_pkg=yes
+fi
+    if test x"$have_libbtbb_pkg" != "xyes"; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: missing libbtbb, ubertooth-one support will not be built" >&5
+$as_echo "$as_me: WARNING: missing libbtbb, ubertooth-one support will not be built" >&2;}
+        CANT_BUILD_UBERTOOTH=1
+    else
+        LIBUBERTOOTHCFLAGS="$LIBUBERTOOTHCFLAGS `pkg-config --cflags libbtbb`"
+        LIBUBERTOOTHLIBS="$LIBUBERTOOTHLIBS `pkg-config --libs libbtbb`"
+    fi
+
+    if $CANT_BUILD_UBERTOOTH = 0; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: missing one or more required libraries for ubertooth-one" >&5
+$as_echo "$as_me: WARNING: missing one or more required libraries for ubertooth-one" >&2;}
+        have_ubertooth="no"
+    else
+        have_ubertooth="yes"
+    fi
+
+fi
+
+
+BUILD_CAPTURE_UBERTOOTH_ONE=0
+if test x"$have_ubertooth" = x"yes"; then
+    BUILD_CAPTURE_UBERTOOTH_ONE=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_UBERTOOTH_ONE)"
+fi
+
 BUILD_CAPTURE_NRF_MOUSEJACK=0
 if test "$have_usb" = "yes"; then
     BUILD_CAPTURE_NRF_MOUSEJACK=1
@@ -12276,11 +12523,12 @@ sharedatadir=${sharedatadir}
 
 
 
+
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_sdr_rtlamr/Makefile capture_sdr_rtladsb/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile capture_ti_cc_2540/Makefile"
+ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_sdr_rtlamr/Makefile capture_sdr_rtladsb/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile capture_ti_cc_2540/Makefile capture_ubertooth_one/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -12988,6 +13236,7 @@ do
     "capture_freaklabs_zigbee/Makefile") CONFIG_FILES="$CONFIG_FILES capture_freaklabs_zigbee/Makefile" ;;
     "capture_nrf_mousejack/Makefile") CONFIG_FILES="$CONFIG_FILES capture_nrf_mousejack/Makefile" ;;
     "capture_ti_cc_2540/Makefile") CONFIG_FILES="$CONFIG_FILES capture_ti_cc_2540/Makefile" ;;
+    "capture_ubertooth_one/Makefile") CONFIG_FILES="$CONFIG_FILES capture_ubertooth_one/Makefile" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac
@@ -13657,12 +13906,20 @@ else
 	echo "no (libusb-1.0 not available)";
 fi
 
-printf "            TI CC 2540: "
+printf "       TI CC 2540 BTLE: "
 if test "$BUILD_CAPTURE_TI_CC_2540" = 1; then
         echo "yes";
 else
         echo "no (libusb-1.0 not available)";
 fi
+
+printf "         Ubertooth One: "
+if test "$BUILD_CAPTURE_UBERTOOTH_ONE" = 1; then
+        echo "yes";
+else
+        echo "no (libubertooth, libbtbb, or libusb-1.0 not available)";
+fi
+
 
 printf "        Python Modules: "
 if test "$BUILD_PYTHON_MODULES" = 1; then

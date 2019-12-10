@@ -37,6 +37,7 @@ BUILD_CAPTURE_SDR_RTLADSB=1
 BUILD_CAPTURE_FREAKLABS_ZIGBEE=1
 BUILD_CAPTURE_NRF_MOUSEJACK=0
 BUILD_CAPTURE_TI_CC_2540=0
+BUILD_CAPTURE_UBERTOOTH_ONE=0
 
 DATASOURCE_BINS="\$(CAPTURE_KISMETDB)"
 
@@ -1396,6 +1397,49 @@ AS_IF([test "x$want_usb" != "xno"], [
 AC_SUBST(LIBUSBLIBS)
 AC_SUBST(LIBUSBCFLAGS)
 
+AS_IF([test "xwant_ubertooth" != "xno"], [
+    CANT_BUILD_UBERTOOTH=0
+    LIBUBERTOOTHLIBS=""
+    LIBUBERTOOTHCFLAGS=""
+
+    if test x"have_usb" != "xyes"; then
+        AC_MSG_WARN([missing libusb, ubertooth-one support will not be built])
+        CANT_BUILD_UBERTOOTH=1
+    fi
+
+    PKG_CHECK_MODULES([ubertooth], [ubertooth], have_libubertooth_pkg=yes)
+    if test x"$have_libubertooth_pkg" != "xyes"; then
+        AC_MSG_WARN([missing libubertooth, ubertooth-one support will not be built])
+        CANT_BUILD_UBERTOOTH=1
+    else
+        LIBUBERTOOTHCFLAGS=`pkg-config --cflags ubertooth`
+        LIBUBERTOOTHLIBS=`pkg-config --libs ubertooth`
+    fi
+
+    PKG_CHECK_MODULES([btbb], [libbtbb], have_liblibbtbb_pkg=yes)
+    if test x"$have_libbtbb_pkg" != "xyes"; then
+        AC_MSG_WARN([missing libbtbb, ubertooth-one support will not be built])
+        CANT_BUILD_UBERTOOTH=1
+    else
+        LIBUBERTOOTHCFLAGS="$LIBUBERTOOTHCFLAGS `pkg-config --cflags libbtbb`"
+        LIBUBERTOOTHLIBS="$LIBUBERTOOTHLIBS `pkg-config --libs libbtbb`"
+    fi
+
+    if $CANT_BUILD_UBERTOOTH = 0; then
+        AC_MSG_WARN([missing one or more required libraries for ubertooth-one])
+        have_ubertooth="no"
+    else
+        have_ubertooth="yes"
+    fi
+])
+AC_SUBST(LIBUBERTOOTHLIBS)
+AC_SUBST(LIBUBERTOOTHCFLAGS)
+BUILD_CAPTURE_UBERTOOTH_ONE=0
+if test x"$have_ubertooth" = x"yes"; then
+    BUILD_CAPTURE_UBERTOOTH_ONE=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_UBERTOOTH_ONE)"
+fi
+
 BUILD_CAPTURE_NRF_MOUSEJACK=0
 if test "$have_usb" = "yes"; then
     BUILD_CAPTURE_NRF_MOUSEJACK=1
@@ -1535,12 +1579,13 @@ AC_SUBST(BUILD_CAPTURE_SDR_RTLADSB)
 AC_SUBST(BUILD_CAPTURE_FREAKLABS_ZIGBEE)
 AC_SUBST(BUILD_CAPTURE_NRF_MOUSEJACK)
 AC_SUBST(BUILD_CAPTURE_TI_CC_2540)
+AC_SUBST(BUILD_CAPTURE_UBERTOOTH_ONE)
 
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-AC_CONFIG_FILES([Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_sdr_rtlamr/Makefile capture_sdr_rtladsb/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile capture_ti_cc_2540/Makefile])
+AC_CONFIG_FILES([Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_sdr_rtlamr/Makefile capture_sdr_rtladsb/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile capture_ti_cc_2540/Makefile capture_ubertooth_one/Makefile])
 AC_OUTPUT
 
 echo
@@ -1625,12 +1670,20 @@ else
 	echo "no (libusb-1.0 not available)";
 fi
 
-printf "            TI CC 2540: "
+printf "       TI CC 2540 BTLE: "
 if test "$BUILD_CAPTURE_TI_CC_2540" = 1; then
         echo "yes";
 else
         echo "no (libusb-1.0 not available)";
 fi
+
+printf "         Ubertooth One: "
+if test "$BUILD_CAPTURE_UBERTOOTH_ONE" = 1; then
+        echo "yes";
+else
+        echo "no (libubertooth, libbtbb, or libusb-1.0 not available)";
+fi
+
 
 printf "        Python Modules: "
 if test "$BUILD_PYTHON_MODULES" = 1; then

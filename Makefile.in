@@ -121,6 +121,9 @@ BUILD_CAPTURE_NRF_MOUSEJACK = @BUILD_CAPTURE_NRF_MOUSEJACK@
 CAPTURE_TI_CC_2540 = capture_ti_cc_2540/kismet_cap_ti_cc_2540
 BUILD_CAPTURE_TI_CC_2540 = @BUILD_CAPTURE_TI_CC_2540@
 
+CAPTURE_UBERTOOTH_ONE = capture_ubertooth_one/kismet_cap_ubertooth_one
+BUILD_CAPTURE_UBERTOOTH_ONE = @BUILD_CAPTURE_UBERTOOTH_ONE@
+
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
@@ -293,6 +296,9 @@ $(CAPTURE_NRF_MOUSEJACK): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_TI_CC_2540): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_ti_cc_2540 && $(MAKE))
 
+$(CAPTURE_UBERTOOTH_ONE): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_ubertooth_one && $(MAKE))
+
 $(CAPTURE_FREAKLABS_ZIGBEE): FORCE
 	(cd capture_freaklabs_zigbee && $(MAKE))
 
@@ -323,8 +329,12 @@ binsuidinstall: $(DATASOURCE_BINS)
 	fi;
 
 	@if test "$(BUILD_CAPTURE_TI_CC_2540)"x = "1"x; then \
-                $(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_TI_CC_2540) $(BIN)/`basename $(CAPTURE_TI_CC_2540)`; \
-        fi;
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_TI_CC_2540) $(BIN)/`basename $(CAPTURE_TI_CC_2540)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_UBERTOOTH_ONE)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_UBERTOOTH_ONE) $(BIN)/`basename $(CAPTURE_UBERTOOTH_ONE)`; \
+	fi;
 
 commoninstall: $(INSTBINS)
 	mkdir -p $(ETC)
@@ -373,8 +383,12 @@ commoninstall: $(INSTBINS)
 	fi;
 
 	@if test "$(BUILD_CAPTURE_TI_CC_2540)"x = "1"x; then \
-                $(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_TI_CC_2540) $(BIN)/`basename $(CAPTURE_TI_CC_2540)`; \
-        fi;
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_TI_CC_2540) $(BIN)/`basename $(CAPTURE_TI_CC_2540)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_UBERTOOTH_ONE)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_UBERTOOTH_ONE) $(BIN)/`basename $(CAPTURE_UBERTOOTH_ONE)`; \
+	fi;
 
 	@if test "$(BUILD_CAPTURE_SDR_RTL433)"x = "1"x; then \
 		(cd capture_sdr_rtl433 && $(MAKE) install) \
@@ -559,6 +573,7 @@ clean:
 	@(cd capture_sdr_rtladsb && make clean)
 	@(cd capture_nrf_mousejack && make clean)
 	@(cd capture_ti_cc_2540 && make clean)
+	@(cd capture_ubertooth_one && make clean)
 
 distclean:
 	@-$(MAKE) clean
