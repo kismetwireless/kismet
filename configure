@@ -12329,12 +12329,9 @@ if test "$linux" = "yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_BLUETOOTH)"
 fi
 
-BUILD_CAPTURE_NRF_51822=0
-if test "$linux" = "yes"; then
-    BUILD_CAPTURE_NRF_51822=1
-    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NRF_51822)"
-fi
-
+# All this depends on is serial so we build it all the time
+BUILD_CAPTURE_NRF_51822=1
+DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NRF_51822)"
 
 if test "$darwin" = "yes"; then
 	suidgroup="staff"
