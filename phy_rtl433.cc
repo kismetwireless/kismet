@@ -82,7 +82,7 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(global_registry *in_globalreg, int in_phyid) :
                 "RTL433 lightning sensor");
 
     // Make the manuf string
-    rtl_manuf = Globalreg::globalreg->manufdb->MakeManuf("RTL433");
+    rtl_manuf = Globalreg::globalreg->manufdb->make_manuf("RTL433");
 
     // Register js module for UI
     auto httpregistry =
