@@ -44,10 +44,6 @@
 #include "devicetracker_component.h"
 #include "kis_net_microhttpd.h"
 
-#ifndef DLT_BLUETOOTH_LE_LL
-#define DLT_BLUETOOTH_LE_LL	251
-#endif
-
 // Future btle attributes
 class btle_tracked_device : public tracker_component {
 public:
