@@ -127,15 +127,12 @@ BUILD_CAPTURE_TI_CC_2531 = @BUILD_CAPTURE_TI_CC_2531@
 CAPTURE_NRF_51822 = capture_nrf_51822/kismet_cap_nrf_51822
 BUILD_CAPTURE_NRF_51822 = @BUILD_CAPTURE_NRF_51822@
 
-<<<<<<< HEAD
-=======
 CAPTURE_NRF_52840 = capture_nrf_52840/kismet_cap_nrf_52840
 BUILD_CAPTURE_NRF_52840 = @BUILD_CAPTURE_NRF_52840@
 
 CAPTURE_RZ_KILLERBEE = capture_rz_killerbee/kismet_cap_rz_killerbee
 BUILD_CAPTURE_RZ_KILLERBEE = @BUILD_CAPTURE_RZ_KILLERBEE@
 
->>>>>>> b64486d5a94cd657529ca41ce50157a1a91ed0d5
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
@@ -217,11 +214,7 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	$(PARSERS) \
 	phy_80211.cc.o phy_80211_components.cc.o phy_80211_dissectors.cc.o \
 	phy_rtl433.cc.o phy_rtlamr.cc.o phy_rtladsb.cc.o phy_zwave.cc.o \
-<<<<<<< HEAD
-	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_ti_cc_2540.cc.o phy_ti_cc_2531.cc.o phy_nrf_51822.cc.o\
-=======
 	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_btle.cc.o\
->>>>>>> b64486d5a94cd657529ca41ce50157a1a91ed0d5
 	dot11_fingerprint.cc.o kis_dissector_ipdata.cc.o \
 	manuf.cc.o \
 	logtracker.cc.o kis_ppilogfile.cc.o kis_databaselogfile.cc.o kis_pcapnglogfile.cc.o \
@@ -319,15 +312,12 @@ $(CAPTURE_TI_CC_2531): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_NRF_51822): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_nrf_51822 && $(MAKE))
 
-<<<<<<< HEAD
-=======
 $(CAPTURE_NRF_52840): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_nrf_52840 && $(MAKE))
 
 $(CAPTURE_RZ_KILLERBEE): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_rz_killerbee && $(MAKE))
 
->>>>>>> b64486d5a94cd657529ca41ce50157a1a91ed0d5
 $(CAPTURE_FREAKLABS_ZIGBEE): FORCE
 	(cd capture_freaklabs_zigbee && $(MAKE))
 
@@ -628,11 +618,8 @@ clean:
 	@(cd capture_ti_cc_2540 && make clean)
 	@(cd capture_ti_cc_2531 && make clean)
 	@(cd capture_nrf_51822 && make clean)
-<<<<<<< HEAD
-=======
 	@(cd capture_nrf_52840 && make clean)
 	@(cd capture_rz_killerbee && make clean)
->>>>>>> b64486d5a94cd657529ca41ce50157a1a91ed0d5
 
 distclean:
 	@-$(MAKE) clean
