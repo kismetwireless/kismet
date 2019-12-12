@@ -12088,7 +12088,7 @@ if test "xwant_ubertooth" != "xno"; then :
     LIBUBERTOOTHLIBS=""
     LIBUBERTOOTHCFLAGS=""
 
-    if test x"have_usb" != "xyes"; then
+    if test x"$have_usb" != "xyes"; then
         { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: missing libusb, ubertooth-one support will not be built" >&5
 $as_echo "$as_me: WARNING: missing libusb, ubertooth-one support will not be built" >&2;}
         CANT_BUILD_UBERTOOTH=1
@@ -12283,7 +12283,7 @@ else
 	btbb_LIBS=$pkg_cv_btbb_LIBS
         { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
-	have_liblibbtbb_pkg=yes
+	have_libbtbb_pkg=yes
 fi
     if test x"$have_libbtbb_pkg" != "xyes"; then
         { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: missing libbtbb, ubertooth-one support will not be built" >&5
@@ -12294,7 +12294,7 @@ $as_echo "$as_me: WARNING: missing libbtbb, ubertooth-one support will not be bu
         LIBUBERTOOTHLIBS="$LIBUBERTOOTHLIBS `pkg-config --libs libbtbb`"
     fi
 
-    if $CANT_BUILD_UBERTOOTH = 0; then
+    if test $CANT_BUILD_UBERTOOTH = 1; then
         { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: missing one or more required libraries for ubertooth-one" >&5
 $as_echo "$as_me: WARNING: missing one or more required libraries for ubertooth-one" >&2;}
         have_ubertooth="no"

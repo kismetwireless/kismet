@@ -1403,7 +1403,7 @@ AS_IF([test "xwant_ubertooth" != "xno"], [
     LIBUBERTOOTHLIBS=""
     LIBUBERTOOTHCFLAGS=""
 
-    if test x"have_usb" != "xyes"; then
+    if test x"$have_usb" != "xyes"; then
         AC_MSG_WARN([missing libusb, ubertooth-one support will not be built])
         CANT_BUILD_UBERTOOTH=1
     fi
@@ -1417,7 +1417,7 @@ AS_IF([test "xwant_ubertooth" != "xno"], [
         LIBUBERTOOTHLIBS=`pkg-config --libs ubertooth`
     fi
 
-    PKG_CHECK_MODULES([btbb], [libbtbb], have_liblibbtbb_pkg=yes)
+    PKG_CHECK_MODULES([btbb], [libbtbb], have_libbtbb_pkg=yes)
     if test x"$have_libbtbb_pkg" != "xyes"; then
         AC_MSG_WARN([missing libbtbb, ubertooth-one support will not be built])
         CANT_BUILD_UBERTOOTH=1
@@ -1426,7 +1426,7 @@ AS_IF([test "xwant_ubertooth" != "xno"], [
         LIBUBERTOOTHLIBS="$LIBUBERTOOTHLIBS `pkg-config --libs libbtbb`"
     fi
 
-    if $CANT_BUILD_UBERTOOTH = 0; then
+    if test $CANT_BUILD_UBERTOOTH = 1; then
         AC_MSG_WARN([missing one or more required libraries for ubertooth-one])
         have_ubertooth="no"
     else
