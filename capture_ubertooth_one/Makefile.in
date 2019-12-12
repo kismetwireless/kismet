@@ -17,10 +17,10 @@ clean:
 
 %.c.o:	%.c
 %.c.o : %.c %.c.d
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(GLIBCFLAGS) -c $*.c -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LIBUSBCFLAGS) $(LIBUBERTOOTHCFLAGS) $(LIBBTBBCFLAGS) -c $*.c -o $@
 
 %.c.d:	%.c
-	$(CC) -MM $(CFLAGS) $(GLIBCFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
+	$(CC) -MM $(CFLAGS) $(LIBUSBCFLAGS) $(LIBUBERTOOTHCFLAGS) $(LIBBTBBCFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
 
 .PRECIOUS: %.c.d
 

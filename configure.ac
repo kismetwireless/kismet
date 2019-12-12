@@ -1422,8 +1422,8 @@ AS_IF([test "xwant_ubertooth" != "xno"], [
         AC_MSG_WARN([missing libbtbb, ubertooth-one support will not be built])
         CANT_BUILD_UBERTOOTH=1
     else
-        LIBUBERTOOTHCFLAGS="$LIBUBERTOOTHCFLAGS `pkg-config --cflags libbtbb`"
-        LIBUBERTOOTHLIBS="$LIBUBERTOOTHLIBS `pkg-config --libs libbtbb`"
+        LIBBTBBCFLAGS="$LIBUBERTOOTHCFLAGS `pkg-config --cflags libbtbb`"
+        LIBBTBBLIBS="$LIBUBERTOOTHLIBS `pkg-config --libs libbtbb`"
     fi
 
     if test $CANT_BUILD_UBERTOOTH = 1; then
@@ -1433,8 +1433,12 @@ AS_IF([test "xwant_ubertooth" != "xno"], [
         have_ubertooth="yes"
     fi
 ])
+
 AC_SUBST(LIBUBERTOOTHLIBS)
 AC_SUBST(LIBUBERTOOTHCFLAGS)
+AC_SUBST(LIBBTBBLIBS)
+AC_SUBST(LIBBTBBCFLAGS)
+
 BUILD_CAPTURE_UBERTOOTH_ONE=0
 if test x"$have_ubertooth" = x"yes"; then
     BUILD_CAPTURE_UBERTOOTH_ONE=1

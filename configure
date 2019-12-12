@@ -640,6 +640,8 @@ DATASOURCE_BINS
 sharedatadir
 KSLIBS
 suidgroup
+LIBBTBBCFLAGS
+LIBBTBBLIBS
 LIBUBERTOOTHCFLAGS
 LIBUBERTOOTHLIBS
 btbb_LIBS
@@ -12290,8 +12292,8 @@ fi
 $as_echo "$as_me: WARNING: missing libbtbb, ubertooth-one support will not be built" >&2;}
         CANT_BUILD_UBERTOOTH=1
     else
-        LIBUBERTOOTHCFLAGS="$LIBUBERTOOTHCFLAGS `pkg-config --cflags libbtbb`"
-        LIBUBERTOOTHLIBS="$LIBUBERTOOTHLIBS `pkg-config --libs libbtbb`"
+        LIBBTBBCFLAGS="$LIBUBERTOOTHCFLAGS `pkg-config --cflags libbtbb`"
+        LIBBTBBLIBS="$LIBUBERTOOTHLIBS `pkg-config --libs libbtbb`"
     fi
 
     if test $CANT_BUILD_UBERTOOTH = 1; then
@@ -12303,6 +12305,10 @@ $as_echo "$as_me: WARNING: missing one or more required libraries for ubertooth-
     fi
 
 fi
+
+
+
+
 
 
 BUILD_CAPTURE_UBERTOOTH_ONE=0
