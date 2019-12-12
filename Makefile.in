@@ -44,7 +44,7 @@ PARSERS = \
 	dot11_parsers/dot11_action.cc.o \
 	dot11_parsers/dot11_wpa_eap.cc.o \
 	dot11_parsers/dot11_p2p_ie.cc.o \
-	bluetooth_parsers/bt_rfinfo.cc.o
+	bluetooth_parsers/btle.cc.o 
 
 # To prevent a deps problem, we define these targets via autoconf to reference
 # the variable setting the list
@@ -118,6 +118,24 @@ BUILD_CAPTURE_FREAKLABS_ZIGBEE = @BUILD_CAPTURE_FREAKLABS_ZIGBEE@
 CAPTURE_NRF_MOUSEJACK = capture_nrf_mousejack/kismet_cap_nrf_mousejack
 BUILD_CAPTURE_NRF_MOUSEJACK = @BUILD_CAPTURE_NRF_MOUSEJACK@
 
+CAPTURE_TI_CC_2540 = capture_ti_cc_2540/kismet_cap_ti_cc_2540
+BUILD_CAPTURE_TI_CC_2540 = @BUILD_CAPTURE_TI_CC_2540@
+
+CAPTURE_TI_CC_2531 = capture_ti_cc_2531/kismet_cap_ti_cc_2531
+BUILD_CAPTURE_TI_CC_2531 = @BUILD_CAPTURE_TI_CC_2531@
+
+CAPTURE_NRF_51822 = capture_nrf_51822/kismet_cap_nrf_51822
+BUILD_CAPTURE_NRF_51822 = @BUILD_CAPTURE_NRF_51822@
+
+<<<<<<< HEAD
+=======
+CAPTURE_NRF_52840 = capture_nrf_52840/kismet_cap_nrf_52840
+BUILD_CAPTURE_NRF_52840 = @BUILD_CAPTURE_NRF_52840@
+
+CAPTURE_RZ_KILLERBEE = capture_rz_killerbee/kismet_cap_rz_killerbee
+BUILD_CAPTURE_RZ_KILLERBEE = @BUILD_CAPTURE_RZ_KILLERBEE@
+
+>>>>>>> b64486d5a94cd657529ca41ce50157a1a91ed0d5
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
@@ -181,6 +199,8 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	$(PROTOBUF_CPP_O_TARGET) kis_external.cc.o \
 	dlttracker.cc.o antennatracker.cc.o datasourcetracker.cc.o kis_datasource.cc.o \
 	datasource_linux_bluetooth.cc.o datasource_rtl433.cc.o datasource_rtlamr.cc.o datasource_rtladsb.cc.o \
+	datasource_ti_cc_2540.cc.o datasource_ti_cc_2531.cc.o datasource_nrf_51822.cc.o datasource_nrf_52840.cc.o \
+	datasource_rz_killerbee.cc.o \
 	kis_net_microhttpd.cc.o kis_net_microhttpd_handlers.cc.o system_monitor.cc.o base64.cc.o \
 	kis_httpd_websession.cc.o kis_httpd_registry.cc.o \
 	gpstracker.cc.o kis_gps.cc.o gpsnmea.cc.o gpsserial2.cc.o gpstcp.cc.o \
@@ -192,12 +212,16 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	jsoncpp.cc.o json_adapter.cc.o \
 	plugintracker.cc.o alertracker.cc.o timetracker.cc.o channeltracker2.cc.o \
 	devicetracker.cc.o devicetracker_workers.cc.o devicetracker_httpd.cc.o \
-	kis_dlt.cc.o kis_dlt_ppi.cc.o kis_dlt_radiotap.cc.o \
+	kis_dlt.cc.o kis_dlt_ppi.cc.o kis_dlt_radiotap.cc.o kis_dlt_btle_ll_radio.cc.o \
 	kaitaistream.cc.o \
 	$(PARSERS) \
 	phy_80211.cc.o phy_80211_components.cc.o phy_80211_dissectors.cc.o \
 	phy_rtl433.cc.o phy_rtlamr.cc.o phy_rtladsb.cc.o phy_zwave.cc.o \
-	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o \
+<<<<<<< HEAD
+	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_ti_cc_2540.cc.o phy_ti_cc_2531.cc.o phy_nrf_51822.cc.o\
+=======
+	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_btle.cc.o\
+>>>>>>> b64486d5a94cd657529ca41ce50157a1a91ed0d5
 	dot11_fingerprint.cc.o kis_dissector_ipdata.cc.o \
 	manuf.cc.o \
 	logtracker.cc.o kis_ppilogfile.cc.o kis_databaselogfile.cc.o kis_pcapnglogfile.cc.o \
@@ -217,13 +241,6 @@ ALL	= @ALLTARGETS@
 
 INSTBINS = $(PS) $(DATASOURCE_BINS) $(LOGTOOL_BINS)
 
-DATE_FMT = +%Y-%m-%dT%H:%M:%S
-ifdef SOURCE_DATE_EPOCH
-    BUILD_DATE ?= $(shell date -u -d "@$(SOURCE_DATE_EPOCH)" "$(DATE_FMT)" 2>/dev/null || date -u -r "$(SOURCE_DATE_EPOCH)" "$(DATE_FMT)" 2>/dev/null || date -u "$(DATE_FMT)")
-else
-    BUILD_DATE ?= $(shell date "$(DATE_FMT)")
-endif
-
 all:	$(ALL)
 
 all-with-plugins:
@@ -234,7 +251,7 @@ all-with-plugins:
 # Autogen the version file
 version.c:	FORCE
 	@{ $(GIT) rev-parse --short HEAD 2>/dev/null || echo "non-git-release"; } | awk ' BEGIN {print "#include \"version.h\""} {print "const char *VERSION_GIT_COMMIT = \"" $$0"\";"} END {}' > version.c
-	@echo "$(BUILD_DATE)" | awk 'BEGIN {} {print "const char *VERSION_BUILD_TIME = \""$$0"\";"} END {} ' >> version.c
+	@date | awk 'BEGIN {} {print "const char *VERSION_BUILD_TIME = \""$$0"\";"} END {} ' >> version.c
 
 # Force remove version.c.o since it's left behind owned by root as part of suidinstall, which screws
 # up a lot of builds for people; we assume we can `rm -f` it
@@ -293,6 +310,24 @@ $(CAPTURE_HACKRF_SWEEP):	$(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) $(CAPTURE_HACKRF
 $(CAPTURE_NRF_MOUSEJACK): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_nrf_mousejack && $(MAKE))
 
+$(CAPTURE_TI_CC_2540): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_ti_cc_2540 && $(MAKE))
+
+$(CAPTURE_TI_CC_2531): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_ti_cc_2531 && $(MAKE))
+
+$(CAPTURE_NRF_51822): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_nrf_51822 && $(MAKE))
+
+<<<<<<< HEAD
+=======
+$(CAPTURE_NRF_52840): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_nrf_52840 && $(MAKE))
+
+$(CAPTURE_RZ_KILLERBEE): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_rz_killerbee && $(MAKE))
+
+>>>>>>> b64486d5a94cd657529ca41ce50157a1a91ed0d5
 $(CAPTURE_FREAKLABS_ZIGBEE): FORCE
 	(cd capture_freaklabs_zigbee && $(MAKE))
 
@@ -320,6 +355,26 @@ binsuidinstall: $(DATASOURCE_BINS)
 
 	@if test "$(BUILD_CAPTURE_NRF_MOUSEJACK)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_NRF_MOUSEJACK) $(BIN)/`basename $(CAPTURE_NRF_MOUSEJACK)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_TI_CC_2540)"x = "1"x; then \
+                $(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_TI_CC_2540) $(BIN)/`basename $(CAPTURE_TI_CC_2540)`; \
+        fi;
+
+	@if test "$(BUILD_CAPTURE_TI_CC_2531)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_TI_CC_2531) $(BIN)/`basename $(CAPTURE_TI_CC_2531)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_NRF_51822)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_NRF_51822) $(BIN)/`basename $(CAPTURE_NRF_51822)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_NRF_52840)"x = "1"x; then \
+	$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_NRF_52840) $(BIN)/`basename $(CAPTURE_NRF_52840)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_RZ_KILLERBEE)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_RZ_KILLERBEE) $(BIN)/`basename $(CAPTURE_RZ_KILLERBEE)`; \
 	fi;
 
 commoninstall: $(INSTBINS)
@@ -366,6 +421,26 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_NRF_MOUSEJACK)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_NRF_MOUSEJACK) $(BIN)/`basename $(CAPTURE_NRF_MOUSEJACK)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_TI_CC_2540)"x = "1"x; then \
+                $(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_TI_CC_2540) $(BIN)/`basename $(CAPTURE_TI_CC_2540)`; \
+        fi;
+
+	@if test "$(BUILD_CAPTURE_TI_CC_2531)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_TI_CC_2531) $(BIN)/`basename $(CAPTURE_TI_CC_2531)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_NRF_51822)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_NRF_51822) $(BIN)/`basename $(CAPTURE_NRF_51822)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_NRF_52840)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_NRF_52840) $(BIN)/`basename $(CAPTURE_NRF_52840)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_RZ_KILLERBEE)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_RZ_KILLERBEE) $(BIN)/`basename $(CAPTURE_RZ_KILLERBEE)`; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_SDR_RTL433)"x = "1"x; then \
@@ -550,6 +625,14 @@ clean:
 	@(cd capture_sdr_rtlamr && make clean)
 	@(cd capture_sdr_rtladsb && make clean)
 	@(cd capture_nrf_mousejack && make clean)
+	@(cd capture_ti_cc_2540 && make clean)
+	@(cd capture_ti_cc_2531 && make clean)
+	@(cd capture_nrf_51822 && make clean)
+<<<<<<< HEAD
+=======
+	@(cd capture_nrf_52840 && make clean)
+	@(cd capture_rz_killerbee && make clean)
+>>>>>>> b64486d5a94cd657529ca41ce50157a1a91ed0d5
 
 distclean:
 	@-$(MAKE) clean

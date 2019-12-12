@@ -54,7 +54,7 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
                 "RTLADSB adsb");
 
     // Make the manuf string
-    rtl_manuf = Globalreg::globalreg->manufdb->MakeManuf("RTLADSB");
+    rtl_manuf = Globalreg::globalreg->manufdb->make_manuf("RTLADSB");
 
     // Register js module for UI
     auto httpregistry =

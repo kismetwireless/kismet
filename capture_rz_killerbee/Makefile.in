@@ -1,0 +1,30 @@
+include ../Makefile.inc
+
+MONITOR_OBJS = \
+	capture_rz_killerbee.c.o 
+MONITOR_BIN = kismet_cap_rz_killerbee
+
+all: $(MONITOR_BIN)
+
+LIBUSBCFLAGS=@LIBUSBCFLAGS@
+LIBUSBLIBS=@LIBUSBLIBS@
+
+$(MONITOR_BIN):	$(MONITOR_OBJS) $(patsubst %c.o,%c.d,$(MONITOR_OBJS)) ../libkismetdatasource.a
+		$(CCLD) $(LDFLAGS) -o $(MONITOR_BIN) $(MONITOR_OBJS) ../libkismetdatasource.a $(DATASOURCE_LIBS) $(LIBUSBLIBS)
+
+clean:
+	@-rm -f $(MONITOR_BIN)
+	@-rm -f *.o
+	@-rm -f *.d
+
+%.c.o:	%.c
+%.c.o : %.c %.c.d
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LIBUSBCFLAGS) -c $*.c -o $@
+
+%.c.d:	%.c
+	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
+
+.PRECIOUS: %.c.d
+
+include $(wildcard $(patsubst %c.o,%c.d,$(MONITOR_OBJS)))
+
