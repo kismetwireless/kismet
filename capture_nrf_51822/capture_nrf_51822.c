@@ -62,6 +62,14 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     *ret_spectrum = NULL;
     *ret_interface = cf_params_interface_new();
 
+    int x;
+
+     int r;
+
+    int matched_device = 0;
+
+    local_nrf_t *localnrf51822 = (local_nrf_t *) caph->userdata;
+
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
         return 0;
@@ -272,7 +280,6 @@ void capture_thread(kis_capture_handler_t *caph) {
                 }
             }
         }
-
     }
     cf_handler_spindown(caph);
 }
