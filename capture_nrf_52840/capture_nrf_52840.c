@@ -33,6 +33,54 @@ typedef struct {
     kis_capture_handler_t *caph;
 } local_nrf_t;
 
+int nrf_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len)
+{
+    /*
+     * receive
+     * sleep
+     * channel x
+     */
+    uint8_t buf[255];
+    uint8_t res = 0;
+    local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
+    printf("write the command:%s\n",tx_buf);
+    write(localnrf->fd,tx_buf,tx_len);
+    printf("look for a response\n");
+    res = read(localnrf->fd,buf,255);
+    printf("res:%d buf:%s\n",res,buf);
+
+    return 1;
+}
+
+int nrf_enter_promisc_mode(kis_capture_handler_t *caph)
+{
+    //write receive
+    nrf_write_cmd(caph,"receive",strlen("receive"));
+
+    return 1;
+}
+
+int nrf_exit_promisc_mode(kis_capture_handler_t *caph)
+{
+    //write sleep
+    nrf_write_cmd(caph,"sleep",strlen("sleep"));
+
+    return 1;
+}
+
+int nrf_set_channel(kis_capture_handler_t *caph, uint8_t channel)
+{
+    nrf_exit_promisc_mode(caph);
+
+    uint8_t ch[16];
+    sprintf(ch,"channel %d",channel);
+    nrf_write_cmd(caph,ch,strlen(ch));
+
+    nrf_enter_promisc_mode(caph);
+
+    return 1;
+}
+
 int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_max) {
 //printf("nrf_receive_payload\n");
     
