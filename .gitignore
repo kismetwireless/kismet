@@ -48,6 +48,7 @@ capture_linux_wifi/kismet_cap_linux_wifi
 capture_osx_corewlan_wifi/kismet_cap_osx_corewlan_wifi
 capture_ti_cc_2540/kismet_cap_ti_cc_2540
 capture_ti_cc_2531/kismet_cap_ti_cc_2531
+capture_nrf_51822/kismet_cap_nrf_51822
 kismet_cap_pcapfile
 kismet_cap_kismetdb
 
