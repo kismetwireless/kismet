@@ -35,6 +35,8 @@ void kis_datasource_nrf51822::handle_rx_packet(kis_packet *packet) {
     const uint16_t btle_rf_flag_reference_access_valid = (1 << 5);
     const uint16_t btle_rf_crc_checked = (1 << 10);
     const uint16_t btle_rf_crc_valid = (1 << 11);
+    const uint16_t btle_rf_mic_checked = (1 << 12);
+    const uint16_t btle_rf_mic_valid = (1 << 13);
 
     auto cc_chunk = 
         packet->fetch<kis_datachunk>(pack_comp_linkframe);
@@ -51,29 +53,26 @@ void kis_datasource_nrf51822::handle_rx_packet(kis_packet *packet) {
     int pkt_ctr = 0;
     //first lets just print it waht we are getting out
 
-    for(unsigned int xp = 0;xp < cc_chunk->length; xp++)
-    {
-//	    printf("%02X ",cc_chunk->data[xp]);
-	    if(xp >= 10 && xp != 16)
-	    {
+    /* the packets they have a padded byte at offset 16. 
+     * if there is a better way to remove the header < 10
+     * and remove the padded byte, please update
+     * */
+    for(unsigned int xp = 0;xp < cc_chunk->length; xp++) {
+	    if(xp >= 10 && xp != 16) {
 	    	pkt[pkt_ctr] = cc_chunk->data[xp];
 		pkt_ctr++;
 	    }
     }
-//    printf("\n");
-
+    
+    int8_t channel = cc_chunk->data[2];
     int8_t bt_channel = cc_chunk->data[2];
     int8_t rssi = cc_chunk->data[3] * -1;//?
-    int8_t valid_pkt = cc_chunk->data[1];
-/*
-        printf("valid pkt:%d\n",valid_pkt);
-	printf("bt_channel:%d\n",bt_channel);
-	printf("rssi:%d\n",rssi);
-*/
+    int8_t valid_pkt = cc_chunk->data[1] & (1 << 0);//first byte
+
 	if(valid_pkt)
 	{
 		//make the new header and fill it
-		switch(bt_channel) {
+		switch(channel) {
 			case 37:
 				bt_channel = 0;
 				break;
@@ -84,7 +83,7 @@ void kis_datasource_nrf51822::handle_rx_packet(kis_packet *packet) {
 				bt_channel = 39;
 				break;
 			default:
-				bt_channel = bt_channel - 2;
+				bt_channel = channel - 2;
 		};
 		// We can make a valid payload from this much
 		auto conv_buf_len = sizeof(btle_rf) + pkt_ctr;//cc_payload_len;
@@ -103,6 +102,11 @@ void kis_datasource_nrf51822::handle_rx_packet(kis_packet *packet) {
 		uint16_t bits = btle_rf_crc_checked;
 		if(valid_pkt)
 			 bits += btle_rf_crc_valid;
+                //MIC
+		bits = btle_rf_mic_checked;
+		if (cc_chunk->data[1] & (1 << 3))
+			bits += btle_rf_mic_valid;
+
 		//should change since we know we are valid
 		if(pkt_ctr >= 4) {
 			memcpy(conv_header->reference_access_address, conv_header->payload, 4);
@@ -119,8 +123,8 @@ void kis_datasource_nrf51822::handle_rx_packet(kis_packet *packet) {
 		auto radioheader = new kis_layer1_packinfo();
 		radioheader->signal_type = kis_l1_signal_type_dbm;
 		radioheader->signal_dbm = conv_header->signal;
-		radioheader->freq_khz = (2400 + (bt_channel)) * 1000;
-		radioheader->channel = fmt::format("{}", (bt_channel));
+		radioheader->freq_khz = (2400 + (channel)) * 1000;
+		radioheader->channel = fmt::format("{}", (channel));
 		packet->insert(pack_comp_radiodata, radioheader);
 
 		auto decapchunk = new kis_datachunk;
