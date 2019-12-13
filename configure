@@ -12094,8 +12094,7 @@ if test "xwant_ubertooth" != "xno"; then :
         { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: missing libusb, ubertooth-one support will not be built" >&5
 $as_echo "$as_me: WARNING: missing libusb, ubertooth-one support will not be built" >&2;}
         CANT_BUILD_UBERTOOTH=1
-    fi
-
+    else
 
 pkg_failed=no
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ubertooth" >&5
@@ -12155,31 +12154,11 @@ fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$ubertooth_PKG_ERRORS" >&5
 
-	as_fn_error $? "Package requirements (ubertooth) were not met:
-
-$ubertooth_PKG_ERRORS
-
-Consider adjusting the PKG_CONFIG_PATH environment variable if you
-installed software in a non-standard prefix.
-
-Alternatively, you may set the environment variables ubertooth_CFLAGS
-and ubertooth_LIBS to avoid the need to call pkg-config.
-See the pkg-config man page for more details." "$LINENO" 5
+	have_libubertoothpkg=no
 elif test $pkg_failed = untried; then
      	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-	{ { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
-$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
-as_fn_error $? "The pkg-config script could not be found or is too old.  Make sure it
-is in your PATH or set the PKG_CONFIG environment variable to the full
-path to pkg-config.
-
-Alternatively, you may set the environment variables ubertooth_CFLAGS
-and ubertooth_LIBS to avoid the need to call pkg-config.
-See the pkg-config man page for more details.
-
-To get pkg-config, see <http://pkg-config.freedesktop.org/>.
-See \`config.log' for more details" "$LINENO" 5; }
+	have_libubertoothpkg=no
 else
 	ubertooth_CFLAGS=$pkg_cv_ubertooth_CFLAGS
 	ubertooth_LIBS=$pkg_cv_ubertooth_LIBS
@@ -12187,14 +12166,13 @@ else
 $as_echo "yes" >&6; }
 	have_libubertooth_pkg=yes
 fi
-    if test x"$have_libubertooth_pkg" != "xyes"; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: missing libubertooth, ubertooth-one support will not be built" >&5
+        if test x"$have_libubertooth_pkg" != "xyes"; then
+            { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: missing libubertooth, ubertooth-one support will not be built" >&5
 $as_echo "$as_me: WARNING: missing libubertooth, ubertooth-one support will not be built" >&2;}
-        CANT_BUILD_UBERTOOTH=1
-    else
-        LIBUBERTOOTHCFLAGS=`pkg-config --cflags ubertooth`
-        LIBUBERTOOTHLIBS=`pkg-config --libs ubertooth`
-    fi
+            CANT_BUILD_UBERTOOTH=1
+        else
+            LIBUBERTOOTHCFLAGS=`pkg-config --cflags ubertooth`
+            LIBUBERTOOTHLIBS=`pkg-config --libs ubertooth`
 
 
 pkg_failed=no
@@ -12255,31 +12233,11 @@ fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$btbb_PKG_ERRORS" >&5
 
-	as_fn_error $? "Package requirements (libbtbb) were not met:
-
-$btbb_PKG_ERRORS
-
-Consider adjusting the PKG_CONFIG_PATH environment variable if you
-installed software in a non-standard prefix.
-
-Alternatively, you may set the environment variables btbb_CFLAGS
-and btbb_LIBS to avoid the need to call pkg-config.
-See the pkg-config man page for more details." "$LINENO" 5
+	have_libbtbb_pkg=no
 elif test $pkg_failed = untried; then
      	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-	{ { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
-$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
-as_fn_error $? "The pkg-config script could not be found or is too old.  Make sure it
-is in your PATH or set the PKG_CONFIG environment variable to the full
-path to pkg-config.
-
-Alternatively, you may set the environment variables btbb_CFLAGS
-and btbb_LIBS to avoid the need to call pkg-config.
-See the pkg-config man page for more details.
-
-To get pkg-config, see <http://pkg-config.freedesktop.org/>.
-See \`config.log' for more details" "$LINENO" 5; }
+	have_libbtbb_pkg=no
 else
 	btbb_CFLAGS=$pkg_cv_btbb_CFLAGS
 	btbb_LIBS=$pkg_cv_btbb_LIBS
@@ -12287,13 +12245,15 @@ else
 $as_echo "yes" >&6; }
 	have_libbtbb_pkg=yes
 fi
-    if test x"$have_libbtbb_pkg" != "xyes"; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: missing libbtbb, ubertooth-one support will not be built" >&5
+            if test x"$have_libbtbb_pkg" != "xyes"; then
+                { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: missing libbtbb, ubertooth-one support will not be built" >&5
 $as_echo "$as_me: WARNING: missing libbtbb, ubertooth-one support will not be built" >&2;}
-        CANT_BUILD_UBERTOOTH=1
-    else
-        LIBBTBBCFLAGS="$LIBUBERTOOTHCFLAGS `pkg-config --cflags libbtbb`"
-        LIBBTBBLIBS="$LIBUBERTOOTHLIBS `pkg-config --libs libbtbb`"
+                CANT_BUILD_UBERTOOTH=1
+            else
+                LIBBTBBCFLAGS="$LIBUBERTOOTHCFLAGS `pkg-config --cflags libbtbb`"
+                LIBBTBBLIBS="$LIBUBERTOOTHLIBS `pkg-config --libs libbtbb`"
+            fi
+        fi
     fi
 
     if test $CANT_BUILD_UBERTOOTH = 1; then

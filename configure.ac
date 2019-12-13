@@ -1406,24 +1406,24 @@ AS_IF([test "xwant_ubertooth" != "xno"], [
     if test x"$have_usb" != "xyes"; then
         AC_MSG_WARN([missing libusb, ubertooth-one support will not be built])
         CANT_BUILD_UBERTOOTH=1
-    fi
-
-    PKG_CHECK_MODULES([ubertooth], [ubertooth], have_libubertooth_pkg=yes)
-    if test x"$have_libubertooth_pkg" != "xyes"; then
-        AC_MSG_WARN([missing libubertooth, ubertooth-one support will not be built])
-        CANT_BUILD_UBERTOOTH=1
     else
-        LIBUBERTOOTHCFLAGS=`pkg-config --cflags ubertooth`
-        LIBUBERTOOTHLIBS=`pkg-config --libs ubertooth`
-    fi
+        PKG_CHECK_MODULES([ubertooth], [ubertooth], have_libubertooth_pkg=yes, have_libubertoothpkg=no)
+        if test x"$have_libubertooth_pkg" != "xyes"; then
+            AC_MSG_WARN([missing libubertooth, ubertooth-one support will not be built])
+            CANT_BUILD_UBERTOOTH=1
+        else
+            LIBUBERTOOTHCFLAGS=`pkg-config --cflags ubertooth`
+            LIBUBERTOOTHLIBS=`pkg-config --libs ubertooth`
 
-    PKG_CHECK_MODULES([btbb], [libbtbb], have_libbtbb_pkg=yes)
-    if test x"$have_libbtbb_pkg" != "xyes"; then
-        AC_MSG_WARN([missing libbtbb, ubertooth-one support will not be built])
-        CANT_BUILD_UBERTOOTH=1
-    else
-        LIBBTBBCFLAGS="$LIBUBERTOOTHCFLAGS `pkg-config --cflags libbtbb`"
-        LIBBTBBLIBS="$LIBUBERTOOTHLIBS `pkg-config --libs libbtbb`"
+            PKG_CHECK_MODULES([btbb], [libbtbb], have_libbtbb_pkg=yes, have_libbtbb_pkg=no)
+            if test x"$have_libbtbb_pkg" != "xyes"; then
+                AC_MSG_WARN([missing libbtbb, ubertooth-one support will not be built])
+                CANT_BUILD_UBERTOOTH=1
+            else
+                LIBBTBBCFLAGS="$LIBUBERTOOTHCFLAGS `pkg-config --cflags libbtbb`"
+                LIBBTBBLIBS="$LIBUBERTOOTHLIBS `pkg-config --libs libbtbb`"
+            fi
+        fi
     fi
 
     if test $CANT_BUILD_UBERTOOTH = 1; then
