@@ -28,10 +28,10 @@ typedef struct {
      * remember the last channel used */
     unsigned int channel;
 
-    /*keep track of our errors so we can reset if needed*/
-    unsigned char error_ctr;
+    /* keep track of our errors so we can reset if needed */
+    unsigned int error_ctr;
 
-    /*flag to let use know when we are ready to capture*/
+    /* flag to let use know when we are ready to capture */
     bool ready;
 
     kis_capture_handler_t *caph;
