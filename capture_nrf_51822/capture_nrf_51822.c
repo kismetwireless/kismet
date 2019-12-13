@@ -292,8 +292,6 @@ int main(int argc, char *argv[]) {
 
     localnrf.caph = caph;
 
-    printf("nrf51822 main\n");
-
     /* Set the local data ptr */
     cf_handler_set_userdata(caph, &localnrf);
 
