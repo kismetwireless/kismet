@@ -43,11 +43,11 @@ int nrf_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len)
     uint8_t buf[255];
     uint8_t res = 0;
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
-    printf("write the command:%s\n",tx_buf);
+    //printf("write the command:%s\n",tx_buf);
     write(localnrf->fd,tx_buf,tx_len);
-    printf("look for a response\n");
+    //printf("look for a response\n");
     res = read(localnrf->fd,buf,255);
-    printf("res:%d buf:%s\n",res,buf);
+    //printf("res:%d buf:%s\n",res,buf);
 
     return 1;
 }
@@ -55,7 +55,7 @@ int nrf_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len)
 int nrf_enter_promisc_mode(kis_capture_handler_t *caph)
 {
     //write receive
-    nrf_write_cmd(caph,"receive",strlen("receive"));
+    nrf_write_cmd(caph,"receive\r\n",strlen("receive\r\n"));
 
     return 1;
 }
@@ -63,7 +63,7 @@ int nrf_enter_promisc_mode(kis_capture_handler_t *caph)
 int nrf_exit_promisc_mode(kis_capture_handler_t *caph)
 {
     //write sleep
-    nrf_write_cmd(caph,"sleep",strlen("sleep"));
+    nrf_write_cmd(caph,"sleep\r\n",strlen("sleep\r\n"));
 
     return 1;
 }
@@ -73,7 +73,7 @@ int nrf_set_channel(kis_capture_handler_t *caph, uint8_t channel)
     nrf_exit_promisc_mode(caph);
 
     uint8_t ch[16];
-    sprintf(ch,"channel %d",channel);
+    sprintf(ch,"channel %d\r\n",channel);
     nrf_write_cmd(caph,ch,strlen(ch));
 
     nrf_enter_promisc_mode(caph);
@@ -96,7 +96,7 @@ int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_
 	    res = read(localnrf->fd,buf,255);
 	    if(res > 0)
 	    {
-                printf("%s:%d\n", buf, res);
+                //printf("payload-- %s:%d\n", buf, res);
                 for(int xp = 0;xp < res;xp++)
                 {
                         if(buf[xp] == 'r'
@@ -118,7 +118,7 @@ int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_
                         && strstr((char*)pkt,"time:") > 0
                         )
                         {
-                                printf("pkt:%s\n",pkt);
+                                //printf("pkt:%s\n",pkt);
                                 endofpkt = true;
                                 //pkt_ctr = 0;
                                 //memset(pkt,0x00,256);
@@ -146,7 +146,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
  
-printf("probe_callback\n");
+//printf("probe_callback\n");
 
     char *placeholder = NULL;
     int placeholder_len;
@@ -195,7 +195,7 @@ printf("probe_callback\n");
 
     (*ret_interface)->channels_len = 3;
 
-printf("probe_callback close\n");
+//printf("probe_callback close\n");
 
     return 1;
 }/////mutex inside
@@ -205,16 +205,16 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
 
-printf("open_callback\n");
+//printf("open_callback\n");
 
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
 
     /* open for r/w but no tty */
     printf("open the serial :%s\n",MODEMDEVICE);
     localnrf->fd = open(MODEMDEVICE, O_RDWR | O_NOCTTY );
-    printf("post open fc:%d\n",localnrf->fd);
+    //printf("post open fc:%d\n",localnrf->fd);
     if (localnrf->fd <0) {perror(MODEMDEVICE); exit(-1); }
-    printf("continue on\n");
+    //printf("continue on\n");
     tcgetattr(localnrf->fd,&localnrf->oldtio); /* save current serial port settings */
     bzero(&localnrf->newtio, sizeof(localnrf->newtio)); /* clear struct for new port settings */
 
@@ -233,7 +233,14 @@ printf("open_callback\n");
     tcflush(localnrf->fd, TCIFLUSH);
     tcsetattr(localnrf->fd,TCSANOW,&localnrf->newtio);
 
-printf("open_callback close\n");
+    //LINKTYPE_IEEE802_15_4_NOFCS
+    *dlt = 230;
+
+    nrf_set_channel(caph,11);
+
+    nrf_enter_promisc_mode(caph);
+
+    //printf("open_callback close\n");
 
     return 1;
 }
@@ -250,6 +257,7 @@ void capture_thread(kis_capture_handler_t *caph) {
 
     while(1) {
 	    if(caph->spindown) {
+		nrf_exit_promisc_mode(caph);
 		/* set the port back to normal */
                 tcsetattr(localnrf->fd,TCSANOW,&localnrf->oldtio);
 		break;
@@ -303,7 +311,7 @@ int main(int argc, char *argv[]) {
 
     localnrf.caph = caph;
 
-    printf("nrf52840 main\n");
+    //printf("nrf52840 main\n");
 
     /* Set the local data ptr */
     cf_handler_set_userdata(caph, &localnrf);

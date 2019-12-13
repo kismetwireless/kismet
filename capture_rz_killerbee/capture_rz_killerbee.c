@@ -526,6 +526,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
+    //LINKTYPE_IEEE802_15_4_NOFCS
+    *dlt = 230;
+
     rz_killerbee_init(caph); 
     rz_killerbee_set_mode(caph,RZ_KILLERBEE_CMD_MODE_AC);
     rz_killerbee_set_channel(caph, 11);

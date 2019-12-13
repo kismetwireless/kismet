@@ -481,6 +481,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     */
     pthread_mutex_unlock(&(localticc2531->usb_mutex));
 
+    //LINKTYPE_IEEE802_15_4_NOFCS
+    *dlt = 230;
+
     ticc2531_set_power(caph,0x04, TICC2531_POWER_RETRIES);
     ticc2531_enter_promisc_mode(caph);
     return 1;
