@@ -624,8 +624,6 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    libusb_set_debug(localticc2540.libusb_ctx, 3);
-
     localticc2540.caph = caph;
 
     /* Set the local data ptr */
