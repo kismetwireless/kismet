@@ -56,7 +56,23 @@ void kis_datasource_ticc2531::handle_rx_packet(kis_packet *packet) {
 
     uint8_t fcs1 = cc_chunk->data[cc_chunk->length - 2];
     uint8_t fcs2 = cc_chunk->data[cc_chunk->length - 1];
-    
+
+    int rssi = (fcs1 + (int)pow(2,7)) % (int)pow(2,8) - (int)pow(2,7) - 73;
+
+    unsigned char crc_ok = fcs2 & (1 << 7);
+
+    unsigned char corr = fcs2 & 0x7f;
+
+    if(crc_ok > 0)
+    {
+
+    }
+    else
+    {
+	delete(packet);
+	return;
+    }
+
     
     // Pass the packet on
     //packetchain->process_packet(packet);
