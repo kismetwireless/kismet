@@ -74,6 +74,7 @@
 #include "datasource_nrf_mousejack.h"
 #include "datasource_ti_cc_2540.h"
 #include "datasource_nrf_51822.h"
+#include "datasource_ubertooth_one.h"
 
 #include "logtracker.h"
 #include "kis_ppilogfile.h"
@@ -887,6 +888,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_nrf_mousejack_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_ticc2540_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_nrf51822_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_ubertooth_one_builder()));
     
     // Create the database logger as a global because it's a special case
     kis_database_logfile::create_kisdatabaselog();

@@ -55,10 +55,6 @@
 
 #define MAX_PACKET_LEN  8192
 
-#ifndef KDLT_BLUETOOTH_LE_LL
-#define KDLT_BLUETOOTH_LE_LL        251
-#endif
-
 /* State tracking, put in userdata */
 typedef struct {
     ubertooth_t *ut;
@@ -124,7 +120,8 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
         return NULL;
     }
 
-    if ((parsechan > 39 && parsechan < 2402) || parsechan > 2480 || parsechan % 2) {
+    if ((parsechan > 39 && parsechan < 2402) || parsechan > 2480 || 
+            (parsechan > 39 && parsechan % 2)) {
         snprintf(errstr, STATUS_MAX, "%s expected a numeric channel (0-39) or frequency in "
                 "MHz (2402-2480)", local_ubertooth->name);
         cf_send_message(caph, errstr, MSGFLAG_INFO);
@@ -189,11 +186,6 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     int u1_num = 0;
     int parse_num = 0;
 
-    if (u1_num == 0) {
-        return 0;
-    }
-
-
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
         return 0;
@@ -250,7 +242,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     int placeholder_len;
     
     char errstr[STATUS_MAX];
-    char errstr2[STATUS_MAX];
 
     *uuid = NULL;
     *dlt = 0;
@@ -312,6 +303,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         *uuid = strdup(errstr);
     }
 
+    local_ubertooth->ut = ubertooth_init();
+
     ret = ubertooth_connect(local_ubertooth->ut, ubertooth_number);
     if (ret < 0) {
         snprintf(msg, STATUS_MAX, "%s could not connect to %s",
@@ -329,18 +322,17 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     ret = cmd_set_modulation(local_ubertooth->ut->devh, MOD_BT_LOW_ENERGY);
 
-
     ret = populate_chanlist(caph, local_ubertooth->interface, errstr, 
             &((*ret_interface)->channels), &((*ret_interface)->channels_len));
 
     (*ret_interface)->hardware = strdup("ubertooth");
 
-    *dlt = KDLT_BLUETOOTH_LE_LL;
+    /* we decode the DLT on the host */
+    *dlt = 0;
 
     (*ret_interface)->capif = strdup(local_ubertooth->interface);
 
-    if ((placeholder_len = 
-                cf_find_flag(&placeholder, "channel", definition)) > 0) {
+    if ((placeholder_len = cf_find_flag(&placeholder, "channel", definition)) > 0) {
         localchanstr = strndup(placeholder, placeholder_len);
 
         localchan = 
@@ -349,27 +341,33 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         free(localchanstr);
 
         if (localchan == NULL) {
+            printf("invalid channel %s\n", placeholder);
             snprintf(msg, STATUS_MAX, 
                     "%s %s could not parse channel= option provided in source "
                     "definition", local_ubertooth->name, local_ubertooth->interface);
             return -1;
         }
+    } else {
+        localchan = (unsigned int *) malloc(sizeof(unsigned int));
+        *localchan = 2402;
+    }
 
-        snprintf(errstr, STATUS_MAX, "%d", *localchan);
-        (*ret_interface)->chanset = strdup(errstr);
+    snprintf(errstr, STATUS_MAX, "%d", *localchan);
+    (*ret_interface)->chanset = strdup(errstr);
 
-        snprintf(errstr, STATUS_MAX, "%s setting channel to %s", 
-                local_ubertooth->name, (*ret_interface)->chanset);
-        cf_send_message(caph, errstr, MSGFLAG_INFO);
+    snprintf(errstr, STATUS_MAX, "%s setting channel to %s", 
+            local_ubertooth->name, (*ret_interface)->chanset);
+    cf_send_message(caph, errstr, MSGFLAG_INFO);
 
-        if (chancontrol_callback(caph, 0, localchan, msg) < 0) {
-            free(localchan);
-            return -1;
-        }
+    if (chancontrol_callback(caph, 0, localchan, msg) < 0) {
+        free(localchan);
+        return -1;
     }
 
     if (localchan != NULL)
         free(localchan);
+
+    ret = cmd_btle_sniffing(local_ubertooth->ut->devh, true);
 
     return 1;
 }
@@ -407,7 +405,41 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
 
 void capture_thread(kis_capture_handler_t *caph) {
     local_ubertooth_t *local_ubertooth = (local_ubertooth_t *) caph->userdata;
+    usb_pkt_rx rx;
+    int r;
+    struct timeval ts;
 
+    while (!caph->spindown) {
+        r = cmd_poll(local_ubertooth->ut->devh, &rx);
+
+        if (r < 0) {
+            cf_send_error(caph, 0, "error receiving from Ubertooth One");
+            break;
+        }
+
+        if (r == sizeof(usb_pkt_rx)) {
+            gettimeofday(&ts, NULL);
+
+            while (1) {
+                if ((r = cf_send_data(caph, 
+                                NULL, NULL, NULL,
+                                ts,
+                                0,
+                                sizeof(usb_pkt_rx), (unsigned char *) &rx)) < 0) {
+                    cf_send_error(caph, 0, "unable to send DATA frame");
+                    cf_handler_spindown(caph);
+                } else if (r == 0) {
+                    /* Go into a wait for the write buffer to get flushed */
+                    cf_handler_wait_ringbuffer(caph);
+                    continue;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        usleep(500);
+    }
 
     cf_handler_spindown(caph);
 }
