@@ -872,28 +872,6 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         return 0;
     }
 
-    /* With the latest nexmon drivers they respond to normal ioctls, we'll try defering
-     * the probe and only failing come 'open', if we can't talk to them w/ either mechanism.
-     */
-    /*
-    if (strcmp(driver, "brcmfmac") == 0 ||
-            strcmp(driver, "brcmfmac_sdio") == 0) {
-        struct nexmon_t *nexmon;
-        nexmon = init_nexmon(interface);
-
-        if (nexmon == NULL) {
-            free(interface);
-            return -1;
-        }
-
-        free(nexmon);
-    } else */
-    
-    if (strcmp(driver, "iwlwifi") == 0) {
-        local_wifi->use_ht_channels = 0;
-        local_wifi->use_vht_channels = 0;
-    }
-
     /* Do we exclude HT or VHT channels?  Equally, do we force them to be turned on? */
     if ((placeholder_len = cf_find_flag(&placeholder, "ht_channels", definition)) > 0) {
         if (strncasecmp(placeholder, "false", placeholder_len) == 0) {
@@ -1515,7 +1493,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if (mode != LINUX_WLEXT_MONITOR && local_wifi->use_mac80211_vif &&
             strcmp(local_wifi->interface, local_wifi->cap_interface) != 0) {
         /* First, look for some nl80211 flags in the arguments. */
-        unsigned int num_flags = 2;
+        unsigned int num_flags = 0;
         unsigned int fi;
         unsigned int *flags = NULL;
 
@@ -1549,10 +1527,12 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         /* Allocate the flag list */
         flags = (unsigned int *) malloc(sizeof(unsigned int) * num_flags);
 
-        /* We always set these */
         fi = 0;
+#if 0
+        /* We always set these */
         flags[fi++] = NL80211_MNTR_FLAG_CONTROL;
         flags[fi++] = NL80211_MNTR_FLAG_OTHER_BSS;
+#endif
 
         if (fcs)
             flags[fi++] = NL80211_MNTR_FLAG_FCSFAIL;

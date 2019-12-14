@@ -174,8 +174,12 @@ int mac80211_create_monitor_vif(const char *interface, const char *newinterface,
 
     unsigned int x;
 
-    if (if_nametoindex(newinterface) > 0) 
+    if (if_nametoindex(newinterface) > 0) {
+	snprintf(errstr, STATUS_MAX,
+		"unable to create monitor vif %s:%s, new vif already exists",
+		interface, newinterface);
         return 1;
+    }
 
     nl_sock = nl_socket_alloc();
     if (!nl_sock) {
@@ -208,6 +212,7 @@ int mac80211_create_monitor_vif(const char *interface, const char *newinterface,
         return -1;
     }
 
+    if (flags_sz > 0) {
     if ((flags = nlmsg_alloc()) == NULL) {
         snprintf(errstr, STATUS_MAX, 
                 "unable to create monitor vif %s:%s, unable to allocate nl80211 flags",
@@ -215,18 +220,21 @@ int mac80211_create_monitor_vif(const char *interface, const char *newinterface,
         nl_socket_free(nl_sock);
         return -1;
     }
+    }
 
     genlmsg_put(msg, 0, 0, nl80211_id, 0, 0, NL80211_CMD_NEW_INTERFACE, 0);
     NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, if_nametoindex(interface));
     NLA_PUT_STRING(msg, NL80211_ATTR_IFNAME, newinterface);
     NLA_PUT_U32(msg, NL80211_ATTR_IFTYPE, NL80211_IFTYPE_MONITOR);
 
-    for (x = 0; x < flags_sz; x++) {
-        NLA_PUT_FLAG(flags, in_flags[x]);
-    }
-    
-    if (flags_sz > 0)
+    if (flags_sz > 0) {
         nla_put_nested(msg, NL80211_ATTR_MNTR_FLAGS, flags);
+
+	for (x = 0; x < flags_sz; x++) {
+		NLA_PUT_FLAG(flags, in_flags[x]);
+	}
+    
+    }
 
     if (nl_send_auto_complete(nl_sock, msg) < 0 || nl_wait_for_ack(nl_sock) < 0) {
 nla_put_failure:
@@ -244,7 +252,7 @@ nla_put_failure:
 
     if (if_nametoindex(newinterface) <= 0) {
         snprintf(errstr, STATUS_MAX, 
-                "creating a monitor interface for %s:%s worked, but couldn't"
+                "creating a monitor interface for %s:%s seemed to work, but couldn't"
                 "find that interface after creation.", interface, newinterface);
         return -1;
     }
@@ -708,21 +716,21 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
                 }
             }
 
-            // fprintf(stderr, "debug - %u %u %u\n", band_ht40, band_ht80, band_ht160);
-
             if (tb_band[NL80211_BAND_ATTR_FREQS]) {
                 nla_for_each_nested(nl_freq, tb_band[NL80211_BAND_ATTR_FREQS], rem_freq) {
                     nla_parse(tb_freq, NL80211_FREQUENCY_ATTR_MAX, nla_data(nl_freq),
                             nla_len(nl_freq), NULL);
 
-                    if (!tb_freq[NL80211_FREQUENCY_ATTR_FREQ])
+                    if (!tb_freq[NL80211_FREQUENCY_ATTR_FREQ]) {
                         continue;
-
-                    if (tb_freq[NL80211_FREQUENCY_ATTR_DISABLED])
-                        continue;
+		    }
 
                     /* We've got at least one actual frequency */
                     freq = nla_get_u32(tb_freq[NL80211_FREQUENCY_ATTR_FREQ]);
+
+                    if (tb_freq[NL80211_FREQUENCY_ATTR_DISABLED]) {
+                        continue;
+		    }
 
                     chan_list_new = (struct nl80211_channel_list *) malloc(sizeof(struct nl80211_channel_list));
 
@@ -945,8 +953,6 @@ int mac80211_get_chanlist(const char *interface, unsigned int extended_flags, ch
     while (chan_list_cur != NULL && num_freq < cblock.nfreqs) {
         /* Use the dup'd string directly */
         (*ret_chan_list)[num_freq++] = chan_list_cur->channel;
-
-        // fprintf(stderr, "debug - %u %s\n", num_freq, chan_list_cur->channel);
 
         /* Shuffle the pointers */
         chan_list_old = chan_list_cur;
