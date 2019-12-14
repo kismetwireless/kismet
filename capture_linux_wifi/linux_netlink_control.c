@@ -38,7 +38,7 @@
 #include <netlink/msg.h>
 #include <netlink/attr.h>
 
-#include "../nl80211.h"
+#include "nl80211.h"
 #include <net/if.h>
 #endif
 
@@ -119,20 +119,13 @@ unsigned int mac80211_freq_to_chan(unsigned int in_freq) {
     return in_freq / 5 - 1000;
 }
 
-int mac80211_connect(const char *interface, void **nl_sock, 
-        int *nl80211_id, int *if_index, char *errstr) {
+int mac80211_connect(void **nl_sock, int *nl80211_id, char *errstr) {
 #ifndef HAVE_LINUX_NETLINK
     snprintf(errstr, STATUS_MAX,
             "cannot connect to netlink; not compiled with netlink "
             "support.  Check the output of ./configure for more information");
     return -1;
 #else
-
-    if ((*if_index = if_nametoindex(interface)) < 0) {
-        snprintf(errstr, STATUS_MAX,
-                "cannot connect to netlink:  Could not find interface '%s'", interface);
-        return -1;
-    }
 
     *nl_sock = nl_socket_alloc();
     if (!nl_sock) {
@@ -313,8 +306,7 @@ nla_put_failure:
 #endif
 }
 
-int mac80211_set_channel(const char *interface, int channel, 
-        unsigned int chmode, char *errstr) {
+int mac80211_set_channel(const char *interface, int channel, unsigned int chmode, char *errstr) {
 #ifndef HAVE_LINUX_NETLINK
     snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
             "support, check the output of ./configure for why");
@@ -324,8 +316,14 @@ int mac80211_set_channel(const char *interface, int channel,
     int nl80211_id;
     int ifidx;
 
-    if (mac80211_connect(interface, &nl_sock, &nl80211_id, &ifidx, errstr) < 0)
+    if (mac80211_connect(&nl_sock, &nl80211_id, errstr) < 0)
         return -1;
+
+    if ((ifidx = if_nametoindex(interface)) < 0) {
+        snprintf(errstr, STATUS_MAX,
+                "cannot connect to netlink:  Could not find interface '%s'", interface);
+        return -1;
+    }
 
     int ret = 
         mac80211_set_channel_cache(ifidx, nl_sock, nl80211_id, channel, chmode, errstr);
@@ -433,7 +431,13 @@ int mac80211_set_frequency(const char *interface,
     int ifidx;
     int nl80211_id;
 
-    if (mac80211_connect(interface, &nl_sock, &nl80211_id, &ifidx, errstr) < 0) {
+    if (mac80211_connect(&nl_sock, &nl80211_id, errstr) < 0) {
+        return -1;
+    }
+
+    if ((ifidx = if_nametoindex(interface)) < 0) {
+        snprintf(errstr, STATUS_MAX,
+                "cannot connect to netlink:  Could not find interface '%s'", interface);
         return -1;
     }
 
@@ -538,15 +542,89 @@ nla_put_failure:
         return -1;
     }
 
-    while (err)
+    while (err > 0)
         nl_recvmsgs((struct nl_sock *) nl_sock, cb);
 
     nl_cb_put(cb);
     nlmsg_free(msg);
 
+    if (err < 0)
+        return err;
+
     return 1;
 #endif
 }
+
+#ifdef HAVE_LINUX_NETLINK
+static int nl80211_iftype_cb(struct nl_msg *msg, void *arg) {
+    struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
+    struct nlattr *tb_msg[NL80211_ATTR_MAX + 1];
+
+    nla_parse(tb_msg, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0), genlmsg_attrlen(gnlh, 0), NULL);
+
+    if (tb_msg[NL80211_ATTR_IFTYPE]) {
+        *((uint32_t *) arg) = nla_get_u32(tb_msg[NL80211_ATTR_IFTYPE]);
+    } else {
+        *((uint32_t *) arg) = 0;
+    }
+
+    return 0;
+}
+
+#endif
+
+
+int mac80211_get_iftype_cache(int ifidx, void *nl_sock, int nl80211_id, uint32_t *iftype, char *errstr) {
+#ifndef HAVE_LINUX_NETLINK
+    snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
+            "support, check the output of ./configure for why.");
+    return -1;
+#else
+    struct nl_msg *msg;
+    struct nl_cb *cb;
+    int err = 1;
+
+    if ((msg = nlmsg_alloc()) == NULL) {
+        snprintf(errstr, STATUS_MAX, 
+                "unable to get interface type: unable to allocate mac80211 control message.");
+        return -1;
+    }
+
+    cb = nl_cb_alloc(NL_CB_DEFAULT);
+
+    err = 1;
+
+    nl_cb_set(cb, NL_CB_VALID, NL_CB_CUSTOM, nl80211_iftype_cb, iftype);
+	nl_cb_set(cb, NL_CB_ACK, NL_CB_CUSTOM, nl80211_ack_cb, &err);
+    nl_cb_set(cb, NL_CB_FINISH, NL_CB_CUSTOM, nl80211_finish_cb, &err);
+    nl_cb_err(cb, NL_CB_CUSTOM, nl80211_error_cb, &err);
+
+    genlmsg_put(msg, 0, 0, nl80211_id, 0, 0, NL80211_CMD_GET_INTERFACE, 0);
+    NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, ifidx);
+
+    if (nl_send_auto_complete((struct nl_sock *) nl_sock, msg) < 0) {
+nla_put_failure:
+        snprintf(errstr, STATUS_MAX, 
+                "getting interface type failed failed to failed to write netlink command");
+        nlmsg_free(msg);
+        nl_cb_put(cb);
+        return -1;
+    }
+
+    while (err > 0) {
+        nl_recvmsgs((struct nl_sock *) nl_sock, cb);
+    }
+
+    nl_cb_put(cb);
+    nlmsg_free(msg);
+
+    if (err < 0)
+        return err;
+
+    return 1;
+#endif
+}
+
 
 struct nl80211_channel_list {
     char *channel;
@@ -847,7 +925,7 @@ int mac80211_get_chanlist(const char *interface, unsigned int extended_flags, ch
         return -1;
     }
 
-    while (err)
+    while (err > 0)
         nl_recvmsgs((struct nl_sock *) nl_sock, cb);
 
     nl_cb_put(cb);
@@ -900,6 +978,9 @@ int mac80211_get_chanlist(const char *interface, unsigned int extended_flags, ch
     free(cblock.phyname);
 
     // (*ret_chan_list)[0] = strdup("45");
+  
+    if (err < 0)
+        return err;
 
     return (*ret_num_chans);
 #endif
