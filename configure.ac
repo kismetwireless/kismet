@@ -1440,12 +1440,10 @@ AS_IF([test "xwant_ubertooth" != "xno"], [
         AC_LINK_IFELSE([AC_LANG_PROGRAM([[
                         #include <ubertooth/ubertooth.h>
                         ]], [[
-                             int x = ubertooth_count();
+                             unsigned int x = ubertooth_count();
                              ]])],[ubercount=1],[ubercount=0])
         if test "$ubercount" = 1; then
             AC_DEFINE(HAVE_LIBUBERTOOTH_UBERTOOTH_COUNT, 1, libubertooth has ubertooth_count)
-        else
-            AC_MSG_WARN([Older version of libubertooth does not have ubertooth_count])
         fi
 
         CPPFLAGS="$OCFL"

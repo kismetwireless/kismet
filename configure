@@ -12277,7 +12277,7 @@ int
 main ()
 {
 
-                             int x = ubertooth_count();
+                             unsigned int x = ubertooth_count();
 
   ;
   return 0;
@@ -12294,9 +12294,6 @@ rm -f core conftest.err conftest.$ac_objext \
 
 $as_echo "#define HAVE_LIBUBERTOOTH_UBERTOOTH_COUNT 1" >>confdefs.h
 
-        else
-            { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Older version of libubertooth does not have ubertooth_count" >&5
-$as_echo "$as_me: WARNING: Older version of libubertooth does not have ubertooth_count" >&2;}
         fi
 
         CPPFLAGS="$OCFL"
