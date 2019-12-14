@@ -114,6 +114,9 @@
 /* libsqlite3 database support */
 #undef HAVE_LIBSQLITE3
 
+/* libubertooth has ubertooth_count */
+#undef HAVE_LIBUBERTOOTH_UBERTOOTH_COUNT
+
 /* Define to 1 if you have the <libutil.h> header file. */
 #undef HAVE_LIBUTIL_H
 

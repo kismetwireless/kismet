@@ -12262,6 +12262,45 @@ $as_echo "$as_me: WARNING: missing one or more required libraries for ubertooth-
         have_ubertooth="no"
     else
         have_ubertooth="yes"
+
+        OCPFL="$CPPFLAGS"
+        CPPFLAGS="$CPPFLAGS $LIBUBERTOOTHCFLAGS $LIBBTBBCFLAGS $LIBUSBCFLAGS"
+        OLFL="$LDFLAGS"
+        LDFLAGS="$LDFLAGS $LIBUBERTOOTHLIBS $LIBBTBBLIBS $LIBUSBLIBS"
+
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+                        #include <ubertooth/ubertooth.h>
+
+int
+main ()
+{
+
+                             int x = ubertooth_count();
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+  ubercount=1
+else
+  ubercount=0
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+        if test "$ubercount" = 1; then
+
+$as_echo "#define HAVE_LIBUBERTOOTH_UBERTOOTH_COUNT 1" >>confdefs.h
+
+        else
+            { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Older version of libubertooth does not have ubertooth_count" >&5
+$as_echo "$as_me: WARNING: Older version of libubertooth does not have ubertooth_count" >&2;}
+        fi
+
+        CPPFLAGS="$OCFL"
+        LDFLAGS="$OLDFLAGS"
     fi
 
 fi

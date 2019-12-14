@@ -55,6 +55,39 @@
 
 #define MAX_PACKET_LEN  8192
 
+#ifndef HAVE_LIBUBERTOOTH_UBERTOOTH_COUNT
+unsigned ubertooth_count(void) {
+    struct libusb_device **usb_list = NULL;
+    struct libusb_context *ctx = NULL;
+    struct libusb_device_descriptor desc;
+    int usb_devs, i, r;
+    unsigned uberteeth = 0;
+
+    r = libusb_init(NULL);
+    if (r < 0) {
+        fprintf(stderr, "libusb_init failed (got 1.0?)\n");
+        return -1;
+    }
+
+    usb_devs = libusb_get_device_list(ctx, &usb_list);
+
+    for(i = 0 ; i < usb_devs ; ++i) {
+        r = libusb_get_device_descriptor(usb_list[i], &desc);
+        if(r < 0)
+            fprintf(stderr, "couldn't get usb descriptor for dev #%d!\n", i);
+        if ((desc.idVendor == TC13_VENDORID && desc.idProduct == TC13_PRODUCTID)
+                || (desc.idVendor == U0_VENDORID && desc.idProduct == U0_PRODUCTID)
+                || (desc.idVendor == U1_VENDORID && desc.idProduct == U1_PRODUCTID))
+        {
+            uberteeth++;
+        }
+    }
+
+    libusb_free_device_list(usb_list,1);
+    return uberteeth;
+}
+#endif
+
 /* State tracking, put in userdata */
 typedef struct {
     ubertooth_t *ut;
@@ -199,8 +232,10 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     if (strcmp("ubertooth", interface) == 0) {
         parse_num = -1;
     } else if ((ret = sscanf(interface, "ubertooth%u", &parse_num)) != 1) {
-        free(interface);
-        return 0;
+        if ((ret = sscanf(interface, "ubertooth-%u", &parse_num)) != 1) {
+            free(interface);
+            return 0;
+        }
     }
 
     /* is it out of range? */
@@ -279,9 +314,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if (strcmp("ubertooth", local_ubertooth->interface) == 0) {
         ubertooth_number = -1;
     } else if ((ret = sscanf(local_ubertooth->interface, "ubertooth%u", &ubertooth_number)) != 1) {
-        snprintf(msg, STATUS_MAX, "%s could not parse ubertooth device from interface",
-                local_ubertooth->name);
-        return -1;
+        if ((ret = sscanf(local_ubertooth->interface, "ubertooth-%u", &ubertooth_number)) != 1) {
+            snprintf(msg, STATUS_MAX, "%s could not parse ubertooth device from interface",
+                    local_ubertooth->name);
+            return -1;
+        }
     }
 
     /* is it out of range? */
@@ -394,7 +431,7 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
         (*interfaces)[i] = (cf_params_list_interface_t *) malloc(sizeof(cf_params_list_interface_t));
         memset((*interfaces)[i], 0, sizeof(cf_params_list_interface_t));
 
-        snprintf(errstr, STATUS_MAX, "ubertooth%u", i);
+        snprintf(errstr, STATUS_MAX, "ubertooth-%u", i);
 
         (*interfaces)[i]->interface = strdup(errstr);
         (*interfaces)[i]->hardware = strdup("ubertooth");
