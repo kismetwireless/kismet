@@ -65,7 +65,15 @@ void kis_datasource_ticc2531::handle_rx_packet(kis_packet *packet) {
 
     if(crc_ok > 0)
     {
+        //add in a valid crc
 
+        auto decapchunk = new kis_datachunk;
+        decapchunk->set_data(cc_chunk->data, cc_chunk->length, false);
+        decapchunk->dlt = 230;//LINKTYPE_IEEE802_15_4_NOFCS 
+        packet->insert(pack_comp_decap, decapchunk);
+
+	// Pass the packet on
+        packetchain->process_packet(packet);
     }
     else
     {
@@ -74,7 +82,5 @@ void kis_datasource_ticc2531::handle_rx_packet(kis_packet *packet) {
     }
 
     
-    // Pass the packet on
-    //packetchain->process_packet(packet);
 }
 

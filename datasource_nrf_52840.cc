@@ -41,9 +41,9 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
     uint8_t c_payload[255];memset(c_payload,0x00,255);
     uint8_t payload[255];memset(payload,0x00,255);
     char tmp[16];memset(tmp,0x00,16);
+    int16_t c_payload_len = 0;
     int16_t lqi = 0;
     int16_t rssi = 0;
-
     int16_t loc[4] = {0,0,0,0};
     uint8_t li=0;
 
@@ -60,7 +60,7 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
     //printf("loc[0]:%d loc[1]:%d loc[2]:%d loc[3]:%d\n",loc[0],loc[1],loc[2],loc[3]);
     //copy over the packet
     memcpy(c_payload,&cc_chunk->data[loc[0]+2],(loc[1] - loc[0] - 1 - (strlen("payload")))); 
-
+    c_payload_len = (loc[1] - loc[0] - 1 - (strlen("payload")));
     //copy over the power/rssi
     memcpy(tmp,&cc_chunk->data[loc[1]+2],(loc[2] - loc[1] - 2 - (strlen("lqi"))));
     //printf("rssi:%s\n",tmp);
@@ -75,13 +75,31 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
 
     /*received: %s power: %d lqi: %d time: %d */
     
-    printf("c_payload:%s\n",c_payload);
+    printf("c_payload:%s len:%d\n",c_payload,c_payload_len);
     printf("power:%d\n",rssi);
     printf("lqi:%d\n",lqi);
-    
-		// Pass the packet on
-		//printf("Pass the packet on\n");
-	//	packetchain->process_packet(packet);
+   
+    //convert the string payload to bytes
+
+    bool valid_pkt = false;
+
+    if(valid_pkt)
+    {
+        //add in a valid crc
+
+        auto decapchunk = new kis_datachunk;
+        decapchunk->set_data(cc_chunk->data, cc_chunk->length, false);
+        decapchunk->dlt = 230;//LINKTYPE_IEEE802_15_4_NOFCS
+        packet->insert(pack_comp_decap, decapchunk);
+
+        // Pass the packet on
+        packetchain->process_packet(packet);
+    }
+    else
+    {
+        delete(packet);
+        return;
+    }
 
 }
 
