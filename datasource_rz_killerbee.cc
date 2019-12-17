@@ -32,16 +32,23 @@ void kis_datasource_rzkillerbee::handle_rx_packet(kis_packet *packet) {
 
     bool valid_pkt = false;
 
+    int rssi = cc_chunk->data[6];
+    if(cc_chunk->data[7])
+	    valid_pkt = true;
+
+    printf("rssi:%d valid_pkt:%d\n",rssi,valid_pkt);
+
     if(valid_pkt)
     {
         //add in a valid crc
-
+	int zb_pkt_len = cc_chunk->data[8];
         auto decapchunk = new kis_datachunk;
-        decapchunk->set_data(cc_chunk->data, cc_chunk->length, false);
+        decapchunk->set_data(&cc_chunk->data[9], zb_pkt_len, false);
         decapchunk->dlt = 230;//LINKTYPE_IEEE802_15_4_NOFCS
         packet->insert(pack_comp_decap, decapchunk);
 
         // Pass the packet on
+	printf("Pass the packet on\n");
         packetchain->process_packet(packet);
     }
     else

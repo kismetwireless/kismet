@@ -18,6 +18,8 @@
 
 #include "datasource_nrf_52840.h"
 
+unsigned char hextobytel(char s);
+
 void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
 
     auto cc_chunk = 
@@ -80,6 +82,15 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
     printf("lqi:%d\n",lqi);
    
     //convert the string payload to bytes
+    unsigned char tmpc[2];
+    int c=0;
+    for(int i=0;i<c_payload_len;i++)
+    {
+	tmpc[0] = hextobytel(c_payload[i]);i++;
+        tmpc[1] = hextobytel(c_payload[i]);
+        payload[c] = ((tmpc[0] << 4) | tmpc[1]);
+        c++;
+    }
 
     bool valid_pkt = false;
 
@@ -88,7 +99,7 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
         //add in a valid crc
 
         auto decapchunk = new kis_datachunk;
-        decapchunk->set_data(cc_chunk->data, cc_chunk->length, false);
+        decapchunk->set_data(payload, c, false);
         decapchunk->dlt = 230;//LINKTYPE_IEEE802_15_4_NOFCS
         packet->insert(pack_comp_decap, decapchunk);
 
@@ -101,5 +112,41 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
         return;
     }
 
+}
+
+unsigned char hextobytel(char s)
+{
+        if(s == '0')
+                return 0x0;
+        else if(s == '1')
+                return 0x1;
+        else if(s == '2')
+                return 0x2;
+        else if(s == '3')
+                return 0x3;
+        else if(s == '4')
+                return 0x4;
+        else if(s == '5')
+                return 0x5;
+        else if(s == '6')
+                return 0x6;
+        else if(s == '7')
+                return 0x7;
+        else if(s == '8')
+                return 0x8;
+        else if(s == '9')
+                return 0x9;
+        else if(s == 'A')
+                return 0xA;
+        else if(s == 'B')
+                return 0xB;
+        else if(s == 'C')
+                return 0xC;
+        else if(s == 'D')
+                return 0xD;
+        else if(s == 'E')
+                return 0xE;
+        else if(s == 'F')
+                return 0xF;
 }
 

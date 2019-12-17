@@ -68,7 +68,7 @@ void kis_datasource_ticc2531::handle_rx_packet(kis_packet *packet) {
         //add in a valid crc
 
         auto decapchunk = new kis_datachunk;
-        decapchunk->set_data(cc_chunk->data, cc_chunk->length, false);
+        decapchunk->set_data(&cc_chunk->data[8], cc_payload_len, false);
         decapchunk->dlt = 230;//LINKTYPE_IEEE802_15_4_NOFCS 
         packet->insert(pack_comp_decap, decapchunk);
 
