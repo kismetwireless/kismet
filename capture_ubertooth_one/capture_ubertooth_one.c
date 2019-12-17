@@ -51,7 +51,11 @@
 
 #include "../capture_framework.h"
 
+#ifdef HAVE_UBERTOOTH_UBERTOOTH_H
 #include <ubertooth/ubertooth.h>
+#else
+#include <ubertooth.h>
+#endif
 
 #define MAX_PACKET_LEN  8192
 

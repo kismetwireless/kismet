@@ -1412,6 +1412,9 @@ AS_IF([test "xwant_ubertooth" != "xno"], [
             LDFLAGS="$LDFLAGS -lbtbb"
 
             AC_CHECK_HEADERS([ubertooth/ubertooth.h], 
+                             HAVE_UBERTOOTH_H=yes AC_DEFINE(HAVE_UBERTOOTH_UBERTOOTH_H, 1, ubertooth.h in ubertooth dir), 
+                             AC_MSG_WARN("ubertooth/ubertooth.h is missing"))
+            AC_CHECK_HEADERS([ubertooth.h], 
                              HAVE_UBERTOOTH_H=yes, 
                              AC_MSG_WARN("ubertooth/ubertooth.h is missing"))
             AC_CHECK_LIB([ubertooth], [ubertooth_init], 

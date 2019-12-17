@@ -12125,6 +12125,23 @@ if test "x$ac_cv_header_ubertooth_ubertooth_h" = xyes; then :
 #define HAVE_UBERTOOTH_UBERTOOTH_H 1
 _ACEOF
  HAVE_UBERTOOTH_H=yes
+$as_echo "#define HAVE_UBERTOOTH_UBERTOOTH_H 1" >>confdefs.h
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"ubertooth/ubertooth.h is missing\"" >&5
+$as_echo "$as_me: WARNING: \"ubertooth/ubertooth.h is missing\"" >&2;}
+fi
+
+done
+
+            for ac_header in ubertooth.h
+do :
+  ac_fn_cxx_check_header_mongrel "$LINENO" "ubertooth.h" "ac_cv_header_ubertooth_h" "$ac_includes_default"
+if test "x$ac_cv_header_ubertooth_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_UBERTOOTH_H 1
+_ACEOF
+ HAVE_UBERTOOTH_H=yes
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"ubertooth/ubertooth.h is missing\"" >&5
 $as_echo "$as_me: WARNING: \"ubertooth/ubertooth.h is missing\"" >&2;}
