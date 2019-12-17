@@ -69,7 +69,6 @@ void kis_datasource_ubertooth_one::handle_rx_packet(kis_packet *packet) {
     auto payload_len = (usb_rx->data[5] & 0x3F) + 6 + 3;
 
     if (payload_len > DMA_SIZE) {
-        fmt::print(stderr, "debug - invalid u1 payload len {} greater than {}", payload_len, DMA_SIZE);
         delete(packet);
         return;
     }
