@@ -362,7 +362,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     ret = cmd_set_modulation(local_ubertooth->ut->devh, MOD_BT_LOW_ENERGY);
-    ret = cmd_set_crc_verify(local_ubertooth->ut->devh, true);
 
     ret = populate_chanlist(caph, local_ubertooth->interface, errstr, 
             &((*ret_interface)->channels), &((*ret_interface)->channels_len));
