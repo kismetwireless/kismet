@@ -140,6 +140,8 @@ protected:
     int pack_comp_common, pack_comp_linkframe, pack_comp_decap, pack_comp_btle;
 
     int btle_device_id;
+
+    bool ignore_random;
 };
 
 #endif
