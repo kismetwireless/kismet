@@ -75,9 +75,6 @@
 /* Define to 1 if you have the <execinfo.h> header file. */
 #undef HAVE_EXECINFO_H
 
-/* have __GNU_PARALLEL extensions */
-#undef HAVE_GNU_PARALLEL
-
 /* GPS support will be built. */
 #undef HAVE_GPS
 

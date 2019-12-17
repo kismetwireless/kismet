@@ -9260,46 +9260,6 @@ CPPFLAGS="$CPPFLAGS -fopenmp"
 OLDFLAGS=$LDFLAGS
 LDFLAGS="$CPPFLAGS -fopenmp"
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for __gnu_parallel extensions" >&5
-$as_echo_n "checking for __gnu_parallel extensions... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-                #include <vector>
-                #include <parallel/algorithm>
-
-int
-main ()
-{
-
-                std::vector<int> m;
-                __gnu_parallel::sort(m.begin(), m.end());
-                return 0;
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_link "$LINENO"; then :
-  have_gnuparallel=yes
-else
-  have_gnuparallel=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-if test "$have_gnuparallel" = "yes"; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-
-$as_echo "#define HAVE_GNU_PARALLEL 1" >>confdefs.h
-
-else
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-    CPPFLAGS=$OCPPFLAGS
-    LDFLAGS=$OLDFLAGS
-fi
-
 # Do we need libm for math functions?
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for libm math function in std libs" >&5
 $as_echo_n "checking for libm math function in std libs... " >&6; }

@@ -606,25 +606,6 @@ CPPFLAGS="$CPPFLAGS -fopenmp"
 OLDFLAGS=$LDFLAGS
 LDFLAGS="$CPPFLAGS -fopenmp"
 
-AC_MSG_CHECKING([for __gnu_parallel extensions])
-AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-                #include <vector>
-                #include <parallel/algorithm>
-                ]], [[
-                std::vector<int> m;
-                __gnu_parallel::sort(m.begin(), m.end());
-                return 0;
-                ]])], [have_gnuparallel=yes], 
-                [have_gnuparallel=no])
-if test "$have_gnuparallel" = "yes"; then
-    AC_MSG_RESULT([yes])
-    AC_DEFINE(HAVE_GNU_PARALLEL, [1], [have __GNU_PARALLEL extensions])
-else
-    AC_MSG_RESULT([no])
-    CPPFLAGS=$OCPPFLAGS
-    LDFLAGS=$OLDFLAGS
-fi
-
 # Do we need libm for math functions?
 AC_MSG_CHECKING([for libm math function in std libs])
 OCFL="$CFLAGS"
