@@ -60,7 +60,6 @@ void kis_datasource_ubertooth_one::handle_rx_packet(kis_packet *packet) {
     // we can't decipher - we can't even log them sanely!
     
     if (u1_chunk->length != sizeof(usb_pkt_rx)) {
-        fmt::print(stderr, "debug - invalid u1 frame size {} not {}", u1_chunk->length, sizeof(usb_pkt_rx));
         delete(packet);
         return;
     }
