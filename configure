@@ -644,10 +644,6 @@ LIBBTBBCFLAGS
 LIBBTBBLIBS
 LIBUBERTOOTHCFLAGS
 LIBUBERTOOTHLIBS
-btbb_LIBS
-btbb_CFLAGS
-ubertooth_LIBS
-ubertooth_CFLAGS
 LIBUSBCFLAGS
 LIBUSBLIBS
 libusb_LIBS
@@ -838,11 +834,7 @@ libnl20_LIBS
 libnl1_CFLAGS
 libnl1_LIBS
 libusb_CFLAGS
-libusb_LIBS
-ubertooth_CFLAGS
-ubertooth_LIBS
-btbb_CFLAGS
-btbb_LIBS'
+libusb_LIBS'
 
 
 # Initialize some variables set by options.
@@ -1551,12 +1543,6 @@ Some influential environment variables:
   libusb_CFLAGS
               C compiler flags for libusb, overriding pkg-config
   libusb_LIBS linker flags for libusb, overriding pkg-config
-  ubertooth_CFLAGS
-              C compiler flags for ubertooth, overriding pkg-config
-  ubertooth_LIBS
-              linker flags for ubertooth, overriding pkg-config
-  btbb_CFLAGS C compiler flags for btbb, overriding pkg-config
-  btbb_LIBS   linker flags for btbb, overriding pkg-config
 
 Use these variables to override the choices made by `configure' or to help
 it to find libraries and programs with nonstandard names/locations.
@@ -12086,6 +12072,14 @@ fi
 
 if test "xwant_ubertooth" != "xno"; then :
 
+    OCFL="$CFLAGS"
+    OCPPFL="$CPPFLAGS"
+    OLFL="$LDFLAGS"
+
+    CFLAGS="$CFLAGS $LIBUSBCFLAGS"
+    CPPFLAGS="$CPPFLAGS $LIBUSBCFLAGS"
+    LDFLAGS="$LDFLAGS $LIBUSBLIBS"
+
     CANT_BUILD_UBERTOOTH=0
     LIBUBERTOOTHLIBS=""
     LIBUBERTOOTHCFLAGS=""
@@ -12095,163 +12089,140 @@ if test "xwant_ubertooth" != "xno"; then :
 $as_echo "$as_me: WARNING: missing libusb, ubertooth-one support will not be built" >&2;}
         CANT_BUILD_UBERTOOTH=1
     else
-
-pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ubertooth" >&5
-$as_echo_n "checking for ubertooth... " >&6; }
-
-if test -n "$ubertooth_CFLAGS"; then
-    pkg_cv_ubertooth_CFLAGS="$ubertooth_CFLAGS"
- elif test -n "$PKG_CONFIG"; then
-    if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"ubertooth\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "ubertooth") 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; then
-  pkg_cv_ubertooth_CFLAGS=`$PKG_CONFIG --cflags "ubertooth" 2>/dev/null`
-		      test "x$?" != "x0" && pkg_failed=yes
+        for ac_header in btbb.h
+do :
+  ac_fn_cxx_check_header_mongrel "$LINENO" "btbb.h" "ac_cv_header_btbb_h" "$ac_includes_default"
+if test "x$ac_cv_header_btbb_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_BTBB_H 1
+_ACEOF
+ HAVE_BTBB_H=yes
 else
-  pkg_failed=yes
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"btbb.h is missing\"" >&5
+$as_echo "$as_me: WARNING: \"btbb.h is missing\"" >&2;}
 fi
- else
-    pkg_failed=untried
-fi
-if test -n "$ubertooth_LIBS"; then
-    pkg_cv_ubertooth_LIBS="$ubertooth_LIBS"
- elif test -n "$PKG_CONFIG"; then
-    if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"ubertooth\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "ubertooth") 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; then
-  pkg_cv_ubertooth_LIBS=`$PKG_CONFIG --libs "ubertooth" 2>/dev/null`
-		      test "x$?" != "x0" && pkg_failed=yes
+
+done
+
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for btbb_init in -lbtbb" >&5
+$as_echo_n "checking for btbb_init in -lbtbb... " >&6; }
+if ${ac_cv_lib_btbb_btbb_init+:} false; then :
+  $as_echo_n "(cached) " >&6
 else
-  pkg_failed=yes
-fi
- else
-    pkg_failed=untried
-fi
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lbtbb  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
 
-
-
-if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
-        _pkg_short_errors_supported=yes
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char btbb_init ();
+int
+main ()
+{
+return btbb_init ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+  ac_cv_lib_btbb_btbb_init=yes
 else
-        _pkg_short_errors_supported=no
+  ac_cv_lib_btbb_btbb_init=no
 fi
-        if test $_pkg_short_errors_supported = yes; then
-	        ubertooth_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "ubertooth" 2>&1`
-        else
-	        ubertooth_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "ubertooth" 2>&1`
-        fi
-	# Put the nasty error message in config.log where it belongs
-	echo "$ubertooth_PKG_ERRORS" >&5
-
-	have_libubertoothpkg=no
-elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-	have_libubertoothpkg=no
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_btbb_btbb_init" >&5
+$as_echo "$ac_cv_lib_btbb_btbb_init" >&6; }
+if test "x$ac_cv_lib_btbb_btbb_init" = xyes; then :
+  HAVE_LIBBTBB=yes
 else
-	ubertooth_CFLAGS=$pkg_cv_ubertooth_CFLAGS
-	ubertooth_LIBS=$pkg_cv_ubertooth_LIBS
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-	have_libubertooth_pkg=yes
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"libbtbb is missing\"" >&5
+$as_echo "$as_me: WARNING: \"libbtbb is missing\"" >&2;}
 fi
-        if test x"$have_libubertooth_pkg" != "xyes"; then
-            { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: missing libubertooth, ubertooth-one support will not be built" >&5
-$as_echo "$as_me: WARNING: missing libubertooth, ubertooth-one support will not be built" >&2;}
+
+
+        if test x"$HAVE_BTBB_H" != "xyes" -o x"$HAVE_LIBBTBB" != "xyes"; then
+            { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: missing libbtbb, ubertooth-one support will not be built" >&5
+$as_echo "$as_me: WARNING: missing libbtbb, ubertooth-one support will not be built" >&2;}
             CANT_BUILD_UBERTOOTH=1
         else
-            LIBUBERTOOTHCFLAGS=`pkg-config --cflags ubertooth`
-            LIBUBERTOOTHLIBS=`pkg-config --libs ubertooth`
+            LIBBTBBCFLAGS=""
+            LIBBTBBLIBS="-lbtbb"
+            LDFLAGS="$LDFLAGS -lbtbb"
 
-
-pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for btbb" >&5
-$as_echo_n "checking for btbb... " >&6; }
-
-if test -n "$btbb_CFLAGS"; then
-    pkg_cv_btbb_CFLAGS="$btbb_CFLAGS"
- elif test -n "$PKG_CONFIG"; then
-    if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libbtbb\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "libbtbb") 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; then
-  pkg_cv_btbb_CFLAGS=`$PKG_CONFIG --cflags "libbtbb" 2>/dev/null`
-		      test "x$?" != "x0" && pkg_failed=yes
+            for ac_header in ubertooth/ubertooth.h
+do :
+  ac_fn_cxx_check_header_mongrel "$LINENO" "ubertooth/ubertooth.h" "ac_cv_header_ubertooth_ubertooth_h" "$ac_includes_default"
+if test "x$ac_cv_header_ubertooth_ubertooth_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_UBERTOOTH_UBERTOOTH_H 1
+_ACEOF
+ HAVE_UBERTOOTH_H=yes
 else
-  pkg_failed=yes
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"ubertooth/ubertooth.h is missing\"" >&5
+$as_echo "$as_me: WARNING: \"ubertooth/ubertooth.h is missing\"" >&2;}
 fi
- else
-    pkg_failed=untried
-fi
-if test -n "$btbb_LIBS"; then
-    pkg_cv_btbb_LIBS="$btbb_LIBS"
- elif test -n "$PKG_CONFIG"; then
-    if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libbtbb\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "libbtbb") 2>&5
-  ac_status=$?
-  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
-  test $ac_status = 0; }; then
-  pkg_cv_btbb_LIBS=`$PKG_CONFIG --libs "libbtbb" 2>/dev/null`
-		      test "x$?" != "x0" && pkg_failed=yes
+
+done
+
+            { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ubertooth_init in -lubertooth" >&5
+$as_echo_n "checking for ubertooth_init in -lubertooth... " >&6; }
+if ${ac_cv_lib_ubertooth_ubertooth_init+:} false; then :
+  $as_echo_n "(cached) " >&6
 else
-  pkg_failed=yes
-fi
- else
-    pkg_failed=untried
-fi
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lubertooth  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
 
-
-
-if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
-        _pkg_short_errors_supported=yes
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char ubertooth_init ();
+int
+main ()
+{
+return ubertooth_init ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+  ac_cv_lib_ubertooth_ubertooth_init=yes
 else
-        _pkg_short_errors_supported=no
+  ac_cv_lib_ubertooth_ubertooth_init=no
 fi
-        if test $_pkg_short_errors_supported = yes; then
-	        btbb_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libbtbb" 2>&1`
-        else
-	        btbb_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libbtbb" 2>&1`
-        fi
-	# Put the nasty error message in config.log where it belongs
-	echo "$btbb_PKG_ERRORS" >&5
-
-	have_libbtbb_pkg=no
-elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-	have_libbtbb_pkg=no
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ubertooth_ubertooth_init" >&5
+$as_echo "$ac_cv_lib_ubertooth_ubertooth_init" >&6; }
+if test "x$ac_cv_lib_ubertooth_ubertooth_init" = xyes; then :
+  HAVE_LIBUBERTOOTH=yes
 else
-	btbb_CFLAGS=$pkg_cv_btbb_CFLAGS
-	btbb_LIBS=$pkg_cv_btbb_LIBS
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-	have_libbtbb_pkg=yes
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"libubertooth is missing\"" >&5
+$as_echo "$as_me: WARNING: \"libubertooth is missing\"" >&2;}
 fi
-            if test x"$have_libbtbb_pkg" != "xyes"; then
-                { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: missing libbtbb, ubertooth-one support will not be built" >&5
-$as_echo "$as_me: WARNING: missing libbtbb, ubertooth-one support will not be built" >&2;}
+
+
+            if test x"$HAVE_UBERTOOTH_H" != "xyes" -o x"$HAVE_LIBUBERTOOTH" != "xyes"; then
+                { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: missing libubertooth, ubertooth-one support will not be built" >&5
+$as_echo "$as_me: WARNING: missing libubertooth, ubertooth-one support will not be built" >&2;}
                 CANT_BUILD_UBERTOOTH=1
             else
-                LIBBTBBCFLAGS="$LIBUBERTOOTHCFLAGS `pkg-config --cflags libbtbb`"
-                LIBBTBBLIBS="$LIBUBERTOOTHLIBS `pkg-config --libs libbtbb`"
+                LIBUBERTOOTHCFLAGS=""
+                LIBUBERTOOTHLIBS="-lubertooth"
             fi
         fi
     fi
@@ -12263,42 +12234,56 @@ $as_echo "$as_me: WARNING: missing one or more required libraries for ubertooth-
     else
         have_ubertooth="yes"
 
-        OCPFL="$CPPFLAGS"
-        CPPFLAGS="$CPPFLAGS $LIBUBERTOOTHCFLAGS $LIBBTBBCFLAGS $LIBUSBCFLAGS"
-        OLFL="$LDFLAGS"
-        LDFLAGS="$LDFLAGS $LIBUBERTOOTHLIBS $LIBBTBBLIBS $LIBUSBLIBS"
-
-        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ubertooth_count in -lubertooth" >&5
+$as_echo_n "checking for ubertooth_count in -lubertooth... " >&6; }
+if ${ac_cv_lib_ubertooth_ubertooth_count+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lubertooth  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-                        #include <ubertooth/ubertooth.h>
-
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char ubertooth_count ();
 int
 main ()
 {
-
-                             unsigned int x = ubertooth_count();
-
+return ubertooth_count ();
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_cxx_try_link "$LINENO"; then :
-  ubercount=1
+  ac_cv_lib_ubertooth_ubertooth_count=yes
 else
-  ubercount=0
+  ac_cv_lib_ubertooth_ubertooth_count=no
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
-        if test "$ubercount" = 1; then
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_ubertooth_ubertooth_count" >&5
+$as_echo "$ac_cv_lib_ubertooth_ubertooth_count" >&6; }
+if test "x$ac_cv_lib_ubertooth_ubertooth_count" = xyes; then :
 
 $as_echo "#define HAVE_LIBUBERTOOTH_UBERTOOTH_COUNT 1" >>confdefs.h
 
-        fi
+else
+  HAVE_UBERTOOTH_COUNT=0
+fi
 
-        CPPFLAGS="$OCFL"
-        LDFLAGS="$OLDFLAGS"
+
     fi
+
+    CFLAGS="$OCFL"
+    CPPFLAGS="$OCPPFL"
+    LDFLAGS="$OLFL"
 
 fi
 

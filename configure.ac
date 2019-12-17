@@ -1399,6 +1399,14 @@ AC_SUBST(LIBUSBLIBS)
 AC_SUBST(LIBUSBCFLAGS)
 
 AS_IF([test "xwant_ubertooth" != "xno"], [
+    OCFL="$CFLAGS"
+    OCPPFL="$CPPFLAGS"
+    OLFL="$LDFLAGS"
+
+    CFLAGS="$CFLAGS $LIBUSBCFLAGS"
+    CPPFLAGS="$CPPFLAGS $LIBUSBCFLAGS"
+    LDFLAGS="$LDFLAGS $LIBUSBLIBS"
+
     CANT_BUILD_UBERTOOTH=0
     LIBUBERTOOTHLIBS=""
     LIBUBERTOOTHCFLAGS=""
@@ -1407,21 +1415,34 @@ AS_IF([test "xwant_ubertooth" != "xno"], [
         AC_MSG_WARN([missing libusb, ubertooth-one support will not be built])
         CANT_BUILD_UBERTOOTH=1
     else
-        PKG_CHECK_MODULES([ubertooth], [ubertooth], have_libubertooth_pkg=yes, have_libubertoothpkg=no)
-        if test x"$have_libubertooth_pkg" != "xyes"; then
-            AC_MSG_WARN([missing libubertooth, ubertooth-one support will not be built])
+        AC_CHECK_HEADERS([btbb.h], 
+                         HAVE_BTBB_H=yes, 
+                         AC_MSG_WARN("btbb.h is missing"))
+        AC_CHECK_LIB([btbb], [btbb_init], 
+                     HAVE_LIBBTBB=yes,
+                     AC_MSG_WARN("libbtbb is missing"))
+
+        if test x"$HAVE_BTBB_H" != "xyes" -o x"$HAVE_LIBBTBB" != "xyes"; then
+            AC_MSG_WARN([missing libbtbb, ubertooth-one support will not be built])
             CANT_BUILD_UBERTOOTH=1
         else
-            LIBUBERTOOTHCFLAGS=`pkg-config --cflags ubertooth`
-            LIBUBERTOOTHLIBS=`pkg-config --libs ubertooth`
+            LIBBTBBCFLAGS=""
+            LIBBTBBLIBS="-lbtbb"
+            LDFLAGS="$LDFLAGS -lbtbb"
 
-            PKG_CHECK_MODULES([btbb], [libbtbb], have_libbtbb_pkg=yes, have_libbtbb_pkg=no)
-            if test x"$have_libbtbb_pkg" != "xyes"; then
-                AC_MSG_WARN([missing libbtbb, ubertooth-one support will not be built])
+            AC_CHECK_HEADERS([ubertooth/ubertooth.h], 
+                             HAVE_UBERTOOTH_H=yes, 
+                             AC_MSG_WARN("ubertooth/ubertooth.h is missing"))
+            AC_CHECK_LIB([ubertooth], [ubertooth_init], 
+                         HAVE_LIBUBERTOOTH=yes,
+                         AC_MSG_WARN("libubertooth is missing"))
+
+            if test x"$HAVE_UBERTOOTH_H" != "xyes" -o x"$HAVE_LIBUBERTOOTH" != "xyes"; then
+                AC_MSG_WARN([missing libubertooth, ubertooth-one support will not be built])
                 CANT_BUILD_UBERTOOTH=1
             else
-                LIBBTBBCFLAGS="$LIBUBERTOOTHCFLAGS `pkg-config --cflags libbtbb`"
-                LIBBTBBLIBS="$LIBUBERTOOTHLIBS `pkg-config --libs libbtbb`"
+                LIBUBERTOOTHCFLAGS=""
+                LIBUBERTOOTHLIBS="-lubertooth"
             fi
         fi
     fi
@@ -1432,23 +1453,15 @@ AS_IF([test "xwant_ubertooth" != "xno"], [
     else
         have_ubertooth="yes"
 
-        OCPFL="$CPPFLAGS"
-        CPPFLAGS="$CPPFLAGS $LIBUBERTOOTHCFLAGS $LIBBTBBCFLAGS $LIBUSBCFLAGS"
-        OLFL="$LDFLAGS"
-        LDFLAGS="$LDFLAGS $LIBUBERTOOTHLIBS $LIBBTBBLIBS $LIBUSBLIBS"
+        AC_CHECK_LIB([ubertooth], [ubertooth_count], 
+                     AC_DEFINE(HAVE_LIBUBERTOOTH_UBERTOOTH_COUNT, 1, libubertooth has ubertooth_count),
+                     HAVE_UBERTOOTH_COUNT=0)
 
-        AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-                        #include <ubertooth/ubertooth.h>
-                        ]], [[
-                             unsigned int x = ubertooth_count();
-                             ]])],[ubercount=1],[ubercount=0])
-        if test "$ubercount" = 1; then
-            AC_DEFINE(HAVE_LIBUBERTOOTH_UBERTOOTH_COUNT, 1, libubertooth has ubertooth_count)
-        fi
-
-        CPPFLAGS="$OCFL"
-        LDFLAGS="$OLDFLAGS"
     fi
+
+    CFLAGS="$OCFL"
+    CPPFLAGS="$OCPPFL"
+    LDFLAGS="$OLFL"
 ])
 
 AC_SUBST(LIBUBERTOOTHLIBS)
