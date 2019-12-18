@@ -797,6 +797,7 @@ with_protocc
 enable_libnm
 with_netlink_tiny
 enable_libusb
+enable_ubertooth
 enable_lmsensors
 with_suidgroup
 enable_optimization
@@ -1477,6 +1478,7 @@ Optional Features:
   --disable-libnm         Disable libnm networkmanager support
   --disable-libusb        Disable libUSB support and any libUSB based data
                           sources
+  --disable-ubertooth     Disable Ubertooth One support
   --disable-lmsensors     Disable lmsensors support
   --disable-optimization        disable -Ox gcc optimization
   --enable-asan           enable ASAN address debugging
@@ -12028,6 +12030,19 @@ fi
 
 fi
 
+
+
+want_ubertooth="yes"
+# Check whether --enable-ubertooth was given.
+if test "${enable_ubertooth+set}" = set; then :
+  enableval=$enable_ubertooth; case "${enableval}" in
+	  no) want_ubertooth=no ;;
+	   *) want_ubertooth=yes ;;
+	 esac
+else
+  want_ubertooth=yes
+
+fi
 
 
 if test "xwant_ubertooth" != "xno"; then :

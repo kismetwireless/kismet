@@ -1379,6 +1379,16 @@ AS_IF([test "x$want_usb" != "xno"], [
 AC_SUBST(LIBUSBLIBS)
 AC_SUBST(LIBUSBCFLAGS)
 
+want_ubertooth="yes"
+AC_ARG_ENABLE([ubertooth],
+    AS_HELP_STRING([--disable-ubertooth], [Disable Ubertooth One support]),
+	[case "${enableval}" in
+	  no) want_ubertooth=no ;;
+	   *) want_ubertooth=yes ;;
+	 esac],
+	[want_ubertooth=yes]
+)
+
 AS_IF([test "xwant_ubertooth" != "xno"], [
     OCFL="$CFLAGS"
     OCPPFL="$CPPFLAGS"
