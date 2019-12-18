@@ -12158,8 +12158,8 @@ if test "x$ac_cv_header_ubertooth_h" = xyes; then :
 _ACEOF
  HAVE_UBERTOOTH_H=yes
 else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"ubertooth/ubertooth.h is missing\"" >&5
-$as_echo "$as_me: WARNING: \"ubertooth/ubertooth.h is missing\"" >&2;}
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"ubertooth.h is missing\"" >&5
+$as_echo "$as_me: WARNING: \"ubertooth.h is missing\"" >&2;}
 fi
 
 done

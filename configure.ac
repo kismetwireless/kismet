@@ -1426,7 +1426,7 @@ AS_IF([test "xwant_ubertooth" != "xno"], [
                              AC_MSG_WARN("ubertooth/ubertooth.h is missing"))
             AC_CHECK_HEADERS([ubertooth.h], 
                              HAVE_UBERTOOTH_H=yes, 
-                             AC_MSG_WARN("ubertooth/ubertooth.h is missing"))
+                             AC_MSG_WARN("ubertooth.h is missing"))
             AC_CHECK_LIB([ubertooth], [ubertooth_init], 
                          HAVE_LIBUBERTOOTH=yes,
                          AC_MSG_WARN("libubertooth is missing"))
