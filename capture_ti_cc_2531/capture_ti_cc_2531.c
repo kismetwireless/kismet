@@ -612,7 +612,7 @@ if(localticc2531->ready)
         if(!verify_packet(usb_buf, buf_rx_len)) {
             fprintf(stderr,"invalid packet\n");continue;}
 
-        /**/
+        /*
         if (buf_rx_len > 1) {
             fprintf(stderr, "ti cc 2531 saw %d -- ", buf_rx_len);
 
@@ -621,7 +621,7 @@ if(localticc2531->ready)
             }
             fprintf(stderr, "\n");
         }
-        /**/
+        */
 
         while (1) {
             struct timeval tv;
@@ -672,7 +672,7 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    libusb_set_debug(localticc2531.libusb_ctx, 3);
+    //libusb_set_debug(localticc2531.libusb_ctx, 3);
 
     localticc2531.caph = caph;
 

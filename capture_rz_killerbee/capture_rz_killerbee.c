@@ -502,7 +502,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     (*ret_interface)->capif = strdup(cap_if);
     (*ret_interface)->hardware = strdup("rz_killerbee");
 
-    /* RZ KILLERBEE i11 - 26*/
+    /* RZ KILLERBEE 11 - 26*/
     (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 16);
     for (int i = 11; i < 27; i++) {
         char chstr[4];

@@ -92,11 +92,11 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
     memset(tmp,0x00,16);
 
     /*received: %s power: %d lqi: %d time: %d */
-    
+/*    
     printf("c_payload:%s len:%d\n",c_payload,c_payload_len);
     printf("power:%d\n",rssi);
     printf("lqi:%d\n",lqi);
-   
+*/ 
     //convert the string payload to bytes
     unsigned char tmpc[2];
     int c = 0;
@@ -118,7 +118,7 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
 	auto conv_buf_len = sizeof(zigbee_tap) + nrf_payload_len;// + (sizeof(tap_tlv))-2;// - 2;
 	zigbee_tap *conv_header = reinterpret_cast<zigbee_tap *>(new uint8_t[conv_buf_len]);
 	memset(conv_header, 0, conv_buf_len);
-	printf("nrf_payload_len:%d conv_buf_len:%d\n",nrf_payload_len,conv_buf_len);
+	//printf("nrf_payload_len:%d conv_buf_len:%d\n",nrf_payload_len,conv_buf_len);
 
         // Copy the actual packet payload into the header
         memcpy(conv_header->payload, payload, nrf_payload_len);
@@ -142,7 +142,7 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
         conv_header->tlv[2].value = 11;
 
 /**/
-	printf("size of conv_header;%d\n",sizeof(conv_header));
+	//printf("size of conv_header;%d\n",sizeof(conv_header));
 
 	//size
 	conv_header->length = sizeof(conv_header)+sizeof(conv_header->tlv)-4;
