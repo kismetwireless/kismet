@@ -31,12 +31,12 @@
 class kis_datasource_rzkillerbee;
 typedef std::shared_ptr<kis_datasource_rzkillerbee> shared_datasource_rzkillerbee;
 
-#ifndef KDLT_BLUETOOTH_LE_LL
-#define KDLT_BLUETOOTH_LE_LL        251
+#ifndef KDLT_IEEE802_15_4_TAP
+#define KDLT_IEEE802_15_4_TAP             283 
 #endif
 
-#ifndef KDLT_BTLE_RADIO
-#define KDLT_BTLE_RADIO             256
+#ifndef KDLT_IEEE802_15_4_NOFCS
+#define KDLT_IEEE802_15_4_NOFCS           230
 #endif
 
 class kis_datasource_rzkillerbee : public kis_datasource {
@@ -48,8 +48,8 @@ public:
         // Set the capture binary
         set_int_source_ipc_binary("kismet_cap_rz_killerbee");
 
-        // We synthesize BTLE_LL_RADIO headers
-        set_int_source_dlt(KDLT_BTLE_RADIO);
+        //set_int_source_dlt(KDLT_IEEE802_15_4_NOFCS);
+        set_int_source_dlt(KDLT_IEEE802_15_4_TAP);
 
         pack_comp_decap =
             packetchain->register_packet_component("DECAP");
