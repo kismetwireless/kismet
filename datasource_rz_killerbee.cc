@@ -90,7 +90,7 @@ void kis_datasource_rzkillerbee::handle_rx_packet(kis_packet *packet) {
 	printf("size of conv_header;%d\n",sizeof(conv_header));
 
 	//size
-	conv_header->length = sizeof(conv_header)+sizeof(conv_header->tlv)-4;
+	conv_header->length = sizeof(conv_header)+sizeof(conv_header->tlv)-4;//remove 4 bytes for the length in the header
 /**/ 
         rz_chunk->set_data((uint8_t *)conv_header, conv_buf_len, false);
         rz_chunk->dlt = KDLT_IEEE802_15_4_TAP; 	

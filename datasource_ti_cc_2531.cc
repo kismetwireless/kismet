@@ -19,6 +19,21 @@
 #include "datasource_ti_cc_2531.h"
 
 void kis_datasource_ticc2531::handle_rx_packet(kis_packet *packet) {
+    typedef struct {
+        uint16_t type; //type identifier
+        uint16_t length; // number of octets for type in value field (not including padding
+        uint32_t value; // data for type
+    } tap_tlv;
+
+    
+    typedef struct {
+        uint8_t version; // currently zero
+	uint8_t reserved; // must be zero
+        uint16_t length; // total length of header and tlvs in octets, min 4 and must be multiple of 4
+	tap_tlv tlv[3];//tap tlvs
+        uint8_t payload[0];	        
+	////payload + fcs per fcs type
+    } zigbee_tap;
 
     auto cc_chunk = 
         packet->fetch<kis_datachunk>(pack_comp_linkframe);
@@ -65,15 +80,53 @@ void kis_datasource_ticc2531::handle_rx_packet(kis_packet *packet) {
 
     if(crc_ok > 0)
     {
-        //add in a valid crc
+	// We can make a valid payload from this much
+	auto conv_buf_len = sizeof(zigbee_tap) + cc_payload_len;// + (sizeof(tap_tlv))-2;// - 2;
+	zigbee_tap *conv_header = reinterpret_cast<zigbee_tap *>(new uint8_t[conv_buf_len]);
+	memset(conv_header, 0, conv_buf_len);
+	printf("cc_payload_len:%d conv_buf_len:%d\n",cc_payload_len,conv_buf_len);
 
-        auto decapchunk = new kis_datachunk;
-        decapchunk->set_data(&cc_chunk->data[8], cc_payload_len, false);
-        decapchunk->dlt = 230;//LINKTYPE_IEEE802_15_4_NOFCS 
-        packet->insert(pack_comp_decap, decapchunk);
+        // Copy the actual packet payload into the header
+        memcpy(conv_header->payload, &cc_chunk->data[8], cc_payload_len);
 
+	conv_header->version = 0;
+	conv_header->reserved = 0;
+/**/
+     	//fcs setting
+	conv_header->tlv[0].type = 0;
+	conv_header->tlv[0].length = 1;
+	conv_header->tlv[0].value = 0;
+
+	//rssi
+        conv_header->tlv[1].type = 10;
+        conv_header->tlv[1].length = 1;
+        conv_header->tlv[1].value = rssi;
+
+	//channel
+	conv_header->tlv[2].type = 3;
+        conv_header->tlv[2].length = 3;
+        conv_header->tlv[2].value = 11;
+
+/**/
+	printf("size of conv_header;%d\n",sizeof(conv_header));
+
+	//size
+	conv_header->length = sizeof(conv_header)+sizeof(conv_header->tlv)-4;
+/**/ 
+        cc_chunk->set_data((uint8_t *)conv_header, conv_buf_len, false);
+        cc_chunk->dlt = KDLT_IEEE802_15_4_TAP; 	
+	/*
+        //so this works
+	uint8_t payload[256]; memset(payload,0x00,256);
+        memcpy(payload,&cc_chunk->data[9],cc_payload_len);	
+        // Replace the existing packet data with this and update the DLT
+        rz_chunk->set_data(payload, cc_payload_len, false);
+        rz_chunk->dlt = KDLT_IEEE802_15_4_NOFCS; 
+	*/
+        
 	// Pass the packet on
         packetchain->process_packet(packet);
+
     }
     else
     {

@@ -22,21 +22,37 @@ unsigned char hextobytel(char s);
 
 void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
 
-    auto cc_chunk = 
+    typedef struct {
+        uint16_t type; //type identifier
+        uint16_t length; // number of octets for type in value field (not including padding
+        uint32_t value; // data for type
+    } tap_tlv;
+
+    
+    typedef struct {
+        uint8_t version; // currently zero
+	uint8_t reserved; // must be zero
+        uint16_t length; // total length of header and tlvs in octets, min 4 and must be multiple of 4
+	tap_tlv tlv[3];//tap tlvs
+        uint8_t payload[0];	        
+	////payload + fcs per fcs type
+    } zigbee_tap;
+
+    auto nrf_chunk = 
         packet->fetch<kis_datachunk>(pack_comp_linkframe);
 
     printf("datasource 52840 got a packet\n");
 /*
-    for(unsigned int i=0;i<cc_chunk->length;i++)
+    for(unsigned int i=0;i<nrf_chunk->length;i++)
     {
-            printf("%02X",cc_chunk->data[i]);
+            printf("%02X",nrf_chunk->data[i]);
     }
     printf("\n");
 */
 /*
-    for(unsigned int i=0;i<cc_chunk->length;i++)
+    for(unsigned int i=0;i<nrf_chunk->length;i++)
     {
-            printf("%c",cc_chunk->data[i]);
+            printf("%c",nrf_chunk->data[i]);
     }
     printf("\n");
 */
@@ -49,9 +65,9 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
     int16_t loc[4] = {0,0,0,0};
     uint8_t li=0;
 
-    for(unsigned int i=0;i<cc_chunk->length;i++)
+    for(unsigned int i=0;i<nrf_chunk->length;i++)
     {
-        if(cc_chunk->data[i] == ':')
+        if(nrf_chunk->data[i] == ':')
 	{
 		loc[li] = i;
 		li++;
@@ -61,16 +77,16 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
     }
     //printf("loc[0]:%d loc[1]:%d loc[2]:%d loc[3]:%d\n",loc[0],loc[1],loc[2],loc[3]);
     //copy over the packet
-    memcpy(c_payload,&cc_chunk->data[loc[0]+2],(loc[1] - loc[0] - 1 - (strlen("payload")))); 
+    memcpy(c_payload,&nrf_chunk->data[loc[0]+2],(loc[1] - loc[0] - 1 - (strlen("payload")))); 
     c_payload_len = (loc[1] - loc[0] - 1 - (strlen("payload")));
     //copy over the power/rssi
-    memcpy(tmp,&cc_chunk->data[loc[1]+2],(loc[2] - loc[1] - 2 - (strlen("lqi"))));
+    memcpy(tmp,&nrf_chunk->data[loc[1]+2],(loc[2] - loc[1] - 2 - (strlen("lqi"))));
     //printf("rssi:%s\n",tmp);
     rssi = atoi(tmp);
     memset(tmp,0x00,16);
 
     //copy over the lqi
-    memcpy(tmp,&cc_chunk->data[loc[2]+2],(loc[3] - loc[2] - 3 - (strlen("time"))));
+    memcpy(tmp,&nrf_chunk->data[loc[2]+2],(loc[3] - loc[2] - 3 - (strlen("time"))));
     //printf("lqi:%s\n",tmp);
     lqi = atoi(tmp);
     memset(tmp,0x00,16);
@@ -83,7 +99,8 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
    
     //convert the string payload to bytes
     unsigned char tmpc[2];
-    int c=0;
+    int c = 0;
+    int nrf_payload_len = 0;
     for(int i=0;i<c_payload_len;i++)
     {
 	tmpc[0] = hextobytel(c_payload[i]);i++;
@@ -91,20 +108,58 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
         payload[c] = ((tmpc[0] << 4) | tmpc[1]);
         c++;
     }
-
-    bool valid_pkt = false;
+    nrf_payload_len = c;
+    bool valid_pkt = true;
 
     if(valid_pkt)
     {
-        //add in a valid crc
+/**/
+	// We can make a valid payload from this much
+	auto conv_buf_len = sizeof(zigbee_tap) + nrf_payload_len;// + (sizeof(tap_tlv))-2;// - 2;
+	zigbee_tap *conv_header = reinterpret_cast<zigbee_tap *>(new uint8_t[conv_buf_len]);
+	memset(conv_header, 0, conv_buf_len);
+	printf("nrf_payload_len:%d conv_buf_len:%d\n",nrf_payload_len,conv_buf_len);
 
-        auto decapchunk = new kis_datachunk;
-        decapchunk->set_data(payload, c, false);
-        decapchunk->dlt = 230;//LINKTYPE_IEEE802_15_4_NOFCS
-        packet->insert(pack_comp_decap, decapchunk);
+        // Copy the actual packet payload into the header
+        memcpy(conv_header->payload, payload, nrf_payload_len);
 
-        // Pass the packet on
-        packetchain->process_packet(packet);
+	conv_header->version = 0;
+	conv_header->reserved = 0;
+/**/
+     	//fcs setting
+	conv_header->tlv[0].type = 0;
+	conv_header->tlv[0].length = 1;
+	conv_header->tlv[0].value = 0;
+
+	//rssi
+        conv_header->tlv[1].type = 10;
+        conv_header->tlv[1].length = 1;
+        conv_header->tlv[1].value = rssi;
+
+	//channel
+	conv_header->tlv[2].type = 3;
+        conv_header->tlv[2].length = 3;
+        conv_header->tlv[2].value = 11;
+
+/**/
+	printf("size of conv_header;%d\n",sizeof(conv_header));
+
+	//size
+	conv_header->length = sizeof(conv_header)+sizeof(conv_header->tlv)-4;
+/**/ 
+        nrf_chunk->set_data((uint8_t *)conv_header, conv_buf_len, false);
+        nrf_chunk->dlt = KDLT_IEEE802_15_4_TAP; 	
+	/*
+        //so this works
+	uint8_t payload[256]; memset(payload,0x00,256);
+        memcpy(payload,&rz_chunk->data[9],rz_payload_len);	
+        // Replace the existing packet data with this and update the DLT
+        rz_chunk->set_data(payload, rz_payload_len, false);
+        rz_chunk->dlt = KDLT_IEEE802_15_4_NOFCS; 
+	*/
+        
+	// Pass the packet on
+        packetchain->process_packet(packet);	    
     }
     else
     {
