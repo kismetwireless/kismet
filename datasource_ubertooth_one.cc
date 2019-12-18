@@ -49,8 +49,10 @@ void kis_datasource_ubertooth_one::handle_rx_packet(kis_packet *packet) {
     const uint16_t btle_rf_flag_dewhitened = (1 << 0);
     const uint16_t btle_rf_flag_signalvalid = (1 << 1);
     const uint16_t btle_rf_flag_reference_access_valid = (1 << 5);
+    /*
     const uint16_t btle_rf_crc_checked = (1 << 10);
     const uint16_t btle_rf_crc_valid = (1 << 11);
+    */
 
     auto u1_chunk = 
         packet->fetch<kis_datachunk>(pack_comp_linkframe);
@@ -82,7 +84,21 @@ void kis_datasource_ubertooth_one::handle_rx_packet(kis_packet *packet) {
     memcpy(conv_header->payload, usb_rx->data, payload_len);
 
     // Set the converted channel
-    conv_header->monitor_channel = usb_rx->channel + 2402;
+    int bt_channel = int(usb_rx->channel) + 2402; 
+
+	if (bt_channel == 2402) {
+		bt_channel = 37;
+	} else if (bt_channel < 2426) {
+		bt_channel = (bt_channel - 2404) / 2;
+	} else if (bt_channel == 2426) {
+		bt_channel = 38;
+	} else if (bt_channel < 2480) {
+		bt_channel = 11 + (bt_channel - 2428) / 2;
+	} else {
+		bt_channel = 39;
+	}
+
+    conv_header->monitor_channel = bt_channel;
     conv_header->signal = usb_rx->rssi_min - 54;
 
     uint16_t bits = 0;
@@ -104,7 +120,7 @@ void kis_datasource_ubertooth_one::handle_rx_packet(kis_packet *packet) {
     radioheader->signal_type = kis_l1_signal_type_dbm;
     radioheader->signal_dbm = conv_header->signal;
     radioheader->freq_khz = (usb_rx->channel + 2402) * 1000;
-    radioheader->channel = fmt::format("{}", usb_rx->channel);
+    radioheader->channel = fmt::format("{}", conv_header->monitor_channel);
     packet->insert(pack_comp_radiodata, radioheader);
 
     auto decapchunk = new kis_datachunk;

@@ -95,6 +95,7 @@ unsigned ubertooth_count(void) {
 /* State tracking, put in userdata */
 typedef struct {
     ubertooth_t *ut;
+    int ubertooth_number;
 
     char *interface;
     char *name;
@@ -139,6 +140,65 @@ unsigned int u1_freq_to_chan(unsigned int in_freq) {
 
     return 0;
 }
+
+/*
+ * The U1 firmware likes to get 'funny'; perform a reset and reconfigure the
+ * parameters
+ */
+int u1_reset_and_conf(kis_capture_handler_t *caph, char *errstr) {
+    local_ubertooth_t *local_ubertooth = (local_ubertooth_t *) caph->userdata;
+
+    int ret;
+    int count = 0;
+
+    ret = cmd_reset(local_ubertooth->ut->devh);
+
+    sleep(1);
+
+    while (ubertooth_connect(local_ubertooth->ut, local_ubertooth->ubertooth_number) < 1) {
+        count++;
+
+        if (count > 5) {
+            snprintf(errstr, STATUS_MAX, "%s could not connect to %s",
+                    local_ubertooth->name, local_ubertooth->interface);
+            return -1;
+        }
+
+        sleep(1);
+    }
+
+    ret = ubertooth_check_api(local_ubertooth->ut);
+    if (ret < 0) {
+        snprintf(errstr, STATUS_MAX, "%s API mismatch connecting to %s, make sure your "
+                "libubertooth, libbtbb, and ubertooth firmware are all up to date.",
+                local_ubertooth->name, local_ubertooth->interface);
+        return -1;
+    }
+
+    if (ret < 0) {
+        snprintf(errstr, STATUS_MAX, "%s could not reset ubertooth-one device %s",
+                local_ubertooth->name, local_ubertooth->interface);
+        return -1;
+    }
+
+    ret = cmd_set_modulation(local_ubertooth->ut->devh, MOD_BT_LOW_ENERGY);
+
+    if (ret < 0) {
+        snprintf(errstr, STATUS_MAX, "%s could not set ubertooth-one modulation on device %s",
+                local_ubertooth->name, local_ubertooth->interface);
+        return -1;
+    }
+
+    ret = cmd_btle_sniffing(local_ubertooth->ut->devh, true);
+    if (ret < 0) {
+        snprintf(errstr, STATUS_MAX, "%s could not set ubertooth-one btle sniffing on device %s",
+                local_ubertooth->name, local_ubertooth->interface);
+        return -1;
+    }
+
+    return 1;
+}
+
 
 /* Convert a string into a local interpretation (which is just frequency)
  */
@@ -193,6 +253,8 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
 
 int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *privchan, char *msg) {
     local_ubertooth_t *local_ubertooth = (local_ubertooth_t *) caph->userdata;
+    int ret;
+    int count = 0;
 
     if (privchan == NULL) {
         return 0;
@@ -200,11 +262,29 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
 
     unsigned int *channel = (unsigned int *) privchan;
 
-    cmd_set_channel(local_ubertooth->ut->devh, *channel);
-   
+    while (count < 5) {
+        ret = cmd_set_channel(local_ubertooth->ut->devh, *channel);
+
+        if (ret >= 0)
+            break;
+
+        count++;
+
+        usleep(500);
+    }
+
+    if (ret < 0) {
+        ret = u1_reset_and_conf(caph, msg);
+
+        if (ret < 0) {
+            return ret;
+        }
+
+        ret = cmd_set_channel(local_ubertooth->ut->devh, *channel);
+    }
+    
     return 1;
 }
-
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, char **uuid, KismetExternal__Command *frame,
@@ -270,7 +350,6 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     return 1;
 }
 
-
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
         cf_params_interface_t **ret_interface,
@@ -332,6 +411,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
+    local_ubertooth->ubertooth_number = ubertooth_number;
+
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
      * and the mac address of the device */
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
@@ -361,17 +442,20 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
-    ret = cmd_set_modulation(local_ubertooth->ut->devh, MOD_BT_LOW_ENERGY);
+    (*ret_interface)->hardware = strdup("ubertooth");
 
     ret = populate_chanlist(caph, local_ubertooth->interface, errstr, 
             &((*ret_interface)->channels), &((*ret_interface)->channels_len));
-
-    (*ret_interface)->hardware = strdup("ubertooth");
 
     /* we decode the DLT on the host */
     *dlt = 0;
 
     (*ret_interface)->capif = strdup(local_ubertooth->interface);
+
+    /* Reset and configure */
+    if (u1_reset_and_conf(caph, errstr) < 0) {
+        return -1;
+    }
 
     if ((placeholder_len = cf_find_flag(&placeholder, "channel", definition)) > 0) {
         localchanstr = strndup(placeholder, placeholder_len);
@@ -407,8 +491,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     if (localchan != NULL)
         free(localchan);
-
-    ret = cmd_btle_sniffing(local_ubertooth->ut->devh, true);
 
     return 1;
 }
