@@ -361,7 +361,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     } else {
         /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
          * and the mac address of the device */
-        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%12X",
+        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%012X",
                 adler32_csum((unsigned char *) "kismet_cap_ubertooth_one", 
                     strlen("kismet_cap_ubertooth_one")) & 0xFFFFFFFF,
                 parse_num);
@@ -439,7 +439,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
         *uuid = strndup(placeholder, placeholder_len);
     } else {
-        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%12X",
+        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%012X",
                 adler32_csum((unsigned char *) "kismet_cap_ubertooth_one", 
                     strlen("kismet_cap_ubertooth_one")) & 0xFFFFFFFF,
                 ubertooth_number);
