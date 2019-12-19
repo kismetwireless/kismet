@@ -27,35 +27,19 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
         uint16_t length; // number of octets for type in value field (not including padding
         uint32_t value; // data for type
     } tap_tlv;
-
     
     typedef struct {
         uint8_t version; // currently zero
-	uint8_t reserved; // must be zero
+        uint8_t reserved; // must be zero
         uint16_t length; // total length of header and tlvs in octets, min 4 and must be multiple of 4
-	tap_tlv tlv[3];//tap tlvs
+        tap_tlv tlv[3];//tap tlvs
         uint8_t payload[0];	        
-	////payload + fcs per fcs type
+        ////payload + fcs per fcs type
     } zigbee_tap;
 
     auto nrf_chunk = 
         packet->fetch<kis_datachunk>(pack_comp_linkframe);
 
-    printf("datasource 52840 got a packet\n");
-/*
-    for(unsigned int i=0;i<nrf_chunk->length;i++)
-    {
-            printf("%02X",nrf_chunk->data[i]);
-    }
-    printf("\n");
-*/
-/*
-    for(unsigned int i=0;i<nrf_chunk->length;i++)
-    {
-            printf("%c",nrf_chunk->data[i]);
-    }
-    printf("\n");
-*/
     uint8_t c_payload[255];memset(c_payload,0x00,255);
     uint8_t payload[255];memset(payload,0x00,255);
     char tmp[16];memset(tmp,0x00,16);
@@ -65,15 +49,20 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
     int16_t loc[4] = {0,0,0,0};
     uint8_t li=0;
 
+    /*
+    These packets are ascii with labels for each field.
+    The below finds where the : are so we can better try to split everything apart.
+    */
+
     for(unsigned int i=0;i<nrf_chunk->length;i++)
     {
         if(nrf_chunk->data[i] == ':')
-	{
-		loc[li] = i;
-		li++;
-		if(li > 4)
-			break;
-	}
+        {
+            loc[li] = i;
+            li++;
+            if(li > 4)
+                break;
+        }
     }
     //printf("loc[0]:%d loc[1]:%d loc[2]:%d loc[3]:%d\n",loc[0],loc[1],loc[2],loc[3]);
     //copy over the packet
@@ -81,127 +70,103 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
     c_payload_len = (loc[1] - loc[0] - 1 - (strlen("payload")));
     //copy over the power/rssi
     memcpy(tmp,&nrf_chunk->data[loc[1]+2],(loc[2] - loc[1] - 2 - (strlen("lqi"))));
-    //printf("rssi:%s\n",tmp);
     rssi = atoi(tmp);
     memset(tmp,0x00,16);
 
     //copy over the lqi
     memcpy(tmp,&nrf_chunk->data[loc[2]+2],(loc[3] - loc[2] - 3 - (strlen("time"))));
-    //printf("lqi:%s\n",tmp);
     lqi = atoi(tmp);
     memset(tmp,0x00,16);
 
-    /*received: %s power: %d lqi: %d time: %d */
-/*    
-    printf("c_payload:%s len:%d\n",c_payload,c_payload_len);
-    printf("power:%d\n",rssi);
-    printf("lqi:%d\n",lqi);
-*/ 
     //convert the string payload to bytes
     unsigned char tmpc[2];
     int c = 0;
     int nrf_payload_len = 0;
     for(int i=0;i<c_payload_len;i++)
     {
-	tmpc[0] = hextobytel(c_payload[i]);i++;
+    	tmpc[0] = hextobytel(c_payload[i]);i++;
         tmpc[1] = hextobytel(c_payload[i]);
         payload[c] = ((tmpc[0] << 4) | tmpc[1]);
         c++;
     }
     nrf_payload_len = c;
-    bool valid_pkt = true;
+    // No good way to do packet validation that I know of at the moment.    
 
-    if(valid_pkt)
-    {
-/**/
 	// We can make a valid payload from this much
-	auto conv_buf_len = sizeof(zigbee_tap) + nrf_payload_len;// + (sizeof(tap_tlv))-2;// - 2;
+	auto conv_buf_len = sizeof(zigbee_tap) + nrf_payload_len;
 	zigbee_tap *conv_header = reinterpret_cast<zigbee_tap *>(new uint8_t[conv_buf_len]);
 	memset(conv_header, 0, conv_buf_len);
-	//printf("nrf_payload_len:%d conv_buf_len:%d\n",nrf_payload_len,conv_buf_len);
 
-        // Copy the actual packet payload into the header
-        memcpy(conv_header->payload, payload, nrf_payload_len);
+    // Copy the actual packet payload into the header
+    memcpy(conv_header->payload, payload, nrf_payload_len);
 
-	conv_header->version = 0;
-	conv_header->reserved = 0;
-/**/
-     	//fcs setting
-	conv_header->tlv[0].type = 0;
-	conv_header->tlv[0].length = 1;
-	conv_header->tlv[0].value = 0;
+    conv_header->version = 0;//currently only one version
+    conv_header->reserved = 0;//must be set to 0
 
-	//rssi
-        conv_header->tlv[1].type = 10;
-        conv_header->tlv[1].length = 1;
-        conv_header->tlv[1].value = rssi;
+    //fcs setting
+    conv_header->tlv[0].type = 0;
+    conv_header->tlv[0].length = 1;
+    conv_header->tlv[0].value = 0;
 
-	//channel
-	conv_header->tlv[2].type = 3;
-        conv_header->tlv[2].length = 3;
-        conv_header->tlv[2].value = 11;
+    //rssi
+    conv_header->tlv[1].type = 10;
+    conv_header->tlv[1].length = 1;
+    conv_header->tlv[1].value = rssi;
 
-/**/
-	//printf("size of conv_header;%d\n",sizeof(conv_header));
+    //channel
+    conv_header->tlv[2].type = 3;
+    conv_header->tlv[2].length = 3;
+    conv_header->tlv[2].value = 11;
 
 	//size
 	conv_header->length = sizeof(conv_header)+sizeof(conv_header->tlv)-4;
-/**/ 
-        nrf_chunk->set_data((uint8_t *)conv_header, conv_buf_len, false);
-        nrf_chunk->dlt = KDLT_IEEE802_15_4_TAP; 	
+    nrf_chunk->set_data((uint8_t *)conv_header, conv_buf_len, false);
+    nrf_chunk->dlt = KDLT_IEEE802_15_4_TAP; 	
 	/*
-        //so this works
-	uint8_t payload[256]; memset(payload,0x00,256);
-        memcpy(payload,&rz_chunk->data[9],rz_payload_len);	
-        // Replace the existing packet data with this and update the DLT
-        rz_chunk->set_data(payload, rz_payload_len, false);
-        rz_chunk->dlt = KDLT_IEEE802_15_4_NOFCS; 
+    //so this works
+    uint8_t payload[256]; memset(payload,0x00,256);
+    memcpy(payload,&rz_chunk->data[9],rz_payload_len);	
+    // Replace the existing packet data with this and update the DLT
+    rz_chunk->set_data(payload, rz_payload_len, false);
+    rz_chunk->dlt = KDLT_IEEE802_15_4_NOFCS; 
 	*/
         
 	// Pass the packet on
-        packetchain->process_packet(packet);	    
-    }
-    else
-    {
-        delete(packet);
-        return;
-    }
-
+    packetchain->process_packet(packet);	    
 }
 
 unsigned char hextobytel(char s)
 {
-        if(s == '0')
-                return 0x0;
-        else if(s == '1')
-                return 0x1;
-        else if(s == '2')
-                return 0x2;
-        else if(s == '3')
-                return 0x3;
-        else if(s == '4')
-                return 0x4;
-        else if(s == '5')
-                return 0x5;
-        else if(s == '6')
-                return 0x6;
-        else if(s == '7')
-                return 0x7;
-        else if(s == '8')
-                return 0x8;
-        else if(s == '9')
-                return 0x9;
-        else if(s == 'A')
-                return 0xA;
-        else if(s == 'B')
-                return 0xB;
-        else if(s == 'C')
-                return 0xC;
-        else if(s == 'D')
-                return 0xD;
-        else if(s == 'E')
-                return 0xE;
-        else if(s == 'F')
-                return 0xF;
+    if(s == '0')
+        return 0x0;
+    else if(s == '1')
+        return 0x1;
+    else if(s == '2')
+        return 0x2;
+    else if(s == '3')
+        return 0x3;
+    else if(s == '4')
+        return 0x4;
+    else if(s == '5')
+        return 0x5;
+    else if(s == '6')
+        return 0x6;
+    else if(s == '7')
+        return 0x7;
+    else if(s == '8')
+        return 0x8;
+    else if(s == '9')
+        return 0x9;
+    else if(s == 'A')
+        return 0xA;
+    else if(s == 'B')
+        return 0xB;
+    else if(s == 'C')
+        return 0xC;
+    else if(s == 'D')
+        return 0xD;
+    else if(s == 'E')
+        return 0xE;
+    else if(s == 'F')
+        return 0xF;
 }
-

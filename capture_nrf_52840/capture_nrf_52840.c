@@ -56,13 +56,10 @@ int nrf_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len)
     uint8_t buf[255];
     uint8_t res = 0;
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
-pthread_mutex_lock(&(localnrf->serial_mutex));
-    //printf("write the command:%s\n",tx_buf);
+    pthread_mutex_lock(&(localnrf->serial_mutex));
     write(localnrf->fd,tx_buf,tx_len);
-    //printf("look for a response\n");
     res = read(localnrf->fd,buf,255);
-    //printf("res:%d buf:%s\n",res,buf);
-pthread_mutex_unlock(&(localnrf->serial_mutex));
+    pthread_mutex_unlock(&(localnrf->serial_mutex));
     return 1;
 }
 
@@ -70,22 +67,16 @@ int nrf_enter_promisc_mode(kis_capture_handler_t *caph)
 {
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
     localnrf->ready = false;
-    //write receive
-    //printf("write receive\n");
     nrf_write_cmd(caph,"receive\r\n\r\n",strlen("receive\r\n\r\n"));
     localnrf->ready = true;
-    //printf("ready:%d\n",localnrf->ready);
     return 1;
 }
 
 int nrf_exit_promisc_mode(kis_capture_handler_t *caph)
 {
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
-    //write sleep
-    //printf("write sleep\n");
     nrf_write_cmd(caph,"sleep\r\n\r\n",strlen("sleep\r\n\r\n"));
     localnrf->ready = false;
-    //printf("ready:%d\n",localnrf->ready);
     return 1;
 }
 
@@ -93,17 +84,14 @@ int nrf_set_channel(kis_capture_handler_t *caph, uint8_t channel)
 {
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
     nrf_exit_promisc_mode(caph);
-    //printf("nrf52840 channel:%d\n",channel);
     uint8_t ch[16];
     sprintf(ch,"channel %d\r\n\r\n",channel);
     nrf_write_cmd(caph,ch,strlen(ch));
     nrf_enter_promisc_mode(caph);
-    //printf("ready:%d\n",localnrf->ready);
     return 1;
 }
 
 int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_max) {
-//printf("nrf_receive_payload\n");
     
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
     unsigned char buf[256];memset(buf,0x00,256);
@@ -115,59 +103,49 @@ int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_
     unsigned int loop_ctr = 0;
 
     while(1) {
-pthread_mutex_lock(&(localnrf->serial_mutex));
+        pthread_mutex_lock(&(localnrf->serial_mutex));
 	    res = read(localnrf->fd,buf,255);
-pthread_mutex_unlock(&(localnrf->serial_mutex));
+        pthread_mutex_unlock(&(localnrf->serial_mutex));
 	    if(res > 0)
 	    {
-                loop_ctr = 0;
-                //printf("payload-- %s:%d\n", buf, res);
-                for(int xp = 0;xp < res;xp++)
-                {
-                        if(buf[xp] == 'r'
-                        && buf[xp+1] == 'e'
-                        && buf[xp+2] == 'c'
-                        )
-                        {
-                                memset(pkt,0x00,256);
-                                pkt_ctr = 0;//start over
-                        }
+            loop_ctr = 0;
+            //printf("payload-- %s:%d\n", buf, res);
+            for(int xp = 0;xp < res;xp++)
+            {
+                if(buf[xp] == 'r' && buf[xp+1] == 'e' && buf[xp+2] == 'c') {
+                        memset(pkt,0x00,256);
+                        pkt_ctr = 0;//start over
+                }
 
-                        pkt[pkt_ctr] = buf[xp];
-                        pkt_ctr++;
-                        if(pkt_ctr > 254)
-                                break;
-                        if(strstr((char*)pkt,"received:") > 0
-                        && strstr((char*)pkt,"power:") > 0
-                        && strstr((char*)pkt,"lqi:") > 0
-                        && strstr((char*)pkt,"time:") > 0
-                        )
-                        {
-                                //printf("pkt:%s\n",pkt);
-                                endofpkt = true;
-                                //pkt_ctr = 0;
-                                //memset(pkt,0x00,256);
-                                break;
-                        }
-		}
+                pkt[pkt_ctr] = buf[xp];
+                pkt_ctr++;
+                if(pkt_ctr > 254)
+                        break;
+                if(strstr((char*)pkt,"received:") > 0
+                && strstr((char*)pkt,"power:") > 0
+                && strstr((char*)pkt,"lqi:") > 0
+                && strstr((char*)pkt,"time:") > 0
+                )
+                {
+                    endofpkt = true;
+                    break;
+                }
+            }
 	        if(pkt_ctr > 0 && endofpkt)
         	{
-			for(int xp=0;xp<pkt_ctr;xp++)
-				rx_buf[xp] = pkt[xp];
-			actual_len = pkt_ctr;
-			break;
-		}
+                memcpy(rx_buf,pkt,pkt_ctr);
+                actual_len = pkt_ctr;
+                break;
+		    }
 	    }
 	    else
 	    {
+            // to keep us from looking for a packet when we only got a partial
 		    loop_ctr++;
 		    if(loop_ctr > 10000)
 			    break;
 	    }
     }
-
-
-//printf("nrf_receive_payload close\n");
     return actual_len;
 }
 
@@ -175,8 +153,6 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         char *msg, char **uuid, KismetExternal__Command *frame,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
-
-//printf("probe_callback\n");
 
     char *placeholder = NULL;
     int placeholder_len;
@@ -238,13 +214,12 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     (*ret_interface)->channels_len = 16;
 
     return 1;
-}/////mutex inside
+}
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
-//printf("open_callback\n");
 
     char *placeholder;
     int placeholder_len;
@@ -292,7 +267,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                     strlen(device)));
         *uuid = strdup(errstr);
     }
-//printf("open_callback set channels\n");
 
     (*ret_interface)->capif = strdup(cap_if);
     (*ret_interface)->hardware = strdup("nrf52840");
@@ -307,17 +281,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     (*ret_interface)->channels_len = 16;
 
-//printf("set mutex and try to open\n");
-
     pthread_mutex_lock(&(localnrf->serial_mutex));
     /* open for r/w but no tty */
-    localnrf->fd = open(device, O_RDWR | O_NOCTTY );
+    localnrf->fd = open(device, O_RDWR | O_NOCTTY);
 
     if (localnrf->fd < 0) {
         snprintf(msg, STATUS_MAX, "%s failed to open serial device - %s",
                 localnrf->name, strerror(errno));
-//printf("failed to open serial device\n");
-
         return -1;
     }
 
@@ -339,10 +309,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     tcflush(localnrf->fd, TCIFLUSH);
     tcsetattr(localnrf->fd, TCSANOW, &localnrf->newtio);
 
-pthread_mutex_unlock(&(localnrf->serial_mutex));
-//printf("serial mutex end\n");
+    pthread_mutex_unlock(&(localnrf->serial_mutex));
 
-    //printf("set channel and start listening\n");
     nrf_set_channel(caph, 11);
 
     return 1;
@@ -378,15 +346,13 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     local_channel_t *channel = (local_channel_t *) privchan;
     int r;
 
-    //printf("calling nrf_set_channel\n");
-
     if (privchan == NULL) {
         return 0;
     }
 
-    nrf_set_channel(caph, channel->channel);
+    r = nrf_set_channel(caph, channel->channel);
     
-    return 1;
+    return r;
 }
 
 /* Run a standard glib mainloop inside the capture thread */
@@ -401,44 +367,44 @@ void capture_thread(kis_capture_handler_t *caph) {
 
     while(1) {
 	    if(caph->spindown) {
-		nrf_exit_promisc_mode(caph);
-		/* set the port back to normal */
-pthread_mutex_lock(&(localnrf->serial_mutex));
-                tcsetattr(localnrf->fd,TCSANOW,&localnrf->oldtio);
-pthread_mutex_unlock(&(localnrf->serial_mutex));
-		break;
-	    }
-if(localnrf->ready)
-{
-        buf_rx_len = nrf_receive_payload(caph, buf, 256);
-        if (buf_rx_len < 0) {
-            cf_send_error(caph, 0, errstr);
-            cf_handler_spindown(caph);
+            nrf_exit_promisc_mode(caph);
+            /* set the port back to normal */
+            pthread_mutex_lock(&(localnrf->serial_mutex));
+            tcsetattr(localnrf->fd,TCSANOW,&localnrf->oldtio);
+            pthread_mutex_unlock(&(localnrf->serial_mutex));
             break;
-        }
-
-        //send the packet along
-        if(buf_rx_len > 0)
-        while (1) {
-            struct timeval tv;
-
-            gettimeofday(&tv, NULL);
-
-            if ((r = cf_send_data(caph,
-                            NULL, NULL, NULL,
-                            tv,
-                            0,
-                            buf_rx_len, buf)) < 0) {
-                cf_send_error(caph, 0, "unable to send DATA frame");
+	    }
+        if(localnrf->ready)
+        {
+            buf_rx_len = nrf_receive_payload(caph, buf, 256);
+            if (buf_rx_len < 0) {
+                cf_send_error(caph, 0, errstr);
                 cf_handler_spindown(caph);
-            } else if (r == 0) {
-                cf_handler_wait_ringbuffer(caph);
-                continue;
-            } else {
                 break;
             }
+
+            //send the packet along
+            if(buf_rx_len > 0)
+            while (1) {
+                struct timeval tv;
+
+                gettimeofday(&tv, NULL);
+
+                if ((r = cf_send_data(caph,
+                                NULL, NULL, NULL,
+                                tv,
+                                0,
+                                buf_rx_len, buf)) < 0) {
+                    cf_send_error(caph, 0, "unable to send DATA frame");
+                    cf_handler_spindown(caph);
+                } else if (r == 0) {
+                    cf_handler_wait_ringbuffer(caph);
+                    continue;
+                } else {
+                    break;
+                }
+            }
         }
-}
     }
     cf_handler_spindown(caph);
 }
@@ -452,7 +418,6 @@ int main(int argc, char *argv[]) {
     };
 
     kis_capture_handler_t *caph = cf_handler_init("nrf52840");
-    //int r;
 
     if (caph == NULL) {
         fprintf(stderr, "FATAL: Could not allocate basic handler data, your system "
@@ -461,8 +426,6 @@ int main(int argc, char *argv[]) {
     }
 
     localnrf.caph = caph;
-
-    //printf("nrf52840 main\n");
 
     /* Set the local data ptr */
     cf_handler_set_userdata(caph, &localnrf);

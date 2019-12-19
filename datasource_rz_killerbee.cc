@@ -26,72 +26,60 @@ void kis_datasource_rzkillerbee::handle_rx_packet(kis_packet *packet) {
         uint32_t value; // data for type
     } tap_tlv;
 
-    
     typedef struct {
         uint8_t version; // currently zero
-	uint8_t reserved; // must be zero
+        uint8_t reserved; // must be zero
         uint16_t length; // total length of header and tlvs in octets, min 4 and must be multiple of 4
-	tap_tlv tlv[3];//tap tlvs
+        tap_tlv tlv[3];//tap tlvs
         uint8_t payload[0];	        
-	////payload + fcs per fcs type
+        ////payload + fcs per fcs type
     } zigbee_tap;
-
 
     auto rz_chunk = 
         packet->fetch<kis_datachunk>(pack_comp_linkframe);
-
+/*
     printf("datasource killerbee got a packet\n");
     for(unsigned int i=0;i<rz_chunk->length;i++)
     {
             printf("%02X",rz_chunk->data[i]);
     }
     printf("\n");
+*/
 
-    bool valid_pkt = false;
-
-    int rssi = rz_chunk->data[6];
     if(rz_chunk->data[7])
-	    valid_pkt = true;
-
-    printf("rssi:%d valid_pkt:%d\n",rssi,valid_pkt);
-
-    int rz_payload_len = rz_chunk->data[8];
-    if(valid_pkt)
     {
-/**/
-	// We can make a valid payload from this much
-	auto conv_buf_len = sizeof(zigbee_tap) + rz_payload_len;// + (sizeof(tap_tlv))-2;// - 2;
-	zigbee_tap *conv_header = reinterpret_cast<zigbee_tap *>(new uint8_t[conv_buf_len]);
-	memset(conv_header, 0, conv_buf_len);
-	printf("rz_payload_len:%d conv_buf_len:%d\n",rz_payload_len,conv_buf_len);
+        int rssi = rz_chunk->data[6];
+        int rz_payload_len = rz_chunk->data[8];
+
+        // We can make a valid payload from this much
+        auto conv_buf_len = sizeof(zigbee_tap) + rz_payload_len;
+        zigbee_tap *conv_header = reinterpret_cast<zigbee_tap *>(new uint8_t[conv_buf_len]);
+        memset(conv_header, 0, conv_buf_len);
 
         // Copy the actual packet payload into the header
         memcpy(conv_header->payload, &rz_chunk->data[9], rz_payload_len);
 
-	conv_header->version = 0;
-	conv_header->reserved = 0;
-/**/
-     	//fcs setting
-	conv_header->tlv[0].type = 0;
-	conv_header->tlv[0].length = 1;
-	conv_header->tlv[0].value = 0;
+        conv_header->version = 0;//currently only one version
+        conv_header->reserved = 0;//must be set to 0
 
-	//rssi
+        //fcs setting
+        conv_header->tlv[0].type = 0;
+        conv_header->tlv[0].length = 1;
+        conv_header->tlv[0].value = 0;
+
+        //rssi
         conv_header->tlv[1].type = 10;
         conv_header->tlv[1].length = 1;
         conv_header->tlv[1].value = rssi;
 
-	//channel
-	conv_header->tlv[2].type = 3;
+        //channel
+        conv_header->tlv[2].type = 3;
         conv_header->tlv[2].length = 3;
         conv_header->tlv[2].value = 11;
 
-/**/
-	printf("size of conv_header;%d\n",sizeof(conv_header));
+        //size
+        conv_header->length = sizeof(conv_header)+sizeof(conv_header->tlv)-4;//remove 4 bytes for the length in the header
 
-	//size
-	conv_header->length = sizeof(conv_header)+sizeof(conv_header->tlv)-4;//remove 4 bytes for the length in the header
-/**/ 
         rz_chunk->set_data((uint8_t *)conv_header, conv_buf_len, false);
         rz_chunk->dlt = KDLT_IEEE802_15_4_TAP; 	
 	/*
@@ -103,9 +91,8 @@ void kis_datasource_rzkillerbee::handle_rx_packet(kis_packet *packet) {
         rz_chunk->dlt = KDLT_IEEE802_15_4_NOFCS; 
 	*/
         
-	// Pass the packet on
+	    // Pass the packet on
         packetchain->process_packet(packet);
-
     }
     else
     {
@@ -113,4 +100,3 @@ void kis_datasource_rzkillerbee::handle_rx_packet(kis_packet *packet) {
         return;
     }
 }
-
