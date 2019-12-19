@@ -57,6 +57,8 @@
 #include <ubertooth.h>
 #endif
 
+#include <libusb.h>
+
 #define MAX_PACKET_LEN  8192
 
 #ifndef HAVE_LIBUBERTOOTH_UBERTOOTH_COUNT
@@ -189,7 +191,7 @@ int u1_reset_and_conf(kis_capture_handler_t *caph, char *errstr) {
         return -1;
     }
 
-    ret = cmd_btle_sniffing(local_ubertooth->ut->devh, true);
+    ret = cmd_btle_sniffing(local_ubertooth->ut->devh, false);
     if (ret < 0) {
         snprintf(errstr, STATUS_MAX, "%s could not set ubertooth-one btle sniffing on device %s",
                 local_ubertooth->name, local_ubertooth->interface);
@@ -263,14 +265,31 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     unsigned int *channel = (unsigned int *) privchan;
 
     while (count < 5) {
+        ret = cmd_stop(local_ubertooth->ut->devh);
+
+        if (ret < 0) {
+            count++;
+            usleep(500);
+            continue;
+        }
+
         ret = cmd_set_channel(local_ubertooth->ut->devh, *channel);
 
-        if (ret >= 0)
-            break;
+        if (ret < 0) {
+            count++;
+            usleep(500);
+            continue;
+        }
 
-        count++;
+        ret = cmd_btle_sniffing(local_ubertooth->ut->devh, false);
 
-        usleep(500);
+        if (ret < 0) {
+            count++;
+            usleep(500);
+            continue;
+        }
+
+        break;
     }
 
     if (ret < 0) {
@@ -577,13 +596,16 @@ int main(int argc, char *argv[]) {
 
     /* fprintf(stderr, "CAPTURE_LINUX_WIFI launched on pid %d\n", getpid()); */
 
-    kis_capture_handler_t *caph = cf_handler_init("linuxwifi");
+    kis_capture_handler_t *caph = cf_handler_init("ubertooth-one");
 
     if (caph == NULL) {
         fprintf(stderr, "FATAL: Could not allocate basic handler data, your system "
                 "is very low on RAM or something is wrong.\n");
         return -1;
     }
+
+    /* Limit channel hop rate since it requires multiple usb commands */
+    caph->max_channel_hop_rate = 1;
 
     /* Set the local data ptr */
     cf_handler_set_userdata(caph, &local_ubertooth);

@@ -566,7 +566,11 @@ void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringch
     caph->channel_hop_list = stringchans;
     caph->custom_channel_hop_list = privchans;
     caph->channel_hop_list_sz = chan_sz;
-    caph->channel_hop_rate = rate;
+
+    if (caph->max_channel_hop_rate != 0 && rate < caph->max_channel_hop_rate)
+        caph->channel_hop_rate = caph->max_channel_hop_rate;
+    else
+        caph->channel_hop_rate = rate;
 
     caph->channel_hop_shuffle = shuffle;
     caph->channel_hop_shuffle_spacing = shuffle_spacing;
