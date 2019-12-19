@@ -39,7 +39,7 @@ from . import kismet_pb2
 from . import http_pb2
 from . import datasource_pb2
 
-__version__ = "2019.09.03"
+__version__ = "2019.12.01"
 
 class ExternalInterface(object):
     """ 
@@ -457,7 +457,7 @@ class ExternalInterface(object):
             # Drop it on the asyncio writer and queue it to go out
             self.ext_writer.write(packet)
             self.ext_writer.write(serial)
-            self.ext_writer.drain()
+            self.loop.run_until_complete(self.ext_writer.drain())
         except Exception as e:
             # If we failed a low-level write we're just screwed, exit
             print("FATAL:  Encountered error writing to kismet: ", e, file=sys.stderr)
