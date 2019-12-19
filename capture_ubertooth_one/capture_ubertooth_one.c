@@ -47,6 +47,8 @@
 
 #include <time.h>
 
+#include <stdlib.h>
+
 #include "../config.h"
 
 #include "../capture_framework.h"
@@ -593,8 +595,8 @@ int main(int argc, char *argv[]) {
         .ut = NULL,
     };
 
-
-    /* fprintf(stderr, "CAPTURE_LINUX_WIFI launched on pid %d\n", getpid()); */
+    /* Clobber the USB debug settings because libubertooth sets it to be verbose */
+    setenv("LIBUSB_DEBUG", "0", 1);
 
     kis_capture_handler_t *caph = cf_handler_init("ubertooth-one");
 
