@@ -81,7 +81,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
         *uuid = strndup(placeholder, placeholder_len);
     } else {
-        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%12X",
+        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%012X",
                 adler32_csum((unsigned char *) "kismet_cap_nrf_51822", 
                     strlen("kismet_cap_nrf_51822")) & 0xFFFFFFFF,
                 adler32_csum((unsigned char *) device,
@@ -141,15 +141,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
         *uuid = strndup(placeholder, placeholder_len);
     } else {
-        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%12X",
+        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%012X",
                 adler32_csum((unsigned char *) "kismet_cap_nrf_51822", 
                     strlen("kismet_cap_nrf_51822")) & 0xFFFFFFFF,
                 adler32_csum((unsigned char *) device,
                     strlen(device)));
         *uuid = strdup(errstr);
     }
-
-printf("uuid:%s\n",*uuid);
 
     /* open for r/w but no tty */
     localnrf->fd = open(device, O_RDWR | O_NOCTTY );
