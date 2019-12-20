@@ -154,7 +154,8 @@ int mac80211_connect(void **nl_sock, int *nl80211_id, char *errstr) {
 
 void mac80211_disconnect(void *nl_sock) {
 #ifdef HAVE_LINUX_NETLINK
-    nl_socket_free(nl_sock);
+    if (nl_sock != NULL)
+        nl_socket_free(nl_sock);
 #endif
 }
 
@@ -194,6 +195,7 @@ int mac80211_create_monitor_vif(const char *interface, const char *newinterface,
                 "unable to create monitor vif %s:%s, unable to connect generic netlink",
                 interface, newinterface);
         nl_socket_free(nl_sock);
+        return -1;
     }
 
     nl80211_id = genl_ctrl_resolve(nl_sock, "nl80211");
@@ -202,6 +204,7 @@ int mac80211_create_monitor_vif(const char *interface, const char *newinterface,
                 "unable to create monitor vif %s:%s, unable to resolve nl80211",
                 interface, newinterface);
         nl_socket_free(nl_sock);
+        return -1;
     }
 
     if ((msg = nlmsg_alloc()) == NULL) {
@@ -213,13 +216,13 @@ int mac80211_create_monitor_vif(const char *interface, const char *newinterface,
     }
 
     if (flags_sz > 0) {
-    if ((flags = nlmsg_alloc()) == NULL) {
-        snprintf(errstr, STATUS_MAX, 
-                "unable to create monitor vif %s:%s, unable to allocate nl80211 flags",
-                interface, newinterface);
-        nl_socket_free(nl_sock);
-        return -1;
-    }
+        if ((flags = nlmsg_alloc()) == NULL) {
+            snprintf(errstr, STATUS_MAX, 
+                    "unable to create monitor vif %s:%s, unable to allocate nl80211 flags",
+                    interface, newinterface);
+            nl_socket_free(nl_sock);
+            return -1;
+        }
     }
 
     genlmsg_put(msg, 0, 0, nl80211_id, 0, 0, NL80211_CMD_NEW_INTERFACE, 0);
@@ -228,12 +231,11 @@ int mac80211_create_monitor_vif(const char *interface, const char *newinterface,
     NLA_PUT_U32(msg, NL80211_ATTR_IFTYPE, NL80211_IFTYPE_MONITOR);
 
     if (flags_sz > 0) {
-        nla_put_nested(msg, NL80211_ATTR_MNTR_FLAGS, flags);
+        for (x = 0; x < flags_sz; x++) {
+            NLA_PUT_FLAG(flags, in_flags[x]);
+        }
 
-	for (x = 0; x < flags_sz; x++) {
-		NLA_PUT_FLAG(flags, in_flags[x]);
-	}
-    
+        nla_put_nested(msg, NL80211_ATTR_MNTR_FLAGS, flags);
     }
 
     if (nl_send_auto_complete(nl_sock, msg) < 0 || nl_wait_for_ack(nl_sock) < 0) {
@@ -723,7 +725,7 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
 
                     if (!tb_freq[NL80211_FREQUENCY_ATTR_FREQ]) {
                         continue;
-		    }
+                    }
 
                     /* We've got at least one actual frequency */
                     freq = nla_get_u32(tb_freq[NL80211_FREQUENCY_ATTR_FREQ]);
