@@ -18,7 +18,10 @@
 volatile int STOP=FALSE;
 
 #define MODEMDEVICE "/dev/ttyUSB0"
+
+#ifndef CRTSCTS
 #define CRTSCTS  020000000000 /*should be defined but isn't with the C99*/
+#endif
 
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 
