@@ -602,9 +602,9 @@ else
 fi
 
 OCPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS -fopenmp"
+CPPFLAGS="$CPPFLAGS"
 OLDFLAGS=$LDFLAGS
-LDFLAGS="$CPPFLAGS -fopenmp"
+LDFLAGS="$CPPFLAGS"
 
 # Do we need libm for math functions?
 AC_MSG_CHECKING([for libm math function in std libs])

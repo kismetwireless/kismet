@@ -9258,9 +9258,9 @@ $as_echo "no" >&6; }
 fi
 
 OCPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS -fopenmp"
+CPPFLAGS="$CPPFLAGS"
 OLDFLAGS=$LDFLAGS
-LDFLAGS="$CPPFLAGS -fopenmp"
+LDFLAGS="$CPPFLAGS"
 
 # Do we need libm for math functions?
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for libm math function in std libs" >&5
