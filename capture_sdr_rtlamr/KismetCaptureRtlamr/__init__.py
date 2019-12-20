@@ -116,7 +116,7 @@ class KismetRtlamr(object):
         try:
             self.rtlsdr = rtlsdr.RtlSdr()
             self.have_librtl = True
-        except OSError:
+        except rtlsdr.RadioMissingLibrtlsdr:
             self.have_librtl = False
 
         parser = argparse.ArgumentParser(description='RTL-SDR amr to Kismet bridge - Creates a rtlamr data source on a Kismet server and passes JSON-based records from the rtlamr binary')
