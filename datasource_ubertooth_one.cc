@@ -16,6 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "endian_magic.h"
+
 #include "datasource_ubertooth_one.h"
 
 void kis_datasource_ubertooth_one::handle_rx_packet(kis_packet *packet) {
@@ -109,7 +111,7 @@ void kis_datasource_ubertooth_one::handle_rx_packet(kis_packet *packet) {
     }
 
     conv_header->flags_le = 
-        htole16(bits + btle_rf_flag_signalvalid + btle_rf_flag_dewhitened);
+        kis_htole16(bits + btle_rf_flag_signalvalid + btle_rf_flag_dewhitened);
    
     // Replace the existing packet data with this and update the DLT
     u1_chunk->set_data((uint8_t *) conv_header, conv_buf_len, false);
