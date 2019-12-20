@@ -3069,8 +3069,10 @@ int cf_jail_filesystem(kis_capture_handler_t *caph) {
 
     return 1;
 #else
+    /*
     snprintf(errstr, STATUS_MAX, "datasource framework can only jail namespaces on Linux");
     cf_send_warning(caph, errstr);
+    */
     return 0;
 #endif
 }
