@@ -187,6 +187,11 @@ kis_btle_phy::kis_btle_phy(global_registry *in_globalreg, int in_phyid) :
                 tracker_element_factory<btle_tracked_device>(),
                 "BTLE device");
 
+    btle_uuid_id = 
+        entrytracker->register_field("btle.common.uuid_vendor",
+                tracker_element_factory<tracker_element_string>(),
+                "UUID vendor");
+
     ignore_random =
         Globalreg::globalreg->kismet_config->fetch_opt_bool("btle_ignore_random", false);
 
