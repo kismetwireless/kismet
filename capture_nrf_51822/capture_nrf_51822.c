@@ -57,6 +57,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     int placeholder_len;
     char *interface;
     char errstr[STATUS_MAX];
+    char *device = NULL;
 
     *ret_spectrum = NULL;
     *ret_interface = cf_params_interface_new();

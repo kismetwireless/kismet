@@ -1748,6 +1748,7 @@ fi
 printf "         NRF51822 BTLE: "
 if test "$BUILD_CAPTURE_NRF_51822" = 1; then
         echo "yes";
+fi
 
 printf "            TI CC 2531: "
 if test "$BUILD_CAPTURE_TI_CC_2531" = 1; then
