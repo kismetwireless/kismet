@@ -473,7 +473,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
     }
 
-    r = libusb_set_configuration(localticc2540->ticc2540_handle, -1);
+    r = libusb_set_configuration(localticc2540->ticc2540_handle, 1);
     assert(r < 0);
     
     pthread_mutex_unlock(&(localticc2540->usb_mutex));
