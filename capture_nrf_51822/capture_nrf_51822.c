@@ -56,8 +56,6 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     *ret_spectrum = NULL;
     *ret_interface = cf_params_interface_new();
 
-    char cap_if[32];
-
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
         return 0;
@@ -78,14 +76,12 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         return 0;
     }
 
-    snprintf(cap_if, 32, "nrf52840-%12X",adler32_csum((unsigned char *) device, strlen(device)));
-
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
      * and the serial device */
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
         *uuid = strndup(placeholder, placeholder_len);
     } else {
-        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%12X",
+        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%012X",
                 adler32_csum((unsigned char *) "kismet_cap_nrf_51822", 
                     strlen("kismet_cap_nrf_51822")) & 0xFFFFFFFF,
                 adler32_csum((unsigned char *) device,
@@ -93,11 +89,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         *uuid = strdup(errstr);
     }
 
-    (*ret_interface)->capif = strdup(cap_if);
-    (*ret_interface)->hardware = strdup("nrf52840");
-
-    /* nRF 51822 supports 37-39 */
-    /* be we don't really control the scanning */
+    /* TI CC 2540 supports 37-39 */
     (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 3);
     for (int i = 37; i < 40; i++) {
         char chstr[4];
@@ -122,19 +114,12 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
 
-    *ret_spectrum = NULL;
-    *ret_interface = cf_params_interface_new();
-
-    char cap_if[32];
-
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
         return -1;
     }
 
     localnrf->interface = strndup(placeholder, placeholder_len);
-
-    snprintf(cap_if, 32, "nrf52840-%12X",adler32_csum((unsigned char *) device, strlen(device)));
 
     if ((placeholder_len = cf_find_flag(&placeholder, "name", definition)) > 0) {
         localnrf->name = strndup(placeholder, placeholder_len);
@@ -152,19 +137,17 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
      * and the serial device */
+
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
         *uuid = strndup(placeholder, placeholder_len);
     } else {
-        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%12X",
+        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%012X",
                 adler32_csum((unsigned char *) "kismet_cap_nrf_51822", 
                     strlen("kismet_cap_nrf_51822")) & 0xFFFFFFFF,
                 adler32_csum((unsigned char *) device,
                     strlen(device)));
         *uuid = strdup(errstr);
     }
-
-    (*ret_interface)->capif = strdup(cap_if);
-    (*ret_interface)->hardware = strdup("nrf52840");
 
     /* open for r/w but no tty */
     localnrf->fd = open(device, O_RDWR | O_NOCTTY );
