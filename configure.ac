@@ -42,6 +42,7 @@ BUILD_CAPTURE_TI_CC_2531=0
 BUILD_CAPTURE_NRF_51822=0
 BUILD_CAPTURE_NRF_52840=0
 BUILD_CAPTURE_RZ_KILLERBEE=0
+BUILD_CAPTURE_NXP_KW41Z=0
 
 DATASOURCE_BINS="\$(CAPTURE_KISMETDB)"
 
@@ -1509,6 +1510,12 @@ if test "$linux" = "yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NRF_52840)"
 fi
 
+BUILD_CAPTURE_NXP_KW41Z=0
+if test "$linux" = "yes"; then
+    BUILD_CAPTURE_NXP_KW41Z=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NXP_KW41Z)"
+fi
+
 BUILD_CAPTURE_RZ_KILLERBEE=0
 if test "$have_usb" = "yes"; then
     BUILD_CAPTURE_RZ_KILLERBEE=1
@@ -1641,12 +1648,13 @@ AC_SUBST(BUILD_CAPTURE_TI_CC_2531)
 AC_SUBST(BUILD_CAPTURE_NRF_51822)
 AC_SUBST(BUILD_CAPTURE_NRF_52840)
 AC_SUBST(BUILD_CAPTURE_RZ_KILLERBEE)
+AC_SUBST(BUILD_CAPTURE_NXP_KW41Z)
 
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-AC_CONFIG_FILES([Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_sdr_rtlamr/Makefile capture_sdr_rtladsb/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile capture_ti_cc_2540/Makefile capture_ubertooth_one/Makefile capture_ti_cc_2531/Makefile capture_nrf_51822/Makefile capture_nrf_52840/Makefile capture_rz_killerbee/Makefile])
+AC_CONFIG_FILES([Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_sdr_rtlamr/Makefile capture_sdr_rtladsb/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile capture_ti_cc_2540/Makefile capture_ubertooth_one/Makefile capture_ti_cc_2531/Makefile capture_nrf_51822/Makefile capture_nrf_52840/Makefile capture_rz_killerbee/Makefile capture_nxp_kw41z/Makefile])
 AC_OUTPUT
 
 echo
@@ -1765,6 +1773,16 @@ elif test "$linux" != "yes"; then
 else
         echo "no";
 fi
+
+printf "             nxp_kw41z: "
+if test "$BUILD_CAPTURE_NXP_KW41Z" = 1; then
+        echo "yes";
+elif test "$linux" != "yes"; then
+        echo "n/a (only Linux)"
+else
+        echo "no";
+fi
+
 
 printf "          RZ KILLERBEE: "
 if test "$BUILD_CAPTURE_RZ_KILLERBEE" = 1; then

@@ -89,7 +89,7 @@ int ticc2531_set_power(kis_capture_handler_t *caph,uint8_t power, int retries) {
     }
     pthread_mutex_unlock(&(localticc2531->usb_mutex));
     return ret;
-}//mutex inside
+}
 
 int ticc2531_enter_promisc_mode(kis_capture_handler_t *caph) {
     int ret;
@@ -98,7 +98,7 @@ int ticc2531_enter_promisc_mode(kis_capture_handler_t *caph) {
     ret = libusb_control_transfer(localticc2531->ticc2531_handle, TICC2531_DIR_OUT, TICC2531_SET_START, 0x00, 0x00, NULL, 0, TICC2531_TIMEOUT);
     pthread_mutex_unlock(&(localticc2531->usb_mutex));
     return ret;
-}//mutex inside
+}
 
 int ticc2531_exit_promisc_mode(kis_capture_handler_t *caph) {
     int ret;
@@ -107,7 +107,7 @@ int ticc2531_exit_promisc_mode(kis_capture_handler_t *caph) {
     ret = libusb_control_transfer(localticc2531->ticc2531_handle, TICC2531_DIR_OUT, TICC2531_SET_END, 0x00, 0x00, NULL, 0, TICC2531_TIMEOUT);
     pthread_mutex_unlock(&(localticc2531->usb_mutex));
     return ret;
-}//mutex inside
+}
 
 
 int ticc2531_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_max) {
@@ -129,7 +129,7 @@ int ticc2531_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_
         return r;
     localticc2531->error_ctr = 0;/*we got something valid so reset*/
     return actual_len;
-}//mutex inside
+}
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, char **uuid, KismetExternal__Command *frame,
@@ -228,7 +228,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     (*ret_interface)->channels_len = 16;
     return 1;
-}/////mutex inside
+}
 
 int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
         char *msg, cf_params_list_interface_t ***interfaces) {
@@ -305,7 +305,7 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
         i++;
     }
     return num_devs;
-}///mutex inside
+}
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
@@ -481,10 +481,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     */
     pthread_mutex_unlock(&(localticc2531->usb_mutex));
 
+    //LINKTYPE_IEEE802_15_4_NOFCS
+    *dlt = 230;
+
     ticc2531_set_power(caph,0x04, TICC2531_POWER_RETRIES);
     ticc2531_enter_promisc_mode(caph);
     return 1;
-}///mutex inside
+}
 
 void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
     local_channel_t *ret_localchan;
@@ -508,7 +511,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
     ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
     ret_localchan->channel = parsechan;
     return ret_localchan;
-}///
+}
 
 int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *privchan,
         char *msg) {
@@ -536,38 +539,6 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     localticc2531->ready = true;
 
     return 1;
-}///
-
-bool verify_packet(unsigned char *data, int len) {
-
-    unsigned char payload[256];memset(payload,0x00,256);
-    int pkt_len = data[1];
-    if(pkt_len != (len-3)) {
-        /* printf("packet length mismatch\n"); */
-        return false;
-    }
-    //get the paylaod
-    int p_ctr=0;
-    for(int i=8;i<(len-2);i++) {
-        payload[p_ctr] = data[i];p_ctr++;
-    }
-    int payload_len = data[7] - 0x02;
-    if(p_ctr != payload_len) {
-        /* printf("payload size mismatch\n"); */
-        return false;
-    }
-
-    unsigned char fcs1 = data[len-2];
-    unsigned char fcs2 = data[len-1];
-//rssi is the signed value at fcs1
-    int rssi = (fcs1 + (int)pow(2,7)) % (int)pow(2,8) - (int)pow(2,7) - 73;
-    unsigned char crc_ok = fcs2 & (1 << 7);
-    unsigned char corr = fcs2 & 0x7f;
-    if(crc_ok > 0) {
-        return true;
-    }
-    else
-        return false;
 }
 
 /* Run a standard glib mainloop inside the capture thread */
@@ -586,65 +557,61 @@ void capture_thread(kis_capture_handler_t *caph) {
 
             break;
         }
-if(localticc2531->ready)
-{
-        buf_rx_len = ticc2531_receive_payload(caph, usb_buf, 256);
-//	printf("ticc2531_receive_payload:%d\n",buf_rx_len);
-        if (buf_rx_len < 0) {
-            snprintf(errstr, STATUS_MAX, "TI CC 2531 interface 'ticc2531-%u-%u' closed "
-                    "unexpectedly", localticc2531->busno, localticc2531->devno);
-            cf_send_error(caph, 0, errstr);
-            cf_handler_spindown(caph);
-            break;
-        }
+        if(localticc2531->ready)
+        {
+            buf_rx_len = ticc2531_receive_payload(caph, usb_buf, 256);
 
-        /* Skip runt packets caused by timeouts */
-        if (buf_rx_len == 1)
-            continue;
-
-        //the devices look to report a 4 byte counter/heartbeat, skip it
-        if(buf_rx_len <= 7)
-            continue;
-
-        if(!verify_packet(usb_buf, buf_rx_len)) {
-            fprintf(stderr,"invalid packet\n");continue;}
-
-        /**/
-        if (buf_rx_len > 1) {
-            fprintf(stderr, "ti cc 2531 saw %d -- ", buf_rx_len);
-
-            for (int bb = 0; bb < buf_rx_len; bb++) {
-                fprintf(stderr, "%02X ", usb_buf[bb] & 0xFF);
-            }
-            fprintf(stderr, "\n");
-        }
-        /**/
-
-        while (1) {
-            struct timeval tv;
-
-            gettimeofday(&tv, NULL);
-
-            if ((r = cf_send_data(caph,
-                            NULL, NULL, NULL,
-                            tv,
-                            0,
-                            buf_rx_len, usb_buf)) < 0) {
-                cf_send_error(caph, 0, "unable to send DATA frame");
+            if (buf_rx_len < 0) {
+                snprintf(errstr, STATUS_MAX, "TI CC 2531 interface 'ticc2531-%u-%u' closed "
+                        "unexpectedly", localticc2531->busno, localticc2531->devno);
+                cf_send_error(caph, 0, errstr);
                 cf_handler_spindown(caph);
-            } else if (r == 0) {
-                cf_handler_wait_ringbuffer(caph);
-                continue;
-            } else {
                 break;
             }
-        }
-}
 
+            /* Skip runt packets caused by timeouts */
+            if (buf_rx_len == 1)
+                continue;
+
+            //the devices look to report a 4 byte counter/heartbeat, skip it
+            if(buf_rx_len <= 7)
+                continue;
+
+            /*
+            if (buf_rx_len > 1) {
+                fprintf(stderr, "ti cc 2531 saw %d -- ", buf_rx_len);
+
+                for (int bb = 0; bb < buf_rx_len; bb++) {
+                    fprintf(stderr, "%02X ", usb_buf[bb] & 0xFF);
+                }
+                fprintf(stderr, "\n");
+            }
+            */
+
+            while (1) {
+                struct timeval tv;
+
+                gettimeofday(&tv, NULL);
+
+                if ((r = cf_send_data(caph,
+                                NULL, NULL, NULL,
+                                tv,
+                                0,
+                                buf_rx_len, usb_buf)) < 0) {
+                    cf_send_error(caph, 0, "unable to send DATA frame");
+                    cf_handler_spindown(caph);
+                } else if (r == 0) {
+                    cf_handler_wait_ringbuffer(caph);
+                    continue;
+                } else {
+                    break;
+                }
+            }
+        }
     }
 
     cf_handler_spindown(caph);
-}///
+}
 
 int main(int argc, char *argv[]) {
     local_ticc2531_t localticc2531 = {
@@ -669,7 +636,7 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    libusb_set_debug(localticc2531.libusb_ctx, 3);
+    //libusb_set_debug(localticc2531.libusb_ctx, 3);
 
     localticc2531.caph = caph;
 

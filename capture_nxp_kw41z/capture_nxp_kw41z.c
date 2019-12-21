@@ -1,7 +1,7 @@
 
 #include "../config.h"
 
-#include "nrf_52840.h"
+#include "nxp_kw41z.h"
 
 #include <stdio.h>
 #include <errno.h>
@@ -16,7 +16,6 @@
 
 volatile int STOP=FALSE;
 
-#define MODEMDEVICE "/dev/ttyACM0"
 #define CRTSCTS  020000000000 /*should be defined but isn't with the C99*/
 
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
@@ -39,114 +38,96 @@ typedef struct {
     bool ready;
 
     kis_capture_handler_t *caph;
-} local_nrf_t;
+} local_nxp_t;
 
 /* Most basic of channel definitions */
 typedef struct {
     unsigned int channel;
 } local_channel_t;
 
-int nrf_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len)
+int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len)
 {
-    /*
-     * receive
-     * sleep
-     * channel x
-     */
     uint8_t buf[255];
     uint8_t res = 0;
-    local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
-    pthread_mutex_lock(&(localnrf->serial_mutex));
-    write(localnrf->fd,tx_buf,tx_len);
-    res = read(localnrf->fd,buf,255);
-    pthread_mutex_unlock(&(localnrf->serial_mutex));
+    local_nxp_t *localnxp = (local_nxp_t *) caph->userdata;
+    pthread_mutex_lock(&(localnxp->serial_mutex));
+
+    printf("write:");
+    for(int xp=0;xp<tx_len;xp++)
+	    printf("%02X",tx_buf[xp]);
+    printf("\n");
+
+    write(localnxp->fd,tx_buf,tx_len);
+    res = read(localnxp->fd,buf,255);
+
+    printf("read(%d):",res);
+    for(int px=0;px<res;px++)
+	    printf("%02X",buf[px]);
+    printf("\n");
+
+    pthread_mutex_unlock(&(localnxp->serial_mutex));
     return 1;
 }
 
-int nrf_enter_promisc_mode(kis_capture_handler_t *caph)
+int nxp_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t chan)
 {
-    local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
-    localnrf->ready = false;
-    nrf_write_cmd(caph,"receive\r\n\r\n",strlen("receive\r\n\r\n"));
-    localnrf->ready = true;
-    return 1;
-}
+    local_nxp_t *localnxp = (local_nxp_t *) caph->userdata;
+    localnxp->ready = false;
+    //multi step to get us ready
+    uint8_t cmd_1[6] = {0x02,0x52,0x00,0x00,0x00,0x52};
+    nxp_write_cmd(caph,cmd_1,6);
 
-int nrf_exit_promisc_mode(kis_capture_handler_t *caph)
-{
-    local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
-    nrf_write_cmd(caph,"sleep\r\n\r\n",strlen("sleep\r\n\r\n"));
-    localnrf->ready = false;
-    return 1;
-}
+    uint8_t cmd_2[7] = {0x02,0x4E,0x00,0x01,0x00,0x00,0x4F};
+    nxp_write_cmd(caph,cmd_2,7);
 
-int nrf_set_channel(kis_capture_handler_t *caph, uint8_t channel)
-{
-    local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
-    nrf_exit_promisc_mode(caph);
-    uint8_t ch[16];
-    sprintf(ch,"channel %d\r\n\r\n",channel);
-    nrf_write_cmd(caph,ch,strlen(ch));
-    nrf_enter_promisc_mode(caph);
-    return 1;
-}
-
-int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_max) {
+    //chan 37
+    uint8_t cmd_3[7] = {0x02,0x4E,0x02,0x01,0x00,0x01,0x4C};
+    if (chan == 38) {
+    cmd_3[5] = 0x02; cmd_3[6] = 0x4F;}
+    if(chan == 39) {
+    cmd_3[5] = 0x04; cmd_3[6] = 0x49;}
     
-    local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
-    unsigned char buf[256];memset(buf,0x00,256);
-    unsigned char pkt[256];memset(pkt,0x00,256);
-    int actual_len = 0;
-    bool endofpkt=false;
-    int pkt_ctr = 0;
+    nxp_write_cmd(caph,cmd_3,7);
+
+    uint8_t cmd_4[7] = {0x02,0x4E,0x01,0x01,0x00,0x00,0x4E};
+    nxp_write_cmd(caph,cmd_4,7);
+
+    uint8_t cmd_5[7] = {0x02,0x4E,0x00,0x01,0x00,0x01,0x4E};
+    nxp_write_cmd(caph,cmd_5,7);
+
+    localnxp->ready = true;
+    return 1;
+}
+
+int nxp_exit_promisc_mode(kis_capture_handler_t *caph)
+{
+    local_nxp_t *localnxp = (local_nxp_t *) caph->userdata;
+    uint8_t cmd[7] = {0x02,0x4E,0x00,0x01,0x00,0x00,0x4F};
+    nxp_write_cmd(caph,cmd,7);
+    localnxp->ready = false;
+    return 1;
+}
+
+int nxp_set_channel(kis_capture_handler_t *caph, uint8_t channel)
+{
+    nxp_exit_promisc_mode(caph);
+    nxp_enter_promisc_mode(caph,channel);
+    return 1;
+}
+
+int nxp_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_max) {
+    
+    local_nxp_t *localnxp = (local_nxp_t *) caph->userdata;
     int res = 0;
-    unsigned int loop_ctr = 0;
 
     while(1) {
-        pthread_mutex_lock(&(localnrf->serial_mutex));
-	    res = read(localnrf->fd,buf,255);
-        pthread_mutex_unlock(&(localnrf->serial_mutex));
+        pthread_mutex_lock(&(localnxp->serial_mutex));
+	    res = read(localnxp->fd,rx_buf,rx_max);
+        pthread_mutex_unlock(&(localnxp->serial_mutex));
 	    if(res > 0)
-	    {
-            loop_ctr = 0;
-            //printf("payload-- %s:%d\n", buf, res);
-            for(int xp = 0;xp < res;xp++)
-            {
-                if(buf[xp] == 'r' && buf[xp+1] == 'e' && buf[xp+2] == 'c') {
-                        memset(pkt,0x00,256);
-                        pkt_ctr = 0;//start over
-                }
-
-                pkt[pkt_ctr] = buf[xp];
-                pkt_ctr++;
-                if(pkt_ctr > 254)
-                        break;
-                if(strstr((char*)pkt,"received:") > 0
-                && strstr((char*)pkt,"power:") > 0
-                && strstr((char*)pkt,"lqi:") > 0
-                && strstr((char*)pkt,"time:") > 0
-                )
-                {
-                    endofpkt = true;
-                    break;
-                }
-            }
-	        if(pkt_ctr > 0 && endofpkt)
-        	{
-                memcpy(rx_buf,pkt,pkt_ctr);
-                actual_len = pkt_ctr;
-                break;
-		    }
-	    }
-	    else
-	    {
-            // to keep us from looking for a packet when we only got a partial
-		    loop_ctr++;
-		    if(loop_ctr > 10000)
-			    break;
-	    }
+		    break;
     }
-    return actual_len;
+    return res;
 }
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
@@ -173,7 +154,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     interface = strndup(placeholder, placeholder_len);
 
     /* Look for the interface type */
-    if (strstr(interface, "nrf52840") != interface) {
+    if (strstr(interface, "nxp_kw41z") != interface) {
         free(interface);
         return 0;
     }
@@ -185,33 +166,33 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         return 0;
     }
 
-    snprintf(cap_if, 32, "nrf52840-%12X",adler32_csum((unsigned char *) device, strlen(device)));
+    snprintf(cap_if, 32, "nxp_kw41z-%012X",adler32_csum((unsigned char *) device, strlen(device)));
 
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
      * and the serial device */
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
         *uuid = strndup(placeholder, placeholder_len);
     } else {
-        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%12X",
-                adler32_csum((unsigned char *) "kismet_cap_nrf_52840", 
-                    strlen("kismet_cap_nrf_52840")) & 0xFFFFFFFF,
+        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%012X",
+                adler32_csum((unsigned char *) "kismet_cap_nxp_kw41z", 
+                    strlen("kismet_cap_nxp_kw41z")) & 0xFFFFFFFF,
                 adler32_csum((unsigned char *) device,
                     strlen(device)));
         *uuid = strdup(errstr);
     }
 
     (*ret_interface)->capif = strdup(cap_if);
-    (*ret_interface)->hardware = strdup("nrf52840");
+    (*ret_interface)->hardware = strdup("nxp_kw41z");
 
-    /* nRF 52840 supports 11-26 */
-    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 16);
-    for (int i = 11; i < 27; i++) {
+    /* NXP KW41Z supports 37-39 */
+    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 3);
+    for (int i = 37; i < 40; i++) {
         char chstr[4];
         snprintf(chstr, 4, "%d", i);
-        (*ret_interface)->channels[i - 11] = strdup(chstr);
+        (*ret_interface)->channels[i - 37] = strdup(chstr);
     }
 
-    (*ret_interface)->channels_len = 16;
+    (*ret_interface)->channels_len = 3;
 
     return 1;
 }
@@ -226,7 +207,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     char *device = NULL;
     char errstr[STATUS_MAX];
 
-    local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
+    local_nxp_t *localnxp = (local_nxp_t *) caph->userdata;
 
     *ret_interface = cf_params_interface_new();
 
@@ -237,81 +218,81 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
-    localnrf->interface = strndup(placeholder, placeholder_len);
+    localnxp->interface = strndup(placeholder, placeholder_len);
 
     if ((placeholder_len = cf_find_flag(&placeholder, "name", definition)) > 0) {
-        localnrf->name = strndup(placeholder, placeholder_len);
+        localnxp->name = strndup(placeholder, placeholder_len);
     } else {
-        localnrf->name = strdup(localnrf->interface);
+        localnxp->name = strdup(localnxp->interface);
     }
 
     if ((placeholder_len = cf_find_flag(&placeholder, "device", definition)) > 0) {
         device = strndup(placeholder, placeholder_len);
     } else {
         snprintf(msg, STATUS_MAX, "%s expected device= path to serial device in definition",
-                localnrf->name);
+                localnxp->name);
         return -1;
     }
 
-    snprintf(cap_if, 32, "nrf52840-%12X",adler32_csum((unsigned char *) device, strlen(device)));
+    snprintf(cap_if, 32, "nxp_kw41z-%012X",adler32_csum((unsigned char *) device, strlen(device)));
 
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
      * and the serial device */
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
         *uuid = strndup(placeholder, placeholder_len);
     } else {
-        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%12X",
-                adler32_csum((unsigned char *) "kismet_cap_nrf_52840", 
-                    strlen("kismet_cap_nrf_52840")) & 0xFFFFFFFF,
+        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%012X",
+                adler32_csum((unsigned char *) "kismet_cap_nxp_kw41z", 
+                    strlen("kismet_cap_nxp_kw41z")) & 0xFFFFFFFF,
                 adler32_csum((unsigned char *) device,
                     strlen(device)));
         *uuid = strdup(errstr);
     }
 
     (*ret_interface)->capif = strdup(cap_if);
-    (*ret_interface)->hardware = strdup("nrf52840");
+    (*ret_interface)->hardware = strdup("nxp_kw41z");
 
-    /* nRF 52840 supports 11 - 26*/
-    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 16);
-    for (int i = 11; i < 27; i++) {
+    /* NXP KW41Z supports 37-39 */
+    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 3);
+    for (int i = 37; i < 40; i++) {
         char chstr[4];
         snprintf(chstr, 4, "%d", i);
-        (*ret_interface)->channels[i - 11] = strdup(chstr);
+        (*ret_interface)->channels[i - 37] = strdup(chstr);
     }
 
-    (*ret_interface)->channels_len = 16;
+    (*ret_interface)->channels_len = 3;
 
-    pthread_mutex_lock(&(localnrf->serial_mutex));
+    pthread_mutex_lock(&(localnxp->serial_mutex));
     /* open for r/w but no tty */
-    localnrf->fd = open(device, O_RDWR | O_NOCTTY);
+    localnxp->fd = open(device, O_RDWR | O_NOCTTY);
 
-    if (localnrf->fd < 0) {
+    if (localnxp->fd < 0) {
         snprintf(msg, STATUS_MAX, "%s failed to open serial device - %s",
-                localnrf->name, strerror(errno));
+                localnxp->name, strerror(errno));
         return -1;
     }
 
-    tcgetattr(localnrf->fd,&localnrf->oldtio); /* save current serial port settings */
-    bzero(&localnrf->newtio, sizeof(localnrf->newtio)); /* clear struct for new port settings */
+    tcgetattr(localnxp->fd,&localnxp->oldtio); /* save current serial port settings */
+    bzero(&localnxp->newtio, sizeof(localnxp->newtio)); /* clear struct for new port settings */
 
     /* set the baud rate and flags */
-    localnrf->newtio.c_cflag = BAUDRATE | CRTSCTS | CS8 | CLOCAL | CREAD;
+    localnxp->newtio.c_cflag = BAUDRATE | CRTSCTS | CS8 | CLOCAL | CREAD;
 
     /* ignore parity errors */
-    localnrf->newtio.c_iflag = IGNPAR;
+    localnxp->newtio.c_iflag = IGNPAR;
 
     /* raw output */
-    localnrf->newtio.c_oflag = 0;
+    localnxp->newtio.c_oflag = 0;
 
     /* newtio.c_lflag = ICANON; */
 
     /* flush and set up */
-    tcflush(localnrf->fd, TCIFLUSH);
-    tcsetattr(localnrf->fd, TCSANOW, &localnrf->newtio);
+    tcflush(localnxp->fd, TCIFLUSH);
+    tcsetattr(localnxp->fd, TCSANOW, &localnxp->newtio);
 
-    pthread_mutex_unlock(&(localnrf->serial_mutex));
+    pthread_mutex_unlock(&(localnxp->serial_mutex));
 
-    nrf_set_channel(caph, 11);
+    nxp_enter_promisc_mode(caph,37);
 
     return 1;
 }
@@ -322,15 +303,15 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
     char errstr[STATUS_MAX];
 
     if (sscanf(chanstr, "%u", &parsechan) != 1) {
-        snprintf(errstr, STATUS_MAX, "1 unable to parse requested channel '%s'; nRF52840 channels "
-                "are from 11 to 26", chanstr);
+        snprintf(errstr, STATUS_MAX, "1 unable to parse requested channel '%s'; ticc2540 channels "
+                "are from 37 to 39", chanstr);
         cf_send_message(caph, errstr, MSGFLAG_INFO);
         return NULL;
     }
 
-    if (parsechan > 26 || parsechan < 11) {
-        snprintf(errstr, STATUS_MAX, "2 unable to parse requested channel '%u'; nRF52840 channels "
-                "are from 11 to 26", parsechan);
+    if (parsechan > 39 || parsechan < 37) {
+        snprintf(errstr, STATUS_MAX, "2 unable to parse requested channel '%u'; ticc2540 channels "
+                "are from 37 to 39", parsechan);
         cf_send_message(caph, errstr, MSGFLAG_INFO);
         return NULL;
     }
@@ -342,7 +323,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
 
 int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *privchan, char *msg) {
 
-    local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
+    local_nxp_t *localnxp = (local_nxp_t *) caph->userdata;
     local_channel_t *channel = (local_channel_t *) privchan;
     int r;
 
@@ -350,7 +331,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
         return 0;
     }
 
-    r = nrf_set_channel(caph, channel->channel);
+    r = nxp_set_channel(caph, channel->channel);
     
     return r;
 }
@@ -358,7 +339,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
 /* Run a standard glib mainloop inside the capture thread */
 void capture_thread(kis_capture_handler_t *caph) {
 
-    local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
+    local_nxp_t *localnxp = (local_nxp_t *) caph->userdata;
 
     char errstr[STATUS_MAX];
     uint8_t buf[256];
@@ -367,16 +348,16 @@ void capture_thread(kis_capture_handler_t *caph) {
 
     while(1) {
 	    if(caph->spindown) {
-            nrf_exit_promisc_mode(caph);
+            nxp_exit_promisc_mode(caph);
             /* set the port back to normal */
-            pthread_mutex_lock(&(localnrf->serial_mutex));
-            tcsetattr(localnrf->fd,TCSANOW,&localnrf->oldtio);
-            pthread_mutex_unlock(&(localnrf->serial_mutex));
+            pthread_mutex_lock(&(localnxp->serial_mutex));
+            tcsetattr(localnxp->fd,TCSANOW,&localnxp->oldtio);
+            pthread_mutex_unlock(&(localnxp->serial_mutex));
             break;
 	    }
-        if(localnrf->ready)
+        if(localnxp->ready)
         {
-            buf_rx_len = nrf_receive_payload(caph, buf, 256);
+            buf_rx_len = nxp_receive_payload(caph, buf, 256);
             if (buf_rx_len < 0) {
                 cf_send_error(caph, 0, errstr);
                 cf_handler_spindown(caph);
@@ -410,14 +391,14 @@ void capture_thread(kis_capture_handler_t *caph) {
 }
 
 int main(int argc, char *argv[]) {
-    local_nrf_t localnrf = {
+    local_nxp_t localnxp = {
         .caph = NULL,
 	.name = NULL,
         .interface = NULL,
         .fd = -1,
     };
 
-    kis_capture_handler_t *caph = cf_handler_init("nrf52840");
+    kis_capture_handler_t *caph = cf_handler_init("nxp_kw41z");
 
     if (caph == NULL) {
         fprintf(stderr, "FATAL: Could not allocate basic handler data, your system "
@@ -425,10 +406,10 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    localnrf.caph = caph;
+    localnxp.caph = caph;
 
     /* Set the local data ptr */
-    cf_handler_set_userdata(caph, &localnrf);
+    cf_handler_set_userdata(caph, &localnxp);
 
     /* Set the callback for opening  */
     cf_handler_set_open_cb(caph, open_callback);

@@ -15,7 +15,7 @@
 
 #include "../capture_framework.h"
 
-volatile int STOP=FALSE;
+#include "nrf_51822.h"
 
 #define MODEMDEVICE "/dev/ttyUSB0"
 
@@ -61,14 +61,6 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     *ret_spectrum = NULL;
     *ret_interface = cf_params_interface_new();
-
-    int x;
-
-     int r;
-
-    int matched_device = 0;
-
-    local_nrf_t *localnrf51822 = (local_nrf_t *) caph->userdata;
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
@@ -151,6 +143,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
      * and the serial device */
+
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
         *uuid = strndup(placeholder, placeholder_len);
     } else {
@@ -339,4 +332,3 @@ int main(int argc, char *argv[]) {
 
     return 0;
 }
-

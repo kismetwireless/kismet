@@ -78,6 +78,7 @@
 #include "datasource_ti_cc_2531.h"
 #include "datasource_nrf_52840.h"
 #include "datasource_rz_killerbee.h"
+#include "datasource_nxp_kw41z.h"
 
 #include "logtracker.h"
 #include "kis_ppilogfile.h"
@@ -895,6 +896,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_ubertooth_one_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_nrf52840_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rzkillerbee_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_nxpkw41z_builder()));
 
     // Create the database logger as a global because it's a special case
     kis_database_logfile::create_kisdatabaselog();
