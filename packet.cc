@@ -41,6 +41,7 @@ kis_packet::kis_packet(global_registry *in_globalreg) {
 	globalreg = in_globalreg;
 
 	error = 0;
+    crc_ok = 0;
 	filtered = 0;
     duplicate = 0;
 

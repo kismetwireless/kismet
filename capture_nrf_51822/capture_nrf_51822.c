@@ -1,7 +1,4 @@
-
-#include "../config.h"
-
-#include "nrf_51822.h"
+#define _GNU_SOURCE
 
 #include <stdio.h>
 #include <errno.h>
@@ -12,36 +9,42 @@
 #include <termios.h>
 #include <fcntl.h>
 
+#include "../config.h"
+
+#include "nrf_51822.h"
+
 #include "../capture_framework.h"
 
 volatile int STOP=FALSE;
 
 #define MODEMDEVICE "/dev/ttyUSB0"
-# define CRTSCTS  020000000000 /*should be defined but isn't with the C99*/
+
+#ifndef CRTSCTS
+#define CRTSCTS  020000000000 /*should be defined but isn't with the C99*/
+#endif
 
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 
 /* Unique instance data passed around by capframework */
 typedef struct {
-
     pthread_mutex_t serial_mutex;
 
-    struct termios oldtio,newtio;
+    struct termios oldtio, newtio;
 
     int fd;
+
+    char *name;
+    char *interface;
 
     kis_capture_handler_t *caph;
 } local_nrf_t;
 
 int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_max) {
-//printf("nrf_receive_payload\n");
-    
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
 
     int actual_len = 0;
 
     actual_len = read(localnrf->fd,rx_buf,rx_max);
-//printf("nrf_receive_payload close\n");
     return actual_len;
 }
 
@@ -50,8 +53,6 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
  
-printf("probe_callback\n");
-
     char *placeholder = NULL;
     int placeholder_len;
     char *interface;
@@ -81,13 +82,25 @@ printf("probe_callback\n");
         return 0;
     }
 
+    if ((placeholder_len = cf_find_flag(&placeholder, "device", definition)) > 0) {
+        device = strndup(placeholder, placeholder_len);
+    } else {
+        snprintf(msg, STATUS_MAX, "Expected device= path to serial device in definition");
+        return 0;
+    }
+
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
-     * and the location in the bus */
-    snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%06X%06X",
-            adler32_csum((unsigned char *) "kismet_cap_nrf_51822", 
-                strlen("kismet_cap_nrf_51822")) & 0xFFFFFFFF,
-            1, 1);
-    *uuid = strdup(errstr);
+     * and the serial device */
+    if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
+        *uuid = strndup(placeholder, placeholder_len);
+    } else {
+        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%012X",
+                adler32_csum((unsigned char *) "kismet_cap_nrf_51822", 
+                    strlen("kismet_cap_nrf_51822")) & 0xFFFFFFFF,
+                adler32_csum((unsigned char *) device,
+                    strlen(device)));
+        *uuid = strdup(errstr);
+    }
 
     /* TI CC 2540 supports 37-39 */
     (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 3);
@@ -99,26 +112,64 @@ printf("probe_callback\n");
 
     (*ret_interface)->channels_len = 3;
 
-printf("probe_callback close\n");
-
     return 1;
-}/////mutex inside
+}
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
 
-printf("open_callback\n");
+    char *placeholder;
+    int placeholder_len;
+    char *device = NULL;
+    char errstr[STATUS_MAX];
 
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
 
+    if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
+        snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
+        return -1;
+    }
+
+    localnrf->interface = strndup(placeholder, placeholder_len);
+
+    if ((placeholder_len = cf_find_flag(&placeholder, "name", definition)) > 0) {
+        localnrf->name = strndup(placeholder, placeholder_len);
+    } else {
+        localnrf->name = strdup(localnrf->interface);
+    }
+
+    if ((placeholder_len = cf_find_flag(&placeholder, "device", definition)) > 0) {
+        device = strndup(placeholder, placeholder_len);
+    } else {
+        snprintf(msg, STATUS_MAX, "%s expected device= path to serial device in definition",
+                localnrf->name);
+        return -1;
+    }
+
+    /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
+     * and the serial device */
+    if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
+        *uuid = strndup(placeholder, placeholder_len);
+    } else {
+        snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%012X",
+                adler32_csum((unsigned char *) "kismet_cap_nrf_51822", 
+                    strlen("kismet_cap_nrf_51822")) & 0xFFFFFFFF,
+                adler32_csum((unsigned char *) device,
+                    strlen(device)));
+        *uuid = strdup(errstr);
+    }
+
     /* open for r/w but no tty */
-    printf("open the serial :%s\n",MODEMDEVICE);
-    localnrf->fd = open(MODEMDEVICE, O_RDWR | O_NOCTTY );
-    printf("post open fc:%d\n",localnrf->fd);
-    if (localnrf->fd <0) {perror(MODEMDEVICE); exit(-1); }
-    printf("continue on\n");
+    localnrf->fd = open(device, O_RDWR | O_NOCTTY );
+
+    if (localnrf->fd < 0) {
+        snprintf(msg, STATUS_MAX, "%s failed to open serial device - %s",
+                localnrf->name, strerror(errno));
+        return -1;
+    }
+
     tcgetattr(localnrf->fd,&localnrf->oldtio); /* save current serial port settings */
     bzero(&localnrf->newtio, sizeof(localnrf->newtio)); /* clear struct for new port settings */
 
@@ -126,7 +177,7 @@ printf("open_callback\n");
     localnrf->newtio.c_cflag = BAUDRATE | CRTSCTS | CS8 | CLOCAL | CREAD;
 
     /* ignore parity errors */
-    localnrf->newtio.c_iflag = IGNPAR;// | ICRNL;
+    localnrf->newtio.c_iflag = IGNPAR;
 
     /* raw output */
     localnrf->newtio.c_oflag = 0;
@@ -135,9 +186,7 @@ printf("open_callback\n");
 
     /* flush and set up */
     tcflush(localnrf->fd, TCIFLUSH);
-    tcsetattr(localnrf->fd,TCSANOW,&localnrf->newtio);
-
-printf("open_callback close\n");
+    tcsetattr(localnrf->fd, TCSANOW, &localnrf->newtio);
 
     return 1;
 }
@@ -162,98 +211,74 @@ void capture_thread(kis_capture_handler_t *caph) {
     int r = 0;
 
     while(1) {
-	    if(caph->spindown) {
-		/* set the port back to normal */
-                tcsetattr(localnrf->fd,TCSANOW,&localnrf->oldtio);
-		break;
-	    }
+        if (caph->spindown) {
+            /* set the port back to normal */
+            tcsetattr(localnrf->fd,TCSANOW,&localnrf->oldtio);
+            break;
+        }
+
         valid_pkt = false;
         buf_rx_len = nrf_receive_payload(caph, buf, 256);
+
         if (buf_rx_len < 0) {
             cf_send_error(caph, 0, errstr);
             cf_handler_spindown(caph);
             break;
         }
 
-	/* multiple packets can be returned at the same time.
-	 * I had tried passing it all to the data source, but
-	 * that caused some issues. It was easier to break them
-	 * apart here and send along to the data source.
-	 */
+        /* multiple packets can be returned at the same time.
+         * I had tried passing it all to the data source, but
+         * that caused some issues. It was easier to break them
+         * apart here and send along to the data source.
+         */
         /* do some parsing or validation */
 
-	if(buf[0] == 0xAB && buf[buf_rx_len-1] == 0xBC)
-	{
+        if(buf[0] == 0xAB && buf[buf_rx_len-1] == 0xBC) {
+            for(int xp=0;xp<buf_rx_len;xp++) {
+                if((buf[xp] == 0xAB && xp == 0) || (buf[xp] == 0xAB && buf[xp-1] == 0xBC)) {
+                    pkt_start = xp;xp++;
+                    hdr_len = buf[pkt_start+1];
+                    pkt_len = buf[pkt_start+2];
+                }
 
-for(int xp=0;xp<buf_rx_len;xp++)
-{
-        if(
-        (buf[xp] == 0xAB && xp == 0)
-        || (buf[xp] == 0xAB && buf[xp-1] == 0xBC)
-        )
-        {
-                pkt_start = xp;xp++;
-                hdr_len = buf[pkt_start+1];
-                pkt_len = buf[pkt_start+2];
-        }
-        /**
->>>>>>> b64486d5a94cd657529ca41ce50157a1a91ed0d5
-        printf(" HEADER \n");
-        for(int hctr=(pkt_start+1);hctr<(hdr_len+pkt_start+1);hctr++)
-        {
-                printf("%02X ",buf[hctr]);
-                xp++;
-        }
-        printf("\n");
-        /**/
-        //check the packet_type from the header
-        if(buf[pkt_start+6] == 0x06)
-        {
-            valid_pkt = true;
-            pld_ctr = 0;
-            pkt_ctr = 0;
-            memset(pkt,0x00,255);
-            //printf(" PAYLOAD \n");
-            for(int hctr=(pkt_start+1+hdr_len);hctr<(pkt_len+pkt_start+1+hdr_len);hctr++)
-            {
-                    xp++;
-                    pkt[pkt_ctr] = buf[hctr]; pkt_ctr++;
-            }
-    /**
->>>>>>> b64486d5a94cd657529ca41ce50157a1a91ed0d5
-            printf("--pkt--\n");
-            for(int re=0;re<pkt_ctr;re++)
-            {
-                printf("%02X ",pkt[re]);
-            }
-            printf("\n");
-    /**/
-        }
+                /* check the packet_type from the header */
+                if (buf[pkt_start+6] == 0x06) {
+                    valid_pkt = true;
+                    pld_ctr = 0;
+                    pkt_ctr = 0;
+                    memset(pkt,0x00,255);
 
-        //send the packet along
-        if(pkt_ctr > 0 && valid_pkt)
-        while (1) {
-            struct timeval tv;
+                    for (int hctr = (pkt_start + 1 + hdr_len); 
+                            hctr < (pkt_len + pkt_start + 1 + hdr_len); hctr++) {
+                        xp++;
+                        pkt[pkt_ctr] = buf[hctr]; pkt_ctr++;
+                    }
+                }
 
-            gettimeofday(&tv, NULL);
+                /* send the packet along */
+                if (pkt_ctr > 0 && valid_pkt) {
+                    while (1) {
+                        struct timeval tv;
 
-            if ((r = cf_send_data(caph,
-                            NULL, NULL, NULL,
-                            tv,
-                            0,
-                            pkt_ctr, pkt)) < 0) {
-                cf_send_error(caph, 0, "unable to send DATA frame");
-                cf_handler_spindown(caph);
-            } else if (r == 0) {
-                cf_handler_wait_ringbuffer(caph);
-                continue;
-            } else {
-                break;
+                        gettimeofday(&tv, NULL);
+
+                        if ((r = cf_send_data(caph,
+                                        NULL, NULL, NULL,
+                                        tv,
+                                        0,
+                                        pkt_ctr, pkt)) < 0) {
+                            cf_send_error(caph, 0, "unable to send DATA frame");
+                            cf_handler_spindown(caph);
+                        } else if (r == 0) {
+                            cf_handler_wait_ringbuffer(caph);
+                            continue;
+                        } else {
+                            break;
+                        }
+                    }
+                }
             }
         }
-}
-	}
-
     }
     cf_handler_spindown(caph);
 }
@@ -261,10 +286,12 @@ for(int xp=0;xp<buf_rx_len;xp++)
 int main(int argc, char *argv[]) {
     local_nrf_t localnrf = {
         .caph = NULL,
+        .name = NULL,
+        .interface = NULL,
+        .fd = -1,
     };
 
     kis_capture_handler_t *caph = cf_handler_init("nrf51822");
-    //int r;
 
     if (caph == NULL) {
         fprintf(stderr, "FATAL: Could not allocate basic handler data, your system "
@@ -273,8 +300,6 @@ int main(int argc, char *argv[]) {
     }
 
     localnrf.caph = caph;
-
-    printf("nrf51822 main\n");
 
     /* Set the local data ptr */
     cf_handler_set_userdata(caph, &localnrf);

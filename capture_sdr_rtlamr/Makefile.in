@@ -5,7 +5,7 @@ MONITOR_BIN = kismet_cap_sdr_rtlamr
 all: 
 	( cd KismetCaptureRtlamr/kismetexternal; \
 	  $(PROTOCBIN) -I ../../../protobuf_definitions --python_out=. ../../../protobuf_definitions/*.proto; \
-	  sed -i -E 's/^import.*_pb2/from . \0/' *_pb2.py ; \
+	  sed -i -E 's/^import kismet_/from . import kismet_/' *_pb2.py ; \
 	)
 	$(PYTHON) ./setup.py bdist
 

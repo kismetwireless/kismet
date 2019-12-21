@@ -32,11 +32,11 @@
 kis_dlt_btle_ll_radio::kis_dlt_btle_ll_radio() :
     kis_dlt_handler() {
 
-        dlt_name = "BTLE_LL_RADIO";
-        dlt = KDLT_BTLE_RADIO;
+    dlt_name = "BTLE_LL_RADIO";
+    dlt = KDLT_BTLE_RADIO;
 
-        _MSG("Registering support for DLT_BTLE_LL_RADIO packet header decoding", MSGFLAG_INFO);
-    }
+    _MSG("Registering support for DLT_BTLE_LL_RADIO packet header decoding", MSGFLAG_INFO);
+}
 
 int kis_dlt_btle_ll_radio::handle_packet(kis_packet *in_pack) {
     typedef struct {
@@ -53,8 +53,8 @@ int kis_dlt_btle_ll_radio::handle_packet(kis_packet *in_pack) {
     const uint16_t btle_rf_flag_signalvalid = (1 << 1);
     const uint16_t btle_rf_flag_noisevalid = (1 << 2);
     // const uint16_t btle_rf_flag_reference_access_valid = (1 << 5);
-    // const uint16_t btle_rf_crc_checked = (1 << 10);
-    // const uint16_t btle_rf_crc_valid = (1 << 11);
+    const uint16_t btle_rf_crc_checked = (1 << 10);
+    const uint16_t btle_rf_crc_valid = (1 << 11);
 
     // Make sure we're not already decapped
     auto decapchunk = in_pack->fetch<kis_datachunk>(pack_comp_decap);
@@ -72,13 +72,24 @@ int kis_dlt_btle_ll_radio::handle_packet(kis_packet *in_pack) {
         return 1;
     }
 
-    // Make sure the packet can hold the rf_ll and a little extra - 4 seems good,
-    // that's the size of the advertised address info and nothing should be shorter.
-    if (linkchunk->length < sizeof(btle_rf) + 4)
+    // Make sure the packet can hold the rf_ll and a little extra - 6 seems good,
+    // that's the size of the advertised address info and a packet header
+    if (linkchunk->length < sizeof(btle_rf) + 6)
         return 1;
 
     auto rf_ll = reinterpret_cast<btle_rf *>(linkchunk->data);
     auto flags = kis_letoh16(rf_ll->flags_le);
+
+    if (flags & btle_rf_crc_checked) {
+        // Throw out invalid packets if the capture source knew the CRC was invalid
+        if (!(flags & btle_rf_crc_valid)) {
+            in_pack->error = 1;
+            return 1;
+        }
+
+        // Flag that we know the CRC is good
+        in_pack->crc_ok = 1;
+    }
 
     // Generate a l1 radio header and a decap header since we have it computed already
     auto radioheader = new kis_layer1_packinfo();
@@ -89,23 +100,24 @@ int kis_dlt_btle_ll_radio::handle_packet(kis_packet *in_pack) {
     if (flags & btle_rf_flag_noisevalid)
         radioheader->noise_dbm = rf_ll->noise;
 
-    if (rf_ll->monitor_channel <= 39) {
-        if (rf_ll->monitor_channel == 39) {
-            radioheader->channel = "39";
-            radioheader->freq_khz = (2400 + 39) * 1000;
-        } else if (rf_ll->monitor_channel >= 13) {
-            radioheader->channel = fmt::format("{}", rf_ll->monitor_channel - 2);
-            radioheader->freq_khz = (2400 + rf_ll->monitor_channel - 2) * 1000;
-        } else if (rf_ll->monitor_channel == 12) {
-            radioheader->channel = "38";
-            radioheader->freq_khz = (2400 + 38) * 1000;
-        } else if (rf_ll->monitor_channel >= 1) {
-            radioheader->channel = fmt::format("{}", rf_ll->monitor_channel - 1);
-            radioheader->freq_khz = (2400 + rf_ll->monitor_channel - 1) * 1000;
-        } else {
-            radioheader->channel = "37";
-            radioheader->freq_khz = (2400 + 37) * 1000;
-        }
+    if (rf_ll->monitor_channel == 37) {
+        radioheader->channel = "37";
+        radioheader->freq_khz = (2402 * 1000);
+    } else if (rf_ll->monitor_channel == 38) {
+        radioheader->channel = "38";
+        radioheader->freq_khz = (2426 * 1000);
+    } else if (rf_ll->monitor_channel == 39) {
+        radioheader->channel = "39";
+        radioheader->freq_khz = (2480 * 1000);
+    }  else if (rf_ll->monitor_channel <= 10) {
+        radioheader->channel = fmt::format("{}", rf_ll->monitor_channel);
+        radioheader->freq_khz = (2404 + (rf_ll->monitor_channel * 2)) * 1000;
+    } else if (rf_ll->monitor_channel <= 36) {
+        radioheader->channel = fmt::format("{}", rf_ll->monitor_channel);
+        radioheader->freq_khz = (2428 + ((rf_ll->monitor_channel - 11) * 2)) * 1000;
+    } else {
+        radioheader->channel = "0";
+        radioheader->freq_khz = 0;
     }
 
     in_pack->insert(pack_comp_radiodata, radioheader);

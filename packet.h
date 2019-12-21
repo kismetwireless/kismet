@@ -70,6 +70,10 @@ public:
     // itself?
     int error;
 
+    // Do we know this packet is OK and don't have to run a CRC check on 
+    // it inside a data layer?
+    int crc_ok;
+
     // Have we been filtered for some reason?
     int filtered;
 

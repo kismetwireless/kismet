@@ -121,6 +121,9 @@ BUILD_CAPTURE_NRF_MOUSEJACK = @BUILD_CAPTURE_NRF_MOUSEJACK@
 CAPTURE_TI_CC_2540 = capture_ti_cc_2540/kismet_cap_ti_cc_2540
 BUILD_CAPTURE_TI_CC_2540 = @BUILD_CAPTURE_TI_CC_2540@
 
+CAPTURE_UBERTOOTH_ONE = capture_ubertooth_one/kismet_cap_ubertooth_one
+BUILD_CAPTURE_UBERTOOTH_ONE = @BUILD_CAPTURE_UBERTOOTH_ONE@
+
 CAPTURE_TI_CC_2531 = capture_ti_cc_2531/kismet_cap_ti_cc_2531
 BUILD_CAPTURE_TI_CC_2531 = @BUILD_CAPTURE_TI_CC_2531@
 
@@ -196,7 +199,7 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	$(PROTOBUF_CPP_O_TARGET) kis_external.cc.o \
 	dlttracker.cc.o antennatracker.cc.o datasourcetracker.cc.o kis_datasource.cc.o \
 	datasource_linux_bluetooth.cc.o datasource_rtl433.cc.o datasource_rtlamr.cc.o datasource_rtladsb.cc.o \
-	datasource_ti_cc_2540.cc.o datasource_ti_cc_2531.cc.o datasource_nrf_51822.cc.o datasource_nrf_52840.cc.o \
+	datasource_ti_cc_2540.cc.o datasource_ti_cc_2531.cc.o datasource_ubertooth_one.cc.o datasource_nrf_51822.cc.o datasource_nrf_52840.cc.o \
 	datasource_rz_killerbee.cc.o \
 	kis_net_microhttpd.cc.o kis_net_microhttpd_handlers.cc.o system_monitor.cc.o base64.cc.o \
 	kis_httpd_websession.cc.o kis_httpd_registry.cc.o \
@@ -214,7 +217,7 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	$(PARSERS) \
 	phy_80211.cc.o phy_80211_components.cc.o phy_80211_dissectors.cc.o \
 	phy_rtl433.cc.o phy_rtlamr.cc.o phy_rtladsb.cc.o phy_zwave.cc.o \
-	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_btle.cc.o\
+	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_btle.cc.o phy_ti_cc_2540.cc.o phy_ti_cc_2531.cc.o phy_nrf_51822.cc.o\
 	dot11_fingerprint.cc.o kis_dissector_ipdata.cc.o \
 	manuf.cc.o \
 	logtracker.cc.o kis_ppilogfile.cc.o kis_databaselogfile.cc.o kis_pcapnglogfile.cc.o \
@@ -306,6 +309,9 @@ $(CAPTURE_NRF_MOUSEJACK): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_TI_CC_2540): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_ti_cc_2540 && $(MAKE))
 
+$(CAPTURE_UBERTOOTH_ONE): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_ubertooth_one && $(MAKE))
+
 $(CAPTURE_TI_CC_2531): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_ti_cc_2531 && $(MAKE))
 
@@ -348,7 +354,11 @@ binsuidinstall: $(DATASOURCE_BINS)
 	fi;
 
 	@if test "$(BUILD_CAPTURE_TI_CC_2540)"x = "1"x; then \
-                $(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_TI_CC_2540) $(BIN)/`basename $(CAPTURE_TI_CC_2540)`; \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_TI_CC_2540) $(BIN)/`basename $(CAPTURE_TI_CC_2540)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_UBERTOOTH_ONE)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_UBERTOOTH_ONE) $(BIN)/`basename $(CAPTURE_UBERTOOTH_ONE)`; \
         fi;
 
 	@if test "$(BUILD_CAPTURE_TI_CC_2531)"x = "1"x; then \
@@ -414,7 +424,11 @@ commoninstall: $(INSTBINS)
 	fi;
 
 	@if test "$(BUILD_CAPTURE_TI_CC_2540)"x = "1"x; then \
-                $(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_TI_CC_2540) $(BIN)/`basename $(CAPTURE_TI_CC_2540)`; \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_TI_CC_2540) $(BIN)/`basename $(CAPTURE_TI_CC_2540)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_UBERTOOTH_ONE)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_UBERTOOTH_ONE) $(BIN)/`basename $(CAPTURE_UBERTOOTH_ONE)`; \
         fi;
 
 	@if test "$(BUILD_CAPTURE_TI_CC_2531)"x = "1"x; then \
@@ -589,14 +603,10 @@ depclean:
 clean:
 	@-rm -f *.o *.mo
 	@-rm -f *.d
-	# @-rm -f kaitai_parsers/*.o
-	# @-rm -f kaitai_parsers/*.d
 	@-rm -f dot11_parsers/*.o
 	@-rm -f dot11_parsers/*.d
 	@-rm -f bluetooth_parsers/*.o
 	@-rm -f bluetooth_parsers/*.d
-	@-rm -f protobuf_cpp/*.pb.*
-	@-rm -f protobuf_c/*.pb-c.*
 	@-rm -f log_tools/*.o
 	@-rm -f log_tools/*.d
 	@-$(MAKE) all-plugins-clean
@@ -607,7 +617,6 @@ clean:
 	@-rm -f $(BUILD_CAPTURE_LINUX_BLUETOOTH)
 	@-rm -f $(BUILD_CAPTURE_OSX_COREWLAN)
 	@-rm -f $(BUILD_CAPTURE_HACKRF_SWEEP)
-	@-rm -f $(DATASOURCE_COMMON_A)
 	@(cd capture_linux_bluetooth && make clean)
 	@(cd capture_linux_wifi && make clean)
 	@(cd capture_osx_corewlan_wifi && make clean)
@@ -616,10 +625,15 @@ clean:
 	@(cd capture_sdr_rtladsb && make clean)
 	@(cd capture_nrf_mousejack && make clean)
 	@(cd capture_ti_cc_2540 && make clean)
-	@(cd capture_ti_cc_2531 && make clean)
+	@(cd capture_ubertooth_one && make clean)
 	@(cd capture_nrf_51822 && make clean)
+	@(cd capture_ti_cc_2531 && make clean)
 	@(cd capture_nrf_52840 && make clean)
 	@(cd capture_rz_killerbee && make clean)
+	
+	@-rm -f $(DATASOURCE_COMMON_A)
+	@-rm -f protobuf_cpp/*.pb.*
+	@-rm -f protobuf_c/*.pb-c.*
 
 distclean:
 	@-$(MAKE) clean

@@ -326,6 +326,11 @@ struct kis_capture_handler {
     size_t channel_hop_list_sz;
     double channel_hop_rate;
 
+    /* Maximum hop rate; if 0, ignored, if not zero, hop commands are forced to this
+     * rate.
+     */
+    double max_channel_hop_rate;
+
     /* Linked list of failed channel sets so we can flush the channel array out */
     void *channel_hop_failure_list;
     size_t channel_hop_failure_list_sz;

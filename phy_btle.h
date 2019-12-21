@@ -135,6 +135,9 @@ public:
     virtual void load_phy_storage(shared_tracker_element in_storage,
             shared_tracker_element in_device) override;
 
+    /* From the BTLE spec and Wireshark */
+    static uint32_t calc_btle_crc(uint32_t crc_init, uint8_t *data, size_t len);
+    static uint32_t reverse_bits(const uint32_t val);
 
 protected:
     std::shared_ptr<packet_chain> packetchain;
@@ -144,6 +147,8 @@ protected:
     int pack_comp_common, pack_comp_linkframe, pack_comp_decap, pack_comp_btle;
 
     int btle_device_id;
+
+    bool ignore_random;
 };
 
 #endif

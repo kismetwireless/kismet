@@ -21,9 +21,7 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "../config.h"
-
-#include "mousejack.h"
+#define __GNU_SOURCE
 
 #include <libusb-1.0/libusb.h>
 
@@ -33,6 +31,10 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+
+#include "../config.h"
+
+#include "mousejack.h"
 
 #include "../capture_framework.h"
 
@@ -267,7 +269,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
      * and the location in the bus */
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
-        *uuid = strdup(placeholder);
+        *uuid = strndup(placeholder, placeholder_len);
     } else {
         snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%06X%06X",
                 adler32_csum((unsigned char *) "kismet_cap_nrf_mousejack", 
@@ -468,7 +470,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
      * and the location in the bus */
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
-        *uuid = strdup(placeholder);
+        *uuid = strndup(placeholder, placeholder_len);
     } else {
         snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%06X%06X",
                 adler32_csum((unsigned char *) "kismet_cap_nrf_mousejack", 

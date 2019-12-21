@@ -16,6 +16,8 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "endian_magic.h"
+
 #include "datasource_nrf_51822.h"
 
 void kis_datasource_nrf51822::handle_rx_packet(kis_packet *packet) {
@@ -103,6 +105,8 @@ void kis_datasource_nrf51822::handle_rx_packet(kis_packet *packet) {
 		if(valid_pkt)
 			 bits += btle_rf_crc_valid;
                 //MIC
+                bits += btle_rf_mic_checked;
+		
 		if (cc_chunk->data[1] & (1 << 3))
 			bits += btle_rf_mic_valid;
 
@@ -112,7 +116,7 @@ void kis_datasource_nrf51822::handle_rx_packet(kis_packet *packet) {
 			bits += btle_rf_flag_reference_access_valid;
 		}
 
-		conv_header->flags_le = htole16(bits + btle_rf_flag_signalvalid + btle_rf_flag_dewhitened);
+		conv_header->flags_le = kis_htole16(bits + btle_rf_flag_signalvalid + btle_rf_flag_dewhitened);
 
 		// Replace the existing packet data with this and update the DLT
 		cc_chunk->set_data((uint8_t *) conv_header, conv_buf_len, false);
