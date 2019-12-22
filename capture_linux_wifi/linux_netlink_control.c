@@ -51,7 +51,7 @@
 #include "linux_netlink_control.h"
 #include "../wifi_ht_channels.h"
 
-// Libnl1->Libnl2 compatability mode since the API changed, cribbed from 'iw'
+// Libnl1->Libnl2 compatibility mode since the API changed, cribbed from 'iw'
 #if defined(HAVE_LIBNL10)
 
 #define nl_sock nl_handle

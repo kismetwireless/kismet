@@ -130,7 +130,7 @@ void event_bus::remove_listener(unsigned long id) {
     for (auto c : cbl->second->channels) {
         auto cb_list = callback_table[c];
 
-        // remove from each chanel
+        // remove from each channel
         for (auto cbi = cb_list.begin(); cbi != cb_list.end(); ++cbi) {
             if ((*cbi)->id == id) {
                 cb_list.erase(cbi);

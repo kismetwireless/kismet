@@ -110,7 +110,7 @@ device_tracker_view_regex_worker::device_tracker_view_regex_worker(const std::ve
         filter_vec.push_back(worker_filter);
     }
 #else
-    throw std::runtime_error("Kismet was ot compiled with PCRE support");
+    throw std::runtime_error("Kismet was not compiled with PCRE support");
 #endif
 }
 

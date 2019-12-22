@@ -942,7 +942,7 @@ void *cf_int_capture_thread(void *arg) {
 
 /* Launch a capture thread after opening has been successful */
 int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
-    /* Set the thread attributes - detatched, cancelable */
+    /* Set the thread attributes - detached, cancelable */
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
@@ -1180,7 +1180,7 @@ void *cf_int_chanhop_thread(void *arg) {
 }
 
 int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph) {
-    /* Set the thread attributes - detatched, cancelable */
+    /* Set the thread attributes - detached, cancelable */
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);

@@ -476,9 +476,9 @@ suidinstall: $(PS) $(DATASOURCE_BINS)
 	@echo "documentation is in the docs/ directory.  You MUST edit $(ETC)/kismet.conf "
 	@echo "and configure Kismet for your system, or it will NOT run properly!"
 	@echo
-	@echo "Kismet has been installed with a SUID ROOT CAPTURE HELPER executeable by "
+	@echo "Kismet has been installed with a SUID ROOT CAPTURE HELPER executable by "
 	@echo "users in the group '" $(SUIDGROUP) "'.  This WILL ALLOW USERS IN THIS GROUP "
-	@echo "TO ALTER YOUR NETWORK INTERACE STATES, but is more secure than running "
+	@echo "TO ALTER YOUR NETWORK INTERFACE STATES, but is more secure than running "
 	@echo "all of Kismet as root.  ONLY users in this group will be able to "
 	@echo "run Kismet and capture from physical network devices."
 	@echo

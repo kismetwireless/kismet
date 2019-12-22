@@ -61,7 +61,7 @@ class tracker_component : public tracker_element_map {
 // Ugly trackercomponent macro for proxying trackerelement values
 // Defines get_<name> function, for a tracker_element of type <ptype>, returning type 
 // <rtype>, referencing class variable <cvar>
-// Defines set_<name> funciton, for a tracker_element of type <ptype>, taking type 
+// Defines set_<name> function, for a tracker_element of type <ptype>, taking type 
 // <itype>, which must be castable to the tracker_element type (itype), referencing 
 // class variable <cvar>
 #define __Proxy(name, ptype, itype, rtype, cvar) \
@@ -112,7 +112,7 @@ class tracker_component : public tracker_element_map {
 // Ugly trackercomponent macro for proxying trackerelement values
 // Defines get_<name> function, for a tracker_element of type <ptype>, returning type 
 // <rtype>, referencing class variable <cvar>
-// Defines set_<name> funciton, for a tracker_element of type <ptype>, taking type 
+// Defines set_<name> function, for a tracker_element of type <ptype>, taking type 
 // <itype>, which must be castable to the tracker_element type (itype), referencing 
 // class variable <cvar>, which executes function <lambda> after the set command has
 // been executed.  <lambda> should be of the form [](itype) -> bool

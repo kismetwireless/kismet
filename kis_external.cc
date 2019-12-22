@@ -187,7 +187,7 @@ void kis_external_interface::buffer_available(size_t in_amt) {
 
             _MSG("Kismet external interface could not interpret the payload of the "
                     "command frame", MSGFLAG_ERROR);
-            trigger_error("unparseable command frame");
+            trigger_error("unparsable command frame");
 
             return;
         }
@@ -395,7 +395,7 @@ void kis_external_interface::handle_packet_message(uint32_t in_seqno, const std:
     KismetExternal::MsgbusMessage m;
 
     if (!m.ParseFromString(in_content)) {
-        _MSG("Kismet external interface got an unparseable MESSAGE", MSGFLAG_ERROR);
+        _MSG("Kismet external interface got an unparsable MESSAGE", MSGFLAG_ERROR);
         trigger_error("Invalid MESSAGE");
         return;
     }
@@ -412,7 +412,7 @@ void kis_external_interface::handle_packet_pong(uint32_t in_seqno, const std::st
 
     KismetExternal::Pong p;
     if (!p.ParseFromString(in_content)) {
-        _MSG("Kismet external interface got an unparseable PONG packet", MSGFLAG_ERROR);
+        _MSG("Kismet external interface got an unparsable PONG packet", MSGFLAG_ERROR);
         trigger_error("Invalid PONG");
         return;
     }
@@ -425,7 +425,7 @@ void kis_external_interface::handle_packet_shutdown(uint32_t in_seqno, const std
 
     KismetExternal::ExternalShutdown s;
     if (!s.ParseFromString(in_content)) {
-        _MSG("Kismet external interface got an unparseable SHUTDOWN", MSGFLAG_ERROR);
+        _MSG("Kismet external interface got an unparsable SHUTDOWN", MSGFLAG_ERROR);
         trigger_error("invalid SHUTDOWN");
         return;
     }
@@ -537,7 +537,7 @@ void kis_external_http_interface::handle_packet_http_register(uint32_t in_seqno,
     KismetExternalHttp::HttpRegisterUri uri;
 
     if (!uri.ParseFromString(in_content)) {
-        _MSG("Kismet external interface got an unparseable HTTPREGISTERURI", MSGFLAG_ERROR);
+        _MSG("Kismet external interface got an unparsable HTTPREGISTERURI", MSGFLAG_ERROR);
         trigger_error("Invalid HTTPREGISTERURI");
         return;
     }
@@ -558,7 +558,7 @@ void kis_external_http_interface::handle_packet_http_response(uint32_t in_seqno,
     KismetExternalHttp::HttpResponse resp;
 
     if (!resp.ParseFromString(in_content)) {
-        _MSG("Kismet external interface got an unparseable HTTPRESPONSE", MSGFLAG_ERROR);
+        _MSG("Kismet external interface got an unparsable HTTPRESPONSE", MSGFLAG_ERROR);
         trigger_error("Invalid  HTTPRESPONSE");
         return;
     }
@@ -615,7 +615,7 @@ void kis_external_http_interface::handle_packet_http_auth_request(uint32_t in_se
     KismetExternalHttp::HttpAuthTokenRequest rt;
 
     if (!rt.ParseFromString(in_content)) {
-        _MSG("Kismet external interface got an unparseable HTTPAUTHREQ", MSGFLAG_ERROR);
+        _MSG("Kismet external interface got an unparsable HTTPAUTHREQ", MSGFLAG_ERROR);
         trigger_error("Invalid HTTPAUTHREQ");
         return;
     }

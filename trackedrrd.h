@@ -349,7 +349,7 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        register_field("kismet.common.rrd.last_time", "last time udpated", &last_time);
+        register_field("kismet.common.rrd.last_time", "last time updated", &last_time);
 
         register_field("kismet.common.rrd.minute_vec", "past minute values per second", &minute_vec);
         register_field("kismet.common.rrd.hour_vec", "past hour values per minute", &hour_vec);
@@ -546,7 +546,7 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        register_field("kismet.common.rrd.last_time", "last time udpated", &last_time);
+        register_field("kismet.common.rrd.last_time", "last time updated", &last_time);
 
         register_field("kismet.common.rrd.minute_vec", "past minute values per second", &minute_vec);
 

@@ -1162,7 +1162,7 @@ protected:
 
         register_field("dot11.device.beacon_fingerprint", "Beacon fingerprint", &beacon_fingerprint);
         register_field("dot11.device.probe_fingerprint", "Probe (Client->AP) fingerprint", &probe_fingerprint);
-        register_field("dot11.device.response_fingerprint", "Respose (AP->Client) fingerprint", 
+        register_field("dot11.device.response_fingerprint", "Response (AP->Client) fingerprint", 
                 &response_fingerprint);
 
         last_beaconed_ssid_record_id =

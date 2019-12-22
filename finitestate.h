@@ -31,7 +31,7 @@
 // It's possible that there can be multiple state machines of a single category
 // (ie, tracking multiple potential quesitionable MACs); the finite_automata is
 // responsible for handling these in whatever sane manner is necessary and for
-// timing out old conections.
+// timing out old connections.
 class finite_automata {
 public:
     // An individual state element

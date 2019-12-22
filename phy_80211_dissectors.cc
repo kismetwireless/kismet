@@ -1844,8 +1844,8 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 ht->parse(ie_tag->tag_data_stream());
                 packinfo->dot11ht = ht;
             } catch (const std::exception& e) {
-                fprintf(stderr, "debug - unparseable HT\n");
-                // Don't consider unparseable HT a corrupt packet (for now)
+                fprintf(stderr, "debug - unparsable HT\n");
+                // Don't consider unparsable HT a corrupt packet (for now)
                 continue;
             }
 
@@ -2442,7 +2442,7 @@ int kis_80211_phy::packet_wep_decryptor(kis_packet *in_pack) {
          packinfo->subtype != packet_sub_data_qos_data))
         return 0;
 
-    // No need to look at data thats already been decoded
+    // No need to look at data that's already been decoded
     if (packinfo->cryptset == 0 || packinfo->decrypted == 1)
         return 0;
 

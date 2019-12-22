@@ -53,7 +53,7 @@ void kis_datasource_nrf51822::handle_rx_packet(kis_packet *packet) {
     // so I can get multiple packets back on the data stream from the nrf51822. Not sure if that is by design but we can handle it here
     unsigned char pkt[255];memset(pkt,0x00,255); 
     int pkt_ctr = 0;
-    //first lets just print it waht we are getting out
+    //first lets just print it what we are getting out
 
     /* the packets they have a padded byte at offset 16. 
      * if there is a better way to remove the header < 10

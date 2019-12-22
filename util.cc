@@ -774,7 +774,7 @@ void subtract_timeval(struct timeval *in_tv1, struct timeval *in_tv2,
 
 /*
  * input: a unsigned 32-bit (native endian) value between 0 and 3600000000 (inclusive)
- * output: a signed floating point value betwen -180.0000000 and + 180.0000000, inclusive)
+ * output: a signed floating point value between -180.0000000 and + 180.0000000, inclusive)
  */
 double fixed3_7_to_double(u_int32_t in) {
     int32_t remapped_in = in - (180 * 10000000);
@@ -809,7 +809,7 @@ double ns_to_double(u_int32_t in) {
 }
 
 /*
- * input: a signed floating point value betwen -180.0000000 and + 180.0000000, inclusive)
+ * input: a signed floating point value between -180.0000000 and + 180.0000000, inclusive)
  * output: a unsigned 32-bit (native endian) value between 0 and 3600000000 (inclusive)
  */
 u_int32_t double_to_fixed3_7(double in) 
@@ -823,7 +823,7 @@ u_int32_t double_to_fixed3_7(double in)
     return ret;
 }
 /*
- * input: a signed floating point value betwen -180000.0000 and + 180000.0000, inclusive)
+ * input: a signed floating point value between -180000.0000 and + 180000.0000, inclusive)
  * output: a unsigned 32-bit (native endian) value between 0 and 3600000000 (inclusive)
  */
 u_int32_t double_to_fixed6_4(double in) 
