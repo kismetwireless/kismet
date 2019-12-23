@@ -161,6 +161,7 @@ uint32_t kis_btle_phy::reverse_bits(const uint32_t val) {
     return retval;
 }
 
+
 kis_btle_phy::kis_btle_phy(global_registry *in_globalreg, int in_phyid) :
     kis_phy_handler(in_globalreg, in_phyid) {
 
@@ -223,10 +224,35 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
     if (packdata == NULL || (packdata != NULL && packdata->dlt != KDLT_BLUETOOTH_LE_LL))
         return 0;
 
+    // If this packet hasn't been checksummed already at the capture layer, 
+    // do a checksum now.  We assume the last 3 bytes are the checksum.
+    if (!in_pack->crc_ok) {
+        // We need at least the AA, header, and CRC bytes
+        if (packdata->length < (4 + 2 + 3)) {
+            in_pack->error = 1;
+            return 0;
+        }
+
+        uint32_t line_crc;
+        line_crc = 
+            packdata->data[packdata->length - 3] << 16 |
+            packdata->data[packdata->length - 2] << 8 |
+            packdata->data[packdata->length - 1];
+
+        // Get the CRC as if it was a broadcast; we'll redo this later if we get
+        // data packets
+        uint32_t packet_crc = calc_btle_crc(0x555555, packdata->data, 
+                packdata->length - 3);
+
+        if (reverse_bits(packet_crc) != line_crc) {
+            in_pack->error = 1;
+            return 0;
+        }
+    }
+
     membuf btle_membuf((char *) packdata->data, (char *) &packdata->data[packdata->length]);
     std::istream btle_istream(&btle_membuf);
-    auto btle_stream = 
-        std::make_shared<kaitai::kstream>(&btle_istream);
+    auto btle_stream = std::make_shared<kaitai::kstream>(&btle_istream);
 
     common = new kis_common_info();
     common->phyid = mphy->fetch_phy_id();

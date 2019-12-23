@@ -60,7 +60,7 @@ void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
     // we can't decipher - we can't even log them sanely!
     
     if (nxp_chunk->length < 10) {
-        fmt::print(stderr, "debug - nxp kw41z too short ({} < 10)\n", nxp_chunk->length);
+        // fmt::print(stderr, "debug - nxp kw41z too short ({} < 10)\n", nxp_chunk->length);
         delete(packet);
         return;
     }
