@@ -68,7 +68,7 @@ public:
     unsigned int fetch_opt_uint(const std::string& in_key, unsigned int dvalue);
     unsigned long int fetch_opt_ulong(const std::string& in_key, unsigned long dvalue);
 
-    // New C++ api; fetch an opt as a dynamic type dervied via '>>' assignment; will thow
+    // New C++ api; fetch an opt as a dynamic type derived via '>>' assignment; will throw
     // std::runtime_error if the type can not be converted.  If the key is not found, the
     // default value is used.
     template<typename T>
@@ -190,7 +190,7 @@ public:
 
     // Get a value by key, coercing string content to another type; will throw 
     // std::runtime_error if the content cannot be coerced.  
-    // If the key is not present, return the defautl value
+    // If the key is not present, return the default value
     template<typename T>
     T get_value_as(const std::string& in_key, const T& dvalue) {
         local_locker l(&mutex);

@@ -246,7 +246,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
                                 }
                             });
 
-                            // Detatch the thread, we don't care about it
+                            // Detach the thread, we don't care about it
                             t.detach();
 
                             return 1;
@@ -330,7 +330,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
                         }
                     });
 
-                    // Detatch the thread, we don't care about it
+                    // Detach the thread, we don't care about it
                     t.detach();
 
                     return 1;

@@ -463,7 +463,7 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
     // Wrapper, if any, we insert under
     std::shared_ptr<tracker_element_string_map> wrapper_elem;
 
-    // Field we transmit in the final stage (dervied array, or map)
+    // Field we transmit in the final stage (derived array, or map)
     std::shared_ptr<tracker_element> transmit;
 
     // Windowed response elements, used in datatables and others

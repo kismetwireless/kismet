@@ -143,7 +143,7 @@ protected:
 
     // Main vector of devices
     std::shared_ptr<tracker_element_vector> device_list;
-    // Map of device presence in our list for fast referece during updates
+    // Map of device presence in our list for fast reference during updates
     std::unordered_map<device_key, bool> device_presence_map;
 
     // Complex endpoint and optional extended URI endpoint

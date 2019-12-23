@@ -44,9 +44,54 @@
 #include "devicetracker_component.h"
 #include "kis_net_microhttpd.h"
 
-#ifndef DLT_BLUETOOTH_LE_LL
-#define DLT_BLUETOOTH_LE_LL	251
-#endif
+class btle_tracked_advertised_service : public tracker_component {
+public:
+    btle_tracked_advertised_service() : 
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    btle_tracked_advertised_service(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    btle_tracked_advertised_service(int in_id, 
+            std::shared_ptr<tracker_element_map> e) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual uint32_t get_signature() const override {
+        return adler32_checksum("btle_tracked_advertised_service");
+    }
+
+    virtual std::unique_ptr<tracker_element> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t());
+        return std::move(dup);
+    }
+
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        return std::move(dup);
+    }
+
+protected:
+    virtual void register_fields() override { 
+        // Manufacturer is added in dynamically
+        tracker_component::register_fields();
+        register_field("btle.short_service.uuid", "16bit service UUID", &short_uuid);
+        register_field("btle.short_service.data", "Service data", &advertised_data);
+    }
+
+    std::shared_ptr<tracker_element_uint16> short_uuid;
+    std::shared_ptr<tracker_element_byte_array> advertised_data;
+};
 
 // Future btle attributes
 class btle_tracked_device : public tracker_component {
@@ -146,7 +191,9 @@ protected:
 
     int pack_comp_common, pack_comp_linkframe, pack_comp_decap, pack_comp_btle;
 
-    int btle_device_id;
+    int btle_device_id, btle_uuid_id;
+
+    std::unordered_map<uint16_t, std::shared_ptr<tracker_element_string>> btle_uuid_cache;
 
     bool ignore_random;
 };

@@ -316,7 +316,7 @@ int usage(char *argv) {
            "     --no-line-wrap           Turn of linewrapping of output\n"
            "                              (for grep, speed, etc)\n"
            " -s, --silent                 Turn off stdout output after setup phase\n"
-           "     --daemonize              Spawn detatched in the background\n"
+           "     --daemonize              Spawn detached in the background\n"
            "     --no-plugins             Do not load plugins\n"
            "     --homedir <path>         Use an alternate path as the home \n"
            "                               directory instead of the user entry\n"

@@ -76,7 +76,7 @@ protected:
 
     // Default display endpoint
     std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> self_endp;
-    // Build the return object; subfilters must implement this to bypass class heirarchy & call
+    // Build the return object; subfilters must implement this to bypass class hierarchy & call
     // build_self_content
     virtual std::shared_ptr<tracker_element_map> self_endp_handler() = 0;
     // Cascading build

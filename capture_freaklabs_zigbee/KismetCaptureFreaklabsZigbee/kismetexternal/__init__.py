@@ -419,7 +419,7 @@ class ExternalInterface(object):
 
     def send_message(self, message, msgtype=kismet_pb2.MsgbusMessage.INFO):
         """
-        Send a message which wil be displayed via the Kismet message bus and in the UI
+        Send a message which will be displayed via the Kismet message bus and in the UI
 
         :param message: Message text
         :param msgtype: message type, one of MSG_INFO, _ERROR, _ALERT, _FATAL

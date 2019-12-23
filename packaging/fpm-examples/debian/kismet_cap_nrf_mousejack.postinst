@@ -16,7 +16,7 @@ if ! dpkg-statoverride --list $PROGRAM > /dev/null; then
 	    if [ "$RET" = "false" ] ; then
             echo "Kismet capture helpers are not being installed suid-root; this is less secure "
             echo "because it means Kismet must be run as root at all times.  Strongly consider "
-            echo "installing as suid-root; for more informations see the 'Suid-Install' section of "
+            echo "installing as suid-root; for more information see the 'Suid-Install' section of "
             echo "the Kismet readme at https://www.kismetwireless.net/README-latest.html"
 	        chown root:root $PROGRAM
 	        chmod u=rwx,go=rx $PROGRAM

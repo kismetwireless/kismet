@@ -215,7 +215,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 strlen(pcapfname)) & 0xFFFFFFFF);
     *uuid = strdup(errstr);
 
-    /* Succesful open with no channel, hop, or chanset data */
+    /* Successful open with no channel, hop, or chanset data */
     snprintf(msg, STATUS_MAX, "Opened pcapfile '%s' for playback", pcapfname);
 
     if ((placeholder_len = cf_find_flag(&placeholder, "realtime", definition)) > 0) {

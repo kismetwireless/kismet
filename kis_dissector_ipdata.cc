@@ -446,7 +446,7 @@ int kis_dissector_ip_data::handle_packet(kis_packet *in_pack) {
 			datainfo->ip_dest_port == 68) {
 
 			// Extract the DHCP tags the same way we get IEEE 80211 tags,
-			// infact we can re-use the code
+			// in fact we can re-use the code
 			std::map<int, std::vector<int> > dhcp_tag_map;
 
 			// This is convenient since it won't return anything that is outside
@@ -492,7 +492,7 @@ int kis_dissector_ip_data::handle_packet(kis_packet *in_pack) {
 			datainfo->ip_dest_port == 67) {
 
 			// Extract the DHCP tags the same way we get IEEE 80211 tags,
-			// infact we can re-use the code
+			// in fact we can re-use the code
 			std::map<int, std::vector<int> > dhcp_tag_map;
 
 			// This is convenient since it won't return anything that is outside

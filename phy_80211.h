@@ -335,7 +335,7 @@ public:
     std::shared_ptr<dot11_tracked_eapol> packet_dot11_eapol_handshake(kis_packet *in_pack,
             std::shared_ptr<dot11_tracked_device> dot11device);
 
-    // static incase some other component wants to use it
+    // static in case some other component wants to use it
     static kis_datachunk *DecryptWEP(dot11_packinfo *in_packinfo,
             kis_datachunk *in_chunk, 
             unsigned char *in_key, int in_key_len,

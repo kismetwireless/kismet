@@ -80,7 +80,7 @@ void kis_gps_nmea::buffer_available(size_t in_amt) {
             if (gpstoks.size() < 15)
                 continue;
 
-            // Parse the basic gps coodinate string
+            // Parse the basic gps coordinate string
             // $GPGGA,time,lat,NS,lon,EW,quality,#sats,hdop,alt,M,geopos,M,
             // dgps1,dgps2,checksum
 

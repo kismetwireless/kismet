@@ -1928,7 +1928,7 @@ struct arg_ref {
 
 // Format specifiers with width and precision resolved at formatting rather
 // than parsing time to allow re-using the same parsed specifiers with
-// differents sets of arguments (precompilation of format strings).
+// different sets of arguments (precompilation of format strings).
 template <typename Char>
 struct dynamic_format_specs : basic_format_specs<Char> {
   arg_ref<Char> width_ref;

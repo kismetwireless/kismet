@@ -69,11 +69,14 @@ int ticc2540_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
 int ticc2540_set_power(kis_capture_handler_t *caph,uint8_t power, int retries) {
     int ret;
     local_ticc2540_t *localticc2540 = (local_ticc2540_t *) caph->userdata;
+    int i;
+
     pthread_mutex_lock(&(localticc2540->usb_mutex));
     /* set power */
+
     ret = libusb_control_transfer(localticc2540->ticc2540_handle, TICC2540_DIR_OUT, TICC2540_SET_POWER, 0x00, power, NULL, 0, TICC2540_TIMEOUT);
+
     /* get power until it is the same as configured in set_power */
-    int i;
     for (i = 0; i < retries; i++) {
         uint8_t data;
         ret = libusb_control_transfer(localticc2540->ticc2540_handle, 0xC0, TICC2540_GET_POWER, 0x00, 0x00, &data, 1, TICC2540_TIMEOUT);
@@ -93,18 +96,22 @@ int ticc2540_set_power(kis_capture_handler_t *caph,uint8_t power, int retries) {
 int ticc2540_enter_promisc_mode(kis_capture_handler_t *caph) {
     int ret;
     local_ticc2540_t *localticc2540 = (local_ticc2540_t *) caph->userdata;
+
     pthread_mutex_lock(&(localticc2540->usb_mutex));
     ret = libusb_control_transfer(localticc2540->ticc2540_handle, TICC2540_DIR_OUT, TICC2540_SET_START, 0x00, 0x00, NULL, 0, TICC2540_TIMEOUT);
     pthread_mutex_unlock(&(localticc2540->usb_mutex));
+
     return ret;
 }
 
 int ticc2540_exit_promisc_mode(kis_capture_handler_t *caph) {
     int ret;
     local_ticc2540_t *localticc2540 = (local_ticc2540_t *) caph->userdata;
+
     pthread_mutex_lock(&(localticc2540->usb_mutex));
     ret = libusb_control_transfer(localticc2540->ticc2540_handle, TICC2540_DIR_OUT, TICC2540_SET_END, 0x00, 0x00, NULL, 0, TICC2540_TIMEOUT);
     pthread_mutex_unlock(&(localticc2540->usb_mutex));
+
     return ret;
 }
 
@@ -116,7 +123,7 @@ int ticc2540_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_
     r = libusb_bulk_transfer(localticc2540->ticc2540_handle, TICC2540_DATA_EP, rx_buf, rx_max, &actual_len, TICC2540_DATA_TIMEOUT);
     pthread_mutex_unlock(&(localticc2540->usb_mutex));
 
-    if(r == LIBUSB_ERROR_TIMEOUT) {
+    if (r == LIBUSB_ERROR_TIMEOUT) {
         localticc2540->error_ctr++;
         if (localticc2540->error_ctr >= 500) {
             return r;
@@ -128,7 +135,9 @@ int ticc2540_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_
         
     if (r < 0)
         return r;
+
     localticc2540->error_ctr = 0; /*we got something valid so reset*/
+
     return actual_len;
 }
 
@@ -332,6 +341,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     int matched_device = 0;
     char cap_if[32];
+    
+    ssize_t i;
 
     local_ticc2540_t *localticc2540 = (local_ticc2540_t *) caph->userdata;
 
@@ -351,6 +362,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     /* Look for interface-bus-dev */
     x = sscanf(interface, "ticc2540-%d-%d", &busno, &devno);
+
     free(interface);
 
     /* If we don't have a valid busno/devno or malformed interface name */
@@ -359,15 +371,18 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 "'ticc2540-bus#-dev#'"); 
         return -1;
     }
+
     pthread_mutex_lock(&(localticc2540->usb_mutex));
     libusb_devices_cnt = libusb_get_device_list(localticc2540->libusb_ctx, &libusb_devs);
     pthread_mutex_unlock(&(localticc2540->usb_mutex));
+
     if (libusb_devices_cnt < 0) {
         snprintf(msg, STATUS_MAX, "Unable to iterate USB devices"); 
         return -1;
     }
+    
     pthread_mutex_lock(&(localticc2540->usb_mutex));
-    for (ssize_t i = 0; i < libusb_devices_cnt; i++) {
+    for (i = 0; i < libusb_devices_cnt; i++) {
         struct libusb_device_descriptor dev;
 
         r = libusb_get_device_descriptor(libusb_devs[i], &dev);
@@ -433,9 +448,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     (*ret_interface)->channels_len = 3;
 
     pthread_mutex_lock(&(localticc2540->usb_mutex));
+
     /* Try to open it */
     r = libusb_open(matched_dev, &localticc2540->ticc2540_handle);
-    pthread_mutex_unlock(&(localticc2540->usb_mutex));
 
     if (r < 0) {
         snprintf(errstr, STATUS_MAX, "Unable to open ticc2540 USB interface: %s", 
@@ -444,11 +459,16 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
-    pthread_mutex_lock(&(localticc2540->usb_mutex));
-    if(libusb_kernel_driver_active(localticc2540->ticc2540_handle, 0))
-    {
-        r = libusb_detach_kernel_driver(localticc2540->ticc2540_handle, 0); // detach driver
-        assert(r == 0);
+    if (libusb_kernel_driver_active(localticc2540->ticc2540_handle, 0)) {
+        r = libusb_detach_kernel_driver(localticc2540->ticc2540_handle, 0); 
+
+        if (r < 0) {
+            snprintf(errstr, STATUS_MAX, "Unable to open ticc2540 USB interface, "
+                    "could not disconnect kernel drivers: %s",
+                    libusb_strerror((enum libusb_error) r));
+            pthread_mutex_unlock(&(localticc2540->usb_mutex));
+            return -1;
+        }
     }
 
     /* Try to claim it */
@@ -472,12 +492,18 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
     }
 
-    r = libusb_set_configuration(localticc2540->ticc2540_handle, -1);
-    assert(r < 0);
-    
+    r = libusb_set_configuration(localticc2540->ticc2540_handle, 1);
+    if (r < 0) {
+        printf("set config %d\n", r);
+        snprintf(errstr, STATUS_MAX, "Unable to open ticc2540 USB interface; could not "
+                "set USB configuration: %s", libusb_strerror((enum libusb_error) r));
+        pthread_mutex_unlock(&(localticc2540->usb_mutex));
+        return -1;
+    }
+   
     pthread_mutex_unlock(&(localticc2540->usb_mutex));
 
-    ticc2540_set_power(caph,0x04, TICC2540_POWER_RETRIES);
+    ticc2540_set_power(caph, 0x04, TICC2540_POWER_RETRIES);
     ticc2540_enter_promisc_mode(caph);
 
     return 1;

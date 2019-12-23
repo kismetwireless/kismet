@@ -54,7 +54,7 @@ struct WirelessInfo
 	UInt16	comms_qual;    /* Communication Quality */
 	UInt16	signal;        /* Signal level */
 	UInt16	noise;         /* Noise level */
-	UInt16	port_stat;     /* HERMES_RID_PORTSTAT? (Uncertain about the meaning of this! 1=off? 2=connetion bad? 3=AdHoc Create? 4=BSS (Client)? 5=BSS+OutOfRange?) */
+	UInt16	port_stat;     /* HERMES_RID_PORTSTAT? (Uncertain about the meaning of this! 1=off? 2=connection bad? 3=AdHoc Create? 4=BSS (Client)? 5=BSS+OutOfRange?) */
 	UInt16	client_mode;   /* 1 = BSS, 4 = Create IBSS */
 	UInt16	u7;            /* ? */
 	UInt16	power;         /* Power on flag */

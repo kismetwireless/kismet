@@ -91,7 +91,7 @@ bool kis_gps::open_gps(std::string in_definition) {
 
     std::string suuid = fetch_opt("uuid", source_definition_opts);
     if (suuid != "") {
-        // Use the static UUID from the defintion
+        // Use the static UUID from the definition
         uuid u(suuid);
 
         if (u.error) {

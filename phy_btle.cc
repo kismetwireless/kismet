@@ -186,6 +186,17 @@ kis_btle_phy::kis_btle_phy(global_registry *in_globalreg, int in_phyid) :
                 tracker_element_factory<btle_tracked_device>(),
                 "BTLE device");
 
+    btle_uuid_id = 
+        entrytracker->register_field("btle.common.uuid_vendor",
+                tracker_element_factory<tracker_element_string>(),
+                "UUID vendor");
+
+    ignore_random =
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("btle_ignore_random", false);
+
+    if (ignore_random)
+        _MSG_INFO("Ignoring BTLE devices with random MAC addresses");
+
     // Register js module for UI
     auto httpregistry = Globalreg::fetch_mandatory_global_as<kis_httpd_registry>();
     httpregistry->register_js_module("kismet_ui_btle", "js/kismet.ui.btle.js");

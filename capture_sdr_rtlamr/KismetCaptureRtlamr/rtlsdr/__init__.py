@@ -12,7 +12,30 @@ class RadioConfigError(RadioOpenError):
 class RtlSdr(object):
     def __init__(self):
         try:
-            self.rtllib = ctypes.CDLL("librtlsdr.so.0")
+            found_lib = False
+
+            try:
+                self.rtllib = ctypes.CDLL("librtlsdr.so.0")
+                found_lib = True
+            except OSError:
+                pass
+
+            try:
+                if not found_lib:
+                    self.rtllib = ctypes.CDLL("librtlsdr.dylib")
+                    found_lib = True
+            except OSError:
+                pass
+
+            try:
+                if not found_lib:
+                    self.rtllib = ctypes.CDLL("librtlsdr.dll")
+                    found_lib = True
+            except OSError:
+                pass
+
+            if not found_lib:
+                raise OSError("could not find librtlsdr")
 
             self.rtl_get_device_count = self.rtllib.rtlsdr_get_device_count
 
@@ -86,7 +109,7 @@ class RtlSdr(object):
                 self.rtl_set_bias_tee = self.no_set_bias_tee
 
         except OSError:
-            raise RadioMissingLibrtlsdr("missing librtlsdr")
+            raise RadioMissingLibrtlsdr("missing librtlsdr, or it is not in your library path.")
 
     def no_set_bias_tee(self, foo, bar):
         print("This version of librtlsdr does not support enabling bias-tee, please upgrade your librtlsdr")

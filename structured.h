@@ -127,7 +127,7 @@ public:
     virtual structured_num_map as_number_map() = 0;
     virtual structured_str_map as_string_map() = 0;
 
-    // Convert a structured array of paired arrays, or a structured dictinary of k:v pairs, to
+    // Convert a structured array of paired arrays, or a structured dictionary of k:v pairs, to
     // a std::pair<string, string> structure useful in other functions.  May throw its own exceptions
     // OR other structured exceptions.
     std::vector<std::pair<std::string, std::string>> as_pair_vector() {
@@ -136,7 +136,7 @@ public:
         if (is_array()) {
             for (auto i : as_vector()) {
                 if (!i->is_array()) 
-                    throw structured_data_unsuitable("Cannot parse object as vector of pairs for converstion to "
+                    throw structured_data_unsuitable("Cannot parse object as vector of pairs for conversion to "
                             "pair list");
 
                 auto sub = i->as_vector();
