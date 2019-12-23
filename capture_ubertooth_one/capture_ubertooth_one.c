@@ -296,6 +296,8 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
 
     unsigned int *channel = (unsigned int *) privchan;
 
+    // fprintf(stderr, "channel %u\n", *channel);
+
     local_ubertooth->last_channel = *channel;
 
     while (count < 5) {
@@ -596,7 +598,7 @@ void capture_thread(kis_capture_handler_t *caph) {
 
     while (!caph->spindown) {
         pthread_mutex_lock(&local_ubertooth->u1_mutex);
-        if (time(0) - local_ubertooth->last_reset > 45) {
+        if (time(0) - local_ubertooth->last_reset > 30) {
             pthread_mutex_unlock(&local_ubertooth->u1_mutex);
             
             if (u1_reset_and_conf(caph, errstr) < 0) {
@@ -663,8 +665,8 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    /* Limit channel hop rate since it requires multiple usb commands */
-    caph->max_channel_hop_rate = 1;
+    /* Disable channel hopping */
+    caph->max_channel_hop_rate = -1;
 
     /* Set the local data ptr */
     cf_handler_set_userdata(caph, &local_ubertooth);

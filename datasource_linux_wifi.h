@@ -112,6 +112,8 @@ public:
 
         // We allow tuning, sure
         set_tune_capable(true);
+
+        set_hop_capable(true);
     }
 };
 

@@ -1297,7 +1297,8 @@ void datasource_tracker::calculate_source_hopping(shared_datasource in_ds) {
     }
 
     // Turn on channel hopping if we do that
-    if (config_defaults->get_hop() && in_ds->get_source_builder()->get_tune_capable()) {
+    if (config_defaults->get_hop() && in_ds->get_source_builder()->get_tune_capable() &&
+            in_ds->get_source_builder()->get_hop_capable()) {
         // Do we split sources?
         if (config_defaults->get_split_same_sources()) {
             dst_chansplit_worker worker(this, config_defaults, in_ds);

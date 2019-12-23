@@ -120,6 +120,8 @@ public:
 
     __Proxy(tune_capable, uint8_t, bool, bool, tune_capable);
 
+    __Proxy(hop_capable, uint8_t, bool, bool, hop_capable);
+
 protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
@@ -155,6 +157,9 @@ protected:
 
         register_field("kismet.datasource.driver.tuning_capable",
                 "Datasource can control channels", &tune_capable);
+
+        register_field("kismet.datasource_driver.hop_capable",
+                "Datasource can channel hop", &hop_capable);
     }
 
     int datasource_entity_id;
@@ -170,6 +175,7 @@ protected:
     std::shared_ptr<tracker_element_uint8> remote_capable;
     std::shared_ptr<tracker_element_uint8> passive_capable;
     std::shared_ptr<tracker_element_uint8> tune_capable;
+    std::shared_ptr<tracker_element_uint8> hop_capable;
 };
 
 
