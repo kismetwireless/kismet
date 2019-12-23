@@ -104,6 +104,7 @@ typedef struct {
     char *interface;
     char *name;
 
+    pthread_mutex_t u1_mutex;
 } local_ubertooth_t;
 
 unsigned int u1_chan_to_freq(unsigned int in_chan) {
@@ -155,6 +156,7 @@ int u1_reset_and_conf(kis_capture_handler_t *caph, char *errstr) {
     int ret;
     int count = 0;
 
+    pthread_mutex_lock(&local_ubertooth->u1_mutex);
     ret = cmd_reset(local_ubertooth->ut->devh);
 
     sleep(1);
@@ -165,6 +167,7 @@ int u1_reset_and_conf(kis_capture_handler_t *caph, char *errstr) {
         if (count > 5) {
             snprintf(errstr, STATUS_MAX, "%s could not connect to %s",
                     local_ubertooth->name, local_ubertooth->interface);
+            pthread_mutex_unlock(&local_ubertooth->u1_mutex);
             return -1;
         }
 
@@ -176,12 +179,14 @@ int u1_reset_and_conf(kis_capture_handler_t *caph, char *errstr) {
         snprintf(errstr, STATUS_MAX, "%s API mismatch connecting to %s, make sure your "
                 "libubertooth, libbtbb, and ubertooth firmware are all up to date.",
                 local_ubertooth->name, local_ubertooth->interface);
+        pthread_mutex_unlock(&local_ubertooth->u1_mutex);
         return -1;
     }
 
     if (ret < 0) {
         snprintf(errstr, STATUS_MAX, "%s could not reset ubertooth-one device %s",
                 local_ubertooth->name, local_ubertooth->interface);
+        pthread_mutex_unlock(&local_ubertooth->u1_mutex);
         return -1;
     }
 
@@ -190,6 +195,7 @@ int u1_reset_and_conf(kis_capture_handler_t *caph, char *errstr) {
     if (ret < 0) {
         snprintf(errstr, STATUS_MAX, "%s could not set ubertooth-one modulation on device %s",
                 local_ubertooth->name, local_ubertooth->interface);
+        pthread_mutex_unlock(&local_ubertooth->u1_mutex);
         return -1;
     }
 
@@ -197,9 +203,11 @@ int u1_reset_and_conf(kis_capture_handler_t *caph, char *errstr) {
     if (ret < 0) {
         snprintf(errstr, STATUS_MAX, "%s could not set ubertooth-one btle sniffing on device %s",
                 local_ubertooth->name, local_ubertooth->interface);
+        pthread_mutex_unlock(&local_ubertooth->u1_mutex);
         return -1;
     }
 
+    pthread_mutex_unlock(&local_ubertooth->u1_mutex);
     return 1;
 }
 
@@ -267,9 +275,12 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     unsigned int *channel = (unsigned int *) privchan;
 
     while (count < 5) {
+        pthread_mutex_lock(&local_ubertooth->u1_mutex);
+
         ret = cmd_stop(local_ubertooth->ut->devh);
 
         if (ret < 0) {
+            pthread_mutex_unlock(&local_ubertooth->u1_mutex);
             count++;
             usleep(500);
             continue;
@@ -278,6 +289,7 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
         ret = cmd_set_channel(local_ubertooth->ut->devh, *channel);
 
         if (ret < 0) {
+            pthread_mutex_unlock(&local_ubertooth->u1_mutex);
             count++;
             usleep(500);
             continue;
@@ -286,11 +298,13 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
         ret = cmd_btle_sniffing(local_ubertooth->ut->devh, false);
 
         if (ret < 0) {
+            pthread_mutex_unlock(&local_ubertooth->u1_mutex);
             count++;
             usleep(500);
             continue;
         }
 
+        pthread_mutex_unlock(&local_ubertooth->u1_mutex);
         break;
     }
 
@@ -301,7 +315,9 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
             return ret;
         }
 
+        pthread_mutex_lock(&local_ubertooth->u1_mutex);
         ret = cmd_set_channel(local_ubertooth->ut->devh, *channel);
+        pthread_mutex_unlock(&local_ubertooth->u1_mutex);
     }
     
     return 1;
@@ -554,7 +570,9 @@ void capture_thread(kis_capture_handler_t *caph) {
     struct timeval ts;
 
     while (!caph->spindown) {
+        pthread_mutex_lock(&local_ubertooth->u1_mutex);
         r = cmd_poll(local_ubertooth->ut->devh, &rx);
+        pthread_mutex_unlock(&local_ubertooth->u1_mutex);
 
         if (r < 0) {
             cf_send_error(caph, 0, "error receiving from Ubertooth One");
@@ -593,6 +611,7 @@ int main(int argc, char *argv[]) {
         .interface = NULL,
         .name = NULL,
         .ut = NULL,
+        .u1_mutex = PTHREAD_MUTEX_INITIALIZER,
     };
 
     /* Clobber the USB debug settings because libubertooth sets it to be verbose */
