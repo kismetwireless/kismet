@@ -121,7 +121,8 @@ public:
         set_local_capable(true);
         set_remote_capable(true);
         set_passive_capable(false);
-        set_tune_capable(false);
+        set_tune_capable(true);
+        set_hop_capable(false);
     }
 };
 

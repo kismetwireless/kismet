@@ -300,6 +300,13 @@ void kis_datasource::set_channel_hop(double in_rate, std::vector<std::string> in
         return;
     }
 
+    if (!get_source_builder()->get_hop_capable()) {
+        if (in_cb != NULL) {
+            in_cb(in_transaction, false, "Driver not capable of channel hopping");
+        }
+        return;
+    }
+
     // Convert the std::vector to a channel vector
     auto vec = std::make_shared<tracker_element_vector>(source_hop_vec_id);
 
@@ -322,6 +329,13 @@ void kis_datasource::set_channel_hop(double in_rate,
     if (!get_source_builder()->get_tune_capable()) {
         if (in_cb != NULL) {
             in_cb(in_transaction, false, "Driver not capable of changing channel");
+        }
+        return;
+    }
+
+    if (!get_source_builder()->get_hop_capable()) {
+        if (in_cb != NULL) {
+            in_cb(in_transaction, false, "Driver not capable of channel hopping");
         }
         return;
     }

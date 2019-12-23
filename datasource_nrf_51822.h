@@ -111,6 +111,7 @@ public:
         set_remote_capable(true);
         set_passive_capable(false);
         set_tune_capable(false);
+        set_hop_capable(false);
     }
 };
 

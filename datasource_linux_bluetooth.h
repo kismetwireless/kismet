@@ -108,6 +108,8 @@ public:
 
         // Can't tune a BT
         set_tune_capable(false);
+
+        set_hop_capable(false);
     }
 
 };
