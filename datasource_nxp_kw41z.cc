@@ -18,6 +18,20 @@
 
 #include "datasource_nxp_kw41z.h"
 
+bool checksum(uint8_t *payload, uint8_t len) {
+
+    uint8_t chk = 0;
+    uint8_t checksum = payload[len-1];
+    chk = payload[1];
+    for(int xp = 2;xp < len-1;xp++) {
+        chk ^= payload[xp];
+    }
+
+    if(checksum == chk)
+        return true;
+    else
+	return false;
+}
 
 void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
 
@@ -45,32 +59,11 @@ void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
     // We don't get rid of invalid btle contents, but we do get rid of invalid USB frames that
     // we can't decipher - we can't even log them sanely!
     
-    if (nxp_chunk->length < 8) {
-        fmt::print(stderr, "debug - nxp kw41z too short ({} < 8)\n", nxp_chunk->length);
+    if (nxp_chunk->length < 10) {
+        fmt::print(stderr, "debug - nxp kw41z too short ({} < 10)\n", nxp_chunk->length);
         delete(packet);
         return;
     }
-/*
-    unsigned int nxp_len = nxp_chunk->data[1];
-    if (nxp_len != nxp_chunk->length - 3) {
-        fmt::print(stderr, "debug - nxp kw41z invalid packet length ({} != {})\n", nxp_len, nxp_chunk->length - 3);
-        delete(packet);
-        return;
-    }
-
-    unsigned int nxp_payload_len = nxp_chunk->data[7] - 0x02;
-    if (nxp_payload_len + 8 != nxp_chunk->length - 2) {
-        fmt::print(stderr, "debug - nxp kw41z invalid payload length ({} != {})\n", nxp_payload_len + 8, nxp_chunk->length - 2);
-        delete(packet);
-        return;
-    }
-*/
-    for(int xp;xp < nxp_chunk->length;xp++)
-    {
-        printf("%02X ",nxp_chunk->data[xp]);
-    }
-    printf("\n");
-
 
     if(nxp_chunk->data[0] != 0x02 && nxp_chunk->data[1] != 0x4E && nxp_chunk->data[2] != 0x7F) {
         // not a packet we are interested in
@@ -78,10 +71,16 @@ void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
         return;
     } 
 
+    if(!checksum(nxp_chunk->data,nxp_chunk->length)) {
+        delete(packet);
+        return;
+    }
+
     // Convert the channel for the btlell header
     auto bt_channel = nxp_chunk->data[5];
-    printf("chan:%d\n",bt_channel);
-    switch (bt_channel) {
+    uint8_t channel = nxp_chunk->data[5];
+    
+    switch (channel) {
         case 37:
             bt_channel = 0;
             break;
@@ -92,7 +91,7 @@ void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
             bt_channel = 39;
             break;
         default:
-            bt_channel = bt_channel - 2;
+            bt_channel = channel - 2;
     };
 
     unsigned int nxp_payload_len = nxp_chunk->length - 13;//minus header and checksum
@@ -111,8 +110,8 @@ void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
     conv_header->signal = 0;
 
     uint16_t bits = btle_rf_crc_checked;
-    if (true)//not sure yet
-        bits += btle_rf_crc_valid;
+    //if (true)//not sure yet
+    //    bits += btle_rf_crc_valid;
 
     if (nxp_payload_len >= 4) {
         memcpy(conv_header->reference_access_address, conv_header->payload, 4);
@@ -130,8 +129,8 @@ void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
     auto radioheader = new kis_layer1_packinfo();
     radioheader->signal_type = kis_l1_signal_type_dbm;
     radioheader->signal_dbm = conv_header->signal;
-    radioheader->freq_khz = (2400 + (nxp_chunk->data[5])) * 1000;
-    radioheader->channel = fmt::format("{}", (nxp_chunk->data[5]));
+    radioheader->freq_khz = (2400 + (channel)) * 1000;
+    radioheader->channel = fmt::format("{}", (channel));
     packet->insert(pack_comp_radiodata, radioheader);
 
     auto decapchunk = new kis_datachunk;

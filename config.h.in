@@ -126,7 +126,7 @@
 /* Netlink works */
 #undef HAVE_LINUX_NETLINK
 
-/* Linux wireless extensions present */
+/* Linux wireless extentions present */
 #undef HAVE_LINUX_WIRELESS
 
 /* local radiotap packet headers */

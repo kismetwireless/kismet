@@ -124,17 +124,8 @@ BUILD_CAPTURE_TI_CC_2540 = @BUILD_CAPTURE_TI_CC_2540@
 CAPTURE_UBERTOOTH_ONE = capture_ubertooth_one/kismet_cap_ubertooth_one
 BUILD_CAPTURE_UBERTOOTH_ONE = @BUILD_CAPTURE_UBERTOOTH_ONE@
 
-CAPTURE_TI_CC_2531 = capture_ti_cc_2531/kismet_cap_ti_cc_2531
-BUILD_CAPTURE_TI_CC_2531 = @BUILD_CAPTURE_TI_CC_2531@
-
 CAPTURE_NRF_51822 = capture_nrf_51822/kismet_cap_nrf_51822
 BUILD_CAPTURE_NRF_51822 = @BUILD_CAPTURE_NRF_51822@
-
-CAPTURE_NRF_52840 = capture_nrf_52840/kismet_cap_nrf_52840
-BUILD_CAPTURE_NRF_52840 = @BUILD_CAPTURE_NRF_52840@
-
-CAPTURE_RZ_KILLERBEE = capture_rz_killerbee/kismet_cap_rz_killerbee
-BUILD_CAPTURE_RZ_KILLERBEE = @BUILD_CAPTURE_RZ_KILLERBEE@
 
 CAPTURE_NXP_KW41Z = capture_nxp_kw41z/kismet_cap_nxp_kw41z
 BUILD_CAPTURE_NXP_KW41Z = @BUILD_CAPTURE_NXP_KW41Z@
@@ -203,8 +194,8 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	$(PROTOBUF_CPP_O_TARGET) kis_external.cc.o \
 	dlttracker.cc.o antennatracker.cc.o datasourcetracker.cc.o kis_datasource.cc.o \
 	datasource_linux_bluetooth.cc.o datasource_rtl433.cc.o datasource_rtlamr.cc.o datasource_rtladsb.cc.o \
-	datasource_ti_cc_2540.cc.o datasource_ti_cc_2531.cc.o datasource_ubertooth_one.cc.o datasource_nrf_51822.cc.o datasource_nrf_52840.cc.o \
-	datasource_rz_killerbee.cc.o datasource_nxp_kw41z.cc.o \
+	datasource_ti_cc_2540.cc.o datasource_ubertooth_one.cc.o datasource_nrf_51822.cc.o \
+	datasource_nxp_kw41z.cc.o \
 	kis_net_microhttpd.cc.o kis_net_microhttpd_handlers.cc.o system_monitor.cc.o base64.cc.o \
 	kis_httpd_websession.cc.o kis_httpd_registry.cc.o \
 	gpstracker.cc.o kis_gps.cc.o gpsnmea.cc.o gpsserial2.cc.o gpstcp.cc.o \
@@ -317,17 +308,8 @@ $(CAPTURE_TI_CC_2540): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_UBERTOOTH_ONE): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_ubertooth_one && $(MAKE))
 
-$(CAPTURE_TI_CC_2531): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
-	(cd capture_ti_cc_2531 && $(MAKE))
-
 $(CAPTURE_NRF_51822): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_nrf_51822 && $(MAKE))
-
-$(CAPTURE_NRF_52840): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
-	(cd capture_nrf_52840 && $(MAKE))
-
-$(CAPTURE_RZ_KILLERBEE): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
-	(cd capture_rz_killerbee && $(MAKE))
 
 $(CAPTURE_NXP_KW41Z): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_nxp_kw41z && $(MAKE))
@@ -369,20 +351,8 @@ binsuidinstall: $(DATASOURCE_BINS)
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_UBERTOOTH_ONE) $(BIN)/`basename $(CAPTURE_UBERTOOTH_ONE)`; \
         fi;
 
-	@if test "$(BUILD_CAPTURE_TI_CC_2531)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_TI_CC_2531) $(BIN)/`basename $(CAPTURE_TI_CC_2531)`; \
-	fi;
-
 	@if test "$(BUILD_CAPTURE_NRF_51822)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_NRF_51822) $(BIN)/`basename $(CAPTURE_NRF_51822)`; \
-	fi;
-
-	@if test "$(BUILD_CAPTURE_NRF_52840)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_NRF_52840) $(BIN)/`basename $(CAPTURE_NRF_52840)`; \
-	fi;
-
-	@if test "$(BUILD_CAPTURE_RZ_KILLERBEE)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_RZ_KILLERBEE) $(BIN)/`basename $(CAPTURE_RZ_KILLERBEE)`; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_NXP_KW41Z)"x = "1"x; then \
@@ -443,20 +413,8 @@ commoninstall: $(INSTBINS)
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_UBERTOOTH_ONE) $(BIN)/`basename $(CAPTURE_UBERTOOTH_ONE)`; \
         fi;
 
-	@if test "$(BUILD_CAPTURE_TI_CC_2531)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_TI_CC_2531) $(BIN)/`basename $(CAPTURE_TI_CC_2531)`; \
-	fi;
-
 	@if test "$(BUILD_CAPTURE_NRF_51822)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_NRF_51822) $(BIN)/`basename $(CAPTURE_NRF_51822)`; \
-	fi;
-
-	@if test "$(BUILD_CAPTURE_NRF_52840)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_NRF_52840) $(BIN)/`basename $(CAPTURE_NRF_52840)`; \
-	fi;
-
-	@if test "$(BUILD_CAPTURE_RZ_KILLERBEE)"x = "1"x; then \
-		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_RZ_KILLERBEE) $(BIN)/`basename $(CAPTURE_RZ_KILLERBEE)`; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_NXP_KW41Z)"x = "1"x; then \
@@ -643,9 +601,6 @@ clean:
 	@(cd capture_ti_cc_2540 && make clean)
 	@(cd capture_ubertooth_one && make clean)
 	@(cd capture_nrf_51822 && make clean)
-	@(cd capture_ti_cc_2531 && make clean)
-	@(cd capture_nrf_52840 && make clean)
-	@(cd capture_rz_killerbee && make clean)
 	@(cd capture_nxp_kw41z && make clean)
 	
 	@-rm -f $(DATASOURCE_COMMON_A)

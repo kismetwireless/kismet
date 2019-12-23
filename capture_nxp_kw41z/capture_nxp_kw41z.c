@@ -14,11 +14,7 @@
 
 #include "../capture_framework.h"
 
-volatile int STOP=FALSE;
-
 #define CRTSCTS  020000000000 /*should be defined but isn't with the C99*/
-
-#define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 
 /* Unique instance data passed around by capframework */
 typedef struct {
@@ -34,9 +30,6 @@ typedef struct {
     char *name;
     char *interface;
 
-    /* flag to let use know when we are ready to capture */
-    bool ready;
-
     kis_capture_handler_t *caph;
 } local_nxp_t;
 
@@ -45,40 +38,51 @@ typedef struct {
     unsigned int channel;
 } local_channel_t;
 
-int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len)
+int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len,bool resp, uint8_t *rx_buf, size_t rx_max)
 {
     uint8_t buf[255];
+    uint16_t ctr = 0;
     uint8_t res = 0;
     local_nxp_t *localnxp = (local_nxp_t *) caph->userdata;
     pthread_mutex_lock(&(localnxp->serial_mutex));
 
-    printf("write:");
-    for(int xp=0;xp<tx_len;xp++)
-	    printf("%02X",tx_buf[xp]);
-    printf("\n");
-
-    write(localnxp->fd,tx_buf,tx_len);
-    res = read(localnxp->fd,buf,255);
-
-    printf("read(%d):",res);
-    for(int px=0;px<res;px++)
-	    printf("%02X",buf[px]);
-    printf("\n");
-
+    if(tx_len > 0) {
+    //we are transmitting something
+        write(localnxp->fd,tx_buf,tx_len);
+        if(resp) {
+            while(ctr < 5000) {
+                res = read(localnxp->fd,buf,255);
+                if(res > 0) {
+                    break;
+                }
+                ctr++;
+            }
+        }
+    }
+    else if(rx_max > 0) {
+        res = read(localnxp->fd,rx_buf,rx_max);
+    }
     pthread_mutex_unlock(&(localnxp->serial_mutex));
+    return res;
+}
+
+int nxp_reset(kis_capture_handler_t *caph)
+{
+    local_nxp_t *localnxp = (local_nxp_t *) caph->userdata;
+    uint8_t cmd_1[6] = {0x02,0xA3,0x08,0x00,0x00,0xAB};
+    nxp_write_cmd(caph,cmd_1,6,false,NULL,0);
     return 1;
 }
 
 int nxp_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t chan)
 {
     local_nxp_t *localnxp = (local_nxp_t *) caph->userdata;
-    localnxp->ready = false;
     //multi step to get us ready
     uint8_t cmd_1[6] = {0x02,0x52,0x00,0x00,0x00,0x52};
-    nxp_write_cmd(caph,cmd_1,6);
+    nxp_write_cmd(caph,cmd_1,6,true,NULL,0);
 
     uint8_t cmd_2[7] = {0x02,0x4E,0x00,0x01,0x00,0x00,0x4F};
-    nxp_write_cmd(caph,cmd_2,7);
+    nxp_write_cmd(caph,cmd_2,7,true,NULL,0);
 
     //chan 37
     uint8_t cmd_3[7] = {0x02,0x4E,0x02,0x01,0x00,0x01,0x4C};
@@ -87,15 +91,14 @@ int nxp_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t chan)
     if(chan == 39) {
     cmd_3[5] = 0x04; cmd_3[6] = 0x49;}
     
-    nxp_write_cmd(caph,cmd_3,7);
+    nxp_write_cmd(caph,cmd_3,7,true,NULL,0);
 
     uint8_t cmd_4[7] = {0x02,0x4E,0x01,0x01,0x00,0x00,0x4E};
-    nxp_write_cmd(caph,cmd_4,7);
+    nxp_write_cmd(caph,cmd_4,7,true,NULL,0);
 
     uint8_t cmd_5[7] = {0x02,0x4E,0x00,0x01,0x00,0x01,0x4E};
-    nxp_write_cmd(caph,cmd_5,7);
+    nxp_write_cmd(caph,cmd_5,7,true,NULL,0);
 
-    localnxp->ready = true;
     return 1;
 }
 
@@ -103,30 +106,38 @@ int nxp_exit_promisc_mode(kis_capture_handler_t *caph)
 {
     local_nxp_t *localnxp = (local_nxp_t *) caph->userdata;
     uint8_t cmd[7] = {0x02,0x4E,0x00,0x01,0x00,0x00,0x4F};
-    nxp_write_cmd(caph,cmd,7);
-    localnxp->ready = false;
+    nxp_write_cmd(caph,cmd,7,true,NULL,0);
     return 1;
 }
 
 int nxp_set_channel(kis_capture_handler_t *caph, uint8_t channel)
 {
-    nxp_exit_promisc_mode(caph);
-    nxp_enter_promisc_mode(caph,channel);
+    //nxp_exit_promisc_mode(caph);
+    //nxp_enter_promisc_mode(caph,channel);
+
+    //chan 37
+    uint8_t cmd_3[7] = {0x02,0x4E,0x02,0x01,0x00,0x01,0x4C};
+    if (channel == 38) {
+    cmd_3[5] = 0x02; cmd_3[6] = 0x4F;}
+    if(channel == 39) {
+    cmd_3[5] = 0x04; cmd_3[6] = 0x49;}
+
+    nxp_write_cmd(caph,cmd_3,7,true,NULL,0);
+
+    uint8_t cmd_4[7] = {0x02,0x4E,0x01,0x01,0x00,0x00,0x4E};
+    nxp_write_cmd(caph,cmd_4,7,true,NULL,0);
+
+    uint8_t cmd_5[7] = {0x02,0x4E,0x00,0x01,0x00,0x01,0x4E};
+    nxp_write_cmd(caph,cmd_5,7,true,NULL,0);
+
+
     return 1;
 }
 
 int nxp_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_max) {
     
-    local_nxp_t *localnxp = (local_nxp_t *) caph->userdata;
-    int res = 0;
+    int res = nxp_write_cmd(caph,NULL,0,false,rx_buf,rx_max);
 
-    while(1) {
-        pthread_mutex_lock(&(localnxp->serial_mutex));
-	    res = read(localnxp->fd,rx_buf,rx_max);
-        pthread_mutex_unlock(&(localnxp->serial_mutex));
-	    if(res > 0)
-		    break;
-    }
     return res;
 }
 
@@ -291,6 +302,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     tcsetattr(localnxp->fd, TCSANOW, &localnxp->newtio);
 
     pthread_mutex_unlock(&(localnxp->serial_mutex));
+    
+    nxp_reset(caph);
 
     nxp_enter_promisc_mode(caph,37);
 
@@ -355,8 +368,6 @@ void capture_thread(kis_capture_handler_t *caph) {
             pthread_mutex_unlock(&(localnxp->serial_mutex));
             break;
 	    }
-        if(localnxp->ready)
-        {
             buf_rx_len = nxp_receive_payload(caph, buf, 256);
             if (buf_rx_len < 0) {
                 cf_send_error(caph, 0, errstr);
@@ -385,7 +396,6 @@ void capture_thread(kis_capture_handler_t *caph) {
                     break;
                 }
             }
-        }
     }
     cf_handler_spindown(caph);
 }
@@ -398,6 +408,8 @@ int main(int argc, char *argv[]) {
         .fd = -1,
     };
 
+    pthread_mutex_init(&(localnxp.serial_mutex), NULL);
+
     kis_capture_handler_t *caph = cf_handler_init("nxp_kw41z");
 
     if (caph == NULL) {
@@ -407,6 +419,9 @@ int main(int argc, char *argv[]) {
     }
 
     localnxp.caph = caph;
+
+    /* Limit channel hop rate since it requires multiple usb commands */
+    caph->max_channel_hop_rate = 30;// 30 seconds
 
     /* Set the local data ptr */
     cf_handler_set_userdata(caph, &localnxp);
