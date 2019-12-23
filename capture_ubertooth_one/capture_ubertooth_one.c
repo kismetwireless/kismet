@@ -105,6 +105,9 @@ typedef struct {
     char *name;
 
     pthread_mutex_t u1_mutex;
+
+    unsigned int last_channel;
+    time_t last_reset;
 } local_ubertooth_t;
 
 unsigned int u1_chan_to_freq(unsigned int in_chan) {
@@ -199,6 +202,14 @@ int u1_reset_and_conf(kis_capture_handler_t *caph, char *errstr) {
         return -1;
     }
 
+    ret = cmd_set_channel(local_ubertooth->ut->devh, local_ubertooth->last_channel);
+    if (ret < 0) {
+        snprintf(errstr, STATUS_MAX, "%s could not set ubertooth-one channel device %s",
+                local_ubertooth->name, local_ubertooth->interface);
+        pthread_mutex_unlock(&local_ubertooth->u1_mutex);
+        return -1;
+    }
+
     ret = cmd_btle_sniffing(local_ubertooth->ut->devh, false);
     if (ret < 0) {
         snprintf(errstr, STATUS_MAX, "%s could not set ubertooth-one btle sniffing on device %s",
@@ -206,6 +217,8 @@ int u1_reset_and_conf(kis_capture_handler_t *caph, char *errstr) {
         pthread_mutex_unlock(&local_ubertooth->u1_mutex);
         return -1;
     }
+
+    local_ubertooth->last_reset = time(0);
 
     pthread_mutex_unlock(&local_ubertooth->u1_mutex);
     return 1;
@@ -251,6 +264,14 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
 int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg, 
         char ***chanlist, size_t *chanlist_sz) {
 
+    /* U1 firmware seems to crash even w/ 1s channel hopping, so only report channel 37
+     * as supported for now */
+
+    *chanlist = (char **) malloc(sizeof(char *) * 1);
+    (*chanlist)[0] = strdup("37");
+    *chanlist_sz = 1;
+
+#if 0
     /* For now we allow 37, 38, and 39 */
     *chanlist = (char **) malloc(sizeof(char *) * 3);
 
@@ -259,6 +280,7 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
     (*chanlist)[2] = strdup("39");
 
     *chanlist_sz = 3;
+#endif
 
     return 1;
 }
@@ -273,6 +295,8 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     }
 
     unsigned int *channel = (unsigned int *) privchan;
+
+    local_ubertooth->last_channel = *channel;
 
     while (count < 5) {
         pthread_mutex_lock(&local_ubertooth->u1_mutex);
@@ -568,8 +592,20 @@ void capture_thread(kis_capture_handler_t *caph) {
     usb_pkt_rx rx;
     int r;
     struct timeval ts;
+    char errstr[STATUS_MAX];
 
     while (!caph->spindown) {
+        pthread_mutex_lock(&local_ubertooth->u1_mutex);
+        if (time(0) - local_ubertooth->last_reset > 45) {
+            pthread_mutex_unlock(&local_ubertooth->u1_mutex);
+            
+            if (u1_reset_and_conf(caph, errstr) < 0) {
+                cf_send_error(caph, 0, "error receiving from Ubertooth One");
+                break;
+            }
+        }
+        pthread_mutex_unlock(&local_ubertooth->u1_mutex);
+
         pthread_mutex_lock(&local_ubertooth->u1_mutex);
         r = cmd_poll(local_ubertooth->ut->devh, &rx);
         pthread_mutex_unlock(&local_ubertooth->u1_mutex);
@@ -612,6 +648,8 @@ int main(int argc, char *argv[]) {
         .name = NULL,
         .ut = NULL,
         .u1_mutex = PTHREAD_MUTEX_INITIALIZER,
+        .last_channel = 2402,
+        .last_reset = 0,
     };
 
     /* Clobber the USB debug settings because libubertooth sets it to be verbose */
