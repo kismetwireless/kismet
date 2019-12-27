@@ -38,6 +38,6 @@ RUN /bin/bash /opt/build-kismet.sh
 EXPOSE 2501
 EXPOSE 3501
 
-CMD ["/usr/local/bin/kismet", "--no-ncurses"]
+CMD ["/usr/local/bin/kismet", "--no-ncurses-wrapper"]
 
 
