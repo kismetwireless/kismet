@@ -46,7 +46,7 @@ void print_help(char *argv) {
            "a JSON log.\n");
     printf("usage: %s [OPTION]\n", argv);
     printf(" -i, --in [filename]          Input kismetdb file\n"
-           " -o, --out [filename]         Output Wigle CSV file\n"
+           " -o, --out [filename]         Output device data into JSON file\n"
            " -f, --force                  Force writing to the target file, even if it exists.\n"
            " -j, --json-path              Rewrite fields to use '_' instead of '.'\n"
            " -e, --ekjson                 Write as ekjson records, one device per line, instead of as\n"
