@@ -311,7 +311,7 @@ int usage(char *argv) {
            "     --debug                  Disable the console wrapper and the crash\n"
            "                              handling functions, for debugging\n"
            " -f, --config-file <file>     Use alternate configuration file\n"
-           "     --no-line-wrap           Turn of linewrapping of output\n"
+           "     --no-line-wrap           Turn off linewrapping of output\n"
            "                              (for grep, speed, etc)\n"
            " -s, --silent                 Turn off stdout output after setup phase\n"
            "     --daemonize              Spawn detached in the background\n"
