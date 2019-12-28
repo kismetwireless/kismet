@@ -107,7 +107,7 @@ void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
     conv_header->monitor_channel = bt_channel;
 
     // RSSI not sure yet 
-    conv_header->signal = 0;
+    conv_header->signal = nxp_chunk->data[6];
 
     uint16_t bits = btle_rf_crc_checked;
     //if (true)//not sure yet

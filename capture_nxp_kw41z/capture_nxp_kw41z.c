@@ -1,7 +1,6 @@
+#define _GNU_SOURCE
 
 #include "../config.h"
-
-#include "nxp_kw41z.h"
 
 #include <stdio.h>
 #include <errno.h>
@@ -12,9 +11,13 @@
 #include <termios.h>
 #include <fcntl.h>
 
+#include "nxp_kw41z.h"
+
 #include "../capture_framework.h"
 
+#ifndef CRTSCTS
 #define CRTSCTS  020000000000 /*should be defined but isn't with the C99*/
+#endif
 
 /* Unique instance data passed around by capframework */
 typedef struct {
@@ -38,7 +41,7 @@ typedef struct {
     unsigned int channel;
 } local_channel_t;
 
-int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len,bool resp, uint8_t *rx_buf, size_t rx_max)
+int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len, bool resp, uint8_t *rx_buf, size_t rx_max)
 {
     uint8_t buf[255];
     uint16_t ctr = 0;
@@ -47,11 +50,14 @@ int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len,bo
     pthread_mutex_lock(&(localnxp->serial_mutex));
 
     if(tx_len > 0) {
-    //we are transmitting something
+        // we are transmitting something
         write(localnxp->fd,tx_buf,tx_len);
         if(resp) {
+	    // looking for a response
             while(ctr < 5000) {
                 res = read(localnxp->fd,buf,255);
+		// currently if we get something back that is fine and continue
+		// if needed we can look for a specific response
                 if(res > 0) {
                     break;
                 }
@@ -68,7 +74,6 @@ int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len,bo
 
 int nxp_reset(kis_capture_handler_t *caph)
 {
-    local_nxp_t *localnxp = (local_nxp_t *) caph->userdata;
     uint8_t cmd_1[6] = {0x02,0xA3,0x08,0x00,0x00,0xAB};
     nxp_write_cmd(caph,cmd_1,6,false,NULL,0);
     return 1;
@@ -76,15 +81,18 @@ int nxp_reset(kis_capture_handler_t *caph)
 
 int nxp_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t chan)
 {
-    local_nxp_t *localnxp = (local_nxp_t *) caph->userdata;
-    //multi step to get us ready
+    // first byte is header, last byte is checksum
+    // checksum is basic xor of other bits
+    // for these we can jsut used precomputed packets
+
+    // multi step to get us ready
     uint8_t cmd_1[6] = {0x02,0x52,0x00,0x00,0x00,0x52};
     nxp_write_cmd(caph,cmd_1,6,true,NULL,0);
 
     uint8_t cmd_2[7] = {0x02,0x4E,0x00,0x01,0x00,0x00,0x4F};
     nxp_write_cmd(caph,cmd_2,7,true,NULL,0);
 
-    //chan 37
+    // chan 37 by default
     uint8_t cmd_3[7] = {0x02,0x4E,0x02,0x01,0x00,0x01,0x4C};
     if (chan == 38) {
     cmd_3[5] = 0x02; cmd_3[6] = 0x4F;}
@@ -104,7 +112,6 @@ int nxp_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t chan)
 
 int nxp_exit_promisc_mode(kis_capture_handler_t *caph)
 {
-    local_nxp_t *localnxp = (local_nxp_t *) caph->userdata;
     uint8_t cmd[7] = {0x02,0x4E,0x00,0x01,0x00,0x00,0x4F};
     nxp_write_cmd(caph,cmd,7,true,NULL,0);
     return 1;
@@ -112,24 +119,8 @@ int nxp_exit_promisc_mode(kis_capture_handler_t *caph)
 
 int nxp_set_channel(kis_capture_handler_t *caph, uint8_t channel)
 {
-    //nxp_exit_promisc_mode(caph);
-    //nxp_enter_promisc_mode(caph,channel);
-
-    //chan 37
-    uint8_t cmd_3[7] = {0x02,0x4E,0x02,0x01,0x00,0x01,0x4C};
-    if (channel == 38) {
-    cmd_3[5] = 0x02; cmd_3[6] = 0x4F;}
-    if(channel == 39) {
-    cmd_3[5] = 0x04; cmd_3[6] = 0x49;}
-
-    nxp_write_cmd(caph,cmd_3,7,true,NULL,0);
-
-    uint8_t cmd_4[7] = {0x02,0x4E,0x01,0x01,0x00,0x00,0x4E};
-    nxp_write_cmd(caph,cmd_4,7,true,NULL,0);
-
-    uint8_t cmd_5[7] = {0x02,0x4E,0x00,0x01,0x00,0x01,0x4E};
-    nxp_write_cmd(caph,cmd_5,7,true,NULL,0);
-
+    nxp_exit_promisc_mode(caph);
+    nxp_enter_promisc_mode(caph,channel);
 
     return 1;
 }
@@ -195,7 +186,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     (*ret_interface)->capif = strdup(cap_if);
     (*ret_interface)->hardware = strdup("nxp_kw41z");
 
-    /* NXP KW41Z supports 37-39 */
+    /* NXP KW41Z supports 37-39 for ble */
     (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 3);
     for (int i = 37; i < 40; i++) {
         char chstr[4];
@@ -263,7 +254,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     (*ret_interface)->capif = strdup(cap_if);
     (*ret_interface)->hardware = strdup("nxp_kw41z");
 
-    /* NXP KW41Z supports 37-39 */
+    /* NXP KW41Z supports 37-39 for ble */
     (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 3);
     for (int i = 37; i < 40; i++) {
         char chstr[4];
@@ -336,7 +327,6 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
 
 int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *privchan, char *msg) {
 
-    local_nxp_t *localnxp = (local_nxp_t *) caph->userdata;
     local_channel_t *channel = (local_channel_t *) privchan;
     int r;
 
@@ -375,7 +365,6 @@ void capture_thread(kis_capture_handler_t *caph) {
                 break;
             }
 
-            //send the packet along
             if(buf_rx_len > 0)
             while (1) {
                 struct timeval tv;
