@@ -311,14 +311,16 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
                  UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
                 "BTLE Device");
 
+    auto new_dev = false;
+
     auto btle_dev =
         device->get_sub_as<btle_tracked_device>(mphy->btle_device_id);
 
     if (btle_dev == nullptr) {
-        _MSG_INFO("Detected new BTLE device {}", common->source.mac_to_string());
-
         btle_dev = std::make_shared<btle_tracked_device>(mphy->btle_device_id);
         device->insert(btle_dev);
+
+        new_dev = true;
     }
 
     if (btle_info->btle_decode->is_txaddr_random())
@@ -337,6 +339,13 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
         } else if (ad->type() == BTLE_ADVDATA_DEVICE_NAME && ad->length() >= 2) {
             device->set_devicename(munge_to_printable(ad->data()));
         }
+    }
+
+    if (new_dev) {
+        if (device->get_devicename().length() > 0) 
+            _MSG_INFO("Detected new BTLE device {} {}", common->source, device->get_devicename());
+        else
+            _MSG_INFO("Detected new BTLE device {}", common->source);
     }
 
     return 1;
