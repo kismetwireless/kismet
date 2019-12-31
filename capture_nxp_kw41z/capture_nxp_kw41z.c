@@ -41,28 +41,38 @@ typedef struct {
     unsigned int channel;
 } local_channel_t;
 
-int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len, bool resp, uint8_t *rx_buf, size_t rx_max)
+int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len, uint8_t *resp, size_t resp_len, uint8_t *rx_buf, size_t rx_max)
 {
     uint8_t buf[255];
     uint16_t ctr = 0;
     uint8_t res = 0;
+    bool found = false;
     local_nxp_t *localnxp = (local_nxp_t *) caph->userdata;
     pthread_mutex_lock(&(localnxp->serial_mutex));
 
     if(tx_len > 0) {
-        // we are transmitting something
+
+     // we are transmitting something
         write(localnxp->fd,tx_buf,tx_len);
-        if(resp) {
+        if(resp_len > 0) {
 	    // looking for a response
             while(ctr < 5000) {
+		    usleep(10);
                 res = read(localnxp->fd,buf,255);
-		// currently if we get something back that is fine and continue
+                // currently if we get something back that is fine and continue
 		// if needed we can look for a specific response
+                if(memcmp(buf,resp,resp_len) == 0)
+	        {
+		    found = true;
+		    break; 
+		}
                 if(res > 0) {
                     break;
                 }
                 ctr++;
             }
+            if(!found)
+            return -1;// we fell through
         }
     }
     else if(rx_max > 0) {
@@ -75,7 +85,7 @@ int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len, b
 int nxp_reset(kis_capture_handler_t *caph)
 {
     uint8_t cmd_1[6] = {0x02,0xA3,0x08,0x00,0x00,0xAB};
-    nxp_write_cmd(caph,cmd_1,6,false,NULL,0);
+    nxp_write_cmd(caph,cmd_1,6,NULL,0,NULL,0);
     return 1;
 }
 
@@ -85,27 +95,32 @@ int nxp_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t chan)
     // checksum is basic xor of other bits
     // for these we can jsut used precomputed packets
 
-    // multi step to get us ready
+    // bluetooth
     uint8_t cmd_1[6] = {0x02,0x52,0x00,0x00,0x00,0x52};
-    nxp_write_cmd(caph,cmd_1,6,true,NULL,0);
+    uint8_t rep_1[6] = {0x02,0x52,0x02,0x00,0x00,0x50};
+    nxp_write_cmd(caph,cmd_1,6,rep_1,6,NULL,0);
 
     uint8_t cmd_2[7] = {0x02,0x4E,0x00,0x01,0x00,0x00,0x4F};
-    nxp_write_cmd(caph,cmd_2,7,true,NULL,0);
+    uint8_t rep_2[7] = {0x02,0x4E,0x80,0x01,0x00,0x00,0xCF};
+    nxp_write_cmd(caph,cmd_2,7,rep_2,7,NULL,0);
 
     // chan 37 by default
     uint8_t cmd_3[7] = {0x02,0x4E,0x02,0x01,0x00,0x01,0x4C};
+    uint8_t rep_3[7] = {0x02,0x4E,0x01,0x01,0x00,0x00,0x4E};
     if (chan == 38) {
     cmd_3[5] = 0x02; cmd_3[6] = 0x4F;}
     if(chan == 39) {
     cmd_3[5] = 0x04; cmd_3[6] = 0x49;}
-    
-    nxp_write_cmd(caph,cmd_3,7,true,NULL,0);
+
+    nxp_write_cmd(caph,cmd_3,7,NULL,0,NULL,0);
 
     uint8_t cmd_4[7] = {0x02,0x4E,0x01,0x01,0x00,0x00,0x4E};
-    nxp_write_cmd(caph,cmd_4,7,true,NULL,0);
+    uint8_t rep_4[7] = {0x02,0x4E,0x80,0x01,0x00,0x00,0xCF};
+    nxp_write_cmd(caph,cmd_4,7,rep_4,7,NULL,0);
 
     uint8_t cmd_5[7] = {0x02,0x4E,0x00,0x01,0x00,0x01,0x4E};
-    nxp_write_cmd(caph,cmd_5,7,true,NULL,0);
+    // uint8_t rep_5[7] = {0x02,0x4E,0x80,0x01,0x00,0x00,0xCF};
+    nxp_write_cmd(caph,cmd_5,7,NULL,0,NULL,0);
 
     return 1;
 }
@@ -113,7 +128,8 @@ int nxp_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t chan)
 int nxp_exit_promisc_mode(kis_capture_handler_t *caph)
 {
     uint8_t cmd[7] = {0x02,0x4E,0x00,0x01,0x00,0x00,0x4F};
-    nxp_write_cmd(caph,cmd,7,true,NULL,0);
+    uint8_t rep[7] = {0x02,0x4E,0x80,0x01,0x00,0x00,0xCF};
+    nxp_write_cmd(caph,cmd,7,rep,7,NULL,0);
     return 1;
 }
 
@@ -127,7 +143,7 @@ int nxp_set_channel(kis_capture_handler_t *caph, uint8_t channel)
 
 int nxp_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_max) {
     
-    int res = nxp_write_cmd(caph,NULL,0,false,rx_buf,rx_max);
+    int res = nxp_write_cmd(caph,NULL,0,NULL,0,rx_buf,rx_max);
 
     return res;
 }
@@ -294,8 +310,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     pthread_mutex_unlock(&(localnxp->serial_mutex));
     
-    nxp_reset(caph);
-
+    //nxp_reset(caph);
+    
+    nxp_exit_promisc_mode(caph);
     nxp_enter_promisc_mode(caph,37);
 
     return 1;
@@ -410,7 +427,7 @@ int main(int argc, char *argv[]) {
     localnxp.caph = caph;
 
     /* Limit channel hop rate since it requires multiple usb commands */
-    caph->max_channel_hop_rate = 30;// 30 seconds
+    // caph->max_channel_hop_rate = 30;// 30 seconds
 
     /* Set the local data ptr */
     cf_handler_set_userdata(caph, &localnxp);
