@@ -210,8 +210,7 @@ int pcap_stream_ringbuf::pcapng_make_shb(std::string in_hw, std::string in_os, s
     return 1;
 }
 
-int pcap_stream_ringbuf::pcapng_make_idb(kis_datasource *in_datasource) {
-    
+int pcap_stream_ringbuf::pcapng_make_idb(kis_datasource *in_datasource, int in_dlt) {
     std::string ifname;
     ifname = in_datasource->get_source_name();
 
@@ -220,17 +219,25 @@ int pcap_stream_ringbuf::pcapng_make_idb(kis_datasource *in_datasource) {
         ifdesc = "capture interface for " + in_datasource->get_source_interface();
     }
 
-    return pcapng_make_idb(in_datasource->get_source_number(), ifname, ifdesc,
-            in_datasource->get_source_dlt());
+    return pcapng_make_idb(in_datasource->get_source_number(), ifname, ifdesc, in_dlt);
 }
 
-int pcap_stream_ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, std::string in_interface, 
+int pcap_stream_ringbuf::pcapng_make_idb(unsigned int in_sourcenumber, 
+        std::string in_interface, 
         std::string in_desc, int in_dlt) {
+
     // Put it in the map of datasource IDs to local log IDs.  The sequential 
     // position in the list of IDBs is the size of the map because we never
-    // remove from the number map
+    // remove from the number map.
+    //
+    // Index ID is a hash of the source number and DLT
     unsigned int logid = datasource_id_map.size();
-    datasource_id_map[in_sourcenumber] = logid;
+
+    auto h1 = std::hash<unsigned int>{}(in_sourcenumber);
+    auto h2 = std::hash<unsigned int>{}(in_dlt);
+    auto index = h1 ^ (h2 << 1);
+
+    datasource_id_map[index] = logid;
 
     uint8_t *retbuf;
 
@@ -483,14 +490,17 @@ int pcap_stream_ringbuf::pcapng_write_packet(kis_packet *in_packet, kis_datachun
     if (datasrcinfo == NULL)
         return 0;
 
-    auto ds_id_rec = 
-        datasource_id_map.find(datasrcinfo->ref_source->get_source_number());
+    auto h1 = std::hash<unsigned int>{}(datasrcinfo->ref_source->get_source_number());
+    auto h2 = std::hash<unsigned int>{}(in_data->dlt);
+    auto ds_index = h1 ^ (h2 << 1);
+
+    auto ds_id_rec = datasource_id_map.find(ds_index);
 
     // Interface ID for multiple interfaces per file
     int ng_interface_id;
 
     if (ds_id_rec == datasource_id_map.end()) {
-        if ((ng_interface_id = pcapng_make_idb(datasrcinfo->ref_source)) < 0) {
+        if ((ng_interface_id = pcapng_make_idb(datasrcinfo->ref_source, in_data->dlt)) < 0) {
             return -1;
         }
     } else {
