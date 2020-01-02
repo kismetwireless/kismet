@@ -50,7 +50,6 @@ int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len, u
     pthread_mutex_lock(&(localnxp->serial_mutex));
 
     if(tx_len > 0) {
-
      // we are transmitting something
         write(localnxp->fd,tx_buf,tx_len);
         if(resp_len > 0) {
@@ -91,6 +90,67 @@ int nxp_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t chan) {
     // checksum is basic xor of other bits
     // for these we can just used precomputed packets
     int res = 0;
+    if(chan < 30)
+    {
+	uint8_t cmd_1[14] = {0x02,0x85,0x09,0x08,0x00,0x52,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xD6};
+	uint8_t rep_1[8] = {0x02,0x84,0x0D,0x02,0x00,0x00,0x52,0xD9};
+        res = nxp_write_cmd(caph,cmd_1,14,rep_1,8,NULL,0);
+        if(res < 0)
+            return res;
+
+	uint8_t cmd_2[14] = {0x02,0x85,0x09,0x08,0x00,0x21,0x0B,0x00,0x00,0x00,0x00,0x00,0x00,0xAE};
+	uint8_t rep_2[8] = {0x02,0x84,0x0D,0x02,0x00,0x00,0x21,0xAA};
+	// channel
+	cmd_2[6] = chan;
+	if(chan == 12)
+            cmd_2[13] = 0xA9;
+	else if(chan == 13)
+            cmd_2[13] = 0xA8;
+	else if(chan == 14)
+            cmd_2[13] = 0xAB;
+	else if(chan == 15)
+            cmd_2[13] = 0xAA;
+	else if(chan == 16)
+            cmd_2[13] = 0xB5;
+	else if(chan == 17)
+            cmd_2[13] = 0xB4;
+	else if(chan == 18)
+            cmd_2[13] = 0xB7;
+	else if(chan == 19)
+            cmd_2[13] = 0xB6;
+	else if(chan == 20)
+            cmd_2[13] = 0xB1;
+	else if(chan == 21)
+            cmd_2[13] = 0xB0;
+	else if(chan == 22)
+            cmd_2[13] = 0xB3;
+	else if(chan == 23)
+            cmd_2[13] = 0xB2;
+	else if(chan == 24)
+            cmd_2[13] = 0xBD;
+	else if(chan == 25)
+            cmd_2[13] = 0xBC;
+	else if(chan == 26)
+            cmd_2[13] = 0xBF;
+
+	res = nxp_write_cmd(caph,cmd_2,14,rep_2,8,NULL,0);
+        if(res < 0)
+            return res;
+
+        uint8_t cmd_3[14] = {0x02,0x85,0x09,0x08,0x00,0x51,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0xD4};
+	uint8_t rep_3[8] = {0x02,0x84,0x0D,0x02,0x00,0x00,0x51,0xDA};
+	res = nxp_write_cmd(caph,cmd_3,14,rep_3,8,NULL,0);
+        if(res < 0)
+            return res;
+
+	uint8_t cmd_4[14] = {0x02,0x85,0x09,0x08,0x00,0x52,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0xD7};
+	uint8_t rep_4[8] = {0x02,0x84,0x0D,0x02,0x00,0x00,0x52,0xD9};
+	res = nxp_write_cmd(caph,cmd_4,14,rep_4,8,NULL,0);
+        if(res < 0)
+            return res;
+    }
+    else
+    {
     // bluetooth
     uint8_t cmd_1[6] = {0x02,0x52,0x00,0x00,0x00,0x52};
     uint8_t rep_1[6] = {0x02,0x52,0x02,0x00,0x00,0x50};
@@ -127,7 +187,7 @@ int nxp_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t chan) {
     res = nxp_write_cmd(caph,cmd_5,7,NULL,0,NULL,0);
     if(res < 0)
 	return res;
-
+    }
     return res;
 }
 
@@ -206,15 +266,21 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     (*ret_interface)->capif = strdup(cap_if);
     (*ret_interface)->hardware = strdup("nxp_kw41z");
 
-    /* NXP KW41Z supports 37-39 for ble */
-    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 3);
-    for (int i = 37; i < 40; i++) {
-        char chstr[4];
+    /* NXP KW41Z supports 11-26 for zigbee and 37-39 for ble */
+    char chstr[4];
+    int ctr=0;
+    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 19);
+    for (int i = 11; i < 27; i++) {
         snprintf(chstr, 4, "%d", i);
-        (*ret_interface)->channels[i - 37] = strdup(chstr);
+        (*ret_interface)->channels[ctr] = strdup(chstr);
+	ctr++;
     }
-
-    (*ret_interface)->channels_len = 3;
+    for (int i = 37; i < 40; i++) {
+        snprintf(chstr, 4, "%d", i);
+        (*ret_interface)->channels[ctr] = strdup(chstr);
+	ctr++;
+    }
+    (*ret_interface)->channels_len = 19;
 
     return 1;
 }
@@ -275,15 +341,21 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     (*ret_interface)->capif = strdup(cap_if);
     (*ret_interface)->hardware = strdup("nxp_kw41z");
 
-    /* NXP KW41Z supports 37-39 for ble */
-    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 3);
-    for (int i = 37; i < 40; i++) {
-        char chstr[4];
+    /* NXP KW41Z supports 11-26 for zigbee and 37-39 for ble */
+    char chstr[4];
+    int ctr=0;
+    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 19);
+    for (int i = 11; i < 27; i++) {
         snprintf(chstr, 4, "%d", i);
-        (*ret_interface)->channels[i - 37] = strdup(chstr);
+        (*ret_interface)->channels[ctr] = strdup(chstr);
+	ctr++;
     }
-
-    (*ret_interface)->channels_len = 3;
+    for (int i = 37; i < 40; i++) {
+        snprintf(chstr, 4, "%d", i);
+        (*ret_interface)->channels[ctr] = strdup(chstr);
+	ctr++;
+    }
+    (*ret_interface)->channels_len = 19;
 
     pthread_mutex_lock(&(localnxp->serial_mutex));
     /* open for r/w but no tty */
@@ -314,12 +386,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     tcsetattr(localnxp->fd, TCSANOW, &localnxp->newtio);
 
     pthread_mutex_unlock(&(localnxp->serial_mutex));
-    
-    
+
     res = nxp_exit_promisc_mode(caph);
     if(res < 0)
 	return -1;
-    res = nxp_enter_promisc_mode(caph,37);
+    res = nxp_enter_promisc_mode(caph,11);
     if(res < 0)
 	return -1;
 
@@ -332,15 +403,16 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
     char errstr[STATUS_MAX];
 
     if (sscanf(chanstr, "%u", &parsechan) != 1) {
-        snprintf(errstr, STATUS_MAX, "1 unable to parse requested channel '%s'; ticc2540 channels "
-                "are from 37 to 39", chanstr);
+        snprintf(errstr, STATUS_MAX, "1 unable to parse requested channel '%s'; nxp kw41z channels "
+                "are from 11 to 26 and 37 to 39", chanstr);
         cf_send_message(caph, errstr, MSGFLAG_INFO);
         return NULL;
     }
 
-    if (parsechan > 39 || parsechan < 37) {
-        snprintf(errstr, STATUS_MAX, "2 unable to parse requested channel '%u'; ticc2540 channels "
-                "are from 37 to 39", parsechan);
+    //if (parsechan > 39 || parsechan < 37) {
+    if (parsechan > 39 || parsechan < 11) {
+        snprintf(errstr, STATUS_MAX, "2 unable to parse requested channel '%u'; nxp kw41z channels "
+                "are from 11 to 26 and 37 to 39", parsechan);
         cf_send_message(caph, errstr, MSGFLAG_INFO);
         return NULL;
     }
