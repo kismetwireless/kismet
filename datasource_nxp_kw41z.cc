@@ -98,7 +98,7 @@ void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
         ////payload + fcs per fcs type
     } zigbee_tap;
 
-        uint32_t rssi = nxp_chunk->data[4];
+        uint32_t rssi = nxp_chunk->data[5];
         uint16_t nxp_payload_len = nxp_chunk->data[10];
         // We can make a valid payload from this much
         auto conv_buf_len = sizeof(zigbee_tap) + nxp_payload_len;
