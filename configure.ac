@@ -1728,7 +1728,7 @@ if test "$BUILD_CAPTURE_NRF_51822" = 1; then
         echo "yes";
 fi
 
-printf "             nxp kw41z: "
+printf "  NXP KW41Z BLE/Zigbee: "
 if test "$BUILD_CAPTURE_NXP_KW41Z" = 1; then
         echo "yes";
 else

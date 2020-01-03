@@ -19,22 +19,18 @@
 #include "datasource_nxp_kw41z.h"
 
 bool checksum(uint8_t *payload, uint8_t len) {
-
     uint8_t chk = 0;
-    uint8_t checksum = payload[len-1];
+    uint8_t checksum = payload[len - 1];
     chk = payload[1];
-    for(int xp = 2;xp < len-1;xp++) {
+
+    for (int xp = 2; xp < len - 1; xp++) {
         chk ^= payload[xp];
     }
 
-    if(checksum == chk)
-        return true;
-    else
-	return false;
+    return checksum == chk;
 }
 
 void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
-
     typedef struct {
         uint8_t monitor_channel;
         int8_t signal;
@@ -52,171 +48,162 @@ void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
     const uint16_t btle_rf_crc_checked = (1 << 10);
     // const uint16_t btle_rf_crc_valid = (1 << 11);
 
-    auto nxp_chunk = 
-        packet->fetch<kis_datachunk>(pack_comp_linkframe);
+    auto nxp_chunk = packet->fetch<kis_datachunk>(pack_comp_linkframe);
 
-    // If we can't validate the basics of the packet at the phy capture level, throw it out.
-    // We don't get rid of invalid btle contents, but we do get rid of invalid USB frames that
-    // we can't decipher - we can't even log them sanely!
-    
+    // If we can't validate the basics of the packet at the phy capture level,
+    // throw it out. We don't get rid of invalid btle contents, but we do get
+    // rid of invalid USB frames that we can't decipher - we can't even log them
+    // sanely!
+
     if (nxp_chunk->length < 10) {
-        // fmt::print(stderr, "debug - nxp kw41z too short ({} < 10)\n", nxp_chunk->length);
-        delete(packet);
+        // fmt::print(stderr, "debug - nxp kw41z too short ({} < 10)\n",
+        // nxp_chunk->length);
+        delete (packet);
         return;
     }
 
-    if(nxp_chunk->data[0] != 0x02 && nxp_chunk->data[1] != 0x4E && nxp_chunk->data[2] != 0x7F) {
+    if (nxp_chunk->data[0] != 0x02 && nxp_chunk->data[1] != 0x4E &&
+        nxp_chunk->data[2] != 0x7F) {
         // not a packet we are interested in
-	delete(packet);
-        return;
-    } 
-
-    if(!checksum(nxp_chunk->data,nxp_chunk->length)) {
-        delete(packet);
+        delete (packet);
         return;
     }
 
-    //check what type of packet we are
-    if(
-        nxp_chunk->data[0] == 0x02
-	&& nxp_chunk->data[1] == 0x86
-	&& nxp_chunk->data[2] == 0x03
-      )
-    {
-    typedef struct {
-        uint16_t type; //type identifier
-        uint16_t length; // number of octets for type in value field (not including padding
-        uint32_t value; // data for type
-    } tap_tlv;
-    
-    typedef struct {
-        uint8_t version; // currently zero
-        uint8_t reserved; // must be zero
-        uint16_t length; // total length of header and tlvs in octets, min 4 and must be multiple of 4
-        tap_tlv tlv[3];//tap tlvs
-        uint8_t payload[0];
-        ////payload + fcs per fcs type
-    } zigbee_tap;
+    if (!checksum(nxp_chunk->data, nxp_chunk->length)) {
+        delete (packet);
+        return;
+    }
+
+    // check what type of packet we are
+    if (nxp_chunk->data[0] == 0x02 && nxp_chunk->data[1] == 0x86 &&
+        nxp_chunk->data[2] == 0x03) {
+        typedef struct {
+            uint16_t type;    // type identifier
+            uint16_t length;  // number of octets for type in value field (not
+                              // including padding
+            uint32_t value;   // data for type
+        } tap_tlv;
+
+        typedef struct {
+            uint8_t version;   // currently zero
+            uint8_t reserved;  // must be zero
+            uint16_t length;   // total length of header and tlvs in octets, min
+                               // 4 and must be multiple of 4
+            tap_tlv tlv[3];    // tap tlvs
+            uint8_t payload[0];
+            ////payload + fcs per fcs type
+        } zigbee_tap;
 
         uint32_t rssi = nxp_chunk->data[5];
         uint16_t nxp_payload_len = nxp_chunk->data[10];
         // We can make a valid payload from this much
         auto conv_buf_len = sizeof(zigbee_tap) + nxp_payload_len;
-        zigbee_tap *conv_header = reinterpret_cast<zigbee_tap *>(new uint8_t[conv_buf_len]);
+        zigbee_tap *conv_header =
+            reinterpret_cast<zigbee_tap *>(new uint8_t[conv_buf_len]);
         memset(conv_header, 0, conv_buf_len);
 
         // Copy the actual packet payload into the header
         memcpy(conv_header->payload, &nxp_chunk->data[11], nxp_payload_len);
 
-        conv_header->version = 0;//currently only one version
-        conv_header->reserved = 0;//must be set to 0
+        conv_header->version = 0;   // currently only one version
+        conv_header->reserved = 0;  // must be set to 0
 
-        //fcs setting
+        // fcs setting
         conv_header->tlv[0].type = 0;
         conv_header->tlv[0].length = 1;
         conv_header->tlv[0].value = 0;
 
-        //rssi
+        // rssi
         conv_header->tlv[1].type = 10;
         conv_header->tlv[1].length = 1;
         conv_header->tlv[1].value = rssi;
 
-        //channel
+        // channel
         conv_header->tlv[2].type = 3;
         conv_header->tlv[2].length = 3;
-        conv_header->tlv[2].value = 11;//need to try to pull from some where
+        conv_header->tlv[2].value = 11;  // need to try to pull from some where
 
-        //size
-        conv_header->length = sizeof(conv_header)+sizeof(conv_header->tlv)-4;
-        nxp_chunk->set_data((uint8_t *)conv_header, conv_buf_len, false);
-        nxp_chunk->dlt = KDLT_IEEE802_15_4_TAP; 	
-	/*
-        //so this works
-        uint8_t payload[256]; memset(payload,0x00,256);
-        memcpy(payload,&cc_chunk->data[9],cc_payload_len);	
-        // Replace the existing packet data with this and update the DLT
-        rz_chunk->set_data(payload, cc_payload_len, false);
-        rz_chunk->dlt = KDLT_IEEE802_15_4_NOFCS; 
-	*/
-        
-	// Pass the packet on
+        // size
+        conv_header->length =
+            sizeof(conv_header) + sizeof(conv_header->tlv) - 4;
+        nxp_chunk->set_data((uint8_t *) conv_header, conv_buf_len, false);
+        nxp_chunk->dlt = KDLT_IEEE802_15_4_TAP;
+
+        // Pass the packet on
         packetchain->process_packet(packet);
 
-    }
-    else if(
-        nxp_chunk->data[0] == 0x02
-        && nxp_chunk->data[1] == 0x4E
-        && nxp_chunk->data[2] == 0x7F
-	)
-    {
-    // Convert the channel for the btlell header
-    auto bt_channel = nxp_chunk->data[5];
-    uint8_t channel = nxp_chunk->data[5];
-    
-    switch (channel) {
-        case 37:
-            bt_channel = 0;
-            break;
-        case 38:
-            bt_channel = 12;
-            break;
-        case 39:
-            bt_channel = 39;
-            break;
-        default:
-            bt_channel = channel - 2;
-    };
+    } else if (nxp_chunk->data[0] == 0x02 && nxp_chunk->data[1] == 0x4E &&
+               nxp_chunk->data[2] == 0x7F) {
+        // Convert the channel for the btlell header
+        auto bt_channel = nxp_chunk->data[5];
+        uint8_t channel = nxp_chunk->data[5];
 
-    unsigned int nxp_payload_len = nxp_chunk->length - 13;//minus header and checksum
-    // We can make a valid payload from this much
-    auto conv_buf_len = sizeof(btle_rf) + nxp_payload_len;
-    btle_rf *conv_header = reinterpret_cast<btle_rf *>(new uint8_t[conv_buf_len]);
-    memset(conv_header, 0, conv_buf_len);
+        switch (channel) {
+            case 37:
+                bt_channel = 0;
+                break;
+            case 38:
+                bt_channel = 12;
+                break;
+            case 39:
+                bt_channel = 39;
+                break;
+            default:
+                bt_channel = channel - 2;
+        };
 
-    // Copy the actual packet payload into the header
-    memcpy(conv_header->payload, &nxp_chunk->data[12], nxp_payload_len);
+        unsigned int nxp_payload_len =
+            nxp_chunk->length - 13;  // minus header and checksum
+        // We can make a valid payload from this much
+        auto conv_buf_len = sizeof(btle_rf) + nxp_payload_len;
+        btle_rf *conv_header =
+            reinterpret_cast<btle_rf *>(new uint8_t[conv_buf_len]);
+        memset(conv_header, 0, conv_buf_len);
 
-    // Set the converted channel
-    conv_header->monitor_channel = bt_channel;
+        // Copy the actual packet payload into the header
+        memcpy(conv_header->payload, &nxp_chunk->data[12], nxp_payload_len);
 
-    // RSSI not sure yet 
-    conv_header->signal = nxp_chunk->data[6];
+        // Set the converted channel
+        conv_header->monitor_channel = bt_channel;
 
-    uint16_t bits = btle_rf_crc_checked;
-    //if (true)//not sure yet
-    //    bits += btle_rf_crc_valid;
+        // RSSI not sure yet
+        conv_header->signal = nxp_chunk->data[6];
 
-    if (nxp_payload_len >= 4) {
-        memcpy(conv_header->reference_access_address, conv_header->payload, 4);
-        bits += btle_rf_flag_reference_access_valid;
-    }
+        uint16_t bits = btle_rf_crc_checked;
+        // if (true)//not sure yet
+        //    bits += btle_rf_crc_valid;
 
-    conv_header->flags_le = 
-        htole16(bits + btle_rf_flag_signalvalid + btle_rf_flag_dewhitened);
-   
-    // Replace the existing packet data with this and update the DLT
-    nxp_chunk->set_data((uint8_t *) conv_header, conv_buf_len, false);
-    nxp_chunk->dlt = KDLT_BTLE_RADIO;
+        if (nxp_payload_len >= 4) {
+            memcpy(conv_header->reference_access_address, conv_header->payload,
+                   4);
+            bits += btle_rf_flag_reference_access_valid;
+        }
 
-    // Generate a l1 radio header and a decap header since we have it computed already
-    auto radioheader = new kis_layer1_packinfo();
-    radioheader->signal_type = kis_l1_signal_type_dbm;
-    radioheader->signal_dbm = conv_header->signal;
-    radioheader->freq_khz = (2400 + (channel)) * 1000;
-    radioheader->channel = fmt::format("{}", (channel));
-    packet->insert(pack_comp_radiodata, radioheader);
+        conv_header->flags_le =
+            htole16(bits + btle_rf_flag_signalvalid + btle_rf_flag_dewhitened);
 
-    auto decapchunk = new kis_datachunk;
-    decapchunk->set_data(conv_header->payload, nxp_payload_len, false);
-    decapchunk->dlt = KDLT_BLUETOOTH_LE_LL;
-    packet->insert(pack_comp_decap, decapchunk);
+        // Replace the existing packet data with this and update the DLT
+        nxp_chunk->set_data((uint8_t *) conv_header, conv_buf_len, false);
+        nxp_chunk->dlt = KDLT_BTLE_RADIO;
 
-    // Pass the packet on
-    packetchain->process_packet(packet);
-    }
-    else
-    {
-        delete(packet);
+        // Generate a l1 radio header and a decap header since we have it
+        // computed already
+        auto radioheader = new kis_layer1_packinfo();
+        radioheader->signal_type = kis_l1_signal_type_dbm;
+        radioheader->signal_dbm = conv_header->signal;
+        radioheader->freq_khz = (2400 + (channel)) * 1000;
+        radioheader->channel = fmt::format("{}", (channel));
+        packet->insert(pack_comp_radiodata, radioheader);
+
+        auto decapchunk = new kis_datachunk;
+        decapchunk->set_data(conv_header->payload, nxp_payload_len, false);
+        decapchunk->dlt = KDLT_BLUETOOTH_LE_LL;
+        packet->insert(pack_comp_decap, decapchunk);
+
+        // Pass the packet on
+        packetchain->process_packet(packet);
+    } else {
+        delete (packet);
         return;
     }
 }

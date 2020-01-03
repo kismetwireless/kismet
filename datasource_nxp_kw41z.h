@@ -17,7 +17,7 @@
 */
 
 #ifndef __DATASOURCE_NXP_KW41Z_H__
-#define __DATASOURCE_NXP_KW41z_H__
+#define __DATASOURCE_NXP_KW41Z_H__
 
 #include "config.h"
 
@@ -119,7 +119,7 @@ public:
         set_remote_capable(true);
         set_passive_capable(false);
         set_tune_capable(true);
-	set_hop_capable(true);
+        set_hop_capable(true);
     }
 };
 
