@@ -46,21 +46,21 @@ void kis_datasource_ticc2540::handle_rx_packet(kis_packet *packet) {
     // we can't decipher - we can't even log them sanely!
     
     if (cc_chunk->length < 8) {
-        fmt::print(stderr, "debug - cc2540 too short ({} < 8)\n", cc_chunk->length);
+        // fmt::print(stderr, "debug - cc2540 too short ({} < 8)\n", cc_chunk->length);
         delete(packet);
         return;
     }
 
     unsigned int cc_len = cc_chunk->data[1];
     if (cc_len != cc_chunk->length - 3) {
-        fmt::print(stderr, "debug - cc2540 invalid packet length ({} != {})\n", cc_len, cc_chunk->length - 3);
+        // fmt::print(stderr, "debug - cc2540 invalid packet length ({} != {})\n", cc_len, cc_chunk->length - 3);
         delete(packet);
         return;
     }
 
     unsigned int cc_payload_len = cc_chunk->data[7] - 0x02;
     if (cc_payload_len + 8 != cc_chunk->length - 2) {
-        fmt::print(stderr, "debug - cc2540 invalid payload length ({} != {})\n", cc_payload_len + 8, cc_chunk->length - 2);
+        // fmt::print(stderr, "debug - cc2540 invalid payload length ({} != {})\n", cc_payload_len + 8, cc_chunk->length - 2);
         delete(packet);
         return;
     }
