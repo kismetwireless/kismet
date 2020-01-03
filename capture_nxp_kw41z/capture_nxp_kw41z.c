@@ -180,7 +180,6 @@ int nxp_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t chan) {
 
         // chan 37 by default
         uint8_t cmd_3[7] = {0x02, 0x4E, 0x02, 0x01, 0x00, 0x01, 0x4C};
-        uint8_t rep_3[7] = {0x02, 0x4E, 0x01, 0x01, 0x00, 0x00, 0x4E};
         if (chan == 38) {
             cmd_3[5] = 0x02;
             cmd_3[6] = 0x4F;
