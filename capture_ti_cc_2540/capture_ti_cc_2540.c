@@ -245,13 +245,13 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     return 1;
 }
 
-int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
-        char *msg, cf_params_list_interface_t ***interfaces) {
+int list_callback(kis_capture_handler_t *caph, uint32_t seqno, char *msg,
+                  cf_params_list_interface_t ***interfaces) {
     /* Basic list of devices */
     typedef struct ticc2540_list {
         char *device;
         struct ticc2540_list *next;
-    } ticc2540_list_t; 
+    } ticc2540_list_t;
 
     ticc2540_list_t *devs = NULL;
     size_t num_devs = 0;
@@ -265,9 +265,11 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
     pthread_mutex_lock(&(localticc2540->usb_mutex));
     libusb_devices_cnt = libusb_get_device_list(localticc2540->libusb_ctx, &libusb_devs);
     pthread_mutex_unlock(&(localticc2540->usb_mutex));
+
     if (libusb_devices_cnt < 0) {
         return 0;
     }
+
     pthread_mutex_lock(&(localticc2540->usb_mutex));
     for (ssize_t i = 0; i < libusb_devices_cnt; i++) {
         struct libusb_device_descriptor dev;
@@ -279,9 +281,8 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
         }
 
         if (dev.idVendor == TICC2540_USB_VENDOR && dev.idProduct == TICC2540_USB_PRODUCT) {
-            snprintf(devname, 32, "ticc2540-%u-%u",
-                libusb_get_bus_number(libusb_devs[i]),
-                libusb_get_device_address(libusb_devs[i]));
+            snprintf(devname, 32, "ticc2540-%u-%u", libusb_get_bus_number(libusb_devs[i]),
+                     libusb_get_device_address(libusb_devs[i]));
 
             ticc2540_list_t *d = (ticc2540_list_t *) malloc(sizeof(ticc2540_list_t));
             num_devs++;
@@ -290,21 +291,24 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
             devs = d;
         }
     }
+
     libusb_free_device_list(libusb_devs, 1);
     pthread_mutex_unlock(&(localticc2540->usb_mutex));
+
     if (num_devs == 0) {
         *interfaces = NULL;
         return 0;
     }
 
-    *interfaces = 
+    *interfaces =
         (cf_params_list_interface_t **) malloc(sizeof(cf_params_list_interface_t *) * num_devs);
 
     i = 0;
 
     while (devs != NULL) {
         ticc2540_list_t *td = devs->next;
-        (*interfaces)[i] = (cf_params_list_interface_t *) malloc(sizeof(cf_params_list_interface_t));
+        (*interfaces)[i] =
+            (cf_params_list_interface_t *) malloc(sizeof(cf_params_list_interface_t));
         memset((*interfaces)[i], 0, sizeof(cf_params_list_interface_t));
 
         (*interfaces)[i]->interface = devs->device;
@@ -316,6 +320,7 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
 
         i++;
     }
+
     return num_devs;
 }
 
@@ -495,9 +500,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     r = libusb_set_configuration(localticc2540->ticc2540_handle, 1);
     if (r < 0) {
-        printf("set config %d\n", r);
-        snprintf(errstr, STATUS_MAX, "Unable to open ticc2540 USB interface; could not "
-                "set USB configuration: %s", libusb_strerror((enum libusb_error) r));
+        snprintf(errstr, STATUS_MAX,
+                 "Unable to open ticc2540 USB interface; could not set USB configuration.  Has "
+                 "your device been flashed with the sniffer firmware?");
         pthread_mutex_unlock(&(localticc2540->usb_mutex));
         return -1;
     }
@@ -534,8 +539,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
     return ret_localchan;
 }
 
-int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *privchan,
-        char *msg) {
+int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *privchan, char *msg) {
     local_ticc2540_t *localticc2540 = (local_ticc2540_t *) caph->userdata;
     local_channel_t *channel = (local_channel_t *) privchan;
     int r;
