@@ -476,6 +476,15 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
     }
 
+    r = libusb_set_configuration(localticc2540->ticc2540_handle, 1);
+    if (r < 0) {
+        snprintf(errstr, STATUS_MAX,
+                 "Unable to open ticc2540 USB interface; could not set USB configuration.  Has "
+                 "your device been flashed with the sniffer firmware?");
+        pthread_mutex_unlock(&(localticc2540->usb_mutex));
+        return -1;
+    }
+
     /* Try to claim it */
     r = libusb_claim_interface(localticc2540->ticc2540_handle, 0);
     if (r < 0) {
@@ -495,15 +504,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             pthread_mutex_unlock(&(localticc2540->usb_mutex));
             return -1;
         }
-    }
-
-    r = libusb_set_configuration(localticc2540->ticc2540_handle, 1);
-    if (r < 0) {
-        snprintf(errstr, STATUS_MAX,
-                 "Unable to open ticc2540 USB interface; could not set USB configuration.  Has "
-                 "your device been flashed with the sniffer firmware?");
-        pthread_mutex_unlock(&(localticc2540->usb_mutex));
-        return -1;
     }
    
     pthread_mutex_unlock(&(localticc2540->usb_mutex));
