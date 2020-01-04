@@ -171,7 +171,7 @@ int mac80211_create_monitor_vif(const char *interface, const char *newinterface,
     int nl80211_id;
 
     struct nl_msg *msg;
-    struct nl_msg *flags;
+    struct nl_msg *flags = NULL;
 
     unsigned int x;
 
@@ -244,13 +244,17 @@ nla_put_failure:
                 interface, newinterface);
         nl_socket_free(nl_sock);
         nlmsg_free(msg);
-        nlmsg_free(flags);
+
+        if (flags != NULL)
+            nlmsg_free(flags);
         return -1;
     }
 
     nl_socket_free(nl_sock);
     nlmsg_free(msg);
-    nlmsg_free(flags);
+
+    if (flags != NULL)
+        nlmsg_free(flags);
 
     if (if_nametoindex(newinterface) <= 0) {
         snprintf(errstr, STATUS_MAX, 
