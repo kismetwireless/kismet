@@ -70,6 +70,10 @@
 
 #include <time.h>
 
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <semaphore.h>
+
 #include "../config.h"
 
 #include "nl80211.h"
@@ -98,6 +102,9 @@ typedef struct {
     char *interface;
     char *cap_interface;
     char *name;
+
+    /* inter-process semaphore for computing interfaces during open */
+    sem_t *interface_sem;
 
     int datalink_type;
     int override_dlt;
@@ -609,13 +616,6 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
         free(iw_chanlist);
 
         *chanlist_sz = chan_sz;
-    } else {
-        /*
-        fprintf(stderr, "debug - linux wifi %s got channel list: \n", interface);
-        for (unsigned int i = 0; i < *chanlist_sz; i++) {
-            fprintf(stderr, "debug -     %s\n", (*chanlist)[i]);
-        }
-        */
     }
 
     return 1;
@@ -1396,6 +1396,19 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
      * If we're not in monitor and we're vif capable, we need to find an existing vif or make one
      * If we're not in monitor and we're legacy, we need to set iwmode
      */
+
+    /* ********* 
+     * Begin semaphore protected area 
+     * All returns or exits from this code must unlock the interface semaphore!
+     * ********** */
+
+    /* If we have a semaphore, acquire a lock; w eneed to be the only ones manipulating
+     * interface names.  For now we'll be tolerant of situations where we don't
+     * have it. */
+    if (local_wifi->interface_sem != NULL) {
+        sem_wait(local_wifi->interface_sem);
+    } 
+
     if (mode != LINUX_WLEXT_MONITOR) {
         int existing_ifnum;
 
@@ -1436,6 +1449,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 ifnum = find_next_ifnum("kismon");
 
                 if (ifnum < 0) {
+                    /* Close the sem if it's open */
+                    if (local_wifi->interface_sem != NULL) {
+                        sem_post(local_wifi->interface_sem);
+                        sem_close(local_wifi->interface_sem);
+                        local_wifi->interface_sem = NULL;
+                    }
+
                     snprintf(msg, STATUS_MAX, "%s could not append 'mon' extension to "
                             "existing interface (%s) and could not find a kismonX "
                             "within 100 tries", local_wifi->name, local_wifi->interface);
@@ -1479,6 +1499,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
         if (ret < 0) {
             if (iwconfig_get_mode(local_wifi->interface, errstr, &mode) < 0) {
+                /* Close the sem if it's open */
+                if (local_wifi->interface_sem != NULL) {
+                    sem_post(local_wifi->interface_sem);
+                    sem_close(local_wifi->interface_sem);
+                    local_wifi->interface_sem = NULL;
+                }
+
                 snprintf(msg, STATUS_MAX, "%s unable to get current wireless mode of "
                         "interface '%s': %s", local_wifi->name, local_wifi->interface, errstr);
                 return -1;
@@ -1528,11 +1555,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         flags = (unsigned int *) malloc(sizeof(unsigned int) * num_flags);
 
         fi = 0;
-#if 0
-        /* We always set these */
-        flags[fi++] = NL80211_MNTR_FLAG_CONTROL;
-        flags[fi++] = NL80211_MNTR_FLAG_OTHER_BSS;
-#endif
 
         if (fcs)
             flags[fi++] = NL80211_MNTR_FLAG_FCSFAIL;
@@ -1543,6 +1565,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         /* Try to make the monitor vif */
         if (mac80211_create_monitor_vif(local_wifi->interface, local_wifi->cap_interface, flags, 
                     num_flags, errstr) < 0) {
+
             /* Send an error message */
             snprintf(errstr2, STATUS_MAX, "%s failed to create monitor vif interface '%s' "
                     "for interface '%s': %s", 
@@ -1565,6 +1588,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 local_wifi->nexmon = init_nexmon(local_wifi->interface);
 
                 if (local_wifi->nexmon == NULL) {
+                    /* Close the sem if it's open */
+                    if (local_wifi->interface_sem != NULL) {
+                        sem_post(local_wifi->interface_sem);
+                        sem_close(local_wifi->interface_sem);
+                        local_wifi->interface_sem = NULL;
+                    }
+
                     snprintf(msg, STATUS_MAX, "%s interface '%s' looks like a Broadcom "
                             "embedded device but could not be initialized:  You MUST install "
                             "the nexmon patched drivers to use this device with Kismet",
@@ -1574,6 +1604,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
                 /* Nexmon needs the interface UP to place it into monitor mode properly.  Weird! */
                 if (ifconfig_interface_up(local_wifi->cap_interface, errstr) != 0) {
+                    /* Close the sem if it's open */
+                    if (local_wifi->interface_sem != NULL) {
+                        sem_post(local_wifi->interface_sem);
+                        sem_close(local_wifi->interface_sem);
+                        local_wifi->interface_sem = NULL;
+                    }
+
                     snprintf(msg, STATUS_MAX, "%s could not bring up capture interface '%s', "
                             "check 'dmesg' for possible errors while loading firmware: %s",
                             local_wifi->name, local_wifi->cap_interface, errstr);
@@ -1581,6 +1618,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 }
 
                 if (nexmon_monitor(local_wifi->nexmon) < 0) {
+                    /* Close the sem if it's open */
+                    if (local_wifi->interface_sem != NULL) {
+                        sem_post(local_wifi->interface_sem);
+                        sem_close(local_wifi->interface_sem);
+                        local_wifi->interface_sem = NULL;
+                    }
+
                     snprintf(msg, STATUS_MAX, "%s could not place interface '%s' into monitor mode "
                             "via nexmon drivers; you MUST install the patched nexmon drivers to "
                             "use embedded broadcom interfaces with Kismet", local_wifi->name, local_wifi->interface);
@@ -1590,6 +1634,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             } else {
                 /* Otherwise do we look like wext? */
                 if (ifconfig_interface_down(local_wifi->interface, errstr) != 0) {
+                    /* Close the sem if it's open */
+                    if (local_wifi->interface_sem != NULL) {
+                        sem_post(local_wifi->interface_sem);
+                        sem_close(local_wifi->interface_sem);
+                        local_wifi->interface_sem = NULL;
+                    }
+
                     snprintf(msg, STATUS_MAX, "%s could not bring down interface "
                             "'%s' to set monitor mode: %s", 
                             local_wifi->name, local_wifi->interface, errstr);
@@ -1599,6 +1650,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
                 if (iwconfig_set_mode(local_wifi->interface, errstr, 
                             LINUX_WLEXT_MONITOR) < 0) {
+                    /* Close the sem if it's open */
+                    if (local_wifi->interface_sem != NULL) {
+                        sem_post(local_wifi->interface_sem);
+                        sem_close(local_wifi->interface_sem);
+                        local_wifi->interface_sem = NULL;
+                    }
+
                     snprintf(errstr2, STATUS_MAX, "%s failed to put interface '%s' in monitor mode: %s", 
                             local_wifi->name, local_wifi->interface, errstr);
                     cf_send_message(caph, errstr2, MSGFLAG_ERROR);
@@ -1631,6 +1689,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     } else if (mode != LINUX_WLEXT_MONITOR) {
         /* Otherwise we want monitor mode but we don't have nl / found the same vif */
         if (ifconfig_interface_down(local_wifi->interface, errstr) != 0) {
+            /* Close the sem if it's open */
+            if (local_wifi->interface_sem != NULL) {
+                sem_post(local_wifi->interface_sem);
+                sem_close(local_wifi->interface_sem);
+                local_wifi->interface_sem = NULL;
+            }
+
             snprintf(msg, STATUS_MAX, "%s could not bring down interface "
                     "'%s' to set monitor mode: %s", 
                     local_wifi->name, local_wifi->interface, errstr);
@@ -1644,6 +1709,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             local_wifi->nexmon = init_nexmon(local_wifi->interface);
 
             if (local_wifi->nexmon == NULL) {
+                /* Close the sem if it's open */
+                if (local_wifi->interface_sem != NULL) {
+                    sem_post(local_wifi->interface_sem);
+                    sem_close(local_wifi->interface_sem);
+                    local_wifi->interface_sem = NULL;
+                }
+
                 snprintf(msg, STATUS_MAX, "%s interface '%s' looks like a Broadcom "
                         "embedded device but could not be initialized:  You MUST install "
                         "the nexmon patched drivers to use this device with Kismet",
@@ -1653,6 +1725,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
             /* Nexmon needs the interface UP to place it into monitor mode properly.  Weird! */
             if (ifconfig_interface_up(local_wifi->cap_interface, errstr) != 0) {
+                /* Close the sem if it's open */
+                if (local_wifi->interface_sem != NULL) {
+                    sem_post(local_wifi->interface_sem);
+                    sem_close(local_wifi->interface_sem);
+                    local_wifi->interface_sem = NULL;
+                }
+
                 snprintf(msg, STATUS_MAX, "%s could not bring up capture interface '%s', "
                         "check 'dmesg' for possible errors while loading firmware: %s",
                         local_wifi->name, local_wifi->cap_interface, errstr);
@@ -1660,6 +1739,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             }
 
             if (nexmon_monitor(local_wifi->nexmon) < 0) {
+                /* Close the sem if it's open */
+                if (local_wifi->interface_sem != NULL) {
+                    sem_post(local_wifi->interface_sem);
+                    sem_close(local_wifi->interface_sem);
+                    local_wifi->interface_sem = NULL;
+                }
+
                 snprintf(msg, STATUS_MAX, "%s could not place interface '%s' into monitor mode "
                         "via nexmon drivers; you MUST install the patched nexmon drivers to "
                         "use embedded broadcom interfaces with Kismet", 
@@ -1667,6 +1753,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 return -1;
             }
         } else if (iwconfig_set_mode(local_wifi->interface, errstr, LINUX_WLEXT_MONITOR) < 0) {
+            /* Close the sem if it's open */
+            if (local_wifi->interface_sem != NULL) {
+                sem_post(local_wifi->interface_sem);
+                sem_close(local_wifi->interface_sem);
+                local_wifi->interface_sem = NULL;
+            }
+
             /* Otherwise we're some sort of non-vif wext? */
             snprintf(errstr2, STATUS_MAX, "%s %s failed to put interface '%s' in monitor mode: %s", 
                     local_wifi->name, local_wifi->cap_interface, local_wifi->interface, errstr);
@@ -1689,7 +1782,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         } else {
             snprintf(errstr, STATUS_MAX, "%s monitor interface '%s' already exists for "
                     "capture interface '%s', we'll use that.",
-                    local_wifi->name, local_wifi->interface, local_wifi->cap_interface);
+                    local_wifi->name, local_wifi->cap_interface, local_wifi->interface);
         }
 
         cf_send_message(caph, errstr, MSGFLAG_INFO);
@@ -1710,6 +1803,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
             /* Alias the netlink mode to the legacy mode */
             if (nl_mode > 0 && nl_mode != NL80211_IFTYPE_MONITOR) {
+                /* Close the sem if it's open */
+                if (local_wifi->interface_sem != NULL) {
+                    sem_post(local_wifi->interface_sem);
+                    sem_close(local_wifi->interface_sem);
+                    local_wifi->interface_sem = NULL;
+                }
+
                 snprintf(msg, STATUS_MAX, "%s capture interface '%s' did not enter monitor "
                         "mode, something is wrong.", local_wifi->name, local_wifi->cap_interface);
                 return -1;
@@ -1718,6 +1818,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
         if (ret < 0) {
             if (iwconfig_get_mode(local_wifi->interface, errstr, &mode) < 0) {
+                /* Close the sem if it's open */
+                if (local_wifi->interface_sem != NULL) {
+                    sem_post(local_wifi->interface_sem);
+                    sem_close(local_wifi->interface_sem);
+                    local_wifi->interface_sem = NULL;
+                }
+
                 snprintf(msg, STATUS_MAX, "%s capture interface '%s' did not enter monitor "
                         "mode, something is wrong.", local_wifi->name, local_wifi->cap_interface);
                 return -1;
@@ -1748,6 +1855,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             cf_send_message(caph, errstr2, MSGFLAG_INFO);
 
             if (ifconfig_interface_down(local_wifi->interface, errstr) != 0) {
+                /* Close the sem if it's open */
+                if (local_wifi->interface_sem != NULL) {
+                    sem_post(local_wifi->interface_sem);
+                    sem_close(local_wifi->interface_sem);
+                    local_wifi->interface_sem = NULL;
+                }
+
                 snprintf(msg, STATUS_MAX, "%s could not bring down parent interface "
                         "'%s' to capture using '%s': %s", 
                         local_wifi->name, local_wifi->interface, local_wifi->cap_interface, errstr);
@@ -1795,7 +1909,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         g_object_unref(nmclient);
 #endif
 
-
     /* fprintf(stderr, "debug - bringing up cap interface %s to capture\n", local_wifi->cap_interface); */
 
     /* Bring up the cap interface no matter what */
@@ -1805,6 +1918,16 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 local_wifi->name, local_wifi->cap_interface, errstr);
         return -1;
     }
+
+    /* Unlock and close the sem if it's open */
+    if (local_wifi->interface_sem != NULL) {
+        sem_post(local_wifi->interface_sem);
+        sem_close(local_wifi->interface_sem);
+        local_wifi->interface_sem = NULL;
+    }
+
+    /* ********* End semaphore protected area ********** */
+
 
     /* Do we exclude HT or VHT channels?  Equally, do we force them to be turned on? */
     if ((placeholder_len = 
@@ -1853,20 +1976,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     (*ret_interface)->hardware = strdup(driver);
-
-#if 0
-    /* Get the iw regdom and see if it makes sense */
-    if (linux_sys_get_regdom(regdom) == 0) {
-        if (strcmp(regdom, "00") == 0) {
-            snprintf(errstr, STATUS_MAX, "%s system-wide wireless regulatory domain "
-                    "is set to '00'; this can cause problems setting channels.  If "
-                    "you encounter problems, set the regdom with a command like "
-                    "'sudo iw reg set US' or whatever country is appropriate for "
-                    "your location.", local_wifi->name);
-            cf_send_warning(caph, errstr);
-        }
-    }
-#endif
 
     /* Open the pcap */
     local_wifi->pd = pcap_open_live(local_wifi->cap_interface, 
@@ -2128,12 +2237,93 @@ void capture_thread(kis_capture_handler_t *caph) {
     cf_handler_spindown(caph);
 }
 
+int acquire_semaphore(local_wifi_t *local_wifi) {
+    /* Try to acquire a Linux shm semaphore; because we can't be positive a previous
+     * iteration didn't somehow crash and die and we can't risk leaving the system in 
+     * a totally deadlocked state, we jump through some stupid hoops:
+     *
+     * 1. Acquire/create a semaphore
+     * 2. Try to lock it, with a time limit of 5 seconds.  We're going to assume that
+     *    if it doesn't come up in 5 seconds, something really stupid has happened.
+     *    If we DO acquire the lock, immediately *unlock* it, and continue.
+     * 3. Unlink the semaphore
+     * 4. Close the semaphore we opened
+     * 5. Try again
+     *
+     * We can try this up to 3 times.
+     */
+
+    unsigned int sem_try = 0;
+
+    struct timeval tv_now;
+    struct timeval tv_then;
+
+    struct timeval tv_amt = {
+        .tv_sec = 5,
+        .tv_usec = 0
+    };
+
+    struct timespec ts_abs;
+
+    int r;
+
+    for (sem_try = 0; sem_try < 4; sem_try++) {
+        local_wifi->interface_sem = 
+            sem_open("/kismet_cap_linux_wifi-ifname", O_CREAT, 0600, 1);
+
+        if (local_wifi->interface_sem == NULL) {
+            fprintf(stderr, "FATAL: kismet_cap_linux_wifi couldn't open a shared "
+                    "semaphore: %s\n", strerror(errno));
+            return -1;
+        }
+
+        /* Set up the time to wait */
+        gettimeofday(&tv_now, NULL);
+        timeradd(&tv_now, &tv_amt, &tv_then);
+
+        ts_abs.tv_sec = tv_then.tv_sec;
+        ts_abs.tv_nsec = tv_then.tv_usec * 1000;
+
+        r = sem_timedwait(local_wifi->interface_sem, &ts_abs);
+
+        if (r < 0) {
+            fprintf(stderr, "WARNING: kismet_cap_linux_wifi couldn't obtain a lock on the "
+                    "shared interface semaphore in 5 seconds (%s); assuming the semaphore is "
+                    "invalid and recreating it.\n", strerror(errno));
+
+            r = sem_unlink("/kismet_cap_linux_wifi-ifname");
+
+            if (r < 0) { 
+                fprintf(stderr, "FATAL: kismet_cap_linux_wifi couldn't unlink damaged "
+                        "semaphore (%s); you can try removing this manually via 'sudo rm "
+                        "/dev/shm/*kismet_cap_linux_wifi-ifname*'.", strerror(errno));
+                return -1;
+            }
+
+            sem_close(local_wifi->interface_sem);
+            continue;
+        }
+
+        /* If we got here we're good to go, unlock the semaphore and go about our
+         * business. */
+        sem_post(local_wifi->interface_sem);
+
+        return 1;
+    }
+
+    fprintf(stderr, "FATAL: kismet_cap_linux_wifi couldn't obtain a valid shared semaphore "
+            "to protect interface naming in 3 attempts.\n");
+
+    return -1;
+}
+
 int main(int argc, char *argv[]) {
     local_wifi_t local_wifi = {
         .pd = NULL,
         .interface = NULL,
         .cap_interface = NULL,
         .name = NULL,
+        .interface_sem = NULL,
         .datalink_type = -1,
         .override_dlt = -1,
         .use_mac80211_vif = 1,
@@ -2157,14 +2347,6 @@ int main(int argc, char *argv[]) {
     int i;
 #endif
 
-#if 0
-    /* Remap stderr so we can log debugging to a file */
-    FILE *sterr;
-    sterr = fopen("/tmp/capture_linux_wifi.stderr", "a");
-    dup2(fileno(sterr), STDERR_FILENO);
-    dup2(fileno(sterr), STDOUT_FILENO);
-#endif
-
     /* fprintf(stderr, "CAPTURE_LINUX_WIFI launched on pid %d\n", getpid()); */
 
     kis_capture_handler_t *caph = cf_handler_init("linuxwifi");
@@ -2174,6 +2356,10 @@ int main(int argc, char *argv[]) {
                 "is very low on RAM or something is wrong.\n");
         return -1;
     }
+
+    /* Obtain the linux shm semaphore early on, and it's vital we do so */
+    if (acquire_semaphore(&local_wifi) < 0)
+        return -1;
 
     /* Set the local data ptr */
     cf_handler_set_userdata(caph, &local_wifi);
