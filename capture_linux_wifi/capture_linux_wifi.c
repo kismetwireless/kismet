@@ -1271,7 +1271,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         local_wifi->use_mac80211_vif = 0;
     } else if (strcmp(driver, "rtl88x2bu") == 0) {
         snprintf(errstr, STATUS_MAX, "%s interface '%s' looks to use the rtl88x2bu driver, "
-                "these drivers may have reliability problems, and do not work with VIFs."
+                "these drivers may have reliability problems, and do not work with VIFs.  "
                 "We'll continue, but there may be errors.", 
                 local_wifi->name, local_wifi->interface);
         cf_send_warning(caph, errstr);
@@ -1646,7 +1646,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                             local_wifi->interface_sem = NULL;
                         }
 
-                        snprintf(msg, STATUS_MAX, "%s could not bring down interface "
+                        snprintf(msg, STATUS_MAX, "%s could not bring up interface "
                                 "'%s' to set monitor mode: %s", 
                                 local_wifi->name, local_wifi->interface, errstr);
                         free(flags);
@@ -1709,18 +1709,34 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         free(flags);
     } else if (mode != LINUX_WLEXT_MONITOR) {
         /* Otherwise we want monitor mode but we don't have nl / found the same vif */
-        if (ifconfig_interface_down(local_wifi->interface, errstr) != 0) {
-            /* Close the sem if it's open */
-            if (local_wifi->interface_sem != NULL) {
-                sem_post(local_wifi->interface_sem);
-                sem_close(local_wifi->interface_sem);
-                local_wifi->interface_sem = NULL;
-            }
+        if (local_wifi->up_before_mode) {
+            if (ifconfig_interface_up(local_wifi->interface, errstr) != 0) {
+                /* Close the sem if it's open */
+                if (local_wifi->interface_sem != NULL) {
+                    sem_post(local_wifi->interface_sem);
+                    sem_close(local_wifi->interface_sem);
+                    local_wifi->interface_sem = NULL;
+                }
 
-            snprintf(msg, STATUS_MAX, "%s could not bring down interface "
-                    "'%s' to set monitor mode: %s", 
-                    local_wifi->name, local_wifi->interface, errstr);
-            return -1;
+                snprintf(msg, STATUS_MAX, "%s could not bring up interface "
+                        "'%s' to set monitor mode: %s", 
+                        local_wifi->name, local_wifi->interface, errstr);
+                return -1;
+            }
+        } else {
+            if (ifconfig_interface_down(local_wifi->interface, errstr) != 0) {
+                /* Close the sem if it's open */
+                if (local_wifi->interface_sem != NULL) {
+                    sem_post(local_wifi->interface_sem);
+                    sem_close(local_wifi->interface_sem);
+                    local_wifi->interface_sem = NULL;
+                }
+
+                snprintf(msg, STATUS_MAX, "%s could not bring down interface "
+                        "'%s' to set monitor mode: %s", 
+                        local_wifi->name, local_wifi->interface, errstr);
+                return -1;
+            }
         }
 
         if (strcmp(driver, "brcmfmac") == 0 || strcmp(driver, "brcmfmac_sdio") == 0) {
@@ -1813,7 +1829,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     local_wifi->mac80211_ifidx = if_nametoindex(local_wifi->cap_interface);
     if (local_wifi->mac80211_ifidx > 0) {
         ret = -1;
-        if (local_wifi->mac80211_socket != NULL) {
+        if (local_wifi->mac80211_socket != NULL && local_wifi->use_mac80211_vif) {
             uint32_t nl_mode = 0;
 
             ret = mac80211_get_iftype_cache(local_wifi->mac80211_ifidx, local_wifi->mac80211_socket,
