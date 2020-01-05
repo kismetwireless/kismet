@@ -38,7 +38,7 @@ public:
     static void decodeblock(unsigned char *in, unsigned char *out);
 
     // Encode a string to base64
-    std::string encode(const std::string& in_str);
+    static std::string encode(const std::string& in_str);
 
 protected:
     const static char b64_values[];
