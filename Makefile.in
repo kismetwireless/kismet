@@ -557,9 +557,9 @@ release-%:
 	@echo $*
 	@git checkout -b kismet-`echo $* | cut -d- -f1,2`
 	@git submodule update --remote docs/
-	@git commit docs -m "Doc update for $*\n\nUpdate docs submodule for release $*"
+	@git commit docs -m "Doc update for $*" -m "Update docs submodule for release $*"
 	@./tools/make_version_h.py $* > version.h
-	@git commit version.h -m "Version bump for $*\n\nBump versioning for release $*"
+	@git commit version.h -m "Version bump for $*" -m "Bump versioning for release $*"
 	@git tag kismet-$*
 	@git archive --format tar --prefix kismet-$*/ kismet-$* | xz > ../kismet-$*.tar.xz
 	@git push origin kismet-`echo $* | cut -d- -f1,2` --tags
