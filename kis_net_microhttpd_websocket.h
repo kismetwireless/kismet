@@ -24,24 +24,24 @@
 #include "kis_net_microhttpd_handlers.h"
 #include "pollable.h"
 
-class Kis_Net_Httpd_Websocket_Pollable : public Pollable {
+class kis_net_httpd_websocket_pollable : public kis_pollable {
 public:
-    Kis_Net_Httpd_Websocket_Pollable();
-    virtual ~Kis_Net_Httpd_Websocket_Pollable();
+    kis_net_httpd_websocket_pollable();
+    virtual ~kis_net_httpd_websocket_pollable();
 
-    virtual void SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
+    virtual void set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
 
-    virtual void SetHandler(std::shared_ptr<BufferHandlerGeneric> in_handler);
-    virtual void SetConnection(MHD_socket in_socket, struct MHD_UpgradeResponseHandle *in_urh);
+    virtual void set_handler(std::shared_ptr<buffer_handler_generic> in_handler);
+    virtual void set_connection(MHD_socket in_socket, struct MHD_UpgradeResponseHandle *in_urh);
 
-    void Disconnect();
+    void disconnect();
 
     // Pollable interface
-    virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) override;
-    virtual int Poll(fd_set& in_rset, fd_set& in_wset) override;
+    virtual int pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset) override;
+    virtual int pollable_poll(fd_set& in_rset, fd_set& in_wset) override;
 
 protected:
-    std::shared_ptr<BufferHandlerGeneric> handler;
+    std::shared_ptr<buffer_handler_generic> handler;
 
     std::shared_ptr<kis_recursive_timed_mutex> websocket_mutex;
 
@@ -51,43 +51,43 @@ protected:
 
 // Control state for a websocket, contains the pollable socket, original connection,
 // matched protocol, and so on
-class Kis_Net_Httpd_Websocket_State {
+class kis_net_httpd_websocket_state {
 public:
-    Kis_Net_Httpd_Websocket_State() :
+    kis_net_httpd_websocket_state() :
         ws_pollable {nullptr},
         ws_mhd_urh {nullptr},
         ws_socket {-1} { }
 
-    std::function<void (Kis_Net_Httpd_Websocket_State *)> connect_cb;
+    std::function<void (kis_net_httpd_websocket_state *)> connect_cb;
 
-    std::shared_ptr<Kis_Net_Httpd_Websocket_Pollable> ws_pollable;
+    std::shared_ptr<kis_net_httpd_websocket_pollable> ws_pollable;
     MHD_UpgradeResponseHandle *ws_mhd_urh;
     MHD_socket ws_socket;
 };
 
 // Websocket handler to handle an upgrade and handshake on a ws:// URI and then
 // create a pollable object
-class Kis_Net_Httpd_Websocket_Handler : public Kis_Net_Httpd_Handler {
+class kis_net_httpd_websocket_handler : public kis_net_httpd_handler {
 public:
-    Kis_Net_Httpd_Websocket_Handler() : Kis_Net_Httpd_Handler() { }
-    virtual ~Kis_Net_Httpd_Websocket_Handler();
+    kis_net_httpd_websocket_handler() : kis_net_httpd_handler() { }
+    virtual ~kis_net_httpd_websocket_handler();
 
-    virtual int Httpd_HandleGetRequest(Kis_Net_Httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+    virtual int httpd_handle_get_request(kis_net_httpd *httpd,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) override;
 
     // Can this handler process this request?
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) override = 0;
+    virtual bool httpd_verify_path(const char *path, const char *method) override = 0;
 
 protected:
     // Perform a websocket upgrade (returning true) to the connection; 
     // If the upgrade fails, the connection is errored out and , or fail to upgrade,
     // push the error to the connection, and return false
-    bool Httpd_Websocket_Upgrade(Kis_Net_Httpd_Connection *connection);
+    bool httpd_websocket_upgrade(kis_net_httpd_connection *connection);
 
     std::vector<std::string> ws_protocols;
-    std::function<void (Kis_Net_Httpd_Websocket_State *)> ws_establish_cb;
+    std::function<void (kis_net_httpd_websocket_state *)> ws_establish_cb;
 };
 
 #endif /* ifndef KIS_NET_MICROHTTPD_WEBSOCKET_H */

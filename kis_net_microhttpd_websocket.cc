@@ -23,17 +23,17 @@
 #include "sha1.h"
 #include "util.h"
 
-Kis_Net_Httpd_Websocket_Pollable::Kis_Net_Httpd_Websocket_Pollable() :
+kis_net_httpd_websocket_pollable::kis_net_httpd_websocket_pollable() :
     handler {nullptr},
     websocket_mutex {std::make_shared<kis_recursive_timed_mutex>()},
     socket {-1},
     urh {nullptr} { }
 
-Kis_Net_Httpd_Websocket_Pollable::~Kis_Net_Httpd_Websocket_Pollable() {
-    Disconnect();
+kis_net_httpd_websocket_pollable::~kis_net_httpd_websocket_pollable() {
+    disconnect();
 }
 
-void Kis_Net_Httpd_Websocket_Pollable::SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
+void kis_net_httpd_websocket_pollable::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
     local_locker l(websocket_mutex);
 
     if (in_parent != nullptr)
@@ -42,18 +42,18 @@ void Kis_Net_Httpd_Websocket_Pollable::SetMutex(std::shared_ptr<kis_recursive_ti
         websocket_mutex = std::make_shared<kis_recursive_timed_mutex>();
 }
 
-void Kis_Net_Httpd_Websocket_Pollable::SetHandler(std::shared_ptr<BufferHandlerGeneric> in_handler) {
+void kis_net_httpd_websocket_pollable::set_handler(std::shared_ptr<buffer_handler_generic> in_handler) {
     local_locker l(websocket_mutex);
     handler = in_handler;
 }
 
-void Kis_Net_Httpd_Websocket_Pollable::SetConnection(MHD_socket in_sock, struct MHD_UpgradeResponseHandle *in_urh) {
+void kis_net_httpd_websocket_pollable::set_connection(MHD_socket in_sock, struct MHD_UpgradeResponseHandle *in_urh) {
     local_locker l(websocket_mutex);
     socket = in_sock;
     urh = in_urh;
 }
 
-void Kis_Net_Httpd_Websocket_Pollable::Disconnect() {
+void kis_net_httpd_websocket_pollable::disconnect() {
     local_locker l(websocket_mutex);
 
     if (urh != nullptr) {
@@ -64,7 +64,7 @@ void Kis_Net_Httpd_Websocket_Pollable::Disconnect() {
     }
 }
 
-int Kis_Net_Httpd_Websocket_Pollable::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
+int kis_net_httpd_websocket_pollable::pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     local_locker l(websocket_mutex);
 
     if (socket < 0)
@@ -73,16 +73,16 @@ int Kis_Net_Httpd_Websocket_Pollable::MergeSet(int in_max_fd, fd_set *out_rset, 
     if (handler == nullptr)
         return in_max_fd;
 
-    if (handler->GetWriteBufferUsed()) {
+    if (handler->get_write_buffer_used()) {
         FD_SET(socket, out_wset);
     }
 
-    if (handler->GetReadBufferAvailable()) {
+    if (handler->get_read_buffer_available()) {
         FD_SET(socket, out_rset);
     }
 
     // If we have data waiting to be written, fill it in
-    if (handler->GetWriteBufferUsed()) {
+    if (handler->get_write_buffer_used()) {
         FD_SET(socket, out_wset);
     }
 
@@ -92,14 +92,14 @@ int Kis_Net_Httpd_Websocket_Pollable::MergeSet(int in_max_fd, fd_set *out_rset, 
     return in_max_fd;
 }
 
-int Kis_Net_Httpd_Websocket_Pollable::Poll(fd_set& in_rset, fd_set& in_wset) {
+int kis_net_httpd_websocket_pollable::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
     // Read from the socket and decode websocket-isms, etc
 
     return 0;
 }
 
 
-bool Kis_Net_Httpd_Websocket_Handler::Httpd_Websocket_Upgrade(Kis_Net_Httpd_Connection *conn) {
+bool kis_net_httpd_websocket_handler::httpd_websocket_upgrade(kis_net_httpd_connection *conn) {
     const char *upgrade_hdr, *connection_hdr, *version_hdr, *protocols_hdr, *key_hdr;
 
     upgrade_hdr = MHD_lookup_connection_value(conn->connection, MHD_HEADER_KIND, MHD_HTTP_HEADER_UPGRADE);
@@ -120,7 +120,7 @@ bool Kis_Net_Httpd_Websocket_Handler::Httpd_Websocket_Upgrade(Kis_Net_Httpd_Conn
         return false;
     }
 
-    if (!FindToken(std::string(connection_hdr), std::string(MHD_HTTP_HEADER_UPGRADE), std::list<char>{' ', '\t', ','})) {
+    if (!find_token(std::string(connection_hdr), std::string(MHD_HTTP_HEADER_UPGRADE), std::list<char>{' ', '\t', ','})) {
         std::string err = "Expected WebSocket upgrade in connection header\n";
         auto response = MHD_create_response_from_buffer(err.length(), (void *) err.c_str(), MHD_RESPMEM_MUST_COPY);
         MHD_queue_response(conn->connection, 400, response);
@@ -139,7 +139,7 @@ bool Kis_Net_Httpd_Websocket_Handler::Httpd_Websocket_Upgrade(Kis_Net_Httpd_Conn
         return false;
     }
 
-    if (StringTo<int>(version_hdr) != 13) {
+    if (string_to_n<int>(version_hdr) != 13) {
         auto response = MHD_create_response_from_buffer(0, NULL, MHD_RESPMEM_PERSISTENT);
         MHD_add_response_header(response, "Sec-WebSocket-Version", "13");
         MHD_queue_response(conn->connection, MHD_HTTP_UPGRADE_REQUIRED, response);
@@ -153,7 +153,7 @@ bool Kis_Net_Httpd_Websocket_Handler::Httpd_Websocket_Upgrade(Kis_Net_Httpd_Conn
     auto ws_proto = std::string();
 
     if (protocols_hdr != nullptr) {
-        auto req_protocols = StrTokenize(std::string(protocols_hdr), std::list<char>{' ', ',', '\t'});
+        auto req_protocols = str_tokenize(std::string(protocols_hdr), std::list<char>{' ', ',', '\t'});
         for (auto p : ws_protocols) {
             for (auto rp : req_protocols) {
                 if (p == rp) {
@@ -176,7 +176,7 @@ bool Kis_Net_Httpd_Websocket_Handler::Httpd_Websocket_Upgrade(Kis_Net_Httpd_Conn
         }
     }
 
-    auto ws_state = new Kis_Net_Httpd_Websocket_State();
+    auto ws_state = new kis_net_httpd_websocket_state();
     ws_state->connect_cb = ws_establish_cb;
 
     auto response = MHD_create_response_for_upgrade(
@@ -187,13 +187,13 @@ bool Kis_Net_Httpd_Websocket_Handler::Httpd_Websocket_Upgrade(Kis_Net_Httpd_Conn
                 size_t extra_in_size,
                 MHD_socket sock,
                 struct MHD_UpgradeResponseHandle *urh) -> void {
-                    auto ws_state = static_cast<Kis_Net_Httpd_Websocket_State *>(cls);
+                    auto ws_state = static_cast<kis_net_httpd_websocket_state *>(cls);
 
                     // Grab the state on completion
                     ws_state->ws_mhd_urh = urh;
                     ws_state->ws_socket = sock;
-                    ws_state->ws_pollable = std::make_shared<Kis_Net_Httpd_Websocket_Pollable>();
-                    ws_state->ws_pollable->SetConnection(sock, urh);
+                    ws_state->ws_pollable = std::make_shared<kis_net_httpd_websocket_pollable>();
+                    ws_state->ws_pollable->set_connection(sock, urh);
 
                     // Callback; this should be responsible for registering the pollable,
                     // linking it to a buffer handler, and so on
@@ -209,7 +209,7 @@ bool Kis_Net_Httpd_Websocket_Handler::Httpd_Websocket_Upgrade(Kis_Net_Httpd_Conn
     SHA1 sha1;
     sha1.update(std::string(key_hdr) + magic_guid);
 
-    auto accept_b64 = Base64::encode(sha1.final());
+    auto accept_b64 = base64::encode(sha1.final());
 
     MHD_add_response_header(response, "Sec-WebSocket-Accept", accept_b64.c_str());
 
