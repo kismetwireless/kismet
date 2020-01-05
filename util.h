@@ -161,8 +161,7 @@ std::string string_append(const std::string& s, const std::string& a, const std:
 int x_to_i(char x);
 int hex_to_uchar(unsigned char *in_hex, unsigned char *in_chr);
 
-
-std::vector<std::string> str_tokenize(std::string& in_str, const std::list<char>& in_split);
+std::vector<std::string> str_tokenize(std::string in_str, const std::list<char>& in_split);
 std::vector<std::string> str_tokenize(const std::string& in_str, const std::string& in_split, 
         int return_partial = 1);
 std::string str_join(const std::vector<std::string>& in_content, const std::string& in_delim, 
@@ -191,7 +190,7 @@ std::vector<std::string> quote_str_tokenize(const std::string& in_str, const std
 
 // Find a complete token w/in a string
 bool find_token(const std::string& str, const std::string& needle, const std::string& split);
-bool find_token(const std::string& str, const std::string& needle, const std::list<char>& splits);
+bool find_token(std::string str, const std::string& needle, const std::list<char>& splits);
 
 int TokenNullJoin(std::string *ret_str, const char **in_list);
 

@@ -280,7 +280,7 @@ std::vector<std::string> str_tokenize(const std::string& in_str, const std::stri
     return ret;
 }
 
-std::vector<std::string> str_tokenize(std::string& in_str, const std::list<char>& in_split) {
+std::vector<std::string> str_tokenize(std::string in_str, const std::list<char>& in_split) {
     auto ret = std::vector<std::string>{};
 
     auto multi_find = 
@@ -307,6 +307,7 @@ std::vector<std::string> str_tokenize(std::string& in_str, const std::list<char>
     return ret;
 }
 
+
 bool find_token(const std::string& str, const std::string& needle, const std::string& split) {
     for (size_t b = 0; b != str.length(); ) {
         auto e = str.find(split, b);
@@ -328,7 +329,7 @@ bool find_token(const std::string& str, const std::string& needle, const std::st
     return false;
 }
 
-bool find_token(std::string& str, const std::string& needle, const std::list<char>& splits) {
+bool find_token(std::string str, const std::string& needle, const std::list<char>& splits) {
     auto multi_find = 
         [](const std::string::iterator& b, const std::string::iterator& e, const std::list<char>& s) -> std::string::iterator {
             return std::find_if(b, e, 
