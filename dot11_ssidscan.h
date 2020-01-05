@@ -83,72 +83,72 @@
  *
  */
 
-class Dot11_SsidScan : public LifetimeGlobal {
+class dot11_ssid_scan : public lifetime_global {
 public:
     static std::string global_name() { return "DOT11_SSIDSCAN"; }
 
-    static std::shared_ptr<Dot11_SsidScan> create_ssidscan() {
-        std::shared_ptr<Dot11_SsidScan> shared(new Dot11_SsidScan());
-        Globalreg::globalreg->RegisterLifetimeGlobal(shared);
-        Globalreg::globalreg->InsertGlobal(global_name(), shared);
+    static std::shared_ptr<dot11_ssid_scan> create_ssidscan() {
+        std::shared_ptr<dot11_ssid_scan> shared(new dot11_ssid_scan());
+        Globalreg::globalreg->register_lifetime_global(shared);
+        Globalreg::globalreg->insert_global(global_name(), shared);
         return shared;
     }
 
 private:
-    Dot11_SsidScan();
+    dot11_ssid_scan();
 
 public:
-    virtual ~Dot11_SsidScan();
+    virtual ~dot11_ssid_scan();
 
 protected:
     kis_recursive_timed_mutex mutex;
 
     // Are we active at all?
-    std::shared_ptr<TrackerElementUInt8> ssidscan_enabled;
+    std::shared_ptr<tracker_element_uint8> ssidscan_enabled;
 
     // Target SSIDs
-    std::shared_ptr<TrackerElementVectorString> target_ssids;
+    std::shared_ptr<tracker_element_vector_string> target_ssids;
 
     // Datasources we use; wanted UUIDs and actual sources
-    std::shared_ptr<TrackerElementVector> ssidscan_datasources_uuids;
-    std::shared_ptr<TrackerElementVector> ssidscan_datasources;
+    std::shared_ptr<tracker_element_vector> ssidscan_datasources_uuids;
+    std::shared_ptr<tracker_element_vector> ssidscan_datasources;
 
     // Do we ignore a target bssid after we think we got a handshake?
-    std::shared_ptr<TrackerElementUInt8> ignore_after_handshake;
+    std::shared_ptr<tracker_element_uint8> ignore_after_handshake;
 
     // Maximum time spent capturing if no free source is in the 'hopping' pool
     // or if there are multiple target bssids
-    std::shared_ptr<TrackerElementUInt32> max_contend_cap_seconds;
+    std::shared_ptr<tracker_element_uint32> max_contend_cap_seconds;
 
     // Minimum time spent hopping looking for targets if no free source is in the 
     // 'locked' pool, even if there are targets in view
-    std::shared_ptr<TrackerElementUInt32> min_scan_seconds;
+    std::shared_ptr<tracker_element_uint32> min_scan_seconds;
 
     // Automatically set the log filters on startup to exclude all devices and 
     // packets except the ones we specify
-    std::shared_ptr<TrackerElementUInt8> initial_log_filters;
+    std::shared_ptr<tracker_element_uint8> initial_log_filters;
 
     // Filter logging; otherwise log all packets (or whatever the user configured)
     // and just manipulate the sources
-    std::shared_ptr<TrackerElementUInt8> filter_logs;
+    std::shared_ptr<tracker_element_uint8> filter_logs;
 
     // Status/config view endp
-    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> dot11_ssidscan_status_endp;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> dot11_ssidscan_status_endp;
 
     // Configure set endp
-    std::shared_ptr<Kis_Net_Httpd_Simple_Post_Endpoint> dot11_ssidscan_config_endp;
+    std::shared_ptr<kis_net_httpd_simple_post_endpoint> dot11_ssidscan_config_endp;
     unsigned int config_endp_handler(std::ostream& stream, const std::string& url,
-            SharedStructured post_structured, Kis_Net_Httpd_Connection::variable_cache_map& variable_cache);
+            shared_structured post_structured, kis_net_httpd_connection::variable_cache_map& variable_cache);
 
     // Reference we hold to the device view we populate with matched devices which may
     // include completed devices
-    std::shared_ptr<DevicetrackerView> target_devices_view;
+    std::shared_ptr<device_tracker_view> target_devices_view;
 
     // Reference we h old to the device view we populate with 'completed' devices that have
     // seen a wpa handshake
-    std::shared_ptr<DevicetrackerView> completed_device_view;
+    std::shared_ptr<device_tracker_view> completed_device_view;
 
-    std::shared_ptr<Timetracker> timetracker;
+    std::shared_ptr<time_tracker> timetracker;
     int hopping_mode_end_timer;
     int capture_mode_end_timer;
 
@@ -158,13 +158,13 @@ protected:
     };
     std::map<int, source_timers> source_id_timer_map;
 
-    // Eventbus subscription for new datasources
-    std::shared_ptr<Eventbus> eventbus;
+    // event_bus subscription for new datasources
+    std::shared_ptr<event_bus> eventbus;
     unsigned long eventbus_id;
-    void handle_eventbus_evt(std::shared_ptr<EventbusEvent> evt);
+    void handle_eventbus_evt(std::shared_ptr<eventbus_event> evt);
 
     // Database log for filtering
-    std::shared_ptr<KisDatabaseLogfile> databaselog;
+    std::shared_ptr<kis_database_logfile> databaselog;
 
     // Saved state for previous filtering and logging
     bool previous_dblog_default_packet;
@@ -173,7 +173,7 @@ protected:
     // Original state for interfaces
     struct datasource_state {
         bool hopping;
-        std::shared_ptr<TrackerElementVector> source_hop_vec;
+        std::shared_ptr<tracker_element_vector> source_hop_vec;
         std::string source_channel;
     };
     std::map<uuid, datasource_state> previous_datasource_hop_map;

@@ -26,35 +26,35 @@
 /* This implements a devicetracker-wide pcapng stream, with optional
  * filtering per specific device key */
 
-class Devicetracker_Httpd_Pcap : public Kis_Net_Httpd_Ringbuf_Stream_Handler {
+class device_tracker_httpd_pcap : public kis_net_httpd_ringbuf_stream_handler {
 public:
-    Devicetracker_Httpd_Pcap() : Kis_Net_Httpd_Ringbuf_Stream_Handler() {
+    device_tracker_httpd_pcap() : kis_net_httpd_ringbuf_stream_handler() {
         devicetracker = 
-            Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
+            Globalreg::fetch_mandatory_global_as<device_tracker>();
 
-        Bind_Httpd_Server();
+        bind_httpd_server();
     }
 
-    virtual ~Devicetracker_Httpd_Pcap() { };
+    virtual ~device_tracker_httpd_pcap() { };
 
     // HandleGetRequest handles generating a stream so we don't need to implement that
     // Same for HandlePostRequest
    
     // Standard path validation
-    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+    virtual bool httpd_verify_path(const char *path, const char *method);
 
     // We use this to attach the pcap stream
-    virtual int Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+    virtual int httpd_create_stream_response(kis_net_httpd *httpd,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size); 
 
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *con __attribute__((unused))) {
+    virtual int httpd_post_complete(kis_net_httpd_connection *con __attribute__((unused))) {
         return 0;
     }
 
 protected:
-    std::shared_ptr<Devicetracker> devicetracker;
+    std::shared_ptr<device_tracker> devicetracker;
     
 };
 

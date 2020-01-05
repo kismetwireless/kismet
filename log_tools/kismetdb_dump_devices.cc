@@ -42,7 +42,7 @@ void print_help(char *argv) {
     printf("Kismetdb to JSON\n");
     printf("A simple tool for converting the device data from a KismetDB log file to\n"
            "a JSON log.\n");
-    printf("Usage: %s [OPTION]\n", argv);
+    printf("usage: %s [OPTION]\n", argv);
     printf(" -i, --in [filename]          Input kismetdb file\n"
            " -o, --out [filename]         Output Wigle CSV file\n"
            " -f, --force                  Force writing to the target file, even if it exists.\n"
@@ -215,6 +215,9 @@ int main(int argc, char *argv[]) {
 
     unsigned long n_logs = 0;
     unsigned long n_division = (n_devices_db / 20);
+
+    if (n_division <= 0)
+        n_division = 1;
 
     bool newline = false;
 

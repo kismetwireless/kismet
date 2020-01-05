@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -25,22 +25,55 @@
 #include "util.h"
 #include "manuf.h"
 
-Manuf::Manuf() {
-    auto entrytracker = Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
+kis_manuf::kis_manuf() {
+    auto entrytracker = Globalreg::fetch_mandatory_global_as<entry_tracker>();
 
     manuf_id = 
-        entrytracker->RegisterField("kismet.device.base.manuf", 
-                TrackerElementFactory<TrackerElementString>(), "manufacturer name");
+        entrytracker->register_field("kismet.device.base.manuf", 
+                tracker_element_factory<tracker_element_string>(), "manufacturer name");
 
-    unknown_manuf = std::make_shared<TrackerElementString>(manuf_id);
+    unknown_manuf = std::make_shared<tracker_element_string>(manuf_id);
     unknown_manuf->set("Unknown");
 
-    if (Globalreg::globalreg->kismet_config->FetchOptBoolean("manuf_lookup", true) == false) {
+    random_manuf = std::make_shared<tracker_element_string>(manuf_id);
+    random_manuf->set("Randomized");
+
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("manuf_lookup", true) == false) {
         _MSG("Disabling OUI lookup.", MSGFLAG_INFO);
         return;
     }
 
-    auto fname = Globalreg::globalreg->kismet_config->FetchOptVec("ouifile");
+    for (auto m : Globalreg::globalreg->kismet_config->fetch_opt_vec("manuf")) {
+        auto m_pair = str_tokenize(m, ",");
+        short int si[3];
+
+        if (m_pair.size() != 2) {
+            _MSG_ERROR("Expected 'manuf=AA:BB:CC,Name' for a config file manuf record.");
+            continue;
+        }
+
+        if (sscanf(m_pair[0].c_str(), "%hx:%hx:%hx", &(si[0]), &(si[1]), &(si[2])) == 3) {
+            uint32_t oui;
+
+            oui = 0;
+            oui |= (uint32_t) si[0] << 16;
+            oui |= (uint32_t) si[1] << 8;
+            oui |= (uint32_t) si[2];
+
+            manuf_data md;
+            md.oui = oui;
+            md.manuf = std::make_shared<tracker_element_string>(manuf_id);
+            md.manuf->set(m_pair[1]);
+            oui_map[oui] = md;
+
+            printf("Loaded manuf %s\n", m_pair[1].c_str());
+        } else {
+            _MSG_ERROR("Expected 'manuf=AA:BB:CC,Name' for a config file manuf record.");
+            continue;
+        }
+    }
+
+    auto fname = Globalreg::globalreg->kismet_config->fetch_opt_vec("ouifile");
     if (fname.size() == 0) {
         _MSG("Missing 'ouifile' option in config, will not resolve manufacturer "
              "names for MAC addresses", MSGFLAG_ERROR);
@@ -48,7 +81,7 @@ Manuf::Manuf() {
     }
 
     for (auto f : fname) {
-        auto expanded = Globalreg::globalreg->kismet_config->ExpandLogPath(f, "", "", 0, 1);
+        auto expanded = Globalreg::globalreg->kismet_config->expand_log_path(f, "", "", 0, 1);
 
         if ((mfile = fopen(expanded.c_str(), "r")) != NULL) {
             _MSG("Opened OUI file '" + expanded, MSGFLAG_INFO);
@@ -67,12 +100,14 @@ Manuf::Manuf() {
     IndexOUI();
 }
 
-void Manuf::IndexOUI() {
+void kis_manuf::IndexOUI() {
     char buf[1024];
     int line = 0;
     fpos_t prev_pos;
     short int m[3];
     uint32_t last_oui = 0;
+
+    local_locker l(&mutex);
 
     if (mfile == NULL)
         return;
@@ -100,7 +135,7 @@ void Manuf::IndexOUI() {
                 oui |= (uint32_t) m[2];
 
                 if (oui < last_oui) {
-                    _MSG("Warning:  Manuf file appears to be out of order, expected "
+                    _MSG("Warning:  kis_manuf file appears to be out of order, expected "
                             "sorted manuf OUI data", MSGFLAG_ERROR);
                 }
 
@@ -122,11 +157,11 @@ void Manuf::IndexOUI() {
         line++;
     }
 
-    _MSG("Completed indexing manufacturer db, " + IntToString(line) + " lines " +
-         IntToString(index_vec.size()) + " indexes", MSGFLAG_INFO);
+    _MSG("Completed indexing manufacturer db, " + int_to_string(line) + " lines " +
+         int_to_string(index_vec.size()) + " indexes", MSGFLAG_INFO);
 }
 
-std::shared_ptr<TrackerElementString> Manuf::LookupOUI(mac_addr in_mac) {
+std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(mac_addr in_mac) {
     uint32_t soui = in_mac.OUI(), toui;
     int matched = -1;
     char buf[1024];
@@ -135,72 +170,80 @@ std::shared_ptr<TrackerElementString> Manuf::LookupOUI(mac_addr in_mac) {
     if (mfile == NULL)
         return unknown_manuf;
 
-    // Use the cache first
-    if (oui_map.find(soui) != oui_map.end()) {
-        return oui_map[soui].manuf;
-    }
+    {
+        local_shared_locker sl(&mutex);
 
-    for (unsigned int x = 0; x < index_vec.size(); x++) {
-        if (soui > index_vec[x].oui) {
-            matched = x;
-            continue;
+        // Use the cache first
+        if (oui_map.find(soui) != oui_map.end()) {
+            return oui_map[soui].manuf;
         }
 
-        break;
-    }
-
-    // Cache unknown to save us effort in the future
-    if (matched < 0) {
-        manuf_data md;
-        md.oui = soui;
-        md.manuf = unknown_manuf;
-        oui_map[soui] = md;
-
-        return md.manuf;
-    }
-
-    // Jump backwards one index in the matching unless we're in the first block
-    if (matched > 0)
-        matched -= 1;
-
-    fsetpos(mfile, &(index_vec[matched].pos));
-
-    while (!feof(mfile)) {
-        if (fgets(buf, 1024, mfile) == NULL || feof(mfile))
-            break;
-
-        if (strlen(buf) < 10)
-            continue;
-
-        // Trim \n
-        auto mlen = strlen(buf + 9) - 1;
-
-        if (mlen == 0)
-            continue;
-
-
-        if (sscanf(buf, "%hx:%hx:%hx\t", &(m[0]), &(m[1]), &(m[2])) == 3) {
-
-            // Log a position at the previous pos - which is the line before
-            // this one, so we're inclusive
-            toui = mac_addr::OUI(m);
-
-            if (toui == soui) {
-                manuf_data md;
-                md.oui = soui;
-
-                md.manuf = std::make_shared<TrackerElementString>(manuf_id);
-                md.manuf->set(MungeToPrintable(std::string(buf + 9, mlen)));
-                oui_map[soui] = md;
-                return md.manuf;
+        for (unsigned int x = 0; x < index_vec.size(); x++) {
+            if (soui > index_vec[x].oui) {
+                matched = x;
+                continue;
             }
 
-            if (toui > soui) {
-                manuf_data md;
-                md.oui = soui;
-                md.manuf = unknown_manuf;
-                oui_map[soui] = md;
-                return md.manuf;
+            break;
+        }
+
+        // Cache unknown to save us effort in the future
+        if (matched < 0) {
+            manuf_data md;
+            md.oui = soui;
+            md.manuf = unknown_manuf;
+            oui_map[soui] = md;
+
+            return md.manuf;
+        }
+
+        // Jump backwards one index in the matching unless we're in the first block
+        if (matched > 0)
+            matched -= 1;
+    }
+
+    {
+        local_locker l(&mutex);
+
+        fsetpos(mfile, &(index_vec[matched].pos));
+
+        while (!feof(mfile)) {
+            if (fgets(buf, 1024, mfile) == NULL || feof(mfile))
+                break;
+
+            if (strlen(buf) < 10)
+                continue;
+
+            // Trim \n
+            auto mlen = strlen(buf + 9) - 1;
+
+            if (mlen == 0)
+                continue;
+
+
+            if (sscanf(buf, "%hx:%hx:%hx\t", &(m[0]), &(m[1]), &(m[2])) == 3) {
+
+                // Log a position at the previous pos - which is the line before
+                // this one, so we're inclusive
+                toui = mac_addr::OUI(m);
+
+                if (toui == soui) {
+                    manuf_data md;
+                    md.oui = soui;
+
+                    md.manuf = std::make_shared<tracker_element_string>(manuf_id);
+                    md.manuf->set(munge_to_printable(std::string(buf + 9, mlen)));
+                    oui_map[soui] = md;
+                    return md.manuf;
+                }
+
+                if (toui > soui) {
+                    manuf_data md;
+                    md.oui = soui;
+                    md.manuf = unknown_manuf;
+                    oui_map[soui] = md;
+                    return md.manuf;
+                }
             }
         }
     }
@@ -208,13 +251,103 @@ std::shared_ptr<TrackerElementString> Manuf::LookupOUI(mac_addr in_mac) {
     return unknown_manuf;
 }
 
-std::shared_ptr<TrackerElementString> Manuf::MakeManuf(const std::string& in_manuf) {
-    auto manuf = std::make_shared<TrackerElementString>(manuf_id);
+std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(uint32_t in_oui) {
+    uint32_t soui = in_oui, toui;
+    int matched = -1;
+    char buf[1024];
+    short int m[3];
+
+    if (mfile == NULL)
+        return unknown_manuf;
+
+    {
+        local_shared_locker sl(&mutex);
+
+        // Use the cache first
+        if (oui_map.find(soui) != oui_map.end()) {
+            return oui_map[soui].manuf;
+        }
+
+        for (unsigned int x = 0; x < index_vec.size(); x++) {
+            if (soui > index_vec[x].oui) {
+                matched = x;
+                continue;
+            }
+
+            break;
+        }
+
+        // Cache unknown to save us effort in the future
+        if (matched < 0) {
+            manuf_data md;
+            md.oui = soui;
+            md.manuf = unknown_manuf;
+            oui_map[soui] = md;
+
+            return md.manuf;
+        }
+
+        // Jump backwards one index in the matching unless we're in the first block
+        if (matched > 0)
+            matched -= 1;
+    }
+
+    {
+        local_locker l(&mutex); 
+
+        fsetpos(mfile, &(index_vec[matched].pos));
+
+        while (!feof(mfile)) {
+            if (fgets(buf, 1024, mfile) == NULL || feof(mfile))
+                break;
+
+            if (strlen(buf) < 10)
+                continue;
+
+            // Trim \n
+            auto mlen = strlen(buf + 9) - 1;
+
+            if (mlen == 0)
+                continue;
+
+
+            if (sscanf(buf, "%hx:%hx:%hx\t", &(m[0]), &(m[1]), &(m[2])) == 3) {
+
+                // Log a position at the previous pos - which is the line before
+                // this one, so we're inclusive
+                toui = mac_addr::OUI(m);
+
+                if (toui == soui) {
+                    manuf_data md;
+                    md.oui = soui;
+
+                    md.manuf = std::make_shared<tracker_element_string>(manuf_id);
+                    md.manuf->set(munge_to_printable(std::string(buf + 9, mlen)));
+                    oui_map[soui] = md;
+                    return md.manuf;
+                }
+
+                if (toui > soui) {
+                    manuf_data md;
+                    md.oui = soui;
+                    md.manuf = unknown_manuf;
+                    oui_map[soui] = md;
+                    return md.manuf;
+                }
+            }
+        }
+    }
+
+    return unknown_manuf;
+}
+
+std::shared_ptr<tracker_element_string> kis_manuf::make_manuf(const std::string& in_manuf) {
+    auto manuf = std::make_shared<tracker_element_string>(manuf_id);
     manuf->set(in_manuf);
     return manuf;
 }
 
-bool Manuf::IsUnknownManuf(std::shared_ptr<TrackerElementString> in_manuf) {
+bool kis_manuf::is_unknown_manuf(std::shared_ptr<tracker_element_string> in_manuf) {
     return in_manuf == unknown_manuf;
 }
 

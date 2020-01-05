@@ -20,10 +20,12 @@
 #include "antennatracker.h"
 
 Antennatracker::Antennatracker() {
+    mutex.set_name("antennatracker");
+
     antenna_id_map = 
-        std::make_shared<TrackerElementIntMap>();
+        std::make_shared<tracker_element_int_map>();
     antenna_endp = 
-        std::make_shared<Kis_Net_Httpd_Simple_Tracked_Endpoint>("/antennas/antennas",
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/antennas/antennas",
                 antenna_id_map, &mutex);
     next_ant_id = 0;
 }
@@ -46,7 +48,7 @@ int Antennatracker::add_antenna(uuid in_src, int in_srcnum, int in_adjustment) {
     auto ant = std::make_shared<tracked_antenna>();
 
     uuid u;
-    u.GenerateRandomTimeUUID();
+    u.generate_random_time_uuid();
     
     ant->set_id(next_ant_id++);
     ant->set_source_uuid(in_src);

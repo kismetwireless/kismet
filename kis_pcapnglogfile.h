@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -27,47 +27,47 @@
 #include "pcapng_stream_ringbuf.h"
 #include "filewritebuf.h"
 
-class KisPcapNGLogfile : public KisLogfile {
+class kis_pcapng_logfile : public kis_logfile {
 public:
-    KisPcapNGLogfile(SharedLogBuilder in_builder);
-    virtual ~KisPcapNGLogfile();
+    kis_pcapng_logfile(shared_log_builder in_builder);
+    virtual ~kis_pcapng_logfile();
 
-    virtual bool Log_Open(std::string in_path) override;
-    virtual void Log_Close() override;
+    virtual bool open_log(std::string in_path) override;
+    virtual void close_log() override;
 
 protected:
-    Pcap_Stream_Packetchain *pcapng_stream;
-    std::shared_ptr<BufferHandler<FileWritebuf> > bufferhandler;
-    FileWritebuf *pcapng_file;
+    pcap_stream_packetchain *pcapng_stream;
+    std::shared_ptr<buffer_handler<file_write_buffer> > bufferhandler;
+    file_write_buffer *pcapng_file;
 };
 
-class KisPcapNGLogfileBuilder : public KisLogfileBuilder {
+class pcapng_logfile_builder : public kis_logfile_builder {
 public:
-    KisPcapNGLogfileBuilder() :
-        KisLogfileBuilder() {
+    pcapng_logfile_builder() :
+        kis_logfile_builder() {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    KisPcapNGLogfileBuilder(int in_id) :
-        KisLogfileBuilder(in_id) {
+    pcapng_logfile_builder(int in_id) :
+        kis_logfile_builder(in_id) {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    KisPcapNGLogfileBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
-        KisLogfileBuilder(in_id, e) {
+    pcapng_logfile_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
+        kis_logfile_builder(in_id, e) {
         register_fields();
         reserve_fields(e);
         initialize();
     }
 
-    virtual ~KisPcapNGLogfileBuilder() { }
+    virtual ~pcapng_logfile_builder() { }
 
-    virtual SharedLogfile build_logfile(SharedLogBuilder builder) {
-        return SharedLogfile(new KisPcapNGLogfile(builder));
+    virtual shared_logfile build_logfile(shared_log_builder builder) {
+        return shared_logfile(new kis_pcapng_logfile(builder));
     }
 
     virtual void initialize() {

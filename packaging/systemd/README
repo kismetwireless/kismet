@@ -8,7 +8,7 @@ Kismet Service (and Debug Service)
 
 # Installing
 
-    To install Kismet as a systemd servie you'll need to copy one file:
+    To install Kismet as a systemd service you'll need to copy one file:
 
         $ sudo cp kismet.service /lib/systemd/system/
 

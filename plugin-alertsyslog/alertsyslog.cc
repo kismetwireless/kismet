@@ -56,9 +56,9 @@ int alertsyslog_chain_hook(CHAINCALL_PARMS) {
 		syslog(LOG_CRIT, "%s server-ts=%u bssid=%s source=%s dest=%s channel=%s %s",
 			   alrtinfo->alert_vec[x]->header.c_str(),
 			   (unsigned int) alrtinfo->alert_vec[x]->tm.tv_sec,
-			   alrtinfo->alert_vec[x]->bssid.Mac2String().c_str(),
-			   alrtinfo->alert_vec[x]->source.Mac2String().c_str(),
-			   alrtinfo->alert_vec[x]->dest.Mac2String().c_str(),
+			   alrtinfo->alert_vec[x]->bssid.mac_to_string().c_str(),
+			   alrtinfo->alert_vec[x]->source.mac_to_string().c_str(),
+			   alrtinfo->alert_vec[x]->dest.mac_to_string().c_str(),
 			   alrtinfo->alert_vec[x]->channel.c_str(),
 			   alrtinfo->alert_vec[x]->text.c_str());
 	}
@@ -66,11 +66,11 @@ int alertsyslog_chain_hook(CHAINCALL_PARMS) {
 	return 1;
 }
 
-int alertsyslog_openlog(GlobalRegistry *in_globalreg) {
+int alertsyslog_openlog(global_registry *in_globalreg) {
     // We can't use the templated FetchGlobalAs here because the template object code
     // won't exist in the server object
-    std::shared_ptr<Packetchain> packetchain =
-        std::static_pointer_cast<Packetchain>(in_globalreg->FetchGlobal(std::string("PACKETCHAIN")));
+    std::shared_ptr<packet_chain> packetchain =
+        std::static_pointer_cast<packet_chain>(in_globalreg->FetchGlobal(std::string("PACKETCHAIN")));
 
     if (packetchain == NULL) {
         _MSG("Unable to register syslog plugin, packetchain was unavailable",
@@ -78,11 +78,11 @@ int alertsyslog_openlog(GlobalRegistry *in_globalreg) {
         return -1;
     }
 
-    pack_comp_alert = packetchain->RegisterPacketComponent("alert");
+    pack_comp_alert = packetchain->register_packet_component("alert");
 
     openlog(in_globalreg->servername.c_str(), LOG_NDELAY, LOG_USER);
 
-    packetchain->RegisterHandler(&alertsyslog_chain_hook, NULL,
+    packetchain->register_handler(&alertsyslog_chain_hook, NULL,
             CHAINPOS_LOGGING, -100);
 
     return 1;
@@ -98,11 +98,11 @@ extern "C" {
         return 1;
     }
 
-    int kis_plugin_activate(GlobalRegistry *in_globalreg) {
+    int kis_plugin_activate(global_registry *in_globalreg) {
         return 1;
     }
 
-    int kis_plugin_finalize(GlobalRegistry *in_globalreg) {
+    int kis_plugin_finalize(global_registry *in_globalreg) {
         return alertsyslog_openlog(in_globalreg);
     }
 

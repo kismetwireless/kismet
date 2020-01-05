@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -28,9 +28,9 @@
 #include "kis_endian.h"
 #include "xxhash.h"
 
-class xxHashCPP {
+class xx_hash_cpp {
 public:
-    xxHashCPP() :
+    xx_hash_cpp() :
         state { XXH32_createState() } {
 
         XXH_errorcode const result = XXH32_reset(state, 0);
@@ -39,7 +39,7 @@ public:
             throw std::runtime_error("could not initialize xxhash32 state");
     }
 
-    xxHashCPP(uint32_t init_seed) :
+    xx_hash_cpp(uint32_t init_seed) :
         state { XXH32_createState() } { 
 
         XXH_errorcode const result = XXH32_reset(state, init_seed);
@@ -48,7 +48,7 @@ public:
             throw std::runtime_error("could not initialize xxhash32 state");
     }
 
-    ~xxHashCPP() {
+    ~xx_hash_cpp() {
         XXH32_freeState(state);
     }
 

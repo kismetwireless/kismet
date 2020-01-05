@@ -59,23 +59,6 @@
 #include "dot11_parsers/dot11_ie_221_dji_droneid.h"
 #include "dot11_parsers/dot11_ie_221_wpa_transition.h"
 
-/*
- * 802.11 PHY handlers
- * Uses new devicetracker code
- *
- * Re-implements networktracker, packetdissectors
- * Ultimately all 802.11 related code will live here, such as alerts, etc.
- *
- * 802.11 data represents multiple tiers of data:
- *  - Device (could be client or AP)
- *      - AP
- *          - SSIDs (possibly multiple per BSSID)
- *          - AP Client
- *      - Client
- *          - SSIDs client has probed or connected to
- *          - BSSIDs of devices client has been observed joining/communicating
- */
-
 #define PHY80211_MAC_LEN	6
 // Dot11 SSID max len
 #define DOT11_PROTO_SSID_LEN	32
@@ -242,6 +225,9 @@ class dot11_packinfo : public packet_component {
         // Tupled hash map
         std::multimap<std::tuple<uint8_t, uint32_t, uint8_t>, size_t> ietag_hash_map;
 
+        // Parsed IE tags, if we've parsed them
+        std::shared_ptr<dot11_ie> ie_tags;
+
         std::string dot11d_country;
         std::vector<dot11_packinfo_dot11d_entry> dot11d_vec;
 
@@ -306,50 +292,50 @@ class dot11_ssid_alert {
         std::map<mac_addr, int> allow_mac_map;
 };
 
-class Kis_80211_Phy : public Kis_Phy_Handler, 
-    public Kis_Net_Httpd_CPPStream_Handler, public TimetrackerEvent {
+class kis_80211_phy : public kis_phy_handler, 
+    public kis_net_httpd_cppstream_handler, public time_tracker_event {
 
 public:
     using ie_tag_tuple = std::tuple<uint8_t, uint32_t, uint8_t>;
 
     // Stub
-    ~Kis_80211_Phy();
+    ~kis_80211_phy();
 
     // Inherited functionality
-    Kis_80211_Phy(GlobalRegistry *in_globalreg) :
-        Kis_Phy_Handler(in_globalreg) { };
+    kis_80211_phy(global_registry *in_globalreg) :
+        kis_phy_handler(in_globalreg) { };
 
     // Build a strong version of ourselves
-    virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg, int in_phyid) override {
-        return new Kis_80211_Phy(in_globalreg, in_phyid);
+    virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg, int in_phyid) override {
+        return new kis_80211_phy(in_globalreg, in_phyid);
     }
 
     // Strong constructor
-    Kis_80211_Phy(GlobalRegistry *in_globalreg, int in_phyid);
+    kis_80211_phy(global_registry *in_globalreg, int in_phyid);
 
-    int WPACipherConv(uint8_t cipher_index);
-    int WPAKeyMgtConv(uint8_t mgt_index);
+    int wpa_cipher_conv(uint8_t cipher_index);
+    int wpa_key_mgt_conv(uint8_t mgt_index);
 
     // Dot11 decoders, wep decryptors, etc
-    int PacketWepDecryptor(kis_packet *in_pack);
+    int packet_wep_decryptor(kis_packet *in_pack);
     // Top-level dissector; decodes basic type and populates the dot11 packet
-    int PacketDot11dissector(kis_packet *in_pack);
+    int packet_dot11_dissector(kis_packet *in_pack);
     // Expects an existing dot11 packet with the basic type intact, interprets
     // IE tags to the best of our ability
-    int PacketDot11IEdissector(kis_packet *in_pack, dot11_packinfo *in_dot11info);
+    int packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo *in_dot11info);
     // Generate a list of IE tag numbers
     std::vector<ie_tag_tuple> PacketDot11IElist(kis_packet *in_pack, dot11_packinfo *in_dot11info);
 
     // Special decoders, not called as part of a chain
 
     // Is packet a WPS M3 message?  Used to detect Reaver, etc
-    int PacketDot11WPSM3(kis_packet *in_pack);
+    int packet_dot11_wps_m3(kis_packet *in_pack);
 
     // Is the packet a WPA handshake?  Return an eapol tracker element if so
-    std::shared_ptr<dot11_tracked_eapol> PacketDot11EapolHandshake(kis_packet *in_pack,
+    std::shared_ptr<dot11_tracked_eapol> packet_dot11_eapol_handshake(kis_packet *in_pack,
             std::shared_ptr<dot11_tracked_device> dot11device);
 
-    // static incase some other component wants to use it
+    // static in case some other component wants to use it
     static kis_datachunk *DecryptWEP(dot11_packinfo *in_packinfo,
             kis_datachunk *in_chunk, 
             unsigned char *in_key, int in_key_len,
@@ -359,62 +345,62 @@ public:
     // int packet_dot11string_dissector(kis_packet *in_pack);
 
     // 802.11 packet classifier to common for the devicetracker layer
-    static int CommonClassifierDot11(CHAINCALL_PARMS);
+    static int packet_dot11_common_classifier(CHAINCALL_PARMS);
 
     // Dot11 tracker for building phy-specific elements
-    int TrackerDot11(kis_packet *in_pack);
+    int tracker_dot11(kis_packet *in_pack);
 
-    int AddFilter(std::string in_filter);
-    int AddNetcliFilter(std::string in_filter);
+    int add_filter(std::string in_filter);
+    int add_netcli_filter(std::string in_filter);
 
-    void SetStringExtract(int in_extr);
+    void set_string_extract(int in_extr);
 
-    void AddWepKey(mac_addr bssid, uint8_t *key, unsigned int len, int temp);
+    void add_wep_key(mac_addr bssid, uint8_t *key, unsigned int len, int temp);
 
-    static std::string CryptToString(uint64_t cryptset);
-    static std::string CryptToSimpleString(uint64_t cryptset);
+    static std::string crypt_to_string(uint64_t cryptset);
+    static std::string crypt_to_simple_string(uint64_t cryptset);
 
     // HTTPD API
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
+    virtual bool httpd_verify_path(const char *path, const char *method) override;
 
-    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream) override;
 
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) override;
+    virtual int httpd_post_complete(kis_net_httpd_connection *concls) override;
 
-    // Timetracker event handler
+    // time_tracker event handler
     virtual int timetracker_event(int eventid) override;
 
     // Restore stored dot11 records
-    virtual void LoadPhyStorage(SharedTrackerElement in_storage,
-            SharedTrackerElement in_device) override;
+    virtual void load_phy_storage(shared_tracker_element in_storage,
+            shared_tracker_element in_device) override;
 
     // Convert a frequency in KHz to an IEEE 80211 channel name; MAY THROW AN EXCEPTION
     // if this cannot be converted or is an invalid frequency
-    static const std::string KhzToChannel(const double in_khz);
+    static const std::string khz_to_channel(const double in_khz);
 
-    // Eventbus event we inject when a handshake is captured
-    class EventDot11WPAHandshake : public EventbusEvent {
+    // event_bus event we inject when a handshake is captured
+    class event_dot11_wpa_handshake : public eventbus_event {
     public:
         static std::string Event() { return "DOT11_WPA_HANDSHAKE"; }
-        EventDot11WPAHandshake(std::shared_ptr<kis_tracked_device_base> base_device, std::shared_ptr<dot11_tracked_device> dot11_device) :
-            EventbusEvent(Event()),
+        event_dot11_wpa_handshake(std::shared_ptr<kis_tracked_device_base> base_device, std::shared_ptr<dot11_tracked_device> dot11_device) :
+            eventbus_event(Event()),
             base_device{base_device},
             dot11_device{dot11_device} { }
-        virtual ~EventDot11WPAHandshake() {}
+        virtual ~event_dot11_wpa_handshake() {}
 
         std::shared_ptr<kis_tracked_device_base> base_device;
         std::shared_ptr<dot11_tracked_device> dot11_device;
     };
 
 protected:
-    std::shared_ptr<Alertracker> alertracker;
-    std::shared_ptr<Packetchain> packetchain;
-    std::shared_ptr<Timetracker> timetracker;
-    std::shared_ptr<Devicetracker> devicetracker;
-    std::shared_ptr<Eventbus> eventbus;
+    std::shared_ptr<alert_tracker> alertracker;
+    std::shared_ptr<packet_chain> packetchain;
+    std::shared_ptr<time_tracker> timetracker;
+    std::shared_ptr<device_tracker> devicetracker;
+    std::shared_ptr<event_bus> eventbus;
 
     // Checksum of recent packets for duplication filtering
     uint32_t *recent_packet_checksums;
@@ -429,7 +415,7 @@ protected:
             kis_gps_packinfo *pack_gpsinfo);
 
     // Handle probed SSIDs
-    void HandleProbedSSID(std::shared_ptr<kis_tracked_device_base> basedev, 
+    void handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> basedev, 
             std::shared_ptr<dot11_tracked_device> dot11dev,
             kis_packet *in_pack,
             dot11_packinfo *dot11info,
@@ -437,7 +423,7 @@ protected:
 
     // Map a device as a client of an acceess point, fill in any data in the
     // per-client records
-    void ProcessClient(std::shared_ptr<kis_tracked_device_base> bssiddev,
+    void process_client(std::shared_ptr<kis_tracked_device_base> bssiddev,
             std::shared_ptr<dot11_tracked_device> bssiddot11,
             std::shared_ptr<kis_tracked_device_base> clientdev,
             std::shared_ptr<dot11_tracked_device> clientdot11,
@@ -446,19 +432,19 @@ protected:
             kis_gps_packinfo *pack_gpsinfo,
             kis_data_packinfo *pack_datainfo);
 
-    void ProcessWPAHandshake(std::shared_ptr<kis_tracked_device_base> bssid_dev,
+    void process_wpa_handshake(std::shared_ptr<kis_tracked_device_base> bssid_dev,
             std::shared_ptr<dot11_tracked_device> bssid_dot11,
             std::shared_ptr<kis_tracked_device_base> dest_dev,
             std::shared_ptr<dot11_tracked_device> dest_dot11,
             kis_packet *in_pack, dot11_packinfo *dot11info);
 
-    void GenerateHandshakePcap(std::shared_ptr<kis_tracked_device_base> dev, 
-            Kis_Net_Httpd_Connection *connection,
+    void generate_handshake_pcap(std::shared_ptr<kis_tracked_device_base> dev, 
+            kis_net_httpd_connection *connection,
             std::stringstream &stream);
 
     int dot11_device_entry_id;
 
-    int LoadWepkeys();
+    int load_wepkeys();
 
     std::map<mac_addr, std::string> bssid_cloak_map;
 
@@ -482,7 +468,7 @@ protected:
     int dissect_strings, dissect_all_strings;
 
     // SSID regex filter
-    std::shared_ptr<TrackerElementVector> ssid_regex_vec;
+    std::shared_ptr<tracker_element_vector> ssid_regex_vec;
     int ssid_regex_vec_element_id;
 
     // Dissector alert references
@@ -490,7 +476,8 @@ protected:
         alert_msfbcomssid_ref, alert_msfdlinkrate_ref, alert_msfnetgearbeacon_ref,
         alert_longssid_ref, alert_disconinvalid_ref, alert_deauthinvalid_ref,
         alert_dhcpclient_ref, alert_wmm_ref, alert_nonce_zero_ref, 
-        alert_nonce_duplicate_ref, alert_11kneighborchan_ref;
+        alert_nonce_duplicate_ref, alert_11kneighborchan_ref, alert_probechan_ref,
+		alert_rtlwifi_p2p_ref;
 
     // Are we allowed to send wepkeys to the client (server config)
     int client_wepkey_allowed;
@@ -506,7 +493,8 @@ protected:
         alert_ssidmatch_ref, alert_dot11d_ref, alert_beaconrate_ref,
         alert_cryptchange_ref, alert_malformmgmt_ref, alert_wpsbrute_ref, 
         alert_l33t_ref, alert_tooloud_ref, alert_atheros_wmmtspec_ref,
-        alert_atheros_rsnloop_ref, alert_bssts_ref;
+        alert_atheros_rsnloop_ref, alert_bssts_ref, alert_qcom_extended_ref,
+        alert_bad_fixlen_ie;
 
     int signal_too_loud_threshold;
 
@@ -516,7 +504,7 @@ protected:
     int proto_ref_ssid, proto_ref_device, proto_ref_client;
 
     // SSID cloak file as a config file
-    ConfigFile *ssid_conf;
+    config_file *ssid_conf;
     time_t conf_save;
 
     // probe assoc to owning network
@@ -528,7 +516,7 @@ protected:
     unsigned int device_idle_min_packets;
 
     // Pcap handlers
-    std::unique_ptr<Phy_80211_Httpd_Pcap> httpd_pcap;
+    std::unique_ptr<phy_80211_httpd_pcap> httpd_pcap;
 
     // Do we process control and phy frames?
     bool process_ctl_phy;
@@ -538,16 +526,19 @@ protected:
     std::vector<ie_tag_tuple> probe_ie_fingerprint_list;
 
     // New endpoints as we migrate to the simplified API
-    std::shared_ptr<Kis_Net_Httpd_Path_Tracked_Endpoint> clients_of_endp;
+    std::shared_ptr<kis_net_httpd_path_tracked_endpoint> clients_of_endp;
 
     // Related-by API
-    std::shared_ptr<Kis_Net_Httpd_Path_Tracked_Endpoint> related_to_key_endp;
+    std::shared_ptr<kis_net_httpd_path_tracked_endpoint> related_to_key_endp;
 
     // AP view
-    std::shared_ptr<DevicetrackerView> ap_view;
+    std::shared_ptr<device_tracker_view> ap_view;
 
     // bssts time for grouping, in usec
     uint64_t bss_ts_group_usec;
+
+    // Do we store the last beaconed tags in the ssid record?
+    bool keep_ie_tags_per_bssid;
 };
 
 #endif

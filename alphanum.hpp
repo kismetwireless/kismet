@@ -412,7 +412,7 @@ int main()
   // print sorted set to cout
   std::copy(s.begin(), s.end(), std::ostream_iterator<std::string>(std::cout, "\n"));
 
-  // show usage of comparision functor with a map
+  // show usage of comparison functor with a map
   typedef std::map<std::string, int, doj::alphanum_less<std::string> > m_t;
   m_t m;
   m["z1.doc"]=1;

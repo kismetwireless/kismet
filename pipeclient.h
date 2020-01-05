@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -40,32 +40,32 @@
 //
 // Like other backend clients of a ringbuf handler, does not register as a read
 // or write directly but consumes out of the handler
-class PipeClient : public Pollable {
+class pipe_client : public kis_pollable {
 public:
-    PipeClient(GlobalRegistry *in_globalreg, std::shared_ptr<BufferHandlerGeneric> in_rbhandler);
-    virtual ~PipeClient();
+    pipe_client(global_registry *in_globalreg, std::shared_ptr<buffer_handler_generic> in_rbhandler);
+    virtual ~pipe_client();
 
-    virtual void SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
+    virtual void set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
 
     // Bind to a r/w pair of pipes
-    int OpenPipes(int rpipe, int wpipe);
-    void ClosePipes();
+    int open_pipes(int rpipe, int wpipe);
+    void close_pipes();
 
-    // Pollable interface
-    virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
-    virtual int Poll(fd_set& in_rset, fd_set& in_wset);
+    // kis_pollable interface
+    virtual int pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
+    virtual int pollable_poll(fd_set& in_rset, fd_set& in_wset);
 
     // Flush out the read pipe if the process has exited
-    virtual int FlushRead();
+    virtual int flush_read();
 
-    bool FetchConnected();
+    bool get_connected();
 
 protected:
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
 
     std::shared_ptr<kis_recursive_timed_mutex> pipe_mutex;
 
-    std::shared_ptr<BufferHandlerGeneric> handler;
+    std::shared_ptr<buffer_handler_generic> handler;
 
     std::atomic<int> read_fd, write_fd;
 };

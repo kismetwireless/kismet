@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -50,76 +50,76 @@
 
 #include "structured.h"
 
-class StructuredJson : public StructuredData {
+class structured_json : public structured_data {
 public:
-    StructuredJson(std::string data) : StructuredData(data) {
+    structured_json(std::string data) : structured_data(data) {
         try {
             std::stringstream ss(data);
             ss >> json;
         } catch (std::exception& e) {
-            throw StructuredDataUnparseable(e.what());
+            throw structured_data_unparseable(e.what());
         }
     }
 
-    StructuredJson(Json::Value in_json) {
+    structured_json(Json::Value in_json) {
         json = in_json;
     }
 
-    virtual ~StructuredJson() { }
+    virtual ~structured_json() { }
 
-    void exceptIfNot(bool match, std::string t) {
+    void except_if_not(bool match, std::string t) {
         if (!match) {
-            throw StructuredDataUnsuitable("JSON field is not " + t);
+            throw structured_data_unsuitable("JSON field is not " + t);
         }
     }
 
-    virtual bool isNumber() {
+    virtual bool is_number() {
         return json.isNumeric();
     }
 
-    virtual bool isBool() {
+    virtual bool is_bool() {
         return json.isBool();
     }
 
-    virtual bool isString() {
+    virtual bool is_string() {
         return json.isString();
     }
 
-    virtual bool isArray() {
+    virtual bool is_array() {
         return json.isArray();
     }
 
-    virtual bool isDictionary() {
+    virtual bool is_dictionary() {
         return json.isObject();
     }
 
     // Binary in json is an encoded string
-    virtual bool isBinary() {
-        return isString();
+    virtual bool is_binary() {
+        return is_string();
     }
 
-    virtual double getNumber() {
-        exceptIfNot(isNumber(), "number");
+    virtual double as_number() {
+        except_if_not(is_number(), "number");
         return json.asDouble();
     }
 
-    virtual std::string getString() {
-        exceptIfNot(isString(), "string");
+    virtual std::string as_string() {
+        except_if_not(is_string(), "string");
         return json.asString();
     }
 
-    virtual std::string getBinaryStr() {
-        exceptIfNot(isString(), "binary string");
-        return hexstr_to_binstr(getString().c_str());
+    virtual std::string as_binary_string() {
+        except_if_not(is_string(), "binary string");
+        return hex_to_bytes(as_string());
     }
 
-    virtual bool getBool() {
-        exceptIfNot(isBool() || isString(), "Boolean");
+    virtual bool as_bool() {
+        except_if_not(is_bool() || is_string(), "Boolean");
         return json.asBool();
     }
 
-    virtual number_vec getNumberVec() {
-        exceptIfNot(isArray(), "Array/Vector");
+    virtual number_vec as_number_vector() {
+        except_if_not(is_array(), "Array/Vector");
 
         number_vec v;
 
@@ -131,8 +131,8 @@ public:
         return v;
     }
 
-    virtual string_vec getStringVec() {
-        exceptIfNot(isArray(), "Array/Vector");
+    virtual string_vec as_string_vector() {
+        except_if_not(is_array(), "Array/Vector");
 
         string_vec v;
 
@@ -144,83 +144,83 @@ public:
         return v;
     }
 
-    virtual bool hasKey(std::string key) {
+    virtual bool has_key(std::string key) {
         return json.isMember(key);
     }
 
-    virtual SharedStructured getStructuredByKey(std::string key) {
-        exceptIfNot(isDictionary(), "Dictionary/Map");
+    virtual shared_structured get_structured_by_key(std::string key) {
+        except_if_not(is_dictionary(), "Dictionary/Map");
 
-        if (!hasKey(key)) 
-            throw StructuredDataNoSuchKey("No such key: " + key);
+        if (!has_key(key)) 
+            throw structured_data_no_such_key("No such key: " + key);
 
         auto ki = json[key];
 
-        return SharedStructured(new StructuredJson(ki));
+        return shared_structured(new structured_json(ki));
     }
 
-    virtual double getKeyAsNumber(std::string key) {
-        return getStructuredByKey(key)->getNumber();
+    virtual double key_as_number(std::string key) {
+        return get_structured_by_key(key)->as_number();
     }
 
-    virtual double getKeyAsNumber(std::string key, double def) {
-        if (!hasKey(key))
+    virtual double key_as_number(std::string key, double def) {
+        if (!has_key(key))
             return def;
 
-        SharedStructured v = getStructuredByKey(key);
+        shared_structured v = get_structured_by_key(key);
 
-        if (!v->isNumber())
+        if (!v->is_number())
             return def;
 
-        return v->getNumber();
+        return v->as_number();
     }
 
-    virtual std::string getKeyAsString(std::string key) {
-        return getStructuredByKey(key)->getString();
+    virtual std::string key_as_string(std::string key) {
+        return get_structured_by_key(key)->as_string();
     }
 
-    virtual std::string getKeyAsString(std::string key, std::string def) {
-        if (!hasKey(key))
+    virtual std::string key_as_string(std::string key, std::string def) {
+        if (!has_key(key))
             return def;
 
-        SharedStructured v = getStructuredByKey(key);
+        shared_structured v = get_structured_by_key(key);
 
-        if (!v->isString())
+        if (!v->is_string())
             return def;
 
-        return v->getString();
+        return v->as_string();
     }
 
-    virtual bool getKeyAsBool(std::string key) {
-        return getStructuredByKey(key)->getBool();
+    virtual bool key_as_bool(std::string key) {
+        return get_structured_by_key(key)->as_bool();
     }
 
-    virtual bool getKeyAsBool(std::string key, bool def) {
-        if (!hasKey(key))
+    virtual bool key_as_bool(std::string key, bool def) {
+        if (!has_key(key))
             return def;
 
-        SharedStructured v = getStructuredByKey(key);
+        shared_structured v = get_structured_by_key(key);
 
-        if (!v->isBool())
+        if (!v->is_bool())
             return def;
 
-        return v->getBool();
+        return v->as_bool();
     }
 
-    virtual structured_vec getStructuredArray() {
-        exceptIfNot(isArray(), "array/vector");
+    virtual structured_vec as_vector() {
+        except_if_not(is_array(), "array/vector");
 
         structured_vec v;
 
         for (auto jvi : json) {
-            v.push_back(SharedStructured(new StructuredJson(jvi)));
+            v.push_back(shared_structured(new structured_json(jvi)));
         }
 
         return v;
     }
 
-    virtual structured_num_map getStructuredNumMap() {
-        exceptIfNot(isDictionary(), "dictionary/map");
+    virtual structured_num_map as_number_map() {
+        except_if_not(is_dictionary(), "dictionary/map");
 
         structured_num_map m;
 
@@ -228,22 +228,22 @@ public:
             double n;
            
             if (sscanf(jvi.key().asString().c_str(), "%lf", &n) != 1)
-                throw StructuredDataUnsuitable("got non-numerical key converting "
+                throw structured_data_unsuitable("got non-numerical key converting "
                         "to structured numerical map");
             
-            m[n] = SharedStructured(new StructuredJson(*jvi));
+            m[n] = shared_structured(new structured_json(*jvi));
         }
 
         return m;
     }
 
-    virtual structured_str_map getStructuredStrMap() {
-        exceptIfNot(isDictionary(), "dictionary/map");
+    virtual structured_str_map as_string_map() {
+        except_if_not(is_dictionary(), "dictionary/map");
 
         structured_str_map m;
 
         for (Json::ValueIterator jvi = json.begin(); jvi != json.end(); ++jvi) {
-            m[jvi.key().asString()] = SharedStructured(new StructuredJson(*jvi));
+            m[jvi.key().asString()] = shared_structured(new structured_json(*jvi));
         }
 
         return m;

@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -44,23 +44,37 @@ class kis_tracked_location_triplet : public tracker_component {
 public:
     kis_tracked_location_triplet();
     kis_tracked_location_triplet(int in_id);
-    kis_tracked_location_triplet(int in_id, std::shared_ptr<TrackerElementMap> e);
+    kis_tracked_location_triplet(int in_id, std::shared_ptr<tracker_element_map> e);
 
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
+    virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
     }
 
-    // Use proxy macro to define get/set
-    __Proxy(lat, double, double, double, lat);
-    __Proxy(lon, double, double, double, lon);
+    // lat/lon are encoded in the geopoint
+    const double get_lat() const {
+        return geopoint->at(1);
+    }
+
+    void set_lat(double lat) {
+        geopoint->at(1) = lat;
+    }
+
+    const double get_lon() const {
+        return geopoint->at(0);
+    }
+
+    void set_lon(double lon) {
+        geopoint->at(0) = lon;
+    }
+
     __Proxy(alt, double, double, double, alt);
     __Proxy(speed, double, double, double, spd);
     __Proxy(heading, double, double, double, heading);
@@ -82,19 +96,19 @@ public:
 
 protected:
     virtual void register_fields() override;
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;
 
-    std::shared_ptr<TrackerElementDouble> lat;
-    std::shared_ptr<TrackerElementDouble> lon;
-    std::shared_ptr<TrackerElementDouble> alt;
-    std::shared_ptr<TrackerElementDouble> spd;
-    std::shared_ptr<TrackerElementDouble> heading;
-    std::shared_ptr<TrackerElementDouble> error_x;
-    std::shared_ptr<TrackerElementDouble> error_y;
-    std::shared_ptr<TrackerElementDouble> error_v;
-    std::shared_ptr<TrackerElementUInt8> fix;
-    std::shared_ptr<TrackerElementUInt8> valid;
-    std::shared_ptr<TrackerElementUInt64> time_sec;
-    std::shared_ptr<TrackerElementUInt64> time_usec;
+    std::shared_ptr<tracker_element_vector_double> geopoint;
+    std::shared_ptr<tracker_element_double> alt;
+    std::shared_ptr<tracker_element_double> spd;
+    std::shared_ptr<tracker_element_double> heading;
+    std::shared_ptr<tracker_element_double> error_x;
+    std::shared_ptr<tracker_element_double> error_y;
+    std::shared_ptr<tracker_element_double> error_v;
+    std::shared_ptr<tracker_element_uint8> fix;
+    std::shared_ptr<tracker_element_uint8> valid;
+    std::shared_ptr<tracker_element_uint64> time_sec;
+    std::shared_ptr<tracker_element_uint64> time_usec;
 };
 
 // min/max/avg location
@@ -104,21 +118,22 @@ public:
 
     kis_tracked_location();
     kis_tracked_location(int in_id);
-    kis_tracked_location(int in_id, std::shared_ptr<TrackerElementMap> e);
+    kis_tracked_location(int in_id, std::shared_ptr<tracker_element_map> e);
 
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
+    virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
     }
 
-    void add_loc(double in_lat, double in_lon, double in_alt, unsigned int fix);
+    void add_loc(double in_lat, double in_lon, double in_alt, unsigned int fix,
+            double in_speed, double in_heading);
 
     __Proxy(valid, uint8_t, bool, bool, loc_valid);
     __Proxy(fix, uint8_t, unsigned int, unsigned int, loc_fix);
@@ -126,6 +141,8 @@ public:
     std::shared_ptr<kis_tracked_location_triplet> get_min_loc() { return min_loc; }
     std::shared_ptr<kis_tracked_location_triplet> get_max_loc() { return max_loc; }
     std::shared_ptr<kis_tracked_location_triplet> get_avg_loc() { return avg_loc; }
+
+    std::shared_ptr<kis_tracked_location_triplet> get_last_loc() { return last_loc; }
 
     __Proxy(agg_lat, uint64_t, uint64_t, uint64_t, avg_lat);
     __Proxy(agg_lon, uint64_t, uint64_t, uint64_t, avg_lon);
@@ -137,17 +154,17 @@ protected:
     virtual void register_fields() override;
 
     // We save the IDs here because we dynamically generate them
-    std::shared_ptr<kis_tracked_location_triplet> min_loc, max_loc, avg_loc;
-    int min_loc_id, max_loc_id, avg_loc_id;
+    std::shared_ptr<kis_tracked_location_triplet> min_loc, max_loc, avg_loc, last_loc;
+    int min_loc_id, max_loc_id, avg_loc_id, last_loc_id;
 
-    std::shared_ptr<TrackerElementUInt8> loc_valid;
-    std::shared_ptr<TrackerElementUInt8> loc_fix;
+    std::shared_ptr<tracker_element_uint8> loc_valid;
+    std::shared_ptr<tracker_element_uint8> loc_fix;
 
-    std::shared_ptr<TrackerElementInt64> avg_lat;
-    std::shared_ptr<TrackerElementInt64> avg_lon;
-    std::shared_ptr<TrackerElementInt64> avg_alt;
-    std::shared_ptr<TrackerElementInt64> num_avg;
-    std::shared_ptr<TrackerElementInt64> num_alt_avg;
+    std::shared_ptr<tracker_element_int64> avg_lat;
+    std::shared_ptr<tracker_element_int64> avg_lon;
+    std::shared_ptr<tracker_element_int64> avg_alt;
+    std::shared_ptr<tracker_element_int64> num_avg;
+    std::shared_ptr<tracker_element_int64> num_alt_avg;
 };
 
 // Historic location track; used in the averaging / rrd historic location.
@@ -157,22 +174,37 @@ class kis_historic_location : public tracker_component {
 public:
     kis_historic_location();
     kis_historic_location(int in_id);
-    kis_historic_location(int in_id, std::shared_ptr<TrackerElementMap> e);
+    kis_historic_location(int in_id, std::shared_ptr<tracker_element_map> e);
 
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
+    virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
     }
 
-    __Proxy(lat, double, double, double, lat);
-    __Proxy(lon, double, double, double, lon);
+    // lat/lon are encoded in the geopoint
+    const double get_lat() const {
+        return geopoint->at(1);
+    }
+
+    void set_lat(double lat) {
+        geopoint->at(1) = lat;
+    }
+
+    const double get_lon() const {
+        return geopoint->at(0);
+    }
+
+    void set_lon(double lon) {
+        geopoint->at(0) = lon;
+    }
+
     __Proxy(heading, double, double, double, heading);
     __Proxy(alt, double, double, double, alt);
     __Proxy(speed, double, double, double, speed);
@@ -182,17 +214,17 @@ public:
 
 protected:
     virtual void register_fields() override;
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;
 
-    std::shared_ptr<TrackerElementDouble> lat;
-    std::shared_ptr<TrackerElementDouble> lon;
-    std::shared_ptr<TrackerElementDouble> alt;
-    std::shared_ptr<TrackerElementDouble> heading; 
-    std::shared_ptr<TrackerElementDouble> speed;
+    std::shared_ptr<tracker_element_vector_double> geopoint;
+    std::shared_ptr<tracker_element_double> alt;
+    std::shared_ptr<tracker_element_double> heading; 
+    std::shared_ptr<tracker_element_double> speed;
 
-    std::shared_ptr<TrackerElementInt32> signal;
-    std::shared_ptr<TrackerElementUInt64> frequency;
+    std::shared_ptr<tracker_element_int32> signal;
+    std::shared_ptr<tracker_element_uint64> frequency;
 
-    std::shared_ptr<TrackerElementUInt64> time_sec;
+    std::shared_ptr<tracker_element_uint64> time_sec;
 };
 
 // rrd-ish historic location cloud of cascading precision
@@ -202,15 +234,15 @@ class kis_location_history : public tracker_component {
 public:
     kis_location_history();
     kis_location_history(int in_id);
-    kis_location_history(int in_id, std::shared_ptr<TrackerElementMap> e);
+    kis_location_history(int in_id, std::shared_ptr<tracker_element_map> e);
 
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
+    virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
@@ -222,13 +254,13 @@ public:
 
 protected:
     virtual void register_fields() override;
-    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override;
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;
 
-    std::shared_ptr<TrackerElementVector> samples_100;
-    std::shared_ptr<TrackerElementVector> samples_10k;
-    std::shared_ptr<TrackerElementVector> samples_1m;
+    std::shared_ptr<tracker_element_vector> samples_100;
+    std::shared_ptr<tracker_element_vector> samples_10k;
+    std::shared_ptr<tracker_element_vector> samples_1m;
 
-    std::shared_ptr<TrackerElementUInt64> last_sample_ts;
+    std::shared_ptr<tracker_element_uint64> last_sample_ts;
 
     unsigned int samples_100_cascade;
     unsigned int samples_10k_cascade;

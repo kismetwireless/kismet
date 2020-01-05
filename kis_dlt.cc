@@ -26,42 +26,42 @@
 #include "kis_dlt.h"
 
 int kis_dlt_packethook(CHAINCALL_PARMS) {
-	return ((Kis_DLT_Handler *) auxdata)->HandlePacket(in_pack);
+	return ((kis_dlt_handler *) auxdata)->handle_packet(in_pack);
 }
 
-Kis_DLT_Handler::Kis_DLT_Handler() :
-    LifetimeGlobal(), 
+kis_dlt_handler::kis_dlt_handler() :
+    lifetime_global(), 
     dlt_name {"UNASSIGNED"},
     dlt {-1} {
 
     auto packetchain =
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>();
+        Globalreg::fetch_mandatory_global_as<packet_chain>();
 
 	chainid = 
-		packetchain->RegisterHandler(&kis_dlt_packethook, this,
+		packetchain->register_handler(&kis_dlt_packethook, this,
                 CHAINPOS_POSTCAP, 0);
 
 	pack_comp_linkframe =
-		packetchain->RegisterPacketComponent("LINKFRAME");
+		packetchain->register_packet_component("LINKFRAME");
 	pack_comp_decap =
-		packetchain->RegisterPacketComponent("DECAP");
+		packetchain->register_packet_component("DECAP");
 	pack_comp_datasrc =
-		packetchain->RegisterPacketComponent("KISDATASRC");
+		packetchain->register_packet_component("KISDATASRC");
 	pack_comp_radiodata = 
-		packetchain->RegisterPacketComponent("RADIODATA");
+		packetchain->register_packet_component("RADIODATA");
 	pack_comp_gps =
-		packetchain->RegisterPacketComponent("GPS");
+		packetchain->register_packet_component("GPS");
 	pack_comp_checksum =
-		packetchain->RegisterPacketComponent("CHECKSUM");
+		packetchain->register_packet_component("CHECKSUM");
 
 }
 
-Kis_DLT_Handler::~Kis_DLT_Handler() {
+kis_dlt_handler::~kis_dlt_handler() {
     auto packetchain = 
-        Globalreg::FetchGlobalAs<Packetchain>();
+        Globalreg::FetchGlobalAs<packet_chain>();
 
 	if (packetchain != nullptr) 
-		packetchain->RemoveHandler(chainid, CHAINPOS_POSTCAP);
+		packetchain->remove_handler(chainid, CHAINPOS_POSTCAP);
 
 	chainid = -1;
 }

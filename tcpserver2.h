@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -45,52 +45,41 @@
 #define MAXHOSTNAMELEN 64
 #endif
 
-// New TCP server code
-//
-// This code replaces tcpserver and netframework with a cleaner TCP implementation
-// which interacts with a bufferhandler
+// A callback-oriented tcpserver implementation which triggers a callback 
+// with the incoming file descriptor of incoming connections.  Basic hostname
+// filtering is implemented.
 
-class TcpServerV2 : public Pollable {
+class tcp_server_v2 : public kis_pollable {
 public:
     struct ipfilter {
         in_addr network;
         in_addr mask;
     };
 
-    TcpServerV2(GlobalRegistry *in_globalreg);
-    virtual ~TcpServerV2();
+    tcp_server_v2();
+    virtual ~tcp_server_v2();
 
-    virtual int ConfigureServer(short int in_port, unsigned int in_maxcli,
+    virtual int configure_server(short int in_port, unsigned int in_maxcli,
             std::string in_bindaddress, std::vector<std::string> in_filtervec);
 
-    virtual void KillConnection(int in_fd);
-    virtual void KillConnection(std::shared_ptr<BufferHandlerGeneric> in_handler);
+    void set_new_connection_cb(std::function<void (int)> cb);
+    void remove_new_connection_cb();
 
-    virtual void Shutdown();
+    virtual void shutdown();
 
-    virtual void SetBufferSize(unsigned int in_sz);
-
-    // Pollable
-    virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
-    virtual int Poll(fd_set& in_rset, fd_set& in_wset);
-   
-    // Must be filled in
-    virtual void NewConnection(std::shared_ptr<BufferHandlerGeneric> conn_handler) = 0;
+    // kis_pollable
+    virtual int pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
+    virtual int pollable_poll(fd_set& in_rset, fd_set& in_wset);
 protected:
-    GlobalRegistry *globalreg;
+    kis_recursive_timed_mutex tcp_mutex;
 
     // Perform the TCP accept
-    virtual int AcceptConnection();
+    virtual int accept_connection();
 
     // Filter against the filter list
-    virtual bool AllowConnection(int in_fd);
-
-    // Allocate the connection
-    virtual std::shared_ptr<BufferHandlerGeneric> AllocateConnection(int in_fd);
+    virtual bool allow_connection(int in_fd);
 
     bool valid;
-
-    unsigned int ringbuf_size;
 
     char hostname[MAXHOSTNAMELEN];
     short int port;
@@ -98,15 +87,11 @@ protected:
 
     struct sockaddr_in serv_sock;
 
-    std::vector<TcpServerV2::ipfilter> ipfilter_vec;
+    std::vector<tcp_server_v2::ipfilter> ipfilter_vec;
 
     int server_fd;
 
-    // FD to handler
-    std::map<int, std::shared_ptr<BufferHandlerGeneric> > handler_map;
-
-    std::map<int, std::shared_ptr<BufferHandlerGeneric> > kill_map;
-
+    std::function<void (int)> new_connection_cb;
 };
 
 #endif

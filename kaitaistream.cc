@@ -399,7 +399,7 @@ std::string kaitai::kstream::ensure_fixed_contents(std::string expected) {
     std::string actual = read_bytes(expected.length());
 
     if (actual != expected) {
-        // NOTE: I think printing it outright is not best idea, it could contain non-ascii charactes like backspace and beeps and whatnot. It would be better to print hexlified version, and also to redirect it to stderr.
+        // NOTE: I think printing it outright is not best idea, it could contain non-ascii characters like backspace and beeps and whatnot. It would be better to print hexlified version, and also to redirect it to stderr.
         throw std::runtime_error("ensure_fixed_contents: actual data does not match expected data");
     }
 
@@ -595,7 +595,7 @@ std::string kaitai::kstream::bytes_to_str(std::string src, std::string src_enc) 
 
         if (res == (size_t) -1) {
             if (errno == E2BIG) {
-                // dst buffer is not enough to accomodate whole string
+                // dst buffer is not enough to accommodate whole string
                 // enlarge the buffer and try again
                 size_t dst_used = dst_len - dst_left;
                 dst_left += dst_len;

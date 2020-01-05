@@ -38,29 +38,29 @@
 // This doesn't need to implement a ringbuffer interface directly because
 // it checks using the poll() sequence.  The consumer will use a rb interface
 // for reading incoming data.
-class SerialClientV2 : public Pollable {
+class serial_client_v2 : public kis_pollable {
 public:
-    SerialClientV2(GlobalRegistry *in_globalreg, std::shared_ptr<BufferHandlerGeneric> in_rbhandler);
-    virtual ~SerialClientV2();
+    serial_client_v2(global_registry *in_globalreg, std::shared_ptr<buffer_handler_generic> in_rbhandler);
+    virtual ~serial_client_v2();
 
-    virtual void SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
+    virtual void set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
 
     // Open a serial port @ a given baud rate
-    int OpenDevice(std::string in_device, unsigned int in_baud);
-    void Close();
+    int open_device(std::string in_device, unsigned int in_baud);
+    void close_device();
 
-    // Pollable interface
-    virtual int MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
-    virtual int Poll(fd_set& in_rset, fd_set& in_wset);
+    // kis_pollable interface
+    virtual int pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
+    virtual int pollable_poll(fd_set& in_rset, fd_set& in_wset);
 
-    bool FetchConnected();
+    bool get_connected();
 
 protected:
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
 
     std::shared_ptr<kis_recursive_timed_mutex> serial_mutex;
 
-    std::shared_ptr<BufferHandlerGeneric> handler;
+    std::shared_ptr<buffer_handler_generic> handler;
 
     int device_fd;
 

@@ -25,17 +25,18 @@
 
 #ifdef HAVE_LINUX_BLUETOOTH_DATASOURCE
 
-KisDatasourceLinuxBluetooth::KisDatasourceLinuxBluetooth(SharedDatasourceBuilder in_builder) : 
-    KisDatasource(in_builder) {
+kis_datasource_linux_bluetooth::kis_datasource_linux_bluetooth(shared_datasource_builder in_builder,
+        std::shared_ptr<kis_recursive_timed_mutex> mutex) : 
+    kis_datasource(in_builder, mutex) {
     // Set the capture binary
     set_int_source_ipc_binary("kismet_cap_linux_bluetooth");
 
-    pack_comp_btdevice = packetchain->RegisterPacketComponent("BTDEVICE");
-    pack_comp_meta = packetchain->RegisterPacketComponent("METABLOB");
+    pack_comp_btdevice = packetchain->register_packet_component("BTDEVICE");
+    pack_comp_meta = packetchain->register_packet_component("METABLOB");
 }
 
-bool KisDatasourceLinuxBluetooth::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
-    if (KisDatasource::dispatch_rx_packet(c))
+bool kis_datasource_linux_bluetooth::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
+    if (kis_datasource::dispatch_rx_packet(c))
         return true;
 
     if (c->command() == "LBTDATAREPORT") {
@@ -46,7 +47,7 @@ bool KisDatasourceLinuxBluetooth::dispatch_rx_packet(std::shared_ptr<KismetExter
     return false;
 }
 
-void KisDatasourceLinuxBluetooth::handle_packet_linuxbtdevice(uint32_t in_seqno, 
+void kis_datasource_linux_bluetooth::handle_packet_linuxbtdevice(uint32_t in_seqno, 
         std::string in_content) {
 
     // If we're paused, throw away this packet
@@ -73,7 +74,7 @@ void KisDatasourceLinuxBluetooth::handle_packet_linuxbtdevice(uint32_t in_seqno,
     if (report.has_warning())
         set_int_source_warning(report.warning());
 
-    kis_packet *packet = packetchain->GeneratePacket();
+    kis_packet *packet = packetchain->generate_packet();
     bluetooth_packinfo *bpi = new bluetooth_packinfo();
 
     packet->insert(pack_comp_btdevice, bpi);
@@ -99,7 +100,7 @@ void KisDatasourceLinuxBluetooth::handle_packet_linuxbtdevice(uint32_t in_seqno,
     }
 
     bpi->address = mac_addr(report.btdevice().address());
-    bpi->name = MungeToPrintable(report.btdevice().name());
+    bpi->name = munge_to_printable(report.btdevice().name());
     bpi->txpower = report.btdevice().txpower();
     bpi->type = report.btdevice().type();
 
@@ -110,7 +111,7 @@ void KisDatasourceLinuxBluetooth::handle_packet_linuxbtdevice(uint32_t in_seqno,
     std::stringstream fake_json;
     fake_json << "{";
     fake_json << "\"bt_address\":\"" << bpi->address << "\",";
-    fake_json << "\"bt_name\":\"" << JsonAdapter::SanitizeString(bpi->name) << "\",";
+    fake_json << "\"bt_name\":\"" << json_adapter::sanitize_string(bpi->name) << "\",";
     fake_json << "\"txpower\":" << bpi->txpower << ",";
     fake_json << "\"type\":" << bpi->type << ",";
     fake_json << "\"uuid_list\": [";
@@ -138,7 +139,7 @@ void KisDatasourceLinuxBluetooth::handle_packet_linuxbtdevice(uint32_t in_seqno,
     get_source_packet_rrd()->add_sample(1, time(0));
 
     // Inject the packet into the packetchain if we have one
-    packetchain->ProcessPacket(packet);
+    packetchain->process_packet(packet);
 
 }
 

@@ -25,23 +25,23 @@
 #include "gpstracker.h"
 #include "pollabletracker.h"
 
-void GPSNMEA::BufferAvailable(size_t in_amt) {
+void kis_gps_nmea::buffer_available(size_t in_amt) {
     local_locker lock(gps_mutex);
 
     size_t buf_sz;
     char *buf;
 
     // Peek at all the data we have available
-    buf_sz = nmeahandler->PeekReadBufferData((void **) &buf, 
-            nmeahandler->GetReadBufferAvailable());
+    buf_sz = nmeahandler->peek_read_buffer_data((void **) &buf, 
+            nmeahandler->get_read_buffer_available());
 
     // Aggregate into a new location; then copy into the main location
     // depending on what we found.  Locations can come in multiple sentences
     // so if we're within a second of the previous one we can aggregate them
-    std::vector<std::string> inptok = StrTokenize(std::string(buf, buf_sz), "\n", 0);
+    std::vector<std::string> inptok = str_tokenize(std::string(buf, buf_sz), "\n", 0);
 
     // We've tokenized a copy of the buffer so unlock what we peeked
-    nmeahandler->PeekFreeReadBufferData(buf);
+    nmeahandler->peek_free_read_buffer_data(buf);
 
     if (inptok.size() < 1) {
         return;
@@ -61,14 +61,14 @@ void GPSNMEA::BufferAvailable(size_t in_amt) {
     // TODO fix assumptions about token length and spacing...
     for (unsigned int it = 0; it < inptok.size(); it++) {
         // Consume the data from the ringbuffer
-        nmeahandler->ConsumeReadBufferData(inptok[it].length() + 1);
+        nmeahandler->consume_read_buffer_data(inptok[it].length() + 1);
 
         if (inptok[it].length() < 4)
             continue;
 
         // $GPGGA,012527.000,4142.6918,N,07355.8711,W,1,07,1.2,57.8,M,-34.0,M,,0000*57
 
-        std::vector<std::string> gpstoks = StrTokenize(inptok[it], ",");
+        std::vector<std::string> gpstoks = str_tokenize(inptok[it], ",");
 
         if (gpstoks.size() == 0)
             continue;
@@ -80,7 +80,7 @@ void GPSNMEA::BufferAvailable(size_t in_amt) {
             if (gpstoks.size() < 15)
                 continue;
 
-            // Parse the basic gps coodinate string
+            // Parse the basic gps coordinate string
             // $GPGGA,time,lat,NS,lon,EW,quality,#sats,hdop,alt,M,geopos,M,
             // dgps1,dgps2,checksum
 
@@ -241,7 +241,7 @@ A        Auto selection of 2D or 3D fix (M = manual)
             // snr
 
 #if 0
-            vector<string> svvec = StrTokenize(inptok[it], ",");
+            vector<string> svvec = str_tokenize(inptok[it], ",");
             GPSCore::sat_pos sp;
 
             gps_connected = 1;
@@ -313,7 +313,7 @@ A        Auto selection of 2D or 3D fix (M = manual)
                 gps_last_location != NULL &&
                 gps_last_location->fix >= 2) {
             gps_location->heading = 
-                GpsCalcHeading(gps_location->lat, gps_location->lon, 
+                gps_calc_heading(gps_location->lat, gps_location->lon, 
                         gps_last_location->lat, gps_last_location->lon);
             last_heading_time = gps_location->tv.tv_sec;
         }

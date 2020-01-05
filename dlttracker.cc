@@ -23,29 +23,29 @@
 #include "dlttracker.h"
 #include "util.h"
 
-DltTracker::DltTracker() {
-
+dlt_tracker::dlt_tracker() {
+    mutex.set_name("dlttracker");
 }
 
-DltTracker::~DltTracker() {
+dlt_tracker::~dlt_tracker() {
     local_locker lock(&mutex);
 
 }
 
-uint32_t DltTracker::register_linktype(const std::string& in_linktype) {
-    uint32_t csum = Adler32Checksum(StrLower(in_linktype));
+uint32_t dlt_tracker::register_linktype(const std::string& in_linktype) {
+    uint32_t csum = adler32_checksum(str_lower(in_linktype));
     
     if (csum < 4096)
         csum += 4096;
 
     local_locker l(&mutex);
 
-    dlt_to_name_map[csum] = StrLower(in_linktype);
+    dlt_to_name_map[csum] = str_lower(in_linktype);
 
     return csum;
 }
 
-std::string DltTracker::get_linktype_name(uint32_t in_dlt) {
+std::string dlt_tracker::get_linktype_name(uint32_t in_dlt) {
     local_locker l(&mutex);
 
     auto i = dlt_to_name_map.find(in_dlt);

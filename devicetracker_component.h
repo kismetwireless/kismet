@@ -21,13 +21,15 @@
 
 #include "config.h"
 
-#include <stdio.h>
-#include <time.h>
+#include <algorithm>
 #include <list>
 #include <map>
-#include <vector>
-#include <algorithm>
 #include <string>
+#include <unordered_map>
+#include <vector>
+
+#include <stdio.h>
+#include <time.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -42,7 +44,7 @@
 #include "trackedrrd.h"
 #include "packinfo_signal.h"
 
-class KisDatasource;
+class kis_datasource;
 
 enum kis_ipdata_type {
 	ipdata_unknown = 0,
@@ -58,15 +60,15 @@ class kis_tracked_ip_data : public tracker_component {
 public:
     kis_tracked_ip_data();
     kis_tracked_ip_data(int in_id);
-    kis_tracked_ip_data(int in_id, std::shared_ptr<TrackerElementMap> e);
+    kis_tracked_ip_data(int in_id, std::shared_ptr<tracker_element_map> e);
 
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
+    virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
@@ -80,10 +82,10 @@ public:
 protected:
     virtual void register_fields() override;
 
-    std::shared_ptr<TrackerElementInt32> ip_type;
-    std::shared_ptr<TrackerElementUInt64> ip_addr_block;
-    std::shared_ptr<TrackerElementUInt64> ip_netmask;
-    std::shared_ptr<TrackerElementUInt64> ip_gateway;
+    std::shared_ptr<tracker_element_int32> ip_type;
+    std::shared_ptr<tracker_element_uint64> ip_addr_block;
+    std::shared_ptr<tracker_element_uint64> ip_netmask;
+    std::shared_ptr<tracker_element_uint64> ip_gateway;
 };
 
 // Component-tracker based signal data
@@ -92,22 +94,22 @@ class kis_tracked_signal_data : public tracker_component {
 public:
     kis_tracked_signal_data();
     kis_tracked_signal_data(int in_id);
-    kis_tracked_signal_data(int in_id, std::shared_ptr<TrackerElementMap> e);
+    kis_tracked_signal_data(int in_id, std::shared_ptr<tracker_element_map> e);
 
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
+    virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
     }
 
-    void append_signal(const kis_layer1_packinfo& lay1, bool update_rrd = true);
-    void append_signal(const Packinfo_Sig_Combo& in, bool update_rrd = true);
+    void append_signal(const kis_layer1_packinfo& lay1, bool update_rrd, time_t rrd_ts);
+    void append_signal(const packinfo_sig_combo& in, bool update_rrd, time_t rrd_ts);
 
     __ProxyGet(signal_type, std::string, std::string, signal_type);
 
@@ -131,23 +133,23 @@ public:
 protected:
     virtual void register_fields() override;
 
-    std::shared_ptr<TrackerElementInt32> last_signal;
-    std::shared_ptr<TrackerElementInt32> last_noise;
+    std::shared_ptr<tracker_element_int32> last_signal;
+    std::shared_ptr<tracker_element_int32> last_noise;
 
-    std::shared_ptr<TrackerElementInt32> min_signal;
-    std::shared_ptr<TrackerElementInt32> min_noise;
+    std::shared_ptr<tracker_element_int32> min_signal;
+    std::shared_ptr<tracker_element_int32> min_noise;
 
-    std::shared_ptr<TrackerElementInt32> max_signal;
-    std::shared_ptr<TrackerElementInt32> max_noise;
+    std::shared_ptr<tracker_element_int32> max_signal;
+    std::shared_ptr<tracker_element_int32> max_noise;
 
-    std::shared_ptr<TrackerElementString> signal_type;
+    std::shared_ptr<tracker_element_string> signal_type;
 
     int peak_loc_id;
     std::shared_ptr<kis_tracked_location_triplet> peak_loc;
 
-    std::shared_ptr<TrackerElementDouble> maxseenrate;
-    std::shared_ptr<TrackerElementUInt64> encodingset;
-    std::shared_ptr<TrackerElementUInt64> carrierset;
+    std::shared_ptr<tracker_element_double> maxseenrate;
+    std::shared_ptr<tracker_element_uint64> encodingset;
+    std::shared_ptr<tracker_element_uint64> carrierset;
 
     // Signal record over the past minute, either rssi or dbm.  Devices
     // should not mix rssi and dbm signal reporting.
@@ -161,15 +163,15 @@ class kis_tracked_seenby_data : public tracker_component {
 public:
     kis_tracked_seenby_data();
     kis_tracked_seenby_data(int in_id);
-    kis_tracked_seenby_data(int in_id, std::shared_ptr<TrackerElementMap> e);
+    kis_tracked_seenby_data(int in_id, std::shared_ptr<tracker_element_map> e);
 
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
+    virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
@@ -181,7 +183,7 @@ public:
     __Proxy(num_packets, uint64_t, uint64_t, uint64_t, num_packets);
     __ProxyIncDec(num_packets, uint64_t, uint64_t, num_packets);
 
-    __ProxyTrackable(freq_khz_map, TrackerElementDoubleMapDouble, freq_khz_map);
+    __ProxyTrackable(freq_khz_map, tracker_element_double_map_double, freq_khz_map);
     __ProxyDynamicTrackable(signal_data, kis_tracked_signal_data, signal_data, signal_data_id);
 
     void inc_frequency_count(int frequency);
@@ -189,12 +191,12 @@ public:
 protected:
     virtual void register_fields() override;
 
-    std::shared_ptr<TrackerElementUUID> src_uuid;
-    std::shared_ptr<TrackerElementUInt64> first_time;
-    std::shared_ptr<TrackerElementUInt64> last_time;
-    std::shared_ptr<TrackerElementUInt64> num_packets;
+    std::shared_ptr<tracker_element_uuid> src_uuid;
+    std::shared_ptr<tracker_element_uint64> first_time;
+    std::shared_ptr<tracker_element_uint64> last_time;
+    std::shared_ptr<tracker_element_uint64> num_packets;
 
-    std::shared_ptr<TrackerElementDoubleMapDouble> freq_khz_map;
+    std::shared_ptr<tracker_element_double_map_double> freq_khz_map;
     int frequency_val_id;
 
     std::shared_ptr<kis_tracked_signal_data> signal_data;
@@ -248,7 +250,7 @@ public:
         reserve_fields(NULL);
     }
 
-    kis_tracked_device_base(int in_id, std::shared_ptr<TrackerElementMap> e) : 
+    kis_tracked_device_base(int in_id, std::shared_ptr<tracker_element_map> e) : 
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -257,16 +259,16 @@ public:
     virtual ~kis_tracked_device_base() { }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("kis_tracked_device_base");
+        return adler32_checksum("kis_tracked_device_base");
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
+    virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
@@ -279,7 +281,7 @@ public:
 
             // Only set the mac as the common name to the mac if it's empty
             if (get_commonname() == "")
-                set_commonname(m.Mac2String());
+                set_commonname(m.mac_to_string());
 
             return true;
             
@@ -399,7 +401,7 @@ public:
     __Proxy(channel, std::string, std::string, std::string, channel);
     __Proxy(frequency, double, double, double, frequency);
 
-    __ProxyTrackable(manuf, TrackerElementString, manuf);
+    __ProxyTrackable(manuf, tracker_element_string, manuf);
     __Proxy(manuf, std::string, std::string, std::string, manuf);
 
     __Proxy(num_alerts, uint32_t, unsigned int, unsigned int, alert);
@@ -407,20 +409,20 @@ public:
     __ProxyDynamicTrackable(signal_data, kis_tracked_signal_data, signal_data,
             signal_data_id);
 
-    __ProxyTrackable(freq_khz_map, TrackerElementDoubleMapDouble, freq_khz_map);
+    __ProxyTrackable(freq_khz_map, tracker_element_double_map_double, freq_khz_map);
 
     void inc_frequency_count(double frequency);
 
-    __ProxyTrackable(seenby_map, TrackerElementIntMap, seenby_map);
+    __ProxyTrackable(seenby_map, tracker_element_int_map, seenby_map);
 
-    void inc_seenby_count(KisDatasource *source, time_t tv_sec, int frequency,
-            Packinfo_Sig_Combo *siginfo, bool update_rrd);
+    void inc_seenby_count(kis_datasource *source, time_t tv_sec, int frequency,
+            packinfo_sig_combo *siginfo, bool update_rrd);
 
-    __ProxyTrackable(tag_map, TrackerElementStringMap, tag_map);
+    __ProxyTrackable(tag_map, tracker_element_string_map, tag_map);
 
     __Proxy(server_uuid, uuid, uuid, uuid, server_uuid);
 
-    __ProxyTrackable(related_devices_map, TrackerElementStringMap, related_devices_map);
+    __ProxyTrackable(related_devices_map, tracker_element_string_map, related_devices_map);
     void add_related_device(const std::string& in_relationship, const device_key in_key);
 
     // Non-exported internal counter used for structured sorting
@@ -448,7 +450,7 @@ public:
 
 protected:
     virtual void register_fields() override;
-    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override;
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;
 
     // Unique, meaningless, incremental ID.  Practically, this is the order
     // in which kismet saw devices; it has no purpose other than a sorting
@@ -457,57 +459,57 @@ protected:
     uint64_t kis_internal_id;
 
     // Unique key
-    std::shared_ptr<TrackerElementDeviceKey> key;
+    std::shared_ptr<tracker_element_device_key> key;
 
     // Mac address (probably the key, but could be different)
-    std::shared_ptr<TrackerElementMacAddr> macaddr;
+    std::shared_ptr<tracker_element_mac_addr> macaddr;
 
     // Phy name
-    std::shared_ptr<TrackerElementString> phyname;
-	std::shared_ptr<TrackerElementInt32> phyid;
+    std::shared_ptr<tracker_element_string> phyname;
+	std::shared_ptr<tracker_element_int32> phyid;
 
     // Printable name for UI summary.  For APs could be latest SSID, for BT the UAP guess, etc.
-    std::shared_ptr<TrackerElementString> devicename;
+    std::shared_ptr<tracker_element_string> devicename;
 
     // User name for arbitrary naming
-    std::shared_ptr<TrackerElementString> username;
+    std::shared_ptr<tracker_element_string> username;
     int username_id;
 
     // Common name connected via preserialize
-    std::shared_ptr<TrackerElementString> commonname;
+    std::shared_ptr<tracker_element_string> commonname;
 
     // Printable basic type relevant to the phy, ie "Wired", "AP", "Bluetooth", etc.
     // This can be set per-phy and is treated as a printable interpretation.
     // This should be empty if the phy layer is unable to add something intelligent
-    std::shared_ptr<TrackerElementString> type_string;
+    std::shared_ptr<tracker_element_string> type_string;
 
     // Basic phy-neutral type for sorting and classification
-    std::shared_ptr<TrackerElementUInt64> basic_type_set;
+    std::shared_ptr<tracker_element_uint64> basic_type_set;
 
     // Printable crypt string, which is set by the phy and is the best printable
     // representation of the phy crypt options.  This should be empty if the phy
     // layer hasn't added something intelligent.
-    std::shared_ptr<TrackerElementString> crypt_string;
+    std::shared_ptr<tracker_element_string> crypt_string;
 
     // Bitset of basic phy-neutral crypt options
-    std::shared_ptr<TrackerElementUInt64> basic_crypt_set;
+    std::shared_ptr<tracker_element_uint64> basic_crypt_set;
 
     // First and last seen
-    std::shared_ptr<TrackerElementUInt64> first_time;
-    std::shared_ptr<TrackerElementUInt64> last_time;
-    std::shared_ptr<TrackerElementUInt64> mod_time;
+    std::shared_ptr<tracker_element_uint64> first_time;
+    std::shared_ptr<tracker_element_uint64> last_time;
+    std::shared_ptr<tracker_element_uint64> mod_time;
 
     // Packet counts
-    std::shared_ptr<TrackerElementUInt64> packets;
-    std::shared_ptr<TrackerElementUInt64> tx_packets;
-    std::shared_ptr<TrackerElementUInt64> rx_packets;
-    std::shared_ptr<TrackerElementUInt64> llc_packets;
-    std::shared_ptr<TrackerElementUInt64> error_packets;
-    std::shared_ptr<TrackerElementUInt64> data_packets;
-    std::shared_ptr<TrackerElementUInt64> crypt_packets;
-    std::shared_ptr<TrackerElementUInt64> filter_packets;
+    std::shared_ptr<tracker_element_uint64> packets;
+    std::shared_ptr<tracker_element_uint64> tx_packets;
+    std::shared_ptr<tracker_element_uint64> rx_packets;
+    std::shared_ptr<tracker_element_uint64> llc_packets;
+    std::shared_ptr<tracker_element_uint64> error_packets;
+    std::shared_ptr<tracker_element_uint64> data_packets;
+    std::shared_ptr<tracker_element_uint64> crypt_packets;
+    std::shared_ptr<tracker_element_uint64> filter_packets;
 
-    std::shared_ptr<TrackerElementUInt64> datasize;
+    std::shared_ptr<tracker_element_uint64> datasize;
 
     // Packets and data RRDs
     int packets_rrd_id;
@@ -529,25 +531,25 @@ protected:
     std::shared_ptr<kis_tracked_minute_rrd<>> packet_rrd_bin_jumbo;
 
 	// Channel and frequency as per PHY type
-    std::shared_ptr<TrackerElementString> channel;
-    std::shared_ptr<TrackerElementDouble> frequency;
+    std::shared_ptr<tracker_element_string> channel;
+    std::shared_ptr<tracker_element_double> frequency;
 
     // Signal data
     int signal_data_id;
     std::shared_ptr<kis_tracked_signal_data> signal_data;
 
     // Global frequency distribution
-    std::shared_ptr<TrackerElementDoubleMapDouble> freq_khz_map;
+    std::shared_ptr<tracker_element_double_map_double> freq_khz_map;
 
     // Manufacturer, if we're able to derive, either from OUI or 
     // from other data (phy-dependent)
-    std::shared_ptr<TrackerElementString> manuf;
+    std::shared_ptr<tracker_element_string> manuf;
 
     // Alerts triggered on this device
-    std::shared_ptr<TrackerElementUInt32> alert;
+    std::shared_ptr<tracker_element_uint32> alert;
 
     // Stringmap of tags
-    std::shared_ptr<TrackerElementStringMap> tag_map;
+    std::shared_ptr<tracker_element_string_map> tag_map;
     // Entry ID for tag map
     int tag_entry_id;
 
@@ -559,11 +561,11 @@ protected:
     int location_cloud_id;
 
     // Seenby map (mapped by int16 device id)
-    std::shared_ptr<TrackerElementIntMap> seenby_map;
+    std::shared_ptr<tracker_element_int_map> seenby_map;
     int seenby_map_id;
 
     // Server UUID which generated this device
-    std::shared_ptr<TrackerElementUUID> server_uuid;
+    std::shared_ptr<tracker_element_uuid> server_uuid;
 
     // Non-exported local value for frequency count
     int frequency_val_id;
@@ -573,7 +575,7 @@ protected:
 
     // Related devices, keyed by strings.  Each related device group is then a key map
     // presented as a vector
-    std::shared_ptr<TrackerElementStringMap> related_devices_map;
+    std::shared_ptr<tracker_element_string_map> related_devices_map;
     int related_device_group_id;
 };
 
@@ -584,7 +586,8 @@ public:
 		self_destruct = 1;
 	}
 
-    std::map<mac_addr, std::shared_ptr<kis_tracked_device_base> > devrefs;
+    // We don't use mac masks here so an unordered map is safe
+    std::unordered_map<mac_addr, std::shared_ptr<kis_tracked_device_base> > devrefs;
 };
 
 #endif

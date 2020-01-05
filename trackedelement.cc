@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -78,11 +78,11 @@ std::string device_key::as_string() const {
 }
 
 uint32_t device_key::gen_pkey(std::string phy) {
-    return Adler32Checksum(phy.c_str(), phy.length());
+    return adler32_checksum(phy.c_str(), phy.length());
 }
 
 uint64_t device_key::gen_spkey(uuid s_uuid, std::string phy) {
-    uint64_t uuid32 = Adler32Checksum((const char *) s_uuid.uuid_block, 16);
+    uint64_t uuid32 = adler32_checksum((const char *) s_uuid.uuid_block, 16);
     uint64_t phy32 = gen_pkey(phy);
 
     return (uuid32 << 32) | phy32;
@@ -123,36 +123,36 @@ std::istream& operator>>(std::istream& is, device_key& k) {
 
 // New
 
-void TrackerElementString::coercive_set(const std::string& in_str) {
+void tracker_element_string::coercive_set(const std::string& in_str) {
     value = in_str;
 }
 
-void TrackerElementString::coercive_set(double in_num) {
+void tracker_element_string::coercive_set(double in_num) {
     value = fmt::format("{}", in_num);
 }
 
-void TrackerElementString::coercive_set(const SharedTrackerElement& e) {
+void tracker_element_string::coercive_set(const shared_tracker_element& e) {
     switch (e->get_type()) {
-        case TrackerType::TrackerInt8:
-        case TrackerType::TrackerUInt8:
-        case TrackerType::TrackerInt16:
-        case TrackerType::TrackerUInt16:
-        case TrackerType::TrackerInt32:
-        case TrackerType::TrackerUInt32:
-        case TrackerType::TrackerInt64:
-        case TrackerType::TrackerUInt64:
-        case TrackerType::TrackerFloat:
-        case TrackerType::TrackerDouble:
-            coercive_set(std::static_pointer_cast<TrackerElementCoreScalar>(e)->get());
+        case tracker_type::tracker_int8:
+        case tracker_type::tracker_uint8:
+        case tracker_type::tracker_int16:
+        case tracker_type::tracker_uint16:
+        case tracker_type::tracker_int32:
+        case tracker_type::tracker_uint32:
+        case tracker_type::tracker_int64:
+        case tracker_type::tracker_uint64:
+        case tracker_type::tracker_float:
+        case tracker_type::tracker_double:
+            coercive_set(std::static_pointer_cast<tracker_element_core_scalar>(e)->get());
             break;
-        case TrackerType::TrackerString:
-            coercive_set(std::static_pointer_cast<TrackerElementString>(e)->get());
+        case tracker_type::tracker_string:
+            coercive_set(std::static_pointer_cast<tracker_element_string>(e)->get());
             break;
-        case TrackerType::TrackerUuid:
-            coercive_set(std::static_pointer_cast<TrackerElementUUID>(e)->get().UUID2String());
+        case tracker_type::tracker_uuid:
+            coercive_set(std::static_pointer_cast<tracker_element_uuid>(e)->get().uuid_to_string());
             break;
-        case TrackerType::TrackerMac:
-            coercive_set(std::static_pointer_cast<TrackerElementMacAddr>(e)->get().Mac2String());
+        case tracker_type::tracker_mac_addr:
+            coercive_set(std::static_pointer_cast<tracker_element_mac_addr>(e)->get().mac_to_string());
             break;
         default:
             throw std::runtime_error(fmt::format("Could not coerce {} to {}",
@@ -160,11 +160,11 @@ void TrackerElementString::coercive_set(const SharedTrackerElement& e) {
     }
 }
 
-bool TrackerElementString::less_than(const TrackerElementString& rhs) const {
+bool tracker_element_string::less_than(const tracker_element_string& rhs) const {
     return doj::alphanum_comp(value, rhs.value) < 0;
 }
 
-void TrackerElementUUID::coercive_set(const std::string& in_str) {
+void tracker_element_uuid::coercive_set(const std::string& in_str) {
     uuid u(in_str);
 
     if (u.error)
@@ -173,14 +173,14 @@ void TrackerElementUUID::coercive_set(const std::string& in_str) {
     value = u;
 }
 
-void TrackerElementUUID::coercive_set(double in_num) {
+void tracker_element_uuid::coercive_set(double in_num) {
     throw std::runtime_error("Cannot coerce UUID from number");
 }
 
-void TrackerElementUUID::coercive_set(const SharedTrackerElement& e) {
+void tracker_element_uuid::coercive_set(const shared_tracker_element& e) {
     switch (e->get_type()) {
-        case TrackerType::TrackerUuid:
-            coercive_set(std::static_pointer_cast<TrackerElementUUID>(e)->get().UUID2String());
+        case tracker_type::tracker_uuid:
+            coercive_set(std::static_pointer_cast<tracker_element_uuid>(e)->get().uuid_to_string());
             break;
         default:
             throw std::runtime_error(fmt::format("Could not coerce {} to {}",
@@ -188,7 +188,7 @@ void TrackerElementUUID::coercive_set(const SharedTrackerElement& e) {
     }
 }
 
-void TrackerElementMacAddr::coercive_set(const std::string& in_str) {
+void tracker_element_mac_addr::coercive_set(const std::string& in_str) {
     mac_addr m(in_str);
 
     if (m.error)
@@ -197,14 +197,14 @@ void TrackerElementMacAddr::coercive_set(const std::string& in_str) {
     value = m;
 }
 
-void TrackerElementMacAddr::coercive_set(double in_num) {
+void tracker_element_mac_addr::coercive_set(double in_num) {
     throw std::runtime_error("Cannot coerce macaddr from number");
 }
 
-void TrackerElementMacAddr::coercive_set(const SharedTrackerElement& e) {
+void tracker_element_mac_addr::coercive_set(const shared_tracker_element& e) {
     switch (e->get_type()) {
-        case TrackerType::TrackerMac:
-            coercive_set(std::static_pointer_cast<TrackerElementMacAddr>(e)->get().Mac2String());
+        case tracker_type::tracker_mac_addr:
+            coercive_set(std::static_pointer_cast<tracker_element_mac_addr>(e)->get().mac_to_string());
             break;
         default:
             throw std::runtime_error(fmt::format("Could not coerce {} to {}",
@@ -212,397 +212,411 @@ void TrackerElementMacAddr::coercive_set(const SharedTrackerElement& e) {
     }
 }
 
-std::string TrackerElement::type_to_string(TrackerType t) {
+std::string tracker_element::type_to_string(tracker_type t) {
     switch (t) {
-        case TrackerType::TrackerString:
+        case tracker_type::tracker_string:
             return "string";
-        case TrackerType::TrackerInt8:
+        case tracker_type::tracker_int8:
             return "int8_t";
-        case TrackerType::TrackerUInt8:
+        case tracker_type::tracker_uint8:
             return "uint8_t";
-        case TrackerType::TrackerInt16:
+        case tracker_type::tracker_int16:
             return "int16_t";
-        case TrackerType::TrackerUInt16:
+        case tracker_type::tracker_uint16:
             return "uint16_t";
-        case TrackerType::TrackerInt32:
+        case tracker_type::tracker_int32:
             return "int32_t";
-        case TrackerType::TrackerUInt32:
+        case tracker_type::tracker_uint32:
             return "uint32_t";
-        case TrackerType::TrackerInt64:
+        case tracker_type::tracker_int64:
             return "int64_t";
-        case TrackerType::TrackerUInt64:
+        case tracker_type::tracker_uint64:
             return "uint64_t";
-        case TrackerType::TrackerFloat:
+        case tracker_type::tracker_float:
             return "float";
-        case TrackerType::TrackerDouble:
+        case tracker_type::tracker_double:
             return "double";
-        case TrackerType::TrackerMac:
+        case tracker_type::tracker_mac_addr:
             return "mac_addr";
-        case TrackerType::TrackerVector:
+        case tracker_type::tracker_vector:
             return "vector[x]";
-        case TrackerType::TrackerMap:
+        case tracker_type::tracker_map:
             return "map[field, x]";
-        case TrackerType::TrackerIntMap:
+        case tracker_type::tracker_int_map:
             return "map[int, x]";
-        case TrackerType::TrackerUuid:
+        case tracker_type::tracker_uuid:
             return "uuid";
-        case TrackerType::TrackerKey:
+        case tracker_type::tracker_key:
             return "devicekey";
-        case TrackerType::TrackerMacMap:
+        case tracker_type::tracker_mac_map:
             return "map[macaddr, x]";
-        case TrackerType::TrackerStringMap:
+        case tracker_type::tracker_string_map:
             return "map[string, x]";
-        case TrackerType::TrackerDoubleMap:
+        case tracker_type::tracker_double_map:
             return "map[double, x]";
-        case TrackerType::TrackerKeyMap:
+        case tracker_type::tracker_key_map:
             return "map[key, x]";
-        case TrackerType::TrackerByteArray:
+        case tracker_type::tracker_byte_array:
             return "bytearray";
-        case TrackerType::TrackerVectorDouble:
+        case tracker_type::tracker_vector_double:
             return "vector[double]";
-        case TrackerType::TrackerDoubleMapDouble:
+        case tracker_type::tracker_double_map_double:
             return "map[double,double]";
-        case TrackerType::TrackerVectorString:
+        case tracker_type::tracker_vector_string:
             return "vector[string]";
-        case TrackerType::TrackerHashkeyMap:
+        case tracker_type::tracker_hashkey_map:
             return "vector[size_t]";
+        case tracker_type::tracker_alias:
+            return "alias";
     }
 
     return "unknown";
 }
 
-std::string TrackerElement::type_to_typestring(TrackerType t) {
+std::string tracker_element::type_to_typestring(tracker_type t) {
     switch (t) {
-        case TrackerType::TrackerString:
-            return "TrackerString";
-        case TrackerType::TrackerInt8:
-            return "TrackerInt8";
-        case TrackerType::TrackerUInt8:
-            return "TrackerUInt8";
-        case TrackerType::TrackerInt16:
-            return "TrackerInt16";
-        case TrackerType::TrackerUInt16:
-            return "TrackerUInt16";
-        case TrackerType::TrackerInt32:
-            return "TrackerInt32";
-        case TrackerType::TrackerUInt32:
-            return "TrackerUInt32";
-        case TrackerType::TrackerInt64:
-            return "TrackerInt64";
-        case TrackerType::TrackerUInt64:
-            return "TrackerUInt64";
-        case TrackerType::TrackerFloat:
-            return "TrackerFloat";
-        case TrackerType::TrackerDouble:
-            return "TrackerDouble";
-        case TrackerType::TrackerMac:
-            return "TrackerMac";
-        case TrackerType::TrackerVector:
-            return "TrackerVector";
-        case TrackerType::TrackerMap:
-            return "TrackerMap";
-        case TrackerType::TrackerIntMap:
-            return "TrackerIntMap";
-        case TrackerType::TrackerUuid:
-            return "TrackerUuid";
-        case TrackerType::TrackerKey:
-            return "TrackerKey";
-        case TrackerType::TrackerMacMap:
-            return "TrackerMacMap";
-        case TrackerType::TrackerStringMap:
-            return "TrackerStringMap";
-        case TrackerType::TrackerDoubleMap:
-            return "TrackerDoubleMap";
-        case TrackerType::TrackerByteArray:
-            return "TrackerByteArray";
-        case TrackerType::TrackerKeyMap:
-            return "TrackerKeyMap";
-        case TrackerType::TrackerVectorDouble:
-            return "TrackerVectorDouble";
-        case TrackerType::TrackerDoubleMapDouble:
-            return "TrackerDoubleMapDouble";
-        case TrackerType::TrackerVectorString:
-            return "TrackerVectorString";
-        case TrackerType::TrackerHashkeyMap:
-            return "TrackerHashkeyMap";
+        case tracker_type::tracker_string:
+            return "tracker_string";
+        case tracker_type::tracker_int8:
+            return "tracker_int8";
+        case tracker_type::tracker_uint8:
+            return "tracker_uint8";
+        case tracker_type::tracker_int16:
+            return "tracker_int16";
+        case tracker_type::tracker_uint16:
+            return "tracker_uint16";
+        case tracker_type::tracker_int32:
+            return "tracker_int32";
+        case tracker_type::tracker_uint32:
+            return "tracker_uint32";
+        case tracker_type::tracker_int64:
+            return "tracker_int64";
+        case tracker_type::tracker_uint64:
+            return "tracker_uint64";
+        case tracker_type::tracker_float:
+            return "tracker_float";
+        case tracker_type::tracker_double:
+            return "tracker_double";
+        case tracker_type::tracker_mac_addr:
+            return "tracker_mac_addr";
+        case tracker_type::tracker_vector:
+            return "tracker_vector";
+        case tracker_type::tracker_map:
+            return "tracker_map";
+        case tracker_type::tracker_int_map:
+            return "tracker_int_map";
+        case tracker_type::tracker_uuid:
+            return "tracker_uuid";
+        case tracker_type::tracker_key:
+            return "tracker_key";
+        case tracker_type::tracker_mac_map:
+            return "tracker_mac_map";
+        case tracker_type::tracker_string_map:
+            return "tracker_string_map";
+        case tracker_type::tracker_double_map:
+            return "tracker_double_map";
+        case tracker_type::tracker_byte_array:
+            return "tracker_byte_array";
+        case tracker_type::tracker_key_map:
+            return "tracker_key_map";
+        case tracker_type::tracker_vector_double:
+            return "tracker_vector_double";
+        case tracker_type::tracker_double_map_double:
+            return "tracker_double_map_double";
+        case tracker_type::tracker_vector_string:
+            return "tracker_vector_string";
+        case tracker_type::tracker_hashkey_map:
+            return "tracker_hashkey_map";
+        case tracker_type::tracker_alias:
+            return "tracker_alias";
     }
 
     return "TrackerUnknown";
 }
 
-TrackerType TrackerElement::typestring_to_type(const std::string& s) {
-    if (s == "TrackerString")
-        return TrackerType::TrackerString;
-    if (s == "TrackerInt8")
-        return TrackerType::TrackerInt8;
-    if (s == "TrackerUInt8")
-        return TrackerType::TrackerUInt8;
-    if (s == "TrackerInt16")
-        return TrackerType::TrackerInt16;
-    if (s == "TrackerUInt16")
-        return TrackerType::TrackerUInt16;
-    if (s == "TrackerInt32")
-        return TrackerType::TrackerInt32;
-    if (s == "TrackerUInt32")
-        return TrackerType::TrackerUInt32;
-    if (s == "TrackerInt64")
-        return TrackerType::TrackerInt64;
-    if (s == "TrackerUInt64")
-        return TrackerType::TrackerUInt64;
-    if (s == "TrackerFloat")
-        return TrackerType::TrackerFloat;
-    if (s == "TrackerDouble")
-        return TrackerType::TrackerDouble;
-    if (s == "TrackerMac")
-        return TrackerType::TrackerMac;
-    if (s == "TrackerVector")
-        return TrackerType::TrackerVector;
-    if (s == "TrackerMap")
-        return TrackerType::TrackerMap;
-    if (s == "TrackerIntMap")
-        return TrackerType::TrackerIntMap;
-    if (s == "TrackerUuid")
-        return TrackerType::TrackerUuid;
-    if (s == "TrackerKey")
-        return TrackerType::TrackerKey;
-    if (s == "TrackerMacMap")
-        return TrackerType::TrackerMacMap;
-    if (s == "TrackerStringMap")
-        return TrackerType::TrackerStringMap;
-    if (s == "TrackerDoubleMap")
-        return TrackerType::TrackerDoubleMap;
-    if (s == "TrackerByteArray")
-        return TrackerType::TrackerByteArray;
-    if (s == "TrackerKeyMap")
-        return TrackerType::TrackerKeyMap;
-    if (s == "TrackerVectorDouble")
-        return TrackerType::TrackerVectorDouble;
-    if (s == "TrackerDoubleMapDouble")
-        return TrackerType::TrackerDoubleMapDouble;
-    if (s == "TrackerVectorString")
-        return TrackerType::TrackerVectorString;
-    if (s == "TrackerHashkeyMap")
-        return TrackerType::TrackerHashkeyMap;
+tracker_type tracker_element::typestring_to_type(const std::string& s) {
+    if (s == "tracker_string")
+        return tracker_type::tracker_string;
+    if (s == "tracker_int8")
+        return tracker_type::tracker_int8;
+    if (s == "tracker_uint8")
+        return tracker_type::tracker_uint8;
+    if (s == "tracker_int16")
+        return tracker_type::tracker_int16;
+    if (s == "tracker_uint16")
+        return tracker_type::tracker_uint16;
+    if (s == "tracker_int32")
+        return tracker_type::tracker_int32;
+    if (s == "tracker_uint32")
+        return tracker_type::tracker_uint32;
+    if (s == "tracker_int64")
+        return tracker_type::tracker_int64;
+    if (s == "tracker_uint64")
+        return tracker_type::tracker_uint64;
+    if (s == "tracker_float")
+        return tracker_type::tracker_float;
+    if (s == "tracker_double")
+        return tracker_type::tracker_double;
+    if (s == "tracker_mac_addr")
+        return tracker_type::tracker_mac_addr;
+    if (s == "tracker_vector")
+        return tracker_type::tracker_vector;
+    if (s == "tracker_map")
+        return tracker_type::tracker_map;
+    if (s == "tracker_int_map")
+        return tracker_type::tracker_int_map;
+    if (s == "tracker_uuid")
+        return tracker_type::tracker_uuid;
+    if (s == "tracker_key")
+        return tracker_type::tracker_key;
+    if (s == "tracker_mac_map")
+        return tracker_type::tracker_mac_map;
+    if (s == "tracker_string_map")
+        return tracker_type::tracker_string_map;
+    if (s == "tracker_double_map")
+        return tracker_type::tracker_double_map;
+    if (s == "tracker_byte_array")
+        return tracker_type::tracker_byte_array;
+    if (s == "tracker_key_map")
+        return tracker_type::tracker_key_map;
+    if (s == "tracker_vector_double")
+        return tracker_type::tracker_vector_double;
+    if (s == "tracker_double_map_double")
+        return tracker_type::tracker_double_map_double;
+    if (s == "tracker_vector_string")
+        return tracker_type::tracker_vector_string;
+    if (s == "tracker_hashkey_map")
+        return tracker_type::tracker_hashkey_map;
+    if (s == "tracker_alias")
+        return tracker_type::tracker_alias;
 
     throw std::runtime_error("Unable to interpret tracker type " + s);
 }
 
-template<> std::string GetTrackerValue(const SharedTrackerElement& e) {
+template<> std::string get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerString);
+    e->enforce_type(tracker_type::tracker_string);
 #endif
-    return std::static_pointer_cast<TrackerElementString>(e)->get();
+    return std::static_pointer_cast<tracker_element_string>(e)->get();
 }
 
-template<> uint8_t GetTrackerValue(const SharedTrackerElement& e) {
+template<> uint8_t get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerUInt8);
+    e->enforce_type(tracker_type::tracker_uint8);
 #endif
-    return std::static_pointer_cast<TrackerElementUInt8>(e)->get();
+    return std::static_pointer_cast<tracker_element_uint8>(e)->get();
 }
 
-template<> int8_t GetTrackerValue(const SharedTrackerElement& e) {
+template<> int8_t get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerInt8);
+    e->enforce_type(tracker_type::tracker_int8);
 #endif
-    return std::static_pointer_cast<TrackerElementInt8>(e)->get();
+    return std::static_pointer_cast<tracker_element_int8>(e)->get();
 }
 
-template<> uint16_t GetTrackerValue(const SharedTrackerElement& e) {
+template<> uint16_t get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerUInt16);
+    e->enforce_type(tracker_type::tracker_uint16);
 #endif
-    return std::static_pointer_cast<TrackerElementUInt16>(e)->get();
+    return std::static_pointer_cast<tracker_element_uint16>(e)->get();
 }
 
-template<> int16_t GetTrackerValue(const SharedTrackerElement& e) {
+template<> int16_t get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerInt16);
+    e->enforce_type(tracker_type::tracker_int16);
 #endif
-    return std::static_pointer_cast<TrackerElementInt16>(e)->get();
+    return std::static_pointer_cast<tracker_element_int16>(e)->get();
 }
 
-template<> uint32_t GetTrackerValue(const SharedTrackerElement& e) {
+template<> uint32_t get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerUInt32);
+    e->enforce_type(tracker_type::tracker_uint32);
 #endif
-    return std::static_pointer_cast<TrackerElementUInt32>(e)->get();
+    return std::static_pointer_cast<tracker_element_uint32>(e)->get();
 }
 
-template<> int32_t GetTrackerValue(const SharedTrackerElement& e) {
+template<> int32_t get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerInt32);
+    e->enforce_type(tracker_type::tracker_int32);
 #endif
-    return std::static_pointer_cast<TrackerElementInt32>(e)->get();
+    return std::static_pointer_cast<tracker_element_int32>(e)->get();
 }
 
-template<> uint64_t GetTrackerValue(const SharedTrackerElement& e) {
+template<> uint64_t get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerUInt64);
+    e->enforce_type(tracker_type::tracker_uint64);
 #endif
-    return std::static_pointer_cast<TrackerElementUInt64>(e)->get();
+    return std::static_pointer_cast<tracker_element_uint64>(e)->get();
 }
 
-template<> int64_t GetTrackerValue(const SharedTrackerElement& e) {
+template<> int64_t get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerInt64);
+    e->enforce_type(tracker_type::tracker_int64);
 #endif
-    return std::static_pointer_cast<TrackerElementInt64>(e)->get();
+    return std::static_pointer_cast<tracker_element_int64>(e)->get();
 }
 
-template<> float GetTrackerValue(const SharedTrackerElement& e) {
+template<> float get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerFloat);
+    e->enforce_type(tracker_type::tracker_float);
 #endif
-    return std::static_pointer_cast<TrackerElementFloat>(e)->get();
+    return std::static_pointer_cast<tracker_element_float>(e)->get();
 }
 
-template<> double GetTrackerValue(const SharedTrackerElement& e) {
+template<> double get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerDouble);
+    e->enforce_type(tracker_type::tracker_double);
 #endif
-    return std::static_pointer_cast<TrackerElementDouble>(e)->get();
+    return std::static_pointer_cast<tracker_element_double>(e)->get();
 }
 
-template<> mac_addr GetTrackerValue(const SharedTrackerElement& e) {
+template<> mac_addr get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerMac);
+    e->enforce_type(tracker_type::tracker_mac_addr);
 #endif
-    return std::static_pointer_cast<TrackerElementMacAddr>(e)->get();
+    return std::static_pointer_cast<tracker_element_mac_addr>(e)->get();
 }
 
-template<> uuid GetTrackerValue(const SharedTrackerElement& e) {
+template<> uuid get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerUuid);
+    e->enforce_type(tracker_type::tracker_uuid);
 #endif
-    return std::static_pointer_cast<TrackerElementUUID>(e)->get();
+    return std::static_pointer_cast<tracker_element_uuid>(e)->get();
 }
 
-template<> device_key GetTrackerValue(const SharedTrackerElement& e) {
+template<> device_key get_tracker_value(const shared_tracker_element& e) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerKey);
+    e->enforce_type(tracker_type::tracker_key);
 #endif
-    return std::static_pointer_cast<TrackerElementDeviceKey>(e)->get();
+    return std::static_pointer_cast<tracker_element_device_key>(e)->get();
 }
 
-template<> void SetTrackerValue(const SharedTrackerElement& e, const std::string& v) {
+template<> void SetTrackerValue(const shared_tracker_element& e, const std::string& v) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerString);
+    e->enforce_type(tracker_type::tracker_string, tracker_type::tracker_byte_array);
 #endif
-    std::static_pointer_cast<TrackerElementString>(e)->set(v);
+    std::static_pointer_cast<tracker_element_string>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const SharedTrackerElement& e, const uint8_t& v) {
+template<> void SetTrackerValue(const shared_tracker_element& e, const uint8_t& v) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerUInt8);
+    e->enforce_type(tracker_type::tracker_uint8);
 #endif
-    std::static_pointer_cast<TrackerElementUInt8>(e)->set(v);
+    std::static_pointer_cast<tracker_element_uint8>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const SharedTrackerElement& e, const int8_t& v) {
+template<> void SetTrackerValue(const shared_tracker_element& e, const int8_t& v) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerInt8);
+    e->enforce_type(tracker_type::tracker_int8);
 #endif
-    std::static_pointer_cast<TrackerElementInt8>(e)->set(v);
+    std::static_pointer_cast<tracker_element_int8>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const SharedTrackerElement& e, const uint16_t& v) {
+template<> void SetTrackerValue(const shared_tracker_element& e, const uint16_t& v) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerUInt16);
+    e->enforce_type(tracker_type::tracker_uint16);
 #endif
-    std::static_pointer_cast<TrackerElementUInt16>(e)->set(v);
+    std::static_pointer_cast<tracker_element_uint16>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const SharedTrackerElement& e, const int16_t& v) {
+template<> void SetTrackerValue(const shared_tracker_element& e, const int16_t& v) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerInt16);
+    e->enforce_type(tracker_type::tracker_int16);
 #endif
-    std::static_pointer_cast<TrackerElementInt16>(e)->set(v);
+    std::static_pointer_cast<tracker_element_int16>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const SharedTrackerElement& e, const uint32_t& v) {
+template<> void SetTrackerValue(const shared_tracker_element& e, const uint32_t& v) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerUInt32);
+    e->enforce_type(tracker_type::tracker_uint32);
 #endif
-    std::static_pointer_cast<TrackerElementUInt32>(e)->set(v);
+    std::static_pointer_cast<tracker_element_uint32>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const SharedTrackerElement& e, const int32_t& v) {
+template<> void SetTrackerValue(const shared_tracker_element& e, const int32_t& v) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerInt32);
+    e->enforce_type(tracker_type::tracker_int32);
 #endif
-    std::static_pointer_cast<TrackerElementInt32>(e)->set(v);
+    std::static_pointer_cast<tracker_element_int32>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const SharedTrackerElement& e, const uint64_t& v) {
+template<> void SetTrackerValue(const shared_tracker_element& e, const uint64_t& v) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerUInt64);
+    e->enforce_type(tracker_type::tracker_uint64);
 #endif
-    std::static_pointer_cast<TrackerElementUInt64>(e)->set(v);
+    std::static_pointer_cast<tracker_element_uint64>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const SharedTrackerElement& e, const int64_t& v) {
+template<> void SetTrackerValue(const shared_tracker_element& e, const int64_t& v) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerInt64);
+    e->enforce_type(tracker_type::tracker_int64);
 #endif
-    std::static_pointer_cast<TrackerElementInt64>(e)->set(v);
+    std::static_pointer_cast<tracker_element_int64>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const SharedTrackerElement& e, const float& v) {
+template<> void SetTrackerValue(const shared_tracker_element& e, const float& v) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerFloat);
+    e->enforce_type(tracker_type::tracker_float);
 #endif
-    std::static_pointer_cast<TrackerElementFloat>(e)->set(v);
+    std::static_pointer_cast<tracker_element_float>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const SharedTrackerElement& e, const double& v) {
+template<> void SetTrackerValue(const shared_tracker_element& e, const double& v) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerDouble);
+    e->enforce_type(tracker_type::tracker_double);
 #endif
-    std::static_pointer_cast<TrackerElementDouble>(e)->set(v);
+    std::static_pointer_cast<tracker_element_double>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const SharedTrackerElement& e, const mac_addr& v) {
+template<> void SetTrackerValue(const shared_tracker_element& e, const mac_addr& v) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerMac);
+    e->enforce_type(tracker_type::tracker_mac_addr);
 #endif
-    std::static_pointer_cast<TrackerElementMacAddr>(e)->set(v);
+    std::static_pointer_cast<tracker_element_mac_addr>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const SharedTrackerElement& e, const uuid& v) {
+template<> void SetTrackerValue(const shared_tracker_element& e, const uuid& v) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerUuid);
+    e->enforce_type(tracker_type::tracker_uuid);
 #endif
-    std::static_pointer_cast<TrackerElementUUID>(e)->set(v);
+    std::static_pointer_cast<tracker_element_uuid>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const SharedTrackerElement& e, const device_key& v) {
+template<> void SetTrackerValue(const shared_tracker_element& e, const device_key& v) {
 #if TE_TYPE_SAFETY == 1
-    e->enforce_type(TrackerType::TrackerKey);
+    e->enforce_type(tracker_type::tracker_key);
 #endif
-    std::static_pointer_cast<TrackerElementDeviceKey>(e)->set(v);
+    std::static_pointer_cast<tracker_element_device_key>(e)->set(v);
 }
 
-void TrackerElementSerializer::pre_serialize_path(const SharedElementSummary& in_summary) {
+void tracker_element_serializer::pre_serialize_path(const SharedElementSummary& in_summary) {
 
     // Iterate through the path on this object, calling pre-serialize as
     // necessary on each object in the summary path
 
-    SharedTrackerElement inter = in_summary->parent_element;
+    shared_tracker_element inter = in_summary->parent_element;
 
     if (inter == nullptr)
         return;
 
+    // Descend down the alias trail
+    if (inter->get_type() == tracker_type::tracker_alias)
+        inter = std::static_pointer_cast<tracker_element_alias>(inter)->get();
+
     try {
         for (auto p : in_summary->resolved_path) {
 #if TE_TYPE_SAFETY == 1
-            inter->enforce_type(TrackerType::TrackerMap);
+            inter->enforce_type(tracker_type::tracker_map);
 #endif
 
-            inter = std::static_pointer_cast<TrackerElementMap>(inter)->get_sub(p);
+            inter = std::static_pointer_cast<tracker_element_map>(inter)->get_sub(p);
 
             if (inter == nullptr)
                 return;
+
+            // Descend down the alias trail
+            if (inter->get_type() == tracker_type::tracker_alias)
+                inter = std::static_pointer_cast<tracker_element_alias>(inter)->get();
 
             inter->pre_serialize();
         }
@@ -612,26 +626,34 @@ void TrackerElementSerializer::pre_serialize_path(const SharedElementSummary& in
     }
 }
 
-void TrackerElementSerializer::post_serialize_path(const SharedElementSummary& in_summary) {
+void tracker_element_serializer::post_serialize_path(const SharedElementSummary& in_summary) {
 
     // Iterate through the path on this object, calling pre-serialize as
     // necessary on each object in the summary path
 
-    SharedTrackerElement inter = in_summary->parent_element;
+    shared_tracker_element inter = in_summary->parent_element;
 
     if (inter == nullptr)
         return;
 
+    // Descend down the alias trail
+    if (inter->get_type() == tracker_type::tracker_alias)
+        inter = std::static_pointer_cast<tracker_element_alias>(inter)->get();
+
     try {
         for (auto p : in_summary->resolved_path) {
 #if TE_TYPE_SAFETY == 1
-            inter->enforce_type(TrackerType::TrackerMap);
+            inter->enforce_type(tracker_type::tracker_map);
 #endif
 
-            inter = std::static_pointer_cast<TrackerElementMap>(inter)->get_sub(p);
+            inter = std::static_pointer_cast<tracker_element_map>(inter)->get_sub(p);
 
             if (inter == nullptr)
                 return;
+
+            // Descend down the alias trail
+            if (inter->get_type() == tracker_type::tracker_alias)
+                inter = std::static_pointer_cast<tracker_element_alias>(inter)->get();
 
             inter->post_serialize();
         }
@@ -641,41 +663,41 @@ void TrackerElementSerializer::post_serialize_path(const SharedElementSummary& i
     }
 }
 
-TrackerElementSummary::TrackerElementSummary(const SharedElementSummary& in_c) {
+tracker_element_summary::tracker_element_summary(const SharedElementSummary& in_c) {
     parent_element = in_c->parent_element;
     resolved_path = in_c->resolved_path;
     rename = in_c->rename;
 }
 
-TrackerElementSummary::TrackerElementSummary(const std::string& in_path, 
+tracker_element_summary::tracker_element_summary(const std::string& in_path, 
         const std::string& in_rename) {
-    parse_path(StrTokenize(in_path, "/"), in_rename);
+    parse_path(str_tokenize(in_path, "/"), in_rename);
 }
 
-TrackerElementSummary::TrackerElementSummary(const std::vector<std::string>& in_path,
+tracker_element_summary::tracker_element_summary(const std::vector<std::string>& in_path,
         const std::string& in_rename) {
     parse_path(in_path, in_rename);
 }
 
-TrackerElementSummary::TrackerElementSummary(const std::string& in_path) {
-    parse_path(StrTokenize(in_path, "/"), "");
+tracker_element_summary::tracker_element_summary(const std::string& in_path) {
+    parse_path(str_tokenize(in_path, "/"), "");
 }
 
-TrackerElementSummary::TrackerElementSummary(const std::vector<std::string>& in_path) {
+tracker_element_summary::tracker_element_summary(const std::vector<std::string>& in_path) {
     parse_path(in_path, "");
 }
 
-TrackerElementSummary::TrackerElementSummary(const std::vector<int>& in_path,
+tracker_element_summary::tracker_element_summary(const std::vector<int>& in_path,
         const std::string& in_rename) {
     resolved_path = in_path;
     rename = in_rename;
 }
 
-TrackerElementSummary::TrackerElementSummary(const std::vector<int>& in_path) {
+tracker_element_summary::tracker_element_summary(const std::vector<int>& in_path) {
     resolved_path = in_path;
 }
 
-void TrackerElementSummary::parse_path(const std::vector<std::string>& in_path, 
+void tracker_element_summary::parse_path(const std::vector<std::string>& in_path, 
         const std::string& in_rename) {
 
     if (in_path.size() == 0) {
@@ -688,7 +710,7 @@ void TrackerElementSummary::parse_path(const std::vector<std::string>& in_path,
         if (pe.length() == 0)
             continue;
 
-        auto id = Globalreg::globalreg->entrytracker->GetFieldId(pe);
+        auto id = Globalreg::globalreg->entrytracker->get_field_id(pe);
 
         if (id < 0)
             path_full = false;
@@ -703,13 +725,13 @@ void TrackerElementSummary::parse_path(const std::vector<std::string>& in_path,
     }
 }
 
-SharedTrackerElement GetTrackerElementPath(const std::string& in_path, 
-        SharedTrackerElement elem) {
-    return GetTrackerElementPath(StrTokenize(in_path, "/"), elem);
+shared_tracker_element get_tracker_element_path(const std::string& in_path, 
+        shared_tracker_element elem) {
+    return get_tracker_element_path(str_tokenize(in_path, "/"), elem);
 }
 
-SharedTrackerElement GetTrackerElementPath(const std::vector<std::string>& in_path, 
-        SharedTrackerElement elem) {
+shared_tracker_element get_tracker_element_path(const std::vector<std::string>& in_path, 
+        shared_tracker_element elem) {
 
     if (in_path.size() < 1)
         return nullptr;
@@ -717,28 +739,28 @@ SharedTrackerElement GetTrackerElementPath(const std::vector<std::string>& in_pa
     if (elem == nullptr)
         return nullptr;
 
-    SharedTrackerElement next_elem;
+    shared_tracker_element next_elem;
 
     for (auto pe : in_path) {
         // Skip empty
         if (pe.length() == 0)
             continue;
 
-        auto id = Globalreg::globalreg->entrytracker->GetFieldId(pe);
+        auto id = Globalreg::globalreg->entrytracker->get_field_id(pe);
 
         if (id < 0)
             return nullptr;
 
         if (next_elem == nullptr) {
 #if TE_TYPE_SAFETY == 1
-            elem->enforce_type(TrackerType::TrackerMap);
+            elem->enforce_type(tracker_type::tracker_map);
 #endif
-            next_elem = std::static_pointer_cast<TrackerElementMap>(elem)->get_sub(id);
+            next_elem = std::static_pointer_cast<tracker_element_map>(elem)->get_sub(id);
         } else {
 #if TE_TYPE_SAFETY == 1
-            next_elem->enforce_type(TrackerType::TrackerMap);
+            next_elem->enforce_type(tracker_type::tracker_map);
 #endif
-            next_elem = std::static_pointer_cast<TrackerElementMap>(next_elem)->get_sub(id);
+            next_elem = std::static_pointer_cast<tracker_element_map>(next_elem)->get_sub(id);
         }
 
         if (next_elem == nullptr)
@@ -749,8 +771,8 @@ SharedTrackerElement GetTrackerElementPath(const std::vector<std::string>& in_pa
     return next_elem;
 }
 
-SharedTrackerElement GetTrackerElementPath(const std::vector<int>& in_path, 
-        SharedTrackerElement elem) {
+shared_tracker_element get_tracker_element_path(const std::vector<int>& in_path, 
+        shared_tracker_element elem) {
 
     if (in_path.size() < 1)
         return nullptr;
@@ -758,7 +780,7 @@ SharedTrackerElement GetTrackerElementPath(const std::vector<int>& in_path,
     if (elem == nullptr)
         return nullptr;
 
-    SharedTrackerElement next_elem;
+    shared_tracker_element next_elem;
 
     for (auto pe : in_path) {
         if (pe < 0)
@@ -766,12 +788,18 @@ SharedTrackerElement GetTrackerElementPath(const std::vector<int>& in_path,
 
         if (next_elem == nullptr) {
 #if TE_TYPE_SAFETY == 1
-            elem->enforce_type(TrackerType::TrackerMap);
+            elem->enforce_type(tracker_type::tracker_map);
 #endif
-            next_elem = std::static_pointer_cast<TrackerElementMap>(elem)->get_sub(pe);
+            next_elem = std::static_pointer_cast<tracker_element_map>(elem)->get_sub(pe);
         } else {
-            next_elem->enforce_type(TrackerType::TrackerMap);
-            next_elem = std::static_pointer_cast<TrackerElementMap>(next_elem)->get_sub(pe);
+            // Descend down the alias trail
+            if (next_elem->get_type() == tracker_type::tracker_alias)
+                next_elem = std::static_pointer_cast<tracker_element_alias>(next_elem)->get();
+
+#if TE_TYPE_SAFETY == 1
+            next_elem->enforce_type(tracker_type::tracker_map);
+#endif
+            next_elem = std::static_pointer_cast<tracker_element_map>(next_elem)->get_sub(pe);
         }
 
         if (next_elem == nullptr)
@@ -782,29 +810,33 @@ SharedTrackerElement GetTrackerElementPath(const std::vector<int>& in_path,
     return next_elem;
 }
 
-std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::string& in_path, 
-        SharedTrackerElement elem) {
-    return GetTrackerElementMultiPath(StrTokenize(in_path, "/"), elem);
+std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::string& in_path, 
+        shared_tracker_element elem) {
+    return get_tracker_element_multi_path(str_tokenize(in_path, "/"), elem);
 }
 
-std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<std::string>& in_path, 
-        SharedTrackerElement elem) {
+std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::vector<std::string>& in_path, 
+        shared_tracker_element elem) {
 
-    std::vector<SharedTrackerElement> ret;
+    std::vector<shared_tracker_element> ret;
 
     if (in_path.size() < 1)
         return ret;
 
-    SharedTrackerElement next_elem = NULL;
+    shared_tracker_element next_elem = NULL;
 
     bool complex_fulfilled = false;
+
+    // Descend down the alias trail
+    if (elem->get_type() == tracker_type::tracker_alias)
+        elem = std::static_pointer_cast<tracker_element_alias>(elem)->get();
 
     for (auto x = in_path.begin(); x != in_path.end(); ++x) {
         // Skip empty path element
         if (x->length() == 0)
             continue;
 
-        auto id = Globalreg::globalreg->entrytracker->GetFieldId(*x);
+        auto id = Globalreg::globalreg->entrytracker->get_field_id(*x);
 
         if (id < 0) {
             return ret;
@@ -812,14 +844,18 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<s
 
         if (next_elem == nullptr) {
 #if TE_TYPE_SAFETY == 1
-            elem->enforce_type(TrackerType::TrackerMap);
+            elem->enforce_type(tracker_type::tracker_map);
 #endif
-            next_elem = std::static_pointer_cast<TrackerElementMap>(elem)->get_sub(id);
+            next_elem = std::static_pointer_cast<tracker_element_map>(elem)->get_sub(id);
         } else {
+            // Descend down the alias trail
+            if (next_elem->get_type() == tracker_type::tracker_alias)
+                next_elem = std::static_pointer_cast<tracker_element_alias>(next_elem)->get();
+
 #if TE_TYPE_SAFETY == 1
-            next_elem->enforce_type(TrackerType::TrackerMap);
+            next_elem->enforce_type(tracker_type::tracker_map);
 #endif
-            next_elem = std::static_pointer_cast<TrackerElementMap>(next_elem)->get_sub(id);
+            next_elem = std::static_pointer_cast<tracker_element_map>(next_elem)->get_sub(id);
         }
 
         if (next_elem == nullptr) {
@@ -832,70 +868,70 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<s
         if (x != std::next(in_path.end(), -1)) {
             auto type = next_elem->get_type();
 
-            if (type == TrackerType::TrackerVector) {
+            if (type == tracker_type::tracker_vector) {
                 std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
 
-                auto cn = std::static_pointer_cast<TrackerElementVector>(next_elem);
+                auto cn = std::static_pointer_cast<tracker_element_vector>(next_elem);
 
                 for (auto i : *cn) {
-                    std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, i);
+                    std::vector<shared_tracker_element> subret =
+                        get_tracker_element_multi_path(sub_path, i);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
                 complex_fulfilled = true;
                 break;
-            } else if (type == TrackerType::TrackerIntMap) {
+            } else if (type == tracker_type::tracker_int_map) {
                 std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
 
-                auto cn = std::static_pointer_cast<TrackerElementIntMap>(next_elem);
+                auto cn = std::static_pointer_cast<tracker_element_int_map>(next_elem);
 
                 for (auto i : *cn) {
-                    std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, i.second);
+                    std::vector<shared_tracker_element> subret =
+                        get_tracker_element_multi_path(sub_path, i.second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
                 complex_fulfilled = true;
                 break;
-            } else if (type == TrackerType::TrackerStringMap) {
+            } else if (type == tracker_type::tracker_string_map) {
                 std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
 
-                auto cn = std::static_pointer_cast<TrackerElementStringMap>(next_elem);
+                auto cn = std::static_pointer_cast<tracker_element_string_map>(next_elem);
 
                 for (auto i : *cn) {
-                    std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, i.second);
+                    std::vector<shared_tracker_element> subret =
+                        get_tracker_element_multi_path(sub_path, i.second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
                 complex_fulfilled = true;
                 break;
-            } else if (type == TrackerType::TrackerMacMap) {
+            } else if (type == tracker_type::tracker_mac_map) {
                 std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
 
-                auto cn = std::static_pointer_cast<TrackerElementMacMap>(next_elem);
+                auto cn = std::static_pointer_cast<tracker_element_mac_map>(next_elem);
 
                 for (auto i : *cn) {
-                    std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, i.second);
+                    std::vector<shared_tracker_element> subret =
+                        get_tracker_element_multi_path(sub_path, i.second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
                 complex_fulfilled = true;
                 break;
-            } else if (type == TrackerType::TrackerDoubleMap) {
+            } else if (type == tracker_type::tracker_double_map) {
                 std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
 
-                auto cn = std::static_pointer_cast<TrackerElementDoubleMap>(next_elem);
+                auto cn = std::static_pointer_cast<tracker_element_double_map>(next_elem);
 
                 for (auto i : *cn) {
-                    std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, i.second);
+                    std::vector<shared_tracker_element> subret =
+                        get_tracker_element_multi_path(sub_path, i.second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
@@ -912,15 +948,19 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<s
     return ret;
 }
 
-std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<int>& in_path, 
-        SharedTrackerElement elem) {
+std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::vector<int>& in_path, 
+        shared_tracker_element elem) {
 
-    std::vector<SharedTrackerElement> ret;
+    std::vector<shared_tracker_element> ret;
 
     if (in_path.size() < 1)
         return ret;
 
-    SharedTrackerElement next_elem = nullptr;
+    shared_tracker_element next_elem = nullptr;
+
+    // Descend down the alias trail
+    if (elem->get_type() == tracker_type::tracker_alias)
+        elem = std::static_pointer_cast<tracker_element_alias>(elem)->get();
 
     bool complex_fulfilled = false;
     for (auto x = in_path.begin(); x != in_path.end(); ++x) {
@@ -932,14 +972,18 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<i
 
         if (next_elem == nullptr) {
 #if TE_TYPE_SAFETY == 1
-            elem->enforce_type(TrackerType::TrackerMap);
+            elem->enforce_type(tracker_type::tracker_map);
 #endif
-            next_elem = std::static_pointer_cast<TrackerElementMap>(elem)->get_sub(id);
+            next_elem = std::static_pointer_cast<tracker_element_map>(elem)->get_sub(id);
         } else {
+            // Descend down the alias trail
+            if (next_elem->get_type() == tracker_type::tracker_alias)
+                next_elem = std::static_pointer_cast<tracker_element_alias>(next_elem)->get();
+
 #if TE_TYPE_SAFETY == 1
-            next_elem->enforce_type(TrackerType::TrackerMap);
+            next_elem->enforce_type(tracker_type::tracker_map);
 #endif
-            next_elem = std::static_pointer_cast<TrackerElementMap>(next_elem)->get_sub(id);
+            next_elem = std::static_pointer_cast<tracker_element_map>(next_elem)->get_sub(id);
         }
 
         if (next_elem == nullptr) {
@@ -952,70 +996,70 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<i
         if (x != std::next(in_path.end(), -1)) {
             auto type = next_elem->get_type();
 
-            if (type == TrackerType::TrackerVector) {
+            if (type == tracker_type::tracker_vector) {
                 std::vector<int> sub_path(std::next(x, 1), in_path.end());
 
-                auto cn = std::static_pointer_cast<TrackerElementVector>(next_elem);
+                auto cn = std::static_pointer_cast<tracker_element_vector>(next_elem);
 
                 for (auto i : *cn) {
-                    std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, i);
+                    std::vector<shared_tracker_element> subret =
+                        get_tracker_element_multi_path(sub_path, i);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
                 complex_fulfilled = true;
                 break;
-            } else if (type == TrackerType::TrackerIntMap) {
+            } else if (type == tracker_type::tracker_int_map) {
                 std::vector<int> sub_path(std::next(x, 1), in_path.end());
 
-                auto cn = std::static_pointer_cast<TrackerElementIntMap>(next_elem);
+                auto cn = std::static_pointer_cast<tracker_element_int_map>(next_elem);
 
                 for (auto i : *cn) {
-                    std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, i.second);
+                    std::vector<shared_tracker_element> subret =
+                        get_tracker_element_multi_path(sub_path, i.second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
                 complex_fulfilled = true;
                 break;
-            } else if (type == TrackerType::TrackerStringMap) {
+            } else if (type == tracker_type::tracker_string_map) {
                 std::vector<int> sub_path(std::next(x, 1), in_path.end());
 
-                auto cn = std::static_pointer_cast<TrackerElementStringMap>(next_elem);
+                auto cn = std::static_pointer_cast<tracker_element_string_map>(next_elem);
 
                 for (auto i : *cn) {
-                    std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, i.second);
+                    std::vector<shared_tracker_element> subret =
+                        get_tracker_element_multi_path(sub_path, i.second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
                 complex_fulfilled = true;
                 break;
-            } else if (type == TrackerType::TrackerMacMap) {
+            } else if (type == tracker_type::tracker_mac_map) {
                 std::vector<int> sub_path(std::next(x, 1), in_path.end());
 
-                auto cn = std::static_pointer_cast<TrackerElementMacMap>(next_elem);
+                auto cn = std::static_pointer_cast<tracker_element_mac_map>(next_elem);
 
                 for (auto i : *cn) {
-                    std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, i.second);
+                    std::vector<shared_tracker_element> subret =
+                        get_tracker_element_multi_path(sub_path, i.second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
                 complex_fulfilled = true;
                 break;
-            } else if (type == TrackerType::TrackerDoubleMap) {
+            } else if (type == tracker_type::tracker_double_map) {
                 std::vector<int> sub_path(std::next(x, 1), in_path.end());
 
-                auto cn = std::static_pointer_cast<TrackerElementDoubleMap>(next_elem);
+                auto cn = std::static_pointer_cast<tracker_element_double_map>(next_elem);
 
                 for (auto i : *cn) {
-                    std::vector<SharedTrackerElement> subret =
-                        GetTrackerElementMultiPath(sub_path, i.second);
+                    std::vector<shared_tracker_element> subret =
+                        get_tracker_element_multi_path(sub_path, i.second);
 
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
@@ -1032,28 +1076,28 @@ std::vector<SharedTrackerElement> GetTrackerElementMultiPath(const std::vector<i
     return ret;
 }
 
-std::shared_ptr<TrackerElement> SummarizeTrackerElement(SharedTrackerElement in, 
+std::shared_ptr<tracker_element> summarize_tracker_element(shared_tracker_element in, 
         const std::vector<SharedElementSummary>& in_summarization, 
-        std::shared_ptr<TrackerElementSerializer::rename_map> rename_map) {
+        std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
-    if (in->get_type() == TrackerType::TrackerVector) {
-        auto ret = std::make_shared<TrackerElementVector>();
-        auto inv = std::static_pointer_cast<TrackerElementVector>(in);
+    if (in->get_type() == tracker_type::tracker_vector) {
+        auto ret = std::make_shared<tracker_element_vector>();
+        auto inv = std::static_pointer_cast<tracker_element_vector>(in);
 
         for (auto i : *inv) 
-            ret->push_back(SummarizeSingleTrackerElement(i, in_summarization, rename_map));
+            ret->push_back(summarize_single_tracker_element(i, in_summarization, rename_map));
 
         return ret;
     }
 
-    return SummarizeSingleTrackerElement(in, in_summarization, rename_map);
+    return summarize_single_tracker_element(in, in_summarization, rename_map);
 }
 
-std::shared_ptr<TrackerElement> SummarizeSingleTrackerElement(SharedTrackerElement in, 
+std::shared_ptr<tracker_element> summarize_single_tracker_element(shared_tracker_element in, 
         const std::vector<SharedElementSummary>& in_summarization, 
-        std::shared_ptr<TrackerElementSerializer::rename_map> rename_map) {
+        std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
-    auto ret_elem = std::make_shared<TrackerElementMap>();
+    auto ret_elem = std::make_shared<tracker_element_map>();
 
     if (in == nullptr)
         return ret_elem;
@@ -1075,15 +1119,15 @@ std::shared_ptr<TrackerElement> SummarizeSingleTrackerElement(SharedTrackerEleme
         if ((*si)->resolved_path.size() == 0)
             continue;
 
-        SharedTrackerElement f =
-            GetTrackerElementPath((*si)->resolved_path, in);
+        shared_tracker_element f =
+            get_tracker_element_path((*si)->resolved_path, in);
 
         if (f == NULL) {
-            f = Globalreg::globalreg->entrytracker->RegisterAndGetField("unknown" + IntToString(fn),
-                    TrackerElementFactory<TrackerElementInt8>(),
+            f = Globalreg::globalreg->entrytracker->register_and_get_field("unknown" + int_to_string(fn),
+                    tracker_element_factory<tracker_element_int8>(),
                     "unallocated field");
 
-            std::static_pointer_cast<TrackerElementInt8>(f)->set(0);
+            std::static_pointer_cast<tracker_element_int8>(f)->set(0);
         
             if ((*si)->rename.length() != 0) {
                 f->set_local_name((*si)->rename);
@@ -1092,9 +1136,9 @@ std::shared_ptr<TrackerElement> SummarizeSingleTrackerElement(SharedTrackerEleme
                 int lastid = (*si)->resolved_path[(*si)->resolved_path.size() - 1];
 
                 if (lastid < 0)
-                    f->set_local_name("unknown" + IntToString(fn));
+                    f->set_local_name("unknown" + int_to_string(fn));
                 else
-                    f->set_local_name(Globalreg::globalreg->entrytracker->GetFieldName(lastid));
+                    f->set_local_name(Globalreg::globalreg->entrytracker->get_field_name(lastid));
             }
         } 
 
@@ -1104,12 +1148,12 @@ std::shared_ptr<TrackerElement> SummarizeSingleTrackerElement(SharedTrackerEleme
         // object so that when we serialize we can descend the path calling
         // the proper pre-serialization methods
         if ((*si)->rename.length() != 0 || (*si)->resolved_path.size() > 1) {
-            auto sum = std::make_shared<TrackerElementSummary>(*si);
+            auto sum = std::make_shared<tracker_element_summary>(*si);
             sum->parent_element = in;
             (*rename_map)[f] = sum;
         }
 
-        std::static_pointer_cast<TrackerElementMap>(ret_elem)->insert(f);
+        std::static_pointer_cast<tracker_element_map>(ret_elem)->insert(f);
     }
 
     in->post_serialize();
@@ -1117,8 +1161,8 @@ std::shared_ptr<TrackerElement> SummarizeSingleTrackerElement(SharedTrackerEleme
     return ret_elem;
 }
 
-bool SortTrackerElementLess(const std::shared_ptr<TrackerElement> lhs, 
-        const std::shared_ptr<TrackerElement> rhs) {
+bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs, 
+        const std::shared_ptr<tracker_element> rhs) {
 
     // Only allow equal compares
     if (lhs->get_type() != rhs->get_type())
@@ -1126,46 +1170,47 @@ bool SortTrackerElementLess(const std::shared_ptr<TrackerElement> lhs,
                     "{} < {}", lhs->get_type_as_string(), rhs->get_type_as_string()));
 
     switch (lhs->get_type()) {
-        case TrackerType::TrackerString:
-            return TrackerElement::safe_cast_as<TrackerElementString>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementString>(rhs));
-        case TrackerType::TrackerInt8:
-            return TrackerElement::safe_cast_as<TrackerElementInt8>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementInt8>(rhs));
-        case TrackerType::TrackerUInt8:
-            return TrackerElement::safe_cast_as<TrackerElementUInt8>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementUInt8>(rhs));
-        case TrackerType::TrackerInt16:
-            return TrackerElement::safe_cast_as<TrackerElementInt16>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementInt16>(rhs));
-        case TrackerType::TrackerUInt16:
-            return TrackerElement::safe_cast_as<TrackerElementUInt16>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementUInt16>(rhs));
-        case TrackerType::TrackerInt32:
-            return TrackerElement::safe_cast_as<TrackerElementInt32>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementInt32>(rhs));
-        case TrackerType::TrackerUInt32:
-            return TrackerElement::safe_cast_as<TrackerElementUInt32>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementUInt32>(rhs));
-        case TrackerType::TrackerInt64:
-            return TrackerElement::safe_cast_as<TrackerElementInt64>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementInt64>(rhs));
-        case TrackerType::TrackerUInt64:
-            return TrackerElement::safe_cast_as<TrackerElementUInt64>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementUInt64>(rhs));
-        case TrackerType::TrackerFloat:
-            return TrackerElement::safe_cast_as<TrackerElementFloat>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementFloat>(rhs));
-        case TrackerType::TrackerDouble:
-            return TrackerElement::safe_cast_as<TrackerElementDouble>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementDouble>(rhs));
-        case TrackerType::TrackerMac:
-            return TrackerElement::safe_cast_as<TrackerElementMacAddr>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementMacAddr>(rhs));
-        case TrackerType::TrackerUuid:
-            return TrackerElement::safe_cast_as<TrackerElementUUID>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementUUID>(rhs));
-        case TrackerType::TrackerByteArray:
-            return TrackerElement::safe_cast_as<TrackerElementByteArray>(lhs)->less_than(*TrackerElement::safe_cast_as<TrackerElementByteArray>(rhs));
-        case TrackerType::TrackerKey:
-        case TrackerType::TrackerVector:
-        case TrackerType::TrackerMap:
-        case TrackerType::TrackerIntMap:
-        case TrackerType::TrackerMacMap:
-        case TrackerType::TrackerStringMap:
-        case TrackerType::TrackerDoubleMap:
-        case TrackerType::TrackerKeyMap:
-        case TrackerType::TrackerVectorDouble:
-        case TrackerType::TrackerDoubleMapDouble:
-        case TrackerType::TrackerVectorString:
-        case TrackerType::TrackerHashkeyMap:
+        case tracker_type::tracker_string:
+            return tracker_element::safe_cast_as<tracker_element_string>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_string>(rhs));
+        case tracker_type::tracker_int8:
+            return tracker_element::safe_cast_as<tracker_element_int8>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_int8>(rhs));
+        case tracker_type::tracker_uint8:
+            return tracker_element::safe_cast_as<tracker_element_uint8>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_uint8>(rhs));
+        case tracker_type::tracker_int16:
+            return tracker_element::safe_cast_as<tracker_element_int16>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_int16>(rhs));
+        case tracker_type::tracker_uint16:
+            return tracker_element::safe_cast_as<tracker_element_uint16>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_uint16>(rhs));
+        case tracker_type::tracker_int32:
+            return tracker_element::safe_cast_as<tracker_element_int32>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_int32>(rhs));
+        case tracker_type::tracker_uint32:
+            return tracker_element::safe_cast_as<tracker_element_uint32>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_uint32>(rhs));
+        case tracker_type::tracker_int64:
+            return tracker_element::safe_cast_as<tracker_element_int64>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_int64>(rhs));
+        case tracker_type::tracker_uint64:
+            return tracker_element::safe_cast_as<tracker_element_uint64>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_uint64>(rhs));
+        case tracker_type::tracker_float:
+            return tracker_element::safe_cast_as<tracker_element_float>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_float>(rhs));
+        case tracker_type::tracker_double:
+            return tracker_element::safe_cast_as<tracker_element_double>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_double>(rhs));
+        case tracker_type::tracker_mac_addr:
+            return tracker_element::safe_cast_as<tracker_element_mac_addr>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_mac_addr>(rhs));
+        case tracker_type::tracker_uuid:
+            return tracker_element::safe_cast_as<tracker_element_uuid>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_uuid>(rhs));
+        case tracker_type::tracker_byte_array:
+            return tracker_element::safe_cast_as<tracker_element_byte_array>(lhs)->less_than(*tracker_element::safe_cast_as<tracker_element_byte_array>(rhs));
+        case tracker_type::tracker_key:
+        case tracker_type::tracker_vector:
+        case tracker_type::tracker_map:
+        case tracker_type::tracker_int_map:
+        case tracker_type::tracker_mac_map:
+        case tracker_type::tracker_string_map:
+        case tracker_type::tracker_double_map:
+        case tracker_type::tracker_key_map:
+        case tracker_type::tracker_vector_double:
+        case tracker_type::tracker_double_map_double:
+        case tracker_type::tracker_vector_string:
+        case tracker_type::tracker_hashkey_map:
+        case tracker_type::tracker_alias:
             throw std::runtime_error(fmt::format("Attempted to compare a complex field type, {}",
                         lhs->get_type_as_string()));
     }
@@ -1173,50 +1218,51 @@ bool SortTrackerElementLess(const std::shared_ptr<TrackerElement> lhs,
     return false;
 }
 
-bool FastSortTrackerElementLess(const std::shared_ptr<TrackerElement> lhs, 
-        const std::shared_ptr<TrackerElement> rhs) noexcept {
+bool fast_sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs, 
+        const std::shared_ptr<tracker_element> rhs) noexcept {
 
     switch (lhs->get_type()) {
-        case TrackerType::TrackerString:
-            return std::static_pointer_cast<TrackerElementString>(lhs)->less_than(*std::static_pointer_cast<TrackerElementString>(rhs));
-        case TrackerType::TrackerInt8:
-            return std::static_pointer_cast<TrackerElementInt8>(lhs)->less_than(*std::static_pointer_cast<TrackerElementInt8>(rhs));
-        case TrackerType::TrackerUInt8:
-            return std::static_pointer_cast<TrackerElementUInt8>(lhs)->less_than(*std::static_pointer_cast<TrackerElementUInt8>(rhs));
-        case TrackerType::TrackerInt16:
-            return std::static_pointer_cast<TrackerElementInt16>(lhs)->less_than(*std::static_pointer_cast<TrackerElementInt16>(rhs));
-        case TrackerType::TrackerUInt16:
-            return std::static_pointer_cast<TrackerElementUInt16>(lhs)->less_than(*std::static_pointer_cast<TrackerElementUInt16>(rhs));
-        case TrackerType::TrackerInt32:
-            return std::static_pointer_cast<TrackerElementInt32>(lhs)->less_than(*std::static_pointer_cast<TrackerElementInt32>(rhs));
-        case TrackerType::TrackerUInt32:
-            return std::static_pointer_cast<TrackerElementUInt32>(lhs)->less_than(*std::static_pointer_cast<TrackerElementUInt32>(rhs));
-        case TrackerType::TrackerInt64:
-            return std::static_pointer_cast<TrackerElementInt64>(lhs)->less_than(*std::static_pointer_cast<TrackerElementInt64>(rhs));
-        case TrackerType::TrackerUInt64:
-            return std::static_pointer_cast<TrackerElementUInt64>(lhs)->less_than(*std::static_pointer_cast<TrackerElementUInt64>(rhs));
-        case TrackerType::TrackerFloat:
-            return std::static_pointer_cast<TrackerElementFloat>(lhs)->less_than(*std::static_pointer_cast<TrackerElementFloat>(rhs));
-        case TrackerType::TrackerDouble:
-            return std::static_pointer_cast<TrackerElementDouble>(lhs)->less_than(*std::static_pointer_cast<TrackerElementDouble>(rhs));
-        case TrackerType::TrackerMac:
-            return std::static_pointer_cast<TrackerElementMacAddr>(lhs)->less_than(*std::static_pointer_cast<TrackerElementMacAddr>(rhs));
-        case TrackerType::TrackerUuid:
-            return std::static_pointer_cast<TrackerElementUUID>(lhs)->less_than(*std::static_pointer_cast<TrackerElementUUID>(rhs));
-        case TrackerType::TrackerByteArray:
-            return std::static_pointer_cast<TrackerElementByteArray>(lhs)->less_than(*std::static_pointer_cast<TrackerElementByteArray>(rhs));
-        case TrackerType::TrackerKey:
-        case TrackerType::TrackerVector:
-        case TrackerType::TrackerMap:
-        case TrackerType::TrackerIntMap:
-        case TrackerType::TrackerMacMap:
-        case TrackerType::TrackerStringMap:
-        case TrackerType::TrackerDoubleMap:
-        case TrackerType::TrackerKeyMap:
-        case TrackerType::TrackerVectorDouble:
-        case TrackerType::TrackerDoubleMapDouble:
-        case TrackerType::TrackerVectorString:
-        case TrackerType::TrackerHashkeyMap:
+        case tracker_type::tracker_string:
+            return std::static_pointer_cast<tracker_element_string>(lhs)->less_than(*std::static_pointer_cast<tracker_element_string>(rhs));
+        case tracker_type::tracker_int8:
+            return std::static_pointer_cast<tracker_element_int8>(lhs)->less_than(*std::static_pointer_cast<tracker_element_int8>(rhs));
+        case tracker_type::tracker_uint8:
+            return std::static_pointer_cast<tracker_element_uint8>(lhs)->less_than(*std::static_pointer_cast<tracker_element_uint8>(rhs));
+        case tracker_type::tracker_int16:
+            return std::static_pointer_cast<tracker_element_int16>(lhs)->less_than(*std::static_pointer_cast<tracker_element_int16>(rhs));
+        case tracker_type::tracker_uint16:
+            return std::static_pointer_cast<tracker_element_uint16>(lhs)->less_than(*std::static_pointer_cast<tracker_element_uint16>(rhs));
+        case tracker_type::tracker_int32:
+            return std::static_pointer_cast<tracker_element_int32>(lhs)->less_than(*std::static_pointer_cast<tracker_element_int32>(rhs));
+        case tracker_type::tracker_uint32:
+            return std::static_pointer_cast<tracker_element_uint32>(lhs)->less_than(*std::static_pointer_cast<tracker_element_uint32>(rhs));
+        case tracker_type::tracker_int64:
+            return std::static_pointer_cast<tracker_element_int64>(lhs)->less_than(*std::static_pointer_cast<tracker_element_int64>(rhs));
+        case tracker_type::tracker_uint64:
+            return std::static_pointer_cast<tracker_element_uint64>(lhs)->less_than(*std::static_pointer_cast<tracker_element_uint64>(rhs));
+        case tracker_type::tracker_float:
+            return std::static_pointer_cast<tracker_element_float>(lhs)->less_than(*std::static_pointer_cast<tracker_element_float>(rhs));
+        case tracker_type::tracker_double:
+            return std::static_pointer_cast<tracker_element_double>(lhs)->less_than(*std::static_pointer_cast<tracker_element_double>(rhs));
+        case tracker_type::tracker_mac_addr:
+            return std::static_pointer_cast<tracker_element_mac_addr>(lhs)->less_than(*std::static_pointer_cast<tracker_element_mac_addr>(rhs));
+        case tracker_type::tracker_uuid:
+            return std::static_pointer_cast<tracker_element_uuid>(lhs)->less_than(*std::static_pointer_cast<tracker_element_uuid>(rhs));
+        case tracker_type::tracker_byte_array:
+            return std::static_pointer_cast<tracker_element_byte_array>(lhs)->less_than(*std::static_pointer_cast<tracker_element_byte_array>(rhs));
+        case tracker_type::tracker_key:
+        case tracker_type::tracker_vector:
+        case tracker_type::tracker_map:
+        case tracker_type::tracker_int_map:
+        case tracker_type::tracker_mac_map:
+        case tracker_type::tracker_string_map:
+        case tracker_type::tracker_double_map:
+        case tracker_type::tracker_key_map:
+        case tracker_type::tracker_vector_double:
+        case tracker_type::tracker_double_map_double:
+        case tracker_type::tracker_vector_string:
+        case tracker_type::tracker_hashkey_map:
+        case tracker_type::tracker_alias:
             return false;
     }
 

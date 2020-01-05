@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -29,10 +29,10 @@
 //
 // Always sets a fixed location and optional altitude.
 
-class GPSFake : public KisGps {
+class kis_gps_fake : public kis_gps {
 public:
-    GPSFake(SharedGpsBuilder in_builder);
-    virtual ~GPSFake();
+    kis_gps_fake(shared_gps_builder in_builder);
+    virtual ~kis_gps_fake();
 
     virtual bool open_gps(std::string in_opts);
 
@@ -43,10 +43,10 @@ public:
     virtual kis_gps_packinfo *get_last_location();
 };
 
-class GPSFakeBuilder : public KisGpsBuilder {
+class gps_fake_builder : public kis_gps_builder {
 public:
-    GPSFakeBuilder() : 
-        KisGpsBuilder() { 
+    gps_fake_builder() : 
+        kis_gps_builder() { 
         initialize();
     }
 
@@ -58,8 +58,8 @@ public:
         set_int_singleton(true);
     }
 
-    virtual SharedGps build_gps(SharedGpsBuilder in_builder) {
-        return SharedGps(new GPSFake(in_builder));
+    virtual shared_gps build_gps(shared_gps_builder in_builder) {
+        return shared_gps(new kis_gps_fake(in_builder));
     }
 };
 

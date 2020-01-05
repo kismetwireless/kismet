@@ -52,8 +52,8 @@
 #include "base64.h"
 
 devicetracker_function_worker::devicetracker_function_worker(
-        const std::function<bool (Devicetracker *, std::shared_ptr<kis_tracked_device_base>)>& in_mcb,
-        const std::function<void (Devicetracker *)>& in_fcb) {
+        const std::function<bool (device_tracker *, std::shared_ptr<kis_tracked_device_base>)>& in_mcb,
+        const std::function<void (device_tracker *)>& in_fcb) {
 
     mcb = in_mcb;
     fcb = in_fcb;
@@ -62,7 +62,7 @@ devicetracker_function_worker::devicetracker_function_worker(
 devicetracker_function_worker::~devicetracker_function_worker() {
 }
 
-bool devicetracker_function_worker::MatchDevice(Devicetracker *devicetracker,
+bool devicetracker_function_worker::match_device(device_tracker *devicetracker,
         std::shared_ptr<kis_tracked_device_base> device) {
 
     if (mcb == NULL)
@@ -71,7 +71,7 @@ bool devicetracker_function_worker::MatchDevice(Devicetracker *devicetracker,
     return mcb(devicetracker, device);
 }
 
-void devicetracker_function_worker::Finalize(Devicetracker *devicetracker) {
+void devicetracker_function_worker::finalize(device_tracker *devicetracker) {
     if (fcb != NULL) {
         fcb(devicetracker);
     }
@@ -85,13 +85,13 @@ devicetracker_stringmatch_worker::devicetracker_stringmatch_worker(const std::st
     fieldpaths = in_paths;
 
     // Preemptively try to compute a mac address partial search term
-    mac_addr::PrepareSearchTerm(query, mac_query_term, mac_query_term_len);
+    mac_addr::prepare_search_term(query, mac_query_term, mac_query_term_len);
 }
 
 devicetracker_stringmatch_worker::~devicetracker_stringmatch_worker() {
 }
 
-bool devicetracker_stringmatch_worker::MatchDevice(Devicetracker *devicetracker __attribute__((unused)),
+bool devicetracker_stringmatch_worker::match_device(device_tracker *devicetracker __attribute__((unused)),
         std::shared_ptr<kis_tracked_device_base> device) {
     bool matched = false;
 
@@ -99,26 +99,26 @@ bool devicetracker_stringmatch_worker::MatchDevice(Devicetracker *devicetracker 
     for (auto i = fieldpaths.begin(); i != fieldpaths.end(); ++i) {
         // We should never have to search nested vectors so we don't use
         // multipath
-        SharedTrackerElement field = GetTrackerElementPath(*i, device);
+        shared_tracker_element field = get_tracker_element_path(*i, device);
 
         if (field == NULL)
             continue;
 
-        if (field->get_type() == TrackerType::TrackerString) {
+        if (field->get_type() == tracker_type::tracker_string) {
             // We can only do a straight string match against string fields
-            matched = GetTrackerValue<std::string>(field).find(query) != std::string::npos;
-        } else if (field->get_type() == TrackerType::TrackerByteArray) {
+            matched = get_tracker_value<std::string>(field).find(query) != std::string::npos;
+        } else if (field->get_type() == tracker_type::tracker_byte_array) {
             // Try a raw string match against a binary field
             matched = 
-                std::static_pointer_cast<TrackerElementByteArray>(field)->get().find(query) != std::string::npos;
-        } else if (field->get_type() == TrackerType::TrackerMac && mac_query_term_len != 0) {
+                std::static_pointer_cast<tracker_element_byte_array>(field)->get().find(query) != std::string::npos;
+        } else if (field->get_type() == tracker_type::tracker_mac_addr && mac_query_term_len != 0) {
             // If we were able to interpret the query term as a partial
             // mac address, do a mac compare
             matched =
-                std::static_pointer_cast<TrackerElementMacAddr>(field)->get().PartialSearch(mac_query_term, mac_query_term_len);
-        } else if (field->get_type() == TrackerType::TrackerUuid) {
+                std::static_pointer_cast<tracker_element_mac_addr>(field)->get().partial_search(mac_query_term, mac_query_term_len);
+        } else if (field->get_type() == tracker_type::tracker_uuid) {
             matched =
-                TrackerElement::safe_cast_as<TrackerElementUUID>(field)->get().asString().find(query) != std::string::npos;
+                tracker_element::safe_cast_as<tracker_element_uuid>(field)->get().as_string().find(query) != std::string::npos;
         }
 
         if (matched)
@@ -128,7 +128,7 @@ bool devicetracker_stringmatch_worker::MatchDevice(Devicetracker *devicetracker 
     return false;
 }
 
-void devicetracker_stringmatch_worker::Finalize(Devicetracker *devicetracker __attribute__((unused))) {
+void devicetracker_stringmatch_worker::finalize(device_tracker *devicetracker __attribute__((unused))) {
 
 }
 
@@ -141,21 +141,21 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(
     error = false;
 }
 
-devicetracker_pcre_worker::devicetracker_pcre_worker(SharedStructured raw_pcre_vec) {
+devicetracker_pcre_worker::devicetracker_pcre_worker(shared_structured raw_pcre_vec) {
     error = false;
 
     // Process a structuredarray of sub-arrays of [target, filter]; throw any 
     // exceptions we encounter
 
-    StructuredData::structured_vec rawvec = raw_pcre_vec->getStructuredArray();
+    structured_data::structured_vec rawvec = raw_pcre_vec->as_vector();
     for (auto i : rawvec) {
-        StructuredData::structured_vec rpair = i->getStructuredArray();
+        structured_data::structured_vec rpair = i->as_vector();
 
         if (rpair.size() != 2)
-            throw StructuredDataException("expected [field, regex] pair");
+            throw structured_data_exception("expected [field, regex] pair");
 
-        std::string field = rpair[0]->getString();
-        std::string regex = rpair[1]->getString();
+        std::string field = rpair[0]->as_string();
+        std::string regex = rpair[1]->as_string();
 
         std::shared_ptr<pcre_filter> filter(new pcre_filter());
         filter->target = field;
@@ -213,16 +213,16 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(const std::vector<std::pair
 }
 
 devicetracker_pcre_worker::devicetracker_pcre_worker(const std::string& in_target,
-        SharedStructured raw_pcre_vec) {
+        shared_structured raw_pcre_vec) {
 
     error = false;
 
     // Process a structuredarray of sub-arrays of [target, filter]; throw any 
     // exceptions we encounter
 
-    StructuredData::structured_vec rawvec = raw_pcre_vec->getStructuredArray();
+    structured_data::structured_vec rawvec = raw_pcre_vec->as_vector();
     for (auto i : rawvec) {
-        std::string regex = i->getString();
+        std::string regex = i->as_string();
 
         std::shared_ptr<pcre_filter> filter(new pcre_filter());
         filter->target = in_target; 
@@ -254,7 +254,7 @@ devicetracker_pcre_worker::devicetracker_pcre_worker(const std::string& in_targe
 devicetracker_pcre_worker::~devicetracker_pcre_worker() {
 }
 
-bool devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attribute__((unused)),
+bool devicetracker_pcre_worker::match_device(device_tracker *devicetracker __attribute__((unused)),
         std::shared_ptr<kis_tracked_device_base> device) {
     bool matched = false;
 
@@ -262,21 +262,21 @@ bool devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attri
     for (auto i : filter_vec) {
         // Get complex fields - this lets us search nested vectors
         // or strings or whatnot
-        std::vector<SharedTrackerElement> fields = 
-            GetTrackerElementMultiPath(i->target, device);
+        std::vector<shared_tracker_element> fields = 
+            get_tracker_element_multi_path(i->target, device);
 
         for (auto fi : fields) {
             std::string val;
 
             // Process a few different types
-            if (fi->get_type() == TrackerType::TrackerString)
-                val = GetTrackerValue<std::string>(fi);
-            else if (fi->get_type() == TrackerType::TrackerMac)
-                val = GetTrackerValue<mac_addr>(fi).Mac2String();
-            else if (fi->get_type() == TrackerType::TrackerUuid)
-                val = GetTrackerValue<uuid>(fi).UUID2String();
-            else if (fi->get_type() == TrackerType::TrackerByteArray) 
-                val = std::static_pointer_cast<TrackerElementByteArray>(fi)->get();
+            if (fi->get_type() == tracker_type::tracker_string)
+                val = get_tracker_value<std::string>(fi);
+            else if (fi->get_type() == tracker_type::tracker_mac_addr)
+                val = get_tracker_value<mac_addr>(fi).mac_to_string();
+            else if (fi->get_type() == tracker_type::tracker_uuid)
+                val = get_tracker_value<uuid>(fi).uuid_to_string();
+            else if (fi->get_type() == tracker_type::tracker_byte_array) 
+                val = std::static_pointer_cast<tracker_element_byte_array>(fi)->get();
             else
                 continue;
 
@@ -300,7 +300,7 @@ bool devicetracker_pcre_worker::MatchDevice(Devicetracker *devicetracker __attri
     return false;
 }
 
-void devicetracker_pcre_worker::Finalize(Devicetracker *devicetracker __attribute__((unused))) {
+void devicetracker_pcre_worker::finalize(device_tracker *devicetracker __attribute__((unused))) {
 
 }
 

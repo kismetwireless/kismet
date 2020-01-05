@@ -448,7 +448,7 @@ int iwconfig_set_channel(const char *in_dev, int in_ch, char *in_err) {
     return 0;
 }
 
-int iwconfig_get_mode(const char *in_dev, char *in_err, int *in_mode) {
+int iwconfig_get_mode(const char *in_dev, char *in_err, unsigned int *in_mode) {
     struct iwreq wrq;
     int skfd;
 
@@ -476,7 +476,7 @@ int iwconfig_get_mode(const char *in_dev, char *in_err, int *in_mode) {
     return 0;
 }
 
-int iwconfig_set_mode(const char *in_dev, char *in_err, int in_mode) {
+int iwconfig_set_mode(const char *in_dev, char *in_err, unsigned int in_mode) {
     struct iwreq wrq;
     int skfd;
 

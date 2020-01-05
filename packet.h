@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -33,6 +33,7 @@
 #include <vector>
 #include <map>
 
+#include "eventbus.h"
 #include "globalregistry.h"
 #include "macaddr.h"
 #include "packet_ieee80211.h"
@@ -55,8 +56,8 @@
 class packet_component {
 public:
     packet_component() { self_destruct = 1; };
-	virtual ~packet_component() { }
-	int self_destruct;
+    virtual ~packet_component() { }
+    int self_destruct;
 };
 
 // Overall packet container that holds packet information
@@ -69,23 +70,32 @@ public:
     // itself?
     int error;
 
-	// Have we been filtered for some reason?
-	int filtered;
+    // Do we know this packet is OK and don't have to run a CRC check on 
+    // it inside a data layer?
+    int crc_ok;
+
+    // Have we been filtered for some reason?
+    int filtered;
 
     // Are we a duplicate?
     int duplicate;
 
-	// Actual vector of bits in the packet
+    // Did this packet trigger creation of a new device?  Since a 
+    // single packet can create multiple devices in some phys, maintain
+    // a vector of device events to publish
+    std::vector<std::shared_ptr<eventbus_event>> process_complete_events;
+
+    // Actual vector of bits in the packet
     std::vector<packet_component *> content_vec;
-   
+
     // Init stuff
     kis_packet() {
-		fprintf(stderr, "FATAL: kis_packet()\n"); exit(1);
-	}
+        fprintf(stderr, "FATAL: kis_packet()\n"); exit(1);
+    }
 
-	kis_packet(GlobalRegistry *in_globalreg);
+    kis_packet(global_registry *in_globalreg);
     ~kis_packet();
-   
+
     void insert(const unsigned int index, packet_component *data);
     void *fetch(const unsigned int index) const;
     template<class T> T* fetch(const unsigned int index) {
@@ -94,17 +104,17 @@ public:
     void erase(const unsigned int index);
 
     inline packet_component *operator[] (const unsigned int& index) const {
-		if (index >= MAX_PACKET_COMPONENTS)
-			return NULL;
+        if (index >= MAX_PACKET_COMPONENTS)
+            return NULL;
 
-		return content_vec[index];
+        return content_vec[index];
     }
 
     // Tags applied to the packet
     std::vector<std::string> tag_vec;
 
 protected:
-	GlobalRegistry *globalreg;
+    global_registry *globalreg;
 };
 
 
@@ -116,31 +126,31 @@ public:
         tracker_component() {
             register_fields();
             reserve_fields(NULL);
-    }
+        }
 
     kis_tracked_packet(int in_id) :
         tracker_component(in_id) {
-        register_fields();
-        reserve_fields(NULL);
-    }
+            register_fields();
+            reserve_fields(NULL);
+        }
 
-    kis_tracked_packet(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    kis_tracked_packet(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
-        register_fields();
-        reserve_fields(e);
-    }
+            register_fields();
+            reserve_fields(e);
+        }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("kis_tracked_packet");
+        return adler32_checksum("kis_tracked_packet");
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
+    virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
@@ -151,7 +161,7 @@ public:
     __Proxy(dlt, uint64_t, uint64_t, uint64_t, dlt);
     __Proxy(source, uint64_t, uint64_t, uint64_t, source);
 
-    __ProxyTrackable(data, TrackerElementByteArray, data);
+    __ProxyTrackable(data, tracker_element_byte_array, data);
 
     virtual void copy_packet(std::shared_ptr<kis_tracked_packet> in) {
         set_ts_sec(in->get_ts_sec());
@@ -165,18 +175,18 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.packet.ts_sec", "packet timestamp (second)", &ts_sec);
-        RegisterField("kismet.packet.ts_usec", "packet timestamp (usec)", &ts_usec);
-        RegisterField("kismet.packet.dlt", "packet DLT linktype", &dlt);
-        RegisterField("kismet.packet.source", "packetsource id", &source);
-        RegisterField("kismet.packet.data", "packet data", &data);
+        register_field("kismet.packet.ts_sec", "packet timestamp (second)", &ts_sec);
+        register_field("kismet.packet.ts_usec", "packet timestamp (usec)", &ts_usec);
+        register_field("kismet.packet.dlt", "packet DLT linktype", &dlt);
+        register_field("kismet.packet.source", "packetsource id", &source);
+        register_field("kismet.packet.data", "packet data", &data);
     }
 
-    std::shared_ptr<TrackerElementUInt64> ts_sec;
-    std::shared_ptr<TrackerElementUInt64> ts_usec;
-    std::shared_ptr<TrackerElementUInt64> dlt;
-    std::shared_ptr<TrackerElementUInt64> source;
-    std::shared_ptr<TrackerElementByteArray> data;
+    std::shared_ptr<tracker_element_uint64> ts_sec;
+    std::shared_ptr<tracker_element_uint64> ts_usec;
+    std::shared_ptr<tracker_element_uint64> dlt;
+    std::shared_ptr<tracker_element_uint64> source;
+    std::shared_ptr<tracker_element_byte_array> data;
 };
 
 // Arbitrary data chunk, decapsulated from the link headers
@@ -184,51 +194,51 @@ class kis_datachunk : public packet_component {
 public:
     uint8_t *data;
     unsigned int length;
-	int dlt;
-	uint16_t source_id;
-	bool self_data;
-   
+    int dlt;
+    uint16_t source_id;
+    bool self_data;
+
     kis_datachunk() {
-		self_destruct = 1; // Our delete() handles everything
-		self_data = true; // We assume for now we have our own data alloc
+        self_destruct = 1; // Our delete() handles everything
+        self_data = true; // We assume for now we have our own data alloc
         data = NULL;
         length = 0;
-		source_id = 0;
+        source_id = 0;
     }
 
     virtual ~kis_datachunk() {
-		if (data != NULL && self_data) {
-			delete[] data;
-		}
+        if (data != NULL && self_data) {
+            delete[] data;
+        }
         length = 0;
     }
 
-	// Default to copy=true; it's always safe to copy, it's not always safe not to
-	virtual void set_data(uint8_t *in_data, unsigned int in_length, bool copy = true) {
-		if (data != NULL && self_data)
-			delete[] data;
+    // Default to copy=true; it's always safe to copy, it's not always safe not to
+    virtual void set_data(uint8_t *in_data, unsigned int in_length, bool copy = true) {
+        if (data != NULL && self_data)
+            delete[] data;
 
-		if (copy) {
-			data = new uint8_t[in_length];
-			memcpy(data, in_data, in_length);
-			self_data = true;
-		} else {
-			data = in_data;
-			self_data = false;
-		}
+        if (copy) {
+            data = new uint8_t[in_length];
+            memcpy(data, in_data, in_length);
+            self_data = true;
+        } else {
+            data = in_data;
+            self_data = false;
+        }
 
-		length = in_length;
-	}
+        length = in_length;
+    }
 
     virtual void copy_data(const uint8_t *in_data, unsigned int in_length) {
-		if (data != NULL && self_data)
-			delete[] data;
+        if (data != NULL && self_data)
+            delete[] data;
 
         data = new uint8_t[in_length];
         memcpy(data, in_data, in_length);
         self_data = true;
 
-		length = in_length;
+        length = in_length;
 
     }
 };
@@ -247,24 +257,24 @@ public:
 
 class kis_packet_checksum : public kis_datachunk {
 public:
-	int checksum_valid;
-	uint32_t *checksum_ptr;
+    int checksum_valid;
+    uint32_t *checksum_ptr;
 
-	kis_packet_checksum() : kis_datachunk() {
-		checksum_valid = 0;
-	}
+    kis_packet_checksum() : kis_datachunk() {
+        checksum_valid = 0;
+    }
 
-	virtual void set_data(uint8_t *in_data, unsigned int in_length, bool copy = true) {
-		kis_datachunk::set_data(in_data, in_length, copy);
-		checksum_ptr = (uint32_t *) data;
-	}
+    virtual void set_data(uint8_t *in_data, unsigned int in_length, bool copy = true) {
+        kis_datachunk::set_data(in_data, in_length, copy);
+        checksum_ptr = (uint32_t *) data;
+    }
 };
 
 enum kis_packet_basictype {
-	packet_basic_unknown = 0,
-	packet_basic_mgmt = 1,
-	packet_basic_data = 2,
-	packet_basic_phy = 3
+    packet_basic_unknown = 0,
+    packet_basic_mgmt = 1,
+    packet_basic_data = 2,
+    packet_basic_phy = 3
 };
 
 // Common info
@@ -313,19 +323,19 @@ public:
     // Network - Associated network device (such as ap bssid)
     // Transmitter - Independent transmitter, if not source or network
     // (wifi wds for instance)
-	mac_addr source, dest, network, transmitter;
+    mac_addr source, dest, network, transmitter;
 
-	kis_packet_basictype type;
+    kis_packet_basictype type;
     kis_packet_direction direction;
 
-	int phyid;
-	// Some sort of phy-level error 
-	int error;
-	// Data size if applicable
-	int datasize;
-	// Encryption if applicable
-	uint32_t basic_crypt_set;
-	// Phy-specific numeric channel, freq is held in l1info.  Channel is
+    int phyid;
+    // Some sort of phy-level error 
+    int error;
+    // Data size if applicable
+    int datasize;
+    // Encryption if applicable
+    uint32_t basic_crypt_set;
+    // Phy-specific numeric channel, freq is held in l1info.  Channel is
     // represented as a string to carry whatever special attributes, ie
     // 6HT20 or 6HT40+ for wifi
     std::string channel;
@@ -336,80 +346,80 @@ public:
 // String reference
 class kis_string_info : public packet_component {
 public:
-	kis_string_info() {
-		self_destruct = 1;
-	}
+    kis_string_info() {
+        self_destruct = 1;
+    }
 
     std::vector<std::string> extracted_strings;
 };
 
 typedef struct {
     std::string text;
-	mac_addr bssid;
-	mac_addr source;
-	mac_addr dest;
+    mac_addr bssid;
+    mac_addr source;
+    mac_addr dest;
 } string_proto_info;
 
 // some protocols we do try to track
 enum kis_protocol_info_type {
     proto_unknown,
     proto_udp, 
-	proto_tcp, 
-	proto_arp, 
-	proto_dhcp_offer,
-	proto_dhcp_discover,
+    proto_tcp, 
+    proto_arp, 
+    proto_dhcp_offer,
+    proto_dhcp_discover,
     proto_cdp,
     proto_turbocell,
-	proto_netstumbler_probe,
-	proto_lucent_probe,
-	proto_iapp,
-	proto_isakmp,
-	proto_pptp,
-	proto_eap
+    proto_netstumbler_probe,
+    proto_lucent_probe,
+    proto_iapp,
+    proto_isakmp,
+    proto_pptp,
+    proto_eap
 };
 
 class kis_data_packinfo : public packet_component {
 public:
-	kis_data_packinfo() {
-		self_destruct = 1; // Safe to delete us
-		proto = proto_unknown;
-		ip_source_port = 0;
-		ip_dest_port = 0;
-		ip_source_addr.s_addr = 0;
-		ip_dest_addr.s_addr = 0;
-		ip_netmask_addr.s_addr = 0;
-		ip_gateway_addr.s_addr = 0;
-		field1 = 0;
+    kis_data_packinfo() {
+        self_destruct = 1; // Safe to delete us
+        proto = proto_unknown;
+        ip_source_port = 0;
+        ip_dest_port = 0;
+        ip_source_addr.s_addr = 0;
+        ip_dest_addr.s_addr = 0;
+        ip_netmask_addr.s_addr = 0;
+        ip_gateway_addr.s_addr = 0;
+        field1 = 0;
         ivset[0] = ivset[1] = ivset[2] = 0;
-	}
+    }
 
-	kis_protocol_info_type proto;
+    kis_protocol_info_type proto;
 
-	// IP info, we re-use a subset of the kis_protocol_info_type enum to fill
-	// in where we got our IP data from.  A little klugey, but really no reason
-	// not to do it
-	int ip_source_port;
-	int ip_dest_port;
-	in_addr ip_source_addr;
-	in_addr ip_dest_addr;
-	in_addr ip_netmask_addr;
-	in_addr ip_gateway_addr;
-	kis_protocol_info_type ip_type;
+    // IP info, we re-use a subset of the kis_protocol_info_type enum to fill
+    // in where we got our IP data from.  A little klugey, but really no reason
+    // not to do it
+    int ip_source_port;
+    int ip_dest_port;
+    in_addr ip_source_addr;
+    in_addr ip_dest_addr;
+    in_addr ip_netmask_addr;
+    in_addr ip_gateway_addr;
+    kis_protocol_info_type ip_type;
 
-	// The two CDP fields we really care about for anything
+    // The two CDP fields we really care about for anything
     std::string cdp_dev_id;
     std::string cdp_port_id;
 
-	// DHCP Discover data
+    // DHCP Discover data
     std::string discover_host, discover_vendor;
 
-	// IV
-	uint8_t ivset[3];
+    // IV
+    uint8_t ivset[3];
 
-	// An extra field that can be filled in
-	int field1;
+    // An extra field that can be filled in
+    int field1;
 
-	// A string field that can be filled in
+    // A string field that can be filled in
     std::string auxstring;
 
 };
@@ -423,27 +433,27 @@ enum kis_layer1_packinfo_signal_type {
 
 class kis_layer1_packinfo : public packet_component {
 public:
-	kis_layer1_packinfo() {
-		self_destruct = 1;  // Safe to delete us
+    kis_layer1_packinfo() {
+        self_destruct = 1;  // Safe to delete us
         signal_type = kis_l1_signal_type_none;
-		signal_dbm = noise_dbm = 0;
-		signal_rssi = noise_rssi = 0;
-		carrier = carrier_unknown;
-		encoding = encoding_unknown;
-		datarate = 0;
-		freq_khz = 0;
-		accuracy = 0;
-		channel = "0";
-	}
+        signal_dbm = noise_dbm = 0;
+        signal_rssi = noise_rssi = 0;
+        carrier = carrier_unknown;
+        encoding = encoding_unknown;
+        datarate = 0;
+        freq_khz = 0;
+        accuracy = 0;
+        channel = "0";
+    }
 
-	// How "accurate" are we?  Higher == better.  Nothing uses this yet
-	// but we might as well track it here.
-	int accuracy;
+    // How "accurate" are we?  Higher == better.  Nothing uses this yet
+    // but we might as well track it here.
+    int accuracy;
 
-	// Frequency seen on
-	double freq_khz;
+    // Frequency seen on
+    double freq_khz;
 
-	// Logical channel
+    // Logical channel
     std::string channel;
 
     // Connection info
@@ -463,9 +473,9 @@ public:
     // What data rate?
     double datarate;
 
-	// Checksum, if checksumming is enabled; Only of the non-header 
-	// data
-	uint32_t content_checkum;
+    // Checksum, if checksumming is enabled; Only of the non-header 
+    // data
+    uint32_t content_checkum;
 };
 
 // JSON as a raw string; parsing happens in the DS code; currently supports one JSON report

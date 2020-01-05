@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -25,27 +25,27 @@
 
 /* An 802.11-aware pcap-ng streamer */
 
-class Phy_80211_Httpd_Pcap : public Kis_Net_Httpd_Ringbuf_Stream_Handler {
+class phy_80211_httpd_pcap : public kis_net_httpd_ringbuf_stream_handler {
 public:
-    Phy_80211_Httpd_Pcap() : Kis_Net_Httpd_Ringbuf_Stream_Handler() { 
-        Bind_Httpd_Server();
+    phy_80211_httpd_pcap() : kis_net_httpd_ringbuf_stream_handler() { 
+        bind_httpd_server();
     }
 
-    virtual ~Phy_80211_Httpd_Pcap() { };
+    virtual ~phy_80211_httpd_pcap() { };
 
     // HandleGetRequest handles generating a stream so we don't need to implement that
     // Same for HandlePostRequest
    
     // Standard path validation
-    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+    virtual bool httpd_verify_path(const char *path, const char *method);
 
     // We use this to attach the pcap stream
-    virtual int Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+    virtual int httpd_create_stream_response(kis_net_httpd *httpd,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size); 
 
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *con __attribute__((unused))) {
+    virtual int httpd_post_complete(kis_net_httpd_connection *con __attribute__((unused))) {
         return 0;
     }
     

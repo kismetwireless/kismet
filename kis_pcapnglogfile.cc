@@ -20,25 +20,25 @@
 
 #include "kis_pcapnglogfile.h"
 
-KisPcapNGLogfile::KisPcapNGLogfile(SharedLogBuilder in_builder) :
-    KisLogfile(in_builder) {
+kis_pcapng_logfile::kis_pcapng_logfile(shared_log_builder in_builder) :
+    kis_logfile(in_builder) {
 
     pcapng_stream = NULL;
     pcapng_file = NULL;
 }
 
-KisPcapNGLogfile::~KisPcapNGLogfile() {
-    Log_Close();
+kis_pcapng_logfile::~kis_pcapng_logfile() {
+    close_log();
 }
 
-bool KisPcapNGLogfile::Log_Open(std::string in_path) {
+bool kis_pcapng_logfile::open_log(std::string in_path) {
     local_locker lock(&log_mutex);
 
     set_int_log_path(in_path);
 
     // Try to open the logfile for writing as a buffer
     try {
-        pcapng_file = new FileWritebuf(in_path, 16384);
+        pcapng_file = new file_write_buffer(in_path, 16384);
     } catch (std::exception& e) {
         _MSG("Failed to open pcapng dump file '" + in_path + "': " +
                 e.what(), MSGFLAG_ERROR);
@@ -46,10 +46,10 @@ bool KisPcapNGLogfile::Log_Open(std::string in_path) {
     }
 
     // Make a buffer handler stub to write to our file
-    bufferhandler.reset(new BufferHandler<FileWritebuf>(NULL, pcapng_file));
+    bufferhandler.reset(new buffer_handler<file_write_buffer>(NULL, pcapng_file));
 
     // Generate the pcap stream itself
-    pcapng_stream = new Pcap_Stream_Packetchain(Globalreg::globalreg, bufferhandler, NULL, NULL);
+    pcapng_stream = new pcap_stream_packetchain(Globalreg::globalreg, bufferhandler, NULL, NULL);
 
     _MSG("Opened pcapng log file '" + in_path + "'", MSGFLAG_INFO);
 
@@ -58,7 +58,7 @@ bool KisPcapNGLogfile::Log_Open(std::string in_path) {
     return true;
 }
 
-void KisPcapNGLogfile::Log_Close() {
+void kis_pcapng_logfile::close_log() {
     local_locker lock(&log_mutex);
 
     set_int_log_open(false);

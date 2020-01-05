@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -49,23 +49,23 @@ public:
         reserve_fields(NULL);
     }
 
-    tracked_antenna(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    tracked_antenna(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("tracked_antenna");
+        return adler32_checksum("tracked_antenna");
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
+    virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
@@ -81,27 +81,27 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.antenna.id", "Antenna ID for fast lookup", &antenna_id);
-        RegisterField("kismet.antenna.uuid", "Antenna UUID", &antenna_uuid);
-        RegisterField("kismet.antenna.source_uuid", "UUID of antenna source", &source_uuid);
-        RegisterField("kismet.antenna.source_antnum", "Antenna number on source", &source_antnum);
-        RegisterField("kismet.antenna.power_adjust", "Optional power adjustment", &power_adjust);
+        register_field("kismet.antenna.id", "Antenna ID for fast lookup", &antenna_id);
+        register_field("kismet.antenna.uuid", "Antenna UUID", &antenna_uuid);
+        register_field("kismet.antenna.source_uuid", "UUID of antenna source", &source_uuid);
+        register_field("kismet.antenna.source_antnum", "Antenna number on source", &source_antnum);
+        register_field("kismet.antenna.power_adjust", "Optional power adjustment", &power_adjust);
     }
 
-    std::shared_ptr<TrackerElementInt32> antenna_id;
-    std::shared_ptr<TrackerElementUUID> antenna_uuid;
-    std::shared_ptr<TrackerElementUUID> source_uuid;
-    std::shared_ptr<TrackerElementInt32> power_adjust;
-    std::shared_ptr<TrackerElementInt32> source_antnum;
+    std::shared_ptr<tracker_element_int32> antenna_id;
+    std::shared_ptr<tracker_element_uuid> antenna_uuid;
+    std::shared_ptr<tracker_element_uuid> source_uuid;
+    std::shared_ptr<tracker_element_int32> power_adjust;
+    std::shared_ptr<tracker_element_int32> source_antnum;
 
 };
 
-class Antennatracker : public LifetimeGlobal {
+class Antennatracker : public lifetime_global {
 public:
     static std::shared_ptr<Antennatracker> create_at() {
         auto mon = std::make_shared<Antennatracker>();
-        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-        Globalreg::globalreg->InsertGlobal("ANTENNATRACKER", mon);
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global("ANTENNATRACKER", mon);
 
         return mon;
     }
@@ -116,7 +116,7 @@ public:
     // Adjust an existing antenna
     int set_antenna_adjustment(int in_antnum, int adjustment);
 
-    // Retreive antenna
+    // Retrieve antenna
     std::shared_ptr<tracked_antenna> get_antenna(int in_antnum);
 
 protected:
@@ -124,9 +124,9 @@ protected:
 
     int next_ant_id;
     
-    std::shared_ptr<TrackerElementIntMap> antenna_id_map;
+    std::shared_ptr<tracker_element_int_map> antenna_id_map;
 
-    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> antenna_endp;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> antenna_endp;
 
 };
 

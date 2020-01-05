@@ -57,6 +57,13 @@
         - E0:B9:4D:00:00:00/FF:FF:FF:00:00:00
 
 - uav:
+    id: 360lflight
+    name: 360-L Flight
+    ssid: ^360-L Flight-.*
+    mac:
+        - 4C:0F:C7:00:00:00/FF:FF:FF:00:00:00
+
+- uav:
     id: 3drsolo
     name: 3DRobotics
     model: Solo

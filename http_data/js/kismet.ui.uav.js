@@ -92,8 +92,8 @@ kismet_ui.AddDeviceDetail("uav", "UAV/Drone", 0, {
                     title: "Last Location",
                     render: function(opts) {
                         var loc =
-                            kismet.ObjectByString(opts['data'], "uav.device/uav.last_telemetry/uav.telemetry.location/kismet.common.location.lat") + ", " +
-                            kismet.ObjectByString(opts['data'], "uav.device/uav.last_telemetry/uav.telemetry.location/kismet.common.location.lon");
+                            kismet.ObjectByString(opts['data'], "uav.device/uav.last_telemetry/uav.telemetry.location/kismet.common.location.geopoint[1]") + ", " +
+                            kismet.ObjectByString(opts['data'], "uav.device/uav.last_telemetry/uav.telemetry.location/kismet.common.location.geopoint[0]");
 
                         return loc;
                     },
@@ -104,8 +104,8 @@ kismet_ui.AddDeviceDetail("uav", "UAV/Drone", 0, {
                     title: "Home Location",
                     render: function(opts) {
                         var loc =
-                            kismet.ObjectByString(opts['data'], "uav.device/uav.telemetry.home_location/kismet.common.location.lat") + ", " +
-                            kismet.ObjectByString(opts['data'], "uav.device/uav.telemetry.home_location/kismet.common.location.lon");
+                            kismet.ObjectByString(opts['data'], "uav.device/uav.telemetry.home_location/kismet.common.location.geopoint[1]") + ", " +
+                            kismet.ObjectByString(opts['data'], "uav.device/uav.telemetry.home_location/kismet.common.location.goepoint[0]");
 
                         return loc;
                     },

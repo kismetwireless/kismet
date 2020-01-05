@@ -22,10 +22,11 @@
 #include "kismet_json.h"
 #include "phy_rtlamr.h"
 
-KisDatasourceRtlamr::KisDatasourceRtlamr(SharedDatasourceBuilder in_builder, bool in_mqtt) :
-    KisDatasource(in_builder) {
+kis_datasource_rtlamr::kis_datasource_rtlamr(shared_datasource_builder in_builder, 
+        std::shared_ptr<kis_recursive_timed_mutex> mutex, bool in_mqtt) :
+    kis_datasource(in_builder, mutex) {
 
-    std::string devnum = MungeToPrintable(get_definition_opt("device"));
+    std::string devnum = munge_to_printable(get_definition_opt("device"));
     if (devnum != "") {
         set_int_source_cap_interface("rtlamrusb#" + devnum);
     } else {
@@ -42,13 +43,13 @@ KisDatasourceRtlamr::KisDatasourceRtlamr(SharedDatasourceBuilder in_builder, boo
 
 }
 
-KisDatasourceRtlamr::~KisDatasourceRtlamr() {
+kis_datasource_rtlamr::~kis_datasource_rtlamr() {
 
 }
 
-void KisDatasourceRtlamr::open_interface(std::string in_definition, unsigned int in_transaction,
+void kis_datasource_rtlamr::open_interface(std::string in_definition, unsigned int in_transaction,
         open_callback_t in_cb) {
-    KisDatasource::open_interface(in_definition, in_transaction, in_cb);
+    kis_datasource::open_interface(in_definition, in_transaction, in_cb);
 
     if (get_source_interface().find("rtl-mqtt") == 0) {
         set_int_source_hopping(false);
@@ -57,12 +58,12 @@ void KisDatasourceRtlamr::open_interface(std::string in_definition, unsigned int
 }
 
 #if 0
-int KisDatasourceRtlamr::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
-    std::string stripped = Httpd_StripSuffix(concls->url);
-    std::vector<std::string> tokenurl = StrTokenize(stripped, "/");
+int kis_datasource_rtlamr::httpd_post_complete(kis_net_httpd_connection *concls) {
+    std::string stripped = httpd_strip_suffix(concls->url);
+    std::vector<std::string> tokenurl = str_tokenize(stripped, "/");
 
     // Anything involving POST here requires a login
-    if (!httpd->HasValidSession(concls, true)) {
+    if (!httpd->has_valid_session(concls, true)) {
         return 1;
     }
 
@@ -75,7 +76,7 @@ int KisDatasourceRtlamr::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
     if (tokenurl[2] != "by-uuid")
         return MHD_NO;
 
-    if (tokenurl[3] != get_source_uuid().UUID2String())
+    if (tokenurl[3] != get_source_uuid().uuid_to_string())
         return MHD_NO;
 
     if (tokenurl[4] == "update") {
@@ -87,7 +88,7 @@ int KisDatasourceRtlamr::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         inc_source_num_packets(1);
         get_source_packet_rrd()->add_sample(1, time(0));
 
-        packetchain->ProcessPacket(packet);
+        packetchain->process_packet(packet);
     }
 
     return MHD_NO;

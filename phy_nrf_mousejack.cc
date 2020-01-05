@@ -36,48 +36,48 @@
 #include "dlttracker.h"
 #include "manuf.h"
 
-Kis_Mousejack_Phy::Kis_Mousejack_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
-    Kis_Phy_Handler(in_globalreg, in_phyid) {
+Kis_Mousejack_Phy::Kis_Mousejack_Phy(global_registry *in_globalreg, int in_phyid) :
+    kis_phy_handler(in_globalreg, in_phyid) {
 
-    SetPhyName("NrfMousejack");
+    set_phy_name("NrfMousejack");
 
     packetchain = 
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>();
+        Globalreg::fetch_mandatory_global_as<packet_chain>();
     entrytracker = 
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
+        Globalreg::fetch_mandatory_global_as<entry_tracker>();
     devicetracker =
-        Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
+        Globalreg::fetch_mandatory_global_as<device_tracker>();
 
     mousejack_device_entry_id =
-        entrytracker->RegisterField("nrfmousejack.device",
-                TrackerElementFactory<mousejack_tracked_device>(),
+        entrytracker->register_field("nrfmousejack.device",
+                tracker_element_factory<mousejack_tracked_device>(),
                 "NRF Mousejack device");
 
-    pack_comp_common = packetchain->RegisterPacketComponent("COMMON");
-	pack_comp_linkframe = packetchain->RegisterPacketComponent("LINKFRAME");
+    pack_comp_common = packetchain->register_packet_component("COMMON");
+	pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
 
     // Extract the dynamic DLT
     auto dltt = 
-        Globalreg::FetchMandatoryGlobalAs<DltTracker>("DLTTRACKER");
+        Globalreg::fetch_mandatory_global_as<dlt_tracker>("DLTTRACKER");
     dlt = dltt->register_linktype("NRFMOUSEJACK");
 
     /*
     auto httpregistry = 
-        Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>("WEBREGISTRY");
+        Globalreg::fetch_mandatory_global_as<kis_httpd_registry>("WEBREGISTRY");
         */
 
     // Make the manuf string
-    mj_manuf_amazon = Globalreg::globalreg->manufdb->MakeManuf("Amazon");
-    mj_manuf_logitech = Globalreg::globalreg->manufdb->MakeManuf("Logitech");
-    mj_manuf_microsoft = Globalreg::globalreg->manufdb->MakeManuf("Microsoft");
-    mj_manuf_nrf = Globalreg::globalreg->manufdb->MakeManuf("nRF/Mousejack HID");
+    mj_manuf_amazon = Globalreg::globalreg->manufdb->make_manuf("Amazon");
+    mj_manuf_logitech = Globalreg::globalreg->manufdb->make_manuf("Logitech");
+    mj_manuf_microsoft = Globalreg::globalreg->manufdb->make_manuf("Microsoft");
+    mj_manuf_nrf = Globalreg::globalreg->manufdb->make_manuf("nRF/Mousejack HID");
 
-    packetchain->RegisterHandler(&DissectorMousejack, this, CHAINPOS_LLCDISSECT, -100);
-    packetchain->RegisterHandler(&CommonClassifierMousejack, this, CHAINPOS_CLASSIFIER, -100);
+    packetchain->register_handler(&DissectorMousejack, this, CHAINPOS_LLCDISSECT, -100);
+    packetchain->register_handler(&CommonClassifierMousejack, this, CHAINPOS_CLASSIFIER, -100);
 }
 
 Kis_Mousejack_Phy::~Kis_Mousejack_Phy() {
-    packetchain->RemoveHandler(&CommonClassifierMousejack, CHAINPOS_CLASSIFIER);
+    packetchain->remove_handler(&CommonClassifierMousejack, CHAINPOS_CLASSIFIER);
 }
 
 int Kis_Mousejack_Phy::DissectorMousejack(CHAINCALL_PARMS) {
@@ -104,7 +104,7 @@ int Kis_Mousejack_Phy::DissectorMousejack(CHAINCALL_PARMS) {
 
     common = new kis_common_info;
 
-    common->phyid = mphy->FetchPhyId();
+    common->phyid = mphy->fetch_phy_id();
     common->basic_crypt_set = crypt_none;
     common->type = packet_basic_data;
     common->source = mac_addr(packdata->data, 6);
@@ -135,7 +135,7 @@ int Kis_Mousejack_Phy::CommonClassifierMousejack(CHAINCALL_PARMS) {
     // Update with all the options in case we can add signal and frequency
     // in the future
     auto device = 
-        mphy->devicetracker->UpdateCommonDevice(common,
+        mphy->devicetracker->update_common_device(common,
                 common->source, mphy, in_pack,
                 (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
                  UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
@@ -173,7 +173,7 @@ int Kis_Mousejack_Phy::CommonClassifierMousejack(CHAINCALL_PARMS) {
 
     if (nrf == NULL) {
         _MSG_INFO("Detected new nRF cordless input device (mouse, keyboard, etc) {}",
-                common->source.Mac2String());
+                common->source.mac_to_string());
         nrf = std::make_shared<mousejack_tracked_device>(mphy->mousejack_device_entry_id);
         device->insert(nrf);
     }
@@ -181,20 +181,20 @@ int Kis_Mousejack_Phy::CommonClassifierMousejack(CHAINCALL_PARMS) {
     return 1;
 }
 
-void Kis_Mousejack_Phy::LoadPhyStorage(SharedTrackerElement in_storage,
-        SharedTrackerElement in_device) {
+void Kis_Mousejack_Phy::load_phy_storage(shared_tracker_element in_storage,
+        shared_tracker_element in_device) {
     if (in_storage == nullptr || in_device == nullptr)
         return;
 
-    auto storage = std::static_pointer_cast<TrackerElementMap>(in_storage);
+    auto storage = std::static_pointer_cast<tracker_element_map>(in_storage);
 
     auto nrfdevi = storage->find(mousejack_device_entry_id);
 
     if (nrfdevi != storage->end()) {
         auto nrfdev =
             std::make_shared<mousejack_tracked_device>(mousejack_device_entry_id,
-                    std::static_pointer_cast<TrackerElementMap>(nrfdevi->second));
-        std::static_pointer_cast<TrackerElementMap>(in_device)->insert(nrfdev);
+                    std::static_pointer_cast<tracker_element_map>(nrfdevi->second));
+        std::static_pointer_cast<tracker_element_map>(in_device)->insert(nrfdev);
     }
 }
 

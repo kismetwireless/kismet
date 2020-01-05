@@ -30,17 +30,15 @@
 #include "messagebus.h"
 #include "pollabletracker.h"
 
-PipeClient::PipeClient(GlobalRegistry *in_globalreg, 
-        std::shared_ptr<BufferHandlerGeneric> in_rbhandler) :
+pipe_client::pipe_client(global_registry *in_globalreg, 
+        std::shared_ptr<buffer_handler_generic> in_rbhandler) :
     globalreg {Globalreg::globalreg},
-    pipe_mutex {std::make_shared<kis_recursive_timed_mutex>()},
+    pipe_mutex {in_rbhandler->get_mutex()},
     handler {in_rbhandler},
     read_fd {-1},
     write_fd {-1} { }
 
-PipeClient::~PipeClient() {
-    local_locker l(pipe_mutex);
-
+pipe_client::~pipe_client() {
     // printf("~pipeclient %p\n", this);
     if (read_fd > -1) {
         close(read_fd);
@@ -53,7 +51,7 @@ PipeClient::~PipeClient() {
     }
 }
 
-void PipeClient::SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
+void pipe_client::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
     local_locker l(pipe_mutex);
 
     if (in_parent != nullptr)
@@ -62,7 +60,7 @@ void PipeClient::SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) 
         pipe_mutex = std::make_shared<kis_recursive_timed_mutex>();
 }
 
-int PipeClient::OpenPipes(int rpipe, int wpipe) {
+int pipe_client::open_pipes(int rpipe, int wpipe) {
     local_locker lock(pipe_mutex);
 
     if (read_fd > -1 || write_fd > -1) {
@@ -85,13 +83,13 @@ int PipeClient::OpenPipes(int rpipe, int wpipe) {
     return 0;
 }
 
-bool PipeClient::FetchConnected() {
+bool pipe_client::get_connected() {
     local_shared_locker lock(pipe_mutex);
 
     return handler == nullptr || read_fd > -1 || write_fd > -1;
 }
 
-int PipeClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
+int pipe_client::pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     local_locker lock(pipe_mutex);
 
     if (handler == nullptr)
@@ -100,7 +98,7 @@ int PipeClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     int max_fd = in_max_fd;
 
     // If we have data waiting to be written, fill it in
-    if (write_fd > -1 && handler->GetWriteBufferUsed()) {
+    if (write_fd > -1 && handler->get_write_buffer_used()) {
         FD_SET(write_fd, out_wset);
         if (write_fd > in_max_fd)
             max_fd = write_fd;
@@ -108,7 +106,7 @@ int PipeClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
 
     // If we have room to read set the readfd, otherwise skip it for now
     if (read_fd > -1) {
-        if (handler->GetReadBufferAvailable() > 0) {
+        if (handler->get_read_buffer_available() > 0) {
             if (max_fd < read_fd)
                 max_fd = read_fd;
             FD_SET(read_fd, out_rset);
@@ -118,7 +116,7 @@ int PipeClient::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     return max_fd;
 }
 
-int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
+int pipe_client::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
     local_locker lock(pipe_mutex);
 
     std::stringstream msg;
@@ -131,8 +129,8 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
     if (read_fd > -1 && FD_ISSET(read_fd, &in_rset) && handler != nullptr) {
         // Allocate the biggest buffer we can fit in the ring, read as much
         // as we can at once.
-        while ((avail = handler->GetReadBufferAvailable())) {
-            len = handler->ZeroCopyReserveReadBufferData((void **) &buf, avail);
+        while ((avail = handler->get_read_buffer_available())) {
+            len = handler->zero_copy_reserve_read_buffer_data((void **) &buf, avail);
 
             if ((ret = read(read_fd, buf, len)) <= 0) {
                 if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -143,25 +141,25 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
                         msg << "Pipe client error reading - " << kis_strerror_r(errno);
                     }
 
-                    handler->CommitReadBufferData(buf, 0);
-                    handler->BufferError(msg.str());
+                    handler->commit_read_buffer_data(buf, 0);
+                    handler->buffer_error(msg.str());
 
-                    ClosePipes();
+                    close_pipes();
 
                     return 0;
                 } else {
                     // Jump out of read loop
-                    handler->CommitReadBufferData(buf, 0);
+                    handler->commit_read_buffer_data(buf, 0);
                     break;
                 }
             } else {
                 // Insert into buffer
-                iret = handler->CommitReadBufferData(buf, ret);
+                iret = handler->commit_read_buffer_data(buf, ret);
 
                 if (!iret) {
                     // Die if we couldn't insert all our data, the error is already going
                     // upstream.
-                    ClosePipes();
+                    close_pipes();
                     return 0;
                 }
             }
@@ -169,15 +167,15 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
     }
 
     if (write_fd > -1 && FD_ISSET(write_fd, &in_wset)) {
-        len = handler->GetWriteBufferUsed();
+        len = handler->get_write_buffer_used();
 
         // Let the caller consider doing something with a full buffer
         if (len == 0)
-            handler->TriggerWriteCallback(0);
+            handler->trigger_write_callback(0);
 
         if (len > 0) {
             // Peek the data into our buffer
-            ret = handler->ZeroCopyPeekWriteBufferData((void **) &buf, len);
+            ret = handler->zero_copy_peek_write_buffer_data((void **) &buf, len);
 
             // fprintf(stderr, "debug - pipe client write - used %u peeked %u\n", len, ret);
 
@@ -185,19 +183,19 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
                 if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
                     msg << "Pipe client error writing - " << kis_strerror_r(errno);
 
-                    handler->PeekFreeWriteBufferData(buf);
+                    handler->peek_free_write_buffer_data(buf);
 
                     // Push the error upstream
-                    handler->BufferError(msg.str());
+                    handler->buffer_error(msg.str());
 
-                    ClosePipes();
+                    close_pipes();
 
                     return 0;
                 }
             } else {
                 // Consume whatever we managed to write
-                handler->PeekFreeWriteBufferData(buf);
-                handler->ConsumeWriteBufferData(iret);
+                handler->peek_free_write_buffer_data(buf);
+                handler->consume_write_buffer_data(iret);
             }
 
             // delete[] buf;
@@ -207,7 +205,7 @@ int PipeClient::Poll(fd_set& in_rset, fd_set& in_wset) {
     return 0;
 }
 
-int PipeClient::FlushRead() {
+int pipe_client::flush_read() {
     local_locker lock(pipe_mutex);
 
     std::stringstream msg;
@@ -217,9 +215,9 @@ int PipeClient::FlushRead() {
     ssize_t ret, iret;
 
     if (read_fd > -1 && handler != nullptr) {
-        while (handler->GetReadBufferAvailable() && read_fd > -1) {
-            len = handler->ZeroCopyReserveReadBufferData((void **) &buf,
-                    handler->GetReadBufferAvailable());
+        while (handler->get_read_buffer_available() && read_fd > -1) {
+            len = handler->zero_copy_reserve_read_buffer_data((void **) &buf,
+                    handler->get_read_buffer_available());
 
             if ((ret = read(read_fd, buf, len)) <= 0) {
                 if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -229,22 +227,22 @@ int PipeClient::FlushRead() {
                         msg << "Pipe client error reading - " << kis_strerror_r(errno);
                     }
 
-                    handler->CommitReadBufferData(buf, 0);
-                    handler->BufferError(msg.str());
+                    handler->commit_read_buffer_data(buf, 0);
+                    handler->buffer_error(msg.str());
 
-                    ClosePipes();
+                    close_pipes();
 
                     return 0;
                 } else {
                     // Jump out of read loop
-                    handler->CommitReadBufferData(buf, 0);
+                    handler->commit_read_buffer_data(buf, 0);
                     break;
                 }
             } else {
-                iret = handler->CommitReadBufferData(buf, ret);
+                iret = handler->commit_read_buffer_data(buf, ret);
 
                 if (!iret) {
-                    ClosePipes();
+                    close_pipes();
                     return 0;
                 }
             }
@@ -254,7 +252,7 @@ int PipeClient::FlushRead() {
     return 0;
 }
 
-void PipeClient::ClosePipes() {
+void pipe_client::close_pipes() {
     // printf("%p looking for pipe lock lock %p\n", this, &pipe_lock);
     local_locker lock(pipe_mutex);
     // printf("%p got pipe lock\n", this);

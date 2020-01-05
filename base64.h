@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
+      but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -28,18 +28,17 @@
  * Needed to handle b64 encoded post data for the webserver
  */
 
-namespace Base64 {
+class base64 {
+public:
     /* Decode a string; return raw data if it was valid */
-    std::string decode(const std::string& in_str);
+    static std::string decode(std::string in_str);
 
     // Convert 4 6-bit b64 characters into 3 8-bit standard bytes.
     // In and out must be able to hold the appropriate amount of data.
-    void decodeblock(unsigned char *in, unsigned char *out);
+    static void decodeblock(unsigned char *in, unsigned char *out);
 
-    // Encode a string to base64
-    std::string encode(const std::string& in_str);
-
-    extern const char b64_values[];
+protected:
+    const static char b64_values[];
 };
 
 #endif

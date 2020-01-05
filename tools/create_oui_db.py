@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from __future__ import print_function
 import os
@@ -15,7 +15,8 @@ manufs = []
 OUIURI = "http://linuxnet.ca/ieee/oui.txt"
 
 with requests.get(OUIURI) as r:
-    for l in r.iter_lines():
+    for rl in r.iter_lines():
+        l = rl.decode('UTF-8')
         p = re.compile("([0-9A-F]{2}-[0-9A-F]{2}-[0-9A-F]{2}) +\(hex\)\t+(.*)")
         m = p.match(l)
         

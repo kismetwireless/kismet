@@ -62,7 +62,7 @@ double distance_meters(double lat0, double lon0, double lat1, double lon1) {
 
 void print_help(char *argv) {
     printf("Kismetdb statistics\n");
-    printf("Usage: %s [OPTION]\n", argv);
+    printf("usage: %s [OPTION]\n", argv);
     printf(" -i, --in [filename]          Input kismetdb file\n"
            " -s, --skip-clean             Don't clean (sql vacuum) input database\n"
            " -j, --json                   Dump stats as a JSON dictionary");
@@ -191,9 +191,10 @@ int main(int argc, char *argv[]) {
         auto n_total_devices = sqlite3_column_as<unsigned long>(*ndevices_ret, 0);
         auto min_time = sqlite3_column_as<time_t>(*ndevices_ret, 1);
         auto max_time = sqlite3_column_as<time_t>(*ndevices_ret, 2);
+        struct tm min_tm, max_tm;
 
-        auto min_tm = *std::localtime(&min_time);
-        auto max_tm = *std::localtime(&max_time);
+        gmtime_r(&min_time, &min_tm);
+        gmtime_r(&max_time, &max_tm);
 
         if (outputjson) {
             root["devices"] = (uint64_t) n_total_devices;

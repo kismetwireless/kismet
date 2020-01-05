@@ -23,28 +23,29 @@
 
 #include "kis_datasource.h"
 
-class KisDatasourceKismetdb;
-typedef std::shared_ptr<KisDatasourceKismetdb> SharedDatasourceKismetdb;
+class kis_datasource_kismetdb;
+typedef std::shared_ptr<kis_datasource_kismetdb> shared_datasource_kismetdb;
 
-class KisDatasourceKismetdb : public KisDatasource {
+class kis_datasource_kismetdb : public kis_datasource {
 public:
-    KisDatasourceKismetdb(SharedDatasourceBuilder in_builder) :
-        KisDatasource(in_builder) {
+    kis_datasource_kismetdb(shared_datasource_builder in_builder,
+            std::shared_ptr<kis_recursive_timed_mutex> mutex) :
+        kis_datasource(in_builder, mutex) {
 
         // Set the capture binary
         set_int_source_ipc_binary("kismet_cap_kismetdb");
     }
 
-    virtual ~KisDatasourceKismetdb() { };
+    virtual ~kis_datasource_kismetdb() { };
 
     // Almost all of the logic is implemented in the capture binary and derived
     // from our prototype; all the list, probe, etc functions proxy to our binary
     // and we communicate using only standard Kismet functions so we don't need
     // to do anything else
    
-    // Override defaults for kismetdb - we don't want to reload a ksimetdb once
+    // Override defaults for kismetdb - we don't want to reload a kismetdb once
     // it finishes unless we're explicitly told to loop it
-    virtual std::string override_default_option(std::string in_opt) {
+    virtual std::string override_default_option(std::string in_opt) override {
         if (in_opt == "retry")
             return "false";
 
@@ -54,39 +55,40 @@ public:
 };
 
 
-class DatasourceKismetdbBuilder : public KisDatasourceBuilder {
+class datasource_kismetdb_builder : public kis_datasource_builder {
 public:
-    DatasourceKismetdbBuilder() :
-        KisDatasourceBuilder() {
+    datasource_kismetdb_builder() :
+        kis_datasource_builder() {
 
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    DatasourceKismetdbBuilder(int in_id) :
-        KisDatasourceBuilder(in_id) {
+    datasource_kismetdb_builder(int in_id) :
+        kis_datasource_builder(in_id) {
 
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    DatasourceKismetdbBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
-        KisDatasourceBuilder(in_id, e) {
+    datasource_kismetdb_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
+        kis_datasource_builder(in_id, e) {
 
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    virtual ~DatasourceKismetdbBuilder() { }
+    virtual ~datasource_kismetdb_builder() { }
 
-    virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) {
-        return SharedDatasourceKismetdb(new KisDatasourceKismetdb(in_sh_this));
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this,
+            std::shared_ptr<kis_recursive_timed_mutex> mutex) override {
+        return shared_datasource_kismetdb(new kis_datasource_kismetdb(in_sh_this, mutex));
     }
 
-    virtual void initialize() {
+    virtual void initialize() override {
         // Set up our basic parameters for the kismetdb driver
         
         set_source_type("kismetdb");

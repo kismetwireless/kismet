@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -97,7 +97,7 @@ public:
         set_stream_time(time(0));
     }
 
-    streaming_info_record(int in_id, std::shared_ptr<TrackerElementMap> e) : 
+    streaming_info_record(int in_id, std::shared_ptr<tracker_element_map> e) : 
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -105,13 +105,13 @@ public:
         set_stream_time(time(0));
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
+    virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
@@ -161,73 +161,73 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.stream.stream_id", "Stream ID", &stream_id);
-        RegisterField("kismet.stream.time", 
+        register_field("kismet.stream.stream_id", "Stream ID", &stream_id);
+        register_field("kismet.stream.time", 
                 "Start time of stream (second since epoch)", &stream_time);
-        RegisterField("kismet.stream.name", "Stream / Log name", &log_name);
-        RegisterField("kismet.stream.type", "Stream / Log type", &log_type);
-        RegisterField("kismet.stream.path", "Log path or stream remote client", &log_path);
-        RegisterField("kismet.stream.description", "Stream / Log description", &log_description);
-        RegisterField("kismet.stream.packets", "Number of packets (if known)", &log_packets);
-        RegisterField("kismet.stream.size", "Size of log, if known, in bytes", &log_size);
-        RegisterField("kismet.stream.max_packets", "Maximum number of packets", &max_packets);
-        RegisterField("kismet.stream.max_size", "Maximum allowed size (bytes)", &max_size);
-        RegisterField("kismet.stream.paused", "Stream processing paused", &log_paused);
+        register_field("kismet.stream.name", "Stream / Log name", &log_name);
+        register_field("kismet.stream.type", "Stream / Log type", &log_type);
+        register_field("kismet.stream.path", "Log path or stream remote client", &log_path);
+        register_field("kismet.stream.description", "Stream / Log description", &log_description);
+        register_field("kismet.stream.packets", "Number of packets (if known)", &log_packets);
+        register_field("kismet.stream.size", "Size of log, if known, in bytes", &log_size);
+        register_field("kismet.stream.max_packets", "Maximum number of packets", &max_packets);
+        register_field("kismet.stream.max_size", "Maximum allowed size (bytes)", &max_size);
+        register_field("kismet.stream.paused", "Stream processing paused", &log_paused);
     }
 
-    std::shared_ptr<TrackerElementDouble> stream_id;
-    std::shared_ptr<TrackerElementUInt64> stream_time;
-    std::shared_ptr<TrackerElementString> log_name;
-    std::shared_ptr<TrackerElementString> log_type;
-    std::shared_ptr<TrackerElementString> log_path;
-    std::shared_ptr<TrackerElementString> log_description;
-    std::shared_ptr<TrackerElementUInt64> log_packets;
-    std::shared_ptr<TrackerElementUInt64> log_size;
+    std::shared_ptr<tracker_element_double> stream_id;
+    std::shared_ptr<tracker_element_uint64> stream_time;
+    std::shared_ptr<tracker_element_string> log_name;
+    std::shared_ptr<tracker_element_string> log_type;
+    std::shared_ptr<tracker_element_string> log_path;
+    std::shared_ptr<tracker_element_string> log_description;
+    std::shared_ptr<tracker_element_uint64> log_packets;
+    std::shared_ptr<tracker_element_uint64> log_size;
 
     // Maximum values, if any
-    std::shared_ptr<TrackerElementUInt64> max_packets;
-    std::shared_ptr<TrackerElementUInt64> max_size;
+    std::shared_ptr<tracker_element_uint64> max_packets;
+    std::shared_ptr<tracker_element_uint64> max_size;
 
-    std::shared_ptr<TrackerElementUInt8> log_paused;
+    std::shared_ptr<tracker_element_uint8> log_paused;
 
     streaming_agent *agent;
 };
 
-class StreamTracker : public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal {
+class stream_tracker : public kis_net_httpd_cppstream_handler, public lifetime_global {
 public:
     static std::string global_name() { return "STREAMTRACKER"; }
 
-    static std::shared_ptr<StreamTracker> create_streamtracker(GlobalRegistry *in_globalreg) {
-        std::shared_ptr<StreamTracker> mon(new StreamTracker(in_globalreg));
-        in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal(global_name(), mon);
+    static std::shared_ptr<stream_tracker> create_streamtracker(global_registry *in_globalreg) {
+        std::shared_ptr<stream_tracker> mon(new stream_tracker(in_globalreg));
+        in_globalreg->register_lifetime_global(mon);
+        in_globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-    StreamTracker(GlobalRegistry *in_globalreg);
+    stream_tracker(global_registry *in_globalreg);
 
 public:
-    virtual ~StreamTracker();
+    virtual ~stream_tracker();
 
     void register_streamer(streaming_agent *in_agent, std::string in_name,
             std::string in_type, std::string in_path, std::string in_description);
     void remove_streamer(double in_id);
 
     // HTTP API
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
+    virtual bool httpd_verify_path(const char *path, const char *method) override;
 
-    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream) override;
    
 protected:
     kis_recursive_timed_mutex mutex;
 
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
 
-    std::shared_ptr<TrackerElementDoubleMap> tracked_stream_map;
+    std::shared_ptr<tracker_element_double_map> tracked_stream_map;
 
     int info_builder_id;
 

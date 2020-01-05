@@ -23,13 +23,14 @@
 
 #include "kis_datasource.h"
 
-class KisDatasourceRtl433;
-typedef std::shared_ptr<KisDatasourceRtl433> SharedDatasourceRtl433;
+class kis_datasource_rtl433;
+typedef std::shared_ptr<kis_datasource_rtl433> shared_datasource_rtl433;
 
-class KisDatasourceRtl433 : public KisDatasource {
+class kis_datasource_rtl433 : public kis_datasource {
 public:
-    KisDatasourceRtl433(SharedDatasourceBuilder in_builder, bool in_mqtt);
-    virtual ~KisDatasourceRtl433();
+    kis_datasource_rtl433(shared_datasource_builder in_builder, 
+            std::shared_ptr<kis_recursive_timed_mutex> mutex );
+    virtual ~kis_datasource_rtl433();
 
 protected:
     virtual void open_interface(std::string in_definition, unsigned int in_transaction,
@@ -37,34 +38,35 @@ protected:
 
 };
 
-class DatasourceRtl433Builder : public KisDatasourceBuilder {
+class datasource_rtl433_builder : public kis_datasource_builder {
 public:
-    DatasourceRtl433Builder() :
-        KisDatasourceBuilder() {
+    datasource_rtl433_builder() :
+        kis_datasource_builder() {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    DatasourceRtl433Builder(int in_id) :
-        KisDatasourceBuilder(in_id) {
+    datasource_rtl433_builder(int in_id) :
+        kis_datasource_builder(in_id) {
         register_fields();
         reserve_fields(NULL);
         initialize();
     }
 
-    DatasourceRtl433Builder(int in_id, std::shared_ptr<TrackerElementMap> e) :
-        KisDatasourceBuilder(in_id, e) {
+    datasource_rtl433_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
+        kis_datasource_builder(in_id, e) {
 
         register_fields();
         reserve_fields(e);
         initialize();
     }
 
-    virtual ~DatasourceRtl433Builder() { }
+    virtual ~datasource_rtl433_builder() { }
 
-    virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) override {
-        return SharedDatasourceRtl433(new KisDatasourceRtl433(in_sh_this, false));
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this,
+            std::shared_ptr<kis_recursive_timed_mutex> mutex) override {
+        return shared_datasource_rtl433(new kis_datasource_rtl433(in_sh_this, mutex));
     }
 
     virtual void initialize() override {
@@ -77,48 +79,7 @@ public:
         set_remote_capable(true);
         set_passive_capable(false);
         set_tune_capable(true);
-    }
-};
-
-class DatasourceRtl433MqttBuilder : public KisDatasourceBuilder {
-public:
-    DatasourceRtl433MqttBuilder() :
-        KisDatasourceBuilder() {
-        register_fields();
-        reserve_fields(NULL);
-        initialize();
-    }
-
-    DatasourceRtl433MqttBuilder(int in_id) :
-        KisDatasourceBuilder(in_id) {
-        register_fields();
-        reserve_fields(NULL);
-        initialize();
-    }
-
-    DatasourceRtl433MqttBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
-        KisDatasourceBuilder(in_id, e) {
-        register_fields();
-        reserve_fields(e);
-        initialize();
-    }
-
-    virtual ~DatasourceRtl433MqttBuilder() { }
-
-    virtual SharedDatasource build_datasource(SharedDatasourceBuilder in_sh_this) override {
-        return SharedDatasourceRtl433(new KisDatasourceRtl433(in_sh_this, true));
-    }
-
-    virtual void initialize() override {
-        set_source_type("rtl433mqtt");
-        set_source_description("rtl_433 MQTT feed");
-
-        set_probe_capable(true);
-        set_list_capable(false);
-        set_local_capable(true);
-        set_remote_capable(true);
-        set_passive_capable(false);
-        set_tune_capable(false);
+        set_hop_capable(true);
     }
 };
 

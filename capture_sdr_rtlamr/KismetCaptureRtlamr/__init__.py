@@ -1,68 +1,105 @@
-#!/usr/bin/env python2
-
 """
 rtlamr Kismet data source
 
-Supports both local usb rtlsdr devices via the rtlamr binary, remote capture
-from a usb rtlsdr, and remote capture from a mqtt stream, if paho mqtt is
-installed.
-
-Sources are generated as rtlamr-XYZ when multiple rtl radios are detected.
+Sources are generated as rtlaamr-XYZ when multiple rtl radios are detected.
 
 Accepts standard options:
-    channel=freqMHz   (in mhz)
-    channel=freqKHz   (in khz)
-    channel=freq      (in raw hz to rtlamr)
-
-    channels="a,b,c"  Pass hopping list to rtlamr_bin
+    channel=freq      (in raw hz)
 
 Additionally accepts:
-    ppm_error         Passed as -p to rtlamr
-    gain              Passed as -g to rtlamr
-
-    mqtt              MQTT server
-    mqtt_port         MQTT port (default 1883)
-    mqtt_channel      MQTT channel (default rtlamr)
+    ppm     error offset 
+    gain    fixed gain 
 
 """
 
+from __future__ import print_function
+
+import asyncio
 import argparse
+import csv
 import ctypes
 from datetime import datetime
 import json
+import math
+
+try:
+    import numpy as np
+except ImportError as e:
+    raise ImportError("KismetRtlamr requires numpy!")
+
 import os
+import pkgutil
 import subprocess
 import sys
 import threading
 import time
 import uuid
 
+from . import rtlsdr
 from . import kismetexternal
 
-try:
-    import paho.mqtt.client as mqtt
-    has_mqtt = True
-except ImportError:
-    has_mqtt = False
-
 class KismetRtlamr(object):
-    def __init__(self, mqtt = False):
-        self.mqtt_mode = mqtt
-
+    def __init__(self):
         self.opts = {}
 
-        self.opts['rtlbin'] = 'rtlamr'
-        self.opts['channel'] = "912.600155MHz"
-        self.opts['gain'] = None
+        self.opts['channel'] = "912.600MHz"
+        self.opts['gain'] = -1
+        self.opts['ppm'] = 0
         self.opts['device'] = None
+        self.opts['debug'] = None
+        self.opts['biastee'] = -1
 
-        # Thread that runs the RTL popen
-        self.rtl_thread = None
-        # The popen'd RTL binary
-        self.rtl_exec = None
+        self.kismet = None
 
-        # Are we killing rtl because we're reconfiguring?
-        self.rtl_reconfigure = False
+        self.frequency = 912600000
+        self.rate = 2359000
+        self.usb_buf_sz = 16 * 16384
+
+        # At our given rate, we're 72 samples per symbol
+        self.symbol_len = 72
+
+        # Messages are 12 bytes
+        self.message_len_b = 12
+
+        # With manchester doubling the bits, get the len in samples
+        self.message_len_s = 2 * self.message_len_b * self.symbol_len
+
+        # Preamble taken before the manchester decode
+        self.scm_preamble = np.array([1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, ])
+        self.scm_preamble_len = len(self.scm_preamble)
+        self.scm_preamble_len_s = self.scm_preamble_len * self.symbol_len
+
+        # Generate the normalized squares for converting IQ via lookup
+        self.square_lut = np.zeros(256)
+        for i in range(0, 256):
+            self.square_lut[i] = (127.5 - float(i)) / 127.5
+            self.square_lut[i] *= self.square_lut[i]
+
+        # BCH checksum polynomial
+        self.bch_poly = 0x6F63
+
+        # Generate the polynomial table
+        self.bch_table = np.zeros(256).astype(np.uint16)
+        for i in range(0, 256):
+            crc = i << 8
+            for n in range(0, 8):
+                if not (crc & 0x8000) == 0:
+                    crc = (crc << 1) ^ self.bch_poly
+                else:
+                    crc = crc << 1
+
+            self.bch_table[i] = int(crc)
+
+        # The higher the decimation the more CPU we save; we decimate AFTER
+        # quantization and this seems to be consistently usable with a very high
+        # dynamic range of capture
+        self.decimation = 24
+        self.reduced_w = int(self.symbol_len / self.decimation)
+        self.reduced_preamble_l = self.reduced_w * self.scm_preamble_len
+
+        # Expand the preamble to fit the symbol width; we only search for the 
+        # first 16 bits then compare the rest
+        self.search_preamble = np.repeat(self.scm_preamble[:16], self.reduced_w)
 
         # We're usually not remote
         self.proberet = None
@@ -70,33 +107,19 @@ class KismetRtlamr(object):
         # Do we have librtl?
         self.have_librtl = False
 
-        if not self.mqtt_mode:
-            self.driverid = "rtlamr"
-            # Use ctypes to load librtlsdr and probe for supported USB devices
-            try:
-                self.rtllib = ctypes.CDLL("librtlsdr.so.0")
+        # Asyncio queue we use to post events from the SDR 
+        # callback
+        self.message_queue = asyncio.Queue()
 
-                self.rtl_get_device_count = self.rtllib.rtlsdr_get_device_count
+        self.driverid = "rtlamr"
 
-                self.rtl_get_device_name = self.rtllib.rtlsdr_get_device_name
-                self.rtl_get_device_name.argtypes = [ctypes.c_int]
-                self.rtl_get_device_name.restype = ctypes.c_char_p
+        try:
+            self.rtlsdr = rtlsdr.RtlSdr()
+            self.have_librtl = True
+        except rtlsdr.RadioMissingLibrtlsdr:
+            self.have_librtl = False
 
-                self.rtl_get_usb_strings = self.rtllib.rtlsdr_get_device_usb_strings
-                self.rtl_get_usb_strings.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
-
-                self.rtl_get_index_by_serial = self.rtllib.rtlsdr_get_index_by_serial
-                self.rtl_get_index_by_serial.argtypes = [ctypes.c_char_p]
-                self.rtl_get_index_by_serial.restype = ctypes.c_int
-
-                self.have_librtl = True
-            except OSError:
-                self.have_librtl = False
-        else:
-            self.driverid = "rtlamrmqtt"
-
-        parser = argparse.ArgumentParser(description='RTLamr to Kismet bridge - Creates a rtlamr data source on a Kismet server and passes JSON-based records from the rtlamr binary',
-                epilog='Requires the rtlamr tool (install your distributions package or compile from https://github.com/bemasher/rtlamr)')
+        parser = argparse.ArgumentParser(description='RTL-SDR amr to Kismet bridge - Creates a rtlamr data source on a Kismet server and passes JSON-based records from the rtlamr binary')
         
         parser.add_argument('--in-fd', action="store", type=int, dest="infd")
         parser.add_argument('--out-fd', action="store", type=int, dest="outfd")
@@ -136,6 +159,7 @@ class KismetRtlamr(object):
 
             print("Connecting to remote server {}".format(self.config.connect))
 
+    def run(self):
         self.kismet = kismetexternal.Datasource(self.config.infd, self.config.outfd, remote = self.config.connect)
 
         self.kismet.set_configsource_cb(self.datasource_configure)
@@ -143,134 +167,46 @@ class KismetRtlamr(object):
         self.kismet.set_opensource_cb(self.datasource_opensource)
         self.kismet.set_probesource_cb(self.datasource_probesource)
 
+        t = self.kismet.start()
+
         # If we're connecting remote, kick a newsource
         if self.proberet:
             print("Registering remote source {} {}".format(self.driverid, self.config.source))
             self.kismet.send_datasource_newsource(self.config.source, self.driverid, self.proberet['uuid'])
 
-        self.kismet.start()
+        self.kismet.run()
 
     def is_running(self):
         return self.kismet.is_running()
 
-    def get_rtl_usb_info(self, index):
-        # Allocate memory buffers
-        usb_manuf = (ctypes.c_char * 256)()
-        usb_product = (ctypes.c_char * 256)()
-        usb_serial = (ctypes.c_char * 256)()
-       
-        # Call the library
-        self.rtl_get_usb_strings(index, usb_manuf, usb_product, usb_serial)
-       
-        # If there's a smarter way to do this, patches welcome
-        m = bytearray(usb_manuf)
-        p = bytearray(usb_product)
-        s = bytearray(usb_serial)
+    def __get_rtlsdr_uuid(self, intnum):
+        # Get the USB info
+        (manuf, product, serial) = self.rtlsdr.get_rtl_usb_info(intnum)
 
-        # Return tuple
-        return (m.partition(b'\0')[0].decode('UTF-8'), p.partition(b'\0')[0].decode('UTF-8'), s.partition(b'\0')[0].decode('UTF-8'))
+        # Hash the slot, manuf, product, and serial, to get a unique ID for the UUID
+        devicehash = kismetexternal.Datasource.adler32("{}{}{}{}".format(intnum, manuf, product, serial))
+        devicehex = "0000{:02X}".format(devicehash)
 
-    def check_rtl_bin(self):
+        return kismetexternal.Datasource.make_uuid("kismet_cap_sdr_rtlamr", devicehex)
+
+    def kill_amr(self):
         try:
-            FNULL = open(os.devnull, 'w')
-            r = subprocess.check_call([self.opts['rtlbin'], "--help"], stdout=FNULL, stderr=FNULL)
-        except subprocess.CalledProcessError:
-            return True
-        except OSError:
-            return False
-
-        return True
-
-    def __rtl_thread(self):
-        """ Internal thread for running the rtl binary """
-        cmd = [ self.opts['rtlbin'], '-format', 'json' ]
-
-        if self.opts['device'] is not None:
-            cmd.append('-server=127.0.0.1:1234')
-
-        if self.opts['gain'] is not None:
-            cmd.append('-tunergain=')
-            cmd.append("{}".format(self.opts['gain']))
-
-
-        seen_any_valid = False
-        failed_once = False
-
-        try:
-            FNULL = open(os.devnull, 'w')
-            self.rtl_exec = subprocess.Popen(cmd, stderr=FNULL, stdout=subprocess.PIPE)
-
-            while True:
-                l = self.rtl_exec.stdout.readline()
-
-                if not self.handle_json(l):
-                    raise RuntimeError('could not process response from rtlamr')
-
-                seen_any_valid = True
-
-
-        except Exception as e:
-            # Catch all errors, but don't die if we're reconfiguring rtl; then we need
-            # to relaunch the binary
-            if not self.rtl_reconfigure:
-                self.kismet.send_datasource_error_report(message = "Unable to process output from rtlamr: {}".format(e))
-        finally:
-            if not seen_any_valid and not self.rtl_reconfigure:
-                self.kismet.send_datasource_error_report(message = "An error occurred in rtlamr and no valid devices were seen; is your USB device plugged in?  Try running rtlamr in a terminal and confirm that it can connect to your device.")
-                self.kismet.spindown()
-
-            self.rtl_exec.kill()
-
+            self.rtlsdr.rtl_cancel_async(self.rtlradio)
+        except:
+            pass
 
     def run_rtlamr(self):
-        if self.rtl_thread != None:
-            # Turn on reconfigure mode
-            if self.rtl_exec != None:
-                self.rtl_reconfigure = True
-                self.rtl_exec.kill(9)
-
-            # Let the thread spin down and turn off reconfigure mode
-            self.rtl_thread.join()
-            self.rtl_reconfigure = False
-
-        self.rtl_thread = threading.Thread(target=self.__rtl_thread)
-        self.rtl_thread.daemon = True
-        self.rtl_thread.start()
-
-    def __mqtt_thread(self):
-        self.mq.loop_forever()
-
-    def run_mqtt(self, options):
-        def on_msg(client, user, msg):
-            if not self.handle_json(msg.payload):
-                raise RuntimeError('could not post data')
-
-        opts = options
-        opts.setdefault("mqtt", 'localhost')
-        opts.setdefault("mqtt_port", '1883')
-        opts.setdefault("mqtt_channel", 'rtlamr')
-
-        self.mq = mqtt.Client()
-        self.mq.on_message = on_msg
-        self.mq.connect(opts['mqtt'], int(opts['mqtt_port']))
-        self.mq.subscribe(opts['mqtt_channel'])
-
-        self.mq_thread = threading.Thread(target=self.__mqtt_thread)
-        self.mq_thread.daemon = True
-        self.mq_thread.start()
-
+        self.kismet.add_exit_callback(self.kill_amr)
+        self.kismet.add_task(self.__rtl_amr_task)
+        self.open_radio(self.opts['device'])
 
     # Implement the listinterfaces callback for the datasource api;
     def datasource_listinterfaces(self, seqno):
         interfaces = []
 
-        if not self.check_rtl_bin():
-            self.kismet.send_datasource_interfaces_report(seqno, interfaces)
-            return
-
-        if self.rtllib != None:
-            for i in range(0, self.rtl_get_device_count()):
-                (manuf, product, serial) = self.get_rtl_usb_info(i)
+        if self.rtlsdr != None:
+            for i in range(0, self.rtlsdr.get_device_count()):
+                (manuf, product, serial) = self.rtlsdr.get_rtl_usb_info(i)
 
                 dev_index = i
 
@@ -282,31 +218,10 @@ class KismetRtlamr(object):
                 intf = kismetexternal.datasource_pb2.SubInterface()
                 intf.interface = "rtlamr-{}".format(dev_index)
                 intf.flags = ""
-                intf.hardware = self.rtl_get_device_name(i)
+                intf.hardware = self.rtlsdr.rtl_get_device_name(i)
                 interfaces.append(intf)
 
         self.kismet.send_datasource_interfaces_report(seqno, interfaces)
-
-    def __get_mqtt_uuid(self, options):
-        opts = options
-        opts.setdefault('mqtt', 'localhost')
-        opts.setdefault('mqtt_port', '1883')
-        opts.setdefault('mqtt_channel', 'kismet')
-
-        mqhash = kismetexternal.Datasource.adler32("{}{}{}".format(opts['mqtt'], opts['mqtt_port'], opts['mqtt_channel']))
-        mqhex = "0000{:02X}".format(mqhash)
-
-        return kismetexternal.Datasource.make_uuid("kismet_cap_sdr_rtlamr", mqhex)
-
-    def __get_rtlsdr_uuid(self, intnum):
-        # Get the USB info
-        (manuf, product, serial) = self.get_rtl_usb_info(intnum)
-
-        # Hash the slot, manuf, product, and serial, to get a unique ID for the UUID
-        devicehash = kismetexternal.Datasource.adler32("{}{}{}{}".format(intnum, manuf, product, serial))
-        devicehex = "0000{:02X}".format(devicehash)
-
-        return kismetexternal.Datasource.make_uuid("kismet_cap_sdr_rtlamr", devicehex)
 
     # Implement the probesource callback for the datasource api
     def datasource_probesource(self, source, options):
@@ -316,62 +231,46 @@ class KismetRtlamr(object):
         if not source[:7] == "rtlamr-":
             return None
 
-        if source[7:] == "mqtt":
-            if not 'mqtt' in options:
-                return None
-            if not has_mqtt:
-                return None
+        # Do we have librtl?
+        if not self.have_librtl:
+            return None
 
-            ret['hardware'] = "MQTT"
-            if ('uuid' in options):
-                ret['uuid'] = options['uuid']
-            else:
-                ret['uuid'] = self.__get_mqtt_uuid(options)
+        # Device selector could be integer position, or it could be a serial number
+        devselector = source[7:]
+        found_interface = False
+        intnum = -1
+
+        # Try to find the device as an index
+        try:
+            intnum = int(devselector)
+
+            # Abort if we're not w/in the range
+            if intnum >= self.rtlsdr.rtl_get_device_count():
+                raise ValueError("n/a")
+
+            # Otherwise we've found a device
+            found_interface = True
+
+        except ValueError:
+            # A value error means we just need to look at it as a device num
+            pass
+        except:
+            # Otherwise something failed in querying the hw at a deeper level
+            return None
+
+        # Try it as a serial number
+        if not found_interface:
+            intnum = self.rtlsdr.rtl_get_index_by_serial(devselector.encode('utf-8'))
+
+        # We've failed as both a serial and as an index, give up
+        if intnum < 0:
+            return None
+
+        ret['hardware'] = self.rtlsdr.rtl_get_device_name(intnum)
+        if ('uuid' in options):
+            ret['uuid'] = options['uuid']
         else:
-            # Do we have librtl?
-            if not self.have_librtl:
-                return None
-
-            if self.mqtt_mode:
-                return None
-
-            if not self.check_rtl_bin():
-                return None
-
-            # Device selector could be integer position, or it could be a serial number
-            devselector = source[7:]
-            found_interface = False
-            intnum = -1
-
-            # Try to find the device as an index
-            try:
-                intnum = int(source[7:])
-
-                # Abort if we're not w/in the range
-                if intnum >= self.rtl_get_device_count():
-                    raise ValueError("n/a")
-
-                # Otherwise we've found a device
-                found_interface = True
-
-            # Do nothing with exceptions; they just mean we need to look at it like a 
-            # serial number
-            except ValueError:
-                pass
-
-            # Try it as a serial number
-            if not found_interface:
-                intnum = self.rtl_get_index_by_serial(devselector.encode('utf-8'))
-
-            # We've failed as both a serial and as an index, give up
-            if intnum < 0:
-                return None
-
-            ret['hardware'] = self.rtl_get_device_name(intnum)
-            if ('uuid' in options):
-                ret['uuid'] = options['uuid']
-            else:
-                ret['uuid'] = self.__get_rtlsdr_uuid(intnum)
+            ret['uuid'] = self.__get_rtlsdr_uuid(intnum)
 
         ret['channel'] = self.opts['channel']
         ret['channels'] = [self.opts['channel']]
@@ -389,85 +288,74 @@ class KismetRtlamr(object):
 
         intnum = -1
 
-        if source[7:] == "mqtt":
-            if not 'mqtt' in options:
-                ret["success"] = False
-                ret["message"] = "MQTT requested, but no mqtt=xyz option in source definition"
-                return ret
-            if not has_mqtt:
-                ret["success"] = False
-                ret["message"] = "MQTT requested, but the python paho mqtt package is not installed"
-                return ret
-            
-            ret['hardware'] = "MQTT"
-            if ('uuid' in options):
-                ret['uuid'] = options['uuid']
-            else:
-                ret['uuid'] = self.__get_mqtt_uuid(options)
+        if not self.have_librtl:
+            ret["success"] = False
+            ret["message"] = "could not find librtlsdr, unable to configure rtlsdr interfaces"
+            return ret
 
-            self.mqtt_mode = True
+        # Device selector could be integer position, or it could be a serial number
+        devselector = source[7:]
+        found_interface = False
+        intnum = -1
+
+        # Try to find the device as an index
+        try:
+            intnum = int(devselector)
+
+            # Abort if we're not w/in the range
+            if intnum >= self.rtlsdr.rtl_get_device_count():
+                raise ValueError("n/a")
+
+            # Otherwise we've found a device
+            found_interface = True
+
+        except ValueError:
+            # A value error means we just need to look at it as a device num
+            pass
+        except:
+            # Otherwise something failed in querying the hw at a deeper level
+            ret["success"] = False
+            ret["message"] = "could not find rtlsdr device"
+            return ret
+
+        # Try it as a serial number
+        if not found_interface:
+            intnum = self.rtlsdr.rtl_get_index_by_serial(devselector.encode('utf-8'))
+
+        # We've failed as both a serial and as an index, give up
+        if intnum < 0:
+            ret['success'] = False
+            ret['message'] = "Could not find rtl-sdr device {}".format(devselector)
+            return ret
+
+        if 'debug' in options:
+            if options['debug'] == 'True' or options['debug'] == 'true':
+                self.opts['debug'] = True
+
+        if 'channel' in options:
+            self.opts['channel'] = options['channel']
+
+        if 'ppm' in options:
+            self.opts['ppm'] = options['ppm']
+
+        if 'biastee' in options:
+            if options['biastee'] == 'True' or options['biastee'] == 'true':
+                self.opts['biastee'] = True
+
+        if 'gain' in options:
+            self.opts['gain'] = options['gain']
+
+        ret['hardware'] = self.rtlsdr.rtl_get_device_name(intnum)
+        if ('uuid' in options):
+            ret['uuid'] = options['uuid']
         else:
-            if not self.have_librtl:
-                ret["success"] = False
-                ret["message"] = "could not find librtlsdr, unable to configure rtlsdr interfaces"
-                return ret
+            ret['uuid'] = self.__get_rtlsdr_uuid(intnum)
 
-            # Device selector could be integer position, or it could be a serial number
-            devselector = source[7:]
-            found_interface = False
-            intnum = -1
-
-            # Try to find the device as an index
-            try:
-                intnum = int(source[7:])
-
-                # Abort if we're not w/in the range
-                if intnum >= self.rtl_get_device_count():
-                    raise ValueError("n/a")
-
-                # Otherwise we've found a device
-                found_interface = True
-
-            # Do nothing with exceptions; they just mean we need to look at it like a 
-            # serial number
-            except ValueError:
-                pass
-
-            # Try it as a serial number
-            if not found_interface:
-                intnum = self.rtl_get_index_by_serial(devselector.encode('utf-8'))
-
-            # We've failed as both a serial and as an index, give up
-            if intnum < 0:
-                ret['success'] = False
-                ret['message'] = "Could not find rtl-sdr device {}".format(devselector)
-                return ret
-
-            if 'channel' in options:
-                self.opts['channel'] = options['channel']
-
-            ret['hardware'] = self.rtl_get_device_name(intnum)
-            if ('uuid' in options):
-                ret['uuid'] = options['uuid']
-            else:
-                ret['uuid'] = self.__get_rtlsdr_uuid(intnum)
-
-            self.opts['device'] = intnum
-
-            self.mqtt_mode = False
-
-        if not self.mqtt_mode:
-            if not self.check_rtl_bin():
-               ret['success'] = False
-               ret['message'] = "Could not find rtlamr binary; make sure you've installed rtlamr, check the Kismet README for more information."
-               return
+        self.opts['device'] = intnum
 
         ret['success'] = True
 
-        if self.mqtt_mode:
-            self.run_mqtt(options)
-        else:
-            self.run_rtlamr()
+        self.run_rtlamr()
 
         return ret
 
@@ -494,12 +382,284 @@ class KismetRtlamr(object):
 
             self.kismet.send_datasource_data_report(full_json=report)
         except ValueError as e:
-            self.kismet.send_datasource_error_report(message = "Could not parse JSON output of rtlamr")
+            self.kismet.send_datasource_error_report(message = "Could handle JSON output")
             return False
         except Exception as e:
-            self.kismet.send_datasource_error_report(message = "Could not process output of rtlamr")
+            self.kismet.send_datasource_error_report(message = "Could not handle output")
             return False
 
         return True
 
+    def __async_radio_thread(self):
+        # This function blocks forever until cancelled
+        self.rtlsdr.read_samples(self.rtl_data_cb, 12, self.usb_buf_sz)
+
+        # Always make sure we die
+        self.kill_amr()
+        self.kismet.spindown()
+
+    def open_radio(self, rnum):
+        try:
+            self.rtlsdr.open_radio(rnum, self.frequency, self.rate, gain=self.opts['gain'], autogain=True, ppm=self.opts['ppm'], biastee=self.opts['biastee'])
+        except Exception as e:
+            self.kismet.send_datasource_error_report(message = "Error opening RTLSDR for AMR: {}".format(e.args[0]))
+            self.kill_amr()
+            self.kismet.spindown()
+
+        self.rtl_thread = threading.Thread(target=self.__async_radio_thread)
+        self.rtl_thread.daemon = True
+        self.rtl_thread.start()
+
+    async def __rtl_amr_task(self):
+        """
+        asyncio task that consumes the output from the rtl radio
+        """
+        print_stderr = False
+
+        if self.opts['debug'] is not None and self.opts['debug']:
+            print_stderr = True
+
+        try:
+            while not self.kismet.kill_ioloop:
+                msg = await self.message_queue.get()
+
+                if not msg:
+                    break
+
+                if print_stderr:
+                    print(msg, file=sys.stderr)
+
+                l = json.dumps(msg)
+
+                if not self.handle_json(l):
+                    raise RuntimeError('could not send rtlamr data')
+        except Exception as e:
+            traceback.print_exc(file=sys.stderr)
+            print("An error occurred reading from the rtlsdr; is your USB device plugged in?  Make sure that no other programs are using this rtlsdr radio.", file=sys.stderr);
+
+            self.kismet.send_datasource_error_report(message = "Error handling AMR: {}".format(e))
+
+        finally:
+            self.kill_amr()
+            self.kismet.spindown()
+            return
+
+    def rtl_data_cb(self, buf, buflen, ctx):
+        nb = np.ctypeslib.as_array(buf, shape=(buflen,)).astype(np.uint8)
+        self.process(nb)
+        return 
+
+    def bch_checksum(self, buf, init = 0):
+        crc = init
+
+        for b in buf:
+            crc &= 0xFFFF
+            crc = crc << 8 ^ self.bch_table[crc >> 8 ^ b]
+
+        return crc & 0xFFFF
+
+    def cumsum(self, data, w):
+        ret = np.cumsum(data)
+        ret[w:] = ret[w:] - ret[:-w]
+        return ret[w - 1:] / w
+
+    def moving_average(self, data, w):
+        return self.cumsum(data, w)
+
+    def _resample_quantize(self, buf):
+        # Trim trailing byte if we don't have even I/Q pairs
+        if len(buf) % 2 != 0:
+            buf = buf[:-1]
+
+        # Compute the magnitude and remove the DC offset using the lookup table;
+        # buf is now a real magnitude
+        buf = np.add(self.square_lut[buf[::2]], self.square_lut[buf[1::2]])
+
+        # Filter with a sub-width of the message - because we decimate AFTER
+        # quantization, we window on the original symbol length
+        r = self.moving_average(buf, int(self.symbol_len / 8))
+
+        # Sliding average across the half the message width
+        rm = self.moving_average(r, int(self.message_len_s * 0.5) )
+        r = (r[:len(rm)] - rm)[:np.newaxis]
+
+        # Quantize
+        bits = np.where(r > 0, 1, 0)
+
+        # Fake decimation of the bits themselves after the quanitization
+        bits = bits[::self.decimation]
+
+        return bits
+
+    def _power_estimate(self, buf, start_bit, sz_bits):
+        # Take a rough power estimate, we get it in dBFS; db relative to full scale.
+        # This will get treated as dbm elsewhere in kismet which is fundamentally
+        # wrong, but no more wrong than some other power measurements from other 
+        # cards.  we do our best.
+        bit_offt = start_bit * self.decimation
+        bit_len = sz_bits * self.decimation
+        powr = np.average(np.add(self.square_lut[buf[start_bit:start_bit + bit_len:2]], self.square_lut[buf[start_bit + 1:start_bit + bit_len:2]]))
+        return int(10 * math.log10(powr))
+
+    def _single_manchester(self, a, b, c, d):
+        bit_p = a > b
+        bit = c > d
+
+        if bit and bit_p and c > b:
+            return 1
+        if bit and not bit_p and d < b:
+            return 1
+        if not bit and bit_p and d > b:
+            return 0
+        if not bit and not bit_p and c < b:
+            return 0
+
+        return None
+
+    def corr_preamble(self, buf):
+        corr = np.correlate(buf, self.search_preamble)
+        return np.argmax(corr)
+
+    def get_bits_as_int(self, buf):
+        pad = len(buf) % 8
+        if pad != 0:
+            padbuf = np.array([0] * (8 - pad))
+            buf = np.append(padbuf, buf)
+
+        return int.from_bytes(np.packbits(buf), byteorder='big', signed=False)
+
+    def reduce_bits(self, bits, sz):
+        return bits[int(self.reduced_w / 2):(sz * self.reduced_w):self.reduced_w]
+
+    def process(self, buf):
+        # 'decimate' and quantize to a stream of bits; the bitstream returned
+        # is still expanded by the sample multiplier / the bit width
+        rs = self._resample_quantize(buf)
+
+        i = 0
+        while True:
+            if i + len(self.scm_preamble) >= len(rs):
+                break
+
+            # Correlate for preamble; this is one of the most expensive parts of the
+            # whole process
+            p = self.corr_preamble(rs[i:i + (self.reduced_preamble_l * 4)])
+
+            if p == None:
+                break
+
+            p = i + p
+
+            if p + (24 * 8 * self.reduced_w) < len(rs):
+                # Convert to one bit per symbol
+                bits = self.reduce_bits(rs[p:], (14 * 8 * 2))
+
+                i = p + self.reduced_preamble_l * 4
+
+                # Compare the full preamble since we only match on the first 16 bits
+                if not np.array_equal(bits[:self.scm_preamble_len], self.scm_preamble):
+                    continue
+
+                if len(bits) % 2 != 0:
+                    bits = bits[:-1]
+
+                errors = 0
+                msgbuf = np.array([0] * int(len(bits) / 2))
+                a = 0
+                b = 1
+
+                if len(bits) < (24 * 8):
+                    break
+
+                # This is the simplest way to decode manchester with no error awareness
+                # but there is no huge benefit to using it, see below
+                # msgbuf = np.where(bits[::2] > bits[1::2], 1, 0)
+
+                # This isn't the simplest way to convert to manchester, but testing
+                # shows almost no impact on CPU load between this and the simplest
+                # non-error-checking encoding method since it's called only on the
+                # resolved end-stage signal
+                for ix in range(0, len(bits), 2):
+                    bit = self._single_manchester(bits[ix], bits[ix+1], a, b)
+
+                    a = bits[ix]
+                    b = bits[ix+1]
+
+                    if bit == None:
+                        errors = errors + 1
+
+                        if errors > 5:
+                            break
+                        else:
+                            if a > b:
+                                bit = 1
+                            else:
+                                bit = 0
+
+                            a = 0
+                            b = 1
+
+                    msgbuf[int(ix / 2)] = bit
+                    i = p + ix
+               
+                # SCM frame format
+                # [  0 : 21 ] 21 Sync / RF Preamble 1F2A60
+                # [ 21 : 23 ] 2  ID MSB
+                # [ 23      ] 1  Reserved
+                # [ 24 : 26 ] 2  Physical tamper
+                # [ 26 : 30 ] 4  Endpoint type
+                # [ 30 : 32 ] 2  Endpoint tamper
+                # [ 32 : 56 ] 24 Consumption value
+                # [ 56 : 80 ] 24 ID LSB
+                # [ 80 : 96 ] 16 Checksum
+
+                msgbuf = msgbuf[1:]
+                bytestr = np.packbits(msgbuf);
+
+                report_msg = {
+                        "amr_scm": bytearray(bytestr).hex(),
+                        "valid": False,
+                        "type": "SCM",
+                        }
+
+                checksum = self.get_bits_as_int(msgbuf[80:96])
+
+                # Anything with a checksum of 0 is summarily useless, don't even report it, it's
+                # a malformed fragment
+                if checksum == 0:
+                    continue
+
+                calc_checksum = self.bch_checksum(bytestr[2:10])
+
+                # Defer power calc until we know we have something sane-ish
+                pwr = self._power_estimate(buf, p, 14*8*2)
+
+                report_msg["signal"] = pwr
+
+                # Bounce invalid messages but report the signal anyhow
+                if checksum != calc_checksum:
+                    if self.opts['debug']:
+                        print(report_msg)
+                    self.kismet.add_task(self.message_queue.put, [report_msg])
+                    continue
+
+                # Flag as valid and start populating
+                report_msg["valid"] = True
+
+                meterid = (self.get_bits_as_int(msgbuf[21:23]) << 24)
+                meterid |= self.get_bits_as_int(msgbuf[56:80])
+
+                report_msg["meterid"] = meterid
+                report_msg["metertype"] = self.get_bits_as_int(msgbuf[26:30])
+                report_msg["consumption"] = self.get_bits_as_int(msgbuf[32:56])
+                report_msg["phytamper"] = self.get_bits_as_int(msgbuf[24:26])
+                report_msg["endptamper"] = self.get_bits_as_int(msgbuf[30:32])
+                
+                if self.opts['debug']:
+                    print(report_msg)
+
+                self.kismet.add_task(self.message_queue.put, [report_msg])
+
+            else:
+                break
 

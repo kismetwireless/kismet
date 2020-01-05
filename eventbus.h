@@ -41,21 +41,22 @@
 
 #include "config.h"
 
-#include <memory>
-#include <string>
-#include <vector>
-#include <list>
-#include <queue>
-#include <thread>
 #include <functional>
+#include <list>
+#include <memory>
+#include <queue>
+#include <string>
+#include <thread>
+#include <unordered_map>
+#include <vector>
 
 #include "globalregistry.h"
 #include "kis_mutex.h"
 
 // Most basic event bus event that all other events are derived from
-class EventbusEvent {
+class eventbus_event {
 public:
-    EventbusEvent(const std::string& in_id) :
+    eventbus_event(const std::string& in_id) :
         event_id{in_id} { }
 
     std::string get_event() { 
@@ -66,24 +67,24 @@ protected:
     std::string event_id;
 };
 
-class Eventbus : public LifetimeGlobal {
+class event_bus : public lifetime_global {
 public:
-    using cb_func = std::function<void (std::shared_ptr<EventbusEvent>)>;
+    using cb_func = std::function<void (std::shared_ptr<eventbus_event>)>;
 
     static std::string global_name() { return "EVENTBUS"; }
 
-    static std::shared_ptr<Eventbus> create_eventbus() {
-        std::shared_ptr<Eventbus> mon(new Eventbus());
-        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-        Globalreg::globalreg->InsertGlobal(global_name(), mon);
+    static std::shared_ptr<event_bus> create_eventbus() {
+        std::shared_ptr<event_bus> mon(new event_bus());
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-	Eventbus();
+	event_bus();
 
 public:
-	virtual ~Eventbus();
+	virtual ~event_bus();
 
     unsigned long register_listener(const std::string& channel, cb_func cb);
     unsigned long register_listener(const std::list<std::string>& channels, cb_func cb);
@@ -94,7 +95,7 @@ public:
         local_locker l(&mutex);
 
         auto evt_cast = 
-            std::static_pointer_cast<EventbusEvent>(event);
+            std::static_pointer_cast<eventbus_event>(event);
 
         event_queue.push(evt_cast);
         event_cl.unlock(1);
@@ -120,11 +121,11 @@ protected:
     };
 
     // Map of event IDs to listener objects
-    std::map<std::string, std::vector<std::shared_ptr<callback_listener>>> callback_table;
-    std::map<unsigned long, std::shared_ptr<callback_listener>> callback_id_table;
+    std::unordered_map<std::string, std::vector<std::shared_ptr<callback_listener>>> callback_table;
+    std::unordered_map<unsigned long, std::shared_ptr<callback_listener>> callback_id_table;
 
     // Event pool and handler thread
-    std::queue<std::shared_ptr<EventbusEvent>> event_queue;
+    std::queue<std::shared_ptr<eventbus_event>> event_queue;
     std::thread event_dispatch_t;
     conditional_locker<int> event_cl;
     std::atomic<bool> shutdown;

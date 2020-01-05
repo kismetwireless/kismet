@@ -21,19 +21,19 @@
 #include "trackedcomponent.h"
 
 std::string tracker_component::get_name() {
-    return Globalreg::globalreg->entrytracker->GetFieldName(get_id());
+    return Globalreg::globalreg->entrytracker->get_field_name(get_id());
 }
 
 std::string tracker_component::get_name(int in_id) {
-    return Globalreg::globalreg->entrytracker->GetFieldName(in_id);
+    return Globalreg::globalreg->entrytracker->get_field_name(in_id);
 }
 
-int tracker_component::RegisterField(const std::string& in_name, 
-        std::unique_ptr<TrackerElement> in_builder,
-        const std::string& in_desc, SharedTrackerElement *in_dest) {
+int tracker_component::register_field(const std::string& in_name, 
+        std::unique_ptr<tracker_element> in_builder,
+        const std::string& in_desc, shared_tracker_element *in_dest) {
 
     int id = 
-        Globalreg::globalreg->entrytracker->RegisterField(in_name, std::move(in_builder), in_desc);
+        Globalreg::globalreg->entrytracker->register_field(in_name, std::move(in_builder), in_desc);
 
     if (in_dest != NULL) {
         auto rf = std::unique_ptr<registered_field>(new registered_field(id, in_dest));
@@ -43,7 +43,7 @@ int tracker_component::RegisterField(const std::string& in_name,
     return id;
 }
 
-void tracker_component::reserve_fields(std::shared_ptr<TrackerElementMap> e) {
+void tracker_component::reserve_fields(std::shared_ptr<tracker_element_map> e) {
     for (unsigned int i = 0; i < registered_fields.size(); i++) {
         auto& rf = registered_fields[i];
 
@@ -52,7 +52,7 @@ void tracker_component::reserve_fields(std::shared_ptr<TrackerElementMap> e) {
                 // If the variable is dynamic set the assignment container to null so that
                 // proxydynamictrackable can fill it in;
                 *(rf->assign) = nullptr;
-                insert(rf->id, std::shared_ptr<TrackerElement>());
+                insert(rf->id, std::shared_ptr<tracker_element>());
             } else {
                 // otherwise generate a variable for the destination
                 *(rf->assign) = import_or_new(e, rf->id);
@@ -61,12 +61,12 @@ void tracker_component::reserve_fields(std::shared_ptr<TrackerElementMap> e) {
     }
 }
 
-SharedTrackerElement tracker_component::import_or_new(std::shared_ptr<TrackerElementMap> e, int i) {
-    SharedTrackerElement r;
+shared_tracker_element tracker_component::import_or_new(std::shared_ptr<tracker_element_map> e, int i) {
+    shared_tracker_element r;
 
     // Find the value of any known fields in the importer element; only try
     // if the imported element is a map
-    if (e != nullptr && e->get_type() == TrackerType::TrackerMap) {
+    if (e != nullptr && e->get_type() == tracker_type::tracker_map) {
         r = e->get_sub(i);
 
         if (r != nullptr) {
@@ -87,7 +87,7 @@ SharedTrackerElement tracker_component::import_or_new(std::shared_ptr<TrackerEle
         return existing->second;
 
     // Build it
-    r = Globalreg::globalreg->entrytracker->GetSharedInstance(i);
+    r = Globalreg::globalreg->entrytracker->get_shared_instance(i);
 
     // Add it to our tracked map object
     insert(r);
@@ -95,23 +95,23 @@ SharedTrackerElement tracker_component::import_or_new(std::shared_ptr<TrackerEle
     return r;
 }
 
-SharedTrackerElement tracker_component::get_child_path(const std::string& in_path) {
-    std::vector<std::string> tok = StrTokenize(in_path, "/");
+shared_tracker_element tracker_component::get_child_path(const std::string& in_path) {
+    std::vector<std::string> tok = str_tokenize(in_path, "/");
     return get_child_path(tok);
 }
 
-SharedTrackerElement tracker_component::get_child_path(const std::vector<std::string>& in_path) {
+shared_tracker_element tracker_component::get_child_path(const std::vector<std::string>& in_path) {
     if (in_path.size() < 1)
         return nullptr;
 
-    SharedTrackerElement next_elem = nullptr;
+    shared_tracker_element next_elem = nullptr;
 
     for (auto p : in_path) {
         // Skip empty path elements
         if (p.length() == 0)
             continue;
 
-        int id = Globalreg::globalreg->entrytracker->GetFieldId(p);
+        int id = Globalreg::globalreg->entrytracker->get_field_id(p);
 
         if (id < 0) 
             return nullptr;
@@ -119,10 +119,10 @@ SharedTrackerElement tracker_component::get_child_path(const std::vector<std::st
         if (next_elem == nullptr) {
             // If we're just starting, find the top element in this object
             next_elem = get_sub(id);
-        } else if (next_elem->get_type() == TrackerType::TrackerMap) {
+        } else if (next_elem->get_type() == tracker_type::tracker_map) {
             // Otherwise, find the next element of the path in the object in the chain
             // we're currently inspecting, assuming it's a map
-            next_elem = std::static_pointer_cast<TrackerElementMap>(next_elem)->get_sub(id);
+            next_elem = std::static_pointer_cast<tracker_element_map>(next_elem)->get_sub(id);
         }
 
         // If we can't find it, bail

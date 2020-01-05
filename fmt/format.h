@@ -980,7 +980,7 @@ inline char *lg(uint32_t n, Handler h) {
 }
 
 // An lg handler that formats a decimal number.
-// Usage: lg(n, decimal_formatter(buffer));
+// usage: lg(n, decimal_formatter(buffer));
 class decimal_formatter {
  private:
   char *buffer_;
@@ -1928,7 +1928,7 @@ struct arg_ref {
 
 // Format specifiers with width and precision resolved at formatting rather
 // than parsing time to allow re-using the same parsed specifiers with
-// differents sets of arguments (precompilation of format strings).
+// different sets of arguments (precompilation of format strings).
 template <typename Char>
 struct dynamic_format_specs : basic_format_specs<Char> {
   arg_ref<Char> width_ref;
@@ -3245,7 +3245,7 @@ struct formatter<T, Char,
 
 // A formatter for types known only at run time such as variant alternatives.
 //
-// Usage:
+// usage:
 //   typedef std::variant<int, std::string> variant;
 //   template <>
 //   struct formatter<variant>: dynamic_formatter<> {

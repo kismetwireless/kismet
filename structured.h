@@ -41,47 +41,47 @@
 #include <map>
 #include <memory>
 
-class StructuredData;
-typedef std::shared_ptr<StructuredData> SharedStructured;
+class structured_data;
+typedef std::shared_ptr<structured_data> shared_structured;
 
 // Top-level exception
-struct StructuredDataException : public std::runtime_error {
-    StructuredDataException(std::string const& message) : 
+struct structured_data_exception : public std::runtime_error {
+    structured_data_exception(std::string const& message) : 
         std::runtime_error(message) {}
 };
 
 // Can't parse the initial data given (json/msgpack error)
-struct StructuredDataUnparseable : public StructuredDataException {
-    StructuredDataUnparseable(std::string const& message) : 
-        StructuredDataException(message) {}
+struct structured_data_unparseable : public structured_data_exception {
+    structured_data_unparseable(std::string const& message) : 
+        structured_data_exception(message) {}
 };
 
 // No data available
-struct StructuredDataNull : public StructuredDataException {
-    StructuredDataNull(std::string const& message) : 
-        StructuredDataException(message) {}
+struct structured_data_null : public structured_data_exception {
+    structured_data_null(std::string const& message) : 
+        structured_data_exception(message) {}
 };
 
 // Can't extract the type asked for
-struct StructuredDataUnsuitable : public StructuredDataException {
-    StructuredDataUnsuitable(std::string const& message) : 
-        StructuredDataException(message) {}
+struct structured_data_unsuitable : public structured_data_exception {
+    structured_data_unsuitable(std::string const& message) : 
+        structured_data_exception(message) {}
 };
 
-struct StructuredDataNoSuchKey : public StructuredDataException {
-    StructuredDataNoSuchKey(std::string const& message) : 
-        StructuredDataException(message) {}
+struct structured_data_no_such_key : public structured_data_exception {
+    structured_data_no_such_key(std::string const& message) : 
+        structured_data_exception(message) {}
 };
 
-class StructuredData {
+class structured_data {
 public:
-    typedef std::vector<SharedStructured> structured_vec;
+    typedef std::vector<shared_structured> structured_vec;
     typedef structured_vec::iterator structured_vec_iterator;
 
-    typedef std::map<double, SharedStructured> structured_num_map;
+    typedef std::map<double, shared_structured> structured_num_map;
     typedef structured_num_map::iterator structured_num_map_iterator;
 
-    typedef std::map<std::string, SharedStructured> structured_str_map;
+    typedef std::map<std::string, shared_structured> structured_str_map;
     typedef structured_str_map::iterator structured_str_map_iterator;
 
     typedef std::vector<double> number_vec;
@@ -90,69 +90,69 @@ public:
     typedef std::vector<std::string> string_vec;
     typedef string_vec::iterator string_vec_iterator;
 
-    StructuredData() { };
-    StructuredData(std::string data __attribute__((unused))) { };
+    structured_data() { };
+    structured_data(std::string data __attribute__((unused))) { };
 
-    virtual ~StructuredData() { };
+    virtual ~structured_data() { };
 
     // Describe this current object
-    virtual bool isNumber() = 0;
-    virtual bool isBool() = 0;
-    virtual bool isString() = 0;
-    virtual bool isArray() = 0;
-    virtual bool isDictionary() = 0;
-    virtual bool isBinary() = 0;
+    virtual bool is_number() = 0;
+    virtual bool is_bool() = 0;
+    virtual bool is_string() = 0;
+    virtual bool is_array() = 0;
+    virtual bool is_dictionary() = 0;
+    virtual bool is_binary() = 0;
 
-    virtual double getNumber() = 0;
-    virtual std::string getString() = 0;
-    virtual bool getBool() = 0;
-    virtual std::string getBinaryStr() = 0;
+    virtual double as_number() = 0;
+    virtual std::string as_string() = 0;
+    virtual bool as_bool() = 0;
+    virtual std::string as_binary_string() = 0;
 
     // Get vectors of numbers and strings
-    virtual number_vec getNumberVec() = 0;
-    virtual string_vec getStringVec() = 0;
+    virtual number_vec as_number_vector() = 0;
+    virtual string_vec as_string_vector() = 0;
 
     // Get keyed values as...
-    virtual bool hasKey(std::string key) = 0;
-    virtual SharedStructured getStructuredByKey(std::string key) = 0;
-    virtual double getKeyAsNumber(std::string key) = 0;
-    virtual double getKeyAsNumber(std::string key, double def) = 0;
-    virtual std::string getKeyAsString(std::string key, std::string def) = 0;
-    virtual std::string getKeyAsString(std::string key) = 0;
-    virtual bool getKeyAsBool(std::string key) = 0;
-    virtual bool getKeyAsBool(std::string key, bool def) = 0;
+    virtual bool has_key(std::string key) = 0;
+    virtual shared_structured get_structured_by_key(std::string key) = 0;
+    virtual double key_as_number(std::string key) = 0;
+    virtual double key_as_number(std::string key, double def) = 0;
+    virtual std::string key_as_string(std::string key, std::string def) = 0;
+    virtual std::string key_as_string(std::string key) = 0;
+    virtual bool key_as_bool(std::string key) = 0;
+    virtual bool key_as_bool(std::string key, bool def) = 0;
 
     // Get structured sub-arrays
-    virtual structured_vec getStructuredArray() = 0;
-    virtual structured_num_map getStructuredNumMap() = 0;
-    virtual structured_str_map getStructuredStrMap() = 0;
+    virtual structured_vec as_vector() = 0;
+    virtual structured_num_map as_number_map() = 0;
+    virtual structured_str_map as_string_map() = 0;
 
-    // Convert a structured array of paired arrays, or a structured dictinary of k:v pairs, to
+    // Convert a structured array of paired arrays, or a structured dictionary of k:v pairs, to
     // a std::pair<string, string> structure useful in other functions.  May throw its own exceptions
     // OR other structured exceptions.
-    std::vector<std::pair<std::string, std::string>> getAsPairVector() {
+    std::vector<std::pair<std::string, std::string>> as_pair_vector() {
         auto ret = std::vector<std::pair<std::string, std::string>>();
 
-        if (isArray()) {
-            for (auto i : getStructuredArray()) {
-                if (!i->isArray()) 
-                    throw StructuredDataUnsuitable("Cannot parse object as vector of pairs for converstion to "
+        if (is_array()) {
+            for (auto i : as_vector()) {
+                if (!i->is_array()) 
+                    throw structured_data_unsuitable("Cannot parse object as vector of pairs for conversion to "
                             "pair list");
 
-                auto sub = i->getStructuredArray();
+                auto sub = i->as_vector();
 
                 if (sub.size() != 2) 
-                    throw StructuredDataUnsuitable("Cannot parse object as vector of pairs, expected 2"
+                    throw structured_data_unsuitable("Cannot parse object as vector of pairs, expected 2"
                             "elements in nested list, cannot convert to pair list");
 
-                ret.push_back(std::make_pair(sub[0]->getString(), sub[1]->getString()));
+                ret.push_back(std::make_pair(sub[0]->as_string(), sub[1]->as_string()));
             }
-        } else if (isDictionary()) {
-            for (auto i : getStructuredStrMap()) {
-                ret.push_back(std::make_pair(i.first, i.second->getString()));
+        } else if (is_dictionary()) {
+            for (auto i : as_string_map()) {
+                ret.push_back(std::make_pair(i.first, i.second->as_string()));
             }
         } else {
-            throw StructuredDataUnsuitable("Cannot parse object as vector or dictionary for conversion "
+            throw structured_data_unsuitable("Cannot parse object as vector or dictionary for conversion "
                     "to pair list");
         }
 

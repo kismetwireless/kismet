@@ -25,11 +25,13 @@
 #include "kis_mutex.h"
 #include "kismet_algorithm.h"
 
-DevicetrackerView::DevicetrackerView(const std::string& in_id, const std::string& in_description, 
+device_tracker_view::device_tracker_view(const std::string& in_id, const std::string& in_description, 
         new_device_cb in_new_cb, updated_device_cb in_update_cb) :
     tracker_component{},
     new_cb {in_new_cb},
     update_cb {in_update_cb} {
+
+    mutex.set_name(fmt::format("devicetracker_view({})", in_id));
 
     using namespace std::placeholders;
 
@@ -39,27 +41,27 @@ DevicetrackerView::DevicetrackerView(const std::string& in_id, const std::string
     view_id->set(in_id);
     view_description->set(in_description);
 
-    device_list = std::make_shared<TrackerElementVector>();
+    device_list = std::make_shared<tracker_element_vector>();
 
     auto uri = fmt::format("/devices/views/{}/devices", in_id);
     device_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(uri, 
-                [this](std::ostream& stream, const std::string& uri, SharedStructured post_structured,
-                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
+        std::make_shared<kis_net_httpd_simple_post_endpoint>(uri, 
+                [this](std::ostream& stream, const std::string& uri, shared_structured post_structured,
+                    kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                     return device_endpoint_handler(stream, uri, post_structured, variable_cache);
                 });
 
     time_endp =
-        std::make_shared<Kis_Net_Httpd_Path_Tracked_Endpoint>(
+        std::make_shared<kis_net_httpd_path_tracked_endpoint>(
                 [this](const std::vector<std::string>& path) -> bool {
                     return device_time_endpoint_path(path);
                 }, 
-                [this](const std::vector<std::string>& path) -> std::shared_ptr<TrackerElement> {
+                [this](const std::vector<std::string>& path) -> std::shared_ptr<tracker_element> {
                     return device_time_endpoint(path);
                 });
 }
 
-DevicetrackerView::DevicetrackerView(const std::string& in_id, const std::string& in_description,
+device_tracker_view::device_tracker_view(const std::string& in_id, const std::string& in_description,
         const std::vector<std::string>& in_aux_path, 
         new_device_cb in_new_cb, updated_device_cb in_update_cb) :
     tracker_component{},
@@ -75,25 +77,25 @@ DevicetrackerView::DevicetrackerView(const std::string& in_id, const std::string
     view_id->set(in_id);
     view_description->set(in_description);
 
-    device_list = std::make_shared<TrackerElementVector>();
+    device_list = std::make_shared<tracker_element_vector>();
 
     // Because we can't lock the device view and acquire locks on devices while the caller
     // might also hold locks on devices, we need to specially handle the mutex ourselves;
     // all our endpoints are registered w/ no mutex, accordingly.
     auto uri = fmt::format("/devices/views/{}/devices", in_id);
     device_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(uri, 
-                [this](std::ostream& stream, const std::string& uri, SharedStructured post_structured,
-                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
+        std::make_shared<kis_net_httpd_simple_post_endpoint>(uri, 
+                [this](std::ostream& stream, const std::string& uri, shared_structured post_structured,
+                    kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                     return device_endpoint_handler(stream, uri, post_structured, variable_cache);
                 });
 
     time_endp =
-        std::make_shared<Kis_Net_Httpd_Path_Tracked_Endpoint>(
+        std::make_shared<kis_net_httpd_path_tracked_endpoint>(
                 [this](const std::vector<std::string>& path) -> bool {
                     return device_time_endpoint_path(path);
                 }, 
-                [this](const std::vector<std::string>& path) -> std::shared_ptr<TrackerElement> {
+                [this](const std::vector<std::string>& path) -> std::shared_ptr<tracker_element> {
                     return device_time_endpoint(path);
                 });
 
@@ -107,53 +109,53 @@ DevicetrackerView::DevicetrackerView(const std::string& in_id, const std::string
 
     uri = fmt::format("/devices/views/{}devices", ss.str());
     device_uri_endp =
-        std::make_shared<Kis_Net_Httpd_Simple_Post_Endpoint>(uri, 
-                [this](std::ostream& stream, const std::string& uri, SharedStructured post_structured,
-                    Kis_Net_Httpd_Connection::variable_cache_map& variable_cache) -> unsigned int {
+        std::make_shared<kis_net_httpd_simple_post_endpoint>(uri, 
+                [this](std::ostream& stream, const std::string& uri, shared_structured post_structured,
+                    kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                     return device_endpoint_handler(stream, uri, post_structured, variable_cache);
                 });
 
     time_uri_endp =
-        std::make_shared<Kis_Net_Httpd_Path_Tracked_Endpoint>(
+        std::make_shared<kis_net_httpd_path_tracked_endpoint>(
                 [this](const std::vector<std::string>& path) -> bool {
                     return device_time_uri_endpoint_path(path);
                 }, 
-                [this](const std::vector<std::string>& path) -> std::shared_ptr<TrackerElement> {
+                [this](const std::vector<std::string>& path) -> std::shared_ptr<tracker_element> {
                     return device_time_uri_endpoint(path);
                 });
     
 }
 
-std::shared_ptr<TrackerElementVector> DevicetrackerView::doDeviceWork(DevicetrackerViewWorker& worker) {
+std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(device_tracker_view_worker& worker) {
     // Make a copy of the vector
-    std::shared_ptr<TrackerElementVector> immutable_copy;
+    std::shared_ptr<tracker_element_vector> immutable_copy;
     {
         local_shared_locker dl(&mutex);
-        immutable_copy = std::make_shared<TrackerElementVector>(device_list);
+        immutable_copy = std::make_shared<tracker_element_vector>(device_list);
     }
 
-    return doDeviceWork(worker, immutable_copy);
+    return do_device_work(worker, immutable_copy);
 }
 
-std::shared_ptr<TrackerElementVector> DevicetrackerView::doReadonlyDeviceWork(DevicetrackerViewWorker& worker) {
+std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_work(device_tracker_view_worker& worker) {
     // Make a copy of the vector
-    std::shared_ptr<TrackerElementVector> immutable_copy;
+    std::shared_ptr<tracker_element_vector> immutable_copy;
     {
         local_shared_locker dl(&mutex);
-        immutable_copy = std::make_shared<TrackerElementVector>(device_list);
+        immutable_copy = std::make_shared<tracker_element_vector>(device_list);
     }
 
-    return doReadonlyDeviceWork(worker, immutable_copy);
+    return do_readonly_device_work(worker, immutable_copy);
 }
 
-std::shared_ptr<TrackerElementVector> DevicetrackerView::doDeviceWork(DevicetrackerViewWorker& worker,
-        std::shared_ptr<TrackerElementVector> devices) {
-    auto ret = std::make_shared<TrackerElementVector>();
+std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(device_tracker_view_worker& worker,
+        std::shared_ptr<tracker_element_vector> devices) {
+    auto ret = std::make_shared<tracker_element_vector>();
     ret->reserve(devices->size());
     kis_recursive_timed_mutex ret_mutex;
 
-    kismet__for_each(devices->begin(), devices->end(),
-            [&](SharedTrackerElement val) {
+    std::for_each(devices->begin(), devices->end(),
+            [&](shared_tracker_element val) {
 
             if (val == nullptr)
                 return;
@@ -163,7 +165,7 @@ std::shared_ptr<TrackerElementVector> DevicetrackerView::doDeviceWork(Devicetrac
             bool m;
             {
                 local_locker devlocker(&dev->device_mutex);
-                m = worker.matchDevice(dev);
+                m = worker.match_device(dev);
             }
 
             if (m) {
@@ -173,19 +175,19 @@ std::shared_ptr<TrackerElementVector> DevicetrackerView::doDeviceWork(Devicetrac
 
         });
 
-    worker.setMatchedDevices(ret);
+    worker.set_matched_devices(ret);
 
     return ret;
 }
 
-std::shared_ptr<TrackerElementVector> DevicetrackerView::doReadonlyDeviceWork(DevicetrackerViewWorker& worker,
-        std::shared_ptr<TrackerElementVector> devices) {
-    auto ret = std::make_shared<TrackerElementVector>();
+std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_work(device_tracker_view_worker& worker,
+        std::shared_ptr<tracker_element_vector> devices) {
+    auto ret = std::make_shared<tracker_element_vector>();
     ret->reserve(devices->size());
     kis_recursive_timed_mutex ret_mutex;
 
-    kismet__for_each(devices->begin(), devices->end(),
-            [&](SharedTrackerElement val) {
+    std::for_each(devices->begin(), devices->end(),
+            [&](shared_tracker_element val) {
 
             if (val == nullptr)
                 return;
@@ -195,7 +197,7 @@ std::shared_ptr<TrackerElementVector> DevicetrackerView::doReadonlyDeviceWork(De
             bool m;
             {
                 local_shared_locker devlocker(&dev->device_mutex);
-                m = worker.matchDevice(dev);
+                m = worker.match_device(dev);
             }
 
             if (m) {
@@ -205,12 +207,12 @@ std::shared_ptr<TrackerElementVector> DevicetrackerView::doReadonlyDeviceWork(De
 
         });
 
-    worker.setMatchedDevices(ret);
+    worker.set_matched_devices(ret);
 
     return ret;
 }
 
-void DevicetrackerView::newDevice(std::shared_ptr<kis_tracked_device_base> device) {
+void device_tracker_view::new_device(std::shared_ptr<kis_tracked_device_base> device) {
     if (new_cb != nullptr) {
         local_locker l(&mutex);
 
@@ -227,7 +229,7 @@ void DevicetrackerView::newDevice(std::shared_ptr<kis_tracked_device_base> devic
     }
 }
 
-void DevicetrackerView::updateDevice(std::shared_ptr<kis_tracked_device_base> device) {
+void device_tracker_view::update_device(std::shared_ptr<kis_tracked_device_base> device) {
 
     if (update_cb == nullptr)
         return;
@@ -263,7 +265,7 @@ void DevicetrackerView::updateDevice(std::shared_ptr<kis_tracked_device_base> de
     }
 }
 
-void DevicetrackerView::removeDevice(std::shared_ptr<kis_tracked_device_base> device) {
+void device_tracker_view::remove_device(std::shared_ptr<kis_tracked_device_base> device) {
     local_locker l(&mutex);
 
     auto di = device_presence_map.find(device->get_key());
@@ -282,7 +284,7 @@ void DevicetrackerView::removeDevice(std::shared_ptr<kis_tracked_device_base> de
     }
 }
 
-void DevicetrackerView::addDeviceDirect(std::shared_ptr<kis_tracked_device_base> device) {
+void device_tracker_view::add_device_direct(std::shared_ptr<kis_tracked_device_base> device) {
     local_locker l(&mutex);
 
     auto di = device_presence_map.find(device->get_key());
@@ -296,7 +298,7 @@ void DevicetrackerView::addDeviceDirect(std::shared_ptr<kis_tracked_device_base>
     list_sz->set(device_list->size());
 }
 
-void DevicetrackerView::removeDeviceDirect(std::shared_ptr<kis_tracked_device_base> device) {
+void device_tracker_view::remove_device_direct(std::shared_ptr<kis_tracked_device_base> device) {
     local_locker l(&mutex);
 
     auto di = device_presence_map.find(device->get_key());
@@ -315,7 +317,7 @@ void DevicetrackerView::removeDeviceDirect(std::shared_ptr<kis_tracked_device_ba
     }
 }
 
-bool DevicetrackerView::device_time_endpoint_path(const std::vector<std::string>& path) {
+bool device_tracker_view::device_time_endpoint_path(const std::vector<std::string>& path) {
     // /devices/views/[id]/last-time/[time]/devices
 
     if (path.size() < 6)
@@ -328,7 +330,7 @@ bool DevicetrackerView::device_time_endpoint_path(const std::vector<std::string>
         return false;
 
     try {
-       StringTo<int64_t>(path[4]);
+       string_to_n<int64_t>(path[4]);
     } catch (const std::exception& e) {
         return false;
     }
@@ -336,16 +338,16 @@ bool DevicetrackerView::device_time_endpoint_path(const std::vector<std::string>
     return true;
 }
 
-std::shared_ptr<TrackerElement> DevicetrackerView::device_time_endpoint(const std::vector<std::string>& path) {
+std::shared_ptr<tracker_element> device_tracker_view::device_time_endpoint(const std::vector<std::string>& path) {
     // The device worker creates an immutable copy of the device list under its own RO mutex,
     // so we don't have to lock here.
     
-    auto ret = std::make_shared<TrackerElementVector>();
+    auto ret = std::make_shared<tracker_element_vector>();
 
     if (path.size() < 6)
         return ret;
 
-    auto tv = StringTo<int64_t>(path[4], 0);
+    auto tv = string_to_n<int64_t>(path[4], 0);
     time_t ts;
 
     // Don't allow 'all' devices b/c it's really expensive
@@ -358,17 +360,17 @@ std::shared_ptr<TrackerElement> DevicetrackerView::device_time_endpoint(const st
         ts = tv;
 
     auto worker = 
-        DevicetrackerViewFunctionWorker([&](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+        device_tracker_view_function_worker([&](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
                 if (dev->get_last_time() < ts)
                     return false;
 
                 return true;
                 });
 
-    return doReadonlyDeviceWork(worker);
+    return do_readonly_device_work(worker);
 }
 
-bool DevicetrackerView::device_time_uri_endpoint_path(const std::vector<std::string>& path) {
+bool device_tracker_view::device_time_uri_endpoint_path(const std::vector<std::string>& path) {
     // /devices/views/[extrasN]/last-time/[time]/devices
     
     auto extras_sz = uri_extras.size();
@@ -390,7 +392,7 @@ bool DevicetrackerView::device_time_uri_endpoint_path(const std::vector<std::str
     }
 
     try {
-        StringTo<int64_t>(path[3 + extras_sz]);
+        string_to_n<int64_t>(path[3 + extras_sz]);
     } catch (const std::exception& e) {
         return false;
     }
@@ -398,10 +400,10 @@ bool DevicetrackerView::device_time_uri_endpoint_path(const std::vector<std::str
     return true;
 }
 
-std::shared_ptr<TrackerElement> DevicetrackerView::device_time_uri_endpoint(const std::vector<std::string>& path) {
+std::shared_ptr<tracker_element> device_tracker_view::device_time_uri_endpoint(const std::vector<std::string>& path) {
     // The device worker creates an immutable copy of the device list under its own RO mutex,
     // so we don't have to lock here.
-    auto ret = std::make_shared<TrackerElementVector>();
+    auto ret = std::make_shared<tracker_element_vector>();
 
     auto extras_sz = uri_extras.size();
 
@@ -411,7 +413,7 @@ std::shared_ptr<TrackerElement> DevicetrackerView::device_time_uri_endpoint(cons
     if (path.size() < (5 + extras_sz))
         return ret;
 
-    auto tv = StringTo<int64_t>(path[3 + extras_sz], 0);
+    auto tv = string_to_n<int64_t>(path[3 + extras_sz], 0);
     time_t ts;
 
     // Don't allow 'all' devices b/c it's really expensive
@@ -424,24 +426,24 @@ std::shared_ptr<TrackerElement> DevicetrackerView::device_time_uri_endpoint(cons
         ts = tv;
 
     auto worker = 
-        DevicetrackerViewFunctionWorker([&](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+        device_tracker_view_function_worker([&](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
                 if (dev->get_last_time() < ts)
                     return false;
 
                 return true;
                 });
 
-    return doReadonlyDeviceWork(worker);
+    return do_readonly_device_work(worker);
 }
 
-unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream, 
-        const std::string& uri, SharedStructured structured,
+unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream, 
+        const std::string& uri, shared_structured structured,
         std::map<std::string, std::shared_ptr<std::stringstream>>& postvars) {
     // Summarization vector based on simplification part of shared data
     auto summary_vec = std::vector<SharedElementSummary>{};
 
     // Rename cache generated by summarization
-    auto rename_map = std::make_shared<TrackerElementSerializer::rename_map>();
+    auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
 
     // Timestamp limitation
     time_t timestamp_min = 0;
@@ -456,67 +458,67 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
     auto order_field = std::vector<int>{};
 
     // Regular expression terms, if any
-    auto regex = SharedStructured{};
+    auto regex = shared_structured{};
 
     // Wrapper, if any, we insert under
-    std::shared_ptr<TrackerElementStringMap> wrapper_elem;
+    std::shared_ptr<tracker_element_string_map> wrapper_elem;
 
-    // Field we transmit in the final stage (dervied array, or map)
-    std::shared_ptr<TrackerElement> transmit;
+    // Field we transmit in the final stage (derived array, or map)
+    std::shared_ptr<tracker_element> transmit;
 
     // Windowed response elements, used in datatables and others
-    auto length_elem = std::make_shared<TrackerElementUInt64>();
-    auto start_elem = std::make_shared<TrackerElementUInt64>();
+    auto length_elem = std::make_shared<tracker_element_uint64>();
+    auto start_elem = std::make_shared<tracker_element_uint64>();
 
     // Total and filtered output sizes
-    auto total_sz_elem = std::make_shared<TrackerElementUInt64>();
-    auto filtered_sz_elem = std::make_shared<TrackerElementUInt64>();
+    auto total_sz_elem = std::make_shared<tracker_element_uint64>();
+    auto filtered_sz_elem = std::make_shared<tracker_element_uint64>();
 
     // Output device list, should be copied into for final output
-    auto output_devices_elem = std::make_shared<TrackerElementVector>();
+    auto output_devices_elem = std::make_shared<tracker_element_vector>();
 
     // Datatables specific draw element
-    auto dt_draw_elem = std::make_shared<TrackerElementUInt64>();
+    auto dt_draw_elem = std::make_shared<tracker_element_uint64>();
 
     try {
         // If the structured component has a 'fields' record, derive the fields
         // simplification
-        if (structured->hasKey("fields")) {
-            auto fields = structured->getStructuredByKey("fields");
-            auto fvec = fields->getStructuredArray();
+        if (structured->has_key("fields")) {
+            auto fields = structured->get_structured_by_key("fields");
+            auto fvec = fields->as_vector();
 
             for (const auto& i : fvec) {
-                if (i->isString()) {
-                    auto s = std::make_shared<TrackerElementSummary>(i->getString());
+                if (i->is_string()) {
+                    auto s = std::make_shared<tracker_element_summary>(i->as_string());
                     summary_vec.push_back(s);
-                } else if (i->isArray()) {
-                    auto mapvec = i->getStringVec();
+                } else if (i->is_array()) {
+                    auto mapvec = i->as_string_vector();
 
                     if (mapvec.size() != 2)
-                        throw StructuredDataException("Invalid field mapping, expected "
+                        throw structured_data_exception("Invalid field mapping, expected "
                                 "[field, rename]");
 
-                    auto s = std::make_shared<TrackerElementSummary>(mapvec[0], mapvec[1]);
+                    auto s = std::make_shared<tracker_element_summary>(mapvec[0], mapvec[1]);
                     summary_vec.push_back(s);
                 } else {
-                    throw StructuredDataException("Invalid field mapping, expected "
+                    throw structured_data_exception("Invalid field mapping, expected "
                             "field or [field,rename]");
                 }
             }
         }
 
         // Capture timestamp and negative-offset timestamp
-        int64_t raw_ts = structured->getKeyAsNumber("last_time", 0);
+        int64_t raw_ts = structured->key_as_number("last_time", 0);
         if (raw_ts < 0)
             timestamp_min = time(0) + raw_ts;
         else
             timestamp_min = raw_ts;
 
         // Regex
-        if (structured->hasKey("regex"))
-            regex = structured->getStructuredByKey("regex");
+        if (structured->has_key("regex"))
+            regex = structured->get_structured_by_key("regex");
 
-    } catch (const StructuredDataException& e) {
+    } catch (const structured_data_exception& e) {
         stream << "Invalid request: " << e.what() << "\n";
         return 400;
     }
@@ -529,15 +531,15 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
     unsigned int in_order_direction = 0;
 
     // Column number->path field mapping
-    auto column_number_map = StructuredData::structured_num_map{};
+    auto column_number_map = structured_data::structured_num_map{};
 
     // Parse datatables sub-data for windowing, etc
     try {
         // Extract the column number -> column fieldpath data
-        if (structured->hasKey("colmap")) 
-            column_number_map = structured->getStructuredByKey("colmap")->getStructuredNumMap();
+        if (structured->has_key("colmap")) 
+            column_number_map = structured->get_structured_by_key("colmap")->as_number_map();
 
-        if (structured->getKeyAsBool("datatable", false)) {
+        if (structured->key_as_bool("datatable", false)) {
             // Extract from the raw postvars 
             if (postvars.find("start") != postvars.end())
                 *(postvars["start"]) >> in_window_start;
@@ -577,20 +579,20 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
                     in_order_direction = 0;
 
                 // Resolve the path, we only allow the first one
-                auto index_array = column_index->second->getStructuredArray();
+                auto index_array = column_index->second->as_vector();
                 if (index_array.size() > 0) {
-                    if (index_array[0]->isArray()) {
+                    if (index_array[0]->is_array()) {
                         // We only allow the first field, but make sure we're not a nested array
-                        auto index_sub_array = index_array[0]->getStringVec();
+                        auto index_sub_array = index_array[0]->as_string_vector();
                         if (index_sub_array.size() > 0) {
-                            auto summary = TrackerElementSummary{index_sub_array[0]};
+                            auto summary = tracker_element_summary{index_sub_array[0]};
                             order_field = summary.resolved_path;
                         }
                     } else {
                         // Otherwise get the first array
-                        auto column_index_vec = column_index->second->getStringVec();
+                        auto column_index_vec = column_index->second->as_string_vector();
                         if (column_index_vec.size() >= 1) {
-                            auto summary = TrackerElementSummary{column_index_vec[0]};
+                            auto summary = tracker_element_summary{column_index_vec[0]};
                             order_field = summary.resolved_path;
                         }
                     }
@@ -606,7 +608,7 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
             dt_draw_elem->set(in_dt_draw);
 
             // Set up the datatables wrapper
-            wrapper_elem = std::make_shared<TrackerElementStringMap>();
+            wrapper_elem = std::make_shared<tracker_element_string_map>();
             transmit = wrapper_elem;
 
             wrapper_elem->insert("draw", dt_draw_elem);
@@ -623,7 +625,7 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
     }
 
     // Next vector we do work on
-    auto next_work_vec = std::make_shared<TrackerElementVector>();
+    auto next_work_vec = std::make_shared<tracker_element_vector>();
 
     // Copy the entire vector list, under lock, to the next work vector; this makes it an independent copy
     // which is protected from the main vector being grown/shrank.  While we're in there, log the total
@@ -638,22 +640,22 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
     // If we have a time filter, apply that first, it's the fastest.
     if (timestamp_min > 0) {
         auto worker = 
-            DevicetrackerViewFunctionWorker([timestamp_min] (std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+            device_tracker_view_function_worker([timestamp_min] (std::shared_ptr<kis_tracked_device_base> dev) -> bool {
                     if (dev->get_last_time() < timestamp_min)
                         return false;
                     return true;
                     });
 
         // Do the work and copy the vector
-        auto ts_vec = doReadonlyDeviceWork(worker, next_work_vec);
+        auto ts_vec = do_readonly_device_work(worker, next_work_vec);
         next_work_vec->set(ts_vec->begin(), ts_vec->end());
     }
 
     // Apply a string filter
     if (search_term.length() > 0 && search_paths.size() > 0) {
         auto worker =
-            DevicetrackerViewICaseStringmatchWorker(search_term, search_paths);
-        auto s_vec = doReadonlyDeviceWork(worker, next_work_vec);
+            device_tracker_view_icasestringmatch_worker(search_term, search_paths);
+        auto s_vec = do_readonly_device_work(worker, next_work_vec);
         next_work_vec->set(s_vec->begin(), s_vec->end());
     }
 
@@ -661,8 +663,8 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
     if (regex != nullptr) {
         try {
             auto worker = 
-                DevicetrackerViewRegexWorker(regex);
-            auto r_vec = doReadonlyDeviceWork(worker, next_work_vec);
+                device_tracker_view_regex_worker(regex);
+            auto r_vec = do_readonly_device_work(worker, next_work_vec);
             next_work_vec = r_vec;
             // next_work_vec->set(r_vec->begin(), r_vec->end());
         } catch (const std::exception& e) {
@@ -681,8 +683,8 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
     // Update the start
     start_elem->set(in_window_start);
 
-    TrackerElementVector::iterator si = std::next(next_work_vec->begin(), in_window_start);
-    TrackerElementVector::iterator ei;
+    tracker_element_vector::iterator si = std::next(next_work_vec->begin(), in_window_start);
+    tracker_element_vector::iterator ei;
 
     if (in_window_len + in_window_start >= next_work_vec->size() || in_window_len == 0)
         ei = next_work_vec->end();
@@ -694,13 +696,13 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
 
     // Unfortunately we need to do a stable sort to get a consistent display
     if (in_order_column_num >= 0 && order_field.size() > 0) {
-        kismet__stable_sort(next_work_vec->begin(), next_work_vec->end(),
-                [&](SharedTrackerElement a, SharedTrackerElement b) -> bool {
-                SharedTrackerElement fa;
-                SharedTrackerElement fb;
+        std::stable_sort(next_work_vec->begin(), next_work_vec->end(),
+                [&](shared_tracker_element a, shared_tracker_element b) -> bool {
+                shared_tracker_element fa;
+                shared_tracker_element fb;
 
-                fa = GetTrackerElementPath(order_field, a);
-                fb = GetTrackerElementPath(order_field, b);
+                fa = get_tracker_element_path(order_field, a);
+                fb = get_tracker_element_path(order_field, b);
 
                 if (fa == nullptr) 
                     return in_order_direction == 0;
@@ -709,23 +711,23 @@ unsigned int DevicetrackerView::device_endpoint_handler(std::ostream& stream,
                     return in_order_direction != 0;
 
                 if (in_order_direction == 0)
-                    return FastSortTrackerElementLess(fa, fb);
+                    return fast_sort_tracker_element_less(fa, fb);
 
-                return FastSortTrackerElementLess(fb, fa);
+                return fast_sort_tracker_element_less(fb, fa);
             });
     }
 
     // Summarize into the output element
     for (auto i = si; i != ei; ++i) {
-        output_devices_elem->push_back(SummarizeSingleTrackerElement(*i, summary_vec, rename_map));
+        output_devices_elem->push_back(summarize_single_tracker_element(*i, summary_vec, rename_map));
     }
 
     // If the transmit wasn't assigned to a wrapper...
     if (transmit == nullptr)
         transmit = output_devices_elem;
 
-    // Serialize
-    Globalreg::globalreg->entrytracker->Serialize(kishttpd::GetSuffix(uri), stream, transmit, rename_map);
+    // serialize
+    Globalreg::globalreg->entrytracker->serialize(kishttpd::get_suffix(uri), stream, transmit, rename_map);
 
     // And done
     return 200;

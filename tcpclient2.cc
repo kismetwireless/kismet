@@ -30,20 +30,20 @@
 #include "messagebus.h"
 #include "pollabletracker.h"
 
-TcpClientV2::TcpClientV2(GlobalRegistry *in_globalreg, 
-        std::shared_ptr<BufferHandlerGeneric> in_rbhandler) :
+tcp_client_v2::tcp_client_v2(global_registry *in_globalreg, 
+        std::shared_ptr<buffer_handler_generic> in_rbhandler) :
     globalreg {Globalreg::globalreg},
     handler {in_rbhandler},
-    tcp_mutex {std::make_shared<kis_recursive_timed_mutex>()} ,
+    tcp_mutex {in_rbhandler->get_mutex()} ,
     pending_connect {false}, 
     connected {false}, 
     cli_fd {-1} { }
 
-TcpClientV2::~TcpClientV2() {
-    Disconnect();
+tcp_client_v2::~tcp_client_v2() {
+    disconnect();
 }
 
-void TcpClientV2::SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
+void tcp_client_v2::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
     local_locker l(tcp_mutex);
 
     if (in_parent != nullptr)
@@ -52,7 +52,7 @@ void TcpClientV2::SetMutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent)
         tcp_mutex = std::make_shared<kis_recursive_timed_mutex>();
 }
 
-int TcpClientV2::Connect(std::string in_host, unsigned int in_port) {
+int tcp_client_v2::connect(std::string in_host, unsigned int in_port) {
     local_locker l(tcp_mutex);
 
     std::stringstream msg;
@@ -93,7 +93,7 @@ int TcpClientV2::Connect(std::string in_host, unsigned int in_port) {
 
     int ret;
 
-    if ((ret = connect(cli_fd, (struct sockaddr *) &client_sock, 
+    if ((ret = ::connect(cli_fd, (struct sockaddr *) &client_sock, 
                     sizeof(client_sock))) < 0) {
         if (errno == EINPROGRESS) {
             pending_connect = true;
@@ -109,7 +109,7 @@ int TcpClientV2::Connect(std::string in_host, unsigned int in_port) {
             pending_connect = false;
 
             // Send the error to any listeners
-            handler->BufferError(msg.str());
+            handler->buffer_error(msg.str());
 
             return -1;
         }
@@ -121,7 +121,7 @@ int TcpClientV2::Connect(std::string in_host, unsigned int in_port) {
     return 0;
 }
 
-int TcpClientV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
+int tcp_client_v2::pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     local_locker l(tcp_mutex);
 
     // All we fill in is the descriptor for writing if we're still trying to
@@ -137,7 +137,7 @@ int TcpClientV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
         return in_max_fd;
 
     // If we have data waiting to be written, fill it in
-    if (handler->GetWriteBufferUsed()) {
+    if (handler->get_write_buffer_used()) {
         FD_SET(cli_fd, out_wset);
     }
 
@@ -150,7 +150,7 @@ int TcpClientV2::MergeSet(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     return in_max_fd;
 }
 
-int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
+int tcp_client_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
     local_locker l(tcp_mutex);
     
     std::string msg;
@@ -174,7 +174,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                 msg = fmt::format("Could not connect to TCP server {}:{} ({} / errno {})",
                         host, port, kis_strerror_r(e), e);
 
-                handler->BufferError(msg);
+                handler->buffer_error(msg);
 
                 if (cli_fd >= 0)
                     close(cli_fd);
@@ -200,20 +200,20 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
 
     if (FD_ISSET(cli_fd, &in_rset)) {
         // If we have pending data and the buffer is full, call the pending function immediately
-        if (handler->GetReadBufferAvailable() == 0)
-            handler->TriggerReadCallback(0);
+        if (handler->get_read_buffer_available() == 0)
+            handler->trigger_read_callback(0);
 
         // Allocate the biggest buffer we can fit in the ring, read as much
         // as we can at once.
        
-        while (connected && handler->GetReadBufferAvailable() > 0) {
-            len = handler->ZeroCopyReserveReadBufferData((void **) &buf, 
-                    handler->GetReadBufferAvailable());
+        while (connected && handler->get_read_buffer_available() > 0) {
+            len = handler->zero_copy_reserve_read_buffer_data((void **) &buf, 
+                    handler->get_read_buffer_available());
 
             // We ought to never hit this because it ought to always be available
             // from the above while loop, but lets be extra cautious
             if (len <= 0) {
-                handler->CommitReadBufferData(buf, 0);
+                handler->commit_read_buffer_data(buf, 0);
                 break;
             }
 
@@ -222,7 +222,7 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
             if (ret < 0) {
                 if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
                     // Dump the commit, we didn't get any data
-                    handler->CommitReadBufferData(buf, 0);
+                    handler->commit_read_buffer_data(buf, 0);
 
                     break;
                 } else {
@@ -231,74 +231,74 @@ int TcpClientV2::Poll(fd_set& in_rset, fd_set& in_wset) {
                             host, port, kis_strerror_r(errno), errno);
 
                     // Dump the commit
-                    handler->CommitReadBufferData(buf, 0);
-                    handler->BufferError(msg);
+                    handler->commit_read_buffer_data(buf, 0);
+                    handler->buffer_error(msg);
 
-                    Disconnect();
+                    disconnect();
                     return 0;
                 }
             } else if (ret == 0) {
                 msg = fmt::format("TCP client closing connection to {}:{}, connection closed by remote",
                         host, port);
                 // Dump the commit
-                handler->CommitReadBufferData(buf, 0);
-                handler->BufferError(msg);
+                handler->commit_read_buffer_data(buf, 0);
+                handler->buffer_error(msg);
 
-                Disconnect();
+                disconnect();
                 return 0;
             } else {
                 // Process the data we got
-                iret = handler->CommitReadBufferData(buf, ret);
+                iret = handler->commit_read_buffer_data(buf, ret);
 
                 if (!iret) {
                     // Die if we couldn't insert all our data, the error is already going
                     // upstream.
-                    Disconnect();
+                    disconnect();
                     return 0;
                 }
             }
         }
     }
 
-    if (connected && FD_ISSET(cli_fd, &in_wset)) {
+    if (connected && FD_ISSET(cli_fd, &in_wset) && handler->get_write_buffer_used()) {
         // Peek the entire data 
-        len = handler->ZeroCopyPeekWriteBufferData((void **) &buf, 
-                handler->GetWriteBufferUsed());
+        len = handler->zero_copy_peek_write_buffer_data((void **) &buf, 
+                handler->get_write_buffer_used());
 
         ret = send(cli_fd, buf, len, MSG_DONTWAIT);
 
         if (ret < 0) {
             if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) {
-                handler->PeekFreeWriteBufferData(buf);
+                handler->peek_free_write_buffer_data(buf);
                 return 0;
             } else {
                 msg = fmt::format("TCP client error writing to {}:{} - {} (errno {})",
                     host, port, kis_strerror_r(errno), errno);
 
-                handler->PeekFreeWriteBufferData(buf);
-                handler->BufferError(msg);
+                handler->peek_free_write_buffer_data(buf);
+                handler->buffer_error(msg);
 
-                Disconnect();
+                disconnect();
                 return 0;
             }
         } else if (ret == 0) {
             msg = fmt::format("TCP client connection to {}:{} closed by remote",
                     host, port);
-            handler->PeekFreeWriteBufferData(buf);
-            handler->BufferError(msg);
-            Disconnect();
+            handler->peek_free_write_buffer_data(buf);
+            handler->buffer_error(msg);
+            disconnect();
             return 0;
         } else {
             // Consume whatever we managed to write
-            handler->PeekFreeWriteBufferData(buf);
-            handler->ConsumeWriteBufferData(ret);
+            handler->peek_free_write_buffer_data(buf);
+            handler->consume_write_buffer_data(ret);
         }
     }
 
     return 0;
 }
 
-void TcpClientV2::Disconnect() {
+void tcp_client_v2::disconnect() {
     local_locker l(tcp_mutex);
 
     if (pending_connect || connected) {
@@ -312,7 +312,7 @@ void TcpClientV2::Disconnect() {
     connected = false;
 }
 
-bool TcpClientV2::FetchConnected() {
+bool tcp_client_v2::get_connected() {
     local_shared_locker l(tcp_mutex);
 
     if (connected || pending_connect)

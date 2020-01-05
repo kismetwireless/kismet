@@ -74,7 +74,7 @@ typedef struct cf_params_spectrum cf_params_spectrum_t;
  *
  * *msg is allocated by the framework and can hold STATUS_MAX characters and should
  * be populated with any message the listcb wants to return.
- * **interfaces mut be allocated by the list cb and should contain valid 
+ * **interfaces must be allocated by the list cb and should contain valid 
  * list_iterface_t objects
  *
  * Return values:
@@ -248,6 +248,9 @@ struct kis_capture_handler {
     int in_fd;
     int out_fd;
 
+    /* Listen fd for reverse server mode */
+    int listen_fd;
+
     /* Remote host and port if acting as a remote drone */
     char *remote_host;
     unsigned int remote_port;
@@ -261,7 +264,10 @@ struct kis_capture_handler {
     /* Kick into daemon mode for remote connections */
     int daemonize;
 
-    /* TCP connection */
+    /* Do we provide a revere server?  If so, we bind to remote_host on remote_port */
+    int reverse_server;
+
+    /* TCP connection, either server or client */
     int tcp_fd;
 
     /* Die when we hit the end of our write buffer */
@@ -319,6 +325,11 @@ struct kis_capture_handler {
     void **custom_channel_hop_list;
     size_t channel_hop_list_sz;
     double channel_hop_rate;
+
+    /* Maximum hop rate; if 0, ignored, if not zero, hop commands are forced to this
+     * rate.
+     */
+    double max_channel_hop_rate;
 
     /* Linked list of failed channel sets so we can flush the channel array out */
     void *channel_hop_failure_list;
@@ -476,7 +487,7 @@ cf_params_spectrum_t *cf_params_spectrum_new();
 void cf_params_spectrum_free(cf_params_spectrum_t *si);
 
 
-/* Shutdown immediately - dies at the start of the next select() loop, regardless
+/* shutdown immediately - dies at the start of the next select() loop, regardless
  * of pending data.
  *
  * It is not safe to destroy the capture_handler record until the select() blocking
@@ -525,13 +536,15 @@ void cf_handler_set_hop_shuffle_spacing(kis_capture_handler_t *capf, int spacing
 
 /* Parse command line options
  *
- * Parse command line for --in-fd, --out-fd, --connect, --source, and populate.
+ * Parse command line for --in-fd, --out-fd, --connect, --source, --host, and populate
+ * the caph config.
  * 
  * Returns:
  * -1   Missing in-fd/out-fd or --connect, or unknown argument, caller should print
  *      help and exit
  *  1   Success, using interproc IPC
  *  2   Success, using TCP remote connection
+ *  3   Success, using TCP reverse (server) remote connection
  */
 int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]);
 
@@ -594,6 +607,17 @@ int cf_handle_rx_data(kis_capture_handler_t *caph);
  *  1   Successful remote connection
  */
 int cf_handler_remote_connect(kis_capture_handler_t *caph);
+
+/* Launch a network server and wait for a connection, if reverse connection is
+ * specified; this should not be needed by capture tools using the framework; 
+ * the capture loop will be managed directly via cf_handler_remote_capture
+ *
+ * Returns:
+ * -1   Error, could not spawn server, process should exist
+ *  0   No remote server connection specified
+ *  1   Successful remote server launch & incoming connection
+ */
+int cf_handler_remote_server(kis_capture_handler_t *caph);
 
 /* Set up a fork loop for remote capture processes.  The normal capture code
  * is run in an independently executed process, allowing for one-shot privilege 
@@ -750,7 +774,7 @@ int cf_send_data(kis_capture_handler_t *caph,
  * If present, include message_kv, signal_kv, or gps_kv along with the json data.
  *
  * Returns:
- * -1   An error occured
+ * -1   An error occurred
  *  0   Insufficient space in buffer, try again
  *  1   Success
  */

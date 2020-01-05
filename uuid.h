@@ -48,6 +48,9 @@ class uuid {
 public:
     uuid() {
         memset(uuid_block, 0, 16);
+        uuid_block_h = (uint64_t *) &(uuid_block[0]);
+        uuid_block_l = (uint64_t *) &(uuid_block[8]);
+
         time_low = (uint32_t *) &(uuid_block[0]);
         time_mid = (uint16_t *) &(uuid_block[4]);
         time_hi = (uint16_t *) &(uuid_block[6]);
@@ -58,6 +61,10 @@ public:
 
     uuid(const uuid& u) {
         memcpy(uuid_block, u.uuid_block, 16);
+
+        uuid_block_h = (uint64_t *) &(uuid_block[0]);
+        uuid_block_l = (uint64_t *) &(uuid_block[8]);
+
         time_low = (uint32_t *) &(uuid_block[0]);
         time_mid = (uint16_t *) &(uuid_block[4]);
         time_hi = (uint16_t *) &(uuid_block[6]);
@@ -67,15 +74,19 @@ public:
     }
 
     uuid(const std::string& in) {
-        FromString(in);
+        from_string(in);
     }
 
     uuid(uint8_t *in_node) {
-        GenerateTimeUUID(in_node);
+        generate_time_uuid(in_node);
     }
 
-    void FromString(const std::string& in) {
+    void from_string(const std::string& in) {
         memset(uuid_block, 0, 16);
+
+        uuid_block_h = (uint64_t *) &(uuid_block[0]);
+        uuid_block_l = (uint64_t *) &(uuid_block[8]);
+
         time_low = (uint32_t *) &(uuid_block[0]);
         time_mid = (uint16_t *) &(uuid_block[4]);
         time_hi = (uint16_t *) &(uuid_block[6]);
@@ -102,7 +113,7 @@ public:
         }
     }
 
-    void GenerateRandomTimeUUID() {
+    void generate_random_time_uuid() {
         uint32_t clock_mid;
 
         get_clock(&clock_mid, time_low, clock_seq);
@@ -114,7 +125,7 @@ public:
         error = 0;
     }
 
-    void GenerateTimeUUID(uint8_t *in_node) {
+    void generate_time_uuid(uint8_t *in_node) {
         uint32_t clock_mid;
 
         get_clock(&clock_mid, time_low, clock_seq);
@@ -126,7 +137,7 @@ public:
         error = 0;
     }
 
-    void GenerateStoredUUID(uint32_t in_low, uint16_t in_mid, uint16_t in_hi,
+    void generate_stored_uuid(uint32_t in_low, uint16_t in_mid, uint16_t in_hi,
             uint16_t in_seq, uint8_t *in_node) {
         *time_low = in_low;
         *time_mid = in_mid;
@@ -136,11 +147,11 @@ public:
         error = 0;
     }
 
-    std::string asString() const {
-        return UUID2String();
+    std::string as_string() const {
+        return uuid_to_string();
     }
 
-    std::string UUID2String() const {
+    std::string uuid_to_string() const {
         return fmt::format("{:08X}-{:04X}-{:04X}-{:04X}-{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}",
                 *time_low, *time_mid, *time_hi, *clock_seq,
                 node[0], node[1], node[2], node[3], node[4], node[5]);
@@ -163,12 +174,19 @@ public:
     }
 
     uuid& operator= (const uuid& op) {
-        memcpy(uuid_block, op.uuid_block, 16);
+        // memcpy(uuid_block, op.uuid_block, 16);
+        *uuid_block_h = *op.uuid_block_h;
+        *uuid_block_l = *op.uuid_block_l;
+
         error = op.error;
         return *this;
     }
 
     uint8_t uuid_block[16];
+
+    uint64_t *uuid_block_h;
+    uint64_t *uuid_block_l;
+
     uint32_t *time_low;
     uint16_t *time_mid;
     uint16_t *time_hi;
@@ -256,6 +274,16 @@ try_again:
 
 std::ostream& operator<<(std::ostream& os, const uuid& u);
 std::istream& operator>>(std::istream &is, uuid& u);
+
+namespace std {
+    template<> struct hash<uuid> {
+        std::size_t operator()(uuid const& u) const noexcept {
+            std::size_t h1 = std::hash<uint64_t>{}(*u.uuid_block_h);
+            std::size_t h2 = std::hash<uint64_t>{}(*u.uuid_block_l);
+            return h1 ^ (h2 << 1);
+        }
+    };
+}
 
 #endif
 

@@ -39,10 +39,12 @@ PARSERS = \
 	dot11_parsers/dot11_ie_221_cisco_client_mfp.cc.o \
 	dot11_parsers/dot11_ie_221_wpa_transition.cc.o \
 	dot11_parsers/dot11_ie_221_rsn_pmkid.cc.o \
+	dot11_parsers/dot11_ie_221_wfa.cc.o \
 	dot11_parsers/dot11_ie_255_ext_tag.cc.o \
 	dot11_parsers/dot11_action.cc.o \
 	dot11_parsers/dot11_wpa_eap.cc.o \
-	bluetooth_parsers/bt_rfinfo.cc.o
+	dot11_parsers/dot11_p2p_ie.cc.o \
+	bluetooth_parsers/btle.cc.o 
 
 # To prevent a deps problem, we define these targets via autoconf to reference
 # the variable setting the list
@@ -116,6 +118,19 @@ BUILD_CAPTURE_FREAKLABS_ZIGBEE = @BUILD_CAPTURE_FREAKLABS_ZIGBEE@
 CAPTURE_NRF_MOUSEJACK = capture_nrf_mousejack/kismet_cap_nrf_mousejack
 BUILD_CAPTURE_NRF_MOUSEJACK = @BUILD_CAPTURE_NRF_MOUSEJACK@
 
+CAPTURE_TI_CC_2540 = capture_ti_cc_2540/kismet_cap_ti_cc_2540
+BUILD_CAPTURE_TI_CC_2540 = @BUILD_CAPTURE_TI_CC_2540@
+
+CAPTURE_UBERTOOTH_ONE = capture_ubertooth_one/kismet_cap_ubertooth_one
+BUILD_CAPTURE_UBERTOOTH_ONE = @BUILD_CAPTURE_UBERTOOTH_ONE@
+
+CAPTURE_NRF_51822 = capture_nrf_51822/kismet_cap_nrf_51822
+BUILD_CAPTURE_NRF_51822 = @BUILD_CAPTURE_NRF_51822@
+
+CAPTURE_NXP_KW41Z = capture_nxp_kw41z/kismet_cap_nxp_kw41z
+BUILD_CAPTURE_NXP_KW41Z = @BUILD_CAPTURE_NXP_KW41Z@
+
+
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
@@ -136,11 +151,17 @@ LOGTOOL_KISMETDB_STATS_O = \
 	log_tools/kismetdb_statistics.cc.o \
 	sqlite3_cpp11.cc.o jsoncpp.cc.o
 
+LOGTOOL_KISMETDB_KML = log_tools/kismetdb_to_kml
+LOGTOOL_KISMETDB_KML_O = \
+	log_tools/kismetdb_to_kml.cc.o \
+	sqlite3_cpp11.cc.o jsoncpp.cc.o
+
 LOGTOOL_BINS = \
 	$(LOGTOOL_KISMETDB_STRIP) \
 	$(LOGTOOL_KISMETDB_WIGLE) \
 	$(LOGTOOL_KISMETDB_JSON) \
-	$(LOGTOOL_KISMETDB_STATS)
+	$(LOGTOOL_KISMETDB_STATS) \
+	$(LOGTOOL_KISMETDB_KML)
 
 # Disabled; Kaitai generates unusable C++ code currently
 # KAITAI_PARSERS = \
@@ -169,11 +190,15 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	pollabletracker.cc.o ringbuf2.cc.o chainbuf.cc.o filewritebuf.cc.o buffer_handler.cc.o \
 	packet.cc.o messagebus.cc.o configfile.cc.o getopt.cc.o \
 	psutils.cc.o battery.cc.o \
-	tcpserver2.cc.o tcpclient2.cc.o serialclient2.cc.o pipeclient.cc.o ipc_remote2.cc.o \
+	tcpserver2.cc.o tcpclient2.cc.o serialclient2.cc.o pipeclient.cc.o socketclient.cc.o ipc_remote2.cc.o \
 	$(PROTOBUF_CPP_O_TARGET) kis_external.cc.o \
 	dlttracker.cc.o antennatracker.cc.o datasourcetracker.cc.o kis_datasource.cc.o \
 	datasource_linux_bluetooth.cc.o datasource_rtl433.cc.o datasource_rtlamr.cc.o datasource_rtladsb.cc.o \
-	kis_net_microhttpd.cc.o kis_net_microhttpd_handlers.cc.o kis_net_microhttpd_websocket.cc.o \
+	datasource_ti_cc_2540.cc.o datasource_ubertooth_one.cc.o datasource_nrf_51822.cc.o \
+	datasource_nxp_kw41z.cc.o \
+	kis_net_microhttpd.cc.o kis_net_microhttpd_handlers.cc.o \
+	kis_net_microhttpd_websocket.cc.o \
+	system_monitor.cc.o \
 	base64.cc.o sha1.cc.o \
 	kis_httpd_websession.cc.o kis_httpd_registry.cc.o \
 	system_monitor.cc.o \
@@ -186,14 +211,14 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	jsoncpp.cc.o json_adapter.cc.o \
 	plugintracker.cc.o alertracker.cc.o timetracker.cc.o channeltracker2.cc.o \
 	devicetracker.cc.o devicetracker_workers.cc.o devicetracker_httpd.cc.o \
-	kis_dlt.cc.o kis_dlt_ppi.cc.o kis_dlt_radiotap.cc.o \
+	kis_dlt.cc.o kis_dlt_ppi.cc.o kis_dlt_radiotap.cc.o kis_dlt_btle_ll_radio.cc.o \
 	kaitaistream.cc.o \
 	$(PARSERS) \
 	phy_80211.cc.o phy_80211_components.cc.o phy_80211_dissectors.cc.o \
 	phy_rtl433.cc.o phy_rtlamr.cc.o phy_rtladsb.cc.o phy_zwave.cc.o \
-	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o \
+	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_btle.cc.o \
 	dot11_fingerprint.cc.o kis_dissector_ipdata.cc.o \
-	manuf.cc.o \
+	manuf.cc.o bluetooth_ids.cc.o \
 	logtracker.cc.o kis_ppilogfile.cc.o kis_databaselogfile.cc.o kis_pcapnglogfile.cc.o \
 	messagebus_restclient.cc.o \
 	streamtracker.cc.o \
@@ -230,6 +255,7 @@ version.c.o : version.c version.c.d
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c version.c -o version.c.o
 
 $(PS):	$(PROTOBUF_CPP_O_TARGET) $(PROTOBUF_CPP_H_TARGET) $(PSO) $(patsubst %c.o,%c.d,$(PSO)) version.c.o
+	@rm -f kismet
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) version.c.o $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS) -rdynamic
 
 $(LOGTOOL_KISMETDB_STRIP):	log_tools/kismetdb_strip_packet_content.c.o log_tools/kismetdb_strip_packet_content.c.d
@@ -243,6 +269,9 @@ $(LOGTOOL_KISMETDB_JSON):	$(LOGTOOL_KISMETDB_JSON_O) $(patsubst %c.o,%c.d,$(LOGT
 
 $(LOGTOOL_KISMETDB_STATS):	$(LOGTOOL_KISMETDB_STATS_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_STATS_O))
 	$(LD) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_STATS) $(LOGTOOL_KISMETDB_STATS_O) $(LIBS) $(CXXLIBS) -rdynamic
+
+$(LOGTOOL_KISMETDB_KML):	$(LOGTOOL_KISMETDB_KML_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_KML_O))
+	$(LD) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_KML) $(LOGTOOL_KISMETDB_KML_O) $(LIBS) $(CXXLIBS) -rdynamic
 
 $(DATASOURCE_COMMON_A):	$(PROTOBUF_C_O) $(PROTOBUF_C_H) $(DATASOURCE_COMMON_C_O)
 	$(AR) rcs $(DATASOURCE_COMMON_A) $(DATASOURCE_COMMON_C_O)
@@ -277,6 +306,18 @@ $(CAPTURE_HACKRF_SWEEP):	$(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) $(CAPTURE_HACKRF
 $(CAPTURE_NRF_MOUSEJACK): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_nrf_mousejack && $(MAKE))
 
+$(CAPTURE_TI_CC_2540): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_ti_cc_2540 && $(MAKE))
+
+$(CAPTURE_UBERTOOTH_ONE): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_ubertooth_one && $(MAKE))
+
+$(CAPTURE_NRF_51822): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_nrf_51822 && $(MAKE))
+
+$(CAPTURE_NXP_KW41Z): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_nxp_kw41z && $(MAKE))
+
 $(CAPTURE_FREAKLABS_ZIGBEE): FORCE
 	(cd capture_freaklabs_zigbee && $(MAKE))
 
@@ -306,6 +347,22 @@ binsuidinstall: $(DATASOURCE_BINS)
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_NRF_MOUSEJACK) $(BIN)/`basename $(CAPTURE_NRF_MOUSEJACK)`; \
 	fi;
 
+	@if test "$(BUILD_CAPTURE_TI_CC_2540)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_TI_CC_2540) $(BIN)/`basename $(CAPTURE_TI_CC_2540)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_UBERTOOTH_ONE)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_UBERTOOTH_ONE) $(BIN)/`basename $(CAPTURE_UBERTOOTH_ONE)`; \
+        fi;
+
+	@if test "$(BUILD_CAPTURE_NRF_51822)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_NRF_51822) $(BIN)/`basename $(CAPTURE_NRF_51822)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_NXP_KW41Z)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_NXP_KW41Z) $(BIN)/`basename $(CAPTURE_NXP_KW41Z)`; \
+	fi;
+
 commoninstall: $(INSTBINS)
 	mkdir -p $(ETC)
 	mkdir -p $(BIN)
@@ -320,6 +377,7 @@ commoninstall: $(INSTBINS)
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_JSON) $(BIN)/`basename $(LOGTOOL_KISMETDB_JSON)`;
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_WIGLE) $(BIN)/`basename $(LOGTOOL_KISMETDB_WIGLE)`;
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_STATS) $(BIN)/`basename $(LOGTOOL_KISMETDB_STATS)`;
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_KML) $(BIN)/`basename $(LOGTOOL_KISMETDB_KML)`;
 
 	mkdir -p $(BIN)
 
@@ -349,6 +407,22 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_NRF_MOUSEJACK)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_NRF_MOUSEJACK) $(BIN)/`basename $(CAPTURE_NRF_MOUSEJACK)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_TI_CC_2540)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_TI_CC_2540) $(BIN)/`basename $(CAPTURE_TI_CC_2540)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_UBERTOOTH_ONE)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_UBERTOOTH_ONE) $(BIN)/`basename $(CAPTURE_UBERTOOTH_ONE)`; \
+        fi;
+
+	@if test "$(BUILD_CAPTURE_NRF_51822)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_NRF_51822) $(BIN)/`basename $(CAPTURE_NRF_51822)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_NXP_KW41Z)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_NXP_KW41Z) $(BIN)/`basename $(CAPTURE_NXP_KW41Z)`; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_SDR_RTL433)"x = "1"x; then \
@@ -421,9 +495,9 @@ suidinstall: $(PS) $(DATASOURCE_BINS)
 	@echo "documentation is in the docs/ directory.  You MUST edit $(ETC)/kismet.conf "
 	@echo "and configure Kismet for your system, or it will NOT run properly!"
 	@echo
-	@echo "Kismet has been installed with a SUID ROOT CAPTURE HELPER executeable by "
+	@echo "Kismet has been installed with a SUID ROOT CAPTURE HELPER executable by "
 	@echo "users in the group '" $(SUIDGROUP) "'.  This WILL ALLOW USERS IN THIS GROUP "
-	@echo "TO ALTER YOUR NETWORK INTERACE STATES, but is more secure than running "
+	@echo "TO ALTER YOUR NETWORK INTERFACE STATES, but is more secure than running "
 	@echo "all of Kismet as root.  ONLY users in this group will be able to "
 	@echo "run Kismet and capture from physical network devices."
 	@echo
@@ -475,6 +549,26 @@ manuf:
 	@echo "Generating kismet_manuf.txt"
 	@python tools/create_oui_db.py > conf/kismet_manuf.txt
 
+extcappy:
+	@echo "Updating kismetexternal python"
+	@find ./ -path *kismetexternal* -name __init__.py -not  -path *build* -exec cp ../python-kismet-external/kismetexternal/__init__.py {} \; 
+
+rtlsdrpy:
+	@echo "Updating kismet rtlsdr python"
+	@find ./ -path *rtlsdr* -name __init__.py -not -path *build* -exec cp ../python-rtlsdr/rtlsdr/__init__.py {} \;
+
+release-%:
+	@echo $*
+	@git checkout -B kismet-`echo $* | cut -d- -f1,2`
+	@git submodule update --remote docs/
+	@git commit docs -m "Doc update for $*" -m "Update docs submodule for release $*"
+	@./tools/make_version_h.py $* > version.h
+	@git commit version.h -m "Version bump for $*" -m "Bump versioning for release $*"
+	@git tag kismet-$*
+	@git archive --format tar --prefix kismet-$*/ kismet-$* | xz > ../kismet-$*.tar.xz
+	@git push origin kismet-`echo $* | cut -d- -f1,2` --tags
+	@git checkout master
+
 rpm:
 	@echo "Disabling SUID installation (RPM will handle setting the SUID bit.)"
 	@( export SUID="no"; export INSTGRP=`id -g`; export MANGRP=`id -g`; \
@@ -487,14 +581,10 @@ depclean:
 clean:
 	@-rm -f *.o *.mo
 	@-rm -f *.d
-	# @-rm -f kaitai_parsers/*.o
-	# @-rm -f kaitai_parsers/*.d
 	@-rm -f dot11_parsers/*.o
 	@-rm -f dot11_parsers/*.d
 	@-rm -f bluetooth_parsers/*.o
 	@-rm -f bluetooth_parsers/*.d
-	@-rm -f protobuf_cpp/*.pb.*
-	@-rm -f protobuf_c/*.pb-c.*
 	@-rm -f log_tools/*.o
 	@-rm -f log_tools/*.d
 	@-$(MAKE) all-plugins-clean
@@ -505,13 +595,21 @@ clean:
 	@-rm -f $(BUILD_CAPTURE_LINUX_BLUETOOTH)
 	@-rm -f $(BUILD_CAPTURE_OSX_COREWLAN)
 	@-rm -f $(BUILD_CAPTURE_HACKRF_SWEEP)
-	@-rm -f $(DATASOURCE_COMMON_A)
 	@(cd capture_linux_bluetooth && make clean)
 	@(cd capture_linux_wifi && make clean)
 	@(cd capture_osx_corewlan_wifi && make clean)
 	@(cd capture_sdr_rtl433 && make clean)
 	@(cd capture_sdr_rtlamr && make clean)
 	@(cd capture_sdr_rtladsb && make clean)
+	@(cd capture_nrf_mousejack && make clean)
+	@(cd capture_ti_cc_2540 && make clean)
+	@(cd capture_ubertooth_one && make clean)
+	@(cd capture_nrf_51822 && make clean)
+	@(cd capture_nxp_kw41z && make clean)
+	
+	@-rm -f $(DATASOURCE_COMMON_A)
+	@-rm -f protobuf_cpp/*.pb.*
+	@-rm -f protobuf_c/*.pb-c.*
 
 distclean:
 	@-$(MAKE) clean
@@ -615,6 +713,7 @@ include $(wildcard $(patsubst %cc.o,%cc.d,$(LOGTOOL_KISMETDB_WIGLE_O)))
 include $(wildcard $(patsubst %cc.o,%cc.d,$(LOGTOOL_KISMETDB_STRIP_O)))
 include $(wildcard $(patsubst %cc.o,%cc.d,$(LOGTOOL_KISMETDB_JSON_O)))
 include $(wildcard $(patsubst %cc.o,%cc.d,$(LOGTOOL_KISMETDB_STATS_O)))
+include $(wildcard $(patsubst %cc.o,%cc.d,$(LOGTOOL_KISMETDB_KML_O)))
 
 .SUFFIXES: .c .cc .o 
 

@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -21,8 +21,9 @@
 
 #include "config.h"
 
-#include <string>
 #include <map>
+#include <string>
+#include <unordered_map>
 
 #include "globalregistry.h"
 #include "kis_mutex.h"
@@ -34,15 +35,15 @@
 
 // Can appear in the list as either a numerical frequency or a named
 // channel
-class Channeltracker_V2_Channel : public tracker_component, public SharedGlobalData {
+class channel_tracker_v2_channel : public tracker_component, public shared_global_data {
 public:
-    Channeltracker_V2_Channel() :
+    channel_tracker_v2_channel() :
         tracker_component() {
         register_fields();
         reserve_fields(NULL);
     }
 
-    Channeltracker_V2_Channel(int in_id) :
+    channel_tracker_v2_channel(int in_id) :
         tracker_component(in_id) { 
         register_fields();
         reserve_fields(NULL);
@@ -50,7 +51,7 @@ public:
         // last_device_sec = 0;
     }
 
-    Channeltracker_V2_Channel(int in_id, std::shared_ptr<TrackerElementMap> e) : 
+    channel_tracker_v2_channel(int in_id, std::shared_ptr<tracker_element_map> e) : 
         tracker_component(in_id) {
 
         register_fields();
@@ -60,16 +61,16 @@ public:
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("Channeltracker_V2_Channel");
+        return adler32_checksum("channel_tracker_v2_channel");
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
+    virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
@@ -100,15 +101,15 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.channelrec.channel", "logical channel", &channel);
-        RegisterField("kismet.channelrec.frequency", "physical frequency", &frequency);
-        RegisterField("kismet.channelrec.packets_rrd", "packet count RRD", &packets_rrd);
-        RegisterField("kismet.channelrec.data_rrd", "byte count RRD", &data_rrd);
-        RegisterField("kismet.channelrec.device_rrd", "active devices RRD", &device_rrd);
-        RegisterField("kismet.channelrec.signal", "signal records", &signal_data);
+        register_field("kismet.channelrec.channel", "logical channel", &channel);
+        register_field("kismet.channelrec.frequency", "physical frequency", &frequency);
+        register_field("kismet.channelrec.packets_rrd", "packet count RRD", &packets_rrd);
+        register_field("kismet.channelrec.data_rrd", "byte count RRD", &data_rrd);
+        register_field("kismet.channelrec.device_rrd", "active devices RRD", &device_rrd);
+        register_field("kismet.channelrec.signal", "signal records", &signal_data);
     }
 
-    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override {
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
         tracker_component::reserve_fields(e);
 
         // Don't fast-forward the device RRD
@@ -116,10 +117,10 @@ protected:
     }
 
     // Channel, as string - Logical channels
-    std::shared_ptr<TrackerElementString> channel;
+    std::shared_ptr<tracker_element_string> channel;
 
     // Frequency, for collating
-    std::shared_ptr<TrackerElementDouble> frequency;
+    std::shared_ptr<tracker_element_double> frequency;
 
     // Packets per second RRD
     std::shared_ptr<kis_tracked_rrd<> > packets_rrd;
@@ -136,59 +137,45 @@ protected:
 
 };
 
-class Channeltracker_V2 : public tracker_component, 
-    public Kis_Net_Httpd_CPPStream_Handler, public LifetimeGlobal, 
-    public TimetrackerEvent {
+class channel_tracker_v2 : public lifetime_global {
 public:
     static std::string global_name() { return "CHANNEL_TRACKER"; }
 
-    static std::shared_ptr<Channeltracker_V2> create_channeltracker(GlobalRegistry *in_globalreg) {
-        std::shared_ptr<Channeltracker_V2> mon(new Channeltracker_V2(in_globalreg));
-        in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal(global_name(), mon);
+    static std::shared_ptr<channel_tracker_v2> create_channeltracker(global_registry *in_globalreg) {
+        std::shared_ptr<channel_tracker_v2> mon(new channel_tracker_v2(in_globalreg));
+        in_globalreg->register_lifetime_global(mon);
+        in_globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-    Channeltracker_V2(GlobalRegistry *in_globalreg);
+    channel_tracker_v2(global_registry *in_globalreg);
 
 public:
-    virtual ~Channeltracker_V2();
+    virtual ~channel_tracker_v2();
 
-    // HTTP API
-    virtual bool Httpd_VerifyPath(const char *path, const char *method);
-
-    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream);
-
-    // Timetracker API
-    virtual int timetracker_event(int event_id);
-
-    // Update device counts
-    void update_device_counts(std::map<double, unsigned int> in_counts);
-
+    // Update device counts - kept public so that the worker can access it
     int device_decay;
+    void update_device_counts(std::unordered_map<double, unsigned int> in_counts, time_t in_ts);
 
 protected:
     kis_recursive_timed_mutex lock;
 
-    std::shared_ptr<Devicetracker> devicetracker;
-    std::shared_ptr<Timetracker> timetracker;
+    std::shared_ptr<device_tracker> devicetracker;
+    std::shared_ptr<time_tracker> timetracker;
+    std::shared_ptr<entry_tracker> entrytracker;
 
-    // Packetchain callback
-    static int PacketChainHandler(CHAINCALL_PARMS);
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> channels_endp;
+    std::shared_ptr<tracker_element_map> channels_endp_handler();
 
-    // Tracker component
-    virtual void register_fields();
+    // packetchain callback
+    static int packet_chain_handler(CHAINCALL_PARMS);
 
-    // Seen channels as string-named channels, so logical channel allocation
-    // per phy
-    std::shared_ptr<TrackerElementStringMap> channel_map;
+    // Seen channels as string-named channels, aggregated across all the phys
+    std::shared_ptr<tracker_element_string_map> channel_map;
 
     // Collapsed frequency information, multi-phy, spec-an, etc
-    std::shared_ptr<TrackerElementDoubleMap> frequency_map;
+    std::shared_ptr<tracker_element_double_map> frequency_map;
 
     // Channel/freq content
     int channel_entry_id;
@@ -196,6 +183,9 @@ protected:
     int pack_comp_l1data, pack_comp_devinfo, pack_comp_common, pack_comp_device;
 
     int timer_id;
+    int gather_devices_event(int event_id);
+
+
 };
 
 #endif

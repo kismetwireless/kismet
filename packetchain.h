@@ -38,7 +38,6 @@
 
 #include "globalregistry.h"
 #include "kis_mutex.h"
-#include "packet.h"
 
 
 /* Packets are added to the packet queue from any thread (including the main 
@@ -52,7 +51,6 @@
  *
  * Packet chain progression
  * GENESIS
- *   --> genesis_chain
  * 
  * (arbitrary fill-in by whomever generated the packet before injection)
  * 
@@ -71,10 +69,8 @@
  * LOGGING
  * 
  * DESTROY
- *   --> destroy_chain
  */
 
-#define CHAINPOS_GENESIS        1
 #define CHAINPOS_POSTCAP        2
 #define CHAINPOS_LLCDISSECT     3
 #define CHAINPOS_DECRYPT        4
@@ -82,64 +78,63 @@
 #define CHAINPOS_CLASSIFIER     6
 #define CHAINPOS_TRACKER		7
 #define CHAINPOS_LOGGING        8
-#define CHAINPOS_DESTROY        9
 
-#define CHAINCALL_PARMS GlobalRegistry *globalreg __attribute__ ((unused)), \
+#define CHAINCALL_PARMS global_registry *globalreg __attribute__ ((unused)), \
     void *auxdata __attribute__ ((unused)), \
     kis_packet *in_pack
 
 class kis_packet;
 
-class Packetchain : public LifetimeGlobal {
+class packet_chain : public lifetime_global {
 public:
     static std::string global_name() { return "PACKETCHAIN"; }
 
-    static std::shared_ptr<Packetchain> create_packetchain() {
-        std::shared_ptr<Packetchain> mon(new Packetchain());
+    static std::shared_ptr<packet_chain> create_packetchain() {
+        std::shared_ptr<packet_chain> mon(new packet_chain());
         Globalreg::globalreg->packetchain = mon.get();
-        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-        Globalreg::globalreg->InsertGlobal(global_name(), mon);
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-    Packetchain();
+    packet_chain();
 
 public:
-    virtual ~Packetchain();
+    virtual ~packet_chain();
 
-    int RegisterPacketComponent(std::string in_component);
-    int RemovePacketComponent(int in_id);
-    std::string FetchPacketComponentName(int in_id);
+    int register_packet_component(std::string in_component);
+    int remove_packet_component(int in_id);
+    std::string fetch_packet_component_name(int in_id);
 
     // Generate a packet and hand it back
-    kis_packet *GeneratePacket();
+    kis_packet *generate_packet();
     // Inject a packet into the chain
-    int ProcessPacket(kis_packet *in_pack);
+    int process_packet(kis_packet *in_pack);
     // Destroy a packet at the end of its life
-    void DestroyPacket(kis_packet *in_pack);
+    void destroy_packet(kis_packet *in_pack);
  
     // Callback and information 
     typedef int (*pc_callback)(CHAINCALL_PARMS);
     typedef struct {
         int priority;
-		Packetchain::pc_callback callback;
+		packet_chain::pc_callback callback;
         std::function<int (kis_packet *)> l_callback;
         void *auxdata;
 		int id;
     } pc_link;
 
     // Register a callback, aux data, a chain to put it in, and the priority 
-    int RegisterHandler(pc_callback in_cb, void *in_aux, int in_chain, int in_prio);
-    int RegisterHandler(std::function<int (kis_packet *)> in_cb, int in_chain, int in_prio);
-    int RemoveHandler(pc_callback in_cb, int in_chain);
-	int RemoveHandler(int in_id, int in_chain);
+    int register_handler(pc_callback in_cb, void *in_aux, int in_chain, int in_prio);
+    int register_handler(std::function<int (kis_packet *)> in_cb, int in_chain, int in_prio);
+    int remove_handler(pc_callback in_cb, int in_chain);
+	int remove_handler(int in_id, int in_chain);
 
 protected:
     void packet_queue_processor();
 
     // Common function for both insertion methods
-    int RegisterIntHandler(pc_callback in_cb, void *in_aux, 
+    int register_int_handler(pc_callback in_cb, void *in_aux, 
             std::function<int (kis_packet *)> in_l_cb, 
             int in_chain, int in_prio);
 
@@ -148,27 +143,26 @@ protected:
     std::map<std::string, int> component_str_map;
     std::map<int, std::string> component_id_map;
 
-    // These two chains get called after a packet is generated and
-    // before the final destruction, respectively
-    std::vector<Packetchain::pc_link *> genesis_chain;
-    std::vector<Packetchain::pc_link *> destruction_chain;
-
     // Core chain components
-    std::vector<Packetchain::pc_link *> postcap_chain;
-    std::vector<Packetchain::pc_link *> llcdissect_chain;
-    std::vector<Packetchain::pc_link *> decrypt_chain;
-    std::vector<Packetchain::pc_link *> datadissect_chain;
-    std::vector<Packetchain::pc_link *> classifier_chain;
-	std::vector<Packetchain::pc_link *> tracker_chain;
-    std::vector<Packetchain::pc_link *> logging_chain;
+    std::vector<packet_chain::pc_link *> postcap_chain;
+    std::vector<packet_chain::pc_link *> llcdissect_chain;
+    std::vector<packet_chain::pc_link *> decrypt_chain;
+    std::vector<packet_chain::pc_link *> datadissect_chain;
+    std::vector<packet_chain::pc_link *> classifier_chain;
+	std::vector<packet_chain::pc_link *> tracker_chain;
+    std::vector<packet_chain::pc_link *> logging_chain;
 
-    // Whole packet-chain mutex
+    // Packet component mutex
+    kis_recursive_timed_mutex packetcomp_mutex;
+
+    // Packet chain mutex
     kis_recursive_timed_mutex packetchain_mutex;
 
-    std::vector<std::thread> packet_threads;
+    std::thread packet_thread;
 
-    kis_recursive_timed_mutex packetqueue_mutex;
-    conditional_locker<int> packet_condition;
+    std::mutex packetqueue_cv_mutex;
+    std::condition_variable packetqueue_cv;
+
     std::queue<kis_packet *> packet_queue;
     bool packetchain_shutdown;
 

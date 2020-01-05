@@ -28,32 +28,32 @@
 #include "messagebus.h"
 #include "kis_httpd_registry.h"
 
-Kis_Zwave_Phy::Kis_Zwave_Phy(GlobalRegistry *in_globalreg, int in_phyid) :
-    Kis_Phy_Handler(in_globalreg, in_phyid),
-    Kis_Net_Httpd_CPPStream_Handler() {
+Kis_Zwave_Phy::Kis_Zwave_Phy(global_registry *in_globalreg, int in_phyid) :
+    kis_phy_handler(in_globalreg, in_phyid),
+    kis_net_httpd_cppstream_handler() {
 
-    SetPhyName("Z-Wave");
+    set_phy_name("Z-Wave");
 
     packetchain =
-        Globalreg::FetchMandatoryGlobalAs<Packetchain>();
+        Globalreg::fetch_mandatory_global_as<packet_chain>();
     entrytracker =
-        Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
+        Globalreg::fetch_mandatory_global_as<entry_tracker>();
     devicetracker =
-        Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
+        Globalreg::fetch_mandatory_global_as<device_tracker>();
 
 	pack_comp_common = 
-		packetchain->RegisterPacketComponent("COMMON");
+		packetchain->register_packet_component("COMMON");
 
     zwave_device_id =
-        Globalreg::globalreg->entrytracker->RegisterField("zwave.device",
-                TrackerElementFactory<zwave_tracked_device>(),
+        Globalreg::globalreg->entrytracker->register_field("zwave.device",
+                tracker_element_factory<zwave_tracked_device>(),
                 "Z-Wave device");
 
-    zwave_manuf = Globalreg::globalreg->manufdb->MakeManuf("Z-Wave");
+    zwave_manuf = Globalreg::globalreg->manufdb->make_manuf("Z-Wave");
 
     // Register js module for UI
     auto httpregistry = 
-        Globalreg::FetchMandatoryGlobalAs<Kis_Httpd_Registry>("WEBREGISTRY");
+        Globalreg::fetch_mandatory_global_as<kis_httpd_registry>("WEBREGISTRY");
     httpregistry->register_js_module("kismet_ui_zwave", "js/kismet.ui.zwave.js");
 }
 
@@ -61,7 +61,7 @@ Kis_Zwave_Phy::~Kis_Zwave_Phy() {
 
 }
 
-bool Kis_Zwave_Phy::Httpd_VerifyPath(const char *path, const char *method) {
+bool Kis_Zwave_Phy::httpd_verify_path(const char *path, const char *method) {
     if (strcmp(method, "POST") == 0) {
         if (strcmp(path, "/phy/phyZwave/post_zwave_json.cmd") == 0)
             return true;
@@ -151,7 +151,7 @@ bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
     kis_common_info *common = new kis_common_info();
 
     common->type = packet_basic_data;
-    common->phyid = FetchPhyId();
+    common->phyid = fetch_phy_id();
     common->datasize = datasize;
 
     common->freq_khz = frequency;
@@ -162,7 +162,7 @@ bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
     pack->insert(pack_comp_common, common);
 
     std::shared_ptr<kis_tracked_device_base> basedev =
-        devicetracker->UpdateCommonDevice(common, common->source, this, pack,
+        devicetracker->update_common_device(common, common->source, this, pack,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY), "Z-Wave");
 
@@ -214,18 +214,18 @@ bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
     return true;
 }
 
-void Kis_Zwave_Phy::Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-        Kis_Net_Httpd_Connection *connection,
+void Kis_Zwave_Phy::httpd_create_stream_response(kis_net_httpd *httpd,
+        kis_net_httpd_connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
 
     return;
 }
 
-int Kis_Zwave_Phy::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
+int Kis_Zwave_Phy::httpd_post_complete(kis_net_httpd_connection *concls) {
 
     // Anything involving POST here requires a login
-    if (!httpd->HasValidSession(concls, true)) {
+    if (!httpd->has_valid_session(concls, true)) {
         return 1;
     }
 

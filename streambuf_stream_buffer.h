@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -30,24 +30,24 @@
 #include "globalregistry.h"
 #include "streamtracker.h"
 
-class Streambuf_Stream_Buffer : public streaming_agent {
+class streambuf_stream_buffer : public streaming_agent {
 public:
-    Streambuf_Stream_Buffer(GlobalRegistry *in_globalreg,
-            std::shared_ptr<BufferHandlerGeneric> in_handler,
+    streambuf_stream_buffer(global_registry *in_globalreg,
+            std::shared_ptr<buffer_handler_generic> in_handler,
             bool in_blocking);
 
-    virtual ~Streambuf_Stream_Buffer();
+    virtual ~streambuf_stream_buffer();
 
     virtual void stop_stream(std::string in_reason);
 
     virtual std::ostream *get_ostream();
 
 protected:
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
 
-    std::shared_ptr<BufferHandlerGeneric> handler;
+    std::shared_ptr<buffer_handler_generic> handler;
 
-    BufferHandlerOStreambuf streambuf;
+    buffer_handler_ostream_buf streambuf;
 };
 
 #endif

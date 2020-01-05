@@ -32,53 +32,55 @@
 #include "base64.h"
 #include "kis_databaselogfile.h"
 
-Alertracker::Alertracker() :
-    Kis_Net_Httpd_CPPStream_Handler() {
+alert_tracker::alert_tracker() :
+    kis_net_httpd_cppstream_handler() {
+
+    alert_mutex.set_name("alertracker");
 
 	next_alert_id = 0;
 
-    packetchain = Globalreg::FetchMandatoryGlobalAs<Packetchain>();
-    entrytracker = Globalreg::FetchMandatoryGlobalAs<EntryTracker>();
+    packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
+    entrytracker = Globalreg::fetch_mandatory_global_as<entry_tracker>();
 
     alert_vec_id =
-        entrytracker->RegisterField("kismet.alert.list",
-                TrackerElementFactory<TrackerElementVector>(), 
+        entrytracker->register_field("kismet.alert.list",
+                tracker_element_factory<tracker_element_vector>(), 
                 "list of alerts");
 
     alert_timestamp_id =
-        entrytracker->RegisterField("kismet.alert.timestamp",
-                TrackerElementFactory<TrackerElementDouble>(), 
+        entrytracker->register_field("kismet.alert.timestamp",
+                tracker_element_factory<tracker_element_double>(), 
                 "alert update timestamp");
 
     alert_entry_id =
-        entrytracker->RegisterField("kismet.alert.alert",
-                TrackerElementFactory<tracked_alert>(),
+        entrytracker->register_field("kismet.alert.alert",
+                tracker_element_factory<tracked_alert>(),
                 "Kismet alert");
 
 
     alert_defs_vec = 
-        entrytracker->RegisterAndGetFieldAs<TrackerElementVector>("kismet.alert.definition_list",
-                TrackerElementFactory<TrackerElementVector>(), 
+        entrytracker->register_and_get_field_as<tracker_element_vector>("kismet.alert.definition_list",
+                tracker_element_factory<tracker_element_vector>(), 
                 "Kismet alert definitions");
 
     alert_def_id =
-        entrytracker->RegisterField("kismet.alert.alert_definition",
-                TrackerElementFactory<tracked_alert_definition>(),
+        entrytracker->register_field("kismet.alert.alert_definition",
+                tracker_element_factory<tracked_alert_definition>(),
                 "Kismet alert definition");
 
 	// Register the alert component
     pack_comp_alert =
-		packetchain->RegisterPacketComponent("alert");
+		packetchain->register_packet_component("alert");
 
 	// Register a KISMET alert type with no rate restrictions
     alert_ref_kismet =
-		RegisterAlert("KISMET", "Server events", sat_day, 0, sat_day, 0, KIS_PHY_ANY);
+		register_alert("KISMET", "Server events", sat_day, 0, sat_day, 0, KIS_PHY_ANY);
 
 
-    Bind_Httpd_Server();
+    bind_httpd_server();
 
 	if (Globalreg::globalreg->kismet_config == NULL) {
-		fprintf(stderr, "FATAL OOPS:  Alertracker called with null config\n");
+		fprintf(stderr, "FATAL OOPS:  alert_tracker called with null config\n");
 		exit(1);
 	}
 
@@ -87,17 +89,17 @@ Alertracker::Alertracker() :
     int ret;
     ret = prelude_init(0, NULL);
     if (ret < 0) {
-        _MSG("Alertracker - Failed to initialize Prelude SIEM connection", MSGFLAG_FATAL);
+        _MSG("alert_tracker - Failed to initialize Prelude SIEM connection", MSGFLAG_FATAL);
         globalreg->fatal_condition = 1;
         return;
     }
 
-    PreludeInitClient(PRELUDE_ANALYZER_MODEL);
+    prelude_init_client(PRELUDE_ANALYZER_MODEL);
 #endif
 
-	if (Globalreg::globalreg->kismet_config->FetchOpt("alertbacklog") != "") {
+	if (Globalreg::globalreg->kismet_config->fetch_opt("alertbacklog") != "") {
 		int scantmp;
-		if (sscanf(Globalreg::globalreg->kismet_config->FetchOpt("alertbacklog").c_str(), 
+		if (sscanf(Globalreg::globalreg->kismet_config->fetch_opt("alertbacklog").c_str(), 
 				   "%d", &scantmp) != 1 || scantmp < 0) {
             _MSG("Illegal value for 'alertbacklog' in kismet.conf, expected number greater than zero.",
                     MSGFLAG_FATAL);
@@ -108,16 +110,16 @@ Alertracker::Alertracker() :
 	}
 
 	// Parse config file vector of all alerts
-	if (ParseAlertConfig(Globalreg::globalreg->kismet_config) < 0) {
+	if (parse_alert_config(Globalreg::globalreg->kismet_config) < 0) {
 		_MSG("Failed to parse alert values from Kismet config file", MSGFLAG_FATAL);
         Globalreg::globalreg->fatal_condition = 1;
 		return;
 	}
 
-    log_alerts = Globalreg::globalreg->kismet_config->FetchOptBoolean("kis_log_alerts", true);
+    log_alerts = Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_alerts", true);
 }
 
-Alertracker::~Alertracker() {
+alert_tracker::~alert_tracker() {
     local_locker lock(&alert_mutex);
 
     Globalreg::globalreg->RemoveGlobal("ALERTTRACKER");
@@ -129,7 +131,7 @@ Alertracker::~Alertracker() {
 #endif
 }
 
-void Alertracker::PreludeInitClient(const char *analyzer_name) {
+void alert_tracker::prelude_init_client(const char *analyzer_name) {
 #ifdef PRELUDE
     try {
         string version = 
@@ -142,7 +144,7 @@ void Alertracker::PreludeInitClient(const char *analyzer_name) {
                     PRELUDE_ANALYZER_CLASS, PRELUDE_ANALYZER_MANUFACTURER, version.c_str());
         prelude_client->start();
     } catch (Prelude::PreludeError const & error) {
-        _MSG(std::string("Alertracker failed to initialize connection to Prelude: ") + 
+        _MSG(std::string("alert_tracker failed to initialize connection to Prelude: ") + 
                 error.what(), MSGFLAG_FATAL);
         globalreg->fatal_condition = 1;
 
@@ -151,7 +153,7 @@ void Alertracker::PreludeInitClient(const char *analyzer_name) {
 #endif
 }
 
-int Alertracker::RegisterAlert(std::string in_header, std::string in_description, 
+int alert_tracker::register_alert(std::string in_header, std::string in_description, 
         alert_time_unit in_unit, int in_rate, alert_time_unit in_burstunit,
         int in_burst, int in_phy) {
     local_locker lock(&alert_mutex);
@@ -180,7 +182,7 @@ int Alertracker::RegisterAlert(std::string in_header, std::string in_description
         std::make_shared<tracked_alert_definition>(alert_def_id);
 
     arec->set_alert_ref(next_alert_id++);
-    arec->set_header(StrUpper(in_header));
+    arec->set_header(str_upper(in_header));
     arec->set_description(in_description);
     arec->set_limit_unit(in_unit);
     arec->set_limit_rate(in_rate);
@@ -197,7 +199,7 @@ int Alertracker::RegisterAlert(std::string in_header, std::string in_description
 	return arec->get_alert_ref();
 }
 
-int Alertracker::FetchAlertRef(std::string in_header) {
+int alert_tracker::fetch_alert_ref(std::string in_header) {
     local_locker lock(&alert_mutex);
 
     auto ni = alert_name_map.find(in_header);
@@ -208,7 +210,7 @@ int Alertracker::FetchAlertRef(std::string in_header) {
     return -1;
 }
 
-int Alertracker::CheckTimes(shared_alert_def arec) {
+int alert_tracker::check_times(shared_alert_def arec) {
     // Alerts limited to 0 are squelched
 	if (arec->get_limit_rate() == 0) {
 		return 0;
@@ -241,7 +243,7 @@ int Alertracker::CheckTimes(shared_alert_def arec) {
 	return 0;
 }
 
-int Alertracker::PotentialAlert(int in_ref) {
+int alert_tracker::potential_alert(int in_ref) {
     local_locker lock(&alert_mutex);
 
 	std::map<int, shared_alert_def>::iterator aritr = alert_ref_map.find(in_ref);
@@ -251,10 +253,10 @@ int Alertracker::PotentialAlert(int in_ref) {
 
 	shared_alert_def arec = aritr->second;
 
-	return CheckTimes(arec);
+	return check_times(arec);
 }
 
-int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
+int alert_tracker::raise_alert(int in_ref, kis_packet *in_pack,
 							mac_addr bssid, mac_addr source, mac_addr dest, 
 							mac_addr other, std::string in_channel, std::string in_text) {
 
@@ -269,7 +271,7 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 
 	shared_alert_def arec = aritr->second;
 
-	if (CheckTimes(arec) != 1)
+	if (check_times(arec) != 1)
 		return 0;
 
     lock.unlock();
@@ -320,7 +322,7 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 
 #ifdef PRELUDE
 	// Send alert to Prelude
-	RaisePreludeAlert(in_ref, in_pack, info->bssid, info->source, 
+	raise_prelude_alert(in_ref, in_pack, info->bssid, info->source, 
             info->dest, info->other, info->channel, info->text);
 #endif
 
@@ -329,7 +331,7 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 
     if (log_alerts) {
         auto dbf = 
-            Globalreg::FetchGlobalAs<KisDatabaseLogfile>("DATABASELOG");
+            Globalreg::FetchGlobalAs<kis_database_logfile>("DATABASELOG");
         if (dbf != NULL) {
             auto ta = std::make_shared<tracked_alert>(alert_entry_id);
             ta->from_alert_info(info);
@@ -340,7 +342,7 @@ int Alertracker::RaiseAlert(int in_ref, kis_packet *in_pack,
 	return 1;
 }
 
-int Alertracker::RaiseOneShot(std::string in_header, std::string in_text, int in_phy) {
+int alert_tracker::raise_one_shot(std::string in_header, std::string in_text, int in_phy) {
     local_demand_locker lock(&alert_mutex);
 
 	kis_alert_info *info = new kis_alert_info;
@@ -368,7 +370,7 @@ int Alertracker::RaiseOneShot(std::string in_header, std::string in_text, int in
 
 #ifdef PRELUDE
 	// Send alert to Prelude
-	RaisePreludeOneShot(in_header, in_text);
+	raise_prelude_one_shot(in_header, in_text);
 #endif
 
 	// Send the text info
@@ -376,7 +378,7 @@ int Alertracker::RaiseOneShot(std::string in_header, std::string in_text, int in
 
     if (log_alerts) {
         auto dbf =
-            Globalreg::FetchGlobalAs<KisDatabaseLogfile>("DATABASELOG");
+            Globalreg::FetchGlobalAs<kis_database_logfile>("DATABASELOG");
         if (dbf != NULL) {
             auto ta = std::make_shared<tracked_alert>(alert_entry_id);
             ta->from_alert_info(info);
@@ -387,7 +389,7 @@ int Alertracker::RaiseOneShot(std::string in_header, std::string in_text, int in
 	return 1;
 }
 
-int Alertracker::RaisePreludeAlert(int in_ref, kis_packet *in_pack,
+int alert_tracker::raise_prelude_alert(int in_ref, kis_packet *in_pack,
         mac_addr bssid, mac_addr source, mac_addr dest,
         mac_addr other, std::string in_channel, std::string in_text) {
 
@@ -402,13 +404,13 @@ int Alertracker::RaisePreludeAlert(int in_ref, kis_packet *in_pack,
     // Source
     if (source != emptymac) {
         idmef.set("alert.source(0).node.address(0).category", "mac");
-        idmef.set("alert.source(0).node.address(0).address", source.Mac2String().c_str());
+        idmef.set("alert.source(0).node.address(0).address", source.mac_to_string().c_str());
     }
 
     // Target
     if (dest != emptymac) {
         idmef.set("alert.target(0).node.address(0).category", "mac");
-        idmef.set("alert.target(0).node.address(0).address", dest.Mac2String().c_str());
+        idmef.set("alert.target(0).node.address(0).address", dest.mac_to_string().c_str());
     }
 
     // Assessment
@@ -419,12 +421,12 @@ int Alertracker::RaisePreludeAlert(int in_ref, kis_packet *in_pack,
     // Additional Data
     if (bssid != emptymac) {
         idmef.set("alert.additional_data(>>).meaning", "BSSID");
-        idmef.set("alert.additional_data(-1).data", bssid.Mac2String().c_str());
+        idmef.set("alert.additional_data(-1).data", bssid.mac_to_string().c_str());
     }
 
     if (other != emptymac) {
         idmef.set("alert.additional_data(>>).meaning", "Other");
-        idmef.set("alert.additional_data(-1).data", other.Mac2String().c_str());
+        idmef.set("alert.additional_data(-1).data", other.mac_to_string().c_str());
     }
 
     idmef.set("alert.additional_data(>>).meaning", "Channel");
@@ -439,7 +441,7 @@ int Alertracker::RaisePreludeAlert(int in_ref, kis_packet *in_pack,
     return 0;
 }
 
-int Alertracker::RaisePreludeOneShot(std::string in_header, std::string in_text) {
+int alert_tracker::raise_prelude_one_shot(std::string in_header, std::string in_text) {
 #ifdef PRELUDE
     mac_addr emptymac = mac_addr(0);
 
@@ -462,22 +464,22 @@ int Alertracker::RaisePreludeOneShot(std::string in_header, std::string in_text)
     return 0;
 }
 
-int Alertracker::ParseAlertStr(std::string alert_str, std::string *ret_name, 
+int alert_tracker::parse_alert_str(std::string alert_str, std::string *ret_name, 
         alert_time_unit *ret_limit_unit, int *ret_limit_rate,
         alert_time_unit *ret_limit_burst, 
         int *ret_burst_rate) {
 
-	std::vector<std::string> tokens = StrTokenize(alert_str, ",");
+	std::vector<std::string> tokens = str_tokenize(alert_str, ",");
 
 	if (tokens.size() != 3) {
         _MSG_ERROR("Malformed limits for alert '{}'", alert_str);
 		return -1;
 	}
 
-	(*ret_name) = StrUpper(tokens[0]);
+	(*ret_name) = str_upper(tokens[0]);
 
-	if (ParseRateUnit(StrLower(tokens[1]), ret_limit_unit, ret_limit_rate) != 1 ||
-		ParseRateUnit(StrLower(tokens[2]), ret_limit_burst, ret_burst_rate) != 1) {
+	if (parse_rate_unit(str_lower(tokens[1]), ret_limit_unit, ret_limit_rate) != 1 ||
+		parse_rate_unit(str_lower(tokens[2]), ret_limit_burst, ret_burst_rate) != 1) {
         _MSG_ERROR("Malformed limits for alert '{}'", alert_str);
 		return -1;
 	}
@@ -486,9 +488,9 @@ int Alertracker::ParseAlertStr(std::string alert_str, std::string *ret_name,
 }
 
 // Split up a rate/unit string into real values
-int Alertracker::ParseRateUnit(std::string in_ru, alert_time_unit *ret_unit,
+int alert_tracker::parse_rate_unit(std::string in_ru, alert_time_unit *ret_unit,
 							   int *ret_rate) {
-	std::vector<std::string> units = StrTokenize(in_ru, "/");
+	std::vector<std::string> units = str_tokenize(in_ru, "/");
 
 	if (units.size() == 1) {
 		// Unit is per minute if not specified
@@ -519,13 +521,13 @@ int Alertracker::ParseRateUnit(std::string in_ru, alert_time_unit *ret_unit,
 	return 1;
 }
 
-int Alertracker::ParseAlertConfig(ConfigFile *in_conf) {
-    std::vector<std::string> clines = in_conf->FetchOptVec("alert");
+int alert_tracker::parse_alert_config(config_file *in_conf) {
+    std::vector<std::string> clines = in_conf->fetch_opt_vec("alert");
 
     for (unsigned int x = 0; x < clines.size(); x++) {
         alert_conf_rec *rec = new alert_conf_rec;
 
-        if (ParseAlertStr(clines[x], &(rec->header), &(rec->limit_unit), 
+        if (parse_alert_str(clines[x], &(rec->header), &(rec->limit_unit), 
                     &(rec->limit_rate), &(rec->burst_unit), 
                     &(rec->limit_burst)) < 0) {
             _MSG_FATAL("Invalid 'alert' config option {}; expected HEADER,rate,burstrate", clines[x]);
@@ -540,18 +542,18 @@ int Alertracker::ParseAlertConfig(ConfigFile *in_conf) {
     return 1;
 }
 
-int Alertracker::DefineAlert(std::string name, alert_time_unit limit_unit, int limit_rate,
+int alert_tracker::define_alert(std::string name, alert_time_unit limit_unit, int limit_rate,
         alert_time_unit burst_unit, int burst_rate) {
     local_locker lock(&alert_mutex);
 
-    auto ai = alert_conf_map.find(StrUpper(name));
+    auto ai = alert_conf_map.find(str_upper(name));
     if (ai != alert_conf_map.end()) {
         _MSG_ERROR("alerttracker - tried to define alert '{}' twice.", name);
         return -1;
     }
 
     alert_conf_rec *rec = new alert_conf_rec;
-    rec->header = StrUpper(name);
+    rec->header = str_upper(name);
     rec->limit_unit = limit_unit;
     rec->limit_rate = limit_rate;
     rec->burst_unit = burst_unit;
@@ -562,23 +564,23 @@ int Alertracker::DefineAlert(std::string name, alert_time_unit limit_unit, int l
     return 1;
 }
 
-int Alertracker::ActivateConfiguredAlert(std::string in_header, std::string in_desc) {
-	return ActivateConfiguredAlert(in_header, in_desc, KIS_PHY_UNKNOWN);
+int alert_tracker::activate_configured_alert(std::string in_header, std::string in_desc) {
+	return activate_configured_alert(in_header, in_desc, KIS_PHY_UNKNOWN);
 }
 
-int Alertracker::ActivateConfiguredAlert(std::string in_header, std::string in_desc, int in_phy) {
+int alert_tracker::activate_configured_alert(std::string in_header, std::string in_desc, int in_phy) {
     alert_conf_rec *rec;
 
     {
         local_locker lock(&alert_mutex);
 
-        std::string hdr = StrUpper(in_header);
+        std::string hdr = str_upper(in_header);
 
         auto hi = alert_conf_map.find(hdr);
 
         if (hi == alert_conf_map.end()) {
             _MSG_INFO("Using default rates of 10/min, 1/sec for alert '{}'", in_header);
-            DefineAlert(in_header, sat_minute, 10, sat_second, 1);
+            define_alert(in_header, sat_minute, 10, sat_second, 1);
 
             auto hi_full = alert_conf_map.find(hdr);
             if (hi_full == alert_conf_map.end()) {
@@ -592,11 +594,11 @@ int Alertracker::ActivateConfiguredAlert(std::string in_header, std::string in_d
         }
     }
 
-	return RegisterAlert(rec->header, in_desc, rec->limit_unit, rec->limit_rate, 
+	return register_alert(rec->header, in_desc, rec->limit_unit, rec->limit_rate, 
             rec->burst_unit, rec->limit_burst, in_phy);
 }
 
-int Alertracker::FindActivatedAlert(std::string in_header) {
+int alert_tracker::find_activated_alert(std::string in_header) {
     local_locker lock(&alert_mutex);
 
     for (auto x : alert_ref_map) {
@@ -607,26 +609,26 @@ int Alertracker::FindActivatedAlert(std::string in_header) {
     return -1;
 }
 
-bool Alertracker::Httpd_VerifyPath(const char *path, const char *method) {
-    if (!Httpd_CanSerialize(path))
+bool alert_tracker::httpd_verify_path(const char *path, const char *method) {
+    if (!httpd_can_serialize(path))
         return false;
 
     if (strcmp(method, "GET") == 0) {
         // Split URL and process
-        std::vector<std::string> tokenurl = StrTokenize(path, "/");
+        std::vector<std::string> tokenurl = str_tokenize(path, "/");
         if (tokenurl.size() < 3)
             return false;
 
         if (tokenurl[1] == "alerts") {
-            if (Httpd_StripSuffix(tokenurl[2]) == "definitions") {
+            if (httpd_strip_suffix(tokenurl[2]) == "definitions") {
                 return true;
-            } else if (Httpd_StripSuffix(tokenurl[2]) == "all_alerts") {
+            } else if (httpd_strip_suffix(tokenurl[2]) == "all_alerts") {
                 return true;
             } else if (tokenurl[2] == "last-time") {
                 if (tokenurl.size() < 5)
                     return false;
 
-                if (Httpd_CanSerialize(tokenurl[4]))
+                if (httpd_can_serialize(tokenurl[4]))
                     return true;
 
                 return false;
@@ -637,7 +639,7 @@ bool Alertracker::Httpd_VerifyPath(const char *path, const char *method) {
     } 
 
     if (strcmp(method, "POST") == 0) {
-        std::string stripped = httpd->StripSuffix(path);
+        std::string stripped = httpd->strip_suffix(path);
 
         if (stripped == "/alerts/definitions/define_alert")
             return true;
@@ -651,9 +653,9 @@ bool Alertracker::Httpd_VerifyPath(const char *path, const char *method) {
     return false;
 }
 
-void Alertracker::Httpd_CreateStreamResponse(
-        Kis_Net_Httpd *httpd __attribute__((unused)),
-        Kis_Net_Httpd_Connection *connection,
+void alert_tracker::httpd_create_stream_response(
+        kis_net_httpd *httpd __attribute__((unused)),
+        kis_net_httpd_connection *connection,
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size, std::stringstream &stream) {
 
@@ -664,17 +666,17 @@ void Alertracker::Httpd_CreateStreamResponse(
         return;
     }
 
-    if (!Httpd_CanSerialize(path))
+    if (!httpd_can_serialize(path))
         return;
 
     // Split URL and process
-    std::vector<std::string> tokenurl = StrTokenize(path, "/");
+    std::vector<std::string> tokenurl = str_tokenize(path, "/");
     if (tokenurl.size() < 3)
         return;
 
     if (tokenurl[1] == "alerts") {
-        if (Httpd_StripSuffix(tokenurl[2]) == "definitions") {
-            Httpd_Serialize(path, stream, alert_defs_vec);
+        if (httpd_strip_suffix(tokenurl[2]) == "definitions") {
+            httpd_serialize(path, stream, alert_defs_vec, nullptr, connection);
             return;
         } else if (tokenurl[2] == "last-time") {
             if (tokenurl.size() < 5)
@@ -687,16 +689,16 @@ void Alertracker::Httpd_CreateStreamResponse(
         }
     }
 
-    std::shared_ptr<TrackerElement> transmit;
-    std::shared_ptr<TrackerElementMap> wrapper;
-    std::shared_ptr<TrackerElementVector> msgvec = std::make_shared<TrackerElementVector>(alert_vec_id);
+    std::shared_ptr<tracker_element> transmit;
+    std::shared_ptr<tracker_element_map> wrapper;
+    std::shared_ptr<tracker_element_vector> msgvec = std::make_shared<tracker_element_vector>(alert_vec_id);
 
     // If we're doing a time-since, wrap the vector
     if (wrap) {
-        wrapper = std::make_shared<TrackerElementMap>();
+        wrapper = std::make_shared<tracker_element_map>();
         wrapper->insert(msgvec);
 
-        auto ts = std::make_shared<TrackerElementDouble>(alert_timestamp_id, ts_now_to_double());
+        auto ts = std::make_shared<tracker_element_double>(alert_timestamp_id, ts_now_to_double());
         wrapper->insert(ts);
 
         transmit = wrapper;
@@ -716,13 +718,13 @@ void Alertracker::Httpd_CreateStreamResponse(
         }
     }
 
-    Httpd_Serialize(path, stream, transmit);
+    httpd_serialize(path, stream, transmit, nullptr, connection);
 }
 
-int Alertracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
-    std::string stripped = Httpd_StripSuffix(concls->url);
+int alert_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
+    std::string stripped = httpd_strip_suffix(concls->url);
    
-    if (!Httpd_CanSerialize(concls->url) ||
+    if (!httpd_can_serialize(concls->url) ||
             (stripped != "/alerts/definitions/define_alert" &&
              stripped != "/alerts/raise_alert")) {
         concls->response_stream << "Invalid request";
@@ -730,23 +732,23 @@ int Alertracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
         return 1;
     }
 
-    if (!httpd->HasValidSession(concls, true)) {
+    if (!httpd->has_valid_session(concls, true)) {
         concls->httpcode = 503;
         return MHD_NO;
     }
 
-    SharedStructured structdata;
+    shared_structured structdata;
 
     try {
         if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
-            structdata.reset(new StructuredJson(concls->variable_cache["json"]->str()));
+            structdata.reset(new structured_json(concls->variable_cache["json"]->str()));
         } else {
             throw std::runtime_error("could not find data");
         }
 
         if (stripped == "/alerts/definitions/define_alert") {
-            std::string name = structdata->getKeyAsString("name");
-            std::string desc = structdata->getKeyAsString("description");
+            std::string name = structdata->key_as_string("name");
+            std::string desc = structdata->key_as_string("description");
 
             alert_time_unit limit_unit;
             int limit_rate;
@@ -754,37 +756,37 @@ int Alertracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             alert_time_unit burst_unit;
             int burst_rate;
 
-            if (ParseRateUnit(StrLower(structdata->getKeyAsString("throttle", "")),
+            if (parse_rate_unit(str_lower(structdata->key_as_string("throttle", "")),
                         &limit_unit, &limit_rate) < 0) {
                 throw std::runtime_error("could not parse throttle limits");
             }
 
-            if (ParseRateUnit(StrLower(structdata->getKeyAsString("burst", "")),
+            if (parse_rate_unit(str_lower(structdata->key_as_string("burst", "")),
                         &burst_unit, &burst_rate) < 0) {
                 throw std::runtime_error("could not parse burst limits");
             }
 
             int phyid = KIS_PHY_ANY;
 
-            std::string phyname = structdata->getKeyAsString("phyname", "");
+            std::string phyname = structdata->key_as_string("phyname", "");
 
             if (phyname != "any" && phyname != "") {
                 auto devicetracker = 
-                    Globalreg::FetchMandatoryGlobalAs<Devicetracker>();
-                Kis_Phy_Handler *phyh = devicetracker->FetchPhyHandlerByName(phyname);
+                    Globalreg::fetch_mandatory_global_as<device_tracker>();
+                kis_phy_handler *phyh = devicetracker->fetch_phy_handler_by_name(phyname);
 
                 if (phyh == NULL)
                     throw std::runtime_error("could not find phy");
 
-                phyid = phyh->FetchPhyId();
+                phyid = phyh->fetch_phy_id();
             }
 
-            if (DefineAlert(name, limit_unit, limit_rate, burst_unit, burst_rate) < 0) {
+            if (define_alert(name, limit_unit, limit_rate, burst_unit, burst_rate) < 0) {
                 concls->httpcode = 503;
                 throw std::runtime_error("could not add alert");
             }
 
-            if (ActivateConfiguredAlert(name, desc, phyid) < 0) {
+            if (activate_configured_alert(name, desc, phyid) < 0) {
                 concls->httpcode = 504;
                 throw std::runtime_error("could not activate alert");
             }
@@ -793,20 +795,20 @@ int Alertracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
             return 1;
 
         } else if (stripped == "/alerts/raise_alert") {
-            std::string name = structdata->getKeyAsString("name");
+            std::string name = structdata->key_as_string("name");
     
-            int aref = FetchAlertRef(name);
+            int aref = fetch_alert_ref(name);
 
             if (aref < 0)
                 throw std::runtime_error("unknown alert type");
 
-            std::string text = structdata->getKeyAsString("text");
+            std::string text = structdata->key_as_string("text");
 
-            std::string bssid = structdata->getKeyAsString("bssid", "");
-            std::string source = structdata->getKeyAsString("source", "");
-            std::string dest = structdata->getKeyAsString("dest", "");
-            std::string other = structdata->getKeyAsString("other", "");
-            std::string channel = structdata->getKeyAsString("channel", "");
+            std::string bssid = structdata->key_as_string("bssid", "");
+            std::string source = structdata->key_as_string("source", "");
+            std::string dest = structdata->key_as_string("dest", "");
+            std::string other = structdata->key_as_string("other", "");
+            std::string channel = structdata->key_as_string("channel", "");
 
             mac_addr bssid_mac, source_mac, dest_mac, other_mac;
 
@@ -828,10 +830,10 @@ int Alertracker::Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) {
                 throw std::runtime_error("invalid mac");
             }
 
-            if (!PotentialAlert(aref)) 
+            if (!potential_alert(aref)) 
                 throw std::runtime_error("alert limit reached");
 
-            RaiseAlert(aref, NULL, bssid_mac, source_mac, dest_mac, other_mac,
+            raise_alert(aref, NULL, bssid_mac, source_mac, dest_mac, other_mac,
                     channel, text);
 
             concls->response_stream << "alert raised";

@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -30,19 +30,19 @@
 #include "devicetracker_component.h"
 #include "streamtracker.h"
 
-class KisLogfileBuilder;
-typedef std::shared_ptr<KisLogfileBuilder> SharedLogBuilder;
+class kis_logfile_builder;
+typedef std::shared_ptr<kis_logfile_builder> shared_log_builder;
 
-class KisLogfile;
-typedef std::shared_ptr<KisLogfile> SharedLogfile;
+class kis_logfile;
+typedef std::shared_ptr<kis_logfile> shared_logfile;
 
 // Logfile builders are responsible for telling the logging tracker what sort of 
 // log we are, the type and default name, if we're a singleton log that can't have multiple
 // simultaneous instances, how to actually instantiate the log, and various other
 // attributes
-class KisLogfileBuilder : public tracker_component {
+class kis_logfile_builder : public tracker_component {
 public:
-    KisLogfileBuilder() :
+    kis_logfile_builder() :
         tracker_component() {
         register_fields();
         reserve_fields(NULL);
@@ -50,7 +50,7 @@ public:
         initialize();
     }
 
-    KisLogfileBuilder(int in_id) :
+    kis_logfile_builder(int in_id) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(NULL);
@@ -58,7 +58,7 @@ public:
         initialize();
     }
 
-    KisLogfileBuilder(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    kis_logfile_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
@@ -66,19 +66,19 @@ public:
         initialize();
     }
 
-    virtual ~KisLogfileBuilder() { };
+    virtual ~kis_logfile_builder() { };
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("KisLogfileBuilder");
+        return adler32_checksum("kis_logfile_builder");
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
+    virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
@@ -86,7 +86,7 @@ public:
 
     // Take a shared_ptr reference to ourselves from the caller, because we can't 
     // consistently get a universal shared_ptr to 'this'
-    virtual SharedLogfile build_logfile(SharedLogBuilder) {
+    virtual shared_logfile build_logfile(shared_log_builder) {
         return NULL;
     }
 
@@ -102,44 +102,44 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.logfile.type.class", "class/type", &log_class);
-        RegisterField("kismet.logfile.type.name", "base type name", &log_name);
-        RegisterField("kismet.logfile.type.stream", "continual streaming", &stream_log);
-        RegisterField("kismet.logfile.type.singleton", 
+        register_field("kismet.logfile.type.class", "class/type", &log_class);
+        register_field("kismet.logfile.type.name", "base type name", &log_name);
+        register_field("kismet.logfile.type.stream", "continual streaming", &stream_log);
+        register_field("kismet.logfile.type.singleton", 
                 "single-instance of log type permitted", &singleton);
-        RegisterField("kismet.logfile.type.description", "base description", &description);
+        register_field("kismet.logfile.type.description", "base description", &description);
     }
 
-    std::shared_ptr<TrackerElementString> log_class;
-    std::shared_ptr<TrackerElementString> log_name;
-    std::shared_ptr<TrackerElementUInt8> stream_log;
-    std::shared_ptr<TrackerElementUInt8> singleton;
-    std::shared_ptr<TrackerElementString> description;
+    std::shared_ptr<tracker_element_string> log_class;
+    std::shared_ptr<tracker_element_string> log_name;
+    std::shared_ptr<tracker_element_uint8> stream_log;
+    std::shared_ptr<tracker_element_uint8> singleton;
+    std::shared_ptr<tracker_element_string> description;
 };
 
 // Logfiles written to disk can be 'block' logs (like the device log), or they can be
 // streaming logs (like gps or pcapng streams); 
-class KisLogfile : public tracker_component, public streaming_agent {
+class kis_logfile : public tracker_component, public streaming_agent {
 public:
-    KisLogfile() :
+    kis_logfile() :
         tracker_component() {
         register_fields();
         reserve_fields(NULL);
     }
 
-    KisLogfile(int in_id) :
+    kis_logfile(int in_id) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(NULL);
     }
 
-    KisLogfile(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    kis_logfile(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
 
-    KisLogfile(SharedLogBuilder in_builder) :
+    kis_logfile(shared_log_builder in_builder) :
         tracker_component() {
         register_fields();
         reserve_fields(NULL);
@@ -149,38 +149,38 @@ public:
             insert(builder);
 
         uuid luuid;
-        luuid.GenerateRandomTimeUUID();
+        luuid.generate_random_time_uuid();
         set_int_log_uuid(luuid);
     }
 
-    virtual ~KisLogfile() { 
+    virtual ~kis_logfile() { 
         local_locker l(&log_mutex);
 
         if (builder != NULL && builder->get_stream()) {
-            std::shared_ptr<StreamTracker> streamtracker = 
-                Globalreg::FetchMandatoryGlobalAs<StreamTracker>("STREAMTRACKER");
+            std::shared_ptr<stream_tracker> streamtracker = 
+                Globalreg::fetch_mandatory_global_as<stream_tracker>("STREAMTRACKER");
 
             streamtracker->remove_streamer(get_stream_id());
         }
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("KisLogfile");
+        return adler32_checksum("kis_logfile");
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
+    virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
     }
 
-    virtual bool Log_Open(std::string in_path) { 
+    virtual bool open_log(std::string in_path) { 
         local_locker lock(&log_mutex);
 
         set_int_log_path(in_path);
@@ -189,14 +189,14 @@ public:
         return false; 
     }
 
-    virtual void Log_Close() { 
+    virtual void close_log() { 
         local_locker lock(&log_mutex);
 
         set_int_log_open(false);
     }
 
     __ProxyPrivSplit(log_uuid, uuid, uuid, uuid, log_uuid);
-    __ProxyTrackable(builder, KisLogfileBuilder, builder);
+    __ProxyTrackable(builder, kis_logfile_builder, builder);
     __ProxyPrivSplit(log_path, std::string, std::string, std::string, log_path);
     __ProxyPrivSplit(log_open, uint8_t, bool, bool, log_open);
     __ProxyPrivSplit(log_desc, std::string, std::string, std::string, log_description);
@@ -205,67 +205,67 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.logfile.uuid", "unique log id", &log_uuid);
-        RegisterField("kismet.logfile.description", "log description", &log_description);
-        RegisterField("kismet.logfile.path", "filesystem path to log", &log_path);
-        RegisterField("kismet.logfile.open", "log is currently open", &log_open);
+        register_field("kismet.logfile.uuid", "unique log id", &log_uuid);
+        register_field("kismet.logfile.description", "log description", &log_description);
+        register_field("kismet.logfile.path", "filesystem path to log", &log_path);
+        register_field("kismet.logfile.open", "log is currently open", &log_open);
 
     }
 
     // Builder/prototype that made us
-    SharedLogBuilder builder;
+    shared_log_builder builder;
 
     kis_recursive_timed_mutex log_mutex;
 
-    std::shared_ptr<TrackerElementUUID> log_uuid;
-    std::shared_ptr<TrackerElementString> log_description;
-    std::shared_ptr<TrackerElementString> log_path;
-    std::shared_ptr<TrackerElementUInt8> log_open;
+    std::shared_ptr<tracker_element_uuid> log_uuid;
+    std::shared_ptr<tracker_element_string> log_description;
+    std::shared_ptr<tracker_element_string> log_path;
+    std::shared_ptr<tracker_element_uint8> log_open;
 };
 
-class LogTracker : public tracker_component, public Kis_Net_Httpd_CPPStream_Handler, 
-    public LifetimeGlobal, public DeferredStartup {
+class log_tracker : public tracker_component, public kis_net_httpd_cppstream_handler, 
+    public lifetime_global, public deferred_startup {
 public:
     static std::string global_name() { return "LOGTRACKER"; }
 
-    static std::shared_ptr<LogTracker> create_logtracker() {
-        std::shared_ptr<LogTracker> mon(new LogTracker());
-        Globalreg::globalreg->RegisterLifetimeGlobal(mon);
-        Globalreg::globalreg->RegisterDeferredGlobal(mon);
-        Globalreg::globalreg->InsertGlobal(global_name(), mon);
+    static std::shared_ptr<log_tracker> create_logtracker() {
+        std::shared_ptr<log_tracker> mon(new log_tracker());
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->register_deferred_global(mon);
+        Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
     // HTTP API
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
+    virtual bool httpd_verify_path(const char *path, const char *method) override;
 
-    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream) override;
-    virtual int Httpd_PostComplete(Kis_Net_Httpd_Connection *concls) override;
+    virtual int httpd_post_complete(kis_net_httpd_connection *concls) override;
 
-    virtual void Deferred_Startup() override;
-    virtual void Deferred_Shutdown() override;
+    virtual void trigger_deferred_startup() override;
+    virtual void trigger_deferred_shutdown() override;
 
     // Register a log type
-    int register_log(SharedLogBuilder in_builder);
+    int register_log(shared_log_builder in_builder);
 
     // Open a log
-    SharedLogfile open_log(std::string in_class);
-    SharedLogfile open_log(SharedLogBuilder in_builder);
-    SharedLogfile open_log(std::string in_class, std::string in_title);
-    SharedLogfile open_log(SharedLogBuilder in_builder, std::string in_title);
+    shared_logfile open_log(std::string in_class);
+    shared_logfile open_log(shared_log_builder in_builder);
+    shared_logfile open_log(std::string in_class, std::string in_title);
+    shared_logfile open_log(shared_log_builder in_builder, std::string in_title);
 
-    // Close a log
-    int close_log(SharedLogfile in_logfile);
+    // close a log
+    int close_log(shared_logfile in_logfile);
 
-    static void Usage(const char *argv0);
+    static void usage(const char *argv0);
 private:
-    LogTracker();
+    log_tracker();
 
 public:
-    virtual ~LogTracker();
+    virtual ~log_tracker();
 
     __ProxyPrivSplit(logging_enabled, uint8_t, bool, bool, logging_enabled);
     __ProxyPrivSplit(log_title, std::string, std::string, std::string, log_title);
@@ -274,27 +274,27 @@ public:
 
 protected:
     virtual void register_fields() override;
-    virtual void reserve_fields(std::shared_ptr<TrackerElementMap> e) override;
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;
 
     kis_recursive_timed_mutex tracker_mutex;
 
-    std::shared_ptr<StreamTracker> streamtracker;
+    std::shared_ptr<stream_tracker> streamtracker;
 
     // Vector of prototypes
-    std::shared_ptr<TrackerElementVector> logproto_vec;
+    std::shared_ptr<tracker_element_vector> logproto_vec;
     int logproto_entry_id;
 
     // Vector of logs
-    std::shared_ptr<TrackerElementVector> logfile_vec;
+    std::shared_ptr<tracker_element_vector> logfile_vec;
     int logfile_entry_id;
 
     // Various global config items common to all
-    std::shared_ptr<TrackerElementUInt8> logging_enabled;
-    std::shared_ptr<TrackerElementString> log_title;
-    std::shared_ptr<TrackerElementString> log_prefix;
-    std::shared_ptr<TrackerElementString> log_template;
+    std::shared_ptr<tracker_element_uint8> logging_enabled;
+    std::shared_ptr<tracker_element_string> log_title;
+    std::shared_ptr<tracker_element_string> log_prefix;
+    std::shared_ptr<tracker_element_string> log_template;
 
-    std::shared_ptr<TrackerElementVector> log_types_vec;
+    std::shared_ptr<tracker_element_vector> log_types_vec;
 };
 
 #endif

@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -46,23 +46,23 @@ public:
         reserve_fields(NULL);
     }
 
-    tracked_message(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    tracked_message(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("tracked_message");
+        return adler32_checksum("tracked_message");
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
+    virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
@@ -86,39 +86,39 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.messagebus.message_string", "Message content", &message);
-        RegisterField("kismet.messagebus.message_flags", "Message flags (per messagebus.h)", &flags);
-        RegisterField("kismet.messagebus.message_time", "Message time_t", &timestamp);
+        register_field("kismet.messagebus.message_string", "Message content", &message);
+        register_field("kismet.messagebus.message_flags", "Message flags (per messagebus.h)", &flags);
+        register_field("kismet.messagebus.message_time", "Message time_t", &timestamp);
     }
 
-    std::shared_ptr<TrackerElementString> message;
-    std::shared_ptr<TrackerElementInt32> flags;
-    std::shared_ptr<TrackerElementUInt64> timestamp;
+    std::shared_ptr<tracker_element_string> message;
+    std::shared_ptr<tracker_element_int32> flags;
+    std::shared_ptr<tracker_element_uint64> timestamp;
 };
 
-class RestMessageClient : public MessageClient, public Kis_Net_Httpd_CPPStream_Handler,
-    public LifetimeGlobal {
+class rest_message_client : public message_client, public kis_net_httpd_cppstream_handler,
+    public lifetime_global {
 public:
-    static std::shared_ptr<RestMessageClient> 
-        create_messageclient(GlobalRegistry *in_globalreg) {
-        std::shared_ptr<RestMessageClient> mon(new RestMessageClient(in_globalreg, NULL));
-        in_globalreg->RegisterLifetimeGlobal(mon);
-        in_globalreg->InsertGlobal("REST_MSG_CLIENT", mon);
+    static std::shared_ptr<rest_message_client> 
+        create_messageclient(global_registry *in_globalreg) {
+        std::shared_ptr<rest_message_client> mon(new rest_message_client(in_globalreg, NULL));
+        in_globalreg->register_lifetime_global(mon);
+        in_globalreg->insert_global("REST_MSG_CLIENT", mon);
         return mon;
     }
 
 private:
-    RestMessageClient(GlobalRegistry *in_globalreg, void *in_aux);
+    rest_message_client(global_registry *in_globalreg, void *in_aux);
 
 public:
-	virtual ~RestMessageClient();
+	virtual ~rest_message_client();
 
-    virtual void ProcessMessage(std::string in_msg, int in_flags) override;
+    virtual void process_message(std::string in_msg, int in_flags) override;
 
-    virtual bool Httpd_VerifyPath(const char *path, const char *method) override;
+    virtual bool httpd_verify_path(const char *path, const char *method) override;
 
-    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream) override;
 

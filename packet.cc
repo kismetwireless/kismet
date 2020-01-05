@@ -26,19 +26,22 @@
 #endif
 
 #include <algorithm>
+#include <map>
 #include <string>
 #include <vector>
-#include <map>
 
 #include "globalregistry.h"
-#include "packetchain.h"
 #include "macaddr.h"
+#include "packet.h"
+#include "packetchain.h"
 #include "packet_ieee80211.h"
 
-kis_packet::kis_packet(GlobalRegistry *in_globalreg) {
+
+kis_packet::kis_packet(global_registry *in_globalreg) {
 	globalreg = in_globalreg;
 
 	error = 0;
+    crc_ok = 0;
 	filtered = 0;
     duplicate = 0;
 
@@ -69,7 +72,7 @@ void kis_packet::insert(const unsigned int index, packet_component *data) {
 	if (content_vec[index] != NULL)
 		fprintf(stderr, "DEBUG/WARNING: Leaking packet component %u/%s, inserting "
 				"on top of existing\n", index,
-				globalreg->packetchain->FetchPacketComponentName(index).c_str());
+				globalreg->packetchain->fetch_packet_component_name(index).c_str());
 	content_vec[index] = data;
 }
 

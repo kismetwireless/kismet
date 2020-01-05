@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -60,23 +60,23 @@ public:
     }
 
     mousejack_tracked_device(int in_id, 
-            std::shared_ptr<TrackerElementMap> e) :
+            std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
 
     virtual uint32_t get_signature() const override {
-        return Adler32Checksum("mousejack_tracked_device");
+        return adler32_checksum("mousejack_tracked_device");
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
+    virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
@@ -89,30 +89,30 @@ protected:
     }
 };
 
-class Kis_Mousejack_Phy : public Kis_Phy_Handler {
+class Kis_Mousejack_Phy : public kis_phy_handler {
 public:
-    Kis_Mousejack_Phy(GlobalRegistry *in_globalreg) :
-        Kis_Phy_Handler(in_globalreg) { }
+    Kis_Mousejack_Phy(global_registry *in_globalreg) :
+        kis_phy_handler(in_globalreg) { }
 
-    Kis_Mousejack_Phy(GlobalRegistry *in_globalreg, int in_phyid);
+    Kis_Mousejack_Phy(global_registry *in_globalreg, int in_phyid);
 
     virtual ~Kis_Mousejack_Phy();
 
-    virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg, int in_phyid) {
+    virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg, int in_phyid) {
         return new Kis_Mousejack_Phy(in_globalreg, in_phyid);
     }
 
     static int DissectorMousejack(CHAINCALL_PARMS);
     static int CommonClassifierMousejack(CHAINCALL_PARMS);
 
-    virtual void LoadPhyStorage(SharedTrackerElement in_storage,
-            SharedTrackerElement in_device);
+    virtual void load_phy_storage(shared_tracker_element in_storage,
+            shared_tracker_element in_device);
 
 
 protected:
-    std::shared_ptr<Packetchain> packetchain;
-    std::shared_ptr<EntryTracker> entrytracker;
-    std::shared_ptr<Devicetracker> devicetracker;
+    std::shared_ptr<packet_chain> packetchain;
+    std::shared_ptr<entry_tracker> entrytracker;
+    std::shared_ptr<device_tracker> devicetracker;
 
     int mousejack_device_entry_id;
     int dev_comp_common;
@@ -120,10 +120,10 @@ protected:
 
     int dlt;
 
-    std::shared_ptr<TrackerElementString> mj_manuf_amazon;
-    std::shared_ptr<TrackerElementString> mj_manuf_logitech;
-    std::shared_ptr<TrackerElementString> mj_manuf_microsoft;
-    std::shared_ptr<TrackerElementString> mj_manuf_nrf;
+    std::shared_ptr<tracker_element_string> mj_manuf_amazon;
+    std::shared_ptr<tracker_element_string> mj_manuf_logitech;
+    std::shared_ptr<tracker_element_string> mj_manuf_microsoft;
+    std::shared_ptr<tracker_element_string> mj_manuf_nrf;
 
 };
 

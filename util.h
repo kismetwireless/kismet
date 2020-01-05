@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
+      but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -59,21 +59,21 @@
 #include "multi_constexpr.h"
 
 // Munge a string to characters safe for calling in a shell
-std::string MungeToPrintable(const char *in_data, unsigned int max, int nullterm);
-std::string MungeToPrintable(const std::string& in_str);
+std::string munge_to_printable(const char *in_data, unsigned int max, int nullterm);
+std::string munge_to_printable(const std::string& in_str);
 
-std::string StrLower(const std::string& in_str);
-std::string StrUpper(const std::string& in_str);
-std::string StrStrip(const std::string& in_str);
+std::string str_lower(const std::string& in_str);
+std::string str_upper(const std::string& in_str);
+std::string str_strip(const std::string& in_str);
 
-std::string MultiReplaceAll(const std::string& in, const std::string& match, const std::string& repl);
+std::string multi_replace_all(const std::string& in, const std::string& match, const std::string& repl);
 
-int HexStrToUint8(const std::string& in_str, uint8_t *in_buf, int in_buflen);
-std::string HexStrFromUint8(uint8_t *in_buf, int in_buflen);
+int hex_str_to_uint8(const std::string& in_str, uint8_t *in_buf, int in_buflen);
+std::string uint8_to_hex_str(uint8_t *in_buf, int in_buflen);
 
-template<class t> class NtoString {
+template<class t> class n_to_string {
 public:
-	NtoString(t in_n, int in_precision = 0, int in_hex = 0) { 
+	n_to_string(t in_n, int in_precision = 0, int in_hex = 0) { 
         std::ostringstream osstr;
 
 		if (in_hex)
@@ -92,14 +92,14 @@ public:
     std::string s;
 };
 
-#define IntToString(I)			NtoString<int>((I)).Str()
-#define UIntToString(I)			NtoString<unsigned int>((I)).Str()
-#define HexIntToString(I)		NtoString<unsigned int>((I), 0, 1).Str()
-#define LongIntToString(L)		NtoString<long int>((L)).Str()
-#define ULongToString(L)		NtoString<unsigned long int>((L)).Str()
-#define FloatToString(F)		NtoString<float>((F)).Str()
+#define int_to_string(I)			n_to_string<int>((I)).Str()
+#define uint_to_string(I)			n_to_string<unsigned int>((I)).Str()
+#define hex_int_to_string(I)		n_to_string<unsigned int>((I), 0, 1).Str()
+#define long_int_to_string(L)		n_to_string<long int>((L)).Str()
+#define ulong_int_to_string(L)		n_to_string<unsigned long int>((L)).Str()
+#define float_to_string(F)		n_to_string<float>((F)).Str()
 
-void SubtractTimeval(struct timeval *in_tv1, struct timeval *in_tv2,
+void subtract_timeval(struct timeval *in_tv1, struct timeval *in_tv2,
         struct timeval *out_tv);
 
 // Generic options pair
@@ -110,24 +110,24 @@ struct opt_pair {
 };
 
 // Generic option handlers
-std::string FetchOpt(const std::string& in_key, std::vector<opt_pair> *in_vec, 
+std::string fetch_opt(const std::string& in_key, std::vector<opt_pair> *in_vec, 
         const std::string& d_value = "");
 
-int FetchOptBoolean(const std::string& in_key, std::vector<opt_pair> *in_vec, int dvalue);
-std::vector<std::string> FetchOptVec(const std::string& in_key, std::vector<opt_pair> *in_vec);
+int fetch_opt_bool(const std::string& in_key, std::vector<opt_pair> *in_vec, int dvalue);
+std::vector<std::string> fetch_opt_vec(const std::string& in_key, std::vector<opt_pair> *in_vec);
 
 // Quick fetch of strings from a map of options
-std::string FetchOpt(const std::string& in_key, const std::map<std::string, std::string>& in_map, 
+std::string fetch_opt(const std::string& in_key, const std::map<std::string, std::string>& in_map, 
         std::string dvalue = "");
-int FetchOptBoolean(const std::string& in_key, const std::map<std::string, std::string>& in_map, 
+int fetch_opt_bool(const std::string& in_key, const std::map<std::string, std::string>& in_map, 
         int dvalue = 0);
 
-int StringToOpts(const std::string& in_line, const std::string& in_sep, std::vector<opt_pair> *in_vec);
-void AddOptToOpts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec);
-void ReplaceAllOpts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec);
+int string_to_opts(const std::string& in_line, const std::string& in_sep, std::vector<opt_pair> *in_vec);
+void append_to_opts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec);
+void replace_all_opts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec);
 
 template<typename T>
-T StringTo(const std::string& s) {
+T string_to_n(const std::string& s) {
     std::stringstream ss(s);
     T t;
 
@@ -140,31 +140,30 @@ T StringTo(const std::string& s) {
 }
 
 template<typename T>
-T StringTo(const std::string& s, T dvalue) {
+T string_to_n(const std::string& s, T dvalue) {
     try {
-        return StringTo<T>(s);
+        return string_to_n<T>(s);
     } catch (const std::exception& e) {
         return dvalue;
     }
 }
 
 // String compare, 1 true 0 false -1 unknown, or default value as provided
-int StringToBool(const std::string& s, int dvalue = -1);
+int string_to_bool(const std::string& s, int dvalue = -1);
 
 // String to integer.  Throws exception if not an integer!
-int StringToInt(const std::string& s);
-unsigned int StringToUInt(const std::string& s);
+int string_to_int(const std::string& s);
+unsigned int string_to_uint(const std::string& s);
 
 // Append to a string, with a delimiter if applicable
-std::string StringAppend(const std::string& s, const std::string& a, const std::string& d = " ");
+std::string string_append(const std::string& s, const std::string& a, const std::string& d = " ");
 
-int XtoI(char x);
-int Hex2UChar(unsigned char *in_hex, unsigned char *in_chr);
+int x_to_i(char x);
+int hex_to_uchar(unsigned char *in_hex, unsigned char *in_chr);
 
-std::vector<std::string> StrTokenize(const std::string& in_str, const std::string& in_split, int return_partial = 1);
-std::vector<std::string> StrTokenize(std::string in_str, const std::list<char>& in_split);
-
-std::string StrJoin(const std::vector<std::string>& in_content, const std::string& in_delim, 
+std::vector<std::string> str_tokenize(const std::string& in_str, const std::string& in_split, 
+        int return_partial = 1);
+std::string str_join(const std::vector<std::string>& in_content, const std::string& in_delim, 
         bool in_first = false);
 
 // 'smart' tokenizeing with start/end positions
@@ -181,41 +180,37 @@ struct smart_word_token {
     }
 };
 
-std::vector<smart_word_token> BaseStrTokenize(const std::string& in_str, 
+std::vector<smart_word_token> base_str_tokenize(const std::string& in_str, 
         const std::string& in_split, const std::string& in_quote);
 
 // Simplified quoted string tokenizer, expects " ' to start at the beginning
 // of the token, no abc"def ghi"
-std::vector<std::string> QuoteStrTokenize(const std::string& in_str, const std::string& in_split);
-
-// Find a complete token w/in a string
-bool FindToken(const std::string& str, const std::string& needle, const std::string& split);
-bool FindToken(std::string str, std::string needle, std::list<char> splits);
+std::vector<std::string> quote_str_tokenize(const std::string& in_str, const std::string& in_split);
 
 int TokenNullJoin(std::string *ret_str, const char **in_list);
 
-std::string InLineWrap(const std::string& in_txt, unsigned int in_hdr_len, unsigned int in_max_len);
-std::vector<std::string> LineWrap(const std::string& in_txt, unsigned int in_hdr_len, unsigned int in_maxlen);
-std::vector<int> Str2IntVec(const std::string& in_text);
+std::string in_line_wrap(const std::string& in_txt, unsigned int in_hdr_len, unsigned int in_max_len);
+std::vector<std::string> line_wrap(const std::string& in_txt, unsigned int in_hdr_len, unsigned int in_maxlen);
+std::vector<int> str_to_int_vector(const std::string& in_text);
 
-void Float2Pair(float in_float, int16_t *primary, int64_t *mantissa);
-float Pair2Float(int16_t primary, int64_t mantissa);
+void float_to_pair(float in_float, int16_t *primary, int64_t *mantissa);
+float pair_to_float(int16_t primary, int64_t mantissa);
 
 #ifdef SYS_LINUX
-int FetchSysLoadAvg(uint8_t *in_avgmaj, uint8_t *in_avgmin);
+int fetch_sys_loadavg(uint8_t *in_avgmaj, uint8_t *in_avgmin);
 #endif
 
 // Adler-32 checksum, derived from rsync, adler-32
-uint32_t Adler32Checksum(const char *buf1, size_t len);
+uint32_t adler32_checksum(const char *buf1, size_t len);
 
 // C++ shortcut
-uint32_t Adler32Checksum(const std::string& buf1);
+uint32_t adler32_checksum(const std::string& buf1);
 
 // Adler-32 incremental checksum, performs a non-contiguous checksum over 
 // multiple records.
 // Caller must set s1 and s2 to 0 for the initial call and provide them for
 // subsequent calls.
-uint32_t Adler32IncrementalChecksum(const char *buf1, size_t len, 
+uint32_t adler32_incremental_checksum(const char *buf1, size_t len, 
         uint32_t *s1, uint32_t *s2);
 
 // 802.11 checksum functions, derived from the BBN USRP 802.11 code
@@ -327,6 +322,26 @@ public:
         cv.notify_all();
     }
 
+    void unlock_one(t in_data) {
+        {
+            std::lock_guard<std::mutex> lk(m);
+
+            locked = false;
+            data = in_data;
+        }
+        cv.notify_one();
+    }
+
+    void unlock_one() {
+        {
+            std::lock_guard<std::mutex> lk(m);
+
+            locked = false;
+        }
+
+        cv.notify_one();
+    }
+
 protected:
     std::mutex m;
     std::condition_variable cv;
@@ -365,7 +380,10 @@ std::string kis_strerror_r(int errnum);
 double ts_to_double(struct timeval ts);
 double ts_now_to_double();
 
-std::string hexstr_to_binstr(const char *hs);
+// Flexible method to convert a hex string to a binary string; accepts
+// both upper and lower case hex, and prepends '0' to the first byte if 
+// an odd number of bytes in the original string
+std::string hex_to_bytes(const std::string& in);
 
 void thread_set_process_name(const std::string& name);
 

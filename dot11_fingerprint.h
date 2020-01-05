@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -41,19 +41,19 @@ public:
         reserve_fields(nullptr);
     }
 
-    tracked_dot11_fingerprint(int in_id, std::shared_ptr<TrackerElementMap> e) :
+    tracked_dot11_fingerprint(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component{in_id} {
         register_fields();
         reserve_fields(e);
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type() override {
+    virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<TrackerElement> clone_type(int in_id) override {
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
@@ -66,11 +66,11 @@ public:
     __Proxy(probe_hash, uint32_t, uint32_t, uint32_t, probe_hash);
 
     // Turn it into a complex config line
-    HeaderValueConfig asConfigComplex(mac_addr m) {
-        HeaderValueConfig hc;
-        hc.setHeader(m.asString());
-        hc.setValue("beacon_hash", get_beacon_hash());
-        hc.setValue("response_hash", get_response_hash());
+    header_value_config as_config_complex(mac_addr m) {
+        header_value_config hc;
+        hc.set_header(m.as_string());
+        hc.set_value("beacon_hash", get_beacon_hash());
+        hc.set_value("response_hash", get_response_hash());
 
         return hc;
     };
@@ -96,14 +96,14 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        RegisterField("kismet.dot11.fingerprint.beacon_hash", "Beacon hash", &beacon_hash);
-        RegisterField("kismet.dot11.fingerprint.response_hash", "Response hash", &response_hash);
-        RegisterField("ksimet.dot11.fingerprint.probe_hash", "Probe hash", &probe_hash);
+        register_field("kismet.dot11.fingerprint.beacon_hash", "Beacon hash", &beacon_hash);
+        register_field("kismet.dot11.fingerprint.response_hash", "Response hash", &response_hash);
+        register_field("ksimet.dot11.fingerprint.probe_hash", "Probe hash", &probe_hash);
     }
 
-    std::shared_ptr<TrackerElementUInt32> beacon_hash;
-    std::shared_ptr<TrackerElementUInt32> response_hash;
-    std::shared_ptr<TrackerElementUInt32> probe_hash;
+    std::shared_ptr<tracker_element_uint32> beacon_hash;
+    std::shared_ptr<tracker_element_uint32> response_hash;
+    std::shared_ptr<tracker_element_uint32> probe_hash;
 };
 
 
@@ -112,7 +112,7 @@ protected:
 // and other types.
 // The URI directory should be a non-slash-terminated full path, such as:
 // /phy/phy80211/whitelist
-class Dot11FingerprintTracker {
+class dot11_fingerprint_tracker {
 public:
     // Simple list of endpoints the post_path can return
     enum class uri_endpoint {
@@ -120,10 +120,10 @@ public:
         endp_update, endp_insert, endp_delete, endp_bulk_insert, endp_bulk_delete
     };
 
-    Dot11FingerprintTracker(const std::string& uri_dir);
-    Dot11FingerprintTracker(const std::string& uri_dir, const std::string& config_file, 
+    dot11_fingerprint_tracker(const std::string& uri_dir);
+    dot11_fingerprint_tracker(const std::string& uri_dir, const std::string& config_file, 
             const std::string& config_value);
-    virtual ~Dot11FingerprintTracker();
+    virtual ~dot11_fingerprint_tracker();
 
     // Process the post path and return the type and target, or a tuple of uri_endpoint::endp_unknown
     // if it doesn't exist
@@ -131,15 +131,15 @@ public:
   
     // Dispatch function based on URI
     unsigned int mod_dispatch(std::ostream& stream, const std::vector<std::string>& path, 
-            SharedStructured structured);
+            shared_structured structured);
 
     // Fingerprint manipulation; all of these are called w/in the mutex lock held by 
     // the simple tracked and simple post endpoints
-    unsigned int update_fingerprint(std::ostream& stream, mac_addr mac, SharedStructured structured);
-    unsigned int insert_fingerprint(std::ostream& stream, SharedStructured structured);
-    unsigned int delete_fingerprint(std::ostream& stream, mac_addr mac, SharedStructured structured);
-    unsigned int bulk_delete_fingerprint(std::ostream& stream, SharedStructured structured);
-    unsigned int bulk_insert_fingerprint(std::ostream& stream, SharedStructured structured);
+    unsigned int update_fingerprint(std::ostream& stream, mac_addr mac, shared_structured structured);
+    unsigned int insert_fingerprint(std::ostream& stream, shared_structured structured);
+    unsigned int delete_fingerprint(std::ostream& stream, mac_addr mac, shared_structured structured);
+    unsigned int bulk_delete_fingerprint(std::ostream& stream, shared_structured structured);
+    unsigned int bulk_insert_fingerprint(std::ostream& stream, shared_structured structured);
 
     // Fetch a fingerprint, return nullptr if fingerprint not found
     std::shared_ptr<tracked_dot11_fingerprint> get_fingerprint(const mac_addr& mac);
@@ -151,14 +151,14 @@ protected:
 
     std::string configpath;
     std::string configvalue;
-    std::shared_ptr<ConfigFile> configfile;
+    std::shared_ptr<config_file> configfile;
 
     std::vector<std::string> base_uri;
 
-    std::shared_ptr<TrackerElementMacMap> fingerprint_map;
+    std::shared_ptr<tracker_element_mac_map> fingerprint_map;
 
-    std::shared_ptr<Kis_Net_Httpd_Simple_Tracked_Endpoint> fingerprint_endp;
-    std::shared_ptr<Kis_Net_Httpd_Path_Post_Endpoint> update_endp;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> fingerprint_endp;
+    std::shared_ptr<kis_net_httpd_path_post_endpoint> update_endp;
 
 };
 

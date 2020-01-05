@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -27,38 +27,38 @@
 #include "trackedelement.h"
 #include "devicetracker.h"
 
-class Devicetracker;
+class device_tracker;
 
 class kis_tracked_device_base;
 
-class Kis_Phy_Handler {
+class kis_phy_handler {
 public:
-	// Create a 'weak' handler which provides enough structure to call CreatePhyHandler
-    Kis_Phy_Handler(GlobalRegistry *in_globalreg) :
+	// Create a 'weak' handler which provides enough structure to call create_phy_handler
+    kis_phy_handler(global_registry *in_globalreg) :
         phyname {"NONE"},
         phyid {-1} { }
 
-    virtual Kis_Phy_Handler *CreatePhyHandler(GlobalRegistry *in_globalreg, int in_phyid) = 0;
+    virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg, int in_phyid) = 0;
 
-    Kis_Phy_Handler(GlobalRegistry *in_globalreg, int in_phyid) :
+    kis_phy_handler(global_registry *in_globalreg, int in_phyid) :
         phyname {"NONE"},
         phyid {in_phyid} { }
 
-	virtual ~Kis_Phy_Handler() { }
+	virtual ~kis_phy_handler() { }
 
-	std::string FetchPhyName() { return phyname; }
-	int FetchPhyId() { return phyid; }
-    uint32_t FetchPhynameHash() { return phyname_hash; }
+	std::string fetch_phy_name() { return phyname; }
+	int fetch_phy_id() { return phyid; }
+    uint32_t fetch_phyname_hash() { return phyname_hash; }
 
     // Called for all instantiated phys when restoring a network object from
     // a stored record; This function is expected to inspect the abstract object
     // tree 'in_storage', generate a proper phy tracked object if the data is present,
     // and insert it into the device record in in_device
-    virtual void LoadPhyStorage(SharedTrackerElement in_storage __attribute__((unused)), 
-            SharedTrackerElement in_device __attribute__((unused))) { }
+    virtual void load_phy_storage(shared_tracker_element in_storage __attribute__((unused)), 
+            shared_tracker_element in_device __attribute__((unused))) { }
 
 protected:
-    void SetPhyName(std::string in_phyname) {
+    void set_phy_name(std::string in_phyname) {
         phyname = in_phyname;
         phyname_hash = device_key::gen_pkey(phyname);
     }

@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -21,7 +21,6 @@
 
 #include "config.h"
 
-#include <string>
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -32,43 +31,55 @@
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif
+
+#include <unordered_map>
+#include <string>
+
 #include "util.h"
 #include "globalregistry.h"
 
 #include "trackedelement.h"
 
-class Manuf {
-    public:
-        Manuf();
+class kis_manuf {
+public:
+    kis_manuf();
 
-        void IndexOUI();
+    void IndexOUI();
 
-        std::shared_ptr<TrackerElementString> LookupOUI(mac_addr in_mac);
+    std::shared_ptr<tracker_element_string> lookup_oui(mac_addr in_mac);
+    std::shared_ptr<tracker_element_string> lookup_oui(uint32_t in_oui);
 
-        std::shared_ptr<TrackerElementString> MakeManuf(const std::string& in_manuf);
+    std::shared_ptr<tracker_element_string> make_manuf(const std::string& in_manuf);
 
-        struct index_pos {
-            uint32_t oui;
-            fpos_t pos;
-        };
+    std::shared_ptr<tracker_element_string> get_random_manuf() const {
+        return random_manuf;
+    }
 
-        struct manuf_data {
-            uint32_t oui;
-            std::shared_ptr<TrackerElementString> manuf;
-        }; 
+    struct index_pos {
+        uint32_t oui;
+        fpos_t pos;
+    };
 
-        bool IsUnknownManuf(std::shared_ptr<TrackerElementString> in_manuf);
+    struct manuf_data {
+        uint32_t oui;
+        std::shared_ptr<tracker_element_string> manuf;
+    }; 
 
-    protected:
-        std::vector<index_pos> index_vec;
+    bool is_unknown_manuf(std::shared_ptr<tracker_element_string> in_manuf);
 
-        std::map<uint32_t, manuf_data> oui_map;
+protected:
+    kis_recursive_timed_mutex mutex;
 
-        FILE *mfile;
+    std::vector<index_pos> index_vec;
 
-        // IDs for manufacturer objects
-        int manuf_id;
-        std::shared_ptr<TrackerElementString> unknown_manuf;
+    std::unordered_map<uint32_t, manuf_data> oui_map;
+
+    FILE *mfile;
+
+    // IDs for manufacturer objects
+    int manuf_id;
+    std::shared_ptr<tracker_element_string> unknown_manuf;
+    std::shared_ptr<tracker_element_string> random_manuf;
 };
 
 #endif

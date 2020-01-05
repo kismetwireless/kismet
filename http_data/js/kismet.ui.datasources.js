@@ -834,8 +834,10 @@ function update_datasource2(data, state) {
                         var uuid = $(this).attr('uuid');
                         var tid = 'tid' + uuid;
 
+                        // console.log(uuid, $('#lock[uuid=' + uuid + ']', state['content']).hasClass('enable-chan-user'));
+
                         // If we're in channel lock mode, we highlight a single channel
-                        if ($('#lock[uuid=' + uuid + ']').hasClass('enable-chan-user')) {
+                        if ($('#lock[uuid=' + uuid + ']', state['content']).hasClass('enable-chan-user')) {
                             // Only do something if we're not selected
                             if (!($(this).hasClass('enable-chan-user'))) {
                                 // Remove from all lock channels
@@ -1019,6 +1021,8 @@ function update_datasource2(data, state) {
 
               $('#hop[uuid=' + uuid + ']', state['content']).removeClass('enable-chan-user');
               $('#lock[uuid=' + uuid + ']', state['content']).addClass('enable-chan-user');
+
+            // console.log('quickopts ', $('#lock[uuid=' + uuid + ']', state['content']).hasClass('enable-chan-user'));
 
               var firstchanobj = $('button.chanbutton[uuid=' + uuid + ']', state['content']).first();
 

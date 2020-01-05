@@ -161,8 +161,6 @@ function deviceview_selector_dynamic_update() {
                     var dsdata = kismet.sanitizeObject(dsdata);
                     var synth_view = 'seenby-' + dsdata['kismet.datasource.uuid'];
 
-                    console.log(synth_view);
-
                     existing_views[synth_view] = 1;
 
                     exports.AddDeviceView(dsdata['kismet.datasource.name'], synth_view, ds_priority, 'Datasources');
@@ -559,6 +557,10 @@ exports.DeviceDetailWindow = function(key) {
         return;
     }
 
+    var options = {
+        storage: {}
+    };
+
     var h = $(window).height() - 5;
 
     // If we're on a wide-screen browser, try to split it into 3 details windows
@@ -595,7 +597,6 @@ exports.DeviceDetailWindow = function(key) {
 
         resizable: {
             minWidth: 450,
-            maxWidth: 600,
             minHeight: 400,
             stop: function(event, ui) {
                 $('div#accordion', ui.element).accordion("refresh");
@@ -610,21 +611,38 @@ exports.DeviceDetailWindow = function(key) {
             $('div#accordion', this.content).accordion("refresh");
         },
 
+        onclosed: function() {
+            clearTimeout(this.timerid);
+            this.active = false;
+            window['storage_devlist_' + key] = {};
+        },
+
         callback: function() {
             var panel = this;
             var content = this.content;
 
+            this.active = true;
+
+            window['storage_devlist_' + key] = {};
+
+            window['storage_devlist_' + key]['foobar'] = 'bar';
+
+            this.updater = function() {
             $.get(local_uri_prefix + "devices/by-key/" + key + "/device.json")
                 .done(function(fulldata) {
                     fulldata = kismet.sanitizeObject(fulldata);
 
                     panel.headerTitle(fulldata['kismet_device_base_name']);
 
-                    var accordion = $('<div />', {
-                        id: 'accordion'
-                    });
+                    var accordion = $('div#accordion', content);
+                    
+                    if (accordion.length == 0) {
+                        accordion = $('<div />', {
+                            id: 'accordion'
+                        });
 
-                    content.append(accordion);
+                        content.append(accordion);
+                    }
 
                     var detailslist = kismet_ui.GetDeviceDetails();
 
@@ -639,15 +657,25 @@ exports.DeviceDetailWindow = function(key) {
                             }
                         }
 
-                        var vheader = $('<h3 />', {
-                            id: "header" + di.id,
-                            html: di.title
-                        });
+                        var vheader = $('h3#header_' + di.id, accordion);
+                        
+                        if (vheader.length == 0) {
+                            vheader = $('<h3>', {
+                                id: "header_" + di.id,
+                            })
+                            .html(di.title);
 
-                        var vcontent = $('<div />', {
-                            id: di.id,
-                            //class: 'autosize'
-                        });
+                            accordion.append(vheader);
+                        }
+
+                        var vcontent = $('div#' + di.id, accordion);
+                        
+                        if (vcontent.length == 0) {
+                            vcontent = $('<div>', {
+                                id: di.id,
+                            });
+                            accordion.append(vcontent);
+                        }
 
                         // Do we have pre-rendered content?
                         if ('render' in di.options &&
@@ -655,12 +683,9 @@ exports.DeviceDetailWindow = function(key) {
                             vcontent.html(di.options.render(fulldata));
                         }
 
-                        accordion.append(vheader);
-                        accordion.append(vcontent);
-
                         if ('draw' in di.options &&
                                 typeof(di.options.draw) === 'function') {
-                            di.options.draw(fulldata, vcontent);
+                            di.options.draw(fulldata, vcontent, options, 'storage_devlist_' + key);
                         }
                     }
                     accordion.accordion({ heightStyle: 'fill' });
@@ -668,7 +693,15 @@ exports.DeviceDetailWindow = function(key) {
             .fail(function(jqxhr, texterror) {
                 content.html("<div style=\"padding: 10px;\"><h1>Oops!</h1><p>An error occurred loading device details for key <code>" + key + 
                         "</code>: HTTP code <code>" + jqxhr.status + "</code>, " + texterror + "</div>");
-            });
+            })
+            .always(function() {
+                if (panel.active) {
+                    panel.timerid = setTimeout(function() { panel.updater(); }, 1000);
+                }
+            })
+            };
+
+            this.updater();
         }
     }).resize({
         width: w,
@@ -917,35 +950,6 @@ exports.CreateDeviceTable = function(element) {
 
     var dt = exports.InitializeDeviceTable(element);
 
-    // Set an onclick handler to spawn the device details dialog
-    $('tbody', element).on('click', 'tr', function () {
-        kismet_ui.DeviceDetailWindow(this.id);
-
-        // Use the ID above we insert in the row creation, instead of looking in the
-        // device list data
-        // Fetch the data of the row that got clicked
-        // var device_dt = element.DataTable();
-        // var data = device_dt.row( this ).data();
-        // var key = data['kismet.device.base.key'];
-        // kismet_ui.DeviceDetailWindow(key);
-    } );
-
-    $('tbody', element)
-        .on( 'mouseenter', 'td', function () {
-            var device_dt = element.DataTable();
-
-            if (typeof(device_dt.cell(this).index()) === 'Undefined')
-                return;
-
-            var colIdx = device_dt.cell(this).index().column;
-            var rowIdx = device_dt.cell(this).index().row;
-
-            // Remove from all cells
-            $(device_dt.cells().nodes()).removeClass('kismet-highlight');
-            // Highlight the td in this row
-            $('td', device_dt.row(rowIdx).nodes()).addClass('kismet-highlight');
-        } );
-
     dt.draw(false);
 
     // Start the auto-updating
@@ -1043,17 +1047,25 @@ exports.InitializeDeviceTable = function(element) {
                     }
 
                     // Call the draw callback if one exists
-                    col.kismetdrawfunc(col, dt, this);
+                    try {
+                        col.kismetdrawfunc(col, dt, this);
+                    } catch (error) {
+                        ;
+                    }
                 }
 
                 for (var r in DeviceRowHighlights) {
-                    var rowh = DeviceRowHighlights[r];
+                    try {
+                        var rowh = DeviceRowHighlights[r];
 
-                    if (rowh['enable']) {
-                        if (rowh['selector'](this.data())) {
-                            $('td', this.node()).css('background-color', rowh['color']);
-                            break;
+                        if (rowh['enable']) {
+                            if (rowh['selector'](this.data())) {
+                                $('td', this.node()).css('background-color', rowh['color']);
+                                break;
+                            }
                         }
+                    } catch (error) {
+                        ;
                     }
                 }
             }
@@ -1077,6 +1089,36 @@ exports.InitializeDeviceTable = function(element) {
     var saved_search = kismet.getStorage('kismet.base.devicetable.search', "");
     if (saved_search !== "")
         device_dt.search(JSON.parse(saved_search));
+
+    // Set an onclick handler to spawn the device details dialog
+    $('tbody', element).on('click', 'tr', function () {
+        kismet_ui.DeviceDetailWindow(this.id);
+
+        // Use the ID above we insert in the row creation, instead of looking in the
+        // device list data
+        // Fetch the data of the row that got clicked
+        // var device_dt = element.DataTable();
+        // var data = device_dt.row( this ).data();
+        // var key = data['kismet.device.base.key'];
+        // kismet_ui.DeviceDetailWindow(key);
+    } );
+
+    $('tbody', element)
+        .on( 'mouseenter', 'td', function () {
+            var device_dt = element.DataTable();
+
+            if (typeof(device_dt.cell(this).index()) === 'Undefined')
+                return;
+
+            var colIdx = device_dt.cell(this).index().column;
+            var rowIdx = device_dt.cell(this).index().row;
+
+            // Remove from all cells
+            $(device_dt.cells().nodes()).removeClass('kismet-highlight');
+            // Highlight the td in this row
+            $('td', device_dt.row(rowIdx).nodes()).addClass('kismet-highlight');
+        } );
+
 
     return device_dt;
 }

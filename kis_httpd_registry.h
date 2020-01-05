@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -35,39 +35,39 @@
  *
  */
 
-class Kis_Httpd_Registry : public Kis_Net_Httpd_CPPStream_Handler, 
-    public LifetimeGlobal {
+class kis_httpd_registry : public kis_net_httpd_cppstream_handler, 
+    public lifetime_global {
 public:
     static std::string global_name() { return "WEBREGISTRY"; }
 
-    static std::shared_ptr<Kis_Httpd_Registry> 
-        create_http_registry(GlobalRegistry *in_globalreg) {
-            std::shared_ptr<Kis_Httpd_Registry> mon(new Kis_Httpd_Registry(in_globalreg));
-            in_globalreg->RegisterLifetimeGlobal(mon);
-            in_globalreg->InsertGlobal(global_name(), mon);
+    static std::shared_ptr<kis_httpd_registry> 
+        create_http_registry(global_registry *in_globalreg) {
+            std::shared_ptr<kis_httpd_registry> mon(new kis_httpd_registry(in_globalreg));
+            in_globalreg->register_lifetime_global(mon);
+            in_globalreg->insert_global(global_name(), mon);
             return mon;
     }
 
 private:
-    Kis_Httpd_Registry(GlobalRegistry *in_globalreg);
+    kis_httpd_registry(global_registry *in_globalreg);
 
 public:
-    ~Kis_Httpd_Registry();
+    ~kis_httpd_registry();
 
     // Register a javascript module
     virtual bool register_js_module(std::string in_module, std::string in_path);
 
-    virtual bool Httpd_VerifyPath(const char *path, const char *method);
+    virtual bool httpd_verify_path(const char *path, const char *method);
 
-    virtual void Httpd_CreateStreamResponse(Kis_Net_Httpd *httpd,
-            Kis_Net_Httpd_Connection *connection,
+    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
+            kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
 
 protected:
     kis_recursive_timed_mutex reg_lock;
 
-    GlobalRegistry *globalreg;
+    global_registry *globalreg;
 
     bool allow_userplugins;
 
