@@ -119,6 +119,9 @@ typedef struct {
     int mac80211_id;
     int mac80211_ifidx;
 
+    /* Interface must be up to set mode */
+    bool up_before_mode;
+
     /* Do we process extended channels?  Controlled by chipset and by source
      * options */
     int use_ht_channels;
@@ -1274,6 +1277,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         cf_send_warning(caph, errstr);
         local_wifi->use_mac80211_vif = 0;
         local_wifi->use_mac80211_channels = 0;
+        local_wifi->up_before_mode = true;
     } else if (strcmp(driver, "ath10k_pci") == 0) {
         snprintf(errstr, STATUS_MAX, "%s interface '%s' looks to use the ath10k_pci "
                 "driver, which is known to report large numbers of invalid packets. "
@@ -1633,19 +1637,36 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
             } else {
                 /* Otherwise do we look like wext? */
-                if (ifconfig_interface_down(local_wifi->interface, errstr) != 0) {
-                    /* Close the sem if it's open */
-                    if (local_wifi->interface_sem != NULL) {
-                        sem_post(local_wifi->interface_sem);
-                        sem_close(local_wifi->interface_sem);
-                        local_wifi->interface_sem = NULL;
-                    }
+                if (local_wifi->up_before_mode) {
+                    if (ifconfig_interface_up(local_wifi->interface, errstr) != 0) {
+                        /* Close the sem if it's open */
+                        if (local_wifi->interface_sem != NULL) {
+                            sem_post(local_wifi->interface_sem);
+                            sem_close(local_wifi->interface_sem);
+                            local_wifi->interface_sem = NULL;
+                        }
 
-                    snprintf(msg, STATUS_MAX, "%s could not bring down interface "
-                            "'%s' to set monitor mode: %s", 
-                            local_wifi->name, local_wifi->interface, errstr);
-                    free(flags);
-                    return -1;
+                        snprintf(msg, STATUS_MAX, "%s could not bring down interface "
+                                "'%s' to set monitor mode: %s", 
+                                local_wifi->name, local_wifi->interface, errstr);
+                        free(flags);
+                        return -1;
+                    }
+                } else {
+                    if (ifconfig_interface_down(local_wifi->interface, errstr) != 0) {
+                        /* Close the sem if it's open */
+                        if (local_wifi->interface_sem != NULL) {
+                            sem_post(local_wifi->interface_sem);
+                            sem_close(local_wifi->interface_sem);
+                            local_wifi->interface_sem = NULL;
+                        }
+
+                        snprintf(msg, STATUS_MAX, "%s could not bring down interface "
+                                "'%s' to set monitor mode: %s", 
+                                local_wifi->name, local_wifi->interface, errstr);
+                        free(flags);
+                        return -1;
+                    }
                 }
 
                 if (iwconfig_set_mode(local_wifi->interface, errstr, 
@@ -2328,6 +2349,7 @@ int main(int argc, char *argv[]) {
         .override_dlt = -1,
         .use_mac80211_vif = 1,
         .use_mac80211_channels = 1,
+        .up_before_mode = false,
         .mac80211_socket = NULL,
         .use_ht_channels = 1,
         .use_vht_channels = 1,
