@@ -126,17 +126,19 @@ int ticc2540_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_
     pthread_mutex_unlock(&(localticc2540->usb_mutex));
 
     if (actual_len == 4) {
-	// do this as we don't hard reset on a heartbeat then
-	// but we will try resetting the channel instead
-	localticc2540->soft_reset++;
-	if (localticc2540->soft_reset >= 2) {
-	    localticc2540->ready = false;
-	    ticc2540_exit_promisc_mode(caph);
-            ticc2540_set_channel(caph, localticc2540->channel); 
-	    ticc2540_enter_promisc_mode(caph);
-	    localticc2540->soft_reset = 0;
-	    localticc2540->ready = true;
-	}
+        /* do this as we don't hard reset on a heartbeat then
+         * but we will try resetting the channel instead */
+        localticc2540->soft_reset++;
+
+        if (localticc2540->soft_reset >= 2) {
+            localticc2540->ready = false;
+            ticc2540_exit_promisc_mode(caph);
+            ticc2540_set_channel(caph, localticc2540->channel);
+            ticc2540_enter_promisc_mode(caph);
+            localticc2540->soft_reset = 0;
+            localticc2540->ready = true;
+        }
+
         return actual_len;
     }
 
@@ -466,24 +468,23 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     snprintf(cap_if, 32, "ticc2540-%u-%u", busno, devno);
 
-    // try pulling the channel
+    /* try pulling the channel */
     if ((placeholder_len = cf_find_flag(&placeholder, "channel", definition)) > 0) {
         localchanstr = strndup(placeholder, placeholder_len);
-	localchan = (unsigned int *) malloc(sizeof(unsigned int));
-        *localchan = atoi(localchanstr); 
+        localchan = (unsigned int *) malloc(sizeof(unsigned int));
+        *localchan = atoi(localchanstr);
         free(localchanstr);
 
         if (localchan == NULL) {
             snprintf(msg, STATUS_MAX,
-                    "ticc2540 could not parse channel= option provided in source "
-                    "definition");
+                     "ticc2540 could not parse channel= option provided in source "
+                     "definition");
             return -1;
         }
     } else {
         localchan = (unsigned int *) malloc(sizeof(unsigned int));
         *localchan = 37;
     }
-
 
     localticc2540->devno = devno;
     localticc2540->busno = busno;
