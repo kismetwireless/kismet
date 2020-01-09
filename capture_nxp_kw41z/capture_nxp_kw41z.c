@@ -61,6 +61,7 @@ typedef struct {
 int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len,
                   uint8_t *resp, size_t resp_len, uint8_t *rx_buf,
                   size_t rx_max) {
+    
     uint8_t buf[255];
     uint16_t ctr = 0;
     uint8_t res = 0;
@@ -86,7 +87,7 @@ int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len,
                 }
                 ctr++;
             }
-            if (!found) return -1;  // we fell through
+            if (!found) res = -1;  // we fell through
         } else
             res = 1;  // no response requested
     } else if (rx_max > 0) {
@@ -285,7 +286,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     /* NXP KW41Z supports 11-26 for zigbee and 37-39 for ble */
     char chstr[4];
     int ctr = 0;
-
+/*
     (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 19);
 
     for (int i = 11; i < 27; i++) {
@@ -293,14 +294,15 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
         (*ret_interface)->channels[ctr] = strdup(chstr);
         ctr++;
     }
-
+*/
+    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 3);
     for (int i = 37; i < 40; i++) {
         snprintf(chstr, 4, "%d", i);
         (*ret_interface)->channels[ctr] = strdup(chstr);
         ctr++;
     }
 
-    (*ret_interface)->channels_len = 19;
+    (*ret_interface)->channels_len = 3;// 19
 
     return 1;
 }
@@ -321,6 +323,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     *ret_interface = cf_params_interface_new();
 
     char cap_if[32];
+
+    char *localchanstr = NULL;
+    unsigned int *localchan = NULL;
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
@@ -343,6 +348,24 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
+    // try pulling the channel
+    if ((placeholder_len = cf_find_flag(&placeholder, "channel", definition)) > 0) {
+        localchanstr = strndup(placeholder, placeholder_len);
+	localchan = (unsigned int *) malloc(sizeof(unsigned int));
+        *localchan = atoi(localchanstr); 
+        free(localchanstr);
+
+        if (localchan == NULL) {
+            snprintf(msg, STATUS_MAX,
+                    "ticc2540 could not parse channel= option provided in source "
+                    "definition");
+            return -1;
+        }
+    } else {
+        localchan = (unsigned int *) malloc(sizeof(unsigned int));
+        *localchan = 37;
+    }
+    
     snprintf(cap_if, 32, "nxp_kw41z-%012X",adler32_csum((unsigned char *) device, strlen(device)));
 
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
@@ -364,7 +387,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     /* NXP KW41Z supports 11-26 for zigbee and 37-39 for ble */
     char chstr[4];
     int ctr = 0;
-
+/*
     (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 19);
 
     for (int i = 11; i < 27; i++) {
@@ -372,14 +395,15 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         (*ret_interface)->channels[ctr] = strdup(chstr);
         ctr++;
     }
-
+*/
+    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 3);
     for (int i = 37; i < 40; i++) {
         snprintf(chstr, 4, "%d", i);
         (*ret_interface)->channels[ctr] = strdup(chstr);
         ctr++;
     }
 
-    (*ret_interface)->channels_len = 19;
+    (*ret_interface)->channels_len = 3; // 19
 
     pthread_mutex_lock(&(localnxp->serial_mutex));
     /* open for r/w but no tty */
@@ -410,14 +434,18 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     tcsetattr(localnxp->fd, TCSANOW, &localnxp->newtio);
 
     pthread_mutex_unlock(&(localnxp->serial_mutex));
+    
+    nxp_reset(caph);
 
     res = nxp_exit_promisc_mode(caph);
     if (res < 0) 
         return -1;
 
-    res = nxp_enter_promisc_mode(caph, 11);
+    res = nxp_enter_promisc_mode(caph, *localchan);
     if (res < 0) 
         return -1;
+
+    localnxp->channel = *localchan;
 
     return 1;
 }
