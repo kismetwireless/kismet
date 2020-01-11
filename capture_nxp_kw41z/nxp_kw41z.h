@@ -4,9 +4,7 @@
 #define __NXPKW41Z_H__
 
 #ifdef __APPLE__
-#ifndef B115200
 #define B115200 115200
-#endif
 #endif
 
 #define BAUDRATE B115200

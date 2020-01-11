@@ -31,6 +31,9 @@ typedef struct {
     /* keep track of our errors so we can reset if needed */
     unsigned int error_ctr;
 
+    /* keep track of the soft resets */
+    unsigned int soft_reset;
+
     /* flag to let use know when we are ready to capture */
     bool ready;
 
@@ -43,7 +46,6 @@ typedef struct {
 } local_channel_t;
 
 int ticc2540_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
-    /* printf("channel %u\n", channel); */
     local_ticc2540_t *localticc2540 = (local_ticc2540_t *) caph->userdata;
     int ret;
     uint8_t data;
@@ -123,19 +125,34 @@ int ticc2540_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_
     r = libusb_bulk_transfer(localticc2540->ticc2540_handle, TICC2540_DATA_EP, rx_buf, rx_max, &actual_len, TICC2540_DATA_TIMEOUT);
     pthread_mutex_unlock(&(localticc2540->usb_mutex));
 
-    if (r == LIBUSB_ERROR_TIMEOUT) {
+    if (actual_len == 4) {
+        /* do this as we don't hard reset on a heartbeat then
+         * but we will try resetting the channel instead */
+        localticc2540->soft_reset++;
+
+        if (localticc2540->soft_reset >= 2) {
+            localticc2540->ready = false;
+            ticc2540_exit_promisc_mode(caph);
+            ticc2540_set_channel(caph, localticc2540->channel);
+            ticc2540_enter_promisc_mode(caph);
+            localticc2540->soft_reset = 0;
+            localticc2540->ready = true;
+        }
+
+        return actual_len;
+    }
+
+    if (r < 0) {
         localticc2540->error_ctr++;
-        if (localticc2540->error_ctr >= 500) {
+        if (localticc2540->error_ctr >= 100) {
             return r;
         } else {
             /*continue on for now*/
             return 1;
         }
     }
-        
-    if (r < 0)
-        return r;
 
+    localticc2540->soft_reset = 0; /*we got something valid so reset*/    
     localticc2540->error_ctr = 0; /*we got something valid so reset*/
 
     return actual_len;
@@ -323,6 +340,30 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno, char *msg,
     return num_devs;
 }
 
+void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
+    local_channel_t *ret_localchan;
+    unsigned int parsechan;
+    char errstr[STATUS_MAX];
+
+    if (sscanf(chanstr, "%u", &parsechan) != 1) {
+        snprintf(errstr, STATUS_MAX, "1 unable to parse requested channel '%s'; ticc2540 channels "
+                "are from 37 to 39", chanstr);
+        cf_send_message(caph, errstr, MSGFLAG_INFO);
+        return NULL;
+    }
+
+    if (parsechan > 39 || parsechan < 37) {
+        snprintf(errstr, STATUS_MAX, "2 unable to parse requested channel '%u'; ticc2540 channels "
+                "are from 37 to 39", parsechan);
+        cf_send_message(caph, errstr, MSGFLAG_INFO);
+        return NULL;
+    }
+
+    ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
+    ret_localchan->channel = parsechan;
+    return ret_localchan;
+}
+
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
         cf_params_interface_t **ret_interface,
@@ -348,6 +389,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     char cap_if[32];
     
     ssize_t i;
+
+    char *localchanstr = NULL;
+    unsigned int *localchan = NULL;
 
     local_ticc2540_t *localticc2540 = (local_ticc2540_t *) caph->userdata;
 
@@ -423,6 +467,24 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     pthread_mutex_unlock(&(localticc2540->usb_mutex));
 
     snprintf(cap_if, 32, "ticc2540-%u-%u", busno, devno);
+
+    /* try pulling the channel */
+    if ((placeholder_len = cf_find_flag(&placeholder, "channel", definition)) > 0) {
+        localchanstr = strndup(placeholder, placeholder_len);
+        localchan = (unsigned int *) malloc(sizeof(unsigned int));
+        *localchan = atoi(localchanstr);
+        free(localchanstr);
+
+        if (localchan == NULL) {
+            snprintf(msg, STATUS_MAX,
+                     "ticc2540 could not parse channel= option provided in source "
+                     "definition");
+            return -1;
+        }
+    } else {
+        localchan = (unsigned int *) malloc(sizeof(unsigned int));
+        *localchan = 37;
+    }
 
     localticc2540->devno = devno;
     localticc2540->busno = busno;
@@ -509,33 +571,16 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     pthread_mutex_unlock(&(localticc2540->usb_mutex));
 
     ticc2540_set_power(caph, 0x04, TICC2540_POWER_RETRIES);
+
+    ticc2540_set_channel(caph, *localchan);
+    
+    localticc2540->channel = *localchan;
+
     ticc2540_enter_promisc_mode(caph);
 
+    localticc2540->ready = true;
+
     return 1;
-}
-
-void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
-    local_channel_t *ret_localchan;
-    unsigned int parsechan;
-    char errstr[STATUS_MAX];
-
-    if (sscanf(chanstr, "%u", &parsechan) != 1) {
-        snprintf(errstr, STATUS_MAX, "1 unable to parse requested channel '%s'; ticc2540 channels "
-                "are from 37 to 39", chanstr);
-        cf_send_message(caph, errstr, MSGFLAG_INFO);
-        return NULL;
-    }
-
-    if (parsechan > 39 || parsechan < 37) {
-        snprintf(errstr, STATUS_MAX, "2 unable to parse requested channel '%u'; ticc2540 channels "
-                "are from 37 to 39", parsechan);
-        cf_send_message(caph, errstr, MSGFLAG_INFO);
-        return NULL;
-    }
-
-    ret_localchan = (local_channel_t *) malloc(sizeof(local_channel_t));
-    ret_localchan->channel = parsechan;
-    return ret_localchan;
 }
 
 int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *privchan, char *msg) {
@@ -563,36 +608,6 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     localticc2540->ready = true;
    
     return 1;
-}
-
-bool verify_packet(unsigned char *data, int len) {
-    unsigned char payload[256];
-    memset(payload, 0x00, 256);
-    int pkt_len = data[1];
-    if (pkt_len != (len - 3)) {
-        /* printf("packet length mismatch\n"); */
-        return false;
-    }
-    /* get the payload */
-    int p_ctr = 0;
-    for (int i = 8; i < (len - 2); i++) {
-        payload[p_ctr] = data[i];
-        p_ctr++;
-    }
-    int payload_len = data[7] - 0x02;
-    if (p_ctr != payload_len) {
-        /* printf("payload size mismatch\n"); */
-        return false;
-    }
-
-    unsigned char fcs2 = data[len - 1];
-    unsigned char crc_ok = fcs2 & (1 << 7);
-    unsigned char channel = fcs2 & 0x7f;
-
-    if (channel < 37 || channel > 39)
-        return false;
-
-    return crc_ok;
 }
 
 /* Run a standard glib mainloop inside the capture thread */
@@ -665,6 +680,7 @@ int main(int argc, char *argv[]) {
         .ticc2540_handle = NULL,
         .caph = NULL,
         .error_ctr = 0,
+	.soft_reset = 0,
     };
 
     pthread_mutex_init(&(localticc2540.usb_mutex), NULL);

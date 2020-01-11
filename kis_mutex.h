@@ -49,7 +49,7 @@
 // Seconds a lock is allowed to be held before throwing a timeout error
 // Tuning this is a balance between slower systems or systems swapping heavily, 
 // and faulting more quickly.
-#define KIS_THREAD_DEADLOCK_TIMEOUT     15
+#define KIS_THREAD_DEADLOCK_TIMEOUT     60
 
 // Optionally force the custom c++ workaround mutex
 #define ALWAYS_USE_KISMET_MUTEX         0
