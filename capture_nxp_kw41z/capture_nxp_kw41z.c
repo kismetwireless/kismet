@@ -61,6 +61,7 @@ typedef struct {
 int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len,
                   uint8_t *resp, size_t resp_len, uint8_t *rx_buf,
                   size_t rx_max) {
+    
     uint8_t buf[255];
     uint16_t ctr = 0;
     uint8_t res = 0;
@@ -69,14 +70,14 @@ int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len,
     pthread_mutex_lock(&(localnxp->serial_mutex));
 
     if (tx_len > 0) {
-        // we are transmitting something
+        /* we are transmitting something */
         write(localnxp->fd, tx_buf, tx_len);
         if (resp_len > 0) {
-            // looking for a response
+            /* looking for a response */
             while (ctr < 5000) {
                 usleep(10);
                 res = read(localnxp->fd, buf, 255);
-                // currently if we get something back that is fine and continue
+                /* currently if we get something back that is fine and continue */
                 if (memcmp(buf, resp, resp_len) == 0) {
                     found = true;
                     break;
@@ -86,9 +87,10 @@ int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len,
                 }
                 ctr++;
             }
-            if (!found) return -1;  // we fell through
+            if (!found)
+                res = -1;  /* we fell through */
         } else
-            res = 1;  // no response requested
+            res = 1;  /* no response requested */
     } else if (rx_max > 0) {
         res = read(localnxp->fd, rx_buf, rx_max);
     }
@@ -103,22 +105,23 @@ int nxp_reset(kis_capture_handler_t *caph) {
 }
 
 int nxp_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t chan) {
-    // first byte is header, last byte is checksum
-    // checksum is basic xor of other bits
-    // for these we can just used precomputed packets
+    /* first byte is header, last byte is checksum
+     * checksum is basic xor of other bits
+     * for these we can just used precomputed packets */
     int res = 0;
     if (chan < 30) {
         uint8_t cmd_1[14] = {0x02, 0x85, 0x09, 0x08, 0x00, 0x52, 0x00,
                              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xD6};
         uint8_t rep_1[8] = {0x02, 0x84, 0x0D, 0x02, 0x00, 0x00, 0x52, 0xD9};
         res = nxp_write_cmd(caph, cmd_1, 14, rep_1, 8, NULL, 0);
-        if (res < 0) return res;
+        if (res < 0)
+            return res;
 
         uint8_t cmd_2[14] = {0x02, 0x85, 0x09, 0x08, 0x00, 0x21, 0x0B,
                              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xAE};
         uint8_t rep_2[8] = {0x02, 0x84, 0x0D, 0x02, 0x00, 0x00, 0x21, 0xAA};
 
-        // channel
+        /* channel */
         cmd_2[6] = chan;
 
         if (chan == 12)
@@ -153,32 +156,37 @@ int nxp_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t chan) {
             cmd_2[13] = 0xBF;
 
         res = nxp_write_cmd(caph, cmd_2, 14, rep_2, 8, NULL, 0);
-        if (res < 0) return res;
+        if (res < 0)
+            return res;
 
         uint8_t cmd_3[14] = {0x02, 0x85, 0x09, 0x08, 0x00, 0x51, 0x01,
                              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xD4};
         uint8_t rep_3[8] = {0x02, 0x84, 0x0D, 0x02, 0x00, 0x00, 0x51, 0xDA};
         res = nxp_write_cmd(caph, cmd_3, 14, rep_3, 8, NULL, 0);
-        if (res < 0) return res;
+        if (res < 0)
+            return res;
 
         uint8_t cmd_4[14] = {0x02, 0x85, 0x09, 0x08, 0x00, 0x52, 0x01,
                              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xD7};
         uint8_t rep_4[8] = {0x02, 0x84, 0x0D, 0x02, 0x00, 0x00, 0x52, 0xD9};
         res = nxp_write_cmd(caph, cmd_4, 14, rep_4, 8, NULL, 0);
-        if (res < 0) return res;
+        if (res < 0)
+            return res;
     } else {
-        // bluetooth
+        /* bluetooth */
         uint8_t cmd_1[6] = {0x02, 0x52, 0x00, 0x00, 0x00, 0x52};
         uint8_t rep_1[6] = {0x02, 0x52, 0x02, 0x00, 0x00, 0x50};
         res = nxp_write_cmd(caph, cmd_1, 6, rep_1, 6, NULL, 0);
-        if (res < 0) return res;
+        if (res < 0)
+            return res;
 
         uint8_t cmd_2[7] = {0x02, 0x4E, 0x00, 0x01, 0x00, 0x00, 0x4F};
         uint8_t rep_2[7] = {0x02, 0x4E, 0x80, 0x01, 0x00, 0x00, 0xCF};
         res = nxp_write_cmd(caph, cmd_2, 7, rep_2, 7, NULL, 0);
-        if (res < 0) return res;
+        if (res < 0)
+            return res;
 
-        // chan 37 by default
+        /* chan 37 by default */
         uint8_t cmd_3[7] = {0x02, 0x4E, 0x02, 0x01, 0x00, 0x01, 0x4C};
         if (chan == 38) {
             cmd_3[5] = 0x02;
@@ -190,17 +198,20 @@ int nxp_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t chan) {
         }
 
         res = nxp_write_cmd(caph, cmd_3, 7, NULL, 0, NULL, 0);
-        if (res < 0) return res;
+        if (res < 0)
+            return res;
 
         uint8_t cmd_4[7] = {0x02, 0x4E, 0x01, 0x01, 0x00, 0x00, 0x4E};
         uint8_t rep_4[7] = {0x02, 0x4E, 0x80, 0x01, 0x00, 0x00, 0xCF};
         res = nxp_write_cmd(caph, cmd_4, 7, rep_4, 7, NULL, 0);
-        if (res < 0) return res;
+        if (res < 0)
+            return res;
 
         uint8_t cmd_5[7] = {0x02, 0x4E, 0x00, 0x01, 0x00, 0x01, 0x4E};
-        // uint8_t rep_5[7] = {0x02,0x4E,0x80,0x01,0x00,0x00,0xCF};
+        /* uint8_t rep_5[7] = {0x02,0x4E,0x80,0x01,0x00,0x00,0xCF}; */
         res = nxp_write_cmd(caph, cmd_5, 7, NULL, 0, NULL, 0);
-        if (res < 0) return res;
+        if (res < 0)
+            return res;
     }
     return res;
 }
@@ -285,7 +296,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     /* NXP KW41Z supports 11-26 for zigbee and 37-39 for ble */
     char chstr[4];
     int ctr = 0;
-
+/*
     (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 19);
 
     for (int i = 11; i < 27; i++) {
@@ -293,14 +304,15 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
         (*ret_interface)->channels[ctr] = strdup(chstr);
         ctr++;
     }
-
+*/
+    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 3);
     for (int i = 37; i < 40; i++) {
         snprintf(chstr, 4, "%d", i);
         (*ret_interface)->channels[ctr] = strdup(chstr);
         ctr++;
     }
 
-    (*ret_interface)->channels_len = 19;
+    (*ret_interface)->channels_len = 3; /* 19 */
 
     return 1;
 }
@@ -321,6 +333,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     *ret_interface = cf_params_interface_new();
 
     char cap_if[32];
+
+    char *localchanstr = NULL;
+    unsigned int *localchan = NULL;
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
         snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
@@ -343,6 +358,24 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
+    /* try pulling the channel */
+    if ((placeholder_len = cf_find_flag(&placeholder, "channel", definition)) > 0) {
+        localchanstr = strndup(placeholder, placeholder_len);
+	localchan = (unsigned int *) malloc(sizeof(unsigned int));
+        *localchan = atoi(localchanstr); 
+        free(localchanstr);
+
+        if (localchan == NULL) {
+            snprintf(msg, STATUS_MAX,
+                    "ticc2540 could not parse channel= option provided in source "
+                    "definition");
+            return -1;
+        }
+    } else {
+        localchan = (unsigned int *) malloc(sizeof(unsigned int));
+        *localchan = 37;
+    }
+    
     snprintf(cap_if, 32, "nxp_kw41z-%012X",adler32_csum((unsigned char *) device, strlen(device)));
 
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
@@ -364,7 +397,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     /* NXP KW41Z supports 11-26 for zigbee and 37-39 for ble */
     char chstr[4];
     int ctr = 0;
-
+/*
     (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 19);
 
     for (int i = 11; i < 27; i++) {
@@ -372,14 +405,15 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         (*ret_interface)->channels[ctr] = strdup(chstr);
         ctr++;
     }
-
+*/
+    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 3);
     for (int i = 37; i < 40; i++) {
         snprintf(chstr, 4, "%d", i);
         (*ret_interface)->channels[ctr] = strdup(chstr);
         ctr++;
     }
 
-    (*ret_interface)->channels_len = 19;
+    (*ret_interface)->channels_len = 3; /* 19 */
 
     pthread_mutex_lock(&(localnxp->serial_mutex));
     /* open for r/w but no tty */
@@ -410,14 +444,18 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     tcsetattr(localnxp->fd, TCSANOW, &localnxp->newtio);
 
     pthread_mutex_unlock(&(localnxp->serial_mutex));
+    
+    nxp_reset(caph);
 
     res = nxp_exit_promisc_mode(caph);
     if (res < 0) 
         return -1;
 
-    res = nxp_enter_promisc_mode(caph, 11);
+    res = nxp_enter_promisc_mode(caph, *localchan);
     if (res < 0) 
         return -1;
+
+    localnxp->channel = *localchan;
 
     return 1;
 }
@@ -434,7 +472,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
         return NULL;
     }
 
-    //if (parsechan > 39 || parsechan < 37) {
+    /* if (parsechan > 39 || parsechan < 37) { */
     if (parsechan > 39 || parsechan < 11) {
         snprintf(errstr, STATUS_MAX, "2 unable to parse requested channel '%u'; nxp kw41z channels "
                 "are from 11 to 26 and 37 to 39", parsechan);
