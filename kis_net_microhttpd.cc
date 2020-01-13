@@ -751,7 +751,19 @@ int kis_net_httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     kis_net_httpd_connection *concls = NULL;
     bool new_concls = false;
 
-    cookieval = MHD_lookup_connection_value(connection, MHD_COOKIE_KIND, KIS_SESSION_COOKIE);
+    // Handle a CORS preflight OPTIONS request by sending back an allow-all header
+    if (strcmp(method, "OPTIONS") == 0) {
+        auto response = 
+            MHD_create_response_from_buffer(0, NULL, MHD_RESPMEM_PERSISTENT);
+
+        append_cors_headers(kishttpd, response);
+
+        ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
+        MHD_destroy_response(response);
+    }
+
+    cookieval = 
+        MHD_lookup_connection_value(connection, MHD_COOKIE_KIND, KIS_SESSION_COOKIE);
 
     if (cookieval != NULL) {
         s = kishttpd->FindSession(cookieval);
@@ -1156,6 +1168,18 @@ void kis_net_httpd::append_http_session(kis_net_httpd *httpd __attribute__((unus
     }
 }
 
+void kis_net_httpd::append_cors_headers(kis_net_httpd* httpd,
+        struct MHD_Response *response) {
+
+    MHD_add_response_header(response, "Access-Control-Allow-Origin", "*");
+    MHD_add_response_header(response, "Access-Control-Allow-Credentials", "true");
+    MHD_add_response_header(response, "Vary", "Origin");
+    MHD_add_response_header(response, "Access-Control-Max-Age", "86400");
+    MHD_add_response_header(response, "Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+    MHD_add_response_header(response, "Access-Control-Allow-Headers", "Content-Type");
+
+}
+
 void kis_net_httpd::append_standard_headers(kis_net_httpd *httpd,
         kis_net_httpd_connection *connection, const char *url) {
 
@@ -1190,16 +1214,14 @@ void kis_net_httpd::append_standard_headers(kis_net_httpd *httpd,
         MHD_add_response_header(connection->response, "Content-Disposition", disp.c_str());
     }
 
-    // Allow any?  This lets us handle webuis hosted elsewhere
-    MHD_add_response_header(connection->response, 
-            "Access-Control-Allow-Origin", "*");
-
     // Never let the browser cache our responses.  Maybe moderate this
     // in the future to cache for 60 seconds or something?
     MHD_add_response_header(connection->response, "Cache-Control", "no-cache");
     MHD_add_response_header(connection->response, "Pragma", "no-cache");
     MHD_add_response_header(connection->response, 
             "Expires", "Sat, 01 Jan 2000 00:00:00 GMT");
+
+    append_cors_headers(httpd, connection->response);
 
 }
 

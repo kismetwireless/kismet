@@ -392,6 +392,10 @@ public:
     static void append_standard_headers(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection, const char *url);
 
+    // Append CORS cross-site headers
+    static void append_cors_headers(kis_net_httpd *httpd,
+            struct MHD_Response *response);
+
     // Queue a http response
     static int send_http_response(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection);
