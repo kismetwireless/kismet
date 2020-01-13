@@ -470,7 +470,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     // try pulling the channel
     if ((placeholder_len = cf_find_flag(&placeholder, "channel", definition)) > 0) {
         localchanstr = strndup(placeholder, placeholder_len);
-        localchan = atoi(localchanstr); 
+        localchan = (unsigned int *) malloc(sizeof(unsigned int));
+        *localchan = atoi(localchanstr); 
         free(localchanstr);
 
         if (localchan == NULL) {
@@ -536,7 +537,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             return -1;
         }
     }
-
+    /* config */
     r = libusb_set_configuration(localticc2531->ticc2531_handle, 1);
     if (r < 0) {
         snprintf(errstr, STATUS_MAX,
@@ -566,15 +567,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             return -1;
         }
     }
-   
+  
     pthread_mutex_unlock(&(localticc2531->usb_mutex));
 
     ticc2531_set_power(caph, 0x04, TICC2531_POWER_RETRIES);
-
     ticc2531_set_channel(caph, *localchan);
     
     localticc2531->channel = *localchan;
-
     ticc2531_enter_promisc_mode(caph);
 
     localticc2531->ready = true;
