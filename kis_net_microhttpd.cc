@@ -591,6 +591,9 @@ bool kis_net_httpd::has_valid_session(kis_net_httpd_connection *connection, bool
             MHD_create_response_from_buffer(fourohone.length(),
                     (void *) fourohone.c_str(), MHD_RESPMEM_MUST_COPY);
 
+        // Still append the standard headers
+        append_standard_headers(this, connection, connection->url.c_str());
+
         // Queue a 401 fail instead of a basic auth fail so we don't cause a bunch of prompting in the browser
         // Make sure this doesn't actually break anything...
         MHD_queue_response(connection->connection, 401, connection->response);
