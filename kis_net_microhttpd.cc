@@ -1202,7 +1202,7 @@ void kis_net_httpd::append_cors_headers(kis_net_httpd* httpd,
     MHD_add_response_header(response, "Vary", "Origin");
     MHD_add_response_header(response, "Access-Control-Max-Age", "86400");
     MHD_add_response_header(response, "Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-    MHD_add_response_header(response, "Access-Control-Allow-Headers", "Content-Type");
+    MHD_add_response_header(response, "Access-Control-Allow-Headers", "Content-Type, Authorization");
 
 }
 
