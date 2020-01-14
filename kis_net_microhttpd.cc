@@ -768,6 +768,8 @@ int kis_net_httpd::http_request_handler(void *cls, struct MHD_Connection *connec
 
         ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
         MHD_destroy_response(response);
+
+        return MHD_YES;
     }
 
     cookieval = 
