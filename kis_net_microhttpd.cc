@@ -198,6 +198,11 @@ kis_net_httpd::kis_net_httpd() {
     pem_path = Globalreg::globalreg->kismet_config->fetch_opt("httpd_ssl_cert");
     key_path = Globalreg::globalreg->kismet_config->fetch_opt("httpd_ssl_key");
 
+    allow_cors = 
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("httpd_allow_cors", false);
+    allowed_cors_referrer =
+        Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_allowed_origin", "");
+
     register_mime_type("html", "text/html");
     register_mime_type("svg", "image/svg+xml");
     register_mime_type("css", "text/css");
@@ -586,6 +591,9 @@ bool kis_net_httpd::has_valid_session(kis_net_httpd_connection *connection, bool
             MHD_create_response_from_buffer(fourohone.length(),
                     (void *) fourohone.c_str(), MHD_RESPMEM_MUST_COPY);
 
+        // Still append the standard headers
+        append_standard_headers(this, connection, connection->url.c_str());
+
         // Queue a 401 fail instead of a basic auth fail so we don't cause a bunch of prompting in the browser
         // Make sure this doesn't actually break anything...
         MHD_queue_response(connection->connection, 401, connection->response);
@@ -751,7 +759,21 @@ int kis_net_httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     kis_net_httpd_connection *concls = NULL;
     bool new_concls = false;
 
-    cookieval = MHD_lookup_connection_value(connection, MHD_COOKIE_KIND, KIS_SESSION_COOKIE);
+    // Handle a CORS preflight OPTIONS request by sending back an allow-all header
+    if (strcmp(method, "OPTIONS") == 0 && kishttpd->allow_cors) {
+        auto response = 
+            MHD_create_response_from_buffer(0, NULL, MHD_RESPMEM_PERSISTENT);
+
+        append_cors_headers(kishttpd, connection, response);
+
+        ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
+        MHD_destroy_response(response);
+
+        return MHD_YES;
+    }
+
+    cookieval = 
+        MHD_lookup_connection_value(connection, MHD_COOKIE_KIND, KIS_SESSION_COOKIE);
 
     if (cookieval != NULL) {
         s = kishttpd->FindSession(cookieval);
@@ -1156,6 +1178,36 @@ void kis_net_httpd::append_http_session(kis_net_httpd *httpd __attribute__((unus
     }
 }
 
+void kis_net_httpd::append_cors_headers(kis_net_httpd* httpd,
+        struct MHD_Connection *connection,
+        struct MHD_Response *response) {
+
+    if (!httpd->allow_cors)
+        return;
+
+    if (httpd->allowed_cors_referrer.length() != 0) {
+        // Send only the origin we allow if we have it restricted
+        MHD_add_response_header(response, "Access-Control-Allow-Origin", 
+                httpd->allowed_cors_referrer.c_str());
+    } else {
+        // Echo back the origin if we allow any
+        const char *origin =
+            MHD_lookup_connection_value (connection, MHD_HEADER_KIND, "Origin");
+
+        if (origin != NULL)
+            MHD_add_response_header(response, "Access-Control-Allow-Origin", origin);
+        else
+            MHD_add_response_header(response, "Access-Control-Allow-Origin", "*");
+    }
+
+    MHD_add_response_header(response, "Access-Control-Allow-Credentials", "true");
+    MHD_add_response_header(response, "Vary", "Origin");
+    MHD_add_response_header(response, "Access-Control-Max-Age", "86400");
+    MHD_add_response_header(response, "Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+    MHD_add_response_header(response, "Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+}
+
 void kis_net_httpd::append_standard_headers(kis_net_httpd *httpd,
         kis_net_httpd_connection *connection, const char *url) {
 
@@ -1190,16 +1242,14 @@ void kis_net_httpd::append_standard_headers(kis_net_httpd *httpd,
         MHD_add_response_header(connection->response, "Content-Disposition", disp.c_str());
     }
 
-    // Allow any?  This lets us handle webuis hosted elsewhere
-    MHD_add_response_header(connection->response, 
-            "Access-Control-Allow-Origin", "*");
-
     // Never let the browser cache our responses.  Maybe moderate this
     // in the future to cache for 60 seconds or something?
     MHD_add_response_header(connection->response, "Cache-Control", "no-cache");
     MHD_add_response_header(connection->response, "Pragma", "no-cache");
     MHD_add_response_header(connection->response, 
             "Expires", "Sat, 01 Jan 2000 00:00:00 GMT");
+
+    append_cors_headers(httpd, connection->connection, connection->response);
 
 }
 

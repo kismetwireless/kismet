@@ -392,6 +392,11 @@ public:
     static void append_standard_headers(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection, const char *url);
 
+    // Append CORS cross-site headers
+    static void append_cors_headers(kis_net_httpd *httpd,
+            struct MHD_Connection *connection,
+            struct MHD_Response *response);
+
     // Queue a http response
     static int send_http_response(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection);
@@ -428,6 +433,9 @@ protected:
     bool use_ssl;
     char *cert_pem, *cert_key;
     std::string pem_path, key_path;
+
+    bool allow_cors;
+    std::string allowed_cors_referrer;
 
     bool running;
 
