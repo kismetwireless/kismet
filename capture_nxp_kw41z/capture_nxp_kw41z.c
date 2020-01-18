@@ -64,10 +64,8 @@ typedef struct {
     unsigned int channel;
 } local_channel_t;
 
-int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len,
-                  uint8_t *resp, size_t resp_len, uint8_t *rx_buf,
-                  size_t rx_max) {
-
+int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len, uint8_t *resp,
+                  size_t resp_len, uint8_t *rx_buf, size_t rx_max) {
     uint8_t buf[255];
     uint16_t ctr = 0;
     uint8_t res = 0;
@@ -76,32 +74,34 @@ int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len,
     pthread_mutex_lock(&(localnxp->serial_mutex));
 
     if (tx_len > 0) {
-        // we are transmitting something
+        /* we are transmitting something */
         write(localnxp->fd, tx_buf, tx_len);
         if (resp_len > 0) {
             // looking for a response
             while (ctr < 5000) {
                 usleep(25);
-                memset(buf,0x00,255);
-		res = read(localnxp->fd, buf, 255);
-		// currently if we get something back that is fine and continue
+                memset(buf, 0x00, 255);
+                res = read(localnxp->fd, buf, 255);
+                /* currently if we get something back that is fine and continue */
+
                 if (memcmp(buf, resp, resp_len) == 0) {
                     found = true;
                     break;
                 }
 
                 ctr++;
-            }//looking loop
+            }
             if (!found) {
-		    res = -1;  // we fell through
-	    }
-        } else
-            res = 1;  // no response requested
+                res = -1; /* we fell through */
+            }
+        } else {
+            res = 1; /* no response requested */
+        }
     } else if (rx_max > 0) {
         res = read(localnxp->fd, rx_buf, rx_max);
-	if (res <= 0) {
+        if (res <= 0) {
             usleep(25);
-	}
+        }
     }
 
     pthread_mutex_unlock(&(localnxp->serial_mutex));
@@ -114,9 +114,10 @@ int nxp_reset(kis_capture_handler_t *caph) {
 }
 
 int nxp_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t chan) {
-    // first byte is header, last byte is checksum
-    // checksum is basic xor of other bits
-    // for these we can just used precomputed packets
+    /* first byte is header, last byte is checksum
+     * checksum is basic xor of other bits
+     * for these we can just used precomputed packets
+     */
     int res = 0;
     if (chan < 30) {
         uint8_t cmd_1[14] = {0x02, 0x85, 0x09, 0x08, 0x00, 0x52, 0x00,
@@ -129,7 +130,7 @@ int nxp_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t chan) {
                              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xAE};
         uint8_t rep_2[8] = {0x02, 0x84, 0x0D, 0x02, 0x00, 0x00, 0x21, 0xAA};
 
-        // channel
+        /* channel */
         cmd_2[6] = chan;
 
         if (chan == 12)
@@ -178,7 +179,7 @@ int nxp_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t chan) {
         res = nxp_write_cmd(caph, cmd_4, 14, rep_4, 8, NULL, 0);
         if (res < 0) return res;
     } else {
-        // bluetooth
+        /* bluetooth */
         uint8_t cmd_1[6] = {0x02, 0x52, 0x00, 0x00, 0x00, 0x52};
         uint8_t rep_1[6] = {0x02, 0x52, 0x02, 0x00, 0x00, 0x50};
         res = nxp_write_cmd(caph, cmd_1, 6, rep_1, 6, NULL, 0);
@@ -189,10 +190,10 @@ int nxp_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t chan) {
         res = nxp_write_cmd(caph, cmd_2, 7, rep_2, 7, NULL, 0);
         if (res < 0) return res;
 
-        // chan 37 by default
+        /* chan 37 by default */
         uint8_t cmd_3[7] = {0x02, 0x4E, 0x02, 0x01, 0x00, 0x01, 0x4C};
-	uint8_t rep_3[7] = {0x02, 0x4E, 0x82, 0x01, 0x00, 0x00, 0xCD};
-	if (chan == 38) {
+        uint8_t rep_3[7] = {0x02, 0x4E, 0x82, 0x01, 0x00, 0x00, 0xCD};
+        if (chan == 38) {
             cmd_3[5] = 0x02;
             cmd_3[6] = 0x4F;
         }
@@ -202,19 +203,25 @@ int nxp_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t chan) {
         }
 
         res = nxp_write_cmd(caph, cmd_3, 7, rep_3, 7, NULL, 0);
-        if (res < 0) return res;
+        if (res < 0)
+            return res;
 
         uint8_t cmd_4[7] = {0x02, 0x4E, 0x01, 0x01, 0x00, 0x00, 0x4E};
-        //uint8_t rep_4[7] = {0x02, 0x4E, 0x80, 0x01, 0x00, 0x00, 0xCF};
-	uint8_t rep_4[7] = {0x02, 0x4E, 0x81, 0x01, 0x00, 0x00, 0xCE};
+        /* uint8_t rep_4[7] = {0x02, 0x4E, 0x80, 0x01, 0x00, 0x00, 0xCF}; */
+        uint8_t rep_4[7] = {0x02, 0x4E, 0x81, 0x01, 0x00, 0x00, 0xCE};
         res = nxp_write_cmd(caph, cmd_4, 7, rep_4, 7, NULL, 0);
-        if (res < 0) return res;
+
+        if (res < 0)
+            return res;
 
         uint8_t cmd_5[7] = {0x02, 0x4E, 0x00, 0x01, 0x00, 0x01, 0x4E};
         uint8_t rep_5[7] = {0x02, 0x4E, 0x80, 0x01, 0x00, 0x00, 0xCF};
         res = nxp_write_cmd(caph, cmd_5, 7, rep_5, 7, NULL, 0);
-        if (res < 0) return res;
+
+        if (res < 0)
+            return res;
     }
+
     return res;
 }
 
@@ -453,7 +460,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
    
     localnxp->ready = false;
  
-    //nxp_reset(caph);
+    /* nxp_reset(caph); */
 
     res = nxp_exit_promisc_mode(caph);
     if (res < 0) 
@@ -482,7 +489,7 @@ void *chantranslate_callback(kis_capture_handler_t *caph, char *chanstr) {
         return NULL;
     }
 
-    //if (parsechan > 39 || parsechan < 37) {
+    /* if (parsechan > 39 || parsechan < 37) { */
     if (parsechan > 39 || parsechan < 11) {
         snprintf(errstr, STATUS_MAX, "2 unable to parse requested channel '%u'; nxp kw41z channels "
                 "are from 11 to 26 and 37 to 39", parsechan);
