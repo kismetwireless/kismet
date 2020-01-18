@@ -91,7 +91,7 @@ void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
             uint8_t reserved;  // must be zero
             uint16_t length;   // total length of header and tlvs in octets, min
                                // 4 and must be multiple of 4
-            tap_tlv tlv[3];    // tap tlvs
+            tap_tlv tlv[2];    // tap tlvs
             uint8_t payload[0];
             ////payload + fcs per fcs type
         } zigbee_tap;
@@ -119,12 +119,12 @@ void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
         conv_header->tlv[1].type = 10;
         conv_header->tlv[1].length = 1;
         conv_header->tlv[1].value = rssi;
-
+/*
         // channel
         conv_header->tlv[2].type = 3;
         conv_header->tlv[2].length = 3;
         conv_header->tlv[2].value = 11;  // need to try to pull from some where
-
+*/
         // size
         conv_header->length =
             sizeof(conv_header) + sizeof(conv_header->tlv) - 4;
