@@ -46,7 +46,7 @@ public:
         // Set the capture binary
         set_int_source_ipc_binary("kismet_cap_ti_cc_2531");
 
-	//set_int_source_dlt(KDLT_IEEE802_15_4_NOFCS);
+        //set_int_source_dlt(KDLT_IEEE802_15_4_NOFCS);
         set_int_source_dlt(KDLT_IEEE802_15_4_TAP);
 
         pack_comp_decap =
@@ -98,8 +98,6 @@ public:
     }
 
     virtual void initialize() override {
-        // Set up our basic parameters for the linux wifi driver
-        
         set_source_type("ticc2531");
         set_source_description("TI CC2531 with sniffer firmware");
 
@@ -109,7 +107,7 @@ public:
         set_remote_capable(true);
         set_passive_capable(false);
         set_tune_capable(true);
-	set_hop_capable(true);
+        set_hop_capable(true);
     }
 };
 

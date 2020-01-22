@@ -1,3 +1,20 @@
+/*
+    This file is part of Kismet
+
+    Kismet is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    Kismet is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Kismet; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
 
 #include "../config.h"
 
@@ -126,9 +143,11 @@ int ticc2531_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_
     pthread_mutex_unlock(&(localticc2531->usb_mutex));
 
     if (actual_len == 4) {
-	// do this as we don't hard reset on a heartbeat then
-	// but we will try resetting the channel instead
+	/* do this as we don't hard reset on a heartbeat then
+	 * but we will try resetting the channel instead
+     */
 	localticc2531->soft_reset++;
+
 	if (localticc2531->soft_reset >= 2) {
 	    localticc2531->ready = false;
 	    ticc2531_exit_promisc_mode(caph);
