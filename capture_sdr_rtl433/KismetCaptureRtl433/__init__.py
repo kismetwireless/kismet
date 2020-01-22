@@ -181,7 +181,7 @@ class KismetRtl433(object):
         try:
             self.kill_433()
 
-            cmd = [ self.opts['rtlbin'], '-F', 'json', '-G' ]
+            cmd = [ self.opts['rtlbin'], '-F', 'json' ]
 
             if self.opts['device'] is not None:
                 cmd.append('-d')
