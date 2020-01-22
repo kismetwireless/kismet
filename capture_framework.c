@@ -1094,7 +1094,16 @@ void *cf_int_chanhop_thread(void *arg) {
             // fprintf(stderr, "debug - hop fail, cleaning up\n");
 
             /* Safety net */
-            if (caph->channel_hop_failure_list_sz >= caph->channel_hop_list_sz) {
+            if (caph->channel_hop_failure_list_sz == caph->channel_hop_list_sz) {
+                snprintf(errstr, STATUS_MAX, "All configured channels are in error state!");
+                cf_send_error(caph, 0, errstr);
+                caph->hopping_running = 0;
+                pthread_mutex_unlock(&caph->handler_lock);
+                cf_handler_spindown(caph);
+                return NULL;
+            }
+
+            if (caph->channel_hop_failure_list_sz > caph->channel_hop_list_sz) {
                 // fprintf(stderr, "debug - sending fail\n");
                 snprintf(errstr, STATUS_MAX, "Attempted to clean up channels which were "
                         "in error state, but there were more error channels (%lu) than "
