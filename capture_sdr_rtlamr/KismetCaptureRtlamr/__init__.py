@@ -238,29 +238,26 @@ class KismetRtlamr(object):
         # Device selector could be integer position, or it could be a serial number
         devselector = source[7:]
         found_interface = False
+
         intnum = -1
 
+        # Try it as a serial number; try this first to deal with serial numbers like 00000000001
+        intnum = self.rtlsdr.rtl_get_index_by_serial(devselector.encode('utf-8'))
+
         # Try to find the device as an index
-        try:
-            intnum = int(devselector)
+        if intnum < 0:
+            try:
+                intnum = int(devselector)
 
-            # Abort if we're not w/in the range
-            if intnum >= self.rtlsdr.rtl_get_device_count():
-                raise ValueError("n/a")
+                # Abort if we're not w/in the range
+                if intnum >= self.rtlsdr.rtl_get_device_count():
+                    raise ValueError("n/a")
 
-            # Otherwise we've found a device
-            found_interface = True
-
-        except ValueError:
-            # A value error means we just need to look at it as a device num
-            pass
-        except:
-            # Otherwise something failed in querying the hw at a deeper level
-            return None
-
-        # Try it as a serial number
-        if not found_interface:
-            intnum = self.rtlsdr.rtl_get_index_by_serial(devselector.encode('utf-8'))
+            except ValueError:
+                intnum = -1
+            except:
+                # Otherwise something failed in querying the hw at a deeper level
+                return None
 
         # We've failed as both a serial and as an index, give up
         if intnum < 0:
