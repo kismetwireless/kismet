@@ -373,8 +373,11 @@ int pcap_stream_ringbuf::pcapng_write_packet(unsigned int in_sourcenumber,
 
     ssize_t r = handler->reserve_write_buffer_data((void **) &retbuf, buf_sz);
 
-    if (r != (ssize_t) buf_sz) {
-        handler->commit_write_buffer_data(NULL, 0);
+    if (r != (ssize_t) buf_sz || retbuf == nullptr) {
+        if (retbuf != nullptr) {
+            handler->commit_write_buffer_data(NULL, 0);
+        }
+
         handler->protocol_error();
         return -1;
     }
