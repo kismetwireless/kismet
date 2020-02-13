@@ -33,7 +33,7 @@ void kis_gps_nmea::buffer_available(size_t in_amt) {
 
     // Peek at all the data we have available
     buf_sz = nmeahandler->peek_read_buffer_data((void **) &buf, 
-            nmeahandler->get_read_buffer_available());
+            nmeahandler->get_read_buffer_used());
 
     // Aggregate into a new location; then copy into the main location
     // depending on what we found.  Locations can come in multiple sentences

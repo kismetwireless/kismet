@@ -222,19 +222,7 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
 
     // We defer logging that we saw new data until we see a complete record, in case 
     // one of the weird failure conditions of GPSD is to send a partial record
-
-    if (tcphandler->get_read_buffer_available() == 0) {
-        if (get_gps_reconnect())
-            _MSG_ERROR("GPSDv2 read buffer filled without getting a valid record; "
-                    "disconnecting and reconnecting.");
-        else
-            _MSG_ERROR("GPSDv2 read buffer filled without getting a valid record; disconnecting.");
-
-        tcpclient->disconnect();
-        set_int_device_connected(false);
-        return;
-    }
-
+  
     // Use data availability as the connected status since tcp poll is currently
     // hidden from us
     {
@@ -246,7 +234,7 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
 
     // Peek at all the data we have available
     buf_sz = tcphandler->peek_read_buffer_data((void **) &buf, 
-            tcphandler->get_read_buffer_available());
+            tcphandler->get_read_buffer_used());
 
     // Aggregate into a new location; then copy into the main location
     // depending on what we found.  Locations can come in multiple sentences
@@ -263,6 +251,17 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
     tcphandler->peek_free_read_buffer_data(buf);
 
     if (inptok.size() < 1) {
+        if (tcphandler->get_read_buffer_available() == 0) {
+            if (get_gps_reconnect())
+                _MSG_ERROR("GPSDv2 read buffer filled without getting a valid record; "
+                        "disconnecting and reconnecting.");
+            else
+                _MSG_ERROR("GPSDv2 read buffer filled without getting a valid record; disconnecting.");
+
+            tcpclient->disconnect();
+            set_int_device_connected(false);
+        }
+
         return;
     }
 
