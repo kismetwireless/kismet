@@ -79,6 +79,8 @@ void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
     // check what type of packet we are
     if (nxp_chunk->data[0] == 0x02 && nxp_chunk->data[1] == 0x86 &&
         nxp_chunk->data[2] == 0x03) {
+        printf("received zigbee packet\n");
+    
         typedef struct {
             uint16_t type;    // type identifier
             uint16_t length;  // number of octets for type in value field (not
