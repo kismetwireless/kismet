@@ -37,6 +37,9 @@
 #define CRTSCTS 020000000000 /*should be defined but isn't with the C99*/
 #endif
 
+
+int nxp_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_max);
+
 /* Unique instance data passed around by capframework */
 typedef struct {
     pthread_mutex_t serial_mutex;
@@ -46,11 +49,7 @@ typedef struct {
     int fd;
 
     unsigned int channel;
-
-    unsigned int reads;
-
-    unsigned int pkts;
-
+    unsigned int prevchannel;
     char *name;
     char *interface;
     
@@ -66,41 +65,55 @@ typedef struct {
 
 int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len, uint8_t *resp,
                   size_t resp_len, uint8_t *rx_buf, size_t rx_max) {
+
     uint8_t buf[255];
     uint16_t ctr = 0;
-    uint8_t res = 0;
+    uint16_t try_ctr = 0;
+    int8_t res = 0;
     bool found = false;
     local_nxp_t *localnxp = (local_nxp_t *) caph->userdata;
     pthread_mutex_lock(&(localnxp->serial_mutex));
 
     if (tx_len > 0) {
+        /* lets flush the buffer */
+        tcflush(localnxp->fd, TCIOFLUSH);
         /* we are transmitting something */
-        write(localnxp->fd, tx_buf, tx_len);
+	    res = write(localnxp->fd, tx_buf, tx_len);
+        if (res < 0) {
+            return res;
+        }
         if (resp_len > 0) {
-            // looking for a response
+            /* looking for a response */
             while (ctr < 5000) {
                 usleep(25);
-                memset(buf, 0x00, 255);
+                memset(buf,0x00,255);
+                found = false;
                 res = read(localnxp->fd, buf, 255);
                 /* currently if we get something back that is fine and continue */
-
-                if (memcmp(buf, resp, resp_len) == 0) {
+                if (res > 0 && memcmp(buf, resp, resp_len) == 0) {
                     found = true;
                     break;
+                } else if (res > 0) {
+                    if (buf[0] == 0x02) {
+                        /* we got something from the device */
+                        res = -1;  // we fell through
+                        tcflush(localnxp->fd,TCIOFLUSH);
+                        break;
+                    }
                 }
-
                 ctr++;
             }
             if (!found) {
-                res = -1; /* we fell through */
+                res = -1;  // we fell through
             }
         } else {
-            res = 1; /* no response requested */
+            res = 1;  // no response requested
         }
     } else if (rx_max > 0) {
         res = read(localnxp->fd, rx_buf, rx_max);
-        if (res <= 0) {
+	    if (res < 0) {
             usleep(25);
+            res = 0;
         }
     }
 
@@ -108,9 +121,19 @@ int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len, u
     return res;
 }
 
+int nxp_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_max) {
+    return nxp_write_cmd(caph, NULL, 0, NULL, 0, rx_buf, rx_max);
+}
+
 int nxp_reset(kis_capture_handler_t *caph) {
     uint8_t cmd_1[6] = {0x02, 0xA3, 0x08, 0x00, 0x00, 0xAB};
-    return nxp_write_cmd(caph, cmd_1, 6, NULL, 0, NULL, 0);
+    nxp_write_cmd(caph, cmd_1, 6, NULL, 0, NULL, 0);
+    usleep(100);
+    /* lets do some reads, to maybe clear the buffer */
+    uint8_t buf[256];
+    for(int i=0;i<100;i++) 
+        nxp_receive_payload(caph, buf, 256);
+    return 1;
 }
 
 int nxp_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t chan) {
@@ -165,7 +188,7 @@ int nxp_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t chan) {
             cmd_2[13] = 0xBF;
 
         res = nxp_write_cmd(caph, cmd_2, 14, rep_2, 8, NULL, 0);
-        if (res < 0) return res;
+	if (res < 0) return res;
 
         uint8_t cmd_3[14] = {0x02, 0x85, 0x09, 0x08, 0x00, 0x51, 0x01,
                              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xD4};
@@ -203,11 +226,9 @@ int nxp_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t chan) {
         }
 
         res = nxp_write_cmd(caph, cmd_3, 7, rep_3, 7, NULL, 0);
-        if (res < 0)
-            return res;
+        if (res < 0) return res;
 
         uint8_t cmd_4[7] = {0x02, 0x4E, 0x01, 0x01, 0x00, 0x00, 0x4E};
-        /* uint8_t rep_4[7] = {0x02, 0x4E, 0x80, 0x01, 0x00, 0x00, 0xCF}; */
         uint8_t rep_4[7] = {0x02, 0x4E, 0x81, 0x01, 0x00, 0x00, 0xCE};
         res = nxp_write_cmd(caph, cmd_4, 7, rep_4, 7, NULL, 0);
 
@@ -217,26 +238,47 @@ int nxp_enter_promisc_mode(kis_capture_handler_t *caph, uint8_t chan) {
         uint8_t cmd_5[7] = {0x02, 0x4E, 0x00, 0x01, 0x00, 0x01, 0x4E};
         uint8_t rep_5[7] = {0x02, 0x4E, 0x80, 0x01, 0x00, 0x00, 0xCF};
         res = nxp_write_cmd(caph, cmd_5, 7, rep_5, 7, NULL, 0);
-
-        if (res < 0)
-            return res;
+        if (res < 0) return res;
     }
 
     return res;
 }
 
+int nxp_write_cmd_retry(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len,
+                        uint8_t *resp, size_t resp_len, uint8_t *rx_buf, size_t rx_max) {
+    int ret = 0;
+    int retries = 3;
+    int reset = 0;
+    while (retries > 0) {
+        ret = nxp_write_cmd(caph,tx_buf,tx_len,resp,resp_len,rx_buf,rx_max);
+        if (ret >= 0) {
+            usleep(50);
+            break;
+        }
+        usleep(100);
+        retries--;
+        if (retries == 0 && reset == 0) {
+            retries = 3;
+            reset = 1;
+            nxp_reset(caph);
+            usleep(200);
+        }
+    }
+    return ret;
+}
+
 int nxp_exit_promisc_mode(kis_capture_handler_t *caph) {
     uint8_t cmd[7] = {0x02, 0x4E, 0x00, 0x01, 0x00, 0x00, 0x4F};
     uint8_t rep[7] = {0x02, 0x4E, 0x80, 0x01, 0x00, 0x00, 0xCF};
-    return nxp_write_cmd(caph, cmd, 7, rep, 7, NULL, 0);
+    int res = 0;
+
+    res = nxp_write_cmd_retry(caph, cmd, 7, rep, 7, NULL, 0);
+
+    return res;
 }
 
 int nxp_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
-    local_nxp_t *localnxp = (local_nxp_t *) caph->userdata;
     int res = 0;
-
-    localnxp->reads = 0;
-    localnxp->pkts = 0;
 
     res = nxp_exit_promisc_mode(caph);
 
@@ -246,11 +288,6 @@ int nxp_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
     res = nxp_enter_promisc_mode(caph, channel);
 
     return res;
-}
-
-int nxp_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf,
-                        size_t rx_max) {
-    return nxp_write_cmd(caph, NULL, 0, NULL, 0, rx_buf, rx_max);
 }
 
 int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
@@ -309,15 +346,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno,
     /* NXP KW41Z supports 11-26 for zigbee and 37-39 for ble */
     char chstr[4];
     int ctr = 0;
-/*
-    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 19);
 
-    for (int i = 11; i < 27; i++) {
-        snprintf(chstr, 4, "%d", i);
-        (*ret_interface)->channels[ctr] = strdup(chstr);
-        ctr++;
-    }
-*/
     (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 3);
     for (int i = 37; i < 40; i++) {
         snprintf(chstr, 4, "%d", i);
@@ -338,6 +367,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     char *placeholder;
     int placeholder_len;
     char *device = NULL;
+    char *phy = "all";
     char errstr[STATUS_MAX];
     int res = 0;
 
@@ -371,6 +401,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         return -1;
     }
 
+    // try to pull the phy
+    if ((placeholder_len = cf_find_flag(&placeholder, "phy", definition)) > 0) {
+        phy = strndup(placeholder, placeholder_len);
+    }
+
     // try pulling the channel
     if ((placeholder_len = cf_find_flag(&placeholder, "channel", definition)) > 0) {
         localchanstr = strndup(placeholder, placeholder_len);
@@ -380,13 +415,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
         if (localchan == NULL) {
             snprintf(msg, STATUS_MAX,
-                    "ticc2540 could not parse channel= option provided in source "
+                    "nxp kw41z could not parse channel= option provided in source "
                     "definition");
             return -1;
         }
     } else {
         localchan = (unsigned int *) malloc(sizeof(unsigned int));
-        *localchan = 37;
+        *localchan = 11;
     }
     
     snprintf(cap_if, 32, "nxp_kw41z-%012X",adler32_csum((unsigned char *) device, strlen(device)));
@@ -410,23 +445,50 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     /* NXP KW41Z supports 11-26 for zigbee and 37-39 for ble */
     char chstr[4];
     int ctr = 0;
-/*
-    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 19);
+    if (strcmp(phy,"btle") == 0) {
+        (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 3);
 
-    for (int i = 11; i < 27; i++) {
-        snprintf(chstr, 4, "%d", i);
-        (*ret_interface)->channels[ctr] = strdup(chstr);
-        ctr++;
-    }
-*/
-    (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 3);
-    for (int i = 37; i < 40; i++) {
-        snprintf(chstr, 4, "%d", i);
-        (*ret_interface)->channels[ctr] = strdup(chstr);
-        ctr++;
-    }
+        for (int i = 37; i < 40; i++) {
+            snprintf(chstr, 4, "%d", i);
+            (*ret_interface)->channels[ctr] = strdup(chstr);
+            ctr++;
+        }
 
-    (*ret_interface)->channels_len = 3; // 19
+        (*ret_interface)->channels_len = 3;
+        if (*localchan < 37) {
+            *localchan = 37;
+        }
+    }
+    else if (strcmp(phy,"zigbee") == 0) {
+        (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 16);
+
+        for (int i = 11; i < 27; i++) {
+            snprintf(chstr, 4, "%d", i);
+            (*ret_interface)->channels[ctr] = strdup(chstr);
+            ctr++;
+        }
+
+        (*ret_interface)->channels_len = 16;
+        if (*localchan > 26) {
+            *localchan = 11;
+        }
+    } else {
+        (*ret_interface)->channels = (char **) malloc(sizeof(char *) * 19);
+
+        for (int i = 11; i < 27; i++) {
+            snprintf(chstr, 4, "%d", i);
+            (*ret_interface)->channels[ctr] = strdup(chstr);
+            ctr++;
+        }
+
+        for (int i = 37; i < 40; i++) {
+            snprintf(chstr, 4, "%d", i);
+            (*ret_interface)->channels[ctr] = strdup(chstr);
+            ctr++;
+        }
+
+        (*ret_interface)->channels_len = 19;
+    }
 
     pthread_mutex_lock(&(localnxp->serial_mutex));
     /* open for r/w but no tty */
@@ -510,9 +572,37 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     if (privchan == NULL) {
         return 0;
     }
-    localnxp->ready = false;
-    r = nxp_set_channel(caph, channel->channel);
-    localnxp->ready = true;
+    /* crossing the phy layer */
+    if ( (localnxp->prevchannel >= 37 && localnxp->prevchannel <= 39) &&
+       (channel->channel >= 11 && channel->channel <= 26) ) {
+        nxp_reset(caph);
+        // clear the buffer
+        tcflush(localnxp->fd, TCIOFLUSH);
+        usleep(350);
+        tcflush(localnxp->fd, TCIOFLUSH);
+    }
+
+    if (localnxp->ready == true) {
+        localnxp->ready = false;
+        r = nxp_set_channel(caph, channel->channel);
+        if (r <= 0) {
+            localnxp->ready = false;
+            nxp_reset(caph);
+            // clear the buffer
+            tcflush(localnxp->fd, TCIOFLUSH);
+            usleep(350);
+            tcflush(localnxp->fd, TCIOFLUSH);
+            r = 1;
+            localnxp->ready = true;
+        } else {
+            tcflush(localnxp->fd, TCIOFLUSH);
+            localnxp->ready = true;
+            localnxp->prevchannel = channel->channel;
+        }
+    } else {
+	    r = 0;
+    }
+    
     return r;
 }
 
@@ -534,13 +624,10 @@ void capture_thread(kis_capture_handler_t *caph) {
             pthread_mutex_unlock(&(localnxp->serial_mutex));
             break;
         }
-	buf_rx_len = 0;
+        buf_rx_len = 0;
         if (localnxp->ready) {
             memset(buf,0x00,256);
             buf_rx_len = nxp_receive_payload(caph, buf, 256);
-            localnxp->reads++;
-            if (buf_rx_len > 0)
-                localnxp->pkts++;
             if (buf_rx_len < 0) {
                 cf_send_error(caph, 0, errstr);
                 cf_handler_spindown(caph);
@@ -575,9 +662,8 @@ int main(int argc, char *argv[]) {
         .name = NULL,
         .interface = NULL,
         .fd = -1,
-	.ready = false,
-	.reads = 0,
-	.pkts = 0,
+        .ready = false,
+        .prevchannel = 0,
     };
 
     pthread_mutex_init(&(localnxp.serial_mutex), NULL);
@@ -599,7 +685,7 @@ int main(int argc, char *argv[]) {
     cf_handler_set_open_cb(caph, open_callback);
 
     /* Set the callback for probing an interface */
-     cf_handler_set_probe_cb(caph, probe_callback);
+    cf_handler_set_probe_cb(caph, probe_callback);
 
     /* Set the list callback */
     /* cf_handler_set_listdevices_cb(caph, list_callback); */
