@@ -657,7 +657,7 @@ int main(int argc, char *argv[]) {
     /* Clobber the USB debug settings because libubertooth sets it to be verbose */
     setenv("LIBUSB_DEBUG", "0", 1);
 
-    kis_capture_handler_t *caph = cf_handler_init("ubertooth-one");
+    kis_capture_handler_t *caph = cf_handler_init("ubertooth");
 
     if (caph == NULL) {
         fprintf(stderr, "FATAL: Could not allocate basic handler data, your system "
