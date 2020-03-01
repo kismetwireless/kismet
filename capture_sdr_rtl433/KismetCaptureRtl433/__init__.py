@@ -316,7 +316,7 @@ class KismetRtl433(object):
                 intnum = int(devselector)
 
                 # Abort if we're not w/in the range
-                if intnum >= self.rtlsdr.rtl_get_device_count():
+                if intnum >= self.rtl_get_device_count():
                     raise ValueError("n/a")
 
             except ValueError:
