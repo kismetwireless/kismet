@@ -308,7 +308,7 @@ class KismetRtl433(object):
         intnum = -1
 
         # Try it as a serial number; try this first to deal with serial numbers like 00000000001
-        intnum = self.rtlsdr.rtl_get_index_by_serial(devselector.encode('utf-8'))
+        intnum = self.rtl_get_index_by_serial(devselector.encode('utf-8'))
 
         # Try to find the device as an index
         if intnum < 0:
