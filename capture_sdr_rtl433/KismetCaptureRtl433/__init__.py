@@ -133,7 +133,10 @@ class KismetRtl433(object):
         self.kismet.set_opensource_cb(self.datasource_opensource)
         self.kismet.set_probesource_cb(self.datasource_probesource)
 
-        self.kismet.start()
+        r = self.kismet.start()
+
+        if r < 0:
+            return
 
         # If we're connecting remote, kick a newsource
         if self.proberet:
