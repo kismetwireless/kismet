@@ -65,8 +65,6 @@ kis_manuf::kis_manuf() {
             md.manuf = std::make_shared<tracker_element_string>(manuf_id);
             md.manuf->set(m_pair[1]);
             oui_map[oui] = md;
-
-            printf("Loaded manuf %s\n", m_pair[1].c_str());
         } else {
             _MSG_ERROR("Expected 'manuf=AA:BB:CC,Name' for a config file manuf record.");
             continue;
