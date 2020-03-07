@@ -127,9 +127,12 @@ void append_to_opts(const std::string& opt, const std::string& val, std::vector<
 void replace_all_opts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec);
 
 template<typename T>
-T string_to_n(const std::string& s) {
+T string_to_n(const std::string& s, std::ios_base&(*base)(std::ios_base &) = nullptr) {
     std::stringstream ss(s);
     T t;
+
+    if (base != nullptr)
+        ss >> base;
 
     ss >> t;
 
