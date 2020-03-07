@@ -259,7 +259,7 @@ $(PS):	$(PROTOBUF_CPP_O_TARGET) $(PROTOBUF_CPP_H_TARGET) $(PSO) $(patsubst %c.o,
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) version.c.o $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS) -rdynamic
 
 $(LOGTOOL_KISMETDB_STRIP):	$(LOGTOOL_KISMETDB_STRIP_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_STRIP_O))
-	$(CC) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_STRIP) $(LOGTOOL_KISMETDB_STRIP_O) -lsqlite3
+	$(CC) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_STRIP) $(LOGTOOL_KISMETDB_STRIP_O) -lsqlite3 -rdynamic
 
 $(LOGTOOL_KISMETDB_WIGLE):	$(LOGTOOL_KISMETDB_WIGLE_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_WIGLE_O))
 	$(LD) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_WIGLE) $(LOGTOOL_KISMETDB_WIGLE_O) $(LIBS) $(CXXLIBS) -rdynamic
@@ -714,7 +714,6 @@ protobuf_c/%.pb-c.h: protobuf_definitions/%.proto
 
 .PRECIOUS: %.c %.cc %.h %.Td %.c.d %.cc.d protobuf_cpp/%.pb.cc protobuf_cpp/%.pb.h protobuf_c/%.pb-c.c protouf_c/%.pb-c.h
 
-include $(wildcard $(patsubst %cc.o,%cc.d,$(PSO)))
 include $(wildcard $(patsubst %c.o,%c.d,$(PSO)))
 include $(wildcard $(patsubst %c.o,%c.d,$(DATASOURCE_COMMON_C_O)))
 ifneq ($(BUILD_CAPTURE_PCAPFILE)x, "x")
@@ -723,11 +722,11 @@ endif
 ifneq ($(BUILD_CAPTURE_KISMETDB)x, "x")
 	include $(wildcard $(patsubst %c.o,%c.d,$(CAPTURE_KISMETDB_O)))
 endif
-include $(wildcard $(patsubst %cc.o,%cc.d,$(LOGTOOL_KISMETDB_WIGLE_O)))
-include $(wildcard $(patsubst %cc.o,%cc.d,$(LOGTOOL_KISMETDB_STRIP_O)))
-include $(wildcard $(patsubst %cc.o,%cc.d,$(LOGTOOL_KISMETDB_JSON_O)))
-include $(wildcard $(patsubst %cc.o,%cc.d,$(LOGTOOL_KISMETDB_STATS_O)))
-include $(wildcard $(patsubst %cc.o,%cc.d,$(LOGTOOL_KISMETDB_KML_O)))
+include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_WIGLE_O)))
+include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_STRIP_O)))
+include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_JSON_O)))
+include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_STATS_O)))
+include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_KML_O)))
 
 .SUFFIXES: .c .cc .o 
 
