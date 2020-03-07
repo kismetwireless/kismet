@@ -23,10 +23,56 @@
 
 #include <stdint.h>
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 
-const extern std::unordered_map<uint16_t, std::string> bluetooth_uuid_ids;
-const extern std::unordered_map<uint16_t, std::string> bluetooth_company_ids;
+#include "globalregistry.h"
+#include "trackedelement.h"
+
+class kis_bt_oid : public lifetime_global {
+public:
+    static std::string global_name() { return "BTOID"; }
+    static std::shared_ptr<kis_bt_oid> create_bt_oid() {
+        std::shared_ptr<kis_bt_oid> mon(new kis_bt_oid());
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global(global_name(), mon);
+        return mon;
+    }
+
+private:
+    kis_bt_oid();
+
+public:
+    virtual ~kis_bt_oid();
+
+    void index_bt_oids();
+
+    std::shared_ptr<tracker_element_string> lookup_oid(uint32_t in_oid);
+
+    struct index_pos {
+        uint32_t oid;
+        fpos_t pos;
+    };
+
+    struct oid_data {
+        uint32_t oid;
+        std::shared_ptr<tracker_element_string> data;
+    };
+
+    bool is_unknown_oid(std::shared_ptr<tracker_element_string> in_oid);
+
+protected:
+    kis_recursive_timed_mutex mutex;
+
+    std::vector<index_pos> index_vec;
+
+    std::unordered_map<uint32_t, oid_data> oid_map;
+
+    FILE *ofile;
+
+    int oid_id;
+    std::shared_ptr<tracker_element_string> unknown_oid;
+};
 
 #endif /* ifndef BLUETOOTH_IDS */
