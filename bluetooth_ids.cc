@@ -77,6 +77,9 @@ kis_bt_oid::kis_bt_oid() {
 
 kis_bt_oid::~kis_bt_oid() {
     Globalreg::globalreg->RemoveGlobal(global_name());
+
+    if (ofile != nullptr)
+        fclose(ofile);
 }
 
 void kis_bt_oid::index_bt_oids() {
@@ -200,3 +203,183 @@ bool kis_bt_oid::is_unknown_oid(std::shared_ptr<tracker_element_string> in_oid) 
 }
 
 
+kis_bt_manuf::kis_bt_manuf() {
+    mutex.set_name("kis_bt_manuf");
+
+    auto entrytracker = Globalreg::fetch_mandatory_global_as<entry_tracker>();
+
+    manuf_id =
+        entrytracker->register_field("kismet.device.base.btmanuf",
+                tracker_element_factory<tracker_element_string>(), "Bluetooth manufacturer name");
+
+    unknown_manuf = std::make_shared<tracker_element_string>(manuf_id);
+    unknown_manuf->set("Unknown");
+
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("btmanuf_lookup", true) == false) {
+        _MSG_INFO("Disabling Bluetooth manufacturer name lookup");
+        return;
+    }
+
+    for (auto m : Globalreg::globalreg->kismet_config->fetch_opt_vec("btmanuf")) {
+        auto m_pair = str_tokenize(m, ",");
+        unsigned int id;
+
+        if (m_pair.size() != 2) {
+            _MSG_ERROR("Expected 'btmanuf=AABB,Name' for a config file manufacturer record.");
+            continue;
+        }
+
+        try {
+            id = string_to_n<unsigned int>(m_pair[0], std::hex);
+        } catch (const std::runtime_error& e) {
+            _MSG_ERROR("Expected 'btmanuf=AABB,Name' for a config file manufacturer record.");
+            continue;
+        }
+
+        manuf_data md;
+        md.id = id;
+        md.manuf = std::make_shared<tracker_element_string>(manuf_id, m_pair[1]);
+        manuf_map[id] = md;
+    }
+
+    auto fname = 
+        Globalreg::globalreg->kismet_config->fetch_opt_dfl("btmanuffile", "%S/kismet/kismet_bluetooth_manuf.txt");
+
+    auto expanded = Globalreg::globalreg->kismet_config->expand_log_path(fname, "", "", 0, 1);
+
+    if ((mfile = fopen(expanded.c_str(), "r")) == nullptr) {
+        _MSG_ERROR("BTMANUF file {} was not found, will not resolve Bluetooth service names.",
+                expanded);
+        return;
+    }
+
+    index_bt_manufs();
+}
+
+kis_bt_manuf::~kis_bt_manuf() {
+    Globalreg::globalreg->RemoveGlobal(global_name());
+
+    if (mfile != nullptr)
+        fclose(mfile);
+}
+
+void kis_bt_manuf::index_bt_manufs() {
+    char buf[1024];
+    int line = 0;
+    fpos_t prev_pos;
+    uint32_t oid;
+    uint32_t last_id = 0;
+
+    if (mfile == nullptr)
+        return;
+
+    local_locker lock(&mutex);
+
+    _MSG_INFO("Indexing Bluetooth manufacturer list");
+
+    fgetpos(mfile, &prev_pos);
+
+    while (!feof(mfile)) {
+        if (fgets(buf, 1024, mfile) == nullptr || feof(mfile))
+            break;
+
+        if ((line % 50) == 0) {
+            if (sscanf(buf, "%x", &oid) != 1) {
+                line--;
+                continue;
+            }
+
+            index_pos ip;
+
+            ip.id = oid;
+            ip.pos = prev_pos;
+
+            last_id = oid;
+        }
+
+        fgetpos(mfile, &prev_pos);
+        line++;
+    }
+
+    _MSG_INFO("Completed indexing Bluetooth manufacturer database, {} entries, {} indexes.",
+            line, index_vec.size());
+}
+
+std::shared_ptr<tracker_element_string> kis_bt_manuf::lookup_manuf(uint32_t in_id) {
+    int matched = -1;
+    char buf[1024];
+    uint32_t pid;
+
+    if (mfile == nullptr)
+        return unknown_manuf;
+
+    local_locker lock(&mutex);
+
+    if (manuf_map.find(in_id) != manuf_map.end())
+        return manuf_map[in_id].manuf;
+
+    for (unsigned int x = 0; x < index_vec.size(); x++) {
+        if (in_id > index_vec[x].id) {
+            matched = x;
+            continue;
+        }
+
+        break;
+    }
+
+    if (matched < 0) {
+        manuf_data md;
+        md.id = in_id;
+        md.manuf = unknown_manuf;
+        manuf_map[in_id] = md;
+
+        return md.manuf;
+    }
+
+    if (matched > 0)
+        matched -= 1;
+
+    fsetpos(mfile, &(index_vec[matched].pos));
+
+    while (!feof(mfile)) {
+        if (fgets(buf, 1024, mfile) == nullptr || feof(mfile))
+            break;
+
+        if (strlen(buf) < 5)
+            continue;
+
+        auto mlen = strlen(buf + 5) - 1;
+
+        if (mlen == 0)
+            continue;
+
+        if (sscanf(buf, "%x", &pid) != 1)
+            continue;
+
+        if (pid == in_id) {
+            manuf_data md;
+            md.id = pid;
+            md.manuf = 
+                std::make_shared<tracker_element_string>(manuf_id, 
+                        munge_to_printable(std::string(buf + 5, mlen)));
+            manuf_map[pid] = md;
+            return md.manuf;
+        }
+
+        if (pid > in_id) {
+            manuf_data md;
+            md.id = in_id;
+            md.manuf = unknown_manuf;
+            manuf_map[in_id] = md;
+
+            return md.manuf;
+        }
+
+    }
+
+    return unknown_manuf;
+}
+
+bool kis_bt_manuf::is_unknown_manuf(std::shared_ptr<tracker_element_string> in_manuf) {
+    return in_manuf == unknown_manuf;
+}

@@ -73,6 +73,51 @@ protected:
 
     int oid_id;
     std::shared_ptr<tracker_element_string> unknown_oid;
+}
+;
+class kis_bt_manuf : public lifetime_global {
+public:
+    static std::string global_name() { return "BTMANUF"; }
+    static std::shared_ptr<kis_bt_manuf> create_bt_manuf() {
+        std::shared_ptr<kis_bt_manuf> mon(new kis_bt_manuf());
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global(global_name(), mon);
+        return mon;
+    }
+
+private:
+    kis_bt_manuf();
+
+public:
+    virtual ~kis_bt_manuf();
+
+    void index_bt_manufs();
+
+    std::shared_ptr<tracker_element_string> lookup_manuf(uint32_t in_manuf);
+
+    struct index_pos {
+        uint32_t id;
+        fpos_t pos;
+    };
+
+    struct manuf_data {
+        uint32_t id;
+        std::shared_ptr<tracker_element_string> manuf;
+    };
+
+    bool is_unknown_manuf(std::shared_ptr<tracker_element_string> in_manuf);
+
+protected:
+    kis_recursive_timed_mutex mutex;
+
+    std::vector<index_pos> index_vec;
+
+    std::unordered_map<uint32_t, manuf_data> manuf_map;
+
+    FILE *mfile;
+
+    int manuf_id;
+    std::shared_ptr<tracker_element_string> unknown_manuf;
 };
 
 #endif /* ifndef BLUETOOTH_IDS */
