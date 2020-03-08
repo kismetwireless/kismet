@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -36,6 +36,8 @@
 
 #include "getopt.h"
 
+#include "fmt.h"
+#include "json/json.h"
 #include "sqlite3_cpp11.h"
 
 void print_help(char *argv) {
@@ -46,10 +48,38 @@ void print_help(char *argv) {
     printf(" -i, --in [filename]          Input kismetdb file\n"
            " -o, --out [filename]         Output Wigle CSV file\n"
            " -f, --force                  Force writing to the target file, even if it exists.\n"
+           " -j, --json-path              Rewrite fields to use '_' instead of '.'\n"
            " -e, --ekjson                 Write as ekjson records, one device per line, instead of as\n"
            "                              a complete JSON array.\n"
            " -v, --verbose                Verbose output\n"
            " -s, --skip-clean             Don't clean (sql vacuum) input database\n");
+}
+
+std::string multi_replace_all(const std::string& in, const std::string& match, const std::string& repl) {
+    std::string work = in;
+
+    for (size_t pos = 0; (pos = in.find(match, pos)) != std::string::npos;
+            pos += repl.length()) {
+        work.replace(pos, match.length(), repl);
+    }
+
+    return work;
+}
+
+void transform_json(Json::Value &json) {
+    try {
+        for (auto k : json.getMemberNames()) {
+            auto repl = multi_replace_all(k, ".", "_");
+
+            json[repl] = json[k];
+            json.removeMember(k);
+        }
+
+        for (Json::Value& v : json)
+            transform_json(v);
+    } catch (const Json::Exception e) {
+        return;
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -61,6 +91,7 @@ int main(int argc, char *argv[]) {
         { "help", no_argument, 0, 'h' },
         { "skip-clean", no_argument, 0, 's' },
         { "ekjson", no_argument, 0, 'e' },
+        { "json-path", no_argument, 0, 'j' },
         { 0, 0, 0, 0 }
     };
 
@@ -73,6 +104,7 @@ int main(int argc, char *argv[]) {
     bool force = false;
     bool skipclean = false;
     bool ekjson = false;
+    bool reformat = false;
 
     int sql_r = 0;
     char *sql_errmsg = NULL;
@@ -84,7 +116,7 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         int r = getopt_long(argc, argv, 
-                            "-hi:o:vfse", 
+                            "-hi:o:vfsej", 
                             longopt, &option_idx);
         if (r < 0) break;
 
@@ -103,6 +135,9 @@ int main(int argc, char *argv[]) {
             skipclean = true;
         } else if (r == 'e') {
             ekjson = true;
+            reformat = true;
+        } else if (r == 'j') {
+            reformat = true;
         }
     }
 
@@ -230,18 +265,35 @@ int main(int argc, char *argv[]) {
                     n_logs, n_devices_db);
 
         }
+
         auto json = sqlite3_column_as<std::string>(d, 0);
 
-        if (newline) {
-            if (!ekjson) {
-                fprintf(ofile, ",\n");
-            } else {
-                fprintf(ofile, "\n");
-            }
-        }
-        newline = true;
+        try {
+            std::stringstream ss(json);
 
-        fprintf(ofile, "%s", json.c_str());
+            Json::Value parsed_json;
+
+            ss >> parsed_json;
+
+            if (reformat)
+                transform_json(parsed_json);
+
+            if (newline) {
+                if (!ekjson) {
+                    fprintf(ofile, ",\n");
+                } else {
+                    fprintf(ofile, "\n");
+                }
+            }
+            newline = true;
+
+            fmt::print(ofile, "{}", parsed_json);
+
+            fprintf(ofile, "%s", json.c_str());
+        } catch (const std::exception& e) {
+            fmt::print(stderr, "ERROR:  Could not process device JSON: {}", e.what());
+            continue;
+        }
     }
 
     if (!ekjson)
