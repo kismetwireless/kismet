@@ -1,0 +1,9 @@
+Kismet Helper UDEV rules
+
+# Purpose
+
+   Many devices show up as /dev/ttyUSB* and /dev/ttyACM*, this helps sort them out
+
+# Installing
+
+   Copy the *.rules files into /etc/udev/rules.d, or /lib/udev/rules.d if installed as a package
