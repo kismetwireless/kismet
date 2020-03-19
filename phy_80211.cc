@@ -401,6 +401,14 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
 				"A bug in the Linux RTLWIFI P2P parsers could result in a crash "
 				"or potential code execution due to malformed notification of "
 				"absence records, as detailed in CVE-2019-17666");
+    alert_deauthflood_ref =
+        alertracker->activate_configured_alert("DEAUTHFLOOD",
+                "By spoofing disassociate and deauthenticate packets, an attacker "
+                "may disconnect clients from a network which does not support "
+                "management frame protection (MFP); This can be used to cause a "
+                "denial of service or to disconnect clients in an attempt to "
+                "capture handshakes for attacking WPA.",
+                phyid);
 
     // Threshold
     signal_too_loud_threshold = 
@@ -1277,6 +1285,31 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 } else {
                     d11phy->process_client(bssid_dev, bssid_dot11, dest_dev, dest_dot11, 
                             in_pack, dot11info, pack_gpsinfo, pack_datainfo);
+                }
+            }
+
+            // Look for DEAUTH floods
+            if (bssid_dot11 != NULL && (dot11info->subtype == packet_sub_disassociation ||
+                    dot11info->subtype == packet_sub_deauthentication)) {
+                // if we're w/in time of the last one, update, otherwise clear
+                if (globalreg->timestamp.tv_sec - bssid_dot11->get_client_disconnects_last() > 1)
+                    bssid_dot11->set_client_disconnects(1);
+                else
+                    bssid_dot11->inc_client_disconnects(1);
+
+                bssid_dot11->set_client_disconnects_last(globalreg->timestamp.tv_sec);
+
+                if (bssid_dot11->get_client_disconnects() > 10) {
+                    if (d11phy->alertracker->potential_alert(d11phy->alert_deauthflood_ref)) {
+                        std::string al = "Deauth/Disassociate flood on " + dot11info->bssid_mac.mac_to_string();
+
+                        d11phy->alertracker->raise_alert(d11phy->alert_deauthflood_ref, in_pack,
+                            dot11info->bssid_mac, dot11info->source_mac,
+                            dot11info->dest_mac, dot11info->other_mac,
+                            dot11info->channel, al);
+                    }
+
+                    bssid_dot11->set_client_disconnects(1);
                 }
             }
 
