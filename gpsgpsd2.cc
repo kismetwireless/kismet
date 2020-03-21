@@ -709,7 +709,7 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
         if (set_speed) {
             gps_location->speed = new_location->speed;
             // NMEA reports speed in knots, convert
-            gps_location->speed *= 0.514;
+            gps_location->speed *= 1.852;
         }
 
         if (set_fix) {
