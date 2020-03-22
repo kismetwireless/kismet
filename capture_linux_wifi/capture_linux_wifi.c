@@ -1125,6 +1125,64 @@ int build_named_filters(char **interfaces, int num_interfaces, char **filter) {
     return num_macs;
 }
 
+int build_explicit_filters(char **stringmacs, int num_macs, char **filter) {
+    size_t filter_len = 0;
+    unsigned int need_and = 0;
+    size_t fpos = 0;
+
+    if (num_macs <= 0)
+        return num_macs;
+
+    int i_pos;
+    int filtered_macs = 0;
+
+    if (num_macs == 0) {
+        *filter = NULL;
+        return 0;
+    }
+
+    unsigned int mac_seg;
+
+    /*
+       For now write the filter as a string and compile it
+       'not ether host aa:bb:cc:dd:ee:ff'
+       32 bytes per mac 
+       ' and '
+       6 bytes per join
+    */
+   
+    filter_len = (num_macs * 32) + ((num_macs - 1) * 6) + 1;
+
+    *filter = (char *) malloc(filter_len);
+
+    for (i_pos = 0; i_pos < num_macs; i_pos++) {
+        if (stringmacs[i_pos] == NULL)
+            continue;
+
+        if (sscanf(stringmacs[i_pos], "%02X:%02X:%02X:%02X:%02X:%02X",
+                    &mac_seg, &mac_seg, &mac_seg,
+                    &mac_seg, &mac_seg, &mac_seg) != 6)
+            continue;
+
+        if (filtered_macs < 8) {
+            filtered_macs++; 
+
+            if (need_and) {
+                snprintf(*filter + fpos, filter_len - fpos, " and ");
+                fpos += 5;
+            }
+            need_and = 1;
+
+            snprintf(*filter + fpos, filter_len - fpos, 
+                    "not ether host %17s", stringmacs[i_pos]);
+            fpos += 32;
+        }
+
+    }
+
+    return num_macs;
+}
+
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
@@ -1194,7 +1252,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 #endif
 
     int num_filter_interfaces = 0;
-    char **filter_interfaces = NULL;
+    int num_filter_addresses = 0;
+    char **filter_targets = NULL;
+
+    unsigned int mac_seg;
 
     /* Clean up any existing local state on open; we can get re-opened if we're a 
      * remote source */
@@ -1277,10 +1338,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             return -1;
         }
 
-        filter_interfaces = (char **) malloc(sizeof(char *) * num_filter_interfaces);
+        filter_targets = (char **) malloc(sizeof(char *) * num_filter_interfaces);
 
         for (i = 0; i < num_filter_interfaces; i++)
-            filter_interfaces[i] = NULL;
+            filter_targets[i] = NULL;
 
         placeholder = definition;
         for (i = 0; i < num_filter_interfaces; i++) {
@@ -1290,18 +1351,74 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                         "expected an interface.");
 
                 for (i = 0; i < num_filter_interfaces; i++) {
-                    if (filter_interfaces[i] != NULL) {
-                        free(filter_interfaces[i]);
+                    if (filter_targets[i] != NULL) {
+                        free(filter_targets[i]);
                     }
                 }
 
-                free(filter_interfaces);
+                free(filter_targets);
                 return -1;
             }
 
-            filter_interfaces[i] = strndup(placeholder, placeholder_len);
+            filter_targets[i] = strndup(placeholder, placeholder_len);
+        }
+    }
+
+    if ((num_filter_addresses = 
+                cf_count_flag("filter_address", definition)) > 0) {
+        if (filter_locals) {
+            snprintf(msg, STATUS_MAX, "Can not combine 'filter_locals' and 'filter_address' "
+                    "please pick one or the other.");
+            return -1;
         }
 
+        if (num_filter_interfaces) {
+            snprintf(msg, STATUS_MAX, "Can not combine 'filter_interface' and 'filter_address' "
+                    "please pick one or the other.");
+            return -1;
+        }
+
+        filter_targets = (char **) malloc(sizeof(char *) * num_filter_addresses);
+
+        for (i = 0; i < num_filter_addresses; i++)
+            filter_targets[i] = NULL;
+
+        placeholder = definition;
+        for (i = 0; i < num_filter_addresses; i++) {
+            if ((placeholder_len =
+                        cf_find_flag(&placeholder, "filter_address", placeholder)) <= 0) {
+                snprintf(msg, STATUS_MAX, "Could not parse filter_address from definition: "
+                        "expected an interface.");
+
+                for (i = 0; i < num_filter_interfaces; i++) {
+                    if (filter_targets[i] != NULL) {
+                        free(filter_targets[i]);
+                    }
+                }
+
+                free(filter_targets);
+                return -1;
+            }
+
+            if (sscanf(placeholder, "%02X:%02X:%02X:%02X:%02X:%02X",
+                        &mac_seg, &mac_seg, &mac_seg,
+                        &mac_seg, &mac_seg, &mac_seg) != 6) {
+
+                snprintf(msg, STATUS_MAX, "Could not parse MAC address from definition: "
+                        "Expected MAC address of format AA:BB:CC:DD:EE:FF.");
+
+                for (i = 0; i < num_filter_interfaces; i++) {
+                    if (filter_targets[i] != NULL) {
+                        free(filter_targets[i]);
+                    }
+                }
+
+                free(filter_targets);
+                return -1;
+            }
+
+            filter_targets[i] = strndup(placeholder, placeholder_len);
+        }
     }
 
     /* get the mac address; this should be standard for anything */
@@ -2179,7 +2296,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             free(ignore_filter);
         }
     } else if (num_filter_interfaces > 0) {
-        if ((ret = build_named_filters(filter_interfaces, num_filter_interfaces, &ignore_filter)) > 0) {
+        if ((ret = build_named_filters(filter_targets, num_filter_interfaces, &ignore_filter)) > 0) {
             if (pcap_compile(local_wifi->pd, &bpf, ignore_filter, 0, 0) < 0) {
                 snprintf(errstr, STATUS_MAX, "%s unable to compile filter to exclude "
                         "local interfaces: %s",
@@ -2197,14 +2314,38 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             free(ignore_filter);
 
             for (i = 0; i < num_filter_interfaces; i++) {
-                if (filter_interfaces[i] != NULL)
-                    free(filter_interfaces[i]);
+                if (filter_targets[i] != NULL)
+                    free(filter_targets[i]);
             }
 
-            free(filter_interfaces);
+            free(filter_targets);
+        }
+    } else if (num_filter_addresses > 0) {
+        if ((ret = build_explicit_filters(filter_targets, num_filter_addresses, &ignore_filter)) > 0) {
+            if (pcap_compile(local_wifi->pd, &bpf, ignore_filter, 0, 0) < 0) {
+                snprintf(errstr, STATUS_MAX, "%s unable to compile filter to exclude "
+                        "specific addresses: %s",
+                        local_wifi->name, pcap_geterr(local_wifi->pd));
+                cf_send_message(caph, errstr, MSGFLAG_INFO);
+            } else {
+                if (pcap_setfilter(local_wifi->pd, &bpf) < 0) {
+                    snprintf(errstr, STATUS_MAX, "%s unable to assign filter to exclude "
+                            "specific addresses: %s",
+                            local_wifi->name, pcap_geterr(local_wifi->pd));
+                    cf_send_message(caph, errstr, MSGFLAG_INFO);
+                }
+            }
+
+            free(ignore_filter);
+
+            for (i = 0; i < num_filter_addresses; i++) {
+                if (filter_targets[i] != NULL)
+                    free(filter_targets[i]);
+            }
+
+            free(filter_targets);
         }
     }
-
 
     local_wifi->datalink_type = pcap_datalink(local_wifi->pd);
     *dlt = local_wifi->datalink_type;
