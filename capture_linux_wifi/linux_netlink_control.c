@@ -550,7 +550,7 @@ int mac80211_get_frequency_cache(int ifidx, void *nl_sock, int nl80211_id,
     if (nl_send_auto_complete((struct nl_sock *) nl_sock, msg) < 0) {
 nla_put_failure:
         snprintf(errstr, STATUS_MAX, 
-                "getting frequency failed failed to failed to write netlink command");
+                "getting frequency failed: failed to write netlink command");
         nlmsg_free(msg);
         nl_cb_put(cb);
         return -1;
@@ -619,7 +619,7 @@ int mac80211_get_iftype_cache(int ifidx, void *nl_sock, int nl80211_id, uint32_t
     if (nl_send_auto_complete((struct nl_sock *) nl_sock, msg) < 0) {
 nla_put_failure:
         snprintf(errstr, STATUS_MAX, 
-                "getting interface type failed failed to failed to write netlink command");
+                "getting interface type failed: failed to write netlink command");
         nlmsg_free(msg);
         nl_cb_put(cb);
         return -1;
