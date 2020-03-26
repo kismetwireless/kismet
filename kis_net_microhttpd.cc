@@ -2101,3 +2101,112 @@ int kis_net_httpd_path_post_endpoint::httpd_post_complete(kis_net_httpd_connecti
     return MHD_YES;
 }
 
+kis_net_httpd_path_combo_endpoint::kis_net_httpd_path_combo_endpoint(
+        kis_net_httpd_path_combo_endpoint::path_func in_path,
+        kis_net_httpd_path_combo_endpoint::handler_func in_func) :
+    kis_net_httpd_chain_stream_handler {},
+    path {in_path},
+    generator {in_func}, 
+    mutex {nullptr} {
+    bind_httpd_server();
+}
+
+kis_net_httpd_path_combo_endpoint::kis_net_httpd_path_combo_endpoint(
+        kis_net_httpd_path_combo_endpoint::path_func in_path,
+        kis_net_httpd_path_combo_endpoint::handler_func in_func, 
+        kis_recursive_timed_mutex *in_mutex) :
+    kis_net_httpd_chain_stream_handler {},
+    path {in_path},
+    generator {in_func},
+    mutex {in_mutex} {
+
+    bind_httpd_server();
+}
+
+bool kis_net_httpd_path_combo_endpoint::httpd_verify_path(const char *in_path, const char *in_method) {
+    if (strcmp(in_method, "POST") != 0 && strcmp(in_method, "GET") != 0)
+        return false;
+
+    if (!httpd_can_serialize(in_path))
+        return false;
+
+    auto stripped = httpd_strip_suffix(in_path);
+    auto tokenurl = str_tokenize(stripped, "/");
+
+    // Tokenized paths begin with / which yields a blank [0] element, so trim that
+    if (tokenurl.size())
+        tokenurl = std::vector<std::string>(tokenurl.begin() + 1, tokenurl.end());
+
+    local_demand_locker l(mutex);
+    if (mutex != nullptr)
+        l.lock();
+
+    return path(tokenurl, in_path);
+}
+
+int kis_net_httpd_path_combo_endpoint::httpd_create_stream_response(
+        kis_net_httpd *httpd __attribute__((unused)),
+        kis_net_httpd_connection *connection,
+        const char *in_path, const char *in_method, const char *upload_data,
+        size_t *upload_data_size) {
+
+    // Do nothing, we only handle POST
+    return MHD_YES;
+}
+
+int kis_net_httpd_path_combo_endpoint::httpd_post_complete(kis_net_httpd_connection *concls) {
+    auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
+    auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
+
+    local_demand_locker l(mutex);
+
+    if (mutex != nullptr)
+        l.lock();
+
+    std::ostream stream(streambuf);
+
+    saux->set_aux(streambuf, 
+            [](kis_net_httpd_buffer_stream_aux *aux) {
+                if (aux->aux != NULL)
+                    delete((buffer_handler_ostringstream_buf *) (aux->aux));
+            });
+
+    // Set our sync function which is called by the webserver side before we
+    // clean up...
+    saux->set_sync([](kis_net_httpd_buffer_stream_aux *aux) {
+            if (aux->aux != NULL) {
+                ((buffer_handler_ostringstream_buf *) aux->aux)->pubsync();
+                }
+            });
+
+    auto stripped = httpd_strip_suffix(concls->url);
+    auto tokenurl = str_tokenize(stripped, "/");
+
+    // Tokenized paths begin with / which yields a blank [0] element, so trim that
+    if (tokenurl.size())
+        tokenurl = std::vector<std::string>(tokenurl.begin() + 1, tokenurl.end());
+
+    try {
+        shared_structured structdata;
+
+        if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
+            structdata =
+                std::make_shared<structured_json>(concls->variable_cache["json"]->str());
+        } else {
+            structdata = 
+                std::make_shared<structured_json>(std::string{"{}"});
+        }
+
+        auto r = generator(stream, "POST", tokenurl, concls->url, structdata, concls->variable_cache);
+
+        concls->httpcode = r;
+        return MHD_YES;
+    } catch(const std::exception& e) {
+        stream << "Invalid request: " << e.what() << "\n";
+        concls->httpcode = 400;
+        return MHD_YES;
+    }
+
+    return MHD_YES;
+}
+
