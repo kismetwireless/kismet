@@ -76,6 +76,9 @@ public:
 
         if (in_elem->get_type() == tracker_type::tracker_vector) {
             for (auto i : *(std::static_pointer_cast<tracker_element_vector>(in_elem))) {
+                if (i == nullptr)
+                    continue;
+
                 json_adapter::pack(stream, i, name_map, false, 0,
                         [](const std::string& s) { 
                             return multi_replace_all(s, ".", "_");
@@ -84,7 +87,7 @@ public:
             }
         } else {
             // No longer accept invalid data for ekjson, it MUST be a vector as the top-level object
-            stream << "<h1>Invalid format for ekjson</h1>ekjson endpoints can only be used with array or list results\n";
+            stream << "{\"error\": \"Invalid data supplied for ekjson.  Ekjson endpoints can only be serialized from vectors.\"}\n";
             return -1;
         }
 
