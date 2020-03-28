@@ -18,8 +18,8 @@
 
 #include "trackedelement_workers.h"
 
-std::shared_ptr<tracker_element_vector> tracker_element_worker::match_elements(std::shared_ptr<tracker_element_vector> v) {
-    auto matched_work = std::make_shared<tracker_element_vector>();
+std::shared_ptr<tracker_element_vector> tracker_element_worker::do_work(std::shared_ptr<tracker_element_vector> v) {
+    auto matched_work = std::make_shared<tracker_element_vector>(v->get_id());
 
     for (auto i : *v) {
         if (match_element(i))

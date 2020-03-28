@@ -40,7 +40,7 @@ public:
 
     // Match against a vector of elements; caller is responsible for ensuring this vector is protected
     // and stable.
-    virtual std::shared_ptr<tracker_element_vector> match_elements(std::shared_ptr<tracker_element_vector> v);
+    virtual std::shared_ptr<tracker_element_vector> do_work(std::shared_ptr<tracker_element_vector> v);
 
     virtual std::shared_ptr<tracker_element_vector> get_matched_elements() {
         return matched;
