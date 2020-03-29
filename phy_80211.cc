@@ -1789,6 +1789,16 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
         basedev->set_channel(dot11info->channel);
     }
 
+    // Always process the SSID so we update the timestamps
+    if (dot11info->subtype == packet_sub_probe_resp) {
+        ssidtracker->handle_response_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
+                ssid->get_crypt_set(), basedev);
+    } else {
+        ssidtracker->handle_broadcast_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
+                ssid->get_crypt_set(), basedev);
+    }
+
+
     auto ssid_itr = adv_ssid_map->find(dot11info->ssid_csum);
 
     if (ssid_itr == adv_ssid_map->end()) {
