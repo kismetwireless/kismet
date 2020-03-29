@@ -470,8 +470,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
         _MSG(ss.str(), MSGFLAG_INFO);
 
         device_idle_timer =
-            timetracker->register_timer(SERVER_TIMESLICES_SEC * 60, NULL, 
-                1, this);
+            timetracker->register_timer(SERVER_TIMESLICES_SEC * 60, NULL, 1, this);
     } else {
         device_idle_timer = -1;
     }
@@ -483,6 +482,8 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
 	ssid_conf->parse_config(ssid_conf->expand_log_path(Globalreg::globalreg->kismet_config->fetch_opt("configdir") + "/" + "ssid_map.conf", "", "", 0, 1).c_str());
     Globalreg::globalreg->insert_global("SSID_CONF_FILE", std::shared_ptr<config_file>(ssid_conf));
 #endif
+
+    ssidtracker = phy_80211_ssid_tracker::create_dot11_ssidtracker();
 
     httpd_pcap.reset(new phy_80211_httpd_pcap());
 
@@ -2313,6 +2314,10 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
 
         // XXHash32 says the canonical representation of the hash is little-endian
         dot11dev->set_probe_fingerprint(htole32(tag_hash.hash()));
+
+        // Enter it in the ssid tracker
+        ssidtracker->handle_probe_ssid(probessid->get_ssid(), probessid->get_ssid_len(),
+                probessid->get_crypt_set(), basedev);
     }
 
 }

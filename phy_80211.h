@@ -46,6 +46,7 @@
 #include "kis_net_microhttpd.h"
 #include "phy_80211_components.h"
 #include "phy_80211_httpd_pcap.h"
+#include "phy_80211_ssidtracker.h"
 
 #include "kaitai/kaitaistream.h"
 #include "dot11_parsers/dot11_wpa_eap.h"
@@ -533,6 +534,9 @@ protected:
 
     // AP view
     std::shared_ptr<device_tracker_view> ap_view;
+
+    // SSID tracker subsystem
+    std::shared_ptr<phy_80211_ssid_tracker> ssidtracker; 
 
     // bssts time for grouping, in usec
     uint64_t bss_ts_group_usec;
