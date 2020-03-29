@@ -1742,7 +1742,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
     if (dot11dev->get_last_adv_ie_csum() == dot11info->ietag_csum) {
         ssid = dot11dev->get_last_adv_ssid();
 
-        if (ssid != NULL) {
+        if (ssid != nullptr) {
             if (ssid->get_last_time() < in_pack->ts.tv_sec)
                 ssid->set_last_time(in_pack->ts.tv_sec);
 
@@ -1788,16 +1788,6 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
     if (dot11info->channel != "0" && dot11info->channel != "") {
         basedev->set_channel(dot11info->channel);
     }
-
-    // Always process the SSID so we update the timestamps
-    if (dot11info->subtype == packet_sub_probe_resp) {
-        ssidtracker->handle_response_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
-                ssid->get_crypt_set(), basedev);
-    } else {
-        ssidtracker->handle_broadcast_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
-                ssid->get_crypt_set(), basedev);
-    }
-
 
     auto ssid_itr = adv_ssid_map->find(dot11info->ssid_csum);
 
@@ -1897,6 +1887,15 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
         ssid = std::static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
         if (ssid->get_last_time() < in_pack->ts.tv_sec)
             ssid->set_last_time(in_pack->ts.tv_sec);
+    }
+
+    // Always process the SSID so we update the timestamps
+    if (dot11info->subtype == packet_sub_probe_resp) {
+        ssidtracker->handle_response_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
+                ssid->get_crypt_set(), basedev);
+    } else {
+        ssidtracker->handle_broadcast_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
+                ssid->get_crypt_set(), basedev);
     }
 
     dot11dev->set_last_adv_ssid(ssid);
