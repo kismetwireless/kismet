@@ -103,6 +103,8 @@ phy_80211_ssid_tracker::phy_80211_ssid_tracker() {
                 tracker_element_factory<dot11_tracked_ssid_group>(),
                 "Tracked SSID grouping");
 
+    ssid_vector = std::make_shared<tracker_element_vector>();
+
     ssid_tracking_enabled = true;
 
     if (!Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_view_ssids", true)) {
