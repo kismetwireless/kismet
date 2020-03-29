@@ -409,7 +409,7 @@ protected:
     unsigned int recent_packet_checksum_pos;
 
     // Handle advertised SSIDs
-    void HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev, 
+    void handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev, 
             std::shared_ptr<dot11_tracked_device> dot11dev,
             kis_packet *in_pack,
             dot11_packinfo *dot11info,
