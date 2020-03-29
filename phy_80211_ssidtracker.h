@@ -39,21 +39,38 @@ class dot11_tracked_ssid_group : public tracker_component {
 public:
     dot11_tracked_ssid_group() :
         tracker_component() {
+        mutex.set_name("dot11_tracked_ssid_group internal");
         register_fields();
         reserve_fields(NULL);
     }
 
     dot11_tracked_ssid_group(int in_id) : 
         tracker_component(in_id) { 
-            register_fields();
-            reserve_fields(NULL);
-        } 
+        mutex.set_name("dot11_tracked_ssid_group internal");
+        register_fields();
+        reserve_fields(NULL);
+    } 
 
     dot11_tracked_ssid_group(int in_id, std::shared_ptr<tracker_element_map> e) : 
         tracker_component(in_id) {
-            register_fields();
-            reserve_fields(e);
-        }
+        mutex.set_name("dot11_tracked_ssid_group internal");
+        register_fields();
+        reserve_fields(e);
+    }
+
+    dot11_tracked_ssid_group(int in_id, const std::string& in_ssid, unsigned int in_ssid_len,
+            unsigned int in_crypt_set) :
+        tracker_component(in_id) {
+        mutex.set_name("dot11_tracked_ssid_group internal");
+
+        register_fields();
+        reserve_fields(nullptr);
+
+        set_ssid(in_ssid);
+        set_ssid_len(in_ssid_len);
+        set_crypt_set(in_crypt_set);
+        set_ssid_hash(generate_hash(in_ssid, in_ssid_len, in_crypt_set));
+    }
 
     virtual uint32_t get_signature() const override {
         return adler32_checksum("dot11_tracked_ssid_group");
@@ -76,11 +93,29 @@ public:
     __Proxy(ssid_len, uint32_t, unsigned int, unsigned int, ssid_len);
     __Proxy(crypt_set, uint64_t, uint64_t, uint64_t, crypt_set);
 
-    __Proxy(first_seen, uint64_t, time_t, time_t, first_seen);
-    __Proxy(last_seen, uint64_t, time_t, time_t, last_seen);
+    __Proxy(first_time, uint64_t, time_t, time_t, first_time);
+    __Proxy(last_time, uint64_t, time_t, time_t, last_time);
+
+    static uint64_t generate_hash(const std::string& ssid, unsigned int ssid_len, uint64_t crypt_set);
+
+    void add_advertising_device(std::shared_ptr<kis_tracked_device_base> device);
+    void add_probing_device(std::shared_ptr<kis_tracked_device_base> device);
+    void add_responding_device(std::shared_ptr<kis_tracked_device_base> device);
+
+    virtual void pre_serialize() override {
+        // We have to protect our maps so we lock around them
+        local_eol_locker el(&mutex);
+    }
+
+    virtual void post_serialize() override {
+        local_unlocker ul(&mutex);
+    }
 
 protected:
+    kis_recursive_timed_mutex mutex;
+
     virtual void register_fields() override;
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;
 
     std::shared_ptr<tracker_element_uint64> ssid_hash;
 
@@ -89,12 +124,15 @@ protected:
 
     std::shared_ptr<tracker_element_uint64> crypt_set;
 
+    // Maps contain nullptr values, and are used only as a fast way to indicate which device keys are
+    // present.  We don't need to actually track a full link to the dependent device, and we'd rather avoid
+    // it because then that would add more dependencies for timing out devices and whatnot.
     std::shared_ptr<tracker_element_device_key_map> advertising_device_map;
     std::shared_ptr<tracker_element_device_key_map> responding_device_map;
     std::shared_ptr<tracker_element_device_key_map> probing_device_map;
 
-    std::shared_ptr<tracker_element_uint64> first_seen;
-    std::shared_ptr<tracker_element_uint64> last_seen;
+    std::shared_ptr<tracker_element_uint64> first_time;
+    std::shared_ptr<tracker_element_uint64> last_time;
 };
 
 class phy_80211_ssid_tracker : public lifetime_global {
@@ -113,6 +151,13 @@ private:
 
 public:
     virtual ~phy_80211_ssid_tracker();
+
+    void handle_broadcast_ssid(const std::string& ssid, unsigned int ssid_len, uint64_t crypt_set, 
+            std::shared_ptr<kis_tracked_device_base> device);
+    void handle_response_ssid(const std::string& ssid, unsigned int ssid_len, uint64_t crypt_set, 
+            std::shared_ptr<kis_tracked_device_base> device);
+    void handle_probe_ssid(const std::string& ssid, unsigned int ssid_len, uint64_t crypt_set, 
+            std::shared_ptr<kis_tracked_device_base> device);
 
 protected:
     kis_recursive_timed_mutex mutex;

@@ -18,20 +18,77 @@
 
 #include "phy_80211_ssidtracker.h"
 
+#include "boost_like_hash.h"
 #include "timetracker.h"
+#include "trackedelement_workers.h"
 
 void dot11_tracked_ssid_group::register_fields() {
     tracker_component::register_fields();
 
-    register_field("kismet.dot11.ssidgroup.hash", "unique hash of ssid and encryption options",
-            &ssid_hash);
+    register_field("kismet.dot11.ssidgroup.hash", "unique hash of ssid and encryption options", &ssid_hash);
     register_field("kismet.dot11.ssidgroup.ssid", "SSID", &ssid);
     register_field("kismet.dot11.ssidgroup.ssid_len", "Length of SSID", &ssid_len);
     register_field("kismet.dot11.ssidgroup.crypt_set", "Advertised encryption set", &crypt_set);
-    register_field("kismet.dot11.ssidgroup.first_time", "First time seen (unix timestamp)",
-            &first_seen);
-    register_field("kismet.dot11.ssidgroup.last_time", "Last time seen (unix timestamp)",
-            &last_seen);
+    register_field("kismet.dot11.ssidgroup.first_time", "First time seen (unix timestamp)", &first_time);
+    register_field("kismet.dot11.ssidgroup.last_time", "Last time seen (unix timestamp)", &last_time);
+
+    register_field("kismet.dot11.ssidgroup.probing_devices", "Probing device keys", &probing_device_map);
+    register_field("kismet.dot11.ssidgroup.responding_devices", "Responding device keys", &responding_device_map);
+    register_field("kismet.dot11.ssidgroup.advertising_devices", "Advertising device keys", &advertising_device_map);
+}
+
+void dot11_tracked_ssid_group::reserve_fields(std::shared_ptr<tracker_element_map> e) {
+    tracker_component::reserve_fields(e);
+
+    // Treat all of these as key vectors; we serialize out the key values as a list instead of a map,
+    // we just use it as a map to make lookups more efficient.
+    advertising_device_map->set_as_key_vector(true);
+    responding_device_map->set_as_key_vector(true);
+    probing_device_map->set_as_key_vector(true);
+
+}
+
+uint64_t dot11_tracked_ssid_group::generate_hash(const std::string& ssid, unsigned int ssid_len, uint64_t crypt_set) {
+    auto hash = xx_hash_cpp{};
+
+    boost_like::hash_combine(hash, ssid);
+    boost_like::hash_combine(hash, ssid_len);
+    boost_like::hash_combine(hash, crypt_set);
+
+    return hash.hash();
+}
+
+void dot11_tracked_ssid_group::add_advertising_device(std::shared_ptr<kis_tracked_device_base> device) {
+    local_locker l(&mutex);
+    advertising_device_map->insert(device->get_key(), nullptr);
+
+    if (device->get_first_time() < get_first_time() || get_first_time() == 0)
+        set_first_time(device->get_first_time());
+
+    if (device->get_last_time() > get_last_time())
+        set_last_time(device->get_last_time());
+}
+
+void dot11_tracked_ssid_group::add_probing_device(std::shared_ptr<kis_tracked_device_base> device) {
+    local_locker l(&mutex);
+    probing_device_map->insert(device->get_key(), nullptr);
+
+    if (device->get_first_time() < get_first_time() || get_first_time() == 0)
+        set_first_time(device->get_first_time());
+
+    if (device->get_last_time() > get_last_time())
+        set_last_time(device->get_last_time());
+}
+
+void dot11_tracked_ssid_group::add_responding_device(std::shared_ptr<kis_tracked_device_base> device) {
+    local_locker l(&mutex);
+    responding_device_map->insert(device->get_key(), nullptr);
+
+    if (device->get_first_time() < get_first_time() || get_first_time() == 0)
+        set_first_time(device->get_first_time());
+
+    if (device->get_last_time() > get_last_time())
+        set_last_time(device->get_last_time());
 }
 
 phy_80211_ssid_tracker::phy_80211_ssid_tracker() {
@@ -248,50 +305,41 @@ unsigned int phy_80211_ssid_tracker::ssid_endpoint_handler(std::ostream& stream,
     // Next vector we do work on
     auto next_work_vec = std::make_shared<tracker_element_vector>();
 
-    // Current vector we're working on
-    auto current_work_vec = std::make_shared<tracker_element_vector>();
-
     // Copy the entire vector list, under lock, to the next work vector; this makes it an independent copy
     // which is protected from the main vector being grown/shrank.  While we're in there, log the total
     // size of the original vector for windowed ops.
     {
         local_shared_locker l(&mutex);
 
-        current_work_vec->set(ssid_vector->begin(), ssid_vector->end());
+        next_work_vec->set(ssid_vector->begin(), ssid_vector->end());
         total_sz_elem->set(next_work_vec->size());
     }
 
     // If we have a time filter, apply that first, it's the fastest.
     if (timestamp_min > 0) {
-        next_work_vec->clear();
+        auto worker = 
+            tracker_element_function_worker([timestamp_min](std::shared_ptr<tracker_element> e) -> bool {
+            auto si = std::static_pointer_cast<dot11_tracked_ssid_group>(e);
 
-        for (auto i : *current_work_vec) {
-            auto si = std::static_pointer_cast<dot11_tracked_ssid_group>(i);
-            if (si->get_last_seen() < timestamp_min) 
-                continue;
+            return (si->get_last_time() >= timestamp_min);
+            });
 
-            next_work_vec->push_back(i);
-        }
-
-        current_work_vec->set(next_work_vec->begin(), next_work_vec->end());
+        next_work_vec = worker.do_work(next_work_vec);
     }
 
     // Apply a string filter
     if (search_term.length() > 0 && search_paths.size() > 0) {
-        auto worker =
-            device_tracker_view_icasestringmatch_worker(search_term, search_paths);
-        auto s_vec = do_readonly_device_work(worker, next_work_vec);
-        next_work_vec->set(s_vec->begin(), s_vec->end());
+        auto worker = 
+            tracker_element_icasestringmatch_worker(search_term, search_paths);
+        next_work_vec = worker.do_work(next_work_vec);
     }
 
     // Apply a regex filter
     if (regex != nullptr) {
         try {
             auto worker = 
-                device_tracker_view_regex_worker(regex);
-            auto r_vec = do_readonly_device_work(worker, next_work_vec);
-            next_work_vec = r_vec;
-            // next_work_vec->set(r_vec->begin(), r_vec->end());
+                tracker_element_regex_worker(regex);
+            next_work_vec = worker.do_work(next_work_vec);
         } catch (const std::exception& e) {
             stream << "Invalid regex: " << e.what() << "\n";
             return 400;
@@ -344,12 +392,12 @@ unsigned int phy_80211_ssid_tracker::ssid_endpoint_handler(std::ostream& stream,
 
     // Summarize into the output element
     for (auto i = si; i != ei; ++i) {
-        output_devices_elem->push_back(summarize_single_tracker_element(*i, summary_vec, rename_map));
+        output_ssids_elem->push_back(summarize_single_tracker_element(*i, summary_vec, rename_map));
     }
 
     // If the transmit wasn't assigned to a wrapper...
     if (transmit == nullptr)
-        transmit = output_devices_elem;
+        transmit = output_ssids_elem;
 
     // serialize
     Globalreg::globalreg->entrytracker->serialize(kishttpd::get_suffix(uri), stream, transmit, rename_map);
@@ -357,3 +405,75 @@ unsigned int phy_80211_ssid_tracker::ssid_endpoint_handler(std::ostream& stream,
     // And done
     return 200;
 }
+
+void phy_80211_ssid_tracker::handle_broadcast_ssid(const std::string& ssid, unsigned int ssid_len, 
+        uint64_t crypt_set, std::shared_ptr<kis_tracked_device_base> device) {
+
+    if (!ssid_tracking_enabled)
+        return;
+
+    auto key = dot11_tracked_ssid_group::generate_hash(ssid, ssid_len, crypt_set);
+
+    local_locker l(&mutex);
+
+    auto mapdev = ssid_map.find(key);
+
+    if (mapdev == ssid_map.end()) {
+        auto tssid = std::make_shared<dot11_tracked_ssid_group>(tracked_ssid_id, ssid, ssid_len, crypt_set);
+        tssid->add_advertising_device(device);
+        ssid_map[key] = tssid;
+        ssid_vector->push_back(tssid);
+    } else {
+        auto tssid = std::static_pointer_cast<dot11_tracked_ssid_group>(mapdev->second);
+        tssid->add_advertising_device(device);
+    }
+}
+
+void phy_80211_ssid_tracker::handle_response_ssid(const std::string& ssid, unsigned int ssid_len, 
+        uint64_t crypt_set, std::shared_ptr<kis_tracked_device_base> device) {
+
+    if (!ssid_tracking_enabled)
+        return;
+
+    auto key = dot11_tracked_ssid_group::generate_hash(ssid, ssid_len, crypt_set);
+
+    local_locker l(&mutex);
+
+    auto mapdev = ssid_map.find(key);
+
+    if (mapdev == ssid_map.end()) {
+        auto tssid = std::make_shared<dot11_tracked_ssid_group>(tracked_ssid_id, ssid, ssid_len, crypt_set);
+        tssid->add_responding_device(device);
+        ssid_map[key] = tssid;
+        ssid_vector->push_back(tssid);
+    } else {
+        auto tssid = std::static_pointer_cast<dot11_tracked_ssid_group>(mapdev->second);
+        tssid->add_responding_device(device);
+    }
+
+}
+
+void phy_80211_ssid_tracker::handle_probe_ssid(const std::string& ssid, unsigned int ssid_len, 
+        uint64_t crypt_set, std::shared_ptr<kis_tracked_device_base> device) {
+
+    if (!ssid_tracking_enabled)
+        return;
+
+    auto key = dot11_tracked_ssid_group::generate_hash(ssid, ssid_len, crypt_set);
+
+    local_locker l(&mutex);
+
+    auto mapdev = ssid_map.find(key);
+
+    if (mapdev == ssid_map.end()) {
+        auto tssid = std::make_shared<dot11_tracked_ssid_group>(tracked_ssid_id, ssid, ssid_len, crypt_set);
+        tssid->add_probing_device(device);
+        ssid_map[key] = tssid;
+        ssid_vector->push_back(tssid);
+    } else {
+        auto tssid = std::static_pointer_cast<dot11_tracked_ssid_group>(mapdev->second);
+        tssid->add_probing_device(device);
+    }
+
+}
+
