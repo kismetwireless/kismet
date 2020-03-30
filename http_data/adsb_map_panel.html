@@ -56,6 +56,39 @@
 
 
     <script>
+
+        var window_visible = true;
+
+        // Visibility detection from https://developer.mozilla.org/en-US/docs/Web/API/Page_Visibility_API
+        // Set the name of the hidden property and the change event for visibility
+        var hidden, visibilityChange; 
+        if (typeof document.hidden !== "undefined") { // Opera 12.10 and Firefox 18 and later support 
+            hidden = "hidden";
+            visibilityChange = "visibilitychange";
+        } else if (typeof document.msHidden !== "undefined") {
+            hidden = "msHidden";
+            visibilityChange = "msvisibilitychange";
+        } else if (typeof document.webkitHidden !== "undefined") {
+            hidden = "webkitHidden";
+            visibilityChange = "webkitvisibilitychange";
+        }
+
+        function handleVisibilityChange() {
+            if (document[hidden]) {
+                window_visible = false;
+            } else {
+                window_visible = true;
+            }
+        }
+
+        // Warn if the browser doesn't support addEventListener or the Page Visibility API
+        if (typeof document.addEventListener === "undefined" || hidden === undefined) {
+            ; // Do nothing
+        } else {
+            // Handle page visibility change   
+            document.addEventListener(visibilityChange, handleVisibilityChange, false);
+        }
+
         $.urlParam = function(name){
             var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
             if (results == null) {
@@ -277,13 +310,17 @@
         }
 
         function poll_map() {
-            $.get(local_uri_prefix + "phy/RTLADSB/map_data.json")
-                .done(function(d) {
-                    map_cb(d);
-                })
-                .always(function(d) {
-                    tid = setTimeout(function() { poll_map(); }, 2000);
-                });
+            if (window_visible && !$('#map').is(':hidden')) {
+                $.get(local_uri_prefix + "phy/RTLADSB/map_data.json")
+                    .done(function(d) {
+                        map_cb(d);
+                    })
+                    .always(function(d) {
+                        tid = setTimeout(function() { poll_map(); }, 2000);
+                    });
+            } else {
+                tid = setTimeout(function() { poll_map(); }, 2000);
+            }
         }
 
         // Set a global timeout

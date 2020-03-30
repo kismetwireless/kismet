@@ -153,45 +153,22 @@ kismet_ui.AddDeviceDetail("rtladsb", "RTLADSB (SDR)", 0, {
     },
 });
 
-
-kismet_ui_sidebar.AddSidebarItem({
-    id: 'adsb_map',
-    listTitle: '<i class="fa fa-plane"></i> ADSB Live Map',
-    priority: 99999,
-    clickCallback: function() {
-        exports.ADSBLiveMap();
+kismet_ui_tabpane.AddTab({
+    id: 'adsb_live',
+    tabTitle: 'ADSB Live',
+    expandable: false,
+    createCallback: function(div) {
+        div.append(
+            $('<iframe>', {
+                width: '100%',
+                height: '100%',
+                src: `${local_uri_prefix}/adsb_map_panel.html?parent_url=${parent.document.URL}&local_uri_prefix=${local_uri_prefix}`,
+            })
+        );
     },
-});
+    priority: -100,
 
-exports.ADSBLiveMap = function() {
-
-    var w = $(window).width() * 0.95;
-    var h = $(window).height() * 0.95;
-
-    $.jsPanel({
-        id: "adsb-live-map",
-        headerTitle: '<i class="fa fa-plane"></i> Live Map',
-        headerControls: {
-            iconfont: 'jsglyph',
-            minimize: 'remove',
-            smallify: 'remove',
-        },
-        contentIframe: {
-            src: local_uri_prefix + '/adsb_map_panel.html?parent_url=' + parent.document.URL + '&local_uri_prefix=' + local_uri_prefix
-        },
-    })
-    .resize({
-        width: w,
-        height: h
-    })
-    .reposition({
-        my: 'center-top',
-        at: 'center-top',
-        of: 'window',
-    })
-    .contentResize();
-
-}
+}, 'center');
 
 // We're done loading
 exports.load_complete = 1;
