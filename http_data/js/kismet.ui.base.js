@@ -238,6 +238,9 @@ kismet_ui.AddDeviceColumn('column_time', {
     renderfunc: function(d, t, r, m) {
         return exports.renderLastTime(d, t, r, m);
     },
+    searchable: true,
+    visible: false,
+    orderable: true,
 });
 
 kismet_ui.AddDeviceColumn('column_first_time', {
