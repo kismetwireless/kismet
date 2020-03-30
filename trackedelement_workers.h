@@ -35,6 +35,7 @@ class tracker_element_worker {
 public:
     tracker_element_worker() {
         mutex.set_name("tracker_element_worker");
+        matched = std::make_shared<tracker_element_vector>();
     }
     virtual ~tracker_element_worker() { }
 
