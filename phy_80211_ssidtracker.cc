@@ -115,7 +115,7 @@ phy_80211_ssid_tracker::phy_80211_ssid_tracker() {
     // Always register the endpoint so we don't get a 404, it'll just return nothing if 
     // ssid tracking is disabled since we'll never populate our SSID table
     ssid_endp = 
-        std::make_shared<kis_net_httpd_simple_post_endpoint>("/phy/phy80211/ssids/views/ssids.json",
+        std::make_shared<kis_net_httpd_simple_post_endpoint>("/phy/phy80211/ssids/views/ssids",
                 [this](std::ostream& stream, const std::string& uri, shared_structured structured,
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                 return ssid_endpoint_handler(stream, uri, structured, variable_cache);
@@ -414,6 +414,9 @@ void phy_80211_ssid_tracker::handle_broadcast_ssid(const std::string& ssid, unsi
     if (!ssid_tracking_enabled)
         return;
 
+    if (ssid_len == 0)
+        return;
+
     auto key = dot11_tracked_ssid_group::generate_hash(ssid, ssid_len, crypt_set);
 
     local_locker l(&mutex);
@@ -435,6 +438,9 @@ void phy_80211_ssid_tracker::handle_response_ssid(const std::string& ssid, unsig
         uint64_t crypt_set, std::shared_ptr<kis_tracked_device_base> device) {
 
     if (!ssid_tracking_enabled)
+        return;
+
+    if (ssid_len == 0)
         return;
 
     auto key = dot11_tracked_ssid_group::generate_hash(ssid, ssid_len, crypt_set);
@@ -459,6 +465,9 @@ void phy_80211_ssid_tracker::handle_probe_ssid(const std::string& ssid, unsigned
         uint64_t crypt_set, std::shared_ptr<kis_tracked_device_base> device) {
 
     if (!ssid_tracking_enabled)
+        return;
+
+    if (ssid_len == 0)
         return;
 
     auto key = dot11_tracked_ssid_group::generate_hash(ssid, ssid_len, crypt_set);
