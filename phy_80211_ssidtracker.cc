@@ -25,16 +25,16 @@
 void dot11_tracked_ssid_group::register_fields() {
     tracker_component::register_fields();
 
-    register_field("kismet.dot11.ssidgroup.hash", "unique hash of ssid and encryption options", &ssid_hash);
-    register_field("kismet.dot11.ssidgroup.ssid", "SSID", &ssid);
-    register_field("kismet.dot11.ssidgroup.ssid_len", "Length of SSID", &ssid_len);
-    register_field("kismet.dot11.ssidgroup.crypt_set", "Advertised encryption set", &crypt_set);
-    register_field("kismet.dot11.ssidgroup.first_time", "First time seen (unix timestamp)", &first_time);
-    register_field("kismet.dot11.ssidgroup.last_time", "Last time seen (unix timestamp)", &last_time);
+    register_field("dot11.ssidgroup.hash", "unique hash of ssid and encryption options", &ssid_hash);
+    register_field("dot11.ssidgroup.ssid", "SSID", &ssid);
+    register_field("dot11.ssidgroup.ssid_len", "Length of SSID", &ssid_len);
+    register_field("dot11.ssidgroup.crypt_set", "Advertised encryption set", &crypt_set);
+    register_field("dot11.ssidgroup.first_time", "First time seen (unix timestamp)", &first_time);
+    register_field("dot11.ssidgroup.last_time", "Last time seen (unix timestamp)", &last_time);
 
-    register_field("kismet.dot11.ssidgroup.probing_devices", "Probing device keys", &probing_device_map);
-    register_field("kismet.dot11.ssidgroup.responding_devices", "Responding device keys", &responding_device_map);
-    register_field("kismet.dot11.ssidgroup.advertising_devices", "Advertising device keys", &advertising_device_map);
+    register_field("dot11.ssidgroup.probing_devices", "Probing device keys", &probing_device_map);
+    register_field("dot11.ssidgroup.responding_devices", "Responding device keys", &responding_device_map);
+    register_field("dot11.ssidgroup.advertising_devices", "Advertising device keys", &advertising_device_map);
 }
 
 void dot11_tracked_ssid_group::reserve_fields(std::shared_ptr<tracker_element_map> e) {
