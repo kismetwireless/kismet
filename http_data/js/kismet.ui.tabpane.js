@@ -24,12 +24,11 @@ $('<link>')
         href: local_uri_prefix + 'css/kismet.ui.tabpane.css'
     });
 
-/* List of objects used to turn into tabs */
-var TabItems = new Array();
-
-var TabDiv = null;
+var tabholders = {};
 
 /* Add a tab
+ *
+ * By default adds to the 'south' container, which previously was the only tab holder available.
  *
  * Options is a dictionary which must include:
  *
@@ -39,7 +38,7 @@ var TabDiv = null;
  *
  * priority: order priority in list (optional)
  */
-exports.AddTab = function(options) {
+exports.AddTab = function(options, group="south") {
     if (!('id' in options) ||
         !('tabTitle' in options) ||
         !('createCallback' in options)) {
@@ -60,14 +59,24 @@ exports.AddTab = function(options) {
 
     options.expanded = false;
 
-    TabItems.push(options);
+    if (group in tabholders) {
+        tabholders[group].TabItems.push(options);
+    } else {
+        tabholders[group] = {
+            TabItems: [options],
+        };
+    }
 };
 
-exports.RemoveTab = function(id) {
-    for (var x = 0; x < TabItems.length; x++) {
-        if (TabItems[x].id = id) {
-            TabItems.splice(x, 1);
+exports.RemoveTab = function(id, group="south") {
+    try {
+        for (var x = 0; x < tabholders[group].TabItems.length; x++) {
+            if (tablholders[group].TabItems[x].id = id) {
+                tablholders[group].TabItems.splice(x, 1);
+            }
         }
+    } catch (error) {
+        alert(`UI attempted to remove tab ${id} from invlaid group ${group}`);
     }
 }
 
@@ -77,16 +86,23 @@ function createListCallback(c) {
     };
 }
 
-function createExpanderCallback(c) {
+function createExpanderCallback(c, group) {
     return function() {
-        MoveToExpanded(c);
+        MoveToExpanded(c, group);
     }
 }
 
-function populateList(div) {
-    TabDiv = div;
+function populateList(div, group) {
+    if (group in tabholders) {
+        tabholders[group].TabDiv = div;
+    } else {
+        tabholders[group] = {
+            TabDiv: div,
+            TabItems: []
+        };
+    }
 
-    TabItems.sort(function(a, b) {
+    tabholders[group].TabItems.sort(function(a, b) {
         if (a.priority < b.priority)
             return -1;
         if (a.priority > b.priority)
@@ -98,13 +114,13 @@ function populateList(div) {
     div.empty();
 
     var ul = $('<ul>', {
-            id: 'tabpane_ul'
+            id: `tabpane_ul_${group}`
         });
 
     div.append(ul);
 
-    for (var i in TabItems) {
-        var c = TabItems[i];
+    for (var i in tabholders[group].TabItems) {
+        var c = tabholders[group].TabItems[i];
 
         var title = c.tabTitle;;
 
@@ -125,7 +141,7 @@ function populateList(div) {
         $('i', ul).tooltipster({content: 'Expand tab to own window'});
 
         if (c.expandable) {
-            $('i', ul).on('click', createExpanderCallback(c));
+            $('i', ul).on('click', createExpanderCallback(c, group));
         }
 
         var td =
@@ -142,16 +158,16 @@ function populateList(div) {
         heightStyle: 'fill',
         activate: function(e, ui) {
             var id = $('a', ui.newTab).attr('href');
-            kismet.putStorage('kismet.base.last_tab', id);
+            kismet.putStorage(`kismet.base.${group}.last_tab`, id);
         }
     });
 
-    var lasttab = kismet.getStorage('kismet.base.last_tab', '');
+    var lasttab = kismet.getStorage(`kismet.base.${group}.last_tab`, '');
     $('a[href="' + lasttab + '"]', div).click();
 }
 
-function MoveToExpanded(tab) {
-    var div = $('div#' + tab.id, TabDiv);
+function MoveToExpanded(tab, group) {
+    var div = $('div#' + tab.id, tabholders[group].TabDiv);
 
     var placeholder = $('<div>', {
         id: 'original_' + tab.id,
@@ -179,13 +195,13 @@ function MoveToExpanded(tab) {
         content: panelcontainer,
         onclosed: function() {
             placeholder.replaceWith(original);
-            TabDiv.tabs("refresh");
+            tabholders[group].TabDiv.tabs("refresh");
         },
     });
 
     div.replaceWith(placeholder);
 
-    // Take out the fixed height and width imposed by tab widther
+    // Take out the fixed height and width imposed by tab width
     original.removeProp('height');
     original.removeProp('width');
     original.css('height', '');
@@ -224,8 +240,8 @@ function MoveToExpanded(tab) {
 }
 
 // Populate the sidebar content in the supplied div
-exports.MakeTabPane = function(div) {
-    populateList(div);
+exports.MakeTabPane = function(div, group) {
+    populateList(div, group);
 };
 
 // We're done loading

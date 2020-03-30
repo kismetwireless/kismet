@@ -192,7 +192,7 @@ function load_main_ui() {
     kismet_ui_sidebar.MakeSidebar($('.k-sb-main'));
 
     // finalize the tabs
-    kismet_ui_tabpane.MakeTabPane($('#southpane-tabs'));
+    kismet_ui_tabpane.MakeTabPane($('#southpane-tabs'), 'south');
 
     // Try to scrape the server name
     kismet_ui_base.FetchServerName(function(name) {
@@ -264,8 +264,9 @@ $(function() {
             -->
 
             <div class="ui-layout-center" id="main_center">
+                <div id="centerpane-tabs" class="tabs-min"></div>
                 <div id="resize_wrapper">
-                <table id="devices" class="stripe hover nowrap" cell-spacing="0" width="100%"></table>
+                    <table id="devices" class="stripe hover nowrap" cell-spacing="0" width="100%"></table>
                 </div>
                 <!-- Must be named foo_status -->
                 <div id="devices_status" style="padding-bottom: 10px;"></div>
