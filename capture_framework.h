@@ -417,6 +417,16 @@ int cf_parse_interface(char **ret_interface, char *definition);
  */
 int cf_find_flag(char **ret_value, const char *flag, char *definition);
 
+/* Count how many flags of the same name are in a source definition
+ *
+ * Returns:
+ * -1   Error
+ *  0   Flag not found
+ *  1+  Number of instances of flag found in definition
+ */
+int cf_count_flag(const char *flag, char *definition);
+ 
+
 /* Parse a comma separated list of strings, such as channels, into an array of char*.
  *
  * Expects the size of the incoming string in in_sz, allowing for direct passing

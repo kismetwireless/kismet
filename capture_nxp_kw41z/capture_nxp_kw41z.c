@@ -412,6 +412,8 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     // try to pull the phy
     if ((placeholder_len = cf_find_flag(&placeholder, "phy", definition)) > 0) {
         phy = strndup(placeholder, placeholder_len);
+    } else {
+        phy = strdup("any");
     }
 
     // try pulling the channel

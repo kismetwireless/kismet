@@ -110,9 +110,9 @@ void kis_tracked_location_triplet::register_fields() {
     tracker_component::register_fields();
 
     register_field("kismet.common.location.geopoint", "[lon, lat] point", &geopoint);
-    register_field("kismet.common.location.alt", "altitude", &alt);
-    register_field("kismet.common.location.speed", "speed", &spd);
-    register_field("kismet.common.location.heading", "heading", &heading);
+    register_field("kismet.common.location.alt", "altitude (meters)", &alt);
+    register_field("kismet.common.location.speed", "speed (kph)", &spd);
+    register_field("kismet.common.location.heading", "heading (degrees)", &heading);
     register_field("kismet.common.location.fix", "gps fix", &fix);
     register_field("kismet.common.location.valid", "valid location", &valid);
     register_field("kismet.common.location.time_sec", "timestamp (seconds)", &time_sec);

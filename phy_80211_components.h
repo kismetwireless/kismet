@@ -968,6 +968,8 @@ public:
     __Proxy(client_disconnects, uint64_t, uint64_t, uint64_t, client_disconnects);
     __ProxyIncDec(client_disconnects, uint64_t, uint64_t, client_disconnects);
 
+    __Proxy(client_disconnects_last, uint64_t, uint64_t, uint64_t, client_disconnects_last);
+
     __Proxy(last_sequence, uint64_t, uint64_t, uint64_t, last_sequence);
     __Proxy(bss_timestamp, uint64_t, uint64_t, uint64_t, bss_timestamp);
     time_t last_bss_invalid;
@@ -1098,8 +1100,11 @@ protected:
                 "number of associated clients", &num_associated_clients);
 
         register_field("dot11.device.client_disconnects", 
-                "client disconnects in last second", 
+                "client disconnects message count", 
                 &client_disconnects);
+        register_field("dot11.device.client_disconnects_last",
+                "client disconnects last message",
+                &client_disconnects_last);
 
         register_field("dot11.device.last_sequence", "last sequence number", &last_sequence);
         register_field("dot11.device.bss_timestamp", "last BSS timestamp", &bss_timestamp);
@@ -1251,6 +1256,7 @@ protected:
     int associated_client_map_entry_id;
     std::shared_ptr<tracker_element_uint64> num_associated_clients;
     std::shared_ptr<tracker_element_uint64> client_disconnects;
+    std::shared_ptr<tracker_element_uint64> client_disconnects_last;
 
     std::shared_ptr<tracker_element_uint64> last_sequence;
     std::shared_ptr<tracker_element_uint64> bss_timestamp;

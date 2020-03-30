@@ -169,14 +169,14 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
 
     std::string indent;
     std::string ppendl;
+
+    if (e == nullptr) {
+        return;
+    }
     
     if (prettyprint) {
         indent = std::string(depth, ' ');
         ppendl = "\r\n";
-    }
-
-    if (e == NULL) {
-        return;
     }
 
     serializer_scope s(e, name_map);

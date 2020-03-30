@@ -193,6 +193,26 @@ int cf_find_flag(char **ret_value, const char *flag, char *definition) {
 }
 
 
+int cf_count_flag(const char *flag, char *definition) {
+    int n_flags = 0;
+    char *placeholder = NULL;
+    char *last_holder = definition;
+    int len;
+
+    do {
+        len = cf_find_flag(&placeholder, flag, last_holder);
+
+        if (len == 0 || placeholder == NULL)
+            break;
+
+        n_flags++;
+        last_holder = placeholder + len;
+    } while (placeholder != NULL);
+
+    return n_flags;
+}
+
+
 int cf_split_list(char *in_str, size_t in_sz, char in_split, char ***ret_splitlist, 
         size_t *ret_splitlist_sz) {
 
