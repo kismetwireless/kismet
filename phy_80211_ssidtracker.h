@@ -96,6 +96,10 @@ public:
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
 
+    __Proxy(advertising_device_len, uint64_t, uint64_t, uint64_t, advertising_device_len);
+    __Proxy(probing_device_len, uint64_t, uint64_t, uint64_t, probing_device_len);
+    __Proxy(responding_device_len, uint64_t, uint64_t, uint64_t, responding_device_len);
+
     static uint64_t generate_hash(const std::string& ssid, unsigned int ssid_len, uint64_t crypt_set);
 
     void add_advertising_device(std::shared_ptr<kis_tracked_device_base> device);
@@ -105,6 +109,10 @@ public:
     virtual void pre_serialize() override {
         // We have to protect our maps so we lock around them
         local_eol_locker el(&mutex);
+
+        set_advertising_device_len(advertising_device_map->size());
+        set_probing_device_len(probing_device_map->size());
+        set_responding_device_len(responding_device_map->size());
     }
 
     virtual void post_serialize() override {
@@ -130,6 +138,10 @@ protected:
     std::shared_ptr<tracker_element_device_key_map> advertising_device_map;
     std::shared_ptr<tracker_element_device_key_map> responding_device_map;
     std::shared_ptr<tracker_element_device_key_map> probing_device_map;
+
+    std::shared_ptr<tracker_element_uint64> advertising_device_len;
+    std::shared_ptr<tracker_element_uint64> responding_device_len;
+    std::shared_ptr<tracker_element_uint64> probing_device_len;
 
     std::shared_ptr<tracker_element_uint64> first_time;
     std::shared_ptr<tracker_element_uint64> last_time;

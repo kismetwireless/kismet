@@ -35,6 +35,11 @@ void dot11_tracked_ssid_group::register_fields() {
     register_field("dot11.ssidgroup.probing_devices", "Probing device keys", &probing_device_map);
     register_field("dot11.ssidgroup.responding_devices", "Responding device keys", &responding_device_map);
     register_field("dot11.ssidgroup.advertising_devices", "Advertising device keys", &advertising_device_map);
+
+    register_field("dot11.ssidgroup.probing_devices_len", "Number of probing devices", &probing_device_len);
+    register_field("dot11.ssidgroup.responding_devices_len", "Number of responding devices", &responding_device_len);
+    register_field("dot11.ssidgroup.advertising_devices_len", "Number of advertising devices", &advertising_device_len);
+
 }
 
 void dot11_tracked_ssid_group::reserve_fields(std::shared_ptr<tracker_element_map> e) {
