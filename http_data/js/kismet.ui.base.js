@@ -1612,7 +1612,7 @@ kismet_ui_tabpane.AddTab({
         div.messagebus();
     },
     priority: -1001,
-});
+}, 'south');
 
 kismet_ui_tabpane.AddTab({
     id: 'channels',
@@ -1622,7 +1622,37 @@ kismet_ui_tabpane.AddTab({
         div.channels();
     },
     priority: -1000,
-});
+}, 'south');
+
+kismet_ui_tabpane.AddTab({
+    id: 'devices',
+    tabTitle: 'Devices',
+    expandable: false,
+    createCallback: function(div) {
+        div.append(
+            $('<div>', {
+                class: 'resize_wrapper',
+            })
+            .append(
+                $('<table>', {
+                    id: 'devices',
+                    class: 'stripe hover nowrap',
+                    'cell-spacing': 0,
+                    width: '100%',
+                })
+            )
+        ).append(
+            $('<div>', {
+                id: 'devices_status',
+                style: 'padding-bottom: 10px;',
+            })
+        );
+
+        kismet_ui.CreateDeviceTable($('#devices', div));
+    },
+    priority: -1000000,
+}, 'center');
+
 
 exports.DeviceSignalDetails = function(key) {
     var w = $(window).width() * 0.75;

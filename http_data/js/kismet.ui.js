@@ -910,25 +910,32 @@ exports.renderTemperature = function(c, precision = 5) {
 
 var deviceTid;
 
+var devicetableElement = null;
+
 function ScheduleDeviceSummary() {
-    var dt = $('#devices').DataTable();
+    try {
+        var dt = devicetableElement.DataTable();
 
-    // Save the state.  We can't use proper state saving because it seems to break
-    // the table position
-    kismet.putStorage('kismet.base.devicetable.order', JSON.stringify(dt.order()));
-    kismet.putStorage('kismet.base.devicetable.search', JSON.stringify(dt.search()));
+        // Save the state.  We can't use proper state saving because it seems to break
+        // the table position
+        kismet.putStorage('kismet.base.devicetable.order', JSON.stringify(dt.order()));
+        kismet.putStorage('kismet.base.devicetable.search', JSON.stringify(dt.search()));
 
-    // Snapshot where we are, because the 'don't reset page' in ajax.reload
-    // DOES still reset the scroll position
-    var prev_pos = {
-        'top': $(dt.settings()[0].nScrollBody).scrollTop(),
-        'left': $(dt.settings()[0].nScrollBody).scrollLeft()
-    };
-    dt.ajax.reload(function(d) {
+        // Snapshot where we are, because the 'don't reset page' in ajax.reload
+        // DOES still reset the scroll position
+        var prev_pos = {
+            'top': $(dt.settings()[0].nScrollBody).scrollTop(),
+            'left': $(dt.settings()[0].nScrollBody).scrollLeft()
+        };
+        dt.ajax.reload(function(d) {
             // Restore our scroll position
             $(dt.settings()[0].nScrollBody).scrollTop( prev_pos.top );
             $(dt.settings()[0].nScrollBody).scrollLeft( prev_pos.left );
         }, false);
+
+    } catch (error) {
+        ;
+    }
     
     // Set our timer outside of the datatable callback so that we get called even
     // if the ajax load fails
@@ -940,8 +947,6 @@ function ScheduleDeviceSummary() {
 function CancelDeviceSummary() {
     clearTimeout(deviceTid);
 }
-
-var devicetableElement = null;
 
 /* Create the device table */
 exports.CreateDeviceTable = function(element) {

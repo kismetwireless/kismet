@@ -128,7 +128,7 @@ function load_main_ui() {
         },
         center: {
             onresize: function() {
-                // kismet_ui.ResizeDeviceTable($('#devices'));
+                $('#centerpane-tabs').tabs("refresh");
             },
         },
         south: {
@@ -144,7 +144,7 @@ function load_main_ui() {
     // this?  sure is annoying.
     kismet.LoadDynamicIncludes(function() {
 
-    kismet_ui.CreateDeviceTable($('#devices'));
+    // kismet_ui.CreateDeviceTable($('#devices'));
 
     kismet_ui_iconbar.AddIconbarItem({
         id: 'login',
@@ -193,6 +193,7 @@ function load_main_ui() {
 
     // finalize the tabs
     kismet_ui_tabpane.MakeTabPane($('#southpane-tabs'), 'south');
+    kismet_ui_tabpane.MakeTabPane($('#centerpane-tabs'), 'center');
 
     // Try to scrape the server name
     kismet_ui_base.FetchServerName(function(name) {
@@ -225,7 +226,7 @@ $(function() {
 </script>
 
 <style>
-#resize_wrapper {
+.resize_wrapper {
     position: relative;
     box-sizing: border-box;
     height: calc(100% - 20px);
@@ -265,11 +266,14 @@ $(function() {
 
             <div class="ui-layout-center" id="main_center">
                 <div id="centerpane-tabs" class="tabs-min"></div>
+                <!--
                 <div id="resize_wrapper">
                     <table id="devices" class="stripe hover nowrap" cell-spacing="0" width="100%"></table>
                 </div>
-                <!-- Must be named foo_status -->
+                -->
+                <!-- Must be named foo_status 
                 <div id="devices_status" style="padding-bottom: 10px;"></div>
+                -->
             </div>
 
             <div class="ui-layout-south">
