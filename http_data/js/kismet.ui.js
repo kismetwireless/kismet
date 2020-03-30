@@ -914,24 +914,27 @@ var devicetableElement = null;
 
 function ScheduleDeviceSummary() {
     try {
-        var dt = devicetableElement.DataTable();
+        if (devicetableElement.is(":visible")) {
 
-        // Save the state.  We can't use proper state saving because it seems to break
-        // the table position
-        kismet.putStorage('kismet.base.devicetable.order', JSON.stringify(dt.order()));
-        kismet.putStorage('kismet.base.devicetable.search', JSON.stringify(dt.search()));
+            var dt = devicetableElement.DataTable();
 
-        // Snapshot where we are, because the 'don't reset page' in ajax.reload
-        // DOES still reset the scroll position
-        var prev_pos = {
-            'top': $(dt.settings()[0].nScrollBody).scrollTop(),
-            'left': $(dt.settings()[0].nScrollBody).scrollLeft()
-        };
-        dt.ajax.reload(function(d) {
-            // Restore our scroll position
-            $(dt.settings()[0].nScrollBody).scrollTop( prev_pos.top );
-            $(dt.settings()[0].nScrollBody).scrollLeft( prev_pos.left );
-        }, false);
+            // Save the state.  We can't use proper state saving because it seems to break
+            // the table position
+            kismet.putStorage('kismet.base.devicetable.order', JSON.stringify(dt.order()));
+            kismet.putStorage('kismet.base.devicetable.search', JSON.stringify(dt.search()));
+
+            // Snapshot where we are, because the 'don't reset page' in ajax.reload
+            // DOES still reset the scroll position
+            var prev_pos = {
+                'top': $(dt.settings()[0].nScrollBody).scrollTop(),
+                'left': $(dt.settings()[0].nScrollBody).scrollLeft()
+            };
+            dt.ajax.reload(function(d) {
+                // Restore our scroll position
+                $(dt.settings()[0].nScrollBody).scrollTop( prev_pos.top );
+                $(dt.settings()[0].nScrollBody).scrollLeft( prev_pos.left );
+            }, false);
+        }
 
     } catch (error) {
         ;
