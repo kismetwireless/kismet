@@ -12,6 +12,8 @@ if (typeof(KISMET_URI_PREFIX) !== 'undefined')
 
 var exports = {};
 
+exports.window_visible = true;
+
 // Load spectrum css and js
 $('<link>')
     .appendTo('head')
@@ -145,6 +147,9 @@ var view_list_updater_tid = 0;
 function deviceview_selector_dynamic_update() {
     clearTimeout(view_list_updater_tid);
     view_list_updater_tid = setTimeout(deviceview_selector_dynamic_update, 5000);
+
+    if (!exports.window_visible)
+        return;
 
     var ds_priority = -5000;
     var phy_priority = -1000;
@@ -628,77 +633,80 @@ exports.DeviceDetailWindow = function(key) {
             window['storage_devlist_' + key]['foobar'] = 'bar';
 
             this.updater = function() {
-            $.get(local_uri_prefix + "devices/by-key/" + key + "/device.json")
-                .done(function(fulldata) {
-                    fulldata = kismet.sanitizeObject(fulldata);
+                if (exports.window_visible) {
+                    $.get(local_uri_prefix + "devices/by-key/" + key + "/device.json")
+                        .done(function(fulldata) {
+                            fulldata = kismet.sanitizeObject(fulldata);
 
-                    panel.headerTitle(fulldata['kismet_device_base_name']);
+                            panel.headerTitle(fulldata['kismet_device_base_name']);
 
-                    var accordion = $('div#accordion', content);
-                    
-                    if (accordion.length == 0) {
-                        accordion = $('<div />', {
-                            id: 'accordion'
-                        });
+                            var accordion = $('div#accordion', content);
 
-                        content.append(accordion);
-                    }
+                            if (accordion.length == 0) {
+                                accordion = $('<div />', {
+                                    id: 'accordion'
+                                });
 
-                    var detailslist = kismet_ui.GetDeviceDetails();
-
-                    for (var dii in detailslist) {
-                        var di = detailslist[dii];
-
-                        // Do we skip?
-                        if ('filter' in di.options &&
-                                typeof(di.options.filter) === 'function') {
-                            if (di.options.filter(fulldata) == false) {
-                                continue;
+                                content.append(accordion);
                             }
-                        }
 
-                        var vheader = $('h3#header_' + di.id, accordion);
-                        
-                        if (vheader.length == 0) {
-                            vheader = $('<h3>', {
-                                id: "header_" + di.id,
-                            })
-                            .html(di.title);
+                            var detailslist = kismet_ui.GetDeviceDetails();
 
-                            accordion.append(vheader);
-                        }
+                            for (var dii in detailslist) {
+                                var di = detailslist[dii];
 
-                        var vcontent = $('div#' + di.id, accordion);
-                        
-                        if (vcontent.length == 0) {
-                            vcontent = $('<div>', {
-                                id: di.id,
-                            });
-                            accordion.append(vcontent);
-                        }
+                                // Do we skip?
+                                if ('filter' in di.options &&
+                                    typeof(di.options.filter) === 'function') {
+                                    if (di.options.filter(fulldata) == false) {
+                                        continue;
+                                    }
+                                }
 
-                        // Do we have pre-rendered content?
-                        if ('render' in di.options &&
-                                typeof(di.options.render) === 'function') {
-                            vcontent.html(di.options.render(fulldata));
-                        }
+                                var vheader = $('h3#header_' + di.id, accordion);
 
-                        if ('draw' in di.options &&
-                                typeof(di.options.draw) === 'function') {
-                            di.options.draw(fulldata, vcontent, options, 'storage_devlist_' + key);
-                        }
-                    }
-                    accordion.accordion({ heightStyle: 'fill' });
-                })
-            .fail(function(jqxhr, texterror) {
-                content.html("<div style=\"padding: 10px;\"><h1>Oops!</h1><p>An error occurred loading device details for key <code>" + key + 
-                        "</code>: HTTP code <code>" + jqxhr.status + "</code>, " + texterror + "</div>");
-            })
-            .always(function() {
-                if (panel.active) {
+                                if (vheader.length == 0) {
+                                    vheader = $('<h3>', {
+                                        id: "header_" + di.id,
+                                    })
+                                        .html(di.title);
+
+                                    accordion.append(vheader);
+                                }
+
+                                var vcontent = $('div#' + di.id, accordion);
+
+                                if (vcontent.length == 0) {
+                                    vcontent = $('<div>', {
+                                        id: di.id,
+                                    });
+                                    accordion.append(vcontent);
+                                }
+
+                                // Do we have pre-rendered content?
+                                if ('render' in di.options &&
+                                    typeof(di.options.render) === 'function') {
+                                    vcontent.html(di.options.render(fulldata));
+                                }
+
+                                if ('draw' in di.options &&
+                                    typeof(di.options.draw) === 'function') {
+                                    di.options.draw(fulldata, vcontent, options, 'storage_devlist_' + key);
+                                }
+                            }
+                            accordion.accordion({ heightStyle: 'fill' });
+                        })
+                        .fail(function(jqxhr, texterror) {
+                            content.html("<div style=\"padding: 10px;\"><h1>Oops!</h1><p>An error occurred loading device details for key <code>" + key + 
+                                "</code>: HTTP code <code>" + jqxhr.status + "</code>, " + texterror + "</div>");
+                        })
+                        .always(function() {
+                            panel.timerid = setTimeout(function() { panel.updater(); }, 1000);
+                        })
+                } else {
                     panel.timerid = setTimeout(function() { panel.updater(); }, 1000);
                 }
-            })
+
             };
 
             this.updater();
@@ -790,41 +798,48 @@ exports.connection_error_panel = null;
 exports.HealthCheck = function() {
     var timerid;
 
-    $.get(local_uri_prefix + "system/status.json")
-    .done(function(data) {
-        data = kismet.sanitizeObject(data);
+    if (exports.window_visible) {
+        $.get(local_uri_prefix + "system/status.json")
+            .done(function(data) {
+                data = kismet.sanitizeObject(data);
 
-        if (exports.connection_error) {
-            exports.connection_error_panel.close();
-        }
+                if (exports.connection_error) {
+                    exports.connection_error_panel.close();
+                }
 
-        exports.connection_error = false;
+                exports.connection_error = false;
 
-        exports.last_timestamp = data['kismet.system.timestamp.sec'];
-    })
-    .fail(function() {
-        if (!exports.connection_error) {
-            exports.connection_error_panel = $.jsPanel({
-                id: "connection-alert",
-                headerTitle: 'Cannot Connect to Kismet',
-                headerControls: {
-                    controls: 'none',
-                    iconfont: 'jsglyph',
-                },
-                contentSize: "auto auto",
-                paneltype: 'modal',
-                content: '<div style="padding: 10px;"><h3><i class="fa fa-exclamation-triangle" style="color: red;" /> Sorry!</h3><p>Cannot connect to the Kismet webserver.  Make sure Kismet is still running on this host!<p><i class="fa fa-refresh fa-spin" style="margin-right: 5px" /> Connecting to the Kismet server...</div>',
-            });
-        }
+                exports.last_timestamp = data['kismet.system.timestamp.sec'];
+            })
+            .fail(function() {
+                if (!exports.connection_error) {
+                    exports.connection_error_panel = $.jsPanel({
+                        id: "connection-alert",
+                        headerTitle: 'Cannot Connect to Kismet',
+                        headerControls: {
+                            controls: 'none',
+                            iconfont: 'jsglyph',
+                        },
+                        contentSize: "auto auto",
+                        paneltype: 'modal',
+                        content: '<div style="padding: 10px;"><h3><i class="fa fa-exclamation-triangle" style="color: red;" /> Sorry!</h3><p>Cannot connect to the Kismet webserver.  Make sure Kismet is still running on this host!<p><i class="fa fa-refresh fa-spin" style="margin-right: 5px" /> Connecting to the Kismet server...</div>',
+                    });
+                }
 
-        exports.connection_error = true;
-    })
-    .always(function() {
+                exports.connection_error = true;
+            })
+            .always(function() {
+                if (exports.connection_error)
+                    timerid = setTimeout(exports.HealthCheck, 1000);
+                else
+                    timerid = setTimeout(exports.HealthCheck, 5000);
+            }); 
+    } else {
         if (exports.connection_error)
             timerid = setTimeout(exports.HealthCheck, 1000);
         else
             timerid = setTimeout(exports.HealthCheck, 5000);
-    });
+    }
 
 }
 
@@ -914,7 +929,7 @@ var devicetableElement = null;
 
 function ScheduleDeviceSummary() {
     try {
-        if (devicetableElement.is(":visible")) {
+        if (exports.window_visible && devicetableElement.is(":visible")) {
 
             var dt = devicetableElement.DataTable();
 
