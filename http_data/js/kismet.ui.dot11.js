@@ -1746,6 +1746,463 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
     }
 });
 
+var ssid_element;
+var ssid_status_element;
+
+var SsidColumns = new Array();
+
+exports.AddSsidColumn = function(id, options) {
+    var coldef = {
+        kismetId: id,
+        sTitle: options.sTitle,
+        field: null,
+        fields: null,
+    };
+
+    if ('field' in options) {
+        coldef.field = options.field;
+    }
+
+    if ('fields' in options) {
+        coldef.fields = options.fields;
+    }
+
+    if ('description' in options) {
+        coldef.description = options.description;
+    }
+
+    if ('name' in options) {
+        coldef.name = options.name;
+    }
+
+    if ('orderable' in options) {
+        coldef.bSortable = options.orderable;
+    }
+
+    if ('visible' in options) {
+        coldef.bVisible = options.visible;
+    } else {
+        coldef.bVisible = true;
+    }
+
+    if ('selectable' in options) {
+        coldef.user_selectable = options.selectable;
+    } else {
+        coldef.user_selectable = true;
+    }
+
+    if ('searchable' in options) {
+        coldef.bSearchable = options.searchable;
+    }
+
+    if ('width' in options) {
+        coldef.width = options.width;
+    }
+
+    var f;
+    if (typeof(coldef.field) === 'string') {
+        var fs = coldef.field.split('/');
+        f = fs[fs.length - 1];
+    } else if (Array.isArray(coldef.field)) {
+        f = coldef.field[1];
+    }
+
+    coldef.mData = function(row, type, set) {
+        return kismet.ObjectByString(row, f);
+    }
+
+    if ('renderfunc' in options) {
+        coldef.mRender = options.renderfunc;
+    }
+
+    if ('drawfunc' in options) {
+        coldef.kismetdrawfunc = options.drawfunc;
+    }
+
+    SsidColumns.push(coldef);
+}
+
+exports.GetSsidColumns = function(showall = false) {
+    var ret = new Array();
+
+    var order = kismet.getStorage('kismet.ssidtable.columns', []);
+
+    if (order.length == 0) {
+        // sort invisible columns to the end
+        for (var i in SsidColumns) {
+            if (!SsidColumns[i].bVisible)
+                continue;
+            ret.push(SsidColumns[i]);
+        }
+
+        for (var i in SsidColumns) {
+            if (SsidColumns[i].bVisible)
+                continue;
+            ret.push(SsidColumns[i]);
+        }
+
+        return ret;
+    }
+
+    for (var oi in order) {
+        var o = order[oi];
+
+        if (!o.enable)
+            continue;
+
+        var sc = SsidColumns.find(function(e, i, a) {
+            if (e.kismetId === o.id)
+                return true;
+            return false;
+        });
+
+        if (sc != undefined && sc.user_selectable) {
+            sc.bVisible = true;
+            ret.push(sc);
+        }
+    }
+
+    // Fallback if no columns were selected somehow
+    if (ret.length == 0) {
+        // sort invisible columns to the end
+        for (var i in SsidColumns) {
+            if (!SsidColumns[i].bVisible)
+                continue;
+            ret.push(SsidColumns[i]);
+        }
+
+        for (var i in SsidColumns) {
+            if (SsidColumns[i].bVisible)
+                continue;
+            ret.push(SsidColumns[i]);
+        }
+
+        return ret;
+    }
+
+    if (showall) {
+        for (var sci in SsidColumns) {
+            var sc = SsidColumns[sci];
+
+            var rc = ret.find(function(e, i, a) {
+                if (e.kismetId === sc.kismetId)
+                    return true;
+                return false;
+            });
+
+            if (rc == undefined) {
+                sc.bVisible = false;
+                ret.push(sc);
+            }
+        }
+
+        return ret;
+    }
+
+    for (var sci in SsidColumns) {
+        if (!SsidColumns[sci].user_selectable) {
+            ret.push(SsidColumns[sci]);
+        }
+    }
+
+    return ret;
+}
+
+exports.GetSsidColumnMap = function(columns) {
+    var ret = {};
+
+    for (var ci in columns) {
+        var fields = new Array();
+
+        if ('field' in columns[ci])
+            fields.push(columns[ci]['field']);
+
+        if ('fields' in columns[ci])
+            fields.push.apply(fields, columns[ci]['fields']);
+
+        ret[ci] = fields;
+    }
+
+    return ret;
+}
+
+exports.GetSsidFields = function(selected) {
+    var rawret = new Array();
+    var cols = exports.GetSsidColumns();
+
+    for (var i in cols) {
+        if ('field' in cols[i])
+            rawret.push(cols[i]['field']);
+
+        if ('fields' in cols[i])
+            rawret.push.apply(rawret, cols[i]['fields']);
+    }
+
+    // de-dupe
+    var ret = rawret.filter(function(item, pos, self) {
+        return self.indexOf(item) == pos;
+    });
+
+    return ret;
+}
+
+var ssidTid = -1;
+
+function ScheduleSsidSummary() {
+    try {
+        if (kismet_ui.window_visible && ssid_element.is(":visible")) {
+            var dt = ssid_element.DataTable();
+
+            // Save the state.  We can't use proper state saving because it seems to break
+            // the table position
+            kismet.putStorage('kismet.base.ssidtable.order', JSON.stringify(dt.order()));
+            kismet.putStorage('kismet.base.ssidtable.search', JSON.stringify(dt.search()));
+
+            // Snapshot where we are, because the 'don't reset page' in ajax.reload
+            // DOES still reset the scroll position
+            var prev_pos = {
+                'top': $(dt.settings()[0].nScrollBody).scrollTop(),
+                'left': $(dt.settings()[0].nScrollBody).scrollLeft()
+            };
+            dt.ajax.reload(function(d) {
+                // Restore our scroll position
+                $(dt.settings()[0].nScrollBody).scrollTop( prev_pos.top );
+                $(dt.settings()[0].nScrollBody).scrollLeft( prev_pos.left );
+            }, false);
+        }
+
+    } catch (error) {
+        ;
+    }
+    
+    // Set our timer outside of the datatable callback so that we get called even
+    // if the ajax load fails
+    ssidTid = setTimeout(ScheduleSsidSummary, 2000);
+}
+
+function InitializeSsidTable() {
+    var cols = exports.GetSsidColumns();
+    var colmap = exports.GetSsidColumnMap(cols);
+    var fields = exports.GetSsidFields();
+
+    var json = {
+        fields: fields,
+        colmap: colmap,
+        datatable: true,
+    };
+
+    if ($.fn.dataTable.isDataTable(ssid_element)) {
+        ssid_element.DataTable().destroy();
+        ssid_element.empty();
+    }
+
+    ssid_element
+        .on('xhr.dt', function(e, settings, json, xhr) {
+            json = kismet.sanitizeObject(json);
+
+            console.log(json);
+
+            try {
+                if (json['recordsFiltered'] != json['recordsTotal'])
+                    ssid_status_element.html(`${json['recordsTotal']} SSIDs (${json['recordsFiltered']} shown after filter)`);
+                else
+                    ssid_status_element.html(`${json['recordsTotal']} SSIDs`);
+            } catch (error) {
+                ;
+            }
+        })
+        .DataTable({
+            destroy: true,
+            scrollResize: true,
+            scrollY: 200,
+            serverSide: true,
+            processing: true,
+            dom: 'ft',
+            deferRender: true,
+            lengthChange: false,
+            scroller: {
+                loadingIndicator: true,
+            },
+            ajax: {
+                url: local_uri_prefix + "phy/phy80211/ssids/views/ssids.json",
+                data: {
+                    json: JSON.stringify(json)
+                },
+                method: 'POST',
+                timeout: 5000,
+            },
+            columns: cols,
+            order: [ [ 0, "desc" ] ],
+            createRow: function(row, data, index) {
+                row.id = data['dot11.ssidgroup.hash'];
+            },
+            drawCallback: function(settings) {
+                var dt = this.api();
+
+                dt.rows({
+                    page: 'current'
+                }).every(function(rowIdx, tableLoop, rowLoop) {
+                    for (var c in SsidColumns) {
+                        var col = SsidColumns[c];
+
+                        if (!('kismetdrawfunc') in col)
+                            continue;
+
+                        try {
+                            col.kismetdrawfunc(col, dt, this);
+                        } catch (error) {
+                            ;
+                        }
+                    }
+                });
+            },
+        });
+
+    var ssid_dt = ssid_element.DataTable();
+
+    // Restore the order
+    var saved_order = kismet.getStorage('kismet.base.ssidtable.order', "");
+    if (saved_order !== "")
+        ssid_dt.order(JSON.parse(saved_order));
+
+    // Restore the search
+    var saved_search = kismet.getStorage('kismet.base.ssidtable.search', "");
+    if (saved_search !== "")
+        ssid_dt.search(JSON.parse(saved_search));
+
+    // Set an onclick handler to spawn the device details dialog
+    $('tbody', ssid_element).on('click', 'tr', function () {
+        // kismet_ui.DeviceDetailWindow(this.id);
+    } );
+
+    $('tbody', ssid_element)
+        .on( 'mouseenter', 'td', function () {
+            var ssid_dt = ssid_element.DataTable();
+
+            if (typeof(ssid_dt.cell(this).index()) === 'Undefined')
+                return;
+
+            var colIdx = ssid_dt.cell(this).index().column;
+            var rowIdx = ssid_dt.cell(this).index().row;
+
+            // Remove from all cells
+            $(ssid_dt.cells().nodes()).removeClass('kismet-highlight');
+            // Highlight the td in this row
+            $('td', ssid_dt.row(rowIdx).nodes()).addClass('kismet-highlight');
+        } );
+
+    return ssid_dt;
+}
+
+kismet_ui_tabpane.AddTab({
+    id: 'dot11_ssids',
+    tabTitle: 'SSIDs',
+    createCallback: function(div) {
+        div.append(
+            $('<div>', {
+                class: 'resize_wrapper',
+            })
+            .append(
+                $('<table>', {
+                    id: 'ssids',
+                    class: 'stripe hover nowrap',
+                    'cell-spacing': 0,
+                    width: '100%',
+                })
+            )
+        ).append(
+            $('<div>', {
+                id: 'ssids_status',
+                style: 'padding-bottom: 10px;',
+            })
+        );
+
+        ssid_element = $('#ssids', div);
+        ssid_status_element = $('#ssids_status', div);
+
+        InitializeSsidTable();
+        ScheduleSsidSummary();
+    },
+    priority: -1000,
+}, 'center');
+
+exports.AddSsidColumn('col_ssid', {
+    sTitle: 'SSID',
+    field: 'dot11.ssidgroup.ssid',
+    name: 'SSID',
+    renderfunc: function(d, t, r, m) {
+        if (d.length == 0)
+            return "<i>Cloaked or Empty SSID</i>";
+        else if (/^ +$/.test(d))
+            return "<i>Blank SSID</i>";
+        return d;
+    },
+});
+
+exports.AddSsidColumn('col_ssid_len', {
+    sTitle: 'Len',
+    field: 'dot11.ssidgroup.ssid_len',
+    name: 'SSID Length',
+});
+
+exports.AddSsidColumn('column_time', {
+    sTitle: 'Last Seen',
+    field: 'dot11.ssidgroup.last_time',
+    description: 'Last-seen time',
+    renderfunc: function(d, t, r, m) {
+        return kismet_ui_base.renderLastTime(d, t, r, m);
+    },
+    searchable: true,
+    visible: true,
+    orderable: true,
+});
+
+/*
+exports.AddSsidColumn('column_first_time', {
+    sTitle: 'First Seen',
+    field: 'dot11.ssidgroup.first_time',
+    description: 'First-seen time',
+    renderfunc: function(d, t, r, m) {
+        return kismet_ui_base.renderLastTime(d, t, r, m);
+    },
+    searchable: true,
+    visible: false,
+    orderable: true,
+});
+*/
+
+exports.AddSsidColumn('column_crypt', {
+    sTitle: 'Encryption',
+    field: 'dot11.ssidgroup.crypt_set',
+    description: 'Encryption',
+    renderfunc: function(d, t, r, m) {
+        return exports.CryptToHumanReadable(d);
+    },
+    searchable: true,
+    orderable: true,
+});
+
+exports.AddSsidColumn('column_probing', {
+    sTitle: 'Probing',
+    field: 'dot11.ssidgroup.probing_devices_len',
+    description: 'Count of probing devices',
+    orderable: true,
+});
+
+exports.AddSsidColumn('column_responding', {
+    sTitle: 'Responding',
+    field: 'dot11.ssidgroup.responding_devices_len',
+    description: 'Count of responding devices',
+    orderable: true,
+});
+
+exports.AddSsidColumn('column_advertising', {
+    sTitle: 'Advertising',
+    field: 'dot11.ssidgroup.advertising_devices_len',
+    description: 'Count of advertising devices',
+    orderable: true,
+});
+
 // We're done loading
 exports.load_complete = 1;
 
