@@ -2157,7 +2157,6 @@ exports.AddSsidColumn('column_time', {
     orderable: true,
 });
 
-/*
 exports.AddSsidColumn('column_first_time', {
     sTitle: 'First Seen',
     field: 'dot11.ssidgroup.first_time',
@@ -2169,7 +2168,6 @@ exports.AddSsidColumn('column_first_time', {
     visible: false,
     orderable: true,
 });
-*/
 
 exports.AddSsidColumn('column_crypt', {
     sTitle: 'Encryption',
