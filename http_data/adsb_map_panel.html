@@ -44,9 +44,27 @@
             z-index: 999;
             padding: 10px;
         }
+
+        .warning {
+            position: absolute;
+            top: 10%;
+            bottom: 10%;
+            right: 25%;
+            left: 25%;
+            border: 1px solid black;
+            background: white;
+            z-index: 10000;
+            padding: 10px;
+        }
     </style>
 </head>
 <body>
+    <div id="warning" class="warning">
+        <p><b>Warning!</b>
+        <p>To display the live ADSB map, your browser will connect to the Leaflet and Open Street Map servers to fetch the map tiles.  This requires you have a functional Internet connection, and will reveal something about your location (the bounding region where planes have been seen.)
+        <p><input id="dontwarn" type="checkbox">Don't warn me again</input>
+        <p><button id="continue">Continue</button>
+    </div>
     <div id="map"></div>
     <div class="right-sidebar">
         <i class="fa fa-plane" style="padding-right: 1em;"></i><span id="numplanes">0</span> planes in the past 10 minutes
@@ -309,8 +327,10 @@
             }
         }
 
+        var load_maps = kismet.getStorage('kismet.adsb.maps_ok', false);
+
         function poll_map() {
-            if (window_visible && !$('#map').is(':hidden')) {
+            if (window_visible && !$('#map').is(':hidden') && load_maps) {
                 $.get(local_uri_prefix + "phy/RTLADSB/map_data.json")
                     .done(function(d) {
                         map_cb(d);
@@ -329,6 +349,16 @@
             xhrFields: {
                 withCredentials: true
             }
+        });
+
+        if (load_maps)
+            $('#warning').hide();
+
+        $('#continue').on('click', function() {
+            if ($('#dontwarn').is(":checked"))
+                kismet.putStorage('kismet.adsb.maps_ok', true);
+            $('#warning').hide();
+            load_maps = true;
         });
 
         poll_map();
