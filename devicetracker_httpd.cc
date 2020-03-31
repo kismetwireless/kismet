@@ -825,3 +825,51 @@ std::shared_ptr<tracker_element> device_tracker::all_phys_endp_handler() {
     return ret_vec;
 }
 
+unsigned int device_tracker::multikey_endp_handler(std::ostream& stream, const std::string& uri,
+        shared_structured structured, kis_net_httpd_connection::variable_cache_map& variable_cache) {
+
+    try {
+        auto ret_devices = std::make_shared<tracker_element_vector>();
+        auto keys = std::vector<device_key>{};
+
+        if (!structured->has_key("devices"))
+            throw std::runtime_error("Missing 'devices' key in command dictionary");
+        
+        auto keylist = structured->get_structured_by_key("devices")->as_vector();
+
+        for (auto k : keylist) {
+            device_key ka{k->as_string()};
+
+            if (ka.get_error()) 
+                throw std::runtime_error(fmt::format("Invalid device key '{}' in 'devices' list",
+                            kishttpd::escape_html(k->as_string())));
+
+            keys.push_back(ka);
+        }
+
+        for (auto k : keys) { 
+            auto d = fetch_device(k);
+
+            if (d == nullptr)
+                continue;
+
+            ret_devices->push_back(d);
+        }
+
+        auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
+
+        auto output = 
+            kishttpd::summarize_with_structured(ret_devices, structured, rename_map);
+
+        Globalreg::globalreg->entrytracker->serialize(kishttpd::get_suffix(uri), stream, output, rename_map);
+
+        return 200;
+
+    } catch (const std::exception& e) {
+        stream << "Invalid request: " << e.what() << "\n";
+        return 500;
+    }
+
+    stream << "Unhandled request\n";
+    return 500;
+}

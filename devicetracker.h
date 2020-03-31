@@ -446,6 +446,11 @@ protected:
     int phy_phyentry_id, phy_phyname_id, phy_devices_count_id, 
         phy_packets_count_id, phy_phyid_id;
 
+    // Multikey endpoint
+    std::shared_ptr<kis_net_httpd_simple_post_endpoint> multikey_endp;
+    unsigned int multikey_endp_handler(std::ostream& stream, const std::string& uri,
+            shared_structured structured, kis_net_httpd_connection::variable_cache_map& variable_cache);
+
 	// Registered PHY types
 	int next_phy_id;
     std::map<int, kis_phy_handler *> phy_handler_map;
