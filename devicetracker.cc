@@ -605,7 +605,7 @@ void device_tracker::macdevice_timer_event() {
         if (now - k->get_mod_time() > devicelost_timeout) {
             auto alrt = 
                 fmt::format("Monitored device {} ({}) hasn't been seen for {} "
-                        "seconds.", k->get_macaddr(), k->get_devicename(),
+                        "seconds.", k->get_macaddr(), k->get_commonname(),
                         devicelost_timeout);
             alertracker->raise_alert(alert_macdevice_lost_ref,
                     nullptr, k->get_macaddr(), mac_addr{0}, 
@@ -875,7 +875,7 @@ std::shared_ptr<kis_tracked_device_base>
             if (k->second & 0x1) {
                 auto alrt =
                 fmt::format("Monitored device {} ({}) has been found.",
-                        device->get_macaddr(), device->get_devicename());
+                        device->get_macaddr(), device->get_commonname());
                 alertracker->raise_alert(alert_macdevice_found_ref,
                         in_pack, device->get_macaddr(), mac_addr{0}, 
                         mac_addr{0}, mac_addr{0}, device->get_channel(), 
