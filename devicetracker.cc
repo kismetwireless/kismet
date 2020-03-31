@@ -866,13 +866,13 @@ std::shared_ptr<kis_tracked_device_base>
 
     // Raise alerts for new devices or devices which have been
     // idle and re-appeared
+    // Also keep them in macdevice_flagged_vec to send devicelost alerts
     auto k = macdevice_alert_conf_map.find(device->get_macaddr());
     if (k != macdevice_alert_conf_map.end()) {
-        if (k->second & 0x1 &&
-                (new_device || 
-                 ((device->get_last_time() < in_pack->ts.tv_sec &&
-                   in_pack->ts.tv_sec - device->get_last_time() > devicefound_timeout)))) {
+        if (new_device || ((device->get_last_time() < in_pack->ts.tv_sec &&
+            in_pack->ts.tv_sec - device->get_last_time() > devicefound_timeout))) {
 
+            if (k->second & 0x1) {
                 auto alrt =
                 fmt::format("Monitored device {} ({}) has been found.",
                         device->get_macaddr(), device->get_devicename());
@@ -880,6 +880,10 @@ std::shared_ptr<kis_tracked_device_base>
                         in_pack, device->get_macaddr(), mac_addr{0}, 
                         mac_addr{0}, mac_addr{0}, device->get_channel(), 
                         alrt);
+            }
+            if (k->second & 0x2) {
+                macdevice_flagged_vec.push_back(device);
+            }
         }
 
     }
