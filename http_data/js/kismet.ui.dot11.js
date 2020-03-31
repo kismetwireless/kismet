@@ -2140,7 +2140,7 @@ exports.AddSsidColumn('col_ssid', {
 });
 
 exports.AddSsidColumn('col_ssid_len', {
-    sTitle: 'Len',
+    sTitle: 'Length',
     field: 'dot11.ssidgroup.ssid_len',
     name: 'SSID Length',
 });
