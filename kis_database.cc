@@ -258,7 +258,7 @@ sqlite3_stmt *kis_database_binder::make_query(sqlite3 *db, std::string base) {
 
     if (bindings.size() == 0) {
         query << ";";
-        printf("%s\n", query.str().c_str());
+        // printf("%s\n", query.str().c_str());
 
         std::string q_final = query.str();
 

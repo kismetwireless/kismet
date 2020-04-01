@@ -644,8 +644,9 @@ kis_net_httpd::create_session(kis_net_httpd_connection *connection,
     cookiestr << "; Path=/";
 
     if (response != NULL) {
+        auto str = cookiestr.str();
         if (MHD_add_response_header(response, MHD_HTTP_HEADER_SET_COOKIE, 
-                    cookiestr.str().c_str()) == MHD_NO) {
+                    str.c_str()) == MHD_NO) {
             _MSG("Failed to add session cookie to response header, unable to create "
                     "a session", MSGFLAG_ERROR);
             return NULL;
@@ -1113,20 +1114,6 @@ int kis_net_httpd::handle_static_file(void *cls, kis_net_httpd_connection *conne
                 return -1;
             }
 
-            /*
-            if (connection->session != NULL) {
-                std::stringstream cookiestr;
-                std::stringstream cookie;
-
-                cookiestr << KIS_SESSION_COOKIE << "=";
-                cookiestr << connection->session->sessionid;
-                cookiestr << "; Path=/";
-
-                MHD_add_response_header(response, MHD_HTTP_HEADER_SET_COOKIE, 
-                        cookiestr.str().c_str());
-            }
-            */
-
             char lastmod[31];
             struct tm tmstruct;
             localtime_r(&(buf.st_ctime), &tmstruct);
@@ -1173,8 +1160,10 @@ void kis_net_httpd::append_http_session(kis_net_httpd *httpd __attribute__((unus
         cookiestr << connection->session->sessionid;
         cookiestr << "; Path=/";
 
+        auto str = cookiestr.str();
+
         MHD_add_response_header(connection->response, MHD_HTTP_HEADER_SET_COOKIE, 
-                cookiestr.str().c_str());
+                str.c_str());
     }
 }
 

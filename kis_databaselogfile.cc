@@ -1108,7 +1108,8 @@ int kis_database_logfile::log_packet(kis_packet *in_pack) {
             tagstream << tag;
         }
 
-        sqlite3_bind_text(packet_stmt, sql_pos++, tagstream.str().c_str(), tagstream.str().length(), SQLITE_TRANSIENT);
+        auto str = tagstream.str();
+        sqlite3_bind_text(packet_stmt, sql_pos++, str.c_str(), tagstream.str().length(), SQLITE_TRANSIENT);
 
         if (sqlite3_step(packet_stmt) != SQLITE_DONE) {
             _MSG("kis_database_logfile unable to insert packet in " +

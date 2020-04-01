@@ -93,7 +93,9 @@ std::string ipc_remote_v2::FindBinaryPath(std::string in_cmd) {
 
         path << path_vec[x] << "/" << in_cmd;
 
-        if (stat(path.str().c_str(), &buf) < 0)
+        auto str = path.str();
+
+        if (stat(str.c_str(), &buf) < 0)
             continue;
 
         if (buf.st_mode & S_IXUSR)
@@ -244,12 +246,14 @@ int ipc_remote_v2::launch_kis_explicit_binary(std::string cmdpath, std::vector<s
 
         // Child reads from inpair
         arg << "--in-fd=" << inpipepair[0];
-        cmdarg[1] = strdup(arg.str().c_str());
+        auto argstr = arg.str();
+        cmdarg[1] = strdup(argstr.c_str());
         arg.str("");
 
         // Child writes to writepair
         arg << "--out-fd=" << outpipepair[1];
-        cmdarg[2] = strdup(arg.str().c_str());
+        argstr = arg.str();
+        cmdarg[2] = strdup(argstr.c_str());
 
         for (unsigned int x = 0; x < args.size(); x++)
             cmdarg[x+3] = strdup(args[x].c_str());

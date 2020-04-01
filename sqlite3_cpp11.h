@@ -375,7 +375,8 @@ namespace kissqlite3 {
             const char *pz = nullptr;
 
             sqlite3_stmt *stmt_raw;
-            r = sqlite3_prepare(db, os.str().c_str(), os.str().length(), &stmt_raw, &pz);
+            auto str = os.str();
+            r = sqlite3_prepare(db, str.c_str(), os.str().length(), &stmt_raw, &pz);
 
             if (r != SQLITE_OK)
                 throw std::runtime_error("Failed to prepare statement: " + os.str() + " " + 
