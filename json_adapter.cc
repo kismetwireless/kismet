@@ -201,7 +201,6 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
     if (e->get_type() == tracker_type::tracker_alias) {
         e = std::static_pointer_cast<tracker_element_alias>(e)->get();
         if (e == nullptr) {
-            stream << "0";
             return;
         }
     }
