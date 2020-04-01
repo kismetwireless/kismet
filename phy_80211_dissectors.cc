@@ -797,12 +797,15 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
                 return 0;
             }
 
-            packinfo->header_offset = 36;
+            packinfo->header_offset = 24;
             fixparm = (fixed_parameters *) &(chunk->data[24]);
 
-            if (fc->subtype == packet_sub_reassociation_req) {
-                packinfo->header_offset += 8;
-            }
+            if (fc->subtype == packet_sub_association_req)
+                packinfo->header_offset += 4;
+            else if (fc->subtype == packet_sub_reassociation_req)
+                packinfo->header_offset += 10;
+            else
+                packinfo->header_offset += 12;
 
             if (fixparm->wep) {
                 packinfo->cryptset |= crypt_wep;
