@@ -8,6 +8,7 @@
 
     <script src="js/jquery-3.1.0.min.js"></script>
     <script src="js/leaflet.js"></script>
+    <script src="js/chroma.min.js"></script>
 
     <script src="js/js.storage.min.js"></script>
     <script src="js/kismet.utils.js"></script>
@@ -56,6 +57,51 @@
             z-index: 10000;
             padding: 10px;
         }
+
+        #alt_scale {
+            width: 50%;
+            position: absolute;
+            bottom: 10px;
+            left: 25%;
+            height: 15px;
+            z-index: 999;
+            border: 1px solid black;
+            padding-left: 10px;
+            padding-right: 10px;
+            background: linear-gradient(to right, 
+                hsl(50,100%,50%), 
+                hsl(100,100%,50%), 
+                hsl(150,100%,50%), 
+                hsl(200,100%,50%), 
+                hsl(250,100%,50%), 
+                hsl(300,100%,50%), 
+                hsl(360,100%,50%));
+            text-align: center;
+        }
+
+        #alt_min {
+            position: absolute;
+            left: 10px;
+        }
+
+        #alt_mini {
+            position: absolute;
+            left: 25%;
+        }
+
+        #alt_maxi {
+            position: absolute;
+            left: 75%;
+        }
+
+        #alt_max {
+            position: absolute;
+            right: 10px;
+        }
+
+        #alt_title {
+            display: inline-block;
+        }
     </style>
 </head>
 <body>
@@ -65,6 +111,13 @@
         <p><input id="dontwarn" type="checkbox">Don't warn me again</input>
         <p><button id="continue">Continue</button>
     </div>
+    <div id="alt_scale">
+        <div id="alt_min"></div>
+        <div id="alt_mini"></div>
+        <div id="alt_maxi"></div>
+        <div id="alt_max"></div>
+        <div id="alt_title"><strong>Altitude</strong></div>
+    </div>
     <div id="map"></div>
     <div class="right-sidebar">
         <i class="fa fa-plane" style="padding-right: 1em;"></i><span id="numplanes">0</span> planes in the past 10 minutes
@@ -72,8 +125,25 @@
         </div>
     </div>
 
-
     <script>
+
+        units = 'i';
+
+        if (kismet.getStorage('kismet.base.unit.distance') === 'metric' ||
+            kismet.getStorage('kismet.base.unit.distance') === '')
+            units = 'm';
+
+        if (units === 'm') {
+            $('#alt_min').html("0m");
+            $('#alt_mini').html("3000m");
+            $('#alt_maxi').html("9000m");
+            $('#alt_max').html("12000m");
+        } else {
+            $('#alt_min').html("0ft");
+            $('#alt_mini').html("10000ft");
+            $('#alt_maxi').html("30000ft");
+            $('#alt_max').html("40000ft");
+        }
 
         var window_visible = true;
 
@@ -133,6 +203,33 @@
 
         var map = null;
 
+        function get_alt_color(alt) {
+            // Colors go from 50 to 360 on the HSV slider, so scale to 310
+            if (units === 'm') {
+                if (alt > 12000)
+                    alt = 12000;
+                if (alt < 0)
+                    alt = 0;
+
+                h = 40 + (310 * (alt / 12000));
+                hv = h.toFixed(0);
+
+                return `hsl(${hv}, 100%, 50%)`
+            } else {
+                alt_f = alt * 3.2808399;
+                if (alt_f > 40000)
+                    alt_f = 40000;
+                if (alt_f < 0)
+                    alt_f = 0;
+
+                h = 40 + (310 * (alt_f / 40000));
+                hv = h.toFixed(0);
+
+                return `hsl(${hv}, 100%, 50%)`
+            }
+        }
+                
+
         function wrap_closure_mouseover(k) {
             return function() {
                 if (markers[k]['path'] != null) {
@@ -142,7 +239,7 @@
                     });
                 }
 
-                $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('color', 'red');
+                // $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('color', 'red');
                 $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('font-size', '24px');
 
                 $('#plane-detail').html("<b>Flight:</b> " + markers[k]['callsign'] + "<br>" +
@@ -162,7 +259,7 @@
                     });
                 }
 
-                $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('color', 'black');
+                // $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('color', get_alt_color(markers[k]['altitude']));
                 $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('font-size', '18px');
             }
         };
@@ -204,7 +301,7 @@
 
                     var myIcon = L.divIcon({
                         className: 'plane-icon', 
-                        html: '<div id="adsb_marker_' + kismet.sanitizeId(key) + '" style="width: 24px; height: 24px; transform-origin: center;"><i id="adsb_marker_icon_' + kismet.sanitizeId(key) + '" class="marker-center fa fa-plane" style="font-size: 18px;"></div>',
+                        html: '<div id="adsb_marker_' + kismet.sanitizeId(key) + '" style="width: 24px; height: 24px; transform-origin: center;"><i id="adsb_marker_icon_' + kismet.sanitizeId(key) + '" class="marker-center fa fa-plane" style="font-size: 18px; color: ' + get_alt_color(altitude) + ';"></div>',
                         iconAnchor: [12, 12],
                     });
 
@@ -216,6 +313,9 @@
                         $('#adsb_marker_' + kismet.sanitizeId(key)).css('transform', 'rotate(' + (heading - 45) + 'deg)');
                         var new_loc = new L.LatLng(lat, lon);
                         marker.setLatLng(new_loc); 
+
+                        // Recolor the marker
+                        $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('color', get_alt_color(altitude));
 
                         /*
                         if (markers[key]['last_lat'] != lat || markers[key]['last_lon'] != lon) {
