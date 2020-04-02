@@ -8,6 +8,7 @@
 
     <script src="js/jquery-3.1.0.min.js"></script>
     <script src="js/leaflet.js"></script>
+    <script src="js/Leaflet.MultiOptionsPolyline.min.js"></script>
     <script src="js/chroma.min.js"></script>
 
     <script src="js/js.storage.min.js"></script>
@@ -203,7 +204,7 @@
 
         var map = null;
 
-        function get_alt_color(alt) {
+        function get_alt_color(alt, v_perc=50) {
             // Colors go from 50 to 360 on the HSV slider, so scale to 310
             if (units === 'm') {
                 if (alt > 12000)
@@ -214,7 +215,7 @@
                 h = 40 + (310 * (alt / 12000));
                 hv = h.toFixed(0);
 
-                return `hsl(${hv}, 100%, 50%)`
+                return `hsl(${hv}, 100%, ${v_perc}%)`
             } else {
                 alt_f = alt * 3.2808399;
                 if (alt_f > 40000)
@@ -225,7 +226,7 @@
                 h = 40 + (310 * (alt_f / 40000));
                 hv = h.toFixed(0);
 
-                return `hsl(${hv}, 100%, 50%)`
+                return `hsl(${hv}, 100%, ${v_perc}%)`
             }
         }
                 
@@ -379,6 +380,7 @@
                             // a location lock
                             var s_lat = history[s]['kismet.historic.location.geopoint'][1];
                             var s_lon = history[s]['kismet.historic.location.geopoint'][0];
+                            var s_alt = history[s]['kismet.historic.location.alt'];
                             var s_ts = history[s]['kismet.historic.location.time_sec'];
 
                             if (s_lat == 0 || s_lon == 0 || s_ts < markers[key]['last_path_ts'])
@@ -390,7 +392,15 @@
                                 markers[key]['path'].addLatLng([s_lat, s_lon]);
                             } else {
                                 markers[key]['path'] = L.polyline([[s_lat, s_lon], [s_lat, s_lon]], {
-                                    color: 'red',
+                                    color: get_alt_color(s_alt, 25),
+                                    /*
+                                    // color: 'red',
+                                    multiOptions: {
+                                        options: function(v) {
+                                            return {'color': get_alt_color(s_alt)};
+                                        },
+                                    },
+                                    */
                                     weight: 2,
                                     dashArray: '3',
                                     opacity: 0.85,
