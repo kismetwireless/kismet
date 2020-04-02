@@ -409,6 +409,13 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 "denial of service or to disconnect clients in an attempt to "
                 "capture handshakes for attacking WPA.",
                 phyid);
+    alert_noclientmfp_ref =
+        alertracker->activate_configured_alert("NOCLIENTMFP",
+                "Client does not support management frame protection (MFP); By spoofing "
+                "disassociate or deauthenticate packets, an attacker may disconnect it "
+                "from a network. This can be used to cause a denial of service or to "
+                "disconnect it in an attempt to capture handshakes for attacking WPA.",
+                phyid);
 
     // Threshold
     signal_too_loud_threshold = 
@@ -2422,6 +2429,21 @@ void kis_80211_phy::process_client(std::shared_ptr<kis_tracked_device_base> bssi
 
                     for (auto c : dot11info->supported_channels->supported_channels()) 
                         clientdot11->get_supported_channels()->push_back(c);
+                }
+
+		if ((dot11info->rsn == nullptr || !dot11info->rsn->rsn_capability_mfp_supported()) &&
+                        alertracker->potential_alert(alert_noclientmfp_ref)) {
+                    std::string al = "IEEE80211 network BSSID " +
+                        client_record->get_bssid().mac_to_string() +
+                        " client " +
+                        clientdev->get_macaddr().mac_to_string() +
+                        " does not support management frame protection (MFP) which "
+                        "may ease client disassocation or deauthentication";
+
+                    alertracker->raise_alert(alert_noclientmfp_ref, in_pack,
+                            dot11info->bssid_mac, dot11info->source_mac,
+                            dot11info->dest_mac, dot11info->other_mac,
+                            dot11info->channel, al);
                 }
             }
 
