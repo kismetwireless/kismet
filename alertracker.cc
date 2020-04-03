@@ -72,6 +72,10 @@ alert_tracker::alert_tracker() :
     pack_comp_alert =
 		packetchain->register_packet_component("alert");
 
+	// Register the GPS component
+    pack_comp_gps =
+		packetchain->register_packet_component("GPS");
+
 	// Register a KISMET alert type with no rate restrictions
     alert_ref_kismet =
 		register_alert("KISMET", "Server events", sat_day, 0, sat_day, 0, KIS_PHY_ANY);
@@ -318,6 +322,11 @@ int alert_tracker::raise_alert(int in_ref, kis_packet *in_pack,
 
 		// Attach it to the packet
 		acomp->alert_vec.push_back(info);
+		
+		// Also get GPS
+		kis_gps_packinfo *pack_gpsinfo =
+			(kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
+		info->gps = new kis_gps_packinfo(pack_gpsinfo);
 	}
 
 #ifdef PRELUDE

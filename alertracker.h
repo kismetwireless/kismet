@@ -404,7 +404,7 @@ protected:
 	// Parse a foo/bar rate/unit option
 	int parse_rate_unit(std::string in_ru, alert_time_unit *ret_unit, int *ret_rate);
 
-    int pack_comp_alert;
+    int pack_comp_alert, pack_comp_gps;
     int alert_ref_kismet;
 
     int next_alert_id;
