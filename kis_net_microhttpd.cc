@@ -992,9 +992,13 @@ void kis_net_httpd::http_request_completed(void *cls __attribute__((unused)),
         struct MHD_Connection *connection __attribute__((unused)),
         void **con_cls, 
         enum MHD_RequestTerminationCode toe __attribute__((unused))) {
-    kis_net_httpd_connection *con_info = (kis_net_httpd_connection *) *con_cls;
 
-    if (con_info == NULL)
+    if (con_cls == nullptr)
+        return;
+
+    auto con_info = static_cast<kis_net_httpd_connection *>(*con_cls);
+
+    if (con_info == nullptr)
         return;
 
     // Lock and shut it down
@@ -1008,8 +1012,9 @@ void kis_net_httpd::http_request_completed(void *cls __attribute__((unused)),
     }
 
     // Destroy connection
-    
     delete(con_info);
+
+    *con_cls = nullptr;
 }
 
 static ssize_t file_reader(void *cls, uint64_t pos, char *buf, size_t max) {
