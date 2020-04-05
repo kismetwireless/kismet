@@ -72,7 +72,7 @@ class tracker_component : public tracker_element_map {
         return (rtype) get_tracker_value<ptype>(cvar); \
     } \
     virtual void set_##name(const itype& in) { \
-        SetTrackerValue<ptype>(cvar, static_cast<ptype>(in)); \
+        set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
     }
 
 // Ugly macro for standard proxy access but with an additional mutex; this should
@@ -89,7 +89,7 @@ class tracker_component : public tracker_element_map {
     } \
     virtual void set_##name(const itype& in) { \
         local_locker l((kis_recursive_timed_mutex *) &mvar); \
-        SetTrackerValue<ptype>(cvar, static_cast<ptype>(in)); \
+        set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
     }
 
 // Ugly macro for standard proxy access but with an additional mutex; this should
@@ -106,7 +106,7 @@ class tracker_component : public tracker_element_map {
     } \
     virtual void set_##name(const itype& in) { \
         local_locker l(mvar); \
-        SetTrackerValue<ptype>(cvar, static_cast<ptype>(in)); \
+        set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
     }
 
 // Ugly trackercomponent macro for proxying trackerelement values
@@ -277,7 +277,7 @@ class tracker_component : public tracker_element_map {
 // Only proxy a Set function for overload
 #define __ProxySet(name, ptype, stype, cvar) \
     virtual void set_##name(const stype& in) { \
-        SetTrackerValue<ptype>(cvar, in); \
+        set_tracker_value<ptype>(cvar, in); \
     } 
 
 
@@ -290,7 +290,7 @@ class tracker_component : public tracker_element_map {
 #define __ProxySetM(name, ptype, stype, cvar, mutex) \
     virtual void set_##name(const stype& in) { \
         local_locker l((kis_recursive_timed_mutex *) &mutex); \
-        SetTrackerValue<ptype>(cvar, in); \
+        set_tracker_value<ptype>(cvar, in); \
     } 
 
 // Get and set only, protected with a std::shared_ptr<mutex>
@@ -302,7 +302,7 @@ class tracker_component : public tracker_element_map {
 #define __ProxySetMS(name, ptype, stype, cvar, mutex) \
     virtual void set_##name(const stype& in) { \
         local_locker l(mutex); \
-        SetTrackerValue<ptype>(cvar, in); \
+        set_tracker_value<ptype>(cvar, in); \
     } 
 
 // Proxy a split public/private get/set function; This is even funkier than the 

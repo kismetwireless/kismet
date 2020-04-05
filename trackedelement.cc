@@ -491,98 +491,98 @@ template<> device_key get_tracker_value(const shared_tracker_element& e) {
     return std::static_pointer_cast<tracker_element_device_key>(e)->get();
 }
 
-template<> void SetTrackerValue(const shared_tracker_element& e, const std::string& v) {
+template<> void set_tracker_value(const shared_tracker_element& e, const std::string& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_string, tracker_type::tracker_byte_array);
 #endif
     std::static_pointer_cast<tracker_element_string>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const shared_tracker_element& e, const uint8_t& v) {
+template<> void set_tracker_value(const shared_tracker_element& e, const uint8_t& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_uint8);
 #endif
     std::static_pointer_cast<tracker_element_uint8>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const shared_tracker_element& e, const int8_t& v) {
+template<> void set_tracker_value(const shared_tracker_element& e, const int8_t& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_int8);
 #endif
     std::static_pointer_cast<tracker_element_int8>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const shared_tracker_element& e, const uint16_t& v) {
+template<> void set_tracker_value(const shared_tracker_element& e, const uint16_t& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_uint16);
 #endif
     std::static_pointer_cast<tracker_element_uint16>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const shared_tracker_element& e, const int16_t& v) {
+template<> void set_tracker_value(const shared_tracker_element& e, const int16_t& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_int16);
 #endif
     std::static_pointer_cast<tracker_element_int16>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const shared_tracker_element& e, const uint32_t& v) {
+template<> void set_tracker_value(const shared_tracker_element& e, const uint32_t& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_uint32);
 #endif
     std::static_pointer_cast<tracker_element_uint32>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const shared_tracker_element& e, const int32_t& v) {
+template<> void set_tracker_value(const shared_tracker_element& e, const int32_t& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_int32);
 #endif
     std::static_pointer_cast<tracker_element_int32>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const shared_tracker_element& e, const uint64_t& v) {
+template<> void set_tracker_value(const shared_tracker_element& e, const uint64_t& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_uint64);
 #endif
     std::static_pointer_cast<tracker_element_uint64>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const shared_tracker_element& e, const int64_t& v) {
+template<> void set_tracker_value(const shared_tracker_element& e, const int64_t& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_int64);
 #endif
     std::static_pointer_cast<tracker_element_int64>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const shared_tracker_element& e, const float& v) {
+template<> void set_tracker_value(const shared_tracker_element& e, const float& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_float);
 #endif
     std::static_pointer_cast<tracker_element_float>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const shared_tracker_element& e, const double& v) {
+template<> void set_tracker_value(const shared_tracker_element& e, const double& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_double);
 #endif
     std::static_pointer_cast<tracker_element_double>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const shared_tracker_element& e, const mac_addr& v) {
+template<> void set_tracker_value(const shared_tracker_element& e, const mac_addr& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_mac_addr);
 #endif
     std::static_pointer_cast<tracker_element_mac_addr>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const shared_tracker_element& e, const uuid& v) {
+template<> void set_tracker_value(const shared_tracker_element& e, const uuid& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_uuid);
 #endif
     std::static_pointer_cast<tracker_element_uuid>(e)->set(v);
 }
 
-template<> void SetTrackerValue(const shared_tracker_element& e, const device_key& v) {
+template<> void set_tracker_value(const shared_tracker_element& e, const device_key& v) {
 #if TE_TYPE_SAFETY == 1
     e->enforce_type(tracker_type::tracker_key);
 #endif
