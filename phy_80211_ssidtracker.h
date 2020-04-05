@@ -88,7 +88,7 @@ public:
         return std::move(dup);
     }
 
-    __Proxy(ssid_hash, size_t, uint64_t, uint64_t, ssid_hash);
+    __Proxy(ssid_hash, uint64_t, uint64_t, uint64_t, ssid_hash);
     __Proxy(ssid, std::string, std::string, std::string, ssid);
     __Proxy(ssid_len, uint32_t, uint32_t, uint32_t, ssid_len);
     __Proxy(crypt_set, uint64_t, uint64_t, uint64_t, crypt_set);
