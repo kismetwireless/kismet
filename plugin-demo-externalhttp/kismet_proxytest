@@ -39,6 +39,12 @@ class KismetProxyTest(object):
         # Initialize our external interface
         self.kei = kismetexternal.ExternalInterface(self.results.infd, self.results.outfd)
 
+        # self.kei.debug = True
+
+        # Start the external handler BEFORE we register our handlers, since we need to be
+        # connected to send them!
+        self.kei.start()
+
         # External tools can request a HTTP authentication token; this can be used as the
         # 'KISMET' session cookie to perform administrative actions against the Kismet
         # server
@@ -58,8 +64,8 @@ class KismetProxyTest(object):
 
         self.kei.send_message("Hello from python!  This is sent over the IPC message bus.")
 
-        # Start the external handler
-        self.kei.start()
+        # Start the IO loops running
+        self.kei.run()
 
     # Callback for when we've gotten back our auth token for the webserver
     def handle_web_auth_token(self):
@@ -105,7 +111,7 @@ class KismetProxyTest(object):
 
     # Loop forever
     def loop(self):
-        while self.kei.is_running:
+        while self.kei.is_running():
             self.kei.send_ping()
             time.sleep(1)
 
