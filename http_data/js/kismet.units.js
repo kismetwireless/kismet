@@ -75,9 +75,19 @@ exports.renderHeightDistance = function(m, precision = 5, lowest = false) {
         var f = (m * 3.2808399);
 
         if (f < 5280 || lowest) {
-            return f.toFixed(precision) + ' feet';
+            return f.toFixed(precision) + ' ft';
         }
-        return (f / 5280).toFixed(precision) + ' miles';
+        return (f / 5280).toFixed(precision) + ' mls';
+    }
+}
+
+exports.renderHeightDistanceUnitless = function(m, precision = 5) {
+    if (kismet.getStorage('kismet.base.unit.distance') === 'metric' ||
+            kismet.getStorage('kismet.base.unit.distance') === '') {
+        return m.toFixed(precision);
+    } else {
+        var f = (m * 3.2808399);
+        return f.toFixed(precision);
     }
 }
 
@@ -87,6 +97,15 @@ exports.renderSpeed = function(kph, precision = 5) {
         return kph.toFixed(precision) + ' KPH';
     } else {
         return (kph * 0.621371).toFixed(precision) + ' MPH';
+    }
+}
+
+exports.renderSpeedUnitless = function(kph, precision = 5) {
+    if (kismet.getStorage('kismet.base.unit.speed') === 'metric' ||
+            kismet.getStorage('kismet.base.unit.speed') === '') {
+        return kph.toFixed(precision);
+    } else {
+        return (kph * 0.621371).toFixed(precision);
     }
 }
 
