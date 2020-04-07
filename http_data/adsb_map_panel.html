@@ -5,6 +5,11 @@
 
     <link rel="stylesheet" type="text/css" href="css/font-awesome.min.css">
     <link rel="stylesheet" href="css/leaflet.css" />
+    <link rel="stylesheet" type="text/css" href="css/jquery-ui.min.css" />
+    <link rel="stylesheet" type="text/css" href="css/jquery.jspanel.min.css" />
+    <link rel="stylesheet" type="text/css" href="css/jquery.dataTables.min.css" />
+    <link rel="stylesheet" type="text/css" href="css/responsive.dataTables.min.css" />
+    <link rel="stylesheet" type="text/css" href="css/colReorder.dataTables.min.css" />
 
     <script src="js/jquery-3.1.0.min.js"></script>
     <script src="js/leaflet.js"></script>
@@ -14,6 +19,13 @@
     <script src="js/js.storage.min.js"></script>
     <script src="js/kismet.utils.js"></script>
     <script src="js/kismet.units.js"></script>
+
+    <script src="js/jquery.dataTables.min.js"></script>
+    <script src="js/dataTables.scroller.min.js"></script>
+    <script src="js/dataTables.scrollResize.js"></script>
+    <script src="js/dataTables.pageResize.min.js"></script>
+    <script src="js/dataTables.colReorder.min.js"></script>
+    <script src="js/dataTables.responsive.min.js"></script>
 
     <style>
         body {
@@ -103,6 +115,17 @@
         #alt_title {
             display: inline-block;
         }
+
+        .resize_wrapper {
+            position: relative;
+            box-sizing: border-box;
+            height: calc(100% - 95px);
+            padding: 0.5em 0.5em 1.5em 0.5em;
+            border-radius: 0.5em;
+            background-color: #f9f9f9;
+            overflow: hidden;
+        }
+
     </style>
 </head>
 <body>
@@ -121,13 +144,29 @@
     </div>
     <div id="map"></div>
     <div class="right-sidebar">
+        <div id="plane-count" style="height: 10px">
         <i class="fa fa-plane" style="padding-right: 1em;"></i><span id="numplanes">0</span> planes in the past 10 minutes
-        <div id="plane-detail" style="padding-top: 10px;">
+        </div>
+
+        <div id="plane-detail" style="padding-top: 10px; height: 65px;"></div>
+        <br>
+        <div height="100%" class="resize_wrapper">
+        <table width="100%" id="adsb_planes" style="font-size: 80%">
+            <thead>
+                <tr>
+                    <th>ICAO</th>
+                    <th>ID</th>
+                    <th>Alt</th>
+                    <th>Spd</th>
+                    <th>Hed</th>
+                    <th>Msgs</th>
+                </tr>
+            </thead>
+        </table>
         </div>
     </div>
 
     <script>
-
         units = 'i';
 
         if (kismet.getStorage('kismet.base.unit.distance') === 'metric' ||
@@ -229,10 +268,30 @@
                 return `hsl(${hv}, 100%, ${v_perc}%)`
             }
         }
-                
+
+        var moused_icao = null;
+        var moused_id = null;
+
+        var planes_dt = $('#adsb_planes').DataTable({
+            data: [],
+            searching: false,
+            scrollY: 200,
+            scrollResize: true,
+            scrollCollapse: true,
+            scroller: true,
+            paging: true,
+            dom: "ft",
+            createdRow: function(row, data, index) {
+                row.id = `ROW_ICAO_${data[0]}`;
+            },
+        });
+
 
         function wrap_closure_mouseover(k) {
             return function() {
+                moused_id = k;
+                moused_icao = markers[k]['icao'];
+
                 if (markers[k]['path'] != null) {
                     markers[k]['path'].setStyle({
                         weight: 3,
@@ -248,11 +307,17 @@
                     "<b>Operator: </b>" + markers[k]['operator'] + "<br>" + 
                     "<b>Altitude: </b>" + kismet_units.renderHeightDistance(markers[k]['altitude'], 0, true) + "<br>" + 
                     "<b>Speed: </b>" + kismet_units.renderSpeed(markers[k]['speed'], 0) + "<br>");
+
+                $(`#ROW_ICAO_${markers[k]['icao']}`).css('background-color', 'red');
+                $('#adsb_planes').DataTable().row(`#ROW_ICAO_${markers[k]['icao']}`).scrollTo();
             }
         };
 
         function wrap_closure_mouseout(k) {
             return function() {
+                moused_id = null;
+                moused_icao = null;
+
                 if (markers[k]['path'] != null) {
                     markers[k]['path'].setStyle({
                         weight: 2,
@@ -262,6 +327,7 @@
 
                 // $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('color', get_alt_color(markers[k]['altitude']));
                 $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('font-size', '18px');
+                $(`#ROW_ICAO_${markers[k]['icao']}`).css('background-color', '');
             }
         };
 
@@ -287,6 +353,15 @@
                 map_configured = true;
             }
 
+            var dt = $('#adsb_planes').DataTable();
+
+            var prev_pos = {
+                'top': $(dt.settings()[0].nScrollBody).scrollTop(),
+                'left': $(dt.settings()[0].nScrollBody).scrollLeft()
+            };
+
+            dt.clear();
+
             for (var d = 0; d < data['kismet.adsb.map.devices'].length; d++) {
                 try {
                     var lat = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.geopoint'][1];
@@ -294,6 +369,14 @@
                     var heading = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.heading'];
                     var altitude = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.alt'];
                     var speed = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.speed'];
+                    var icao = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.icao'];
+                    var id = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.regid'];
+                    var packets = data['kismet.adsb.map.devices'][d]['kismet.device.base.packets.data'];
+
+
+                    // console.log([icao, id, altitude, speed, heading, packets]);
+
+                    dt.row.add([icao, id, kismet_units.renderHeightDistanceUnitless(altitude, 0), kismet_units.renderSpeedUnitless(speed, 0, true), heading.toFixed(0), packets]);
 
                     if (lat == 0 || lon == 0)
                         continue;
@@ -351,6 +434,7 @@
 
                         markers[key] = {};
                         markers[key]['marker'] = marker;
+                        markers[key]['icao'] = icao;
                         markers[key]['keep'] = true;
                         markers[key]['pathlist'] = [[lat, lon]];
                         markers[key]['path'] = null;
@@ -417,9 +501,21 @@
                         ;
                     }
 
+                dt.draw(0);
+
+                if (moused_icao != null) {
+                    $(`#ROW_ICAO_${moused_icao}`).css('background-color', 'red');
+                }
+
+                // Restore our scroll position
+                $(dt.settings()[0].nScrollBody).scrollTop( prev_pos.top );
+                $(dt.settings()[0].nScrollBody).scrollLeft( prev_pos.left );
+
+
                 } catch (error) {
                     ;
                 }
+
             }
 
             for (var k in markers) {
