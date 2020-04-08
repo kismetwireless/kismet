@@ -286,11 +286,22 @@
         });
 
 
-        function wrap_closure_mouseover(k) {
+        function wrap_closure_click(k) {
             return function() {
+                if (moused_icao != null)
+                    $(`#ROW_ICAO_${markers[k][moused_icao]}`).css('background-color', '');
+
                 moused_id = k;
                 moused_icao = markers[k]['icao'];
 
+                $(`#ROW_ICAO_${markers[k]['icao']}`).css('background-color', 'red');
+                $('#adsb_planes').DataTable().row(`#ROW_ICAO_${markers[k]['icao']}`).scrollTo();
+            }
+
+        };
+
+        function wrap_closure_mouseover(k) {
+            return function() {
                 if (markers[k]['path'] != null) {
                     markers[k]['path'].setStyle({
                         weight: 3,
@@ -307,16 +318,11 @@
                     "<b>Altitude: </b>" + kismet_units.renderHeightDistance(markers[k]['altitude'], 0, true) + "<br>" + 
                     "<b>Speed: </b>" + kismet_units.renderSpeed(markers[k]['speed'], 0) + "<br>");
 
-                $(`#ROW_ICAO_${markers[k]['icao']}`).css('background-color', 'red');
-                $('#adsb_planes').DataTable().row(`#ROW_ICAO_${markers[k]['icao']}`).scrollTo();
             }
         };
 
         function wrap_closure_mouseout(k) {
             return function() {
-                moused_id = null;
-                moused_icao = null;
-
                 if (markers[k]['path'] != null) {
                     markers[k]['path'].setStyle({
                         weight: 2,
@@ -326,7 +332,6 @@
 
                 // $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('color', get_alt_color(markers[k]['altitude']));
                 $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('font-size', '18px');
-                $(`#ROW_ICAO_${markers[k]['icao']}`).css('background-color', '');
             }
         };
 
@@ -445,6 +450,7 @@
 
                         markers[key]['marker'].on('mouseover', wrap_closure_mouseover(key));
                         markers[key]['marker'].on('mouseout', wrap_closure_mouseout(key));
+                        markers[key]['marker'].on('click', wrap_closure_click(key));
                     }
 
                     markers[key]['altitude'] = altitude;
