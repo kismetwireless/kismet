@@ -288,14 +288,15 @@
 
         function wrap_closure_click(k) {
             return function() {
+                $('#adsb_planes').DataTable().row(`#ROW_ICAO_${markers[k]['icao']}`).scrollTo();
+
                 if (moused_icao != null)
-                    $(`#ROW_ICAO_${markers[k][moused_icao]}`).css('background-color', '');
+                    $(`#ROW_ICAO_${moused_icao}`).css('background-color', '');
 
                 moused_id = k;
                 moused_icao = markers[k]['icao'];
 
                 $(`#ROW_ICAO_${markers[k]['icao']}`).css('background-color', 'red');
-                $('#adsb_planes').DataTable().row(`#ROW_ICAO_${markers[k]['icao']}`).scrollTo();
             }
 
         };
