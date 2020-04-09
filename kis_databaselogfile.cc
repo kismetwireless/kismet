@@ -1389,7 +1389,7 @@ int kis_database_logfile::httpd_create_stream_response(kis_net_httpd *httpd,
     }
 
     if (stripped.find("/logging/kismetdb/pcap/") == 0 && suffix == "pcapng") {
-        if (db == nullptr || db_enabled) {
+        if (db == nullptr || !db_enabled) {
             connection->httpcode = 500;
             return MHD_YES;
         }
@@ -1475,11 +1475,11 @@ int kis_database_logfile::httpd_create_stream_response(kis_net_httpd *httpd,
                             connection->variable_cache_as<double>("location_lon_max")));
 
             if (connection->has_cached_variable("size_min"))
-                query.append_where(AND, _WHERE("size", GE, 
+                query.append_where(AND, _WHERE("packet_len", GE, 
                             connection->variable_cache_as<long int>("size_min")));
 
             if (connection->has_cached_variable("size_max"))
-                query.append_where(AND, _WHERE("size_max", LE, 
+                query.append_where(AND, _WHERE("packet_len", LE, 
                             connection->variable_cache_as<long int>("size_max")));
 
             if (connection->has_cached_variable("limit"))
@@ -1546,7 +1546,7 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
     }
 
     if (stripped.find("/logging/kismetdb/pcap/") == 0 && suffix == "pcapng") {
-        if (db == nullptr || db_enabled) {
+        if (db == nullptr || !db_enabled) {
             concls->httpcode = 500;
             return MHD_YES;
         }
@@ -1668,10 +1668,10 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
                         _WHERE("lon", LE, filterdata->key_as_number("location_lon_max")));
 
             if (filterdata->has_key("size_min"))
-                query.append_where(AND, _WHERE("size", GE, filterdata->key_as_number("size_min")));
+                query.append_where(AND, _WHERE("packet_len", GE, filterdata->key_as_number("size_min")));
 
             if (filterdata->has_key("size_max"))
-                query.append_where(AND, _WHERE("size_max", LE, filterdata->key_as_number("size_max")));
+                query.append_where(AND, _WHERE("packet_len", LE, filterdata->key_as_number("size_max")));
 
             if (filterdata->has_key("limit"))
                 query.append_clause(LIMIT, filterdata->key_as_number("limit"));
