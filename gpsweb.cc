@@ -19,6 +19,7 @@
 #include "base64.h"
 #include "gpsweb.h"
 #include "gpstracker.h"
+#include "kismet_json.h"
 #include "messagebus.h"
 
 // Don't bind to the http server until we're created, so pass a null to
@@ -95,12 +96,7 @@ void kis_gps_web::httpd_create_stream_response(kis_net_httpd *httpd,
     return;
 }
 
-int kis_gps_web::httpd_post_iterator(void *coninfo_cls, enum MHD_ValueKind kind, 
-        const char *key, const char *filename, const char *content_type,
-        const char *transfer_encoding, const char *data, 
-        uint64_t off, size_t size) {
-
-    kis_net_httpd_connection *concls = (kis_net_httpd_connection *) coninfo_cls;
+int kis_gps_web::httpd_post_complete(kis_net_httpd_connection *concls) {
 
     bool handled = false;
 
@@ -113,56 +109,35 @@ int kis_gps_web::httpd_post_iterator(void *coninfo_cls, enum MHD_ValueKind kind,
 
     double lat = 0, lon = 0, alt = 0, spd = 0;
     bool set_alt = false, set_spd = false;
+    shared_structured structdata;
 
-    if (concls->url == "/gps/web/update.cmd") {
-#if 0
-        if (strcmp(key, "msgpack") == 0 && size > 0) {
-            std::string decode = base64::decode(std::string(data));
-
-            // Get the dictionary
-            MsgpackAdapter::MsgpackStrMap params;
-            MsgpackAdapter::MsgpackStrMap::iterator obj_iter;
-            msgpack::unpacked result;
-
-            try {
-                msgpack::unpack(result, decode.data(), decode.size());
-                msgpack::object deserialized = result.get();
-                params = deserialized.as<MsgpackAdapter::MsgpackStrMap>();
-
-                // Lat and lon are required
-                obj_iter = params.find("lat");
-                if (obj_iter == params.end())
-                    throw std::runtime_error("expected 'lat' entry");
-                lat = obj_iter->second.as<double>();
-
-                obj_iter = params.find("lon");
-                if (obj_iter == params.end())
-                    throw std::runtime_error("expected 'lon' entry");
-                lon = obj_iter->second.as<double>();
-
-                // Alt and speed are optional, but if one is provided,
-                // it needs to be a double
-                obj_iter = params.find("alt");
-                if (obj_iter != params.end()) {
-                    alt = obj_iter->second.as<double>();
-                    set_alt = true;
-                }
-
-                obj_iter = params.find("spd");
-                if (obj_iter != params.end()) {
-                    spd = obj_iter->second.as<double>();
-                    set_spd = true;
-                }
-
-                handled = true;
-            } catch (const std::exception& e) {
-                concls->response_stream << "Invalid request " << e.what();
-                concls->httpcode = 400;
-                return 1;
-            }
+    try {
+        if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
+            structdata.reset(new structured_json(concls->variable_cache["json"]->str()));
+        } else {
+            throw std::runtime_error("could not find data");
         }
-#endif
-        concls->response_stream << "Being rewritten";
+
+        if (concls->url == "/gps/web/update.cmd") {
+            // Lat and lon are required
+            lat = structdata->key_as_number("lat");
+            lon = structdata->key_as_number("lon");
+
+            // Alt and speed are optional
+            if (structdata->has_key("alt")) {
+                alt = structdata->key_as_number("alt");
+                set_alt = true;
+            }
+
+            if (structdata->has_key("spd")) {
+                spd = structdata->key_as_number("spd");
+                set_spd = true;
+            }
+
+            handled = true;
+        }
+    } catch (const std::exception& e) {
+        concls->response_stream << "Invalid request " << e.what();
         concls->httpcode = 400;
         return 1;
     }

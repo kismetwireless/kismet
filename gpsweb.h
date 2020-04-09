@@ -49,10 +49,7 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
 
-    virtual int httpd_post_iterator(void *coninfo_cls, enum MHD_ValueKind kind, 
-            const char *key, const char *filename, const char *content_type,
-            const char *transfer_encoding, const char *data, 
-            uint64_t off, size_t size);
+    virtual int httpd_post_complete(kis_net_httpd_connection *concls);
 
 protected:
     // Last time we calculated the heading, don't do it more than once every 
