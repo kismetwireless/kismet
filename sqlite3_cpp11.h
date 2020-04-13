@@ -17,7 +17,7 @@
 */
 
 // There are several sqlite3 to CPP11+; none of them seemed usable in this situation, or
-// were incomplete and missing some crucial featuers, so this is yet another one which
+// were incomplete and missing some crucial features, so this is yet another one which
 // is limited and missing crucial features.
 //
 // Example usage:
@@ -25,6 +25,17 @@
 //    auto q = _SELECT(db, "devices", 
 //            {"devkey", "sourcemac", "last_signal"}, 
 //            _WHERE("last_time", GT, 12345, 
+//                AND, 
+//                "max_signal", GT, -40, 
+//                AND, 
+//                "macaddr", LIKE, "aa:bb:cc:%"
+//            ),
+//            ORDERBY, "last_time",
+//            LIMIT, 10);
+//
+//    auto q = _SELECT(db, "devices", 
+//            {"devkey", "sourcemac", "last_signal"}, 
+//            _WHERE(_WHERE("last_time", GT, 12345, AND, "last_time_us", GT, 12345),
 //                AND, 
 //                "max_signal", GT, -40, 
 //                AND, 
@@ -127,6 +138,7 @@ namespace kissqlite3 {
     typedef struct { std::string op = "<"; } _LT;
     typedef struct { std::string op = ">="; } _GE;
     typedef struct { std::string op = ">"; } _GT;
+    typedef struct { std::string op = ""; } _NEST;
 
     static auto LE = _LE{};
     static auto LT = _LT{};
@@ -193,6 +205,10 @@ namespace kissqlite3 {
                 op = raw_op.op;
         }
 
+        query_element(const std::list<query_element>& nested_list) :
+            op_only {true},
+            nested_query {nested_list} { }
+
         // Specific tail processing options
         query_element(const _ORDERBY& op, const std::string value) :
             op_value_only {true},
@@ -221,10 +237,17 @@ namespace kissqlite3 {
         bool op_only = false;
         std::string op;
 
+        std::list<query_element> nested_query;
+
         BindType bind_type;
         std::string value;
         double num_value;
+
+        friend std::ostream& operator<<(std::ostream& os, const query_element& q);
     };
+
+    std::ostream& operator<<(std::ostream& os, const query_element& q);
+
 
     template<typename OP, typename... Args>
     void _WHERE(std::list<query_element>& vec);
@@ -474,6 +497,21 @@ namespace kissqlite3 {
     void _WHERE(std::list<query_element>& vec, const std::string& field, 
             const OP& op, const VL value) {
         vec.push_back(query_element{field, op, value});
+    }
+
+    // JOINER <where clause>
+    template<typename JN, typename... Args>
+    void _WHERE(std::list<query_element>& vec, const JN& join, const std::list<query_element>& subclause,
+            const Args& ... args) {
+        vec.push_back(query_element{join});
+        vec.push_back(query_element{subclause});
+        _WHERE(vec, args...);
+    }
+
+    template<typename JN>
+    void _WHERE(std::list<query_element>& vec, const JN& join, const std::list<query_element>& subclause) {
+        vec.push_back(query_element{join});
+        vec.push_back(query_element{subclause});
     }
 
     // JOINER X <op> VALUE {...}
