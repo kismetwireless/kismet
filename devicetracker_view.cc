@@ -350,10 +350,6 @@ std::shared_ptr<tracker_element> device_tracker_view::device_time_endpoint(const
     auto tv = string_to_n<int64_t>(path[4], 0);
     time_t ts;
 
-    // Don't allow 'all' devices b/c it's really expensive
-    if (tv == 0)
-        return ret;
-
     if (tv < 0)
         ts = time(0) - tv;
     else
@@ -415,10 +411,6 @@ std::shared_ptr<tracker_element> device_tracker_view::device_time_uri_endpoint(c
 
     auto tv = string_to_n<int64_t>(path[3 + extras_sz], 0);
     time_t ts;
-
-    // Don't allow 'all' devices b/c it's really expensive
-    if (tv == 0)
-        return ret;
 
     if (tv < 0)
         ts = time(0) + tv;
