@@ -58,16 +58,17 @@
 
 #include "config.h"
 
-#include <vector>
-#include <tuple>
-#include <string>
+#include <functional>
 #include <iostream>
-#include <sstream>
 #include <list>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <tuple>
+#include <vector>
 
 #include <sqlite3.h>
 
-#include <memory>
 
 namespace kissqlite3 {
 
@@ -370,6 +371,10 @@ namespace kissqlite3 {
 
                 comma = false;
                 for (auto c : where_clause) {
+                    // it'd be nice not to have to look into this like we do
+                    // here but it's good enough for now.  We don't want to 
+                    // add commas around op-only stanzas
+                    
                     if (c.op_only) {
                         os << " " << c.op << " ";
                         comma = false;
@@ -380,7 +385,7 @@ namespace kissqlite3 {
                         os << ", ";
                     comma = true;
 
-                    os << c.field << " " << c.op << " ?";
+                    os << c;
                 }
                 os << ")";
             }
@@ -409,37 +414,48 @@ namespace kissqlite3 {
                     sqlite3_finalize(p);
                 });
 
+            std::function<void (std::shared_ptr<sqlite3_stmt>, unsigned int&, const query_element&)> bind_function = 
+                [&bind_function](std::shared_ptr<sqlite3_stmt> stmt, unsigned int& bind_pos, 
+                    const query_element& c) {
+
+                    if (c.nested_query.size() > 0) {
+                        for (auto nc : c.nested_query) 
+                            bind_function(stmt, bind_pos, nc);
+                    }
+
+                    if (c.op_only)
+                        return;
+
+                    switch (c.bind_type) {
+                        case BindType::sql_blob:
+                            sqlite3_bind_blob(stmt.get(), bind_pos++, c.value.data(), 
+                                    c.value.length(), SQLITE_TRANSIENT);
+                            break;
+                        case BindType::sql_text:
+                            sqlite3_bind_text(stmt.get(), bind_pos++, c.value.data(), 
+                                    c.value.length(), SQLITE_TRANSIENT);
+                            break;
+                        case BindType::sql_int:
+                            sqlite3_bind_int(stmt.get(), bind_pos++, c.num_value);
+                            break;
+                        case BindType::sql_int64:
+                            sqlite3_bind_int64(stmt.get(), bind_pos++, c.num_value);
+                            break;
+                        case BindType::sql_double:
+                            sqlite3_bind_double(stmt.get(), bind_pos++, c.num_value);
+                            break;
+                        case BindType::sql_null:
+                            sqlite3_bind_null(stmt.get(), bind_pos++);
+                            break;
+                        case BindType::sql_joining_op:
+                            break;
+                    };
+                };
+
             // Bind all the values
             unsigned int bind_pos = 1;
-            for (auto c : where_clause) {
-                if (c.op_only)
-                    continue;
-
-                switch (c.bind_type) {
-                    case BindType::sql_blob:
-                        sqlite3_bind_blob(stmt.get(), bind_pos++, c.value.data(), 
-                                c.value.length(), SQLITE_TRANSIENT);
-                        break;
-                    case BindType::sql_text:
-                        sqlite3_bind_text(stmt.get(), bind_pos++, c.value.data(), 
-                                c.value.length(), SQLITE_TRANSIENT);
-                        break;
-                    case BindType::sql_int:
-                        sqlite3_bind_int(stmt.get(), bind_pos++, c.num_value);
-                        break;
-                    case BindType::sql_int64:
-                        sqlite3_bind_int64(stmt.get(), bind_pos++, c.num_value);
-                        break;
-                    case BindType::sql_double:
-                        sqlite3_bind_double(stmt.get(), bind_pos++, c.num_value);
-                        break;
-                    case BindType::sql_null:
-                        sqlite3_bind_null(stmt.get(), bind_pos++);
-                        break;
-                    case BindType::sql_joining_op:
-                        break;
-                };
-            }
+            for (auto c : where_clause) 
+                bind_function(stmt, bind_pos, c);
 
             r = sqlite3_reset(stmt.get());
             if (r != SQLITE_OK)
