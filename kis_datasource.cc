@@ -415,8 +415,6 @@ void kis_datasource::close_source() {
     ipc_remote.reset();
     ringbuf_handler.reset();
 
-    quiet_errors = true;
-
     if (get_source_error())
         return;
 
@@ -457,9 +455,6 @@ void kis_datasource::trigger_error(std::string in_error) {
 
     // Kill any interaction w/ the source
     close_source();
-
-    /* Set errors as quiet after the first one */
-    quiet_errors = 1;
 
     set_int_source_running(false);
 
