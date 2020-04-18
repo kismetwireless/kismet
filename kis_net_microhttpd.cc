@@ -1910,8 +1910,10 @@ kis_net_httpd_simple_post_endpoint::kis_net_httpd_simple_post_endpoint(const std
 }
 
 bool kis_net_httpd_simple_post_endpoint::httpd_verify_path(const char *path, const char *method) {
+    /*
     if (strcmp(method, "POST") != 0)
         return false;
+        */
 
     auto stripped = httpd_strip_suffix(path);
 
@@ -2009,8 +2011,10 @@ kis_net_httpd_path_post_endpoint::kis_net_httpd_path_post_endpoint(
 }
 
 bool kis_net_httpd_path_post_endpoint::httpd_verify_path(const char *in_path, const char *in_method) {
+    /*
     if (strcmp(in_method, "POST") != 0)
         return false;
+        */
 
     if (!httpd_can_serialize(in_path))
         return false;
@@ -2036,6 +2040,9 @@ int kis_net_httpd_path_post_endpoint::httpd_create_stream_response(
         size_t *upload_data_size) {
 
     // Do nothing, we only handle POST
+    connection->response_stream << "Invalid request: POST expected\n";
+    connection->httpcode = 400;
+
     return MHD_YES;
 }
 
