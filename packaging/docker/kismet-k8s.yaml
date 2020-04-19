@@ -1,0 +1,110 @@
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: traefik
+  labels:
+    app: kismet
+  name: kismet-ingress
+spec:
+  rules:
+  - host: kismet.localhost
+    http:
+      paths:
+      - backend:
+          serviceName: kismet-service
+          servicePort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kismet-service
+  namespace: default
+spec:
+  selector:
+    app: kismet
+  ports:
+  - protocol: TCP
+    port: 2501
+    name: http
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kismet-data-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kismet-config-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kismet-api
+  namespace: default
+spec:
+  type: NodePort
+  selector:
+    app: kismet
+  ports:
+  - protocol: TCP
+    port: 3501
+    nodePort: 30501
+    name: api
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: kismet
+  namespace: default
+spec:
+  replicas: 1
+  template:
+    metadata:
+        labels:
+          app: kismet
+    spec:
+      volumes:
+        - name: kismet-config
+          persistentVolumeClaim:
+            claimName: kismet-config-pvc
+        - name: kismet-data
+          persistentVolumeClaim:
+            claimName: kismet-data-pvc
+      containers:
+      - image: quay.io/sketchybinary/kismet:master
+        imagePullPolicy: Always
+        name: kismet
+        volumeMounts:
+        - mountPath: /data/
+          name: kismet-data
+        - mountPath: /root/.kismet
+          name: kismet-config
+        ports:
+        - containerPort: 3501
+          name: api
+        - containerPort: 2501
+          name: http
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 3
+---
