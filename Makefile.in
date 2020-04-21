@@ -591,6 +591,7 @@ rtlsdrpy:
 release-%:
 	@echo $*
 	@git checkout -B kismet-`echo $* | cut -d- -f1,2`
+	@git pull
 	@git submodule update --remote docs/
 	@git commit docs -m "Doc update for $*" -m "Update docs submodule for release $*"
 	@make manuf
