@@ -743,6 +743,9 @@ endif
 ifneq ($(BUILD_CAPTURE_KISMETDB)x, "x")
 	include $(wildcard $(patsubst %c.o,%c.d,$(CAPTURE_KISMETDB_O)))
 endif
+ifneq ($(BUILD_CAPTURE_HACKRF_SWEEP)x, "x")
+	include $(wildcard $(patsubst %c.o,%c.d,$(CAPTURE_HACKRF_SWEEP_O)))
+endif
 include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_WIGLE_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_STRIP_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_JSON_O)))
