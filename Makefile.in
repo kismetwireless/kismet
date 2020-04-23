@@ -494,9 +494,7 @@ FORCECONFINSTTARGETS = $(addprefix install_force_conf_, $(CONFIGFILES))
 ${FORCECONFINSTTARGETS}: install_force_conf_%: 
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 644 conf/$* $(ETC)/$*;  
 
-configsinstall:
-	$(MAKE) $(CONFINSTTARGETS)
-
+configsinstall: $(CONFINSTTARGETS)
 	@echo
 	@echo
 	@echo "Existing config files have not been replaced; if the Kismet "; 
