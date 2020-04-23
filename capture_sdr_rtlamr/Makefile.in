@@ -1,7 +1,5 @@
 include ../Makefile.inc
 
-MONITOR_BIN = kismet_cap_sdr_rtlamr
-
 all: 
 	( cd KismetCaptureRtlamr/kismetexternal; \
 	  $(PROTOCBIN) -I ../../../protobuf_definitions --python_out=. ../../../protobuf_definitions/*.proto; \
@@ -17,4 +15,3 @@ protobuf:
 
 clean:
 	@-$(PYTHON) ./setup.py clean
-

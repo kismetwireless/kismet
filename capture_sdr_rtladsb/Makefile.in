@@ -1,8 +1,5 @@
 include ../Makefile.inc
 
-MONITOR_BIN = kismet_cap_sdr_rtladsb
-MQTTMONITOR_BIN = kismet_cap_sdr_rtladsb_mqtt
-
 all: 
 	( cd KismetCaptureRtladsb/kismetexternal; \
 	  $(PROTOCBIN) -I ../../../protobuf_definitions --python_out=. ../../../protobuf_definitions/*.proto; \
@@ -12,14 +9,9 @@ all:
 
 install:
 	$(PYTHON) ./setup.py install
-	# These are now part of the setup.py install
-	# $(INSTALL) -o $(INSTUSR) -g $(INSTGRP) aircraft_db.csv $(ETC)/kismet_aircraft_db.csv
-	# $(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(MONITOR_BIN) $(BIN)/$(MONITOR_BIN)
-	# $(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(MQTTMONITOR_BIN) $(BIN)/$(MQTTMONITOR_BIN)
 
 protobuf:
 	$(PROTOCBIN) -I ../protobuf_definitions --python_out=./KismetCaptureRtladsb ../protobuf_definitions/*.proto
 
 clean:
 	@-$(PYTHON) ./setup.py clean
-
