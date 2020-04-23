@@ -608,18 +608,15 @@ rpm:
 
 depclean:
 	@-rm -f *.d
+	@-rm -f bluetooth_parsers/*.d
+	@-rm -f dot11_parsers/*.d
 	@-rm -f log_tools/*.d
 
-clean:
+clean: all-plugins-clean depclean
 	@-rm -f *.o *.mo
-	@-rm -f *.d
 	@-rm -f dot11_parsers/*.o
-	@-rm -f dot11_parsers/*.d
 	@-rm -f bluetooth_parsers/*.o
-	@-rm -f bluetooth_parsers/*.d
 	@-rm -f log_tools/*.o
-	@-rm -f log_tools/*.d
-	@-$(MAKE) all-plugins-clean
 	@-rm -f $(PS)
 	@-rm -f $(BUILD_CAPTURE_PCAPFILE)
 	@-rm -f $(BUILD_CAPTURE_KISMETDB)
@@ -644,9 +641,7 @@ clean:
 	@-rm -f protobuf_cpp/*.pb.*
 	@-rm -f protobuf_c/*.pb-c.*
 
-distclean:
-	@-$(MAKE) clean
-	@-$(MAKE) all-plugins-clean
+distclean: clean
 	@-rm -f *~
 	@-rm -f config.status
 	@-rm -f config.h
