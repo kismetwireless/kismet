@@ -677,21 +677,7 @@ plugins-userinstall: Makefile
 restricted-plugins-userinstall: Makefile
 	@( export KIS_SRC_DIR=`pwd`; for x in restricted-plugin-*/; do  if [ ! -d "$$x" ]; then continue; fi; echo "PLUGIN-USERINSTALL: $$x"; ( cd "$$x"; make userinstall; ); done )
 
-all-plugins: Makefile
-	@$(MAKE) plugins
-	@$(MAKE) restricted-plugins
-
-all-plugins-install: Makefile
-	@$(MAKE) plugins-install
-	@$(MAKE) restricted-plugins-install
-
-all-plugins-userinstall: Makefile
-	@$(MAKE) plugins-userinstall
-	@$(MAKE) restricted-plugins-userinstall
-
-all-plugins-clean: Makefile
-	@$(MAKE) plugins-clean
-	@$(MAKE) restricted-plugins-clean
+all-plugins all-plugins-install all-plugins-userinstall all-plugins-clean: all-%: Makefile % restricted-%
 
 # Disabled
 # kaitai-parsers:
