@@ -68,5 +68,5 @@ clean:
 %.cc.d: %.cc
 	$(CXX) -MM $(CXXFLAGS) $(CPPFLAGS) $*.cc | sed -e "s/\.o/\.cc.o/" > $*.cc.d
 
-.PRECIOUS: %.Td %.c.d %.cc.d
+.PRECIOUS: %.c.d %.cc.d
 .SUFFIXES: .c .cc .o
