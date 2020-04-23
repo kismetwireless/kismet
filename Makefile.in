@@ -613,6 +613,7 @@ depclean:
 	@-rm -f log_tools/*.d
 
 clean: all-plugins-clean depclean
+	@-rm -f version.c
 	@-rm -f *.o *.mo
 	@-rm -f dot11_parsers/*.o
 	@-rm -f bluetooth_parsers/*.o
