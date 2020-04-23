@@ -624,6 +624,7 @@ clean: all-plugins-clean depclean
 	@-rm -f $(CAPTURE_LINUX_BLUETOOTH)
 	@-rm -f $(CAPTURE_OSX_COREWLAN)
 	@-rm -f $(CAPTURE_HACKRF_SWEEP)
+	@-rm -f $(LOGTOOL_BINS)
 	@(cd capture_linux_bluetooth && make clean)
 	@(cd capture_linux_wifi && make clean)
 	@(cd capture_osx_corewlan_wifi && make clean)
