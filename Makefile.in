@@ -574,11 +574,11 @@ forceconfigs:
 
 uavconfig:
 	@echo "Generating kismet_uav.conf"
-	@python tools/compile_uav_conf.py conf/kismet_uav.conf.yaml > conf/kismet_uav.conf
+	@$(PYTHON) tools/compile_uav_conf.py conf/kismet_uav.conf.yaml > conf/kismet_uav.conf
 
 manuf:
 	@echo "Generating kismet_manuf.txt"
-	@python tools/create_oui_db.py > conf/kismet_manuf.txt
+	@$(PYTHON) tools/create_oui_db.py > conf/kismet_manuf.txt
 
 extcappy:
 	@echo "Updating kismetexternal python"
