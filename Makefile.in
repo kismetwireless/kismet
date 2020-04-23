@@ -511,7 +511,7 @@ configsinstall:
 	@echo
 	@echo
 
-suidinstall: $(PS) $(DATASOURCE_BINS)
+suidinstall:
 	-groupadd -r -f $(SUIDGROUP)
 
 	@$(MAKE) -e commoninstall
@@ -541,7 +541,7 @@ suidinstall: $(PS) $(DATASOURCE_BINS)
 	@echo "or you can replace the previously installed config files entirely by running"
 	@echo "make forceconfigs"
 
-install: $(INSTBINS)
+install:
 	@$(MAKE) -e commoninstall
 
 	@$(MAKE) configsinstall
