@@ -618,12 +618,12 @@ clean: all-plugins-clean depclean
 	@-rm -f bluetooth_parsers/*.o
 	@-rm -f log_tools/*.o
 	@-rm -f $(PS)
-	@-rm -f $(BUILD_CAPTURE_PCAPFILE)
-	@-rm -f $(BUILD_CAPTURE_KISMETDB)
-	@-rm -f $(BUILD_CAPTURE_LINUX_WIFI)
-	@-rm -f $(BUILD_CAPTURE_LINUX_BLUETOOTH)
-	@-rm -f $(BUILD_CAPTURE_OSX_COREWLAN)
-	@-rm -f $(BUILD_CAPTURE_HACKRF_SWEEP)
+	@-rm -f $(CAPTURE_PCAPFILE)
+	@-rm -f $(CAPTURE_KISMETDB)
+	@-rm -f $(CAPTURE_LINUX_WIFI)
+	@-rm -f $(CAPTURE_LINUX_BLUETOOTH)
+	@-rm -f $(CAPTURE_OSX_COREWLAN)
+	@-rm -f $(CAPTURE_HACKRF_SWEEP)
 	@(cd capture_linux_bluetooth && make clean)
 	@(cd capture_linux_wifi && make clean)
 	@(cd capture_osx_corewlan_wifi && make clean)
