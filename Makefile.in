@@ -628,6 +628,7 @@ clean: all-plugins-clean depclean
 	@(cd capture_linux_bluetooth && make clean)
 	@(cd capture_linux_wifi && make clean)
 	@(cd capture_osx_corewlan_wifi && make clean)
+	@(cd capture_freaklabs_zigbee &&  make clean)
 	@(cd capture_sdr_rtl433 && make clean)
 	@(cd capture_sdr_rtlamr && make clean)
 	@(cd capture_sdr_rtladsb && make clean)
