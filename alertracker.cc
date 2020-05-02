@@ -89,16 +89,19 @@ alert_tracker::alert_tracker() :
 	}
 
 #ifdef PRELUDE
-    // Start client Prelude
-    int ret;
-    ret = prelude_init(0, NULL);
-    if (ret < 0) {
-        _MSG("alert_tracker - Failed to initialize Prelude SIEM connection", MSGFLAG_FATAL);
-        globalreg->fatal_condition = 1;
-        return;
-    }
+    prelude_alerts = Globalreg::globalreg->kismet_config->fetch_opt_bool("prelude_alerts", true);
 
-    prelude_init_client(PRELUDE_ANALYZER_MODEL);
+    // Start client Prelude
+    if (prelude_alerts) {
+        int ret;
+        ret = prelude_init(0, NULL);
+        if (ret < 0) {
+            _MSG("alert_tracker - Failed to initialize Prelude SIEM connection", MSGFLAG_FATAL);
+            Globalreg::globalreg->fatal_condition = 1;
+            return;
+        }
+        prelude_init_client(PRELUDE_ANALYZER_NAME);
+    }
 #endif
 
 	if (Globalreg::globalreg->kismet_config->fetch_opt("alertbacklog") != "") {
@@ -130,27 +133,29 @@ alert_tracker::~alert_tracker() {
     Globalreg::globalreg->alertracker = NULL;
 
 #ifdef PRELUDE
-    prelude_deinit();
-    delete prelude_client;
+    if (prelude_alerts) {
+        prelude_deinit();
+        delete prelude_client;
+    }
 #endif
 }
 
 void alert_tracker::prelude_init_client(const char *analyzer_name) {
 #ifdef PRELUDE
     try {
-        string version = 
-            globalreg->version_major + "." + 
-            globalreg->version_minor + "." +
-            globalreg->version_tiny;
+        std::string version = 
+            Globalreg::globalreg->version_major + "." + 
+            Globalreg::globalreg->version_minor + "." +
+            Globalreg::globalreg->version_tiny;
 
         prelude_client = 
             new Prelude::ClientEasy(analyzer_name, 4, PRELUDE_ANALYZER_MODEL, 
-                    PRELUDE_ANALYZER_CLASS, PRELUDE_ANALYZER_MANUFACTURER, version.c_str());
+                PRELUDE_ANALYZER_CLASS, PRELUDE_ANALYZER_MANUFACTURER, version.c_str());
         prelude_client->start();
     } catch (Prelude::PreludeError const & error) {
         _MSG(std::string("alert_tracker failed to initialize connection to Prelude: ") + 
-                error.what(), MSGFLAG_FATAL);
-        globalreg->fatal_condition = 1;
+            error.what(), MSGFLAG_FATAL);
+        Globalreg::globalreg->fatal_condition = 1;
 
         return;
     }
@@ -330,8 +335,9 @@ int alert_tracker::raise_alert(int in_ref, kis_packet *in_pack,
 	}
 
 #ifdef PRELUDE
-	// Send alert to Prelude
-	raise_prelude_alert(in_ref, in_pack, info->bssid, info->source, 
+    // Send alert to Prelude
+    if (prelude_alerts)
+        raise_prelude_alert(in_ref, in_pack, info->bssid, info->source, 
             info->dest, info->other, info->channel, info->text);
 #endif
 
@@ -378,8 +384,9 @@ int alert_tracker::raise_one_shot(std::string in_header, std::string in_text, in
     lock.unlock();
 
 #ifdef PRELUDE
-	// Send alert to Prelude
-	raise_prelude_one_shot(in_header, in_text);
+    // Send alert to Prelude
+    if (prelude_alerts)
+        raise_prelude_one_shot(in_header, in_text);
 #endif
 
 	// Send the text info

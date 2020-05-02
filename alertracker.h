@@ -39,9 +39,10 @@
 
 #ifdef PRELUDE
 #include <libprelude/prelude.hxx>
+#define PRELUDE_ANALYZER_NAME "Kismet"
 #define PRELUDE_ANALYZER_MODEL "Kismet"
-#define PRELUDE_ANALYZER_CLASS "Wireless Monitor"
-#define PRELUDE_ANALYZER_MANUFACTURER "https://www.kismetwireless.net/"
+#define PRELUDE_ANALYZER_CLASS "WIDS"
+#define PRELUDE_ANALYZER_MANUFACTURER "https://www.kismetwireless.net"
 #endif
 
 // TODO:
@@ -427,6 +428,8 @@ protected:
 #ifdef PRELUDE
     // Prelude client
     Prelude::ClientEasy *prelude_client;
+    // Do we log alerts to Prelude
+    bool prelude_alerts;
 #endif
 
     // Do we log alerts to the kismet database?
