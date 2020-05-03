@@ -206,9 +206,12 @@ namespace kissqlite3 {
                 op = raw_op.op;
         }
 
+        /* GCC is selecting this template inappropriately, but clang isn't.  Not sure why, removing it for now,
+         * which will also prevent nested queries from working unfortunately.
         query_element(const std::list<query_element>& nested_list) :
             op_only {true},
-            nested_query {nested_list} { }
+            nested_query {nested_list.begin(), nested_list.end()} { }
+        */
 
         // Specific tail processing options
         query_element(const _ORDERBY& op, const std::string value) :
@@ -283,21 +286,21 @@ namespace kissqlite3 {
             fields {fields} { }
 
         query(sqlite3 *db, const std::string& table, const std::list<std::string>& fields,
-                const std::list<query_element>& where_clause) : 
+                const std::list<query_element>& in_where_clause) : 
             db {db},
             op {"SELECT"},
             table {table},
             fields {fields},
-            where_clause {where_clause} { }
+            where_clause {in_where_clause} { }
 
         query(sqlite3 *db, const std::string& table, const std::list<std::string>& fields,
-                const std::list<query_element>& where_clause,
+                const std::list<query_element>& in_where_clause,
                 const std::list<query_element>& tail_clause) : 
             db {db},
             op {"SELECT"},
             table {table},
             fields {fields},
-            where_clause {where_clause},
+            where_clause {in_where_clause},
             tail_clause {tail_clause} { }
 
         query(sqlite3 *db, const std::string& op, const std::string& table, 
@@ -309,12 +312,12 @@ namespace kissqlite3 {
 
         query(sqlite3 *db, const std::string& op, const std::string& table, 
                 const std::list<std::string>& fields,
-                const std::list<query_element>& where_clause) : 
+                const std::list<query_element>& in_where_clause) : 
             db {db},
             op {op},
             table {table},
             fields {fields},
-            where_clause {where_clause} { }
+            where_clause {in_where_clause} { }
 
         query(sqlite3 *db, const std::string& op, const std::string& table, 
                 const std::list<std::string>& fields,
