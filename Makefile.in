@@ -589,7 +589,7 @@ rtlsdrpy:
 release-%:
 	@echo $*
 	@git checkout -B kismet-`echo $* | cut -d- -f1,2`
-	@git pull
+	@git pull origin kismet-`echo $* | cut -d- -f1,2`
 	@git submodule update --remote docs/
 	@git commit docs -m "Doc update for $*" -m "Update docs submodule for release $*"
 	@make manuf
@@ -604,7 +604,7 @@ release-%:
 subrelease-%:
 	echo $*
 	@git checkout -B kismet-`echo $* | cut -d- -f1,2`
-	@git pull
+	@git pull origin kismet-`echo $* | cut -d- -f1,2`
 	@./tools/make_version_h.py $* > version.h
 	@git commit version.h -m "Version bump for $*" -m "Bump versioning for release $*"
 	@git tag kismet-$*
