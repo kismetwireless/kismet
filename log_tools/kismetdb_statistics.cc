@@ -207,8 +207,7 @@ int main(int argc, char *argv[]) {
                     std::put_time(&max_tm, "%Y-%m-%d %H:%M:%S"), max_time);
         }
 
-        auto n_sources_q = _SELECT(db, "datasources",
-                {"count(*)"});
+        auto n_sources_q = _SELECT(db, "datasources", {"count(*)"});
         auto n_sources_q_ret = n_sources_q.run();
 
         if (!outputjson)
