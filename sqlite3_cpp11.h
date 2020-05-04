@@ -207,11 +207,10 @@ namespace kissqlite3 {
         }
 
         /* GCC is selecting this template inappropriately, but clang isn't.  Not sure why, removing it for now,
-         * which will also prevent nested queries from working unfortunately.
+         * which will also prevent nested queries from working unfortunately. */
         query_element(const std::list<query_element>& nested_list) :
             op_only {true},
             nested_query {nested_list.begin(), nested_list.end()} { }
-        */
 
         // Specific tail processing options
         query_element(const _ORDERBY& op, const std::string value) :
@@ -283,15 +282,15 @@ namespace kissqlite3 {
             db {db},
             op {"SELECT"},
             table {table},
-            fields {fields} { }
+            fields {fields.begin(), fields.end()} { }
 
         query(sqlite3 *db, const std::string& table, const std::list<std::string>& fields,
                 const std::list<query_element>& in_where_clause) : 
             db {db},
             op {"SELECT"},
             table {table},
-            fields {fields},
-            where_clause {in_where_clause} { }
+            fields {fields.begin(), fields.end()},
+            where_clause {in_where_clause.begin(), in_where_clause.end()} { }
 
         query(sqlite3 *db, const std::string& table, const std::list<std::string>& fields,
                 const std::list<query_element>& in_where_clause,
@@ -300,15 +299,15 @@ namespace kissqlite3 {
             op {"SELECT"},
             table {table},
             fields {fields},
-            where_clause {in_where_clause},
-            tail_clause {tail_clause} { }
+            where_clause {in_where_clause.begin(), in_where_clause.end()},
+            tail_clause {tail_clause.begin(), tail_clause.end()} { }
 
         query(sqlite3 *db, const std::string& op, const std::string& table, 
                 const std::list<std::string>& fields) :
             db {db},
             op {op},
             table {table},
-            fields {fields} { }
+            fields {fields.begin(), fields.end()} { }
 
         query(sqlite3 *db, const std::string& op, const std::string& table, 
                 const std::list<std::string>& fields,
@@ -316,8 +315,8 @@ namespace kissqlite3 {
             db {db},
             op {op},
             table {table},
-            fields {fields},
-            where_clause {in_where_clause} { }
+            fields {fields.begin(), fields.end()},
+            where_clause {in_where_clause.begin(), in_where_clause.end()} { }
 
         query(sqlite3 *db, const std::string& op, const std::string& table, 
                 const std::list<std::string>& fields,
@@ -327,8 +326,8 @@ namespace kissqlite3 {
             op {op},
             table {table},
             fields {fields},
-            where_clause {where_clause},
-            tail_clause {tail_clause} { }
+            where_clause {where_clause.begin(), where_clause.end()},
+            tail_clause {tail_clause.begin(), tail_clause.end()} { }
 
         void append_where(const _AND& join_and, const std::list<query_element>& additional_clauses) {
             if (where_clause.size() > 0)
@@ -518,6 +517,12 @@ namespace kissqlite3 {
         vec.push_back(query_element{field, op, value});
     }
 
+    template<typename JN>
+    void _WHERE(std::list<query_element>& vec, const JN& join, const std::list<query_element>& subclause) {
+        vec.push_back(query_element{join});
+        vec.push_back(query_element{subclause});
+    }
+
     // JOINER <where clause>
     template<typename JN, typename... Args>
     void _WHERE(std::list<query_element>& vec, const JN& join, const std::list<query_element>& subclause,
@@ -527,11 +532,6 @@ namespace kissqlite3 {
         _WHERE(vec, args...);
     }
 
-    template<typename JN>
-    void _WHERE(std::list<query_element>& vec, const JN& join, const std::list<query_element>& subclause) {
-        vec.push_back(query_element{join});
-        vec.push_back(query_element{subclause});
-    }
 
     // JOINER X <op> VALUE {...}
     template<typename JN, typename OP, typename VL, typename... Args>
