@@ -1074,8 +1074,8 @@ AC_SUBST(pcap)
 
 PKG_PROG_PKG_CONFIG
 
-if test "$caponly" = 0; then
-    # We only *require* protobuf for C++
+if test "$caponly" = 0 || test "$want_python" = "yes"; then
+    # We only *require* protobuf for C++ and python
     PKG_CHECK_MODULES([protobuf], [${PROTOBUF}], have_protobuf_pkg=yes)
     if test x"$have_protobuf_pkg" != "xyes"; then
         AC_MSG_ERROR([missing google libprotobuf])
