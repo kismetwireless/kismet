@@ -1074,32 +1074,34 @@ AC_SUBST(pcap)
 
 PKG_PROG_PKG_CONFIG
 
-# We always need proto-c because it's required to compile the python protobuf instances
-PKG_CHECK_MODULES([protobuf], [${PROTOBUF}], have_protobuf_pkg=yes)
-if test x"$have_protobuf_pkg" != "xyes"; then
-    AC_MSG_ERROR([missing google libprotobuf])
-fi
-
-AC_ARG_WITH(protoc,
-	[  --with-protoc[=PATH]     Custom location of the protoc protobuf compiler],
-    [ ])
-
-if test x"$with_protoc" == "x"; then
-    PROTOCBIN=protoc
-    AC_CHECK_PROG(protoc, [protoc], yes)
-    if test x"$protoc" != x"yes"; then
-        AC_MSG_ERROR([missing google libprotobuf protoc compiler])
+if test "$caponly" = 0; then
+    # We only *require* protobuf for C++
+    PKG_CHECK_MODULES([protobuf], [${PROTOBUF}], have_protobuf_pkg=yes)
+    if test x"$have_protobuf_pkg" != "xyes"; then
+        AC_MSG_ERROR([missing google libprotobuf])
     fi
-else
-    PROTOCBIN=$with_protoc
-fi
+    
+    AC_ARG_WITH(protoc,
+    	[  --with-protoc[=PATH]     Custom location of the protoc protobuf compiler],
+        [ ])
+    
+    if test x"$with_protoc" == "x"; then
+        PROTOCBIN=protoc
+        AC_CHECK_PROG(protoc, [protoc], yes)
+        if test x"$protoc" != x"yes"; then
+            AC_MSG_ERROR([missing google libprotobuf protoc compiler])
+        fi
+    else
+        PROTOCBIN=$with_protoc
+    fi
+    
+    PROTOLIBS=`pkg-config --libs ${PROTOBUF}`
+    PROTOCFLAGS=`pkg-config --cflags ${PROTOBUF}`
 
-PROTOLIBS=`pkg-config --libs ${PROTOBUF}`
-PROTOCFLAGS=`pkg-config --cflags ${PROTOBUF}`
-
-# Enable the C++ targets
-PROTOBUF_CPP_O_TARGET='$(PROTOBUF_CPP_O)'
-PROTOBUF_CPP_H_TARGET='$(PROTOBUF_CPP_H)'
+    # Enable the C++ targets
+    PROTOBUF_CPP_O_TARGET='$(PROTOBUF_CPP_O)'
+    PROTOBUF_CPP_H_TARGET='$(PROTOBUF_CPP_H)'
+fi  # caponly
 
 # We need protobuf-c all the time
 PKG_CHECK_MODULES([libprotobufc], [libprotobuf-c], have_protobufc_pkg=yes, have_protobufc_pkg=no)

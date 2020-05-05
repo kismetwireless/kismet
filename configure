@@ -10895,7 +10895,8 @@ $as_echo "no" >&6; }
 	fi
 fi
 
-# We always need proto-c because it's required to compile the python protobuf instances
+if test "$caponly" = 0; then
+    # We only *require* protobuf for C++
 
 pkg_failed=no
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for protobuf" >&5
@@ -10987,9 +10988,9 @@ else
 $as_echo "yes" >&6; }
 	have_protobuf_pkg=yes
 fi
-if test x"$have_protobuf_pkg" != "xyes"; then
-    as_fn_error $? "missing google libprotobuf" "$LINENO" 5
-fi
+    if test x"$have_protobuf_pkg" != "xyes"; then
+        as_fn_error $? "missing google libprotobuf" "$LINENO" 5
+    fi
 
 
 # Check whether --with-protoc was given.
@@ -10998,9 +10999,9 @@ if test "${with_protoc+set}" = set; then :
 fi
 
 
-if test x"$with_protoc" == "x"; then
-    PROTOCBIN=protoc
-    # Extract the first word of "protoc", so it can be a program name with args.
+    if test x"$with_protoc" == "x"; then
+        PROTOCBIN=protoc
+        # Extract the first word of "protoc", so it can be a program name with args.
 set dummy protoc; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
@@ -11037,19 +11038,20 @@ $as_echo "no" >&6; }
 fi
 
 
-    if test x"$protoc" != x"yes"; then
-        as_fn_error $? "missing google libprotobuf protoc compiler" "$LINENO" 5
+        if test x"$protoc" != x"yes"; then
+            as_fn_error $? "missing google libprotobuf protoc compiler" "$LINENO" 5
+        fi
+    else
+        PROTOCBIN=$with_protoc
     fi
-else
-    PROTOCBIN=$with_protoc
-fi
 
-PROTOLIBS=`pkg-config --libs ${PROTOBUF}`
-PROTOCFLAGS=`pkg-config --cflags ${PROTOBUF}`
+    PROTOLIBS=`pkg-config --libs ${PROTOBUF}`
+    PROTOCFLAGS=`pkg-config --cflags ${PROTOBUF}`
 
-# Enable the C++ targets
-PROTOBUF_CPP_O_TARGET='$(PROTOBUF_CPP_O)'
-PROTOBUF_CPP_H_TARGET='$(PROTOBUF_CPP_H)'
+    # Enable the C++ targets
+    PROTOBUF_CPP_O_TARGET='$(PROTOBUF_CPP_O)'
+    PROTOBUF_CPP_H_TARGET='$(PROTOBUF_CPP_H)'
+fi  # caponly
 
 # We need protobuf-c all the time
 
