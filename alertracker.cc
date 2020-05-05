@@ -701,7 +701,10 @@ void alert_tracker::httpd_create_stream_response(
             std::stringstream ss(tokenurl[3]);
             ss >> since_time;
 
-            wrap = true;
+            // do not wrap with ekjson or itjson
+            if (tokenurl[4] != "alerts.ekjson" && tokenurl[4] != "alerts.itjson") {
+                wrap = true;
+            }
         }
     }
 
