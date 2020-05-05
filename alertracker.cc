@@ -676,7 +676,6 @@ void alert_tracker::httpd_create_stream_response(
         size_t *upload_data_size, std::stringstream &stream) {
 
     double since_time = 0;
-    bool wrap = false;
 
     if (strcmp(method, "GET") != 0) {
         return;
@@ -700,27 +699,13 @@ void alert_tracker::httpd_create_stream_response(
 
             std::stringstream ss(tokenurl[3]);
             ss >> since_time;
-
-            wrap = true;
         }
     }
 
     std::shared_ptr<tracker_element> transmit;
-    std::shared_ptr<tracker_element_map> wrapper;
     std::shared_ptr<tracker_element_vector> msgvec = std::make_shared<tracker_element_vector>(alert_vec_id);
 
-    // If we're doing a time-since, wrap the vector
-    if (wrap) {
-        wrapper = std::make_shared<tracker_element_map>();
-        wrapper->insert(msgvec);
-
-        auto ts = std::make_shared<tracker_element_double>(alert_timestamp_id, ts_now_to_double());
-        wrapper->insert(ts);
-
-        transmit = wrapper;
-    } else {
-        transmit = msgvec;
-    }
+    transmit = msgvec;
 
     {
         local_locker lock(&alert_mutex);
