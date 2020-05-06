@@ -206,8 +206,6 @@ namespace kissqlite3 {
                 op = raw_op.op;
         }
 
-        /* GCC is selecting this template inappropriately, but clang isn't.  Not sure why, removing it for now,
-         * which will also prevent nested queries from working unfortunately. */
         query_element(const std::list<query_element>& nested_list) :
             op_only {true},
             nested_query {nested_list.begin(), nested_list.end()} { }
