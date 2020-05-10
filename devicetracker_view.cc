@@ -184,7 +184,6 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_
         std::shared_ptr<tracker_element_vector> devices) {
     auto ret = std::make_shared<tracker_element_vector>();
     ret->reserve(devices->size());
-    kis_recursive_timed_mutex ret_mutex;
 
     std::for_each(devices->begin(), devices->end(),
             [&](shared_tracker_element val) {
@@ -193,17 +192,12 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_
                 return;
 
             auto dev = std::static_pointer_cast<kis_tracked_device_base>(val);
+            local_shared_locker devlocker(&dev->device_mutex);
 
-            bool m;
-            {
-                local_shared_locker devlocker(&dev->device_mutex);
-                m = worker.match_device(dev);
-            }
+            auto m = worker.match_device(dev);
 
-            if (m) {
-                local_locker retl(&ret_mutex);
+            if (m) 
                 ret->push_back(dev);
-            }
 
         });
 
@@ -347,13 +341,14 @@ std::shared_ptr<tracker_element> device_tracker_view::device_time_endpoint(const
     if (path.size() < 6)
         return ret;
 
-    auto tv = string_to_n<int64_t>(path[4], 0);
+    auto tv = string_to_n_dfl<int64_t>(path[4], 0);
     time_t ts;
 
-    if (tv < 0)
-        ts = time(0) - tv;
-    else
+    if (tv < 0) {
+        ts = time(0) + tv;
+    } else {
         ts = tv;
+    }
 
     auto worker = 
         device_tracker_view_function_worker([&](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
@@ -409,7 +404,7 @@ std::shared_ptr<tracker_element> device_tracker_view::device_time_uri_endpoint(c
     if (path.size() < (5 + extras_sz))
         return ret;
 
-    auto tv = string_to_n<int64_t>(path[3 + extras_sz], 0);
+    auto tv = string_to_n_dfl<int64_t>(path[3 + extras_sz], 0);
     time_t ts;
 
     if (tv < 0)
