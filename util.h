@@ -58,6 +58,8 @@
 
 #include "multi_constexpr.h"
 
+#include "fmt.h"
+
 // Munge a string to characters safe for calling in a shell
 std::string munge_to_printable(const char *in_data, unsigned int max, int nullterm);
 std::string munge_to_printable(const std::string& in_str);
@@ -143,7 +145,7 @@ T string_to_n(const std::string& s, std::ios_base&(*base)(std::ios_base &) = nul
 }
 
 template<typename T>
-T string_to_n(const std::string& s, T dvalue) {
+T string_to_n_dfl(const std::string& s, T dvalue) {
     try {
         return string_to_n<T>(s);
     } catch (const std::exception& e) {
