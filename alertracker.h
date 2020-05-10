@@ -116,6 +116,13 @@ public:
         reserve_fields(e);
     }
 
+    tracked_alert(int in_id, kis_alert_info *info) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(NULL);
+        from_alert_info(info);
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("tracked_alert");
     }
@@ -309,7 +316,7 @@ protected:
 
 typedef std::shared_ptr<tracked_alert_definition> shared_alert_def;
 
-class alert_tracker : public kis_net_httpd_cppstream_handler, public lifetime_global {
+class alert_tracker : public lifetime_global {
 public:
 	// Simple struct from reading config lines
 	struct alert_conf_rec {
@@ -382,15 +389,6 @@ public:
     // Find an activated alert
     int find_activated_alert(std::string in_header);
 
-    virtual bool httpd_verify_path(const char *path, const char *method);
-
-    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream);
-
-    virtual int httpd_post_complete(kis_net_httpd_connection *concls);
-
 protected:
     kis_recursive_timed_mutex alert_mutex;
 
@@ -420,7 +418,7 @@ protected:
     int num_backlog;
 
     // Backlog of alerts to be sent
-    std::vector<kis_alert_info *> alert_backlog;
+    std::shared_ptr<tracker_element_vector> alert_backlog_vec;
 
     // Alert configs we read before we know the alerts themselves
 	std::map<std::string, alert_conf_rec *> alert_conf_map;
@@ -435,6 +433,21 @@ protected:
     // Do we log alerts to the kismet database?
     bool log_alerts;
 
+    std::shared_ptr<kis_net_httpd_simple_post_endpoint> define_alert_endp;
+    unsigned int define_alert_endpoint(std::ostream& stream, const std::string& uri,
+            shared_structured structured, kis_net_httpd_connection::variable_cache_map& postvars);
+
+    std::shared_ptr<kis_net_httpd_simple_post_endpoint> raise_alert_endp;
+    unsigned int raise_alert_endpoint(std::ostream& stream, const std::string& uri,
+            shared_structured structured, kis_net_httpd_connection::variable_cache_map& postvars);
+
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> definitions_endp;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> all_alerts_endp;
+
+    std::shared_ptr<kis_net_httpd_path_tracked_endpoint> last_alerts_endp;
+
+    bool last_alerts_endpoint_path(const std::vector<std::string>& path);
+    std::shared_ptr<tracker_element> last_alerts_endpoint(const std::vector<std::string>& path);
 };
 
 #endif

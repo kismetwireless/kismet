@@ -272,7 +272,7 @@
 
     var alert_refresh = function(fetchtime = last_time) {
         if (kismet_ui.window_visible) {
-            $.get(local_uri_prefix + "alerts/last-time/" + fetchtime + "/alerts.json")
+            $.get(local_uri_prefix + "alerts/wrapped/last-time/" + fetchtime + "/alerts.json")
                 .done(function(data) {
                     data = kismet.sanitizeObject(data);
 
