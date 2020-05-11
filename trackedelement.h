@@ -848,7 +848,7 @@ public:
 
 protected:
     // Min/max ranges for conversion
-    double value_min, value_max;
+    N value_min, value_max;
     N value;
 };
 
