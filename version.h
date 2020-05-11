@@ -19,8 +19,8 @@
 #ifndef __KISVERSION_H__
 #define __KISVERSION_H__
 
-#define VERSION_MAJOR	"2019"
-#define VERSION_MINOR	"09"
+#define VERSION_MAJOR	"2020"
+#define VERSION_MINOR	"00"
 #define VERSION_TINY	"GIT"
 
 extern const char *VERSION_GIT_COMMIT;
