@@ -1460,9 +1460,9 @@ Optional Features:
   --disable-option-checking  ignore unrecognized --enable/--with options
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
-  --enable-mutex-name-debug
-                          Enable naming of mutexes to help in debugging, this
-                          will use more RAM
+  --disable-mutex-name-debug
+                          Disable naming of mutexes to help in debugging,
+                          debugging will use slightly more RAM
   --enable-capture-tools-only  Configure and build for capture tools and remote only
   --disable-element-typesafety
                           Disable runtime type safety of the tracked element
@@ -8377,11 +8377,15 @@ $as_echo "#define AC_APPLE_UNIVERSAL_BUILD 1" >>confdefs.h
 # Check whether --enable-mutex-name-debug was given.
 if test "${enable_mutex_name_debug+set}" = set; then :
   enableval=$enable_mutex_name_debug; case "${enableval}" in
-     yes)
+      no) want_mutex_debugging=no ;;
+       *)
 $as_echo "#define DEBUG_MUTEX_NAME 1" >>confdefs.h
  ;;
-       *) ;;
     esac
+else
+
+$as_echo "#define DEBUG_MUTEX_NAME 1" >>confdefs.h
+
 fi
 
 
@@ -10895,8 +10899,8 @@ $as_echo "no" >&6; }
 	fi
 fi
 
-if test "$caponly" = 0; then
-    # We only *require* protobuf for C++
+if test "$caponly" = 0 || test "$want_python" = "yes"; then
+    # We only *require* protobuf for C++ and python
 
 pkg_failed=no
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for protobuf" >&5

@@ -279,11 +279,11 @@ AC_C_BIGENDIAN
 
 # Enable thread debugging
 AC_ARG_ENABLE([mutex-name-debug],
-    AS_HELP_STRING([--enable-mutex-name-debug], [Enable naming of mutexes to help in debugging, this will use more RAM]),
+    AS_HELP_STRING([--disable-mutex-name-debug], [Disable naming of mutexes to help in debugging, debugging will use slightly more RAM]),
     [case "${enableval}" in
-     yes) AC_DEFINE(DEBUG_MUTEX_NAME, 1, Named mutex debugging) ;;
-       *) ;;
-    esac], [])
+      no) want_mutex_debugging=no ;;
+       *) AC_DEFINE(DEBUG_MUTEX_NAME, 1, Named mutex debugging) ;;
+    esac], [AC_DEFINE(DEBUG_MUTEX_NAME, 1, Named mutex debugging)])
 
 # Configure for a remote-capture-only build
 caponly=0
