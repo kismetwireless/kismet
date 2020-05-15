@@ -682,6 +682,13 @@ int main(int argc, char *argv[], char *envp[]) {
         } else {
             auto override_fpath = 
                 conf->expand_log_path(fmt::format("%E/kismet_{}.conf", override_fname), "", "", 0, 1);
+
+            if (stat(override_fname.c_str(), &sbuf) != 0) {
+                _MSG_FATAL("Could not find override option '{}' as a file or in the Kismet config directory as '{}'.",
+                        override_fname, override_fpath);
+                exit(1);
+            }
+
             _MSG_INFO("Adding config override {}", override_fpath);
             conf->set_final_override(override_fpath);
         }
