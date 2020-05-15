@@ -675,10 +675,16 @@ int main(int argc, char *argv[], char *envp[]) {
     conf = new config_file(globalregistry);
 
     if (override_fname.length() > 0) {
-        auto override_fpath = 
-            conf->expand_log_path(fmt::format("%E/kismet_{}.conf", override_fname), "", "", 0, 1);
-        _MSG_INFO("Adding config override {}", override_fname);
-        conf->set_final_override(override_fpath);
+        struct stat sbuf;
+        if (stat(override_fname.c_str(), &sbuf) == 0) {
+            _MSG_INFO("Adding config override {}", override_fname);
+            conf->set_final_override(override_fname);
+        } else {
+            auto override_fpath = 
+                conf->expand_log_path(fmt::format("%E/kismet_{}.conf", override_fname), "", "", 0, 1);
+            _MSG_INFO("Adding config override {}", override_fpath);
+            conf->set_final_override(override_fpath);
+        }
     }
 
     if (conf->parse_config(configfilename) < 0) {
