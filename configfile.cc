@@ -65,12 +65,6 @@ int config_file::parse_config(const char *in_fname) {
     if (r < 0)
         return r;
 
-    // Check the override vector, warn if there's more than one
-    if (config_override_file_list.size() > 1) {
-        _MSG("More than one override file included; Kismet will process them "
-                "in the order they were defined.", MSGFLAG_INFO);
-    }
-
     for (auto f : config_override_file_list) {
         r = parse_opt_override(f);
 
@@ -79,7 +73,10 @@ int config_file::parse_config(const char *in_fname) {
 
     }
 
-    config_override_file_list.empty();
+    config_override_file_list.clear();
+
+    if (final_override.length() > 0)
+        parse_opt_override(final_override);
 
     return r;
 }

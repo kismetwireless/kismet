@@ -54,6 +54,11 @@ public:
         return save_config(in_fname.c_str());
     }
 
+    // Set a final override file that takes place after all other loading
+    void set_final_override(const std::string& in_fname) {
+        final_override = in_fname;
+    }
+
     std::string fetch_opt(std::string in_key);
     std::string fetch_opt_dfl(std::string in_key, std::string in_dfl);
     std::string fetch_opt_nl(std::string in_key);
@@ -155,6 +160,8 @@ protected:
 
     // List of config files which are *overriding*
     std::vector<std::string> config_override_file_list;
+
+    std::string final_override;
 
     kis_recursive_timed_mutex config_locker;
 };
