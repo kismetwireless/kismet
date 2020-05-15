@@ -572,6 +572,9 @@ int main(int argc, char *argv[], char *envp[]) {
     const int hdwc = globalregistry->getopt_long_num++;
     const int cdwc = globalregistry->getopt_long_num++;
     const int ddwc = globalregistry->getopt_long_num++;
+    const int ovwc = globalregistry->getopt_long_num++;
+
+    std::string override_fname;
 
     // Standard getopt parse run
     static struct option main_longopt[] = {
@@ -585,6 +588,7 @@ int main(int argc, char *argv[], char *envp[]) {
         { "homedir", required_argument, 0, hdwc },
         { "confdir", required_argument, 0, cdwc },
         { "datadir", required_argument, 0, ddwc },
+        { "override", required_argument, 0, ovwc },
         { 0, 0, 0, 0 }
     };
 
@@ -624,6 +628,8 @@ int main(int argc, char *argv[], char *envp[]) {
             globalregistry->etc_dir = std::string(optarg);
         } else if (r == ddwc) {
             globalregistry->data_dir = std::string(optarg);
+        } else if (r == ovwc) {
+            override_fname = std::string(optarg);
         }
     }
 
@@ -667,6 +673,14 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     conf = new config_file(globalregistry);
+
+    if (override_fname.length() > 0) {
+        auto override_fpath = 
+            conf->expand_log_path(fmt::format("%E/kismet_{}.conf", override_fname), "", "", 0, 1);
+        _MSG_INFO("Adding config override {}", override_fname);
+        conf->set_final_override(override_fpath);
+    }
+
     if (conf->parse_config(configfilename) < 0) {
         exit(1);
     }
