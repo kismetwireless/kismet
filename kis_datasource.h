@@ -609,8 +609,8 @@ protected:
     std::shared_ptr<tracker_element_uint8> source_hop_shuffle;
     std::shared_ptr<tracker_element_uint32> source_hop_shuffle_skip;
 
-    std::shared_ptr<tracker_element_uint32> source_num_packets;
-    std::shared_ptr<tracker_element_uint32> source_num_error_packets;
+    std::shared_ptr<tracker_element_uint64> source_num_packets;
+    std::shared_ptr<tracker_element_uint64> source_num_error_packets;
 
     int packet_rate_rrd_id;
     std::shared_ptr<kis_tracked_minute_rrd<>> packet_rate_rrd;
