@@ -113,6 +113,7 @@ typedef struct {
      * broken interfaces */
     int use_mac80211_vif;
     int use_mac80211_channels;
+    int use_mac80211_mode;
 
     /* Cached mac80211 controls */
     void *mac80211_socket;
@@ -1487,13 +1488,28 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         cf_send_warning(caph, errstr);
 
         local_wifi->use_mac80211_vif = 0;
-    } else if (strcmp(driver, "rtl88xxau") == 0) {
+    } else if (strcasecmp(driver, "rtl88XXau") == 0) {
+        /* This driver changes its name all the time; sometimes its 88xxau sometimes it's 88XXau,
+         * but both appear to handle iw dev set mode netlink. */
         snprintf(errstr, STATUS_MAX, "%s interface '%s' looks to use the rtl88xxau driver, "
-                "which has problems using mac80211 VIF mode.  Disabling mac80211 VIF "
-                "creation but retaining mac80211 channel controls.",
+                "which can not mac80211 VIF mode.  Disabling mac80211 VIF "
+                "creation but retaining mac80211 channel controls.  Beware, this driver is known "
+                "to have issues with packet capture.",
                 local_wifi->name, local_wifi->interface);
         cf_send_warning(caph, errstr);
         local_wifi->use_mac80211_vif = 0;
+        local_wifi->use_mac80211_mode = 1;
+    } else if (strcasecmp(driver, "88XXau") == 0) {
+        /* This driver changes its name all the time; sometimes its 88xxau sometimes it's 88XXau,
+         * but both appear to handle iw dev set mode netlink. */
+        snprintf(errstr, STATUS_MAX, "%s interface '%s' looks to use the rtl88xxau driver, "
+                "which can not mac80211 VIF mode.  Disabling mac80211 VIF "
+                "creation but retaining mac80211 channel controls.  Beware, this driver is known "
+                "to have issues with packet capture.",
+                local_wifi->name, local_wifi->interface);
+        cf_send_warning(caph, errstr);
+        local_wifi->use_mac80211_vif = 0;
+        local_wifi->use_mac80211_mode = 1;
     } else if (strcmp(driver, "rtl8812au") == 0) {
         snprintf(errstr, STATUS_MAX, "%s interface '%s' looks to use the rtl8812au driver, "
                 "these drivers have been very unreliable and typically will not properly "
@@ -1661,7 +1677,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if (mode != LINUX_WLEXT_MONITOR) {
         int existing_ifnum;
 
-        /* If we don't use vifs at all, per a priori knowledge of the driver */
+        /* If we don't use vifs at all... */
         if (local_wifi->use_mac80211_vif == 0) {
             local_wifi->cap_interface = strdup(local_wifi->interface);
         } else {
@@ -2034,6 +2050,73 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                         local_wifi->name, local_wifi->interface);
                 return -1;
             }
+        } else if (local_wifi->use_mac80211_mode) {
+            /* If we're using mac80211 to set mode, try to do so here... */
+
+            unsigned int num_flags = 0;
+            unsigned int fi;
+            unsigned int *flags = NULL;
+
+            bool fcs = false;
+            bool plcp = false;
+
+            if ((placeholder_len = cf_find_flag(&placeholder, "fcsfail", definition)) > 0) {
+                if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+                    snprintf(errstr, STATUS_MAX,
+                            "%s source '%s' configuring monitor interface to pass packets "
+                            "which fail FCS checksum", 
+                            local_wifi->name, local_wifi->interface);
+                    cf_send_message(caph, errstr, MSGFLAG_INFO);
+                    num_flags++;
+                    fcs = true;
+                }
+            }
+
+            if ((placeholder_len = cf_find_flag(&placeholder, "plcpfail", 
+                            definition)) > 0) {
+                if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+                    snprintf(errstr, STATUS_MAX,
+                            "%s source '%s' configuring monitor interface to pass packets "
+                            "which fail PLCP checksum", local_wifi->name, local_wifi->interface);
+                    cf_send_message(caph, errstr, MSGFLAG_INFO);
+                    num_flags++;
+                    plcp = true;
+                }
+            }
+
+            /* Allocate the flag list */
+            flags = (unsigned int *) malloc(sizeof(unsigned int) * num_flags);
+
+            fi = 0;
+
+            if (fcs)
+                flags[fi++] = NL80211_MNTR_FLAG_FCSFAIL;
+
+            if (plcp)
+                flags[fi++] = NL80211_MNTR_FLAG_PLCPFAIL;
+
+            if (mac80211_set_monitor_interface(local_wifi->interface, flags, num_flags, errstr) < 0) {
+                free(flags);
+
+                /* Close the sem if it's open */
+                if (local_wifi->interface_sem != NULL) {
+                    sem_post(local_wifi->interface_sem);
+                    sem_close(local_wifi->interface_sem);
+                    local_wifi->interface_sem = NULL;
+                }
+
+                snprintf(errstr2, STATUS_MAX, "%s %s failed to put interface in monitor mode: %s", 
+                        local_wifi->name, local_wifi->interface, errstr);
+                cf_send_message(caph, errstr2, MSGFLAG_ERROR);
+
+                /* We've failed at everything */
+                snprintf(msg, STATUS_MAX, "%s could not not set mode of existing interface, "
+                        "unable to put '%s' into monitor mode.", local_wifi->name, local_wifi->interface);
+                return -1;
+
+            }
+
+            free(flags);
         } else if (iwconfig_set_mode(local_wifi->interface, errstr, LINUX_WLEXT_MONITOR) < 0) {
             /* Close the sem if it's open */
             if (local_wifi->interface_sem != NULL) {
@@ -2042,7 +2125,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 local_wifi->interface_sem = NULL;
             }
 
-            /* Otherwise we're some sort of non-vif wext? */
             snprintf(errstr2, STATUS_MAX, "%s %s failed to put interface '%s' in monitor mode: %s", 
                     local_wifi->name, local_wifi->cap_interface, local_wifi->interface, errstr);
             cf_send_message(caph, errstr2, MSGFLAG_ERROR);
@@ -2660,8 +2742,9 @@ int main(int argc, char *argv[]) {
         .override_dlt = -1,
         .use_mac80211_vif = 1,
         .use_mac80211_channels = 1,
-        .up_before_mode = false,
+        .use_mac80211_mode = 0,
         .mac80211_socket = NULL,
+        .up_before_mode = false,
         .use_ht_channels = 1,
         .use_vht_channels = 1,
         .seq_channel_failure = 0,

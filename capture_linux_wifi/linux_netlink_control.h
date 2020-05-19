@@ -27,7 +27,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* Create a monitor vif using mac80211, based on existing interface *interface
+/* Create a monitor vif using nl80211, based on existing interface *interface
  * and named *newinterface.
  *
  * Flags must be from nl80211_mntr_flags from nl80211.h
@@ -41,6 +41,21 @@
  */
 int mac80211_create_monitor_vif(const char *interface, const char *newinterface, 
         unsigned int *flags, unsigned int flags_sz, char *errstr);
+
+/* Set monitor mode using nl80211, changing the mode of an existing interface.
+ * Usually not the right way to do things, but specific broken drivers require it.
+ *
+ * Flags must be from nl80211_mntr_flags from nl80211.h
+ *
+ * errstr must be allocated by the caller an dbe able to hold STATUS_MAX
+ * characters.
+ *
+ * Returns:
+ * -1   Error
+ *  0   Success
+ */
+int mac80211_set_monitor_interface(const char *interface, unsigned int *flags,
+        unsigned int flags_sz, char *errstr);
 
 /* Connect to nl80211 and resolve the genl and nl80211 ids; this generates the
  * cache state needed for channel control.

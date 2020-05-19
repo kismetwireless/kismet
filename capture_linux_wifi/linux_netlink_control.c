@@ -267,6 +267,93 @@ nla_put_failure:
 #endif
 }
 
+int mac80211_set_monitor_interface(const char *interface, unsigned int *in_flags,
+        unsigned int flags_sz, char *errstr) {
+#ifndef HAVE_LINUX_NETLINK
+    snprintf(errstr, STATUS_MAX, "Kismet was not compiled with netlink/mac80211 "
+            "support, check the output of ./configure for why");
+    return -1;
+#else
+
+    void *nl_sock;
+    int nl80211_id;
+
+    struct nl_msg *msg;
+    struct nl_msg *flags = NULL;
+
+    unsigned int x;
+
+    nl_sock = nl_socket_alloc();
+    if (!nl_sock) {
+        snprintf(errstr, STATUS_MAX, 
+                "unable to set monitor on %s, unable to allocate netlink socket", interface);
+        return -1;
+    }
+
+    if (genl_connect(nl_sock)) {
+        snprintf(errstr, STATUS_MAX, 
+                "unable to set monitor on %s, unable to connect generic netlink", interface);
+        nl_socket_free(nl_sock);
+        return -1;
+    }
+
+    nl80211_id = genl_ctrl_resolve(nl_sock, "nl80211");
+    if (nl80211_id < 0) {
+        snprintf(errstr, STATUS_MAX, 
+                "unable to set monitor on %s, unable to resolve nl80211", interface);
+        nl_socket_free(nl_sock);
+        return -1;
+    }
+
+    if ((msg = nlmsg_alloc()) == NULL) {
+        snprintf(errstr, STATUS_MAX, 
+                "unable to set monitor on %s, unable to allocate nl80211 message", interface);
+        nl_socket_free(nl_sock);
+        return -1;
+    }
+
+    if (flags_sz > 0) {
+        if ((flags = nlmsg_alloc()) == NULL) {
+            snprintf(errstr, STATUS_MAX, 
+                    "unable to set monitor on %s, unable to allocate nl80211 flags", interface);
+            nl_socket_free(nl_sock);
+            return -1;
+        }
+    }
+
+    genlmsg_put(msg, 0, 0, nl80211_id, 0, 0, NL80211_CMD_SET_INTERFACE, 0);
+    NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, if_nametoindex(interface));
+    NLA_PUT_U32(msg, NL80211_ATTR_IFTYPE, NL80211_IFTYPE_MONITOR);
+
+    if (flags_sz > 0) {
+        for (x = 0; x < flags_sz; x++) {
+            NLA_PUT_FLAG(flags, in_flags[x]);
+        }
+
+        nla_put_nested(msg, NL80211_ATTR_MNTR_FLAGS, flags);
+    }
+
+    if (nl_send_auto_complete(nl_sock, msg) < 0 || nl_wait_for_ack(nl_sock) < 0) {
+nla_put_failure:
+        snprintf(errstr, STATUS_MAX, "failed to set monitor on %s", interface);
+        nl_socket_free(nl_sock);
+        nlmsg_free(msg);
+
+        if (flags != NULL)
+            nlmsg_free(flags);
+        return -1;
+    }
+
+    nl_socket_free(nl_sock);
+    nlmsg_free(msg);
+
+    if (flags != NULL)
+        nlmsg_free(flags);
+
+    return 0;
+#endif
+}
+
 int mac80211_set_channel_cache(int ifindex, void *nl_sock,
         int nl80211_id, int channel, unsigned int chmode, char *errstr) {
 #ifndef HAVE_LINUX_NETLINK
