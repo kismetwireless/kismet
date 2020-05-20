@@ -77,7 +77,7 @@ void transform_json(Json::Value &json) {
 
         for (Json::Value& v : json)
             transform_json(v);
-    } catch (const Json::Exception e) {
+    } catch (const Json::Exception& e) {
         return;
     }
 }

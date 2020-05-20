@@ -170,7 +170,7 @@ int Fetch_Battery_Linux_Sys(kis_battery_info *out __attribute__((unused))) {
 
     const char *base_dir = "/sys/class/power_supply/";
     char bdir[128];
-    char fpath[128];
+    char fpath[256];
 
     char *line;
     size_t linesz;
@@ -223,7 +223,7 @@ int Fetch_Battery_Linux_Sys(kis_battery_info *out __attribute__((unused))) {
         }
     }
 
-    snprintf(fpath, 128, "%s/status", bdir);
+    snprintf(fpath, 256, "%s/status", bdir);
     if ((f = fopen(fpath, "r")) == NULL) {
         printf("Couldn't open %s\n", fpath);
         return -1;

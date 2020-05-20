@@ -49,7 +49,6 @@ shared_tracker_element storage_loader::storage_to_tracker(shared_structured d) {
     std::shared_ptr<structured_data> objdata;
 
     shared_tracker_element elem;
-    int elemid;
 
     std::string hexstr;
 
@@ -75,9 +74,6 @@ shared_tracker_element storage_loader::storage_to_tracker(shared_structured d) {
         objdata = d->get_structured_by_key("objdata");
     else
         throw std::runtime_error("storage object missing 'od'/'objdata'");
-
-    elemid = Globalreg::globalreg->entrytracker->get_field_id(objname);
-    // elem.reset(new tracker_element(objtype, elemid));
 
     try {
         switch (objtype) {

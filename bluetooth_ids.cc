@@ -268,7 +268,6 @@ void kis_bt_manuf::index_bt_manufs() {
     int line = 0;
     fpos_t prev_pos;
     uint32_t oid;
-    uint32_t last_id = 0;
 
     if (mfile == nullptr)
         return;
@@ -293,8 +292,6 @@ void kis_bt_manuf::index_bt_manufs() {
 
             ip.id = oid;
             ip.pos = prev_pos;
-
-            last_id = oid;
         }
 
         fgetpos(mfile, &prev_pos);

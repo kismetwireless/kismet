@@ -1160,7 +1160,7 @@ if test "$bsd" = yes; then
 	]])],radiotap=yes bsdradiotap=yes, bsdradiotap=no radiotap=no)
 	AC_MSG_RESULT($bsdradiotap)
 else
-	AC_MSG_WARN(Using local radiotap headers)
+	AC_MSG_RESULT(Using local radiotap headers)
 fi
 
 if test "$radiotap" != "yes"; then

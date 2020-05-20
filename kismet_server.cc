@@ -471,7 +471,6 @@ int main(int argc, char *argv[], char *envp[]) {
     static struct option wrapper_longopt[] = {
         { "no-ncurses-wrapper", no_argument, 0, 'w' },
         { "no-console-wrapper", no_argument, 0, 'w' },
-        { "show-admin-password", no_argument, 0, 'p' },
         { "daemonize", no_argument, 0, 'D' },
         { "debug", no_argument, 0, 'd' },
         { 0, 0, 0, 0 }
@@ -483,7 +482,6 @@ int main(int argc, char *argv[], char *envp[]) {
     opterr = 0;
 
     bool wrapper = true;
-    bool show_pass = false;
 
     while (1) {
         int r = getopt_long(argc, argv, "-", wrapper_longopt, &option_idx);
@@ -492,8 +490,6 @@ int main(int argc, char *argv[], char *envp[]) {
         if (r == 'w') {
             wrapper = false; 
             glob_linewrap = false;
-        } else if (r == 'p') {
-            show_pass = true;
         } else if (r == 'd') {
             debug_mode = true;
             wrapper = false;

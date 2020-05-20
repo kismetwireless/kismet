@@ -11284,8 +11284,8 @@ rm -f core conftest.err conftest.$ac_objext \
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $bsdradiotap" >&5
 $as_echo "$bsdradiotap" >&6; }
 else
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Using local radiotap headers" >&5
-$as_echo "$as_me: WARNING: Using local radiotap headers" >&2;}
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: Using local radiotap headers" >&5
+$as_echo "Using local radiotap headers" >&6; }
 fi
 
 if test "$radiotap" != "yes"; then
