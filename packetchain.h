@@ -38,6 +38,9 @@
 
 #include "globalregistry.h"
 #include "kis_mutex.h"
+#include "kis_net_microhttpd.h"
+#include "trackedelement.h"
+#include "trackedrrd.h"
 
 
 /* Packets are added to the packet queue from any thread (including the main 
@@ -169,6 +172,22 @@ protected:
     // Warning and discard levels for packet queue being full
     unsigned int packet_queue_warning, packet_queue_drop;
     time_t last_packet_queue_user_warning, last_packet_drop_user_warning;
+
+    std::shared_ptr<kis_tracked_rrd<>> packet_rate_rrd;
+    int packet_rate_rrd_id;
+
+    std::shared_ptr<kis_tracked_rrd<>> packet_error_rrd;
+    int packet_error_rrd_id;
+
+    std::shared_ptr<kis_tracked_rrd<>> packet_dupe_rrd;
+    int packet_dupe_rrd_id;
+
+    std::shared_ptr<tracker_element_map> packet_stats_map;
+
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> packet_stat_endpoint;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> packet_rate_endpoint;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> packet_error_endpoint;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> packet_dupe_endpoint;
 };
 
 #endif

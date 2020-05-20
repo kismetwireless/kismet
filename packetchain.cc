@@ -56,6 +56,50 @@ packet_chain::packet_chain() {
     packet_queue_drop =
         Globalreg::globalreg->kismet_config->fetch_opt_uint("packet_backlog_limit", 8192);
 
+    auto entrytracker = 
+        Globalreg::fetch_mandatory_global_as<entry_tracker>();
+
+    packet_rate_rrd_id = 
+        entrytracker->register_field("kismet.packetchain.packets_rrd",
+                tracker_element_factory<kis_tracked_rrd<>>(),
+                "total packet rate rrd");
+    packet_rate_rrd = 
+        std::make_shared<kis_tracked_rrd<>>(packet_rate_rrd_id);
+
+    packet_error_rrd_id = 
+        entrytracker->register_field("kismet.packetchain.error_packets_rrd",
+                tracker_element_factory<kis_tracked_rrd<>>(),
+                "error packet rate rrd");
+    packet_error_rrd =
+        std::make_shared<kis_tracked_rrd<>>(packet_error_rrd_id);
+
+    packet_dupe_rrd_id =
+        entrytracker->register_field("kismet.packetchain.dupe_packets_rrd",
+                tracker_element_factory<kis_tracked_rrd<>>(),
+                "duplicate packet rate rrd");
+    packet_dupe_rrd =
+        std::make_shared<kis_tracked_rrd<>>(packet_dupe_rrd_id);
+
+    packet_stats_map = 
+        std::make_shared<tracker_element_map>();
+    packet_stats_map->insert(packet_rate_rrd);
+    packet_stats_map->insert(packet_error_rrd);
+    packet_stats_map->insert(packet_dupe_rrd);
+
+    packet_stat_endpoint =
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/packetchain/packet_stats",
+                packet_stats_map, &packetchain_mutex);
+    packet_rate_endpoint =
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/packetchain/packet_rate",
+                packet_rate_rrd, &packetchain_mutex);
+    packet_error_endpoint =
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/packetchain/packet_error",
+                packet_error_rrd, &packetchain_mutex);
+    packet_dupe_endpoint =
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/packetchain/packet_dupe",
+                packet_dupe_rrd, &packetchain_mutex);
+
+
     packetchain_shutdown = false;
 
     packet_thread = std::thread([this]() {
@@ -251,6 +295,14 @@ void packet_chain::packet_queue_processor() {
                 else if (pcl->l_callback != NULL)
                     pcl->l_callback(packet);
             }
+
+            packet_rate_rrd->add_sample(1, time(0));
+
+            if (packet->error)
+                packet_error_rrd->add_sample(1, time(0));
+
+            if (packet->duplicate)
+                packet_dupe_rrd->add_sample(1, time(0));
 
             destroy_packet(packet);
 
