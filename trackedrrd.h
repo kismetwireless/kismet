@@ -33,10 +33,11 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 
+#include "entrytracker.h"
 #include "globalregistry.h"
+#include "kis_mutex.h"
 #include "trackedelement.h"
 #include "trackedcomponent.h"
-#include "entrytracker.h"
 
 // Aggregator class used for RRD.  Performs functions like combining elements
 // (for instance, adding to the existing element, or choosing to replace the
@@ -82,6 +83,7 @@ public:
         register_fields();
         reserve_fields(NULL);
         update_first = true;
+        mutex.set_name("kis_tracked_rrd");
     }
 
     kis_tracked_rrd(int in_id) :
@@ -89,6 +91,7 @@ public:
         register_fields();
         reserve_fields(NULL);
         update_first = true;
+        mutex.set_name("kis_tracked_rrd");
     }
 
     kis_tracked_rrd(int in_id, std::shared_ptr<tracker_element_map> e) :
@@ -97,7 +100,7 @@ public:
         register_fields();
         reserve_fields(e);
         update_first = true;
-
+        mutex.set_name("kis_tracked_rrd");
     }
 
     virtual uint32_t get_signature() const override {
@@ -130,6 +133,8 @@ public:
 
     // Add a sample.  Use combinator function 'c' to derive the new sample value
     void add_sample(int64_t in_s, time_t in_time) {
+        local_locker l(&mutex, "kis_tracked_rrd add_sample");
+
         Aggregator agg;
 
         int sec_bucket = in_time % 60;
@@ -293,6 +298,8 @@ public:
     }
 
     virtual void pre_serialize() override {
+        local_eol_locker l(&mutex, "kis_tracked_rrd pre_serialize");
+
         tracker_component::pre_serialize();
         Aggregator agg;
 
@@ -301,6 +308,10 @@ public:
         if (update_first) {
             add_sample(agg.default_val(), time(0));
         }
+    }
+
+    virtual void post_serialize() override {
+        local_unlocker l(&mutex);
     }
 
 protected:
@@ -402,6 +413,8 @@ protected:
 
     }
 
+    kis_recursive_timed_mutex mutex;
+
     std::shared_ptr<tracker_element_uint64> last_time;
 
     std::shared_ptr<tracker_element_vector_double> minute_vec;
@@ -429,6 +442,7 @@ public:
         tracker_component(0) {
         register_fields();
         reserve_fields(NULL);
+        mutex.set_name("kis_tracked_minute_rrd");
         update_first = true;
     }
 
@@ -437,6 +451,7 @@ public:
         register_fields();
         reserve_fields(NULL);
         update_first = true;
+        mutex.set_name("kis_tracked_minute_rrd");
     }
 
     kis_tracked_minute_rrd(int in_id, std::shared_ptr<tracker_element_map> e) :
@@ -445,6 +460,7 @@ public:
         register_fields();
         reserve_fields(e);
         update_first = true;
+        mutex.set_name("kis_tracked_minute_rrd");
     }
 
     virtual uint32_t get_signature() const override {
@@ -476,6 +492,8 @@ public:
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
 
     void add_sample(int64_t in_s, time_t in_time) {
+        local_locker l(&mutex, "kis_tracked_minute_rrd add_sample");
+
         Aggregator agg;
 
         int sec_bucket = in_time % 60;
@@ -520,12 +538,17 @@ public:
     }
 
     virtual void pre_serialize() override {
+        local_eol_locker l(&mutex, "kis_tracked_minute_rrd pre-serialize");
         tracker_component::pre_serialize();
         Aggregator agg;
 
         if (update_first) {
             add_sample(agg.default_val(), time(0));
         }
+    }
+
+    virtual void post_serialize() override {
+        local_unlocker l(&mutex);
     }
 
 protected:
@@ -576,6 +599,8 @@ protected:
         (*blank_val).set(agg.default_val());
         (*aggregator_name).set(agg.name());
     }
+
+    kis_recursive_timed_mutex mutex;
 
     std::shared_ptr<tracker_element_uint64> last_time;
     std::shared_ptr<tracker_element_vector_double> minute_vec;
