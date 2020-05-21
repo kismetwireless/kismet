@@ -31,75 +31,75 @@
 
     var popup_content =
 	    $('<div>', {
-            style: 'padding: 2px;'
+            style: 'padding: 2px; border: 0px;'
         })
+        .append(
+            $('<div>', {
+                id: 'status',
+                style: 'padding-bottom: 2px;'
+            })
+        )
+        .append(
+            $('<table>', {
+                id: "statustable",
+                style: "border: 0px !important; width: 100%;",
+            })
             .append(
-                $('<div>', {
-                    id: 'status',
-                    style: 'padding-bottom: 2px;'
-                })
+                $('<tr>')
+                .append(
+                    $('<td>').html('Total Packets')
+                )
+                .append(
+                    $('<td>', {
+                        id: 'rate'
+                    }).html("n/a")
+                )
             )
             .append(
-                $('<table>', {
-                    id: "statustable",
-                    border: "0",
-                })
+                $('<tr>')
                 .append(
-                    $('<tr>')
-                    .append(
-                        $('<td>').html('Packets')
-                    )
-                    .append(
-                        $('<td>', {
-                            id: 'rate'
-                        }).html("n/a")
-                    )
+                    $('<td>').html('Duplicates')
                 )
                 .append(
-                    $('<tr>')
-                    .append(
-                        $('<td>').html('Errors')
-                    )
-                    .append(
-                        $('<td>', {
-                            id: 'error'
-                        }).html("n/a")
-                    )
+                    $('<td>', {
+                        id: 'dupe'
+                    }).html("n/a")
+                )
+            )
+            .append(
+                $('<tr>')
+                .append(
+                    $('<td>').html('Packet queue backlog')
                 )
                 .append(
-                    $('<tr>')
-                    .append(
-                        $('<td>').html('Duplicate')
-                    )
-                    .append(
-                        $('<td>', {
-                            id: 'dupe'
-                        }).html("n/a")
-                    )
+                    $('<td>', {
+                        id: 'queue'
+                    }).html("n/a")
+                )
+            )
+            .append(
+                $('<tr>')
+                .append(
+                    $('<td>').html('Dropped queue')
                 )
                 .append(
-                    $('<tr>')
-                    .append(
-                        $('<td>').html('Queue size')
-                    )
-                    .append(
-                        $('<td>', {
-                            id: 'queue'
-                        }).html("n/a")
-                    )
+                    $('<td>', {
+                        id: 'drop'
+                    }).html("n/a")
+                )
+            )
+            .append(
+                $('<tr>')
+                .append(
+                    $('<td>').html('Errors')
                 )
                 .append(
-                    $('<tr>')
-                    .append(
-                        $('<td>').html('Dropped')
-                    )
-                    .append(
-                        $('<td>', {
-                            id: 'drop'
-                        }).html("n/a")
-                    )
+                    $('<td>', {
+                        id: 'error'
+                    }).html("n/a")
                 )
-            );
+            )
+        );
 
     // Close the alert panel if we click outside it
     var close_dialog_outside = function(e) {
@@ -168,20 +168,6 @@
 
             fullscreen = false;
         }
-
-        /*
-        if (last_gps == null ||
-            (last_gps != null &&
-                (last_gps['kismet.common.location.valid'] == 0) ||
-                (last_gps['kismet.common.location.fix'] < 2))) {
-                    $('#gpsstatus', gps_popup_content).html('No GPS available');
-                    $('#time', gps_popup_content).html('n/a');
-                    $('#location', gps_popup_content).html('n/a');
-                    $('#speed', gps_popup_content).html('n/a');
-                    $('#heading', gps_popup_content).html('n/a');
-                    $('#altitude', gps_popup_content).html('n/a');
-                }
-                */
 
         if (fullscreen)
             $('.kg-header-close', popup_content).show();
@@ -283,10 +269,10 @@
 
                     var queue_rrd =
                         kismet.RecalcRrdData(
-                            data['kismet.packetchain.queue_rrd']['kismet.common.rrd.last_time'],
-                            data['kismet.packetchain.queue_rrd']['kismet.common.rrd.last_time'],
+                            data['kismet.packetchain.queued_packets_rrd']['kismet.common.rrd.last_time'],
+                            data['kismet.packetchain.queued_packets_rrd']['kismet.common.rrd.last_time'],
                             kismet.RRD_SECOND,
-                            data['kismet.packetchain.queue_rrd']['kismet.common.rrd.minute_vec'], {
+                            data['kismet.packetchain.queued_packets_rrd']['kismet.common.rrd.minute_vec'], {
                                 transform: function(data, opt) {
                                     var slices = 3;
                                     var peak = 0;
@@ -307,10 +293,10 @@
 
                     var drop_rrd =
                         kismet.RecalcRrdData(
-                            data['kismet.packetchain.drop_rrd']['kismet.common.rrd.last_time'],
-                            data['kismet.packetchain.drop_rrd']['kismet.common.rrd.last_time'],
+                            data['kismet.packetchain.dropped_packets_rrd']['kismet.common.rrd.last_time'],
+                            data['kismet.packetchain.dropped_packets_rrd']['kismet.common.rrd.last_time'],
                             kismet.RRD_SECOND,
-                            data['kismet.packetchain.drop_rrd']['kismet.common.rrd.minute_vec'], {
+                            data['kismet.packetchain.dropped_packets_rrd']['kismet.common.rrd.minute_vec'], {
                                 transform: function(data, opt) {
                                     var slices = 3;
                                     var peak = 0;
@@ -339,37 +325,31 @@
                     packetgraph.sparkline(combo_rrd, {
                         type: "bar", 
                         height: 12, 
-                        width: 100,
                     });
 
                     $('#rate', popup_content).sparkline(rate_rrd, {
                         type: "bar",
                         height: 12,
-                        width: 200,
                     });
 
                     $('#error', popup_content).sparkline(error_rrd, {
                         type: "bar",
                         height: 12,
-                        width: 200,
                     });
 
                     $('#dupe', popup_content).sparkline(dupe_rrd, {
                         type: "bar",
                         height: 12,
-                        width: 200,
                     });
 
                     $('#queue', popup_content).sparkline(queue_rrd, {
                         type: "bar",
                         height: 12,
-                        width: 200,
                     });
 
                     $('#drop', popup_content).sparkline(drop_rrd, {
                         type: "bar",
                         height: 12,
-                        width: 200,
                     });
 
                 } catch (error) {
@@ -384,70 +364,6 @@
             timerid = setTimeout(packet_refresh, 1000);
         }
     }
-
-    /*
-    var gps_refresh = function() {
-        if (kismet_ui.window_visible) {
-            $.get(local_uri_prefix + "gps/location.json")
-                .done(function(data) {
-                    data = kismet.sanitizeObject(data);
-
-                    last_gps = data;
-
-                    d = new Date(last_gps['kismet.common.location.time_sec']*1000).toISOString();
-
-                    if (last_gps['kismet.common.location.valid'] != 0 &&
-                        last_gps['kismet.common.location.fix'] >= 2) {
-                        if (last_gps['kismet.common.location.fix'] == 2) {
-                            $('#gpsstatus', gps_popup_content).html('GPS locked (2d)');
-                            $('#altitude', gps_popup_content).html('n/a');
-                        } else {
-                            $('#gpsstatus', gps_popup_content).html('GPS locked (3d)');
-                            $('#altitude', gps_popup_content).html(kismet_ui.renderDistance(last_gps['kismet.common.location.alt'] / 1000, 0));
-                        }
-
-                        $('#time', gps_popup_content).html(d);
-                        $('#location', gps_popup_content).html(last_gps['kismet.common.location.geopoint'][1] + " x " + last_gps['kismet.common.location.geopoint'][0]);
-                        $('#speed', gps_popup_content).html(kismet_ui.renderSpeed(last_gps['kismet.common.location.speed']));
-                        $('#heading', gps_popup_content).html(last_gps['kismet.common.location.heading']);
-                    } else {
-                        $('#gpsstatus', gps_popup_content).html('No GPS available');
-                        $('#time', gps_popup_content).html('n/a');
-                        $('#location', gps_popup_content).html('n/a');
-                        $('#speed', gps_popup_content).html('n/a');
-                        $('#heading', gps_popup_content).html('n/a');
-                        $('#altitude', gps_popup_content).html('n/a');
-                    }
-
-                    if (last_gps == null ||
-                        (last_gps != null && last_gps['kismet.common.location.valid'] == 0) ||
-                        (last_gps != null && last_gps['kismet.common.location.fix'] < 2)) {
-                        gpsicon.removeClass('kg-icon-3d');
-                        gpsicon.removeClass('kg-icon-2d');
-                        element.tooltipster('content', 'GPS connection lost...');
-                        return;
-                    } else if (last_gps['kismet.common.location.fix'] == 2) {
-                        gpsicon.removeClass('kg-icon-3d');
-                        gpsicon.addClass('kg-icon-2d');
-                        element.tooltipster('content', 'GPS fix' +  last_gps['kismet.common.location.geopoint'][1] + ' x ' +
-                            last_gps['kismet.common.location.geopoint'][0]);
-                    } else if (last_gps['kismet.common.location.fix'] == 3) {
-                        gpsicon.removeClass('kg-icon-2d');
-                        gpsicon.addClass('kg-icon-3d');
-                        element.tooltipster('content', 'GPS fix ' +
-                            last_gps['kismet.common.location.geopoint'][1] + ' x ' +
-                            last_gps['kismet.common.location.geopoint'][0] + ' ' +
-                            kismet_ui.renderDistance(last_gps['kismet.common.location.alt'] / 1000, 0));
-                    }
-                })
-                .always(function() {
-                    timerid = setTimeout(gps_refresh, 1000);
-                });
-        } else {
-            timerid = setTimeout(gps_refresh, 1000);
-        }
-    }
-    */
 
     $.fn.packetrate = function(data, inopt) {
         // Get the stored value if one exists
@@ -465,8 +381,7 @@
                 class: "icon",
                 width: "100px",
                 height: "10px",
-                "background": "red",
-            }).html("fooooo")
+            });
         }
 
         click = $('a.packetbutton', this);

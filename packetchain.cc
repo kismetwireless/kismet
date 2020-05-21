@@ -81,14 +81,14 @@ packet_chain::packet_chain() {
         std::make_shared<kis_tracked_rrd<>>(packet_dupe_rrd_id);
 
     packet_queue_rrd_id =
-        entrytracker->register_field("kismet.packetchain.queue_rrd",
+        entrytracker->register_field("kismet.packetchain.queued_packets_rrd",
                 tracker_element_factory<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>>(),
                 "packet backlog queue rrd");
     packet_queue_rrd =
         std::make_shared<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>>(packet_queue_rrd_id);
 
     packet_drop_rrd_id =
-        entrytracker->register_field("kismet.packetchain.drop_rrd",
+        entrytracker->register_field("kismet.packetchain.dropped_packets_rrd",
                 tracker_element_factory<kis_tracked_rrd<>>(),
                 "lost packet / queue overfull rrd");
     packet_drop_rrd =
