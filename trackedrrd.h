@@ -131,6 +131,10 @@ public:
 
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
 
+    __ProxyTrackable(minute_vec, tracker_element_vector_double, minute_vec);
+    __ProxyTrackable(hour_vec, tracker_element_vector_double, hour_vec);
+    __ProxyTrackable(day_vec, tracker_element_vector_double, day_vec);
+
     // Add a sample.  Use combinator function 'c' to derive the new sample value
     void add_sample(int64_t in_s, time_t in_time) {
         local_locker l(&mutex, "kis_tracked_rrd add_sample");
