@@ -394,10 +394,16 @@ tracker_type tracker_element::typestring_to_type(const std::string& s) {
 }
 
 template<> std::string get_tracker_value(const shared_tracker_element& e) {
-#if TE_TYPE_SAFETY == 1
-    e->enforce_type(tracker_type::tracker_string);
+#ifdef TE_TYPE_SAFETY
+    e->enforce_type(tracker_type::tracker_string, tracker_type::tracker_byte_array);
 #endif
-    return std::static_pointer_cast<tracker_element_string>(e)->get();
+
+    if (e->get_type() == tracker_type::tracker_string)
+        return std::static_pointer_cast<tracker_element_string>(e)->get();
+    if (e->get_type() == tracker_type::tracker_byte_array)
+        return std::static_pointer_cast<tracker_element_byte_array>(e)->get();
+
+    return "";
 }
 
 template<> uint8_t get_tracker_value(const shared_tracker_element& e) {
