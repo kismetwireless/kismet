@@ -966,9 +966,6 @@ int main(int argc, char *argv[], char *envp[]) {
     // finalize any plugins which were waiting for other code to load
     plugintracker->finalize_plugins();
 
-    // We can't call this as a deferred because we don't want to mix
-    devicetracker->load_devices();
-
     // Complain about running as root
     if (getuid() == 0) {
         alertracker->define_alert("ROOTUSER", sat_second, 1, sat_second, 1);

@@ -45,6 +45,8 @@ public:
         return matched;
     }
 
+    virtual void finalize() { }
+
 protected:
     friend class device_tracker_view;
 

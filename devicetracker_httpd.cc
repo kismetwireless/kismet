@@ -395,16 +395,14 @@ int device_tracker::httpd_create_stream_response(
 
             std::shared_ptr<tracker_element_vector> devvec;
 
-            auto fw = std::make_shared<devicetracker_function_worker>(
-                    [devvec, lastts](device_tracker *, 
-                        std::shared_ptr<kis_tracked_device_base> d) -> bool {
+            device_tracker_view_function_worker fw(
+                    [devvec, lastts](std::shared_ptr<kis_tracked_device_base> d) -> bool {
                         if (d->get_last_time() <= lastts)
                             return false;
 
                         return true;
-                    }, nullptr);
-            do_readonly_device_work(fw);
-            devvec = fw->GetMatchedDevices();
+                    });
+            devvec = do_readonly_device_work(fw);
 
             Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(tokenurl[4]), stream, devvec, NULL);
 
@@ -690,21 +688,19 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                 //  List of devices that pass the regex filter
                 auto regexdevs = std::make_shared<tracker_element_vector>();
 
-                auto tw = std::make_shared<devicetracker_function_worker>(
-                        [lastts](device_tracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
+                device_tracker_view_function_worker tw(
+                        [lastts](std::shared_ptr<kis_tracked_device_base> d) -> bool {
 
                         if (d->get_last_time() <= lastts)
                             return false;
 
                         return true;
-                        }, nullptr);
-                do_readonly_device_work(tw);
-                timedevs = tw->GetMatchedDevices();
+                        });
+                timedevs = do_readonly_device_work(tw);
 
                 if (regexdata != NULL) {
-                    auto worker = std::make_shared<devicetracker_pcre_worker>(regexdata);
-                    do_readonly_device_work(worker, timedevs);
-                    regexdevs = worker->GetMatchedDevices();
+                    device_tracker_view_regex_worker worker(regexdata);
+                    regexdevs = do_readonly_device_work(worker, timedevs);
                 } else {
                     regexdevs = timedevs;
                 }

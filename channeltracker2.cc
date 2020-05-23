@@ -22,6 +22,7 @@
 #include "json_adapter.h"
 #include "devicetracker.h"
 #include "devicetracker_component.h"
+#include "devicetracker_view_workers.h"
 #include "packinfo_signal.h"
 
 channel_tracker_v2::channel_tracker_v2(global_registry *in_globalreg) :
@@ -109,7 +110,7 @@ std::shared_ptr<tracker_element_map> channel_tracker_v2::channels_endp_handler()
     return ret;
 }
 
-class channeltracker_v2_device_worker : public device_tracker_filter_worker {
+class channeltracker_v2_device_worker : public device_tracker_view_worker {
 public:
     channeltracker_v2_device_worker(channel_tracker_v2 *channelv2) {
         this->channelv2 = channelv2;
@@ -120,34 +121,28 @@ public:
 
     // Count all the devices.  We use a filter worker but 'match' on all
     // and count them into our local map
-    virtual bool match_device(device_tracker *devicetracker __attribute__((unused)),
-            std::shared_ptr<kis_tracked_device_base> device) {
-
+    virtual bool match_device(std::shared_ptr<kis_tracked_device_base> device) override {
         auto freq = device->get_frequency();
         if (freq == 0)
             return false;
 
-        {
-            local_locker lock(&workermutex);
+        auto i = device_count.find(freq);
 
-            auto i = device_count.find(freq);
-
-            if (i != device_count.end()) {
-                if (device->get_last_time() > (stime - channelv2->device_decay))
-                    i->second++;
-            } else {
-                if (device->get_last_time() > (stime - channelv2->device_decay))
-                    device_count[freq] = 1;
-                else
-                    device_count[freq] = 0;
-            }
+        if (i != device_count.end()) {
+            if (device->get_last_time() > (stime - channelv2->device_decay))
+                i->second++;
+        } else {
+            if (device->get_last_time() > (stime - channelv2->device_decay))
+                device_count[freq] = 1;
+            else
+                device_count[freq] = 0;
         }
 
         return false;
     }
 
     // Send it back to our channel tracker
-    virtual void finalize(device_tracker *devicetracker __attribute__((unused))) {
+    virtual void finalize() override {
         channelv2->update_device_counts(device_count, stime);
     }
 
@@ -157,13 +152,11 @@ protected:
     std::unordered_map<double, unsigned int> device_count;
 
     time_t stime;
-
-    kis_recursive_timed_mutex workermutex;
 };
 
 
 int channel_tracker_v2::gather_devices_event(int event_id __attribute__((unused))) {
-    auto worker = std::make_shared<channeltracker_v2_device_worker>(this);
+    channeltracker_v2_device_worker worker(this);
     devicetracker->do_readonly_device_work(worker);
 
     return 1;

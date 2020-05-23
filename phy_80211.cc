@@ -2210,15 +2210,8 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
     if (dot11info->wps_serial_number != "")
         ssid->set_wps_serial_number(dot11info->wps_serial_number);
 
-    if (dot11info->wps_uuid_e != "")
+    if (dot11info->wps_uuid_e != "") 
         ssid->set_wps_uuid_e(dot11info->wps_uuid_e);
-
-    /* kis_manuf should be the IEEE manuf, not inherited from WPS.
-     * Also, never do this - this clobbers the universal 'unknown' manuf.
-    // Do we not know the basedev manuf?
-    if (Globalreg::globalreg->manufdb->is_unknown_manuf(basedev->get_manuf()) && dot11info->wps_manuf != "")
-        basedev->set_manuf(dot11info->wps_manuf);
-        */
 
     if (dot11info->beacon_interval && ssid->get_beaconrate() != 
             Ieee80211Interval2NSecs(dot11info->beacon_interval)) {
@@ -2337,8 +2330,9 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
         if (dot11info->wps_serial_number != "")
             probessid->set_wps_serial_number(dot11info->wps_serial_number);
 
-        if (dot11info->wps_uuid_e != "")
+        if (dot11info->wps_uuid_e != "") {
             probessid->set_wps_uuid_e(dot11info->wps_uuid_e);
+        }
 
         // Update the IE listing at the device level
         auto taglist = PacketDot11IElist(in_pack, dot11info);
@@ -3096,29 +3090,26 @@ int kis_80211_phy::httpd_post_complete(kis_net_httpd_connection *concls) {
     return 1;
 }
 
-class phy80211_devicetracker_expire_worker : public device_tracker_filter_worker {
+class phy80211_devicetracker_expire_worker : public device_tracker_view_worker {
 public:
-    phy80211_devicetracker_expire_worker(global_registry *in_globalreg, 
-            int in_timeout, unsigned int in_packets, int entry_id) {
-        globalreg = in_globalreg;
+    phy80211_devicetracker_expire_worker(int in_timeout, unsigned int in_packets, int entry_id) {
         dot11_device_entry_id = entry_id;
         timeout = in_timeout;
         packets = in_packets;
+        devicetracker =
+            Globalreg::fetch_mandatory_global_as<device_tracker>();
     }
 
     virtual ~phy80211_devicetracker_expire_worker() { }
 
-    virtual bool match_device(device_tracker *devicetracker, 
-            std::shared_ptr<kis_tracked_device_base> device) {
+    virtual bool match_device(std::shared_ptr<kis_tracked_device_base> device) override {
         auto dot11dev =
             device->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
 
-        // Not 802.11?  nothing we can do
         if (dot11dev == NULL) {
             return false;
         }
 
-        // Iterate over all the SSID records
         auto adv_ssid_map = dot11dev->get_advertised_ssid_map();
         std::shared_ptr<dot11_advertised_ssid> ssid = NULL;
         tracker_element_int_map::iterator int_itr;
@@ -3181,7 +3172,7 @@ public:
     }
 
 protected:
-    global_registry *globalreg;
+    std::shared_ptr<device_tracker> devicetracker;
     int dot11_device_entry_id;
     int timeout;
     unsigned int packets;
@@ -3190,9 +3181,8 @@ protected:
 int kis_80211_phy::timetracker_event(int eventid) {
     // Spawn a worker to handle this
     if (eventid == device_idle_timer) {
-        auto worker = 
-            std::make_shared<phy80211_devicetracker_expire_worker>(Globalreg::globalreg,
-                device_idle_expiration, device_idle_min_packets, dot11_device_entry_id);
+        phy80211_devicetracker_expire_worker worker(device_idle_expiration, 
+                device_idle_min_packets, dot11_device_entry_id);
         devicetracker->do_device_work(worker);
     }
 
