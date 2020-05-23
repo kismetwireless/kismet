@@ -1363,7 +1363,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         return false;
                     }
                 },
-                title: '<b class="k_padding_title">Shared Hardware</b>'
+                title: '<b class="k_padding_title">Shared Hardware (Uptime)</b>'
             },
 
             {
@@ -1407,6 +1407,77 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                             ssid = "<i>n/a</i>";
 
                         alink.html("Related to " + mac + " (" + ssid + ")");
+                    });
+                },
+
+                fields: [
+                {
+                    field: "dot11.client.bssid_key",
+                    title: "Access Point",
+                    draw: function(opts) {
+                        if (opts['key'] === '') {
+                            return "<i>No records for access point</i>";
+                        } else {
+                            return '<a href="#" onclick="kismet_ui.DeviceDetailWindow(\'' + opts['base'] + '\')">View AP Details</a>';
+                        }
+                    }
+                },
+                ]
+            },
+
+            {
+                field: "dot11_wps_uuid_identical",
+                id: "wps_uuid_identical_header",
+                help: "Some devices change MAC addresses but retain the WPS UUID unique identifier.  These devices have been detected using the same unique ID, which is extremely unlikely to randomly collide.",
+                filter: function(opts) {
+                    try {
+                        return (Object.keys(opts['data']['kismet.device.base.related_devices']['dot11_uuid_e']).length >= 1);
+                    } catch (error) {
+                        return false;
+                    }
+                },
+                title: '<b class="k_padding_title">Shared Hardware (WPS UUID)</b>'
+            },
+
+            {
+                field: "kismet.device.base.related_devices/dot11_uuid_e",
+                id: "wps_uuid_identical",
+
+                filter: function(opts) {
+                    try {
+                        return (Object.keys(opts['data']['kismet.device.base.related_devices']['dot11_uuid_e']).length >= 1);
+                    } catch (error) {
+                        return false;
+                    }
+                },
+
+                groupIterate: true,
+                iterateTitle: function(opts) {
+                    var key = kismet.ObjectByString(opts['data'], opts['basekey']);
+                    if (key != 0) {
+                        return '<a id="' + key + '" class="expander collapsed" data-expander-target="#' + opts['containerid'] + '" href="#">Same WPS UUID as ' + opts['data'] + '</a>';
+                    }
+
+                    return '<a class="expander collapsed" data-expander-target="#' + opts['containerid'] + '" href="#">Same WPS UUID as ' + opts['data'] + '</a>';
+                },
+                draw: function(opts) {
+                    var tb = $('.expander', opts['cell']).simpleexpand();
+
+                    var key = kismet.ObjectByString(opts['data'], opts['basekey']);
+                    var alink = $('a#' + key, opts['cell']);
+                    $.get(local_uri_prefix + "devices/by-key/" + key + "/device.json")
+                    .done(function(data) {
+                        data = kismet.sanitizeObject(data);
+
+                        var mac = "<i>unknown</i>";
+
+                        try {
+                            mac = data['kismet.device.base.macaddr'];
+                        } catch (error) {
+
+                        }
+
+                        alink.html("Related to " + mac);
                     });
                 },
 
