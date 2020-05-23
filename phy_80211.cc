@@ -2331,7 +2331,38 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
             probessid->set_wps_serial_number(dot11info->wps_serial_number);
 
         if (dot11info->wps_uuid_e != "") {
-            probessid->set_wps_uuid_e(dot11info->wps_uuid_e);
+            if (probessid->get_wps_uuid_e() != dot11info->wps_uuid_e) {
+                device_tracker_view_function_worker dev_worker(
+                        [this, dot11info, basedev, dot11dev](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+                            auto bssid_dot11 =
+                                dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+
+                            if (bssid_dot11 == nullptr) {
+                                return false;
+                            }
+
+                            for (auto pi : *bssid_dot11->probed_ssid_map) {
+                                auto ps =
+                                    std::static_pointer_cast<dot11_probed_ssid>(pi.second);
+
+                                if (ps->get_wps_uuid_e() == dot11info->wps_uuid_e)
+                                    return true;
+                            }
+
+                        return false;
+                        });
+                devicetracker->do_readonly_device_work(dev_worker);
+
+                // Set a bidirectional relationship
+                for (auto ri : *(dev_worker.getMatchedDevices())) {
+                    auto rdev = std::static_pointer_cast<kis_tracked_device_base>(ri);
+
+                    basedev->add_related_device("dot11_uuid_e", rdev->get_key());
+                    rdev->add_related_device("dot11_uuid_e", basedev->get_key());
+                }
+
+                probessid->set_wps_uuid_e(dot11info->wps_uuid_e);
+            }
         }
 
         // Update the IE listing at the device level
