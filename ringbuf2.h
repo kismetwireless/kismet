@@ -29,12 +29,6 @@
 
 #include "buffer_handler.h"
 
-#ifdef SYS_LINUX
-// #define USE_MMAP_RBUF
-#endif
-
-// #define PROFILE_RINGBUFV2   1
-
 // A better ringbuffer implementation that will replace the old ringbuffer in 
 // Kismet as the rewrite continues
 //
@@ -66,18 +60,8 @@ public:
     virtual ssize_t zero_copy_reserve(unsigned char **data, size_t in_sz);
     virtual bool commit(unsigned char *data, size_t in_sz);
 
-#ifdef PROFILE_RINGBUFV2
-    virtual void profile();
-#endif
-
 protected:
     unsigned char *buffer;
-#ifdef USE_MMAP_RBUF
-    void *mmap_region0;
-    void *mmap_region1;
-
-    int mmap_fd;
-#endif
 
     // Total size
     std::atomic<size_t> buffer_sz;
@@ -88,10 +72,6 @@ protected:
 
     // Do we need to free our peeked or committed data?
     std::atomic<bool> free_peek, free_commit;
-
-#ifdef PROFILE_RINGBUFV2 
-    size_t zero_copy_w_bytes, zero_copy_r_bytes, copy_w_bytes, copy_r_bytes, last_profile_bytes;
-#endif
 };
 
 
