@@ -142,6 +142,13 @@ size_t ringbuf_v2::consume_impl(size_t in_sz) {
 ssize_t ringbuf_v2::write_impl(unsigned char *data, size_t in_sz) {
     size_t copy_start;
 
+    if (in_sz == 0)
+        return 0;
+
+    if (available() < (ssize_t) in_sz) {
+        return 0;
+    }
+
     // Figure out if we can write a contiguous block
     copy_start = (start_pos + length) % buffer_sz;
 
@@ -172,6 +179,10 @@ ssize_t ringbuf_v2::write_impl(unsigned char *data, size_t in_sz) {
 
 ssize_t ringbuf_v2::reserve_impl(unsigned char **data, size_t in_sz) {
     size_t copy_start;
+
+    if (available() < (ssize_t) in_sz) {
+        return -1;
+    }
 
     // Figure out if we can write a contiguous block
     copy_start = (start_pos + length) % buffer_sz;

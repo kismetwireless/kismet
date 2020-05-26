@@ -61,23 +61,23 @@ public:
     virtual ~common_buffer() { };
 
     // Clear all data (and free memory used, for dynamic buffers)
-    virtual void clear() {
+    void clear() {
         local_locker l(&write_mutex);
         clear_impl();
     }
 
     // Fetch total size of buffer; -1 indicates unbounded dynamic buffer
-    virtual ssize_t size() {
+    ssize_t size() {
         return size_impl();
     }
 
     // Fetch available space in buffer, -1 indicates unbounded dynamic buffer
-    virtual ssize_t available() {
+    ssize_t available() {
         return available_impl();
     }
 
     // Fetch amount used in current buffer
-    virtual size_t used() {
+    size_t used() {
         return used_impl();
     }
 
@@ -96,7 +96,10 @@ public:
     // commit will fail.
     //
     // Even reserve fails, a commit must be called to complete the transaction.
-    virtual ssize_t reserve(unsigned char **data, size_t in_sz)  {
+    //
+    // A reserved block must be committed.  At the time of reservation, a reserved
+    // block is guaranteed to fit in the buffer.
+    ssize_t reserve(unsigned char **data, size_t in_sz)  {
         local_eol_locker wl(&write_mutex);
 
         if (write_reserved) {
@@ -107,10 +110,6 @@ public:
         free_commit = false;
 
         if (in_sz == 0) {
-            return 0;
-        }
-
-        if (available() < (ssize_t) in_sz) {
             return 0;
         }
 
@@ -153,7 +152,7 @@ public:
     // Only one reservation may be made at a time.
     //
     // The caller must commit the reserved data.
-    virtual ssize_t zero_copy_reserve(unsigned char **data, size_t in_sz) {
+    size_t zero_copy_reserve(unsigned char **data, size_t in_sz) {
         local_eol_locker wl(&write_mutex);
 
         if (write_reserved) {
@@ -178,7 +177,7 @@ public:
     // Commit changes to the reserved block
     //
     // Implementations should release the write_mutex lock 
-    virtual bool commit(unsigned char *data, size_t in_sz) {
+    bool commit(unsigned char *data, size_t in_sz) {
         if (!write_reserved)
             throw std::runtime_error("buffer commit, but no reserved data");
 
@@ -237,18 +236,11 @@ public:
     // reservation system.
     //
     // This may awaken pending reads awaiting data
-    virtual ssize_t write(unsigned char *data, size_t in_sz) {
+    size_t write(unsigned char *data, size_t in_sz) {
         local_locker writelock(&write_mutex);
 
         if (write_reserved) {
             throw std::runtime_error("buffer write already locked");
-        }
-
-        if (in_sz == 0)
-            return 0;
-
-        if (available() < (ssize_t) in_sz) {
-            return 0;
         }
 
         auto r = write_impl(data, in_sz);
@@ -281,7 +273,7 @@ public:
         auto r = write(data, in_sz);
 
         // If write succeeded, no reason to block for future
-        if (r == (ssize_t) in_sz)
+        if (r == (size_t) in_sz)
             return r;
 
         if (wanted_write_sz > 0)
@@ -320,7 +312,7 @@ public:
     // buffer implementation cannot return a zero-copy reference; as such it is most 
     // appropriate for performing read operations of structured data where the entire
     // object must be available.
-    virtual ssize_t peek(unsigned char **data, size_t in_sz) {
+    size_t peek(unsigned char **data, size_t in_sz) {
         local_eol_locker peeklock(&write_mutex);
 
         if (peek_reserved) {
@@ -345,7 +337,7 @@ public:
         auto r = peek(data, in_sz);
 
         // If peek succeeded, no reason to block for future
-        if (r == (ssize_t) in_sz)
+        if (r == (size_t) in_sz)
             return r;
 
         // Note how much we want
@@ -386,7 +378,7 @@ public:
     //
     // Only one piece of data may be peek'd at a time, additional attempts prior
     // to a peek_free will fail; this includes peek() and zero_copy_peek()
-    virtual ssize_t zero_copy_peek(unsigned char **data, size_t in_sz) {
+    ssize_t zero_copy_peek(unsigned char **data, size_t in_sz) {
         local_eol_locker peeklock(&write_mutex);
 
         if (peek_reserved) {
@@ -399,7 +391,7 @@ public:
 
     // Deallocate peeked data; implementations should also use this time to release
     // the peek_mutex lock on peek data
-    virtual void peek_free(unsigned char *data) {
+    void peek_free(unsigned char *data) {
         local_unlocker unpeeklock(&write_mutex);
 
         if (!peek_reserved) {
@@ -413,7 +405,7 @@ public:
     }
 
     // Remove data from a buffer (which may awaken a pending write)
-    virtual size_t consume(size_t in_sz)  {
+    size_t consume(size_t in_sz)  {
         // Protect cross-thread
         local_locker peeklock(&write_mutex);
 
@@ -443,7 +435,7 @@ public:
     }
 
     // Cancel pending operations
-    virtual void cancel_blocked_reserve() {
+    void cancel_blocked_reserve() {
         try {
             try {
                 throw common_buffer_cancel();
@@ -456,7 +448,7 @@ public:
         }
     }
 
-    virtual void cancel_blocked_write() {
+    void cancel_blocked_write() {
         try {
             try {
                 throw common_buffer_cancel();
