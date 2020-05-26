@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -21,7 +21,8 @@
 #include "util.h"
 #include "filewritebuf.h"
 
-file_write_buffer::file_write_buffer(std::string in_filename, size_t in_chunk) {
+file_write_buffer::file_write_buffer(std::string in_filename, size_t in_chunk) :
+    common_buffer() {
     filename = in_filename;
     chunk_sz = in_chunk;
 
@@ -38,8 +39,6 @@ file_write_buffer::file_write_buffer(std::string in_filename, size_t in_chunk) {
 }
 
 file_write_buffer::~file_write_buffer() {
-    local_locker lock(&write_mutex);
-
     if (backfile != NULL) {
         fflush(backfile);
         fclose(backfile);
@@ -51,9 +50,7 @@ file_write_buffer::~file_write_buffer() {
        
 }
 
-void file_write_buffer::clear() {
-    local_locker lock(&write_mutex);
-   
+void file_write_buffer::clear_impl() {
     if (backfile != NULL) {
         if (ftruncate(fileno(backfile), 0) < 0) {
             fflush(backfile);
@@ -63,27 +60,14 @@ void file_write_buffer::clear() {
     }
 }
 
-size_t file_write_buffer::used() {
-    local_locker lock(&write_mutex);
-
+size_t file_write_buffer::used_impl() {
     if (backfile != NULL) 
         return (size_t) ftell(backfile);
 
     return 0;
 }
 
-size_t file_write_buffer::total() {
-    local_locker lock(&write_mutex);
-
-    if (backfile != NULL)
-        return (size_t) ftell(backfile);
-
-    return 0;
-}
-
-ssize_t file_write_buffer::write(uint8_t *in_data, size_t in_sz) {
-    local_locker lock(&write_mutex);
-
+ssize_t file_write_buffer::write_impl(uint8_t *in_data, size_t in_sz) {
     if (backfile == NULL)
         return -1;
 
@@ -95,13 +79,7 @@ ssize_t file_write_buffer::write(uint8_t *in_data, size_t in_sz) {
     return 0;
 }
 
-ssize_t file_write_buffer::reserve(unsigned char **data, size_t in_sz) {
-    local_eol_locker lock(&write_mutex);
-
-    if (write_reserved) {
-        throw std::runtime_error("filebuf already reserved");
-    }
-
+ssize_t file_write_buffer::reserve_impl(unsigned char **data, size_t in_sz) {
     write_reserved = true;
 
     if (in_sz < chunk_sz) {
@@ -116,28 +94,7 @@ ssize_t file_write_buffer::reserve(unsigned char **data, size_t in_sz) {
 
 }
 
-ssize_t file_write_buffer::zero_copy_reserve(unsigned char **data, size_t in_sz) {
+ssize_t file_write_buffer::zero_copy_reserve_impl(unsigned char **data, size_t in_sz) {
     return reserve(data, in_sz);
-}
-
-bool file_write_buffer::commit(unsigned char *data, size_t in_sz) {
-    local_unlocker unwritelock(&write_mutex);
-
-    if (!write_reserved) 
-        throw std::runtime_error("filebuf no pending commit");
-
-    if (backfile == NULL)
-        throw std::runtime_error("filebuf could not open " + filename);
-
-    write_reserved = false;
-
-    size_t written = fwrite(data, in_sz, 1, backfile);
-
-    if (free_commit) {
-        free_commit = false;
-        delete[] data;
-    }
-
-    return written == 1;
 }
 
