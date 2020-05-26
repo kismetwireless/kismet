@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -47,35 +47,23 @@ chainbuf::chainbuf(size_t in_chunk, size_t pre_allocate) {
 chainbuf::~chainbuf() {
     local_locker lock(&write_mutex);
 
-    // fprintf(stderr, "debug - freeing chainbuf, total size %zu chunks %zu, largest allocation delta %zu\n", total_sz, (total_sz / chunk_sz) + 1, alloc_delta);
-
     clear();
 }
 
-void chainbuf::clear() {
-    local_locker lock(&write_mutex);
-
+void chainbuf::clear_impl() {
     for (auto x : buff_vec) 
         delete[](x);
 
     buff_vec.clear();
 }
 
-size_t chainbuf::used() {
+size_t chainbuf::used_impl() {
     local_locker lock(&write_mutex);
 
     return used_sz;
 }
 
-size_t chainbuf::total() {
-    local_locker lock(&write_mutex);
-
-    return total_sz;
-}
-
-ssize_t chainbuf::write(uint8_t *in_data, size_t in_sz) {
-    local_locker lock(&write_mutex);
-
+ssize_t chainbuf::write_impl(uint8_t *in_data, size_t in_sz) {
     size_t total_written = 0;
 
     while (total_written < in_sz) {
@@ -124,13 +112,7 @@ ssize_t chainbuf::write(uint8_t *in_data, size_t in_sz) {
     return total_written;
 }
 
-ssize_t chainbuf::peek(uint8_t **ret_data, size_t in_sz) {
-    local_eol_locker peeklock(&write_mutex);
-
-    if (peek_reserved) {
-        throw std::runtime_error("chainbuf peek already locked");
-    }
-
+ssize_t chainbuf::peek_impl(unsigned char **ret_data, size_t in_sz) {
     if (used() == 0) {
         free_read = false;
         peek_reserved = true;
@@ -184,13 +166,7 @@ ssize_t chainbuf::peek(uint8_t **ret_data, size_t in_sz) {
     return goal_sz;
 }
 
-ssize_t chainbuf::zero_copy_peek(uint8_t **ret_data, size_t in_sz) {
-    local_eol_locker peeklock(&write_mutex);
-
-    if (peek_reserved) {
-        throw std::runtime_error("chainbuf peek already locked");
-    }
-
+ssize_t chainbuf::zero_copy_peek_impl(unsigned char **ret_data, size_t in_sz) {
     if (used() == 0) {
         free_read = false;
         peek_reserved = true;
@@ -201,11 +177,8 @@ ssize_t chainbuf::zero_copy_peek(uint8_t **ret_data, size_t in_sz) {
     }
 
     if (read_buf == NULL) {
-        fprintf(stderr, "read in null at block %u used %zu\n", read_block, used());
         throw std::runtime_error("chainbuf advanced into null readbuf");
     }
-
-    // fprintf(stderr, "debug - chainbuf peeking read_block %u\n", read_block);
 
     // Pick the least size: a zero-copy of our buffer, the requested size,
     // or the amount actually used
@@ -220,13 +193,7 @@ ssize_t chainbuf::zero_copy_peek(uint8_t **ret_data, size_t in_sz) {
     return goal_sz;
 }
 
-void chainbuf::peek_free(unsigned char *in_data) {
-    local_unlocker unpeeklock(&write_mutex);
-
-    if (!peek_reserved) {
-        throw std::runtime_error("chainbuf peek_free on unlocked buffer");
-    }
-
+void chainbuf::peek_free_impl(unsigned char *in_data) {
     if (free_read && in_data != NULL) {
         delete[] in_data;
     }
@@ -235,18 +202,7 @@ void chainbuf::peek_free(unsigned char *in_data) {
     free_read = false;
 }
 
-size_t chainbuf::consume(size_t in_sz) {
-    // Protect against crossthread
-    local_locker writelock(&write_mutex);
-
-    if (peek_reserved) {
-        throw std::runtime_error("chainbuf consume while peeked data pending");
-    }
-
-    if (write_reserved) {
-        throw std::runtime_error("chainbuf consume while write block is reserved");
-    }
-
+size_t chainbuf::consume_impl(size_t in_sz) {
     ssize_t consumed_sz = 0;
     int block_offt = 0;
 
@@ -267,8 +223,6 @@ size_t chainbuf::consume(size_t in_sz) {
         // Jump the read offset
         read_offt += rd_sz;
 
-        // fprintf(stderr, "debug - chainbuf - consumed, read_offt %zu\n", read_offt);
-
         // We've jumped to the next block...
         if (read_offt >= chunk_sz) {
             // fprintf(stderr, "debug - read consumed %u, deleting\n", read_block);
@@ -280,7 +234,6 @@ size_t chainbuf::consume(size_t in_sz) {
             block_offt++;
 
             // Remove the old read block and set the slot to null
-            // fprintf(stderr, "debug - chainbuf read_block freeing %u\n", read_block);
             delete[](buff_vec[read_block]);
             buff_vec[read_block] = NULL;
 
@@ -291,24 +244,15 @@ size_t chainbuf::consume(size_t in_sz) {
                 read_buf = buff_vec[read_block];
             else
                 read_buf = NULL;
-
-            // fprintf(stderr, "debug - chainbuf - moved read_buf to %p\n", read_buf);
         }
 
     }
 
-    // fprintf(stderr, "debug - chainbuf - consumed %zu used %zu\n", consumed_sz, used_sz);
     used_sz -= consumed_sz;
     return consumed_sz;
 }
 
-ssize_t chainbuf::reserve(unsigned char **data, size_t in_sz) {
-    local_eol_locker writelock(&write_mutex);
-
-    if (write_reserved) {
-        throw std::runtime_error("chainbuf already locked");
-    }
-
+ssize_t chainbuf::reserve_impl(unsigned char **data, size_t in_sz) {
     // If we can fit inside the chunk we're in now...
     if (in_sz < chunk_sz - write_offt) {
         *data = write_buf + write_offt;
@@ -322,39 +266,8 @@ ssize_t chainbuf::reserve(unsigned char **data, size_t in_sz) {
     return in_sz;
 }
 
-ssize_t chainbuf::zero_copy_reserve(unsigned char **data, size_t in_sz) {
+ssize_t chainbuf::zero_copy_reserve_impl(unsigned char **data, size_t in_sz) {
     // We can't do better than our zero copy attempt
     return reserve(data, in_sz);
 }
 
-bool chainbuf::commit(unsigned char *data, size_t in_sz) {
-    local_unlocker unwritelock(&write_mutex);
-
-    if (!write_reserved) {
-        throw std::runtime_error("chainbuf no pending commit");
-    }
-
-    // Unlock the write state
-    write_reserved = false;
-
-    // If we have allocated an interstitial buffer, we need copy the data over and delete
-    // the temp buffer
-    if (free_commit) {
-        free_commit = false;
-
-        ssize_t written = write(data, in_sz);
-
-        delete[] data;
-
-        if (written < 0)
-            return false;
-
-        return (size_t) written == in_sz;
-    } else {
-        ssize_t written = write(NULL, in_sz);
-        if (written < 0)
-            return false;
-
-        return (size_t) written == in_sz;
-    }
-}

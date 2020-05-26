@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -49,40 +49,6 @@ public:
     chainbuf(size_t in_chunk = 1024, size_t pre_allocate = 128);
     virtual ~chainbuf();
 
-    // Erase buffer
-    virtual void clear();
-
-    // Return amount used in buffer
-    virtual size_t used();
-
-    // Return about available (effectively "infinite"), use a crappy hack for now and
-    // always return the chunk size
-    virtual ssize_t available() { 
-        return chunk_sz;
-    }
-    
-    virtual ssize_t size() {
-        return chunk_sz;
-    }
-
-    // Total size ever used by buffer
-    virtual size_t total();
-
-    // Peek from buffer; will only return up to chunk size per peek
-    virtual ssize_t peek(unsigned char **ret_data, size_t in_sz);
-    virtual ssize_t zero_copy_peek(unsigned char **ret_data, size_t in_sz);
-    virtual void peek_free(unsigned char *in_data);
-
-    // Write amount to buffer, arbitrarily allocating new chunks
-    virtual ssize_t write(unsigned char *in_data, size_t in_sz);
-  
-    virtual ssize_t reserve(unsigned char **data, size_t in_sz);
-    virtual ssize_t zero_copy_reserve(unsigned char **data, size_t in_sz);
-    virtual bool commit(unsigned char *data, size_t in_sz);
-
-    // Consume from buffer
-    size_t consume(size_t in_sz);
-
 protected:
     size_t chunk_sz;
     bool free_after_read;
@@ -102,6 +68,36 @@ protected:
     std::atomic<bool> free_read, free_commit;
 
     size_t alloc_delta;
+
+    // Erase buffer
+    virtual void clear_impl() override;
+
+    // Return amount used in buffer
+    virtual size_t used_impl() override;
+
+    // Return about available (effectively "infinite"), use a crappy hack for now and
+    // always return the chunk size
+    virtual ssize_t available_impl() override { 
+        return chunk_sz;
+    }
+    
+    virtual ssize_t size_impl() override {
+        return chunk_sz;
+    }
+
+    // Peek from buffer; will only return up to chunk size per peek
+    virtual ssize_t peek_impl(unsigned char **ret_data, size_t in_sz) override;
+    virtual ssize_t zero_copy_peek_impl(unsigned char **ret_data, size_t in_sz) override;
+    virtual void peek_free_impl(unsigned char *in_data) override;
+
+    // Write amount to buffer, arbitrarily allocating new chunks
+    virtual ssize_t write_impl(unsigned char *in_data, size_t in_sz) override;
+  
+    virtual ssize_t reserve_impl(unsigned char **data, size_t in_sz) override;
+    virtual ssize_t zero_copy_reserve_impl(unsigned char **data, size_t in_sz) override;
+
+    // Consume from buffer
+    size_t consume_impl(size_t in_sz) override;
 
 };
 
