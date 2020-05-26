@@ -26,10 +26,10 @@
 #include "ringbuf2.h"
 
 ringbuf_v2::ringbuf_v2(size_t in_sz) :
+    common_buffer(),
     buffer_sz {in_sz},
     start_pos {0},
-    length {0},
-    free_peek {false} {
+    length {0} {
 
     // Initialize the buffer as a fixed object
     buffer = new unsigned char[in_sz];
