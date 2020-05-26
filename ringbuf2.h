@@ -38,29 +38,25 @@ public:
     ringbuf_v2(size_t in_sz);
     virtual ~ringbuf_v2();
 
-    // Reset a buffer
-    virtual void clear();
-
-    virtual ssize_t size();
-    virtual ssize_t available();
-    virtual size_t used();
-
-    // Write data into a buffer
-    // Return amount of data actually written
-    virtual ssize_t write(unsigned char *in_data, size_t in_sz);
-
-    // Peek at data
-    virtual ssize_t peek(unsigned char **in_data, size_t in_sz);
-    virtual ssize_t zero_copy_peek(unsigned char **in_data, size_t in_sz);
-    virtual void peek_free(unsigned char *in_data);
-
-    virtual size_t consume(size_t in_sz);
-
-    virtual ssize_t reserve(unsigned char **data, size_t in_sz);
-    virtual ssize_t zero_copy_reserve(unsigned char **data, size_t in_sz);
-    virtual bool commit(unsigned char *data, size_t in_sz);
-
 protected:
+    // Reset a buffer
+    virtual void clear_impl() override;
+
+    virtual ssize_t size_impl() override;
+    virtual ssize_t available_impl() override;
+    virtual size_t used_impl() override;
+
+    virtual ssize_t write_impl(unsigned char *in_data, size_t in_sz) override;
+
+    virtual ssize_t peek_impl(unsigned char **in_data, size_t in_sz) override;
+    virtual ssize_t zero_copy_peek_impl(unsigned char **in_data, size_t in_sz) override;
+    virtual void peek_free_impl(unsigned char *in_data) override;
+
+    virtual size_t consume_impl(size_t in_sz) override;
+
+    virtual ssize_t reserve_impl(unsigned char **data, size_t in_sz) override;
+    virtual ssize_t zero_copy_reserve_impl(unsigned char **data, size_t in_sz) override;
+
     unsigned char *buffer;
 
     // Total size
@@ -69,9 +65,6 @@ protected:
     std::atomic<size_t> start_pos;
     // Length of data currently in buffer
     std::atomic<size_t> length;
-
-    // Do we need to free our peeked or committed data?
-    std::atomic<bool> free_peek, free_commit;
 };
 
 

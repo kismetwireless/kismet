@@ -21,38 +21,65 @@
 
 #include "config.h"
 
-#include <stdlib.h>
-#include <string>
+#include <exception>
 #include <functional>
-#include <streambuf>
+#include <future>
 #include <iostream>
 #include <memory>
+#include <stdlib.h>
+#include <string>
+#include <streambuf>
 
-#include "util.h"
 #include "kis_mutex.h"
+#include "util.h"
 
 class buffer_interface;
 
-// Common minimal API for a buffer
+struct common_buffer_cancel : public std::exception {
+    const char *what () const throw () {
+        return "operation cancelled";
+    }
+};
+
+// Common buffer API
+// Each buffer can be filled and drained; a typical communications channel will need 
+// to use two buffers, one for rx and one for tx.
+//
+// The common buffer layer attempts to implement all needed thread protection around
+// the buffer internals.
+//
+// Blocking variants are offered using the promise/future mechanism, whereby
+// consumers can allocate threads which await new data.
 class common_buffer {
 public:
     common_buffer() :
         write_reserved {false},
-        peek_reserved {false} { }
+        peek_reserved {false},
+        free_peek {false},
+        free_commit {false} { }
 
     virtual ~common_buffer() { };
 
     // Clear all data (and free memory used, for dynamic buffers)
-    virtual void clear() = 0;
+    virtual void clear() {
+        local_locker l(&write_mutex);
+        clear_impl();
+    }
 
     // Fetch total size of buffer; -1 indicates unbounded dynamic buffer
-    virtual ssize_t size() = 0;
+    virtual ssize_t size() {
+        return size_impl();
+    }
 
     // Fetch available space in buffer, -1 indicates unbounded dynamic buffer
-    virtual ssize_t available() = 0;
+    virtual ssize_t available() {
+        return available_impl();
+    }
 
     // Fetch amount used in current buffer
-    virtual size_t used() = 0;
+    virtual size_t used() {
+        return used_impl();
+    }
 
     // Reserve space in the write buffer; for fixed-size buffers such as a ringbuf this
     // will reserve the space and provide a direct pointer to the space.  For continual
@@ -66,12 +93,57 @@ public:
     // require an additional memory copy.
     //
     // Only one reservation may be made at a time.  Additional reservations without a
-    // commit should fail.
+    // commit will fail.
     //
-    // Implementations must track internally if the reserved data must be free'd upon commit
-    //
-    // Implementations should protect cross-thread reservations via write_mutex
-    virtual ssize_t reserve(unsigned char **data, size_t in_sz) = 0;
+    // Even reserve fails, a commit must be called to complete the transaction.
+    virtual ssize_t reserve(unsigned char **data, size_t in_sz)  {
+        local_eol_locker wl(&write_mutex);
+
+        if (write_reserved) {
+            throw std::runtime_error("buffer reserve already locked");
+        }
+
+        write_reserved = true;
+        free_commit = false;
+
+        if (in_sz == 0) {
+            return 0;
+        }
+
+        if (available() < (ssize_t) in_sz) {
+            return 0;
+        }
+
+        return reserve_impl(data, in_sz);
+    }
+
+    // Perform a blocking version of a reserve
+    template< class Rep, class Period>
+    ssize_t reserve_block(unsigned char **data, size_t in_sz,
+            const std::chrono::duration<Rep,Period>& timeout_duration) {
+        // Perform a normal reserve
+        auto r = reserve(data, in_sz);
+
+        if (r == (ssize_t) in_sz)
+            return r;
+
+        commit(*data, 0);
+
+        if (wanted_write_sz > 0)
+            throw std::runtime_error("attempt to reserve while blocking for write");
+
+        wanted_write_sz = in_sz;
+        write_size_avail_pm = std::promise<bool>();
+        auto ft = write_size_avail_pm.get_future();
+
+        // Wait for it
+        if (timeout_duration == 0)
+            ft.wait();
+        else
+            ft.wait_for(timeout_duration);
+
+        reserve(data, in_sz);
+    }
 
     // Reserve as much space as possible, up to in_sz, and do as much as possible to 
     // ensure it is a zero-copy buffer.
@@ -81,40 +153,224 @@ public:
     // Only one reservation may be made at a time.
     //
     // The caller must commit the reserved data.
-    //
-    // Implementations should protect cross-thread reservations via write_mutex
-    virtual ssize_t zero_copy_reserve(unsigned char **data, size_t in_sz) = 0;
+    virtual ssize_t zero_copy_reserve(unsigned char **data, size_t in_sz) {
+        local_eol_locker wl(&write_mutex);
+
+        if (write_reserved) {
+            throw std::runtime_error("buffer zero_copy_reserve already locked");
+        }
+
+        write_reserved = true;
+        free_commit = false;
+
+        if (in_sz == 0) {
+            return 0;
+        }
+
+        if (available() < (ssize_t) in_sz) {
+            return 0;
+        }
+
+        return zero_copy_reserve_impl(data, in_sz);
+
+    }
 
     // Commit changes to the reserved block
     //
     // Implementations should release the write_mutex lock 
-    virtual bool commit(unsigned char *data, size_t in_sz) = 0;
+    virtual bool commit(unsigned char *data, size_t in_sz) {
+        if (!write_reserved)
+            throw std::runtime_error("buffer commit, but no reserved data");
+
+        local_unlocker uwl(&write_mutex);
+
+        write_reserved = false;
+
+        // If we have allocated an interstitial buffer, we need copy the data over and delete
+        // the temp buffer
+        if (free_commit) {
+            free_commit = false;
+
+            if (in_sz == 0)
+                return true;
+
+            ssize_t written = write(data, in_sz);
+
+            delete[] data;
+
+            if (written < 0)
+                return false;
+
+            if ((size_t) written != in_sz)
+                return false;
+        } else {
+            if (in_sz == 0)
+                return true;
+
+            ssize_t written = write(NULL, in_sz);
+
+            if (written < 0)
+                return false;
+
+            if ((size_t) written != in_sz)
+                return false;
+        }
+
+        // Wake up any pending future
+        if (wanted_read_sz > 0) {
+            wanted_read_sz -= in_sz;
+
+            if (wanted_read_sz <= 0) {
+                try {
+                    read_size_avail_pm.set_value(true);
+                } catch (const std::future_error& e) {
+                    ;
+                }
+            }
+        }
+
+        return true;
+    }
 
     // Write an existing block of data to the buffer; this always performs a memcpy to copy 
     // the data into the buffer.  When possible, it is more efficient to use the 
     // reservation system.
     //
-    // Implementations should protect cross-thread reservations via write_mutex
-    virtual ssize_t write(unsigned char *data, size_t in_sz) = 0;
+    // This may awaken pending reads awaiting data
+    virtual ssize_t write(unsigned char *data, size_t in_sz) {
+        local_locker writelock(&write_mutex);
+
+        if (write_reserved) {
+            throw std::runtime_error("buffer write already locked");
+        }
+
+        if (in_sz == 0)
+            return 0;
+
+        if (available() < (ssize_t) in_sz) {
+            return 0;
+        }
+
+        auto r = write_impl(data, in_sz);
+
+        // Wake up any pending future
+        if (wanted_read_sz > 0) {
+            wanted_read_sz -= r;
+
+            if (wanted_read_sz <= 0) {
+                try {
+                    read_size_avail_pm.set_value(true);
+                } catch (const std::future_error& e) {
+                    ;
+                }
+            }
+        }
+
+        return r;
+    }
+
+    // Perform a blocking version of write
+    template< class Rep, class Period>
+    ssize_t write_block(unsigned char *data, size_t in_sz,
+            const std::chrono::duration<Rep,Period>& timeout_duration) {
+        // Write doesn't leave us locked, so set up an external lock here
+        local_demand_locker l(&write_mutex);
+        l.lock();
+
+        // Perform a normal write
+        auto r = write(data, in_sz);
+
+        // If write succeeded, no reason to block for future
+        if (r == (ssize_t) in_sz)
+            return r;
+
+        if (wanted_write_sz > 0)
+            throw std::runtime_error("attempt to write while blocking for reserve");
+
+        wanted_write_sz = in_sz;
+        write_size_avail_pm = std::promise<bool>();
+        auto ft = write_size_avail_pm.get_future();
+
+        l.unlock();
+
+        // Wait for it
+        if (timeout_duration == 0)
+            ft.wait();
+        else
+            ft.wait_for(timeout_duration);
+
+        // Perform another write
+        return write(data, in_sz);
+    }
 
     // Peek data.  If possible, this will be a zero-copy operation, if not, it will 
     // allocate a buffer.  Content is returned in the **data pointer, which will be
-    // a buffer of at least the returned size;  Peeking may return less data
-    // than requested.
+    // a buffer of at least the returned size.
+    //
+    // Insufficient data available in the buffer will return a -1, but peek_free
+    // MUST STILL BE CALLED.
     //
     // Callers MUST free the data with 'peek_free(...)'.  Buffer implementations MUST
     // track if the peeked data must be deleted or if it is a zero-copy reference.
     //
-    // Only one piece of data should be peek'd at a time, additional attempts prior
-    // to a peek_free may fail.  This includes peek() and zero_copy_peek()
+    // Only one piece of data may be peek'd at a time, additional attempts prior
+    // to a peek_free will fail.  This includes peek() and zero_copy_peek()
     //
     // peek will perform a copy to fulfill the total data size if the underlying
     // buffer implementation cannot return a zero-copy reference; as such it is most 
     // appropriate for performing read operations of structured data where the entire
     // object must be available.
+    virtual ssize_t peek(unsigned char **data, size_t in_sz) {
+        local_eol_locker peeklock(&write_mutex);
+
+        if (peek_reserved) {
+            peeklock.unlock();
+            throw std::runtime_error("peek already locked");
+        }
+
+        return peek_impl(data, in_sz);
+    }
+
+    // Attempt a peek while blocking until at least the requested amount of
+    // data is available.  Optimized to perform zero-copy peeks whenever possible.
     //
-    // implementations should protect peek data cross-thread using the peek_mutex 
-    virtual ssize_t peek(unsigned char **data, size_t in_sz) = 0;
+    // If timeout is 0, do not set a timeout (possibly dangerous).
+    //
+    // Failure to receive sufficient data within a timeout will throw an exception.
+    template< class Rep, class Period>
+    ssize_t peek_block(unsigned char **data, size_t in_sz,
+            const std::chrono::duration<Rep,Period>& timeout_duration) {
+
+        // Perform a normal peek
+        auto r = peek(data, in_sz);
+
+        // If peek succeeded, no reason to block for future
+        if (r == (ssize_t) in_sz)
+            return r;
+
+        // Note how much we want
+        wanted_read_sz = in_sz;
+
+        // Initialize the promise
+        read_size_avail_pm = std::promise<bool>();
+
+        // Get a future to pend on
+        auto ft = read_size_avail_pm.get_future();
+
+        // Free the peek (and release the write lock) so that additional data can be 
+        // written to the buffer to meet our requirements
+        peek_free(*data);
+
+        // Wait for it
+        if (timeout_duration == 0)
+            ft.wait();
+        else
+            ft.wait_for(timeout_duration);
+
+        // Perform another peek
+        return peek(data, in_sz);
+    }
+
 
     // Attempt a zero-copy peek; if the underlying buffer supports zero-copy references
     // this will return a direct pointer to the buffer contents; if the underlying buffer
@@ -125,25 +381,122 @@ public:
     //
     // zero_copy_peek will NEVER allocate and copy a buffer when a no-copy shorter
     // buffer is available; This is most suited for draining buffers to an IO system
-    // where the exact record length is not relevant; in general it is not as useful
-    // when a fixed record size must be available.
+    // where the exact record length is not relevant; any common io for filling a structure
+    // should use normal peek.
     //
-    // Only one piece of data should be peek'd at a time, additional attempts prior
-    // to a peek_free may fail; this includes peek() and zero_copy_peek()
-    //
-    // implementations should protect peek data cross-thread using the peek_mutex 
-    virtual ssize_t zero_copy_peek(unsigned char **data, size_t in_sz) = 0;
+    // Only one piece of data may be peek'd at a time, additional attempts prior
+    // to a peek_free will fail; this includes peek() and zero_copy_peek()
+    virtual ssize_t zero_copy_peek(unsigned char **data, size_t in_sz) {
+        local_eol_locker peeklock(&write_mutex);
+
+        if (peek_reserved) {
+            peeklock.unlock();
+            throw std::runtime_error("buffer peek while peek already locked");
+        }
+
+        return zero_copy_peek_impl(data, in_sz);
+    }
 
     // Deallocate peeked data; implementations should also use this time to release
     // the peek_mutex lock on peek data
-    virtual void peek_free(unsigned char *data) = 0;
+    virtual void peek_free(unsigned char *data) {
+        local_unlocker unpeeklock(&write_mutex);
 
-    // Remove data from a buffer
-    virtual size_t consume(size_t in_sz) = 0;
+        if (!peek_reserved) {
+            throw std::runtime_error("peek_free on unpeeked buffer");
+        }
+
+        peek_free_impl(data);
+
+        peek_reserved = false;
+        free_peek = false;
+    }
+
+    // Remove data from a buffer (which may awaken a pending write)
+    virtual size_t consume(size_t in_sz)  {
+        // Protect cross-thread
+        local_locker peeklock(&write_mutex);
+
+        if (peek_reserved) {
+            throw std::runtime_error("buffer consume while peeked data pending");
+        }
+
+        if (write_reserved) {
+            throw std::runtime_error("buffer consume while reserved data pending");
+        }
+
+        auto r = consume_impl(in_sz);
+
+        if (wanted_write_sz > 0) {
+            wanted_write_sz -= r;
+
+            if (wanted_write_sz <= 0) {
+                try {
+                    write_size_avail_pm.set_value(true);
+                } catch (const std::future_error& e) {
+                    ;
+                }
+            }
+        }
+
+        return r;
+    }
+
+    // Cancel pending operations
+    virtual void cancel_blocked_reserve() {
+        try {
+            try {
+                throw common_buffer_cancel();
+            } catch (const std::runtime_error& e) {
+                write_size_avail_pm.set_exception(std::current_exception());
+            }
+        } catch (const std::future_error& e) {
+            // Silently ignore if the future is invalid
+            ;
+        }
+    }
+
+    virtual void cancel_blocked_write() {
+        try {
+            try {
+                throw common_buffer_cancel();
+            } catch (const std::runtime_error& e) {
+                write_size_avail_pm.set_exception(std::current_exception());
+            }
+        } catch (const std::future_error& e) {
+            // Silently ignore if the future is invalid
+            ;
+        }
+    }
 
 protected:
+    virtual void clear_impl() = 0;
+    virtual ssize_t size_impl() = 0;
+    virtual ssize_t available_impl() = 0;
+    virtual size_t used_impl() = 0;
+    virtual ssize_t reserve_impl(unsigned char **data, size_t in_sz) = 0;
+    virtual ssize_t zero_copy_reserve_impl(unsigned char **data, size_t in_sz) = 0;
+    virtual ssize_t write_impl(unsigned char *data, size_t in_sz) = 0;
+    virtual ssize_t peek_impl(unsigned char **data, size_t in_sz) = 0;
+    virtual ssize_t zero_copy_peek_impl(unsigned char **data, size_t in_sz) = 0;
+    virtual void peek_free_impl(unsigned char *data) = 0;
+    virtual size_t consume_impl(size_t in_sz) = 0;
+
     std::atomic<bool> write_reserved;
     std::atomic<bool> peek_reserved;
+    std::atomic<bool> free_peek, free_commit;
+
+    // Pending unfulfillable write and read counts, if we're blocking
+    std::atomic<ssize_t> wanted_write_sz;
+    std::atomic<ssize_t> wanted_read_sz;
+
+    // Promise fulfilled when pending write space is available
+    std::promise<bool> write_size_avail_pm;
+    std::future<bool> write_size_avail_ft;
+
+    // Promise fulfilled when pending read data is available
+    std::promise<bool> read_size_avail_pm;
+    std::future<bool> read_size_avail_ft;
 
     // Additional mutex for protecting peek and write reservations across threads
     kis_recursive_timed_mutex peek_mutex, write_mutex;
