@@ -41,10 +41,8 @@
 // interface for reading data coming in from the client.
 class tcp_client_v2 : public kis_pollable {
 public:
-    tcp_client_v2(global_registry *in_globalreg, std::shared_ptr<buffer_handler_generic> in_rbhandler);
+    tcp_client_v2(std::shared_ptr<buffer_pair> in_rbhandler);
     virtual ~tcp_client_v2();
-
-    virtual void set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
 
     // Connect to a host, returns 0 if connection initiated and negative if fail
     int connect(std::string in_host, unsigned int in_port);
@@ -57,10 +55,7 @@ public:
     virtual int pollable_poll(fd_set& in_rset, fd_set& in_wset);
 
 protected:
-    global_registry *globalreg;
-    std::shared_ptr<buffer_handler_generic> handler;
-
-    std::shared_ptr<kis_recursive_timed_mutex> tcp_mutex;
+    std::shared_ptr<buffer_pair> handler;
 
     std::atomic<bool> pending_connect;
     std::atomic<bool> connected;
