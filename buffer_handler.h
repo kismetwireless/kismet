@@ -76,6 +76,25 @@ public:
         return available_impl();
     }
 
+    // Block until any new amount of data is available; useful for non-packet streamers
+    template< class Rep, class Period>
+    ssize_t new_available_block(const std::chrono::duration<Rep,Period>& timeout_duration) {
+        if (wanted_read_sz > 0)
+            throw std::runtime_error("attempt to block for available while blocking for read");
+
+        wanted_read_sz = 1;
+        read_size_avail_pm = std::promise<bool>();
+        auto ft = read_size_avail_pm.get_future();
+
+        // Wait for it
+        if (timeout_duration == 0)
+            ft.wait();
+        else
+            ft.wait_for(timeout_duration);
+
+        return available();
+    }
+
     // Fetch amount used in current buffer
     size_t used() {
         return used_impl();
@@ -572,6 +591,22 @@ public:
     virtual ssize_t available_wbuf() {
         if (write_buffer != nullptr)
             return write_buffer->available();
+
+        return -1;
+    }
+
+    template< class Rep, class Period>
+    ssize_t new_available_block_rbuf(const std::chrono::duration<Rep,Period>& timeout_duration) {
+        if (read_buffer != nullptr)
+            return read_buffer->new_available_block(timeout_duration);
+
+        return -1;
+    }
+
+    template< class Rep, class Period>
+    ssize_t new_available_block_wbuf(const std::chrono::duration<Rep,Period>& timeout_duration) {
+        if (write_buffer != nullptr)
+            return read_buffer->new_available_block(timeout_duration);
 
         return -1;
     }
