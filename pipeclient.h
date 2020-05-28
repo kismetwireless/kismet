@@ -35,14 +35,9 @@
 //
 // Handles r/w against two pipe(2) pairs which should be provided by 
 // the IPC spawning system.
-//
-// Populates the read buffer of a rbhandler and drains the write buffer
-//
-// Like other backend clients of a ringbuf handler, does not register as a read
-// or write directly but consumes out of the handler
 class pipe_client : public kis_pollable {
 public:
-    pipe_client(global_registry *in_globalreg, std::shared_ptr<buffer_handler_generic> in_rbhandler);
+    pipe_client(std::shared_ptr<buffer_pair> in_rbhandler);
     virtual ~pipe_client();
 
     virtual void set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
@@ -55,19 +50,15 @@ public:
     virtual int pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
     virtual int pollable_poll(fd_set& in_rset, fd_set& in_wset);
 
-    // Flush out the read pipe if the process has exited
-    virtual int flush_read();
-
-    bool get_connected();
+    bool get_connected() { 
+        return connected;
+    }
 
 protected:
-    global_registry *globalreg;
-
-    std::shared_ptr<kis_recursive_timed_mutex> pipe_mutex;
-
-    std::shared_ptr<buffer_handler_generic> handler;
+    std::shared_ptr<buffer_pair> handler;
 
     std::atomic<int> read_fd, write_fd;
+    std::atomic<bool> connected;
 };
 
 #endif
