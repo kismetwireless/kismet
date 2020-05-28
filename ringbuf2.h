@@ -46,18 +46,18 @@ protected:
     virtual ssize_t available_impl() override;
     virtual size_t used_impl() override;
 
-    virtual ssize_t write_impl(unsigned char *in_data, size_t in_sz) override;
+    virtual ssize_t write_impl(const char *in_data, size_t in_sz) override;
 
-    virtual ssize_t peek_impl(unsigned char **in_data, size_t in_sz) override;
-    virtual ssize_t zero_copy_peek_impl(unsigned char **in_data, size_t in_sz) override;
-    virtual void peek_free_impl(unsigned char *in_data) override;
+    virtual ssize_t peek_impl(char **in_data, size_t in_sz) override;
+    virtual ssize_t zero_copy_peek_impl(char **in_data, size_t in_sz) override;
+    virtual void peek_free_impl(char *in_data) override;
 
     virtual size_t consume_impl(size_t in_sz) override;
 
-    virtual ssize_t reserve_impl(unsigned char **data, size_t in_sz) override;
-    virtual ssize_t zero_copy_reserve_impl(unsigned char **data, size_t in_sz) override;
+    virtual ssize_t reserve_impl(char **data, size_t in_sz) override;
+    virtual ssize_t zero_copy_reserve_impl(char **data, size_t in_sz) override;
 
-    unsigned char *buffer;
+    char *buffer;
 
     // Total size
     std::atomic<size_t> buffer_sz;

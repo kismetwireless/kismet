@@ -35,7 +35,7 @@ file_write_buffer::file_write_buffer(std::string in_filename, size_t in_chunk) :
         return;
     }
 
-    reserve_chunk = new uint8_t[chunk_sz];
+    reserve_chunk = new char[chunk_sz];
 }
 
 file_write_buffer::~file_write_buffer() {
@@ -67,7 +67,7 @@ size_t file_write_buffer::used_impl() {
     return 0;
 }
 
-ssize_t file_write_buffer::write_impl(uint8_t *in_data, size_t in_sz) {
+ssize_t file_write_buffer::write_impl(const char *in_data, size_t in_sz) {
     if (backfile == NULL)
         return -1;
 
@@ -79,7 +79,7 @@ ssize_t file_write_buffer::write_impl(uint8_t *in_data, size_t in_sz) {
     return 0;
 }
 
-ssize_t file_write_buffer::reserve_impl(unsigned char **data, size_t in_sz) {
+ssize_t file_write_buffer::reserve_impl(char **data, size_t in_sz) {
     write_reserved = true;
 
     if (in_sz < chunk_sz) {
@@ -88,13 +88,13 @@ ssize_t file_write_buffer::reserve_impl(unsigned char **data, size_t in_sz) {
         return in_sz;
     }
 
-    *data = new unsigned char[in_sz];
+    *data = new char[in_sz];
     free_commit = true;
     return in_sz;
 
 }
 
-ssize_t file_write_buffer::zero_copy_reserve_impl(unsigned char **data, size_t in_sz) {
+ssize_t file_write_buffer::zero_copy_reserve_impl(char **data, size_t in_sz) {
     return reserve(data, in_sz);
 }
 

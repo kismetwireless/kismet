@@ -54,13 +54,13 @@ protected:
     bool free_after_read;
 
     unsigned int write_block;
-    uint8_t *write_buf;
+    char *write_buf;
     size_t write_offt;
     unsigned int read_block;
-    uint8_t *read_buf;
+    char *read_buf;
     size_t read_offt;
 
-    std::vector<uint8_t *> buff_vec;
+    std::vector<char *> buff_vec;
 
     size_t used_sz;
     size_t total_sz;
@@ -86,15 +86,15 @@ protected:
     }
 
     // Peek from buffer; will only return up to chunk size per peek
-    virtual ssize_t peek_impl(unsigned char **ret_data, size_t in_sz) override;
-    virtual ssize_t zero_copy_peek_impl(unsigned char **ret_data, size_t in_sz) override;
-    virtual void peek_free_impl(unsigned char *in_data) override;
+    virtual ssize_t peek_impl(char **ret_data, size_t in_sz) override;
+    virtual ssize_t zero_copy_peek_impl(char **ret_data, size_t in_sz) override;
+    virtual void peek_free_impl(char *in_data) override;
 
     // Write amount to buffer, arbitrarily allocating new chunks
-    virtual ssize_t write_impl(unsigned char *in_data, size_t in_sz) override;
+    virtual ssize_t write_impl(const char *in_data, size_t in_sz) override;
   
-    virtual ssize_t reserve_impl(unsigned char **data, size_t in_sz) override;
-    virtual ssize_t zero_copy_reserve_impl(unsigned char **data, size_t in_sz) override;
+    virtual ssize_t reserve_impl(char **data, size_t in_sz) override;
+    virtual ssize_t zero_copy_reserve_impl(char **data, size_t in_sz) override;
 
     // Consume from buffer
     size_t consume_impl(size_t in_sz) override;

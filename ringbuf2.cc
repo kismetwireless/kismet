@@ -32,7 +32,7 @@ ringbuf_v2::ringbuf_v2(size_t in_sz) :
     length {0} {
 
     // Initialize the buffer as a fixed object
-    buffer = new unsigned char[in_sz];
+    buffer = new char[in_sz];
     memset(buffer, 0xAA, in_sz);
 }
 
@@ -57,7 +57,7 @@ ssize_t ringbuf_v2::available_impl() {
     return buffer_sz - length;
 }
 
-ssize_t ringbuf_v2::peek_impl(unsigned char **ptr, size_t in_sz) {
+ssize_t ringbuf_v2::peek_impl(char **ptr, size_t in_sz) {
     // Always reserve first since we may blindly peek_free later
     peek_reserved = true;
     // Set free manually later if necessary
@@ -75,7 +75,7 @@ ssize_t ringbuf_v2::peek_impl(unsigned char **ptr, size_t in_sz) {
     } else {
         // We have to allocate
         free_peek = true;
-        *ptr = new unsigned char[in_sz];
+        *ptr = new char[in_sz];
 
         // Split into chunks
         size_t chunk_a = buffer_sz - start_pos;
@@ -88,7 +88,7 @@ ssize_t ringbuf_v2::peek_impl(unsigned char **ptr, size_t in_sz) {
     return in_sz;
 }
 
-ssize_t ringbuf_v2::zero_copy_peek_impl(unsigned char **ptr, size_t in_sz) {
+ssize_t ringbuf_v2::zero_copy_peek_impl(char **ptr, size_t in_sz) {
     // Always reserve first since we might blindly peek_free later
     peek_reserved = true;
     free_peek = false;
@@ -108,7 +108,7 @@ ssize_t ringbuf_v2::zero_copy_peek_impl(unsigned char **ptr, size_t in_sz) {
     return opsize;
 }
 
-void ringbuf_v2::peek_free_impl(unsigned char *in_data) {
+void ringbuf_v2::peek_free_impl(char *in_data) {
     if (free_peek) {
         delete[] in_data;
     }
@@ -139,7 +139,7 @@ size_t ringbuf_v2::consume_impl(size_t in_sz) {
     return 0;
 }
 
-ssize_t ringbuf_v2::write_impl(unsigned char *data, size_t in_sz) {
+ssize_t ringbuf_v2::write_impl(const char *data, size_t in_sz) {
     size_t copy_start;
 
     if (in_sz == 0)
@@ -165,7 +165,7 @@ ssize_t ringbuf_v2::write_impl(unsigned char *data, size_t in_sz) {
 
         if (data != NULL) {
             memcpy(buffer + start_pos + length, data, chunk_a);
-            memcpy(buffer, (unsigned char *) data + chunk_a, chunk_b);
+            memcpy(buffer, (char *) data + chunk_a, chunk_b);
         }
 
         /* Increase the length of the buffer */
@@ -177,7 +177,7 @@ ssize_t ringbuf_v2::write_impl(unsigned char *data, size_t in_sz) {
     return 0;
 }
 
-ssize_t ringbuf_v2::reserve_impl(unsigned char **data, size_t in_sz) {
+ssize_t ringbuf_v2::reserve_impl(char **data, size_t in_sz) {
     size_t copy_start;
 
     if (available() < (ssize_t) in_sz) {
@@ -194,14 +194,14 @@ ssize_t ringbuf_v2::reserve_impl(unsigned char **data, size_t in_sz) {
         return in_sz;
     } else {
         free_commit = true;
-        *data = new unsigned char[in_sz];
+        *data = new char[in_sz];
 
         return in_sz;
     }
 
 }
 
-ssize_t ringbuf_v2::zero_copy_reserve_impl(unsigned char **data, size_t in_sz) {
+ssize_t ringbuf_v2::zero_copy_reserve_impl(char **data, size_t in_sz) {
     write_reserved = true;
     free_commit = false;
 

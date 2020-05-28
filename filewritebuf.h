@@ -37,7 +37,7 @@ public:
 
 protected:
     size_t chunk_sz;
-    uint8_t *reserve_chunk;
+    char *reserve_chunk;
 
     bool free_commit;
 
@@ -58,23 +58,23 @@ protected:
     virtual size_t used_impl() override;
 
     // Write-only buffer, we don't allow peeking 
-    virtual ssize_t peek_impl(unsigned char **ret_data, size_t in_sz) override {
+    virtual ssize_t peek_impl(char **ret_data, size_t in_sz) override {
         return -1;
     }
 
-    virtual ssize_t zero_copy_peek_impl(unsigned char **ret_data, size_t in_sz) override {
+    virtual ssize_t zero_copy_peek_impl(char **ret_data, size_t in_sz) override {
         return -1;
     }
 
-    virtual void peek_free_impl(unsigned char *in_data) override {
+    virtual void peek_free_impl(char *in_data) override {
         return;
     }
 
     // Write amount to buffer, arbitrarily allocating new chunks
-    virtual ssize_t write_impl(unsigned char *in_data, size_t in_sz) override;
+    virtual ssize_t write_impl(const char *in_data, size_t in_sz) override;
   
-    virtual ssize_t reserve_impl(unsigned char **data, size_t in_sz) override;
-    virtual ssize_t zero_copy_reserve_impl(unsigned char **data, size_t in_sz) override;
+    virtual ssize_t reserve_impl(char **data, size_t in_sz) override;
+    virtual ssize_t zero_copy_reserve_impl(char **data, size_t in_sz) override;
 
     // Consume from buffer
     size_t consume_impl(size_t in_sz) override {

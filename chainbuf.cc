@@ -23,10 +23,10 @@ chainbuf::chainbuf(size_t in_chunk, size_t pre_allocate) {
     chunk_sz = in_chunk;
 
     // Allocate slots in the vector, but not bytes
-    buff_vec = std::vector<uint8_t *>();
+    buff_vec = std::vector<char *>();
     buff_vec.reserve(pre_allocate);
 
-    buff_vec.push_back(new uint8_t[chunk_sz]);
+    buff_vec.push_back(new char[chunk_sz]);
 
     used_sz = 0;
     total_sz = 0;
@@ -63,7 +63,7 @@ size_t chainbuf::used_impl() {
     return used_sz;
 }
 
-ssize_t chainbuf::write_impl(uint8_t *in_data, size_t in_sz) {
+ssize_t chainbuf::write_impl(const char *in_data, size_t in_sz) {
     size_t total_written = 0;
 
     while (total_written < in_sz) {
@@ -90,7 +90,7 @@ ssize_t chainbuf::write_impl(uint8_t *in_data, size_t in_sz) {
 
         // If we got here and we have more data, then we must need another chunk
         if (total_written < in_sz) {
-            uint8_t *newchunk = new uint8_t[chunk_sz];
+            char *newchunk = new char[chunk_sz];
             buff_vec.push_back(newchunk);
             write_block++;
             write_buf = buff_vec[write_block];
@@ -112,7 +112,7 @@ ssize_t chainbuf::write_impl(uint8_t *in_data, size_t in_sz) {
     return total_written;
 }
 
-ssize_t chainbuf::peek_impl(unsigned char **ret_data, size_t in_sz) {
+ssize_t chainbuf::peek_impl(char **ret_data, size_t in_sz) {
     if (used() == 0) {
         free_read = false;
         peek_reserved = true;
@@ -136,7 +136,7 @@ ssize_t chainbuf::peek_impl(unsigned char **ret_data, size_t in_sz) {
     // hit the max length
     free_read = true;
     peek_reserved = true;
-    *ret_data = new uint8_t[goal_sz];
+    *ret_data = new char[goal_sz];
 
     size_t left = goal_sz;
     size_t offt = read_offt;
@@ -166,7 +166,7 @@ ssize_t chainbuf::peek_impl(unsigned char **ret_data, size_t in_sz) {
     return goal_sz;
 }
 
-ssize_t chainbuf::zero_copy_peek_impl(unsigned char **ret_data, size_t in_sz) {
+ssize_t chainbuf::zero_copy_peek_impl(char **ret_data, size_t in_sz) {
     if (used() == 0) {
         free_read = false;
         peek_reserved = true;
@@ -193,7 +193,7 @@ ssize_t chainbuf::zero_copy_peek_impl(unsigned char **ret_data, size_t in_sz) {
     return goal_sz;
 }
 
-void chainbuf::peek_free_impl(unsigned char *in_data) {
+void chainbuf::peek_free_impl(char *in_data) {
     if (free_read && in_data != NULL) {
         delete[] in_data;
     }
@@ -252,7 +252,7 @@ size_t chainbuf::consume_impl(size_t in_sz) {
     return consumed_sz;
 }
 
-ssize_t chainbuf::reserve_impl(unsigned char **data, size_t in_sz) {
+ssize_t chainbuf::reserve_impl(char **data, size_t in_sz) {
     // If we can fit inside the chunk we're in now...
     if (in_sz < chunk_sz - write_offt) {
         *data = write_buf + write_offt;
@@ -261,12 +261,12 @@ ssize_t chainbuf::reserve_impl(unsigned char **data, size_t in_sz) {
     }
 
     // Otherwise we're going to have to malloc a chunk
-    *data = new unsigned char[in_sz];
+    *data = new char[in_sz];
     free_commit = true;
     return in_sz;
 }
 
-ssize_t chainbuf::zero_copy_reserve_impl(unsigned char **data, size_t in_sz) {
+ssize_t chainbuf::zero_copy_reserve_impl(char **data, size_t in_sz) {
     // We can't do better than our zero copy attempt
     return reserve(data, in_sz);
 }
