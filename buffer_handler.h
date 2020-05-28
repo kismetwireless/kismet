@@ -577,6 +577,20 @@ public:
     }
 
 
+    virtual void clear_rbuf() {
+        if (read_buffer != nullptr) {
+            read_buffer->cancel_blocked_reserve();
+            read_buffer->clear();
+        }
+    }
+
+    virtual void clear_wbuf() {
+        if (write_buffer != nullptr) {
+            write_buffer->cancel_blocked_reserve();
+            write_buffer->clear();
+        }
+    }
+
 
     template< class Rep, class Period>
     ssize_t peek_block_rbuf(char **data, size_t in_sz,
