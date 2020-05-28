@@ -96,7 +96,7 @@ int pipe_client::pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out
 }
 
 int pipe_client::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
-    unsigned char *buf;
+    char *buf;
     size_t len;
 
     ssize_t ret, iret;
