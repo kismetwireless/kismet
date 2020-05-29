@@ -41,6 +41,12 @@ struct common_buffer_cancel : public std::exception {
     }
 };
 
+struct common_buffer_timeout : public std::exception {
+    const char *what() const throw () {
+        return "timeout";
+    }
+};
+
 // Common buffer API
 // Each buffer can be filled and drained; a typical communications channel will need 
 // to use two buffers, one for rx and one for tx.
@@ -87,10 +93,15 @@ public:
         auto ft = read_size_avail_pm.get_future();
 
         // Wait for it
-        if (timeout_duration == 0)
+        if (timeout_duration == 0) {
             ft.wait();
-        else
-            ft.wait_for(timeout_duration);
+        } else {
+            auto r = ft.wait_for(timeout_duration);
+            if (r == std::future_status::timeout)
+                throw common_buffer_timeout();
+            else if (r == std::future_status::deferred)
+                throw std::runtime_error("attempt to block for available with no future");
+        }
 
         return available();
     }
@@ -155,10 +166,15 @@ public:
         auto ft = write_size_avail_pm.get_future();
 
         // Wait for it
-        if (timeout_duration == 0)
+        if (timeout_duration == 0) {
             ft.wait();
-        else
-            ft.wait_for(timeout_duration);
+        } else {
+            auto r = ft.wait_for(timeout_duration);
+            if (r == std::future_status::timeout)
+                throw common_buffer_timeout();
+            else if (r == std::future_status::deferred)
+                throw std::runtime_error("attempt to block for reserve write with no future");
+        }
 
         reserve(data, in_sz);
     }
@@ -305,10 +321,15 @@ public:
         l.unlock();
 
         // Wait for it
-        if (timeout_duration == 0)
+        if (timeout_duration == 0) {
             ft.wait();
-        else
-            ft.wait_for(timeout_duration);
+        } else {
+            auto r = ft.wait_for(timeout_duration);
+            if (r == std::future_status::timeout)
+                throw common_buffer_timeout();
+            else if (r == std::future_status::deferred)
+                throw std::runtime_error("attempt to block for write with no future");
+        }
 
         // Perform another write
         return write(data, in_sz);
@@ -373,10 +394,15 @@ public:
         peek_free(*data);
 
         // Wait for it
-        if (timeout_duration == 0)
+        if (timeout_duration == 0) {
             ft.wait();
-        else
-            ft.wait_for(timeout_duration);
+        } else {
+            auto r = ft.wait_for(timeout_duration);
+            if (r == std::future_status::timeout)
+                throw common_buffer_timeout();
+            else if (r == std::future_status::deferred)
+                throw std::runtime_error("attempt to block for peek with no future");
+        }
 
         // Perform another peek
         return peek(data, in_sz);
