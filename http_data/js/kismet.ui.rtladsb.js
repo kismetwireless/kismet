@@ -29,13 +29,16 @@ kismet_ui.AddDeviceRowHighlight({
     ],
     selector: function(data) {
         var aircraft_names = [
-            '^police$',
-            '^depart$',
+            'department',
+            'police',
+            'agency',
+            'dep',
+            'gov',
             ];
 
         if (data['kismet.device.base.phyname'] === 'RTLADSB') {
             for (var re of aircraft_names) {
-		 if (data['rtladsb.device']['rtladsb.device.aoperator'].match(new RegExp(re, 'i')) != null)
+		 if (data['rtladsb.device']['rtladsb.device.aoperator'].toLowerCase().includes(re)) != null)
                     return true;
             }
         } 
