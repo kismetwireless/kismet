@@ -190,6 +190,8 @@ void kis_gps_gpsd_v2::gpsd_io() {
             if (!first)
                 tcphandler->new_available_block_rbuf(std::chrono::seconds(30));
 
+            first = false;
+
             auto buf_sz =
                 tcphandler->peek_block_rbuf(&buf, tcphandler->used_rbuf(), std::chrono::seconds(0));
 
