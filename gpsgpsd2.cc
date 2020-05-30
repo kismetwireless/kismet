@@ -69,6 +69,10 @@ kis_gps_gpsd_v2::~kis_gps_gpsd_v2() {
     tcpclient.reset();
     tcphandler.reset();
 
+    if (gpsd_io_thread.joinable()) {
+        gpsd_io_thread.join();
+    }
+
     auto timetracker = Globalreg::FetchGlobalAs<time_tracker>();
     if (timetracker != nullptr) {
         timetracker->remove_timer(error_reconnect_timer);
@@ -141,6 +145,13 @@ bool kis_gps_gpsd_v2::open_gps(std::string in_opts) {
 
     // Connect
     tcpclient->connect(proto_host, proto_port);
+
+    if (gpsd_io_thread.joinable()) {
+        gpsd_io_thread.join();
+    }
+
+    gpsd_io_thread =
+        std::thread(&kis_gps_gpsd_v2::gpsd_io, this);
 
     return 1;
 }
