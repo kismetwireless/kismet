@@ -40,8 +40,6 @@ public:
     pipe_client(std::shared_ptr<buffer_pair> in_rbhandler);
     virtual ~pipe_client();
 
-    virtual void set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
-
     // Bind to a r/w pair of pipes
     int open_pipes(int rpipe, int wpipe);
     void close_pipes();
