@@ -83,7 +83,7 @@ public:
     }
 
     __Proxy(icao, uint32_t, uint32_t, uint32_t, icao);
-    __Proxy(callsign, std::string, std::string, std::string, callsign);
+    __Proxy(regid, std::string, std::string, std::string, regid);
     __Proxy(type, std::string, std::string, std::string, type);
     __Proxy(model, std::string, std::string, std::string, model);
     __Proxy(owner, std::string, std::string, std::string, owner);
@@ -94,7 +94,7 @@ public:
 protected:
     virtual void register_fields() override {
         register_field("adsb.icao.icao", "ICAO identifier", &icao);
-        register_field("adsb.icao.callsign", "Callsign", &callsign);
+        register_field("adsb.icao.regid", "Registration ID", &regid);
         register_field("adsb.icao.type", "Model type", &type);
         register_field("adsb.icao.model", "Aircraft model", &model);
         register_field("adsb.icao.owner", "Aircraft owner", &owner);
@@ -102,7 +102,7 @@ protected:
     }
 
     std::shared_ptr<tracker_element_uint32> icao;
-    std::shared_ptr<tracker_element_string> callsign;
+    std::shared_ptr<tracker_element_string> regid;
     std::shared_ptr<tracker_element_string> type;
     std::shared_ptr<tracker_element_string> model;
     std::shared_ptr<tracker_element_string> owner;

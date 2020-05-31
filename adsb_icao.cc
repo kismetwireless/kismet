@@ -32,7 +32,7 @@ kis_adsb_icao::kis_adsb_icao() {
     auto entrytracker = Globalreg::fetch_mandatory_global_as<entry_tracker>();
 
     icao_id = 
-        entrytracker->register_field("kismet.device.adsb.icao", 
+        entrytracker->register_field("kismet.adsb.icao_record", 
                 tracker_element_factory<tracked_adsb_icao>(), "ADSB ICAO registration");
     icao_type_id = 
         entrytracker->register_field("adsb.icao.atype", 
@@ -73,7 +73,7 @@ kis_adsb_icao::kis_adsb_icao() {
     unknown_icao->set_model("Unknown");
     unknown_icao->set_type("Unknown");
     unknown_icao->set_owner("Unknown");
-    unknown_icao->set_callsign("Unknown");
+    unknown_icao->set_regid("Unknown");
     unknown_icao->set_atype(atype_map['U']);
     unknown_icao->set_atype_short('U');
 
@@ -226,7 +226,7 @@ std::shared_ptr<tracked_adsb_icao> kis_adsb_icao::lookup_icao(uint32_t icao) {
                 auto icao_rec = 
                     std::make_shared<tracked_adsb_icao>(icao_id);
                 icao_rec->set_icao(icao);
-                icao_rec->set_callsign(munge_to_printable(fields[1]));
+                icao_rec->set_regid(munge_to_printable(fields[1]));
                 icao_rec->set_type(munge_to_printable(fields[2]));
                 icao_rec->set_model(munge_to_printable(fields[3]));
                 icao_rec->set_owner(munge_to_printable(fields[4]));

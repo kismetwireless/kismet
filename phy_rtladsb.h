@@ -80,6 +80,7 @@ public:
 
     __Proxy(icao, std::string, std::string, std::string, icao);
     __ProxyTrackable(icao_record, tracked_adsb_icao, icao_record);
+    __Proxy(callsign, std::string, std::string, std::string, callsign);
     __Proxy(gsas, std::string, std::string, std::string, gsas);
 
     __Proxy(odd_raw_lat, double, double, double, odd_raw_lat);
@@ -94,7 +95,7 @@ protected:
         register_field("rtladsb.device.icao", "ICAO", &icao);
         register_field("rtladsb.device.icao_record", "ICAO record", &icao_record);
         register_field("rtladsb.device.gsas", "GSAS", &gsas);
-
+        register_field("rtladsb.device.callsign", "Callsign", &callsign);
         register_field("rtladsb.device.odd_raw_lat", "Odd-packet raw latitude", &odd_raw_lat);
         register_field("rtladsb.device.odd_raw_lon", "Odd-packet raw longitude", &odd_raw_lon);
         register_field("rtladsb.device.odd_ts", "Timestamp of last odd-packet", &odd_ts);
@@ -105,6 +106,7 @@ protected:
 
     std::shared_ptr<tracker_element_string> icao;
     std::shared_ptr<tracked_adsb_icao> icao_record;
+    std::shared_ptr<tracker_element_string> callsign;
     std::shared_ptr<tracker_element_string> gsas;
 
 

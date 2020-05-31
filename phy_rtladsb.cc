@@ -228,8 +228,12 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
                     break;
             }
 
+            auto cs = adsbdev->get_callsign();
+            if (cs.length() != 0)
+                cs += " ";
+
             basedev->set_devicename(fmt::format("{} {} {}",
-                        icao->get_callsign(), icao->get_type(), icao->get_owner()));
+                        cs, icao->get_type(), icao->get_owner()));
         }
     }
 
@@ -295,8 +299,26 @@ std::shared_ptr<rtladsb_tracked_adsb> kis_rtladsb_phy::add_adsb(kis_packet *pack
         auto icao_record = icaodb->lookup_icao(icao_j.asString());
         adsbdev->set_icao_record(icao_record);
 
+        if (json.isMember("callsign")) {
+            auto callsign_j = json["callsign"];
+            if (callsign_j.isString()) {
+                auto raw_cs = callsign_j.asString();
+
+                std::string mangle_cs;
+
+                for (size_t i = 0; i < raw_cs.length(); i++) {
+                    if (raw_cs[i] != '_') {
+                        mangle_cs += raw_cs[i];
+                    }
+                }
+
+                adsbdev->set_callsign(mangle_cs);
+                if (adsbdev->get_callsign() != "")
+                    new_ss << adsbdev->get_callsign();
+            }
+        }
+
         if (icao_record != icaodb->get_unknown_icao()) {
-            new_ss << " " << icao_record->get_callsign();
             new_ss << " " << icao_record->get_model();
             new_ss << " " << icao_record->get_type();
             new_ss << " " << icao_record->get_owner();
