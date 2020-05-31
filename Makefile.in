@@ -478,7 +478,7 @@ commoninstall: $(INSTBINS)
 	mkdir -p $(HTTPD)
 	cp -r http_data/* $(HTTPD)
 
-	cp conf/kismet_manuf.txt $(SHARE)/kismet_manuf.txt 
+	cp conf/kismet_manuf.txt.gz $(SHARE)/kismet_manuf.txt.gz
 
 
 CONFINSTTARGETS = $(addprefix install_conf_, $(CONFIGFILES))
@@ -575,8 +575,8 @@ uavconfig:
 	@$(PYTHON) tools/compile_uav_conf.py conf/kismet_uav.conf.yaml > conf/kismet_uav.conf
 
 manuf:
-	@echo "Generating kismet_manuf.txt"
-	@$(PYTHON) tools/create_oui_db.py > conf/kismet_manuf.txt
+	@echo "Generating kismet_manuf.txt.gz"
+	@$(PYTHON) tools/create_oui_db.py | gzip -9 > conf/kismet_manuf.txt.gz
 
 icao:
 	@echo "Generating aircraft_db.csv"
@@ -597,7 +597,7 @@ release-%:
 	@git submodule update --remote docs/
 	@git commit docs -m "Doc update for $*" -m "Update docs submodule for release $*"
 	@make manuf
-	@git commit conf/kismet_manuf.txt -m "Manuf update for $*" -m "Update OUI manuf for release $*"
+	@git commit conf/kismet_manuf.txt.gz -m "Manuf update for $*" -m "Update OUI manuf for release $*"
 	@make icao
 	@git commit capture_sdr_rtladsb/KismetCaptureRtladsb/data/aircraft_db.csv -m "ICAO update for $*" -m "Update ADSB ICAO database for release $*"
 	@./tools/make_version_h.py $* > version.h
@@ -614,7 +614,7 @@ subrelease-%:
 	@./tools/make_version_h.py $* > version.h
 	@git commit version.h -m "Version bump for $*" -m "Bump versioning for release $*"
 	@make manuf
-	@git commit conf/kismet_manuf.txt -m "Manuf update for $*" -m "Update OUI manuf for release $*"
+	@git commit conf/kismet_manuf.txt.gz -m "Manuf update for $*" -m "Update OUI manuf for release $*"
 	@make icao
 	@git commit capture_sdr_rtladsb/KismetCaptureRtladsb/data/aircraft_db.csv -m "ICAO update for $*" -m "Update ADSB ICAO database for release $*"
 	@git tag kismet-$*
