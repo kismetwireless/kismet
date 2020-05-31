@@ -375,7 +375,7 @@
                     var altitude = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.alt'];
                     var speed = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.speed'];
                     var icao = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.icao'];
-                    var id = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.regid'];
+                    var id = data['kismet.adsb.map.devices'][d]['rtladsb.device']['kismet.adsb.icao_record']['adsb.icao.regid'];
                     var packets = data['kismet.adsb.map.devices'][d]['kismet.device.base.packets.data'];
 
 
