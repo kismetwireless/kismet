@@ -28,14 +28,9 @@
 
 kis_net_httpd_handler::kis_net_httpd_handler() {
     httpd = Globalreg::fetch_mandatory_global_as<kis_net_httpd>();
-
-    // bind_httpd_server(Globalreg::globalreg);
 }
 
 kis_net_httpd_handler::~kis_net_httpd_handler() {
-    httpd = 
-        Globalreg::FetchGlobalAs<kis_net_httpd>("HTTPD_SERVER");
-
     // Remove as both type of handlers for safety
     if (httpd != nullptr) {
         httpd->remove_handler(this);
@@ -176,75 +171,25 @@ void kis_net_httpd_no_files_handler::httpd_create_stream_response(kis_net_httpd 
 kis_net_httpd_buffer_stream_aux::kis_net_httpd_buffer_stream_aux(
         kis_net_httpd_buffer_stream_handler *in_handler,
         kis_net_httpd_connection *in_httpd_connection,
-        std::shared_ptr<buffer_handler_generic> in_ringbuf_handler,
+        std::shared_ptr<buffer_pair> buf_handler,
         void *in_aux, std::function<void (kis_net_httpd_buffer_stream_aux *)> in_free_aux) :
     httpd_stream_handler(in_handler),
     httpd_connection(in_httpd_connection),
-    ringbuf_handler(in_ringbuf_handler),
+    buf_handler(buf_handler),
     in_error(false),
     aux(in_aux),
-    free_aux_cb(in_free_aux) {
-
-    httpd_stream_handler = in_handler;
-    httpd_connection = in_httpd_connection;
-    ringbuf_handler = in_ringbuf_handler;
-    aux = in_aux;
-    free_aux_cb = in_free_aux;
-
-    cl = std::make_shared<conditional_locker<int>>();
-    cl->lock();
-
-    // If the buffer encounters an error, unlock the variable and set the error state
-    ringbuf_handler->set_protocol_error_cb([this]() {
-            trigger_error();
-        });
-
-    // Lodge ourselves as the write handler
-    ringbuf_handler->set_write_buffer_interface(this);
-}
+    free_aux_cb(in_free_aux) { }
 
 kis_net_httpd_buffer_stream_aux::~kis_net_httpd_buffer_stream_aux() {
     // Get out of the lock and flag an error so we end
     in_error = true;
 
-    if (ringbuf_handler) {
-        ringbuf_handler->remove_write_buffer_interface();
-        ringbuf_handler->set_protocol_error_cb(NULL);
-    }
-
-    cl->unlock(0);
-}
-
-void kis_net_httpd_buffer_stream_aux::buffer_available(size_t in_amt __attribute__((unused))) {
-    // All we need to do here is unlock the conditional lock; the 
-    // buffer_event_cb callback will unlock and read from the buffer, then
-    // re-lock and block
-    // fmt::print(stderr, "buffer available {}\n", in_amt);
-    cl->unlock(1);
-}
-
-void kis_net_httpd_buffer_stream_aux::block_until_data(std::shared_ptr<buffer_handler_generic> rbh) {
-    while (1) {
-        { 
-            local_locker lock(&aux_mutex);
-
-            // fmt::print(stderr, "buffer block until sees {}\n", rbh->get_read_buffer_used());
-
-            // Immediately return if we have pending data
-            if (rbh->get_read_buffer_used()) {
-                return;
-            }
-
-            // Immediately return so we can flush out the buffer before we fail
-            if (get_in_error()) {
-                return;
-            }
-
-            cl->lock();
+    if (buf_handler != nullptr) {
+        try {
+            throw std::runtime_error("httpd buffer stream aux cancelled");
+        } catch (const std::exception& e) {
+            buf_handler->throw_error(std::current_exception());
         }
-
-        if (cl->block_for_ms(std::chrono::milliseconds(500)))
-            return;
     }
 }
 
