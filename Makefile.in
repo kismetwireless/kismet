@@ -479,6 +479,7 @@ commoninstall: $(INSTBINS)
 	cp -r http_data/* $(HTTPD)
 
 	cp conf/kismet_manuf.txt.gz $(SHARE)/kismet_manuf.txt.gz
+	cp conf/kismet_adsb_icao.txt.gz $(SHARE)/kismet_adsb_icao.txt.gz
 
 
 CONFINSTTARGETS = $(addprefix install_conf_, $(CONFIGFILES))
@@ -579,8 +580,8 @@ manuf:
 	@$(PYTHON) tools/create_oui_db.py | gzip -9 > conf/kismet_manuf.txt.gz
 
 icao:
-	@echo "Generating aircraft_db.csv"
-	@(cd capture_sdr_rtladsb && make csv)
+	@echo "Generating kismet_adsb_icao.txt.gz"
+	@$(PYTHON) tools/create_icao_db.py | gzip -9 > conf/kismet_adsb_icao.txt.gz
 
 extcappy:
 	@echo "Updating kismetexternal python"
@@ -599,7 +600,7 @@ release-%:
 	@make manuf
 	@git commit conf/kismet_manuf.txt.gz -m "Manuf update for $*" -m "Update OUI manuf for release $*"
 	@make icao
-	@git commit capture_sdr_rtladsb/KismetCaptureRtladsb/data/aircraft_db.csv -m "ICAO update for $*" -m "Update ADSB ICAO database for release $*"
+	@git commit conf/kismet_adsb_icao.txt.gz -m "ICAO update for $*" -m "Update ADSB ICAO database for release $*"
 	@./tools/make_version_h.py $* > version.h
 	@git commit version.h -m "Version bump for $*" -m "Bump versioning for release $*"
 	@git tag kismet-$*
@@ -616,7 +617,7 @@ subrelease-%:
 	@make manuf
 	@git commit conf/kismet_manuf.txt.gz -m "Manuf update for $*" -m "Update OUI manuf for release $*"
 	@make icao
-	@git commit capture_sdr_rtladsb/KismetCaptureRtladsb/data/aircraft_db.csv -m "ICAO update for $*" -m "Update ADSB ICAO database for release $*"
+	@git commit conf/kismet_adsb_icao.txt.gz -m "ICAO update for $*" -m "Update ADSB ICAO database for release $*"
 	@git tag kismet-$*
 	@git archive --format tar --prefix kismet-$*/ kismet-$* | xz > ../kismet-$*.tar.xz
 	@git push origin kismet-`echo $* | cut -d- -f1,2` --tags
