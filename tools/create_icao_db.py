@@ -40,5 +40,5 @@ with urllib.request.urlopen("http://registry.faa.gov/database/ReleasableAircraft
 
         for row in airplanes:
             num_rows = num_rows + 1
-            print(row[33].rstrip().lower()+'\t'+row[0]+'\t'+mdl[row[2]]+'\t"' + acft[row[2]] + '"\t"' +row[6].rstrip()+'"' + '\n')
+            print(row[33].rstrip().lower()+'\t'+row[0]+'\t'+mdl[row[2]]+'\t"' + acft[row[2]] + '"\t"' +row[6].rstrip()+'"')
 
