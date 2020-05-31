@@ -28,22 +28,79 @@ kismet_ui.AddDeviceRowHighlight({
         'rtladsb.device'
     ],
     selector: function(data) {
-        var aircraft_names = [
+        var aircraft_info = [
             'department',
-            'police',
+	    'police',
             'agency',
             'dep',
             'gov',
+	    'federal',
+	    'royal',
+	    'force',
+	    'state',
+	    'army',
+	    'navy',
+	    'patrol',
+	    'sqdn',
             ];
 
+	var icao_list = [
+	    'ae4bd7',
+	    'a47604',
+            'a03bc8',
+            'a0b8d6',
+            'a0d9f2',
+            'a12d51',
+            'a15f1d',
+            'a169d7',
+            'a16c6d',
+            'a193c1',
+            'a32524',
+            'a328db',
+            'a32c92',
+            'a33049',
+            'a33dc3',
+            'a3c1be',
+            'a3c92c',
+            'a3e6e3',
+            'a3e6e4',
+            'a410bc',
+            'a4182a',
+            'a44360',
+            'a4724d',
+            'a483df',
+            'a4bc36',
+            'a4bfed',
+            'a51a10',
+            'a51dc7',
+            'a54b56',
+            'a54f0d',
+            'a552c4',
+            'a5ed09',
+            'a5f9f7',
+            'a64217',
+            'a645ce',
+            'a64985',
+            'a64d3c',
+            'a654aa',
+            'aac551',
+            'abaf9c',
+            'ac742b',
+            'ac7b99',
+	    ];
+
         if (data['kismet.device.base.phyname'] === 'RTLADSB') {
-            for (var re of aircraft_names) {
-		 if (data['rtladsb.device']['rtladsb.device.aoperator'].toLowerCase().includes(re)) != null)
+            for (var re of aircraft_info) {
+		 if (data['rtladsb.device']['rtladsb.device.aoperator'].toLowerCase().includes(re))
+		    if (!data['rtladsb.device']['rtladsb.device.aoperator'].toLowerCase().includes('express'))
+                      return true;
+	    }
+	    for (var re of icao_list) {
+		 if (data['rtladsb.device']['rtladsb.device.icao'].toLowerCase().includes(re))
                     return true;
             }
-        } 
-
-        //return data['kismet.device.base.phyname'] === "RTLADSB";
+        }
+        return false;
     }
 });
 
