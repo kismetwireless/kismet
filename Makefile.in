@@ -578,6 +578,10 @@ manuf:
 	@echo "Generating kismet_manuf.txt"
 	@$(PYTHON) tools/create_oui_db.py > conf/kismet_manuf.txt
 
+icao:
+	@echo "Generating aircraft_db.csv"
+	@(cd capture_sdr_rtladsb && make csv)
+
 extcappy:
 	@echo "Updating kismetexternal python"
 	@find ./ -path *kismetexternal* -name __init__.py -not  -path *build* -exec cp ../python-kismet-external/kismetexternal/__init__.py {} \; 
@@ -594,6 +598,8 @@ release-%:
 	@git commit docs -m "Doc update for $*" -m "Update docs submodule for release $*"
 	@make manuf
 	@git commit conf/kismet_manuf.txt -m "Manuf update for $*" -m "Update OUI manuf for release $*"
+	@make icao
+	@git commit capture_sdr_rtladsb/KismetCaptureRtladsb/data/aircraft_db.csv -m "ICAO update for $*" -m "Update ADSB ICAO database for release $*"
 	@./tools/make_version_h.py $* > version.h
 	@git commit version.h -m "Version bump for $*" -m "Bump versioning for release $*"
 	@git tag kismet-$*
@@ -607,6 +613,10 @@ subrelease-%:
 	@git pull origin kismet-`echo $* | cut -d- -f1,2`
 	@./tools/make_version_h.py $* > version.h
 	@git commit version.h -m "Version bump for $*" -m "Bump versioning for release $*"
+	@make manuf
+	@git commit conf/kismet_manuf.txt -m "Manuf update for $*" -m "Update OUI manuf for release $*"
+	@make icao
+	@git commit capture_sdr_rtladsb/KismetCaptureRtladsb/data/aircraft_db.csv -m "ICAO update for $*" -m "Update ADSB ICAO database for release $*"
 	@git tag kismet-$*
 	@git archive --format tar --prefix kismet-$*/ kismet-$* | xz > ../kismet-$*.tar.xz
 	@git push origin kismet-`echo $* | cut -d- -f1,2` --tags
