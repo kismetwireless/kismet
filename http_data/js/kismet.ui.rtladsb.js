@@ -30,19 +30,19 @@ kismet_ui.AddDeviceRowHighlight({
     selector: function(data) {
         var aircraft_info = [
             'department',
-	    'police',
+            'police',
             'agency',
             'dep',
             'gov',
-	    'federal',
-	    'royal',
-	    'force',
-	    'state',
-	    'army',
-	    'navy',
-	    'patrol',
-	    'sqdn',
-            ];
+            'federal',
+            'royal',
+            'force',
+            'state',
+            'army',
+            'navy',
+            'patrol',
+            'sqdn',
+        ];
 
 	var icao_list = [
 	    'ae4bd7',
@@ -110,7 +110,7 @@ kismet_ui.AddDeviceDetail("rtladsb", "RTLADSB (SDR)", 0, {
     },
     draw: function(data, target) {
         target.devicedata(data, {
-            "id": "rtladsbData",
+            "id": "RtladsbData",
             "fields": [
             {
                 field: "rtladsb.device/rtladsb.device.icao",
@@ -119,39 +119,12 @@ kismet_ui.AddDeviceDetail("rtladsb", "RTLADSB (SDR)", 0, {
                 empty: "<i>Unknown</i>"
             },
             {
-                field: "rtladsb.device/rtladsb.device.regid",
-                liveupdate: true,
-                title: "REG ID",
-                filterOnZero: true,
-                filterOnEmpty: true,
-            },
-            {
-                field: "rtladsb.device/rtladsb.device.mdl",
-                liveupdate: true,
-                title: "MDL",
-                filterOnZero: true,
-                filterOnEmpty: true,
-            },
-            {
-                field: "rtladsb.device/rtladsb.device.atype",
-                liveupdate: true,
-                title: "Aircraft Type",
-                filterOnZero: true,
-                filterOnEmpty: true,
-            },
-            {
-                field: "rtladsb.device/rtladsb.device.aoperator",
-                liveupdate: true,
-                title: "Aircraft Operator",
-                filterOnZero: true,
-                filterOnEmpty: true,
-            },
-            {
                 field: "rtladsb.device/rtladsb.device.callsign",
                 liveupdate: true,
                 title: "Callsign",
                 filterOnZero: true,
                 filterOnEmpty: true,
+                help: "Flight registration / Callsign",
             },
             {
                 field: "rtladsb.device/rtladsb.device.callsign",
@@ -163,6 +136,46 @@ kismet_ui.AddDeviceDetail("rtladsb", "RTLADSB (SDR)", 0, {
                 draw: function(opts) {
                     return '<a href="https://flightaware.com/live/flight/' + opts['value'] + '" target="_new">Track ' + opts['value'] + ' on FlightAware</a>';
                 },
+            },
+            {
+                field: "rtladsb.device/kismet.adsb.icao_record/adsb.icao.regid",
+                liveupdate: true,
+                title: "Registration ID",
+                filterOnZero: true,
+                filterOnEmpty: true,
+                help: "Aircraft registration ID or tail number",
+            },
+            {
+                field: "rtladsb.device/kismet.adsb.icao_record/adsb.icao.atype",
+                liveupdate: true,
+                title: "Aircraft Classification",
+                filterOnZero: true,
+                filterOnEmpty: true,
+                help: "Aircraft classification type",
+            },
+            {
+                field: "rtladsb.device/kismet.adsb.icao_record/adsb.icao.model",
+                liveupdate: true,
+                title: "Model",
+                filterOnZero: true,
+                filterOnEmpty: true,
+                help: "Aircraft model (general model type)",
+            },
+            {
+                field: "rtladsb.device/kismet.adsb.icao_record/adsb.icao.type",
+                liveupdate: true,
+                title: "Type",
+                filterOnZero: true,
+                filterOnEmpty: true,
+                help: "Aircraft type (specific model type)",
+            },
+            {
+                field: "rtladsb.device/kismet.adsb.icao_record/adsb.icao.owner",
+                liveupdate: true,
+                title: "Aircraft Operator",
+                filterOnZero: true,
+                filterOnEmpty: true,
+                help: "Aircraft operator or owner of record",
             },
             {
                 field: "rtladsb.device/rtladsb.device.altitude",
