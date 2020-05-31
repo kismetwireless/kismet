@@ -15,6 +15,7 @@ import sys
 
 acft={}
 mdl={}
+res={}
 
 print("CSV: Fetching zip...");
 
@@ -27,6 +28,12 @@ with urllib.request.urlopen("http://registry.faa.gov/database/ReleasableAircraft
 
     # open as a zip
     zipf = zipfile.ZipFile(mem_zf)
+
+    with io.TextIOWrapper(zipf.open('RESERVED.txt', 'r')) as csvfile:
+        reserved = csv.reader(csvfile, delimiter=',', quotechar='"')
+        next(reserved, None)
+        for row in reserved:
+            res[row[0]] = row[1]
 
     with io.TextIOWrapper(zipf.open('ACFTREF.txt', 'r')) as csvfile:
         aircraft = csv.reader(csvfile, delimiter=',', quotechar='"')
@@ -43,8 +50,10 @@ with urllib.request.urlopen("http://registry.faa.gov/database/ReleasableAircraft
         next(airplanes, None)
 
         for row in airplanes:
-            num_rows = num_rows + 1
-            outf.write(row[33].rstrip().lower()+','+row[0]+','+mdl[row[2]]+',"' + acft[row[2]] + '","' +row[6].rstrip()+'"' + '\n')
+            if row[0] in res.keys():
+                outf.write(row[33].rstrip().lower()+','+row[0]+','+mdl[row[2]]+',"' + acft[row[2]] + '","' +res[row[0]].rstrip()+'"' + ','+row[18] +'\n')
+            else:
+                outf.write(row[33].rstrip().lower()+','+row[0]+','+mdl[row[2]]+',"' + acft[row[2]] + '","' +row[6].rstrip()+'"' + ','+row[18] + '\n')
 
     print("CSV: Generated!  Added {} rows.".format(num_rows));
 
