@@ -16,7 +16,6 @@ from __future__ import print_function
 
 import asyncio
 import argparse
-import csv
 import ctypes
 from datetime import datetime
 import json
@@ -127,13 +126,6 @@ class KismetRtladsb(object):
 
             print("Connecting to remote server {}".format(self.config.connect))
 
-        self.csv_data = pkgutil.get_data('KismetCaptureRtladsb', 'data/aircraft_db.csv')
-        self.csv_file = csv.reader(self.csv_data.decode('utf-8').splitlines(), delimiter=",")
-        self.airplanes = []
-
-        for row in self.csv_file:
-            self.airplanes.append(row)
-
     def run(self):
         self.kismet = kismetexternal.Datasource(self.config.infd, self.config.outfd, remote = self.config.connect)
 
@@ -209,14 +201,6 @@ class KismetRtladsb(object):
                     msgicao = self.adsb_msg_get_icao(msg).hex()
 
                     output['icao'] = msgicao
-
-                    # Look up ICAO in the airplane database
-                    for row in self.airplanes:
-                        if msgicao == row[0]:
-                            output['regid'] = row[1]
-                            output['mdl'] = row[2]
-                            output['type'] = row[3]
-                            output['operator'] = row[4]
 
                     if msgtype == 17:
                         msgme, msgsubme = self.adsb_msg_get_me_subme(msg)
