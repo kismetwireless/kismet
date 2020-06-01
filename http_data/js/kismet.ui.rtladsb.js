@@ -91,10 +91,10 @@ kismet_ui.AddDeviceRowHighlight({
 
         if (data['kismet.device.base.phyname'] === 'RTLADSB') {
             for (var re of aircraft_info) {
-		 if (data['rtladsb.device']['rtladsb.device.aoperator'].toLowerCase().includes(re))
-		    if (!data['rtladsb.device']['rtladsb.device.aoperator'].toLowerCase().includes('express'))
+                 if (data['rtladsb.device']['kismet.adsb.icao_record']['adsb.icao.owner'].toLowerCase().includes(re))
+                    if (!data['rtladsb.device']['kismet.adsb.icao_record']['adsb.icao.owner'].toLowerCase().includes('express'))
                       return true;
-	    }
+            }
 	    for (var re of icao_list) {
 		 if (data['rtladsb.device']['rtladsb.device.icao'].toLowerCase().includes(re))
                     return true;
