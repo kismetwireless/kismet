@@ -170,6 +170,11 @@ LOGTOOL_KISMETDB_CLEAN_O = \
 	log_tools/kismetdb_clean.cc.o \
 	sqlite3_cpp11.cc.o 
 
+LOGTOOL_KISMETDB_PCAP = log_tools/kismetdb_to_pcap
+LOGTOOL_KISMETDB_PCAP_O = \
+	log_tools/kismetdb_to_pcap.cc.o \
+	sqlite3_cpp11.cc.o
+
 LOGTOOL_BINS = \
 	$(LOGTOOL_KISMETDB_STRIP) \
 	$(LOGTOOL_KISMETDB_WIGLE) \
@@ -177,7 +182,8 @@ LOGTOOL_BINS = \
 	$(LOGTOOL_KISMETDB_STATS) \
 	$(LOGTOOL_KISMETDB_KML) \
 	$(LOGTOOL_KISMETDB_GPX) \
-	$(LOGTOOL_KISMETDB_CLEAN)
+	$(LOGTOOL_KISMETDB_CLEAN) \
+	$(LOGTOOL_KISMETDB_PCAP)
 
 # Disabled; Kaitai generates unusable C++ code currently
 # KAITAI_PARSERS = \
@@ -270,6 +276,8 @@ $(PS):	$(PROTOBUF_CPP_O_TARGET) $(PROTOBUF_CPP_H_TARGET) $(PSO) $(patsubst %c.o,
 	@rm -f kismet
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) version.c.o $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS) -rdynamic
 
+
+
 $(LOGTOOL_KISMETDB_STRIP):	$(LOGTOOL_KISMETDB_STRIP_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_STRIP_O))
 	$(CC) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_STRIP) $(LOGTOOL_KISMETDB_STRIP_O) -lsqlite3 -rdynamic
 
@@ -290,6 +298,11 @@ $(LOGTOOL_KISMETDB_GPX):	$(LOGTOOL_KISMETDB_GPX_O) $(patsubst %c.o,%c.d,$(LOGTOO
 
 $(LOGTOOL_KISMETDB_CLEAN):	$(LOGTOOL_KISMETDB_CLEAN_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_CLEAN_O))
 	$(LD) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_CLEAN) $(LOGTOOL_KISMETDB_CLEAN_O) $(LIBS) $(CXXLIBS) -rdynamic
+
+$(LOGTOOL_KISMETDB_PCAP): 	$(LOGTOOL_KISMETDB_PCAP_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_PCAP_O))
+	$(LD) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_PCAP) $(LOGTOOL_KISMETDB_PCAP_O) $(LIBS) $(CXXLIBS) -rdynamic
+
+
 
 $(DATASOURCE_COMMON_A):	$(PROTOBUF_C_O) $(PROTOBUF_C_H) $(DATASOURCE_COMMON_C_O)
 	$(AR) rcs $(DATASOURCE_COMMON_A) $(DATASOURCE_COMMON_C_O)
@@ -405,6 +418,7 @@ commoninstall: $(INSTBINS)
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_KML) $(BIN)/`basename $(LOGTOOL_KISMETDB_KML)`;
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_GPX) $(BIN)/`basename $(LOGTOOL_KISMETDB_GPX)`;
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_CLEAN) $(BIN)/`basename $(LOGTOOL_KISMETDB_CLEAN)`;
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_PCAP) $(BIN)/`basename $(LOGTOOL_KISMETDB_PCAP)`;
 
 	mkdir -p $(BIN)
 
@@ -757,6 +771,7 @@ include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_STATS_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_KML_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_GPX_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_CLEAN_O)))
+include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_PCAP_O)))
 
 .SUFFIXES: .c .cc .o 
 
