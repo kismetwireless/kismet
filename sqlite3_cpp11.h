@@ -249,22 +249,21 @@ namespace kissqlite3 {
 
     std::ostream& operator<<(std::ostream& os, const query_element& q);
 
-
     template<typename OP, typename... Args>
-    void _WHERE(std::list<query_element>& vec);
+    std::list<query_element> _WHERE(std::list<query_element>& vec);
 
     // X <op> VALUE
     template<typename OP, typename VL, typename... Args>
-    void _WHERE(std::list<query_element>& vec, const std::string& field, 
+    std::list<query_element> _WHERE(std::list<query_element>& vec, const std::string& field, 
             const OP& op, const VL value);
 
     // JOINER X <op> VALUE {...}
     template<typename JN, typename OP, typename VL, typename... Args>
-    void _WHERE(std::list<query_element>& vec, const OP& join,
+    std::list<query_element> _WHERE(std::list<query_element>& vec, const OP& join,
             const std::string& field, const JN& op, const VL value);
 
     template<typename JN, typename OP, typename VL, typename... Args>
-    void _WHERE(std::list<query_element>& vec, const JN& join, const std::string& field, const OP& op, 
+    std::list<query_element> _WHERE(std::list<query_element>& vec, const JN& join, const std::string& field, const OP& op, 
             const VL value, const Args& ... args);
 
     template<typename OP, typename VL, typename... Args>
@@ -273,6 +272,8 @@ namespace kissqlite3 {
     template<typename OP, typename VL, typename... Args>
     std::list<query_element> _WHERE(const std::string& field, const OP& op, const VL value,
             const Args& ... args);
+
+    std::list<query_element> _WHERE();
 
     class query {
     public:
@@ -506,52 +507,56 @@ namespace kissqlite3 {
     };
 
     template<typename OP, typename... Args>
-    void _WHERE(std::list<query_element>& vec) { }
+    std::list<query_element> _WHERE(std::list<query_element>& vec) {
+        return vec;
+    }
 
     // X <op> VALUE
     template<typename OP, typename VL, typename... Args>
-    void _WHERE(std::list<query_element>& vec, const std::string& field, 
+    std::list<query_element> _WHERE(std::list<query_element>& vec, const std::string& field, 
             const OP& op, const VL value) {
         vec.push_back(query_element{field, op, value});
+        return vec;
     }
 
     template<typename JN>
-    void _WHERE(std::list<query_element>& vec, const JN& join, const std::list<query_element>& subclause) {
+    std::list<query_element> _WHERE(std::list<query_element>& vec, const JN& join, 
+            const std::list<query_element>& subclause) {
         vec.push_back(query_element{join});
         vec.push_back(query_element{subclause});
+        return vec;
     }
 
     // JOINER <where clause>
     template<typename JN, typename... Args>
-    void _WHERE(std::list<query_element>& vec, const JN& join, const std::list<query_element>& subclause,
+    std::list<query_element> _WHERE(std::list<query_element>& vec, const JN& join, 
+            const std::list<query_element>& subclause,
             const Args& ... args) {
         vec.push_back(query_element{join});
         vec.push_back(query_element{subclause});
-        _WHERE(vec, args...);
+        return _WHERE(vec, args...);
     }
 
 
     // JOINER X <op> VALUE {...}
     template<typename JN, typename OP, typename VL, typename... Args>
-    void _WHERE(std::list<query_element>& vec, const OP& join,
+    std::list<query_element> _WHERE(std::list<query_element>& vec, const OP& join,
             const std::string& field, const JN& op, const VL value) {
         vec.push_back(query_element{join});
-        _WHERE(vec, field, op, value);
+        return _WHERE(vec, field, op, value);
     }
 
     template<typename JN, typename OP, typename VL, typename... Args>
-    void _WHERE(std::list<query_element>& vec, const JN& join, const std::string& field, const OP& op, 
+    std::list<query_element> _WHERE(std::list<query_element>& vec, const JN& join, const std::string& field, const OP& op, 
             const VL value, const Args& ... args) {
         _WHERE(vec, join, field, op, value);
-        _WHERE(vec, args...);
+        return _WHERE(vec, args...);
     }
 
     template<typename OP, typename VL, typename... Args>
     std::list<query_element> _WHERE(const std::string& field, const OP& op, const VL value) {
         auto ret = std::list<query_element>{};
-
         _WHERE(ret, field, op, value);
-
         return ret;
     }
 
@@ -565,7 +570,7 @@ namespace kissqlite3 {
 
         return ret;
     }
-    
+
     std::ostream& operator<<(std::ostream& os, const query& q);
 
     // SELECT (x, y, z) FROM table
