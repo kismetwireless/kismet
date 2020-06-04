@@ -61,42 +61,6 @@ size_t PAD_TO_32BIT(size_t in) {
     return in;
 }
 
-void print_help(char *argv) {
-    printf("Kismetdb to pcap\n");
-    printf("Convert packet data from KismetDB logs to standard pcap or pcapng logs for use in\n"
-           "tools like Wireshark and tcpdump\n");
-    printf("usage: %s [OPTION]\n", argv);
-    printf(" -i, --in [filename]            Input kismetdb file\n"
-           " -o, --out [filename]           Output file name\n"
-           " -v, --verbose                  Verbose output\n"
-           " -s, --skip-clean               Don't clean (sql vacuum) input database\n"
-           "     --old-pcap                 Create a traditional pcap file\n"
-           "                                Traditional PCAP files cannot have multiple link types.\n"
-           "     --dlt [linktype #]         Limit pcap to a single DLT (link type); necessary when\n"
-           "                                generating older traditional pcap instead of pcapng.\n"
-           "     --list-datasources         List datasources in kismetdb; do not create a pcap file\n"
-           "     --datasource [uuid]        Include packets from this datasource.  Multiple datasource\n"
-           "                                arguments can be given to include multiple datasources.\n"
-           "     --split-datasource         Split output into multiple files, with each file containing\n"
-           "                                packets from a single datasource.\n"
-           "     --split-packets [num]      Split output into multiple files, with each file containing\n"
-           "                                at most [num] packets\n"
-           "     --split-size [size-in-kb]  Split output into multiple files, with each file containing\n"
-           "                                at most [kb] bytes\n"
-           "\n"
-           "When splitting output by datasource, the file will be named [outname]-[datasource-uuid].\n"
-           "\n"
-           "When splitting output into multiple files, file will be named [outname]-0001, \n"
-           "[outname]-0002, and so forth.\n"
-           "\n"
-           "Output can be split by datasource, packet count, or file size.  These options can be\n"
-           "combined as datasource and packet count, or datasource and file size.\n"
-           "\n"
-           "When splitting by both datasource and count or size, the files will be named \n"
-           "[outname]-[datasource-uuid]-0001, and so on.\n"
-          );
-}
-
 bool string_case_cmp(const std::string& a, const std::string& b) {
     if (a.size() != b.size())
         return false;
@@ -119,6 +83,15 @@ public:
 
 class log_file {
 public:
+    log_file() {
+        file = nullptr;
+        sz = 0;
+        count = 0;
+        number = 0;
+    }
+
+    std::string name;
+
     FILE *file;
     size_t sz;
 
@@ -154,8 +127,9 @@ std::vector<int> get_dlts_per_datasouce(sqlite3 *db, const std::string& uuid) {
     return ret;
 }
 
-void open_pcap_file(const std::string& path, FILE **pcap_file, bool force, unsigned int dlt) {
+FILE *open_pcap_file(const std::string& path, bool force, unsigned int dlt) {
     struct stat statbuf;
+    FILE *pcap_file;
 
     if (path != "-") {
         if (stat(path.c_str(), &statbuf) < 0) {
@@ -170,9 +144,9 @@ void open_pcap_file(const std::string& path, FILE **pcap_file, bool force, unsig
     }
 
     if (path == "-") {
-        *pcap_file = stdout;
+        pcap_file = stdout;
     } else {
-        if ((*pcap_file = fopen(path.c_str(), "w")) == nullptr) 
+        if ((pcap_file = fopen(path.c_str(), "w")) == nullptr) 
             throw std::runtime_error(fmt::format("Error opening output file '{}': {} (errno {})",
                         path, strerror(errno), errno));
     }
@@ -187,11 +161,14 @@ void open_pcap_file(const std::string& path, FILE **pcap_file, bool force, unsig
         .dlt = dlt
     };
 
-    fwrite(&pcap_hdr, sizeof(pcap_hdr_t), 1, *pcap_file);
+    fwrite(&pcap_hdr, sizeof(pcap_hdr_t), 1, pcap_file);
+
+    return pcap_file;
 }
 
-void open_pcapng_file(const std::string& path, FILE **pcapng_file, bool force) {
+FILE *open_pcapng_file(const std::string& path, bool force) {
     struct stat statbuf;
+    FILE *pcapng_file;
 
     if (path != "-") {
         if (stat(path.c_str(), &statbuf) < 0) {
@@ -218,9 +195,9 @@ void open_pcapng_file(const std::string& path, FILE **pcapng_file, bool force) {
     }
 
     if (path == "-") {
-        *pcapng_file = stdout;
+        pcapng_file = stdout;
     } else {
-        if ((*pcapng_file = fopen(path.c_str(), "w")) == nullptr) 
+        if ((pcapng_file = fopen(path.c_str(), "w")) == nullptr) 
             throw std::runtime_error(fmt::format("Error opening output file '{}': {} (errno {})",
                         path, strerror(errno), errno));
     }
@@ -256,8 +233,64 @@ void open_pcapng_file(const std::string& path, FILE **pcapng_file, bool force) {
     uint32_t end_sz = shb_sz + 4;
 
     // Write the SHB, options, and the second copy of the length
-    fwrite(buf, shb_sz, 1, *pcapng_file);
-    fwrite(&end_sz, sizeof(uint32_t), 1, *pcapng_file);
+    fwrite(buf, shb_sz, 1, pcapng_file);
+    fwrite(&end_sz, sizeof(uint32_t), 1, pcapng_file);
+
+    return pcapng_file;
+}
+
+void write_pcap_packet(FILE *pcap_file, const std::string& packet,
+        unsigned long ts_sec, unsigned long ts_usec) {
+    pcap_packet_hdr_t hdr;
+    hdr.ts_sec = ts_sec;
+    hdr.ts_usec = ts_usec;
+    hdr.incl_len = packet.size();
+    hdr.orig_len = packet.size();
+
+    if (fwrite(&hdr, sizeof(pcap_hdr_t), 1, pcap_file) != 1)
+        throw std::runtime_error(fmt::format("error writing pcap packet: {} (errno {})",
+                    strerror(errno), errno));
+
+    if (fwrite(packet.data(), packet.size(), 1, pcap_file) != 1)
+        throw std::runtime_error(fmt::format("error writing pcap packet: {} (errno {})",
+                    strerror(errno), errno));
+}
+
+void print_help(char *argv) {
+    printf("Kismetdb to pcap\n");
+    printf("Convert packet data from KismetDB logs to standard pcap or pcapng logs for use in\n"
+           "tools like Wireshark and tcpdump\n");
+    printf("usage: %s [OPTION]\n", argv);
+    printf(" -i, --in [filename]            Input kismetdb file\n"
+           " -o, --out [filename]           Output file name\n"
+           " -f, --force                    Overwrite any existing output files\n"
+           " -v, --verbose                  Verbose output\n"
+           " -s, --skip-clean               Don't clean (sql vacuum) input database\n"
+           "     --old-pcap                 Create a traditional pcap file\n"
+           "                                Traditional PCAP files cannot have multiple link types.\n"
+           "     --dlt [linktype #]         Limit pcap to a single DLT (link type); necessary when\n"
+           "                                generating older traditional pcap instead of pcapng.\n"
+           "     --list-datasources         List datasources in kismetdb; do not create a pcap file\n"
+           "     --datasource [uuid]        Include packets from this datasource.  Multiple datasource\n"
+           "                                arguments can be given to include multiple datasources.\n"
+           "     --split-datasource         Split output into multiple files, with each file containing\n"
+           "                                packets from a single datasource.\n"
+           "     --split-packets [num]      Split output into multiple files, with each file containing\n"
+           "                                at most [num] packets\n"
+           "     --split-size [size-in-kb]  Split output into multiple files, with each file containing\n"
+           "                                at most [kb] bytes\n"
+           "\n"
+           "When splitting output by datasource, the file will be named [outname]-[datasource-uuid].\n"
+           "\n"
+           "When splitting output into multiple files, file will be named [outname]-0001, \n"
+           "[outname]-0002, and so forth.\n"
+           "\n"
+           "Output can be split by datasource, packet count, or file size.  These options can be\n"
+           "combined as datasource and packet count, or datasource and file size.\n"
+           "\n"
+           "When splitting by both datasource and count or size, the files will be named \n"
+           "[outname]-[datasource-uuid]-0001, and so on.\n"
+          );
 }
 
 int main(int argc, char *argv[]) {
@@ -274,6 +307,7 @@ int main(int argc, char *argv[]) {
         { "verbose", no_argument, 0, 'v' },
         { "help", no_argument, 0, 'h' },
         { "skip-clean", no_argument, 0, 's' },
+        { "force", no_argument, 0, 'f' },
         { "old-pcap", no_argument, 0, OPT_OLD_PCAP },
         { "list-datasources", no_argument, 0, OPT_LIST },
         { "datasource", required_argument, 0, OPT_INTERFACE },
@@ -308,20 +342,15 @@ int main(int argc, char *argv[]) {
     std::vector<std::shared_ptr<db_interface>> interface_vec;
     std::vector<std::shared_ptr<db_interface>> logging_interface_vec;
 
-    // Single logs
-    std::map<std::string, std::shared_ptr<log_interface>> ng_interface_map;
-    FILE *ofile = NULL;
-    size_t log_sz = 0;
-    unsigned int log_packets = 0;
-
-    // Per-interface logs
+    // Log states
     std::map<std::string, std::shared_ptr<log_file>> per_interface_logs;
+    std::shared_ptr<log_file> single_log = std::make_shared<log_file>();
 
     struct stat statbuf;
 
     while (1) {
         int r = getopt_long(argc, argv, 
-                            "-hi:o:vhsn", 
+                            "-hi:o:vhsnf", 
                             longopt, &option_idx);
         if (r < 0) break;
 
@@ -334,6 +363,8 @@ int main(int argc, char *argv[]) {
             out_fname = std::string(optarg);
         } else if (r == 'v') { 
             verbose = true;
+        } else if (r == 'f') {
+            force = true;
         } else if (r == 's') {
             skipclean = true;
         } else if (r == OPT_SPLIT_PKTS) {
@@ -372,6 +403,11 @@ int main(int argc, char *argv[]) {
 
     if ((out_fname == "" || in_fname == "") && !list_only) {
         fmt::print(stderr, "ERROR: Expected --in [kismetdb file] and --out [pcap file]\n");
+        exit(1);
+    }
+
+    if ((split_packets || split_size) && out_fname == "-") {
+        fmt::print(stderr, "ERROR: Cannot split by packets or size when outputting to stdout\n");
         exit(1);
     }
 
@@ -530,6 +566,18 @@ int main(int argc, char *argv[]) {
                 continue;
             }
 
+            if (i->dlts[0] != dlt && dlt != -1) {
+                fmt::print(stderr, "ERROR:  Datasource {} {} ({}) specifically included, but "
+                        "has a DLT of {} {} ({}), while the DLT {} {} ({}) was specified.  "
+                        "Packets from this source will be ignored.\n",
+                        i->uuid, i->name, i->interface,
+                        i->dlts[0], pcap_datalink_val_to_name(i->dlts[0]),
+                        pcap_datalink_val_to_description(i->dlts[0]),
+                        common_dlt, pcap_datalink_val_to_name(common_dlt),
+                        pcap_datalink_val_to_description(common_dlt));
+                continue;
+            }
+
             if (common_dlt != i->dlts[0] && dlt == -1 && !split_interface) {
                 fmt::print(stderr, "ERROR:  Datasource {} {} ({}) has a DLT of {} {} ({}), while "
                         "another datasource has a DLT of {} {} ({}).  Only one DLT is supported "
@@ -545,7 +593,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-
     // Assemble the where clause for how we grab packets
     auto packet_filter_q = _WHERE();
 
@@ -558,9 +605,92 @@ int main(int argc, char *argv[]) {
         auto uuid_clause = _WHERE();
 
         for (auto i : logging_interface_vec)
-            uuid_clause = _WHERE(uuid_clause, OR, "uuid", LIKE, i->uuid);
+            uuid_clause = _WHERE(uuid_clause, OR, "datasource", LIKE, i->uuid);
 
         packet_filter_q = _WHERE(packet_filter_q, AND, uuid_clause);
+    }
+
+    auto packets_q = _SELECT(db, "packets", 
+            {"ts_sec", "ts_usec", "dlt", "datasource", "packet", "tags"},
+            packet_filter_q);
+
+    try {
+        for (auto pkt : packets_q) {
+            auto ts_sec = sqlite3_column_as<unsigned long>(pkt, 0);
+            auto ts_usec = sqlite3_column_as<unsigned long>(pkt, 1);
+            auto pkt_dlt = sqlite3_column_as<unsigned int>(pkt, 2);
+            auto datasource = sqlite3_column_as<std::string>(pkt, 3);
+            auto bytes = sqlite3_column_as<std::string>(pkt, 4);
+            auto tags = sqlite3_column_as<std::string>(pkt, 5);
+
+            if (!pcapng) {
+                std::shared_ptr<log_file> log_interface;
+
+                if (split_interface) {
+                    auto log_index = per_interface_logs.find(datasource);
+
+                    if (log_index == per_interface_logs.end()) {
+                        log_interface = std::make_shared<log_file>();
+                        per_interface_logs[datasource] = log_interface;
+                    } else {
+                        log_interface = log_index->second;
+                    }
+
+                } else {
+                    log_interface = single_log;
+                }
+
+                if (log_interface->file == nullptr) {
+                    int file_dlt = dlt;
+
+                    if (file_dlt < 0)
+                        file_dlt = pkt_dlt;
+
+                    auto fname = out_fname;
+
+                    if (split_packets || split_size) {
+                        fname = fmt::format("{}-{:06}", fname, log_interface->number);
+                        log_interface->number++;
+                    }
+
+                    if (verbose)
+                        fmt::print(stderr, "* Opening legacy pcap file {}\n", fname);
+
+                    log_interface->name = fname;
+
+                    log_interface->file = open_pcap_file(fname, force, file_dlt);
+                }
+
+                if (bytes.size() > 8192)
+                    fmt::print("weird bytes sized {}\n", bytes.size());
+
+                write_pcap_packet(log_interface->file, bytes, ts_sec, ts_usec);
+
+                log_interface->sz += bytes.size();
+                log_interface->count++;
+
+                if (split_packets && log_interface->count >= split_packets) {
+                    if (verbose)
+                        fmt::print(stderr, "* Closing pcap file {} after {} packets\n",
+                                log_interface->name, log_interface->count);
+
+                    fclose(log_interface->file);
+                    log_interface->file = nullptr;
+                    log_interface->count = 0;
+                } else if (split_size && log_interface->sz >= split_size * 1024) {
+                    if (verbose)
+                        fmt::print(stderr, "* Closing pcap file {} after {}kb\n",
+                                log_interface->name, log_interface->sz / 1024);
+                    fclose(log_interface->file);
+                    log_interface->file = nullptr;
+                    log_interface->sz = 0;
+                }
+            }
+
+        }
+    } catch (const std::exception& e) {
+        fmt::print(stderr, "*ERROR: Failed to extract and write packets: {}\n", e.what());
+        exit(0);
     }
 
     sqlite3_close(db);
