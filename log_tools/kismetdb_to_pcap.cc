@@ -161,7 +161,9 @@ FILE *open_pcap_file(const std::string& path, bool force, unsigned int dlt) {
         .dlt = dlt
     };
 
-    fwrite(&pcap_hdr, sizeof(pcap_hdr_t), 1, pcap_file);
+    if (fwrite(&pcap_hdr, sizeof(pcap_hdr_t), 1, pcap_file) != 1)
+        throw std::runtime_error(fmt::format("Error writing pcap header: {} (errno {})",
+                    strerror(errno), errno));
 
     return pcap_file;
 }
@@ -233,8 +235,13 @@ FILE *open_pcapng_file(const std::string& path, bool force) {
     uint32_t end_sz = shb_sz + 4;
 
     // Write the SHB, options, and the second copy of the length
-    fwrite(buf, shb_sz, 1, pcapng_file);
-    fwrite(&end_sz, sizeof(uint32_t), 1, pcapng_file);
+    if (fwrite(buf, shb_sz, 1, pcapng_file) != 1)
+        throw std::runtime_error(fmt::format("error writing pcapng header: {} (errno {})",
+                    strerror(errno), errno));
+    
+    if (fwrite(&end_sz, sizeof(uint32_t), 1, pcapng_file) != 1)
+        throw std::runtime_error(fmt::format("error writing pcapng header: {} (errno {})",
+                    strerror(errno), errno));
 
     return pcapng_file;
 }
@@ -247,7 +254,7 @@ void write_pcap_packet(FILE *pcap_file, const std::string& packet,
     hdr.incl_len = packet.size();
     hdr.orig_len = packet.size();
 
-    if (fwrite(&hdr, sizeof(pcap_hdr_t), 1, pcap_file) != 1)
+    if (fwrite(&hdr, sizeof(pcap_packet_hdr_t), 1, pcap_file) != 1)
         throw std::runtime_error(fmt::format("error writing pcap packet: {} (errno {})",
                     strerror(errno), errno));
 
