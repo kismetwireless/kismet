@@ -47,6 +47,14 @@
 #include "packet_ieee80211.h"
 #include "pcapng.h"
 
+extern "C" {
+#ifndef HAVE_PCAPPCAP_H
+#include <pcap.h>
+#else
+#include <pcap/pcap.h>
+#endif
+}
+
 void print_help(char *argv) {
     printf("Kismetdb to pcap\n");
     printf("Convert packet data from KismetDB logs to standard pcap or pcapng logs for use in\n"
@@ -60,26 +68,39 @@ void print_help(char *argv) {
            "                                Traditional PCAP files cannot have multiple link types.\n"
            "     --dlt [linktype #]         Limit pcap to a single DLT (link type); necessary when\n"
            "                                generating older traditional pcap instead of pcapng.\n"
-           "     --list-interfaces          List interfaces in kismetdb; do not create a pcap file\n"
-           "     --interface [intf]         Only include packets from a specific interface\n"
-           "     --split-interface          Split output into multiple files, with each file containing\n"
-           "                                packets from a single interface.\n"
+           "     --list-datasources         List datasources in kismetdb; do not create a pcap file\n"
+           "     --datasource [uuid]        Include packets from this datasource.  Multiple datasource\n"
+           "                                arguments can be given to include multiple datasources.\n"
+           "     --split-datasource         Split output into multiple files, with each file containing\n"
+           "                                packets from a single datasource.\n"
            "     --split-packets [num]      Split output into multiple files, with each file containing\n"
            "                                at most [num] packets\n"
            "     --split-size [size-in-kb]  Split output into multiple files, with each file containing\n"
            "                                at most [kb] bytes\n"
            "\n"
-           "When splitting output by interface, the file will be named [outname]-[interface-uuid].\n"
+           "When splitting output by datasource, the file will be named [outname]-[datasource-uuid].\n"
            "\n"
            "When splitting output into multiple files, file will be named [outname]-0001, \n"
            "[outname]-0002, and so forth.\n"
            "\n"
-           "Output can be split by interface, packet count, or file size.  These options can be\n"
-           "combined as interface and packet count, or interface and file size.\n"
+           "Output can be split by datasource, packet count, or file size.  These options can be\n"
+           "combined as datasource and packet count, or datasource and file size.\n"
            "\n"
-           "When splitting by both interface and count or size, the files will be named \n"
-           "[outname]-[interface-uuid]-0001, and so on.\n"
+           "When splitting by both datasource and count or size, the files will be named \n"
+           "[outname]-[datasource-uuid]-0001, and so on.\n"
           );
+}
+
+bool string_case_cmp(const std::string& a, const std::string& b) {
+    if (a.size() != b.size())
+        return false;
+
+    for (size_t i = 0; i < a.size(); i++) {
+        if (tolower(a[i]) != tolower(b[i]))
+            return false;
+    }
+
+    return true;
 }
 
 class log_interface {
@@ -110,22 +131,75 @@ public:
     std::string name;
     std::string interface;
     unsigned long num_packets;
+    std::vector<int> dlts;
 };
 
-int get_dlts_per_datasouce(sqlite3 *db, const std::string& uuid) {
+std::vector<int> get_dlts_per_datasouce(sqlite3 *db, const std::string& uuid) {
     using namespace kissqlite3;
 
-    auto npackets_q = _SELECT(db, "packets", 
-            {"count(distinct dlt)"}, 
-            _WHERE("datasource", EQ, uuid));
+    std::vector<int> ret;
 
-    auto npackets_ret = npackets_q.begin();
-    if (npackets_ret == npackets_q.end()) {
-        fmt::print(stderr, "ERROR:  Unable to fetch packet count.\n");
-        sqlite3_close(db);
-        exit(1);
+    auto npackets_q = _SELECT(db, "packets", 
+            {"distinct dlt"}, _WHERE("datasource", EQ, uuid));
+
+    for (auto i : npackets_q) 
+        ret.push_back(sqlite3_column_as<int>(i, 0));
+
+    return ret;
+}
+
+void open_pcap_file(const std::string& path, FILE **pcap_file, bool force, unsigned int dlt) {
+    struct stat statbuf;
+
+    if (path != "-") {
+        if (stat(path.c_str(), &statbuf) < 0) {
+            if (errno != ENOENT) {
+                throw std::runtime_error(fmt::format("Unexpected problem opening output "
+                            "file '{}': {} (errno {})", path, strerror(errno), errno));
+            }
+        } else if (force == false) {
+            throw std::runtime_error(fmt::format("Output file '{}' already exists, use --force "
+                        "to overwrite existing files.", path));
+        }
     }
-    return sqlite3_column_as<unsigned long>(*npackets_ret, 0);
+
+    if (path == "-") {
+        *pcap_file = stdout;
+    } else {
+        if ((*pcap_file = fopen(path.c_str(), "w")) == nullptr) 
+            throw std::runtime_error(fmt::format("Error opening output file '{}': {} (errno {})",
+                        path, strerror(errno), errno));
+    }
+
+    pcap_hdr_t pcap_hdr {
+        .magic_number = PCAP_MAGIC,
+        .version_major = PCAP_VERSION_MAJOR,
+        .version_minor = PCAP_VERSION_MINOR,
+        .thiszone = 0,
+        .sigfigs = 0,
+        .snaplen = PCAP_MAX_SNAPLEN,
+        .dlt = dlt
+    };
+
+    fwrite(&pcap_hdr, sizeof(pcap_hdr_t), 1, *pcap_file);
+}
+
+void open_pcapng_file(const std::string& path, FILE **pcapng_file, bool force) {
+    struct stat statbuf;
+
+    if (path != "-") {
+        if (stat(path.c_str(), &statbuf) < 0) {
+            if (errno != ENOENT) {
+                throw std::runtime_error(fmt::format("Unexpected problem opening output "
+                            "file '{}': {} (errno {})", path, strerror(errno), errno));
+            }
+        } else if (force == false) {
+            throw std::runtime_error(fmt::format("Output file '{}' already exists, use --force "
+                        "to overwrite existing files.", path));
+        }
+    }
+
+
 }
 
 int main(int argc, char *argv[]) {
@@ -143,9 +217,9 @@ int main(int argc, char *argv[]) {
         { "help", no_argument, 0, 'h' },
         { "skip-clean", no_argument, 0, 's' },
         { "old-pcap", no_argument, 0, OPT_OLD_PCAP },
-        { "list-interfaces", no_argument, 0, OPT_LIST },
-        { "interface", required_argument, 0, OPT_INTERFACE },
-        { "split-interface", no_argument, 0, OPT_SPLIT_INTERFACE },
+        { "list-datasources", no_argument, 0, OPT_LIST },
+        { "datasource", required_argument, 0, OPT_INTERFACE },
+        { "split-datasource", no_argument, 0, OPT_SPLIT_INTERFACE },
         { "split-packets", required_argument, 0, OPT_SPLIT_PKTS },
         { "split-size", required_argument, 0, OPT_SPLIT_SIZE },
         { "dlt", required_argument, 0, OPT_DLT },
@@ -171,6 +245,10 @@ int main(int argc, char *argv[]) {
     int sql_r = 0;
     char *sql_errmsg = NULL;
     sqlite3 *db = NULL;
+
+    // Derived interfaces
+    std::vector<std::shared_ptr<db_interface>> interface_vec;
+    std::vector<std::shared_ptr<db_interface>> logging_interface_vec;
 
     // Single logs
     std::map<std::string, std::shared_ptr<log_interface>> ng_interface_map;
@@ -294,11 +372,9 @@ int main(int argc, char *argv[]) {
         exit(0);
     }
 
-    std::vector<std::shared_ptr<db_interface>> interface_list;
-
     try {
         if (verbose)
-            fmt::print(stderr, "* Querying interfaces...\n");
+            fmt::print(stderr, "* Querying datasources...\n");
 
         auto interface_query = _SELECT(db, "datasources", 
                 {"uuid", "typestring", "definition", "name", "interface"});
@@ -317,33 +393,103 @@ int main(int argc, char *argv[]) {
                     _WHERE("datasource", EQ, dbsource->uuid));
             auto npackets_ret = npackets_q.begin();
             if (npackets_ret == npackets_q.end()) {
-                fmt::print(stderr, "ERROR:  Unable to fetch packet count.\n");
+                fmt::print(stderr, "ERROR:  Unable to fetch packet count for datasource {} {} ({}).\n",
+                        dbsource->uuid, dbsource->name, dbsource->interface);
                 sqlite3_close(db);
                 exit(1);
             }
             dbsource->num_packets = sqlite3_column_as<unsigned long>(*npackets_ret, 0);
 
-            interface_list.push_back(dbsource);
+            dbsource->dlts = get_dlts_per_datasouce(db, dbsource->uuid);
+
+            interface_vec.push_back(dbsource);
         }
 
     } catch (const std::exception& e) {
-        fmt::print(stderr, "ERROR:  Could not get interfaces from '{}': {}\n", in_fname, e.what());
+        fmt::print(stderr, "ERROR:  Could not get datasources from '{}': {}\n", in_fname, e.what());
         exit(0);
     }
 
     if (list_only) {
         int ifnum = 0;
 
-        for (auto i : interface_list) {
-            fmt::print("Interface #{} ({} {} {}) {} packets\n", 
+        for (auto i : interface_vec) {
+            fmt::print("Datasource #{} ({} {} {}) {} packets\n", 
                     ifnum++, i->uuid, i->name, i->interface, i->num_packets);
+            for (auto d : i->dlts) {
+                fmt::print("   DLT {}: {} {}\n",
+                        d, pcap_datalink_val_to_name(d), pcap_datalink_val_to_description(d));
+            }
+
+            if (i->dlts.size() == 0) 
+                fmt::print("    No packets seen by this datasource\n");
         }
 
         exit(0);
     }
 
+    if (raw_interface_vec.size() != 0) {
+        for (auto i : raw_interface_vec) {
+            bool ok = false;
+
+            for (auto dbi : interface_vec) {
+                if (string_case_cmp(dbi->uuid, i)) {
+                    logging_interface_vec.push_back(dbi);
+                    ok = true;
+                    break;
+                }
+            }
+
+            if (!ok) {
+                fmt::print(stderr, "ERROR:  Could not find a datasource with UUID '{}' in {}\n",
+                        i, in_fname);
+                exit(0);
+            }
+        }
+    }                
+
+    // Confirm interfaces are OK for this type of output; we can't mix DLT on pcap, even if
+    // we split interfaces.
+    if (!pcapng && raw_interface_vec.size() != 0) {
+        int common_dlt = -1;
+
+        for (auto i : logging_interface_vec) {
+            if (i->dlts.size() == 0)
+                continue;
+
+            if (i->dlts.size() > 1 && dlt == -1) {
+                fmt::print(stderr, "ERROR:  Datasource {} {} ({}) has multiple link types; when "
+                        "logging to a legacy pcap file, only one link type can be used; specify "
+                        "a link type with the --dlt argument.\n",
+                        i->uuid, i->name, i->interface);
+                exit(0);
+            }
+
+            if (common_dlt == -1) {
+                common_dlt = i->dlts[0];
+                continue;
+            }
+
+            if (common_dlt != i->dlts[0] && dlt == -1 && !split_interface) {
+                fmt::print(stderr, "ERROR:  Datasource {} {} ({}) has a DLT of {} {} ({}), while "
+                        "another datasource has a DLT of {} {} ({}).  Only one DLT is supported "
+                        "per file in legacy pcap mode; use pcapng, split by datasource, or "
+                        "specify a single DLT to support.\n",
+                        i->uuid, i->name, i->interface,
+                        i->dlts[0], pcap_datalink_val_to_name(i->dlts[0]),
+                        pcap_datalink_val_to_description(i->dlts[0]),
+                        common_dlt, pcap_datalink_val_to_name(common_dlt),
+                        pcap_datalink_val_to_description(common_dlt));
+                exit(0);
+            }
+        }
+
+    }
+
+
     // Build the packet where clause
     auto packet_filter_q = _WHERE();
+
 
     if (dlt >= 0) 
         packet_filter_q = _WHERE(packet_filter_q, AND, "dlt", EQ, dlt);
