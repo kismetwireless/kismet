@@ -40,12 +40,13 @@
 
 #include <sqlite3.h>
 
+#include "fmt.h"
 #include "getopt.h"
 #include "json/json.h"
-#include "sqlite3_cpp11.h"
-#include "fmt.h"
 #include "packet_ieee80211.h"
 #include "pcapng.h"
+#include "sqlite3_cpp11.h"
+#include "version.h"
 
 extern "C" {
 #ifndef HAVE_PCAPPCAP_H
@@ -53,6 +54,11 @@ extern "C" {
 #else
 #include <pcap/pcap.h>
 #endif
+}
+
+size_t PAD_TO_32BIT(size_t in) {
+    while (in % 4) in++;
+    return in;
 }
 
 void print_help(char *argv) {
@@ -199,7 +205,59 @@ void open_pcapng_file(const std::string& path, FILE **pcapng_file, bool force) {
         }
     }
 
+    if (path != "-") {
+        if (stat(path.c_str(), &statbuf) < 0) {
+            if (errno != ENOENT) {
+                throw std::runtime_error(fmt::format("Unexpected problem opening output "
+                            "file '{}': {} (errno {})", path, strerror(errno), errno));
+            }
+        } else if (force == false) {
+            throw std::runtime_error(fmt::format("Output file '{}' already exists, use --force "
+                        "to overwrite existing files.", path));
+        }
+    }
 
+    if (path == "-") {
+        *pcapng_file = stdout;
+    } else {
+        if ((*pcapng_file = fopen(path.c_str(), "w")) == nullptr) 
+            throw std::runtime_error(fmt::format("Error opening output file '{}': {} (errno {})",
+                        path, strerror(errno), errno));
+    }
+
+    std::string app = fmt::format("Kismet kismetdb_to_pcapng {}-{}-{} {}",
+            VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, VERSION_GIT_COMMIT);
+
+    size_t shb_sz = sizeof(pcapng_shb_t);
+    shb_sz += sizeof(pcapng_option_t);
+    shb_sz += sizeof(pcapng_option_t) + PAD_TO_32BIT(app.size());
+
+    auto buf = new char[shb_sz];
+
+    auto shb = reinterpret_cast<pcapng_shb_t *>(buf);
+
+    shb->block_type = PCAPNG_SHB_TYPE_MAGIC;
+    shb->block_length = shb_sz + 4;
+    shb->block_endian_magic = PCAPNG_SHB_ENDIAN_MAGIC;
+    shb->version_major = PCAPNG_SHB_VERSION_MAJOR;
+    shb->version_minor = PCAPNG_SHB_VERSION_MINOR;
+    shb->section_length = -1;
+
+    auto opt = reinterpret_cast<pcapng_option_t *>(shb->options);
+    opt->option_code = PCAPNG_OPT_SHB_USERAPPL;
+    opt->option_length = app.size();
+    memcpy(opt->option_data, app.data(), app.size());
+
+    opt = reinterpret_cast<pcapng_option_t *>(shb->options + sizeof(pcapng_option_t) + 
+            PAD_TO_32BIT(app.size()));
+    opt->option_code = PCAPNG_OPT_ENDOFOPT;
+    opt->option_length = 0;
+
+    uint32_t end_sz = shb_sz + 4;
+
+    // Write the SHB, options, and the second copy of the length
+    fwrite(buf, shb_sz, 1, *pcapng_file);
+    fwrite(&end_sz, sizeof(uint32_t), 1, *pcapng_file);
 }
 
 int main(int argc, char *argv[]) {
@@ -374,7 +432,7 @@ int main(int argc, char *argv[]) {
 
     try {
         if (verbose)
-            fmt::print(stderr, "* Querying datasources...\n");
+            fmt::print(stderr, "* Collecting info about datasources...\n");
 
         auto interface_query = _SELECT(db, "datasources", 
                 {"uuid", "typestring", "definition", "name", "interface"});
@@ -446,7 +504,9 @@ int main(int argc, char *argv[]) {
                 exit(0);
             }
         }
-    }                
+    } else {
+        logging_interface_vec = interface_vec;
+    }
 
     // Confirm interfaces are OK for this type of output; we can't mix DLT on pcap, even if
     // we split interfaces.
@@ -483,16 +543,25 @@ int main(int argc, char *argv[]) {
                 exit(0);
             }
         }
-
     }
 
 
-    // Build the packet where clause
+    // Assemble the where clause for how we grab packets
     auto packet_filter_q = _WHERE();
 
-
+    // If we've specified an exact DLT
     if (dlt >= 0) 
         packet_filter_q = _WHERE(packet_filter_q, AND, "dlt", EQ, dlt);
+
+    // If we're filtering by specific UUID...
+    if (raw_interface_vec.size() != 0) {
+        auto uuid_clause = _WHERE();
+
+        for (auto i : logging_interface_vec)
+            uuid_clause = _WHERE(uuid_clause, OR, "uuid", LIKE, i->uuid);
+
+        packet_filter_q = _WHERE(packet_filter_q, AND, uuid_clause);
+    }
 
     sqlite3_close(db);
 
