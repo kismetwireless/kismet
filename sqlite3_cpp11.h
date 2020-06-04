@@ -522,7 +522,8 @@ namespace kissqlite3 {
     template<typename JN>
     std::list<query_element> _WHERE(std::list<query_element>& vec, const JN& join, 
             const std::list<query_element>& subclause) {
-        vec.push_back(query_element{join});
+		if (vec.size() > 0)
+			vec.push_back(query_element{join});
         vec.push_back(query_element{subclause});
         return vec;
     }
@@ -532,7 +533,8 @@ namespace kissqlite3 {
     std::list<query_element> _WHERE(std::list<query_element>& vec, const JN& join, 
             const std::list<query_element>& subclause,
             const Args& ... args) {
-        vec.push_back(query_element{join});
+		if (vec.size() > 0)
+			vec.push_back(query_element{join});
         vec.push_back(query_element{subclause});
         return _WHERE(vec, args...);
     }
@@ -542,7 +544,8 @@ namespace kissqlite3 {
     template<typename JN, typename OP, typename VL, typename... Args>
     std::list<query_element> _WHERE(std::list<query_element>& vec, const OP& join,
             const std::string& field, const JN& op, const VL value) {
-        vec.push_back(query_element{join});
+		if (vec.size() > 0)
+			vec.push_back(query_element{join});
         return _WHERE(vec, field, op, value);
     }
 
