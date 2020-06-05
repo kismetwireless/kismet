@@ -17,6 +17,7 @@ acft={}
 mdl={}
 res={}
 
+#FAA Records Fetch
 with urllib.request.urlopen("http://registry.faa.gov/database/ReleasableAircraft.zip") as response, io.BytesIO() as mem_zf:
     # Copy into an in-memory zipfile
     data = response.read()
@@ -65,4 +66,51 @@ with urllib.request.urlopen("http://registry.faa.gov/database/ReleasableAircraft
                     acft[row[2]],
                     row[6].rstrip(),
                     row[18]))
+
+
+#Canada Records Fetch
+owner={}
+with urllib.request.urlopen("https://wwwapps.tc.gc.ca/Saf-Sec-Sur/2/CCARCS-RIACC/download/ccarcsdb.zip") as response, io.BytesIO() as mem_zf:
+    # Copy into an in-memory zipfile
+    data = response.read()
+    mem_zf.write(data)
+
+    # open as a zip
+    zipf = zipfile.ZipFile(mem_zf)
+
+    with io.TextIOWrapper(zipf.open('carsownr.txt', 'r'), encoding='iso-8859-1') as ownerfile:
+        ownerlist = csv.reader(x.replace('\0','') for x in ownerfile)
+        for row in ownerlist:
+            if (row == []):
+                break
+            owner[row[0].lstrip()] = row[1]
+
+    with io.TextIOWrapper(zipf.open('carscurr.txt', 'r'), encoding='iso-8859-1') as csvfile:
+        airplanes = csv.reader(csvfile, delimiter=',', quotechar='"')
+
+        for row in airplanes:
+            if(row == []):
+              break
+
+            type=""
+            if (row[10] == "Aeroplane"):
+                type="4"
+            elif (row[10] == "Balloon"):
+                type="2"
+            elif (row[10] == "Glider"):
+                type="1"
+            elif (row[10] == "Gyroplane"):
+                type="9"
+            elif (row[10] == "Helicopter"):
+                type="6"
+            elif (row[10] == "Ornithopter"):
+                type="O"
+
+            print("{}\tC-{}\t{}\t\"{}\"\t\"{}\"\t{}".format(
+                    str(hex(int(row[42],2)))[2:],
+                    row[0].lstrip(),
+                    row[4],
+                    row[7],
+                    owner[row[0].lstrip()],
+                    type))
 

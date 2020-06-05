@@ -42,9 +42,18 @@ kismet_ui.AddDeviceRowHighlight({
             'navy',
             'patrol',
             'sqdn',
+	    'city of',
         ];
 
+	var exclude_list = [
+	    'express',
+	    'air freight',
+	]
+
 	var icao_list = [
+	    'acf181',
+	    'a980fa',
+	    'a7fb8f',
 	    'ae4bd7',
 	    'a47604',
             'a03bc8',
@@ -91,10 +100,20 @@ kismet_ui.AddDeviceRowHighlight({
 
         if (data['kismet.device.base.phyname'] === 'RTLADSB') {
             for (var re of aircraft_info) {
-                 if (data['rtladsb.device']['kismet.adsb.icao_record']['adsb.icao.owner'].toLowerCase().includes(re))
-                    if (!data['rtladsb.device']['kismet.adsb.icao_record']['adsb.icao.owner'].toLowerCase().includes('express'))
-                      return true;
-            }
+		 var retval = false;
+		 if (data['rtladsb.device']['kismet.adsb.icao_record']['adsb.icao.owner'].toLowerCase().includes(re)) {
+	            retval = true;
+		    for (var excld of exclude_list) {
+		      if (data['rtladsb.device']['kismet.adsb.icao_record']['adsb.icao.owner'].toLowerCase().includes(excld)) {
+			retval=false;
+		      }
+	            }
+		 }
+
+		 if (Boolean(retval)) {
+		     return true;
+		 }
+	    }
 	    for (var re of icao_list) {
 		 if (data['rtladsb.device']['rtladsb.device.icao'].toLowerCase().includes(re))
                     return true;
