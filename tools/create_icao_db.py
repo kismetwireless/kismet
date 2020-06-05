@@ -6,22 +6,30 @@
 # Used during Kismet release tagging to generate the aircraft db
 
 import csv
-import urllib.request
+import requests
+import urllib3
 import io
 import zipfile
 
 import os
 import sys
 
+# Kluge up request lib because the canadian server later in the script has an invalid DH key
+requests.packages.urllib3.disable_warnings()
+requests.packages.urllib3.util.ssl_.DEFAULT_CIPHERS += ':HIGH:!DH:!aNULL'
+try:
+    requests.packages.urllib3.contrib.pyopenssl.util.ssl_.DEFAULT_CIPHERS += ':HIGH:!DH:!aNULL'
+except AttributeError:
+    pass
+
 acft={}
 mdl={}
 res={}
 
 #FAA Records Fetch
-with urllib.request.urlopen("http://registry.faa.gov/database/ReleasableAircraft.zip") as response, io.BytesIO() as mem_zf:
+with requests.get("http://registry.faa.gov/database/ReleasableAircraft.zip") as response, io.BytesIO() as mem_zf:
     # Copy into an in-memory zipfile
-    data = response.read()
-    mem_zf.write(data)
+    mem_zf.write(response.content)
 
     # open as a zip
     zipf = zipfile.ZipFile(mem_zf)
@@ -68,12 +76,11 @@ with urllib.request.urlopen("http://registry.faa.gov/database/ReleasableAircraft
                     row[18]))
 
 
-#Canada Records Fetch
+#Canada Records Fetch 
 owner={}
-with urllib.request.urlopen("https://wwwapps.tc.gc.ca/Saf-Sec-Sur/2/CCARCS-RIACC/download/ccarcsdb.zip") as response, io.BytesIO() as mem_zf:
+with requests.get("https://wwwapps.tc.gc.ca/Saf-Sec-Sur/2/CCARCS-RIACC/download/ccarcsdb.zip") as response, io.BytesIO() as mem_zf:
     # Copy into an in-memory zipfile
-    data = response.read()
-    mem_zf.write(data)
+    mem_zf.write(response.content)
 
     # open as a zip
     zipf = zipfile.ZipFile(mem_zf)
