@@ -73,14 +73,6 @@ bool string_case_cmp(const std::string& a, const std::string& b) {
     return true;
 }
 
-class log_interface {
-public:
-    std::string uuid;
-    unsigned int dlt;
-    std::string cap_interface;
-    unsigned int idb_id;
-};
-
 class log_file {
 public:
     log_file() {
@@ -99,7 +91,7 @@ public:
     unsigned int number;
 
     // map of uuid-dlt to record
-    std::map<std::string, std::shared_ptr<log_interface>> ng_interface_map;
+    std::map<std::string, unsigned int> ng_interface_map;
 };
 
 class db_interface {
@@ -167,6 +159,24 @@ FILE *open_pcap_file(const std::string& path, bool force, unsigned int dlt) {
 
     return pcap_file;
 }
+
+void write_pcap_packet(FILE *pcap_file, const std::string& packet,
+        unsigned long ts_sec, unsigned long ts_usec) {
+    pcap_packet_hdr_t hdr;
+    hdr.ts_sec = ts_sec;
+    hdr.ts_usec = ts_usec;
+    hdr.incl_len = packet.size();
+    hdr.orig_len = packet.size();
+
+    if (fwrite(&hdr, sizeof(pcap_packet_hdr_t), 1, pcap_file) != 1)
+        throw std::runtime_error(fmt::format("error writing pcap packet: {} (errno {})",
+                    strerror(errno), errno));
+
+    if (fwrite(packet.data(), packet.size(), 1, pcap_file) != 1)
+        throw std::runtime_error(fmt::format("error writing pcap packet: {} (errno {})",
+                    strerror(errno), errno));
+}
+
 
 FILE *open_pcapng_file(const std::string& path, bool force) {
     struct stat statbuf;
@@ -246,22 +256,131 @@ FILE *open_pcapng_file(const std::string& path, bool force) {
     return pcapng_file;
 }
 
-void write_pcap_packet(FILE *pcap_file, const std::string& packet,
-        unsigned long ts_sec, unsigned long ts_usec) {
-    pcap_packet_hdr_t hdr;
-    hdr.ts_sec = ts_sec;
-    hdr.ts_usec = ts_usec;
-    hdr.incl_len = packet.size();
-    hdr.orig_len = packet.size();
+void write_pcapng_interface(FILE *pcapng_file, unsigned int ngindex, const std::string& interface, 
+        unsigned int dlt, const std::string& description) {
 
-    if (fwrite(&hdr, sizeof(pcap_packet_hdr_t), 1, pcap_file) != 1)
-        throw std::runtime_error(fmt::format("error writing pcap packet: {} (errno {})",
-                    strerror(errno), errno));
+    size_t idb_sz = sizeof(pcapng_idb_t) + sizeof(pcapng_option_t);
+    idb_sz += sizeof(pcapng_option_t) + PAD_TO_32BIT(interface.length());
+    idb_sz += sizeof(pcapng_option_t) + PAD_TO_32BIT(description.length());
 
-    if (fwrite(packet.data(), packet.size(), 1, pcap_file) != 1)
-        throw std::runtime_error(fmt::format("error writing pcap packet: {} (errno {})",
+    auto buf = new char[idb_sz];
+    auto idb = reinterpret_cast<pcapng_idb *>(buf);
+
+    size_t opt_offt = 0;
+
+    idb->block_type = PCAPNG_IDB_BLOCK_TYPE;
+    idb->block_length = idb_sz + 4;
+    idb->dlt = dlt;
+    idb->reserved = 0;
+    idb->snaplen = 65535;
+
+    pcapng_option_t *opt = reinterpret_cast<pcapng_option_t *>(idb->options + opt_offt);
+    opt->option_code = PCAPNG_OPT_IDB_IFNAME;
+    opt->option_length = interface.length();
+    memcpy(opt->option_data, interface.c_str(), interface.length());
+    opt_offt += sizeof(pcapng_option_t) + PAD_TO_32BIT(interface.length());
+
+    opt = reinterpret_cast<pcapng_option_t *>(idb->options + opt_offt);
+    opt->option_code = PCAPNG_OPT_IDB_IFDESC;
+    opt->option_length = description.length();
+    memcpy(opt->option_data, description.c_str(), description.length());
+    opt_offt += sizeof(pcapng_option_t) + PAD_TO_32BIT(description.length());
+
+    opt = reinterpret_cast<pcapng_option_t *>(idb->options + opt_offt);
+    opt->option_code = PCAPNG_OPT_ENDOFOPT;
+    opt->option_length = 0;
+
+    if (fwrite(buf, idb_sz, 1, pcapng_file) != 1)
+        throw std::runtime_error(fmt::format("error writing pcapng interface block: {} (errno {})",
+                strerror(errno), errno));
+
+    idb_sz += 4;
+
+    if (fwrite(&idb_sz, sizeof(uint32_t), 1, pcapng_file) != 1)
+        throw std::runtime_error(fmt::format("error writing pcapng interface block: {} (errno {}))",
                     strerror(errno), errno));
 }
+
+void write_pcapng_packet(FILE *pcapng_file, const std::string& packet,
+        unsigned long ts_sec, unsigned long ts_usec, const std::string& tag,
+        unsigned int ngindex) {
+
+    // Assemble the packet in the file in steps to avoid another memcpy
+    pcapng_epb_t epb;
+
+    // Always allocate an end-of-options option
+    auto data_sz = sizeof(pcapng_epb_t) + PAD_TO_32BIT(packet.size()) + sizeof(pcapng_option_t);
+
+    if (tag.length() != 0) 
+        data_sz += sizeof(pcapng_option_t) + PAD_TO_32BIT(tag.length());
+
+    epb.block_type = PCAPNG_EPB_BLOCK_TYPE;
+    epb.block_length = data_sz + 4;
+    epb.interface_id = ngindex;
+
+    uint64_t conv_ts = ((uint64_t) ts_sec * 1'000'000L) + ts_usec;
+    epb.timestamp_high = (conv_ts >> 32);
+    epb.timestamp_low = conv_ts;
+
+    epb.captured_length = packet.size();
+    epb.original_length = packet.size();
+
+    if (fwrite(&epb, sizeof(pcapng_epb_t), 1, pcapng_file) != 1)
+        throw std::runtime_error(fmt::format("error writing pcapng packet header: {} (errno {})",
+                strerror(errno), errno));
+
+    if (fwrite(packet.data(), packet.size(), 1, pcapng_file) != 1)
+        throw std::runtime_error(fmt::format("error writing pcapng packet content: {} (errno {})",
+                    strerror(errno), errno));
+
+    // Data has to be 32bit padded
+    uint32_t pad = 0;
+    size_t pad_sz = 0;
+
+    pad_sz = PAD_TO_32BIT(packet.size()) - packet.size();
+
+    if (pad_sz > 0)
+        if (fwrite(&pad, pad_sz, 1, pcapng_file) != 1)
+            throw std::runtime_error(fmt::format("error writing pcapng packet padding: {} (errno {})",
+                        strerror(errno), errno));
+
+    pcapng_option_t opt;
+
+    if (tag.length() > 0) {
+        opt.option_code = PCAPNG_OPT_COMMENT;
+        opt.option_length = tag.length();
+
+        if (fwrite(&opt, sizeof(pcapng_option_t), 1, pcapng_file) != 1) 
+            throw std::runtime_error(fmt::format("error writing pcapng packet option: {} (errno {})",
+                        strerror(errno), errno));
+
+        if (fwrite(tag.c_str(), tag.length(), 1, pcapng_file) != 1)
+            throw std::runtime_error(fmt::format("error writing pcapng packet option: {} (errno {})",
+                        strerror(errno), errno));
+
+        pad_sz = PAD_TO_32BIT(tag.length()) - tag.length();
+
+        if (pad_sz > 0)
+            if (fwrite(&pad, pad_sz, 1, pcapng_file) != 1)
+                throw std::runtime_error(fmt::format("error writing pcapng packet option: {} (errno {})",
+                            strerror(errno), errno));
+    }
+
+    opt.option_code = PCAPNG_OPT_ENDOFOPT;
+    opt.option_length = 0;
+
+    if (fwrite(&opt, sizeof(pcapng_option_t), 1, pcapng_file) != 1) 
+        throw std::runtime_error(fmt::format("error writing packet end-of-options: {} (errno {})",
+                    strerror(errno), errno));
+
+    data_sz += 4;
+
+    if (fwrite(&data_sz, 4, 1, pcapng_file) != 1)
+        throw std::runtime_error(fmt::format("error writing packet end-of-packet: {} (errno {})",
+                    strerror(errno), errno));
+
+}
+    
 
 void print_help(char *argv) {
     printf("Kismetdb to pcap\n");
@@ -668,9 +787,6 @@ int main(int argc, char *argv[]) {
                     log_interface->file = open_pcap_file(fname, force, file_dlt);
                 }
 
-                if (bytes.size() > 8192)
-                    fmt::print("weird bytes sized {}\n", bytes.size());
-
                 write_pcap_packet(log_interface->file, bytes, ts_sec, ts_usec);
 
                 log_interface->sz += bytes.size();
@@ -679,6 +795,92 @@ int main(int argc, char *argv[]) {
                 if (split_packets && log_interface->count >= split_packets) {
                     if (verbose)
                         fmt::print(stderr, "* Closing pcap file {} after {} packets\n",
+                                log_interface->name, log_interface->count);
+
+                    fclose(log_interface->file);
+                    log_interface->file = nullptr;
+                    log_interface->count = 0;
+                } else if (split_size && log_interface->sz >= split_size * 1024) {
+                    if (verbose)
+                        fmt::print(stderr, "* Closing pcap file {} after {}kb\n",
+                                log_interface->name, log_interface->sz / 1024);
+                    fclose(log_interface->file);
+                    log_interface->file = nullptr;
+                    log_interface->sz = 0;
+                }
+            } else {
+                // pcapng
+
+                std::shared_ptr<log_file> log_interface;
+
+                if (split_interface) {
+                    auto log_index = per_interface_logs.find(datasource);
+
+                    if (log_index == per_interface_logs.end()) {
+                        log_interface = std::make_shared<log_file>();
+                        per_interface_logs[datasource] = log_interface;
+                    } else {
+                        log_interface = log_index->second;
+                    }
+
+                } else {
+                    log_interface = single_log;
+                }
+
+                if (log_interface->file == nullptr) {
+                    int file_dlt = dlt;
+
+                    if (file_dlt < 0)
+                        file_dlt = pkt_dlt;
+
+                    auto fname = out_fname;
+
+                    if (split_packets || split_size) {
+                        fname = fmt::format("{}-{:06}", fname, log_interface->number);
+                        log_interface->number++;
+                    }
+
+                    if (verbose)
+                        fmt::print(stderr, "* Opening pcapng file {}\n", fname);
+
+                    log_interface->name = fname;
+
+                    log_interface->file = open_pcapng_file(fname, force);
+                }
+
+                auto source_combo = fmt::format("{}-{}", datasource, pkt_dlt);
+                auto source_key = log_interface->ng_interface_map.find(source_combo);
+                unsigned int ngindex = 0;
+
+                if (source_key == log_interface->ng_interface_map.end()) {
+                    std::shared_ptr<db_interface> dbinterface;
+
+                    for (auto dbi : interface_vec) {
+                        if (dbi->uuid == datasource) {
+                            auto desc = fmt::format("Kismet datasource {} ({} - {})",
+                                    dbi->name, dbi->interface, dbi->definition);
+                            ngindex = log_interface->ng_interface_map.size();
+
+                            log_interface->ng_interface_map[source_combo] = ngindex;
+
+                            write_pcapng_interface(log_interface->file, ngindex,
+                                    dbi->interface, pkt_dlt, desc);
+
+                            break;
+                        }
+                    }
+                } else {
+                    ngindex = source_key->second;
+                }
+
+                write_pcapng_packet(log_interface->file, bytes, ts_sec, ts_usec, tags, ngindex);
+
+                log_interface->sz += bytes.size();
+                log_interface->count++;
+
+                if (split_packets && log_interface->count >= split_packets) {
+                    if (verbose)
+                        fmt::print(stderr, "* Closing pcapng file {} after {} packets\n",
                                 log_interface->name, log_interface->count);
 
                     fclose(log_interface->file);
