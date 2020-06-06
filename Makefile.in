@@ -262,9 +262,14 @@ all-with-plugins:
 	@make plugins
 
 # Autogen the version file
+ifdef SOURCE_DATE_EPOCH
+	BUILD_DATE ?= $(shell date -u -d "@$(SOURCE_DATE_EPOCH)" 2>/dev/null || date -u -r "$(SOURCE_DATE_EPOCH)" 2>/dev/null || date -u)
+else
+	BUILD_DATE ?= $(shell date)
+endif
 version.c:	FORCE
 	@{ $(GIT) rev-parse --short HEAD 2>/dev/null || echo "non-git-release"; } | awk ' BEGIN {print "#include \"version.h\""} {print "const char *VERSION_GIT_COMMIT = \"" $$0"\";"} END {}' > version.c
-	@date | awk 'BEGIN {} {print "const char *VERSION_BUILD_TIME = \""$$0"\";"} END {} ' >> version.c
+	@echo "$(BUILD_DATE)" | awk 'BEGIN {} {print "const char *VERSION_BUILD_TIME = \""$$0"\";"} END {} ' >> version.c
 
 # Force remove version.c.o since it's left behind owned by root as part of suidinstall, which screws
 # up a lot of builds for people; we assume we can `rm -f` it
