@@ -774,6 +774,9 @@ int main(int argc, char *argv[]) {
 
                     auto fname = out_fname;
 
+                    if (split_interface)
+                        fname = fmt::format("{}-{}", fname, datasource);
+
                     if (split_packets || split_size) {
                         fname = fmt::format("{}-{:06}", fname, log_interface->number);
                         log_interface->number++;
@@ -834,6 +837,9 @@ int main(int argc, char *argv[]) {
                         file_dlt = pkt_dlt;
 
                     auto fname = out_fname;
+
+                    if (split_interface)
+                        fname = fmt::format("{}-{}", fname, datasource);
 
                     if (split_packets || split_size) {
                         fname = fmt::format("{}-{:06}", fname, log_interface->number);
