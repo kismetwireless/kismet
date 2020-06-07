@@ -242,14 +242,14 @@ FILE *open_pcapng_file(const std::string& path, bool force) {
     opt->option_code = PCAPNG_OPT_ENDOFOPT;
     opt->option_length = 0;
 
-    uint32_t end_sz = shb_sz + 4;
-
     // Write the SHB, options, and the second copy of the length
     if (fwrite(buf, shb_sz, 1, pcapng_file) != 1)
         throw std::runtime_error(fmt::format("error writing pcapng header: {} (errno {})",
                     strerror(errno), errno));
+
+    shb_sz += 4;
     
-    if (fwrite(&end_sz, sizeof(uint32_t), 1, pcapng_file) != 1)
+    if (fwrite(&shb_sz, 4, 1, pcapng_file) != 1)
         throw std::runtime_error(fmt::format("error writing pcapng header: {} (errno {})",
                     strerror(errno), errno));
 
@@ -296,7 +296,7 @@ void write_pcapng_interface(FILE *pcapng_file, unsigned int ngindex, const std::
 
     idb_sz += 4;
 
-    if (fwrite(&idb_sz, sizeof(uint32_t), 1, pcapng_file) != 1)
+    if (fwrite(&idb_sz, 4, 1, pcapng_file) != 1)
         throw std::runtime_error(fmt::format("error writing pcapng interface block: {} (errno {}))",
                     strerror(errno), errno));
 }
@@ -311,7 +311,7 @@ void write_pcapng_packet(FILE *pcapng_file, const std::string& packet,
     // Always allocate an end-of-options option
     auto data_sz = sizeof(pcapng_epb_t) + PAD_TO_32BIT(packet.size()) + sizeof(pcapng_option_t);
 
-    if (tag.length() != 0) 
+    if (tag.length() > 0) 
         data_sz += sizeof(pcapng_option_t) + PAD_TO_32BIT(tag.length());
 
     epb.block_type = PCAPNG_EPB_BLOCK_TYPE;
