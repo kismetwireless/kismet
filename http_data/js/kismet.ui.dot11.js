@@ -59,7 +59,7 @@ function hexstr_to_bytes(hex) {
         for (var i = 0; i < hex.length - 1; i += 2) {
             bytes.push(parseInt(hex.substr(i, 2), 16));
         }
-    } catch {
+    } catch (error) {
         ;
     }
 
@@ -303,7 +303,7 @@ kismet_ui.AddDeviceRowHighlight({
 kismet_ui.AddDeviceColumn('wifi_clients', {
     sTitle: 'Clients',
     field: 'dot11.device/dot11.device.num_associated_clients',
-    description: 'Count of associated Wi-Fi clients',
+    description: 'Related Wi-Fi devices (associated and bridged)',
     width: '2em'
 });
 
@@ -328,46 +328,109 @@ kismet_ui.AddDeviceColumn('wifi_bss_uptime', {
     },
 });
 
+// Hidden column to fetch qbss state
+kismet_ui.AddDeviceColumn('column_qbss_hidden', {
+    sTitle: 'qbss_available',
+    field: 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.dot11e_qbss',
+    name: 'qbss_available',
+    searchable: false,
+    visible: false,
+    selectable: false,
+    orderable: false
+});
+
+kismet_ui.AddDeviceColumn('wifi_qbss_usage', {
+    sTitle: 'QBSS Chan Usage',
+    // field: 'dot11.device/dot11.device.bss_timestamp',
+    field: 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.dot11e_channel_utilization_perc',
+    description: '802.11e QBSS channel utilization',
+    width: '5em;',
+    sortable: true,
+    searchable: true,
+    visiable: false,
+    renderfunc: function(d, t, r, m) {
+        var perc = "n/a";
+
+        if (r['dot11.advertisedssid.dot11e_qbss'] == 1) {
+            if (d == 0)
+                perc = "0%";
+            else
+                perc = Number.parseFloat(d).toPrecision(4) + "%";
+        }
+
+        return '<div class="percentage-border"><span class="percentage-text">' + perc + '</span><div class="percentage-fill" style="width:' + d + '%"></div></div>';
+    }
+});
+
+kismet_ui.AddDeviceColumn('wifi_qbss_clients', {
+    sTitle: 'QBSS Users',
+    field: 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.dot11e_qbss_stations',
+    description: '802.11e QBSS user count',
+    sortable: true,
+    visiable: false,
+    renderfunc: function(d, t, r, m) {
+        if (r['dot11.advertisedssid.dot11e_qbss'] == 1) {
+            return d;
+        }
+
+        return "<i>n/a</i>"
+    }
+});
+
 /* Custom device details for dot11 data */
 kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
     filter: function(data) {
         try {
             return (data['kismet.device.base.phyname'] === "IEEE802.11");
-        } catch {
+        } catch (error) {
             return false;
         }
     },
-    draw: function(data, target) {
+    draw: function(data, target, options, storage) {
         target.devicedata(data, {
             "id": "dot11DeviceData",
             "fields": [
             {
-                field: "dot11.device/dot11.device.last_beaconed_ssid",
+                field: 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.ssid',
                 title: "Last Beaconed SSID (AP)",
-                empty: "<i>None</i>",
+                liveupdate: true,
+                draw: function(opts) {
+                    if (typeof(opts['value']) === 'undefined')
+                        return '<i>None</i>';
+                    if (opts['value'].replace(/\s/g, '').length == 0) 
+                        return '<i>Cloaked / Empty (' + opts['value'].length + ' spaces)</i>';
+                    return opts['value'];
+                },
                 help: "If present, the last SSID (network name) advertised by a device as an access point beacon or as an access point issuing a probe response",
             },
             {
-                field: "dot11.device/dot11.device.last_probed_ssid",
+                field: "dot11.device/dot11.device.last_probed_ssid_record/dot11.probedssid.ssid",
+                liveupdate: true,
                 title: "Last Probed SSID (Client)",
                 empty: "<i>None</i>",
                 help: "If present, the last SSID (network name) probed for by a device as a client looking for a network.",
+                draw: function(opts) {
+                    if (typeof(opts['value']) === 'undefined')
+                        return '<i>None</i>';
+                    if (opts['value'].replace(/\s/g, '').length == 0) 
+                        return '<i>Empty (' + opts['value'].length + ' spaces)</i>'
+                    return opts['value'];
+                },
             },
             {
                 field: "dot11.device/dot11.device.last_bssid",
+                liveupdate: true,
                 title: "Last BSSID",
                 filter: function(opts) {
                     return opts['value'] !== '00:00:00:00:00:00';
-                },
-                render: function(opts) {
-                    return opts['value'];
                 },
                 help: "If present, the BSSID (MAC address) of the last network this device was part of.  Each Wi-Fi access point, even those with the same SSID, has a unique BSSID.",
             },
             {
                 field: "dot11.device/dot11.device.bss_timestamp",
+                liveupdate: true,
                 title: "Uptime",
-                render: function(opts) {
+                draw: function(opts) {
                     if (opts['value'] == 0)
                         return "<i>n/a</i>";
 
@@ -395,11 +458,13 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
             {
                 field: "dot11_fingerprint_group",
+                liveupdate: true,
                 groupTitle: "Fingerprints",
                 id: "dot11_fingerprint_group",
                 fields: [
                 {
                     field: "dot11.device/dot11.device.beacon_fingerprint",
+                    liveupdate: true,
                     title: "Beacon",
                     empty: "<i>None</i>",
                     help: "Kismet uses attributes included in beacons to build a fingerprint of a device.  This fingerprint is used to identify spoofed devices, whitelist devices, and to attempt to provide attestation about devices.  The beacon fingerprint is only available when a beacon is seen from an access point.",
@@ -409,87 +474,191 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
             {
                 field: "dot11_packet_group",
+                liveupdate: true,
                 groupTitle: "Packets",
                 id: "dot11_packet_group",
 
                 fields: [
                 {
                     field: "graph_field_dot11",
+                    liveupdate: true,
                     span: true,
                     render: function(opts) {
-                        return '<div class="smalldonut" id="overall" style="float: left;" />' +
-                            '<div class="smalldonut" id="data" style="float: right;" />';
+                        var d = 
+                            $('<div>')
+                            .append(
+                                $('<div>', {
+                                    style: 'width: 50%; height: 200px; padding-bottom: 5px; float: left;',
+                                })
+                                .append('<div><b><center>Overall Packets</center></b></div>')
+                                .append(
+                                    $('<canvas>', {
+                                        id: 'overalldonut',
+                                    })
+                                )
+                            )
+                            .append(
+                                $('<div>', {
+                                    style: 'width: 50%; height: 200px; padding-bottom: 5px; float: right;',
+                                })
+                                .append('<div><b><center>Data Packets</center></b></div>')
+                                .append(
+                                    $('<canvas>', {
+                                        id: 'datadonut',
+                                    })
+                                )
+                            );
+
+                        return d;
                     },
                     draw: function(opts) {
-                        var overalldiv = $('#overall', opts['container']);
-                        var datadiv = $('#data', opts['container']);
 
-                        // Make an array morris likes using our whole data record
-                        var modoverall = [
-                        { label: "Mgmt", value: opts['data']['kismet.device.base.packets.llc'] },
-                        { label: "Data", value: opts['data']['kismet.device.base.packets.data'] }
+                        var overalllegend = ['Management', 'Data'];
+                        var overalldata = [
+                            opts['data']['kismet.device.base.packets.llc'],
+                            opts['data']['kismet.device.base.packets.data'],
+                        ];
+                        var colors = [
+                            'rgba(46, 99, 162, 1)',
+                            'rgba(96, 149, 212, 1)',
+                            'rgba(136, 189, 252, 1)',
                         ];
 
-                        if (opts['data']['kismet.device.base.packets.error'] != 0)
-                            modoverall.push({ label: "Error", value: opts['data']['kismet.device.base.packets.error'] });
+                        var barChartData = {
+                            labels: overalllegend,
 
-                        Morris.Donut({
-                            element: overalldiv,
-                            data: modoverall
-                        });
+                            datasets: [{
+                                label: 'Dataset 1',
+                                backgroundColor: colors,
+                                borderWidth: 0,
+                                data: overalldata,
+                            }],
+                        };
 
-                        var moddata = [
-                        { label: "Data", value: opts['data']['kismet.device.base.packets.data'] },
-                        { label: "Retry", value: opts['data']['dot11.device']['dot11.device.num_retries'] },
-                        { label: "Frag", value: opts['data']['dot11.device']['dot11.device.num_fragments'] }
+                        if ('dot11overalldonut' in window[storage]) {
+                            window[storage].dot11overalldonut.data.datasets[0].data = overalldata;
+                            window[storage].dot11overalldonut.update();
+                        } else {
+                            window[storage].dot11overalldonut = 
+                                new Chart($('#overalldonut', opts['container']), {
+                                    type: 'doughnut',
+                                    data: barChartData,
+                                    options: {
+                                        global: {
+                                            maintainAspectRatio: false,
+                                        },
+                                        animation: false,
+                                        legend: {
+                                            display: true,
+                                            position: 'bottom',
+                                        },
+                                        title: {
+                                            display: false,
+                                            text: 'Packet Types'
+                                        },
+                                        height: '200px',
+                                    }
+                                });
+
+                            window[storage].dot11overalldonut.render();
+                        }
+
+                        var datalegend = ['Data', 'Retry', 'Frag'];
+                        var datadata = [
+                            opts['data']['kismet.device.base.packets.data'],
+                            opts['data']['dot11.device']['dot11.device.num_retries'],
+                            opts['data']['dot11.device']['dot11.device.num_fragments'],
                         ];
 
-                        Morris.Donut({
-                            element: datadiv,
-                            data: moddata
-                        });
+                        var databarChartData = {
+                            labels: datalegend,
+
+                            datasets: [{
+                                label: 'Dataset 1',
+                                backgroundColor: colors,
+                                borderWidth: 0,
+                                data: datadata,
+                            }],
+                        };
+
+                        if ('dot11datadonut' in window[storage]) {
+                            window[storage].dot11datadonut.data.datasets[0].data = datadata;
+                            window[storage].dot11datadonut.update();
+                        } else {
+                            window[storage].dot11datadonut = 
+                                new Chart($('#datadonut', opts['container']), {
+                                    type: 'doughnut',
+                                    data: databarChartData,
+                                    options: {
+                                        global: {
+                                            maintainAspectRatio: false,
+                                        },
+                                        animation: false,
+                                        legend: {
+                                            display: true,
+                                            position: 'bottom'
+                                        },
+                                        title: {
+                                            display: false,
+                                            text: 'Packet Types'
+                                        },
+                                        height: '200px',
+                                    }
+                                });
+
+                            window[storage].dot11datadonut.render();
+                        }
+
                     }
                 },
                 {
                     field: "kismet.device.base.packets.total",
+                    liveupdate: true,
                     title: "Total Packets",
                     help: "Total packet count seen of all packet types",
                 },
                 {
                     field: "kismet.device.base.packets.llc",
+                    liveupdate: true,
                     title: "LLC/Management",
                     help: "LLC and Management packets define Wi-Fi networks.  They include packets like beacons, probe requests and responses, and other packets.  Access points will almost always have significantly more management packets than any other type.",
                 },
                 {
                     field: "kismet.device.base.packets.data",
+                    liveupdate: true,
                     title: "Data Packets",
                     help: "Wi-Fi data packets encode the actual data being sent by the device.",
                 },
                 {
                     field: "kismet.device.base.packets.error",
+                    liveupdate: true,
                     title: "Error/Invalid Packets",
                     help: "Invalid Wi-Fi packets are packets which have become corrupted in the air or which are otherwise invalid.  Typically these packets are discarded instead of tracked because the validity of their contents cannot be verified, so this will often be 0.",
                 },
                 {
                     field: "dot11.device/dot11.device.num_fragments",
+                    liveupdate: true,
                     title: "Fragmented Packets",
                     help: "The data being sent over Wi-Fi can be fragmented into smaller packets.  Typically this is not desirable because it increases the packet load and can add latency to TCP connections.",
                 },
                 {
                     field: "dot11.device/dot11.device.num_retries",
+                    liveupdate: true,
                     title: "Retried Packets",
                     help: "If a Wi-Fi data packet cannot be transmitted (due to weak signal, interference, or collisions with other packets transmitted at the same time), the Wi-Fi layer will automatically attempt to retransmit it a number of times.  In busy environments, a retransmit rate of 50% or higher is not unusual.",
                 },
                 {
                     field: "dot11.device/dot11.device.datasize",
+                    liveupdate: true,
                     title: "Data (size)",
-                    render: kismet_ui.RenderHumanSize,
+                    draw: kismet_ui.RenderHumanSize,
                     help: "The amount of data transmitted by this device",
                 },
                 {
                     field: "dot11.device/dot11.device.datasize.retry",
+                    liveupdate: true,
                     title: "Retried Data",
-                    render: kismet_ui.RenderHumanSize,
+                    draw: kismet_ui.RenderHumanSize,
                     help: "The amount of data re-transmitted by this device, due to lost packets and automatic retry.",
                 }
                 ],
@@ -511,7 +680,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                             return true;
 
                         return false;
-                    } catch {
+                    } catch (error) {
                         return false;
                     }
                     
@@ -537,14 +706,14 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     filter: function(opts) {
                         try {
                             return (opts['data']['dot11.device']['dot11.device.supported_channels'].length);
-                        } catch {
+                        } catch (error) {
                             return false;
                         }
                     },
-                    render: function(opts) { 
+                    draw: function(opts) { 
                         try {
                             return opts['data']['dot11.device']['dot11.device.supported_channels'].join(',');
-                        } catch {
+                        } catch (error) {
                             return "<i>n/a</i>";
                         }
                     }
@@ -559,7 +728,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (opts['data']['dot11.device']['dot11.device.wpa_handshake_list'].length);
-                    } catch {
+                    } catch (error) {
                         return false;
                     }
                 },
@@ -570,7 +739,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     field: "wpa_handshake_count",
                     id: "handshake_count",
                     title: "Handshake Packets",
-                    render: function(opts) {
+                    draw: function(opts) {
                         var hs = opts['data']['dot11.device']['dot11.device.wpa_handshake_list'];
                         return (hs.length);
                     },
@@ -579,7 +748,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     field: "wpa_handshake_download",
                     id: "handshake_download",
                     title: "Handshake PCAP",
-                    render: function(opts) {
+                    draw: function(opts) {
                         var pnums = opts['data']['dot11.device']['dot11.device.wpa_present_handshake'];
 
                         // We need packets 1&2 or 2&3 to be able to crack the handshake
@@ -613,7 +782,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     field: "pmkid_download",
                     id: "pmkid_download",
                     title: "PMKID PCAP",
-                    render: function(opts) {
+                    draw: function(opts) {
                         var key = opts['data']['kismet.device.base.key'];
                         var url = '<a href="phy/phy80211/by-key/' + key + '/pcap/' + key + '-pmkid.pcap">' +
                             '<i class="fa fa-download"></i> Download Pcap File</a>'; 
@@ -630,7 +799,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.device']['dot11.device.probed_ssid_map']).length >= 1);
-                    } catch {
+                    } catch (error) {
                         return false;
                     }
                 },
@@ -645,7 +814,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.device']['dot11.device.probed_ssid_map']).length >= 1);
-                    } catch {
+                    } catch (error) {
                         return false;
                     }
                 },
@@ -660,24 +829,34 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     if (lastpssid === '')
                         lastpssid = "<i>Broadcast</i>";
 
-                    return '<a id="' + key + '" class="expander collapsed" data-expander-target="#probed_ssid" href="#">Probed SSID ' + lastpssid + '</a>';
+                    if (lastpssid.replace(/\s/g, '').length == 0) 
+                        lastpssid = '<i>Empty (' + lastpssid.length + ' spaces)</i>'
+
+                    return '<a id="' + key + '" class="expander collapsed" data-expander-target="#' + opts['containerid'] + '" href="#">Probed SSID ' + lastpssid + '</a>';
                 },
 
                 draw: function(opts) {
-                    var tb = $('.expander', opts['container']).simpleexpand();
+                    var tb = $('.expander', opts['cell']).simpleexpand();
                 },
 
                 fields: [
                 {
                     field: "dot11.probedssid.ssid",
                     title: "Probed SSID",
-                    empty: "<i>Broadcast</i>"
+                    empty: "<i>Broadcast</i>",
+                    draw: function(opts) {
+                        if (typeof(opts['value']) === 'undefined')
+                            return '<i>None</i>';
+                        if (opts['value'].replace(/\s/g, '').length == 0) 
+                            return 'Empty (' + opts['value'].length + ' spaces)'
+                        return opts['value'];
+                    },
                 },
                 {
                     field: "dot11.probedssid.wpa_mfp_required",
                     title: "MFP",
                     help: "Management Frame Protection (MFP) attempts to mitigate denial of service attacks by authenticating management packets.  It can be part of the 802.11w Wi-Fi standard, or proprietary Cisco extensions.",
-                    render: function(opts) {
+                    draw: function(opts) {
                         if (opts['value'])
                             return "Required (802.11w)";
 
@@ -690,19 +869,19 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 {
                     field: "dot11.probedssid.first_time",
                     title: "First Seen",
-                    render: kismet_ui.RenderTrimmedTime,
+                    draw: kismet_ui.RenderTrimmedTime,
                 },
                 {
                     field: "dot11.probedssid.last_time",
                     title: "Last Seen",
-                    render: kismet_ui.RenderTrimmedTime,
+                    draw: kismet_ui.RenderTrimmedTime,
                 },
                 {
                     field: "dot11.probedssid.dot11r_mobility",
                     title: "802.11r Mobility",
                     filterOnZero: true,
                     help: "The 802.11r standard allows for fast roaming between access points on the same network.  Typically this is found on enterprise-level access points, on a network where multiple APs service the same area.",
-                    render: function(opts) { return "Enabled"; }
+                    draw: function(opts) { return "Enabled"; }
                 },
                 {
                     field: "dot11.probedssid.dot11r_mobility_domain_id",
@@ -751,7 +930,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.device']['dot11.device.advertised_ssid_map']).length >= 1);
-                    } catch {
+                    } catch (error) {
                         return false;
                     }
                 },
@@ -766,7 +945,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.device']['dot11.device.advertised_ssid_map']).length >= 1);
-                    } catch {
+                    } catch (error) {
                         return false;
                     }
                 },
@@ -790,12 +969,12 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 {
                     field: "dot11.advertisedssid.ssid",
                     title: "SSID",
-                    render: function(opts) {
-                        if (opts['value'] === '') {
+                    draw: function(opts) {
+                        if (opts['value'].replace(/\s/g, '').length == 0) {
                             if ('dot11.advertisedssid.owe_ssid' in opts['base']) {
                                 return "<i>SSID advertised as OWE</i>";
                             } else {
-                                return "<i>Unknown / Cloaked</i>";
+                                return '<i>Cloaked / Empty (' + opts['value'].length + ' spaces)</i>';
                             }
                         }
 
@@ -805,12 +984,14 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "dot11.advertisedssid.owe_ssid",
+                    liveupdate: true,
                     title: "OWE SSID",
                     filterOnEmpty: true,
                     help: "Opportunistic Wireless Encryption (OWE) advertises the original SSID on an alternate BSSID.",
                 },
                 {
                     field: "dot11.advertisedssid.owe_bssid",
+                    liveupdate: true,
                     title: "OWE BSSID",
                     filterOnEmpty: true,
                     help: "Opportunistic Wireless Encryption (OWE) advertises the original SSID with a reference to the linked BSSID.",
@@ -835,17 +1016,19 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "dot11.advertisedssid.crypt_set",
+                    liveupdate: true,
                     title: "Encryption",
-                    render: function(opts) {
+                    draw: function(opts) {
                         return exports.CryptToHumanReadable(opts['value']);
                     },
                     help: "Encryption at the Wi-Fi layer (open, WEP, and WPA) is defined by the beacon sent by the access point advertising the network.  Layer 3 encryption (such as VPNs) is added later and is not advertised as part of the network itself.",
                 },
                 {
                     field: "dot11.advertisedssid.wpa_mfp_required",
+                    liveupdate: true,
                     title: "MFP",
                     help: "Management Frame Protection (MFP) attempts to mitigate denial of service attacks by authenticating management packets.  It can be part of the Wi-Fi 802.11w standard or a custom Cisco extension.",
-                    render: function(opts) {
+                    draw: function(opts) {
                         if (opts['value'])
                             return "Required (802.11w)";
 
@@ -860,146 +1043,174 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "dot11.advertisedssid.channel",
+                    liveupdate: true,
                     title: "Channel",
                     help: "Wi-Fi networks on 2.4GHz (channels 1 through 14) are required to include a channel in the advertisement because channel overlap makes it impossible to determine the exact channel the access point is transmitting on.  Networks on 5GHz channels are typically not required to include the channel.",
                 },
                 {
                     field: "dot11.advertisedssid.ht_mode",
+                    liveupdate: true,
                     title: "HT Mode",
                     help: "802.11n and 802.11AC networks operate on expanded channels; HT40, HT80 HT160, or HT80+80 (found only on 802.11ac wave2 gear).",
                     filterOnEmpty: true
                 },
                 {
                     field: "dot11.advertisedssid.ht_center_1",
+                    liveupdate: true,
                     title: "HT Freq",
                     help: "802.11AC networks operate on expanded channels.  This is the frequency of the center of the expanded channel.",
                     filterOnZero: true,
-                    render: function(opts) {
+                    draw: function(opts) {
                         return opts['value'] + " (Channel " + (opts['value'] - 5000) / 5 + ")";
                     },
                 },
                 {
                     field: "dot11.advertisedssid.ht_center_2",
+                    liveupdate: true,
                     title: "HT Freq2",
                     help: "802.11AC networks operate on expanded channels.  This is the frequency of the center of the expanded secondary channel.  Secondary channels are only found on 802.11AC wave-2 80+80 gear.",
                     filterOnZero: true,
-                    render: function(opts) {
+                    draw: function(opts) {
                         return opts['value'] + " (Channel " + (opts['value'] - 5000) / 5 + ")";
                     },
                 },
                 {
                     field: "dot11.advertisedssid.beacon_info",
+                    liveupdate: true,
                     title: "Beacon Info",
                     filterOnEmpty: true,
                     help: "Some access points, such as those made by Cisco, can include arbitrary custom info in beacons.  Typically this is used by the network administrators to map where access points are deployed.",
                 },
                 {
                     field: "dot11.advertisedssid.dot11e_qbss_stations",
+                    liveupdate: true,
                     title: "Connected Stations",
                     help: "Access points which provide 802.11e / QBSS report the number of stations observed on the channel as part of the channel quality of service.",
                     filter: function(opts) {
                         try {
                             return (opts['base']['dot11.advertisedssid.dot11e_qbss'] == 1);
-                        } catch {
+                        } catch (error) {
                             return false;
                         }
                     }
                 },
                 {
                     field: "dot11.advertisedssid.dot11e_channel_utilization_perc",
+                    liveupdate: true,
                     title: "Channel Utilization",
                     help: "Access points which provide 802.11e / QBSS calculate the estimated channel saturation as part of the channel quality of service.",
-                    render: function(opts) {
-                        return opts['value'].toFixed(2) + '%';
+                    draw: function(opts) {
+                        var perc = "n/a";
+
+                        if (opts['value'] == 0) {
+                            perc = "0%";
+                        } else {
+                            perc = Number.parseFloat(opts['value']).toPrecision(4) + "%";
+                        }
+
+                        return '<div class="percentage-border"><span class="percentage-text">' + perc + '</span><div class="percentage-fill" style="width:' + opts['value'] + '%"></div></div>';
                     },
                     filter: function(opts) {
                         try {
                             return (opts['base']['dot11.advertisedssid.dot11e_qbss'] == 1);
-                        } catch {
+                        } catch (error) {
                             return false;
                         }
                     }
                 },
                 {
                     field: "dot11.advertisedssid.ccx_txpower",
+                    liveupdate: true,
                     title: "Cisco CCX TxPower",
                     filterOnZero: true,
                     help: "Cisco access points may advertise their transmit power in a Cisco CCX IE tag.  Typically this is found on enterprise-level access points, where multiple APs service the same area.",
-                    render: function(opts) {
+                    draw: function(opts) {
                         return opts['value'] + "dBm";
                     },
                 },
                 {
                     field: "dot11.advertisedssid.dot11r_mobility",
+                    liveupdate: true,
                     title: "802.11r Mobility",
                     filterOnZero: true,
                     help: "The 802.11r standard allows for fast roaming between access points on the same network.  Typically this is found on enterprise-level access points, on a network where multiple APs service the same area.",
-                    render: function(opts) { return "Enabled"; }
+                    draw: function(opts) { return "Enabled"; }
                 },
                 {
                     field: "dot11.advertisedssid.dot11r_mobility_domain_id",
+                    liveupdate: true,
                     title: "Mobility Domain",
                     filterOnZero: true,
                     help: "The 802.11r standard allows for fast roaming between access points on the same network."
                 },
                 {
                     field: "dot11.advertisedssid.first_time",
+                    liveupdate: true,
                     title: "First Seen",
-                    render: kismet_ui.RenderTrimmedTime,
+                    draw: kismet_ui.RenderTrimmedTime,
                 },
                 {
                     field: "dot11.advertisedssid.last_time",
+                    liveupdate: true,
                     title: "Last Seen",
-                    render: kismet_ui.RenderTrimmedTime,
+                    draw: kismet_ui.RenderTrimmedTime,
                 },
                 {
                     field: "dot11.advertisedssid.beaconrate",
+                    liveupdate: true,
                     title: "Beacon Rate",
-                    render: function(opts) {
+                    draw: function(opts) {
                         return opts['value'] + '/sec';
                     },
                     help: "Wi-Fi typically beacons at 10 packets per second; normally there is no reason for an access point to change this rate, but it may be changed in some situations where a large number of SSIDs are hosted on a single access point.",
                 },
                 {
                     field: "dot11.advertisedssid.maxrate",
+                    liveupdate: true,
                     title: "Max. Rate",
-                    render: function(opts) {
+                    draw: function(opts) {
                         return opts['value'] + ' mbit';
                     },
                     help: "The maximum basic transmission rate supported by this access point",
                 },
                 {
                     field: "dot11.advertisedssid.dot11d_country",
+                    liveupdate: true,
                     title: "802.11d Country",
                     filterOnEmpty: true,
                     help: "The 802.11d standard required access points to identify their operating country code and signal levels.  This caused clients connecting to those access points to adopt the same regulatory requirements.  802.11d has been phased out and is not found on most modern access points but may still be seen on older hardware.",
                 },
                 {
                     field: "dot11.advertisedssid.wps_manuf",
+                    liveupdate: true,
                     title: "WPS Manufacturer",
                     filterOnEmpty: true,
                     help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the device manufacturer in the WPS advertisements.  WPS is not recommended due to security flaws."
                 },
                 {
                     field: "dot11.advertisedssid.wps_device_name",
+                    liveupdate: true,
                     title: "WPS Device",
                     filterOnEmpty: true,
                     help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the device name in the WPS advertisements.  WPS is not recommended due to security flaws.",
                 },
                 {
                     field: "dot11.advertisedssid.wps_model_name",
+                    liveupdate: true,
                     title: "WPS Model",
                     filterOnEmpty: true,
                     help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the specific device model name in the WPS advertisements.  WPS is not recommended due to security flaws.",
                 },
                 {
                     field: "dot11.advertisedssid.wps_model_number",
+                    liveupdate: true,
                     title: "WPS Model #",
                     filterOnEmpty: true,
                     help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the specific model number in the WPS advertisements.  WPS is not recommended due to security flaws.",
                 },
                 {
                     field: "dot11.advertisedssid.wps_serial_number",
+                    liveupdate: true,
                     title: "WPS Serial #",
                     filterOnEmpty: true,
                     help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the device serial number in the WPS advertisements.  This information is not always valid or useful.  WPS is not recommended due to security flaws.",
@@ -1007,6 +1218,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
                 {
                     field: "dot11.advertisedssid.ie_tag_content",
+                    liveupdate: true,
                     filterOnEmpty: true,
                     id: "dot11_ssid_ietags",
                     title: '<b class="k_padding_title">IE tags</b>',
@@ -1015,6 +1227,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
                 {
                     field: "dot11.advertisedssid.ie_tag_content",
+                    liveupdate: true,
                     id: "advertised_ietags",
                     filterOnEmpty: true,
                     span: true,
@@ -1024,13 +1237,17 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     },
 
                     draw: function(opts) {
+                        $('table#tagdump', opts['container']).empty();
                         for (var ie in opts['value']) {
                             var tag = opts['value'][ie];
 
                             var pretty_tag = 
-                                $('<tr>')
+                                $('<tr>', {
+                                    class: 'alternating'
+                                })
                                 .append(
                                     $('<td>', {
+                                        width: "25%",
                                         id: "tagno"
                                     })
                                     .append(
@@ -1075,7 +1292,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                                 )
                             }
 
-                            $('#tagdump', opts['container']).append(pretty_tag);
+                            $('table#tagdump', opts['container']).append(pretty_tag);
                         }
                     },
 
@@ -1142,11 +1359,11 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['kismet.device.base.related_devices']['dot11_bssts_similar']).length >= 1);
-                    } catch {
+                    } catch (error) {
                         return false;
                     }
                 },
-                title: '<b class="k_padding_title">Shared Hardware</b>'
+                title: '<b class="k_padding_title">Shared Hardware (Uptime)</b>'
             },
 
             {
@@ -1156,7 +1373,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['kismet.device.base.related_devices']['dot11_bssts_similar']).length >= 1);
-                    } catch {
+                    } catch (error) {
                         return false;
                     }
                 },
@@ -1165,31 +1382,29 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 iterateTitle: function(opts) {
                     var key = kismet.ObjectByString(opts['data'], opts['basekey']);
                     if (key != 0) {
-                        return '<a id="' + key + '" class="expander collapsed" data-expander-target="#bssts_similar" href="#">Shared with ' + opts['data'] + '</a>';
+                        return '<a id="' + key + '" class="expander collapsed" data-expander-target="#' + opts['containerid'] + '" href="#">Shared with ' + opts['data'] + '</a>';
                     }
 
-                    return '<a class="expander collapsed" data-expander-target="#bssts_similar" href="#">Shared with ' + opts['data'] + '</a>';
+                    return '<a class="expander collapsed" data-expander-target="#' + opts['containerid'] + '" href="#">Shared with ' + opts['data'] + '</a>';
                 },
                 draw: function(opts) {
-                    var tb = $('.expander', opts['container']).simpleexpand();
+                    var tb = $('.expander', opts['cell']).simpleexpand();
 
                     var key = kismet.ObjectByString(opts['data'], opts['basekey']);
-                    var alink = $('a#' + key, opts['container']);
+                    var alink = $('a#' + key, opts['cell']);
                     $.get(local_uri_prefix + "devices/by-key/" + key + "/device.json")
                     .done(function(data) {
                         data = kismet.sanitizeObject(data);
 
                         try {
-                            var ssid = data['dot11.device']['dot11.device.last_beaconed_ssid'];
+                            var ssid = data['dot11.device']['dot11.device.last_beaconed_ssid_record']['dot11.advertisedssid.ssid'];
                             var mac = data['kismet.device.base.macaddr'];
-                        } catch {
+                        } catch (error) {
 
                         }
 
                         if (ssid == "" || typeof(data) === 'undefined')
                             ssid = "<i>n/a</i>";
-
-
 
                         alink.html("Related to " + mac + " (" + ssid + ")");
                     });
@@ -1199,7 +1414,78 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 {
                     field: "dot11.client.bssid_key",
                     title: "Access Point",
-                    render: function(opts) {
+                    draw: function(opts) {
+                        if (opts['key'] === '') {
+                            return "<i>No records for access point</i>";
+                        } else {
+                            return '<a href="#" onclick="kismet_ui.DeviceDetailWindow(\'' + opts['base'] + '\')">View AP Details</a>';
+                        }
+                    }
+                },
+                ]
+            },
+
+            {
+                field: "dot11_wps_uuid_identical",
+                id: "wps_uuid_identical_header",
+                help: "Some devices change MAC addresses but retain the WPS UUID unique identifier.  These devices have been detected using the same unique ID, which is extremely unlikely to randomly collide.",
+                filter: function(opts) {
+                    try {
+                        return (Object.keys(opts['data']['kismet.device.base.related_devices']['dot11_uuid_e']).length >= 1);
+                    } catch (error) {
+                        return false;
+                    }
+                },
+                title: '<b class="k_padding_title">Shared Hardware (WPS UUID)</b>'
+            },
+
+            {
+                field: "kismet.device.base.related_devices/dot11_uuid_e",
+                id: "wps_uuid_identical",
+
+                filter: function(opts) {
+                    try {
+                        return (Object.keys(opts['data']['kismet.device.base.related_devices']['dot11_uuid_e']).length >= 1);
+                    } catch (error) {
+                        return false;
+                    }
+                },
+
+                groupIterate: true,
+                iterateTitle: function(opts) {
+                    var key = kismet.ObjectByString(opts['data'], opts['basekey']);
+                    if (key != 0) {
+                        return '<a id="' + key + '" class="expander collapsed" data-expander-target="#' + opts['containerid'] + '" href="#">Same WPS UUID as ' + opts['data'] + '</a>';
+                    }
+
+                    return '<a class="expander collapsed" data-expander-target="#' + opts['containerid'] + '" href="#">Same WPS UUID as ' + opts['data'] + '</a>';
+                },
+                draw: function(opts) {
+                    var tb = $('.expander', opts['cell']).simpleexpand();
+
+                    var key = kismet.ObjectByString(opts['data'], opts['basekey']);
+                    var alink = $('a#' + key, opts['cell']);
+                    $.get(local_uri_prefix + "devices/by-key/" + key + "/device.json")
+                    .done(function(data) {
+                        data = kismet.sanitizeObject(data);
+
+                        var mac = "<i>unknown</i>";
+
+                        try {
+                            mac = data['kismet.device.base.macaddr'];
+                        } catch (error) {
+
+                        }
+
+                        alink.html("Related to " + mac);
+                    });
+                },
+
+                fields: [
+                {
+                    field: "dot11.client.bssid_key",
+                    title: "Access Point",
+                    draw: function(opts) {
                         if (opts['key'] === '') {
                             return "<i>No records for access point</i>";
                         } else {
@@ -1217,7 +1503,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.device']['dot11.device.client_map']).length >= 1);
-                    } catch {
+                    } catch (error) {
                         return false;
                     }
                 },
@@ -1231,7 +1517,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.device']['dot11.device.client_map']).length >= 1);
-                    } catch {
+                    } catch (error) {
                         return false;
                     }
                 },
@@ -1240,19 +1526,19 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 iterateTitle: function(opts) {
                     var key = kismet.ObjectByString(opts['data'], opts['basekey'] + 'dot11.client.bssid_key');
                     if (key != 0) {
-                        return '<a id="' + key + '" class="expander collapsed" data-expander-target="#client_behavior" href="#">Client of ' + opts['index'] + '</a>';
+                        return '<a id="' + key + '" class="expander collapsed" data-expander-target="#' + opts['containerid'] + '" href="#">Client of ' + opts['index'] + '</a>';
                     }
 
-                    return '<a class="expander collapsed" data-expander-target="#client_behavior" href="#">Client of ' + opts['index'] + '</a>';
+                    return '<a class="expander collapsed" data-expander-target="#' + opts['containerid'] + '" href="#">Client of ' + opts['index'] + '</a>';
                 },
                 draw: function(opts) {
-                    var tb = $('.expander', opts['container']).simpleexpand();
+                    var tb = $('.expander', opts['cell']).simpleexpand();
 
                     var key = kismet.ObjectByString(opts['data'], opts['basekey'] + 'dot11.client.bssid_key');
                     var mac = kismet.ObjectByString(opts['data'], opts['basekey'] + 'dot11.client.bssid');
-                    var alink = $('a#' + key, opts['container']);
+                    var alink = $('a#' + key, opts['cell']);
                     $.get(local_uri_prefix + "devices/by-key/" + key +
-                            "/device.json/dot11.device/dot11.device.last_beaconed_ssid")
+                        "dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.ssid")
                     .done(function(clidata) {
                         clidata = kismet.sanitizeObject(clidata);
 
@@ -1266,7 +1552,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 {
                     field: "dot11.client.bssid_key",
                     title: "Access Point",
-                    render: function(opts) {
+                    draw: function(opts) {
                         if (opts['key'] === '') {
                             return "<i>No records for access point</i>";
                         } else {
@@ -1277,7 +1563,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 {
                     field: "dot11.client.bssid",
                     title: "BSSID",
-                    render: function(opts) {
+                    draw: function(opts) {
                         var ret = opts['value'];
                         return ret;
                     }
@@ -1307,7 +1593,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     title: "Last SSID",
                     draw: function(opts) {
                         $.get(local_uri_prefix + "devices/by-key/" + opts['value'] +
-                                "/device.json/dot11.device/dot11.device.last_beaconed_ssid")
+                            'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.ssid')
                         .fail(function() {
                             opts['container'].html('<i>Unknown</i>');
                         })
@@ -1325,22 +1611,22 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 {
                     field: "dot11.client.first_time",
                     title: "First Connected",
-                    render: kismet_ui.RenderTrimmedTime,
+                    draw: kismet_ui.RenderTrimmedTime,
                 },
                 {
                     field: "dot11.client.last_time",
                     title: "Last Connected",
-                    render: kismet_ui.RenderTrimmedTime,
+                    draw: kismet_ui.RenderTrimmedTime,
                 },
                 {
                     field: "dot11.client.datasize",
                     title: "Data",
-                    render: kismet_ui.RenderHumanSize,
+                    draw: kismet_ui.RenderHumanSize,
                 },
                 {
                     field: "dot11.client.datasize_retry",
                     title: "Retried Data",
-                    render: kismet_ui.RenderHumanSize,
+                    draw: kismet_ui.RenderHumanSize,
                 },
                 {
                     // Set the field to be the host, and filter on it, but also
@@ -1424,7 +1710,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.device']['dot11.device.associated_client_map']).length >= 1);
-                    } catch {
+                    } catch (error) {
                         return false;
                     }
                 },
@@ -1439,17 +1725,17 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 filter: function(opts) {
                     try {
                         return (Object.keys(opts['data']['dot11.device']['dot11.device.associated_client_map']).length >= 1);
-                    } catch {
+                    } catch (error) {
                         return false;
                     }
                 },
 
                 groupIterate: true,
                 iterateTitle: function(opts) {
-                    return '<a class="expander collapsed" href="#" data-expander-target="#client_list">Client ' + opts['index'] + '</a>';
+                    return '<a class="expander collapsed" href="#" data-expander-target="#' + opts['containerid'] + '">Client ' + opts['index'] + '</a>';
                 },
                 draw: function(opts) {
-                    var tb = $('.expander', opts['container']).simpleexpand();
+                    var tb = $('.expander', opts['cell']).simpleexpand();
                 },
                 fields: [
                 {
@@ -1459,8 +1745,6 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     field: "dummy",
                     // Span to fill it
                     span: true,
-                    // Render nothing into the container
-                    render: "",
                     draw: function(opts) {
                         // Now we get the client id, form an ajax query, and embed
                         // a whole new devicedata into our container.  It works!
@@ -1477,7 +1761,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                                 {
                                     field: "kismet.device.base.key",
                                     title: "Client Info",
-                                    render: function(opts) {
+                                    draw: function(opts) {
                                         return '<a href="#" onclick="kismet_ui.DeviceDetailWindow(\'' + opts['data']['kismet.device.base.key'] + '\')">View Client Details</a>';
                                     }
                                 },
@@ -1501,22 +1785,22 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                                 {
                                     field: "dot11.device/dot11.device.client_map[" + apkey + "]/dot11.client.first_time",
                                     title: "First Connected",
-                                    render: kismet_ui.RenderTrimmedTime,
+                                    draw: kismet_ui.RenderTrimmedTime,
                                 },
                                 {
                                     field: "dot11.device/dot11.device.client_map[" + apkey + "]/dot11.client.last_time",
                                     title: "Last Connected",
-                                    render: kismet_ui.RenderTrimmedTime,
+                                    draw: kismet_ui.RenderTrimmedTime,
                                 },
                                 {
                                     field: "dot11.device/dot11.device.client_map[" + apkey + "]/dot11.client.datasize",
                                     title: "Data",
-                                    render: kismet_ui.RenderHumanSize,
+                                    draw: kismet_ui.RenderHumanSize,
                                 },
                                 {
                                     field: "dot11.device/dot11.device.client_map[" + apkey + "]/dot11.client.datasize_retry",
                                     title: "Retried Data",
-                                    render: kismet_ui.RenderHumanSize,
+                                    draw: kismet_ui.RenderHumanSize,
                                 },
                                 ]
                             });
@@ -1529,8 +1813,463 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 ]
             },
             ]
-        });
+        }, storage);
     }
+});
+
+var ssid_element;
+var ssid_status_element;
+
+var SsidColumns = new Array();
+
+exports.AddSsidColumn = function(id, options) {
+    var coldef = {
+        kismetId: id,
+        sTitle: options.sTitle,
+        field: null,
+        fields: null,
+    };
+
+    if ('field' in options) {
+        coldef.field = options.field;
+    }
+
+    if ('fields' in options) {
+        coldef.fields = options.fields;
+    }
+
+    if ('description' in options) {
+        coldef.description = options.description;
+    }
+
+    if ('name' in options) {
+        coldef.name = options.name;
+    }
+
+    if ('orderable' in options) {
+        coldef.bSortable = options.orderable;
+    }
+
+    if ('visible' in options) {
+        coldef.bVisible = options.visible;
+    } else {
+        coldef.bVisible = true;
+    }
+
+    if ('selectable' in options) {
+        coldef.user_selectable = options.selectable;
+    } else {
+        coldef.user_selectable = true;
+    }
+
+    if ('searchable' in options) {
+        coldef.bSearchable = options.searchable;
+    }
+
+    if ('width' in options) {
+        coldef.width = options.width;
+    }
+
+    var f;
+    if (typeof(coldef.field) === 'string') {
+        var fs = coldef.field.split('/');
+        f = fs[fs.length - 1];
+    } else if (Array.isArray(coldef.field)) {
+        f = coldef.field[1];
+    }
+
+    coldef.mData = function(row, type, set) {
+        return kismet.ObjectByString(row, f);
+    }
+
+    if ('renderfunc' in options) {
+        coldef.mRender = options.renderfunc;
+    }
+
+    if ('drawfunc' in options) {
+        coldef.kismetdrawfunc = options.drawfunc;
+    }
+
+    SsidColumns.push(coldef);
+}
+
+exports.GetSsidColumns = function(showall = false) {
+    var ret = new Array();
+
+    var order = kismet.getStorage('kismet.ssidtable.columns', []);
+
+    if (order.length == 0) {
+        // sort invisible columns to the end
+        for (var i in SsidColumns) {
+            if (!SsidColumns[i].bVisible)
+                continue;
+            ret.push(SsidColumns[i]);
+        }
+
+        for (var i in SsidColumns) {
+            if (SsidColumns[i].bVisible)
+                continue;
+            ret.push(SsidColumns[i]);
+        }
+
+        return ret;
+    }
+
+    for (var oi in order) {
+        var o = order[oi];
+
+        if (!o.enable)
+            continue;
+
+        var sc = SsidColumns.find(function(e, i, a) {
+            if (e.kismetId === o.id)
+                return true;
+            return false;
+        });
+
+        if (sc != undefined && sc.user_selectable) {
+            sc.bVisible = true;
+            ret.push(sc);
+        }
+    }
+
+    // Fallback if no columns were selected somehow
+    if (ret.length == 0) {
+        // sort invisible columns to the end
+        for (var i in SsidColumns) {
+            if (!SsidColumns[i].bVisible)
+                continue;
+            ret.push(SsidColumns[i]);
+        }
+
+        for (var i in SsidColumns) {
+            if (SsidColumns[i].bVisible)
+                continue;
+            ret.push(SsidColumns[i]);
+        }
+
+        return ret;
+    }
+
+    if (showall) {
+        for (var sci in SsidColumns) {
+            var sc = SsidColumns[sci];
+
+            var rc = ret.find(function(e, i, a) {
+                if (e.kismetId === sc.kismetId)
+                    return true;
+                return false;
+            });
+
+            if (rc == undefined) {
+                sc.bVisible = false;
+                ret.push(sc);
+            }
+        }
+
+        return ret;
+    }
+
+    for (var sci in SsidColumns) {
+        if (!SsidColumns[sci].user_selectable) {
+            ret.push(SsidColumns[sci]);
+        }
+    }
+
+    return ret;
+}
+
+exports.GetSsidColumnMap = function(columns) {
+    var ret = {};
+
+    for (var ci in columns) {
+        var fields = new Array();
+
+        if ('field' in columns[ci])
+            fields.push(columns[ci]['field']);
+
+        if ('fields' in columns[ci])
+            fields.push.apply(fields, columns[ci]['fields']);
+
+        ret[ci] = fields;
+    }
+
+    return ret;
+}
+
+exports.GetSsidFields = function(selected) {
+    var rawret = new Array();
+    var cols = exports.GetSsidColumns();
+
+    for (var i in cols) {
+        if ('field' in cols[i])
+            rawret.push(cols[i]['field']);
+
+        if ('fields' in cols[i])
+            rawret.push.apply(rawret, cols[i]['fields']);
+    }
+
+    // de-dupe
+    var ret = rawret.filter(function(item, pos, self) {
+        return self.indexOf(item) == pos;
+    });
+
+    return ret;
+}
+
+var ssidTid = -1;
+
+function ScheduleSsidSummary() {
+    try {
+        if (kismet_ui.window_visible && ssid_element.is(":visible")) {
+            var dt = ssid_element.DataTable();
+
+            // Save the state.  We can't use proper state saving because it seems to break
+            // the table position
+            kismet.putStorage('kismet.base.ssidtable.order', JSON.stringify(dt.order()));
+            kismet.putStorage('kismet.base.ssidtable.search', JSON.stringify(dt.search()));
+
+            // Snapshot where we are, because the 'don't reset page' in ajax.reload
+            // DOES still reset the scroll position
+            var prev_pos = {
+                'top': $(dt.settings()[0].nScrollBody).scrollTop(),
+                'left': $(dt.settings()[0].nScrollBody).scrollLeft()
+            };
+            dt.ajax.reload(function(d) {
+                // Restore our scroll position
+                $(dt.settings()[0].nScrollBody).scrollTop( prev_pos.top );
+                $(dt.settings()[0].nScrollBody).scrollLeft( prev_pos.left );
+            }, false);
+        }
+
+    } catch (error) {
+        ;
+    }
+    
+    // Set our timer outside of the datatable callback so that we get called even
+    // if the ajax load fails
+    ssidTid = setTimeout(ScheduleSsidSummary, 2000);
+}
+
+function InitializeSsidTable() {
+    var cols = exports.GetSsidColumns();
+    var colmap = exports.GetSsidColumnMap(cols);
+    var fields = exports.GetSsidFields();
+
+    var json = {
+        fields: fields,
+        colmap: colmap,
+        datatable: true,
+    };
+
+    if ($.fn.dataTable.isDataTable(ssid_element)) {
+        ssid_element.DataTable().destroy();
+        ssid_element.empty();
+    }
+
+    ssid_element
+        .on('xhr.dt', function(e, settings, json, xhr) {
+            json = kismet.sanitizeObject(json);
+
+            console.log(json);
+
+            try {
+                if (json['recordsFiltered'] != json['recordsTotal'])
+                    ssid_status_element.html(`${json['recordsTotal']} SSIDs (${json['recordsFiltered']} shown after filter)`);
+                else
+                    ssid_status_element.html(`${json['recordsTotal']} SSIDs`);
+            } catch (error) {
+                ;
+            }
+        })
+        .DataTable({
+            destroy: true,
+            scrollResize: true,
+            scrollY: 200,
+            serverSide: true,
+            processing: true,
+            dom: 'ft',
+            deferRender: true,
+            lengthChange: false,
+            scroller: {
+                loadingIndicator: true,
+            },
+            ajax: {
+                url: local_uri_prefix + "phy/phy80211/ssids/views/ssids.json",
+                data: {
+                    json: JSON.stringify(json)
+                },
+                method: 'POST',
+                timeout: 5000,
+            },
+            columns: cols,
+            order: [ [ 0, "desc" ] ],
+            createRow: function(row, data, index) {
+                row.id = data['dot11.ssidgroup.hash'];
+            },
+            drawCallback: function(settings) {
+                var dt = this.api();
+
+                dt.rows({
+                    page: 'current'
+                }).every(function(rowIdx, tableLoop, rowLoop) {
+                    for (var c in SsidColumns) {
+                        var col = SsidColumns[c];
+
+                        if (!('kismetdrawfunc') in col)
+                            continue;
+
+                        try {
+                            col.kismetdrawfunc(col, dt, this);
+                        } catch (error) {
+                            ;
+                        }
+                    }
+                });
+            },
+        });
+
+    var ssid_dt = ssid_element.DataTable();
+
+    // Restore the order
+    var saved_order = kismet.getStorage('kismet.base.ssidtable.order', "");
+    if (saved_order !== "")
+        ssid_dt.order(JSON.parse(saved_order));
+
+    // Restore the search
+    var saved_search = kismet.getStorage('kismet.base.ssidtable.search', "");
+    if (saved_search !== "")
+        ssid_dt.search(JSON.parse(saved_search));
+
+    // Set an onclick handler to spawn the device details dialog
+    $('tbody', ssid_element).on('click', 'tr', function () {
+        // kismet_ui.DeviceDetailWindow(this.id);
+    } );
+
+    $('tbody', ssid_element)
+        .on( 'mouseenter', 'td', function () {
+            var ssid_dt = ssid_element.DataTable();
+
+            if (typeof(ssid_dt.cell(this).index()) === 'Undefined')
+                return;
+
+            var colIdx = ssid_dt.cell(this).index().column;
+            var rowIdx = ssid_dt.cell(this).index().row;
+
+            // Remove from all cells
+            $(ssid_dt.cells().nodes()).removeClass('kismet-highlight');
+            // Highlight the td in this row
+            $('td', ssid_dt.row(rowIdx).nodes()).addClass('kismet-highlight');
+        } );
+
+    return ssid_dt;
+}
+
+kismet_ui_tabpane.AddTab({
+    id: 'dot11_ssids',
+    tabTitle: 'SSIDs',
+    createCallback: function(div) {
+        div.append(
+            $('<div>', {
+                class: 'resize_wrapper',
+            })
+            .append(
+                $('<table>', {
+                    id: 'ssids',
+                    class: 'stripe hover nowrap',
+                    'cell-spacing': 0,
+                    width: '100%',
+                })
+            )
+        ).append(
+            $('<div>', {
+                id: 'ssids_status',
+                style: 'padding-bottom: 10px;',
+            })
+        );
+
+        ssid_element = $('#ssids', div);
+        ssid_status_element = $('#ssids_status', div);
+
+        InitializeSsidTable();
+        ScheduleSsidSummary();
+    },
+    priority: -1000,
+}, 'center');
+
+exports.AddSsidColumn('col_ssid', {
+    sTitle: 'SSID',
+    field: 'dot11.ssidgroup.ssid',
+    name: 'SSID',
+    renderfunc: function(d, t, r, m) {
+        if (d.length == 0)
+            return "<i>Cloaked or Empty SSID</i>";
+        else if (/^ +$/.test(d))
+            return "<i>Blank SSID</i>";
+        return d;
+    },
+});
+
+exports.AddSsidColumn('col_ssid_len', {
+    sTitle: 'Length',
+    field: 'dot11.ssidgroup.ssid_len',
+    name: 'SSID Length',
+});
+
+exports.AddSsidColumn('column_time', {
+    sTitle: 'Last Seen',
+    field: 'dot11.ssidgroup.last_time',
+    description: 'Last-seen time',
+    renderfunc: function(d, t, r, m) {
+        return kismet_ui_base.renderLastTime(d, t, r, m);
+    },
+    searchable: true,
+    visible: true,
+    orderable: true,
+});
+
+exports.AddSsidColumn('column_first_time', {
+    sTitle: 'First Seen',
+    field: 'dot11.ssidgroup.first_time',
+    description: 'First-seen time',
+    renderfunc: function(d, t, r, m) {
+        return kismet_ui_base.renderLastTime(d, t, r, m);
+    },
+    searchable: true,
+    visible: false,
+    orderable: true,
+});
+
+exports.AddSsidColumn('column_crypt', {
+    sTitle: 'Encryption',
+    field: 'dot11.ssidgroup.crypt_set',
+    description: 'Encryption',
+    renderfunc: function(d, t, r, m) {
+        return exports.CryptToHumanReadable(d);
+    },
+    searchable: true,
+    orderable: true,
+});
+
+exports.AddSsidColumn('column_probing', {
+    sTitle: 'Probing',
+    field: 'dot11.ssidgroup.probing_devices_len',
+    description: 'Count of probing devices',
+    orderable: true,
+});
+
+exports.AddSsidColumn('column_responding', {
+    sTitle: 'Responding',
+    field: 'dot11.ssidgroup.responding_devices_len',
+    description: 'Count of responding devices',
+    orderable: true,
+});
+
+exports.AddSsidColumn('column_advertising', {
+    sTitle: 'Advertising',
+    field: 'dot11.ssidgroup.advertising_devices_len',
+    description: 'Count of advertising devices',
+    orderable: true,
 });
 
 // We're done loading

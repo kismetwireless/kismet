@@ -788,21 +788,21 @@ protected:
         register_field("dot11.client.last_time", "last time seen", &last_time);
         register_field("dot11.client.type", "type of client", &client_type);
         dhcp_host_id =
-            RegisterDynamicField("dot11.client.dhcp_host", "dhcp host", &dhcp_host);
+            register_dynamic_field("dot11.client.dhcp_host", "dhcp host", &dhcp_host);
         dhcp_vendor_id =
-            RegisterDynamicField("dot11.client.dhcp_vendor", "dhcp vendor", &dhcp_vendor);
+            register_dynamic_field("dot11.client.dhcp_vendor", "dhcp vendor", &dhcp_vendor);
         register_field("dot11.client.tx_cryptset", "bitset of transmitted encryption", &tx_cryptset);
         register_field("dot11.client.rx_cryptset", "bitset of received enryption", &rx_cryptset);
         eap_identity_id = 
-            RegisterDynamicField("dot11.client.eap_identity", "EAP identity", &eap_identity);
+            register_dynamic_field("dot11.client.eap_identity", "EAP identity", &eap_identity);
         cdp_device_id = 
-            RegisterDynamicField("dot11.client.cdp_device", "CDP device", &cdp_device);
+            register_dynamic_field("dot11.client.cdp_device", "CDP device", &cdp_device);
         cdp_port_id =
-            RegisterDynamicField("dot11.client.cdp_port", "CDP port", &cdp_port);
+            register_dynamic_field("dot11.client.cdp_port", "CDP port", &cdp_port);
         register_field("dot11.client.decrypted", "client decrypted", &decrypted);
         
         ipdata_id =
-            RegisterDynamicField("dot11.client.ipdata", "IPv4 information", &ipdata);
+            register_dynamic_field("dot11.client.ipdata", "IPv4 information", &ipdata);
 
         register_field("dot11.client.datasize", "data in bytes", &datasize);
         register_field("dot11.client.datasize_retry", "retry data in bytes", &datasize_retry);
@@ -810,7 +810,7 @@ protected:
         register_field("dot11.client.num_retries", "number of retried packets", &num_retries);
 
         location_id =
-            RegisterDynamicField("dot11.client.location", "location", &location);
+            register_dynamic_field("dot11.client.location", "location", &location);
 
     }
 
@@ -968,6 +968,8 @@ public:
     __Proxy(client_disconnects, uint64_t, uint64_t, uint64_t, client_disconnects);
     __ProxyIncDec(client_disconnects, uint64_t, uint64_t, client_disconnects);
 
+    __Proxy(client_disconnects_last, uint64_t, uint64_t, uint64_t, client_disconnects_last);
+
     __Proxy(last_sequence, uint64_t, uint64_t, uint64_t, last_sequence);
     __Proxy(bss_timestamp, uint64_t, uint64_t, uint64_t, bss_timestamp);
     time_t last_bss_invalid;
@@ -986,16 +988,6 @@ public:
     __ProxyIncDec(datasize_retry, uint64_t, uint64_t, datasize_retry);
 
     __ProxyDynamic(last_bssid, mac_addr, mac_addr, mac_addr, last_bssid, last_bssid_id);
-
-    __ProxyDynamic(last_probed_ssid, std::string, std::string, std::string, last_probed_ssid,
-            last_probed_ssid_id);
-    __Proxy(last_probed_ssid_csum, uint32_t, uint32_t, 
-            uint32_t, last_probed_ssid_csum);
-
-    __ProxyDynamic(last_beaconed_ssid, std::string, std::string, std::string, last_beaconed_ssid,
-            last_beaconed_ssid_id);
-    __Proxy(last_beaconed_ssid_csum, uint32_t, uint32_t, 
-            uint32_t, last_beaconed_ssid_csum);
 
     __Proxy(last_beacon_timestamp, uint64_t, time_t, 
             time_t, last_beacon_timestamp);
@@ -1056,6 +1048,12 @@ public:
     bool get_pmkid_needed() { return pmkid_packet == nullptr; }
     bool get_pmkid_present() { return pmkid_packet != nullptr; }
 
+    __ProxyDynamicTrackable(last_beaconed_ssid_record, tracker_element_alias, 
+            last_beaconed_ssid_record, last_beaconed_ssid_record_id);
+
+    __ProxyDynamicTrackable(last_probed_ssid_record, tracker_element_alias, 
+            last_probed_ssid_record, last_probed_ssid_record_id);
+
 protected:
 
     virtual void register_fields() override {
@@ -1102,8 +1100,11 @@ protected:
                 "number of associated clients", &num_associated_clients);
 
         register_field("dot11.device.client_disconnects", 
-                "client disconnects in last second", 
+                "client disconnects message count", 
                 &client_disconnects);
+        register_field("dot11.device.client_disconnects_last",
+                "client disconnects last message",
+                &client_disconnects_last);
 
         register_field("dot11.device.last_sequence", "last sequence number", &last_sequence);
         register_field("dot11.device.bss_timestamp", "last BSS timestamp", &bss_timestamp);
@@ -1114,19 +1115,8 @@ protected:
         register_field("dot11.device.datasize", "data in bytes", &datasize);
         register_field("dot11.device.datasize_retry", "retried data in bytes", &datasize_retry);
 
-        last_probed_ssid_id =
-            RegisterDynamicField("dot11.device.last_probed_ssid", "last probed ssid", &last_probed_ssid);
-        register_field("dot11.device.last_probed_ssid_csum", 
-                "last probed ssid checksum", &last_probed_ssid_csum);
-
-        last_beaconed_ssid_id =
-            RegisterDynamicField("dot11.device.last_beaconed_ssid", 
-                    "last beaconed ssid", &last_beaconed_ssid);
-        register_field("dot11.device.last_beaconed_ssid_checksum", 
-                "last beaconed ssid checksum", &last_beaconed_ssid_csum);
-
         last_bssid_id =
-            RegisterDynamicField("dot11.device.last_bssid", "last BSSID", &last_bssid);
+            register_dynamic_field("dot11.device.last_bssid", "last BSSID", &last_bssid);
 
         register_field("dot11.device.last_beacon_timestamp",
                 "unix timestamp of last beacon frame", 
@@ -1155,11 +1145,11 @@ protected:
                     "WPA nonce exchange");
 
         ssid_beacon_packet_id =
-            RegisterDynamicField("dot11.device.ssid_beacon_packet",
+            register_dynamic_field("dot11.device.ssid_beacon_packet",
                     "snapshotted beacon packet", &ssid_beacon_packet);
 
         pmkid_packet_id =
-            RegisterDynamicField("dot11.device.pmkid_packet",
+            register_dynamic_field("dot11.device.pmkid_packet",
                     "snapshotted RSN PMKID packet", &pmkid_packet);
 
         register_field("dot11.device.min_tx_power", "Minimum advertised TX power", &min_tx_power);
@@ -1177,8 +1167,15 @@ protected:
 
         register_field("dot11.device.beacon_fingerprint", "Beacon fingerprint", &beacon_fingerprint);
         register_field("dot11.device.probe_fingerprint", "Probe (Client->AP) fingerprint", &probe_fingerprint);
-        register_field("dot11.device.response_fingerprint", "Respose (AP->Client) fingerprint", 
+        register_field("dot11.device.response_fingerprint", "Response (AP->Client) fingerprint", 
                 &response_fingerprint);
+
+        last_beaconed_ssid_record_id =
+            register_dynamic_field("dot11.device.last_beaconed_ssid_record", 
+                    "last beaconed ssid, complete record", &last_beaconed_ssid_record);
+        last_probed_ssid_record_id =
+            register_dynamic_field("dot11.device.last_probed_ssid_record", 
+                    "last probed ssid, complete record", &last_probed_ssid_record);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -1232,6 +1229,9 @@ protected:
                 *k = anonce;
             }
         }
+
+        advertised_ssid_map->set_as_vector(true);
+        probed_ssid_map->set_as_vector(true);
     }
 
     // Do we need to snap the next beacon because we're trying to add a beacon
@@ -1256,6 +1256,7 @@ protected:
     int associated_client_map_entry_id;
     std::shared_ptr<tracker_element_uint64> num_associated_clients;
     std::shared_ptr<tracker_element_uint64> client_disconnects;
+    std::shared_ptr<tracker_element_uint64> client_disconnects_last;
 
     std::shared_ptr<tracker_element_uint64> last_sequence;
     std::shared_ptr<tracker_element_uint64> bss_timestamp;
@@ -1265,16 +1266,6 @@ protected:
 
     std::shared_ptr<tracker_element_uint64> datasize;
     std::shared_ptr<tracker_element_uint64> datasize_retry;
-
-    std::shared_ptr<tracker_element_string> last_probed_ssid;
-    int last_probed_ssid_id;
-
-    std::shared_ptr<tracker_element_uint32> last_probed_ssid_csum;
-
-    std::shared_ptr<tracker_element_string> last_beaconed_ssid;
-    int last_beaconed_ssid_id;
-
-    std::shared_ptr<tracker_element_uint32> last_beaconed_ssid_csum;
 
     std::shared_ptr<tracker_element_mac_addr> last_bssid;
     int last_bssid_id;
@@ -1315,6 +1306,12 @@ protected:
     std::shared_ptr<tracker_element_uint32> beacon_fingerprint;
     std::shared_ptr<tracker_element_uint32> probe_fingerprint;
     std::shared_ptr<tracker_element_uint32> response_fingerprint;
+
+    int last_beaconed_ssid_record_id;
+    std::shared_ptr<tracker_element_alias> last_beaconed_ssid_record;
+
+    int last_probed_ssid_record_id;
+    std::shared_ptr<tracker_element_alias> last_probed_ssid_record;
 };
 
 #endif

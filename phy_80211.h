@@ -46,6 +46,7 @@
 #include "kis_net_microhttpd.h"
 #include "phy_80211_components.h"
 #include "phy_80211_httpd_pcap.h"
+#include "phy_80211_ssidtracker.h"
 
 #include "kaitai/kaitaistream.h"
 #include "dot11_parsers/dot11_wpa_eap.h"
@@ -335,7 +336,7 @@ public:
     std::shared_ptr<dot11_tracked_eapol> packet_dot11_eapol_handshake(kis_packet *in_pack,
             std::shared_ptr<dot11_tracked_device> dot11device);
 
-    // static incase some other component wants to use it
+    // static in case some other component wants to use it
     static kis_datachunk *DecryptWEP(dot11_packinfo *in_packinfo,
             kis_datachunk *in_chunk, 
             unsigned char *in_key, int in_key_len,
@@ -408,7 +409,7 @@ protected:
     unsigned int recent_packet_checksum_pos;
 
     // Handle advertised SSIDs
-    void HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev, 
+    void handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev, 
             std::shared_ptr<dot11_tracked_device> dot11dev,
             kis_packet *in_pack,
             dot11_packinfo *dot11info,
@@ -476,7 +477,8 @@ protected:
         alert_msfbcomssid_ref, alert_msfdlinkrate_ref, alert_msfnetgearbeacon_ref,
         alert_longssid_ref, alert_disconinvalid_ref, alert_deauthinvalid_ref,
         alert_dhcpclient_ref, alert_wmm_ref, alert_nonce_zero_ref, 
-        alert_nonce_duplicate_ref, alert_11kneighborchan_ref, alert_probechan_ref;
+        alert_nonce_duplicate_ref, alert_11kneighborchan_ref, alert_probechan_ref,
+        alert_rtlwifi_p2p_ref, alert_deauthflood_ref, alert_noclientmfp_ref;
 
     // Are we allowed to send wepkeys to the client (server config)
     int client_wepkey_allowed;
@@ -532,6 +534,9 @@ protected:
 
     // AP view
     std::shared_ptr<device_tracker_view> ap_view;
+
+    // SSID tracker subsystem
+    std::shared_ptr<phy_80211_ssid_tracker> ssidtracker; 
 
     // bssts time for grouping, in usec
     uint64_t bss_ts_group_usec;

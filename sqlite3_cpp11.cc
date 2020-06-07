@@ -20,6 +20,41 @@
 
 namespace kissqlite3 {
 
+    std::ostream& operator<<(std::ostream& os, const query_element& q) {
+        if (q.nested_query.size() > 0) {
+            os << "(";
+
+            bool comma = false;
+            for (auto f : q.nested_query) {
+                os << f;
+
+                // look forward into if it was an op-only token, don't add a comma
+                if (f.op_only) {
+                    comma = false;
+                    continue;
+                }
+
+                if (comma)
+                    os << ", ";
+                comma = true;
+            }
+
+            os << ")";
+
+            return os;
+        }
+
+        // Output a single operator token and exit
+        if (q.op_only) {
+            os << q.op;
+            return os;
+        }
+
+        // output a full query
+        os << q.field << " " << q.op << " ?";
+        return os;
+    }
+
     std::ostream& operator<<(std::ostream& os, const query& q) {
         os << "SELECT (";
 
@@ -38,8 +73,11 @@ namespace kissqlite3 {
 
             comma = false;
             for (auto c : q.where_clause) {
+                // it'd be nice not to have to look into this like we do
+                // here but it's good enough for now.  We don't want to 
+                // add commas around op-only stanzas
                 if (c.op_only) {
-                    os << " " << c.op << " ";
+                    os << " " << c << " ";
                     comma = false;
                     continue;
                 }
@@ -48,7 +86,7 @@ namespace kissqlite3 {
                     os << ", ";
                 comma = true;
 
-                os << c.field << " " << c.op << " ?";
+                os << c;
             }
             os << ")";
         }
@@ -99,6 +137,11 @@ namespace kissqlite3 {
         }
 
         return os;
+    }
+
+    std::list<query_element> _WHERE() {
+        auto ret = std::list<query_element>{};
+        return ret;
     }
 
     // SELECT (x, y, z) FROM table

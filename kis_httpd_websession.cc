@@ -28,6 +28,7 @@
 
 kis_httpd_websession::kis_httpd_websession() :
     kis_net_httpd_cppstream_handler() {
+    mutex.set_name("kis_httpd_websession");
 
     activated = false;
 

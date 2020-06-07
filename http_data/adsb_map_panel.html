@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>live adsb map</title>
+
+    <link rel="stylesheet" type="text/css" href="css/font-awesome.min.css">
+    <link rel="stylesheet" href="css/leaflet.css" />
+    <link rel="stylesheet" type="text/css" href="css/jquery-ui.min.css" />
+    <link rel="stylesheet" type="text/css" href="css/jquery.jspanel.min.css" />
+    <link rel="stylesheet" type="text/css" href="css/jquery.dataTables.min.css" />
+    <link rel="stylesheet" type="text/css" href="css/responsive.dataTables.min.css" />
+    <link rel="stylesheet" type="text/css" href="css/colReorder.dataTables.min.css" />
+
+    <script src="js/jquery-3.1.0.min.js"></script>
+    <script src="js/leaflet.js"></script>
+    <script src="js/Leaflet.MultiOptionsPolyline.min.js"></script>
+    <script src="js/chroma.min.js"></script>
+
+    <script src="js/js.storage.min.js"></script>
+    <script src="js/kismet.utils.js"></script>
+    <script src="js/kismet.units.js"></script>
+
+    <script src="js/jquery.dataTables.min.js"></script>
+    <script src="js/dataTables.scroller.min.js"></script>
+    <script src="js/dataTables.scrollResize.js"></script>
+    <script src="js/dataTables.pageResize.min.js"></script>
+    <script src="js/dataTables.colReorder.min.js"></script>
+    <script src="js/dataTables.responsive.min.js"></script>
+
+    <style>
+        body {
+            padding: 0;
+            margin: 0;
+        }
+
+        html, body, #map {
+            height: 100%;
+            font: 10pt "Helvetica Neue", Arial, Helvetica, sans-serif;
+        }
+
+        .marker-center {
+            margin: 0;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            -ms-transform: translate(-50%, -50%);
+            transform: translate(-50%, -50%);
+        }
+
+        .right-sidebar {
+            position: absolute;
+            top: 10px;
+            bottom: 10px;
+            right: 10px;
+            width: 20%;
+            border: 1px solid black;
+            background: white;
+            z-index: 999;
+            padding: 10px;
+        }
+
+        .warning {
+            position: absolute;
+            top: 10%;
+            bottom: 10%;
+            right: 25%;
+            left: 25%;
+            border: 1px solid black;
+            background: white;
+            z-index: 10000;
+            padding: 10px;
+        }
+
+        #alt_scale {
+            width: 50%;
+            position: absolute;
+            bottom: 10px;
+            left: 25%;
+            height: 15px;
+            z-index: 999;
+            border: 1px solid black;
+            padding-left: 10px;
+            padding-right: 10px;
+            background: linear-gradient(to right, 
+                hsl(50,100%,50%), 
+                hsl(100,100%,50%), 
+                hsl(150,100%,50%), 
+                hsl(200,100%,50%), 
+                hsl(250,100%,50%), 
+                hsl(300,100%,50%), 
+                hsl(360,100%,50%));
+            text-align: center;
+        }
+
+        #alt_min {
+            position: absolute;
+            left: 10px;
+        }
+
+        #alt_mini {
+            position: absolute;
+            left: 25%;
+        }
+
+        #alt_maxi {
+            position: absolute;
+            left: 75%;
+        }
+
+        #alt_max {
+            position: absolute;
+            right: 10px;
+        }
+
+        #alt_title {
+            display: inline-block;
+        }
+
+        .resize_wrapper {
+            position: relative;
+            box-sizing: border-box;
+            height: calc(100% - 95px);
+            padding: 0.5em 0.5em 1.5em 0.5em;
+            border-radius: 0.5em;
+            background-color: #f9f9f9;
+            overflow: hidden;
+        }
+
+    </style>
+</head>
+<body>
+    <div id="warning" class="warning">
+        <p><b>Warning!</b>
+        <p>To display the live ADSB map, your browser will connect to the Leaflet and Open Street Map servers to fetch the map tiles.  This requires you have a functional Internet connection, and will reveal something about your location (the bounding region where planes have been seen.)
+        <p><input id="dontwarn" type="checkbox">Don't warn me again</input>
+        <p><button id="continue">Continue</button>
+    </div>
+    <div id="alt_scale">
+        <div id="alt_min"></div>
+        <div id="alt_mini"></div>
+        <div id="alt_maxi"></div>
+        <div id="alt_max"></div>
+        <div id="alt_title"><strong>Altitude</strong></div>
+    </div>
+    <div id="map"></div>
+    <div class="right-sidebar">
+        <div id="plane-count" style="height: 10px">
+        <i class="fa fa-plane" style="padding-right: 1em;"></i><span id="numplanes">0</span> planes in the past 10 minutes
+        </div>
+
+        <div id="plane-detail" style="padding-top: 10px; height: 65px;"></div>
+        <br>
+        <div height="100%" class="resize_wrapper">
+        <table width="100%" id="adsb_planes" style="font-size: 80%">
+            <thead>
+                <tr>
+                    <th>ICAO</th>
+                    <th>ID</th>
+                    <th>Alt</th>
+                    <th>Spd</th>
+                    <th>Hed</th>
+                    <th>Msgs</th>
+                </tr>
+            </thead>
+        </table>
+        </div>
+    </div>
+
+    <script>
+        units = 'i';
+
+        if (kismet.getStorage('kismet.base.unit.distance') === 'metric' ||
+            kismet.getStorage('kismet.base.unit.distance') === '')
+            units = 'm';
+
+        if (units === 'm') {
+            $('#alt_min').html("0m");
+            $('#alt_mini').html("3000m");
+            $('#alt_maxi').html("9000m");
+            $('#alt_max').html("12000m");
+        } else {
+            $('#alt_min').html("0ft");
+            $('#alt_mini').html("10000ft");
+            $('#alt_maxi').html("30000ft");
+            $('#alt_max').html("40000ft");
+        }
+
+        var window_visible = true;
+
+        // Visibility detection from https://developer.mozilla.org/en-US/docs/Web/API/Page_Visibility_API
+        // Set the name of the hidden property and the change event for visibility
+        var hidden, visibilityChange; 
+        if (typeof document.hidden !== "undefined") { // Opera 12.10 and Firefox 18 and later support 
+            hidden = "hidden";
+            visibilityChange = "visibilitychange";
+        } else if (typeof document.msHidden !== "undefined") {
+            hidden = "msHidden";
+            visibilityChange = "msvisibilitychange";
+        } else if (typeof document.webkitHidden !== "undefined") {
+            hidden = "webkitHidden";
+            visibilityChange = "webkitvisibilitychange";
+        }
+
+        function handleVisibilityChange() {
+            if (document[hidden]) {
+                window_visible = false;
+            } else {
+                window_visible = true;
+            }
+        }
+
+        // Warn if the browser doesn't support addEventListener or the Page Visibility API
+        if (typeof document.addEventListener === "undefined" || hidden === undefined) {
+            ; // Do nothing
+        } else {
+            // Handle page visibility change   
+            document.addEventListener(visibilityChange, handleVisibilityChange, false);
+        }
+
+        $.urlParam = function(name){
+            var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
+            if (results == null) {
+                return null;
+            }
+            return decodeURI(results[1]) || 0;
+        }
+
+        var param_url = $.urlParam('parent_url')
+        var param_prefix = $.urlParam('local_uri_prefix')
+
+        if (param_prefix == 0)
+            param_prefix=""
+
+        var local_uri_prefix = param_url + param_prefix;
+        if (typeof(KISMET_URI_PREFIX) !== 'undefined')
+            local_uri_prefix = KISMET_URI_PREFIX;
+
+        var map_configured = false;
+
+        var markers = {};
+
+        var tid = -1;
+
+        var map = null;
+
+        function get_alt_color(alt, v_perc=50) {
+            // Colors go from 50 to 360 on the HSV slider, so scale to 310
+            if (units === 'm') {
+                if (alt > 12000)
+                    alt = 12000;
+                if (alt < 0)
+                    alt = 0;
+
+                h = 40 + (310 * (alt / 12000));
+                hv = h.toFixed(0);
+
+                return `hsl(${hv}, 100%, ${v_perc}%)`
+            } else {
+                alt_f = alt * 3.2808399;
+                if (alt_f > 40000)
+                    alt_f = 40000;
+                if (alt_f < 0)
+                    alt_f = 0;
+
+                h = 40 + (310 * (alt_f / 40000));
+                hv = h.toFixed(0);
+
+                return `hsl(${hv}, 100%, ${v_perc}%)`
+            }
+        }
+
+        var moused_icao = null;
+        var moused_id = null;
+
+        var planes_dt = $('#adsb_planes').DataTable({
+            data: [],
+            searching: false,
+            scrollY: 500,
+            scrollResize: true,
+            scroller: true,
+            paging: true,
+            dom: "ft",
+            createdRow: function(row, data, index) {
+                row.id = `ROW_ICAO_${data[0]}`;
+            },
+        });
+
+
+        function wrap_closure_click(k) {
+            return function() {
+                $('#adsb_planes').DataTable().row(`#ROW_ICAO_${markers[k]['icao']}`).scrollTo();
+
+                if (moused_icao != null)
+                    $(`#ROW_ICAO_${moused_icao}`).css('background-color', '');
+
+                moused_id = k;
+                moused_icao = markers[k]['icao'];
+
+                $(`#ROW_ICAO_${markers[k]['icao']}`).css('background-color', 'red');
+            }
+
+        };
+
+        function wrap_closure_mouseover(k) {
+            return function() {
+                if (markers[k]['path'] != null) {
+                    markers[k]['path'].setStyle({
+                        weight: 3,
+                        dashArray: '',
+                    });
+                }
+
+                // $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('color', 'red');
+                $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('font-size', '24px');
+
+                $('#plane-detail').html("<b>Flight:</b> " + markers[k]['callsign'] + "<br>" +
+                    "<b>Model:</b> " + markers[k]['model'] + "<br>" + 
+                    "<b>Operator: </b>" + markers[k]['operator'] + "<br>" + 
+                    "<b>Altitude: </b>" + kismet_units.renderHeightDistance(markers[k]['altitude'], 0, true) + "<br>" + 
+                    "<b>Speed: </b>" + kismet_units.renderSpeed(markers[k]['speed'], 0) + "<br>");
+
+            }
+        };
+
+        function wrap_closure_mouseout(k) {
+            return function() {
+                if (markers[k]['path'] != null) {
+                    markers[k]['path'].setStyle({
+                        weight: 2,
+                        dashArray: '3',
+                    });
+                }
+
+                // $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('color', get_alt_color(markers[k]['altitude']));
+                $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('font-size', '18px');
+            }
+        };
+
+        function map_cb(d) {
+            data = kismet.sanitizeObject(d);
+
+            // $('#count').html("Active in the last 10 minutes: " + data['kismet.adsb.map.devices'].length);
+            $('#numplanes').html(data['kismet.adsb.map.devices'].length);
+
+            if (!map_configured) {
+                var lat1 = data['kismet.adsb.map.min_lat'];
+                var lon1 = data['kismet.adsb.map.min_lon'];
+                var lat2 = data['kismet.adsb.map.max_lat'];
+                var lon2 = data['kismet.adsb.map.max_lon'];
+
+                map = L.map('map');
+                map.fitBounds([[lat1, lon1], [lat2, lon2]])
+                L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                }).addTo(map);
+
+                map_configured = true;
+            }
+
+            var dt = $('#adsb_planes').DataTable();
+
+            var prev_pos = {
+                'top': $(dt.settings()[0].nScrollBody).scrollTop(),
+                'left': $(dt.settings()[0].nScrollBody).scrollLeft()
+            };
+
+            dt.clear();
+
+            for (var d = 0; d < data['kismet.adsb.map.devices'].length; d++) {
+                try {
+                    var lat = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.geopoint'][1];
+                    var lon = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.geopoint'][0];
+                    var heading = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.heading'];
+                    var altitude = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.alt'];
+                    var speed = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.speed'];
+                    var icao = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.icao'];
+                    var id = data['kismet.adsb.map.devices'][d]['rtladsb.device']['kismet.adsb.icao_record']['adsb.icao.regid'];
+                    var packets = data['kismet.adsb.map.devices'][d]['kismet.device.base.packets.data'];
+                    var atype = data['kismet.adsb.map.devices'][d]['rtladsb.device']['kismet.adsb.icao_record']['adsb.icao.atype_short'];
+
+
+                    // console.log([icao, id, altitude, speed, heading, packets]);
+
+                    dt.row.add([icao, id, kismet_units.renderHeightDistanceUnitless(altitude, 0), kismet_units.renderSpeedUnitless(speed, 0, true), heading.toFixed(0), packets]);
+
+                    if (lat == 0 || lon == 0)
+                        continue;
+
+                    key = data['kismet.adsb.map.devices'][d]['kismet.device.base.key'];
+
+                    var icontype = 'fa-plane';
+
+                    /*
+                     * 1 - Glider
+                     * 2 - Balloon
+                     * 3 - Blimp/Dirigible
+                     * 4 - Fixed wing single engine
+                     * 5 - Fixed wing multi engine
+                     * 6 - Rotorcraft
+                     * 7 - Weight-shift-control
+                     * 8 - Powered Parachute
+                     * 9 - Gyroplane
+                     * H - Hybrid Lift
+                     * O - Other
+                     */
+                    if (atype == "1".charCodeAt(0) || atype == "7".charCodeAt(0))
+                        icontype == 'fa-paper-plane';
+                    else if (atype == "6".charCodeAt(0))
+                        icontype == 'fa-helicopter';
+
+                    var myIcon = L.divIcon({
+                        className: 'plane-icon', 
+                        html: '<div id="adsb_marker_' + kismet.sanitizeId(key) + '" style="width: 24px; height: 24px; transform-origin: center;"><i id="adsb_marker_icon_' + kismet.sanitizeId(key) + '" class="marker-center fa ' + icontype + '" style="font-size: 18px; color: ' + get_alt_color(altitude) + ';"></div>',
+                        iconAnchor: [12, 12],
+                    });
+
+                    if (key in markers) {
+                        marker = markers[key]['marker'];
+                        markers[key]['keep'] = true;
+
+                        // Move the marker
+                        $('#adsb_marker_' + kismet.sanitizeId(key)).css('transform', 'rotate(' + (heading - 45) + 'deg)');
+                        var new_loc = new L.LatLng(lat, lon);
+                        marker.setLatLng(new_loc); 
+
+                        // Recolor the marker
+                        $('#adsb_marker_icon_' + kismet.sanitizeId(k)).css('color', get_alt_color(altitude));
+
+                        /*
+                        if (markers[key]['last_lat'] != lat || markers[key]['last_lon'] != lon) {
+                            markers[key]['pathlist'].push([lat, lon]);
+
+                            markers[key]['last_lat'] = lat;
+                            markers[key]['last_lon'] = lon;
+                            markers[key]['heading'] = heading;
+
+                            if (markers[key]['path'] != null) {
+                                markers[key]['path'].addLatLng([lat, lon]);
+                            } else {
+                                markers[key]['path'] = L.polyline(markers[key]['pathlist'], {
+                                    color: 'red',
+                                    weight: 2,
+                                    dashArray: '3',
+                                    opacity: 0.85,
+                                    smoothFactor: 1,
+                                }).addTo(map);
+
+                                markers[key]['path'].on('mouseover', wrap_closure_mouseover(key));
+                                markers[key]['path'].on('mouseout', wrap_closure_mouseout(key));
+                            }
+                        }
+                        */
+
+                    } else {
+                        /* Make a new marker */
+
+                        var marker = L.marker([lat, lon], { icon: myIcon} ).addTo(map);
+                        $('#adsb_marker_' + kismet.sanitizeId(key)).css('transform', 'rotate(' + (heading - 45) + 'deg)');
+
+                        markers[key] = {};
+                        markers[key]['marker'] = marker;
+                        markers[key]['icao'] = icao;
+                        markers[key]['keep'] = true;
+                        markers[key]['pathlist'] = [[lat, lon]];
+                        markers[key]['path'] = null;
+                        markers[key]['last_path_ts'] = 0;
+
+                        markers[key]['model'] = data['kismet.adsb.map.devices'][d]['rtladsb.device']['kismet.adsb.icao_record']['adsb.icao.model'];
+                        markers[key]['operator'] = data['kismet.adsb.map.devices'][d]['rtladsb.device']['kismet.adsb.icao_record']['adsb.icao.owner'];
+                        markers[key]['callsign'] = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.callsign'];
+
+                        markers[key]['marker'].on('mouseover', wrap_closure_mouseover(key));
+                        markers[key]['marker'].on('mouseout', wrap_closure_mouseout(key));
+                        markers[key]['marker'].on('click', wrap_closure_click(key));
+                    }
+
+                    markers[key]['altitude'] = altitude;
+                    markers[key]['heading'] = heading;
+                    markers[key]['speed'] = speed;
+                    markers[key]['last_lat'] = lat;
+                    markers[key]['last_lon'] = lon;
+
+
+                    // Assign the historic path, if location history is available
+                    try {
+                        var history = data['kismet.adsb.map.devices'][d]['kismet.device.base.location_cloud']['kis.gps.rrd.samples_100'];
+
+                        for (var s in history) {
+                            // Ignore non-location historic points (caused by heading/altitude before we got 
+                            // a location lock
+                            var s_lat = history[s]['kismet.historic.location.geopoint'][1];
+                            var s_lon = history[s]['kismet.historic.location.geopoint'][0];
+                            var s_alt = history[s]['kismet.historic.location.alt'];
+                            var s_ts = history[s]['kismet.historic.location.time_sec'];
+
+                            if (s_lat == 0 || s_lon == 0 || s_ts < markers[key]['last_path_ts'])
+                                continue
+
+                            markers[key]['last_path_ts'] = s_ts;
+
+                            if (markers[key]['path'] != null) {
+                                markers[key]['path'].addLatLng([s_lat, s_lon]);
+                            } else {
+                                markers[key]['path'] = L.polyline([[s_lat, s_lon], [s_lat, s_lon]], {
+                                    color: get_alt_color(s_alt, 25),
+                                    /*
+                                    // color: 'red',
+                                    multiOptions: {
+                                        options: function(v) {
+                                            return {'color': get_alt_color(s_alt)};
+                                        },
+                                    },
+                                    */
+                                    weight: 2,
+                                    dashArray: '3',
+                                    opacity: 0.85,
+                                    smoothFactor: 1,
+                                }).addTo(map);
+
+                                markers[key]['path'].on('mouseover', wrap_closure_mouseover(key));
+                                markers[key]['path'].on('mouseout', wrap_closure_mouseout(key));
+                            }
+
+                        }
+
+                    } catch (error) {
+                        ;
+                    }
+
+                dt.draw(0);
+
+                if (moused_icao != null) {
+                    $(`#ROW_ICAO_${moused_icao}`).css('background-color', 'red');
+                }
+
+                // Restore our scroll position
+                $(dt.settings()[0].nScrollBody).scrollTop( prev_pos.top );
+                $(dt.settings()[0].nScrollBody).scrollLeft( prev_pos.left );
+
+
+                } catch (error) {
+                    ;
+                }
+
+            }
+
+            for (var k in markers) {
+                if (markers[k]['keep']) {
+                    markers[k]['keep'] = false;
+                    continue;
+                }
+
+                if (markers[k]['marker'] != null)
+                    map.removeLayer(markers[k]['marker']);
+                if (markers[k]['path'] != null)
+                    map.removeLayer(markers[k]['path']);
+
+                delete(markers[k]);
+            }
+        }
+
+        var load_maps = kismet.getStorage('kismet.adsb.maps_ok', false);
+
+        function poll_map() {
+            if (window_visible && !$('#map').is(':hidden') && load_maps) {
+                $.get(local_uri_prefix + "phy/RTLADSB/map_data.json")
+                    .done(function(d) {
+                        map_cb(d);
+                    })
+                    .always(function(d) {
+                        tid = setTimeout(function() { poll_map(); }, 2000);
+                    });
+            } else {
+                tid = setTimeout(function() { poll_map(); }, 2000);
+            }
+        }
+
+        // Set a global timeout
+        $.ajaxSetup({
+            timeout:5000,
+            xhrFields: {
+                withCredentials: true
+            }
+        });
+
+        if (load_maps)
+            $('#warning').hide();
+
+        $('#continue').on('click', function() {
+            if ($('#dontwarn').is(":checked"))
+                kismet.putStorage('kismet.adsb.maps_ok', true);
+            $('#warning').hide();
+            load_maps = true;
+        });
+
+        poll_map();
+
+    </script>
+</body>
+</html>

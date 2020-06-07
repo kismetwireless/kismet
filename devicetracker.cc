@@ -31,28 +31,27 @@
 #include <string>
 #include <sstream>
 
-#include "globalregistry.h"
-#include "util.h"
-#include "configfile.h"
-#include "messagebus.h"
-#include "packetchain.h"
-#include "datasourcetracker.h"
-#include "packet.h"
-#include "gpstracker.h"
 #include "alertracker.h"
-#include "manuf.h"
-#include "entrytracker.h"
+#include "base64.h"
+#include "configfile.h"
+#include "datasourcetracker.h"
 #include "devicetracker.h"
 #include "devicetracker_component.h"
 #include "devicetracker_view.h"
+#include "entrytracker.h"
+#include "globalregistry.h"
+#include "gpstracker.h"
 #include "json_adapter.h"
-#include "structured.h"
-#include "kismet_json.h"
-#include "storageloader.h"
-#include "base64.h"
 #include "kis_datasource.h"
 #include "kis_databaselogfile.h"
-
+#include "kismet_json.h"
+#include "manuf.h"
+#include "messagebus.h"
+#include "packet.h"
+#include "packetchain.h"
+#include "structured.h"
+#include "storageloader.h"
+#include "util.h"
 #include "zstr.hpp"
 
 int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
@@ -75,6 +74,9 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 
 	eventbus =
 		Globalreg::fetch_mandatory_global_as<event_bus>();
+
+    alertracker =
+        Globalreg::fetch_mandatory_global_as<alert_tracker>();
 
     device_base_id =
         entrytracker->register_field("kismet.device.base", 
@@ -153,112 +155,21 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 	packetchain->register_handler(&Devicetracker_packethook_commontracker,
 											this, CHAINPOS_TRACKER, -100);
 
+    // Post any events related to the device generated during tracking mode
+    // (like a new device being created) at the very END of tracking, so that
+    // the device has as complete a view as possible; if we trigger it at the
+    // BEGINNING of the chain, we get only the generic device with none of the
+    // phy-specific attachments.
+    packetchain_tracking_done_id =
+        packetchain->register_handler([this](kis_packet *in_packet) -> int {
+            for (auto e : in_packet->process_complete_events)
+                eventbus->publish(e);
+            return 1;
+        }, CHAINPOS_TRACKER, 0x7FFF'FFFF);
+
     std::shared_ptr<time_tracker> timetracker = 
         Globalreg::fetch_mandatory_global_as<time_tracker>(globalreg, "TIMETRACKER");
 
-   
-    // Always disable persistent storage for now
-    persistent_storage = false;
-    persistent_mode = MODE_ONSTART;
-    persistent_compression = false;
-    statestore = NULL;
-    persistent_storage_timeout = 0;
-
-#if 0
-    if (!globalreg->kismet_config->fetch_opt_bool("persistent_config_present", false)) {
-        _MSG("Kismet has recently added persistent device storage; it looks like you "
-                "need to update your Kismet configs; install the latest configs with "
-                "'make forceconfigs' from the Kismet source directory.",
-                MSGFLAG_ERROR);
-
-        std::shared_ptr<alert_tracker> alertracker =
-            Globalreg::fetch_mandatory_global_as<alert_tracker>(globalreg, "ALERTTRACKER");
-        alertracker->raise_one_shot("CONFIGERROR", 
-                "Kismet has recently added persistent device storage; it looks like "
-                "kismet_storage.conf is missing; You should install the latest Kismet "
-                "configs with 'make forceconfigs' from the Kismet source directory, or "
-                "manually reconcile the new configs.", -1);
-
-        persistent_storage = false;
-        persistent_mode = MODE_ONSTART;
-        persistent_compression = false;
-        statestore = NULL;
-        persistent_storage_timeout = 0;
-    } else {
-        persistent_storage =
-            globalreg->kismet_config->fetch_opt_bool("persistent_state", false);
-
-        if (!persistent_storage) {
-            _MSG("Persistent storage has been disabled.  Kismet will not remember devices "
-                    "between launches.", MSGFLAG_INFO);
-            statestore = NULL;
-        } else {
-            statestore = new device_tracker_state_store(globalreg, this);
-
-            unsigned int storerate = 
-                globalreg->kismet_config->fetch_opt_uint("persistent_storage_rate", 60);
-
-            _MSG("Persistent device storage enabled.  Kismet will remember devices and "
-                    "other information between launches.  Kismet will store devices "
-                    "every " + uint_to_string(storerate) + " seconds and on exit.", 
-                    MSGFLAG_INFO);
-
-            devices_storing = false;
-
-            device_storage_timer =
-                timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * storerate, NULL, 1,
-                        [this](int) -> int {
-                            local_locker l(&storing_mutex);
-
-                            if (devices_storing) {
-                                _MSG("Attempting to save persistent devices, but devices "
-                                        "are still being saved from a previous storage "
-                                        "attempt.  It's possible your system is slow, or you "
-                                        "have a very large log of devices.  Try increasing "
-                                        "the delay in 'persistent_storage_rate' in your "
-                                        "kismet_storage.conf file.", MSGFLAG_ERROR);
-                                return 1;
-                            }
-
-                            devices_storing = true;
-
-                            // Run the device storage in its own thread
-                            std::thread t([this] {
-                                store_devices(immutable_tracked_vec);
-
-                                {
-                                    local_locker l(&storing_mutex);
-                                    devices_storing = false;
-                                }
-                            });
-
-                            // Detatch the thread, we don't care about it
-                            t.detach();
-
-                            return 1;
-                        });
-
-            std::string pertype = 
-                str_lower(globalreg->kismet_config->fetch_opt("persistent_load"));
-
-            if (pertype == "onstart") {
-                persistent_mode = MODE_ONSTART;
-            } else if (pertype == "ondemand") {
-                persistent_mode = MODE_ONDEMAND;
-            } else {
-                _MSG("Persistent load mode missing from config, assuming 'onstart'",
-                        MSGFLAG_ERROR);
-                persistent_mode = MODE_ONSTART;
-            }
-
-            persistent_compression = 
-                globalreg->kismet_config->fetch_opt_bool("persistent_compression", true);
-
-            persistent_storage_timeout =
-                globalreg->kismet_config->fetch_opt_ulong("persistent_timeout", 86400);
-        }
-    }
-#endif
 
     if (!globalreg->kismet_config->fetch_opt_bool("track_device_rrds", true)) {
         _MSG("Not tracking historical packet data to save RAM", MSGFLAG_INFO);
@@ -291,7 +202,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
         databaselog_logging = false;
 
         databaselog_timer =
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * lograte, NULL, 1,
+            timetracker->register_timer(SERVER_TIMESLICES_SEC * lograte, NULL, 1,
                 [this](int) -> int {
                     local_locker l(&databaselog_mutex);
 
@@ -299,7 +210,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
                         _MSG("Attempting to log devices, but devices are still being "
                                 "saved from the last logging attempt.  It's possible your "
                                 "system is slow or you have a very large number of devices "
-                                "to log.  Try increasing the delay in 'kis_log_storage_rate' "
+                                "to log.  Try increasing the delay in 'kis_log_device_rate' "
                                 "in kismet_logging.conf", MSGFLAG_ERROR);
                         return 1;
                     }
@@ -316,7 +227,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
                         }
                     });
 
-                    // Detatch the thread, we don't care about it
+                    // Detach the thread, we don't care about it
                     t.detach();
 
                     return 1;
@@ -325,7 +236,10 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
         databaselog_timer = -1;
     }
 
+#if 0
     last_devicelist_saved = 0;
+#endif
+
     last_database_logged = 0;
 
     // Preload the vector for speed
@@ -354,7 +268,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 
 		// Schedule device idle reaping every minute
         device_idle_timer =
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 1, this);
+            timetracker->register_timer(SERVER_TIMESLICES_SEC * 60, NULL, 1, this);
     } else {
         device_idle_timer = -1;
     }
@@ -368,7 +282,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 
 		// Schedule max device reaping every 5 seconds
 		max_devices_timer =
-			timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5, NULL, 1, this);
+			timetracker->register_timer(SERVER_TIMESLICES_SEC * 5, NULL, 1, this);
 	} else {
 		max_devices_timer = -1;
 	}
@@ -404,6 +318,13 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
                 [this](std::ostream& stream, const std::string& uri, shared_structured structured,
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                 return multimac_endp_handler(stream, uri, structured, variable_cache);
+                });
+
+    multikey_endp = 
+        std::make_shared<kis_net_httpd_simple_post_endpoint>("/devices/multikey/devices",
+                [this](std::ostream& stream, const std::string& uri, shared_structured structured,
+                    kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
+                return multikey_endp_handler(stream, uri, structured, variable_cache);
                 });
 
     phy_phyentry_id =
@@ -444,14 +365,20 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
     database_upgrade_db();
 
     new_datasource_evt_id = 
-        eventbus->register_listener("NEW_DATASOURCE",
-            [this](std::shared_ptr<eventbus_event> evt) {
-                handle_new_datasource_event(evt);
-            });
+        eventbus->register_listener(datasource_tracker::event_new_datasource::event(),
+                [this](std::shared_ptr<eventbus_event> evt) {
+                    handle_new_datasource_event(evt);
+                });
+
+    new_device_evt_id = 
+        eventbus->register_listener(event_new_device::event(),
+                [this](std::shared_ptr<eventbus_event> evt) {
+                    handle_new_device_event(evt);
+                });
 
     bind_httpd_server();
 
-    auto all_view =
+    all_view =
         std::make_shared<device_tracker_view>("all", 
                 "All devices",
                 [](std::shared_ptr<kis_tracked_device_base>) -> bool {
@@ -462,6 +389,57 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
                 });
     add_view(all_view);
 
+    devicefound_timeout =
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("devicefound_timeout", 60);
+    devicelost_timeout =
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("devicelost_timeout", 60);
+
+    alert_macdevice_found_ref =
+        alertracker->activate_configured_alert("DEVICEFOUND",
+                "A target device has been seen", -1);
+    alert_macdevice_lost_ref =
+        alertracker->activate_configured_alert("DEVICELOST",
+                "A target device has timed out", -1);
+
+    auto found_vec = 
+        Globalreg::globalreg->kismet_config->fetch_opt_vec("devicefound");
+    for (auto m : found_vec) {
+        auto mac = mac_addr(m);
+
+        if (mac.error) {
+            _MSG_ERROR("Invalid 'devicefound=' option, expected MAC address "
+                    "or MAC address mask");
+            continue;
+        }
+
+        macdevice_alert_conf_map[mac] = 1;
+    }
+
+    auto lost_vec =
+        Globalreg::globalreg->kismet_config->fetch_opt_vec("devicelost");
+    for (auto m : lost_vec) {
+        auto mac = mac_addr(m);
+
+        if (mac.error) {
+            _MSG_ERROR("Invalid 'devicelost=' option, expected MAC address "
+                    "or MAC address mask.");
+            continue;
+        }
+
+        auto k = macdevice_alert_conf_map.find(mac);
+        if (k != macdevice_alert_conf_map.end())
+            k->second = 3;
+        else
+            macdevice_alert_conf_map[mac] = 2;
+    }
+
+    macdevice_alert_timeout_timer =
+        timetracker->register_timer(SERVER_TIMESLICES_SEC * 30, NULL, 1,
+                [this](int) -> int {
+                    macdevice_timer_event();
+                    return 1;
+                });
+
     httpd->register_alias("/devices/summary/devices.json", "/devices/views/all/devices.json");
 }
 
@@ -470,11 +448,7 @@ device_tracker::~device_tracker() {
 
     if (eventbus != nullptr) {
         eventbus->remove_listener(new_datasource_evt_id);
-    }
-
-    if (statestore != NULL) {
-        delete(statestore);
-        statestore = NULL;
+        eventbus->remove_listener(new_device_evt_id);
     }
 
     globalreg->devicetracker = NULL;
@@ -485,6 +459,7 @@ device_tracker::~device_tracker() {
     if (packetchain != NULL) {
         packetchain->remove_handler(&Devicetracker_packethook_commontracker,
                 CHAINPOS_TRACKER);
+        packetchain->remove_handler(packetchain_tracking_done_id, CHAINPOS_TRACKER);
     }
 
     std::shared_ptr<time_tracker> timetracker = 
@@ -508,6 +483,32 @@ device_tracker::~device_tracker() {
     tracked_vec.clear();
     immutable_tracked_vec->clear();
     tracked_mac_multimap.clear();
+}
+
+void device_tracker::macdevice_timer_event() {
+    local_locker lock(&devicelist_mutex);
+
+    time_t now = time(0);
+
+    // Put the ones we still monitor into a new vector and swap
+    // at the end
+    auto keep_vec = std::vector<std::shared_ptr<kis_tracked_device_base>>{};
+    for (auto k : macdevice_flagged_vec) {
+        if (now - k->get_mod_time() > devicelost_timeout) {
+            auto alrt = 
+                fmt::format("Monitored device {} ({}) hasn't been seen for {} "
+                        "seconds.", k->get_macaddr(), k->get_commonname(),
+                        devicelost_timeout);
+            alertracker->raise_alert(alert_macdevice_lost_ref,
+                    nullptr, k->get_macaddr(), mac_addr{0}, 
+                    mac_addr{0}, mac_addr{0}, k->get_channel(), 
+                    alrt);
+        } else {
+            keep_vec.push_back(k);
+        }
+    }
+
+    macdevice_flagged_vec = keep_vec;
 }
 
 kis_phy_handler *device_tracker::fetch_phy_handler(int in_phy) {
@@ -715,6 +716,8 @@ std::shared_ptr<kis_tracked_device_base>
         device->set_kis_internal_id(immutable_tracked_vec->size());
 
         device->set_key(key);
+
+        device->device_mutex.set_name(fmt::format("kis_tracked_device({})", key));
         device->set_macaddr(in_mac);
         device->set_phyname(in_phy->fetch_phy_name());
 		device->set_phyid(in_phy->fetch_phy_id());
@@ -752,6 +755,30 @@ std::shared_ptr<kis_tracked_device_base>
 
     // Update the mod data
     device->update_modtime();
+
+    // Raise alerts for new devices or devices which have been
+    // idle and re-appeared
+    // Also keep them in macdevice_flagged_vec to send devicelost alerts
+    auto k = macdevice_alert_conf_map.find(device->get_macaddr());
+    if (k != macdevice_alert_conf_map.end()) {
+        if (new_device || ((device->get_last_time() < in_pack->ts.tv_sec &&
+            in_pack->ts.tv_sec - device->get_last_time() > devicefound_timeout))) {
+
+            if (k->second & 0x1) {
+                auto alrt =
+                fmt::format("Monitored device {} ({}) has been found.",
+                        device->get_macaddr(), device->get_commonname());
+                alertracker->raise_alert(alert_macdevice_found_ref,
+                        in_pack, device->get_macaddr(), mac_addr{0}, 
+                        mac_addr{0}, mac_addr{0}, device->get_channel(), 
+                        alrt);
+            }
+            if (k->second & 0x2) {
+                macdevice_flagged_vec.push_back(device);
+            }
+        }
+
+    }
 
     if (device->get_last_time() < in_pack->ts.tv_sec)
         device->set_last_time(in_pack->ts.tv_sec);
@@ -829,7 +856,8 @@ std::shared_ptr<kis_tracked_device_base>
                 ((in_flags & UCD_UPDATE_EMPTY_LOCATION) && !device->has_location_cloud())) &&
             pack_gpsinfo != NULL) {
         device->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                pack_gpsinfo->alt, pack_gpsinfo->fix);
+                pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
+                pack_gpsinfo->heading);
 
         // Throttle history cloud to one update per second to prevent floods of
         // data from swamping the cloud
@@ -895,7 +923,16 @@ std::shared_ptr<kis_tracked_device_base>
 
         // Unlock the device list before adding it to the device views
         list_locker.unlock();
-        new_view_device(device);
+
+        // If we have no packet info, add it to the device list immediately,
+        // otherwise, flag the packet to trigger a new device event at the
+        // end of the packet processing stage of the chain
+        if (in_pack == nullptr) {
+            new_view_device(device);
+            eventbus->publish(std::make_shared<event_new_device>(device));
+        } else {
+            in_pack->process_complete_events.push_back(std::make_shared<event_new_device>(device));
+        }
     }
 
     return device;
@@ -907,164 +944,18 @@ bool devicetracker_sort_internal_id(std::shared_ptr<kis_tracked_device_base> a,
 	return a->get_kis_internal_id() < b->get_kis_internal_id();
 }
 
-void device_tracker::do_device_work(std::shared_ptr<device_tracker_filter_worker> worker, 
-        std::shared_ptr<tracker_element_vector> vec, bool batch) {
+std::shared_ptr<tracker_element_vector> device_tracker::do_readonly_device_work(device_tracker_view_worker& worker, 
+        std::shared_ptr<tracker_element_vector> vec) {
 
-    // Make a copy of the vector
-    std::shared_ptr<tracker_element_vector> immutable_copy;
-    {
-        local_shared_locker locker(&devicelist_mutex);
-        immutable_copy = std::make_shared<tracker_element_vector>(vec);
-    }
-
-    do_device_work_raw(worker, immutable_copy, batch);
+    return all_view->do_readonly_device_work(worker, vec);
 }
 
-void device_tracker::do_readonly_device_work(std::shared_ptr<device_tracker_filter_worker> worker, 
-        std::shared_ptr<tracker_element_vector> vec, bool batch) {
-
-    // Make a copy of the vector
-    std::shared_ptr<tracker_element_vector> immutable_copy;
-    {
-        local_shared_locker locker(&devicelist_mutex);
-        immutable_copy = std::make_shared<tracker_element_vector>(vec);
-    }
-
-    do_readonly_device_work_raw(worker, immutable_copy, batch);
-
+std::shared_ptr<tracker_element_vector> device_tracker::do_device_work(device_tracker_view_worker& worker) {
+    return all_view->do_device_work(worker);
 }
 
-void device_tracker::do_device_work_raw(std::shared_ptr<device_tracker_filter_worker> worker, 
-        std::shared_ptr<tracker_element_vector> vec, bool batch) {
-
-    kismet__for_each(vec->begin(), vec->end(), [&](shared_tracker_element val) {
-           if (val == nullptr)
-               return;
-
-           std::shared_ptr<kis_tracked_device_base> v = 
-               std::static_pointer_cast<kis_tracked_device_base>(val);
-
-           bool m;
-
-           // Lock the device itself inside the worker op
-           {
-               local_locker devlocker(&(v->device_mutex));
-               m = worker->MatchDevice(this, v);
-           }
-
-           if (m) 
-               worker->MatchedDevice(v);
-       });
-
-    worker->Finalize(this);
-}
-
-void device_tracker::do_readonly_device_work_raw(std::shared_ptr<device_tracker_filter_worker> worker, 
-        std::shared_ptr<tracker_element_vector> vec, bool batch) {
-
-    if (vec == nullptr)
-        return;
-
-    kismet__for_each(vec->begin(), vec->end(), [&](shared_tracker_element val) {
-           if (val == nullptr)
-               return;
-
-           std::shared_ptr<kis_tracked_device_base> v = 
-               std::static_pointer_cast<kis_tracked_device_base>(val);
-
-           bool m;
-
-           // Lock the device itself inside the worker op
-           {
-               local_shared_locker devlocker(&(v->device_mutex));
-               m = worker->MatchDevice(this, v);
-           }
-
-           if (m) 
-               worker->MatchedDevice(v);
-       });
-
-    worker->Finalize(this);
-}
-
-void device_tracker::do_device_work(std::shared_ptr<device_tracker_filter_worker> worker,
-        const std::vector<std::shared_ptr<kis_tracked_device_base>>& vec, bool batch) {
-
-    // Make a copy of the vector
-    std::vector<std::shared_ptr<kis_tracked_device_base>> copy_vec;
-    {
-        local_shared_locker locker(&devicelist_mutex);
-        copy_vec = vec;
-    }
-
-    do_device_work_raw(worker, copy_vec, batch);
-}
-
-void device_tracker::do_readonly_device_work(std::shared_ptr<device_tracker_filter_worker> worker,
-        const std::vector<std::shared_ptr<kis_tracked_device_base>>& vec, bool batch) {
-
-    // Make a copy of the vector
-    std::vector<std::shared_ptr<kis_tracked_device_base>> copy_vec;
-    {
-        local_shared_locker locker(&devicelist_mutex);
-        copy_vec = vec;
-    }
-
-    do_readonly_device_work_raw(worker, copy_vec, batch);
-}
-
-void device_tracker::do_device_work_raw(std::shared_ptr<device_tracker_filter_worker> worker,
-        const std::vector<std::shared_ptr<kis_tracked_device_base>>& vec, bool batch) {
-
-    kismet__for_each(vec.begin(), vec.end(), [&](shared_tracker_element val) {
-            if (val == nullptr)
-                return;
-
-            auto v = std::static_pointer_cast<kis_tracked_device_base>(val);
-
-            bool m;
-
-            {
-                local_locker devlocker(&v->device_mutex);
-                m = worker->MatchDevice(this, v);
-            }
-
-            if (m)
-                worker->MatchedDevice(v);
-        });
-
-    worker->Finalize(this);
-}
-
-void device_tracker::do_readonly_device_work_raw(std::shared_ptr<device_tracker_filter_worker> worker,
-        const std::vector<std::shared_ptr<kis_tracked_device_base>>& vec, bool batch) {
-
-    kismet__for_each(vec.begin(), vec.end(), [&](shared_tracker_element val) {
-            if (val == nullptr)
-                return;
-
-            auto v = std::static_pointer_cast<kis_tracked_device_base>(val);
-
-            bool m;
-
-            {
-                local_shared_locker devlocker(&v->device_mutex);
-                m = worker->MatchDevice(this, v);
-            }
-
-            if (m)
-                worker->MatchedDevice(v);
-        });
-
-    worker->Finalize(this);
-}
-
-void device_tracker::do_device_work(std::shared_ptr<device_tracker_filter_worker> worker, bool batch) {
-    do_device_work(worker, immutable_tracked_vec, batch);
-}
-
-void device_tracker::do_readonly_device_work(std::shared_ptr<device_tracker_filter_worker> worker, bool batch) {
-    do_readonly_device_work(worker, immutable_tracked_vec, batch);
+std::shared_ptr<tracker_element_vector> device_tracker::do_readonly_device_work(device_tracker_view_worker& worker) {
+    return all_view->do_readonly_device_work(worker);
 }
 
 // Simple std::sort comparison function to order by the least frequently
@@ -1143,7 +1034,7 @@ int device_tracker::timetracker_event(int eventid) {
 		// Now things start getting expensive.  Start by sorting the
 		// vector of devices - anything else that has to sort the entire list
         // has to sort it themselves
-		kismet__stable_sort(tracked_vec.begin(), tracked_vec.end(), 
+        std::stable_sort(tracked_vec.begin(), tracked_vec.end(), 
                 devicetracker_sort_lastseen);
 
         tracked_vec.erase(std::remove_if(tracked_vec.begin() + max_num_devices, tracked_vec.end(),
@@ -1359,42 +1250,14 @@ void device_tracker::remove_view_device(std::shared_ptr<kis_tracked_device_base>
     }
 }
 
-int device_tracker::store_devices() {
-    auto devs = std::make_shared<tracker_element_vector>();
-    auto immutable_copy = std::make_shared<tracker_element_vector>(immutable_tracked_vec);
+std::shared_ptr<device_tracker_view> device_tracker::get_phy_view(int in_phyid) {
+    local_shared_locker l(&view_mutex);
 
-    // Find anything that has changed
-    for (auto v : *immutable_copy) {
-        if (v == NULL)
-            continue;
+    auto vk = phy_view_map.find(in_phyid);
+    if (vk != phy_view_map.end())
+        return vk->second;
 
-        auto kdb = std::static_pointer_cast<kis_tracked_device_base>(v);
-        if (kdb->get_mod_time() > last_database_logged)
-            devs->push_back(v);
-    }
-
-    last_devicelist_saved = time(0);
-
-    return store_devices(devs);
-}
-
-int device_tracker::store_all_devices() {
-    auto immutable_copy = std::make_shared<tracker_element_vector>(immutable_tracked_vec);
-    last_devicelist_saved = time(0);
-
-    return store_devices(immutable_copy);
-}
-
-int device_tracker::store_devices(std::shared_ptr<tracker_element_vector> devices) {
-    if (!persistent_storage)
-        return 0;
-
-    if (statestore == NULL)
-        return 0;
-
-    int r = statestore->store_devices(devices);
-
-    return r;
+    return nullptr;
 }
 
 void device_tracker::databaselog_write_devices() {
@@ -1403,127 +1266,22 @@ void device_tracker::databaselog_write_devices() {
     if (dbf == nullptr)
         return;
 
-    auto worker = 
-        std::make_shared<devicetracker_function_worker>([this, dbf](device_tracker *, std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+    device_tracker_view_function_worker worker([this, dbf](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
             if (dev->get_mod_time() >= last_database_logged) {
                 dbf->log_device(dev);
             }
 
             return false;
-        }, nullptr);
+        });
+
+    // Remember the time BEFORE we spend time looking at all the devices
+    auto log_time = time(0);
 
     do_readonly_device_work(worker);
-}
 
-int device_tracker::load_devices() {
-    // Deliberately don't lock the db and device list - adding to the device list should
-    // always be safe and handled by the add device locking, and the database should
-    // be quiet during startup; we don't want a long load process to break the
-    // mutex timers
-
-    if (!persistent_storage || persistent_mode != MODE_ONSTART || statestore == NULL)
-        return 0;
-
-    if (!database_valid())
-        return 0;
-
-    int r;
-    
-    r = statestore->load_devices();
-
-    if (r < 0)
-        return r;
-
-    r = statestore->clear_old_devices();
-
-    return r;
-}
-
-// Attempt to load a single device from the database, return NULL if it wasn't found
-// or if there was an error
-std::shared_ptr<kis_tracked_device_base> device_tracker::load_device(kis_phy_handler *in_phy,
-        mac_addr in_mac) {
-
-    if (!persistent_storage || persistent_mode != MODE_ONDEMAND || statestore == NULL)
-        return NULL;
-
-    if (!statestore->database_valid())
-        return NULL;
-
-    return statestore->load_device(in_phy, in_mac);
-}
-
-std::shared_ptr<kis_tracked_device_base> 
-device_tracker::convert_stored_device(mac_addr macaddr,
-        const unsigned char *raw_stored_data, unsigned long stored_len) {
-
-    try {
-        // Decompress the record if necessary
-        std::stringbuf ibuf;
-
-        // Decompression buffer, autodetect compression
-        zstr::istreambuf izbuf(&ibuf, 1 << 16, true);
-
-        // Link an istream to the compression buffer
-        std::istream istream(&izbuf);
-
-        // Flag exceptions on decompression errors
-        istream.exceptions(std::ios_base::badbit);
-
-        // Assign the row string to the strbuf behind the decompression system
-        ibuf.sputn((const char *) raw_stored_data, stored_len);
-        ibuf.pubsync();
-
-        // Get the decompressed record
-        std::string uzbuf(std::istreambuf_iterator<char>(istream), {});
-
-        // Read out the structured json
-        shared_structured sjson(new structured_json(uzbuf));
-
-        // Process structured object into a shared element
-        shared_tracker_element e = 
-            storage_loader::storage_to_tracker(sjson);
-
-        if (e->get_type() != tracker_type::tracker_map) 
-            throw structured_data_exception(fmt::format("Expected a tracker_map from loading the storage "
-                    "element, but got {}", e->type_to_typestring(e->get_type())));
-
-        // Adopt it into a device
-        auto kdb = std::make_shared<kis_tracked_device_base>(device_base_id, 
-                std::static_pointer_cast<tracker_element_map>(e));
-
-        // Give all the phys a shot at it
-        for (auto p : phy_handler_map)
-            p.second->load_phy_storage(e, kdb);
-
-        // Update the server uuid in case we don't have it
-        if (kdb->get_server_uuid().error)
-            kdb->set_server_uuid(globalreg->server_uuid);
-
-        // Update the manuf in case we added a manuf db
-        if (globalreg->manufdb != NULL)
-            kdb->set_manuf(globalreg->manufdb->lookup_oui(kdb->get_macaddr()));
-
-        return kdb;
-    } catch (const zstr::Exception& e) {
-        _MSG("Unable to decompress stored device data (" + macaddr.mac_to_string() + "); the "
-                "stored device will be skipped: " + std::string(e.what()), MSGFLAG_ERROR);
-        return NULL;
-    } catch (const structured_data_exception& e) {
-        _MSG("Could not parse stored device data (" + macaddr.mac_to_string() + "); the "
-                "stored device will be skipped: " + std::string(e.what()), MSGFLAG_ERROR);
-        return NULL;
-    } catch (const std::runtime_error&e ) {
-        _MSG("Could not parse stored device data (" + macaddr.mac_to_string() + "); the "
-                "stored device will be skipped: " + std::string(e.what()), MSGFLAG_ERROR);
-        return NULL;
-    } catch (const std::exception& e) {
-        _MSG("Unable to load a stored device (" + macaddr.mac_to_string() + "); the stored "
-                "device will be skipped: " + std::string(e.what()), MSGFLAG_ERROR);
-        return NULL;
-    }
-
-    return NULL;
+    // Then update the log; we might catch a few high-change devices twice, but this is
+    // safer by far
+    last_database_logged = log_time;
 }
 
 void device_tracker::load_stored_username(std::shared_ptr<kis_tracked_device_base> in_dev) {
@@ -1775,374 +1533,8 @@ void device_tracker::handle_new_datasource_event(std::shared_ptr<eventbus_event>
     }
 }
 
-device_tracker_state_store::device_tracker_state_store(global_registry *in_globalreg,
-        device_tracker *in_devicetracker) :
-    kis_database(in_globalreg, "devicestate") {
-
-    devicetracker = in_devicetracker;
-
-    // Open and upgrade the DB, default path
-    database_open("");
-    database_upgrade_db();
+void device_tracker::handle_new_device_event(std::shared_ptr<eventbus_event> evt) {
+    auto dev_evt = std::static_pointer_cast<event_new_device>(evt);
+    new_view_device(dev_evt->device);
 }
 
-int device_tracker_state_store::database_upgrade_db() {
-    local_locker dblock(&ds_mutex);
-
-    unsigned int dbv = database_get_db_version();
-    std::string sql;
-    int r;
-    char *sErrMsg = NULL;
-
-    if (dbv < 1) {
-        // We keep the last seen timestamp for automatic culling of the database of
-        // idle device records.
-        //
-        // We need to split out the phyname and device mac because key is linked to 
-        // the phy *number*, which is *variable* based on the order phys are initialized;
-        // we need to rekey the phys.
-        sql = 
-            "CREATE TABLE device_storage ("
-            "first_time INT, "
-            "last_time INT, "
-            "phyname TEXT, "
-            "devmac TEXT, "
-            "storage BLOB, "
-            "UNIQUE(phyname, devmac) ON CONFLICT REPLACE)";
-
-        r = sqlite3_exec(db, sql.c_str(),
-                [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
-
-        if (r != SQLITE_OK) {
-            _MSG("device_tracker unable to create device_storage table in " + ds_dbfile + ": " +
-                    std::string(sErrMsg), MSGFLAG_ERROR);
-            sqlite3_close(db);
-            db = NULL;
-            return -1;
-        }
-
-    }
-
-    // Hardcode a table check
-    if (dbv == 1) {
-        _MSG("Purging device state, as it cannot be ported forward into the new key "
-                "architecture, sorry.", MSGFLAG_ERROR);
-
-        sql =
-            "DELETE FROM device_storage";
-
-        r = sqlite3_exec(db, sql.c_str(),
-                [] (void *, int, char **, char **) -> int { return 0; }, NULL, &sErrMsg);
-
-        if (r != SQLITE_OK) {
-            _MSG("device_tracker unable to clear device_storage table in " + ds_dbfile + ": " +
-                    std::string(sErrMsg), MSGFLAG_ERROR);
-            sqlite3_close(db);
-            db = NULL;
-            return -1;
-        }
-    }
-
-    database_set_db_version(2);
-
-    return 0;
-}
-
-int device_tracker_state_store::clear_old_devices() {
-    local_locker dblock(&ds_mutex);
-
-    std::string sql;
-    std::stringstream sqlss;
-    int r;
-    char *sErrMsg = NULL;
-
-    if (!database_valid())
-        return 0;
-
-    if (devicetracker->persistent_storage_timeout == 0)
-        return 0;
-
-    sqlss << 
-        "DELETE FROM device_storage WHERE (last_time < " <<
-        time(0) - devicetracker->persistent_storage_timeout << ")";
-    sql = sqlss.str();
-
-
-    r = sqlite3_exec(db, sql.c_str(), NULL, NULL, &sErrMsg);
-
-    if (r != SQLITE_OK) {
-        _MSG("device_tracker unable to delete timed out devices in " + ds_dbfile + ": " +
-                std::string(sErrMsg), MSGFLAG_ERROR);
-        sqlite3_close(db);
-        db = NULL;
-        return -1;
-    }
-
-    return 1;
-}
-
-int device_tracker_state_store::clear_all_devices() {
-    local_locker dblock(&ds_mutex);
-
-    std::string sql;
-    std::stringstream sqlss;
-    int r;
-    char *sErrMsg = NULL;
-
-    if (!database_valid())
-        return 0;
-
-    if (devicetracker->persistent_storage_timeout == 0)
-        return 0;
-
-    sql = "DELETE FROM device_storage";
-
-    r = sqlite3_exec(db, sql.c_str(), NULL, NULL, &sErrMsg);
-
-    if (r != SQLITE_OK) {
-        _MSG("device_tracker unable to delete timed out devices in " + ds_dbfile + ": " +
-                std::string(sErrMsg), MSGFLAG_ERROR);
-        sqlite3_close(db);
-        db = NULL;
-        return -1;
-    }
-
-    return 1;
-}
-
-
-int device_tracker_state_store::load_devices() {
-    if (!database_valid())
-        return 0;
-
-    std::string sql;
-    std::string phyname;
-
-    int r;
-    sqlite3_stmt *stmt = NULL;
-    const char *pz = NULL;
-
-    sql = 
-        "SELECT devmac, storage FROM device_storage";
-
-    // If we have a timeout, apply that
-    if (devicetracker->persistent_storage_timeout != 0) {
-        std::stringstream timess;
-
-        timess << sql << " WHERE (last_time > " <<
-            time(0) - devicetracker->persistent_storage_timeout << ")";
-        sql = timess.str();
-    }
-
-
-    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
-
-    if (r != SQLITE_OK) {
-        _MSG("device_tracker unable to prepare database query for stored devices in " +
-                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        return -1;
-    }
-
-    _MSG("Loading stored devices.  This may take some time, depending on the speed of "
-            "your system and the number of stored devices.", MSGFLAG_INFO);
-
-    unsigned int num_devices = 0;
-
-    sqlite3_reset(stmt);
-
-    while (1) {
-        r = sqlite3_step(stmt);
-
-        if (r == SQLITE_ROW) {
-            const unsigned char *rowstr;
-            unsigned long rowlen;
-
-            mac_addr m;
-
-            rowstr = sqlite3_column_text(stmt, 0);
-            m = mac_addr((const char *) rowstr);
-
-            if (m.error) {
-                _MSG("Encountered an error loading a stored device, "
-                        "unable to process mac address; skipping device.",
-                        MSGFLAG_ERROR);
-                continue;
-            }
-
-            rowstr = (const unsigned char *) sqlite3_column_blob(stmt, 1);
-            rowlen = sqlite3_column_bytes(stmt, 1);
-
-            // Adopt it into a device
-            std::shared_ptr<kis_tracked_device_base> kdb =
-                devicetracker->convert_stored_device(m, rowstr, rowlen);
-
-            if (kdb != NULL) {
-                devicetracker->add_device(kdb);
-                num_devices++;
-            }
-        } else if (r == SQLITE_DONE) {
-            break;
-        } else {
-            _MSG("Encountered an error loading stored devices: " + 
-                    std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-            break;
-        }
-    }
-
-    sqlite3_finalize(stmt);
-
-    return 1;
-}
-
-// Attempt to load a single device from the database, return NULL if it wasn't found
-// or if there was an error
-std::shared_ptr<kis_tracked_device_base> 
-device_tracker_state_store::load_device(kis_phy_handler *in_phy, mac_addr in_mac) {
-    if (!database_valid())
-        return NULL;
-
-    // Lock the database; we're doing a single query
-    local_locker dblock(&ds_mutex);
-
-    std::string sql;
-    std::string macstring = in_mac.mac_to_string();
-    std::string phystring = in_phy->fetch_phy_name();
-
-    int r;
-    sqlite3_stmt *stmt = NULL;
-    const char *pz = NULL;
-
-    sql = 
-        "SELECT storage FROM device_storage WHERE phyname = ? AND "
-        "devmac = ?";
-
-    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
-
-    if (r != SQLITE_OK) {
-        _MSG("device_tracker unable to prepare database query for stored device in " +
-                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        return NULL;
-    }
-
-    sqlite3_reset(stmt);
-    sqlite3_bind_text(stmt, 1, phystring.c_str(), phystring.length(), 0);
-    sqlite3_bind_text(stmt, 2, macstring.c_str(), macstring.length(), 0);
-
-    while (1) {
-        r = sqlite3_step(stmt);
-
-        if (r == SQLITE_ROW) {
-            const unsigned char *rowstr;
-            unsigned long rowlen;
-
-            rowstr = (const unsigned char *) sqlite3_column_blob(stmt, 0);
-            rowlen = sqlite3_column_bytes(stmt, 0);
-
-            return devicetracker->convert_stored_device(in_mac, rowstr, rowlen);
-        } else if (r == SQLITE_DONE) {
-            break;
-        } else {
-            _MSG("Encountered an error loading stored device: " + 
-                    std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-            break;
-        }
-    }
-
-    sqlite3_finalize(stmt);
-
-    return NULL;
-}
-
-int device_tracker_state_store::store_devices(std::shared_ptr<tracker_element_vector> devices) {
-    local_locker lock(&ds_mutex);
-
-    if (!database_valid()) {
-        _MSG("Unable to snapshot device records!  The database connection to " +
-                ds_dbfile + " is invalid...", MSGFLAG_ERROR);
-        return 0;
-    }
-
-    std::string sql;
-
-    int r;
-    sqlite3_stmt *stmt = NULL;
-    const char *pz = NULL;
-
-    sql = 
-        "INSERT INTO device_storage "
-        "(first_time, last_time, phyname, devmac, storage) "
-        "VALUES (?, ?, ?, ?, ?)";
-
-    r = sqlite3_prepare(db, sql.c_str(), sql.length(), &stmt, &pz);
-
-    if (r != SQLITE_OK) {
-        _MSG("device_tracker unable to prepare database insert for devices in " +
-                ds_dbfile + ":" + std::string(sqlite3_errmsg(db)), MSGFLAG_ERROR);
-        return -1;
-    }
-
-    // Use a function worker to insert it into the db
-    auto fw = std::make_shared<devicetracker_function_worker>(
-            [this, &stmt] 
-                (device_tracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
-                std::shared_ptr<kis_tracked_device_base> kdb =
-                    std::static_pointer_cast<kis_tracked_device_base>(d);
-
-                std::string serialstring;
-                std::string macstring;
-                std::string phystring;
-
-                // Prep the compression buf
-                std::stringbuf sbuf;
-                zstr::ostreambuf zobuf(&sbuf, 1 << 16, true);
-                std::ostream zstream(&zobuf);
-
-                // Standard noncompression buf
-                std::ostream sstream(&sbuf);
-
-                std::ostream *serialstream;
-
-                if (devicetracker->persistent_compression)
-                serialstream = &zstream;
-                else
-                    serialstream = &sstream;
-
-
-                sbuf.str("");
-                sqlite3_reset(stmt);
-
-                // pack a storage formatted blob
-                {
-                    local_locker lock(&(devicetracker->devicelist_mutex));
-                    storage_json_adapter::pack(*serialstream, d, NULL);
-                }
-
-                // Sync the buffers
-                zobuf.pubsync();
-                sbuf.pubsync();
-
-                serialstring = sbuf.str();
-
-                macstring = kdb->get_macaddr().mac_to_string();
-                phystring = kdb->get_phyname();
-
-                sqlite3_bind_int(stmt, 1, kdb->get_first_time());
-                sqlite3_bind_int(stmt, 2, kdb->get_mod_time());
-                sqlite3_bind_text(stmt, 3, phystring.c_str(), phystring.length(), 0);
-                sqlite3_bind_text(stmt, 4, macstring.c_str(), macstring.length(), 0);
-                sqlite3_bind_blob(stmt, 5, serialstring.data(), serialstring.length(), 0);
-
-                sqlite3_step(stmt);
-
-                return false;
-            }, nullptr);
-
-    // Perform the write as a single transaction
-    sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
-    devicetracker->do_device_work(fw, devices);
-    sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
-
-    sqlite3_finalize(stmt);
-
-    return 1;
-}

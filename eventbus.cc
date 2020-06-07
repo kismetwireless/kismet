@@ -19,6 +19,9 @@
 #include "eventbus.h"
 
 event_bus::event_bus() {
+    mutex.set_name("event_bus");
+    handler_mutex.set_name("event_bus_handler");
+
     next_cbl_id = 1;
 
     shutdown = false;
@@ -127,7 +130,7 @@ void event_bus::remove_listener(unsigned long id) {
     for (auto c : cbl->second->channels) {
         auto cb_list = callback_table[c];
 
-        // remove from each chanel
+        // remove from each channel
         for (auto cbi = cb_list.begin(); cbi != cb_list.end(); ++cbi) {
             if ((*cbi)->id == id) {
                 cb_list.erase(cbi);

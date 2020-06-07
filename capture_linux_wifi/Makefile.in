@@ -27,10 +27,10 @@ clean:
 
 %.c.o:	%.c
 %.c.o : %.c %.c.d
-	$(CC) $(CFLAGS) $(CPPFLAGS) $(GLIBCFLAGS) $(DBUSGLIBCFLAGS) -c $*.c -o $@
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $*.c -o $@
 
 %.c.d:	%.c
-	$(CC) -MM $(CFLAGS) $(GLIBCFLAGS) $(DBUSGLIBCFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
+	$(CC) -MM $(CFLAGS) $(CPPFLAGS) $*.c | sed -e "s/\.o/\.c.o/" > $*.c.d
 
 .PRECIOUS: %.c.d
 

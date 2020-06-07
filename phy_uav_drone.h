@@ -132,7 +132,7 @@ protected:
         tracker_component::register_fields();
 
         register_field("uav.telemetry.location", "UAV GPS location", &location);
-        register_field("uav.telemetry.timestamp", "timetamp (sec.usec)", &telem_ts);
+        register_field("uav.telemetry.timestamp", "timestamp (sec.usec)", &telem_ts);
         register_field("uav.telemetry.yaw", "yaw", &yaw);
         register_field("uav.telemetry.pitch", "pitch", &pitch);
         register_field("uav.telemetry.roll", "roll", &roll);

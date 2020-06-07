@@ -1,0 +1,3 @@
+#this rule symlinks freakusb devices to /dev/freakusb# with # starting at 1
+#WARNING the rule file included in gpsd sets this as /dev/gps0
+ACTION=="add" SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", PROGRAM="/bin/sh -c 'echo $(($(ls /dev/freakusb* 2>/dev/null| tail -n1 | sed -e s#/dev/freakusb## )+1))'", SYMLINK+="freakusb%c"

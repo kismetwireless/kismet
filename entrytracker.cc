@@ -26,6 +26,9 @@
 
 entry_tracker::entry_tracker(global_registry *in_globalreg) :
     kis_net_httpd_cppstream_handler() {
+    entry_mutex.set_name("entry_tracker");
+    serializer_mutex.set_name("entry_tracker_serializer");
+
     globalreg = in_globalreg;
 
     next_field_num = 1;
@@ -44,9 +47,9 @@ int entry_tracker::register_field(const std::string& in_name,
         const std::string& in_desc) {
     local_locker lock(&entry_mutex);
 
-    std::string lname = str_lower(in_name);
+    // std::string lname = str_lower(in_name);
 
-    auto field_iter = field_name_map.find(lname);
+    auto field_iter = field_name_map.find(in_name);
 
     if (field_iter != field_name_map.end()) {
         if (field_iter->second->builder->get_signature() != in_builder->get_signature()) 
@@ -65,7 +68,7 @@ int entry_tracker::register_field(const std::string& in_name,
     definition->field_description = in_desc;
     definition->builder = std::move(in_builder);
 
-    field_name_map[lname] = definition;
+    field_name_map[in_name] = definition;
     field_id_map[definition->field_id] = definition;
 
     return definition->field_id;
@@ -76,9 +79,9 @@ std::shared_ptr<tracker_element> entry_tracker::register_and_get_field(const std
         const std::string& in_desc) {
     local_locker lock(&entry_mutex);
 
-    std::string lname = str_lower(in_name);
+    // std::string lname = str_lower(in_name);
 
-    auto field_iter = field_name_map.find(lname);
+    auto field_iter = field_name_map.find(in_name);
 
     if (field_iter != field_name_map.end()) {
         if (field_iter->second->builder->get_signature() != in_builder->get_signature()) 
@@ -97,7 +100,7 @@ std::shared_ptr<tracker_element> entry_tracker::register_and_get_field(const std
     definition->field_description = in_desc;
     definition->builder = std::move(in_builder);
 
-    field_name_map[lname] = definition;
+    field_name_map[in_name] = definition;
     field_id_map[definition->field_id] = definition;
 
     return definition->builder->clone_type(definition->field_id);
@@ -107,9 +110,9 @@ std::shared_ptr<tracker_element> entry_tracker::register_and_get_field(const std
 int entry_tracker::get_field_id(const std::string& in_name) {
     local_locker lock(&entry_mutex);
 
-    std::string mod_name = str_lower(in_name);
+    // std::string mod_name = str_lower(in_name);
 
-    auto iter = field_name_map.find(mod_name);
+    auto iter = field_name_map.find(in_name);
     if (iter == field_name_map.end()) 
         return -1;
 
@@ -153,9 +156,9 @@ std::shared_ptr<tracker_element> entry_tracker::get_shared_instance(int in_id) {
 std::shared_ptr<tracker_element> entry_tracker::get_shared_instance(const std::string& in_name) {
     local_locker lock(&entry_mutex);
 
-    auto lname = str_lower(in_name);
+    // auto lname = str_lower(in_name);
 
-    auto iter = field_name_map.find(lname);
+    auto iter = field_name_map.find(in_name);
 
     if (iter == field_name_map.end()) 
         return nullptr;
@@ -223,21 +226,21 @@ void entry_tracker::register_serializer(const std::string& in_name,
         std::shared_ptr<tracker_element_serializer> in_ser) {
     local_locker lock(&serializer_mutex);
     
-    std::string mod_type = str_lower(in_name);
+    // std::string mod_type = str_lower(in_name);
 
-    if (serializer_map.find(mod_type) != serializer_map.end()) {
+    if (serializer_map.find(in_name) != serializer_map.end()) {
         _MSG("Attempt to register two serializers for type " + in_name,
                 MSGFLAG_ERROR);
         return;
     }
 
-    serializer_map[mod_type] = in_ser;
+    serializer_map[in_name] = in_ser;
 }
 
 void entry_tracker::remove_serializer(const std::string& in_name) {
     local_locker lock(&serializer_mutex);
 
-    std::string mod_type = str_lower(in_name);
+    // std::string mod_type = str_lower(in_name);
     auto i = serializer_map.find(in_name);
 
     if (i != serializer_map.end()) {
@@ -248,7 +251,7 @@ void entry_tracker::remove_serializer(const std::string& in_name) {
 bool entry_tracker::can_serialize(const std::string& in_name) {
     local_locker lock(&serializer_mutex);
 
-    std::string mod_type = str_lower(in_name);
+    // std::string mod_type = str_lower(in_name);
     auto i = serializer_map.find(in_name);
 
     if (i != serializer_map.end()) {
@@ -258,7 +261,7 @@ bool entry_tracker::can_serialize(const std::string& in_name) {
     return false;
 }
 
-bool entry_tracker::serialize(const std::string& in_name, std::ostream &stream,
+int entry_tracker::serialize(const std::string& in_name, std::ostream &stream,
         shared_tracker_element e,
         std::shared_ptr<tracker_element_serializer::rename_map> name_map) {
 
@@ -269,14 +272,14 @@ bool entry_tracker::serialize(const std::string& in_name, std::ostream &stream,
     auto i = serializer_map.find(in_name);
 
     if (i == serializer_map.end()) {
-        return false;
+        return -1;
     }
     lock.unlock();
 
     // Call the serializer
-    i->second->serialize(e, stream, name_map);
+    auto r = i->second->serialize(e, stream, name_map);
 
-    return true;
+    return r;
 }
 
 

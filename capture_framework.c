@@ -193,6 +193,26 @@ int cf_find_flag(char **ret_value, const char *flag, char *definition) {
 }
 
 
+int cf_count_flag(const char *flag, char *definition) {
+    int n_flags = 0;
+    char *placeholder = NULL;
+    char *last_holder = definition;
+    int len;
+
+    do {
+        len = cf_find_flag(&placeholder, flag, last_holder);
+
+        if (len == 0 || placeholder == NULL)
+            break;
+
+        n_flags++;
+        last_holder = placeholder + len;
+    } while (placeholder != NULL);
+
+    return n_flags;
+}
+
+
 int cf_split_list(char *in_str, size_t in_sz, char in_split, char ***ret_splitlist, 
         size_t *ret_splitlist_sz) {
 
@@ -566,7 +586,11 @@ void cf_handler_assign_hop_channels(kis_capture_handler_t *caph, char **stringch
     caph->channel_hop_list = stringchans;
     caph->custom_channel_hop_list = privchans;
     caph->channel_hop_list_sz = chan_sz;
-    caph->channel_hop_rate = rate;
+
+    if (caph->max_channel_hop_rate != 0 && rate < caph->max_channel_hop_rate)
+        caph->channel_hop_rate = caph->max_channel_hop_rate;
+    else
+        caph->channel_hop_rate = rate;
 
     caph->channel_hop_shuffle = shuffle;
     caph->channel_hop_shuffle_spacing = shuffle_spacing;
@@ -938,7 +962,7 @@ void *cf_int_capture_thread(void *arg) {
 
 /* Launch a capture thread after opening has been successful */
 int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
-    /* Set the thread attributes - detatched, cancelable */
+    /* Set the thread attributes - detached, cancelable */
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
@@ -1090,7 +1114,16 @@ void *cf_int_chanhop_thread(void *arg) {
             // fprintf(stderr, "debug - hop fail, cleaning up\n");
 
             /* Safety net */
-            if (caph->channel_hop_failure_list_sz >= caph->channel_hop_list_sz) {
+            if (caph->channel_hop_failure_list_sz == caph->channel_hop_list_sz) {
+                snprintf(errstr, STATUS_MAX, "All configured channels are in error state!");
+                cf_send_error(caph, 0, errstr);
+                caph->hopping_running = 0;
+                pthread_mutex_unlock(&caph->handler_lock);
+                cf_handler_spindown(caph);
+                return NULL;
+            }
+
+            if (caph->channel_hop_failure_list_sz > caph->channel_hop_list_sz) {
                 // fprintf(stderr, "debug - sending fail\n");
                 snprintf(errstr, STATUS_MAX, "Attempted to clean up channels which were "
                         "in error state, but there were more error channels (%lu) than "
@@ -1176,7 +1209,7 @@ void *cf_int_chanhop_thread(void *arg) {
 }
 
 int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph) {
-    /* Set the thread attributes - detatched, cancelable */
+    /* Set the thread attributes - detached, cancelable */
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
@@ -2946,8 +2979,10 @@ double cf_parse_frequency(const char *freq) {
         return 0;
 
     /* Make a buffer at least as big as the total string to hold the frequency component */
-    ufreq = (char *) malloc(strlen(freq));
+    ufreq = (char *) malloc(strlen(freq) + 1);
 
+    /* sscanf w/ unbounded string component is still 'safe' here because ufreq is the length
+     * of the entire field, so must be able to fit any sub-component of the field.  */
     i = sscanf(freq, "%lf%s", &v, ufreq);
 
     if (i == 1 || strlen(ufreq) == 0) {
@@ -3063,8 +3098,10 @@ int cf_jail_filesystem(kis_capture_handler_t *caph) {
 
     return 1;
 #else
+    /*
     snprintf(errstr, STATUS_MAX, "datasource framework can only jail namespaces on Linux");
     cf_send_warning(caph, errstr);
+    */
     return 0;
 #endif
 }

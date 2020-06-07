@@ -513,27 +513,43 @@ int main(int argc, char *argv[]) {
                     if (type != "Wi-Fi AP")
                         continue;
 
-                    name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid"].asString());
+                    if (json["dot11.device"]["dot11.device.last_beaconed_ssid"].isString()) {
+                        name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid"].asString());
+                    } else if (!json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].isNull()) {
+                        name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.ssid"].asString());
+                    } else {
+                        name = "";
+                    }
+                    if (json["dot11.device"]["dot11.device.last_beaconed_ssid"].isString()) {
+                        name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid"].asString());
+                    } else if (json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.ssid"].isString()) {
+                        name = MungeForCSV(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.ssid"].asString());
+                    } else {
+                        name = "";
+                    }
 
-                    auto last_ssid_key = 
-                        json["dot11.device"]["dot11.device.last_beaconed_ssid_checksum"].asUInt64();
-                    std::stringstream ss;
+                    // Handle the aliased ssid_record for modern info
+                    if (!json["dot11.device"]["dot11.device.last_beaconed_ssid_record"].isNull()) {
+                        crypt = WifiCryptToString(json["dot11.device"]["dot11.device.last_beaconed_ssid_record"]["dot11.advertisedssid.crypt_set"].asUInt64());
+                    } else {
+                        auto last_ssid_key = 
+                            json["dot11.device"]["dot11.device.last_beaconed_ssid_checksum"].asUInt64();
+                        std::stringstream ss;
 
-                    ss << last_ssid_key;
+                        ss << last_ssid_key;
 
-                    auto cryptset = 
-
-                    crypt = WifiCryptToString(
-                            json["dot11.device"]["dot11.device.advertised_ssid_map"][ss.str()]["dot11.advertisedssid.crypt_set"].asUInt64()
-                            );
+                        crypt = WifiCryptToString(json["dot11.device"]["dot11.device.advertised_ssid_map"][ss.str()]["dot11.advertisedssid.crypt_set"].asUInt64());
+                    }
 
                     crypt += "[ESS]";
 
                 }
 
                 std::time_t timet(timestamp);
-                std::tm tm = *std::localtime(&timet);
+                std::tm tm;
                 std::stringstream ts;
+
+                gmtime_r(&timet, &tm);
 
                 ts << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
 

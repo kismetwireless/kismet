@@ -120,6 +120,8 @@ public:
 
     __Proxy(tune_capable, uint8_t, bool, bool, tune_capable);
 
+    __Proxy(hop_capable, uint8_t, bool, bool, hop_capable);
+
 protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
@@ -155,6 +157,9 @@ protected:
 
         register_field("kismet.datasource.driver.tuning_capable",
                 "Datasource can control channels", &tune_capable);
+
+        register_field("kismet.datasource_driver.hop_capable",
+                "Datasource can channel hop", &hop_capable);
     }
 
     int datasource_entity_id;
@@ -170,6 +175,7 @@ protected:
     std::shared_ptr<tracker_element_uint8> remote_capable;
     std::shared_ptr<tracker_element_uint8> passive_capable;
     std::shared_ptr<tracker_element_uint8> tune_capable;
+    std::shared_ptr<tracker_element_uint8> hop_capable;
 };
 
 
@@ -441,7 +447,7 @@ protected:
 
             // Generate a timeout for 5 seconds from now
             auto src_alias = in_src;
-            timer_id = timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 15,
+            timer_id = timetracker->register_timer(SERVER_TIMESLICES_SEC * 15,
                     NULL, 0, [src_alias, this](int) -> int {
                     src_alias->cancel_command(command_seq, "Command did not complete");
                     return 0;
@@ -496,6 +502,10 @@ protected:
     virtual void handle_packet_opensource_report(uint32_t in_seqno, const std::string& in_packet);
     virtual void handle_packet_probesource_report(uint32_t in_seqno, const std::string& in_packet);
     virtual void handle_packet_warning_report(uint32_t in_seqno, const std::string& in_packet);
+
+    // Handle injecting packets into the packet chain after the data report has been received
+    // and processed.  Subclasses can override this to manipulate packet content.
+    virtual void handle_rx_packet(kis_packet *packet);
 
     virtual unsigned int send_configure_channel(std::string in_channel, unsigned int in_transaction,
             configure_callback_t in_cb);
@@ -599,8 +609,8 @@ protected:
     std::shared_ptr<tracker_element_uint8> source_hop_shuffle;
     std::shared_ptr<tracker_element_uint32> source_hop_shuffle_skip;
 
-    std::shared_ptr<tracker_element_uint32> source_num_packets;
-    std::shared_ptr<tracker_element_uint32> source_num_error_packets;
+    std::shared_ptr<tracker_element_uint64> source_num_packets;
+    std::shared_ptr<tracker_element_uint64> source_num_error_packets;
 
     int packet_rate_rrd_id;
     std::shared_ptr<kis_tracked_minute_rrd<>> packet_rate_rrd;
@@ -696,12 +706,15 @@ protected:
     // Last time we saw a PONG
     time_t last_pong;
 
+    // We suppress automatically adding GPS to packets from this source
+    bool suppress_gps;
+
     // packet_chain
     std::shared_ptr<packet_chain> packetchain;
 
     // Packet components we inject
-    int pack_comp_linkframe, pack_comp_l1info, pack_comp_gps, pack_comp_datasrc,
-        pack_comp_json, pack_comp_protobuf;
+    int pack_comp_linkframe, pack_comp_l1info, pack_comp_gps, pack_comp_no_gps,
+        pack_comp_datasrc, pack_comp_json, pack_comp_protobuf;
 
 };
 
@@ -769,7 +782,7 @@ public:
         if (in_options.size() != 0) {
             for (auto i : *options_vec) {
                 auto o = std::make_shared<tracker_element_string>(options_entry_id, 
-                        GetTrackerValue<std::string>(i));
+                        get_tracker_value<std::string>(i));
                 options_vec->push_back(o);
             }
         }

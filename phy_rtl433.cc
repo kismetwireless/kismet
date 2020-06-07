@@ -82,7 +82,7 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(global_registry *in_globalreg, int in_phyid) :
                 "RTL433 lightning sensor");
 
     // Make the manuf string
-    rtl_manuf = Globalreg::globalreg->manufdb->MakeManuf("RTL433");
+    rtl_manuf = Globalreg::globalreg->manufdb->make_manuf("RTL433");
 
     // Register js module for UI
     auto httpregistry =
@@ -374,6 +374,7 @@ void Kis_RTL433_Phy::add_weather_station(Json::Value json,
         std::shared_ptr<tracker_element_map> rtlholder) {
     auto direction_j = json["direction_deg"];
     auto windstrength_j = json["windstrength"];
+    auto wind_avg_km_j = json["wind_avg_km_h"];
     auto winddirection_j = json["winddirection"];
     auto windspeed_j = json["speed"];
     auto gust_j = json["gust"];
@@ -383,7 +384,7 @@ void Kis_RTL433_Phy::add_weather_station(Json::Value json,
 
     if (!direction_j.isNull() || !windstrength_j.isNull() || !winddirection_j.isNull() ||
             !windspeed_j.isNull() || !gust_j.isNull() || !rain_j.isNull() || !uv_index_j.isNull() ||
-            !lux_j.isNull()) {
+            !lux_j.isNull() || !wind_avg_km_j.isNull()) {
 
         auto weatherdev = 
             rtlholder->get_sub_as<rtl433_tracked_weatherstation>(rtl433_weatherstation_id);
@@ -407,6 +408,11 @@ void Kis_RTL433_Phy::add_weather_station(Json::Value json,
         if (windspeed_j.isNumeric()) {
             weatherdev->set_wind_speed((int32_t) windspeed_j.asInt());
             weatherdev->get_wind_speed_rrd()->add_sample((int64_t) windspeed_j.asInt(), time(0));
+        }
+
+        if (wind_avg_km_j.isNumeric()) {
+            weatherdev->set_wind_speed((int32_t) wind_avg_km_j.asInt());
+            weatherdev->get_wind_speed_rrd()->add_sample((int64_t) wind_avg_km_j.asInt(), time(0));
         }
 
         if (windstrength_j.isNumeric()) {

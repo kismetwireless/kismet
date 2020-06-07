@@ -26,6 +26,10 @@
 global_registry *Globalreg::globalreg = NULL;
 
 global_registry::global_registry() { 
+    ext_mutex.set_name("globalreg_ext_mutex");
+    lifetime_mutex.set_name("globalreg_lifetime_mutex");
+    deferred_mutex.set_name("globalreg_deferred_mutex");
+
 	fatal_condition = false;
 	spindown = false;
     complete = false;

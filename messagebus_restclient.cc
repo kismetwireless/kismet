@@ -178,7 +178,7 @@ void rest_message_client::httpd_create_stream_response(
                 msgvec->push_back(i);
         }
 
-        httpd_serialize(path, stream, transmit);
+        httpd_serialize(path, stream, transmit, nullptr, connection);
     }
 }
 

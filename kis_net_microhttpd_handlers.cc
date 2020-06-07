@@ -54,8 +54,14 @@ bool kis_net_httpd_handler::httpd_can_serialize(const std::string& path) {
 void kis_net_httpd_handler::httpd_serialize(const std::string& path, 
         std::ostream& stream,
         std::shared_ptr<tracker_element> elem, 
-        std::shared_ptr<tracker_element_serializer::rename_map> rename) {
-    Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(path), stream, elem, rename);
+        std::shared_ptr<tracker_element_serializer::rename_map> rename,
+        kis_net_httpd_connection *connection) {
+    int r;
+
+    r = Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(path), stream, elem, rename);
+
+    if (r < 0) 
+        connection->httpcode = 501;
 }
 
 std::string kis_net_httpd_handler::httpd_get_suffix(const std::string& path) {

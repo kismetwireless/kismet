@@ -70,7 +70,13 @@
 
 #include <time.h>
 
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <semaphore.h>
+
 #include "../config.h"
+
+#include "nl80211.h"
 
 #ifdef HAVE_LIBNM
 #include <libnm/NetworkManager.h>
@@ -97,6 +103,9 @@ typedef struct {
     char *cap_interface;
     char *name;
 
+    /* inter-process semaphore for computing interfaces during open */
+    sem_t *interface_sem;
+
     int datalink_type;
     int override_dlt;
 
@@ -104,11 +113,15 @@ typedef struct {
      * broken interfaces */
     int use_mac80211_vif;
     int use_mac80211_channels;
+    int use_mac80211_mode;
 
     /* Cached mac80211 controls */
     void *mac80211_socket;
     int mac80211_id;
     int mac80211_ifidx;
+
+    /* Interface must be up to set mode */
+    bool up_before_mode;
 
     /* Do we process extended channels?  Controlled by chipset and by source
      * options */
@@ -251,55 +264,6 @@ unsigned int wifi_freq_to_chan(unsigned int in_freq) {
     return in_freq / 5 - 1000;
 }
 
-/* Find an interface based on a mac address (or mac address prefix in the case
- * of monitor mode interfaces); if we have to make a disassociated monitor interface
- * name we want to be able to find it again if we re-open
- *
- * if ignored_ifname is not null, we will ignore any interface which matches mac
- * but has the same name; we only want to find the monitor interface variant. 
- *
- * wlmode will typically be LINUX_WLEXT_MONITOR but could be any other wireless
- * extensions mode.
- *
- * returns the ifnum index which can then be resolved into an interface 
- * name.
- */
-int find_interface_mode_by_mac(const char *ignored_ifname, int wlmode, uint8_t *mac) {
-    struct ifaddrs *ifaddr, *ifa;
-    uint8_t dmac[6];
-    char errstr[STATUS_MAX];
-    int r;
-
-    if (getifaddrs(&ifaddr) == -1)
-        return -1;
-
-    for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-        if (ignored_ifname != NULL && strcmp(ifa->ifa_name, ignored_ifname) == 0) {
-            continue;
-        }
-
-        if (ifconfig_get_hwaddr(ifa->ifa_name, errstr, dmac) < 0) {
-            continue;
-        }
-
-        if (memcmp(dmac, mac, 6) == 0) {
-            /* Found matching mac addr, which doesn't match our existing name,
-             * is it in the right mode? */
-            int mode;
-
-            if (iwconfig_get_mode(ifa->ifa_name, errstr, &mode) >= 0) {
-                if (mode == wlmode) {
-                    r = if_nametoindex(ifa->ifa_name);
-                    freeifaddrs(ifaddr);
-                    return r;
-                }
-            }
-        }
-    }
-
-    return -1;
-}
-
 /* Find an interface, based on mode, that shares a parent with the provided
  * interface.
  *
@@ -307,12 +271,13 @@ int find_interface_mode_by_mac(const char *ignored_ifname, int wlmode, uint8_t *
  *
  * Returns the ifnum index, or 0
  */
-int find_interface_mode_by_parent(const char *base_ifname, int wlmode) {
+int find_interface_monitor_by_parent(local_wifi_t *local_wifi, const char *base_ifname) {
     char *base_parent, *if_parent;
     struct ifaddrs *ifaddr, *ifa;
     char errstr[STATUS_MAX];
-    int r;
 
+    if (local_wifi->mac80211_socket == NULL)
+        return -1;
 
     if ((base_parent = mac80211_find_parent(base_ifname)) == NULL)
         return -1;
@@ -325,17 +290,25 @@ int find_interface_mode_by_parent(const char *base_ifname, int wlmode) {
             continue;
 
         if (strcmp(if_parent, base_parent) == 0) {
-            int mode;
+            uint32_t mode;
+            int index;
 
-            if (iwconfig_get_mode(ifa->ifa_name, errstr, &mode) >= 0) {
-                if (mode == wlmode) {
-                    r = if_nametoindex(ifa->ifa_name);
-                    free(if_parent);
-                    free(base_parent);
-                    freeifaddrs(ifaddr);
-                    return r;
-                }
+            if ((index = if_nametoindex(ifa->ifa_name)) == 0) {
+                continue;
             }
+
+            if (mac80211_get_iftype_cache(index, local_wifi->mac80211_socket, 
+                        local_wifi->mac80211_id, &mode, errstr) < 0) {
+                continue;
+            }
+
+            if (mode != NL80211_IFTYPE_MONITOR)
+                continue;
+
+            free(if_parent);
+            free(base_parent);
+            freeifaddrs(ifaddr);
+            return index;
         }
 
         free(if_parent);
@@ -647,13 +620,6 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
         free(iw_chanlist);
 
         *chanlist_sz = chan_sz;
-    } else {
-        /*
-        fprintf(stderr, "debug - linux wifi %s got channel list: \n", interface);
-        for (unsigned int i = 0; i < *chanlist_sz; i++) {
-            fprintf(stderr, "debug -     %s\n", (*chanlist)[i]);
-        }
-        */
     }
 
     return 1;
@@ -910,28 +876,6 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         return 0;
     }
 
-    /* With the latest nexmon drivers they respond to normal ioctls, we'll try defering
-     * the probe and only failing come 'open', if we can't talk to them w/ either mechanism.
-     */
-    /*
-    if (strcmp(driver, "brcmfmac") == 0 ||
-            strcmp(driver, "brcmfmac_sdio") == 0) {
-        struct nexmon_t *nexmon;
-        nexmon = init_nexmon(interface);
-
-        if (nexmon == NULL) {
-            free(interface);
-            return -1;
-        }
-
-        free(nexmon);
-    } else */
-    
-    if (strcmp(driver, "iwlwifi") == 0) {
-        local_wifi->use_ht_channels = 0;
-        local_wifi->use_vht_channels = 0;
-    }
-
     /* Do we exclude HT or VHT channels?  Equally, do we force them to be turned on? */
     if ((placeholder_len = cf_find_flag(&placeholder, "ht_channels", definition)) > 0) {
         if (strncasecmp(placeholder, "false", placeholder_len) == 0) {
@@ -978,7 +922,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         return 0;
 
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
-        *uuid = strdup(placeholder);
+        *uuid = strndup(placeholder, placeholder_len);
     } else {
         /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
          * and the mac address of the device */
@@ -992,6 +936,254 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     return 1;
 }
+
+int build_first_localdev_filter(char **filter) {
+    typedef struct macaddr_list {
+        uint8_t macaddr[6];
+        struct macaddr_list *next;
+    } macaddr_list_t;
+
+    macaddr_list_t *macs = NULL;
+    size_t num_macs = 0;
+    size_t filtered_macs = 0;
+    macaddr_list_t *mi = NULL, *mb = NULL;
+
+    int mode;
+
+    size_t filter_len = 0;
+    unsigned int need_and = 0;
+    size_t fpos = 0;
+
+    DIR *devdir;
+    struct dirent *devfile;
+    char errstr[STATUS_MAX];
+
+    if ((devdir = opendir("/sys/class/net/")) == NULL) {
+        *filter = NULL;
+        return 0;
+    }
+
+    /* Look at the files in the sys dir and see if they're wi-fi */
+    while ((devfile = readdir(devdir)) != NULL) {
+        /* Skip interfaces which are down */
+        if (ifconfig_get_flags(devfile->d_name, errstr, &mode) < 0) 
+            continue;
+
+        if ((mode & IFF_UP) == 0 && (mode & IFF_RUNNING) == 0)
+            continue;
+
+        mi = (macaddr_list_t *) malloc(sizeof(macaddr_list_t));
+
+        if (ifconfig_get_hwaddr(devfile->d_name, errstr, mi->macaddr) < 0) {
+            free(mi);
+            continue;
+        }
+
+        /* Skip interfaces with a 0 mac */
+        if (memcmp(mi->macaddr, "\x00\x00\x00\x00\x00\x00", 6) == 0) {
+            free(mi);
+            continue;
+        }
+
+        mi->next = macs;
+        macs = mi;
+
+        num_macs++;
+    }
+
+    closedir(devdir);
+
+    if (num_macs == 0) {
+        *filter = NULL;
+        return 0;
+    }
+
+    /*
+       For now write the filter as a string and compile it
+       'not ether host aa:bb:cc:dd:ee:ff'
+       32 bytes per mac 
+       ' and '
+       6 bytes per join
+    */
+   
+    filter_len = (num_macs * 32) + ((num_macs - 1) * 6) + 1;
+
+    *filter = (char *) malloc(filter_len);
+
+    mi = macs;
+
+    while (mi != NULL) {
+        if (filtered_macs < 8) {
+            filtered_macs++; 
+
+            if (need_and) {
+                snprintf(*filter + fpos, filter_len - fpos, " and ");
+                fpos += 5;
+            }
+            need_and = 1;
+
+            snprintf(*filter + fpos, filter_len - fpos, 
+                    "not ether host %02x:%02x:%02x:%02x:%02x:%02x",
+                    mi->macaddr[0], mi->macaddr[1], mi->macaddr[2], 
+                    mi->macaddr[3], mi->macaddr[4], mi->macaddr[5]);
+            fpos += 32;
+        }
+
+        mb = mi->next;
+        free(mi);
+        mi = mb;
+    }
+
+    return num_macs;
+}
+
+int build_named_filters(char **interfaces, int num_interfaces, char **filter) {
+    typedef struct macaddr_list {
+        uint8_t macaddr[6];
+        struct macaddr_list *next;
+    } macaddr_list_t;
+
+    macaddr_list_t *macs = NULL;
+    size_t num_macs = 0;
+    size_t filtered_macs = 0;
+    macaddr_list_t *mi = NULL, *mb = NULL;
+
+    size_t filter_len = 0;
+    unsigned int need_and = 0;
+    size_t fpos = 0;
+
+    char errstr[STATUS_MAX];
+
+    if (num_interfaces <= 0)
+        return num_interfaces;
+
+    int i_pos;
+
+    for (i_pos = 0; i_pos < num_interfaces; i_pos++) {
+        if (interfaces[i_pos] == NULL)
+            continue;
+
+        mi = (macaddr_list_t *) malloc(sizeof(macaddr_list_t));
+
+        if (ifconfig_get_hwaddr(interfaces[i_pos], errstr, mi->macaddr) < 0) {
+            free(mi);
+            continue;
+        }
+
+        /* Skip interfaces with a 0 mac */
+        if (memcmp(mi->macaddr, "\x00\x00\x00\x00\x00\x00", 6) == 0) {
+            free(mi);
+            continue;
+        }
+
+        mi->next = macs;
+        macs = mi;
+
+        num_macs++;
+    }
+
+    if (num_macs == 0) {
+        *filter = NULL;
+        return 0;
+    }
+
+    /*
+       For now write the filter as a string and compile it
+       'not ether host aa:bb:cc:dd:ee:ff'
+       32 bytes per mac 
+       ' and '
+       6 bytes per join
+    */
+   
+    filter_len = (num_macs * 32) + ((num_macs - 1) * 6) + 1;
+
+    *filter = (char *) malloc(filter_len);
+
+    mi = macs;
+
+    while (mi != NULL) {
+        if (filtered_macs < 8) {
+            filtered_macs++; 
+
+            if (need_and) {
+                snprintf(*filter + fpos, filter_len - fpos, " and ");
+                fpos += 5;
+            }
+            need_and = 1;
+
+            snprintf(*filter + fpos, filter_len - fpos, 
+                    "not ether host %02x:%02x:%02x:%02x:%02x:%02x",
+                    mi->macaddr[0], mi->macaddr[1], mi->macaddr[2], 
+                    mi->macaddr[3], mi->macaddr[4], mi->macaddr[5]);
+            fpos += 32;
+        }
+
+        mb = mi->next;
+        free(mi);
+        mi = mb;
+    }
+
+    return num_macs;
+}
+
+int build_explicit_filters(char **stringmacs, int num_macs, char **filter) {
+    size_t filter_len = 0;
+    unsigned int need_and = 0;
+    size_t fpos = 0;
+
+    if (num_macs <= 0)
+        return num_macs;
+
+    int i_pos;
+    int filtered_macs = 0;
+
+    if (num_macs == 0) {
+        *filter = NULL;
+        return 0;
+    }
+
+    unsigned int mac_seg;
+
+    /*
+       For now write the filter as a string and compile it
+       'not ether host aa:bb:cc:dd:ee:ff'
+       32 bytes per mac 
+       ' and '
+       6 bytes per join
+    */
+   
+    filter_len = (num_macs * 32) + ((num_macs - 1) * 6) + 1;
+
+    *filter = (char *) malloc(filter_len);
+
+    for (i_pos = 0; i_pos < num_macs; i_pos++) {
+        if (stringmacs[i_pos] == NULL)
+            continue;
+
+        if (sscanf(stringmacs[i_pos], "%02X:%02X:%02X:%02X:%02X:%02X",
+                    &mac_seg, &mac_seg, &mac_seg,
+                    &mac_seg, &mac_seg, &mac_seg) != 6)
+            continue;
+
+        if (filtered_macs < 8) {
+            filtered_macs++; 
+
+            if (need_and) {
+                snprintf(*filter + fpos, filter_len - fpos, " and ");
+                fpos += 5;
+            }
+            need_and = 1;
+
+            snprintf(*filter + fpos, filter_len - fpos, 
+                    "not ether host %17s", stringmacs[i_pos]);
+            fpos += 32;
+        }
+
+    }
+
+    return num_macs;
+}
+
 
 int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         char *msg, uint32_t *dlt, char **uuid, KismetExternal__Command *frame,
@@ -1036,24 +1228,35 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     *ret_interface = cf_params_interface_new();
     *ret_spectrum = NULL;
 
-    int mode;
+    unsigned int mode;
 
     int ret;
 
-    char regdom[5];
+    /* char regdom[5]; */
 
     char driver[32] = "";
 
     char *localchanstr = NULL;
     local_channel_t *localchan = NULL;
 
+    int filter_locals = 0;
+    char *ignore_filter = NULL;
+    struct bpf_program bpf;
+
+    int i;
+
 #ifdef HAVE_LIBNM
     NMClient *nmclient = NULL;
     NMDevice *nmdevice = NULL;
     const GPtrArray *nmdevices;
     GError *nmerror = NULL;
-    int i;
 #endif
+
+    int num_filter_interfaces = 0;
+    int num_filter_addresses = 0;
+    char **filter_targets = NULL;
+
+    unsigned int mac_seg;
 
     /* Clean up any existing local state on open; we can get re-opened if we're a 
      * remote source */
@@ -1118,10 +1321,117 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         }
     }
 
+    /* Do we ignore any other interfaces on this device? */
+    if ((placeholder_len = 
+                cf_find_flag(&placeholder, "filter_locals", definition)) > 0) {
+        if (strncasecmp(placeholder, "false", placeholder_len) == 0) {
+            filter_locals = 0;
+        } else if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+            filter_locals = 1;
+        }
+    }
+
+    if ((num_filter_interfaces = 
+                cf_count_flag("filter_interface", definition)) > 0) {
+        if (filter_locals) {
+            snprintf(msg, STATUS_MAX, "Can not combine 'filter_locals' and 'filter_interface' "
+                    "please pick one or the other.");
+            return -1;
+        }
+
+        filter_targets = (char **) malloc(sizeof(char *) * num_filter_interfaces);
+
+        for (i = 0; i < num_filter_interfaces; i++)
+            filter_targets[i] = NULL;
+
+        placeholder = definition;
+        for (i = 0; i < num_filter_interfaces; i++) {
+            if ((placeholder_len =
+                        cf_find_flag(&placeholder, "filter_interface", placeholder)) <= 0) {
+                snprintf(msg, STATUS_MAX, "Could not parse filter_interface from definition: "
+                        "expected an interface.");
+
+                for (i = 0; i < num_filter_interfaces; i++) {
+                    if (filter_targets[i] != NULL) {
+                        free(filter_targets[i]);
+                    }
+                }
+
+                free(filter_targets);
+                return -1;
+            }
+
+            filter_targets[i] = strndup(placeholder, placeholder_len);
+        }
+    }
+
+    if ((num_filter_addresses = 
+                cf_count_flag("filter_address", definition)) > 0) {
+        if (filter_locals) {
+            snprintf(msg, STATUS_MAX, "Can not combine 'filter_locals' and 'filter_address' "
+                    "please pick one or the other.");
+            return -1;
+        }
+
+        if (num_filter_interfaces) {
+            snprintf(msg, STATUS_MAX, "Can not combine 'filter_interface' and 'filter_address' "
+                    "please pick one or the other.");
+            return -1;
+        }
+
+        filter_targets = (char **) malloc(sizeof(char *) * num_filter_addresses);
+
+        for (i = 0; i < num_filter_addresses; i++)
+            filter_targets[i] = NULL;
+
+        placeholder = definition;
+        for (i = 0; i < num_filter_addresses; i++) {
+            if ((placeholder_len =
+                        cf_find_flag(&placeholder, "filter_address", placeholder)) <= 0) {
+                snprintf(msg, STATUS_MAX, "Could not parse filter_address from definition: "
+                        "expected an interface.");
+
+                for (i = 0; i < num_filter_interfaces; i++) {
+                    if (filter_targets[i] != NULL) {
+                        free(filter_targets[i]);
+                    }
+                }
+
+                free(filter_targets);
+                return -1;
+            }
+
+            if (sscanf(placeholder, "%02X:%02X:%02X:%02X:%02X:%02X",
+                        &mac_seg, &mac_seg, &mac_seg,
+                        &mac_seg, &mac_seg, &mac_seg) != 6) {
+
+                snprintf(msg, STATUS_MAX, "Could not parse MAC address from definition: "
+                        "Expected MAC address of format AA:BB:CC:DD:EE:FF.");
+
+                for (i = 0; i < num_filter_interfaces; i++) {
+                    if (filter_targets[i] != NULL) {
+                        free(filter_targets[i]);
+                    }
+                }
+
+                free(filter_targets);
+                return -1;
+            }
+
+            filter_targets[i] = strndup(placeholder, placeholder_len);
+        }
+    }
+
     /* get the mac address; this should be standard for anything */
     if (ifconfig_get_hwaddr(local_wifi->interface, errstr, hwaddr) < 0) {
         snprintf(msg, STATUS_MAX, "Could not fetch interface address from '%s': %s",
                 local_wifi->interface, errstr);
+        return -1;
+    }
+
+    /* Get the index of the base name */
+    if ((local_wifi->mac80211_ifidx = if_nametoindex(local_wifi->interface)) < 0) {
+        snprintf(errstr, STATUS_MAX, "Could not find interface index for '%s'", local_wifi->interface);
         return -1;
     }
 
@@ -1151,7 +1461,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
      * and the mac address of the device */
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
-        *uuid = strdup(placeholder);
+        *uuid = strndup(placeholder, placeholder_len);
     } else {
         snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%02X%02X%02X%02X%02X%02X",
                 adler32_csum((unsigned char *) "kismet_cap_linux_wifi", 
@@ -1178,13 +1488,28 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         cf_send_warning(caph, errstr);
 
         local_wifi->use_mac80211_vif = 0;
-    } else if (strcmp(driver, "rtl88xxau") == 0) {
+    } else if (strcasecmp(driver, "rtl88XXau") == 0) {
+        /* This driver changes its name all the time; sometimes its 88xxau sometimes it's 88XXau,
+         * but both appear to handle iw dev set mode netlink. */
         snprintf(errstr, STATUS_MAX, "%s interface '%s' looks to use the rtl88xxau driver, "
-                "which has problems using mac80211 VIF mode.  Disabling mac80211 VIF "
-                "creation but retaining mac80211 channel controls.",
+                "which can not mac80211 VIF mode.  Disabling mac80211 VIF "
+                "creation but retaining mac80211 channel controls.  Beware, this driver is known "
+                "to have issues with packet capture.",
                 local_wifi->name, local_wifi->interface);
         cf_send_warning(caph, errstr);
         local_wifi->use_mac80211_vif = 0;
+        local_wifi->use_mac80211_mode = 1;
+    } else if (strcasecmp(driver, "88XXau") == 0) {
+        /* This driver changes its name all the time; sometimes its 88xxau sometimes it's 88XXau,
+         * but both appear to handle iw dev set mode netlink. */
+        snprintf(errstr, STATUS_MAX, "%s interface '%s' looks to use the rtl88xxau driver, "
+                "which can not mac80211 VIF mode.  Disabling mac80211 VIF "
+                "creation but retaining mac80211 channel controls.  Beware, this driver is known "
+                "to have issues with packet capture.",
+                local_wifi->name, local_wifi->interface);
+        cf_send_warning(caph, errstr);
+        local_wifi->use_mac80211_vif = 0;
+        local_wifi->use_mac80211_mode = 1;
     } else if (strcmp(driver, "rtl8812au") == 0) {
         snprintf(errstr, STATUS_MAX, "%s interface '%s' looks to use the rtl8812au driver, "
                 "these drivers have been very unreliable and typically will not properly "
@@ -1205,6 +1530,15 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         cf_send_warning(caph, errstr);
 
         local_wifi->use_mac80211_vif = 0;
+    } else if (strcmp(driver, "rtl88x2bu") == 0) {
+        snprintf(errstr, STATUS_MAX, "%s interface '%s' looks to use the rtl88x2bu driver, "
+                "these drivers may have reliability problems, and do not work with VIFs.  "
+                "We'll continue, but there may be errors.", 
+                local_wifi->name, local_wifi->interface);
+        cf_send_warning(caph, errstr);
+        local_wifi->use_mac80211_vif = 0;
+        local_wifi->use_mac80211_channels = 0;
+        local_wifi->up_before_mode = true;
     } else if (strcmp(driver, "ath10k_pci") == 0) {
         snprintf(errstr, STATUS_MAX, "%s interface '%s' looks to use the ath10k_pci "
                 "driver, which is known to report large numbers of invalid packets. "
@@ -1229,12 +1563,41 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         cf_send_warning(caph, errstr);
     }
 
-    /* Try to get it into monitor mode if it isn't already; even mac80211 drivers
-     * respond to SIOCGIWMODE */
-    if (iwconfig_get_mode(local_wifi->interface, errstr, &mode) < 0) {
-        snprintf(msg, STATUS_MAX, "%s unable to get current wireless mode of "
-                "interface '%s': %s", local_wifi->name, local_wifi->interface, errstr);
-        return -1;
+    /* Try to connect to mac80211 and get the mode */
+    local_wifi->mac80211_socket = NULL;
+
+    if (mac80211_connect(&(local_wifi->mac80211_socket),
+                &(local_wifi->mac80211_id), errstr) < 0) {
+        /* If we didn't get a mac80211 handle we can't use mac80211, period, fall back
+         * to trying to use the legacy ioctls */
+        local_wifi->mac80211_socket = NULL;
+        local_wifi->use_mac80211_vif = 0;
+        local_wifi->use_mac80211_channels = 0;
+    }
+
+    /* Try to figure out the current mode from netlink if possible; if not, use iwconfig, and
+     * then fail */
+    ret = -1;
+    if (local_wifi->mac80211_socket != NULL) {
+        uint32_t nl_mode = 0;
+
+        ret = mac80211_get_iftype_cache(local_wifi->mac80211_ifidx, local_wifi->mac80211_socket,
+                local_wifi->mac80211_id, &nl_mode, errstr);
+
+        if (ret > 0 && nl_mode == 0)
+            ret = -1;
+
+        /* Alias the netlink mode to the legacy mode */
+        if (nl_mode == NL80211_IFTYPE_MONITOR)
+            mode = LINUX_WLEXT_MONITOR;
+    }
+
+    if (ret < 0) {
+        if (iwconfig_get_mode(local_wifi->interface, errstr, &mode) < 0) {
+            snprintf(msg, STATUS_MAX, "%s unable to get current wireless mode of "
+                    "interface '%s': %s", local_wifi->name, local_wifi->interface, errstr);
+            return -1;
+        }
     }
 
     /* We think we can do something with this interface; if we have support,
@@ -1289,13 +1652,32 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     /* We MUST make sure to release the networkmanager object later or we'll leak
      * memory continually as NM queues events for us */
-
 #endif
+
+    /* We got the mode earlier, and now we've told nm to ignore it - now, look at the mode, and
+     * figure out what to do.
+     *
+     * If we're already in monitor, we don't need to make a vif or change mode.
+     * If we're not in monitor and we're vif capable, we need to find an existing vif or make one
+     * If we're not in monitor and we're legacy, we need to set iwmode
+     */
+
+    /* ********* 
+     * Begin semaphore protected area 
+     * All returns or exits from this code must unlock the interface semaphore!
+     * ********** */
+
+    /* If we have a semaphore, acquire a lock; w eneed to be the only ones manipulating
+     * interface names.  For now we'll be tolerant of situations where we don't
+     * have it. */
+    if (local_wifi->interface_sem != NULL) {
+        sem_wait(local_wifi->interface_sem);
+    } 
 
     if (mode != LINUX_WLEXT_MONITOR) {
         int existing_ifnum;
 
-        /* If we don't use vifs at all, per a priori knowledge of the driver */
+        /* If we don't use vifs at all... */
         if (local_wifi->use_mac80211_vif == 0) {
             local_wifi->cap_interface = strdup(local_wifi->interface);
         } else {
@@ -1304,12 +1686,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             if ((placeholder_len = cf_find_flag(&placeholder, "vif", definition)) > 0) {
                 local_wifi->cap_interface = strndup(placeholder, placeholder_len);
             } else {
-                /* Look for an existing monitor mode interface */
+                /* Look for an existing monitor mode interface on the base interface */
                 existing_ifnum = 
-                    find_interface_mode_by_parent(local_wifi->interface, 
-                            LINUX_WLEXT_MONITOR);
+                    find_interface_monitor_by_parent(local_wifi, local_wifi->interface);
 
-                if (existing_ifnum >= 0) {
+                if (existing_ifnum > 0) {
                     if (if_indextoname((unsigned int) existing_ifnum, ifnam) != NULL) {
                         local_wifi->cap_interface = strdup(ifnam);
                         snprintf(errstr, STATUS_MAX, "%s found existing monitor interface "
@@ -1320,17 +1701,26 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 }
             }
         }
-            
-        /* Otherwise try to come up with a monitor name */
+        
+        /* Otherwise we need to make a monitor interface.  Try to come up with the name. */
         if (local_wifi->cap_interface == NULL) {
+            int ifnum;
+
             /* First we'd like to make a monitor vif if we can; can we fit that
              * in our interface name?  */
             if (strlen(local_wifi->interface) + 3 >= IFNAMSIZ) {
                 /* Can't fit our name in, we have to make an unrelated name, 
                  * we'll call it 'kismonX'; find the next kismonX interface */
-                int ifnum = find_next_ifnum("kismon");
+                ifnum = find_next_ifnum("kismon");
 
                 if (ifnum < 0) {
+                    /* Close the sem if it's open */
+                    if (local_wifi->interface_sem != NULL) {
+                        sem_post(local_wifi->interface_sem);
+                        sem_close(local_wifi->interface_sem);
+                        local_wifi->interface_sem = NULL;
+                    }
+
                     snprintf(msg, STATUS_MAX, "%s could not append 'mon' extension to "
                             "existing interface (%s) and could not find a kismonX "
                             "within 100 tries", local_wifi->name, local_wifi->interface);
@@ -1342,57 +1732,50 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 snprintf(ifnam, IFNAMSIZ, "kismon%d", ifnum);
             } else {
                 snprintf(ifnam, IFNAMSIZ, "%smon", local_wifi->interface);
-
-                /* We need to check the mode here to make sure we're not in a weird
-                 * state where NM retyped our interface or something */
-                if (iwconfig_get_mode(ifnam, errstr, &mode) >= 0) {
-                    if (mode != LINUX_WLEXT_MONITOR) {
-                        snprintf(msg, STATUS_MAX, "%s a monitor vif already exists "
-                                "for interface '%s' (%s) but isn't in monitor mode, "
-                                "check that NetworkManager isn't hijacking the "
-                                "interface, delete the false monitor vif, and try "
-                                "again.", local_wifi->name, local_wifi->interface, ifnam);
-                        return -1;
-                    }
-                }
             }
 
             /* Dup our monitor interface name */
             local_wifi->cap_interface = strdup(ifnam);
         }
-
     } else {
-        /* Otherwise the capinterface equals the interface because it's 
-         * already in monitor mode, either because the user specified a monitor
-         * vif or the interface is using legacy controls */
+        /* We're already monitor; dup the interface */
         local_wifi->cap_interface = strdup(local_wifi->interface);
     }
 
-    /* We think we know what we're going to capture from now; see if it already 
-     * exists and is in monitor mode; we may be doing multiple mode fetches
-     * but it doesn't really matter much; it's a simple ioctl and it only
-     * happens during open; we tolerate a failure here since the interface
-     * might not exist! */
+    /* We know what we're going to capture from now - either it exists already, or we need 
+     * to make it.  See if it exists and fetch the mode.  If it DOES exist (has a netif index)
+     * but we can't get the mode, fail! */
+    local_wifi->mac80211_ifidx = if_nametoindex(local_wifi->cap_interface);
+    if (local_wifi->mac80211_ifidx > 0) {
+        ret = -1;
+        if (local_wifi->mac80211_socket != NULL) {
+            uint32_t nl_mode = 0;
 
-    if (iwconfig_get_mode(local_wifi->interface, errstr, &mode) < 0) 
-        mode = -1;
+            ret = mac80211_get_iftype_cache(local_wifi->mac80211_ifidx, local_wifi->mac80211_socket,
+                    local_wifi->mac80211_id, &nl_mode, errstr);
 
-    /* We're going to start interacting with devices - connect to mac80211 if
-     * we can; an error here is tolerable because we'll fail properly later
-     * on */
-    local_wifi->mac80211_socket = NULL;
+            if (ret > 0 && nl_mode == 0)
+                ret = -1;
 
-    if (mac80211_connect(local_wifi->interface, &(local_wifi->mac80211_socket),
-                &(local_wifi->mac80211_id), &(local_wifi->mac80211_ifidx),
-                errstr) < 0) {
+            /* Alias the netlink mode to the legacy mode */
+            if (nl_mode == NL80211_IFTYPE_MONITOR)
+                mode = LINUX_WLEXT_MONITOR;
+        }
 
-        /* If we didn't get a mac80211 handle we can't use mac80211, period, fall back
-         * to trying to use the legacy ioctls */
-        local_wifi->use_mac80211_vif = 0;
-        local_wifi->use_mac80211_channels = 0;
-    } else {
-        /* We know we can talk to mac80211; disconnect until we know our capinterface */
-        mac80211_disconnect(local_wifi->mac80211_socket);
+        if (ret < 0) {
+            if (iwconfig_get_mode(local_wifi->interface, errstr, &mode) < 0) {
+                /* Close the sem if it's open */
+                if (local_wifi->interface_sem != NULL) {
+                    sem_post(local_wifi->interface_sem);
+                    sem_close(local_wifi->interface_sem);
+                    local_wifi->interface_sem = NULL;
+                }
+
+                snprintf(msg, STATUS_MAX, "%s unable to get current wireless mode of "
+                        "interface '%s': %s", local_wifi->name, local_wifi->interface, errstr);
+                return -1;
+            }
+        }
     }
 
     /* The interface we want to use isn't in monitor mode - and presumably
@@ -1402,7 +1785,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if (mode != LINUX_WLEXT_MONITOR && local_wifi->use_mac80211_vif &&
             strcmp(local_wifi->interface, local_wifi->cap_interface) != 0) {
         /* First, look for some nl80211 flags in the arguments. */
-        unsigned int num_flags = 2;
+        unsigned int num_flags = 0;
         unsigned int fi;
         unsigned int *flags = NULL;
 
@@ -1436,10 +1819,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         /* Allocate the flag list */
         flags = (unsigned int *) malloc(sizeof(unsigned int) * num_flags);
 
-        /* We always set these */
         fi = 0;
-        flags[fi++] = NL80211_MNTR_FLAG_CONTROL;
-        flags[fi++] = NL80211_MNTR_FLAG_OTHER_BSS;
 
         if (fcs)
             flags[fi++] = NL80211_MNTR_FLAG_FCSFAIL;
@@ -1448,8 +1828,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             flags[fi++] = NL80211_MNTR_FLAG_PLCPFAIL;
 
         /* Try to make the monitor vif */
-        if (mac80211_create_monitor_vif(local_wifi->interface,
-                    local_wifi->cap_interface, flags, num_flags, errstr) < 0) {
+        if (mac80211_create_monitor_vif(local_wifi->interface, local_wifi->cap_interface, flags, 
+                    num_flags, errstr) < 0) {
+
             /* Send an error message */
             snprintf(errstr2, STATUS_MAX, "%s failed to create monitor vif interface '%s' "
                     "for interface '%s': %s", 
@@ -1472,6 +1853,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 local_wifi->nexmon = init_nexmon(local_wifi->interface);
 
                 if (local_wifi->nexmon == NULL) {
+                    /* Close the sem if it's open */
+                    if (local_wifi->interface_sem != NULL) {
+                        sem_post(local_wifi->interface_sem);
+                        sem_close(local_wifi->interface_sem);
+                        local_wifi->interface_sem = NULL;
+                    }
+
                     snprintf(msg, STATUS_MAX, "%s interface '%s' looks like a Broadcom "
                             "embedded device but could not be initialized:  You MUST install "
                             "the nexmon patched drivers to use this device with Kismet",
@@ -1481,6 +1869,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
                 /* Nexmon needs the interface UP to place it into monitor mode properly.  Weird! */
                 if (ifconfig_interface_up(local_wifi->cap_interface, errstr) != 0) {
+                    /* Close the sem if it's open */
+                    if (local_wifi->interface_sem != NULL) {
+                        sem_post(local_wifi->interface_sem);
+                        sem_close(local_wifi->interface_sem);
+                        local_wifi->interface_sem = NULL;
+                    }
+
                     snprintf(msg, STATUS_MAX, "%s could not bring up capture interface '%s', "
                             "check 'dmesg' for possible errors while loading firmware: %s",
                             local_wifi->name, local_wifi->cap_interface, errstr);
@@ -1488,6 +1883,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 }
 
                 if (nexmon_monitor(local_wifi->nexmon) < 0) {
+                    /* Close the sem if it's open */
+                    if (local_wifi->interface_sem != NULL) {
+                        sem_post(local_wifi->interface_sem);
+                        sem_close(local_wifi->interface_sem);
+                        local_wifi->interface_sem = NULL;
+                    }
+
                     snprintf(msg, STATUS_MAX, "%s could not place interface '%s' into monitor mode "
                             "via nexmon drivers; you MUST install the patched nexmon drivers to "
                             "use embedded broadcom interfaces with Kismet", local_wifi->name, local_wifi->interface);
@@ -1496,16 +1898,47 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
             } else {
                 /* Otherwise do we look like wext? */
-                if (ifconfig_interface_down(local_wifi->interface, errstr) != 0) {
-                    snprintf(msg, STATUS_MAX, "%s could not bring down interface "
-                            "'%s' to set monitor mode: %s", 
-                            local_wifi->name, local_wifi->interface, errstr);
-                    free(flags);
-                    return -1;
+                if (local_wifi->up_before_mode) {
+                    if (ifconfig_interface_up(local_wifi->interface, errstr) != 0) {
+                        /* Close the sem if it's open */
+                        if (local_wifi->interface_sem != NULL) {
+                            sem_post(local_wifi->interface_sem);
+                            sem_close(local_wifi->interface_sem);
+                            local_wifi->interface_sem = NULL;
+                        }
+
+                        snprintf(msg, STATUS_MAX, "%s could not bring up interface "
+                                "'%s' to set monitor mode: %s", 
+                                local_wifi->name, local_wifi->interface, errstr);
+                        free(flags);
+                        return -1;
+                    }
+                } else {
+                    if (ifconfig_interface_down(local_wifi->interface, errstr) != 0) {
+                        /* Close the sem if it's open */
+                        if (local_wifi->interface_sem != NULL) {
+                            sem_post(local_wifi->interface_sem);
+                            sem_close(local_wifi->interface_sem);
+                            local_wifi->interface_sem = NULL;
+                        }
+
+                        snprintf(msg, STATUS_MAX, "%s could not bring down interface "
+                                "'%s' to set monitor mode: %s", 
+                                local_wifi->name, local_wifi->interface, errstr);
+                        free(flags);
+                        return -1;
+                    }
                 }
 
                 if (iwconfig_set_mode(local_wifi->interface, errstr, 
                             LINUX_WLEXT_MONITOR) < 0) {
+                    /* Close the sem if it's open */
+                    if (local_wifi->interface_sem != NULL) {
+                        sem_post(local_wifi->interface_sem);
+                        sem_close(local_wifi->interface_sem);
+                        local_wifi->interface_sem = NULL;
+                    }
+
                     snprintf(errstr2, STATUS_MAX, "%s failed to put interface '%s' in monitor mode: %s", 
                             local_wifi->name, local_wifi->interface, errstr);
                     cf_send_message(caph, errstr2, MSGFLAG_ERROR);
@@ -1537,13 +1970,34 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         free(flags);
     } else if (mode != LINUX_WLEXT_MONITOR) {
         /* Otherwise we want monitor mode but we don't have nl / found the same vif */
+        if (local_wifi->up_before_mode) {
+            if (ifconfig_interface_up(local_wifi->interface, errstr) != 0) {
+                /* Close the sem if it's open */
+                if (local_wifi->interface_sem != NULL) {
+                    sem_post(local_wifi->interface_sem);
+                    sem_close(local_wifi->interface_sem);
+                    local_wifi->interface_sem = NULL;
+                }
 
-        /* fprintf(stderr, "debug - bringing down cap interface %s to set mode\n", local_wifi->cap_interface); */
-        if (ifconfig_interface_down(local_wifi->interface, errstr) != 0) {
-            snprintf(msg, STATUS_MAX, "%s could not bring down interface "
-                    "'%s' to set monitor mode: %s", 
-                    local_wifi->name, local_wifi->interface, errstr);
-            return -1;
+                snprintf(msg, STATUS_MAX, "%s could not bring up interface "
+                        "'%s' to set monitor mode: %s", 
+                        local_wifi->name, local_wifi->interface, errstr);
+                return -1;
+            }
+        } else {
+            if (ifconfig_interface_down(local_wifi->interface, errstr) != 0) {
+                /* Close the sem if it's open */
+                if (local_wifi->interface_sem != NULL) {
+                    sem_post(local_wifi->interface_sem);
+                    sem_close(local_wifi->interface_sem);
+                    local_wifi->interface_sem = NULL;
+                }
+
+                snprintf(msg, STATUS_MAX, "%s could not bring down interface "
+                        "'%s' to set monitor mode: %s", 
+                        local_wifi->name, local_wifi->interface, errstr);
+                return -1;
+            }
         }
 
         if (strcmp(driver, "brcmfmac") == 0 || strcmp(driver, "brcmfmac_sdio") == 0) {
@@ -1553,6 +2007,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             local_wifi->nexmon = init_nexmon(local_wifi->interface);
 
             if (local_wifi->nexmon == NULL) {
+                /* Close the sem if it's open */
+                if (local_wifi->interface_sem != NULL) {
+                    sem_post(local_wifi->interface_sem);
+                    sem_close(local_wifi->interface_sem);
+                    local_wifi->interface_sem = NULL;
+                }
+
                 snprintf(msg, STATUS_MAX, "%s interface '%s' looks like a Broadcom "
                         "embedded device but could not be initialized:  You MUST install "
                         "the nexmon patched drivers to use this device with Kismet",
@@ -1562,6 +2023,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
             /* Nexmon needs the interface UP to place it into monitor mode properly.  Weird! */
             if (ifconfig_interface_up(local_wifi->cap_interface, errstr) != 0) {
+                /* Close the sem if it's open */
+                if (local_wifi->interface_sem != NULL) {
+                    sem_post(local_wifi->interface_sem);
+                    sem_close(local_wifi->interface_sem);
+                    local_wifi->interface_sem = NULL;
+                }
+
                 snprintf(msg, STATUS_MAX, "%s could not bring up capture interface '%s', "
                         "check 'dmesg' for possible errors while loading firmware: %s",
                         local_wifi->name, local_wifi->cap_interface, errstr);
@@ -1569,14 +2037,94 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             }
 
             if (nexmon_monitor(local_wifi->nexmon) < 0) {
+                /* Close the sem if it's open */
+                if (local_wifi->interface_sem != NULL) {
+                    sem_post(local_wifi->interface_sem);
+                    sem_close(local_wifi->interface_sem);
+                    local_wifi->interface_sem = NULL;
+                }
+
                 snprintf(msg, STATUS_MAX, "%s could not place interface '%s' into monitor mode "
                         "via nexmon drivers; you MUST install the patched nexmon drivers to "
                         "use embedded broadcom interfaces with Kismet", 
                         local_wifi->name, local_wifi->interface);
                 return -1;
             }
+        } else if (local_wifi->use_mac80211_mode) {
+            /* If we're using mac80211 to set mode, try to do so here... */
+
+            unsigned int num_flags = 0;
+            unsigned int fi;
+            unsigned int *flags = NULL;
+
+            bool fcs = false;
+            bool plcp = false;
+
+            if ((placeholder_len = cf_find_flag(&placeholder, "fcsfail", definition)) > 0) {
+                if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+                    snprintf(errstr, STATUS_MAX,
+                            "%s source '%s' configuring monitor interface to pass packets "
+                            "which fail FCS checksum", 
+                            local_wifi->name, local_wifi->interface);
+                    cf_send_message(caph, errstr, MSGFLAG_INFO);
+                    num_flags++;
+                    fcs = true;
+                }
+            }
+
+            if ((placeholder_len = cf_find_flag(&placeholder, "plcpfail", 
+                            definition)) > 0) {
+                if (strncasecmp(placeholder, "true", placeholder_len) == 0) {
+                    snprintf(errstr, STATUS_MAX,
+                            "%s source '%s' configuring monitor interface to pass packets "
+                            "which fail PLCP checksum", local_wifi->name, local_wifi->interface);
+                    cf_send_message(caph, errstr, MSGFLAG_INFO);
+                    num_flags++;
+                    plcp = true;
+                }
+            }
+
+            /* Allocate the flag list */
+            flags = (unsigned int *) malloc(sizeof(unsigned int) * num_flags);
+
+            fi = 0;
+
+            if (fcs)
+                flags[fi++] = NL80211_MNTR_FLAG_FCSFAIL;
+
+            if (plcp)
+                flags[fi++] = NL80211_MNTR_FLAG_PLCPFAIL;
+
+            if (mac80211_set_monitor_interface(local_wifi->interface, flags, num_flags, errstr) < 0) {
+                free(flags);
+
+                /* Close the sem if it's open */
+                if (local_wifi->interface_sem != NULL) {
+                    sem_post(local_wifi->interface_sem);
+                    sem_close(local_wifi->interface_sem);
+                    local_wifi->interface_sem = NULL;
+                }
+
+                snprintf(errstr2, STATUS_MAX, "%s %s failed to put interface in monitor mode: %s", 
+                        local_wifi->name, local_wifi->interface, errstr);
+                cf_send_message(caph, errstr2, MSGFLAG_ERROR);
+
+                /* We've failed at everything */
+                snprintf(msg, STATUS_MAX, "%s could not not set mode of existing interface, "
+                        "unable to put '%s' into monitor mode.", local_wifi->name, local_wifi->interface);
+                return -1;
+
+            }
+
+            free(flags);
         } else if (iwconfig_set_mode(local_wifi->interface, errstr, LINUX_WLEXT_MONITOR) < 0) {
-            /* Otherwise we're some sort of non-vif wext? */
+            /* Close the sem if it's open */
+            if (local_wifi->interface_sem != NULL) {
+                sem_post(local_wifi->interface_sem);
+                sem_close(local_wifi->interface_sem);
+                local_wifi->interface_sem = NULL;
+            }
+
             snprintf(errstr2, STATUS_MAX, "%s %s failed to put interface '%s' in monitor mode: %s", 
                     local_wifi->name, local_wifi->cap_interface, local_wifi->interface, errstr);
             cf_send_message(caph, errstr2, MSGFLAG_ERROR);
@@ -1598,19 +2146,55 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         } else {
             snprintf(errstr, STATUS_MAX, "%s monitor interface '%s' already exists for "
                     "capture interface '%s', we'll use that.",
-                    local_wifi->name, local_wifi->interface, local_wifi->cap_interface);
+                    local_wifi->name, local_wifi->cap_interface, local_wifi->interface);
         }
 
         cf_send_message(caph, errstr, MSGFLAG_INFO);
     }
 
-    if (iwconfig_get_mode(local_wifi->cap_interface, errstr, &mode) < 0 ||
-            mode != LINUX_WLEXT_MONITOR) {
-        snprintf(msg, STATUS_MAX, "%s capture interface '%s' did not enter monitor "
-                "mode, something is wrong.", local_wifi->name, local_wifi->cap_interface);
-        return -1;
-    }
+    /* Get the index and check the mode; if we didn't get into monitor mode, blow up */
+    local_wifi->mac80211_ifidx = if_nametoindex(local_wifi->cap_interface);
+    if (local_wifi->mac80211_ifidx > 0) {
+        ret = -1;
+        if (local_wifi->mac80211_socket != NULL && local_wifi->use_mac80211_vif) {
+            uint32_t nl_mode = 0;
 
+            ret = mac80211_get_iftype_cache(local_wifi->mac80211_ifidx, local_wifi->mac80211_socket,
+                    local_wifi->mac80211_id, &nl_mode, errstr);
+
+            if (ret > 0 && nl_mode == 0)
+                ret = -1;
+
+            /* Alias the netlink mode to the legacy mode */
+            if (nl_mode > 0 && nl_mode != NL80211_IFTYPE_MONITOR) {
+                /* Close the sem if it's open */
+                if (local_wifi->interface_sem != NULL) {
+                    sem_post(local_wifi->interface_sem);
+                    sem_close(local_wifi->interface_sem);
+                    local_wifi->interface_sem = NULL;
+                }
+
+                snprintf(msg, STATUS_MAX, "%s capture interface '%s' did not enter monitor "
+                        "mode, something is wrong.", local_wifi->name, local_wifi->cap_interface);
+                return -1;
+            }
+        }
+
+        if (ret < 0) {
+            if (iwconfig_get_mode(local_wifi->interface, errstr, &mode) < 0) {
+                /* Close the sem if it's open */
+                if (local_wifi->interface_sem != NULL) {
+                    sem_post(local_wifi->interface_sem);
+                    sem_close(local_wifi->interface_sem);
+                    local_wifi->interface_sem = NULL;
+                }
+
+                snprintf(msg, STATUS_MAX, "%s capture interface '%s' did not enter monitor "
+                        "mode, something is wrong.", local_wifi->name, local_wifi->cap_interface);
+                return -1;
+            }
+        }
+    }
 
     /* If we're using a vif we need to bring down the parent and bring up the vif;
      * if we're not using a vif we just need to bring up the interface */
@@ -1635,6 +2219,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
             cf_send_message(caph, errstr2, MSGFLAG_INFO);
 
             if (ifconfig_interface_down(local_wifi->interface, errstr) != 0) {
+                /* Close the sem if it's open */
+                if (local_wifi->interface_sem != NULL) {
+                    sem_post(local_wifi->interface_sem);
+                    sem_close(local_wifi->interface_sem);
+                    local_wifi->interface_sem = NULL;
+                }
+
                 snprintf(msg, STATUS_MAX, "%s could not bring down parent interface "
                         "'%s' to capture using '%s': %s", 
                         local_wifi->name, local_wifi->interface, local_wifi->cap_interface, errstr);
@@ -1682,7 +2273,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         g_object_unref(nmclient);
 #endif
 
-
     /* fprintf(stderr, "debug - bringing up cap interface %s to capture\n", local_wifi->cap_interface); */
 
     /* Bring up the cap interface no matter what */
@@ -1692,6 +2282,16 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 local_wifi->name, local_wifi->cap_interface, errstr);
         return -1;
     }
+
+    /* Unlock and close the sem if it's open */
+    if (local_wifi->interface_sem != NULL) {
+        sem_post(local_wifi->interface_sem);
+        sem_close(local_wifi->interface_sem);
+        local_wifi->interface_sem = NULL;
+    }
+
+    /* ********* End semaphore protected area ********** */
+
 
     /* Do we exclude HT or VHT channels?  Equally, do we force them to be turned on? */
     if ((placeholder_len = 
@@ -1741,18 +2341,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     (*ret_interface)->hardware = strdup(driver);
 
-    /* Get the iw regdom and see if it makes sense */
-    if (linux_sys_get_regdom(regdom) == 0) {
-        if (strcmp(regdom, "00") == 0) {
-            snprintf(errstr, STATUS_MAX, "%s system-wide wireless regulatory domain "
-                    "is set to '00'; this can cause problems setting channels.  If "
-                    "you encounter problems, set the regdom with a command like "
-                    "'sudo iw reg set US' or whatever country is appropriate for "
-                    "your location.", local_wifi->name);
-            cf_send_warning(caph, errstr);
-        }
-    }
-
     /* Open the pcap */
     local_wifi->pd = pcap_open_live(local_wifi->cap_interface, 
             MAX_PACKET_LEN, 1, 1000, pcap_errstr);
@@ -1762,6 +2350,83 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 "as a pcap capture: %s", local_wifi->name, local_wifi->cap_interface, 
                 local_wifi->interface, pcap_errstr);
         return -1;
+    }
+
+    if (filter_locals) {
+        if ((ret = build_first_localdev_filter(&ignore_filter)) > 0) {
+            if (ret > 8) {
+                snprintf(errstr, STATUS_MAX, "%s found more than 8 local interfaces (%d), limiting "
+                        "the exclusion filter to the first 8 because of limited kernel filter memory.",
+                        local_wifi->name, ret);
+                cf_send_message(caph, errstr, MSGFLAG_INFO);
+            }
+
+            if (pcap_compile(local_wifi->pd, &bpf, ignore_filter, 0, 0) < 0) {
+                snprintf(errstr, STATUS_MAX, "%s unable to compile filter to exclude other "
+                        "local interfaces: %s",
+                        local_wifi->name, pcap_geterr(local_wifi->pd));
+                cf_send_message(caph, errstr, MSGFLAG_INFO);
+            } else {
+                if (pcap_setfilter(local_wifi->pd, &bpf) < 0) {
+                    snprintf(errstr, STATUS_MAX, "%s unable to assign filter to exclude other "
+                            "local interfaces: %s",
+                            local_wifi->name, pcap_geterr(local_wifi->pd));
+                    cf_send_message(caph, errstr, MSGFLAG_INFO);
+                }
+            }
+
+            free(ignore_filter);
+        }
+    } else if (num_filter_interfaces > 0) {
+        if ((ret = build_named_filters(filter_targets, num_filter_interfaces, &ignore_filter)) > 0) {
+            if (pcap_compile(local_wifi->pd, &bpf, ignore_filter, 0, 0) < 0) {
+                snprintf(errstr, STATUS_MAX, "%s unable to compile filter to exclude "
+                        "local interfaces: %s",
+                        local_wifi->name, pcap_geterr(local_wifi->pd));
+                cf_send_message(caph, errstr, MSGFLAG_INFO);
+            } else {
+                if (pcap_setfilter(local_wifi->pd, &bpf) < 0) {
+                    snprintf(errstr, STATUS_MAX, "%s unable to assign filter to exclude "
+                            "local interfaces: %s",
+                            local_wifi->name, pcap_geterr(local_wifi->pd));
+                    cf_send_message(caph, errstr, MSGFLAG_INFO);
+                }
+            }
+
+            free(ignore_filter);
+
+            for (i = 0; i < num_filter_interfaces; i++) {
+                if (filter_targets[i] != NULL)
+                    free(filter_targets[i]);
+            }
+
+            free(filter_targets);
+        }
+    } else if (num_filter_addresses > 0) {
+        if ((ret = build_explicit_filters(filter_targets, num_filter_addresses, &ignore_filter)) > 0) {
+            if (pcap_compile(local_wifi->pd, &bpf, ignore_filter, 0, 0) < 0) {
+                snprintf(errstr, STATUS_MAX, "%s unable to compile filter to exclude "
+                        "specific addresses: %s",
+                        local_wifi->name, pcap_geterr(local_wifi->pd));
+                cf_send_message(caph, errstr, MSGFLAG_INFO);
+            } else {
+                if (pcap_setfilter(local_wifi->pd, &bpf) < 0) {
+                    snprintf(errstr, STATUS_MAX, "%s unable to assign filter to exclude "
+                            "specific addresses: %s",
+                            local_wifi->name, pcap_geterr(local_wifi->pd));
+                    cf_send_message(caph, errstr, MSGFLAG_INFO);
+                }
+            }
+
+            free(ignore_filter);
+
+            for (i = 0; i < num_filter_addresses; i++) {
+                if (filter_targets[i] != NULL)
+                    free(filter_targets[i]);
+            }
+
+            free(filter_targets);
+        }
     }
 
     local_wifi->datalink_type = pcap_datalink(local_wifi->pd);
@@ -1776,14 +2441,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     (*ret_interface)->capif = strdup(local_wifi->cap_interface);
-
-    if (local_wifi->use_mac80211_channels) {
-        if (mac80211_connect(local_wifi->cap_interface, &(local_wifi->mac80211_socket),
-                    &(local_wifi->mac80211_id), &(local_wifi->mac80211_ifidx),
-                    errstr) < 0) {
-            local_wifi->use_mac80211_channels = 0;
-        }
-    }
 
     if ((placeholder_len = 
                 cf_find_flag(&placeholder, "channel", definition)) > 0) {
@@ -1826,6 +2483,8 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
     struct dirent *devfile;
     char errstr[STATUS_MAX];
 
+    local_wifi_t *local_wifi = (local_wifi_t *) caph->userdata;
+
     /* Basic list of devices */
     typedef struct wifi_list {
         char *device;
@@ -1838,6 +2497,7 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
     size_t num_devs = 0;
 
     unsigned int i;
+    int r;
 
     char driver[32] = "";
 
@@ -1849,13 +2509,35 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
         return 0;
     }
 
+    if (mac80211_connect(&(local_wifi->mac80211_socket), &(local_wifi->mac80211_id), errstr) < 0) {
+        local_wifi->mac80211_socket = NULL;
+    }
+
     /* Look at the files in the sys dir and see if they're wi-fi */
     while ((devfile = readdir(devdir)) != NULL) {
         /* if we can get the current channel with simple iwconfig ioctls
          * it's definitely a wifi device; even mac80211 devices respond 
          * to it */
-        int mode;
-        if (iwconfig_get_mode(devfile->d_name, errstr, &mode) >= 0) {
+        unsigned int mode = -1;
+
+        /* Try netlink first */
+        if (local_wifi->mac80211_socket != NULL) {
+            int ifidx = if_nametoindex(devfile->d_name);
+
+            r = mac80211_get_iftype_cache(ifidx, local_wifi->mac80211_socket, 
+                    local_wifi->mac80211_id, &mode, errstr);
+            if (mode == 0)
+                r = -1;
+        } else {
+            r = -1;
+        }
+
+        /* Fallback to iwconfig */
+        if (r < 0)
+            r = iwconfig_get_mode(devfile->d_name, errstr, &mode);
+
+        /* if we succeeded (iwconfig) or if we succeeded and have a valid mode (netlink) */
+        if (r >= 0) {
             wifi_list_t *d = (wifi_list_t *) malloc(sizeof(wifi_list_t));
             num_devs++;
             d->device = strdup(devfile->d_name);
@@ -1868,6 +2550,8 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
             devs = d;
         }
     }
+
+    mac80211_disconnect(local_wifi->mac80211_socket);
 
     closedir(devdir);
 
@@ -1967,17 +2651,100 @@ void capture_thread(kis_capture_handler_t *caph) {
     cf_handler_spindown(caph);
 }
 
+int acquire_semaphore(local_wifi_t *local_wifi) {
+    /* Try to acquire a Linux shm semaphore; because we can't be positive a previous
+     * iteration didn't somehow crash and die and we can't risk leaving the system in 
+     * a totally deadlocked state, we jump through some stupid hoops:
+     *
+     * 1. Acquire/create a semaphore
+     * 2. Try to lock it, with a time limit of 5 seconds.  We're going to assume that
+     *    if it doesn't come up in 5 seconds, something really stupid has happened.
+     *    If we DO acquire the lock, immediately *unlock* it, and continue.
+     * 3. Unlink the semaphore
+     * 4. Close the semaphore we opened
+     * 5. Try again
+     *
+     * We can try this up to 3 times.
+     */
+
+    unsigned int sem_try = 0;
+
+    struct timeval tv_now;
+    struct timeval tv_then;
+
+    struct timeval tv_amt = {
+        .tv_sec = 5,
+        .tv_usec = 0
+    };
+
+    struct timespec ts_abs;
+
+    int r;
+
+    for (sem_try = 0; sem_try < 4; sem_try++) {
+        local_wifi->interface_sem = 
+            sem_open("/kismet_cap_linux_wifi-ifname", O_CREAT, 0600, 1);
+
+        if (local_wifi->interface_sem == NULL) {
+            fprintf(stderr, "FATAL: kismet_cap_linux_wifi couldn't open a shared "
+                    "semaphore: %s\n", strerror(errno));
+            return -1;
+        }
+
+        /* Set up the time to wait */
+        gettimeofday(&tv_now, NULL);
+        timeradd(&tv_now, &tv_amt, &tv_then);
+
+        ts_abs.tv_sec = tv_then.tv_sec;
+        ts_abs.tv_nsec = tv_then.tv_usec * 1000;
+
+        r = sem_timedwait(local_wifi->interface_sem, &ts_abs);
+
+        if (r < 0) {
+            fprintf(stderr, "WARNING: kismet_cap_linux_wifi couldn't obtain a lock on the "
+                    "shared interface semaphore in 5 seconds (%s); assuming the semaphore is "
+                    "invalid and recreating it.\n", strerror(errno));
+
+            r = sem_unlink("/kismet_cap_linux_wifi-ifname");
+
+            if (r < 0) { 
+                fprintf(stderr, "FATAL: kismet_cap_linux_wifi couldn't unlink damaged "
+                        "semaphore (%s); you can try removing this manually via 'sudo rm "
+                        "/dev/shm/*kismet_cap_linux_wifi-ifname*'.", strerror(errno));
+                return -1;
+            }
+
+            sem_close(local_wifi->interface_sem);
+            continue;
+        }
+
+        /* If we got here we're good to go, unlock the semaphore and go about our
+         * business. */
+        sem_post(local_wifi->interface_sem);
+
+        return 1;
+    }
+
+    fprintf(stderr, "FATAL: kismet_cap_linux_wifi couldn't obtain a valid shared semaphore "
+            "to protect interface naming in 3 attempts.\n");
+
+    return -1;
+}
+
 int main(int argc, char *argv[]) {
     local_wifi_t local_wifi = {
         .pd = NULL,
         .interface = NULL,
         .cap_interface = NULL,
         .name = NULL,
+        .interface_sem = NULL,
         .datalink_type = -1,
         .override_dlt = -1,
         .use_mac80211_vif = 1,
         .use_mac80211_channels = 1,
+        .use_mac80211_mode = 0,
         .mac80211_socket = NULL,
+        .up_before_mode = false,
         .use_ht_channels = 1,
         .use_vht_channels = 1,
         .seq_channel_failure = 0,
@@ -1996,14 +2763,6 @@ int main(int argc, char *argv[]) {
     int i;
 #endif
 
-#if 0
-    /* Remap stderr so we can log debugging to a file */
-    FILE *sterr;
-    sterr = fopen("/tmp/capture_linux_wifi.stderr", "a");
-    dup2(fileno(sterr), STDERR_FILENO);
-    dup2(fileno(sterr), STDOUT_FILENO);
-#endif
-
     /* fprintf(stderr, "CAPTURE_LINUX_WIFI launched on pid %d\n", getpid()); */
 
     kis_capture_handler_t *caph = cf_handler_init("linuxwifi");
@@ -2013,6 +2772,10 @@ int main(int argc, char *argv[]) {
                 "is very low on RAM or something is wrong.\n");
         return -1;
     }
+
+    /* Obtain the linux shm semaphore early on, and it's vital we do so */
+    if (acquire_semaphore(&local_wifi) < 0)
+        return -1;
 
     /* Set the local data ptr */
     cf_handler_set_userdata(caph, &local_wifi);

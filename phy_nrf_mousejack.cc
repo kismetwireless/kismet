@@ -67,10 +67,10 @@ Kis_Mousejack_Phy::Kis_Mousejack_Phy(global_registry *in_globalreg, int in_phyid
         */
 
     // Make the manuf string
-    mj_manuf_amazon = Globalreg::globalreg->manufdb->MakeManuf("Amazon");
-    mj_manuf_logitech = Globalreg::globalreg->manufdb->MakeManuf("Logitech");
-    mj_manuf_microsoft = Globalreg::globalreg->manufdb->MakeManuf("Microsoft");
-    mj_manuf_nrf = Globalreg::globalreg->manufdb->MakeManuf("nRF/Mousejack HID");
+    mj_manuf_amazon = Globalreg::globalreg->manufdb->make_manuf("Amazon");
+    mj_manuf_logitech = Globalreg::globalreg->manufdb->make_manuf("Logitech");
+    mj_manuf_microsoft = Globalreg::globalreg->manufdb->make_manuf("Microsoft");
+    mj_manuf_nrf = Globalreg::globalreg->manufdb->make_manuf("nRF/Mousejack HID");
 
     packetchain->register_handler(&DissectorMousejack, this, CHAINPOS_LLCDISSECT, -100);
     packetchain->register_handler(&CommonClassifierMousejack, this, CHAINPOS_CLASSIFIER, -100);

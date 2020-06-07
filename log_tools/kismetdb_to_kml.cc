@@ -50,8 +50,17 @@ std::string MungeForXML(const std::string& in_data) {
 	std::string ret;
 
 	for (size_t i = 0; i < in_data.length(); i++) {
-		if ((unsigned char) in_data[i] >= 32 && (unsigned char) in_data[i] <= 126 &&
-				in_data[i] != '<' && in_data[i] != '>' && in_data[i] != '\"' ) {
+        if (in_data[i] == '<') {
+            ret += "&lt;";
+        } else if (in_data[i] == '>') {
+            ret += "&gt;";
+        } else if (in_data[i] == '&') {
+            ret += "&amp;";
+        } else if (in_data[i] == '"') { 
+            ret += "&quot;";
+        } else if (in_data[i] == '\'') {
+            ret += "&apos;";
+        } else if ((unsigned char) in_data[i] >= 32 && (unsigned char) in_data[i] <= 126) {
 			ret += in_data[i];
 		} else {
 			ret += '\\';
@@ -419,21 +428,13 @@ int main(int argc, char *argv[]) {
                     _WHERE("avglat", NEQ, 0, AND, "avglon", NEQ, 0));
 
         for (auto d : basic_q) {
-            double min_lat, min_lon, max_lat, max_lon, avg_lat, avg_lon;
+            double avg_lat, avg_lon;
 
             // Handle the different versions
             if (db_version < 5) {
-                min_lat = sqlite3_column_as<double>(d, 0) / 100000;
-                min_lon = sqlite3_column_as<double>(d, 1) / 100000;
-                max_lat = sqlite3_column_as<double>(d, 2) / 100000;
-                max_lon = sqlite3_column_as<double>(d, 3) / 100000;
                 avg_lat = sqlite3_column_as<double>(d, 4) / 100000;
                 avg_lon = sqlite3_column_as<double>(d, 5) / 100000;
             } else {
-                min_lat = sqlite3_column_as<double>(d, 0);
-                min_lon = sqlite3_column_as<double>(d, 1);
-                max_lat = sqlite3_column_as<double>(d, 2);
-                max_lon = sqlite3_column_as<double>(d, 3);
                 avg_lat = sqlite3_column_as<double>(d, 4);
                 avg_lon = sqlite3_column_as<double>(d, 5);
             }

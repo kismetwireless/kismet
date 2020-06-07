@@ -22,10 +22,11 @@
 #include "config.h"
 
 
-#include "kis_mutex.h"
-#include "packetchain.h"
 #include "globalregistry.h"
+#include "kis_mutex.h"
 #include "kis_net_microhttpd.h"
+#include "packet.h"
+#include "packetchain.h"
 #include "trackedlocation.h"
 
 class kis_gps_builder;
@@ -35,23 +36,38 @@ class kis_gps;
 typedef std::shared_ptr<kis_gps> shared_gps;
 
 // Packet info attached to each packet, if there isn't already GPS info present
+
+// Optional merge flags for partial records
+#define GPS_PACKINFO_MERGE_LOC      (1 << 1)
+#define GPS_PACKINFO_MERGE_ALT      (1 << 2)
+#define GPS_PACKINFO_MERGE_SPEED    (1 << 3)
+#define GPS_PACKINFO_MERGE_HEADING  (1 << 4)
+#define GPS_PACKINFO_MERGE_REST     (1 << 128)
+
 class kis_gps_packinfo : public packet_component {
 public:
-	kis_gps_packinfo() {
-		self_destruct = 1;
+    kis_gps_packinfo() {
+        self_destruct = 1;
+
+        merge_partial = false;
+        merge_flags = 0;
+
         lat = lon = alt = speed = heading = 0;
         precision = 0;
-		fix = 0;
+        fix = 0;
         tv.tv_sec = 0;
         tv.tv_usec = 0;
         error_x = 0;
         error_y = 0;
         error_v = 0;
-	}
+    }
 
     kis_gps_packinfo(kis_gps_packinfo *src) {
         if (src != NULL) {
             self_destruct = src->self_destruct;
+
+            merge_partial = src->merge_partial;
+            merge_flags = src->merge_flags;
 
             lat = src->lat;
             lon = src->lon;
@@ -96,6 +112,12 @@ public:
     // If we know it, how accurate our location is, in meters
     double precision;
 
+    // Should handlers merge partial info (speed and alt) without 
+    // location info?  Used for sources like adsb which receive location
+    // in multiple records
+    bool merge_partial;
+    uint8_t merge_flags;
+
     // If we know it, 2d vs 3d fix
     int fix;
 
@@ -109,6 +131,15 @@ public:
 
     // Name of GPS that created us
     std::string gpsname;
+};
+
+// Packet component used to tell other components NOT to include gps info
+// from the live GPS
+class kis_no_gps_packinfo : public packet_component {
+public:
+    kis_no_gps_packinfo() {
+        self_destruct = 1;
+    }
 };
 
 /* GPS manager which handles configuring GPS sources and deciding which one
@@ -176,7 +207,7 @@ protected:
     // Timer for logging GPS path as a snapshot
     int log_snapshot_timer;
 
-    int pack_comp_gps;
+    int pack_comp_gps, pack_comp_no_gps;
 };
 
 #endif

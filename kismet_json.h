@@ -110,7 +110,7 @@ public:
 
     virtual std::string as_binary_string() {
         except_if_not(is_string(), "binary string");
-        return hexstr_to_binstr(as_string().c_str());
+        return hex_to_bytes(as_string());
     }
 
     virtual bool as_bool() {

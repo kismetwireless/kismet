@@ -65,6 +65,8 @@
 #include "dot11_parsers/dot11_ie_221_cisco_client_mfp.h"
 #include "dot11_parsers/dot11_ie_221_wpa_transition.h"
 #include "dot11_parsers/dot11_ie_221_rsn_pmkid.h"
+#include "dot11_parsers/dot11_ie_221_wfa.h"
+#include "dot11_parsers/dot11_p2p_ie.h"
 
 // For 802.11n MCS calculations
 const int CH20GI800 = 0;
@@ -795,12 +797,15 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
                 return 0;
             }
 
-            packinfo->header_offset = 36;
+            packinfo->header_offset = 24;
             fixparm = (fixed_parameters *) &(chunk->data[24]);
 
-            if (fc->subtype == packet_sub_reassociation_req) {
-                packinfo->header_offset += 8;
-            }
+            if (fc->subtype == packet_sub_association_req)
+                packinfo->header_offset += 4;
+            else if (fc->subtype == packet_sub_reassociation_req)
+                packinfo->header_offset += 10;
+            else
+                packinfo->header_offset += 12;
 
             if (fixparm->wep) {
                 packinfo->cryptset |= crypt_wep;
@@ -1842,8 +1847,8 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 ht->parse(ie_tag->tag_data_stream());
                 packinfo->dot11ht = ht;
             } catch (const std::exception& e) {
-                fprintf(stderr, "debug - unparseable HT\n");
-                // Don't consider unparseable HT a corrupt packet (for now)
+                fprintf(stderr, "debug - unparsable HT\n");
+                // Don't consider unparsable HT a corrupt packet (for now)
                 continue;
             }
 
@@ -2024,6 +2029,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                         vendor->vendor_oui_int() == 0x0050f2 &&
                         vendor->vendor_oui_type() == 2) {
                     dot11_ie_221_ms_wmm wmm;
+                    vendor->vendor_tag_stream()->seek(0);
                     wmm.parse(vendor->vendor_tag_stream());
 
                     if (wmm.wme_subtype() == 0x02) {
@@ -2049,6 +2055,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 // Look for DJI DroneID OUIs
                 if (vendor->vendor_oui_int() == dot11_ie_221_dji_droneid::vendor_oui()) {
                     std::shared_ptr<dot11_ie_221_dji_droneid> droneid(new dot11_ie_221_dji_droneid());
+                    vendor->vendor_tag_stream()->seek(0);
                     droneid->parse(vendor->vendor_tag_stream());
 
                     packinfo->droneid = droneid;
@@ -2058,6 +2065,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 if (vendor->vendor_oui_int() == dot11_ie_221_wfa_wpa::ms_wps_oui() && 
                         vendor->vendor_oui_type() == dot11_ie_221_wfa_wpa::wfa_wpa_subtype()) {
                     std::shared_ptr<dot11_ie_221_wfa_wpa> wpa(new dot11_ie_221_wfa_wpa());
+                    vendor->vendor_tag_stream()->seek(0);
                     wpa->parse(vendor->vendor_tag_stream());
 
                     // Merge the group cipher
@@ -2088,6 +2096,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 if (vendor->vendor_oui_int() == dot11_ie_221_cisco_client_mfp::cisco_oui() &&
                         vendor->vendor_oui_type() == dot11_ie_221_cisco_client_mfp::client_mfp_subtype()) {
                     auto mfp = std::make_shared<dot11_ie_221_cisco_client_mfp>();
+                    vendor->vendor_tag_stream()->seek(0);
                     mfp->parse(vendor->vendor_tag_stream());
 
                     packinfo->cisco_client_mfp = mfp->client_mfp();
@@ -2097,9 +2106,40 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 if (vendor->vendor_oui_int() == dot11_ie_221_owe_transition::vendor_oui()) {
                     if (vendor->vendor_oui_type() == dot11_ie_221_owe_transition::owe_transition_subtype()) {
                         auto owe_trans = std::make_shared<dot11_ie_221_owe_transition>();
+                        vendor->vendor_tag_stream()->seek(0);
                         owe_trans->parse(vendor->vendor_tag_stream());
                         packinfo->owe_transition = owe_trans;
                         packinfo->cryptset |= crypt_wpa_owe;
+                    }
+                }
+
+                // Look for WFA p2p to check the rtlwifi exploit
+                if (vendor->vendor_oui_int() == dot11_ie_221_wfa::wfa_oui()) {
+                    auto wfa = std::make_shared<dot11_ie_221_wfa>();
+                    vendor->vendor_tag_stream()->seek(0);
+                    wfa->parse(vendor->vendor_tag_stream());
+
+                    if (wfa->wfa_subtype() == dot11_ie_221_wfa::wfa_sub_p2p()) {
+                        std::shared_ptr<dot11_wfa_p2p_ie> ietags(new dot11_wfa_p2p_ie());
+                        ietags->parse(wfa->wfa_content_stream());
+
+                        for (auto ie_tag : *(ietags->tags())) {
+                            if (ie_tag->tag_num() == 12) {
+                                // Affected code in rtlwifi:
+                                // noa_num = (noa_len - 2) / 13;
+                                // if (noa_num > P2P_MAX_NOA_NUM) 
+                                // and P2P_MAX_NOA_NUM is 2, therefor:
+                                if (ie_tag->tag_len() > 28) {
+                                    alertracker->raise_alert(alert_rtlwifi_p2p_ref, in_pack,
+                                            packinfo->bssid_mac, packinfo->source_mac, 
+                                            packinfo->dest_mac, packinfo->other_mac,
+                                            packinfo->channel,
+                                            "A Wi-Fi Direct P2P packet with an over-long Notification of Absence report "
+                                            "seen.  This may indicate an attempt to exploit a bug "
+                                            "in the Linux RTLWIFI drivers as detailed in CVE-2019-17666");
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -2107,6 +2147,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 if (vendor->vendor_oui_int() == dot11_ie_221_ms_wps::ms_wps_oui() && 
                         vendor->vendor_oui_type() == dot11_ie_221_ms_wps::ms_wps_subtype()) {
                     auto wps = std::make_shared<dot11_ie_221_ms_wps>();
+                    vendor->vendor_tag_stream()->seek(0);
                     wps->parse(vendor->vendor_tag_stream());
 
                     for (auto wpselem : *(wps->wps_elements())) {
@@ -2404,7 +2445,7 @@ int kis_80211_phy::packet_wep_decryptor(kis_packet *in_pack) {
          packinfo->subtype != packet_sub_data_qos_data))
         return 0;
 
-    // No need to look at data thats already been decoded
+    // No need to look at data that's already been decoded
     if (packinfo->cryptset == 0 || packinfo->decrypted == 1)
         return 0;
 

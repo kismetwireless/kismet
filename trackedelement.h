@@ -24,12 +24,15 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#include <functional>
+
 #include <string>
 #include <stdexcept>
 
 #include <vector>
 #include <map>
 #include <memory>
+#include <unordered_map>
 
 #include "fmt.h"
 
@@ -78,6 +81,14 @@ public:
 
     bool get_error() { return error; }
 
+    uint64_t get_spkey() const {
+        return spkey;
+    }
+
+    uint64_t get_dkey() const {
+        return dkey;
+    }
+
 protected:
     uint64_t spkey, dkey;
     bool error;
@@ -87,6 +98,16 @@ bool operator <(const device_key& x, const device_key& y);
 bool operator ==(const device_key& x, const device_key& y);
 std::ostream& operator<<(std::ostream& os, const device_key& k);
 std::istream& operator>>(std::istream& is, device_key& k);
+
+namespace std {
+    template<> struct hash<device_key> {
+        std::size_t operator()(device_key const& d) const noexcept {
+            std::size_t h1 = std::hash<uint64_t>{}(d.get_spkey());
+            std::size_t h2 = std::hash<uint64_t>{}(d.get_dkey());
+            return h1 ^ (h2 << 1);
+        }
+    };
+}
 
 // Types of fields we can track and automatically resolve
 // Statically assigned type numbers which MUST NOT CHANGE as things go forwards for 
@@ -154,6 +175,9 @@ enum class tracker_type {
 
     // Hash-keyed map, using size_t as the keying element
     tracker_hashkey_map = 25,
+
+    // Alias of another field
+    tracker_alias = 26,
 };
 
 class tracker_element {
@@ -219,6 +243,11 @@ public:
         return local_name;
     }
 
+    void set_dynamic_entity(const std::string& in_name) {
+        set_local_name(in_name);
+        set_id(adler32_checksum(in_name));
+    }
+
     void set_type(tracker_type type);
 
     tracker_type get_type() const { 
@@ -274,6 +303,67 @@ std::unique_ptr<tracker_element> tracker_element_factory(const Args& ... args) {
     auto dup = std::unique_ptr<SUB>(new SUB(args...));
     return std::move(dup);
 }
+
+// Aliased element used to link one element to anothers name, for instance to
+// allow the dot11 tracker a way to link the most recently used ssid from the
+// map to a custom field
+class tracker_element_alias : public tracker_element {
+public:
+    tracker_element_alias() :
+        tracker_element(tracker_type::tracker_alias) { }
+
+    tracker_element_alias(int in_id) :
+        tracker_element(tracker_type::tracker_alias, in_id) { }
+
+    tracker_element_alias(int id, std::shared_ptr<tracker_element> e) :
+        tracker_element(tracker_type::tracker_alias, id),
+        alias_element(e) { }
+
+    tracker_element_alias(const std::string& al, std::shared_ptr<tracker_element> e) :
+        tracker_element{tracker_type::tracker_alias},
+        alias_element{e} {
+            local_name = al;
+        }
+
+    static tracker_type static_type() {
+        return tracker_type::tracker_alias;
+    }
+
+    virtual void coercive_set(const std::string& in_str) override {
+        throw std::runtime_error("cannot coercively set aliases");
+    }
+    virtual void coercive_set(double in_num) override {
+        throw std::runtime_error("cannot coercively set aliases");
+    }
+
+    virtual void coercive_set(const shared_tracker_element& e) override {
+        throw std::runtime_error("cannot coercively set aliases");
+    }
+
+    virtual std::unique_ptr<tracker_element> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t());
+        return std::move(dup);
+    }
+
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        return std::move(dup);
+    }
+
+    std::shared_ptr<tracker_element> get() {
+        return alias_element;
+    }
+
+    void set(std::shared_ptr<tracker_element> ae) {
+        alias_element = ae;
+    }
+
+protected:
+    std::shared_ptr<tracker_element> alias_element;
+
+};
 
 // Superclass for generic components for pod-like scalar attributes, though
 // they don't need to be explicitly POD
@@ -360,6 +450,9 @@ public:
 
     tracker_element_string(tracker_type t, int id, const std::string& s) :
         tracker_element_core_scalar<std::string>(t, id, s) { }
+
+    tracker_element_string(const std::string& s) :
+        tracker_element_core_scalar<std::string>(tracker_type::tracker_string, 0, s) { }
 
     static tracker_type static_type() {
         return tracker_type::tracker_string;
@@ -755,7 +848,7 @@ public:
 
 protected:
     // Min/max ranges for conversion
-    double value_min, value_max;
+    N value_min, value_max;
     N value;
 };
 
@@ -1130,11 +1223,13 @@ public:
 };
 
 
-// Superclass for generic access to maps via multiple key structures
-template <typename K, typename V>
+// Superclass for generic access to maps via multiple key structures; use a std::map tree
+// map;  alternate implementation available as core_unordered_map for structures which don't
+// need comparator operations
+template <typename MT, typename K, typename V>
 class tracker_element_core_map : public tracker_element {
 public:
-    using map_t = std::map<K, V>;
+    using map_t = MT;
     using iterator = typename map_t::iterator;
     using const_iterator = typename map_t::const_iterator;
     using pair = std::pair<K, V>;
@@ -1268,13 +1363,13 @@ protected:
 };
 
 // Dictionary / map-by-id
-class tracker_element_map : public tracker_element_core_map<int, std::shared_ptr<tracker_element>> {
+class tracker_element_map : public tracker_element_core_map<std::unordered_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>> {
 public:
     tracker_element_map() :
-        tracker_element_core_map<int, std::shared_ptr<tracker_element>>(tracker_type::tracker_map) { }
+        tracker_element_core_map<std::unordered_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>>(tracker_type::tracker_map) { }
 
     tracker_element_map(int id) :
-        tracker_element_core_map<int, std::shared_ptr<tracker_element>>(tracker_type::tracker_map, id) { }
+        tracker_element_core_map<std::unordered_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>>(tracker_type::tracker_map, id) { }
 
     static tracker_type static_type() {
         return tracker_type::tracker_map;
@@ -1370,13 +1465,13 @@ public:
 };
 
 // Int-keyed map
-class tracker_element_int_map : public tracker_element_core_map<int, std::shared_ptr<tracker_element>> {
+class tracker_element_int_map : public tracker_element_core_map<std::unordered_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>> {
 public:
     tracker_element_int_map() :
-        tracker_element_core_map<int, std::shared_ptr<tracker_element>>(tracker_type::tracker_int_map) { }
+        tracker_element_core_map<std::unordered_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>>(tracker_type::tracker_int_map) { }
 
     tracker_element_int_map(int id) :
-        tracker_element_core_map<int, std::shared_ptr<tracker_element>>(tracker_type::tracker_int_map, id) { }
+        tracker_element_core_map<std::unordered_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>>(tracker_type::tracker_int_map, id) { }
 
     static tracker_type static_type() {
         return tracker_type::tracker_int_map;
@@ -1397,13 +1492,13 @@ public:
 };
 
 // Hash key compatible map
-class tracker_element_hashkey_map : public tracker_element_core_map<size_t, std::shared_ptr<tracker_element>> {
+class tracker_element_hashkey_map : public tracker_element_core_map<std::unordered_map<size_t, std::shared_ptr<tracker_element>>, size_t, std::shared_ptr<tracker_element>> {
 public:
     tracker_element_hashkey_map() :
-        tracker_element_core_map<size_t, std::shared_ptr<tracker_element>>(tracker_type::tracker_hashkey_map) { }
+        tracker_element_core_map<std::unordered_map<size_t, std::shared_ptr<tracker_element>>, size_t, std::shared_ptr<tracker_element>>(tracker_type::tracker_hashkey_map) { }
 
     tracker_element_hashkey_map(int id) :
-        tracker_element_core_map<size_t, std::shared_ptr<tracker_element>>(tracker_type::tracker_hashkey_map, id) { }
+        tracker_element_core_map<std::unordered_map<size_t, std::shared_ptr<tracker_element>>, size_t, std::shared_ptr<tracker_element>>(tracker_type::tracker_hashkey_map, id) { }
 
     static tracker_type static_type() {
         return tracker_type::tracker_int_map;
@@ -1424,13 +1519,13 @@ public:
 };
 
 // Double-keyed map
-class tracker_element_double_map : public tracker_element_core_map<double, std::shared_ptr<tracker_element>> {
+class tracker_element_double_map : public tracker_element_core_map<std::unordered_map<double, std::shared_ptr<tracker_element>>, double, std::shared_ptr<tracker_element>> {
 public:
     tracker_element_double_map() :
-        tracker_element_core_map<double, std::shared_ptr<tracker_element>>(tracker_type::tracker_double_map) { }
+        tracker_element_core_map<std::unordered_map<double, std::shared_ptr<tracker_element>>, double, std::shared_ptr<tracker_element>>(tracker_type::tracker_double_map) { }
 
     tracker_element_double_map(int id) :
-        tracker_element_core_map<double, std::shared_ptr<tracker_element>>(tracker_type::tracker_double_map, id) { }
+        tracker_element_core_map<std::unordered_map<double, std::shared_ptr<tracker_element>>, double, std::shared_ptr<tracker_element>>(tracker_type::tracker_double_map, id) { }
 
     static tracker_type static_type() {
         return tracker_type::tracker_double_map;
@@ -1449,14 +1544,14 @@ public:
     }
 };
 
-// Mac-keyed map
-class tracker_element_mac_map : public tracker_element_core_map<mac_addr, std::shared_ptr<tracker_element>> {
+// Mac-keyed map, MUST be normal std::map to enable mask handling!
+class tracker_element_mac_map : public tracker_element_core_map<std::map<mac_addr, std::shared_ptr<tracker_element>>, mac_addr, std::shared_ptr<tracker_element>> {
 public:
     tracker_element_mac_map() :
-        tracker_element_core_map<mac_addr, std::shared_ptr<tracker_element>>(tracker_type::tracker_mac_map) { }
+        tracker_element_core_map<std::map<mac_addr, std::shared_ptr<tracker_element>>, mac_addr, std::shared_ptr<tracker_element>>(tracker_type::tracker_mac_map) { }
 
     tracker_element_mac_map(int id) :
-        tracker_element_core_map<mac_addr, std::shared_ptr<tracker_element>>(tracker_type::tracker_mac_map, id) { }
+        tracker_element_core_map<std::map<mac_addr, std::shared_ptr<tracker_element>>, mac_addr, std::shared_ptr<tracker_element>>(tracker_type::tracker_mac_map, id) { }
 
     static tracker_type static_type() {
         return tracker_type::tracker_mac_map;
@@ -1476,13 +1571,13 @@ public:
 };
 
 // String-keyed map
-class tracker_element_string_map : public tracker_element_core_map<std::string, std::shared_ptr<tracker_element>> {
+class tracker_element_string_map : public tracker_element_core_map<std::unordered_map<std::string, std::shared_ptr<tracker_element>>, std::string, std::shared_ptr<tracker_element>> {
 public:
     tracker_element_string_map() :
-        tracker_element_core_map<std::string, std::shared_ptr<tracker_element>>(tracker_type::tracker_string_map) { }
+        tracker_element_core_map<std::unordered_map<std::string, std::shared_ptr<tracker_element>>, std::string, std::shared_ptr<tracker_element>>(tracker_type::tracker_string_map) { }
 
     tracker_element_string_map(int id) :
-        tracker_element_core_map<std::string, std::shared_ptr<tracker_element>>(tracker_type::tracker_string_map, id) { }
+        tracker_element_core_map<std::unordered_map<std::string, std::shared_ptr<tracker_element>>, std::string, std::shared_ptr<tracker_element>>(tracker_type::tracker_string_map, id) { }
 
     static tracker_type static_type() {
         return tracker_type::tracker_string_map;
@@ -1502,13 +1597,13 @@ public:
 };
 
 // Device-key map
-class tracker_element_device_key_map : public tracker_element_core_map<device_key, std::shared_ptr<tracker_element>> {
+class tracker_element_device_key_map : public tracker_element_core_map<std::unordered_map<device_key, std::shared_ptr<tracker_element>>, device_key, std::shared_ptr<tracker_element>> {
 public:
     tracker_element_device_key_map() :
-        tracker_element_core_map<device_key, std::shared_ptr<tracker_element>>(tracker_type::tracker_key_map) { }
+        tracker_element_core_map<std::unordered_map<device_key, std::shared_ptr<tracker_element>>, device_key, std::shared_ptr<tracker_element>>(tracker_type::tracker_key_map) { }
 
     tracker_element_device_key_map(int id) :
-        tracker_element_core_map<device_key, std::shared_ptr<tracker_element>>(tracker_type::tracker_key_map, id) { }
+        tracker_element_core_map<std::unordered_map<device_key, std::shared_ptr<tracker_element>>, device_key, std::shared_ptr<tracker_element>>(tracker_type::tracker_key_map, id) { }
 
     static tracker_type static_type() {
         return tracker_type::tracker_key_map;
@@ -1528,13 +1623,13 @@ public:
 };
 
 // Double::Double map
-class tracker_element_double_map_double : public tracker_element_core_map<double, double> {
+class tracker_element_double_map_double : public tracker_element_core_map<std::unordered_map<double, double>, double, double> {
 public:
     tracker_element_double_map_double() :
-        tracker_element_core_map<double, double>(tracker_type::tracker_double_map_double) { }
+        tracker_element_core_map<std::unordered_map<double, double>, double, double>(tracker_type::tracker_double_map_double) { }
 
     tracker_element_double_map_double(int id) :
-        tracker_element_core_map<double, double>(tracker_type::tracker_double_map_double, id) { }
+        tracker_element_core_map<std::unordered_map<double, double>, double, double>(tracker_type::tracker_double_map_double, id) { }
 
     static tracker_type static_type() {
         return tracker_type::tracker_double_map_double;
@@ -1569,6 +1664,10 @@ public:
     tracker_element_core_vector(tracker_type t, int id) :
         tracker_element(t, id) { }
 
+    tracker_element_core_vector(tracker_type t, int id, const vector_t& init_v) :
+        tracker_element(t, id),
+        vector{init_v} { }
+
     virtual void coercive_set(const std::string& in_str) override {
         throw(std::runtime_error("Cannot coercive_set a scalar vector from a string"));
     }
@@ -1586,8 +1685,16 @@ public:
         vector = vector_t(a, b);
     }
 
+    virtual void set(const vector_t& v) {
+        vector = vector_t{v};
+    }
+
     vector_t& get() {
         return vector;
+    }
+
+    T& at(size_t idx) {
+        return vector.at(idx);
     }
 
     iterator begin() {
@@ -1669,6 +1776,9 @@ public:
         vector = vector_t(a, b);
     }
 
+    tracker_element_vector(tracker_type t, int id, const vector_t& init_v) :
+        tracker_element_core_vector(t, id, init_v) { }
+
     static tracker_type static_type() {
         return tracker_type::tracker_vector;
     }
@@ -1709,6 +1819,9 @@ public:
         vector = vector_t(v);
     }
 
+    tracker_element_vector_double(tracker_type t, int id, const vector_t& init_v) :
+        tracker_element_core_vector(t, id, init_v) { }
+
     static tracker_type static_type() {
         return tracker_type::tracker_vector_double;
     }
@@ -1744,6 +1857,9 @@ public:
         vector = vector_t(a, b);
     }
 
+    tracker_element_vector_string(tracker_type t, int id, const vector_t& init_v) :
+        tracker_element_core_vector(t, id, init_v) { }
+
     static tracker_type static_type() {
         return tracker_type::tracker_vector_string;
     }
@@ -1763,37 +1879,37 @@ public:
 
 // Templated generic access functions
 
-template<typename T> T GetTrackerValue(const shared_tracker_element&);
-template<> std::string GetTrackerValue(const shared_tracker_element& e);
-template<> int8_t GetTrackerValue(const shared_tracker_element& e);
-template<> uint8_t GetTrackerValue(const shared_tracker_element& e);
-template<> int16_t GetTrackerValue(const shared_tracker_element& e);
-template<> uint16_t GetTrackerValue(const shared_tracker_element& e);
-template<> int32_t GetTrackerValue(const shared_tracker_element& e);
-template<> uint32_t GetTrackerValue(const shared_tracker_element& e);
-template<> int64_t GetTrackerValue(const shared_tracker_element& e);
-template<> uint64_t GetTrackerValue(const shared_tracker_element& e);
-template<> float GetTrackerValue(const shared_tracker_element& e);
-template<> double GetTrackerValue(const shared_tracker_element& e);
-template<> mac_addr GetTrackerValue(const shared_tracker_element& e);
-template<> uuid GetTrackerValue(const shared_tracker_element& e);
-template<> device_key GetTrackerValue(const shared_tracker_element& e);
+template<typename T> T get_tracker_value(const shared_tracker_element&);
+template<> std::string get_tracker_value(const shared_tracker_element& e);
+template<> int8_t get_tracker_value(const shared_tracker_element& e);
+template<> uint8_t get_tracker_value(const shared_tracker_element& e);
+template<> int16_t get_tracker_value(const shared_tracker_element& e);
+template<> uint16_t get_tracker_value(const shared_tracker_element& e);
+template<> int32_t get_tracker_value(const shared_tracker_element& e);
+template<> uint32_t get_tracker_value(const shared_tracker_element& e);
+template<> int64_t get_tracker_value(const shared_tracker_element& e);
+template<> uint64_t get_tracker_value(const shared_tracker_element& e);
+template<> float get_tracker_value(const shared_tracker_element& e);
+template<> double get_tracker_value(const shared_tracker_element& e);
+template<> mac_addr get_tracker_value(const shared_tracker_element& e);
+template<> uuid get_tracker_value(const shared_tracker_element& e);
+template<> device_key get_tracker_value(const shared_tracker_element& e);
 
-template<typename T> void SetTrackerValue(const shared_tracker_element& e, const T& v);
-template<> void SetTrackerValue(const shared_tracker_element& e, const std::string& v);
-template<> void SetTrackerValue(const shared_tracker_element& e, const int8_t& v);
-template<> void SetTrackerValue(const shared_tracker_element& e, const uint8_t& v);
-template<> void SetTrackerValue(const shared_tracker_element& e, const int16_t& v);
-template<> void SetTrackerValue(const shared_tracker_element& e, const uint16_t& v);
-template<> void SetTrackerValue(const shared_tracker_element& e, const int32_t& v);
-template<> void SetTrackerValue(const shared_tracker_element& e, const uint32_t& v);
-template<> void SetTrackerValue(const shared_tracker_element& e, const int64_t& v);
-template<> void SetTrackerValue(const shared_tracker_element& e, const uint64_t& v);
-template<> void SetTrackerValue(const shared_tracker_element& e, const float& v);
-template<> void SetTrackerValue(const shared_tracker_element& e, const double& v);
-template<> void SetTrackerValue(const shared_tracker_element& e, const mac_addr& v);
-template<> void SetTrackerValue(const shared_tracker_element& e, const uuid& v);
-template<> void SetTrackerValue(const shared_tracker_element& e, const device_key& v);
+template<typename T> void set_tracker_value(const shared_tracker_element& e, const T& v);
+template<> void set_tracker_value(const shared_tracker_element& e, const std::string& v);
+template<> void set_tracker_value(const shared_tracker_element& e, const int8_t& v);
+template<> void set_tracker_value(const shared_tracker_element& e, const uint8_t& v);
+template<> void set_tracker_value(const shared_tracker_element& e, const int16_t& v);
+template<> void set_tracker_value(const shared_tracker_element& e, const uint16_t& v);
+template<> void set_tracker_value(const shared_tracker_element& e, const int32_t& v);
+template<> void set_tracker_value(const shared_tracker_element& e, const uint32_t& v);
+template<> void set_tracker_value(const shared_tracker_element& e, const int64_t& v);
+template<> void set_tracker_value(const shared_tracker_element& e, const uint64_t& v);
+template<> void set_tracker_value(const shared_tracker_element& e, const float& v);
+template<> void set_tracker_value(const shared_tracker_element& e, const double& v);
+template<> void set_tracker_value(const shared_tracker_element& e, const mac_addr& v);
+template<> void set_tracker_value(const shared_tracker_element& e, const uuid& v);
+template<> void set_tracker_value(const shared_tracker_element& e, const device_key& v);
 
 class tracker_element_summary;
 using SharedElementSummary =  std::shared_ptr<tracker_element_summary>;
@@ -1834,7 +1950,7 @@ public:
         local_locker lock(&mutex);
     }
 
-    virtual void serialize(shared_tracker_element in_elem, 
+    virtual int serialize(shared_tracker_element in_elem, 
             std::ostream &stream, std::shared_ptr<rename_map> name_map) = 0;
 
     // Fields extracted from a summary path need to preserialize their parent
@@ -1848,12 +1964,12 @@ protected:
 
 // Get an element using path semantics
 // Full std::string path
-shared_tracker_element Gettracker_elementPath(const std::string& in_path, shared_tracker_element elem);
+shared_tracker_element get_tracker_element_path(const std::string& in_path, shared_tracker_element elem);
 // Split std::string path
-shared_tracker_element Gettracker_elementPath(const std::vector<std::string>& in_path, 
+shared_tracker_element get_tracker_element_path(const std::vector<std::string>& in_path, 
         shared_tracker_element elem);
 // Resolved field ID path
-shared_tracker_element Gettracker_elementPath(const std::vector<int>& in_path, 
+shared_tracker_element get_tracker_element_path(const std::vector<int>& in_path, 
         shared_tracker_element elem);
 
 // Get a list of elements from a complex path which may include vectors
@@ -1862,37 +1978,37 @@ shared_tracker_element Gettracker_elementPath(const std::vector<int>& in_path,
 // 'dot11.device/dot11.device.advertised.ssid.map/dot11.advertised.ssid'
 // it would return a vector of dot11.advertised.ssid for every SSID in
 // the dot11.device.advertised.ssid.map keyed map
-std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::string& in_path,
+std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::string& in_path,
         shared_tracker_element elem);
 // Split std::string path
-std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::vector<std::string>& in_path, 
+std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::vector<std::string>& in_path, 
         shared_tracker_element elem);
 // Resolved field ID path
-std::vector<shared_tracker_element> Gettracker_elementMultiPath(const std::vector<int>& in_path, 
+std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::vector<int>& in_path, 
         shared_tracker_element elem);
 
 // Summarize a complex record using a collection of summary elements.  The summarized
 // element is returned, and the rename mapping for serialization is updated in rename.
 // When passed a vector, returns a vector of simplified objects.
-std::shared_ptr<tracker_element> Summarizetracker_element(shared_tracker_element in, 
+std::shared_ptr<tracker_element> summarize_tracker_element(shared_tracker_element in, 
         const std::vector<SharedElementSummary>& in_summarization, 
         std::shared_ptr<tracker_element_serializer::rename_map> rename_map);
 
 // Summarize a complex record using a collection of summary elements.  The summarized
 // element is returned, and the rename mapping for serialization is updated in rename.
 // DOES NOT descend into vectors, only performs summarization on the object provided.
-std::shared_ptr<tracker_element> SummarizeSingletracker_element(shared_tracker_element in, 
+std::shared_ptr<tracker_element> summarize_single_tracker_element(shared_tracker_element in, 
         const std::vector<SharedElementSummary>& in_summarization, 
         std::shared_ptr<tracker_element_serializer::rename_map> rename_map);
 
 // Handle comparing fields
-bool Sorttracker_elementLess(const std::shared_ptr<tracker_element> lhs, 
+bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs, 
         const std::shared_ptr<tracker_element> rhs);
 
 // Compare fields, in a faster, but not type-safe, way.  This should be used only when
 // the caller is positive that both fields are of the same type, but avoids a number of
 // compares.
-bool FastSorttracker_elementLess(const std::shared_ptr<tracker_element> lhs, 
+bool fast_sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs, 
         const std::shared_ptr<tracker_element> rhs) noexcept;
 
 #endif

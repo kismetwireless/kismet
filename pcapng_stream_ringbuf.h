@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <unordered_map>
 
 #include "ringbuf2.h"
 #include "buffer_handler.h"
@@ -82,7 +83,7 @@ protected:
     virtual int pcapng_make_shb(std::string in_hw, std::string in_os, std::string in_app);
 
     // Create a new interface record from an existing datasource
-    virtual int pcapng_make_idb(kis_datasource *in_datasource);
+    virtual int pcapng_make_idb(kis_datasource *in_datasource, int in_dlt);
 
     // Low-level datasource creation
     virtual int pcapng_make_idb(unsigned int in_sourcenumber, std::string in_interface, 
@@ -114,8 +115,8 @@ protected:
     std::function<bool (kis_packet *)> accept_cb;
     std::function<kis_datachunk * (kis_packet *)> selector_cb;
 
-    // Map kismet internal interface ID to log interface ID
-    std::map<unsigned int, unsigned int> datasource_id_map;
+    // Map kismet internal interface ID + DLT hash to log interface ID
+    std::unordered_map<unsigned int, unsigned int> datasource_id_map;
 
     std::shared_ptr<kis_recursive_timed_mutex> packet_mutex;
 

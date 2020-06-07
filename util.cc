@@ -774,7 +774,7 @@ void subtract_timeval(struct timeval *in_tv1, struct timeval *in_tv2,
 
 /*
  * input: a unsigned 32-bit (native endian) value between 0 and 3600000000 (inclusive)
- * output: a signed floating point value betwen -180.0000000 and + 180.0000000, inclusive)
+ * output: a signed floating point value between -180.0000000 and + 180.0000000, inclusive)
  */
 double fixed3_7_to_double(u_int32_t in) {
     int32_t remapped_in = in - (180 * 10000000);
@@ -809,7 +809,7 @@ double ns_to_double(u_int32_t in) {
 }
 
 /*
- * input: a signed floating point value betwen -180.0000000 and + 180.0000000, inclusive)
+ * input: a signed floating point value between -180.0000000 and + 180.0000000, inclusive)
  * output: a unsigned 32-bit (native endian) value between 0 and 3600000000 (inclusive)
  */
 u_int32_t double_to_fixed3_7(double in) 
@@ -823,7 +823,7 @@ u_int32_t double_to_fixed3_7(double in)
     return ret;
 }
 /*
- * input: a signed floating point value betwen -180000.0000 and + 180000.0000, inclusive)
+ * input: a signed floating point value between -180000.0000 and + 180000.0000, inclusive)
  * output: a unsigned 32-bit (native endian) value between 0 and 3600000000 (inclusive)
  */
 u_int32_t double_to_fixed6_4(double in) 
@@ -941,30 +941,58 @@ double ts_now_to_double() {
     return (double) ts.tv_sec + (double) ((double) ts.tv_usec / (double) 1000000);
 }
 
-std::string hexstr_to_binstr(const char *hs) {
-    size_t len = strlen(hs) / 2;
-    size_t p = 0, sp = 0;
-    char t;
+std::string hex_to_bytes(const std::string& in) {
+    if (in.length() == 0)
+        return "";
 
-    if (strlen(hs) % 2 == 1)
-        len++;
+    std::string ret;
+    ret.reserve((in.length() / 2) + 1);
+    size_t p = 0;
 
-    std::string r("\0", len);
+    // Prefix with a 0 if we're an odd length
+    if ((in.length() % 2) != 0) {
+        if (in[0] >= '0' && in[0] <= '9')
+            ret += in[0] - '0';
+        else if (in[0] >= 'a' && in[0] <= 'f')
+            ret += in[0] - 'a' + 0xA;
+        else if (in[0] >= 'A' && in[0] <= 'F')
+            ret += in[0] - 'A' + 0xA;
+        else
+            return "";
 
-    if (strlen(hs) % 2 == 1) {
-        sscanf(&(hs[0]), "%1hhx", &t);
-        r[0] = t;
         p = 1;
-        sp = 1;
     }
 
-    for (/* */; p < len && sp < strlen(hs); p++, sp += 2) {
-        sscanf(&(hs[sp]), "%2hhx", &t);
-        r[p] = t;
+    // Start either at the base element or one above if we're
+    // forcing a prefix of 0
+    for (size_t x = p; x + 1 < in.length(); x += 2) {
+        auto b1 = '0';
+        auto b2 = '0';
+
+        if (in[x] >= '0' && in[x] <= '9')
+            b1 = in[x] - '0';
+        else if (in[x] >= 'a' && in[x] <= 'f')
+            b1 = in[x] - 'a' + 0xA;
+        else if (in[x] >= 'A' && in[x] <= 'F')
+            b1 = in[x] - 'A' + 0xA;
+        else
+            return "";
+
+        if (in[x + 1] >= '0' && in[x + 1] <= '9')
+            b2 = in[x + 1] - '0';
+        else if (in[x + 1] >= 'a' && in[x + 1] <= 'f')
+            b2 = in[x + 1] - 'a' + 0xA;
+        else if (in[x + 1] >= 'A' && in[x + 1] <= 'F')
+            b2 = in[x + 1] - 'A' + 0xA;
+        else
+            return "";
+
+        ret += (((b1 & 0xF) << 4) + (b2 & 0xF));
     }
 
-    return r;
+    return ret;
 }
+
 
 #if defined(SYS_LINUX)
 void thread_set_process_name(const std::string& name) { 

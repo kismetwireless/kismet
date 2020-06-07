@@ -27,6 +27,8 @@ class_filter::class_filter(const std::string& in_id, const std::string& in_descr
         const std::string& in_type) :
     tracker_component() {
 
+    mutex.set_name("classfilter");
+
     register_fields();
     reserve_fields(nullptr);
 

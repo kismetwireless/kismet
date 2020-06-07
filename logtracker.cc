@@ -181,7 +181,7 @@ void log_tracker::trigger_deferred_startup() {
 
     // Open all of them
     for (auto t : *log_types_vec) {
-        auto logtype = GetTrackerValue<std::string>(t);
+        auto logtype = get_tracker_value<std::string>(t);
         open_log(logtype);
     }
 

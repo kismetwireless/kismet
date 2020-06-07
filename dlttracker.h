@@ -42,7 +42,7 @@
 // reasons we need to track custom DLTs.
 //
 // Generally we can take the adler32 of the linktype name; if we get an adler32 of less
-// tha 4096 we adjust it to make sure we don't overlap with any real DLTs (even tho they're
+// than 4096 we adjust it to make sure we don't overlap with any real DLTs (even tho they're
 // < 190 generally lets leave some room)
 //
 // This provides an exceedingly minimal mechanism for assigning custom DLTs

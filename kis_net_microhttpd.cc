@@ -124,10 +124,13 @@ std::shared_ptr<tracker_element> kishttpd::summarize_with_structured(std::shared
         }
     }
 
-    return Summarizetracker_element(in_data, summary_vec, rename_map);
+    return summarize_tracker_element(in_data, summary_vec, rename_map);
 }
 
 kis_net_httpd::kis_net_httpd() {
+    controller_mutex.set_name("kis_net_httpd_controller");
+    session_mutex.set_name("kis_net_httpd_session");
+
     running = false;
 
     use_ssl = false;
@@ -195,6 +198,11 @@ kis_net_httpd::kis_net_httpd() {
     pem_path = Globalreg::globalreg->kismet_config->fetch_opt("httpd_ssl_cert");
     key_path = Globalreg::globalreg->kismet_config->fetch_opt("httpd_ssl_key");
 
+    allow_cors = 
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("httpd_allow_cors", false);
+    allowed_cors_referrer =
+        Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_allowed_origin", "");
+
     register_mime_type("html", "text/html");
     register_mime_type("svg", "image/svg+xml");
     register_mime_type("css", "text/css");
@@ -203,6 +211,7 @@ kis_net_httpd::kis_net_httpd() {
     register_mime_type("ico", "image/x-icon");
     register_mime_type("json", "application/json");
     register_mime_type("ekjson", "application/json");
+    register_mime_type("itjson", "application/json");
     register_mime_type("pcap", "application/vnd.tcpdump.pcap");
 
     std::vector<std::string> mimeopts = Globalreg::globalreg->kismet_config->fetch_opt_vec("httpd_mime");
@@ -582,6 +591,9 @@ bool kis_net_httpd::has_valid_session(kis_net_httpd_connection *connection, bool
             MHD_create_response_from_buffer(fourohone.length(),
                     (void *) fourohone.c_str(), MHD_RESPMEM_MUST_COPY);
 
+        // Still append the standard headers
+        append_standard_headers(this, connection, connection->url.c_str());
+
         // Queue a 401 fail instead of a basic auth fail so we don't cause a bunch of prompting in the browser
         // Make sure this doesn't actually break anything...
         MHD_queue_response(connection->connection, 401, connection->response);
@@ -632,8 +644,9 @@ kis_net_httpd::create_session(kis_net_httpd_connection *connection,
     cookiestr << "; Path=/";
 
     if (response != NULL) {
+        auto str = cookiestr.str();
         if (MHD_add_response_header(response, MHD_HTTP_HEADER_SET_COOKIE, 
-                    cookiestr.str().c_str()) == MHD_NO) {
+                    str.c_str()) == MHD_NO) {
             _MSG("Failed to add session cookie to response header, unable to create "
                     "a session", MSGFLAG_ERROR);
             return NULL;
@@ -747,7 +760,21 @@ int kis_net_httpd::http_request_handler(void *cls, struct MHD_Connection *connec
     kis_net_httpd_connection *concls = NULL;
     bool new_concls = false;
 
-    cookieval = MHD_lookup_connection_value(connection, MHD_COOKIE_KIND, KIS_SESSION_COOKIE);
+    // Handle a CORS preflight OPTIONS request by sending back an allow-all header
+    if (strcmp(method, "OPTIONS") == 0 && kishttpd->allow_cors) {
+        auto response = 
+            MHD_create_response_from_buffer(0, NULL, MHD_RESPMEM_PERSISTENT);
+
+        append_cors_headers(kishttpd, connection, response);
+
+        ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
+        MHD_destroy_response(response);
+
+        return MHD_YES;
+    }
+
+    cookieval = 
+        MHD_lookup_connection_value(connection, MHD_COOKIE_KIND, KIS_SESSION_COOKIE);
 
     if (cookieval != NULL) {
         s = kishttpd->FindSession(cookieval);
@@ -965,9 +992,13 @@ void kis_net_httpd::http_request_completed(void *cls __attribute__((unused)),
         struct MHD_Connection *connection __attribute__((unused)),
         void **con_cls, 
         enum MHD_RequestTerminationCode toe __attribute__((unused))) {
-    kis_net_httpd_connection *con_info = (kis_net_httpd_connection *) *con_cls;
 
-    if (con_info == NULL)
+    if (con_cls == nullptr)
+        return;
+
+    auto con_info = static_cast<kis_net_httpd_connection *>(*con_cls);
+
+    if (con_info == nullptr)
         return;
 
     // Lock and shut it down
@@ -981,8 +1012,9 @@ void kis_net_httpd::http_request_completed(void *cls __attribute__((unused)),
     }
 
     // Destroy connection
-    
     delete(con_info);
+
+    *con_cls = nullptr;
 }
 
 static ssize_t file_reader(void *cls, uint64_t pos, char *buf, size_t max) {
@@ -1087,20 +1119,6 @@ int kis_net_httpd::handle_static_file(void *cls, kis_net_httpd_connection *conne
                 return -1;
             }
 
-            /*
-            if (connection->session != NULL) {
-                std::stringstream cookiestr;
-                std::stringstream cookie;
-
-                cookiestr << KIS_SESSION_COOKIE << "=";
-                cookiestr << connection->session->sessionid;
-                cookiestr << "; Path=/";
-
-                MHD_add_response_header(response, MHD_HTTP_HEADER_SET_COOKIE, 
-                        cookiestr.str().c_str());
-            }
-            */
-
             char lastmod[31];
             struct tm tmstruct;
             localtime_r(&(buf.st_ctime), &tmstruct);
@@ -1147,9 +1165,41 @@ void kis_net_httpd::append_http_session(kis_net_httpd *httpd __attribute__((unus
         cookiestr << connection->session->sessionid;
         cookiestr << "; Path=/";
 
+        auto str = cookiestr.str();
+
         MHD_add_response_header(connection->response, MHD_HTTP_HEADER_SET_COOKIE, 
-                cookiestr.str().c_str());
+                str.c_str());
     }
+}
+
+void kis_net_httpd::append_cors_headers(kis_net_httpd* httpd,
+        struct MHD_Connection *connection,
+        struct MHD_Response *response) {
+
+    if (!httpd->allow_cors)
+        return;
+
+    if (httpd->allowed_cors_referrer.length() != 0) {
+        // Send only the origin we allow if we have it restricted
+        MHD_add_response_header(response, "Access-Control-Allow-Origin", 
+                httpd->allowed_cors_referrer.c_str());
+    } else {
+        // Echo back the origin if we allow any
+        const char *origin =
+            MHD_lookup_connection_value (connection, MHD_HEADER_KIND, "Origin");
+
+        if (origin != NULL)
+            MHD_add_response_header(response, "Access-Control-Allow-Origin", origin);
+        else
+            MHD_add_response_header(response, "Access-Control-Allow-Origin", "*");
+    }
+
+    MHD_add_response_header(response, "Access-Control-Allow-Credentials", "true");
+    MHD_add_response_header(response, "Vary", "Origin");
+    MHD_add_response_header(response, "Access-Control-Max-Age", "86400");
+    MHD_add_response_header(response, "Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+    MHD_add_response_header(response, "Access-Control-Allow-Headers", "Content-Type, Authorization");
+
 }
 
 void kis_net_httpd::append_standard_headers(kis_net_httpd *httpd,
@@ -1186,16 +1236,14 @@ void kis_net_httpd::append_standard_headers(kis_net_httpd *httpd,
         MHD_add_response_header(connection->response, "Content-Disposition", disp.c_str());
     }
 
-    // Allow any?  This lets us handle webuis hosted elsewhere
-    MHD_add_response_header(connection->response, 
-            "Access-Control-Allow-Origin", "*");
-
     // Never let the browser cache our responses.  Maybe moderate this
     // in the future to cache for 60 seconds or something?
     MHD_add_response_header(connection->response, "Cache-Control", "no-cache");
     MHD_add_response_header(connection->response, "Pragma", "no-cache");
     MHD_add_response_header(connection->response, 
             "Expires", "Sat, 01 Jan 2000 00:00:00 GMT");
+
+    append_cors_headers(httpd, connection->connection, connection->response);
 
 }
 
@@ -1416,7 +1464,7 @@ int kis_net_httpd_simple_tracked_endpoint::httpd_post_complete(kis_net_httpd_con
 
     if (summary_vec.size()) {
         auto simple = 
-            Summarizetracker_element(output_content, summary_vec, rename_map);
+            summarize_tracker_element(output_content, summary_vec, rename_map);
 
         Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, 
                 simple, rename_map);
@@ -1625,7 +1673,7 @@ int kis_net_httpd_simple_unauth_tracked_endpoint::httpd_post_complete(kis_net_ht
 
     if (summary_vec.size()) {
         auto simple = 
-            Summarizetracker_element(output_content, summary_vec, rename_map);
+            summarize_tracker_element(output_content, summary_vec, rename_map);
 
         Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, 
                 simple, rename_map);
@@ -1828,7 +1876,7 @@ int kis_net_httpd_path_tracked_endpoint::httpd_post_complete(kis_net_httpd_conne
 
     if (summary_vec.size()) {
         auto simple = 
-            Summarizetracker_element(output_content, summary_vec, rename_map);
+            summarize_tracker_element(output_content, summary_vec, rename_map);
 
         Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, 
                 simple, rename_map);
@@ -1862,8 +1910,10 @@ kis_net_httpd_simple_post_endpoint::kis_net_httpd_simple_post_endpoint(const std
 }
 
 bool kis_net_httpd_simple_post_endpoint::httpd_verify_path(const char *path, const char *method) {
+    /*
     if (strcmp(method, "POST") != 0)
         return false;
+        */
 
     auto stripped = httpd_strip_suffix(path);
 
@@ -1961,8 +2011,10 @@ kis_net_httpd_path_post_endpoint::kis_net_httpd_path_post_endpoint(
 }
 
 bool kis_net_httpd_path_post_endpoint::httpd_verify_path(const char *in_path, const char *in_method) {
+    /*
     if (strcmp(in_method, "POST") != 0)
         return false;
+        */
 
     if (!httpd_can_serialize(in_path))
         return false;
@@ -1988,6 +2040,9 @@ int kis_net_httpd_path_post_endpoint::httpd_create_stream_response(
         size_t *upload_data_size) {
 
     // Do nothing, we only handle POST
+    connection->response_stream << "Invalid request: POST expected\n";
+    connection->httpcode = 400;
+
     return MHD_YES;
 }
 
@@ -2035,6 +2090,115 @@ int kis_net_httpd_path_post_endpoint::httpd_post_complete(kis_net_httpd_connecti
         }
 
         auto r = generator(stream, tokenurl, concls->url, structdata, concls->variable_cache);
+
+        concls->httpcode = r;
+        return MHD_YES;
+    } catch(const std::exception& e) {
+        stream << "Invalid request: " << e.what() << "\n";
+        concls->httpcode = 400;
+        return MHD_YES;
+    }
+
+    return MHD_YES;
+}
+
+kis_net_httpd_path_combo_endpoint::kis_net_httpd_path_combo_endpoint(
+        kis_net_httpd_path_combo_endpoint::path_func in_path,
+        kis_net_httpd_path_combo_endpoint::handler_func in_func) :
+    kis_net_httpd_chain_stream_handler {},
+    path {in_path},
+    generator {in_func}, 
+    mutex {nullptr} {
+    bind_httpd_server();
+}
+
+kis_net_httpd_path_combo_endpoint::kis_net_httpd_path_combo_endpoint(
+        kis_net_httpd_path_combo_endpoint::path_func in_path,
+        kis_net_httpd_path_combo_endpoint::handler_func in_func, 
+        kis_recursive_timed_mutex *in_mutex) :
+    kis_net_httpd_chain_stream_handler {},
+    path {in_path},
+    generator {in_func},
+    mutex {in_mutex} {
+
+    bind_httpd_server();
+}
+
+bool kis_net_httpd_path_combo_endpoint::httpd_verify_path(const char *in_path, const char *in_method) {
+    if (strcmp(in_method, "POST") != 0 && strcmp(in_method, "GET") != 0)
+        return false;
+
+    if (!httpd_can_serialize(in_path))
+        return false;
+
+    auto stripped = httpd_strip_suffix(in_path);
+    auto tokenurl = str_tokenize(stripped, "/");
+
+    // Tokenized paths begin with / which yields a blank [0] element, so trim that
+    if (tokenurl.size())
+        tokenurl = std::vector<std::string>(tokenurl.begin() + 1, tokenurl.end());
+
+    local_demand_locker l(mutex);
+    if (mutex != nullptr)
+        l.lock();
+
+    return path(tokenurl, in_path);
+}
+
+int kis_net_httpd_path_combo_endpoint::httpd_create_stream_response(
+        kis_net_httpd *httpd __attribute__((unused)),
+        kis_net_httpd_connection *connection,
+        const char *in_path, const char *in_method, const char *upload_data,
+        size_t *upload_data_size) {
+
+    // Do nothing, we only handle POST
+    return MHD_YES;
+}
+
+int kis_net_httpd_path_combo_endpoint::httpd_post_complete(kis_net_httpd_connection *concls) {
+    auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
+    auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
+
+    local_demand_locker l(mutex);
+
+    if (mutex != nullptr)
+        l.lock();
+
+    std::ostream stream(streambuf);
+
+    saux->set_aux(streambuf, 
+            [](kis_net_httpd_buffer_stream_aux *aux) {
+                if (aux->aux != NULL)
+                    delete((buffer_handler_ostringstream_buf *) (aux->aux));
+            });
+
+    // Set our sync function which is called by the webserver side before we
+    // clean up...
+    saux->set_sync([](kis_net_httpd_buffer_stream_aux *aux) {
+            if (aux->aux != NULL) {
+                ((buffer_handler_ostringstream_buf *) aux->aux)->pubsync();
+                }
+            });
+
+    auto stripped = httpd_strip_suffix(concls->url);
+    auto tokenurl = str_tokenize(stripped, "/");
+
+    // Tokenized paths begin with / which yields a blank [0] element, so trim that
+    if (tokenurl.size())
+        tokenurl = std::vector<std::string>(tokenurl.begin() + 1, tokenurl.end());
+
+    try {
+        shared_structured structdata;
+
+        if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
+            structdata =
+                std::make_shared<structured_json>(concls->variable_cache["json"]->str());
+        } else {
+            structdata = 
+                std::make_shared<structured_json>(std::string{"{}"});
+        }
+
+        auto r = generator(stream, "POST", tokenurl, concls->url, structdata, concls->variable_cache);
 
         concls->httpcode = r;
         return MHD_YES;

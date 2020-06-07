@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -25,6 +25,7 @@
 kis_httpd_registry::kis_httpd_registry(global_registry *in_globalreg) :
     kis_net_httpd_cppstream_handler(), 
     lifetime_global() {
+    reg_lock.set_name("kis_httpd_registry");
 
     globalreg = in_globalreg;
 

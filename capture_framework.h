@@ -74,7 +74,7 @@ typedef struct cf_params_spectrum cf_params_spectrum_t;
  *
  * *msg is allocated by the framework and can hold STATUS_MAX characters and should
  * be populated with any message the listcb wants to return.
- * **interfaces mut be allocated by the list cb and should contain valid 
+ * **interfaces must be allocated by the list cb and should contain valid 
  * list_iterface_t objects
  *
  * Return values:
@@ -326,6 +326,11 @@ struct kis_capture_handler {
     size_t channel_hop_list_sz;
     double channel_hop_rate;
 
+    /* Maximum hop rate; if 0, ignored, if not zero, hop commands are forced to this
+     * rate.
+     */
+    double max_channel_hop_rate;
+
     /* Linked list of failed channel sets so we can flush the channel array out */
     void *channel_hop_failure_list;
     size_t channel_hop_failure_list_sz;
@@ -411,6 +416,16 @@ int cf_parse_interface(char **ret_interface, char *definition);
  *  1+  Length of flag value in definition
  */
 int cf_find_flag(char **ret_value, const char *flag, char *definition);
+
+/* Count how many flags of the same name are in a source definition
+ *
+ * Returns:
+ * -1   Error
+ *  0   Flag not found
+ *  1+  Number of instances of flag found in definition
+ */
+int cf_count_flag(const char *flag, char *definition);
+ 
 
 /* Parse a comma separated list of strings, such as channels, into an array of char*.
  *
@@ -608,7 +623,7 @@ int cf_handler_remote_connect(kis_capture_handler_t *caph);
  * the capture loop will be managed directly via cf_handler_remote_capture
  *
  * Returns:
- * -1   Error, could not spawn server, process shoudl exist
+ * -1   Error, could not spawn server, process should exist
  *  0   No remote server connection specified
  *  1   Successful remote server launch & incoming connection
  */
@@ -769,7 +784,7 @@ int cf_send_data(kis_capture_handler_t *caph,
  * If present, include message_kv, signal_kv, or gps_kv along with the json data.
  *
  * Returns:
- * -1   An error occured
+ * -1   An error occurred
  *  0   Insufficient space in buffer, try again
  *  1   Success
  */

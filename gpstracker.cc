@@ -37,6 +37,8 @@
 gps_tracker::gps_tracker() :
     kis_net_httpd_cppstream_handler() {
 
+    gpsmanager_mutex.set_name("gps_tracker");
+
     tracked_uuid_addition_id = 
         Globalreg::globalreg->entrytracker->register_field("kismet.common.location.gps_uuid", 
                 tracker_element_factory<tracker_element_uuid>(),
@@ -44,7 +46,9 @@ gps_tracker::gps_tracker() :
 
     // Register the gps component
     pack_comp_gps =
-        Globalreg::globalreg->packetchain->register_packet_component("gps");
+        Globalreg::globalreg->packetchain->register_packet_component("GPS");
+    pack_comp_no_gps =
+        Globalreg::globalreg->packetchain->register_packet_component("NOGPS");
 
     // Register the packet chain hook
     Globalreg::globalreg->packetchain->register_handler(&kis_gpspack_hook, this,
@@ -66,7 +70,7 @@ gps_tracker::gps_tracker() :
             Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
 
         log_snapshot_timer =
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1, 
+            timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1, 
                     [this](int) -> int { log_snapshot_gps(); return 1; });
     } else {
         _MSG("GPS track logging disabled", MSGFLAG_INFO);
@@ -245,6 +249,9 @@ int gps_tracker::kis_gpspack_hook(CHAINCALL_PARMS) {
     // Don't override if this packet already has a location, which could
     // come from a drone or from a PPI file
     if (in_pack->fetch(gpstracker->pack_comp_gps) != NULL)
+        return 1;
+
+    if (in_pack->fetch(gpstracker->pack_comp_no_gps) != NULL)
         return 1;
 
     kis_gps_packinfo *gpsloc = gpstracker->get_best_location();

@@ -56,7 +56,7 @@ kis_gps_gpsd_v2::kis_gps_gpsd_v2(shared_gps_builder in_builder) :
     auto timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
 
     error_reconnect_timer = 
-        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
+        timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                 [this](int) -> int {
                 {
                     local_shared_locker l(gps_mutex);
@@ -74,7 +74,7 @@ kis_gps_gpsd_v2::kis_gps_gpsd_v2(shared_gps_builder in_builder) :
                 });
 
     data_timeout_timer =
-        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
+        timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                 [this](int) -> int {
 
                 {
@@ -222,19 +222,7 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
 
     // We defer logging that we saw new data until we see a complete record, in case 
     // one of the weird failure conditions of GPSD is to send a partial record
-
-    if (tcphandler->get_read_buffer_available() == 0) {
-        if (get_gps_reconnect())
-            _MSG_ERROR("GPSDv2 read buffer filled without getting a valid record; "
-                    "disconnecting and reconnecting.");
-        else
-            _MSG_ERROR("GPSDv2 read buffer filled without getting a valid record; disconnecting.");
-
-        tcpclient->disconnect();
-        set_int_device_connected(false);
-        return;
-    }
-
+  
     // Use data availability as the connected status since tcp poll is currently
     // hidden from us
     {
@@ -246,7 +234,7 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
 
     // Peek at all the data we have available
     buf_sz = tcphandler->peek_read_buffer_data((void **) &buf, 
-            tcphandler->get_read_buffer_available());
+            tcphandler->get_read_buffer_used());
 
     // Aggregate into a new location; then copy into the main location
     // depending on what we found.  Locations can come in multiple sentences
@@ -263,6 +251,17 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
     tcphandler->peek_free_read_buffer_data(buf);
 
     if (inptok.size() < 1) {
+        if (tcphandler->get_read_buffer_available() == 0) {
+            if (get_gps_reconnect())
+                _MSG_ERROR("GPSDv2 read buffer filled without getting a valid record; "
+                        "disconnecting and reconnecting.");
+            else
+                _MSG_ERROR("GPSDv2 read buffer filled without getting a valid record; disconnecting.");
+
+            tcpclient->disconnect();
+            set_int_device_connected(false);
+        }
+
         return;
     }
 
@@ -352,6 +351,9 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
                         if (json.isMember("speed")) {
                             new_location->speed = json["speed"].asDouble();
                             set_speed = true;
+
+                            // GPSD JSON reports in meters/second, convert to kph
+                            new_location->speed *= 3.6;
                         }
                     }
 #if 0
@@ -511,10 +513,15 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
             else
                 set_alt = true;
 
-            if (pollvec[3].substr(0, 2) == "V=" && sscanf(pollvec[3].c_str(), "V=%lf", &(new_location->speed)) != 1)
+            if (pollvec[3].substr(0, 2) == "V=" && sscanf(pollvec[3].c_str(), "V=%lf", &(new_location->speed)) != 1) {
                 set_speed = false;
-            else 
+            } else  {
                 set_speed = true;
+
+                // Convert from knots to kph - unclear if truly knots still but lets hope; this is only in
+                // an ancient gpsd
+                new_location->speed *= 1.852;
+            }
 
             if (set_alt && new_location->fix < 3)
                 new_location->fix = 3;
@@ -549,28 +556,19 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
             else
                 set_alt = true;
 
-#if 0
-            if (sscanf(ggavec[6].c_str(), "%f", &in_hdop) != 1) 
-                use_dop = 0;
-
-            if (sscanf(ggavec[7].c_str(), "%f", &in_vdop) != 1)
-                use_dop = 0;
-#endif
-
             if (sscanf(ggavec[8].c_str(), "%lf", &(new_location->heading)) != 1)
                 set_heading = false;
             else
                 set_heading = true;
 
-            if (sscanf(ggavec[9].c_str(), "%lf", &(new_location->speed)) != 1)
+            if (sscanf(ggavec[9].c_str(), "%lf", &(new_location->speed)) != 1) {
                 set_speed = false;
-            else
+            } else {
                 set_speed = true;
 
-#if 0
-            if (si_units == 0)
-                in_spd *= 0.514; /* Speed in meters/sec from knots */
-#endif
+                // Convert from knots to kph
+                new_location->speed *= 1.852;
+            }
 
             if (set_alt && new_location->fix < 3)
                 new_location->fix = 3;
@@ -599,6 +597,9 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
 
             if (sscanf(vtvec[7].c_str(), "%lf", &(new_location->speed)) != 1)
                 continue;
+
+            // Convert from knots to kph
+            new_location->speed *= 1.852;
 
             set_speed = true;
         } else if (poll_mode < 10 && si_raw && inptok[it].substr(0, 6) == "$GPGGA") {
@@ -709,8 +710,6 @@ void kis_gps_gpsd_v2::buffer_available(size_t in_amt) {
 
         if (set_speed) {
             gps_location->speed = new_location->speed;
-            // NMEA reports speed in knots, convert
-            gps_location->speed *= 0.514;
         }
 
         if (set_fix) {

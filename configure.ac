@@ -36,6 +36,11 @@ BUILD_CAPTURE_SDR_RTLAMR=1
 BUILD_CAPTURE_SDR_RTLADSB=1
 BUILD_CAPTURE_FREAKLABS_ZIGBEE=1
 BUILD_CAPTURE_NRF_MOUSEJACK=0
+BUILD_CAPTURE_TI_CC_2540=0
+BUILD_CAPTURE_TI_CC_2531=0
+BUILD_CAPTURE_UBERTOOTH_ONE=0
+BUILD_CAPTURE_NRF_51822=0
+BUILD_CAPTURE_NXP_KW41Z=0
 
 DATASOURCE_BINS="\$(CAPTURE_KISMETDB)"
 
@@ -272,6 +277,14 @@ AC_SUBST(BASE_DIR)
 # Check for endian
 AC_C_BIGENDIAN
 
+# Enable thread debugging
+AC_ARG_ENABLE([mutex-name-debug],
+    AS_HELP_STRING([--disable-mutex-name-debug], [Disable naming of mutexes to help in debugging, debugging will use slightly more RAM]),
+    [case "${enableval}" in
+      no) want_mutex_debugging=no ;;
+       *) AC_DEFINE(DEBUG_MUTEX_NAME, 1, Named mutex debugging) ;;
+    esac], [AC_DEFINE(DEBUG_MUTEX_NAME, 1, Named mutex debugging)])
+
 # Configure for a remote-capture-only build
 caponly=0
 AC_ARG_ENABLE(capture-tools-only,
@@ -327,15 +340,6 @@ AC_ARG_ENABLE([python-tools],
 
 PYTHON=python3
 PYTHON_VERSION=3
-AC_ARG_ENABLE([python2],
-    AS_HELP_STRING([--enable-python2], [Force building with python2 instead of the modern python3]),
-	[case "${enableval}" in
-	  yes) PYTHON_INTERPRETER=python2;
-           PYTHON=python2 ;
-           PYTHON_VERSION=2 ;;
-	 esac],
-	[]
-)
 
 AC_ARG_WITH([python-interpreter],
     AS_HELP_STRING([--with-python-interpreter=PATH], [Custom location of python interpreter if not in normal PATH]))
@@ -357,8 +361,6 @@ if test "$want_python"x == "no"x; then
 else
     if test "$PYTHON_VERSION" == 3; then
         AC_PYTHON3_MODULE(setuptools)
-    else
-        AC_PYTHON_MODULE(setuptools)
     fi
 
     if test "$HAVE_PYMOD_SETUPTOOLS" == "no"; then
@@ -602,28 +604,9 @@ else
 fi
 
 OCPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS -fopenmp"
+CPPFLAGS="$CPPFLAGS"
 OLDFLAGS=$LDFLAGS
-LDFLAGS="$CPPFLAGS -fopenmp"
-
-AC_MSG_CHECKING([for __gnu_parallel extensions])
-AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-                #include <vector>
-                #include <parallel/algorithm>
-                ]], [[
-                std::vector<int> m;
-                __gnu_parallel::sort(m.begin(), m.end());
-                return 0;
-                ]])], [have_gnuparallel=yes], 
-                [have_gnuparallel=no])
-if test "$have_gnuparallel" = "yes"; then
-    AC_MSG_RESULT([yes])
-    AC_DEFINE(HAVE_GNU_PARALLEL, [1], [have __GNU_PARALLEL extensions])
-else
-    AC_MSG_RESULT([no])
-    CPPFLAGS=$OCPPFLAGS
-    LDFLAGS=$OLDFLAGS
-fi
+LDFLAGS="$CPPFLAGS"
 
 # Do we need libm for math functions?
 AC_MSG_CHECKING([for libm math function in std libs])
@@ -1091,8 +1074,8 @@ AC_SUBST(pcap)
 
 PKG_PROG_PKG_CONFIG
 
-if test "$caponly" = 0; then
-    # We only *require* protobuf for C++
+if test "$caponly" = 0 || test "$want_python" = "yes"; then
+    # We only *require* protobuf for C++ and python
     PKG_CHECK_MODULES([protobuf], [${PROTOBUF}], have_protobuf_pkg=yes)
     if test x"$have_protobuf_pkg" != "xyes"; then
         AC_MSG_ERROR([missing google libprotobuf])
@@ -1177,7 +1160,7 @@ if test "$bsd" = yes; then
 	]])],radiotap=yes bsdradiotap=yes, bsdradiotap=no radiotap=no)
 	AC_MSG_RESULT($bsdradiotap)
 else
-	AC_MSG_WARN(Using local radiotap headers)
+	AC_MSG_RESULT(Using local radiotap headers)
 fi
 
 if test "$radiotap" != "yes"; then
@@ -1400,10 +1383,112 @@ AS_IF([test "x$want_usb" != "xno"], [
 AC_SUBST(LIBUSBLIBS)
 AC_SUBST(LIBUSBCFLAGS)
 
+want_ubertooth="yes"
+AC_ARG_ENABLE([ubertooth],
+    AS_HELP_STRING([--disable-ubertooth], [Disable Ubertooth One support]),
+	[case "${enableval}" in
+	  no) want_ubertooth=no ;;
+	   *) want_ubertooth=yes ;;
+	 esac],
+	[want_ubertooth=yes]
+)
+
+AS_IF([test "xwant_ubertooth" != "xno"], [
+    OCFL="$CFLAGS"
+    OCPPFL="$CPPFLAGS"
+    OLFL="$LDFLAGS"
+
+    CFLAGS="$CFLAGS $LIBUSBCFLAGS"
+    CPPFLAGS="$CPPFLAGS $LIBUSBCFLAGS"
+    LDFLAGS="$LDFLAGS $LIBUSBLIBS"
+
+    CANT_BUILD_UBERTOOTH=0
+    LIBUBERTOOTHLIBS=""
+    LIBUBERTOOTHCFLAGS=""
+
+    if test x"$have_usb" != "xyes"; then
+        AC_MSG_WARN([missing libusb, ubertooth-one support will not be built])
+        CANT_BUILD_UBERTOOTH=1
+    else
+        AC_CHECK_HEADERS([btbb.h], 
+                         HAVE_BTBB_H=yes, 
+                         AC_MSG_WARN("btbb.h is missing"))
+        AC_CHECK_LIB([btbb], [btbb_init], 
+                     HAVE_LIBBTBB=yes,
+                     AC_MSG_WARN("libbtbb is missing"))
+
+        if test x"$HAVE_BTBB_H" != "xyes" -o x"$HAVE_LIBBTBB" != "xyes"; then
+            AC_MSG_WARN([missing libbtbb, ubertooth-one support will not be built])
+            CANT_BUILD_UBERTOOTH=1
+        else
+            LIBBTBBCFLAGS=""
+            LIBBTBBLIBS="-lbtbb"
+            LDFLAGS="$LDFLAGS -lbtbb"
+
+            AC_CHECK_HEADERS([ubertooth/ubertooth.h], 
+                             HAVE_UBERTOOTH_H=yes AC_DEFINE(HAVE_UBERTOOTH_UBERTOOTH_H, 1, ubertooth.h in ubertooth dir), 
+                             AC_MSG_WARN("ubertooth/ubertooth.h is missing"))
+            AC_CHECK_HEADERS([ubertooth.h], 
+                             HAVE_UBERTOOTH_H=yes, 
+                             AC_MSG_WARN("ubertooth.h is missing"))
+            AC_CHECK_LIB([ubertooth], [ubertooth_init], 
+                         HAVE_LIBUBERTOOTH=yes,
+                         AC_MSG_WARN("libubertooth is missing"))
+
+            if test x"$HAVE_UBERTOOTH_H" != "xyes" -o x"$HAVE_LIBUBERTOOTH" != "xyes"; then
+                AC_MSG_WARN([missing libubertooth, ubertooth-one support will not be built])
+                CANT_BUILD_UBERTOOTH=1
+            else
+                LIBUBERTOOTHCFLAGS=""
+                LIBUBERTOOTHLIBS="-lubertooth"
+            fi
+        fi
+    fi
+
+    if test $CANT_BUILD_UBERTOOTH = 1; then
+        AC_MSG_WARN([missing one or more required libraries for ubertooth-one])
+        have_ubertooth="no"
+    else
+        have_ubertooth="yes"
+
+        AC_CHECK_LIB([ubertooth], [ubertooth_count], 
+                     AC_DEFINE(HAVE_LIBUBERTOOTH_UBERTOOTH_COUNT, 1, libubertooth has ubertooth_count),
+                     HAVE_UBERTOOTH_COUNT=0)
+
+    fi
+
+    CFLAGS="$OCFL"
+    CPPFLAGS="$OCPPFL"
+    LDFLAGS="$OLFL"
+])
+
+AC_SUBST(LIBUBERTOOTHLIBS)
+AC_SUBST(LIBUBERTOOTHCFLAGS)
+AC_SUBST(LIBBTBBLIBS)
+AC_SUBST(LIBBTBBCFLAGS)
+
+BUILD_CAPTURE_UBERTOOTH_ONE=0
+if test x"$have_ubertooth" = x"yes"; then
+    BUILD_CAPTURE_UBERTOOTH_ONE=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_UBERTOOTH_ONE)"
+fi
+
 BUILD_CAPTURE_NRF_MOUSEJACK=0
 if test "$have_usb" = "yes"; then
     BUILD_CAPTURE_NRF_MOUSEJACK=1
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NRF_MOUSEJACK)"
+fi
+
+BUILD_CAPTURE_TI_CC_2540=0
+if test "$have_usb" = "yes"; then
+    BUILD_CAPTURE_TI_CC_2540=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_TI_CC_2540)"
+fi
+
+BUILD_CAPTURE_TI_CC_2531=0
+if test "$have_usb" = "yes"; then
+    BUILD_CAPTURE_TI_CC_2531=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_TI_CC_2531)"
 fi
 
 BUILD_CAPTURE_LINUX_BLUETOOTH=0
@@ -1411,6 +1496,14 @@ if test "$linux" = "yes"; then
     BUILD_CAPTURE_LINUX_BLUETOOTH=1
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_BLUETOOTH)"
 fi
+
+# All this depends on is serial so we build it all the time
+BUILD_CAPTURE_NRF_51822=1
+DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NRF_51822)"
+
+BUILD_CAPTURE_NXP_KW41Z=1
+DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NXP_KW41Z)"
+
 
 if test "$darwin" = "yes"; then
 	suidgroup="staff"
@@ -1532,12 +1625,17 @@ AC_SUBST(BUILD_CAPTURE_SDR_RTLAMR)
 AC_SUBST(BUILD_CAPTURE_SDR_RTLADSB)
 AC_SUBST(BUILD_CAPTURE_FREAKLABS_ZIGBEE)
 AC_SUBST(BUILD_CAPTURE_NRF_MOUSEJACK)
+AC_SUBST(BUILD_CAPTURE_TI_CC_2540)
+AC_SUBST(BUILD_CAPTURE_TI_CC_2531)
+AC_SUBST(BUILD_CAPTURE_UBERTOOTH_ONE)
+AC_SUBST(BUILD_CAPTURE_NRF_51822)
+AC_SUBST(BUILD_CAPTURE_NXP_KW41Z)
 
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-AC_CONFIG_FILES([Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_sdr_rtlamr/Makefile capture_sdr_rtladsb/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile])
+AC_CONFIG_FILES([Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_sdr_rtlamr/Makefile capture_sdr_rtladsb/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_nrf_51822/Makefile capture_nxp_kw41z/Makefile])
 AC_OUTPUT
 
 echo
@@ -1620,6 +1718,39 @@ if test "$BUILD_CAPTURE_NRF_MOUSEJACK" = 1; then
 	echo "yes";
 else
 	echo "no (libusb-1.0 not available)";
+fi
+
+printf "       TI CC 2540 BTLE: "
+if test "$BUILD_CAPTURE_TI_CC_2540" = 1; then
+        echo "yes";
+else
+        echo "no (libusb-1.0 not available)";
+fi
+
+printf "     TI CC 2531 Zigbee: "
+if test "$BUILD_CAPTURE_TI_CC_2531" = 1; then
+	echo "yes";
+else
+	echo "no (libusb-1.0 not available)";
+fi
+
+printf "         Ubertooth One: "
+if test "$BUILD_CAPTURE_UBERTOOTH_ONE" = 1; then
+        echo "yes";
+else
+        echo "no (libubertooth, libbtbb, or libusb-1.0 not available)";
+fi
+
+printf "         NRF51822 BTLE: "
+if test "$BUILD_CAPTURE_NRF_51822" = 1; then
+        echo "yes";
+fi
+
+printf "  NXP KW41Z BLE/Zigbee: "
+if test "$BUILD_CAPTURE_NXP_KW41Z" = 1; then
+        echo "yes";
+else
+        echo "no";
 fi
 
 printf "        Python Modules: "
@@ -1731,13 +1862,6 @@ if test "$havelibnm" != "yes" -a "$linux" = "yes"; then
     echo "Kismet uses libnm to prevent NetworkManager from reconfiguring monitor mode "
     echo "interfaces while Kismet is running; without this library you will need to manually "
     echo "disable NetworkManager or manually tell it to ignore specific interaces."
-fi
-
-if test "$PYTHON_VERSION" != 3; then
-    echo
-    echo "*** WARNING ***"
-    echo "Building for python2; you may need to provide your own python packages of some "
-    echo "modules like numpy, which now require python3."
 fi
 
 if test "$want_asan" = "yes" -a "$want_tsan" = "yes"; then

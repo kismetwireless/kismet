@@ -1,18 +1,26 @@
-include ../Makefile.inc
+KIS_SRC_DIR ?= ..
 
-MONITOR_BIN = kismet_cap_sdr_rtl433
-MQTTMONITOR_BIN = kismet_cap_sdr_rtl433_mqtt
+include $(KIS_SRC_DIR)/Makefile.inc
 
-all: 
-	( cd KismetCaptureRtl433/kismetexternal; \
-	  $(PROTOCBIN) -I ../../../protobuf_definitions --python_out=. ../../../protobuf_definitions/*.proto; \
-	  sed -i -E 's/^import.*_pb2/from . \0/' *_pb2.py ; \
-	)
-	$(PYTHON) ./setup.py bdist
+DATASOURCE_NAME := $(shell $(PYTHON) setup.py --name)
+
+PROTOBUF_DIR = $(KIS_SRC_DIR)/protobuf_definitions
+PROTOBUF_DEFINITIONS = $(wildcard $(PROTOBUF_DIR)/*.proto)
+
+.PHONY: all protobuf install clean
+
+all: protobuf
+	$(PYTHON) setup.py bdist
+
+protobuf: $(PROTOBUF_DEFINITIONS:$(PROTOBUF_DIR)/%.proto=$(DATASOURCE_NAME)/kismetexternal/%_pb2.py)
+
+$(DATASOURCE_NAME)/kismetexternal/%_pb2.py: $(PROTOBUF_DIR)/%.proto
+	$(PROTOCBIN) -I $(PROTOBUF_DIR) --python_out=$(DATASOURCE_NAME)/kismetexternal $^
+	sed -i -E 's/^import kismet_/from . import kismet_/' $@
 
 install:
-	$(PYTHON) ./setup.py install
+	$(PYTHON) setup.py install --root="/$(DESTDIR)" --prefix="$(prefix)"
 
 clean:
-	@-$(PYTHON) ./setup.py clean
-
+	@-$(PYTHON) setup.py clean
+	@-rm -f $(DATASOURCE_NAME)/kismetexternal/*_pb2.py

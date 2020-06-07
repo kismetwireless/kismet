@@ -38,12 +38,15 @@ kis_database_logfile::kis_database_logfile():
     kis_net_httpd_ringbuf_stream_handler(),
     message_client(Globalreg::globalreg, nullptr) {
 
+    transaction_mutex.set_name("kis_database_logfile_transaction");
+
     std::shared_ptr<packet_chain> packetchain =
         Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
 
     pack_comp_device = packetchain->register_packet_component("DEVICE");
     pack_comp_radiodata = packetchain->register_packet_component("RADIODATA");
     pack_comp_gps = packetchain->register_packet_component("GPS");
+    pack_comp_no_gps = packetchain->register_packet_component("NOGPS");
     pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
     pack_comp_datasource = packetchain->register_packet_component("KISDATASRC");
     pack_comp_common = packetchain->register_packet_component("COMMON");
@@ -147,7 +150,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
 
     if (packet_timeout != 0) {
         packet_timeout_timer = 
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 15, NULL, 1,
+            timetracker->register_timer(SERVER_TIMESLICES_SEC * 15, NULL, 1,
                     [this](int) -> int {
 
                     auto pkt_delete = 
@@ -171,7 +174,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
 
     if (device_timeout != 0) {
         device_timeout_timer = 
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
+            timetracker->register_timer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
                     [this](int) -> int {
 
                     auto pkt_delete = 
@@ -191,7 +194,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
 
     if (message_timeout != 0) {
         message_timeout_timer = 
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
+            timetracker->register_timer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
                     [this](int) -> int {
 
                     auto pkt_delete = 
@@ -211,7 +214,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
 
     if (alert_timeout != 0) {
         alert_timeout_timer = 
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
+            timetracker->register_timer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
                     [this](int) -> int {
 
                     auto pkt_delete = 
@@ -231,7 +234,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
 
     if (snapshot_timeout != 0) {
         snapshot_timeout_timer = 
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
+            timetracker->register_timer(SERVER_TIMESLICES_SEC * 60, NULL, 1,
                     [this](int) -> int {
 
                     auto pkt_delete = 
@@ -378,7 +381,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
     sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
     transaction_timer = 
-        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
+        timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
             [this](int) -> int {
 
             local_locker dblock(&ds_mutex);
@@ -914,7 +917,14 @@ int kis_database_logfile::log_device(std::shared_ptr<kis_tracked_device_base> d)
     std::stringstream sstr;
 
     // serialize the device
-    json_adapter::pack(sstr, d, NULL);
+    int r = Globalreg::globalreg->entrytracker->serialize("json", sstr, d, nullptr);
+   
+    if (r < 0) {
+        _MSG_ERROR("Failure serializing device key {} to the kisdatabaselog", d->get_key());
+        return 0;
+    }
+
+
     std::string streamstring = sstr.str();
 
     {
@@ -1098,7 +1108,8 @@ int kis_database_logfile::log_packet(kis_packet *in_pack) {
             tagstream << tag;
         }
 
-        sqlite3_bind_text(packet_stmt, sql_pos++, tagstream.str().c_str(), tagstream.str().length(), SQLITE_TRANSIENT);
+        auto str = tagstream.str();
+        sqlite3_bind_text(packet_stmt, sql_pos++, str.c_str(), tagstream.str().length(), SQLITE_TRANSIENT);
 
         if (sqlite3_step(packet_stmt) != SQLITE_DONE) {
             _MSG("kis_database_logfile unable to insert packet in " +
@@ -1378,7 +1389,7 @@ int kis_database_logfile::httpd_create_stream_response(kis_net_httpd *httpd,
     }
 
     if (stripped.find("/logging/kismetdb/pcap/") == 0 && suffix == "pcapng") {
-        if (db == nullptr || db_enabled) {
+        if (db == nullptr || !db_enabled) {
             connection->httpcode = 500;
             return MHD_YES;
         }
@@ -1464,11 +1475,11 @@ int kis_database_logfile::httpd_create_stream_response(kis_net_httpd *httpd,
                             connection->variable_cache_as<double>("location_lon_max")));
 
             if (connection->has_cached_variable("size_min"))
-                query.append_where(AND, _WHERE("size", GE, 
+                query.append_where(AND, _WHERE("packet_len", GE, 
                             connection->variable_cache_as<long int>("size_min")));
 
             if (connection->has_cached_variable("size_max"))
-                query.append_where(AND, _WHERE("size_max", LE, 
+                query.append_where(AND, _WHERE("packet_len", LE, 
                             connection->variable_cache_as<long int>("size_max")));
 
             if (connection->has_cached_variable("limit"))
@@ -1535,7 +1546,7 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
     }
 
     if (stripped.find("/logging/kismetdb/pcap/") == 0 && suffix == "pcapng") {
-        if (db == nullptr || db_enabled) {
+        if (db == nullptr || !db_enabled) {
             concls->httpcode = 500;
             return MHD_YES;
         }
@@ -1657,10 +1668,10 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
                         _WHERE("lon", LE, filterdata->key_as_number("location_lon_max")));
 
             if (filterdata->has_key("size_min"))
-                query.append_where(AND, _WHERE("size", GE, filterdata->key_as_number("size_min")));
+                query.append_where(AND, _WHERE("packet_len", GE, filterdata->key_as_number("size_min")));
 
             if (filterdata->has_key("size_max"))
-                query.append_where(AND, _WHERE("size_max", LE, filterdata->key_as_number("size_max")));
+                query.append_where(AND, _WHERE("packet_len", LE, filterdata->key_as_number("size_max")));
 
             if (filterdata->has_key("limit"))
                 query.append_clause(LIMIT, filterdata->key_as_number("limit"));

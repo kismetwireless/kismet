@@ -22,6 +22,7 @@
 #include "config.h"
 
 #include <functional>
+#include <unordered_map>
 
 #include "kis_mutex.h"
 #include "uuid.h"
@@ -142,8 +143,8 @@ protected:
 
     // Main vector of devices
     std::shared_ptr<tracker_element_vector> device_list;
-    // Map of device presence in our list for fast referece during updates
-    std::map<device_key, bool> device_presence_map;
+    // Map of device presence in our list for fast reference during updates
+    std::unordered_map<device_key, bool> device_presence_map;
 
     // Complex endpoint and optional extended URI endpoint
     std::shared_ptr<kis_net_httpd_simple_post_endpoint> device_endp;

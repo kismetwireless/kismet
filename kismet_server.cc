@@ -54,6 +54,7 @@
 
 #include "kis_dlt_ppi.h"
 #include "kis_dlt_radiotap.h"
+#include "kis_dlt_btle_ll_radio.h"
 
 #include "kis_dissector_ipdata.h"
 
@@ -71,6 +72,11 @@
 #include "datasource_rtladsb.h"
 #include "datasource_freaklabs_zigbee.h"
 #include "datasource_nrf_mousejack.h"
+#include "datasource_ti_cc_2540.h"
+#include "datasource_nrf_51822.h"
+#include "datasource_ubertooth_one.h"
+#include "datasource_nxp_kw41z.h"
+#include "datasource_ti_cc_2531.h"
 
 #include "logtracker.h"
 #include "kis_ppilogfile.h"
@@ -101,6 +107,7 @@
 #include "phy_bluetooth.h"
 #include "phy_uav_drone.h"
 #include "phy_nrf_mousejack.h"
+#include "phy_btle.h"
 
 #include "ipc_remote2.h"
 #include "manuf.h"
@@ -231,7 +238,9 @@ void SpindownKismet(std::shared_ptr<pollable_tracker> pollabletracker) {
     auto devicetracker =
         Globalreg::FetchGlobalAs<device_tracker>("DEVICETRACKER");
     if (devicetracker != NULL) {
+#if 0
         devicetracker->store_all_devices();
+#endif
         devicetracker->databaselog_write_devices();
     }
 
@@ -302,10 +311,10 @@ int usage(char *argv) {
            "     --debug                  Disable the console wrapper and the crash\n"
            "                              handling functions, for debugging\n"
            " -f, --config-file <file>     Use alternate configuration file\n"
-           "     --no-line-wrap           Turn of linewrapping of output\n"
+           "     --no-line-wrap           Turn off linewrapping of output\n"
            "                              (for grep, speed, etc)\n"
            " -s, --silent                 Turn off stdout output after setup phase\n"
-           "     --daemonize              Spawn detatched in the background\n"
+           "     --daemonize              Spawn detached in the background\n"
            "     --no-plugins             Do not load plugins\n"
            "     --homedir <path>         Use an alternate path as the home \n"
            "                               directory instead of the user entry\n"
@@ -462,7 +471,6 @@ int main(int argc, char *argv[], char *envp[]) {
     static struct option wrapper_longopt[] = {
         { "no-ncurses-wrapper", no_argument, 0, 'w' },
         { "no-console-wrapper", no_argument, 0, 'w' },
-        { "show-admin-password", no_argument, 0, 'p' },
         { "daemonize", no_argument, 0, 'D' },
         { "debug", no_argument, 0, 'd' },
         { 0, 0, 0, 0 }
@@ -474,7 +482,6 @@ int main(int argc, char *argv[], char *envp[]) {
     opterr = 0;
 
     bool wrapper = true;
-    bool show_pass = false;
 
     while (1) {
         int r = getopt_long(argc, argv, "-", wrapper_longopt, &option_idx);
@@ -482,13 +489,14 @@ int main(int argc, char *argv[], char *envp[]) {
 
         if (r == 'w') {
             wrapper = false; 
-        } else if (r == 'p') {
-            show_pass = true;
+            glob_linewrap = false;
         } else if (r == 'd') {
             debug_mode = true;
             wrapper = false;
+            glob_linewrap = false;
         } else if (r == 'D') {
             wrapper = false;
+            glob_linewrap = false;
         }
     }
 
@@ -560,6 +568,9 @@ int main(int argc, char *argv[], char *envp[]) {
     const int hdwc = globalregistry->getopt_long_num++;
     const int cdwc = globalregistry->getopt_long_num++;
     const int ddwc = globalregistry->getopt_long_num++;
+    const int ovwc = globalregistry->getopt_long_num++;
+
+    std::string override_fname;
 
     // Standard getopt parse run
     static struct option main_longopt[] = {
@@ -573,6 +584,7 @@ int main(int argc, char *argv[], char *envp[]) {
         { "homedir", required_argument, 0, hdwc },
         { "confdir", required_argument, 0, cdwc },
         { "datadir", required_argument, 0, ddwc },
+        { "override", required_argument, 0, ovwc },
         { 0, 0, 0, 0 }
     };
 
@@ -612,6 +624,8 @@ int main(int argc, char *argv[], char *envp[]) {
             globalregistry->etc_dir = std::string(optarg);
         } else if (r == ddwc) {
             globalregistry->data_dir = std::string(optarg);
+        } else if (r == ovwc) {
+            override_fname = std::string(optarg);
         }
     }
 
@@ -655,6 +669,27 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     conf = new config_file(globalregistry);
+
+    if (override_fname.length() > 0) {
+        struct stat sbuf;
+        if (stat(override_fname.c_str(), &sbuf) == 0) {
+            _MSG_INFO("Adding config override {}", override_fname);
+            conf->set_final_override(override_fname);
+        } else {
+            auto override_fpath = 
+                conf->expand_log_path(fmt::format("%E/kismet_{}.conf", override_fname), "", "", 0, 1);
+
+            if (stat(override_fname.c_str(), &sbuf) != 0) {
+                _MSG_FATAL("Could not find override option '{}' as a file or in the Kismet config directory as '{}'.",
+                        override_fname, override_fpath);
+                exit(1);
+            }
+
+            _MSG_INFO("Adding config override {}", override_fpath);
+            conf->set_final_override(override_fpath);
+        }
+    }
+
     if (conf->parse_config(configfilename) < 0) {
         exit(1);
     }
@@ -692,7 +727,7 @@ int main(int argc, char *argv[], char *envp[]) {
     if (wrapper) {
         // Direct ansi calls to set the top margin and invert colors
         std::string banner_ansi = "\u001b[2J\u001b[2;r\u001b[1m\u001b[7m";
-        std::string banner = "KISMET - Point your browser to http://localhost:2501 "
+        std::string banner = "KISMET - Point your browser to http://localhost:2501 (or the address of this system) "
             "for the Kismet UI";
         std::string banner_tail_ansi = "\u001b[0m";
 
@@ -747,6 +782,7 @@ int main(int argc, char *argv[], char *envp[]) {
     // Base serializers
     entrytracker->register_serializer("json", std::make_shared<json_adapter::serializer>());
     entrytracker->register_serializer("ekjson", std::make_shared<ek_json_adapter::serializer>());
+    entrytracker->register_serializer("itjson", std::make_shared<it_json_adapter::serializer>());
     entrytracker->register_serializer("prettyjson", std::make_shared<pretty_json_adapter::serializer>());
     entrytracker->register_serializer("storagejson", std::make_shared<storage_json_adapter::serializer>());
 
@@ -846,6 +882,7 @@ int main(int argc, char *argv[], char *envp[]) {
     // Register the DLT handlers
     kis_dlt_ppi::create_dlt();
     kis_dlt_radiotap::create_dlt();
+    kis_dlt_btle_ll_radio::create_dlt();
 
     new kis_dissector_ip_data(globalregistry);
 
@@ -856,8 +893,9 @@ int main(int argc, char *argv[], char *envp[]) {
     devicetracker->register_phy_handler(new Kis_Bluetooth_Phy(globalregistry));
     devicetracker->register_phy_handler(new Kis_UAV_Phy(globalregistry));
     devicetracker->register_phy_handler(new Kis_Mousejack_Phy(globalregistry));
-    devicetracker->register_phy_handler(new Kis_RTLAMR_Phy(globalregistry));
-    devicetracker->register_phy_handler(new Kis_RTLADSB_Phy(globalregistry));
+    devicetracker->register_phy_handler(new kis_btle_phy(globalregistry));
+    devicetracker->register_phy_handler(new kis_rtlamr_phy(globalregistry));
+    devicetracker->register_phy_handler(new kis_rtladsb_phy(globalregistry));
 
     if (globalregistry->fatal_condition) 
         SpindownKismet(pollabletracker);
@@ -869,13 +907,15 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_linux_bluetooth_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_osx_corewlan_wifi_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rtl433_builder()));
-    datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceRtl433MqttBuilder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rtlamr_builder()));
-    datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceRtlamrMqttBuilder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rtladsb_builder()));
-    datasourcetracker->register_datasource(shared_datasource_builder(new DatasourceRtladsbMqttBuilder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_freaklabs_zigbee_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_nrf_mousejack_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_ticc2540_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_nrf51822_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_ubertooth_one_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_nxpkw41z_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_ticc2531_builder()));
 
     // Create the database logger as a global because it's a special case
     kis_database_logfile::create_kisdatabaselog();
@@ -923,11 +963,8 @@ int main(int argc, char *argv[], char *envp[]) {
     // Set the global silence now that we're set up
     glob_silent = local_silent;
 
-    // Finalize any plugins which were waiting for other code to load
+    // finalize any plugins which were waiting for other code to load
     plugintracker->finalize_plugins();
-
-    // We can't call this as a deferred because we don't want to mix
-    devicetracker->load_devices();
 
     // Complain about running as root
     if (getuid() == 0) {

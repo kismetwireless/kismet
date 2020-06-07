@@ -205,9 +205,9 @@ public:
 
 protected:
     virtual void register_fields() override {
-        register_field("rtl433.device.temperature", "Temperature in degrees Celsius", &temperature);
+        register_field("rtl433.device.temperature", "Temperature (C)", &temperature);
         register_field("rtl433.device.temperature_rrd", "Temperature history RRD", &temperature_rrd);
-        register_field("rtl433.device.humidity", "Humidity", &humidity);
+        register_field("rtl433.device.humidity", "Humidity (percent)", &humidity);
         register_field("rtl433.device.humidity_rrd", "Humidity history RRD", &humidity_rrd);
     }
 
@@ -275,13 +275,13 @@ public:
 
 protected:
     virtual void register_fields() override {
-        register_field("rtl433.device.wind_dir", "Wind direction in degrees", &wind_dir);
+        register_field("rtl433.device.wind_dir", "Wind direction (degrees)", &wind_dir);
         register_field("rtl433.device.wind_dir_rrd", "Wind direction RRD", &wind_dir_rrd);
 
-        register_field("rtl433.device.weatherstation.wind_speed", "Wind speed in Kph", &wind_speed);
+        register_field("rtl433.device.weatherstation.wind_speed", "Wind speed (KPH)", &wind_speed);
         register_field("rtl433.device.wind_speed_rrd", "Wind speed RRD", &wind_speed_rrd);
 
-        register_field("rtl433.device.wind_gust", "Wind gust in Kph", &wind_gust);
+        register_field("rtl433.device.wind_gust", "Wind gust (KPH)", &wind_gust);
         register_field("rtl433.device.wind_gust_rrd", "Wind gust RRD", &wind_gust_rrd);
 
         register_field("rtl433.device.rain", "Measured rain", &rain);

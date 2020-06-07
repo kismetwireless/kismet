@@ -61,7 +61,7 @@ class tracker_component : public tracker_element_map {
 // Ugly trackercomponent macro for proxying trackerelement values
 // Defines get_<name> function, for a tracker_element of type <ptype>, returning type 
 // <rtype>, referencing class variable <cvar>
-// Defines set_<name> funciton, for a tracker_element of type <ptype>, taking type 
+// Defines set_<name> function, for a tracker_element of type <ptype>, taking type 
 // <itype>, which must be castable to the tracker_element type (itype), referencing 
 // class variable <cvar>
 #define __Proxy(name, ptype, itype, rtype, cvar) \
@@ -69,10 +69,10 @@ class tracker_component : public tracker_element_map {
         return (std::shared_ptr<tracker_element>) cvar; \
     } \
     virtual rtype get_##name() const { \
-        return (rtype) GetTrackerValue<ptype>(cvar); \
+        return (rtype) get_tracker_value<ptype>(cvar); \
     } \
     virtual void set_##name(const itype& in) { \
-        SetTrackerValue<ptype>(cvar, static_cast<ptype>(in)); \
+        set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
     }
 
 // Ugly macro for standard proxy access but with an additional mutex; this should
@@ -84,12 +84,12 @@ class tracker_component : public tracker_element_map {
     } \
     virtual rtype get_##name() { \
         local_shared_locker l((kis_recursive_timed_mutex *) &mvar); \
-        auto r = GetTrackerValue<ptype>(cvar); \
+        auto r = get_tracker_value<ptype>(cvar); \
         return (rtype) r; \
     } \
     virtual void set_##name(const itype& in) { \
         local_locker l((kis_recursive_timed_mutex *) &mvar); \
-        SetTrackerValue<ptype>(cvar, static_cast<ptype>(in)); \
+        set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
     }
 
 // Ugly macro for standard proxy access but with an additional mutex; this should
@@ -101,18 +101,18 @@ class tracker_component : public tracker_element_map {
     } \
     virtual rtype get_##name() { \
         local_shared_locker l(mvar); \
-        auto r = GetTrackerValue<ptype>(cvar); \
+        auto r = get_tracker_value<ptype>(cvar); \
         return (rtype) r; \
     } \
     virtual void set_##name(const itype& in) { \
         local_locker l(mvar); \
-        SetTrackerValue<ptype>(cvar, static_cast<ptype>(in)); \
+        set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
     }
 
 // Ugly trackercomponent macro for proxying trackerelement values
 // Defines get_<name> function, for a tracker_element of type <ptype>, returning type 
 // <rtype>, referencing class variable <cvar>
-// Defines set_<name> funciton, for a tracker_element of type <ptype>, taking type 
+// Defines set_<name> function, for a tracker_element of type <ptype>, taking type 
 // <itype>, which must be castable to the tracker_element type (itype), referencing 
 // class variable <cvar>, which executes function <lambda> after the set command has
 // been executed.  <lambda> should be of the form [](itype) -> bool
@@ -123,7 +123,7 @@ class tracker_component : public tracker_element_map {
         return (std::shared_ptr<tracker_element>) cvar; \
     } \
     virtual rtype get_##name() const { \
-        return (rtype) GetTrackerValue<ptype>(cvar); \
+        return (rtype) get_tracker_value<ptype>(cvar); \
     } \
     virtual bool set_##name(const itype& in) { \
         cvar->set((ptype) in); \
@@ -152,7 +152,7 @@ class tracker_component : public tracker_element_map {
             if (cvar != nullptr) \
                 insert(cvar); \
         } \
-        return (rtype) GetTrackerValue<ptype>(cvar); \
+        return (rtype) get_tracker_value<ptype>(cvar); \
     } \
     virtual void set_##name(const itype& in) { \
         if (cvar == nullptr) { \
@@ -196,7 +196,7 @@ class tracker_component : public tracker_element_map {
             if (cvar != nullptr) \
                 insert(cvar); \
         } \
-        return (rtype) GetTrackerValue<ptype>(cvar); \
+        return (rtype) get_tracker_value<ptype>(cvar); \
     } \
     virtual void set_##name(const itype& in) { \
         local_locker l((kis_recursive_timed_mutex *) &mutex); \
@@ -242,7 +242,7 @@ class tracker_component : public tracker_element_map {
             if (cvar != nullptr) \
                 insert(cvar); \
         } \
-        return (rtype) GetTrackerValue<ptype>(cvar); \
+        return (rtype) get_tracker_value<ptype>(cvar); \
     } \
     virtual bool set_##name(const itype& in) { \
         if (cvar == nullptr) { \
@@ -271,13 +271,13 @@ class tracker_component : public tracker_element_map {
 // Only proxy a Get function
 #define __ProxyGet(name, ptype, rtype, cvar) \
     virtual rtype get_##name() { \
-        return (rtype) GetTrackerValue<ptype>(cvar); \
+        return (rtype) get_tracker_value<ptype>(cvar); \
     } 
 
 // Only proxy a Set function for overload
 #define __ProxySet(name, ptype, stype, cvar) \
     virtual void set_##name(const stype& in) { \
-        SetTrackerValue<ptype>(cvar, in); \
+        set_tracker_value<ptype>(cvar, in); \
     } 
 
 
@@ -285,24 +285,24 @@ class tracker_component : public tracker_element_map {
 #define __ProxyGetM(name, ptype, rtype, cvar, mutex) \
     virtual rtype get_##name() { \
         local_shared_locker l((kis_recursive_timed_mutex *) &mutex); \
-        return (rtype) GetTrackerValue<ptype>(cvar); \
+        return (rtype) get_tracker_value<ptype>(cvar); \
     } 
 #define __ProxySetM(name, ptype, stype, cvar, mutex) \
     virtual void set_##name(const stype& in) { \
         local_locker l((kis_recursive_timed_mutex *) &mutex); \
-        SetTrackerValue<ptype>(cvar, in); \
+        set_tracker_value<ptype>(cvar, in); \
     } 
 
 // Get and set only, protected with a std::shared_ptr<mutex>
 #define __ProxyGetMS(name, ptype, rtype, cvar, mutex) \
     virtual rtype get_##name() { \
         local_shared_locker l(mutex); \
-        return (rtype) GetTrackerValue<ptype>(cvar); \
+        return (rtype) get_tracker_value<ptype>(cvar); \
     } 
 #define __ProxySetMS(name, ptype, stype, cvar, mutex) \
     virtual void set_##name(const stype& in) { \
         local_locker l(mutex); \
-        SetTrackerValue<ptype>(cvar, in); \
+        set_tracker_value<ptype>(cvar, in); \
     } 
 
 // Proxy a split public/private get/set function; This is even funkier than the 
@@ -310,7 +310,7 @@ class tracker_component : public tracker_element_map {
 #define __ProxyPrivSplit(name, ptype, itype, rtype, cvar) \
     public: \
     virtual rtype get_##name() { \
-        return (rtype) GetTrackerValue<ptype>(cvar); \
+        return (rtype) get_tracker_value<ptype>(cvar); \
     } \
     protected: \
     virtual void set_int_##name(const itype& in) { \
@@ -325,7 +325,7 @@ class tracker_component : public tracker_element_map {
     public: \
     virtual rtype get_##name() { \
         local_shared_locker l((kis_recursive_timed_mutex *) &mutex); \
-        return (rtype) GetTrackerValue<ptype>(cvar); \
+        return (rtype) get_tracker_value<ptype>(cvar); \
     } \
     protected: \
     virtual void set_int_##name(const itype& in) { \
@@ -341,7 +341,7 @@ class tracker_component : public tracker_element_map {
     public: \
     virtual rtype get_##name() { \
         local_shared_locker l(mutex); \
-        return (rtype) GetTrackerValue<ptype>(cvar); \
+        return (rtype) get_tracker_value<ptype>(cvar); \
     } \
     protected: \
     virtual void set_int_##name(const itype& in) { \
@@ -490,8 +490,8 @@ class tracker_component : public tracker_element_map {
 
 // Proxy ONLY the get_tracker_* functions
 #define __ProxyOnlyTrackable(name, ttype, cvar) \
-    virtual shared_tracker_element get_tracker_##name() { \
-        return std::static_pointer_cast<tracker_element>(cvar); \
+    virtual std::shared_ptr<ttype> get_tracker_##name() { \
+        return cvar; \
     } 
 
 // Proxy sub-trackable (name, trackable type, class variable, set function)
@@ -538,8 +538,8 @@ class tracker_component : public tracker_element_map {
             insert(std::static_pointer_cast<tracker_element>(cvar)); \
         } \
     } \
-    virtual shared_tracker_element get_tracker_##name() { \
-        return std::static_pointer_cast<tracker_element>(cvar); \
+    virtual std::shared_ptr<ttype> get_tracker_##name() { \
+        return cvar; \
     } \
     virtual bool has_##name() const { \
         return cvar != NULL; \
@@ -567,9 +567,9 @@ class tracker_component : public tracker_element_map {
             insert(std::static_pointer_cast<tracker_element>(cvar)); \
         } \
     } \
-    virtual shared_tracker_element get_tracker_##name() { \
+    virtual std::shared_ptr<ttype> get_tracker_##name() { \
         local_shared_locker l((kis_recursive_timed_mutex *) &mutex); \
-        return std::static_pointer_cast<tracker_element>(cvar); \
+        return cvar; \
     } \
     virtual bool has_##name() const { \
         local_shared_locker l((kis_recursive_timed_mutex *) &mutex); \
@@ -616,7 +616,7 @@ class tracker_component : public tracker_element_map {
         (*cvar) &= ~(bs); \
     } \
     virtual dtype bitcheck_##name(dtype bs) { \
-        return (dtype) (GetTrackerValue<dtype>(cvar) & bs); \
+        return (dtype) (get_tracker_value<dtype>(cvar) & bs); \
     }
 
 // Proxy bitset functions (name, trackable type, data type, class var), with mutex
@@ -631,7 +631,7 @@ class tracker_component : public tracker_element_map {
     } \
     virtual dtype bitcheck_##name(dtype bs) { \
         local_shared_locker l((kis_recursive_timed_mutex *) &mutex); \
-        return (dtype) (GetTrackerValue<dtype>(cvar) & bs); \
+        return (dtype) (get_tracker_value<dtype>(cvar) & bs); \
     }
 
 // Proxy bitset functions (name, trackable type, data type, class var), with mutex
@@ -646,7 +646,7 @@ class tracker_component : public tracker_element_map {
     } \
     virtual dtype bitcheck_##name(dtype bs) { \
         local_shared_locker l(mutex); \
-        return (dtype) (GetTrackerValue<dtype>(cvar) & bs); \
+        return (dtype) (get_tracker_value<dtype>(cvar) & bs); \
     }
 
 public:
@@ -717,7 +717,7 @@ protected:
     //
     // This field should be mapped via the __ProxyDynamicTrackable call
     template<typename T>
-    int RegisterDynamicField(const std::string& in_name, const std::string& in_desc, 
+    int register_dynamic_field(const std::string& in_name, const std::string& in_desc, 
             std::shared_ptr<T> *in_dest) {
         using build_type = typename std::remove_reference<decltype(**in_dest)>::type;
 

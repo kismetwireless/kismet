@@ -21,6 +21,32 @@
 
 #include <stdint.h>
 
+/*
+ * Original basic pcap header 
+ */
+struct pcap_hdr {
+    uint32_t magic_number;
+    uint16_t version_major;
+    uint16_t version_minor;
+    int32_t  thiszone;
+    uint32_t sigfigs;
+    uint32_t snaplen;
+    uint32_t dlt;
+} __attribute__((packed));
+typedef struct pcap_hdr pcap_hdr_t;
+#define PCAP_MAGIC          0xA1B2C3D4
+#define PCAP_VERSION_MAJOR  2
+#define PCAP_VERSION_MINOR  4
+#define PCAP_MAX_SNAPLEN    8192
+
+struct pcap_packet_hdr {
+    uint32_t ts_sec;
+    uint32_t ts_usec;
+    uint32_t incl_len;
+    uint32_t orig_len;
+} __attribute__((packed));
+typedef struct pcap_packet_hdr pcap_packet_hdr_t;
+
 /* PCAP-NG basic structs, as defined in:
  * http://xml2rfc.tools.ietf.org/cgi-bin/xml2rfc.cgi?url=https://raw.githubusercontent.com/pcapng/pcapng/master/draft-tuexen-opsawg-pcapng.xml&modeAsFormat=html/ascii&type=ascii#section_shb
  */

@@ -106,7 +106,7 @@ bool dot11_tracked_ssid_alert::compare_ssid(std::string ssid, mac_addr mac) {
 
     if (rc > 0) {
         for (auto m : *allowed_macs_vec) {
-            if (GetTrackerValue<mac_addr>(m) != mac)
+            if (get_tracker_value<mac_addr>(m) != mac)
                 return true;
         }
     }
@@ -149,7 +149,7 @@ void dot11_probed_ssid::register_fields() {
     register_field("dot11.probedssid.last_time", "last time probed", &last_time);
 
     location_id = 
-        RegisterDynamicField("dot11.probedssid.location", "location", &location);
+        register_dynamic_field("dot11.probedssid.location", "location", &location);
 
     register_field("dot11.probedssid.dot11r_mobility", 
             "advertised dot11r mobility support", &dot11r_mobility);
@@ -167,19 +167,19 @@ void dot11_probed_ssid::register_fields() {
             "802.11 IE tag list in beacon", &ie_tag_list);
 
     wps_state_id =
-        RegisterDynamicField("dot11.probedssid.wps_state", "WPS state bitfield", &wps_state);
+        register_dynamic_field("dot11.probedssid.wps_state", "WPS state bitfield", &wps_state);
     wps_manuf_id =
-        RegisterDynamicField("dot11.probedssid.wps_manuf", "WPS manufacturer", &wps_manuf);
+        register_dynamic_field("dot11.probedssid.wps_manuf", "WPS manufacturer", &wps_manuf);
     wps_device_name_id =
-        RegisterDynamicField("dot11.probedssid.wps_device_name", "wps device name", &wps_device_name);
+        register_dynamic_field("dot11.probedssid.wps_device_name", "wps device name", &wps_device_name);
     wps_model_name_id =
-        RegisterDynamicField("dot11.probedssid.wps_model_name", "wps model name", &wps_model_name);
+        register_dynamic_field("dot11.probedssid.wps_model_name", "wps model name", &wps_model_name);
     wps_model_number_id =
-        RegisterDynamicField("dot11.probedssid.wps_model_number", "wps model number", &wps_model_number);
+        register_dynamic_field("dot11.probedssid.wps_model_number", "wps model number", &wps_model_number);
     wps_serial_number_id = 
-        RegisterDynamicField("dot11.probedssid.wps_serial_number", "wps serial number", &wps_serial_number);
+        register_dynamic_field("dot11.probedssid.wps_serial_number", "wps serial number", &wps_serial_number);
     wps_uuid_e_id =
-        RegisterDynamicField("dot11.probedssid.wps_uuid_e", "wps euuid", &wps_uuid_e);
+        register_dynamic_field("dot11.probedssid.wps_uuid_e", "wps euuid", &wps_uuid_e);
 }
 
 void dot11_advertised_ssid::register_fields() {
@@ -188,13 +188,13 @@ void dot11_advertised_ssid::register_fields() {
             "beaconed ssid string length (original bytes)", &ssid_len);
 
     owe_ssid_id =
-        RegisterDynamicField("dot11.advertisedssid.owe_ssid",
+        register_dynamic_field("dot11.advertisedssid.owe_ssid",
                 "Opportunistic Wireless Encryption (OWE) linked companion SSID", &owe_ssid);
     owe_ssid_len_id =
-        RegisterDynamicField("dot11.advertisedssid.owe_ssid_len",
+        register_dynamic_field("dot11.advertisedssid.owe_ssid_len",
                 "Opportunistic Wireless Encryption (OWE) SSID length (original bytes)", &owe_ssid_len);
     owe_bssid_id =
-        RegisterDynamicField("dot11.advertisedssid.owe_bssid",
+        register_dynamic_field("dot11.advertisedssid.owe_bssid",
                 "Opportunistic Wireless Encryption (OWE) companion BSSID", &owe_bssid);
 
     register_field("dot11.advertisedssid.beacon", "ssid advertised via beacon", &ssid_beacon);
@@ -212,7 +212,7 @@ void dot11_advertised_ssid::register_fields() {
     register_field("dot11.advertisedssid.first_time", "first time seen", &first_time);
     register_field("dot11.advertisedssid.last_time", "last time seen", &last_time);
     beacon_info_id =
-        RegisterDynamicField("dot11.advertisedssid.beacon_info", 
+        register_dynamic_field("dot11.advertisedssid.beacon_info", 
                 "beacon info / vendor description", &beacon_info);
     register_field("dot11.advertisedssid.cloaked", "SSID is hidden / cloaked", &ssid_cloaked);
     register_field("dot11.advertisedssid.crypt_set", "bitfield of encryption options", &crypt_set);
@@ -228,7 +228,7 @@ void dot11_advertised_ssid::register_fields() {
             "WPA management protection supported", &wpa_mfp_supported);
 
     dot11d_country_id = 
-        RegisterDynamicField("dot11.advertisedssid.dot11d_country", "802.11d country", 
+        register_dynamic_field("dot11.advertisedssid.dot11d_country", "802.11d country", 
                 &dot11d_country);
     register_field("dot11.advertisedssid.dot11d_list", "802.11d channel list", &dot11d_vec);
 
@@ -238,27 +238,27 @@ void dot11_advertised_ssid::register_fields() {
                 "dot11d entry");
 
     wps_state_id =
-        RegisterDynamicField("dot11.advertisedssid.wps_state", "bitfield wps state", &wps_state);
+        register_dynamic_field("dot11.advertisedssid.wps_state", "bitfield wps state", &wps_state);
     wps_manuf_id =
-        RegisterDynamicField("dot11.advertisedssid.wps_manuf", "WPS manufacturer", &wps_manuf);
+        register_dynamic_field("dot11.advertisedssid.wps_manuf", "WPS manufacturer", &wps_manuf);
     wps_device_name_id =
-        RegisterDynamicField("dot11.advertisedssid.wps_device_name", "wps device name", 
+        register_dynamic_field("dot11.advertisedssid.wps_device_name", "wps device name", 
                 &wps_device_name);
     wps_model_name_id =
-        RegisterDynamicField("dot11.advertisedssid.wps_model_name", "wps model name", 
+        register_dynamic_field("dot11.advertisedssid.wps_model_name", "wps model name", 
                 &wps_model_name);
     wps_model_number_id =
-        RegisterDynamicField("dot11.advertisedssid.wps_model_number", "wps model number", 
+        register_dynamic_field("dot11.advertisedssid.wps_model_number", "wps model number", 
                 &wps_model_number);
     wps_serial_number_id = 
-        RegisterDynamicField("dot11.advertisedssid.wps_serial_number", 
+        register_dynamic_field("dot11.advertisedssid.wps_serial_number", 
                 "wps serial number", &wps_serial_number);
     wps_uuid_e_id =
-        RegisterDynamicField("dot11.advertisedssid.wps_uuid_e", "wps euuid",
+        register_dynamic_field("dot11.advertisedssid.wps_uuid_e", "wps euuid",
                 &wps_uuid_e);
 
     location_id = 
-        RegisterDynamicField("dot11.advertisedssid.location", "location", &location);
+        register_dynamic_field("dot11.advertisedssid.location", "location", &location);
 
     register_field("dot11.advertisedssid.dot11r_mobility", 
             "advertised dot11r mobility support", &dot11r_mobility);
@@ -283,7 +283,7 @@ void dot11_advertised_ssid::register_fields() {
             "802.11 IE tag list in last beacon", &ie_tag_list);
 
     ie_tag_content_id =
-        RegisterDynamicField("dot11.advertisedssid.ie_tag_content",
+        register_dynamic_field("dot11.advertisedssid.ie_tag_content",
                 "802.11 IE tag content of last beacon", &ie_tag_content);
     ie_tag_content_element_id =
         register_field("dot11.advertisedssid.ie_tag_content_entry",

@@ -223,7 +223,7 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
     if (gpsdata != NULL) {
         gps_tagsize = sizeof(ppi_gps_hdr); //12
         if (gpsdata->fix <= 1) //no fix
-            gps_tagsize = 0; //dont bother storing anything
+            gps_tagsize = 0; //don't bother storing anything
         if (gpsdata->fix >= 2) 
             gps_tagsize += 12; // lon, lat, appid, 
         if (gpsdata->fix >= 3)

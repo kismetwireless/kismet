@@ -33,6 +33,7 @@
 #include <vector>
 #include <map>
 
+#include "eventbus.h"
 #include "globalregistry.h"
 #include "macaddr.h"
 #include "packet_ieee80211.h"
@@ -69,11 +70,20 @@ public:
     // itself?
     int error;
 
+    // Do we know this packet is OK and don't have to run a CRC check on 
+    // it inside a data layer?
+    int crc_ok;
+
     // Have we been filtered for some reason?
     int filtered;
 
     // Are we a duplicate?
     int duplicate;
+
+    // Did this packet trigger creation of a new device?  Since a 
+    // single packet can create multiple devices in some phys, maintain
+    // a vector of device events to publish
+    std::vector<std::shared_ptr<eventbus_event>> process_complete_events;
 
     // Actual vector of bits in the packet
     std::vector<packet_component *> content_vec;

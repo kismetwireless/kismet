@@ -325,6 +325,39 @@ protected:
     kis_recursive_timed_mutex *mutex;
 };
 
+// Path post/get based endpoint, linked to a chainbuf buffer
+class kis_net_httpd_path_combo_endpoint : public kis_net_httpd_chain_stream_handler {
+public:
+    using path_func = std::function<bool (const std::vector<std::string>& path, const std::string& uri)>;
+    using handler_func = 
+        std::function<unsigned int (std::ostream& stream, 
+                const std::string& method,
+                const std::vector<std::string>& path, const std::string& uri, 
+                shared_structured post_structured,
+                kis_net_httpd_connection::variable_cache_map& variable_cache)>;
+
+    kis_net_httpd_path_combo_endpoint(path_func in_path, handler_func in_func);
+    kis_net_httpd_path_combo_endpoint(path_func in_path, handler_func in_func,
+            kis_recursive_timed_mutex *in_mutex);
+
+    virtual ~kis_net_httpd_path_combo_endpoint() { }
+
+    // HTTP handlers
+    virtual bool httpd_verify_path(const char *path, const char *method) override;
+
+    virtual int httpd_create_stream_response(kis_net_httpd *httpd,
+            kis_net_httpd_connection *connection,
+            const char *url, const char *method, const char *upload_data,
+            size_t *upload_data_size) override;
+
+    virtual int httpd_post_complete(kis_net_httpd_connection *concls) override;
+
+protected:
+    path_func path;
+    handler_func generator;
+    kis_recursive_timed_mutex *mutex;
+};
+
 #define KIS_SESSION_COOKIE      "KISMET"
 #define KIS_HTTPD_POSTBUFFERSZ  (1024 * 32)
 
@@ -392,6 +425,11 @@ public:
     static void append_standard_headers(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection, const char *url);
 
+    // Append CORS cross-site headers
+    static void append_cors_headers(kis_net_httpd *httpd,
+            struct MHD_Connection *connection,
+            struct MHD_Response *response);
+
     // Queue a http response
     static int send_http_response(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection);
@@ -428,6 +466,9 @@ protected:
     bool use_ssl;
     char *cert_pem, *cert_key;
     std::string pem_path, key_path;
+
+    bool allow_cors;
+    std::string allowed_cors_referrer;
 
     bool running;
 

@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -22,11 +22,12 @@
 #define __LINUX_NETLINK_CONFIG__
 
 /* Use local copy of nl80211.h */
-#include "../nl80211.h"
+#include "nl80211.h"
 
 #include <stddef.h>
+#include <stdint.h>
 
-/* Create a monitor vif using mac80211, based on existing interface *interface
+/* Create a monitor vif using nl80211, based on existing interface *interface
  * and named *newinterface.
  *
  * Flags must be from nl80211_mntr_flags from nl80211.h
@@ -41,19 +42,32 @@
 int mac80211_create_monitor_vif(const char *interface, const char *newinterface, 
         unsigned int *flags, unsigned int flags_sz, char *errstr);
 
-/* Connect to nl80211 and resolve the genl and nl80211 ids; this generates the
- * cache state needed for channel control.
+/* Set monitor mode using nl80211, changing the mode of an existing interface.
+ * Usually not the right way to do things, but specific broken drivers require it.
  *
- * **nl_sock is allocated by the function, and must be freed with mac80211_nl_disconnect
- * *nl80211_id is populated by the function
- * *if_index is populated with the interface index of the provided interface
+ * Flags must be from nl80211_mntr_flags from nl80211.h
+ *
+ * errstr must be allocated by the caller an dbe able to hold STATUS_MAX
+ * characters.
  *
  * Returns:
  * -1   Error
  *  0   Success
  */
-int mac80211_connect(const char *interface, void **nl_sock, int *nl80211_id, 
-        int *if_index, char *errstr);
+int mac80211_set_monitor_interface(const char *interface, unsigned int *flags,
+        unsigned int flags_sz, char *errstr);
+
+/* Connect to nl80211 and resolve the genl and nl80211 ids; this generates the
+ * cache state needed for channel control.
+ *
+ * **nl_sock is allocated by the function, and must be freed with mac80211_nl_disconnect
+ * *nl80211_id is populated by the function
+ *
+ * Returns:
+ * -1   Error
+ *  0   Success
+ */
+int mac80211_connect(void **nl_sock, int *nl80211_id, char *errstr);
 
 /* Disconnect from nl80211; frees resources used */
 void mac80211_disconnect(void *nl_sock);
@@ -113,6 +127,15 @@ int mac80211_get_frequency_cache(int ifidx, void *nl_sock, int nl80211_id,
         unsigned int *control_freq, unsigned int *chan_type, 
         unsigned int *chan_width, unsigned int *center_freq1,
         unsigned int *center_freq2, char *errstr);
+
+/* Get the mode of an interface
+ * Fills *iftype with a NL80211_IFTYPE
+ *
+ * Returns:
+ * -1   Error
+ *  0   Success
+ */
+int mac80211_get_iftype_cache(int ifidx, void *nl_sock, int nl80211_id, uint32_t *iftype, char *errstr);
 
 /* Get the parent phy of an interface.
  *

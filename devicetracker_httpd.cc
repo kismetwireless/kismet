@@ -138,8 +138,8 @@ bool device_tracker::httpd_verify_path(const char *path, const char *method) {
                     return false;
                 }
 
-                // Explicit catch of ekjson
-                if (tokenurl[4] == "devices.ekjson")
+                // Explicit catch of ekjson and itjson
+                if (tokenurl[4] == "devices.ekjson" || tokenurl[4] == "devices.itjson")
                     return true;
 
                 return httpd_can_serialize(tokenurl[4]);
@@ -260,19 +260,17 @@ int device_tracker::httpd_create_stream_response(
 
     if (strcmp(path, "/devices/all_devices.ekjson") == 0) {
         // Instantiate a manual serializer
-        json_adapter::serializer serial; 
+        ek_json_adapter::serializer serial; 
 
-        auto fw = std::make_shared<devicetracker_function_worker>(
-                [&stream, &serial](device_tracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
-                    serial.serialize(d, stream);
-                    stream << "\n";
+        // Copy the vector of devices for stability
+        std::shared_ptr<tracker_element_vector> device_ro = std::make_shared<tracker_element_vector>();
 
-                    // Return false because we're not building a list, we're serializing
-                    // per element
-                    return false;
-                }, nullptr);
+        {
+            local_locker l(&devicelist_mutex);
+            device_ro->set(immutable_tracked_vec->begin(), immutable_tracked_vec->end());
+        }
 
-        do_readonly_device_work(fw);
+        serial.serialize(device_ro, stream);
         return MHD_YES;
     }
 
@@ -397,16 +395,14 @@ int device_tracker::httpd_create_stream_response(
 
             std::shared_ptr<tracker_element_vector> devvec;
 
-            auto fw = std::make_shared<devicetracker_function_worker>(
-                    [devvec, lastts](device_tracker *, 
-                        std::shared_ptr<kis_tracked_device_base> d) -> bool {
+            device_tracker_view_function_worker fw(
+                    [devvec, lastts](std::shared_ptr<kis_tracked_device_base> d) -> bool {
                         if (d->get_last_time() <= lastts)
                             return false;
 
                         return true;
-                    }, nullptr);
-            do_readonly_device_work(fw);
-            devvec = fw->GetMatchedDevices();
+                    });
+            devvec = do_readonly_device_work(fw);
 
             Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(tokenurl[4]), stream, devvec, NULL);
 
@@ -572,7 +568,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     lock.unlock();
 
                     for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) 
-                        devvec->push_back(SummarizeSingletracker_element(mmpi->second, summary_vec, rename_map));
+                        devvec->push_back(summarize_single_tracker_element(mmpi->second, summary_vec, rename_map));
 
                     Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(tokenurl[4]), stream, 
                             devvec, rename_map);
@@ -612,7 +608,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     local_shared_locker devlock(&(dev->device_mutex));
 
                     auto simple = 
-                        SummarizeSingletracker_element(dev, summary_vec, rename_map);
+                        summarize_single_tracker_element(dev, summary_vec, rename_map);
 
                     Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(tokenurl[4]), 
                             stream, simple, rename_map);
@@ -692,21 +688,19 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                 //  List of devices that pass the regex filter
                 auto regexdevs = std::make_shared<tracker_element_vector>();
 
-                auto tw = std::make_shared<devicetracker_function_worker>(
-                        [lastts](device_tracker *, std::shared_ptr<kis_tracked_device_base> d) -> bool {
+                device_tracker_view_function_worker tw(
+                        [lastts](std::shared_ptr<kis_tracked_device_base> d) -> bool {
 
                         if (d->get_last_time() <= lastts)
                             return false;
 
                         return true;
-                        }, nullptr);
-                do_readonly_device_work(tw);
-                timedevs = tw->GetMatchedDevices();
+                        });
+                timedevs = do_readonly_device_work(tw);
 
                 if (regexdata != NULL) {
-                    auto worker = std::make_shared<devicetracker_pcre_worker>(regexdata);
-                    do_readonly_device_work(worker, timedevs);
-                    regexdevs = worker->GetMatchedDevices();
+                    device_tracker_view_regex_worker worker(regexdata);
+                    regexdevs = do_readonly_device_work(worker, timedevs);
                 } else {
                     regexdevs = timedevs;
                 }
@@ -718,7 +712,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     auto rd = std::static_pointer_cast<kis_tracked_device_base>(rei);
                     local_shared_locker lock(&rd->device_mutex);
 
-                    outdevs->push_back(SummarizeSingletracker_element(rd, summary_vec, rename_map));
+                    outdevs->push_back(summarize_single_tracker_element(rd, summary_vec, rename_map));
                 }
 
                 Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(tokenurl[4]), stream, 
@@ -827,3 +821,51 @@ std::shared_ptr<tracker_element> device_tracker::all_phys_endp_handler() {
     return ret_vec;
 }
 
+unsigned int device_tracker::multikey_endp_handler(std::ostream& stream, const std::string& uri,
+        shared_structured structured, kis_net_httpd_connection::variable_cache_map& variable_cache) {
+
+    try {
+        auto ret_devices = std::make_shared<tracker_element_vector>();
+        auto keys = std::vector<device_key>{};
+
+        if (!structured->has_key("devices"))
+            throw std::runtime_error("Missing 'devices' key in command dictionary");
+        
+        auto keylist = structured->get_structured_by_key("devices")->as_vector();
+
+        for (auto k : keylist) {
+            device_key ka{k->as_string()};
+
+            if (ka.get_error()) 
+                throw std::runtime_error(fmt::format("Invalid device key '{}' in 'devices' list",
+                            kishttpd::escape_html(k->as_string())));
+
+            keys.push_back(ka);
+        }
+
+        for (auto k : keys) { 
+            auto d = fetch_device(k);
+
+            if (d == nullptr)
+                continue;
+
+            ret_devices->push_back(d);
+        }
+
+        auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
+
+        auto output = 
+            kishttpd::summarize_with_structured(ret_devices, structured, rename_map);
+
+        Globalreg::globalreg->entrytracker->serialize(kishttpd::get_suffix(uri), stream, output, rename_map);
+
+        return 200;
+
+    } catch (const std::exception& e) {
+        stream << "Invalid request: " << e.what() << "\n";
+        return 500;
+    }
+
+    stream << "Unhandled request\n";
+    return 500;
+}

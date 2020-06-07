@@ -396,6 +396,26 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 "incorrect length may indicate an attempted buffer overflow attack.  "
                 "Specific attacks have their own alerts; this indicates a general, but "
                 "otherwise unknown, malformed tag.");
+    alert_rtlwifi_p2p_ref =
+        alertracker->activate_configured_alert("RTLWIFIP2P",
+                "A bug in the Linux RTLWIFI P2P parsers could result in a crash "
+                "or potential code execution due to malformed notification of "
+                "absence records, as detailed in CVE-2019-17666");
+    alert_deauthflood_ref =
+        alertracker->activate_configured_alert("DEAUTHFLOOD",
+                "By spoofing disassociate or deauthenticate packets, an attacker "
+                "may disconnect clients from a network which does not support "
+                "management frame protection (MFP); This can be used to cause a "
+                "denial of service or to disconnect clients in an attempt to "
+                "capture handshakes for attacking WPA.",
+                phyid);
+    alert_noclientmfp_ref =
+        alertracker->activate_configured_alert("NOCLIENTMFP",
+                "Client does not support management frame protection (MFP); By spoofing "
+                "disassociate or deauthenticate packets, an attacker may disconnect it "
+                "from a network. This can be used to cause a denial of service or to "
+                "disconnect it in an attempt to capture handshakes for attacking WPA.",
+                phyid);
 
     // Threshold
     signal_too_loud_threshold = 
@@ -465,8 +485,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
         _MSG(ss.str(), MSGFLAG_INFO);
 
         device_idle_timer =
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 60, NULL, 
-                1, this);
+            timetracker->register_timer(SERVER_TIMESLICES_SEC * 60, NULL, 1, this);
     } else {
         device_idle_timer = -1;
     }
@@ -478,6 +497,8 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
 	ssid_conf->parse_config(ssid_conf->expand_log_path(Globalreg::globalreg->kismet_config->fetch_opt("configdir") + "/" + "ssid_map.conf", "", "", 0, 1).c_str());
     Globalreg::globalreg->insert_global("SSID_CONF_FILE", std::shared_ptr<config_file>(ssid_conf));
 #endif
+
+    ssidtracker = phy_80211_ssid_tracker::create_dot11_ssidtracker();
 
     httpd_pcap.reset(new phy_80211_httpd_pcap());
 
@@ -1151,11 +1172,11 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             // packet...
 
             if (dot11info->subtype == packet_sub_beacon) {
-                d11phy->HandleSSID(bssid_dev, bssid_dot11, in_pack, dot11info, pack_gpsinfo);
+                d11phy->handle_ssid(bssid_dev, bssid_dot11, in_pack, dot11info, pack_gpsinfo);
                 bssid_dot11->set_last_beacon_timestamp(in_pack->ts.tv_sec);
                 bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_BEACON_AP);
             } else if (dot11info->subtype == packet_sub_probe_resp) {
-                d11phy->HandleSSID(bssid_dev, bssid_dot11, in_pack, dot11info, pack_gpsinfo);
+                d11phy->handle_ssid(bssid_dev, bssid_dot11, in_pack, dot11info, pack_gpsinfo);
                 bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_PROBE_AP);
             }
 
@@ -1272,6 +1293,31 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 } else {
                     d11phy->process_client(bssid_dev, bssid_dot11, dest_dev, dest_dot11, 
                             in_pack, dot11info, pack_gpsinfo, pack_datainfo);
+                }
+            }
+
+            // Look for DEAUTH floods
+            if (bssid_dot11 != NULL && (dot11info->subtype == packet_sub_disassociation ||
+                    dot11info->subtype == packet_sub_deauthentication)) {
+                // if we're w/in time of the last one, update, otherwise clear
+                if (globalreg->timestamp.tv_sec - bssid_dot11->get_client_disconnects_last() > 1)
+                    bssid_dot11->set_client_disconnects(1);
+                else
+                    bssid_dot11->inc_client_disconnects(1);
+
+                bssid_dot11->set_client_disconnects_last(globalreg->timestamp.tv_sec);
+
+                if (bssid_dot11->get_client_disconnects() > 10) {
+                    if (d11phy->alertracker->potential_alert(d11phy->alert_deauthflood_ref)) {
+                        std::string al = "Deauth/Disassociate flood on " + dot11info->bssid_mac.mac_to_string();
+
+                        d11phy->alertracker->raise_alert(d11phy->alert_deauthflood_ref, in_pack,
+                            dot11info->bssid_mac, dot11info->source_mac,
+                            dot11info->dest_mac, dot11info->other_mac,
+                            dot11info->channel, al);
+                    }
+
+                    bssid_dot11->set_client_disconnects(1);
                 }
             }
 
@@ -1712,7 +1758,7 @@ void kis_80211_phy::add_wep_key(mac_addr bssid, uint8_t *key, unsigned int len,
     wepkeys.insert(std::make_pair(winfo->bssid, winfo));
 }
 
-void kis_80211_phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
+void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev,
         std::shared_ptr<dot11_tracked_device> dot11dev,
         kis_packet *in_pack,
         dot11_packinfo *dot11info,
@@ -1736,7 +1782,7 @@ void kis_80211_phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
     if (dot11dev->get_last_adv_ie_csum() == dot11info->ietag_csum) {
         ssid = dot11dev->get_last_adv_ssid();
 
-        if (ssid != NULL) {
+        if (ssid != nullptr) {
             if (ssid->get_last_time() < in_pack->ts.tv_sec)
                 ssid->set_last_time(in_pack->ts.tv_sec);
 
@@ -1883,6 +1929,15 @@ void kis_80211_phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
             ssid->set_last_time(in_pack->ts.tv_sec);
     }
 
+    // Always process the SSID so we update the timestamps
+    if (dot11info->subtype == packet_sub_probe_resp) {
+        ssidtracker->handle_response_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
+                ssid->get_crypt_set(), basedev);
+    } else {
+        ssidtracker->handle_broadcast_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
+                ssid->get_crypt_set(), basedev);
+    }
+
     dot11dev->set_last_adv_ssid(ssid);
 
     ssid->set_ietag_checksum(dot11info->ietag_csum);
@@ -1896,9 +1951,9 @@ void kis_80211_phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
     if (keep_ie_tags_per_bssid)
         ssid->set_ietag_content_from_packet(dot11info->ie_tags);
 
-    // Update the base device records
-    dot11dev->set_last_beaconed_ssid(ssid->get_ssid());
-    dot11dev->set_last_beaconed_ssid_csum(dot11info->ssid_csum);
+    // Alias the last ssid snapshot
+    auto lbr = dot11dev->get_last_beaconed_ssid_record();
+    lbr->set(ssid);
 
     if (ssid->get_last_time() < in_pack->ts.tv_sec)
         ssid->set_last_time(in_pack->ts.tv_sec);
@@ -2155,15 +2210,8 @@ void kis_80211_phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
     if (dot11info->wps_serial_number != "")
         ssid->set_wps_serial_number(dot11info->wps_serial_number);
 
-    if (dot11info->wps_uuid_e != "")
+    if (dot11info->wps_uuid_e != "") 
         ssid->set_wps_uuid_e(dot11info->wps_uuid_e);
-
-    /* kis_manuf should be the IEEE manuf, not inherited from WPS.
-     * Also, never do this - this clobbers the universal 'unknown' manuf.
-    // Do we not know the basedev manuf?
-    if (Globalreg::globalreg->manufdb->is_unknown_manuf(basedev->get_manuf()) && dot11info->wps_manuf != "")
-        basedev->set_manuf(dot11info->wps_manuf);
-        */
 
     if (dot11info->beacon_interval && ssid->get_beaconrate() != 
             Ieee80211Interval2NSecs(dot11info->beacon_interval)) {
@@ -2191,7 +2239,8 @@ void kis_80211_phy::HandleSSID(std::shared_ptr<kis_tracked_device_base> basedev,
     // Add the location data, if any
     if (pack_gpsinfo != NULL && pack_gpsinfo->fix > 1) {
         ssid->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                pack_gpsinfo->alt, pack_gpsinfo->fix);
+                pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
+                pack_gpsinfo->heading);
 
     }
 
@@ -2245,7 +2294,8 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
         // Add the location data, if any
         if (pack_gpsinfo != nullptr && pack_gpsinfo->fix > 1) {
             probessid->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                    pack_gpsinfo->alt, pack_gpsinfo->fix);
+                    pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
+                    pack_gpsinfo->heading);
         }
 
         if (dot11info->dot11r_mobility != nullptr) {
@@ -2253,8 +2303,9 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
             probessid->set_dot11r_mobility_domain_id(dot11info->dot11r_mobility->mobility_domain());
         }
 
-        dot11dev->set_last_probed_ssid(probessid->get_ssid());
-        dot11dev->set_last_probed_ssid_csum(dot11info->ssid_csum);
+        // Alias the last ssid snapshot
+        auto lpr = dot11dev->get_last_probed_ssid_record();
+        lpr->set(probessid);
 
         // Update MFP
         if (dot11info->rsn != nullptr) {
@@ -2279,8 +2330,40 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
         if (dot11info->wps_serial_number != "")
             probessid->set_wps_serial_number(dot11info->wps_serial_number);
 
-        if (dot11info->wps_uuid_e != "")
-            probessid->set_wps_uuid_e(dot11info->wps_uuid_e);
+        if (dot11info->wps_uuid_e != "") {
+            if (probessid->get_wps_uuid_e() != dot11info->wps_uuid_e) {
+                device_tracker_view_function_worker dev_worker(
+                        [this, dot11info, basedev, dot11dev](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+                            auto bssid_dot11 =
+                                dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+
+                            if (bssid_dot11 == nullptr) {
+                                return false;
+                            }
+
+                            for (auto pi : *bssid_dot11->probed_ssid_map) {
+                                auto ps =
+                                    std::static_pointer_cast<dot11_probed_ssid>(pi.second);
+
+                                if (ps->get_wps_uuid_e() == dot11info->wps_uuid_e)
+                                    return true;
+                            }
+
+                        return false;
+                        });
+                devicetracker->do_readonly_device_work(dev_worker);
+
+                // Set a bidirectional relationship
+                for (auto ri : *(dev_worker.getMatchedDevices())) {
+                    auto rdev = std::static_pointer_cast<kis_tracked_device_base>(ri);
+
+                    basedev->add_related_device("dot11_uuid_e", rdev->get_key());
+                    rdev->add_related_device("dot11_uuid_e", basedev->get_key());
+                }
+
+                probessid->set_wps_uuid_e(dot11info->wps_uuid_e);
+            }
+        }
 
         // Update the IE listing at the device level
         auto taglist = PacketDot11IElist(in_pack, dot11info);
@@ -2305,6 +2388,10 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
 
         // XXHash32 says the canonical representation of the hash is little-endian
         dot11dev->set_probe_fingerprint(htole32(tag_hash.hash()));
+
+        // Enter it in the ssid tracker
+        ssidtracker->handle_probe_ssid(probessid->get_ssid(), probessid->get_ssid_len(),
+                probessid->get_crypt_set(), basedev);
     }
 
 }
@@ -2367,6 +2454,21 @@ void kis_80211_phy::process_client(std::shared_ptr<kis_tracked_device_base> bssi
 
                     for (auto c : dot11info->supported_channels->supported_channels()) 
                         clientdot11->get_supported_channels()->push_back(c);
+                }
+
+		if ((dot11info->rsn == nullptr || !dot11info->rsn->rsn_capability_mfp_supported()) &&
+                        alertracker->potential_alert(alert_noclientmfp_ref)) {
+                    std::string al = "IEEE80211 network BSSID " +
+                        client_record->get_bssid().mac_to_string() +
+                        " client " +
+                        clientdev->get_macaddr().mac_to_string() +
+                        " does not support management frame protection (MFP) which "
+                        "may ease client disassocation or deauthentication";
+
+                    alertracker->raise_alert(alert_noclientmfp_ref, in_pack,
+                            dot11info->bssid_mac, dot11info->source_mac,
+                            dot11info->dest_mac, dot11info->other_mac,
+                            dot11info->channel, al);
                 }
             }
 
@@ -2444,7 +2546,8 @@ void kis_80211_phy::process_client(std::shared_ptr<kis_tracked_device_base> bssi
         // Update the GPS info
         if (pack_gpsinfo != NULL && pack_gpsinfo->fix > 1) {
             client_record->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                    pack_gpsinfo->alt, pack_gpsinfo->fix);
+                    pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
+                    pack_gpsinfo->heading);
         }
 
         // Update the forward map to the bssid
@@ -3018,29 +3121,26 @@ int kis_80211_phy::httpd_post_complete(kis_net_httpd_connection *concls) {
     return 1;
 }
 
-class phy80211_devicetracker_expire_worker : public device_tracker_filter_worker {
+class phy80211_devicetracker_expire_worker : public device_tracker_view_worker {
 public:
-    phy80211_devicetracker_expire_worker(global_registry *in_globalreg, 
-            int in_timeout, unsigned int in_packets, int entry_id) {
-        globalreg = in_globalreg;
+    phy80211_devicetracker_expire_worker(int in_timeout, unsigned int in_packets, int entry_id) {
         dot11_device_entry_id = entry_id;
         timeout = in_timeout;
         packets = in_packets;
+        devicetracker =
+            Globalreg::fetch_mandatory_global_as<device_tracker>();
     }
 
     virtual ~phy80211_devicetracker_expire_worker() { }
 
-    virtual bool MatchDevice(device_tracker *devicetracker, 
-            std::shared_ptr<kis_tracked_device_base> device) {
+    virtual bool match_device(std::shared_ptr<kis_tracked_device_base> device) override {
         auto dot11dev =
             device->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
 
-        // Not 802.11?  nothing we can do
         if (dot11dev == NULL) {
             return false;
         }
 
-        // Iterate over all the SSID records
         auto adv_ssid_map = dot11dev->get_advertised_ssid_map();
         std::shared_ptr<dot11_advertised_ssid> ssid = NULL;
         tracker_element_int_map::iterator int_itr;
@@ -3103,7 +3203,7 @@ public:
     }
 
 protected:
-    global_registry *globalreg;
+    std::shared_ptr<device_tracker> devicetracker;
     int dot11_device_entry_id;
     int timeout;
     unsigned int packets;
@@ -3112,9 +3212,8 @@ protected:
 int kis_80211_phy::timetracker_event(int eventid) {
     // Spawn a worker to handle this
     if (eventid == device_idle_timer) {
-        auto worker = 
-            std::make_shared<phy80211_devicetracker_expire_worker>(Globalreg::globalreg,
-                device_idle_expiration, device_idle_min_packets, dot11_device_entry_id);
+        phy80211_devicetracker_expire_worker worker(device_idle_expiration, 
+                device_idle_min_packets, dot11_device_entry_id);
         devicetracker->do_device_work(worker);
     }
 

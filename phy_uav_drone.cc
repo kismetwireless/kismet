@@ -354,7 +354,7 @@ bool Kis_UAV_Phy::parse_manuf_definition(std::string in_def) {
         auto mi = std::static_pointer_cast<uav_manuf_match>(i);
 
         if (mi->get_uav_match_name() == name) {
-            _MSG_INFO("Invalud 'uav_match=' configuration line, match name '{}' already in use.",
+            _MSG_INFO("Invalid 'uav_match=' configuration line, match name '{}' already in use.",
                     name);
             return false;
         }
@@ -381,7 +381,7 @@ bool Kis_UAV_Phy::parse_manuf_definition(std::string in_def) {
         mac = mac_addr(macstr);
 
         if (mac.error) {
-            _MSG("Invlaid 'uav_match' configuration line, expected 'mac=macaddr' in definition, "
+            _MSG("Invalid 'uav_match' configuration line, expected 'mac=macaddr' in definition, "
                     "but got an invalid mac in '" + in_def + "'", MSGFLAG_ERROR);
             return false;
         }

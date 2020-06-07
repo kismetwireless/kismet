@@ -40,6 +40,7 @@
 #include <machine/apmvar.h>
 #endif
 
+#if 0
 #ifdef SYS_DARWIN
 #include <CoreFoundation/CoreFoundation.h>
 #include <IOKit/ps/IOPowerSources.h>
@@ -53,6 +54,7 @@
 #define LCDP_BATT_HIGH 6
 #define LCDP_BATT_LOW 7
 #define LCDP_BATT_CRITICAL 8
+#endif
 #endif
 
 #ifdef SYS_NETBSD
@@ -168,7 +170,7 @@ int Fetch_Battery_Linux_Sys(kis_battery_info *out __attribute__((unused))) {
 
     const char *base_dir = "/sys/class/power_supply/";
     char bdir[128];
-    char fpath[128];
+    char fpath[256];
 
     char *line;
     size_t linesz;
@@ -221,7 +223,7 @@ int Fetch_Battery_Linux_Sys(kis_battery_info *out __attribute__((unused))) {
         }
     }
 
-    snprintf(fpath, 128, "%s/status", bdir);
+    snprintf(fpath, 256, "%s/status", bdir);
     if ((f = fopen(fpath, "r")) == NULL) {
         printf("Couldn't open %s\n", fpath);
         return -1;
@@ -325,6 +327,8 @@ int Fetch_Battery_Linux_Sys(kis_battery_info *out __attribute__((unused))) {
 }
 
 int Fetch_Battery_Darwin(kis_battery_info *out __attribute__((unused))) {
+    // This seems to no longer work?  Disabling for now, will revisit
+#if 0
 #ifdef SYS_DARWIN
 	// Battery handling code from Kevin Finisterre & Apple specs
 	CFTypeRef blob = IOPSCopyPowerSourcesInfo();
@@ -419,6 +423,7 @@ int Fetch_Battery_Darwin(kis_battery_info *out __attribute__((unused))) {
 		}
 	}
 
+#endif
 #endif
 
     return 0;

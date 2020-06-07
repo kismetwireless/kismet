@@ -38,7 +38,9 @@
 
 #include "globalregistry.h"
 #include "kis_mutex.h"
-#include "packet.h"
+#include "kis_net_microhttpd.h"
+#include "trackedelement.h"
+#include "trackedrrd.h"
 
 
 /* Packets are added to the packet queue from any thread (including the main 
@@ -132,7 +134,7 @@ public:
 	int remove_handler(int in_id, int in_chain);
 
 protected:
-    void packet_queue_processor(int slot_number);
+    void packet_queue_processor();
 
     // Common function for both insertion methods
     int register_int_handler(pc_callback in_cb, void *in_aux, 
@@ -156,7 +158,10 @@ protected:
     // Packet component mutex
     kis_recursive_timed_mutex packetcomp_mutex;
 
-    std::vector<std::thread> packet_threads;
+    // Packet chain mutex
+    kis_recursive_timed_mutex packetchain_mutex;
+
+    std::thread packet_thread;
 
     std::mutex packetqueue_cv_mutex;
     std::condition_variable packetqueue_cv;
@@ -164,24 +169,33 @@ protected:
     std::queue<kis_packet *> packet_queue;
     bool packetchain_shutdown;
 
-    // Synchronization lock between threads and packet chain so we can make sure
-    // we've locked every thread down before changing the packetchain handlers
-    kis_recursive_timed_mutex packet_chain_sync_mutex;
-
-    std::atomic<bool> packet_chain_pause;
-
-    // Vector of conditional locks to force sync of all the threads when necessary
-    std::vector<conditional_locker<int> *> packet_thread_cls;
-
-    // Locker for the handler threads to wait on to resume them all
-    conditional_locker<unsigned int> packet_chain_pause_cl;
-
-    // Synchronize and lock the service threads, returns when done
-    int sync_service_threads(std::function<int (void)> fn);
-
     // Warning and discard levels for packet queue being full
     unsigned int packet_queue_warning, packet_queue_drop;
     time_t last_packet_queue_user_warning, last_packet_drop_user_warning;
+
+    std::shared_ptr<kis_tracked_rrd<>> packet_rate_rrd;
+    int packet_rate_rrd_id;
+
+    std::shared_ptr<kis_tracked_rrd<>> packet_error_rrd;
+    int packet_error_rrd_id;
+
+    std::shared_ptr<kis_tracked_rrd<>> packet_dupe_rrd;
+    int packet_dupe_rrd_id;
+
+    std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>> packet_queue_rrd;
+    int packet_queue_rrd_id;
+
+    std::shared_ptr<kis_tracked_rrd<>> packet_drop_rrd;
+    int packet_drop_rrd_id;
+
+    std::shared_ptr<tracker_element_map> packet_stats_map;
+
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> packet_stat_endpoint;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> packet_rate_endpoint;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> packet_error_endpoint;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> packet_dupe_endpoint;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> packet_queue_endpoint;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> packet_drop_endpoint;
 };
 
 #endif

@@ -93,7 +93,9 @@ std::string ipc_remote_v2::FindBinaryPath(std::string in_cmd) {
 
         path << path_vec[x] << "/" << in_cmd;
 
-        if (stat(path.str().c_str(), &buf) < 0)
+        auto str = path.str();
+
+        if (stat(str.c_str(), &buf) < 0)
             continue;
 
         if (buf.st_mode & S_IXUSR)
@@ -244,12 +246,14 @@ int ipc_remote_v2::launch_kis_explicit_binary(std::string cmdpath, std::vector<s
 
         // Child reads from inpair
         arg << "--in-fd=" << inpipepair[0];
-        cmdarg[1] = strdup(arg.str().c_str());
+        auto argstr = arg.str();
+        cmdarg[1] = strdup(argstr.c_str());
         arg.str("");
 
         // Child writes to writepair
         arg << "--out-fd=" << outpipepair[1];
-        cmdarg[2] = strdup(arg.str().c_str());
+        argstr = arg.str();
+        cmdarg[2] = strdup(argstr.c_str());
 
         for (unsigned int x = 0; x < args.size(); x++)
             cmdarg[x+3] = strdup(args[x].c_str());
@@ -468,10 +472,12 @@ void ipc_remote_v2::notify_killed(int in_exit) {
 }
 
 ipc_remote_v2_tracker::ipc_remote_v2_tracker(global_registry *in_globalreg) {
+    ipc_mutex.set_name("ipc_remote_v2_tracker");
+
     globalreg = in_globalreg;
 
     timer_id = 
-        globalreg->timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL, 1, this);
+        globalreg->timetracker->register_timer(SERVER_TIMESLICES_SEC, NULL, 1, this);
     cleanup_timer_id = -1;
 }
 
@@ -533,7 +539,7 @@ void ipc_remote_v2_tracker::schedule_cleanup() {
         return;
 
     cleanup_timer_id = 
-        Globalreg::globalreg->timetracker->RegisterTimer(2, NULL, 0, 
+        Globalreg::globalreg->timetracker->register_timer(2, NULL, 0, 
                 [this] (int) -> int {
                     local_locker lock(&ipc_mutex);
                     cleanup_vec.clear();

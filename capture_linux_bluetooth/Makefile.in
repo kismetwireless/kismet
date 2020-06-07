@@ -14,8 +14,6 @@ clean:
 	@-rm -f $(MONITOR_BIN)
 	@-rm -f *.o
 	@-rm -f *.d
-	@-rm -f gdbus/*.o
-	@-rm -f gdbus/*.d
 
 %.c.o:	%.c
 %.c.o : %.c %.c.d

@@ -1,0 +1,2 @@
+#this rule symlinks NXP KW41Z devices to /dev/nxp_kw41z# with # starting at 1
+ACTION=="add" SUBSYSTEM=="tty", ATTRS{idVendor}=="15a2", ATTRS{idProduct}=="0300", PROGRAM="/bin/sh -c 'echo $(($(ls /dev/nxp_kw41z* 2>/dev/null| tail -n1 | sed -e s#/dev/nxp_kw41z## )+1))'", SYMLINK+="nxp_kw41z%c"

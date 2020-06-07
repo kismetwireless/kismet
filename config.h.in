@@ -24,6 +24,9 @@
 /* system data directory */
 #undef DATA_LOC
 
+/* Named mutex debugging */
+#undef DEBUG_MUTEX_NAME
+
 /* cannot support backtrace dumping */
 #undef DISABLE_BACKWARD
 
@@ -44,6 +47,9 @@
 
 /* BSD radiotap packet headers */
 #undef HAVE_BSD_SYS_RADIOTAP
+
+/* Define to 1 if you have the <btbb.h> header file. */
+#undef HAVE_BTBB_H
 
 /* kernel capability support */
 #undef HAVE_CAPABILITY
@@ -68,9 +74,6 @@
 
 /* Define to 1 if you have the <execinfo.h> header file. */
 #undef HAVE_EXECINFO_H
-
-/* have __GNU_PARALLEL extensions */
-#undef HAVE_GNU_PARALLEL
 
 /* GPS support will be built. */
 #undef HAVE_GPS
@@ -110,6 +113,9 @@
 
 /* libsqlite3 database support */
 #undef HAVE_LIBSQLITE3
+
+/* libubertooth has ubertooth_count */
+#undef HAVE_LIBUBERTOOTH_UBERTOOTH_COUNT
 
 /* Define to 1 if you have the <libutil.h> header file. */
 #undef HAVE_LIBUTIL_H
@@ -188,6 +194,12 @@
 
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
+
+/* Define to 1 if you have the <ubertooth.h> header file. */
+#undef HAVE_UBERTOOTH_H
+
+/* Define to 1 if you have the <ubertooth/ubertooth.h> header file. */
+#undef HAVE_UBERTOOTH_UBERTOOTH_H
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H

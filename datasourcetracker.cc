@@ -169,7 +169,7 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (shared_d
 
         // Set up the cancellation timer
         int cancel_timer = 
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
+            timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
                     [this] (int) -> int {
                         _MSG_ERROR("Datasource {} cancelling source probe due to timeout", definition);
                         cancel();
@@ -295,6 +295,8 @@ void datasource_tracker_source_list::list_sources(std::function<void (std::vecto
 datasource_tracker::datasource_tracker() :
     kis_net_httpd_cppstream_handler() {
 
+    dst_lock.set_name("datasourcetracker");
+
     timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
     eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
 
@@ -419,6 +421,9 @@ void datasource_tracker::trigger_deferred_startup() {
 
     next_source_num = 0;
 
+    tcp_buffer_sz = 
+        Globalreg::globalreg->kismet_config->fetch_opt_as<size_t>("tcp_buffer_kb", 512);
+
     config_defaults = 
         Globalreg::globalreg->entrytracker->register_and_get_field_as<datasource_tracker_defaults>("kismet.datasourcetracker.defaults",
                 tracker_element_factory<datasource_tracker_defaults>(),
@@ -503,7 +508,7 @@ void datasource_tracker::trigger_deferred_startup() {
         database_logging = false;
 
         database_log_timer =
-            timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * lograte, NULL, 1, 
+            timetracker->register_timer(SERVER_TIMESLICES_SEC * lograte, NULL, 1, 
                     [this](int) -> int {
 
                         {
@@ -991,7 +996,7 @@ void datasource_tracker::list_interfaces(const std::function<void (std::vector<s
 
     // Set up a cancellation timer
     int cancel_timer = 
-        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
+        timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
             [dst_list] (int) -> int {
                 dst_list->cancel();
                 return 0;
@@ -1043,7 +1048,7 @@ void datasource_tracker::schedule_cleanup() {
         return;
 
     completion_cleanup_id = 
-        timetracker->RegisterTimer(1, NULL, 0, [this] (int) -> int {
+        timetracker->register_timer(1, NULL, 0, [this] (int) -> int {
             local_demand_locker lock(&dst_lock);
            
             lock.lock();
@@ -1071,7 +1076,7 @@ void datasource_tracker::schedule_cleanup() {
 void datasource_tracker::new_remote_tcp_connection(int in_fd) {
     // Make a new connection handler with its own mutex
     auto conn_handler = 
-        std::make_shared<buffer_handler<ringbuf_v2>>((1024 * 1024), (1024 * 1024));
+        std::make_shared<buffer_handler<ringbuf_v2>>((tcp_buffer_sz * 1024), (tcp_buffer_sz * 1024));
 
     // Bind it to the tcp socket
     auto socketcli = 
@@ -1212,8 +1217,8 @@ public:
             bool matched_cur_chan = false;
 
             for (auto comp_chan : *compare_channels) {
-                if (GetTrackerValue<std::string>(first_chan) == 
-                        GetTrackerValue<std::string>(comp_chan)) {
+                if (get_tracker_value<std::string>(first_chan) == 
+                        get_tracker_value<std::string>(comp_chan)) {
                     matched_cur_chan = true;
                     break;
                 }
@@ -1292,7 +1297,8 @@ void datasource_tracker::calculate_source_hopping(shared_datasource in_ds) {
     }
 
     // Turn on channel hopping if we do that
-    if (config_defaults->get_hop() && in_ds->get_source_builder()->get_tune_capable()) {
+    if (config_defaults->get_hop() && in_ds->get_source_builder()->get_tune_capable() &&
+            in_ds->get_source_builder()->get_hop_capable()) {
         // Do we split sources?
         if (config_defaults->get_split_same_sources()) {
             dst_chansplit_worker worker(this, config_defaults, in_ds);
@@ -1316,7 +1322,7 @@ void datasource_tracker::queue_dead_remote(dst_incoming_remote *in_dead) {
 
     if (remote_complete_timer <= 0) {
         remote_complete_timer =
-            timetracker->RegisterTimer(1, NULL, 0, 
+            timetracker->register_timer(1, NULL, 0, 
                 [this] (int) -> int {
                     local_locker lock(&dst_lock);
 
@@ -1478,7 +1484,7 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
             }
 
             if (httpd_strip_suffix(tokenurl[4]) == "source") {
-                httpd_serialize(path, stream, ds);
+                httpd_serialize(path, stream, ds, nullptr, connection);
                 return;
             }
 
@@ -1604,7 +1610,7 @@ int datasource_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
             r = cl->block_until();
 
             if (cmd_complete_success) {
-                httpd_serialize(concls->url, concls->response_stream, r);
+                httpd_serialize(concls->url, concls->response_stream, r, nullptr, concls);
                 concls->httpcode = 200;
             } else {
                 concls->response_stream << error_reason;
@@ -1708,7 +1714,7 @@ int datasource_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                         converted_channels = chstruct->as_string_vector();
                     } else {
                         for (auto c : *(ds->get_source_hop_vec()))
-                            converted_channels.push_back(GetTrackerValue<std::string>(c));
+                            converted_channels.push_back(get_tracker_value<std::string>(c));
                     }
 
                     std::shared_ptr<conditional_locker<std::string> > cl(new conditional_locker<std::string>());
@@ -2018,7 +2024,7 @@ dst_incoming_remote::dst_incoming_remote(std::shared_ptr<buffer_handler_generic>
     connect_buffer(in_rbufhandler);
 
     timerid =
-        timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
+        timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
             [this] (int) -> int {
                 _MSG("Remote source connected but didn't send a NEWSOURCE control, "
                         "closing connection.", MSGFLAG_ERROR);

@@ -21,6 +21,8 @@
 #include "fmt.h"
 
 dot11_fingerprint_tracker::dot11_fingerprint_tracker(const std::string& in_uri) {
+    mutex.set_name("dot11_fingerprint_tracker");
+
     using namespace std::placeholders;
 
     base_uri = str_tokenize(in_uri, "/");

@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -24,6 +24,7 @@
 
 kis_database::kis_database(global_registry *in_globalreg, std::string in_module_name) :
         ds_module_name(in_module_name) {
+    ds_mutex.set_name(fmt::format("kis_database({})", in_module_name));
 
     globalreg = in_globalreg;
 
@@ -257,7 +258,7 @@ sqlite3_stmt *kis_database_binder::make_query(sqlite3 *db, std::string base) {
 
     if (bindings.size() == 0) {
         query << ";";
-        printf("%s\n", query.str().c_str());
+        // printf("%s\n", query.str().c_str());
 
         std::string q_final = query.str();
 

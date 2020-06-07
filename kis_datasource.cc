@@ -31,6 +31,13 @@
 kis_datasource::kis_datasource(shared_datasource_builder in_builder, std::shared_ptr<kis_recursive_timed_mutex> mutex) :
     tracker_component(),
     kis_external_interface(mutex) {
+
+    if (mutex == nullptr) {
+        if (in_builder != nullptr)
+            ext_mutex->set_name(fmt::format("kis_datasource({})", in_builder->get_source_type()));
+        else
+            ext_mutex->set_name("kis_datasource");
+    }
     
     register_fields();
     reserve_fields(nullptr);
@@ -49,9 +56,12 @@ kis_datasource::kis_datasource(shared_datasource_builder in_builder, std::shared
 	pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
     pack_comp_l1info = packetchain->register_packet_component("RADIODATA");
     pack_comp_gps = packetchain->register_packet_component("GPS");
+    pack_comp_no_gps = packetchain->register_packet_component("NOGPS");
 	pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");
     pack_comp_json = packetchain->register_packet_component("JSON");
     pack_comp_protobuf = packetchain->register_packet_component("PROTOBUF");
+
+    suppress_gps = false;
 
     error_timer_id = -1;
     ping_timer_id = -1;
@@ -290,6 +300,13 @@ void kis_datasource::set_channel_hop(double in_rate, std::vector<std::string> in
         return;
     }
 
+    if (!get_source_builder()->get_hop_capable()) {
+        if (in_cb != NULL) {
+            in_cb(in_transaction, false, "Driver not capable of channel hopping");
+        }
+        return;
+    }
+
     // Convert the std::vector to a channel vector
     auto vec = std::make_shared<tracker_element_vector>(source_hop_vec_id);
 
@@ -312,6 +329,13 @@ void kis_datasource::set_channel_hop(double in_rate,
     if (!get_source_builder()->get_tune_capable()) {
         if (in_cb != NULL) {
             in_cb(in_transaction, false, "Driver not capable of changing channel");
+        }
+        return;
+    }
+
+    if (!get_source_builder()->get_hop_capable()) {
+        if (in_cb != NULL) {
+            in_cb(in_transaction, false, "Driver not capable of channel hopping");
         }
         return;
     }
@@ -391,8 +415,6 @@ void kis_datasource::close_source() {
     ipc_remote.reset();
     ringbuf_handler.reset();
 
-    quiet_errors = true;
-
     if (get_source_error())
         return;
 
@@ -433,9 +455,6 @@ void kis_datasource::trigger_error(std::string in_error) {
 
     // Kill any interaction w/ the source
     close_source();
-
-    /* Set errors as quiet after the first one */
-    quiet_errors = 1;
 
     set_int_source_running(false);
 
@@ -790,7 +809,8 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
         set_int_source_hardware(report.hardware());
     }
 
-    if (report.has_dlt()) {
+    // Only override the source level dlt if it hasn't been set
+    if (report.has_dlt() && get_source_dlt() == 0) {
         set_int_source_dlt(report.dlt());
     }
 
@@ -829,7 +849,7 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
     if (def_chan != "") {
         bool append = true;
         for (auto sci : *source_hop_vec) {
-            if (strcasecmp(GetTrackerValue<std::string>(sci).c_str(), def_chan.c_str()) == 0) {
+            if (strcasecmp(get_tracker_value<std::string>(sci).c_str(), def_chan.c_str()) == 0) {
                 append = false;
                 break;
             }
@@ -856,7 +876,7 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
             // source supports?
             bool append = true;
             for (auto sci : *source_channels_vec) {
-                if (strcasecmp(GetTrackerValue<std::string>(sci).c_str(), dc.c_str()) == 0) {
+                if (strcasecmp(get_tracker_value<std::string>(sci).c_str(), dc.c_str()) == 0) {
                     append = false;
                     break;
                 }
@@ -870,7 +890,7 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
         for (auto c : *source_channels_vec) {
             bool skip = false;
             for (auto bchan : block_vec) {
-                if (str_lower(GetTrackerValue<std::string>(c)) == str_lower(bchan)) {
+                if (str_lower(get_tracker_value<std::string>(c)) == str_lower(bchan)) {
                     skip = true;
                     break;
                 }
@@ -884,7 +904,7 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
             // Add any new channels from the add_vec, we don't filter blocked channels here
             bool append = true;
             for (auto sci : *source_channels_vec) {
-                if (strcasecmp(GetTrackerValue<std::string>(sci).c_str(), ac.c_str()) == 0) {
+                if (strcasecmp(get_tracker_value<std::string>(sci).c_str(), ac.c_str()) == 0) {
                     append = false;
                     break;
                 }
@@ -902,7 +922,7 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
         for (auto c : *source_channels_vec) {
             bool skip = false;
             for (auto bchan : block_vec) {
-                if (str_lower(GetTrackerValue<std::string>(c)) == str_lower(bchan)) {
+                if (str_lower(get_tracker_value<std::string>(c)) == str_lower(bchan)) {
                     skip = true;
                     break;
                 }
@@ -944,7 +964,7 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
 
     // If we got here we're valid; start a PING timer
     if (ping_timer_id <= 0) {
-        ping_timer_id = timetracker->RegisterTimer(SERVER_TIMESLICES_SEC, NULL,
+        ping_timer_id = timetracker->register_timer(SERVER_TIMESLICES_SEC, NULL,
                 1, [this](int) -> int {
             local_locker lock(ext_mutex);
             
@@ -1208,6 +1228,9 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno, const std::str
         kis_gps_packinfo *gpsinfo = NULL;
         gpsinfo = handle_sub_gps(report.gps());
         packet->insert(pack_comp_gps, gpsinfo);
+    } else if (suppress_gps) {
+        auto nogpsinfo = new kis_no_gps_packinfo();
+        packet->insert(pack_comp_no_gps, nogpsinfo);
     }
 
     // TODO handle spectrum
@@ -1220,9 +1243,12 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno, const std::str
     inc_source_num_packets(1);
     get_source_packet_rrd()->add_sample(1, time(0));
 
+    handle_rx_packet(packet);
+}
+
+void kis_datasource::handle_rx_packet(kis_packet *packet) {
     // Inject the packet into the packetchain if we have one
     packetchain->process_packet(packet);
-
 }
 
 void kis_datasource::handle_packet_warning_report(uint32_t in_seqno, const std::string& in_content) {
@@ -1426,7 +1452,7 @@ unsigned int kis_datasource::send_configure_channel_hop(double in_rate,
     ch->set_offset(in_offt);
 
     for (auto chi : *in_chans)  {
-        ch->add_channels(GetTrackerValue<std::string>(chi));
+        ch->add_channels(get_tracker_value<std::string>(chi));
     }
 
     o.set_allocated_hopping(ch);
@@ -1549,7 +1575,7 @@ void kis_datasource::register_fields() {
             &source_num_error_packets);
 
     packet_rate_rrd_id = 
-        RegisterDynamicField("kismet.datasource.packets_rrd", 
+        register_dynamic_field("kismet.datasource.packets_rrd", 
                 "detected packet rate over past 60 seconds",
                 &packet_rate_rrd);
 
@@ -1661,7 +1687,7 @@ void kis_datasource::handle_source_error() {
         _MSG(ss.str(), MSGFLAG_ERROR);
 
         // Set a new event to try to re-open the interface
-        error_timer_id = timetracker->RegisterTimer(SERVER_TIMESLICES_SEC * 5,
+        error_timer_id = timetracker->register_timer(SERVER_TIMESLICES_SEC * 5,
                 NULL, 0, [this](int) -> int {
                 local_locker lock(ext_mutex);
 

@@ -24,7 +24,7 @@
 #include "util.h"
 
 dlt_tracker::dlt_tracker() {
-
+    mutex.set_name("dlttracker");
 }
 
 dlt_tracker::~dlt_tracker() {

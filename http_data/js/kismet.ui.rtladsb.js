@@ -8,6 +8,10 @@
 
 var exports = {};
 
+var local_uri_prefix = ""; 
+if (typeof(KISMET_URI_PREFIX) !== 'undefined')
+    local_uri_prefix = KISMET_URI_PREFIX;
+
 // Flag we're still loading
 exports.load_complete = 0;
 
@@ -24,19 +28,98 @@ kismet_ui.AddDeviceRowHighlight({
         'rtladsb.device'
     ],
     selector: function(data) {
-        var aircraft_names = [
-            '^police$',
-            '^depart$',
-            ];
+        var aircraft_info = [
+            'department',
+            'police',
+            'agency',
+            'dep',
+            'gov',
+            'federal',
+            'royal',
+            'force',
+            'state',
+            'army',
+            'navy',
+            'patrol',
+            'sqdn',
+	    'city of',
+        ];
+
+	var exclude_list = [
+	    'express',
+	    'air freight',
+	]
+
+	var icao_list = [
+	    'acf181',
+	    'a980fa',
+	    'a7fb8f',
+	    'ae4bd7',
+	    'a47604',
+            'a03bc8',
+            'a0b8d6',
+            'a0d9f2',
+            'a12d51',
+            'a15f1d',
+            'a169d7',
+            'a16c6d',
+            'a193c1',
+            'a32524',
+            'a328db',
+            'a32c92',
+            'a33049',
+            'a33dc3',
+            'a3c1be',
+            'a3c92c',
+            'a3e6e3',
+            'a3e6e4',
+            'a410bc',
+            'a4182a',
+            'a44360',
+            'a4724d',
+            'a483df',
+            'a4bc36',
+            'a4bfed',
+            'a51a10',
+            'a51dc7',
+            'a54b56',
+            'a54f0d',
+            'a552c4',
+            'a5ed09',
+            'a5f9f7',
+            'a64217',
+            'a645ce',
+            'a64985',
+            'a64d3c',
+            'a654aa',
+            'aac551',
+            'abaf9c',
+            'ac742b',
+            'ac7b99',
+	    ];
 
         if (data['kismet.device.base.phyname'] === 'RTLADSB') {
-            for (var re of aircraft_names) {
-		 if (data['rtladsb.device']['rtladsb.device.adsb']['rtladsb.device.aoperator'].match(new RegExp(re, 'i')) != null)
+            for (var re of aircraft_info) {
+		 var retval = false;
+		 if (data['rtladsb.device']['kismet.adsb.icao_record']['adsb.icao.owner'].toLowerCase().includes(re)) {
+	            retval = true;
+		    for (var excld of exclude_list) {
+		      if (data['rtladsb.device']['kismet.adsb.icao_record']['adsb.icao.owner'].toLowerCase().includes(excld)) {
+			retval=false;
+		      }
+	            }
+		 }
+
+		 if (Boolean(retval)) {
+		     return true;
+		 }
+	    }
+	    for (var re of icao_list) {
+		 if (data['rtladsb.device']['rtladsb.device.icao'].toLowerCase().includes(re))
                     return true;
             }
-        } 
-
-        //return data['kismet.device.base.phyname'] === "RTLADSB";
+        }
+        return false;
     }
 });
 
@@ -46,86 +129,138 @@ kismet_ui.AddDeviceDetail("rtladsb", "RTLADSB (SDR)", 0, {
     },
     draw: function(data, target) {
         target.devicedata(data, {
-            "id": "rtladsbData",
+            "id": "RtladsbData",
             "fields": [
             {
-                field: "rtladsb.device/rtladsb.device.common/rtladsb.device.model",
-                title: "Model",
-                empty: "<i>Unknown</i>"
-            },
-            {
-                field: "rtladsb.device/rtladsb.device.common/rtladsb.device.id",
+                field: "rtladsb.device/rtladsb.device.icao",
+                liveupdate: true,
                 title: "Plane ICAO",
                 empty: "<i>Unknown</i>"
             },
             {
-                field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.regid",
-                title: "REG ID",
-                filterOnZero: true,
-            },
-            {
-                field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.mdl",
-                title: "MDL",
-                filterOnZero: true,
-            },
-            {
-                field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.atype",
-                title: "Aircraft Type",
-                filterOnZero: true,
-            },
-            {
-                field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.aoperator",
-                title: "Aircraft Operator",
-                filterOnZero: true,
-            },
-            {
-                field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.callsign",
+                field: "rtladsb.device/rtladsb.device.callsign",
+                liveupdate: true,
                 title: "Callsign",
                 filterOnZero: true,
+                filterOnEmpty: true,
+                help: "Flight registration / Callsign",
             },
             {
-                field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.altitude",
+                field: "rtladsb.device/rtladsb.device.callsign",
+                id: "fa_callsign",
+                liveupdate: true,
+                title: "Flightaware",
+                filterOnZero: true,
+                filterOnEmpty: true,
+                draw: function(opts) {
+                    return '<a href="https://flightaware.com/live/flight/' + opts['value'] + '" target="_new">Track ' + opts['value'] + ' on FlightAware</a>';
+                },
+            },
+            {
+                field: "rtladsb.device/kismet.adsb.icao_record/adsb.icao.regid",
+                liveupdate: true,
+                title: "Registration ID",
+                filterOnZero: true,
+                filterOnEmpty: true,
+                help: "Aircraft registration ID or tail number",
+            },
+            {
+                field: "rtladsb.device/kismet.adsb.icao_record/adsb.icao.atype",
+                liveupdate: true,
+                title: "Aircraft Classification",
+                filterOnZero: true,
+                filterOnEmpty: true,
+                help: "Aircraft classification type",
+            },
+            {
+                field: "rtladsb.device/kismet.adsb.icao_record/adsb.icao.model",
+                liveupdate: true,
+                title: "Model",
+                filterOnZero: true,
+                filterOnEmpty: true,
+                help: "Aircraft model (general model type)",
+            },
+            {
+                field: "rtladsb.device/kismet.adsb.icao_record/adsb.icao.type",
+                liveupdate: true,
+                title: "Type",
+                filterOnZero: true,
+                filterOnEmpty: true,
+                help: "Aircraft type (specific model type)",
+            },
+            {
+                field: "rtladsb.device/kismet.adsb.icao_record/adsb.icao.owner",
+                liveupdate: true,
+                title: "Aircraft Operator",
+                filterOnZero: true,
+                filterOnEmpty: true,
+                help: "Aircraft operator or owner of record",
+            },
+            {
+                field: "rtladsb.device/rtladsb.device.altitude",
+                liveupdate: true,
                 title: "Altitude",
                 filterOnZero: true,
             },
             {
-                field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.speed",
+                field: "rtladsb.device/rtladsb.device.speed",
+                liveupdate: true,
                 title: "Speed",
                 filterOnZero: true,
             },
             {
-                field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.heading",
+                field: "rtladsb.device/rtladsb.device.heading",
+                liveupdate: true,
                 title: "Heading",
                 filterOnZero: true,
+                draw: function(opts) {
+
+                    return Math.round(opts['value']) + '&deg; <i class="fa fa-plane" style="transform: rotate(' + (opts['value'] -45) + 'deg)" />';
+
+                },
             },
             {
-                field: "rtladsb.device/rtladsb.device.adsb/rtladsb.device.asgs",
+                field: "rtladsb.device/rtladsb.device.latitude",
+                liveupdate: true,
+                title: "Location",
+                filterOnZero: true,
+                filterOnEmpty: true,
+                draw: function(opts) {
+                    try {
+                        return opts['data']['rtladsb.device']['rtladsb.device.latitude'] + ', ' + opts['data']['rtladsb.device']['rtladsb.device.longitude'] + ' <a target="_new" href="https://openstreetmap.org/?&mlat=' + opts['data']['rtladsb.device']['rtladsb.device.latitude'] + '&mlon=' + opts['data']['rtladsb.device']['rtladsb.device.longitude'] + '">View on Open Street Maps</a>';
+                    } catch (error) {
+                        return 'n/a'
+                    }
+
+                },
+            },
+            {
+                field: "rtladsb.device/rtladsb.device.asgs",
+                liveupdate: true,
                 title: "Airspeed(AS) / Groundspeed (GS)",
                 filterOnZero: true,
             },
-            //{
-            //    field: "rtladsb.device/rtladsb.device.powermeter",
-            //    groupTitle: "Powermeter",
-            //    id: "group_power_data",
-            //    filterOnEmpty: true,
-            //    fields: [
-            //    {
-            //        field: "rtladsb.device/rtladsb.device.powermeter/rtladsb.device.consumption",
-            //        title: "Consumption",
-            //        filterOnEmpty: true,
-            //        render: function(opts) {
-            //            return kismet_ui.renderConsumption(opts['value'], 2);
-            //        }
-            //    },
-            //    ]
-            //},
-
             ],
         });
     },
 });
 
-console.log("kismet.ui.rtladsb.js returning, we think we loaded everything?");
+kismet_ui_tabpane.AddTab({
+    id: 'adsb_live',
+    tabTitle: 'ADSB Live',
+    expandable: false,
+    createCallback: function(div) {
+        div.append(
+            $('<iframe>', {
+                width: '100%',
+                height: '100%',
+                src: `${local_uri_prefix}/adsb_map_panel.html?parent_url=${parent.document.URL}&local_uri_prefix=${local_uri_prefix}`,
+            })
+        );
+    },
+    priority: -100,
+
+}, 'center');
 
 // We're done loading
 exports.load_complete = 1;

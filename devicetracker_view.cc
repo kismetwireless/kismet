@@ -31,6 +31,8 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
     new_cb {in_new_cb},
     update_cb {in_update_cb} {
 
+    mutex.set_name(fmt::format("devicetracker_view({})", in_id));
+
     using namespace std::placeholders;
 
     register_fields();
@@ -152,7 +154,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(devi
     ret->reserve(devices->size());
     kis_recursive_timed_mutex ret_mutex;
 
-    kismet__for_each(devices->begin(), devices->end(),
+    std::for_each(devices->begin(), devices->end(),
             [&](shared_tracker_element val) {
 
             if (val == nullptr)
@@ -163,7 +165,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(devi
             bool m;
             {
                 local_locker devlocker(&dev->device_mutex);
-                m = worker.matchDevice(dev);
+                m = worker.match_device(dev);
             }
 
             if (m) {
@@ -173,7 +175,9 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(devi
 
         });
 
-    worker.setMatchedDevices(ret);
+    worker.set_matched_devices(ret);
+
+    worker.finalize();
 
     return ret;
 }
@@ -182,30 +186,26 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_
         std::shared_ptr<tracker_element_vector> devices) {
     auto ret = std::make_shared<tracker_element_vector>();
     ret->reserve(devices->size());
-    kis_recursive_timed_mutex ret_mutex;
 
-    kismet__for_each(devices->begin(), devices->end(),
+    std::for_each(devices->begin(), devices->end(),
             [&](shared_tracker_element val) {
 
             if (val == nullptr)
                 return;
 
             auto dev = std::static_pointer_cast<kis_tracked_device_base>(val);
+            local_shared_locker devlocker(&dev->device_mutex);
 
-            bool m;
-            {
-                local_shared_locker devlocker(&dev->device_mutex);
-                m = worker.matchDevice(dev);
-            }
+            auto m = worker.match_device(dev);
 
-            if (m) {
-                local_locker retl(&ret_mutex);
+            if (m) 
                 ret->push_back(dev);
-            }
 
         });
 
-    worker.setMatchedDevices(ret);
+    worker.set_matched_devices(ret);
+
+    worker.finalize();
 
     return ret;
 }
@@ -345,17 +345,14 @@ std::shared_ptr<tracker_element> device_tracker_view::device_time_endpoint(const
     if (path.size() < 6)
         return ret;
 
-    auto tv = string_to_n<int64_t>(path[4], 0);
+    auto tv = string_to_n_dfl<int64_t>(path[4], 0);
     time_t ts;
 
-    // Don't allow 'all' devices b/c it's really expensive
-    if (tv == 0)
-        return ret;
-
-    if (tv < 0)
-        ts = time(0) - tv;
-    else
+    if (tv < 0) {
+        ts = time(0) + tv;
+    } else {
         ts = tv;
+    }
 
     auto worker = 
         device_tracker_view_function_worker([&](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
@@ -411,12 +408,8 @@ std::shared_ptr<tracker_element> device_tracker_view::device_time_uri_endpoint(c
     if (path.size() < (5 + extras_sz))
         return ret;
 
-    auto tv = string_to_n<int64_t>(path[3 + extras_sz], 0);
+    auto tv = string_to_n_dfl<int64_t>(path[3 + extras_sz], 0);
     time_t ts;
-
-    // Don't allow 'all' devices b/c it's really expensive
-    if (tv == 0)
-        return ret;
 
     if (tv < 0)
         ts = time(0) + tv;
@@ -461,7 +454,7 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
     // Wrapper, if any, we insert under
     std::shared_ptr<tracker_element_string_map> wrapper_elem;
 
-    // Field we transmit in the final stage (dervied array, or map)
+    // Field we transmit in the final stage (derived array, or map)
     std::shared_ptr<tracker_element> transmit;
 
     // Windowed response elements, used in datatables and others
@@ -694,13 +687,13 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
 
     // Unfortunately we need to do a stable sort to get a consistent display
     if (in_order_column_num >= 0 && order_field.size() > 0) {
-        kismet__stable_sort(next_work_vec->begin(), next_work_vec->end(),
+        std::stable_sort(next_work_vec->begin(), next_work_vec->end(),
                 [&](shared_tracker_element a, shared_tracker_element b) -> bool {
                 shared_tracker_element fa;
                 shared_tracker_element fb;
 
-                fa = Gettracker_elementPath(order_field, a);
-                fb = Gettracker_elementPath(order_field, b);
+                fa = get_tracker_element_path(order_field, a);
+                fb = get_tracker_element_path(order_field, b);
 
                 if (fa == nullptr) 
                     return in_order_direction == 0;
@@ -709,15 +702,15 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
                     return in_order_direction != 0;
 
                 if (in_order_direction == 0)
-                    return FastSorttracker_elementLess(fa, fb);
+                    return fast_sort_tracker_element_less(fa, fb);
 
-                return FastSorttracker_elementLess(fb, fa);
+                return fast_sort_tracker_element_less(fb, fa);
             });
     }
 
     // Summarize into the output element
     for (auto i = si; i != ei; ++i) {
-        output_devices_elem->push_back(SummarizeSingletracker_element(*i, summary_vec, rename_map));
+        output_devices_elem->push_back(summarize_single_tracker_element(*i, summary_vec, rename_map));
     }
 
     // If the transmit wasn't assigned to a wrapper...

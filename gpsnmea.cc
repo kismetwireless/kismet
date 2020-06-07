@@ -33,7 +33,7 @@ void kis_gps_nmea::buffer_available(size_t in_amt) {
 
     // Peek at all the data we have available
     buf_sz = nmeahandler->peek_read_buffer_data((void **) &buf, 
-            nmeahandler->get_read_buffer_available());
+            nmeahandler->get_read_buffer_used());
 
     // Aggregate into a new location; then copy into the main location
     // depending on what we found.  Locations can come in multiple sentences
@@ -80,9 +80,8 @@ void kis_gps_nmea::buffer_available(size_t in_amt) {
             if (gpstoks.size() < 15)
                 continue;
 
-            // Parse the basic gps coodinate string
-            // $GPGGA,time,lat,NS,lon,EW,quality,#sats,hdop,alt,M,geopos,M,
-            // dgps1,dgps2,checksum
+            // Parse the basic gps coordinate string
+            // $GPGGA,time,lat,NS,lon,EW,quality,#sats,hdop,alt,M,geopos,M,dgps1,dgps2,checksum
 
             if (sscanf(gpstoks[2].c_str(), "%2d%f", &tint, &tfloat) != 2)
                 continue;
@@ -299,8 +298,9 @@ A        Auto selection of 2D or 3D fix (M = manual)
 
         if (set_speed) {
             gps_location->speed = new_location->speed;
-            // NMEA reports speed in knots, convert
-            gps_location->speed *= 0.514;
+
+            // NMEA reports speed in knots, convert to kph
+            gps_location->speed *= 1.852;
         }
 
         if (set_fix) {

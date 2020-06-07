@@ -116,7 +116,7 @@ public:
     // Adjust an existing antenna
     int set_antenna_adjustment(int in_antnum, int adjustment);
 
-    // Retreive antenna
+    // Retrieve antenna
     std::shared_ptr<tracked_antenna> get_antenna(int in_antnum);
 
 protected:

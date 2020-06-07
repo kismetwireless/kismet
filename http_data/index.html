@@ -58,6 +58,7 @@
 <script src="js/jquery.kismet.alert.js"></script>
 <script src="js/jquery.kismet.auth.js"></script>
 <script src="js/jquery.kismet.gps.js"></script>
+<script src="js/jquery.kismet.packetrate.js"></script>
 
 <link rel="stylesheet" type="text/css" href="css/font-awesome.min.css">
 
@@ -105,6 +106,42 @@ div.autosize {
 
 <script>
 
+var orig_title = "";
+
+// Visibility detection from https://developer.mozilla.org/en-US/docs/Web/API/Page_Visibility_API
+// Set the name of the hidden property and the change event for visibility
+var hidden, visibilityChange; 
+if (typeof document.hidden !== "undefined") { // Opera 12.10 and Firefox 18 and later support 
+      hidden = "hidden";
+      visibilityChange = "visibilitychange";
+} else if (typeof document.msHidden !== "undefined") {
+      hidden = "msHidden";
+      visibilityChange = "msvisibilitychange";
+} else if (typeof document.webkitHidden !== "undefined") {
+      hidden = "webkitHidden";
+      visibilityChange = "webkitvisibilitychange";
+}
+
+function handleVisibilityChange() {
+    if (document[hidden]) {
+        kismet_ui.window_visible = false;
+        orig_title = document.title;
+        document.title = orig_title + " (Paused)"
+    } else {
+        kismet_ui.window_visible = true;
+        document.title = orig_title;
+    }
+}
+
+// Warn if the browser doesn't support addEventListener or the Page Visibility API
+if (typeof document.addEventListener === "undefined" || hidden === undefined) {
+    ; // Do nothing
+} else {
+      // Handle page visibility change   
+      document.addEventListener(visibilityChange, handleVisibilityChange, false);
+}
+
+
 function load_main_ui() {
     // Don't let DT make alerts
     $.fn.dataTableExt.sErrMode = "console";
@@ -128,7 +165,7 @@ function load_main_ui() {
         },
         center: {
             onresize: function() {
-                // kismet_ui.ResizeDeviceTable($('#devices'));
+                $('#centerpane-tabs').tabs("refresh");
             },
         },
         south: {
@@ -144,7 +181,7 @@ function load_main_ui() {
     // this?  sure is annoying.
     kismet.LoadDynamicIncludes(function() {
 
-    kismet_ui.CreateDeviceTable($('#devices'));
+    // kismet_ui.CreateDeviceTable($('#devices'));
 
     kismet_ui_iconbar.AddIconbarItem({
         id: 'login',
@@ -178,6 +215,14 @@ function load_main_ui() {
         }
     });
 
+    kismet_ui_iconbar.AddIconbarItem({
+        id: 'packets',
+        priority: 0,
+        createCallback: function(div) {
+            div.packetrate();
+        }
+    });
+
     kismet_ui_iconbar.makeIconbar($('#iconbar'));
 
     /*
@@ -192,7 +237,8 @@ function load_main_ui() {
     kismet_ui_sidebar.MakeSidebar($('.k-sb-main'));
 
     // finalize the tabs
-    kismet_ui_tabpane.MakeTabPane($('#southpane-tabs'));
+    kismet_ui_tabpane.MakeTabPane($('#southpane-tabs'), 'south');
+    kismet_ui_tabpane.MakeTabPane($('#centerpane-tabs'), 'center');
 
     // Try to scrape the server name
     kismet_ui_base.FetchServerName(function(name) {
@@ -225,13 +271,14 @@ $(function() {
 </script>
 
 <style>
-#resize_wrapper {
+.resize_wrapper {
     position: relative;
     box-sizing: border-box;
-    height: calc(100% - 20px);
+    height: calc(100% - 30px);
     padding: 0.5em 0.5em 1.5em 0.5em;
     border-radius: 0.5em;
     background-color: #f9f9f9;
+    overflow: hidden;
 }
 </style>
 
@@ -264,11 +311,15 @@ $(function() {
             -->
 
             <div class="ui-layout-center" id="main_center">
+                <div id="centerpane-tabs" class="tabs-min"></div>
+                <!--
                 <div id="resize_wrapper">
-                <table id="devices" class="stripe hover nowrap" cell-spacing="0" width="100%"></table>
+                    <table id="devices" class="stripe hover nowrap" cell-spacing="0" width="100%"></table>
                 </div>
-                <!-- Must be named foo_status -->
+                -->
+                <!-- Must be named foo_status 
                 <div id="devices_status" style="padding-bottom: 10px;"></div>
+                -->
             </div>
 
             <div class="ui-layout-south">

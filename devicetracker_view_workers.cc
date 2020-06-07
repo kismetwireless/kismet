@@ -25,7 +25,7 @@
 #include "kis_mutex.h"
 #include "kismet_algorithm.h"
 
-void device_tracker_view_worker::setMatchedDevices(std::shared_ptr<tracker_element_vector> devs) {
+void device_tracker_view_worker::set_matched_devices(std::shared_ptr<tracker_element_vector> devs) {
     local_locker l(&mutex);
     matched = devs;
 }
@@ -33,7 +33,7 @@ void device_tracker_view_worker::setMatchedDevices(std::shared_ptr<tracker_eleme
 device_tracker_view_function_worker::device_tracker_view_function_worker(filter_cb cb) :
     filter {cb} { }
 
-bool device_tracker_view_function_worker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
+bool device_tracker_view_function_worker::match_device(std::shared_ptr<kis_tracked_device_base> device) {
     return filter(device);
 }
 
@@ -110,26 +110,26 @@ device_tracker_view_regex_worker::device_tracker_view_regex_worker(const std::ve
         filter_vec.push_back(worker_filter);
     }
 #else
-    throw std::runtime_error("Kismet was ot compiled with PCRE support");
+    throw std::runtime_error("Kismet was not compiled with PCRE support");
 #endif
 }
 
-bool device_tracker_view_regex_worker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
+bool device_tracker_view_regex_worker::match_device(std::shared_ptr<kis_tracked_device_base> device) {
 #ifdef HAVE_LIBPCRE
     bool matched = false;
 
     for (auto i : filter_vec) {
-        auto fields = Gettracker_elementMultiPath(i->target, device);
+        auto fields = get_tracker_element_multi_path(i->target, device);
 
         for (auto fi : fields) {
             std::string val;
 
             if (fi->get_type() == tracker_type::tracker_string)
-                val = GetTrackerValue<std::string>(fi);
+                val = get_tracker_value<std::string>(fi);
             else if (fi->get_type() == tracker_type::tracker_mac_addr)
-                val = GetTrackerValue<mac_addr>(fi).mac_to_string();
+                val = get_tracker_value<mac_addr>(fi).mac_to_string();
             else if (fi->get_type() == tracker_type::tracker_uuid)
-                val = GetTrackerValue<uuid>(fi).uuid_to_string();
+                val = get_tracker_value<uuid>(fi).uuid_to_string();
             else if (fi->get_type() == tracker_type::tracker_byte_array) 
                 val = std::static_pointer_cast<tracker_element_byte_array>(fi)->get();
             else
@@ -164,18 +164,18 @@ device_tracker_view_stringmatch_worker::device_tracker_view_stringmatch_worker(c
     mac_addr::prepare_search_term(query, mac_query_term, mac_query_term_len);
 }
 
-bool device_tracker_view_stringmatch_worker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
+bool device_tracker_view_stringmatch_worker::match_device(std::shared_ptr<kis_tracked_device_base> device) {
     bool matched = false;
 
     for (auto i : fieldpaths) {
-        auto field = Gettracker_elementPath(i, device);
+        auto field = get_tracker_element_path(i, device);
 
         if (field == nullptr)
             continue;
 
         if (field->get_type() == tracker_type::tracker_string) {
             // We can only do a straight string match against string fields
-            matched = GetTrackerValue<std::string>(field).find(query) != std::string::npos;
+            matched = get_tracker_value<std::string>(field).find(query) != std::string::npos;
         } else if (field->get_type() == tracker_type::tracker_byte_array) {
             // Try a raw string match against a binary field
             matched = 
@@ -204,7 +204,7 @@ device_tracker_view_icasestringmatch_worker::device_tracker_view_icasestringmatc
     mac_addr::prepare_search_term(query, mac_query_term, mac_query_term_len);
 }
 
-bool device_tracker_view_icasestringmatch_worker::matchDevice(std::shared_ptr<kis_tracked_device_base> device) {
+bool device_tracker_view_icasestringmatch_worker::match_device(std::shared_ptr<kis_tracked_device_base> device) {
     bool matched = false;
 
     auto icasesearch = [](const std::string& haystack, const std::string& needle) -> bool {
@@ -216,14 +216,14 @@ bool device_tracker_view_icasestringmatch_worker::matchDevice(std::shared_ptr<ki
     };
 
     for (auto i : fieldpaths) {
-        auto field = Gettracker_elementPath(i, device);
+        auto field = get_tracker_element_path(i, device);
 
         if (field == nullptr)
             continue;
 
         if (field->get_type() == tracker_type::tracker_string) {
             // We can only do a straight string match against string fields
-            matched = icasesearch(GetTrackerValue<std::string>(field), query);
+            matched = icasesearch(get_tracker_value<std::string>(field), query);
         } else if (field->get_type() == tracker_type::tracker_byte_array) {
             // Try a raw string match against a binary field
             matched = icasesearch(std::static_pointer_cast<tracker_element_byte_array>(field)->get(), query);

@@ -44,10 +44,12 @@
 #endif
 
 config_file::config_file() {
+    config_locker.set_name("configfile_locker");
     checksum = 0;
 }
 
 config_file::config_file(global_registry *in_globalreg) {
+    config_locker.set_name("configfile_locker");
     checksum = 0;
 }
 
@@ -63,12 +65,6 @@ int config_file::parse_config(const char *in_fname) {
     if (r < 0)
         return r;
 
-    // Check the override vector, warn if there's more than one
-    if (config_override_file_list.size() > 1) {
-        _MSG("More than one override file included; Kismet will process them "
-                "in the order they were defined.", MSGFLAG_INFO);
-    }
-
     for (auto f : config_override_file_list) {
         r = parse_opt_override(f);
 
@@ -77,7 +73,10 @@ int config_file::parse_config(const char *in_fname) {
 
     }
 
-    config_override_file_list.empty();
+    config_override_file_list.clear();
+
+    if (final_override.length() > 0)
+        parse_opt_override(final_override);
 
     return r;
 }
@@ -393,51 +392,48 @@ std::string config_file::expand_log_path(const std::string& path, const std::str
             logtemplate.insert(nl, logname);
         else if (op == 'd') {
             time_t tnow;
-            struct tm *now;
+            struct tm now;
 
-            // tnow = time(0);
             tnow = Globalreg::globalreg->start_time;
-            now = localtime(&tnow);
+            gmtime_r(&tnow, &now);
 
             char datestr[24];
-            strftime(datestr, 24, "%b-%d-%Y", now);
+            strftime(datestr, 24, "%b-%d-%Y", &now);
 
             logtemplate.insert(nl, datestr);
         }
         else if (op == 'D') {
             time_t tnow;
-            struct tm *now;
+            struct tm now;
 
-            // tnow = time(0);
             tnow = Globalreg::globalreg->start_time;
-            now = localtime(&tnow);
+            gmtime_r(&tnow, &now);
 
             char datestr[24];
-            strftime(datestr, 24, "%Y%m%d", now);
+            strftime(datestr, 24, "%Y%m%d", &now);
 
             logtemplate.insert(nl, datestr);
         } else if (op == 't') {
             time_t tnow;
-            struct tm *now;
+            struct tm now;
 
-            // tnow = time(0);
             tnow = Globalreg::globalreg->start_time;
-            now = localtime(&tnow);
+            gmtime_r(&tnow, &now);
 
             char timestr[12];
-            strftime(timestr, 12, "%H-%M-%S", now);
+            strftime(timestr, 12, "%H-%M-%S", &now);
 
             logtemplate.insert(nl, timestr);
         } else if (op == 'T') {
             time_t tnow;
-            struct tm *now;
+            struct tm now;
 
             // tnow = time(0);
             tnow = Globalreg::globalreg->start_time;
-            now = localtime(&tnow);
+            gmtime_r(&tnow, &now);
 
             char timestr[12];
-            strftime(timestr, 12, "%H%M%S", now);
+            strftime(timestr, 12, "%H%M%S", &now);
 
             logtemplate.insert(nl, timestr);
         } else if (op == 'l') {

@@ -26,6 +26,9 @@
 #include "timetracker.h"
 
 time_tracker::time_tracker() {
+    time_mutex.set_name("time_tracker");
+    removed_id_mutex.set_name("time_tracker_removed_id");
+
     next_timer_id = 0;
 
     timer_sort_required = true;
@@ -266,7 +269,7 @@ void time_tracker::time_dispatcher() {
     }
 }
 
-int time_tracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
+int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
                                int in_recurring, 
                                int (*in_callback)(TIMEEVENT_PARMS),
                                void *in_parm) {
@@ -301,7 +304,7 @@ int time_tracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
     return evt->timer_id;
 }
 
-int time_tracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
+int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
         int in_recurring, time_tracker_event *in_event) {
     local_locker l(&time_mutex);
 
@@ -345,7 +348,7 @@ int time_tracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
     return evt->timer_id;
 }
 
-int time_tracker::RegisterTimer(int in_timeslices, struct timeval *in_trigger,
+int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
         int in_recurring, std::function<int (int)> in_event) {
     local_locker l(&time_mutex);
 

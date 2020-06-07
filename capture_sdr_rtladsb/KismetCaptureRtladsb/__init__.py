@@ -1,31 +1,21 @@
 """
 rtladsb Kismet data source
 
-Supports both local usb rtlsdr devices via the rtladsb binary, remote capture
-from a usb rtlsdr, and remote capture from a mqtt stream, if paho mqtt is
-installed.
-
 Sources are generated as rtladsb-XYZ when multiple rtl radios are detected.
 
 Accepts standard options:
-    channel=freqMHz   (in mhz)
-    channel=freqKHz   (in khz)
-    channel=freq      (in raw hz to rtladsb)
-
-    channels="a,b,c"  Pass hopping list to rtladsb_bin
+    channel=freq      (in raw hz)
 
 Additionally accepts:
-    ppm_error         Passed as -p to rtladsb
-    gain              Passed as -g to rtladsb
-
-    mqtt              MQTT server
-    mqtt_port         MQTT port (default 1883)
-    mqtt_channel      MQTT channel (default rtladsb)
+    ppm     error offset 
+    gain    fixed gain 
 
 """
 
+from __future__ import print_function
+
+import asyncio
 import argparse
-import csv
 import ctypes
 from datetime import datetime
 import json
@@ -44,221 +34,39 @@ import threading
 import time
 import uuid
 
-### THE NEXT CODE BLOCK IS FROM THE WORK OF myModeS AVAILABLE AT      ###
-###            https://pypi.org/project/pyModeS/                      ###
-### IT IS INCLUDED HERE IN THIS VERSION STRIPPED DOWN AND MODIFIED    ###
-### DUE TO UPSTEAM CHANGES IN THE ORIGINAL CODEBASE THAT ARENT NEEDED ###
-def hex2bin(hexstr):
-    """Convert a hexdecimal string to binary string, with zero fillings. """
-    num_of_bits = len(hexstr) * 4
-    binstr = bin(int(hexstr, 16))[2:].zfill(int(num_of_bits))
-    return binstr
-
-def bin2int(binstr):
-    """Convert a binary string to integer. """
-    return int(binstr, 2)
-
-def hex2int(hexstr):
-    """Convert a hexdecimal string to integer. """
-    return int(hexstr, 16)
-
-def bin2np(binstr):
-    """Convert a binary string to numpy array. """
-    return np.array([int(i) for i in binstr])
-
-def np2bin(npbin):
-    """Convert a binary numpy array to string. """
-    return np.array2string(npbin, separator='')[1:-1]
-
-def df(msg):
-    """Decode Downlink Format vaule, bits 1 to 5."""
-    msgbin = hex2bin(msg)
-    return min( bin2int(msgbin[0:5]) , 24 )
-
-def crc(msg, encode=False):
-    """Mode-S Cyclic Redundancy Check
-    Detect if bit error occurs in the Mode-S message
-    Args:
-        msg (string): 28 bytes hexadecimal message string
-        encode (bool): True to encode the date only and return the checksum
-    Returns:
-        string: message checksum, or partity bits (encoder)
-    """
-
-    # the polynominal generattor code for CRC [1111111111111010000001001]
-    generator = np.array([1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,0,0,0,0,0,0,1,0,0,1])
-    ng = len(generator)
-
-    msgnpbin = bin2np(hex2bin(msg))
-
-    if encode:
-        msgnpbin[-24:] = [0] * 24
-
-    # loop all bits, except last 24 piraty bits
-    for i in range(len(msgnpbin)-24):
-        if msgnpbin[i] == 0:
-            continue
-
-        # perform XOR, when 1
-        msgnpbin[i:i+ng] = np.bitwise_xor(msgnpbin[i:i+ng], generator)
-
-    # last 24 bits
-    reminder = np2bin(msgnpbin[-24:])
-    return reminder
-
-def icao(msg):
-    """Calculate the ICAO address from an Mode-S message
-    with DF4, DF5, DF20, DF21
-    Args:
-        msg (String): 28 bytes hexadecimal message string
-    Returns:
-        String: ICAO address in 6 bytes hexadecimal string
-    """
-    DF = df(msg)
-
-    if DF in (11, 17, 18):
-        addr = msg[2:8]
-    elif DF in (0, 4, 5, 16, 20, 21):
-        c0 = bin2int(crc(msg, encode=True))
-        c1 = hex2int(msg[-6:])
-        addr = '%06X' % (c0 ^ c1)
-    else:
-        addr = None
-
-    return addr
-
-def typecode(msg):
-    """Type code of ADS-B message
-    Args:
-        msg (string): 28 bytes hexadecimal message string
-    Returns:
-        int: type code number
-    """
-    if df(msg) not in (17, 18):
-        return None
-
-    msgbin = hex2bin(msg)
-    return bin2int(msgbin[32:37])
-
-def data(msg):
-    """Return the data frame in the message, bytes 9 to 22"""
-    return msg[8:-6]
-
-def airborne_velocity(msg):
-    """Calculate the speed, track (or heading), and vertical rate
-
-    Args:
-        msg (string): 28 bytes hexadecimal message string
-
-    Returns:
-        (int, float, int, string): speed (kt), ground track or heading (degree),
-            rate of climb/descend (ft/min), and speed type
-            ('GS' for ground speed, 'AS' for airspeed)
-    """
-
-    if typecode(msg) != 19:
-        raise RuntimeError("%s: Not a airborne velocity message, expecting TC=19" % msg)
-
-    msgbin = hex2bin(msg)
-
-    subtype = bin2int(msgbin[37:40])
-
-    if bin2int(msgbin[46:56]) == 0 or bin2int(msgbin[57:67]) == 0:
-        return None
-
-    if subtype in (1, 2):
-        v_ew_sign = -1 if int(msgbin[45]) else 1
-        v_ew = bin2int(msgbin[46:56]) - 1       # east-west velocity
-
-        v_ns_sign = -1 if int(msgbin[56]) else 1
-        v_ns = bin2int(msgbin[57:67]) - 1       # north-south velocity
-
-
-        v_we = v_ew_sign * v_ew
-        v_sn = v_ns_sign * v_ns
-
-        spd = math.sqrt(v_sn*v_sn + v_we*v_we)  # unit in kts
-
-        trk = math.atan2(v_we, v_sn)
-        trk = math.degrees(trk)                 # convert to degrees
-        trk = trk if trk >= 0 else trk + 360    # no negative val
-
-        tag = 'GS'
-        trk_or_hdg = trk
-
-    else:
-        hdg = bin2int(msgbin[46:56]) / 1024.0 * 360.0
-        spd = bin2int(msgbin[57:67])
-
-        tag = 'AS'
-        trk_or_hdg = hdg
-
-    vr_sign = -1 if int(msgbin[68]) else 1
-    vr = (bin2int(msgbin[69:78]) - 1) * 64     # vertical rate, fpm
-    rocd = vr_sign * vr
-
-    return int(spd), round(trk_or_hdg, 1), int(rocd), tag
-
-def callsign(msg):
-    """Aircraft callsign
-
-    Args:
-        msg (string): 28 bytes hexadecimal message string
-
-    Returns:
-        string: callsign
-    """
-
-    if typecode(msg) < 1 or typecode(msg) > 4:
-        raise RuntimeError("%s: Not a identification message" % msg)
-
-    chars = '#ABCDEFGHIJKLMNOPQRSTUVWXYZ#####_###############0123456789######'
-    msgbin = hex2bin(msg)
-    csbin = msgbin[40:96]
-
-    cs = ''
-    cs += chars[bin2int(csbin[0:6])]
-    cs += chars[bin2int(csbin[6:12])]
-    cs += chars[bin2int(csbin[12:18])]
-    cs += chars[bin2int(csbin[18:24])]
-    cs += chars[bin2int(csbin[24:30])]
-    cs += chars[bin2int(csbin[30:36])]
-    cs += chars[bin2int(csbin[36:42])]
-    cs += chars[bin2int(csbin[42:48])]
-
-    # clean string, remove spaces and marks, if any.
-    # cs = cs.replace('_', '')
-    cs = cs.replace('#', '')
-    return cs
-
-### END BLOCK ###
-
+from . import rtlsdr
 from . import kismetexternal
 
-try:
-    import paho.mqtt.client as mqtt
-    has_mqtt = True
-except ImportError:
-    has_mqtt = False
-
 class KismetRtladsb(object):
-    def __init__(self, mqtt = False):
-        self.mqtt_mode = mqtt
-
+    def __init__(self):
         self.opts = {}
 
-        self.opts['rtlbin'] = 'rtl_adsb'
         self.opts['channel'] = "1090.000MHz"
-        self.opts['gain'] = None
+        self.opts['gain'] = -1
+        self.opts['ppm'] = 0
         self.opts['device'] = None
+        self.opts['debug'] = None
+        self.opts['biastee'] = -1
 
-        # Thread that runs the RTL popen
-        self.rtl_thread = None
-        # The popen'd RTL binary
-        self.rtl_exec = None
+        self.kismet = None
 
-        # Are we killing rtl because we're reconfiguring?
-        self.rtl_reconfigure = False
+        self.frequency = 1090000000
+        self.rate = 2000000
+
+        self.preamble_len = 16
+
+        self.long_frame = 112
+        self.short_frame = 56
+        self.long_frame_b = int(self.long_frame / 8)
+        self.short_frame_b = int(self.short_frame / 8)
+
+        self.allowed_errors = 5
+        self.usb_buf_sz = 16 * 16384
+
+        self.square_lut = np.zeros(256)
+        for i in range(0, 256):
+            self.square_lut[i] = abs(127 - i)
+            self.square_lut[i] *= self.square_lut[i]
 
         # We're usually not remote
         self.proberet = None
@@ -266,33 +74,19 @@ class KismetRtladsb(object):
         # Do we have librtl?
         self.have_librtl = False
 
-        if not self.mqtt_mode:
-            self.driverid = "rtladsb"
-            # Use ctypes to load librtlsdr and probe for supported USB devices
-            try:
-                self.rtllib = ctypes.CDLL("librtlsdr.so.0")
+        # Asyncio queue we use to post events from the SDR 
+        # callback
+        self.message_queue = asyncio.Queue()
 
-                self.rtl_get_device_count = self.rtllib.rtlsdr_get_device_count
+        self.driverid = "rtladsb"
 
-                self.rtl_get_device_name = self.rtllib.rtlsdr_get_device_name
-                self.rtl_get_device_name.argtypes = [ctypes.c_int]
-                self.rtl_get_device_name.restype = ctypes.c_char_p
+        try:
+            self.rtlsdr = rtlsdr.RtlSdr()
+            self.have_librtl = True
+        except rtlsdr.RadioMissingLibrtlsdr:
+            self.have_librtl = False
 
-                self.rtl_get_usb_strings = self.rtllib.rtlsdr_get_device_usb_strings
-                self.rtl_get_usb_strings.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p]
-
-                self.rtl_get_index_by_serial = self.rtllib.rtlsdr_get_index_by_serial
-                self.rtl_get_index_by_serial.argtypes = [ctypes.c_char_p]
-                self.rtl_get_index_by_serial.restype = ctypes.c_int
-
-                self.have_librtl = True
-            except OSError:
-                self.have_librtl = False
-        else:
-            self.driverid = "rtladsbmqtt"
-
-        parser = argparse.ArgumentParser(description='RTLadsb to Kismet bridge - Creates a rtladsb data source on a Kismet server and passes JSON-based records from the rtladsb binary',
-                epilog='Requires the rtladsb tool (install your distributions package or compile from https://github.com/bemasher/rtladsb)')
+        parser = argparse.ArgumentParser(description='RTLadsb to Kismet bridge - Creates a rtladsb data source on a Kismet server and passes JSON-based records from the rtladsb binary')
         
         parser.add_argument('--in-fd', action="store", type=int, dest="infd")
         parser.add_argument('--out-fd', action="store", type=int, dest="outfd")
@@ -332,13 +126,7 @@ class KismetRtladsb(object):
 
             print("Connecting to remote server {}".format(self.config.connect))
 
-        self.csv_data = pkgutil.get_data('KismetCaptureRtladsb', 'data/aircraft_db.csv')
-        self.csv_file = csv.reader(self.csv_data.decode('utf-8').splitlines(), delimiter=",")
-        self.airplanes = []
-
-        for row in self.csv_file:
-            self.airplanes.append(row)
-
+    def run(self):
         self.kismet = kismetexternal.Datasource(self.config.infd, self.config.outfd, remote = self.config.connect)
 
         self.kismet.set_configsource_cb(self.datasource_configure)
@@ -346,146 +134,142 @@ class KismetRtladsb(object):
         self.kismet.set_opensource_cb(self.datasource_opensource)
         self.kismet.set_probesource_cb(self.datasource_probesource)
 
+        t = self.kismet.start()
+
         # If we're connecting remote, kick a newsource
         if self.proberet:
             print("Registering remote source {} {}".format(self.driverid, self.config.source))
             self.kismet.send_datasource_newsource(self.config.source, self.driverid, self.proberet['uuid'])
 
-        self.kismet.start()
+        self.kismet.run()
 
     def is_running(self):
         return self.kismet.is_running()
 
-    def get_rtl_usb_info(self, index):
-        # Allocate memory buffers
-        usb_manuf = (ctypes.c_char * 256)()
-        usb_product = (ctypes.c_char * 256)()
-        usb_serial = (ctypes.c_char * 256)()
-       
-        # Call the library
-        self.rtl_get_usb_strings(index, usb_manuf, usb_product, usb_serial)
-       
-        # If there's a smarter way to do this, patches welcome
-        m = bytearray(usb_manuf)
-        p = bytearray(usb_product)
-        s = bytearray(usb_serial)
+    def __get_rtlsdr_uuid(self, intnum):
+        # Get the USB info
+        (manuf, product, serial) = self.rtlsdr.get_rtl_usb_info(intnum)
 
-        # Return tuple
-        return (m.partition(b'\0')[0].decode('UTF-8'), p.partition(b'\0')[0].decode('UTF-8'), s.partition(b'\0')[0].decode('UTF-8'))
+        # Hash the slot, manuf, product, and serial, to get a unique ID for the UUID
+        devicehash = kismetexternal.Datasource.adler32("{}{}{}{}".format(intnum, manuf, product, serial))
+        devicehex = "0000{:02X}".format(devicehash)
 
-    def check_rtl_bin(self):
-        try:
-            FNULL = open(os.devnull, 'w')
-            r = subprocess.check_call([self.opts['rtlbin'], "--help"], stdout=FNULL, stderr=FNULL)
-        except subprocess.CalledProcessError:
-            return True
-        except OSError:
-            return False
+        return kismetexternal.Datasource.make_uuid("kismet_cap_sdr_rtladsb", devicehex)
 
-        return True
+    async def __rtl_adsb_task(self):
+        """
+        asyncio task that consumes the output from the radio
+        """
+        print_stderr = False
 
-    def __rtl_thread(self):
-        """ Internal thread for running the rtl binary """
-        cmd = [ self.opts['rtlbin'] ]
-
-        if self.opts['device'] is not None:
-            cmd.append('-d')
-            cmd.append("{}".format(self.opts['device']))
-
-        if self.opts['gain'] is not None:
-            cmd.append('-g')
-            cmd.append("{}".format(self.opts['gain']))
-
-        seen_any_valid = False
-        failed_once = False
+        if self.opts['debug'] is not None and self.opts['debug']:
+            print_stderr = True
 
         try:
-            FNULL = open(os.devnull, 'w')
-            self.rtl_exec = subprocess.Popen(cmd, stderr=FNULL, stdout=subprocess.PIPE)
+            while not self.kismet.kill_ioloop:
+                msg = await self.message_queue.get()
 
-            while True:
-                hex_data = self.rtl_exec.stdout.readline().decode('ascii').strip()[1:-1]
-                if crc(hex_data) == "000000000000000000000000":
-                    for row in self.airplanes:
-                        if hex_data[2:8] == row[0]:
-                            msg = { "icao": row[0] , "regid": row[1] , "mdl": row[2] , "type": row[3] , "operator": row[4] }
-                    if 1 <= typecode(hex_data) <= 4:
-                        msg = { "icao": hex_data[2:8], "callsign": callsign(hex_data) }
-                    if 5 <= typecode(hex_data) <= 8:
-                        msg = { "icao": hex_data[2:8], "altitude": altitude(hex_data) }
-                    if typecode(hex_data) == 19:
-                        airborneInfo = airborne_velocity(hex_data)
-                        msg = { "icao": hex_data[2:8], "speed": airborneInfo[0], "heading": airborneInfo[1], "altitude": airborneInfo[2], "GSAS": airborneInfo[3] }
-                    l = json.dumps(msg)
+                if not msg:
+                    break
 
-                    if not self.handle_json(l):
-                        raise RuntimeError('could not process response from rtladsb')
+                output = {}
 
-                    seen_any_valid = True
+                msgtype = self.adsb_msg_get_type(msg)
+                msgbits = self.adsb_len_by_type(msgtype)
+                msgcrc = self.adsb_msg_get_crc(msg, msgbits)
+                msgcrc2 = self.adsb_crc(msg, msgbits)
 
+                output['adsb_msg_type'] = msgtype
+                output['adsb_raw_msg'] = msg.hex()
+                output['crc_valid'] = False
 
+                if msgcrc != msgcrc2:
+                    if msgtype == 11 or msgtype == 17:
+                        msg2 = self.adsb_msg_fix_single_bit(msg, msgbits)
+     
+                        if msg2 != None:
+                            msg = msg2
+                            output['crc_valid'] = True
+                            output['crc_recovered'] = 1
+                else:
+                    output['crc_valid'] = True
+
+                # Process valid messages
+                if output['crc_valid']:
+                    output['adsb_msg'] = msg.hex()
+
+                    msgicao = self.adsb_msg_get_icao(msg).hex()
+
+                    output['icao'] = msgicao
+
+                    if msgtype == 17:
+                        msgme, msgsubme = self.adsb_msg_get_me_subme(msg)
+
+                        if msgme >= 1 and msgme <= 4:
+                            msgflight = self.adsb_msg_get_flight(msg)
+                            output['callsign'] = msgflight
+
+                        elif msgme >= 9 and msgme <= 18:
+                            msgalt = self.adsb_msg_get_ac12_altitude(msg)
+                            output['altitude'] = msgalt
+
+                            msgpair, msglat, msglon = self.adsb_msg_get_airborne_position(msg)
+                            output['coordpair_even'] = msgpair
+                            output['raw_lat'] = msglat
+                            output['raw_lon'] = msglon
+
+                        elif msgme == 19 and (msgsubme >= 1 and msgsubme <= 4):
+                            if msgsubme == 1 or msgsubme == 2:
+                                msgvelocity = self.adsb_msg_get_airborne_velocity(msg)
+                                msgheading = self.adsb_msg_get_airborne_heading(msg)
+
+                                output['speed'] = msgvelocity
+                                output['heading'] = msgheading
+                            elif msgsubme == 3 or msgsubme == 4:
+                                msgheadvalid, msgheading = self.adsb_msg_get_airborne_heading(msg)
+                                if msgheadvalid:
+                                    out['heading'] = heading
+            
+                    elif msgtype == 0 or msgtype == 4 or msgtype == 16 or msgtype == 20:
+                        msgalt = self.adsb_msg_get_ac13_altitude(msg)
+                        output['altitude'] = msgalt
+
+                if print_stderr:
+                    print(output, file=sys.stderr)
+
+                l = json.dumps(output)
+
+                if not self.handle_json(l):
+                    raise RuntimeError('could not process response from rtladsb')
         except Exception as e:
-            # Catch all errors, but don't die if we're reconfiguring rtl; then we need
-            # to relaunch the binary
-            if not self.rtl_reconfigure:
-                self.kismet.send_datasource_error_report(message = "Unable to process output from rtladsb: {}".format(e))
+            traceback.print_exc(file=sys.stderr)
+            print("An error occurred reading from the rtlsdr; is your USB device plugged in?  Make sure that no other programs are using this rtlsdr radio.", file=sys.stderr);
+
+            self.kismet.send_datasource_error_report(message = "Error handling ADSB: {}".format(e))
+
         finally:
-            if not seen_any_valid and not self.rtl_reconfigure:
-                self.kismet.send_datasource_error_report(message = "An error occurred in rtladsb and no valid devices were seen; is your USB device plugged in?  Try running rtladsb in a terminal and confirm that it can connect to your device.")
-                self.kismet.spindown()
+            self.kill_adsb()
+            self.kismet.spindown()
+            return
 
-            self.rtl_exec.kill()
-
+    def kill_adsb(self):
+        try:
+            self.rtlsdr.rtl_cancel_async(self.rtlradio)
+        except:
+            pass
 
     def run_rtladsb(self):
-        if self.rtl_thread != None:
-            # Turn on reconfigure mode
-            if self.rtl_exec != None:
-                self.rtl_reconfigure = True
-                self.rtl_exec.kill(9)
-
-            # Let the thread spin down and turn off reconfigure mode
-            self.rtl_thread.join()
-            self.rtl_reconfigure = False
-
-        self.rtl_thread = threading.Thread(target=self.__rtl_thread)
-        self.rtl_thread.daemon = True
-        self.rtl_thread.start()
-
-    def __mqtt_thread(self):
-        self.mq.loop_forever()
-
-    def run_mqtt(self, options):
-        def on_msg(client, user, msg):
-            if not self.handle_json(msg.payload):
-                raise RuntimeError('could not post data')
-
-        opts = options
-        opts.setdefault("mqtt", 'localhost')
-        opts.setdefault("mqtt_port", '1883')
-        opts.setdefault("mqtt_channel", 'rtladsb')
-
-        self.mq = mqtt.Client()
-        self.mq.on_message = on_msg
-        self.mq.connect(opts['mqtt'], int(opts['mqtt_port']))
-        self.mq.subscribe(opts['mqtt_channel'])
-
-        self.mq_thread = threading.Thread(target=self.__mqtt_thread)
-        self.mq_thread.daemon = True
-        self.mq_thread.start()
-
+        self.kismet.add_exit_callback(self.kill_adsb)
+        self.kismet.add_task(self.__rtl_adsb_task)
+        self.open_radio(self.opts['device'])
 
     # Implement the listinterfaces callback for the datasource api;
     def datasource_listinterfaces(self, seqno):
         interfaces = []
 
-        if not self.check_rtl_bin():
-            self.kismet.send_datasource_interfaces_report(seqno, interfaces)
-            return
-
-        if self.rtllib != None:
-            for i in range(0, self.rtl_get_device_count()):
-                (manuf, product, serial) = self.get_rtl_usb_info(i)
+        if self.rtlsdr != None:
+            for i in range(0, self.rtlsdr.get_device_count()):
+                (manuf, product, serial) = self.rtlsdr.get_rtl_usb_info(i)
 
                 dev_index = i
 
@@ -497,31 +281,10 @@ class KismetRtladsb(object):
                 intf = kismetexternal.datasource_pb2.SubInterface()
                 intf.interface = "rtladsb-{}".format(dev_index)
                 intf.flags = ""
-                intf.hardware = self.rtl_get_device_name(i)
+                intf.hardware = self.rtlsdr.rtl_get_device_name(i)
                 interfaces.append(intf)
 
         self.kismet.send_datasource_interfaces_report(seqno, interfaces)
-
-    def __get_mqtt_uuid(self, options):
-        opts = options
-        opts.setdefault('mqtt', 'localhost')
-        opts.setdefault('mqtt_port', '1883')
-        opts.setdefault('mqtt_channel', 'kismet')
-
-        mqhash = kismetexternal.Datasource.adler32("{}{}{}".format(opts['mqtt'], opts['mqtt_port'], opts['mqtt_channel']))
-        mqhex = "0000{:02X}".format(mqhash)
-
-        return kismetexternal.Datasource.make_uuid("kismet_cap_sdr_rtladsb", mqhex)
-
-    def __get_rtlsdr_uuid(self, intnum):
-        # Get the USB info
-        (manuf, product, serial) = self.get_rtl_usb_info(intnum)
-
-        # Hash the slot, manuf, product, and serial, to get a unique ID for the UUID
-        devicehash = kismetexternal.Datasource.adler32("{}{}{}{}".format(intnum, manuf, product, serial))
-        devicehex = "0000{:02X}".format(devicehash)
-
-        return kismetexternal.Datasource.make_uuid("kismet_cap_sdr_rtladsb", devicehex)
 
     # Implement the probesource callback for the datasource api
     def datasource_probesource(self, source, options):
@@ -531,62 +294,42 @@ class KismetRtladsb(object):
         if not source[:8] == "rtladsb-":
             return None
 
-        if source[9:] == "mqtt":
-            if not 'mqtt' in options:
-                return None
-            if not has_mqtt:
-                return None
+        # Do we have librtl?
+        if not self.have_librtl:
+            return None
 
-            ret['hardware'] = "MQTT"
-            if ('uuid' in options):
-                ret['uuid'] = options['uuid']
-            else:
-                ret['uuid'] = self.__get_mqtt_uuid(options)
-        else:
-            # Do we have librtl?
-            if not self.have_librtl:
-                return None
+        # Device selector could be integer position, or it could be a serial number
+        devselector = source[8:]
 
-            if self.mqtt_mode:
-                return None
+        intnum = -1
 
-            if not self.check_rtl_bin():
-                return None
+        # Try it as a serial number; try this first to deal with serial numbers like 00000000001
+        intnum = self.rtlsdr.rtl_get_index_by_serial(devselector.encode('utf-8'))
 
-            # Device selector could be integer position, or it could be a serial number
-            devselector = source[8:]
-            found_interface = False
-            intnum = -1
-
-            # Try to find the device as an index
+        # Try to find the device as an index
+        if intnum < 0:
             try:
                 intnum = int(devselector)
 
                 # Abort if we're not w/in the range
-                if intnum >= self.rtl_get_device_count():
+                if intnum >= self.rtlsdr.rtl_get_device_count():
                     raise ValueError("n/a")
 
-                # Otherwise we've found a device
-                found_interface = True
-
-            # Do nothing with exceptions; they just mean we need to look at it like a 
-            # serial number
             except ValueError:
-                pass
-
-            # Try it as a serial number
-            if not found_interface:
-                intnum = self.rtl_get_index_by_serial(devselector.encode('utf-8'))
-
-            # We've failed as both a serial and as an index, give up
-            if intnum < 0:
+                intnum = -1
+            except:
+                # Otherwise something failed in querying the hw at a deeper level
                 return None
 
-            ret['hardware'] = self.rtl_get_device_name(intnum)
-            if ('uuid' in options):
-                ret['uuid'] = options['uuid']
-            else:
-                ret['uuid'] = self.__get_rtlsdr_uuid(intnum)
+        # We've failed as both a serial and as an index, give up
+        if intnum < 0:
+            return None
+
+        ret['hardware'] = self.rtlsdr.rtl_get_device_name(intnum)
+        if ('uuid' in options):
+            ret['uuid'] = options['uuid']
+        else:
+            ret['uuid'] = self.__get_rtlsdr_uuid(intnum)
 
         ret['channel'] = self.opts['channel']
         ret['channels'] = [self.opts['channel']]
@@ -604,85 +347,74 @@ class KismetRtladsb(object):
 
         intnum = -1
 
-        if source[8:] == "mqtt":
-            if not 'mqtt' in options:
-                ret["success"] = False
-                ret["message"] = "MQTT requested, but no mqtt=xyz option in source definition"
-                return ret
-            if not has_mqtt:
-                ret["success"] = False
-                ret["message"] = "MQTT requested, but the python paho mqtt package is not installed"
-                return ret
-            
-            ret['hardware'] = "MQTT"
-            if ('uuid' in options):
-                ret['uuid'] = options['uuid']
-            else:
-                ret['uuid'] = self.__get_mqtt_uuid(options)
+        if not self.have_librtl:
+            ret["success"] = False
+            ret["message"] = "could not find librtlsdr, unable to configure rtlsdr interfaces"
+            return ret
 
-            self.mqtt_mode = True
+        # Device selector could be integer position, or it could be a serial number
+        devselector = source[8:]
+        found_interface = False
+        intnum = -1
+
+        # Try to find the device as an index
+        try:
+            intnum = int(devselector)
+
+            # Abort if we're not w/in the range
+            if intnum >= self.rtlsdr.rtl_get_device_count():
+                raise ValueError("n/a")
+
+            # Otherwise we've found a device
+            found_interface = True
+
+        except ValueError:
+            # A value error means we just need to look at it as a device num
+            pass
+        except:
+            # Otherwise something failed in querying the hw at a deeper level
+            ret["success"] = False
+            ret["message"] = "could not find rtlsdr device"
+            return ret
+
+        # Try it as a serial number
+        if not found_interface:
+            intnum = self.rtlsdr.rtl_get_index_by_serial(devselector.encode('utf-8'))
+
+        # We've failed as both a serial and as an index, give up
+        if intnum < 0:
+            ret['success'] = False
+            ret['message'] = "Could not find rtl-sdr device {}".format(devselector)
+            return ret
+
+        if 'debug' in options:
+            if options['debug'] == 'True' or options['debug'] == 'true':
+                self.opts['debug'] = True
+
+        if 'channel' in options:
+            self.opts['channel'] = options['channel']
+
+        if 'ppm' in options:
+            self.opts['ppm'] = options['ppm']
+
+        if 'biastee' in options:
+            if options['biastee'] == 'True' or options['biastee'] == 'true':
+                self.opts['biastee'] = True
+
+        if 'gain' in options:
+            self.opts['gain'] = options['gain']
+
+        ret['hardware'] = self.rtlsdr.rtl_get_device_name(intnum)
+        if ('uuid' in options):
+            ret['uuid'] = options['uuid']
         else:
-            if not self.have_librtl:
-                ret["success"] = False
-                ret["message"] = "could not find librtlsdr, unable to configure rtlsdr interfaces"
-                return ret
+            ret['uuid'] = self.__get_rtlsdr_uuid(intnum)
 
-            # Device selector could be integer position, or it could be a serial number
-            devselector = source[8:]
-            found_interface = False
-            intnum = -1
-
-            # Try to find the device as an index
-            try:
-                intnum = int(devselector)
-
-                # Abort if we're not w/in the range
-                if intnum >= self.rtl_get_device_count():
-                    raise ValueError("n/a")
-
-                # Otherwise we've found a device
-                found_interface = True
-
-            # Do nothing with exceptions; they just mean we need to look at it like a 
-            # serial number
-            except ValueError:
-                pass
-
-            # Try it as a serial number
-            if not found_interface:
-                intnum = self.rtl_get_index_by_serial(devselector.encode('utf-8'))
-
-            # We've failed as both a serial and as an index, give up
-            if intnum < 0:
-                ret['success'] = False
-                ret['message'] = "Could not find rtl-sdr device {}".format(devselector)
-                return ret
-
-            if 'channel' in options:
-                self.opts['channel'] = options['channel']
-
-            ret['hardware'] = self.rtl_get_device_name(intnum)
-            if ('uuid' in options):
-                ret['uuid'] = options['uuid']
-            else:
-                ret['uuid'] = self.__get_rtlsdr_uuid(intnum)
-
-            self.opts['device'] = intnum
-
-            self.mqtt_mode = False
-
-        if not self.mqtt_mode:
-            if not self.check_rtl_bin():
-               ret['success'] = False
-               ret['message'] = "Could not find rtladsb binary; make sure you've installed rtladsb, check the Kismet README for more information."
-               return
+        self.opts['device'] = intnum
 
         ret['success'] = True
 
-        if self.mqtt_mode:
-            self.run_mqtt(options)
-        else:
-            self.run_rtladsb()
+        self.run_rtladsb()
 
         return ret
 
@@ -709,12 +441,562 @@ class KismetRtladsb(object):
 
             self.kismet.send_datasource_data_report(full_json=report)
         except ValueError as e:
-            self.kismet.send_datasource_error_report(message = "Could not parse JSON output of rtladsb")
+            self.kismet.send_datasource_error_report(message = "Could handle JSON output")
             return False
         except Exception as e:
-            self.kismet.send_datasource_error_report(message = "Could not process output of rtladsb")
+            self.kismet.send_datasource_error_report(message = "Could not handle output")
             return False
 
         return True
+
+    # Raw ADSB decode of the IQ data and manchester encoded data,
+    # turning it into packets.  Referenced from the rtl_adsb implementation
+    # but rewritten for numpy and other python semantics
+    def _iq_magnitude(self, buf, buflen):
+        """
+        Convert IQ to magnitude
+        """
+
+        nb = np.ctypeslib.as_array(buf, shape=(buflen,)).astype(np.uint8)
+
+        self.magnitude_buf = np.add(self.square_lut[nb[::2]], self.square_lut[nb[1::2]])
+        # self.magnitude_buf = ((np.abs(127 - nb[::2]) ** 2) + (np.abs(127 - nb[1::2]) ** 2))
+
+    def _single_manchester(self, a, b, c, d):
+        bit_p = a > b
+        bit = c > d
+
+        if bit and bit_p and c > b:
+            return 1
+        if bit and not bit_p and d < b:
+            return 1
+        if not bit and bit_p and d > b:
+            return 0
+        if not bit and not bit_p and c < b:
+            return 0
+
+        return None
+
+    def _adsb_preamble(self, buf, i):
+        low = 0
+        high = 65535
+
+        for i2 in range(0, self.preamble_len):
+            if i2 == 0 or i2 == 2 or i2 == 7 or i2 == 9:
+                high = buf[i + i2]
+            else:
+                low = buf[i + i2]
+
+            if high <= low:
+                return 0
+
+        return 1
+
+    def _adsb_np_preamble(self, buf, i):
+        preamble = np.array([1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0]) - 0.25 
+        corr = np.correlate(buf[i:], preamble)
+        return np.argmax(corr) + i
+
+    def _manchester(self):
+        a = 0
+        b = 0
+
+        i = 0
+        while True:
+            if i >= len(self.magnitude_buf) - 1:
+                break
+
+            p = self._adsb_np_preamble(self.magnitude_buf, i)
+
+            if p + self.preamble_len >= len(self.magnitude_buf):
+                break
+
+            a = self.magnitude_buf[p]
+            b = self.magnitude_buf[p + 1]
+            i = p + self.preamble_len
+
+            # # Look for a preamble
+            # for ix in range(i, (len(self.magnitude_buf) - self.preamble_len)):
+            #     if not self._adsb_preamble(self.magnitude_buf, ix):
+            #         i = ix
+            #         continue
+
+            #     a = self.magnitude_buf[ix]
+            #     b = self.magnitude_buf[ix + 1]
+            #     i = ix + self.preamble_len
+            #     break
+
+            errors = 0
+            m_i = 0
+
+            message_buf = bytearray(b'\xFF' * self.long_frame)
+
+            # Read the message until we get errors
+            for ix in range(i, len(self.magnitude_buf) - 1, 2):
+                i = ix + 1
+
+                bit = self._single_manchester(a, b, self.magnitude_buf[ix], self.magnitude_buf[ix + 1])
+
+                a = self.magnitude_buf[ix]
+                b = self.magnitude_buf[ix + 1]
+
+                if bit == None:
+                    errors += 1
+
+                    if errors > self.allowed_errors:
+                        message_buf = message_buf[:m_i]
+                        break
+                    else:
+                        if a > b:
+                            bit = 1
+                        else:
+                            bit = 0
+                        a = 0
+                        b = 65535
+
+                message_buf[m_i] = bit
+                m_i = m_i + 1
+
+                if m_i >= self.long_frame:
+                    break
+
+            if m_i < self.short_frame:
+                continue
+            self._adsb_message(message_buf)
+
+    def _adsb_message(self, message_buf):
+        msg_hdr = np.packbits(message_buf[0])
+        if msg_hdr == 0:
+            return
+
+        adsb_frame = None
+        frame_len = self.long_frame
+
+        if msg_hdr & 0x80:
+            frame_len = self.long_frame
+        else:
+            frame_len = self.short_frame
+
+        if len(message_buf) < frame_len:
+            return
+
+        adsb_frame = bytearray(np.packbits(message_buf[:frame_len]).tobytes())
+        
+        if frame_len > self.short_frame:
+            # print("*{};".format(adsb_frame.hex()))
+            self.kismet.add_task(self.message_queue.put, [adsb_frame])
+
+    def rtl_data_cb(self, buf, buflen, ctx):
+        self._iq_magnitude(buf, buflen)
+        self._manchester()
+        return 
+
+    def __async_radio_thread(self):
+        # This function blocks forever until cancelled
+        self.rtlsdr.read_samples(self.rtl_data_cb, 12, self.usb_buf_sz)
+
+        # Always make sure we die
+        self.kill_adsb()
+        self.kismet.spindown()
+
+    def open_radio(self, rnum):
+        try:
+            self.rtlsdr.open_radio(rnum, self.frequency, self.rate, gain=self.opts['gain'], autogain=True, ppm=self.opts['ppm'], biastee=self.opts['biastee'])
+        except Exception as e:
+            self.kismet.send_datasource_error_report(message = "Error opening RTLSDR for ADSB: {}".format(e.args[0]))
+            self.kill_adsb()
+            self.kismet.spindown()
+
+        self.rtl_thread = threading.Thread(target=self.__async_radio_thread)
+        self.rtl_thread.daemon = True
+        self.rtl_thread.start()
+
+    # ADSB parsing functions ported from the dump1090 C implementation
+    def adsb_crc(self, data, bits):
+        """
+        Compute the checksum a message *should* have
+    
+        data - bytearray 
+        bits - number of bits in message
+    
+        return - 24-bit checksum
+        """
+        modes_checksum_table = [
+                0x3935ea, 0x1c9af5, 0xf1b77e, 0x78dbbf, 0xc397db, 0x9e31e9, 
+                0xb0e2f0, 0x587178, 0x2c38bc, 0x161c5e, 0x0b0e2f, 0xfa7d13, 
+                0x82c48d, 0xbe9842, 0x5f4c21, 0xd05c14, 0x682e0a, 0x341705, 
+                0xe5f186, 0x72f8c3, 0xc68665, 0x9cb936, 0x4e5c9b, 0xd8d449,
+                0x939020, 0x49c810, 0x24e408, 0x127204, 0x093902, 0x049c81, 
+                0xfdb444, 0x7eda22, 0x3f6d11, 0xe04c8c, 0x702646, 0x381323, 
+                0xe3f395, 0x8e03ce, 0x4701e7, 0xdc7af7, 0x91c77f, 0xb719bb, 
+                0xa476d9, 0xadc168, 0x56e0b4, 0x2b705a, 0x15b82d, 0xf52612,
+                0x7a9309, 0xc2b380, 0x6159c0, 0x30ace0, 0x185670, 0x0c2b38, 
+                0x06159c, 0x030ace, 0x018567, 0xff38b7, 0x80665f, 0xbfc92b, 
+                0xa01e91, 0xaff54c, 0x57faa6, 0x2bfd53, 0xea04ad, 0x8af852, 
+                0x457c29, 0xdd4410, 0x6ea208, 0x375104, 0x1ba882, 0x0dd441,
+                0xf91024, 0x7c8812, 0x3e4409, 0xe0d800, 0x706c00, 0x383600, 
+                0x1c1b00, 0x0e0d80, 0x0706c0, 0x038360, 0x01c1b0, 0x00e0d8, 
+                0x00706c, 0x003836, 0x001c1b, 0xfff409, 0x000000, 0x000000, 
+                0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
+                0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 
+                0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 
+                0x000000, 0x000000, 0x000000, 0x000000 ]
+    
+        crc = 0
+        offset = 0
+    
+        if bits != 112:
+            offset = 112 - 56
+    
+        for j in range(0, bits):
+            byte = int(j / 8)
+            bit = j % 8
+            bitmask = 1 << (7 - bit)
+    
+            if data[byte] & bitmask:
+                crc ^= modes_checksum_table[j + offset]
+    
+        return crc & 0x00FFFFFF
+    
+    def adsb_len_by_type(self, type):
+        """
+        Get expected length of message in bits based on the type
+        """
+    
+        if type == 16 or type == 17 or type == 19 or type == 20 or type == 21:
+            return 112
+    
+        return 56
+    
+    def adsb_msg_get_crc(self, data, bits):
+        """
+        Extract the crc encoded in a message
+    
+        data - bytearray of message input
+        bits - number of bits in message
+    
+        return - 24bit checksum as encoded in message
+        """
+    
+        crc = (data[int(bits / 8) - 3] << 16)
+        crc |= (data[int(bits / 8) - 2] << 8) 
+        crc |= (data[int(bits / 8) - 1])
+    
+        return crc
+    
+    def adsb_msg_fix_single_bit(self, data, bits):
+        """
+        Try to fix single bit errors using the checksum.  On success
+        returns modified bytearray
+    
+        data - bytearray of message input
+        bits - length in bits
+        """
+    
+        for j in range(0, bits):
+            byte = int(j / 8)
+            bitmask = 1 << (7 - (j % 8))
+    
+            aux = data[:]
+    
+            # Flip the j-th bit
+            aux[byte] ^= bitmask
+    
+            crc1 = (aux[int(bits / 8) - 3] << 16)
+            crc1 |= (aux[int(bits / 8) - 2] << 8) 
+            crc1 |= (aux[int(bits / 8) - 1])
+    
+            crc2 = self.adsb_crc(aux, bits)
+    
+            if crc1 == crc2:
+                # The error is fixed; return the new buffer
+                return aux
+    
+        return None
+    
+    def adsb_msg_fix_double_bit(self, data, bits):
+        """
+        Try to fix double bit errors using the checksum, like fix_single_bit.
+        This is very slow and should only be tried against DF17 messages.
+        
+        If successful returns the modified bytearray.
+    
+        data - bytearray of message input
+        bits - length in bits
+        """
+    
+        for j in range(0, bits):
+            byte1 = int(j / 8)
+            bitmask1 = 1 << (7 - (j % 8))
+    
+            # Don't check the same pairs multiple times, so i starts from j+1
+            for i in range(j + 1, bits):
+                byte2 = int(i / 8)
+                bitmask2 = 1 << (7 - (i % 8))
+    
+                aux = data[:]
+    
+                # Flip the jth bit
+                aux[byte1] ^= bitmask1
+                # Flip the ith bit
+                aux[byte2] ^= bitmask2
+    
+                crc1 = (aux[int(bits / 8) - 3] << 16)
+                crc1 |= (aux[int(bits / 8) - 2] << 8) 
+                crc1 |= (aux[int(bits / 8) - 1])
+    
+                crc2 = self.adsb_crc(aux, bits)
+    
+                if crc1 == crc2:
+                    # The error is fixed; return the new buffer
+                    return aux
+    
+        return None
+    
+    
+        
+    def adsb_msg_get_type(self, data):
+        """
+        Get message type
+        """
+    
+        return data[0] >> 3
+    
+    def adsb_msg_get_icao(self, data):
+        """
+        Get ICAO
+        """
+        return data[1:4]
+    
+    def adsb_msg_get_fs(self, data):
+        """
+        Extract flight status from 4, 5, 20, 21
+        """
+        return data[0] & 7
+    
+    def adsb_msg_get_me_subme(self, data):
+        """
+        Extract message 17 metype and mesub type
+    
+        Returns:
+        (type,subtype) tuple
+        """
+    
+        return (data[4] >> 3, data[4] & 7)
+    
+    def adsb_msg_get_ac13_altitude(self, data):
+        """
+        Extract 13 bit altitude (in feet) from 0, 4, 16, 20
+        """
+    
+        m_bit = data[3] & (1 << 6)
+        q_bit = data[3] & (1 << 4)
+    
+        if not m_bit:
+            if q_bit:
+                # N is the 11 bit integer resulting in the removal of bit q and m
+                n = (data[2] & 31) << 6
+                n |= (data[3] & 0x80) >> 2
+                n |= (data[3] & 0x20) >> 1
+                n |= (data[3] & 0x15)
+    
+                return n * 25 - 1000
+    
+        return 0
+    
+    def adsb_msg_get_ac12_altitude(self, data):
+        """
+        Extract 12 bit altitude (in feet) from 17
+        """
+    
+        q_bit = data[5] & 1
+    
+        if q_bit:
+            # N is the 11 bit integer resulting from the removal of bit Q
+            n = (data[5] >> 1) << 4
+            n |= (data[6] & 0xF0) >> 4
+    
+            # print("Raw bytes {} {} return {}".format(data[5], data[6], n * 25 - 1000))
+            return n * 25 - 1000
+    
+        return 0
+    
+    def adsb_msg_get_flight(self, data):
+        """
+        Extract flight name
+        """
+    
+        ais_charset = "?ABCDEFGHIJKLMNOPQRSTUVWXYZ????? ???????????????0123456789??????"
+    
+        flight = ""
+    
+        flight += ais_charset[data[5] >> 2]
+        flight += ais_charset[((data[5] & 3) << 4) | (data[6] >> 4)]
+        flight += ais_charset[((data[6] & 15) << 2) | (data[7] >> 6)]
+        flight += ais_charset[data[7] & 63]
+        flight += ais_charset[data[8] >> 2]
+        flight += ais_charset[((data[8] & 3) << 4) | (data[9] >> 4)]
+        flight += ais_charset[((data[9] & 15) << 2) | (data[10] >> 6)]
+        flight += ais_charset[data[10] & 63]
+    
+        return flight.strip()
+    
+    def adsb_msg_get_airborne_position(self, data):
+        """
+        Airborne position message from message 17
+    
+        Return:
+        (pair, lat, lon) raw tuple of even (0) or odd (1) and raw lat/lon
+        """
+    
+        paireven = (data[6] & (1 << 2)) == 0
+    
+        lat = (data[6] & 3) << 15
+        lat |= data[7] << 7
+        lat |= data[8] >> 1
+    
+        lon = (data[8] & 1) << 16
+        lon |= data[9] << 8
+        lon |= data[10]
+    
+        return (paireven, lat, lon)
+    
+    def adsb_msg_get_airborne_velocity(self, data):
+        """
+        Airborne velocity from message 17, synthesized from EW/NS velocities
+        """
+    
+        ew_dir = (data[5] & 4) >> 2
+        ew_velocity = ((data[5] & 3) << 8) | data[6]
+        ns_dir = (data[7] & 0x80) >> 7
+        ns_velocity = ((data[7] & 0x7f) << 3) | ((data[8] & 0xe0) >> 5)
+    
+        # Compute velocity from two speed components
+        velocity = math.sqrt(ns_velocity * ns_velocity + ew_velocity * ew_velocity)
+    
+        return velocity
+    
+    def adsb_msg_get_airborne_heading(self, data):
+        """
+        Airborne heading from message 17, synthesized from EW/NS velocities
+    
+        Returns:
+            Heading in degrees
+        """
+    
+        ew_dir = (data[5] & 4) >> 2
+        ew_velocity = ((data[5] & 3) << 8) | data[6]
+        ns_dir = (data[7] & 0x80) >> 7
+        ns_velocity = ((data[7] & 0x7f) << 3) | ((data[8] & 0xe0) >> 5)
+    
+        ewv = ew_velocity
+        nsv = ns_velocity
+    
+        if ew_dir:
+            ewv *= -1
+    
+        if ns_dir:
+            nsv *= -1
+    
+        heading = math.atan2(ewv, nsv)
+    
+        # Convert to degrees
+        heading = heading * 360 / (math.pi * 2)
+    
+        if heading < 0:
+            heading += 360
+    
+        return heading
+    
+    def adsb_msg_get_sub3_heading(self, data):
+        """
+        Direct heading from msg 17 sub 3 and 4
+    
+        Returns:
+            Heading in degrees
+        """
+    
+        valid = data[5] & (1 << 2)
+        heading = (data[5] & 3) << 5
+        heading |= data[6] >> 3
+        heading = heading * (360.0 / 128)
+    
+        return valid, heading
+    
+    def adsb_process_msg(self, msg):
+        output = {}
+     
+        msgtype = self.adsb_msg_get_type(msg)
+        msgbits = self.adsb_len_by_type(msgtype)
+        msgcrc = self.adsb_msg_get_crc(msg, msgbits)
+        msgcrc2 = self.adsb_crc(msg, msgbits)
+     
+        output['adsb_msg_type'] = msgtype
+        output['adsb_raw_msg'] = msg.hex()
+        output['crc_valid'] = False
+     
+        # Skip invalid CRC types; in the future, add 1bit recovery from dump1090
+        if msgcrc != msgcrc2:
+            if msgtype == 11 or msgtype == 17:
+                msg2 = self.adsb_msg_fix_single_bit(msg, msgbits)
+     
+                if msg2 != None:
+                    msg = msg2
+                    output['crc_valid'] = True
+                    output['crc_recovered'] = 1
+     
+        else:
+            output['crc_valid'] = True
+     
+        # Process valid messages
+        if output['crc_valid']:
+            output['adsb_msg'] = msg.hex()
+     
+            msgicao = self.adsb_msg_get_icao(msg).hex()
+     
+            output['icao'] = msgicao
+     
+            if msgtype == 17:
+                msgme, msgsubme = self.adsb_msg_get_me_subme(msg)
+     
+                if msgme >= 1 and msgme <= 4:
+                    msgflight = self.adsb_msg_get_flight(msg)
+                    output['callsign'] = msgflight
+     
+                elif msgme >= 9 and msgme <= 18:
+                    msgalt = self.adsb_msg_get_ac12_altitude(msg)
+                    output['altitude'] = msgalt
+     
+                    msgpair, msglat, msglon = self.adsb_msg_get_airborne_position(msg)
+                    output['coordpair_even'] = msgpair
+                    output['raw_lat'] = msglat
+                    output['raw_lon'] = msglon
+     
+                elif msgme == 19 and (msgsubme >= 1 and msgsubme <= 4):
+                    msgpair, msglat, msglon = self.adsb_msg_get_airborne_position(msg)
+                    output['coordpair_even'] = msgpair
+                    output['raw_lat'] = msglat
+                    output['raw_lon'] = msglon
+     
+                    msgalt = self.adsb_msg_get_ac12_altitude(msg)
+                    output['altitude'] = msgalt
+     
+                    if msgsubme == 1 or msgsubme == 2:
+                        msgvelocity = self.adsb_msg_get_airborne_velocity(msg)
+                        msgheading = self.adsb_msg_get_airborne_heading(msg)
+     
+                        output['speed'] = msgvelocity
+                        output['heading'] = msgheading
+                    elif msgsubme == 3 or msgsubme == 4:
+                        msgheadvalid, msgheading = self.adsb_msg_get_airborne_heading(msg)
+                        if msgheadvalid:
+                            out['heading'] = msgheading
+     
+            elif msgtype == 0 or msgtype == 4 or msgtype == 16 or msgtype == 20:
+                msgalt = self.adsb_msg_get_ac13_altitude(msg)
+                output['altitude'] = msgalt
+     
+        if output['crc_valid']:
+            print(output, file=sys.stderr)
 
 

@@ -29,9 +29,9 @@
 #ifdef HAVE_LINUX_WIRELESS
 
 #define IW_MAX_PRIV_DEF 256
-/* Wireless extentions monitor mode number */
+/* Wireless extensions monitor mode number */
 #define LINUX_WLEXT_MONITOR 6
-/* Wireless extentions master mode */
+/* Wireless extensions master mode */
 #define LINUX_WLEXT_MASTER  3
 
 /* Max version of wext we know about */
@@ -131,7 +131,7 @@ int iwconfig_set_channel(const char *in_dev, int in_ch, char *errstr);
  * -1   Error
  *  0   Success
  */
-int iwconfig_get_mode(const char *in_dev, char *errstr, int *in_mode);
+int iwconfig_get_mode(const char *in_dev, char *errstr, unsigned int *in_mode);
 
 
 /* Set the current mode of a wireless device (master, monitor, station, etc).
@@ -149,7 +149,7 @@ int iwconfig_get_mode(const char *in_dev, char *errstr, int *in_mode);
  * -1   Error
  *  0   Success
  */
-int iwconfig_set_mode(const char *in_dev, char *errstr, int in_mode);
+int iwconfig_set_mode(const char *in_dev, char *errstr, unsigned int in_mode);
 
 /* Convert a channel floating value to an integer for formatting for old-style
  * IOCTLs */

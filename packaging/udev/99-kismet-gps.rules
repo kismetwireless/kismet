@@ -1,0 +1,8 @@
+#This rule symlinks known gps devices to /dev/gps-kismet# with # starting at 1
+#This rule is intended to be similar to the rules file included with gpsd, with items that conflict removed
+#Example: the gpsd.rules file grabs the kismet support freakusb device :-( ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60"
+#Only the most common gps types are included right now to avoid potential conflicts
+
+ACTION=="add" SUBSYSTEM=="tty", ATTRS{idVendor}=="1546", ATTRS{idProduct}=="01a7", ATTRS{manufacturer}=="u-blox AG - www.u-blox.com", ATTRS{product}=="u-blox 7 - GPS/GNSS Receiver", PROGRAM="/bin/sh -c 'echo $(($(ls /dev/gps-kismet* 2>/dev/null| tail -n1 | sed -e s#/dev/gps-kismet## )+1))'", SYMLINK+="gps-kismet%c"
+ACTION=="add" SUBSYSTEM=="tty", ATTRS{idVendor}=="1546", ATTRS{idProduct}=="01a8", ATTRS{manufacturer}=="u-blox AG - www.u-blox.com", ATTRS{product}=="u-blox GNSS receiver", PROGRAM="/bin/sh -c 'echo $(($(ls /dev/gps-kismet* 2>/dev/null| tail -n1 | sed -e s#/dev/gps-kismet## )+1))'", SYMLINK+="gps-kismet%c"
+ACTION=="add" SUBSYSTEM=="tty", ATTRS{idVendor}=="067b", ATTRS{idProduct}=="2303", PROGRAM="/bin/sh -c 'echo $(($(ls /dev/gps-kismet* 2>/dev/null| tail -n1 | sed -e s#/dev/gps-kismet## )+1))'", SYMLINK+="gps-kismet%c"

@@ -187,7 +187,7 @@ void kis_external_interface::buffer_available(size_t in_amt) {
 
             _MSG("Kismet external interface could not interpret the payload of the "
                     "command frame", MSGFLAG_ERROR);
-            trigger_error("unparseable command frame");
+            trigger_error("unparsable command frame");
 
             return;
         }
@@ -260,9 +260,12 @@ bool kis_external_interface::run_ipc() {
         ringbuf_handler->protocol_error();
     }
 
+    ipc_buffer_sz = 
+        Globalreg::globalreg->kismet_config->fetch_opt_as<size_t>("ipc_buffer_kb", 512);
+
     // Make a new handler and new ipc.  Give a generous buffer.  Give it our mutex so that all
     // future related objects inherit from us.
-    ringbuf_handler = std::make_shared<buffer_handler<ringbuf_v2>>((1024 * 1024), (1024 * 1024), ext_mutex);
+    ringbuf_handler = std::make_shared<buffer_handler<ringbuf_v2>>((ipc_buffer_sz * 1024), (ipc_buffer_sz * 1024), ext_mutex);
     ringbuf_handler->set_read_buffer_interface(this);
 
     ipc_remote.reset(new ipc_remote_v2(Globalreg::globalreg, ringbuf_handler));
@@ -344,10 +347,14 @@ unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal:
 
     // Reserve the frame in the buffer
     if (ringbuf_handler->reserve_write_buffer_data((void **) &frame, frame_sz) < frame_sz || frame == nullptr) {
-        ringbuf_handler->commit_write_buffer_data(NULL, 0);
+        if (frame != nullptr) {
+            ringbuf_handler->commit_write_buffer_data(NULL, 0);
+        }
+
         _MSG("Kismet external interface couldn't find space in the output buffer for "
                 "the next command, something may have stalled.", MSGFLAG_ERROR);
         trigger_error("write buffer full");
+
         return 0;
     }
 
@@ -392,7 +399,7 @@ void kis_external_interface::handle_packet_message(uint32_t in_seqno, const std:
     KismetExternal::MsgbusMessage m;
 
     if (!m.ParseFromString(in_content)) {
-        _MSG("Kismet external interface got an unparseable MESSAGE", MSGFLAG_ERROR);
+        _MSG("Kismet external interface got an unparsable MESSAGE", MSGFLAG_ERROR);
         trigger_error("Invalid MESSAGE");
         return;
     }
@@ -409,7 +416,7 @@ void kis_external_interface::handle_packet_pong(uint32_t in_seqno, const std::st
 
     KismetExternal::Pong p;
     if (!p.ParseFromString(in_content)) {
-        _MSG("Kismet external interface got an unparseable PONG packet", MSGFLAG_ERROR);
+        _MSG("Kismet external interface got an unparsable PONG packet", MSGFLAG_ERROR);
         trigger_error("Invalid PONG");
         return;
     }
@@ -422,7 +429,7 @@ void kis_external_interface::handle_packet_shutdown(uint32_t in_seqno, const std
 
     KismetExternal::ExternalShutdown s;
     if (!s.ParseFromString(in_content)) {
-        _MSG("Kismet external interface got an unparseable SHUTDOWN", MSGFLAG_ERROR);
+        _MSG("Kismet external interface got an unparsable SHUTDOWN", MSGFLAG_ERROR);
         trigger_error("invalid SHUTDOWN");
         return;
     }
@@ -534,7 +541,7 @@ void kis_external_http_interface::handle_packet_http_register(uint32_t in_seqno,
     KismetExternalHttp::HttpRegisterUri uri;
 
     if (!uri.ParseFromString(in_content)) {
-        _MSG("Kismet external interface got an unparseable HTTPREGISTERURI", MSGFLAG_ERROR);
+        _MSG("Kismet external interface got an unparsable HTTPREGISTERURI", MSGFLAG_ERROR);
         trigger_error("Invalid HTTPREGISTERURI");
         return;
     }
@@ -555,7 +562,7 @@ void kis_external_http_interface::handle_packet_http_response(uint32_t in_seqno,
     KismetExternalHttp::HttpResponse resp;
 
     if (!resp.ParseFromString(in_content)) {
-        _MSG("Kismet external interface got an unparseable HTTPRESPONSE", MSGFLAG_ERROR);
+        _MSG("Kismet external interface got an unparsable HTTPRESPONSE", MSGFLAG_ERROR);
         trigger_error("Invalid  HTTPRESPONSE");
         return;
     }
@@ -612,7 +619,7 @@ void kis_external_http_interface::handle_packet_http_auth_request(uint32_t in_se
     KismetExternalHttp::HttpAuthTokenRequest rt;
 
     if (!rt.ParseFromString(in_content)) {
-        _MSG("Kismet external interface got an unparseable HTTPAUTHREQ", MSGFLAG_ERROR);
+        _MSG("Kismet external interface got an unparsable HTTPAUTHREQ", MSGFLAG_ERROR);
         trigger_error("Invalid HTTPAUTHREQ");
         return;
     }

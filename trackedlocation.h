@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -58,9 +58,23 @@ public:
         return std::move(dup);
     }
 
-    // Use proxy macro to define get/set
-    __Proxy(lat, double, double, double, lat);
-    __Proxy(lon, double, double, double, lon);
+    // lat/lon are encoded in the geopoint
+    const double get_lat() const {
+        return geopoint->at(1);
+    }
+
+    void set_lat(double lat) {
+        geopoint->at(1) = lat;
+    }
+
+    const double get_lon() const {
+        return geopoint->at(0);
+    }
+
+    void set_lon(double lon) {
+        geopoint->at(0) = lon;
+    }
+
     __Proxy(alt, double, double, double, alt);
     __Proxy(speed, double, double, double, spd);
     __Proxy(heading, double, double, double, heading);
@@ -82,9 +96,9 @@ public:
 
 protected:
     virtual void register_fields() override;
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;
 
-    std::shared_ptr<tracker_element_double> lat;
-    std::shared_ptr<tracker_element_double> lon;
+    std::shared_ptr<tracker_element_vector_double> geopoint;
     std::shared_ptr<tracker_element_double> alt;
     std::shared_ptr<tracker_element_double> spd;
     std::shared_ptr<tracker_element_double> heading;
@@ -118,7 +132,8 @@ public:
         return std::move(dup);
     }
 
-    void add_loc(double in_lat, double in_lon, double in_alt, unsigned int fix);
+    void add_loc(double in_lat, double in_lon, double in_alt, unsigned int fix,
+            double in_speed, double in_heading);
 
     __Proxy(valid, uint8_t, bool, bool, loc_valid);
     __Proxy(fix, uint8_t, unsigned int, unsigned int, loc_fix);
@@ -126,6 +141,8 @@ public:
     std::shared_ptr<kis_tracked_location_triplet> get_min_loc() { return min_loc; }
     std::shared_ptr<kis_tracked_location_triplet> get_max_loc() { return max_loc; }
     std::shared_ptr<kis_tracked_location_triplet> get_avg_loc() { return avg_loc; }
+
+    std::shared_ptr<kis_tracked_location_triplet> get_last_loc() { return last_loc; }
 
     __Proxy(agg_lat, uint64_t, uint64_t, uint64_t, avg_lat);
     __Proxy(agg_lon, uint64_t, uint64_t, uint64_t, avg_lon);
@@ -137,8 +154,8 @@ protected:
     virtual void register_fields() override;
 
     // We save the IDs here because we dynamically generate them
-    std::shared_ptr<kis_tracked_location_triplet> min_loc, max_loc, avg_loc;
-    int min_loc_id, max_loc_id, avg_loc_id;
+    std::shared_ptr<kis_tracked_location_triplet> min_loc, max_loc, avg_loc, last_loc;
+    int min_loc_id, max_loc_id, avg_loc_id, last_loc_id;
 
     std::shared_ptr<tracker_element_uint8> loc_valid;
     std::shared_ptr<tracker_element_uint8> loc_fix;
@@ -171,8 +188,23 @@ public:
         return std::move(dup);
     }
 
-    __Proxy(lat, double, double, double, lat);
-    __Proxy(lon, double, double, double, lon);
+    // lat/lon are encoded in the geopoint
+    const double get_lat() const {
+        return geopoint->at(1);
+    }
+
+    void set_lat(double lat) {
+        geopoint->at(1) = lat;
+    }
+
+    const double get_lon() const {
+        return geopoint->at(0);
+    }
+
+    void set_lon(double lon) {
+        geopoint->at(0) = lon;
+    }
+
     __Proxy(heading, double, double, double, heading);
     __Proxy(alt, double, double, double, alt);
     __Proxy(speed, double, double, double, speed);
@@ -182,9 +214,9 @@ public:
 
 protected:
     virtual void register_fields() override;
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;
 
-    std::shared_ptr<tracker_element_double> lat;
-    std::shared_ptr<tracker_element_double> lon;
+    std::shared_ptr<tracker_element_vector_double> geopoint;
     std::shared_ptr<tracker_element_double> alt;
     std::shared_ptr<tracker_element_double> heading; 
     std::shared_ptr<tracker_element_double> speed;

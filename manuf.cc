@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -35,9 +35,40 @@ kis_manuf::kis_manuf() {
     unknown_manuf = std::make_shared<tracker_element_string>(manuf_id);
     unknown_manuf->set("Unknown");
 
+    random_manuf = std::make_shared<tracker_element_string>(manuf_id);
+    random_manuf->set("Randomized");
+
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("manuf_lookup", true) == false) {
         _MSG("Disabling OUI lookup.", MSGFLAG_INFO);
         return;
+    }
+
+    for (auto m : Globalreg::globalreg->kismet_config->fetch_opt_vec("manuf")) {
+        auto m_pair = str_tokenize(m, ",");
+        short int si[3];
+
+        if (m_pair.size() != 2) {
+            _MSG_ERROR("Expected 'manuf=AA:BB:CC,Name' for a config file manuf record.");
+            continue;
+        }
+
+        if (sscanf(m_pair[0].c_str(), "%hx:%hx:%hx", &(si[0]), &(si[1]), &(si[2])) == 3) {
+            uint32_t oui;
+
+            oui = 0;
+            oui |= (uint32_t) si[0] << 16;
+            oui |= (uint32_t) si[1] << 8;
+            oui |= (uint32_t) si[2];
+
+            manuf_data md;
+            md.oui = oui;
+            md.manuf = std::make_shared<tracker_element_string>(manuf_id);
+            md.manuf->set(m_pair[1]);
+            oui_map[oui] = md;
+        } else {
+            _MSG_ERROR("Expected 'manuf=AA:BB:CC,Name' for a config file manuf record.");
+            continue;
+        }
     }
 
     auto fname = Globalreg::globalreg->kismet_config->fetch_opt_vec("ouifile");
@@ -50,7 +81,7 @@ kis_manuf::kis_manuf() {
     for (auto f : fname) {
         auto expanded = Globalreg::globalreg->kismet_config->expand_log_path(f, "", "", 0, 1);
 
-        if ((mfile = fopen(expanded.c_str(), "r")) != NULL) {
+        if ((zmfile = gzopen(expanded.c_str(), "r")) != nullptr) {
             _MSG("Opened OUI file '" + expanded, MSGFLAG_INFO);
             break;
         }
@@ -58,7 +89,7 @@ kis_manuf::kis_manuf() {
         _MSG("Could not open OUI file '" + expanded + "': " + std::string(strerror(errno)), MSGFLAG_INFO);
     }
 
-    if (mfile == NULL) {
+    if (zmfile == nullptr) {
         _MSG("No OUI files were available, will not resolve manufacturer "
              "names for MAC addresses", MSGFLAG_ERROR);
         return;
@@ -70,21 +101,21 @@ kis_manuf::kis_manuf() {
 void kis_manuf::IndexOUI() {
     char buf[1024];
     int line = 0;
-    fpos_t prev_pos;
+    z_off_t prev_pos;
     short int m[3];
     uint32_t last_oui = 0;
 
     local_locker l(&mutex);
 
-    if (mfile == NULL)
+    if (zmfile == nullptr)
         return;
 
     _MSG("Indexing manufacturer db", MSGFLAG_INFO);
 
-    fgetpos(mfile, &prev_pos);
+    prev_pos = gzseek(zmfile, 0, SEEK_CUR);
 
-    while (!feof(mfile)) {
-        if (fgets(buf, 1024, mfile) == NULL || feof(mfile))
+    while (!gzeof(zmfile)) {
+        if (gzgets(zmfile, buf, 1024) == NULL || gzeof(zmfile))
             break;
 
         if ((line % 50) == 0) {
@@ -120,7 +151,7 @@ void kis_manuf::IndexOUI() {
             }
         }
 
-        fgetpos(mfile, &prev_pos);
+        prev_pos = gzseek(zmfile, 0, SEEK_CUR);
         line++;
     }
 
@@ -134,7 +165,7 @@ std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(mac_addr in_mac) {
     char buf[1024];
     short int m[3];
 
-    if (mfile == NULL)
+    if (zmfile == nullptr)
         return unknown_manuf;
 
     {
@@ -172,10 +203,10 @@ std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(mac_addr in_mac) {
     {
         local_locker l(&mutex);
 
-        fsetpos(mfile, &(index_vec[matched].pos));
+        gzseek(zmfile, index_vec[matched].pos, SEEK_SET);
 
-        while (!feof(mfile)) {
-            if (fgets(buf, 1024, mfile) == NULL || feof(mfile))
+        while (!gzeof(zmfile)) {
+            if (gzgets(zmfile, buf, 1024) == nullptr || gzeof(zmfile))
                 break;
 
             if (strlen(buf) < 10)
@@ -224,7 +255,7 @@ std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(uint32_t in_oui) {
     char buf[1024];
     short int m[3];
 
-    if (mfile == NULL)
+    if (zmfile == nullptr)
         return unknown_manuf;
 
     {
@@ -262,10 +293,10 @@ std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(uint32_t in_oui) {
     {
         local_locker l(&mutex); 
 
-        fsetpos(mfile, &(index_vec[matched].pos));
+        gzseek(zmfile, index_vec[matched].pos, SEEK_SET);
 
-        while (!feof(mfile)) {
-            if (fgets(buf, 1024, mfile) == NULL || feof(mfile))
+        while (!gzeof(zmfile)) {
+            if (gzgets(zmfile, buf, 1024) == nullptr || gzeof(zmfile))
                 break;
 
             if (strlen(buf) < 10)
@@ -308,7 +339,7 @@ std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(uint32_t in_oui) {
     return unknown_manuf;
 }
 
-std::shared_ptr<tracker_element_string> kis_manuf::MakeManuf(const std::string& in_manuf) {
+std::shared_ptr<tracker_element_string> kis_manuf::make_manuf(const std::string& in_manuf) {
     auto manuf = std::make_shared<tracker_element_string>(manuf_id);
     manuf->set(in_manuf);
     return manuf;

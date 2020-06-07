@@ -21,7 +21,7 @@
     var channeldisplay_refresh = function(state) {
         clearTimeout(state.timerid);
 
-        if (state.element.is(':hidden')) {
+        if (!kismet_ui.window_visible || state.element.is(':hidden')) {
             state.timerid = -1;
             return;
         }

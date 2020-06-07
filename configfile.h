@@ -54,6 +54,11 @@ public:
         return save_config(in_fname.c_str());
     }
 
+    // Set a final override file that takes place after all other loading
+    void set_final_override(const std::string& in_fname) {
+        final_override = in_fname;
+    }
+
     std::string fetch_opt(std::string in_key);
     std::string fetch_opt_dfl(std::string in_key, std::string in_dfl);
     std::string fetch_opt_nl(std::string in_key);
@@ -68,7 +73,7 @@ public:
     unsigned int fetch_opt_uint(const std::string& in_key, unsigned int dvalue);
     unsigned long int fetch_opt_ulong(const std::string& in_key, unsigned long dvalue);
 
-    // New C++ api; fetch an opt as a dynamic type dervied via '>>' assignment; will thow
+    // New C++ api; fetch an opt as a dynamic type derived via '>>' assignment; will throw
     // std::runtime_error if the type can not be converted.  If the key is not found, the
     // default value is used.
     template<typename T>
@@ -156,6 +161,8 @@ protected:
     // List of config files which are *overriding*
     std::vector<std::string> config_override_file_list;
 
+    std::string final_override;
+
     kis_recursive_timed_mutex config_locker;
 };
 
@@ -190,7 +197,7 @@ public:
 
     // Get a value by key, coercing string content to another type; will throw 
     // std::runtime_error if the content cannot be coerced.  
-    // If the key is not present, return the defautl value
+    // If the key is not present, return the default value
     template<typename T>
     T get_value_as(const std::string& in_key, const T& dvalue) {
         local_locker l(&mutex);

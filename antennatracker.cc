@@ -20,6 +20,8 @@
 #include "antennatracker.h"
 
 Antennatracker::Antennatracker() {
+    mutex.set_name("antennatracker");
+
     antenna_id_map = 
         std::make_shared<tracker_element_int_map>();
     antenna_endp = 

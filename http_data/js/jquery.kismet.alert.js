@@ -271,35 +271,39 @@
     }
 
     var alert_refresh = function(fetchtime = last_time) {
-        $.get(local_uri_prefix + "alerts/last-time/" + fetchtime + "/alerts.json")
-        .done(function(data) {
-            data = kismet.sanitizeObject(data);
+        if (kismet_ui.window_visible) {
+            $.get(local_uri_prefix + "alerts/wrapped/last-time/" + fetchtime + "/alerts.json")
+                .done(function(data) {
+                    data = kismet.sanitizeObject(data);
 
-            // Update the timestamp
-            last_time = data['kismet.alert.timestamp'];
+                    // Update the timestamp
+                    last_time = data['kismet.alert.timestamp'];
 
-            // Have we got new alerts?
-            if (data['kismet.alert.list'].length > 0) {
-                if (data['kismet.alert.list'][0]['kismet.alert.timestamp'] > last_closed_time) {
-                    alertbg.addClass('ka-top-bg-alert');
-                }
-    
-                // Reverse, combine in the data var, slice and assign to the alert list
-                data['kismet.alert.list'].reverse();
-                $.merge(data['kismet.alert.list'], alert_list);
-                alert_list = data['kismet.alert.list'].slice(0, options.max_backlog);
+                    // Have we got new alerts?
+                    if (data['kismet.alert.list'].length > 0) {
+                        if (data['kismet.alert.list'][0]['kismet.alert.timestamp'] > last_closed_time) {
+                            alertbg.addClass('ka-top-bg-alert');
+                        }
 
-                // Is the dialog showing?  Update it if it is
-                if (dialog != null) {
-                    populate_alert_content(dialog.content);
-                }
-            }
+                        // Reverse, combine in the data var, slice and assign to the alert list
+                        data['kismet.alert.list'].reverse();
+                        $.merge(data['kismet.alert.list'], alert_list);
+                        alert_list = data['kismet.alert.list'].slice(0, options.max_backlog);
 
-        })
-        .always(function() {
-            update_tooltips();
+                        // Is the dialog showing?  Update it if it is
+                        if (dialog != null) {
+                            populate_alert_content(dialog.content);
+                        }
+                    }
+
+                })
+                .always(function() {
+                    update_tooltips();
+                    timerid = setTimeout(alert_refresh, 1000);
+                });
+        } else {
             timerid = setTimeout(alert_refresh, 1000);
-        });
+        }
 
     }
 

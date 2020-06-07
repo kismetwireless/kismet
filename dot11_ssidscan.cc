@@ -23,6 +23,8 @@
 #include "entrytracker.h"
 
 dot11_ssid_scan::dot11_ssid_scan() {
+    mutex.set_name("dot11_ssid_scan");
+
     timetracker = 
         Globalreg::fetch_mandatory_global_as<time_tracker>();
     hopping_mode_end_timer = -1;

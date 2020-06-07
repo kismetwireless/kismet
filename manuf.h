@@ -21,7 +21,6 @@
 
 #include "config.h"
 
-#include <string>
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -32,6 +31,12 @@
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif
+
+#include <zlib.h>
+
+#include <unordered_map>
+#include <string>
+
 #include "util.h"
 #include "globalregistry.h"
 
@@ -46,11 +51,15 @@ public:
     std::shared_ptr<tracker_element_string> lookup_oui(mac_addr in_mac);
     std::shared_ptr<tracker_element_string> lookup_oui(uint32_t in_oui);
 
-    std::shared_ptr<tracker_element_string> MakeManuf(const std::string& in_manuf);
+    std::shared_ptr<tracker_element_string> make_manuf(const std::string& in_manuf);
+
+    std::shared_ptr<tracker_element_string> get_random_manuf() const {
+        return random_manuf;
+    }
 
     struct index_pos {
         uint32_t oui;
-        fpos_t pos;
+        z_off_t pos;
     };
 
     struct manuf_data {
@@ -65,13 +74,14 @@ protected:
 
     std::vector<index_pos> index_vec;
 
-    std::map<uint32_t, manuf_data> oui_map;
+    std::unordered_map<uint32_t, manuf_data> oui_map;
 
-    FILE *mfile;
+    gzFile zmfile;
 
     // IDs for manufacturer objects
     int manuf_id;
     std::shared_ptr<tracker_element_string> unknown_manuf;
+    std::shared_ptr<tracker_element_string> random_manuf;
 };
 
 #endif

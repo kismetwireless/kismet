@@ -58,6 +58,8 @@
 
 #include "multi_constexpr.h"
 
+#include "fmt.h"
+
 // Munge a string to characters safe for calling in a shell
 std::string munge_to_printable(const char *in_data, unsigned int max, int nullterm);
 std::string munge_to_printable(const std::string& in_str);
@@ -127,9 +129,12 @@ void append_to_opts(const std::string& opt, const std::string& val, std::vector<
 void replace_all_opts(const std::string& opt, const std::string& val, std::vector<opt_pair> *in_vec);
 
 template<typename T>
-T string_to_n(const std::string& s) {
+T string_to_n(const std::string& s, std::ios_base&(*base)(std::ios_base &) = nullptr) {
     std::stringstream ss(s);
     T t;
+
+    if (base != nullptr)
+        ss >> base;
 
     ss >> t;
 
@@ -140,7 +145,7 @@ T string_to_n(const std::string& s) {
 }
 
 template<typename T>
-T string_to_n(const std::string& s, T dvalue) {
+T string_to_n_dfl(const std::string& s, T dvalue) {
     try {
         return string_to_n<T>(s);
     } catch (const std::exception& e) {
@@ -380,7 +385,10 @@ std::string kis_strerror_r(int errnum);
 double ts_to_double(struct timeval ts);
 double ts_now_to_double();
 
-std::string hexstr_to_binstr(const char *hs);
+// Flexible method to convert a hex string to a binary string; accepts
+// both upper and lower case hex, and prepends '0' to the first byte if 
+// an odd number of bytes in the original string
+std::string hex_to_bytes(const std::string& in);
 
 void thread_set_process_name(const std::string& name);
 

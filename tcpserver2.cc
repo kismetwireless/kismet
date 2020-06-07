@@ -22,7 +22,9 @@
 
 tcp_server_v2::tcp_server_v2() :
     valid {false},
-    server_fd {-1} { }
+    server_fd {-1} {
+    tcp_mutex.set_name("tcp_server_v2");    
+}
 
 tcp_server_v2::~tcp_server_v2() {
     shutdown();
