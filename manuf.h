@@ -32,6 +32,8 @@
 #include <inttypes.h>
 #endif
 
+#include <zlib.h>
+
 #include <unordered_map>
 #include <string>
 
@@ -57,7 +59,7 @@ public:
 
     struct index_pos {
         uint32_t oui;
-        fpos_t pos;
+        z_off_t pos;
     };
 
     struct manuf_data {
@@ -74,7 +76,7 @@ protected:
 
     std::unordered_map<uint32_t, manuf_data> oui_map;
 
-    FILE *mfile;
+    gzFile zmfile;
 
     // IDs for manufacturer objects
     int manuf_id;

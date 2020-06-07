@@ -14,6 +14,9 @@ all: protobuf
 
 protobuf: $(PROTOBUF_DEFINITIONS:$(PROTOBUF_DIR)/%.proto=$(DATASOURCE_NAME)/kismetexternal/%_pb2.py)
 
+csv:
+	$(PYTHON) generate_airplane_csv.py
+
 $(DATASOURCE_NAME)/kismetexternal/%_pb2.py: $(PROTOBUF_DIR)/%.proto
 	$(PROTOCBIN) -I $(PROTOBUF_DIR) --python_out=$(DATASOURCE_NAME)/kismetexternal $^
 	sed -i -E 's/^import kismet_/from . import kismet_/' $@

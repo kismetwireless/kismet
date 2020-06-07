@@ -170,6 +170,11 @@ LOGTOOL_KISMETDB_CLEAN_O = \
 	log_tools/kismetdb_clean.cc.o \
 	sqlite3_cpp11.cc.o 
 
+LOGTOOL_KISMETDB_PCAP = log_tools/kismetdb_to_pcap
+LOGTOOL_KISMETDB_PCAP_O = \
+	log_tools/kismetdb_to_pcap.cc.o \
+	sqlite3_cpp11.cc.o 
+
 LOGTOOL_BINS = \
 	$(LOGTOOL_KISMETDB_STRIP) \
 	$(LOGTOOL_KISMETDB_WIGLE) \
@@ -177,7 +182,8 @@ LOGTOOL_BINS = \
 	$(LOGTOOL_KISMETDB_STATS) \
 	$(LOGTOOL_KISMETDB_KML) \
 	$(LOGTOOL_KISMETDB_GPX) \
-	$(LOGTOOL_KISMETDB_CLEAN)
+	$(LOGTOOL_KISMETDB_CLEAN) \
+	$(LOGTOOL_KISMETDB_PCAP)
 
 # Disabled; Kaitai generates unusable C++ code currently
 # KAITAI_PARSERS = \
@@ -230,7 +236,7 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	phy_rtl433.cc.o phy_rtlamr.cc.o phy_rtladsb.cc.o phy_zwave.cc.o \
 	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_btle.cc.o \
 	phy_80211_ssidtracker.cc.o dot11_fingerprint.cc.o kis_dissector_ipdata.cc.o \
-	manuf.cc.o bluetooth_ids.cc.o \
+	manuf.cc.o bluetooth_ids.cc.o adsb_icao.cc.o \
 	logtracker.cc.o kis_ppilogfile.cc.o kis_databaselogfile.cc.o kis_pcapnglogfile.cc.o \
 	messagebus_restclient.cc.o \
 	streamtracker.cc.o \
@@ -270,6 +276,8 @@ $(PS):	$(PROTOBUF_CPP_O_TARGET) $(PROTOBUF_CPP_H_TARGET) $(PSO) $(patsubst %c.o,
 	@rm -f kismet
 	$(LD) $(LDFLAGS) -o $(PS) $(PSO) version.c.o $(LIBS) $(CXXLIBS) $(PCAPLIBS) $(KSLIBS) -rdynamic
 
+
+
 $(LOGTOOL_KISMETDB_STRIP):	$(LOGTOOL_KISMETDB_STRIP_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_STRIP_O))
 	$(CC) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_STRIP) $(LOGTOOL_KISMETDB_STRIP_O) -lsqlite3 -rdynamic
 
@@ -290,6 +298,11 @@ $(LOGTOOL_KISMETDB_GPX):	$(LOGTOOL_KISMETDB_GPX_O) $(patsubst %c.o,%c.d,$(LOGTOO
 
 $(LOGTOOL_KISMETDB_CLEAN):	$(LOGTOOL_KISMETDB_CLEAN_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_CLEAN_O))
 	$(LD) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_CLEAN) $(LOGTOOL_KISMETDB_CLEAN_O) $(LIBS) $(CXXLIBS) -rdynamic
+
+$(LOGTOOL_KISMETDB_PCAP): 	$(LOGTOOL_KISMETDB_PCAP_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_PCAP_O)) version.c.o
+	$(LD) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_PCAP) $(LOGTOOL_KISMETDB_PCAP_O) version.c.o $(LIBS) $(CXXLIBS) $(PCAPLIBS) -rdynamic
+
+
 
 $(DATASOURCE_COMMON_A):	$(PROTOBUF_C_O) $(PROTOBUF_C_H) $(DATASOURCE_COMMON_C_O)
 	$(AR) rcs $(DATASOURCE_COMMON_A) $(DATASOURCE_COMMON_C_O)
@@ -405,6 +418,7 @@ commoninstall: $(INSTBINS)
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_KML) $(BIN)/`basename $(LOGTOOL_KISMETDB_KML)`;
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_GPX) $(BIN)/`basename $(LOGTOOL_KISMETDB_GPX)`;
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_CLEAN) $(BIN)/`basename $(LOGTOOL_KISMETDB_CLEAN)`;
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_PCAP) $(BIN)/`basename $(LOGTOOL_KISMETDB_PCAP)`;
 
 	mkdir -p $(BIN)
 
@@ -478,7 +492,8 @@ commoninstall: $(INSTBINS)
 	mkdir -p $(HTTPD)
 	cp -r http_data/* $(HTTPD)
 
-	cp conf/kismet_manuf.txt $(SHARE)/kismet_manuf.txt 
+	cp conf/kismet_manuf.txt.gz $(SHARE)/kismet_manuf.txt.gz
+	cp conf/kismet_adsb_icao.txt.gz $(SHARE)/kismet_adsb_icao.txt.gz
 
 
 CONFINSTTARGETS = $(addprefix install_conf_, $(CONFIGFILES))
@@ -575,8 +590,12 @@ uavconfig:
 	@$(PYTHON) tools/compile_uav_conf.py conf/kismet_uav.conf.yaml > conf/kismet_uav.conf
 
 manuf:
-	@echo "Generating kismet_manuf.txt"
-	@$(PYTHON) tools/create_oui_db.py > conf/kismet_manuf.txt
+	@echo "Generating kismet_manuf.txt.gz"
+	@$(PYTHON) tools/create_oui_db.py | gzip -9 > conf/kismet_manuf.txt.gz
+
+icao:
+	@echo "Generating kismet_adsb_icao.txt.gz"
+	@$(PYTHON) tools/create_icao_db.py | sort | gzip -9 > conf/kismet_adsb_icao.txt.gz
 
 extcappy:
 	@echo "Updating kismetexternal python"
@@ -593,7 +612,9 @@ release-%:
 	@git submodule update --remote docs/
 	@git commit docs -m "Doc update for $*" -m "Update docs submodule for release $*"
 	@make manuf
-	@git commit conf/kismet_manuf.txt -m "Manuf update for $*" -m "Update OUI manuf for release $*"
+	@git commit conf/kismet_manuf.txt.gz -m "Manuf update for $*" -m "Update OUI manuf for release $*"
+	@make icao
+	@git commit conf/kismet_adsb_icao.txt.gz -m "ICAO update for $*" -m "Update ADSB ICAO database for release $*"
 	@./tools/make_version_h.py $* > version.h
 	@git commit version.h -m "Version bump for $*" -m "Bump versioning for release $*"
 	@git tag kismet-$*
@@ -607,6 +628,10 @@ subrelease-%:
 	@git pull origin kismet-`echo $* | cut -d- -f1,2`
 	@./tools/make_version_h.py $* > version.h
 	@git commit version.h -m "Version bump for $*" -m "Bump versioning for release $*"
+	@make manuf
+	@git commit conf/kismet_manuf.txt.gz -m "Manuf update for $*" -m "Update OUI manuf for release $*"
+	@make icao
+	@git commit conf/kismet_adsb_icao.txt.gz -m "ICAO update for $*" -m "Update ADSB ICAO database for release $*"
 	@git tag kismet-$*
 	@git archive --format tar --prefix kismet-$*/ kismet-$* | xz > ../kismet-$*.tar.xz
 	@git push origin kismet-`echo $* | cut -d- -f1,2` --tags
@@ -746,6 +771,7 @@ include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_STATS_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_KML_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_GPX_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_CLEAN_O)))
+include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_PCAP_O)))
 
 .SUFFIXES: .c .cc .o 
 

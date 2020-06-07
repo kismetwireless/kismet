@@ -375,8 +375,9 @@
                     var altitude = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.alt'];
                     var speed = data['kismet.adsb.map.devices'][d]['kismet.device.base.location']['kismet.common.location.last']['kismet.common.location.speed'];
                     var icao = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.icao'];
-                    var id = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.regid'];
+                    var id = data['kismet.adsb.map.devices'][d]['rtladsb.device']['kismet.adsb.icao_record']['adsb.icao.regid'];
                     var packets = data['kismet.adsb.map.devices'][d]['kismet.device.base.packets.data'];
+                    var atype = data['kismet.adsb.map.devices'][d]['rtladsb.device']['kismet.adsb.icao_record']['adsb.icao.atype_short'];
 
 
                     // console.log([icao, id, altitude, speed, heading, packets]);
@@ -388,9 +389,29 @@
 
                     key = data['kismet.adsb.map.devices'][d]['kismet.device.base.key'];
 
+                    var icontype = 'fa-plane';
+
+                    /*
+                     * 1 - Glider
+                     * 2 - Balloon
+                     * 3 - Blimp/Dirigible
+                     * 4 - Fixed wing single engine
+                     * 5 - Fixed wing multi engine
+                     * 6 - Rotorcraft
+                     * 7 - Weight-shift-control
+                     * 8 - Powered Parachute
+                     * 9 - Gyroplane
+                     * H - Hybrid Lift
+                     * O - Other
+                     */
+                    if (atype == "1".charCodeAt(0) || atype == "7".charCodeAt(0))
+                        icontype == 'fa-paper-plane';
+                    else if (atype == "6".charCodeAt(0))
+                        icontype == 'fa-helicopter';
+
                     var myIcon = L.divIcon({
                         className: 'plane-icon', 
-                        html: '<div id="adsb_marker_' + kismet.sanitizeId(key) + '" style="width: 24px; height: 24px; transform-origin: center;"><i id="adsb_marker_icon_' + kismet.sanitizeId(key) + '" class="marker-center fa fa-plane" style="font-size: 18px; color: ' + get_alt_color(altitude) + ';"></div>',
+                        html: '<div id="adsb_marker_' + kismet.sanitizeId(key) + '" style="width: 24px; height: 24px; transform-origin: center;"><i id="adsb_marker_icon_' + kismet.sanitizeId(key) + '" class="marker-center fa ' + icontype + '" style="font-size: 18px; color: ' + get_alt_color(altitude) + ';"></div>',
                         iconAnchor: [12, 12],
                     });
 
@@ -443,11 +464,11 @@
                         markers[key]['keep'] = true;
                         markers[key]['pathlist'] = [[lat, lon]];
                         markers[key]['path'] = null;
-                        markers[key]['last_path_ts'] = 0
+                        markers[key]['last_path_ts'] = 0;
 
-                        markers[key]['model'] = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.atype']
-                        markers[key]['operator'] = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.aoperator']
-                        markers[key]['callsign'] = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.callsign']
+                        markers[key]['model'] = data['kismet.adsb.map.devices'][d]['rtladsb.device']['kismet.adsb.icao_record']['adsb.icao.model'];
+                        markers[key]['operator'] = data['kismet.adsb.map.devices'][d]['rtladsb.device']['kismet.adsb.icao_record']['adsb.icao.owner'];
+                        markers[key]['callsign'] = data['kismet.adsb.map.devices'][d]['rtladsb.device']['rtladsb.device.callsign'];
 
                         markers[key]['marker'].on('mouseover', wrap_closure_mouseover(key));
                         markers[key]['marker'].on('mouseout', wrap_closure_mouseout(key));

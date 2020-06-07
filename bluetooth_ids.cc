@@ -66,7 +66,7 @@ kis_bt_oid::kis_bt_oid() {
 
     auto expanded = Globalreg::globalreg->kismet_config->expand_log_path(fname, "", "", 0, 1);
 
-    if ((ofile = fopen(expanded.c_str(), "r")) == nullptr) {
+    if ((zofile = gzopen(expanded.c_str(), "r")) == nullptr) {
         _MSG_ERROR("BTOID file {} was not found, will not resolve Bluetooth service names.",
                 expanded);
         return;
@@ -78,28 +78,28 @@ kis_bt_oid::kis_bt_oid() {
 kis_bt_oid::~kis_bt_oid() {
     Globalreg::globalreg->RemoveGlobal(global_name());
 
-    if (ofile != nullptr)
-        fclose(ofile);
+    if (zofile != nullptr)
+        gzclose(zofile);
 }
 
 void kis_bt_oid::index_bt_oids() {
     char buf[1024];
     int line = 0;
-    fpos_t prev_pos;
+    z_off_t prev_pos;
     uint32_t oid;
     uint32_t last_oid = 0;
 
-    if (ofile == nullptr)
+    if (zofile == nullptr)
         return;
 
     local_locker lock(&mutex);
 
     _MSG_INFO("Indexing Bluetooth OID list");
 
-    fgetpos(ofile, &prev_pos);
+    prev_pos = gzseek(zofile, 0, SEEK_CUR);
 
-    while (!feof(ofile)) {
-        if (fgets(buf, 1024, ofile) == nullptr || feof(ofile))
+    while (!gzeof(zofile)) {
+        if (gzgets(zofile, buf, 1024) == nullptr || gzeof(zofile))
             break;
 
         if ((line % 50) == 0) {
@@ -116,7 +116,7 @@ void kis_bt_oid::index_bt_oids() {
             last_oid = oid;
         }
 
-        fgetpos(ofile, &prev_pos);
+        prev_pos = gzseek(zofile, 0, SEEK_CUR);
         line++;
     }
 
@@ -129,7 +129,7 @@ std::shared_ptr<tracker_element_string> kis_bt_oid::lookup_oid(uint32_t in_oid) 
     char buf[1024];
     uint32_t poid;
 
-    if (ofile == nullptr)
+    if (zofile == nullptr)
         return unknown_oid;
 
     local_locker lock(&mutex);
@@ -158,10 +158,10 @@ std::shared_ptr<tracker_element_string> kis_bt_oid::lookup_oid(uint32_t in_oid) 
     if (matched > 0)
         matched -= 1;
 
-    fsetpos(ofile, &(index_vec[matched].pos));
+    gzseek(zofile, index_vec[matched].pos, SEEK_SET);
 
-    while (!feof(ofile)) {
-        if (fgets(buf, 1024, ofile) == nullptr || feof(ofile))
+    while (!gzeof(zofile)) {
+        if (gzgets(zofile, buf, 1024) == nullptr || gzeof(zofile))
             break;
 
         if (strlen(buf) < 5)
@@ -247,7 +247,7 @@ kis_bt_manuf::kis_bt_manuf() {
 
     auto expanded = Globalreg::globalreg->kismet_config->expand_log_path(fname, "", "", 0, 1);
 
-    if ((mfile = fopen(expanded.c_str(), "r")) == nullptr) {
+    if ((zmfile = gzopen(expanded.c_str(), "r")) == nullptr) {
         _MSG_ERROR("BTMANUF file {} was not found, will not resolve Bluetooth service names.",
                 expanded);
         return;
@@ -259,27 +259,27 @@ kis_bt_manuf::kis_bt_manuf() {
 kis_bt_manuf::~kis_bt_manuf() {
     Globalreg::globalreg->RemoveGlobal(global_name());
 
-    if (mfile != nullptr)
-        fclose(mfile);
+    if (zmfile != nullptr)
+        gzclose(zmfile);
 }
 
 void kis_bt_manuf::index_bt_manufs() {
     char buf[1024];
     int line = 0;
-    fpos_t prev_pos;
+    z_off_t prev_pos;
     uint32_t oid;
 
-    if (mfile == nullptr)
+    if (zmfile == nullptr)
         return;
 
     local_locker lock(&mutex);
 
     _MSG_INFO("Indexing Bluetooth manufacturer list");
 
-    fgetpos(mfile, &prev_pos);
+    prev_pos = gzseek(zmfile, 0, SEEK_CUR);
 
-    while (!feof(mfile)) {
-        if (fgets(buf, 1024, mfile) == nullptr || feof(mfile))
+    while (!gzeof(zmfile)) {
+        if (gzgets(zmfile, buf, 1024) == nullptr || gzeof(zmfile))
             break;
 
         if ((line % 50) == 0) {
@@ -294,7 +294,7 @@ void kis_bt_manuf::index_bt_manufs() {
             ip.pos = prev_pos;
         }
 
-        fgetpos(mfile, &prev_pos);
+        prev_pos = gzseek(zmfile, 0, SEEK_CUR);
         line++;
     }
 
@@ -307,7 +307,7 @@ std::shared_ptr<tracker_element_string> kis_bt_manuf::lookup_manuf(uint32_t in_i
     char buf[1024];
     uint32_t pid;
 
-    if (mfile == nullptr)
+    if (zmfile == nullptr)
         return unknown_manuf;
 
     local_locker lock(&mutex);
@@ -336,10 +336,10 @@ std::shared_ptr<tracker_element_string> kis_bt_manuf::lookup_manuf(uint32_t in_i
     if (matched > 0)
         matched -= 1;
 
-    fsetpos(mfile, &(index_vec[matched].pos));
+    gzseek(zmfile, index_vec[matched].pos, SEEK_SET);
 
-    while (!feof(mfile)) {
-        if (fgets(buf, 1024, mfile) == nullptr || feof(mfile))
+    while (!gzeof(zmfile)) {
+        if (gzgets(zmfile, buf, 1024) == nullptr || gzeof(zmfile))
             break;
 
         if (strlen(buf) < 5)

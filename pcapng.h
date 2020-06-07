@@ -31,16 +31,20 @@ struct pcap_hdr {
     int32_t  thiszone;
     uint32_t sigfigs;
     uint32_t snaplen;
-    uint32_t network;
-};
+    uint32_t dlt;
+} __attribute__((packed));
 typedef struct pcap_hdr pcap_hdr_t;
+#define PCAP_MAGIC          0xA1B2C3D4
+#define PCAP_VERSION_MAJOR  2
+#define PCAP_VERSION_MINOR  4
+#define PCAP_MAX_SNAPLEN    8192
 
 struct pcap_packet_hdr {
     uint32_t ts_sec;
     uint32_t ts_usec;
     uint32_t incl_len;
     uint32_t orig_len;
-};
+} __attribute__((packed));
 typedef struct pcap_packet_hdr pcap_packet_hdr_t;
 
 /* PCAP-NG basic structs, as defined in:

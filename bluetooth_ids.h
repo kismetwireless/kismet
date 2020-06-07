@@ -22,6 +22,7 @@
 #include "config.h"
 
 #include <stdint.h>
+#include <zlib.h>
 
 #include <memory>
 #include <string>
@@ -52,7 +53,7 @@ public:
 
     struct index_pos {
         uint32_t oid;
-        fpos_t pos;
+        z_off_t pos;
     };
 
     struct oid_data {
@@ -69,12 +70,12 @@ protected:
 
     std::unordered_map<uint32_t, oid_data> oid_map;
 
-    FILE *ofile;
+    gzFile zofile;
 
     int oid_id;
     std::shared_ptr<tracker_element_string> unknown_oid;
-}
-;
+};
+
 class kis_bt_manuf : public lifetime_global {
 public:
     static std::string global_name() { return "BTMANUF"; }
@@ -97,7 +98,7 @@ public:
 
     struct index_pos {
         uint32_t id;
-        fpos_t pos;
+        z_off_t pos;
     };
 
     struct manuf_data {
@@ -114,7 +115,7 @@ protected:
 
     std::unordered_map<uint32_t, manuf_data> manuf_map;
 
-    FILE *mfile;
+    gzFile zmfile;
 
     int manuf_id;
     std::shared_ptr<tracker_element_string> unknown_manuf;

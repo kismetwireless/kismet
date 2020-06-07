@@ -81,7 +81,7 @@ kis_manuf::kis_manuf() {
     for (auto f : fname) {
         auto expanded = Globalreg::globalreg->kismet_config->expand_log_path(f, "", "", 0, 1);
 
-        if ((mfile = fopen(expanded.c_str(), "r")) != NULL) {
+        if ((zmfile = gzopen(expanded.c_str(), "r")) != nullptr) {
             _MSG("Opened OUI file '" + expanded, MSGFLAG_INFO);
             break;
         }
@@ -89,7 +89,7 @@ kis_manuf::kis_manuf() {
         _MSG("Could not open OUI file '" + expanded + "': " + std::string(strerror(errno)), MSGFLAG_INFO);
     }
 
-    if (mfile == NULL) {
+    if (zmfile == nullptr) {
         _MSG("No OUI files were available, will not resolve manufacturer "
              "names for MAC addresses", MSGFLAG_ERROR);
         return;
@@ -101,21 +101,21 @@ kis_manuf::kis_manuf() {
 void kis_manuf::IndexOUI() {
     char buf[1024];
     int line = 0;
-    fpos_t prev_pos;
+    z_off_t prev_pos;
     short int m[3];
     uint32_t last_oui = 0;
 
     local_locker l(&mutex);
 
-    if (mfile == NULL)
+    if (zmfile == nullptr)
         return;
 
     _MSG("Indexing manufacturer db", MSGFLAG_INFO);
 
-    fgetpos(mfile, &prev_pos);
+    prev_pos = gzseek(zmfile, 0, SEEK_CUR);
 
-    while (!feof(mfile)) {
-        if (fgets(buf, 1024, mfile) == NULL || feof(mfile))
+    while (!gzeof(zmfile)) {
+        if (gzgets(zmfile, buf, 1024) == NULL || gzeof(zmfile))
             break;
 
         if ((line % 50) == 0) {
@@ -151,7 +151,7 @@ void kis_manuf::IndexOUI() {
             }
         }
 
-        fgetpos(mfile, &prev_pos);
+        prev_pos = gzseek(zmfile, 0, SEEK_CUR);
         line++;
     }
 
@@ -165,7 +165,7 @@ std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(mac_addr in_mac) {
     char buf[1024];
     short int m[3];
 
-    if (mfile == NULL)
+    if (zmfile == nullptr)
         return unknown_manuf;
 
     {
@@ -203,10 +203,10 @@ std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(mac_addr in_mac) {
     {
         local_locker l(&mutex);
 
-        fsetpos(mfile, &(index_vec[matched].pos));
+        gzseek(zmfile, index_vec[matched].pos, SEEK_SET);
 
-        while (!feof(mfile)) {
-            if (fgets(buf, 1024, mfile) == NULL || feof(mfile))
+        while (!gzeof(zmfile)) {
+            if (gzgets(zmfile, buf, 1024) == nullptr || gzeof(zmfile))
                 break;
 
             if (strlen(buf) < 10)
@@ -255,7 +255,7 @@ std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(uint32_t in_oui) {
     char buf[1024];
     short int m[3];
 
-    if (mfile == NULL)
+    if (zmfile == nullptr)
         return unknown_manuf;
 
     {
@@ -293,10 +293,10 @@ std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(uint32_t in_oui) {
     {
         local_locker l(&mutex); 
 
-        fsetpos(mfile, &(index_vec[matched].pos));
+        gzseek(zmfile, index_vec[matched].pos, SEEK_SET);
 
-        while (!feof(mfile)) {
-            if (fgets(buf, 1024, mfile) == NULL || feof(mfile))
+        while (!gzeof(zmfile)) {
+            if (gzgets(zmfile, buf, 1024) == nullptr || gzeof(zmfile))
                 break;
 
             if (strlen(buf) < 10)

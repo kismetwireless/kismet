@@ -139,6 +139,11 @@ namespace kissqlite3 {
         return os;
     }
 
+    std::list<query_element> _WHERE() {
+        auto ret = std::list<query_element>{};
+        return ret;
+    }
+
     // SELECT (x, y, z) FROM table
     query _SELECT(sqlite3 *db, const std::string& table, const std::list<std::string>& fields) {
         return query{db, table, fields};

@@ -14,7 +14,7 @@ setup(name='KismetCaptureRtladsb',
               'kismet_cap_sdr_rtladsb = KismetCaptureRtladsb.kismet_cap_sdr_rtladsb:main',
               ],
           },
-      package_data={'KismetCaptureRtladsb': ['data/aircraft_db.csv']},
+      #package_data={'KismetCaptureRtladsb': ['data/aircraft_db.csv']},
      )
 
 
