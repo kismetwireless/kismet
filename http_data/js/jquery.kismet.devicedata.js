@@ -422,16 +422,16 @@
                 (typeof(d) === 'undefined' ||
                     (typeof(d) !== 'undefined' && d.length == 0))) {
                 if (typeof(v['empty']) === 'string')
-                td.html(v['empty']);
+                    td.html(v['empty']);
                 else if (typeof(v['empty']) === 'function')
-                td.html(v['empty'](callopts));
+                    td.html(v['empty'](callopts));
             } else if ('zero' in v &&
                 (typeof(d) === 'undefined' ||
                     (typeof(d) === 'number' && d == 0))) {
                 if (typeof(v['zero']) === 'string')
-                td.html(v['zero']);
+                    td.html(v['zero']);
                 else if (typeof(v['zero']) === 'function')
-                td.html(v['zero'](callopts));
+                    td.html(v['zero'](callopts));
             } else {
                 td.html(d);
             }
