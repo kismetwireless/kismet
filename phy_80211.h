@@ -1,4 +1,5 @@
 /*
+Minor cleanup to pcapng generation
    This file is part of Kismet
 
    Kismet is free software; you can redistribute it and/or modify
@@ -348,6 +349,9 @@ public:
     // 802.11 packet classifier to common for the devicetracker layer
     static int packet_dot11_common_classifier(CHAINCALL_PARMS);
 
+    // 802.11 virtual source scan classifier
+    static int packet_dot11_scan_json_classifier(CHAINCALL_PARMS);
+
     // Dot11 tracker for building phy-specific elements
     int tracker_dot11(kis_packet *in_pack);
 
@@ -459,7 +463,7 @@ protected:
     int pack_comp_80211, pack_comp_basicdata, pack_comp_mangleframe,
         pack_comp_strings, pack_comp_checksum, pack_comp_linkframe,
         pack_comp_decap, pack_comp_common, pack_comp_datapayload,
-        pack_comp_gps, pack_comp_l1info;
+        pack_comp_gps, pack_comp_l1info, pack_comp_json;
 
     // Do we do any data dissection or do we hide it all (legal safety
     // cutout)

@@ -178,17 +178,32 @@ unsigned int dot11_scan_source::scan_result_endp_handler(std::ostream& stream,
                 packet->insert(pack_comp_gps, gpsinfo);
             }
 
-            double signal = 0;
+            kis_layer1_packinfo l1info = nullptr;
 
             if (r->has_key("signal")) {
-                signal = r->key_as_number("signal");
+                if (l1info == nullptr)
+                    l1info = new kis_layer1_packinfo();
 
-                auto l1info = new kis_layer1_packinfo();
-                l1info->signal_dbm = signal;
+                l1info->signal_dbm = r->key_as_number("signal");
                 l1info->signal_type = kis_l1_signal_type_dbm;
-
-                packet->insert(pack_comp_l1info, l1info);
             }
+
+            if (r->has_key("freqkhz")) {
+                if (l1info == nullptr)
+                    l1info = new kis_layer1_packinfo();
+
+                l1info->freq_khz = r->key_as_number("freqkhz");
+            }
+
+            if (r->has_key("channel")) {
+                if (l1info == nullptr)
+                    l1info = new kis_layer1_packinfo();
+
+                l1info->channel = r->key_as_string("channel");
+            }
+
+            if (l1info != nullptr)
+                packet->insert(pack_comp_l1info, l1info);
 
             auto srcinfo = new packetchain_comp_datasource();
             srcinfo->ref_source = virtual_source.get();

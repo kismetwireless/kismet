@@ -113,6 +113,8 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
         // Packet classifier - makes basic records plus dot11 data
         packetchain->register_handler(&packet_dot11_common_classifier, this,
                 CHAINPOS_CLASSIFIER, -100);
+        packetchain->register_handler(&packet_dot11_scan_json_classifier, this,
+                CHAINPOS_CLASSIFIER, -99);
         packetchain->register_handler(&phydot11_packethook_wep, this,
                 CHAINPOS_DECRYPT, -100);
         packetchain->register_handler(&phydot11_packethook_dot11, this,
@@ -149,6 +151,9 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
 
         pack_comp_l1info =
             packetchain->register_packet_component("RADIODATA");
+
+        pack_comp_json =
+            packetchain->register_packet_component("JSON");
 
         ssid_regex_vec =
             Globalreg::globalreg->entrytracker->register_and_get_field_as<tracker_element_vector>("phy80211.ssid_alerts", 
@@ -924,6 +929,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
     // Get the 802.11 info
     dot11_packinfo *dot11info = 
         (dot11_packinfo *) in_pack->fetch(d11phy->pack_comp_80211);
+
     if (dot11info == NULL)
         return 0;
 
@@ -1717,6 +1723,367 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         }
     }
 
+    return 1;
+}
+
+int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
+    kis_80211_phy *d11phy = (kis_80211_phy *) auxdata;
+
+    if (in_pack->error || in_pack->filtered || in_pack->duplicate)
+        return 0;
+
+    auto pack_json =
+        in_pack->fetch<kis_json_packinfo>(d11phy->pack_comp_json);
+
+    if (pack_json == nullptr)
+        return 0;
+
+    auto pack_l1info =
+        in_pack->fetch<kis_layer1_packinfo>(d11phy->pack_comp_l1info);
+
+	kis_layer1_packinfo *pack_l1info =
+		(kis_layer1_packinfo *) in_pack->fetch(d11phy->pack_comp_l1info);
+
+    auto commoninfo =
+        in_pack->fetch<kis_common_info>(d11phy->pack_comp_common);
+
+    if (commoninfo != nullptr)
+        return 0;
+
+    // dot11 json fields - in addition to generic report fields translated into l1/gps/etc
+    // "ssid": ssid
+    // "bssid": bssid
+    // "ietags": tag bytes if available
+    // "chanwidth": Channel width as '20', '40', '80', '160', '80+80'
+    // "capabilities": Android-style scanresult capabilities description
+    // "centerfreq0": Center frequency 0
+    // "centerfreq1": Center frequency 1
+
+    try {
+        std::stringstream ss(pack_json->json_string);
+        Json::Value json;
+
+        ss >> json;
+
+        auto bssid_j = json["bssid"];
+        auto ssid_j = json["ssid"];
+        auto ietags_j = json["ietags"];
+        auto chanwidth_j = json["chanwidth"];
+        auto capabilities_j = json["capabilities"];
+        auto centerfreq0_j = json["centerfreq0"];
+        auto centerfreq1_j = json["centerfreq1"];
+
+        if (bssid_j.isNull()) {
+            _MSG_ERROR("Phy80211/Wi-Fi scan report with no BSSID, dropping.");
+            in_pack->error = true;
+            return 0;
+        }
+
+        auto bssid_mac = mac_addr(bssid_j.asString());
+        if (bssid_mac.error) {
+            _MSG_ERROR("Phy80211/Wi-Fi scan report with invalid BSSID, dropping.");
+            in_pack->error = true;
+            return 0;
+        }
+
+        auto ssid_str = std::string();
+
+        if (!ssid_j.isNull())
+            ssid_str = munge_to_printable(ssid_j.asString());
+
+        auto ssid_csum = adler32_checksum(ssid_str);
+
+        commoninfo = new kis_common_info();
+
+        commoninfo->type = packet_basic_mgmt;
+        commoninfo->direction = packet_direction_from;
+        commoninfo->phyid = d11phy->fetch_phy_id();
+
+        commoninfo->channel = pack_l1info->channel;
+        commoninfo->freq_khz = pack_l1info->freq_khz;
+
+        commoninfo->source = bssid_mac;
+        commoninfo->network = bssid_mac;
+        commoninfo->transmitter = bssid_mac;
+        commoninfo->dest = Globalreg::globalreg->broadcast_mac;
+
+        in_pack->insert(d11phy->pack_comp_common, commoninfo);
+
+        auto bssid_dev =
+            d11phy->devicetracker->update_common_device(commoninfo, 
+                    bssid_mac, d11phy, in_pack, 
+                    (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
+                     UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
+                     UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
+                    "Wi-Fi Device");
+
+        local_locker bssidlocker(&(bssid_dev->device_mutex));
+
+        auto bssid_dot11 =
+            bssid_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
+        std::stringstream newdevstr;
+
+        if (bssid_dot11 == NULL) {
+            _MSG_INFO("Detected new 802.11 Wi-Fi access point {}",
+                    bssid_dev->get_macaddr().mac_to_string());
+
+            bssid_dot11 =
+                std::make_shared<dot11_tracked_device>(d11phy->dot11_device_entry_id);
+
+            dot11_tracked_device::attach_base_parent(bssid_dot11, bssid_dev);
+        }
+
+        bssid_dot11->set_last_bssid(bssid_dev->get_macaddr());
+
+        if (pack_l1info->channel != "" && pack_l1info->channel != "0") {
+            bssid_dev->set_channel(pack_l1info->channel);
+        } else if (pack_l1info->freq_khz != bssid_dev->get_frequency() ||
+                bssid_dev->get_channel() == "") {
+            try {
+                bssid_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
+            } catch (const std::runtime_error& e) {
+                ;
+            }
+        }
+
+        // TODO - handle raw IE tag data once we get some examples of that coming from
+        // wpasupplicant scanning mode, ought to be able to reuse the beacon processing
+        // system with some modifications, but for now just handle the android capabilities
+
+        uint64_t cryptset;
+
+        if (!capabilities_j.isNull()) {
+            auto capabilities = capabilities_j.asString();
+
+            if (capabilities.find("IBSS") != std::string::npos) {
+                bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
+                bssid_dev->set_type_string("Wi-Fi Ad-Hoc");
+                bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_ADHOC);
+            } else {
+                bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);
+                bssid_dev->set_type_string("Wi-Fi AP");
+            }
+
+            if (capabilities.find("WPS") != std::string::npos) {
+                cryptset |= crypt_wps;
+            }
+
+            if (capabilities.find("WEP") != std::string::npos) {
+                cryptset |= crypt_wep;
+            }
+
+            auto caps_list = str_tokenize(capabilities, "[");
+
+            for (auto c : caps_list) {
+                if (c.find("PSK") != std::string::npos) {
+                    if (c.find("WPA2") != std::string::npos)
+                        cryptset |= crypt_wpa + crypt_psk + crypt_version_wpa2;
+                    else
+                        cryptset |= crypt_wpa + crypt_psk + crypt_version_wpa;
+                }
+
+                if (c.find("EAP") != std::string::npos) {
+                    if (c.find("WPA2") != std::string::npos)
+                        cryptset |= crypt_wpa + crypt_eap + crypt_version_wpa2;
+                    else
+                        cryptset |= crypt_wpa + crypt_eap + crypt_version_wpa;
+
+                    if (c.find("PEAP") != std::string::npos)
+                        cryptset |= crypt_peap;
+
+                    if (c.find("TLS") != std::string::npos)
+                        cryptset |= crypt_tls;
+
+                    if (c.find("TTLS") != std::string::npos)
+                        cryptset |= crypt_ttls;
+
+                    if (c.find("SAE") != std::string::npos)
+                        cryptset |= crypt_sae;
+                }
+
+                // Not sure if this is actually a valid option
+                if (c.find("OWE") != std::string::npos) {
+                    cryptset |= crypt_wpa_owe;
+                }
+            }
+
+        }
+
+        // We can only get beaconing APs from scan results
+        bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_BEACON_AP);
+
+        auto adv_ssid_map = bssid_dot11->get_advertised_ssid_map();
+
+        std::shared_ptr<dot11_advertised_ssid> ssid;
+
+        if (adv_ssid_map == NULL) {
+            fprintf(stderr, "debug - dot11phy::HandleSSID can't find the adv_ssid_map or probe_ssid_map struct, something is wrong\n");
+            return 0;
+        }
+
+        // Either calculate the actual checksums from the ietags or fake one from the capabilities
+        uint32_t ietag_csum = 0;
+
+        if (!ietags_j.isNull()) 
+            ietag_csum = adler32_checksum(ietags_j.asString());
+        else if (!capabilities_j.isNull())
+            ietag_csum = adler32_checksum(ssid_str + capabilities_j.asString());
+
+
+        if (bssid_dot11->get_last_adv_ie_csum() == ietag_csum) {
+            ssid = bssid_dot11->get_last_adv_ssid();
+
+            if (ssid != nullptr) {
+                if (ssid->get_last_time() < in_pack->ts.tv_sec)
+                    ssid->set_last_time(in_pack->ts.tv_sec);
+            }
+
+            return 1;
+        }
+
+        bssid_dot11->set_last_adv_ie_csum(ietag_csum);
+
+        // If we fail parsing...
+        // if (packet_dot11_ie_dissector(in_pack, dot11info) < 0) {
+        //    return;
+        //}
+
+        auto ssid_itr = adv_ssid_map->find(ssid_csum);
+
+        if (ssid_itr == adv_ssid_map->end()) {
+            ssid = bssid_dot11->new_advertised_ssid();
+            adv_ssid_map->insert(ssid_csum, ssid);
+
+            ssid->set_crypt_set(cryptset);
+            ssid->set_first_time(in_pack->ts.tv_sec);
+
+            bssid_dev->set_crypt_string(crypt_to_simple_string(cryptset));
+
+            ssid->set_ssid(ssid_str);
+
+            if (ssid_str.length() == 0)
+                ssid->set_ssid_cloaked(true);
+
+            ssid->set_ssid_len(ssid_str.length());
+
+            _MSG_INFO("802.11 Wi-Fi device {} advertising SSID '{}'", 
+                    bssid_dev->get_macaddr(), ssid_str);
+
+            if (d11phy->alertracker->potential_alert(d11phy->alert_airjackssid_ref) &&
+                    ssid->get_ssid() == "AirJack" ) {
+
+                std::string al = "IEEE80211 Access Point BSSID " +
+                    bssid_dev->get_macaddr().mac_to_string() + " broadcasting SSID "
+                    "\"AirJack\" which implies an attempt to disrupt "
+                    "networks.";
+
+                d11phy->alertracker->raise_alert(d11phy->alert_airjackssid_ref, in_pack, 
+                        commoninfo->network, commoninfo->source,
+                        commoninfo->dest, commoninfo->transmitter,
+                        commoninfo->channel, al);
+            }
+
+            if (ssid->get_ssid() != "") {
+                bssid_dev->set_devicename(ssid->get_ssid());
+            } else {
+                bssid_dev->set_devicename(bssid_dev->get_macaddr().mac_to_string());
+            }
+
+            // If we have a new ssid and we can consider raising an alert, do the 
+            // regex compares to see if we trigger apspoof
+            if (ssid_str.length() != 0 &&
+                    d11phy->alertracker->potential_alert(d11phy->alert_ssidmatch_ref)) {
+                for (auto s : *d11phy->ssid_regex_vec) {
+                    std::shared_ptr<dot11_tracked_ssid_alert> sa =
+                        std::static_pointer_cast<dot11_tracked_ssid_alert>(s);
+
+                    if (sa->compare_ssid(ssid_str, commoninfo->source)) {
+                        auto al = fmt::format("IEEE80211 Unauthorized device ({}) advertising  "
+                                "for SSID '{}', matching APSPOOF rule {} which may indicate "
+                                "spoofing or impersonation.", comminfo->source, 
+                                ssid_str, sa->get_group_name());
+
+                        d11phy->alertracker->raise_alert(d11phy->alert_ssidmatch_ref, in_pack, 
+                                commoninfo->network,
+                                commoninfo->source,
+                                commoninfo->dest,
+                                commoninfo->transmitter,
+                                commoninfo->channel, al);
+                        break;
+                    }
+                }
+            }
+        } else {
+            ssid = std::static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
+            if (ssid->get_last_time() < in_pack->ts.tv_sec)
+                ssid->set_last_time(in_pack->ts.tv_sec);
+        }
+
+        d11phy->ssidtracker->handle_broadcast_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
+                ssid->get_crypt_set(), bssid_dev);
+
+        bssid_dot11->set_last_adv_ssid(ssid);
+
+        ssid->set_ietag_checksum(ietag_csum);
+
+        if (ssid->get_crypt_set() != cryptset) {
+            if (ssid->get_crypt_set() && cryptset == crypt_none &&
+                    d11phy->alertracker->potential_alert(d11phy->alert_wepflap_ref)) {
+
+                std::string al = "IEEE80211 Access Point BSSID " +
+                    bssid_dev->get_macaddr().mac_to_string() + " SSID \"" +
+                    ssid->get_ssid() + "\" changed advertised encryption from " +
+                    crypt_to_string(ssid->get_crypt_set()) + " to Open which may "
+                    "indicate AP spoofing/impersonation";
+
+                d11phy->alertracker->raise_alert(d11phy->alert_wepflap_ref, in_pack, 
+                        commoninfo->network, commoninfo->source, 
+                        commoninfo->dest, commoninfo->transmitter, 
+                        commoninfo->channel, al);
+            } else if (ssid->get_crypt_set() != cryptset &&
+                    d11phy->alertracker->potential_alert(d11phy->alert_cryptchange_ref)) {
+
+                auto al = fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised "
+                        "encryption from {} to {} which may indicate AP spoofing/impersonation",
+                        bssid_dev->get_macaddr(), ssid->get_ssid(), 
+                        crypt_to_string(ssid->get_crypt_set()),
+                        crypt_to_string(cryptset));
+
+                d11phy->alertracker->raise_alert(d11phy->alert_cryptchange_ref, in_pack, 
+                        commoninfo->network, commoninfo->source, 
+                        commoninfo->dest, commoninfo->transmitter, 
+                        commoninfo->channel, al);
+            }
+
+            ssid->set_crypt_set(cryptset);
+            bssid_dev->set_crypt_string(crypt_to_simple_string(cryptset));
+        }
+
+        if (ssid->get_channel().length() > 0 &&
+                ssid->get_channel() != commoninfo->channel && commoninfo->channel != "0") {
+
+            auto al = 
+                fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised "
+                        "channel from {} to {}, which may indicate spoofing or impersonation.  "
+                        "This may also be a normal event where the AP seeks a less congested channel.",
+                        bssid_dev->get_macaddr(), ssid->get_ssid(), ssid->get_channel(), 
+                        commoninfo->channel);
+
+            d11phy->alertracker->raise_alert(d11phy->alert_chan_ref, in_pack, 
+                        commoninfo->network, commoninfo->source, 
+                        commoninfo->dest, commoninfo->transmitter, 
+                        commoninfo->channel, al);
+
+            ssid->set_channel(commoninfo->channel); 
+        }
+
+        d11phy->devicetracker->update_view_device(bssid_dev);
+
+    } catch (const std::exception& e) {
+        _MSG_ERROR("Invalid phy80211/Wi-Fi scan report: {}", e.what());
+        in_pack->error = true;
+        return 0;
+    }
 
     return 1;
 }
