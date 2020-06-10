@@ -1741,13 +1741,10 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
     auto pack_l1info =
         in_pack->fetch<kis_layer1_packinfo>(d11phy->pack_comp_l1info);
 
-	kis_layer1_packinfo *pack_l1info =
-		(kis_layer1_packinfo *) in_pack->fetch(d11phy->pack_comp_l1info);
-
     auto commoninfo =
         in_pack->fetch<kis_common_info>(d11phy->pack_comp_common);
 
-    if (commoninfo != nullptr)
+    if (commoninfo != nullptr || pack_l1info == nullptr)
         return 0;
 
     // dot11 json fields - in addition to generic report fields translated into l1/gps/etc
@@ -1850,7 +1847,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
         // wpasupplicant scanning mode, ought to be able to reuse the beacon processing
         // system with some modifications, but for now just handle the android capabilities
 
-        uint64_t cryptset;
+        uint64_t cryptset = 0;
 
         if (!capabilities_j.isNull()) {
             auto capabilities = capabilities_j.asString();
@@ -2000,7 +1997,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
                     if (sa->compare_ssid(ssid_str, commoninfo->source)) {
                         auto al = fmt::format("IEEE80211 Unauthorized device ({}) advertising  "
                                 "for SSID '{}', matching APSPOOF rule {} which may indicate "
-                                "spoofing or impersonation.", comminfo->source, 
+                                "spoofing or impersonation.", commoninfo->source, 
                                 ssid_str, sa->get_group_name());
 
                         d11phy->alertracker->raise_alert(d11phy->alert_ssidmatch_ref, in_pack, 
