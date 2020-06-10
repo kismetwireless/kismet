@@ -77,6 +77,7 @@
 #include "datasource_ubertooth_one.h"
 #include "datasource_nxp_kw41z.h"
 #include "datasource_ti_cc_2531.h"
+#include "dot11_scan_source.h"
 
 #include "logtracker.h"
 #include "kis_ppilogfile.h"
@@ -324,6 +325,9 @@ int usage(char *argv) {
            "     --datadir <path>         Use an alternate path as the data\n"
            "                               directory instead of the default set at \n"
            "                               compile time.\n"
+           "     --override <flavor>      Load an alternate configuration override \n"
+           "                               from {confdir}/kismet_{flavor}.conf\n"
+           "                               or as a specific override file.\n"
            );
 
     log_tracker::usage(argv);
@@ -926,6 +930,9 @@ int main(int argc, char *argv[], char *envp[]) {
     logtracker->register_log(shared_log_builder(new ppi_logfile_builder()));
     logtracker->register_log(shared_log_builder(new kis_database_logfile_builder()));
     logtracker->register_log(shared_log_builder(new pcapng_logfile_builder()));
+
+	// Create the scan-only handlers
+	dot11_scan_source::create_dot11_scan_source();
 
     std::shared_ptr<plugin_tracker> plugintracker;
 

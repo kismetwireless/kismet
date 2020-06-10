@@ -185,28 +185,6 @@ LOGTOOL_BINS = \
 	$(LOGTOOL_KISMETDB_CLEAN) \
 	$(LOGTOOL_KISMETDB_PCAP)
 
-# Disabled; Kaitai generates unusable C++ code currently
-# KAITAI_PARSERS = \
-# 	kaitai_parsers/wpaeap.cc.o \
-# 	kaitai_parsers/dot11_ie.cc.o \
-# 	kaitai_parsers/dot11_action.cc.o \
-# 	kaitai_parsers/dot11_ie_7_country.cc.o \
-# 	kaitai_parsers/dot11_ie_11_qbss.cc.o \
-# 	kaitai_parsers/dot11_ie_45_ht.cc.o \
-# 	kaitai_parsers/dot11_ie_48_rsn.cc.o \
-# 	kaitai_parsers/dot11_ie_48_rsn_partial.cc.o \
-# 	kaitai_parsers/dot11_ie_52_rmm_neighbor.cc.o \
-# 	kaitai_parsers/dot11_ie_54_mobility.cc.o \
-# 	kaitai_parsers/dot11_ie_61_ht.cc.o \
-# 	kaitai_parsers/dot11_ie_133_cisco_ccx.cc.o \
-# 	kaitai_parsers/dot11_ie_191_vht_capabilities.cc.o \
-# 	kaitai_parsers/dot11_ie_192_vht_operation.cc.o \
-# 	kaitai_parsers/dot11_ie_221_vendor.cc.o \
-# 	kaitai_parsers/dot11_ie_221_ms_wps.cc.o \
-# 	kaitai_parsers/dot11_ie_221_ms_wmm.cc.o \
-# 	kaitai_parsers/dot11_ie_221_dji_droneid.cc.o \
-# 	kaitai_parsers/dot11_ie_221_wfa_wpa.cc.o
-
 PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_cpp11.cc.o \
 	globalregistry.cc.o eventbus.cc.o \
 	pollabletracker.cc.o ringbuf2.cc.o chainbuf.cc.o filewritebuf.cc.o buffer_handler.cc.o \
@@ -217,7 +195,8 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	dlttracker.cc.o antennatracker.cc.o datasourcetracker.cc.o kis_datasource.cc.o \
 	datasource_linux_bluetooth.cc.o datasource_rtl433.cc.o datasource_rtlamr.cc.o datasource_rtladsb.cc.o \
 	datasource_ti_cc_2540.cc.o datasource_ti_cc_2531.cc.o datasource_ubertooth_one.cc.o datasource_nrf_51822.cc.o \
-	datasource_nxp_kw41z.cc.o\
+	datasource_nxp_kw41z.cc.o \
+	dot11_scan_source.cc.o \
 	kis_net_microhttpd.cc.o kis_net_microhttpd_handlers.cc.o system_monitor.cc.o base64.cc.o \
 	kis_httpd_websession.cc.o kis_httpd_registry.cc.o \
 	gpstracker.cc.o kis_gps.cc.o gpsnmea.cc.o gpsserial2.cc.o gpstcp.cc.o \

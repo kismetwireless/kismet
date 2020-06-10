@@ -178,7 +178,7 @@ unsigned int dot11_scan_source::scan_result_endp_handler(std::ostream& stream,
                 packet->insert(pack_comp_gps, gpsinfo);
             }
 
-            kis_layer1_packinfo l1info = nullptr;
+            kis_layer1_packinfo *l1info = nullptr;
 
             if (r->has_key("signal")) {
                 if (l1info == nullptr)
