@@ -57,8 +57,6 @@ protected:
             const std::string& uri, shared_structured structured,
             kis_net_httpd_connection::variable_cache_map& variable_cache);
 
-    uuid make_uuid(const std::string& in_name);
-
     int pack_comp_common, pack_comp_json, pack_comp_datasrc, pack_comp_gps,
         pack_comp_l1info;
 

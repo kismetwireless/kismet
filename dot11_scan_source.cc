@@ -53,12 +53,6 @@ dot11_scan_source::~dot11_scan_source() {
     Globalreg::globalreg->RemoveGlobal(global_name());
 }
 
-uuid dot11_scan_source::make_uuid(const std::string& in_name) {
-    uuid u;
-    u.generate_random_time_uuid();
-    return u;
-}
-
 unsigned int dot11_scan_source::scan_result_endp_handler(std::ostream& stream,
         const std::string& uri, shared_structured structured,
         kis_net_httpd_connection::variable_cache_map& variable_cache) {
@@ -78,8 +72,8 @@ unsigned int dot11_scan_source::scan_result_endp_handler(std::ostream& stream,
         if (structured->has_key("source_name"))
             name = structured->key_as_string("source_name");
 
-        if (uuid_s == "" && name == "") {
-            stream << "FATAL:  Requires source_uuid and/or source_name\n";
+        if (uuid_s == "" || name == "") {
+            stream << "{\"status\": \"source_uuid and source_name required\", \"success\": false}\n";
             return 500;
         }
 
@@ -87,15 +81,13 @@ unsigned int dot11_scan_source::scan_result_endp_handler(std::ostream& stream,
             src_uuid = uuid(uuid_s);
 
             if (src_uuid.error) {
-                stream << "FATAL: Invalid source uuid\n";
+                stream << "{\"status\": \"invalid source uuid\", \"success\": false}\n";
                 return 500;
             }
-        } else {
-            src_uuid = make_uuid(name);
         }
 
         if (!structured->has_key("reports")) {
-            stream << "FATAL:  Expected 'reports'\n";
+            stream << "{\"status\": \"expected 'reports' index\", \"success\": false}\n";
             return 500;
         }
 
@@ -115,6 +107,9 @@ unsigned int dot11_scan_source::scan_result_endp_handler(std::ostream& stream,
             virtual_source->set_source_name(name);
 
             datasourcetracker->merge_source(virtual_source);
+        } else {
+            // Update the name
+            virtual_source->set_source_name(name);
         }
 
         auto reports = structured->get_structured_by_key("reports")->as_vector();
@@ -217,7 +212,7 @@ unsigned int dot11_scan_source::scan_result_endp_handler(std::ostream& stream,
             packet = nullptr;
         }
 
-        stream << "{\"status\": \"Report handled\"}\n";
+        stream << "{\"status\": \"Scan report accepted\", \"success\": true}\n";
         return 200;
 
     } catch (const std::exception& e) {
@@ -225,11 +220,11 @@ unsigned int dot11_scan_source::scan_result_endp_handler(std::ostream& stream,
         if (packet != nullptr) 
             packetchain->destroy_packet(packet);
 
-        stream << "Error handling request: " << e.what() << "\n";
+        stream << "{\"status\": \"" << e.what() << "\", \"success\": false}\n";
         return 500;
     }
 
-    stream << "Unhandled request\n";
+    stream << "{\"status\": \"unhandled request\", \"success\": false}\n";
     return 500;
 }
 
