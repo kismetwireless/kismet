@@ -54,9 +54,9 @@ dot11_scan_source::~dot11_scan_source() {
 }
 
 uuid dot11_scan_source::make_uuid(const std::string& in_name) {
-    return uuid(fmt::format("{:8x}-0000-0000-0000-{:6x}",
-            adler32_checksum("virtual_source_dot11_scan"),
-            adler32_checksum(in_name)));
+    uuid u;
+    u.generate_random_time_uuid();
+    return u;
 }
 
 unsigned int dot11_scan_source::scan_result_endp_handler(std::ostream& stream,
