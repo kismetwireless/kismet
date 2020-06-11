@@ -26,6 +26,9 @@
 #include "kis_net_microhttpd.h"
 #include "kis_net_microhttpd_handlers.h"
 
+// Virtual dot11 datasource which supports scanning results from other systems; scans are turned
+// into dot11 networks with as much info as is available
+
 class dot11_scan_source : public lifetime_global {
 public:
     static std::string global_name() { return "dot11_scan_source"; }
