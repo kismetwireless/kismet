@@ -1952,6 +1952,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 
             ssid->set_crypt_set(cryptset);
             ssid->set_first_time(in_pack->ts.tv_sec);
+            ssid->set_last_time(in_pack->ts.tv_sec);
 
             bssid_dev->set_crypt_string(crypt_to_simple_string(cryptset));
 
