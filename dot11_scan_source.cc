@@ -113,13 +113,15 @@ unsigned int dot11_scan_source::scan_result_endp_handler(std::ostream& stream,
 
             virtual_source->set_source_uuid(src_uuid);
             virtual_source->set_source_name(name);
+
+            datasourcetracker->merge_source(virtual_source);
         }
 
         auto reports = structured->get_structured_by_key("reports")->as_vector();
 
         for (auto r : reports) {
             // Must have bssid, validate
-            auto bssid_s = structured->key_as_string("bssid");
+            auto bssid_s = r->key_as_string("bssid");
 
             // TS is optional
             uint64_t ts_s = 0;
@@ -214,6 +216,9 @@ unsigned int dot11_scan_source::scan_result_endp_handler(std::ostream& stream,
             // Null out our local packet, it's destroyed by packetchain
             packet = nullptr;
         }
+
+        stream << "{\"status\": \"Report handled\"}\n";
+        return 200;
 
     } catch (const std::exception& e) {
         // Free any half-made packets that didn't get injected because of parsing errors

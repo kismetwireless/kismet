@@ -1759,7 +1759,6 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
     try {
         std::stringstream ss(pack_json->json_string);
         Json::Value json;
-
         ss >> json;
 
         auto bssid_j = json["bssid"];
@@ -2020,6 +2019,10 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
                 ssid->get_crypt_set(), bssid_dev);
 
         bssid_dot11->set_last_adv_ssid(ssid);
+
+        // Alias the last ssid snapshot
+        auto lbr = bssid_dot11->get_last_beaconed_ssid_record();
+        lbr->set(ssid);
 
         ssid->set_ietag_checksum(ietag_csum);
 

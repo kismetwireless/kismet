@@ -77,6 +77,8 @@
 #include "datasource_ubertooth_one.h"
 #include "datasource_nxp_kw41z.h"
 #include "datasource_ti_cc_2531.h"
+#include "datasource_virtual.h"
+
 #include "dot11_scan_source.h"
 
 #include "logtracker.h"
@@ -683,7 +685,7 @@ int main(int argc, char *argv[], char *envp[]) {
             auto override_fpath = 
                 conf->expand_log_path(fmt::format("%E/kismet_{}.conf", override_fname), "", "", 0, 1);
 
-            if (stat(override_fname.c_str(), &sbuf) != 0) {
+            if (stat(override_fpath.c_str(), &sbuf) != 0) {
                 _MSG_FATAL("Could not find override option '{}' as a file or in the Kismet config directory as '{}'.",
                         override_fname, override_fpath);
                 exit(1);
@@ -920,6 +922,9 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_ubertooth_one_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_nxpkw41z_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_ticc2531_builder()));
+
+    // Virtual sources get a special meta-builder
+    datasource_virtual_builder::create_virtualbuilder();
 
     // Create the database logger as a global because it's a special case
     kis_database_logfile::create_kisdatabaselog();

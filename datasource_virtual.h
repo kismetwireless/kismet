@@ -21,6 +21,7 @@
 
 #include "config.h"
 
+#include "globalregistry.h"
 #include "kis_datasource.h"
 
 class kis_datasource_virtual;
@@ -51,10 +52,18 @@ public:
 };
 
 
-class datasource_virtual_builder : public kis_datasource_builder {
+class datasource_virtual_builder : public kis_datasource_builder, public lifetime_global {
 public:
     static std::string global_name() { return "VIRTUALDATASOURCEBUILDER"; }
 
+    static std::shared_ptr<datasource_virtual_builder> create_virtualbuilder() {
+        std::shared_ptr<datasource_virtual_builder> builder(new datasource_virtual_builder());
+        Globalreg::globalreg->register_lifetime_global(builder);
+        Globalreg::globalreg->insert_global(global_name(), builder);
+        return builder;
+    }
+
+private:
     datasource_virtual_builder(int in_id) :
         kis_datasource_builder(in_id) {
 
@@ -79,6 +88,7 @@ public:
         initialize();
     }
 
+public:
     virtual ~datasource_virtual_builder() { }
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this,
