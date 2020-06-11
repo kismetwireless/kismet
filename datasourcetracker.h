@@ -442,10 +442,10 @@ public:
     // Queue a remote handler to be removed
     void queue_dead_remote(dst_incoming_remote *in_dead);
 
-protected:
     // Merge a source into the source list, preserving UUID and source number
     virtual void merge_source(shared_datasource in_source);
 
+protected:
     // Callback registered with the tcp server for a new connection
     void new_remote_tcp_connection(int in_fd);
 
