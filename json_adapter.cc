@@ -199,6 +199,8 @@ void json_adapter::serialize_structured(std::shared_ptr<structured_data> data, s
             serialize_structured(s, stream);
         }
 
+        stream << "]";
+
         return;
     }
 
@@ -215,6 +217,8 @@ void json_adapter::serialize_structured(std::shared_ptr<structured_data> data, s
 
             serialize_structured(i.second, stream);
         }
+
+        stream << "}";
     }
 }
 
