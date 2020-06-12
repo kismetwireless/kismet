@@ -390,7 +390,7 @@ void Load_Kismet_UUID(global_registry *globalreg) {
                 "(or included file)", MSGFLAG_INFO);
 
         globalreg->server_uuid = confuuid;
-        globalreg->server_uuid_hash = adler32_checksum((const char *) confuuid.uuid_block, 16);
+        globalreg->server_uuid_hash = confuuid.hash;
         return;
     }
 
@@ -416,7 +416,7 @@ void Load_Kismet_UUID(global_registry *globalreg) {
 
     _MSG_INFO("Setting server UUID {}", confuuid.uuid_to_string());
     globalreg->server_uuid = confuuid;
-    globalreg->server_uuid_hash = adler32_checksum((const char *) confuuid.uuid_block, 16);
+    globalreg->server_uuid_hash = confuuid.hash;
 }
 
 static sigset_t core_signal_mask;

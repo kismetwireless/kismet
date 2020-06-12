@@ -82,7 +82,7 @@ uint32_t device_key::gen_pkey(std::string phy) {
 }
 
 uint64_t device_key::gen_spkey(uuid s_uuid, std::string phy) {
-    uint64_t uuid32 = adler32_checksum((const char *) s_uuid.uuid_block, 16);
+    uint64_t uuid32 = adler32_checksum((const char *) s_uuid.hash, sizeof(std::size_t));
     uint64_t phy32 = gen_pkey(phy);
 
     return (uuid32 << 32) | phy32;
