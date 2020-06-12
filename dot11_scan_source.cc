@@ -210,6 +210,8 @@ unsigned int dot11_scan_source::scan_result_endp_handler(std::ostream& stream,
 
             // Null out our local packet, it's destroyed by packetchain
             packet = nullptr;
+
+            virtual_source->inc_source_num_packets(1);
         }
 
         stream << "{\"status\": \"Scan report accepted\", \"success\": true}\n";
