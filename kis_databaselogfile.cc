@@ -1398,13 +1398,21 @@ int kis_database_logfile::httpd_create_stream_response(kis_net_httpd *httpd,
         auto query = _SELECT(db, "packets", {"ts_sec", "ts_usec", "datasource", "dlt", "packet"});
 
         try {
-            if (connection->has_cached_variable("timestamp_start"))
-                query.append_where(AND, _WHERE("ts_sec", GE, 
-                            connection->variable_cache_as<uint64_t>("timestamp_start")));
+            if (connection->has_cached_variable("timestamp_start")) {
+                // Break the double timestamp into two integers
+                double intpart, fractpart;
+                fractpart = modf(connection->variable_cache_as<double>("timestamp_start"), &intpart);
+                query.append_where(AND, _WHERE("ts_sec", GT, intpart, OR,
+                           "ts_sec", EQ, intpart, AND, "ts_usec", GE, fractpart * 1000000));
+            }
 
-            if (connection->has_cached_variable("timestamp_end"))
-                query.append_where(AND, _WHERE("ts_sec", LE,
-                            connection->variable_cache_as<uint64_t>("timestamp_end")));
+            if (connection->has_cached_variable("timestamp_end")) {
+                // Break the double timestamp into two integers
+                double intpart, fractpart;
+                fractpart = modf(connection->variable_cache_as<double>("timestamp_end"), &intpart);
+                query.append_where(AND, _WHERE("ts_sec", LT, intpart, OR,
+                            "ts_sec", EQ, intpart, AND, "ts_usec", LE, fractpart * 1000000));
+            }
 
             if (connection->has_cached_variable("datasource"))
                 query.append_where(AND, _WHERE("datasource", LIKE,
@@ -1598,13 +1606,21 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
 
     if (filterdata != nullptr) {
         try {
-            if (filterdata->has_key("timestamp_start")) 
-                query.append_where(AND, 
-                        _WHERE("ts_sec", GE, filterdata->key_as_number("timestamp_start")));
+            if (filterdata->has_key("timestamp_start")) {
+                // Break the double timestamp into two integers
+                double intpart, fractpart;
+                fractpart = modf(filterdata->key_as_number("timestamp_start"), &intpart);
+                query.append_where(AND, _WHERE("ts_sec", GT, intpart, OR,
+                           "ts_sec", EQ, intpart, AND, "ts_usec", GE, fractpart * 1000000));
+            }
 
-            if (filterdata->has_key("timestamp_end")) 
-                query.append_where(AND, 
-                        _WHERE("ts_sec", LE, filterdata->key_as_number("timestamp_end")));
+            if (filterdata->has_key("timestamp_end")) {
+                // Break the double timestamp into two integers
+                double intpart, fractpart;
+                fractpart = modf(filterdata->key_as_number("timestamp_end"), &intpart);
+                query.append_where(AND, _WHERE("ts_sec", LT, intpart, OR,
+                           "ts_sec", EQ, intpart, AND, "ts_usec", LE, fractpart * 1000000));
+            }
 
             if (filterdata->has_key("datasource")) 
                 query.append_where(AND, 
