@@ -77,20 +77,17 @@ device_tracker_view_regex_worker::device_tracker_view_regex_worker(const std::ve
 #endif
 }
 
-device_tracker_view_regex_worker::device_tracker_view_regex_worker(shared_structured shared_pcre_vec) {
+device_tracker_view_regex_worker::device_tracker_view_regex_worker(const Json::Value& json) {
 #ifdef HAVE_LIBPCRE
-    auto vec = shared_pcre_vec->as_vector();
+    for (auto i : json) {
+        if (!i.isArray())
+            throw std::runtime_error("expected array of [field, regex] pairs for regex filter");
 
-    for (auto i : vec) {
-        auto rpair = i->as_vector();
+        if (i.size() != 2)
+            throw std::runtime_error("expected array of [field, regex] pairs for regex filter");
 
-        if (rpair.size() != 2)
-            throw std::runtime_error("expected [field, regex] pair from incoming filter");
-
-        auto field = rpair[0]->as_string();
-        auto regex = rpair[1]->as_string();
-
-        auto worker_filter = std::make_shared<device_tracker_view_regex_worker::pcre_filter>(field, regex);
+        auto worker_filter = 
+            std::make_shared<device_tracker_view_regex_worker::pcre_filter>(i[0].asString(), i[1].asString());
 
         filter_vec.push_back(worker_filter);
     }

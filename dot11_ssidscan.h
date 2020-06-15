@@ -138,7 +138,7 @@ protected:
     // Configure set endp
     std::shared_ptr<kis_net_httpd_simple_post_endpoint> dot11_ssidscan_config_endp;
     unsigned int config_endp_handler(std::ostream& stream, const std::string& url,
-            shared_structured post_structured, kis_net_httpd_connection::variable_cache_map& variable_cache);
+            const Json::Value& json, kis_net_httpd_connection::variable_cache_map& variable_cache);
 
     // Reference we hold to the device view we populate with matched devices which may
     // include completed devices

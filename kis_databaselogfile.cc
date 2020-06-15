@@ -25,10 +25,8 @@
 #include "json_adapter.h"
 #include "kis_databaselogfile.h"
 #include "kis_datasource.h"
-#include "kismet_json.h"
 #include "messagebus.h"
 #include "packetchain.h"
-#include "structured.h"
 #include "sqlite3_cpp11.h"
 
 kis_database_logfile::kis_database_logfile():
@@ -252,17 +250,17 @@ bool kis_database_logfile::open_log(std::string in_path) {
     packet_drop_endp =
         std::make_shared<kis_net_httpd_simple_post_endpoint>("/logging/kismetdb/pcap/drop", 
                 [this](std::ostream& stream, const std::string& uri,
-                    shared_structured post_structured, 
+                    const Json::Value& json,
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
-                    return packet_drop_endpoint_handler(stream, uri, post_structured, variable_cache);
+                    return packet_drop_endpoint_handler(stream, uri, json, variable_cache);
                 }, nullptr);
 
     make_poi_endp =
         std::make_shared<kis_net_httpd_simple_post_endpoint>("/poi/create_poi", 
                 [this](std::ostream& stream, const std::string& uri,
-                    shared_structured post_structured,
+                    const Json::Value& json,
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
-                    return make_poi_endp_handler(stream, uri, post_structured, variable_cache);
+                    return make_poi_endp_handler(stream, uri, json, variable_cache);
                 });
 
     list_poi_endp =
@@ -1537,8 +1535,8 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
     std::string stripped = httpd_strip_suffix(concls->url);
     std::string suffix = httpd_get_suffix(concls->url);
 
-    shared_structured structdata;
-    shared_structured filterdata;
+    Json::Value structdata;
+    Json::Value filterdata;
 
     if (!httpd->has_valid_session(concls, true)) {
         concls->httpcode = 503;
@@ -1552,21 +1550,15 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
         }
 
         try {
-            if (concls->variable_cache.find("json") != 
-                    concls->variable_cache.end()) {
-                structdata =
-                    std::make_shared<structured_json>(concls->variable_cache["json"]->str());
+            if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
+                structdata = concls->variable_cache_as<Json::Value>("json");
 
-                if (structdata != nullptr) {
-                    if (structdata->has_key("filter")) {
-                        filterdata = structdata->get_structured_by_key("filter");
+                filterdata = structdata["filter"];
 
-                        if (!filterdata->is_dictionary()) 
-                            throw structured_data_exception("expected filter to be a dictionary");
-                    }
-                }
+                if (!filterdata.isNull() && !filterdata.isObject())
+                    throw std::runtime_error("Expected filter to be a dictionary");
             }
-        } catch(const structured_data_exception& e) {
+        } catch(const std::runtime_error& e) {
             auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
             auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
@@ -1596,87 +1588,87 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
     using namespace kissqlite3;
     auto query = _SELECT(db, "packets", {"ts_sec", "ts_usec", "datasource", "dlt", "packet"});
 
-    if (filterdata != nullptr) {
+    if (!filterdata.isNull()) {
         try {
-            if (filterdata->has_key("timestamp_start")) 
+            if (!filterdata["timestamp_start"].isNull())
                 query.append_where(AND, 
-                        _WHERE("ts_sec", GE, filterdata->key_as_number("timestamp_start")));
+                        _WHERE("ts_sec", GE, filterdata["timestamp_start"].asUInt64()));
 
-            if (filterdata->has_key("timestamp_end")) 
+            if (!filterdata["timestamp_end"].isNull()) 
                 query.append_where(AND, 
-                        _WHERE("ts_sec", LE, filterdata->key_as_number("timestamp_end")));
+                        _WHERE("ts_sec", LE, filterdata["timestamp_end"].asUInt64()));
 
-            if (filterdata->has_key("datasource")) 
+            if (!filterdata["datasource"].isNull())
                 query.append_where(AND, 
-                        _WHERE("datasource", LIKE, filterdata->key_as_string("datasource")));
+                        _WHERE("datasource", LIKE, filterdata["datasource"].asString()));
 
-            if (filterdata->has_key("device_id")) 
-                query.append_where(AND, _WHERE("devkey", LIKE, filterdata->key_as_string("device_id")));
+            if (!filterdata["device_id"].isNull())
+                query.append_where(AND, _WHERE("devkey", LIKE, filterdata["device_id"].asString()));
 
-            if (filterdata->has_key("dlt")) 
-                query.append_where(AND, _WHERE("dlt", EQ, filterdata->key_as_number("dlt")));
+            if (!filterdata["dlt"].isNull())
+                query.append_where(AND, _WHERE("dlt", EQ, filterdata["dlt"].asInt()));
 
-            if (filterdata->has_key("frequency")) 
+            if (!filterdata["frequency"].isNull())
                 query.append_where(AND, 
-                        _WHERE("frequency", EQ, filterdata->key_as_number("frequency")));
+                        _WHERE("frequency", EQ, filterdata["frequency"].asUInt64()));
 
-            if (filterdata->has_key("frequency_min")) 
+            if (!filterdata["frequency_min"].isNull()) 
                 query.append_where(AND, 
-                        _WHERE("frequency", GE, filterdata->key_as_number("frequency_min")));
+                        _WHERE("frequency", GE, filterdata["frequency_min"].asUInt64()));
 
-            if (filterdata->has_key("frequency_max")) 
+            if (!filterdata["frequency_max"].isNull()) 
                 query.append_where(AND, 
-                        _WHERE("frequency", LE, filterdata->key_as_number("frequency_max")));
+                        _WHERE("frequency", LE, filterdata["frequency_max"].asUInt64()));
 
             /*
             if (filterdata->has_key("channel")) 
                 query.append_where(AND, _WHERE("CHANNEL", LIKE, filterdata->key_as_number("channel")));
                 */
 
-            if (filterdata->has_key("signal_min"))
-                query.append_where(AND, _WHERE("signal", GE, filterdata->key_as_number("signal_min")));
+            if (!filterdata["signal_min"].isNull())
+                query.append_where(AND, _WHERE("signal", GE, filterdata["signal_min"].asInt()));
 
-            if (filterdata->has_key("signal_max"))
-                query.append_where(AND, _WHERE("signal", LE, filterdata->key_as_number("signal_max")));
+            if (!filterdata["signal_max"].isNull())
+                query.append_where(AND, _WHERE("signal", LE, filterdata["signal_max"].asInt()));
 
-            if (filterdata->has_key("address_source")) 
+            if (!filterdata["address_source"].isNull())
                 query.append_where(AND, 
-                        _WHERE("sourcemac", LIKE, filterdata->key_as_string("address_source")));
+                        _WHERE("sourcemac", LIKE, filterdata["address_source"].asString()));
 
-            if (filterdata->has_key("address_dest")) 
+            if (!filterdata["address_dest"].isNull())
                 query.append_where(AND, 
-                        _WHERE("destmac", LIKE, filterdata->key_as_string("address_dest")));
+                        _WHERE("destmac", LIKE, filterdata["address_dest"].asString()));
 
-            if (filterdata->has_key("address_trans")) 
+            if (!filterdata["address_trans"].isNull())
                 query.append_where(AND, 
-                        _WHERE("transmac", LIKE, filterdata->key_as_string("address_trans")));
+                        _WHERE("transmac", LIKE, filterdata["address_trans"].asString()));
 
-            if (filterdata->has_key("location_lat_min"))
+            if (!filterdata["location_lat_min"].isNull())
                 query.append_where(AND, 
-                        _WHERE("lat", GE, filterdata->key_as_number("location_lat_min")));
+                        _WHERE("lat", GE, filterdata["location_lat_min"].asDouble()));
 
-            if (filterdata->has_key("location_lon_min"))
+            if (!filterdata["location_lon_min"].isNull())
                 query.append_where(AND, 
-                        _WHERE("lon", GE, filterdata->key_as_number("location_lon_min")));
+                        _WHERE("lon", GE, filterdata["location_lon_min"].asDouble()));
 
-            if (filterdata->has_key("location_lat_max"))
+            if (!filterdata["location_lat_max"].isNull())
                 query.append_where(AND, 
-                        _WHERE("lat", LE, filterdata->key_as_number("location_lat_max")));
+                        _WHERE("lat", LE, filterdata["location_lat_max"].asDouble()));
 
-            if (filterdata->has_key("location_lon_max"))
+            if (!filterdata["location_lon_max"].isNull())
                 query.append_where(AND, 
-                        _WHERE("lon", LE, filterdata->key_as_number("location_lon_max")));
+                        _WHERE("lon", LE, filterdata["location_lon_max"].asDouble()));
 
-            if (filterdata->has_key("size_min"))
-                query.append_where(AND, _WHERE("packet_len", GE, filterdata->key_as_number("size_min")));
+            if (!filterdata["size_min"].isNull())
+                query.append_where(AND, _WHERE("packet_len", GE, filterdata["size_min"].asUInt64()));
+           
+            if (!filterdata["size_max"].isNull())
+                query.append_where(AND, _WHERE("packet_len", LE, filterdata["size_max"].asUInt64()));
 
-            if (filterdata->has_key("size_max"))
-                query.append_where(AND, _WHERE("packet_len", LE, filterdata->key_as_number("size_max")));
+            if (!filterdata["limit"].isNull())
+                query.append_clause(LIMIT, filterdata["limit"].asUInt());
 
-            if (filterdata->has_key("limit"))
-                query.append_clause(LIMIT, filterdata->key_as_number("limit"));
-
-        } catch (const structured_data_exception& e) {
+        } catch (const std::exception& e) {
             auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
             auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
@@ -1748,8 +1740,8 @@ int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) 
 }
 
 unsigned int kis_database_logfile::packet_drop_endpoint_handler(std::ostream& ostream,
-        const std::string& uri,
-        shared_structured structured, kis_net_httpd_connection::variable_cache_map& postvars) {
+        const std::string& uri, const Json::Value& json,
+        kis_net_httpd_connection::variable_cache_map& postvars) {
 
     using namespace kissqlite3;
 
@@ -1758,20 +1750,10 @@ unsigned int kis_database_logfile::packet_drop_endpoint_handler(std::ostream& os
         return 400;
     }
 
-    if (structured == nullptr) {
-        ostream << "Expected 'drop_before' in command dictionary\n";
-        return 400;
-    }
-
     try {
-        if (structured->has_key("drop_before")) {
-            auto drop_query = 
-                _DELETE(db, "packets", _WHERE("ts_sec", LE, 
-                            structured->key_as_number("drop_before")));
+        auto drop_query = 
+            _DELETE(db, "packets", _WHERE("ts_sec", LE, json["drop_before"].asUInt64()));
 
-        } else {
-            throw std::runtime_error("Expected 'drop_before' in command dictionary");
-        }
     } catch (const std::exception& e) {
         ostream << e.what() << "\n";
         return 400;
@@ -1782,7 +1764,7 @@ unsigned int kis_database_logfile::packet_drop_endpoint_handler(std::ostream& os
 }
 
 unsigned int kis_database_logfile::make_poi_endp_handler(std::ostream& ostream, 
-        const std::string& uri, shared_structured structured,
+        const std::string& uri, const Json::Value& json,
         kis_net_httpd_connection::variable_cache_map& postvars) {
 
     if (!db_enabled) {
@@ -1794,12 +1776,10 @@ unsigned int kis_database_logfile::make_poi_endp_handler(std::ostream& ostream,
     gettimeofday(&tv, nullptr);
     std::string poi_data;
 
-    if (structured != nullptr) {
-        if (structured->has_key("note")) {
-            poi_data = "{\"note\": \"" +
-                json_adapter::sanitize_string(structured->key_as_string("note")) +
-                        "\"}";
-        }
+    if (!json["note"].isNull()) {
+        poi_data = "{\"note\": \"" +
+            json_adapter::sanitize_string(json["note"].asString()) +
+            "\"}";
     }
 
     std::shared_ptr<kis_gps_packinfo> loc;

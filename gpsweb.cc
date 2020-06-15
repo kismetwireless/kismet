@@ -19,7 +19,6 @@
 #include "base64.h"
 #include "gpsweb.h"
 #include "gpstracker.h"
-#include "kismet_json.h"
 #include "messagebus.h"
 
 // Don't bind to the http server until we're created, so pass a null to
@@ -109,28 +108,24 @@ int kis_gps_web::httpd_post_complete(kis_net_httpd_connection *concls) {
 
     double lat = 0, lon = 0, alt = 0, spd = 0;
     bool set_alt = false, set_spd = false;
-    shared_structured structdata;
+    Json::Value json;
 
     try {
-        if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
-            structdata.reset(new structured_json(concls->variable_cache["json"]->str()));
-        } else {
-            throw std::runtime_error("could not find data");
-        }
+        json = concls->variable_cache_as<Json::Value>("json");
 
         if (concls->url == "/gps/web/update.cmd") {
             // Lat and lon are required
-            lat = structdata->key_as_number("lat");
-            lon = structdata->key_as_number("lon");
+            lat = json["lat"].asDouble();
+            lon = json["lon"].asDouble();
 
             // Alt and speed are optional
-            if (structdata->has_key("alt")) {
-                alt = structdata->key_as_number("alt");
+            if (!json["alt"].isNull()) {
+                alt = json["alt"].asDouble();
                 set_alt = true;
             }
 
-            if (structdata->has_key("spd")) {
-                spd = structdata->key_as_number("spd");
+            if (!json["spd"].isNull()) {
+                spd = json["spd"].asDouble();
                 set_spd = true;
             }
 

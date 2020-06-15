@@ -25,8 +25,6 @@
 #include "messagebus.h"
 #include "configfile.h"
 #include "alertracker.h"
-#include "structured.h"
-#include "kismet_json.h"
 #include "base64.h"
 
 log_tracker::log_tracker() :
@@ -488,24 +486,12 @@ void log_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
 }
 
 int log_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
-    shared_structured structdata;
-
-    // All the posts require login
-    if (!httpd->has_valid_session(concls, true)) {
-        return MHD_YES;
-    }
+    Json::Value json;
 
     try {
-        // Parse the json
-        if (concls->variable_cache.find("json") != 
-                concls->variable_cache.end()) {
-            structdata.reset(new structured_json(concls->variable_cache["json"]->str()));
-        } else {
-            throw structured_data_exception("Missing data");
-        }
-    } catch(const structured_data_exception& e) {
-        concls->response_stream << "Invalid request: ";
-        concls->response_stream << e.what();
+        json = concls->variable_cache_as<Json::Value>("json");
+    } catch(const std::exception& e) {
+        concls->response_stream << "Invalid request: " << e.what() << "\n";
         concls->httpcode = 400;
         return MHD_YES;
     }
@@ -541,10 +527,7 @@ int log_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                 throw std::runtime_error("invalid logclass");
 
             if (tokenurl[4] == "start") {
-                std::string title = structdata->key_as_string("title", "");
-
-                if (title == "")
-                    title = get_log_title();
+                auto title = json.get("title", get_log_title()).asString();
 
                 shared_logfile logf;
 

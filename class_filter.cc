@@ -55,23 +55,19 @@ class_filter::class_filter(const std::string& in_id, const std::string& in_descr
         std::make_shared<kis_net_httpd_simple_post_endpoint>(
                 posturl, 
                 [this](std::ostream& stream, const std::string& uri,
-                    shared_structured post_structured, 
+                    const Json::Value& json,
                     kis_net_httpd_connection::variable_cache_map& variable_cache) {
                     local_locker lock(&mutex);
-                    return default_set_endp_handler(stream, post_structured);
+                    return default_set_endp_handler(stream, json);
                 });
     
 }
 
-int class_filter::default_set_endp_handler(std::ostream& stream, shared_structured structured) {
+int class_filter::default_set_endp_handler(std::ostream& stream, const Json::Value& json) {
     try {
-        if (structured->has_key("default")) {
-            set_filter_default(filterstring_to_bool(structured->key_as_string("default")));
-            stream << "Default filter: " << get_filter_default() << "\n";
-            return 200;
-        } else {
-            throw std::runtime_error(std::string("Missing 'default' key in command dictionary."));
-        }
+        set_filter_default(filterstring_to_bool(json["default"].asString()));
+        stream << "Default filter: " << get_filter_default() << "\n";
+        return 200;
     } catch (const std::exception& e) {
         stream << "Invalid request: " << e.what() << "\n";
         return 500;
@@ -153,9 +149,9 @@ class_filter_mac_addr::class_filter_mac_addr(const std::string& in_id, const std
                     return false;
                 },
                 [this](std::ostream& stream, const std::vector<std::string>& path, 
-                        const std::string& uri, shared_structured post_structured, 
+                        const std::string& uri, const Json::Value& json, 
                         kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
-                    return edit_endp_handler(stream, path, post_structured);
+                    return edit_endp_handler(stream, path, json);
                 }, &mutex);
 
     macaddr_remove_endp =
@@ -180,9 +176,9 @@ class_filter_mac_addr::class_filter_mac_addr(const std::string& in_id, const std
                     return false;
                 },
                 [this](std::ostream& stream, const std::vector<std::string>& path,
-                        const std::string& uri, shared_structured post_structured,
+                        const std::string& uri, const Json::Value& json,
                         kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
-                    return remove_endp_handler(stream, path, post_structured);
+                    return remove_endp_handler(stream, path, json);
                 }, &mutex);
 }
 
@@ -295,28 +291,22 @@ void class_filter_mac_addr::update_phy_map(std::shared_ptr<eventbus_event> evt) 
 }
 
 unsigned int class_filter_mac_addr::edit_endp_handler(std::ostream& stream, 
-        const std::vector<std::string>& path, shared_structured structured) {
+        const std::vector<std::string>& path, const Json::Value& json) {
     try {
-        if (!structured->has_key("filter")) {
-            stream << "Missing 'filter' object in request\n";
+        auto filter = json["filter"];
+
+        if (!filter.isObject()) {
+            stream << "Expected 'filter' as a dictionary\n";
             return 500;
         }
 
-        auto filter = structured->get_structured_by_key("filter");
-
-        if (!filter->is_dictionary()) {
-            stream << "Expected dictionary 'filter' object\n";
-            return 500;
-        }
-
-
-        for (auto i : filter->as_string_map()) {
-            mac_addr m{i.first};
-            bool v = i.second->as_bool();
+        for (const auto& i : filter.getMemberNames()) {
+            mac_addr m(i);
+            bool v = filter[i].asBool();
 
             if (m.error) 
                 throw std::runtime_error(fmt::format("Invalid MAC address: '{}'",
-                            kishttpd::escape_html(i.first)));
+                            kishttpd::escape_html(i)));
 
 			// /filters/class/[id]/[phyname]/cmd
 			set_filter(m, path[3], v);
@@ -335,26 +325,21 @@ unsigned int class_filter_mac_addr::edit_endp_handler(std::ostream& stream,
 }
 
 unsigned int class_filter_mac_addr::remove_endp_handler(std::ostream& stream, 
-        const std::vector<std::string>& path, shared_structured structured) {
+        const std::vector<std::string>& path, const Json::Value& json) {
     try {
-        if (!structured->has_key("filter")) {
-            stream << "Missing 'filter' object in request\n";
+        auto filter = json["filter"];
+
+        if (!filter.isArray()) {
+            stream << "Expected 'filter' as an array\n";
             return 500;
         }
 
-        auto filter = structured->get_structured_by_key("filter");
-
-        if (!filter->is_array()) {
-            stream << "Expected dictionary 'filter' object\n";
-            return 500;
-        }
-
-        for (auto i : filter->as_string_vector()) {
-            mac_addr m{i};
+        for (const auto& i : filter) {
+            mac_addr m(i.asString());
 
             if (m.error) 
                 throw std::runtime_error(fmt::format("Invalid MAC address: '{}'",
-                            kishttpd::escape_html(i)));
+                            kishttpd::escape_html(i.asString())));
 
 			// /filters/class/[id]/[phyname]/cmd
 			remove_filter(m, path[3]);

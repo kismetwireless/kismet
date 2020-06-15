@@ -36,7 +36,7 @@
 #include "globalregistry.h"
 #include "kis_mutex.h"
 #include "kis_net_microhttpd_handlers.h"
-#include "structured.h"
+#include "json/json.h"
 #include "trackedelement.h"
 
 class kis_net_httpd;
@@ -58,8 +58,8 @@ namespace kishttpd {
     // Modifies the rename_map field, which must be provided by the caller.
     // Returns a summarized vector (if passed a vector) or summarized device (if passed
     // a summarized device)
-    std::shared_ptr<tracker_element> summarize_with_structured(std::shared_ptr<tracker_element> in_data,
-            shared_structured structured, std::shared_ptr<tracker_element_serializer::rename_map> rename_map);
+    std::shared_ptr<tracker_element> summarize_with_json(std::shared_ptr<tracker_element> in_data,
+            const Json::Value& json, std::shared_ptr<tracker_element_serializer::rename_map> rename_map);
 };
 
 // Connection data, generated for all requests by the processing system;
@@ -108,6 +108,32 @@ public:
 
         if (v->second->fail())
             throw std::runtime_error(fmt::format("unable to convert value of '{}'", kishttpd::escape_html(key)));
+
+        return t;
+    }
+
+    template <typename T>
+    T variable_cache_as(const std::string& key, const std::string& def) {
+        T t;
+
+        auto v = variable_cache.find(key);
+
+        if (v == variable_cache.end()) {
+            std::stringstream ss(def);
+
+            ss >> t;
+
+            if (ss.fail())
+                throw std::runtime_error(fmt::format("unable to convert value of '{}'", 
+                            kishttpd::escape_html(key)));
+        } else {
+            *v->second >> t;
+
+            if (v->second->fail())
+                throw std::runtime_error(fmt::format("unable to convert value of '{}'", 
+                            kishttpd::escape_html(key)));
+
+        }
 
         return t;
     }
@@ -268,7 +294,8 @@ protected:
 class kis_net_httpd_simple_post_endpoint : public kis_net_httpd_chain_stream_handler {
 public:
     using handler_func = 
-        std::function<unsigned int (std::ostream& stream, const std::string& uri, shared_structured post_structured,
+        std::function<unsigned int (std::ostream& stream, const std::string& uri, 
+                const Json::Value& post_json,
                 kis_net_httpd_connection::variable_cache_map& variable_cache)>;
 
     kis_net_httpd_simple_post_endpoint(const std::string& in_uri, handler_func in_func,
@@ -300,7 +327,7 @@ public:
     using handler_func = 
         std::function<unsigned int (std::ostream& stream, 
                 const std::vector<std::string>& path, const std::string& uri, 
-                shared_structured post_structured,
+                const Json::Value& post_json,
                 kis_net_httpd_connection::variable_cache_map& variable_cache)>;
 
     kis_net_httpd_path_post_endpoint(path_func in_path, handler_func in_func);
@@ -333,7 +360,7 @@ public:
         std::function<unsigned int (std::ostream& stream, 
                 const std::string& method,
                 const std::vector<std::string>& path, const std::string& uri, 
-                shared_structured post_structured,
+                const Json::Value& post_json,
                 kis_net_httpd_connection::variable_cache_map& variable_cache)>;
 
     kis_net_httpd_path_combo_endpoint(path_func in_path, handler_func in_func);

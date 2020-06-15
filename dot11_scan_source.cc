@@ -42,9 +42,9 @@ dot11_scan_source::dot11_scan_source() :
 
     scan_result_endp =
         std::make_shared<kis_net_httpd_simple_post_endpoint>("/phy/phy80211/scan/scan_report",
-                [this](std::ostream& stream, const std::string& uri, shared_structured post_structured,
+                [this](std::ostream& stream, const std::string& uri, const Json::Value& json,
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
-                return scan_result_endp_handler(stream, uri, post_structured, variable_cache);
+                return scan_result_endp_handler(stream, uri, json, variable_cache);
                 });
 
 }
@@ -54,7 +54,7 @@ dot11_scan_source::~dot11_scan_source() {
 }
 
 unsigned int dot11_scan_source::scan_result_endp_handler(std::ostream& stream,
-        const std::string& uri, shared_structured structured,
+        const std::string& uri, const Json::Value& json,
         kis_net_httpd_connection::variable_cache_map& variable_cache) {
 
     kis_packet *packet = nullptr;
@@ -62,15 +62,9 @@ unsigned int dot11_scan_source::scan_result_endp_handler(std::ostream& stream,
     try {
         std::shared_ptr<kis_datasource> virtual_source;
 
-        std::string uuid_s;
+        auto uuid_s = json.get("source_uuid", "").asString();
         uuid src_uuid;
-        std::string name;
-
-        if (structured->has_key("source_uuid"))
-            uuid_s = structured->key_as_string("source_uuid");
-
-        if (structured->has_key("source_name"))
-            name = structured->key_as_string("source_name");
+        auto name = json.get("source_name", "").asString();
 
         if (uuid_s == "" || name == "") {
             stream << "{\"status\": \"source_uuid and source_name required\", \"success\": false}\n";
@@ -86,8 +80,8 @@ unsigned int dot11_scan_source::scan_result_endp_handler(std::ostream& stream,
             }
         }
 
-        if (!structured->has_key("reports")) {
-            stream << "{\"status\": \"expected 'reports' index\", \"success\": false}\n";
+        if (!json["reports"].isArray()) {
+            stream << "{\"status\": \"expected 'reports' array\", \"success\": false}\n";
             return 500;
         }
 
@@ -112,17 +106,12 @@ unsigned int dot11_scan_source::scan_result_endp_handler(std::ostream& stream,
             virtual_source->set_source_name(name);
         }
 
-        auto reports = structured->get_structured_by_key("reports")->as_vector();
-
-        for (auto r : reports) {
+        for (auto r : json["reports"]) {
             // Must have bssid, validate
-            auto bssid_s = r->key_as_string("bssid");
+            auto bssid_s = r["bssid"].asString();
 
             // TS is optional
-            uint64_t ts_s = 0;
-
-            if (r->has_key("timestamp"))
-                ts_s = r->key_as_number("timestamp");
+            uint64_t ts_s = r.get("timestamp", 0).asUInt64();
 
             packet = packetchain->generate_packet();
 
@@ -139,24 +128,15 @@ unsigned int dot11_scan_source::scan_result_endp_handler(std::ostream& stream,
             jsoninfo->type = "DOT11SCAN";
 
             std::stringstream s;
-            json_adapter::serialize_structured(r, s);
+            s << r;
             jsoninfo->json_string = s.str();
 
             packet->insert(pack_comp_json, jsoninfo);
 
-            double lat = 0, lon = 0, alt = 0, speed = 0;
-
-            if (r->has_key("lat"))
-                lat = r->key_as_number("lat");
-
-            if (r->has_key("lon"))
-                lon = r->key_as_number("lon");
-
-            if (r->has_key("alt"))
-                alt = r->key_as_number("alt");
-
-            if (r->has_key("speed"))
-                speed = r->key_as_number("speed");
+            auto lat = r.get("lat", 0).asDouble();
+            auto lon = r.get("lon", 0).asDouble();
+            auto alt = r.get("alt", 0).asDouble();
+            auto speed = r.get("speed", 0).asDouble();
 
             if (lat != 0 && lon != 0) {
                 auto gpsinfo = new kis_gps_packinfo();
@@ -177,26 +157,26 @@ unsigned int dot11_scan_source::scan_result_endp_handler(std::ostream& stream,
 
             kis_layer1_packinfo *l1info = nullptr;
 
-            if (r->has_key("signal")) {
+            if (!r["signal"].isNull()) {
                 if (l1info == nullptr)
                     l1info = new kis_layer1_packinfo();
 
-                l1info->signal_dbm = r->key_as_number("signal");
+                l1info->signal_dbm = r["signal"].asInt();
                 l1info->signal_type = kis_l1_signal_type_dbm;
             }
 
-            if (r->has_key("freqkhz")) {
+            if (!r["freqkhz"].isNull()) {
                 if (l1info == nullptr)
                     l1info = new kis_layer1_packinfo();
 
-                l1info->freq_khz = r->key_as_number("freqkhz");
+                l1info->freq_khz = r["freqkhz"].asUInt();
             }
 
-            if (r->has_key("channel")) {
+            if (!r["channel"].isNull()) {
                 if (l1info == nullptr)
                     l1info = new kis_layer1_packinfo();
 
-                l1info->channel = r->key_as_string("channel");
+                l1info->channel = r["channel"].asString();
             }
 
             if (l1info != nullptr)

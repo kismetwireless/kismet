@@ -22,7 +22,6 @@
 #include "util.h"
 #include "time.h"
 #include "gpstracker.h"
-#include "kismet_json.h"
 #include "pollabletracker.h"
 #include "timetracker.h"
 

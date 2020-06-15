@@ -73,7 +73,7 @@ protected:
 
     // Default endpoint
     std::shared_ptr<kis_net_httpd_simple_post_endpoint> default_endp;
-    int default_set_endp_handler(std::ostream& stream, shared_structured post_structured);
+    int default_set_endp_handler(std::ostream& stream, const Json::Value& json);
 
     // Default display endpoint
     std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> self_endp;
@@ -139,11 +139,11 @@ protected:
     // Address management endpoint keyed on path
     std::shared_ptr<kis_net_httpd_path_post_endpoint> macaddr_edit_endp;
     unsigned int edit_endp_handler(std::ostream& stream, const std::vector<std::string>& path, 
-            shared_structured structured);
+            const Json::Value& json);
 
     std::shared_ptr<kis_net_httpd_path_post_endpoint> macaddr_remove_endp;
     unsigned int remove_endp_handler(std::ostream& stream, const std::vector<std::string> &path,
-            shared_structured structured);
+            const Json::Value& json);
 
     virtual std::shared_ptr<tracker_element_map> self_endp_handler() override;
     virtual void build_self_content(std::shared_ptr<tracker_element_map> content) override;

@@ -26,7 +26,6 @@
 #include "adsb_icao.h"
 #include "devicetracker_component.h"
 #include "globalregistry.h"
-#include "kismet_json.h"
 #include "kis_net_microhttpd.h"
 #include "phyhandler.h"
 #include "trackedelement.h"

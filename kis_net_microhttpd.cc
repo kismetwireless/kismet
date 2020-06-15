@@ -46,9 +46,6 @@
 #include "entrytracker.h"
 #include "kis_httpd_websession.h"
 
-#include "structured.h"
-#include "kismet_json.h"
-
 std::string kishttpd::get_suffix(const std::string& url) {
     size_t lastdot = url.find_last_of(".");
 
@@ -95,31 +92,22 @@ std::string kishttpd::escape_html(const std::string& in) {
     return ss.str();
 }
 
-std::shared_ptr<tracker_element> kishttpd::summarize_with_structured(std::shared_ptr<tracker_element> in_data,
-        shared_structured structured, std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
+std::shared_ptr<tracker_element> kishttpd::summarize_with_json(std::shared_ptr<tracker_element> in_data,
+        const Json::Value& json, std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
     auto summary_vec = std::vector<SharedElementSummary>{};
+    auto fields = json["fields"];
 
-    if (structured->has_key("fields")) {
-        auto fields = structured->get_structured_by_key("fields");
-        auto fvec = fields->as_vector();
-
-        for (const auto& i : fvec) {
-            if (i->is_string()) {
-                auto s = std::make_shared<tracker_element_summary>(i->as_string());
-                summary_vec.push_back(s);
-            } else if (i->is_array()) {
-                auto mapvec = i->as_string_vector();
-
-                if (mapvec.size() != 2)
-                    throw structured_data_exception("Invalid field mapping, expected "
-                            "[field, rename]");
-
-                auto s = std::make_shared<tracker_element_summary>(mapvec[0], mapvec[1]);
-                summary_vec.push_back(s);
+    if (!fields.isNull() && fields.isArray()) {
+        for (const auto& i : json["fields"]) {
+            if (i.isString()) {
+                summary_vec.push_back(std::make_shared<tracker_element_summary>(i.asString()));
+            } else if (i.isArray()) {
+                if (i.size() != 2)
+                    throw std::runtime_error("Invalid field mapping, expected [field, name]");
+                summary_vec.push_back(std::make_shared<tracker_element_summary>(i[0].asString(), i[1].asString()));
             } else {
-                throw structured_data_exception("Invalid field mapping, expected "
-                        "field or [field,rename]");
+                throw std::runtime_error("Invalid field mapping, expected field or [field,rename]");
             }
         }
     }
@@ -1409,70 +1397,23 @@ int kis_net_httpd_simple_tracked_endpoint::httpd_post_complete(kis_net_httpd_con
         return MHD_YES;
     }
 
-    // Common structured API data
-    shared_structured structdata;
+    Json::Value json;
     std::vector<SharedElementSummary> summary_vec;
     auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
 
     try {
-        if (concls->variable_cache.find("json") != 
-                concls->variable_cache.end()) {
-            structdata =
-                std::make_shared<structured_json>(concls->variable_cache["json"]->str());
-        } else {
-            // fprintf(stderr, "debug - missing data\n");
-            throw structured_data_exception("Missing data");
-        }
-    } catch(const structured_data_exception& e) {
-        stream << "Invalid request: ";
-        stream << e.what();
+        json = concls->variable_cache_as<Json::Value>("json", "{}");
+    } catch(const std::exception& e) {
+        stream << "Invalid request: " << e.what() << "\n";
         concls->httpcode = 400;
         return MHD_YES;
     }
 
-    try {
-        if (structdata->has_key("fields")) {
-            shared_structured fields = structdata->get_structured_by_key("fields");
-            structured_data::structured_vec fvec = fields->as_vector();
+    auto summary = 
+        kishttpd::summarize_with_json(output_content, json, rename_map);
 
-            for (const auto& i : fvec) {
-                if (i->is_string()) {
-                    auto s = std::make_shared<tracker_element_summary>(i->as_string());
-                    summary_vec.push_back(s);
-                } else if (i->is_array()) {
-                    structured_data::string_vec mapvec = i->as_string_vector();
+    Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, summary, nullptr);
 
-                    if (mapvec.size() != 2) {
-                        // fprintf(stderr, "debug - malformed rename pair\n");
-                        stream << "Invalid request: Expected field, rename";
-                        concls->httpcode = 400;
-                        return MHD_YES;
-                    }
-
-                    auto s = 
-                        std::make_shared<tracker_element_summary>(mapvec[0], mapvec[1]);
-                    summary_vec.push_back(s);
-                }
-            }
-        }
-    } catch(const structured_data_exception& e) {
-        stream << "Invalid request: ";
-        stream << e.what();
-        concls->httpcode = 400;
-        return MHD_YES;
-    }
-
-    if (summary_vec.size()) {
-        auto simple = 
-            summarize_tracker_element(output_content, summary_vec, rename_map);
-
-        Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, 
-                simple, rename_map);
-        return MHD_YES;
-    }
-
-    Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, 
-            output_content, nullptr);
     return MHD_YES;
 }
 
@@ -1619,69 +1560,22 @@ int kis_net_httpd_simple_unauth_tracked_endpoint::httpd_post_complete(kis_net_ht
     }
 
     // Common structured API data
-    shared_structured structdata;
-    std::vector<SharedElementSummary> summary_vec;
+    Json::Value json;
     auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
 
     try {
-        if (concls->variable_cache.find("json") != 
-                concls->variable_cache.end()) {
-            structdata =
-                std::make_shared<structured_json>(concls->variable_cache["json"]->str());
-        } else {
-            // fprintf(stderr, "debug - missing data\n");
-            throw structured_data_exception("Missing data");
-        }
-    } catch(const structured_data_exception& e) {
+        json = concls->variable_cache_as<Json::Value>("json");
+    } catch(const std::runtime_error& e) {
         stream << "Invalid request: ";
         stream << e.what();
         concls->httpcode = 400;
         return MHD_YES;
     }
 
-    try {
-        if (structdata->has_key("fields")) {
-            shared_structured fields = structdata->get_structured_by_key("fields");
-            structured_data::structured_vec fvec = fields->as_vector();
+    auto summary = 
+        kishttpd::summarize_with_json(output_content, json, rename_map);
 
-            for (const auto& i : fvec) {
-                if (i->is_string()) {
-                    auto s = std::make_shared<tracker_element_summary>(i->as_string());
-                    summary_vec.push_back(s);
-                } else if (i->is_array()) {
-                    structured_data::string_vec mapvec = i->as_string_vector();
-
-                    if (mapvec.size() != 2) {
-                        // fprintf(stderr, "debug - malformed rename pair\n");
-                        stream << "Invalid request: Expected field, rename";
-                        concls->httpcode = 400;
-                        return MHD_YES;
-                    }
-
-                    auto s = 
-                        std::make_shared<tracker_element_summary>(mapvec[0], mapvec[1]);
-                    summary_vec.push_back(s);
-                }
-            }
-        }
-    } catch(const structured_data_exception& e) {
-        stream << "Invalid request: ";
-        stream << e.what();
-        concls->httpcode = 400;
-        return MHD_YES;
-    }
-
-    if (summary_vec.size()) {
-        auto simple = 
-            summarize_tracker_element(output_content, summary_vec, rename_map);
-
-        Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, 
-                simple, rename_map);
-        return MHD_YES;
-    }
-
-    Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, 
-            output_content, nullptr);
+    Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, summary, nullptr);
     return MHD_YES;
 }
 
@@ -1823,68 +1717,21 @@ int kis_net_httpd_path_tracked_endpoint::httpd_post_complete(kis_net_httpd_conne
         return MHD_YES;
     }
 
-    // Common structured API data
-    shared_structured structdata;
-    std::vector<SharedElementSummary> summary_vec;
+    Json::Value json;
     auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
 
     try {
-        if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
-            structdata =
-                std::make_shared<structured_json>(concls->variable_cache["json"]->str());
-        } else {
-            structdata =
-                std::make_shared<structured_json>(std::string{"{}"});
-        }
-    } catch(const structured_data_exception& e) {
+        json = concls->variable_cache_as<Json::Value>("json", "{}");
+    } catch(const std::exception& e) {
         stream << "Invalid request: " << e.what() << "\n";
         concls->httpcode = 400;
         return MHD_YES;
     }
 
-    try {
-        if (structdata->has_key("fields")) {
-            shared_structured fields = structdata->get_structured_by_key("fields");
-            structured_data::structured_vec fvec = fields->as_vector();
+    auto summary =
+        kishttpd::summarize_with_json(output_content, json, rename_map);
 
-            for (const auto& i : fvec) {
-                if (i->is_string()) {
-                    auto s = std::make_shared<tracker_element_summary>(i->as_string());
-                    summary_vec.push_back(s);
-                } else if (i->is_array()) {
-                    structured_data::string_vec mapvec = i->as_string_vector();
-
-                    if (mapvec.size() != 2) {
-                        // fprintf(stderr, "debug - malformed rename pair\n");
-                        stream << "Invalid request: Expected field, rename";
-                        concls->httpcode = 400;
-                        return MHD_YES;
-                    }
-
-                    auto s = 
-                        std::make_shared<tracker_element_summary>(mapvec[0], mapvec[1]);
-                    summary_vec.push_back(s);
-                }
-            }
-        }
-    } catch(const structured_data_exception& e) {
-        stream << "Invalid request: ";
-        stream << e.what();
-        concls->httpcode = 400;
-        return MHD_YES;
-    }
-
-    if (summary_vec.size()) {
-        auto simple = 
-            summarize_tracker_element(output_content, summary_vec, rename_map);
-
-        Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, 
-                simple, rename_map);
-        return MHD_YES;
-    }
-
-    Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, 
-            output_content, nullptr);
+    Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, summary, nullptr);
     return MHD_YES;
 }
 
@@ -1963,17 +1810,9 @@ int kis_net_httpd_simple_post_endpoint::httpd_post_complete(kis_net_httpd_connec
             });
 
     try {
-        shared_structured structdata;
+        auto json = concls->variable_cache_as<Json::Value>("json", "{}");
 
-        if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
-            structdata =
-                std::make_shared<structured_json>(concls->variable_cache["json"]->str());
-        } else {
-            structdata =
-                std::make_shared<structured_json>(std::string{"{}"});
-        }
-
-        auto r = generator(stream, concls->url, structdata, concls->variable_cache);
+        auto r = generator(stream, concls->url, json, concls->variable_cache);
         concls->httpcode = r;
 
         return MHD_YES;
@@ -2079,17 +1918,9 @@ int kis_net_httpd_path_post_endpoint::httpd_post_complete(kis_net_httpd_connecti
         tokenurl = std::vector<std::string>(tokenurl.begin() + 1, tokenurl.end());
 
     try {
-        shared_structured structdata;
+        auto json = concls->variable_cache_as<Json::Value>("json", "{}");
 
-        if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
-            structdata =
-                std::make_shared<structured_json>(concls->variable_cache["json"]->str());
-        } else {
-            structdata = 
-                std::make_shared<structured_json>(std::string{"{}"});
-        }
-
-        auto r = generator(stream, tokenurl, concls->url, structdata, concls->variable_cache);
+        auto r = generator(stream, tokenurl, concls->url, json, concls->variable_cache);
 
         concls->httpcode = r;
         return MHD_YES;
@@ -2188,17 +2019,9 @@ int kis_net_httpd_path_combo_endpoint::httpd_post_complete(kis_net_httpd_connect
         tokenurl = std::vector<std::string>(tokenurl.begin() + 1, tokenurl.end());
 
     try {
-        shared_structured structdata;
+        auto json = concls->variable_cache_as<Json::Value>("json", "{}");
 
-        if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
-            structdata =
-                std::make_shared<structured_json>(concls->variable_cache["json"]->str());
-        } else {
-            structdata = 
-                std::make_shared<structured_json>(std::string{"{}"});
-        }
-
-        auto r = generator(stream, "POST", tokenurl, concls->url, structdata, concls->variable_cache);
+        auto r = generator(stream, "POST", tokenurl, concls->url, json, concls->variable_cache);
 
         concls->httpcode = r;
         return MHD_YES;

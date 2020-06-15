@@ -51,9 +51,6 @@
 #include "devicetracker_component.h"
 #include "phy_80211.h"
 
-#include "structured.h"
-#include "kismet_json.h"
-
 #include "kis_httpd_registry.h"
 
 #include "boost_like_hash.h"

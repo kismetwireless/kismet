@@ -19,7 +19,6 @@
 #include "config.h"
 #include "kis_datasource.h"
 #include "datasource_rtlamr.h"
-#include "kismet_json.h"
 #include "phy_rtlamr.h"
 
 kis_datasource_rtlamr::kis_datasource_rtlamr(shared_datasource_builder in_builder, 

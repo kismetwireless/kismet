@@ -55,23 +55,19 @@ packet_filter::packet_filter(const std::string& in_id, const std::string& in_des
         std::make_shared<kis_net_httpd_simple_post_endpoint>(
                 posturl, 
                 [this](std::ostream& stream, const std::string& uri,
-                    shared_structured post_structured, 
+                    const Json::Value& json,
                     kis_net_httpd_connection::variable_cache_map& variable_cache) {
                     local_locker lock(&mutex);
-                    return default_set_endp_handler(stream, post_structured);
+                    return default_set_endp_handler(stream, json);
                 });
     
 }
 
-int packet_filter::default_set_endp_handler(std::ostream& stream, shared_structured structured) {
+int packet_filter::default_set_endp_handler(std::ostream& stream, const Json::Value& json) {
     try {
-        if (structured->has_key("default")) {
-            set_filter_default(filterstring_to_bool(structured->key_as_string("default")));
-            stream << "Default filter: " << get_filter_default() << "\n";
-            return 200;
-        } else {
-            throw std::runtime_error(std::string("Missing 'default' key in command dictionary."));
-        }
+        set_filter_default(json["default"].asBool());
+        stream << "Default filter: " << get_filter_default() << "\n";
+        return 200;
     } catch (const std::exception& e) {
         stream << "Invalid request: " << e.what() << "\n";
         return 500;
@@ -168,9 +164,9 @@ packet_filter_mac_addr::packet_filter_mac_addr(const std::string& in_id, const s
                     return false;
                 },
                 [this](std::ostream& stream, const std::vector<std::string>& path, 
-                        const std::string& uri, shared_structured post_structured, 
+                        const std::string& uri, const Json::Value& json, 
                         kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
-                    return edit_endp_handler(stream, path, post_structured);
+                    return edit_endp_handler(stream, path, json);
                 }, &mutex);
 
     macaddr_remove_endp =
@@ -210,9 +206,9 @@ packet_filter_mac_addr::packet_filter_mac_addr(const std::string& in_id, const s
                     return false;
                 },
                 [this](std::ostream& stream, const std::vector<std::string>& path,
-                        const std::string& uri, shared_structured post_structured,
+                        const std::string& uri, const Json::Value& json,
                         kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
-                    return remove_endp_handler(stream, path, post_structured);
+                    return remove_endp_handler(stream, path, json);
                 }, &mutex);
 
     auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
@@ -433,7 +429,7 @@ void packet_filter_mac_addr::remove_filter(mac_addr in_mac, const std::string& i
 }
 
 unsigned int packet_filter_mac_addr::edit_endp_handler(std::ostream& stream, 
-        const std::vector<std::string>& path, shared_structured structured) {
+        const std::vector<std::string>& path, const Json::Value& json) {
     // /filters/packet/[id]/[phy]/[block]/set_filter
     
     if (path.size() < 6) {
@@ -442,28 +438,24 @@ unsigned int packet_filter_mac_addr::edit_endp_handler(std::ostream& stream,
     }
 
     try {
-        if (!structured->has_key("filter")) {
-            stream << "Missing 'filter' object in request\n";
-            return 500;
-        }
+        auto filter = json["filter"];
 
-        auto filter = structured->get_structured_by_key("filter");
-
-        if (!filter->is_dictionary()) {
-            stream << "Expected dictionary 'filter' object\n";
+        if (!filter.isObject()) {
+            stream << "Expected 'filter' to be a dictionary\n";
             return 500;
         }
 
         // path[3] phy
         // path[4] block
 
-        for (auto i : filter->as_string_map()) {
-            mac_addr m{i.first};
-            bool v = i.second->as_bool();
+
+        for (const auto& i : filter.getMemberNames()) {
+            mac_addr m(i);
+            bool v = filter[i].asBool();
 
             if (m.error) 
                 throw std::runtime_error(fmt::format("Invalid MAC address: '{}'",
-                            kishttpd::escape_html(i.first)));
+                            kishttpd::escape_html(i)));
 
             set_filter(m, path[3], path[4], v);
         }
@@ -481,7 +473,7 @@ unsigned int packet_filter_mac_addr::edit_endp_handler(std::ostream& stream,
 }
 
 unsigned int packet_filter_mac_addr::remove_endp_handler(std::ostream& stream, 
-        const std::vector<std::string>& path, shared_structured structured) {
+        const std::vector<std::string>& path, const Json::Value& json) {
     // /filters/packet/[id]/[phy]/[block]/remove_filter
 
     if (path.size() < 5) {
@@ -490,27 +482,22 @@ unsigned int packet_filter_mac_addr::remove_endp_handler(std::ostream& stream,
     }
 
     try {
-        if (!structured->has_key("filter")) {
-            stream << "Missing 'filter' object in request\n";
-            return 500;
-        }
+        auto filter = json["filter"];
 
-        auto filter = structured->get_structured_by_key("filter");
-
-        if (!filter->is_array()) {
-            stream << "Expected dictionary 'filter' object\n";
+        if (!filter.isArray()) {
+            stream << "Expected 'filter' to be an array\n";
             return 500;
         }
 
         // path[3] phy
         // path[4] block
 
-        for (auto i : filter->as_string_vector()) {
-            mac_addr m{i};
+        for (auto i : filter) {
+            mac_addr m{i.asString()};
 
             if (m.error) 
                 throw std::runtime_error(fmt::format("Invalid MAC address: '{}'",
-                            kishttpd::escape_html(i)));
+                            kishttpd::escape_html(i.asString())));
 
             remove_filter(m, path[3], path[4]);
         }

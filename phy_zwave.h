@@ -26,7 +26,6 @@
 #include "trackedelement.h"
 #include "devicetracker_component.h"
 #include "phyhandler.h"
-#include "kismet_json.h"
 
 /* phy-zwave
  *

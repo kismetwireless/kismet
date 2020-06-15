@@ -182,8 +182,7 @@ protected:
     std::shared_ptr<kis_net_httpd_simple_post_endpoint> ssid_endp;
 
     unsigned int ssid_endpoint_handler(std::ostream& stream, const std::string& uri,
-            shared_structured structured,
-            kis_net_httpd_connection::variable_cache_map& postvars);
+            const Json::Value& json, kis_net_httpd_connection::variable_cache_map& postvars);
 
     int cleanup_timer_id;
 

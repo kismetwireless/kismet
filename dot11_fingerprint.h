@@ -130,16 +130,15 @@ public:
     std::tuple<uri_endpoint, mac_addr> post_path(const std::vector<std::string>& path);
   
     // Dispatch function based on URI
-    unsigned int mod_dispatch(std::ostream& stream, const std::vector<std::string>& path, 
-            shared_structured structured);
+    unsigned int mod_dispatch(std::ostream& stream, const std::vector<std::string>& path, const Json::Value& json);
 
     // Fingerprint manipulation; all of these are called w/in the mutex lock held by 
     // the simple tracked and simple post endpoints
-    unsigned int update_fingerprint(std::ostream& stream, mac_addr mac, shared_structured structured);
-    unsigned int insert_fingerprint(std::ostream& stream, shared_structured structured);
-    unsigned int delete_fingerprint(std::ostream& stream, mac_addr mac, shared_structured structured);
-    unsigned int bulk_delete_fingerprint(std::ostream& stream, shared_structured structured);
-    unsigned int bulk_insert_fingerprint(std::ostream& stream, shared_structured structured);
+    unsigned int update_fingerprint(std::ostream& stream, mac_addr mac, const Json::Value& json);
+    unsigned int insert_fingerprint(std::ostream& stream, const Json::Value& json);
+    unsigned int delete_fingerprint(std::ostream& stream, mac_addr mac, const Json::Value& json);
+    unsigned int bulk_delete_fingerprint(std::ostream& stream, const Json::Value& json);
+    unsigned int bulk_insert_fingerprint(std::ostream& stream, const Json::Value& json);
 
     // Fetch a fingerprint, return nullptr if fingerprint not found
     std::shared_ptr<tracked_dot11_fingerprint> get_fingerprint(const mac_addr& mac);

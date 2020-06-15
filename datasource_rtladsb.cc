@@ -19,7 +19,6 @@
 #include "config.h"
 #include "kis_datasource.h"
 #include "datasource_rtladsb.h"
-#include "kismet_json.h"
 #include "phy_rtladsb.h"
 
 kis_datasource_rtladsb::kis_datasource_rtladsb(shared_datasource_builder in_builder, 

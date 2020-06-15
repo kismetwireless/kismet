@@ -44,13 +44,10 @@
 #include "json_adapter.h"
 #include "kis_datasource.h"
 #include "kis_databaselogfile.h"
-#include "kismet_json.h"
 #include "manuf.h"
 #include "messagebus.h"
 #include "packet.h"
 #include "packetchain.h"
-#include "structured.h"
-#include "storageloader.h"
 #include "util.h"
 #include "zstr.hpp"
 
@@ -315,16 +312,18 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
     // Unlocked endpoint, we dupe our map for searching
     multimac_endp =
         std::make_shared<kis_net_httpd_simple_post_endpoint>("/devices/multimac/devices", 
-                [this](std::ostream& stream, const std::string& uri, shared_structured structured,
+                [this](std::ostream& stream, const std::string& uri, 
+                    const Json::Value& json,
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
-                return multimac_endp_handler(stream, uri, structured, variable_cache);
+                return multimac_endp_handler(stream, uri, json, variable_cache);
                 });
 
     multikey_endp = 
         std::make_shared<kis_net_httpd_simple_post_endpoint>("/devices/multikey/devices",
-                [this](std::ostream& stream, const std::string& uri, shared_structured structured,
+                [this](std::ostream& stream, const std::string& uri, 
+                    const Json::Value& json,
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
-                return multikey_endp_handler(stream, uri, structured, variable_cache);
+                return multikey_endp_handler(stream, uri, json, variable_cache);
                 });
 
     phy_phyentry_id =

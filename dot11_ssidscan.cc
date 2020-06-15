@@ -131,9 +131,9 @@ dot11_ssid_scan::dot11_ssid_scan() {
     dot11_ssidscan_config_endp =
         std::make_shared<kis_net_httpd_simple_post_endpoint>("/phy/phy80211/ssidscan/config", true,
                 [this](std::ostream& stream, const std::string& url,
-                    shared_structured post_structured, 
+                    const Json::Value& json, 
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
-                    return config_endp_handler(stream, url, post_structured, variable_cache);
+                    return config_endp_handler(stream, url, json, variable_cache);
                 }, &mutex);
 
     // Make the views with no completion functions, we maintain them manually
@@ -171,11 +171,11 @@ void dot11_ssid_scan::handle_eventbus_evt(std::shared_ptr<eventbus_event> evt) {
 }
 
 unsigned int dot11_ssid_scan::config_endp_handler(std::ostream& stream, const std::string& url,
-        shared_structured post_structured, kis_net_httpd_connection::variable_cache_map& variable_cache) {
+        const Json::Value& json, kis_net_httpd_connection::variable_cache_map& variable_cache) {
 
     try {
-        if (post_structured->has_key("ssidscan_enabled")) {
-            auto enabled = post_structured->key_as_bool("ssidscan_enabled");
+        if (!json["ssidscan_enabled"].isNull()) {
+            auto enabled = json["ssidscan_enabled"].asBool();
 
             if (enabled != ssidscan_enabled->get()) {
                 if (enabled) {
@@ -188,17 +188,17 @@ unsigned int dot11_ssid_scan::config_endp_handler(std::ostream& stream, const st
             }
         }
 
-        if (post_structured->has_key("ignore_after_handshake"))
-            ignore_after_handshake->set(post_structured->key_as_bool("ignore_after_handshake"));
+        if (!json["ignore_after_handshake"].isNull())
+            ignore_after_handshake->set(json["ignore_after_handshake"].asBool());
 
-        if (post_structured->has_key("max_capture_seconds")) 
-            max_contend_cap_seconds->set(post_structured->key_as_number("max_capture_seconds"));
+        if (!json["max_capture_seconds"].isNull()) 
+            max_contend_cap_seconds->set(json["max_capture_seconds"].asBool());
 
-        if (post_structured->has_key("min_scan_seconds")) 
-            min_scan_seconds->set(post_structured->key_as_number("min_scan_seconds"));
+        if (!json["min_scan_seconds"].isNull()) 
+            min_scan_seconds->set(json["min_scan_seconds"].asBool());
 
-        if (post_structured->has_key("restrict_log_filters")) {
-            auto enabled = post_structured->key_as_bool("restrict_log_filters");
+        if (json["restrict_log_filters"].isNull()) {
+            auto enabled = json["restrict_log_filters"].asBool();
 
             if (enabled != filter_logs->get()) {
                 filter_logs->set(enabled);

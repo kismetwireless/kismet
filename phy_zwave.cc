@@ -21,7 +21,6 @@
 
 #include "phy_zwave.h"
 #include "devicetracker.h"
-#include "kismet_json.h"
 #include "endian_magic.h"
 #include "macaddr.h"
 #include "manuf.h"

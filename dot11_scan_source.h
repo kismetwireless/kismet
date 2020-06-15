@@ -54,7 +54,7 @@ protected:
 
     std::shared_ptr<kis_net_httpd_simple_post_endpoint> scan_result_endp;
     unsigned int scan_result_endp_handler(std::ostream& stream, 
-            const std::string& uri, shared_structured structured,
+            const std::string& uri, const Json::Value& json,
             kis_net_httpd_connection::variable_cache_map& variable_cache);
 
     int pack_comp_common, pack_comp_json, pack_comp_datasrc, pack_comp_gps,

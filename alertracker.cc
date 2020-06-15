@@ -27,8 +27,6 @@
 #include "configfile.h"
 
 #include "json_adapter.h"
-#include "structured.h"
-#include "kismet_json.h"
 #include "base64.h"
 #include "kis_databaselogfile.h"
 
@@ -84,16 +82,18 @@ alert_tracker::alert_tracker() : lifetime_global() {
 
     define_alert_endp =
         std::make_shared<kis_net_httpd_simple_post_endpoint>("/alerts/definitions/define_alert",
-                [this](std::ostream& stream, const std::string& uri, shared_structured post_structured,
+                [this](std::ostream& stream, const std::string& uri, 
+                    const Json::Value& json,
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
-                return define_alert_endpoint(stream, uri, post_structured, variable_cache);
+                return define_alert_endpoint(stream, uri, json, variable_cache);
                 });
 
     raise_alert_endp = 
         std::make_shared<kis_net_httpd_simple_post_endpoint>("/alerts/raise_alerts",
-                [this](std::ostream& stream, const std::string& uri, shared_structured post_structured,
+                [this](std::ostream& stream, const std::string& uri, 
+                    const Json::Value& json,
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
-                return raise_alert_endpoint(stream, uri, post_structured, variable_cache);
+                return raise_alert_endpoint(stream, uri, json, variable_cache);
                 });
 
     definitions_endp = 
@@ -715,10 +715,10 @@ std::shared_ptr<tracker_element> alert_tracker::last_alerts_endpoint(const std::
 }
 
 unsigned int alert_tracker::define_alert_endpoint(std::ostream& stream, const std::string& uri,
-        shared_structured post_structured, kis_net_httpd_connection::variable_cache_map& variable_cache) {
+        const Json::Value& json, kis_net_httpd_connection::variable_cache_map& variable_cache) {
     try {
-        auto name = post_structured->key_as_string("name");
-        auto description = post_structured->key_as_string("description");
+        auto name = json["name"].asString();
+        auto description = json["description"].asString();
 
         alert_time_unit limit_unit;
         int limit_rate;
@@ -726,19 +726,19 @@ unsigned int alert_tracker::define_alert_endpoint(std::ostream& stream, const st
         alert_time_unit burst_unit;
         int burst_rate;
 
-        if (parse_rate_unit(str_lower(post_structured->key_as_string("throttle", "")),
+        if (parse_rate_unit(str_lower(json.get("throttle", "").asString()),
                     &limit_unit, &limit_rate) < 0) {
             throw std::runtime_error("could not parse throttle limits");
         }
 
-        if (parse_rate_unit(str_lower(post_structured->key_as_string("burst", "")),
+        if (parse_rate_unit(str_lower(json.get("burst", "").asString()),
                     &burst_unit, &burst_rate) < 0) {
             throw std::runtime_error("could not parse burst limits");
         }
 
         int phyid = KIS_PHY_ANY;
 
-        std::string phyname = post_structured->key_as_string("phyname", "");
+        auto phyname = json.get("phyname", "").asString();
 
         if (phyname != "any" && phyname != "") {
             auto devicetracker = 
@@ -770,10 +770,10 @@ unsigned int alert_tracker::define_alert_endpoint(std::ostream& stream, const st
 }
 
 unsigned int alert_tracker::raise_alert_endpoint(std::ostream& stream, const std::string& uri,
-        shared_structured post_structured, kis_net_httpd_connection::variable_cache_map& variable_cache) {
+        const Json::Value& json, kis_net_httpd_connection::variable_cache_map& variable_cache) {
     try {
-        auto name = post_structured->key_as_string("name");
-        auto text = post_structured->key_as_string("text");
+        auto name = json["name"].asString();
+        auto text = json["text"].asString();
 
         auto aref = fetch_alert_ref(name);
 
@@ -782,11 +782,11 @@ unsigned int alert_tracker::raise_alert_endpoint(std::ostream& stream, const std
             return 400;
         }
 
-        auto bssid = post_structured->key_as_string("bssid", "");
-        auto source = post_structured->key_as_string("source", "");
-        auto dest = post_structured->key_as_string("dest", "");
-        auto other = post_structured->key_as_string("other", "");
-        auto channel = post_structured->key_as_string("channel", "");
+        auto bssid = json.get("bssid", "").asString();
+        auto source = json.get("source", "").asString();
+        auto dest = json.get("dest", "").asString();
+        auto other = json.get("other", "").asString();
+        auto channel = json.get("channel", "").asString();
 
         mac_addr bssid_mac, source_mac, dest_mac, other_mac;
 

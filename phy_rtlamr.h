@@ -26,7 +26,6 @@
 #include "trackedelement.h"
 #include "devicetracker_component.h"
 #include "phyhandler.h"
-#include "kismet_json.h"
 
 /* Similar to the extreme aggregator, a consumption aggregator which ignores empty
  * slots while aggregating and otherwise selects the most extreme value when a 

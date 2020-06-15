@@ -435,11 +435,11 @@ protected:
 
     std::shared_ptr<kis_net_httpd_simple_post_endpoint> define_alert_endp;
     unsigned int define_alert_endpoint(std::ostream& stream, const std::string& uri,
-            shared_structured structured, kis_net_httpd_connection::variable_cache_map& postvars);
+            const Json::Value& json, kis_net_httpd_connection::variable_cache_map& postvars);
 
     std::shared_ptr<kis_net_httpd_simple_post_endpoint> raise_alert_endp;
     unsigned int raise_alert_endpoint(std::ostream& stream, const std::string& uri,
-            shared_structured structured, kis_net_httpd_connection::variable_cache_map& postvars);
+            const Json::Value& json, kis_net_httpd_connection::variable_cache_map& postvars);
 
     std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> definitions_endp;
     std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> all_alerts_endp;

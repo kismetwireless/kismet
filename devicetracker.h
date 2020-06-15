@@ -51,7 +51,6 @@
 #include "trackercomponent_legacy.h"
 #include "timetracker.h"
 #include "kis_net_microhttpd.h"
-#include "structured.h"
 #include "devicetracker_view.h"
 #include "devicetracker_view_workers.h"
 #include "kis_database.h"
@@ -360,7 +359,7 @@ protected:
     // Multimac endpoint using new http API
     std::shared_ptr<kis_net_httpd_simple_post_endpoint> multimac_endp;
     unsigned int multimac_endp_handler(std::ostream& stream, const std::string& uri,
-            shared_structured structured, kis_net_httpd_connection::variable_cache_map& variable_cache);
+            const Json::Value& json, kis_net_httpd_connection::variable_cache_map& variable_cache);
 
     // /phys/all_phys.json endpoint using new simple endpoint API
     std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> all_phys_endp;
@@ -371,7 +370,7 @@ protected:
     // Multikey endpoint
     std::shared_ptr<kis_net_httpd_simple_post_endpoint> multikey_endp;
     unsigned int multikey_endp_handler(std::ostream& stream, const std::string& uri,
-            shared_structured structured, kis_net_httpd_connection::variable_cache_map& variable_cache);
+            const Json::Value& json, kis_net_httpd_connection::variable_cache_map& variable_cache);
 
 	// Registered PHY types
 	int next_phy_id;
