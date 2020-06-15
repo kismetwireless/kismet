@@ -166,7 +166,8 @@ unsigned int phy_80211_ssid_tracker::ssid_endpoint_handler(std::ostream& stream,
     auto dt_draw_elem = std::make_shared<tracker_element_uint64>();
 
     try {
-        // If the structured component has a 'fields' record, derive the fields simplification
+        // If the structured component has a 'fields' record, derive the fields simplification; we need this to
+        // compute the search path so we have to implement our own copy of the code
         auto fields = json.get("fields", Json::Value(Json::arrayValue));
 
         for (const auto& i : fields) {
