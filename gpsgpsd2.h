@@ -44,15 +44,15 @@ public:
     virtual bool get_location_valid();
 
 protected:
+    // IO function that lives in the io thread
+    virtual void gpsd_io();
+
     std::shared_ptr<pollable_tracker> pollabletracker;
 
     std::shared_ptr<tcp_client_v2> tcpclient;
-    std::shared_ptr<buffer_handler<ringbuf_v2>> tcphandler;
-    buffer_interface_func tcpinterface;
+    std::shared_ptr<buffer_pair> tcphandler;
 
-    // Called by our tcpinterface 
-    virtual void buffer_available(size_t in_amt);
-    virtual void buffer_error(std::string in_err);
+    std::thread gpsd_io_thread;
 
     // Device
     std::string host;

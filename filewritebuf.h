@@ -35,54 +35,52 @@ public:
     file_write_buffer(std::string in_path, size_t chunk_sz);
     virtual ~file_write_buffer();
 
-    virtual void clear();
-
-    virtual ssize_t size() {
-        return chunk_sz;
-    }
-
-    virtual ssize_t available() {
-        return chunk_sz;
-    }
-
-    virtual size_t used();
-
-    virtual size_t total();
-
-    // Write-only buffer, we don't allow peeking 
-    virtual ssize_t peek(unsigned char **ret_data, size_t in_sz) {
-        return -1;
-    }
-
-    virtual ssize_t zero_copy_peek(unsigned char **ret_data, size_t in_sz) {
-        return -1;
-    }
-
-    virtual void peek_free(unsigned char *in_data) {
-        return;
-    }
-
-    // Write amount to buffer, arbitrarily allocating new chunks
-    virtual ssize_t write(unsigned char *in_data, size_t in_sz);
-  
-    virtual ssize_t reserve(unsigned char **data, size_t in_sz);
-    virtual ssize_t zero_copy_reserve(unsigned char **data, size_t in_sz);
-    virtual bool commit(unsigned char *data, size_t in_sz);
-
-    // Consume from buffer
-    size_t consume(size_t in_sz) {
-        return 0;
-    }
-
 protected:
     size_t chunk_sz;
-    uint8_t *reserve_chunk;
+    char *reserve_chunk;
 
     bool free_commit;
 
     std::string filename;
 
     FILE *backfile;
+
+    virtual void clear_impl() override;
+
+    virtual ssize_t size_impl() override {
+        return chunk_sz;
+    }
+
+    virtual ssize_t available_impl() override {
+        return chunk_sz;
+    }
+
+    virtual size_t used_impl() override;
+
+    // Write-only buffer, we don't allow peeking 
+    virtual ssize_t peek_impl(char **ret_data, size_t in_sz) override {
+        return -1;
+    }
+
+    virtual ssize_t zero_copy_peek_impl(char **ret_data, size_t in_sz) override {
+        return -1;
+    }
+
+    virtual void peek_free_impl(char *in_data) override {
+        return;
+    }
+
+    // Write amount to buffer, arbitrarily allocating new chunks
+    virtual ssize_t write_impl(const char *in_data, size_t in_sz) override;
+  
+    virtual ssize_t reserve_impl(char **data, size_t in_sz) override;
+    virtual ssize_t zero_copy_reserve_impl(char **data, size_t in_sz) override;
+
+    // Consume from buffer
+    size_t consume_impl(size_t in_sz) override {
+        return 0;
+    }
+
 };
 
 #endif

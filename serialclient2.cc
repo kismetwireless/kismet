@@ -30,10 +30,7 @@
 #include "messagebus.h"
 #include "pollabletracker.h"
 
-serial_client_v2::serial_client_v2(global_registry *in_globalreg, 
-        std::shared_ptr<buffer_handler_generic> in_rbhandler) :
-    globalreg {in_globalreg},
-    serial_mutex {in_rbhandler->get_mutex()},
+serial_client_v2::serial_client_v2(std::shared_ptr<buffer_pair> in_rbhandler) :
     handler {in_rbhandler},
     device_fd {-1} { }
 
@@ -41,24 +38,10 @@ serial_client_v2::~serial_client_v2() {
     close_device();
 }
 
-void serial_client_v2::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
-    local_locker l(serial_mutex);
-
-    if (in_parent != nullptr)
-        serial_mutex = in_parent;
-    else
-        serial_mutex = std::make_shared<kis_recursive_timed_mutex>(); 
-}
-
 int serial_client_v2::open_device(std::string in_device, unsigned int in_baud) {
-    local_locker l(serial_mutex);
-
-    std::stringstream msg;
-
     if (device_fd > -1) {
-        msg << "Serial client asked to connect to " << in_device << "@" <<
-            in_baud << " but already connected to " << device << "@" << baud;
-        _MSG(msg.str(), MSGFLAG_ERROR);
+        _MSG_ERROR("Serial client tried to open device '{}'@{} baud, but there is "
+                "already a device open ({})", in_device, in_baud, device);
 
         return -1;
     }
@@ -67,10 +50,8 @@ int serial_client_v2::open_device(std::string in_device, unsigned int in_baud) {
     device_fd = open(in_device.c_str(), O_RDWR | O_NONBLOCK | O_NOCTTY | O_CLOEXEC);
 
     if (device_fd < 0) {
-        msg << "Serial client failed to open device " << in_device << "@";
-        msg << in_baud;
-        msg << " - " << kis_strerror_r(errno);
-        _MSG(msg.str(), MSGFLAG_ERROR);
+        _MSG_ERROR("Serial client failed to open device '{}'@{} baud: {} (errno {})",
+                in_device, in_baud, kis_strerror_r(errno), errno);
         return -1;
     }
 
@@ -110,9 +91,8 @@ int serial_client_v2::open_device(std::string in_device, unsigned int in_baud) {
     cfsetospeed(&options, setbaud);
 
     if (tcsetattr(device_fd, TCSANOW, &options) < 0) {
-        msg << "Serial client failed to set baud rate " << in_device << "@" <<
-            in_baud << " - " << kis_strerror_r(errno);
-        _MSG(msg.str(), MSGFLAG_ERROR);
+        _MSG_ERROR("Serial client failed to set baud rate {} on device '{}': {} (errno {})",
+                in_baud, in_device, kis_strerror_r(errno), errno);
         return -1;
     }
 
@@ -123,23 +103,19 @@ int serial_client_v2::open_device(std::string in_device, unsigned int in_baud) {
 }
 
 bool serial_client_v2::get_connected() {
-    local_shared_locker ls(serial_mutex);
-
     return device_fd > -1;
 }
 
 int serial_client_v2::pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
-    local_locker l(serial_mutex);
-
     if (device_fd < 0)
         return in_max_fd;
 
     // If we have data waiting to be written, fill it in
-    if (handler->get_write_buffer_used())
+    if (handler->used_wbuf())
         FD_SET(device_fd, out_wset);
 
     // We always want to read data if we have any space
-    if (handler->get_read_buffer_available() > 0)
+    if (handler->used_rbuf() > 0)
         FD_SET(device_fd, out_rset);
 
     if (in_max_fd < device_fd)
@@ -149,11 +125,7 @@ int serial_client_v2::pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set
 }
 
 int serial_client_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
-    local_locker l(serial_mutex);
-
-    std::stringstream msg;
-
-    uint8_t *buf;
+    char *buf;
     size_t len;
     ssize_t ret, iret;
 
@@ -161,86 +133,85 @@ int serial_client_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
         return 0;
 
     if (FD_ISSET(device_fd, &in_rset)) {
-        // Trigger an event on buffer full
-        if (handler->get_read_buffer_available() == 0)
-            handler->trigger_read_callback(0);
+        ssize_t avail;
 
-        // Allocate the biggest buffer we can fit in the ring, read as much
-        // as we can at once.
-        
-        while (handler->get_read_buffer_available() > 0) {
-            len = handler->zero_copy_reserve_read_buffer_data((void **) &buf, 
-                    handler->get_read_buffer_available());
+        while ((avail = handler->available_rbuf()) > 0) {
+            len = handler->zero_copy_peek_rbuf(&buf, avail);
 
             if ((ret = read(device_fd, buf, len)) <= 0) {
                 if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
                     // Push the error upstream if we failed to read here
                     if (ret == 0) {
-                        msg << "Serial client closing " << device << "@" << baud <<
-                            " - connection closed / device removed";
+                        try {
+                            throw std::runtime_error(fmt::format("Serial device '{}' closed or "
+                                        "device removed", device));
+                        } catch (const std::exception& e) {
+                            handler->throw_error(std::current_exception());
+                        }
                     } else {
-                        msg << "Serial client error reading from " << device << "@" << 
-                            baud << " - " << kis_strerror_r(errno);
+                        try {
+                            throw std::runtime_error(fmt::format("Error reading from serial "
+                                        "device '{}': {} (errno {})",
+                                        device, kis_strerror_r(errno), errno));
+                        } catch (const std::exception& e) {
+                            handler->throw_error(std::current_exception());
+                        }
                     }
 
-                    handler->commit_read_buffer_data(buf, 0);
-                    handler->buffer_error(msg.str());
+                    handler->commit_rbuf(buf, 0);
 
                     close_device();
                     return 0;
                 } else {
-                    handler->commit_read_buffer_data(buf, 0);
+                    handler->commit_rbuf(buf, 0);
                     break;
                 }
             } else {
                 // Insert into buffer
-                iret = handler->commit_read_buffer_data(buf, ret);
+                iret = handler->commit_rbuf(buf, ret);
 
                 if (!iret) {
-                    // Die if we couldn't insert all our data, the error is already going
-                    // upstream.
+                    try {
+                        throw std::runtime_error(fmt::format("Error reading from serial "
+                                    "device '{}', could not commit read data", device));
+                    } catch (const std::exception& e) {
+                        handler->throw_error(std::current_exception());
+                    }
+
                     close_device();
                     return 0;
                 }
             }
-
-            // delete[] buf;
         }
     }
 
-    if (FD_ISSET(device_fd, &in_wset)) {
-        len = handler->get_write_buffer_used();
+    auto w_avail = handler->used_wbuf();
 
-        // Peek the data into our buffer
-        ret = handler->zero_copy_peek_write_buffer_data((void **) &buf, len);
+    if (FD_ISSET(device_fd, &in_wset) && w_avail > 0) {
+        len = handler->zero_copy_peek_wbuf(&buf, w_avail);
 
         if ((iret = write(device_fd, buf, ret)) < 0) {
             if (errno != EINTR && errno != EAGAIN) {
-                // Push the error upstream
-                msg << "Serial client error writing to " << device << "@" << baud <<
-                    " - " << kis_strerror_r(errno);
-
-                handler->peek_free_write_buffer_data(buf);
-                handler->buffer_error(msg.str());
+                try {
+                    throw std::runtime_error(fmt::format("Error writing to serial "
+                                "device '{}': {} (errno {})", device, kis_strerror_r(errno), errno));
+                } catch (const std::exception& e) {
+                    handler->throw_error(std::current_exception());
+                }
 
                 close_device();
                 return 0;
             }
         } else {
-            // Consume whatever we managed to write
-            handler->peek_free_write_buffer_data(buf);
-            handler->consume_write_buffer_data(iret);
+            handler->peek_free_wbuf(buf);
+            handler->consume_wbuf(iret);
         }
-
-        delete[] buf;
     }
 
     return 0;
 }
 
 void serial_client_v2::close_device() {
-    local_locker l(serial_mutex);
-
     if (device_fd > -1) {
         close(device_fd);
     }

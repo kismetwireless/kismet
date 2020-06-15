@@ -223,6 +223,8 @@ double kis_gps::gps_calc_rad(double lat) {
 }
 
 void kis_gps::update_locations() {
+    local_locker l(gps_mutex, "gps update_location");
+
     tracked_last_location->set_lat(gps_last_location->lat);
     tracked_last_location->set_lon(gps_last_location->lon);
     tracked_last_location->set_alt(gps_last_location->alt);

@@ -221,7 +221,7 @@ public:
     }
 
 protected:
-    virtual std::shared_ptr<buffer_handler_generic> allocate_buffer() = 0;
+    virtual std::shared_ptr<buffer_pair> allocate_buffer() = 0;
 
     size_t k_n_h_r_ringbuf_size;
 };
@@ -232,8 +232,10 @@ public:
     kis_net_httpd_ringbuf_stream_handler() : kis_net_httpd_buffer_stream_handler() { }
 
 protected:
-    virtual std::shared_ptr<buffer_handler_generic> allocate_buffer() {
-        return std::static_pointer_cast<buffer_handler_generic>(std::shared_ptr<buffer_handler<ringbuf_v2> >(new buffer_handler<ringbuf_v2>(0, k_n_h_r_ringbuf_size)));
+    virtual std::shared_ptr<buffer_pair> allocate_buffer() {
+        // Allocate only a wbuf
+        return 
+            std::make_shared<buffer_pair>(nullptr, std::make_shared<ringbuf_v2>(k_n_h_r_ringbuf_size));
     }
 };
 
@@ -242,10 +244,9 @@ public:
     kis_net_httpd_chain_stream_handler() : kis_net_httpd_buffer_stream_handler() { }
 
 protected:
-    virtual std::shared_ptr<buffer_handler_generic> allocate_buffer() {
-        // Allocate a buffer directly, in a multiple of the max output size for the webserver
-        // buffer
-        return std::static_pointer_cast<buffer_handler_generic>(std::shared_ptr<buffer_handler<chainbuf> >(new buffer_handler<chainbuf>(NULL, new chainbuf(64 * 1024, 512))));
+    virtual std::shared_ptr<buffer_pair> allocate_buffer() {
+        return
+            std::make_shared<buffer_pair>(nullptr, std::make_shared<chainbuf>(64 * 1024, 512));
     }
 
 };
@@ -255,11 +256,11 @@ protected:
 //
 // Free_aux_cb is called to free any aux data added into this record; the stream_aux
 // itself will be freed by the httpd system.
-class kis_net_httpd_buffer_stream_aux : public buffer_interface {
+class kis_net_httpd_buffer_stream_aux {
 public:
     kis_net_httpd_buffer_stream_aux(kis_net_httpd_buffer_stream_handler *in_handler,
             kis_net_httpd_connection *in_httpd_connection, 
-            std::shared_ptr<buffer_handler_generic> in_ringbuf_handler,
+            std::shared_ptr<buffer_pair> in_buf_handler,
             void *in_aux,
             std::function<void (kis_net_httpd_buffer_stream_aux *)> in_free_aux);
 
@@ -271,11 +272,15 @@ public:
 
     void trigger_error() {
         in_error = true;
-        cl->unlock(0);
+
+        try {
+            throw std::runtime_error("httpd buffer stream error triggered");
+        } catch (const std::exception& e) {
+            buf_handler->throw_error(std::current_exception());
+        }
     }
 
-    void set_aux(void *in_aux, 
-            std::function<void (kis_net_httpd_buffer_stream_aux *)> in_free_aux) {
+    void set_aux(void *in_aux, std::function<void (kis_net_httpd_buffer_stream_aux *)> in_free_aux) {
         local_locker lock(&aux_mutex);
 
         aux = in_aux;
@@ -299,20 +304,10 @@ public:
     virtual void buffer_available(size_t in_amt);
 
     // Let the httpd callback pull the rb handler out
-    std::shared_ptr<buffer_handler_generic> get_rbhandler() { return ringbuf_handler; }
-
-    // Block until data is available (called by the buffer_event_cb in the http
-    // session)
-    void block_until_data(std::shared_ptr<buffer_handler_generic> rbh);
-
-    // Get the buffer event mutex
-    kis_recursive_timed_mutex *get_buffer_event_mutex() {
-        return &buffer_event_mutex;
-    }
+    std::shared_ptr<buffer_pair> get_buf_handler() { return buf_handler; }
 
 public:
     kis_recursive_timed_mutex aux_mutex;
-    kis_recursive_timed_mutex buffer_event_mutex;
 
     // Stream handler we belong to
     kis_net_httpd_buffer_stream_handler *httpd_stream_handler;
@@ -321,10 +316,7 @@ public:
     kis_net_httpd_connection *httpd_connection;
 
     // Buffer handler
-    std::shared_ptr<buffer_handler_generic> ringbuf_handler;
-
-    // Conditional locker while waiting for the stream to have data
-    std::shared_ptr<conditional_locker<int> > cl;
+    std::shared_ptr<buffer_pair> buf_handler;
 
     // Are we in error?
     std::atomic<bool> in_error;
@@ -342,7 +334,6 @@ public:
     // Sync function; called to make sure the buffer is flushed and fully synced 
     // prior to flagging it complete
     std::function<void (kis_net_httpd_buffer_stream_aux *)> sync_cb;
-    
 };
 
 

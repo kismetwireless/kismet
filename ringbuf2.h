@@ -29,12 +29,6 @@
 
 #include "buffer_handler.h"
 
-#ifdef SYS_LINUX
-// #define USE_MMAP_RBUF
-#endif
-
-// #define PROFILE_RINGBUFV2   1
-
 // A better ringbuffer implementation that will replace the old ringbuffer in 
 // Kismet as the rewrite continues
 //
@@ -44,40 +38,26 @@ public:
     ringbuf_v2(size_t in_sz);
     virtual ~ringbuf_v2();
 
-    // Reset a buffer
-    virtual void clear();
-
-    virtual ssize_t size();
-    virtual ssize_t available();
-    virtual size_t used();
-
-    // Write data into a buffer
-    // Return amount of data actually written
-    virtual ssize_t write(unsigned char *in_data, size_t in_sz);
-
-    // Peek at data
-    virtual ssize_t peek(unsigned char **in_data, size_t in_sz);
-    virtual ssize_t zero_copy_peek(unsigned char **in_data, size_t in_sz);
-    virtual void peek_free(unsigned char *in_data);
-
-    virtual size_t consume(size_t in_sz);
-
-    virtual ssize_t reserve(unsigned char **data, size_t in_sz);
-    virtual ssize_t zero_copy_reserve(unsigned char **data, size_t in_sz);
-    virtual bool commit(unsigned char *data, size_t in_sz);
-
-#ifdef PROFILE_RINGBUFV2
-    virtual void profile();
-#endif
-
 protected:
-    unsigned char *buffer;
-#ifdef USE_MMAP_RBUF
-    void *mmap_region0;
-    void *mmap_region1;
+    // Reset a buffer
+    virtual void clear_impl() override;
 
-    int mmap_fd;
-#endif
+    virtual ssize_t size_impl() override;
+    virtual ssize_t available_impl() override;
+    virtual size_t used_impl() override;
+
+    virtual ssize_t write_impl(const char *in_data, size_t in_sz) override;
+
+    virtual ssize_t peek_impl(char **in_data, size_t in_sz) override;
+    virtual ssize_t zero_copy_peek_impl(char **in_data, size_t in_sz) override;
+    virtual void peek_free_impl(char *in_data) override;
+
+    virtual size_t consume_impl(size_t in_sz) override;
+
+    virtual ssize_t reserve_impl(char **data, size_t in_sz) override;
+    virtual ssize_t zero_copy_reserve_impl(char **data, size_t in_sz) override;
+
+    char *buffer;
 
     // Total size
     std::atomic<size_t> buffer_sz;
@@ -85,13 +65,6 @@ protected:
     std::atomic<size_t> start_pos;
     // Length of data currently in buffer
     std::atomic<size_t> length;
-
-    // Do we need to free our peeked or committed data?
-    std::atomic<bool> free_peek, free_commit;
-
-#ifdef PROFILE_RINGBUFV2 
-    size_t zero_copy_w_bytes, zero_copy_r_bytes, copy_w_bytes, copy_r_bytes, last_profile_bytes;
-#endif
 };
 
 

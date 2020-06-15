@@ -40,10 +40,8 @@
 // for reading incoming data.
 class serial_client_v2 : public kis_pollable {
 public:
-    serial_client_v2(global_registry *in_globalreg, std::shared_ptr<buffer_handler_generic> in_rbhandler);
+    serial_client_v2(std::shared_ptr<buffer_pair> in_rbhandler);
     virtual ~serial_client_v2();
-
-    virtual void set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
 
     // Open a serial port @ a given baud rate
     int open_device(std::string in_device, unsigned int in_baud);
@@ -56,13 +54,9 @@ public:
     bool get_connected();
 
 protected:
-    global_registry *globalreg;
+    std::shared_ptr<buffer_pair> handler;
 
-    std::shared_ptr<kis_recursive_timed_mutex> serial_mutex;
-
-    std::shared_ptr<buffer_handler_generic> handler;
-
-    int device_fd;
+    std::atomic<int> device_fd;
 
     std::string device;
     unsigned int baud;

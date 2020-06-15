@@ -187,7 +187,7 @@ LOGTOOL_BINS = \
 
 PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_cpp11.cc.o \
 	globalregistry.cc.o eventbus.cc.o \
-	pollabletracker.cc.o ringbuf2.cc.o chainbuf.cc.o filewritebuf.cc.o buffer_handler.cc.o \
+	pollabletracker.cc.o ringbuf2.cc.o chainbuf.cc.o filewritebuf.cc.o \
 	packet.cc.o messagebus.cc.o configfile.cc.o getopt.cc.o \
 	psutils.cc.o battery.cc.o \
 	tcpserver2.cc.o tcpclient2.cc.o serialclient2.cc.o pipeclient.cc.o socketclient.cc.o ipc_remote2.cc.o \

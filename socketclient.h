@@ -31,15 +31,13 @@
 #include "pollable.h"
 #include "kis_mutex.h"
 
-// Generic socket client code which operates on a bidirectional tcp socket.  It inherits
-// the mutex of the provided ringbuf handler automatically.  The socket is expected to
-// be created already via a tcp client connect() or a server accept()
+// Generic socket backend that operates on a bidirectional socket; relies on a buffer
+// pair and a blocker-consuming frontend, and interacts with the kismet pollable io
+// subsystem.
 class socket_client : public kis_pollable {
 public:
-    socket_client(int fd, std::shared_ptr<buffer_handler_generic> in_rbhandler);
+    socket_client(int fd, std::shared_ptr<buffer_pair> in_pair);
     virtual ~socket_client();
-
-    virtual void set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
 
     virtual void disconnect();
     bool get_connected();
@@ -49,9 +47,7 @@ public:
     virtual int pollable_poll(fd_set& in_rset, fd_set& in_wset);
 
 protected:
-    std::shared_ptr<buffer_handler_generic> handler;
-
-    std::shared_ptr<kis_recursive_timed_mutex> tcp_mutex;
+    std::shared_ptr<buffer_pair> handler;
 
     std::atomic<int> cli_fd;
     std::atomic<bool> connected;
