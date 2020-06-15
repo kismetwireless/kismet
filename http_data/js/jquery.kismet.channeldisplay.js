@@ -1,7 +1,7 @@
 // Display the channel records system from Kismet
 //
 // Requires js-storage and jquery be loaded first
-// 
+//
 // dragorn@kismetwireless.net
 // MIT/GPL License (pick one); the web ui code is licensed more
 // freely than GPL to reflect the generally MIT-licensed nature
@@ -48,11 +48,9 @@
                 var datasets = new Array();
                 var title = "";
 
-                var rrd_type = kismet.RRD_SECOND;
                 var rrd_data = null;
 
                 if (charttime === 'min') {
-                    title = "Past Minute";
 
                     for (var x = 60; x > 0; x--) {
                         if (x % 5 == 0) {
@@ -65,7 +63,6 @@
                     rrd_type = kismet.RRD_SECOND;
                     rrd_data = "kismet.channelrec.device_rrd/kismet.common.rrd.minute_vec";
                 } else if (charttime === 'hour') {
-                    title = "Past Hour";
 
                     for (var x = 60; x > 0; x--) {
                         if (x % 5 == 0) {
@@ -79,7 +76,6 @@
                     rrd_data = "kismet.channelrec.device_rrd/kismet.common.rrd.hour_vec";
 
                 } else /* day */ {
-                    title = "Past Day";
 
                     for (var x = 24; x > 0; x--) {
                         if (x % 4 == 0) {
@@ -119,13 +115,13 @@
                 }
 
                 for (var fk in data['kismet.channeltracker.frequency_map']) {
-                    var linedata = 
+                    var linedata =
                         kismet.RecalcRrdData(
-                            data['kismet.channeltracker.frequency_map'][fk]['kismet.channelrec.device_rrd']['kismet.common.rrd.last_time'], 
-                            data['kismet.channeltracker.frequency_map'][fk]['kismet.channelrec.device_rrd']['kismet.common.rrd.last_time'], 
+                            data['kismet.channeltracker.frequency_map'][fk]['kismet.channelrec.device_rrd']['kismet.common.rrd.last_time'],
+                            data['kismet.channeltracker.frequency_map'][fk]['kismet.channelrec.device_rrd']['kismet.common.rrd.last_time'],
                             rrd_type,
                             kismet.ObjectByString(
-                                data['kismet.channeltracker.frequency_map'][fk], 
+                                data['kismet.channeltracker.frequency_map'][fk],
                                 rrd_data),
                             {});
 
@@ -134,7 +130,7 @@
 
                     var label = "";
 
-                    if (cfk == fk) 
+                    if (cfk == fk)
                         label = kismet.HumanReadableFrequency(parseInt(fk));
                     else
                         label = cfk;
@@ -172,8 +168,8 @@
                     };
 
                     // Add it to the dataset if we're not filtering
-                    if (filter_string === fk || 
-                        filter_string === '' || 
+                    if (filter_string === fk ||
+                        filter_string === '' ||
                         filter_string === 'any') {
                             datasets.push(ds);
                     }
@@ -214,7 +210,7 @@
                         }
                     };
 
-                    state.timegraph_chart = new Chart(state.timegraph_canvas, 
+                    state.timegraph_chart = new Chart(state.timegraph_canvas,
                         device_options);
                 } else {
                     state.timegraph_chart.data.datasets = datasets;
@@ -233,7 +229,7 @@
 
                     var cfk = kismet_ui.GetConvertedChannel(freqtrans, fk);
 
-                    if (cfk == fk) 
+                    if (cfk == fk)
                         devtitles.push(kismet.HumanReadableFrequency(parseInt(fk)));
                     else
                         devtitles.push(cfk);
@@ -273,7 +269,7 @@
                         }
                     };
 
-                    state.devgraph_chart = new Chart(state.devgraph_canvas, 
+                    state.devgraph_chart = new Chart(state.devgraph_canvas,
                         device_options);
 
                 } else {
@@ -351,8 +347,6 @@
             resizer: null,
             reset_size: null,
         };
-
-        var that = this;
 
         // Modeled on the datatables resize function
         state.resizer = $('<iframe/>')
@@ -577,7 +571,7 @@
 
             for (var c in chlist) {
                 var e = $('<option>', {
-                    value: chlist[c], 
+                    value: chlist[c],
                 }).html(chlist[c]);
 
                 if (chlist[c] === stored_channel)
@@ -589,7 +583,7 @@
             banner.append(state.picker);
 
             state.picker.on('change', function() {
-                var freqtrans = 
+                var freqtrans =
                     $('select#k_cd_freq_selector option:selected', state.element).val();
 
                 state.storage.set('jquery.kismet.channels.channeltype', freqtrans);
