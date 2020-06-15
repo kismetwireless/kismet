@@ -445,9 +445,6 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
     // Common structured API data
     Json::Value json;
 
-    // Summarization vector
-    std::vector<SharedElementSummary> summary_vec;
-
     // Wrapper, if any
     std::string wrapper_name;
 
@@ -473,19 +470,6 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
     }
 
     try {
-        auto fields = json.get("fields", Json::Value(Json::arrayValue));
-
-        for (const auto& i : fields) {
-            if (i.isString()) {
-                summary_vec.push_back(std::make_shared<tracker_element_summary>(i.asString()));
-            } else if (i.isArray()) {
-                if (i.size() != 2) 
-                    throw std::runtime_error("Invalid data; expected [field, rename] in fields summary");
-
-                summary_vec.push_back(std::make_shared<tracker_element_summary>(i[0].asString(), i[1].asString()));
-            }
-        }
-
         // Get the wrapper, if one exists, default to empty if it doesn't
         wrapper_name = json.get("wrapper", "").asString();
 
@@ -547,7 +531,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     lock.unlock();
 
                     for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) 
-                        devvec->push_back(summarize_single_tracker_element(mmpi->second, summary_vec, rename_map));
+                        devvec->push_back(kishttpd::summarize_with_json(mmpi->second, json, rename_map));
 
                     Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(tokenurl[4]), stream, 
                             devvec, rename_map);
@@ -587,7 +571,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     local_shared_locker devlock(&(dev->device_mutex));
 
                     auto simple = 
-                        summarize_single_tracker_element(dev, summary_vec, rename_map);
+                        kishttpd::summarize_with_json(dev, json, rename_map);
 
                     Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(tokenurl[4]), 
                             stream, simple, rename_map);
@@ -671,7 +655,7 @@ int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
                     auto rd = std::static_pointer_cast<kis_tracked_device_base>(rei);
                     local_shared_locker lock(&rd->device_mutex);
 
-                    outdevs->push_back(summarize_single_tracker_element(rd, summary_vec, rename_map));
+                    outdevs->push_back(kishttpd::summarize_with_json(rd, json, rename_map));
                 }
 
                 Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(tokenurl[4]), stream, 
