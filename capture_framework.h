@@ -346,6 +346,9 @@ struct kis_capture_handler {
 
     /* Fixed GPS name */
     char *gps_name;
+
+    /* bpf filter */
+    char *bpf;
 };
 
 
