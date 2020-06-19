@@ -93,7 +93,7 @@ public:
         auto ft = read_size_avail_pm.get_future();
 
         // Wait for it
-        if (timeout_duration == 0) {
+        if (timeout_duration == std::chrono::duration<Rep,Period>(0)) {
             ft.wait();
         } else {
             auto r = ft.wait_for(timeout_duration);
@@ -104,6 +104,10 @@ public:
         }
 
         return available();
+    }
+
+    ssize_t new_available_block() {
+        return new_available_block(std::chrono::seconds(0));
     }
 
     // Fetch amount used in current buffer
@@ -125,7 +129,7 @@ public:
     // Only one reservation may be made at a time.  Additional reservations without a
     // commit will fail.
     //
-    // Even reserve fails, a commit must be called to complete the transaction.
+    // Even if the reserve fails, a commit must be called to complete the transaction.
     //
     // A reserved block must be committed.  At the time of reservation, a reserved
     // block is guaranteed to fit in the buffer.
@@ -321,7 +325,7 @@ public:
         l.unlock();
 
         // Wait for it
-        if (timeout_duration == 0) {
+        if (timeout_duration == std::chrono::duration<Rep, Period>(0)) {
             ft.wait();
         } else {
             auto r = ft.wait_for(timeout_duration);
@@ -394,7 +398,7 @@ public:
         peek_free(*data);
 
         // Wait for it
-        if (timeout_duration == 0) {
+        if (timeout_duration == std::chrono::duration<Rep, Period>(0)) {
             ft.wait();
         } else {
             auto r = ft.wait_for(timeout_duration);
@@ -629,6 +633,10 @@ public:
         return -1;
     }
 
+    ssize_t new_available_block_rbuf() {
+        return new_available_block_rbuf(std::chrono::seconds(0));
+    }
+
     template< class Rep, class Period>
     ssize_t new_available_block_wbuf(const std::chrono::duration<Rep,Period>& timeout_duration) {
         if (write_buffer != nullptr)
@@ -637,6 +645,9 @@ public:
         return -1;
     }
 
+    ssize_t new_available_block_wbuf() {
+        return new_available_block_wbuf(std::chrono::seconds(0));
+    }
 
     virtual void clear_rbuf() {
         if (read_buffer != nullptr) {
@@ -718,7 +729,7 @@ public:
     ssize_t reserve_block_rbuf(char **data, size_t in_sz,
             const std::chrono::duration<Rep,Period>& timeout_duration) {
         if (read_buffer != nullptr)
-            return read_buffer->reserve_block(data, in_sz,timeout_duration);
+            return read_buffer->reserve_block(data, in_sz, timeout_duration);
 
         return -1;
     }
@@ -727,7 +738,21 @@ public:
     ssize_t reserve_block_wbuf(char **data, size_t in_sz,
             const std::chrono::duration<Rep,Period>& timeout_duration) {
         if (write_buffer != nullptr)
-            return write_buffer->reserve_block(data, in_sz,timeout_duration);
+            return write_buffer->reserve_block(data, in_sz, timeout_duration);
+
+        return -1;
+    }
+
+    ssize_t reserve_rbuf(char **data, size_t in_sz) {
+        if (read_buffer != nullptr)
+            return read_buffer->reserve(data, in_sz);
+
+        return -1;
+    }
+
+    ssize_t reserve_wbuf(char **data, size_t in_sz) {
+        if (write_buffer != nullptr)
+            return write_buffer->reserve(data, in_sz);
 
         return -1;
     }
@@ -771,6 +796,16 @@ public:
         return -1;
     }
 
+    ssize_t write_rbuf(const char *data, size_t in_sz) {
+        if (read_buffer != nullptr)
+            return read_buffer->write(data, in_sz);
+        return -1;
+    }
+
+    ssize_t write_rbuf(const std::string& data) {
+        return write_rbuf(data.data(), data.size());
+    }
+
     template< class Rep, class Period>
     ssize_t write_block_wbuf(const char *data, size_t in_sz,
             const std::chrono::duration<Rep,Period>& timeout_duration) {
@@ -780,6 +815,15 @@ public:
         return -1;
     }
 
+    ssize_t write_wbuf(const char *data, size_t in_sz) {
+        if (write_buffer != nullptr)
+            return write_buffer->write(data, in_sz);
+        return -1;
+    }
+
+    ssize_t write_wbuf(const std::string& data) {
+        return write_wbuf(data.data(), data.size());
+    }
 
     void throw_error(std::exception_ptr e) {
         if (read_buffer != nullptr)
