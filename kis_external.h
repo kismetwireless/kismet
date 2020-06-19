@@ -57,25 +57,13 @@ struct kis_external_http_uri {
 };
 
 // Basic external interface, implements the core ping/pong/id/message/etc protocols
-class kis_external_interface : public buffer_interface {
+class kis_external_interface {
 public:
     kis_external_interface();
-    kis_external_interface(std::shared_ptr<kis_recursive_timed_mutex> mutex);
     virtual ~kis_external_interface();
 
-    // Connect an existing buffer, such as a TCP socket or IPC pipe
-    virtual void connect_buffer(std::shared_ptr<buffer_handler_generic> in_ringbuf);
-
-    // Trigger an error condition and call all the related functions
-    virtual void trigger_error(std::string reason);
-
-    // Buffer interface - called when the attached ringbuffer has data available.
-    virtual void buffer_available(size_t in_amt);
-
-    // Buffer interface - handles error on IPC or TCP, called when there is a 
-    // low-level error on the communications stack (process death, etc).
-    // Passes error to the the internal source_error function
-    virtual void buffer_error(std::string in_error);
+    // Connect an existing buffer pair
+    virtual void connect_pair(std::shared_ptr<buffer_pair> in_pair);
 
     // Check to see if an IPC binary is available
     static bool check_ipc(const std::string& in_binary);
@@ -90,8 +78,9 @@ public:
     virtual void close_external();
 
 protected:
-    // Wrap a protobuf'd packet in our network framing and send it, returning the sequence
-    // number
+    void extern_io();
+
+    // Wrap a protobuf'd packet in our network framing and send it, returning the sequence number
     virtual unsigned int send_packet(std::shared_ptr<KismetExternal::Command> c);
 
     // Central packet dispatch handler
@@ -110,14 +99,9 @@ protected:
     unsigned int send_pong(uint32_t ping_seqno);
     unsigned int send_shutdown(std::string reason);
 
-    std::shared_ptr<kis_recursive_timed_mutex> ext_mutex;
+    std::thread extern_io_thread;
 
-    // Communications API.  We implement a buffer interface and listen to the
-    // incoming read buffer, we're agnostic if it's a network or IPC buffer.
-    std::shared_ptr<buffer_handler_generic> ringbuf_handler;
-
-    // If we're an IPC instance, the IPC control.  The ringbuf_handler is associated
-    // with the IPC instance.
+    std::shared_ptr<buffer_pair> bufferpair;
     std::shared_ptr<ipc_remote_v2> ipc_remote;
 
     std::shared_ptr<time_tracker> timetracker;
@@ -137,9 +121,6 @@ class kis_external_http_interface : public kis_external_interface, kis_net_httpd
 public:
     kis_external_http_interface();
     virtual ~kis_external_http_interface();
-
-    // Trigger an error condition and call all the related functions
-    virtual void trigger_error(std::string reason) override;
 
     // Webserver proxy interface - standard verifypath
     virtual bool httpd_verify_path(const char *path, const char *method) override;
@@ -169,6 +150,8 @@ public:
     virtual int httpd_post_complete(kis_net_httpd_connection *con __attribute__((unused))) override;
 
 protected:
+    kis_recursive_timed_mutex mutex;
+
     // Central packet dispatch handler
     virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) override;
 

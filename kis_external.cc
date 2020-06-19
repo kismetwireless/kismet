@@ -30,16 +30,6 @@
 #include "protobuf_cpp/http.pb.h"
 
 kis_external_interface::kis_external_interface() :
-    buffer_interface(),
-    ext_mutex {std::make_shared<kis_recursive_timed_mutex>()},
-    timetracker {Globalreg::fetch_mandatory_global_as<time_tracker>()},
-    seqno {0},
-    last_pong {0},
-    ping_timer_id {-1} { }
-
-kis_external_interface::kis_external_interface(std::shared_ptr<kis_recursive_timed_mutex> mutex) :
-    buffer_interface(),
-    ext_mutex {mutex != nullptr ? mutex : std::make_shared<kis_recursive_timed_mutex>()},
     timetracker {Globalreg::fetch_mandatory_global_as<time_tracker>()},
     seqno {0},
     last_pong {0},
@@ -52,166 +42,166 @@ kis_external_interface::~kis_external_interface() {
         ipc_remote->close_ipc();
     }
 
-    // If we have a ringbuf handler, remove ourselves as the interface, trigger an error
-    // to shut it down, and delete our shared reference to it
-    if (ringbuf_handler != nullptr) {
-        ringbuf_handler->remove_read_buffer_interface();
-        ringbuf_handler->protocol_error();
+    if (extern_io_thread.joinable())
+        extern_io_thread.join();
+}
+
+void kis_external_interface::connect_pair(std::shared_ptr<buffer_pair> in_pair) {
+    bufferpair = in_pair;
+}
+
+bool kis_external_interface::run_ipc() {
+    std::stringstream ss;
+
+    if (external_binary == "") {
+        _MSG("Kismet external interface did not have an IPC binary to launch", MSGFLAG_ERROR);
+        return false;
     }
-
-    ipc_remote.reset();
-    ringbuf_handler.reset();
-
-}
-
-void kis_external_interface::connect_buffer(std::shared_ptr<buffer_handler_generic> in_ringbuf) {
-    local_locker lock(ext_mutex);
-
-    ringbuf_handler = in_ringbuf;
-    ext_mutex = in_ringbuf->get_mutex();
-    ringbuf_handler->set_read_buffer_interface(this);
-}
-
-void kis_external_interface::trigger_error(std::string in_error) {
-    local_locker lock(ext_mutex);
-
-    timetracker->remove_timer(ping_timer_id);
 
     if (ipc_remote != nullptr) {
-        ipc_remote->close_ipc();
+        ipc_remote->soft_kill();
     }
 
-    // If we have a ringbuf handler, remove ourselves as the interface, trigger an error
-    // to shut it down, and delete our shared reference to it
-    if (ringbuf_handler != nullptr) {
-        ringbuf_handler->remove_read_buffer_interface();
-        ringbuf_handler->protocol_error();
+    if (bufferpair != nullptr) {
+        try {
+            throw std::runtime_error("re-opening IPC");
+        } catch (const std::exception& e) {
+            bufferpair->throw_error(std::current_exception());
+        }
+
+        bufferpair.reset();
     }
 
-    // Remove the IPC remote reference
-    ipc_remote.reset();
-    ringbuf_handler.reset();
+    ipc_buffer_sz = 
+        Globalreg::globalreg->kismet_config->fetch_opt_as<size_t>("ipc_buffer_kb", 512);
 
-    buffer_error(in_error);
+    bufferpair = std::make_shared<buffer_pair>(
+            std::make_shared<ringbuf_v2>(ipc_buffer_sz * 1024),
+            std::make_shared<ringbuf_v2>(ipc_buffer_sz * 1024)
+            );
+
+    ipc_remote.reset(new ipc_remote_v2(bufferpair));
+
+    // Get allowed paths for binaries
+    std::vector<std::string> bin_paths = 
+        Globalreg::globalreg->kismet_config->fetch_opt_vec("helper_binary_path");
+
+    if (bin_paths.size() == 0) {
+        _MSG("No helper_binary_path found in kismet.conf, make sure your config "
+                "files are up to date; using the default binary path where Kismet "
+                "is installed.", MSGFLAG_ERROR);
+        bin_paths.push_back("%B");
+    }
+
+    // Explode any expansion macros in the path and add it to the list we search
+    for (auto i = bin_paths.begin(); i != bin_paths.end(); ++i) {
+        ipc_remote->add_path(Globalreg::globalreg->kismet_config->expand_log_path(*i, "", "", 0, 1));
+    }
+
+    int ret = ipc_remote->launch_kis_binary(external_binary, external_binary_args);
+
+    if (ret < 0) {
+        _MSG_ERROR("External API IPC failed to launch IPC binary {}", external_binary);
+        return false;
+    }
+
+    auto remotehandler = 
+        Globalreg::fetch_mandatory_global_as<ipc_remote_v2_tracker>("IPCHANDLER");
+    remotehandler->add_ipc(ipc_remote);
+
+    return true;
 }
 
-void kis_external_interface::buffer_available(size_t in_amt) {
-    if (in_amt == 0)
-        return;
+void kis_external_interface::extern_io() {
+    bool first = true;
 
-    local_demand_locker lock(ext_mutex);
-    lock.lock();
-
-    kismet_external_frame_t *frame;
-    uint32_t frame_sz, data_sz;
-    uint32_t data_checksum;
-
-    // Consume everything in the buffer that we can
     while (1) {
-        if (ringbuf_handler == NULL)
-            return;
+        try {
+            kismet_external_frame_t *frame;
+            uint32_t frame_sz, data_sz;
+            uint32_t data_checksum;
 
-        // See if we have enough to get a frame header
-        size_t buffamt = ringbuf_handler->get_read_buffer_used();
+            if (!first)
+                bufferpair->new_available_block_rbuf();
 
-        if (buffamt < sizeof(kismet_external_frame_t)) {
-            return;
+            first = false;
+
+            char *buf;
+
+            auto buf_sz =
+                bufferpair->peek_block_rbuf(&buf, sizeof(kismet_external_frame_t), std::chrono::seconds(0));
+
+            frame = reinterpret_cast<kismet_external_frame_t *>(buf);
+
+            // Check the frame signature
+            if (kis_ntoh32(frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
+                bufferpair->peek_free_rbuf(buf);
+
+                throw std::runtime_error("External API interface got command frame with invalid signature.");
+            }
+
+            data_sz = kis_ntoh32(frame->data_sz);
+            frame_sz = data_sz + sizeof(kismet_external_frame_t);
+
+            // If we'll never be able to read it, blow up
+            if ((long int) frame_sz >= bufferpair->size_rbuf()) {
+                bufferpair->peek_free_rbuf(buf);
+
+                throw std::runtime_error(fmt::format("External API interface got command frame which is too "
+                            "large to be processed ({}, max {}), this can happen if you are using a very "
+                            "old capture tool, make sure you have updated both Kismet and any drone or "
+                            "remote capture tools.", frame_sz, bufferpair->size_rbuf()));
+            }
+
+            // Blocking spin waiting for the rest of the packet
+            if (frame_sz > buf_sz) {
+                bufferpair->peek_free_rbuf(buf);
+
+                buf_sz =
+                    bufferpair->peek_block_rbuf(&buf, sizeof(kismet_external_frame_t), std::chrono::seconds(0));
+
+                if (buf_sz < frame_sz)
+                    throw std::runtime_error("External API interface tried to fetch the full frame, "
+                            "but something went wrong.");
+
+                frame = reinterpret_cast<kismet_external_frame_t *>(buf);
+            }
+
+            // We have a complete payload, checksum 
+            data_checksum = adler32_checksum((const char *) frame->data, data_sz);
+
+            if (data_checksum != kis_ntoh32(frame->data_checksum)) {
+                bufferpair->peek_free_rbuf(buf);
+                throw std::runtime_error("External API interface got command frame with invalid checksum");
+            }
+
+            // Process the data payload as a protobuf frame
+            std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
+
+            if (!cmd->ParseFromArray(frame->data, data_sz)) {
+                bufferpair->peek_free_rbuf(buf);
+                throw std::runtime_error("External API could not interpret payload of the frame");
+            }
+
+            bufferpair->peek_free_rbuf(buf);
+            bufferpair->consume_rbuf(frame_sz);
+
+            dispatch_rx_packet(cmd);
+
+        } catch (const std::exception& e) {
+            _MSG_ERROR("External interface connection lost: {}", e.what());
+
+            timetracker->remove_timer(ping_timer_id);
+
+            if (ipc_remote != nullptr) {
+                ipc_remote->close_ipc();
+            }
+
+            bufferpair->throw_error(std::current_exception());
+
         }
-
-        // Peek at the header
-        buffamt = ringbuf_handler->peek_read_buffer_data((void **) &frame, buffamt);
-
-        // Make sure we got the right amount
-        if (buffamt < sizeof(kismet_external_frame_t)) {
-            ringbuf_handler->peek_free_read_buffer_data(frame);
-            return;
-        }
-
-        // Check the frame signature
-        if (kis_ntoh32(frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
-            ringbuf_handler->peek_free_read_buffer_data(frame);
-
-            _MSG("Kismet external interface got command frame with invalid signature", MSGFLAG_ERROR);
-            trigger_error("Invalid signature on command frame");
-
-            return;
-        }
-
-        // Check the length
-        data_sz = kis_ntoh32(frame->data_sz);
-        frame_sz = data_sz + sizeof(kismet_external_frame);
-
-        // If we'll never be able to read it, blow up
-        if ((long int) frame_sz >= ringbuf_handler->get_read_buffer_size()) {
-            ringbuf_handler->peek_free_read_buffer_data(frame);
-
-            std::stringstream ss;
-
-            ss << "Kismet external interface got command frame which is too large to "
-                "be processed (" << frame_sz << " / " << 
-                ringbuf_handler->get_read_buffer_available() << "), this can happen when you "
-                "are using an old remote capture tool, make sure you have updated your "
-                "systems.";
-
-            _MSG(ss.str(), MSGFLAG_ERROR);
-            trigger_error("Command frame too large for buffer");
-
-            return;
-        }
-
-        // If we don't have the whole buffer available, bail on this read
-        if (frame_sz > buffamt) {
-            ringbuf_handler->peek_free_read_buffer_data(frame);
-            // fprintf(stderr, "debug - external - read %lu needed %u\n", buffamt, frame_sz);
-            return;
-        }
-
-        // We have a complete payload, checksum 
-        data_checksum = adler32_checksum((const char *) frame->data, data_sz);
-
-        if (data_checksum != kis_ntoh32(frame->data_checksum)) {
-            ringbuf_handler->peek_free_read_buffer_data(frame);
-
-            _MSG("Kismet external interface got command frame with invalid checksum",
-                    MSGFLAG_ERROR);
-            trigger_error("command frame has invalid checksum");
-
-            return;
-        }
-
-        // Process the data payload as a protobuf frame
-        std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
-
-        if (!cmd->ParseFromArray(frame->data, data_sz)) {
-            ringbuf_handler->peek_free_read_buffer_data(frame);
-
-            _MSG("Kismet external interface could not interpret the payload of the "
-                    "command frame", MSGFLAG_ERROR);
-            trigger_error("unparsable command frame");
-
-            return;
-        }
-
-        // fprintf(stderr, "debug - KISEXTERNALAPI got command '%s' seq %u sz %lu\n", cmd->command().c_str(), cmd->seqno(), cmd->content().length());
-
-        // Consume the buffer now that we're done; we only consume the 
-        // frame size because we could have peeked a much larger buffer
-        ringbuf_handler->peek_free_read_buffer_data(frame);
-        ringbuf_handler->consume_read_buffer_data(frame_sz);
-
-        // Unlock before processing, individual commands will lock as needed
-        lock.unlock();
-
-        // Dispatch the received command
-        dispatch_rx_packet(cmd);
     }
-}
 
-void kis_external_interface::buffer_error(std::string in_error) {
-    // Try to read anything left in the buffer in case we're exiting w/ pending valid data
-    buffer_available(0);
-    
-    close_external();
 }
 
 bool kis_external_interface::check_ipc(const std::string& in_binary) {
@@ -241,89 +231,30 @@ bool kis_external_interface::check_ipc(const std::string& in_binary) {
     return false;
 }
 
-bool kis_external_interface::run_ipc() {
-    local_locker l(ext_mutex);
-
-    std::stringstream ss;
-
-    if (external_binary == "") {
-        _MSG("Kismet external interface did not have an IPC binary to launch", MSGFLAG_ERROR);
-        return false;
-    }
-
-    if (ipc_remote != nullptr) {
-        ipc_remote->soft_kill();
-    }
-
-    if (ringbuf_handler != nullptr) {
-        ringbuf_handler->remove_read_buffer_interface();
-        ringbuf_handler->protocol_error();
-    }
-
-    ipc_buffer_sz = 
-        Globalreg::globalreg->kismet_config->fetch_opt_as<size_t>("ipc_buffer_kb", 512);
-
-    // Make a new handler and new ipc.  Give a generous buffer.  Give it our mutex so that all
-    // future related objects inherit from us.
-    ringbuf_handler = std::make_shared<buffer_handler<ringbuf_v2>>((ipc_buffer_sz * 1024), (ipc_buffer_sz * 1024), ext_mutex);
-    ringbuf_handler->set_read_buffer_interface(this);
-
-    ipc_remote.reset(new ipc_remote_v2(Globalreg::globalreg, ringbuf_handler));
-
-    // Get allowed paths for binaries
-    std::vector<std::string> bin_paths = 
-        Globalreg::globalreg->kismet_config->fetch_opt_vec("helper_binary_path");
-
-    if (bin_paths.size() == 0) {
-        _MSG("No helper_binary_path found in kismet.conf, make sure your config "
-                "files are up to date; using the default binary path where Kismet "
-                "is installed.", MSGFLAG_ERROR);
-        bin_paths.push_back("%B");
-    }
-
-    // Explode any expansion macros in the path and add it to the list we search
-    for (auto i = bin_paths.begin(); i != bin_paths.end(); ++i) {
-        ipc_remote->add_path(Globalreg::globalreg->kismet_config->expand_log_path(*i, "", "", 0, 1));
-    }
-
-    int ret = ipc_remote->launch_kis_binary(external_binary, external_binary_args);
-
-    if (ret < 0) {
-        ss.str("");
-        ss << "failed to launch IPC binary '" << external_binary << "'";
-        trigger_error(ss.str());
-        return false;
-    }
-
-    auto remotehandler = 
-        Globalreg::fetch_mandatory_global_as<ipc_remote_v2_tracker>("IPCHANDLER");
-    remotehandler->add_ipc(ipc_remote);
-
-    return true;
-}
-
 void kis_external_interface::close_external() {
-    local_locker lock(ext_mutex);
-
     timetracker->remove_timer(ping_timer_id);
 
-    if (ipc_remote != nullptr) {
+    if (ipc_remote != nullptr) 
         ipc_remote->soft_kill();
-    }
 
-    if (ringbuf_handler != nullptr) {
-        ringbuf_handler->remove_read_buffer_interface();
-        ringbuf_handler->protocol_error();
+    if (bufferpair != nullptr) {
+        try {
+            throw std::runtime_error("external API closed");
+        } catch (const std::exception& e) {
+            bufferpair->throw_error(std::current_exception());
+        }
     }
 
     ipc_remote.reset();
-    ringbuf_handler.reset();
+    bufferpair.reset();
+
+    if (extern_io_thread.joinable())
+        extern_io_thread.join();
+
 }
 
 unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal::Command> c) {
-    local_locker lock(ext_mutex);
-
-    if (ringbuf_handler == NULL)
+    if (bufferpair == nullptr)
         return 0;
 
     // Set the sequence if one wasn't provided
@@ -342,21 +273,23 @@ unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal:
     // Calc frame size
     ssize_t frame_sz = sizeof(kismet_external_frame_t) + content_sz;
 
+    char *buf = nullptr;
+
     // Our actual frame
     kismet_external_frame_t *frame = nullptr;
 
     // Reserve the frame in the buffer
-    if (ringbuf_handler->reserve_write_buffer_data((void **) &frame, frame_sz) < frame_sz || frame == nullptr) {
-        if (frame != nullptr) {
-            ringbuf_handler->commit_write_buffer_data(NULL, 0);
-        }
+    if (bufferpair->reserve_wbuf(&buf, frame_sz) < frame_sz || buf == nullptr) {
+        if (buf!= nullptr) 
+            bufferpair->commit_wbuf(buf, 0);
 
         _MSG("Kismet external interface couldn't find space in the output buffer for "
                 "the next command, something may have stalled.", MSGFLAG_ERROR);
-        trigger_error("write buffer full");
 
         return 0;
     }
+
+    frame = reinterpret_cast<kismet_external_frame_t *>(buf);
 
     // Fill in the headers
     frame->signature = kis_hton32(KIS_EXTERNAL_PROTO_SIG);
@@ -370,7 +303,7 @@ unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal:
     frame->data_checksum = kis_hton32(data_csum);
 
     // Commit our write buffer
-    ringbuf_handler->commit_write_buffer_data((void *) frame, frame_sz);
+    bufferpair->commit_wbuf(buf, frame_sz);
 
     return c->seqno();
 }
@@ -398,11 +331,9 @@ bool kis_external_interface::dispatch_rx_packet(std::shared_ptr<KismetExternal::
 void kis_external_interface::handle_packet_message(uint32_t in_seqno, const std::string& in_content) {
     KismetExternal::MsgbusMessage m;
 
-    if (!m.ParseFromString(in_content)) {
-        _MSG("Kismet external interface got an unparsable MESSAGE", MSGFLAG_ERROR);
-        trigger_error("Invalid MESSAGE");
-        return;
-    }
+    if (!m.ParseFromString(in_content))
+        throw std::runtime_error("External API received an unparseable MESSAGE packet");
+
 
     handle_msg_proxy(m.msgtext(), m.msgtype());
 }
@@ -412,30 +343,19 @@ void kis_external_interface::handle_packet_ping(uint32_t in_seqno, const std::st
 }
 
 void kis_external_interface::handle_packet_pong(uint32_t in_seqno, const std::string& in_content) {
-    local_locker lock(ext_mutex);
-
     KismetExternal::Pong p;
-    if (!p.ParseFromString(in_content)) {
-        _MSG("Kismet external interface got an unparsable PONG packet", MSGFLAG_ERROR);
-        trigger_error("Invalid PONG");
-        return;
-    }
+    if (!p.ParseFromString(in_content))
+        throw std::runtime_error("External API received an unparseable PONG packet");
 
     last_pong = time(0);
 }
 
 void kis_external_interface::handle_packet_shutdown(uint32_t in_seqno, const std::string& in_content) {
-    local_locker lock(ext_mutex);
-
     KismetExternal::ExternalShutdown s;
-    if (!s.ParseFromString(in_content)) {
-        _MSG("Kismet external interface got an unparsable SHUTDOWN", MSGFLAG_ERROR);
-        trigger_error("invalid SHUTDOWN");
-        return;
-    }
+    if (!s.ParseFromString(in_content))
+        throw std::runtime_error("External API received an unparseable SHUTDOWN packet");
 
-    _MSG(std::string("Kismet external interface shutting down: ") + s.reason(), MSGFLAG_INFO); 
-    trigger_error(std::string("Remote connection requesting shutdown: ") + s.reason());
+    throw std::runtime_error(fmt::format("Shutting down external API connection: {}", s.reason()));
 }
 
 unsigned int kis_external_interface::send_ping() {
@@ -479,14 +399,14 @@ kis_external_http_interface::kis_external_http_interface() :
     kis_external_interface(), 
     kis_net_httpd_chain_stream_handler() {
 
+    mutex.set_name("kis_external_http_interface");
+
     http_session_id = 0;
 
     bind_httpd_server();
 }
 
 kis_external_http_interface::~kis_external_http_interface() {
-    local_locker el(ext_mutex);
-
     // Kill any active sessions
     for (auto s : http_proxy_session_map) {
         // Fail them
@@ -495,21 +415,6 @@ kis_external_http_interface::~kis_external_http_interface() {
         // the http server session
         s.second->locker->unlock();
     }
-}
-
-void kis_external_http_interface::trigger_error(std::string in_error) {
-    local_locker lock(ext_mutex);
-
-    // Kill any active sessions
-    for (auto s : http_proxy_session_map) {
-        // Fail them
-        s.second->connection->httpcode = 501;
-        // Unlock them and let the cleanup in the thread handle it and close down 
-        // the http server session
-        s.second->locker->unlock();
-    }
-
-    kis_external_interface::trigger_error(in_error);
 }
 
 bool kis_external_http_interface::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
@@ -536,15 +441,12 @@ void kis_external_http_interface::handle_msg_proxy(const std::string& msg, const
 
 void kis_external_http_interface::handle_packet_http_register(uint32_t in_seqno, 
         const std::string& in_content) {
-    local_locker lock(ext_mutex);
+    local_locker lock(&mutex, "handle_packet_http_register");
 
     KismetExternalHttp::HttpRegisterUri uri;
 
-    if (!uri.ParseFromString(in_content)) {
-        _MSG("Kismet external interface got an unparsable HTTPREGISTERURI", MSGFLAG_ERROR);
-        trigger_error("Invalid HTTPREGISTERURI");
-        return;
-    }
+    if (!uri.ParseFromString(in_content))
+        throw std::runtime_error("External API got an unparseable HTTPREGISTERURI");
 
     struct kis_external_http_uri *exturi = new kis_external_http_uri();
     
@@ -557,23 +459,17 @@ void kis_external_http_interface::handle_packet_http_register(uint32_t in_seqno,
 
 void kis_external_http_interface::handle_packet_http_response(uint32_t in_seqno, 
         const std::string& in_content) {
-    local_locker lock(ext_mutex);
+    local_locker lock(&mutex, "handle_packet_http_response");
 
     KismetExternalHttp::HttpResponse resp;
 
-    if (!resp.ParseFromString(in_content)) {
-        _MSG("Kismet external interface got an unparsable HTTPRESPONSE", MSGFLAG_ERROR);
-        trigger_error("Invalid  HTTPRESPONSE");
-        return;
-    }
+    if (!resp.ParseFromString(in_content)) 
+        throw std::runtime_error("External API got an unparseable HTTPRESPONSE");
 
     auto si = http_proxy_session_map.find(resp.req_id());
 
-    if (si == http_proxy_session_map.end()) {
-        _MSG("Kismet external interface got a HTTPRESPONSE for an unknown session", MSGFLAG_ERROR);
-        trigger_error("Invalid HTTPRESPONSE session");
-        return;
-    }
+    if (si == http_proxy_session_map.end())
+        throw std::runtime_error("External API got a HTTPRESPONSE for an unknown session");
 
     auto session = si->second;
 
@@ -596,14 +492,14 @@ void kis_external_http_interface::handle_packet_http_response(uint32_t in_seqno,
 
     // Copy any response data
     if (resp.has_content() && resp.content().size() > 0) {
-        if (!saux->ringbuf_handler->put_write_buffer_data(resp.content())) {
+        if (!saux->buf_handler->write_wbuf(resp.content())) {
             _MSG("Kismet external interface could not put response data into the HTTP "
                     "buffer for a HTTPRESPONSE session", MSGFLAG_ERROR);
             // We have to kill this session before we shut down everything else
             session->connection->httpcode = 501;
             session->locker->unlock();
-            trigger_error("Unable to write to HTTP buffer in HTTPRESPONSE");
-            return;
+            
+            throw std::runtime_error("External API unable to write to HTTP buffer for HTTPRESPONSE");
         }
     }
 
@@ -618,19 +514,13 @@ void kis_external_http_interface::handle_packet_http_auth_request(uint32_t in_se
         const std::string& in_content) {
     KismetExternalHttp::HttpAuthTokenRequest rt;
 
-    if (!rt.ParseFromString(in_content)) {
-        _MSG("Kismet external interface got an unparsable HTTPAUTHREQ", MSGFLAG_ERROR);
-        trigger_error("Invalid HTTPAUTHREQ");
-        return;
-    }
+    if (!rt.ParseFromString(in_content))
+        throw std::runtime_error("External API got an unparseable HTTPAUTHREQ packet");
 
     std::shared_ptr<kis_net_httpd_session> s = httpd->create_session(NULL, NULL, 0);
 
-    if (s == NULL) {
-        _MSG("Kismet external interface unable to create a HTTP auth", MSGFLAG_ERROR);
-        trigger_error("Unable to create HTTP auth");
-        return;
-    }
+    if (s == NULL) 
+        throw std::runtime_error("External API unable to create a HTTP AUTH token");
 
     send_http_auth(s->sessionid);
 }
@@ -671,7 +561,7 @@ unsigned int kis_external_http_interface::send_http_auth(std::string in_cookie) 
 }
 
 bool kis_external_http_interface::httpd_verify_path(const char *path, const char *method) {
-    local_locker lock(ext_mutex);
+    local_locker lock(&mutex, "kis_external_http_interface::httpd_verify_path");
 
     // Find all the registered endpoints for this method
     auto m = http_proxy_uri_map.find(std::string(method));
@@ -704,7 +594,7 @@ int kis_external_http_interface::httpd_create_stream_response(kis_net_httpd *htt
 
     // Use a demand locker instead of pure scope locker because we need to let it go
     // before we go into blocking wait
-    local_demand_locker dlock(ext_mutex);
+    local_demand_locker dlock(&mutex, "kis_external_http_interface::httpd_create_stream_response");
     dlock.lock();
 
     auto m = http_proxy_uri_map.find(std::string(method));
@@ -771,7 +661,7 @@ int kis_external_http_interface::httpd_post_complete(kis_net_httpd_connection *c
 
     // Use a demand locker instead of pure scope locker because we need to let it go
     // before we go into blocking wait
-    local_demand_locker dlock(ext_mutex);
+    local_demand_locker dlock(&mutex, "kis_external_http_interface::httpd_post_complete");
     dlock.lock();
 
     std::map<std::string, std::string> get_remap;
