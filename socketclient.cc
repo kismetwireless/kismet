@@ -61,7 +61,7 @@ int socket_client::pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *o
 int socket_client::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
     std::string msg;
 
-    unsigned char *buf;
+    char *buf;
     size_t len;
     ssize_t ret, iret;
     ssize_t rbuf_avail, wbuf_avail;
