@@ -50,10 +50,8 @@ class ipc_remote_v2_tracker;
 
 class ipc_remote_v2 {
 public:
-    ipc_remote_v2(global_registry *in_globalreg, std::shared_ptr<buffer_handler_generic> in_rbhandler);
+    ipc_remote_v2(std::shared_ptr<buffer_pair> in_pair);
     virtual ~ipc_remote_v2();
-
-    virtual void set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent);
 
     // Add paths to look for binary in.  Paths are searched in the order
     // they are added
@@ -94,15 +92,10 @@ public:
     void set_tracker_free(bool in_free);
 
 protected:
-    global_registry *globalreg;
-
-    std::shared_ptr<kis_recursive_timed_mutex> ipc_mutex;
-
     std::shared_ptr<ipc_remote_v2_tracker> remotehandler;
     std::shared_ptr<pollable_tracker> pollabletracker;
 
-    // Handler for proxying IPC results
-    std::shared_ptr<buffer_handler_generic> ipchandler;
+    std::shared_ptr<buffer_pair> bufferpair;
 
     // Client that reads/writes from the pipes and populates the IPC
     std::shared_ptr<pipe_client> pipeclient;
@@ -130,15 +123,15 @@ class ipc_remote_v2_tracker : public time_tracker_event, public lifetime_global 
 public:
     static std::string global_name() { return "IPCHANDLER"; }
 
-    static std::shared_ptr<ipc_remote_v2_tracker> create_ipcremote(global_registry *in_globalreg) {
-        std::shared_ptr<ipc_remote_v2_tracker> mon(new ipc_remote_v2_tracker(in_globalreg));
-        in_globalreg->register_lifetime_global(mon);
-        in_globalreg->insert_global(global_name(), mon);
+    static std::shared_ptr<ipc_remote_v2_tracker> create_ipcremote() {
+        std::shared_ptr<ipc_remote_v2_tracker> mon(new ipc_remote_v2_tracker());
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-    ipc_remote_v2_tracker(global_registry *in_globalreg);
+    ipc_remote_v2_tracker();
 
 public:
     virtual ~ipc_remote_v2_tracker();

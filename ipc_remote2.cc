@@ -29,11 +29,8 @@
 #include "ipc_remote2.h"
 #include "pollabletracker.h"
 
-ipc_remote_v2::ipc_remote_v2(global_registry *in_globalreg, 
-        std::shared_ptr<buffer_handler_generic> in_rbhandler) :
-        globalreg {Globalreg::globalreg},
-        tracker_free {false},
-        child_pid {0} {
+ipc_remote_v2::ipc_remote_v2(std::shared_ptr<buffer_pair> in_pair) {
+    child_pid = 0;
 
     pollabletracker =
         Globalreg::fetch_mandatory_global_as<pollable_tracker>();
@@ -43,26 +40,7 @@ ipc_remote_v2::ipc_remote_v2(global_registry *in_globalreg,
 
     tracker_free = false;
 
-    // Inherit the mutex from the rbhandler
-    ipc_mutex = in_rbhandler->get_mutex();
-
-    ipchandler = in_rbhandler;
-
-    ipchandler->set_protocol_error_cb([this]() {
-        close_ipc();
-    });
-
-}
-
-void ipc_remote_v2::set_mutex(std::shared_ptr<kis_recursive_timed_mutex> in_parent) {
-    if (in_parent == nullptr)
-        in_parent = std::make_shared<kis_recursive_timed_mutex>();
-
-    local_locker l(ipc_mutex);
-
-    ipc_mutex = in_parent;
-
-    pipeclient->set_mutex(ipc_mutex);
+    bufferpair = in_pair;
 }
 
 ipc_remote_v2::~ipc_remote_v2() {
@@ -71,22 +49,14 @@ ipc_remote_v2::~ipc_remote_v2() {
         pipeclient->close_pipes();
     }
 
-    if (ipchandler != nullptr) {
-        ipchandler->set_protocol_error_cb([]() { });
-        ipchandler->buffer_error("IPC process has closed");
-    }
-
     hard_kill();
 }
 
 void ipc_remote_v2::add_path(std::string in_path) {
-    local_locker lock(ipc_mutex);
     path_vec.push_back(in_path);
 }
 
 std::string ipc_remote_v2::FindBinaryPath(std::string in_cmd) {
-    local_locker lock(ipc_mutex);
-
     for (unsigned int x = 0; x < path_vec.size(); x++) {
         std::stringstream path;
         struct stat buf;
@@ -106,20 +76,12 @@ std::string ipc_remote_v2::FindBinaryPath(std::string in_cmd) {
 }
 
 void ipc_remote_v2::close_ipc() {
-    local_locker lock(ipc_mutex);
-
     if (pipeclient != nullptr) {
         pollabletracker->remove_pollable(pipeclient);
         pipeclient->close_pipes();
     }
 
-    if (ipchandler != nullptr) {
-        ipchandler->set_protocol_error_cb([]() { });
-        ipchandler->buffer_error("IPC process has closed");
-    }
-
     pipeclient.reset();
-    ipchandler.reset();
 
     hard_kill();
 }
@@ -180,11 +142,6 @@ int ipc_remote_v2::launch_kis_explicit_binary(std::string cmdpath, std::vector<s
         }
     }
 
-    // We can't use a local_locker here because we can't let it unlock
-    // inside the child thread, because the mutex doesn't survive across
-    // forking
-    local_eol_locker ilock(ipc_mutex);
-
     // 'in' to the spawned process, write to the server process, 
     // [1] belongs to us, [0] to them
     int inpipepair[2];
@@ -195,7 +152,6 @@ int ipc_remote_v2::launch_kis_explicit_binary(std::string cmdpath, std::vector<s
 #ifdef HAVE_PIPE2
     if (pipe2(inpipepair, O_NONBLOCK) < 0) {
         _MSG_ERROR("IPC could not create pipe: {}", kis_strerror_r(errno));
-        local_unlocker ulock(ipc_mutex);
         return -1;
     }
 
@@ -203,15 +159,14 @@ int ipc_remote_v2::launch_kis_explicit_binary(std::string cmdpath, std::vector<s
         _MSG_ERROR("IPC could not create pipe: {}", kis_strerror_r(errno));
         close(inpipepair[0]);
         close(inpipepair[1]);
-        local_unlocker ulock(ipc_mutex);
         return -1;
     }
 #else
     if (pipe(inpipepair) < 0) {
         _MSG_ERROR("IPC could not create pipe: {}", kis_strerror_r(errno));
-        local_unlocker ulock(ipc_mutex);
         return -1;
     }
+
     fcntl(inpipepair[0], F_SETFL, fcntl(inpipepair[0], F_GETFL, 0) | O_NONBLOCK);
     fcntl(inpipepair[1], F_SETFL, fcntl(inpipepair[1], F_GETFL, 0) | O_NONBLOCK);
 
@@ -219,19 +174,16 @@ int ipc_remote_v2::launch_kis_explicit_binary(std::string cmdpath, std::vector<s
         _MSG_ERROR("IPC could not create pipe: {}", kis_strerror_r(errno));
         close(inpipepair[0]);
         close(inpipepair[1]);
-        local_unlocker ulock(ipc_mutex);
         return -1;
     }
     fcntl(outpipepair[0], F_SETFL, fcntl(outpipepair[0], F_GETFL, 0) | O_NONBLOCK);
     fcntl(outpipepair[1], F_SETFL, fcntl(outpipepair[1], F_GETFL, 0) | O_NONBLOCK);
-
 #endif
 
     // We don't need to do signal masking because we run a dedicated signal handling thread
 
     if ((child_pid = fork()) < 0) {
         _MSG_ERROR("IPC could not fork(): {}", kis_strerror_r(errno));
-        local_unlocker ulock(ipc_mutex);
     } else if (child_pid == 0) {
         // We're the child process
 
@@ -264,18 +216,13 @@ int ipc_remote_v2::launch_kis_explicit_binary(std::string cmdpath, std::vector<s
         close(inpipepair[1]);
         close(outpipepair[0]);
 
-        // fprintf(stderr, "debug - ipcremote2 - exec %s\n", cmdarg[0]);
         execvp(cmdarg[0], cmdarg);
 
         exit(255);
     } 
 
-    // fprintf(stderr, "forked, child pid %d\n", child_pid);
-   
     // Parent process
    
-    // fprintf(stderr, "debug - ipcremote2 creating pipeclient\n");
-    
     
     // close the remote side of the pipes from the parent, they're open in the child
     close(inpipepair[0]);
@@ -285,7 +232,7 @@ int ipc_remote_v2::launch_kis_explicit_binary(std::string cmdpath, std::vector<s
         soft_kill();
     }
 
-    pipeclient.reset(new pipe_client(globalreg, ipchandler));
+    pipeclient.reset(new pipe_client(bufferpair));
 
     // Read from the child write pair, write to the child read pair
     pipeclient->open_pipes(outpipepair[0], inpipepair[1]);
@@ -294,10 +241,6 @@ int ipc_remote_v2::launch_kis_explicit_binary(std::string cmdpath, std::vector<s
 
     binary_path = cmdpath;
     binary_args = args;
-
-    {
-        local_unlocker ulock(ipc_mutex);
-    }
 
     return 1;
 }
@@ -332,11 +275,6 @@ int ipc_remote_v2::launch_standard_explicit_binary(std::string cmdpath, std::vec
         return -1;
     }
 
-    // We can't use a local_locker here because we can't let it unlock
-    // inside the child thread, because the mutex doesn't survive across
-    // forking
-    local_eol_locker elock(ipc_mutex);
-
     // 'in' to the spawned process, [0] belongs to us, [1] to them
     int inpipepair[2];
     // 'out' from the spawned process, [1] belongs to us, [0] to them
@@ -344,7 +282,6 @@ int ipc_remote_v2::launch_standard_explicit_binary(std::string cmdpath, std::vec
 
     if (pipe(inpipepair) < 0) {
         _MSG_ERROR("IPC could not create pipe: {}", kis_strerror_r(errno));
-        local_unlocker ulock(ipc_mutex);
         return -1;
     }
 
@@ -352,7 +289,6 @@ int ipc_remote_v2::launch_standard_explicit_binary(std::string cmdpath, std::vec
         _MSG_ERROR("IPC could not create pipe: {}", kis_strerror_r(errno));
         close(inpipepair[0]);
         close(inpipepair[1]);
-        local_unlocker ulock(ipc_mutex);
         return -1;
     }
 
@@ -360,7 +296,6 @@ int ipc_remote_v2::launch_standard_explicit_binary(std::string cmdpath, std::vec
 
     if ((child_pid = fork()) < 0) {
         _MSG_ERROR("IPC could not fork(): {}", kis_strerror_r(errno));
-        local_unlocker ulock(ipc_mutex);
     } else if (child_pid == 0) {
         // We're the child process
         
@@ -397,7 +332,7 @@ int ipc_remote_v2::launch_standard_explicit_binary(std::string cmdpath, std::vec
     close(inpipepair[1]);
     close(outpipepair[0]);
 
-    pipeclient.reset(new pipe_client(globalreg, ipchandler));
+    pipeclient.reset(new pipe_client(bufferpair));
 
     pollabletracker->register_pollable(pipeclient);
 
@@ -408,10 +343,6 @@ int ipc_remote_v2::launch_standard_explicit_binary(std::string cmdpath, std::vec
     binary_path = cmdpath;
     binary_args = args;
 
-    {
-        local_unlocker ulock(ipc_mutex);
-    }
-
     return 1;
 }
 
@@ -420,13 +351,10 @@ pid_t ipc_remote_v2::get_pid() {
 }
 
 void ipc_remote_v2::set_tracker_free(bool in_free) {
-    local_locker lock(ipc_mutex);
     tracker_free = in_free;
 }
 
 int ipc_remote_v2::soft_kill() {
-    local_locker lock(ipc_mutex);
-
     if (pipeclient != nullptr) {
         pollabletracker->remove_pollable(pipeclient);
         pipeclient->close_pipes();
@@ -439,8 +367,6 @@ int ipc_remote_v2::soft_kill() {
 }
 
 int ipc_remote_v2::hard_kill() {
-    local_locker lock(ipc_mutex);
-
     if (pipeclient != nullptr) {
         pollabletracker->remove_pollable(pipeclient);
         pipeclient->close_pipes();
@@ -454,38 +380,21 @@ int ipc_remote_v2::hard_kill() {
 }
 
 void ipc_remote_v2::notify_killed(int in_exit) {
-    local_locker l(ipc_mutex);
-
-    std::stringstream ss;
-
-    // Pull anything left in the buffer and process it
-    if (pipeclient != nullptr) {
-        pipeclient->flush_read();
-    }
-
-    if (ipchandler != nullptr) {
-        ss << "IPC process '" << binary_path << "' " << child_pid << " exited, " << in_exit;
-        ipchandler->buffer_error(ss.str());
-    }
-
+    pipeclient->close_pipes();
     close_ipc();
 }
 
-ipc_remote_v2_tracker::ipc_remote_v2_tracker(global_registry *in_globalreg) {
-    ipc_mutex.set_name("ipc_remote_v2_tracker");
-
-    globalreg = in_globalreg;
-
-    timer_id = 
-        globalreg->timetracker->register_timer(SERVER_TIMESLICES_SEC, NULL, 1, this);
+ipc_remote_v2_tracker::ipc_remote_v2_tracker() {
+    ipc_mutex.set_name("ipctracker");
+    timer_id = Globalreg::globalreg->timetracker->register_timer(SERVER_TIMESLICES_SEC, NULL, 1, this);
     cleanup_timer_id = -1;
 }
 
 ipc_remote_v2_tracker::~ipc_remote_v2_tracker() {
-    globalreg->RemoveGlobal("IPCHANDLER");
+    Globalreg::globalreg->RemoveGlobal(global_name());
 
-    globalreg->timetracker->remove_timer(timer_id);
-    globalreg->timetracker->remove_timer(cleanup_timer_id);
+    Globalreg::globalreg->timetracker->remove_timer(timer_id);
+    Globalreg::globalreg->timetracker->remove_timer(cleanup_timer_id);
 }
 
 void ipc_remote_v2_tracker::add_ipc(std::shared_ptr<ipc_remote_v2> in_remote) {
@@ -705,8 +614,6 @@ int ipc_remote_v2_tracker::timetracker_event(int event_id __attribute__((unused)
         if (p == nullptr)
             continue;
 
-        // fmt::print(stderr, "PROC {}\n", p->get_pid());
-        
         caught_pid = waitpid(p->get_pid(), &pid_status, WNOHANG | WUNTRACED);
 
         if (caught_pid < 0) {
