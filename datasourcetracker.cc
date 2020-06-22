@@ -1074,7 +1074,8 @@ void datasource_tracker::schedule_cleanup() {
 void datasource_tracker::new_remote_tcp_connection(int in_fd) {
     // Make a new connection handler with its own mutex
     auto conn_handler = 
-        std::make_shared<buffer_handler<ringbuf_v2>>((tcp_buffer_sz * 1024), (tcp_buffer_sz * 1024));
+        std::make_shared<buffer_pair>(std::make_shared<ringbuf_v2>(tcp_buffer_sz * 1024),
+                std::make_shared<ringbuf_v2>(tcp_buffer_sz * 1024));
 
     // Bind it to the tcp socket
     auto socketcli = 
@@ -1083,12 +1084,9 @@ void datasource_tracker::new_remote_tcp_connection(int in_fd) {
     // Bind a new incoming remote which will pivot to the proper data source type
     auto incoming_remote = new dst_incoming_remote(conn_handler, 
                 [this] (dst_incoming_remote *i, std::string in_type, std::string in_def, 
-                    uuid in_uuid, std::shared_ptr<buffer_handler_generic> in_handler) {
-            in_handler->remove_read_buffer_interface();
-            open_remote_datasource(i, in_type, in_def, in_uuid, in_handler);
+                    uuid in_uuid, std::shared_ptr<buffer_pair> in_pair) {
+            open_remote_datasource(i, in_type, in_def, in_uuid, in_pair);
         });
-
-    conn_handler->set_read_buffer_interface(incoming_remote);
 
     // Register the connection as pollable
     auto pollabletracker = 
@@ -1098,7 +1096,7 @@ void datasource_tracker::new_remote_tcp_connection(int in_fd) {
 
 void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
         const std::string& in_type, const std::string& in_definition, const uuid& in_uuid, 
-        std::shared_ptr<buffer_handler_generic> in_handler) {
+        std::shared_ptr<buffer_pair> in_pair) {
     shared_datasource merge_target_device;
      
     local_locker lock(&dst_lock);
@@ -1135,8 +1133,8 @@ void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
 
         // Generate a detached thread for joining the ring buffer; it acts as a blocking
         // wait for the buffer to be filled
-        incoming->handshake_rb(std::thread([this, merge_target_device, in_handler, dup_definition]  {
-                    merge_target_device->connect_remote(in_handler, dup_definition, NULL);
+        incoming->handshake_rb(std::thread([this, merge_target_device, in_pair, dup_definition]  {
+                    merge_target_device->connect_remote(in_pair, dup_definition, nullptr);
                     calculate_source_hopping(merge_target_device);
                 }));
 

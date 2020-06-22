@@ -303,9 +303,9 @@ protected:
 // is responsible for looking up the type, closing the connection if it is invalid, etc.
 class dst_incoming_remote : public kis_external_interface {
 public:
-    dst_incoming_remote(std::shared_ptr<buffer_handler_generic> in_rbufhandler,
+    dst_incoming_remote(std::shared_ptr<buffer_pair> in_pair,
             std::function<void (dst_incoming_remote *, std::string srctype, std::string srcdef,
-                uuid srcuuid, std::shared_ptr<buffer_handler_generic> handler)> in_cb);
+                uuid srcuuid, std::shared_ptr<buffer_pair> handler)> in_cb);
     ~dst_incoming_remote();
 
     // Override the dispatch commands to handle the newsource
@@ -323,14 +323,11 @@ public:
         std::swap(handshake_thread, t);
     }
 
-    virtual void buffer_error(std::string in_error) override;
-
 protected:
     // Timeout for killing this connection
     int timerid;
 
-    std::function<void (dst_incoming_remote *, std::string, std::string, uuid, 
-            std::shared_ptr<buffer_handler_generic> )> cb;
+    std::function<void (dst_incoming_remote *, std::string, std::string, uuid, std::shared_ptr<buffer_pair> )> cb;
 
     std::thread handshake_thread;
 };
@@ -406,10 +403,8 @@ public:
 
     // Try to instantiate a remote data source
     void open_remote_datasource(dst_incoming_remote *incoming, 
-            const std::string& in_type, 
-            const std::string& in_definition, 
-            const uuid& in_uuid,
-            std::shared_ptr<buffer_handler_generic> in_handler);
+            const std::string& in_type, const std::string& in_definition, 
+            const uuid& in_uuid, std::shared_ptr<buffer_pair> in_handler);
 
     // Find a datasource
     shared_datasource find_datasource(const uuid& in_uuid);

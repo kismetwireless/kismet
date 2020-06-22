@@ -301,8 +301,7 @@ public:
 
 class pcap_stream_database : public pcap_stream_ringbuf {
 public:
-    pcap_stream_database(global_registry *in_globalreg, 
-            std::shared_ptr<buffer_handler_generic> in_handler);
+    pcap_stream_database(std::shared_ptr<buffer_pair> in_handler);
 
     virtual ~pcap_stream_database();
 
@@ -314,9 +313,8 @@ public:
     virtual int pcapng_write_database_packet(uint64_t time_s, uint64_t time_us,
             const std::string& interface_uuid, unsigned int dlt, const std::string& data);
 
-    // Populate the interface list with all the interfaces from the database, we'll
-    // assign pcapng IDs to them as they get used so only included interfaces will show up
-    // in the pcapng idb list
+    // Populate the interface list with all the interfaces from the database, we'll assign pcapng IDs to them 
+    // as they get used so only included interfaces will show up in the pcapng idb list
     virtual void add_database_interface(const std::string& in_uuid, const std::string& in_interface,
             const std::string& in_namet);
 
