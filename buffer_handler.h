@@ -47,6 +47,18 @@ struct common_buffer_timeout : public std::exception {
     }
 };
 
+struct common_buffer_close : public std::exception {
+    common_buffer_close(const std::string& w) :
+        err{w} { }
+
+    const char *what() const throw () {
+        return err.c_str();
+    }
+
+    std::string err;
+
+};
+
 // Common buffer API
 // Each buffer can be filled and drained; a typical communications channel will need 
 // to use two buffers, one for rx and one for tx.
@@ -484,11 +496,16 @@ public:
     }
 
     // Cancel pending operations
+    void cancel() {
+        cancel_blocked_reserve();
+        cancel_blocked_write();
+    }
+
     void cancel_blocked_reserve() {
         try {
             try {
                 throw common_buffer_cancel();
-            } catch (const std::runtime_error& e) {
+            } catch (const std::exception& e) {
                 read_size_avail_pm.set_exception(std::current_exception());
             }
         } catch (const std::future_error& e) {
@@ -501,11 +518,34 @@ public:
         try {
             try {
                 throw common_buffer_cancel();
-            } catch (const std::runtime_error& e) {
+            } catch (const std::exception& e) {
                 write_size_avail_pm.set_exception(std::current_exception());
             }
         } catch (const std::future_error& e) {
             // Silently ignore if the future is invalid
+            ;
+        }
+    }
+
+    // Close down - throw an error that a listener should interpret as a terminal, but not actionable, signal
+    void close(const std::string& e) {
+        try {
+            try {
+                throw common_buffer_close(e);
+            } catch (const std::runtime_error& e) {
+                read_size_avail_pm.set_exception(std::current_exception());
+            }
+        } catch (const std::future_error& e) {
+            ;
+        }
+
+        try {
+            try {
+                throw common_buffer_close(e);
+            } catch (const std::runtime_error& e) {
+                write_size_avail_pm.set_exception(std::current_exception());
+            }
+        } catch (const std::future_error& e) {
             ;
         }
     }
@@ -825,6 +865,27 @@ public:
         return write_wbuf(data.data(), data.size());
     }
 
+    // Cancel pending IO on the buffers with a 'gentle' exception
+    void close(const std::string& e) {
+        if (read_buffer != nullptr)
+            read_buffer->close(e);
+        if (write_buffer != nullptr)
+            write_buffer->close(e);
+    }
+
+    // Propagate an error as an exception to both buffers
+    void error(const std::string& e) {
+        try {
+            throw std::runtime_error(e);
+        } catch (std::exception& e) {
+            if (read_buffer != nullptr)
+                read_buffer->set_exception(std::current_exception());
+            if (write_buffer != nullptr)
+                write_buffer->set_exception(std::current_exception());
+        }
+    }
+
+    // Throw a specific exception to both buffers
     void throw_error(std::exception_ptr e) {
         if (read_buffer != nullptr)
             read_buffer->set_exception(e);

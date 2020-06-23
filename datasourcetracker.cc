@@ -157,7 +157,7 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (shared_d
         unsigned int transaction = ++transaction_id;
 
         // Instantiate a local prober datasource
-        shared_datasource pds = b->build_datasource(b, probe_lock);
+        shared_datasource pds = b->build_datasource(b);
 
         {
             local_locker lock(probe_lock);
@@ -269,7 +269,7 @@ void datasource_tracker_source_list::list_sources(std::function<void (std::vecto
         unsigned int transaction = ++transaction_id;
 
         // Instantiate a local lister 
-        shared_datasource pds = b->build_datasource(b, list_lock);
+        shared_datasource pds = b->build_datasource(b);
 
         {
             local_locker lock(list_lock);
@@ -927,7 +927,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
     local_locker lock(&dst_lock);
 
     // Make a data source from the builder
-    shared_datasource ds = in_proto->build_datasource(in_proto, nullptr);
+    shared_datasource ds = in_proto->build_datasource(in_proto);
 
     ds->open_interface(in_source, 0, 
         [this, ds, in_cb] (unsigned int, bool success, std::string reason) {
@@ -1153,8 +1153,8 @@ void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
             lock.unlock();
 
             // Make a data source from the builder
-            shared_datasource ds = b->build_datasource(b, in_handler->get_mutex());
-            ds->connect_remote(in_handler, in_definition,
+            shared_datasource ds = b->build_datasource(b);
+            ds->connect_remote(in_pair, in_definition,
                 [this, ds](unsigned int, bool success, std::string msg) {
                     if (success)
                         merge_source(ds); 
@@ -1170,7 +1170,8 @@ void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
             "'{}' defined as '{}'; make sure that Kismet was compiled with all the "
             "data source drivers and that any necessary plugins have been loaded.",
             in_type, in_definition);
-    in_handler->protocol_error();
+    
+    // in_handler->protocol_error();
 
 }
 
@@ -1989,14 +1990,14 @@ int datasource_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *h
     return MHD_YES;
 }
 
-dst_incoming_remote::dst_incoming_remote(std::shared_ptr<buffer_handler_generic> in_rbufhandler,
+dst_incoming_remote::dst_incoming_remote(std::shared_ptr<buffer_pair> in_pair,
         std::function<void (dst_incoming_remote *, std::string, std::string, 
-            uuid, std::shared_ptr<buffer_handler_generic>)> in_cb) :
+            uuid, std::shared_ptr<buffer_pair>)> in_cb) :
     kis_external_interface() {
     
     cb = in_cb;
 
-    connect_buffer(in_rbufhandler);
+    connect_pair(in_pair);
 
     timerid =
         timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 

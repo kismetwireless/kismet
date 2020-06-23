@@ -317,11 +317,11 @@ public:
 
     virtual void handle_packet_newsource(uint32_t in_seqno, std::string in_packet);
 
-    virtual void kill();
-
     virtual void handshake_rb(std::thread t) {
         std::swap(handshake_thread, t);
     }
+
+    virtual void close_external() override;
 
 protected:
     // Timeout for killing this connection

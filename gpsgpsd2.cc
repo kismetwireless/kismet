@@ -65,9 +65,15 @@ kis_gps_gpsd_v2::kis_gps_gpsd_v2(shared_gps_builder in_builder) :
 }
 
 kis_gps_gpsd_v2::~kis_gps_gpsd_v2() {
-    tcpclient.reset();
-    tcphandler.reset();
+    // Cancel the buffer
+    if (tcphandler != nullptr)
+        tcphandler->close("gps removed");
 
+    // Disconnect from the tcp connection
+    if (tcpclient != nullptr)
+        tcpclient->disconnect();
+
+    // Reap the now-failed thread
     if (gpsd_io_thread.joinable()) {
         gpsd_io_thread.join();
     }
@@ -87,15 +93,11 @@ bool kis_gps_gpsd_v2::open_gps(std::string in_opts) {
 
     set_int_device_connected(false);
 
-    tcpclient.reset();
+    if (tcphandler != nullptr)
+        tcphandler->close("opening new gpsd connection");
 
-    tcphandler.reset();
-
-    // Clear the buffers
-    if (tcphandler != nullptr) {
-        tcphandler->clear_rbuf();
-        tcphandler->clear_wbuf();
-    }
+    if (tcpclient != nullptr)
+        tcpclient->disconnect();
 
     std::string proto_host;
     std::string proto_port_s;
@@ -581,11 +583,22 @@ void kis_gps_gpsd_v2::gpsd_io() {
             tcpclient->disconnect();
             set_int_device_connected(false);
 
-            return;
+            break;
+        } catch (const common_buffer_close& e) {
+            _MSG_INFO("GPSDv2 closed: {}", e.what());
+
+            tcpclient->disconnect();
+            set_int_device_connected(false);
+
+            break;
         } catch (const std::exception& e) {
             _MSG_ERROR("GPS lost connection to GPSD server {}:{}:  {}",
                     host, port, e.what());
-            return;
+
+            tcpclient->disconnect();
+            set_int_device_connected(false);
+
+            break;
         }
     }
 

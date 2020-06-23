@@ -380,7 +380,6 @@ int ipc_remote_v2::hard_kill() {
 }
 
 void ipc_remote_v2::notify_killed(int in_exit) {
-    pipeclient->close_pipes();
     close_ipc();
 }
 

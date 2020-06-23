@@ -62,6 +62,9 @@ bool kis_external_interface::run_ipc() {
         ipc_remote->soft_kill();
     }
 
+    /* We shouldn't need to force an exception into the waiting thread because closing it out will 
+     * cause that...
+     */
     if (bufferpair != nullptr) {
         try {
             throw std::runtime_error("re-opening IPC");
@@ -117,6 +120,9 @@ void kis_external_interface::extern_io() {
 
     while (1) {
         try {
+            if (bufferpair == nullptr)
+                throw std::runtime_error("external interface external io launched with no buffer pair");
+
             kismet_external_frame_t *frame;
             uint32_t frame_sz, data_sz;
             uint32_t data_checksum;
@@ -187,6 +193,26 @@ void kis_external_interface::extern_io() {
             bufferpair->consume_rbuf(frame_sz);
 
             dispatch_rx_packet(cmd);
+        } catch (const common_buffer_timeout& e) {
+            _MSG_ERROR("External interface got no data in 30 seconds, disconnecting.");
+
+            timetracker->remove_timer(ping_timer_id);
+
+            if (ipc_remote != nullptr) {
+                ipc_remote->close_ipc();
+            }
+
+            break;
+        } catch (const common_buffer_close& e) {
+            _MSG_INFO("External interface IPC closed: {}", e.what());
+
+           timetracker->remove_timer(ping_timer_id);
+
+           if (ipc_remote != nullptr) {
+               ipc_remote->close_ipc();
+           }
+
+           break;
 
         } catch (const std::exception& e) {
             _MSG_ERROR("External interface connection lost: {}", e.what());
@@ -196,9 +222,6 @@ void kis_external_interface::extern_io() {
             if (ipc_remote != nullptr) {
                 ipc_remote->close_ipc();
             }
-
-            bufferpair->throw_error(std::current_exception());
-
         }
     }
 
@@ -234,19 +257,12 @@ bool kis_external_interface::check_ipc(const std::string& in_binary) {
 void kis_external_interface::close_external() {
     timetracker->remove_timer(ping_timer_id);
 
+    if (bufferpair != nullptr)
+        bufferpair->close("external API closing");
+
+    // Kill and close IPC channel
     if (ipc_remote != nullptr) 
         ipc_remote->soft_kill();
-
-    if (bufferpair != nullptr) {
-        try {
-            throw std::runtime_error("external API closed");
-        } catch (const std::exception& e) {
-            bufferpair->throw_error(std::current_exception());
-        }
-    }
-
-    ipc_remote.reset();
-    bufferpair.reset();
 
     if (extern_io_thread.joinable())
         extern_io_thread.join();
