@@ -40,9 +40,10 @@ kis_gps_gpsd_v2::kis_gps_gpsd_v2(shared_gps_builder in_builder) :
     last_data_time = time(0);
 
     pollabletracker = 
-        Globalreg::fetch_mandatory_global_as<pollable_tracker>("POLLABLETRACKER");
+        Globalreg::fetch_mandatory_global_as<pollable_tracker>();
 
-    auto timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
+    auto timetracker = 
+        Globalreg::fetch_mandatory_global_as<time_tracker>();
 
     error_reconnect_timer = 
         timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
@@ -61,27 +62,27 @@ kis_gps_gpsd_v2::kis_gps_gpsd_v2(shared_gps_builder in_builder) :
                 return 1;
 
                 });
-
 }
 
 kis_gps_gpsd_v2::~kis_gps_gpsd_v2() {
-    // Cancel the buffer
-    if (tcphandler != nullptr)
-        tcphandler->close("gps removed");
+    // Clean up both manually just to make sure there are no stragglers
+    if (bufferpair != nullptr)
+        bufferpair->close("gps removed");
 
     // Disconnect from the tcp connection
-    if (tcpclient != nullptr)
+    if (tcpclient != nullptr) {
         tcpclient->disconnect();
+        pollabletracker->remove_pollable(tcpclient);
+    }
 
     // Reap the now-failed thread
-    if (gpsd_io_thread.joinable()) {
-        gpsd_io_thread.join();
+    if (protocol_io_thread.joinable()) {
+        protocol_io_thread.join();
     }
 
     auto timetracker = Globalreg::FetchGlobalAs<time_tracker>();
     if (timetracker != nullptr) {
         timetracker->remove_timer(error_reconnect_timer);
-        timetracker->remove_timer(data_timeout_timer);
     }
 }
 
@@ -93,8 +94,15 @@ bool kis_gps_gpsd_v2::open_gps(std::string in_opts) {
 
     set_int_device_connected(false);
 
-    if (tcphandler != nullptr)
-        tcphandler->close("opening new gpsd connection");
+    // Close the buffer if we're already connected
+    if (bufferpair != nullptr) {
+        bufferpair->close("opening new gpsd connection");
+    }
+
+    // Reap the thread if it's available
+    if (protocol_io_thread.joinable()) {
+        protocol_io_thread.join();
+    }
 
     if (tcpclient != nullptr)
         tcpclient->disconnect();
@@ -107,31 +115,37 @@ bool kis_gps_gpsd_v2::open_gps(std::string in_opts) {
     proto_port_s = fetch_opt("port", source_definition_opts);
 
     if (proto_host == "") {
-        _MSG("kis_gps_gpsd_v2 expected host= option, none found.", MSGFLAG_ERROR);
+        _MSG_ERROR("GPSD expected 'host' option in gps=gpsd:... configuration, but none found");
         return -1;
     }
 
     if (proto_port_s != "") {
         if (sscanf(proto_port_s.c_str(), "%u", &proto_port) != 1) {
-            _MSG("kis_gps_gpsd_v2 expected port in port= option.", MSGFLAG_ERROR);
+            _MSG_ERROR("GPSD expected 'port=[number]' option in gps=gpsd:... configuration, but "
+                    "didn't find a number");
             return -1;
         }
     } else {
         proto_port = 2947;
-        _MSG("kis_gps_gpsd_v2 defaulting to port 2947, set the port= option if "
-                "your gpsd is on a different port", MSGFLAG_INFO);
+        _MSG_INFO("GPSD defaulting to port 2947; if your gpsd is on a different port, set the "
+                "port option in your configuration.");
     }
 
-    if (tcphandler == nullptr) {
-        tcphandler = 
-            std::make_shared<buffer_pair>(
-                    std::make_shared<ringbuf_v2>(4096),
-                    std::make_shared<ringbuf_v2>(512));
+    if (bufferpair == nullptr) {
+        bufferpair =
+            std::make_shared<buffer_pair>(std::make_shared<ringbuf_v2>(4096), std::make_shared<ringbuf_v2>(512));
+
+        // If we've made a new buffer, link the close cb to shut down the tcpclient
+        bufferpair->set_close_cb([this](void) {
+                local_locker l(&gps_mutex, "kis_gps_gpsd_v2::close_cb");
+
+                if (tcpclient != nullptr)
+                    tcpclient->disconnect();
+                });
     }
 
     if (tcpclient == nullptr) {
-        // Link it to a tcp connection
-        tcpclient = std::make_shared<tcp_client_v2>(Globalreg::globalreg, tcphandler);
+        tcpclient = std::make_shared<tcp_client_v2>(bufferpair);
         pollabletracker->register_pollable(std::static_pointer_cast<kis_pollable>(tcpclient));
     }
 
@@ -141,18 +155,13 @@ bool kis_gps_gpsd_v2::open_gps(std::string in_opts) {
     // Reset the time counter
     last_data_time = time(0);
 
-    // We're not connected until we get data
+    // We're not connected as a GPS until we get data
     set_int_device_connected(0);
 
-    // Connect
     tcpclient->connect(proto_host, proto_port);
 
-    if (gpsd_io_thread.joinable()) {
-        gpsd_io_thread.join();
-    }
-
-    gpsd_io_thread =
-        std::thread(&kis_gps_gpsd_v2::gpsd_io, this);
+    protocol_io_thread =
+        std::thread(&kis_gps_gpsd_v2::protocol_io, this);
 
     return 1;
 }
@@ -180,7 +189,7 @@ bool kis_gps_gpsd_v2::get_location_valid() {
     return true;
 }
 
-void kis_gps_gpsd_v2::gpsd_io() {
+void kis_gps_gpsd_v2::protocol_io() {
     bool first = true;
 
     while (1) {
@@ -189,12 +198,12 @@ void kis_gps_gpsd_v2::gpsd_io() {
 
             // Block, and fail if we see no data from the gps in 30 seconds
             if (!first)
-                tcphandler->new_available_block_rbuf(std::chrono::seconds(30));
+                bufferpair->new_available_block_rbuf(std::chrono::seconds(30));
 
             first = false;
 
             auto buf_sz =
-                tcphandler->peek_block_rbuf(&buf, tcphandler->used_rbuf(), std::chrono::seconds(0));
+                bufferpair->peek_block_rbuf(&buf, bufferpair->used_rbuf(), std::chrono::seconds(0));
 
             // Aggregate into a new location; then copy into the main location
             // depending on what we found.  Locations can come in multiple sentences
@@ -208,7 +217,7 @@ void kis_gps_gpsd_v2::gpsd_io() {
             bool set_error = false;
 
             std::vector<std::string> inptok = str_tokenize(std::string(buf, buf_sz), "\n", 0);
-            tcphandler->peek_free_rbuf(buf);
+            bufferpair->peek_free_rbuf(buf);
 
             set_lat_lon = false;
             set_alt = false;
@@ -218,7 +227,7 @@ void kis_gps_gpsd_v2::gpsd_io() {
 
             for (unsigned int it = 0; it < inptok.size(); it++) {
                 // Consume the data from the ringbuffer
-                tcphandler->consume_rbuf(inptok[it].length() + 1);
+                bufferpair->consume_rbuf(inptok[it].length() + 1);
 
                 // We don't know what we're going to get from GPSD.  If it starts with 
                 // brace then it probably is json, try to parse it
@@ -245,8 +254,8 @@ void kis_gps_gpsd_v2::gpsd_io() {
                             // Send a JSON message that we want future communication in JSON
                             std::string json_msg = "?WATCH={\"json\":true};\n";
 
-                            tcphandler->write_block_wbuf(json_msg.c_str(),
-                                    json_msg.length(), std::chrono::seconds(0));
+                            bufferpair->write_block_wbuf(json_msg.c_str(),
+                                    json_msg.length(), std::chrono::seconds(15));
                         } else if (msg_class == "TPV") {
                             if (json.isMember("mode")) {
                                 new_location->fix = json["mode"].asInt();
@@ -319,8 +328,8 @@ void kis_gps_gpsd_v2::gpsd_io() {
 
                     std::string init_cmd = "L\n";
 
-                    tcphandler->write_block_wbuf(init_cmd.c_str(), init_cmd.length(),
-                            std::chrono::seconds(0));
+                    bufferpair->write_block_wbuf(init_cmd.c_str(), init_cmd.length(),
+                            std::chrono::seconds(15));
                 } else if (poll_mode < 10 && inptok[it].substr(0, 15) == "GPSD,L=2 1.0-25") {
                     // Maemo ships a broken,broken GPS which doesn't parse NMEA correctly
                     // and results in no alt or fix in watcher or polling modes, so we
@@ -328,8 +337,8 @@ void kis_gps_gpsd_v2::gpsd_io() {
                     // and do NMEA ourselves.
                     std::string cmd = "R=1\n";
 
-                    tcphandler->write_block_wbuf(cmd.c_str(), cmd.length(),
-                            std::chrono::seconds(0));
+                    bufferpair->write_block_wbuf(cmd.c_str(), cmd.length(),
+                            std::chrono::seconds(15));
 
                     // Use raw for position
                     si_raw = 1;
@@ -357,13 +366,13 @@ void kis_gps_gpsd_v2::gpsd_io() {
 
                     // If we're still in poll mode 0, write the watcher command.
                     std::string watch_cmd = "J=1,W=1,R=1\n";
-                    tcphandler->write_block_wbuf(watch_cmd.c_str(), watch_cmd.length(),
-                            std::chrono::seconds(0));
+                    bufferpair->write_block_wbuf(watch_cmd.c_str(), watch_cmd.length(),
+                            std::chrono::seconds(15));
 
                     // Go into poll mode
                     std::string poll_cmd = "PAVM\n";
-                    tcphandler->write_block_wbuf(poll_cmd.c_str(), poll_cmd.length(),
-                            std::chrono::seconds(0));
+                    bufferpair->write_block_wbuf(poll_cmd.c_str(), poll_cmd.length(),
+                            std::chrono::seconds(15));
 
                 } else if (poll_mode < 10 && inptok[it].substr(0, 7) == "GPSD,P=") {
                     // pollable_poll lines
@@ -601,6 +610,5 @@ void kis_gps_gpsd_v2::gpsd_io() {
             break;
         }
     }
-
 }
 

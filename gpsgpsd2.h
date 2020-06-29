@@ -44,15 +44,13 @@ public:
     virtual bool get_location_valid();
 
 protected:
-    // IO function that lives in the io thread
-    virtual void gpsd_io();
-
     std::shared_ptr<pollable_tracker> pollabletracker;
 
-    std::shared_ptr<tcp_client_v2> tcpclient;
-    std::shared_ptr<buffer_pair> tcphandler;
+    virtual void protocol_io();
+    std::thread protocol_io_thread;
 
-    std::thread gpsd_io_thread;
+    std::shared_ptr<tcp_client_v2> tcpclient;
+    std::shared_ptr<buffer_pair> bufferpair;
 
     // Device
     std::string host;
@@ -61,7 +59,6 @@ protected:
     // Last time we got data, to allow us to reset the connection if we 
     // seem to stall
     time_t last_data_time;
-    int data_timeout_timer;
 
     int error_reconnect_timer;
 

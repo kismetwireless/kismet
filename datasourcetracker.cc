@@ -1078,8 +1078,7 @@ void datasource_tracker::new_remote_tcp_connection(int in_fd) {
                 std::make_shared<ringbuf_v2>(tcp_buffer_sz * 1024));
 
     // Bind it to the tcp socket
-    auto socketcli = 
-        std::make_shared<socket_client>(in_fd, conn_handler);
+    auto socketcli = std::make_shared<socket_client>(in_fd, conn_handler);
 
     // Bind a new incoming remote which will pivot to the proper data source type
     auto incoming_remote = new dst_incoming_remote(conn_handler, 
@@ -1089,8 +1088,7 @@ void datasource_tracker::new_remote_tcp_connection(int in_fd) {
         });
 
     // Register the connection as pollable
-    auto pollabletracker = 
-        Globalreg::fetch_mandatory_global_as<pollable_tracker>();
+    auto pollabletracker = Globalreg::fetch_mandatory_global_as<pollable_tracker>();
     pollabletracker->register_pollable(socketcli);
 }
 

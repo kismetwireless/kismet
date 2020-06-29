@@ -865,16 +865,23 @@ public:
         return write_wbuf(data.data(), data.size());
     }
 
-    // Cancel pending IO on the buffers with a 'gentle' exception
+    // Cancel pending IO on the buffers with a 'gentle' exception, and call any existing cancel callback
     void close(const std::string& e) {
+        local_locker l(&mutex, "buffer_pair::close");
+
         if (read_buffer != nullptr)
             read_buffer->close(e);
         if (write_buffer != nullptr)
             write_buffer->close(e);
+
+        if (close_cb)
+            close_cb();
     }
 
-    // Propagate an error as an exception to both buffers
+    // Propagate an error as an exception to both buffers, call an error cb if one exists
     void error(const std::string& e) {
+        local_locker l(&mutex, "buffer_pair::error");
+
         try {
             throw std::runtime_error(e);
         } catch (std::exception& e) {
@@ -883,17 +890,40 @@ public:
             if (write_buffer != nullptr)
                 write_buffer->set_exception(std::current_exception());
         }
+
+        if (error_cb)
+            error_cb();
     }
 
-    // Throw a specific exception to both buffers
+    // Throw a specific exception to both buffers, call error cb if one exists
     void throw_error(std::exception_ptr e) {
+        local_locker l(&mutex, "buffer_pair::throw_error");
+
         if (read_buffer != nullptr)
             read_buffer->set_exception(e);
         if (write_buffer != nullptr)
             write_buffer->set_exception(e);
+
+        if (error_cb)
+            error_cb();
+    }
+
+    void set_close_cb(std::function<void (void)> cb) {
+        local_locker l(&mutex, "buffer_pair::set_close_cb");
+        close_cb = cb;
+    }
+
+    void set_error_cb(std::function<void (void)> cb) {
+        local_locker l(&mutex, "buffer_pair::set_error_cb");
+        error_cb = cb;
     }
 
 protected:
+    kis_recursive_timed_mutex mutex;
+
+    std::function<void (void)> close_cb;
+    std::function<void (void)> error_cb;
+
     std::shared_ptr<common_buffer> read_buffer;
     std::shared_ptr<common_buffer> write_buffer;
 };

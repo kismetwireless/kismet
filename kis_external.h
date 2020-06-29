@@ -79,6 +79,11 @@ public:
 
 protected:
     void extern_io();
+    std::thread extern_io_thread;
+
+    std::shared_ptr<buffer_pair> bufferpair;
+    std::shared_ptr<ipc_remote_v2> ipc_remote;
+
 
     // Wrap a protobuf'd packet in our network framing and send it, returning the sequence number
     virtual unsigned int send_packet(std::shared_ptr<KismetExternal::Command> c);
@@ -98,11 +103,6 @@ protected:
     unsigned int send_ping();
     unsigned int send_pong(uint32_t ping_seqno);
     unsigned int send_shutdown(std::string reason);
-
-    std::thread extern_io_thread;
-
-    std::shared_ptr<buffer_pair> bufferpair;
-    std::shared_ptr<ipc_remote_v2> ipc_remote;
 
     std::shared_ptr<time_tracker> timetracker;
 

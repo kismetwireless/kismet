@@ -128,14 +128,14 @@ void kis_external_interface::extern_io() {
             uint32_t data_checksum;
 
             if (!first)
-                bufferpair->new_available_block_rbuf();
+                bufferpair->new_available_block_rbuf(std::chrono::seconds(10));
 
             first = false;
 
             char *buf;
 
             auto buf_sz =
-                bufferpair->peek_block_rbuf(&buf, sizeof(kismet_external_frame_t), std::chrono::seconds(0));
+                bufferpair->peek_block_rbuf(&buf, sizeof(kismet_external_frame_t), std::chrono::seconds(10));
 
             frame = reinterpret_cast<kismet_external_frame_t *>(buf);
 

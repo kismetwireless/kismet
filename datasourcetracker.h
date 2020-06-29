@@ -27,21 +27,21 @@
 #include <map>
 #include <functional>
 
+#include "buffer_handler.h"
 #include "globalregistry.h"
-#include "util.h"
+#include "entrytracker.h"
+#include "eventbus.h"
 #include "kis_datasource.h"
+#include "kis_mutex.h"
+#include "kis_net_microhttpd.h"
+#include "pollabletracker.h"
+#include "socketclient.h"
+#include "tcpserver2.h"
+#include "timetracker.h"
 #include "trackedelement.h"
 #include "trackedcomponent.h"
-#include "kis_net_microhttpd.h"
-#include "entrytracker.h"
-#include "timetracker.h"
-#include "tcpserver2.h"
-#include "pollabletracker.h"
-#include "kis_net_microhttpd.h"
-#include "buffer_handler.h"
 #include "trackedrrd.h"
-#include "kis_mutex.h"
-#include "eventbus.h"
+#include "util.h"
 
 /* Data source tracker
  *
@@ -294,7 +294,6 @@ protected:
     std::shared_ptr<tracker_element_string> remote_cap_listen;
     std::shared_ptr<tracker_element_uint32> remote_cap_port;
     std::shared_ptr<tracker_element_uint8> remote_cap_timestamp;
-
 };
 
 // Intermediary buffer handler which is responsible for parsing the incoming
@@ -374,6 +373,31 @@ public:
         std::shared_ptr<kis_datasource> datasource;
     };
 
+    // Datasource went into error state
+    class event_error_datasource : public eventbus_event {
+    public:
+        static std::string event() { return "ERROR_DATASOURCE"; }
+        event_error_datasource(uuid dsuuid) :
+            eventbus_event(event()),
+            dsuuid{dsuuid} { }
+        virtual ~event_error_datasource() {}
+
+        uuid dsuuid;
+    };
+
+    // remote went into error state without being promoted to a DS
+    class event_error_remote : public eventbus_event {
+    public:
+        static std::string event() { return "ERROR_DATASOURCE_REMOTE"; }
+        event_error_remote(int fd) :
+            eventbus_event(event()),
+            fd{fd} { }
+        virtual ~event_error_remote() {}
+
+        int fd;
+    };
+
+
     // Add a driver
     int register_datasource(shared_datasource_builder in_builder);
 
@@ -448,6 +472,7 @@ protected:
     virtual void databaselog_write_datasources();
 
     std::shared_ptr<tcp_server_v2> remote_tcp_server;
+    std::map<int, std::shared_ptr<socket_client>> pending_remotes;
 
     std::shared_ptr<datasource_tracker> datasourcetracker;
     std::shared_ptr<time_tracker> timetracker;
