@@ -32,9 +32,9 @@
 #include "pollable.h"
 #include "kis_mutex.h"
 
-// Generic socket backend that operates on a bidirectional socket; relies on a buffer
-// pair and a blocker-consuming frontend, and interacts with the kismet pollable io
-// subsystem.
+
+// Socket communication client, operates on any socket which supports recv/send semantics,
+// connects to a buffer_pair and common_buffer_v2
 class socket_client_v2 : public kis_pollable {
 public:
     socket_client_v2(int fd, std::shared_ptr<buffer_pair> in_pair);
@@ -48,10 +48,9 @@ public:
     virtual int pollable_poll(fd_set& in_rset, fd_set& in_wset);
 
 protected:
-    std::shared_ptr<buffer_pair> handler;
+    std::shared_ptr<buffer_pair> bufferpair;
 
     std::atomic<int> cli_fd;
-    std::atomic<bool> connected;
 };
 
 #endif
