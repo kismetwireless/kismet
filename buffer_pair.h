@@ -319,6 +319,11 @@ public:
             error_cb();
     }
 
+	template<typename... Args> 
+	void error(const char *f, Args... args) {
+		error(fmt::format(f, args...));
+	}
+
     // Throw a specific exception to both buffers, call error cb if one exists
     void throw_error(std::exception_ptr e) {
         local_locker l(&mutex, "buffer_pair::throw_error");
