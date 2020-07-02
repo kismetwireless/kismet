@@ -40,7 +40,7 @@ socket_client_v2::~socket_client_v2() {
 
 int socket_client_v2::pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset) {
     // If we lose our socket, remove ourselves from the pollable system; we cannot re-acquire
-	if (cli_fd < 0)
+	if (!connected())
         return -1;
 
     if (bufferpair->used_wbuf() > 0) {
@@ -65,12 +65,12 @@ int socket_client_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
     ssize_t ret, iret;
     ssize_t rbuf_avail, wbuf_avail;
 
-	if (cli_fd < 0)
+	if (!connected())
         return -1;
 
     if (FD_ISSET(cli_fd, &in_rset)) {
         // Receive the largest chunk of data we can from the socket
-        while (cli_fd >= 0 && (rbuf_avail = bufferpair->available_rbuf()) > 0) {
+        while (connected() && (rbuf_avail = bufferpair->available_rbuf()) > 0) {
             len = bufferpair->zero_copy_reserve_rbuf(&buf, rbuf_avail);
 
             if (len <= 0) {
@@ -108,7 +108,7 @@ int socket_client_v2::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
         }
     }
 
-    if (cli_fd >= 0 && FD_ISSET(cli_fd, &in_wset) && (wbuf_avail = bufferpair->used_wbuf() > 0)) {
+    if (connected() && FD_ISSET(cli_fd, &in_wset) && (wbuf_avail = bufferpair->used_wbuf() > 0)) {
         // Peek the entire available data
         len = bufferpair->zero_copy_peek_wbuf(&buf, wbuf_avail);
 
@@ -146,7 +146,7 @@ void socket_client_v2::disconnect() {
     cli_fd = -1;
 }
 
-bool socket_client_v2::get_connected() {
+bool socket_client_v2::connected() {
 	return cli_fd >= 0;
 }
 

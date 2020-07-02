@@ -41,7 +41,7 @@ public:
     virtual ~socket_client_v2();
 
     virtual void disconnect();
-    bool get_connected();
+    bool connected();
 
     // kis_pollable interface
     virtual int pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset);
