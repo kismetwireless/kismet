@@ -32,7 +32,8 @@ public:
     buffer_pair(std::shared_ptr<common_buffer_v2> in_rbuf,
             std::shared_ptr<common_buffer_v2> in_wbuf) :
         read_buffer {in_rbuf},
-        write_buffer {in_rbuf} { }
+        write_buffer {in_rbuf},
+		aux {nullptr} { }
 
     virtual ~buffer_pair() {
         if (read_buffer != nullptr) {
@@ -347,6 +348,14 @@ public:
         error_cb = cb;
     }
 
+	void set_aux(void *in_aux) {
+		aux = in_aux;
+	}
+
+	void *get_aux() {
+		return aux;
+	}
+
 protected:
     kis_recursive_timed_mutex mutex;
 
@@ -355,6 +364,8 @@ protected:
 
     std::shared_ptr<common_buffer_v2> read_buffer;
     std::shared_ptr<common_buffer_v2> write_buffer;
+
+	void *aux;
 };
 
 // A C++ streambuf-compatible interface to a buffer pair
