@@ -253,17 +253,17 @@ public:
 
 
     template< class Rep, class Period>
-    ssize_t write_block_rbuf(char *data, size_t in_sz,
+    ssize_t write_block_rbuf(void *data, size_t in_sz,
             const std::chrono::duration<Rep,Period>& timeout_duration) {
         if (read_buffer != nullptr)
-            return read_buffer->write_block(data, in_sz, timeout_duration);
+            return read_buffer->write_block((char *) data, in_sz, timeout_duration);
 
         return -1;
     }
 
-    ssize_t write_rbuf(const char *data, size_t in_sz) {
+    ssize_t write_rbuf(const void *data, size_t in_sz) {
         if (read_buffer != nullptr)
-            return read_buffer->write(data, in_sz);
+            return read_buffer->write((const char *) data, in_sz);
         return -1;
     }
 
@@ -272,17 +272,17 @@ public:
     }
 
     template< class Rep, class Period>
-    ssize_t write_block_wbuf(const char *data, size_t in_sz,
+    ssize_t write_block_wbuf(void *data, size_t in_sz,
             const std::chrono::duration<Rep,Period>& timeout_duration) {
         if (write_buffer != nullptr)
-            return write_buffer->write_block(data, in_sz, timeout_duration);
+            return write_buffer->write_block((char *) data, in_sz, timeout_duration);
 
         return -1;
     }
 
-    ssize_t write_wbuf(const char *data, size_t in_sz) {
+    ssize_t write_wbuf(const void *data, size_t in_sz) {
         if (write_buffer != nullptr)
-            return write_buffer->write(data, in_sz);
+            return write_buffer->write((const char *) data, in_sz);
         return -1;
     }
 
