@@ -566,7 +566,7 @@ int fetch_sys_loadavg(uint8_t *in_avgmaj, uint8_t *in_avgmin) {
 }
 #endif
 
-uint32_t adler32_incremental_checksum(const char *in_buf, size_t in_len,
+uint32_t adler32_incremental_checksum(const void *in_buf, size_t in_len,
         uint32_t *s1, uint32_t *s2) {
     size_t i;
     const uint8_t *buf = (const uint8_t *) in_buf;

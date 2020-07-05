@@ -206,7 +206,7 @@ int fetch_sys_loadavg(uint8_t *in_avgmaj, uint8_t *in_avgmin);
 #endif
 
 // Adler-32 checksum, derived from rsync, adler-32
-uint32_t adler32_checksum(const char *buf1, size_t len);
+uint32_t adler32_checksum(const void *buf1, size_t len);
 
 // C++ shortcut
 uint32_t adler32_checksum(const std::string& buf1);
