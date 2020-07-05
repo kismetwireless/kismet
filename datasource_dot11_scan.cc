@@ -18,7 +18,7 @@
 
 #include "datasourcetracker.h"
 #include "datasource_virtual.h"
-#include "dot11_scan_source.h"
+#include "datasource_dot11_scan.h"
 #include "json_adapter.h"
 
 dot11_scan_source::dot11_scan_source() :

@@ -49,7 +49,7 @@ Minor cleanup to pcapng generation
 #include "phy_80211_httpd_pcap.h"
 #include "phy_80211_ssidtracker.h"
 
-#include "dot11_scan_source.h"
+#include "datasource_dot11_scan.h"
 
 #include "kaitai/kaitaistream.h"
 #include "dot11_parsers/dot11_wpa_eap.h"

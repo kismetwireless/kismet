@@ -78,8 +78,7 @@
 #include "datasource_nxp_kw41z.h"
 #include "datasource_ti_cc_2531.h"
 #include "datasource_virtual.h"
-
-#include "dot11_scan_source.h"
+#include "datasource_dot11_scan.h"
 
 #include "logtracker.h"
 #include "kis_ppilogfile.h"
