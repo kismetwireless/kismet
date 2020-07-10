@@ -35,3 +35,7 @@ tzsp_source::tzsp_source() :
 
 }
 
+tzsp_source::~tzsp_source() {
+    Globalreg::globalreg->RemoveGlobal(global_name());
+}
+
