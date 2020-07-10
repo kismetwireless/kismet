@@ -25,6 +25,13 @@
 #include "kis_datasource.h"
 #include "udpserver.h"
 
+// TZSP per-frame header
+typedef struct {
+    uint8_t tzsp_version;
+    uint8_t tzsp_type;
+    uint8_t tzsp_encapsulation;
+} __attribute__((packed)) tzsp_header;
+
 #define TZSP_PACKET_RECEIVED        0x00
 #define TZSP_PACKET_TRANSMIT        0x01
 #define TZSP_PACKET_RESERVED        0x02
@@ -36,6 +43,13 @@
 #define TZSP_DLT_IEEE80211          0x12
 #define TZSP_DLT_PRISM              0x77
 #define TZSP_DLT_AVS                0x7F
+
+// TZSP tagged records
+typedef struct {
+    uint8_t tagno;
+    uint8_t taglen;
+    char *data;
+} __attribute__((packed)) tzsp_tag_t;
 
 #define TZSP_TAG_PADDING            0x00
 #define TZSP_TAG_END                0x01
@@ -73,6 +87,8 @@ protected:
 
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<datasource_tracker> datasourcetracker;
+
+    int pack_comp_common, pack_comp_linkframe, pack_comp_l1info, pack_comp_datasrc;
 
 };
 
