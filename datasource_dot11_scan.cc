@@ -98,6 +98,7 @@ unsigned int dot11_scan_source::scan_result_endp_handler(std::ostream& stream,
             vs_cast->set_virtual_hardware("IEEE80211 scan");
 
             virtual_source->set_source_uuid(src_uuid);
+            virtual_source->set_source_key(adler32_checksum(src_uuid.uuid_to_string()));
             virtual_source->set_source_name(name);
 
             datasourcetracker->merge_source(virtual_source);
