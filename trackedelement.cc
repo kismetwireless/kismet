@@ -1119,14 +1119,14 @@ std::shared_ptr<tracker_element> summarize_single_tracker_element(shared_tracker
 
     unsigned int fn = 0;
 
-    for (auto si = in_summarization.begin(); si != in_summarization.end(); ++si) {
+    for (auto si : in_summarization) {
         fn++;
 
-        if ((*si)->resolved_path.size() == 0)
+        if (si->resolved_path.size() == 0)
             continue;
 
         shared_tracker_element f =
-            get_tracker_element_path((*si)->resolved_path, in);
+            get_tracker_element_path(si->resolved_path, in);
 
         if (f == NULL) {
             f = Globalreg::globalreg->entrytracker->register_and_get_field("unknown" + int_to_string(fn),
@@ -1135,11 +1135,11 @@ std::shared_ptr<tracker_element> summarize_single_tracker_element(shared_tracker
 
             std::static_pointer_cast<tracker_element_int8>(f)->set(0);
         
-            if ((*si)->rename.length() != 0) {
-                f->set_local_name((*si)->rename);
+            if (si->rename.length() != 0) {
+                f->set_local_name(si->rename);
             } else {
                 // Get the last name of the field in the path, if we can...
-                int lastid = (*si)->resolved_path[(*si)->resolved_path.size() - 1];
+                int lastid = si->resolved_path[si->resolved_path.size() - 1];
 
                 if (lastid < 0)
                     f->set_local_name("unknown" + int_to_string(fn));
@@ -1153,7 +1153,7 @@ std::shared_ptr<tracker_element> summarize_single_tracker_element(shared_tracker
         // to duplicate the summary object and make a reference to our parent
         // object so that when we serialize we can descend the path calling
         // the proper pre-serialization methods
-        if ((*si)->rename.length() != 0 || (*si)->resolved_path.size() > 1) {
+        if (si->rename.length() != 0 || si->resolved_path.size() > 1) {
             auto sum = std::make_shared<tracker_element_summary>(*si);
             sum->parent_element = in;
             (*rename_map)[f] = sum;
