@@ -96,19 +96,17 @@ std::shared_ptr<tracker_element> kishttpd::summarize_with_json(std::shared_ptr<t
         const Json::Value& json, std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
     auto summary_vec = std::vector<SharedElementSummary>{};
-    auto fields = json["fields"];
+    auto fields = json.get("fields", Json::Value(Json::arrayValue));
 
-    if (!fields.isNull() && fields.isArray()) {
-        for (const auto& i : json["fields"]) {
-            if (i.isString()) {
-                summary_vec.push_back(std::make_shared<tracker_element_summary>(i.asString()));
-            } else if (i.isArray()) {
-                if (i.size() != 2)
-                    throw std::runtime_error("Invalid field mapping, expected [field, name]");
-                summary_vec.push_back(std::make_shared<tracker_element_summary>(i[0].asString(), i[1].asString()));
-            } else {
-                throw std::runtime_error("Invalid field mapping, expected field or [field,rename]");
-            }
+    for (const auto& i : fields) {
+        if (i.isString()) {
+            summary_vec.push_back(std::make_shared<tracker_element_summary>(i.asString()));
+        } else if (i.isArray()) {
+            if (i.size() != 2)
+                throw std::runtime_error("Invalid field mapping, expected [field, name]");
+            summary_vec.push_back(std::make_shared<tracker_element_summary>(i[0].asString(), i[1].asString()));
+        } else {
+            throw std::runtime_error("Invalid field mapping, expected field or [field,rename]");
         }
     }
 
@@ -1412,7 +1410,7 @@ int kis_net_httpd_simple_tracked_endpoint::httpd_post_complete(kis_net_httpd_con
     auto summary = 
         kishttpd::summarize_with_json(output_content, json, rename_map);
 
-    Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, summary, nullptr);
+    Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, summary, rename_map);
 
     return MHD_YES;
 }
@@ -1575,7 +1573,7 @@ int kis_net_httpd_simple_unauth_tracked_endpoint::httpd_post_complete(kis_net_ht
     auto summary = 
         kishttpd::summarize_with_json(output_content, json, rename_map);
 
-    Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, summary, nullptr);
+    Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, summary, rename_map);
     return MHD_YES;
 }
 
@@ -1731,7 +1729,7 @@ int kis_net_httpd_path_tracked_endpoint::httpd_post_complete(kis_net_httpd_conne
     auto summary =
         kishttpd::summarize_with_json(output_content, json, rename_map);
 
-    Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, summary, nullptr);
+    Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, summary, rename_map);
     return MHD_YES;
 }
 
