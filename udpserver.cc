@@ -19,14 +19,22 @@
 #include "config.h"
 #include "ringbuf3.h"
 #include "udpserver.h"
+#include "timetracker.h"
 
 udp_dgram_server::udp_dgram_server() :
     packet {nullptr},
-    server_fd {-1} {
+    server_fd {-1},
+    timeout_id {-1} {
+
+    timetracker =
+        Globalreg::fetch_mandatory_global_as<time_tracker>();
+
     udp_mutex.set_name("udp_dgram_server");
-    }
+}
 
 udp_dgram_server::~udp_dgram_server() {
+    timetracker->remove_timer(timeout_id);
+
     shutdown();
 }
 
@@ -54,6 +62,8 @@ int udp_dgram_server::configure_server(short int in_port, const std::string& in_
 
     port = in_port;
     timeout = in_timeout;
+
+    timetracker->remove_timer(timeout_id);
 
     for (auto i : in_filtervec) {
         auto fv = str_tokenize(i, "/");
@@ -111,6 +121,33 @@ int udp_dgram_server::configure_server(short int in_port, const std::string& in_
         servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
     fcntl(server_fd, F_SETFL, fcntl(server_fd, F_GETFL, 0) | O_NONBLOCK);
+
+    timeout_id = 
+        timetracker->register_timer(std::chrono::seconds(in_timeout),
+                true,
+                [this, in_timeout](int) -> int {
+                    local_locker l(&udp_mutex, "udp_dgram_server::timeout timer");
+
+                    auto now = time(0);
+                    auto purgelist = std::list<uint32_t>();
+
+                    for (auto c : client_map) {
+                        if (c.second->last_time < (now - in_timeout.count())) 
+                            purgelist.push_back(c.first);
+                    }
+
+                    for (auto p : purgelist) {
+                        auto c = client_map.find(p);
+
+                        if (timeout_cb)
+                            timeout_cb(c->second->bufferpair);
+
+                        client_map.erase(c);
+
+                    }
+
+                    return 1;
+                });
 
     return 1;
 }

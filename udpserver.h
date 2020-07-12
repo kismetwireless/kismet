@@ -107,6 +107,10 @@ protected:
     std::function<std::shared_ptr<buffer_pair> (const struct sockaddr_storage *, size_t)> connection_cb;
     std::function<void (std::shared_ptr<buffer_pair>)> timeout_cb;
 
+    std::shared_ptr<time_tracker> timetracker;
+    int timeout_id;
+
+
 };
 
 
