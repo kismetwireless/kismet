@@ -46,12 +46,18 @@ pollable_tracker::~pollable_tracker() {
 }
 
 void pollable_tracker::register_pollable(std::shared_ptr<kis_pollable> in_pollable) {
+    if (in_pollable == nullptr)
+        return;
+
     local_locker lock(&pollable_mutex);
 
     add_vec.push_back(in_pollable);
 }
 
 void pollable_tracker::remove_pollable(std::shared_ptr<kis_pollable> in_pollable) {
+    if (in_pollable == nullptr)
+        return;
+
     local_locker lock(&pollable_mutex);
 
     remove_map[in_pollable] = 1;
