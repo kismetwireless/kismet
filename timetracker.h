@@ -21,13 +21,14 @@
 
 #include "config.h"
 
-#include <stdio.h>
-#include <time.h>
+#include <algorithm>
+#include <chrono>
 #include <list>
 #include <map>
-#include <vector>
-#include <algorithm>
+#include <stdio.h>
 #include <string>
+#include <time.h>
+#include <vector>
 
 #include <functional>
 
@@ -44,6 +45,8 @@ class time_tracker_event;
 
 class time_tracker : public lifetime_global {
 public:
+    using slice = std::chrono::duration<int, std::ratio<1, 10>>;
+
     struct timer_event {
         int timer_id;
 
@@ -101,8 +104,7 @@ private:
 public:
     virtual ~time_tracker();
 
-    // Register an optionally recurring timer.  Slices are 1/100th of a second,
-    // the smallest linux can slice without getting into weird calls.
+    // Register an optionally recurring timer.  
     int register_timer(int in_timeslices, struct timeval *in_trigger,
                       int in_recurring, 
                       int (*in_callback)(timer_event *, void *, global_registry *),
@@ -112,6 +114,14 @@ public:
             int in_recurring, time_tracker_event *event);
 
     int register_timer(int timeslices, struct timeval *in_trigger,
+            int in_recurring, std::function<int (int)> event);
+
+    int register_timer(const slice& in_timeslices,
+            int in_recurring,
+            int (*in_callbacK)(timer_event *, void *, global_registry *),
+            void *in_parm); 
+
+    int register_timer(const slice& in_timeslices,
             int in_recurring, std::function<int (int)> event);
 
     // Remove a timer that's going to execute

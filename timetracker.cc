@@ -393,6 +393,79 @@ int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
     return evt->timer_id;
 }
 
+int time_tracker::register_timer(const slice& in_timeslices,
+                               int in_recurring, 
+                               int (*in_callback)(TIMEEVENT_PARMS),
+                               void *in_parm) {
+    local_locker l(&time_mutex);
+
+    timer_event *evt = new timer_event;
+
+    evt->timer_id = next_timer_id++;
+    gettimeofday(&(evt->schedule_tm), NULL);
+
+    evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + (in_timeslices.count() / 10);
+    evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + (in_timeslices.count() % 10);
+    evt->timeslices = in_timeslices.count();
+
+    if (evt->trigger_tm.tv_usec >= 999999L) {
+        evt->trigger_tm.tv_sec++;
+        evt->trigger_tm.tv_usec %= 1000000L;
+    }
+
+    evt->recurring = in_recurring;
+    evt->callback = in_callback;
+    evt->callback_parm = in_parm;
+    evt->event = NULL;
+
+    timer_map[evt->timer_id] = evt;
+    sorted_timers.push_back(evt);
+
+    // Resort the list
+    timer_sort_required = true;
+
+    return evt->timer_id;
+}
+
+int time_tracker::register_timer(const slice& in_timeslices,
+        int in_recurring, std::function<int (int)> in_event) {
+    local_locker l(&time_mutex);
+
+    timer_event *evt = new timer_event;
+
+    evt->timer_cancelled = false;
+    evt->timer_id = next_timer_id++;
+
+    gettimeofday(&(evt->schedule_tm), NULL);
+
+    evt->trigger_tm.tv_sec = evt->schedule_tm.tv_sec + 
+        (in_timeslices.count() / SERVER_TIMESLICES_SEC);
+    evt->trigger_tm.tv_usec = evt->schedule_tm.tv_usec + 
+        ((in_timeslices.count() % SERVER_TIMESLICES_SEC) * 
+         (1000000L / SERVER_TIMESLICES_SEC));
+    evt->timeslices = in_timeslices.count();
+
+    if (evt->trigger_tm.tv_usec >= 999999L) {
+        evt->trigger_tm.tv_sec++;
+        evt->trigger_tm.tv_usec %= 1000000L;
+    }
+
+    evt->recurring = in_recurring;
+    evt->callback = NULL;
+    evt->callback_parm = NULL;
+    evt->event = NULL;
+    
+    evt->event_func = in_event;
+
+    timer_map[evt->timer_id] = evt;
+    sorted_timers.push_back(evt);
+
+    // Resort the list
+    timer_sort_required = true;
+
+    return evt->timer_id;
+}
+
 int time_tracker::remove_timer(int in_timerid) {
     // Removing a timer sets the atomic cancelled and puts us on the abort list;
     // we'll get cleaned out of the main list the next iteration through the main code.
