@@ -40,13 +40,13 @@ public:
     virtual bool httpd_verify_path(const char *path, const char *method);
 
     // We use this to attach the pcap stream
-    virtual int httpd_create_stream_response(kis_net_httpd *httpd,
+    virtual KIS_MHD_RETURN httpd_create_stream_response(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size); 
 
-    virtual int httpd_post_complete(kis_net_httpd_connection *con __attribute__((unused))) {
-        return 0;
+    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *con __attribute__((unused))) {
+        return MHD_NO;
     }
     
 };

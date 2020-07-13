@@ -697,7 +697,7 @@ bool kis_external_http_interface::httpd_verify_path(const char *path, const char
 // tool, we need to set a lock and sit on it until the proxy has completed.
 // We don't need to spawn our own thread - we're already our own thread independent
 // of the IO processing system.
-int kis_external_http_interface::httpd_create_stream_response(kis_net_httpd *httpd,
+KIS_MHD_RETURN kis_external_http_interface::httpd_create_stream_response(kis_net_httpd *httpd,
         kis_net_httpd_connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
@@ -761,7 +761,7 @@ int kis_external_http_interface::httpd_create_stream_response(kis_net_httpd *htt
     return MHD_YES;
 }
 
-int kis_external_http_interface::httpd_post_complete(kis_net_httpd_connection *connection) {
+KIS_MHD_RETURN kis_external_http_interface::httpd_post_complete(kis_net_httpd_connection *connection) {
     auto m = http_proxy_uri_map.find(std::string("POST"));
 
     if (m == http_proxy_uri_map.end()) {
@@ -819,7 +819,5 @@ int kis_external_http_interface::httpd_post_complete(kis_net_httpd_connection *c
 
     connection->httpcode = 501;
     return MHD_YES;
-
-    return 0;
 }
 

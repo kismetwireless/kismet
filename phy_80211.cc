@@ -3468,7 +3468,7 @@ void kis_80211_phy::httpd_create_stream_response(kis_net_httpd *httpd,
     return;
 }
 
-int kis_80211_phy::httpd_post_complete(kis_net_httpd_connection *concls) {
+KIS_MHD_RETURN kis_80211_phy::httpd_post_complete(kis_net_httpd_connection *concls) {
     bool handled = false;
 
     std::string stripped = httpd_strip_suffix(concls->url);
@@ -3483,7 +3483,7 @@ int kis_80211_phy::httpd_post_complete(kis_net_httpd_connection *concls) {
         concls->response_stream << "OK";
     }
 
-    return 1;
+    return MHD_YES;
 }
 
 class phy80211_devicetracker_expire_worker : public device_tracker_view_worker {

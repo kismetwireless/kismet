@@ -333,8 +333,8 @@ void Kis_UAV_Phy::httpd_create_stream_response(kis_net_httpd *httpd,
     return;
 }
 
-int Kis_UAV_Phy::httpd_post_complete(kis_net_httpd_connection *concls) {
-    return 0;
+KIS_MHD_RETURN Kis_UAV_Phy::httpd_post_complete(kis_net_httpd_connection *concls) {
+    return MHD_YES;
 }
 
 bool Kis_UAV_Phy::parse_manuf_definition(std::string in_def) {

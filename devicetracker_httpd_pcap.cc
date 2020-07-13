@@ -60,7 +60,7 @@ bool device_tracker_httpd_pcap::httpd_verify_path(const char *path, const char *
 
 }
 
-int device_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *httpd,
+KIS_MHD_RETURN device_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *httpd,
         kis_net_httpd_connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {

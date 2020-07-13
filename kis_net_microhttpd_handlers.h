@@ -22,12 +22,12 @@
 #include "config.h"
 
 #include <memory>
-#include <microhttpd.h>
-
 #include "buffer_handler.h"
 #include "chainbuf.h"
 #include "ringbuf2.h"
 #include "trackedelement.h"
+
+#include "microhttpd_shim.h"
 
 class kis_net_httpd;
 class kis_net_httpd_connection;
@@ -44,12 +44,12 @@ public:
     // Handle a GET request; must allocate the response mechanism via
     // MHD_create_response_from_... and will typically call some other
     // function to generate the data for the response
-    virtual int httpd_handle_get_request(kis_net_httpd *httpd,
+    virtual KIS_MHD_RETURN httpd_handle_get_request(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) = 0;
 
-    virtual int httpd_handle_post_request(kis_net_httpd *httpd,
+    virtual KIS_MHD_RETURN httpd_handle_post_request(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection, 
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) = 0;
@@ -85,7 +85,7 @@ public:
 
     // Called when a POST event is complete - all data has been uploaded and
     // cached in the connection info.
-    virtual int httpd_post_complete(kis_net_httpd_connection *con __attribute__((unused))) {
+    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *con __attribute__((unused))) {
         return MHD_NO;
     }
 
@@ -99,7 +99,7 @@ public:
     // a post system which takes multiple values you will need to index the state
     // via the connection info and parse them all as you are called from the
     // microhttpd handler.
-    virtual int httpd_post_iterator(void *coninfo_cls __attribute__((unused)), 
+    virtual KIS_MHD_RETURN httpd_post_iterator(void *coninfo_cls __attribute__((unused)), 
             enum MHD_ValueKind kind __attribute__((unused)), 
             const char *key __attribute__((unused)), 
             const char *filename __attribute__((unused)), 
@@ -140,12 +140,12 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream) = 0;
 
-    virtual int httpd_handle_get_request(kis_net_httpd *httpd, 
+    virtual KIS_MHD_RETURN httpd_handle_get_request(kis_net_httpd *httpd, 
             kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size);
 
-    virtual int httpd_handle_post_request(kis_net_httpd *httpd,
+    virtual KIS_MHD_RETURN httpd_handle_post_request(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection, 
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size);
@@ -175,11 +175,11 @@ public:
 
     virtual ~kis_net_httpd_buffer_stream_handler();
 
-    virtual int httpd_handle_get_request(kis_net_httpd *httpd,
+    virtual KIS_MHD_RETURN httpd_handle_get_request(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size);
-    virtual int httpd_handle_post_request(kis_net_httpd *httpd,
+    virtual KIS_MHD_RETURN httpd_handle_post_request(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection, 
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size);
@@ -196,7 +196,7 @@ public:
     //  MHD_YES - Streambuffer should automatically close the buffer when the
     //            streamresponse is complete, typically used when streaming a finite
     //            amount of data through a memchunk buffer like a json serialization
-    virtual int httpd_create_stream_response(kis_net_httpd *httpd,
+    virtual KIS_MHD_RETURN httpd_create_stream_response(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) = 0;
@@ -208,7 +208,7 @@ public:
     //  MHD_NO  - Streambuffer should not automatically close out the buffer
     //  MHD_YES - Streambuffer should automatically close the buffer when the
     //            streamresponse is complete
-    virtual int httpd_post_complete(kis_net_httpd_connection *con __attribute__((unused))) = 0;
+    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *con __attribute__((unused))) = 0;
 
     // Called by microhttpd during servicing a connecting; cls is a 
     // kis_net_httpd_buffer_stream_aux which contains all our references to

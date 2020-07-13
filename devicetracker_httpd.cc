@@ -220,7 +220,7 @@ bool device_tracker::httpd_verify_path(const char *path, const char *method) {
     return false;
 }
 
-int device_tracker::httpd_create_stream_response(
+KIS_MHD_RETURN device_tracker::httpd_create_stream_response(
         kis_net_httpd *httpd __attribute__((unused)),
         kis_net_httpd_connection *connection,
         const char *path, const char *method, const char *upload_data,
@@ -412,7 +412,7 @@ int device_tracker::httpd_create_stream_response(
     return MHD_YES;
 }
 
-int device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
+KIS_MHD_RETURN device_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
     // Split URL and process
     std::vector<std::string> tokenurl = str_tokenize(concls->url, "/");
 

@@ -115,7 +115,7 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream);
 
-    virtual int httpd_post_complete(kis_net_httpd_connection *concls);
+    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *concls);
 
 protected:
     std::shared_ptr<packet_chain> packetchain;

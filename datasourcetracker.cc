@@ -1550,7 +1550,7 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
 
 }
 
-int datasource_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
+KIS_MHD_RETURN datasource_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
     if (!httpd_can_serialize(concls->url)) {
         concls->response_stream << "Invalid request, cannot serialize URL";
         concls->httpcode = 400;
@@ -1870,7 +1870,7 @@ bool datasource_tracker_httpd_pcap::httpd_verify_path(const char *path, const ch
     return false;
 }
 
-int datasource_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *httpd,
+KIS_MHD_RETURN datasource_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *httpd,
         kis_net_httpd_connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {

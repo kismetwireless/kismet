@@ -1371,7 +1371,7 @@ bool kis_database_logfile::httpd_verify_path(const char *path, const char *metho
     return false;
 }
 
-int kis_database_logfile::httpd_create_stream_response(kis_net_httpd *httpd,
+KIS_MHD_RETURN kis_database_logfile::httpd_create_stream_response(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) {
@@ -1531,7 +1531,7 @@ int kis_database_logfile::httpd_create_stream_response(kis_net_httpd *httpd,
     return MHD_YES;
 }
 
-int kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) {
+KIS_MHD_RETURN kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) {
     std::string stripped = httpd_strip_suffix(concls->url);
     std::string suffix = httpd_get_suffix(concls->url);
 

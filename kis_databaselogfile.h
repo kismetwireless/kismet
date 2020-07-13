@@ -125,12 +125,12 @@ public:
     // HTTP handlers
     virtual bool httpd_verify_path(const char *path, const char *method) override;
 
-    virtual int httpd_create_stream_response(kis_net_httpd *httpd,
+    virtual KIS_MHD_RETURN httpd_create_stream_response(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) override;
 
-    virtual int httpd_post_complete(kis_net_httpd_connection *concls) override;
+    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *concls) override;
 
     // Messagebus API
     virtual void process_message(std::string in_msg, int in_flags) override;

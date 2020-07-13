@@ -375,7 +375,7 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream) override;
 
-    virtual int httpd_post_complete(kis_net_httpd_connection *concls) override;
+    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *concls) override;
 
     // time_tracker event handler
     virtual int timetracker_event(int eventid) override;

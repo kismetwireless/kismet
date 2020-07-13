@@ -221,17 +221,11 @@ void Kis_Zwave_Phy::httpd_create_stream_response(kis_net_httpd *httpd,
     return;
 }
 
-int Kis_Zwave_Phy::httpd_post_complete(kis_net_httpd_connection *concls) {
-
-    // Anything involving POST here requires a login
-    if (!httpd->has_valid_session(concls, true)) {
-        return 1;
-    }
-
+KIS_MHD_RETURN Kis_Zwave_Phy::httpd_post_complete(kis_net_httpd_connection *concls) {
     bool handled = false;
 
     if (concls->url != "/phy/phyZwave/post_zwave_json.cmd")
-        return 1;
+        return MHD_YES;
    
     if (concls->variable_cache.find("obj") != concls->variable_cache.end()) {
         Json::Value json;
@@ -243,7 +237,7 @@ int Kis_Zwave_Phy::httpd_post_complete(kis_net_httpd_connection *concls) {
             concls->response_stream << "Invalid request: could not parse JSON: " <<
                 e.what();
             concls->httpcode = 400;
-            return 1;
+            return MHD_YES;
         }
 
         // If we can't make sense of it, blow up
@@ -267,7 +261,7 @@ int Kis_Zwave_Phy::httpd_post_complete(kis_net_httpd_connection *concls) {
         concls->response_stream << "OK";
     }
 
-    return 1;
+    return MHD_YES;
 }
 
 

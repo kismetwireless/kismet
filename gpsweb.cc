@@ -95,7 +95,7 @@ void kis_gps_web::httpd_create_stream_response(kis_net_httpd *httpd,
     return;
 }
 
-int kis_gps_web::httpd_post_complete(kis_net_httpd_connection *concls) {
+KIS_MHD_RETURN kis_gps_web::httpd_post_complete(kis_net_httpd_connection *concls) {
 
     bool handled = false;
 
@@ -103,7 +103,7 @@ int kis_gps_web::httpd_post_complete(kis_net_httpd_connection *concls) {
     if (!httpd->has_valid_session(concls)) {
         concls->response_stream << "Login required";
         concls->httpcode = 401;
-        return 1;
+        return MHD_YES;
     }
 
     double lat = 0, lon = 0, alt = 0, spd = 0;
@@ -134,7 +134,7 @@ int kis_gps_web::httpd_post_complete(kis_net_httpd_connection *concls) {
     } catch (const std::exception& e) {
         concls->response_stream << "Invalid request " << e.what();
         concls->httpcode = 400;
-        return 1;
+        return MHD_YES;
     }
 
     // If we didn't handle it and got here, we don't know what it is, throw an
@@ -180,7 +180,7 @@ int kis_gps_web::httpd_post_complete(kis_net_httpd_connection *concls) {
 
     update_locations();
 
-    return 1;
+    return MHD_YES;
 }
 
 

@@ -72,13 +72,13 @@ std::string kis_net_httpd_handler::httpd_strip_suffix(const std::string& path) {
     return httpd->strip_suffix(path);
 }
 
-int kis_net_httpd_cppstream_handler::httpd_handle_get_request(kis_net_httpd *httpd, 
+KIS_MHD_RETURN kis_net_httpd_cppstream_handler::httpd_handle_get_request(kis_net_httpd *httpd, 
         kis_net_httpd_connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
     std::stringstream stream;
-    int ret;
+    KIS_MHD_RETURN ret;
 
     if (connection == NULL)
         return MHD_NO;
@@ -101,7 +101,7 @@ int kis_net_httpd_cppstream_handler::httpd_handle_get_request(kis_net_httpd *htt
     return MHD_YES;
 }
 
-int kis_net_httpd_cppstream_handler::httpd_handle_post_request(kis_net_httpd *httpd, 
+KIS_MHD_RETURN kis_net_httpd_cppstream_handler::httpd_handle_post_request(kis_net_httpd *httpd, 
         kis_net_httpd_connection *connection,
         const char *url, const char *method __attribute__((unused)), 
         const char *upload_data __attribute__((unused)),
@@ -349,7 +349,7 @@ static void free_buffer_aux_callback(void *cls) {
     delete(aux);
 }
 
-int kis_net_httpd_buffer_stream_handler::httpd_handle_get_request(kis_net_httpd *httpd, 
+KIS_MHD_RETURN kis_net_httpd_buffer_stream_handler::httpd_handle_get_request(kis_net_httpd *httpd, 
         kis_net_httpd_connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
@@ -430,7 +430,7 @@ int kis_net_httpd_buffer_stream_handler::httpd_handle_get_request(kis_net_httpd 
     return MHD_NO;
 }
 
-int kis_net_httpd_buffer_stream_handler::httpd_handle_post_request(kis_net_httpd *httpd,
+KIS_MHD_RETURN kis_net_httpd_buffer_stream_handler::httpd_handle_post_request(kis_net_httpd *httpd,
         kis_net_httpd_connection *connection, 
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {

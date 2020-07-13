@@ -427,7 +427,7 @@ public:
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size, std::stringstream &stream) override;
 
-    virtual int httpd_post_complete(kis_net_httpd_connection *concls) override;
+    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *concls) override;
 
     // Operate on all data sources currently defined.  The datasource tracker is locked
     // during this operation, making it thread safe.
@@ -538,14 +538,14 @@ public:
     virtual bool httpd_verify_path(const char *path, const char *method) override;
 
     // We use this to attach the pcap stream
-    virtual int httpd_create_stream_response(kis_net_httpd *httpd,
+    virtual KIS_MHD_RETURN httpd_create_stream_response(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
             size_t *upload_data_size) override; 
 
     // We don't currently handle POSTed data
-    virtual int httpd_post_complete(kis_net_httpd_connection *con __attribute__((unused))) override {
-        return 0;
+    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *con __attribute__((unused))) override {
+        return MHD_NO;
     }
 
 protected:

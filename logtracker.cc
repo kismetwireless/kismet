@@ -485,7 +485,7 @@ void log_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
 
 }
 
-int log_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
+KIS_MHD_RETURN log_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
     Json::Value json;
 
     try {
@@ -503,10 +503,10 @@ int log_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
     // /logging/by-class/[foo]/start + post vars
 
     if (tokenurl.size() < 4)
-        return false;
+        return MHD_YES;
 
     if (tokenurl[1] != "logging")
-        return false;
+        return MHD_YES;
 
     try {
         if (tokenurl[2] == "by-class") {
@@ -548,7 +548,6 @@ int log_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
         return MHD_YES;
     }
 
-
-    return 0;
+    return MHD_YES;
 }
 
