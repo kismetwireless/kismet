@@ -83,10 +83,11 @@ public:
     virtual ~tzsp_source();
 
 protected:
-    udp_dgram_server tzsp_listener;
+    std::shared_ptr<udp_dgram_server> tzsp_listener;
 
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<datasource_tracker> datasourcetracker;
+    std::shared_ptr<pollable_tracker> pollabletracker;
 
     int pack_comp_common, pack_comp_linkframe, pack_comp_l1info, pack_comp_datasrc;
 
