@@ -75,8 +75,8 @@ public:
             const std::vector<std::string>& in_filtervec, std::chrono::seconds in_timeout,
             size_t in_max_packet, size_t in_wbuf_sz);
 
-    void set_new_connection_cb(std::function<std::shared_ptr<buffer_pair> (const struct sockaddr_storage *, size_t)>);
-    void set_timeout_connection_cb(std::function<void (std::shared_ptr<buffer_pair>)> cb);
+    void set_new_connection_cb(std::function<std::shared_ptr<buffer_pair> (const struct sockaddr_storage *, size_t, uint32_t)>);
+    void set_timeout_connection_cb(std::function<void (uint32_t, std::shared_ptr<buffer_pair>)> cb);
     
     virtual void shutdown();
 
@@ -104,8 +104,8 @@ protected:
 
     int server_fd;
 
-    std::function<std::shared_ptr<buffer_pair> (const struct sockaddr_storage *, size_t)> connection_cb;
-    std::function<void (std::shared_ptr<buffer_pair>)> timeout_cb;
+    std::function<std::shared_ptr<buffer_pair> (const struct sockaddr_storage *, size_t, uint32_t)> connection_cb;
+    std::function<void (uint32_t, std::shared_ptr<buffer_pair>)> timeout_cb;
 
     std::shared_ptr<time_tracker> timetracker;
     int timeout_id;

@@ -38,12 +38,12 @@ udp_dgram_server::~udp_dgram_server() {
     shutdown();
 }
 
-void udp_dgram_server::set_new_connection_cb(std::function<std::shared_ptr<buffer_pair> (const struct sockaddr_storage *, size_t)> in_cb) {
+void udp_dgram_server::set_new_connection_cb(std::function<std::shared_ptr<buffer_pair> (const struct sockaddr_storage *, size_t, uint32_t)> in_cb) {
     local_locker l(&udp_mutex, "udp_dgram_server::set_new_connection_cb");
     connection_cb = in_cb;
 }
 
-void udp_dgram_server::set_timeout_connection_cb(std::function<void (std::shared_ptr<buffer_pair>)> in_cb) {
+void udp_dgram_server::set_timeout_connection_cb(std::function<void (uint32_t, std::shared_ptr<buffer_pair>)> in_cb) {
     local_locker l(&udp_mutex, "udp_dgram_server::set_timeout_connection_cb");
     timeout_cb = in_cb;
 }
@@ -140,7 +140,7 @@ int udp_dgram_server::configure_server(short int in_port, const std::string& in_
                         auto c = client_map.find(p);
 
                         if (timeout_cb)
-                            timeout_cb(c->second->bufferpair);
+                            timeout_cb(c->first, c->second->bufferpair);
 
                         client_map.erase(c);
 
@@ -225,7 +225,8 @@ int udp_dgram_server::pollable_poll(fd_set& in_rset, fd_set& in_wset) {
 
                     if (pass && connection_cb != nullptr) {
                         auto cli_bufferpair = 
-                            connection_cb((const struct sockaddr_storage *) &cliaddr, addr_len);
+                            connection_cb((const struct sockaddr_storage *) &cliaddr, 
+                                    addr_len, cli_csum);
 
                         if (cli_bufferpair != nullptr) {
                             client_rec = std::make_shared<client>();
