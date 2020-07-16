@@ -29,13 +29,14 @@
 #include <algorithm>
 #include <string>
 
+#include "eventbus.h"
 #include "globalregistry.h"
+#include "kis_gps.h"
 #include "kis_mutex.h"
+#include "kis_net_microhttpd.h"
 #include "messagebus.h"
 #include "packetchain.h"
 #include "timetracker.h"
-#include "kis_net_microhttpd.h"
-#include "kis_gps.h"
 
 #ifdef PRELUDE
 #include <libprelude/prelude.hxx>
@@ -389,11 +390,24 @@ public:
     // Find an activated alert
     int find_activated_alert(std::string in_header);
 
+    class event_alert : public eventbus_event {
+    public:
+        static std::string event() { return "ALERT"; }
+
+        event_alert(std::shared_ptr<tracked_alert> alert):
+            eventbus_event(event()),
+            alert{alert} { }
+        virtual ~event_alert() {}
+
+        std::shared_ptr<tracked_alert> alert;
+    };
+
 protected:
     kis_recursive_timed_mutex alert_mutex;
 
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<entry_tracker> entrytracker;
+    std::shared_ptr<event_bus> eventbus;
 
     int alert_vec_id, alert_entry_id, alert_timestamp_id, alert_def_id;
 

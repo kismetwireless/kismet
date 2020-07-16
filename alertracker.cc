@@ -37,6 +37,7 @@ alert_tracker::alert_tracker() : lifetime_global() {
 
     packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
     entrytracker = Globalreg::fetch_mandatory_global_as<entry_tracker>();
+    eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
 
     alert_vec_id =
         entrytracker->register_field("kismet.alert.list",
@@ -371,11 +372,13 @@ int alert_tracker::raise_alert(int in_ref, kis_packet *in_pack,
         auto dbf = 
             Globalreg::FetchGlobalAs<kis_database_logfile>("DATABASELOG");
         if (dbf != NULL) {
-            auto ta = std::make_shared<tracked_alert>(alert_entry_id);
-            ta->from_alert_info(info);
+            auto ta = std::make_shared<tracked_alert>(alert_entry_id, info);
             dbf->log_alert(ta);
         }
     }
+
+    // Publish an alert to the eventbus
+    eventbus->publish(std::make_shared<event_alert>(std::make_shared<tracked_alert>(alert_entry_id, info)));
 
 	return 1;
 }
