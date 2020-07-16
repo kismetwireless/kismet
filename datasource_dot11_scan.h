@@ -45,7 +45,8 @@ private:
     dot11_scan_source() : 
         datasource_scan_source("/phy/phy80211/scan/scan_report",
                 "IEEE80211 scan",
-                "DOT11SCAN") { }
+                "DOT11SCAN"),
+        lifetime_global() { }
 
 public:
     virtual ~dot11_scan_source() { };
