@@ -87,7 +87,7 @@ void time_tracker::tick() {
     lock.lock();
 
     if (timer_sort_required)
-        stable_sort(sorted_timers.begin(), sorted_timers.end(), SortTimerEventsTrigger());
+        stable_sort(sorted_timers.begin(), sorted_timers.end(), sort_timer_events_trigger());
 
     timer_sort_required = false;
 
@@ -182,7 +182,7 @@ void time_tracker::time_dispatcher() {
         lock.lock();
 
         if (timer_sort_required)
-            stable_sort(sorted_timers.begin(), sorted_timers.end(), SortTimerEventsTrigger());
+            stable_sort(sorted_timers.begin(), sorted_timers.end(), sort_timer_events_trigger());
 
         timer_sort_required = false;
 

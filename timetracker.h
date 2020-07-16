@@ -75,7 +75,7 @@ public:
     };
 
     // Sort alerts by alert trigger time
-    class SortTimerEventsTrigger {
+    class sort_timer_events_trigger {
     public:
         inline bool operator() (const time_tracker::timer_event *x, 
 								const time_tracker::timer_event *y) const {
