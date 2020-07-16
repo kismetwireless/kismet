@@ -48,7 +48,7 @@ time_tracker::time_tracker() {
 
 }
 
-void time_tracker::SpawnTimetrackerThread() {
+void time_tracker::spawn_timetracker_thread() {
     time_dispatch_t =
         std::thread([this]() {
                 thread_set_process_name("timers");

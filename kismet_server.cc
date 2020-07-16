@@ -997,7 +997,7 @@ int main(int argc, char *argv[], char *envp[]) {
     Globalreg::fetch_mandatory_global_as<kis_net_httpd>()->start_httpd();
 
     // Independent time and select threads, which has had problems with timing conflicts
-    timetracker->SpawnTimetrackerThread();
+    timetracker->spawn_timetracker_thread();
     pollabletracker->select_loop(false);
 
     SpindownKismet(pollabletracker);
