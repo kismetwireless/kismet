@@ -18,11 +18,14 @@
 
 #include "datasourcetracker.h"
 #include "datasource_virtual.h"
-#include "datasource_dot11_scan.h"
+#include "datasource_scan.h"
 #include "json_adapter.h"
 
-dot11_scan_source::dot11_scan_source() :
-    lifetime_global() {
+datasource_scan_source::datasource_scan_source(const std::string& uri, const std::string& source_type,
+        const std::string& json_component_type) :
+    endpoint_uri{uri},
+    virtual_source_type{source_type},
+    json_component_type{json_component_type} {
 
     packetchain =
         Globalreg::fetch_mandatory_global_as<packet_chain>();
@@ -41,19 +44,18 @@ dot11_scan_source::dot11_scan_source() :
         packetchain->register_packet_component("RADIODATA");
 
     scan_result_endp =
-        std::make_shared<kis_net_httpd_simple_post_endpoint>("/phy/phy80211/scan/scan_report",
+        std::make_shared<kis_net_httpd_simple_post_endpoint>(endpoint_uri,
                 [this](std::ostream& stream, const std::string& uri, const Json::Value& json,
                     kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
                 return scan_result_endp_handler(stream, uri, json, variable_cache);
                 });
+}
+
+datasource_scan_source::~datasource_scan_source() {
 
 }
 
-dot11_scan_source::~dot11_scan_source() {
-    Globalreg::globalreg->RemoveGlobal(global_name());
-}
-
-unsigned int dot11_scan_source::scan_result_endp_handler(std::ostream& stream,
+unsigned int datasource_scan_source::scan_result_endp_handler(std::ostream& stream,
         const std::string& uri, const Json::Value& json,
         kis_net_httpd_connection::variable_cache_map& variable_cache) {
 
@@ -95,7 +97,7 @@ unsigned int dot11_scan_source::scan_result_endp_handler(std::ostream& stream,
 
             auto vs_cast = std::static_pointer_cast<kis_datasource_virtual>(virtual_source);
 
-            vs_cast->set_virtual_hardware("IEEE80211 scan");
+            vs_cast->set_virtual_hardware(virtual_source_type);
 
             virtual_source->set_source_uuid(src_uuid);
             virtual_source->set_source_key(adler32_checksum(src_uuid.uuid_to_string()));
@@ -108,8 +110,9 @@ unsigned int dot11_scan_source::scan_result_endp_handler(std::ostream& stream,
         }
 
         for (auto r : json["reports"]) {
-            // Must have bssid, validate
-            auto bssid_s = r["bssid"].asString();
+            if (!validate_report(r)) {
+                throw std::runtime_error("invalid report");
+            }
 
             // TS is optional
             uint64_t ts_s = r.get("timestamp", 0).asUInt64();
@@ -126,7 +129,7 @@ unsigned int dot11_scan_source::scan_result_endp_handler(std::ostream& stream,
 
             // Re-pack the submitted record into json for this packet
             auto jsoninfo = new kis_json_packinfo();
-            jsoninfo->type = "DOT11SCAN";
+            jsoninfo->type = json_component_type;
 
             std::stringstream s;
             s << r;

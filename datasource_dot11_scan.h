@@ -21,6 +21,7 @@
 
 #include "config.h"
 
+#include "datasource_scan.h"
 #include "globalregistry.h"
 #include "kis_datasource.h"
 #include "kis_net_microhttpd.h"
@@ -29,7 +30,7 @@
 // Virtual dot11 datasource which supports scanning results from other systems; scans are turned
 // into dot11 networks with as much info as is available
 
-class dot11_scan_source : public lifetime_global {
+class dot11_scan_source : public datasource_scan_source, public lifetime_global {
 public:
     static std::string global_name() { return "dot11_scan_source"; }
 
@@ -41,25 +42,13 @@ public:
     }
 
 private:
-    dot11_scan_source();
+    dot11_scan_source() : 
+        datasource_scan_source("/phy/phy80211/scan/scan_report",
+                "IEEE80211 scan",
+                "DOT11SCAN") { }
 
 public:
-    virtual ~dot11_scan_source();
-
-protected:
-    kis_recursive_timed_mutex mutex;
-
-    std::shared_ptr<datasource_tracker> datasourcetracker;
-    std::shared_ptr<packet_chain> packetchain;
-
-    std::shared_ptr<kis_net_httpd_simple_post_endpoint> scan_result_endp;
-    unsigned int scan_result_endp_handler(std::ostream& stream, 
-            const std::string& uri, const Json::Value& json,
-            kis_net_httpd_connection::variable_cache_map& variable_cache);
-
-    int pack_comp_common, pack_comp_json, pack_comp_datasrc, pack_comp_gps,
-        pack_comp_l1info;
-
+    virtual ~dot11_scan_source() { };
 };
 
 #endif /* ifndef DOT11_SCAN_SOURCE */
