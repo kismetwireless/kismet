@@ -127,7 +127,7 @@ public:
     // Remove a timer that's going to execute
     int remove_timer(int timer_id);
 
-    void Tick();
+    void tick();
 
     void spawn_timetracker_thread();
 

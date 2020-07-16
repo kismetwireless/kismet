@@ -73,7 +73,7 @@ time_tracker::~time_tracker() {
         delete x->second;
 }
 
-void time_tracker::Tick() {
+void time_tracker::tick() {
     local_demand_locker lock(&time_mutex);
 
     // Handle scheduled events
