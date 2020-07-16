@@ -69,7 +69,7 @@ kis_gps_serial_v2::~kis_gps_serial_v2() {
         nmeahandler->remove_read_buffer_interface();
     }
 
-    auto timetracker = Globalreg::FetchGlobalAs<time_tracker>();
+    auto timetracker = Globalreg::fetch_global_as<time_tracker>();
     if (timetracker != nullptr)
         timetracker->remove_timer(error_reconnect_timer);
 }

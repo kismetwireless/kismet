@@ -233,12 +233,12 @@ global_registry *globalregistry = NULL;
 
 void SpindownKismet(std::shared_ptr<pollable_tracker> pollabletracker) {
     // Shut down the webserver first
-    auto httpd = Globalreg::FetchGlobalAs<kis_net_httpd>("HTTPD_SERVER");
+    auto httpd = Globalreg::fetch_global_as<kis_net_httpd>("HTTPD_SERVER");
     if (httpd != NULL)
         httpd->stop_httpd();
 
     auto devicetracker =
-        Globalreg::FetchGlobalAs<device_tracker>("DEVICETRACKER");
+        Globalreg::fetch_global_as<device_tracker>("DEVICETRACKER");
     if (devicetracker != NULL) {
 #if 0
         devicetracker->store_all_devices();
@@ -265,7 +265,7 @@ void SpindownKismet(std::shared_ptr<pollable_tracker> pollabletracker) {
 
     fprintf(stderr, "Shutting down plugins...\n");
     std::shared_ptr<plugin_tracker> plugintracker =
-        Globalreg::FetchGlobalAs<plugin_tracker>(globalregistry, "PLUGINTRACKER");
+        Globalreg::fetch_global_as<plugin_tracker>(globalregistry, "PLUGINTRACKER");
     if (plugintracker != NULL)
         plugintracker->shutdown_plugins();
 

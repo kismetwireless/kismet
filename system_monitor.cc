@@ -140,7 +140,7 @@ Systemmonitor::Systemmonitor() :
         kismetdb_log_timer =
             timetracker->register_timer(SERVER_TIMESLICES_SEC * snap_time_s, nullptr, 1, 
                     [this](int) -> int {
-                        auto kismetdb = Globalreg::FetchGlobalAs<kis_database_logfile>();
+                        auto kismetdb = Globalreg::fetch_global_as<kis_database_logfile>();
 
                         if (kismetdb == nullptr)
                             return 1;
@@ -167,7 +167,7 @@ Systemmonitor::Systemmonitor() :
     logopen_evt_id = 
         eventbus->register_listener(kis_database_logfile::event_dblog_opened::Event(),
             [this](std::shared_ptr<eventbus_event> evt) {
-                auto kismetdb = Globalreg::FetchGlobalAs<kis_database_logfile>();
+                auto kismetdb = Globalreg::fetch_global_as<kis_database_logfile>();
 
                 if (kismetdb == nullptr)
                     return;
@@ -192,7 +192,7 @@ Systemmonitor::~Systemmonitor() {
 
     Globalreg::globalreg->RemoveGlobal("SYSTEMMONITOR");
 
-    auto timetracker = Globalreg::FetchGlobalAs<time_tracker>("TIMETRACKER");
+    auto timetracker = Globalreg::fetch_global_as<time_tracker>("TIMETRACKER");
     if (timetracker != nullptr) {
         timetracker->remove_timer(timer_id);
         timetracker->remove_timer(kismetdb_log_timer);

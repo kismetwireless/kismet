@@ -110,7 +110,7 @@ void gps_tracker::log_snapshot_gps() {
     // Look for the log file driver, if it's not available, we
     // just exit until the next time
     std::shared_ptr<kis_database_logfile> dbf =
-        Globalreg::FetchGlobalAs<kis_database_logfile>("DATABASELOG");
+        Globalreg::fetch_global_as<kis_database_logfile>("DATABASELOG");
 
     if (dbf == NULL)
         return;

@@ -106,7 +106,7 @@ void kis_ppi_logfile::close_log() {
     set_int_log_open(false);
 
     auto packetchain =
-        Globalreg::FetchGlobalAs<packet_chain>("PACKETCHAIN");
+        Globalreg::fetch_global_as<packet_chain>("PACKETCHAIN");
     if (packetchain != NULL) 
         packetchain->remove_handler(&kis_ppi_logfile::packet_handler, CHAINPOS_LOGGING);
 

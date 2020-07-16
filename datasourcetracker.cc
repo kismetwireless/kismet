@@ -390,7 +390,7 @@ void datasource_tracker::databaselog_write_datasources() {
         return;
 
     std::shared_ptr<kis_database_logfile> dbf =
-        Globalreg::FetchGlobalAs<kis_database_logfile>("DATABASELOG");
+        Globalreg::fetch_global_as<kis_database_logfile>("DATABASELOG");
     
     if (dbf == NULL)
         return;
@@ -972,7 +972,7 @@ void datasource_tracker::merge_source(shared_datasource in_source) {
 
     if (database_log_enabled) {
         std::shared_ptr<kis_database_logfile> dbf =
-            Globalreg::FetchGlobalAs<kis_database_logfile>("DATABASELOG");
+            Globalreg::fetch_global_as<kis_database_logfile>("DATABASELOG");
 
         if (dbf != NULL) {
             dbf->log_datasource(in_source);
@@ -2044,7 +2044,7 @@ void dst_incoming_remote::kill() {
     close_external();
 
     std::shared_ptr<datasource_tracker> datasourcetracker =
-        Globalreg::FetchGlobalAs<datasource_tracker>("DATASOURCETRACKER");
+        Globalreg::fetch_global_as<datasource_tracker>("DATASOURCETRACKER");
 
     if (datasourcetracker != NULL) 
         datasourcetracker->queue_dead_remote(this);

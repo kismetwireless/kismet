@@ -72,7 +72,7 @@ kis_gps_tcp::~kis_gps_tcp() {
         nmeahandler->remove_read_buffer_interface();
     }
 
-    std::shared_ptr<time_tracker> timetracker = Globalreg::FetchGlobalAs<time_tracker>("TIMETRACKER");
+    std::shared_ptr<time_tracker> timetracker = Globalreg::fetch_global_as<time_tracker>("TIMETRACKER");
     if (timetracker != nullptr)
         timetracker->remove_timer(error_reconnect_timer);
 }

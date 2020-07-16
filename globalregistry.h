@@ -265,28 +265,28 @@ namespace Globalreg {
     extern global_registry *globalreg;
 
     template<typename T> 
-    std::shared_ptr<T> FetchGlobalAs(global_registry *in_globalreg, int in_ref) {
+    std::shared_ptr<T> fetch_global_as(global_registry *in_globalreg, int in_ref) {
         return std::static_pointer_cast<T>(in_globalreg->FetchGlobal(in_ref));
     }
 
     template<typename T> 
-    std::shared_ptr<T> FetchGlobalAs(int in_ref) {
-        return FetchGlobalAs<T>(Globalreg::globalreg, in_ref);
+    std::shared_ptr<T> fetch_global_as(int in_ref) {
+        return fetch_global_as<T>(Globalreg::globalreg, in_ref);
     }
 
     template<typename T> 
-    std::shared_ptr<T> FetchGlobalAs(global_registry *in_globalreg, const std::string& in_name) {
+    std::shared_ptr<T> fetch_global_as(global_registry *in_globalreg, const std::string& in_name) {
         return std::static_pointer_cast<T>(in_globalreg->FetchGlobal(in_name));
     }
 
     template<typename T> 
-    std::shared_ptr<T> FetchGlobalAs(const std::string& in_name) {
-        return FetchGlobalAs<T>(globalreg, in_name);
+    std::shared_ptr<T> fetch_global_as(const std::string& in_name) {
+        return fetch_global_as<T>(globalreg, in_name);
     }
 
     template<typename T>
-    std::shared_ptr<T> FetchGlobalAs() {
-        return FetchGlobalAs<T>(globalreg, T::global_name());
+    std::shared_ptr<T> fetch_global_as() {
+        return fetch_global_as<T>(globalreg, T::global_name());
     }
 
     template<typename T> 

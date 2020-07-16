@@ -67,7 +67,7 @@ int alertsyslog_chain_hook(CHAINCALL_PARMS) {
 }
 
 int alertsyslog_openlog(global_registry *in_globalreg) {
-    // We can't use the templated FetchGlobalAs here because the template object code
+    // We can't use the templated fetch_global_as here because the template object code
     // won't exist in the server object
     std::shared_ptr<packet_chain> packetchain =
         std::static_pointer_cast<packet_chain>(in_globalreg->FetchGlobal(std::string("PACKETCHAIN")));

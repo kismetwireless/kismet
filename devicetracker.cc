@@ -462,7 +462,7 @@ device_tracker::~device_tracker() {
     }
 
     std::shared_ptr<time_tracker> timetracker = 
-        Globalreg::FetchGlobalAs<time_tracker>(globalreg, "TIMETRACKER");
+        Globalreg::fetch_global_as<time_tracker>(globalreg, "TIMETRACKER");
     if (timetracker != NULL) {
         timetracker->remove_timer(device_idle_timer);
         timetracker->remove_timer(max_devices_timer);
@@ -1260,7 +1260,7 @@ std::shared_ptr<device_tracker_view> device_tracker::get_phy_view(int in_phyid) 
 }
 
 void device_tracker::databaselog_write_devices() {
-    auto dbf = Globalreg::FetchGlobalAs<kis_database_logfile>();
+    auto dbf = Globalreg::fetch_global_as<kis_database_logfile>();
     
     if (dbf == nullptr)
         return;

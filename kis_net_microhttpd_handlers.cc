@@ -34,7 +34,7 @@ kis_net_httpd_handler::kis_net_httpd_handler() {
 
 kis_net_httpd_handler::~kis_net_httpd_handler() {
     httpd = 
-        Globalreg::FetchGlobalAs<kis_net_httpd>("HTTPD_SERVER");
+        Globalreg::fetch_global_as<kis_net_httpd>("HTTPD_SERVER");
 
     // Remove as both type of handlers for safety
     if (httpd != nullptr) {

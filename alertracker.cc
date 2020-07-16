@@ -370,7 +370,7 @@ int alert_tracker::raise_alert(int in_ref, kis_packet *in_pack,
 
     if (log_alerts) {
         auto dbf = 
-            Globalreg::FetchGlobalAs<kis_database_logfile>("DATABASELOG");
+            Globalreg::fetch_global_as<kis_database_logfile>("DATABASELOG");
         if (dbf != NULL) {
             auto ta = std::make_shared<tracked_alert>(alert_entry_id, info);
             dbf->log_alert(ta);
@@ -419,7 +419,7 @@ int alert_tracker::raise_one_shot(std::string in_header, std::string in_text, in
 
     if (log_alerts) {
         auto dbf =
-            Globalreg::FetchGlobalAs<kis_database_logfile>("DATABASELOG");
+            Globalreg::fetch_global_as<kis_database_logfile>("DATABASELOG");
         if (dbf != NULL) {
             auto ta = std::make_shared<tracked_alert>(alert_entry_id);
             ta->from_alert_info(info);

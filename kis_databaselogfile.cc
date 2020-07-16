@@ -82,7 +82,7 @@ kis_database_logfile::kis_database_logfile():
 }
 
 kis_database_logfile::~kis_database_logfile() {
-    auto messagebus = Globalreg::FetchGlobalAs<message_bus>();
+    auto messagebus = Globalreg::fetch_global_as<message_bus>();
     if (messagebus != nullptr)
         messagebus->remove_client(this);
 
@@ -410,7 +410,7 @@ void kis_database_logfile::close_log() {
 
     // Kill the timers
     auto timetracker = 
-        Globalreg::FetchGlobalAs<time_tracker>();
+        Globalreg::fetch_global_as<time_tracker>();
     if (timetracker != NULL) {
         timetracker->remove_timer(transaction_timer);
         timetracker->remove_timer(packet_timeout_timer);
@@ -428,7 +428,7 @@ void kis_database_logfile::close_log() {
     db_enabled = false;
 
     auto packetchain =
-        Globalreg::FetchGlobalAs<packet_chain>();
+        Globalreg::fetch_global_as<packet_chain>();
     if (packetchain != NULL) 
         packetchain->remove_handler(&kis_database_logfile::packet_handler, CHAINPOS_LOGGING);
 

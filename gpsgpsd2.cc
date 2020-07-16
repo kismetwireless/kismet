@@ -112,7 +112,7 @@ kis_gps_gpsd_v2::~kis_gps_gpsd_v2() {
 
     tcphandler.reset();
 
-    auto timetracker = Globalreg::FetchGlobalAs<time_tracker>("TIMETRACKER");
+    auto timetracker = Globalreg::fetch_global_as<time_tracker>("TIMETRACKER");
     if (timetracker != nullptr) {
         timetracker->remove_timer(error_reconnect_timer);
         timetracker->remove_timer(data_timeout_timer);

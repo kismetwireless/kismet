@@ -58,7 +58,7 @@ kis_dlt_handler::kis_dlt_handler() :
 
 kis_dlt_handler::~kis_dlt_handler() {
     auto packetchain = 
-        Globalreg::FetchGlobalAs<packet_chain>();
+        Globalreg::fetch_global_as<packet_chain>();
 
 	if (packetchain != nullptr) 
 		packetchain->remove_handler(chainid, CHAINPOS_POSTCAP);
