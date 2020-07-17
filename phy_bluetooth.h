@@ -138,7 +138,7 @@ public:
 	static int common_classifier_bluetooth(CHAINCALL_PARMS);
    
     // Tracker entry
-	static int PacketTrackerBluetooth(CHAINCALL_PARMS);
+	static int packet_tracker_bluetooth(CHAINCALL_PARMS);
 
     // Load stored data
     virtual void load_phy_storage(shared_tracker_element in_storage, 
