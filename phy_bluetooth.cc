@@ -35,7 +35,7 @@
 #include "devicetracker.h"
 #include "alertracker.h"
 
-Kis_Bluetooth_Phy::Kis_Bluetooth_Phy(global_registry *in_globalreg, int in_phyid) : 
+kis_bluetooth_phy::kis_bluetooth_phy(global_registry *in_globalreg, int in_phyid) : 
     kis_phy_handler(in_globalreg, in_phyid) {
 
     alertracker = 
@@ -69,12 +69,12 @@ Kis_Bluetooth_Phy::Kis_Bluetooth_Phy(global_registry *in_globalreg, int in_phyid
             "js/kismet.ui.bluetooth.js");
 }
 
-Kis_Bluetooth_Phy::~Kis_Bluetooth_Phy() {
+kis_bluetooth_phy::~kis_bluetooth_phy() {
     packetchain->remove_handler(&CommonClassifierBluetooth, CHAINPOS_CLASSIFIER);
 }
 
-int Kis_Bluetooth_Phy::CommonClassifierBluetooth(CHAINCALL_PARMS) {
-    auto btphy = static_cast<Kis_Bluetooth_Phy *>(auxdata);
+int kis_bluetooth_phy::CommonClassifierBluetooth(CHAINCALL_PARMS) {
+    auto btphy = static_cast<kis_bluetooth_phy *>(auxdata);
 
     bluetooth_packinfo *btpi = 
         (bluetooth_packinfo *) in_pack->fetch(btphy->pack_comp_btdevice);
@@ -100,8 +100,8 @@ int Kis_Bluetooth_Phy::CommonClassifierBluetooth(CHAINCALL_PARMS) {
     return 0;
 }
 
-int Kis_Bluetooth_Phy::PacketTrackerBluetooth(CHAINCALL_PARMS) {
-    Kis_Bluetooth_Phy *btphy = (Kis_Bluetooth_Phy *) auxdata;
+int kis_bluetooth_phy::PacketTrackerBluetooth(CHAINCALL_PARMS) {
+    kis_bluetooth_phy *btphy = (kis_bluetooth_phy *) auxdata;
 
     bluetooth_packinfo *btpi = 
         (bluetooth_packinfo *) in_pack->fetch(btphy->pack_comp_btdevice);
@@ -176,7 +176,7 @@ int Kis_Bluetooth_Phy::PacketTrackerBluetooth(CHAINCALL_PARMS) {
     return 0;
 }
 
-void Kis_Bluetooth_Phy::load_phy_storage(shared_tracker_element in_storage, 
+void kis_bluetooth_phy::load_phy_storage(shared_tracker_element in_storage, 
         shared_tracker_element in_device) {
 
     if (in_storage == nullptr || in_device == nullptr)

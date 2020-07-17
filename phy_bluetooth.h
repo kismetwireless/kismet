@@ -116,23 +116,23 @@ protected:
     std::shared_ptr<tracker_element_int16> txpower;
 };
 
-class Kis_Bluetooth_Phy : public kis_phy_handler {
+class kis_bluetooth_phy : public kis_phy_handler {
 public:
 	// Stub
-	virtual ~Kis_Bluetooth_Phy();
+	virtual ~kis_bluetooth_phy();
 
 	// Inherited functionality
-	Kis_Bluetooth_Phy(global_registry *in_globalreg) :
+	kis_bluetooth_phy(global_registry *in_globalreg) :
 		kis_phy_handler(in_globalreg) { };
 
 	// Build a strong version of ourselves
 	virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg,
 											  int in_phyid) {
-		return new Kis_Bluetooth_Phy(in_globalreg, in_phyid);
+		return new kis_bluetooth_phy(in_globalreg, in_phyid);
 	}
 
 	// Strong constructor
-	Kis_Bluetooth_Phy(global_registry *in_globalreg, int in_phyid);
+	kis_bluetooth_phy(global_registry *in_globalreg, int in_phyid);
 
 	// Bluetooth device record classifier to common for the devicetracker layer
 	static int CommonClassifierBluetooth(CHAINCALL_PARMS);

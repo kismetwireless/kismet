@@ -895,7 +895,7 @@ int main(int argc, char *argv[], char *envp[]) {
     devicetracker->register_phy_handler(new kis_80211_phy(globalregistry));
     devicetracker->register_phy_handler(new Kis_RTL433_Phy(globalregistry));
     devicetracker->register_phy_handler(new Kis_Zwave_Phy(globalregistry));
-    devicetracker->register_phy_handler(new Kis_Bluetooth_Phy(globalregistry));
+    devicetracker->register_phy_handler(new kis_bluetooth_phy(globalregistry));
     devicetracker->register_phy_handler(new Kis_UAV_Phy(globalregistry));
     devicetracker->register_phy_handler(new Kis_Mousejack_Phy(globalregistry));
     devicetracker->register_phy_handler(new kis_btle_phy(globalregistry));
