@@ -135,7 +135,7 @@ public:
 	kis_bluetooth_phy(global_registry *in_globalreg, int in_phyid);
 
 	// Bluetooth device record classifier to common for the devicetracker layer
-	static int CommonClassifierBluetooth(CHAINCALL_PARMS);
+	static int common_classifier_bluetooth(CHAINCALL_PARMS);
    
     // Tracker entry
 	static int PacketTrackerBluetooth(CHAINCALL_PARMS);

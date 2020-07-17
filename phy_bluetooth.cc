@@ -54,7 +54,7 @@ kis_bluetooth_phy::kis_bluetooth_phy(global_registry *in_globalreg, int in_phyid
                 tracker_element_factory<bluetooth_tracked_device>(),
                 "Bluetooth device");
 
-    packetchain->register_handler(&CommonClassifierBluetooth, this, CHAINPOS_CLASSIFIER, -100);
+    packetchain->register_handler(&common_classifier_bluetooth, this, CHAINPOS_CLASSIFIER, -100);
     packetchain->register_handler(&PacketTrackerBluetooth, this, CHAINPOS_TRACKER, -100);
     
     pack_comp_btdevice = packetchain->register_packet_component("BTDEVICE");
@@ -70,10 +70,10 @@ kis_bluetooth_phy::kis_bluetooth_phy(global_registry *in_globalreg, int in_phyid
 }
 
 kis_bluetooth_phy::~kis_bluetooth_phy() {
-    packetchain->remove_handler(&CommonClassifierBluetooth, CHAINPOS_CLASSIFIER);
+    packetchain->remove_handler(&common_classifier_bluetooth, CHAINPOS_CLASSIFIER);
 }
 
-int kis_bluetooth_phy::CommonClassifierBluetooth(CHAINCALL_PARMS) {
+int kis_bluetooth_phy::common_classifier_bluetooth(CHAINCALL_PARMS) {
     auto btphy = static_cast<kis_bluetooth_phy *>(auxdata);
 
     bluetooth_packinfo *btpi = 
