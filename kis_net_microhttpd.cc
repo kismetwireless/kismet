@@ -1743,9 +1743,7 @@ kis_net_httpd_simple_stream_endpoint::kis_net_httpd_simple_stream_endpoint(const
 }
 
 bool kis_net_httpd_simple_stream_endpoint::httpd_verify_path(const char *path, const char *method) {
-    auto stripped = httpd_strip_suffix(path);
-
-    if (stripped == uri && httpd_can_serialize(path))
+    if (uri == path)
         return true;
 
     return false;
