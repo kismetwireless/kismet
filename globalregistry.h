@@ -123,8 +123,8 @@ class deferred_startup {
 public:
     virtual ~deferred_startup() { }
 
-    virtual void trigger_deferred_startup() = 0;
-    virtual void trigger_deferred_shutdown() = 0;
+    virtual void trigger_deferred_startup() { };
+    virtual void trigger_deferred_shutdown() { };
 };
 
 // Global registry of references to tracker objects and preferences.  This 
