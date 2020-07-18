@@ -114,17 +114,17 @@ bool packet_filter::filterstring_to_bool(const std::string& str) {
 packet_filter_mac_addr::packet_filter_mac_addr(const std::string& in_id, const std::string& in_description) :
     packet_filter(in_id, in_description, "mac_addr") {
 
-    register_fields();
-    reserve_fields(nullptr);
+        register_fields();
+        reserve_fields(nullptr);
 
-    devicetracker = Globalreg::fetch_mandatory_global_as<device_tracker>();
+        devicetracker = Globalreg::fetch_mandatory_global_as<device_tracker>();
 
-	eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
-	eb_id = 
-		eventbus->register_listener(device_tracker::event_new_phy(),
-				[this](std::shared_ptr<eventbus_event> evt) {
-					update_phy_map(evt);
-				});
+        eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
+        eb_id = 
+            eventbus->register_listener(device_tracker::event_new_phy(),
+                    [this](std::shared_ptr<eventbus_event> evt) {
+                    update_phy_map(evt);
+                    });
 
     // Set and clear endpoints
     macaddr_edit_endp =
