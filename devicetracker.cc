@@ -451,7 +451,7 @@ device_tracker::~device_tracker() {
     }
 
     globalreg->devicetracker = NULL;
-    globalreg->RemoveGlobal("DEVICETRACKER");
+    globalreg->remove_global("DEVICETRACKER");
 
     std::shared_ptr<packet_chain> packetchain =
         Globalreg::fetch_mandatory_global_as<packet_chain>(globalreg, "PACKETCHAIN");

@@ -190,7 +190,7 @@ Systemmonitor::Systemmonitor() :
 Systemmonitor::~Systemmonitor() {
     local_locker lock(&monitor_mutex);
 
-    Globalreg::globalreg->RemoveGlobal("SYSTEMMONITOR");
+    Globalreg::globalreg->remove_global("SYSTEMMONITOR");
 
     auto timetracker = Globalreg::fetch_global_as<time_tracker>("TIMETRACKER");
     if (timetracker != nullptr) {

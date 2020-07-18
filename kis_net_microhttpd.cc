@@ -289,7 +289,7 @@ kis_net_httpd::~kis_net_httpd() {
 
     session_map.clear();
 
-    Globalreg::globalreg->RemoveGlobal("HTTPD_SERVER");
+    Globalreg::globalreg->remove_global("HTTPD_SERVER");
 }
 
 void kis_net_httpd::register_session_handler(std::shared_ptr<kis_httpd_websession> in_session) {

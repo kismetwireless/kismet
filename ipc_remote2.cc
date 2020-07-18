@@ -482,7 +482,7 @@ ipc_remote_v2_tracker::ipc_remote_v2_tracker(global_registry *in_globalreg) {
 }
 
 ipc_remote_v2_tracker::~ipc_remote_v2_tracker() {
-    globalreg->RemoveGlobal("IPCHANDLER");
+    globalreg->remove_global("IPCHANDLER");
 
     globalreg->timetracker->remove_timer(timer_id);
     globalreg->timetracker->remove_timer(cleanup_timer_id);

@@ -51,7 +51,7 @@ message_bus::~message_bus() {
     msg_cl.unlock(0);
     msg_dispatch_t.join();
 
-    globalreg->RemoveGlobal("MESSAGEBUS");
+    globalreg->remove_global("MESSAGEBUS");
     globalreg->messagebus = NULL;
 }
 

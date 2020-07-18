@@ -31,7 +31,7 @@ Antennatracker::Antennatracker() {
 }
 
 Antennatracker::~Antennatracker() {
-    Globalreg::globalreg->RemoveGlobal("ANTENNATRACKER");
+    Globalreg::globalreg->remove_global("ANTENNATRACKER");
 }
 
 int Antennatracker::add_antenna(uuid in_src, int in_srcnum, int in_adjustment) {

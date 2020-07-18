@@ -128,7 +128,7 @@ int global_registry::insert_global(int in_ref, std::shared_ptr<void> in_data) {
 	return 1;
 }
 
-void global_registry::RemoveGlobal(int in_ref) {
+void global_registry::remove_global(int in_ref) {
     local_locker lock(&ext_mutex);
 
     if (ext_data_map.find(in_ref) != ext_data_map.end()) {
@@ -142,9 +142,9 @@ int global_registry::insert_global(std::string in_name, std::shared_ptr<void> in
 	return insert_global(ref, in_data);
 }
 
-void global_registry::RemoveGlobal(std::string in_name) {
+void global_registry::remove_global(std::string in_name) {
     int ref = FetchGlobalRef(in_name);
-    RemoveGlobal(ref);
+    remove_global(ref);
 }
 
 void global_registry::RegisterUsageFunc(usage_func in_cli) {

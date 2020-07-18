@@ -155,7 +155,7 @@ alert_tracker::alert_tracker() : lifetime_global() {
 alert_tracker::~alert_tracker() {
     local_locker lock(&alert_mutex);
 
-    Globalreg::globalreg->RemoveGlobal("ALERTTRACKER");
+    Globalreg::globalreg->remove_global("ALERTTRACKER");
     Globalreg::globalreg->alertracker = NULL;
 
 #ifdef PRELUDE

@@ -95,7 +95,7 @@ gps_tracker::gps_tracker() :
 gps_tracker::~gps_tracker() {
     local_locker lock(&gpsmanager_mutex);
 
-    Globalreg::globalreg->RemoveGlobal("GPSTRACKER");
+    Globalreg::globalreg->remove_global("GPSTRACKER");
     httpd->remove_handler(this);
 
     Globalreg::globalreg->packetchain->remove_handler(&kis_gpspack_hook, CHAINPOS_POSTCAP);

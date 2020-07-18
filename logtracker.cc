@@ -43,7 +43,7 @@ log_tracker::log_tracker() :
 log_tracker::~log_tracker() {
     local_locker lock(&tracker_mutex);
 
-    Globalreg::globalreg->RemoveGlobal("LOGTRACKER");
+    Globalreg::globalreg->remove_global("LOGTRACKER");
 
     for (auto i : *logfile_vec) {
         shared_logfile f = std::static_pointer_cast<kis_logfile>(i);

@@ -69,6 +69,6 @@ tzsp_source::tzsp_source() :
 tzsp_source::~tzsp_source() {
     pollabletracker->remove_pollable(tzsp_listener);
 
-    Globalreg::globalreg->RemoveGlobal(global_name());
+    Globalreg::globalreg->remove_global(global_name());
 }
 

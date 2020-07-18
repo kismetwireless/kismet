@@ -223,8 +223,8 @@ public:
 
     int insert_global(int in_ref, std::shared_ptr<void> in_data);
 	int insert_global(std::string in_name, std::shared_ptr<void> in_data);
-    void RemoveGlobal(int in_ref);
-    void RemoveGlobal(std::string in_name);
+    void remove_global(int in_ref);
+    void remove_global(std::string in_name);
 
     // Add a CLI extension
     typedef void (*usage_func)(const char *);

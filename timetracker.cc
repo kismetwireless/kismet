@@ -64,7 +64,7 @@ time_tracker::~time_tracker() {
 
     // time_dispatch_t.join();
 
-    Globalreg::globalreg->RemoveGlobal("TIMETRACKER");
+    Globalreg::globalreg->remove_global("TIMETRACKER");
     Globalreg::globalreg->timetracker = NULL;
 
     // Free the events

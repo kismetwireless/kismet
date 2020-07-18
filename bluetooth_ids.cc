@@ -76,7 +76,7 @@ kis_bt_oid::kis_bt_oid() {
 }
 
 kis_bt_oid::~kis_bt_oid() {
-    Globalreg::globalreg->RemoveGlobal(global_name());
+    Globalreg::globalreg->remove_global(global_name());
 
     if (zofile != nullptr)
         gzclose(zofile);
@@ -257,7 +257,7 @@ kis_bt_manuf::kis_bt_manuf() {
 }
 
 kis_bt_manuf::~kis_bt_manuf() {
-    Globalreg::globalreg->RemoveGlobal(global_name());
+    Globalreg::globalreg->remove_global(global_name());
 
     if (zmfile != nullptr)
         gzclose(zmfile);

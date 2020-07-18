@@ -361,7 +361,7 @@ datasource_tracker::datasource_tracker() :
 }
 
 datasource_tracker::~datasource_tracker() {
-    Globalreg::globalreg->RemoveGlobal("DATASOURCETRACKER");
+    Globalreg::globalreg->remove_global("DATASOURCETRACKER");
 
     if (remote_tcp_server != nullptr) {
         auto pollabletracker = 

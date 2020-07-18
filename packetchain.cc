@@ -142,7 +142,7 @@ packet_chain::~packet_chain() {
         // Stall until a sync is done
         local_eol_locker syncl(&packetchain_mutex);
 
-        Globalreg::globalreg->RemoveGlobal("PACKETCHAIN");
+        Globalreg::globalreg->remove_global("PACKETCHAIN");
         Globalreg::globalreg->packetchain = NULL;
 
         std::vector<packet_chain::pc_link *>::iterator i;

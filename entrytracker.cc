@@ -34,7 +34,7 @@ entry_tracker::entry_tracker() {
 entry_tracker::~entry_tracker() {
     local_locker eolock(&entry_mutex);
 
-    Globalreg::globalreg->RemoveGlobal("ENTRYTRACKER");
+    Globalreg::globalreg->remove_global("ENTRYTRACKER");
 }
 
 void entry_tracker::trigger_deferred_startup() {

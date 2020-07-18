@@ -54,7 +54,7 @@ rest_message_client::~rest_message_client() {
 
     globalreg->messagebus->remove_client(this);
 
-    globalreg->RemoveGlobal("REST_MSG_CLIENT");
+    globalreg->remove_global("REST_MSG_CLIENT");
 
     message_list.clear();
 }

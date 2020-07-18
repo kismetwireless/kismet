@@ -100,7 +100,7 @@ channel_tracker_v2::~channel_tracker_v2() {
     if (packetchain != nullptr)
         packetchain->remove_handler(&packet_chain_handler, CHAINPOS_LOGGING);
 
-    Globalreg::globalreg->RemoveGlobal("CHANNEL_TRACKER");
+    Globalreg::globalreg->remove_global("CHANNEL_TRACKER");
 }
 
 std::shared_ptr<tracker_element_map> channel_tracker_v2::channels_endp_handler() {
