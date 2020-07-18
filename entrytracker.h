@@ -34,23 +34,27 @@
 #include "kis_net_microhttpd.h"
 
 // Allocate and track named fields and give each one a custom int
-class entry_tracker : public kis_net_httpd_cppstream_handler, public lifetime_global {
+class entry_tracker : public lifetime_global, public deferred_startup {
 public:
     static std::string global_name() { return "ENTRYTRACKER"; }
 
-    static std::shared_ptr<entry_tracker> create_entrytracker(global_registry *in_globalreg) {
-        std::shared_ptr<entry_tracker> mon(new entry_tracker(in_globalreg));
-        in_globalreg->entrytracker = mon.get();
-        in_globalreg->register_lifetime_global(mon);
-        in_globalreg->insert_global(global_name(), mon);
+    static std::shared_ptr<entry_tracker> create_entrytracker() {
+        std::shared_ptr<entry_tracker> mon(new entry_tracker());
+        Globalreg::globalreg->entrytracker = mon.get();
+        Globalreg::globalreg->register_deferred_global(mon);
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-    entry_tracker(global_registry *in_globalreg);
+    entry_tracker();
 
 public:
     virtual ~entry_tracker();
+
+    virtual void trigger_deferred_startup() override;
+    virtual void trigger_deferred_shutdown() override;
 
     // Register a field name; field names are plain strings, and must be unique for
     // each type; Using namespaces is recommended, ie "plugin.foo.some_field".
@@ -103,17 +107,7 @@ public:
     int serialize(const std::string& type, std::ostream &stream, shared_tracker_element elem,
             std::shared_ptr<tracker_element_serializer::rename_map> name_map = nullptr);
 
-    // HTTP api
-    virtual bool httpd_verify_path(const char *path, const char *method);
-
-    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream);
-
 protected:
-    global_registry *globalreg;
-
     kis_recursive_timed_mutex entry_mutex;
     kis_recursive_timed_mutex serializer_mutex;
 
@@ -134,6 +128,9 @@ protected:
     std::map<std::string, std::shared_ptr<reserved_field> > field_name_map;
     std::map<int, std::shared_ptr<reserved_field> > field_id_map;
     std::map<std::string, std::shared_ptr<tracker_element_serializer> > serializer_map;
+
+    std::shared_ptr<kis_net_httpd_simple_stream_endpoint> tracked_fields_endp;
+    int tracked_fields_endp_handler(std::ostream& stream);
 };
 
 class serializer_scope {
