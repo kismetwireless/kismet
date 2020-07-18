@@ -1721,6 +1721,134 @@ KIS_MHD_RETURN kis_net_httpd_path_tracked_endpoint::httpd_post_complete(kis_net_
     return MHD_YES;
 }
 
+kis_net_httpd_simple_stream_endpoint::kis_net_httpd_simple_stream_endpoint(const std::string& in_uri,
+        kis_net_httpd_simple_stream_endpoint::gen_func in_func) :
+    kis_net_httpd_chain_stream_handler {},
+    uri {in_uri}, 
+    generator {in_func},
+    mutex {nullptr} {
+
+    bind_httpd_server();
+}
+
+kis_net_httpd_simple_stream_endpoint::kis_net_httpd_simple_stream_endpoint(const std::string& in_uri,
+        kis_net_httpd_simple_stream_endpoint::gen_func in_func,
+        kis_recursive_timed_mutex *in_mutex) :
+    kis_net_httpd_chain_stream_handler {},
+    uri {in_uri}, 
+    generator {in_func},
+    mutex {in_mutex} {
+
+    bind_httpd_server();
+}
+
+bool kis_net_httpd_simple_stream_endpoint::httpd_verify_path(const char *path, const char *method) {
+    auto stripped = httpd_strip_suffix(path);
+
+    if (stripped == uri && httpd_can_serialize(path))
+        return true;
+
+    return false;
+}
+
+KIS_MHD_RETURN kis_net_httpd_simple_stream_endpoint::httpd_create_stream_response(
+        kis_net_httpd *httpd __attribute__((unused)),
+        kis_net_httpd_connection *connection,
+        const char *path, const char *method, const char *upload_data,
+        size_t *upload_data_size) {
+
+    local_demand_locker l(mutex);
+
+    if (mutex != nullptr)
+        l.lock();
+
+    // Allocate our buffer aux
+    kis_net_httpd_buffer_stream_aux *saux = 
+        (kis_net_httpd_buffer_stream_aux *) connection->custom_extension;
+
+    buffer_handler_ostringstream_buf *streambuf = 
+        new buffer_handler_ostringstream_buf(saux->get_rbhandler());
+    std::ostream stream(streambuf);
+
+    // Set our cleanup function
+    saux->set_aux(streambuf, 
+            [](kis_net_httpd_buffer_stream_aux *aux) {
+                if (aux->aux != NULL)
+                    delete((buffer_handler_ostringstream_buf *) (aux->aux));
+            });
+
+    // Set our sync function which is called by the webserver side before we
+    // clean up...
+    saux->set_sync([](kis_net_httpd_buffer_stream_aux *aux) {
+            if (aux->aux != NULL) {
+                ((buffer_handler_ostringstream_buf *) aux->aux)->pubsync();
+                }
+            });
+
+    try {
+        std::shared_ptr<tracker_element> output_content;
+
+        if (generator == nullptr) {
+            stream << "Invalid request: No backing content present";
+            connection->httpcode = 400;
+            return MHD_YES;
+        }
+
+        connection->httpcode = generator(stream);
+
+    } catch (const std::exception& e) {
+        stream << "Error: " << e.what() << "\n";
+        connection->httpcode = 500;
+        return MHD_YES;
+    }
+
+    return MHD_YES;
+}
+
+KIS_MHD_RETURN kis_net_httpd_simple_stream_endpoint::httpd_post_complete(kis_net_httpd_connection *concls) {
+    auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
+    auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
+
+    local_demand_locker l(mutex);
+
+    if (mutex != nullptr)
+        l.lock();
+
+    std::ostream stream(streambuf);
+
+    saux->set_aux(streambuf, 
+            [](kis_net_httpd_buffer_stream_aux *aux) {
+                if (aux->aux != NULL)
+                    delete((buffer_handler_ostringstream_buf *) (aux->aux));
+            });
+
+    // Set our sync function which is called by the webserver side before we
+    // clean up...
+    saux->set_sync([](kis_net_httpd_buffer_stream_aux *aux) {
+            if (aux->aux != NULL) {
+                ((buffer_handler_ostringstream_buf *) aux->aux)->pubsync();
+                }
+            });
+
+    if (generator == nullptr) {
+        stream << "Invalid request: No backing content present";
+        concls->httpcode = 400;
+        return MHD_YES;
+    }
+
+    std::shared_ptr<tracker_element> output_content;
+
+    try {
+        concls->httpcode = generator(stream);
+    } catch (const std::exception& e) {
+        stream << "Invalid request / error processing request: " << e.what() << "\n";
+        concls->httpcode = 500;
+        return MHD_YES;
+    }
+
+    return MHD_YES;
+}
+
 kis_net_httpd_simple_post_endpoint::kis_net_httpd_simple_post_endpoint(const std::string& in_uri,
         kis_net_httpd_simple_post_endpoint::handler_func in_func) :
     kis_net_httpd_chain_stream_handler {},

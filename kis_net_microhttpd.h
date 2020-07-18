@@ -292,6 +292,33 @@ protected:
     kis_recursive_timed_mutex *mutex;
 };
 
+// Do a simple dump of a tracked object into an endpoint
+class kis_net_httpd_simple_stream_endpoint : public kis_net_httpd_chain_stream_handler {
+public:
+    using gen_func = std::function<int (std::ostream& stream)>;
+
+    kis_net_httpd_simple_stream_endpoint(const std::string& in_uri, gen_func in_func);
+    kis_net_httpd_simple_stream_endpoint(const std::string& in_uri, gen_func in_func,
+            kis_recursive_timed_mutex *in_mutex);
+
+    virtual ~kis_net_httpd_simple_stream_endpoint() { }
+
+    // HTTP handlers
+    virtual bool httpd_verify_path(const char *path, const char *method) override;
+
+    virtual KIS_MHD_RETURN httpd_create_stream_response(kis_net_httpd *httpd,
+            kis_net_httpd_connection *connection,
+            const char *url, const char *method, const char *upload_data,
+            size_t *upload_data_size) override;
+
+    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *concls) override;
+
+protected:
+    std::string uri;
+    gen_func generator;
+    kis_recursive_timed_mutex *mutex;
+};
+
 
 // Extremely simple callback-based POST responder linked to a chainbuf buffer
 class kis_net_httpd_simple_post_endpoint : public kis_net_httpd_chain_stream_handler {
