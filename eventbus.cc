@@ -81,12 +81,16 @@ void event_bus::event_queue_dispatcher() {
                 // Unlock the rest of the eventbus
                 l.unlock();
 
-                for (const auto& cbl : ch_listeners->second) {
-                    cbl->cb(e);
+                if (ch_listeners != callback_table.end()) {
+                    for (const auto& cbl : ch_listeners->second) {
+                        cbl->cb(e);
+                    }
                 }
 
-                for (const auto& cbl : ch_all_listeners->second) {
-                    cbl->cb(e);
+                if (ch_all_listeners != callback_table.end()) {
+                    for (const auto& cbl : ch_all_listeners->second) {
+                        cbl->cb(e);
+                    }
                 }
 
             }
