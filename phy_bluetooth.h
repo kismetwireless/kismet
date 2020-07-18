@@ -136,6 +136,8 @@ public:
 
 	// Bluetooth device record classifier to common for the devicetracker layer
 	static int common_classifier_bluetooth(CHAINCALL_PARMS);
+
+    static int packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS);
    
     // Tracker entry
 	static int packet_tracker_bluetooth(CHAINCALL_PARMS);
@@ -156,7 +158,7 @@ protected:
 	int dev_comp_bluetooth, dev_comp_common;
 
 	// Packet components
-	int pack_comp_btdevice, pack_comp_common, pack_comp_l1info, pack_comp_meta;
+	int pack_comp_btdevice, pack_comp_common, pack_comp_l1info, pack_comp_meta, pack_comp_json;
 };
 
 #endif

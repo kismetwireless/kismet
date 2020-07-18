@@ -396,7 +396,8 @@ bool kis_database_logfile::open_log(std::string in_path) {
 
     // Post that we've got the logfile ready
     auto eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
-    eventbus->publish(std::make_shared<event_dblog_opened>());
+    auto evt = eventbus->get_eventbus_event(event_log_open());
+    eventbus->publish(evt);
 
     return true;
 }

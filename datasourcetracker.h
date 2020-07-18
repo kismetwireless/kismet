@@ -365,17 +365,9 @@ public:
     // Shut down all sources, this happens as kismet is terminating
     virtual void trigger_deferred_shutdown() override;
 
-    // event_bus event we inject when a new ds is added
-    class event_new_datasource : public eventbus_event {
-    public:
-        static std::string event() { return "NEW_DATASOURCE"; }
-        event_new_datasource(std::shared_ptr<kis_datasource> source) :
-            eventbus_event(event()),
-            datasource{source} { }
-        virtual ~event_new_datasource() {}
-
-        std::shared_ptr<kis_datasource> datasource;
-    };
+    static std::string event_new_datasource() {
+        return "NEW_DATASOURCE";
+    }
 
     // Add a driver
     int register_datasource(shared_datasource_builder in_builder);

@@ -87,33 +87,15 @@ public:
 	int register_phy_handler(kis_phy_handler *in_weak_handler);
 
 	kis_phy_handler *fetch_phy_handler(int in_phy);
-    kis_phy_handler *fetch_phy_handler_by_name(std::string in_name);
+    kis_phy_handler *fetch_phy_handler_by_name(const std::string& in_name);
 
-    // event_bus event we inject when a new phy is added
-    class event_new_phy : public eventbus_event {
-    public:
-        static std::string event() { return "NEW_PHY"; }
+    static std::string event_new_phy() {
+        return "NEW_PHY";
+    }
 
-        event_new_phy(kis_phy_handler *handler) :
-            eventbus_event(event()),
-            phy{handler} { }
-        virtual ~event_new_phy() {}
-
-        kis_phy_handler *phy;
-    };
-
-    // Eventbus event for a device *once it is completely added*.
-    class event_new_device : public eventbus_event {
-    public:
-        static std::string event() { return "NEW_DEVICE"; }
-
-        event_new_device(std::shared_ptr<kis_tracked_device_base> device) :
-            eventbus_event(event()),
-            device{device} { }
-        virtual ~event_new_device() {}
-
-        std::shared_ptr<kis_tracked_device_base> device;
-    };
+    static std::string event_new_device() {
+        return "NEW_DEVICE";
+    }
 
     std::string fetch_phy_name(int in_phy);
 

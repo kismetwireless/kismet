@@ -56,11 +56,13 @@ kis_bluetooth_phy::kis_bluetooth_phy(global_registry *in_globalreg, int in_phyid
 
     packetchain->register_handler(&common_classifier_bluetooth, this, CHAINPOS_CLASSIFIER, -100);
     packetchain->register_handler(&packet_tracker_bluetooth, this, CHAINPOS_TRACKER, -100);
+    packetchain->register_handler(&packet_bluetooth_scan_json_classifier, this, CHAINPOS_CLASSIFIER, -99);
     
     pack_comp_btdevice = packetchain->register_packet_component("BTDEVICE");
 	pack_comp_common = packetchain->register_packet_component("COMMON");
     pack_comp_l1info = packetchain->register_packet_component("RADIODATA");
     pack_comp_meta = packetchain->register_packet_component("METABLOB");
+    pack_comp_json = packetchain->register_packet_component("JSON");
 
     // Register js module for UI
     auto httpregistry = 
@@ -96,6 +98,31 @@ int kis_bluetooth_phy::common_classifier_bluetooth(CHAINCALL_PARMS) {
     ci->transmitter = btpi->address;
     ci->channel = "FHSS";
     ci->freq_khz = 2400000;
+
+    return 0;
+}
+
+int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
+    kis_bluetooth_phy *btphy = (kis_bluetooth_phy *) auxdata;
+
+    if (in_pack->error || in_pack->filtered || in_pack->duplicate)
+        return 0;
+
+    auto pack_json =
+        in_pack->fetch<kis_json_packinfo>(btphy->pack_comp_json);
+
+    if (pack_json == nullptr)
+        return 0;
+
+    auto pack_l1info =
+        in_pack->fetch<kis_layer1_packinfo>(btphy->pack_comp_l1info);
+
+    auto commoninfo =
+        in_pack->fetch<kis_common_info>(btphy->pack_comp_common);
+
+    if (commoninfo != nullptr || pack_l1info == nullptr)
+        return 0;
+
 
     return 0;
 }

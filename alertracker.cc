@@ -378,7 +378,9 @@ int alert_tracker::raise_alert(int in_ref, kis_packet *in_pack,
     }
 
     // Publish an alert to the eventbus
-    eventbus->publish(std::make_shared<event_alert>(std::make_shared<tracked_alert>(alert_entry_id, info)));
+    auto event = eventbus->get_eventbus_event(alert_event());
+    event->get_event_content()->insert(alert_event(), std::make_shared<tracked_alert>(alert_entry_id, info));
+    eventbus->publish(event);
 
 	return 1;
 }

@@ -165,7 +165,7 @@ Systemmonitor::Systemmonitor() :
 
     // Always drop a SYSTEM snapshot as soon as the log opens
     logopen_evt_id = 
-        eventbus->register_listener(kis_database_logfile::event_dblog_opened::Event(),
+        eventbus->register_listener(kis_database_logfile::event_log_open(),
             [this](std::shared_ptr<eventbus_event> evt) {
                 auto kismetdb = Globalreg::fetch_global_as<kis_database_logfile>();
 

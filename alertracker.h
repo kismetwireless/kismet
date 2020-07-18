@@ -390,17 +390,9 @@ public:
     // Find an activated alert
     int find_activated_alert(std::string in_header);
 
-    class event_alert : public eventbus_event {
-    public:
-        static std::string event() { return "ALERT"; }
-
-        event_alert(std::shared_ptr<tracked_alert> alert):
-            eventbus_event(event()),
-            alert{alert} { }
-        virtual ~event_alert() {}
-
-        std::shared_ptr<tracked_alert> alert;
-    };
+    static std::string alert_event() {
+        return "ALERT";
+    }
 
 protected:
     kis_recursive_timed_mutex alert_mutex;

@@ -121,7 +121,7 @@ class_filter_mac_addr::class_filter_mac_addr(const std::string& in_id, const std
 
 	eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
 	eb_id = 
-		eventbus->register_listener("NEW_PHY",
+		eventbus->register_listener(device_tracker::event_new_phy(),
 				[this](std::shared_ptr<eventbus_event> evt) {
 					update_phy_map(evt);
 				});
@@ -268,26 +268,33 @@ void class_filter_mac_addr::remove_filter(mac_addr in_mac, const std::string& in
 }
 
 void class_filter_mac_addr::update_phy_map(std::shared_ptr<eventbus_event> evt) {
-	local_locker l(&mutex);
+    local_locker l(&mutex);
 
-	if (unknown_phy_mac_filter_map.size() == 0)
-		return;
+    if (unknown_phy_mac_filter_map.size() == 0)
+        return;
 
-	// Turn the generic event into the device event
-	auto phy_evt = 
-		std::static_pointer_cast<device_tracker::event_new_phy>(evt);
+    const auto phyname_k = 
+        evt->get_event_content()->find(devicetracker->event_new_phy());
 
-	// Do we have any pending filters that match this key?
-	auto unknown_key = unknown_phy_mac_filter_map.find(phy_evt->phy->fetch_phy_name());
+    if (phyname_k == evt->get_event_content()->end())
+        return;
 
-	if (unknown_key == unknown_phy_mac_filter_map.end())
-		return;
+    auto phy = devicetracker->fetch_phy_handler_by_name(get_tracker_value<std::string>(phyname_k->second));
 
-	// Copy the map over to the known key
-	phy_mac_filter_map[phy_evt->phy->fetch_phy_id()] = unknown_key->second;
+    if (phy == nullptr)
+        return;
 
-	// Purge the unknown record
-	unknown_phy_mac_filter_map.erase(unknown_key);
+    // Do we have any pending filters that match this key?
+    auto unknown_key = unknown_phy_mac_filter_map.find(phy->fetch_phy_name());
+
+    if (unknown_key == unknown_phy_mac_filter_map.end())
+        return;
+
+    // Copy the map over to the known key
+    phy_mac_filter_map[phy->fetch_phy_id()] = unknown_key->second;
+
+    // Purge the unknown record
+    unknown_phy_mac_filter_map.erase(unknown_key);
 }
 
 unsigned int class_filter_mac_addr::edit_endp_handler(std::ostream& stream, 

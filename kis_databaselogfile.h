@@ -144,14 +144,9 @@ public:
         return device_mac_filter;
     }
 
-    // event_bus event we inject when the log is opened
-    class event_dblog_opened : public eventbus_event {
-    public:
-        static std::string Event() { return "KISMETDB_LOG_OPEN"; }
-        event_dblog_opened() :
-            eventbus_event(Event()) { }
-        virtual ~event_dblog_opened() {}
-    };
+    static std::string event_log_open() {
+        return "KISMETDB_LOG_OPEN";
+    }
 
 protected:
     // Is the database even enabled?

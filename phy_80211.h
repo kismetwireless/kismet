@@ -388,19 +388,9 @@ public:
     // if this cannot be converted or is an invalid frequency
     static const std::string khz_to_channel(const double in_khz);
 
-    // event_bus event we inject when a handshake is captured
-    class event_dot11_wpa_handshake : public eventbus_event {
-    public:
-        static std::string Event() { return "DOT11_WPA_HANDSHAKE"; }
-        event_dot11_wpa_handshake(std::shared_ptr<kis_tracked_device_base> base_device, std::shared_ptr<dot11_tracked_device> dot11_device) :
-            eventbus_event(Event()),
-            base_device{base_device},
-            dot11_device{dot11_device} { }
-        virtual ~event_dot11_wpa_handshake() {}
-
-        std::shared_ptr<kis_tracked_device_base> base_device;
-        std::shared_ptr<dot11_tracked_device> dot11_device;
-    };
+    const std::string dot11_wpa_handshake_event = "DOT11_WPA_HANDSHAKE";
+    const std::string dot11_wpa_handshake_event_base = "DOT11_WPA_HANDSHAKE_BASEDEV";
+    const std::string dot11_wpa_handshake_event_dot11 = "DOT11_WPA_HANDSHAKE_DOT11";
 
 protected:
     std::shared_ptr<alert_tracker> alertracker;
