@@ -52,19 +52,46 @@
 
 #include "globalregistry.h"
 #include "kis_mutex.h"
+#include "trackedcomponent.h"
 
 // Most basic event bus event that all other events are derived from
-class eventbus_event {
+class eventbus_event : public tracker_component {
 public:
-    eventbus_event(const std::string& in_id) :
-        event_id{in_id} { }
-
-    std::string get_event() { 
-        return event_id;
+    eventbus_event() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
     }
 
+    eventbus_event(int in_id, const std::string& in_event) :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+        set_event_id(in_event);
+    }
+        
+    virtual uint32_t get_signature() const override {
+        return adler32_checksum("eventbus_event");
+    }
+
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t());
+        return std::move(dup);
+    }
+
+    __Proxy(event_id, std::string, std::string, std::string, event_id);
+    __ProxyTrackable(event_content, tracker_element_string_map, event_content);
+
 protected:
-    std::string event_id;
+    std::shared_ptr<tracker_element_string> event_id;
+    std::shared_ptr<tracker_element_string_map> event_content;
+
+    virtual void register_fields() override {
+        tracker_component::register_fields();
+        register_field("kismet.eventbus.type", "Event type", &event_id);
+        register_field("kismet.eventbus.content", "Event content", &event_content);
+    }
 };
 
 class event_bus : public lifetime_global {
@@ -90,6 +117,8 @@ public:
     unsigned long register_listener(const std::list<std::string>& channels, cb_func cb);
     void remove_listener(unsigned long id);
 
+    std::shared_ptr<eventbus_event> get_eventbus_event(const std::string& type);
+
     template<typename T>
     void publish(T event) {
         local_locker l(&mutex);
@@ -106,6 +135,8 @@ protected:
     // an event, because we need to not lock up the entire event bus while we're 
     // sending out events
     kis_recursive_timed_mutex mutex, handler_mutex;
+
+    int eventbus_event_id;
 
     unsigned long next_cbl_id;
 

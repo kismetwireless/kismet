@@ -26,6 +26,11 @@ event_bus::event_bus() {
 
     shutdown = false;
 
+    eventbus_event_id = 
+        Globalreg::globalreg->entrytracker->register_field("kismet.eventbus.event",
+                tracker_element_factory<eventbus_event>(),
+                "Eventbus event");
+
     event_cl.lock();
 
     event_dispatch_t =
@@ -43,6 +48,10 @@ event_bus::~event_bus() {
     event_dispatch_t.join();
 }
 
+std::shared_ptr<eventbus_event> event_bus::get_eventbus_event(const std::string& event_type) {
+    return std::make_shared<eventbus_event>(eventbus_event_id, event_type);
+}
+
 void event_bus::event_queue_dispatcher() {
     local_demand_locker l(&mutex);
 
@@ -57,7 +66,7 @@ void event_bus::event_queue_dispatcher() {
             auto e = event_queue.front();
             event_queue.pop();
 
-            auto ch_listeners = callback_table.find(e->get_event());
+            auto ch_listeners = callback_table.find(e->get_event_id());
 
             if (ch_listeners == callback_table.end()) {
                 l.unlock();

@@ -646,6 +646,14 @@ int main(int argc, char *argv[], char *envp[]) {
         }
     }
 
+    // Entrytracker needs to be allocated before almost everything else, anything which
+    // handles serializable data needs it
+    std::shared_ptr<entry_tracker> entrytracker =
+        entry_tracker::create_entrytracker();
+
+	// Create the event bus used by inter-code comms
+	event_bus::create_eventbus();
+
     // First order - create our message bus and our client for outputting
     message_bus::create_messagebus(globalregistry);
 
@@ -659,9 +667,6 @@ int main(int argc, char *argv[], char *envp[]) {
     globalregistry->messagebus->register_client(fqmescli, MSGFLAG_FATAL | MSGFLAG_ERROR);
     // Register the smart msg printer for everything
     globalregistry->messagebus->register_client(smartmsgcli, MSGFLAG_ALL);
-
-	// Create the event bus
-	event_bus::create_eventbus();
 
     // We need to create the pollable system near the top of execution as well
     auto pollabletracker(pollable_tracker::create_pollabletracker());
@@ -773,11 +778,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
     if (globalregistry->fatal_condition) 
         SpindownKismet(pollabletracker);
-
-    // Allocate some other critical stuff like the entry tracker and the
-    // serializers
-    std::shared_ptr<entry_tracker> entrytracker =
-        entry_tracker::create_entrytracker(Globalreg::globalreg);
 
     // Create the manuf db
     globalregistry->manufdb = new kis_manuf();
