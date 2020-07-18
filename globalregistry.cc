@@ -178,7 +178,7 @@ void global_registry::Removelifetime_global(std::shared_ptr<lifetime_global> in_
     }
 }
 
-void global_registry::Deletelifetime_globals() {
+void global_registry::delete_lifetime_globals() {
     local_locker lock(&lifetime_mutex);
 
     lifetime_vec.clear();

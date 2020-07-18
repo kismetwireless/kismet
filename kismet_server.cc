@@ -287,7 +287,7 @@ void SpindownKismet(std::shared_ptr<pollable_tracker> pollabletracker) {
         fprintf(stderr, "Kismet exiting.\n");
     }
 
-    globalregistry->Deletelifetime_globals();
+    globalregistry->delete_lifetime_globals();
 
     globalregistry->complete = true;
 
