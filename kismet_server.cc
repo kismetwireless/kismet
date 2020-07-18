@@ -969,7 +969,7 @@ int main(int argc, char *argv[], char *envp[]) {
     Systemmonitor::create_systemmonitor();
 
     // Start up any code that needs everything to be loaded
-    globalregistry->Start_Deferred();
+    globalregistry->start_deferred();
 
     // Set the global silence now that we're set up
     glob_silent = local_silent;

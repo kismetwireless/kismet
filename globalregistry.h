@@ -242,7 +242,7 @@ public:
 
     void register_deferred_global(std::shared_ptr<deferred_startup> in_d);
     void remove_deferred_global(std::shared_ptr<deferred_startup> in_d);
-    void Start_Deferred();
+    void start_deferred();
     void Shutdown_Deferred();
 
 protected:

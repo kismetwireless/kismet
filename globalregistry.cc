@@ -204,7 +204,7 @@ void global_registry::remove_deferred_global(std::shared_ptr<deferred_startup> i
     }
 }
 
-void global_registry::Start_Deferred() {
+void global_registry::start_deferred() {
     local_locker lock(&deferred_mutex);
 
     deferred_started = true;
