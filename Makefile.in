@@ -53,25 +53,28 @@ PROTOBUF_CPP_O = \
 	protobuf_cpp/kismet.pb.cc.o \
 	protobuf_cpp/http.pb.cc.o \
 	protobuf_cpp/datasource.pb.cc.o \
-	protobuf_cpp/linuxbluetooth.pb.cc.o 
+	protobuf_cpp/linuxbluetooth.pb.cc.o \
+	protobuf_cpp/eventbus.pb.cc.o 
 
 PROTOBUF_CPP_H_TARGET = @PROTOBUF_CPP_H_TARGET@
 PROTOBUF_CPP_H = \
 	protobuf_cpp/kismet.pb.h \
 	protobuf_cpp/http.pb.h \
 	protobuf_cpp/datasource.pb.h \
-	protobuf_cpp/linuxbluetooth.pb.h 
+	protobuf_cpp/linuxbluetooth.pb.h \
+	protobuf_cpp/eventbus.pb.h 
 
 PROTOBUF_C_O = \
 	protobuf_c/kismet.pb-c.c.o \
 	protobuf_c/datasource.pb-c.c.o \
-	protobuf_c/linuxbluetooth.pb-c.c.o 
+	protobuf_c/linuxbluetooth.pb-c.c.o \
+	protobuf_c/eventbus.pb-c.c.o
 
 PROTOBUF_C_H = \
 	protobuf_c/kismet.pb-c.h \
 	protobuf_c/datasource.pb-c.h \
-	protobuf_c/linuxbluetooth.pb-c.h
-
+	protobuf_c/linuxbluetooth.pb-c.h \
+	protobuf_c/eventbus.pb-c.h
 
 # Common pure-c code for capturesource binaries
 DATASOURCE_COMMON_C_O = \
