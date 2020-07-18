@@ -214,7 +214,7 @@ void global_registry::start_deferred() {
     }
 }
 
-void global_registry::Shutdown_Deferred() {
+void global_registry::shutdown_deferred() {
     local_locker lock(&deferred_mutex);
 
     for (auto i : deferred_vec)

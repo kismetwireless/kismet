@@ -243,7 +243,7 @@ public:
     void register_deferred_global(std::shared_ptr<deferred_startup> in_d);
     void remove_deferred_global(std::shared_ptr<deferred_startup> in_d);
     void start_deferred();
-    void Shutdown_Deferred();
+    void shutdown_deferred();
 
 protected:
     kis_recursive_timed_mutex ext_mutex;

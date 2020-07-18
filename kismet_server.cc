@@ -247,7 +247,7 @@ void SpindownKismet(std::shared_ptr<pollable_tracker> pollabletracker) {
     }
 
     // shutdown everything
-    globalregistry->Shutdown_Deferred();
+    globalregistry->shutdown_deferred();
     globalregistry->spindown = 1;
 
     // Start a short shutdown cycle for 2 seconds
