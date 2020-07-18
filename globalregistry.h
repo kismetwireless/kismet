@@ -241,7 +241,7 @@ public:
     void delete_lifetime_globals();
 
     void register_deferred_global(std::shared_ptr<deferred_startup> in_d);
-    void RemoveDeferredGlobal(std::shared_ptr<deferred_startup> in_d);
+    void remove_deferred_global(std::shared_ptr<deferred_startup> in_d);
     void Start_Deferred();
     void Shutdown_Deferred();
 
