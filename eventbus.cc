@@ -67,8 +67,9 @@ void event_bus::event_queue_dispatcher() {
             event_queue.pop();
 
             auto ch_listeners = callback_table.find(e->get_event_id());
+			auto ch_all_listeners = callback_table.find("*");
 
-            if (ch_listeners == callback_table.end()) {
+            if (ch_listeners == callback_table.end() && ch_all_listeners == callback_table.end()) {
                 l.unlock();
                 continue;
             }
@@ -80,11 +81,14 @@ void event_bus::event_queue_dispatcher() {
                 // Unlock the rest of the eventbus
                 l.unlock();
 
-                auto listeners{ch_listeners->second};
-
-                for (auto cbl : ch_listeners->second) {
+                for (const auto& cbl : ch_listeners->second) {
                     cbl->cb(e);
                 }
+
+                for (const auto& cbl : ch_all_listeners->second) {
+                    cbl->cb(e);
+                }
+
             }
 
             // Loop for more events
