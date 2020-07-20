@@ -10,5 +10,15 @@ $ sudo su
 
 Requirements:
 This requires the KismetExternal python module, available at:
-$ git clone https://www.kismetwireless.net/git/python-kismet-db.git
+
+```bash
+$ git clone https://www.kismetwireless.net/git/python-kismet-external.git
+```
+
+or installable via pip3:
+
+```bash
+$ pip3 install python-kismet-external
+```
+
 
