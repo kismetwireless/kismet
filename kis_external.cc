@@ -31,21 +31,45 @@
 
 kis_external_interface::kis_external_interface() :
     buffer_interface(),
+    kis_net_httpd_chain_stream_handler(),
     ext_mutex {std::make_shared<kis_recursive_timed_mutex>()},
     timetracker {Globalreg::fetch_mandatory_global_as<time_tracker>()},
     seqno {0},
     last_pong {0},
-    ping_timer_id {-1} { }
+    ping_timer_id {-1},
+    eventbus {Globalreg::fetch_mandatory_global_as<event_bus>()},
+    http_session_id{0} {
+        
+    bind_httpd_server();
+}
 
 kis_external_interface::kis_external_interface(std::shared_ptr<kis_recursive_timed_mutex> mutex) :
     buffer_interface(),
+    kis_net_httpd_chain_stream_handler(),
     ext_mutex {mutex != nullptr ? mutex : std::make_shared<kis_recursive_timed_mutex>()},
     timetracker {Globalreg::fetch_mandatory_global_as<time_tracker>()},
     seqno {0},
     last_pong {0},
-    ping_timer_id {-1} { }
+    ping_timer_id {-1},
+    eventbus {Globalreg::fetch_mandatory_global_as<event_bus>()},
+    http_session_id{0} {
+    bind_httpd_server();
+}
 
 kis_external_interface::~kis_external_interface() {
+    // Kill any eventbus listeners
+    for (const auto& ebid : eventbus_callback_vec)
+        eventbus->remove_listener(ebid);
+
+    // Kill any active http sessions
+    for (auto s : http_proxy_session_map) {
+        // Fail them
+        s.second->connection->httpcode = 501;
+        // Unlock them and let the cleanup in the thread handle it and close down 
+        // the http server session
+        s.second->locker->unlock();
+    }
+
     timetracker->remove_timer(ping_timer_id);
 
     if (ipc_remote != nullptr) {
@@ -74,6 +98,19 @@ void kis_external_interface::connect_buffer(std::shared_ptr<buffer_handler_gener
 
 void kis_external_interface::trigger_error(std::string in_error) {
     local_locker lock(ext_mutex);
+
+    // Kill any eventbus listeners
+    for (const auto& ebid : eventbus_callback_vec)
+        eventbus->remove_listener(ebid);
+
+    // Kill any active http sessions
+    for (auto s : http_proxy_session_map) {
+        // Fail them
+        s.second->connection->httpcode = 501;
+        // Unlock them and let the cleanup in the thread handle it and close down 
+        // the http server session
+        s.second->locker->unlock();
+    }
 
     timetracker->remove_timer(ping_timer_id);
 
@@ -390,6 +427,15 @@ bool kis_external_interface::dispatch_rx_packet(std::shared_ptr<KismetExternal::
     } else if (c->command() == "SHUTDOWN") {
         handle_packet_shutdown(c->seqno(), c->content());
         return true;
+    } else if (c->command() == "HTTPREGISTERURI") {
+        handle_packet_http_register(c->seqno(), c->content());
+        return true;
+    } else if (c->command() == "HTTPRESPONSE") {
+        handle_packet_http_response(c->seqno(), c->content());
+        return true;
+    } else if (c->command() == "HTTPAUTHREQ") {
+        handle_packet_http_auth_request(c->seqno(), c->content());
+        return true;
     }
 
     return false;
@@ -405,6 +451,10 @@ void kis_external_interface::handle_packet_message(uint32_t in_seqno, const std:
     }
 
     handle_msg_proxy(m.msgtext(), m.msgtype());
+}
+
+void kis_external_interface::handle_msg_proxy(const std::string& msg, const int msgtype) {
+    _MSG(msg, msgtype);
 }
 
 void kis_external_interface::handle_packet_ping(uint32_t in_seqno, const std::string& in_content) {
@@ -475,66 +525,7 @@ unsigned int kis_external_interface::send_shutdown(std::string reason) {
     return send_packet(c);
 }
 
-kis_external_http_interface::kis_external_http_interface() :
-    kis_external_interface(), 
-    kis_net_httpd_chain_stream_handler() {
-
-    http_session_id = 0;
-
-    bind_httpd_server();
-}
-
-kis_external_http_interface::~kis_external_http_interface() {
-    local_locker el(ext_mutex);
-
-    // Kill any active sessions
-    for (auto s : http_proxy_session_map) {
-        // Fail them
-        s.second->connection->httpcode = 501;
-        // Unlock them and let the cleanup in the thread handle it and close down 
-        // the http server session
-        s.second->locker->unlock();
-    }
-}
-
-void kis_external_http_interface::trigger_error(std::string in_error) {
-    local_locker lock(ext_mutex);
-
-    // Kill any active sessions
-    for (auto s : http_proxy_session_map) {
-        // Fail them
-        s.second->connection->httpcode = 501;
-        // Unlock them and let the cleanup in the thread handle it and close down 
-        // the http server session
-        s.second->locker->unlock();
-    }
-
-    kis_external_interface::trigger_error(in_error);
-}
-
-bool kis_external_http_interface::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
-    if (kis_external_interface::dispatch_rx_packet(c))
-        return true;
-
-    if (c->command() == "HTTPREGISTERURI") {
-        handle_packet_http_register(c->seqno(), c->content());
-        return true;
-    } else if (c->command() == "HTTPRESPONSE") {
-        handle_packet_http_response(c->seqno(), c->content());
-        return true;
-    } else if (c->command() == "HTTPAUTHREQ") {
-        handle_packet_http_auth_request(c->seqno(), c->content());
-        return true;
-    }
-
-    return false;
-}
-
-void kis_external_http_interface::handle_msg_proxy(const std::string& msg, const int msgtype) {
-    _MSG(msg, msgtype);
-}
-
-void kis_external_http_interface::handle_packet_http_register(uint32_t in_seqno, 
+void kis_external_interface::handle_packet_http_register(uint32_t in_seqno, 
         const std::string& in_content) {
     local_locker lock(ext_mutex);
 
@@ -555,7 +546,7 @@ void kis_external_http_interface::handle_packet_http_register(uint32_t in_seqno,
     http_proxy_uri_map[exturi->method].push_back(exturi);
 }
 
-void kis_external_http_interface::handle_packet_http_response(uint32_t in_seqno, 
+void kis_external_interface::handle_packet_http_response(uint32_t in_seqno, 
         const std::string& in_content) {
     local_locker lock(ext_mutex);
 
@@ -614,7 +605,7 @@ void kis_external_http_interface::handle_packet_http_response(uint32_t in_seqno,
     }
 }
 
-void kis_external_http_interface::handle_packet_http_auth_request(uint32_t in_seqno, 
+void kis_external_interface::handle_packet_http_auth_request(uint32_t in_seqno, 
         const std::string& in_content) {
     KismetExternalHttp::HttpAuthTokenRequest rt;
 
@@ -635,7 +626,7 @@ void kis_external_http_interface::handle_packet_http_auth_request(uint32_t in_se
     send_http_auth(s->sessionid);
 }
 
-unsigned int kis_external_http_interface::send_http_request(uint32_t in_http_sequence, std::string in_uri,
+unsigned int kis_external_interface::send_http_request(uint32_t in_http_sequence, std::string in_uri,
         std::string in_method, std::map<std::string, std::string> in_vardata) {
     std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
 
@@ -657,7 +648,7 @@ unsigned int kis_external_http_interface::send_http_request(uint32_t in_http_seq
     return send_packet(c);
 }
 
-unsigned int kis_external_http_interface::send_http_auth(std::string in_cookie) {
+unsigned int kis_external_interface::send_http_auth(std::string in_cookie) {
     std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
 
     c->set_command("HTTPAUTH");
@@ -670,7 +661,7 @@ unsigned int kis_external_http_interface::send_http_auth(std::string in_cookie) 
     return send_packet(c);
 }
 
-bool kis_external_http_interface::httpd_verify_path(const char *path, const char *method) {
+bool kis_external_interface::httpd_verify_path(const char *path, const char *method) {
     local_locker lock(ext_mutex);
 
     // Find all the registered endpoints for this method
@@ -697,7 +688,7 @@ bool kis_external_http_interface::httpd_verify_path(const char *path, const char
 // tool, we need to set a lock and sit on it until the proxy has completed.
 // We don't need to spawn our own thread - we're already our own thread independent
 // of the IO processing system.
-KIS_MHD_RETURN kis_external_http_interface::httpd_create_stream_response(kis_net_httpd *httpd,
+KIS_MHD_RETURN kis_external_interface::httpd_create_stream_response(kis_net_httpd *httpd,
         kis_net_httpd_connection *connection,
         const char *url, const char *method, const char *upload_data,
         size_t *upload_data_size) {
@@ -761,7 +752,7 @@ KIS_MHD_RETURN kis_external_http_interface::httpd_create_stream_response(kis_net
     return MHD_YES;
 }
 
-KIS_MHD_RETURN kis_external_http_interface::httpd_post_complete(kis_net_httpd_connection *connection) {
+KIS_MHD_RETURN kis_external_interface::httpd_post_complete(kis_net_httpd_connection *connection) {
     auto m = http_proxy_uri_map.find(std::string("POST"));
 
     if (m == http_proxy_uri_map.end()) {
