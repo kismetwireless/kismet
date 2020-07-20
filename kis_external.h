@@ -136,6 +136,8 @@ protected:
     virtual void handle_packet_ping(uint32_t in_seqno, const std::string& in_content);
     virtual void handle_packet_pong(uint32_t in_seqno, const std::string& in_content);
     virtual void handle_packet_shutdown(uint32_t in_seqno, const std::string& in_content);
+    virtual void handle_packet_eventbus_register(uint32_t in_seqno, const std::string& in_content);
+    virtual void handle_packet_eventbus_publish(uint32_t in_seqno, const std::string& in_content);
 
     unsigned int send_ping();
     unsigned int send_pong(uint32_t ping_seqno);
@@ -163,14 +165,16 @@ protected:
 
     size_t ipc_buffer_sz;
 
+
     // Eventbus proxy code
 
     std::shared_ptr<event_bus> eventbus;
-    std::vector<unsigned long> eventbus_callback_vec;
+    std::map<std::string, unsigned long> eventbus_callback_map;
+
+    void proxy_event(std::shared_ptr<eventbus_event>);
 
 
     // Webserver proxy code
-    
 
     virtual void handle_packet_http_register(uint32_t in_seqno, const std::string& in_content);
     virtual void handle_packet_http_response(uint32_t in_seqno, const std::string& in_content);

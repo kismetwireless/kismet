@@ -21,6 +21,8 @@
 
 #include "configfile.h"
 
+#include "json_adapter.h"
+
 #include "kis_external.h"
 #include "kis_external_packet.h"
 
@@ -28,6 +30,7 @@
 
 #include "protobuf_cpp/kismet.pb.h"
 #include "protobuf_cpp/http.pb.h"
+#include "protobuf_cpp/eventbus.pb.h"
 
 kis_external_interface::kis_external_interface() :
     buffer_interface(),
@@ -58,8 +61,8 @@ kis_external_interface::kis_external_interface(std::shared_ptr<kis_recursive_tim
 
 kis_external_interface::~kis_external_interface() {
     // Kill any eventbus listeners
-    for (const auto& ebid : eventbus_callback_vec)
-        eventbus->remove_listener(ebid);
+    for (const auto& ebid : eventbus_callback_map)
+        eventbus->remove_listener(ebid.second);
 
     // Kill any active http sessions
     for (auto s : http_proxy_session_map) {
@@ -100,8 +103,8 @@ void kis_external_interface::trigger_error(std::string in_error) {
     local_locker lock(ext_mutex);
 
     // Kill any eventbus listeners
-    for (const auto& ebid : eventbus_callback_vec)
-        eventbus->remove_listener(ebid);
+    for (const auto& ebid : eventbus_callback_map)
+        eventbus->remove_listener(ebid.second);
 
     // Kill any active http sessions
     for (auto s : http_proxy_session_map) {
@@ -436,6 +439,12 @@ bool kis_external_interface::dispatch_rx_packet(std::shared_ptr<KismetExternal::
     } else if (c->command() == "HTTPAUTHREQ") {
         handle_packet_http_auth_request(c->seqno(), c->content());
         return true;
+    } else if (c->command() == "EVENTBUSREGISTER") {
+        handle_packet_eventbus_register(c->seqno(), c->content());
+        return true;
+    } else if (c->command() == "EVENTBUSPUBLISH") {
+        handle_packet_eventbus_publish(c->seqno(), c->content());
+        return true;
     }
 
     return false;
@@ -523,6 +532,69 @@ unsigned int kis_external_interface::send_shutdown(std::string reason) {
     c->set_content(s.SerializeAsString());
 
     return send_packet(c);
+}
+
+void kis_external_interface::proxy_event(std::shared_ptr<eventbus_event> evt) {
+    auto c = std::make_shared<KismetExternal::Command>();
+
+    c->set_command("EVENT");
+
+    std::stringstream ss;
+
+    json_adapter::pack(ss, evt);
+
+    KismetEventBus::EventbusEvent ebe;
+    ebe.set_event_json(ss.str());
+
+    c->set_content(ebe.SerializeAsString());
+
+    send_packet(c);
+}
+
+void kis_external_interface::handle_packet_eventbus_register(uint32_t in_seqno,
+        const std::string& in_content) {
+    local_locker lock(ext_mutex, "kis_external_interface::handle_packet_eventbus_register");
+
+    KismetEventBus::EventbusRegisterListener evtlisten;
+
+    if (!evtlisten.ParseFromString(in_content)) {
+        _MSG_ERROR("Kismet external interface got an unparseable EVENTBUSREGISTER");
+        trigger_error("Invalid EVENTBUSREGISTER");
+        return;
+    }
+
+    for (int e = 0; e < evtlisten.event_size(); e++) {
+        auto k = eventbus_callback_map.find(evtlisten.event(e));
+
+        if (k != eventbus_callback_map.end())
+            eventbus->remove_listener(k->second);
+
+        unsigned long eid = 
+            eventbus->register_listener(evtlisten.event(e), 
+                    [this](std::shared_ptr<eventbus_event> e) {
+                    proxy_event(e);
+                    });
+
+        eventbus_callback_map[evtlisten.event(e)] = eid;
+    }
+}
+
+void kis_external_interface::handle_packet_eventbus_publish(uint32_t in_seqno,
+        const std::string& in_content) {
+    local_locker lock(ext_mutex, "kis_external_interface::handle_packet_eventbus_publish");
+    
+    KismetEventBus::EventbusPublishEvent evtpub;
+
+    if (!evtpub.ParseFromString(in_content)) {
+        _MSG_ERROR("Kismet external interface got unparseable EVENTBUSPUBLISH");
+        trigger_error("Invalid EVENTBUSPUBLISH");
+        return;
+    }
+
+    auto evt = eventbus->get_eventbus_event(evtpub.event_type());
+    evt->get_event_content()->insert("kismet.eventbus.event_json",
+            std::make_shared<tracker_element_string>(evtpub.event_content_json()));
+    eventbus->publish(evt);
 }
 
 void kis_external_interface::handle_packet_http_register(uint32_t in_seqno, 
