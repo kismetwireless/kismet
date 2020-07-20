@@ -232,6 +232,14 @@ int plugin_tracker::ScanDirectory(DIR *in_dir, std::string in_path) {
             }
 
             preg->set_plugin_http_external(s);
+        } else if ((s = cf.fetch_opt("kisexternal")) != "") {
+            if (s.find("/") != std::string::npos) {
+                _MSG_ERROR("Found path in 'kisexternal=' in plugin manifest '{}', "
+                        "httpexternal= should define the binary name only.", manifest);
+                continue;
+            }
+
+            preg->set_plugin_http_external(s);
         }
 
         if ((s = cf.fetch_opt("js")) != "") {
