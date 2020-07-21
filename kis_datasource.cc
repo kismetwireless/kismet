@@ -412,6 +412,10 @@ void kis_datasource::close_source() {
         ipc_remote->soft_kill();
     }
 
+    auto evt = eventbus->get_eventbus_event(event_datasource_closed());
+    evt->get_event_content()->insert(event_datasource_closed(), source_uuid);
+    eventbus->publish(evt);
+
     ipc_remote.reset();
     ringbuf_handler.reset();
 
@@ -457,6 +461,11 @@ void kis_datasource::trigger_error(std::string in_error) {
     close_source();
 
     set_int_source_running(false);
+
+    auto evt = eventbus->get_eventbus_event(event_datasource_error());
+    evt->get_event_content()->insert(event_datasource_error(), source_uuid);
+    eventbus->publish(evt);
+
 
     handle_source_error();
     cancel_all_commands(in_error);
@@ -1702,6 +1711,10 @@ void kis_datasource::handle_source_error() {
                                 return;
 
                             std::stringstream ss;
+
+                            auto evt = eventbus->get_eventbus_event(event_datasource_opened());
+                            evt->get_event_content()->insert(event_datasource_opened(), source_uuid);
+                            eventbus->publish(evt);
 
                             ss << "Source " << get_source_name() << " successfully "
                                 "re-opened";

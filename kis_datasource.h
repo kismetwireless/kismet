@@ -413,6 +413,19 @@ public:
         local_shared_unlocker ul(ext_mutex);
     }
 
+    static std::string event_datasource_error() {
+        return "DATASOURCE_ERROR";
+    }
+
+    static std::string event_datasource_opened() {
+        return "DATASOURCE_OPENED";
+    }
+
+    static std::string event_datasource_closed() {
+        return "DATASOURCE_CLOSED";
+    }
+
+
 protected:
     // Source error; sets error state, fails all pending function callbacks,
     // shuts down the buffer and ipc, and initiates retry if we retry errors

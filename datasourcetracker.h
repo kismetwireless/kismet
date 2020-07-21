@@ -369,6 +369,14 @@ public:
         return "NEW_DATASOURCE";
     }
 
+    static std::string event_datasource_paused() {
+        return "DATASOURCE_PAUSED";
+    }
+
+    static std::string event_datasource_resumed() {
+        return "DATASOURCE_RESUMED";
+    }
+
     // Add a driver
     int register_datasource(shared_datasource_builder in_builder);
 

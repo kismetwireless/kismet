@@ -1496,6 +1496,7 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
                             "interface request.", MSGFLAG_INFO);
                     ds->disable_source();
                     stream << "Closing source " << ds->get_source_uuid().uuid_to_string();
+
                     return;
                 } else {
                     stream << "Source already closed, disabling source " <<
@@ -1511,6 +1512,7 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
                             "interface request.", MSGFLAG_INFO);
                     ds->open_interface(ds->get_source_definition(), 0, NULL);
                     stream << "Re-opening source";
+
                     return;
                 } else {
                     stream << "Source already open";
@@ -1525,6 +1527,7 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
                             "interface request.", MSGFLAG_INFO);
                     ds->set_source_paused(true);
                     stream << "Pausing source";
+
                     return;
                 } else {
                     stream << "Source already paused";
@@ -1539,6 +1542,11 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
                             "interface request.", MSGFLAG_INFO);
                     ds->set_source_paused(false);
                     stream << "Resuming source";
+
+                    auto evt = eventbus->get_eventbus_event(event_datasource_resumed());
+                    evt->get_event_content()->insert(event_datasource_resumed(), ds);
+                    eventbus->publish(evt);
+
                     return;
                 } else {
                     stream << "Source already running";
