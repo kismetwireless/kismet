@@ -531,10 +531,8 @@ public:
         std::stringstream ss;
         auto fflags = ss.flags();
 
-        ss << std::uppercase << std::setfill('0') << std::setw(2) << std::hex;
-
         for (size_t i = 0; i < value.length(); i++) 
-            ss << value.data()[i];
+            ss << std::uppercase << std::setfill('0') << std::setw(2) << std::hex << value.data()[i];
 
         ss.flags(fflags);
 
