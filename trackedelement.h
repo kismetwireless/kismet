@@ -528,15 +528,58 @@ public:
     }
 
     std::string to_hex() const {
-        std::stringstream ss;
-        auto fflags = ss.flags();
+        std::string rs;
 
-        for (size_t i = 0; i < value.length(); i++) 
-            ss << std::uppercase << std::setfill('0') << std::setw(2) << std::hex << value.data()[i];
+        rs.reserve(value.length() * 2);
 
-        ss.flags(fflags);
+        for (auto c : value) {
+            auto n = (c >> 4) & 0x0F;
+            if (n <= 9)
+                rs += '0' + n;
+            else
+                rs += 'A' + n - 10;
 
-        return ss.str();
+            auto n2 = c & 0x0F;
+            if (n2 <= 9)
+                rs += '0' + n2;
+            else
+                rs += 'A' + n2 - 10;
+        }
+
+        return rs;
+    }
+
+    char hex2nibble(const char& c) const {
+        if (c >= '0' && c <= '9')
+            return c - '0';
+        if (c >= 'A' && c <= 'F')
+            return (c - 'A') + 10;
+        if (c >= 'a' && c <= 'f')
+            return (c - 'a') + 10;
+
+        return 0;
+    }
+
+    std::string from_hex(const std::string& s) {
+        std::string rs;
+
+        size_t pos = 0;
+
+        if (s.length() == 0)
+            return rs;
+
+        if (s.length() % 2 != 0) {
+            rs.reserve((s.length() / 2) + 1);
+            rs += hex2nibble(s[0]);
+            pos = 1;
+        } else {
+            rs.reserve(s.length() / 2);
+        }
+
+        for (; pos < s.length(); pos += 2)  
+            rs += ((hex2nibble(s[pos]) << 4) | hex2nibble(s[pos + 1]));
+
+        return rs;
     }
 
 };
