@@ -695,7 +695,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
 
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-            packinfo->bssid_mac = mac_addr(addr3, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
         } else if (fc->subtype == 14) {
             if (chunk->length < 30) {
                 packinfo->corrupt = 1;
@@ -707,7 +707,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
 
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-            packinfo->bssid_mac = mac_addr(addr3, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
         } else {
             // fmt::print(stderr, "debug - unhandled type - {} {}\n", fc->type, fc->subtype);
             packinfo->subtype = packet_sub_unknown;
