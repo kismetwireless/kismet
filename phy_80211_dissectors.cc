@@ -695,7 +695,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
 
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-            packinfo->bssid_mac = mac_addr(addr3, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
         } else if (fc->subtype == 14) {
             if (chunk->length < 30) {
                 packinfo->corrupt = 1;
@@ -707,7 +707,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
 
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-            packinfo->bssid_mac = mac_addr(addr3, PHY80211_MAC_LEN);
+            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
         } else {
             // fmt::print(stderr, "debug - unhandled type - {} {}\n", fc->type, fc->subtype);
             packinfo->subtype = packet_sub_unknown;
@@ -724,70 +724,73 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
         } else if (fc->subtype == packet_sub_action) {
             // Action frames have their own structure and a non-traditional
             // fixed parameters field, handle it all here
-            packinfo->header_offset = 24;
+            packinfo->header_offset = 22;
             fixparm = NULL;
 
-            membuf pack_membuf((char *) &(chunk->data[packinfo->header_offset]), 
-                    (char *) &(chunk->data[chunk->length]));
-            std::istream pack_stream(&pack_membuf);
+            // Action frames can be encrypted; we can't do anything with them if they are.
 
-            std::shared_ptr<dot11_action> action(new dot11_action());
+            if (!fc->wep) {
+                membuf pack_membuf((char *) &(chunk->data[packinfo->header_offset]), 
+                        (char *) &(chunk->data[chunk->length]));
+                std::istream pack_stream(&pack_membuf);
 
-            try {
-                std::shared_ptr<kaitai::kstream> ks(new kaitai::kstream(&pack_stream));
-                action->parse(ks);
-            } catch (const std::exception& e) {
-                fprintf(stderr, "debug - unable to parse action frame - %s\n", e.what());
-                packinfo->corrupt = 1;
-                in_pack->insert(pack_comp_80211, packinfo);
-                return 0;
-            }
-
-            // We only care about RMM for wids purposes right now
-            std::shared_ptr<dot11_action::action_rmm> action_rmm;
-            if (action->category_code() == dot11_action::category_code_radio_measurement &&
-                    (action_rmm = action->action_frame_rmm()) != NULL) {
-                // Scan the action IE tags
-                std::shared_ptr<dot11_ie> rmm_tags(new dot11_ie());
+                std::shared_ptr<dot11_action> action(new dot11_action());
 
                 try {
-                    rmm_tags->parse(action_rmm->tags_data_stream());
+                    std::shared_ptr<kaitai::kstream> ks(new kaitai::kstream(&pack_stream));
+                    action->parse(ks);
                 } catch (const std::exception& e) {
-                    // fprintf(stderr, "debug - invalid ie rmm tags: %s\n", e.what());
+                    fprintf(stderr, "debug - unable to parse action frame - %s\n", e.what());
                     packinfo->corrupt = 1;
                     in_pack->insert(pack_comp_80211, packinfo);
                     return 0;
                 }
 
-                for (auto t : *(rmm_tags->tags())) {
-                    if (t->tag_num() == 52) {
-                        try {
-                            dot11_ie_52_rmm ie_rmm;
-                            ie_rmm.parse(t->tag_data_stream());
+                // We only care about RMM for wids purposes right now
+                std::shared_ptr<dot11_action::action_rmm> action_rmm;
+                if (action->category_code() == dot11_action::category_code_radio_measurement &&
+                        (action_rmm = action->action_frame_rmm()) != NULL) {
+                    // Scan the action IE tags
+                    std::shared_ptr<dot11_ie> rmm_tags(new dot11_ie());
 
-                            if (ie_rmm.channel_number() > 0xE0) {
-                                std::stringstream ss;
+                    try {
+                        rmm_tags->parse(action_rmm->tags_data_stream());
+                    } catch (const std::exception& e) {
+                        // fprintf(stderr, "debug - invalid ie rmm tags: %s\n", e.what());
+                        packinfo->corrupt = 1;
+                        in_pack->insert(pack_comp_80211, packinfo);
+                        return 0;
+                    }
 
-                                ss << "IEE80211 Access Point BSSID " <<
-                                    packinfo->bssid_mac.mac_to_string() << " reporting an 802.11k " <<
-                                    "neighbor channel of " << ie_rmm.channel_number() << " which is " <<
-                                    "greater than the maximum channel, 224.  This may be an " << 
-                                    "exploit attempt against Broadcom chipsets used in mobile " <<
-                                    "devices.";
+                    for (auto t : *(rmm_tags->tags())) {
+                        if (t->tag_num() == 52) {
+                            try {
+                                dot11_ie_52_rmm ie_rmm;
+                                ie_rmm.parse(t->tag_data_stream());
 
-                                alertracker->raise_alert(alert_11kneighborchan_ref, in_pack, 
-                                        packinfo->bssid_mac, packinfo->source_mac, 
-                                        packinfo->dest_mac, packinfo->other_mac, 
-                                        packinfo->channel, ss.str());
+                                if (ie_rmm.channel_number() > 0xE0) {
+                                    std::stringstream ss;
+
+                                    ss << "IEE80211 Access Point BSSID " <<
+                                        packinfo->bssid_mac.mac_to_string() << " reporting an 802.11k " <<
+                                        "neighbor channel of " << ie_rmm.channel_number() << " which is " <<
+                                        "greater than the maximum channel, 224.  This may be an " << 
+                                        "exploit attempt against Broadcom chipsets used in mobile " <<
+                                        "devices.";
+
+                                    alertracker->raise_alert(alert_11kneighborchan_ref, in_pack, 
+                                            packinfo->bssid_mac, packinfo->source_mac, 
+                                            packinfo->dest_mac, packinfo->other_mac, 
+                                            packinfo->channel, ss.str());
+                                }
+
+                            } catch (const std::exception& e) {
+                                fprintf(stderr, "debug - unable to parse rmm neighbor - %s\n", e.what());
                             }
-
-                        } catch (const std::exception& e) {
-                            fprintf(stderr, "debug - unable to parse rmm neighbor - %s\n", e.what());
                         }
                     }
                 }
             }
-
         } else {
             // If we're not long enough to have the fixparm and look like a normal
             // mgt header, bail.
