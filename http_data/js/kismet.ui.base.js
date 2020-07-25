@@ -2470,7 +2470,7 @@ exports.FetchServerName = function(cb) {
         })
         .fail(function () {
             servername_tid = setTimeout(function () {
-                exports.Servername(cb);
+                exports.FetchServerName(cb);
             }, 1000);
         });
 }
