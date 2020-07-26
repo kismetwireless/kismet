@@ -97,23 +97,42 @@ public:
     }
 
     __ProxyTrackable(service_uuid_vec, tracker_element_vector, service_uuid_vec);
+    __ProxyTrackable(solicitation_uuid_vec, tracker_element_vector, solicitation_uuid_vec);
+    __ProxyTrackable(service_data_bytes, tracker_element_string_map, service_data_bytes);
+
+    __Proxy(scan_data_bytes, std::string, std::string, std::string, scan_data_bytes);
+    void set_scan_data_from_hex(const std::string& in) {
+        scan_data_bytes->from_hex(in);
+    }
+
     __Proxy(txpower, int16_t, int16_t, int16_t, txpower);
+    __Proxy(pathloss, int16_t, int16_t, int16_t, pathloss);
 
 protected:
     virtual void register_fields() override {
-        register_field("bluetooth.device.service_uuid_vec",
-                "advertised service UUIDs", &service_uuid_vec);
-        register_field("bluetooth.device.txpower", 
-                "advertised transmit power", &txpower);
+        register_field("bluetooth.device.service_uuid_vec", "advertised service UUIDs", &service_uuid_vec);
+        register_field("bluetooth.device.solicitation_uuid_vec", 
+				"advertised solicitation UUIDs", &solicitation_uuid_vec);
+
+		register_field("bluetooth.device.scan_data_bytes", "scan result bytes", &scan_data_bytes);
+        register_field("bluetooth.device.service_data_bytes", "per-service result bytes", &service_data_bytes);
+        register_field("bluetooth.device.txpower", "advertised transmit power", &txpower);
+        register_field("bluetooth.device.pathloss", "signal pathloss", &pathloss);
     }
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
         tracker_component::reserve_fields(e);
-
     }
 
     std::shared_ptr<tracker_element_vector> service_uuid_vec;
+	std::shared_ptr<tracker_element_vector> solicitation_uuid_vec;
+
+	std::shared_ptr<tracker_element_byte_array> scan_data_bytes;
+    // UUIDs as string keys
+	std::shared_ptr<tracker_element_string_map> service_data_bytes;
+
     std::shared_ptr<tracker_element_int16> txpower;
+	std::shared_ptr<tracker_element_int16> pathloss;
 };
 
 class kis_bluetooth_phy : public kis_phy_handler {

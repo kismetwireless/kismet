@@ -79,6 +79,7 @@
 #include "datasource_ti_cc_2531.h"
 #include "datasource_virtual.h"
 #include "datasource_dot11_scan.h"
+#include "datasource_bluetooth_scan.h"
 
 #include "logtracker.h"
 #include "kis_ppilogfile.h"
@@ -937,6 +938,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
 	// Create the scan-only handlers
 	dot11_scan_source::create_dot11_scan_source();
+    bluetooth_scan_source::create_bluetooth_scan_source();
 
     std::shared_ptr<plugin_tracker> plugintracker;
 

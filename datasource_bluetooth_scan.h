@@ -26,7 +26,7 @@
 #include "kis_datasource.h"
 #include "kis_net_microhttpd_handlers.h"
 
-class bluetooth_scan_source : pblic datasource_scan_source, public lifetime_global {
+class bluetooth_scan_source : public datasource_scan_source, public lifetime_global {
 public:
     static std::string global_name() { return "bluetooth_scan_source"; }
 

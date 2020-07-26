@@ -94,6 +94,7 @@ int kis_bluetooth_phy::common_classifier_bluetooth(CHAINCALL_PARMS) {
 
     ci->phyid = btphy->fetch_phy_id();
     ci->type = packet_basic_mgmt;
+    ci->direction = packet_direction_from;
     ci->source = btpi->address;
     ci->transmitter = btpi->address;
     ci->channel = "FHSS";
@@ -123,8 +124,116 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
     if (commoninfo != nullptr || pack_l1info == nullptr)
         return 0;
 
+    try {
+        std::stringstream newdevstr;
+        std::stringstream ss(pack_json->json_string);
+        Json::Value json;
+        ss >> json;
 
-    return 0;
+        auto btaddr_j = json["btaddr"];
+
+        if (btaddr_j.isNull()) 
+            throw std::runtime_error("no btaddr in scan report");
+
+        auto btaddr_mac = mac_addr(btaddr_j.asString());
+        if (btaddr_mac.error)
+            throw std::runtime_error("invalid btaddr MAC");
+
+        commoninfo = new kis_common_info();
+        commoninfo->phyid = btphy->fetch_phy_id();
+        commoninfo->type = packet_basic_mgmt;
+        commoninfo->source = btaddr_mac;
+        commoninfo->transmitter = btaddr_mac;
+        commoninfo->channel = "FHSS";
+        commoninfo->freq_khz = 2400000;
+
+        in_pack->insert(btphy->pack_comp_common, commoninfo);
+
+        auto btdev =
+            btphy->devicetracker->update_common_device(commoninfo,
+                    btaddr_mac, btphy, in_pack,
+                    (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
+                     UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
+                     UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
+                    "Bluetooth Device");
+
+        local_locker btlocker(&(btdev->device_mutex));
+
+        // Mapped to base name
+        auto devname_j = json["name"]; 
+
+        // Mapped to base type, a combination of android major/minor
+        auto devtype_j = json["devicetype"];
+
+        auto powerlevel_j = json["txpowerlevel"];
+        auto pathloss_j = json["pathloss"];
+
+        // Mapped to base signal
+        auto signal_j = json["signal"];
+
+        // Scan bytes, hex string, optional
+        auto scan_bytes_j = json["scan_data"];
+
+        // Service data bytes, hex string, optional
+        auto service_bytes_map_j = json["service_data"];
+
+        if (devname_j.isString())
+            btdev->set_devicename(munge_to_printable(devname_j.asString()));
+
+        if (devtype_j.isString())
+            btdev->set_type_string(munge_to_printable(devtype_j.asString()));
+
+        auto btdev_bluetooth =
+            btdev->get_sub_as<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);
+
+        if (btdev_bluetooth == nullptr) {
+            newdevstr << "Detected new Bluetooth device " << btaddr_mac; 
+
+            if (btdev->get_devicename().length() > 0)
+                newdevstr << " (" << btdev->get_devicename() << ")";
+
+            if (devtype_j.isString())
+                newdevstr << " " << btdev->get_type_string();
+
+            _MSG_INFO(newdevstr.str());
+
+            btdev_bluetooth = 
+                std::make_shared<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);
+
+            btdev->insert(btdev_bluetooth);
+        }
+
+        if (powerlevel_j.isNumeric())
+            btdev_bluetooth->set_txpower(powerlevel_j.asInt());
+
+        if (pathloss_j.isNumeric())
+            btdev_bluetooth->set_pathloss(pathloss_j.asInt());
+
+        if (scan_bytes_j.isString())
+            btdev_bluetooth->set_scan_data_from_hex(scan_bytes_j.asString());
+
+        if (service_bytes_map_j.isObject()) {
+            for (const auto& u : service_bytes_map_j.getMemberNames()) {
+                auto v = service_bytes_map_j[u];
+
+                if (!v.isString())
+                    throw std::runtime_error("expected string in service_data map");
+
+                auto bytehex = 
+                    std::make_shared<tracker_element_byte_array>();
+                bytehex->from_hex(v.asString());
+
+                btdev_bluetooth->get_service_data_bytes()->insert(u, bytehex);
+            }
+        }
+
+    } catch (const std::exception& e) {
+        _MSG_ERROR("Invalid phybluetooth/BT/BTLE scan report: {}", e.what());
+        in_pack->error = true;
+        return 0;
+    }
+
+    return 1;
 }
 
 int kis_bluetooth_phy::packet_tracker_bluetooth(CHAINCALL_PARMS) {
