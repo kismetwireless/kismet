@@ -45,19 +45,15 @@
 #define MAXHOSTNAMELEN 64
 #endif
 
-// A pollable-based UDP server implemented with a callback when a new source address is
-// received.  Once the source is accepted, data from that source is written to the 
-// returned bufferpair.  Currently focusing on receiving the TZSP protocol which is frame-based
-// with no streaming component.
+// A non-streaming callback-based UDP server which calls a provided cb function for each
+// datagram received; currently focused on protocols like TZSP which have no streaming
+// components.
 //
-// If non-zero, after [timeout] seconds, a connection record is considered closed, the buffer
-// is removed, and the timeout callback called.  It will be created as a new connection when
-// new data is seen.
+// Basic connection filtering is handled by the UDP server code, but mapping of datagrams 
+// to specific connections is left up to the callback.
 //
-// Each packet is written to the UDP read buffer with the length of the packet as a ssize_t
-// prefix.
-//
-// A UDP streaming listener may be required for future implementations of other protocols.
+// The timeout function is called for any source IP which has not seen traffic within the
+// timeout parameter
 //
 // Currently implemented as a receive-only datagram server, writable support will come in 
 // the future if it's ever found necessary
@@ -68,16 +64,17 @@ public:
         in_addr mask;
     };
 
-    udp_dgram_server();
+    using dgram_cb = std::function<void (const struct sockaddr_storage *addr, size_t addrsize, 
+            uint32_t hash, const char *data, size_t len)>;
+    using cancel_cb = std::function<void (uint32_t hash, bool timeout, const std::string& reason)>;
+
+    udp_dgram_server(dgram_cb datagramcb, cancel_cb cancelcb);
     virtual ~udp_dgram_server();
 
     virtual int configure_server(short int in_port, const std::string& in_bindaddress, 
             const std::vector<std::string>& in_filtervec, std::chrono::seconds in_timeout,
             size_t in_max_packet, size_t in_wbuf_sz);
 
-    void set_new_connection_cb(std::function<std::shared_ptr<buffer_pair> (const struct sockaddr_storage *, size_t, uint32_t)>);
-    void set_timeout_connection_cb(std::function<void (uint32_t, std::shared_ptr<buffer_pair>)> cb);
-    
     virtual void shutdown();
 
     virtual int pollable_merge_set(int in_max_fd, fd_set *out_rset, fd_set *out_wset) override;
@@ -95,7 +92,6 @@ protected:
     struct client {
         struct sockaddr_in addr;
         time_t last_time;
-        std::shared_ptr<buffer_pair> bufferpair;
     };
 
     std::map<uint32_t, std::shared_ptr<client>> client_map;
@@ -104,8 +100,8 @@ protected:
 
     int server_fd;
 
-    std::function<std::shared_ptr<buffer_pair> (const struct sockaddr_storage *, size_t, uint32_t)> connection_cb;
-    std::function<void (uint32_t, std::shared_ptr<buffer_pair>)> timeout_cb;
+    dgram_cb datagramcb;
+    cancel_cb cancelcb;
 
     std::shared_ptr<time_tracker> timetracker;
     int timeout_id;
