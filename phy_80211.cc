@@ -2848,8 +2848,8 @@ void kis_80211_phy::process_client(std::shared_ptr<kis_tracked_device_base> bssi
                 client_record->inc_datasize_retry(dot11info->datasize);
             }
 
-            if (pack_datainfo != NULL && pack_datainfo->proto == proto_eap) {
-                if (pack_datainfo->auxstring != "") {
+            if (pack_datainfo != NULL) {
+                if (pack_datainfo->proto == proto_eap && pack_datainfo->auxstring != "") {
                     client_record->set_eap_identity(pack_datainfo->auxstring);
                 }
 
@@ -2903,6 +2903,33 @@ void kis_80211_phy::process_client(std::shared_ptr<kis_tracked_device_base> bssi
 
                 if (pack_datainfo->cdp_port_id != "") {
                     client_record->set_cdp_port(pack_datainfo->cdp_port_id);
+                }
+
+                switch(pack_datainfo->proto) {
+                    case proto_arp:
+                        if (dot11info->source_mac == clientdev->get_macaddr()) {
+	                    client_record->get_ipdata()->set_ip_addr(pack_datainfo->ip_source_addr.s_addr);
+	                    client_record->get_ipdata()->set_ip_type(ipdata_arp);
+                        }
+                        break;
+                    case proto_dhcp_offer:
+                        if (dot11info->dest_mac == clientdev->get_macaddr()) {
+                            client_record->get_ipdata()->set_ip_addr(pack_datainfo->ip_dest_addr.s_addr);
+                            client_record->get_ipdata()->set_ip_netmask(pack_datainfo->ip_netmask_addr.s_addr);
+                            client_record->get_ipdata()->set_ip_gateway(pack_datainfo->ip_gateway_addr.s_addr);
+                            client_record->get_ipdata()->set_ip_type(ipdata_dhcp);
+                        }
+                        break;
+                    case proto_tcp:
+                    case proto_udp:
+                        if (dot11info->source_mac == clientdev->get_macaddr())
+                            client_record->get_ipdata()->set_ip_addr(pack_datainfo->ip_source_addr.s_addr);
+                        if (dot11info->dest_mac == clientdev->get_macaddr())
+                            client_record->get_ipdata()->set_ip_addr(pack_datainfo->ip_dest_addr.s_addr);
+                        client_record->get_ipdata()->set_ip_type(ipdata_udptcp);
+                        break;
+                    default:
+                        break;
                 }
             }
 

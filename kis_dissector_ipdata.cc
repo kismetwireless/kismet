@@ -214,6 +214,7 @@ std::string MDNS_Fetchname(kis_datachunk *chunk, unsigned int baseofft,
 
 int kis_dissector_ip_data::handle_packet(kis_packet *in_pack) {
 	kis_data_packinfo *datainfo = NULL;
+	uint32_t addr;
 
 	if (in_pack->error)
 		return 0;
@@ -309,8 +310,8 @@ int kis_dissector_ip_data::handle_packet(kis_packet *in_pack) {
 		// frame...
 		
 		datainfo->proto = proto_arp;
-		memcpy(&(datainfo->ip_source_addr.s_addr),
-			   &(chunk->data[ARP_OFFSET + 16]), 4);
+		memcpy(&addr, &(chunk->data[ARP_OFFSET + 16]), 4);
+		datainfo->ip_source_addr.s_addr = kis_hton32(addr);
 		in_pack->insert(pack_comp_basicdata, datainfo);
 		return 1;
 	}
@@ -321,15 +322,16 @@ int kis_dissector_ip_data::handle_packet(kis_packet *in_pack) {
 			   UDP_SIGNATURE, sizeof(UDP_SIGNATURE)) == 0) {
 
 		// UDP frame...
+		datainfo->proto = proto_udp;
 		datainfo->ip_source_port = 
 			kis_ntoh16(kis_extract16(&(chunk->data[UDP_OFFSET])));
 		datainfo->ip_dest_port = 
 			kis_ntoh16(kis_extract16(&(chunk->data[UDP_OFFSET + 2])));
 
-		memcpy(&(datainfo->ip_source_addr.s_addr),
-			   &(chunk->data[IP_OFFSET + 3]), 4);
-		memcpy(&(datainfo->ip_dest_addr.s_addr),
-			   &(chunk->data[IP_OFFSET + 7]), 4);
+		memcpy(&addr, &(chunk->data[IP_OFFSET + 3]), 4);
+		datainfo->ip_source_addr.s_addr = kis_hton32(addr);
+		memcpy(&addr, &(chunk->data[IP_OFFSET + 7]), 4);
+		datainfo->ip_dest_addr.s_addr = kis_hton32(addr);
 
 #if 0
 		if (datainfo->ip_source_port == IAPP_PORT &&
@@ -467,21 +469,21 @@ int kis_dissector_ip_data::handle_packet(kis_packet *in_pack) {
 					return 0;
 				}
 
-				memcpy(&(datainfo->ip_dest_addr.s_addr), 
-					   &(chunk->data[DHCPD_OFFSET + 28]), 4);
+				memcpy(&addr, &(chunk->data[DHCPD_OFFSET + 28]), 4);
+				datainfo->ip_dest_addr.s_addr = kis_hton32(addr);
 
 				if (dhcp_tag_map.find(1) != dhcp_tag_map.end() &&
 					dhcp_tag_map[1].size() != 0) {
 
-					memcpy(&(datainfo->ip_netmask_addr.s_addr), 
-						   &(chunk->data[dhcp_tag_map[1][0] + 1]), 4);
+					memcpy(&addr, &(chunk->data[dhcp_tag_map[1][0] + 1]), 4);
+					datainfo->ip_netmask_addr.s_addr = kis_hton32(addr);
 				}
 
 				if (dhcp_tag_map.find(3) != dhcp_tag_map.end() &&
 					dhcp_tag_map[3].size() != 0) {
 
-					memcpy(&(datainfo->ip_gateway_addr.s_addr), 
-						   &(chunk->data[dhcp_tag_map[3][0] + 1]), 4);
+					memcpy(&addr, &(chunk->data[dhcp_tag_map[3][0] + 1]), 4);
+					datainfo->ip_gateway_addr.s_addr = kis_hton32(addr);
 				}
 			}
 		}
@@ -684,10 +686,10 @@ mdns_end:
 		datainfo->ip_dest_port = 
 			kis_ntoh16(kis_extract16(&(chunk->data[TCP_OFFSET + 2])));
 
-		memcpy(&(datainfo->ip_source_addr.s_addr),
-			   &(chunk->data[IP_OFFSET + 3]), 4);
-		memcpy(&(datainfo->ip_dest_addr.s_addr),
-			   &(chunk->data[IP_OFFSET + 7]), 4);
+		memcpy(&addr, &(chunk->data[IP_OFFSET + 3]), 4);
+		datainfo->ip_source_addr.s_addr = kis_hton32(addr);
+		memcpy(&addr, &(chunk->data[IP_OFFSET + 7]), 4);
+		datainfo->ip_dest_addr.s_addr = kis_hton32(addr);
 
 		datainfo->proto = proto_tcp;
 
