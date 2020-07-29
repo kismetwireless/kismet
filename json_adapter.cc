@@ -180,22 +180,14 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
     }
 
     serializer_scope s(e, name_map);
-
-    mac_addr mac;
+    
     uuid euuid;
 
     std::string tname;
 
-    std::string bytes;
-    const char* bytes_c;
-
     bool prepend_comma;
 
-    std::ios::fmtflags fflags;
-
     bool as_vector, as_key_vector;
-
-    double d_v;
 
     // If we're serializing an alias, remap as the aliased element
     if (e->get_type() == tracker_type::tracker_alias) {
@@ -205,501 +197,422 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
         }
     }
 
-    switch (e->get_type()) {
-        case tracker_type::tracker_string:
-            stream << "\"" << sanitize_string(get_tracker_value<std::string>(e)) << "\"";
-            break;
-        case tracker_type::tracker_int8:
-            stream << (int) get_tracker_value<int8_t>(e);
-            break;
-        case tracker_type::tracker_uint8:
-            stream << (unsigned int) get_tracker_value<uint8_t>(e);
-            break;
-        case tracker_type::tracker_int16:
-            stream << (int) get_tracker_value<int16_t>(e);
-            break;
-        case tracker_type::tracker_uint16:
-            stream << (unsigned int) get_tracker_value<uint16_t>(e);
-            break;
-        case tracker_type::tracker_int32:
-            stream << get_tracker_value<int32_t>(e);
-            break;
-        case tracker_type::tracker_uint32:
-            stream << get_tracker_value<uint32_t>(e);
-            break;
-        case tracker_type::tracker_int64:
-            stream << get_tracker_value<int64_t>(e);
-            break;
-        case tracker_type::tracker_uint64:
-            stream << get_tracker_value<uint64_t>(e);
-            break;
-        case tracker_type::tracker_float:
-            d_v = get_tracker_value<float>(e);
-
-            if (std::isnan(d_v) || std::isinf(d_v)) {
-                stream << 0;
-            } else if (floor(d_v) == d_v) {
-                auto prec = stream.precision(0);
-                stream << std::fixed << d_v;
-                stream.precision(prec);
-            } else {
-                stream << std::fixed << d_v;
-            }
-
-            break;
-        case tracker_type::tracker_double:
-            d_v = get_tracker_value<double>(e);
-
-            if (std::isnan(d_v) || std::isinf(d_v)) {
-                stream << 0;
-            } else if (floor(d_v) == d_v) {
-                auto prec = stream.precision(0);
-                stream << std::fixed << d_v;
-                stream.precision(prec);
-            } else {
-                stream << std::fixed << d_v;
-            }
-
-            break;
-        case tracker_type::tracker_mac_addr:
-            mac = get_tracker_value<mac_addr>(e);
-            // Mac is quoted as a string value, mac only
-            stream << "\"" << mac << "\"";
-            break;
-        case tracker_type::tracker_uuid:
-            euuid = get_tracker_value<uuid>(e);
-            // UUID is quoted as a string value
-            stream << "\"" << euuid << "\"";
-            break;
-        case tracker_type::tracker_key:
-            stream << "\"" << get_tracker_value<device_key>(e) << "\"";
-            break;
-        case tracker_type::tracker_vector:
-            stream << ppendl << indent << "[" << ppendl;
-
-            prepend_comma = false;
-
-            for (auto i : *(std::static_pointer_cast<tracker_element_vector>(e))) {
-                if (i == NULL)
-                    continue;
-
-                if (prepend_comma)
-                    stream << "," << ppendl;
-                prepend_comma = true;
-
-                if (prettyprint)
-                    stream << indent;
-
-                json_adapter::pack(stream, i, name_map, prettyprint, depth + 1, name_permuter);
-            }
-            stream << ppendl << indent << "]";
-            break;
-        case tracker_type::tracker_vector_double:
-            stream << ppendl << indent << "[" << ppendl;
-
-            prepend_comma = false;
-
-            for (auto i : *(std::static_pointer_cast<tracker_element_vector_double>(e))) {
-                if (prepend_comma)
-                    stream << "," << ppendl;
-                prepend_comma = true;
-
-                if (prettyprint)
-                    stream << indent;
-
-                if (floor(i) == i)
-                    stream << i;
-                else
-                    stream << i;
-            }
-            stream << ppendl << indent << "]";
-            break;
-        case tracker_type::tracker_vector_string:
-            stream << ppendl << indent << "[" << ppendl;
-
-            prepend_comma = false;
-
-            for (auto i : *(std::static_pointer_cast<tracker_element_vector_string>(e))) {
-                if (prepend_comma)
-                    stream << "," << ppendl;
-                prepend_comma = true;
-
-                if (prettyprint)
-                    stream << indent;
-
-                stream << i;
-            }
-            stream << ppendl << indent << "]";
-            break;
-        case tracker_type::tracker_map:
-            as_vector = std::static_pointer_cast<tracker_element_map>(e)->as_vector();
-            as_key_vector = std::static_pointer_cast<tracker_element_map>(e)->as_key_vector();
-
-            if (as_vector || as_key_vector)
+    if (e->is_stringable()) {
+        if (e->needs_quotes())
+            stream << "\"" << sanitize_string(e->as_string()) << "\"";
+        else
+            stream << sanitize_string(e->as_string());
+    } else {
+        switch (e->get_type()) {
+            case tracker_type::tracker_vector:
                 stream << ppendl << indent << "[" << ppendl;
-            else
-                stream << ppendl << indent << "{" << ppendl;
 
-            prepend_comma = false;
-            for (auto i : *(std::static_pointer_cast<tracker_element_map>(e))) {
-                if (i.second == NULL)
-                    continue;
+                prepend_comma = false;
 
-                if (prepend_comma) {
-                    stream << "," << ppendl;
+                for (auto i : *(std::static_pointer_cast<tracker_element_vector>(e))) {
+                    if (i == NULL)
+                        continue;
+
+                    if (prepend_comma)
+                        stream << "," << ppendl;
+                    prepend_comma = true;
 
                     if (prettyprint)
-                        stream << ppendl;
+                        stream << indent;
+
+                    json_adapter::pack(stream, i, name_map, prettyprint, depth + 1, name_permuter);
                 }
+                stream << ppendl << indent << "]";
+                break;
+            case tracker_type::tracker_vector_double:
+                stream << ppendl << indent << "[" << ppendl;
 
-                prepend_comma = true;
+                prepend_comma = false;
 
-                if (!as_vector) {
-                    bool named = false;
+                for (auto i : *(std::static_pointer_cast<tracker_element_vector_double>(e))) {
+                    if (prepend_comma)
+                        stream << "," << ppendl;
+                    prepend_comma = true;
 
-                    if (name_map != NULL) {
-                        tracker_element_serializer::rename_map::iterator nmi = name_map->find(i.second);
-                        if (nmi != name_map->end() && nmi->second->rename.length() != 0) {
-                            tname = nmi->second->rename;
-                            named = true;
-                        }
+                    if (prettyprint)
+                        stream << indent;
+
+                    if (floor(i) == i)
+                        stream << (long) i;
+                    else
+                        stream << i;
+                }
+                stream << ppendl << indent << "]";
+                break;
+            case tracker_type::tracker_vector_string:
+                stream << ppendl << indent << "[" << ppendl;
+
+                prepend_comma = false;
+
+                for (auto i : *(std::static_pointer_cast<tracker_element_vector_string>(e))) {
+                    if (prepend_comma)
+                        stream << "," << ppendl;
+                    prepend_comma = true;
+
+                    if (prettyprint)
+                        stream << indent;
+
+                    stream << i;
+                }
+                stream << ppendl << indent << "]";
+                break;
+            case tracker_type::tracker_map:
+                as_vector = std::static_pointer_cast<tracker_element_map>(e)->as_vector();
+                as_key_vector = std::static_pointer_cast<tracker_element_map>(e)->as_key_vector();
+
+                if (as_vector || as_key_vector)
+                    stream << ppendl << indent << "[" << ppendl;
+                else
+                    stream << ppendl << indent << "{" << ppendl;
+
+                prepend_comma = false;
+                for (auto i : *(std::static_pointer_cast<tracker_element_map>(e))) {
+                    if (i.second == NULL)
+                        continue;
+
+                    if (prepend_comma) {
+                        stream << "," << ppendl;
+
+                        if (prettyprint)
+                            stream << ppendl;
                     }
 
-                    if (!named) {
-                        if (i.second == NULL) {
-                            tname = Globalreg::globalreg->entrytracker->get_field_name(i.first);
-                        } else {
-                            if ((tname = i.second->get_local_name()) == "")
+                    prepend_comma = true;
+
+                    if (!as_vector) {
+                        bool named = false;
+
+                        if (name_map != NULL) {
+                            tracker_element_serializer::rename_map::iterator nmi = name_map->find(i.second);
+                            if (nmi != name_map->end() && nmi->second->rename.length() != 0) {
+                                tname = nmi->second->rename;
+                                named = true;
+                            }
+                        }
+
+                        if (!named) {
+                            if (i.second == NULL) {
                                 tname = Globalreg::globalreg->entrytracker->get_field_name(i.first);
+                            } else {
+                                if ((tname = i.second->get_local_name()) == "")
+                                    tname = Globalreg::globalreg->entrytracker->get_field_name(i.first);
+                            }
                         }
-                    }
 
-                    tname = json_adapter::sanitize_string(name_permuter(tname));
+                        tname = json_adapter::sanitize_string(name_permuter(tname));
 
-                    if (prettyprint) {
-                        stream << indent << "\"description." << tname << "\": ";
-                        stream << "\"";
-                        if (i.second != nullptr) {
-                            stream << sanitize_string(i.second->get_type_as_string());
-                            stream << ", ";
+                        if (prettyprint) {
+                            stream << indent << "\"description." << tname << "\": ";
+                            stream << "\"";
+                            if (i.second != nullptr) {
+                                stream << sanitize_string(i.second->get_type_as_string());
+                                stream << ", ";
+                            }
+                            stream << sanitize_string(Globalreg::globalreg->entrytracker->get_field_description(i.first));
+                            stream << "\"," << ppendl;
                         }
-                        stream << sanitize_string(Globalreg::globalreg->entrytracker->get_field_description(i.first));
-                        stream << "\"," << ppendl;
+
+                        stream << indent << "\"" << tname << "\": ";
                     }
 
-                    stream << indent << "\"" << tname << "\": ";
-                }
-
-                json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
-
-            }
-
-            if (as_vector || as_key_vector)
-                stream << ppendl << indent << "]";
-            else
-                stream << ppendl << indent << "}";
-
-            break;
-        case tracker_type::tracker_int_map:
-            as_vector = std::static_pointer_cast<tracker_element_int_map>(e)->as_vector();
-            as_key_vector = std::static_pointer_cast<tracker_element_int_map>(e)->as_key_vector();
-
-            if (as_vector || as_key_vector)
-                stream << ppendl << indent << "[" << ppendl;
-            else
-                stream << ppendl << indent << "{" << ppendl;
-
-            prepend_comma = false;
-            for (auto i : *(std::static_pointer_cast<tracker_element_int_map>(e))) {
-                if (i.second == nullptr && !as_key_vector)
-                    continue;
-
-                if (prepend_comma)
-                    stream << "," << ppendl;
-                prepend_comma = true;
-
-                if (!as_vector) {
-                    // Integer dictionary keys in json are still quoted as strings
-                    stream << indent << "\"" << i.first << "\"";
-
-                    if (!as_key_vector)
-                        stream << ": ";
-                }
-
-                if (!as_key_vector) {
                     json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
-                }
-            }
 
-            if (as_vector || as_key_vector)
-                stream << indent << "]" << ppendl;
-            else
-                stream << indent << "}" << ppendl;
-
-            break;
-        case tracker_type::tracker_mac_map:
-            as_vector = std::static_pointer_cast<tracker_element_mac_map>(e)->as_vector();
-            as_key_vector = std::static_pointer_cast<tracker_element_mac_map>(e)->as_key_vector();
-
-            if (as_vector || as_key_vector)
-                stream << ppendl << indent << "[" << ppendl;
-            else
-                stream << ppendl << indent << "{" << ppendl;
-
-            prepend_comma = false;
-            for (auto i : *(std::static_pointer_cast<tracker_element_mac_map>(e))) {
-                if (i.second == nullptr && !as_key_vector)
-                    continue;
-
-                if (prepend_comma)
-                    stream << "," << ppendl;
-                prepend_comma = true;
-
-                if (!as_vector) {
-                    // Mac keys are strings and we push only the mac not the mask */
-                    stream << indent << "\"" << i.first << "\"";
-                    
-                    if (!as_key_vector)
-                        stream << ": ";
                 }
 
-                if (!as_key_vector) {
-                    json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
-                }
-            }
+                if (as_vector || as_key_vector)
+                    stream << ppendl << indent << "]";
+                else
+                    stream << ppendl << indent << "}";
 
-            if (as_vector || as_key_vector)
-                stream << ppendl << indent << "]";
-            else
-                stream << ppendl << indent << "}";
+                break;
+            case tracker_type::tracker_int_map:
+                as_vector = std::static_pointer_cast<tracker_element_int_map>(e)->as_vector();
+                as_key_vector = std::static_pointer_cast<tracker_element_int_map>(e)->as_key_vector();
 
-            break;
-        case tracker_type::tracker_string_map:
-            as_vector = std::static_pointer_cast<tracker_element_string_map>(e)->as_vector();
-            as_key_vector = std::static_pointer_cast<tracker_element_string_map>(e)->as_key_vector();
+                if (as_vector || as_key_vector)
+                    stream << ppendl << indent << "[" << ppendl;
+                else
+                    stream << ppendl << indent << "{" << ppendl;
 
-            if (as_vector || as_key_vector)
-                stream << ppendl << indent << "[" << ppendl;
-            else
-                stream << ppendl << indent << "{" << ppendl;
+                prepend_comma = false;
+                for (auto i : *(std::static_pointer_cast<tracker_element_int_map>(e))) {
+                    if (i.second == nullptr && !as_key_vector)
+                        continue;
 
-            prepend_comma = false;
-            for (auto i : *(std::static_pointer_cast<tracker_element_string_map>(e))) {
-                if (i.second == nullptr && !as_key_vector)
-                    continue;
+                    if (prepend_comma)
+                        stream << "," << ppendl;
+                    prepend_comma = true;
 
-                if (prepend_comma)
-                    stream << "," << ppendl;
-                prepend_comma = true;
+                    if (!as_vector) {
+                        // Integer dictionary keys in json are still quoted as strings
+                        stream << indent << "\"" << i.first << "\"";
 
-                if (!as_vector) {
-                    stream << indent << "\"" << json_adapter::sanitize_string(i.first) << "\"";
-
-                    if (!as_key_vector)
-                        stream << ": ";
-                }
-
-                if (!as_key_vector) {
-                    json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
-                }
-            }
-
-            if (as_vector || as_key_vector)
-                stream << ppendl << indent << "]";
-            else
-                stream << ppendl << indent << "}";
-
-            break;
-        case tracker_type::tracker_double_map:
-            as_vector = std::static_pointer_cast<tracker_element_double_map>(e)->as_vector();
-            as_key_vector = std::static_pointer_cast<tracker_element_double_map>(e)->as_key_vector();
-
-            if (as_vector || as_key_vector)
-                stream << ppendl << indent << "[" << ppendl;
-            else
-                stream << ppendl << indent << "{" << ppendl;
-
-            prepend_comma = false;
-            for (auto i : *(std::static_pointer_cast<tracker_element_double_map>(e))) {
-                if (i.second == nullptr && !as_key_vector)
-                    continue;
-
-                if (prepend_comma)
-                    stream << "," << ppendl;
-                prepend_comma = true;
-
-                if (!as_vector) {
-                    // Double keys are handled as strings in json
-                    if (std::isnan(i.first) || std::isinf(i.first)) {
-                        stream << indent << "\"0\"";
-                    } else if (floor(i.first) == i.first)  {
-                        auto prec = stream.precision(0);
-                        stream << indent << "\"" << std::fixed << i.first << "\"";
-                        stream.precision(prec);
-                    } else {
-                        stream << indent << "\"" << std::fixed << i.first << "\"";
+                        if (!as_key_vector)
+                            stream << ": ";
                     }
 
-                    if (!as_key_vector)
-                        stream << ": ";
+                    if (!as_key_vector) {
+                        json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
+                    }
                 }
 
-                if (!as_key_vector) {
-                    json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
-                }
-            }
+                if (as_vector || as_key_vector)
+                    stream << indent << "]" << ppendl;
+                else
+                    stream << indent << "}" << ppendl;
 
-            if (as_vector || as_key_vector)
-                stream << ppendl << indent << "]";
-            else
-                stream << indent << "}";
+                break;
+            case tracker_type::tracker_mac_map:
+                as_vector = std::static_pointer_cast<tracker_element_mac_map>(e)->as_vector();
+                as_key_vector = std::static_pointer_cast<tracker_element_mac_map>(e)->as_key_vector();
 
-            break;
-        case tracker_type::tracker_hashkey_map:
-            as_vector = std::static_pointer_cast<tracker_element_hashkey_map>(e)->as_vector();
-            as_key_vector = std::static_pointer_cast<tracker_element_hashkey_map>(e)->as_key_vector();
+                if (as_vector || as_key_vector)
+                    stream << ppendl << indent << "[" << ppendl;
+                else
+                    stream << ppendl << indent << "{" << ppendl;
 
-            if (as_vector || as_key_vector)
-                stream << ppendl << indent << "[" << ppendl;
-            else
-                stream << ppendl << indent << "{" << ppendl;
+                prepend_comma = false;
+                for (auto i : *(std::static_pointer_cast<tracker_element_mac_map>(e))) {
+                    if (i.second == nullptr && !as_key_vector)
+                        continue;
 
-            prepend_comma = false;
-            for (auto i : *(std::static_pointer_cast<tracker_element_hashkey_map>(e))) {
-                if (i.second == nullptr && !as_key_vector)
-                    continue;
+                    if (prepend_comma)
+                        stream << "," << ppendl;
+                    prepend_comma = true;
 
-                if (prepend_comma)
-                    stream << "," << ppendl;
-                prepend_comma = true;
+                    if (!as_vector) {
+                        // Mac keys are strings and we push only the mac not the mask */
+                        stream << indent << "\"" << i.first << "\"";
 
-                if (!as_vector) {
-                    // Double keys are handled as strings in json
-                    if (std::isnan(i.first) || std::isinf(i.first)) {
-                        stream << indent << "\"0\"";
-                    } else if (floor(i.first) == i.first)  {
-                        auto prec = stream.precision(0);
-                        stream << indent << "\"" << std::fixed << i.first << "\"";
-                        stream.precision(prec);
-                    } else {
-                        stream << indent << "\"" << std::fixed << i.first << "\"";
+                        if (!as_key_vector)
+                            stream << ": ";
                     }
 
-                    if (!as_key_vector)
-                        stream << ": ";
+                    if (!as_key_vector) {
+                        json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
+                    }
                 }
 
-                if (!as_key_vector) {
-                    json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
-                }
-            }
-    
-            if (as_vector || as_key_vector)
-                stream << ppendl << indent << "]";
-            else
-                stream << ppendl << indent << "}";
+                if (as_vector || as_key_vector)
+                    stream << ppendl << indent << "]";
+                else
+                    stream << ppendl << indent << "}";
 
-            break;
-        case tracker_type::tracker_double_map_double:
-            as_vector = std::static_pointer_cast<tracker_element_double_map_double>(e)->as_vector();
-            as_key_vector = std::static_pointer_cast<tracker_element_double_map_double>(e)->as_key_vector();
+                break;
+            case tracker_type::tracker_string_map:
+                as_vector = std::static_pointer_cast<tracker_element_string_map>(e)->as_vector();
+                as_key_vector = std::static_pointer_cast<tracker_element_string_map>(e)->as_key_vector();
 
-            if (as_vector || as_key_vector)
-                stream << ppendl << indent << "[" << ppendl;
-            else
-                stream << ppendl << indent << "{" << ppendl;
+                if (as_vector || as_key_vector)
+                    stream << ppendl << indent << "[" << ppendl;
+                else
+                    stream << ppendl << indent << "{" << ppendl;
 
-            prepend_comma = false;
-            for (auto i : *(std::static_pointer_cast<tracker_element_double_map_double>(e))) {
-                if (prepend_comma)
-                    stream << "," << ppendl;
+                prepend_comma = false;
+                for (auto i : *(std::static_pointer_cast<tracker_element_string_map>(e))) {
+                    if (i.second == nullptr && !as_key_vector)
+                        continue;
 
-                prepend_comma = true;
+                    if (prepend_comma)
+                        stream << "," << ppendl;
+                    prepend_comma = true;
 
-                if (!as_vector) {
-                    // Double keys are handled as strings in json
-                    if (std::isnan(i.first) || std::isinf(i.first)) {
-                        stream << indent << "\"0\"";
-                    } else if (floor(i.first) == i.first)  {
-                        auto prec = stream.precision(0);
-                        stream << indent << "\"" << std::fixed << i.first << "\"";
-                        stream.precision(prec);
-                    } else {
-                        stream << indent << "\"" << std::fixed << i.first << "\"";
+                    if (!as_vector) {
+                        stream << indent << "\"" << json_adapter::sanitize_string(i.first) << "\"";
+
+                        if (!as_key_vector)
+                            stream << ": ";
                     }
 
-                    if (!as_key_vector)
-                        stream << ": ";
+                    if (!as_key_vector) {
+                        json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
+                    }
                 }
 
-                if (!as_key_vector) {
-                    stream << i.second;
+                if (as_vector || as_key_vector)
+                    stream << ppendl << indent << "]";
+                else
+                    stream << ppendl << indent << "}";
+
+                break;
+            case tracker_type::tracker_double_map:
+                as_vector = std::static_pointer_cast<tracker_element_double_map>(e)->as_vector();
+                as_key_vector = std::static_pointer_cast<tracker_element_double_map>(e)->as_key_vector();
+
+                if (as_vector || as_key_vector)
+                    stream << ppendl << indent << "[" << ppendl;
+                else
+                    stream << ppendl << indent << "{" << ppendl;
+
+                prepend_comma = false;
+                for (auto i : *(std::static_pointer_cast<tracker_element_double_map>(e))) {
+                    if (i.second == nullptr && !as_key_vector)
+                        continue;
+
+                    if (prepend_comma)
+                        stream << "," << ppendl;
+                    prepend_comma = true;
+
+                    if (!as_vector) {
+                        // Double keys are handled as strings in json
+                        if (std::isnan(i.first) || std::isinf(i.first)) {
+                            stream << indent << "\"0\"";
+                        } else if (floor(i.first) == i.first)  {
+                            auto prec = stream.precision(0);
+                            stream << indent << "\"" << std::fixed << i.first << "\"";
+                            stream.precision(prec);
+                        } else {
+                            stream << indent << "\"" << std::fixed << i.first << "\"";
+                        }
+
+                        if (!as_key_vector)
+                            stream << ": ";
+                    }
+
+                    if (!as_key_vector) {
+                        json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
+                    }
                 }
-            }
 
-            if (as_vector || as_key_vector)
-                stream << ppendl << indent << "]";
-            else
-                stream << ppendl << indent << "}";
+                if (as_vector || as_key_vector)
+                    stream << ppendl << indent << "]";
+                else
+                    stream << indent << "}";
 
-            break;
-        case tracker_type::tracker_key_map:
-            as_vector = std::static_pointer_cast<tracker_element_device_key_map>(e)->as_vector();
-            as_key_vector = std::static_pointer_cast<tracker_element_device_key_map>(e)->as_key_vector();
+                break;
+            case tracker_type::tracker_hashkey_map:
+                as_vector = std::static_pointer_cast<tracker_element_hashkey_map>(e)->as_vector();
+                as_key_vector = std::static_pointer_cast<tracker_element_hashkey_map>(e)->as_key_vector();
 
-            if (as_vector || as_key_vector)
-                stream << ppendl << indent << "[" << ppendl;
-            else
-                stream << ppendl << indent << "{" << ppendl;
+                if (as_vector || as_key_vector)
+                    stream << ppendl << indent << "[" << ppendl;
+                else
+                    stream << ppendl << indent << "{" << ppendl;
 
-            prepend_comma = false;
-            for (auto i : *(std::static_pointer_cast<tracker_element_device_key_map>(e))) {
-                if (i.second == nullptr && !as_key_vector)
-                    continue;
+                prepend_comma = false;
+                for (auto i : *(std::static_pointer_cast<tracker_element_hashkey_map>(e))) {
+                    if (i.second == nullptr && !as_key_vector)
+                        continue;
 
-                if (prepend_comma)
-                    stream << "," << ppendl;
-                prepend_comma = true;
+                    if (prepend_comma)
+                        stream << "," << ppendl;
+                    prepend_comma = true;
 
-                if (!as_vector) {
-                    // Keymap keys are handled as strings
-                    stream << indent << "\"" << i.first << "\"";
+                    if (!as_vector) {
+                        // Double keys are handled as strings in json
+                        if (std::isnan(i.first) || std::isinf(i.first)) {
+                            stream << indent << "\"0\"";
+                        } else if (floor(i.first) == i.first)  {
+                            auto prec = stream.precision(0);
+                            stream << indent << "\"" << std::fixed << i.first << "\"";
+                            stream.precision(prec);
+                        } else {
+                            stream << indent << "\"" << std::fixed << i.first << "\"";
+                        }
 
-                    if (!as_key_vector)
-                        stream << ": ";
+                        if (!as_key_vector)
+                            stream << ": ";
+                    }
+
+                    if (!as_key_vector) {
+                        json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
+                    }
                 }
 
-                if (!as_key_vector) {
-                    json_adapter::pack(stream,i.second, name_map, prettyprint, depth + 1, name_permuter);
+                if (as_vector || as_key_vector)
+                    stream << ppendl << indent << "]";
+                else
+                    stream << ppendl << indent << "}";
+
+                break;
+            case tracker_type::tracker_double_map_double:
+                as_vector = std::static_pointer_cast<tracker_element_double_map_double>(e)->as_vector();
+                as_key_vector = std::static_pointer_cast<tracker_element_double_map_double>(e)->as_key_vector();
+
+                if (as_vector || as_key_vector)
+                    stream << ppendl << indent << "[" << ppendl;
+                else
+                    stream << ppendl << indent << "{" << ppendl;
+
+                prepend_comma = false;
+                for (auto i : *(std::static_pointer_cast<tracker_element_double_map_double>(e))) {
+                    if (prepend_comma)
+                        stream << "," << ppendl;
+
+                    prepend_comma = true;
+
+                    if (!as_vector) {
+                        // Double keys are handled as strings in json
+                        if (std::isnan(i.first) || std::isinf(i.first)) {
+                            stream << indent << "\"0\"";
+                        } else if (floor(i.first) == i.first)  {
+                            auto prec = stream.precision(0);
+                            stream << indent << "\"" << std::fixed << i.first << "\"";
+                            stream.precision(prec);
+                        } else {
+                            stream << indent << "\"" << std::fixed << i.first << "\"";
+                        }
+
+                        if (!as_key_vector)
+                            stream << ": ";
+                    }
+
+                    if (!as_key_vector) {
+                        stream << i.second;
+                    }
                 }
-            }
 
-            if (as_vector || as_key_vector)
-                stream << ppendl << indent << "]";
-            else
-                stream << ppendl << indent << "}";
+                if (as_vector || as_key_vector)
+                    stream << ppendl << indent << "]";
+                else
+                    stream << ppendl << indent << "}";
 
-            break;
+                break;
+            case tracker_type::tracker_key_map:
+                as_vector = std::static_pointer_cast<tracker_element_device_key_map>(e)->as_vector();
+                as_key_vector = std::static_pointer_cast<tracker_element_device_key_map>(e)->as_key_vector();
 
-        case tracker_type::tracker_byte_array:
-            bytes = std::static_pointer_cast<tracker_element_byte_array>(e)->get();
-            bytes_c = bytes.data();
-           
-            fflags = stream.flags();
+                if (as_vector || as_key_vector)
+                    stream << ppendl << indent << "[" << ppendl;
+                else
+                    stream << ppendl << indent << "{" << ppendl;
 
-            stream << "\"";
-            for (size_t szx = 0; szx < bytes.length(); szx++) {
-                stream << std::uppercase << std::setfill('0') << std::setw(2) 
-                    << std::hex << (int) (bytes_c[szx] & 0xFF);
-            }
-            stream << "\"";
-            stream.flags(fflags);
+                prepend_comma = false;
+                for (auto i : *(std::static_pointer_cast<tracker_element_device_key_map>(e))) {
+                    if (i.second == nullptr && !as_key_vector)
+                        continue;
 
-            break;
+                    if (prepend_comma)
+                        stream << "," << ppendl;
+                    prepend_comma = true;
 
+                    if (!as_vector) {
+                        // Keymap keys are handled as strings
+                        stream << indent << "\"" << i.first << "\"";
 
-        default:
-            break;
+                        if (!as_key_vector)
+                            stream << ": ";
+                    }
+
+                    if (!as_key_vector) {
+                        json_adapter::pack(stream,i.second, name_map, prettyprint, depth + 1, name_permuter);
+                    }
+                }
+
+                if (as_vector || as_key_vector)
+                    stream << ppendl << indent << "]";
+                else
+                    stream << ppendl << indent << "}";
+
+                break;
+            default:
+                break;
+        }
     }
 }
 

@@ -24,6 +24,10 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include <functional>
 
 #include <string>
@@ -178,6 +182,9 @@ enum class tracker_type {
 
     // Alias of another field
     tracker_alias = 26,
+
+    // IPv4 address
+    tracker_ipv4_addr = 27,
 };
 
 class tracker_element {
@@ -226,6 +233,11 @@ public:
     virtual uint32_t get_signature() const {
         return static_cast<uint32_t>(type);
     }
+
+    // Serialization helpers
+    virtual bool is_stringable() const = 0; 
+    virtual std::string as_string() const = 0;
+    virtual bool needs_quotes() const = 0;
 
     int get_id() const {
         return tracked_id;
@@ -289,6 +301,9 @@ public:
                     "as a {} or {}", tracked_id, type_to_string(get_type()), type_to_string(t1), type_to_string(t2)));
     }
 
+    friend std::ostream& operator<<(std::ostream& os, const tracker_element& e);
+    friend std::istream& operator>>(std::istream& is, tracker_element& k);
+
 protected:
     tracker_type type;
     int tracked_id;
@@ -296,6 +311,10 @@ protected:
     // Overridden name for this instance only
     std::string local_name;
 };
+
+std::ostream& operator<<(std::ostream& os, const tracker_element& e);
+std::istream& operator>>(std::istream& is, tracker_element& e);
+std::ostream& operator<<(std::ostream& os, std::shared_ptr<tracker_element> se);
 
 // Generator function for making various elements
 template<typename SUB, typename... Args>
@@ -327,6 +346,18 @@ public:
 
     static tracker_type static_type() {
         return tracker_type::tracker_alias;
+    }
+
+    virtual bool is_stringable() const override {
+        return alias_element->is_stringable();
+    }
+
+    virtual std::string as_string() const override {
+        return alias_element->as_string();
+    }
+
+    virtual bool needs_quotes() const override {
+        return alias_element->needs_quotes();
     }
 
     virtual void coercive_set(const std::string& in_str) override {
@@ -458,6 +489,18 @@ public:
         return tracker_type::tracker_string;
     }
 
+    virtual bool is_stringable() const override {
+        return true;
+    }
+
+    virtual std::string as_string() const override {
+        return value;
+    }
+
+    virtual bool needs_quotes() const override {
+        return true;
+    }
+
     virtual void coercive_set(const std::string& in_str) override;
     virtual void coercive_set(double in_num) override;
     virtual void coercive_set(const shared_tracker_element& e) override;
@@ -508,6 +551,10 @@ public:
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
+    }
+
+    virtual std::string as_string() const override {
+        return to_hex();
     }
 
     template<typename T>
@@ -596,6 +643,18 @@ public:
         return tracker_type::tracker_key;
     }
 
+    virtual bool is_stringable() const override {
+        return true;
+    }
+
+    virtual std::string as_string() const override {
+        return value.as_string();
+    }
+
+    virtual bool needs_quotes() const override {
+        return true;
+    }
+
     virtual void coercive_set(const std::string& in_str) override {
         throw(std::runtime_error("Cannot coercive_set a devicekey from a string"));
     }
@@ -637,6 +696,18 @@ public:
         return tracker_type::tracker_uuid;
     }
 
+    virtual bool is_stringable() const override {
+        return true;
+    }
+
+    virtual std::string as_string() const override {
+        return value.as_string();
+    }
+
+    virtual bool needs_quotes() const override {
+        return true;
+    }
+
     virtual void coercive_set(const std::string& in_str) override;
     virtual void coercive_set(double in_num) override;
     virtual void coercive_set(const shared_tracker_element& e) override;
@@ -671,6 +742,81 @@ public:
 
     static tracker_type static_type() {
         return tracker_type::tracker_mac_addr;
+    }
+
+    virtual bool is_stringable() const override {
+        return true;
+    }
+
+    virtual std::string as_string() const override {
+        return value.as_string();
+    }
+
+    virtual bool needs_quotes() const override {
+        return true;
+    }
+
+    virtual void coercive_set(const std::string& in_str) override;
+    virtual void coercive_set(double in_num) override;
+    virtual void coercive_set(const shared_tracker_element& e) override;
+
+    virtual std::unique_ptr<tracker_element> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t());
+        return std::move(dup);
+    }
+
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        return std::move(dup);
+    }
+
+};
+
+class tracker_element_ipv4_addr : public tracker_element_core_scalar<uint32_t> {
+public:
+    tracker_element_ipv4_addr() :
+        tracker_element_core_scalar<uint32_t>(tracker_type::tracker_ipv4_addr) { }
+
+    tracker_element_ipv4_addr(int id) :
+        tracker_element_core_scalar<uint32_t>(tracker_type::tracker_ipv4_addr, id) { }
+
+    tracker_element_ipv4_addr(int id, const std::string& s) :
+        tracker_element_core_scalar<uint32_t>(tracker_type::tracker_ipv4_addr, id) { 
+
+        struct in_addr addr;
+
+        if (inet_aton(s.c_str(), &addr) != 1)
+            value = 0;
+
+        value = addr.s_addr;
+    }
+
+    tracker_element_ipv4_addr(int id, struct in_addr addr) :
+        tracker_element_core_scalar<uint32_t>(tracker_type::tracker_ipv4_addr, id, addr.s_addr) { }
+
+    tracker_element_ipv4_addr(int id, struct in_addr *addr) :
+        tracker_element_core_scalar<uint32_t>(tracker_type::tracker_ipv4_addr, id, addr->s_addr) { }
+
+    static tracker_type static_type() {
+        return tracker_type::tracker_ipv4_addr;
+    }
+
+    virtual bool is_stringable() const override {
+        return true;
+    }
+
+    virtual std::string as_string() const override {
+        struct in_addr addr;
+        char buf[32];
+        addr.s_addr = value;
+        std::string s(inet_ntop(AF_INET, &addr, buf, 32));
+        return s;
+    }
+
+    virtual bool needs_quotes() const override {
+        return true;
     }
 
     virtual void coercive_set(const std::string& in_str) override;
@@ -711,6 +857,25 @@ public:
     tracker_element_core_numeric(tracker_type t, int id, const N& v) :
         tracker_element(t, id),
         value(v) { }
+
+    virtual bool is_stringable() const override {
+        return true;
+    }
+
+    virtual std::string as_string() const override {
+        if (std::isnan(value) || std::isinf(value))
+            return "0";
+
+        // Jump through some hoops to collapse things like 0.000000 to 0 to save space/time in serializing
+        if (floor(value) == value)
+            return fmt::format("{}", (long) value);
+
+        return fmt::format("{}", value);
+    }
+
+    virtual bool needs_quotes() const override {
+        return false;
+    }
 
     virtual void coercive_set(const std::string& in_str) override {
         // Inefficient workaround for compilers that don't define std::stod properly
@@ -1287,6 +1452,18 @@ public:
         present_vector(false),
         present_key_vector(false) { }
 
+    virtual bool is_stringable() const override {
+        return false;
+    }
+
+    virtual std::string as_string() const override {
+        return "";
+    }
+
+    virtual bool needs_quotes() const override {
+        return true;
+    }
+
     // Optionally present as a vector of content when serializing
     void set_as_vector(const bool in_v) {
         present_vector = in_v;
@@ -1708,6 +1885,18 @@ public:
     tracker_element_core_vector(tracker_type t, int id, const vector_t& init_v) :
         tracker_element(t, id),
         vector{init_v} { }
+
+    virtual bool is_stringable() const override {
+        return false;
+    }
+
+    virtual std::string as_string() const override {
+        return "";
+    }
+
+    virtual bool needs_quotes() const override {
+        return true;
+    }
 
     virtual void coercive_set(const std::string& in_str) override {
         throw(std::runtime_error("Cannot coercive_set a scalar vector from a string"));

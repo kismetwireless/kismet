@@ -132,32 +132,11 @@ void tracker_element_string::coercive_set(double in_num) {
 }
 
 void tracker_element_string::coercive_set(const shared_tracker_element& e) {
-    switch (e->get_type()) {
-        case tracker_type::tracker_int8:
-        case tracker_type::tracker_uint8:
-        case tracker_type::tracker_int16:
-        case tracker_type::tracker_uint16:
-        case tracker_type::tracker_int32:
-        case tracker_type::tracker_uint32:
-        case tracker_type::tracker_int64:
-        case tracker_type::tracker_uint64:
-        case tracker_type::tracker_float:
-        case tracker_type::tracker_double:
-            coercive_set(std::static_pointer_cast<tracker_element_core_scalar>(e)->get());
-            break;
-        case tracker_type::tracker_string:
-            coercive_set(std::static_pointer_cast<tracker_element_string>(e)->get());
-            break;
-        case tracker_type::tracker_uuid:
-            coercive_set(std::static_pointer_cast<tracker_element_uuid>(e)->get().uuid_to_string());
-            break;
-        case tracker_type::tracker_mac_addr:
-            coercive_set(std::static_pointer_cast<tracker_element_mac_addr>(e)->get().mac_to_string());
-            break;
-        default:
-            throw std::runtime_error(fmt::format("Could not coerce {} to {}",
-                        e->get_type_as_string(), get_type_as_string()));
-    }
+    if (e->is_stringable())
+        coercive_set(e->as_string());
+    else
+        throw std::runtime_error(fmt::format("Could not coerce {} to {}",
+                    e->get_type_as_string(), get_type_as_string()));
 }
 
 bool tracker_element_string::less_than(const tracker_element_string& rhs) const {
@@ -268,6 +247,8 @@ std::string tracker_element::type_to_string(tracker_type t) {
             return "vector[size_t]";
         case tracker_type::tracker_alias:
             return "alias";
+        case tracker_type::tracker_ipv4_addr:
+            return "ipv4";
     }
 
     return "unknown";
@@ -329,6 +310,8 @@ std::string tracker_element::type_to_typestring(tracker_type t) {
             return "tracker_hashkey_map";
         case tracker_type::tracker_alias:
             return "tracker_alias";
+        case tracker_type::tracker_ipv4_addr:
+            return "tracker_ipv4_addr";
     }
 
     return "TrackerUnknown";
@@ -389,19 +372,39 @@ tracker_type tracker_element::typestring_to_type(const std::string& s) {
         return tracker_type::tracker_hashkey_map;
     if (s == "tracker_alias")
         return tracker_type::tracker_alias;
+    if (s == "tracker_ipv4_addr")
+        return tracker_type::tracker_ipv4_addr;
 
     throw std::runtime_error("Unable to interpret tracker type " + s);
 }
 
-template<> std::string get_tracker_value(const shared_tracker_element& e) {
-#ifdef TE_TYPE_SAFETY
-    e->enforce_type(tracker_type::tracker_string, tracker_type::tracker_byte_array);
-#endif
+std::ostream& operator<<(std::ostream& os, const tracker_element& e) {
+    os << e.as_string();
+    return os;
+}
 
-    if (e->get_type() == tracker_type::tracker_string)
-        return std::static_pointer_cast<tracker_element_string>(e)->get();
-    if (e->get_type() == tracker_type::tracker_byte_array)
-        return std::static_pointer_cast<tracker_element_byte_array>(e)->get();
+std::istream& operator>>(std::istream& is, tracker_element& e) {
+    std::string sline;
+    std::getline(is, sline);
+    e.coercive_set(sline);
+    return is;
+}
+
+std::ostream& operator<<(std::ostream& os, std::shared_ptr<tracker_element> se) {
+    os << se->as_string();
+    return os;
+}
+
+template<> std::string get_tracker_value(const shared_tracker_element& e) {
+    // Use the generic stringify to get anything as a string, if we can
+
+    if (e->is_stringable())
+        return e->as_string();
+
+#ifdef TE_TYPE_SAFETY
+    throw std::runtime_error(fmt::format("invalid trackedelement access id {}, cannot use a {} "
+                "as a string", e->get_id(), e->get_type_as_string()));
+#endif
 
     return "";
 }
