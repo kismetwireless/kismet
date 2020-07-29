@@ -44,6 +44,8 @@
 #include "macaddr.h"
 #include "uuid.h"
 
+#include "globalregistry.h"
+
 class entry_tracker;
 class tracker_element;
 
@@ -193,13 +195,19 @@ public:
 
     tracker_element(tracker_type t) : 
         type(t),
-        tracked_id(-1) { }
+        tracked_id(-1) { 
+            Globalreg::n_tracked_fields++;
+        }
 
     tracker_element(tracker_type t, int id) :
         type(t),
-        tracked_id(id) { }
+        tracked_id(id) {
+            Globalreg::n_tracked_fields++;
+        }
 
-    virtual ~tracker_element() { };
+    virtual ~tracker_element() {
+        Globalreg::n_tracked_fields--;
+    };
 
     // Factory-style for easily making more of the same if we're subclassed
     virtual std::unique_ptr<tracker_element> clone_type() {

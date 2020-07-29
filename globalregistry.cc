@@ -223,3 +223,5 @@ void global_registry::shutdown_deferred() {
     deferred_vec.clear();
 }
 
+std::atomic<unsigned long> Globalreg::n_tracked_fields = 0;
+

@@ -97,6 +97,8 @@ public:
     __ProxyTrackable(sensors_fans, tracker_element_string_map, sensors_fans);
     __ProxyTrackable(sensors_temp, tracker_element_string_map, sensors_temp);
 
+    __Proxy(num_fields, uint64_t, uint64_t, uint64_t, num_fields);
+
     virtual void pre_serialize() override;
 
 protected:
@@ -129,6 +131,8 @@ protected:
 
     std::shared_ptr<tracker_element_string_map> sensors_fans;
     std::shared_ptr<tracker_element_string_map> sensors_temp;
+
+    std::shared_ptr<tracker_element_uint64> num_fields;
 };
 
 class Systemmonitor : public lifetime_global, public time_tracker_event {

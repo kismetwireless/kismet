@@ -262,6 +262,8 @@ protected:
 };
 
 namespace Globalreg {
+    extern std::atomic<unsigned long> n_tracked_fields;
+
     extern global_registry *globalreg;
 
     template<typename T> 
