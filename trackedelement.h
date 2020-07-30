@@ -195,18 +195,23 @@ public:
 
     tracker_element(tracker_type t) : 
         type(t),
-        tracked_id(-1) { 
+        tracked_id(-1),
+        local_name{nullptr} { 
             Globalreg::n_tracked_fields++;
         }
 
     tracker_element(tracker_type t, int id) :
         type(t),
-        tracked_id(id) {
+        tracked_id(id),
+        local_name{nullptr} {
             Globalreg::n_tracked_fields++;
         }
 
     virtual ~tracker_element() {
         Globalreg::n_tracked_fields--;
+
+        if (local_name != nullptr)
+            free(local_name);
     };
 
     // Factory-style for easily making more of the same if we're subclassed
@@ -256,11 +261,17 @@ public:
     }
 
     void set_local_name(const std::string& in_name) {
-        local_name = in_name;
+        if (local_name != nullptr)
+            free(local_name);
+
+        local_name = new std::string(in_name);
     }
 
     std::string get_local_name() {
-        return local_name;
+        if (local_name != nullptr)
+            return *local_name;
+
+        return "";
     }
 
     void set_dynamic_entity(const std::string& in_name) {
@@ -317,7 +328,8 @@ protected:
     int tracked_id;
 
     // Overridden name for this instance only
-    std::string local_name;
+
+    std::string *local_name;
 };
 
 std::ostream& operator<<(std::ostream& os, const tracker_element& e);
@@ -349,7 +361,7 @@ public:
     tracker_element_alias(const std::string& al, std::shared_ptr<tracker_element> e) :
         tracker_element{tracker_type::tracker_alias},
         alias_element{e} {
-            local_name = al;
+            set_local_name(al);
         }
 
     static tracker_type static_type() {
