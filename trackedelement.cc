@@ -1261,6 +1261,8 @@ bool fast_sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
             return std::static_pointer_cast<tracker_element_uuid>(lhs)->less_than(*std::static_pointer_cast<tracker_element_uuid>(rhs));
         case tracker_type::tracker_byte_array:
             return std::static_pointer_cast<tracker_element_byte_array>(lhs)->less_than(*std::static_pointer_cast<tracker_element_byte_array>(rhs));
+        case tracker_type::tracker_ipv4_addr:
+            return std::static_pointer_cast<tracker_element_ipv4_addr>(lhs)->less_than(*std::static_pointer_cast<tracker_element_ipv4_addr>(rhs));
         case tracker_type::tracker_key:
         case tracker_type::tracker_vector:
         case tracker_type::tracker_map:
