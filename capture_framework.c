@@ -727,6 +727,7 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         { "fixed-gps", required_argument, 0, 8},
         { "gps-name", required_argument, 0, 9},
         { "host", required_argument, 0, 10},
+        { "bpf", required_argument, 0, 11},
         { "help", no_argument, 0, 'h'},
         { 0, 0, 0, 0 }
     };
@@ -786,6 +787,8 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
             caph->remote_host = strdup(parse_hname);
             caph->remote_port = parse_port;
             caph->reverse_server = 1;
+        } else if (r == 11) {
+          caph->bpf = strdup(optarg);
         }
     }
 
@@ -866,7 +869,8 @@ void cf_print_help(kis_capture_handler_t *caph, const char *argv0) {
                 " --gps-name [name]           Set an alternate GPS name for this source\n"
                 " --daemonize                 Background the capture tool and enter daemon\n"
                 "                             mode.\n"
-                " --list                      List supported devices detected\n",
+                " --list                      List supported devices detected\n"
+               " --bpf [filter]              Berkeley Packet Filter\n",
                 argv0, argv0);
     }
 

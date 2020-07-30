@@ -2427,6 +2427,20 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
             free(filter_targets);
         }
+    } else if ((caph->bpf != NULL && caph->bpf[0] != '\0')) {
+       if (pcap_compile(local_wifi->pd, &bpf, caph->bpf, 0, 0) < 0) {
+            snprintf(errstr, STATUS_MAX, "%s unable to compile bpf filter "
+                        ": %s",
+                        local_wifi->name, pcap_geterr(local_wifi->pd));
+                        cf_send_message(caph, errstr, MSGFLAG_INFO);
+        } else {
+            if (pcap_setfilter(local_wifi->pd, &bpf) < 0) {
+                   snprintf(errstr, STATUS_MAX, "%s unable to assign bpf filter "
+                        ": %s",
+                        local_wifi->name, pcap_geterr(local_wifi->pd));
+                        cf_send_message(caph, errstr, MSGFLAG_INFO);
+            }
+        }
     }
 
     local_wifi->datalink_type = pcap_datalink(local_wifi->pd);
