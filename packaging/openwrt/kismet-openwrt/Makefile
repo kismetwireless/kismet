@@ -1,13 +1,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=kismet
-PKG_VERSION:=2020-03-R1
+PKG_VERSION:=2020-04-R3
 PKG_RELEASE:=1
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/kismetwireless/kismet.git
-PKG_SOURCE_VERSION:=925cf90e0112a0bfc926e21e0fae4503ae3b7a78
+PKG_SOURCE_VERSION:=8173dc81811f721b0a56272eeddcfa7428300388
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
 
@@ -72,7 +72,10 @@ define Package/kismet/install
 	$(INSTALL_CONF) $(PKG_BUILD_DIR)/conf/kismet_memory.conf $(1)/etc/kismet
 	$(INSTALL_CONF) $(PKG_BUILD_DIR)/conf/kismet_storage.conf $(1)/etc/kismet
 	$(INSTALL_CONF) $(PKG_BUILD_DIR)/conf/kismet_uav.conf $(1)/etc/kismet
-	$(INSTALL_CONF) $(PKG_BUILD_DIR)/conf/kismet_manuf.txt $(1)/etc/kismet
+	$(INSTALL_CONF) $(PKG_BUILD_DIR)/conf/kismet_manuf.txt.gz $(1)/etc/kismet
+	$(INSTALL_CONF) $(PKG_BUILD_DIR)/conf/kismet_adsb_icao.txt.gz $(1)/etc/kismet
+	$(INSTALL_CONF) $(PKG_BUILD_DIR)/conf/kismet_bluetooth_ids.txt.gz $(1)/etc/kismet
+	$(INSTALL_CONF) $(PKG_BUILD_DIR)/conf/kismet_bluetooth_manuf.txt.gz $(1)/etc/kismet
 	cp -Rv $(PKG_BUILD_DIR)/http_data $(1)/etc/kismet/
 endef
 
