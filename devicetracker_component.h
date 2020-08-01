@@ -422,7 +422,7 @@ public:
     void inc_seenby_count(kis_datasource *source, time_t tv_sec, int frequency,
             packinfo_sig_combo *siginfo, bool update_rrd);
 
-    __ProxyTrackable(tag_map, tracker_element_string_map, tag_map);
+    __ProxyDynamicTrackable(tag_map, tracker_element_string_map, tag_map, tag_map_id);
 
     __Proxy(server_uuid, uuid, uuid, uuid, server_uuid);
 
@@ -554,6 +554,7 @@ protected:
 
     // Stringmap of tags
     std::shared_ptr<tracker_element_string_map> tag_map;
+    int tag_map_id;
     // Entry ID for tag map
     int tag_entry_id;
 

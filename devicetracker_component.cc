@@ -427,7 +427,9 @@ void kis_tracked_device_base::register_fields() {
     register_field("kismet.device.base.frequency", "frequency", &frequency);
     register_field("kismet.device.base.manuf", "manufacturer name", &manuf);
     register_field("kismet.device.base.num_alerts", "number of alerts on this device", &alert);
-    register_field("kismet.device.base.tags", "set of arbitrary tags, including user notes", &tag_map);
+    
+    tag_map_id =
+        register_dynamic_field("kismet.device.base.tags", "set of arbitrary tags, including user notes", &tag_map);
 
     tag_entry_id =
         register_field("kismet.device.base.tag", 

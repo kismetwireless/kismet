@@ -426,7 +426,10 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 title: "Notes",
                 help: "Abritrary notes",
                 draw: function(opts) {
-                    var notes = opts['data']['kismet.device.base.tags']['notes'];
+                    var notes = "";
+
+                    if ('kismet.device.base.tags' in opts['data'])
+                        notes = opts['data']['kismet.device.base.tags']['notes'];
 
                     if (notes == null)
                         notes = "";
