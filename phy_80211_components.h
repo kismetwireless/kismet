@@ -792,7 +792,7 @@ protected:
         dhcp_vendor_id =
             register_dynamic_field("dot11.client.dhcp_vendor", "dhcp vendor", &dhcp_vendor);
         register_field("dot11.client.tx_cryptset", "bitset of transmitted encryption", &tx_cryptset);
-        register_field("dot11.client.rx_cryptset", "bitset of received enryption", &rx_cryptset);
+        register_field("dot11.client.rx_cryptset", "bitset of received encryption", &rx_cryptset);
         eap_identity_id = 
             register_dynamic_field("dot11.client.eap_identity", "EAP identity", &eap_identity);
         cdp_device_id = 
