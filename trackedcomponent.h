@@ -546,6 +546,34 @@ class tracker_component : public tracker_element_map {
     }
 
 // Proxy dynamic trackable (value in class may be null and is dynamically
+// built); provided function is called when created
+#define __ProxyDynamicTrackableFunc(name, ttype, cvar, id, creator) \
+    virtual std::shared_ptr<ttype> get_##name() { \
+        if (cvar == NULL) { \
+            cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ttype>(id); \
+            creator; \
+            if (cvar != NULL) \
+                insert(cvar); \
+        } \
+        return cvar; \
+    } \
+    virtual void set_tracker_##name(std::shared_ptr<ttype> in) { \
+        if (cvar != nullptr) \
+            erase(cvar); \
+        cvar = in; \
+        if (cvar != nullptr) { \
+            cvar->set_id(id); \
+            insert(std::static_pointer_cast<tracker_element>(cvar)); \
+        } \
+    } \
+    virtual std::shared_ptr<ttype> get_tracker_##name() { \
+        return cvar; \
+    } \
+    virtual bool has_##name() const { \
+        return cvar != NULL; \
+    }
+
+// Proxy dynamic trackable (value in class may be null and is dynamically
 // built), with mutex
 #define __ProxyDynamicTrackableM(name, ttype, cvar, id, mutex) \
     virtual std::shared_ptr<ttype> get_##name() { \
