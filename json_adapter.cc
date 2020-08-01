@@ -508,9 +508,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                         if (std::isnan(i.first) || std::isinf(i.first)) {
                             stream << indent << "\"0\"";
                         } else if (floor(i.first) == i.first)  {
-                            auto prec = stream.precision(0);
-                            stream << indent << "\"" << std::fixed << i.first << "\"";
-                            stream.precision(prec);
+                            stream << indent << "\"" << (long) i.first << "\"";
                         } else {
                             stream << indent << "\"" << std::fixed << i.first << "\"";
                         }
@@ -551,9 +549,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                         if (std::isnan(i.first) || std::isinf(i.first)) {
                             stream << indent << "\"0\"";
                         } else if (floor(i.first) == i.first)  {
-                            auto prec = stream.precision(0);
-                            stream << indent << "\"" << std::fixed << i.first << "\"";
-                            stream.precision(prec);
+                            stream << indent << "\"" << (long) i.first << "\"";
                         } else {
                             stream << indent << "\"" << std::fixed << i.first << "\"";
                         }
@@ -563,7 +559,13 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                     }
 
                     if (!as_key_vector) {
-                        stream << i.second;
+                        if (std::isnan(i.second) || std::isinf(i.second)) {
+                            stream << 0;
+                        } else if (floor(i.second) == i.second) {
+                            stream << (long) i.second;
+                        } else {
+                            stream << i.second;
+                        }
                     }
                 }
 
