@@ -539,6 +539,9 @@ protected:
 
     // Do we store the last beaconed tags in the ssid record?
     bool keep_ie_tags_per_bssid;
+
+    // Do we keep WPA packets?
+    bool keep_eapol_packets;
 };
 
 #endif

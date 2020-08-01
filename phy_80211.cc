@@ -629,6 +629,16 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
     if (keep_ie_tags_per_bssid)
         _MSG_INFO("Keeping a copy of advertised IE tags for each SSID; this can use more CPU and RAM.");
 
+
+    keep_eapol_packets =
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_keep_eapol", true);
+    if (keep_eapol_packets)
+        _MSG_INFO("Keeping EAPOL packets in memory for easy download and WIDS functionality; this can use "
+                "more RAM.");
+    else
+        _MSG_INFO("Not keeping EAPOL packets in memory, EAP replay WIDS and handshake downloads will not "
+                "be available.");
+
     // access-point view
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_view_accesspoints", true)) {
         ap_view = 
@@ -2976,9 +2986,13 @@ void kis_80211_phy::process_wpa_handshake(std::shared_ptr<kis_tracked_device_bas
         kis_packet *in_pack,
         dot11_packinfo *dot11info) {
 
+    // Do a bsaic decode; if we're not keeping it we won't do most of the decode
     std::shared_ptr<dot11_tracked_eapol> eapol = packet_dot11_eapol_handshake(in_pack, bssid_dot11);
 
     if (eapol == NULL)
+        return;
+
+    if (!keep_eapol_packets)
         return;
 
     if (bssid_dev == nullptr || dest_dev == nullptr)

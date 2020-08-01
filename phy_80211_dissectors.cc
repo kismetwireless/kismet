@@ -2675,6 +2675,13 @@ std::shared_ptr<dot11_tracked_eapol>
         return NULL;
     }
 
+    // Set a packet tag for handshakes
+    in_pack->tag_vec.push_back("DOT11_WPAHANDSHAKE");
+
+    // Don't do any of the demod if we don't track it
+    if (!keep_eapol_packets)
+        return NULL;
+
     pos += sizeof(eapol_llc);
 
     // Make an in-memory zero-copy stream instance to the packet contents after
@@ -2745,9 +2752,6 @@ std::shared_ptr<dot11_tracked_eapol>
         eapol->set_eapol_install(rsnkey->key_info_install());
         eapol->set_eapol_nonce_bytes(rsnkey->wpa_key_nonce());
         eapol->set_eapol_replay_counter(rsnkey->replay_counter());
-
-        // Set a packet tag for handshakes
-        in_pack->tag_vec.push_back("DOT11_WPAHANDSHAKE");
 
         // Parse key data as an IE tag stream; do this in our own try/catch because we don't
         // want to discard the entire packet if something went wrong in the pmkid parsing.
