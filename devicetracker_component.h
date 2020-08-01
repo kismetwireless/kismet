@@ -314,29 +314,33 @@ public:
 
     __Proxy(commonname, std::string, std::string, std::string, commonname);
 
-    __Proxy(type_string, std::string, std::string, std::string, type_string);
+    // __Proxy(type_string, std::string, std::string, std::string, type_string);
+    __ProxySwappingTrackable(type_string, tracker_element_string, type_string);
 
     __Proxy(basic_type_set, uint64_t, uint64_t, uint64_t, basic_type_set);
     __ProxyBitset(basic_type_set, uint64_t, basic_type_set);
 
+    __ProxyGet(type_string, std::string, std::string, type_string);
+
+    // Use a function on the following so that we don't force a lookup / cache cycle unless we need the data
+
     // Set the type string if any of the matching set are found
-    void set_type_string_if(std::string in_type, uint64_t if_set) {
+    void set_type_string_if(std::function<std::shared_ptr<tracker_element_string> ()> in_type, uint64_t if_set) {
         if (get_basic_type_set() & if_set) 
-            set_type_string(in_type);
+            set_tracker_type_string(in_type());
     }
 
     // Set the type string if only the matching set is found
-    void set_type_string_ifonly(std::string in_type, uint64_t if_set) {
+    void set_type_string_ifonly(std::function<std::shared_ptr<tracker_element_string> ()> in_type, uint64_t if_set) {
         if (get_basic_type_set() == if_set)
-            set_type_string(in_type);
+            set_tracker_type_string(in_type());
     }
 
     // Set the type string if the matching set is NOT found
-    void set_type_string_ifnot(std::string in_type, uint64_t if_set) {
+    void set_type_string_ifnot(std::function<std::shared_ptr<tracker_element_string> ()> in_type, uint64_t if_set) {
         if (!(get_basic_type_set() & if_set))
-            set_type_string(in_type);
+            set_tracker_type_string(in_type());
     }
-
 
     __Proxy(crypt_string, std::string, std::string, std::string, crypt_string);
 

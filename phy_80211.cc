@@ -1164,11 +1164,11 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             // Detect if we're an adhoc bssid
             if (dot11info->ibss) {
                 bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
-                bssid_dev->set_type_string("Wi-Fi Ad-Hoc");
+                bssid_dev->set_tracker_type_string(d11phy->devicetracker->get_cached_devicetype("Wi-Fi Ad-Hoc"));
                 bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_ADHOC);
             } else {
                 bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);
-                bssid_dev->set_type_string("Wi-Fi AP");
+                bssid_dev->set_tracker_type_string(d11phy->devicetracker->get_cached_devicetype("Wi-Fi AP"));
             }
 
             // Do some maintenance on the bssid device if we're a beacon or other ssid-carrying
@@ -1225,13 +1225,15 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             // If it's sending ibss-flagged packets it's got to be adoc
             if (dot11info->ibss) {
                 source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
-                source_dev->set_type_string("Wi-Fi Ad-Hoc");
+                source_dev->set_tracker_type_string(d11phy->devicetracker->get_cached_devicetype("Wi-Fi Ad-Hoc"));
                 source_dot11->bitset_type_set(DOT11_DEVICE_TYPE_ADHOC);
             } else {
                 // If it's the source of a mgmt packet, it's got to be a wifi device of 
                 // some sort and not just bridged
                 source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
-                source_dev->set_type_string_ifnot("Wi-Fi Client", KIS_DEVICE_BASICTYPE_CLIENT);
+                source_dev->set_type_string_ifnot([d11phy]() { 
+                        return d11phy->devicetracker->get_cached_devicetype("Wi-Fi Client"); 
+                        }, KIS_DEVICE_BASICTYPE_CLIENT);
             }
 
             if (dot11info->subtype == packet_sub_probe_req ||
@@ -1264,7 +1266,9 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             // If it's receiving a management packet, it must be a wifi device
             dest_dev->bitclear_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
             dest_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
-            dest_dev->set_type_string_ifnot("Wi-Fi Client", KIS_DEVICE_BASICTYPE_AP);
+            dest_dev->set_type_string_ifnot([d11phy]() {
+                    return d11phy->devicetracker->get_cached_devicetype("Wi-Fi Client");
+                    }, KIS_DEVICE_BASICTYPE_AP);
 
             if (dot11info->channel != "0" && dot11info->channel != "") {
                 dest_dev->set_channel(dot11info->channel);
@@ -1447,11 +1451,11 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             if (dot11info->distrib == distrib_adhoc) {
                 // Otherwise, we're some sort of adhoc device
                 bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
-                bssid_dev->set_type_string("Wi-Fi Ad-Hoc");
+                bssid_dev->set_tracker_type_string(d11phy->devicetracker->get_cached_devicetype("Wi-Fi Ad-Hoc"));
             } else {
                 // If we're the bssid, sending an ess data frame, we must be an access point
                 bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);
-                bssid_dev->set_type_string("Wi-Fi AP");
+                bssid_dev->set_tracker_type_string(d11phy->devicetracker->get_cached_devicetype("Wi-Fi AP"));
 
                 // Throw alert if device changes between bss and adhoc
                 if (bssid_dev->bitcheck_basic_type_set(DOT11_DEVICE_TYPE_ADHOC) &&
@@ -1522,27 +1526,32 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                     dot11info->subtype == packet_sub_data_qos_null) {
                 // Only wireless devices can send null function data
                 source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
-                source_dev->set_type_string_ifnot("Wi-Fi Client", KIS_DEVICE_BASICTYPE_AP);
+                source_dev->set_type_string_ifnot([d11phy]() {
+                        return d11phy->devicetracker->get_cached_devicetype("Wi-Fi Client");
+                        }, KIS_DEVICE_BASICTYPE_AP);
             } else if (dot11info->distrib == distrib_inter) {
                 // If it's from the ess, we're some sort of wired device; set the type
                 // accordingly
                 source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
 
-                source_dev->set_type_string_ifonly("Wi-Fi WDS",
-                        KIS_DEVICE_BASICTYPE_PEER | KIS_DEVICE_BASICTYPE_DEVICE);
+                source_dev->set_type_string_ifonly([d11phy]() {
+                        return d11phy->devicetracker->get_cached_devicetype("Wi-Fi WDS");
+                        }, KIS_DEVICE_BASICTYPE_PEER | KIS_DEVICE_BASICTYPE_DEVICE);
             } else if (dot11info->distrib == distrib_adhoc && dot11info->ibss) {
                 // We're some sort of adhoc device
                 source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
-                source_dev->set_type_string("Wi-Fi Ad-Hoc");
+                source_dev->set_tracker_type_string(d11phy->devicetracker->get_cached_devicetype("Wi-Fi Ad-Hoc"));
             } else if (dot11info->distrib == distrib_from) {
                 source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
-                source_dev->set_type_string_ifnot("Wi-Fi Bridged",
-                        KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP);
+                source_dev->set_type_string_ifnot([d11phy]() {
+                        return d11phy->devicetracker->get_cached_devicetype("Wi-Fi Bridged");
+                        }, KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP);
             } else {
                 source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
 
-                source_dev->set_type_string_ifnot("Wi-Fi Client",
-                        KIS_DEVICE_BASICTYPE_AP);
+                source_dev->set_type_string_ifnot([d11phy]() {
+                        return d11phy->devicetracker->get_cached_devicetype("Wi-Fi Client");
+                        }, KIS_DEVICE_BASICTYPE_AP);
             }
 
             source_dot11->inc_datasize(dot11info->datasize);
@@ -1620,16 +1629,19 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             if (dot11info->distrib == distrib_inter) {
                 dest_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
 
-                dest_dev->set_type_string_ifonly("Wi-Fi WDS",
-                        KIS_DEVICE_BASICTYPE_PEER | KIS_DEVICE_BASICTYPE_DEVICE);
+                dest_dev->set_type_string_ifonly([d11phy]() {
+                        return d11phy->devicetracker->get_cached_devicetype("Wi-Fi WDS");
+                        }, KIS_DEVICE_BASICTYPE_PEER | KIS_DEVICE_BASICTYPE_DEVICE);
             } else if (dot11info->distrib == distrib_adhoc) {
                 // Otherwise, we're some sort of adhoc device
                 dest_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
-                dest_dev->set_type_string("Wi-Fi Ad-Hoc");
+                dest_dev->set_tracker_type_string(d11phy->devicetracker->get_cached_devicetype("Wi-Fi Ad-Hoc"));
             } else {
                 // We can't define the type with only a destination device; we can't
                 // call it wired or wireless until it talks itself
-                dest_dev->set_type_string_ifonly("Wi-Fi Device", KIS_DEVICE_BASICTYPE_DEVICE);
+                dest_dev->set_type_string_ifonly([d11phy]() {
+                        return d11phy->devicetracker->get_cached_devicetype("Wi-Fi Device");
+                        }, KIS_DEVICE_BASICTYPE_DEVICE);
             }
 
             dest_dot11->inc_datasize(dot11info->datasize);
@@ -1674,7 +1686,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             }
 
             other_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP | KIS_DEVICE_BASICTYPE_PEER);
-            other_dev->set_type_string("Wi-Fi WDS AP");
+            other_dev->set_tracker_type_string(d11phy->devicetracker->get_cached_devicetype("Wi-Fi WDS AP"));
 
             other_dot11->inc_datasize(dot11info->datasize);
 
@@ -1850,11 +1862,11 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 
             if (capabilities.find("IBSS") != std::string::npos) {
                 bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
-                bssid_dev->set_type_string("Wi-Fi Ad-Hoc");
+                bssid_dev->set_tracker_type_string(d11phy->devicetracker->get_cached_devicetype("Wi-Fi Ad-Hoc"));
                 bssid_dot11->bitset_type_set(DOT11_DEVICE_TYPE_ADHOC);
             } else {
                 bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);
-                bssid_dev->set_type_string("Wi-Fi AP");
+                bssid_dev->set_tracker_type_string(d11phy->devicetracker->get_cached_devicetype("Wi-Fi AP"));
             }
 
             if (capabilities.find("WPS") != std::string::npos) {

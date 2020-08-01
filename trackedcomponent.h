@@ -607,6 +607,20 @@ class tracker_component : public tracker_element_map {
         return cvar != NULL; \
     }
 
+// Simplified swapping of tracked elements
+#define __ProxySwappingTrackable(name, ttype, cvar) \
+        virtual std::shared_ptr<ttype> get_tracker_##name() { \
+            return cvar; \
+        } \
+        virtual void set_tracker_##name(std::shared_ptr<ttype> in) { \
+            if (cvar != nullptr) { \
+                in->set_id(cvar->get_id()); \
+                erase(cvar); \
+            } \
+            insert(in); \
+            cvar = in; \
+        }
+
 // Proxy bitset functions (name, trackable type, data type, class var)
 #define __ProxyBitset(name, dtype, cvar) \
     virtual void bitset_##name(dtype bs) { \

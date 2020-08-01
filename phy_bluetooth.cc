@@ -181,7 +181,7 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
             btdev->set_devicename(munge_to_printable(devname_j.asString()));
 
         if (devtype_j.isString())
-            btdev->set_type_string(munge_to_printable(devtype_j.asString()));
+            btdev->set_tracker_type_string(btphy->devicetracker->get_cached_devicetype(munge_to_printable(devtype_j.asString())));
 
         auto btdev_bluetooth =
             btdev->get_sub_as<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);
@@ -281,13 +281,13 @@ int kis_bluetooth_phy::packet_tracker_bluetooth(CHAINCALL_PARMS) {
     basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
 
     if (btpi->type == 0)
-        basedev->set_type_string("BR/EDR");
+        basedev->set_tracker_type_string(btphy->devicetracker->get_cached_devicetype("BR/EDR"));
     else if (btpi->type == 1)
-        basedev->set_type_string("BTLE");
+        basedev->set_tracker_type_string(btphy->devicetracker->get_cached_devicetype("BTLE"));
     else if (btpi->type == 2)
-        basedev->set_type_string("BTLE");
+        basedev->set_tracker_type_string(btphy->devicetracker->get_cached_devicetype("BTLE"));
     else
-        basedev->set_type_string("BT");
+        basedev->set_tracker_type_string(btphy->devicetracker->get_cached_devicetype("BT"));
 
     // Always set the name, but don't forget a name we used to know
     if (btpi->name.length() > 0)

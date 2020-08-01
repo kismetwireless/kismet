@@ -186,7 +186,7 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
 
     basedev->set_manuf(rtl_manuf);
 
-    basedev->set_type_string("Airplane");
+    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Airplane"));
     basedev->set_devicename(fmt::format("ADSB {}", dn));
 
     std::shared_ptr<rtladsb_tracked_adsb> adsbdev;
@@ -201,29 +201,29 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
             switch (icao->get_atype_short()) {
                 case '1':
                 case '7':
-                    basedev->set_type_string("Glider");
+                    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Glider"));
                     break;
                 case '2':
-                    basedev->set_type_string("Balloon");
+                    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Balloon"));
                     break;
                 case '3':
-                    basedev->set_type_string("Blimp");
+                    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Blimp"));
                     break;
                 case '4':
                 case '5':
-                    basedev->set_type_string("Airplane");
+                    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Airplane"));
                     break;
                 case '6':
-                    basedev->set_type_string("Helicopter");
+                    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Helicopter"));
                     break;
                 case '8':
-                    basedev->set_type_string("Parachute");
+                    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Parachute"));
                     break;
                 case '9':
-                    basedev->set_type_string("Gyroplane");
+                    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Gyroplane"));
                     break;
                 default:
-                    basedev->set_type_string("Aircraft");
+                    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Aircraft"));
                     break;
             }
 

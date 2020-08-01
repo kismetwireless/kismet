@@ -728,7 +728,7 @@ std::shared_ptr<kis_tracked_device_base>
 
         device->set_first_time(in_pack->ts.tv_sec);
 
-        device->set_type_string(in_basic_type);
+        device->set_tracker_type_string(get_cached_devicetype(in_basic_type));
 
         if (globalreg->manufdb != NULL) {
             device->set_manuf(globalreg->manufdb->lookup_oui(in_mac));
@@ -1551,5 +1551,19 @@ void device_tracker::handle_new_device_event(std::shared_ptr<eventbus_event> evt
         return;
 
     new_view_device(std::static_pointer_cast<kis_tracked_device_base>(device_k->second));
+}
+
+std::shared_ptr<tracker_element_string> device_tracker::get_cached_devicetype(const std::string& type) {
+    local_locker l(&device_type_cache_mutex, "device_tracker:;get_cached_devicetype");
+
+    auto k = device_type_cache.find(type);
+
+    if (k == device_type_cache.end()) {
+        auto r = std::make_shared<tracker_element_string>(type);
+        device_type_cache[type] = r;
+        return r;
+    }
+
+    return k->second;
 }
 

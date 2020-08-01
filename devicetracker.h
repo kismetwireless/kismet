@@ -227,6 +227,9 @@ public:
     // Get phy views
     std::shared_ptr<device_tracker_view> get_phy_view(int in_phy);
 
+    // Get a cached device type; use this to de-dup thousands of devices of the same types.
+    std::shared_ptr<tracker_element_string> get_cached_devicetype(const std::string& type);
+
 protected:
 	global_registry *globalreg;
     std::shared_ptr<entry_tracker> entrytracker;
@@ -372,7 +375,6 @@ protected:
     // Do we constrain memory by not tracking RRD data?
     bool ram_no_rrd;
 
-protected:
     // Handle new datasources and create endpoints for them
     void handle_new_datasource_event(std::shared_ptr<eventbus_event> evt);
 
@@ -387,6 +389,10 @@ protected:
 
     // Load stored tags
     void load_stored_tags(std::shared_ptr<kis_tracked_device_base> in_dev);
+
+    // Cached device type map
+    std::map<std::string, std::shared_ptr<tracker_element_string>> device_type_cache;
+    kis_recursive_timed_mutex device_type_cache_mutex;
 };
 
 class devicelist_scope_locker {

@@ -163,13 +163,12 @@ bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
     std::shared_ptr<kis_tracked_device_base> basedev =
         devicetracker->update_common_device(common, common->source, this, pack,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
-                 UCD_UPDATE_SEENBY), "Z-Wave");
+                 UCD_UPDATE_SEENBY), "Z-Wave Node");
 
     // Get rid of our pseudopacket
     delete(pack);
 
     basedev->set_manuf(zwave_manuf);
-    basedev->set_type_string("Z-Wave Node");
 
     std::string devname;
     std::stringstream devstr;
