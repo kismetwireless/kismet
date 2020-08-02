@@ -44,9 +44,7 @@ int tracker_component::register_field(const std::string& in_name,
 }
 
 void tracker_component::reserve_fields(std::shared_ptr<tracker_element_map> e) {
-    for (unsigned int i = 0; i < registered_fields.size(); i++) {
-        auto& rf = registered_fields[i];
-
+    for (auto& rf : registered_fields) {
         if (rf->assign != nullptr) {
             // We use negative IDs to indicate dynamic to eke out 4 more bytes
             if (rf->id < 0) {
@@ -60,6 +58,10 @@ void tracker_component::reserve_fields(std::shared_ptr<tracker_element_map> e) {
             }
         }
     }
+
+    // Remove all the registration records we've allocated
+    auto nv = std::vector<std::unique_ptr<registered_field>>();
+    registered_fields.swap(nv);
 }
 
 shared_tracker_element tracker_component::import_or_new(std::shared_ptr<tracker_element_map> e, int i) {

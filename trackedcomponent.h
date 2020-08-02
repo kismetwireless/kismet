@@ -691,17 +691,56 @@ class tracker_component : public tracker_element_map {
         return (dtype) (get_tracker_value<dtype>(cvar) & bs); \
     }
 
+    class registered_field {
+        // We use negative IDs to indicate dynamic assignment, since this exists for every field
+        // in every tracked element we actually do benefit from squeezing the boolean out
+        public:
+            registered_field(int id, shared_tracker_element *assign) { 
+                this->assign = assign;
+
+                if (assign == nullptr) {
+                    this->id = id * -1; 
+                } else {
+                    this->id = id;
+                }
+            }
+
+            registered_field(int id, shared_tracker_element *assign, bool dynamic) {
+                if (assign == nullptr && dynamic)
+                    throw std::runtime_error("attempted to assign a dynamic field to "
+                            "a null destination");
+
+                if (dynamic)
+                    this->id = id * -1;
+                else
+                    this->id = id;
+                this->assign = assign;
+            }
+
+            int id;
+            shared_tracker_element *assign;
+    };
+
+
 public:
     tracker_component() :
-        tracker_element_map(0) { }
+        tracker_element_map(0) {
+            Globalreg::n_tracked_components++;
+        }
 
     tracker_component(int in_id) :
-        tracker_element_map(in_id) { }
+        tracker_element_map(in_id) {
+            Globalreg::n_tracked_components++;
+        }
 
     tracker_component(int in_id, std::shared_ptr<tracker_element_map> e __attribute__((unused))) :
-        tracker_element_map(in_id) { }
+        tracker_element_map(in_id) {
+            Globalreg::n_tracked_components++;
+        }
 
-	virtual ~tracker_component() { }
+	virtual ~tracker_component() {
+        Globalreg::n_tracked_components--;
+    }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
@@ -790,36 +829,6 @@ protected:
     // Inherit from an existing element or assign a new one.
     // Add imported or new field to our map for use tracking.
     virtual shared_tracker_element import_or_new(std::shared_ptr<tracker_element_map> e, int i);
-
-    class registered_field {
-        // We use negative IDs to indicate dynamic assignment, since this exists for every field
-        // in every tracked element we actually do benefit from squeezing the boolean out
-        public:
-            registered_field(int id, shared_tracker_element *assign) { 
-                this->assign = assign;
-
-                if (assign == nullptr) {
-                    this->id = id * -1; 
-                } else {
-                    this->id = id;
-                }
-            }
-
-            registered_field(int id, shared_tracker_element *assign, bool dynamic) {
-                if (assign == nullptr && dynamic)
-                    throw std::runtime_error("attempted to assign a dynamic field to "
-                            "a null destination");
-
-                if (dynamic)
-                    this->id = id * -1;
-                else
-                    this->id = id;
-                this->assign = assign;
-            }
-
-            int id;
-            shared_tracker_element *assign;
-    };
 
     std::vector<std::unique_ptr<registered_field>> registered_fields;
 };
