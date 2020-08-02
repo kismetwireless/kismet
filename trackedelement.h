@@ -211,7 +211,7 @@ public:
         Globalreg::n_tracked_fields--;
 
         if (local_name != nullptr)
-            free(local_name);
+            delete local_name;
     };
 
     // Factory-style for easily making more of the same if we're subclassed
@@ -262,7 +262,7 @@ public:
 
     void set_local_name(const std::string& in_name) {
         if (local_name != nullptr)
-            free(local_name);
+            delete local_name;
 
         local_name = new std::string(in_name);
     }
