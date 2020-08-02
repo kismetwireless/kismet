@@ -229,6 +229,7 @@ void tracked_system_status::register_fields() {
     register_field("kismet.system.sensors.temp", "temperature sensors", &sensors_temp);
 
     register_field("kismet.system.num_fields", "number of allocated tracked element fields", &num_fields);
+    register_field("kismet.system.num_components", "number of allocated tracked element components", &num_components);
 }
 
 int Systemmonitor::timetracker_event(int eventid) {
@@ -384,5 +385,6 @@ void tracked_system_status::pre_serialize() {
     set_timestamp_usec(now.tv_usec);
 
     set_num_fields(Globalreg::n_tracked_fields);
+    set_num_components(Globalreg::n_tracked_components);
 } 
 

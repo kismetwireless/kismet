@@ -224,4 +224,5 @@ void global_registry::shutdown_deferred() {
 }
 
 std::atomic<unsigned long> Globalreg::n_tracked_fields = 0;
+std::atomic<unsigned long> Globalreg::n_tracked_components = 0;
 
