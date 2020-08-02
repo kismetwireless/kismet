@@ -551,9 +551,9 @@ class tracker_component : public tracker_element_map {
     virtual std::shared_ptr<ttype> get_##name() { \
         if (cvar == NULL) { \
             cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ttype>(id); \
-            creator; \
             if (cvar != NULL) \
                 insert(cvar); \
+            creator; \
         } \
         return cvar; \
     } \
