@@ -388,23 +388,23 @@ int alert_tracker::raise_alert(int in_ref, kis_packet *in_pack,
 int alert_tracker::raise_one_shot(std::string in_header, std::string in_text, int in_phy) {
     local_demand_locker lock(&alert_mutex);
 
-	kis_alert_info *info = new kis_alert_info;
+	kis_alert_info info;
 
-	info->header = in_header;
-	info->phy = in_phy;
-	gettimeofday(&(info->tm), NULL);
+	info.header = in_header;
+	info.phy = in_phy;
+	gettimeofday(&(info.tm), NULL);
 
-	info->bssid = mac_addr(0);
-	info->source = mac_addr(0);
-	info->dest  = mac_addr(0);
-	info->other = mac_addr(0);
+	info.bssid = mac_addr(0);
+	info.source = mac_addr(0);
+	info.dest  = mac_addr(0);
+	info.other = mac_addr(0);
 
-	info->channel = "";	
+	info.channel = "";	
 
-	info->text = in_text;
+	info.text = in_text;
 
     lock.lock();
-	alert_backlog_vec->push_back(std::make_shared<tracked_alert>(alert_entry_id, info));
+	alert_backlog_vec->push_back(std::make_shared<tracked_alert>(alert_entry_id, &info));
 	if ((int) alert_backlog_vec->size() > num_backlog) {
 		alert_backlog_vec->erase(alert_backlog_vec->begin());
 	}
@@ -417,14 +417,14 @@ int alert_tracker::raise_one_shot(std::string in_header, std::string in_text, in
 #endif
 
 	// Send the text info
-	_MSG(info->header + " " + info->text, MSGFLAG_ALERT);
+	_MSG(info.header + " " + info.text, MSGFLAG_ALERT);
 
     if (log_alerts) {
         auto dbf =
             Globalreg::fetch_global_as<kis_database_logfile>("DATABASELOG");
         if (dbf != NULL) {
             auto ta = std::make_shared<tracked_alert>(alert_entry_id);
-            ta->from_alert_info(info);
+            ta->from_alert_info(&info);
             dbf->log_alert(ta);
         }
     }
