@@ -135,6 +135,8 @@ int pcap_stream_ringbuf::pcapng_make_shb(std::string in_hw, std::string in_os, s
         return -1;
     }
 
+    memset(buf, 0, buf_sz);
+
     shb = (pcapng_shb *) buf;
 
     // Host-endian data; fill in the default info
