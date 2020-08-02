@@ -2728,12 +2728,14 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
                                 return false;
                             }
 
-                            for (auto pi : *bssid_dot11->probed_ssid_map) {
-                                auto ps =
-                                    std::static_pointer_cast<dot11_probed_ssid>(pi.second);
+                            if (bssid_dot11->has_probed_ssid_map()) {
+                                for (auto pi : *bssid_dot11->probed_ssid_map) {
+                                    auto ps =
+                                        std::static_pointer_cast<dot11_probed_ssid>(pi.second);
 
-                                if (ps->get_wps_uuid_e() == dot11info->wps_uuid_e)
-                                    return true;
+                                    if (ps->get_wps_uuid_e() == dot11info->wps_uuid_e)
+                                        return true;
+                                }
                             }
 
                         return false;
