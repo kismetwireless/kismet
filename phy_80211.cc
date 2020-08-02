@@ -2986,7 +2986,6 @@ void kis_80211_phy::process_wpa_handshake(std::shared_ptr<kis_tracked_device_bas
         kis_packet *in_pack,
         dot11_packinfo *dot11info) {
 
-    // Do a bsaic decode; if we're not keeping it we won't do most of the decode
     std::shared_ptr<dot11_tracked_eapol> eapol = packet_dot11_eapol_handshake(in_pack, bssid_dot11);
 
     if (eapol == NULL)

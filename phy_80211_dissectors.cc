@@ -2623,8 +2623,7 @@ std::shared_ptr<dot11_tracked_eapol>
 
     // Grab the 80211 info, compare, bail
     dot11_packinfo *packinfo;
-    if ((packinfo = 
-                (dot11_packinfo *) in_pack->fetch(pack_comp_80211)) == NULL) {
+    if ((packinfo = (dot11_packinfo *) in_pack->fetch(pack_comp_80211)) == NULL) {
         return NULL;
     }
 
@@ -2648,8 +2647,7 @@ std::shared_ptr<dot11_tracked_eapol>
         (kis_datachunk *) in_pack->fetch(pack_comp_decap);
 
     if (chunk == NULL) {
-        if ((chunk = 
-             (kis_datachunk *) in_pack->fetch(pack_comp_linkframe)) == NULL) {
+        if ((chunk = (kis_datachunk *) in_pack->fetch(pack_comp_linkframe)) == NULL) {
             return NULL;
         }
     }
@@ -2675,13 +2673,6 @@ std::shared_ptr<dot11_tracked_eapol>
         return NULL;
     }
 
-    // Set a packet tag for handshakes
-    in_pack->tag_vec.push_back("DOT11_WPAHANDSHAKE");
-
-    // Don't do any of the demod if we don't track it
-    if (!keep_eapol_packets)
-        return NULL;
-
     pos += sizeof(eapol_llc);
 
     // Make an in-memory zero-copy stream instance to the packet contents after
@@ -2706,6 +2697,12 @@ std::shared_ptr<dot11_tracked_eapol>
 
         if (rsnkey == NULL)
             return NULL;
+
+        // Set a packet tag for handshakes
+        in_pack->tag_vec.push_back("DOT11_WPAHANDSHAKE");
+
+        if (!keep_eapol_packets)
+            return nullptr;
 
         std::shared_ptr<dot11_tracked_eapol> eapol = dot11dev->create_eapol_packet();
 
