@@ -191,17 +191,13 @@ enum class tracker_type {
 
 class tracker_element {
 public:
-    tracker_element() = delete;
-
-    tracker_element(tracker_type t) : 
-        type(t),
+    tracker_element() : 
         tracked_id(-1),
         local_name{nullptr} { 
             Globalreg::n_tracked_fields++;
         }
 
-    tracker_element(tracker_type t, int id) :
-        type(t),
+    tracker_element( int id) :
         tracked_id(id),
         local_name{nullptr} {
             Globalreg::n_tracked_fields++;
@@ -244,7 +240,7 @@ public:
     }
 
     virtual uint32_t get_signature() const {
-        return static_cast<uint32_t>(type);
+        return static_cast<uint32_t>(get_type());
     }
 
     // Serialization helpers
@@ -281,9 +277,7 @@ public:
 
     void set_type(tracker_type type);
 
-    tracker_type get_type() const { 
-        return type; 
-    }
+    virtual tracker_type get_type() const = 0;
 
     std::string get_type_as_string() const {
         return type_to_string(get_type());
@@ -324,11 +318,9 @@ public:
     friend std::istream& operator>>(std::istream& is, tracker_element& k);
 
 protected:
-    tracker_type type;
     int tracked_id;
 
     // Overridden name for this instance only
-
     std::string *local_name;
 };
 
@@ -349,20 +341,24 @@ std::unique_ptr<tracker_element> tracker_element_factory(const Args& ... args) {
 class tracker_element_alias : public tracker_element {
 public:
     tracker_element_alias() :
-        tracker_element(tracker_type::tracker_alias) { }
+        tracker_element() { }
 
     tracker_element_alias(int in_id) :
-        tracker_element(tracker_type::tracker_alias, in_id) { }
+        tracker_element(in_id) { }
 
     tracker_element_alias(int id, std::shared_ptr<tracker_element> e) :
-        tracker_element(tracker_type::tracker_alias, id),
+        tracker_element(id),
         alias_element(e) { }
 
     tracker_element_alias(const std::string& al, std::shared_ptr<tracker_element> e) :
-        tracker_element{tracker_type::tracker_alias},
+        tracker_element(),
         alias_element{e} {
             set_local_name(al);
         }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_alias;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_alias;
@@ -421,18 +417,15 @@ protected:
 template <class P>
 class tracker_element_core_scalar : public tracker_element {
 public:
-    tracker_element_core_scalar() = delete;
+    tracker_element_core_scalar() :
+        tracker_element{} { }
 
-    tracker_element_core_scalar(tracker_type t) :
-        tracker_element(t),
+    tracker_element_core_scalar(int id) :
+        tracker_element(id),
         value() { }
 
-    tracker_element_core_scalar(tracker_type t, int id) :
-        tracker_element(t, id),
-        value() { }
-
-    tracker_element_core_scalar(tracker_type t, int id, const P& v) :
-        tracker_element(t, id),
+    tracker_element_core_scalar(int id, const P& v) :
+        tracker_element(id),
         value(v) { }
 
     // We don't define coercion, subclasses have to do that
@@ -485,25 +478,20 @@ protected:
 class tracker_element_string : public tracker_element_core_scalar<std::string> {
 public:
     tracker_element_string() :
-        tracker_element_core_scalar<std::string>(tracker_type::tracker_string) { }
-
-    tracker_element_string(tracker_type t) :
-        tracker_element_core_scalar<std::string>(tracker_type::tracker_string) { }
-
-    tracker_element_string(tracker_type t, int id) :
-        tracker_element_core_scalar<std::string>(t, id) { }
+        tracker_element_core_scalar<std::string>() { }
 
     tracker_element_string(int id) :
-        tracker_element_core_scalar<std::string>(tracker_type::tracker_string, id) { }
+        tracker_element_core_scalar<std::string>(id) { }
 
     tracker_element_string(int id, const std::string& s) :
-        tracker_element_core_scalar<std::string>(tracker_type::tracker_string, id, s) { }
-
-    tracker_element_string(tracker_type t, int id, const std::string& s) :
-        tracker_element_core_scalar<std::string>(t, id, s) { }
+        tracker_element_core_scalar<std::string>(id, s) { }
 
     tracker_element_string(const std::string& s) :
-        tracker_element_core_scalar<std::string>(tracker_type::tracker_string, 0, s) { }
+        tracker_element_core_scalar<std::string>(0, s) { }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_string;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_string;
@@ -549,13 +537,17 @@ public:
 class tracker_element_byte_array : public tracker_element_string {
 public:
     tracker_element_byte_array() :
-        tracker_element_string(tracker_type::tracker_byte_array) { }
+        tracker_element_string() { }
 
     tracker_element_byte_array(int id) :
-        tracker_element_string(tracker_type::tracker_byte_array, id) { }
+        tracker_element_string(id) { }
 
     tracker_element_byte_array(int id, const std::string& s) :
-        tracker_element_string(tracker_type::tracker_byte_array, id, s) { }
+        tracker_element_string(id, s) { }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_byte_array;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_byte_array;
@@ -654,10 +646,14 @@ public:
 class tracker_element_device_key : public tracker_element_core_scalar<device_key> {
 public:
     tracker_element_device_key() :
-        tracker_element_core_scalar<device_key>(tracker_type::tracker_key) { }
+        tracker_element_core_scalar<device_key>() { }
 
     tracker_element_device_key(int id) :
-        tracker_element_core_scalar<device_key>(tracker_type::tracker_key, id) { }
+        tracker_element_core_scalar<device_key>(id) { }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_key;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_key;
@@ -704,13 +700,17 @@ public:
 class tracker_element_uuid : public tracker_element_core_scalar<uuid> {
 public:
     tracker_element_uuid() :
-        tracker_element_core_scalar<uuid>(tracker_type::tracker_uuid) { }
+        tracker_element_core_scalar<uuid>() { }
 
     tracker_element_uuid(int id) :
-        tracker_element_core_scalar<uuid>(tracker_type::tracker_uuid, id) { }
+        tracker_element_core_scalar<uuid>(id) { }
 
     tracker_element_uuid(int id, const uuid& u) :
-        tracker_element_core_scalar<uuid>(tracker_type::tracker_uuid, id, u) { }
+        tracker_element_core_scalar<uuid>(id, u) { }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_uuid;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_uuid;
@@ -749,16 +749,20 @@ public:
 class tracker_element_mac_addr : public tracker_element_core_scalar<mac_addr> {
 public:
     tracker_element_mac_addr() :
-        tracker_element_core_scalar<mac_addr>(tracker_type::tracker_mac_addr) { }
+        tracker_element_core_scalar<mac_addr>() { }
 
     tracker_element_mac_addr(int id) :
-        tracker_element_core_scalar<mac_addr>(tracker_type::tracker_mac_addr, id) { }
+        tracker_element_core_scalar<mac_addr>(id) { }
 
     tracker_element_mac_addr(int id, const std::string& s) :
-        tracker_element_core_scalar<mac_addr>(tracker_type::tracker_mac_addr, id, mac_addr(s)) { }
+        tracker_element_core_scalar<mac_addr>(id, mac_addr(s)) { }
 
     tracker_element_mac_addr(int id, const mac_addr& m) :
-        tracker_element_core_scalar<mac_addr>(tracker_type::tracker_mac_addr, id, m) { }
+        tracker_element_core_scalar<mac_addr>(id, m) { }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_mac_addr;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_mac_addr;
@@ -797,13 +801,13 @@ public:
 class tracker_element_ipv4_addr : public tracker_element_core_scalar<uint32_t> {
 public:
     tracker_element_ipv4_addr() :
-        tracker_element_core_scalar<uint32_t>(tracker_type::tracker_ipv4_addr) { }
+        tracker_element_core_scalar<uint32_t>() { }
 
     tracker_element_ipv4_addr(int id) :
-        tracker_element_core_scalar<uint32_t>(tracker_type::tracker_ipv4_addr, id) { }
+        tracker_element_core_scalar<uint32_t>(id) { }
 
     tracker_element_ipv4_addr(int id, const std::string& s) :
-        tracker_element_core_scalar<uint32_t>(tracker_type::tracker_ipv4_addr, id) { 
+        tracker_element_core_scalar<uint32_t>(id) { 
 
         struct in_addr addr;
 
@@ -814,10 +818,14 @@ public:
     }
 
     tracker_element_ipv4_addr(int id, struct in_addr addr) :
-        tracker_element_core_scalar<uint32_t>(tracker_type::tracker_ipv4_addr, id, addr.s_addr) { }
+        tracker_element_core_scalar<uint32_t>(id, addr.s_addr) { }
 
     tracker_element_ipv4_addr(int id, struct in_addr *addr) :
-        tracker_element_core_scalar<uint32_t>(tracker_type::tracker_ipv4_addr, id, addr->s_addr) { }
+        tracker_element_core_scalar<uint32_t>(id, addr->s_addr) { }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_ipv4_addr;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_ipv4_addr;
@@ -862,20 +870,20 @@ public:
 template<class N>
 class tracker_element_core_numeric : public tracker_element {
 public:
-    tracker_element_core_numeric() = delete;
+    tracker_element_core_numeric() :
+        tracker_element() {
 
-    tracker_element_core_numeric(tracker_type t) :
-        tracker_element(t) { 
+        value = 0;
+
+        }
+
+    tracker_element_core_numeric(int id) :
+        tracker_element(id) { 
         value = 0;
     }
 
-    tracker_element_core_numeric(tracker_type t, int id) :
-        tracker_element(t, id) { 
-        value = 0;
-    }
-
-    tracker_element_core_numeric(tracker_type t, int id, const N& v) :
-        tracker_element(t, id),
+    tracker_element_core_numeric(int id, const N& v) :
+        tracker_element(id),
         value(v) { }
 
     virtual bool is_stringable() const override {
@@ -1081,22 +1089,26 @@ protected:
 class tracker_element_uint8 : public tracker_element_core_numeric<uint8_t> {
 public:
     tracker_element_uint8() :
-        tracker_element_core_numeric<uint8_t>(tracker_type::tracker_uint8) {
+        tracker_element_core_numeric<uint8_t>() {
             value_min = 0;
             value_max = INT8_MAX;
         }
 
     tracker_element_uint8(int id) :
-        tracker_element_core_numeric<uint8_t>(tracker_type::tracker_uint8, id) {
+        tracker_element_core_numeric<uint8_t>(id) {
             value_min = 0;
             value_max = INT8_MAX;
         }
 
     tracker_element_uint8(int id, const uint8_t& v) :
-        tracker_element_core_numeric<uint8_t>(tracker_type::tracker_uint8, id, v) {
+        tracker_element_core_numeric<uint8_t>(id, v) {
             value_min = 0;
             value_max = INT8_MAX;
         }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_uint8;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_uint8;
@@ -1118,22 +1130,26 @@ public:
 class tracker_element_int8 : public tracker_element_core_numeric<int8_t> {
 public:
     tracker_element_int8() :
-        tracker_element_core_numeric<int8_t>(tracker_type::tracker_int8) {
+        tracker_element_core_numeric<int8_t>() {
             value_min = INT8_MIN;
             value_max = INT8_MAX;
         }
 
     tracker_element_int8(int id) :
-        tracker_element_core_numeric<int8_t>(tracker_type::tracker_int8, id) {
+        tracker_element_core_numeric<int8_t>(id) {
             value_min = INT8_MIN;
             value_max = INT8_MAX;
         }
 
     tracker_element_int8(int id, const int8_t& v) :
-        tracker_element_core_numeric<int8_t>(tracker_type::tracker_int8, id, v) {
+        tracker_element_core_numeric<int8_t>(id, v) {
             value_min = INT8_MIN;
             value_max = INT8_MAX;
         }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_int8;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_int8;
@@ -1155,22 +1171,26 @@ public:
 class tracker_element_uint16 : public tracker_element_core_numeric<uint16_t> {
 public:
     tracker_element_uint16() :
-        tracker_element_core_numeric<uint16_t>(tracker_type::tracker_uint16) {
+        tracker_element_core_numeric<uint16_t>() {
             value_min = 0;
             value_max = UINT16_MAX;
         }
 
     tracker_element_uint16(int id) :
-        tracker_element_core_numeric<uint16_t>(tracker_type::tracker_uint16, id) {
+        tracker_element_core_numeric<uint16_t>(id) {
             value_min = 0;
             value_max = UINT16_MAX;
         }
 
     tracker_element_uint16(int id, const uint16_t& v) :
-        tracker_element_core_numeric<uint16_t>(tracker_type::tracker_uint16, id, v) {
+        tracker_element_core_numeric<uint16_t>(id, v) {
             value_min = 0;
             value_max = UINT16_MAX;
         }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_uint16;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_uint16;
@@ -1192,22 +1212,26 @@ public:
 class tracker_element_int16 : public tracker_element_core_numeric<int16_t> {
 public:
     tracker_element_int16() :
-        tracker_element_core_numeric<int16_t>(tracker_type::tracker_int16) {
+        tracker_element_core_numeric<int16_t>() {
             value_min = INT16_MIN;
             value_max = INT16_MAX;
         }
 
     tracker_element_int16(int id) :
-        tracker_element_core_numeric<int16_t>(tracker_type::tracker_int16, id) {
+        tracker_element_core_numeric<int16_t>(id) {
             value_min = INT16_MIN;
             value_max = INT16_MAX;
         }
 
     tracker_element_int16(int id, const int16_t& v) :
-        tracker_element_core_numeric<int16_t>(tracker_type::tracker_int16, id, v) {
+        tracker_element_core_numeric<int16_t>(id, v) {
             value_min = INT16_MIN;
             value_max = INT16_MAX;
         }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_int16;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_int16;
@@ -1229,22 +1253,26 @@ public:
 class tracker_element_uint32 : public tracker_element_core_numeric<uint32_t> {
 public:
     tracker_element_uint32() :
-        tracker_element_core_numeric<uint32_t>(tracker_type::tracker_uint32) {
+        tracker_element_core_numeric<uint32_t>() {
             value_min = 0;
             value_max = UINT32_MAX;
         }
 
     tracker_element_uint32(int id) :
-        tracker_element_core_numeric<uint32_t>(tracker_type::tracker_uint32, id) {
+        tracker_element_core_numeric<uint32_t>(id) {
             value_min = 0;
             value_max = UINT32_MAX;
         }
 
     tracker_element_uint32(int id, const uint32_t& v) :
-        tracker_element_core_numeric<uint32_t>(tracker_type::tracker_uint32, id, v) {
+        tracker_element_core_numeric<uint32_t>(id, v) {
             value_min = 0;
             value_max = UINT32_MAX;
         }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_uint32;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_uint32;
@@ -1266,22 +1294,26 @@ public:
 class tracker_element_int32 : public tracker_element_core_numeric<int32_t> {
 public:
     tracker_element_int32() :
-        tracker_element_core_numeric<int32_t>(tracker_type::tracker_int32) {
+        tracker_element_core_numeric<int32_t>() {
             value_min = INT32_MIN;
             value_max = INT32_MAX;
         }
 
     tracker_element_int32(int id) :
-        tracker_element_core_numeric<int32_t>(tracker_type::tracker_int32, id) {
+        tracker_element_core_numeric<int32_t>(id) {
             value_min = INT32_MIN;
             value_max = INT32_MAX;
         }
 
     tracker_element_int32(int id, const int32_t& v) :
-        tracker_element_core_numeric<int32_t>(tracker_type::tracker_int32, id, v) {
+        tracker_element_core_numeric<int32_t>(id, v) {
             value_min = INT32_MIN;
             value_max = INT32_MAX;
         }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_int32;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_int32;
@@ -1303,22 +1335,26 @@ public:
 class tracker_element_uint64 : public tracker_element_core_numeric<uint64_t> {
 public:
     tracker_element_uint64() :
-        tracker_element_core_numeric<uint64_t>(tracker_type::tracker_uint64) {
+        tracker_element_core_numeric<uint64_t>() {
             value_min = 0;
             value_max = UINT64_MAX;
         }
 
     tracker_element_uint64(int id) :
-        tracker_element_core_numeric<uint64_t>(tracker_type::tracker_uint64, id) {
+        tracker_element_core_numeric<uint64_t>(id) {
             value_min = 0;
             value_max = UINT64_MAX;
         }
 
     tracker_element_uint64(int id, const uint64_t& v) :
-        tracker_element_core_numeric<uint64_t>(tracker_type::tracker_uint64, id, v) {
+        tracker_element_core_numeric<uint64_t>(id, v) {
             value_min = 0;
             value_max = UINT64_MAX;
         }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_uint64;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_uint64;
@@ -1340,22 +1376,26 @@ public:
 class tracker_element_int64 : public tracker_element_core_numeric<int64_t> {
 public:
     tracker_element_int64() :
-        tracker_element_core_numeric<int64_t>(tracker_type::tracker_int64) {
+        tracker_element_core_numeric<int64_t>() {
             value_min = INT64_MIN;
             value_max = INT64_MAX;
         }
 
     tracker_element_int64(int id) :
-        tracker_element_core_numeric<int64_t>(tracker_type::tracker_int64, id) {
+        tracker_element_core_numeric<int64_t>(id) {
             value_min = INT64_MIN;
             value_max = INT64_MAX;
         }
 
     tracker_element_int64(int id, const int64_t& v) :
-        tracker_element_core_numeric<int64_t>(tracker_type::tracker_int64, id, v) {
+        tracker_element_core_numeric<int64_t>(id, v) {
             value_min = INT64_MIN;
             value_max = INT64_MAX;
         }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_int64;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_int64;
@@ -1377,22 +1417,26 @@ public:
 class tracker_element_float : public tracker_element_core_numeric<float> {
 public:
     tracker_element_float() :
-        tracker_element_core_numeric<float>(tracker_type::tracker_float) {
+        tracker_element_core_numeric<float>() {
             value_min = std::numeric_limits<float>::min();
             value_max = std::numeric_limits<float>::max();
         }
 
     tracker_element_float(int id) :
-        tracker_element_core_numeric<float>(tracker_type::tracker_float, id) {
+        tracker_element_core_numeric<float>(id) {
             value_min = std::numeric_limits<float>::min();
             value_max = std::numeric_limits<float>::max();
         }
 
     tracker_element_float(int id, const float& v) :
-        tracker_element_core_numeric<float>(tracker_type::tracker_float, id, v) {
+        tracker_element_core_numeric<float>(id, v) {
             value_min = std::numeric_limits<float>::min();
             value_max = std::numeric_limits<float>::max();
         }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_float;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_float;
@@ -1414,22 +1458,26 @@ public:
 class tracker_element_double : public tracker_element_core_numeric<double> {
 public:
     tracker_element_double() :
-        tracker_element_core_numeric<double>(tracker_type::tracker_double) {
+        tracker_element_core_numeric<double>() {
             value_min = std::numeric_limits<double>::min();
             value_max = std::numeric_limits<double>::max();
         }
 
     tracker_element_double(int id) :
-        tracker_element_core_numeric<double>(tracker_type::tracker_double, id) {
+        tracker_element_core_numeric<double>(id) {
             value_min = std::numeric_limits<double>::min();
             value_max = std::numeric_limits<double>::max();
         }
 
     tracker_element_double(int id, const double& v) :
-        tracker_element_core_numeric<double>(tracker_type::tracker_double, id, v) {
+        tracker_element_core_numeric<double>(id, v) {
             value_min = std::numeric_limits<double>::min();
             value_max = std::numeric_limits<double>::max();
         }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_double;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_double;
@@ -1460,15 +1508,13 @@ public:
     using const_iterator = typename map_t::const_iterator;
     using pair = std::pair<K, V>;
 
-    tracker_element_core_map() = delete;
-
-    tracker_element_core_map(tracker_type t) : 
-        tracker_element(t),
+    tracker_element_core_map() : 
+        tracker_element(),
         present_vector(false),
         present_key_vector(false) { }
 
-    tracker_element_core_map(tracker_type t, int id) :
-        tracker_element(t, id),
+    tracker_element_core_map(int id) :
+        tracker_element(id),
         present_vector(false),
         present_key_vector(false) { }
 
@@ -1604,10 +1650,14 @@ protected:
 class tracker_element_map : public tracker_element_core_map<std::unordered_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>> {
 public:
     tracker_element_map() :
-        tracker_element_core_map<std::unordered_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>>(tracker_type::tracker_map) { }
+        tracker_element_core_map<std::unordered_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>>() { }
 
     tracker_element_map(int id) :
-        tracker_element_core_map<std::unordered_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>>(tracker_type::tracker_map, id) { }
+        tracker_element_core_map<std::unordered_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>>(id) { }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_map;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_map;
@@ -1706,10 +1756,14 @@ public:
 class tracker_element_int_map : public tracker_element_core_map<std::unordered_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>> {
 public:
     tracker_element_int_map() :
-        tracker_element_core_map<std::unordered_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>>(tracker_type::tracker_int_map) { }
+        tracker_element_core_map<std::unordered_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>>() { }
 
     tracker_element_int_map(int id) :
-        tracker_element_core_map<std::unordered_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>>(tracker_type::tracker_int_map, id) { }
+        tracker_element_core_map<std::unordered_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>>(id) { }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_int_map;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_int_map;
@@ -1733,10 +1787,14 @@ public:
 class tracker_element_hashkey_map : public tracker_element_core_map<std::unordered_map<size_t, std::shared_ptr<tracker_element>>, size_t, std::shared_ptr<tracker_element>> {
 public:
     tracker_element_hashkey_map() :
-        tracker_element_core_map<std::unordered_map<size_t, std::shared_ptr<tracker_element>>, size_t, std::shared_ptr<tracker_element>>(tracker_type::tracker_hashkey_map) { }
+        tracker_element_core_map<std::unordered_map<size_t, std::shared_ptr<tracker_element>>, size_t, std::shared_ptr<tracker_element>>() { }
 
     tracker_element_hashkey_map(int id) :
-        tracker_element_core_map<std::unordered_map<size_t, std::shared_ptr<tracker_element>>, size_t, std::shared_ptr<tracker_element>>(tracker_type::tracker_hashkey_map, id) { }
+        tracker_element_core_map<std::unordered_map<size_t, std::shared_ptr<tracker_element>>, size_t, std::shared_ptr<tracker_element>>(id) { }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_int_map;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_int_map;
@@ -1760,10 +1818,14 @@ public:
 class tracker_element_double_map : public tracker_element_core_map<std::unordered_map<double, std::shared_ptr<tracker_element>>, double, std::shared_ptr<tracker_element>> {
 public:
     tracker_element_double_map() :
-        tracker_element_core_map<std::unordered_map<double, std::shared_ptr<tracker_element>>, double, std::shared_ptr<tracker_element>>(tracker_type::tracker_double_map) { }
+        tracker_element_core_map<std::unordered_map<double, std::shared_ptr<tracker_element>>, double, std::shared_ptr<tracker_element>>() { }
 
     tracker_element_double_map(int id) :
-        tracker_element_core_map<std::unordered_map<double, std::shared_ptr<tracker_element>>, double, std::shared_ptr<tracker_element>>(tracker_type::tracker_double_map, id) { }
+        tracker_element_core_map<std::unordered_map<double, std::shared_ptr<tracker_element>>, double, std::shared_ptr<tracker_element>>(id) { }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_double_map;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_double_map;
@@ -1786,10 +1848,14 @@ public:
 class tracker_element_mac_map : public tracker_element_core_map<std::map<mac_addr, std::shared_ptr<tracker_element>>, mac_addr, std::shared_ptr<tracker_element>> {
 public:
     tracker_element_mac_map() :
-        tracker_element_core_map<std::map<mac_addr, std::shared_ptr<tracker_element>>, mac_addr, std::shared_ptr<tracker_element>>(tracker_type::tracker_mac_map) { }
+        tracker_element_core_map<std::map<mac_addr, std::shared_ptr<tracker_element>>, mac_addr, std::shared_ptr<tracker_element>>() { }
 
     tracker_element_mac_map(int id) :
-        tracker_element_core_map<std::map<mac_addr, std::shared_ptr<tracker_element>>, mac_addr, std::shared_ptr<tracker_element>>(tracker_type::tracker_mac_map, id) { }
+        tracker_element_core_map<std::map<mac_addr, std::shared_ptr<tracker_element>>, mac_addr, std::shared_ptr<tracker_element>>(id) { }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_mac_map;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_mac_map;
@@ -1812,10 +1878,14 @@ public:
 class tracker_element_string_map : public tracker_element_core_map<std::unordered_map<std::string, std::shared_ptr<tracker_element>>, std::string, std::shared_ptr<tracker_element>> {
 public:
     tracker_element_string_map() :
-        tracker_element_core_map<std::unordered_map<std::string, std::shared_ptr<tracker_element>>, std::string, std::shared_ptr<tracker_element>>(tracker_type::tracker_string_map) { }
+        tracker_element_core_map<std::unordered_map<std::string, std::shared_ptr<tracker_element>>, std::string, std::shared_ptr<tracker_element>>() { }
 
     tracker_element_string_map(int id) :
-        tracker_element_core_map<std::unordered_map<std::string, std::shared_ptr<tracker_element>>, std::string, std::shared_ptr<tracker_element>>(tracker_type::tracker_string_map, id) { }
+        tracker_element_core_map<std::unordered_map<std::string, std::shared_ptr<tracker_element>>, std::string, std::shared_ptr<tracker_element>>(id) { }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_string_map;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_string_map;
@@ -1838,10 +1908,14 @@ public:
 class tracker_element_device_key_map : public tracker_element_core_map<std::unordered_map<device_key, std::shared_ptr<tracker_element>>, device_key, std::shared_ptr<tracker_element>> {
 public:
     tracker_element_device_key_map() :
-        tracker_element_core_map<std::unordered_map<device_key, std::shared_ptr<tracker_element>>, device_key, std::shared_ptr<tracker_element>>(tracker_type::tracker_key_map) { }
+        tracker_element_core_map<std::unordered_map<device_key, std::shared_ptr<tracker_element>>, device_key, std::shared_ptr<tracker_element>>() { }
 
     tracker_element_device_key_map(int id) :
-        tracker_element_core_map<std::unordered_map<device_key, std::shared_ptr<tracker_element>>, device_key, std::shared_ptr<tracker_element>>(tracker_type::tracker_key_map, id) { }
+        tracker_element_core_map<std::unordered_map<device_key, std::shared_ptr<tracker_element>>, device_key, std::shared_ptr<tracker_element>>(id) { }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_key_map;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_key_map;
@@ -1864,10 +1938,14 @@ public:
 class tracker_element_double_map_double : public tracker_element_core_map<std::unordered_map<double, double>, double, double> {
 public:
     tracker_element_double_map_double() :
-        tracker_element_core_map<std::unordered_map<double, double>, double, double>(tracker_type::tracker_double_map_double) { }
+        tracker_element_core_map<std::unordered_map<double, double>, double, double>() { }
 
     tracker_element_double_map_double(int id) :
-        tracker_element_core_map<std::unordered_map<double, double>, double, double>(tracker_type::tracker_double_map_double, id) { }
+        tracker_element_core_map<std::unordered_map<double, double>, double, double>() { }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_double_map_double;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_double_map_double;
@@ -1894,16 +1972,14 @@ public:
     using iterator = typename vector_t::iterator;
     using const_iterator = typename vector_t::const_iterator;
 
-    tracker_element_core_vector() = delete;
+    tracker_element_core_vector() :
+        tracker_element() { }
 
-    tracker_element_core_vector(tracker_type t) :
-        tracker_element(t) { }
+    tracker_element_core_vector(int id) :
+        tracker_element(id) { }
 
-    tracker_element_core_vector(tracker_type t, int id) :
-        tracker_element(t, id) { }
-
-    tracker_element_core_vector(tracker_type t, int id, const vector_t& init_v) :
-        tracker_element(t, id),
+    tracker_element_core_vector(int id, const vector_t& init_v) :
+        tracker_element(id),
         vector{init_v} { }
 
     virtual bool is_stringable() const override {
@@ -2011,23 +2087,27 @@ protected:
 class tracker_element_vector : public tracker_element_core_vector<std::shared_ptr<tracker_element>> {
 public:
     tracker_element_vector() : 
-        tracker_element_core_vector(tracker_type::tracker_vector) { }
+        tracker_element_core_vector() { }
 
     tracker_element_vector(int id) :
-        tracker_element_core_vector(tracker_type::tracker_vector, id) { }
+        tracker_element_core_vector(id) { }
 
     tracker_element_vector(std::shared_ptr<tracker_element_vector> v) :
-        tracker_element_core_vector(tracker_type::tracker_vector, v->get_id()) { 
+        tracker_element_core_vector(v->get_id()) { 
         vector = vector_t(v->begin(), v->end());
     }
 
     tracker_element_vector(const_iterator a, const_iterator b) :
-        tracker_element_core_vector(tracker_type::tracker_vector) { 
+        tracker_element_core_vector() { 
         vector = vector_t(a, b);
     }
 
     tracker_element_vector(tracker_type t, int id, const vector_t& init_v) :
-        tracker_element_core_vector(t, id, init_v) { }
+        tracker_element_core_vector(id, init_v) { }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_vector;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_vector;
@@ -2049,28 +2129,32 @@ public:
 class tracker_element_vector_double : public tracker_element_core_vector<double> {
 public:
     tracker_element_vector_double() :
-        tracker_element_core_vector<double>(tracker_type::tracker_vector_double) { }
+        tracker_element_core_vector<double>() { }
 
     tracker_element_vector_double(int id) :
-        tracker_element_core_vector<double>(tracker_type::tracker_vector_double, id) { }
+        tracker_element_core_vector<double>(id) { }
 
     tracker_element_vector_double(std::shared_ptr<tracker_element_vector_double> v) :
-        tracker_element_core_vector(tracker_type::tracker_vector, v->get_id()) { 
+        tracker_element_core_vector(v->get_id()) { 
         vector = v->vector;
     }
 
     tracker_element_vector_double(const_iterator a, const_iterator b) :
-        tracker_element_core_vector(tracker_type::tracker_vector) { 
+        tracker_element_core_vector() { 
         vector = vector_t(a, b);
     }
 
     tracker_element_vector_double(const vector_t& v) :
-        tracker_element_core_vector(tracker_type::tracker_vector) {
+        tracker_element_core_vector() {
         vector = vector_t(v);
     }
 
-    tracker_element_vector_double(tracker_type t, int id, const vector_t& init_v) :
-        tracker_element_core_vector(t, id, init_v) { }
+    tracker_element_vector_double(int id, const vector_t& init_v) :
+        tracker_element_core_vector(id, init_v) { }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_vector_double;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_vector_double;
@@ -2092,23 +2176,27 @@ public:
 class tracker_element_vector_string : public tracker_element_core_vector<std::string> {
 public:
     tracker_element_vector_string() :
-        tracker_element_core_vector<std::string>(tracker_type::tracker_vector_string) { }
+        tracker_element_core_vector<std::string>() { }
 
     tracker_element_vector_string(int id) :
-        tracker_element_core_vector<std::string>(tracker_type::tracker_vector_string, id) { }
+        tracker_element_core_vector<std::string>(id) { }
 
     tracker_element_vector_string(std::shared_ptr<tracker_element_vector_string> v) :
-        tracker_element_core_vector(tracker_type::tracker_vector, v->get_id()) { 
+        tracker_element_core_vector(v->get_id()) { 
         vector = v->vector;
     }
 
     tracker_element_vector_string(const_iterator a, const_iterator b) :
-        tracker_element_core_vector(tracker_type::tracker_vector) { 
+        tracker_element_core_vector() { 
         vector = vector_t(a, b);
     }
 
-    tracker_element_vector_string(tracker_type t, int id, const vector_t& init_v) :
-        tracker_element_core_vector(t, id, init_v) { }
+    tracker_element_vector_string(int id, const vector_t& init_v) :
+        tracker_element_core_vector(id, init_v) { }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_vector_string;
+    }
 
     static tracker_type static_type() {
         return tracker_type::tracker_vector_string;
