@@ -227,6 +227,7 @@ ssize_t ringbuf_v2::peek(unsigned char **ptr, size_t in_sz) {
         // We have to allocate
         free_peek = true;
         *ptr = new unsigned char[opsize];
+        memset(*ptr, 0xBB, opsize);
 
         // Split into chunks
         size_t chunk_a = buffer_sz - start_pos;
@@ -439,6 +440,7 @@ ssize_t ringbuf_v2::reserve(unsigned char **data, size_t in_sz) {
     } else {
         free_commit = true;
         *data = new unsigned char[in_sz];
+        memset(*data, 0xBB, in_sz);
 
         // fprintf(stderr, "debug - ringbuf2 - copy reserve at %lu len  %lu\n", copy_start, in_sz);
 
