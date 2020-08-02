@@ -71,7 +71,7 @@ kis_adsb_icao::kis_adsb_icao() {
     unknown_icao = std::make_shared<tracked_adsb_icao>(icao_id);
     unknown_icao->set_icao(0x0);
     unknown_icao->set_model("Unknown");
-    unknown_icao->set_type("Unknown");
+    unknown_icao->set_model_type("Unknown");
     unknown_icao->set_owner("Unknown");
     unknown_icao->set_regid("Unknown");
     unknown_icao->set_atype(atype_map['U']);
@@ -227,7 +227,7 @@ std::shared_ptr<tracked_adsb_icao> kis_adsb_icao::lookup_icao(uint32_t icao) {
                     std::make_shared<tracked_adsb_icao>(icao_id);
                 icao_rec->set_icao(icao);
                 icao_rec->set_regid(munge_to_printable(fields[1]));
-                icao_rec->set_type(munge_to_printable(fields[2]));
+                icao_rec->set_model_type(munge_to_printable(fields[2]));
                 icao_rec->set_model(munge_to_printable(fields[3]));
                 icao_rec->set_owner(munge_to_printable(fields[4]));
 

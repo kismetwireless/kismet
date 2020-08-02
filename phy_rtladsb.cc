@@ -232,7 +232,7 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
                 cs += " ";
 
             basedev->set_devicename(fmt::format("{} {} {}",
-                        cs, icao->get_type(), icao->get_owner()));
+                        cs, icao->get_model_type(), icao->get_owner()));
         }
     }
 
@@ -319,7 +319,7 @@ std::shared_ptr<rtladsb_tracked_adsb> kis_rtladsb_phy::add_adsb(kis_packet *pack
 
         if (icao_record != icaodb->get_unknown_icao()) {
             new_ss << " " << icao_record->get_model();
-            new_ss << " " << icao_record->get_type();
+            new_ss << " " << icao_record->get_model_type();
             new_ss << " " << icao_record->get_owner();
             new_ss << " " << icao_record->get_atype()->get();
         }
