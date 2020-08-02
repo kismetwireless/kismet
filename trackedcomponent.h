@@ -792,15 +792,17 @@ protected:
     virtual shared_tracker_element import_or_new(std::shared_ptr<tracker_element_map> e, int i);
 
     class registered_field {
+        // We use negative IDs to indicate dynamic assignment, since this exists for every field
+        // in every tracked element we actually do benefit from squeezing the boolean out
         public:
             registered_field(int id, shared_tracker_element *assign) { 
-                this->id = id; 
                 this->assign = assign;
 
-                if (assign == nullptr)
-                    this->dynamic = true;
-                else
-                    this->dynamic = false;
+                if (assign == nullptr) {
+                    this->id = id * -1; 
+                } else {
+                    this->id = id;
+                }
             }
 
             registered_field(int id, shared_tracker_element *assign, bool dynamic) {
@@ -808,13 +810,14 @@ protected:
                     throw std::runtime_error("attempted to assign a dynamic field to "
                             "a null destination");
 
-                this->id = id;
+                if (dynamic)
+                    this->id = id * -1;
+                else
+                    this->id = id;
                 this->assign = assign;
-                this->dynamic = dynamic;
             }
 
             int id;
-            bool dynamic;
             shared_tracker_element *assign;
     };
 

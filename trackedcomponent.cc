@@ -48,11 +48,12 @@ void tracker_component::reserve_fields(std::shared_ptr<tracker_element_map> e) {
         auto& rf = registered_fields[i];
 
         if (rf->assign != nullptr) {
-            if (rf->dynamic) {
+            // We use negative IDs to indicate dynamic to eke out 4 more bytes
+            if (rf->id < 0) {
                 // If the variable is dynamic set the assignment container to null so that
                 // proxydynamictrackable can fill it in;
                 *(rf->assign) = nullptr;
-                insert(rf->id, std::shared_ptr<tracker_element>());
+                insert(abs(rf->id), std::shared_ptr<tracker_element>());
             } else {
                 // otherwise generate a variable for the destination
                 *(rf->assign) = import_or_new(e, rf->id);
