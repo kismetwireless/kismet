@@ -145,35 +145,34 @@ packet_chain::~packet_chain() {
         Globalreg::globalreg->remove_global("PACKETCHAIN");
         Globalreg::globalreg->packetchain = NULL;
 
-        std::vector<packet_chain::pc_link *>::iterator i;
+        for (auto i : postcap_chain)
+            delete(i);
+        postcap_chain.clear();
 
-        for (i = postcap_chain.begin(); i != postcap_chain.end(); ++i) {
-            delete(*i);
-        }
+        for (auto i : llcdissect_chain)
+            delete(i);
+        llcdissect_chain.clear();
 
-        for (i = llcdissect_chain.begin(); i != llcdissect_chain.end(); ++i) {
-            delete(*i);
-        }
+        for (auto i : decrypt_chain)
+            delete(i);
+        decrypt_chain.clear();
 
-        for (i = decrypt_chain.begin(); i != decrypt_chain.end(); ++i) {
-            delete(*i);
-        }
+        for (auto i : datadissect_chain)
+            delete(i);
+        datadissect_chain.clear();
 
-        for (i = datadissect_chain.begin(); i != datadissect_chain.end(); ++i) {
-            delete(*i);
-        }
+        for (auto i : classifier_chain)
+            delete(i);
+        classifier_chain.clear();
 
-        for (i = classifier_chain.begin(); i != classifier_chain.end(); ++i) {
-            delete(*i);
-        }
+        for (auto i : tracker_chain)
+            delete(i);
+        tracker_chain.clear();
 
-        for (i = tracker_chain.begin(); i != tracker_chain.end(); ++i) {
-            delete(*i);
-        }
+        for (auto i : logging_chain)
+            delete(i);
+        logging_chain.clear();
 
-        for (i = logging_chain.begin(); i != logging_chain.end(); ++i) {
-            delete(*i);
-        }
     }
 
 }
