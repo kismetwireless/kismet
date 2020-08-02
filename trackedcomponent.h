@@ -724,22 +724,28 @@ class tracker_component : public tracker_element_map {
 
 public:
     tracker_component() :
-        tracker_element_map(0) {
+        tracker_element_map(0),
+        registered_fields{nullptr} {
             Globalreg::n_tracked_components++;
         }
 
     tracker_component(int in_id) :
-        tracker_element_map(in_id) {
+        tracker_element_map(in_id),
+        registered_fields{nullptr} {
             Globalreg::n_tracked_components++;
         }
 
     tracker_component(int in_id, std::shared_ptr<tracker_element_map> e __attribute__((unused))) :
-        tracker_element_map(in_id) {
+        tracker_element_map(in_id),
+        registered_fields{nullptr} {
             Globalreg::n_tracked_components++;
         }
 
 	virtual ~tracker_component() {
         Globalreg::n_tracked_components--;
+
+        if (registered_fields != nullptr)
+            delete registered_fields;
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
@@ -806,10 +812,14 @@ protected:
             Globalreg::globalreg->entrytracker->register_field(in_name, 
                     tracker_element_factory<build_type>(), in_desc);
 
+        if (registered_fields == nullptr)
+            registered_fields = new std::vector<std::unique_ptr<registered_field>>();
+
         auto rf = std::unique_ptr<registered_field>(new registered_field(id, 
                     reinterpret_cast<shared_tracker_element *>(in_dest), 
                     true));
-        registered_fields.push_back(std::move(rf));
+
+        registered_fields->push_back(std::move(rf));
 
         return id;
     }
@@ -830,7 +840,7 @@ protected:
     // Add imported or new field to our map for use tracking.
     virtual shared_tracker_element import_or_new(std::shared_ptr<tracker_element_map> e, int i);
 
-    std::vector<std::unique_ptr<registered_field>> registered_fields;
+    std::vector<std::unique_ptr<registered_field>> *registered_fields;
 };
 
 

@@ -36,15 +36,21 @@ int tracker_component::register_field(const std::string& in_name,
         Globalreg::globalreg->entrytracker->register_field(in_name, std::move(in_builder), in_desc);
 
     if (in_dest != NULL) {
+        if (registered_fields == nullptr)
+            registered_fields = new std::vector<std::unique_ptr<registered_field>>();
+
         auto rf = std::unique_ptr<registered_field>(new registered_field(id, in_dest));
-        registered_fields.push_back(std::move(rf));
+        registered_fields->push_back(std::move(rf));
     }
 
     return id;
 }
 
 void tracker_component::reserve_fields(std::shared_ptr<tracker_element_map> e) {
-    for (auto& rf : registered_fields) {
+    if (registered_fields == nullptr)
+        return;
+
+    for (auto& rf : *registered_fields) {
         if (rf->assign != nullptr) {
             // We use negative IDs to indicate dynamic to eke out 4 more bytes
             if (rf->id < 0) {
@@ -60,8 +66,8 @@ void tracker_component::reserve_fields(std::shared_ptr<tracker_element_map> e) {
     }
 
     // Remove all the registration records we've allocated
-    auto nv = std::vector<std::unique_ptr<registered_field>>();
-    registered_fields.swap(nv);
+    delete registered_fields;
+    registered_fields = nullptr;
 }
 
 shared_tracker_element tracker_component::import_or_new(std::shared_ptr<tracker_element_map> e, int i) {
