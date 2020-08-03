@@ -1440,20 +1440,20 @@ public:
     }
 
     // Optionally present as a vector of content when serializing
-    void set_as_vector(const bool in_v) {
+    virtual void set_as_vector(const bool in_v) {
         present_vector = in_v;
     }
 
-    bool as_vector() const {
+    virtual bool as_vector() const {
         return present_vector;
     }
 
     // Optionally present as a vector of keys when serializing
-    void set_as_key_vector(const bool in_v) {
+    virtual void set_as_key_vector(const bool in_v) {
         present_key_vector = in_v;
     }
 
-    bool as_key_vector() const {
+    virtual bool as_key_vector() const {
         return present_key_vector;
     }
 
@@ -1850,7 +1850,7 @@ public:
         tracker_element_core_map<std::unordered_map<double, double>, double, double>() { }
 
     tracker_element_double_map_double(int id) :
-        tracker_element_core_map<std::unordered_map<double, double>, double, double>() { }
+        tracker_element_core_map<std::unordered_map<double, double>, double, double>(id) { }
 
     virtual tracker_type get_type() const override {
         return tracker_type::tracker_double_map_double;
