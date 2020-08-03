@@ -519,7 +519,11 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     span: true,
                     liveupdate: true,
                     filter: function(opts) {
-                        return (Object.keys(opts['data']['kismet.device.base.freq_khz_map']).length >= 1);
+                        try {
+                            return (Object.keys(opts['data']['kismet.device.base.freq_khz_map']).length >= 1);
+                        } catch (error) {
+                            return 0;
+                        }
                     },
                     render: function(opts) {
                         var d = 
