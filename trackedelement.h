@@ -926,10 +926,6 @@ public:
     }
 
     virtual void coercive_set(double in_num) override {
-        if (in_num < value_min || in_num > value_max)
-            throw std::runtime_error(fmt::format("cannot coerce to {}, number out of range",
-                        this->get_type_as_string()));
-
         this->value = static_cast<N>(in_num);
     }
 
@@ -1086,30 +1082,19 @@ public:
     }
 
 protected:
-    // Min/max ranges for conversion
-    N value_min, value_max;
     N value;
 };
 
 class tracker_element_uint8 : public tracker_element_core_numeric<uint8_t> {
 public:
     tracker_element_uint8() :
-        tracker_element_core_numeric<uint8_t>() {
-            value_min = 0;
-            value_max = INT8_MAX;
-        }
+        tracker_element_core_numeric<uint8_t>() { }
 
     tracker_element_uint8(int id) :
-        tracker_element_core_numeric<uint8_t>(id) {
-            value_min = 0;
-            value_max = INT8_MAX;
-        }
+        tracker_element_core_numeric<uint8_t>(id) { }
 
     tracker_element_uint8(int id, const uint8_t& v) :
-        tracker_element_core_numeric<uint8_t>(id, v) {
-            value_min = 0;
-            value_max = INT8_MAX;
-        }
+        tracker_element_core_numeric<uint8_t>(id, v) { }
 
     virtual tracker_type get_type() const override {
         return tracker_type::tracker_uint8;
@@ -1135,22 +1120,13 @@ public:
 class tracker_element_int8 : public tracker_element_core_numeric<int8_t> {
 public:
     tracker_element_int8() :
-        tracker_element_core_numeric<int8_t>() {
-            value_min = INT8_MIN;
-            value_max = INT8_MAX;
-        }
+        tracker_element_core_numeric<int8_t>() { }
 
     tracker_element_int8(int id) :
-        tracker_element_core_numeric<int8_t>(id) {
-            value_min = INT8_MIN;
-            value_max = INT8_MAX;
-        }
+        tracker_element_core_numeric<int8_t>(id) { }
 
     tracker_element_int8(int id, const int8_t& v) :
-        tracker_element_core_numeric<int8_t>(id, v) {
-            value_min = INT8_MIN;
-            value_max = INT8_MAX;
-        }
+        tracker_element_core_numeric<int8_t>(id, v) { }
 
     virtual tracker_type get_type() const override {
         return tracker_type::tracker_int8;
@@ -1176,22 +1152,13 @@ public:
 class tracker_element_uint16 : public tracker_element_core_numeric<uint16_t> {
 public:
     tracker_element_uint16() :
-        tracker_element_core_numeric<uint16_t>() {
-            value_min = 0;
-            value_max = UINT16_MAX;
-        }
+        tracker_element_core_numeric<uint16_t>() { }
 
     tracker_element_uint16(int id) :
-        tracker_element_core_numeric<uint16_t>(id) {
-            value_min = 0;
-            value_max = UINT16_MAX;
-        }
+        tracker_element_core_numeric<uint16_t>(id) { }
 
     tracker_element_uint16(int id, const uint16_t& v) :
-        tracker_element_core_numeric<uint16_t>(id, v) {
-            value_min = 0;
-            value_max = UINT16_MAX;
-        }
+        tracker_element_core_numeric<uint16_t>(id, v) { }
 
     virtual tracker_type get_type() const override {
         return tracker_type::tracker_uint16;
@@ -1217,22 +1184,13 @@ public:
 class tracker_element_int16 : public tracker_element_core_numeric<int16_t> {
 public:
     tracker_element_int16() :
-        tracker_element_core_numeric<int16_t>() {
-            value_min = INT16_MIN;
-            value_max = INT16_MAX;
-        }
+        tracker_element_core_numeric<int16_t>() { }
 
     tracker_element_int16(int id) :
-        tracker_element_core_numeric<int16_t>(id) {
-            value_min = INT16_MIN;
-            value_max = INT16_MAX;
-        }
+        tracker_element_core_numeric<int16_t>(id) { }
 
     tracker_element_int16(int id, const int16_t& v) :
-        tracker_element_core_numeric<int16_t>(id, v) {
-            value_min = INT16_MIN;
-            value_max = INT16_MAX;
-        }
+        tracker_element_core_numeric<int16_t>(id, v) { }
 
     virtual tracker_type get_type() const override {
         return tracker_type::tracker_int16;
@@ -1258,22 +1216,13 @@ public:
 class tracker_element_uint32 : public tracker_element_core_numeric<uint32_t> {
 public:
     tracker_element_uint32() :
-        tracker_element_core_numeric<uint32_t>() {
-            value_min = 0;
-            value_max = UINT32_MAX;
-        }
+        tracker_element_core_numeric<uint32_t>() { }
 
     tracker_element_uint32(int id) :
-        tracker_element_core_numeric<uint32_t>(id) {
-            value_min = 0;
-            value_max = UINT32_MAX;
-        }
+        tracker_element_core_numeric<uint32_t>(id) { }
 
     tracker_element_uint32(int id, const uint32_t& v) :
-        tracker_element_core_numeric<uint32_t>(id, v) {
-            value_min = 0;
-            value_max = UINT32_MAX;
-        }
+        tracker_element_core_numeric<uint32_t>(id, v) { }
 
     virtual tracker_type get_type() const override {
         return tracker_type::tracker_uint32;
@@ -1299,22 +1248,13 @@ public:
 class tracker_element_int32 : public tracker_element_core_numeric<int32_t> {
 public:
     tracker_element_int32() :
-        tracker_element_core_numeric<int32_t>() {
-            value_min = INT32_MIN;
-            value_max = INT32_MAX;
-        }
+        tracker_element_core_numeric<int32_t>() { }
 
     tracker_element_int32(int id) :
-        tracker_element_core_numeric<int32_t>(id) {
-            value_min = INT32_MIN;
-            value_max = INT32_MAX;
-        }
+        tracker_element_core_numeric<int32_t>(id) { }
 
     tracker_element_int32(int id, const int32_t& v) :
-        tracker_element_core_numeric<int32_t>(id, v) {
-            value_min = INT32_MIN;
-            value_max = INT32_MAX;
-        }
+        tracker_element_core_numeric<int32_t>(id, v) { }
 
     virtual tracker_type get_type() const override {
         return tracker_type::tracker_int32;
@@ -1340,22 +1280,13 @@ public:
 class tracker_element_uint64 : public tracker_element_core_numeric<uint64_t> {
 public:
     tracker_element_uint64() :
-        tracker_element_core_numeric<uint64_t>() {
-            value_min = 0;
-            value_max = UINT64_MAX;
-        }
+        tracker_element_core_numeric<uint64_t>() { }
 
     tracker_element_uint64(int id) :
-        tracker_element_core_numeric<uint64_t>(id) {
-            value_min = 0;
-            value_max = UINT64_MAX;
-        }
+        tracker_element_core_numeric<uint64_t>(id) { }
 
     tracker_element_uint64(int id, const uint64_t& v) :
-        tracker_element_core_numeric<uint64_t>(id, v) {
-            value_min = 0;
-            value_max = UINT64_MAX;
-        }
+        tracker_element_core_numeric<uint64_t>(id, v) { }
 
     virtual tracker_type get_type() const override {
         return tracker_type::tracker_uint64;
@@ -1381,22 +1312,13 @@ public:
 class tracker_element_int64 : public tracker_element_core_numeric<int64_t> {
 public:
     tracker_element_int64() :
-        tracker_element_core_numeric<int64_t>() {
-            value_min = INT64_MIN;
-            value_max = INT64_MAX;
-        }
+        tracker_element_core_numeric<int64_t>() { }
 
     tracker_element_int64(int id) :
-        tracker_element_core_numeric<int64_t>(id) {
-            value_min = INT64_MIN;
-            value_max = INT64_MAX;
-        }
+        tracker_element_core_numeric<int64_t>(id) { }
 
     tracker_element_int64(int id, const int64_t& v) :
-        tracker_element_core_numeric<int64_t>(id, v) {
-            value_min = INT64_MIN;
-            value_max = INT64_MAX;
-        }
+        tracker_element_core_numeric<int64_t>(id, v) { }
 
     virtual tracker_type get_type() const override {
         return tracker_type::tracker_int64;
@@ -1422,22 +1344,13 @@ public:
 class tracker_element_float : public tracker_element_core_numeric<float> {
 public:
     tracker_element_float() :
-        tracker_element_core_numeric<float>() {
-            value_min = std::numeric_limits<float>::min();
-            value_max = std::numeric_limits<float>::max();
-        }
+        tracker_element_core_numeric<float>() { }
 
     tracker_element_float(int id) :
-        tracker_element_core_numeric<float>(id) {
-            value_min = std::numeric_limits<float>::min();
-            value_max = std::numeric_limits<float>::max();
-        }
+        tracker_element_core_numeric<float>(id) { }
 
     tracker_element_float(int id, const float& v) :
-        tracker_element_core_numeric<float>(id, v) {
-            value_min = std::numeric_limits<float>::min();
-            value_max = std::numeric_limits<float>::max();
-        }
+        tracker_element_core_numeric<float>(id, v) { }
 
     virtual tracker_type get_type() const override {
         return tracker_type::tracker_float;
@@ -1463,22 +1376,13 @@ public:
 class tracker_element_double : public tracker_element_core_numeric<double> {
 public:
     tracker_element_double() :
-        tracker_element_core_numeric<double>() {
-            value_min = std::numeric_limits<double>::min();
-            value_max = std::numeric_limits<double>::max();
-        }
+        tracker_element_core_numeric<double>() { }
 
     tracker_element_double(int id) :
-        tracker_element_core_numeric<double>(id) {
-            value_min = std::numeric_limits<double>::min();
-            value_max = std::numeric_limits<double>::max();
-        }
+        tracker_element_core_numeric<double>(id) { }
 
     tracker_element_double(int id, const double& v) :
-        tracker_element_core_numeric<double>(id, v) {
-            value_min = std::numeric_limits<double>::min();
-            value_max = std::numeric_limits<double>::max();
-        }
+        tracker_element_core_numeric<double>(id, v) { }
 
     virtual tracker_type get_type() const override {
         return tracker_type::tracker_double;
