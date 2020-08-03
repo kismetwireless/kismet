@@ -1055,11 +1055,13 @@ public:
 
     __Proxy(min_tx_power, uint8_t, unsigned int, unsigned int, min_tx_power);
     __Proxy(max_tx_power, uint8_t, unsigned int, unsigned int, max_tx_power);
-    __ProxyTrackable(supported_channels, tracker_element_vector_double, supported_channels);
+    __ProxyDynamicTrackable(supported_channels, tracker_element_vector_double, 
+            supported_channels, supported_channels_id);
 
     __Proxy(link_measurement_capable, uint8_t, bool, bool, link_measurement_capable);
     __Proxy(neighbor_report_capable, uint8_t, bool, bool, neighbor_report_capable);
-    __ProxyTrackable(extended_capabilities_list, tracker_element_vector_string, extended_capabilities_list);
+    __ProxyDynamicTrackable(extended_capabilities_list, tracker_element_vector_string, 
+            extended_capabilities_list, extended_capabilities_list_id);
 
     __Proxy(beacon_fingerprint, uint32_t, uint32_t, uint32_t, beacon_fingerprint);
     __Proxy(probe_fingerprint, uint32_t, uint32_t, uint32_t, probe_fingerprint);
@@ -1185,14 +1187,17 @@ protected:
         register_field("dot11.device.min_tx_power", "Minimum advertised TX power", &min_tx_power);
         register_field("dot11.device.max_tx_power", "Maximum advertised TX power", &max_tx_power);
 
-        register_field("dot11.device.supported_channels", "Advertised supported channels", 
+        supported_channels_id =
+            register_dynamic_field("dot11.device.supported_channels", "Advertised supported channels", 
                 &supported_channels);
 
         register_field("dot11.device.link_measurement_capable", 
                 "Advertised link measurement client capability", &link_measurement_capable);
         register_field("dot11.device.neighbor_report_capable",
                 "Advertised neighbor report capability", &neighbor_report_capable);
-        register_field("dot11.device.extended_capabilities", 
+        
+        extended_capabilities_list_id =
+            register_dynamic_field("dot11.device.extended_capabilities", 
                 "Advertised extended capabilities list", &extended_capabilities_list);
 
         register_field("dot11.device.beacon_fingerprint", "Beacon fingerprint", &beacon_fingerprint);
@@ -1341,11 +1346,13 @@ protected:
     std::shared_ptr<tracker_element_uint8> max_tx_power;
 
     std::shared_ptr<tracker_element_vector_double> supported_channels;
+    int supported_channels_id;
 
     std::shared_ptr<tracker_element_uint8> link_measurement_capable;
     std::shared_ptr<tracker_element_uint8> neighbor_report_capable;
 
     std::shared_ptr<tracker_element_vector_string> extended_capabilities_list;
+    int extended_capabilities_list_id;
 
     std::shared_ptr<tracker_element_uint32> beacon_fingerprint;
     std::shared_ptr<tracker_element_uint32> probe_fingerprint;
