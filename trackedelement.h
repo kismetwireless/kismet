@@ -1419,13 +1419,11 @@ public:
 
     tracker_element_core_map() : 
         tracker_element(),
-        present_vector(false),
-        present_key_vector(false) { }
+        present_set{0} { }
 
     tracker_element_core_map(int id) :
         tracker_element(id),
-        present_vector(false),
-        present_key_vector(false) { }
+        present_set{0} { }
 
     virtual bool is_stringable() const override {
         return false;
@@ -1441,20 +1439,26 @@ public:
 
     // Optionally present as a vector of content when serializing
     virtual void set_as_vector(const bool in_v) {
-        present_vector = in_v;
+        if (in_v)
+            present_set |= 0x01;
+        else
+            present_set &= ~(0x01);
     }
 
     virtual bool as_vector() const {
-        return present_vector;
+        return (present_set & 0x01);
     }
 
     // Optionally present as a vector of keys when serializing
     virtual void set_as_key_vector(const bool in_v) {
-        present_key_vector = in_v;
+        if (in_v)
+            present_set |= 0x02;
+        else
+            present_set &= ~(0x02);
     }
 
     virtual bool as_key_vector() const {
-        return present_key_vector;
+        return (present_set & 0x02);
     }
 
     virtual void coercive_set(const std::string& in_str) override {
@@ -1552,7 +1556,7 @@ public:
 
 protected:
     map_t map;
-    bool present_vector, present_key_vector;
+    uint8_t present_set;
 };
 
 // Dictionary / map-by-id
