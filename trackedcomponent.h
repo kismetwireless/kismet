@@ -543,6 +543,10 @@ class tracker_component : public tracker_element_map {
     } \
     virtual bool has_##name() const { \
         return cvar != NULL; \
+    } \
+    virtual void clear_##name() { \
+        erase(cvar); \
+        cvar = nullptr; \
     }
 
 // Proxy dynamic trackable (value in class may be null and is dynamically
@@ -571,6 +575,10 @@ class tracker_component : public tracker_element_map {
     } \
     virtual bool has_##name() const { \
         return cvar != NULL; \
+    } \
+    virtual void clear_##name() { \
+        erase(cvar); \
+        cvar = nullptr; \
     }
 
 // Proxy dynamic trackable (value in class may be null and is dynamically
@@ -602,6 +610,10 @@ class tracker_component : public tracker_element_map {
     virtual bool has_##name() const { \
         local_shared_locker l((kis_recursive_timed_mutex *) &mutex); \
         return cvar != NULL; \
+    } \
+    virtual void clear_##name() { \
+        erase(cvar); \
+        cvar = nullptr; \
     }
 
 // Proxy dynamic trackable (value in class may be null and is dynamically
