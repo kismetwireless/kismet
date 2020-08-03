@@ -3461,21 +3461,23 @@ void kis_80211_phy::generate_handshake_pcap(std::shared_ptr<kis_tracked_device_b
 
             if (tokenurl[6] == tokenurl[4] + "-handshake.pcap") {
                 // Write all the handshakes
-                for (auto i : *(dot11dev->get_wpa_key_vec())) {
-                    auto eapol =
-                        std::static_pointer_cast<dot11_tracked_eapol>(i);
+                if (dot11dev->has_wpa_key_vec()) {
+                    for (auto i : *(dot11dev->get_wpa_key_vec())) {
+                        auto eapol =
+                            std::static_pointer_cast<dot11_tracked_eapol>(i);
 
-                    auto packet = eapol->get_eapol_packet();
+                        auto packet = eapol->get_eapol_packet();
 
-                    // Make a pcap header
-                    pkt_hdr.timeval_s = packet->get_ts_sec();
-                    pkt_hdr.timeval_us = packet->get_ts_usec();
+                        // Make a pcap header
+                        pkt_hdr.timeval_s = packet->get_ts_sec();
+                        pkt_hdr.timeval_us = packet->get_ts_usec();
 
-                    pkt_hdr.len = packet->get_data()->length();
-                    pkt_hdr.caplen = pkt_hdr.len;
+                        pkt_hdr.len = packet->get_data()->length();
+                        pkt_hdr.caplen = pkt_hdr.len;
 
-                    stream.write((const char *) &pkt_hdr, sizeof(pkt_hdr));
-                    stream.write((const char *) packet->get_data()->get().data(), pkt_hdr.len);
+                        stream.write((const char *) &pkt_hdr, sizeof(pkt_hdr));
+                        stream.write((const char *) packet->get_data()->get().data(), pkt_hdr.len);
+                    }
                 }
             } else if (tokenurl[6] == tokenurl[4] + "-pmkid.pcap") {
                 // Write just the pmkid
