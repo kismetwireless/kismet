@@ -419,7 +419,7 @@ public:
     __Proxy(wpa_mfp_required, uint8_t, bool, bool, wpa_mfp_required);
     __Proxy(wpa_mfp_supported, uint8_t, bool, bool, wpa_mfp_supported);
 
-    __ProxyTrackable(ie_tag_list, tracker_element_vector_double, ie_tag_list);
+    __ProxyDynamicTrackable(ie_tag_list, tracker_element_vector_double, ie_tag_list, ie_tag_list_id);
 
     __ProxyDynamic(wps_state, uint32_t, uint32_t, uint32_t, wps_state, wps_state_id);
     __ProxyDynamic(wps_manuf, std::string, std::string, std::string, wps_manuf, wps_manuf_id);
@@ -449,6 +449,7 @@ protected:
     std::shared_ptr<tracker_element_uint8> wpa_mfp_supported;
 
     std::shared_ptr<tracker_element_vector_double> ie_tag_list;
+    int ie_tag_list_id;
 
     // WPS components
     std::shared_ptr<tracker_element_uint32> wps_state;
@@ -584,7 +585,7 @@ public:
     __Proxy(ccx_txpower, uint8_t, unsigned int, unsigned int, ccx_txpower);
     __Proxy(cisco_client_mfp, uint8_t, bool, bool, cisco_client_mfp);
 
-    __ProxyTrackable(ie_tag_list, tracker_element_vector_double, ie_tag_list);
+    __ProxyDynamicTrackable(ie_tag_list, tracker_element_vector_double, ie_tag_list, ie_tag_list_id);
 
     __ProxyDynamicTrackable(ie_tag_content, tracker_element_int_map, ie_tag_content, ie_tag_content_id);
 
@@ -695,6 +696,7 @@ protected:
 
     // IE tags present, and order
     std::shared_ptr<tracker_element_vector_double> ie_tag_list;
+    int ie_tag_list_id;
 
     // IE tag contents
     std::shared_ptr<tracker_element_int_map> ie_tag_content;

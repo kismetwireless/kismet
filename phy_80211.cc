@@ -2329,14 +2329,15 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
 
     ssid->set_ietag_checksum(dot11info->ietag_csum);
 
-    auto taglist = PacketDot11IElist(in_pack, dot11info);
-    ssid->get_ie_tag_list()->clear();
-    for (auto ti : taglist) 
-        ssid->get_ie_tag_list()->push_back(std::get<0>(ti));
+    if (keep_ie_tags_per_bssid) {
+        auto taglist = PacketDot11IElist(in_pack, dot11info);
+        ssid->get_ie_tag_list()->clear();
+        for (auto ti : taglist) 
+            ssid->get_ie_tag_list()->push_back(std::get<0>(ti));
 
-    // If we snapshot the ie tags, do so
-    if (keep_ie_tags_per_bssid)
+        // If we snapshot the ie tags, do so
         ssid->set_ietag_content_from_packet(dot11info->ie_tags);
+    }
 
     // Alias the last ssid snapshot
     auto lbr = dot11dev->get_last_beaconed_ssid_record();
@@ -2755,10 +2756,12 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
         }
 
         // Update the IE listing at the device level
-        auto taglist = PacketDot11IElist(in_pack, dot11info);
-        probessid->get_ie_tag_list()->clear();
-        for (auto ti : taglist) 
-            probessid->get_ie_tag_list()->push_back(std::get<0>(ti));
+        if (keep_ie_tags_per_bssid) {
+            auto taglist = PacketDot11IElist(in_pack, dot11info);
+            probessid->get_ie_tag_list()->clear();
+            for (auto ti : taglist) 
+                probessid->get_ie_tag_list()->push_back(std::get<0>(ti));
+        }
 
         auto tag_hash = xx_hash_cpp{};
 

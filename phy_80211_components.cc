@@ -163,8 +163,9 @@ void dot11_probed_ssid::register_fields() {
     register_field("dot11.probedssid.wpa_mfp_supported",
             "WPA management protection supported", &wpa_mfp_supported);
 
-    register_field("dot11.probedssid.ie_tag_list",
-            "802.11 IE tag list in beacon", &ie_tag_list);
+    ie_tag_list_id =
+        register_dynamic_field("dot11.probedssid.ie_tag_list",
+                "802.11 IE tag list in beacon", &ie_tag_list);
 
     wps_state_id =
         register_dynamic_field("dot11.probedssid.wps_state", "WPS state bitfield", &wps_state);
@@ -279,8 +280,9 @@ void dot11_advertised_ssid::register_fields() {
     register_field("dot11.advertisedssid.cisco_client_mfp",
             "Cisco client management frame protection", &cisco_client_mfp);
 
-    register_field("dot11.advertisedssid.ie_tag_list",
-            "802.11 IE tag list in last beacon", &ie_tag_list);
+    ie_tag_list_id =
+        register_dynamic_field("dot11.advertisedssid.ie_tag_list",
+                "802.11 IE tag list in last beacon", &ie_tag_list);
 
     ie_tag_content_id =
         register_dynamic_field("dot11.advertisedssid.ie_tag_content",
