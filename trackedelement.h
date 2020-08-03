@@ -886,6 +886,11 @@ public:
         tracker_element(id),
         value(v) { }
 
+    virtual tracker_type get_type() const override {
+        // All base-level numeric trackers are a double, to make gcc stop complaining for now
+        return tracker_type::tracker_double;
+    }
+
     virtual bool is_stringable() const override {
         return true;
     }
