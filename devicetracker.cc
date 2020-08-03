@@ -721,7 +721,7 @@ std::shared_ptr<kis_tracked_device_base>
 
         device->device_mutex.set_name(fmt::format("kis_tracked_device({})", key));
         device->set_macaddr(in_mac);
-        device->set_phyname(in_phy->fetch_phy_name());
+        device->set_tracker_phyname(get_cached_phyname(in_phy->fetch_phy_name()));
 		device->set_phyid(in_phy->fetch_phy_id());
 
         device->set_server_uuid(globalreg->server_uuid);
@@ -1554,13 +1554,27 @@ void device_tracker::handle_new_device_event(std::shared_ptr<eventbus_event> evt
 }
 
 std::shared_ptr<tracker_element_string> device_tracker::get_cached_devicetype(const std::string& type) {
-    local_locker l(&device_type_cache_mutex, "device_tracker:;get_cached_devicetype");
+    local_locker l(&device_type_cache_mutex, "device_tracker::get_cached_devicetype");
 
     auto k = device_type_cache.find(type);
 
     if (k == device_type_cache.end()) {
         auto r = std::make_shared<tracker_element_string>(type);
         device_type_cache[type] = r;
+        return r;
+    }
+
+    return k->second;
+}
+
+std::shared_ptr<tracker_element_string> device_tracker::get_cached_phyname(const std::string& phyname) {
+    local_locker l(&device_phy_name_cache_mutex, "device_tracker::get_cached_phyname");
+
+    auto k = device_phy_name_cache.find(phyname);
+
+    if (k == device_phy_name_cache.end()) {
+        auto r = std::make_shared<tracker_element_string>(phyname);
+        device_phy_name_cache[phyname] = r;
         return r;
     }
 

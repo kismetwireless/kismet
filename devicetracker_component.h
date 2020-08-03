@@ -287,7 +287,10 @@ public:
             
             });
 
-    __Proxy(phyname, std::string, std::string, std::string, phyname);
+    // __Proxy(phyname, std::string, std::string, std::string, phyname);
+    __ProxySwappingTrackable(phyname, tracker_element_string, phyname);
+    __ProxyGet(phyname, std::string, std::string, phyname);
+
 	__Proxy(phyid, int32_t, int32_t, int32_t, phyid);
 
     __ProxyL(devicename, std::string, std::string, std::string, devicename, 
