@@ -555,8 +555,7 @@ public:
     __ProxyDynamic(dot11d_country, std::string, std::string, std::string, dot11d_country, 
             dot11d_country_id);
 
-    __ProxyTrackable(dot11d_vec, tracker_element_vector, dot11d_vec);
-
+    __ProxyDynamicTrackable(dot11d_vec, tracker_element_vector, dot11d_vec, dot11d_vec_id);
     void set_dot11d_vec(std::vector<dot11_packinfo_dot11d_entry> vec);
 
     __ProxyDynamic(wps_state, uint32_t, uint32_t, uint32_t, wps_state, wps_state_id);
@@ -600,13 +599,15 @@ protected:
         if (e != NULL) {
             // If we're inheriting, it's our responsibility to kick submaps and vectors with
             // complex types as well; since they're not themselves complex objects
-            for (auto d = dot11d_vec->begin(); d != dot11d_vec->end(); ++d) {
-                auto din =
-                    std::make_shared<dot11_11d_tracked_range_info>(dot11d_country_entry_id,
-                            std::static_pointer_cast<tracker_element_map>(*d));
+            if (dot11d_vec != nullptr) {
+                for (auto d = dot11d_vec->begin(); d != dot11d_vec->end(); ++d) {
+                    auto din =
+                        std::make_shared<dot11_11d_tracked_range_info>(dot11d_country_entry_id,
+                                std::static_pointer_cast<tracker_element_map>(*d));
 
-                // And assign it over the same key
-                *d = std::static_pointer_cast<tracker_element>(din);
+                    // And assign it over the same key
+                    *d = std::static_pointer_cast<tracker_element>(din);
+                }
             }
         }
     }
@@ -653,6 +654,7 @@ protected:
     int dot11d_country_id;
 
     std::shared_ptr<tracker_element_vector> dot11d_vec;
+    int dot11d_vec_id;
     int dot11d_country_entry_id;
 
     // WPS components

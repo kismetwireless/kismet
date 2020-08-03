@@ -2542,7 +2542,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
         }
     }
 
-    // Only process dot11 from beacons
+    // Only process dot11d from beacons
     if (dot11info->subtype == packet_sub_beacon) {
         bool dot11dmismatch = false;
 
@@ -2551,19 +2551,25 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
             dot11dmismatch = true;
         }
 
-        auto dot11dvec(ssid->get_dot11d_vec());
-        for (unsigned int vc = 0; 
-                vc < dot11dvec->size() && vc < dot11info->dot11d_vec.size(); vc++) {
-            std::shared_ptr<dot11_11d_tracked_range_info> ri =
-                std::static_pointer_cast<dot11_11d_tracked_range_info>(*(dot11dvec->begin() + vc));
+        if (ssid->has_dot11d_vec()) {
+            auto dot11dvec(ssid->get_dot11d_vec());
 
-            if (ri->get_startchan() != dot11info->dot11d_vec[vc].startchan ||
-                    ri->get_numchan() != dot11info->dot11d_vec[vc].numchan ||
-                    ri->get_txpower() != dot11info->dot11d_vec[vc].txpower) {
-                dot11dmismatch = true;
-                break;
+            if (dot11dvec->size() != dot11info->dot11d_vec.size()) {
+                dot11dmismatch = true; 
+            } else {
+                for (unsigned int vc = 0; 
+                        vc < dot11dvec->size() && vc < dot11info->dot11d_vec.size(); vc++) {
+                    std::shared_ptr<dot11_11d_tracked_range_info> ri =
+                        std::static_pointer_cast<dot11_11d_tracked_range_info>(*(dot11dvec->begin() + vc));
+
+                    if (ri->get_startchan() != dot11info->dot11d_vec[vc].startchan ||
+                            ri->get_numchan() != dot11info->dot11d_vec[vc].numchan ||
+                            ri->get_txpower() != dot11info->dot11d_vec[vc].txpower) {
+                        dot11dmismatch = true;
+                        break;
+                    }
+                }
             }
-
         }
 
         if (dot11dmismatch) {
@@ -2583,8 +2589,11 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
         }
 
         ssid->set_dot11d_country(dot11info->dot11d_country);
-        ssid->set_dot11d_vec(dot11info->dot11d_vec);
 
+        if (dot11info->dot11d_vec.size() > 0 && ssid->has_dot11d_vec())
+            ssid->set_dot11d_vec(dot11info->dot11d_vec);
+        else if (dot11info->dot11d_vec.size() == 0 && ssid->has_dot11d_vec())
+            ssid->clear_dot11d_vec();
     }
 
     ssid->set_wps_state(dot11info->wps);

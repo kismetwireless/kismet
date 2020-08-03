@@ -231,7 +231,9 @@ void dot11_advertised_ssid::register_fields() {
     dot11d_country_id = 
         register_dynamic_field("dot11.advertisedssid.dot11d_country", "802.11d country", 
                 &dot11d_country);
-    register_field("dot11.advertisedssid.dot11d_list", "802.11d channel list", &dot11d_vec);
+    
+    dot11d_vec_id =
+        register_dynamic_field("dot11.advertisedssid.dot11d_list", "802.11d channel list", &dot11d_vec);
 
     dot11d_country_entry_id =
         register_field("dot11.advertisedssid.dot11d_entry", 
@@ -309,14 +311,15 @@ void dot11_advertised_ssid::set_ietag_content_from_packet(std::shared_ptr<dot11_
 }
 
 void dot11_advertised_ssid::set_dot11d_vec(std::vector<dot11_packinfo_dot11d_entry> vec) {
-    dot11d_vec->clear();
+    auto d11dvec = get_tracker_dot11d_vec();
+    d11dvec->clear();
 
     for (auto x : vec) {
-        auto ri = 
-            std::make_shared<dot11_11d_tracked_range_info>(dot11d_country_entry_id);
+        auto ri = std::make_shared<dot11_11d_tracked_range_info>(dot11d_country_entry_id);
         ri->set_startchan(x.startchan);
         ri->set_numchan(x.numchan);
         ri->set_txpower(x.txpower);
+        d11dvec->push_back(ri);
     }
 }
 
