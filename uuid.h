@@ -171,7 +171,7 @@ public:
 
     std::size_t hash;
 
-    int error;
+    uint8_t error;
 
 protected:
     void gen_hash() {
