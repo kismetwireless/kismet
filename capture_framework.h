@@ -346,6 +346,9 @@ struct kis_capture_handler {
 
     /* Fixed GPS name */
     char *gps_name;
+
+    /* Are we in remote/verbose mode */
+    int verbose;
 };
 
 
@@ -839,6 +842,9 @@ int cf_send_newsource(kis_capture_handler_t *caph, const char *uuid);
  * 1.23e5KHz
  */
 double cf_parse_frequency(const char *freq);
+
+/* Set verbosity */
+void cf_set_verbose(kis_capture_handler_t *caph, int verbosity);
 
 /* Simple redefinition of message flags */
 #define MSGFLAG_DEBUG   KISMET_EXTERNAL__MSGBUS_MESSAGE__MESSAGE_TYPE__DEBUG

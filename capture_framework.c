@@ -419,6 +419,8 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
     ch->channel_hop_failure_list = NULL;
     ch->channel_hop_failure_list_sz = 0;
 
+    ch->verbose = 0;
+
     return ch;
 }
 
@@ -664,6 +666,13 @@ void cf_handler_list_devices(kis_capture_handler_t *caph) {
     }
 
     cbret = (*(caph->listdevices_cb))(caph, 0, msgstr, &interfaces);
+
+    if (strlen(msgstr) != 0 && caph->verbose) {
+        if (cbret <= 0)
+            fprintf(stderr, "ERROR: %s\n", msgstr);
+        else
+            fprintf(stderr, "INFO: %s\n", msgstr);
+    }
 
     if (cbret <= 0) {
         fprintf(stderr, "%s - No supported data sources found...\n", caph->capsource_type);
@@ -1347,6 +1356,9 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         goto finish;
     } else if (strcasecmp(kds_cmd->command, "KDSLISTINTERFACES") == 0) {
         if (caph->listdevices_cb == NULL) {
+            if (caph->verbose)
+                fprintf(stderr, "ERROR: Source does not support listing datasources.\n");
+
             cf_send_listresp(caph, kds_cmd->seqno, true, "", NULL, 0);
             cbret = -1;
             goto finish;
@@ -1354,6 +1366,13 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
             cf_params_list_interface_t **interfaces = NULL;
             msgstr[0] = 0;
             cbret = (*(caph->listdevices_cb))(caph, kds_cmd->seqno, msgstr, &interfaces);
+
+            if (caph->verbose && strlen(msgstr) > 0) {
+                if (cbret >= 0)
+                    fprintf(stderr, "INFO: %s\n", msgstr);
+                else
+                    fprintf(stderr, "ERROR: %s\n", msgstr);
+            }
 
             cf_send_listresp(caph, kds_cmd->seqno, cbret >= 0, msgstr, 
                     interfaces, cbret < 0 ? 0 : cbret);
@@ -1381,6 +1400,8 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         }
     } else if (strcasecmp(kds_cmd->command, "KDSPROBESOURCE") == 0) {
         if (caph->probe_cb == NULL) {
+            if (caph->verbose)
+                fprintf(stderr, "ERROR:  Source does not support automatic probing.\n");
             pthread_mutex_unlock(&(caph->handler_lock));
             cf_send_proberesp(caph, kds_cmd->seqno,
                     false, "Source does not support probing", NULL, NULL);
@@ -1431,6 +1452,9 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         }
     } else if (strcasecmp(kds_cmd->command, "KDSOPENSOURCE") == 0) {
         if (caph->open_cb == NULL) {
+            if (caph->verbose)
+                fprintf(stderr, "ERROR: Source cannot be opened (no open function)\n");
+
             pthread_mutex_unlock(&(caph->handler_lock));
             cf_send_openresp(caph, kds_cmd->seqno,
                     false, "source cannot be opened", 0, NULL, NULL, NULL);
@@ -1461,6 +1485,13 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                     kds_cmd->seqno, open_cmd->definition,
                     msgstr, &dlt, &uuid, kds_cmd,
                     &interfaceparams, &spectrumparams);
+
+            if (caph->verbose && strlen(msgstr) > 0) {
+                if (cbret >= 0)
+                    fprintf(stderr, "INFO: %s\n", msgstr);
+                else
+                    fprintf(stderr, "ERROR: %s\n", msgstr);
+            }
 
             cf_send_openresp(caph, kds_cmd->seqno,
                     cbret < 0 ? 0 : cbret, msgstr, dlt, uuid, interfaceparams,
@@ -1512,6 +1543,9 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
         if (conf_cmd->channel != NULL) {
             /* Handle channel set */
             if (caph->chancontrol_cb == NULL) {
+                if (caph->verbose)
+                    fprintf(stderr, "ERROR: Source does not support channel setting\n");
+
                 pthread_mutex_unlock(&(caph->handler_lock));
                 cf_send_configresp(caph, kds_cmd->seqno,
                         0, "Source does not support setting channel", NULL);
@@ -1535,6 +1569,13 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
                 cbret = (*(caph->chancontrol_cb))(caph,
                         kds_cmd->seqno,
                         translate_chan, msgstr);
+
+                if (caph->verbose && strlen(msgstr) > 0) {
+                    if (cbret >= 0)
+                        fprintf(stderr, "INFO: %s\n", msgstr);
+                    else
+                        fprintf(stderr, "ERROR: %s\n", msgstr);
+                }
 
                 /* Log the channel we're set to */
                 if (cbret > 0) {
@@ -1570,6 +1611,9 @@ int cf_handle_rx_data(kis_capture_handler_t *caph) {
             }
 
             if (caph->chancontrol_cb == NULL) {
+                if (caph->verbose)
+                    fprintf(stderr, "ERROR:  Source does not support setting channels\n");
+
                 cf_send_configresp(caph, kds_cmd->seqno, 0, 
                         "Source does not support setting channel", NULL);
                 cbret = -1;
@@ -1874,6 +1918,9 @@ int cf_handler_remote_connect(kis_capture_handler_t *caph) {
     /* If we have nothing to connect to... */
     if (caph->remote_host == NULL)
         return 0;
+
+    /* Remotes are always verbose */
+    caph->verbose = 1;
 
     /* close the fd if it's open */
     if (caph->tcp_fd >= 0) {
@@ -2455,10 +2502,18 @@ int cf_send_listresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     if (msg != NULL) {
         kemsg.msgtext = strdup(msg);
 
-        if (success)
+        if (success) {
             kemsg.msgtype = MSGFLAG_INFO;
-        else
+
+            if (caph->verbose)
+                fprintf(stderr, "INFO: %s\n", msg);
+
+        } else {
             kemsg.msgtype = MSGFLAG_ERROR;
+
+            if (caph->verbose)
+                fprintf(stderr, "ERROR: %s\n", msg);
+        }
 
         keinterfaces.message = &kemsg;
     }
@@ -2521,6 +2576,14 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
     kesuccess.seqno = seq;
 
     keprobe.success = &kesuccess;
+
+    if (success) {
+        if (caph->verbose)
+            fprintf(stderr, "INFO: %s\n", msg);
+    } else {
+        if (caph->verbose)
+            fprintf(stderr, "ERROR: %s\n", msg);
+    }
 
     if (interface != NULL) {
         if (interface->chanset != NULL) {
@@ -2595,7 +2658,6 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     uint8_t *buf;
     size_t buf_len;
-    
 
     kismet_datasource__open_source_report__init(&keopen);
     kismet_datasource__sub_success__init(&kesuccess);
@@ -3168,6 +3230,10 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph) {
                 "remote server\n");
         sleep(5);
     }
+}
+
+void cf_set_verbose(kis_capture_handler_t *caph, int verbosity) {
+    caph->verbose = verbosity;
 }
 
 
