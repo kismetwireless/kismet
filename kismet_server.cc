@@ -530,6 +530,9 @@ int main(int argc, char *argv[], char *envp[]) {
     globalregistry = Globalreg::globalreg;
     globalreg = globalregistry;
 
+    Globalreg::n_tracked_fields = 0;
+    Globalreg::n_tracked_components = 0;
+
     // Block all signals across all threads, then set up a signal handling service thread
     // to deal with them
     sigemptyset(&core_signal_mask);
