@@ -42,7 +42,7 @@ bool phy_80211_httpd_pcap::httpd_verify_path(const char *path, const char *metho
             return false;
 
         mac_addr dmac(tokenurl[4]);
-        if (dmac.error) {
+        if (dmac.state.error) {
             fprintf(stderr, "debug - invalid dmac %s\n", tokenurl[4].c_str());
             return false;
         }
@@ -110,7 +110,7 @@ KIS_MHD_RETURN phy_80211_httpd_pcap::httpd_create_stream_response(kis_net_httpd 
         return MHD_YES;
 
     mac_addr dmac(tokenurl[4]);
-    if (dmac.error)
+    if (dmac.state.error)
         return MHD_YES;
 
     if (tokenurl[5] != "pcap")

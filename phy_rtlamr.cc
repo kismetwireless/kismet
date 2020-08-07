@@ -84,7 +84,7 @@ mac_addr kis_rtlamr_phy::json_to_mac(Json::Value json) {
         *deviceid = json["meterid"].asUInt();
     } catch (const std::exception& e) {
         mac_addr m;
-        m.error = true;
+        m.state.error = true;
         return m;
     }
 
@@ -119,7 +119,7 @@ bool kis_rtlamr_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     // synth a mac out of of the type and id
     mac_addr rtlmac = json_to_mac(json);
 
-    if (rtlmac.error) {
+    if (rtlmac.state.error) {
         return false;
     }
 

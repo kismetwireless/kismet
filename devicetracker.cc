@@ -405,7 +405,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
     for (auto m : found_vec) {
         auto mac = mac_addr(m);
 
-        if (mac.error) {
+        if (mac.state.error) {
             _MSG_ERROR("Invalid 'devicefound=' option, expected MAC address "
                     "or MAC address mask");
             continue;
@@ -419,7 +419,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
     for (auto m : lost_vec) {
         auto mac = mac_addr(m);
 
-        if (mac.error) {
+        if (mac.state.error) {
             _MSG_ERROR("Invalid 'devicelost=' option, expected MAC address "
                     "or MAC address mask.");
             continue;

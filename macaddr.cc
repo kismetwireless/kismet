@@ -28,7 +28,7 @@ std::istream& operator>>(std::istream& is, mac_addr& m) {
     std::getline(is, sline);
     m.string2long(sline.c_str());
 
-    if (m.error)
+    if (m.state.error)
         is.setstate(std::ios::failbit);
 
     return is;

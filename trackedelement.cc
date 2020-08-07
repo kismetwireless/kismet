@@ -170,7 +170,7 @@ void tracker_element_uuid::coercive_set(const shared_tracker_element& e) {
 void tracker_element_mac_addr::coercive_set(const std::string& in_str) {
     mac_addr m(in_str);
 
-    if (m.error)
+    if (m.state.error)
         throw std::runtime_error("Could not coerce string to macaddr");
 
     value = m;

@@ -542,7 +542,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
         for (auto m : str_tokenize(fetch_opt("validmacs", &optvec), ",", true)) {
             mac_addr ma(m);
 
-            if (ma.error) {
+            if (ma.state.error) {
                 macvec.clear();
                 break;
             }
@@ -888,7 +888,7 @@ int kis_80211_phy::load_wepkeys() {
 
         mac_addr bssid_mac = wepline.substr(0, rwsplit).c_str();
 
-        if (bssid_mac.error == 1) {
+        if (bssid_mac.state.error == 1) {
             _MSG("Malformed 'wepkey' option in the config file", MSGFLAG_FATAL);
             Globalreg::globalreg->fatal_condition = 1;
 			return -1;
@@ -1795,7 +1795,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
         }
 
         auto bssid_mac = mac_addr(bssid_j.asString());
-        if (bssid_mac.error) {
+        if (bssid_mac.state.error) {
             _MSG_ERROR("Phy80211/Wi-Fi scan report with invalid BSSID, dropping.");
             in_pack->error = true;
             return 0;

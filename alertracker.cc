@@ -807,7 +807,8 @@ unsigned int alert_tracker::raise_alert_endpoint(std::ostream& stream, const std
         if (other.length() != 0)
             other_mac = mac_addr(other);
 
-        if (bssid_mac.error || source_mac.error || dest_mac.error || other_mac.error)
+        if (bssid_mac.state.error || source_mac.state.error || 
+                dest_mac.state.error || other_mac.state.error)
             throw std::runtime_error("invalid MAC address");
 
         if (!potential_alert(aref))

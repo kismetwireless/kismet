@@ -137,7 +137,7 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     // synth a mac out of it
     mac_addr rtlmac = json_to_mac(json);
 
-    if (rtlmac.error) {
+    if (rtlmac.state.error) {
         return false;
     }
 

@@ -123,7 +123,7 @@ dot11_fingerprint_tracker::post_path(const std::vector<std::string>& path) {
     if (path[path_offt] == "by-mac") {
         mac_addr m {path[path_offt + 1]};
 
-        if (m.error)
+        if (m.state.error)
             return std::make_tuple(uri_endpoint::endp_unknown, mac_addr {0});
 
         if (fingerprint_map->find(m) == fingerprint_map->end())
@@ -206,7 +206,7 @@ unsigned int dot11_fingerprint_tracker::insert_fingerprint(std::ostream& stream,
     try {
         auto mac = mac_addr(json["macaddr"].asString());
 
-        if (mac.error)
+        if (mac.state.error)
             throw std::runtime_error("Invalid 'macaddr' field in insert command");
 
         auto fpi = fingerprint_map->find(mac);
@@ -266,7 +266,7 @@ unsigned int dot11_fingerprint_tracker::bulk_delete_fingerprint(std::ostream& st
         for (auto fpi : json["fingerprints"]) {
             mac_addr mac { fpi.asString() };
 
-            if (mac.error)
+            if (mac.state.error)
                 throw std::runtime_error(fmt::format("Invalid MAC address: {}",
                             kishttpd::escape_html(fpi.asString())));
 
@@ -305,7 +305,7 @@ unsigned int dot11_fingerprint_tracker::bulk_insert_fingerprint(std::ostream& st
             // Get the sub-dictionarys from the vector
             mac_addr mac { fpi.asString() };
 
-            if (mac.error)
+            if (mac.state.error)
                 throw std::runtime_error(fmt::format("Invalid MAC address: {}",
                             kishttpd::escape_html(fpi.asString())));
 

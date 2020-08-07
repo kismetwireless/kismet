@@ -134,9 +134,9 @@ bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
     mac_addr smac = id_to_mac(homeid, devid);
     mac_addr dmac = id_to_mac(homeid, dest_devid);
 
-    if (smac.error)
+    if (smac.state.error)
         return false;
-    if (dmac.error)
+    if (dmac.state.error)
         return false;
 
     kis_packet *pack = new kis_packet(Globalreg::globalreg);

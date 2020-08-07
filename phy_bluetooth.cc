@@ -136,7 +136,7 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
             throw std::runtime_error("no btaddr in scan report");
 
         auto btaddr_mac = mac_addr(btaddr_j.asString());
-        if (btaddr_mac.error)
+        if (btaddr_mac.state.error)
             throw std::runtime_error("invalid btaddr MAC");
 
         commoninfo = new kis_common_info();

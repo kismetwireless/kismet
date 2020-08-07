@@ -460,7 +460,7 @@ unsigned int packet_filter_mac_addr::edit_endp_handler(std::ostream& stream,
             mac_addr m(i);
             bool v = filter[i].asBool();
 
-            if (m.error) 
+            if (m.state.error) 
                 throw std::runtime_error(fmt::format("Invalid MAC address: '{}'",
                             kishttpd::escape_html(i)));
 
@@ -502,7 +502,7 @@ unsigned int packet_filter_mac_addr::remove_endp_handler(std::ostream& stream,
         for (auto i : filter) {
             mac_addr m{i.asString()};
 
-            if (m.error) 
+            if (m.state.error) 
                 throw std::runtime_error(fmt::format("Invalid MAC address: '{}'",
                             kishttpd::escape_html(i.asString())));
 

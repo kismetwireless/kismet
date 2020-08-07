@@ -300,7 +300,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
         }
 
         mac_addr m(filter_toks[1]);
-        if (m.error) {
+        if (m.state.error) {
             _MSG_ERROR("Skipping invalid kis_log_device_filter option '{}', expected phyname,mac,filtertype "
                     "but got error parsing '{}' as a MAC address.", dfi, filter_toks[1]);
             continue;
@@ -344,7 +344,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
         }
 
         mac_addr m(filter_toks[2]);
-        if (m.error) {
+        if (m.state.error) {
             _MSG_ERROR("Skipping invalid kis_log_packet_filter option '{}', expected phyname,filterblock,mac,filtertype "
                     "but got error parsing '{}' as a MAC address.", dfi, filter_toks[2]);
             continue;

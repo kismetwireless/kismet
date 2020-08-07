@@ -380,7 +380,7 @@ bool Kis_UAV_Phy::parse_manuf_definition(std::string in_def) {
     if (macstr != "") {
         mac = mac_addr(macstr);
 
-        if (mac.error) {
+        if (mac.state.error) {
             _MSG("Invalid 'uav_match' configuration line, expected 'mac=macaddr' in definition, "
                     "but got an invalid mac in '" + in_def + "'", MSGFLAG_ERROR);
             return false;

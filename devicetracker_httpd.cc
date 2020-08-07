@@ -114,7 +114,7 @@ bool device_tracker::httpd_verify_path(const char *path, const char *method) {
 
                 mac_addr mac = mac_addr(tokenurl[3]);
 
-                if (mac.error) {
+                if (mac.state.error) {
                     return false;
                 }
 
@@ -202,7 +202,7 @@ bool device_tracker::httpd_verify_path(const char *path, const char *method) {
 
                 mac_addr mac = mac_addr(tokenurl[3]);
 
-                if (mac.error) {
+                if (mac.state.error) {
                     return false;
                 }
 
@@ -359,7 +359,7 @@ KIS_MHD_RETURN device_tracker::httpd_create_stream_response(
 
             mac_addr mac = mac_addr(tokenurl[3]);
 
-            if (mac.error) {
+            if (mac.state.error) {
                 return MHD_YES;
             }
 
@@ -507,7 +507,7 @@ KIS_MHD_RETURN device_tracker::httpd_post_complete(kis_net_httpd_connection *con
                 mac_addr mac = mac_addr(tokenurl[3]);
 
                 
-                if (mac.error) {
+                if (mac.state.error) {
                     stream << "Invalid request: Invalid MAC address\n";
                     concls->httpcode = 400;
                     return MHD_YES;
@@ -688,7 +688,7 @@ unsigned int device_tracker::multimac_endp_handler(std::ostream& stream, const s
         for (auto m : json["devices"]) {
             mac_addr ma{m.asString()};
 
-            if (ma.error) 
+            if (ma.state.error) 
                 throw std::runtime_error(fmt::format("Invalid MAC address '{}' in 'devices' list",
                             kishttpd::escape_html(m.asString())));
 

@@ -47,23 +47,45 @@
 #include "fmt.h"
 #include "multi_constexpr.h"
 
-// Maximum of 6 octets in a "mac" we handle
-#define MAC_LEN_MAX		6
+// Subnet-style maskable mac address up to 8 octets
 
-// Mac address transformed into 64bit int for fast sorting
-//
-// Supports mac addresses up to 7 octets, with optional
-// masking, IP-subnet style.
-//
+#define MAC_LEN_MAX		8
+
 struct mac_addr {
     uint64_t longmac;
     uint64_t longmask;
-    int error;
 
-    // Convert a string mac address to the long-int storage format, with 
-    // mask conversion if present.
+    struct {
+        unsigned int len : 3; // base 0
+        unsigned int error : 1;
+    } __attribute__((packed)) state;
+
+#define LEN_MASK        0x7
+#define ERROR_BIT       0x80
+
+    void set_error(bool error) {
+        state.error = error;
+    }
+
+    constexpr bool error() const {
+        return state.error;
+    }
+
+    constexpr unsigned int length() const {
+        return state.len + 1;
+    }
+
+    void set_len(unsigned int len) {
+        if (len == 0 || len > 8)
+            state.error = true;
+
+        state.len = len - 1;
+    }
+
     void string2long(const char *in) {
-        error = 0;
+        state.len = 0;
+        state.error = 0;
+
         longmac = 0;
         longmask = (uint64_t) -1;
 
@@ -71,6 +93,7 @@ struct mac_addr {
 
         int nbyte = 0;
         int mode = 0;
+        int len = 0;
 
         while (*in) {
             if (in[0] == ':') {
@@ -87,8 +110,7 @@ struct mac_addr {
             }
 
             if (sscanf(in, "%2hX", &byte) != 1) {
-                // printf("couldn't read byte in pos %d '%s' %x\n", nbyte, in, in[0]);
-                error = 1;
+                state.error = true;
                 break;
             }
 
@@ -98,30 +120,35 @@ struct mac_addr {
                 in++;
 
             if (nbyte >= MAC_LEN_MAX) {
-                // printf("pos > max len\n");
-                error = 1;
+                state.error = true;
                 break;
             }
 
             if (mode == 0) {
                 longmac |= (uint64_t) byte << ((MAC_LEN_MAX - nbyte - 1) * 8);
+                len++;
             } else if (mode == 1) {
                 longmask |= (uint64_t) byte << ((MAC_LEN_MAX - nbyte - 1) * 8);
             }
 
             nbyte++;
         }
+
+        state.len = len - 1;
     }
 
     constexpr mac_addr() :
         longmac(0),
         longmask((uint64_t) -1),
-        error(0) { }
+        state {
+            .len = 0,
+            .error = 0
+        } { }
 
     constexpr mac_addr(const mac_addr& in) :
         longmac {in.longmac},
         longmask {in.longmask},
-        error {in.error} { }
+        state {in.state} { }
 
     mac_addr(const char *in) {
         string2long(in);
@@ -134,10 +161,14 @@ struct mac_addr {
     constexpr mac_addr(int in __attribute__((unused)))  :
         longmac{0},
         longmask{(uint64_t) -1},
-        error{0} { }
+        state {
+            .len = 0,
+            .error = 0
+        } { }
 
     mac_addr(const uint8_t *in, unsigned int len) {
-        error = 0;
+        state.len = 0;
+        state.error = 0;
         longmac = 0;
         longmask = (uint64_t) -1;
 
@@ -145,10 +176,13 @@ struct mac_addr {
             uint64_t v = in[x];
             longmac |= v << ((MAC_LEN_MAX - x - 1) * 8);
         }
+
+        state.len = 0;
     }
 
     mac_addr(const char *in, unsigned int len) {
-        error = 0;
+        state.len = 0;
+        state.error = 0;
         longmac = 0;
         longmask = (uint64_t) -1;
 
@@ -156,11 +190,15 @@ struct mac_addr {
             uint64_t v = (in[x] & 0xFF);
             longmac |= v << ((MAC_LEN_MAX - x - 1) * 8);
         }
+
+        set_len(len);
     }
 
     // slash-style byte count mask
     mac_addr(const uint8_t *in, unsigned int len, unsigned int mask) {
-        error = 0;
+        state.len = 0;
+        state.error = 0;
+
         longmac = 0;
         longmask = (uint64_t) -1;
 
@@ -169,6 +207,8 @@ struct mac_addr {
         }
 
         longmask = (longmask >> (64 - mask)) << mask;
+
+        state.len = len - 1;
     }
 
     // Convert a string to a positional search fragment, places fragent
@@ -224,6 +264,7 @@ struct mac_addr {
         for (unsigned int p = 0; p <= MAC_LEN_MAX - in_len; p++) 
             if (memcmp(rt, rlm + p, in_len) == 0)
                 return true;
+
         return false;
     }
 
@@ -263,7 +304,7 @@ struct mac_addr {
     mac_addr& operator= (const mac_addr& op) {
         longmac = op.longmac;
         longmask = op.longmask;
-        error = op.error;
+        state = op.state;
         return *this;
     }
 
@@ -284,7 +325,9 @@ struct mac_addr {
     }
 
     constexpr17 unsigned int index64(uint64_t val, int index) const {
-        // Bitshift kung-foo
+        if (index >= MAC_LEN_MAX)
+            return 0;
+
         return (uint8_t) (val >> ((MAC_LEN_MAX - index - 1) * 8));
     }
 
@@ -295,9 +338,8 @@ struct mac_addr {
         return index64(longmac, mdex);
     }
 
-	// Return the top 3 of the mac. 
 	constexpr17 uint32_t OUI() const {
-		return (longmac >> (3 * 8)) & 0x00FFFFFF;
+		return (longmac >> 40) & 0x00FFFFFF;
 	}
 
     constexpr17 static uint32_t OUI(uint8_t *val) {
@@ -317,15 +359,81 @@ struct mac_addr {
     }
 
     inline std::string mac_to_string() const {
-        return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
-                index64(longmac, 0), index64(longmac, 1), index64(longmac, 2),
-                index64(longmac, 3), index64(longmac, 4), index64(longmac, 5));
+        switch (state.len) {
+            case 0:
+                return fmt::format("{:02X}", 
+                        index64(longmac, 0));
+            case 1:
+                return fmt::format("{:02X}:{:02X}",
+                        index64(longmac, 0), index64(longmac, 1));
+            case 2:
+                return fmt::format("{:02X}:{:02X}:{:02X}",
+                        index64(longmac, 0), index64(longmac, 1), index64(longmac, 2));
+            case 3:
+                return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}",
+                        index64(longmac, 0), index64(longmac, 1), index64(longmac, 2),
+                        index64(longmac, 3));
+            case 4:
+                return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
+                        index64(longmac, 0), index64(longmac, 1), index64(longmac, 2),
+                        index64(longmac, 3), index64(longmac, 4));
+            case 5:
+                return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
+                        index64(longmac, 0), index64(longmac, 1), index64(longmac, 2),
+                        index64(longmac, 3), index64(longmac, 4), index64(longmac, 5));
+            case 6:
+                return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
+                        index64(longmac, 0), index64(longmac, 1), index64(longmac, 2),
+                        index64(longmac, 3), index64(longmac, 4), index64(longmac, 5),
+                        index64(longmac, 6));
+            case 7:
+            default:
+                return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
+                        index64(longmac, 0), index64(longmac, 1), index64(longmac, 2),
+                        index64(longmac, 3), index64(longmac, 4), index64(longmac, 5),
+                        index64(longmac, 6), index64(longmac, 7));
+
+
+        }
     }
 
     inline std::string mac_mask_to_string() const {
-        return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
-                index64(longmask, 0), index64(longmask, 1), index64(longmask, 2),
-                index64(longmask, 3), index64(longmask, 4), index64(longmask, 5));
+        switch (state.len) {
+            case 0:
+                return fmt::format("{:02X}", 
+                        index64(longmask, 0));
+            case 1:
+                return fmt::format("{:02X}:{:02X}",
+                        index64(longmask, 0), index64(longmask, 1));
+            case 2:
+                return fmt::format("{:02X}:{:02X}:{:02X}",
+                        index64(longmask, 0), index64(longmask, 1), index64(longmask, 2));
+            case 3:
+                return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}",
+                        index64(longmask, 0), index64(longmask, 1), index64(longmask, 2),
+                        index64(longmask, 3));
+            case 4:
+                return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
+                        index64(longmask, 0), index64(longmask, 1), index64(longmask, 2),
+                        index64(longmask, 3), index64(longmask, 4));
+            case 5:
+                return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
+                        index64(longmask, 0), index64(longmask, 1), index64(longmask, 2),
+                        index64(longmask, 3), index64(longmask, 4), index64(longmask, 5));
+            case 6:
+                return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
+                        index64(longmask, 0), index64(longmask, 1), index64(longmask, 2),
+                        index64(longmask, 3), index64(longmask, 4), index64(longmask, 5),
+                        index64(longmask, 6));
+            case 7:
+            default:
+                return fmt::format("{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
+                        index64(longmask, 0), index64(longmask, 1), index64(longmask, 2),
+                        index64(longmask, 3), index64(longmask, 4), index64(longmask, 5),
+                        index64(longmask, 6), index64(longmask, 7));
+
+
+        }
     }
 
     constexpr17 uint64_t get_as_long() const {
@@ -351,7 +459,9 @@ std::istream& operator>>(std::istream& is, mac_addr& m);
 namespace std {
     template<> struct hash<mac_addr> {
         std::size_t operator()(mac_addr const& m) const noexcept {
-            return std::hash<uint64_t>{}(m.longmac & m.longmask);
+            auto h = std::hash<uint64_t>{}(m.longmac & m.longmask);
+            h = h ^ (std::hash<uint64_t>{}(m.state.len));
+            return h;
         }
     };
 }

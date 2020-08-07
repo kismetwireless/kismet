@@ -1211,9 +1211,9 @@ eap_end:
     }
 
     // Do a little sanity checking on the BSSID
-    if (packinfo->bssid_mac.error == 1 ||
-        packinfo->source_mac.error == 1 ||
-        packinfo->dest_mac.error == 1) {
+    if (packinfo->bssid_mac.state.error == 1 ||
+        packinfo->source_mac.state.error == 1 ||
+        packinfo->dest_mac.state.error == 1) {
         fprintf(stderr, "debug - mac address error\n");
         packinfo->corrupt = 1;
     }
@@ -2855,7 +2855,7 @@ int KisBuiltinDissector::cmd_addwepkey(CLIENT_PARMS) {
     }
 
     mac_addr bssid = keyvec[0].c_str();
-    if (bssid.error) {
+    if (bssid.state.error) {
         snprintf(errstr, 1024, "Illegal BSSID for addwepkey");
         return -1;
     }
@@ -2887,7 +2887,7 @@ int KisBuiltinDissector::cmd_delwepkey(CLIENT_PARMS) {
 
     mac_addr bssid_mac = (*parsedcmdline)[0].word.c_str();
 
-    if (bssid_mac.error) {
+    if (bssid_mac.state.error) {
         snprintf(errstr, 1024, "Illegal delwepkey bssid");
         return -1;
     }
@@ -2932,7 +2932,7 @@ int KisBuiltinDissector::cmd_strings(CLIENT_PARMS) {
     if (parsedcmdline->size() > 1) {
         mac_addr ma = mac_addr((*parsedcmdline)[0].word.c_str());
 
-        if (ma.error) {
+        if (ma.state.error) {
             snprintf(errstr, 1024, "String dissection, got invalid MAC address");
             _MSG(errstr, MSGFLAG_ERROR);
             return -1;
