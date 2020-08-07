@@ -177,7 +177,7 @@ struct mac_addr {
             longmac |= v << ((MAC_LEN_MAX - x - 1) * 8);
         }
 
-        state.len = 0;
+        state.len = len - 1;
     }
 
     mac_addr(const char *in, unsigned int len) {
@@ -191,7 +191,7 @@ struct mac_addr {
             longmac |= v << ((MAC_LEN_MAX - x - 1) * 8);
         }
 
-        set_len(len);
+        state.len = len - 1;
     }
 
     // slash-style byte count mask
