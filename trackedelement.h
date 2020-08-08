@@ -871,16 +871,12 @@ template<class N>
 class tracker_element_core_numeric : public tracker_element {
 public:
     tracker_element_core_numeric() :
-        tracker_element() {
-
-        value = 0;
-
-        }
+        tracker_element(),
+        value{0} { }
 
     tracker_element_core_numeric(int id) :
-        tracker_element(id) { 
-        value = 0;
-    }
+        tracker_element(id),
+        value{0} { }
 
     tracker_element_core_numeric(int id, const N& v) :
         tracker_element(id),
@@ -899,7 +895,8 @@ public:
         if (std::isnan(value) || std::isinf(value))
             return "0";
 
-        // Jump through some hoops to collapse things like 0.000000 to 0 to save space/time in serializing
+        // Jump through some hoops to collapse things like 0.000000 to 0 to save 
+        // space/time in serializing
         if (floor(value) == value)
             return fmt::format("{}", (long) value);
 
