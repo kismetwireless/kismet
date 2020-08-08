@@ -316,7 +316,9 @@ void kis_tracked_seenby_data::inc_frequency_count(int frequency) {
 void kis_tracked_seenby_data::register_fields() {
     tracker_component::register_fields();
 
-    register_field("kismet.common.seenby.uuid", "UUID of source", &src_uuid);
+    src_uuid_id =
+        register_dynamic_field("kismet.common.seenby.uuid", "UUID of source", &src_uuid);
+
     register_field("kismet.common.seenby.first_time", "first time seen time_t", &first_time);
     register_field("kismet.common.seenby.last_time", "last time seen time_t", &last_time);
     register_field("kismet.common.seenby.num_packets", 
@@ -357,7 +359,9 @@ void kis_tracked_device_base::inc_seenby_count(kis_datasource *source,
     if (seenby_iter == seenby_map->end()) {
         seenby = std::make_shared<kis_tracked_seenby_data>(seenby_val_id);
 
-        seenby->set_src_uuid(source->get_source_uuid());
+        auto sb_uuid = seenby->get_src_uuid();
+        sb_uuid->set(source->get_tracker_source_uuid());
+
         seenby->set_first_time(tv_sec);
         seenby->set_last_time(tv_sec);
         seenby->set_num_packets(1);

@@ -177,7 +177,7 @@ public:
         return std::move(dup);
     }
 
-    __Proxy(src_uuid, uuid, uuid, uuid, src_uuid);
+    __ProxyDynamicTrackable(src_uuid, tracker_element_alias, src_uuid, src_uuid_id);
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
     __Proxy(num_packets, uint64_t, uint64_t, uint64_t, num_packets);
@@ -191,7 +191,9 @@ public:
 protected:
     virtual void register_fields() override;
 
-    std::shared_ptr<tracker_element_uuid> src_uuid;
+    std::shared_ptr<tracker_element_alias> src_uuid;
+    int src_uuid_id;
+
     std::shared_ptr<tracker_element_uint64> first_time;
     std::shared_ptr<tracker_element_uint64> last_time;
     std::shared_ptr<tracker_element_uint64> num_packets;
