@@ -505,29 +505,7 @@ exports.GetDeviceFields = function(selected) {
     return ret;
 }
 
-exports.DeviceDetails = new Array();
-
-/* Register a device detail accordion panel, taking an id for the panel
- * content, a title presented to the user, a position in the list, and
- * options.  Because details are directly rendered all the time and
- * can't be moved around / saved as configs like columns can, callbacks
- * are just direct functions here.
- *
- * filter and render take one argument, the data to be shown
- * filter: function(data) {
- *  return false;
- * }
- *
- * render: function(data) {
- *  return "Some content";
- * }
- *
- * draw takes the device data and a container element as an argument:
- * draw: function(data, element) {
- *  e.append("hi");
- * }
- * */
-exports.AddDeviceDetail = function(id, title, pos, options) {
+exports.AddDetail = function(container, id, title, pos, options) {
     var settings = $.extend({
         "filter": null,
         "render": null,
@@ -541,30 +519,22 @@ exports.AddDeviceDetail = function(id, title, pos, options) {
         options: settings
     };
 
-    exports.DeviceDetails.push(det);
+    container.push(det);
 
-    exports.DeviceDetails.sort(function(a, b) {
+    container.sort(function(a, b) {
         return a.position - b.position;
     });
 }
 
-exports.GetDeviceDetails = function() {
-    return exports.DeviceDetails;
-}
-
-exports.DeviceDetailWindow = function(key) {
+exports.DetailWindow = function(key, title, options, window_cb, close_cb) {
     // Generate a unique ID for this dialog
-    var dialogid = "devicedialog" + key;
+    var dialogid = "detailialog" + key;
     var dialogmatch = '#' + dialogid;
 
     if (jsPanel.activePanels.list.indexOf(dialogid) != -1) {
         jsPanel.activePanels.getPanel(dialogid).front();
         return;
     }
-
-    var options = {
-        storage: {}
-    };
 
     var h = $(window).height() - 5;
 
@@ -584,7 +554,7 @@ exports.DeviceDetailWindow = function(key) {
 
     var panel = $.jsPanel({
         id: dialogid,
-        headerTitle: 'Device Details',
+        headerTitle: title,
 
         headerControls: {
             iconfont: 'jsglyph',
@@ -617,22 +587,81 @@ exports.DeviceDetailWindow = function(key) {
         },
 
         onclosed: function() {
-            clearTimeout(this.timerid);
-            this.active = false;
-            window['storage_devlist_' + key] = {};
+            close_cb(this, options);
         },
 
         callback: function() {
-            var panel = this;
-            var content = this.content;
+            window_cb(this, options);
+        },
+    }).resize({
+        width: w,
+        height: h,
+        callback: function(panel) {
+            $('div#accordion', this.content).accordion("refresh");
+        },
+    });
 
-            this.active = true;
+    // Did we creep off the screen in our autopositioning?  Put this panel in
+    // the left if so (or if it's a single-panel situation like mobile, just
+    // put it front and center)
+    if (panel.offset().left + panel.width() > $(window).width()) {
+        panel.reposition({
+            "my": "left-top",
+            "at": "left-top",
+            "of": "window",
+            "offsetX": 2,
+            "offsetY": 2,
+        });
+    }
+
+}
+
+exports.DeviceDetails = new Array();
+
+/* Register a device detail accordion panel, taking an id for the panel
+ * content, a title presented to the user, a position in the list, and
+ * options.  Because details are directly rendered all the time and
+ * can't be moved around / saved as configs like columns can, callbacks
+ * are just direct functions here.
+ *
+ * filter and render take one argument, the data to be shown
+ * filter: function(data) {
+ *  return false;
+ * }
+ *
+ * render: function(data) {
+ *  return "Some content";
+ * }
+ *
+ * draw takes the device data and a container element as an argument:
+ * draw: function(data, element) {
+ *  e.append("hi");
+ * }
+ * */
+exports.AddDeviceDetail = function(id, title, pos, options) {
+    exports.AddDetail(exports.DeviceDetails, id, title, pos, options);
+}
+
+exports.GetDeviceDetails = function() {
+    return exports.DeviceDetails;
+}
+
+exports.DeviceDetailWindow = function(key) {
+    exports.DetailWindow(key, "Device Details", 
+        {
+            storage: {}
+        },
+
+        function(panel, options) {
+            var content = panel.content;
+
+            panel.active = true;
 
             window['storage_devlist_' + key] = {};
 
             window['storage_devlist_' + key]['foobar'] = 'bar';
 
-            this.updater = function() {
+            panel.updater = function() {
                 if (exports.window_visible) {
                     $.get(local_uri_prefix + "devices/by-key/" + key + "/device.json")
                         .done(function(fulldata) {
@@ -709,28 +738,15 @@ exports.DeviceDetailWindow = function(key) {
 
             };
 
-            this.updater();
-        }
-    }).resize({
-        width: w,
-        height: h,
-        callback: function(panel) {
-            $('div#accordion', this.content).accordion("refresh");
+            panel.updater();
         },
-    });
 
-    // Did we creep off the screen in our autopositioning?  Put this panel in
-    // the left if so (or if it's a single-panel situation like mobile, just
-    // put it front and center)
-    if (panel.offset().left + panel.width() > $(window).width()) {
-        panel.reposition({
-            "my": "left-top",
-            "at": "left-top",
-            "of": "window",
-            "offsetX": 2,
-            "offsetY": 2,
+        function(panel, options) {
+            clearTimeout(this.timerid);
+            panel.active = false;
+            window['storage_devlist_' + key] = {};
         });
-    }
+
 };
 
 exports.RenderTrimmedTime = function(opts) {
