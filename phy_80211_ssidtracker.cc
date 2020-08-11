@@ -126,6 +126,14 @@ phy_80211_ssid_tracker::phy_80211_ssid_tracker() {
                 return ssid_endpoint_handler(stream, uri, json, variable_cache);
                 });
 
+    detail_endp =
+        std::make_shared<kis_net_httpd_path_tracked_endpoint>(
+                [this](const std::vector<std::string>& path) -> bool {
+                    return detail_endpoint_path(path);
+                },
+                [this](const std::vector<std::string>& path) -> std::shared_ptr<tracker_element> {
+                    return detail_endpoint_handler(path);
+                });
 }
 
 phy_80211_ssid_tracker::~phy_80211_ssid_tracker() {
@@ -383,6 +391,52 @@ unsigned int phy_80211_ssid_tracker::ssid_endpoint_handler(std::ostream& stream,
     // And done
     return 200;
 }
+
+bool phy_80211_ssid_tracker::detail_endpoint_path(const std::vector<std::string>& path) {
+    // /phy/phy80211/ssids/by-hash/[hash]/ssid
+
+    if (path.size() < 6)
+        return false;
+
+    if (path[0] != "phy" || path[1] != "phy80211" || path[2] != "ssids" || path[3] != "by-hash" || path[5] != "ssid")
+        return false;
+
+    local_locker l(&mutex, "phy_80211_ssid_tracker::detail_endpoint_path");
+
+    try {
+        auto h = string_to_n<size_t>(path[4]);
+        auto k = ssid_map.find(h);
+
+        if (k == ssid_map.end())
+            return false;
+    } catch (const std::exception& e) {
+        return false;
+    }
+
+    return true;
+}
+
+std::shared_ptr<tracker_element> phy_80211_ssid_tracker::detail_endpoint_handler(const std::vector<std::string>& path) {
+    if (path.size() < 6)
+        return nullptr;
+
+    local_locker l(&mutex, "phy_80211_ssid_tracker::detail_endpoint_handler");
+
+    try {
+        auto h = string_to_n<size_t>(path[4]);
+        auto k = ssid_map.find(h);
+
+        if (k == ssid_map.end())
+            return nullptr;
+
+        return k->second;
+    } catch (const std::exception& e) {
+        return nullptr;
+    }
+
+    return nullptr;
+}
+
 
 void phy_80211_ssid_tracker::handle_broadcast_ssid(const std::string& ssid, unsigned int ssid_len, 
         uint64_t crypt_set, std::shared_ptr<kis_tracked_device_base> device) {
