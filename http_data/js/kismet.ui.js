@@ -667,7 +667,7 @@ exports.DeviceDetailWindow = function(key) {
                         .done(function(fulldata) {
                             fulldata = kismet.sanitizeObject(fulldata);
 
-                            panel.headerTitle(fulldata['kismet_device_base_name']);
+                            panel.headerTitle("Device: " + fulldata['kismet.device.base.name']);
 
                             var accordion = $('div#accordion', content);
 
