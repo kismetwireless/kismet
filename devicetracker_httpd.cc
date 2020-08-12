@@ -809,3 +809,50 @@ unsigned int device_tracker::multikey_endp_handler(std::ostream& stream, const s
     return 500;
 }
 
+unsigned int device_tracker::multikey_dict_endp_handler(std::ostream& stream, const std::string& uri,
+        const Json::Value& json, kis_net_httpd_connection::variable_cache_map& variable_cache) {
+
+    try {
+        auto ret_devices = std::make_shared<tracker_element_device_key_map>();
+        auto keys = std::vector<device_key>{};
+
+        if (json["devices"].isNull())
+            throw std::runtime_error("Missing 'devices' key in command dictionary");
+       
+        for (auto k : json["devices"]) {
+            device_key ka{k.asString()};
+
+            if (ka.get_error()) 
+                throw std::runtime_error(fmt::format("Invalid device key '{}' in 'devices' list",
+                            kishttpd::escape_html(k.asString())));
+
+            keys.push_back(ka);
+        }
+
+        for (auto k : keys) { 
+            auto d = fetch_device(k);
+
+            if (d == nullptr)
+                continue;
+
+            ret_devices->insert(k, d);
+        }
+
+        auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
+
+        auto output = 
+            kishttpd::summarize_with_json(ret_devices, json, rename_map);
+
+        Globalreg::globalreg->entrytracker->serialize(kishttpd::get_suffix(uri), stream, output, rename_map);
+
+        return 200;
+
+    } catch (const std::exception& e) {
+        stream << "Invalid request: " << e.what() << "\n";
+        return 500;
+    }
+
+    stream << "Unhandled request\n";
+    return 500;
+}
+

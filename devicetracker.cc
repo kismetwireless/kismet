@@ -326,6 +326,14 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
                 return multikey_endp_handler(stream, uri, json, variable_cache);
                 });
 
+    multikey_dict_endp = 
+        std::make_shared<kis_net_httpd_simple_post_endpoint>("/devices/multikey/as-object/devices",
+                [this](std::ostream& stream, const std::string& uri, 
+                    const Json::Value& json,
+                    kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
+                return multikey_dict_endp_handler(stream, uri, json, variable_cache);
+                });
+
     phy_phyentry_id =
         entrytracker->register_field("kismet.phy.phy",
                 tracker_element_factory<tracker_element_map>(),
