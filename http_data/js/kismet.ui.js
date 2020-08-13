@@ -722,6 +722,11 @@ exports.DeviceDetailWindow = function(key) {
                                     typeof(di.options.draw) === 'function') {
                                     di.options.draw(fulldata, vcontent, options, 'storage_devlist_' + key);
                                 }
+
+                                if ('finalize' in di.options &&
+                                    typeof(di.options.finalize) === 'function') {
+                                    di.options.finalize(fulldata, vcontent, options, 'storage_devlist_' + key);
+                                }
                             }
                             accordion.accordion({ heightStyle: 'fill' });
                         })
@@ -742,7 +747,7 @@ exports.DeviceDetailWindow = function(key) {
         },
 
         function(panel, options) {
-            clearTimeout(this.timerid);
+            clearTimeout(panel.timerid);
             panel.active = false;
             window['storage_devlist_' + key] = {};
         });
