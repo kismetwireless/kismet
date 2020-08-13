@@ -868,11 +868,13 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 {
                     field: "dot11.probedssid.first_time",
+                    liveupdate: true,
                     title: "First Seen",
                     draw: kismet_ui.RenderTrimmedTime,
                 },
                 {
                     field: "dot11.probedssid.last_time",
+                    liveupdate: true,
                     title: "Last Seen",
                     draw: kismet_ui.RenderTrimmedTime,
                 },
@@ -2071,8 +2073,6 @@ function InitializeSsidTable() {
         .on('xhr.dt', function(e, settings, json, xhr) {
             json = kismet.sanitizeObject(json);
 
-            console.log(json);
-
             try {
                 if (json['recordsFiltered'] != json['recordsTotal'])
                     ssid_status_element.html(`${json['recordsTotal']} SSIDs (${json['recordsFiltered']} shown after filter)`);
@@ -2104,7 +2104,7 @@ function InitializeSsidTable() {
             },
             columns: cols,
             order: [ [ 0, "desc" ] ],
-            createRow: function(row, data, index) {
+            createdRow: function(row, data, index) {
                 row.id = data['dot11.ssidgroup.hash'];
             },
             drawCallback: function(settings) {
@@ -2143,7 +2143,7 @@ function InitializeSsidTable() {
 
     // Set an onclick handler to spawn the device details dialog
     $('tbody', ssid_element).on('click', 'tr', function () {
-        // kismet_ui.DeviceDetailWindow(this.id);
+        exports.SsidDetailWindow(this.id);
     } );
 
     $('tbody', ssid_element)
@@ -2214,6 +2214,7 @@ exports.AddSsidColumn('col_ssid_len', {
     sTitle: 'Length',
     field: 'dot11.ssidgroup.ssid_len',
     name: 'SSID Length',
+    width: '2em',
 });
 
 exports.AddSsidColumn('column_time', {
@@ -2252,27 +2253,347 @@ exports.AddSsidColumn('column_crypt', {
 });
 
 exports.AddSsidColumn('column_probing', {
-    sTitle: 'Probing',
+    sTitle: '# Probing',
     field: 'dot11.ssidgroup.probing_devices_len',
     description: 'Count of probing devices',
     orderable: true,
+    width: '2em',
 });
 
 exports.AddSsidColumn('column_responding', {
-    sTitle: 'Responding',
+    sTitle: '# Responding',
     field: 'dot11.ssidgroup.responding_devices_len',
     description: 'Count of responding devices',
     orderable: true,
+    width: '2em',
 });
 
 exports.AddSsidColumn('column_advertising', {
-    sTitle: 'Advertising',
+    sTitle: '# Advertising',
     field: 'dot11.ssidgroup.advertising_devices_len',
     description: 'Count of advertising devices',
     orderable: true,
+    width: '2em',
 });
 
-// We're done loading
+exports.AddSsidColumn('column_hash', {
+    sTitle: 'Hash key',
+    field: 'dot11.ssidgroup.hash',
+    description: 'Hash',
+    searchable: false,
+    visible: false,
+    orderable: false,
+});
+
+
+// SSID panel
+exports.SsidDetails = new Array();
+
+exports.AddSsidDetail = function(id, title, pos, options) {
+    kismet_ui.AddDetail(exports.SsidDetails, id, title, pos, options);
+}
+
+exports.SsidDetailWindow = function(key) {
+    kismet_ui.DetailWindow(key, "SSID Details", 
+        {
+            storage: {},
+        },
+
+        function(panel, options) {
+            var content = panel.content;
+
+            panel.active = true;
+
+            window['storage_ssid_' + key] = {};
+            window['storage_ssid_' + key]['foobar'] = 'bar';
+
+            panel.updater = function() {
+                if (kismet_ui.window_visible) {
+                    $.get(local_uri_prefix + "phy/phy80211/ssids/by-hash/" + key + "/ssid.json")
+                        .done(function(fulldata) {
+                            fulldata = kismet.sanitizeObject(fulldata);
+
+                            panel.headerTitle("SSID: " + fulldata['dot11.ssidgroup.ssid']);
+
+                            var accordion = $('div#accordion', content);
+
+                            if (accordion.length == 0) {
+                                accordion = $('<div />', {
+                                    id: 'accordion'
+                                });
+
+                                content.append(accordion);
+                            }
+
+                            var detailslist = exports.SsidDetails;
+
+                            for (var dii in detailslist) {
+                                var di = detailslist[dii];
+
+                                // Do we skip?
+                                if ('filter' in di.options &&
+                                    typeof(di.options.filter) === 'function') {
+                                    if (di.options.filter(fulldata) == false) {
+                                        continue;
+                                    }
+                                }
+
+                                var vheader = $('h3#header_' + di.id, accordion);
+
+                                if (vheader.length == 0) {
+                                    vheader = $('<h3>', {
+                                        id: "header_" + di.id,
+                                    })
+                                        .html(di.title);
+
+                                    accordion.append(vheader);
+                                }
+
+                                var vcontent = $('div#' + di.id, accordion);
+
+                                if (vcontent.length == 0) {
+                                    vcontent = $('<div>', {
+                                        id: di.id,
+                                    });
+                                    accordion.append(vcontent);
+                                }
+
+                                // Do we have pre-rendered content?
+                                if ('render' in di.options &&
+                                    typeof(di.options.render) === 'function') {
+                                    vcontent.html(di.options.render(fulldata));
+                                }
+
+                                if ('draw' in di.options && typeof(di.options.draw) === 'function') {
+                                    di.options.draw(fulldata, vcontent, options, 'storage_ssid_' + key);
+                                }
+
+                                if ('finalize' in di.options &&
+                                    typeof(di.options.finalize) === 'function') {
+                                    di.options.finalize(fulldata, vcontent, options, 'storage_ssid_' + key);
+                                }
+                            }
+                            accordion.accordion({ heightStyle: 'fill' });
+                        })
+                        .fail(function(jqxhr, texterror) {
+                            content.html("<div style=\"padding: 10px;\"><h1>Oops!</h1><p>An error occurred loading ssid details for key <code>" + key + 
+                                "</code>: HTTP code <code>" + jqxhr.status + "</code>, " + texterror + "</div>");
+                        })
+                        .always(function() {
+                            panel.timerid = setTimeout(function() { panel.updater(); }, 1000);
+                        })
+                } else {
+                    panel.timerid = setTimeout(function() { panel.updater(); }, 1000);
+                }
+
+            };
+
+            panel.updater();
+        },
+
+        function(panel, options) {
+            clearTimeout(panel.timerid);
+            panel.active = false;
+            window['storage_ssid_' + key] = {};
+        });
+};
+
+/* Custom device details for dot11 data */
+exports.AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
+    draw: function(data, target, options, storage) {
+        target.devicedata(data, {
+            "id": "ssiddetails",
+            "fields": [
+            {
+                field: 'dot11.ssidgroup.ssid',
+                title: "SSID",
+                liveupdate: true,
+                draw: function(opts) {
+                    if (typeof(opts['value']) === 'undefined')
+                        return '<i>None</i>';
+                    if (opts['value'].replace(/\s/g, '').length == 0) 
+                        return '<i>Cloaked / Empty (' + opts['value'].length + ' spaces)</i>';
+
+                    return `${opts['value']} <i>(${data['dot11.ssidgroup.ssid_len']} characters)</i>`;
+                },
+                help: "SSID advertised or probed by one or more devices",
+            },
+            {
+                field: "dot11.ssidgroup.first_time",
+                title: "First Seen",
+                liveupdate: true,
+                draw: kismet_ui.RenderTrimmedTime,
+            },
+            {
+                field: "dot11.ssidgroup.last_time",
+                liveupdate: true,
+                title: "Last Seen",
+                draw: kismet_ui.RenderTrimmedTime,
+            },
+            {
+                field: "dot11.ssidgroup.crypt_set",
+                liveupdate: true,
+                title: "Encryption",
+                draw: function(opts) {
+                    return exports.CryptToHumanReadable(opts['value']);
+                },
+                help: "Encryption at the Wi-Fi layer (open, WEP, and WPA) is defined by the beacon sent by the access point advertising the network.  Layer 3 encryption (such as VPNs) is added later and is not advertised as part of the network itself.",
+            },
+
+            {
+                field: "dot11.ssidgroup.advetising_devices",
+                id: "advertising header",
+                filter: function(opts) {
+                    try {
+                        return (Object.keys(opts['data']['dot11.ssidgroup.advertising_devices']).length >= 1);
+                    } catch (error) {
+                        return false;
+                    }
+                },
+                title: '<b class="k_padding_title">Advertising APs</b>',
+                help: "Advertising access points have sent a beacon packet with this SSID.",
+            },
+
+            {
+                field: "dot11.ssidgroup.advertising_devices",
+                id: "advertising_list",
+
+                filter: function(opts) {
+                    try {
+                        return (Object.keys(opts['data']['dot11.ssidgroup.advertising_devices']).length >= 1);
+                    } catch (error) {
+                        return false;
+                    }
+                },
+
+                groupIterate: true,
+                iterateTitle: function(opts) {
+                    console.log(opts);
+                    return '<a id="ssid_expander_advertising_' + opts['base'] + '" class="ssid_expander_advertising expander collapsed" href="#" data-expander-target="#' + opts['containerid'] + '">Access point ' + opts['index'] + '</a>';
+                },
+                draw: function(opts) {
+                    var tb = $('.expander', opts['cell']).simpleexpand();
+                },
+                fields: [
+                {
+                    // Dummy field to get us a nested area since we don't have
+                    // a real field in the client list since it's just a key-val
+                    // not a nested object
+                    field: "dummy",
+                    // Span to fill it
+                    span: true,
+                    draw: function(opts) {
+                        return `<div class="ssid_content_advertising" id="ssid_content_advertising_${opts['base']}">`;
+                    },
+                },
+                ]
+            },
+            ],
+        }, storage);
+    }, 
+
+    finalize: function(data, target, options, storage) {
+        var combokeys = {};
+
+        data['dot11.ssidgroup.advertising_devices'].forEach(device => combokeys[device] = 1);
+        data['dot11.ssidgroup.probing_devices'].forEach(device => combokeys[device] = 1);
+        data['dot11.ssidgroup.responding_devices'].forEach(device => combokeys[device] = 1);
+
+        var param = {
+            devices: Object.keys(combokeys),
+            fields: [
+                'kismet.device.base.macaddr',
+                'kismet.device.base.key',
+                'kismet.device.base.type',
+                'kismet.device.base.commonname',
+                'kismet.device.base.manuf',
+            ]
+        };
+
+        var postdata = `json=${encodeURIComponent(JSON.stringify(param))}`;
+
+        $.post(`${local_uri_prefix}devices/multikey/as-object/devices.json`, postdata, "json")
+        .done(function(aggcli) {
+            aggcli = kismet.sanitizeObject(aggcli);
+
+            console.log(aggcli);
+        });
+
+        /*
+
+                        // Now we get the client id, form an ajax query, and embed
+                        // a whole new devicedata into our container.  It works!
+                        var clientid = kismet.ObjectByString(data, opts['basekey']);
+                        var apkey = data['kismet.device.base.macaddr'];
+
+                        $.get(local_uri_prefix + "devices/by-key/" + clientid + "/device.json")
+                        .done(function(clidata) {
+                            clidata = kismet.sanitizeObject(clidata);
+
+                            opts['container'].devicedata(clidata, {
+                                id: "clientData",
+                                fields: [
+                                {
+                                    field: "kismet.device.base.key",
+                                    title: "Client Info",
+                                    draw: function(opts) {
+                                        return '<a href="#" onclick="kismet_ui.DeviceDetailWindow(\'' + opts['data']['kismet.device.base.key'] + '\')">View Client Details</a>';
+                                    }
+                                },
+                                {
+                                    field: "kismet.device.base.commonname",
+                                    title: "Name",
+                                    filterOnEmpty: "true",
+                                    empty: "<i>None</i>"
+                                },
+                                {
+                                    field: "kismet.device.base.type",
+                                    title: "Type",
+                                    empty: "<i>Unknown</i>"
+
+                                },
+                                {
+                                    field: "kismet.device.base.manuf",
+                                    title: "Manufacturer",
+                                    empty: "<i>Unknown</i>"
+                                },
+                                {
+                                    field: "dot11.device/dot11.device.client_map[" + apkey + "]/dot11.client.first_time",
+                                    title: "First Connected",
+                                    draw: kismet_ui.RenderTrimmedTime,
+                                },
+                                {
+                                    field: "dot11.device/dot11.device.client_map[" + apkey + "]/dot11.client.last_time",
+                                    title: "Last Connected",
+                                    draw: kismet_ui.RenderTrimmedTime,
+                                },
+                                {
+                                    field: "dot11.device/dot11.device.client_map[" + apkey + "]/dot11.client.datasize",
+                                    title: "Data",
+                                    draw: kismet_ui.RenderHumanSize,
+                                },
+                                {
+                                    field: "dot11.device/dot11.device.client_map[" + apkey + "]/dot11.client.datasize_retry",
+                                    title: "Retried Data",
+                                    draw: kismet_ui.RenderHumanSize,
+                                },
+                                ]
+                            });
+                        })
+                        .fail(function(xhr, status, error) {
+                            opts['container'].html("Unable to load client details.  Device data may have been timed out by the Kismet server (" + error + ").");
+                        });
+                    }
+                    */
+
+        $('.ssid_expander_advertising').each(function () {
+            $(this).html("changed");
+        });
+
+    }
+
+});
+
 exports.load_complete = 1;
 
 return exports;
