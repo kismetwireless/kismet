@@ -1085,27 +1085,95 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
     return ret;
 }
 
-std::shared_ptr<tracker_element> summarize_tracker_element(shared_tracker_element in, 
-        const std::vector<SharedElementSummary>& in_summarization, 
+std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element_vector> elem,
+        const std::vector<std::shared_ptr<tracker_element_summary>>& summary,
         std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
-    if (in->get_type() == tracker_type::tracker_vector) {
-        auto ret = std::make_shared<tracker_element_vector>();
-        auto inv = std::static_pointer_cast<tracker_element_vector>(in);
+    auto ret = std::make_shared<tracker_element_vector>();
 
-        for (auto i : *inv) 
-            ret->push_back(summarize_single_tracker_element(i, in_summarization, rename_map));
+    for (auto i : *elem)
+        ret->push_back(summarize_tracker_element(i, summary, rename_map));
 
-        return ret;
-    }
-
-    return summarize_single_tracker_element(in, in_summarization, rename_map);
+    return ret;
 }
 
-std::shared_ptr<tracker_element> summarize_single_tracker_element(shared_tracker_element in, 
-        const std::vector<SharedElementSummary>& in_summarization, 
+std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element_int_map> elem,
+        const std::vector<std::shared_ptr<tracker_element_summary>>& summary,
         std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
+    auto ret = std::make_shared<tracker_element_int_map>();
+
+    for (auto i : *elem)
+        ret->insert(i.first, summarize_tracker_element(i.second, summary, rename_map));
+
+    return ret;
+}
+
+std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element_double_map> elem,
+        const std::vector<std::shared_ptr<tracker_element_summary>>& summary,
+        std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
+
+    auto ret = std::make_shared<tracker_element_double_map>();
+
+    for (auto i : *elem)
+        ret->insert(i.first, summarize_tracker_element(i.second, summary, rename_map));
+
+    return ret;
+}
+
+std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element_string_map> elem,
+        const std::vector<std::shared_ptr<tracker_element_summary>>& summary,
+        std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
+
+    auto ret = std::make_shared<tracker_element_string_map>();
+
+    for (auto i : *elem)
+        ret->insert(i.first, summarize_tracker_element(i.second, summary, rename_map));
+
+    return ret;
+}
+
+std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element_mac_map> elem,
+        const std::vector<std::shared_ptr<tracker_element_summary>>& summary,
+        std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
+
+    auto ret = std::make_shared<tracker_element_mac_map>();
+
+    for (auto i : *elem)
+        ret->insert(i.first, summarize_tracker_element(i.second, summary, rename_map));
+
+    return ret;
+}
+
+std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element_device_key_map> elem,
+        const std::vector<std::shared_ptr<tracker_element_summary>>& summary,
+        std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
+
+    auto ret = std::make_shared<tracker_element_device_key_map>();
+
+    for (auto i : *elem)
+        ret->insert(i.first, summarize_tracker_element(i.second, summary, rename_map));
+
+    return ret;
+}
+
+std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element_hashkey_map> elem,
+        const std::vector<std::shared_ptr<tracker_element_summary>>& summary,
+        std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
+
+    auto ret = std::make_shared<tracker_element_hashkey_map>();
+
+    for (auto i : *elem)
+        ret->insert(i.first, summarize_tracker_element(i.second, summary, rename_map));
+
+    return ret;
+}
+
+std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element> in,
+        const std::vector<std::shared_ptr<tracker_element_summary>>& in_summarization, 
+        std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
+
+    // Always return a map
     auto ret_elem = std::make_shared<tracker_element_map>();
 
     if (in == nullptr)

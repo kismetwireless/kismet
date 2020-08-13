@@ -92,27 +92,6 @@ std::string kishttpd::escape_html(const std::string& in) {
     return ss.str();
 }
 
-std::shared_ptr<tracker_element> kishttpd::summarize_with_json(std::shared_ptr<tracker_element> in_data,
-        const Json::Value& json, std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
-
-    auto summary_vec = std::vector<SharedElementSummary>{};
-    auto fields = json.get("fields", Json::Value(Json::arrayValue));
-
-    for (const auto& i : fields) {
-        if (i.isString()) {
-            summary_vec.push_back(std::make_shared<tracker_element_summary>(i.asString()));
-        } else if (i.isArray()) {
-            if (i.size() != 2)
-                throw std::runtime_error("Invalid field mapping, expected [field, name]");
-            summary_vec.push_back(std::make_shared<tracker_element_summary>(i[0].asString(), i[1].asString()));
-        } else {
-            throw std::runtime_error("Invalid field mapping, expected field or [field,rename]");
-        }
-    }
-
-    return summarize_tracker_element(in_data, summary_vec, rename_map);
-}
-
 kis_net_httpd::kis_net_httpd() {
     controller_mutex.set_name("kis_net_httpd_controller");
     session_mutex.set_name("kis_net_httpd_session");

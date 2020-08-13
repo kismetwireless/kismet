@@ -2237,17 +2237,44 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
 
 // Summarize a complex record using a collection of summary elements.  The summarized
 // element is returned, and the rename mapping for serialization is updated in rename.
-// When passed a vector, returns a vector of simplified objects.
-std::shared_ptr<tracker_element> summarize_tracker_element(shared_tracker_element in, 
-        const std::vector<SharedElementSummary>& in_summarization, 
-        std::shared_ptr<tracker_element_serializer::rename_map> rename_map);
+// The element type returned is the same as the type provided.  Can only be used to 
+// summarize vector and map derived objects.
 
-// Summarize a complex record using a collection of summary elements.  The summarized
-// element is returned, and the rename mapping for serialization is updated in rename.
-// DOES NOT descend into vectors, only performs summarization on the object provided.
-std::shared_ptr<tracker_element> summarize_single_tracker_element(shared_tracker_element in, 
-        const std::vector<SharedElementSummary>& in_summarization, 
-        std::shared_ptr<tracker_element_serializer::rename_map> rename_map);
+// Specialized simplifications that resolve complex maps; we consider a field:field basic map to be
+// the final target object so we let that fall into the final handler
+
+std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element_vector>,
+        const std::vector<std::shared_ptr<tracker_element_summary>>&,
+        std::shared_ptr<tracker_element_serializer::rename_map>);
+
+std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element_double_map>,
+        const std::vector<std::shared_ptr<tracker_element_summary>>&,
+        std::shared_ptr<tracker_element_serializer::rename_map>);
+
+std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element_int_map>,
+        const std::vector<std::shared_ptr<tracker_element_summary>>&,
+        std::shared_ptr<tracker_element_serializer::rename_map>);
+
+std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element_string_map>,
+        const std::vector<std::shared_ptr<tracker_element_summary>>&,
+        std::shared_ptr<tracker_element_serializer::rename_map>);
+
+std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element_mac_map>,
+        const std::vector<std::shared_ptr<tracker_element_summary>>&,
+        std::shared_ptr<tracker_element_serializer::rename_map>);
+
+std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element_device_key_map>,
+        const std::vector<std::shared_ptr<tracker_element_summary>>&,
+        std::shared_ptr<tracker_element_serializer::rename_map>);
+
+std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element_hashkey_map>,
+        const std::vector<std::shared_ptr<tracker_element_summary>>&,
+        std::shared_ptr<tracker_element_serializer::rename_map>);
+
+// Final single resolved generic element summarization
+std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element>,
+        const std::vector<std::shared_ptr<tracker_element_summary>>&,
+        std::shared_ptr<tracker_element_serializer::rename_map>);
 
 // Handle comparing fields
 bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs, 

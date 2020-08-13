@@ -682,7 +682,7 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
 
     // Summarize into the output element
     for (auto i = si; i != ei; ++i) {
-        output_devices_elem->push_back(summarize_single_tracker_element(*i, summary_vec, rename_map));
+        output_devices_elem->push_back(summarize_tracker_element(*i, summary_vec, rename_map));
     }
 
     // If the transmit wasn't assigned to a wrapper...
