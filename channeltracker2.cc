@@ -52,10 +52,6 @@ channel_tracker_v2::channel_tracker_v2(global_registry *in_globalreg) :
     devicetracker =
         Globalreg::fetch_mandatory_global_as<device_tracker>("DEVICETRACKER");
 
-    struct timeval trigger_tm;
-    trigger_tm.tv_sec = time(0) + 10;
-    trigger_tm.tv_usec = 0;
-
     frequency_map =
         entrytracker->register_and_get_field_as<tracker_element_double_map>(
                 "kismet.channeltracker.frequency_map", 
