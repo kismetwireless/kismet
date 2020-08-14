@@ -1734,7 +1734,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
                 groupIterate: true,
                 iterateTitle: function(opts) {
-                    return '<a class="expander collapsed" href="#" data-expander-target="#' + opts['containerid'] + '">Client ' + opts['index'] + '</a>';
+                    return '<a id="associated_client_expander_' + opts['base'] + '" class="expander collapsed" href="#" data-expander-target="#' + opts['containerid'] + '">Client ' + opts['index'] + '</a>';
                 },
                 draw: function(opts) {
                     var tb = $('.expander', opts['cell']).simpleexpand();
@@ -1748,75 +1748,110 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     // Span to fill it
                     span: true,
                     draw: function(opts) {
-                        // Now we get the client id, form an ajax query, and embed
-                        // a whole new devicedata into our container.  It works!
-                        var clientid = kismet.ObjectByString(data, opts['basekey']);
-                        var apkey = data['kismet.device.base.macaddr'];
-
-                        $.get(local_uri_prefix + "devices/by-key/" + clientid + "/device.json")
-                        .done(function(clidata) {
-                            clidata = kismet.sanitizeObject(clidata);
-
-                            opts['container'].devicedata(clidata, {
-                                id: "clientData",
-                                fields: [
-                                {
-                                    field: "kismet.device.base.key",
-                                    title: "Client Info",
-                                    draw: function(opts) {
-                                        return '<a href="#" onclick="kismet_ui.DeviceDetailWindow(\'' + opts['data']['kismet.device.base.key'] + '\')">View Client Details</a>';
-                                    }
-                                },
-                                {
-                                    field: "kismet.device.base.commonname",
-                                    title: "Name",
-                                    filterOnEmpty: "true",
-                                    empty: "<i>None</i>"
-                                },
-                                {
-                                    field: "kismet.device.base.type",
-                                    title: "Type",
-                                    empty: "<i>Unknown</i>"
-
-                                },
-                                {
-                                    field: "kismet.device.base.manuf",
-                                    title: "Manufacturer",
-                                    empty: "<i>Unknown</i>"
-                                },
-                                {
-                                    field: "dot11.device/dot11.device.client_map[" + apkey + "]/dot11.client.first_time",
-                                    title: "First Connected",
-                                    draw: kismet_ui.RenderTrimmedTime,
-                                },
-                                {
-                                    field: "dot11.device/dot11.device.client_map[" + apkey + "]/dot11.client.last_time",
-                                    title: "Last Connected",
-                                    draw: kismet_ui.RenderTrimmedTime,
-                                },
-                                {
-                                    field: "dot11.device/dot11.device.client_map[" + apkey + "]/dot11.client.datasize",
-                                    title: "Data",
-                                    draw: kismet_ui.RenderHumanSize,
-                                },
-                                {
-                                    field: "dot11.device/dot11.device.client_map[" + apkey + "]/dot11.client.datasize_retry",
-                                    title: "Retried Data",
-                                    draw: kismet_ui.RenderHumanSize,
-                                },
-                                ]
-                            });
-                        })
-                        .fail(function(xhr, status, error) {
-                            opts['container'].html("Unable to load client details.  Device data may have been timed out by the Kismet server (" + error + ").");
-                        });
-                    }
+                        return `<div id="associated_client_content_${opts['base']}">`;
+                    },
                 },
                 ]
             },
             ]
         }, storage);
-    }
+    },
+
+    finalize: function(data, target, options, storage) {
+        var apkey = data['kismet.device.base.macaddr'];
+
+        var combokeys = {};
+
+        try {
+            Object.values(data['dot11.device']['dot11.device.associated_client_map']).forEach(device => combokeys[device] = 1);
+        } catch (err) {
+            ;
+        }
+
+        var param = {
+            devices: Object.keys(combokeys),
+            fields: [
+                'kismet.device.base.macaddr',
+                'kismet.device.base.key',
+                'kismet.device.base.type',
+                'kismet.device.base.commonname',
+                'kismet.device.base.manuf',
+                'dot11.device/dot11.device.client_map',
+            ]
+        };
+
+        var postdata = `json=${encodeURIComponent(JSON.stringify(param))}`;
+
+        $.post(`${local_uri_prefix}devices/multikey/as-object/devices.json`, postdata, "json")
+        .done(function(devs) {
+            var devs = kismet.sanitizeObject(devs);
+
+            var client_devs = [];
+
+            try {
+                client_devs = Object.values(data['dot11.device']['dot11.device.associated_client_map']);
+            } catch (err) {
+                ;
+            }
+
+            client_devs.forEach(function(v) {
+                if (!v in devs)
+                    return;
+
+                var dev = devs[v];
+
+                $(`#associated_client_content_${v}`).devicedata(dev, {
+                    id: "clientData",
+                    fields: [
+                        {
+                            field: "kismet.device.base.key",
+                            title: "Client Info",
+                            draw: function(opts) {
+                                return '<a href="#" onclick="kismet_ui.DeviceDetailWindow(\'' + opts['data']['kismet.device.base.key'] + '\')">View Client Details</a>';
+                            }
+                        },
+                        {
+                            field: "kismet.device.base.commonname",
+                            title: "Name",
+                            filterOnEmpty: "true",
+                            empty: "<i>None</i>"
+                        },
+                        {
+                            field: "kismet.device.base.type",
+                            title: "Type",
+                            empty: "<i>Unknown</i>"
+
+                        },
+                        {
+                            field: "kismet.device.base.manuf",
+                            title: "Manufacturer",
+                            empty: "<i>Unknown</i>"
+                        },
+                        {
+                            field: "dot11.device.client_map[" + apkey + "]/dot11.client.first_time",
+                            title: "First Connected",
+                            draw: kismet_ui.RenderTrimmedTime,
+                        },
+                        {
+                            field: "dot11.device.client_map[" + apkey + "]/dot11.client.last_time",
+                            title: "Last Connected",
+                            draw: kismet_ui.RenderTrimmedTime,
+                        },
+                        {
+                            field: "dot11.device.client_map[" + apkey + "]/dot11.client.datasize",
+                            title: "Data",
+                            draw: kismet_ui.RenderHumanSize,
+                        },
+                        {
+                            field: "dot11.device.client_map[" + apkey + "]/dot11.client.datasize_retry",
+                            title: "Retried Data",
+                            draw: kismet_ui.RenderHumanSize,
+                        },
+                    ]
+                });
+            });
+        });
+    },
 });
 
 var ssid_element;
