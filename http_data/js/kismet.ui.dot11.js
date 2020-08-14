@@ -312,7 +312,17 @@ kismet_ui.AddDeviceColumn('wifi_last_bssid', {
     field: 'dot11.device/dot11.device.last_bssid',
     description: 'Last associated BSSID',
     sortable: true,
-    searchable: true
+    searchable: true,
+    renderfunc: function(d, t, r, m) {
+        try {
+            if (d == 0)
+                return '<i>n/a</i>';
+        } catch (e) {
+            ;
+        }
+
+        return d;
+    }
 });
 
 kismet_ui.AddDeviceColumn('wifi_bss_uptime', {
