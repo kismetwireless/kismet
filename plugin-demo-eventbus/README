@@ -1,0 +1,24 @@
+Kismet-HTTPPROXYTEST
+
+This plugin is a demo of the external tool / proxy framework
+
+
+Installing:
+
+$ sudo su
+# KIS_SRC_DIR=../ make install
+
+Requirements:
+This requires the KismetExternal python module, available at:
+
+```bash
+$ git clone https://www.kismetwireless.net/git/python-kismet-external.git
+```
+
+or installable via pip3:
+
+```bash
+$ pip3 install python-kismet-external
+```
+
+
