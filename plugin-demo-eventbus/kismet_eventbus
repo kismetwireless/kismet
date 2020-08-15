@@ -55,7 +55,10 @@ class KismetProxyTest(object):
         self.kei.run()
 
     def handle_event(self, event, dictionary):
-        print("Eventbus got {}: {}".format(event, " ".join(f"({key}: {value})" for key, value in dictionary.items())))
+        print("Eventbus got {}".format(event))
+
+        # This is excessively verbose
+        # print("Eventbus got {}: {}".format(event, " ".join(f"({key}: {value})" for key, value in dictionary.items())))
 
     # Loop forever
     def loop(self):
