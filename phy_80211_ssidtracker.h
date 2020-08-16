@@ -69,7 +69,8 @@ public:
         set_ssid(in_ssid);
         set_ssid_len(in_ssid_len);
         set_crypt_set(in_crypt_set);
-        set_ssid_hash(generate_hash(in_ssid, in_ssid_len, in_crypt_set));
+
+        set_ssid_hash(generate_hash(in_ssid, in_ssid_len));
     }
 
     virtual uint32_t get_signature() const override {
@@ -100,7 +101,7 @@ public:
     __Proxy(probing_device_len, uint64_t, uint64_t, uint64_t, probing_device_len);
     __Proxy(responding_device_len, uint64_t, uint64_t, uint64_t, responding_device_len);
 
-    static uint64_t generate_hash(const std::string& ssid, unsigned int ssid_len, uint64_t crypt_set);
+    static uint64_t generate_hash(const std::string& ssid, unsigned int ssid_len);
 
     void add_advertising_device(std::shared_ptr<kis_tracked_device_base> device);
     void add_probing_device(std::shared_ptr<kis_tracked_device_base> device);

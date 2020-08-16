@@ -53,12 +53,11 @@ void dot11_tracked_ssid_group::reserve_fields(std::shared_ptr<tracker_element_ma
 
 }
 
-uint64_t dot11_tracked_ssid_group::generate_hash(const std::string& ssid, unsigned int ssid_len, uint64_t crypt_set) {
+uint64_t dot11_tracked_ssid_group::generate_hash(const std::string& ssid, unsigned int ssid_len) {
     auto hash = xx_hash_cpp{};
 
     boost_like::hash_combine(hash, ssid);
     boost_like::hash_combine(hash, ssid_len);
-    boost_like::hash_combine(hash, crypt_set);
 
     return hash.hash();
 }
@@ -447,7 +446,7 @@ void phy_80211_ssid_tracker::handle_broadcast_ssid(const std::string& ssid, unsi
     if (ssid_len == 0)
         return;
 
-    auto key = dot11_tracked_ssid_group::generate_hash(ssid, ssid_len, crypt_set);
+    auto key = dot11_tracked_ssid_group::generate_hash(ssid, ssid_len);
 
     local_locker l(&mutex);
 
@@ -473,7 +472,7 @@ void phy_80211_ssid_tracker::handle_response_ssid(const std::string& ssid, unsig
     if (ssid_len == 0)
         return;
 
-    auto key = dot11_tracked_ssid_group::generate_hash(ssid, ssid_len, crypt_set);
+    auto key = dot11_tracked_ssid_group::generate_hash(ssid, ssid_len);
 
     local_locker l(&mutex);
 
@@ -500,7 +499,7 @@ void phy_80211_ssid_tracker::handle_probe_ssid(const std::string& ssid, unsigned
     if (ssid_len == 0)
         return;
 
-    auto key = dot11_tracked_ssid_group::generate_hash(ssid, ssid_len, crypt_set);
+    auto key = dot11_tracked_ssid_group::generate_hash(ssid, ssid_len);
 
     local_locker l(&mutex);
 
