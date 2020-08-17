@@ -506,6 +506,15 @@ public:
         kis_internal_id = in_id;
     }
 
+    // Explicit lock and unlock of device
+    virtual void lock() {
+        local_eol_shared_locker lock(&device_mutex);
+    }
+
+    virtual void unlock() {
+        local_shared_unlocker unlock(&device_mutex);
+    }
+
     // Lock our device around serialization
     virtual void pre_serialize() override {
         local_eol_shared_locker lock(&device_mutex);
