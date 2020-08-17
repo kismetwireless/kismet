@@ -947,7 +947,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     }
                 },
                 title: '<b class="k_padding_title">Advertised SSIDs</b>',
-                help: "A single BSSID may advertise multiple SSIDs, either changing its network name over time or combining multiple SSIDs into a single BSSID radio address.  Most modern Wi-Fi access points which support multiple SSIDs will generate a dynamic MAC address for each SSID.",
+                help: "A single BSSID may advertise multiple SSIDs, either changing its network name over time or combining multiple SSIDs into a single BSSID radio address.  Most modern Wi-Fi access points which support multiple SSIDs will generate a dynamic MAC address for each SSID.  Advertised SSIDs have been seen transmitted from the access point in a beacon.",
             },
 
             {
@@ -1309,58 +1309,326 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     },
 
                 },
+                ],
+            },
 
-                /*
-                    groupIterate: true,
-                    iterateTitle: function(opts) {
-                        var ie  = opts['value'][opts['index']]['dot11.ietag.number'];
-                        var oui = opts['value'][opts['index']]['dot11.ietag.oui'];
-                        var sub = opts['value'][opts['index']]['dot11.ietag.subtag'];
 
-                        if (oui != 0)
-                            ie = ie + " " + oui;
-
-                        if (sub != -1)
-                            ie = ie + " " + sub;
-
-                        return ie;
-                    },
-
-                    fields: [
-                    {
-                        field: "dot11.ietag.number",
-                        title: "IE",
-                        help: "Each IE tag has a number between 0 and 255",
-                        filterOnEmpty: true,
-                    },
-                    {
-                        field: "dot11.ietag.oui",
-                        title: "OUI",
-                        help: "Some tags (150 and 221) may have multiple sub-tags organized by vendor",
-                        filterOnEmpty: true,
-                    },
-                    {
-                        field: "dot11.ietag.oui_manuf",
-                        title: "OUI Manuf",
-                        help: "Some tags (150 and 221) may have multiple sub-tags organized by vendor",
-                        filterOnEmpty: true,
-                    },
-                    {
-                        field: "dot11.ietag.subtag",
-                        title: "Sub-Tag IE",
-                        help: "Some tags (150, 221, 255) may have multiple sub-tags",
-                        filterOnEmpty: true,
-                    },
-                    {
-                        field: "dot11.ietag.data",
-                        title: "Tag content",
-                        help: "Raw tag content, as hex",
-                        filterOnEmpty: true,
-                    },
-
-                    ],
+            {
+                // Filler title
+                field: "dot11.device/dot11.device.responded_ssid_map",
+                id: "responded_ssid_header",
+                filter: function(opts) {
+                    try {
+                        return (Object.keys(opts['data']['dot11.device']['dot11.device.responded_ssid_map']).length >= 1);
+                    } catch (error) {
+                        return false;
+                    }
                 },
-                */
+                title: '<b class="k_padding_title">Responded SSIDs</b>',
+                help: "A single BSSID may advertise multiple SSIDs, either changing its network name over time or combining multiple SSIDs into a single BSSID radio address.  Most modern Wi-Fi access points which support multiple SSIDs will generate a dynamic MAC address for each SSID.  SSIDs in the responded categoy have been seen as a probe response from the access point; typically an access point should only respond for SSIDs it also advertises.",
+            },
+
+            {
+                field: "dot11.device/dot11.device.responded_ssid_map",
+                id: "responded_ssid",
+
+                filter: function(opts) {
+                    try {
+                        return (Object.keys(opts['data']['dot11.device']['dot11.device.responded_ssid_map']).length >= 1);
+                    } catch (error) {
+                        return false;
+                    }
+                },
+
+                groupIterate: true,
+                iterateTitle: function(opts) {
+                    var lastssid = opts['value'][opts['index']]['dot11.advertisedssid.ssid'];
+                    var lastowessid = opts['value'][opts['index']]['dot11.advertisedssid.owe_ssid'];
+
+                    if (lastssid === '') {
+                        if ('dot11.advertisedssid.owe_ssid' in opts['value'][opts['index']] && lastowessid !== '') {
+                            return "SSID: " + lastowessid + "  <i>(OWE)</i>";
+                        }
+
+                        return "SSID: <i>Unknown</i>";
+                    }
+
+                    return "SSID: " + lastssid;
+                },
+                fields: [
+                {
+                    field: "dot11.advertisedssid.ssid",
+                    title: "SSID",
+                    draw: function(opts) {
+                        if (opts['value'].replace(/\s/g, '').length == 0) {
+                            if ('dot11.advertisedssid.owe_ssid' in opts['base']) {
+                                return "<i>SSID advertised as OWE</i>";
+                            } else {
+                                return '<i>Cloaked / Empty (' + opts['value'].length + ' spaces)</i>';
+                            }
+                        }
+
+                        return opts['value'];
+                    },
+                    help: "Advertised SSIDs can be any data, up to 32 characters.  Some access points attempt to cloak the SSID by sending blank spaces or an empty string; these SSIDs can be discovered when a client connects to the network.",
+                },
+                {
+                    field: "dot11.advertisedssid.owe_ssid",
+                    liveupdate: true,
+                    title: "OWE SSID",
+                    filterOnEmpty: true,
+                    help: "Opportunistic Wireless Encryption (OWE) advertises the original SSID on an alternate BSSID.",
+                },
+                {
+                    field: "dot11.advertisedssid.owe_bssid",
+                    liveupdate: true,
+                    title: "OWE BSSID",
+                    filterOnEmpty: true,
+                    help: "Opportunistic Wireless Encryption (OWE) advertises the original SSID with a reference to the linked BSSID.",
+                    draw: function(opts) {
+                        $.get(local_uri_prefix + "devices/by-mac/" + opts['value'] + "/devices.json")
+                        .fail(function() {
+                            opts['container'].html(opts['value']);
+                        })
+                        .done(function(clidata) {
+                            clidata = kismet.sanitizeObject(clidata);
+
+                            for (var cl of clidata) {
+                                if (cl['kismet.device.base.phyname'] === 'IEEE802.11') {
+                                    opts['container'].html(opts['value'] + ' <a href="#" onclick="kismet_ui.DeviceDetailWindow(\'' + cl['kismet.device.base.key'] + '\')">View AP Details</a>');
+                                    return;
+                                }
+
+                            }
+                            opts['container'].html(opts['value']);
+                        });
+                    },
+                },
+                {
+                    field: "dot11.advertisedssid.crypt_set",
+                    liveupdate: true,
+                    title: "Encryption",
+                    draw: function(opts) {
+                        return exports.CryptToHumanReadable(opts['value']);
+                    },
+                    help: "Encryption at the Wi-Fi layer (open, WEP, and WPA) is defined by the beacon sent by the access point advertising the network.  Layer 3 encryption (such as VPNs) is added later and is not advertised as part of the network itself.",
+                },
+                {
+                    field: "dot11.advertisedssid.wpa_mfp_required",
+                    liveupdate: true,
+                    title: "MFP",
+                    help: "Management Frame Protection (MFP) attempts to mitigate denial of service attacks by authenticating management packets.  It can be part of the Wi-Fi 802.11w standard or a custom Cisco extension.",
+                    draw: function(opts) {
+                        if (opts['value'])
+                            return "Required (802.11w)";
+
+                        if (opts['base']['dot11.advertisedssid.wpa_mfp_supported'])
+                            return "Supported (802.11w)";
+
+                        if (opts['base']['dot11.advertisedssid.cisco_client_mfp'])
+                            return "Supported (Cisco)";
+
+                        return "Unavailable";
+                    }
+                },
+                {
+                    field: "dot11.advertisedssid.ht_mode",
+                    liveupdate: true,
+                    title: "HT Mode",
+                    help: "802.11n and 802.11AC networks operate on expanded channels; HT40, HT80 HT160, or HT80+80 (found only on 802.11ac wave2 gear).",
+                    filterOnEmpty: true
+                },
+                {
+                    field: "dot11.advertisedssid.ht_center_1",
+                    liveupdate: true,
+                    title: "HT Freq",
+                    help: "802.11AC networks operate on expanded channels.  This is the frequency of the center of the expanded channel.",
+                    filterOnZero: true,
+                    draw: function(opts) {
+                        return opts['value'] + " (Channel " + (opts['value'] - 5000) / 5 + ")";
+                    },
+                },
+                {
+                    field: "dot11.advertisedssid.ht_center_2",
+                    liveupdate: true,
+                    title: "HT Freq2",
+                    help: "802.11AC networks operate on expanded channels.  This is the frequency of the center of the expanded secondary channel.  Secondary channels are only found on 802.11AC wave-2 80+80 gear.",
+                    filterOnZero: true,
+                    draw: function(opts) {
+                        return opts['value'] + " (Channel " + (opts['value'] - 5000) / 5 + ")";
+                    },
+                },
+                {
+                    field: "dot11.advertisedssid.ccx_txpower",
+                    liveupdate: true,
+                    title: "Cisco CCX TxPower",
+                    filterOnZero: true,
+                    help: "Cisco access points may advertise their transmit power in a Cisco CCX IE tag.  Typically this is found on enterprise-level access points, where multiple APs service the same area.",
+                    draw: function(opts) {
+                        return opts['value'] + "dBm";
+                    },
+                },
+                {
+                    field: "dot11.advertisedssid.dot11r_mobility",
+                    liveupdate: true,
+                    title: "802.11r Mobility",
+                    filterOnZero: true,
+                    help: "The 802.11r standard allows for fast roaming between access points on the same network.  Typically this is found on enterprise-level access points, on a network where multiple APs service the same area.",
+                    draw: function(opts) { return "Enabled"; }
+                },
+                {
+                    field: "dot11.advertisedssid.dot11r_mobility_domain_id",
+                    liveupdate: true,
+                    title: "Mobility Domain",
+                    filterOnZero: true,
+                    help: "The 802.11r standard allows for fast roaming between access points on the same network."
+                },
+                {
+                    field: "dot11.advertisedssid.first_time",
+                    liveupdate: true,
+                    title: "First Seen",
+                    draw: kismet_ui.RenderTrimmedTime,
+                },
+                {
+                    field: "dot11.advertisedssid.last_time",
+                    liveupdate: true,
+                    title: "Last Seen",
+                    draw: kismet_ui.RenderTrimmedTime,
+                },
+                {
+                    field: "dot11.advertisedssid.maxrate",
+                    liveupdate: true,
+                    title: "Max. Rate",
+                    draw: function(opts) {
+                        return opts['value'] + ' mbit';
+                    },
+                    help: "The maximum basic transmission rate supported by this access point",
+                },
+                {
+                    field: "dot11.advertisedssid.dot11d_country",
+                    liveupdate: true,
+                    title: "802.11d Country",
+                    filterOnEmpty: true,
+                    help: "The 802.11d standard required access points to identify their operating country code and signal levels.  This caused clients connecting to those access points to adopt the same regulatory requirements.  802.11d has been phased out and is not found on most modern access points but may still be seen on older hardware.",
+                },
+                {
+                    field: "dot11.advertisedssid.wps_manuf",
+                    liveupdate: true,
+                    title: "WPS Manufacturer",
+                    filterOnEmpty: true,
+                    help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the device manufacturer in the WPS advertisements.  WPS is not recommended due to security flaws."
+                },
+                {
+                    field: "dot11.advertisedssid.wps_device_name",
+                    liveupdate: true,
+                    title: "WPS Device",
+                    filterOnEmpty: true,
+                    help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the device name in the WPS advertisements.  WPS is not recommended due to security flaws.",
+                },
+                {
+                    field: "dot11.advertisedssid.wps_model_name",
+                    liveupdate: true,
+                    title: "WPS Model",
+                    filterOnEmpty: true,
+                    help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the specific device model name in the WPS advertisements.  WPS is not recommended due to security flaws.",
+                },
+                {
+                    field: "dot11.advertisedssid.wps_model_number",
+                    liveupdate: true,
+                    title: "WPS Model #",
+                    filterOnEmpty: true,
+                    help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the specific model number in the WPS advertisements.  WPS is not recommended due to security flaws.",
+                },
+                {
+                    field: "dot11.advertisedssid.wps_serial_number",
+                    liveupdate: true,
+                    title: "WPS Serial #",
+                    filterOnEmpty: true,
+                    help: "Access points which advertise Wi-Fi Protected Setup (WPS) may include the device serial number in the WPS advertisements.  This information is not always valid or useful.  WPS is not recommended due to security flaws.",
+                },
+
+                {
+                    field: "dot11.advertisedssid.ie_tag_content",
+                    liveupdate: true,
+                    filterOnEmpty: true,
+                    id: "dot11_ssid_ietags",
+                    title: '<b class="k_padding_title">IE tags</b>',
+                    help: "IE tags in beacons define the network and the access point attributes; because dot11_keep_ietags is true, Kismet tracks these here.",
+                },
+
+                {
+                    field: "dot11.advertisedssid.ie_tag_content",
+                    liveupdate: true,
+                    id: "advertised_ietags",
+                    filterOnEmpty: true,
+                    span: true,
+
+                    render: function(opts) {
+                        return '<table id="tagdump" border="0" />';
+                    },
+
+                    draw: function(opts) {
+                        $('table#tagdump', opts['container']).empty();
+                        for (var ie in opts['value']) {
+                            var tag = opts['value'][ie];
+
+                            var pretty_tag = 
+                                $('<tr>', {
+                                    class: 'alternating'
+                                })
+                                .append(
+                                    $('<td>', {
+                                        width: "25%",
+                                        id: "tagno"
+                                    })
+                                    .append(
+                                        $('<div>')
+                                        .html("<b>" + tag['dot11.ietag.number'] + "</b>")
+                                    )
+                                )
+                                .append(
+                                    $('<td>', {
+                                        id: "hexdump"
+                                    })
+                                );
+
+                            if (tag['dot11.ietag.oui'] != 0) {
+                                var oui = ("000000" + tag['dot11.ietag.oui'].toString(16)).substr(-6).replace(/(..)/g, '$1:').slice(0, -1);
+
+                                if (tag['dot11.ietag.oui_manuf'].length != 0)
+                                    oui = oui + " (" + tag['dot11.ietag.oui_manuf'] + ")";
+
+                                $('#tagno', pretty_tag).append(
+                                    $('<div>')
+                                    .text(oui)
+                                );
+                            }
+
+                            if (tag['dot11.ietag.subtag'] >= 0) {
+                                $('#tagno', pretty_tag).append(
+                                    $('<div>')
+                                    .text("Subtag " + tag['dot11.ietag.subtag'])
+                                )
+                            }
+
+                            var hexdumps = pretty_hexdump(hexstr_to_bytes(tag['dot11.ietag.data']));
+
+                            for (var i in hexdumps) {
+                                $('#hexdump', pretty_tag).append(
+                                    $('<div>')
+                                    .append(
+                                        $('<code>')
+                                        .html(hexdumps[i])
+                                    )
+                                )
+                            }
+
+                            $('table#tagdump', opts['container']).append(pretty_tag);
+                        }
+                    },
+
+                },
+
                 ],
             },
 
