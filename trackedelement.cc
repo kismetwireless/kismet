@@ -244,7 +244,7 @@ std::string tracker_element::type_to_string(tracker_type t) {
         case tracker_type::tracker_vector_string:
             return "vector[string]";
         case tracker_type::tracker_hashkey_map:
-            return "vector[size_t]";
+            return "map[size_t, x]";
         case tracker_type::tracker_alias:
             return "alias";
         case tracker_type::tracker_ipv4_addr:
