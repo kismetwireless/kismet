@@ -2212,26 +2212,6 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
     bool new_ssid = false;
 
     if (dot11info->subtype == packet_sub_probe_resp) {
-        auto adv_ssid_map = dot11dev->get_advertised_ssid_map();
-
-        if (adv_ssid_map == NULL) {
-            fprintf(stderr, "debug - dot11phy::HandleSSID can't find the adv_ssid_map or probe_ssid_map struct, something is wrong\n");
-            return;
-        }
-
-        auto ssid_itr = adv_ssid_map->find(dot11info->ssid_csum);
-
-        if (ssid_itr == adv_ssid_map->end()) {
-            dot11info->new_adv_ssid = true;
-
-            ssid = dot11dev->new_advertised_ssid();
-            adv_ssid_map->insert(dot11info->ssid_csum, ssid);
-
-            new_ssid = true;
-        } else {
-            ssid = std::static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
-        }
-    } else {
         auto resp_ssid_map = dot11dev->get_responded_ssid_map();
 
         if (resp_ssid_map == NULL) {
@@ -2251,11 +2231,32 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
         } else {
             ssid = std::static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
         }
+    } else {
+        auto adv_ssid_map = dot11dev->get_advertised_ssid_map();
+
+        if (adv_ssid_map == NULL) {
+            fprintf(stderr, "debug - dot11phy::HandleSSID can't find the adv_ssid_map or probe_ssid_map struct, something is wrong\n");
+            return;
+        }
+
+        auto ssid_itr = adv_ssid_map->find(dot11info->ssid_csum);
+
+        if (ssid_itr == adv_ssid_map->end()) {
+            dot11info->new_adv_ssid = true;
+
+            ssid = dot11dev->new_advertised_ssid();
+            adv_ssid_map->insert(dot11info->ssid_csum, ssid);
+
+            new_ssid = true;
+        } else {
+            ssid = std::static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
+        }
     }
 
     if (new_ssid) {
         ssid->set_crypt_set(dot11info->cryptset);
         ssid->set_first_time(in_pack->ts.tv_sec);
+        ssid->set_last_time(in_pack->ts.tv_sec);
 
         basedev->set_crypt_string(crypt_to_simple_string(dot11info->cryptset));
 
