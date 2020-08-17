@@ -2150,6 +2150,8 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
         dot11_packinfo *dot11info,
         kis_gps_packinfo *pack_gpsinfo) {
 
+    local_locker devlock(&basedev->device_mutex, "kis_80211_phy::handle_ssid");
+
     std::shared_ptr<dot11_advertised_ssid> ssid;
 
     if (dot11info->subtype != packet_sub_beacon && dot11info->subtype != packet_sub_probe_resp) {
@@ -2224,7 +2226,6 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
             dot11info->new_adv_ssid = true;
 
             ssid = dot11dev->new_responded_ssid();
-            resp_ssid_map->insert(dot11info->ssid_csum, ssid);
 
             new_ssid = true;
         } else {
@@ -2244,7 +2245,6 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
             dot11info->new_adv_ssid = true;
 
             ssid = dot11dev->new_advertised_ssid();
-            adv_ssid_map->insert(dot11info->ssid_csum, ssid);
 
             new_ssid = true;
         } else {
@@ -2265,6 +2265,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
         ssid->set_ssid(dot11info->ssid);
         if (dot11info->ssid_len == 0 || dot11info->ssid_blank) 
             ssid->set_ssid_cloaked(true);
+
         ssid->set_ssid_len(dot11info->ssid_len);
 
         if (dot11info->owe_transition != nullptr) {
@@ -2344,15 +2345,6 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
     } else {
         if (ssid->get_last_time() < in_pack->ts.tv_sec)
             ssid->set_last_time(in_pack->ts.tv_sec);
-    }
-
-    // Always process the SSID so we update the timestamps
-    if (dot11info->subtype == packet_sub_probe_resp) {
-        ssidtracker->handle_response_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
-                ssid->get_crypt_set(), basedev);
-    } else {
-        ssidtracker->handle_broadcast_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
-                ssid->get_crypt_set(), basedev);
     }
 
     dot11dev->set_last_adv_ssid(ssid);
@@ -2671,6 +2663,20 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
 
     }
 
+    // Finalize processing and add it to the maps
+    if (dot11info->subtype == packet_sub_probe_resp) {
+        auto resp_ssid_map = dot11dev->get_responded_ssid_map();
+            resp_ssid_map->insert(dot11info->ssid_csum, ssid);
+
+        ssidtracker->handle_response_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
+                ssid->get_crypt_set(), basedev);
+    } else {
+        auto adv_ssid_map = dot11dev->get_advertised_ssid_map();
+        adv_ssid_map->insert(dot11info->ssid_csum, ssid);
+
+        ssidtracker->handle_broadcast_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
+                ssid->get_crypt_set(), basedev);
+    }
 }
 
 void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> basedev,
