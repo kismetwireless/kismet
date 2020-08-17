@@ -2943,6 +2943,8 @@ exports.AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                 'kismet.device.base.commonname',
                 'kismet.device.base.manuf',
                 'dot11.device/dot11.device.last_beaconed_ssid_record/dot11.advertisedssid.ssid',
+                'dot11.device/dot11.device.advertised_ssid_map',
+                'dot11.device/dot11.device.responded_ssid_map',
             ]
         };
 
@@ -2958,7 +2960,31 @@ exports.AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
 
                 var dev = aggcli[v];
 
-                $(`#ssid_expander_advertising_${v}`).html(`${dev['kismet.device.base.commonname']} - ${dev['kismet.device.base.macaddr']}`);
+                var devssid;
+
+                try {
+                    dev['dot11.device.advertised_ssid_map'].forEach(function (s) {
+                        if (s['dot11.advertisedssid.ssid_hash'] == data['dot11.ssidgroup.hash']) {
+                            devssid = s;
+                        }
+                    });
+                } catch (e) {
+                    ;
+                }
+
+                var crypttxt;
+                try {
+                    crypttxt = exports.CryptToHumanReadable(devssid['dot11.advertisedssid.crypt_set']);
+                } catch (e) {
+                    ;
+                }
+
+                var titlehtml = `${dev['kismet.device.base.commonname']} - ${dev['kismet.device.base.macaddr']}`;
+
+                if (crypttxt != null)
+                    titlehtml = `${titlehtml} - ${crypttxt}`;
+
+                $(`#ssid_expander_advertising_${v}`).html(titlehtml);
 
                 $(`#ssid_content_advertising_${v}`).devicedata(dev, {
                     id: "ssid_adv_data",
@@ -2980,16 +3006,56 @@ exports.AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                         {
                             field: 'kismet.device.base.commonname',
                             title: "Name",
+                            liveupdate: true,
                             empty: "<i>None</i>"
                         },
                         {
                             field: 'kismet.device.base.type',
                             title: "Type",
+                            liveupdate: true,
                             empty: "<i>Unknown</i>",
+                        },
+                        {
+                            field: 'meta_advertised_crypto',
+                            title: "Advertised encryption",
+                            liveupdate: true,
+                            draw: function(opts) {
+                                try {
+                                    return exports.CryptToHumanReadable(devssid['dot11.advertisedssid.crypt_set']);
+                                } catch (e) {
+                                    return '<i>Unknown</i>';
+                                }
+                            },
+                            help: "The encryption should be the same across all APs advertising the same SSID in the same area, howevever each AP advertises this information independently.",
+                        },
+                        {
+                            field: 'meta_advertised_firsttime',
+                            title: "First advertised",
+                            liveupdate: true,
+                            draw: function(opts) {
+                                try {
+                                    return kismet_ui.RenderTrimmedTime({value: devssid['dot11.advertisedssid.first_time']});
+                                } catch (e) {
+                                    return '<i>Unknown</i>';
+                                }
+                            }
+                        },
+                        {
+                            field: 'meta_advertised_lasttime',
+                            title: "Last advertised",
+                            liveupdate: true,
+                            draw: function(opts) {
+                                try {
+                                    return kismet_ui.RenderTrimmedTime({value: devssid['dot11.advertisedssid.last_time']});
+                                } catch (e) {
+                                    return '<i>Unknown</i>';
+                                }
+                            }
                         },
                         {
                             field: 'dot11.advertisedssid.ssid',
                             title: "Last advertised SSID",
+                            liveupdate: true,
                             draw: function(opts) {
                                 if (typeof(opts['value']) === 'undefined')
                                     return '<i>None</i>';
@@ -3010,7 +3076,31 @@ exports.AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
 
                 var dev = aggcli[v];
 
-                $(`#ssid_expander_responding_${v}`).html(`${dev['kismet.device.base.commonname']} - ${dev['kismet.device.base.macaddr']}`);
+                var devssid;
+
+                try {
+                    dev['dot11.device.responded_ssid_map'].forEach(function (s) {
+                        if (s['dot11.advertisedssid.ssid_hash'] == data['dot11.ssidgroup.hash']) {
+                            devssid = s;
+                        }
+                    });
+                } catch (e) {
+                    ;
+                }
+
+                var crypttxt;
+                try {
+                    crypttxt = exports.CryptToHumanReadable(devssid['dot11.advertisedssid.crypt_set']);
+                } catch (e) {
+                    ;
+                }
+
+                var titlehtml = `${dev['kismet.device.base.commonname']} - ${dev['kismet.device.base.macaddr']}`;
+
+                if (crypttxt != null)
+                    titlehtml = `${titlehtml} - ${crypttxt}`;
+
+                $(`#ssid_expander_responding_${v}`).html(titlehtml);
 
                 $(`#ssid_content_responding_${v}`).devicedata(dev, {
                     id: "ssid_adv_data",
@@ -3030,16 +3120,56 @@ exports.AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                             }
                         },
                         {
+                            liveupdate: true,
                             field: 'kismet.device.base.commonname',
                             title: "Name",
                             empty: "<i>None</i>"
                         },
                         {
+                            liveupdate: true,
                             field: 'kismet.device.base.type',
                             title: "Type",
                             empty: "<i>Unknown</i>",
                         },
                         {
+                            field: 'meta_advertised_crypto',
+                            title: "Advertised encryption",
+                            liveupdate: true,
+                            draw: function(opts) {
+                                try {
+                                    return exports.CryptToHumanReadable(devssid['dot11.advertisedssid.crypt_set']);
+                                } catch (e) {
+                                    return '<i>Unknown</i>';
+                                }
+                            },
+                            help: "The encryption should be the same across all APs advertising the same SSID in the same area, howevever each AP advertises this information independently.",
+                        },
+                        {
+                            field: 'meta_advertised_firsttime',
+                            title: "First responded",
+                            liveupdate: true,
+                            draw: function(opts) {
+                                try {
+                                    return kismet_ui.RenderTrimmedTime({value: devssid['dot11.advertisedssid.first_time']});
+                                } catch (e) {
+                                    return '<i>Unknown</i>';
+                                }
+                            }
+                        },
+                        {
+                            field: 'meta_advertised_lasttime',
+                            title: "Last responded",
+                            liveupdate: true,
+                            draw: function(opts) {
+                                try {
+                                    return kismet_ui.RenderTrimmedTime({value: devssid['dot11.advertisedssid.last_time']});
+                                } catch (e) {
+                                    return '<i>Unknown</i>';
+                                }
+                            }
+                        },
+                        {
+                            liveupdate: true,
                             field: 'dot11.advertisedssid.ssid',
                             title: "Last advertised SSID",
                             draw: function(opts) {
