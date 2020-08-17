@@ -812,6 +812,7 @@ std::shared_ptr<kis_tracked_device_base>
                     device->get_data_rrd()->add_sample(pack_common->datasize,
                             globalreg->timestamp.tv_sec);
 
+#if 0
                     if (pack_common->datasize <= 250)
                         device->get_packet_rrd_bin_250()->add_sample(1, 
                                 globalreg->timestamp.tv_sec);
@@ -827,6 +828,7 @@ std::shared_ptr<kis_tracked_device_base>
                     else 
                         device->get_packet_rrd_bin_jumbo()->add_sample(1, 
                                 globalreg->timestamp.tv_sec);
+#endif
                 }
 
             } else if (pack_common->type == packet_basic_mgmt ||

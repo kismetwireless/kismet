@@ -457,22 +457,6 @@ void kis_tracked_device_base::register_fields() {
                 tracker_element_factory<kis_tracked_seenby_data>(),
                 "datasource seen-by data");
 
-    packet_rrd_bin_250_id =
-        register_dynamic_field("kismet.device.base.packet.bin.250", "RRD of packets up to 250 bytes",
-                &packet_rrd_bin_250);
-    packet_rrd_bin_500_id =
-        register_dynamic_field("kismet.device.base.packet.bin.500", "RRD of packets up to 500 bytes",
-                &packet_rrd_bin_500);
-    packet_rrd_bin_1000_id =
-        register_dynamic_field("kismet.device.base.packet.bin.1000", "RRD of packets up to 1000 bytes",
-                &packet_rrd_bin_1000);
-    packet_rrd_bin_1500_id =
-        register_dynamic_field("kismet.device.base.packet.bin.1500", "RRD of packets up to 1500 bytes",
-                &packet_rrd_bin_1500);
-    packet_rrd_bin_jumbo_id =
-        register_dynamic_field("kismet.device.base.packet.bin.jumbo", "RRD of packets over 1500 bytes",
-                &packet_rrd_bin_jumbo);
-
     register_field("kismet.device.base.server_uuid", 
             "UUID of server which saw this device", &server_uuid);
 

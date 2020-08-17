@@ -205,6 +205,81 @@ protected:
     int signal_data_id;
 };
 
+class kis_tracked_data_bins : public tracker_component {
+public:
+    kis_tracked_data_bins() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    kis_tracked_data_bins(int in_id) :
+        tracker_component(in_id) {
+            register_fields();
+            reserve_fields(NULL);
+        }
+
+    kis_tracked_data_bins(int in_id, std::shared_ptr<tracker_element_map> e) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    virtual uint32_t get_signature() const override {
+        return adler32_checksum("kis_tracked_data_bins");
+    }
+
+    virtual std::unique_ptr<tracker_element> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t());
+        return std::move(dup);
+    }
+
+    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        return std::move(dup);
+    }
+
+    void add_sample(size_t size, time_t ts) {
+        if (size <= 250)
+            packet_rrd_bin_250->add_sample(1, ts);
+        else if (size <= 500)
+            packet_rrd_bin_500->add_sample(1, ts);
+        else if (size <= 1000)
+            packet_rrd_bin_1000->add_sample(1, ts);
+        else if (size <= 1500)
+            packet_rrd_bin_1500->add_sample(1, ts);
+        else
+            packet_rrd_bin_jumbo->add_sample(1, ts);
+    }
+
+protected:
+    virtual void register_fields() override {
+        tracker_component::register_fields();
+
+        register_dynamic_field("kismet.device.packet.bin.250", "RRD of packets up to 250 bytes",
+                &packet_rrd_bin_250);
+        register_dynamic_field("kismet.device.packet.bin.500", "RRD of packets up to 500 bytes",
+                &packet_rrd_bin_500);
+        register_dynamic_field("kismet.device.packet.bin.1000", "RRD of packets up to 1000 bytes",
+                &packet_rrd_bin_1000);
+        register_dynamic_field("kismet.device.packet.bin.1500", "RRD of packets up to 1500 bytes",
+                &packet_rrd_bin_1500);
+        register_dynamic_field("kismet.device.packet.bin.jumbo", "RRD of packets over 1500 bytes",
+                &packet_rrd_bin_jumbo);
+    }
+
+    // Data bins divided by size we track, named by max size
+    std::shared_ptr<kis_tracked_minute_rrd<>> packet_rrd_bin_250;
+    std::shared_ptr<kis_tracked_minute_rrd<>> packet_rrd_bin_500;
+    std::shared_ptr<kis_tracked_minute_rrd<>> packet_rrd_bin_1000;
+    std::shared_ptr<kis_tracked_minute_rrd<>> packet_rrd_bin_1500;
+    std::shared_ptr<kis_tracked_minute_rrd<>> packet_rrd_bin_jumbo;
+
+};
+
+
 
 // Bitfield of basic types a device is classified as.  The device may be multiple
 // of these depending on the phy.  The UI will display them based on the type
@@ -395,18 +470,6 @@ public:
     __ProxyDynamicTrackable(location_cloud, kis_location_history, location_cloud, 
             location_cloud_id);
 
-    typedef kis_tracked_minute_rrd<> mrrdt;
-    __ProxyDynamicTrackable(packet_rrd_bin_250, mrrdt, packet_rrd_bin_250, 
-            packet_rrd_bin_250_id);
-    __ProxyDynamicTrackable(packet_rrd_bin_500, mrrdt, packet_rrd_bin_500,
-            packet_rrd_bin_500_id);
-    __ProxyDynamicTrackable(packet_rrd_bin_1000, mrrdt, packet_rrd_bin_1000,
-            packet_rrd_bin_1000_id);
-    __ProxyDynamicTrackable(packet_rrd_bin_1500, mrrdt, packet_rrd_bin_1500,
-            packet_rrd_bin_1500_id);
-    __ProxyDynamicTrackable(packet_rrd_bin_jumbo, mrrdt, packet_rrd_bin_jumbo,
-            packet_rrd_bin_jumbo_id);
-
     __Proxy(channel, std::string, std::string, std::string, channel);
     __Proxy(frequency, double, double, double, frequency);
 
@@ -526,18 +589,6 @@ protected:
 
     int data_rrd_id;
     std::shared_ptr<kis_tracked_rrd<>> data_rrd;
-
-    // Data bins divided by size we track, named by max size
-    int packet_rrd_bin_250_id;
-    std::shared_ptr<kis_tracked_minute_rrd<>> packet_rrd_bin_250;
-    int packet_rrd_bin_500_id;
-    std::shared_ptr<kis_tracked_minute_rrd<>> packet_rrd_bin_500;
-    int packet_rrd_bin_1000_id;
-    std::shared_ptr<kis_tracked_minute_rrd<>> packet_rrd_bin_1000;
-    int packet_rrd_bin_1500_id;
-    std::shared_ptr<kis_tracked_minute_rrd<>> packet_rrd_bin_1500;
-    int packet_rrd_bin_jumbo_id;
-    std::shared_ptr<kis_tracked_minute_rrd<>> packet_rrd_bin_jumbo;
 
 	// Channel and frequency as per PHY type
     std::shared_ptr<tracker_element_string> channel;
