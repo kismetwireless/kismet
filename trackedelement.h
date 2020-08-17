@@ -1703,11 +1703,11 @@ public:
         tracker_element_core_map<std::unordered_map<size_t, std::shared_ptr<tracker_element>>, size_t, std::shared_ptr<tracker_element>>(id) { }
 
     virtual tracker_type get_type() const override {
-        return tracker_type::tracker_int_map;
+        return tracker_type::tracker_hashkey_map;
     }
 
     static tracker_type static_type() {
-        return tracker_type::tracker_int_map;
+        return tracker_type::tracker_hashkey_map;
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
