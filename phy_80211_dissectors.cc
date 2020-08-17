@@ -1392,8 +1392,8 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
             seen_ssid = true;
 
             packinfo->ssid_len = ie_tag->tag_data().length();
-            packinfo->ssid_csum =
-                adler32_checksum(ie_tag->tag_data().data(), ie_tag->tag_data().length());
+            packinfo->ssid_csum = kis_80211_phy::ssid_hash(ie_tag->tag_data().data(), 
+                    ie_tag->tag_data().length());
 
             if (packinfo->ssid_len == 0) {
                 packinfo->ssid_blank = true;

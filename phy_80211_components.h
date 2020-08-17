@@ -519,6 +519,8 @@ public:
     __Proxy(ssid, std::string, std::string, std::string, ssid);
     __Proxy(ssid_len, uint32_t, unsigned int, unsigned int, ssid_len);
 
+    __Proxy(ssid_hash, uint64_t, uint64_t, uint64_t, ssid_hash);
+
     __ProxyDynamic(owe_ssid, std::string, std::string, std::string, owe_ssid, owe_ssid_id);
     __ProxyDynamic(owe_ssid_len, uint32_t, unsigned, unsigned int, owe_ssid_len, owe_ssid_len_id);
     __ProxyDynamic(owe_bssid, mac_addr, mac_addr, mac_addr, owe_bssid, owe_bssid_id);
@@ -614,6 +616,8 @@ protected:
 
     std::shared_ptr<tracker_element_string> ssid;
     std::shared_ptr<tracker_element_uint32> ssid_len;
+
+    std::shared_ptr<tracker_element_uint64> ssid_hash;
 
     std::shared_ptr<tracker_element_string> owe_ssid;
     int owe_ssid_id;

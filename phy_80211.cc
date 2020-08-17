@@ -1958,10 +1958,8 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 
         bssid_dot11->set_last_adv_ie_csum(ietag_csum);
 
-        // If we fail parsing...
-        // if (packet_dot11_ie_dissector(in_pack, dot11info) < 0) {
-        //    return;
-        //}
+        // We can only report advertised SSIDs from a scan report, so we only have to look
+        // in the advertised map.
 
         auto ssid_itr = adv_ssid_map->find(ssid_csum);
 
@@ -1969,6 +1967,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
             ssid = bssid_dot11->new_advertised_ssid();
             adv_ssid_map->insert(ssid_csum, ssid);
 
+            ssid->set_ssid_hash(ssid_csum);
             ssid->set_crypt_set(cryptset);
             ssid->set_first_time(in_pack->ts.tv_sec);
             ssid->set_last_time(in_pack->ts.tv_sec);
@@ -2254,6 +2253,8 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
     }
 
     if (new_ssid) {
+        ssid->set_ssid_hash(dot11info->ssid_csum);
+
         ssid->set_crypt_set(dot11info->cryptset);
         ssid->set_first_time(in_pack->ts.tv_sec);
         ssid->set_last_time(in_pack->ts.tv_sec);

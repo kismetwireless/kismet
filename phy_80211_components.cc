@@ -188,6 +188,8 @@ void dot11_advertised_ssid::register_fields() {
     register_field("dot11.advertisedssid.ssidlen", 
             "beaconed ssid string length (original bytes)", &ssid_len);
 
+    register_field("dot11.advertisedssid.ssid_hash", "hashed key of the SSID+Length", &ssid_hash);
+
     owe_ssid_id =
         register_dynamic_field("dot11.advertisedssid.owe_ssid",
                 "Opportunistic Wireless Encryption (OWE) linked companion SSID", &owe_ssid);
