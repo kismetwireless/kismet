@@ -1,5 +1,4 @@
 /*
-Minor cleanup to pcapng generation
    This file is part of Kismet
 
    Kismet is free software; you can redistribute it and/or modify
