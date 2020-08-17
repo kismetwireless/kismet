@@ -35,6 +35,7 @@ Minor cleanup to pcapng generation
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include "boost_like_hash.h"
 #include "globalregistry.h"
 #include "packetchain.h"
 #include "timetracker.h"
@@ -391,6 +392,15 @@ public:
     const std::string dot11_wpa_handshake_event = "DOT11_WPA_HANDSHAKE";
     const std::string dot11_wpa_handshake_event_base = "DOT11_WPA_HANDSHAKE_BASEDEV";
     const std::string dot11_wpa_handshake_event_dot11 = "DOT11_WPA_HANDSHAKE_DOT11";
+
+    static size_t ssid_hash(const std::string& ssid, unsigned int ssid_len) {
+        auto hash = xx_hash_cpp{};
+
+        boost_like::hash_combine(hash, ssid);
+        boost_like::hash_combine(hash, ssid_len);
+
+        return hash.hash();
+    }
 
 protected:
     std::shared_ptr<alert_tracker> alertracker;

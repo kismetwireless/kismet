@@ -953,20 +953,31 @@ public:
     }
     __Proxy(num_client_aps, uint64_t, uint64_t, uint64_t, num_client_aps);
 
-
-    __ProxyDynamicTrackableFunc(advertised_ssid_map, tracker_element_int_map, advertised_ssid_map, 
+    __ProxyDynamicTrackableFunc(advertised_ssid_map, tracker_element_hashkey_map, advertised_ssid_map, 
             advertised_ssid_map_id, {advertised_ssid_map->set_as_vector(true);});
 
     std::shared_ptr<dot11_advertised_ssid> new_advertised_ssid() {
         return std::make_shared<dot11_advertised_ssid>(advertised_ssid_map_entry_id);
     }
+
     __Proxy(num_advertised_ssids, uint64_t, uint64_t, uint64_t, num_advertised_ssids);
 
-    __ProxyDynamicTrackableFunc(probed_ssid_map, tracker_element_int_map, probed_ssid_map, 
+    __ProxyDynamicTrackableFunc(responded_ssid_map, tracker_element_hashkey_map, responded_ssid_map, 
+            responded_ssid_map_id, {responded_ssid_map->set_as_vector(true);});
+
+    std::shared_ptr<dot11_advertised_ssid> new_responded_ssid() {
+        return std::make_shared<dot11_advertised_ssid>(responded_ssid_map_entry_id);
+    }
+
+    __Proxy(num_responded_ssids, uint64_t, uint64_t, uint64_t, num_responded_ssids);
+
+    __ProxyDynamicTrackableFunc(probed_ssid_map, tracker_element_hashkey_map, probed_ssid_map, 
             probed_ssid_map_id, {probed_ssid_map->set_as_vector(true);});
+
     std::shared_ptr<dot11_probed_ssid> new_probed_ssid() {
         return std::make_shared<dot11_probed_ssid>(probed_ssid_map_entry_id);
     }
+
     __Proxy(num_probed_ssids, uint64_t, uint64_t, uint64_t, num_probed_ssids);
 
     __ProxyDynamicTrackable(associated_client_map, tracker_element_mac_map, 
@@ -1042,6 +1053,11 @@ public:
         else
             set_num_advertised_ssids(0);
 
+        if (responded_ssid_map != nullptr)
+            set_num_responded_ssids(responded_ssid_map->size());
+        else
+            set_num_responded_ssids(0);
+
         if (probed_ssid_map != nullptr)
             set_num_probed_ssids(probed_ssid_map->size());
         else
@@ -1106,6 +1122,20 @@ protected:
 
         register_field("dot11.device.num_advertised_ssids", 
                 "number of advertised SSIDs", &num_advertised_ssids);
+
+
+        // Responded SSIDs keyed by ssid checksum, using the same structure as advertised
+        responded_ssid_map_id = 
+            register_dynamic_field("dot11.device.responded_ssid_map", "responded SSIDs", &responded_ssid_map);
+
+        responded_ssid_map_entry_id =
+            register_field("dot11.device.responded_ssid",
+                    tracker_element_factory<dot11_advertised_ssid>(),
+                    "responded SSID");
+
+        register_field("dot11.device.num_responded_ssids", 
+                "number of responded SSIDs", &num_responded_ssids);
+
 
         // Probed SSIDs keyed by int checksum
         probed_ssid_map_id =
@@ -1288,12 +1318,17 @@ protected:
     int client_map_entry_id;
     std::shared_ptr<tracker_element_uint64> num_client_aps;
 
-    std::shared_ptr<tracker_element_int_map> advertised_ssid_map;
+    std::shared_ptr<tracker_element_hashkey_map> advertised_ssid_map;
     int advertised_ssid_map_id;
     int advertised_ssid_map_entry_id;
     std::shared_ptr<tracker_element_uint64> num_advertised_ssids;
 
-    std::shared_ptr<tracker_element_int_map> probed_ssid_map;
+    std::shared_ptr<tracker_element_hashkey_map> responded_ssid_map;
+    int responded_ssid_map_id;
+    int responded_ssid_map_entry_id;
+    std::shared_ptr<tracker_element_uint64> num_responded_ssids;
+
+    std::shared_ptr<tracker_element_hashkey_map> probed_ssid_map;
     int probed_ssid_map_id;
     int probed_ssid_map_entry_id;
     std::shared_ptr<tracker_element_uint64> num_probed_ssids;

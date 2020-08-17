@@ -1806,7 +1806,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
         if (!ssid_j.isNull())
             ssid_str = munge_to_printable(ssid_j.asString());
 
-        auto ssid_csum = adler32_checksum(ssid_str);
+        auto ssid_csum = ssid_hash(ssid_str.data(), ssid_str.length());
 
         commoninfo = new kis_common_info();
 
@@ -2151,14 +2151,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
         dot11_packinfo *dot11info,
         kis_gps_packinfo *pack_gpsinfo) {
 
-    auto adv_ssid_map = dot11dev->get_advertised_ssid_map();
-
     std::shared_ptr<dot11_advertised_ssid> ssid;
-
-    if (adv_ssid_map == NULL) {
-        fprintf(stderr, "debug - dot11phy::HandleSSID can't find the adv_ssid_map or probe_ssid_map struct, something is wrong\n");
-        return;
-    }
 
     if (dot11info->subtype != packet_sub_beacon && dot11info->subtype != packet_sub_probe_resp) {
         return;
@@ -2216,14 +2209,51 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
         basedev->set_channel(dot11info->channel);
     }
 
-    auto ssid_itr = adv_ssid_map->find(dot11info->ssid_csum);
+    bool new_ssid = false;
 
-    if (ssid_itr == adv_ssid_map->end()) {
-        dot11info->new_adv_ssid = true;
-        
-        ssid = dot11dev->new_advertised_ssid();
-        adv_ssid_map->insert(dot11info->ssid_csum, ssid);
+    if (dot11info->subtype == packet_sub_probe_resp) {
+        auto adv_ssid_map = dot11dev->get_advertised_ssid_map();
 
+        if (adv_ssid_map == NULL) {
+            fprintf(stderr, "debug - dot11phy::HandleSSID can't find the adv_ssid_map or probe_ssid_map struct, something is wrong\n");
+            return;
+        }
+
+        auto ssid_itr = adv_ssid_map->find(dot11info->ssid_csum);
+
+        if (ssid_itr == adv_ssid_map->end()) {
+            dot11info->new_adv_ssid = true;
+
+            ssid = dot11dev->new_advertised_ssid();
+            adv_ssid_map->insert(dot11info->ssid_csum, ssid);
+
+            new_ssid = true;
+        } else {
+            ssid = std::static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
+        }
+    } else {
+        auto resp_ssid_map = dot11dev->get_responded_ssid_map();
+
+        if (resp_ssid_map == NULL) {
+            fprintf(stderr, "debug - dot11phy::HandleSSID can't find the responded_ssid_map, something is wrong\n");
+            return;
+        }
+
+        auto ssid_itr = resp_ssid_map->find(dot11info->ssid_csum);
+
+        if (ssid_itr == resp_ssid_map->end()) {
+            dot11info->new_adv_ssid = true;
+
+            ssid = dot11dev->new_responded_ssid();
+            resp_ssid_map->insert(dot11info->ssid_csum, ssid);
+
+            new_ssid = true;
+        } else {
+            ssid = std::static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
+        }
+    }
+
+    if (new_ssid) {
         ssid->set_crypt_set(dot11info->cryptset);
         ssid->set_first_time(in_pack->ts.tv_sec);
 
@@ -2309,9 +2339,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
                 }
             }
         }
-
     } else {
-        ssid = std::static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
         if (ssid->get_last_time() < in_pack->ts.tv_sec)
             ssid->set_last_time(in_pack->ts.tv_sec);
     }
@@ -3576,61 +3604,90 @@ public:
             return false;
         }
 
-        auto adv_ssid_map = dot11dev->get_advertised_ssid_map();
-        std::shared_ptr<dot11_advertised_ssid> ssid = NULL;
-        tracker_element_int_map::iterator int_itr;
+        if (dot11dev->has_advertised_ssid_map()) {
+            auto adv_ssid_map = dot11dev->get_advertised_ssid_map();
+            std::shared_ptr<dot11_advertised_ssid> ssid = NULL;
 
-        for (int_itr = adv_ssid_map->begin(); int_itr != adv_ssid_map->end(); ++int_itr) {
-            // Always leave one
-            if (adv_ssid_map->size() <= 1)
-                break;
+            for (auto itr = adv_ssid_map->begin(); itr != adv_ssid_map->end(); ++itr) {
+                // Always leave one
+                if (adv_ssid_map->size() <= 1)
+                    break;
 
-            ssid = std::static_pointer_cast<dot11_advertised_ssid>(int_itr->second);
+                ssid = std::static_pointer_cast<dot11_advertised_ssid>(itr->second);
 
-            if (time(0) - ssid->get_last_time() > timeout && device->get_packets() < packets) {
-                if (dot11dev->get_last_adv_ssid() == ssid) {
-                    dot11dev->set_last_adv_ssid(NULL);
-                    dot11dev->set_last_adv_ie_csum(0);
+                if (time(0) - ssid->get_last_time() > timeout && device->get_packets() < packets) {
+                    if (dot11dev->get_last_adv_ssid() == ssid) {
+                        dot11dev->set_last_adv_ssid(NULL);
+                        dot11dev->set_last_adv_ie_csum(0);
+                    }
+
+                    adv_ssid_map->erase(itr);
+                    itr = adv_ssid_map->begin();
+                    devicetracker->update_full_refresh();
                 }
-
-                adv_ssid_map->erase(int_itr);
-                int_itr = adv_ssid_map->begin();
-                devicetracker->update_full_refresh();
             }
         }
 
-        auto probe_map = dot11dev->get_probed_ssid_map();
-        std::shared_ptr<dot11_probed_ssid> pssid = NULL;
+        if (dot11dev->has_responded_ssid_map()) {
+            auto resp_ssid_map = dot11dev->get_responded_ssid_map();
+            std::shared_ptr<dot11_advertised_ssid> ssid = NULL;
 
-        for (int_itr = probe_map->begin(); int_itr != probe_map->end(); ++int_itr) {
-            // Always leave one
-            if (probe_map->size() <= 1)
-                break;
+            for (auto itr = resp_ssid_map->begin(); itr != resp_ssid_map->end(); ++itr) {
+                // Always leave one
+                if (resp_ssid_map->size() <= 1)
+                    break;
 
-            pssid = std::static_pointer_cast<dot11_probed_ssid>(int_itr->second);
+                ssid = std::static_pointer_cast<dot11_advertised_ssid>(itr->second);
 
-            if (time(0) - pssid->get_last_time() > timeout && device->get_packets() < packets) {
-                probe_map->erase(int_itr);
-                int_itr = probe_map->begin();
-                devicetracker->update_full_refresh();
+                if (time(0) - ssid->get_last_time() > timeout && device->get_packets() < packets) {
+                    if (dot11dev->get_last_adv_ssid() == ssid) {
+                        dot11dev->set_last_adv_ssid(NULL);
+                        dot11dev->set_last_adv_ie_csum(0);
+                    }
+
+                    resp_ssid_map->erase(itr);
+                    itr = resp_ssid_map->begin();
+                    devicetracker->update_full_refresh();
+                }
             }
         }
 
-        auto client_map = dot11dev->get_client_map();
-        std::shared_ptr<dot11_client> client = NULL;
-        tracker_element_mac_map::iterator mac_itr;
+        if (dot11dev->has_probed_ssid_map()) {
+            auto probe_map = dot11dev->get_probed_ssid_map();
+            std::shared_ptr<dot11_probed_ssid> pssid = NULL;
 
-        for (mac_itr = client_map->begin(); mac_itr != client_map->end(); ++mac_itr) {
-            // Always leave one
-            if (client_map->size() <= 1)
-                break;
+            for (auto itr = probe_map->begin(); itr != probe_map->end(); ++itr) {
+                // Always leave one
+                if (probe_map->size() <= 1)
+                    break;
 
-            client = std::static_pointer_cast<dot11_client>(mac_itr->second);
+                pssid = std::static_pointer_cast<dot11_probed_ssid>(itr->second);
 
-            if (time(0) - client->get_last_time() > timeout && device->get_packets() < packets) {
-                client_map->erase(mac_itr);
-                mac_itr = client_map->begin();
-                devicetracker->update_full_refresh();
+                if (time(0) - pssid->get_last_time() > timeout && device->get_packets() < packets) {
+                    probe_map->erase(itr);
+                    itr = probe_map->begin();
+                    devicetracker->update_full_refresh();
+                }
+            }
+        }
+
+        if (dot11dev->has_client_map()) {
+            auto client_map = dot11dev->get_client_map();
+            std::shared_ptr<dot11_client> client = NULL;
+            tracker_element_mac_map::iterator mac_itr;
+
+            for (mac_itr = client_map->begin(); mac_itr != client_map->end(); ++mac_itr) {
+                // Always leave one
+                if (client_map->size() <= 1)
+                    break;
+
+                client = std::static_pointer_cast<dot11_client>(mac_itr->second);
+
+                if (time(0) - client->get_last_time() > timeout && device->get_packets() < packets) {
+                    client_map->erase(mac_itr);
+                    mac_itr = client_map->begin();
+                    devicetracker->update_full_refresh();
+                }
             }
         }
 

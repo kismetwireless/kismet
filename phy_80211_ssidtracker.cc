@@ -19,8 +19,24 @@
 #include "phy_80211_ssidtracker.h"
 
 #include "boost_like_hash.h"
+#include "phy_80211.h"
 #include "timetracker.h"
 #include "trackedelement_workers.h"
+
+dot11_tracked_ssid_group::dot11_tracked_ssid_group(int in_id, const std::string& in_ssid, unsigned int in_ssid_len,
+        unsigned int in_crypt_set) :
+    tracker_component(in_id) {
+        mutex.set_name("dot11_tracked_ssid_group internal");
+
+        register_fields();
+        reserve_fields(nullptr);
+
+        set_ssid(in_ssid);
+        set_ssid_len(in_ssid_len);
+        set_crypt_set(in_crypt_set);
+
+        set_ssid_hash(kis_80211_phy::ssid_hash(in_ssid, in_ssid_len));
+}
 
 void dot11_tracked_ssid_group::register_fields() {
     tracker_component::register_fields();
@@ -51,15 +67,6 @@ void dot11_tracked_ssid_group::reserve_fields(std::shared_ptr<tracker_element_ma
     responding_device_map->set_as_key_vector(true);
     probing_device_map->set_as_key_vector(true);
 
-}
-
-uint64_t dot11_tracked_ssid_group::generate_hash(const std::string& ssid, unsigned int ssid_len) {
-    auto hash = xx_hash_cpp{};
-
-    boost_like::hash_combine(hash, ssid);
-    boost_like::hash_combine(hash, ssid_len);
-
-    return hash.hash();
 }
 
 void dot11_tracked_ssid_group::add_advertising_device(std::shared_ptr<kis_tracked_device_base> device) {
@@ -446,7 +453,7 @@ void phy_80211_ssid_tracker::handle_broadcast_ssid(const std::string& ssid, unsi
     if (ssid_len == 0)
         return;
 
-    auto key = dot11_tracked_ssid_group::generate_hash(ssid, ssid_len);
+    auto key = kis_80211_phy::ssid_hash(ssid, ssid_len);
 
     local_locker l(&mutex);
 
@@ -472,7 +479,7 @@ void phy_80211_ssid_tracker::handle_response_ssid(const std::string& ssid, unsig
     if (ssid_len == 0)
         return;
 
-    auto key = dot11_tracked_ssid_group::generate_hash(ssid, ssid_len);
+    auto key = kis_80211_phy::ssid_hash(ssid, ssid_len);
 
     local_locker l(&mutex);
 
@@ -499,7 +506,7 @@ void phy_80211_ssid_tracker::handle_probe_ssid(const std::string& ssid, unsigned
     if (ssid_len == 0)
         return;
 
-    auto key = dot11_tracked_ssid_group::generate_hash(ssid, ssid_len);
+    auto key = kis_80211_phy::ssid_hash(ssid, ssid_len);
 
     local_locker l(&mutex);
 
