@@ -1179,6 +1179,33 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
     if (in == nullptr)
         return ret_elem;
 
+    // Dispatch any generics which made it this far
+    switch (in->get_type()) {
+        case tracker_type::tracker_vector:
+            return summarize_tracker_element(std::static_pointer_cast<tracker_element_vector>(in),
+                    in_summarization, rename_map);
+        case tracker_type::tracker_double_map:
+            return summarize_tracker_element(std::static_pointer_cast<tracker_element_double_map>(in),
+                    in_summarization, rename_map);
+        case tracker_type::tracker_int_map:
+            return summarize_tracker_element(std::static_pointer_cast<tracker_element_int_map>(in),
+                    in_summarization, rename_map);
+        case tracker_type::tracker_string_map:
+            return summarize_tracker_element(std::static_pointer_cast<tracker_element_string_map>(in),
+                    in_summarization, rename_map);
+        case tracker_type::tracker_mac_map:
+            return summarize_tracker_element(std::static_pointer_cast<tracker_element_mac_map>(in),
+                    in_summarization, rename_map);
+        case tracker_type::tracker_key_map:
+            return summarize_tracker_element(std::static_pointer_cast<tracker_element_device_key_map>(in),
+                    in_summarization, rename_map);
+        case tracker_type::tracker_hashkey_map:
+            return summarize_tracker_element(std::static_pointer_cast<tracker_element_hashkey_map>(in),
+                    in_summarization, rename_map);
+        default:
+            break;
+    }
+
     // Poke the pre-serialization function to update anything that needs updating before
     // we create the new meta-object
     in->pre_serialize();
