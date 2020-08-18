@@ -315,6 +315,10 @@ exports.sanitizeHTML = function(s) {
     });
 }
 
+exports.censorMAC = function(t) {
+    return t.replace(/([a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}):[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}/, "$1:XX:XX:XX");
+}
+
 /* Recurse over a complete object (such as from json), finding all strings,
  * and escaping them to be 'safe' */
 exports.sanitizeObject = function(o) {
@@ -323,8 +327,10 @@ exports.sanitizeObject = function(o) {
     }
 
     if (typeof(o) === 'string') {
-        var s = exports.sanitizeHTML(o);
-        return exports.sanitizeHTML(o);
+        if (window['censor_macs'])
+            return exports.censorMAC(exports.sanitizeHTML(o));
+        else
+            return exports.sanitizeHTML(o);
     }
 
     Object.keys(o).forEach(function(key) {
