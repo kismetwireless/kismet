@@ -2096,6 +2096,8 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
                 var dev = devs[v];
 
+                $(`#associated_client_expander_${v}`).html(`Client ${dev['kismet.device.base.macaddr']}`);
+
                 $(`#associated_client_content_${v}`).devicedata(dev, {
                     id: "clientData",
                     fields: [
