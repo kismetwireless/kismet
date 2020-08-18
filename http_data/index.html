@@ -105,6 +105,9 @@ div.autosize {
 </style>
 
 <script>
+const queryString = window.location.search;
+const urlParams = new URLSearchParams(queryString);
+window['censor_macs'] = urlParams.get('censor_macs')
 
 var orig_title = "";
 
