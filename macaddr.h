@@ -83,7 +83,7 @@ struct mac_addr {
     }
 
     void string2long(const char *in) {
-        state.len = 6;
+        state.len = 5;
         state.error = 0;
 
         longmac = 0;
@@ -141,7 +141,7 @@ struct mac_addr {
         longmac(0),
         longmask((uint64_t) -1),
         state {
-            .len = 6,
+            .len = 5,
             .error = 0
         } { }
 
@@ -162,12 +162,12 @@ struct mac_addr {
         longmac{0},
         longmask{(uint64_t) -1},
         state {
-            .len = 6,
+            .len = 5,
             .error = 0
         } { }
 
     mac_addr(const uint8_t *in, unsigned int len) {
-        state.len = 6;
+        state.len = 5;
         state.error = 0;
         longmac = 0;
         longmask = (uint64_t) -1;
@@ -181,7 +181,7 @@ struct mac_addr {
     }
 
     mac_addr(const char *in, unsigned int len) {
-        state.len = 6;
+        state.len = 5;
         state.error = 0;
         longmac = 0;
         longmask = (uint64_t) -1;
@@ -196,7 +196,7 @@ struct mac_addr {
 
     // slash-style byte count mask
     mac_addr(const uint8_t *in, unsigned int len, unsigned int mask) {
-        state.len = 6;
+        state.len = 5;
         state.error = 0;
 
         longmac = 0;
