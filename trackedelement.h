@@ -895,11 +895,6 @@ public:
         if (std::isnan(value) || std::isinf(value))
             return "0";
 
-        // Jump through some hoops to collapse things like 0.000000 to 0 to save 
-        // space/time in serializing
-        if (floor(value) == value)
-            return fmt::format("{}", (long) value);
-
         return fmt::format("{}", value);
     }
 
@@ -1368,6 +1363,18 @@ public:
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
     }
+
+    virtual std::string as_string() const override {
+        if (std::isnan(value) || std::isinf(value))
+            return "0";
+
+        // Jump through some hoops to collapse things like 0.000000 to 0 to save 
+        // space/time in serializing
+        if (floor(value) == value)
+            return fmt::format("{}", (long) value);
+
+        return fmt::format("{:f}", value);
+    }
 };
 
 class tracker_element_double : public tracker_element_core_numeric<double> {
@@ -1399,6 +1406,18 @@ public:
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
+    }
+
+    virtual std::string as_string() const override {
+        if (std::isnan(value) || std::isinf(value))
+            return "0";
+
+        // Jump through some hoops to collapse things like 0.000000 to 0 to save 
+        // space/time in serializing
+        if (floor(value) == value)
+            return fmt::format("{}", (long) value);
+
+        return fmt::format("{:f}", value);
     }
 };
 
