@@ -321,7 +321,7 @@ kismet_ui.AddDeviceColumn('wifi_last_bssid', {
             ;
         }
 
-        return d;
+        return kismet.censorMAC(d);
     }
 });
 
@@ -432,9 +432,13 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 liveupdate: true,
                 title: "Last BSSID",
                 filter: function(opts) {
-                    return opts['value'] !== '00:00:00:00:00:00';
+                    return opts['value'].replace(/0:/g, '').length != 0;
                 },
                 help: "If present, the BSSID (MAC address) of the last network this device was part of.  Each Wi-Fi access point, even those with the same SSID, has a unique BSSID.",
+                draw: function(opts) {
+                    return kismet.censorMAC(opts['value']);
+                },
+
             },
             {
                 field: "dot11.device/dot11.device.bss_timestamp",
@@ -1678,7 +1682,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
                         try {
                             var ssid = data['dot11.device']['dot11.device.last_beaconed_ssid_record']['dot11.advertisedssid.ssid'];
-                            var mac = data['kismet.device.base.macaddr'];
+                            var mac = kismet.censorMAC(data['kismet.device.base.macaddr']);
                         } catch (error) {
 
                         }
@@ -1752,7 +1756,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         var mac = "<i>unknown</i>";
 
                         try {
-                            mac = data['kismet.device.base.macaddr'];
+                            mac = kismet.censorMAC(data['kismet.device.base.macaddr']);
                         } catch (error) {
 
                         }
@@ -1806,10 +1810,10 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 iterateTitle: function(opts) {
                     var key = kismet.ObjectByString(opts['data'], opts['basekey'] + 'dot11.client.bssid_key');
                     if (key != 0) {
-                        return '<a id="dot11_bssid_client_' + key + '" class="expander collapsed" data-expander-target="#' + opts['containerid'] + '" href="#">Client of ' + opts['index'] + '</a>';
+                        return '<a id="dot11_bssid_client_' + key + '" class="expander collapsed" data-expander-target="#' + opts['containerid'] + '" href="#">Client of ' + kismet.censorMAC(opts['index']) + '</a>';
                     }
 
-                    return '<a class="expander collapsed" data-expander-target="#' + opts['containerid'] + '" href="#">Client of ' + opts['index'] + '</a>';
+                    return '<a class="expander collapsed" data-expander-target="#' + opts['containerid'] + '" href="#">Client of ' + kismet.censorMAC(opts['index']) + '</a>';
                 },
                 draw: function(opts) {
                     var tb = $('.expander', opts['cell']).simpleexpand();
@@ -1831,9 +1835,8 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     field: "dot11.client.bssid",
                     title: "BSSID",
                     draw: function(opts) {
-                        var ret = opts['value'];
-                        return ret;
-                    }
+                        return kismet.censorMAC(opts['value']);
+                    },
                 },
                 {
                     field: "dot11.client.bssid_key",
@@ -1850,7 +1853,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                             if (clidata === '' || clidata === '""') {
                                 opts['container'].html('<i>None</i>');
                             } else {
-                                opts['container'].html(clidata);
+                                opts['container'].html(kismet.censorMAC(clidata));
                             }
                         });
                     },
@@ -1999,7 +2002,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
                 groupIterate: true,
                 iterateTitle: function(opts) {
-                    return '<a id="associated_client_expander_' + opts['base'] + '" class="expander collapsed" href="#" data-expander-target="#' + opts['containerid'] + '">Client ' + opts['index'] + '</a>';
+                    return '<a id="associated_client_expander_' + opts['base'] + '" class="expander collapsed" href="#" data-expander-target="#' + opts['containerid'] + '">Client ' + kismet.censorMAC(opts['index']) + '</a>';
                 },
                 draw: function(opts) {
                     var tb = $('.expander', opts['cell']).simpleexpand();
@@ -2079,7 +2082,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 else if (lastssid.replace(/\s/g, '').length == 0) 
                     lastssid = `<i>Cloaked / Empty (${lastssid.length} characters)</i>`;
 
-                $(`a#dot11_bssid_client_${v}`).html(`Client of ${dev['kismet.device.base.macaddr']} (${lastssid})`);
+                $(`a#dot11_bssid_client_${v}`).html(`Client of ${kismet.censorMAC(dev['kismet.device.base.macaddr'])} (${lastssid})`);
             });
 
             client_devs = [];
@@ -2096,7 +2099,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
 
                 var dev = devs[v];
 
-                $(`#associated_client_expander_${v}`).html(`Client ${dev['kismet.device.base.macaddr']}`);
+                $(`#associated_client_expander_${v}`).html(`Client ${kismet.censorMAC(dev['kismet.device.base.macaddr'])}`);
 
                 $(`#associated_client_content_${v}`).devicedata(dev, {
                     id: "clientData",
@@ -2112,7 +2115,10 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                             field: "kismet.device.base.commonname",
                             title: "Name",
                             filterOnEmpty: "true",
-                            empty: "<i>None</i>"
+                            empty: "<i>None</i>",
+                            draw: function(opts) {
+                                return kismet.censorMAC(opts['value']);
+                            },
                         },
                         {
                             field: "kismet.device.base.type",
@@ -2986,6 +2992,8 @@ exports.AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                 if (crypttxt != null)
                     titlehtml = `${titlehtml} - ${crypttxt}`;
 
+                titlehtml = kismet.censorMAC(titlehtml);
+
                 $(`#ssid_expander_advertising_${v}`).html(titlehtml);
 
                 $(`#ssid_content_advertising_${v}`).devicedata(dev, {
@@ -3002,14 +3010,17 @@ exports.AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                             field: "kismet.device.base.macaddr",
                             title: "MAC",
                             draw: function(opts) {
-                                return `${opts['data']['kismet.device.base.macaddr']} (${opts['data']['kismet.device.base.manuf']})`;
+                                return kismet.censorMAC(`${opts['data']['kismet.device.base.macaddr']} (${opts['data']['kismet.device.base.manuf']})`);
                             }
                         },
                         {
                             field: 'kismet.device.base.commonname',
                             title: "Name",
                             liveupdate: true,
-                            empty: "<i>None</i>"
+                            empty: "<i>None</i>",
+                            draw: function(opts) {
+                                return kismet.censorMAC(opts['value']);
+                            },
                         },
                         {
                             field: 'kismet.device.base.type',
@@ -3102,6 +3113,8 @@ exports.AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                 if (crypttxt != null)
                     titlehtml = `${titlehtml} - ${crypttxt}`;
 
+                titlehtml = kismet.censorMAC(titlehtml);
+
                 $(`#ssid_expander_responding_${v}`).html(titlehtml);
 
                 $(`#ssid_content_responding_${v}`).devicedata(dev, {
@@ -3118,14 +3131,17 @@ exports.AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                             field: "kismet.device.base.macaddr",
                             title: "MAC",
                             draw: function(opts) {
-                                return `${opts['data']['kismet.device.base.macaddr']} (${opts['data']['kismet.device.base.manuf']})`;
+                                return kismet.censorMAC(`${opts['data']['kismet.device.base.macaddr']} (${opts['data']['kismet.device.base.manuf']})`);
                             }
                         },
                         {
                             liveupdate: true,
                             field: 'kismet.device.base.commonname',
                             title: "Name",
-                            empty: "<i>None</i>"
+                            empty: "<i>None</i>",
+                            draw: function(opts) {
+                                return kismet.censorMAC(opts['value']);
+                            },
                         },
                         {
                             liveupdate: true,
@@ -3194,7 +3210,7 @@ exports.AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
 
                 var dev = aggcli[v];
 
-                $(`#ssid_expander_probing_${v}`).html(`${dev['kismet.device.base.commonname']} - ${dev['kismet.device.base.macaddr']}`);
+                $(`#ssid_expander_probing_${v}`).html(kismet.censorMAC(`${dev['kismet.device.base.commonname']} - ${dev['kismet.device.base.macaddr']}`));
 
                 $(`#ssid_content_probing_${v}`).devicedata(dev, {
                     id: "ssid_adv_data",
@@ -3210,13 +3226,16 @@ exports.AddSsidDetail("ssid", "Wi-Fi (802.11) SSIDs", 0, {
                             field: "kismet.device.base.macaddr",
                             title: "MAC",
                             draw: function(opts) {
-                                return `${opts['data']['kismet.device.base.macaddr']} (${opts['data']['kismet.device.base.manuf']})`;
+                                return kismet.censorMAC(`${opts['data']['kismet.device.base.macaddr']} (${opts['data']['kismet.device.base.manuf']})`);
                             }
                         },
                         {
                             field: 'kismet.device.base.commonname',
                             title: "Name",
-                            empty: "<i>None</i>"
+                            empty: "<i>None</i>",
+                            draw: function(opts) {
+                                return kismet.censorMAC(opts['value']);
+                            },
                         },
                         {
                             field: 'kismet.device.base.type',

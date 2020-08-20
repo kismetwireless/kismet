@@ -315,8 +315,17 @@ exports.sanitizeHTML = function(s) {
     });
 }
 
+/* Censor a mac-like string, if the global censor_macs option is turned on; must be called by each
+ * display component */
 exports.censorMAC = function(t) {
-    return t.replace(/([a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}):[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}/, "$1:XX:XX:XX");
+    try {
+        if (window['censor_macs'])
+            return t.replace(/([a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}):[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}/g, "$1:XX:XX:XX");
+        else
+            return t;
+    } catch (e) {
+        return t;
+    }
 }
 
 /* Recurse over a complete object (such as from json), finding all strings,
@@ -327,10 +336,7 @@ exports.sanitizeObject = function(o) {
     }
 
     if (typeof(o) === 'string') {
-        if (window['censor_macs'])
-            return exports.censorMAC(exports.sanitizeHTML(o));
-        else
-            return exports.sanitizeHTML(o);
+        return exports.sanitizeHTML(o);
     }
 
     Object.keys(o).forEach(function(key) {

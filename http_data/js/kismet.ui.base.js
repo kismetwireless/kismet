@@ -77,7 +77,8 @@ exports.renderMac = function(data, type, row, meta) {
     if (typeof(data) === 'undefined') {
         return "<i>n/a</i>";
     }
-    return data;
+
+    return kismet.censorMAC(data);
 }
 
 exports.renderSignal = function(data, type, row, meta) {
@@ -174,6 +175,9 @@ kismet_ui.AddDeviceColumn('column_name', {
     sTitle: 'Name',
     field: 'kismet.device.base.commonname',
     description: 'Device name',
+    renderfunc: function(d, t, r, m) {
+        return kismet.censorMAC(d);
+    }
 });
 
 kismet_ui.AddDeviceColumn('column_type', {
@@ -399,6 +403,8 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     if (typeof(name) == 'undefined' || name == "")
                         name = opts['data']['kismet.device.base.macaddr'];
 
+                    name = kismet.censorMAC(name);
+
                     var nameobj = 
                         $('<a>', {
                             'href': '#'
@@ -463,6 +469,9 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 field: "kismet.device.base.macaddr",
                 title: "MAC Address",
                 help: "Unique per-phy address of the transmitting device, when available.  Not all phy types provide MAC addresses, however most do.",
+                draw: function(opts) {
+                    return kismet.censorMAC(opts['value']);
+                }
             },
             {
                 field: "kismet.device.base.manuf",

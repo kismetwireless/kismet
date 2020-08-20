@@ -369,13 +369,13 @@
                         $('<span>', {
                             class: "ka-alert-line-type"
                         })
-                        .html(alert_list[x]['kismet.alert.header'])
+                        .html(kismet.censorMAC(alert_list[x]['kismet.alert.header']))
                     )
                     .append(
                         $('<div>', {
                             class: "ka-alert-line-text"
                         })
-                        .html(alert_list[x]['kismet.alert.text'])
+                        .html(kismet.censorMAC(alert_list[x]['kismet.alert.text']))
                     )
                     .append(
                         $('<div>', {
@@ -385,7 +385,7 @@
                             $('<span>', {
                                 class: "ka-alert-line-address"
                             })
-                            .html(alert_list[x]['kismet.alert.source_mac'])
+                            .html(kismet_ui_base.renderMac(alert_list[x]['kismet.alert.source_mac']))
                         )
                         .append(
                             $('<i>', {
@@ -396,7 +396,7 @@
                             $('<span>', {
                                 class: "ka-alert-line-address"
                             })
-                            .html(alert_list[x]['kismet.alert.dest_mac'])
+                            .html(kismet_ui_base.renderMac(alert_list[x]['kismet.alert.dest_mac']))
                         )
                     )
                 );
