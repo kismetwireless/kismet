@@ -219,16 +219,9 @@
             document.addEventListener(visibilityChange, handleVisibilityChange, false);
         }
 
-        $.urlParam = function(name){
-            var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
-            if (results == null) {
-                return null;
-            }
-            return decodeURI(results[1]) || 0;
-        }
-
-        var param_url = $.urlParam('parent_url')
-        var param_prefix = $.urlParam('local_uri_prefix')
+        var urlparam = new URL(window.location.href);
+        var param_url = urlparam.searchParams.get('parent_url') + "/";
+        var param_prefix = urlparam.searchParams.get('local_uri_prefix', "");
 
         if (param_prefix == 0)
             param_prefix=""

@@ -250,11 +250,16 @@ kismet_ui_tabpane.AddTab({
     tabTitle: 'ADSB Live',
     expandable: false,
     createCallback: function(div) {
+        var url = new URL(parent.document.URL);
+        url.searchParams.append('parent_url', url.origin)
+        url.searchParams.append('local_uri_prefix', local_uri_prefix);
+        url.pathname = `${local_uri_prefix}/adsb_map_panel.html`;
+
         div.append(
             $('<iframe>', {
                 width: '100%',
                 height: '100%',
-                src: `${local_uri_prefix}/adsb_map_panel.html?parent_url=${parent.document.URL}&local_uri_prefix=${local_uri_prefix}`,
+                src: url.href,
             })
         );
     },
