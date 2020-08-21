@@ -207,6 +207,7 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	trackedelement.cc.o trackedelement_workers.cc.o trackedcomponent.cc.o entrytracker.cc.o \
 	trackedlocation.cc.o devicetracker_component.cc.o \
 	devicetracker_view.cc.o devicetracker_view_workers.cc.o \
+	kis_server_announce.cc.o \
 	jsoncpp.cc.o json_adapter.cc.o \
 	plugintracker.cc.o alertracker.cc.o timetracker.cc.o channeltracker2.cc.o \
 	devicetracker.cc.o devicetracker_httpd.cc.o \

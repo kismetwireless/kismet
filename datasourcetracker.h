@@ -445,6 +445,19 @@ public:
     // Merge a source into the source list, preserving UUID and source number
     virtual void merge_source(shared_datasource in_source);
 
+    // Remote capture info
+    bool remote_enabled() const {
+        return remotecap_enabled;
+    }
+
+    unsigned int remote_port() const {
+        return remotecap_port;
+    }
+
+    std::string remote_listen() const {
+        return remotecap_listen;
+    }
+
 protected:
     // Callback registered with the tcp server for a new connection
     void new_remote_tcp_connection(int in_fd);
@@ -453,6 +466,9 @@ protected:
     virtual void databaselog_write_datasources();
 
     std::shared_ptr<tcp_server_v2> remote_tcp_server;
+    bool remotecap_enabled;
+    unsigned int remotecap_port;
+    std::string remotecap_listen;
 
     std::shared_ptr<datasource_tracker> datasourcetracker;
     std::shared_ptr<time_tracker> timetracker;

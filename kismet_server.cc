@@ -117,6 +117,8 @@
 #include "entrytracker.h"
 #include "json_adapter.h"
 
+#include "kis_server_announce.h"
+
 #ifndef exec_name
 char *exec_name;
 #endif
@@ -944,6 +946,9 @@ int main(int argc, char *argv[], char *envp[]) {
     bluetooth_scan_source::create_bluetooth_scan_source();
 
     std::shared_ptr<plugin_tracker> plugintracker;
+
+	// Start the announcement system
+	kis_server_announce::create_server_announce();
 
     // Start the plugin handler
     if (plugins) {
