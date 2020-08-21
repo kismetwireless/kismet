@@ -58,23 +58,26 @@ with requests.get("http://registry.faa.gov/database/ReleasableAircraft.zip") as 
             num_rows = num_rows + 1
 
             # ICAO, CALL, TYPE, MODEL, OWNER, ATYPE
-            if row[0] in res.keys():
-                print("{}\t{}\t{}\t\"{}\"\t\"{}\"\t{}".format(
-                    row[33].rstrip().lower(),
-                    row[0],
-                    mdl[row[2]],
-                    acft[row[2]],
-                    res[row[0]].rstrip(),
-                    row[18]))
-            else:
-                print("{}\t{}\t{}\t\"{}\"\t\"{}\"\t{}".format(
-                    row[33].rstrip().lower(),
-                    row[0],
-                    mdl[row[2]],
-                    acft[row[2]],
-                    row[6].rstrip(),
-                    row[18]))
-
+            try:
+                if row[0] in res.keys():
+                    print("{}\t{}\t{}\t\"{}\"\t\"{}\"\t{}".format(
+                        row[33].rstrip().lower(),
+                        row[0],
+                        mdl[row[2]],
+                        acft[row[2]],
+                        res[row[0]].rstrip(),
+                        row[18]))
+                else:
+                    print("{}\t{}\t{}\t\"{}\"\t\"{}\"\t{}".format(
+                        row[33].rstrip().lower(),
+                        row[0],
+                        mdl[row[2]],
+                        acft[row[2]],
+                        row[6].rstrip(),
+                        row[18]))
+            except KeyError as ke:
+                print("Error processing entry, skipping: {}".format(" ".join(row)), file=sys.stderr)
+                pass
 
 #Canada Records Fetch 
 owner={}
