@@ -10,10 +10,12 @@
     <link rel="stylesheet" type="text/css" href="css/jquery.dataTables.min.css" />
     <link rel="stylesheet" type="text/css" href="css/responsive.dataTables.min.css" />
     <link rel="stylesheet" type="text/css" href="css/colReorder.dataTables.min.css" />
+    <link rel="stylesheet" type="text/css" href="css/Control.Loading.css" />
 
     <script src="js/jquery-3.1.0.min.js"></script>
     <script src="js/leaflet.js"></script>
     <script src="js/Leaflet.MultiOptionsPolyline.min.js"></script>
+    <script src="js/Control.Loading.js"></script>
     <script src="js/chroma.min.js"></script>
 
     <script src="js/js.storage.min.js"></script>
@@ -348,7 +350,9 @@
                 var lat2 = data['kismet.adsb.map.max_lat'];
                 var lon2 = data['kismet.adsb.map.max_lon'];
 
-                map = L.map('map');
+                map = L.map('map', {
+                    loadingControl: true
+                });
                 map.fitBounds([[lat1, lon1], [lat2, lon2]])
                 L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     maxZoom: 19,
