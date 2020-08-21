@@ -187,6 +187,13 @@ LOGTOOL_BINS = \
 	$(LOGTOOL_KISMETDB_CLEAN) \
 	$(LOGTOOL_KISMETDB_PCAP)
 
+TOOL_KISMET_DISCOVERY = tools/kismet_discovery
+TOOL_KISMET_DISCOVERY_O = \
+	tools/kismet_discovery.cc.o
+
+TOOL_BINS = \
+	$(TOOL_KISMET_DISCOVERY)
+
 PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_cpp11.cc.o \
 	globalregistry.cc.o eventbus.cc.o \
 	pollabletracker.cc.o ringbuf2.cc.o ringbuf3.cc.o chainbuf.cc.o filewritebuf.cc.o buffer_handler.cc.o \
@@ -229,12 +236,12 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 
 PS	= kismet
 
-STD_ALL = Makefile $(PS) $(DATASOURCE_BINS) $(LOGTOOL_BINS)
+STD_ALL = Makefile $(PS) $(DATASOURCE_BINS) $(LOGTOOL_BINS) $(TOOL_BINS)
 DS_ONLY = Makefile $(DATASOURCE_BINS)
 
 ALL	= @ALLTARGETS@
 
-INSTBINS = $(PS) $(DATASOURCE_BINS) $(LOGTOOL_BINS)
+INSTBINS = $(PS) $(DATASOURCE_BINS) $(LOGTOOL_BINS) $(TOOL_BINS)
 
 all:	$(ALL)
 
@@ -288,6 +295,11 @@ $(LOGTOOL_KISMETDB_CLEAN):	$(LOGTOOL_KISMETDB_CLEAN_O) $(patsubst %c.o,%c.d,$(LO
 
 $(LOGTOOL_KISMETDB_PCAP): 	$(LOGTOOL_KISMETDB_PCAP_O) $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_PCAP_O)) version.c.o
 	$(LD) $(LDFLAGS) -o $(LOGTOOL_KISMETDB_PCAP) $(LOGTOOL_KISMETDB_PCAP_O) version.c.o $(LIBS) $(CXXLIBS) $(PCAPLIBS) -rdynamic
+
+
+
+$(TOOL_KISMET_DISCOVERY): 	$(TOOL_KISMET_DISCOVERY_O) $(patsubst %c.o,%c.d,$(TOOL_KISMET_DISCOVERY_O)) version.c.o
+	$(LD) $(LDFLAGS) -o $(TOOL_KISMET_DISCOVERY) $(TOOL_KISMET_DISCOVERY_O) version.c.o $(LIBS) $(CXXLIBS) -rdynamic
 
 
 
@@ -406,6 +418,9 @@ commoninstall: $(INSTBINS)
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_GPX) $(BIN)/`basename $(LOGTOOL_KISMETDB_GPX)`;
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_CLEAN) $(BIN)/`basename $(LOGTOOL_KISMETDB_CLEAN)`;
 	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(LOGTOOL_KISMETDB_PCAP) $(BIN)/`basename $(LOGTOOL_KISMETDB_PCAP)`;
+
+	# Install the other tools
+	$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) -m 555 $(TOOL_KISMET_DISCOVERY) $(BIN)/`basename $(TOOL_KISMET_DISCOVERY)`;
 
 	mkdir -p $(BIN)
 
@@ -751,6 +766,8 @@ endif
 ifneq ($(BUILD_CAPTURE_HACKRF_SWEEP)x, "x")
 	include $(wildcard $(patsubst %c.o,%c.d,$(CAPTURE_HACKRF_SWEEP_O)))
 endif
+
+
 include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_WIGLE_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_STRIP_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_JSON_O)))
@@ -759,6 +776,9 @@ include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_KML_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_GPX_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_CLEAN_O)))
 include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_PCAP_O)))
+
+
+include $(wildcard $(patsubst %c.o,%c.d,$(TOOL_KISMET_DISCOVERY_O)))
 
 .SUFFIXES: .c .cc .o 
 
