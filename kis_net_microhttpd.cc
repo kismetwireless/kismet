@@ -169,6 +169,7 @@ kis_net_httpd::kis_net_httpd() {
         Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_allowed_origin", "");
 
     register_mime_type("html", "text/html");
+    register_mime_type("js", "text/javascript");
     register_mime_type("svg", "image/svg+xml");
     register_mime_type("css", "text/css");
     register_mime_type("jpeg", "image/jpeg");
