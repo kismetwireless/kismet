@@ -255,6 +255,9 @@ struct kis_capture_handler {
     char *remote_host;
     unsigned int remote_port;
 
+    /* Announced UUID, if one is required */
+    char *announced_uuid;
+
     /* Specified commandline source, used for remote cap */
     char *cli_sourcedef;
 
@@ -857,6 +860,8 @@ uint32_t adler32_partial_csum(uint8_t *in_buf, size_t in_len,
         uint32_t *s1, uint32_t *s2);
 uint32_t adler32_csum(uint8_t *in_buf, size_t in_len);
 
+/* Wait for an announcement from a Kismet server, populate the connection info */
+int cf_wait_announcement(kis_capture_handler_t *caph);
 
 #endif
 

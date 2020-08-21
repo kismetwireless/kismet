@@ -49,6 +49,7 @@
 
 #include "capture_framework.h"
 #include "kis_external_packet.h"
+#include "remote_announcement.h"
 
 #include "protobuf_c/kismet.pb-c.h"
 #include "protobuf_c/datasource.pb-c.h"
@@ -339,6 +340,8 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
 
     ch->remote_host = NULL;
     ch->remote_port = 0;
+
+	ch->announced_uuid = NULL;
 
     ch->reverse_server = 0;
 
@@ -724,6 +727,7 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
 
     int retry = 1;
     int daemon = 0;
+	int autodetect = 0;
 
     static struct option longopt[] = {
         { "in-fd", required_argument, 0, 1 },
@@ -736,6 +740,7 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         { "fixed-gps", required_argument, 0, 8},
         { "gps-name", required_argument, 0, 9},
         { "host", required_argument, 0, 10},
+        { "autodetect", optional_argument, 0, 11},
         { "help", no_argument, 0, 'h'},
         { 0, 0, 0, 0 }
     };
@@ -795,8 +800,18 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
             caph->remote_host = strdup(parse_hname);
             caph->remote_port = parse_port;
             caph->reverse_server = 1;
+        } else if (r == 11) {
+            autodetect = 1;
+
+            if (optarg != NULL)
+                caph->announced_uuid = strdup(optarg);
         }
     }
+
+    /* Spin looking for the remote announcement */
+    if (autodetect)
+        if (cf_wait_announcement(caph) < 0)
+            return -1;
 
     if (caph->remote_host == NULL && caph->cli_sourcedef != NULL) {
         fprintf(stderr, 
@@ -859,23 +874,26 @@ void cf_print_help(kis_capture_handler_t *caph, const char *argv0) {
     if (caph->remote_capable) {
         fprintf(stderr, "\n%s supports sending data to a remote Kismet server\n"
                 "usage: %s [options]\n"
-                " --connect [host]:[port]     Connect to remote Kismet server on [host] \n"
-                "                             and [port]; typically Kismet accepts remote \n"
-                "                             capture on port 3501.\n"
-                " --host [ip]:[port]          Listen for incoming remote connections on \n"
-                "                             [interface] and [port]; You need to use a different \n"
-                "                             port for each source you define.\n"
-                " --source [source def]       Specify a source to send to the remote \n"
-                "                             Kismet server; only used in conjunction with \n"
-                "                             remote capture.\n"
-                " --disable-retry             Do not attempt to reconnect to a remote server\n"
-                "                             if there is an error; exit immediately\n"
-                " --fixed-gps [lat,lon,alt]   Set a fixed location for this capture (remote only),\n"
-                "                             accepts lat,lon,alt or lat,lon\n"
-                " --gps-name [name]           Set an alternate GPS name for this source\n"
-                " --daemonize                 Background the capture tool and enter daemon\n"
-                "                             mode.\n"
-                " --list                      List supported devices detected\n",
+                " --connect [host]:[port]      Connect to remote Kismet server on [host] \n"
+                "                              and [port]; typically Kismet accepts remote \n"
+                "                              capture on port 3501.\n"
+                " --host [ip]:[port]           Listen for incoming remote connections on \n"
+                "                              [interface] and [port]; You need to use a different \n"
+                "                              port for each source you define.\n"
+                " --source [source def]        Specify a source to send to the remote \n"
+                "                              Kismet server; only used in conjunction with \n"
+                "                              remote capture.\n"
+                " --disable-retry              Do not attempt to reconnect to a remote server\n"
+                "                              if there is an error; exit immediately\n"
+                " --fixed-gps [lat,lon,alt]    Set a fixed location for this capture (remote only),\n"
+                "                              accepts lat,lon,alt or lat,lon\n"
+                " --gps-name [name]            Set an alternate GPS name for this source\n"
+                " --daemonize                  Background the capture tool and enter daemon\n"
+                "                              mode.\n"
+                " --list                       List supported devices detected\n"
+				" --autodetect [uuid:optional] Look for a Kismet server in announcement mode, optionally \n"
+				"                              waiting for a specific server UUID to be seen.  Requires \n"
+				"                              a Kismet server configured for announcement mode.\n",
                 argv0, argv0);
     }
 
@@ -3234,6 +3252,80 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph) {
 
 void cf_set_verbose(kis_capture_handler_t *caph, int verbosity) {
     caph->verbose = verbosity;
+}
+
+int cf_wait_announcement(kis_capture_handler_t *caph) {
+    struct sockaddr_in lsin;
+    int sock;
+
+	int r;
+	struct msghdr rcv_msg;
+	struct iovec iov;
+	kismet_remote_announce announcement;
+	struct sockaddr_in recv_addr;
+
+    char *name;
+
+    memset(&lsin, 0, sizeof(struct sockaddr_in));
+    lsin.sin_family = AF_INET;
+    lsin.sin_port = htons(2501);
+    lsin.sin_addr.s_addr = INADDR_ANY;
+
+    if ((sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
+        fprintf(stderr, "ERROR:  Could not create listening socket for announcements: %s\n",
+                strerror(errno));
+		return -1;
+    }
+
+    if (bind(sock, (struct sockaddr *) &lsin, sizeof(lsin)) < 0) {
+        fprintf(stderr, "ERROR:  Could not bind to listening socket for announcements: %s\n",
+                strerror(errno));
+        close(sock);
+		return -1;
+    }
+
+    fprintf(stderr, "INFO: Listening for Kismet server announcements...\n");
+
+    while(1) {
+        iov.iov_base = &announcement;
+        iov.iov_len = sizeof(kismet_remote_announce);
+
+        rcv_msg.msg_name = &recv_addr;
+        rcv_msg.msg_namelen = sizeof(recv_addr);
+        rcv_msg.msg_iov = &iov;
+        rcv_msg.msg_iovlen = 1;
+        rcv_msg.msg_control = NULL;
+        rcv_msg.msg_controllen = 0;
+
+        if ((r = recvmsg(sock, &rcv_msg, 0) < 0)) {
+            fprintf(stderr, "ERROR:  Failed receiving announcement: %s\n", strerror(errno));
+            close(sock);
+			return -1;
+        }
+
+        if (be64toh(announcement.tag) != REMOTE_ANNOUNCE_TAG)
+            fprintf(stderr, "WARNING:  Corrupt/invalid announcement seen, ignoring.\n");
+
+        if (caph->announced_uuid != NULL)
+            if (strncmp(caph->announced_uuid, announcement.uuid, 36) != 0) 
+                continue;
+
+        caph->remote_host = strdup(inet_ntoa(recv_addr.sin_addr));
+        caph->remote_port = ntohl(announcement.remote_port);
+
+        name = strndup(announcement.name, 32);
+
+        fprintf(stderr, "INFO:  Detected Kismet server %s:%u %.36s (%s)\n",
+                caph->remote_host, caph->remote_port,
+                announcement.uuid, strlen(name) > 0 ? name : "no name");
+
+        free(name);
+
+        close(sock);
+
+        return 1;
+    }
+
 }
 
 
