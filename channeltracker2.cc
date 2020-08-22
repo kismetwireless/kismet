@@ -64,7 +64,6 @@ channel_tracker_v2::channel_tracker_v2(global_registry *in_globalreg) :
                 tracker_element_factory<tracker_element_string_map>(),
                 "Usage by named channel");
 
-    channel_entry_id =
     channel_entry_id = 
         entrytracker->register_field("kismet.channeltracker.channel",
                 tracker_element_factory<channel_tracker_v2_channel>(),
