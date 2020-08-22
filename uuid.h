@@ -78,9 +78,13 @@ public:
     void from_string(const std::string& in) {
         error = 0;
 
-        if (sscanf(in.c_str(), "%08x-%04hx-%04hx-%04hx-%012lx",
-                    &time_low, &time_mid, &time_hi, &clock_seq, &node) != 5)
+        unsigned long long n;
+
+        if (sscanf(in.c_str(), "%08x-%04hx-%04hx-%04hx-%012llx",
+                    &time_low, &time_mid, &time_hi, &clock_seq, &n) != 5)
             error = 1;
+
+        node = n;
 
         gen_hash();
     }
