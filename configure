@@ -786,6 +786,7 @@ enable_element_typesafety
 enable_protobuflite
 enable_python_tools
 with_python_interpreter
+enable_debuglibs
 enable_largefile
 enable_mutextimeout
 with_linuxheaders
@@ -1471,6 +1472,7 @@ Optional Features:
                           protobuf
   --disable-python-tools  Disable building Python modules and Python-only data
                           sources
+  --disable-debuglibs     Disable libdw and bfd libs which aid in debugging
   --disable-largefile     omit support for large files
   --disable-mutextimeout  Disable failsafe thread mutex timer, use with
                           caution
@@ -8566,7 +8568,22 @@ fi
 HAVE_LIBDW=0
 HAVE_LIBBFD=0
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for dwarf_begin in -ldw" >&5
+# Allow disabling mutex timeout, use with caution
+# Check whether --enable-debuglibs was given.
+if test "${enable_debuglibs+set}" = set; then :
+  enableval=$enable_debuglibs; case "${enableval}" in
+	  no) wantdebuglibs=0 ;;
+	   *) wantdebuglibs=1 ;;
+	 esac
+else
+  wantdebuglibs=1
+
+fi
+
+
+
+if test "$wantdebuglibs" = 1; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for dwarf_begin in -ldw" >&5
 $as_echo_n "checking for dwarf_begin in -ldw... " >&6; }
 if ${ac_cv_lib_dw_dwarf_begin+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -8606,7 +8623,7 @@ if test "x$ac_cv_lib_dw_dwarf_begin" = xyes; then :
   HAVE_LIBDW=1
 fi
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for bfd_alloc in -lbfd" >&5
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for bfd_alloc in -lbfd" >&5
 $as_echo_n "checking for bfd_alloc in -lbfd... " >&6; }
 if ${ac_cv_lib_bfd_bfd_alloc+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -8647,8 +8664,8 @@ if test "x$ac_cv_lib_bfd_bfd_alloc" = xyes; then :
 fi
 
 
-if test "$HAVE_LIBDW" = 1; then
-    for ac_header in elfutils/libdw.h elfutils/libdwfl.h dwarf.h
+    if test "$HAVE_LIBDW" = 1; then
+        for ac_header in elfutils/libdw.h elfutils/libdwfl.h dwarf.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_cxx_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -8661,10 +8678,10 @@ fi
 
 done
 
-fi
+    fi
 
-if test "$HAVE_LIBBFD" = 1; then
-    for ac_header in bfd.h
+    if test "$HAVE_LIBBFD" = 1; then
+        for ac_header in bfd.h
 do :
   ac_fn_cxx_check_header_mongrel "$LINENO" "bfd.h" "ac_cv_header_bfd_h" "$ac_includes_default"
 if test "x$ac_cv_header_bfd_h" = xyes; then :
@@ -8676,14 +8693,14 @@ fi
 
 done
 
-fi
+    fi
 
-DEF_BW_HAS_UNWIND=0
-DEF_BW_HAS_BACKTRACE=0
+    DEF_BW_HAS_UNWIND=0
+    DEF_BW_HAS_BACKTRACE=0
 
-BACKTRACE_OK=0
+    BACKTRACE_OK=0
 
-for ac_header in unwind.h
+    for ac_header in unwind.h
 do :
   ac_fn_cxx_check_header_mongrel "$LINENO" "unwind.h" "ac_cv_header_unwind_h" "$ac_includes_default"
 if test "x$ac_cv_header_unwind_h" = xyes; then :
@@ -8695,7 +8712,7 @@ fi
 
 done
 
-for ac_header in execinfo.h
+    for ac_header in execinfo.h
 do :
   ac_fn_cxx_check_header_mongrel "$LINENO" "execinfo.h" "ac_cv_header_execinfo_h" "$ac_includes_default"
 if test "x$ac_cv_header_execinfo_h" = xyes; then :
@@ -8708,46 +8725,21 @@ fi
 done
 
 
-if test "$DEF_BW_HAS_UNWIND" = 1; then
-    BACKTRACE_WARNING="yes - Full debug info available on crash, using unwind"
+    if test "$DEF_BW_HAS_UNWIND" = 1; then
+        BACKTRACE_WARNING="yes - Full debug info available on crash, using unwind"
 
 $as_echo "#define BACKWARD_HAS_UNWIND 1" >>confdefs.h
 
 
 $as_echo "#define BACKWARD_HAS_BACKTRACE 0" >>confdefs.h
 
-    BACKTRACE_OK=1
-elif test "$DEF_BW_HAS_BACKTRACE" = 1; then
-    BACKTRACE_WARNING="yes - Full debug info available on crash, using backtrace"
+        BACKTRACE_OK=1
+    elif test "$DEF_BW_HAS_BACKTRACE" = 1; then
+        BACKTRACE_WARNING="yes - Full debug info available on crash, using backtrace"
 
 $as_echo "#define BACKWARD_HAS_BACKTRACE 1" >>confdefs.h
 
-    BACKTRACE_OK=1
-else
-    BACKTRACE_OK=0
-    BACKTRACE_WARNING="no - Backtraces will not be available on crashes"
-
-$as_echo "#define DISABLE_BACKWARD 1" >>confdefs.h
-
-fi
-
-if test "$BACKTRACE_OK" = 1; then
-    # Libdw is the best support
-    if test "$DEF_BW_HAS_LIBDW" = 1; then
-
-$as_echo "#define BACKWARD_HAS_DW 1" >>confdefs.h
-
-        LIBS="$LIBS -ldw"
-    elif test "$DEF_BW_HAS_BFD" = 1; then
-
-$as_echo "#define BACKWARD_HAS_BFD 1" >>confdefs.h
-
-        LIBS="$LIBS -lbfd"
-    elif test "$DEF_BW_HAS_BACKTRACE" = 1; then
-
-$as_echo "#define BACKWARD_HAS_BACKTRACE_SYMBOL 1" >>confdefs.h
-
-        BACKTRACE_WARNING="partial - Missing libdw or libbfd will not print full stacks on crash"
+        BACKTRACE_OK=1
     else
         BACKTRACE_OK=0
         BACKTRACE_WARNING="no - Backtraces will not be available on crashes"
@@ -8755,6 +8747,34 @@ $as_echo "#define BACKWARD_HAS_BACKTRACE_SYMBOL 1" >>confdefs.h
 $as_echo "#define DISABLE_BACKWARD 1" >>confdefs.h
 
     fi
+
+    if test "$BACKTRACE_OK" = 1; then
+        # Libdw is the best support
+        if test "$DEF_BW_HAS_LIBDW" = 1; then
+
+$as_echo "#define BACKWARD_HAS_DW 1" >>confdefs.h
+
+            LIBS="$LIBS -ldw"
+        elif test "$DEF_BW_HAS_BFD" = 1; then
+
+$as_echo "#define BACKWARD_HAS_BFD 1" >>confdefs.h
+
+            LIBS="$LIBS -lbfd"
+        elif test "$DEF_BW_HAS_BACKTRACE" = 1; then
+
+$as_echo "#define BACKWARD_HAS_BACKTRACE_SYMBOL 1" >>confdefs.h
+
+            BACKTRACE_WARNING="partial - Missing libdw or libbfd will not print full stacks on crash"
+        else
+            BACKTRACE_OK=0
+            BACKTRACE_WARNING="no - Backtraces will not be available on crashes"
+
+$as_echo "#define DISABLE_BACKWARD 1" >>confdefs.h
+
+        fi
+    fi
+else
+    BACKTRACE_WARNING="no - debug libraries disabled by configure"
 fi
 
 # Look for something to define standard int types
