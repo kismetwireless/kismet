@@ -27,7 +27,7 @@
 /* Named mutex debugging */
 #undef DEBUG_MUTEX_NAME
 
-/* cannot support backtrace dumping */
+/* disabled by configure arguments */
 #undef DISABLE_BACKWARD
 
 /* Remove mutex deadlock timeout protection */

@@ -490,6 +490,7 @@ if test "$wantdebuglibs" = 1; then
     fi
 else
     BACKTRACE_WARNING="no - debug libraries disabled by configure"
+    AC_DEFINE(DISABLE_BACKWARD, 1, disabled by configure arguments)
 fi
 
 # Look for something to define standard int types

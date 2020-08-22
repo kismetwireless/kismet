@@ -8775,6 +8775,9 @@ $as_echo "#define DISABLE_BACKWARD 1" >>confdefs.h
     fi
 else
     BACKTRACE_WARNING="no - debug libraries disabled by configure"
+
+$as_echo "#define DISABLE_BACKWARD 1" >>confdefs.h
+
 fi
 
 # Look for something to define standard int types
