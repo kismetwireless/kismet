@@ -791,6 +791,7 @@ enable_largefile
 enable_mutextimeout
 with_linuxheaders
 enable_linuxwext
+enable_libcap
 with_pcreheaders
 enable_pcre
 enable_prelude
@@ -1477,6 +1478,7 @@ Optional Features:
   --disable-mutextimeout  Disable failsafe thread mutex timer, use with
                           caution
   --disable-linuxwext     Disable Linux wireless extensions
+  --disable-libcap        Disable libcap capabilities
   --disable-pcre          Disable PCRE regex
   --enable-prelude        Enable Prelude SIEM as a target for alerts.
   --disable-libnm         Disable libnm networkmanager support
@@ -9998,8 +10000,21 @@ fi # want headers
 fi # linux
 
 # Look for capability support
-havecap="yes"
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for cap_init in -lcap" >&5
+# Check whether --enable-libcap was given.
+if test "${enable_libcap+set}" = set; then :
+  enableval=$enable_libcap; case "${enableval}" in
+	  no) wantlibcap=no ;;
+	   *) wantlibcap=yes ;;
+	 esac
+else
+  wantlibcap=yes
+
+fi
+
+
+if test "$wantcap" = "yes"; then
+    havecap="yes"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for cap_init in -lcap" >&5
 $as_echo_n "checking for cap_init in -lcap... " >&6; }
 if ${ac_cv_lib_cap_cap_init+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -10046,7 +10061,7 @@ else
   havecap=no
 fi
 
-ac_fn_cxx_check_header_mongrel "$LINENO" "sys/prctl.h" "ac_cv_header_sys_prctl_h" "$ac_includes_default"
+    ac_fn_cxx_check_header_mongrel "$LINENO" "sys/prctl.h" "ac_cv_header_sys_prctl_h" "$ac_includes_default"
 if test "x$ac_cv_header_sys_prctl_h" = xyes; then :
 
 else
@@ -10054,7 +10069,7 @@ else
 fi
 
 
-ac_fn_cxx_check_header_mongrel "$LINENO" "sys/capability.h" "ac_cv_header_sys_capability_h" "$ac_includes_default"
+    ac_fn_cxx_check_header_mongrel "$LINENO" "sys/capability.h" "ac_cv_header_sys_capability_h" "$ac_includes_default"
 if test "x$ac_cv_header_sys_capability_h" = xyes; then :
 
 else
@@ -10063,12 +10078,13 @@ fi
 
 
 
-if test "$havecap" = "yes"; then
+    if test "$havecap" = "yes"; then
 
 $as_echo "#define HAVE_CAPABILITY 1" >>confdefs.h
 
-caplibs="-lcap"
+    caplibs="-lcap"
 
+    fi
 fi
 
 

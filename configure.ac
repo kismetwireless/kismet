@@ -913,15 +913,26 @@ fi # want headers
 fi # linux
 
 # Look for capability support
-havecap="yes"
-AC_CHECK_LIB([cap], [cap_init],,havecap=no)
-AC_CHECK_HEADER([sys/prctl.h],, havecap=no)
-AC_CHECK_HEADER([sys/capability.h],, havecap=no)
+AC_ARG_ENABLE(libcap,
+    AS_HELP_STRING([--disable-libcap], [Disable libcap capabilities]),
+	[case "${enableval}" in
+	  no) wantlibcap=no ;;
+	   *) wantlibcap=yes ;;
+	 esac],
+	[wantlibcap=yes]
+)
 
-if test "$havecap" = "yes"; then
-AC_DEFINE(HAVE_CAPABILITY, 1, kernel capability support)
-caplibs="-lcap"
-AC_SUBST(caplibs)
+if test "$wantcap" = "yes"; then
+    havecap="yes"
+    AC_CHECK_LIB([cap], [cap_init],,havecap=no)
+    AC_CHECK_HEADER([sys/prctl.h],, havecap=no)
+    AC_CHECK_HEADER([sys/capability.h],, havecap=no)
+    
+    if test "$havecap" = "yes"; then
+    AC_DEFINE(HAVE_CAPABILITY, 1, kernel capability support)
+    caplibs="-lcap"
+    AC_SUBST(caplibs)
+    fi
 fi
 
 AC_ARG_WITH(pcreheaders,
