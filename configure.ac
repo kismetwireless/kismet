@@ -1032,6 +1032,16 @@ else
 	pcaplib="pcap";
 fi
 
+PKG_PROG_PKG_CONFIG
+
+PKG_CHECK_MODULES([LIBPCAP], [libpcap], have_libpcap_pkg=yes, have_libpcap_pkg=no)
+AS_IF([test "x$have_libpcap_pkg" = "xyes"], [
+    OLIBS="$LIBS"
+    LIBS="$LIBS $LIBPCAP_LIBS"
+    OCPPFL="$CPPFLAGS"
+    CPPFLAGS="$CPPFLAGS $LIBPCAP_CFLAGS"
+])
+
 AC_CHECK_LIB([${pcaplib}], [pcap_open_live],
     AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib) foundsyspcap=yes,
     AC_MSG_ERROR(Libpcap required for proper operation))
@@ -1079,7 +1089,13 @@ else
     AC_MSG_ERROR([found libpcap and pcap.h but unable to compile with PPI support.  Make sure you have a current version of libpcap."])
 fi
 
-pcaplnk="-l${pcaplib}"
+AS_IF([test "x$have_libpcap_pkg" = "xyes"], [
+    LIBS="$OLIBS"
+    CPPFLAGS="$OCPPFL"
+    pcaplnk="$LIBPCAP_LIBS"
+], [
+    pcaplnk="-l${pcaplib}"
+])
 AC_SUBST(pcaplnk)
 pcap="yes"
 
@@ -1098,8 +1114,6 @@ if test "$pcap" != "yes"; then
 	AC_MSG_ERROR(Could not find working libpcap.  Libpcap is vital for the majority of capture sources Kismet supports.  It must be explicitly disabled.)
 fi
 AC_SUBST(pcap)
-
-PKG_PROG_PKG_CONFIG
 
 if test "$caponly" = 0 || test "$want_python" = "yes"; then
     # We only *require* protobuf for C++ and python
