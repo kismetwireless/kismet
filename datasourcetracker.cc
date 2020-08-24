@@ -359,6 +359,9 @@ datasource_tracker::datasource_tracker() :
                     return iv;
                 });
 
+    auto_masked_types =
+        Globalreg::globalreg->kismet_config->fetch_opt_vec("mask_datasource_type");
+
     bind_httpd_server();
 }
 
@@ -870,7 +873,26 @@ void datasource_tracker::open_datasource(const std::string& in_source,
     _MSG_INFO("Probing interface '{}' to find datasource type", interface);
 
     // Create a DSTProber to handle the probing
-    shared_dst_source_probe dst_probe(new datasource_tracker_source_probe(in_source, proto_vec));
+    std::shared_ptr<tracker_element_vector> filtered_proto_vec =
+        std::make_shared<tracker_element_vector>();
+
+    for (auto p : *proto_vec) {
+        bool accept = true;
+
+        auto pt = std::static_pointer_cast<kis_datasource_builder>(p);
+
+        for (auto f : auto_masked_types) {
+            if (pt->get_source_type() == f) {
+                accept = false;
+                break;
+            }
+        }
+
+        if (accept)
+            filtered_proto_vec->push_back(p);
+    }
+
+    shared_dst_source_probe dst_probe(new datasource_tracker_source_probe(in_source, filtered_proto_vec));
     unsigned int probeid = ++next_probe_id;
 
     // Record and initiate it
@@ -992,7 +1014,27 @@ void datasource_tracker::list_interfaces(const std::function<void (std::vector<s
     local_locker lock(&dst_lock);
 
     // Create a DSTProber to handle the probing
-    auto dst_list = std::make_shared<datasource_tracker_source_list>(proto_vec);
+    std::shared_ptr<tracker_element_vector> filtered_proto_vec =
+        std::make_shared<tracker_element_vector>();
+
+    for (auto p : *proto_vec) {
+        bool accept = true;
+
+        auto pt = std::static_pointer_cast<kis_datasource_builder>(p);
+
+        for (auto f : auto_masked_types) {
+            if (pt->get_source_type() == f) {
+                accept = false;
+                break;
+            }
+        }
+
+        if (accept)
+            filtered_proto_vec->push_back(p);
+    }
+
+    // Create a DSTProber to handle the probing
+    auto dst_list = std::make_shared<datasource_tracker_source_list>(filtered_proto_vec);
     unsigned int listid = ++next_list_id;
 
     // Record it

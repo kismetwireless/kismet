@@ -489,6 +489,10 @@ protected:
     std::map<unsigned int, shared_dst_source_probe> probing_map;
     std::atomic<unsigned int> next_probe_id;
 
+    // Masked datasource types that won't be used for scan or autoprobing,
+    // for systems where python takes so long to load it causes problems
+    std::vector<std::string> auto_masked_types;
+
     // Sub-workers slated for being removed
     std::vector<shared_dst_source_probe> probing_complete_vec;
 
