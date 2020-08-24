@@ -3135,8 +3135,10 @@ int cf_drop_most_caps(kis_capture_handler_t *caph) {
 
     return 1;
 #else
+    /*
     snprintf(errstr, STATUS_MAX, "datasource not compiled with libcap capabilities control");
     cf_send_warning(caph, errstr);
+    */
     return 0;
 #endif
 }
