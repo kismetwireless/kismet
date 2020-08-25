@@ -447,6 +447,9 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
                     return 1;
                 });
 
+    device_location_signal_threshold =
+        Globalreg::globalreg->kismet_config->fetch_opt_as<int>("device_location_signal_threshold", 0);
+
     httpd->register_alias("/devices/summary/devices.json", "/devices/views/all/devices.json");
 }
 
@@ -866,7 +869,9 @@ std::shared_ptr<kis_tracked_device_base>
 
     if (((in_flags & UCD_UPDATE_LOCATION) ||
                 ((in_flags & UCD_UPDATE_EMPTY_LOCATION) && !device->has_location_cloud())) &&
-            pack_gpsinfo != NULL) {
+            pack_gpsinfo != NULL &&
+            (device_location_signal_threshold != 0 && pack_l1info != NULL &&
+             pack_l1info->signal_dbm >= device_location_signal_threshold)) {
         device->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
                 pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
                 pack_gpsinfo->heading);

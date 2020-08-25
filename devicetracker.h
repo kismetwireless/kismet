@@ -325,6 +325,9 @@ protected:
     // Devices we've flagged for timeout alerts
     std::vector<std::shared_ptr<kis_tracked_device_base>> macdevice_flagged_vec;
 
+    // Signal threshold
+    int device_location_signal_threshold;
+
 	// Tracked devices
     device_map_t tracked_map;
 	// Vector of tracked devices so we can iterate them quickly
