@@ -353,7 +353,7 @@ int packet_chain::process_packet(kis_packet *in_pack) {
                     "The packet queue has a backlog of " + int_to_string(packet_queue.size()) + 
                     " packets; your system may not have enough CPU to keep up with the packet rate "
                     "in your environment or you may have other processes taking up CPU.  "
-                    "Kismet will continue to process packets, and this may be a momentary spike "
+                    "Kismet will continue to process packets, as this may be a momentary spike "
                     "in packet load.", -1);
         }
     }
