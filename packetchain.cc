@@ -51,6 +51,8 @@ packet_chain::packet_chain() {
     last_packet_queue_user_warning = 0;
     last_packet_drop_user_warning = 0;
 
+    packetchain_mutex.set_name("packet_chain");
+
     packet_queue_warning = 
         Globalreg::globalreg->kismet_config->fetch_opt_uint("packet_log_warning", 0);
     packet_queue_drop =
@@ -258,7 +260,7 @@ void packet_chain::packet_queue_processor() {
             packet_queue.pop();
 
             // Lock the chain mutexes until we're done processing this packet
-            local_locker chainl(&packetchain_mutex);
+            local_locker chainl(&packetchain_mutex, "packet_chain::packet_queue_processor");
 
             // Unlock the queue while we process that packet
             lock.unlock();
@@ -369,6 +371,8 @@ int packet_chain::process_packet(kis_packet *in_pack) {
                     "may not be fast enough to process the number of packets being seen. "
                     "You change this behavior in 'kismet_memory.conf'.", -1);
         }
+
+        destroy_packet(in_pack);
 
         // Don't queue packets when we're over-full
         lock.unlock();
