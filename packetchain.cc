@@ -341,23 +341,6 @@ void packet_chain::packet_queue_processor() {
 int packet_chain::process_packet(kis_packet *in_pack) {
     std::unique_lock<std::mutex> lock(packetqueue_cv_mutex);
 
-    if (packet_queue.size() > packet_queue_warning &&
-            packet_queue_warning != 0) {
-        time_t offt = time(0) - last_packet_queue_user_warning;
-
-        if (offt > 30) {
-            last_packet_queue_user_warning = time(0);
-
-            auto alertracker = Globalreg::fetch_mandatory_global_as<alert_tracker>();
-            alertracker->raise_one_shot("PACKETQUEUE", 
-                    "The packet queue has a backlog of " + int_to_string(packet_queue.size()) + 
-                    " packets; your system may not have enough CPU to keep up with the packet rate "
-                    "in your environment or you may have other processes taking up CPU.  "
-                    "Kismet will continue to process packets, as this may be a momentary spike "
-                    "in packet load.", -1);
-        }
-    }
-
     if (packet_queue_drop != 0 && packet_queue.size() > packet_queue_drop) {
         time_t offt = time(0) - last_packet_drop_user_warning;
 
@@ -383,6 +366,24 @@ int packet_chain::process_packet(kis_packet *in_pack) {
 
         return 1;
     }
+
+    if (packet_queue.size() > packet_queue_warning &&
+            packet_queue_warning != 0) {
+        time_t offt = time(0) - last_packet_queue_user_warning;
+
+        if (offt > 30) {
+            last_packet_queue_user_warning = time(0);
+
+            auto alertracker = Globalreg::fetch_mandatory_global_as<alert_tracker>();
+            alertracker->raise_one_shot("PACKETQUEUE", 
+                    "The packet queue has a backlog of " + int_to_string(packet_queue.size()) + 
+                    " packets; your system may not have enough CPU to keep up with the packet rate "
+                    "in your environment or you may have other processes taking up CPU.  "
+                    "Kismet will continue to process packets, as this may be a momentary spike "
+                    "in packet load.", -1);
+        }
+    }
+
 
     // Queue the packet
     packet_queue.push(in_pack);
