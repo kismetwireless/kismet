@@ -351,9 +351,10 @@ int packet_chain::process_packet(kis_packet *in_pack) {
             auto alertracker = Globalreg::fetch_mandatory_global_as<alert_tracker>();
             alertracker->raise_one_shot("PACKETQUEUE", 
                     "The packet queue has a backlog of " + int_to_string(packet_queue.size()) + 
-                    " packets; if you have multiple data sources it's possible that your "
-                    "system is not fast enough.  Kismet will continue to process "
-                    "packets, this may be a momentary spike in packet load.", -1);
+                    " packets; your system may not have enough CPU to keep up with the packet rate "
+                    "in your environment or you may have other processes taking up CPU.  "
+                    "Kismet will continue to process packets, and this may be a momentary spike "
+                    "in packet load.", -1);
         }
     }
 
@@ -366,10 +367,11 @@ int packet_chain::process_packet(kis_packet *in_pack) {
             std::shared_ptr<alert_tracker> alertracker =
                 Globalreg::fetch_mandatory_global_as<alert_tracker>();
             alertracker->raise_one_shot("PACKETLOST", 
-                    "Kismet has started to drop packets; the packet queue has a backlog "
-                    "of " + int_to_string(packet_queue.size()) + " packets.  Your system "
-                    "may not be fast enough to process the number of packets being seen. "
-                    "You change this behavior in 'kismet_memory.conf'.", -1);
+                    fmt::format("The packet queue has exceeded the maximum size of {}; Kismet "
+                        "will start dropping packets.  Your system may not have enough CPU to keep "
+                        "up with the packet rate in your environment or other processes may be "
+                        "taking up the CPU.  You can increase the packet backlog with the "
+                        "packet_backlog_limit configuration parameter.", packet_queue_drop), -1);
         }
 
         destroy_packet(in_pack);
