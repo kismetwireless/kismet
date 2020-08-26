@@ -159,7 +159,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
     // phy-specific attachments.
     packetchain_tracking_done_id =
         packetchain->register_handler([this](kis_packet *in_packet) -> int {
-            for (auto e : in_packet->process_complete_events)
+            for (const auto& e : in_packet->process_complete_events)
                 eventbus->publish(e);
             return 1;
         }, CHAINPOS_TRACKER, 0x7FFF'FFFF);
@@ -410,7 +410,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 
     auto found_vec = 
         Globalreg::globalreg->kismet_config->fetch_opt_vec("devicefound");
-    for (auto m : found_vec) {
+    for (const auto& m : found_vec) {
         auto mac = mac_addr(m);
 
         if (mac.state.error) {
@@ -424,7 +424,7 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 
     auto lost_vec =
         Globalreg::globalreg->kismet_config->fetch_opt_vec("devicelost");
-    for (auto m : lost_vec) {
+    for (const auto& m : lost_vec) {
         auto mac = mac_addr(m);
 
         if (mac.state.error) {
@@ -486,9 +486,8 @@ device_tracker::~device_tracker() {
 		delete track_filter;
     */
 
-    for (auto p = phy_handler_map.begin(); p != phy_handler_map.end(); ++p) {
-        delete p->second;
-    }
+    for (auto p : phy_handler_map)
+        delete(p.second);
 
     tracked_vec.clear();
     immutable_tracked_vec->clear();
@@ -503,7 +502,7 @@ void device_tracker::macdevice_timer_event() {
     // Put the ones we still monitor into a new vector and swap
     // at the end
     auto keep_vec = std::vector<std::shared_ptr<kis_tracked_device_base>>{};
-    for (auto k : macdevice_flagged_vec) {
+    for (const auto& k : macdevice_flagged_vec) {
         if (now - k->get_mod_time() > devicelost_timeout) {
             auto alrt = 
                 fmt::format("Monitored device {} ({}) hasn't been seen for {} "
@@ -531,7 +530,7 @@ kis_phy_handler *device_tracker::fetch_phy_handler(int in_phy) {
 }
 
 kis_phy_handler *device_tracker::fetch_phy_handler_by_name(const std::string& in_name) {
-    for (auto i : phy_handler_map) {
+    for (const auto& i : phy_handler_map) {
         if (i.second->fetch_phy_name() == in_name) {
             return i.second;
         }
@@ -1216,7 +1215,7 @@ void device_tracker::add_device(std::shared_ptr<kis_tracked_device_base> device)
 bool device_tracker::add_view(std::shared_ptr<device_tracker_view> in_view) {
     local_locker l(&view_mutex);
 
-    for (auto i : *view_vec) {
+    for (const auto& i : *view_vec) {
         auto vi = std::static_pointer_cast<device_tracker_view>(i);
         if (vi->get_view_id() == in_view->get_view_id()) 
             return false;
@@ -1224,7 +1223,7 @@ bool device_tracker::add_view(std::shared_ptr<device_tracker_view> in_view) {
 
     view_vec->push_back(in_view);
 
-    for (auto i : *immutable_tracked_vec) {
+    for (const auto& i : *immutable_tracked_vec) {
         auto di = std::static_pointer_cast<kis_tracked_device_base>(i);
         in_view->new_device(di);
     }
@@ -1247,7 +1246,7 @@ void device_tracker::remove_view(const std::string& in_id) {
 void device_tracker::new_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
     local_shared_locker l(&view_mutex);
 
-    for (auto i : *view_vec) {
+    for (const auto& i : *view_vec) {
         auto vi = std::static_pointer_cast<device_tracker_view>(i);
         vi->new_device(in_device);
     }
@@ -1256,7 +1255,7 @@ void device_tracker::new_view_device(std::shared_ptr<kis_tracked_device_base> in
 void device_tracker::update_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
     local_shared_locker l(&view_mutex);
 
-    for (auto i : *view_vec) {
+    for (const auto& i : *view_vec) {
         auto vi = std::static_pointer_cast<device_tracker_view>(i);
         vi->update_device(in_device);
     }
@@ -1265,7 +1264,7 @@ void device_tracker::update_view_device(std::shared_ptr<kis_tracked_device_base>
 void device_tracker::remove_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
     local_shared_locker l(&view_mutex);
 
-    for (auto i : *view_vec) {
+    for (const auto& i : *view_vec) {
         auto vi = std::static_pointer_cast<device_tracker_view>(i);
         vi->remove_device(in_device);
     }

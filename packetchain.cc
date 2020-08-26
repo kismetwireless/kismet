@@ -269,49 +269,49 @@ void packet_chain::packet_queue_processor() {
             // the worker thread is in the sync block above, so we shouldn't
             // need to worry about the integrity of these vectors while running
 
-            for (auto pcl : postcap_chain) {
+            for (const auto& pcl : postcap_chain) {
                 if (pcl->callback != NULL)
                     pcl->callback(Globalreg::globalreg, pcl->auxdata, packet);
                 else if (pcl->l_callback != NULL)
                     pcl->l_callback(packet);
             }
 
-            for (auto pcl : llcdissect_chain) {
+            for (const auto& pcl : llcdissect_chain) {
                 if (pcl->callback != NULL)
                     pcl->callback(Globalreg::globalreg, pcl->auxdata, packet);
                 else if (pcl->l_callback != NULL)
                     pcl->l_callback(packet);
             }
 
-            for (auto pcl : decrypt_chain) {
+            for (const auto& pcl : decrypt_chain) {
                 if (pcl->callback != NULL)
                     pcl->callback(Globalreg::globalreg, pcl->auxdata, packet);
                 else if (pcl->l_callback != NULL)
                     pcl->l_callback(packet);
             }
 
-            for (auto pcl : datadissect_chain) {
+            for (const auto& pcl : datadissect_chain) {
                 if (pcl->callback != NULL)
                     pcl->callback(Globalreg::globalreg, pcl->auxdata, packet);
                 else if (pcl->l_callback != NULL)
                     pcl->l_callback(packet);
             }
 
-            for (auto pcl : classifier_chain) {
+            for (const auto& pcl : classifier_chain) {
                 if (pcl->callback != NULL)
                     pcl->callback(Globalreg::globalreg, pcl->auxdata, packet);
                 else if (pcl->l_callback != NULL)
                     pcl->l_callback(packet);
             }
 
-            for (auto pcl : tracker_chain) {
+            for (const auto& pcl : tracker_chain) {
                 if (pcl->callback != NULL)
                     pcl->callback(Globalreg::globalreg, pcl->auxdata, packet);
                 else if (pcl->l_callback != NULL)
                     pcl->l_callback(packet);
             }
 
-            for (auto pcl : logging_chain) {
+            for (const auto& pcl : logging_chain) {
                 if (pcl->callback != NULL)
                     pcl->callback(Globalreg::globalreg, pcl->auxdata, packet);
                 else if (pcl->l_callback != NULL)
