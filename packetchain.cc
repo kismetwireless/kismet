@@ -318,8 +318,6 @@ void packet_chain::packet_queue_processor() {
                     pcl->l_callback(packet);
             }
 
-            packet_rate_rrd->add_sample(1, time(0));
-
             if (packet->error)
                 packet_error_rrd->add_sample(1, time(0));
 
@@ -340,6 +338,9 @@ void packet_chain::packet_queue_processor() {
 
 int packet_chain::process_packet(kis_packet *in_pack) {
     std::unique_lock<std::mutex> lock(packetqueue_cv_mutex);
+
+    // Total packet rate always gets added, even when we drop, so we can compare
+    packet_rate_rrd->add_sample(1, time(0));
 
     if (packet_queue_drop != 0 && packet_queue.size() > packet_queue_drop) {
         time_t offt = time(0) - last_packet_drop_user_warning;
