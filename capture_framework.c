@@ -49,6 +49,7 @@
 
 #include "capture_framework.h"
 #include "kis_external_packet.h"
+#include "kis_endian.h"
 #include "remote_announcement.h"
 
 #include "protobuf_c/kismet.pb-c.h"

@@ -31,6 +31,7 @@
 
 #include "configfile.h"
 #include "datasourcetracker.h"
+#include "kis_endian.h"
 #include "kis_net_microhttpd.h"
 #include "timetracker.h"
 #include "remote_announcement.h"
