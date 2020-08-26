@@ -516,7 +516,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
     // Parse the ssid regex options
     auto apspoof_lines = Globalreg::globalreg->kismet_config->fetch_opt_vec("apspoof");
 
-    for (auto l : apspoof_lines) {
+    for (const auto& l : apspoof_lines) {
         size_t cpos = l.find(':');
         
         if (cpos == std::string::npos) {
@@ -539,7 +539,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
         }
 
         std::vector<mac_addr> macvec;
-        for (auto m : str_tokenize(fetch_opt("validmacs", &optvec), ",", true)) {
+        for (const auto& m : str_tokenize(fetch_opt("validmacs", &optvec), ",", true)) {
             mac_addr ma(m);
 
             if (ma.state.error) {
@@ -580,7 +580,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
 
         unsigned int t1, t2, t3;
 
-        for (auto i : fingerprint_v) {
+        for (const auto& i : fingerprint_v) {
             if (sscanf(i.c_str(), "%u-%x-%u", &t1, &t2, &t3) == 3) {
                 auto tp = std::tuple<uint8_t, uint32_t, uint8_t>{t1, t2, t3};
                 beacon_ie_fingerprint_list.push_back(tp);
@@ -607,7 +607,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                     "1,50,59,107,127,221-001018-2,221-00904c-51");
         auto pfingerprint_v = quote_str_tokenize(pfingerprint_s, ",");
 
-        for (auto i : pfingerprint_v) {
+        for (const auto& i : pfingerprint_v) {
             if (sscanf(i.c_str(), "%u-%x-%u", &t1, &t2, &t3) == 3) {
                 auto tp = std::tuple<uint8_t, uint32_t, uint8_t>{t1, t2, t3};
                 probe_ie_fingerprint_list.push_back(tp);
@@ -730,7 +730,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                     if (dot11 == nullptr)
                         return cl;
 
-                    for (auto ci : *dot11->get_associated_client_map()) {
+                    for (const auto& ci : *dot11->get_associated_client_map()) {
                         auto dk = std::static_pointer_cast<tracker_element_device_key>(ci.second);
                         auto d = devicetracker->fetch_device(dk->get());
                         if (d != nullptr)
@@ -814,7 +814,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                         cl->push_back(dev);
 
                         // For every client, repeat, looking for associated clients and shard APs
-                        for (auto ci : *dot11->get_associated_client_map()) {
+                        for (const auto& ci : *dot11->get_associated_client_map()) {
                             auto dk = std::static_pointer_cast<tracker_element_device_key>(ci.second);
                             auto d = devicetracker->fetch_device(dk->get());
 
@@ -1126,10 +1126,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                     d11phy->ap_view->do_readonly_device_work(bss_worker);
 
                     // Set a bidirectional relationship
-                    for (auto ri : *(bss_worker.getMatchedDevices())) {
+                    for (const auto& ri : *(bss_worker.getMatchedDevices())) {
                         auto rdev = std::static_pointer_cast<kis_tracked_device_base>(ri);
-
-                        // fmt::print("debug - {} related to {}\n", bssid_dev->get_key(), rdev->get_key());
 
                         bssid_dev->add_related_device("dot11_bssts_similar", rdev->get_key());
                         rdev->add_related_device("dot11_bssts_similar", bssid_dev->get_key());
@@ -1889,7 +1887,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 
             auto caps_list = str_tokenize(capabilities, "[");
 
-            for (auto c : caps_list) {
+            for (const auto& c : caps_list) {
                 if (c.find("PSK") != std::string::npos) {
                     if (c.find("WPA2") != std::string::npos)
                         cryptset |= crypt_wpa + crypt_psk + crypt_version_wpa2;
@@ -2008,7 +2006,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
             // regex compares to see if we trigger apspoof
             if (ssid_str.length() != 0 &&
                     d11phy->alertracker->potential_alert(d11phy->alert_ssidmatch_ref)) {
-                for (auto s : *d11phy->ssid_regex_vec) {
+                for (const auto& s : *d11phy->ssid_regex_vec) {
                     std::shared_ptr<dot11_tracked_ssid_alert> sa =
                         std::static_pointer_cast<dot11_tracked_ssid_alert>(s);
 
@@ -2317,7 +2315,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
         // regex compares to see if we trigger apspoof
         if (dot11info->ssid_len != 0 &&
                 alertracker->potential_alert(alert_ssidmatch_ref)) {
-            for (auto s : *ssid_regex_vec) {
+            for (const auto& s : *ssid_regex_vec) {
                 std::shared_ptr<dot11_tracked_ssid_alert> sa =
                     std::static_pointer_cast<dot11_tracked_ssid_alert>(s);
 
@@ -2354,7 +2352,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
     if (keep_ie_tags_per_bssid) {
         auto taglist = PacketDot11IElist(in_pack, dot11info);
         ssid->get_ie_tag_list()->clear();
-        for (auto ti : taglist) 
+        for (const auto& ti : taglist) 
             ssid->get_ie_tag_list()->push_back(std::get<0>(ti));
 
         // If we snapshot the ie tags, do so
@@ -2380,9 +2378,8 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
     if (dot11info->subtype == packet_sub_beacon) {
         auto tag_hash = xx_hash_cpp{};
 
-        for (auto i : beacon_ie_fingerprint_list) {
-
-            auto te = dot11info->ietag_hash_map.find(i);
+        for (const auto& i : beacon_ie_fingerprint_list) {
+            const auto& te = dot11info->ietag_hash_map.find(i);
 
             if (te == dot11info->ietag_hash_map.end())
                 continue;
@@ -2775,9 +2772,8 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
                             }
 
                             if (bssid_dot11->has_probed_ssid_map()) {
-                                for (auto pi : *bssid_dot11->probed_ssid_map) {
-                                    auto ps =
-                                        std::static_pointer_cast<dot11_probed_ssid>(pi.second);
+                                for (const auto& pi : *bssid_dot11->probed_ssid_map) {
+                                    auto ps = std::static_pointer_cast<dot11_probed_ssid>(pi.second);
 
                                     if (ps->get_wps_uuid_e() == dot11info->wps_uuid_e)
                                         return true;
@@ -2789,7 +2785,7 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
                 devicetracker->do_readonly_device_work(dev_worker);
 
                 // Set a bidirectional relationship
-                for (auto ri : *(dev_worker.getMatchedDevices())) {
+                for (const auto& ri : *(dev_worker.getMatchedDevices())) {
                     auto rdev = std::static_pointer_cast<kis_tracked_device_base>(ri);
 
                     basedev->add_related_device("dot11_uuid_e", rdev->get_key());
@@ -2804,13 +2800,13 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
         if (keep_ie_tags_per_bssid) {
             auto taglist = PacketDot11IElist(in_pack, dot11info);
             probessid->get_ie_tag_list()->clear();
-            for (auto ti : taglist) 
+            for (const auto& ti : taglist) 
                 probessid->get_ie_tag_list()->push_back(std::get<0>(ti));
         }
 
         auto tag_hash = xx_hash_cpp{};
 
-        for (auto i : probe_ie_fingerprint_list) {
+        for (const auto& i : probe_ie_fingerprint_list) {
             auto te = dot11info->ietag_hash_map.find(i);
 
             if (te == dot11info->ietag_hash_map.end())
@@ -2887,10 +2883,11 @@ void kis_80211_phy::process_client(std::shared_ptr<kis_tracked_device_base> bssi
                 }
 
                 if (dot11info->supported_channels != nullptr) {
-                    clientdot11->get_supported_channels()->clear();
+                    auto clichannels = clientdot11->get_supported_channels();
+                    clichannels->clear();
 
-                    for (auto c : dot11info->supported_channels->supported_channels()) 
-                        clientdot11->get_supported_channels()->push_back(c);
+                    for (const auto& c : dot11info->supported_channels->supported_channels()) 
+                        clichannels->push_back(c);
                 }
 
 		if ((dot11info->rsn == nullptr || !dot11info->rsn->rsn_capability_mfp_supported()) &&
@@ -3090,7 +3087,7 @@ void kis_80211_phy::process_wpa_handshake(std::shared_ptr<kis_tracked_device_bas
 
         // Calculate the key mask of seen handshake keys
         keymask = 0;
-        for (auto kvi : *bssid_vec) {
+        for (const auto& kvi : *bssid_vec) {
             keymask |= (1 << std::static_pointer_cast<dot11_tracked_eapol>(kvi)->get_eapol_msg_num());
         }
 
@@ -3117,7 +3114,7 @@ void kis_80211_phy::process_wpa_handshake(std::shared_ptr<kis_tracked_device_bas
             dupe_nonce = false;
             new_nonce = true;
 
-            for (auto i : *(dest_dot11->get_wpa_nonce_vec())) {
+            for (const auto& i : *(dest_dot11->get_wpa_nonce_vec())) {
                 std::shared_ptr<dot11_tracked_nonce> nonce =
                     std::static_pointer_cast<dot11_tracked_nonce>(i);
 
@@ -3185,7 +3182,7 @@ void kis_80211_phy::process_wpa_handshake(std::shared_ptr<kis_tracked_device_bas
             dupe_nonce = false;
             new_nonce = true;
 
-            for (auto i : *eav) {
+            for (const auto& i : *eav) {
                 std::shared_ptr<dot11_tracked_nonce> nonce =
                     std::static_pointer_cast<dot11_tracked_nonce>(i);
 
@@ -3498,7 +3495,7 @@ void kis_80211_phy::generate_handshake_pcap(std::shared_ptr<kis_tracked_device_b
             if (tokenurl[6] == tokenurl[4] + "-handshake.pcap") {
                 // Write all the handshakes
                 if (dot11dev->has_wpa_key_vec()) {
-                    for (auto i : *(dot11dev->get_wpa_key_vec())) {
+                    for (const auto& i : *(dot11dev->get_wpa_key_vec())) {
                         auto eapol =
                             std::static_pointer_cast<dot11_tracked_eapol>(i);
 
