@@ -124,12 +124,13 @@ public:
     // routinely updated, like records tracking activity on a specific 
     // device).  For records which are updated on a timer and the most
     // recently used value accessed (like devices per frequency) turning
-    // this off may produce better results.
+    // this Off may produce better results.
     void update_before_serialize(bool in_upd) {
         update_first = in_upd;
     }
 
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
+    __Proxy(serial_time, uint64_t, time_t, time_t, serial_time);
 
     __ProxyTrackable(minute_vec, tracker_element_vector_double, minute_vec);
     __ProxyTrackable(hour_vec, tracker_element_vector_double, hour_vec);
@@ -307,10 +308,12 @@ public:
         tracker_component::pre_serialize();
         Aggregator agg;
 
-        // printf("debug - rrd - preserialize\n");
+        auto now = time(0);
+        set_serial_time(now);
+
         // Update the averages
         if (update_first) {
-            add_sample(agg.default_val(), time(0));
+            add_sample(agg.default_val(), now);
         }
     }
 
@@ -365,6 +368,7 @@ protected:
         tracker_component::register_fields();
 
         register_field("kismet.common.rrd.last_time", "last time updated", &last_time);
+        register_field("kismet.common.rrd.serial_time", "timestamp of serialization", &serial_time);
 
         register_field("kismet.common.rrd.minute_vec", "past minute values per second", &minute_vec);
         register_field("kismet.common.rrd.hour_vec", "past hour values per minute", &hour_vec);
@@ -420,6 +424,7 @@ protected:
     kis_recursive_timed_mutex mutex;
 
     std::shared_ptr<tracker_element_uint64> last_time;
+    std::shared_ptr<tracker_element_uint64> serial_time;
 
     std::shared_ptr<tracker_element_vector_double> minute_vec;
     std::shared_ptr<tracker_element_vector_double> hour_vec;
@@ -494,6 +499,7 @@ public:
     }
 
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
+    __Proxy(serial_time, uint64_t, time_t, time_t, serial_time);
 
     void add_sample(int64_t in_s, time_t in_time) {
         local_locker l(&mutex, "kis_tracked_minute_rrd add_sample");
@@ -546,8 +552,12 @@ public:
         tracker_component::pre_serialize();
         Aggregator agg;
 
+        auto now = time(0);
+
+        set_serial_time(now);
+
         if (update_first) {
-            add_sample(agg.default_val(), time(0));
+            add_sample(agg.default_val(), now);
         }
     }
 
@@ -574,6 +584,7 @@ protected:
         tracker_component::register_fields();
 
         register_field("kismet.common.rrd.last_time", "last time updated", &last_time);
+        register_field("kismet.common.rrd.serial_time", "time of serialization", &serial_time);
 
         register_field("kismet.common.rrd.minute_vec", "past minute values per second", &minute_vec);
 
@@ -607,6 +618,7 @@ protected:
     kis_recursive_timed_mutex mutex;
 
     std::shared_ptr<tracker_element_uint64> last_time;
+    std::shared_ptr<tracker_element_uint64> serial_time;
     std::shared_ptr<tracker_element_vector_double> minute_vec;
     std::shared_ptr<tracker_element_int64> blank_val;
     std::shared_ptr<tracker_element_string> aggregator_name;
