@@ -992,8 +992,8 @@ kismet_ui.AddDeviceDetail("packets", "Packet Graphs", 10, {
 
         if ('kismet.device.base.datasize.rrd' in data) {
             var dmdata = kismet.RecalcRrdData2(data['kismet.device.base.datasize.rrd'], kismet.RRD_SECOND);
-            var dhdata = kismet.RecalcRrdData(data['kismet.device.base.datasize.rrd'], kismet.RRD_MINUTE);
-            var dddata = kismet.RecalcRrdData(data['kismet.device.base.datasize.rrd'], kismet.RRD_HOUR);
+            var dhdata = kismet.RecalcRrdData2(data['kismet.device.base.datasize.rrd'], kismet.RRD_MINUTE);
+            var dddata = kismet.RecalcRrdData2(data['kismet.device.base.datasize.rrd'], kismet.RRD_HOUR);
 
         dm.sparkline(dmdata,
             { type: "bar",
