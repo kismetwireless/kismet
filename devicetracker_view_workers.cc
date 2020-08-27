@@ -79,7 +79,7 @@ device_tracker_view_regex_worker::device_tracker_view_regex_worker(const std::ve
 
 device_tracker_view_regex_worker::device_tracker_view_regex_worker(const Json::Value& json) {
 #ifdef HAVE_LIBPCRE
-    for (auto i : json) {
+    for (const auto& i : json) {
         if (!i.isArray())
             throw std::runtime_error("expected array of [field, regex] pairs for regex filter");
 
@@ -98,7 +98,7 @@ device_tracker_view_regex_worker::device_tracker_view_regex_worker(const Json::V
 
 device_tracker_view_regex_worker::device_tracker_view_regex_worker(const std::vector<std::pair<std::string, std::string>>& str_pcre_vec) {
 #ifdef HAVE_LIBPCRE
-    for (auto i : str_pcre_vec) {
+    for (const auto& i : str_pcre_vec) {
         auto field = std::get<0>(i);
         auto regex = std::get<1>(i);
 
@@ -115,22 +115,28 @@ bool device_tracker_view_regex_worker::match_device(std::shared_ptr<kis_tracked_
 #ifdef HAVE_LIBPCRE
     bool matched = false;
 
-    for (auto i : filter_vec) {
+    for (const auto& i : filter_vec) {
         auto fields = get_tracker_element_multi_path(i->target, device);
 
-        for (auto fi : fields) {
+        for (const auto& fi : fields) {
             std::string val;
 
-            if (fi->get_type() == tracker_type::tracker_string)
-                val = get_tracker_value<std::string>(fi);
-            else if (fi->get_type() == tracker_type::tracker_mac_addr)
-                val = get_tracker_value<mac_addr>(fi).mac_to_string();
-            else if (fi->get_type() == tracker_type::tracker_uuid)
-                val = get_tracker_value<uuid>(fi).uuid_to_string();
-            else if (fi->get_type() == tracker_type::tracker_byte_array) 
-                val = std::static_pointer_cast<tracker_element_byte_array>(fi)->get();
-            else
-                continue;
+            switch (fi->get_type()) {
+                case tracker_type::tracker_string:
+                    val = get_tracker_value<std::string>(fi);
+                    break;
+                case tracker_type::tracker_mac_addr:
+                    val = get_tracker_value<mac_addr>(fi).mac_to_string();
+                    break;
+                case tracker_type::tracker_uuid:
+                    val = get_tracker_value<uuid>(fi).uuid_to_string();
+                    break;
+                case tracker_type::tracker_byte_array:
+                    val = std::static_pointer_cast<tracker_element_byte_array>(fi)->get();
+                    break;
+                default:
+                    continue;
+            }
 
             int rc;
             int ovector[128];
@@ -164,25 +170,33 @@ device_tracker_view_stringmatch_worker::device_tracker_view_stringmatch_worker(c
 bool device_tracker_view_stringmatch_worker::match_device(std::shared_ptr<kis_tracked_device_base> device) {
     bool matched = false;
 
-    for (auto i : fieldpaths) {
+    for (const auto& i : fieldpaths) {
         auto field = get_tracker_element_path(i, device);
 
         if (field == nullptr)
             continue;
 
-        if (field->get_type() == tracker_type::tracker_string) {
-            // We can only do a straight string match against string fields
-            matched = get_tracker_value<std::string>(field).find(query) != std::string::npos;
-        } else if (field->get_type() == tracker_type::tracker_byte_array) {
-            // Try a raw string match against a binary field
-            matched = 
-                std::static_pointer_cast<tracker_element_byte_array>(field)->get().find(query) != 
-                std::string::npos;
-        } else if (field->get_type() == tracker_type::tracker_mac_addr && mac_query_term_len != 0) {
-            // If we were able to interpret the query term as a partial
-            // mac address, do a mac compare
-            matched =
-                std::static_pointer_cast<tracker_element_mac_addr>(field)->get().partial_search(mac_query_term, mac_query_term_len);
+        switch (field->get_type()) {
+            case tracker_type::tracker_string:
+                // We can only do a straight string match against string fields
+                matched = get_tracker_value<std::string>(field).find(query) != std::string::npos;
+                break;
+            case tracker_type::tracker_byte_array:
+                // Try a raw string match against a binary field
+                matched = 
+                    std::static_pointer_cast<tracker_element_byte_array>(field)->get().find(query) != 
+                    std::string::npos;
+                break;
+            case tracker_type::tracker_mac_addr:
+                if (mac_query_term_len != 0) {
+                    // If we were able to interpret the query term as a partial
+                    // mac address, do a mac compare
+                    matched =
+                        std::static_pointer_cast<tracker_element_mac_addr>(field)->get().partial_search(mac_query_term, mac_query_term_len);
+                }
+                break;
+            default:
+                ;
         }
 
         if (matched)
@@ -212,23 +226,31 @@ bool device_tracker_view_icasestringmatch_worker::match_device(std::shared_ptr<k
         return (pos != haystack.end());
     };
 
-    for (auto i : fieldpaths) {
+    for (const auto& i : fieldpaths) {
         auto field = get_tracker_element_path(i, device);
 
         if (field == nullptr)
             continue;
 
-        if (field->get_type() == tracker_type::tracker_string) {
-            // We can only do a straight string match against string fields
-            matched = icasesearch(get_tracker_value<std::string>(field), query);
-        } else if (field->get_type() == tracker_type::tracker_byte_array) {
-            // Try a raw string match against a binary field
-            matched = icasesearch(std::static_pointer_cast<tracker_element_byte_array>(field)->get(), query);
-        } else if (field->get_type() == tracker_type::tracker_mac_addr && mac_query_term_len != 0) {
-            // If we were able to interpret the query term as a partial
-            // mac address, do a mac compare
-            matched =
-                std::static_pointer_cast<tracker_element_mac_addr>(field)->get().partial_search(mac_query_term, mac_query_term_len);
+        switch (field->get_type()) {
+            case tracker_type::tracker_string:
+                // We can only do a straight string match against string fields
+                matched = icasesearch(get_tracker_value<std::string>(field), query);
+                break;
+            case tracker_type::tracker_byte_array:
+                // Try a raw string match against a binary field
+                matched = icasesearch(std::static_pointer_cast<tracker_element_byte_array>(field)->get(), query);
+                break;
+            case tracker_type::tracker_mac_addr:
+                if (mac_query_term_len != 0) {
+                    // If we were able to interpret the query term as a partial
+                    // mac address, do a mac compare
+                    matched =
+                        std::static_pointer_cast<tracker_element_mac_addr>(field)->get().partial_search(mac_query_term, mac_query_term_len);
+                }
+                break;
+            default:
+                ;
         }
 
         if (matched)
