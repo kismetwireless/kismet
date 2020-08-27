@@ -14,7 +14,7 @@ table.kismet_devicedata td {
 
 td.kismet_devicedata_td_title:first-child {
     width: 40%;
-    max-width: 100px;
+    max-width: 250px;
 }
 
 td.kismet_devicedata_td_content {
