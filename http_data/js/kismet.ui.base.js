@@ -173,7 +173,8 @@ kismet_ui.AddDeviceColumn('column_name', {
     field: 'kismet.device.base.commonname',
     description: 'Device name',
     renderfunc: function(d, t, r, m) {
-        return kismet.censorMAC(d);
+        var dname = kismet.censorMAC(d);
+        return (dname.length > 24) ? dname.substr(0, 23) + '&hellip;' : dname;
     }
 });
 
@@ -375,6 +376,9 @@ kismet_ui.AddDeviceColumn('column_manuf', {
     searchable: true,
     visible: false,
     orderable: true,
+    renderfunc: function(d, t, r, m) {
+        return (d.length > 32) ? d.substr(0, 31) + '&hellip;' : d;
+    }
 });
 
 
