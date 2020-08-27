@@ -104,7 +104,7 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
 
     // Concatenate the alternate endpoints and register the same endpoint handlers
     std::stringstream ss;
-    for (auto i : in_aux_path)
+    for (const auto& i : in_aux_path)
         ss << i << "/";
 
     uri = fmt::format("/devices/views/{}devices", ss.str());
