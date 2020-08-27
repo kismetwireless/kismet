@@ -197,6 +197,10 @@ public:
             Globalreg::n_tracked_fields++;
         }
 
+    tracker_element(tracker_element&& o) noexcept :
+        tracked_id{o.tracked_id},
+        local_name{o.local_name} { }
+
     tracker_element( int id) :
         tracked_id(id),
         local_name{nullptr} {
@@ -419,6 +423,10 @@ class tracker_element_core_scalar : public tracker_element {
 public:
     tracker_element_core_scalar() :
         tracker_element{} { }
+
+    tracker_element_core_scalar(tracker_element_core_scalar&& o) noexcept :
+        tracker_element{o},
+        value{std::move(o.value)} { }
 
     tracker_element_core_scalar(int id) :
         tracker_element(id),
@@ -1437,6 +1445,11 @@ public:
         tracker_element(),
         present_set{0} { }
 
+    tracker_element_core_map(tracker_element_core_map&& o) noexcept :
+        tracker_element{o},
+        present_set{o.present_set},
+        map{std::move(o.map)} { }
+
     tracker_element_core_map(int id) :
         tracker_element(id),
         present_set{0} { }
@@ -1903,6 +1916,10 @@ public:
 
     tracker_element_core_vector() :
         tracker_element() { }
+
+    tracker_element_core_vector(tracker_element_core_vector&& o) noexcept :
+        tracker_element{o},
+        vector{std::move(o.vector)} { }
 
     tracker_element_core_vector(int id) :
         tracker_element(id) { }
