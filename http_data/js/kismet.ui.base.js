@@ -136,7 +136,7 @@ exports.drawPackets = function(dyncolumn, table, row) {
     // We use the aliased field names we extracted from just the minute
     // component of the per-device packet RRD
     var simple_rrd =
-        kismet.RecalcRrdData2(data['packet.rrd.last_time'], kismet.RRD_SECOND,
+        kismet.RecalcRrdData2(data, kismet.RRD_SECOND,
             {
                 transform: function(data, opt) {
                     var slices = 3;
@@ -286,10 +286,15 @@ kismet_ui.AddDeviceColumn('column_packet_rrd', {
 });
 
 // Hidden col for packet minute rrd data
+// We MUST define ONE FIELD and then multiple additional fields are permitted
 kismet_ui.AddDeviceColumn('column_rrd_minute_hidden', {
     sTitle: 'packets_rrd_min_data',
-    field: ['kismet.device.base.packets.rrd/kismet.common.rrd.minute_vec',
-            'packet.rrd.minute_vec'],
+    field: 
+        ['kismet.device.base.packets.rrd/kismet.common.rrd.minute_vec', 'kismet.common.rrd.minute_vec'],
+    fields: [
+        ['kismet.device.base.packets.rrd/kismet.common.rrd.last_time', 'kismet.common.rrd.last_time'],
+        ['kismet.device.base.packets.rrd/kismet.commonr.rrd.serial_time', 'kismet.common.rrd.serial_time'],
+    ],
     name: 'packets_rrd_min_data',
     searchable: false,
     visible: false,
