@@ -52,6 +52,11 @@
 #define MAC_LEN_MAX		8
 
 struct mac_addr {
+    mac_addr(mac_addr&& o) noexcept :
+        longmac{o.longmac},
+        longmask{o.longmask},
+        state{o.state} { }
+    
     uint64_t longmac;
     uint64_t longmask;
 
