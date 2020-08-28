@@ -207,6 +207,14 @@ public:
             Globalreg::n_tracked_fields++;
         }
 
+    // Inherit from builder
+    tracker_element(const tracker_element *p) :
+        tracked_id{p->tracked_id} {
+            if (p->local_name)
+                local_name = new std::string(*p->local_name);
+            Globalreg::n_tracked_fields++;
+        }
+
     virtual ~tracker_element() {
         Globalreg::n_tracked_fields--;
 
@@ -393,7 +401,7 @@ public:
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
+        auto dup = std::unique_ptr<this_t>(new this_t(tracked_id));
         return std::move(dup);
     }
 
@@ -523,7 +531,7 @@ public:
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
+        auto dup = std::unique_ptr<this_t>(new this_t(tracked_id));
         return std::move(dup);
     }
 
@@ -563,7 +571,7 @@ public:
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
+        auto dup = std::unique_ptr<this_t>(new this_t(tracked_id));
         return std::move(dup);
     }
 
@@ -694,7 +702,7 @@ public:
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
+        auto dup = std::unique_ptr<this_t>(new this_t(tracked_id));
         return std::move(dup);
     }
 
@@ -742,7 +750,7 @@ public:
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
+        auto dup = std::unique_ptr<this_t>(new this_t(tracked_id));
         return std::move(dup);
     }
 
@@ -794,7 +802,7 @@ public:
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
+        auto dup = std::unique_ptr<this_t>(new this_t(tracked_id));
         return std::move(dup);
     }
 
@@ -861,7 +869,7 @@ public:
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
+        auto dup = std::unique_ptr<this_t>(new this_t(tracked_id));
         return std::move(dup);
     }
 
@@ -873,9 +881,20 @@ public:
 
 };
 
+template<class N>
+class numerical_string {
+public:
+    virtual std::string as_string(N v) const {
+        if (std::isnan(v) || std::isinf(v))
+            return "0";
+
+        return fmt::format("{}", v);
+    }
+};
+
 // Simplify numeric conversion w/ an interstitial scalar-like that holds all 
 // our numeric subclasses
-template<class N>
+template<class N, tracker_type T = tracker_type::tracker_double, class S = numerical_string<N>>
 class tracker_element_core_numeric : public tracker_element {
 public:
     tracker_element_core_numeric() :
@@ -891,8 +910,11 @@ public:
         value(v) { }
 
     virtual tracker_type get_type() const override {
-        // All base-level numeric trackers are a double, to make gcc stop complaining for now
-        return tracker_type::tracker_double;
+        return T;
+    }
+
+    static tracker_type static_type() {
+        return T;
     }
 
     virtual bool is_stringable() const override {
@@ -900,10 +922,8 @@ public:
     }
 
     virtual std::string as_string() const override {
-        if (std::isnan(value) || std::isinf(value))
-            return "0";
-
-        return fmt::format("{}", value);
+        S s;
+        return s.as_string(value);
     }
 
     virtual bool needs_quotes() const override {
@@ -952,13 +972,16 @@ public:
         }
     }
 
-    // We don't define cloning, subclasses have to do that
     virtual std::unique_ptr<tracker_element> clone_type() override {
-        return nullptr;
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t());
+        return std::move(dup);
     }
 
     virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        return nullptr;
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        return std::move(dup);
     }
 
     N& get() {
@@ -969,7 +992,7 @@ public:
         value = in;
     }
 
-    inline bool operator==(const tracker_element_core_numeric<N>& rhs) const { 
+    inline bool operator==(const tracker_element_core_numeric<N, T, S>& rhs) const { 
         return value == rhs.value;
     }
 
@@ -977,7 +1000,7 @@ public:
         return value != rhs;
     }
 
-    inline bool operator!=(const tracker_element_core_numeric<N>& rhs) const { 
+    inline bool operator!=(const tracker_element_core_numeric<N, T, S>& rhs) const { 
         return !(value == rhs.value); 
     }
 
@@ -985,7 +1008,7 @@ public:
         return value != rhs;
     }
 
-    inline bool operator<=(const tracker_element_core_numeric<N>& rhs) const {
+    inline bool operator<=(const tracker_element_core_numeric<N, T, S>& rhs) const {
         return value <= rhs.value;
     }
 
@@ -993,7 +1016,7 @@ public:
         return value <= rhs;
     }
 
-    inline bool operator<(const tracker_element_core_numeric<N>& rhs) const {
+    inline bool operator<(const tracker_element_core_numeric<N, T, S>& rhs) const {
         return value < rhs.value;
     }
 
@@ -1001,7 +1024,7 @@ public:
         return value < rhs;
     }
 
-    inline bool operator>=(const tracker_element_core_numeric<N>& rhs) const {
+    inline bool operator>=(const tracker_element_core_numeric<N, T, S>& rhs) const {
         return value >= rhs.value;
     }
 
@@ -1009,7 +1032,7 @@ public:
         return value >= rhs;
     }
 
-    inline bool operator>(const tracker_element_core_numeric<N>& rhs) const {
+    inline bool operator>(const tracker_element_core_numeric<N, T, S>& rhs) const {
         return value > rhs.value;
     }
 
@@ -1017,59 +1040,59 @@ public:
         return value  > rhs;
     }
 
-    tracker_element_core_numeric<N>& operator+=(const N& rhs) {
+    tracker_element_core_numeric<N, T, S>& operator+=(const N& rhs) {
         value += rhs;
         return *this;
     }
 
-    tracker_element_core_numeric<N>& operator-=(const N& rhs) {
+    tracker_element_core_numeric<N, T, S>& operator-=(const N& rhs) {
         value -= rhs;
         return *this;
     }
 
-    friend tracker_element_core_numeric<N> operator+(tracker_element_core_numeric lhs,
-            const tracker_element_core_numeric<N>& rhs) {
+    friend tracker_element_core_numeric<N, T, S> operator+(tracker_element_core_numeric lhs,
+            const tracker_element_core_numeric<N, T, S>& rhs) {
         lhs += rhs;
         return lhs;
     }
 
-    friend tracker_element_core_numeric<N> operator-(tracker_element_core_numeric lhs,
-            const tracker_element_core_numeric<N>& rhs) {
+    friend tracker_element_core_numeric<N, T, S> operator-(tracker_element_core_numeric lhs,
+            const tracker_element_core_numeric<N, T, S>& rhs) {
         lhs -= rhs;
         return lhs;
     }
 
-    tracker_element_core_numeric<N>& operator|=(const tracker_element_core_numeric<N>& rhs) {
+    tracker_element_core_numeric<N, T, S>& operator|=(const tracker_element_core_numeric<N, T, S>& rhs) {
         value |= rhs.value;
         return *this;
     }
 
-    tracker_element_core_numeric<N>& operator|=(const N& rhs) {
+    tracker_element_core_numeric<N, T, S>& operator|=(const N& rhs) {
         value |= rhs;
         return *this;
     }
 
-    tracker_element_core_numeric<N>& operator&=(const tracker_element_core_numeric<N>& rhs) {
+    tracker_element_core_numeric<N, T, S>& operator&=(const tracker_element_core_numeric<N, T, S>& rhs) {
         value &= rhs.value;
         return *this;
     }
 
-    tracker_element_core_numeric<N>& operator&=(const N& rhs) {
+    tracker_element_core_numeric<N, T, S>& operator&=(const N& rhs) {
         value &= rhs;
         return *this;
     }
 
-    tracker_element_core_numeric<N>& operator^=(const tracker_element_core_numeric<N>& rhs) {
+    tracker_element_core_numeric<N, T, S>& operator^=(const tracker_element_core_numeric<N, T, S>& rhs) {
         value ^= rhs.value;
         return *this;
     }
 
-    tracker_element_core_numeric<N>& operator^=(const N& rhs) {
+    tracker_element_core_numeric<N, T, S>& operator^=(const N& rhs) {
         value ^= rhs;
         return *this;
     }
 
-    inline bool less_than(const tracker_element_core_numeric<N>& rhs) const {
+    inline bool less_than(const tracker_element_core_numeric<N, T, S>& rhs) const {
         return value < rhs.value;
     }
 
@@ -1078,356 +1101,44 @@ public:
             throw std::runtime_error(fmt::format("Attempted to compare two non-equal field types, "
                         "{} < {}", get_type_as_string(), rhs->get_type_as_string()));
 
-        return value < safe_cast_as<tracker_element_core_numeric<N>>(rhs)->value;
+        return value < safe_cast_as<tracker_element_core_numeric<N, T, S>>(rhs)->value;
     }
 
 protected:
     N value;
 };
 
-class tracker_element_uint8 : public tracker_element_core_numeric<uint8_t> {
+using tracker_element_uint8 = tracker_element_core_numeric<uint8_t, tracker_type::tracker_uint8>;
+using tracker_element_int8 = tracker_element_core_numeric<int8_t, tracker_type::tracker_int8>;
+
+using tracker_element_uint16 = tracker_element_core_numeric<uint16_t, tracker_type::tracker_uint16>;
+using tracker_element_int16 = tracker_element_core_numeric<int16_t, tracker_type::tracker_int16>;
+
+using tracker_element_uint32 = tracker_element_core_numeric<uint32_t, tracker_type::tracker_uint32>;
+using tracker_element_int32 = tracker_element_core_numeric<int32_t, tracker_type::tracker_int32>;
+
+using tracker_element_uint64 = tracker_element_core_numeric<uint64_t, tracker_type::tracker_uint64>;
+using tracker_element_int64 = tracker_element_core_numeric<int64_t, tracker_type::tracker_int64>;
+
+template<class N>
+class float_numerical_string {
 public:
-    tracker_element_uint8() :
-        tracker_element_core_numeric<uint8_t>() { }
-
-    tracker_element_uint8(int id) :
-        tracker_element_core_numeric<uint8_t>(id) { }
-
-    tracker_element_uint8(int id, const uint8_t& v) :
-        tracker_element_core_numeric<uint8_t>(id, v) { }
-
-    virtual tracker_type get_type() const override {
-        return tracker_type::tracker_uint8;
-    }
-
-    static tracker_type static_type() {
-        return tracker_type::tracker_uint8;
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return std::move(dup);
-    }
-};
-
-class tracker_element_int8 : public tracker_element_core_numeric<int8_t> {
-public:
-    tracker_element_int8() :
-        tracker_element_core_numeric<int8_t>() { }
-
-    tracker_element_int8(int id) :
-        tracker_element_core_numeric<int8_t>(id) { }
-
-    tracker_element_int8(int id, const int8_t& v) :
-        tracker_element_core_numeric<int8_t>(id, v) { }
-
-    virtual tracker_type get_type() const override {
-        return tracker_type::tracker_int8;
-    }
-
-    static tracker_type static_type() {
-        return tracker_type::tracker_int8;
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return std::move(dup);
-    }
-};
-
-class tracker_element_uint16 : public tracker_element_core_numeric<uint16_t> {
-public:
-    tracker_element_uint16() :
-        tracker_element_core_numeric<uint16_t>() { }
-
-    tracker_element_uint16(int id) :
-        tracker_element_core_numeric<uint16_t>(id) { }
-
-    tracker_element_uint16(int id, const uint16_t& v) :
-        tracker_element_core_numeric<uint16_t>(id, v) { }
-
-    virtual tracker_type get_type() const override {
-        return tracker_type::tracker_uint16;
-    }
-
-    static tracker_type static_type() {
-        return tracker_type::tracker_uint16;
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return std::move(dup);
-    }
-};
-
-class tracker_element_int16 : public tracker_element_core_numeric<int16_t> {
-public:
-    tracker_element_int16() :
-        tracker_element_core_numeric<int16_t>() { }
-
-    tracker_element_int16(int id) :
-        tracker_element_core_numeric<int16_t>(id) { }
-
-    tracker_element_int16(int id, const int16_t& v) :
-        tracker_element_core_numeric<int16_t>(id, v) { }
-
-    virtual tracker_type get_type() const override {
-        return tracker_type::tracker_int16;
-    }
-
-    static tracker_type static_type() {
-        return tracker_type::tracker_int16;
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return std::move(dup);
-    }
-};
-
-class tracker_element_uint32 : public tracker_element_core_numeric<uint32_t> {
-public:
-    tracker_element_uint32() :
-        tracker_element_core_numeric<uint32_t>() { }
-
-    tracker_element_uint32(int id) :
-        tracker_element_core_numeric<uint32_t>(id) { }
-
-    tracker_element_uint32(int id, const uint32_t& v) :
-        tracker_element_core_numeric<uint32_t>(id, v) { }
-
-    virtual tracker_type get_type() const override {
-        return tracker_type::tracker_uint32;
-    }
-
-    static tracker_type static_type() {
-        return tracker_type::tracker_uint32;
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return std::move(dup);
-    }
-};
-
-class tracker_element_int32 : public tracker_element_core_numeric<int32_t> {
-public:
-    tracker_element_int32() :
-        tracker_element_core_numeric<int32_t>() { }
-
-    tracker_element_int32(int id) :
-        tracker_element_core_numeric<int32_t>(id) { }
-
-    tracker_element_int32(int id, const int32_t& v) :
-        tracker_element_core_numeric<int32_t>(id, v) { }
-
-    virtual tracker_type get_type() const override {
-        return tracker_type::tracker_int32;
-    }
-
-    static tracker_type static_type() {
-        return tracker_type::tracker_int32;
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return std::move(dup);
-    }
-};
-
-class tracker_element_uint64 : public tracker_element_core_numeric<uint64_t> {
-public:
-    tracker_element_uint64() :
-        tracker_element_core_numeric<uint64_t>() { }
-
-    tracker_element_uint64(int id) :
-        tracker_element_core_numeric<uint64_t>(id) { }
-
-    tracker_element_uint64(int id, const uint64_t& v) :
-        tracker_element_core_numeric<uint64_t>(id, v) { }
-
-    virtual tracker_type get_type() const override {
-        return tracker_type::tracker_uint64;
-    }
-
-    static tracker_type static_type() {
-        return tracker_type::tracker_uint64;
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return std::move(dup);
-    }
-};
-
-class tracker_element_int64 : public tracker_element_core_numeric<int64_t> {
-public:
-    tracker_element_int64() :
-        tracker_element_core_numeric<int64_t>() { }
-
-    tracker_element_int64(int id) :
-        tracker_element_core_numeric<int64_t>(id) { }
-
-    tracker_element_int64(int id, const int64_t& v) :
-        tracker_element_core_numeric<int64_t>(id, v) { }
-
-    virtual tracker_type get_type() const override {
-        return tracker_type::tracker_int64;
-    }
-
-    static tracker_type static_type() {
-        return tracker_type::tracker_int64;
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return std::move(dup);
-    }
-};
-
-class tracker_element_float : public tracker_element_core_numeric<float> {
-public:
-    tracker_element_float() :
-        tracker_element_core_numeric<float>() { }
-
-    tracker_element_float(int id) :
-        tracker_element_core_numeric<float>(id) { }
-
-    tracker_element_float(int id, const float& v) :
-        tracker_element_core_numeric<float>(id, v) { }
-
-    virtual tracker_type get_type() const override {
-        return tracker_type::tracker_float;
-    }
-
-    static tracker_type static_type() {
-        return tracker_type::tracker_float;
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return std::move(dup);
-    }
-
-    virtual std::string as_string() const override {
-        if (std::isnan(value) || std::isinf(value))
+    virtual std::string as_string(N v) const {
+        if (std::isnan(v) || std::isinf(v))
             return "0";
 
         // Jump through some hoops to collapse things like 0.000000 to 0 to save 
         // space/time in serializing
-        if (floor(value) == value)
-            return fmt::format("{}", (long) value);
+        if (floor(v) == v)
+            return fmt::format("{}", (long long) v);
 
-        return fmt::format("{:f}", value);
+        return fmt::format("{:f}", v);
     }
 };
 
-class tracker_element_double : public tracker_element_core_numeric<double> {
-public:
-    tracker_element_double() :
-        tracker_element_core_numeric<double>() { }
+using tracker_element_float = tracker_element_core_numeric<float, tracker_type::tracker_float, float_numerical_string<float>>;
+using tracker_element_double = tracker_element_core_numeric<double, tracker_type::tracker_double, float_numerical_string<double>>;
 
-    tracker_element_double(int id) :
-        tracker_element_core_numeric<double>(id) { }
-
-    tracker_element_double(int id, const double& v) :
-        tracker_element_core_numeric<double>(id, v) { }
-
-    virtual tracker_type get_type() const override {
-        return tracker_type::tracker_double;
-    }
-
-    static tracker_type static_type() {
-        return tracker_type::tracker_double;
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return std::move(dup);
-    }
-
-    virtual std::string as_string() const override {
-        if (std::isnan(value) || std::isinf(value))
-            return "0";
-
-        // Jump through some hoops to collapse things like 0.000000 to 0 to save 
-        // space/time in serializing
-        if (floor(value) == value)
-            return fmt::format("{}", (long) value);
-
-        return fmt::format("{:f}", value);
-    }
-};
 
 
 // Superclass for generic access to maps via multiple key structures; use a std::map tree
@@ -1453,6 +1164,11 @@ public:
     tracker_element_core_map(int id) :
         tracker_element(id),
         present_set{0} { }
+
+    // Inherit attributes but not content
+    tracker_element_core_map(const tracker_element_core_map *p) :
+        tracker_element{p},
+        present_set{p->present_set} { }
 
     virtual bool is_stringable() const override {
         return false;
@@ -1597,6 +1313,9 @@ public:
     tracker_element_map(int id) :
         tracker_element_core_map<std::unordered_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>>(id) { }
 
+    tracker_element_map(const tracker_element_map *p) :
+        tracker_element_core_map<std::unordered_map<int, std::shared_ptr<tracker_element>>, int, std::shared_ptr<tracker_element>>(p) { }
+
     virtual tracker_type get_type() const override {
         return tracker_type::tracker_map;
     }
@@ -1607,7 +1326,7 @@ public:
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
+        auto dup = std::unique_ptr<this_t>(new this_t(tracked_id));
         return std::move(dup);
     }
 
