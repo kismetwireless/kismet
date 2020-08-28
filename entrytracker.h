@@ -24,14 +24,15 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#include <map>
 #include <memory>
 #include <string>
-#include <map>
+#include <unordered_map>
 
 #include "globalregistry.h"
 #include "kis_mutex.h"
-#include "trackedelement.h"
 #include "kis_net_microhttpd.h"
+#include "trackedelement.h"
 
 // Allocate and track named fields and give each one a custom int
 class entry_tracker : public lifetime_global, public deferred_startup {
@@ -125,9 +126,9 @@ protected:
         std::unique_ptr<tracker_element> builder;
     };
 
-    std::map<std::string, std::shared_ptr<reserved_field> > field_name_map;
-    std::map<int, std::shared_ptr<reserved_field> > field_id_map;
-    std::map<std::string, std::shared_ptr<tracker_element_serializer> > serializer_map;
+    std::unordered_map<std::string, std::shared_ptr<reserved_field> > field_name_map;
+    std::unordered_map<int, std::shared_ptr<reserved_field> > field_id_map;
+    std::unordered_map<std::string, std::shared_ptr<tracker_element_serializer> > serializer_map;
 
     std::shared_ptr<kis_net_httpd_simple_stream_endpoint> tracked_fields_endp;
     int tracked_fields_endp_handler(std::ostream& stream);
