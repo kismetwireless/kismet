@@ -91,6 +91,15 @@ protected:
 
     int pack_comp_common, pack_comp_linkframe, pack_comp_l1info, pack_comp_datasrc;
 
+    // datagram callback for new data; auto-allocates a source for a new remote sensor
+    void udp_datagram(const struct sockaddr_storage *sockaddr, size_t addrsize,
+            uint32_t hash, const char *data, size_t len);
+
+    // datagram callback for a closed or timed-out remote tzsp sensor, flags the virtual source as closed
+    void udp_cancel(uint32_t hash, bool timeout, const std::string& reason);
+
+    std::map<uint32_t, std::shared_ptr<kis_datasource>> tzsp_source_map;
+
 };
 
 #endif /* ifndef DATASOURCE_TZSP_H */
