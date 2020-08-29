@@ -50,9 +50,9 @@ public:
     tracked_dot11_fingerprint(const tracked_dot11_fingerprint *p) :
         tracker_component{p} {
 
-        beacon_hash = tracker_element_clone_adaptor(p->beacon_hash);
-        response_hash = tracker_element_clone_adaptor(p->response_hash);
-        probe_hash = tracker_element_clone_adaptor(p->probe_hash);
+        __ImportField(beacon_hash, p);
+        __ImportField(response_hash, p);
+        __ImportField(probe_hash, p);
 
         reserve_fields(nullptr);
     }

@@ -58,11 +58,11 @@ public:
     tracked_antenna(const tracked_antenna *p) :
         tracker_component{p} {
 
-        antenna_id = tracker_element_clone_adaptor(p->antenna_id);
-        antenna_uuid = tracker_element_clone_adaptor(p->antenna_uuid);
-        source_uuid = tracker_element_clone_adaptor(p->source_uuid);
-        power_adjust = tracker_element_clone_adaptor(p->power_adjust);
-        source_antnum = tracker_element_clone_adaptor(p->source_antnum);
+        __ImportField(antenna_id, p);
+        __ImportField(antenna_uuid, p);
+        __ImportField(source_uuid, p);
+        __ImportField(power_adjust, p);
+        __ImportField(source_antnum, p);
 
         reserve_fields(nullptr);
     }

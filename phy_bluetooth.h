@@ -83,12 +83,12 @@ public:
     bluetooth_tracked_device(const bluetooth_tracked_device *p) :
         tracker_component{p} {
 
-        service_uuid_vec = tracker_element_clone_adaptor(p->service_uuid_vec);
-        solicitation_uuid_vec = tracker_element_clone_adaptor(p->solicitation_uuid_vec);
-        scan_data_bytes = tracker_element_clone_adaptor(p->scan_data_bytes);
-        service_data_bytes = tracker_element_clone_adaptor(p->service_data_bytes);
-        txpower = tracker_element_clone_adaptor(p->txpower);
-        pathloss = tracker_element_clone_adaptor(p->pathloss);
+        __ImportField(service_uuid_vec, p);
+        __ImportField(solicitation_uuid_vec, p);
+        __ImportField(scan_data_bytes, p);
+        __ImportField(service_data_bytes, p);
+        __ImportField(txpower, p);
+        __ImportField(pathloss, p);
 
         reserve_fields(nullptr);
     }

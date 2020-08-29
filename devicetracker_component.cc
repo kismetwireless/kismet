@@ -53,10 +53,10 @@ kis_tracked_ip_data::kis_tracked_ip_data(int in_id, std::shared_ptr<tracker_elem
 
 kis_tracked_ip_data::kis_tracked_ip_data(const kis_tracked_ip_data *p) :
     tracker_component{p} {
-    ip_type = tracker_element_clone_adaptor(p->ip_type);
-    ip_addr_block = tracker_element_clone_adaptor(p->ip_addr_block);
-    ip_netmask = tracker_element_clone_adaptor(p->ip_netmask);
-    ip_gateway = tracker_element_clone_adaptor(p->ip_gateway);
+    __ImportField(ip_type, p);
+    __ImportField(ip_addr_block, p);
+    __ImportField(ip_netmask, p);
+    __ImportField(ip_gateway, p);
     reserve_fields(nullptr);
 }
 
@@ -103,24 +103,24 @@ kis_tracked_signal_data::kis_tracked_signal_data(int in_id, std::shared_ptr<trac
 kis_tracked_signal_data::kis_tracked_signal_data(const kis_tracked_signal_data *p) :
     tracker_component{p} {
 
-    signal_type = tracker_element_clone_adaptor(p->signal_type);
+    __ImportField(signal_type, p);
 
-    last_signal = tracker_element_clone_adaptor(p->last_signal);
-    last_noise = tracker_element_clone_adaptor(p->last_noise);
+    __ImportField(last_signal, p);
+    __ImportField(last_noise, p);
 
-    min_signal = tracker_element_clone_adaptor(p->min_signal);
-    min_noise = tracker_element_clone_adaptor(p->min_noise);
+    __ImportField(min_signal, p);
+    __ImportField(min_noise, p);
 
-    max_signal = tracker_element_clone_adaptor(p->max_signal);
-    max_noise = tracker_element_clone_adaptor(p->max_noise);
+    __ImportField(max_signal, p);
+    __ImportField(max_noise, p);
 
-    peak_loc_id = p->peak_loc_id;
+    __ImportId(peak_loc_id, p);
 
-    maxseenrate = tracker_element_clone_adaptor(p->maxseenrate);
-    encodingset = tracker_element_clone_adaptor(p->encodingset);
-    carrierset = tracker_element_clone_adaptor(p->carrierset);
+    __ImportField(maxseenrate, p);
+    __ImportField(encodingset, p);
+    __ImportField(carrierset, p);
 
-    signal_min_rrd_id = p->signal_min_rrd_id;
+    __ImportId(signal_min_rrd_id, p);
 
     reserve_fields(nullptr);
     sig_type = 0;
@@ -341,15 +341,15 @@ kis_tracked_seenby_data::kis_tracked_seenby_data(int in_id, std::shared_ptr<trac
 kis_tracked_seenby_data::kis_tracked_seenby_data(const kis_tracked_seenby_data *p) :
     tracker_component{p} {
     
-    src_uuid_id = p->src_uuid_id;
+    __ImportId(src_uuid_id, p);
 
-    first_time = tracker_element_clone_adaptor(p->first_time);
-    last_time = tracker_element_clone_adaptor(p->last_time);
-    num_packets = tracker_element_clone_adaptor(p->num_packets);
+    __ImportField(first_time, p);
+    __ImportField(last_time, p);
+    __ImportField(num_packets, p);
 
-    freq_khz_map = tracker_element_clone_adaptor(p->freq_khz_map);
+    __ImportField(freq_khz_map, p);
 
-    signal_data_id = p->signal_data_id;
+    __ImportId(signal_data_id, p);
 
     reserve_fields(nullptr);
 }

@@ -213,11 +213,11 @@ public:
     kis_tracked_data_bins(const kis_tracked_data_bins *p) :
         tracker_component{p} {
 
-        packet_rrd_bin_250_id = p->packet_rrd_bin_250_id;
-        packet_rrd_bin_500_id = p->packet_rrd_bin_500_id;
-        packet_rrd_bin_1000_id = p->packet_rrd_bin_1000_id;
-        packet_rrd_bin_1500_id = p->packet_rrd_bin_1500_id;
-        packet_rrd_bin_jumbo_id = p->packet_rrd_bin_jumbo_id;
+        __ImportId(packet_rrd_bin_250_id, p);
+        __ImportId(packet_rrd_bin_500_id, p);
+        __ImportId(packet_rrd_bin_1000_id, p);
+        __ImportId(packet_rrd_bin_1500_id, p);
+        __ImportId(packet_rrd_bin_jumbo_id, p);
 
         reserve_fields(nullptr);
     }
@@ -347,61 +347,61 @@ public:
     kis_tracked_device_base(const kis_tracked_device_base *p) :
         tracker_component{p} {
 
-        key = tracker_element_clone_adaptor(p->key);
-        macaddr = tracker_element_clone_adaptor(p->macaddr);
-        phyname = tracker_element_clone_adaptor(p->phyname);
-        phyid = tracker_element_clone_adaptor(p->phyid);
-        devicename = tracker_element_clone_adaptor(p->devicename);
+        __ImportField(key, p);
+        __ImportField(macaddr, p);
+        __ImportField(phyname, p);
+        __ImportField(phyid, p);
+        __ImportField(devicename, p);
 
-        username_id = p->username_id;
+        __ImportId(username_id, p);
 
-        commonname = tracker_element_clone_adaptor(p->commonname);
-        type_string = tracker_element_clone_adaptor(p->type_string);
-        basic_type_set = tracker_element_clone_adaptor(p->basic_type_set);
-        crypt_string = tracker_element_clone_adaptor(p->crypt_string);
-        basic_crypt_set = tracker_element_clone_adaptor(p->basic_crypt_set);
-        first_time = tracker_element_clone_adaptor(p->first_time);
-        last_time = tracker_element_clone_adaptor(p->last_time);
-        mod_time = tracker_element_clone_adaptor(p->mod_time);
+        __ImportField(commonname, p);
+        __ImportField(type_string, p);
+        __ImportField(basic_type_set,p );
+        __ImportField(crypt_string, p);
+        __ImportField(basic_crypt_set, p);
+        __ImportField(first_time, p);
+        __ImportField(last_time, p);
+        __ImportField(mod_time, p);
 
-        packets = tracker_element_clone_adaptor(p->packets);
-        tx_packets = tracker_element_clone_adaptor(p->tx_packets);
-        rx_packets = tracker_element_clone_adaptor(p->rx_packets);
-        llc_packets = tracker_element_clone_adaptor(p->llc_packets);
-        error_packets = tracker_element_clone_adaptor(p->error_packets);
-        data_packets = tracker_element_clone_adaptor(p->data_packets);
-        crypt_packets = tracker_element_clone_adaptor(p->crypt_packets);
-        filter_packets = tracker_element_clone_adaptor(p->filter_packets);
+        __ImportField(packets, p);
+        __ImportField(tx_packets, p);
+        __ImportField(rx_packets, p);
+        __ImportField(llc_packets, p);
+        __ImportField(error_packets, p);
+        __ImportField(data_packets, p);
+        __ImportField(crypt_packets, p);
+        __ImportField(filter_packets, p);
 
-        datasize = tracker_element_clone_adaptor(p->datasize);
 
-        packets_rrd_id = p->packets_rrd_id;
-        data_rrd_id = p->data_rrd_id;
+        __ImportField(datasize, p);
 
-        channel = tracker_element_clone_adaptor(p->channel);
-        frequency = tracker_element_clone_adaptor(p->frequency);
+        __ImportId(packets_rrd_id, p);
+        __ImportId(data_rrd_id, p);
 
-        signal_data_id = p->signal_data_id;
+        __ImportField(channel, p);
+        __ImportField(frequency, p);
 
-        freq_khz_map = tracker_element_clone_adaptor(p->freq_khz_map);
-        manuf = tracker_element_clone_adaptor(p->manuf);
-        alert = tracker_element_clone_adaptor(p->alert);
+        __ImportId(signal_data_id, p);
 
-        tag_map_id = p->tag_map_id;
-        tag_entry_id = p->tag_entry_id;
+        __ImportField(freq_khz_map, p);
+        __ImportField(manuf, p);
+        __ImportField(alert, p);
 
-        location_id = p->location_id;
-        location_cloud_id = p->location_cloud_id;
+        __ImportId(tag_map_id, p);
+        __ImportId(tag_entry_id, p);
+
+        __ImportId(location_id, p);
+        __ImportId(location_cloud_id, p);
         
-        seenby_map_id = p->seenby_map_id;
+        __ImportId(seenby_map_id, p);
 
-        server_uuid = tracker_element_clone_adaptor(p->server_uuid);
+        __ImportField(server_uuid, p);
 
-        frequency_val_id = p->frequency_val_id;
-        seenby_val_id = p->seenby_val_id;
+        __ImportId(frequency_val_id, p);
+        __ImportId(seenby_val_id, p);
 
-        related_device_group_id = p->related_device_group_id;
-
+        __ImportId(related_device_group_id, p);
 
         reserve_fields(nullptr);
     }

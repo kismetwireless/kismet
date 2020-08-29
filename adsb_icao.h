@@ -69,12 +69,12 @@ public:
     tracked_adsb_icao(const tracked_adsb_icao *p) :
         tracker_component{p} {
 
-        icao = tracker_element_clone_adaptor(p->icao);
-        regid = tracker_element_clone_adaptor(p->regid);
-        model_type = tracker_element_clone_adaptor(p->model_type);
-        model = tracker_element_clone_adaptor(p->model);
-        owner = tracker_element_clone_adaptor(p->owner);
-        atype_short = tracker_element_clone_adaptor(p->atype_short);
+        __ImportField(icao, p);
+        __ImportField(regid, p);
+        __ImportField(model_type, p);
+        __ImportField(model, p);
+        __ImportField(owner, p);
+        __ImportField(atype_short, p);
 
         reserve_fields(nullptr);
     }

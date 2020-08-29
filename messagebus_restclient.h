@@ -55,9 +55,9 @@ public:
     tracked_message(const tracked_message *p) :
         tracker_component{p} {
 
-        message = tracker_element_clone_adaptor(p->message);
-        flags = tracker_element_clone_adaptor(p->flags);
-        timestamp = tracker_element_clone_adaptor(p->timestamp);
+        __ImportField(message, p);
+        __ImportField(flags, p);
+        __ImportField(timestamp, p);
 
         reserve_fields(nullptr);
     }

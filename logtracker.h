@@ -69,11 +69,11 @@ public:
     kis_logfile_builder(const kis_logfile_builder *p) :
         tracker_component{p} {
 
-        log_class = tracker_element_clone_adaptor(p->log_class);
-        log_name = tracker_element_clone_adaptor(p->log_name);
-        stream_log = tracker_element_clone_adaptor(p->stream_log);
-        singleton = tracker_element_clone_adaptor(p->singleton);
-        description = tracker_element_clone_adaptor(p->description);
+        __ImportField(log_class, p);
+        __ImportField(log_name, p);
+        __ImportField(stream_log, p);
+        __ImportField(singleton, p);
+        __ImportField(description, p);
 
         reserve_fields(nullptr);
         set_local_name("kismet.log.type_driver");

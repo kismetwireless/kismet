@@ -106,19 +106,19 @@ public:
     kis_tracked_rrd(const kis_tracked_rrd *p) :
         tracker_component{p} {
 
-        last_time = tracker_element_clone_adaptor(p->last_time);
-        serial_time = tracker_element_clone_adaptor(p->serial_time);
+        __ImportField(last_time, p);
+        __ImportField(serial_time, p);
 
-        minute_vec = tracker_element_clone_adaptor(p->minute_vec);
-        hour_vec = tracker_element_clone_adaptor(p->hour_vec);
-        day_vec = tracker_element_clone_adaptor(p->day_vec);
+        __ImportField(minute_vec, p);
+        __ImportField(hour_vec, p);
+        __ImportField(day_vec, p);
 
-        blank_val = tracker_element_clone_adaptor(p->blank_val);
-        aggregator_name = tracker_element_clone_adaptor(p->aggregator_name);
+        __ImportField(blank_val, p);
+        __ImportField(aggregator_name, p);
 
-        second_entry_id = p->second_entry_id;
-        minute_entry_id = p->minute_entry_id;
-        hour_entry_id = p->hour_entry_id;
+        __ImportId(second_entry_id, p);
+        __ImportId(minute_entry_id, p);
+        __ImportId(hour_entry_id, p);
 
         reserve_fields(nullptr);
         update_first = true;
@@ -434,7 +434,6 @@ protected:
         Aggregator agg;
         (*blank_val).set(agg.default_val());
         (*aggregator_name).set(agg.name());
-
     }
 
     kis_recursive_timed_mutex mutex;
@@ -492,13 +491,13 @@ public:
     kis_tracked_minute_rrd(const kis_tracked_minute_rrd *p) :
         tracker_component{p} {
 
-        last_time = tracker_element_clone_adaptor(p->last_time);
-        serial_time = tracker_element_clone_adaptor(p->serial_time);
-        minute_vec = tracker_element_clone_adaptor(p->minute_vec);
-        blank_val = tracker_element_clone_adaptor(p->blank_val);
-        aggregator_name = tracker_element_clone_adaptor(p->aggregator_name);
+        __ImportField(last_time, p);
+        __ImportField(serial_time, p);
+        __ImportField(minute_vec, p);
+        __ImportField(blank_val, p);
+        __ImportField(aggregator_name, p);
 
-        second_entry_id = p->second_entry_id;
+        __ImportId(second_entry_id, p);
 
         reserve_fields(nullptr);
         update_first = true;
@@ -511,7 +510,7 @@ public:
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 

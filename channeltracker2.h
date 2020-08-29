@@ -63,12 +63,12 @@ public:
     channel_tracker_v2_channel(const channel_tracker_v2_channel* p) :
         tracker_component{p} {
 
-        channel = tracker_element_clone_adaptor(p->channel);
-        frequency = tracker_element_clone_adaptor(p->frequency);
-        packets_rrd = tracker_element_clone_adaptor(p->packets_rrd);
-        data_rrd = tracker_element_clone_adaptor(p->data_rrd);
-        device_rrd = tracker_element_clone_adaptor(p->device_rrd);
-        signal_data = tracker_element_clone_adaptor(p->signal_data);
+        __ImportField(channel, p);
+        __ImportField(frequency, p);
+        __ImportField(packets_rrd, p);
+        __ImportField(data_rrd, p);
+        __ImportField(device_rrd, p);
+        __ImportField(signal_data, p);
         reserve_fields(nullptr);
     }
 

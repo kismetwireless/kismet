@@ -60,8 +60,8 @@ public:
     zwave_tracked_device(const zwave_tracked_device *p) :
         tracker_component{p} {
 
-        homeid = tracker_element_clone_adaptor(p->homeid);
-        deviceid = tracker_element_clone_adaptor(p->deviceid);
+        __ImportField(homeid, p);
+        __ImportField(deviceid, p);
 
         reserve_fields(nullptr);
     }

@@ -61,18 +61,18 @@ public:
     dot11_tracked_ssid_group(const dot11_tracked_ssid_group *p) :
         tracker_component{p} {
 
-        ssid_hash = tracker_element_clone_adaptor(p->ssid_hash);
-        ssid = tracker_element_clone_adaptor(p->ssid);
-        ssid_len = tracker_element_clone_adaptor(p->ssid_len);
-        crypt_set = tracker_element_clone_adaptor(p->crypt_set);
-        advertising_device_map = tracker_element_clone_adaptor(p->advertising_device_map);
-        responding_device_map = tracker_element_clone_adaptor(p->responding_device_map);
-        probing_device_map = tracker_element_clone_adaptor(p->probing_device_map);
-        advertising_device_len = tracker_element_clone_adaptor(p->advertising_device_len);
-        responding_device_len = tracker_element_clone_adaptor(p->responding_device_len);
-        probing_device_len = tracker_element_clone_adaptor(p->probing_device_len);
-        first_time = tracker_element_clone_adaptor(p->first_time);
-        last_time = tracker_element_clone_adaptor(p->last_time);
+        __ImportField(ssid_hash, p);
+        __ImportField(ssid, p);
+        __ImportField(ssid_len, p);
+        __ImportField(crypt_set, p);
+        __ImportField(advertising_device_map, p);
+        __ImportField(responding_device_map, p);
+        __ImportField(probing_device_map, p);
+        __ImportField(advertising_device_len, p);
+        __ImportField(responding_device_len, p);
+        __ImportField(probing_device_len, p);
+        __ImportField(first_time, p);
+        __ImportField(last_time, p);
 
         reserve_fields(nullptr);
     }

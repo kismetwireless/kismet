@@ -68,8 +68,8 @@ public:
     btle_tracked_advertised_service(const btle_tracked_advertised_service *p) :
         tracker_component{p} {
 
-        short_uuid = tracker_element_clone_adaptor(p->short_uuid);
-        advertised_data = tracker_element_clone_adaptor(p->advertised_data);
+        __ImportField(short_uuid, p);
+        __ImportField(advertised_data, p);
 
         reserve_fields(nullptr);
     }
@@ -121,11 +121,11 @@ public:
     btle_tracked_device(const btle_tracked_device *p) :
         tracker_component{p} {
 
-        le_limited_discoverable = tracker_element_clone_adaptor(p->le_limited_discoverable);
-        le_general_discoverable = tracker_element_clone_adaptor(p->le_general_discoverable);
-        br_edr_unsupported = tracker_element_clone_adaptor(p->br_edr_unsupported);
-        simultaneous_br_edr_controller = tracker_element_clone_adaptor(p->simultaneous_br_edr_controller);
-        simultaneous_br_edr_host = tracker_element_clone_adaptor(p->simultaneous_br_edr_host);
+        __ImportField(le_limited_discoverable, p);
+        __ImportField(le_general_discoverable, p);
+        __ImportField(br_edr_unsupported, p);
+        __ImportField(simultaneous_br_edr_controller, p);
+        __ImportField(simultaneous_br_edr_host, p);
 
         reserve_fields(nullptr);
     }

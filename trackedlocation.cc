@@ -49,17 +49,17 @@ kis_tracked_location_triplet::kis_tracked_location_triplet(int in_id,
 kis_tracked_location_triplet::kis_tracked_location_triplet(const kis_tracked_location_triplet *p) :
     tracker_component{p} {
 
-    geopoint = tracker_element_clone_adaptor(p->geopoint);
-    alt = tracker_element_clone_adaptor(p->alt);
-    spd = tracker_element_clone_adaptor(p->spd);
-    heading = tracker_element_clone_adaptor(p->heading);
-    error_x = tracker_element_clone_adaptor(p->error_x);
-    error_y = tracker_element_clone_adaptor(p->error_y);
-    error_v = tracker_element_clone_adaptor(p->error_v);
-    fix = tracker_element_clone_adaptor(p->fix);
-    valid = tracker_element_clone_adaptor(p->valid);
-    time_sec = tracker_element_clone_adaptor(p->time_sec);
-    time_usec = tracker_element_clone_adaptor(p->time_usec);
+    __ImportField(geopoint, p);
+    __ImportField(alt, p);
+    __ImportField(spd, p);
+    __ImportField(heading, p);
+    __ImportField(error_x, p);
+    __ImportField(error_y, p);
+    __ImportField(error_v, p);
+    __ImportField(fix, p);
+    __ImportField(valid, p);
+    __ImportField(time_sec, p);
+    __ImportField(time_usec, p);
 
     reserve_fields(nullptr);
 }
@@ -135,6 +135,9 @@ void kis_tracked_location_triplet::register_fields() {
     register_field("kismet.common.location.valid", "valid location", &valid);
     register_field("kismet.common.location.time_sec", "timestamp (seconds)", &time_sec);
     register_field("kismet.common.location.time_usec", "timestamp (usec)", &time_usec);
+    register_field("kismet.common.location.error_x", "location error (x)", &error_x);
+    register_field("kismet.common.location.error_y", "location error (y)", &error_y);
+    register_field("kismet.common.location.error_v", "location error (v)", &error_v);
 }
 
 void kis_tracked_location_triplet::reserve_fields(std::shared_ptr<tracker_element_map> e) {
@@ -164,19 +167,19 @@ kis_tracked_location::kis_tracked_location(int in_id, std::shared_ptr<tracker_el
 kis_tracked_location::kis_tracked_location(const kis_tracked_location *p) :
     tracker_component{p} {
 
-    min_loc_id = p->min_loc_id;
-    max_loc_id = p->max_loc_id;
-    avg_loc_id = p->avg_loc_id;
-    last_loc_id = p->last_loc_id;
+    __ImportId(min_loc_id, p);
+    __ImportId(max_loc_id, p);
+    __ImportId(avg_loc_id, p);
+    __ImportId(last_loc_id, p);
 
-    loc_valid = tracker_element_clone_adaptor(p->loc_valid);
-    loc_fix = tracker_element_clone_adaptor(p->loc_fix);
+    __ImportField(loc_valid, p);
+    __ImportField(loc_fix, p);
 
-    avg_lat = tracker_element_clone_adaptor(p->avg_lat);
-    avg_lon = tracker_element_clone_adaptor(p->avg_lon);
-    avg_alt = tracker_element_clone_adaptor(p->avg_alt);
-    num_avg = tracker_element_clone_adaptor(p->num_avg);
-    num_alt_avg = tracker_element_clone_adaptor(p->num_alt_avg);
+    __ImportField(avg_lat, p);
+    __ImportField(avg_lon, p);
+    __ImportField(avg_alt, p);
+    __ImportField(num_avg, p);
+    __ImportField(num_alt_avg, p);
 
     reserve_fields(nullptr);
 }
@@ -333,13 +336,13 @@ kis_historic_location::kis_historic_location(int in_id, std::shared_ptr<tracker_
 kis_historic_location::kis_historic_location(const kis_historic_location *p) :
     tracker_component{p} {
 
-    geopoint = tracker_element_clone_adaptor(p->geopoint);
-    alt = tracker_element_clone_adaptor(p->alt);
-    heading = tracker_element_clone_adaptor(p->heading);
-    speed = tracker_element_clone_adaptor(p->speed);
-    signal = tracker_element_clone_adaptor(p->signal);
-    frequency = tracker_element_clone_adaptor(p->frequency);
-    time_sec = tracker_element_clone_adaptor(p->time_sec);
+    __ImportField(geopoint, p);
+    __ImportField(alt, p);
+    __ImportField(heading, p);
+    __ImportField(speed, p);
+    __ImportField(signal, p);
+    __ImportField(frequency, p);
+    __ImportField(time_sec, p);
 
     reserve_fields(nullptr);
 }
@@ -383,10 +386,10 @@ kis_location_history::kis_location_history(int in_id, std::shared_ptr<tracker_el
 kis_location_history::kis_location_history(const kis_location_history *p) :
     tracker_component{p} {
 
-    samples_100 = tracker_element_clone_adaptor(p->samples_100);
-    samples_10k = tracker_element_clone_adaptor(p->samples_10k);
-    samples_1m = tracker_element_clone_adaptor(p->samples_1m);
-    last_sample_ts = tracker_element_clone_adaptor(p->last_sample_ts);
+    __ImportField(samples_100, p);
+    __ImportField(samples_10k, p);
+    __ImportField(samples_1m, p);
+    __ImportField(last_sample_ts, p);
 
 
     reserve_fields(nullptr);

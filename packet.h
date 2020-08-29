@@ -142,11 +142,11 @@ public:
 
     kis_tracked_packet(const kis_tracked_packet *p) :
         tracker_component{p} {
-            ts_sec = tracker_element_clone_adaptor(p->ts_sec);
-            ts_usec = tracker_element_clone_adaptor(p->ts_usec);
-            dlt = tracker_element_clone_adaptor(p->dlt);
-            source = tracker_element_clone_adaptor(p->source);
-            data = tracker_element_clone_adaptor(p->data);
+            __ImportField(ts_sec, p);
+            __ImportField(ts_usec, p);
+            __ImportField(dlt, p);
+            __ImportField(source, p);
+            __ImportField(data, p);
             reserve_fields(nullptr);
         }
 

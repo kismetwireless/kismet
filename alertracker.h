@@ -127,17 +127,17 @@ public:
     tracked_alert(const tracked_alert *p) :
         tracker_component{p} {
 
-        devicekey = tracker_element_clone_adaptor(p->devicekey);
-        header = tracker_element_clone_adaptor(p->header);
-        phy = tracker_element_clone_adaptor(p->phy);
-        timestamp = tracker_element_clone_adaptor(p->timestamp);
-        transmitter_mac = tracker_element_clone_adaptor(p->transmitter_mac);
-        source_mac = tracker_element_clone_adaptor(p->source_mac);
-        dest_mac = tracker_element_clone_adaptor(p->dest_mac);
-        other_mac = tracker_element_clone_adaptor(p->other_mac);
-        channel = tracker_element_clone_adaptor(p->channel);
-        frequency = tracker_element_clone_adaptor(p->frequency);
-        location = tracker_element_clone_adaptor(p->location);
+        __ImportField(devicekey, p);
+        __ImportField(header, p);
+        __ImportField(phy, p);
+        __ImportField(timestamp, p);
+        __ImportField(transmitter_mac, p);
+        __ImportField(source_mac, p);
+        __ImportField(dest_mac, p);
+        __ImportField(other_mac, p);
+        __ImportField(channel, p);
+        __ImportField(frequency, p);
+        __ImportField(location, p);
 
         reserve_fields(nullptr);
     }
@@ -250,16 +250,16 @@ public:
     tracked_alert_definition(const tracked_alert_definition *p) :
         tracker_component{p} {
 
-        header = tracker_element_clone_adaptor(p->header);
-        description = tracker_element_clone_adaptor(p->description);
-        phy = tracker_element_clone_adaptor(p->phy);
-        limit_unit = tracker_element_clone_adaptor(p->limit_unit);
-        limit_rate = tracker_element_clone_adaptor(p->limit_rate);
-        burst_unit = tracker_element_clone_adaptor(p->burst_unit);
-        limit_burst = tracker_element_clone_adaptor(p->limit_burst);
-        burst_sent = tracker_element_clone_adaptor(p->burst_sent);
-        total_sent = tracker_element_clone_adaptor(p->total_sent);
-        time_last = tracker_element_clone_adaptor(p->time_last);
+        __ImportField(header, p);
+        __ImportField(description, p);
+        __ImportField(phy, p);
+        __ImportField(limit_unit, p);
+        __ImportField(limit_rate, p);
+        __ImportField(burst_unit, p);
+        __ImportField(limit_burst, p);
+        __ImportField(burst_sent, p);
+        __ImportField(total_sent, p);
+        __ImportField(time_last, p);
 
         reserve_fields(nullptr);
     }

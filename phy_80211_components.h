@@ -66,16 +66,16 @@ public:
     dot11_tracked_eapol(const dot11_tracked_eapol *p) :
         tracker_component{p} {
 
-        eapol_time = tracker_element_clone_adaptor(p->eapol_time);
-        eapol_dir = tracker_element_clone_adaptor(p->eapol_dir);
-        eapol_replay_counter = tracker_element_clone_adaptor(p->eapol_replay_counter);
-        eapol_msg_num = tracker_element_clone_adaptor(p->eapol_msg_num);
-        eapol_install = tracker_element_clone_adaptor(p->eapol_install);
-        eapol_nonce = tracker_element_clone_adaptor(p->eapol_nonce);
-        eapol_rsn_pmkid = tracker_element_clone_adaptor(p->eapol_rsn_pmkid);
+        __ImportField(eapol_time, p);
+        __ImportField(eapol_dir, p);
+        __ImportField(eapol_replay_counter, p);
+        __ImportField(eapol_msg_num, p);
+        __ImportField(eapol_install, p);
+        __ImportField(eapol_nonce, p);
+        __ImportField(eapol_rsn_pmkid, p);
 
-        eapol_packet = tracker_element_clone_adaptor(p->eapol_packet);
-        eapol_packet_id = p->eapol_packet_id;
+        __ImportField(eapol_packet, p);
+        __ImportId(eapol_packet_id, p);
 
         reserve_fields(nullptr);
     }
@@ -143,11 +143,11 @@ public:
 
     dot11_tracked_nonce(const dot11_tracked_nonce *p) :
         tracker_component{p} {
-        eapol_time = tracker_element_clone_adaptor(p->eapol_time);
-        eapol_msg_num = tracker_element_clone_adaptor(p->eapol_msg_num);
-        eapol_install = tracker_element_clone_adaptor(p->eapol_install);
-        eapol_nonce = tracker_element_clone_adaptor(p->eapol_nonce);
-        eapol_replay_counter = tracker_element_clone_adaptor(p->eapol_replay_counter);
+        __ImportField(eapol_time, p);
+        __ImportField(eapol_msg_num, p);
+        __ImportField(eapol_install, p);
+        __ImportField(eapol_nonce, p);
+        __ImportField(eapol_replay_counter, p);
         reserve_fields(nullptr);
     }
 
@@ -228,10 +228,10 @@ public:
         ssid_re = NULL;
         ssid_study = NULL;
 #endif
-        ssid_group_name = tracker_element_clone_adaptor(p->ssid_group_name);
-        ssid_regex = tracker_element_clone_adaptor(p->ssid_regex);
-        allowed_macs_vec = tracker_element_clone_adaptor(p->allowed_macs_vec);
-        allowed_mac_id = p->allowed_mac_id;
+        __ImportField(ssid_group_name, p);
+        __ImportField(ssid_regex, p);
+        __ImportField(allowed_macs_vec, p);
+        __ImportId(allowed_mac_id, p);
 
         reserve_fields(nullptr);
     }
@@ -306,9 +306,9 @@ public:
     dot11_11d_tracked_range_info(const dot11_11d_tracked_range_info *p) :
         tracker_component{p} {
 
-        startchan = tracker_element_clone_adaptor(p->startchan);
-        numchan = tracker_element_clone_adaptor(p->numchan);
-        txpower = tracker_element_clone_adaptor(p->txpower);
+        __ImportField(startchan, p);
+        __ImportField(numchan, p);
+        __ImportField(txpower, p);
 
         reserve_fields(nullptr);
     }
@@ -360,12 +360,12 @@ public:
     }
 
     dot11_tracked_ietag(const dot11_tracked_ietag *p) {
-        unique_tag_id = tracker_element_clone_adaptor(p->unique_tag_id);
-        tag_number = tracker_element_clone_adaptor(p->tag_number);
-        tag_oui = tracker_element_clone_adaptor(p->tag_oui);
-        tag_oui_manuf = tracker_element_clone_adaptor(p->tag_oui_manuf);
-        tag_vendor_or_sub = tracker_element_clone_adaptor(p->tag_vendor_or_sub);
-        complete_tag_data = tracker_element_clone_adaptor(p->complete_tag_data);
+        __ImportField(unique_tag_id, p);
+        __ImportField(tag_number, p);
+        __ImportField(tag_oui, p);
+        __ImportField(tag_oui_manuf, p);
+        __ImportField(tag_vendor_or_sub, p);
+        __ImportField(complete_tag_data, p);
 
         reserve_fields(nullptr);
     }
@@ -423,35 +423,35 @@ public:
 
     dot11_probed_ssid(const dot11_probed_ssid *p) :
         tracker_component{p} {
-            ssid = tracker_element_clone_adaptor(p->ssid);
-            ssid_len = tracker_element_clone_adaptor(p->ssid_len);
-            bssid = tracker_element_clone_adaptor(p->bssid);
-            first_time = tracker_element_clone_adaptor(p->first_time);
-            last_time = tracker_element_clone_adaptor(p->last_time);
-            dot11r_mobility = tracker_element_clone_adaptor(p->dot11r_mobility);
-            dot11r_mobility_domain_id = tracker_element_clone_adaptor(p->dot11r_mobility_domain_id);
+            __ImportField(ssid, p);
+            __ImportField(ssid_len, p);
+            __ImportField(bssid, p);
+            __ImportField(first_time, p);
+            __ImportField(last_time, p);
+            __ImportField(dot11r_mobility, p);
+            __ImportField(dot11r_mobility_domain_id, p);
 
-            location_id = p->location_id;
+            __ImportId(location_id, p);
 
-            crypt_set = tracker_element_clone_adaptor(p->crypt_set);
-            wpa_mfp_required = tracker_element_clone_adaptor(p->wpa_mfp_required);
-            wpa_mfp_supported = tracker_element_clone_adaptor(p->wpa_mfp_supported);
+            __ImportField(crypt_set, p);
+            __ImportField(wpa_mfp_required, p);
+            __ImportField(wpa_mfp_supported, p);
 
-            ie_tag_list_id = p->ie_tag_list_id;
+            __ImportId(ie_tag_list_id, p);
 
-            wps_state_id = p->wps_state_id;
+            __ImportId(wps_state_id, p);
 
-            wps_manuf_id = p->wps_manuf_id;
+            __ImportId(wps_manuf_id, p);
 
-            wps_device_name_id = p->wps_device_name_id;
+            __ImportId(wps_device_name_id, p);
 
-            wps_model_name_id = p->wps_model_name_id;
+            __ImportId(wps_model_name_id, p);
 
-            wps_model_number_id = p->wps_model_number_id;
+            __ImportId(wps_model_number_id, p);
 
-            wps_serial_number_id = p->wps_serial_number_id;
+            __ImportId(wps_serial_number_id, p);
 
-            wps_uuid_e_id = p->wps_uuid_e_id;
+            __ImportId(wps_uuid_e_id, p);
 
             reserve_fields(nullptr);
         }
@@ -564,65 +564,65 @@ public:
 
     dot11_advertised_ssid(const dot11_advertised_ssid *p) :
         tracker_component{p} {
-            ssid = tracker_element_clone_adaptor(p->ssid);
-            ssid_len = tracker_element_clone_adaptor(p->ssid_len);
-            ssid_hash = tracker_element_clone_adaptor(p->ssid_hash);
+            __ImportField(ssid, p);
+            __ImportField(ssid_len, p);
+            __ImportField(ssid_hash, p);
 
-            owe_ssid_id = p->owe_ssid_id;
+            __ImportId(owe_ssid_id, p);
 
-            owe_ssid_len_id = p->owe_ssid_len_id;
+            __ImportId(owe_ssid_len_id, p);
 
-            owe_bssid_id = p->owe_bssid_id;
+            __ImportId(owe_bssid_id, p);
 
-            ssid_beacon = tracker_element_clone_adaptor(p->ssid_beacon);
-            ssid_probe_response = tracker_element_clone_adaptor(p->ssid_probe_response);
+            __ImportField(ssid_beacon, p);
+            __ImportField(ssid_probe_response, p);
 
-            channel = tracker_element_clone_adaptor(p->channel);
-            ht_mode = tracker_element_clone_adaptor(p->ht_mode);
-            ht_center_1 = tracker_element_clone_adaptor(p->ht_center_1);
-            ht_center_2 = tracker_element_clone_adaptor(p->ht_center_2);
+            __ImportField(channel, p);
+            __ImportField(ht_mode, p);
+            __ImportField(ht_center_1, p);
+            __ImportField(ht_center_2, p);
 
-            first_time = tracker_element_clone_adaptor(p->first_time);
-            last_time = tracker_element_clone_adaptor(p->last_time);
+            __ImportField(first_time, p);
+            __ImportField(last_time, p);
 
-            beacon_info_id = p->beacon_info_id;
+            __ImportId(beacon_info_id, p);
 
-            ssid_cloaked = tracker_element_clone_adaptor(p->ssid_cloaked);
-            crypt_set = tracker_element_clone_adaptor(p->crypt_set);
-            wpa_mfp_required = tracker_element_clone_adaptor(p->wpa_mfp_required);
-            wpa_mfp_supported = tracker_element_clone_adaptor(p->wpa_mfp_supported);
-            beaconrate = tracker_element_clone_adaptor(p->beaconrate);
-            beacons_sec = tracker_element_clone_adaptor(p->beacons_sec);
-            ietag_checksum = tracker_element_clone_adaptor(p->ietag_checksum);
+            __ImportField(ssid_cloaked, p);
+            __ImportField(crypt_set, p);
+            __ImportField(wpa_mfp_required, p);
+            __ImportField(wpa_mfp_supported, p);
+            __ImportField(beaconrate, p);
+            __ImportField(beacons_sec, p);
+            __ImportField(ietag_checksum, p);
 
-            dot11d_country_id = p->dot11d_country_id;
+            __ImportId(dot11d_country_id, p);
 
-            dot11d_vec_id = p->dot11d_vec_id;
-            dot11d_country_entry_id = p->dot11d_country_entry_id;
+            __ImportId(dot11d_vec_id, p);
+            __ImportId(dot11d_country_entry_id, p);
 
-            wps_state_id = p->wps_state_id;
-            wps_manuf_id = p->wps_manuf_id;
-            wps_device_name_id = p->wps_device_name_id;
-            wps_model_name_id = p->wps_model_name_id;
-            wps_model_number_id = p->wps_model_number_id;
-            wps_serial_number_id = p->wps_serial_number_id;
-            wps_uuid_e_id = p->wps_uuid_e_id;
+            __ImportId(wps_state_id, p);
+            __ImportId(wps_manuf_id, p);
+            __ImportId(wps_device_name_id, p);
+            __ImportId(wps_model_name_id, p);
+            __ImportId(wps_model_number_id, p);
+            __ImportId(wps_serial_number_id, p);
+            __ImportId(wps_uuid_e_id, p);
 
-            location_id = p->location_id;
+            __ImportId(location_id, p);
 
-            dot11r_mobility = tracker_element_clone_adaptor(p->dot11r_mobility);
-            dot11r_mobility_domain_id = tracker_element_clone_adaptor(p->dot11r_mobility_domain_id);
+            __ImportField(dot11r_mobility, p);
+            __ImportField(dot11r_mobility_domain_id, p);
 
-            dot11e_qbss = tracker_element_clone_adaptor(p->dot11e_qbss);
-            dot11e_qbss_stations = tracker_element_clone_adaptor(p->dot11e_qbss_stations);
-            dot11e_qbss_channel_load = tracker_element_clone_adaptor(p->dot11e_qbss_channel_load);
+            __ImportField(dot11e_qbss, p);
+            __ImportField(dot11e_qbss_stations, p);
+            __ImportField(dot11e_qbss_channel_load, p);
 
-            ccx_txpower = tracker_element_clone_adaptor(p->ccx_txpower);
-            cisco_client_mfp = tracker_element_clone_adaptor(p->cisco_client_mfp);
+            __ImportField(ccx_txpower, p);
+            __ImportField(cisco_client_mfp, p);
 
-            ie_tag_list_id = p->ie_tag_list_id;
-            ie_tag_content_id = p->ie_tag_content_id;
-            ie_tag_content_element_id = p->ie_tag_content_element_id;
+            __ImportId(ie_tag_list_id, p);
+            __ImportId(ie_tag_content_id, p);
+            __ImportId(ie_tag_content_element_id, p);
 
             reserve_fields(nullptr);
         }
@@ -859,34 +859,34 @@ public:
 
     dot11_client(const dot11_client *p) :
         tracker_component{p} {
-            bssid = tracker_element_clone_adaptor(p->bssid);
-            bssid_key = tracker_element_clone_adaptor(p->bssid_key);
+            __ImportField(bssid, p);
+            __ImportField(bssid_key, p);
             
-            first_time = tracker_element_clone_adaptor(p->first_time);
-            last_time = tracker_element_clone_adaptor(p->last_time);
+            __ImportField(first_time, p);
+            __ImportField(last_time, p);
 
-            client_type = tracker_element_clone_adaptor(p->client_type);
+            __ImportField(client_type, p);
 
-            dhcp_host_id = p->dhcp_host_id;
-            dhcp_vendor_id = p->dhcp_vendor_id;
+            __ImportId(dhcp_host_id, p);
+            __ImportId(dhcp_vendor_id, p);
 
-            tx_cryptset = tracker_element_clone_adaptor(p->tx_cryptset);
-            rx_cryptset = tracker_element_clone_adaptor(p->rx_cryptset);
+            __ImportField(tx_cryptset, p);
+            __ImportField(rx_cryptset, p);
 
-            eap_identity_id = p->eap_identity_id;
-            cdp_device_id = p->cdp_device_id;
-            cdp_port_id = p->cdp_port_id;
+            __ImportId(eap_identity_id, p);
+            __ImportId(cdp_device_id, p);
+            __ImportId(cdp_port_id, p);
 
-            decrypted = tracker_element_clone_adaptor(p->decrypted);
+            __ImportField(decrypted, p);
 
-            ipdata_id = p->ipdata_id;
+            __ImportId(ipdata_id, p);
 
-            datasize = tracker_element_clone_adaptor(p->datasize);
-            datasize_retry = tracker_element_clone_adaptor(p->datasize_retry);
-            num_fragments = tracker_element_clone_adaptor(p->num_fragments);
-            num_retries = tracker_element_clone_adaptor(p->num_retries);
+            __ImportField(datasize, p);
+            __ImportField(datasize_retry, p);
+            __ImportField(num_fragments, p);
+            __ImportField(num_retries, p);
 
-            location_id = p->location_id;
+            __ImportId(location_id, p);
 
             reserve_fields(nullptr);
         }
@@ -1083,75 +1083,73 @@ public:
         bss_invalid_count = 0;
         snapshot_next_beacon = false;
 
-        type_set = tracker_element_clone_adaptor(p->type_set);
+        __ImportField(type_set, p);
 
-        client_map_id = p->client_map_id;
-        client_map_entry_id = p->client_map_entry_id;
-        num_client_aps = tracker_element_clone_adaptor(p->num_client_aps);
+        __ImportId(client_map_id, p);
+        __ImportId(client_map_entry_id, p);
+        __ImportField(num_client_aps, p);
 
-        advertised_ssid_map_id = p->advertised_ssid_map_id;
-        advertised_ssid_map_entry_id = p->advertised_ssid_map_entry_id;
-        num_advertised_ssids = tracker_element_clone_adaptor(p->num_advertised_ssids);
+        __ImportId(advertised_ssid_map_id, p);
+        __ImportId(advertised_ssid_map_entry_id, p);
+        __ImportField(num_advertised_ssids, p);
 
-        responded_ssid_map_id = p->responded_ssid_map_id;
-        responded_ssid_map_entry_id = p->responded_ssid_map_entry_id;
-        num_responded_ssids = tracker_element_clone_adaptor(p->num_responded_ssids);
+        __ImportId(responded_ssid_map_id, p);
+        __ImportId(responded_ssid_map_entry_id, p);
+        __ImportField(num_responded_ssids, p);
 
-        probed_ssid_map_id = p->probed_ssid_map_id;
-        probed_ssid_map_entry_id = p->probed_ssid_map_entry_id;
-        num_probed_ssids = tracker_element_clone_adaptor(p->num_probed_ssids);
+        __ImportId(probed_ssid_map_id, p);
+        __ImportId(probed_ssid_map_entry_id, p);
+        __ImportField(num_probed_ssids, p);
 
-        associated_client_map_id = p->associated_client_map_id;
-        associated_client_map_entry_id = p->associated_client_map_entry_id;
-        num_associated_clients = tracker_element_clone_adaptor(p->num_associated_clients);
-        client_disconnects = tracker_element_clone_adaptor(p->client_disconnects);
-        client_disconnects_last = tracker_element_clone_adaptor(p->client_disconnects_last);
+        __ImportId(associated_client_map_id, p);
+        __ImportId(associated_client_map_entry_id, p);
+        __ImportField(num_associated_clients, p);
+        __ImportField(client_disconnects, p);
+        __ImportField(client_disconnects_last, p);
 
-        last_sequence = tracker_element_clone_adaptor(p->last_sequence);
-        bss_timestamp = tracker_element_clone_adaptor(p->bss_timestamp);
+        __ImportField(last_sequence, p);
+        __ImportField(bss_timestamp, p);
 
-        num_fragments = tracker_element_clone_adaptor(p->num_fragments);
-        num_retries = tracker_element_clone_adaptor(p->num_retries);
+        __ImportField(num_fragments, p);
+        __ImportField(num_retries, p);
 
-        datasize = tracker_element_clone_adaptor(p->datasize);
-        datasize_retry = tracker_element_clone_adaptor(p->datasize_retry);
+        __ImportField(datasize, p);
+        __ImportField(datasize_retry, p);
 
-        last_bssid_id = p->last_bssid_id;
+        __ImportId(last_bssid_id, p);
 
-        last_beacon_timestamp = tracker_element_clone_adaptor(p->last_beacon_timestamp);
+        __ImportField(last_beacon_timestamp, p);
 
-        wps_m3_count = tracker_element_clone_adaptor(p->wps_m3_count);
-        wps_m3_last = tracker_element_clone_adaptor(p->wps_m3_last);
+        __ImportField(wps_m3_count, p);
+        __ImportField(wps_m3_last, p);
 
-        wpa_key_vec_id = p->wpa_key_vec_id;
-        wpa_key_entry_id = p->wpa_key_entry_id;
-        wpa_nonce_vec_id = p->wpa_nonce_vec_id;
-        wpa_nonce_entry_id = p->wpa_nonce_entry_id;
-        wpa_anonce_vec_id = p->wpa_anonce_vec_id;
+        __ImportId(wpa_key_vec_id, p);
+        __ImportId(wpa_key_entry_id, p);
+        __ImportId(wpa_nonce_vec_id, p);
+        __ImportId(wpa_nonce_entry_id, p);
+        __ImportId(wpa_anonce_vec_id, p);
 
-        wpa_present_handshake = tracker_element_clone_adaptor(p->wpa_present_handshake);
+        __ImportField(wpa_present_handshake, p);
 
-        ssid_beacon_packet_id = p->ssid_beacon_packet_id;
-        pmkid_packet_id = p->pmkid_packet_id;
+        __ImportId(ssid_beacon_packet_id, p);
+        __ImportId(pmkid_packet_id, p);
 
-        last_adv_ssid = tracker_element_clone_adaptor(p->last_adv_ssid);
+        __ImportField(min_tx_power, p);
+        __ImportField(max_tx_power, p);
 
-        min_tx_power = tracker_element_clone_adaptor(p->min_tx_power);
-        max_tx_power = tracker_element_clone_adaptor(p->max_tx_power);
+        __ImportId(supported_channels_id, p);
 
-        supported_channels_id = p->supported_channels_id;
+        __ImportField(link_measurement_capable, p);
+        __ImportField(neighbor_report_capable, p);
 
-        link_measurement_capable = tracker_element_clone_adaptor(p->link_measurement_capable);
-        neighbor_report_capable = tracker_element_clone_adaptor(p->neighbor_report_capable);
+        __ImportId(extended_capabilities_list_id, p);
 
-        extended_capabilities_list_id = p->extended_capabilities_list_id;
+        __ImportField(beacon_fingerprint, p);
+        __ImportField(probe_fingerprint, p);
+        __ImportField(response_fingerprint, p);
 
-        beacon_fingerprint = tracker_element_clone_adaptor(p->beacon_fingerprint);
-        probe_fingerprint = tracker_element_clone_adaptor(p->probe_fingerprint);
-        response_fingerprint = tracker_element_clone_adaptor(p->response_fingerprint);
-
-        last_beaconed_ssid_record_id = p->last_beaconed_ssid_record_id;
-        last_probed_ssid_record_id = p->last_probed_ssid_record_id;
+        __ImportId(last_beaconed_ssid_record_id, p);
+        __ImportId(last_probed_ssid_record_id, p);
 
         reserve_fields(nullptr);
         }

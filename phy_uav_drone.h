@@ -66,17 +66,17 @@ public:
     uav_tracked_telemetry(const uav_tracked_telemetry *p) :
         tracker_component{p} {
 
-        location = tracker_element_clone_adaptor(p->location);
-        telem_ts = tracker_element_clone_adaptor(p->telem_ts);
-        yaw = tracker_element_clone_adaptor(p->yaw);
-        pitch = tracker_element_clone_adaptor(p->pitch);
-        roll = tracker_element_clone_adaptor(p->roll);
-        height = tracker_element_clone_adaptor(p->height);
-        v_north = tracker_element_clone_adaptor(p->v_north);
-        v_east = tracker_element_clone_adaptor(p->v_east);
-        v_up = tracker_element_clone_adaptor(p->v_up);
-        motor_on = tracker_element_clone_adaptor(p->motor_on);
-        airborne = tracker_element_clone_adaptor(p->airborne);
+        __ImportField(location, p);
+        __ImportField(telem_ts, p);
+        __ImportField(yaw, p);
+        __ImportField(pitch, p);
+        __ImportField(roll, p);
+        __ImportField(height, p);
+        __ImportField(v_north, p);
+        __ImportField(v_east, p);
+        __ImportField(v_up, p);
+        __ImportField(motor_on, p);
+        __ImportField(airborne, p);
 
         reserve_fields(nullptr);
     }
@@ -297,19 +297,19 @@ public:
     uav_tracked_device(const uav_tracked_device *p) :
         tracker_component{p} {
 
-        uav_manufacturer = tracker_element_clone_adaptor(p->uav_manufacturer);
-        uav_model = tracker_element_clone_adaptor(p->uav_model);
-        uav_serialnumber = tracker_element_clone_adaptor(p->uav_serialnumber);
+        __ImportField(uav_manufacturer, p);
+        __ImportField(uav_model, p);
+        __ImportField(uav_serialnumber, p);
 
-        last_telem_loc_id = p->last_telem_loc_id;
+        __ImportId(last_telem_loc_id, p);
 
-        uav_telem_history = tracker_element_clone_adaptor(p->uav_telem_history);
-        telem_history_entry_id = p->telem_history_entry_id;
+        __ImportField(uav_telem_history, p);
+        __ImportId(telem_history_entry_id, p);
 
-        uav_match_type = tracker_element_clone_adaptor(p->uav_match_type);
+        __ImportField(uav_match_type, p);
 
-        home_location_id = p->home_location_id;
-        matched_type_id = p->matched_type_id;
+        __ImportId(home_location_id, p);
+        __ImportId(matched_type_id, p);
 
         reserve_fields(nullptr);
     }

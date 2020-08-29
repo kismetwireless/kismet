@@ -115,13 +115,13 @@ public:
     rtlamr_tracked_meter(const rtlamr_tracked_meter *p) :
         tracker_component{p} {
 
-        meter_id = tracker_element_clone_adaptor(p->meter_id);
-        meter_type = tracker_element_clone_adaptor(p->meter_type);
-        meter_type_code = tracker_element_clone_adaptor(p->meter_type_code);
-        phy_tamper_flags = tracker_element_clone_adaptor(p->phy_tamper_flags);
-        endpoint_tamper_flags = tracker_element_clone_adaptor(p->endpoint_tamper_flags);
-        consumption = tracker_element_clone_adaptor(p->consumption);
-        consumption_rrd = tracker_element_clone_adaptor(p->consumption_rrd);
+        __ImportField(meter_id, p);
+        __ImportField(meter_type, p);
+        __ImportField(meter_type_code, p);
+        __ImportField(phy_tamper_flags, p);
+        __ImportField(endpoint_tamper_flags, p);
+        __ImportField(consumption, p);
+        __ImportField(consumption_rrd, p);
 
         reserve_fields(nullptr);
     }

@@ -64,17 +64,17 @@ public:
     rtladsb_tracked_adsb(const rtladsb_tracked_adsb *p) :
         tracker_component{p} {
 
-        icao = tracker_element_clone_adaptor(p->icao);
-        icao_record = tracker_element_clone_adaptor(p->icao_record);
-        callsign = tracker_element_clone_adaptor(p->callsign);
-        gsas = tracker_element_clone_adaptor(p->gsas);
+        __ImportField(icao, p);
+        __ImportField(icao_record, p);
+        __ImportField(callsign, p);
+        __ImportField(gsas, p);
         
-        odd_raw_lat = tracker_element_clone_adaptor(p->odd_raw_lat);
-        odd_raw_lon = tracker_element_clone_adaptor(p->odd_raw_lon);
-        odd_ts = tracker_element_clone_adaptor(p->odd_ts);
-        even_raw_lat = tracker_element_clone_adaptor(p->even_raw_lat);
-        even_raw_lon = tracker_element_clone_adaptor(p->even_raw_lon);
-        even_ts = tracker_element_clone_adaptor(p->even_ts);
+        __ImportField(odd_raw_lat, p);
+        __ImportField(odd_raw_lon, p);
+        __ImportField(odd_ts, p);
+        __ImportField(even_raw_lat, p);
+        __ImportField(even_raw_lon, p);
+        __ImportField(even_ts, p);
 
         reserve_fields(nullptr);
         lat = lon = alt = heading = speed = 0;
