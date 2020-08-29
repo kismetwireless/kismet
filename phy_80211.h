@@ -407,6 +407,7 @@ protected:
     std::shared_ptr<time_tracker> timetracker;
     std::shared_ptr<device_tracker> devicetracker;
     std::shared_ptr<event_bus> eventbus;
+    std::shared_ptr<entry_tracker> entrytracker;
 
     // Checksum of recent packets for duplication filtering
     uint32_t *recent_packet_checksums;

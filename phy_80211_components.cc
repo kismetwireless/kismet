@@ -306,7 +306,8 @@ void dot11_advertised_ssid::set_ietag_content_from_packet(std::shared_ptr<dot11_
         return;
 
     for (auto t : *(tags->tags())) {
-        auto tag = std::make_shared<dot11_tracked_ietag>(ie_tag_content_element_id);
+        auto tag =
+            Globalreg::globalreg->entrytracker->get_shared_instance_as<dot11_tracked_ietag>(ie_tag_content_element_id);
         tag->set_from_tag(t);
         tagmap->insert(tag->get_unique_tag_id(), tag);
     }
@@ -317,7 +318,8 @@ void dot11_advertised_ssid::set_dot11d_vec(std::vector<dot11_packinfo_dot11d_ent
     d11dvec->clear();
 
     for (auto x : vec) {
-        auto ri = std::make_shared<dot11_11d_tracked_range_info>(dot11d_country_entry_id);
+        auto ri =
+            Globalreg::globalreg->entrytracker->get_shared_instance_as<dot11_11d_tracked_range_info>(dot11d_country_entry_id);
         ri->set_startchan(x.startchan);
         ri->set_numchan(x.numchan);
         ri->set_txpower(x.txpower);

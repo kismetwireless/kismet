@@ -363,6 +363,7 @@ public:
         unique_tag_id = tracker_element_clone_adaptor(p->unique_tag_id);
         tag_number = tracker_element_clone_adaptor(p->tag_number);
         tag_oui = tracker_element_clone_adaptor(p->tag_oui);
+        tag_oui_manuf = tracker_element_clone_adaptor(p->tag_oui_manuf);
         tag_vendor_or_sub = tracker_element_clone_adaptor(p->tag_vendor_or_sub);
         complete_tag_data = tracker_element_clone_adaptor(p->complete_tag_data);
 
