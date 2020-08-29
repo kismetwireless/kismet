@@ -898,7 +898,8 @@ public:
         value(v) { }
 
     tracker_element_core_numeric(const tracker_element_core_numeric<N, T, S> *p) :
-        tracker_element{p} { }
+        tracker_element{p},
+        value{0} { }
 
     virtual tracker_type get_type() const override {
         return T;
