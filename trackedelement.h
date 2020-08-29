@@ -347,6 +347,13 @@ std::unique_ptr<tracker_element> tracker_element_factory(const Args& ... args) {
     return std::move(dup);
 }
 
+// Adapter function for converting cloned elements
+template<class C>
+constexpr17 C tracker_element_clone_adaptor(C p) {
+    using c_t = typename std::remove_pointer<decltype(p.get())>::type;
+    return std::static_pointer_cast<c_t>(std::shared_ptr<tracker_element>(std::move(p->clone_type())));
+}
+
 // Aliased element used to link one element to anothers name, for instance to
 // allow the dot11 tracker a way to link the most recently used ssid from the
 // map to a custom field
@@ -1586,6 +1593,7 @@ protected:
 using tracker_element_vector = tracker_element_core_vector<std::shared_ptr<tracker_element>, tracker_type::tracker_vector>;
 using tracker_element_vector_double = tracker_element_core_vector<double, tracker_type::tracker_vector_double>;
 using tracker_element_vector_string = tracker_element_core_vector<std::string, tracker_type::tracker_vector_string>;
+
 
 // Templated generic access functions
 
