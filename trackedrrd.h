@@ -131,7 +131,7 @@ public:
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
@@ -473,6 +473,7 @@ public:
 
     kis_tracked_minute_rrd(int in_id) :
         tracker_component(in_id) {
+
         register_fields();
         reserve_fields(NULL);
         update_first = true;
@@ -510,7 +511,7 @@ public:
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
+        auto dup = std::unique_ptr<this_t>(new this_t());
         return std::move(dup);
     }
 
