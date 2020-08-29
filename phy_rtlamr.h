@@ -112,19 +112,27 @@ public:
         reserve_fields(e);
     }
 
+    rtlamr_tracked_meter(const rtlamr_tracked_meter *p) :
+        tracker_component{p} {
+
+        meter_id = tracker_element_clone_adaptor(p->meter_id);
+        meter_type = tracker_element_clone_adaptor(p->meter_type);
+        meter_type_code = tracker_element_clone_adaptor(p->meter_type_code);
+        phy_tamper_flags = tracker_element_clone_adaptor(p->phy_tamper_flags);
+        endpoint_tamper_flags = tracker_element_clone_adaptor(p->endpoint_tamper_flags);
+        consumption = tracker_element_clone_adaptor(p->consumption);
+        consumption_rrd = tracker_element_clone_adaptor(p->consumption_rrd);
+
+        reserve_fields(nullptr);
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("rtlamr_tracked_meter");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 

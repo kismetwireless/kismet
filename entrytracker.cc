@@ -108,6 +108,7 @@ int entry_tracker::register_field(const std::string& in_name,
     definition->field_name = in_name;
     definition->field_description = in_desc;
     definition->builder = std::move(in_builder);
+    definition->builder->set_id(definition->field_id);
 
     field_name_map[in_name] = definition;
     field_id_map[definition->field_id] = definition;
@@ -132,7 +133,7 @@ std::shared_ptr<tracker_element> entry_tracker::register_and_get_field(const std
                         field_iter->second->builder->get_type_as_string(),
                         field_iter->second->builder->get_signature()));
 
-        return field_iter->second->builder->clone_type(field_iter->second->field_id);
+        return field_iter->second->builder->clone_type();
     }
 
     auto definition = std::make_shared<reserved_field>();
@@ -140,11 +141,12 @@ std::shared_ptr<tracker_element> entry_tracker::register_and_get_field(const std
     definition->field_name = in_name;
     definition->field_description = in_desc;
     definition->builder = std::move(in_builder);
+    definition->builder->set_id(definition->field_id);
 
     field_name_map[in_name] = definition;
     field_id_map[definition->field_id] = definition;
 
-    return definition->builder->clone_type(definition->field_id);
+    return definition->builder->clone_type();
 }
 
 
@@ -190,7 +192,7 @@ std::shared_ptr<tracker_element> entry_tracker::get_shared_instance(int in_id) {
     if (iter == field_id_map.end()) 
         return nullptr;
 
-    return iter->second->builder->clone_type(iter->second->field_id);
+    return iter->second->builder->clone_type();
 }
 
 std::shared_ptr<tracker_element> entry_tracker::get_shared_instance(const std::string& in_name) {
@@ -203,7 +205,7 @@ std::shared_ptr<tracker_element> entry_tracker::get_shared_instance(const std::s
     if (iter == field_name_map.end()) 
         return nullptr;
 
-    return iter->second->builder->clone_type(iter->second->field_id);
+    return iter->second->builder->clone_type();
 }
 
 void entry_tracker::register_serializer(const std::string& in_name, 

@@ -61,19 +61,33 @@ public:
         update_location = false;
     }
 
+    rtladsb_tracked_adsb(const rtladsb_tracked_adsb *p) :
+        tracker_component{p} {
+
+        icao = tracker_element_clone_adaptor(p->icao);
+        icao_record = tracker_element_clone_adaptor(p->icao_record);
+        callsign = tracker_element_clone_adaptor(p->callsign);
+        gsas = tracker_element_clone_adaptor(p->gsas);
+        
+        odd_raw_lat = tracker_element_clone_adaptor(p->odd_raw_lat);
+        odd_raw_lon = tracker_element_clone_adaptor(p->odd_raw_lon);
+        odd_ts = tracker_element_clone_adaptor(p->odd_ts);
+        even_raw_lat = tracker_element_clone_adaptor(p->even_raw_lat);
+        even_raw_lon = tracker_element_clone_adaptor(p->even_raw_lon);
+        even_ts = tracker_element_clone_adaptor(p->even_ts);
+
+        reserve_fields(nullptr);
+        lat = lon = alt = heading = speed = 0;
+        update_location = false;
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("rtladsb_tracked_adsb");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 

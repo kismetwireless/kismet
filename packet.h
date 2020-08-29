@@ -140,19 +140,23 @@ public:
             reserve_fields(e);
         }
 
+    kis_tracked_packet(const kis_tracked_packet *p) :
+        tracker_component{p} {
+            ts_sec = tracker_element_clone_adaptor(p->ts_sec);
+            ts_usec = tracker_element_clone_adaptor(p->ts_usec);
+            dlt = tracker_element_clone_adaptor(p->dlt);
+            source = tracker_element_clone_adaptor(p->source);
+            data = tracker_element_clone_adaptor(p->data);
+            reserve_fields(nullptr);
+        }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("kis_tracked_packet");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 

@@ -60,19 +60,25 @@ public:
         // last_device_sec = 0;
     }
 
+    channel_tracker_v2_channel(const channel_tracker_v2_channel* p) :
+        tracker_component{p} {
+
+        channel = tracker_element_clone_adaptor(p->channel);
+        frequency = tracker_element_clone_adaptor(p->frequency);
+        packets_rrd = tracker_element_clone_adaptor(p->packets_rrd);
+        data_rrd = tracker_element_clone_adaptor(p->data_rrd);
+        device_rrd = tracker_element_clone_adaptor(p->device_rrd);
+        signal_data = tracker_element_clone_adaptor(p->signal_data);
+        reserve_fields(nullptr);
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("channel_tracker_v2_channel");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 

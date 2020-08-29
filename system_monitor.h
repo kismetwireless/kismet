@@ -58,12 +58,6 @@ public:
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return std::move(dup);
-    }
-
     virtual ~tracked_system_status() { }
 
     __Proxy(battery_perc, int32_t, int32_t, int32_t, battery_perc);

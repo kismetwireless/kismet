@@ -156,12 +156,6 @@ public:
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return std::move(dup);
-    }
-
     __Proxy(plugin_name, std::string, std::string, std::string, plugin_name);
     __Proxy(plugin_description, std::string, std::string, std::string, plugin_description);
     __Proxy(plugin_author, std::string, std::string, std::string, plugin_author);

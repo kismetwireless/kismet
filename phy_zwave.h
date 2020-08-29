@@ -57,19 +57,22 @@ public:
         reserve_fields(e);
     }
 
+    zwave_tracked_device(const zwave_tracked_device *p) :
+        tracker_component{p} {
+
+        homeid = tracker_element_clone_adaptor(p->homeid);
+        deviceid = tracker_element_clone_adaptor(p->deviceid);
+
+        reserve_fields(nullptr);
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("zwave_tracked_device");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 

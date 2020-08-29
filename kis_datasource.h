@@ -79,15 +79,11 @@ public:
         return adler32_checksum("kis_datasource_builder");
     }
 
+    // We don't support initializing fields by inheritance since we always get built with
+    // a builder attached
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
     }
 
@@ -126,8 +122,6 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        set_local_name("kismet.datasource.type_driver");
-
         register_field("kismet.datasource.driver.type", "Type", &source_type);
         register_field("kismet.datasource.driver.description", "Description", &source_description);
 
@@ -160,6 +154,12 @@ protected:
 
         register_field("kismet.datasource_driver.hop_capable",
                 "Datasource can channel hop", &hop_capable);
+    }
+
+    virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
+        tracker_component::reserve_fields(e);
+
+        set_local_name("kismet.datasource.type_driver");
     }
 
     int datasource_entity_id;
@@ -763,15 +763,10 @@ public:
         return adler32_checksum("kis_datasource_interface");
     }
 
+    // We don't support building fields by inheritance
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
     }
 

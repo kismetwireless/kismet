@@ -52,19 +52,23 @@ public:
         reserve_fields(e);
     }
 
+    tracked_message(const tracked_message *p) :
+        tracker_component{p} {
+
+        message = tracker_element_clone_adaptor(p->message);
+        flags = tracker_element_clone_adaptor(p->flags);
+        timestamp = tracker_element_clone_adaptor(p->timestamp);
+
+        reserve_fields(nullptr);
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("tracked_message");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 

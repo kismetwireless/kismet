@@ -66,19 +66,26 @@ public:
             reserve_fields(e);
         }
 
+    tracked_adsb_icao(const tracked_adsb_icao *p) :
+        tracker_component{p} {
+
+        icao = tracker_element_clone_adaptor(p->icao);
+        regid = tracker_element_clone_adaptor(p->regid);
+        model_type = tracker_element_clone_adaptor(p->model_type);
+        model = tracker_element_clone_adaptor(p->model);
+        owner = tracker_element_clone_adaptor(p->owner);
+        atype_short = tracker_element_clone_adaptor(p->atype_short);
+
+        reserve_fields(nullptr);
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("tracked_adsb_icao");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 

@@ -111,12 +111,6 @@ public:
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return std::move(dup);
-    }
-
     __Proxy(stream_id, double, double, double, stream_id);
 
     __Proxy(stream_time, uint64_t, uint64_t, uint64_t, stream_time);

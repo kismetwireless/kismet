@@ -124,19 +124,31 @@ public:
         from_alert_info(info);
     }
 
+    tracked_alert(const tracked_alert *p) :
+        tracker_component{p} {
+
+        devicekey = tracker_element_clone_adaptor(p->devicekey);
+        header = tracker_element_clone_adaptor(p->header);
+        phy = tracker_element_clone_adaptor(p->phy);
+        timestamp = tracker_element_clone_adaptor(p->timestamp);
+        transmitter_mac = tracker_element_clone_adaptor(p->transmitter_mac);
+        source_mac = tracker_element_clone_adaptor(p->source_mac);
+        dest_mac = tracker_element_clone_adaptor(p->dest_mac);
+        other_mac = tracker_element_clone_adaptor(p->other_mac);
+        channel = tracker_element_clone_adaptor(p->channel);
+        frequency = tracker_element_clone_adaptor(p->frequency);
+        location = tracker_element_clone_adaptor(p->location);
+
+        reserve_fields(nullptr);
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("tracked_alert");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 
@@ -235,19 +247,30 @@ public:
         reserve_fields(e);
     }
 
+    tracked_alert_definition(const tracked_alert_definition *p) :
+        tracker_component{p} {
+
+        header = tracker_element_clone_adaptor(p->header);
+        description = tracker_element_clone_adaptor(p->description);
+        phy = tracker_element_clone_adaptor(p->phy);
+        limit_unit = tracker_element_clone_adaptor(p->limit_unit);
+        limit_rate = tracker_element_clone_adaptor(p->limit_rate);
+        burst_unit = tracker_element_clone_adaptor(p->burst_unit);
+        limit_burst = tracker_element_clone_adaptor(p->limit_burst);
+        burst_sent = tracker_element_clone_adaptor(p->burst_sent);
+        total_sent = tracker_element_clone_adaptor(p->total_sent);
+        time_last = tracker_element_clone_adaptor(p->time_last);
+
+        reserve_fields(nullptr);
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("tracked_alert_definition");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 

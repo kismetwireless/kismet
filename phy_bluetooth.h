@@ -80,19 +80,26 @@ public:
         reserve_fields(e);
     }
 
+    bluetooth_tracked_device(const bluetooth_tracked_device *p) :
+        tracker_component{p} {
+
+        service_uuid_vec = tracker_element_clone_adaptor(p->service_uuid_vec);
+        solicitation_uuid_vec = tracker_element_clone_adaptor(p->solicitation_uuid_vec);
+        scan_data_bytes = tracker_element_clone_adaptor(p->scan_data_bytes);
+        service_data_bytes = tracker_element_clone_adaptor(p->service_data_bytes);
+        txpower = tracker_element_clone_adaptor(p->txpower);
+        pathloss = tracker_element_clone_adaptor(p->pathloss);
+
+        reserve_fields(nullptr);
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("bluetooth_tracked_device");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 

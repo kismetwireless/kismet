@@ -114,19 +114,24 @@ public:
         reserve_fields(e);
     }
 
+    rtl433_tracked_common(const rtl433_tracked_common *p) :
+        tracker_component{p} {
+
+        model = tracker_element_clone_adaptor(p->model);
+        rtlid = tracker_element_clone_adaptor(p->rtlid);
+        rtlchannel = tracker_element_clone_adaptor(p->rtlchannel);
+        battery = tracker_element_clone_adaptor(p->battery);
+
+        reserve_fields(nullptr);
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("rtl433_tracked_common");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 
@@ -179,19 +184,24 @@ public:
         reserve_fields(e);
     }
 
+    rtl433_tracked_thermometer(const rtl433_tracked_thermometer *p) :
+        tracker_component{p} {
+
+        temperature = tracker_element_clone_adaptor(p->temperature);
+        temperature_rrd = tracker_element_clone_adaptor(p->temperature_rrd);
+        humidity = tracker_element_clone_adaptor(p->humidity);
+        humidity_rrd = tracker_element_clone_adaptor(p->humidity_rrd);
+
+        reserve_fields(nullptr);
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("rtl433_tracked_thermometer");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 
@@ -241,19 +251,32 @@ public:
         reserve_fields(e);
     }
 
+    rtl433_tracked_weatherstation(const rtl433_tracked_weatherstation *p) :
+        tracker_component{p} {
+
+        wind_dir = tracker_element_clone_adaptor(p->wind_dir);
+        wind_dir_rrd = tracker_element_clone_adaptor(p->wind_dir_rrd);
+        wind_speed = tracker_element_clone_adaptor(p->wind_speed);
+        wind_speed_rrd = tracker_element_clone_adaptor(p->wind_speed_rrd);
+        wind_gust = tracker_element_clone_adaptor(p->wind_gust);
+        wind_gust_rrd = tracker_element_clone_adaptor(p->wind_gust_rrd);
+        rain = tracker_element_clone_adaptor(p->rain);
+        rain_rrd = tracker_element_clone_adaptor(p->rain_rrd);
+        uv_index = tracker_element_clone_adaptor(p->uv_index);
+        uv_index_rrd = tracker_element_clone_adaptor(p->uv_index_rrd);
+        lux = tracker_element_clone_adaptor(p->lux);
+        lux_rrd = tracker_element_clone_adaptor(p->lux_rrd);
+        
+        reserve_fields(nullptr);
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("rtl433_tracked_weatherstation");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 
@@ -337,19 +360,24 @@ public:
             reserve_fields(e);
         }
 
+    rtl433_tracked_lightningsensor(const rtl433_tracked_lightningsensor *p) :
+        tracker_component{p} {
+
+        strike_count = tracker_element_clone_adaptor(p->strike_count);
+        storm_distance = tracker_element_clone_adaptor(p->storm_distance);
+        storm_active = tracker_element_clone_adaptor(p->storm_active);
+        lightning_rfi = tracker_element_clone_adaptor(p->lightning_rfi);
+
+        reserve_fields(nullptr);
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("rtl433_tracked_lightningsensor");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 
@@ -395,19 +423,26 @@ public:
         reserve_fields(e);
     }
 
+    rtl433_tracked_tpms(const rtl433_tracked_tpms *p) :
+        tracker_component{p} {
+
+        pressure_bar = tracker_element_clone_adaptor(p->pressure_bar);
+        pressure_kpa = tracker_element_clone_adaptor(p->pressure_kpa);
+        flags = tracker_element_clone_adaptor(p->flags);
+        state = tracker_element_clone_adaptor(p->state);
+        checksum = tracker_element_clone_adaptor(p->checksum);
+        code = tracker_element_clone_adaptor(p->code);
+
+        reserve_fields(nullptr);
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("rtl433_tracked_tpms");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 
@@ -457,19 +492,22 @@ public:
         reserve_fields(e);
     }
 
+    rtl433_tracked_switch(const rtl433_tracked_switch *p) :
+        tracker_component{p} {
+
+        switch_vec = tracker_element_clone_adaptor(p->switch_vec);
+        switch_vec_entry_id = p->switch_vec_entry_id;
+
+        reserve_fields(nullptr);
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("rtl433_tracked_switch");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 

@@ -51,6 +51,15 @@ kis_tracked_ip_data::kis_tracked_ip_data(int in_id, std::shared_ptr<tracker_elem
     reserve_fields(e);
 }
 
+kis_tracked_ip_data::kis_tracked_ip_data(const kis_tracked_ip_data *p) :
+    tracker_component{p} {
+    ip_type = tracker_element_clone_adaptor(p->ip_type);
+    ip_addr_block = tracker_element_clone_adaptor(p->ip_addr_block);
+    ip_netmask = tracker_element_clone_adaptor(p->ip_netmask);
+    ip_gateway = tracker_element_clone_adaptor(p->ip_gateway);
+    reserve_fields(nullptr);
+}
+
 void kis_tracked_ip_data::register_fields() {
     tracker_component::register_fields();
 
@@ -89,7 +98,33 @@ kis_tracked_signal_data::kis_tracked_signal_data(int in_id, std::shared_ptr<trac
         sig_type = 2;
     else
         sig_type = 0;
+}
 
+kis_tracked_signal_data::kis_tracked_signal_data(const kis_tracked_signal_data *p) :
+    tracker_component{p} {
+
+    signal_type = tracker_element_clone_adaptor(p->signal_type);
+
+    last_signal = tracker_element_clone_adaptor(p->last_signal);
+    last_noise = tracker_element_clone_adaptor(p->last_noise);
+
+    min_signal = tracker_element_clone_adaptor(p->min_signal);
+    min_noise = tracker_element_clone_adaptor(p->min_noise);
+
+    max_signal = tracker_element_clone_adaptor(p->max_signal);
+    max_noise = tracker_element_clone_adaptor(p->max_noise);
+
+    peak_loc_id = p->peak_loc_id;
+
+    maxseenrate = tracker_element_clone_adaptor(p->maxseenrate);
+    encodingset = tracker_element_clone_adaptor(p->encodingset);
+    carrierset = tracker_element_clone_adaptor(p->carrierset);
+
+    signal_min_rrd_id = p->signal_min_rrd_id;
+
+    reserve_fields(nullptr);
+    sig_type = 0;
+    signal_type->set("none");
 }
 
 void  kis_tracked_signal_data::append_signal(const kis_layer1_packinfo& lay1, bool update_rrd, time_t rrd_ts) {
@@ -301,6 +336,22 @@ kis_tracked_seenby_data::kis_tracked_seenby_data(int in_id, std::shared_ptr<trac
     tracker_component(in_id) {
     register_fields();
     reserve_fields(e);
+}
+
+kis_tracked_seenby_data::kis_tracked_seenby_data(const kis_tracked_seenby_data *p) :
+    tracker_component{p} {
+    
+    src_uuid_id = p->src_uuid_id;
+
+    first_time = tracker_element_clone_adaptor(p->first_time);
+    last_time = tracker_element_clone_adaptor(p->last_time);
+    num_packets = tracker_element_clone_adaptor(p->num_packets);
+
+    freq_khz_map = tracker_element_clone_adaptor(p->freq_khz_map);
+
+    signal_data_id = p->signal_data_id;
+
+    reserve_fields(nullptr);
 }
 
 void kis_tracked_seenby_data::inc_frequency_count(int frequency) {

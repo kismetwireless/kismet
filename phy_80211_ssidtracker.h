@@ -58,6 +58,25 @@ public:
         reserve_fields(e);
     }
 
+    dot11_tracked_ssid_group(const dot11_tracked_ssid_group *p) :
+        tracker_component{p} {
+
+        ssid_hash = tracker_element_clone_adaptor(p->ssid_hash);
+        ssid = tracker_element_clone_adaptor(p->ssid);
+        ssid_len = tracker_element_clone_adaptor(p->ssid_len);
+        crypt_set = tracker_element_clone_adaptor(p->crypt_set);
+        advertising_device_map = tracker_element_clone_adaptor(p->advertising_device_map);
+        responding_device_map = tracker_element_clone_adaptor(p->responding_device_map);
+        probing_device_map = tracker_element_clone_adaptor(p->probing_device_map);
+        advertising_device_len = tracker_element_clone_adaptor(p->advertising_device_len);
+        responding_device_len = tracker_element_clone_adaptor(p->responding_device_len);
+        probing_device_len = tracker_element_clone_adaptor(p->probing_device_len);
+        first_time = tracker_element_clone_adaptor(p->first_time);
+        last_time = tracker_element_clone_adaptor(p->last_time);
+
+        reserve_fields(nullptr);
+    }
+
     dot11_tracked_ssid_group(int in_id, const std::string& in_ssid, unsigned int in_ssid_len,
             unsigned int in_crypt_set);
 
@@ -67,13 +86,7 @@ public:
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 

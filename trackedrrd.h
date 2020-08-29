@@ -103,19 +103,35 @@ public:
         mutex.set_name("kis_tracked_rrd");
     }
 
+    kis_tracked_rrd(const kis_tracked_rrd *p) :
+        tracker_component{p} {
+
+        last_time = tracker_element_clone_adaptor(p->last_time);
+        serial_time = tracker_element_clone_adaptor(p->serial_time);
+
+        minute_vec = tracker_element_clone_adaptor(p->minute_vec);
+        hour_vec = tracker_element_clone_adaptor(p->hour_vec);
+        day_vec = tracker_element_clone_adaptor(p->day_vec);
+
+        blank_val = tracker_element_clone_adaptor(p->blank_val);
+        aggregator_name = tracker_element_clone_adaptor(p->aggregator_name);
+
+        second_entry_id = p->second_entry_id;
+        minute_entry_id = p->minute_entry_id;
+        hour_entry_id = p->hour_entry_id;
+
+        reserve_fields(nullptr);
+        update_first = true;
+        mutex.set_name("kis_tracked_rrd");
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("kis_tracked_rrd");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 
@@ -472,19 +488,29 @@ public:
         mutex.set_name("kis_tracked_minute_rrd");
     }
 
+    kis_tracked_minute_rrd(const kis_tracked_minute_rrd *p) :
+        tracker_component{p} {
+
+        last_time = tracker_element_clone_adaptor(p->last_time);
+        serial_time = tracker_element_clone_adaptor(p->serial_time);
+        minute_vec = tracker_element_clone_adaptor(p->minute_vec);
+        blank_val = tracker_element_clone_adaptor(p->blank_val);
+        aggregator_name = tracker_element_clone_adaptor(p->aggregator_name);
+
+        second_entry_id = p->second_entry_id;
+
+        reserve_fields(nullptr);
+        update_first = true;
+        mutex.set_name("kis_tracked_minute_rrd");
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("kis_tracked_minute_rrd");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 
