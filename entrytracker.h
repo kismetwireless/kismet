@@ -32,6 +32,7 @@
 #include "globalregistry.h"
 #include "kis_mutex.h"
 #include "kis_net_microhttpd.h"
+#include "robin_hood.h"
 #include "trackedelement.h"
 
 // Allocate and track named fields and give each one a custom int
@@ -126,9 +127,9 @@ protected:
         std::unique_ptr<tracker_element> builder;
     };
 
-    std::unordered_map<std::string, std::shared_ptr<reserved_field> > field_name_map;
-    std::unordered_map<int, std::shared_ptr<reserved_field> > field_id_map;
-    std::unordered_map<std::string, std::shared_ptr<tracker_element_serializer> > serializer_map;
+    robin_hood::unordered_node_map<std::string, std::shared_ptr<reserved_field> > field_name_map;
+    robin_hood::unordered_node_map<int, std::shared_ptr<reserved_field> > field_id_map;
+    robin_hood::unordered_node_map<std::string, std::shared_ptr<tracker_element_serializer> > serializer_map;
 
     std::shared_ptr<kis_net_httpd_simple_stream_endpoint> tracked_fields_endp;
     int tracked_fields_endp_handler(std::ostream& stream);

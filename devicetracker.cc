@@ -521,7 +521,7 @@ void device_tracker::macdevice_timer_event() {
 }
 
 kis_phy_handler *device_tracker::fetch_phy_handler(int in_phy) {
-	std::map<int, kis_phy_handler *>::iterator i = phy_handler_map.find(in_phy);
+	auto i = phy_handler_map.find(in_phy);
 
 	if (i == phy_handler_map.end())
 		return NULL;

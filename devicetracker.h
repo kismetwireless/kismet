@@ -55,6 +55,7 @@
 #include "devicetracker_view_workers.h"
 #include "kis_database.h"
 #include "eventbus.h"
+#include "robin_hood.h"
 
 #define KIS_PHY_ANY	-1
 #define KIS_PHY_UNKNOWN -2
@@ -125,7 +126,7 @@ public:
     std::shared_ptr<tracker_element_vector> do_readonly_device_work(device_tracker_view_worker& worker, 
             std::shared_ptr<tracker_element_vector> source_vec);
 
-    using device_map_t = std::unordered_map<device_key, std::shared_ptr<kis_tracked_device_base>>;
+    using device_map_t = robin_hood::unordered_node_map<device_key, std::shared_ptr<kis_tracked_device_base>>;
     using device_itr = device_map_t::iterator;
     using const_device_itr = device_map_t::const_iterator;
 
@@ -370,7 +371,7 @@ protected:
 
 	// Registered PHY types
 	int next_phy_id;
-    std::map<int, kis_phy_handler *> phy_handler_map;
+    robin_hood::unordered_node_map<int, kis_phy_handler *> phy_handler_map;
 
     kis_recursive_timed_mutex devicelist_mutex;
 
