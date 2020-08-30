@@ -224,7 +224,7 @@ public:
 
     dot11_tracked_ssid_alert(const dot11_tracked_ssid_alert *p) :
         tracker_component{p} {
-#ifdef HAVE_LIBCPRE
+#ifdef HAVE_LIBPCRE
         ssid_re = NULL;
         ssid_study = NULL;
 #endif
