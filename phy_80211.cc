@@ -2292,6 +2292,8 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
                         case 0x004096: // cisco
                         case 0x00156d: // ubnt
                         case 0x000b86: // aruba
+                        case 0x001d0f: // tplink
+                        case 0x00904c: // epigram
                             matched = true;
                             break;
                         default:
