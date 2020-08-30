@@ -1331,7 +1331,7 @@ function packetqueuedisplay_refresh() {
 
         var datasets = [
             {
-                label: 'Total packets',
+                label: 'Incoming packets',
                 fill: 'false',
                 borderColor: 'black',
                 backgroundColor: 'rgba(100, 100, 100, 0.33)',

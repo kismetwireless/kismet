@@ -188,6 +188,9 @@ protected:
     std::shared_ptr<kis_tracked_rrd<>> packet_drop_rrd;
     int packet_drop_rrd_id;
 
+    std::shared_ptr<kis_tracked_rrd<>> packet_processed_rrd;
+    int packet_processed_rrd_id;
+
     std::shared_ptr<tracker_element_map> packet_stats_map;
 
     std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> packet_stat_endpoint;
@@ -196,6 +199,7 @@ protected:
     std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> packet_dupe_endpoint;
     std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> packet_queue_endpoint;
     std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> packet_drop_endpoint;
+    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> packet_processed_endpoint;
 };
 
 #endif

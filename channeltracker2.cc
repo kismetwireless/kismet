@@ -168,7 +168,7 @@ void channel_tracker_v2::update_device_counts(std::unordered_map<double, unsigne
         // Make a frequency
         if (imi == frequency_map->end()) {
             freq_channel =
-                std::make_shared<channel_tracker_v2_channel>(channel_entry_id);
+                entrytracker->get_shared_instance_as<channel_tracker_v2_channel>(channel_entry_id);
             freq_channel->set_frequency(i.first);
             frequency_map->insert(i.first, freq_channel);
         } else {
@@ -201,7 +201,7 @@ int channel_tracker_v2::packet_chain_handler(CHAINCALL_PARMS) {
 
         if (imi == cv2->frequency_map->end()) {
             freq_channel =
-                std::make_shared<channel_tracker_v2_channel>(cv2->channel_entry_id);
+                cv2->entrytracker->get_shared_instance_as<channel_tracker_v2_channel>(cv2->channel_entry_id);
             freq_channel->set_frequency(l1info->freq_khz);
             cv2->frequency_map->insert(l1info->freq_khz, freq_channel);
         } else {
@@ -215,7 +215,7 @@ int channel_tracker_v2::packet_chain_handler(CHAINCALL_PARMS) {
 
             if (smi == cv2->channel_map->end()) {
                 chan_channel =
-                    std::make_shared<channel_tracker_v2_channel>(cv2->channel_entry_id);
+                    cv2->entrytracker->get_shared_instance_as<channel_tracker_v2_channel>(cv2->channel_entry_id);
 
                 chan_channel->set_channel(common->channel);
                 cv2->channel_map->insert(common->channel, chan_channel);

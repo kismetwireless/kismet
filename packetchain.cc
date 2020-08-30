@@ -96,6 +96,13 @@ packet_chain::packet_chain() {
     packet_drop_rrd =
         std::make_shared<kis_tracked_rrd<>>(packet_drop_rrd_id);
 
+    packet_processed_rrd_id =
+        entrytracker->register_field("kismet.packetchain.processed_packets_rrd",
+                tracker_element_factory<kis_tracked_rrd<>>(),
+                "processed packet rrd");
+    packet_processed_rrd =
+        std::make_shared<kis_tracked_rrd<>>(packet_processed_rrd_id);
+
     packet_stats_map = 
         std::make_shared<tracker_element_map>();
     packet_stats_map->insert(packet_rate_rrd);
@@ -103,6 +110,7 @@ packet_chain::packet_chain() {
     packet_stats_map->insert(packet_dupe_rrd);
     packet_stats_map->insert(packet_queue_rrd);
     packet_stats_map->insert(packet_drop_rrd);
+    packet_stats_map->insert(packet_processed_rrd);
 
     // We now protect RRDs from complex ops w/ internal mutexes, so we can just share these out directly without
     // protecting them behind our own mutex; required, because we're mixing RRDs from different data sources,
@@ -122,6 +130,9 @@ packet_chain::packet_chain() {
     packet_drop_endpoint =
         std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/packetchain/packet_drop", 
                 packet_drop_rrd, nullptr);
+    packet_processed_endpoint =
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/packetchain/packet_processed", 
+                packet_processed_rrd, nullptr);
 
     packetchain_shutdown = false;
 
@@ -323,6 +334,8 @@ void packet_chain::packet_queue_processor() {
 
             if (packet->duplicate)
                 packet_dupe_rrd->add_sample(1, time(0));
+
+            packet_processed_rrd->add_sample(1, time(0));
 
             destroy_packet(packet);
 

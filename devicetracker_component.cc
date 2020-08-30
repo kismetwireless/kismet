@@ -408,7 +408,7 @@ void kis_tracked_device_base::inc_seenby_count(kis_datasource *source,
 
     // Make a new seenby record
     if (seenby_iter == seenby_map->end()) {
-        seenby = std::make_shared<kis_tracked_seenby_data>(seenby_val_id);
+        seenby = Globalreg::globalreg->entrytracker->get_shared_instance_as<kis_tracked_seenby_data>(seenby_val_id);
 
         auto sb_uuid = seenby->get_src_uuid();
         sb_uuid->set(source->get_tracker_source_uuid());
