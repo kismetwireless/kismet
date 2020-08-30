@@ -2280,6 +2280,33 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
             ssid->set_owe_ssid(munge_to_printable(dot11info->owe_transition->ssid()));
         }
 
+        // Look for 221 IE tags if we don't know the manuf
+        if (Globalreg::globalreg->manufdb->is_unknown_manuf(basedev->get_manuf())) {
+            auto taglist = PacketDot11IElist(in_pack, dot11info);
+            for (const auto& t : taglist) {
+                if (std::get<0>(t) == 221) {
+                    // Look for known AP manufs like ubnt, cisco, aruba
+                    bool matched = false;
+
+                    switch (std::get<1>(t)) {
+                        case 0x004096: // cisco
+                        case 0x00156d: // ubnt
+                        case 0x000b86: // aruba
+                            matched = true;
+                            break;
+                        default:
+                            break;
+                    }
+
+                    if (matched) {
+                        basedev->set_manuf(Globalreg::globalreg->manufdb->lookup_oui(std::get<1>(t)));
+                        break;
+                    }
+                }
+            }
+
+        }
+
         std::string ssidstr;
         if (ssid->get_ssid_cloaked()) {
             // Use the OWE SSID if we can
