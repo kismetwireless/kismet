@@ -204,13 +204,16 @@ size_t kis_simple_ringbuf_write(kis_simple_ringbuf_t *ringbuf,
 size_t kis_simple_ringbuf_reserve(kis_simple_ringbuf_t *ringbuf, void **data, size_t size) {
     size_t copy_start;
 
-    if (kis_simple_ringbuf_available(ringbuf) < size)
-        return 0;
-
     if (ringbuf->mid_commit) {
         fprintf(stderr, "ERROR: kis_simple_ringbuf_t mid-commit when reserve called\n");
         return 0;
     }
+
+    if (kis_simple_ringbuf_available(ringbuf) < size) {
+        return 0;
+    }
+
+    ringbuf->mid_commit = 1;
 
     copy_start = 
         (ringbuf->start_pos + ringbuf->length) % ringbuf->buffer_sz;
@@ -223,7 +226,6 @@ size_t kis_simple_ringbuf_reserve(kis_simple_ringbuf_t *ringbuf, void **data, si
 #else
     /* Does the write op fit w/out looping? */
     if (copy_start + size < ringbuf->buffer_sz) {
-        ringbuf->mid_commit = 1;
         ringbuf->free_commit = 0;
         *data = ringbuf->buffer + copy_start;
         return size;
@@ -235,7 +237,6 @@ size_t kis_simple_ringbuf_reserve(kis_simple_ringbuf_t *ringbuf, void **data, si
             return 0;
         }
 
-        ringbuf->mid_commit = 1;
         ringbuf->free_commit = 1;
 
         return size;
