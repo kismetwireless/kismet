@@ -376,7 +376,7 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
 
     /* Allocate a much more generous outbound buffer since this is where 
      * packets get queued */
-    ch->out_ringbuf = kis_simple_ringbuf_create(1024 * 256);
+    ch->out_ringbuf = kis_simple_ringbuf_create(1024 * 2048);
 
     if (ch->out_ringbuf == NULL) {
         kis_simple_ringbuf_free(ch->in_ringbuf);
@@ -2346,11 +2346,15 @@ int cf_send_packet(kis_capture_handler_t *caph, const char *packtype,
             data_sz + sizeof(kismet_external_frame_t));
 
     if (rs_sz != data_sz + sizeof(kismet_external_frame_t)) {
-        fprintf(stderr, "FATAL:  Unable to allocate the buffer for writing a packet\n");
+        /*
+        fprintf(stderr, "FATAL:  Unable to allocate the buffer for writing a packet (%lu/%lu)\n", 
+                rs_sz, data_sz + sizeof(kismet_external_frame_t));
         kis_simple_ringbuf_reserve_free(caph->out_ringbuf, send_buffer);
+        */
         free(cmd.command);
         free(data);
-        return -1;
+        pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+        return 0;
     }
 
     /* Map to the tx frame */
@@ -2368,7 +2372,7 @@ int cf_send_packet(kis_capture_handler_t *caph, const char *packtype,
 
     frame->data_checksum = htonl(calc_checksum);
 
-    kis_simple_ringbuf_commit(caph->out_ringbuf, send_buffer, data_sz + sizeof(kismet_external_frame_t));
+    kis_simple_ringbuf_commit(caph->out_ringbuf, send_buffer, rs_sz);
 
     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
 
