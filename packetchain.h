@@ -42,6 +42,7 @@
 #include "trackedelement.h"
 #include "trackedrrd.h"
 
+#include "moodycamel/blockingconcurrentqueue.h"
 
 /* Packets are added to the packet queue from any thread (including the main 
  * thread).
@@ -163,10 +164,7 @@ protected:
 
     std::thread packet_thread;
 
-    std::mutex packetqueue_cv_mutex;
-    std::condition_variable packetqueue_cv;
-
-    std::queue<kis_packet *> packet_queue;
+    moodycamel::BlockingConcurrentQueue<kis_packet *> packet_queue;
     bool packetchain_shutdown;
 
     // Warning and discard levels for packet queue being full
