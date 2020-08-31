@@ -2216,32 +2216,19 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
              * whatever we can; we peek the ringbuffer and then flag off what
              * we've successfully written out */
             ssize_t written_sz;
-            size_t peek_sz;
             size_t peeked_sz;
-            uint8_t *peek_buf;
+            uint8_t *peek_buf = NULL;
 
             pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
-            peek_sz = kis_simple_ringbuf_used(caph->out_ringbuf);
+            peeked_sz = kis_simple_ringbuf_peek_zc(caph->out_ringbuf, (void **) &peek_buf, 0);
 
             /* Don't know how we'd get here... */
-            if (peek_sz == 0) {
+            if (peeked_sz == 0) {
+                kis_simple_ringbuf_peek_free(caph->out_ringbuf, peek_buf);
                 pthread_mutex_unlock(&(caph->out_ringbuf_lock));
                 continue;
             }
-
-            peek_buf = (uint8_t *) malloc(peek_sz);
-
-            if (peek_buf == NULL) {
-                pthread_mutex_unlock(&(caph->out_ringbuf_lock));
-                fprintf(stderr,
-                        "FATAL:  Error during write(): could not allocate write "
-                        "buffer space\n");
-                rv = -1;
-                break;
-            }
-
-            peeked_sz = kis_simple_ringbuf_peek(caph->out_ringbuf, peek_buf, peek_sz);
 
             /* fprintf(stderr, "debug - peeked %lu\n", peeked_sz); */
 
@@ -2253,19 +2240,20 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
 
             if (written_sz < 0) {
                 if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
+                    kis_simple_ringbuf_peek_free(caph->out_ringbuf, peek_buf);
                     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
-                    fprintf(stderr,
-                            "FATAL:  Error during write(): %s\n", strerror(errno));
+                    fprintf(stderr, "FATAL:  Error during write(): %s\n", strerror(errno));
                     free(peek_buf);
                     rv = -1;
                     break;
                 }
             }
 
-            free(peek_buf);
-
             /* Flag it as consumed */
             kis_simple_ringbuf_read(caph->out_ringbuf, NULL, (size_t) written_sz);
+
+            /* Get rid of the peek */
+            kis_simple_ringbuf_peek_free(caph->out_ringbuf, peek_buf);
 
             /* Unlock */
             pthread_mutex_unlock(&(caph->out_ringbuf_lock));
@@ -2668,7 +2656,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
 
     if (msg)
         free(kemsg.msgtext);
-
+    
     return cf_send_packet(caph, "KDSPROBESOURCEREPORT", buf, buf_len);
 }
 
