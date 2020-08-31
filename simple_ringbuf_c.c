@@ -417,9 +417,14 @@ size_t kis_simple_ringbuf_peek_zc(kis_simple_ringbuf_t *ringbuf, void **ptr, siz
         fprintf(stderr, "ERROR: simple_ringbuf_peek_zc mid-peek already\n");
         return 0;
     }
+    
+    ringbuf->mid_peek = 1;
 
     if (opsize == 0)
         return 0;
+
+    if (size == 0)
+        size = kis_simple_ringbuf_size(ringbuf);
 
     /* Only read the amount we requested, if more is available */
     if (opsize > size)
@@ -433,7 +438,6 @@ size_t kis_simple_ringbuf_peek_zc(kis_simple_ringbuf_t *ringbuf, void **ptr, siz
 #else
     /* Simple contiguous read */
     if (ringbuf->start_pos + opsize < ringbuf->buffer_sz) {
-        ringbuf->mid_peek = 1;
         ringbuf->free_peek = 0;
         *ptr = ringbuf->buffer + ringbuf->start_pos;
         return opsize;
@@ -450,7 +454,6 @@ size_t kis_simple_ringbuf_peek_zc(kis_simple_ringbuf_t *ringbuf, void **ptr, siz
             return 0;
         }
 
-        ringbuf->mid_peek = 1;
         ringbuf->free_peek = 1;
 
         memcpy(*ptr, ringbuf->buffer + ringbuf->start_pos, chunk_a);
