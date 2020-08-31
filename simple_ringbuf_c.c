@@ -261,8 +261,9 @@ size_t kis_simple_ringbuf_commit(kis_simple_ringbuf_t *ringbuf, void *data, size
     copy_start = 
         (ringbuf->start_pos + ringbuf->length) % ringbuf->buffer_sz;
 
+    ringbuf->mid_commit = 0;
+
     if (!ringbuf->free_commit) {
-        ringbuf->mid_commit = 0;
         ringbuf->length += size;
         return size;
     } else {
