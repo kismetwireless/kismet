@@ -2316,13 +2316,11 @@ int cf_send_packet(kis_capture_handler_t *caph, const char *packtype,
     /* Frame we'll be sending */
     kismet_external_frame_t *frame;
     /* Size of serialized command data */
-    size_t data_sz;
+    size_t data_sz, rs_sz;
     /* Buffer holding all of it */
     uint8_t *send_buffer;
     /* Calculated checksum */
     uint32_t calc_checksum;
-
-    int r;
 
     kismet_external__command__init(&cmd);
 
@@ -2339,10 +2337,17 @@ int cf_send_packet(kis_capture_handler_t *caph, const char *packtype,
     cmd.content.len = len;
    
     data_sz = kismet_external__command__get_packed_size(&cmd);
-    send_buffer = (uint8_t *) malloc(data_sz + sizeof(kismet_external_frame_t));
 
-    if (send_buffer == NULL) {
-        fprintf(stderr, "FATAL:  Unable to allocate the buffer for writing a packet");
+    /* Directly inject into the ringbuffer with a zero-copy */
+
+    pthread_mutex_lock(&(caph->out_ringbuf_lock));
+
+    rs_sz = kis_simple_ringbuf_reserve(caph->out_ringbuf, (void **) &send_buffer, 
+            data_sz + sizeof(kismet_external_frame_t));
+
+    if (rs_sz != data_sz + sizeof(kismet_external_frame_t)) {
+        fprintf(stderr, "FATAL:  Unable to allocate the buffer for writing a packet\n");
+        kis_simple_ringbuf_reserve_free(caph->out_ringbuf, send_buffer);
         free(cmd.command);
         free(data);
         return -1;
@@ -2363,14 +2368,14 @@ int cf_send_packet(kis_capture_handler_t *caph, const char *packtype,
 
     frame->data_checksum = htonl(calc_checksum);
 
-    /* Send the whole frame */
-    r = cf_send_raw_bytes(caph, send_buffer, data_sz + sizeof(kismet_external_frame_t));
+    kis_simple_ringbuf_commit(caph->out_ringbuf, send_buffer, data_sz + sizeof(kismet_external_frame_t));
 
-    free(send_buffer);
+    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+
     free(data);
     free(cmd.command);
 
-    return r;
+    return rs_sz;
 }
 
 int cf_send_message(kis_capture_handler_t *caph, const char *msg, unsigned int flags) {
@@ -3098,7 +3103,6 @@ int cf_drop_most_caps(kis_capture_handler_t *caph) {
     if (getuid() != 0)
         return 0;
 
-    char errstr[STATUS_MAX];
 #ifdef HAVE_CAPABILITY
 	cap_value_t cap_list[2] = { CAP_NET_ADMIN, CAP_NET_RAW };
 	int cl_len = sizeof(cap_list) / sizeof(cap_value_t);
