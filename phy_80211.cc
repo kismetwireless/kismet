@@ -2285,23 +2285,29 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
             auto taglist = PacketDot11IElist(in_pack, dot11info);
             for (const auto& t : taglist) {
                 if (std::get<0>(t) == 221) {
-                    // Look for known AP manufs like ubnt, cisco, aruba
-                    bool matched = false;
+                    // Exclude known generic 221 OUIs, and exclude anything where we don't know
+                    // the manuf from the tag OUI, either.
+                    
+                    bool exclude = false;
 
                     switch (std::get<1>(t)) {
-                        case 0x004096: // cisco
-                        case 0x00156d: // ubnt
-                        case 0x000b86: // aruba
-                        case 0x001d0f: // tplink
-                        case 0x00904c: // epigram
-                            matched = true;
+                        case 0x0050f2: // microsoft
+                        case 0x00037f: // atheros generic tag
+                        case 0x001018: // broadcom generic
+                        case 0x8cfdf0: // qualcomm generic
+                        case 0x506f9a: // wifi alliance
+                            exclude = true;
                             break;
                         default:
                             break;
                     }
 
-                    if (matched) {
-                        basedev->set_manuf(Globalreg::globalreg->manufdb->lookup_oui(std::get<1>(t)));
+                    if (exclude)
+                        continue;
+
+                    auto manuf = Globalreg::globalreg->manufdb->lookup_oui(std::get<1>(t));
+                    if (!Globalreg::globalreg->manufdb->is_unknown_manuf(manuf)) {
+                        basedev->set_manuf(manuf);
                         break;
                     }
                 }
