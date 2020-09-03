@@ -3,6 +3,7 @@
 
 # vim session
 .*.swp*
+.swp*
 .*.tmp*
 
 # Test files
