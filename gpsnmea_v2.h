@@ -39,7 +39,8 @@
 class kis_gps_nmea_v2 : public kis_gps {
 public:
     kis_gps_nmea_v2(shared_gps_builder in_builder) :
-        kis_gps(in_builder) { }
+        kis_gps(in_builder),
+		last_data_time(time(0)) { }
 
     virtual ~kis_gps_nmea_v2() { };
 
@@ -59,6 +60,7 @@ protected:
     // Last time we calculated the heading, don't do it more than once every 
     // few seconds or we get nasty noise
     time_t last_heading_time;
+    time_t last_data_time;
 };
 
 #endif

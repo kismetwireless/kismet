@@ -20,12 +20,14 @@
 
 #include <time.h>
 
+#include <stdexcept>
+
 #include "gpsnmea_v2.h"
 #include "util.h"
 #include "gpstracker.h"
 #include "pollabletracker.h"
 
-struct kis_gps_nmea_v2_soft_fail : public exception {
+struct kis_gps_nmea_v2_soft_fail : public std::exception {
     const char * what () const throw () {
         return "Unparseable NMEA data";
     }
@@ -45,7 +47,7 @@ void kis_gps_nmea_v2::handle_read(const std::error_code& ec, std::size_t sz) {
         if (ec.value() == asio::error::operation_aborted)
             return;
 
-        _MSG_ERROR("(GPS) Error reading NMEA data: {}", error.message());
+        _MSG_ERROR("(GPS) Error reading NMEA data: {}", ec.message());
         close();
         return;
     }
@@ -187,7 +189,7 @@ void kis_gps_nmea_v2::handle_read(const std::error_code& ec, std::size_t sz) {
                 set_speed = 1;
             }
 
-        } else if (inptok[it].substr(0, 6) == "$GPGSV") {
+        } else if (line.substr(0, 6) == "$GPGSV") {
             // Satellites in view
             // TODO figure out if we can use this data and so something smarter with it
             // $GPGSV,3,1,09,22,80,170,40,14,58,305,19,01,46,291,,18,44,140,33*7B
@@ -283,9 +285,13 @@ void kis_gps_nmea_v2::handle_read(const std::error_code& ec, std::size_t sz) {
         }
     }
 
+    last_data_time = time(0);
+
     // Sync w/ the tracked fields
     update_locations();
 
     delete new_location;
+
+    start_read();
 }
 

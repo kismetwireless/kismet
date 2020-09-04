@@ -57,6 +57,27 @@ kis_gps_serial_v3::kis_gps_serial_v3(shared_gps_builder in_builder) :
 
                     return 1;
                 });
+
+    data_timeout_timer =
+        timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
+                [this](int) -> int {
+
+                if (serialport.is_open() && time(0) - last_data_time > 30) {
+                    close();
+
+                    if (get_gps_reconnect()) {
+                        _MSG_ERROR("(GPS) No usable data from the serial GPS {} in over 30 seconds, check that "
+                                "the baud rate is correct and the GPS outputs NMEA.",
+                                serial_device);
+                        open_gps(get_gps_definition());
+                    } else {
+                        _MSG_ERROR("(GPS) No usable data from the serial GPS {} in over 30 seconds, disconnecting.",
+                                serial_device);
+                    }
+                }
+
+                return 1;
+                });
 }
 
 kis_gps_serial_v3::~kis_gps_serial_v3() {
@@ -65,6 +86,7 @@ kis_gps_serial_v3::~kis_gps_serial_v3() {
     auto timetracker = Globalreg::fetch_global_as<time_tracker>("TIMETRACKER");
     if (timetracker != nullptr) {
         timetracker->remove_timer(error_reconnect_timer);
+        timetracker->remove_timer(data_timeout_timer);
     }
 }
 
@@ -157,7 +179,14 @@ bool kis_gps_serial_v3::open_gps(std::string in_opts) {
         return -1;
     }
 
+    stopped = false;
     set_int_device_connected(true);
+
+    _MSG_INFO("(GPS) Opened serial port {}@{}", serial_device, baud);
+
+    last_data_time = time(0);
+
+    start_read();
 
     return 1;
 }

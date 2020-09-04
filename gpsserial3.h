@@ -48,8 +48,6 @@ public:
     virtual bool get_device_connected() override;
 
 protected:
-    time_t error_reconnect_timer;
-
 	virtual void start_read_impl() override;
 	virtual void close() override;
 
@@ -66,10 +64,8 @@ protected:
     // few seconds or we get nasty noise
     time_t last_heading_time;
 
-    // Decaying reconnection algorithm
-    int reconnect_tid;
-    int num_reconnects;
-    static int time_event_reconnect(TIMEEVENT_PARMS);
+    int data_timeout_timer;
+    int error_reconnect_timer;
 };
 
 class gps_serial_v3_builder : public kis_gps_builder {
