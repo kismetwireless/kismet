@@ -27,7 +27,7 @@
 #include "kis_gps.h"
 #include "configfile.h"
 
-#include "gpsserial2.h"
+#include "gpsserial3.h"
 #include "gpstcp.h"
 #include "gpsgpsdasio.h"
 #include "gpsfake.h"
@@ -77,7 +77,7 @@ gps_tracker::gps_tracker() :
     }
 
     // Register the built-in GPS drivers
-    register_gps_builder(shared_gps_builder(new gps_serial_v2_builder()));
+    register_gps_builder(shared_gps_builder(new gps_serial_v3_builder()));
     register_gps_builder(shared_gps_builder(new gps_tcp_builder()));
     register_gps_builder(shared_gps_builder(new gps_gpsd_asio_builder()));
     register_gps_builder(shared_gps_builder(new gps_fake_builder()));
