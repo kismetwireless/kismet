@@ -32,6 +32,8 @@
 
 #include "fmt.h"
 
+#include "asio.hpp"
+
 class global_registry;
 
 // Pre-defs for all the things we point to
@@ -244,6 +246,9 @@ public:
     void remove_deferred_global(std::shared_ptr<deferred_startup> in_d);
     void start_deferred();
     void shutdown_deferred();
+
+    // Global ASIO service
+    asio::io_service io;
 
 protected:
     kis_recursive_timed_mutex ext_mutex;

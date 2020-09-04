@@ -1006,10 +1006,18 @@ int main(int argc, char *argv[], char *envp[]) {
     _MSG("Starting Kismet web server...", MSGFLAG_INFO);
     Globalreg::fetch_mandatory_global_as<kis_net_httpd>()->start_httpd();
 
+    // Run ASIO in its own thread until we replace the pollable core
+    auto asio_thread = std::thread([]() {
+            Globalreg::globalreg->io.run();
+            });
+
     // Independent time and select threads, which has had problems with timing conflicts
     timetracker->spawn_timetracker_thread();
     pollabletracker->select_loop(false);
 
     SpindownKismet(pollabletracker);
+
+    Globalreg::globalreg->io.stop();
+    asio_thread.join();
 }
 
