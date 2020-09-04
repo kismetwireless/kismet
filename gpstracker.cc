@@ -29,7 +29,7 @@
 
 #include "gpsserial2.h"
 #include "gpstcp.h"
-#include "gpsgpsd2.h"
+#include "gpsgpsdasio.h"
 #include "gpsfake.h"
 #include "gpsweb.h"
 #include "kis_databaselogfile.h"
@@ -79,7 +79,7 @@ gps_tracker::gps_tracker() :
     // Register the built-in GPS drivers
     register_gps_builder(shared_gps_builder(new gps_serial_v2_builder()));
     register_gps_builder(shared_gps_builder(new gps_tcp_builder()));
-    register_gps_builder(shared_gps_builder(new gps_gpsd_v2_builder()));
+    register_gps_builder(shared_gps_builder(new gps_gpsd_asio_builder()));
     register_gps_builder(shared_gps_builder(new gps_fake_builder()));
     register_gps_builder(shared_gps_builder(new gps_web_builder()));
 
