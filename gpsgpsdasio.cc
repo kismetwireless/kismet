@@ -78,6 +78,8 @@ kis_gps_gpsd_asio::kis_gps_gpsd_asio(shared_gps_builder in_builder) :
 }
 
 kis_gps_gpsd_asio::~kis_gps_gpsd_asio() {
+    close();
+
     auto timetracker = Globalreg::fetch_global_as<time_tracker>("TIMETRACKER");
     if (timetracker != nullptr) {
         timetracker->remove_timer(error_reconnect_timer);
@@ -169,6 +171,17 @@ void kis_gps_gpsd_asio::handle_read(const std::error_code& error, std::size_t t)
         return;
     }
 
+    // Pull the buffer
+    std::string line;
+    std::istream is(&in_buf);
+    std::getline(is, line);
+
+    // Ignore blank lines from gpsd
+    if (line.empty()) {
+        start_read();
+        return;
+    }
+
     // Aggregate into a new location; then copy into the main location
     // depending on what we found.  Locations can come in multiple sentences
     // so if we're within a second of the previous one we can aggregate them
@@ -185,16 +198,6 @@ void kis_gps_gpsd_asio::handle_read(const std::error_code& error, std::size_t t)
     set_speed = false;
     set_fix = false;
     set_heading = false;
-
-    std::string line;
-    std::istream is(&in_buf);
-    std::getline(is, line);
-
-    // Ignore blank lines from gpsd
-    if (line.empty()) {
-        start_read();
-        return;
-    }
 
     // We don't know what we're going to get from GPSD.  If it starts with 
     // { then it probably is json, try to parse it
@@ -620,9 +623,13 @@ bool kis_gps_gpsd_asio::open_gps(std::string in_opts) {
         return false;
 
     // Disconnect the client if it still exists
-    if (socket.is_open()) {
-        socket.cancel();
-        socket.close();
+    if (socket.is_open()) { 
+        try {
+            socket.cancel();
+            socket.close();
+        } catch (const std::exception& e) {
+            ;
+        }
     }
 
     std::string proto_host;
