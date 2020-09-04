@@ -257,6 +257,8 @@ void SpindownKismet(std::shared_ptr<pollable_tracker> pollabletracker) {
     if (daemonize == 0)
         fprintf(stderr, "\n*** KISMET IS SHUTTING DOWN ***\n");
 
+    Globalreg::globalreg->io.stop();
+
     if (pollabletracker != nullptr)
         pollabletracker->select_loop(true);
 
@@ -1008,6 +1010,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Run ASIO in its own thread until we replace the pollable core
     auto asio_thread = std::thread([]() {
+			asio::io_service::work work(Globalreg::globalreg->io);
             Globalreg::globalreg->io.run();
             });
 
