@@ -28,8 +28,7 @@
 kis_gps_gpsd_asio::kis_gps_gpsd_asio(shared_gps_builder in_builder) : 
     kis_gps(in_builder),
     resolver{Globalreg::globalreg->io},
-    socket{Globalreg::globalreg->io},
-    deadline{Globalreg::globalreg->io} {
+    socket{Globalreg::globalreg->io} {
 
     // Defer making buffers until open, because we might be used to make a 
     // builder instance
@@ -47,6 +46,9 @@ kis_gps_gpsd_asio::kis_gps_gpsd_asio(shared_gps_builder in_builder) :
     error_reconnect_timer = 
         timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                 [this](int) -> int {
+                if (socket.is_open())
+                    return 1;
+
                 {
                     local_shared_locker l(gps_mutex);
 
@@ -64,19 +66,15 @@ kis_gps_gpsd_asio::kis_gps_gpsd_asio(shared_gps_builder in_builder) :
         timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                 [this](int) -> int {
 
-                {
-                    local_shared_locker l(gps_mutex);
-
-                    // todo kill connection
-
-                }
-
                 if (time(0) - last_data_time > 30) {
                     if (get_gps_reconnect())
                         _MSG_ERROR("GPSDv2 didn't get data from gpsd in over 30 seconds, reconnecting "
                                 "to GPSD server.");
                     else
                         _MSG_ERROR("GPSDv2 didn't get data from gpsd in over 30 seconds, disconnecting");
+
+                    stopped = true;
+                    socket.close();
 
                     set_int_device_connected(false);
                 }
@@ -140,7 +138,7 @@ void kis_gps_gpsd_asio::write_gpsd(const std::string& data) {
 }
 
 void kis_gps_gpsd_asio::start_read() {
-    deadline.expires_from_now(std::chrono::seconds(30));
+    // deadline.expires_from_now(std::chrono::seconds(30));
 
     asio::async_read_until(socket, in_buf, '\n',
             [this](const std::error_code& error, std::size_t t) {
@@ -645,6 +643,9 @@ bool kis_gps_gpsd_asio::open_gps(std::string in_opts) {
 
     // We're not connected until we get data
     set_int_device_connected(0);
+
+    // We're not stopped
+    stopped = false;
 
     resolver.async_resolve(tcp::resolver::query(host.c_str(), port.c_str()),
             [this](const std::error_code& error, tcp::resolver::iterator endp) {

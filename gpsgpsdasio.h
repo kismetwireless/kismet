@@ -62,8 +62,6 @@ protected:
 
     asio::streambuf in_buf;
 
-    asio::steady_timer deadline;
-
     std::string host, port;
 
     // Last time we got data, to allow us to reset the connection if we 
