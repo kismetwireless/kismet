@@ -55,6 +55,8 @@ protected:
 
     void write_gpsd(const std::string& data);
 
+    void close();
+
     std::atomic<bool> stopped;
 
     tcp::resolver resolver;

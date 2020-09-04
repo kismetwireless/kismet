@@ -49,34 +49,27 @@ kis_gps_gpsd_asio::kis_gps_gpsd_asio(shared_gps_builder in_builder) :
                 if (socket.is_open())
                     return 1;
 
-                {
-                    local_shared_locker l(gps_mutex);
-
-                    if (!get_gps_reconnect())
-                        return 1;
-
-                }
+                if (!get_gps_reconnect())
+                    return 1;
 
                 open_gps(get_gps_definition());
-                return 1;
 
+                return 1;
                 });
 
     data_timeout_timer =
         timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                 [this](int) -> int {
 
-                if (time(0) - last_data_time > 30) {
-                    if (get_gps_reconnect())
-                        _MSG_ERROR("GPSDv2 didn't get data from gpsd in over 30 seconds, reconnecting "
-                                "to GPSD server.");
-                    else
-                        _MSG_ERROR("GPSDv2 didn't get data from gpsd in over 30 seconds, disconnecting");
+                if (socket.is_open() && time(0) - last_data_time > 30) {
+                    close();
 
-                    stopped = true;
-                    socket.close();
-
-                    set_int_device_connected(false);
+                    if (get_gps_reconnect()) {
+                        _MSG_ERROR("(GPS) No usable data from gpsd in over 30 seconds, reconnecting...");
+                        open_gps(get_gps_definition());
+                    } else {
+                        _MSG_ERROR("(GPS) No usable data from gpsd in over 30 seconds, disconnecting");
+                    }
                 }
 
                 return 1;
@@ -92,10 +85,24 @@ kis_gps_gpsd_asio::~kis_gps_gpsd_asio() {
     }
 }
 
+void kis_gps_gpsd_asio::close() {
+    stopped = true;
+    set_int_device_connected(false);
+
+    if (socket.is_open()) {
+        try {
+            socket.cancel();
+            socket.close();
+        } catch (const std::exception& e) {
+            // Ignore failures to close the socket, so long as its closed
+            ;
+        }
+    }
+}
+
 void kis_gps_gpsd_asio::start_connect(const std::error_code& error, tcp::resolver::iterator endpoints) {
     if (error) {
-        // TODO handle error
-        _MSG_ERROR("gpsd resolve error: {}", error.message());
+        _MSG_ERROR("(GPS) Could not resolve gpsd address {}:{} - {}", host, port, error.message());
     } else {
         asio::async_connect(socket, endpoints,
                 [this](const std::error_code& ec, tcp::resolver::iterator endpoint) {
@@ -105,20 +112,22 @@ void kis_gps_gpsd_asio::start_connect(const std::error_code& error, tcp::resolve
 }
 
 void kis_gps_gpsd_asio::handle_connect(const std::error_code& error, tcp::resolver::iterator endpoint) {
-    if (stopped)
-        return;
-
-    if (error) {
-        // TODO handle error
-        _MSG_ERROR("gpsd connect error: {}", error.message());
-        socket.close();
+    if (stopped) {
         return;
     }
 
-    _MSG_INFO("gpsd connected to {}", endpoint->endpoint());
+    if (error) {
+        // TODO handle error
+        _MSG_ERROR("(GPS) Could not connect to gpsd {} - {}", endpoint->endpoint(), error.message());
+        close();
+        return;
+    }
+
+    _MSG_INFO("(GPS) Connected to gpsd server {}", endpoint->endpoint());
 
     stopped = false;
     set_int_device_connected(true);
+
     start_read();
 }
 
@@ -129,17 +138,16 @@ void kis_gps_gpsd_asio::write_gpsd(const std::string& data) {
     asio::async_write(socket, asio::buffer(data),
             [this](const std::error_code& error, std::size_t) {
                 if (error) {
-                    _MSG_ERROR("gpsd error writing: {}", error.message());
-                    stopped = true;
-                    set_int_device_connected(false);
-                    socket.close();
+                    if (error.value() == asio::error::operation_aborted)
+                        return;
+
+                    _MSG_ERROR("(GPS) Error writing GPSD command: {}", error.message());
+                    close();
                 }
             });
 }
 
 void kis_gps_gpsd_asio::start_read() {
-    // deadline.expires_from_now(std::chrono::seconds(30));
-
     asio::async_read_until(socket, in_buf, '\n',
             [this](const std::error_code& error, std::size_t t) {
                 handle_read(error, t);
@@ -152,10 +160,12 @@ void kis_gps_gpsd_asio::handle_read(const std::error_code& error, std::size_t t)
         return;
 
     if (error) {
-        _MSG_ERROR("gpsd error reading: {}", error.message());
-        stopped = true;
-        set_int_device_connected(false);
-        socket.close();
+        // Return from aborted errors cleanly
+        if (error.value() == asio::error::operation_aborted)
+            return;
+
+        _MSG_ERROR("(GPS) Error reading from GPSD connection {}:{} - {}", host, port, error.message());
+        close();
         return;
     }
 
@@ -200,7 +210,7 @@ void kis_gps_gpsd_asio::handle_read(const std::error_code& error, std::size_t t)
             if (msg_class == "VERSION") {
                 std::string version  = munge_to_printable(json["release"].asString());
 
-                _MSG_INFO("GPS connected to a JSON-enabled GPSD ({}), enabling JSON mode", version);
+                _MSG_INFO("(GPS) Connected to a JSON-enabled GPSD ({}), enabling JSON mode", version);
 
                 // Set JSON mode
                 poll_mode = 10;
@@ -316,12 +326,8 @@ void kis_gps_gpsd_asio::handle_read(const std::error_code& error, std::size_t t)
             }
 
         } catch (std::exception& e) {
-            _MSG_ERROR("GPS got an invalid JSON record from GPSD: '{}'", e.what());
-
-            stopped = true;
-            socket.close();
-            set_int_device_connected(false);
-
+            _MSG_ERROR("(GPS) Received an invalid JSON record from GPSD {}:{} - '{}'", host, port, e.what());
+            close();
             return;
         }
     } else if (poll_mode == 0 && line == "GPSD") {
@@ -613,10 +619,11 @@ bool kis_gps_gpsd_asio::open_gps(std::string in_opts) {
     if (!kis_gps::open_gps(in_opts))
         return false;
 
-    set_int_device_connected(false);
-
     // Disconnect the client if it still exists
-    socket.close();
+    if (socket.is_open()) {
+        socket.cancel();
+        socket.close();
+    }
 
     std::string proto_host;
     std::string proto_port;
@@ -625,14 +632,14 @@ bool kis_gps_gpsd_asio::open_gps(std::string in_opts) {
     proto_port = fetch_opt("port", source_definition_opts);
 
     if (proto_host == "") {
-        _MSG("GPS GPSD expected host= option, none found.", MSGFLAG_ERROR);
+        _MSG("(GPS) Expected a host= option for gpsd, none found.", MSGFLAG_ERROR);
         return -1;
     }
 
     if (proto_port == "") {
         proto_port = "2947";
-        _MSG("GPS GPSD defaulting to port 2947, set the port= option if "
-                "your gpsd is on a different port", MSGFLAG_INFO);
+        _MSG_INFO("(GPS) Defaulting to port 2947 for GPSD, set the port= option if "
+                "your gpsd is on a different port");
     }
 
     host = proto_host;
@@ -641,11 +648,10 @@ bool kis_gps_gpsd_asio::open_gps(std::string in_opts) {
     // Reset the time counter
     last_data_time = time(0);
 
-    // We're not connected until we get data
-    set_int_device_connected(0);
-
     // We're not stopped
     stopped = false;
+
+    _MSG_INFO("(GPS) Connecting to GPSD on {}:{}", host, port);
 
     resolver.async_resolve(tcp::resolver::query(host.c_str(), port.c_str()),
             [this](const std::error_code& error, tcp::resolver::iterator endp) {
