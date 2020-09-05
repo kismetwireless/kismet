@@ -18,12 +18,14 @@
 
 #include "config.h"
 
+#include <time.h>
+
 #include "gpsgpsd_v3.h"
-#include "util.h"
-#include "time.h"
 #include "gpstracker.h"
+#include "messagebus.h"
 #include "pollabletracker.h"
 #include "timetracker.h"
+#include "util.h"
 
 kis_gps_gpsd_v3::kis_gps_gpsd_v3(shared_gps_builder in_builder) : 
     kis_gps(in_builder),

@@ -199,7 +199,7 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	pollabletracker.cc.o ringbuf2.cc.o ringbuf3.cc.o chainbuf.cc.o filewritebuf.cc.o buffer_handler.cc.o \
 	packet.cc.o messagebus.cc.o configfile.cc.o getopt.cc.o \
 	psutils.cc.o battery.cc.o \
-	tcpserver2.cc.o tcpclient2.cc.o serialclient2.cc.o pipeclient.cc.o socketclient.cc.o \
+	tcpserver2.cc.o pipeclient.cc.o socketclient.cc.o \
 	ipc_remote2.cc.o udpserver.cc.o \
 	$(PROTOBUF_CPP_O_TARGET) kis_external.cc.o \
 	dlttracker.cc.o antennatracker.cc.o datasourcetracker.cc.o kis_datasource.cc.o \

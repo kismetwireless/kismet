@@ -23,11 +23,7 @@
 
 #include "kis_gps.h"
 #include "timetracker.h"
-#include "buffer_handler.h"
-#include "ringbuf2.h"
 #include "globalregistry.h"
-#include "serialclient2.h"
-#include "pollabletracker.h"
 
 #define ASIO_HAS_STD_CHRONO
 #define ASIO_HAS_MOVE

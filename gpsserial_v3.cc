@@ -21,8 +21,9 @@
 #include <time.h>
 
 #include "gpsserial_v3.h"
-#include "util.h"
 #include "gpstracker.h"
+#include "messagebus.h"
+#include "util.h"
 
 #ifdef __APPLE__
 #include <ioctl.h>
