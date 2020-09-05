@@ -18,14 +18,14 @@
 
 #include "config.h"
 
-#include "gpsgpsdasio.h"
+#include "gpsgpsd_v3.h"
 #include "util.h"
 #include "time.h"
 #include "gpstracker.h"
 #include "pollabletracker.h"
 #include "timetracker.h"
 
-kis_gps_gpsd_asio::kis_gps_gpsd_asio(shared_gps_builder in_builder) : 
+kis_gps_gpsd_v3::kis_gps_gpsd_v3(shared_gps_builder in_builder) : 
     kis_gps(in_builder),
     resolver{Globalreg::globalreg->io},
     socket{Globalreg::globalreg->io} {
@@ -77,7 +77,7 @@ kis_gps_gpsd_asio::kis_gps_gpsd_asio(shared_gps_builder in_builder) :
 
 }
 
-kis_gps_gpsd_asio::~kis_gps_gpsd_asio() {
+kis_gps_gpsd_v3::~kis_gps_gpsd_v3() {
     close();
 
     auto timetracker = Globalreg::fetch_global_as<time_tracker>("TIMETRACKER");
@@ -87,7 +87,7 @@ kis_gps_gpsd_asio::~kis_gps_gpsd_asio() {
     }
 }
 
-void kis_gps_gpsd_asio::close() {
+void kis_gps_gpsd_v3::close() {
     stopped = true;
     set_int_device_connected(false);
 
@@ -102,9 +102,11 @@ void kis_gps_gpsd_asio::close() {
     }
 }
 
-void kis_gps_gpsd_asio::start_connect(const std::error_code& error, tcp::resolver::iterator endpoints) {
+void kis_gps_gpsd_v3::start_connect(const std::error_code& error, tcp::resolver::iterator endpoints) {
     if (error) {
         _MSG_ERROR("(GPS) Could not resolve gpsd address {}:{} - {}", host, port, error.message());
+        stopped = true;
+        set_int_device_connected(false);
     } else {
         asio::async_connect(socket, endpoints,
                 [this](const std::error_code& ec, tcp::resolver::iterator endpoint) {
@@ -113,7 +115,7 @@ void kis_gps_gpsd_asio::start_connect(const std::error_code& error, tcp::resolve
     }
 }
 
-void kis_gps_gpsd_asio::handle_connect(const std::error_code& error, tcp::resolver::iterator endpoint) {
+void kis_gps_gpsd_v3::handle_connect(const std::error_code& error, tcp::resolver::iterator endpoint) {
     if (stopped) {
         return;
     }
@@ -133,7 +135,7 @@ void kis_gps_gpsd_asio::handle_connect(const std::error_code& error, tcp::resolv
     start_read();
 }
 
-void kis_gps_gpsd_asio::write_gpsd(const std::string& data) {
+void kis_gps_gpsd_v3::write_gpsd(const std::string& data) {
     if (stopped)
         return;
 
@@ -149,7 +151,7 @@ void kis_gps_gpsd_asio::write_gpsd(const std::string& data) {
             });
 }
 
-void kis_gps_gpsd_asio::start_read() {
+void kis_gps_gpsd_v3::start_read() {
     asio::async_read_until(socket, in_buf, '\n',
             [this](const std::error_code& error, std::size_t t) {
                 handle_read(error, t);
@@ -157,7 +159,7 @@ void kis_gps_gpsd_asio::start_read() {
 
 }
 
-void kis_gps_gpsd_asio::handle_read(const std::error_code& error, std::size_t t) {
+void kis_gps_gpsd_v3::handle_read(const std::error_code& error, std::size_t t) {
     if (stopped)
         return;
 
@@ -616,7 +618,7 @@ void kis_gps_gpsd_asio::handle_read(const std::error_code& error, std::size_t t)
     start_read();
 }
 
-bool kis_gps_gpsd_asio::open_gps(std::string in_opts) {
+bool kis_gps_gpsd_v3::open_gps(std::string in_opts) {
     local_locker lock(gps_mutex);
 
     if (!kis_gps::open_gps(in_opts))
@@ -668,7 +670,7 @@ bool kis_gps_gpsd_asio::open_gps(std::string in_opts) {
     return 1;
 }
 
-bool kis_gps_gpsd_asio::get_location_valid() {
+bool kis_gps_gpsd_v3::get_location_valid() {
     local_shared_locker lock(gps_mutex);
 
     if (!get_device_connected()) {

@@ -20,7 +20,7 @@
 
 #include <time.h>
 
-#include "gpsserial2.h"
+#include "gpsserial_v2.h"
 #include "util.h"
 #include "gpstracker.h"
 #include "pollabletracker.h"

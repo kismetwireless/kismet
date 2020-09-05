@@ -20,10 +20,9 @@
 
 #include <time.h>
 
-#include "gpsserial3.h"
+#include "gpsserial_v3.h"
 #include "util.h"
 #include "gpstracker.h"
-#include "pollabletracker.h"
 
 #ifdef __APPLE__
 #include <ioctl.h>

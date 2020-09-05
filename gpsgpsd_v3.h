@@ -33,14 +33,13 @@
 #define ASIO_HAS_MOVE
 
 #include "asio.hpp"
-#include "asio/steady_timer.hpp"
 
 using asio::ip::tcp;
 
-class kis_gps_gpsd_asio : public kis_gps {
+class kis_gps_gpsd_v3 : public kis_gps {
 public:
-    kis_gps_gpsd_asio(shared_gps_builder in_builder);
-    virtual ~kis_gps_gpsd_asio();
+    kis_gps_gpsd_v3(shared_gps_builder in_builder);
+    virtual ~kis_gps_gpsd_v3();
 
     virtual bool open_gps(std::string in_definition);
 
@@ -90,9 +89,9 @@ protected:
     int si_raw;
 };
 
-class gps_gpsd_asio_builder : public kis_gps_builder {
+class gps_gpsd_v3_builder : public kis_gps_builder {
 public:
-    gps_gpsd_asio_builder() : 
+    gps_gpsd_v3_builder() : 
         kis_gps_builder() { 
         initialize();
     }
@@ -106,7 +105,7 @@ public:
     }
 
     virtual shared_gps build_gps(shared_gps_builder in_builder) {
-        return shared_gps(new kis_gps_gpsd_asio(in_builder));
+        return shared_gps(new kis_gps_gpsd_v3(in_builder));
     }
 };
 
