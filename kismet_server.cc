@@ -112,7 +112,7 @@
 #include "phy_nrf_mousejack.h"
 #include "phy_btle.h"
 
-#include "ipc_remote2.h"
+#include "ipctracker_v2.h"
 #include "manuf.h"
 #include "entrytracker.h"
 #include "json_adapter.h"
@@ -819,7 +819,7 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     // Create the IPC handler
-    ipc_remote_v2_tracker::create_ipcremote(globalregistry);
+    ipc_tracker_v2::create_ipctracker();
 
     if (globalregistry->fatal_condition)
         SpindownKismet(pollabletracker);
