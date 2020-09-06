@@ -25,9 +25,6 @@
 #include "kis_gps.h"
 #include "timetracker.h"
 
-#define ASIO_HAS_STD_CHRONO
-#define ASIO_HAS_MOVE
-
 #include "asio.hpp"
 
 using asio::ip::tcp;

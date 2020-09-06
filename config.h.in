@@ -334,3 +334,6 @@
 #define _(x) x
 #endif
 
+/* asio global defs */
+#define ASIO_HAS_STD_CHRONO
+#define ASIO_HAS_MOVE
