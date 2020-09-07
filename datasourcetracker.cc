@@ -157,7 +157,7 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (shared_d
         unsigned int transaction = ++transaction_id;
 
         // Instantiate a local prober datasource
-        shared_datasource pds = b->build_datasource(b, probe_lock);
+        shared_datasource pds = b->build_datasource(b);
 
         {
             local_locker lock(probe_lock);
@@ -269,7 +269,7 @@ void datasource_tracker_source_list::list_sources(std::function<void (std::vecto
         unsigned int transaction = ++transaction_id;
 
         // Instantiate a local lister 
-        shared_datasource pds = b->build_datasource(b, list_lock);
+        shared_datasource pds = b->build_datasource(b);
 
         {
             local_locker lock(list_lock);
@@ -307,7 +307,7 @@ datasource_tracker::datasource_tracker() :
 
     source_id =
         Globalreg::globalreg->entrytracker->register_field("kismet.datasourcetracker.datasource",
-                tracker_element_factory<kis_datasource>(nullptr, nullptr),
+                tracker_element_factory<kis_datasource>(nullptr),
                 "Datasource");
 
     proto_vec =
@@ -952,7 +952,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
     local_locker lock(&dst_lock);
 
     // Make a data source from the builder
-    shared_datasource ds = in_proto->build_datasource(in_proto, nullptr);
+    shared_datasource ds = in_proto->build_datasource(in_proto);
 
     ds->open_interface(in_source, 0, 
         [this, ds, in_cb] (unsigned int, bool success, std::string reason) {
@@ -1120,6 +1120,7 @@ void datasource_tracker::schedule_cleanup() {
 }
 
 void datasource_tracker::new_remote_tcp_connection(int in_fd) {
+#if 0
     // Make a new connection handler with its own mutex
     auto conn_handler = 
         std::make_shared<buffer_handler<ringbuf_v2>>((tcp_buffer_sz * 1024), (tcp_buffer_sz * 1024));
@@ -1142,6 +1143,9 @@ void datasource_tracker::new_remote_tcp_connection(int in_fd) {
     auto pollabletracker = 
         Globalreg::fetch_mandatory_global_as<pollable_tracker>();
     pollabletracker->register_pollable(socketcli);
+#endif
+
+    close(in_fd);
 }
 
 void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
@@ -1181,12 +1185,16 @@ void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
 
         auto dup_definition(in_definition);
 
+#if 0
+
         // Generate a detached thread for joining the ring buffer; it acts as a blocking
         // wait for the buffer to be filled
         incoming->handshake_rb(std::thread([this, merge_target_device, in_handler, dup_definition]  {
                     merge_target_device->connect_remote(in_handler, dup_definition, NULL);
                     calculate_source_hopping(merge_target_device);
                 }));
+
+#endif
 
         return;
     }
@@ -1202,6 +1210,7 @@ void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
             // Explicitly unlock the mutex before we fire the connection handler
             lock.unlock();
 
+#if 0
             // Make a data source from the builder
             shared_datasource ds = b->build_datasource(b, in_handler->get_mutex());
             ds->connect_remote(in_handler, in_definition,
@@ -1211,6 +1220,7 @@ void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
                     else
                         broken_source_vec.push_back(ds);
                 });
+#endif
 
             return;
         }
@@ -2054,6 +2064,7 @@ dst_incoming_remote::dst_incoming_remote(std::shared_ptr<buffer_handler_generic>
     
     cb = in_cb;
 
+#if 0
     connect_buffer(in_rbufhandler);
 
     timerid =
@@ -2066,9 +2077,11 @@ dst_incoming_remote::dst_incoming_remote(std::shared_ptr<buffer_handler_generic>
 
                 return 0;
             });
+#endif
 }
 
 dst_incoming_remote::~dst_incoming_remote() {
+#if 0
     // Kill the error timer
     timetracker->remove_timer(timerid);
 
@@ -2078,6 +2091,7 @@ dst_incoming_remote::~dst_incoming_remote() {
 
     // Wait for the thread to finish
     handshake_thread.join();
+#endif
 }
 
 bool dst_incoming_remote::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) { if (kis_external_interface::dispatch_rx_packet(c))
@@ -2107,8 +2121,9 @@ void dst_incoming_remote::kill() {
 }
 
 void dst_incoming_remote::handle_packet_newsource(uint32_t in_seqno, std::string in_content) {
-    local_locker lock(ext_mutex);
+    local_locker lock(&ext_mutex, "incoming_remote::handle_packet_newsource");
 
+#if 0
     KismetDatasource::NewSource c;
 
     if (!c.ParseFromString(in_content)) {
@@ -2123,13 +2138,8 @@ void dst_incoming_remote::handle_packet_newsource(uint32_t in_seqno, std::string
 
     // Zero out the rbuf handler so that it doesn't get closed
     ringbuf_handler.reset();
+#endif
 
     kill();
-}
-
-void dst_incoming_remote::buffer_error(std::string in_error) {
-    _MSG("Incoming remote source failed: " + in_error, MSGFLAG_ERROR);
-    kill();
-    return;
 }
 

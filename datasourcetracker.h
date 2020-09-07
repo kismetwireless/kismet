@@ -317,8 +317,6 @@ public:
         std::swap(handshake_thread, t);
     }
 
-    virtual void buffer_error(std::string in_error) override;
-
 protected:
     // Timeout for killing this connection
     int timerid;
