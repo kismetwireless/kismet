@@ -31,7 +31,6 @@
 #include "kis_httpd_registry.h"
 #include "messagebus.h"
 #include "pcapng_stream_ringbuf.h"
-#include "socketclient.h"
 #include "streamtracker.h"
 #include "timetracker.h"
 
