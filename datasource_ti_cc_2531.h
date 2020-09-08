@@ -39,9 +39,8 @@ typedef std::shared_ptr<kis_datasource_ticc2531> shared_datasource_ticc2531;
 
 class kis_datasource_ticc2531 : public kis_datasource {
 public:
-    kis_datasource_ticc2531(shared_datasource_builder in_builder,
-            std::shared_ptr<kis_recursive_timed_mutex> mutex) :
-        kis_datasource(in_builder, mutex) {
+    kis_datasource_ticc2531(shared_datasource_builder in_builder) :
+        kis_datasource(in_builder) {
 
         // Set the capture binary
         set_int_source_ipc_binary("kismet_cap_ti_cc_2531");
@@ -92,9 +91,8 @@ public:
 
     virtual ~datasource_ticc2531_builder() { }
 
-    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this,
-            std::shared_ptr<kis_recursive_timed_mutex> mutex) override {
-        return shared_datasource_ticc2531(new kis_datasource_ticc2531(in_sh_this, mutex));
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) override {
+        return shared_datasource_ticc2531(new kis_datasource_ticc2531(in_sh_this));
     }
 
     virtual void initialize() override {

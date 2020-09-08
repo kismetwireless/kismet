@@ -35,6 +35,7 @@
 #include "devicetracker.h"
 #include "dlttracker.h"
 #include "manuf.h"
+#include "messagebus.h"
 
 #include "phy_btle.h"
 

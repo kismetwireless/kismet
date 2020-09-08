@@ -22,6 +22,7 @@
 #include "phy_80211.h"
 #include "timetracker.h"
 #include "trackedelement_workers.h"
+#include "messagebus.h"
 
 dot11_tracked_ssid_group::dot11_tracked_ssid_group(int in_id, const std::string& in_ssid, unsigned int in_ssid_len,
         unsigned int in_crypt_set) :

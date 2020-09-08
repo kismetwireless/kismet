@@ -21,9 +21,8 @@
 #include "datasource_rtladsb.h"
 #include "phy_rtladsb.h"
 
-kis_datasource_rtladsb::kis_datasource_rtladsb(shared_datasource_builder in_builder, 
-        std::shared_ptr<kis_recursive_timed_mutex> mutex) :
-    kis_datasource(in_builder, mutex) {
+kis_datasource_rtladsb::kis_datasource_rtladsb(shared_datasource_builder in_builder) :
+    kis_datasource(in_builder) {
 
     std::string devnum = munge_to_printable(get_definition_opt("device"));
     if (devnum != "") {

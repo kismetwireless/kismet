@@ -32,9 +32,8 @@ typedef std::shared_ptr<kis_datasource_virtual> shared_datasource_virtual;
 // datasources to provide something for seenby to look at
 class kis_datasource_virtual : public kis_datasource {
 public:
-    kis_datasource_virtual(shared_datasource_builder in_builder,
-            std::shared_ptr<kis_recursive_timed_mutex> mutex) :
-        kis_datasource(in_builder, mutex) {
+    kis_datasource_virtual(shared_datasource_builder in_builder) :
+        kis_datasource(in_builder) {
 
         // We don't have a capture binary
         
@@ -91,9 +90,8 @@ private:
 public:
     virtual ~datasource_virtual_builder() { }
 
-    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this,
-            std::shared_ptr<kis_recursive_timed_mutex> mutex) override {
-        return shared_datasource_virtual(new kis_datasource_virtual(in_sh_this, mutex));
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) override {
+        return shared_datasource_virtual(new kis_datasource_virtual(in_sh_this));
     }
 
     virtual void initialize() override {
