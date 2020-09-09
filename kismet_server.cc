@@ -172,7 +172,7 @@ void SmartStdoutMessageClient::process_message(std::string in_msg, int in_flags)
             fprintf(stdout, "%s", in_line_wrap("ALERT: " + in_msg, 7, 75).c_str());
         else
             fprintf(stdout, "ALERT: %s\n", in_msg.c_str());
-    } else if (in_flags & MSGFLAG_FATAL) {
+    } else if ((in_flags & MSGFLAG_FATAL)) {
         if (glob_linewrap)
             fprintf(stderr, "%s", in_line_wrap("FATAL: " + in_msg, 7, 75).c_str());
         else
@@ -973,6 +973,10 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Start up any code that needs everything to be loaded
     globalregistry->start_deferred();
+
+    if (globalregistry->fatal_condition) {
+        SpindownKismet();
+    }
 
     // Set the global silence now that we're set up
     glob_silent = local_silent;

@@ -235,7 +235,6 @@ public:
     __Proxy(retry_on_error, uint8_t, bool, bool, retry_on_error);
 
     __Proxy(remote_cap_listen, std::string, std::string, std::string, remote_cap_listen);
-    __Proxy(remote_cap_listen_v6, std::string, std::string, std::string, remote_cap_listen_v6);
     __Proxy(remote_cap_port, uint32_t, uint32_t, uint32_t, remote_cap_port);
 
     __Proxy(remote_cap_timestamp, uint8_t, bool, bool, remote_cap_timestamp);
@@ -260,9 +259,6 @@ protected:
         register_field("kismet.datasourcetracker.default.remote_cap_listen", 
                 "listen address for remote capture",
                 &remote_cap_listen);
-        register_field("kismet.datasourcetracker.default.remote_cap_listen_v6",
-                "ipv6 listen address for remote capture",
-                &remote_cap_listen_v6);
         register_field("kismet.datasourcetracker.default.remote_cap_port",
                 "listen port for remote capture",
                 &remote_cap_port);
@@ -289,7 +285,6 @@ protected:
 
     // Remote listen
     std::shared_ptr<tracker_element_string> remote_cap_listen;
-    std::shared_ptr<tracker_element_string> remote_cap_listen_v6;
     std::shared_ptr<tracker_element_uint32> remote_cap_port;
     std::shared_ptr<tracker_element_uint8> remote_cap_timestamp;
 
@@ -417,10 +412,6 @@ public:
         return remotecap_listen;
     }
 
-    std::string remote_listen_v6() const {
-        return remotecap_listen_v6;
-    }
-
 protected:
     // Log the datasources
     virtual void databaselog_write_datasources();
@@ -428,10 +419,8 @@ protected:
     bool remotecap_enabled;
     unsigned int remotecap_port;
     std::string remotecap_listen;
-    std::string remotecap_listen_v6;
 
     std::shared_ptr<datasource_tracker_remote_server> remotecap_v4;
-    std::shared_ptr<datasource_tracker_remote_server> remotecap_v6;
 
     std::shared_ptr<datasource_tracker> datasourcetracker;
     std::shared_ptr<time_tracker> timetracker;

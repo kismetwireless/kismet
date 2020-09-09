@@ -464,12 +464,11 @@ void datasource_tracker::trigger_deferred_startup() {
     }
 
     remotecap_listen = Globalreg::globalreg->kismet_config->fetch_opt("remote_capture_listen");
-    remotecap_listen_v6 = Globalreg::globalreg->kismet_config->fetch_opt("remote_capture_listen_v6");
     remotecap_port = 
         Globalreg::globalreg->kismet_config->fetch_opt_uint("remote_capture_port", 0);
 
-    if (remotecap_listen.length() == 0 && remotecap_listen_v6.length() == 0) {
-        _MSG("No remote_capture_listen= or remote_capture_listen_v6= found in kismet.conf; no remote "
+    if (remotecap_listen.length() == 0) {
+        _MSG("No remote_capture_listen= found in kismet.conf; no remote "
                 "capture will be enabled.", MSGFLAG_INFO);
         remotecap_enabled = false;
     }
@@ -480,7 +479,6 @@ void datasource_tracker::trigger_deferred_startup() {
     }
 
     config_defaults->set_remote_cap_listen(remotecap_listen);
-    config_defaults->set_remote_cap_listen_v6(remotecap_listen_v6);
     config_defaults->set_remote_cap_port(remotecap_port);
 
     config_defaults->set_remote_cap_timestamp(Globalreg::globalreg->kismet_config->fetch_opt_bool("override_remote_timestamp", true));
@@ -566,7 +564,7 @@ void datasource_tracker::trigger_deferred_startup() {
     // Activate remote capture
     if (config_defaults->get_remote_cap_listen().length() != 0 && 
             config_defaults->get_remote_cap_port() != 0) {
-        _MSG_INFO("Launching remote capture server on {}:{}", remotecap_listen, remotecap_port);
+        _MSG_INFO("Launching remote capture server on {} {}", remotecap_listen, remotecap_port);
 
         try {
             if (config_defaults->get_remote_cap_listen() == "*" || 
@@ -584,32 +582,9 @@ void datasource_tracker::trigger_deferred_startup() {
                     "and remote_capture_port= configuration: {}", e.what());
             Globalreg::globalreg->fatal_condition = 1;
             remotecap_enabled = false;
+            return;
         }
     } 
-
-    if (config_defaults->get_remote_cap_listen_v6().length() != 0 && 
-            config_defaults->get_remote_cap_port() != 0) {
-        _MSG_INFO("Launching remote capture server on {}:{}", remotecap_listen_v6, remotecap_port);
-        try {
-            if (config_defaults->get_remote_cap_listen_v6() == "*" ||
-                    config_defaults->get_remote_cap_listen_v6() == "::/0") {
-                auto v6_ep = tcp::endpoint(tcp::v6(), config_defaults->get_remote_cap_port());
-                remotecap_v6 = std::make_shared<datasource_tracker_remote_server>(v6_ep);
-            } else {
-                auto v6_ep = 
-                    tcp::endpoint(asio::ip::address_v6::from_string(config_defaults->get_remote_cap_listen_v6()),
-                            config_defaults->get_remote_cap_port());
-                remotecap_v6 = std::make_shared<datasource_tracker_remote_server>(v6_ep);
-            }
-        } catch (const std::exception& e) {
-            _MSG_FATAL("Failed to create IPV6 remote capture server; check your remote_capture_listen= "
-                    "and remote_capture_port= configuration: {}", e.what());
-            Globalreg::globalreg->fatal_condition = 1;
-            remotecap_enabled = false;
-        }
-        
-        remotecap_enabled = true;
-    }
 
     remote_complete_timer = -1;
 
