@@ -314,6 +314,8 @@ public:
             return;
         }
 
+        external_binary = binary;
+
         if (!run_ipc()) {
             _MSG_ERROR("{} failed to launch helper binary '{}'", plugin_name, binary);
             return;
