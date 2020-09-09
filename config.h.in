@@ -335,6 +335,5 @@
 #endif
 
 /* asio global defs */
-#define ASIO_STANDALONE
 #define ASIO_HAS_STD_CHRONO
 #define ASIO_HAS_MOVE

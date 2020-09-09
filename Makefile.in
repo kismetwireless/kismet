@@ -606,6 +606,13 @@ rtlsdrpy:
 	@echo "Updating kismet rtlsdr python"
 	@find ./ -path *rtlsdr* -name __init__.py -not -path *build* -exec cp ../python-rtlsdr/rtlsdr/__init__.py {} \;
 
+boostbits:
+	@echo "Scanning boost deps in ASIO"
+	@mv boost boost-old
+	@mkdir boost-raw
+	@bcp --scan --boost=/usr/include `find ./asio -name \*pp | xargs` boost-raw/
+	@mv boost-raw/boost boost
+
 release-%:
 	@echo $*
 	@make manuf
