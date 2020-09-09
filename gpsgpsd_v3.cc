@@ -23,7 +23,6 @@
 #include "gpsgpsd_v3.h"
 #include "gpstracker.h"
 #include "messagebus.h"
-#include "pollabletracker.h"
 #include "timetracker.h"
 #include "util.h"
 

@@ -35,13 +35,12 @@
 #include "kis_net_microhttpd.h"
 #include "entrytracker.h"
 #include "timetracker.h"
-#include "tcpserver2.h"
-#include "pollabletracker.h"
 #include "kis_net_microhttpd.h"
 #include "buffer_handler.h"
 #include "trackedrrd.h"
 #include "kis_mutex.h"
 #include "eventbus.h"
+#include "messagebus.h"
 
 /* Data source tracker
  *

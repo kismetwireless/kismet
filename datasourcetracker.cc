@@ -1137,35 +1137,6 @@ void datasource_tracker::schedule_cleanup() {
     //fprintf(stderr, "debug - dst scheduling cleanup as %d\n", completion_cleanup_id);
 }
 
-#if 0
-void datasource_tracker::new_remote_tcp_connection(int in_fd) {
-    // Make a new connection handler with its own mutex
-    auto conn_handler = 
-        std::make_shared<buffer_handler<ringbuf_v2>>((tcp_buffer_sz * 1024), (tcp_buffer_sz * 1024));
-
-    // Bind it to the tcp socket
-    auto socketcli = 
-        std::make_shared<socket_client>(in_fd, conn_handler);
-
-    // Bind a new incoming remote which will pivot to the proper data source type
-    auto incoming_remote = new dst_incoming_remote(conn_handler, 
-                [this] (dst_incoming_remote *i, std::string in_type, std::string in_def, 
-                    uuid in_uuid, std::shared_ptr<buffer_handler_generic> in_handler) {
-            in_handler->remove_read_buffer_interface();
-            open_remote_datasource(i, in_type, in_def, in_uuid, in_handler);
-        });
-
-    conn_handler->set_read_buffer_interface(incoming_remote);
-
-    // Register the connection as pollable
-    auto pollabletracker = 
-        Globalreg::fetch_mandatory_global_as<pollable_tracker>();
-    pollabletracker->register_pollable(socketcli);
-
-    close(in_fd);
-}
-#endif
-
 void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
         const std::string& in_type, const std::string& in_definition, const uuid& in_uuid) {
 

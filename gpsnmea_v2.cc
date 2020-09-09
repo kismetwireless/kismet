@@ -25,7 +25,6 @@
 #include "gpsnmea_v2.h"
 #include "gpstracker.h"
 #include "messagebus.h"
-#include "pollabletracker.h"
 #include "util.h"
 
 struct kis_gps_nmea_v2_soft_fail : public std::exception {

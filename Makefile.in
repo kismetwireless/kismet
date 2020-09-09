@@ -196,11 +196,10 @@ TOOL_BINS = \
 
 PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_cpp11.cc.o \
 	globalregistry.cc.o eventbus.cc.o \
-	pollabletracker.cc.o ringbuf2.cc.o ringbuf3.cc.o chainbuf.cc.o filewritebuf.cc.o buffer_handler.cc.o \
+	ringbuf2.cc.o chainbuf.cc.o filewritebuf.cc.o buffer_handler.cc.o \
 	packet.cc.o messagebus.cc.o configfile.cc.o getopt.cc.o \
 	psutils.cc.o battery.cc.o \
-	tcpserver2.cc.o \
-	ipctracker_v2.cc.o udpserver.cc.o \
+	ipctracker_v2.cc.o \
 	$(PROTOBUF_CPP_O_TARGET) kis_external.cc.o \
 	dlttracker.cc.o antennatracker.cc.o datasourcetracker.cc.o kis_datasource.cc.o \
 	datasource_linux_bluetooth.cc.o datasource_rtl433.cc.o datasource_rtlamr.cc.o datasource_rtladsb.cc.o \
