@@ -236,6 +236,7 @@ public:
     __Proxy(retry_on_error, uint8_t, bool, bool, retry_on_error);
 
     __Proxy(remote_cap_listen, std::string, std::string, std::string, remote_cap_listen);
+    __Proxy(remote_cap_listen_v6, std::string, std::string, std::string, remote_cap_listen_v6);
     __Proxy(remote_cap_port, uint32_t, uint32_t, uint32_t, remote_cap_port);
 
     __Proxy(remote_cap_timestamp, uint8_t, bool, bool, remote_cap_timestamp);
@@ -260,6 +261,9 @@ protected:
         register_field("kismet.datasourcetracker.default.remote_cap_listen", 
                 "listen address for remote capture",
                 &remote_cap_listen);
+        register_field("kismet.datasourcetracker.default.remote_cap_listen_v6",
+                "ipv6 listen address for remote capture",
+                &remote_cap_listen_v6);
         register_field("kismet.datasourcetracker.default.remote_cap_port",
                 "listen port for remote capture",
                 &remote_cap_port);
@@ -286,55 +290,22 @@ protected:
 
     // Remote listen
     std::shared_ptr<tracker_element_string> remote_cap_listen;
+    std::shared_ptr<tracker_element_string> remote_cap_listen_v6;
     std::shared_ptr<tracker_element_uint32> remote_cap_port;
     std::shared_ptr<tracker_element_uint8> remote_cap_timestamp;
 
 };
 
-// Intermediary buffer handler which is responsible for parsing the incoming
-// simple packet protocol enough to get a NEWSOURCE command; The resulting source
-// type, definition, uuid, and rbufhandler is passed to the callback function; the cb
-// is responsible for looking up the type, closing the connection if it is invalid, etc.
-class dst_incoming_remote : public kis_external_interface {
-public:
-    dst_incoming_remote(std::shared_ptr<buffer_handler_generic> in_rbufhandler,
-            std::function<void (dst_incoming_remote *, std::string srctype, std::string srcdef,
-                uuid srcuuid, std::shared_ptr<buffer_handler_generic> handler)> in_cb);
-    ~dst_incoming_remote();
-
-    // Override the dispatch commands to handle the newsource
-    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) override;
-
-    virtual void handle_msg_proxy(const std::string& msg, const int msgtype) override {
-        _MSG(fmt::format("(Remote) - {}", msg), msgtype);
-    }
-
-    virtual void handle_packet_newsource(uint32_t in_seqno, std::string in_packet);
-
-    virtual void kill();
-
-    virtual void handshake_rb(std::thread t) {
-        std::swap(handshake_thread, t);
-    }
-
-protected:
-    // Timeout for killing this connection
-    int timerid;
-
-    std::function<void (dst_incoming_remote *, std::string, std::string, uuid, 
-            std::shared_ptr<buffer_handler_generic> )> cb;
-
-    std::thread handshake_thread;
-};
-
-// Fwd def of datasource pcap feed
 class datasource_tracker_httpd_pcap;
+class datasource_tracker_remote_server;
+class dst_incoming_remote;
 
 class datasource_tracker : public kis_net_httpd_cppstream_handler, 
     public lifetime_global, public deferred_startup {
 public:
+    static std::string global_name() { return "DATASOURCETRACKER"; }
     static std::shared_ptr<datasource_tracker> create_dst() {
-        auto mon = std::make_shared<datasource_tracker>();
+        auto mon = std::shared_ptr<datasource_tracker>(new datasource_tracker());
         Globalreg::globalreg->register_lifetime_global(mon);
         Globalreg::globalreg->insert_global(global_name(), mon);
         Globalreg::globalreg->register_deferred_global(mon);
@@ -342,13 +313,11 @@ public:
         return mon;
     }
 
-    // Must be public to accommodate make_shared but should not be called directly
+private:
     datasource_tracker();
 
 public:
     virtual ~datasource_tracker();
-
-    static std::string global_name() { return "DATASOURCETRACKER"; }
 
     // Start up the system once kismet is up and running; this happens just before
     // the main select loop in kismet
@@ -400,8 +369,7 @@ public:
     void open_remote_datasource(dst_incoming_remote *incoming, 
             const std::string& in_type, 
             const std::string& in_definition, 
-            const uuid& in_uuid,
-            std::shared_ptr<buffer_handler_generic> in_handler);
+            const uuid& in_uuid);
 
     // Find a datasource
     shared_datasource find_datasource(const uuid& in_uuid);
@@ -450,17 +418,21 @@ public:
         return remotecap_listen;
     }
 
-protected:
-    // Callback registered with the tcp server for a new connection
-    void new_remote_tcp_connection(int in_fd);
+    std::string remote_listen_v6() const {
+        return remotecap_listen_v6;
+    }
 
+protected:
     // Log the datasources
     virtual void databaselog_write_datasources();
 
-    std::shared_ptr<tcp_server_v2> remote_tcp_server;
     bool remotecap_enabled;
     unsigned int remotecap_port;
     std::string remotecap_listen;
+    std::string remotecap_listen_v6;
+
+    std::shared_ptr<datasource_tracker_remote_server> remotecap_v4;
+    std::shared_ptr<datasource_tracker_remote_server> remotecap_v6;
 
     std::shared_ptr<datasource_tracker> datasourcetracker;
     std::shared_ptr<time_tracker> timetracker;
@@ -531,6 +503,8 @@ protected:
 
     // Buffer sizes
     size_t tcp_buffer_sz;
+
+    friend class datasource_tracker_remote_server;
 };
 
 /* This implements the core 'all data' pcap, and pcap filtered by datasource UUID.
@@ -566,6 +540,69 @@ protected:
 
     int pack_comp_datasrc;
 };
+
+// Intermediary buffer handler which is responsible for parsing the incoming
+// simple packet protocol enough to get a NEWSOURCE command; The resulting source
+// type, definition, uuid, and rbufhandler is passed to the callback function; the cb
+// is responsible for looking up the type, closing the connection if it is invalid, etc.
+class dst_incoming_remote : public kis_external_interface {
+public:
+    using callback_t = std::function<void (dst_incoming_remote *, std::string, std::string, uuid)>;
+
+    dst_incoming_remote(tcp::socket socket, callback_t in_cb);
+    ~dst_incoming_remote();
+
+    // Override the dispatch commands to handle the new source
+    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) override;
+
+    virtual void handle_msg_proxy(const std::string& msg, const int msgtype) override {
+        _MSG(fmt::format("(Remote) - {}", msg), msgtype);
+    }
+
+    virtual void handle_packet_newsource(uint32_t in_seqno, std::string in_packet);
+
+    virtual void kill();
+
+    virtual void handshake_rb(std::thread t) {
+        std::swap(handshake_thread, t);
+    }
+
+protected:
+    // Timeout for killing this connection
+    int timerid;
+
+    callback_t cb;
+
+    std::thread handshake_thread;
+};
+
+
+// Remote capture server helper, we need to instantiate this outside of the main dst instance, and we
+// may make multiple copies of it for different types of endpoint
+class datasource_tracker_remote_server {
+public:
+    datasource_tracker_remote_server(const tcp::endpoint& endpoint) :
+        stopped{false},
+        acceptor{Globalreg::globalreg->io, endpoint},
+        incoming_socket{Globalreg::globalreg->io} {
+        datasourcetracker = Globalreg::fetch_mandatory_global_as<datasource_tracker>();
+        start_accept();
+    }
+
+    virtual ~datasource_tracker_remote_server();
+
+    void stop();
+
+    void start_accept();
+    void handle_accept(const std::error_code& ec, tcp::socket socket);
+
+protected:
+    std::atomic<bool> stopped;
+    tcp::acceptor acceptor;
+    tcp::socket incoming_socket;
+    std::shared_ptr<datasource_tracker> datasourcetracker;
+};
+
 
 #endif
 

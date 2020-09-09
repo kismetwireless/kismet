@@ -280,7 +280,7 @@ public:
 
 
     // Connect to an existing TCP socket from a remote cap
-    virtual void connect_remote(tcp::socket& tcpsocket,
+    virtual void connect_remote(tcp::socket tcpsocket,
             std::string in_definition, open_callback_t in_cb);
 
 

@@ -367,13 +367,6 @@ datasource_tracker::datasource_tracker() :
 datasource_tracker::~datasource_tracker() {
     Globalreg::globalreg->remove_global("DATASOURCETRACKER");
 
-    if (remote_tcp_server != nullptr) {
-        auto pollabletracker = 
-            Globalreg::fetch_mandatory_global_as<pollable_tracker>();
-        remote_tcp_server->shutdown();
-        pollabletracker->remove_pollable(remote_tcp_server);
-    }
-
     if (completion_cleanup_id >= 0)
         timetracker->remove_timer(completion_cleanup_id);
 
@@ -471,22 +464,23 @@ void datasource_tracker::trigger_deferred_startup() {
     }
 
     remotecap_listen = Globalreg::globalreg->kismet_config->fetch_opt("remote_capture_listen");
+    remotecap_listen_v6 = Globalreg::globalreg->kismet_config->fetch_opt("remote_capture_listen_v6");
     remotecap_port = 
         Globalreg::globalreg->kismet_config->fetch_opt_uint("remote_capture_port", 0);
 
-    if (remotecap_listen.length() == 0) {
-        _MSG("No remote_capture_listen= line found in kismet.conf; no remote "
+    if (remotecap_listen.length() == 0 && remotecap_listen_v6.length() == 0) {
+        _MSG("No remote_capture_listen= or remote_capture_listen_v6= found in kismet.conf; no remote "
                 "capture will be enabled.", MSGFLAG_INFO);
         remotecap_enabled = false;
     }
 
     if (remotecap_port == 0) {
-        _MSG("No remote_capture_port= line found in kismet.conf; no remote "
-                "capture will be enabled.", MSGFLAG_INFO);
+        _MSG("No remote_capture_port= line in kismet.conf; no remote capture will be enabled.", MSGFLAG_INFO);
         remotecap_enabled = false;
     }
 
     config_defaults->set_remote_cap_listen(remotecap_listen);
+    config_defaults->set_remote_cap_listen_v6(remotecap_listen_v6);
     config_defaults->set_remote_cap_port(remotecap_port);
 
     config_defaults->set_remote_cap_timestamp(Globalreg::globalreg->kismet_config->fetch_opt_bool("override_remote_timestamp", true));
@@ -573,22 +567,47 @@ void datasource_tracker::trigger_deferred_startup() {
     if (config_defaults->get_remote_cap_listen().length() != 0 && 
             config_defaults->get_remote_cap_port() != 0) {
         _MSG_INFO("Launching remote capture server on {}:{}", remotecap_listen, remotecap_port);
-        remote_tcp_server = std::make_shared<tcp_server_v2>();
-        if (remote_tcp_server->configure_server(remotecap_port, 1024, remotecap_listen, std::vector<std::string>()) < 0) {
-            _MSG("Failed to launch remote capture TCP server, check your "
-                    "remote_capture_listen= and remote_capture_port= lines in "
-                    "kismet.conf", MSGFLAG_FATAL);
+
+        try {
+            if (config_defaults->get_remote_cap_listen() == "*" || 
+                    config_defaults->get_remote_cap_listen() == "0.0.0.0") {
+                auto v4_ep = tcp::endpoint(tcp::v4(), config_defaults->get_remote_cap_port());
+                remotecap_v4 = std::make_shared<datasource_tracker_remote_server>(v4_ep);
+            } else {
+                auto v4_ep = 
+                    tcp::endpoint(asio::ip::address_v4::from_string(config_defaults->get_remote_cap_listen()),
+                            config_defaults->get_remote_cap_port());
+                remotecap_v4 = std::make_shared<datasource_tracker_remote_server>(v4_ep);
+            }
+        } catch (const std::exception& e) {
+            _MSG_FATAL("Failed to create IPV4 remote capture server; check your remote_capture_listen= "
+                    "and remote_capture_port= configuration: {}", e.what());
             Globalreg::globalreg->fatal_condition = 1;
             remotecap_enabled = false;
         }
-        remote_tcp_server->set_new_connection_cb([this](int fd) -> void {
-                new_remote_tcp_connection(fd);
-                });
+    } 
 
-        auto pollabletracker =
-            Globalreg::fetch_mandatory_global_as<pollable_tracker>();
-        pollabletracker->register_pollable(remote_tcp_server);
-
+    if (config_defaults->get_remote_cap_listen_v6().length() != 0 && 
+            config_defaults->get_remote_cap_port() != 0) {
+        _MSG_INFO("Launching remote capture server on {}:{}", remotecap_listen_v6, remotecap_port);
+        try {
+            if (config_defaults->get_remote_cap_listen_v6() == "*" ||
+                    config_defaults->get_remote_cap_listen_v6() == "::/0") {
+                auto v6_ep = tcp::endpoint(tcp::v6(), config_defaults->get_remote_cap_port());
+                remotecap_v6 = std::make_shared<datasource_tracker_remote_server>(v6_ep);
+            } else {
+                auto v6_ep = 
+                    tcp::endpoint(asio::ip::address_v6::from_string(config_defaults->get_remote_cap_listen_v6()),
+                            config_defaults->get_remote_cap_port());
+                remotecap_v6 = std::make_shared<datasource_tracker_remote_server>(v6_ep);
+            }
+        } catch (const std::exception& e) {
+            _MSG_FATAL("Failed to create IPV6 remote capture server; check your remote_capture_listen= "
+                    "and remote_capture_port= configuration: {}", e.what());
+            Globalreg::globalreg->fatal_condition = 1;
+            remotecap_enabled = false;
+        }
+        
         remotecap_enabled = true;
     }
 
@@ -1118,8 +1137,8 @@ void datasource_tracker::schedule_cleanup() {
     //fprintf(stderr, "debug - dst scheduling cleanup as %d\n", completion_cleanup_id);
 }
 
-void datasource_tracker::new_remote_tcp_connection(int in_fd) {
 #if 0
+void datasource_tracker::new_remote_tcp_connection(int in_fd) {
     // Make a new connection handler with its own mutex
     auto conn_handler = 
         std::make_shared<buffer_handler<ringbuf_v2>>((tcp_buffer_sz * 1024), (tcp_buffer_sz * 1024));
@@ -1142,14 +1161,14 @@ void datasource_tracker::new_remote_tcp_connection(int in_fd) {
     auto pollabletracker = 
         Globalreg::fetch_mandatory_global_as<pollable_tracker>();
     pollabletracker->register_pollable(socketcli);
-#endif
 
     close(in_fd);
 }
+#endif
 
 void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
-        const std::string& in_type, const std::string& in_definition, const uuid& in_uuid, 
-        std::shared_ptr<buffer_handler_generic> in_handler) {
+        const std::string& in_type, const std::string& in_definition, const uuid& in_uuid) {
+
     shared_datasource merge_target_device;
      
     local_locker lock(&dst_lock);
@@ -1184,16 +1203,11 @@ void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
 
         auto dup_definition(in_definition);
 
-#if 0
-
-        // Generate a detached thread for joining the ring buffer; it acts as a blocking
-        // wait for the buffer to be filled
-        incoming->handshake_rb(std::thread([this, merge_target_device, in_handler, dup_definition]  {
-                    merge_target_device->connect_remote(in_handler, dup_definition, NULL);
+        // Merge the socket into the new device
+        incoming->handshake_rb(std::thread([this, merge_target_device, incoming, dup_definition]  {
+                    merge_target_device->connect_remote(incoming->move_tcp_socket(), dup_definition, NULL);
                     calculate_source_hopping(merge_target_device);
-                }));
-
-#endif
+                    }));
 
         return;
     }
@@ -1209,17 +1223,15 @@ void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
             // Explicitly unlock the mutex before we fire the connection handler
             lock.unlock();
 
-#if 0
             // Make a data source from the builder
-            shared_datasource ds = b->build_datasource(b, in_handler->get_mutex());
-            ds->connect_remote(in_handler, in_definition,
+            shared_datasource ds = b->build_datasource(b);
+            ds->connect_remote(incoming->move_tcp_socket(), in_definition,
                 [this, ds](unsigned int, bool success, std::string msg) {
                     if (success)
                         merge_source(ds); 
                     else
                         broken_source_vec.push_back(ds);
                 });
-#endif
 
             return;
         }
@@ -1229,8 +1241,6 @@ void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
             "'{}' defined as '{}'; make sure that Kismet was compiled with all the "
             "data source drivers and that any necessary plugins have been loaded.",
             in_type, in_definition);
-    in_handler->protocol_error();
-
 }
 
 // Basic DST worker for figuring out how many sources of the same type
@@ -2056,44 +2066,37 @@ KIS_MHD_RETURN datasource_tracker_httpd_pcap::httpd_create_stream_response(kis_n
     return MHD_YES;
 }
 
-dst_incoming_remote::dst_incoming_remote(std::shared_ptr<buffer_handler_generic> in_rbufhandler,
-        std::function<void (dst_incoming_remote *, std::string, std::string, 
-            uuid, std::shared_ptr<buffer_handler_generic>)> in_cb) :
+dst_incoming_remote::dst_incoming_remote(tcp::socket socket, callback_t in_cb) :
     kis_external_interface() {
+
+    attach_tcp_socket(socket);
     
     cb = in_cb;
 
-#if 0
-    connect_buffer(in_rbufhandler);
-
     timerid =
-        timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
+        timetracker->register_timer(std::chrono::seconds(10), 0,
             [this] (int) -> int {
-                _MSG("Remote source connected but didn't send a NEWSOURCE control, "
-                        "closing connection.", MSGFLAG_ERROR);
-
-                kill();
-
+            _MSG_ERROR("Incoming connection on remote capture socket, but remote side did "
+                    "not initiate a datasource connection.");
+                close_external();
                 return 0;
             });
-#endif
 }
 
 dst_incoming_remote::~dst_incoming_remote() {
-#if 0
     // Kill the error timer
     timetracker->remove_timer(timerid);
 
-    // Remove ourselves as a handler
-    if (ringbuf_handler != NULL)
-        ringbuf_handler->remove_read_buffer_interface();
+    close_external();
 
     // Wait for the thread to finish
     handshake_thread.join();
-#endif
 }
 
-bool dst_incoming_remote::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) { if (kis_external_interface::dispatch_rx_packet(c))
+bool dst_incoming_remote::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) { 
+    _MSG_INFO("(DEBUG) incoming_remote dispatch_packet {}", c->command());
+
+    if (kis_external_interface::dispatch_rx_packet(c))
         return true;
 
     // Simple dispatch override, all we do is look for the new source
@@ -2110,6 +2113,7 @@ void dst_incoming_remote::kill() {
     // Kill the error timer
     timetracker->remove_timer(timerid);
 
+    // The tcp socket should be moved away from this connection by now; if not, kill it
     close_external();
 
     std::shared_ptr<datasource_tracker> datasourcetracker =
@@ -2122,7 +2126,6 @@ void dst_incoming_remote::kill() {
 void dst_incoming_remote::handle_packet_newsource(uint32_t in_seqno, std::string in_content) {
     local_locker lock(&ext_mutex, "incoming_remote::handle_packet_newsource");
 
-#if 0
     KismetDatasource::NewSource c;
 
     if (!c.ParseFromString(in_content)) {
@@ -2133,12 +2136,52 @@ void dst_incoming_remote::handle_packet_newsource(uint32_t in_seqno, std::string
     }
 
     if (cb != NULL)
-        cb(this, c.sourcetype(), c.definition(), c.uuid(), ringbuf_handler);
-
-    // Zero out the rbuf handler so that it doesn't get closed
-    ringbuf_handler.reset();
-#endif
+        cb(this, c.sourcetype(), c.definition(), c.uuid());
 
     kill();
+}
+
+
+datasource_tracker_remote_server::~datasource_tracker_remote_server() {
+    stop();
+}
+
+void datasource_tracker_remote_server::stop() {
+    stopped = true;
+
+    if (acceptor.is_open()) {
+        try {
+            acceptor.cancel();
+            acceptor.close();
+        } catch (const std::exception& e) {
+            ;
+        }
+    }
+}
+
+void datasource_tracker_remote_server::start_accept() {
+    if (stopped)
+        return;
+
+    acceptor.async_accept(incoming_socket,
+            [this](std::error_code ec) {
+                if (stopped)
+                    return;
+
+                handle_accept(ec, std::move(incoming_socket));
+
+                start_accept();
+            });
+
+}
+
+void datasource_tracker_remote_server::handle_accept(const std::error_code& ec, tcp::socket socket) {
+    if (!ec) {
+        // Bind a new incoming remote which will pivot to the proper data source type
+        new dst_incoming_remote(std::move(socket), 
+                [this] (dst_incoming_remote *i, std::string in_type, std::string in_def, uuid in_uuid) {
+                datasourcetracker->open_remote_datasource(i, in_type, in_def, in_uuid);
+                });
+    }
 }
 
