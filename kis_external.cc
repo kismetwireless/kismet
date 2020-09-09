@@ -220,7 +220,9 @@ int kis_external_interface::handle_read(const std::error_code& ec, size_t in_amt
         if (ec.value() == asio::error::operation_aborted)
             return 0;
 
-        _MSG_ERROR("External API handler got error reading data: {}", ec.message());
+        if (ec.value() != asio::error::eof)
+            _MSG_ERROR("External API handler got error reading data: {}", ec.message());
+
         close_external();
         return 0;
     }
