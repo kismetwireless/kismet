@@ -1011,8 +1011,13 @@ int main(int argc, char *argv[], char *envp[]) {
             Globalreg::globalreg->io.run();
             });
 
-    asio_thread.join();
+    while (true) {
+        if (Globalreg::globalreg->spindown || Globalreg::globalreg->fatal_condition) 
+            SpindownKismet();
 
-    SpindownKismet();
+        usleep(500000);
+    }
+
+    asio_thread.join();
 }
 
