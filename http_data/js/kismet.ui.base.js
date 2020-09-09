@@ -128,6 +128,8 @@ exports.drawPackets = function(dyncolumn, table, row) {
 
     var data = row.data();
 
+    console.log(data);
+
     // Simplify the RRD so that the bars are thicker in the graph, which
     // I think looks better.  We do this with a transform function on the
     // RRD function, and we take the peak value of each triplet of samples
@@ -272,8 +274,7 @@ kismet_ui.AddDeviceColumn('column_datasize', {
 // rrd records along with it.
 kismet_ui.AddDeviceColumn('column_packet_rrd', {
     sTitle: 'Packets',
-    field: ['kismet.device.base.packets.rrd/kismet.common.rrd.last_time',
-            'packet.rrd.last_time'],
+    field: ['kismet.device.base.packets.rrd/kismet.common.rrd.last_time', 'packet.rrd.last_time'],
     name: 'packets',
     description: 'Packet history graph',
     renderfunc: function(d, t, r, m) {
@@ -291,10 +292,10 @@ kismet_ui.AddDeviceColumn('column_packet_rrd', {
 kismet_ui.AddDeviceColumn('column_rrd_minute_hidden', {
     sTitle: 'packets_rrd_min_data',
     field: 
-        ['kismet.device.base.packets.rrd/kismet.common.rrd.minute_vec', 'kismet.common.rrd.minute_vec'],
+        ['/kismet.device.base.packets.rrd/kismet.common.rrd.serial_time', 'kismet.common.rrd.serial_time'],
     fields: [
-        ['kismet.device.base.packets.rrd/kismet.common.rrd.last_time', 'kismet.common.rrd.last_time'],
-        ['kismet.device.base.packets.rrd/kismet.commonr.rrd.serial_time', 'kismet.common.rrd.serial_time'],
+        ['/kismet.device.base.packets.rrd/kismet.common.rrd.minute_vec', 'kismet.common.rrd.minute_vec'],
+        ['/kismet.device.base.packets.rrd/kismet.common.rrd.last_time', 'kismet.common.rrd.last_time'],
     ],
     name: 'packets_rrd_min_data',
     searchable: false,
