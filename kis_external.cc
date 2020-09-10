@@ -522,7 +522,7 @@ unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal:
     uint32_t data_csum;
 
     // Get the serialized size of our message
-    size_t content_sz = c->ByteSize();
+    size_t content_sz = c->ByteSizeLong();
 
     // Calc frame size
     ssize_t frame_sz = sizeof(kismet_external_frame_t) + content_sz;
