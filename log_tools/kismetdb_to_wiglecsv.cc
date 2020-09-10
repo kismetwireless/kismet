@@ -448,7 +448,7 @@ int main(int argc, char *argv[]) {
         auto sourcemac = sqlite3_column_as<std::string>(p, 1);
         auto phy = sqlite3_column_as<std::string>(p, 2);
 
-        auto lat = 0.0f, lon = 0.0f, alt = 0.0f, spd = 0.0f;
+        auto lat = 0.0f, lon = 0.0f, alt = 0.0f;
 
         auto signal = sqlite3_column_as<int>(p, 5);
         auto channel = sqlite3_column_as<double>(p, 6);
@@ -463,7 +463,6 @@ int main(int argc, char *argv[]) {
             lat = sqlite3_column_as<double>(p, 3);
             lon = sqlite3_column_as<double>(p, 4);
             alt = sqlite3_column_as<double>(p, 7);
-            spd = sqlite3_column_as<double>(p, 8);
         }
 
         auto ci = device_cache_map.find(sourcemac);
