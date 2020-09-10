@@ -556,6 +556,8 @@ public:
     }
 
 protected:
+    virtual void handle_error(const std::string& error) override;
+
     // Timeout for killing this connection
     int timerid;
 

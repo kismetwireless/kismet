@@ -2054,19 +2054,25 @@ bool dst_incoming_remote::dispatch_rx_packet(std::shared_ptr<KismetExternal::Com
     return false;
 }
 
+void dst_incoming_remote::handle_error(const std::string& error) {
+    _MSG_ERROR("(DST SETUP REMOTE ERROR) {}", error);
+
+    kill();
+}
+
 
 void dst_incoming_remote::kill() {
     // Kill the error timer
     timetracker->remove_timer(timerid);
-
-    // The tcp socket should be moved away from this connection by now; if not, kill it
-    close_external();
 
     std::shared_ptr<datasource_tracker> datasourcetracker =
         Globalreg::fetch_global_as<datasource_tracker>("DATASOURCETRACKER");
 
     if (datasourcetracker != NULL) 
         datasourcetracker->queue_dead_remote(this);
+
+    // The tcp socket should be moved away from this connection by now; if not, kill it
+    close_external();
 }
 
 void dst_incoming_remote::handle_packet_newsource(uint32_t in_seqno, std::string in_content) {
@@ -2077,13 +2083,15 @@ void dst_incoming_remote::handle_packet_newsource(uint32_t in_seqno, std::string
     if (!c.ParseFromString(in_content)) {
         _MSG("Could not process incoming remote datsource announcement", MSGFLAG_ERROR);
         kill();
-
         return;
     }
 
-    if (cb != NULL)
+    if (cb != NULL) {
+        _MSG_INFO("(debug) newsource callback");
         cb(this, c.sourcetype(), c.definition(), c.uuid());
+    }
 
+    _MSG_INFO("(debug) killing incoming_remote after newsource");
     kill();
 }
 

@@ -80,6 +80,7 @@ bool kis_external_interface::attach_tcp_socket(tcp::socket& socket) {
 
 void kis_external_interface::close_external() {
     stopped = true;
+    cancelled = true;
 
     local_locker l(&ext_mutex, "kei::close");
 
@@ -112,6 +113,7 @@ void kis_external_interface::close_external() {
 
 void kis_external_interface::ipc_soft_kill() {
     stopped = true;
+    cancelled = true;
 
     if (ipc_in.is_open()) {
         try {
@@ -139,6 +141,7 @@ void kis_external_interface::ipc_soft_kill() {
 
 void kis_external_interface::ipc_hard_kill() {
     stopped = true;
+    cancelled = true;
 
     if (ipc_in.is_open()) {
         try {
@@ -168,22 +171,11 @@ void kis_external_interface::ipc_hard_kill() {
 void kis_external_interface::trigger_error(const std::string& in_error) {
     local_locker lock(&ext_mutex, "kei::trigger_error");
 
-    stopped = true;
+    // Don't loop if we're already stopped
+    if (stopped)
+        return;
 
-    // Kill any eventbus listeners
-    for (const auto& ebid : eventbus_callback_map)
-        eventbus->remove_listener(ebid.second);
-
-    // Kill any active http sessions
-    for (auto s : http_proxy_session_map) {
-        // Fail them
-        s.second->connection->httpcode = 501;
-        // Unlock them and let the cleanup in the thread handle it and close down 
-        // the http server session
-        s.second->locker->unlock();
-    }
-
-    timetracker->remove_timer(ping_timer_id);
+    handle_error(in_error);
 
     close_external();
 }
@@ -216,15 +208,19 @@ int kis_external_interface::handle_read(const std::error_code& ec, size_t in_amt
     if (stopped)
         return 0;
 
-    if (ec) {
-        if (ec.value() == asio::error::operation_aborted)
-            return 0;
-
-        if (ec.value() != asio::error::eof)
-            _MSG_ERROR("External API handler got error reading data: {}", ec.message());
-
+    if (cancelled)
         close_external();
-        return 0;
+
+    if (ec) {
+        // Exit on aborted errors, we've already been cancelled and this socket is closing out
+        if (ec.value() == asio::error::operation_aborted)
+            return -1;
+
+        _MSG_ERROR("External API handler got error reading data: {}", ec.message());
+        
+        trigger_error(ec.message());
+
+        return -1;
     }
 
     local_demand_locker lock(&ext_mutex, "kei::handle_read");

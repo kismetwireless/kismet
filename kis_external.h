@@ -126,6 +126,9 @@ public:
     virtual void trigger_error(const std::string& in_error);
 
 protected:
+    // Handle an error; override in child classes; called when an error causes a shutdown
+    virtual void handle_error(const std::string& error) { }
+
     // Wrap a protobuf'd packet in our network framing and send it, returning the sequence
     // number
     virtual unsigned int send_packet(std::shared_ptr<KismetExternal::Command> c);
@@ -149,6 +152,7 @@ protected:
     unsigned int send_shutdown(std::string reason);
 
     std::atomic<bool> stopped;
+    std::atomic<bool> cancelled;
 
     kis_recursive_timed_mutex ext_mutex;
 
