@@ -32,7 +32,7 @@
 #include <IOKit/serial/ioss.h>
 #include <IOKit/IOBSD.h>
 #else
-#include <ioctl.h>
+#include <sys/ioctl.h>
 #endif
 
 kis_gps_serial_v3::kis_gps_serial_v3(shared_gps_builder in_builder) : 
