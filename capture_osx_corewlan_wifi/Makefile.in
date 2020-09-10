@@ -9,7 +9,8 @@ MONITOR_OBJC_OBJS = \
 
 MONITOR_BIN = kismet_cap_osx_corewlan_wifi
 
-PCAPLIBS=@pcaplnk@
+PCAPLIBS=@PCAPLIBS@
+CFLAGS+=@PCAPCFLAGS@
 
 CLANG=clang
 FRAMEWORKS=-framework Foundation -framework CoreWLAN

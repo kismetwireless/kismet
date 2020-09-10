@@ -141,23 +141,11 @@
 /* pcap/pcap.h */
 #undef HAVE_PCAPPCAP_H
 
-/* pcapfileno-capable libwpcap */
-#undef HAVE_PCAP_FILENO
-
-/* Selectablefd-capable libpcap */
-#undef HAVE_PCAP_GETSELFD
-
 /* libpcap header */
 #undef HAVE_PCAP_H
 
-/* Nonblocking-capable libpcap */
-#undef HAVE_PCAP_NONBLOCK
-
 /* System has pipe2 */
 #undef HAVE_PIPE2
-
-/* libpcap supports PPI */
-#undef HAVE_PPI
 
 /* Define to 1 if you have the `pstat' function. */
 #undef HAVE_PSTAT

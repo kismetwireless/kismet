@@ -22,17 +22,12 @@
 #include "config.h"
 
 #ifdef HAVE_LIBPCAP
-#ifdef HAVE_PPI
 
 #include <stdio.h>
 #include <string>
 
 extern "C" {
-#ifndef HAVE_PCAPPCAP_H
-#include <pcap.h>
-#else
 #include <pcap/pcap.h>
-#endif
 }
 
 #include "globalregistry.h"
@@ -137,8 +132,6 @@ public:
                 "metadata headers");
     }
 };
-
-#endif /* ppi */
 
 #endif /* pcap */
 
