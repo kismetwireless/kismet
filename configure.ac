@@ -1035,6 +1035,8 @@ PKG_CHECK_MODULES([libpcap], [libpcap], [
     PCAPLIBS=`pkg-config --libs libpcap`
     PCAPCFLAGS=`pkg-config --cflags libpcap`
     pcap=yes
+    ], [
+    AC_MSG_WARN(No libpcap found in pkg-config, will check system paths.)
     ])
 
 # Look for pcap using our legacy mode
