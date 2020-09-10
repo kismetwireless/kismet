@@ -38,6 +38,7 @@
 kis_external_interface::kis_external_interface() :
     kis_net_httpd_chain_stream_handler(),
     stopped{true},
+    cancelled{false},
     timetracker{Globalreg::fetch_mandatory_global_as<time_tracker>()},
     ipctracker{Globalreg::fetch_mandatory_global_as<ipc_tracker_v2>()},
     seqno{0},
@@ -72,6 +73,7 @@ bool kis_external_interface::attach_tcp_socket(tcp::socket& socket) {
     tcpsocket = std::move(socket);
 
     stopped = false;
+    cancelled = false;
 
     start_tcp_read();
 
@@ -496,6 +498,7 @@ bool kis_external_interface::run_ipc() {
     ipctracker->register_ipc(ipc);
 
     stopped = false;
+    cancelled = false;
 
     start_ipc_read();
 
