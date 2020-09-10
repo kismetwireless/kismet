@@ -38,7 +38,7 @@ void kis_gps_nmea_v2::start_read() {
     start_read_impl();
 }
 
-void kis_gps_nmea_v2::handle_read(const std::error_code& ec, std::size_t sz) {
+void kis_gps_nmea_v2::handle_read(const asio::error_code& ec, std::size_t sz) {
     if (stopped)
         return;
 
