@@ -26,12 +26,13 @@
 #include "util.h"
 
 #ifdef __APPLE__
-#include <ioctl.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <IOKit/IOKitLib.h>
 #include <IOKit/serial/IOSerialKeys.h>
 #include <IOKit/serial/ioss.h>
 #include <IOKit/IOBSD.h>
+#else
+#include <ioctl.h>
 #endif
 
 kis_gps_serial_v3::kis_gps_serial_v3(shared_gps_builder in_builder) : 
