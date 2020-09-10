@@ -106,9 +106,11 @@ void ipc_tracker_v2::shutdown_all(int in_soft_delay, int in_max_delay) {
             auto pk = ipc_map.find(caught_pid);
 
             if (pk != ipc_map.end()) {
-                if (pk->second.close_func != nullptr)
-                    pk->second.close_func("Shutting down all IPC...");
+                auto close_cb = pk->second.close_func;
                 ipc_map.erase(pk);
+
+                if (close_cb != nullptr)
+                    close_cb("Shutting down all IPC...");
             }
 
         } else {
@@ -138,10 +140,11 @@ int ipc_tracker_v2::dead_ipc_reaper_event() {
         auto pk = ipc_map.find(caught_pid);
 
         if (pk != ipc_map.end()) {
-            if (pk->second.error_func != nullptr)
-                pk->second.error_func(fmt::format("Process exited with status {}", 
-                            WEXITSTATUS(pid_status)));
+            auto err_cb = pk->second.error_func;
             ipc_map.erase(pk);
+
+            if (err_cb != nullptr)
+                err_cb(fmt::format("Process exited with status {}", WEXITSTATUS(pid_status)));
         }
     }
 
