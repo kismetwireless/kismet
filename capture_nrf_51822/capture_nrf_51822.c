@@ -198,7 +198,7 @@ void capture_thread(kis_capture_handler_t *caph) {
     int pkt_start = 0;
     int hdr_len = 0;
     int pkt_len = 0;
-    int pld_ctr = 0;
+    /* int pld_ctr = 0; */
     int pkt_ctr = 0;
     bool valid_pkt = false;
 
@@ -238,7 +238,7 @@ void capture_thread(kis_capture_handler_t *caph) {
                 /* check the packet_type from the header */
                 if (buf[pkt_start+6] == 0x06) {
                     valid_pkt = true;
-                    pld_ctr = 0;
+                    /* pld_ctr = 0; */
                     pkt_ctr = 0;
                     memset(pkt,0x00,255);
 
