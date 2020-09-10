@@ -103,20 +103,20 @@ void kis_gps_gpsd_v3::close() {
     }
 }
 
-void kis_gps_gpsd_v3::start_connect(const std::error_code& error, tcp::resolver::iterator endpoints) {
+void kis_gps_gpsd_v3::start_connect(const asio::error_code& error, tcp::resolver::iterator endpoints) {
     if (error) {
         _MSG_ERROR("(GPS) Could not resolve gpsd address {}:{} - {}", host, port, error.message());
         stopped = true;
         set_int_device_connected(false);
     } else {
         asio::async_connect(socket, endpoints,
-                [this](const std::error_code& ec, tcp::resolver::iterator endpoint) {
+                [this](const asio::error_code& ec, tcp::resolver::iterator endpoint) {
                     handle_connect(ec, endpoint);
                 });
     }
 }
 
-void kis_gps_gpsd_v3::handle_connect(const std::error_code& error, tcp::resolver::iterator endpoint) {
+void kis_gps_gpsd_v3::handle_connect(const asio::error_code& error, tcp::resolver::iterator endpoint) {
     if (stopped) {
         return;
     }
@@ -141,7 +141,7 @@ void kis_gps_gpsd_v3::write_gpsd(const std::string& data) {
         return;
 
     asio::async_write(socket, asio::buffer(data),
-            [this](const std::error_code& error, std::size_t) {
+            [this](const asio::error_code& error, std::size_t) {
                 if (error) {
                     if (error.value() == asio::error::operation_aborted)
                         return;
@@ -154,13 +154,13 @@ void kis_gps_gpsd_v3::write_gpsd(const std::string& data) {
 
 void kis_gps_gpsd_v3::start_read() {
     asio::async_read_until(socket, in_buf, '\n',
-            [this](const std::error_code& error, std::size_t t) {
+            [this](const asio::error_code& error, std::size_t t) {
                 handle_read(error, t);
             });
 
 }
 
-void kis_gps_gpsd_v3::handle_read(const std::error_code& error, std::size_t t) {
+void kis_gps_gpsd_v3::handle_read(const asio::error_code& error, std::size_t t) {
     if (stopped)
         return;
 
@@ -664,7 +664,7 @@ bool kis_gps_gpsd_v3::open_gps(std::string in_opts) {
     _MSG_INFO("(GPS) Connecting to GPSD on {}:{}", host, port);
 
     resolver.async_resolve(tcp::resolver::query(host.c_str(), port.c_str()),
-            [this](const std::error_code& error, tcp::resolver::iterator endp) {
+            [this](const asio::error_code& error, tcp::resolver::iterator endp) {
                 start_connect(error, endp);
             });
 

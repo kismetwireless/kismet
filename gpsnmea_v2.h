@@ -46,7 +46,7 @@ protected:
 
     virtual void start_read();
     virtual void start_read_impl() = 0;
-    virtual void handle_read(const std::error_code& error, std::size_t sz);
+    virtual void handle_read(const asio::error_code& error, std::size_t sz);
 
     asio::streambuf in_buf;
     std::atomic<bool> stopped;

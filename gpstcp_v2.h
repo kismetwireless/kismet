@@ -45,8 +45,8 @@ public:
     virtual bool get_device_connected() override;
 
 protected:
-    void start_connect(const std::error_code& error, tcp::resolver::iterator endpoint_iter);
-    void handle_connect(const std::error_code& error, tcp::resolver::iterator endpoint);
+    void start_connect(const asio::error_code& error, tcp::resolver::iterator endpoint_iter);
+    void handle_connect(const asio::error_code& error, tcp::resolver::iterator endpoint);
 
     void write_gpsd(const std::string& data);
 

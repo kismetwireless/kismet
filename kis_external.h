@@ -166,7 +166,7 @@ protected:
 
     // Input buffer
     asio::streambuf in_buf;
-    int handle_read(const std::error_code& ec, size_t sz);
+    int handle_read(const asio::error_code& ec, size_t sz);
 
     // Pipe IPC
     std::string external_binary;

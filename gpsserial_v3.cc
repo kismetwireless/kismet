@@ -107,7 +107,7 @@ void kis_gps_serial_v3::close() {
 
 void kis_gps_serial_v3::start_read_impl() {
     asio::async_read_until(serialport, in_buf, '\n',
-            [this](const std::error_code& error, std::size_t t) {
+            [this](const asio::error_code& error, std::size_t t) {
                 handle_read(error, t);
             });
 

@@ -2118,7 +2118,7 @@ void datasource_tracker_remote_server::start_accept() {
         return;
 
     acceptor.async_accept(incoming_socket,
-            [this](std::error_code ec) {
+            [this](asio::error_code ec) {
                 if (stopped)
                     return;
 
@@ -2129,7 +2129,7 @@ void datasource_tracker_remote_server::start_accept() {
 
 }
 
-void datasource_tracker_remote_server::handle_accept(const std::error_code& ec, tcp::socket socket) {
+void datasource_tracker_remote_server::handle_accept(const asio::error_code& ec, tcp::socket socket) {
     if (!ec) {
         // Bind a new incoming remote which will pivot to the proper data source type
         new dst_incoming_remote(std::move(socket), 

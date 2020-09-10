@@ -188,7 +188,7 @@ void kis_external_interface::start_ipc_read() {
 
     asio::async_read(ipc_in, in_buf,
             asio::transfer_at_least(sizeof(kismet_external_frame_t)),
-            [this](const std::error_code& ec, std::size_t t) {
+            [this](const asio::error_code& ec, std::size_t t) {
             if (handle_read(ec, t) > 0)
                 start_ipc_read();
             });
@@ -200,13 +200,13 @@ void kis_external_interface::start_tcp_read() {
 
     asio::async_read(tcpsocket, in_buf,
             asio::transfer_at_least(sizeof(kismet_external_frame_t)),
-            [this](const std::error_code& ec, std::size_t t) {
+            [this](const asio::error_code& ec, std::size_t t) {
             if (handle_read(ec, t) >= 0)
                 start_tcp_read();
             });
 }
 
-int kis_external_interface::handle_read(const std::error_code& ec, size_t in_amt) {
+int kis_external_interface::handle_read(const asio::error_code& ec, size_t in_amt) {
     if (stopped)
         return 0;
 
@@ -544,7 +544,7 @@ unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal:
 
     if (ipc_out.is_open())
         asio::async_write(ipc_out, asio::buffer(frame_buf, frame_sz),
-                [this](const std::error_code& ec, std::size_t) {
+                [this](const asio::error_code& ec, std::size_t) {
                 if (ec) {
                     if (ec.value() == asio::error::operation_aborted)
                         return;
@@ -557,7 +557,7 @@ unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal:
                 });
     else if (tcpsocket.is_open()) 
         asio::async_write(tcpsocket, asio::buffer(frame_buf, frame_sz),
-                [this](const std::error_code& ec, std::size_t) {
+                [this](const asio::error_code& ec, std::size_t) {
                 if (ec) {
                     if (ec.value() == asio::error::operation_aborted)
                         return;

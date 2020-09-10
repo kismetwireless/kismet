@@ -99,26 +99,26 @@ void kis_gps_tcp_v2::close() {
 
 void kis_gps_tcp_v2::start_read_impl() {
     asio::async_read_until(socket, in_buf, '\n',
-            [this](const std::error_code& error, std::size_t t) {
+            [this](const asio::error_code& error, std::size_t t) {
                 handle_read(error, t);
             });
 
 }
 
-void kis_gps_tcp_v2::start_connect(const std::error_code& error, tcp::resolver::iterator endpoints) {
+void kis_gps_tcp_v2::start_connect(const asio::error_code& error, tcp::resolver::iterator endpoints) {
     if (error) {
         _MSG_ERROR("(GPS) Could not resolve TCP GPS server address {}:{} - {}", host, port, error.message());
         stopped = true;
         set_int_device_connected(false);
     } else {
         asio::async_connect(socket, endpoints,
-                [this](const std::error_code& ec, tcp::resolver::iterator endpoint) {
+                [this](const asio::error_code& ec, tcp::resolver::iterator endpoint) {
                     handle_connect(ec, endpoint);
                 });
     }
 }
 
-void kis_gps_tcp_v2::handle_connect(const std::error_code& error, tcp::resolver::iterator endpoint) {
+void kis_gps_tcp_v2::handle_connect(const asio::error_code& error, tcp::resolver::iterator endpoint) {
     if (stopped) {
         return;
     }
@@ -183,7 +183,7 @@ bool kis_gps_tcp_v2::open_gps(std::string in_opts) {
     _MSG_INFO("(GPS) Connecting to TCP GPS on {}:{}", host, port);
 
     resolver.async_resolve(tcp::resolver::query(host.c_str(), port.c_str()),
-            [this](const std::error_code& error, tcp::resolver::iterator endp) {
+            [this](const asio::error_code& error, tcp::resolver::iterator endp) {
                 start_connect(error, endp);
             });
 
