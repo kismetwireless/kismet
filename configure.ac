@@ -1041,7 +1041,7 @@ PKG_CHECK_MODULES([libpcap], [libpcap], [
 
 # Look for pcap using our legacy mode
 if test "$have_libpcap"x != "yesx"; then
-    AC_CHECK_LIB([${pcaplib}], [pcap_open_live],
+    AC_CHECK_LIB([libpcap], [pcap_open_live],
         AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib) foundsyspcap=yes,
         AC_MSG_ERROR(Libpcap required for proper operation))
     
