@@ -86,14 +86,14 @@ void kis_datasource_rzkillerbee::handle_rx_packet(kis_packet *packet) {
         rz_chunk->dlt = KDLT_IEEE802_15_4_NOFCS; 
 	
 #endif   
-
+/**/
         auto radioheader = new kis_layer1_packinfo();
-        radioheader->signal_type = kis_l1_signal_type_rssi;
-        radioheader->signal_rssi = rssi;
-        //radioheader->freq_khz = (2400 + (channel)) * 1000;
+        radioheader->signal_type = kis_l1_signal_type_dbm;
+        radioheader->signal_dbm = rssi;
+        radioheader->freq_khz = (2405 + ((channel - 11) * 5)) * 1000;
         radioheader->channel = fmt::format("{}", (channel));
         packet->insert(pack_comp_radiodata, radioheader);
-
+/**/
 	    // Pass the packet on
         packetchain->process_packet(packet);
     }

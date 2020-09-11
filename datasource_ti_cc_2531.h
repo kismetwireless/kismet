@@ -51,6 +51,7 @@ public:
 
         pack_comp_decap = packetchain->register_packet_component("DECAP");
         pack_comp_radiodata = packetchain->register_packet_component("RADIODATA");
+
     }
 
     virtual ~kis_datasource_ticc2531() { };
