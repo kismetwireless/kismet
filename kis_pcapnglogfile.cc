@@ -19,6 +19,7 @@
 #include "config.h"
 
 #include "kis_pcapnglogfile.h"
+#include "messagebus.h"
 
 kis_pcapng_logfile::kis_pcapng_logfile(shared_log_builder in_builder) :
     kis_logfile(in_builder) {

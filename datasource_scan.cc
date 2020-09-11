@@ -93,7 +93,7 @@ unsigned int datasource_scan_source::scan_result_endp_handler(std::ostream& stre
         if (virtual_source == nullptr) {
             auto virtual_builder = Globalreg::fetch_mandatory_global_as<datasource_virtual_builder>();
 
-            virtual_source = virtual_builder->build_datasource(virtual_builder, nullptr);
+            virtual_source = virtual_builder->build_datasource(virtual_builder);
 
             auto vs_cast = std::static_pointer_cast<kis_datasource_virtual>(virtual_source);
 
