@@ -23,6 +23,7 @@
 #include "phy_80211.h"
 #include "kis_httpd_registry.h"
 #include "devicetracker.h"
+#include "messagebus.h"
 
 void uav_manuf_match::set_uav_manuf_ssid_regex(const std::string& in_regexstr) {
 #ifdef HAVE_LIBPCRE

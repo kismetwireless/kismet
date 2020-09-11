@@ -199,11 +199,10 @@ TOOL_BINS = \
 
 PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_cpp11.cc.o \
 	globalregistry.cc.o eventbus.cc.o \
-	pollabletracker.cc.o ringbuf2.cc.o ringbuf3.cc.o chainbuf.cc.o filewritebuf.cc.o buffer_handler.cc.o \
+	ringbuf2.cc.o chainbuf.cc.o filewritebuf.cc.o buffer_handler.cc.o \
 	packet.cc.o messagebus.cc.o configfile.cc.o getopt.cc.o \
 	psutils.cc.o battery.cc.o \
-	tcpserver2.cc.o tcpclient2.cc.o serialclient2.cc.o pipeclient.cc.o socketclient.cc.o \
-	ipc_remote2.cc.o udpserver.cc.o \
+	ipctracker_v2.cc.o \
 	$(PROTOBUF_CPP_O_TARGET) kis_external.cc.o \
 	dlttracker.cc.o antennatracker.cc.o datasourcetracker.cc.o kis_datasource.cc.o \
 	datasource_linux_bluetooth.cc.o datasource_rtl433.cc.o datasource_rtlamr.cc.o datasource_rtladsb.cc.o \
@@ -211,8 +210,8 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	datasource_nxp_kw41z.cc.o datasource_rz_killerbee.cc.o datasource_scan.cc.o \
 	kis_net_microhttpd.cc.o kis_net_microhttpd_handlers.cc.o system_monitor.cc.o base64.cc.o \
 	kis_httpd_websession.cc.o kis_httpd_registry.cc.o \
-	gpstracker.cc.o kis_gps.cc.o gpsnmea.cc.o gpsserial2.cc.o gpstcp.cc.o \
-	gpsgpsd2.cc.o gpsfake.cc.o gpsweb.cc.o \
+	gpstracker.cc.o kis_gps.cc.o gpsnmea_v2.cc.o gpsserial_v3.cc.o gpstcp_v2.cc.o \
+	gpsgpsd_v3.cc.o gpsfake.cc.o gpsweb.cc.o \
 	packetchain.cc.o packet_filter.cc.o class_filter.cc.o \
 	trackedelement.cc.o trackedelement_workers.cc.o trackedcomponent.cc.o entrytracker.cc.o \
 	trackedlocation.cc.o devicetracker_component.cc.o \
@@ -621,6 +620,13 @@ extcappy:
 rtlsdrpy:
 	@echo "Updating kismet rtlsdr python"
 	@find ./ -path *rtlsdr* -name __init__.py -not -path *build* -exec cp ../python-rtlsdr/rtlsdr/__init__.py {} \;
+
+boostbits:
+	@echo "Scanning boost deps in ASIO"
+	@mv boost boost-old
+	@mkdir boost-raw
+	@bcp --scan --boost=/usr/include `find ./asio -name \*pp | xargs` boost-raw/
+	@mv boost-raw/boost boost
 
 release-%:
 	@echo $*

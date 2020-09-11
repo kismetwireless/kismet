@@ -103,10 +103,10 @@
 #include "globalregistry.h"
 #include "kis_mutex.h"
 
-#include "buffer_handler.h"
 #include "configfile.h"
 #include "kis_external.h"
 #include "kis_net_microhttpd.h"
+#include "messagebus.h"
 #include "trackedelement.h"
 #include "trackedcomponent.h"
 
@@ -305,7 +305,8 @@ protected:
 class external_http_plugin_harness : public kis_external_interface {
 public:
     external_http_plugin_harness(std::string plugin_name, std::string binary) : 
-        kis_external_interface() {
+        kis_external_interface(),
+        plugin_name{plugin_name} {
 
         // Look for someone playing hijinks
         if (binary.find("/") != std::string::npos) {
@@ -315,32 +316,19 @@ public:
         }
 
         external_binary = binary;
-
-        // Grow the IPC buffer
-        ringbuf_handler.reset(new buffer_handler<ringbuf_v2>((1024*1024), (1024*1024)));
-        ringbuf_handler->set_read_buffer_interface(this);
-
-        ipc_remote.reset(new ipc_remote_v2(Globalreg::globalreg, ringbuf_handler));
-
-        // Get the allowed paths for binaries and populate
-        auto bin_paths = Globalreg::globalreg->kismet_config->fetch_opt_vec("helper_binary_path");
-
-        if (bin_paths.size() == 0) {
-            _MSG_ERROR("No 'helper_binary_path' found in kismet.conf; make sure your config files are up "
-                    "to date.  Using the default binary path where Kismet was installed, instead.");
-            bin_paths.push_back("%B");
-        }
-
-        for (auto p : bin_paths) 
-            ipc_remote->add_path(Globalreg::globalreg->kismet_config->expand_log_path(p, "", "", 0, 1));
-
-        auto ret = ipc_remote->launch_kis_binary(external_binary, {});
-
-        if (ret < 0) {
-            _MSG_ERROR("{} failed to launch helper binary '{}'", plugin_name, binary);
-            return;
-        }
     }
+
+    bool start_external_plugin() {
+        if (!run_ipc()) {
+            _MSG_ERROR("{} failed to launch helper binary '{}'", plugin_name, external_binary);
+            return false;
+        }
+
+        return true;
+    }
+
+protected:
+    std::string plugin_name;
 };
 
 #endif

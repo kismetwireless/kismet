@@ -21,13 +21,13 @@
 #include "datasource_linux_bluetooth.h"
 #include "json_adapter.h"
 #include "phy_bluetooth.h"
+#include "messagebus.h"
 #include "protobuf_cpp/linuxbluetooth.pb.h"
 
 #ifdef HAVE_LINUX_BLUETOOTH_DATASOURCE
 
-kis_datasource_linux_bluetooth::kis_datasource_linux_bluetooth(shared_datasource_builder in_builder,
-        std::shared_ptr<kis_recursive_timed_mutex> mutex) : 
-    kis_datasource(in_builder, mutex) {
+kis_datasource_linux_bluetooth::kis_datasource_linux_bluetooth(shared_datasource_builder in_builder) :
+    kis_datasource(in_builder)  {
     // Set the capture binary
     set_int_source_ipc_binary("kismet_cap_linux_bluetooth");
 
@@ -52,7 +52,7 @@ void kis_datasource_linux_bluetooth::handle_packet_linuxbtdevice(uint32_t in_seq
 
     // If we're paused, throw away this packet
     {
-        local_locker lock(ext_mutex);
+        local_locker lock(&ext_mutex, "datasource_bluetooth::handle_packet_linuxbtdevice");
 
         if (get_source_paused())
             return;

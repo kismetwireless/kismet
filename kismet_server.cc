@@ -114,7 +114,7 @@
 #include "phy_btle.h"
 #include "phy_802154.h"
 
-#include "ipc_remote2.h"
+#include "ipctracker_v2.h"
 #include "manuf.h"
 #include "entrytracker.h"
 #include "json_adapter.h"
@@ -174,7 +174,7 @@ void SmartStdoutMessageClient::process_message(std::string in_msg, int in_flags)
             fprintf(stdout, "%s", in_line_wrap("ALERT: " + in_msg, 7, 75).c_str());
         else
             fprintf(stdout, "ALERT: %s\n", in_msg.c_str());
-    } else if (in_flags & MSGFLAG_FATAL) {
+    } else if ((in_flags & MSGFLAG_FATAL)) {
         if (glob_linewrap)
             fprintf(stderr, "%s", in_line_wrap("FATAL: " + in_msg, 7, 75).c_str());
         else
@@ -236,7 +236,7 @@ int packnum = 0, localdropnum = 0;
 // Ultimate registry of global components
 global_registry *globalregistry = NULL;
 
-void SpindownKismet(std::shared_ptr<pollable_tracker> pollabletracker) {
+void SpindownKismet() {
     // Shut down the webserver first
     auto httpd = Globalreg::fetch_global_as<kis_net_httpd>("HTTPD_SERVER");
     if (httpd != NULL)
@@ -245,9 +245,6 @@ void SpindownKismet(std::shared_ptr<pollable_tracker> pollabletracker) {
     auto devicetracker =
         Globalreg::fetch_global_as<device_tracker>("DEVICETRACKER");
     if (devicetracker != NULL) {
-#if 0
-        devicetracker->store_all_devices();
-#endif
         devicetracker->databaselog_write_devices();
     }
 
@@ -259,8 +256,7 @@ void SpindownKismet(std::shared_ptr<pollable_tracker> pollabletracker) {
     if (daemonize == 0)
         fprintf(stderr, "\n*** KISMET IS SHUTTING DOWN ***\n");
 
-    if (pollabletracker != nullptr)
-        pollabletracker->select_loop(true);
+    Globalreg::globalreg->io.stop();
 
     // Be noisy
     if (globalregistry->fatal_condition) {
@@ -676,9 +672,6 @@ int main(int argc, char *argv[], char *envp[]) {
     // Register the smart msg printer for everything
     globalregistry->messagebus->register_client(smartmsgcli, MSGFLAG_ALL);
 
-    // We need to create the pollable system near the top of execution as well
-    auto pollabletracker(pollable_tracker::create_pollabletracker());
-
     // Open, initial parse, and assign the config file
     if (configfilename == "") {
         configfilename = fmt::format("{}/{}",
@@ -721,7 +714,7 @@ int main(int argc, char *argv[], char *envp[]) {
     } else {
         _MSG("No 'configdir' option in the config file; make sure that the "
                 "Kismet config files are installed and up to date.", MSGFLAG_FATAL);
-        SpindownKismet(pollabletracker);
+        SpindownKismet();
     }
 
     auto etcdir = 
@@ -733,12 +726,12 @@ int main(int argc, char *argv[], char *envp[]) {
         if (mkdir(configdir.c_str(), S_IRUSR | S_IWUSR | S_IXUSR) < 0) {
             _MSG_FATAL("Could not create config and cache directory '{}': {}",
                     configdir, strerror(errno));
-            SpindownKismet(pollabletracker);
+            SpindownKismet();
         }
     } else if (! S_ISDIR(fstat.st_mode)) {
         _MSG_FATAL("Local config and cache directory '{}' exists, but is a file (or otherwise not "
                 "a directory)", configdir);
-        SpindownKismet(pollabletracker);
+        SpindownKismet();
     }
 
     // Set a terminal margin via raw ncurses code
@@ -785,12 +778,12 @@ int main(int argc, char *argv[], char *envp[]) {
     kis_net_httpd::create_httpd();
 
     if (globalregistry->fatal_condition) 
-        SpindownKismet(pollabletracker);
+        SpindownKismet();
 
     // Create the manuf db
     globalregistry->manufdb = new kis_manuf();
     if (globalregistry->fatal_condition)
-        SpindownKismet(pollabletracker);
+        SpindownKismet();
 
     // Base serializers
     entrytracker->register_serializer("json", std::make_shared<json_adapter::serializer>());
@@ -819,64 +812,64 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     // Create the IPC handler
-    ipc_remote_v2_tracker::create_ipcremote(globalregistry);
+    ipc_tracker_v2::create_ipctracker();
 
     if (globalregistry->fatal_condition)
-        SpindownKismet(pollabletracker);
+        SpindownKismet();
 
     // Create the stream tracking
     stream_tracker::create_streamtracker(globalregistry);
 
     if (globalregistry->fatal_condition)
-        SpindownKismet(pollabletracker);
+        SpindownKismet();
 
     // Add the messagebus REST interface
     rest_message_client::create_messageclient(globalregistry);
 
     if (globalregistry->fatal_condition)
-        SpindownKismet(pollabletracker);
+        SpindownKismet();
 
     // Add login session
     kis_httpd_websession::create_websession();
 
     if (globalregistry->fatal_condition)
-        SpindownKismet(pollabletracker);
+        SpindownKismet();
 
     // Add module registry
     kis_httpd_registry::create_http_registry(globalregistry);
 
     if (globalregistry->fatal_condition)
-        SpindownKismet(pollabletracker);
+        SpindownKismet();
 
     // Create the packet chain
     packet_chain::create_packetchain();
 
     if (globalregistry->fatal_condition)
-        SpindownKismet(pollabletracker);
+        SpindownKismet();
 
     // Create the DLT tracker
     auto dlttracker = dlt_tracker::create_dltt();
 
     if (globalregistry->fatal_condition)
-        SpindownKismet(pollabletracker);
+        SpindownKismet();
 
     // Create antenna mapper
     auto anttracker = Antennatracker::create_at();
 
     if (globalregistry->fatal_condition)
-        SpindownKismet(pollabletracker);
+        SpindownKismet();
 
     // Add the datasource tracker
     auto datasourcetracker = datasource_tracker::create_dst();
 
     if (globalregistry->fatal_condition)
-        SpindownKismet(pollabletracker);
+        SpindownKismet();
 
     // Create the alert tracker
     auto alertracker = alert_tracker::create_alertracker();
 
     if (globalregistry->fatal_condition)
-        SpindownKismet(pollabletracker);
+        SpindownKismet();
 
     // Create the device tracker
     auto devicetracker = 
@@ -890,7 +883,7 @@ int main(int argc, char *argv[], char *envp[]) {
     channel_tracker_v2::create_channeltracker(globalregistry);
 
     if (globalregistry->fatal_condition)
-        SpindownKismet(pollabletracker);
+        SpindownKismet();
 
     // Register the DLT handlers
     kis_dlt_ppi::create_dlt();
@@ -912,7 +905,7 @@ int main(int argc, char *argv[], char *envp[]) {
     devicetracker->register_phy_handler(new kis_802154_phy(globalregistry));
 
     if (globalregistry->fatal_condition) 
-        SpindownKismet(pollabletracker);
+        SpindownKismet();
 
     // Add the datasources
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_pcapfile_builder()));
@@ -972,7 +965,7 @@ int main(int argc, char *argv[], char *envp[]) {
         if (globalregistry->fatal_condition) {
             _MSG_FATAL("Failure activating Kismet plugins, make sure that all your plugins "
                     "are built against the same version of Kismet.");
-            SpindownKismet(pollabletracker);
+            SpindownKismet();
         }
     }
 
@@ -984,6 +977,10 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Start up any code that needs everything to be loaded
     globalregistry->start_deferred();
+
+    if (globalregistry->fatal_condition) {
+        SpindownKismet();
+    }
 
     // Set the global silence now that we're set up
     glob_silent = local_silent;
@@ -1012,8 +1009,19 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Independent time and select threads, which has had problems with timing conflicts
     timetracker->spawn_timetracker_thread();
-    pollabletracker->select_loop(false);
 
-    SpindownKismet(pollabletracker);
+    auto asio_thread = std::thread([]() {
+            asio::io_service::work work(Globalreg::globalreg->io);
+            Globalreg::globalreg->io.run();
+            });
+
+    while (true) {
+        if (Globalreg::globalreg->spindown || Globalreg::globalreg->fatal_condition) 
+            SpindownKismet();
+
+        usleep(500000);
+    }
+
+    asio_thread.join();
 }
 
