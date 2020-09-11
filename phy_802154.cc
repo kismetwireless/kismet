@@ -341,7 +341,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
         //error
         //datasize
         //channel
-        common->channel = std::to_string(chan);
+        common->channel = fmt::format("{}", (chan));
         //freq_khz
         common->basic_crypt_set = crypt_none;
         common->type = packet_basic_data;
