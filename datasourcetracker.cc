@@ -320,18 +320,16 @@ datasource_tracker::datasource_tracker() :
     all_sources_endp =
         std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/datasource/all_sources",
                 [this]() -> std::shared_ptr<tracker_element> {
-                    local_shared_locker sl(&dst_lock);
+                    local_shared_locker sl(&dst_lock, "datasourcetracker::all_sources lambda");
                     auto serial_vec = std::make_shared<tracker_element_vector>(datasource_vec);
                     return serial_vec;
                 });
 
     defaults_endp =
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/datasource/defaults",
-                config_defaults, &dst_lock);
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/datasource/defaults", config_defaults, &dst_lock);
 
     types_endp =
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/datasource/types", 
-                proto_vec, &dst_lock);
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/datasource/types", proto_vec, &dst_lock);
 
     list_interfaces_endp =
         std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/datasource/list_interfaces", 
@@ -396,7 +394,7 @@ void datasource_tracker::databaselog_write_datasources() {
     std::shared_ptr<tracker_element_vector> v;
 
     {
-        local_shared_locker l(&dst_lock);
+        local_shared_locker l(&dst_lock, "datasourcetracker::dblog_write_datasources");
         v = std::make_shared<tracker_element_vector>(datasource_vec);
     }
 
@@ -507,29 +505,20 @@ void datasource_tracker::trigger_deferred_startup() {
             timetracker->register_timer(SERVER_TIMESLICES_SEC * lograte, NULL, 1, 
                     [this](int) -> int {
 
-                        {
-                            local_locker l(&dst_lock);
-
-                            if (database_logging) {
-                                _MSG("Attempting to log datasources, but datasources are still "
-                                        "being saved from the last logging attempt.  It's possible "
-                                        "your system is extremely over capacity; try increasing the "
-                                        "delay in 'kis_log_datasource_rate' in kismet_logging.conf",
-                                        MSGFLAG_ERROR);
-                                return 1;
-                            }
-
-                            database_logging = true;
+                        if (database_logging) {
+                            _MSG("Attempting to log datasources, but datasources are still "
+                                    "being saved from the last logging attempt.  It's possible "
+                                    "your system is extremely over capacity; try increasing the "
+                                    "delay in 'kis_log_datasource_rate' in kismet_logging.conf",
+                                    MSGFLAG_ERROR);
+                            return 1;
                         }
+
+                        database_logging = true;
 
                         std::thread t([this] {
                             databaselog_write_datasources();
-
-                            {
-                                local_locker l(&dst_lock);
-                                database_logging = false;
-                            }
-
+                            database_logging = false;
                         });
 
                         t.detach();
@@ -689,7 +678,7 @@ void datasource_tracker::trigger_deferred_startup() {
 }
 
 void datasource_tracker::trigger_deferred_shutdown() {
-    local_locker lock(&dst_lock);
+    local_locker lock(&dst_lock, "datasourcetracker::trigger_deferred_shutdown");
 
     for (auto i : *datasource_vec) {
         std::static_pointer_cast<kis_datasource>(i)->close_source();
@@ -700,7 +689,7 @@ void datasource_tracker::iterate_datasources(datasource_tracker_worker *in_worke
     std::shared_ptr<tracker_element_vector> immutable_copy;
 
     {
-        local_locker lock(&dst_lock);
+        local_locker lock(&dst_lock, "datasourcetracker::iterate_datasources");
         immutable_copy = std::make_shared<tracker_element_vector>(datasource_vec);
     }
 
@@ -712,7 +701,7 @@ void datasource_tracker::iterate_datasources(datasource_tracker_worker *in_worke
 }
 
 bool datasource_tracker::remove_datasource(const uuid& in_uuid) {
-    local_locker lock(&dst_lock);
+    local_locker lock(&dst_lock, "datasourcetracker::remove_datasource");
 
     // Look for it in the sources vec and fully close it and get rid of it
     for (auto i = datasource_vec->begin(); i != datasource_vec->end(); ++i) {
@@ -739,7 +728,7 @@ bool datasource_tracker::remove_datasource(const uuid& in_uuid) {
 }
 
 shared_datasource datasource_tracker::find_datasource(const uuid& in_uuid) {
-    local_shared_locker lock(&dst_lock);
+    local_shared_locker lock(&dst_lock, "datasourcetracker::find_datasource");
 
     for (auto i : *datasource_vec) {
         shared_datasource kds = std::static_pointer_cast<kis_datasource>(i);
@@ -752,7 +741,7 @@ shared_datasource datasource_tracker::find_datasource(const uuid& in_uuid) {
 }
 
 bool datasource_tracker::close_datasource(const uuid& in_uuid) {
-    local_locker lock(&dst_lock);
+    local_locker lock(&dst_lock, "datasourcetracker::close_datasource");
 
     for (auto i : *datasource_vec) {
         shared_datasource kds = std::static_pointer_cast<kis_datasource>(i);
@@ -772,7 +761,7 @@ bool datasource_tracker::close_datasource(const uuid& in_uuid) {
 }
 
 int datasource_tracker::register_datasource(shared_datasource_builder in_builder) {
-    local_locker lock(&dst_lock);
+    local_locker lock(&dst_lock, "datasourcetracker::register_datasource");
 
     for (auto i : *proto_vec) {
         shared_datasource_builder b = std::static_pointer_cast<kis_datasource_builder>(i);
@@ -824,7 +813,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
     // for that driver in the prototype vector, confirm it can open it, and fire
     // the launch command at it
     if (type != "auto") {
-        local_demand_locker lock(&dst_lock);
+        local_demand_locker lock(&dst_lock, "datasourcetracker::open_datasource auto");
         lock.lock();
 
         shared_datasource_builder proto;
@@ -890,14 +879,14 @@ void datasource_tracker::open_datasource(const std::string& in_source,
 
     // Record and initiate it
     {
-        local_locker dl(&dst_lock);
+        local_locker dl(&dst_lock, "datasourcetracker::open_datasource probing_map");
         probing_map[probeid] = dst_probe;
     }
 
     // Initiate the probe
     dst_probe->probe_sources([this, probeid, in_cb](shared_datasource_builder builder) {
         // Lock on completion
-        local_demand_locker lock(&dst_lock);
+        local_demand_locker lock(&dst_lock, "datasourcetracker::probe_sources cb lambda");
         lock.lock();
 
         // fprintf(stderr, "debug - moving probe to completed vec\n");
@@ -942,7 +931,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
 void datasource_tracker::open_datasource(const std::string& in_source, 
         shared_datasource_builder in_proto,
         const std::function<void (bool, std::string, shared_datasource)>& in_cb) {
-    local_locker lock(&dst_lock);
+    local_locker lock(&dst_lock, "datasourcetracker::open_datasource string");
 
     // Make a data source from the builder
     shared_datasource ds = in_proto->build_datasource(in_proto);
@@ -961,7 +950,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
                 // It's 'safe' to put them in the broken source vec because all we do is
                 // clear that vector on a timer; if the source is in error state but
                 // bound elsewhere in the system it won't be removed.
-                local_locker lock(&dst_lock);
+                local_locker lock(&dst_lock, "datasourcetracker::open_datasource string open lambda broken");
                 broken_source_vec.push_back(ds);
                 in_cb(false, reason, ds);
                 schedule_cleanup();
@@ -970,7 +959,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
 }
 
 void datasource_tracker::merge_source(shared_datasource in_source) {
-    local_locker lock(&dst_lock);
+    local_locker lock(&dst_lock, "datasourcetracker::merge_source");
 
     // Get the UUID and compare it to our map; re-use a UUID if we knew
     // it before, otherwise add a new one
@@ -1004,7 +993,7 @@ void datasource_tracker::merge_source(shared_datasource in_source) {
 }
 
 void datasource_tracker::list_interfaces(const std::function<void (std::vector<shared_interface>)>& in_cb) {
-    local_locker lock(&dst_lock);
+    local_locker lock(&dst_lock, "datasourcetracker::list_interfaces");
 
     // Create a DSTProber to handle the probing
     std::shared_ptr<tracker_element_vector> filtered_proto_vec =
@@ -1047,7 +1036,7 @@ void datasource_tracker::list_interfaces(const std::function<void (std::vector<s
         // We're complete; cancel the timer if it's still around.
         timetracker->remove_timer(cancel_timer);
 
-        local_demand_locker lock(&dst_lock);
+        local_demand_locker lock(&dst_lock, "datasourcetracker::list_sources cancel lambda");
         lock.lock();
 
         // Figure out what interfaces are in use by active sources and amend their
@@ -1081,14 +1070,12 @@ void datasource_tracker::list_interfaces(const std::function<void (std::vector<s
 }
 
 void datasource_tracker::schedule_cleanup() {
-    local_locker lock(&dst_lock);
-
     if (completion_cleanup_id >= 0)
         return;
 
     completion_cleanup_id = 
         timetracker->register_timer(1, NULL, 0, [this] (int) -> int {
-            local_demand_locker lock(&dst_lock);
+            local_demand_locker lock(&dst_lock, "datasourcetracker::completion_cleanup lambda");
            
             lock.lock();
             auto d_pcv = probing_complete_vec;
@@ -1109,7 +1096,7 @@ void datasource_tracker::schedule_cleanup() {
 
             return 0;
         });
-    //fprintf(stderr, "debug - dst scheduling cleanup as %d\n", completion_cleanup_id);
+
 }
 
 void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
@@ -1117,7 +1104,7 @@ void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
 
     shared_datasource merge_target_device;
      
-    local_locker lock(&dst_lock);
+    local_locker lock(&dst_lock, "datasourcetracker::open_remote_datasource");
 
     // Look for an existing datasource with the same UUID
     for (auto p : *datasource_vec) {
@@ -1324,7 +1311,7 @@ void datasource_tracker::calculate_source_hopping(shared_datasource in_ds) {
 }
 
 void datasource_tracker::queue_dead_remote(dst_incoming_remote *in_dead) {
-    local_locker lock(&dst_lock);
+    local_locker lock(&dst_lock, "datasourcetracker::queue_dead_remote");
 
     for (auto x : dst_remote_complete_vec) {
         if (x == in_dead)
@@ -1335,7 +1322,7 @@ void datasource_tracker::queue_dead_remote(dst_incoming_remote *in_dead) {
         remote_complete_timer =
             timetracker->register_timer(1, NULL, 0, 
                 [this] (int) -> int {
-                    local_locker lock(&dst_lock);
+                    local_locker lock(&dst_lock, "datasourcetracker::remote_complete_timer lambda");
 
                     for (auto x : dst_remote_complete_vec) {
                         delete(x);
@@ -1371,7 +1358,7 @@ bool datasource_tracker::httpd_verify_path(const char *path, const char *method)
                 if (u.error)
                     return false;
 
-                local_shared_locker lock(&dst_lock);
+                local_shared_locker lock(&dst_lock, "datasourcetracker::httpd path datasource post");
 
                 if (uuid_source_num_map.find(u) == uuid_source_num_map.end())
                     return false;
@@ -1410,7 +1397,7 @@ bool datasource_tracker::httpd_verify_path(const char *path, const char *method)
                     return false;
 
                 {
-                    local_shared_locker l(&dst_lock);
+                    local_shared_locker l(&dst_lock, "datasourcetracker::httpd path datasource get");
                     if (uuid_source_num_map.find(u) == uuid_source_num_map.end())
                         return false;
                 }
@@ -1478,7 +1465,7 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
             shared_datasource ds;
 
             {
-                local_shared_locker lock(&dst_lock);
+                local_shared_locker lock(&dst_lock, "datasourcetracker::httpd handle datasource");
                 for (auto i : *datasource_vec) {
                     shared_datasource dsi = std::static_pointer_cast<kis_datasource>(i);
 
@@ -1651,7 +1638,7 @@ KIS_MHD_RETURN datasource_tracker::httpd_post_complete(kis_net_httpd_connection 
             shared_datasource ds;
 
             {
-                local_shared_locker lock(&dst_lock);
+                local_shared_locker lock(&dst_lock, "datasourcetracker::httpd uuid command");
 
                 if (uuid_source_num_map.find(u) == uuid_source_num_map.end())
                     throw std::runtime_error("Could not find a source with that UUID");
