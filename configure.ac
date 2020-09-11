@@ -1025,64 +1025,50 @@ AC_ARG_ENABLE(prelude,
 ],[wantprelude=no])
 
 
-foundsyspcap=no
+PKG_PROG_PKG_CONFIG
 
-if test "$cygwin" = yes; then
-	pcaplib="wpcap";
-else
-	pcaplib="pcap";
-fi
+# Look for libpcap via pkg-config
+have_libpcap=no
+PKG_CHECK_MODULES([libpcap], [libpcap], [
+    have_libpcap=yes
+    AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib)
 
-AC_CHECK_LIB([${pcaplib}], [pcap_open_live],
-    AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib) foundsyspcap=yes,
-    AC_MSG_ERROR(Libpcap required for proper operation))
+    PCAPLIBS=`pkg-config --libs libpcap`
+    PCAPCFLAGS=`pkg-config --cflags libpcap`
+    pcap=yes
+    ], [
+    AC_MSG_WARN(No libpcap found in pkg-config, will check system paths.)
+    ])
 
-if test "$foundsyspcap" = yes; then
-## if we don't have a pcap.h, do a search for pcap/pcap.h
-AC_CHECK_HEADER([pcap.h],
-	AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) foundsyspcaph=yes)
-    if test "$foundsyspcaph" != yes; then
-		AC_CHECK_HEADER([pcap/pcap.h],
-		AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) AC_DEFINE(HAVE_PCAPPCAP_H, 1, pcap/pcap.h),
-		AC_MSG_ERROR([found libpcap but unable to find pcap.h]))
+# Look for pcap using our legacy mode
+if test "$have_libpcap"x != "yesx"; then
+    AC_CHECK_LIB([pcap], [pcap_open_live],
+        AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib) foundsyspcap=yes,
+        AC_MSG_ERROR(Libpcap required for proper operation))
+    
+    if test "$foundsyspcap" = yes; then
+    ## if we don't have a pcap.h, do a search for pcap/pcap.h
+    AC_CHECK_HEADER([pcap.h],
+    	AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) foundsyspcaph=yes)
+        if test "$foundsyspcaph" != yes; then
+    		AC_CHECK_HEADER([pcap/pcap.h],
+    		AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) AC_DEFINE(HAVE_PCAPPCAP_H, 1, pcap/pcap.h),
+    		AC_MSG_ERROR([found libpcap but unable to find pcap.h]))
+        fi
+    
+        PCAPLIBS="-lpcap"
+        PCAPCFLAGS=""
+        pcap=yes
     fi
-# Look for the new PCAP stuff
-AC_CHECK_LIB([pcap], [pcap_setnonblock],
-    AC_DEFINE(HAVE_PCAP_NONBLOCK, 1, Nonblocking-capable libpcap),
-    AC_MSG_WARN(*** You don't appear to have a version of libpcap which supports non-blocking IO.  We'll fake it, but you REALLY should upgrade your libpcap, as it may not support 802.11 capture sources, either. ***))
-
-if test "$cygwin" != yes; then
-AC_CHECK_LIB([${pcaplib}], [pcap_get_selectable_fd],
-	AC_DEFINE(HAVE_PCAP_GETSELFD, 1, Selectablefd-capable libpcap),
-	AC_MSG_ERROR(installed libpcap version does not support features Kismet requires.  Upgrade to a current version of libpcap))
-else
-AC_CHECK_LIB([${pcaplib}], [pcap_fileno],
-	AC_DEFINE(HAVE_PCAP_FILENO, 1, pcapfileno-capable libwpcap),
-	AC_MSG_ERROR(installed libpcap version does not support features Kismet requires.  Upgrade to a current version of libwpcap))
 fi
 
-# Look for PPI support in pcap
-AC_MSG_CHECKING([for PPI support in libpcap])
-OCFL="$CFLAGS"
-CFLAGS="-Werror $CFLAGS"
-AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-		#include <stdio.h>
-		#include <pcap.h>
-		]], [[
-		return DLT_PPI==DLT_PPI;
-		]])],[haveppi=yes],[haveppi=no])
-CFLAGS="$OCFL"
-if test "$haveppi" = "yes"; then
-	AC_MSG_RESULT([yes])
-	AC_DEFINE(HAVE_PPI, 1, libpcap supports PPI)
-else
-	AC_MSG_RESULT([no])
-    AC_MSG_ERROR([found libpcap and pcap.h but unable to compile with PPI support.  Make sure you have a current version of libpcap."])
-fi
+AC_SUBST(PCAPLIBS)
+AC_SUBST(PCAPCFLAGS)
+AC_SUBST(pcap)
 
-pcaplnk="-l${pcaplib}"
-AC_SUBST(pcaplnk)
-pcap="yes"
+if test "$pcap" != "yes"; then
+	AC_MSG_ERROR(Could not find working libpcap.  Libpcap is vital for the majority of Kismet functionality.)
+fi
 
 DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_PCAPFILE)"
 BUILD_CAPTURE_PCAPFILE=1
@@ -1092,15 +1078,6 @@ if test "$linux" = "yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_WIFI)"
     BUILD_CAPTURE_LINUX_WIFI=1
 fi
-
-fi
-
-if test "$pcap" != "yes"; then
-	AC_MSG_ERROR(Could not find working libpcap.  Libpcap is vital for the majority of capture sources Kismet supports.  It must be explicitly disabled.)
-fi
-AC_SUBST(pcap)
-
-PKG_PROG_PKG_CONFIG
 
 if test "$caponly" = 0 || test "$want_python" = "yes"; then
     # We only *require* protobuf for C++ and python
@@ -1869,16 +1846,6 @@ if test "$linux_wireless" != "yes" -a "$linux" = "yes"; then
 	echo "Orinoco, Prism, and just about every other live capture method).  Make "
 	echo "sure this is what you want to do."
     echo "*** WARNING ***"
-fi
-
-if test "$pcap" != "yes" -a "$linux" = "yes"; then
-	echo
-	echo "*** WARNING ***"
-	echo "LibPCAP was not found (or was disabled)."
-	echo "Kismet on Linux without LibPcap cannot capture data locally and will "
-	echo "almost certainly NOT BE WHAT YOU WANT."
-	echo "You need both the libpcap libraries and development headers (called "
-	echo "libpcap-dev or libpcap-devel by most distributions)."
 fi
 
 if test "$havenetlink" != "yes" -a "$linux" = "yes"; then

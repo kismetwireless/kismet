@@ -1465,6 +1465,9 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 // Otherwise, we're some sort of adhoc device
                 bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
                 bssid_dev->set_tracker_type_string(d11phy->devicetracker->get_cached_devicetype("Wi-Fi Ad-Hoc"));
+            } else if (dot11info->distrib == distrib_inter) {
+                // We don't change the type of the presumed bssid device here because it's not an AP; 
+                // not entirely sure how to record this relationship currently
             } else {
                 // If we're the bssid, sending an ess data frame, we must be an access point
                 bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);
