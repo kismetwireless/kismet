@@ -77,6 +77,7 @@
 #include "datasource_ubertooth_one.h"
 #include "datasource_nxp_kw41z.h"
 #include "datasource_ti_cc_2531.h"
+#include "datasource_rz_killerbee.h"
 #include "datasource_virtual.h"
 #include "datasource_dot11_scan.h"
 #include "datasource_bluetooth_scan.h"
@@ -111,6 +112,7 @@
 #include "phy_uav_drone.h"
 #include "phy_nrf_mousejack.h"
 #include "phy_btle.h"
+#include "phy_802154.h"
 
 #include "ipc_remote2.h"
 #include "manuf.h"
@@ -907,6 +909,7 @@ int main(int argc, char *argv[], char *envp[]) {
     devicetracker->register_phy_handler(new kis_btle_phy(globalregistry));
     devicetracker->register_phy_handler(new kis_rtlamr_phy(globalregistry));
     devicetracker->register_phy_handler(new kis_rtladsb_phy(globalregistry));
+    devicetracker->register_phy_handler(new kis_802154_phy(globalregistry));
 
     if (globalregistry->fatal_condition) 
         SpindownKismet(pollabletracker);
@@ -926,6 +929,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_nrf51822_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_ubertooth_one_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_nxpkw41z_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rzkillerbee_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_ticc2531_builder()));
 
     // Virtual sources get a special meta-builder

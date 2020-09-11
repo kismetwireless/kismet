@@ -16,18 +16,20 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __DATASOURCE_TI_CC2531_H__
-#define __DATASOURCE_TI_CC2531_H__
+#ifndef __DATASOURCE_RZ_KILLERBEE_H__
+#define __DATASOURCE_RZ_KILLERBEE_H__
 
 #include "config.h"
 
-#define HAVE_TI_CC2531_DATASOURCE
+#define HAVE_RZ_KILLERBEE_DATASOURCE
 
 #include "kis_datasource.h"
 #include "dlttracker.h"
 
-class kis_datasource_ticc2531;
-typedef std::shared_ptr<kis_datasource_ticc2531> shared_datasource_ticc2531;
+#define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
+
+class kis_datasource_rzkillerbee;
+typedef std::shared_ptr<kis_datasource_rzkillerbee> shared_datasource_rzkillerbee;
 
 #ifndef KDLT_IEEE802_15_4_TAP
 #define KDLT_IEEE802_15_4_TAP             283 
@@ -37,14 +39,14 @@ typedef std::shared_ptr<kis_datasource_ticc2531> shared_datasource_ticc2531;
 #define KDLT_IEEE802_15_4_NOFCS           230
 #endif
 
-class kis_datasource_ticc2531 : public kis_datasource {
+class kis_datasource_rzkillerbee : public kis_datasource {
 public:
-    kis_datasource_ticc2531(shared_datasource_builder in_builder,
+    kis_datasource_rzkillerbee(shared_datasource_builder in_builder,
             std::shared_ptr<kis_recursive_timed_mutex> mutex) :
         kis_datasource(in_builder, mutex) {
 
         // Set the capture binary
-        set_int_source_ipc_binary("kismet_cap_ti_cc_2531");
+        set_int_source_ipc_binary("kismet_cap_rz_killerbee");
 
         //set_int_source_dlt(KDLT_IEEE802_15_4_NOFCS);
         set_int_source_dlt(KDLT_IEEE802_15_4_TAP);
@@ -53,7 +55,7 @@ public:
         pack_comp_radiodata = packetchain->register_packet_component("RADIODATA");
     }
 
-    virtual ~kis_datasource_ticc2531() { };
+    virtual ~kis_datasource_rzkillerbee() { };
 
 protected:
     virtual void handle_rx_packet(kis_packet *packet) override;
@@ -62,9 +64,9 @@ protected:
 };
 
 
-class datasource_ticc2531_builder : public kis_datasource_builder {
+class datasource_rzkillerbee_builder : public kis_datasource_builder {
 public:
-    datasource_ticc2531_builder(int in_id) :
+    datasource_rzkillerbee_builder(int in_id) :
         kis_datasource_builder(in_id) {
 
         register_fields();
@@ -72,7 +74,7 @@ public:
         initialize();
     }
 
-    datasource_ticc2531_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
+    datasource_rzkillerbee_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
         kis_datasource_builder(in_id, e) {
 
         register_fields();
@@ -80,7 +82,7 @@ public:
         initialize();
     }
 
-    datasource_ticc2531_builder() :
+    datasource_rzkillerbee_builder() :
         kis_datasource_builder() {
 
         register_fields();
@@ -88,16 +90,18 @@ public:
         initialize();
     }
 
-    virtual ~datasource_ticc2531_builder() { }
+    virtual ~datasource_rzkillerbee_builder() { }
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this,
             std::shared_ptr<kis_recursive_timed_mutex> mutex) override {
-        return shared_datasource_ticc2531(new kis_datasource_ticc2531(in_sh_this, mutex));
+        return shared_datasource_rzkillerbee(new kis_datasource_rzkillerbee(in_sh_this, mutex));
     }
 
     virtual void initialize() override {
-        set_source_type("ticc2531");
-        set_source_description("TI CC2531 with sniffer firmware");
+        // Set up our basic parameters for the linux wifi driver
+        
+        set_source_type("rzkillerbee");
+        set_source_description("RZ KILLERBEE");
 
         set_probe_capable(true);
         set_list_capable(true);
