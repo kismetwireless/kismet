@@ -92,8 +92,6 @@ void ipc_tracker_v2::shutdown_all(int in_soft_delay, int in_max_delay) {
     if (timetracker != nullptr)
         timetracker->remove_timer(dead_reaper_event_id);
 
-    local_locker l(&mutex, "ipc_tracker_v2::shutdown_all");
-
     auto start_time = time(0);
     bool hardkilled = false;
 
@@ -101,18 +99,22 @@ void ipc_tracker_v2::shutdown_all(int in_soft_delay, int in_max_delay) {
     while (1) {
         int pid_status;
         pid_t caught_pid;
+        kis_ipc_record::close_func_t close_cb;
 
         if ((caught_pid = waitpid(-1, &pid_status, WNOHANG | WUNTRACED)) > 0) {
-            auto pk = ipc_map.find(caught_pid);
+            {
+                local_locker l(&mutex, "ipc_tracker_v2::shutdown_all");
 
-            if (pk != ipc_map.end()) {
-                auto close_cb = pk->second.close_func;
-                ipc_map.erase(pk);
+                auto pk = ipc_map.find(caught_pid);
 
-                if (close_cb != nullptr)
-                    close_cb("Shutting down all IPC...");
+                if (pk != ipc_map.end()) {
+                    auto close_cb = pk->second.close_func;
+                    ipc_map.erase(pk);
+                }
             }
 
+            if (close_cb != nullptr)
+                close_cb("Shutting down all IPC...");
         } else {
             usleep(100);
         }
@@ -134,18 +136,20 @@ int ipc_tracker_v2::dead_ipc_reaper_event() {
     if (!Globalreg::globalreg->reap_child_procs)
         return 1;
 
-    local_locker l(&mutex, "ipc_tracker_v2::dead_ipc_reaper_event");
-
     while ((caught_pid = waitpid(-1, &pid_status, WNOHANG | WUNTRACED)) > 0) {
-        auto pk = ipc_map.find(caught_pid);
+        kis_ipc_record::error_func_t err_cb;
 
-        if (pk != ipc_map.end()) {
-            auto err_cb = pk->second.error_func;
-            ipc_map.erase(pk);
-
-            if (err_cb != nullptr)
-                err_cb(fmt::format("Process exited with status {}", WEXITSTATUS(pid_status)));
+        {
+            local_locker l(&mutex, "ipc_tracker_v2::dead_ipc_reaper_event");
+            auto pk = ipc_map.find(caught_pid);
+            if (pk != ipc_map.end()) {
+                err_cb = pk->second.error_func;
+                ipc_map.erase(pk);
+            }
         }
+
+        if (err_cb != nullptr)
+            err_cb(fmt::format("Process exited with status {}", WEXITSTATUS(pid_status)));
     }
 
     return 1;
