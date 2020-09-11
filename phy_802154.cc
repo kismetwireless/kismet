@@ -162,12 +162,12 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
         tap_header = (zigbee_tap *)&tmp_header;
 
         //realy we are going to want to iterate through them to pull them correctly.
-
-        printf("pull out the channel\n");
+        
         chan = tap_header->tlv[2].value;
-
-        printf("pull out the signal\n");
+        printf("pull out the channel:%d\n",chan);
+        
         sigstr = tap_header->tlv[1].value;
+        printf("pull out the signal:%d\n",sigstr);
 
         //printf("change the dtl\n");
         //packdata->dlt = KDLT_IEEE802_15_4_NOFCS;
@@ -341,7 +341,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
         //error
         //datasize
         //channel
-        common->channel = fmt::format("{}", (chan));
+        //common->channel = fmt::format("{}", (chan));
         //freq_khz
         common->basic_crypt_set = crypt_none;
         common->type = packet_basic_data;

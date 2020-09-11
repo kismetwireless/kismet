@@ -96,7 +96,6 @@ int rz_killerbee_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
     unsigned char data[2];
     data[0]=RZ_KILLERBEE_SET_CHANNEL;
     data[1]=channel;
-    printf("chan:%d\n",channel);
     pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
     ret = libusb_bulk_transfer(localrz_killerbee->rz_killerbee_handle, RZ_KILLERBEE_CMD_EP, data, sizeof(data), &xfer, RZ_KILLERBEE_CMD_TIMEOUT);
     pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
@@ -145,9 +144,6 @@ int rz_killerbee_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, s
             return r;
         else
             return 1;/*continue on for now*/
-    }
-    else {
-        printf("%02X ", rx_buf[0] & 0xFF);
     }
         
     if (r < 0)
@@ -562,7 +558,6 @@ void capture_thread(kis_capture_handler_t *caph) {
                 continue;
 
             /* insert the channel into the packet header*/
-            printf("channel to insert:%d\n",localrz_killerbee->channel);
             usb_buf[5] = (uint8_t)localrz_killerbee->channel;
 
             while (1) {
