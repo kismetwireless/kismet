@@ -42,6 +42,7 @@ void plugin_registration_data::activate_external_http() {
     if (get_plugin_http_external() != "") {
         external_http = 
             std::make_shared<external_http_plugin_harness>(get_plugin_name(), get_plugin_http_external());
+        external_http->start_external_plugin();
     }
 }
 

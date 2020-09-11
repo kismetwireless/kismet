@@ -61,10 +61,15 @@ struct kis_external_http_uri {
 };
 
 // External interface API bridge;
-class kis_external_interface : public kis_net_httpd_chain_stream_handler {
+class kis_external_interface : public kis_net_httpd_chain_stream_handler, 
+    public std::enable_shared_from_this<kis_external_interface> {
 public:
     kis_external_interface();
     virtual ~kis_external_interface();
+
+    std::shared_ptr<kis_external_interface> get_shared() {
+        return shared_from_this();
+    }
 
     // Launch the external binary and connect the IPC channel to our buffer
     // interface; most tools will use this unless they support network; 
@@ -166,7 +171,7 @@ protected:
 
     // Input buffer
     asio::streambuf in_buf;
-    int handle_read(const asio::error_code& ec, size_t sz);
+    int handle_read(std::shared_ptr<kis_external_interface> ref, const asio::error_code& ec, size_t sz);
 
     // Pipe IPC
     std::string external_binary;
@@ -175,7 +180,7 @@ protected:
     kis_ipc_record ipc;
     asio::posix::stream_descriptor ipc_in, ipc_out;
 
-    void start_ipc_read();
+    void start_ipc_read(std::shared_ptr<kis_external_interface> ref);
 
     void ipc_soft_kill();
     void ipc_hard_kill();
@@ -183,7 +188,7 @@ protected:
     // TCP socket
     tcp::socket tcpsocket;
 
-    void start_tcp_read();
+    void start_tcp_read(std::shared_ptr<kis_external_interface> ref);
 
 
     // Eventbus proxy code

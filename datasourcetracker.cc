@@ -2012,11 +2012,9 @@ KIS_MHD_RETURN datasource_tracker_httpd_pcap::httpd_create_stream_response(kis_n
     return MHD_YES;
 }
 
-dst_incoming_remote::dst_incoming_remote(tcp::socket socket, callback_t in_cb) :
+dst_incoming_remote::dst_incoming_remote(callback_t in_cb) :
     kis_external_interface() {
 
-    attach_tcp_socket(socket);
-    
     cb = in_cb;
 
     timerid =
@@ -2036,7 +2034,8 @@ dst_incoming_remote::~dst_incoming_remote() {
     close_external();
 
     // Wait for the thread to finish
-    handshake_thread.join();
+    if (handshake_thread.joinable())
+        handshake_thread.join();
 }
 
 bool dst_incoming_remote::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) { 
@@ -2132,10 +2131,13 @@ void datasource_tracker_remote_server::start_accept() {
 void datasource_tracker_remote_server::handle_accept(const asio::error_code& ec, tcp::socket socket) {
     if (!ec) {
         // Bind a new incoming remote which will pivot to the proper data source type
-        new dst_incoming_remote(std::move(socket), 
-                [this] (dst_incoming_remote *i, std::string in_type, std::string in_def, uuid in_uuid) {
+        auto remote = 
+            std::make_shared<dst_incoming_remote>([this] (dst_incoming_remote *i, std::string in_type, 
+                        std::string in_def, uuid in_uuid) {
                 datasourcetracker->open_remote_datasource(i, in_type, in_def, in_uuid);
                 });
+
+        remote->attach_tcp_socket(socket);
     }
 }
 

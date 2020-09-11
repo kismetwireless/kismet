@@ -75,7 +75,7 @@ bool kis_external_interface::attach_tcp_socket(tcp::socket& socket) {
     stopped = false;
     cancelled = false;
 
-    start_tcp_read();
+    start_tcp_read(shared_from_this());
 
     return true;
 }
@@ -182,31 +182,32 @@ void kis_external_interface::trigger_error(const std::string& in_error) {
     close_external();
 }
 
-void kis_external_interface::start_ipc_read() {
+void kis_external_interface::start_ipc_read(std::shared_ptr<kis_external_interface> ref) {
     if (stopped)
         return;
 
     asio::async_read(ipc_in, in_buf,
             asio::transfer_at_least(sizeof(kismet_external_frame_t)),
-            [this](const asio::error_code& ec, std::size_t t) {
-            if (handle_read(ec, t) > 0)
-                start_ipc_read();
+            [this, ref](const asio::error_code& ec, std::size_t t) {
+            if (handle_read(ref, ec, t) > 0)
+                start_ipc_read(ref);
             });
 }
 
-void kis_external_interface::start_tcp_read() {
+void kis_external_interface::start_tcp_read(std::shared_ptr<kis_external_interface> ref) {
     if (stopped)
         return;
 
     asio::async_read(tcpsocket, in_buf,
             asio::transfer_at_least(sizeof(kismet_external_frame_t)),
-            [this](const asio::error_code& ec, std::size_t t) {
-            if (handle_read(ec, t) >= 0)
-                start_tcp_read();
+            [this, ref](const asio::error_code& ec, std::size_t t) {
+            if (handle_read(ref, ec, t) >= 0)
+                start_tcp_read(ref);
             });
 }
 
-int kis_external_interface::handle_read(const asio::error_code& ec, size_t in_amt) {
+int kis_external_interface::handle_read(std::shared_ptr<kis_external_interface> ref, 
+        const asio::error_code& ec, size_t in_amt) {
     if (stopped)
         return 0;
 
@@ -502,7 +503,7 @@ bool kis_external_interface::run_ipc() {
     stopped = false;
     cancelled = false;
 
-    start_ipc_read();
+    start_ipc_read(shared_from_this());
 
     return true;
 }

@@ -305,7 +305,8 @@ protected:
 class external_http_plugin_harness : public kis_external_interface {
 public:
     external_http_plugin_harness(std::string plugin_name, std::string binary) : 
-        kis_external_interface() {
+        kis_external_interface(),
+        plugin_name{plugin_name} {
 
         // Look for someone playing hijinks
         if (binary.find("/") != std::string::npos) {
@@ -315,12 +316,19 @@ public:
         }
 
         external_binary = binary;
-
-        if (!run_ipc()) {
-            _MSG_ERROR("{} failed to launch helper binary '{}'", plugin_name, binary);
-            return;
-        }
     }
+
+    bool start_external_plugin() {
+        if (!run_ipc()) {
+            _MSG_ERROR("{} failed to launch helper binary '{}'", plugin_name, external_binary);
+            return false;
+        }
+
+        return true;
+    }
+
+protected:
+    std::string plugin_name;
 };
 
 #endif

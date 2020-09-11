@@ -537,7 +537,7 @@ class dst_incoming_remote : public kis_external_interface {
 public:
     using callback_t = std::function<void (dst_incoming_remote *, std::string, std::string, uuid)>;
 
-    dst_incoming_remote(tcp::socket socket, callback_t in_cb);
+    dst_incoming_remote(callback_t in_cb);
     ~dst_incoming_remote();
 
     // Override the dispatch commands to handle the new source
