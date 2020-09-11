@@ -128,8 +128,6 @@ exports.drawPackets = function(dyncolumn, table, row) {
 
     var data = row.data();
 
-    console.log(data);
-
     // Simplify the RRD so that the bars are thicker in the graph, which
     // I think looks better.  We do this with a transform function on the
     // RRD function, and we take the peak value of each triplet of samples
