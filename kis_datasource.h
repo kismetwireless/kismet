@@ -419,7 +419,7 @@ public:
 protected:
     // Source error; sets error state, fails all pending function callbacks,
     // shuts down the buffer and ipc, and initiates retry if we retry errors
-    virtual void trigger_error(const std::string& in_reason) override;
+    virtual void handle_error(const std::string& in_reason) override;
 
 
     // Common interface parsing to set our name/uuid/interface and interface

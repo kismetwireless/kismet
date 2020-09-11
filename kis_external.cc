@@ -171,8 +171,6 @@ void kis_external_interface::ipc_hard_kill() {
 }
 
 void kis_external_interface::trigger_error(const std::string& in_error) {
-    local_locker lock(&ext_mutex, "kei::trigger_error");
-
     // Don't loop if we're already stopped
     if (stopped)
         return;
