@@ -429,18 +429,13 @@ void kis_datasource::disable_source() {
     error_timer_id = -1;
 }
 
-void kis_datasource::trigger_error(const std::string& in_error) {
-    local_locker lock(&ext_mutex, "datasource::trigger_error");
-
+void kis_datasource::handle_error(const std::string& in_error) {
     if (!quiet_errors) {
         _MSG_ERROR("Data source '{} / {}' ('{}') encountered an error: {}",
                 get_source_name(), get_source_definition(), get_source_interface(), in_error);
         set_int_source_error(true);
         set_int_source_error_reason(in_error);
     }
-
-    // Kill any interaction w/ the source
-    close_source();
 
     set_int_source_running(false);
 
@@ -451,6 +446,9 @@ void kis_datasource::trigger_error(const std::string& in_error) {
 
     handle_source_error();
     cancel_all_commands(in_error);
+
+    // Kill any interaction w/ the source
+    close_source();
 }
 
 std::string kis_datasource::get_definition_opt(std::string in_opt) {
