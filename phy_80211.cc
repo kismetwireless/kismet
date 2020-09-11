@@ -1465,6 +1465,9 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 // Otherwise, we're some sort of adhoc device
                 bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
                 bssid_dev->set_tracker_type_string(d11phy->devicetracker->get_cached_devicetype("Wi-Fi Ad-Hoc"));
+            } else if (dot11info->distrib == distrib_inter) {
+                // We don't change the type of the presumed bssid device here because it's not an AP; 
+                // not entirely sure how to record this relationship currently
             } else {
                 // If we're the bssid, sending an ess data frame, we must be an access point
                 bssid_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP);
@@ -2283,32 +2286,63 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
         // Look for 221 IE tags if we don't know the manuf
         if (Globalreg::globalreg->manufdb->is_unknown_manuf(basedev->get_manuf())) {
             auto taglist = PacketDot11IElist(in_pack, dot11info);
+            bool matched = false;
+
+            // Match priority tags we know take precedence
             for (const auto& t : taglist) {
                 if (std::get<0>(t) == 221) {
-                    // Exclude known generic 221 OUIs, and exclude anything where we don't know
-                    // the manuf from the tag OUI, either.
-                    
-                    bool exclude = false;
-
+                    // Pick up the primary manuf tags with priority; ubnt, cisco, etc
+                    bool priority = false;
                     switch (std::get<1>(t)) {
-                        case 0x0050f2: // microsoft
-                        case 0x00037f: // atheros generic tag
-                        case 0x001018: // broadcom generic
-                        case 0x8cfdf0: // qualcomm generic
-                        case 0x506f9a: // wifi alliance
-                            exclude = true;
+                        case 0x004096: // cisco
+                        case 0x00156d: // ubnt
+                        case 0x000b86: // aruba
+                            priority = true;
                             break;
                         default:
                             break;
                     }
 
-                    if (exclude)
+                    if (!priority)
                         continue;
 
                     auto manuf = Globalreg::globalreg->manufdb->lookup_oui(std::get<1>(t));
                     if (!Globalreg::globalreg->manufdb->is_unknown_manuf(manuf)) {
                         basedev->set_manuf(manuf);
+                        matched = true;
                         break;
+                    }
+                }
+            }
+
+            if (!matched) {
+                for (const auto& t : taglist) {
+                    if (std::get<0>(t) == 221 && std::get<2>(t) == 0) {
+                        // Exclude known generic 221 OUIs, and exclude anything where we don't know
+                        // the manuf from the tag OUI, either.
+
+                        bool exclude = false;
+
+                        switch (std::get<1>(t)) {
+                            case 0x0050f2: // microsoft
+                            case 0x00037f: // atheros generic tag
+                            case 0x001018: // broadcom generic
+                            case 0x8cfdf0: // qualcomm generic
+                            case 0x506f9a: // wifi alliance
+                                exclude = true;
+                                break;
+                            default:
+                                break;
+                        }
+
+                        if (exclude)
+                            continue;
+
+                        auto manuf = Globalreg::globalreg->manufdb->lookup_oui(std::get<1>(t));
+                        if (!Globalreg::globalreg->manufdb->is_unknown_manuf(manuf)) {
+                            basedev->set_manuf(manuf);
+                            break;
+                        }
                     }
                 }
             }

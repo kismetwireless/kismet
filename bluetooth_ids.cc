@@ -87,7 +87,6 @@ void kis_bt_oid::index_bt_oids() {
     int line = 0;
     z_off_t prev_pos;
     uint32_t oid;
-    uint32_t last_oid = 0;
 
     if (zofile == nullptr)
         return;
@@ -113,7 +112,7 @@ void kis_bt_oid::index_bt_oids() {
             ip.oid = oid;
             ip.pos = prev_pos;
 
-            last_oid = oid;
+            index_vec.push_back(ip);
         }
 
         prev_pos = gzseek(zofile, 0, SEEK_CUR);
@@ -292,6 +291,8 @@ void kis_bt_manuf::index_bt_manufs() {
 
             ip.id = oid;
             ip.pos = prev_pos;
+
+            index_vec.push_back(ip);
         }
 
         prev_pos = gzseek(zmfile, 0, SEEK_CUR);
