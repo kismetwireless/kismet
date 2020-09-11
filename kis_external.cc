@@ -523,7 +523,11 @@ unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal:
     uint32_t data_csum;
 
     // Get the serialized size of our message
+#if GOOGLE_PROTOBUF_VERSION >= 3006001
     size_t content_sz = c->ByteSizeLong();
+#else
+    size_t content_sz = c->ByteSize();
+#endif
 
     // Calc frame size
     ssize_t frame_sz = sizeof(kismet_external_frame_t) + content_sz;
