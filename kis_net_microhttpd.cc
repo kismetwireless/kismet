@@ -96,6 +96,8 @@ kis_net_httpd::kis_net_httpd() {
     controller_mutex.set_name("kis_net_httpd_controller");
     session_mutex.set_name("kis_net_httpd_session");
 
+    microhttpd = nullptr;
+
     running = false;
 
     use_ssl = false;
@@ -252,24 +254,18 @@ kis_net_httpd::kis_net_httpd() {
 }
 
 kis_net_httpd::~kis_net_httpd() {
+    stop_httpd();
+
     // Wipe out all handlers
     handler_vec.erase(handler_vec.begin(), handler_vec.end());
-
-    if (running)
-        stop_httpd();
 
     if (session_db) {
         delete(session_db);
     }
 
-#ifdef MHD_QUIESCE
-    if (microhttpd != NULL)
-        MHD_stop_daemon(microhttpd);
-#endif
-
     session_map.clear();
 
-    Globalreg::globalreg->remove_global("HTTPD_SERVER");
+    Globalreg::globalreg->remove_global(global_name());
 }
 
 void kis_net_httpd::register_session_handler(std::shared_ptr<kis_httpd_websession> in_session) {
@@ -279,15 +275,13 @@ void kis_net_httpd::register_session_handler(std::shared_ptr<kis_httpd_websessio
 
 char *kis_net_httpd::read_ssl_file(std::string in_fname) {
     FILE *f;
-    std::stringstream str;
     char *buf = NULL;
     long sz;
 
     // Read errors are considered fatal
     if ((f = fopen(in_fname.c_str(), "rb")) == NULL) {
-        str << "Unable to open SSL file " << in_fname <<
-            ": " << kis_strerror_r(errno);
-        _MSG(str.str(), MSGFLAG_FATAL);
+        _MSG_FATAL("Unable to open SSL certificate file {}: {}", in_fname, kis_strerror_r(errno));
+        Globalreg::globalreg->fatal_condition = 1;
         return NULL;
     }
 
@@ -296,16 +290,15 @@ char *kis_net_httpd::read_ssl_file(std::string in_fname) {
     rewind(f);
 
     if (sz <= 0) {
-       str << "Unable to load SSL file " << in_fname << ": File is empty";
-       _MSG(str.str(), MSGFLAG_FATAL);
-       return NULL;
+        _MSG_FATAL("Unable to load SSL certificate file {}: File is empty", in_fname);
+        Globalreg::globalreg->fatal_condition = 1;
+        return NULL;
     }
 
     buf = new char[sz + 1];
     if (fread(buf, sz, 1, f) <= 0) {
-        str << "Unable to read SSL file " << in_fname <<
-            ": " << kis_strerror_r(errno);
-        _MSG(str.str(), MSGFLAG_FATAL);
+        _MSG_FATAL("Unable to read SSL file {}: {}", in_fname, kis_strerror_r(errno));
+        Globalreg::globalreg->fatal_condition = 1;
         return NULL;
     }
     fclose(f);
@@ -463,9 +456,18 @@ int kis_net_httpd::start_httpd() {
     }
 
 
-    if (microhttpd == NULL) {
-        _MSG("Failed to start http server on port " + uint_to_string(http_port),
-                MSGFLAG_FATAL);
+    if (microhttpd == nullptr) {
+        if (http_port < 1024 && geteuid() == 0) {
+            _MSG_FATAL("(HTTPD) Unable to start HTTP server on port {}.  To start servers on "
+                    "ports below 1024, you must be running as root.  This is not recommended; "
+                    "for greater security use a higher port and a proxy or port redirect.",
+                    http_port);
+        } else { 
+            _MSG_FATAL("(HTTPD) Unable to start HTTP server on port {}; make sure no other "
+                    "services are using this port and no other copy of Kismet is running.",
+                    http_port);
+        }
+
         Globalreg::globalreg->fatal_condition = 1;
         return -1;
     }
@@ -475,18 +477,15 @@ int kis_net_httpd::start_httpd() {
     running = true;
 
     if (http_host == "")
-        _MSG_INFO("Started http server on port {}", http_port);
+        _MSG_INFO("(HTTPD) Started http server on port {}", http_port);
     else
-        _MSG_INFO("Started http server on {}:{}", http_host, http_port);
+        _MSG_INFO("(HTTPD) Started http server on {}:{}", http_host, http_port);
 
     return 1;
 }
 
 int kis_net_httpd::stop_httpd() {
     local_locker lock(&controller_mutex);
-
-    handler_vec.clear();
-    static_dir_vec.clear();
 
     if (microhttpd != NULL) {
         running = false;
@@ -503,10 +502,12 @@ int kis_net_httpd::stop_httpd() {
 #else
         MHD_stop_daemon(microhttpd);
 #endif
-        return 1;
     }
 
-    return 0;
+    handler_vec.clear();
+    static_dir_vec.clear();
+
+    return 1;
 }
 
 void kis_net_httpd::MHD_Panic(void *cls, const char *file __attribute__((unused)), 
