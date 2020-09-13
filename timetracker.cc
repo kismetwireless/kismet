@@ -188,6 +188,7 @@ void time_tracker::time_dispatcher() {
 
         // Sort the timers
         auto action_timers = std::vector<timer_event *>(sorted_timers.begin(), sorted_timers.end());
+        lock.unlock();
 
         for (auto evt : action_timers) {
             // If we're pending cancellation, throw us out
@@ -255,8 +256,6 @@ void time_tracker::time_dispatcher() {
 
             removed_timer_ids.clear();
         }
-
-        lock.unlock();
 
         /*
         if (std::chrono::system_clock::now() >= end) {
