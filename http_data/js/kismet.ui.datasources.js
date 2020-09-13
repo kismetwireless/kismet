@@ -518,6 +518,9 @@ kismet_ui_sidebar.AddSidebarItem({
 });
 
 function update_datasource2(data, state) {
+    if (!"ds_content" in state)
+        return;
+
     var set_row = function(sdiv, id, title, content) {
         var r = $('tr#' + id, sdiv);
 
@@ -553,7 +556,7 @@ function update_datasource2(data, state) {
         return;
 
     // Clean up missing probed interfaces
-    $('.interface', state['ds-content']).each(function(i) {
+    $('.interface', state['ds_content']).each(function(i) {
         var found = false;
 
         for (var intf of state['kismet_interfaces']) {
@@ -572,7 +575,7 @@ function update_datasource2(data, state) {
     });
 
     // Clean up missing sources
-    $('.source', state['ds-content']).each(function(i) {
+    $('.source', state['ds_content']).each(function(i) {
         var found = false;
 
         for (var source of state['kismet_sources']) {
@@ -596,11 +599,11 @@ function update_datasource2(data, state) {
 
     for (var intf of state['kismet_interfaces']) {
         if (intf['kismet.datasource.probed.in_use_uuid'] !== '00000000-0000-0000-0000-000000000000') {
-            $('#' + intf['kismet.datasource.probed.interface'], state['ds-content']).remove();
+            $('#' + intf['kismet.datasource.probed.interface'], state['ds_content']).remove();
             continue;
         }
 
-        var idiv = $('#' + intf['kismet.datasource.probed.interface'], state['ds-content']);
+        var idiv = $('#' + intf['kismet.datasource.probed.interface'], state['ds_content']);
 
         if (idiv.length == 0) {
             idiv = $('<div>', {
@@ -620,7 +623,7 @@ function update_datasource2(data, state) {
             ).append(
                 $('<div>', {
                     id: 'content',
-                    class: 'k-ds-content',
+                    class: 'k-ds_content',
                 })
             );
 
@@ -632,7 +635,7 @@ function update_datasource2(data, state) {
 
             idiv.accordion({ collapsible: true, active: false });
 
-            state['ds-content'].append(idiv);
+            state['ds_content'].append(idiv);
         }
 
         set_row(idiv, 'interface', '<b>Interface</b>', intf['kismet.datasource.probed.interface']);
@@ -678,7 +681,7 @@ function update_datasource2(data, state) {
     }
 
     for (var source of state['kismet_sources']) {
-        var sdiv = $('#' + source['kismet.datasource.uuid'], state['ds-content']);
+        var sdiv = $('#' + source['kismet.datasource.uuid'], state['ds_content']);
 
         if (sdiv.length == 0) {
             sdiv = $('<div>', {
@@ -714,7 +717,7 @@ function update_datasource2(data, state) {
             ).append(
                 $('<div>', {
                     id: 'content',
-                    class: 'k-ds-content',
+                    class: 'k-ds_content',
                 })
             );
 
@@ -726,7 +729,7 @@ function update_datasource2(data, state) {
 
             sdiv.accordion({ collapsible: true, active: false });
 
-            state['ds-content'].append(sdiv);
+            state['ds_content'].append(sdiv);
         }
 
         if (typeof(source['kismet.datasource.packets_rrd']) !== 'undefined' &&
@@ -793,7 +796,7 @@ function update_datasource2(data, state) {
 
                 var uuid = $(this).attr('uuid');
                 var chans = [];
-                $('button.chanbutton[uuid=' + uuid + ']', state['ds-content']).each(function(i) {
+                $('button.chanbutton[uuid=' + uuid + ']', state['ds_content']).each(function(i) {
                     chans.push($(this).attr('channel'));
                 });
                 var jscmd = {
@@ -807,7 +810,7 @@ function update_datasource2(data, state) {
                         state['defer_command_progress'] = false;
                     });
 
-                $('button.chanbutton[uuid=' + uuid + ']', state['ds-content']).each(function(i){
+                $('button.chanbutton[uuid=' + uuid + ']', state['ds_content']).each(function(i){
                       $(this).removeClass('disable-chan-system');
                       $(this).removeClass('enable-chan-system');
                       $(this).removeClass('disable-chan-user');
@@ -834,10 +837,10 @@ function update_datasource2(data, state) {
                         var uuid = $(this).attr('uuid');
                         var tid = 'tid' + uuid;
 
-                        // console.log(uuid, $('#lock[uuid=' + uuid + ']', state['ds-content']).hasClass('enable-chan-user'));
+                        // console.log(uuid, $('#lock[uuid=' + uuid + ']', state['ds_content']).hasClass('enable-chan-user'));
 
                         // If we're in channel lock mode, we highlight a single channel
-                        if ($('#lock[uuid=' + uuid + ']', state['ds-content']).hasClass('enable-chan-user')) {
+                        if ($('#lock[uuid=' + uuid + ']', state['ds_content']).hasClass('enable-chan-user')) {
                             // Only do something if we're not selected
                             if (!($(this).hasClass('enable-chan-user'))) {
                                 // Remove from all lock channels
@@ -894,7 +897,7 @@ function update_datasource2(data, state) {
 
                             var chans = [];
 
-                            $('button.chanbutton[uuid=' + uuid + ']', state['ds-content']).each(function(i) {
+                            $('button.chanbutton[uuid=' + uuid + ']', state['ds_content']).each(function(i) {
                                 // If we're hopping, collect user and system
                                 if ($(this).hasClass('enable-chan-user') ||
                                         $(this).hasClass('enable-chan-system')) {
@@ -944,9 +947,9 @@ function update_datasource2(data, state) {
 
                     var uuid = $(this).attr('uuid');
 
-                    $('#resumecmd[uuid=' + uuid + ']', state['ds-content']).removeClass('enable-chan-user');
+                    $('#resumecmd[uuid=' + uuid + ']', state['ds_content']).removeClass('enable-chan-user');
                     $(this).addClass('enable-chan-user');
-                    $('#pausetext[uuid=' + uuid + ']', state['ds-content']).show();
+                    $('#pausetext[uuid=' + uuid + ']', state['ds_content']).show();
 
                     $.get(local_uri_prefix + '/datasource/by-uuid/' + uuid + '/pause_source.cmd')
                     .always(function() {
@@ -973,9 +976,9 @@ function update_datasource2(data, state) {
 
                     var uuid = $(this).attr('uuid');
 
-                    $('#pausecmd[uuid=' + uuid + ']', state['ds-content']).removeClass('enable-chan-user');
+                    $('#pausecmd[uuid=' + uuid + ']', state['ds_content']).removeClass('enable-chan-user');
                     $(this).addClass('enable-chan-user');
-                    $('#pausetext[uuid=' + uuid + ']', state['ds-content']).hide();
+                    $('#pausetext[uuid=' + uuid + ']', state['ds_content']).hide();
 
                     $.get(local_uri_prefix + '/datasource/by-uuid/' + uuid + '/resume_source.cmd')
                     .always(function() {
@@ -1019,12 +1022,12 @@ function update_datasource2(data, state) {
 
               var uuid = $(this).attr('uuid');
 
-              $('#hop[uuid=' + uuid + ']', state['ds-content']).removeClass('enable-chan-user');
-              $('#lock[uuid=' + uuid + ']', state['ds-content']).addClass('enable-chan-user');
+              $('#hop[uuid=' + uuid + ']', state['ds_content']).removeClass('enable-chan-user');
+              $('#lock[uuid=' + uuid + ']', state['ds_content']).addClass('enable-chan-user');
 
-            // console.log('quickopts ', $('#lock[uuid=' + uuid + ']', state['ds-content']).hasClass('enable-chan-user'));
+            // console.log('quickopts ', $('#lock[uuid=' + uuid + ']', state['ds_content']).hasClass('enable-chan-user'));
 
-              var firstchanobj = $('button.chanbutton[uuid=' + uuid + ']', state['ds-content']).first();
+              var firstchanobj = $('button.chanbutton[uuid=' + uuid + ']', state['ds_content']).first();
 
               var chan = firstchanobj.attr('channel');
 
@@ -1039,7 +1042,7 @@ function update_datasource2(data, state) {
                       state['defer_command_progress'] = false;
                       });
 
-              $('button.chanbutton[uuid='+ uuid + ']', state['ds-content']).each(function(i) {
+              $('button.chanbutton[uuid='+ uuid + ']', state['ds_content']).each(function(i) {
                       $(this).removeClass('enable-chan-system');
                       $(this).removeClass('disable-chan-user');
               });
@@ -1069,11 +1072,11 @@ function update_datasource2(data, state) {
 
               var uuid = $(this).attr('uuid');
 
-              $('#hop[uuid=' + uuid + ']', state['ds-content']).addClass('enable-chan-user');
-              $('#lock[uuid=' + uuid + ']', state['ds-content']).removeClass('enable-chan-user');
+              $('#hop[uuid=' + uuid + ']', state['ds_content']).addClass('enable-chan-user');
+              $('#lock[uuid=' + uuid + ']', state['ds_content']).removeClass('enable-chan-user');
 
               var chans = [];
-              $('button.chanbutton[uuid=' + uuid + ']', state['ds-content']).each(function(i) {
+              $('button.chanbutton[uuid=' + uuid + ']', state['ds_content']).each(function(i) {
                       chans.push($(this).attr('channel'));
                 });
 
@@ -1089,7 +1092,7 @@ function update_datasource2(data, state) {
                 state['defer_command_progress'] = false;
               });
 
-              $('button.chanbutton[uuid='+ uuid + ']', state['ds-content']).each(function(i) {
+              $('button.chanbutton[uuid='+ uuid + ']', state['ds_content']).each(function(i) {
                   // Disable all but the first available channel
                   if ($(this).attr('channel') == 1) {
                       $(this).removeClass('disabled-chan-user');
@@ -1253,8 +1256,6 @@ function update_datasourcegraph(data, state) {
         var linedata = 
             kismet.RecalcRrdData2(source['kismet.datasource.packets_rrd'], kismet.RRD_SECOND);
 
-        console.log(linedata);
-
         datasets.push({
             "label": source['kismet.datasource.name'],
             "borderColor": `hsl(${color}, 100%, 50%)`,
@@ -1372,7 +1373,7 @@ exports.DataSources2 = function() {
     state["ds_chart"] = null;
 
     var f_ds_tabpane_closure = function(div) {
-        state['ds-content'] = div;
+        state['ds_content'] = div;
     };
 
     var f_dsgraph_tabpane_closure = function(div) {
@@ -1406,9 +1407,6 @@ exports.DataSources2 = function() {
 
 /* Get the list of active sources */
 function datasource_source_refresh(state, cb) {
-    if ('datasource_get_tid' in state)
-        clearTimeout(state['datasource_get_tid']);
-
     var grab_sources = function(state, cb) {
         $.get(local_uri_prefix + "datasource/all_sources.json")
         .done(function(data) {
@@ -1429,9 +1427,6 @@ function datasource_source_refresh(state, cb) {
 
 /* Get the list of potential interfaces */
 function datasource_interface_refresh(state, cb) {
-    if ('datasource_interface_tid' in state)
-        clearTimeout(state['datasource_interface_tid']);
-
     var grab_interfaces = function(state, cb) {
         $.get(local_uri_prefix + "datasource/list_interfaces.json")
         .done(function(data) {
