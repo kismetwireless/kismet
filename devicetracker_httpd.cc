@@ -453,8 +453,6 @@ KIS_MHD_RETURN device_tracker::httpd_post_complete(kis_net_httpd_connection *con
 
     Json::Value regexdata;
 
-    time_t post_ts = 0;
-
     try {
         if (concls->variable_cache.find("json") != 
                 concls->variable_cache.end()) {
@@ -474,13 +472,6 @@ KIS_MHD_RETURN device_tracker::httpd_post_complete(kis_net_httpd_connection *con
         wrapper_name = json.get("wrapper", "").asString();
 
         regexdata = json["regex"];
-            
-        auto rawt = json.get("last_time", 0).asInt64();
-        if (rawt < 0)
-            post_ts = time(0) + rawt;
-        else
-            post_ts = rawt;
-
     } catch(const std::exception& e) {
         stream << "Invalid request: Malformed command dictionary, " << e.what();
         concls->httpcode = 400;
