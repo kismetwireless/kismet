@@ -32,7 +32,7 @@
 
 // Generic NMEA parser for GPS
 
-class kis_gps_nmea_v2 : public kis_gps {
+class kis_gps_nmea_v2 : public kis_gps, public std::enable_shared_from_this<kis_gps_nmea_v2> {
 public:
     kis_gps_nmea_v2(shared_gps_builder in_builder) :
         kis_gps(in_builder),
@@ -46,7 +46,8 @@ protected:
 
     virtual void start_read();
     virtual void start_read_impl() = 0;
-    virtual void handle_read(const asio::error_code& error, std::size_t sz);
+    virtual void handle_read(std::shared_ptr<kis_gps_nmea_v2> ref,
+            const asio::error_code& error, std::size_t sz);
 
     asio::streambuf in_buf;
     std::atomic<bool> stopped;

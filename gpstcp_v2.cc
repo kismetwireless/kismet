@@ -100,7 +100,7 @@ void kis_gps_tcp_v2::close() {
 void kis_gps_tcp_v2::start_read_impl() {
     asio::async_read_until(socket, in_buf, '\n',
             [this](const asio::error_code& error, std::size_t t) {
-                handle_read(error, t);
+                handle_read(shared_from_this(), error, t);
             });
 
 }
