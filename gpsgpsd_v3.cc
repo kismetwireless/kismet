@@ -103,20 +103,26 @@ void kis_gps_gpsd_v3::close() {
     }
 }
 
-void kis_gps_gpsd_v3::start_connect(const asio::error_code& error, tcp::resolver::iterator endpoints) {
+void kis_gps_gpsd_v3::start_connect(std::shared_ptr<kis_gps_gpsd_v3> ref,
+        const asio::error_code& error, tcp::resolver::iterator endpoints) {
+    if (stopped)
+        return;
+
     if (error) {
         _MSG_ERROR("(GPS) Could not resolve gpsd address {}:{} - {}", host, port, error.message());
         stopped = true;
         set_int_device_connected(false);
     } else {
         asio::async_connect(socket, endpoints,
-                [this](const asio::error_code& ec, tcp::resolver::iterator endpoint) {
-                    handle_connect(ec, endpoint);
+                [this, ref](const asio::error_code& ec, tcp::resolver::iterator endpoint) {
+                    handle_connect(ref, ec, endpoint);
                 });
     }
 }
 
-void kis_gps_gpsd_v3::handle_connect(const asio::error_code& error, tcp::resolver::iterator endpoint) {
+void kis_gps_gpsd_v3::handle_connect(std::shared_ptr<kis_gps_gpsd_v3> ref,
+        const asio::error_code& error, tcp::resolver::iterator endpoint) {
+
     if (stopped) {
         return;
     }
@@ -133,10 +139,10 @@ void kis_gps_gpsd_v3::handle_connect(const asio::error_code& error, tcp::resolve
     stopped = false;
     set_int_device_connected(true);
 
-    start_read();
+    start_read(ref);
 }
 
-void kis_gps_gpsd_v3::write_gpsd(const std::string& data) {
+void kis_gps_gpsd_v3::write_gpsd(std::shared_ptr<kis_gps_gpsd_v3> ref, const std::string& data) {
     if (stopped)
         return;
 
@@ -152,15 +158,16 @@ void kis_gps_gpsd_v3::write_gpsd(const std::string& data) {
             });
 }
 
-void kis_gps_gpsd_v3::start_read() {
+void kis_gps_gpsd_v3::start_read(std::shared_ptr<kis_gps_gpsd_v3> ref) {
     asio::async_read_until(socket, in_buf, '\n',
-            [this](const asio::error_code& error, std::size_t t) {
-                handle_read(error, t);
+            [this, ref](const asio::error_code& error, std::size_t t) {
+                handle_read(ref, error, t);
             });
 
 }
 
-void kis_gps_gpsd_v3::handle_read(const asio::error_code& error, std::size_t t) {
+void kis_gps_gpsd_v3::handle_read(std::shared_ptr<kis_gps_gpsd_v3> ref,
+        const asio::error_code& error, std::size_t t) {
     if (stopped)
         return;
 
@@ -181,7 +188,7 @@ void kis_gps_gpsd_v3::handle_read(const asio::error_code& error, std::size_t t) 
 
     // Ignore blank lines from gpsd
     if (line.empty()) {
-        start_read();
+        start_read(ref);
         return;
     }
 
@@ -223,7 +230,7 @@ void kis_gps_gpsd_v3::handle_read(const asio::error_code& error, std::size_t t) 
                 // We get speed in meters/sec
                 si_units = 1;
 
-                write_gpsd("?WATCH={\"json\":true};\n");
+                write_gpsd(ref, "?WATCH={\"json\":true};\n");
             } else if (msg_class == "TPV") {
                 if (json.isMember("mode")) {
                     new_location->fix = json["mode"].asInt();
@@ -344,14 +351,14 @@ void kis_gps_gpsd_v3::handle_read(const asio::error_code& error, std::size_t t) 
 
         poll_mode = 1;
 
-        write_gpsd("L\n");
+        write_gpsd(ref, "L\n");
     } else if (poll_mode < 10 && line.substr(0, 15) == "GPSD,L=2 1.0-25") {
         // Maemo ships a broken,broken GPS which doesn't parse NMEA correctly
         // and results in no alt or fix in watcher or polling modes, so we
         // have to detect this version and kick it into debug R=1 mode
         // and do NMEA ourselves.
 
-        write_gpsd("R=1\n");
+        write_gpsd(ref, "R=1\n");
 
         // Use raw for position
         si_raw = 1;
@@ -380,26 +387,26 @@ void kis_gps_gpsd_v3::handle_read(const asio::error_code& error, std::size_t t) 
         // If we're still in poll mode 0, write the watcher command.
         // This has been merged into one command because gpsd apparently
         // silently drops the second command sent too quickly
-        write_gpsd("J=1,W=1,R=1\n");
-        write_gpsd("PAVM\n");
+        write_gpsd(ref, "J=1,W=1,R=1\n");
+        write_gpsd(ref, "PAVM\n");
 
     } else if (poll_mode < 10 && line.substr(0, 7) == "GPSD,P=") {
         // pollable_poll lines
         std::vector<std::string> pollvec = str_tokenize(line, ",");
 
         if (pollvec.size() < 5) {
-            start_read();
+            start_read(ref);
             return;
         }
 
         if (pollvec[1].substr(0, 2) == "P=" && sscanf(pollvec[1].c_str(), "P=%lf %lf", 
                     &(new_location->lat), &(new_location->lon)) != 2) {
-            start_read();
+            start_read(ref);
             return;
         }
 
         if (pollvec[4].substr(0, 2) == "M=" && sscanf(pollvec[4].c_str(), "M=%d", &(new_location->fix)) != 1) {
-            start_read();
+            start_read(ref);
             return;
         }
 
@@ -433,23 +440,23 @@ void kis_gps_gpsd_v3::handle_read(const asio::error_code& error, std::size_t t) 
         std::vector<std::string> ggavec = str_tokenize(line, " ");
 
         if (ggavec.size() < 15) {
-            start_read();
+            start_read(ref);
             return;
         }
 
         // Total fail if we can't get lat/lon/mode
         if (sscanf(ggavec[3].c_str(), "%lf", &(new_location->lat)) != 1) {
-            start_read();
+            start_read(ref);
             return;
         }
 
         if (sscanf(ggavec[4].c_str(), "%lf", &(new_location->lon)) != 1) {
-            start_read();
+            start_read(ref);
             return;
         }
 
         if (sscanf(ggavec[14].c_str(), "%d", &(new_location->fix)) != 1) {
-            start_read();
+            start_read(ref);
             return;
         }
 
@@ -485,12 +492,12 @@ void kis_gps_gpsd_v3::handle_read(const asio::error_code& error, std::size_t t) 
         std::vector<std::string> savec = str_tokenize(line, ",");
 
         if (savec.size() != 18) {
-            start_read();
+            start_read(ref);
             return;
         }
 
         if (sscanf(savec[2].c_str(), "%d", &(new_location->fix)) != 1) {
-            start_read();
+            start_read(ref);
             return;
         }
 
@@ -499,12 +506,12 @@ void kis_gps_gpsd_v3::handle_read(const asio::error_code& error, std::size_t t) 
         std::vector<std::string> vtvec = str_tokenize(line, ",");
 
         if (vtvec.size() != 10) {
-            start_read();
+            start_read(ref);
             return;
         }
 
         if (sscanf(vtvec[7].c_str(), "%lf", &(new_location->speed)) != 1) {
-            start_read();
+            start_read(ref);
             return;
         }
 
@@ -518,12 +525,12 @@ void kis_gps_gpsd_v3::handle_read(const asio::error_code& error, std::size_t t) 
         float tfloat;
 
         if (gavec.size() != 15) {
-            start_read();
+            start_read(ref);
             return;
         }
 
         if (sscanf(gavec[2].c_str(), "%2d%f", &tint, &tfloat) != 2) {
-            start_read();
+            start_read(ref);
             return;
         }
 
@@ -532,7 +539,7 @@ void kis_gps_gpsd_v3::handle_read(const asio::error_code& error, std::size_t t) 
             new_location->lat *= -1;
 
         if (sscanf(gavec[4].c_str(), "%3d%f", &tint, &tfloat) != 2) {
-            start_read();
+            start_read(ref);
             return;
         }
 
@@ -541,7 +548,7 @@ void kis_gps_gpsd_v3::handle_read(const asio::error_code& error, std::size_t t) 
             new_location->lon *= -1;
 
         if (sscanf(gavec[9].c_str(), "%f", &tfloat) != 1) {
-            start_read();
+            start_read(ref);
             return;
         }
 
@@ -555,7 +562,7 @@ void kis_gps_gpsd_v3::handle_read(const asio::error_code& error, std::size_t t) 
         set_lat_lon = true;
 
     } else {
-        start_read();
+        start_read(ref);
         return;
     }
 
@@ -616,7 +623,7 @@ void kis_gps_gpsd_v3::handle_read(const asio::error_code& error, std::size_t t) 
     update_locations();
 
     // Initiate another read
-    start_read();
+    start_read(ref);
 }
 
 bool kis_gps_gpsd_v3::open_gps(std::string in_opts) {
@@ -665,7 +672,7 @@ bool kis_gps_gpsd_v3::open_gps(std::string in_opts) {
 
     resolver.async_resolve(tcp::resolver::query(host.c_str(), port.c_str()),
             [this](const asio::error_code& error, tcp::resolver::iterator endp) {
-                start_connect(error, endp);
+                start_connect(shared_from_this(), error, endp);
             });
 
     return 1;
