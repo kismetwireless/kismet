@@ -76,7 +76,7 @@ exports.RemoveTab = function(id, group="south") {
             }
         }
     } catch (error) {
-        alert(`UI attempted to remove tab ${id} from invlaid group ${group}`);
+        alert(`UI attempted to remove tab ${id} from invalid group ${group}`);
     }
 }
 
