@@ -1235,76 +1235,6 @@ function update_datasource2(data, state) {
     }
 }
 
-function update_datasourcegraph(data, state) {
-    var datasets = [];
-    var num = 0;
-
-    // Common point titles
-    var pointtitles = new Array();
-
-    for (var x = 60; x > 0; x--) {
-        if (x % 5 == 0) {
-            pointtitles.push(x + 's');
-        } else {
-            pointtitles.push(' ');
-        }
-    }
-
-    for (var source of state['kismet_sources']) {
-        var color = parseInt(255 * (num / state['kismet_sources'].length))
-
-        var linedata = 
-            kismet.RecalcRrdData2(source['kismet.datasource.packets_rrd'], kismet.RRD_SECOND);
-
-        datasets.push({
-            "label": source['kismet.datasource.name'],
-            "borderColor": `hsl(${color}, 100%, 50%)`,
-            "data": linedata,
-            "fill": false,
-        });
-
-        num = num + 1;
-
-    }
-
-    if (state['ds_chart'] == null) {
-        state['ds_graph_content'].append(
-            $('<canvas>', {
-                "id": "dsg-canvas",
-                "width": "100%",
-                "height": "100%"
-            })
-        );
-
-        state['ds_chart'] = new Chart($('#dsg-canvas', state['ds_graph_content']), {
-            "type": "line",
-            "options": {
-                "responsive": true,
-                "maintainAspectRatio": false,
-                "scales": {
-                    "yAxes": [
-                        {
-                            "position": "left",
-                            "id": "pkts-axis",
-                            "ticks": {
-                                "beginAtZero": true,
-                            }
-                        },
-                    ],
-                },
-            },
-            "data": {
-                "labels": pointtitles,
-                "datasets": datasets,
-            }
-        });
-    } else {
-        state['ds_chart'].data.datasets = datasets;
-        state['ds_chart'].data.labels = pointtitles;
-        state['ds_chart'].update(0);
-    }
-}
-
 exports.DataSources2 = function() {
     var w = $(window).width() * 0.95;
     var h = $(window).height() * 0.75;
@@ -1319,10 +1249,7 @@ exports.DataSources2 = function() {
     var state = {};
 
     var content =
-        $('<div class="k-ds-contentdiv">')
-        .append(
-            $('<div id="ds-tabs" class="tabs-min">')
-        );
+        $('<div class="k-ds-contentdiv">');
 
     state['panel'] = $.jsPanel({
         id: 'datasources',
@@ -1368,37 +1295,12 @@ exports.DataSources2 = function() {
     .contentResize();
 
     state["content"] = content;
+    state["ds_content"] = content;
     state["kismet_sources"] = [];
     state["kismet_interfaces"] = [];
-    state["ds_chart"] = null;
-
-    var f_ds_tabpane_closure = function(div) {
-        state['ds_content'] = div;
-    };
-
-    var f_dsgraph_tabpane_closure = function(div) {
-        state['ds_graph_content'] = div;
-    };
-
-    kismet_ui_tabpane.AddTab({
-        id: 'datasources',
-        tabTitle: 'Datasources',
-        createCallback: f_ds_tabpane_closure,
-        priority: -1001
-    }, 'ds-tabs');
-
-    kismet_ui_tabpane.AddTab({
-        id: 'datasources-graph',
-        tabTitle: 'Packet Rates',
-        createCallback: f_dsgraph_tabpane_closure,
-        priority: -1000
-    }, 'ds-tabs');
-
-    kismet_ui_tabpane.MakeTabPane($('#ds-tabs', content), 'ds-tabs');
 
     datasource_source_refresh(state, function(data) {
         update_datasource2(data, state);
-        update_datasourcegraph(data, state);
         });
     datasource_interface_refresh(state, function(data) {
         update_datasource2(data, state);

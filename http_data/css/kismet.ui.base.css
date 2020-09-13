@@ -192,4 +192,13 @@ div.viewselector {
 
 tr.alternating:nth-child(even) { background: #DDD; }
 
+div.k-pqm-contentdiv {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    bottom: 5px;
+    right: 5px;
+    width: 100%;
+    height: 100%;
+}
 
