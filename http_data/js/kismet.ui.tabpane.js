@@ -45,6 +45,16 @@ exports.AddTab = function(options, group="south") {
         return;
     }
 
+    if (group in tabholders) {
+        for (var t of tabholders[group].TabItems) {
+            if (t["id"] == options["id"])
+                return;
+        }
+    }
+
+    if (group in tabholders && options['id'] in tabholders[group].TabItems)
+        return;
+
     if (!('priority' in options)) {
         options.priority = 0;
     }
