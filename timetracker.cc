@@ -165,7 +165,7 @@ void time_tracker::tick() {
 
 void time_tracker::time_dispatcher() {
     while (!shutdown && !Globalreg::globalreg->spindown && !Globalreg::globalreg->fatal_condition) {
-        local_demand_locker lock(&time_mutex);
+        local_demand_locker lock(&time_mutex, "timetracker::time_dispatcher");
 
         // Calculate the next tick
         auto start = std::chrono::system_clock::now();
@@ -182,13 +182,12 @@ void time_tracker::time_dispatcher() {
         lock.lock();
 
         if (timer_sort_required)
-            stable_sort(sorted_timers.begin(), sorted_timers.end(), sort_timer_events_trigger());
+            sort(sorted_timers.begin(), sorted_timers.end(), sort_timer_events_trigger());
 
         timer_sort_required = false;
 
-        auto action_timers = std::vector<timer_event *>(sorted_timers.begin(), sorted_timers.end());
-        lock.unlock();
         // Sort the timers
+        auto action_timers = std::vector<timer_event *>(sorted_timers.begin(), sorted_timers.end());
 
         for (auto evt : action_timers) {
             // If we're pending cancellation, throw us out
@@ -256,6 +255,8 @@ void time_tracker::time_dispatcher() {
 
             removed_timer_ids.clear();
         }
+
+        lock.unlock();
 
         /*
         if (std::chrono::system_clock::now() >= end) {
