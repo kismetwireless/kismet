@@ -1374,9 +1374,6 @@ exports.DataSources2 = function() {
     state["kismet_sources"] = [];
     state["kismet_interfaces"] = [];
 
-    state["complained_login"] = false;
-    state["logged_in"] = false;
-
     datasource_source_refresh(state, function(data) {
             update_datasource2(data, state);
         });
@@ -1404,20 +1401,7 @@ function datasource_source_refresh(state, cb) {
         });
     };
 
-    if (state["logged_in"] == false) {
-        kismet_ui_base.LoginCheck(function(success) {
-            if (success) {
-                state["logged_in"] = true;
-            } else if (state["complained_login"] == false) {
-                state["complained_login"] = true;
-                complain_about_login();
-            }
-
-            grab_sources(state, cb);
-        });
-    } else {
-        grab_sources(state, cb);
-    }
+    grab_sources(state, cb);
 
 }
 
@@ -1440,25 +1424,7 @@ function datasource_interface_refresh(state, cb) {
         });
     };
 
-    if (state["logged_in"] == false) {
-        kismet_ui_base.LoginCheck(function(success) {
-            if (success) {
-                state["logged_in"] = true;
-                grab_interfaces(state, cb);
-            } else {
-                if (state["complained_login"] == false) {
-                    state["complained_login"] = true;
-                    complain_about_login();
-                }
-
-                state['datasource_interface_tid'] = setTimeout(function() {
-                    datasource_interface_refresh(state, cb)
-                }, 3000);
-            }
-        });
-    } else {
-        grab_interfaces(state, cb);
-    }
+    grab_interfaces(state, cb);
 }
 
 // We're done loading
