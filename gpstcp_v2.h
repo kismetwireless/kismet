@@ -45,10 +45,12 @@ public:
     virtual bool get_device_connected() override;
 
 protected:
-    void start_connect(const asio::error_code& error, tcp::resolver::iterator endpoint_iter);
-    void handle_connect(const asio::error_code& error, tcp::resolver::iterator endpoint);
+    void start_connect(std::shared_ptr<kis_gps_tcp_v2> ref, 
+            const asio::error_code& error, tcp::resolver::iterator endpoint_iter);
+    void handle_connect(std::shared_ptr<kis_gps_tcp_v2> ref,
+            const asio::error_code& error, tcp::resolver::iterator endpoint);
 
-    void write_gpsd(const std::string& data);
+    void write_gpsd(std::shared_ptr<kis_gps_tcp_v2> ref, const std::string& data);
 
     tcp::resolver resolver;
     tcp::socket socket;
