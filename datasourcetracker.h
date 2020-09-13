@@ -170,7 +170,6 @@ public:
 
 protected:
     std::shared_ptr<kis_recursive_timed_mutex> list_lock;
-
     std::shared_ptr<time_tracker> timetracker;
 
     // Probing instances
@@ -191,6 +190,8 @@ protected:
 
     std::function<void (std::vector<shared_interface>)> list_cb;
     std::atomic<bool> cancelled;
+
+    std::atomic<int> cancel_event_id;
 
     std::vector<shared_interface> listed_sources;
 };

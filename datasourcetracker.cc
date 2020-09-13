@@ -197,10 +197,24 @@ datasource_tracker_source_list::datasource_tracker_source_list(std::shared_ptr<t
     timetracker {Globalreg::fetch_mandatory_global_as<time_tracker>()},
     proto_vec {in_protovec},
     transaction_id {0},
-    cancelled {false} { }
+    cancelled {false} {
+
+    // Set up a cancellation timer
+
+    cancel_event_id = 
+        timetracker->register_timer(std::chrono::seconds(10), false, 
+            [this] (int) -> int {
+                if (cancelled)
+                    return 0;
+                cancel();
+                return 0;
+            });
+}
 
 datasource_tracker_source_list::~datasource_tracker_source_list() {
     cancelled = true;
+
+    timetracker->remove_timer(cancel_event_id);
 
     // Cancel any probing sources and delete them
     for (auto s : list_vec)
@@ -216,21 +230,20 @@ void datasource_tracker_source_list::cancel() {
     if (cancelled)
         return;
 
+    cancelled = true;
+
     // Abort anything already underway
     for (auto i : ipc_list_map) {
         i.second->close_source();
     }
-
-    cancelled = true;
 
     // Trigger the callback
     if (list_cb) 
         list_cb(listed_sources);
 }
 
-void datasource_tracker_source_list::complete_list(std::vector<shared_interface> in_list, unsigned int in_transaction) {
-    local_locker lock(list_lock);
-
+void datasource_tracker_source_list::complete_list(std::vector<shared_interface> in_list,
+        unsigned int in_transaction) {
     // If we're already in cancelled state these callbacks mean nothing, ignore them
     if (cancelled)
         return;
@@ -238,6 +251,8 @@ void datasource_tracker_source_list::complete_list(std::vector<shared_interface>
     for (auto i = in_list.begin(); i != in_list.end(); ++i) {
         listed_sources.push_back(*i);
     }
+
+    local_locker lock(list_lock, "dst_source_list::complete_list");
 
     auto v = ipc_list_map.find(in_transaction);
     if (v != ipc_list_map.end()) {
@@ -271,7 +286,7 @@ void datasource_tracker_source_list::list_sources(std::function<void (std::vecto
         shared_datasource pds = b->build_datasource(b);
 
         {
-            local_locker lock(list_lock);
+            local_locker lock(list_lock, "dst_source_list::list_sources");
             ipc_list_map[transaction] = pds;
             list_vec.push_back(pds);
             created_ipc = true;
@@ -1022,32 +1037,20 @@ void datasource_tracker::list_interfaces(const std::function<void (std::vector<s
     // Record it
     listing_map[listid] = dst_list;
 
-    // Set up a cancellation timer
-    int cancel_timer = 
-        timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
-            [dst_list] (int) -> int {
-                dst_list->cancel();
-                return 0;
-            });
-
-
     // Initiate the probe
-    dst_list->list_sources([this, cancel_timer, listid, in_cb](std::vector<shared_interface> interfaces) {
-        // We're complete; cancel the timer if it's still around.
-        timetracker->remove_timer(cancel_timer);
-
+    dst_list->list_sources([this, listid, in_cb](std::vector<shared_interface> interfaces) {
         local_demand_locker lock(&dst_lock, "datasourcetracker::list_sources cancel lambda");
         lock.lock();
 
         // Figure out what interfaces are in use by active sources and amend their
         // UUID records in the listing
-        for (auto il = interfaces.begin(); il != interfaces.end(); ++il) {
-            for (auto s : *datasource_vec) {
+        for (const auto& il : interfaces) {
+            for (const auto& s : *datasource_vec) {
                 shared_datasource sds = std::static_pointer_cast<kis_datasource>(s);
                 if (!sds->get_source_remote() &&
-                        ((*il)->get_interface() == sds->get_source_interface() ||
-                         (*il)->get_interface() == sds->get_source_cap_interface())) {
-                    (*il)->set_in_use_uuid(sds->get_source_uuid());
+                        (il->get_interface() == sds->get_source_interface() ||
+                         il->get_interface() == sds->get_source_cap_interface())) {
+                    il->set_in_use_uuid(sds->get_source_uuid());
                     break;
                 }
             }
