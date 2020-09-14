@@ -655,11 +655,6 @@ function update_datasource2(data, state) {
                 .html('Enable Source')
                 .button()
                 .on('click', function() {
-                    if (!(state["logged_in"])) {
-                        complain_about_login();
-                        return;
-                    }
-
                     var jscmd = {
                         "definition": $(this).attr('interface') + ':type=' + $(this).attr('intftype')
                     };
@@ -787,11 +782,6 @@ function update_datasource2(data, state) {
               }).html("All")
               .button()
               .on('click', function(){
-                if (!(state["logged_in"])) {
-                    complain_about_login();
-                    return;
-                }
-
                 state['defer_command_progress'] = true;
 
                 var uuid = $(this).attr('uuid');
@@ -829,11 +819,6 @@ function update_datasource2(data, state) {
                     }).html(c)
                     .button()
                     .on('click', function() {
-                        if (!(state["logged_in"])) {
-                            complain_about_login();
-                            return;
-                        }
-
                         var uuid = $(this).attr('uuid');
                         var tid = 'tid' + uuid;
 
@@ -937,11 +922,6 @@ function update_datasource2(data, state) {
                 }).html('Paused')
                 .button()
                 .on('click', function() {
-                    if (!(state["logged_in"])) {
-                        complain_about_login();
-                        return;
-                    }
-
                     state['defer_command_progress'] = true;
                     state['defer_source_update'] = true;
 
@@ -966,11 +946,6 @@ function update_datasource2(data, state) {
                 }).html('Running')
                 .button()
                 .on('click', function() {
-                    if (!(state["logged_in"])) {
-                        complain_about_login();
-                        return;
-                    }
-
                     state['defer_command_progress'] = true;
                     state['defer_source_update'] = true;
 
@@ -1012,11 +987,6 @@ function update_datasource2(data, state) {
             }).html("Lock")
             .button()
             .on('click', function(){
-              if (!(state["logged_in"])) {
-                  complain_about_login();
-                  return;
-              }
-
               state['defer_source_update'] = true;
               state['defer_command_progress'] = true;
 
@@ -1062,11 +1032,6 @@ function update_datasource2(data, state) {
             }).html("Hop")
             .button()
             .on('click', function(){
-              if (!(state["logged_in"])) {
-                  complain_about_login();
-                  return;
-              }
-
               state['defer_source_update'] = true;
               state['defer_command_progress'] = true;
 
