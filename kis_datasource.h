@@ -353,8 +353,11 @@ public:
     __ProxyM(source_num_error_packets, uint64_t, uint64_t, uint64_t, source_num_error_packets, ext_mutex);
     __ProxyIncDecM(Msource_num_error_packets, uint64_t, uint64_t, source_num_error_packets, ext_mutex);
 
-    __ProxyDynamicTrackableM(source_packet_rrd, kis_tracked_minute_rrd<>, 
+    __ProxyDynamicTrackableM(source_packet_rrd, kis_tracked_rrd<>, 
             packet_rate_rrd, packet_rate_rrd_id, ext_mutex);
+
+    __ProxyDynamicTrackableM(source_packet_size_rrd, kis_tracked_rrd<>, 
+            packet_size_rrd, packet_size_rrd_id, ext_mutex);
 
     // IPC binary name, if any
     __ProxyGetM(source_ipc_binary, std::string, std::string, source_ipc_binary, ext_mutex);
@@ -616,7 +619,10 @@ protected:
     std::shared_ptr<tracker_element_uint64> source_num_error_packets;
 
     int packet_rate_rrd_id;
-    std::shared_ptr<kis_tracked_minute_rrd<>> packet_rate_rrd;
+    std::shared_ptr<kis_tracked_rrd<>> packet_rate_rrd;
+
+    int packet_size_rrd_id;
+    std::shared_ptr<kis_tracked_rrd<>> packet_size_rrd;
 
 
     // Local ID number is an increasing number assigned to each 

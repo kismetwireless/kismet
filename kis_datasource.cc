@@ -1157,8 +1157,12 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno, const std::str
         } else {
             datachunk->dlt = report.packet().dlt();
         }
+
         datachunk->copy_data((const uint8_t *) report.packet().data().data(), 
                 report.packet().data().length());
+
+        get_source_packet_size_rrd()->add_sample(report.packet().data().length(), time(0));
+
 
         packet->insert(pack_comp_linkframe, datachunk);
     }
@@ -1558,8 +1562,13 @@ void kis_datasource::register_fields() {
 
     packet_rate_rrd_id = 
         register_dynamic_field("kismet.datasource.packets_rrd", 
-                "detected packet rate over past 60 seconds",
+                "received packet rate RRD",
                 &packet_rate_rrd);
+
+    packet_size_rrd_id = 
+        register_dynamic_field("kismet.datasource.packets_datasize_rrd", 
+                "received data RRD (in bytes)",
+                &packet_size_rrd);
 
     register_field("kismet.datasource.retry", 
             "Source will try to re-open after failure", &source_retry);

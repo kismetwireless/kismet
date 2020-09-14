@@ -1454,11 +1454,36 @@ function datasourcepackets_refresh() {
             }
         }
 
+        var rval = $('#pq_ds_range', packetqueue_panel.ds_content).val();
+        var range = kismet.RRD_SECOND;
+
+        if (rval == "hour")
+            range = kismet.RRD_MINUTE;
+        if (rval == "day")
+            range = kismet.RRD_DAY;
+
         for (var source of data) {
             var color = parseInt(255 * (num / data.length))
 
-            var linedata = 
-                kismet.RecalcRrdData2(source['kismet.datasource.packets_rrd'], kismet.RRD_SECOND);
+            var linedata;
+
+            if ($('#pq_ds_type', packetqueue_panel.ds_content).val() == "bps")
+                linedata =
+                    kismet.RecalcRrdData2(source['kismet.datasource.packets_datasize_rrd'], 
+                    range,
+                    {
+                        transform: function(data, opt) {
+                            var ret = [];
+
+                            for (var d of data)
+                                ret.push(d / 1024);
+
+                            return ret;
+                        }
+                    });
+            else
+                linedata =
+                    kismet.RecalcRrdData2(source['kismet.datasource.packets_rrd'], range);
 
             datasets.push({
                 "label": source['kismet.datasource.name'],
@@ -1473,6 +1498,47 @@ function datasourcepackets_refresh() {
 
         if (packetqueue_panel.datasource_chart == null) {
             packetqueue_panel.ds_content.append(
+                $('<div>', {
+                    "style": "float: right;"
+                })
+                .append(
+                    $('<select>', {
+                        "id": "pq_ds_type",
+                    })
+                    .append(
+                        $('<option>', {
+                            "value": "pps",
+                            "selected": "selected",
+                        }).text("Packets")
+                    )
+                    .append(
+                        $('<option>', {
+                            "value": "bps",
+                        }).text("Data (kB)")
+                    )
+                )
+                .append(
+                    $('<select>', {
+                        "id": "pq_ds_range",
+                    })
+                    .append(
+                        $('<option>', {
+                            "value": "second",
+                            "selected": "selected",
+                        }).text("Past Minute")
+                    )
+                    .append(
+                        $('<option>', {
+                            "value": "hour",
+                        }).text("Past Hour")
+                    )
+                    .append(
+                        $('<option>', {
+                            "value": "day",
+                        }).text("Past Day")
+                    )
+                )
+            ).append(
                 $('<canvas>', {
                     "id": "dsg-canvas",
                     "width": "100%",
