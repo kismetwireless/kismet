@@ -304,10 +304,19 @@ exports.RecalcRrdData2 = function(rrddata, type, opt = {}) {
     else
         record = "kismet.common.rrd.minute_vec";
 
+    var data = [];
+    var rrd_len;
+    var now;
+    var start;
+
     try {
-        var data = rrddata[record];
-        var rrd_len = data.length;
+        data = rrddata[record];
+        now = rrddata['kismet.common.rrd.serial_time'];
+        start = rrddata['kismet.common.rrd.last_time'];
     } catch (e) {
+        now = 0;
+        start = 0;
+
         if (type == exports.RRD_SECOND || type == exports.RRD_MINUTE) {
             data = [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
@@ -327,6 +336,8 @@ exports.RecalcRrdData2 = function(rrddata, type, opt = {}) {
         }
     }
 
+    rrd_len = data.length;
+
     // Each type value is the number of seconds in each bin of the array
     //
     // A bin for a given time is (time / type) % len
@@ -340,8 +351,6 @@ exports.RecalcRrdData2 = function(rrddata, type, opt = {}) {
 
     // Adjusted data we return
     var adj_data = new Array();
-    var now = rrddata['kismet.common.rrd.serial_time'];
-    var start = rrddata['kismet.common.rrd.last_time'];
 
     // Check if we're past the recording bounds of the rrd for this type, if we
     // are, we don't have to do any shifting or any manipulation, we just fill
