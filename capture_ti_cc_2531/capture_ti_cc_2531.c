@@ -665,8 +665,12 @@ void capture_thread(kis_capture_handler_t *caph) {
             if (buf_rx_len <= 7)
                 continue;
 
+            if(usb_buf[0] != 0x00) {
+                printf("invalid 2531 packet?\n");
+                continue;
+            }
+
             /* insert the channel into the packet header*/
-            printf("channel to insert:%d\n",localticc2531->channel);
             usb_buf[2] = (uint8_t)localticc2531->channel;
 
             while (1) {
