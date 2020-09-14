@@ -1460,7 +1460,7 @@ function datasourcepackets_refresh() {
         if (rval == "hour")
             range = kismet.RRD_MINUTE;
         if (rval == "day")
-            range = kismet.RRD_DAY;
+            range = kismet.RRD_HOUR;
 
         for (var source of data) {
             var color = parseInt(255 * (num / data.length))
