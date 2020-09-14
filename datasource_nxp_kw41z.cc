@@ -80,30 +80,13 @@ void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
     if (nxp_chunk->data[0] == 0x02 && nxp_chunk->data[1] == 0x86 &&
         nxp_chunk->data[2] == 0x03) {
 
-        typedef struct {
-            uint16_t type;    // type identifier
-            uint16_t length;  // number of octets for type in value field (not
-                              // including padding
-            uint32_t value;   // data for type
-        } tap_tlv;
-
-        typedef struct {
-            uint8_t version;   // currently zero
-            uint8_t reserved;  // must be zero
-            uint16_t length;   // total length of header and tlvs in octets, min
-                               // 4 and must be multiple of 4
-            tap_tlv tlv[3];    // tap tlvs
-            uint8_t payload[0];
-            ////payload + fcs per fcs type
-        } zigbee_tap;
-
         uint32_t rssi = nxp_chunk->data[5];
         uint16_t nxp_payload_len = nxp_chunk->data[10];
-        uint8_t channel = 11;
+        uint8_t channel = nxp_chunk->data[4];
         // We can make a valid payload from this much
-        auto conv_buf_len = sizeof(zigbee_tap) + nxp_payload_len;
-        zigbee_tap *conv_header =
-            reinterpret_cast<zigbee_tap *>(new uint8_t[conv_buf_len]);
+        auto conv_buf_len = sizeof(_802_15_4_tap) + nxp_payload_len;
+        _802_15_4_tap *conv_header =
+            reinterpret_cast<_802_15_4_tap *>(new uint8_t[conv_buf_len]);
         memset(conv_header, 0, conv_buf_len);
 
         // Copy the actual packet payload into the header
@@ -139,7 +122,6 @@ void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
         //radioheader->freq_khz = (2400 + (channel)) * 1000;
         radioheader->channel = fmt::format("{}", (channel));
         packet->insert(pack_comp_radiodata, radioheader);
-
 
         // Pass the packet on
         packetchain->process_packet(packet);

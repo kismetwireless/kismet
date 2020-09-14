@@ -25,6 +25,7 @@
 
 #include "kis_datasource.h"
 #include "dlttracker.h"
+#include "tap_802_15_4.h"
 
 class kis_datasource_ticc2531;
 typedef std::shared_ptr<kis_datasource_ticc2531> shared_datasource_ticc2531;

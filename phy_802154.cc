@@ -34,6 +34,7 @@
 #include "devicetracker.h"
 #include "dlttracker.h"
 #include "manuf.h"
+#include "messagebus.h"
 
 #include "phy_802154.h"
 
@@ -145,79 +146,55 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
         return 0;
 
     //process the packet
-    printf("process a packet from within the phy_802154\n");
+    //printf("process a packet from within the phy_802154\n");
     //hurray we make it here
 
     uint8_t pkt_ctr = 0;
     if(packdata->dlt == KDLT_IEEE802_15_4_TAP)
     {
-        printf("KDLT_IEEE802_15_4_TAP\n");
+        //printf("KDLT_IEEE802_15_4_TAP\n");
         uint64_t tap_header_size = sizeof(zigbee_tap);
-        printf("tap_header_size:%d\n",tap_header_size);
+        //printf("tap_header_size:%d\n",tap_header_size);
 
         uint8_t tmp_header[32];memset(tmp_header,0x00,32);
-        printf("copy over the tmp data\n");
+        //printf("copy over the tmp data\n");
         memcpy(tmp_header, &packdata->data[pkt_ctr], tap_header_size);
-        printf("set the header\n");
+        //printf("set the header\n");
         tap_header = (zigbee_tap *)&tmp_header;
 
         //realy we are going to want to iterate through them to pull them correctly.
         
         chan = tap_header->tlv[2].value;
-        printf("pull out the channel:%d\n",chan);
+        //printf("pull out the channel:%d\n",chan);
         
         sigstr = tap_header->tlv[1].value;
-        printf("pull out the signal:%d\n",sigstr);
+        //printf("pull out the signal:%d\n",sigstr);
 
         //printf("change the dtl\n");
         //packdata->dlt = KDLT_IEEE802_15_4_NOFCS;
-        printf("advance the pkt_ctr\n");
+        //printf("advance the pkt_ctr\n");
         pkt_ctr += tap_header_size;
     }
 
-    printf("pkt_ctr:%d\n",pkt_ctr);
+    //printf("pkt_ctr:%d\n",pkt_ctr);
 
     if(packdata->dlt == KDLT_IEEE802_15_4_NOFCS || packdata->dlt == KDLT_IEEE802_15_4_TAP)
     {
-        //printf("parse a 802154 packet of dlt KDLT_IEEE802_15_4_NOFCS\n");
-        //printf("print the packet that we got\n");
-        //for(int xp=0;xp<(int)packdata->length;xp++)
-        //{
-            //printf("%02X",packdata->data[xp]);
-        //}
-        //printf("\n");
-        //get the fcf first
-
         unsigned short fcf = (((short)packdata->data[pkt_ctr+1]) << 8) | (0x00ff & packdata->data[pkt_ctr]);
         pkt_ctr+=2;
-        //we need to take a look at what flags are set
+
         hdr_802_15_4_fcf = (_802_15_4_fcf* )&fcf;
 
-        //printf("struct\n");
-//        printf("type:%02X\n",hdr_802_15_4_fcf->type);
-//        printf("security:%02X\n",hdr_802_15_4_fcf->security);
-        //printf("pending:%02X\n",hdr_802_15_4_fcf->pending);
-        //printf("ack_req:%02X\n",hdr_802_15_4_fcf->ack_req);
-        //printf("pan_id_comp:%02X\n",hdr_802_15_4_fcf->pan_id_comp);
-        //printf("reserved:%02X\n",hdr_802_15_4_fcf->reserved);
-        //printf("sns:%02X\n",hdr_802_15_4_fcf->sns);
-        //printf("iep:%02X\n",hdr_802_15_4_fcf->iep);
-//        printf("dest_addr_mode:%02X\n",hdr_802_15_4_fcf->dest_addr_mode);
-//        printf("frame_ver:%02X\n",hdr_802_15_4_fcf->frame_ver);
-//        printf("src_addr_mode:%02X\n",hdr_802_15_4_fcf->src_addr_mode);
-
-        //we should be able to handle whichever correctly
-        //0x01 - data,  0x03 - cmd, 0x04 - reserved
-        //hdr_802_15_4_fcf->type == 0x01 || hdr_802_15_4_fcf->type == 0x03 || hdr_802_15_4_fcf->type == 0x04
         if(hdr_802_15_4_fcf->type == 0x05)
         {
             printf("type %02X currently not supported\n",hdr_802_15_4_fcf->type);
             return 0;
         }
-        uint8_t seq;
+        //uint8_t seq;
         if(!hdr_802_15_4_fcf->sns)
         {
-            seq = packdata->data[pkt_ctr];pkt_ctr++;
+            //seq = packdata->data[pkt_ctr];
+            pkt_ctr++;
         }
 
         if(hdr_802_15_4_fcf->dest_addr_mode == 0x01)
@@ -297,8 +274,9 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 
     }
 
-    if(hdr_802_15_4_fcf->src_addr_mode >= 0x02 || hdr_802_15_4_fcf->dest_addr_mode >= 0x02)// || fcf_zzh->ext_src == 1
+    if(hdr_802_15_4_fcf->src_addr_mode >= 0x02 || hdr_802_15_4_fcf->dest_addr_mode >= 0x02)
     {
+/**
         if(hdr_802_15_4_fcf->src_addr_mode == 0x03)
         {
             printf("src_addr_mode == 0x03\n");
@@ -334,7 +312,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
                 printf("%02X ",dest_pan[xps]);
             printf("\n");
         }
-
+**/
 
         common = new kis_common_info;
         common->phyid = mphy->fetch_phy_id();
@@ -349,7 +327,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
         //common->direction = packet_direction_to;
         if(hdr_802_15_4_fcf->src_addr_mode == 0x03)
         {
-            printf("set source from ext\n");
+//            printf("set source from ext\n");
             common->source = mac_addr(ext_source, 8);
         }
 //        else if(hdr_802_15_4_fcf->src_addr_mode == 0x02 && !hdr_802_15_4_fcf->pan_id_comp)
@@ -359,23 +337,23 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 //        }
         else if(hdr_802_15_4_fcf->src_addr_mode == 0x02 && hdr_802_15_4_fcf->pan_id_comp)
         {
-            printf("set source from src\n");
+//            printf("set source from src\n");
             common->source = mac_addr(src, 2);
         }
         else if(hdr_802_15_4_fcf->src_addr_mode == 0x02)
         {
-            printf("set source from src\n");
+//            printf("set source from src\n");
             common->source = mac_addr(src, 2);
         }
 
         if(hdr_802_15_4_fcf->dest_addr_mode == 0x03)
         {
-            printf("set dest from ext\n");
+//            printf("set dest from ext\n");
             common->dest = mac_addr(ext_dest, 8);
         }
         else if(hdr_802_15_4_fcf->dest_addr_mode == 0x02)
         {
-            printf("set dest from dest\n");
+//            printf("set dest from dest\n");
             common->dest = mac_addr(dest, 2);
         }
 //        else if(hdr_802_15_4_fcf->dest_addr_mode == 0x02)
@@ -386,7 +364,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 
         //network
         //transmitter
-        printf("insert src->dest\n");
+//        printf("insert src->dest\n");
         in_pack->insert(mphy->pack_comp_common, common);
 
     }
@@ -399,12 +377,12 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
 
     auto packdata = in_pack->fetch<kis_datachunk>(mphy->pack_comp_linkframe);
 
-    printf("in commonclassifier802154\n");
+    //printf("in commonclassifier802154\n");
     if (packdata == nullptr)
         return 0;
 
     // Is it a packet we care about?
-    printf("commonclassifier802154 packdata->dlt:%d mphy->dlt:%d\n",packdata->dlt,mphy->dlt);
+    //printf("commonclassifier802154 packdata->dlt:%d mphy->dlt:%d\n",packdata->dlt,mphy->dlt);
     if (packdata->dlt != mphy->dlt && (packdata->dlt != KDLT_IEEE802_15_4_NOFCS && packdata->dlt != KDLT_IEEE802_15_4_TAP))
         return 0;
 
@@ -414,7 +392,7 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
     if (common == NULL)
         return 0;
 
-    printf("as source\n");
+    //printf("as source\n");
     // Update with all the options in case we can add signal and frequency
     // in the future
     auto source_dev = 
@@ -435,7 +413,7 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
         source_dev->insert(source_kis_802154);
     }
 
-    printf("as dest\n");
+    //printf("as dest\n");
     //as destination
     // Update with all the options in case we can add signal and frequency
     // in the future
