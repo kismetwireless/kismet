@@ -37,6 +37,9 @@ public:
     // In and out must be able to hold the appropriate amount of data.
     static void decodeblock(unsigned char *in, unsigned char *out);
 
+    // Encode a string to base64
+    static std::string encode(const std::string& in_str);
+
 protected:
     const static char b64_values[];
 };

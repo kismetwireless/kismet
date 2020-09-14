@@ -128,8 +128,6 @@ exports.drawPackets = function(dyncolumn, table, row) {
 
     var data = row.data();
 
-    //console.log(data);
-
     // Simplify the RRD so that the bars are thicker in the graph, which
     // I think looks better.  We do this with a transform function on the
     // RRD function, and we take the peak value of each triplet of samples
@@ -1251,7 +1249,7 @@ function memorydisplay_refresh() {
  */
 kismet_ui_sidebar.AddSidebarItem({
     id: 'packetqueue_sidebar',
-    listTitle: '<i class="fa fa-area-chart"></i> Packet load',
+    listTitle: '<i class="fa fa-area-chart"></i> Packet Rates',
     clickCallback: function() {
         exports.PacketQueueMonitor();
     },
@@ -1259,7 +1257,6 @@ kismet_ui_sidebar.AddSidebarItem({
 
 var packetqueueupdate_tid;
 var packetqueue_panel = null;
-var packetqueue_chart = null;
 
 exports.PacketQueueMonitor = function() {
     var w = $(window).width() * 0.75;
@@ -1272,18 +1269,22 @@ exports.PacketQueueMonitor = function() {
         offty = 0;
     }
 
-    packetqueue_chart = null;
+    var content =
+        $('<div class="k-pqm-contentdiv">')
+        .append(
+            $('<div id="pqm-tabs" class="tabs-min">')
+        );
 
     packetqueue_panel = $.jsPanel({
         id: 'packetqueue',
-        headerTitle: '<i class="fa fa-area-chart" /> Packet load',
+        headerTitle: '<i class="fa fa-area-chart" /> Packet Rates',
         headerControls: {
             controls: 'closeonly',
             iconfont: 'jsglyph',
         },
-        content: '<canvas id="k-mm-canvas" style="k-mm-canvas" />',
+        content: content,
         onclosed: function() {
-            clearTimeout(packetqueueupdate_tid);
+            clearTimeout(packetqueue_panel.packetqueueupdate_tid);
         }
     }).resize({
         width: w,
@@ -1295,14 +1296,42 @@ exports.PacketQueueMonitor = function() {
         offsetY: offty
     });
 
+    packetqueue_panel.packetqueue_chart = null;
+    packetqueue_panel.datasource_chart = null;
+
+    var f_pqm_packetqueue = function(div) {
+        packetqueue_panel.pq_content = div;
+    };
+
+    var f_pqm_ds = function(div) {
+        packetqueue_panel.ds_content = div;
+    };
+
+    kismet_ui_tabpane.AddTab({
+        id: 'packetqueue',
+        tabTitle: 'Processing Queue',
+        createCallback: f_pqm_packetqueue,
+        priority: -1001
+    }, 'pqm-tabs');
+
+    kismet_ui_tabpane.AddTab({
+        id: 'datasources-graph',
+        tabTitle: 'Per Datasource',
+        createCallback: f_pqm_ds,
+        priority: -1000
+    }, 'pqm-tabs');
+
+    kismet_ui_tabpane.MakeTabPane($('#pqm-tabs', content), 'pqm-tabs');
+
     packetqueuedisplay_refresh();
+    datasourcepackets_refresh();
 }
 
 function packetqueuedisplay_refresh() {
-    clearTimeout(packetqueueupdate_tid);
-
     if (packetqueue_panel == null)
         return;
+
+    clearTimeout(packetqueue_panel.packetqueueupdate_tid);
 
     if (packetqueue_panel.is(':hidden'))
         return;
@@ -1354,10 +1383,19 @@ function packetqueuedisplay_refresh() {
             },
         ];
 
-        if (packetqueue_chart == null) {
-            var canvas = $('#k-mm-canvas', packetqueue_panel.content);
+        if (packetqueue_panel.packetqueue_chart == null) {
+            packetqueue_panel.pq_content.append(
+                $('<canvas>', {
+                    "id": "pq-canvas",
+                    "width": "100%",
+                    "height": "100%",
+                    "class": "k-mm-canvas",
+                })
+            );
 
-            packetqueue_chart = new Chart(canvas, {
+            var canvas = $('#pq-canvas', packetqueue_panel.pq_content);
+
+            packetqueue_panel.packetqueue_chart = new Chart(canvas, {
                 type: 'line',
                 options: {
                     responsive: true,
@@ -1371,14 +1409,6 @@ function packetqueuedisplay_refresh() {
                                     beginAtZero: true,
                                 }
                             },
-/*                          {
-                                position: "right",
-                                "id": "dev-axis",
-                                ticks: {
-                                    beginAtZero: true,
-                                }
-                            }
-*/
                         ]
                     },
                 },
@@ -1389,13 +1419,99 @@ function packetqueuedisplay_refresh() {
             });
 
         } else {
-            packetqueue_chart.data.datasets = datasets;
-            packetqueue_chart.data.labels = pointtitles;
-            packetqueue_chart.update(0);
+            packetqueue_panel.packetqueue_chart.data.datasets = datasets;
+            packetqueue_panel.packetqueue_chart.data.labels = pointtitles;
+            packetqueue_panel.packetqueue_chart.update(0);
         }
     })
     .always(function() {
-        packetqueueupdate_tid = setTimeout(packetqueuedisplay_refresh, 5000);
+        packetqueue_panel.packetqueueupdate_tid = setTimeout(packetqueuedisplay_refresh, 5000);
+    });
+};
+
+function datasourcepackets_refresh() {
+    if (packetqueue_panel == null)
+        return;
+
+    clearTimeout(packetqueue_panel.datasourceupdate_tid);
+
+    if (packetqueue_panel.is(':hidden'))
+        return;
+
+    $.get(local_uri_prefix + "datasource/all_sources.json")
+    .done(function(data) {
+        var datasets = [];
+        var num = 0;
+
+        // Common point titles
+        var pointtitles = new Array();
+
+        for (var x = 60; x > 0; x--) {
+            if (x % 5 == 0) {
+                pointtitles.push(x + 's');
+            } else {
+                pointtitles.push(' ');
+            }
+        }
+
+        for (var source of data) {
+            var color = parseInt(255 * (num / data.length))
+
+            var linedata = 
+                kismet.RecalcRrdData2(source['kismet.datasource.packets_rrd'], kismet.RRD_SECOND);
+
+            datasets.push({
+                "label": source['kismet.datasource.name'],
+                "borderColor": `hsl(${color}, 100%, 50%)`,
+                "data": linedata,
+                "fill": false,
+            });
+
+            num = num + 1;
+
+        }
+
+        if (packetqueue_panel.datasource_chart == null) {
+            packetqueue_panel.ds_content.append(
+                $('<canvas>', {
+                    "id": "dsg-canvas",
+                    "width": "100%",
+                    "height": "100%",
+                    "class": "k-mm-canvas",
+                })
+            );
+
+            packetqueue_panel.datasource_chart = 
+                new Chart($('#dsg-canvas', packetqueue_panel.ds_content), {
+                "type": "line",
+                "options": {
+                    "responsive": true,
+                    "maintainAspectRatio": false,
+                    "scales": {
+                        "yAxes": [
+                            {
+                                "position": "left",
+                                "id": "pkts-axis",
+                                "ticks": {
+                                    "beginAtZero": true,
+                                }
+                            },
+                        ],
+                    },
+                },
+                "data": {
+                    "labels": pointtitles,
+                    "datasets": datasets,
+                }
+            });
+        } else {
+            packetqueue_panel.datasource_chart.data.datasets = datasets;
+            packetqueue_panel.datasource_chart.data.labels = pointtitles;
+            packetqueue_panel.datasource_chart.update(0);
+        }
+    })
+    .always(function() {
+        packetqueue_panel.datasourceupdate_tid = setTimeout(datasourcepackets_refresh, 1000);
     });
 };
 

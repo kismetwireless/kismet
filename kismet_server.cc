@@ -238,12 +238,12 @@ global_registry *globalregistry = NULL;
 
 void SpindownKismet() {
     // Shut down the webserver first
-    auto httpd = Globalreg::fetch_global_as<kis_net_httpd>("HTTPD_SERVER");
-    if (httpd != NULL)
+    auto httpd = Globalreg::fetch_global_as<kis_net_httpd>();
+    if (httpd != nullptr)
         httpd->stop_httpd();
 
     auto devicetracker =
-        Globalreg::fetch_global_as<device_tracker>("DEVICETRACKER");
+        Globalreg::fetch_global_as<device_tracker>();
     if (devicetracker != NULL) {
         devicetracker->databaselog_write_devices();
     }
@@ -1006,6 +1006,10 @@ int main(int argc, char *argv[], char *envp[]) {
     
     _MSG("Starting Kismet web server...", MSGFLAG_INFO);
     Globalreg::fetch_mandatory_global_as<kis_net_httpd>()->start_httpd();
+
+    if (globalreg->fatal_condition) {
+        SpindownKismet();
+    }
 
     // Independent time and select threads, which has had problems with timing conflicts
     timetracker->spawn_timetracker_thread();

@@ -60,6 +60,13 @@ exports.AddTab = function(options, group="south") {
     options.expanded = false;
 
     if (group in tabholders) {
+        for (var x = 0; x < tabholders[group].TabItems.length; x++) {
+            if (tabholders[group].TabItems[x].id == options["id"]) {
+                tabholders[group].TabItems.splice(x, 1);
+                break;
+            }
+        }
+
         tabholders[group].TabItems.push(options);
     } else {
         tabholders[group] = {
@@ -71,12 +78,13 @@ exports.AddTab = function(options, group="south") {
 exports.RemoveTab = function(id, group="south") {
     try {
         for (var x = 0; x < tabholders[group].TabItems.length; x++) {
-            if (tablholders[group].TabItems[x].id = id) {
-                tablholders[group].TabItems.splice(x, 1);
+            if (tabholders[group].TabItems[x].id == id) {
+                tabholders[group].TabItems.splice(x, 1);
+                break;
             }
         }
     } catch (error) {
-        alert(`UI attempted to remove tab ${id} from invlaid group ${group}`);
+        alert(`UI attempted to remove tab ${id} from invalid group ${group}`);
     }
 }
 
@@ -150,6 +158,8 @@ function populateList(div, group) {
             });
 
         div.append(td);
+
+        c['content'] = td;
 
         c.createCallback(td);
     }

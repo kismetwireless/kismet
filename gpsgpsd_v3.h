@@ -29,7 +29,7 @@
 
 using asio::ip::tcp;
 
-class kis_gps_gpsd_v3 : public kis_gps {
+class kis_gps_gpsd_v3 : public kis_gps, public std::enable_shared_from_this<kis_gps_gpsd_v3> {
 public:
     kis_gps_gpsd_v3(shared_gps_builder in_builder);
     virtual ~kis_gps_gpsd_v3();
@@ -39,13 +39,16 @@ public:
     virtual bool get_location_valid();
 
 protected:
-    void start_connect(const asio::error_code& error, tcp::resolver::iterator endpoint_iter);
-    void handle_connect(const asio::error_code& error, tcp::resolver::iterator endpoint);
+    void start_connect(std::shared_ptr<kis_gps_gpsd_v3> ref,
+            const asio::error_code& error, tcp::resolver::iterator endpoint_iter);
+    void handle_connect(std::shared_ptr<kis_gps_gpsd_v3> ref, 
+            const asio::error_code& error, tcp::resolver::iterator endpoint);
 
-    void start_read();
-    void handle_read(const asio::error_code& error, std::size_t sz);
+    void start_read(std::shared_ptr<kis_gps_gpsd_v3> ref);
+    void handle_read(std::shared_ptr<kis_gps_gpsd_v3> ref,
+            const asio::error_code& error, std::size_t sz);
 
-    void write_gpsd(const std::string& data);
+    void write_gpsd(std::shared_ptr<kis_gps_gpsd_v3> ref, const std::string& data);
 
     void close();
 

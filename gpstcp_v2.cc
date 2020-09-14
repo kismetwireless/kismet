@@ -1,4 +1,3 @@
-
 /*
     This file is part of Kismet
 
@@ -100,25 +99,27 @@ void kis_gps_tcp_v2::close() {
 void kis_gps_tcp_v2::start_read_impl() {
     asio::async_read_until(socket, in_buf, '\n',
             [this](const asio::error_code& error, std::size_t t) {
-                handle_read(error, t);
+                handle_read(shared_from_this(), error, t);
             });
 
 }
 
-void kis_gps_tcp_v2::start_connect(const asio::error_code& error, tcp::resolver::iterator endpoints) {
+void kis_gps_tcp_v2::start_connect(std::shared_ptr<kis_gps_tcp_v2> ref,
+        const asio::error_code& error, tcp::resolver::iterator endpoints) {
     if (error) {
         _MSG_ERROR("(GPS) Could not resolve TCP GPS server address {}:{} - {}", host, port, error.message());
         stopped = true;
         set_int_device_connected(false);
     } else {
         asio::async_connect(socket, endpoints,
-                [this](const asio::error_code& ec, tcp::resolver::iterator endpoint) {
-                    handle_connect(ec, endpoint);
+                [this, ref](const asio::error_code& ec, tcp::resolver::iterator endpoint) {
+                    handle_connect(ref, ec, endpoint);
                 });
     }
 }
 
-void kis_gps_tcp_v2::handle_connect(const asio::error_code& error, tcp::resolver::iterator endpoint) {
+void kis_gps_tcp_v2::handle_connect(std::shared_ptr<kis_gps_tcp_v2> ref,
+        const asio::error_code& error, tcp::resolver::iterator endpoint) {
     if (stopped) {
         return;
     }
@@ -184,7 +185,8 @@ bool kis_gps_tcp_v2::open_gps(std::string in_opts) {
 
     resolver.async_resolve(tcp::resolver::query(host.c_str(), port.c_str()),
             [this](const asio::error_code& error, tcp::resolver::iterator endp) {
-                start_connect(error, endp);
+                start_connect(std::static_pointer_cast<kis_gps_tcp_v2>(shared_from_this()), 
+                        error, endp);
             });
 
     return 1;

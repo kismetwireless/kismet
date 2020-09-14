@@ -975,6 +975,7 @@ void kis_datasource::handle_packet_interfaces_report(uint32_t in_seqno,
         _MSG(std::string("Kismet datasource driver ") + get_source_builder()->get_source_type() + 
                 std::string(" could not parse the interface report, something is wrong with "
                     "the remote capture tool"), MSGFLAG_ERROR);
+        lock.unlock();
         trigger_error("Invalid KDSPROBESOURCEREPORT");
         return;
     }
@@ -1001,6 +1002,8 @@ void kis_datasource::handle_packet_interfaces_report(uint32_t in_seqno,
     // Quiet errors display for shutdown of pipe
     quiet_errors = true;
 
+    lock.unlock();
+
     uint32_t seq = report.success().seqno();
 
     auto ci = command_ack_map.find(seq);
@@ -1010,7 +1013,6 @@ void kis_datasource::handle_packet_interfaces_report(uint32_t in_seqno,
         command_ack_map.erase(ci);
 
         if (cb != nullptr) {
-            lock.unlock();
             cb(transaction, listed_interfaces);
         }
     }

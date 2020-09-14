@@ -170,7 +170,6 @@ public:
 
 protected:
     std::shared_ptr<kis_recursive_timed_mutex> list_lock;
-
     std::shared_ptr<time_tracker> timetracker;
 
     // Probing instances
@@ -191,6 +190,8 @@ protected:
 
     std::function<void (std::vector<shared_interface>)> list_cb;
     std::atomic<bool> cancelled;
+
+    std::atomic<int> cancel_event_id;
 
     std::vector<shared_interface> listed_sources;
 };
@@ -464,7 +465,7 @@ protected:
     int remote_complete_timer;
 
     // Cleanup task
-    int completion_cleanup_id;
+    std::atomic<int> completion_cleanup_id;
     void schedule_cleanup();
 
     // UUIDs to source numbers
@@ -482,7 +483,8 @@ protected:
 
     // Datasource logging
     int database_log_timer;
-    bool database_log_enabled, database_logging;
+    bool database_log_enabled;
+    std::atomic<bool> database_logging;
 
     std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> all_sources_endp;
     std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> defaults_endp;
