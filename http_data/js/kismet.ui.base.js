@@ -1446,14 +1446,6 @@ function datasourcepackets_refresh() {
         // Common point titles
         var pointtitles = new Array();
 
-        for (var x = 60; x > 0; x--) {
-            if (x % 5 == 0) {
-                pointtitles.push(x + 's');
-            } else {
-                pointtitles.push(' ');
-            }
-        }
-
         var rval = $('#pq_ds_range', packetqueue_panel.ds_content).val();
         var range = kismet.RRD_SECOND;
 
@@ -1461,6 +1453,20 @@ function datasourcepackets_refresh() {
             range = kismet.RRD_MINUTE;
         if (rval == "day")
             range = kismet.RRD_HOUR;
+
+        if (range == kismet.RRD_SECOND || range == kismet.RRD_MINUTE) {
+            for (var x = 60; x > 0; x--) {
+                if (x % 5 == 0) {
+                    pointtitles.push(x + range == kismet.RRD_SECOND ? 's' : 'm');
+                } else {
+                    pointtitles.push(' ');
+                }
+            }
+        } else {
+            for (var x = 23; x > 0; x--) {
+                pointtitles.push(x + 'h');
+            }
+        }
 
         for (var source of data) {
             var color = parseInt(255 * (num / data.length))
