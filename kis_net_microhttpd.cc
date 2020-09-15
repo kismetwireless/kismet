@@ -1270,9 +1270,6 @@ KIS_MHD_RETURN kis_net_httpd_simple_tracked_endpoint::httpd_create_stream_respon
 
     local_demand_locker l(mutex, fmt::format("simple_tracked_endpoint::stream_response {}", uri));
 
-    if (mutex != nullptr)
-        l.lock();
-
     // Allocate our buffer aux
     kis_net_httpd_buffer_stream_aux *saux = 
         (kis_net_httpd_buffer_stream_aux *) connection->custom_extension;
@@ -1296,6 +1293,9 @@ KIS_MHD_RETURN kis_net_httpd_simple_tracked_endpoint::httpd_create_stream_respon
                 }
             });
 
+    if (mutex != nullptr)
+        l.lock();
+
     try {
         std::shared_ptr<tracker_element> output_content;
 
@@ -1310,7 +1310,8 @@ KIS_MHD_RETURN kis_net_httpd_simple_tracked_endpoint::httpd_create_stream_respon
         else
             output_content = content;
 
-        Globalreg::fetch_mandatory_global_as<entry_tracker>("ENTRYTRACKER")->serialize(httpd->get_suffix(connection->url), stream, output_content, nullptr);
+        Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(connection->url), stream, 
+                output_content, nullptr);
     } catch (const std::exception& e) {
         stream << "Error: " << e.what() << "\n";
         connection->httpcode = 500;
@@ -1325,9 +1326,6 @@ KIS_MHD_RETURN kis_net_httpd_simple_tracked_endpoint::httpd_post_complete(kis_ne
     auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
     local_demand_locker l(mutex, fmt::format("simple_tracked_endpoint::post_complete {}", uri));
-
-    if (mutex != nullptr)
-        l.lock();
 
     std::ostream stream(streambuf);
 
@@ -1352,6 +1350,9 @@ KIS_MHD_RETURN kis_net_httpd_simple_tracked_endpoint::httpd_post_complete(kis_ne
     }
 
     std::shared_ptr<tracker_element> output_content;
+
+    if (mutex != nullptr)
+        l.lock();
 
     try {
         if (generator != nullptr)
@@ -1379,7 +1380,8 @@ KIS_MHD_RETURN kis_net_httpd_simple_tracked_endpoint::httpd_post_complete(kis_ne
     auto summary = 
         kishttpd::summarize_with_json(output_content, json, rename_map);
 
-    Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, summary, rename_map);
+    Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, 
+            summary, rename_map);
 
     return MHD_YES;
 }
