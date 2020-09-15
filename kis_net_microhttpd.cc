@@ -1268,10 +1268,7 @@ KIS_MHD_RETURN kis_net_httpd_simple_tracked_endpoint::httpd_create_stream_respon
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
-    local_demand_locker l(mutex);
-
-    if (mutex != nullptr)
-        l.lock();
+    local_demand_locker l(mutex, fmt::format("simple_tracked_endpoint::stream_response {}", uri));
 
     // Allocate our buffer aux
     kis_net_httpd_buffer_stream_aux *saux = 
@@ -1296,6 +1293,9 @@ KIS_MHD_RETURN kis_net_httpd_simple_tracked_endpoint::httpd_create_stream_respon
                 }
             });
 
+    if (mutex != nullptr)
+        l.lock();
+
     try {
         std::shared_ptr<tracker_element> output_content;
 
@@ -1310,7 +1310,8 @@ KIS_MHD_RETURN kis_net_httpd_simple_tracked_endpoint::httpd_create_stream_respon
         else
             output_content = content;
 
-        Globalreg::fetch_mandatory_global_as<entry_tracker>("ENTRYTRACKER")->serialize(httpd->get_suffix(connection->url), stream, output_content, nullptr);
+        Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(connection->url), stream, 
+                output_content, nullptr);
     } catch (const std::exception& e) {
         stream << "Error: " << e.what() << "\n";
         connection->httpcode = 500;
@@ -1324,10 +1325,7 @@ KIS_MHD_RETURN kis_net_httpd_simple_tracked_endpoint::httpd_post_complete(kis_ne
     auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
     auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
-    local_demand_locker l(mutex);
-
-    if (mutex != nullptr)
-        l.lock();
+    local_demand_locker l(mutex, fmt::format("simple_tracked_endpoint::post_complete {}", uri));
 
     std::ostream stream(streambuf);
 
@@ -1352,6 +1350,9 @@ KIS_MHD_RETURN kis_net_httpd_simple_tracked_endpoint::httpd_post_complete(kis_ne
     }
 
     std::shared_ptr<tracker_element> output_content;
+
+    if (mutex != nullptr)
+        l.lock();
 
     try {
         if (generator != nullptr)
@@ -1379,7 +1380,8 @@ KIS_MHD_RETURN kis_net_httpd_simple_tracked_endpoint::httpd_post_complete(kis_ne
     auto summary = 
         kishttpd::summarize_with_json(output_content, json, rename_map);
 
-    Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, summary, rename_map);
+    Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url), stream, 
+            summary, rename_map);
 
     return MHD_YES;
 }
@@ -1430,7 +1432,7 @@ KIS_MHD_RETURN kis_net_httpd_simple_unauth_tracked_endpoint::httpd_create_stream
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
-    local_demand_locker l(mutex);
+    local_demand_locker l(mutex, fmt::format("unauthed_tracked_endpoint::stream_response {}", uri));
 
     if (mutex != nullptr)
         l.lock();
@@ -1486,7 +1488,7 @@ KIS_MHD_RETURN kis_net_httpd_simple_unauth_tracked_endpoint::httpd_post_complete
     auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
     auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
-    local_demand_locker l(mutex);
+    local_demand_locker l(mutex, fmt::format("unauth_tracked_endpoint::post_complete {}", uri));
 
     if (mutex != nullptr)
         l.lock();
@@ -1592,7 +1594,7 @@ KIS_MHD_RETURN kis_net_httpd_path_tracked_endpoint::httpd_create_stream_response
         const char *in_path, const char *in_method, const char *upload_data,
         size_t *upload_data_size) {
 
-    local_demand_locker l(mutex);
+    local_demand_locker l(mutex, fmt::format("path_tracked_endpoint::stream_response {}", in_path));
 
     if (mutex != nullptr)
         l.lock();
@@ -1646,7 +1648,7 @@ KIS_MHD_RETURN kis_net_httpd_path_tracked_endpoint::httpd_post_complete(kis_net_
     auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
     auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
-    local_demand_locker l(mutex);
+    local_demand_locker l(mutex, fmt::format("path_tracked_endpoint::post_complete {}", concls->url));
 
     if (mutex != nullptr)
         l.lock();
@@ -1736,7 +1738,7 @@ KIS_MHD_RETURN kis_net_httpd_simple_stream_endpoint::httpd_create_stream_respons
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
-    local_demand_locker l(mutex);
+    local_demand_locker l(mutex, fmt::format("simple_stream_endpoint::stream_response {}", uri));
 
     if (mutex != nullptr)
         l.lock();
@@ -1788,7 +1790,7 @@ KIS_MHD_RETURN kis_net_httpd_simple_stream_endpoint::httpd_post_complete(kis_net
     auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
     auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
-    local_demand_locker l(mutex);
+    local_demand_locker l(mutex, fmt::format("simple_stream_endpoint::post_complete {}", uri));
 
     if (mutex != nullptr)
         l.lock();
@@ -1881,7 +1883,7 @@ KIS_MHD_RETURN kis_net_httpd_simple_post_endpoint::httpd_post_complete(kis_net_h
     auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
     auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
-    local_demand_locker l(mutex);
+    local_demand_locker l(mutex, fmt::format("simple_post_endpoint::post_complete {}", uri));
 
     if (mutex != nullptr)
         l.lock();
@@ -1982,7 +1984,7 @@ KIS_MHD_RETURN kis_net_httpd_path_post_endpoint::httpd_post_complete(kis_net_htt
     auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
     auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
-    local_demand_locker l(mutex);
+    local_demand_locker l(mutex, fmt::format("path_post_endpoint::post_complete {}", concls->url));
 
     if (mutex != nullptr)
         l.lock();
@@ -2083,7 +2085,7 @@ KIS_MHD_RETURN kis_net_httpd_path_combo_endpoint::httpd_post_complete(kis_net_ht
     auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
     auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
-    local_demand_locker l(mutex);
+    local_demand_locker l(mutex, fmt::format("path_combo_endpoint::post_complete {}", concls->url));
 
     if (mutex != nullptr)
         l.lock();

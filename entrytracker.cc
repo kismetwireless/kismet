@@ -185,9 +185,11 @@ std::string entry_tracker::get_field_description(int in_id) {
 }
 
 std::shared_ptr<tracker_element> entry_tracker::get_shared_instance(int in_id) {
-    local_locker lock(&entry_mutex);
+    local_demand_locker lock(&entry_mutex, "entrytracker::get_shared_instance (id)");
 
+    lock.lock();
     auto iter = field_id_map.find(in_id);
+    lock.unlock();
 
     if (iter == field_id_map.end()) 
         return nullptr;
@@ -196,11 +198,11 @@ std::shared_ptr<tracker_element> entry_tracker::get_shared_instance(int in_id) {
 }
 
 std::shared_ptr<tracker_element> entry_tracker::get_shared_instance(const std::string& in_name) {
-    local_locker lock(&entry_mutex);
+    local_demand_locker lock(&entry_mutex, "entrytracker::get_shared_instance (name)");
 
-    // auto lname = str_lower(in_name);
-
+    lock.lock();
     auto iter = field_name_map.find(in_name);
+    lock.unlock();
 
     if (iter == field_name_map.end()) 
         return nullptr;
@@ -212,11 +214,8 @@ void entry_tracker::register_serializer(const std::string& in_name,
         std::shared_ptr<tracker_element_serializer> in_ser) {
     local_locker lock(&serializer_mutex);
     
-    // std::string mod_type = str_lower(in_name);
-
     if (serializer_map.find(in_name) != serializer_map.end()) {
-        _MSG("Attempt to register two serializers for type " + in_name,
-                MSGFLAG_ERROR);
+        _MSG_ERROR("Attempted to register two serializers to type {}", in_name);
         return;
     }
 
@@ -226,7 +225,6 @@ void entry_tracker::register_serializer(const std::string& in_name,
 void entry_tracker::remove_serializer(const std::string& in_name) {
     local_locker lock(&serializer_mutex);
 
-    // std::string mod_type = str_lower(in_name);
     auto i = serializer_map.find(in_name);
 
     if (i != serializer_map.end()) {
@@ -237,7 +235,6 @@ void entry_tracker::remove_serializer(const std::string& in_name) {
 bool entry_tracker::can_serialize(const std::string& in_name) {
     local_locker lock(&serializer_mutex);
 
-    // std::string mod_type = str_lower(in_name);
     auto i = serializer_map.find(in_name);
 
     if (i != serializer_map.end()) {
@@ -253,16 +250,12 @@ int entry_tracker::serialize(const std::string& in_name, std::ostream &stream,
 
     local_demand_locker lock(&serializer_mutex);
 
-    // Only lock for the scope of the lookup
     lock.lock();
     auto i = serializer_map.find(in_name);
-
-    if (i == serializer_map.end()) {
+    if (i == serializer_map.end()) 
         return -1;
-    }
     lock.unlock();
 
-    // Call the serializer
     auto r = i->second->serialize(e, stream, name_map);
 
     return r;
