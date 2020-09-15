@@ -1457,7 +1457,10 @@ function datasourcepackets_refresh() {
         if (range == kismet.RRD_SECOND || range == kismet.RRD_MINUTE) {
             for (var x = 60; x > 0; x--) {
                 if (x % 5 == 0) {
-                    pointtitles.push(x + range == kismet.RRD_SECOND ? 's' : 'm');
+                    if (range == kismet.RRD_SECOND)
+                        pointtitles.push(x + 's');
+                    else
+                        pointtitles.push(x + 'm');
                 } else {
                     pointtitles.push(' ');
                 }
@@ -1505,7 +1508,7 @@ function datasourcepackets_refresh() {
         if (packetqueue_panel.datasource_chart == null) {
             packetqueue_panel.ds_content.append(
                 $('<div>', {
-                    "style": "float: right;"
+                    "style": "position: absolute; top: 0px; right: 10px; float: right;"
                 })
                 .append(
                     $('<select>', {
