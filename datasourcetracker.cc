@@ -341,10 +341,12 @@ datasource_tracker::datasource_tracker() :
                 });
 
     defaults_endp =
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/datasource/defaults", config_defaults, &dst_lock);
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/datasource/defaults", 
+                config_defaults, &dst_lock);
 
     types_endp =
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/datasource/types", proto_vec, &dst_lock);
+        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/datasource/types", 
+                proto_vec, &dst_lock);
 
     list_interfaces_endp =
         std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/datasource/list_interfaces", 
@@ -1008,7 +1010,8 @@ void datasource_tracker::merge_source(shared_datasource in_source) {
 }
 
 void datasource_tracker::list_interfaces(const std::function<void (std::vector<shared_interface>)>& in_cb) {
-    local_locker lock(&dst_lock, "datasourcetracker::list_interfaces");
+    local_demand_locker lock(&dst_lock, "datasourcetracker::list_interfaces");
+    lock.lock();
 
     // Create a DSTProber to handle the probing
     std::shared_ptr<tracker_element_vector> filtered_proto_vec =
@@ -1036,6 +1039,9 @@ void datasource_tracker::list_interfaces(const std::function<void (std::vector<s
 
     // Record it
     listing_map[listid] = dst_list;
+
+    // Release the mutex before initiating a sources list
+    lock.unlock();
 
     // Initiate the probe
     dst_list->list_sources([this, listid, in_cb](std::vector<shared_interface> interfaces) {
