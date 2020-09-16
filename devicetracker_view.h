@@ -120,6 +120,8 @@ public:
     virtual void remove_device_direct(std::shared_ptr<kis_tracked_device_base> device);
 
 protected:
+    std::shared_ptr<device_tracker> devicetracker;
+
     virtual void register_fields() override {
         tracker_component::register_fields();
 

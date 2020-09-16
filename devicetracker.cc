@@ -59,6 +59,10 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
     kis_net_httpd_chain_stream_handler(),
     kis_database(in_globalreg, "devicetracker") {
 
+    view_mutex.set_name("device_tracker::view_mutex");
+    devicelist_mutex.set_name("device_tracker::devicelist_mutex");
+    range_mutex.set_name("device_tracker::range_mutex");
+
 	globalreg = in_globalreg;
 
     next_phy_id = 0;
@@ -385,17 +389,6 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
 
     bind_httpd_server();
 
-    all_view =
-        std::make_shared<device_tracker_view>("all", 
-                "All devices",
-                [](std::shared_ptr<kis_tracked_device_base>) -> bool {
-                    return true;
-                },
-                [](std::shared_ptr<kis_tracked_device_base>) -> bool {
-                    return true;
-                });
-    add_view(all_view);
-
     devicefound_timeout =
         Globalreg::globalreg->kismet_config->fetch_opt_uint("devicefound_timeout", 60);
     devicelost_timeout =
@@ -451,6 +444,21 @@ device_tracker::device_tracker(global_registry *in_globalreg) :
         Globalreg::globalreg->kismet_config->fetch_opt_as<int>("device_location_signal_threshold", 0);
 
     httpd->register_alias("/devices/summary/devices.json", "/devices/views/all/devices.json");
+}
+
+void device_tracker::trigger_deferred_startup() {
+    // Defer view creation
+    all_view =
+        std::make_shared<device_tracker_view>("all", 
+                "All devices",
+                [](std::shared_ptr<kis_tracked_device_base>) -> bool {
+                    return true;
+                },
+                [](std::shared_ptr<kis_tracked_device_base>) -> bool {
+                    return true;
+                });
+    add_view(all_view);
+
 }
 
 device_tracker::~device_tracker() {
@@ -1594,5 +1602,94 @@ std::shared_ptr<tracker_element_string> device_tracker::get_cached_phyname(const
     }
 
     return k->second;
+}
+
+void device_tracker::lock_device_range(std::shared_ptr<tracker_element_vector> devices) {
+    local_eol_locker(&range_mutex, "devicetracker::lock_device_range (element vec)");
+    for (auto v : *devices) {
+        if (v->get_signature() != kis_tracked_device_base::get_static_signature())
+            throw std::runtime_error("tried to lock a device range vec, but not given a map of devices");
+        auto d = std::static_pointer_cast<kis_tracked_device_base>(v);
+        local_eol_locker l(&d->device_mutex, "device_tracker::lock_range (element vec)");
+    }
+}
+
+void device_tracker::lock_device_range(const std::vector<std::shared_ptr<kis_tracked_device_base>>& devices) {
+    local_eol_locker(&range_mutex, "devicetracker::lock_device_range (std vec)");
+    for (auto d : devices) {
+        local_eol_locker l(&d->device_mutex, "device_tracker::lock_range (std vec)");
+    }
+}
+
+void device_tracker::lock_device_range(std::shared_ptr<tracker_element_map> devices) {
+    local_eol_locker(&range_mutex, "devicetracker::lock_device_range (element map)");
+    for (auto k : *devices) {
+        if (k.second->get_signature() != kis_tracked_device_base::get_static_signature())
+            throw std::runtime_error("tried to lock a device range map, but not given a map of devices");
+
+        auto d = std::static_pointer_cast<kis_tracked_device_base>(k.second);
+        local_eol_locker l(&d->device_mutex, "device_tracker::lock_range (element map)");
+    }
+}
+
+void device_tracker::lock_device_range(std::shared_ptr<tracker_element_device_key_map> devices) {
+    local_eol_locker(&range_mutex, "devicetracker::lock_device_range (element key map)");
+    for (auto k : *devices) {
+        if (k.second->get_signature() != kis_tracked_device_base::get_static_signature())
+            throw std::runtime_error("tried to lock a device range map, but not given a map of devices");
+
+        auto d = std::static_pointer_cast<kis_tracked_device_base>(k.second);
+        local_eol_locker l(&d->device_mutex, "device_tracker::lock_range (element key map)");
+    }
+}
+
+void device_tracker::lock_device_range(std::shared_ptr<tracker_element_mac_map> devices) {
+    local_eol_locker(&range_mutex, "devicetracker::lock_device_range (element mac map)");
+    for (auto k : *devices) {
+        if (k.second->get_signature() != kis_tracked_device_base::get_static_signature())
+            throw std::runtime_error("tried to lock a device range map, but not given a map of devices");
+
+        auto d = std::static_pointer_cast<kis_tracked_device_base>(k.second);
+        local_eol_locker l(&d->device_mutex, "device_tracker::lock_range (element mac map)");
+    }
+}
+
+void device_tracker::unlock_device_range(std::shared_ptr<tracker_element_vector> devices) {
+    for (auto v : *devices) {
+        auto d = std::static_pointer_cast<kis_tracked_device_base>(v);
+        local_unlocker l(&d->device_mutex);
+    }
+    local_unlocker ul(&range_mutex);
+}
+
+void device_tracker::unlock_device_range(const std::vector<std::shared_ptr<kis_tracked_device_base>>& devices) {
+    for (auto d : devices) {
+        local_unlocker l(&d->device_mutex);
+    }
+    local_unlocker ul(&range_mutex);
+}
+
+void device_tracker::unlock_device_range(std::shared_ptr<tracker_element_map> devices) {
+    for (auto k : *devices) {
+        auto d = std::static_pointer_cast<kis_tracked_device_base>(k.second);
+        local_unlocker l(&d->device_mutex);
+    }
+    local_unlocker ul(&range_mutex);
+}
+
+void device_tracker::unlock_device_range(std::shared_ptr<tracker_element_device_key_map> devices) {
+    for (auto k : *devices) {
+        auto d = std::static_pointer_cast<kis_tracked_device_base>(k.second);
+        local_unlocker l(&d->device_mutex);
+    }
+    local_unlocker ul(&range_mutex);
+}
+
+void device_tracker::unlock_device_range(std::shared_ptr<tracker_element_mac_map> devices) {
+    for (auto k : *devices) {
+        auto d = std::static_pointer_cast<kis_tracked_device_base>(k.second);
+        local_unlocker l(&d->device_mutex);
+    }
+    local_unlocker ul(&range_mutex);
 }
 

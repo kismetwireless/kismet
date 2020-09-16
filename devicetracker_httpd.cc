@@ -644,13 +644,14 @@ KIS_MHD_RETURN device_tracker::httpd_post_complete(kis_net_httpd_connection *con
 
                 for (const auto& rei : *regexdevs) {
                     auto rd = std::static_pointer_cast<kis_tracked_device_base>(rei);
-                    local_shared_locker lock(&rd->device_mutex);
-
-                    outdevs->push_back(kishttpd::summarize_with_json(rd, json, rename_map));
+                    outdevs->push_back(rd);
                 }
 
+                lock_device_range(outdevs);
                 Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(tokenurl[4]), stream, 
-                        outdevs, rename_map);
+                        kishttpd::summarize_with_json(outdevs, json, rename_map), rename_map);
+                unlock_device_range(outdevs);
+
                 return MHD_YES;
             }
         }
@@ -704,10 +705,10 @@ unsigned int device_tracker::multimac_endp_handler(std::ostream& stream, const s
         // Summarize it all at once
         auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
 
-        auto output = 
-            kishttpd::summarize_with_json(ret_devices, json, rename_map);
-
+        lock_device_range(ret_devices);
+        auto output = kishttpd::summarize_with_json(ret_devices, json, rename_map);
         Globalreg::globalreg->entrytracker->serialize(kishttpd::get_suffix(uri), stream, output, rename_map);
+        unlock_device_range(ret_devices);
 
         return 200;
 
@@ -787,10 +788,10 @@ unsigned int device_tracker::multikey_endp_handler(std::ostream& stream, const s
 
         auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
 
-        auto output = 
-            kishttpd::summarize_with_json(ret_devices, json, rename_map);
-
+        lock_device_range(ret_devices);
+        auto output = kishttpd::summarize_with_json(ret_devices, json, rename_map);
         Globalreg::globalreg->entrytracker->serialize(kishttpd::get_suffix(uri), stream, output, rename_map);
+        unlock_device_range(ret_devices);
 
         for (auto d : *ret_devices)
             std::static_pointer_cast<kis_tracked_device_base>(d)->unlock();
@@ -835,19 +836,12 @@ unsigned int device_tracker::multikey_dict_endp_handler(std::ostream& stream, co
             ret_devices->insert(k, d);
         }
 
-        // Explicitly lock all devices during serialziation
-        for (auto d : *ret_devices)
-            std::static_pointer_cast<kis_tracked_device_base>(d.second)->lock();
-
         auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
 
-        auto output = 
-            kishttpd::summarize_with_json(ret_devices, json, rename_map);
-
+        lock_device_range(ret_devices);
+        auto output = kishttpd::summarize_with_json(ret_devices, json, rename_map);
         Globalreg::globalreg->entrytracker->serialize(kishttpd::get_suffix(uri), stream, output, rename_map);
-
-        for (auto d : *ret_devices)
-            std::static_pointer_cast<kis_tracked_device_base>(d.second)->unlock();
+        unlock_device_range(ret_devices);
 
         return 200;
 

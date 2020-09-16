@@ -64,16 +64,18 @@ class kis_phy_handler;
 class kis_packet;
 
 class device_tracker : public kis_net_httpd_chain_stream_handler,
-    public time_tracker_event, public lifetime_global, public kis_database {
+    public time_tracker_event, public lifetime_global, public kis_database, 
+    public deferred_startup {
 
 public:
     static std::string global_name() { return "DEVICETRACKER"; }
 
-    static std::shared_ptr<device_tracker> create_device_tracker(global_registry *in_globalreg) {
-        std::shared_ptr<device_tracker> mon(new device_tracker(in_globalreg));
-        in_globalreg->devicetracker = mon.get();
-        in_globalreg->register_lifetime_global(mon);
-        in_globalreg->insert_global(global_name(), mon);
+    static std::shared_ptr<device_tracker> create_device_tracker() {
+        std::shared_ptr<device_tracker> mon(new device_tracker(Globalreg::globalreg));
+        Globalreg::globalreg->devicetracker = mon.get();
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->register_deferred_global(mon);
+        Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
@@ -82,6 +84,8 @@ private:
 
 public:
 	virtual ~device_tracker();
+
+    virtual void trigger_deferred_startup() override;
 
 	// Register a phy handler weak class, used to instantiate the strong class
 	// inside devtracker
@@ -233,6 +237,19 @@ public:
 
     // Get a cached phyname; use this to de-dup thousands of devices phynames
     std::shared_ptr<tracker_element_string> get_cached_phyname(const std::string& phyname);
+
+    // Lock a range of devices
+    void lock_device_range(std::shared_ptr<tracker_element_vector> devices);
+    void lock_device_range(const std::vector<std::shared_ptr<kis_tracked_device_base>>& devices);
+    void lock_device_range(std::shared_ptr<tracker_element_map> device_map);
+    void lock_device_range(std::shared_ptr<tracker_element_device_key_map> device_map);
+    void lock_device_range(std::shared_ptr<tracker_element_mac_map> device_map);
+
+    void unlock_device_range(std::shared_ptr<tracker_element_vector> devices);
+    void unlock_device_range(const std::vector<std::shared_ptr<kis_tracked_device_base>>& devices);
+    void unlock_device_range(std::shared_ptr<tracker_element_map> device_map);
+    void unlock_device_range(std::shared_ptr<tracker_element_device_key_map> device_map);
+    void unlock_device_range(std::shared_ptr<tracker_element_mac_map> device_map);
 
 protected:
 	global_registry *globalreg;
@@ -409,6 +426,10 @@ protected:
     // Cached phyname map
     std::map<std::string, std::shared_ptr<tracker_element_string>> device_phy_name_cache;
     kis_recursive_timed_mutex device_phy_name_cache_mutex;
+
+
+    kis_recursive_timed_mutex range_mutex;
+
 };
 
 class devicelist_scope_locker {
