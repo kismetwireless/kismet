@@ -19,6 +19,7 @@
 #include "config.h"
 
 #include "devicetracker_view.h"
+#include "devicetracker.h"
 #include "devicetracker_component.h"
 #include "util.h"
 
@@ -33,7 +34,7 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
 
     mutex.set_name(fmt::format("devicetracker_view({})", in_id));
 
-    using namespace std::placeholders;
+    devicetracker = Globalreg::fetch_mandatory_global_as<device_tracker>();
 
     register_fields();
     reserve_fields(nullptr);
@@ -657,7 +658,6 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
     // Update the end
     length_elem->set(ei - si);
 
-    // Unfortunately we need to do a stable sort to get a consistent display
     if (in_order_column_num.length() && order_field.size() > 0) {
         std::stable_sort(next_work_vec->begin(), next_work_vec->end(),
                 [&](shared_tracker_element a, shared_tracker_element b) -> bool {
@@ -681,7 +681,10 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
     }
 
     // Summarize into the output element
+    auto final_devices_vec = std::make_shared<tracker_element_vector>();
+
     for (auto i = si; i != ei; ++i) {
+        final_devices_vec->push_back(*i);
         output_devices_elem->push_back(summarize_tracker_element(*i, summary_vec, rename_map));
     }
 
@@ -689,8 +692,9 @@ unsigned int device_tracker_view::device_endpoint_handler(std::ostream& stream,
     if (transmit == nullptr)
         transmit = output_devices_elem;
 
-    // serialize
+    devicetracker->lock_device_range(final_devices_vec);
     Globalreg::globalreg->entrytracker->serialize(kishttpd::get_suffix(uri), stream, transmit, rename_map);
+    devicetracker->unlock_device_range(final_devices_vec);
 
     // And done
     return 200;

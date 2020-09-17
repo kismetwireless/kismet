@@ -872,8 +872,7 @@ int main(int argc, char *argv[], char *envp[]) {
         SpindownKismet();
 
     // Create the device tracker
-    auto devicetracker = 
-        device_tracker::create_device_tracker(globalregistry);
+    auto devicetracker = device_tracker::create_device_tracker();
 
     // Create the pcap tracker
     auto devicetracker_pcap =

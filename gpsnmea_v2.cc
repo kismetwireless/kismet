@@ -91,7 +91,7 @@ void kis_gps_nmea_v2::handle_read(std::shared_ptr<kis_gps_nmea_v2> ref,
 
         if (gpstoks[0] == "$GPGGA") {
             int tint;
-            float tfloat;
+            double tdouble;
 
             if (gpstoks.size() < 15)
                 throw kis_gps_nmea_v2_soft_fail();
@@ -99,17 +99,17 @@ void kis_gps_nmea_v2::handle_read(std::shared_ptr<kis_gps_nmea_v2> ref,
             // Parse the basic gps coordinate string
             // $GPGGA,time,lat,NS,lon,EW,quality,#sats,hdop,alt,M,geopos,M,dgps1,dgps2,checksum
 
-            if (sscanf(gpstoks[2].c_str(), "%2d%f", &tint, &tfloat) != 2)
+            if (sscanf(gpstoks[2].c_str(), "%2d%lf", &tint, &tdouble) != 2)
                 throw kis_gps_nmea_v2_soft_fail();
 
-            new_location->lat = (float) tint + (tfloat / 60);
+            new_location->lat = (double) tint + (tdouble / 60);
             if (gpstoks[3] == "S")
                 new_location->lat *= -1;
 
-            if (sscanf(gpstoks[4].c_str(), "%3d%f", &tint, &tfloat) != 2)
+            if (sscanf(gpstoks[4].c_str(), "%3d%lf", &tint, &tdouble) != 2)
                 throw kis_gps_nmea_v2_soft_fail();
 
-            new_location->lon = (float) tint + (tfloat / 60);
+            new_location->lon = (double) tint + (tdouble / 60);
             if (gpstoks[5] == "W")
                 new_location->lon *= -1;
 
@@ -117,10 +117,10 @@ void kis_gps_nmea_v2::handle_read(std::shared_ptr<kis_gps_nmea_v2> ref,
             if (new_location->fix < 2)
                 new_location->fix = 2;
 
-            if (sscanf(gpstoks[9].c_str(), "%f", &tfloat) != 1)
+            if (sscanf(gpstoks[9].c_str(), "%lf", &tdouble) != 1)
                 throw kis_gps_nmea_v2_soft_fail();
 
-            new_location->alt = tfloat;
+            new_location->alt = tdouble;
             set_alt = true;
             if (new_location->fix < 3)
                 new_location->fix = 3;
@@ -131,7 +131,7 @@ void kis_gps_nmea_v2::handle_read(std::shared_ptr<kis_gps_nmea_v2> ref,
             // recommended minimum
             // $GPRMC,time,valid,lat,lathemi,lon,lonhemi,speed-knots,bearing,utc,,checksum
             int tint;
-            float tfloat;
+            double tdouble;
 
             if (gpstoks.size() < 12)
                 throw kis_gps_nmea_v2_soft_fail();
@@ -147,17 +147,17 @@ void kis_gps_nmea_v2::handle_read(std::shared_ptr<kis_gps_nmea_v2> ref,
                 throw kis_gps_nmea_v2_soft_fail();
             }
 
-            if (sscanf(gpstoks[3].c_str(), "%2d%f", &tint, &tfloat) != 2)
+            if (sscanf(gpstoks[3].c_str(), "%2d%lf", &tint, &tdouble) != 2)
                 throw kis_gps_nmea_v2_soft_fail();
 
-            new_location->lat = (float) tint + (tfloat / 60);
+            new_location->lat = (double) tint + (tdouble / 60);
             if (gpstoks[4] == "S")
                 new_location->lat *= -1;
 
-            if (sscanf(gpstoks[5].c_str(), "%3d%f", &tint, &tfloat) != 2)
+            if (sscanf(gpstoks[5].c_str(), "%3d%lf", &tint, &tdouble) != 2)
                 throw kis_gps_nmea_v2_soft_fail();
 
-            new_location->lon = (float) tint + (tfloat / 60);
+            new_location->lon = (double) tint + (tdouble / 60);
             if (gpstoks[6] == "W")
                 new_location->lon *= -1;
 
@@ -165,10 +165,10 @@ void kis_gps_nmea_v2::handle_read(std::shared_ptr<kis_gps_nmea_v2> ref,
                 new_location->fix = 2;
             set_fix = true;
 
-            if (sscanf(gpstoks[7].c_str(), "%f", &tfloat) != 1) 
+            if (sscanf(gpstoks[7].c_str(), "%lf", &tdouble) != 1) 
                 throw kis_gps_nmea_v2_soft_fail();
 
-            new_location->speed = tfloat;
+            new_location->speed = tdouble;
             set_speed = true;
 
             // This sentence doesn't have altitude, so don't set it.  If another
@@ -176,7 +176,7 @@ void kis_gps_nmea_v2::handle_read(std::shared_ptr<kis_gps_nmea_v2> ref,
         } else if (gpstoks[0] == "$GPVTG") {
             // Travel made good, also a source of speed
             // $GPVTG,,T,,M,0.00,N,0.0,K,A*13
-            float tfloat;
+            double tdouble;
 
             if (gpstoks.size() < 10) 
                 throw kis_gps_nmea_v2_soft_fail();
@@ -184,10 +184,10 @@ void kis_gps_nmea_v2::handle_read(std::shared_ptr<kis_gps_nmea_v2> ref,
             // Only use VTG if we didn't get our speed from another sentence
             // in this series
             if (set_speed == 0) {
-                if (sscanf(gpstoks[7].c_str(), "%f", &tfloat) != 1) 
+                if (sscanf(gpstoks[7].c_str(), "%lf", &tdouble) != 1) 
                     throw kis_gps_nmea_v2_soft_fail();
 
-                new_location->speed = tfloat;
+                new_location->speed = tdouble;
                 set_speed = 1;
             }
 
