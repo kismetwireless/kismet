@@ -209,8 +209,10 @@ int kis_external_interface::handle_read(std::shared_ptr<kis_external_interface> 
     if (stopped)
         return 0;
 
-    if (cancelled)
+    if (cancelled) {
         close_external();
+        return 0;
+    }
 
     if (ec) {
         // Exit on aborted errors, we've already been cancelled and this socket is closing out
