@@ -911,24 +911,24 @@ std::string multi_replace_all(const std::string& in, const std::string& match, c
     return work;
 }
 
+static const char *strerror_result(int, const char *s) { 
+    return s;
+}
+
+static const char *strerror_result(const char *s, const char *) {
+    return s;
+}
+
 std::string kis_strerror_r(int errnum) {
-    char *d_errstr = new char[1025];
-    std::string rs;
+    char d_errstr[1024];
 
-    memset(d_errstr, 0, 1025);
+    using namespace std;
+    auto r = std::string(strerror_result(strerror_r(errnum, d_errstr, sizeof(d_errstr)), d_errstr));
 
-    STRERROR_R_T r;
-    r = strerror_r(errnum, d_errstr, 1024);
+    if (r.length() == 0)
+        return fmt::format("Unknown error: {}", errnum);
 
-    d_errstr[1024] = 0;
-
-    if (strlen(d_errstr) == 0)
-        rs = fmt::format("Unknown error: {}", errnum);
-    else
-        rs = std::string(d_errstr);
-    
-    delete[] d_errstr;
-    return rs;
+    return r;
 }
 
 double ts_to_double(struct timeval ts) {
