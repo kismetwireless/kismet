@@ -70,7 +70,9 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
     update_cb {in_update_cb},
     uri_extras {in_aux_path} {
 
-    using namespace std::placeholders;
+    mutex.set_name(fmt::format("devicetracker_view({})", in_id));
+
+    devicetracker = Globalreg::fetch_mandatory_global_as<device_tracker>();
 
     register_fields();
     reserve_fields(nullptr);
