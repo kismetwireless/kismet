@@ -1204,12 +1204,8 @@ void kis_net_httpd::append_standard_headers(kis_net_httpd *httpd,
 
 KIS_MHD_RETURN kis_net_httpd::send_http_response(kis_net_httpd *httpd __attribute__((unused)),
         kis_net_httpd_connection *connection) {
-
-    MHD_queue_response(connection->connection, connection->httpcode, 
-            connection->response);
-
+    MHD_queue_response(connection->connection, connection->httpcode, connection->response);
     MHD_destroy_response(connection->response);
-
     return MHD_YES;
 }
 
@@ -1273,6 +1269,8 @@ KIS_MHD_RETURN kis_net_httpd_simple_tracked_endpoint::httpd_create_stream_respon
     if (mutex != nullptr)
         l.lock();
 
+    std::lock_guard<std::mutex> lk(connection->connection_mutex);
+
     // Allocate our buffer aux
     kis_net_httpd_buffer_stream_aux *saux = 
         (kis_net_httpd_buffer_stream_aux *) connection->custom_extension;
@@ -1328,6 +1326,8 @@ KIS_MHD_RETURN kis_net_httpd_simple_tracked_endpoint::httpd_post_complete(kis_ne
 
     if (mutex != nullptr)
         l.lock();
+
+    std::lock_guard<std::mutex> lk(concls->connection_mutex);
 
     std::ostream stream(streambuf);
 
@@ -1430,7 +1430,8 @@ KIS_MHD_RETURN kis_net_httpd_simple_unauth_tracked_endpoint::httpd_create_stream
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
-    local_demand_locker l(mutex);
+    local_demand_locker l(mutex, fmt::format("unauthed_tracked_endpoint::stream_response {}", uri));
+    std::lock_guard<std::mutex> lk(connection->connection_mutex);
 
     if (mutex != nullptr)
         l.lock();
@@ -1486,7 +1487,8 @@ KIS_MHD_RETURN kis_net_httpd_simple_unauth_tracked_endpoint::httpd_post_complete
     auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
     auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
-    local_demand_locker l(mutex);
+    local_demand_locker l(mutex, fmt::format("unauth_tracked_endpoint::post_complete {}", uri));
+    std::lock_guard<std::mutex> lk(concls->connection_mutex);
 
     if (mutex != nullptr)
         l.lock();
@@ -1592,7 +1594,8 @@ KIS_MHD_RETURN kis_net_httpd_path_tracked_endpoint::httpd_create_stream_response
         const char *in_path, const char *in_method, const char *upload_data,
         size_t *upload_data_size) {
 
-    local_demand_locker l(mutex);
+    local_demand_locker l(mutex, fmt::format("path_tracked_endpoint::stream_response {}", in_path));
+    std::lock_guard<std::mutex> lk(connection->connection_mutex);
 
     if (mutex != nullptr)
         l.lock();
@@ -1646,7 +1649,8 @@ KIS_MHD_RETURN kis_net_httpd_path_tracked_endpoint::httpd_post_complete(kis_net_
     auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
     auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
-    local_demand_locker l(mutex);
+    local_demand_locker l(mutex, fmt::format("path_tracked_endpoint::post_complete {}", concls->url));
+    std::lock_guard<std::mutex> lk(concls->connection_mutex);
 
     if (mutex != nullptr)
         l.lock();
@@ -1736,7 +1740,8 @@ KIS_MHD_RETURN kis_net_httpd_simple_stream_endpoint::httpd_create_stream_respons
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
-    local_demand_locker l(mutex);
+    local_demand_locker l(mutex, fmt::format("simple_stream_endpoint::stream_response {}", uri));
+    std::lock_guard<std::mutex> lk(connection->connection_mutex);
 
     if (mutex != nullptr)
         l.lock();
@@ -1788,7 +1793,8 @@ KIS_MHD_RETURN kis_net_httpd_simple_stream_endpoint::httpd_post_complete(kis_net
     auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
     auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
-    local_demand_locker l(mutex);
+    local_demand_locker l(mutex, fmt::format("simple_stream_endpoint::post_complete {}", uri));
+    std::lock_guard<std::mutex> lk(concls->connection_mutex);
 
     if (mutex != nullptr)
         l.lock();
@@ -1870,6 +1876,8 @@ KIS_MHD_RETURN kis_net_httpd_simple_post_endpoint::httpd_create_stream_response(
         const char *path, const char *method, const char *upload_data,
         size_t *upload_data_size) {
 
+    std::lock_guard<std::mutex> lk(connection->connection_mutex);
+
     // Do nothing, we only handle POST
     connection->response_stream << "Invalid request: POST expected\n";
     connection->httpcode = 400;
@@ -1881,7 +1889,8 @@ KIS_MHD_RETURN kis_net_httpd_simple_post_endpoint::httpd_post_complete(kis_net_h
     auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
     auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
-    local_demand_locker l(mutex);
+    local_demand_locker l(mutex, fmt::format("simple_post_endpoint::post_complete {}", uri));
+    std::lock_guard<std::mutex> lk(concls->connection_mutex);
 
     if (mutex != nullptr)
         l.lock();
@@ -1971,6 +1980,8 @@ KIS_MHD_RETURN kis_net_httpd_path_post_endpoint::httpd_create_stream_response(
         const char *in_path, const char *in_method, const char *upload_data,
         size_t *upload_data_size) {
 
+    std::lock_guard<std::mutex> lk(connection->connection_mutex);
+
     // Do nothing, we only handle POST
     connection->response_stream << "Invalid request: POST expected\n";
     connection->httpcode = 400;
@@ -1982,7 +1993,8 @@ KIS_MHD_RETURN kis_net_httpd_path_post_endpoint::httpd_post_complete(kis_net_htt
     auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
     auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
-    local_demand_locker l(mutex);
+    local_demand_locker l(mutex, fmt::format("path_post_endpoint::post_complete {}", concls->url));
+    std::lock_guard<std::mutex> lk(concls->connection_mutex);
 
     if (mutex != nullptr)
         l.lock();
@@ -2075,7 +2087,12 @@ KIS_MHD_RETURN kis_net_httpd_path_combo_endpoint::httpd_create_stream_response(
         const char *in_path, const char *in_method, const char *upload_data,
         size_t *upload_data_size) {
 
+    std::lock_guard<std::mutex> lk(connection->connection_mutex);
+
     // Do nothing, we only handle POST
+    connection->response_stream << "Invalid request: POST expected\n";
+    connection->httpcode = 400;
+
     return MHD_YES;
 }
 
@@ -2083,7 +2100,8 @@ KIS_MHD_RETURN kis_net_httpd_path_combo_endpoint::httpd_post_complete(kis_net_ht
     auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
     auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
 
-    local_demand_locker l(mutex);
+    local_demand_locker l(mutex, fmt::format("path_combo_endpoint::post_complete {}", concls->url));
+    std::lock_guard<std::mutex> lk(concls->connection_mutex);
 
     if (mutex != nullptr)
         l.lock();
