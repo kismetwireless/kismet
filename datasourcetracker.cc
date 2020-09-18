@@ -147,7 +147,9 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (shared_d
         return;
     }
 
-    for (auto i : *proto_vec) {
+    local_locker lock(probe_lock);
+
+    for (const auto& i : *proto_vec) {
         auto b = std::static_pointer_cast<kis_datasource_builder>(i);
 
         if (!b->get_probe_capable())
@@ -158,12 +160,14 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (shared_d
         // Instantiate a local prober datasource
         shared_datasource pds = b->build_datasource(b);
 
-        {
-            local_locker lock(probe_lock);
-            ipc_probe_map[transaction] = pds;
-            ncreated++;
-        }
+        ipc_probe_map[transaction] = pds;
+        ncreated++;
 
+    }
+
+    auto build_map = std::map<unsigned int, shared_datasource>(ipc_probe_map);
+
+    for (const auto& i : build_map) {
         // Set up the cancellation timer
         int cancel_timer = 
             timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
@@ -176,7 +180,7 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (shared_d
         // Log the cancellation timer
         cancel_timer_vec.push_back(cancel_timer);
 
-        pds->probe_interface(definition, transaction, 
+        i.second->probe_interface(definition, i.first, 
                 [cancel_timer, this](unsigned int transaction, bool success, std::string reason) {
                     timetracker->remove_timer(cancel_timer);
                     complete_probe(success, transaction, reason);

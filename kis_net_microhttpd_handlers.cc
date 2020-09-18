@@ -226,11 +226,6 @@ void kis_net_httpd_buffer_stream_aux::buffer_available(size_t in_amt __attribute
 void kis_net_httpd_buffer_stream_aux::block_until_data(std::shared_ptr<buffer_handler_generic> rbh) {
     while (1) {
         { 
-            local_locker lock(&aux_mutex);
-
-            // fmt::print(stderr, "buffer block until sees {}\n", rbh->get_read_buffer_used());
-
-            // Immediately return if we have pending data
             if (rbh->get_read_buffer_used()) {
                 return;
             }
@@ -263,6 +258,11 @@ ssize_t kis_net_httpd_buffer_stream_handler::buffer_event_cb(void *cls, uint64_t
     stream_aux->get_buffer_event_mutex()->lock();
 
     std::shared_ptr<buffer_handler_generic> rbh = stream_aux->get_rbhandler();
+
+    if (rbh == nullptr) {
+        _MSG_ERROR("httpd buffer_event got a null rbhhandler, something is up.");
+        return MHD_CONTENT_READER_END_OF_STREAM;
+    }
 
     // Target buffer before we send it out via MHD
     size_t read_sz = 0;
@@ -361,6 +361,17 @@ KIS_MHD_RETURN kis_net_httpd_buffer_stream_handler::httpd_handle_get_request(kis
 
     if (connection->response == NULL) {
         std::shared_ptr<buffer_handler_generic> rbh(allocate_buffer());
+
+        if (rbh == nullptr) {
+            _MSG_ERROR("Error allocating RBH in buffer_stream_handler, something is up");
+
+            auto err = fmt::format("Error allocating RBH in buffer_stream_handler");
+            struct MHD_Response *response = 
+                MHD_create_response_from_buffer(err.length(), 
+                        (void *) err.c_str(), MHD_RESPMEM_MUST_COPY);
+            return MHD_queue_response(connection->connection, MHD_HTTP_NOT_FOUND, response);
+
+        }
 
         kis_net_httpd_buffer_stream_aux *aux = 
             new kis_net_httpd_buffer_stream_aux(this, connection, rbh, NULL, NULL);

@@ -562,13 +562,13 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                     }
 
                     if (!as_key_vector) {
-                        if (std::isnan(i.second) || std::isinf(i.second)) {
-                            stream << 0;
-                        } else if (floor(i.second) == i.second) {
-                            stream << (long) i.second;
-                        } else {
-                            stream << i.second;
-                        }
+                        if (std::isnan(i.second) || std::isinf(i.second))
+                            stream << "0";
+
+                        if (floor(i.second) == i.second)
+                            stream << fmt::format("{}", (long long) i.second);
+                        else
+                            stream << fmt::format("{:f}", i.second);
                     }
                 }
 
@@ -774,10 +774,13 @@ void storage_json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                     stream << ",";
                 prepend_comma = true;
 
+                if (std::isnan(i) || std::isinf(i))
+                    stream << "0";
+
                 if (floor(i) == i)
-                    stream << i;
+                    stream << fmt::format("{}", (long long) i);
                 else
-                    stream << i;
+                    stream << fmt::format("{:f}", i);
             }
             stream << "]";
             break;
