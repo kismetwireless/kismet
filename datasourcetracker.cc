@@ -165,12 +165,13 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (shared_d
 
     }
 
+    // Duplicate the launch map so that rapidly terminating sources can't race
     auto build_map = std::map<unsigned int, shared_datasource>(ipc_probe_map);
 
     for (const auto& i : build_map) {
         // Set up the cancellation timer
         int cancel_timer = 
-            timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
+            timetracker->register_timer(std::chrono::seconds(10), false, 
                     [this] (int) -> int {
                         _MSG_ERROR("Datasource {} cancelling source probe due to timeout", definition);
                         cancel();
