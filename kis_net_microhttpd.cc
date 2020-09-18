@@ -790,7 +790,7 @@ KIS_MHD_RETURN kis_net_httpd::http_request_handler(void *cls, struct MHD_Connect
         concls->httpdhandler = nullptr;
         concls->session = s;
         concls->httpcode = MHD_HTTP_OK;
-        concls->url = std::string(url);
+        concls->url = url;
         concls->connection = connection;
 
         new_concls = true;
