@@ -41,6 +41,7 @@ kis_external_interface::kis_external_interface() :
     last_pong {0},
     ping_timer_id {-1},
     eventbus {Globalreg::fetch_mandatory_global_as<event_bus>()},
+    http_bound{false},
     http_session_id{0} {
         
     bind_httpd_server();
@@ -600,6 +601,11 @@ void kis_external_interface::handle_packet_eventbus_publish(uint32_t in_seqno,
 void kis_external_interface::handle_packet_http_register(uint32_t in_seqno, 
         const std::string& in_content) {
     local_locker lock(ext_mutex);
+
+    if (!http_bound) {
+        http_bound = true;
+        bind_httpd_server();
+    }
 
     KismetExternalHttp::HttpRegisterUri uri;
 

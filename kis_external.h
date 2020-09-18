@@ -187,6 +187,7 @@ protected:
     // Valid URIs, mapped by method (GET, POST, etc); these are matched in
     // httpd_verify_path and then passed on; if a URI is present here, it's mapped
     // to true
+    bool http_bound;
     std::map<std::string, std::vector<struct kis_external_http_uri *> > http_proxy_uri_map;
 
     // HTTP session identities for multi-packet responses
