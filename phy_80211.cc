@@ -2317,7 +2317,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
 
             if (!matched) {
                 for (const auto& t : taglist) {
-                    if (std::get<0>(t) == 221 && std::get<2>(t) == 0) {
+                    if (std::get<0>(t) == 221) {
                         // Exclude known generic 221 OUIs, and exclude anything where we don't know
                         // the manuf from the tag OUI, either.
 
