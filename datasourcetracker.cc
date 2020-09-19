@@ -1559,7 +1559,10 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
                 if (!ds->get_source_running()) {
                     _MSG("Re-opening source '" + ds->get_source_name() + "' from REST "
                             "interface request.", MSGFLAG_INFO);
-                    ds->open_interface(ds->get_source_definition(), 0, NULL);
+                    ds->open_interface(ds->get_source_definition(), 0, 
+                            [this, ds] (unsigned int, bool success, std::string reason) {
+                            merge_source(ds);
+                            });
                     stream << "Re-opening source";
 
                     return;
