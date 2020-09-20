@@ -71,7 +71,7 @@ int linux_sys_get_bt_rfkill(const char *interface, unsigned int rfkill_type) {
         }
     }
 
-    return -1;
+    return 0;
 }
 
 int linux_sys_clear_bt_rfkill(const char *interface) {
