@@ -2474,6 +2474,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     if (localchan != NULL)
         free(localchan);
 
+    snprintf(errstr2, STATUS_MAX, "%s finished configuring %s, ready to capture",
+            local_wifi->name, local_wifi->cap_interface);
+    cf_send_message(caph, errstr2, MSGFLAG_INFO);
+
     return 1;
 }
 
