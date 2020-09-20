@@ -2757,7 +2757,12 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
     if (msg != NULL && strlen(msg) != 0) {
         kemsg.msgtext = strdup(msg);
-        kemsg.msgtype = (KismetExternal__MsgbusMessage__MessageType) MSGFLAG_INFO;
+
+        if (success)
+            kemsg.msgtype = (KismetExternal__MsgbusMessage__MessageType) MSGFLAG_INFO;
+        else
+            kemsg.msgtype = (KismetExternal__MsgbusMessage__MessageType) MSGFLAG_ERROR;
+
         keopen.message = &kemsg;
     }
 
@@ -2961,7 +2966,12 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int seqno,
 
     if (msg != NULL && strlen(msg) != 0) {
         kemsg.msgtext = strdup(msg);
-        kemsg.msgtype = (KismetExternal__MsgbusMessage__MessageType) MSGFLAG_INFO;
+
+        if (success)
+            kemsg.msgtype = (KismetExternal__MsgbusMessage__MessageType) MSGFLAG_INFO;
+        else
+            kemsg.msgtype = (KismetExternal__MsgbusMessage__MessageType) MSGFLAG_ERROR;
+
         keconf.message = &kemsg;
     }
 
