@@ -2755,6 +2755,12 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
         keopen.capture_interface = interface->capif;
     }
 
+    if (msg != NULL && strlen(msg) != 0) {
+        kemsg.msgtext = strdup(msg);
+        kemsg.msgtype = (KismetExternal__MsgbusMessage__MessageType) MSGFLAG_INFO;
+        keopen.message = &kemsg;
+    }
+
     /* Always set the dlt */
     keopen.has_dlt = true;
     keopen.dlt = dlt;
@@ -2952,6 +2958,12 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int seqno,
     kesuccess.seqno = seqno;
 
     keconf.success = &kesuccess;
+
+    if (msg != NULL && strlen(msg) != 0) {
+        kemsg.msgtext = strdup(msg);
+        kemsg.msgtype = (KismetExternal__MsgbusMessage__MessageType) MSGFLAG_INFO;
+        keconf.message = &kemsg;
+    }
 
     /* If we're not hopping, set the single channel response */
     if (!caph->hopping_running && caph->channel != NULL) {
