@@ -1525,8 +1525,7 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
                             [this, ds] (unsigned int, bool success, std::string reason) {
                             merge_source(ds);
                             });
-                    stream << "Re-opening source";
-
+                    httpd_serialize(path, stream, ds, nullptr, connection);
                     return;
                 } else {
                     stream << "Source already open";
@@ -1540,7 +1539,8 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
                     _MSG("Pausing source '" + ds->get_source_name() + "' from REST "
                             "interface request.", MSGFLAG_INFO);
                     ds->set_source_paused(true);
-                    stream << "Pausing source";
+
+                    httpd_serialize(path, stream, ds, nullptr, connection);
 
                     return;
                 } else {
