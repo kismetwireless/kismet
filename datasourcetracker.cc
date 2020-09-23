@@ -1775,7 +1775,7 @@ KIS_MHD_RETURN datasource_tracker::httpd_post_complete(kis_net_httpd_connection 
                     std::string reason = cl->block_until();
 
                     if (cmd_complete_success) {
-                        concls->response_stream << "Success";
+                        httpd_serialize(concls->url, concls->response_stream, ds, nullptr, concls);
                         concls->httpcode = 200;
                     } else {
                         concls->response_stream << reason;
@@ -1800,9 +1800,7 @@ KIS_MHD_RETURN datasource_tracker::httpd_post_complete(kis_net_httpd_connection 
                         ds->get_source_hop_offset(), 0,
                         [cl, &cmd_complete_success](unsigned int, bool success, 
                             std::string reason) {
-
                             cmd_complete_success = success;
-
                             cl->unlock(reason);
                         });
 
@@ -1810,7 +1808,7 @@ KIS_MHD_RETURN datasource_tracker::httpd_post_complete(kis_net_httpd_connection 
                 std::string reason = cl->block_until();
 
                 if (cmd_complete_success) {
-                    concls->response_stream << "Success";
+                    httpd_serialize(concls->url, concls->response_stream, ds, nullptr, concls);
                     concls->httpcode = 200;
                 } else {
                     concls->response_stream << reason;
