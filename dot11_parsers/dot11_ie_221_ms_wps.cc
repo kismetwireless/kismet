@@ -58,8 +58,20 @@ void dot11_ie_221_ms_wps::wps_de_sub_element::parse(std::shared_ptr<kaitai::kstr
         std::shared_ptr<wps_de_sub_string> s(new wps_de_sub_string());
         s->parse(m_wps_de_content_data_stream);
         m_sub_element = s;
+    } else if (wps_de_type() == wps_de_version) {
+        std::shared_ptr<wps_de_sub_version> s(new wps_de_sub_version());
+        s->parse(m_wps_de_content_data_stream);
+        m_sub_element = s;
     } else if (wps_de_type() == wps_de_state) {
         std::shared_ptr<wps_de_sub_state> s(new wps_de_sub_state());
+        s->parse(m_wps_de_content_data_stream);
+        m_sub_element = s;
+    } else if (wps_de_type() == wps_de_ap_setup) {
+        std::shared_ptr<wps_de_sub_ap_setup> s(new wps_de_sub_ap_setup());
+        s->parse(m_wps_de_content_data_stream);
+        m_sub_element = s;
+    } else if (wps_de_type() == wps_de_config_methods) {
+        std::shared_ptr<wps_de_sub_config_methods> s(new wps_de_sub_config_methods());
         s->parse(m_wps_de_content_data_stream);
         m_sub_element = s;
     } else if (wps_de_type() == wps_de_uuid_e) {
@@ -108,6 +120,10 @@ void dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_version::parse(std::sha
 
 void dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_ap_setup::parse(std::shared_ptr<kaitai::kstream> p_io) {
     m_ap_setup_locked = p_io->read_u1();
+}
+
+void dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_config_methods::parse(std::shared_ptr<kaitai::kstream> p_io) {
+    m_config_methods = p_io->read_u2be();
 }
 
 void dot11_ie_221_ms_wps::wps_de_sub_element::wps_de_sub_generic::parse(std::shared_ptr<kaitai::kstream> p_io) {

@@ -74,9 +74,11 @@ public:
         class wps_de_sub_version;
         class wps_de_sub_primary_type;
         class wps_de_sub_ap_setup;
+        class wps_de_sub_config_methods;
         class wps_de_sub_generic;
 
         enum wps_de_type_e {
+            wps_de_config_methods = 0x1008,
             wps_de_device_name = 0x1011,
             wps_de_manuf = 0x1021,
             wps_de_model = 0x1023,
@@ -157,9 +159,27 @@ public:
             return NULL;
         }
 
+       std::shared_ptr<wps_de_sub_version> sub_element_version() const {
+            if (wps_de_type() == wps_de_version)
+                return std::static_pointer_cast<wps_de_sub_version>(sub_element());
+            return NULL;
+        }
+
         std::shared_ptr<wps_de_sub_state> sub_element_state() const {
             if (wps_de_type() == wps_de_state)
                 return std::static_pointer_cast<wps_de_sub_state>(sub_element());
+            return NULL;
+        }
+
+        std::shared_ptr<wps_de_sub_ap_setup> sub_element_ap_setup() const {
+            if (wps_de_type() == wps_de_ap_setup)
+                return std::static_pointer_cast<wps_de_sub_ap_setup>(sub_element());
+            return NULL;
+        }
+
+        std::shared_ptr<wps_de_sub_config_methods> sub_element_config_methods() const {
+            if (wps_de_type() == wps_de_config_methods)
+                return std::static_pointer_cast<wps_de_sub_config_methods>(sub_element());
             return NULL;
         }
 
@@ -340,6 +360,21 @@ public:
 
         protected:
             uint8_t m_ap_setup_locked;
+        };
+
+        class wps_de_sub_config_methods : public wps_de_sub_common {
+        public:
+            wps_de_sub_config_methods() { }
+            virtual ~wps_de_sub_config_methods() { }
+
+            virtual void parse(std::shared_ptr<kaitai::kstream> p_io);
+
+            constexpr17 uint16_t wps_config_methods() const {
+                return m_config_methods;
+            }
+
+        protected:
+            uint16_t m_config_methods;
         };
 
         class wps_de_sub_generic : public wps_de_sub_common {
