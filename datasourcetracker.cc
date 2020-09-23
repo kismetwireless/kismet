@@ -1503,11 +1503,9 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
             if (httpd_strip_suffix(tokenurl[4]) == "close_source" ||
                     httpd_strip_suffix(tokenurl[4]) == "disable_source") {
                 if (ds->get_source_running()) {
-                    _MSG("Closing source '" + ds->get_source_name() + "' from REST "
-                            "interface request.", MSGFLAG_INFO);
+                    _MSG_INFO("Closing datasource {}", ds->get_source_name());
                     ds->disable_source();
-                    stream << "Closing source " << ds->get_source_uuid().uuid_to_string();
-
+                    httpd_serialize(path, stream, ds, nullptr, connection);
                     return;
                 } else {
                     stream << "Source already closed, disabling source " <<
@@ -1519,13 +1517,38 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
 
             if (httpd_strip_suffix(tokenurl[4]) == "open_source") {
                 if (!ds->get_source_running()) {
-                    _MSG("Re-opening source '" + ds->get_source_name() + "' from REST "
-                            "interface request.", MSGFLAG_INFO);
+                    _MSG_INFO("Opening datasource {}", ds->get_source_name());
+
+                    auto cl(new conditional_locker<bool>());
+                    cl->lock();
+
+                    auto error_reason = std::string();
+                    bool cmd_complete_success = false;
+
                     ds->open_interface(ds->get_source_definition(), 0, 
-                            [this, ds] (unsigned int, bool success, std::string reason) {
-                            merge_source(ds);
+                            [this, cl, ds, &cmd_complete_success, &error_reason] (unsigned int, bool success, 
+                                std::string reason) {
+
+                            if (success) {
+                                cmd_complete_success = success;
+                                merge_source(ds);
+                            }
+
+                            error_reason = reason;
+                            cl->unlock(success);
                             });
-                    httpd_serialize(path, stream, ds, nullptr, connection);
+
+                    cl->block_until();
+
+
+                    if (cmd_complete_success) {
+                        httpd_serialize(path, stream, ds, nullptr, connection);
+                        connection->httpcode = 200;
+                    } else {
+                        stream << error_reason;
+                        connection->httpcode = 500;
+                    }
+
                     return;
                 } else {
                     stream << "Source already open";
@@ -1541,7 +1564,6 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
                     ds->set_source_paused(true);
 
                     httpd_serialize(path, stream, ds, nullptr, connection);
-
                     return;
                 } else {
                     stream << "Source already paused";
@@ -1555,7 +1577,8 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
                     _MSG("Resuming source '" + ds->get_source_name() + "' from REST "
                             "interface request.", MSGFLAG_INFO);
                     ds->set_source_paused(false);
-                    stream << "Resuming source";
+
+                    httpd_serialize(path, stream, ds, nullptr, connection);
 
                     auto evt = eventbus->get_eventbus_event(event_datasource_resumed());
                     evt->get_event_content()->insert(event_datasource_resumed(), ds);
