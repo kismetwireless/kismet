@@ -220,10 +220,12 @@ int kis_external_interface::handle_read(std::shared_ptr<kis_external_interface> 
             return -1;
 
         // Be quiet about EOF
-        if (ec.value() != asio::error::eof)
+        if (ec.value() == asio::error::eof) {
+            trigger_error("External socket closed");
+        } else {
             _MSG_ERROR("External API handler got error reading data: {}", ec.message());
-        
-        trigger_error(ec.message());
+            trigger_error(ec.message());
+        }
 
         return -1;
     }
