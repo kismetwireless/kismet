@@ -512,6 +512,14 @@ bool kis_external_interface::run_ipc() {
 
 
 unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal::Command> c) {
+    if (stopped)
+        return 0;
+
+    if (cancelled) {
+        close_external();
+        return 0;
+    }
+
     local_locker lock(&ext_mutex, "kei::send_packet");
 
     // Set the sequence if one wasn't provided
