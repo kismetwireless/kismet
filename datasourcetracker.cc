@@ -2075,8 +2075,6 @@ dst_incoming_remote::~dst_incoming_remote() {
 }
 
 bool dst_incoming_remote::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) { 
-    _MSG_INFO("(DEBUG) incoming_remote dispatch_packet {}", c->command());
-
     if (kis_external_interface::dispatch_rx_packet(c))
         return true;
 
@@ -2122,11 +2120,9 @@ void dst_incoming_remote::handle_packet_newsource(uint32_t in_seqno, std::string
     }
 
     if (cb != NULL) {
-        _MSG_INFO("(debug) newsource callback");
         cb(this, c.sourcetype(), c.definition(), c.uuid());
     }
 
-    _MSG_INFO("(debug) killing incoming_remote after newsource");
     kill();
 }
 
