@@ -1012,7 +1012,7 @@ void datasource_tracker::merge_source(shared_datasource in_source) {
     }
 
     bool found_ds = false;
-    for (const auto dsi : *datasource_vec) {
+    for (const auto& dsi : *datasource_vec) {
         auto ds = std::static_pointer_cast<kis_datasource>(dsi);
 
         if (ds->get_source_uuid() == in_source->get_source_uuid()) {
