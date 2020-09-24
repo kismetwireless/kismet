@@ -1766,6 +1766,9 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
     if (pack_json == nullptr)
         return 0;
 
+    if (pack_json->type != "DOT11SCAN")
+        return 0;
+
     auto pack_l1info =
         in_pack->fetch<kis_layer1_packinfo>(d11phy->pack_comp_l1info);
 

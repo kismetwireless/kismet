@@ -115,6 +115,9 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
     if (pack_json == nullptr)
         return 0;
 
+    if (pack_json->type != "BLUETOOTHSCAN")
+        return 0;
+
     auto pack_l1info =
         in_pack->fetch<kis_layer1_packinfo>(btphy->pack_comp_l1info);
 
