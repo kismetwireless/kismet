@@ -1011,7 +1011,16 @@ void datasource_tracker::merge_source(shared_datasource in_source) {
         }
     }
 
-    datasource_vec->push_back(in_source);
+    bool found_ds = false;
+    for (const auto ds : datasource_vec) {
+        if (ds->get_source_uuid() == in_source->get_source_uuid()) {
+            found_ds = true;
+            break;
+        }
+    }
+
+    if (!found_ds)
+        datasource_vec->push_back(in_source);
 }
 
 void datasource_tracker::list_interfaces(const std::function<void (std::vector<shared_interface>)>& in_cb) {
