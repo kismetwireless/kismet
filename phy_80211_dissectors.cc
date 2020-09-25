@@ -2154,6 +2154,12 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                     wps->parse(vendor->vendor_tag_stream());
 
                     for (auto wpselem : *(wps->wps_elements())) {
+                        auto version = wpselem->sub_element_version();
+                        if (version != NULL) {
+                            packinfo->wps_version = version->version();
+                            continue;
+                        }
+
                         auto state = wpselem->sub_element_state();
                         if (state != NULL) {
                             if (state->wps_state_configured()) {
@@ -2162,6 +2168,21 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                                 packinfo->wps |= DOT11_WPS_NOT_CONFIGURED;
                             }
 
+                            continue;
+                        }
+
+                        auto ap_setup = wpselem->sub_element_ap_setup();
+                        if (ap_setup != NULL) {
+                            if (ap_setup->ap_setup_locked()) {
+                                packinfo->wps |= DOT11_WPS_LOCKED;
+                            }
+
+                            continue;
+                        }
+
+                        auto config_methods = wpselem->sub_element_config_methods();
+                        if (config_methods != NULL) {
+                            packinfo->wps_config_methods = config_methods->wps_config_methods();
                             continue;
                         }
 
