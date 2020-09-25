@@ -439,7 +439,11 @@ public:
 
             __ImportId(ie_tag_list_id, p);
 
+            __ImportId(wps_version_id, p);
+
             __ImportId(wps_state_id, p);
+
+            __ImportId(wps_config_methods_id, p);
 
             __ImportId(wps_manuf_id, p);
 
@@ -483,7 +487,9 @@ public:
 
     __ProxyDynamicTrackable(ie_tag_list, tracker_element_vector_double, ie_tag_list, ie_tag_list_id);
 
+    __ProxyDynamic(wps_version, uint8_t, uint8_t, uint8_t, wps_version, wps_version_id);
     __ProxyDynamic(wps_state, uint32_t, uint32_t, uint32_t, wps_state, wps_state_id);
+    __ProxyDynamic(wps_config_methods, uint16_t, uint16_t, uint16_t, wps_config_methods, wps_config_methods_id);
     __ProxyDynamic(wps_manuf, std::string, std::string, std::string, wps_manuf, wps_manuf_id);
     __ProxyDynamic(wps_device_name, std::string, std::string, std::string, wps_device_name, wps_device_name_id);
     __ProxyDynamic(wps_model_name, std::string, std::string, std::string, wps_model_name, wps_model_name_id);
@@ -514,8 +520,14 @@ protected:
     int ie_tag_list_id;
 
     // WPS components
+    std::shared_ptr<tracker_element_uint8> wps_version;
+    int wps_version_id;
+
     std::shared_ptr<tracker_element_uint32> wps_state;
     int wps_state_id;
+
+    std::shared_ptr<tracker_element_uint16> wps_config_methods;
+    int wps_config_methods_id;
 
     std::shared_ptr<tracker_element_string> wps_manuf;
     int wps_manuf_id;
@@ -600,7 +612,9 @@ public:
             __ImportId(dot11d_vec_id, p);
             __ImportId(dot11d_country_entry_id, p);
 
+            __ImportId(wps_version_id, p);
             __ImportId(wps_state_id, p);
+            __ImportId(wps_config_methods_id, p);
             __ImportId(wps_manuf_id, p);
             __ImportId(wps_device_name_id, p);
             __ImportId(wps_model_name_id, p);
@@ -681,7 +695,10 @@ public:
     __ProxyDynamicTrackable(dot11d_vec, tracker_element_vector, dot11d_vec, dot11d_vec_id);
     void set_dot11d_vec(std::vector<dot11_packinfo_dot11d_entry> vec);
 
+    __ProxyDynamic(wps_version, uint8_t, uint8_t, uint8_t, wps_version, wps_version_id);
     __ProxyDynamic(wps_state, uint32_t, uint32_t, uint32_t, wps_state, wps_state_id);
+    __ProxyDynamic(wps_config_methods, uint16_t, uint16_t, uint16_t, wps_config_methods,
+            wps_config_methods_id);
     __ProxyDynamic(wps_manuf, std::string, std::string, std::string, wps_manuf, wps_manuf_id);
     __ProxyDynamic(wps_device_name, std::string, std::string, std::string, wps_device_name, 
             wps_device_name_id);
@@ -783,8 +800,14 @@ protected:
     int dot11d_country_entry_id;
 
     // WPS components
+    std::shared_ptr<tracker_element_uint8> wps_version;
+    int wps_version_id;
+
     std::shared_ptr<tracker_element_uint32> wps_state;
     int wps_state_id;
+
+    std::shared_ptr<tracker_element_uint16> wps_config_methods;
+    int wps_config_methods_id;
 
     std::shared_ptr<tracker_element_string> wps_manuf;
     int wps_manuf_id;
