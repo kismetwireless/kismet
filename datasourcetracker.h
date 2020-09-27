@@ -586,7 +586,7 @@ public:
     void stop();
 
     void start_accept();
-    void handle_accept(const asio::error_code& ec, tcp::socket socket);
+    void handle_accept(const boost::system::error_code& ec, tcp::socket socket);
 
 protected:
     std::atomic<bool> stopped;

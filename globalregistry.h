@@ -32,7 +32,7 @@
 
 #include "fmt.h"
 
-#include "asio.hpp"
+#include "boost/asio.hpp"
 
 class global_registry;
 
@@ -248,7 +248,7 @@ public:
     void shutdown_deferred();
 
     // Global ASIO service
-    asio::io_service io;
+    boost::asio::io_service io;
 
 protected:
     kis_recursive_timed_mutex ext_mutex;

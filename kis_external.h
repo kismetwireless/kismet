@@ -39,10 +39,8 @@
 #include "ipctracker_v2.h"
 #include "kis_net_microhttpd.h"
 
-
-
-#include "asio.hpp"
-using asio::ip::tcp;
+#include "boost/asio.hpp"
+using boost::asio::ip::tcp;
 
 // Namespace stub and forward class definition to make deps hopefully easier going forward
 namespace KismetExternal {
@@ -170,15 +168,15 @@ protected:
     int ping_timer_id;
 
     // Input buffer
-    asio::streambuf in_buf;
-    int handle_read(std::shared_ptr<kis_external_interface> ref, const asio::error_code& ec, size_t sz);
+    boost::asio::streambuf in_buf;
+    int handle_read(std::shared_ptr<kis_external_interface> ref, const boost::system::error_code& ec, size_t sz);
 
     // Pipe IPC
     std::string external_binary;
     std::vector<std::string> external_binary_args;
 
     kis_ipc_record ipc;
-    asio::posix::stream_descriptor ipc_in, ipc_out;
+    boost::asio::posix::stream_descriptor ipc_in, ipc_out;
 
     void start_ipc_read(std::shared_ptr<kis_external_interface> ref);
 

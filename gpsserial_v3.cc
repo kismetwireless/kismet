@@ -107,8 +107,8 @@ void kis_gps_serial_v3::close() {
 }
 
 void kis_gps_serial_v3::start_read_impl() {
-    asio::async_read_until(serialport, in_buf, '\n',
-            [this](const asio::error_code& error, std::size_t t) {
+    boost::asio::async_read_until(serialport, in_buf, '\n',
+            [this](const boost::system::error_code& error, std::size_t t) {
                 handle_read(shared_from_this(), error, t);
             });
 
@@ -171,7 +171,7 @@ bool kis_gps_serial_v3::open_gps(std::string in_opts) {
             return -1;
         }
 #else
-        asio::serial_port_base::baud_rate baudrate(proto_baud);
+        boost::asio::serial_port_base::baud_rate baudrate(proto_baud);
 
         serialport.set_option(baudrate);
 #endif

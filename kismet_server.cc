@@ -1012,7 +1012,7 @@ int main(int argc, char *argv[], char *envp[]) {
     timetracker->spawn_timetracker_thread();
 
     auto asio_thread = std::thread([]() {
-            asio::io_service::work work(Globalreg::globalreg->io);
+            boost::asio::io_service::work work(Globalreg::globalreg->io);
             Globalreg::globalreg->io.run();
             });
 

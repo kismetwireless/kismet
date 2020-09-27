@@ -25,9 +25,9 @@
 #include "kis_gps.h"
 #include "timetracker.h"
 
-#include "asio.hpp"
+#include "boost/asio.hpp"
 
-using asio::ip::tcp;
+using boost::asio::ip::tcp;
 
 class kis_gps_gpsd_v3 : public kis_gps, public std::enable_shared_from_this<kis_gps_gpsd_v3> {
 public:
@@ -40,13 +40,13 @@ public:
 
 protected:
     void start_connect(std::shared_ptr<kis_gps_gpsd_v3> ref,
-            const asio::error_code& error, tcp::resolver::iterator endpoint_iter);
+            const boost::system::error_code& error, tcp::resolver::iterator endpoint_iter);
     void handle_connect(std::shared_ptr<kis_gps_gpsd_v3> ref, 
-            const asio::error_code& error, tcp::resolver::iterator endpoint);
+            const boost::system::error_code& error, tcp::resolver::iterator endpoint);
 
     void start_read(std::shared_ptr<kis_gps_gpsd_v3> ref);
     void handle_read(std::shared_ptr<kis_gps_gpsd_v3> ref,
-            const asio::error_code& error, std::size_t sz);
+            const boost::system::error_code& error, std::size_t sz);
 
     void write_gpsd(std::shared_ptr<kis_gps_gpsd_v3> ref, const std::string& data);
 
@@ -57,7 +57,7 @@ protected:
     tcp::resolver resolver;
     tcp::socket socket;
 
-    asio::streambuf in_buf;
+    boost::asio::streambuf in_buf;
 
     std::string host, port;
 

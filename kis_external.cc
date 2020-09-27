@@ -184,9 +184,9 @@ void kis_external_interface::start_ipc_read(std::shared_ptr<kis_external_interfa
     if (stopped)
         return;
 
-    asio::async_read(ipc_in, in_buf,
-            asio::transfer_at_least(sizeof(kismet_external_frame_t)),
-            [this, ref](const asio::error_code& ec, std::size_t t) {
+    boost::asio::async_read(ipc_in, in_buf,
+            boost::asio::transfer_at_least(sizeof(kismet_external_frame_t)),
+            [this, ref](const boost::system::error_code& ec, std::size_t t) {
             if (handle_read(ref, ec, t) > 0)
                 start_ipc_read(ref);
             });
@@ -196,16 +196,16 @@ void kis_external_interface::start_tcp_read(std::shared_ptr<kis_external_interfa
     if (stopped)
         return;
 
-    asio::async_read(tcpsocket, in_buf,
-            asio::transfer_at_least(sizeof(kismet_external_frame_t)),
-            [this, ref](const asio::error_code& ec, std::size_t t) {
+    boost::asio::async_read(tcpsocket, in_buf,
+            boost::asio::transfer_at_least(sizeof(kismet_external_frame_t)),
+            [this, ref](const boost::system::error_code& ec, std::size_t t) {
             if (handle_read(ref, ec, t) >= 0)
                 start_tcp_read(ref);
             });
 }
 
 int kis_external_interface::handle_read(std::shared_ptr<kis_external_interface> ref, 
-        const asio::error_code& ec, size_t in_amt) {
+        const boost::system::error_code& ec, size_t in_amt) {
     if (stopped)
         return 0;
 
@@ -216,11 +216,11 @@ int kis_external_interface::handle_read(std::shared_ptr<kis_external_interface> 
 
     if (ec) {
         // Exit on aborted errors, we've already been cancelled and this socket is closing out
-        if (ec.value() == asio::error::operation_aborted)
+        if (ec.value() == boost::asio::error::operation_aborted)
             return -1;
 
         // Be quiet about EOF
-        if (ec.value() == asio::error::eof) {
+        if (ec.value() == boost::asio::error::eof) {
             trigger_error("External socket closed");
         } else {
             _MSG_ERROR("External API handler got error reading data: {}", ec.message());
@@ -246,7 +246,7 @@ int kis_external_interface::handle_read(std::shared_ptr<kis_external_interface> 
             return 1;
         }
 
-        frame = asio::buffer_cast<const kismet_external_frame_t *>(in_buf.data());
+        frame = boost::asio::buffer_cast<const kismet_external_frame_t *>(in_buf.data());
 
         // Check the frame signature
         if (kis_ntoh32(frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
@@ -490,8 +490,8 @@ bool kis_external_interface::run_ipc() {
     ::close(inpipepair[0]);
     ::close(outpipepair[1]);
 
-    ipc_out = asio::posix::stream_descriptor(Globalreg::globalreg->io, inpipepair[1]);
-    ipc_in = asio::posix::stream_descriptor(Globalreg::globalreg->io, outpipepair[0]);
+    ipc_out = boost::asio::posix::stream_descriptor(Globalreg::globalreg->io, inpipepair[1]);
+    ipc_in = boost::asio::posix::stream_descriptor(Globalreg::globalreg->io, outpipepair[0]);
 
     ipc = kis_ipc_record(child_pid,
             [this](const std::string&) {
@@ -558,10 +558,10 @@ unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal:
     frame->data_checksum = kis_hton32(data_csum);
 
     if (ipc_out.is_open())
-        asio::async_write(ipc_out, asio::buffer(frame_buf, frame_sz),
-                [this](const asio::error_code& ec, std::size_t) {
+        boost::asio::async_write(ipc_out, boost::asio::buffer(frame_buf, frame_sz),
+                [this](const boost::system::error_code& ec, std::size_t) {
                 if (ec) {
-                    if (ec.value() == asio::error::operation_aborted)
+                    if (ec.value() == boost::asio::error::operation_aborted)
                         return;
 
                     _MSG_ERROR("Kismet external interface got an error writing a packet to an "
@@ -571,10 +571,10 @@ unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal:
                 }
                 });
     else if (tcpsocket.is_open()) 
-        asio::async_write(tcpsocket, asio::buffer(frame_buf, frame_sz),
-                [this](const asio::error_code& ec, std::size_t) {
+        boost::asio::async_write(tcpsocket, boost::asio::buffer(frame_buf, frame_sz),
+                [this](const boost::system::error_code& ec, std::size_t) {
                 if (ec) {
-                    if (ec.value() == asio::error::operation_aborted)
+                    if (ec.value() == boost::asio::error::operation_aborted)
                         return;
 
                     _MSG_ERROR("Kismet external interface got an error writing a packet to a "

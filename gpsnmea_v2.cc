@@ -39,14 +39,14 @@ void kis_gps_nmea_v2::start_read() {
 }
 
 void kis_gps_nmea_v2::handle_read(std::shared_ptr<kis_gps_nmea_v2> ref,
-        const asio::error_code& ec, std::size_t sz) {
+        const boost::system::error_code& ec, std::size_t sz) {
 
     if (stopped)
         return;
 
     if (ec) {
         // Return from aborted errors cleanly
-        if (ec.value() == asio::error::operation_aborted)
+        if (ec.value() == boost::asio::error::operation_aborted)
             return;
 
         _MSG_ERROR("(GPS) Error reading NMEA data: {}", ec.message());

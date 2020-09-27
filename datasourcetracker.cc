@@ -584,7 +584,7 @@ void datasource_tracker::trigger_deferred_startup() {
                 remotecap_v4 = std::make_shared<datasource_tracker_remote_server>(v4_ep);
             } else {
                 auto v4_ep = 
-                    tcp::endpoint(asio::ip::address_v4::from_string(config_defaults->get_remote_cap_listen()),
+                    tcp::endpoint(boost::asio::ip::address_v4::from_string(config_defaults->get_remote_cap_listen()),
                             config_defaults->get_remote_cap_port());
                 remotecap_v4 = std::make_shared<datasource_tracker_remote_server>(v4_ep);
             }
@@ -2149,7 +2149,7 @@ void datasource_tracker_remote_server::start_accept() {
         return;
 
     acceptor.async_accept(incoming_socket,
-            [this](asio::error_code ec) {
+            [this](boost::system::error_code ec) {
                 if (stopped)
                     return;
 
@@ -2160,7 +2160,7 @@ void datasource_tracker_remote_server::start_accept() {
 
 }
 
-void datasource_tracker_remote_server::handle_accept(const asio::error_code& ec, tcp::socket socket) {
+void datasource_tracker_remote_server::handle_accept(const boost::system::error_code& ec, tcp::socket socket) {
     if (!ec) {
         // Bind a new incoming remote which will pivot to the proper data source type
         auto remote = 
