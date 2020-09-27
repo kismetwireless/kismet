@@ -3163,8 +3163,8 @@ int cf_drop_most_caps(kis_capture_handler_t *caph) {
 }
 
 int cf_jail_filesystem(kis_capture_handler_t *caph) {
-    char errstr[STATUS_MAX];
 #ifdef SYS_LINUX
+    char errstr[STATUS_MAX];
 
     /* Can't jail filesystem if not running as root */
     if (getuid() != 0)
