@@ -69,3 +69,68 @@ kis_net_beast_httpd::kis_net_beast_httpd(boost::asio::ip::tcp::acceptor& accepto
 
 }
 
+kis_net_beast_httpd::~kis_net_beast_httpd() {
+    _MSG_INFO("Shutting down HTTPD server...");
+    stop_httpd();
+}
+
+int kis_net_beast_httpd::start_httpd() {
+    if (running)
+        return 0;
+
+    running = true;
+
+    start_accept();
+
+    return 1;
+}
+
+int kis_net_beast_httpd::stop_httpd() {
+    if (!running)
+        return 0;
+
+    running = false;
+
+    if (acceptor.is_open()) {
+        try {
+            acceptor.cancel();
+            acceptor.close();
+        } catch (const std::exception& e) {
+            ;
+        }
+    }
+
+    return 1;
+}
+
+void kis_net_beast_httpd::start_accept() {
+    if (!running)
+        return;
+
+    acceptor.async_accept(socket,
+            [this](boost::system::error_code ec) {
+                if (!running)
+                    return;
+
+                if (!ec)
+                    std::make_shared<kis_net_beast_httpd_connection>(std::move(socket), 
+                            shared_from_this())->start();
+
+                start_accept();
+            });
+}
+
+kis_net_beast_httpd_connection::kis_net_beast_httpd_connection(boost::asio::ip::tcp::socket socket,
+        std::shared_ptr<kis_net_beast_httpd> httpd) :
+    httpd{httpd},
+    socket{std::move(socket)},
+    deadline{socket.get_executor(), std::chrono::seconds(60)} {
+
+}
+
+void kis_net_beast_httpd_connection::start() {
+
+}
+
+
+

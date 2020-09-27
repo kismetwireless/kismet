@@ -23,11 +23,14 @@
 
 #include <atomic>
 #include <string>
+#include <thread>
 
 #include "globalregistry.h"
 
 #include "boost/asio.hpp"
 #include "boost/beast.hpp"
+
+class kis_net_beast_httpd_connection;
 
 class kis_net_beast_httpd : public lifetime_global, public std::enable_shared_from_this<kis_net_beast_httpd> {
 public:
@@ -59,5 +62,28 @@ protected:
 
     bool use_ssl;
 };
+
+class kis_net_beast_httpd_connection : public std::enable_shared_from_this<kis_net_beast_httpd_connection> {
+public:
+    kis_net_beast_httpd_connection(boost::asio::ip::tcp::socket socket,
+            std::shared_ptr<kis_net_beast_httpd> httpd);
+
+    void start();
+
+protected:
+    std::shared_ptr<kis_net_beast_httpd> httpd;
+
+    boost::asio::ip::tcp::socket socket;
+
+    boost::beast::flat_buffer buffer{8192};
+    boost::beast::http::dynamic_body request;
+    boost::beast::http::response<boost::beast::http::dynamic_body> response;
+
+    boost::asio::steady_timer deadline;
+
+    std::thread request_thread;
+
+};
+
 
 #endif /* ifndef KIS_NET_BEAST_HTTPD_H */
