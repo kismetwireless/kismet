@@ -143,7 +143,9 @@ class dot11_packinfo : public packet_component {
 
             dot11d_country = "";
 
+            wps_version = 0; 
             wps = DOT11_WPS_NO_WPS;
+            wps_config_methods = 0;
             wps_manuf = "";
             wps_device_name = "";
             wps_model_name = "";
@@ -236,7 +238,9 @@ class dot11_packinfo : public packet_component {
         std::vector<dot11_packinfo_dot11d_entry> dot11d_vec;
 
         // WPS information
+        uint8_t wps_version;
         uint8_t wps;
+        uint16_t wps_config_methods;
         // The field below is useful because some APs use
         // a MAC address with 'Unknown' OUI but will
         // tell their manufacturer in this field:

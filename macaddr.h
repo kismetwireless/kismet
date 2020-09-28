@@ -73,7 +73,10 @@ struct mac_addr {
     mac_addr(mac_addr&& o) noexcept :
         longmac{o.longmac},
         maskbits{o.maskbits},
-        state{o.state} { }
+        state {
+            .len = o.state.len,
+            .error = o.state.error 
+        } { }
     
     uint64_t longmac;
     uint8_t maskbits;

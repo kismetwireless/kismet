@@ -167,8 +167,13 @@ void dot11_probed_ssid::register_fields() {
         register_dynamic_field("dot11.probedssid.ie_tag_list",
                 "802.11 IE tag list in beacon", &ie_tag_list);
 
+    wps_version_id =
+        register_dynamic_field("dot11.probedssid.wps_version", "WPS version", &wps_version);
     wps_state_id =
         register_dynamic_field("dot11.probedssid.wps_state", "WPS state bitfield", &wps_state);
+    wps_config_methods_id =
+        register_dynamic_field("dot11.probedssid.wps_config_methods", "WPS config methods bitfield",
+            &wps_config_methods);
     wps_manuf_id =
         register_dynamic_field("dot11.probedssid.wps_manuf", "WPS manufacturer", &wps_manuf);
     wps_device_name_id =
@@ -242,8 +247,13 @@ void dot11_advertised_ssid::register_fields() {
                 tracker_element_factory<dot11_11d_tracked_range_info>(0),
                 "dot11d entry");
 
+    wps_version_id =
+        register_dynamic_field("dot11.advertisedssid.wps_version", "WPS version", &wps_version);
     wps_state_id =
         register_dynamic_field("dot11.advertisedssid.wps_state", "bitfield wps state", &wps_state);
+    wps_config_methods_id =
+        register_dynamic_field("dot11.advertisedssid.wps_config_methods",
+                "bitfield wps config methods", &wps_config_methods);
     wps_manuf_id =
         register_dynamic_field("dot11.advertisedssid.wps_manuf", "WPS manufacturer", &wps_manuf);
     wps_device_name_id =

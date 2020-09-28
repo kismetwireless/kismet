@@ -309,10 +309,12 @@ int usage(char *argv) {
 
     printf(" *** Generic Options ***\n");
     printf(" -v, --version                Show version\n"
+           " -h  --help                   Display this help message\n"
            "     --no-console-wrapper     Disable server console wrapper\n"
            "     --no-ncurses-wrapper     Disable server console wrapper\n"
            "     --debug                  Disable the console wrapper and the crash\n"
            "                              handling functions, for debugging\n"
+           " -c <datasource>              Use the specified datasource\n"
            " -f, --config-file <file>     Use alternate configuration file\n"
            "     --no-line-wrap           Turn off linewrapping of output\n"
            "                              (for grep, speed, etc)\n"

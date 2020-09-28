@@ -2755,6 +2755,17 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
         keopen.capture_interface = interface->capif;
     }
 
+    if (msg != NULL && strlen(msg) != 0) {
+        kemsg.msgtext = strdup(msg);
+
+        if (success)
+            kemsg.msgtype = (KismetExternal__MsgbusMessage__MessageType) MSGFLAG_INFO;
+        else
+            kemsg.msgtype = (KismetExternal__MsgbusMessage__MessageType) MSGFLAG_ERROR;
+
+        keopen.message = &kemsg;
+    }
+
     /* Always set the dlt */
     keopen.has_dlt = true;
     keopen.dlt = dlt;
@@ -2953,6 +2964,17 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int seqno,
 
     keconf.success = &kesuccess;
 
+    if (msg != NULL && strlen(msg) != 0) {
+        kemsg.msgtext = strdup(msg);
+
+        if (success)
+            kemsg.msgtype = (KismetExternal__MsgbusMessage__MessageType) MSGFLAG_INFO;
+        else
+            kemsg.msgtype = (KismetExternal__MsgbusMessage__MessageType) MSGFLAG_ERROR;
+
+        keconf.message = &kemsg;
+    }
+
     /* If we're not hopping, set the single channel response */
     if (!caph->hopping_running && caph->channel != NULL) {
         /* Set the single channel */
@@ -3141,8 +3163,8 @@ int cf_drop_most_caps(kis_capture_handler_t *caph) {
 }
 
 int cf_jail_filesystem(kis_capture_handler_t *caph) {
-    char errstr[STATUS_MAX];
 #ifdef SYS_LINUX
+    char errstr[STATUS_MAX];
 
     /* Can't jail filesystem if not running as root */
     if (getuid() != 0)

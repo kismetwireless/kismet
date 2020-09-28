@@ -50,18 +50,18 @@ public:
     virtual ~chainbuf();
 
     // Erase buffer
-    virtual void clear();
+    virtual void clear() override;
 
     // Return amount used in buffer
-    virtual size_t used();
+    virtual size_t used() override;
 
     // Return about available (effectively "infinite"), use a crappy hack for now and
     // always return the chunk size
-    virtual ssize_t available() { 
+    virtual ssize_t available() override { 
         return chunk_sz;
     }
     
-    virtual ssize_t size() {
+    virtual ssize_t size() override {
         return chunk_sz;
     }
 
@@ -69,19 +69,19 @@ public:
     virtual size_t total();
 
     // Peek from buffer; will only return up to chunk size per peek
-    virtual ssize_t peek(unsigned char **ret_data, size_t in_sz);
-    virtual ssize_t zero_copy_peek(unsigned char **ret_data, size_t in_sz);
-    virtual void peek_free(unsigned char *in_data);
+    virtual ssize_t peek(unsigned char **ret_data, size_t in_sz) override;
+    virtual ssize_t zero_copy_peek(unsigned char **ret_data, size_t in_sz) override;
+    virtual void peek_free(unsigned char *in_data) override;
 
     // Write amount to buffer, arbitrarily allocating new chunks
-    virtual ssize_t write(unsigned char *in_data, size_t in_sz);
+    virtual ssize_t write(unsigned char *in_data, size_t in_sz) override;
   
-    virtual ssize_t reserve(unsigned char **data, size_t in_sz);
-    virtual ssize_t zero_copy_reserve(unsigned char **data, size_t in_sz);
-    virtual bool commit(unsigned char *data, size_t in_sz);
+    virtual ssize_t reserve(unsigned char **data, size_t in_sz) override;
+    virtual ssize_t zero_copy_reserve(unsigned char **data, size_t in_sz) override;
+    virtual bool commit(unsigned char *data, size_t in_sz) override;
 
     // Consume from buffer
-    size_t consume(size_t in_sz);
+    size_t consume(size_t in_sz) override;
 
 protected:
     size_t chunk_sz;

@@ -165,12 +165,13 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (shared_d
 
     }
 
+    // Duplicate the launch map so that rapidly terminating sources can't race
     auto build_map = std::map<unsigned int, shared_datasource>(ipc_probe_map);
 
     for (const auto& i : build_map) {
         // Set up the cancellation timer
         int cancel_timer = 
-            timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
+            timetracker->register_timer(std::chrono::seconds(10), false, 
                     [this] (int) -> int {
                         _MSG_ERROR("Datasource {} cancelling source probe due to timeout", definition);
                         cancel();
@@ -1010,7 +1011,18 @@ void datasource_tracker::merge_source(shared_datasource in_source) {
         }
     }
 
-    datasource_vec->push_back(in_source);
+    bool found_ds = false;
+    for (const auto& dsi : *datasource_vec) {
+        auto ds = std::static_pointer_cast<kis_datasource>(dsi);
+
+        if (ds->get_source_uuid() == in_source->get_source_uuid()) {
+            found_ds = true;
+            break;
+        }
+    }
+
+    if (!found_ds)
+        datasource_vec->push_back(in_source);
 }
 
 void datasource_tracker::list_interfaces(const std::function<void (std::vector<shared_interface>)>& in_cb) {
@@ -1502,11 +1514,9 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
             if (httpd_strip_suffix(tokenurl[4]) == "close_source" ||
                     httpd_strip_suffix(tokenurl[4]) == "disable_source") {
                 if (ds->get_source_running()) {
-                    _MSG("Closing source '" + ds->get_source_name() + "' from REST "
-                            "interface request.", MSGFLAG_INFO);
+                    _MSG_INFO("Closing datasource {}", ds->get_source_name());
                     ds->disable_source();
-                    stream << "Closing source " << ds->get_source_uuid().uuid_to_string();
-
+                    httpd_serialize(path, stream, ds, nullptr, connection);
                     return;
                 } else {
                     stream << "Source already closed, disabling source " <<
@@ -1518,10 +1528,37 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
 
             if (httpd_strip_suffix(tokenurl[4]) == "open_source") {
                 if (!ds->get_source_running()) {
-                    _MSG("Re-opening source '" + ds->get_source_name() + "' from REST "
-                            "interface request.", MSGFLAG_INFO);
-                    ds->open_interface(ds->get_source_definition(), 0, NULL);
-                    stream << "Re-opening source";
+                    _MSG_INFO("Opening datasource {}", ds->get_source_name());
+
+                    auto cl(new conditional_locker<bool>());
+                    cl->lock();
+
+                    auto error_reason = std::string();
+                    bool cmd_complete_success = false;
+
+                    ds->open_interface(ds->get_source_definition(), 0, 
+                            [this, cl, ds, &cmd_complete_success, &error_reason] (unsigned int, bool success, 
+                                std::string reason) {
+
+                            if (success) {
+                                cmd_complete_success = success;
+                                merge_source(ds);
+                            }
+
+                            error_reason = reason;
+                            cl->unlock(success);
+                            });
+
+                    cl->block_until();
+
+
+                    if (cmd_complete_success) {
+                        httpd_serialize(path, stream, ds, nullptr, connection);
+                        connection->httpcode = 200;
+                    } else {
+                        stream << error_reason;
+                        connection->httpcode = 500;
+                    }
 
                     return;
                 } else {
@@ -1536,8 +1573,8 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
                     _MSG("Pausing source '" + ds->get_source_name() + "' from REST "
                             "interface request.", MSGFLAG_INFO);
                     ds->set_source_paused(true);
-                    stream << "Pausing source";
 
+                    httpd_serialize(path, stream, ds, nullptr, connection);
                     return;
                 } else {
                     stream << "Source already paused";
@@ -1551,7 +1588,8 @@ void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
                     _MSG("Resuming source '" + ds->get_source_name() + "' from REST "
                             "interface request.", MSGFLAG_INFO);
                     ds->set_source_paused(false);
-                    stream << "Resuming source";
+
+                    httpd_serialize(path, stream, ds, nullptr, connection);
 
                     auto evt = eventbus->get_eventbus_event(event_datasource_resumed());
                     evt->get_event_content()->insert(event_datasource_resumed(), ds);
@@ -1748,7 +1786,7 @@ KIS_MHD_RETURN datasource_tracker::httpd_post_complete(kis_net_httpd_connection 
                     std::string reason = cl->block_until();
 
                     if (cmd_complete_success) {
-                        concls->response_stream << "Success";
+                        httpd_serialize(concls->url, concls->response_stream, ds, nullptr, concls);
                         concls->httpcode = 200;
                     } else {
                         concls->response_stream << reason;
@@ -1773,9 +1811,7 @@ KIS_MHD_RETURN datasource_tracker::httpd_post_complete(kis_net_httpd_connection 
                         ds->get_source_hop_offset(), 0,
                         [cl, &cmd_complete_success](unsigned int, bool success, 
                             std::string reason) {
-
                             cmd_complete_success = success;
-
                             cl->unlock(reason);
                         });
 
@@ -1783,7 +1819,7 @@ KIS_MHD_RETURN datasource_tracker::httpd_post_complete(kis_net_httpd_connection 
                 std::string reason = cl->block_until();
 
                 if (cmd_complete_success) {
-                    concls->response_stream << "Success";
+                    httpd_serialize(concls->url, concls->response_stream, ds, nullptr, concls);
                     concls->httpcode = 200;
                 } else {
                     concls->response_stream << reason;
@@ -2039,8 +2075,6 @@ dst_incoming_remote::~dst_incoming_remote() {
 }
 
 bool dst_incoming_remote::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) { 
-    _MSG_INFO("(DEBUG) incoming_remote dispatch_packet {}", c->command());
-
     if (kis_external_interface::dispatch_rx_packet(c))
         return true;
 
@@ -2086,11 +2120,9 @@ void dst_incoming_remote::handle_packet_newsource(uint32_t in_seqno, std::string
     }
 
     if (cb != NULL) {
-        _MSG_INFO("(debug) newsource callback");
         cb(this, c.sourcetype(), c.definition(), c.uuid());
     }
 
-    _MSG_INFO("(debug) killing incoming_remote after newsource");
     kill();
 }
 

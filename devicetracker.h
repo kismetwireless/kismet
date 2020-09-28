@@ -193,17 +193,17 @@ public:
             std::string in_tag, std::string in_content);
 
     // HTTP handlers
-    virtual bool httpd_verify_path(const char *path, const char *method);
+    virtual bool httpd_verify_path(const char *path, const char *method) override;
 
     virtual KIS_MHD_RETURN httpd_create_stream_response(kis_net_httpd *httpd,
             kis_net_httpd_connection *connection,
             const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size);
+            size_t *upload_data_size) override;
 
-    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *concls);
+    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *concls) override;
     
     // time_tracker event handler
-    virtual int timetracker_event(int eventid);
+    virtual int timetracker_event(int eventid) override;
 
     // CLI extension
     static void usage(const char *name);
@@ -216,7 +216,7 @@ public:
     }
 
     // Database API
-    virtual int database_upgrade_db();
+    virtual int database_upgrade_db() override;
 
     // Store all devices to the database
     virtual void databaselog_write_devices();

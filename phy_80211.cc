@@ -1766,6 +1766,9 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
     if (pack_json == nullptr)
         return 0;
 
+    if (pack_json->type != "DOT11SCAN")
+        return 0;
+
     auto pack_l1info =
         in_pack->fetch<kis_layer1_packinfo>(d11phy->pack_comp_l1info);
 
@@ -2317,7 +2320,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
 
             if (!matched) {
                 for (const auto& t : taglist) {
-                    if (std::get<0>(t) == 221 && std::get<2>(t) == 0) {
+                    if (std::get<0>(t) == 221) {
                         // Exclude known generic 221 OUIs, and exclude anything where we don't know
                         // the manuf from the tag OUI, either.
 
@@ -2692,7 +2695,11 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
             ssid->clear_dot11d_vec();
     }
 
+    ssid->set_wps_version(dot11info->wps_version);
     ssid->set_wps_state(dot11info->wps);
+    ssid->set_wps_config_methods(dot11info->wps_config_methods);
+    if (dot11info->wps_device_name != "")
+        ssid->set_wps_device_name(dot11info->wps_device_name);
     if (dot11info->wps_manuf != "")
         ssid->set_wps_manuf(dot11info->wps_manuf);
     if (dot11info->wps_model_name != "") {
@@ -2826,7 +2833,9 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
         // Update the crypt set if any
         probessid->set_crypt_set(dot11info->cryptset);
 
+        probessid->set_wps_version(dot11info->wps_version);
         probessid->set_wps_state(dot11info->wps);
+        probessid->set_wps_config_methods(dot11info->wps_config_methods);
         if (dot11info->wps_manuf != "")
             probessid->set_wps_manuf(dot11info->wps_manuf);
         if (dot11info->wps_model_name != "") {

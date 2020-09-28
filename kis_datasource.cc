@@ -430,12 +430,13 @@ void kis_datasource::disable_source() {
 }
 
 void kis_datasource::handle_error(const std::string& in_error) {
-    if (!quiet_errors) {
+    if (!quiet_errors && in_error.length()) {
         _MSG_ERROR("Data source '{} / {}' ('{}') encountered an error: {}",
                 get_source_name(), get_source_definition(), get_source_interface(), in_error);
-        set_int_source_error(true);
-        set_int_source_error_reason(in_error);
     }
+
+    set_int_source_error(true);
+    set_int_source_error_reason(in_error);
 
     set_int_source_running(false);
 
