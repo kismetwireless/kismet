@@ -107,14 +107,17 @@ void kis_net_beast_httpd::start_accept() {
     if (!running)
         return;
 
+    auto this_ref = shared_from_this();
+
     acceptor.async_accept(socket,
-            [this](boost::system::error_code ec) {
+            [this, this_ref](boost::system::error_code ec) {
                 if (!running)
                     return;
 
-                if (!ec)
+                if (!ec) {
                     std::make_shared<kis_net_beast_httpd_connection>(std::move(socket), 
                             shared_from_this())->start();
+                }
 
                 start_accept();
             });
@@ -133,4 +136,93 @@ void kis_net_beast_httpd_connection::start() {
 }
 
 
+kis_net_beast_route::kis_net_beast_route(const std::string& route, http_handler_t handler) :
+    handler{handler},
+    match_types{false} {
+
+    // Generate the keys list
+    for (auto i = std::sregex_token_iterator(route.begin(), route.end(), path_re); 
+            i != std::sregex_token_iterator(); i++) {
+        match_keys.push_back(static_cast<std::string>(*i));
+    }
+    match_keys.push_back("GETVARS");
+
+    // Generate the extractor expressions
+    auto ext_str = std::regex_replace(route, path_re, path_capture_pattern);
+    // Match the RE + http variables
+    match_re = std::regex(fmt::format("^{}(\\?.*?)?$", ext_str));
+}
+
+kis_net_beast_route::kis_net_beast_route(const std::string& route,
+        const std::list<std::string>& extensions, http_handler_t handler) :
+    handler{handler},
+    match_types{true} {
+
+    // Generate the keys list
+    for (auto i = std::sregex_token_iterator(route.begin(), route.end(), path_re); 
+            i != std::sregex_token_iterator(); i++) {
+        match_keys.push_back(static_cast<std::string>(*i));
+    }
+    match_keys.push_back("FILETYPE");
+    match_keys.push_back("GETVARS");
+
+    // Generate the file type regex
+    auto ft_regex = std::string("\\.(");
+    if (extensions.size() == 0) {
+        // If passed an empty list we accept all types and resolve during serialziation
+        ft_regex += "[A-Za-z0-9]+";
+    } else {
+        bool prepend_pipe = false;
+        for (const auto& i : extensions) {
+            if (prepend_pipe)
+                ft_regex += fmt::format("|{}", i);
+            else
+                ft_regex += fmt::format("{}", i);
+            prepend_pipe = true;
+        }
+    }
+    ft_regex += ")";
+
+    // Generate the extractor expressions
+    auto ext_str = std::regex_replace(route, path_re, path_capture_pattern);
+    // Match the RE + filetypes + http variables
+    match_re = std::regex(fmt::format("^{}{}(\\?.*?)?$", ft_regex, ext_str));
+}
+
+bool kis_net_beast_route::match_url(const std::string& url, 
+        kis_net_beast_httpd_connection::uri_param_t& uri_params,
+        kis_net_beast_httpd::http_var_map_t& uri_variables) {
+    auto match_values = std::smatch();
+
+    if (!std::regex_match(url, match_values, match_re))
+        return false;
+
+    size_t key_pos = 0;
+    for (const auto& i : match_values) {
+        if (key_pos >= match_keys.size()) {
+            _MSG_ERROR("(DEBUG) HTTP req {} matched more values than known keys in route, something is wrong");
+            break;
+        }
+
+        uri_params.emplace(std::make_pair(match_keys[key_pos], static_cast<std::string>(i)));
+        key_pos++;
+    }
+
+    // Decode GET params into the variables map
+    const auto& g_k = uri_params.find("GETVARS");
+    if (g_k != uri_params.end()) {
+        if (g_k->second.length() > 1) {
+            // Trim the ? and decode the rest for URL encoding
+            auto uri_decode = kis_net_beast_httpd::decode_uri(g_k->second.substr(1, g_k->second.length()));
+            // Parse into variables
+            kis_net_beast_httpd::decode_variables(uri_decode, uri_variables);
+        }
+    }
+
+    return true;
+}
+
+void kis_net_beast_route::invoke(std::shared_ptr<kis_net_beast_httpd_connection> connection) {
+    handler(connection);
+}
 
