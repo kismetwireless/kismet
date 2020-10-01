@@ -117,22 +117,20 @@ public:
 
     void start();
 
-    boost::beast::http::dynamic_body& request() { return request_; }
+    boost::beast::http::request<boost::beast::http::string_body>& request() { return request_; }
     boost::beast::http::verb& verb() { return verb_; }
 
 protected:
     std::shared_ptr<kis_net_beast_httpd> httpd;
 
-    boost::asio::ip::tcp::socket socket;
+    boost::beast::tcp_stream stream;
 
-    boost::beast::flat_buffer buffer{8192};
+    boost::beast::flat_buffer buffer;
 
     boost::beast::http::verb verb_;
-    boost::beast::http::dynamic_body request_;
+    boost::beast::http::request<boost::beast::http::string_body> request_;
 
     boost::beast::http::response<boost::beast::http::dynamic_body> response;
-
-    boost::asio::steady_timer deadline;
 
     std::thread request_thread;
 
@@ -142,6 +140,11 @@ protected:
     uri_param_t uri_params;
 
     nonstd::string_view http_post;
+
+    void do_read();
+    void handle_read(const boost::system::error_code& ec, size_t sz);
+
+    void do_close();
 };
 
 // Routes map a templated URL path to a callback generator which creates the content.

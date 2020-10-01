@@ -47,6 +47,9 @@ std::shared_ptr<kis_net_beast_httpd> kis_net_beast_httpd::create_httpd() {
 
     try {
         auto endpoint = boost::asio::ip::tcp::endpoint(bind_address, httpd_port);
+
+        _MSG_INFO("Starting Beast webserver on {}:{}", endpoint.address(), endpoint.port());
+
         mon = std::shared_ptr<kis_net_beast_httpd>(new kis_net_beast_httpd(endpoint));
     } catch (const std::exception& e) {
 
@@ -61,6 +64,7 @@ std::shared_ptr<kis_net_beast_httpd> kis_net_beast_httpd::create_httpd() {
 kis_net_beast_httpd::kis_net_beast_httpd(boost::asio::ip::tcp::endpoint& endpoint) :
     lifetime_global{},
     running{false},
+    endpoint{endpoint},
     acceptor{Globalreg::globalreg->io} {
 
     mime_mutex.set_name("kis_net_beast_httpd MIME map");
@@ -81,34 +85,37 @@ int kis_net_beast_httpd::start_httpd() {
 
     acceptor.open(endpoint.protocol(), ec);
     if (ec) {
-        _MSG_FATAL("Could not initialize HTTP server on {}: {}", endpoint.address(), ec.message());
+        _MSG_FATAL("Could not initialize HTTP server on {}:{} - {}", endpoint.address(), endpoint.port(), 
+                ec.message());
         Globalreg::globalreg->fatal_condition = 1;
         return -1;
     }
 
     acceptor.set_option(boost::asio::socket_base::reuse_address(true), ec);
     if (ec) {
-        _MSG_FATAL("Could not initialize HTTP server on {}, could not set socket options: {}",
-                endpoint.address(), ec.message());
+        _MSG_FATAL("Could not initialize HTTP server on {}:{}, could not set socket options - {}",
+                endpoint.address(), endpoint.port(), ec.message());
         Globalreg::globalreg->fatal_condition = 1;
         return -1;
     }
 
     acceptor.bind(endpoint, ec);
     if (ec) {
-        _MSG_FATAL("Could not initialize HTTP server on {}, could not bind socket: {}",
-                endpoint.address(), ec.message());
+        _MSG_FATAL("Could not initialize HTTP server on {}:{}, could not bind socket - {}",
+                endpoint.address(), endpoint.port(), ec.message());
         Globalreg::globalreg->fatal_condition = 1;
         return -1;
     }
 
     acceptor.listen(boost::asio::socket_base::max_listen_connections, ec);
     if (ec) {
-        _MSG_FATAL("Could not initialize HTTP server on {}, could not initiate listen: {}",
-                endpoint.address(), ec.message());
+        _MSG_FATAL("Could not initialize HTTP server on {}:{}, could not initiate listen - {}",
+                endpoint.address(), endpoint.port(), ec.message());
         Globalreg::globalreg->fatal_condition = 1;
         return -1;
     }
+
+    _MSG_INFO("(DEBUG) Beast server listening on {}:{}", endpoint.address(), endpoint.port());
 
     running = true;
 
@@ -142,18 +149,20 @@ void kis_net_beast_httpd::start_accept() {
     auto this_ref = shared_from_this();
 
     acceptor.async_accept(boost::asio::make_strand(Globalreg::globalreg->io),
-            boost::beast::bind_front_handler(
-                [this, this_ref](boost::system::error_code ec, boost::asio::ip::tcp::socket socket) {
-                if (!running)
-                    return;
+            boost::beast::bind_front_handler(&kis_net_beast_httpd::handle_connection, shared_from_this()));
+}
 
-                if (!ec) {
-                    std::make_shared<kis_net_beast_httpd_connection>(std::move(socket), 
-                        shared_from_this())->start();
-                }
+void kis_net_beast_httpd::handle_connection(const boost::system::error_code& ec,
+        boost::asio::ip::tcp::socket socket) {
 
-                start_accept();
-                }));
+    if (!running)
+        return;
+
+    if (!ec) {
+        std::make_shared<kis_net_beast_httpd_connection>(std::move(socket), shared_from_this())->start();
+    }
+
+    start_accept();
 }
 
 std::string kis_net_beast_httpd::decode_uri(nonstd::string_view in) {
@@ -278,15 +287,44 @@ void kis_net_beast_httpd::remove_unauth_route(const std::string& route) {
 kis_net_beast_httpd_connection::kis_net_beast_httpd_connection(boost::asio::ip::tcp::socket socket,
         std::shared_ptr<kis_net_beast_httpd> httpd) :
     httpd{httpd},
-    socket{std::move(socket)},
-    deadline{socket.get_executor(), std::chrono::seconds(60)} {
-
-}
+    stream{std::move(socket)} { }
 
 void kis_net_beast_httpd_connection::start() {
+    boost::asio::dispatch(stream.get_executor(),
+            boost::beast::bind_front_handler(&kis_net_beast_httpd_connection::do_read,
+                shared_from_this()));
 
 }
 
+void kis_net_beast_httpd_connection::do_read() {
+    request_ = {};
+
+    // TODO how do we handle infinite responders like pcap?  Do we just keep pushing it out 
+    // every read/write?
+    stream.expires_after(std::chrono::seconds(60));
+
+    boost::beast::http::async_read(stream, buffer, request_, 
+            boost::beast::bind_front_handler(&kis_net_beast_httpd_connection::handle_read, 
+                shared_from_this()));
+}
+
+void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code& ec, size_t sz) {
+    if (ec == boost::beast::http::error::end_of_stream)
+        return do_close();
+
+    if (ec) {
+        _MSG_ERROR("(DEBUG) beast read error: {}", ec.message());
+        return do_close();
+    }
+
+    _MSG_INFO("(DEBUG) beast {} {}", request_.method(), request_.target());
+    do_close();
+}
+
+void kis_net_beast_httpd_connection::do_close() {
+    boost::system::error_code ec;
+    stream.socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send, ec);
+}
 
 kis_net_beast_route::kis_net_beast_route(const std::string& route, 
         const std::list<boost::beast::http::verb>& verbs, 

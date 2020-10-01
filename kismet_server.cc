@@ -90,6 +90,8 @@
 #include "alertracker.h"
 
 #include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
+
 #include "system_monitor.h"
 #include "channeltracker2.h"
 #include "kis_httpd_websession.h"
@@ -1010,6 +1012,9 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Independent time and select threads, which has had problems with timing conflicts
     timetracker->spawn_timetracker_thread();
+
+    auto beast = kis_net_beast_httpd::create_httpd();
+    beast->start_httpd();
 
     std::vector<std::thread> iov;
     iov.reserve(Globalreg::globalreg->n_io_threads);
