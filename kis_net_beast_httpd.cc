@@ -46,10 +46,8 @@ std::shared_ptr<kis_net_beast_httpd> kis_net_beast_httpd::create_httpd() {
     // TODO probably need to build SSL here?
 
     try {
-        auto acceptor = boost::asio::ip::tcp::acceptor(Globalreg::globalreg->io, {bind_address, httpd_port});
-        auto socket = boost::asio::ip::tcp::socket(Globalreg::globalreg->io);
-
-        mon = std::shared_ptr<kis_net_beast_httpd>(new kis_net_beast_httpd(acceptor, socket));
+        auto endpoint = boost::asio::ip::tcp::endpoint(bind_address, httpd_port);
+        mon = std::shared_ptr<kis_net_beast_httpd>(new kis_net_beast_httpd(endpoint));
     } catch (const std::exception& e) {
 
     }
@@ -60,12 +58,10 @@ std::shared_ptr<kis_net_beast_httpd> kis_net_beast_httpd::create_httpd() {
     return mon;
 }
 
-kis_net_beast_httpd::kis_net_beast_httpd(boost::asio::ip::tcp::acceptor& acceptor,
-        boost::asio::ip::tcp::socket& socket) :
+kis_net_beast_httpd::kis_net_beast_httpd(boost::asio::ip::tcp::endpoint& endpoint) :
     lifetime_global{},
     running{false},
-    acceptor{std::move(acceptor)},
-    socket{std::move(socket)} {
+    acceptor{Globalreg::globalreg->io} {
 
     mime_mutex.set_name("kis_net_beast_httpd MIME map");
     route_mutex.set_name("kis_net_beast_httpd route vector");
@@ -80,6 +76,39 @@ kis_net_beast_httpd::~kis_net_beast_httpd() {
 int kis_net_beast_httpd::start_httpd() {
     if (running)
         return 0;
+
+    boost::system::error_code ec;
+
+    acceptor.open(endpoint.protocol(), ec);
+    if (ec) {
+        _MSG_FATAL("Could not initialize HTTP server on {}: {}", endpoint.address(), ec.message());
+        Globalreg::globalreg->fatal_condition = 1;
+        return -1;
+    }
+
+    acceptor.set_option(boost::asio::socket_base::reuse_address(true), ec);
+    if (ec) {
+        _MSG_FATAL("Could not initialize HTTP server on {}, could not set socket options: {}",
+                endpoint.address(), ec.message());
+        Globalreg::globalreg->fatal_condition = 1;
+        return -1;
+    }
+
+    acceptor.bind(endpoint, ec);
+    if (ec) {
+        _MSG_FATAL("Could not initialize HTTP server on {}, could not bind socket: {}",
+                endpoint.address(), ec.message());
+        Globalreg::globalreg->fatal_condition = 1;
+        return -1;
+    }
+
+    acceptor.listen(boost::asio::socket_base::max_listen_connections, ec);
+    if (ec) {
+        _MSG_FATAL("Could not initialize HTTP server on {}, could not initiate listen: {}",
+                endpoint.address(), ec.message());
+        Globalreg::globalreg->fatal_condition = 1;
+        return -1;
+    }
 
     running = true;
 
@@ -112,18 +141,19 @@ void kis_net_beast_httpd::start_accept() {
 
     auto this_ref = shared_from_this();
 
-    acceptor.async_accept(socket,
-            [this, this_ref](boost::system::error_code ec) {
+    acceptor.async_accept(boost::asio::make_strand(Globalreg::globalreg->io),
+            boost::beast::bind_front_handler(
+                [this, this_ref](boost::system::error_code ec, boost::asio::ip::tcp::socket socket) {
                 if (!running)
                     return;
 
                 if (!ec) {
                     std::make_shared<kis_net_beast_httpd_connection>(std::move(socket), 
-                            shared_from_this())->start();
+                        shared_from_this())->start();
                 }
 
                 start_accept();
-            });
+                }));
 }
 
 std::string kis_net_beast_httpd::decode_uri(nonstd::string_view in) {
@@ -192,15 +222,18 @@ std::string kis_net_beast_httpd::resolve_mime_type(const std::string& extension)
     return "text/plain";
 }
 
-void kis_net_beast_httpd::register_route(const std::string& route, http_handler_t handler) {
+void kis_net_beast_httpd::register_route(const std::string& route, 
+        const std::list<boost::beast::http::verb>& verbs,
+        http_handler_t handler) {
     local_locker l(&route_mutex, "beast_httpd::register_route");
-    route_vec.push_back(std::make_shared<kis_net_beast_route>(route, handler));
+    route_vec.push_back(std::make_shared<kis_net_beast_route>(route, verbs, handler));
 }
 
 void kis_net_beast_httpd::register_route(const std::string& route, 
+        const std::list<boost::beast::http::verb>& verbs,
         const std::list<std::string>& extensions, http_handler_t handler) {
     local_locker l(&route_mutex, "beast_httpd::register_route (with extensions)");
-    route_vec.push_back(std::make_shared<kis_net_beast_route>(route, extensions, handler));
+    route_vec.push_back(std::make_shared<kis_net_beast_route>(route, verbs, extensions, handler));
 }
 
 void kis_net_beast_httpd::remove_route(const std::string& route) {
@@ -214,15 +247,18 @@ void kis_net_beast_httpd::remove_route(const std::string& route) {
     }
 }
 
-void kis_net_beast_httpd::register_unauth_route(const std::string& route, http_handler_t handler) {
+void kis_net_beast_httpd::register_unauth_route(const std::string& route, 
+        const std::list<boost::beast::http::verb>& verbs,
+        http_handler_t handler) {
     local_locker l(&route_mutex, "beast_httpd::register_unauth_route");
-    unauth_route_vec.push_back(std::make_shared<kis_net_beast_route>(route, handler));
+    unauth_route_vec.push_back(std::make_shared<kis_net_beast_route>(route, verbs, handler));
 }
 
 void kis_net_beast_httpd::register_unauth_route(const std::string& route, 
+        const std::list<boost::beast::http::verb>& verbs,
         const std::list<std::string>& extensions, http_handler_t handler) {
     local_locker l(&route_mutex, "beast_httpd::register_unauth_route (with extensions)");
-    unauth_route_vec.push_back(std::make_shared<kis_net_beast_route>(route, extensions, handler));
+    unauth_route_vec.push_back(std::make_shared<kis_net_beast_route>(route, verbs, extensions, handler));
 }
 
 void kis_net_beast_httpd::remove_unauth_route(const std::string& route) {

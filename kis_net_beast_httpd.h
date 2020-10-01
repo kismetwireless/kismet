@@ -53,7 +53,7 @@ public:
 
 
 private:
-    kis_net_beast_httpd(boost::asio::ip::tcp::acceptor& acceptor, boost::asio::ip::tcp::socket& socket);
+    kis_net_beast_httpd(boost::asio::ip::tcp::endpoint& endpoint);
 
 public:
     virtual ~kis_net_beast_httpd();
@@ -74,12 +74,16 @@ public:
 
     // The majority of routing requires authentication.  Any route that operates outside of authentication
     // must *explicitly* register as unauthenticated.
-    void register_route(const std::string& route, http_handler_t handler);
-    void register_route(const std::string& route, const std::list<std::string>& extensions, http_handler_t handler);
+    void register_route(const std::string& route, const std::list<boost::beast::http::verb>& verbs, 
+            http_handler_t handler);
+    void register_route(const std::string& route, const std::list<boost::beast::http::verb>& verbs, 
+            const std::list<std::string>& extensions, http_handler_t handler);
     void remove_route(const std::string& route);
 
-    void register_unauth_route(const std::string& route, http_handler_t handler);
-    void register_unauth_route(const std::string& route, const std::list<std::string>& extensions, 
+    void register_unauth_route(const std::string& route, const std::list<boost::beast::http::verb>& verbs, 
+            http_handler_t handler);
+    void register_unauth_route(const std::string& route, const std::list<boost::beast::http::verb>& verbs,
+            const std::list<std::string>& extensions, 
             http_handler_t handler);
     void remove_unauth_route(const std::string& route);
 
@@ -94,8 +98,9 @@ protected:
     std::vector<std::shared_ptr<kis_net_beast_route>> route_vec;
     std::vector<std::shared_ptr<kis_net_beast_route>> unauth_route_vec;
 
+    boost::asio::ip::tcp::endpoint endpoint;
     boost::asio::ip::tcp::acceptor acceptor;
-    boost::asio::ip::tcp::socket socket;
+
     void start_accept();
     void handle_connection(const boost::system::error_code& ec, boost::asio::ip::tcp::socket socket);
 
