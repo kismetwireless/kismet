@@ -67,6 +67,9 @@ kis_net_beast_httpd::kis_net_beast_httpd(boost::asio::ip::tcp::acceptor& accepto
     acceptor{std::move(acceptor)},
     socket{std::move(socket)} {
 
+    mime_mutex.set_name("kis_net_beast_httpd MIME map");
+    route_mutex.set_name("kis_net_beast_httpd route vector");
+
 }
 
 kis_net_beast_httpd::~kis_net_beast_httpd() {
@@ -123,6 +126,119 @@ void kis_net_beast_httpd::start_accept() {
             });
 }
 
+std::string kis_net_beast_httpd::decode_uri(nonstd::string_view in) {
+    std::string ret;
+    ret.reserve(in.length());
+
+    std::string::size_type p = 0;
+
+    while (p < in.length()) {
+        if (in[p] == '%' && (p + 2) < in.length() && std::isxdigit(in[p+1]) && std::isxdigit(in[p+2])) {
+            char c1 = in[p+1] - (in[p+1] <= '9' ? '0' : (in[p+1] <= 'F' ? 'A' : 'a') - 10);
+            char c2 = in[p+2] - (in[p+2] <= '9' ? '0' : (in[p+2] <= 'F' ? 'A' : 'a') - 10);
+            ret += char(16 * c1 + c2);
+            p += 3;
+            continue;
+        }
+
+        ret += in[p++];
+    }
+
+    return ret;
+}
+
+void kis_net_beast_httpd::decode_variables(const nonstd::string_view decoded, http_var_map_t& var_map) {
+    nonstd::string_view::size_type pos = 0;
+    while (pos != nonstd::string_view::npos) {
+        auto next = decoded.find("&", pos);
+
+        nonstd::string_view varline;
+
+        if (next == nonstd::string_view::npos) {
+            varline = decoded.substr(pos, decoded.length());
+            pos = next;
+        } else {
+            varline = decoded.substr(pos, next - pos);
+            pos = next + 1;
+        }
+
+        auto eqpos = varline.find("=");
+
+        if (eqpos == nonstd::string_view::npos)
+            var_map[static_cast<std::string>(varline)] = "";
+        else
+            var_map[static_cast<std::string>(varline.substr(0, eqpos))] = 
+                static_cast<std::string>(varline.substr(eqpos + 1, varline.length()));
+    }
+}
+
+void kis_net_beast_httpd::register_mime_type(const std::string& extension, const std::string& type) {
+    local_locker l(&mime_mutex, "beast_httpd::register_mime_type");
+    mime_map.emplace(std::make_pair(extension, type));
+}
+
+void kis_net_beast_httpd::remove_mime_type(const std::string& extension) {
+    local_locker l(&mime_mutex, "beast_httpd::remove_mime_type");
+    auto k = mime_map.find(extension);
+    if (k != mime_map.end())
+        mime_map.erase(k);
+}
+
+std::string kis_net_beast_httpd::resolve_mime_type(const std::string& extension) {
+    local_shared_locker l(&mime_mutex, "beast_httpd::resolve_mime_type");
+    auto k = mime_map.find(extension);
+    if (k != mime_map.end())
+        return k->second;
+    return "text/plain";
+}
+
+void kis_net_beast_httpd::register_route(const std::string& route, http_handler_t handler) {
+    local_locker l(&route_mutex, "beast_httpd::register_route");
+    route_vec.push_back(std::make_shared<kis_net_beast_route>(route, handler));
+}
+
+void kis_net_beast_httpd::register_route(const std::string& route, 
+        const std::list<std::string>& extensions, http_handler_t handler) {
+    local_locker l(&route_mutex, "beast_httpd::register_route (with extensions)");
+    route_vec.push_back(std::make_shared<kis_net_beast_route>(route, extensions, handler));
+}
+
+void kis_net_beast_httpd::remove_route(const std::string& route) {
+    local_locker l(&route_mutex, "beast_httpd::remove_route");
+
+    for (auto i = route_vec.begin(); i != route_vec.end(); ++i) {
+        if ((*i)->route() == route) {
+            route_vec.erase(i);
+            return;
+        }
+    }
+}
+
+void kis_net_beast_httpd::register_unauth_route(const std::string& route, http_handler_t handler) {
+    local_locker l(&route_mutex, "beast_httpd::register_unauth_route");
+    unauth_route_vec.push_back(std::make_shared<kis_net_beast_route>(route, handler));
+}
+
+void kis_net_beast_httpd::register_unauth_route(const std::string& route, 
+        const std::list<std::string>& extensions, http_handler_t handler) {
+    local_locker l(&route_mutex, "beast_httpd::register_unauth_route (with extensions)");
+    unauth_route_vec.push_back(std::make_shared<kis_net_beast_route>(route, extensions, handler));
+}
+
+void kis_net_beast_httpd::remove_unauth_route(const std::string& route) {
+    local_locker l(&route_mutex, "beast_httpd::remove_unauth_route");
+
+    for (auto i = unauth_route_vec.begin(); i != unauth_route_vec.end(); ++i) {
+        if ((*i)->route() == route) {
+            unauth_route_vec.erase(i);
+            return;
+        }
+    }
+}
+
+
+
+
 kis_net_beast_httpd_connection::kis_net_beast_httpd_connection(boost::asio::ip::tcp::socket socket,
         std::shared_ptr<kis_net_beast_httpd> httpd) :
     httpd{httpd},
@@ -136,8 +252,12 @@ void kis_net_beast_httpd_connection::start() {
 }
 
 
-kis_net_beast_route::kis_net_beast_route(const std::string& route, http_handler_t handler) :
+kis_net_beast_route::kis_net_beast_route(const std::string& route, 
+        const std::list<boost::beast::http::verb>& verbs, 
+        kis_net_beast_httpd::http_handler_t handler) :
     handler{handler},
+    route_{route},
+    verbs_{verbs},
     match_types{false} {
 
     // Generate the keys list
@@ -153,9 +273,12 @@ kis_net_beast_route::kis_net_beast_route(const std::string& route, http_handler_
     match_re = std::regex(fmt::format("^{}(\\?.*?)?$", ext_str));
 }
 
-kis_net_beast_route::kis_net_beast_route(const std::string& route,
-        const std::list<std::string>& extensions, http_handler_t handler) :
+kis_net_beast_route::kis_net_beast_route(const std::string& route, 
+        const std::list<boost::beast::http::verb>& verbs,
+        const std::list<std::string>& extensions, kis_net_beast_httpd::http_handler_t handler) :
     handler{handler},
+    route_{route},
+    verbs_{verbs},
     match_types{true} {
 
     // Generate the keys list
@@ -190,8 +313,21 @@ kis_net_beast_route::kis_net_beast_route(const std::string& route,
 }
 
 bool kis_net_beast_route::match_url(const std::string& url, 
+        boost::beast::http::verb verb,
         kis_net_beast_httpd_connection::uri_param_t& uri_params,
         kis_net_beast_httpd::http_var_map_t& uri_variables) {
+
+    bool match_verb = false;
+    for (const auto& v : verbs_) {
+        if (verb == v) {
+            match_verb = true;
+            break;
+        }
+    }
+
+    if (!match_verb)
+        return false;
+
     auto match_values = std::smatch();
 
     if (!std::regex_match(url, match_values, match_re))

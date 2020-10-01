@@ -32,8 +32,9 @@
 
 #include "boost/asio.hpp"
 #include "boost/beast.hpp"
-
 #include "string_view.hpp"
+
+#include "kis_mutex.h"
 
 using namespace nonstd::literals;
 
@@ -46,6 +47,10 @@ public:
     static std::shared_ptr<kis_net_beast_httpd> create_httpd();
 
     using http_var_map_t = std::unordered_map<std::string, std::string>;
+    // Under this design, all the connection data, uri, variables, streams, etc are stored in the
+    // connection record; we don't need to pass anything else
+    using http_handler_t = std::function<void (std::shared_ptr<kis_net_beast_httpd_connection>)>;
+
 
 private:
     kis_net_beast_httpd(boost::asio::ip::tcp::acceptor& acceptor, boost::asio::ip::tcp::socket& socket);
@@ -60,55 +65,34 @@ public:
     unsigned int fetch_port() { return port; }
     bool fetch_using_ssl() { return use_ssl; }
 
-    static std::string decode_uri(nonstd::string_view in) {
-        std::string ret;
-        ret.reserve(in.length());
+    static std::string decode_uri(nonstd::string_view in);
+    static void decode_variables(const nonstd::string_view decoded, http_var_map_t& var_map);
 
-        std::string::size_type p = 0;
+    void register_mime_type(const std::string& extension, const std::string& type);
+    void remove_mime_type(const std::string& extension);
+    std::string resolve_mime_type(const std::string& extension);
 
-        while (p < in.length()) {
-            if (in[p] == '%' && (p + 2) < in.length() && std::isxdigit(in[p+1]) && std::isxdigit(in[p+2])) {
-                char c1 = in[p+1] - (in[p+1] <= '9' ? '0' : (in[p+1] <= 'F' ? 'A' : 'a') - 10);
-                char c2 = in[p+2] - (in[p+2] <= '9' ? '0' : (in[p+2] <= 'F' ? 'A' : 'a') - 10);
-                ret += char(16 * c1 + c2);
-                p += 3;
-                continue;
-            }
+    // The majority of routing requires authentication.  Any route that operates outside of authentication
+    // must *explicitly* register as unauthenticated.
+    void register_route(const std::string& route, http_handler_t handler);
+    void register_route(const std::string& route, const std::list<std::string>& extensions, http_handler_t handler);
+    void remove_route(const std::string& route);
 
-            ret += in[p++];
-        }
-
-        return ret;
-    }
-
-    static void decode_variables(const nonstd::string_view decoded, http_var_map_t& var_map) {
-        nonstd::string_view::size_type pos = 0;
-        while (pos != nonstd::string_view::npos) {
-            auto next = decoded.find("&", pos);
-
-            nonstd::string_view varline;
-
-            if (next == nonstd::string_view::npos) {
-                varline = decoded.substr(pos, decoded.length());
-                pos = next;
-            } else {
-                varline = decoded.substr(pos, next - pos);
-                pos = next + 1;
-            }
-
-            auto eqpos = varline.find("=");
-
-            if (eqpos == nonstd::string_view::npos)
-                var_map[static_cast<std::string>(varline)] = "";
-            else
-                var_map[static_cast<std::string>(varline.substr(0, eqpos))] = 
-                    static_cast<std::string>(varline.substr(eqpos + 1, varline.length()));
-        }
-    }
+    void register_unauth_route(const std::string& route, http_handler_t handler);
+    void register_unauth_route(const std::string& route, const std::list<std::string>& extensions, 
+            http_handler_t handler);
+    void remove_unauth_route(const std::string& route);
 
 protected:
     std::atomic<bool> running;
     unsigned int port;
+
+    kis_recursive_timed_mutex mime_mutex;
+    std::unordered_map<std::string, std::string> mime_map;
+
+    kis_recursive_timed_mutex route_mutex;
+    std::vector<std::shared_ptr<kis_net_beast_route>> route_vec;
+    std::vector<std::shared_ptr<kis_net_beast_route>> unauth_route_vec;
 
     boost::asio::ip::tcp::acceptor acceptor;
     boost::asio::ip::tcp::socket socket;
@@ -128,13 +112,19 @@ public:
 
     void start();
 
+    boost::beast::http::dynamic_body& request() { return request_; }
+    boost::beast::http::verb& verb() { return verb_; }
+
 protected:
     std::shared_ptr<kis_net_beast_httpd> httpd;
 
     boost::asio::ip::tcp::socket socket;
 
     boost::beast::flat_buffer buffer{8192};
-    boost::beast::http::dynamic_body request;
+
+    boost::beast::http::verb verb_;
+    boost::beast::http::dynamic_body request_;
+
     boost::beast::http::response<boost::beast::http::dynamic_body> response;
 
     boost::asio::steady_timer deadline;
@@ -162,22 +152,30 @@ protected:
 // The GETVARS key is automatically populated with the raw HTTP GET variables string
 class kis_net_beast_route {
 public:
-    // Under this design, all the connection data, uri, variables, streams, etc are stored in the
-    // connection record; we don't need to pass anything else
-    using http_handler_t = std::function<void (std::shared_ptr<kis_net_beast_httpd_connection>)>;
-
-    kis_net_beast_route(const std::string& route, http_handler_t handler);
-    kis_net_beast_route(const std::string& route, const std::list<std::string>& extensions, http_handler_t handler);
+    kis_net_beast_route(const std::string& route, const std::list<boost::beast::http::verb>& verbs,
+            kis_net_beast_httpd::http_handler_t handler);
+    kis_net_beast_route(const std::string& route, const std::list<boost::beast::http::verb>& verbs,
+            const std::list<std::string>& extensions, 
+            kis_net_beast_httpd::http_handler_t handler);
 
     // Does a URL match this route?  If so, populate uri params and uri variables
-    bool match_url(const std::string& url, kis_net_beast_httpd_connection::uri_param_t& uri_params,
+    bool match_url(const std::string& url, boost::beast::http::verb verb,
+            kis_net_beast_httpd_connection::uri_param_t& uri_params,
             kis_net_beast_httpd::http_var_map_t& uri_variables);
     
     // Invoke our registered callback
     void invoke(std::shared_ptr<kis_net_beast_httpd_connection> connection);
 
+    std::string& route() {
+        return route_;
+    }
+
 protected:
-    http_handler_t handler;
+    kis_net_beast_httpd::http_handler_t handler;
+
+    std::string route_;
+
+    std::list<boost::beast::http::verb> verbs_;
 
     const std::string path_id_pattern = ":([^\\/]+)?";
     const std::string path_capture_pattern = "(?:([^\\/]+?))";
