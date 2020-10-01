@@ -247,8 +247,9 @@ public:
     void start_deferred();
     void shutdown_deferred();
 
-    // Global ASIO service
-    boost::asio::io_service io;
+    // Global ASIO contexts and IO threads
+    const int n_io_threads = static_cast<int>(std::thread::hardware_concurrency() * 4);
+    boost::asio::io_context io{n_io_threads};
 
 protected:
     kis_recursive_timed_mutex ext_mutex;

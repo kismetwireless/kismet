@@ -1011,10 +1011,16 @@ int main(int argc, char *argv[], char *envp[]) {
     // Independent time and select threads, which has had problems with timing conflicts
     timetracker->spawn_timetracker_thread();
 
-    auto asio_thread = std::thread([]() {
-            boost::asio::io_service::work work(Globalreg::globalreg->io);
-            Globalreg::globalreg->io.run();
-            });
+    std::vector<std::thread> iov;
+    iov.reserve(Globalreg::globalreg->n_io_threads);
+    for (auto i = Globalreg::globalreg->n_io_threads - 1; i > 0; i--) {
+        iov.emplace_back([] () {
+                thread_set_process_name("IO");
+                Globalreg::globalreg->io.run();
+                });
+    }
+
+    boost::asio::io_service::work work(Globalreg::globalreg->io);
 
     while (true) {
         if (Globalreg::globalreg->spindown || Globalreg::globalreg->fatal_condition) 
@@ -1023,6 +1029,10 @@ int main(int argc, char *argv[], char *envp[]) {
         usleep(500000);
     }
 
-    asio_thread.join();
+    for (auto& t : iov) {
+        if (t.joinable())
+            t.join();
+    }
+
 }
 
