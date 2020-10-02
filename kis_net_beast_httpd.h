@@ -74,15 +74,15 @@ public:
 
     // The majority of routing requires authentication.  Any route that operates outside of authentication
     // must *explicitly* register as unauthenticated.
-    void register_route(const std::string& route, const std::list<boost::beast::http::verb>& verbs, 
+    void register_route(const std::string& route, const std::list<std::string>& verbs, 
             http_handler_t handler);
-    void register_route(const std::string& route, const std::list<boost::beast::http::verb>& verbs, 
+    void register_route(const std::string& route, const std::list<std::string>& verbs, 
             const std::list<std::string>& extensions, http_handler_t handler);
     void remove_route(const std::string& route);
 
-    void register_unauth_route(const std::string& route, const std::list<boost::beast::http::verb>& verbs, 
+    void register_unauth_route(const std::string& route, const std::list<std::string>& verbs, 
             http_handler_t handler);
-    void register_unauth_route(const std::string& route, const std::list<boost::beast::http::verb>& verbs,
+    void register_unauth_route(const std::string& route, const std::list<std::string>& verbs,
             const std::list<std::string>& extensions, 
             http_handler_t handler);
     void remove_unauth_route(const std::string& route);

@@ -251,18 +251,27 @@ std::string kis_net_beast_httpd::resolve_mime_type(const std::string& extension)
     return "text/plain";
 }
 
-void kis_net_beast_httpd::register_route(const std::string& route, 
-        const std::list<boost::beast::http::verb>& verbs,
+void kis_net_beast_httpd::register_route(const std::string& route, const std::list<std::string>& verbs,
         http_handler_t handler) {
     local_locker l(&route_mutex, "beast_httpd::register_route");
-    route_vec.push_back(std::make_shared<kis_net_beast_route>(route, verbs, handler));
+
+    std::list<boost::beast::http::verb> b_verbs;
+    for (const auto& v : verbs) 
+        b_verbs.emplace_back(boost::beast::http::string_to_verb(v));
+
+    route_vec.emplace_back(std::make_shared<kis_net_beast_route>(route, b_verbs, handler));
 }
 
 void kis_net_beast_httpd::register_route(const std::string& route, 
-        const std::list<boost::beast::http::verb>& verbs,
+        const std::list<std::string>& verbs,
         const std::list<std::string>& extensions, http_handler_t handler) {
     local_locker l(&route_mutex, "beast_httpd::register_route (with extensions)");
-    route_vec.push_back(std::make_shared<kis_net_beast_route>(route, verbs, extensions, handler));
+
+    std::list<boost::beast::http::verb> b_verbs;
+    for (const auto& v : verbs) 
+        b_verbs.emplace_back(boost::beast::http::string_to_verb(v));
+
+    route_vec.emplace_back(std::make_shared<kis_net_beast_route>(route, b_verbs, extensions, handler));
 }
 
 void kis_net_beast_httpd::remove_route(const std::string& route) {
@@ -277,17 +286,23 @@ void kis_net_beast_httpd::remove_route(const std::string& route) {
 }
 
 void kis_net_beast_httpd::register_unauth_route(const std::string& route, 
-        const std::list<boost::beast::http::verb>& verbs,
+        const std::list<std::string>& verbs,
         http_handler_t handler) {
     local_locker l(&route_mutex, "beast_httpd::register_unauth_route");
-    unauth_route_vec.push_back(std::make_shared<kis_net_beast_route>(route, verbs, handler));
+    std::list<boost::beast::http::verb> b_verbs;
+    for (const auto& v : verbs) 
+        b_verbs.emplace_back(boost::beast::http::string_to_verb(v));
+    unauth_route_vec.emplace_back(std::make_shared<kis_net_beast_route>(route, b_verbs, handler));
 }
 
 void kis_net_beast_httpd::register_unauth_route(const std::string& route, 
-        const std::list<boost::beast::http::verb>& verbs,
+        const std::list<std::string>& verbs,
         const std::list<std::string>& extensions, http_handler_t handler) {
     local_locker l(&route_mutex, "beast_httpd::register_unauth_route (with extensions)");
-    unauth_route_vec.push_back(std::make_shared<kis_net_beast_route>(route, verbs, extensions, handler));
+    std::list<boost::beast::http::verb> b_verbs;
+    for (const auto& v : verbs) 
+        b_verbs.emplace_back(boost::beast::http::string_to_verb(v));
+    unauth_route_vec.emplace_back(std::make_shared<kis_net_beast_route>(route, b_verbs, extensions, handler));
 }
 
 void kis_net_beast_httpd::remove_unauth_route(const std::string& route) {
