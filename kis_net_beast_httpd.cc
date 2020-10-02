@@ -70,6 +70,26 @@ kis_net_beast_httpd::kis_net_beast_httpd(boost::asio::ip::tcp::endpoint& endpoin
     mime_mutex.set_name("kis_net_beast_httpd MIME map");
     route_mutex.set_name("kis_net_beast_httpd route vector");
 
+    register_mime_type("html", "text/html");
+    register_mime_type("htm", "text/html");
+    register_mime_type("css", "text/css");
+    register_mime_type("js", "application/javascript");
+    register_mime_type("json", "application/json");
+    register_mime_type("prettyjson", "application/json");
+    register_mime_type("cmd", "application/json");
+    register_mime_type("jcmd", "application/json");
+    register_mime_type("xml", "application/xml");
+    register_mime_type("png", "image/png");
+    register_mime_type("jpg", "image/jpeg");
+    register_mime_type("jpeg", "image/jpeg");
+    register_mime_type("gif", "image/gif");
+    register_mime_type("bmp", "image/bmp");
+    register_mime_type("ico", "image/vnd.microsoft.icon");
+    register_mime_type("svg", "image/svg+xml");
+    register_mime_type("svgz", "image/svg+xml");
+    register_mime_type("txt", "text/plain");
+    register_mime_type("pcap", "application/vnd.tcpdump.pcap");
+    register_mime_type("pcapng", "application/vnd.tcpdump.pcap");
 }
 
 kis_net_beast_httpd::~kis_net_beast_httpd() {
@@ -317,7 +337,7 @@ void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code
         return do_close();
     }
 
-    _MSG_INFO("(DEBUG) beast {} {}", request_.method(), request_.target());
+    _MSG_INFO("(DEBUG) beast {} {} {}", request_.method(), request_.target(), request_.body());
     do_close();
 }
 
