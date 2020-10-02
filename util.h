@@ -434,7 +434,7 @@ struct future_stringbuf_timeout : public std::exception {
 
 struct future_stringbuf : public std::stringbuf {
 public:
-    future_stringbuf(std::streamsize chunk = 1024) :
+    future_stringbuf(size_t chunk = 1024) :
         std::stringbuf{},
         chunk{chunk}, 
         blocking{false} { }
@@ -483,7 +483,7 @@ public:
     virtual std::streamsize xsputn(const char_type *s, std::streamsize n) override {
         auto r = std::stringbuf::xsputn(s, n);
 
-        if (r >= chunk)
+        if (str().length() >= chunk)
             sync();
 
         return r;
@@ -492,7 +492,7 @@ public:
     virtual int_type overflow(int_type ch) override {
         auto r = std::stringbuf::overflow(ch);
 
-        if (str().length() >= static_cast<std::string::size_type>(chunk))
+        if (str().length() >= chunk)
             sync();
 
         return r;
@@ -514,7 +514,7 @@ public:
 
 
 protected:
-    std::streamsize chunk;
+    size_t chunk;
     std::atomic<bool> blocking;
     std::promise<bool> data_available_pm;
 };
