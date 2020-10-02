@@ -302,7 +302,8 @@ void kis_net_beast_httpd::register_unauth_route(const std::string& route,
     std::list<boost::beast::http::verb> b_verbs;
     for (const auto& v : verbs) 
         b_verbs.emplace_back(boost::beast::http::string_to_verb(v));
-    unauth_route_vec.emplace_back(std::make_shared<kis_net_beast_route>(route, b_verbs, extensions, handler));
+    unauth_route_vec.emplace_back(std::make_shared<kis_net_beast_route>(route, b_verbs, 
+                extensions, handler));
 }
 
 void kis_net_beast_httpd::remove_unauth_route(const std::string& route) {
@@ -333,6 +334,13 @@ void kis_net_beast_httpd_connection::start() {
 
 void kis_net_beast_httpd_connection::do_read() {
     request_ = {};
+    verb_ = {};
+    buffer = {};
+    http_variables = {};
+    uri = {};
+    uri_params = {};
+    http_post = {};
+    response = {};
 
     // TODO how do we handle infinite responders like pcap?  Do we just keep pushing it out 
     // every read/write?
@@ -353,7 +361,116 @@ void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code
     }
 
     _MSG_INFO("(DEBUG) beast {} {} {}", request_.method(), request_.target(), request_.body());
-    do_close();
+
+
+    response.result(boost::beast::http::status::ok);
+    response.version(11);
+    response.set(boost::beast::http::field::transfer_encoding, "chunked");
+    response.body().data = nullptr;
+    response.body().more = true;
+
+    boost::beast::http::response_serializer<boost::beast::http::buffer_body,
+        boost::beast::http::fields> sr{response};
+
+    boost::system::error_code error;
+    boost::beast::http::write_header(stream, sr, error);
+
+    if (error) {
+        _MSG_ERROR("(DEBUG) Error writing headers to {} {} - {}", request_.method(), request_.target(), error.message());
+        return do_close();
+
+    }
+
+    future_streambuf sbuf(4);
+    std::thread tr([this, &sbuf]() {
+        char *foo = new char[512];
+        std::ostream os(&sbuf);
+
+        for (int x = 0; x < 5; x++) {
+            if (sbuf.is_complete())
+                break;
+
+            snprintf(foo, 512, "thread chunked response %d\n", x);
+            response.body().data = foo;
+
+            os.write(foo, strlen(foo));
+
+            sleep(1);
+        }
+
+        os.flush();
+        sbuf.complete();
+        free(foo);
+    });
+
+    _MSG_INFO("Waiting for generator thread");
+
+    while (1) {
+        boost::system::error_code error;
+
+        auto sz = sbuf.size();
+
+        if (sz) {
+            // This void * cast is awful but I don't how how to resolve it for a buffer body
+            response.body().data = (void *) boost::asio::buffer_cast<const void *>(sbuf.data());
+            response.body().size = sz;
+            response.body().more = true;
+
+            _MSG_INFO("(DEBUG) Writing {} from generator", sz);
+
+            boost::beast::http::write(stream, sr, error);
+
+            sbuf.consume(sz);
+
+            if (error == boost::beast::http::error::need_buffer) {
+                error = {};
+            } else if (error) {
+                _MSG_ERROR("(DEBUG) Generator thread error writing response to {} {} - {}", request_.method(), request_.target(), error.message());
+                do_close();
+                sbuf.cancel();
+                break;
+            }
+        }
+
+        if (sbuf.size() == 0 && sbuf.is_complete())
+            break;
+
+        sbuf.wait();
+    }        
+
+    tr.join();
+
+    _MSG_INFO("Generator done");
+
+    response.body().data = nullptr;
+    response.body().size = 0;
+    response.body().more = false;
+
+    boost::beast::http::write(stream, sr, error);
+    if (error) {
+        _MSG_ERROR("(DEBUG) Error writing response to {} {} - {}", request_.method(), request_.target(), error.message());
+        return do_close();
+    }
+
+    _MSG_INFO("Done generating response");
+
+    do_read();
+}
+
+void kis_net_beast_httpd_connection::handle_write(bool close, const boost::system::error_code& ec,
+        size_t sz) {
+
+    if (ec) {
+        _MSG_ERROR("(DEBUG) error on connection, closing - {}", ec.message());
+        return do_close();
+    }
+
+    if (close) {
+        return do_close();
+    }
+
+    // Perform another read request
+    do_read();
 }
 
 void kis_net_beast_httpd_connection::do_close() {

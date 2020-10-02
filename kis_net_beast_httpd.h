@@ -41,7 +41,8 @@ using namespace nonstd::literals;
 class kis_net_beast_httpd_connection;
 class kis_net_beast_route;
 
-class kis_net_beast_httpd : public lifetime_global, public std::enable_shared_from_this<kis_net_beast_httpd> {
+class kis_net_beast_httpd : public lifetime_global, 
+    public std::enable_shared_from_this<kis_net_beast_httpd> {
 public:
     static std::string global_name() { return "BEAST_HTTPD_SERVER"; }
     static std::shared_ptr<kis_net_beast_httpd> create_httpd();
@@ -72,8 +73,8 @@ public:
     void remove_mime_type(const std::string& extension);
     std::string resolve_mime_type(const std::string& extension);
 
-    // The majority of routing requires authentication.  Any route that operates outside of authentication
-    // must *explicitly* register as unauthenticated.
+    // The majority of routing requires authentication.  Any route that operates outside of 
+    // authentication must *explicitly* register as unauthenticated.
     void register_route(const std::string& route, const std::list<std::string>& verbs, 
             http_handler_t handler);
     void register_route(const std::string& route, const std::list<std::string>& verbs, 
@@ -86,6 +87,9 @@ public:
             const std::list<std::string>& extensions, 
             http_handler_t handler);
     void remove_unauth_route(const std::string& route);
+
+    // Find an endpoint
+    std::shared_ptr<kis_net_beast_route> find_endpoint(kis_net_beast_httpd_connection);
 
 protected:
     std::atomic<bool> running;
@@ -130,7 +134,7 @@ protected:
     boost::beast::http::verb verb_;
     boost::beast::http::request<boost::beast::http::string_body> request_;
 
-    boost::beast::http::response<boost::beast::http::dynamic_body> response;
+    boost::beast::http::response<boost::beast::http::buffer_body> response;
 
     std::thread request_thread;
 
@@ -143,6 +147,7 @@ protected:
 
     void do_read();
     void handle_read(const boost::system::error_code& ec, size_t sz);
+    void handle_write(bool close, const boost::system::error_code& ec, size_t sz);
 
     void do_close();
 };
@@ -193,6 +198,116 @@ protected:
     std::vector<std::string> match_keys;
 
     std::regex match_re;
+};
+
+struct future_streambuf_timeout : public std::exception {
+    const char *what() const throw () {
+        return "timed out";
+    }
+};
+
+struct future_streambuf : public boost::asio::streambuf {
+public:
+    future_streambuf(size_t chunk = 1024) :
+        boost::asio::streambuf{},
+        chunk{chunk}, 
+        blocking{false},
+        done{false} { }
+
+    void cancel() {
+        done = true;
+        if (blocking)
+            sync();
+    }
+
+    void complete() {
+        done = true;
+        sync();
+    }
+
+    bool is_complete() const {
+        return done;
+    }
+
+    void wait() {
+        if (blocking)
+            throw std::runtime_error("future_streambuf already blocking");
+
+        if (done || size())
+            return;
+
+        blocking = true;
+        
+        data_available_pm = std::promise<bool>();
+
+        auto ft = data_available_pm.get_future();
+
+        ft.wait();
+
+        blocking = false;
+    }
+
+    template<class Rep, class Period>
+    void wait_for(const std::chrono::duration<Rep, Period>& timeout) {
+        if (blocking)
+            throw std::runtime_error("future_stream already blocking");
+
+        if (done || size())
+            return;
+
+        blocking = true;
+        
+        data_available_pm = std::promise<bool>();
+
+        auto ft = data_available_pm.get_future();
+
+        auto r = ft.wait_for(timeout);
+        if (r == std::future_status::timeout)
+            throw future_stringbuf_timeout();
+        else if (r == std::future_status::deferred)
+            throw std::runtime_error("future_stream blocked with no future");
+
+        blocking = false;
+    }
+
+    virtual std::streamsize xsputn(const char_type *s, std::streamsize n) override {
+        auto r = boost::asio::streambuf::xsputn(s, n);
+
+        if (size() >= chunk)
+            sync();
+
+        return r;
+    }
+
+    virtual int_type overflow(int_type ch) override {
+        auto r = boost::asio::streambuf::overflow(ch);
+
+        if (size() >= chunk)
+            sync();
+
+        return r;
+    }
+
+    virtual int sync() override {
+        auto r = boost::asio::streambuf::sync();
+
+        if (blocking) {
+            try {
+                data_available_pm.set_value(true);
+            } catch (const std::future_error& e) {
+                ;
+            }
+        }
+
+        return r;
+    }
+
+
+protected:
+    size_t chunk;
+    std::atomic<bool> blocking;
+    std::atomic<bool> done;
+    std::promise<bool> data_available_pm;
 };
 
 #endif /* ifndef KIS_NET_BEAST_HTTPD_H */
