@@ -457,6 +457,11 @@ public:
         blocking = false;
     }
 
+    void cancel() {
+        if (blocking)
+            sync();
+    }
+
     template<class Rep, class Period>
     void wait_for(const std::chrono::duration<Rep, Period>& timeout) {
         if (blocking)
