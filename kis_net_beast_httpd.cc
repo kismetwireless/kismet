@@ -18,8 +18,15 @@
 
 #include "kis_net_beast_httpd.h"
 
+#include <iostream>
+#include <fstream>
+#include <random>
+
+#include <stdio.h>
+
 #include "configfile.h"
 #include "messagebus.h"
+#include "util.h"
 
 
 std::shared_ptr<kis_net_beast_httpd> kis_net_beast_httpd::create_httpd() {
@@ -69,6 +76,7 @@ kis_net_beast_httpd::kis_net_beast_httpd(boost::asio::ip::tcp::endpoint& endpoin
 
     mime_mutex.set_name("kis_net_beast_httpd MIME map");
     route_mutex.set_name("kis_net_beast_httpd route vector");
+    auth_mutex.set_name("kis_net_beast_httpd auth");
 
     register_mime_type("html", "text/html");
     register_mime_type("htm", "text/html");
@@ -90,6 +98,8 @@ kis_net_beast_httpd::kis_net_beast_httpd(boost::asio::ip::tcp::endpoint& endpoin
     register_mime_type("txt", "text/plain");
     register_mime_type("pcap", "application/vnd.tcpdump.pcap");
     register_mime_type("pcapng", "application/vnd.tcpdump.pcap");
+
+    load_auth();
 }
 
 kis_net_beast_httpd::~kis_net_beast_httpd() {
@@ -317,6 +327,114 @@ void kis_net_beast_httpd::remove_unauth_route(const std::string& route) {
     }
 }
 
+std::string kis_net_beast_httpd::create_auth(const std::string& name, 
+        const std::list<std::string>& roles, time_t expiry) {
+    std::random_device rnd;
+    auto dist = std::uniform_int_distribution<uint8_t>(0, 0xFF);
+    uint8_t rdata[16];
+
+    for (auto i = 0; i < 16; i++)
+        rdata[i] = dist(rnd);
+
+    auto token = uint8_to_hex_str(rdata, 16);
+
+    auto auth = std::make_shared<kis_net_beast_auth>(token, name, roles, expiry);
+
+    local_locker l(&auth_mutex, "add auth");
+    auth_vec.emplace_back(auth);
+    store_auth();
+
+    return token;
+}
+
+void kis_net_beast_httpd::remove_auth(const std::string& token) {
+    local_locker l(&auth_mutex, "remove auth");
+
+    for (auto a = auth_vec.cbegin(); a != auth_vec.cend(); ++a) {
+        if ((*a)->token() == token) {
+            auth_vec.erase(a);
+            store_auth();
+            return;
+        }
+    }
+}
+
+std::shared_ptr<kis_net_beast_auth> kis_net_beast_httpd::check_auth(const std::string& token, 
+        const std::string& role) {
+    local_shared_locker l(&auth_mutex, "check auth");
+
+    for (const auto& a : auth_vec) {
+        if (a->check_auth(token, role)) {
+            return a;
+        }
+    }
+
+    return nullptr;
+}
+
+void kis_net_beast_httpd::store_auth() {
+    local_locker l(&auth_mutex, "store auth");
+
+    Json::Value vec(Json::arrayValue);
+
+    for (const auto& a : auth_vec) {
+        if (a->is_valid())
+            vec.append(a->as_json());
+    }
+
+    for (auto a = auth_vec.begin(); a != auth_vec.end(); ++a) {
+        if (!(*a)->is_valid()) {
+            auth_vec.erase(a);
+            a = auth_vec.begin();
+        }
+    }
+
+    auto sessiondb_file = 
+        Globalreg::globalreg->kismet_config->fetch_opt_path("httpd_session_db", 
+                "%h/.kismet/session.db");
+    FILE *sf = fopen(sessiondb_file.c_str(), "w");
+
+    if (sf == NULL) {
+        _MSG_ERROR("(HTTPD) Could not write session data file: {}", 
+                kis_strerror_r(errno));
+        return;
+    }
+
+    fmt::print(sf, "{}", vec);
+    fclose(sf);
+}
+
+void kis_net_beast_httpd::load_auth() {
+    local_locker l(&auth_mutex, "load auth");
+
+    auth_vec.clear();
+
+    auto sessiondb_file = 
+        Globalreg::globalreg->kismet_config->fetch_opt_path("httpd_session_db", 
+                "%h/.kismet/session.db");
+    auto sf = std::ifstream(sessiondb_file, std::ifstream::binary);
+
+    Json::Value json;
+    std::string errs;
+
+    if (!Json::parseFromStream(Json::CharReaderBuilder(), sf, &json, &errs)) {
+        _MSG_ERROR("(HTTPD) Could not read session data file, skipping loading saved sessions.");
+        return;
+    }
+
+    try {
+        for (const auto& j : json) {
+            try {
+                auth_vec.emplace_back(std::make_shared<kis_net_beast_auth>(j));
+            } catch (const auth_construction_error& e) {
+                ;
+            }
+        }
+    } catch (const std::exception& e) {
+        _MSG_ERROR("(HTTPD) Could not process session data file, skipping loading saved sessions.");
+        return;
+    }
+}
 
 
 
@@ -381,8 +499,13 @@ void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code
 
     }
 
-    future_streambuf sbuf(4);
+    // Future-pending asio::streambuf
+    future_streambuf sbuf(512);
+
     std::thread tr([this, &sbuf]() {
+        auto ref = shared_from_this();
+
+        // Example populator thread, this will be called as the routed handler in the future
         char *foo = new char[512];
         std::ostream os(&sbuf);
 
@@ -390,20 +513,18 @@ void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code
             if (sbuf.is_complete())
                 break;
 
-            snprintf(foo, 512, "thread chunked response %d\n", x);
-            response.body().data = foo;
+            snprintf(foo, 512, "thread generated data %d\n", x);
 
             os.write(foo, strlen(foo));
 
             sleep(1);
         }
 
+        free(foo);
+
         os.flush();
         sbuf.complete();
-        free(foo);
     });
-
-    _MSG_INFO("Waiting for generator thread");
 
     while (1) {
         boost::system::error_code error;
@@ -416,44 +537,45 @@ void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code
             response.body().size = sz;
             response.body().more = true;
 
-            _MSG_INFO("(DEBUG) Writing {} from generator", sz);
-
             boost::beast::http::write(stream, sr, error);
 
             sbuf.consume(sz);
 
             if (error == boost::beast::http::error::need_buffer) {
+                // Beast returns 'need_buffer' when it's completed writing a buffer, configure
+                // as a non-error
                 error = {};
             } else if (error) {
-                _MSG_ERROR("(DEBUG) Generator thread error writing response to {} {} - {}", request_.method(), request_.target(), error.message());
                 do_close();
                 sbuf.cancel();
                 break;
             }
         }
 
+        // Only exit if the buffer is complete AND empty
         if (sbuf.size() == 0 && sbuf.is_complete())
             break;
 
+        // If the buffer has any pending data, regardless of error or completeness,
+        // this will instantly return, otherwise it will stall waiting for it to be 
+        // populated
         sbuf.wait();
     }        
 
+    // This should instantly rejoin because we've completed the populator loop
     tr.join();
 
-    _MSG_INFO("Generator done");
-
+    // Send the completion record for the chunked response
     response.body().data = nullptr;
     response.body().size = 0;
     response.body().more = false;
 
     boost::beast::http::write(stream, sr, error);
     if (error) {
-        _MSG_ERROR("(DEBUG) Error writing response to {} {} - {}", request_.method(), request_.target(), error.message());
         return do_close();
     }
 
-    _MSG_INFO("Done generating response");
-
+    // Read any more requests in the same connection
     do_read();
 }
 
@@ -575,7 +697,8 @@ bool kis_net_beast_route::match_url(const std::string& url,
     if (g_k != uri_params.end()) {
         if (g_k->second.length() > 1) {
             // Trim the ? and decode the rest for URL encoding
-            auto uri_decode = kis_net_beast_httpd::decode_uri(g_k->second.substr(1, g_k->second.length()));
+            auto uri_decode = 
+                kis_net_beast_httpd::decode_uri(g_k->second.substr(1, g_k->second.length()));
             // Parse into variables
             kis_net_beast_httpd::decode_variables(uri_decode, uri_variables);
         }
@@ -586,5 +709,72 @@ bool kis_net_beast_route::match_url(const std::string& url,
 
 void kis_net_beast_route::invoke(std::shared_ptr<kis_net_beast_httpd_connection> connection) {
     handler(connection);
+}
+
+
+
+
+kis_net_beast_auth::kis_net_beast_auth(const Json::Value& json)  {
+    try {
+        token_ = json["token"].asString();
+        name_ = json["name"].asString();
+    
+        for (const auto& r : json["roles"]) {
+            roles_.emplace_back(r.asString());
+        }
+
+        time_created_ = static_cast<time_t>(json["created"].asUInt());
+        time_accessed_ = static_cast<time_t>(json["accessed"].asUInt());
+        time_expires_ = static_cast<time_t>(json["expires"].asUInt());
+
+    } catch (const std::exception& e) {
+        throw auth_construction_error();
+    }
+}
+
+kis_net_beast_auth::kis_net_beast_auth(const std::string& token, const std::string& name,
+        const std::list<std::string>& roles, time_t expires) :
+    token_{token},
+    name_{name},
+    roles_{roles},
+    time_created_{time(0)},
+    time_accessed_{0},
+    time_expires_{0} { }
+
+bool kis_net_beast_auth::check_auth(const nonstd::string_view& token,
+        const nonstd::string_view& role) {
+
+    if (time_expires_ != 0 && time_expires_ > time(0))
+        return false;
+
+    bool role_ok = false;
+    for (const auto& r : roles_) {
+        if (r == "*" || r == role) {
+            role_ok = true;
+            break;
+        }
+    }
+
+    constant_time_string_compare_ne compare;
+
+    return compare(token_, token) && role_ok;
+}
+
+Json::Value kis_net_beast_auth::as_json() {
+    Json::Value ret;
+
+    ret["token"] = token_;
+    ret["name"] = name_;
+
+    ret["roles"] = Json::Value(Json::arrayValue);
+
+    for (const auto& r : roles_)
+        ret["roles"].append(r);
+
+    ret["created"] = time_created_;
+    ret["accessed"] = time_accessed_;
+    ret["expires"] = time_expires_;
+
+    return ret;
 }
 

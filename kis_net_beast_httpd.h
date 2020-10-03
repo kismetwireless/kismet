@@ -28,18 +28,22 @@
 #include <thread>
 #include <unordered_map>
 
-#include "globalregistry.h"
 
 #include "boost/asio.hpp"
 #include "boost/beast.hpp"
 #include "string_view.hpp"
 
+#include "globalregistry.h"
+#include "json/json.h"
 #include "kis_mutex.h"
+#include "messagebus.h"
 
 using namespace nonstd::literals;
 
+struct future_streambuf;
 class kis_net_beast_httpd_connection;
 class kis_net_beast_route;
+class kis_net_beast_auth;
 
 class kis_net_beast_httpd : public lifetime_global, 
     public std::enable_shared_from_this<kis_net_beast_httpd> {
@@ -88,6 +92,18 @@ public:
             http_handler_t handler);
     void remove_unauth_route(const std::string& route);
 
+
+    // Create an auth entry & return it
+    std::string create_auth(const std::string& name, const std::list<std::string>& roles, time_t expiry);
+    // Remove an auth entry based on token
+    void remove_auth(const std::string& token);
+    // Check if a token exists for this role
+    std::shared_ptr<kis_net_beast_auth> check_auth(const std::string& token, const std::string& role);
+
+    void load_auth();
+    void store_auth();
+
+
     // Find an endpoint
     std::shared_ptr<kis_net_beast_route> find_endpoint(kis_net_beast_httpd_connection);
 
@@ -101,6 +117,9 @@ protected:
     kis_recursive_timed_mutex route_mutex;
     std::vector<std::shared_ptr<kis_net_beast_route>> route_vec;
     std::vector<std::shared_ptr<kis_net_beast_route>> unauth_route_vec;
+
+    kis_recursive_timed_mutex auth_mutex;
+    std::vector<std::shared_ptr<kis_net_beast_auth>> auth_vec;
 
     boost::asio::ip::tcp::endpoint endpoint;
     boost::asio::ip::tcp::acceptor acceptor;
@@ -200,6 +219,39 @@ protected:
     std::regex match_re;
 };
 
+struct auth_construction_error : public std::exception {
+    const char *what() const throw () {
+        return "could not process auth json";
+    }
+};
+
+// Authentication record, loading from the http auth file.  Authentication tokens may have 
+// optional roles; a role of '*' has full access to all capabilities.  Roles may be defined by
+// endpoint consumers of the role
+class kis_net_beast_auth {
+public:
+    kis_net_beast_auth(const Json::Value& json);
+    kis_net_beast_auth(const std::string& token, const std::string& name, 
+            const std::list<std::string>& roles, time_t expires);
+
+    const std::string& token() { return token_; }
+    const std::string& name() { return name_; }
+
+    bool check_auth(const nonstd::string_view& token, const nonstd::string_view& role);
+
+    bool is_valid() const { return time_expires_ != 0 && time_expires_ < time(0); }
+    void access() { time_accessed_ = time(0); }
+
+    Json::Value as_json();
+
+protected:
+    std::string token_;
+    std::string name_;
+    std::list<std::string> roles_;
+    time_t time_created_, time_accessed_, time_expires_;
+
+};
+
 struct future_streambuf_timeout : public std::exception {
     const char *what() const throw () {
         return "timed out";
@@ -216,8 +268,7 @@ public:
 
     void cancel() {
         done = true;
-        if (blocking)
-            sync();
+        sync();
     }
 
     void complete() {
@@ -229,12 +280,12 @@ public:
         return done;
     }
 
-    void wait() {
+    size_t wait() {
         if (blocking)
             throw std::runtime_error("future_streambuf already blocking");
 
         if (done || size())
-            return;
+            return size();
 
         blocking = true;
         
@@ -245,15 +296,17 @@ public:
         ft.wait();
 
         blocking = false;
+
+        return size();
     }
 
     template<class Rep, class Period>
-    void wait_for(const std::chrono::duration<Rep, Period>& timeout) {
+    size_t wait_for(const std::chrono::duration<Rep, Period>& timeout) {
         if (blocking)
             throw std::runtime_error("future_stream already blocking");
 
         if (done || size())
-            return;
+            return size();
 
         blocking = true;
         
@@ -268,6 +321,8 @@ public:
             throw std::runtime_error("future_stream blocked with no future");
 
         blocking = false;
+
+        return size();
     }
 
     virtual std::streamsize xsputn(const char_type *s, std::streamsize n) override {
@@ -301,7 +356,6 @@ public:
 
         return r;
     }
-
 
 protected:
     size_t chunk;
