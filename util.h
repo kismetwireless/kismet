@@ -452,13 +452,27 @@ public:
     future_stringbuf(size_t chunk = 1024) :
         std::stringbuf{},
         chunk{chunk}, 
-        blocking{false} { }
+        blocking{false},
+        done{true} { }
+
+    bool is_complete() const { return done; }
+    void complet() {
+        done = true;
+        sync();
+    }
+
+    void cancel() {
+        done = true;
+        sync();
+    }
+
+    size_t size() const { return str().size(); }
 
     void wait() {
         if (blocking)
             throw std::runtime_error("future_stream already blocking");
 
-        if (str().size())
+        if (done || str().size())
             return;
 
         blocking = true;
@@ -472,17 +486,12 @@ public:
         blocking = false;
     }
 
-    void cancel() {
-        if (blocking)
-            sync();
-    }
-
     template<class Rep, class Period>
     void wait_for(const std::chrono::duration<Rep, Period>& timeout) {
         if (blocking)
             throw std::runtime_error("future_stream already blocking");
 
-        if (str().size())
+        if (done || str().size())
             return;
 
         blocking = true;
@@ -536,6 +545,7 @@ public:
 protected:
     size_t chunk;
     std::atomic<bool> blocking;
+    std::atomic<bool> done;
     std::promise<bool> data_available_pm;
 };
 
