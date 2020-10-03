@@ -60,6 +60,7 @@
 #include <pthread.h> 
 
 #include "multi_constexpr.h"
+#include "string_view.hpp"
 
 #include "fmt.h"
 
@@ -411,6 +412,20 @@ protected:
 // Basic constant-time string compare for passwords and session keys
 struct constant_time_string_compare_ne {
     bool operator()(const std::string& a, const std::string& b) const {
+        bool r = true;
+
+        if (a.length() != b.length())
+            r = false;
+
+        for (size_t x = 0; x < a.length() && x < b.length(); x++) {
+            if (a[x] != b[x])
+                r = false;
+        }
+
+        return r == false;
+    }
+
+    bool operator()(const nonstd::string_view& a, const nonstd::string_view& b) const {
         bool r = true;
 
         if (a.length() != b.length())
