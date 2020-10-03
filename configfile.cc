@@ -317,6 +317,11 @@ int config_file::fetch_opt_bool(std::string in_key, int dvalue) {
     return r;
 }
 
+std::string config_file::fetch_opt_path(const std::string& in_key, const std::string& in_dfl) {
+    auto p = fetch_opt_dfl(in_key, in_dfl);
+    return expand_log_path(p, "", "", 0, 1);
+}
+
 int config_file::fetch_opt_int(const std::string& in_key, int dvalue) {
     return fetch_opt_as<int>(in_key, dvalue);
 }
