@@ -82,6 +82,7 @@ kis_net_beast_httpd::kis_net_beast_httpd(boost::asio::ip::tcp::endpoint& endpoin
     mime_mutex.set_name("kis_net_beast_httpd MIME map");
     route_mutex.set_name("kis_net_beast_httpd route vector");
     auth_mutex.set_name("kis_net_beast_httpd auth");
+    static_mutex.set_name("kis_net_beast_httpd static");
 }
 
 void kis_net_beast_httpd::trigger_deferred_startup() {
@@ -587,6 +588,39 @@ std::shared_ptr<kis_net_beast_route> kis_net_beast_httpd::find_endpoint(std::sha
     }
 
     return nullptr;
+}
+
+void kis_net_beast_httpd::register_static_dir(const std::string& prefix, const std::string& path) {
+    local_locker l(&static_mutex, "register_static_dir");
+    static_dir_vec.emplace_back(static_content_dir(prefix, path));
+}
+
+std::string kis_net_beast_httpd::escape_html(const std::string& html) {
+    std::stringstream ss;
+
+    for (const auto& c : html) {
+        switch (c) {
+            case '&':
+                ss << "&amp;";
+                break;
+            case '<':
+                ss << "&lt;";
+                break;
+            case '>':
+                ss << "&gt;";
+                break;
+            case '"':
+                ss << "&quot;";
+                break;
+            case '/':
+                ss << "&#x2F;";
+                break;
+            default:
+                ss << c;
+        }
+    }
+
+    return ss.str();
 }
 
 

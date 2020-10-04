@@ -72,6 +72,7 @@ public:
 
     static std::string decode_uri(boost::beast::string_view in);
     static void decode_variables(const boost::beast::string_view decoded, http_var_map_t& var_map);
+    static std::string escape_html(const std::string& html);
 
     void register_mime_type(const std::string& extension, const std::string& type);
     void remove_mime_type(const std::string& extension);
@@ -102,12 +103,20 @@ public:
     std::shared_ptr<kis_net_beast_auth> check_auth_token(const boost::beast::string_view& token);
     bool check_admin_login(const std::string& username, const std::string& password);
 
+
+    // Map a content directory into the virtual paths
+    void register_static_dir(const std::string& prefix, const std::string& path);
+
+
+
     // Find an endpoint
     std::shared_ptr<kis_net_beast_route> find_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
 
     const bool& allow_cors() { return allow_cors_; }
     const std::string& allowed_cors_referrer() { return allowed_cors_referrer_; }
+
+
 
 protected:
     std::atomic<bool> running;
@@ -121,6 +130,19 @@ protected:
 
     kis_recursive_timed_mutex auth_mutex;
     std::vector<std::shared_ptr<kis_net_beast_auth>> auth_vec;
+
+    kis_recursive_timed_mutex static_mutex;
+    class static_content_dir {
+    public:
+        static_content_dir(const std::string& prefix, const std::string& path) :
+            prefix{prefix},
+            path{path} { }
+
+        std::string prefix;
+        std::string path;
+    };
+    std::vector<static_content_dir> static_dir_vec;
+
 
     boost::asio::ip::tcp::endpoint endpoint;
     boost::asio::ip::tcp::acceptor acceptor;
