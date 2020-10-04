@@ -236,15 +236,10 @@ int config_file::parse_opt_override(const std::string path) {
 int config_file::save_config(const char *in_fname) {
     local_locker lock(&config_locker);
 
-    std::stringstream sstream;
-
     FILE *wf = NULL;
 
     if ((wf = fopen(in_fname, "w")) == NULL) {
-
-        sstream << "Error writing config file '" << in_fname <<
-            "': " << kis_strerror_r(errno);
-        _MSG(sstream.str(), MSGFLAG_ERROR);
+        _MSG_ERROR("Could not write config file {} - {}", in_fname, kis_strerror_r(errno));
         return -1;
     }
 
