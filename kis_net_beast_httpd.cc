@@ -217,10 +217,6 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                     }
                 }
 
-                for (const auto& k : con->http_variables()) {
-                    _MSG_INFO("(DEBUG) {} - {}", k.first, k.second);
-                }
-
                 auto u_k = con->http_variables().find("username");
                 auto p_k = con->http_variables().find("password");
 
@@ -584,8 +580,6 @@ void kis_net_beast_httpd::load_auth() {
 
 std::shared_ptr<kis_net_beast_route> kis_net_beast_httpd::find_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con) {
     local_shared_locker l(&route_mutex, "find_endpoint");
-
-    _MSG_INFO("(DEBUG) Matching request '{}'", con->uri());
 
     for (const auto& r : route_vec) {
         if (r->match_url(static_cast<const std::string>(con->uri()), con->uri_params_, con->http_variables_)) 
