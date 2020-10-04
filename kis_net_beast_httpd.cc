@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 
+#include "base64.h"
 #include "configfile.h"
 #include "messagebus.h"
 #include "util.h"
@@ -195,14 +196,15 @@ void kis_net_beast_httpd::handle_connection(const boost::system::error_code& ec,
     start_accept();
 }
 
-std::string kis_net_beast_httpd::decode_uri(nonstd::string_view in) {
+std::string kis_net_beast_httpd::decode_uri(boost::beast::string_view in) {
     std::string ret;
     ret.reserve(in.length());
 
     std::string::size_type p = 0;
 
     while (p < in.length()) {
-        if (in[p] == '%' && (p + 2) < in.length() && std::isxdigit(in[p+1]) && std::isxdigit(in[p+2])) {
+        if (in[p] == '%' && (p + 2) < in.length() && std::isxdigit(in[p+1]) && 
+                std::isxdigit(in[p+2])) {
             char c1 = in[p+1] - (in[p+1] <= '9' ? '0' : (in[p+1] <= 'F' ? 'A' : 'a') - 10);
             char c2 = in[p+2] - (in[p+2] <= '9' ? '0' : (in[p+2] <= 'F' ? 'A' : 'a') - 10);
             ret += char(16 * c1 + c2);
@@ -216,14 +218,15 @@ std::string kis_net_beast_httpd::decode_uri(nonstd::string_view in) {
     return ret;
 }
 
-void kis_net_beast_httpd::decode_variables(const nonstd::string_view decoded, http_var_map_t& var_map) {
-    nonstd::string_view::size_type pos = 0;
-    while (pos != nonstd::string_view::npos) {
+void kis_net_beast_httpd::decode_variables(const boost::beast::string_view decoded, 
+        http_var_map_t& var_map) {
+    boost::beast::string_view::size_type pos = 0;
+    while (pos != boost::beast::string_view::npos) {
         auto next = decoded.find("&", pos);
 
-        nonstd::string_view varline;
+        boost::beast::string_view varline;
 
-        if (next == nonstd::string_view::npos) {
+        if (next == boost::beast::string_view::npos) {
             varline = decoded.substr(pos, decoded.length());
             pos = next;
         } else {
@@ -233,7 +236,7 @@ void kis_net_beast_httpd::decode_variables(const nonstd::string_view decoded, ht
 
         auto eqpos = varline.find("=");
 
-        if (eqpos == nonstd::string_view::npos)
+        if (eqpos == boost::beast::string_view::npos)
             var_map[static_cast<std::string>(varline)] = "";
         else
             var_map[static_cast<std::string>(varline.substr(0, eqpos))] = 
@@ -359,8 +362,9 @@ void kis_net_beast_httpd::remove_auth(const std::string& token) {
     }
 }
 
-std::shared_ptr<kis_net_beast_auth> kis_net_beast_httpd::check_auth(const std::string& token, 
-        const std::string& role) {
+std::shared_ptr<kis_net_beast_auth> kis_net_beast_httpd::check_auth(
+        const boost::beast::string_view& token, 
+        const boost::beast::string_view& role) {
     local_shared_locker l(&auth_mutex, "check auth");
 
     for (const auto& a : auth_vec) {
@@ -451,7 +455,6 @@ void kis_net_beast_httpd_connection::start() {
 }
 
 void kis_net_beast_httpd_connection::do_read() {
-    request_ = {};
     verb_ = {};
     buffer = {};
     http_variables = {};
@@ -460,11 +463,15 @@ void kis_net_beast_httpd_connection::do_read() {
     http_post = {};
     response = {};
 
+    parser_.emplace();
+    parser_->body_limit(100000);
+
+
     // TODO how do we handle infinite responders like pcap?  Do we just keep pushing it out 
     // every read/write?
-    stream.expires_after(std::chrono::seconds(60));
+    // stream.expires_after(std::chrono::seconds(60));
 
-    boost::beast::http::async_read(stream, buffer, request_, 
+    boost::beast::http::async_read(stream, buffer, *parser_, 
             boost::beast::bind_front_handler(&kis_net_beast_httpd_connection::handle_read, 
                 shared_from_this()));
 }
@@ -478,8 +485,73 @@ void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code
         return do_close();
     }
 
-    _MSG_INFO("(DEBUG) beast {} {} {}", request_.method(), request_.target(), request_.body());
+    if (boost::beast::websocket::is_upgrade(parser_->get())) {
+        /*
+        std::make_shared<websocket_session>(
+                stream_.release_socket())->do_accept(parser_->release());
+                */
+        return;
+    }
 
+    request_ = boost::beast::http::request<boost::beast::http::string_body>(parser_->release());
+
+    for (const auto& f : request_) {
+        _MSG_INFO("(DEBUG) {} {}", f.name_string(), f.value());
+    }
+
+    // Extract the auth cookie
+    auto cookie_h = request_.find(AUTH_COOKIE);
+    if (cookie_h != request_.end()) 
+        auth_token_ = cookie_h->value();
+
+    // Extract the basic auth
+    auto auth_h = request_.find(boost::beast::http::field::authorization);
+    if (auth_h != request_.end()) {
+        auto sp = auth_h->value().find_first_of(" ");
+        auto auth_type = auth_h->value().substr(0, sp);
+        auto auth_hash = auth_h->value().substr(sp + 1, auth_h->value().length());
+
+        _MSG_INFO("(DEBUG) AUTH {}/{} - {}", auth_type, auth_hash, base64::decode(static_cast<std::string>(auth_hash)));
+    }
+
+    // Handle POST data fields
+    if (request_.method() == boost::beast::http::verb::post) {
+        http_post = request_.body();
+
+        auto content_type = request_[boost::beast::http::field::content_type];
+
+        if (content_type == "application/x-www-form-urlencoded") {
+            auto decoded_body = httpd->decode_uri(http_post);
+            httpd->decode_variables(decoded_body, http_variables);
+
+            auto j_k = http_variables.find("json");
+            if (j_k != http_variables.end()) {
+                try {
+                    std::stringstream ss(j_k->second);
+                    ss >> json;
+                } catch (std::exception& e) {
+                    ;
+                }
+            }
+        } else if (content_type == "application/json") {
+            Json::CharReaderBuilder cbuilder;
+            cbuilder["collectComments"] = false;
+            auto reader = cbuilder.newCharReader();
+            std::string errs;
+
+            reader->parse(http_post.data(), http_post.data() + http_post.length(), &json, &errs);
+        }
+
+    }
+
+    /*
+    _MSG_INFO("(DEBUG) beast {} {}", parser_.method(), parser_.target());
+
+    request_.header()::get();
+
+    _MSG_INFO("(DEBUG) beast content-type {}", request_.get()[boost::beast::http::field::content_type]);
+
+    */
 
     response.result(boost::beast::http::status::ok);
     response.version(11);
@@ -494,7 +566,6 @@ void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code
     boost::beast::http::write_header(stream, sr, error);
 
     if (error) {
-        _MSG_ERROR("(DEBUG) Error writing headers to {} {} - {}", request_.method(), request_.target(), error.message());
         return do_close();
 
     }
@@ -741,8 +812,8 @@ kis_net_beast_auth::kis_net_beast_auth(const std::string& token, const std::stri
     time_accessed_{0},
     time_expires_{0} { }
 
-bool kis_net_beast_auth::check_auth(const nonstd::string_view& token,
-        const nonstd::string_view& role) {
+bool kis_net_beast_auth::check_auth(const boost::beast::string_view& token,
+        const boost::beast::string_view& role) {
 
     if (time_expires_ != 0 && time_expires_ > time(0))
         return false;
@@ -755,7 +826,7 @@ bool kis_net_beast_auth::check_auth(const nonstd::string_view& token,
         }
     }
 
-    constant_time_string_compare_ne compare;
+    boost_stringview_constant_time_string_compare_ne compare;
 
     return compare(token_, token) && role_ok;
 }

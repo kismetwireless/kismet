@@ -31,14 +31,12 @@
 
 #include "boost/asio.hpp"
 #include "boost/beast.hpp"
-#include "string_view.hpp"
+#include "boost/optional.hpp"
 
 #include "globalregistry.h"
 #include "json/json.h"
 #include "kis_mutex.h"
 #include "messagebus.h"
-
-using namespace nonstd::literals;
 
 struct future_streambuf;
 class kis_net_beast_httpd_connection;
@@ -70,8 +68,8 @@ public:
     unsigned int fetch_port() { return port; }
     bool fetch_using_ssl() { return use_ssl; }
 
-    static std::string decode_uri(nonstd::string_view in);
-    static void decode_variables(const nonstd::string_view decoded, http_var_map_t& var_map);
+    static std::string decode_uri(boost::beast::string_view in);
+    static void decode_variables(const boost::beast::string_view decoded, http_var_map_t& var_map);
 
     void register_mime_type(const std::string& extension, const std::string& type);
     void remove_mime_type(const std::string& extension);
@@ -98,7 +96,8 @@ public:
     // Remove an auth entry based on token
     void remove_auth(const std::string& token);
     // Check if a token exists for this role
-    std::shared_ptr<kis_net_beast_auth> check_auth(const std::string& token, const std::string& role);
+    std::shared_ptr<kis_net_beast_auth> check_auth(const boost::beast::string_view& token, 
+            const boost::beast::string_view& role);
 
     void load_auth();
     void store_auth();
@@ -144,6 +143,8 @@ public:
     boost::beast::http::verb& verb() { return verb_; }
 
 protected:
+    const std::string AUTH_COOKIE = "KISMET";
+
     std::shared_ptr<kis_net_beast_httpd> httpd;
 
     boost::beast::tcp_stream stream;
@@ -151,18 +152,25 @@ protected:
     boost::beast::flat_buffer buffer;
 
     boost::beast::http::verb verb_;
+
+    boost::optional<boost::beast::http::request_parser<boost::beast::http::string_body>> parser_;
     boost::beast::http::request<boost::beast::http::string_body> request_;
 
     boost::beast::http::response<boost::beast::http::buffer_body> response;
 
     std::thread request_thread;
 
+    // All variables
     kis_net_beast_httpd::http_var_map_t http_variables;
+    // Decoded JSON from post json= or from post json document
+    Json::Value json;
 
-    nonstd::string_view uri;
+
+    boost::beast::string_view auth_token_;
+    boost::beast::string_view uri;
     uri_param_t uri_params;
 
-    nonstd::string_view http_post;
+    boost::beast::string_view http_post;
 
     void do_read();
     void handle_read(const boost::system::error_code& ec, size_t sz);
@@ -237,7 +245,7 @@ public:
     const std::string& token() { return token_; }
     const std::string& name() { return name_; }
 
-    bool check_auth(const nonstd::string_view& token, const nonstd::string_view& role);
+    bool check_auth(const boost::beast::string_view& token, const boost::beast::string_view& role);
 
     bool is_valid() const { return time_expires_ != 0 && time_expires_ < time(0); }
     void access() { time_accessed_ = time(0); }
@@ -362,6 +370,24 @@ protected:
     std::atomic<bool> blocking;
     std::atomic<bool> done;
     std::promise<bool> data_available_pm;
+};
+
+// Basic constant-time string compare for passwords and session keys
+struct boost_stringview_constant_time_string_compare_ne {
+    bool operator()(const boost::beast::string_view& a, const boost::beast::string_view& b) const {
+        bool r = true;
+
+        if (a.length() != b.length())
+            r = false;
+
+        for (size_t x = 0; x < a.length() && x < b.length(); x++) {
+            if (a[x] != b[x])
+                r = false;
+        }
+
+        return r == false;
+    }
+
 };
 
 #endif /* ifndef KIS_NET_BEAST_HTTPD_H */
