@@ -94,6 +94,8 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
     register_mime_type("js", "application/javascript");
     register_mime_type("json", "application/json");
     register_mime_type("prettyjson", "application/json");
+    register_mime_type("ekjson", "application/json");
+    register_mime_type("itjson", "application/json");
     register_mime_type("cmd", "application/json");
     register_mime_type("jcmd", "application/json");
     register_mime_type("xml", "application/xml");
@@ -108,6 +110,17 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
     register_mime_type("txt", "text/plain");
     register_mime_type("pcap", "application/vnd.tcpdump.pcap");
     register_mime_type("pcapng", "application/vnd.tcpdump.pcap");
+
+    for (const auto& m : Globalreg::globalreg->kismet_config->fetch_opt_vec("httpd_mime")) {
+        auto comps = str_tokenize(m, ":");
+
+        if (comps.size() != 2) {
+            _MSG_ERROR("Expected config option httpd_mime=extension:type, got {}", m);
+            continue;
+        }
+
+        register_mime_type(comps[0], comps[1]);
+    }
 
     admin_username = Globalreg::globalreg->kismet_config->fetch_opt("httpd_username");
     admin_password = Globalreg::globalreg->kismet_config->fetch_opt("httpd_password");
@@ -167,6 +180,19 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
         Globalreg::globalreg->kismet_config->fetch_opt_bool("httpd_allow_cors", false);
     allowed_cors_referrer_ =
         Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_allowed_origin", "");
+
+    auto http_data_dir =
+        Globalreg::globalreg->kismet_config->fetch_opt_path("httpd_home", "");
+    if (http_data_dir == "") {
+        _MSG_ERROR("No httpd_home found in the Kismet configs, disabling static file serving. "
+                "This will disable the webui entirely, however the REST endpoints will still "
+                "function.");
+    } else {
+        serve_files = true;
+        _MSG_INFO("Serving static file content from {}", http_data_dir);
+
+        register_static_dir("/", http_data_dir);
+    }
 
     // Basic session management endpoints
     register_unauth_route("/session/check_setup_ok", {"GET"}, 

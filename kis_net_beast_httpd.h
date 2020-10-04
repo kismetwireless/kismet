@@ -151,6 +151,7 @@ protected:
     void handle_connection(const boost::system::error_code& ec, boost::asio::ip::tcp::socket socket);
 
     bool use_ssl;
+    bool serve_files;
 
     bool allow_cors_;
     std::string allowed_cors_referrer_;
