@@ -78,6 +78,7 @@ kis_net_beast_httpd::kis_net_beast_httpd(boost::asio::ip::tcp::endpoint& endpoin
     mime_mutex.set_name("kis_net_beast_httpd MIME map");
     route_mutex.set_name("kis_net_beast_httpd route vector");
     auth_mutex.set_name("kis_net_beast_httpd auth");
+    alias_mutex.set_name("kis_net_beast_httpd alias");
 
     register_mime_type("html", "text/html");
     register_mime_type("htm", "text/html");
@@ -101,6 +102,11 @@ kis_net_beast_httpd::kis_net_beast_httpd(boost::asio::ip::tcp::endpoint& endpoin
     register_mime_type("pcapng", "application/vnd.tcpdump.pcap");
 
     load_auth();
+
+    allow_cors_ =
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("httpd_allow_cors", false);
+    allowed_cors_referrer_ =
+        Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_allowed_origin", "");
 }
 
 kis_net_beast_httpd::~kis_net_beast_httpd() {
@@ -440,6 +446,19 @@ void kis_net_beast_httpd::load_auth() {
     }
 }
 
+void kis_net_beast_httpd::register_alias(const std::string& in_alias, const std::string& in_dest) {
+    local_locker l(&alias_mutex, "register_alias");
+    alias_map.emplace(std::make_pair(in_alias, in_dest));
+}
+
+void kis_net_beast_httpd::remove_alias(const std::string& in_alias) {
+    local_locker l(&alias_mutex, "remove_alias");
+    
+    auto k = alias_map.find(in_alias);
+    if (k == alias_map.end())
+        alias_map.erase(k);
+}
+
 
 
 kis_net_beast_httpd_connection::kis_net_beast_httpd_connection(boost::asio::ip::tcp::socket socket,
@@ -514,8 +533,52 @@ void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code
         _MSG_INFO("(DEBUG) AUTH {}/{} - {}", auth_type, auth_hash, base64::decode(static_cast<std::string>(auth_hash)));
     }
 
-    // Handle POST data fields
-    if (request_.method() == boost::beast::http::verb::post) {
+    if (request_.method() == boost::beast::http::verb::options && httpd->allow_cors()) {
+        // Handle a CORS OPTION request
+        response.result(boost::beast::http::status::ok);
+        response.set(boost::beast::http::field::server, "Kismet");
+
+        response.set(boost::beast::http::field::transfer_encoding, "chunked");
+
+        if (httpd->allowed_cors_referrer().length()) {
+            response.set(boost::beast::http::field::access_control_allow_origin, httpd->allowed_cors_referrer());
+        } else {
+            auto origin = request_.find(boost::beast::http::field::origin);
+
+            if (origin != request_.end())
+                response.set(boost::beast::http::field::access_control_allow_origin, origin->value());
+            else
+                response.set(boost::beast::http::field::access_control_allow_origin, "*");
+        }
+
+        response.set(boost::beast::http::field::access_control_allow_credentials, "true");
+        response.set(boost::beast::http::field::vary, "Origin");
+        response.set(boost::beast::http::field::access_control_max_age, "86400");
+        response.set(boost::beast::http::field::access_control_allow_methods, "POST, GET, OPTIONS, UPGRADE");
+        response.set(boost::beast::http::field::access_control_allow_headers, "Content-Type, Authorization");
+
+        boost::beast::http::response_serializer<boost::beast::http::buffer_body,
+            boost::beast::http::fields> sr{response};
+
+        boost::system::error_code error;
+        boost::beast::http::write_header(stream, sr, error);
+
+        if (error) 
+            return do_close();
+
+        // Send the completion record for the chunked response
+        response.body().data = nullptr;
+        response.body().size = 0;
+        response.body().more = false;
+
+        boost::beast::http::write(stream, sr, error);
+        if (error) 
+            return do_close();
+
+        return do_read();
+
+    } else if (request_.method() == boost::beast::http::verb::post) {
+        // Handle POST data fields
         http_post = request_.body();
 
         auto content_type = request_[boost::beast::http::field::content_type];

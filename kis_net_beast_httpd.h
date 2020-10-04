@@ -98,13 +98,20 @@ public:
     // Check if a token exists for this role
     std::shared_ptr<kis_net_beast_auth> check_auth(const boost::beast::string_view& token, 
             const boost::beast::string_view& role);
-
     void load_auth();
     void store_auth();
+
+    // Directory aliasing
+    void register_alias(const std::string& in_alias, const std::string& in_dest);
+    void remove_alias(const std::string& in_alias);
 
 
     // Find an endpoint
     std::shared_ptr<kis_net_beast_route> find_endpoint(kis_net_beast_httpd_connection);
+
+
+    const bool& allow_cors() { return allow_cors_; }
+    const std::string& allowed_cors_referrer() { return allowed_cors_referrer_; }
 
 protected:
     std::atomic<bool> running;
@@ -120,6 +127,9 @@ protected:
     kis_recursive_timed_mutex auth_mutex;
     std::vector<std::shared_ptr<kis_net_beast_auth>> auth_vec;
 
+    kis_recursive_timed_mutex alias_mutex;
+    std::unordered_map<std::string, std::string> alias_map;
+
     boost::asio::ip::tcp::endpoint endpoint;
     boost::asio::ip::tcp::acceptor acceptor;
 
@@ -127,6 +137,9 @@ protected:
     void handle_connection(const boost::system::error_code& ec, boost::asio::ip::tcp::socket socket);
 
     bool use_ssl;
+
+    bool allow_cors_;
+    std::string allowed_cors_referrer_;
 };
 
 // Central entity which tracks everything about a connection, parsed variables, generator thread, etc.
@@ -164,7 +177,6 @@ protected:
     kis_net_beast_httpd::http_var_map_t http_variables;
     // Decoded JSON from post json= or from post json document
     Json::Value json;
-
 
     boost::beast::string_view auth_token_;
     boost::beast::string_view uri;
