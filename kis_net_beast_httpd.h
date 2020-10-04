@@ -55,6 +55,8 @@ public:
 
     virtual void trigger_deferred_startup() override;
 
+    const static std::string LOGON_ROLE;
+
 private:
     kis_net_beast_httpd(boost::asio::ip::tcp::endpoint& endpoint);
 
@@ -349,9 +351,11 @@ public:
             kis_net_beast_httpd::http_handler_t handler);
 
     // Does a URL match this route?  If so, populate uri params and uri variables
-    bool match_url(const std::string& url, boost::beast::http::verb verb,
-            kis_net_beast_httpd_connection::uri_param_t& uri_params,
+    bool match_url(const std::string& url, kis_net_beast_httpd_connection::uri_param_t& uri_params,
             kis_net_beast_httpd::http_var_map_t& uri_variables);
+
+    // Is the verb compatible?
+    bool match_verb(boost::beast::http::verb verb);
 
     // Is the role compatible?
     bool match_role(bool login, const std::string& role);

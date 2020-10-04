@@ -30,6 +30,7 @@
 #include "messagebus.h"
 #include "util.h"
 
+const std::string kis_net_beast_httpd::LOGON_ROLE{"logon"};
 
 std::shared_ptr<kis_net_beast_httpd> kis_net_beast_httpd::create_httpd() {
     auto httpd_interface = 
@@ -182,6 +183,59 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                     os << "Login not configured\n";
                 }
             });
+
+    register_route("/session/check_login", {"GET"}, LOGON_ROLE,
+            [](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                std::ostream os(&con->response_stream());
+
+                os << "Login valid\n";
+            });
+
+    register_route("/session/check_session", {"GET"}, "",
+            [](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                std::ostream os(&con->response_stream());
+                os << "Session valid\n";
+            });
+
+    register_unauth_route("/session/set_password", {"POST"}, 
+            [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                std::ostream os(&con->response_stream());
+
+                if (global_login_config) {
+                    con->set_status(boost::beast::http::status::forbidden);
+                    os << "Login is configured in global Kismet configuration and may not "
+                        "be configured via this API.\n";
+                    return;
+                }
+
+                if (admin_password != "") {
+                    if (!con->login_valid() || con->login_role() != LOGON_ROLE) {
+                        con->set_status(boost::beast::http::status::forbidden);
+                        os << "Login is already configured; The existing login is required "
+                            "before it can be changed via this API.\n";
+                        return;
+                    }
+                }
+
+                for (const auto& k : con->http_variables()) {
+                    _MSG_INFO("(DEBUG) {} - {}", k.first, k.second);
+                }
+
+                auto u_k = con->http_variables().find("username");
+                auto p_k = con->http_variables().find("password");
+
+                if (u_k == con->http_variables().end() || p_k == con->http_variables().end()) {
+                    con->set_status(boost::beast::http::status::bad_request);
+                    os << "Missing username or password in request\n";
+                    return;
+                }
+
+                set_admin_login(u_k->second, p_k->second);
+
+                _MSG_INFO("A new administrator login and password have been set.");
+
+                os << "Login configured\n";
+            });
 }
 
 kis_net_beast_httpd::~kis_net_beast_httpd() {
@@ -302,13 +356,13 @@ std::string kis_net_beast_httpd::decode_uri(boost::beast::string_view in) {
 void kis_net_beast_httpd::set_admin_login(const std::string& username, const std::string& password) {
     auto user_config_path = 
         Globalreg::globalreg->kismet_config->fetch_opt_path("httpd_auth_file",
-                "%h/.kismetkismet_httpd.conf");
+                "%h/.kismet/kismet_httpd.conf");
 
     config_file user_httpd_config;
     user_httpd_config.parse_config(user_config_path);
 
-    admin_username = user_httpd_config.fetch_opt("httpd_username");
-    admin_password = user_httpd_config.fetch_opt("httpd_password");
+    admin_username = username;
+    admin_password = password;
 
     user_httpd_config.set_opt("httpd_username", admin_username, true);
     user_httpd_config.set_opt("httpd_password", admin_password, true);
@@ -534,8 +588,7 @@ std::shared_ptr<kis_net_beast_route> kis_net_beast_httpd::find_endpoint(std::sha
     _MSG_INFO("(DEBUG) Matching request '{}'", con->uri());
 
     for (const auto& r : route_vec) {
-        if (r->match_url(static_cast<const std::string>(con->uri()), con->verb(), 
-                    con->uri_params_, con->http_variables_)) 
+        if (r->match_url(static_cast<const std::string>(con->uri()), con->uri_params_, con->http_variables_)) 
             return r;
     }
 
@@ -659,7 +712,7 @@ void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code
 
                     // Basic auth *always* grants us the login role and overrides a session check
                     login_valid_ = httpd->check_admin_login(user, pass);
-                    login_role_ = "login";
+                    login_role_ = kis_net_beast_httpd::LOGON_ROLE;
                 }
             }
         }
@@ -681,6 +734,25 @@ void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code
     auto route = httpd->find_endpoint(shared_from_this());
 
     if (route != nullptr) {
+        if (!route->match_verb(verb_)) {
+            boost::beast::http::response<boost::beast::http::string_body> 
+                res{boost::beast::http::status::method_not_allowed, request_.version()};
+
+            res.set(boost::beast::http::field::server, "Kismet");
+            res.set(boost::beast::http::field::content_type, "text/html");
+            res.keep_alive(request_.keep_alive());
+            res.body() = std::string("<html><head><title>Incorrect method</title></head><body><h1>Incorrect method/h1><br><p>This method is not valid for this resource.</p></body></html>\n");
+            res.prepare_payload();
+
+            boost::system::error_code error;
+
+            boost::beast::http::write(stream, res, error);
+            if (error) 
+                return do_close();
+
+            return do_read();
+        }
+
         if (!route->match_role(login_valid_, login_role_)) {
             boost::beast::http::response<boost::beast::http::string_body> 
                 res{boost::beast::http::status::unauthorized, request_.version()};
@@ -688,7 +760,7 @@ void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code
             res.set(boost::beast::http::field::server, "Kismet");
             res.set(boost::beast::http::field::content_type, "text/html");
             res.keep_alive(request_.keep_alive());
-            res.body() = std::string("Permission denied");
+            res.body() = std::string("<html><head><title>Permission denied</title></head><body><h1>Permission denied</h1><br><p>This resource requires a login or session token.</p></body></html>\n");
             res.prepare_payload();
 
             boost::system::error_code error;
@@ -1000,20 +1072,8 @@ kis_net_beast_route::kis_net_beast_route(const std::string& route,
 }
 
 bool kis_net_beast_route::match_url(const std::string& url, 
-        boost::beast::http::verb verb,
         kis_net_beast_httpd_connection::uri_param_t& uri_params,
         kis_net_beast_httpd::http_var_map_t& uri_variables) {
-
-    bool match_verb = false;
-    for (const auto& v : verbs_) {
-        if (verb == v) {
-            match_verb = true;
-            break;
-        }
-    }
-
-    if (!match_verb) 
-        return false;
 
     auto match_values = std::smatch();
 
@@ -1046,6 +1106,13 @@ bool kis_net_beast_route::match_url(const std::string& url,
     return true;
 }
 
+bool kis_net_beast_route::match_verb(boost::beast::http::verb verb) {
+    for (const auto& v : verbs_)
+        if (v == verb)
+            return true;
+    return false;
+}
+
 bool kis_net_beast_route::match_role(bool login, const std::string& role) {
     if (login_ && !login)
         return false;
@@ -1057,7 +1124,7 @@ bool kis_net_beast_route::match_role(bool login, const std::string& role) {
     if (role_.length() == 0)
         return true;
 
-    if (role == "login")
+    if (role == kis_net_beast_httpd::LOGON_ROLE)
         return true;
 
     return valid;
