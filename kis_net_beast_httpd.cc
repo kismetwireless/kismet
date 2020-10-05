@@ -1184,9 +1184,6 @@ kis_net_beast_route::kis_net_beast_route(const std::string& route,
         match_keys.push_back(static_cast<std::string>(*i));
     }
 
-    if (match_keys.size() == 0)
-        match_keys.push_back("URL");
-
     match_keys.push_back("GETVARS");
 
     // Generate the extractor expressions
@@ -1211,9 +1208,6 @@ kis_net_beast_route::kis_net_beast_route(const std::string& route,
             i != std::sregex_token_iterator(); i++) {
         match_keys.push_back(static_cast<std::string>(*i));
     }
-
-    if (match_keys.size() == 0)
-        match_keys.push_back("URL");
 
     match_keys.push_back("FILETYPE");
     match_keys.push_back("GETVARS");
@@ -1252,10 +1246,16 @@ bool kis_net_beast_route::match_url(const std::string& url,
         return false;
 
     size_t key_num = 0;
+    bool first = true;
     for (const auto& i : match_values) {
+        if (first) {
+            first = false;
+            continue;
+        }
+
         if (key_num >= match_keys.size()) {
             _MSG_ERROR("(DEBUG) HTTP req {} matched more values than known keys in route, something is wrong key pos {}", url, key_num);
-            break;
+            continue;
         }
 
         uri_params.emplace(std::make_pair(match_keys[key_num], static_cast<std::string>(i)));
