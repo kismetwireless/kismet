@@ -473,8 +473,8 @@ public:
         content{content},
         mutex{mutex} { }
 
-    kis_net_web_tracked_endpoint(gen_func_t generator, kis_recursive_timed_mutex *mutex) :
-        mutex{mutex},
+    kis_net_web_tracked_endpoint(gen_func_t generator) :
+        mutex{nullptr},
         generator{generator} { }
 
     virtual void handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) override;
