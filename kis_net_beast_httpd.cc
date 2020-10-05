@@ -32,7 +32,7 @@
 
 const std::string kis_net_beast_httpd::LOGON_ROLE{"logon"};
 const std::string kis_net_beast_httpd::ANY_ROLE{"any"};
-const std::string kis_net_beast_httpd::ANY_ROLE{"readonly"};
+const std::string kis_net_beast_httpd::RO_ROLE{"readonly"};
 
 std::shared_ptr<kis_net_beast_httpd> kis_net_beast_httpd::create_httpd() {
     auto httpd_interface = 
