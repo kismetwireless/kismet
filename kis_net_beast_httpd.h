@@ -358,7 +358,7 @@ protected:
         // Append the common headers
         r.set(boost::beast::http::field::server, "Kismet");
         r.version(request_.version());
-        // r.keep_alive(request_.keep_alive());
+        r.keep_alive(request_.keep_alive());
         
         r.set(boost::beast::http::field::content_type, httpd->resolve_mime_type(uri));
 
