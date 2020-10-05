@@ -95,19 +95,19 @@ alert_tracker::alert_tracker() : lifetime_global() {
                     return raise_alert_endpoint(con);
                 }));
 
-    httpd->register_route("/alerts/definitions", {"GET", "POST"}, httpd->LOGON_ROLE, {}, 
+    httpd->register_route("/alerts/definitions", {"GET", "POST"}, httpd->RO_ROLE, {}, 
             std::make_shared<kis_net_web_tracked_endpoint>(alert_defs_vec, &alert_mutex));
 
-    httpd->register_route("/alerts/all_alerts", {"GET", "POST"}, httpd->LOGON_ROLE, {}, 
+    httpd->register_route("/alerts/all_alerts", {"GET", "POST"}, httpd->RO_ROLE, {}, 
             std::make_shared<kis_net_web_tracked_endpoint>(alert_backlog_vec, &alert_mutex));
 
-    httpd->register_route("/alerts/last-time/:timestamp/alerts", {"GET", "POST"}, httpd->LOGON_ROLE,
+    httpd->register_route("/alerts/last-time/:timestamp/alerts", {"GET", "POST"}, httpd->RO_ROLE,
             {}, std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
                 return last_alerts_endpoint(con, false);
             }));
 
-    httpd->register_route("/alerts/wrapped/last-time/:timestamp/alerts", {"GET", "POST"}, httpd->LOGON_ROLE,
+    httpd->register_route("/alerts/wrapped/last-time/:timestamp/alerts", {"GET", "POST"}, httpd->RO_ROLE,
             {}, std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
                 return last_alerts_endpoint(con, true);
