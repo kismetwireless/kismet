@@ -33,7 +33,7 @@
 #include "globalregistry.h"
 #include "kis_gps.h"
 #include "kis_mutex.h"
-#include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
 #include "messagebus.h"
 #include "packetchain.h"
 #include "timetracker.h"
@@ -462,21 +462,10 @@ protected:
     // Do we log alerts to the kismet database?
     bool log_alerts;
 
-    std::shared_ptr<kis_net_httpd_simple_post_endpoint> define_alert_endp;
-    unsigned int define_alert_endpoint(std::ostream& stream, const std::string& uri,
-            const Json::Value& json, kis_net_httpd_connection::variable_cache_map& postvars);
-
-    std::shared_ptr<kis_net_httpd_simple_post_endpoint> raise_alert_endp;
-    unsigned int raise_alert_endpoint(std::ostream& stream, const std::string& uri,
-            const Json::Value& json, kis_net_httpd_connection::variable_cache_map& postvars);
-
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> definitions_endp;
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> all_alerts_endp;
-
-    std::shared_ptr<kis_net_httpd_path_tracked_endpoint> last_alerts_endp;
-
-    bool last_alerts_endpoint_path(const std::vector<std::string>& path);
-    std::shared_ptr<tracker_element> last_alerts_endpoint(const std::vector<std::string>& path);
+    void define_alert_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
+    void raise_alert_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
+    std::shared_ptr<tracker_element> last_alerts_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con, 
+            bool wrap);
 };
 
 #endif
