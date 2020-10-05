@@ -41,6 +41,7 @@
 class kis_net_beast_httpd_connection;
 class kis_net_beast_route;
 class kis_net_beast_auth;
+class kis_net_web_endpoint;
 
 class kis_net_beast_httpd : public lifetime_global, public deferred_startup,
     public std::enable_shared_from_this<kis_net_beast_httpd> {
@@ -49,9 +50,6 @@ public:
     static std::shared_ptr<kis_net_beast_httpd> create_httpd();
 
     using http_var_map_t = std::unordered_map<std::string, std::string>;
-    // Under this design, all the connection data, uri, variables, streams, etc are stored in the
-    // connection record; we don't need to pass anything else
-    using http_handler_t = std::function<void (std::shared_ptr<kis_net_beast_httpd_connection>)>;
 
     virtual void trigger_deferred_startup() override;
 
@@ -82,16 +80,17 @@ public:
     // The majority of routing requires authentication.  Any route that operates outside of 
     // authentication must *explicitly* register as unauthenticated.
     void register_route(const std::string& route, const std::list<std::string>& verbs, 
-            const std::string& role, http_handler_t handler);
+            const std::string& role, std::shared_ptr<kis_net_web_endpoint> handler);
     void register_route(const std::string& route, const std::list<std::string>& verbs, 
-            const std::string& role, const std::list<std::string>& extensions, http_handler_t handler);
+            const std::string& role, const std::list<std::string>& extensions, 
+            std::shared_ptr<kis_net_web_endpoint> handler);
     void remove_route(const std::string& route);
 
     void register_unauth_route(const std::string& route, const std::list<std::string>& verbs, 
-            http_handler_t handler);
+            std::shared_ptr<kis_net_web_endpoint> handler);
     void register_unauth_route(const std::string& route, const std::list<std::string>& verbs,
             const std::list<std::string>& extensions, 
-            http_handler_t handler);
+            std::shared_ptr<kis_net_web_endpoint> handler);
 
 
     // Create an auth entry & return it
@@ -355,13 +354,13 @@ protected:
     void do_close();
 
     template<class Response>
-    void append_common_headers(Response& r) {
+    void append_common_headers(Response& r, boost::beast::string_view uri) {
         // Append the common headers
         r.set(boost::beast::http::field::server, "Kismet");
         r.version(request_.version());
         r.keep_alive(request_.keep_alive());
         
-        r.set(boost::beast::http::field::content_type, httpd->resolve_mime_type(uri_));
+        r.set(boost::beast::http::field::content_type, httpd->resolve_mime_type(uri));
 
         // Last modified is always "now"
         char lastmod[31];
@@ -409,6 +408,31 @@ protected:
     }
 };
 
+class kis_net_web_endpoint {
+public:
+    kis_net_web_endpoint() { }
+    virtual ~kis_net_web_endpoint() { }
+
+    virtual void handle_request(std::shared_ptr<kis_net_beast_httpd_connection>) { }
+};
+
+class kis_net_web_function_endpoint : public kis_net_web_endpoint {
+public:
+    using function_t = std::function<void (std::shared_ptr<kis_net_beast_httpd_connection>)>;
+
+    kis_net_web_function_endpoint(function_t function) :
+        kis_net_web_endpoint{},
+        function{function} { }
+    virtual ~kis_net_web_function_endpoint() { }
+
+    virtual void handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+        function(con);
+    }
+
+protected:
+    function_t function;
+};
+
 // Routes map a templated URL path to a callback generator which creates the content.
 //
 // Routes are formatted of the type /path/:key/etc
@@ -426,10 +450,10 @@ protected:
 class kis_net_beast_route {
 public:
     kis_net_beast_route(const std::string& route, const std::list<boost::beast::http::verb>& verbs,
-            bool login, const std::string& role, kis_net_beast_httpd::http_handler_t handler);
+            bool login, const std::string& role, std::shared_ptr<kis_net_web_endpoint> handler);
     kis_net_beast_route(const std::string& route, const std::list<boost::beast::http::verb>& verbs,
             bool login, const std::string& role, const std::list<std::string>& extensions, 
-            kis_net_beast_httpd::http_handler_t handler);
+            std::shared_ptr<kis_net_web_endpoint> handler);
 
     // Does a URL match this route?  If so, populate uri params and uri variables
     bool match_url(const std::string& url, kis_net_beast_httpd_connection::uri_param_t& uri_params,
@@ -447,7 +471,7 @@ public:
     std::string& route() { return route_; }
 
 protected:
-    kis_net_beast_httpd::http_handler_t handler;
+    std::shared_ptr<kis_net_web_endpoint> handler;
 
     std::string route_;
 
