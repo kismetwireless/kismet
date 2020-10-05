@@ -104,21 +104,23 @@ Systemmonitor::Systemmonitor() :
     sensors_init(NULL);
 #endif
 
-    monitor_endp = 
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/system/status", 
-                status, &monitor_mutex);
-    user_monitor_endp =
-        std::make_shared<kis_net_httpd_simple_unauth_tracked_endpoint>("/system/user_status", 
-            [this](void) -> std::shared_ptr<tracker_element> {
+    auto httpd = 
+        Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+
+    monitor_endp = std::make_shared<kis_net_web_tracked_endpoint>(status, &monitor_mutex);
+    httpd->register_route("/system/status", {"GET", "POST"}, httpd->LOGON_ROLE, {}, monitor_endp);
+
+    user_monitor_endp = std::make_shared<kis_net_web_tracked_endpoint>(
+            [this](std::shared_ptr<kis_net_beast_httpd_connection>) -> std::shared_ptr<tracker_element> {
                 auto use = std::make_shared<tracker_element_map>();
-
                 use->insert(status->get_tracker_username());
-
                 return use;
-            });
+                });
+    httpd->register_unauth_route("/system/user_status", {"GET", "POST"}, {}, user_monitor_endp);
+
     timestamp_endp = 
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/system/timestamp", 
-            [this](void) -> std::shared_ptr<tracker_element> {
+        std::make_shared<kis_net_web_tracked_endpoint>(
+            [this](std::shared_ptr<kis_net_beast_httpd_connection>) -> std::shared_ptr<tracker_element> {
                 auto tse = std::make_shared<tracker_element_map>();
 
                 tse->insert(status->get_tracker_timestamp_sec());
@@ -132,6 +134,7 @@ Systemmonitor::Systemmonitor() :
 
                 return tse;
             });
+    httpd->register_route("/system/timestamp", {"GET", "POST"}, {}, timestamp_endp);
 
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_system_status", true)) {
         auto snap_time_s = 
