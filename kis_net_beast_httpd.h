@@ -77,6 +77,7 @@ public:
     void register_mime_type(const std::string& extension, const std::string& type);
     void remove_mime_type(const std::string& extension);
     std::string resolve_mime_type(const std::string& extension);
+    std::string resolve_mime_type(const boost::beast::string_view& extension);
 
     // The majority of routing requires authentication.  Any route that operates outside of 
     // authentication must *explicitly* register as unauthenticated.
@@ -108,7 +109,6 @@ public:
     void register_static_dir(const std::string& prefix, const std::string& path);
 
 
-
     // Find an endpoint
     std::shared_ptr<kis_net_beast_route> find_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
@@ -116,7 +116,7 @@ public:
     const bool& allow_cors() { return allow_cors_; }
     const std::string& allowed_cors_referrer() { return allowed_cors_referrer_; }
 
-
+    boost::beast::error_code serve_file(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
 protected:
     std::atomic<bool> running;
@@ -161,6 +161,7 @@ protected:
     bool global_login_config;
 
     void set_admin_login(const std::string& username, const std::string& password);
+
 };
 
 struct future_streambuf_timeout : public std::exception {
@@ -291,6 +292,9 @@ public:
     boost::beast::http::request<boost::beast::http::string_body>& request() { return request_; }
     boost::beast::http::verb& verb() { return verb_; }
 
+    // Raw stream
+    boost::beast::tcp_stream& stream() { return stream_; }
+
     // Stream suitable for std::ostream
     future_streambuf& response_stream() { return response_stream_; }
 
@@ -316,7 +320,7 @@ protected:
 
     std::shared_ptr<kis_net_beast_httpd> httpd;
 
-    boost::beast::tcp_stream stream;
+    boost::beast::tcp_stream stream_;
     boost::beast::flat_buffer buffer;
 
     boost::optional<boost::beast::http::request_parser<boost::beast::http::string_body>> parser_;
@@ -349,6 +353,60 @@ protected:
     void handle_read(const boost::system::error_code& ec, size_t sz);
     void handle_write(bool close, const boost::system::error_code& ec, size_t sz);
     void do_close();
+
+    template<class Response>
+    void append_common_headers(Response& r) {
+        // Append the common headers
+        r.set(boost::beast::http::field::server, "Kismet");
+        r.version(request_.version());
+        r.keep_alive(request_.keep_alive());
+        
+        r.set(boost::beast::http::field::content_type, httpd->resolve_mime_type(uri_));
+
+        // Last modified is always "now"
+        char lastmod[31];
+        struct tm tmstruct;
+        time_t now;
+        time(&now);
+        gmtime_r(&now, &tmstruct);
+        strftime(lastmod, 31, "%a, %d %b %Y %H:%M:%S %Z", &tmstruct);
+        r.set(boost::beast::http::field::last_modified, lastmod);
+
+        // Defer adding mime type until the first block
+        // Defer adding disposition until the first block
+
+        // Append the session headers
+        if (auth_token_.length()) {
+            r.set(boost::beast::http::field::set_cookie,
+                    fmt::format("{}={}; Path=/", AUTH_COOKIE, auth_token_));
+        }
+
+        // Turn off caching
+        r.set(boost::beast::http::field::cache_control, "no-cache");
+        r.set(boost::beast::http::field::pragma, "no-cache");
+        r.set(boost::beast::http::field::expires, "Sat, 01 Jan 2000 00:00:00 GMT");
+
+        // Append the CORS headers
+        if (httpd->allow_cors()) {
+            if (httpd->allowed_cors_referrer().length()) {
+                r.set(boost::beast::http::field::access_control_allow_origin, httpd->allowed_cors_referrer());
+            } else {
+                auto origin = request_.find(boost::beast::http::field::origin);
+
+                if (origin != request_.end())
+                    r.set(boost::beast::http::field::access_control_allow_origin, origin->value());
+                else
+                    r.set(boost::beast::http::field::access_control_allow_origin, "*");
+            }
+
+            r.set(boost::beast::http::field::access_control_allow_credentials, "true");
+            r.set(boost::beast::http::field::vary, "Origin");
+            r.set(boost::beast::http::field::access_control_max_age, "86400");
+            r.set(boost::beast::http::field::access_control_allow_methods, "POST, GET, OPTIONS, UPGRADE");
+            r.set(boost::beast::http::field::access_control_allow_headers, "Content-Type, Authorization");
+        }
+
+    }
 };
 
 // Routes map a templated URL path to a callback generator which creates the content.

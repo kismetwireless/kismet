@@ -438,10 +438,39 @@ void kis_net_beast_httpd::remove_mime_type(const std::string& extension) {
 
 std::string kis_net_beast_httpd::resolve_mime_type(const std::string& extension) {
     local_shared_locker l(&mime_mutex, "beast_httpd::resolve_mime_type");
-    auto k = mime_map.find(extension);
-    if (k != mime_map.end())
-        return k->second;
+
+    auto dpos = extension.find_last_of(".");
+
+    if (dpos == std::string::npos) {
+        auto k = mime_map.find(extension);
+        if (k != mime_map.end())
+            return k->second;
+    } else {
+        auto k = mime_map.find(extension.substr(dpos, extension.length()));
+        if (k != mime_map.end())
+            return k->second;
+    }
+
     return "text/plain";
+}
+
+std::string kis_net_beast_httpd::resolve_mime_type(const boost::beast::string_view& extension) {
+    local_shared_locker l(&mime_mutex, "beast_httpd::resolve_mime_type");
+
+    auto dpos = extension.find_last_of(".");
+
+    if (dpos == boost::beast::string_view::npos) {
+        auto k = mime_map.find(static_cast<std::string>(extension));
+        if (k != mime_map.end())
+            return k->second;
+    } else {
+        auto k = mime_map.find(static_cast<std::string>(extension.substr(dpos, extension.length())));
+        if (k != mime_map.end())
+            return k->second;
+    }
+
+    return "text/plain";
+
 }
 
 void kis_net_beast_httpd::register_route(const std::string& route, const std::list<std::string>& verbs,
@@ -649,15 +678,101 @@ std::string kis_net_beast_httpd::escape_html(const std::string& html) {
     return ss.str();
 }
 
+boost::beast::error_code kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    boost::beast::error_code ec;
+    auto uri = static_cast<std::string>(con->uri());
+
+    if (uri.length() == 0)
+        uri = "/index.html";
+    else if (uri.back() == '/') 
+        uri += "index.html";
+
+    local_shared_locker l(&static_mutex, "serve file");
+
+    for (auto sd : static_dir_vec) {
+        if (uri.size() < sd.prefix.size())
+            continue;
+
+        if (uri.find(sd.prefix) != 0)
+            continue;
+
+        auto modified_fpath = sd.path + "/" + uri.substr(sd.prefix.length(), uri.length());
+
+        char *modified_realpath = nullptr;
+        char *base_realpath = realpath(sd.path.c_str(), nullptr);
+
+        modified_realpath = realpath(modified_fpath.c_str(), nullptr);
+
+        if (modified_realpath == nullptr || base_realpath == nullptr) {
+            if (modified_realpath)
+                free(modified_realpath);
+
+            if (base_realpath)
+                free(base_realpath);
+
+            continue;
+        }
+
+        if (strstr(modified_realpath, base_realpath) != modified_realpath) {
+            if (modified_realpath)
+                free(modified_realpath);
+            if (base_realpath)
+                free(base_realpath);
+            continue;
+        }
+
+        boost::beast::http::file_body::value_type body;
+        body.open(modified_realpath, boost::beast::file_mode::scan, ec);
+
+        free(modified_realpath);
+        free(base_realpath);
+
+        if (ec == boost::beast::errc::no_such_file_or_directory)
+            continue;
+        
+        if (ec)
+            return ec;
+
+        auto const size = body.size();
+
+        if (con->request().method() == boost::beast::http::verb::head) {
+            boost::beast::http::response<boost::beast::http::empty_body> res{boost::beast::http::status::ok, 
+                con->request().version()};
+
+            con->append_common_headers(res);
+
+            res.content_length(size);
+            res.keep_alive(con->request().keep_alive());
+
+            boost::beast::http::write(con->stream(), res, ec);
+
+            return ec;
+        }
+
+        boost::beast::http::response<boost::beast::http::file_body> res{std::piecewise_construct,
+                std::make_tuple(std::move(body)), std::make_tuple(boost::beast::http::status::ok, 
+                        con->request().version())};
+
+            con->append_common_headers(res);
+            res.content_length(size);
+
+            boost::beast::http::write(con->stream(), res, ec);
+
+            return ec;
+    }
+
+    return ec;
+}
+
 
 
 kis_net_beast_httpd_connection::kis_net_beast_httpd_connection(boost::asio::ip::tcp::socket socket,
         std::shared_ptr<kis_net_beast_httpd> httpd) :
     httpd{httpd},
-    stream{std::move(socket)} { }
+    stream_{std::move(socket)} { }
 
 void kis_net_beast_httpd_connection::start() {
-    boost::asio::dispatch(stream.get_executor(),
+    boost::asio::dispatch(stream_.get_executor(),
             boost::beast::bind_front_handler(&kis_net_beast_httpd_connection::do_read,
                 shared_from_this()));
 
@@ -713,7 +828,7 @@ void kis_net_beast_httpd_connection::do_read() {
     // every read/write?
     // stream.expires_after(std::chrono::seconds(60));
 
-    boost::beast::http::async_read(stream, buffer, *parser_, 
+    boost::beast::http::async_read(stream_, buffer, *parser_, 
             boost::beast::bind_front_handler(&kis_net_beast_httpd_connection::handle_read, 
                 shared_from_this()));
 }
@@ -800,7 +915,7 @@ void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code
 
             boost::system::error_code error;
 
-            boost::beast::http::write(stream, res, error);
+            boost::beast::http::write(stream_, res, error);
             if (error) 
                 return do_close();
 
@@ -819,42 +934,63 @@ void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code
 
             boost::system::error_code error;
 
-            boost::beast::http::write(stream, res, error);
+            boost::beast::http::write(stream_, res, error);
             if (error) 
                 return do_close();
 
             return do_read();
         }
+    } else if (verb_ == boost::beast::http::verb::get || verb_ == boost::beast::http::verb::head) {
+        auto ec = httpd->serve_file(shared_from_this());
 
-        _MSG_INFO("(DBEUG) Matched acceptable endpoint");
+        if (ec != boost::beast::errc::no_such_file_or_directory) {
+            boost::beast::http::response<boost::beast::http::string_body> 
+                res{boost::beast::http::status::internal_server_error, request_.version()};
+
+            res.set(boost::beast::http::field::server, "Kismet");
+            res.set(boost::beast::http::field::content_type, "text/html");
+            res.keep_alive(request_.keep_alive());
+            res.body() = 
+                std::string(fmt::format("<html><head><title>Error</title></head>"
+                            "<body><h1>Internal server error</h1><br>"
+                            "<p>Internal server error:  <code>{}</code></p></body></html>\n",
+                            httpd->escape_html(ec.message())));
+            res.prepare_payload();
+
+            boost::system::error_code error;
+
+            boost::beast::http::write(stream_, res, error);
+            if (error) 
+                return do_close();
+
+            return do_read();
+        }
     }
 
-    // Append the common headers
-    response.set(boost::beast::http::field::server, "Kismet");
-    response.set(boost::beast::http::field::transfer_encoding, "chunked");
+    if (route == nullptr) {
+        boost::beast::http::response<boost::beast::http::string_body> 
+            res{boost::beast::http::status::not_found, request_.version()};
 
-    // Last modified is always "now"
-    char lastmod[31];
-    struct tm tmstruct;
-    time_t now;
-    time(&now);
-    gmtime_r(&now, &tmstruct);
-    strftime(lastmod, 31, "%a, %d %b %Y %H:%M:%S %Z", &tmstruct);
-    response.set(boost::beast::http::field::last_modified, lastmod);
+        res.set(boost::beast::http::field::server, "Kismet");
+        res.set(boost::beast::http::field::content_type, "text/html");
+        res.keep_alive(request_.keep_alive());
+        res.body() = 
+            std::string(fmt::format("<html><head><title>404 not found</title></head>"
+                        "<body><h1>404 Not Found/h1><br>"
+                        "<p>Could not find <code>{}</code></p></body></html>\n",
+                        httpd->escape_html(static_cast<std::string>(uri_))));
+        res.prepare_payload();
 
-    // Defer adding mime type until the first block
-    // Defer adding disposition until the first block
+        boost::system::error_code error;
 
-    // Append the session headers
-    if (auth_token_.length()) {
-        response.set(boost::beast::http::field::set_cookie,
-                fmt::format("{}={}; Path=/", AUTH_COOKIE, auth_token_));
+        boost::beast::http::write(stream_, res, error);
+        if (error) 
+            return do_close();
+
+        return do_read();
     }
 
-    // Turn off caching
-    response.set(boost::beast::http::field::cache_control, "no-cache");
-    response.set(boost::beast::http::field::pragma, "no-cache");
-    response.set(boost::beast::http::field::expires, "Sat, 01 Jan 2000 00:00:00 GMT");
+    append_common_headers(response);
 
     // Append the CORS headers
     if (httpd->allow_cors()) {
@@ -884,7 +1020,7 @@ void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code
             boost::beast::http::fields> sr{response};
 
         boost::system::error_code error;
-        boost::beast::http::write_header(stream, sr, error);
+        boost::beast::http::write_header(stream_, sr, error);
 
         if (error) 
             return do_close();
@@ -894,7 +1030,7 @@ void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code
         response.body().size = 0;
         response.body().more = false;
 
-        boost::beast::http::write(stream, sr, error);
+        boost::beast::http::write(stream_, sr, error);
         if (error) 
             return do_close();
 
@@ -931,45 +1067,23 @@ void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code
 
     response.result(boost::beast::http::status::ok);
 
+    response.set(boost::beast::http::field::transfer_encoding, "chunked");
+
     // Prep the streaming body
     boost::beast::http::response_serializer<boost::beast::http::buffer_body,
         boost::beast::http::fields> sr{response};
 
     boost::system::error_code error;
-    boost::beast::http::write_header(stream, sr, error);
+    boost::beast::http::write_header(stream_, sr, error);
 
-    if (error) {
+    if (error) 
         return do_close();
-
-    }
 
     // Spawn the generator thread
     std::thread tr([this, route]() {
         auto ref = shared_from_this();
 
-        if (route != nullptr) {
-            route->invoke(ref);
-        } else {
-        // Example populator thread, this will be called as the routed handler in the future
-        char *foo = new char[512];
-        std::ostream os(&response_stream_);
-
-        for (int x = 0; x < 5; x++) {
-            if (response_stream_.is_complete())
-                break;
-
-            snprintf(foo, 512, "thread generated data %d\n", x);
-
-            os.write(foo, strlen(foo));
-
-            sleep(1);
-        }
-
-        free(foo);
-
-        os.flush();
-
-        }
+        route->invoke(ref);
 
         response_stream_.complete();
     });
@@ -987,7 +1101,7 @@ void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code
             response.body().size = sz;
             response.body().more = true;
 
-            boost::beast::http::write(stream, sr, error);
+            boost::beast::http::write(stream_, sr, error);
 
             response_stream_.consume(sz);
 
@@ -1020,10 +1134,9 @@ void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code
     response.body().size = 0;
     response.body().more = false;
 
-    boost::beast::http::write(stream, sr, error);
-    if (error) {
+    boost::beast::http::write(stream_, sr, error);
+    if (error) 
         return do_close();
-    }
 
     // Read any more requests in the same connection
     do_read();
@@ -1047,7 +1160,7 @@ void kis_net_beast_httpd_connection::handle_write(bool close, const boost::syste
 
 void kis_net_beast_httpd_connection::do_close() {
     boost::system::error_code ec;
-    stream.socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send, ec);
+    stream_.socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send, ec);
 }
 
 
