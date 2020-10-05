@@ -777,7 +777,8 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // HTTP BLOCK
     // Create the HTTPD server, it needs to exist before most things
-    kis_net_httpd::create_httpd();
+    auto microhttpd = kis_net_httpd::create_httpd();
+    auto beast = kis_net_beast_httpd::create_httpd();
 
     if (globalregistry->fatal_condition) 
         SpindownKismet();
@@ -1013,7 +1014,6 @@ int main(int argc, char *argv[], char *envp[]) {
     // Independent time and select threads, which has had problems with timing conflicts
     timetracker->spawn_timetracker_thread();
 
-    auto beast = kis_net_beast_httpd::create_httpd();
     beast->start_httpd();
 
     std::vector<std::thread> iov;
