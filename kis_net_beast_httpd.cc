@@ -1340,6 +1340,43 @@ Json::Value kis_net_beast_auth::as_json() {
 
 
 void kis_net_web_tracked_endpoint::handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    local_demand_locker l(mutex, 
+            fmt::format("kis_net_web_tracked_endpoint::handle_request {} {}", con->verb(), con->uri()));
 
+    if (mutex != nullptr)
+        l.lock();
+
+    std::ostream os(&con->response_stream());
+
+    try {
+        auto output_content = std::shared_ptr<tracker_element>();
+        auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
+
+        if (content == nullptr && generator == nullptr) {
+            con->set_status(500);
+            os << "Invalid request:  No backing content or generator\n";
+            return;
+        }
+
+        if (generator != nullptr)
+            output_content = generator(con);
+        else
+            output_content = content;
+
+        auto summary =
+            con->summarize_with_json(output_content, rename_map);
+
+        Globalreg::globalreg->entrytracker->serialize(static_cast<std::string>(con->uri()), os, 
+                summary, rename_map);
+
+    } catch (const std::exception& e) {
+        try {
+            con->set_status(500);
+        } catch (const std::exception& e) {
+            ;
+        }
+
+        os << "Error: " << e.what() << "\n";
+    }
 }
 
