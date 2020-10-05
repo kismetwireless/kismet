@@ -341,7 +341,7 @@ void kis_net_beast_httpd::start_accept() {
 
     auto this_ref = shared_from_this();
 
-    acceptor.async_accept(boost::asio::make_strand(Globalreg::globalreg->io),
+    acceptor.async_accept(Globalreg::globalreg->io,
             boost::beast::bind_front_handler(&kis_net_beast_httpd::handle_connection, shared_from_this()));
 }
 
