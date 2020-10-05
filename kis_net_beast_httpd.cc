@@ -1212,7 +1212,7 @@ kis_net_beast_route::kis_net_beast_route(const std::string& route,
     // Generate the file type regex
     auto ft_regex = std::string("\\.(");
     if (extensions.size() == 0) {
-        // If passed an empty list we accept all types and resolve during serialziation
+        // If passed an empty list we accept all types and resolve during serialization
         ft_regex += "[A-Za-z0-9]+";
     } else {
         bool prepend_pipe = false;
@@ -1228,8 +1228,9 @@ kis_net_beast_route::kis_net_beast_route(const std::string& route,
 
     // Generate the extractor expressions
     auto ext_str = std::regex_replace(route, path_re, path_capture_pattern);
+
     // Match the RE + filetypes + http variables
-    match_re = std::regex(fmt::format("^{}{}(\\?.*?)?$", ft_regex, ext_str));
+    match_re = std::regex(fmt::format("^{}{}(\\?.*?)?$", ext_str, ft_regex));
 }
 
 bool kis_net_beast_route::match_url(const std::string& url, 
