@@ -134,7 +134,7 @@ Systemmonitor::Systemmonitor() :
 
                 return tse;
             });
-    httpd->register_route("/system/timestamp", {"GET", "POST"}, {}, timestamp_endp);
+    httpd->register_route("/system/timestamp", {"GET", "POST"}, httpd->LOGON_ROLE, {}, timestamp_endp);
 
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_system_status", true)) {
         auto snap_time_s = 
