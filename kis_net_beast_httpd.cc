@@ -693,7 +693,7 @@ std::string kis_net_beast_httpd::escape_html(const std::string& html) {
     return ss.str();
 }
 
-boost::beast::error_code kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connection> con) {
     boost::beast::error_code ec;
     auto uri = static_cast<std::string>(con->uri());
 
@@ -702,9 +702,15 @@ boost::beast::error_code kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net
     else if (uri.back() == '/') 
         uri += "index.html";
 
+    auto qpos = uri.find_first_of('?');
+    if (qpos != std::string::npos)
+        uri = uri.substr(0, qpos);
+
     local_shared_locker l(&static_mutex, "serve file");
 
     for (auto sd : static_dir_vec) {
+        ec = {};
+
         if (uri.size() < sd.prefix.size())
             continue;
 
@@ -742,11 +748,12 @@ boost::beast::error_code kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net
         free(modified_realpath);
         free(base_realpath);
 
-        if (ec == boost::beast::errc::no_such_file_or_directory)
+        if (ec == boost::beast::errc::no_such_file_or_directory) {
             continue;
-        
-        if (ec)
-            return ec;
+        } else if (ec) {
+            _MSG_ERROR("(DEBUG) {} - {}", uri, ec.message());
+            continue;
+        }
 
         auto const size = body.size();
 
@@ -758,9 +765,11 @@ boost::beast::error_code kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net
 
             res.content_length(size);
 
+            ec = {};
+
             boost::beast::http::write(con->stream(), res, ec);
 
-            return ec;
+            return true;
         }
 
         boost::beast::http::response<boost::beast::http::file_body> res{std::piecewise_construct,
@@ -770,12 +779,14 @@ boost::beast::error_code kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net
             con->append_common_headers(res, uri);
             res.content_length(size);
 
+            ec = {};
+
             boost::beast::http::write(con->stream(), res, ec);
 
-            return ec;
+            return true;
     }
 
-    return ec;
+    return false;
 }
 
 
@@ -940,29 +951,10 @@ void kis_net_beast_httpd_connection::do_read() {
         }
     } else if (verb_ == boost::beast::http::verb::get || verb_ == boost::beast::http::verb::head) {
         auto ec = httpd->serve_file(shared_from_this());
+        if (!ec)
+            return do_close();
 
-        if (ec && ec != boost::beast::errc::no_such_file_or_directory) {
-            boost::beast::http::response<boost::beast::http::string_body> 
-                res{boost::beast::http::status::internal_server_error, request_.version()};
-
-            res.set(boost::beast::http::field::server, "Kismet");
-            res.set(boost::beast::http::field::content_type, "text/html");
-            res.body() = 
-                std::string(fmt::format("<html><head><title>Error</title></head>"
-                            "<body><h1>Internal server error</h1><br>"
-                            "<p>Internal server error:  <code>{}</code></p></body></html>\n",
-                            httpd->escape_html(ec.message())));
-            res.prepare_payload();
-
-            _MSG_ERROR("(DEBUG) 500 - {} - {}", uri_, ec.message());
-
-            boost::system::error_code error;
-            boost::beast::http::write(stream_, res, error);
-            if (error) 
-                return do_close();
-
-            return do_read();
-        }
+        return do_read();
     }
 
     if (route == nullptr) {

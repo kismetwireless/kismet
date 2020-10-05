@@ -116,7 +116,7 @@ public:
     const bool& allow_cors() { return allow_cors_; }
     const std::string& allowed_cors_referrer() { return allowed_cors_referrer_; }
 
-    boost::beast::error_code serve_file(std::shared_ptr<kis_net_beast_httpd_connection> con);
+    bool serve_file(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
 protected:
     std::atomic<bool> running;
