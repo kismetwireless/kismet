@@ -56,6 +56,7 @@ public:
     virtual void trigger_deferred_startup() override;
 
     const static std::string LOGON_ROLE;
+    const static std::string ANY_ROLE;
 
 private:
     kis_net_beast_httpd(boost::asio::ip::tcp::endpoint& endpoint);
@@ -72,7 +73,7 @@ public:
 
     static std::string decode_uri(boost::beast::string_view in);
     static void decode_variables(const boost::beast::string_view decoded, http_var_map_t& var_map);
-    static std::string escape_html(const std::string& html);
+    static std::string escape_html(const boost::beast::string_view& html);
 
     void register_mime_type(const std::string& extension, const std::string& type);
     void remove_mime_type(const std::string& extension);
@@ -315,6 +316,11 @@ public:
     const boost::beast::string_view& uri() const { return uri_; }
     const uri_param_t& uri_params() const { return uri_params_; }
     const kis_net_beast_httpd::http_var_map_t& http_variables() const { return http_variables_; }
+    const Json::Value& json() const { return json_; }
+
+    static std::string escape_html(const boost::beast::string_view& html) {
+        return kis_net_beast_httpd::escape_html(html);
+    }
 
 protected:
     const std::string AUTH_COOKIE = "KISMET";
@@ -340,7 +346,7 @@ protected:
     // All variables
     kis_net_beast_httpd::http_var_map_t http_variables_;
     // Decoded JSON from post json= or from post json document
-    Json::Value json;
+    Json::Value json_;
 
     boost::beast::string_view auth_token_;
     boost::beast::string_view uri_;
@@ -420,7 +426,7 @@ public:
             std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
         auto summary_vec = std::vector<SharedElementSummary>{};
-        auto fields = json.get("fields", Json::Value(Json::arrayValue));
+        auto fields = json_.get("fields", Json::Value(Json::arrayValue));
 
         for (const auto& i : fields) {
             if (i.isString()) {

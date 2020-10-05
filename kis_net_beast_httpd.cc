@@ -31,6 +31,7 @@
 #include "util.h"
 
 const std::string kis_net_beast_httpd::LOGON_ROLE{"logon"};
+const std::string kis_net_beast_httpd::ANY_ROLE{"any"};
 
 std::shared_ptr<kis_net_beast_httpd> kis_net_beast_httpd::create_httpd() {
     auto httpd_interface = 
@@ -220,7 +221,7 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                 os << "Login valid\n";
             }));
 
-    register_route("/session/check_session", {"GET"}, "",
+    register_route("/session/check_session", {"GET"}, ANY_ROLE,
             std::make_shared<kis_net_web_function_endpoint>(
                 [](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                 std::ostream os(&con->response_stream());
@@ -673,7 +674,7 @@ void kis_net_beast_httpd::register_static_dir(const std::string& prefix, const s
     static_dir_vec.emplace_back(static_content_dir(prefix, path));
 }
 
-std::string kis_net_beast_httpd::escape_html(const std::string& html) {
+std::string kis_net_beast_httpd::escape_html(const boost::beast::string_view& html) {
     std::stringstream ss;
 
     for (const auto& c : html) {
@@ -1047,7 +1048,7 @@ void kis_net_beast_httpd_connection::do_read() {
             if (j_k != http_variables_.end()) {
                 try {
                     std::stringstream ss(j_k->second);
-                    ss >> json;
+                    ss >> json_;
                 } catch (std::exception& e) {
                     ;
                 }
@@ -1058,7 +1059,7 @@ void kis_net_beast_httpd_connection::do_read() {
             auto reader = cbuilder.newCharReader();
             std::string errs;
 
-            reader->parse(http_post.data(), http_post.data() + http_post.length(), &json, &errs);
+            reader->parse(http_post.data(), http_post.data() + http_post.length(), &json_, &errs);
         }
     }
 
@@ -1291,7 +1292,7 @@ bool kis_net_beast_route::match_role(bool login, const std::string& role) {
 
     auto valid = !compare(role_, role);
 
-    if (role_.length() == 0)
+    if (role == kis_net_beast_httpd::ANY_ROLE)
         return true;
 
     if (role == kis_net_beast_httpd::LOGON_ROLE)
