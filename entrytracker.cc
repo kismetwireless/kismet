@@ -251,14 +251,27 @@ int entry_tracker::serialize(const std::string& in_name, std::ostream &stream,
     local_demand_locker lock(&serializer_mutex);
 
     lock.lock();
-    auto i = serializer_map.find(in_name);
-    if (i == serializer_map.end()) 
-        return -1;
-    lock.unlock();
+    auto dpos = in_name.find_last_of(".");
+    if (dpos == std::string::npos) {
+        auto i = serializer_map.find(in_name);
 
-    auto r = i->second->serialize(e, stream, name_map);
+        if (i == serializer_map.end()) 
+            return -1;
+        lock.unlock();
 
-    return r;
+        return i->second->serialize(e, stream, name_map);
+    } else {
+        auto i = serializer_map.find(in_name.substr(dpos + 1, in_name.length()));
+
+        if (i == serializer_map.end()) 
+            return -1;
+        lock.unlock();
+
+        return i->second->serialize(e, stream, name_map);
+
+    }
+
+    return -1;
 }
 
 
