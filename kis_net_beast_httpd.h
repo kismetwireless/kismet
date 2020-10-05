@@ -37,6 +37,7 @@
 #include "json/json.h"
 #include "kis_mutex.h"
 #include "messagebus.h"
+#include "trackedelement.h"
 
 class kis_net_beast_httpd_connection;
 class kis_net_beast_route;
@@ -349,7 +350,6 @@ protected:
     std::atomic<bool> first_response_write;
 
     void do_read();
-    void handle_read(const boost::system::error_code& ec, size_t sz);
     void handle_write(bool close, const boost::system::error_code& ec, size_t sz);
     void do_close();
 
@@ -358,7 +358,7 @@ protected:
         // Append the common headers
         r.set(boost::beast::http::field::server, "Kismet");
         r.version(request_.version());
-        r.keep_alive(request_.keep_alive());
+        // r.keep_alive(request_.keep_alive());
         
         r.set(boost::beast::http::field::content_type, httpd->resolve_mime_type(uri));
 
@@ -431,6 +431,28 @@ public:
 
 protected:
     function_t function;
+};
+
+class kis_net_web_tracked_endpoint : public kis_net_web_endpoint {
+public:
+    using gen_func_t = 
+        std::function<std::shared_ptr<tracker_element> (std::shared_ptr<kis_net_beast_httpd_connection>)>;
+
+    kis_net_web_tracked_endpoint(std::shared_ptr<tracker_element> content,
+            kis_recursive_timed_mutex *mutex) : 
+        content{content},
+        mutex{mutex} { }
+
+    kis_net_web_tracked_endpoint(gen_func_t generator, kis_recursive_timed_mutex *mutex) :
+        mutex{mutex},
+        generator{generator} { }
+
+    virtual void handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) override;
+
+protected:
+    std::shared_ptr<tracker_element> content;
+    kis_recursive_timed_mutex *mutex;
+    gen_func_t generator;
 };
 
 // Routes map a templated URL path to a callback generator which creates the content.

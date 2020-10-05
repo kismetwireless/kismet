@@ -351,11 +351,22 @@ void kis_net_beast_httpd::handle_connection(const boost::system::error_code& ec,
     if (!running)
         return;
 
+    auto socket_moved = std::promise<bool>();
+    auto socket_moved_ft = socket_moved.get_future();
+
     if (!ec) {
-        std::make_shared<kis_net_beast_httpd_connection>(std::move(socket), shared_from_this())->start();
+        std::thread conthread([this, &socket, &socket_moved]() {
+                thread_set_process_name("beast connection");
+                auto mv_socket = std::move(socket);
+                socket_moved.set_value(true);
+                std::make_shared<kis_net_beast_httpd_connection>(std::move(mv_socket), shared_from_this())->start();
+                });
+        conthread.detach();
     }
 
-    start_accept();
+    socket_moved_ft.wait();
+
+    return start_accept();
 }
 
 std::string kis_net_beast_httpd::decode_uri(boost::beast::string_view in) {
@@ -746,7 +757,6 @@ boost::beast::error_code kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net
             con->append_common_headers(res, uri);
 
             res.content_length(size);
-            res.keep_alive(con->request().keep_alive());
 
             boost::beast::http::write(con->stream(), res, ec);
 
@@ -776,10 +786,7 @@ kis_net_beast_httpd_connection::kis_net_beast_httpd_connection(boost::asio::ip::
     stream_{std::move(socket)} { }
 
 void kis_net_beast_httpd_connection::start() {
-    boost::asio::dispatch(stream_.get_executor(),
-            boost::beast::bind_front_handler(&kis_net_beast_httpd_connection::do_read,
-                shared_from_this()));
-
+    do_read();
 }
 
 void kis_net_beast_httpd_connection::set_status(unsigned int status) {
@@ -827,22 +834,13 @@ void kis_net_beast_httpd_connection::do_read() {
     parser_.emplace();
     parser_->body_limit(100000);
 
-
-    // TODO how do we handle infinite responders like pcap?  Do we just keep pushing it out 
-    // every read/write?
-    // stream.expires_after(std::chrono::seconds(60));
-
-    boost::beast::http::async_read(stream_, buffer, *parser_, 
-            boost::beast::bind_front_handler(&kis_net_beast_httpd_connection::handle_read, 
-                shared_from_this()));
-}
-
-void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code& ec, size_t sz) {
-    if (ec == boost::beast::http::error::end_of_stream)
+    try {
+        boost::beast::http::read(stream_, buffer, *parser_);
+    } catch (const boost::system::system_error& e) {
+        // Silently catch and fail on any error from the transport layer, because we don't
+        // care; we can't deal with a broken client spamming us
         return do_close();
-
-    if (ec) 
-        return do_close();
+    }
 
     if (boost::beast::websocket::is_upgrade(parser_->get())) {
         _MSG_ERROR("(DEBUG) Incoming websocket but we don't deal with it yet");
@@ -911,7 +909,6 @@ void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code
 
             res.set(boost::beast::http::field::server, "Kismet");
             res.set(boost::beast::http::field::content_type, "text/html");
-            res.keep_alive(request_.keep_alive());
             res.body() = std::string("<html><head><title>Incorrect method</title></head><body><h1>Incorrect method/h1><br><p>This method is not valid for this resource.</p></body></html>\n");
             res.prepare_payload();
 
@@ -930,7 +927,6 @@ void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code
 
             res.set(boost::beast::http::field::server, "Kismet");
             res.set(boost::beast::http::field::content_type, "text/html");
-            res.keep_alive(request_.keep_alive());
             res.body() = std::string("<html><head><title>Permission denied</title></head><body><h1>Permission denied</h1><br><p>This resource requires a login or session token.</p></body></html>\n");
             res.prepare_payload();
 
@@ -945,13 +941,12 @@ void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code
     } else if (verb_ == boost::beast::http::verb::get || verb_ == boost::beast::http::verb::head) {
         auto ec = httpd->serve_file(shared_from_this());
 
-        if (ec != boost::beast::errc::no_such_file_or_directory) {
+        if (ec && ec != boost::beast::errc::no_such_file_or_directory) {
             boost::beast::http::response<boost::beast::http::string_body> 
                 res{boost::beast::http::status::internal_server_error, request_.version()};
 
             res.set(boost::beast::http::field::server, "Kismet");
             res.set(boost::beast::http::field::content_type, "text/html");
-            res.keep_alive(request_.keep_alive());
             res.body() = 
                 std::string(fmt::format("<html><head><title>Error</title></head>"
                             "<body><h1>Internal server error</h1><br>"
@@ -959,8 +954,9 @@ void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code
                             httpd->escape_html(ec.message())));
             res.prepare_payload();
 
-            boost::system::error_code error;
+            _MSG_ERROR("(DEBUG) 500 - {} - {}", uri_, ec.message());
 
+            boost::system::error_code error;
             boost::beast::http::write(stream_, res, error);
             if (error) 
                 return do_close();
@@ -975,7 +971,6 @@ void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code
 
         res.set(boost::beast::http::field::server, "Kismet");
         res.set(boost::beast::http::field::content_type, "text/html");
-        res.keep_alive(request_.keep_alive());
         res.body() = 
             std::string(fmt::format("<html><head><title>404 not found</title></head>"
                         "<body><h1>404 Not Found/h1><br>"
@@ -1085,7 +1080,12 @@ void kis_net_beast_httpd_connection::handle_read(const boost::system::error_code
     std::thread tr([this, route]() {
         auto ref = shared_from_this();
 
-        route->invoke(ref);
+        try {
+            route->invoke(ref);
+        } catch (const std::exception& e) {
+            std::ostream os(&response_stream_);
+            os << "ERROR: " << e.what();
+        }
 
         response_stream_.complete();
     });
@@ -1344,5 +1344,10 @@ Json::Value kis_net_beast_auth::as_json() {
     ret["expires"] = time_expires_;
 
     return ret;
+}
+
+
+void kis_net_web_tracked_endpoint::handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+
 }
 
