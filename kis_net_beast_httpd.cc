@@ -490,6 +490,10 @@ std::string kis_net_beast_httpd::resolve_mime_type(const boost::beast::string_vi
 
 void kis_net_beast_httpd::register_route(const std::string& route, const std::list<std::string>& verbs,
         const std::string& role, std::shared_ptr<kis_net_web_endpoint> handler) {
+    
+    if (role.length() == 0)
+        throw std::runtime_error("can not register auth http route with no role");
+
     local_locker l(&route_mutex, "beast_httpd::register_route");
 
     std::list<boost::beast::http::verb> b_verbs;
@@ -502,6 +506,10 @@ void kis_net_beast_httpd::register_route(const std::string& route, const std::li
 void kis_net_beast_httpd::register_route(const std::string& route, 
         const std::list<std::string>& verbs, const std::string& role,
         const std::list<std::string>& extensions, std::shared_ptr<kis_net_web_endpoint> handler) {
+
+    if (role.length() == 0)
+        throw std::runtime_error("can not register auth http route with no role");
+
     local_locker l(&route_mutex, "beast_httpd::register_route (with extensions)");
 
     std::list<boost::beast::http::verb> b_verbs;
