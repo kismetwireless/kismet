@@ -32,6 +32,7 @@
 
 const std::string kis_net_beast_httpd::LOGON_ROLE{"logon"};
 const std::string kis_net_beast_httpd::ANY_ROLE{"any"};
+const std::string kis_net_beast_httpd::ANY_ROLE{"readonly"};
 
 std::shared_ptr<kis_net_beast_httpd> kis_net_beast_httpd::create_httpd() {
     auto httpd_interface = 
@@ -1292,9 +1293,11 @@ bool kis_net_beast_route::match_role(bool login, const std::string& role) {
 
     auto valid = !compare(role_, role);
 
-    if (role == kis_net_beast_httpd::ANY_ROLE)
+    // If the endpoint allows any role, always accept
+    if (role_ == kis_net_beast_httpd::ANY_ROLE)
         return true;
 
+    // If the supplied role is logon, it can do everything
     if (role == kis_net_beast_httpd::LOGON_ROLE)
         return true;
 

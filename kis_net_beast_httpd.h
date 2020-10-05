@@ -57,6 +57,7 @@ public:
 
     const static std::string LOGON_ROLE;
     const static std::string ANY_ROLE;
+    const static std::string RO_ROLE;
 
 private:
     kis_net_beast_httpd(boost::asio::ip::tcp::endpoint& endpoint);
