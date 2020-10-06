@@ -28,7 +28,7 @@
 #include "globalregistry.h"
 #include "kis_mutex.h"
 #include "trackedelement.h"
-#include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
 #include "devicetracker_component.h"
 #include "packetchain.h"
 #include "timetracker.h"
@@ -170,9 +170,6 @@ protected:
     std::shared_ptr<device_tracker> devicetracker;
     std::shared_ptr<time_tracker> timetracker;
     std::shared_ptr<entry_tracker> entrytracker;
-
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> channels_endp;
-    std::shared_ptr<tracker_element_map> channels_endp_handler();
 
     // packetchain callback
     static int packet_chain_handler(CHAINCALL_PARMS);
