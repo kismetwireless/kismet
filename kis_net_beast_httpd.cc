@@ -1239,6 +1239,12 @@ bool kis_net_beast_route::match_url(const std::string& url,
     if (!std::regex_match(url, match_values, match_re)) 
         return false;
 
+    if (match_values.size() != match_keys.size() + 1) {
+        _MSG_ERROR("(DEBUG) HTTP req {} didn't match enough elements, {} wanted {}", url, match_values.size(),
+                match_keys.size());
+        return false;
+    }
+
     size_t key_num = 0;
     bool first = true;
     for (const auto& i : match_values) {
@@ -1255,6 +1261,7 @@ bool kis_net_beast_route::match_url(const std::string& url,
         uri_params.emplace(std::make_pair(match_keys[key_num], static_cast<std::string>(i)));
         key_num++;
     }
+
 
     // Decode GET params into the variables map
     const auto& g_k = uri_params.find("GETVARS");
