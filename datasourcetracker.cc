@@ -451,13 +451,15 @@ datasource_tracker::datasource_tracker() :
                                 set_promise.set_value();
                                 });
 
+                        set_ft.wait();
+
                         if (set_success) {
                             return ds;
                         } else {
                             con->set_status(500);
                             return std::make_shared<tracker_element_map>();
                         }
-                    } else if (!con->json()["channels"].isNull() && !con->json()["rate"].isNull()) {
+                    } else if (!con->json()["channels"].isNull() || !con->json()["rate"].isNull()) {
                         auto converted_channels = std::vector<std::string>();
 
                         if (!con->json()["channels"].isNull()) {
