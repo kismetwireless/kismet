@@ -50,13 +50,14 @@ rest_message_client::rest_message_client() :
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     auto ts_k = con->uri_params().find(":timestamp");
-                    auto ts = string_to_n<long int>(ts_k->second);
+                    auto ts = string_to_n<long>(ts_k->second);
 
                     local_locker l(&msg_mutex, "/messagebus/last-time/messages");
                     auto wrapper = std::make_shared<tracker_element_map>();
                     auto msgvec = std::make_shared<tracker_element_vector>(message_vec_id);
 
                     wrapper->insert(msgvec);
+                    wrapper->insert(std::make_shared<tracker_element_uint64>(message_timestamp_id, time(0)));
 
                     for (auto i : message_list) 
                         if (ts < i->get_timestamp()) 
