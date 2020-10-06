@@ -32,10 +32,9 @@
 #include "kis_datasource.h"
 #include "trackedelement.h"
 #include "trackedcomponent.h"
-#include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
 #include "entrytracker.h"
 #include "timetracker.h"
-#include "kis_net_microhttpd.h"
 #include "buffer_handler.h"
 #include "trackedrrd.h"
 #include "kis_mutex.h"
@@ -295,8 +294,7 @@ class datasource_tracker_httpd_pcap;
 class datasource_tracker_remote_server;
 class dst_incoming_remote;
 
-class datasource_tracker : public kis_net_httpd_cppstream_handler, 
-    public lifetime_global, public deferred_startup {
+class datasource_tracker : public lifetime_global, public deferred_startup {
 public:
     static std::string global_name() { return "DATASOURCETRACKER"; }
     static std::shared_ptr<datasource_tracker> create_dst() {
@@ -373,16 +371,6 @@ public:
     //
     // Optional completion function will be called with list of possible sources.
     void list_interfaces(const std::function<void (std::vector<shared_interface>)>& in_cb);
-
-    // HTTP api
-    virtual bool httpd_verify_path(const char *path, const char *method) override;
-
-    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream) override;
-
-    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *concls) override;
 
     // Operate on all data sources currently defined.  The datasource tracker is locked
     // during this operation, making it thread safe.
@@ -485,11 +473,6 @@ protected:
     int database_log_timer;
     bool database_log_enabled;
     std::atomic<bool> database_logging;
-
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> all_sources_endp;
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> defaults_endp;
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> types_endp;
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> list_interfaces_endp;
 
     // Buffer sizes
     size_t tcp_buffer_sz;
