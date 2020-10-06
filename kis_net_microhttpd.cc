@@ -112,6 +112,8 @@ kis_net_httpd::kis_net_httpd() {
     http_port = Globalreg::globalreg->kismet_config->fetch_opt_uint("httpd_port", 2501);
     http_host = Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_bind_address", "");
 
+    http_port = http_port + 1;
+
     if (http_host == "") {
         _MSG_INFO("Kismet will only listen to HTTP requests on {}:{}", http_port, http_host);
     }
@@ -201,7 +203,7 @@ kis_net_httpd::kis_net_httpd() {
     store_sessions = false;
     session_db = NULL;
 
-    sessiondb_file = Globalreg::globalreg->kismet_config->fetch_opt("httpd_session_db");
+    sessiondb_file = Globalreg::globalreg->kismet_config->fetch_opt("httpd_session_db2");
 
     if (sessiondb_file != "") {
         sessiondb_file = 

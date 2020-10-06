@@ -40,9 +40,6 @@ std::shared_ptr<kis_net_beast_httpd> kis_net_beast_httpd::create_httpd() {
     auto httpd_port = 
         Globalreg::globalreg->kismet_config->fetch_opt_as<unsigned short>("httpd_port", 2501);
 
-    // Increment beast by 1 for now
-    httpd_port = httpd_port + 1;
-
     boost::asio::ip::address bind_address;
 
     try {
@@ -618,8 +615,7 @@ void kis_net_beast_httpd::store_auth() {
     */
 
     auto sessiondb_file = 
-        Globalreg::globalreg->kismet_config->fetch_opt_path("httpd_session_db2", 
-                "%h/.kismet/session.db2");
+        Globalreg::globalreg->kismet_config->fetch_opt_path("httpd_session_db", "%h/.kismet/session.db");
     FILE *sf = fopen(sessiondb_file.c_str(), "w");
 
     if (sf == NULL) {
