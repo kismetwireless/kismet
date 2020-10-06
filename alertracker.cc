@@ -663,7 +663,7 @@ alert_tracker::last_alerts_endpoint(std::shared_ptr<kis_net_beast_httpd_connecti
 
     auto ts_k = con->uri_params().find(":timestamp");
     try {
-        string_to_n<double>(ts_k->second);
+        since_time = string_to_n<double>(ts_k->second);
     } catch (const std::exception& e) {
         con->set_status(400);
         return transmit;
