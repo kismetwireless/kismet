@@ -349,7 +349,7 @@ protected:
     // Decoded JSON from post json= or from post json document
     Json::Value json_;
 
-    boost::beast::string_view auth_token_;
+    std::string auth_token_;
     boost::beast::string_view uri_;
     uri_param_t uri_params_;
 
@@ -581,7 +581,7 @@ public:
     const std::string& name() { return name_; }
     const std::string& role() { return role_; }
 
-    bool is_valid() const { return time_expires_ != 0 && time_expires_ < time(0); }
+    bool is_valid() const { return time_expires_ == 0 || time_expires_ < time(0); }
     void access() { time_accessed_ = time(0); }
 
     Json::Value as_json();

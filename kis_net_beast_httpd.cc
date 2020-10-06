@@ -562,7 +562,6 @@ std::string kis_net_beast_httpd::create_auth(const std::string& name, const std:
         rdata[i] = dist(rnd);
 
     auto token = uint8_to_hex_str(rdata, 16);
-
     auto auth = std::make_shared<kis_net_beast_auth>(token, name, role, expiry);
 
     local_locker l(&auth_mutex, "add auth");
@@ -605,12 +604,14 @@ void kis_net_beast_httpd::store_auth() {
             vec.append(a->as_json());
     }
 
+    /*
     for (auto a = auth_vec.begin(); a != auth_vec.end(); ++a) {
         if (!(*a)->is_valid()) {
             auth_vec.erase(a);
             a = auth_vec.begin();
         }
     }
+    */
 
     auto sessiondb_file = 
         Globalreg::globalreg->kismet_config->fetch_opt_path("httpd_session_db2", 
@@ -807,7 +808,8 @@ kis_net_beast_httpd_connection::kis_net_beast_httpd_connection(boost::asio::ip::
     stream_{std::move(socket)} { }
 
 void kis_net_beast_httpd_connection::start() {
-    do_read();
+    while (stream_.socket().is_open())
+        do_read();
 }
 
 void kis_net_beast_httpd_connection::set_status(unsigned int status) {
@@ -880,7 +882,7 @@ void kis_net_beast_httpd_connection::do_read() {
     // Extract the auth cookie
     auto cookie_h = request_.find(AUTH_COOKIE);
     if (cookie_h != request_.end()) 
-        auth_token_ = cookie_h->value();
+        auth_token_ = static_cast<std::string>(cookie_h->value());
 
     // Extract the basic auth
     auto auth_h = request_.find(boost::beast::http::field::authorization);
@@ -909,15 +911,22 @@ void kis_net_beast_httpd_connection::do_read() {
     }
 
     // Look up the token if we didn't log in directly
-    if (!login_valid_ && auth_token_ != "") {
-        auto auth = httpd->check_auth_token(auth_token_);
+    if (!login_valid_ ) {
+        if (auth_token_ != "") {
+            auto auth = httpd->check_auth_token(auth_token_);
 
-        if (auth != nullptr) {
-            login_valid_ = true;
-            login_role_ = auth->role();
-        } else {
-            auth_token_ = "";
+            if (auth != nullptr) {
+                login_valid_ = true;
+                login_role_ = auth->role();
+            } else {
+                auth_token_ = "";
+            }
         }
+    }
+
+    // If we have a valid login, and an invalid, or no, token, generate a new one
+    if (login_valid_ && auth_token_ == "") {
+        auth_token_ = httpd->create_auth("web logon", httpd->LOGON_ROLE, time(0) + (60*60*24*3));
     }
 
     // Look for a route
@@ -939,7 +948,7 @@ void kis_net_beast_httpd_connection::do_read() {
             if (error) 
                 return do_close();
 
-            return do_read();
+            return;
         }
 
         if (!route->match_role(login_valid_, login_role_)) {
@@ -957,36 +966,39 @@ void kis_net_beast_httpd_connection::do_read() {
             if (error) 
                 return do_close();
 
-            return do_read();
+            return;
         }
-    } else if (verb_ == boost::beast::http::verb::get || verb_ == boost::beast::http::verb::head) {
-        auto ec = httpd->serve_file(shared_from_this());
-        if (!ec)
-            return do_close();
-
-        return do_read();
-    }
+    } 
 
     if (route == nullptr) {
-        boost::beast::http::response<boost::beast::http::string_body> 
-            res{boost::beast::http::status::not_found, request_.version()};
+        bool file_served = false;
+        if (verb_ == boost::beast::http::verb::get || verb_ == boost::beast::http::verb::head)
+            file_served = httpd->serve_file(shared_from_this());
 
-        res.set(boost::beast::http::field::server, "Kismet");
-        res.set(boost::beast::http::field::content_type, "text/html");
-        res.body() = 
-            std::string(fmt::format("<html><head><title>404 not found</title></head>"
-                        "<body><h1>404 Not Found/h1><br>"
-                        "<p>Could not find <code>{}</code></p></body></html>\n",
-                        httpd->escape_html(static_cast<std::string>(uri_))));
-        res.prepare_payload();
+        if (!file_served) {
+            boost::beast::http::response<boost::beast::http::string_body> 
+                res{boost::beast::http::status::not_found, request_.version()};
 
-        boost::system::error_code error;
+            res.set(boost::beast::http::field::server, "Kismet");
+            res.set(boost::beast::http::field::content_type, "text/html");
+            res.body() = 
+                std::string(fmt::format("<html><head><title>404 not found</title></head>"
+                            "<body><h1>404 Not Found/h1><br>"
+                            "<p>Could not find <code>{}</code></p></body></html>\n",
+                            httpd->escape_html(static_cast<std::string>(uri_))));
+            res.prepare_payload();
 
-        boost::beast::http::write(stream_, res, error);
-        if (error) 
-            return do_close();
+            boost::system::error_code error;
 
-        return do_read();
+            boost::beast::http::write(stream_, res, error);
+
+            if (error) 
+                return do_close();
+
+            return;
+        }
+
+        return;
     }
 
     append_common_headers(response, uri_);
@@ -1033,8 +1045,7 @@ void kis_net_beast_httpd_connection::do_read() {
         if (error) 
             return do_close();
 
-        return do_read();
-
+        return;
     } else if (request_.method() == boost::beast::http::verb::post) {
         // Handle POST data fields
         http_post = request_.body();
@@ -1141,9 +1152,6 @@ void kis_net_beast_httpd_connection::do_read() {
     boost::beast::http::write(stream_, sr, error);
     if (error) 
         return do_close();
-
-    // Read any more requests in the same connection
-    do_read();
 }
 
 void kis_net_beast_httpd_connection::handle_write(bool close, const boost::system::error_code& ec,
