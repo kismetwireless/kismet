@@ -21,7 +21,6 @@
 #include <time.h>
 
 #include "globalregistry.h"
-#include "kis_net_microhttpd.h"
 #include "messagebus.h"
 #include "gpstracker.h"
 #include "kis_gps.h"
@@ -35,7 +34,7 @@
 #include "kis_databaselogfile.h"
 
 gps_tracker::gps_tracker() :
-    kis_net_httpd_cppstream_handler() {
+    lifetime_global() {
 
     gpsmanager_mutex.set_name("gps_tracker");
 
@@ -88,15 +87,45 @@ gps_tracker::gps_tracker() :
     for (auto g : gpsvec) {
         create_gps(g);
     }
-    
-    bind_httpd_server();
+
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+
+    httpd->register_route("/gps/drivers", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(gps_prototypes_vec, &gpsmanager_mutex));
+    httpd->register_route("/gps/all_gps", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(gps_instances_vec, &gpsmanager_mutex));
+    httpd->register_route("/gps/location", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    local_shared_locker l(&gpsmanager_mutex, "/gps/location");
+                    auto loctrip = std::make_shared<kis_tracked_location_triplet>();
+                    auto ue = std::make_shared<tracker_element_uuid>(tracked_uuid_addition_id);
+
+                    auto pi = std::unique_ptr<kis_gps_packinfo>(get_best_location());
+                    if (pi != nullptr) {
+                        ue->set(pi->gpsuuid);
+                        loctrip->set_lat(pi->lat);
+                        loctrip->set_lon(pi->lon);
+                        loctrip->set_alt(pi->alt);
+                        loctrip->set_speed(pi->speed);
+                        loctrip->set_heading(pi->heading);
+                        loctrip->set_fix(pi->fix);
+                        loctrip->set_valid(pi->fix >= 2);
+                        loctrip->set_time_sec(pi->tv.tv_sec);
+                        loctrip->set_time_usec(pi->tv.tv_usec);
+                        loctrip->insert(ue);
+                    } else {
+                        loctrip->set_valid(false);
+                    }
+
+                    return loctrip;
+                }));
 }
 
 gps_tracker::~gps_tracker() {
     local_locker lock(&gpsmanager_mutex);
 
     Globalreg::globalreg->remove_global("GPSTRACKER");
-    httpd->remove_handler(this);
 
     Globalreg::globalreg->packetchain->remove_handler(&kis_gpspack_hook, CHAINPOS_POSTCAP);
 
@@ -263,87 +292,5 @@ int gps_tracker::kis_gpspack_hook(CHAINCALL_PARMS) {
     in_pack->insert(gpstracker->pack_comp_gps, gpsloc);
 
     return 1;
-}
-
-bool gps_tracker::httpd_verify_path(const char *path, const char *method) {
-    if (strcmp(method, "GET") != 0)
-        return false;
-
-    std::string stripped = httpd_strip_suffix(path);
-    
-    if (!httpd_can_serialize(path))
-        return false;
-
-    if (stripped == "/gps/drivers")
-        return true;
-
-    if (stripped == "/gps/all_gps")
-        return true;
-
-    if (stripped == "/gps/location")
-        return true;
-
-    return false;
-}
-
-void gps_tracker::httpd_create_stream_response(
-        kis_net_httpd *httpd __attribute__((unused)),
-        kis_net_httpd_connection *connection __attribute__((unused)),
-        const char *path, const char *method, 
-        const char *upload_data __attribute__((unused)),
-        size_t *upload_data_size __attribute__((unused)), 
-        std::stringstream &stream) {
-
-    local_shared_locker lock(&gpsmanager_mutex);
-
-    if (strcmp(method, "GET") != 0) {
-        return;
-    }
-
-    std::string stripped = httpd_strip_suffix(path);
-
-    if (stripped == "/gps/drivers") {
-        Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(path), stream, 
-                gps_prototypes_vec, NULL);
-        return;
-    }
-
-    if (stripped == "/gps/all_gps") {
-        Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(path), stream, 
-                gps_instances_vec, NULL);
-        return;
-    }
-
-    if (stripped == "/gps/location") {
-        kis_gps_packinfo *pi = get_best_location();
-
-        auto loctrip =
-            std::make_shared<kis_tracked_location_triplet>();
-        auto ue =
-            std::make_shared<tracker_element_uuid>(tracked_uuid_addition_id);
-
-        if (pi != NULL) {
-            ue->set(pi->gpsuuid);
-            loctrip->set_lat(pi->lat);
-            loctrip->set_lon(pi->lon);
-            loctrip->set_alt(pi->alt);
-            loctrip->set_speed(pi->speed);
-            loctrip->set_heading(pi->heading);
-            loctrip->set_fix(pi->fix);
-            loctrip->set_valid(pi->fix >= 2);
-            loctrip->set_time_sec(pi->tv.tv_sec);
-            loctrip->set_time_usec(pi->tv.tv_usec);
-
-            loctrip->insert(ue);
-            delete(pi);
-        } else {
-            loctrip->set_valid(false);
-        }
-
-        Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(path), stream, loctrip, NULL);
-        return;
-    }
-
-    return;
 }
 
