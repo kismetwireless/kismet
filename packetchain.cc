@@ -112,27 +112,23 @@ packet_chain::packet_chain() {
     packet_stats_map->insert(packet_drop_rrd);
     packet_stats_map->insert(packet_processed_rrd);
 
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+
     // We now protect RRDs from complex ops w/ internal mutexes, so we can just share these out directly without
     // protecting them behind our own mutex; required, because we're mixing RRDs from different data sources,
     // like chain-level packet processing and worker mutex locked buffer queuing.
-    packet_stat_endpoint =
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/packetchain/packet_stats", 
-                packet_stats_map, nullptr);
-    packet_rate_endpoint =
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/packetchain/packet_rate", 
-                packet_rate_rrd, nullptr);
-    packet_error_endpoint =
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/packetchain/packet_error", 
-                packet_error_rrd, nullptr);
-    packet_dupe_endpoint =
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/packetchain/packet_dupe", 
-                packet_dupe_rrd, nullptr);
-    packet_drop_endpoint =
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/packetchain/packet_drop", 
-                packet_drop_rrd, nullptr);
-    packet_processed_endpoint =
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/packetchain/packet_processed", 
-                packet_processed_rrd, nullptr);
+    httpd->register_route("/packetchain/packet_stats", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(packet_stats_map, nullptr));
+    httpd->register_route("/packetchain/packet_rate", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(packet_rate_rrd, nullptr));
+    httpd->register_route("/packetchain/packet_error", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(packet_error_rrd, nullptr));
+    httpd->register_route("/packetchain/packet_dupe", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(packet_dupe_rrd, nullptr));
+    httpd->register_route("/packetchain/packet_drop", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(packet_drop_rrd, nullptr));
+    httpd->register_route("/packetchain/packet_processed", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(packet_processed_rrd, nullptr));
 
     packetchain_shutdown = false;
 
