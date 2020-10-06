@@ -380,7 +380,7 @@ device_tracker::device_tracker() :
     httpd->register_route("/devices/by-key/:key/device", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](shared_con con) -> std::shared_ptr<tracker_element> {
-                    auto key_k = con->http_variables().find(":key");
+                    auto key_k = con->uri_params().find(":key");
                     auto devkey = string_to_n<device_key>(key_k->second);
 
                     if (devkey.get_error())
@@ -397,7 +397,7 @@ device_tracker::device_tracker() :
     httpd->register_route("/devices/by-mac/:mac/devices", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](shared_con con) -> std::shared_ptr<tracker_element> {
-                    auto mac_k = con->http_variables().find(":mac");
+                    auto mac_k = con->uri_params().find(":mac");
                     auto mac = string_to_n<mac_addr>(mac_k->second);
 
                     if (mac.error())
@@ -422,7 +422,7 @@ device_tracker::device_tracker() :
     httpd->register_route("/devices/last-time/:timestamp/devices", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](shared_con con) -> std::shared_ptr<tracker_element> {
-                    auto ts_k = con->http_variables().find(":timestamp");
+                    auto ts_k = con->uri_params().find(":timestamp");
                     auto lastts = string_to_n<long>(ts_k->second);
 
                     auto ts_worker = device_tracker_view_function_worker(
@@ -444,7 +444,7 @@ device_tracker::device_tracker() :
     httpd->register_route("/devices/by-key/:key/set_name", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](shared_con con) {
-                    auto key_k = con->http_variables().find(":key");
+                    auto key_k = con->uri_params().find(":key");
                     auto devkey = string_to_n<device_key>(key_k->second);
 
                     if (devkey.get_error())
@@ -466,7 +466,7 @@ device_tracker::device_tracker() :
     httpd->register_route("/devices/by-key/:key/set_tag", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](shared_con con) {
-                    auto key_k = con->http_variables().find(":key");
+                    auto key_k = con->uri_params().find(":key");
                     auto devkey = string_to_n<device_key>(key_k->second);
 
                     if (devkey.get_error())
