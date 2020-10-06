@@ -30,6 +30,7 @@
 #include "trackedcomponent.h"
 #include "devicetracker_component.h"
 #include "devicetracker_view_workers.h"
+#include "kis_net_beast_httpd.h"
 
 // Common view holder mechanism which handles view endpoints, view filtering, and so on.
 //
@@ -148,26 +149,8 @@ protected:
     // Map of device presence in our list for fast reference during updates
     std::unordered_map<device_key, bool> device_presence_map;
 
-    // Complex endpoint and optional extended URI endpoint
-    std::shared_ptr<kis_net_httpd_simple_post_endpoint> device_endp;
-    std::shared_ptr<kis_net_httpd_simple_post_endpoint> device_uri_endp;
-
-    // Simpler time-based endpoints
-    std::shared_ptr<kis_net_httpd_path_tracked_endpoint> time_endp;
-    std::shared_ptr<kis_net_httpd_path_tracked_endpoint> time_uri_endp;
-
-    // Complex post endp handler
-    unsigned int device_endpoint_handler(std::ostream& stream, const std::string& uri, 
-            const Json::Value& json, 
-            kis_net_httpd_connection::variable_cache_map& postvars);
-
-    // Time endp handler
-    bool device_time_endpoint_path(const std::vector<std::string>& path);
-    std::shared_ptr<tracker_element> device_time_endpoint(const std::vector<std::string>& path);
-
-    std::vector<std::string> uri_extras;
-    bool device_time_uri_endpoint_path(const std::vector<std::string>& path);
-    std::shared_ptr<tracker_element> device_time_uri_endpoint(const std::vector<std::string>& path);
+    void device_endpoint_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
+    std::shared_ptr<tracker_element> device_time_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
     // device_tracker has direct access to protected methods for new devices and purging devices,
     // nobody else should be calling those
