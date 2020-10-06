@@ -23,38 +23,67 @@
 
 #include "json_adapter.h"
 
-rest_message_client::rest_message_client(global_registry *in_globalreg, void *in_aux) :
-    message_client(in_globalreg, in_aux),
-    kis_net_httpd_cppstream_handler() {
-
-    globalreg = in_globalreg;
+rest_message_client::rest_message_client() :
+    message_client(Globalreg::globalreg, nullptr),
+    lifetime_global() {
 
     message_vec_id =
-        globalreg->entrytracker->register_field("kismet.messagebus.list",
+        Globalreg::globalreg->entrytracker->register_field("kismet.messagebus.list",
                 tracker_element_factory<tracker_element_vector>(),
                 "list of messages");
 
     message_timestamp_id =
-        globalreg->entrytracker->register_field("kismet.messagebus.timestamp",
+        Globalreg::globalreg->entrytracker->register_field("kismet.messagebus.timestamp",
                 tracker_element_factory<tracker_element_uint64>(),
                 "message update timestamp");
 
     message_entry_id =
-        globalreg->entrytracker->register_field("kismet.messagebus.message",
+        Globalreg::globalreg->entrytracker->register_field("kismet.messagebus.message",
                 tracker_element_factory<tracked_message>(),
                 "Kismet message");
 
     Globalreg::globalreg->messagebus->register_client(this, MSGFLAG_ALL);
 
-    bind_httpd_server();
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+
+    httpd->register_route("/messagebus/last-time/:timestamp/messages", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    auto ts_k = con->uri_params().find(":timestamp");
+                    auto ts = string_to_n<long int>(ts_k->second);
+
+                    local_locker l(&msg_mutex, "/messagebus/last-time/messages");
+                    auto wrapper = std::make_shared<tracker_element_map>();
+                    auto msgvec = std::make_shared<tracker_element_vector>(message_vec_id);
+
+                    wrapper->insert(msgvec);
+
+                    for (auto i : message_list) 
+                        if (ts < i->get_timestamp()) 
+                            msgvec->push_back(i);
+
+                    return wrapper;
+                }));
+
+    httpd->register_route("/messagebus/all_messages", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    local_locker l(&msg_mutex, "/messagebus/all_messages");
+
+                    auto ret = std::make_shared<tracker_element_vector>();
+                    for (auto i : message_list) 
+                        ret->push_back(i);
+
+                    return ret;
+                }));
+
 }
 
 rest_message_client::~rest_message_client() {
     local_eol_locker lock(&msg_mutex);
 
-    globalreg->messagebus->remove_client(this);
-
-    globalreg->remove_global("REST_MSG_CLIENT");
+    Globalreg::globalreg->messagebus->remove_client(this);
+    Globalreg::globalreg->remove_global("REST_MSG_CLIENT");
 
     message_list.clear();
 }
@@ -78,107 +107,6 @@ void rest_message_client::process_message(std::string in_msg, int in_flags) {
         if (message_list.size() > 50) {
             message_list.pop_front();
         }
-    }
-}
-
-bool rest_message_client::httpd_verify_path(const char *path, const char *method) {
-    if (strcmp(method, "GET") != 0) {
-        return false;
-    }
-
-    // Split URL and process
-    std::vector<std::string> tokenurl = str_tokenize(path, "/");
-    if (tokenurl.size() < 3)
-        return false;
-
-    if (tokenurl[1] == "messagebus") {
-        if (tokenurl[2] == "all_messages.json") {
-            return true;
-        } else if (tokenurl[2] == "last-time") {
-            if (tokenurl.size() < 5)
-                return false;
-
-            if (tokenurl[4] == "messages.json")
-                return true;
-            else
-                return false;
-        }
-    }
-
-    return false;
-}
-
-void rest_message_client::httpd_create_stream_response(
-        kis_net_httpd *httpd __attribute__((unused)),
-        kis_net_httpd_connection *connection __attribute__((unused)),
-        const char *path, const char *method, const char *upload_data,
-        size_t *upload_data_size, std::stringstream &stream) {
-
-    time_t since_time = 0;
-    bool wrap = false;
-
-    if (strcmp(method, "GET") != 0) {
-        return;
-    }
-
-    // All paths end in final element
-    if (!httpd_can_serialize(path))
-        return;
-
-    // Split URL and process
-    std::vector<std::string> tokenurl = str_tokenize(path, "/");
-    if (tokenurl.size() < 3)
-        return;
-
-    if (tokenurl[1] == "messagebus") {
-        if (tokenurl[2] == "last-time") {
-            if (tokenurl.size() < 5)
-                return;
-
-            if (!httpd_can_serialize(tokenurl[4]))
-                return;
-
-            long lastts;
-            if (sscanf(tokenurl[3].c_str(), "%ld", &lastts) != 1)
-                return;
-
-            wrap = true;
-
-            since_time = lastts;
-
-        } else if (httpd_strip_suffix(tokenurl[2]) != "all_messages") {
-            return;
-        }
-    }
-
-    {
-        local_locker lock(&msg_mutex);
-
-        std::shared_ptr<tracker_element> transmit;
-        std::shared_ptr<tracker_element_map> wrapper;
-        auto msgvec = std::make_shared<tracker_element_vector>(message_vec_id);
-       
-        // If we're doing a time-since, wrap the vector
-        if (wrap) {
-            wrapper =
-                std::make_shared<tracker_element_map>();
-            wrapper->insert(msgvec);
-
-            auto ts =
-                std::make_shared<tracker_element_uint64>(message_timestamp_id, time(0));
-            wrapper->insert(ts);
-
-            transmit = wrapper;
-        } else {
-            transmit = msgvec;
-        }
-
-        for (auto i : message_list) {
-            if (since_time < i->get_timestamp())
-                msgvec->push_back(i);
-        }
-
-        httpd_serialize(path, stream, transmit, nullptr, connection);
     }
 }
 

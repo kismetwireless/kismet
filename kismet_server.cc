@@ -827,7 +827,7 @@ int main(int argc, char *argv[], char *envp[]) {
         SpindownKismet();
 
     // Add the messagebus REST interface
-    rest_message_client::create_messageclient(globalregistry);
+    rest_message_client::create_messageclient();
 
     if (globalregistry->fatal_condition)
         SpindownKismet();
