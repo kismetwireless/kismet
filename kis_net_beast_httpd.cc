@@ -649,7 +649,9 @@ void kis_net_beast_httpd::load_auth() {
     try {
         for (const auto& j : json) {
             try {
-                auth_vec.emplace_back(std::make_shared<kis_net_beast_auth>(j));
+                auto auth = std::make_shared<kis_net_beast_auth>(j);
+                if (auth->is_valid())
+                    auth_vec.emplace_back(auth);
             } catch (const auth_construction_error& e) {
                 ;
             }
@@ -910,23 +912,20 @@ void kis_net_beast_httpd_connection::do_read() {
         }
     }
 
-    // Look up the token if we didn't log in directly
-    if (!login_valid_ ) {
-        if (auth_token_ != "") {
-            auto auth = httpd->check_auth_token(auth_token_);
+    auto auth = httpd->check_auth_token(auth_token_);
 
-            if (auth != nullptr) {
-                login_valid_ = true;
-                login_role_ = auth->role();
-            } else {
-                auth_token_ = "";
-            }
-        }
+    if (!login_valid_ && auth != nullptr) {
+        // Inherit the tokens role if it's valid and we're not a pw login
+        login_valid_ = true;
+        login_role_ = auth->role();
+    } else if (auth == nullptr) {
+        // Wipe out whatever token was sent if it's not valid
+        auth_token_ = "";
     }
 
-    // If we have a valid login, and an invalid, or no, token, generate a new one
     if (login_valid_ && auth_token_ == "") {
-        auth_token_ = httpd->create_auth("web logon", httpd->LOGON_ROLE, time(0) + (60*60*24*3));
+        // If we have a valid pw login and no, or an invalid, auth token, create one
+        auth_token_ = httpd->create_auth("web logon", httpd->LOGON_ROLE, time(0) + (60*60*24));
     }
 
     // Look for a route
