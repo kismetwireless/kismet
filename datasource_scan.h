@@ -23,8 +23,7 @@
 
 #include "globalregistry.h"
 #include "kis_datasource.h"
-#include "kis_net_microhttpd.h"
-#include "kis_net_microhttpd_handlers.h"
+#include "kis_net_beast_httpd.h"
 
 // Virtual dot11 datasource which supports scanning results from other systems; scans are turned
 // into dot11 networks with as much info as is available
@@ -47,9 +46,7 @@ protected:
     std::shared_ptr<packet_chain> packetchain;
 
     std::shared_ptr<kis_net_httpd_simple_post_endpoint> scan_result_endp;
-    unsigned int scan_result_endp_handler(std::ostream& stream, 
-            const std::string& uri, const Json::Value& json,
-            kis_net_httpd_connection::variable_cache_map& variable_cache);
+    void scan_result_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
     int pack_comp_common, pack_comp_json, pack_comp_datasrc, pack_comp_gps,
         pack_comp_l1info;

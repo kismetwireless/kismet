@@ -24,8 +24,6 @@
 #include "datasource_scan.h"
 #include "globalregistry.h"
 #include "kis_datasource.h"
-#include "kis_net_microhttpd.h"
-#include "kis_net_microhttpd_handlers.h"
 
 // Virtual dot11 datasource which supports scanning results from other systems; scans are turned
 // into dot11 networks with as much info as is available
