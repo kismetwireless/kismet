@@ -851,7 +851,7 @@ void kis_net_beast_httpd_connection::do_read() {
     uri_params_ = {};
     http_post = {};
     response = {};
-    response_stream_.consume(response_stream_.size());
+    response_stream_.reset();
     login_valid_ = false;
     login_role_ = {};
     first_response_write = false;
@@ -967,9 +967,7 @@ void kis_net_beast_httpd_connection::do_read() {
 
             return;
         }
-    } 
-
-    if (route == nullptr) {
+    } else if (route == nullptr) {
         bool file_served = false;
         if (verb_ == boost::beast::http::verb::get || verb_ == boost::beast::http::verb::head)
             file_served = httpd->serve_file(shared_from_this());
@@ -1001,26 +999,6 @@ void kis_net_beast_httpd_connection::do_read() {
     }
 
     append_common_headers(response, uri_);
-
-    // Append the CORS headers
-    if (httpd->allow_cors()) {
-        if (httpd->allowed_cors_referrer().length()) {
-            response.set(boost::beast::http::field::access_control_allow_origin, httpd->allowed_cors_referrer());
-        } else {
-            auto origin = request_.find(boost::beast::http::field::origin);
-
-            if (origin != request_.end())
-                response.set(boost::beast::http::field::access_control_allow_origin, origin->value());
-            else
-                response.set(boost::beast::http::field::access_control_allow_origin, "*");
-        }
-
-        response.set(boost::beast::http::field::access_control_allow_credentials, "true");
-        response.set(boost::beast::http::field::vary, "Origin");
-        response.set(boost::beast::http::field::access_control_max_age, "86400");
-        response.set(boost::beast::http::field::access_control_allow_methods, "POST, GET, OPTIONS, UPGRADE");
-        response.set(boost::beast::http::field::access_control_allow_headers, "Content-Type, Authorization");
-    }
 
     if (request_.method() == boost::beast::http::verb::options && httpd->allow_cors()) {
         // Handle a CORS OPTION request
@@ -1085,12 +1063,18 @@ void kis_net_beast_httpd_connection::do_read() {
     boost::system::error_code error;
     boost::beast::http::write_header(stream_, sr, error);
 
-    if (error) 
+    if (error) {
         return do_close();
+    }
 
     // Spawn the generator thread
-    std::thread tr([this, route]() {
+    auto generator_launched = std::promise<bool>();
+    auto generator_ft = generator_launched.get_future();
+
+    std::thread tr([this, route, &generator_launched]() {
         auto ref = shared_from_this();
+
+        generator_launched.set_value(true);
 
         try {
             route->invoke(ref);
@@ -1101,6 +1085,8 @@ void kis_net_beast_httpd_connection::do_read() {
 
         response_stream_.complete();
     });
+
+    generator_ft.wait();
 
     while (1) {
         boost::system::error_code error;

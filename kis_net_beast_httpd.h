@@ -181,6 +181,14 @@ public:
         blocking{false},
         done{false} { }
 
+    void reset() {
+        if (blocking)
+            throw std::runtime_error("future_streambuf reset while blocking");
+
+        done = false;
+        consume(size());
+    }
+
     void cancel() {
         done = true;
         sync();
