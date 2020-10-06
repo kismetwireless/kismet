@@ -23,6 +23,7 @@
 
 #include "trackedcomponent.h"
 #include "eventbus.h"
+#include "kis_net_microhttpd.h"
 
 // Common class-based filter mechanism which can be used in multiple locations;
 // implements basic default behavior and REST endpoints.

@@ -23,6 +23,7 @@
 
 #include "entrytracker.h"
 #include "messagebus.h"
+#include "kis_net_beast_httpd.h"
 
 entry_tracker::entry_tracker() {
     entry_mutex.set_name("entry_tracker");
@@ -38,19 +39,23 @@ entry_tracker::~entry_tracker() {
 }
 
 void entry_tracker::trigger_deferred_startup() {
-    tracked_fields_endp =
-        std::make_shared<kis_net_httpd_simple_stream_endpoint>("/system/tracked_fields.html",
-                [this](std::ostream& stream) -> int {
-                    return tracked_fields_endp_handler(stream);
-                });
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+
+    httpd->register_route("/system/tracked_fields", {"GET"}, httpd->RO_ROLE, {"html"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    return tracked_fields_endp_handler(con);
+                }));
 }
 
 void entry_tracker::trigger_deferred_shutdown() {
 
 }
 
-int entry_tracker::tracked_fields_endp_handler(std::ostream& stream) {
+void entry_tracker::tracked_fields_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
     local_locker lock(&entry_mutex);
+
+    std::ostream stream(&con->response_stream());
 
     stream << "<html><head><title>Kismet Server - Tracked Fields</title></head>";
     stream << "<body>";
@@ -77,9 +82,6 @@ int entry_tracker::tracked_fields_endp_handler(std::ostream& stream) {
 
     stream << "</table>";
     stream << "</body></html>";
-
-    return 200;
-
 }
 
 

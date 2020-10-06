@@ -22,6 +22,7 @@
 #include "packet.h"
 #include "trackedcomponent.h"
 #include "eventbus.h"
+#include "kis_net_microhttpd.h"
 
 // Common packet filter mechanism which can be used in multiple locations;
 // implements basic default behavior, filtering by address, and REST endpoints.
