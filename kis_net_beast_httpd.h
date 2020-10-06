@@ -167,124 +167,263 @@ protected:
 
 };
 
-struct future_streambuf_timeout : public std::exception {
-    const char *what() const throw () {
-        return "timed out";
-    }
-};
+class future_chainbuf : public std::stringbuf {
+protected:
+    class data_chunk {
+    public:
+        data_chunk(size_t sz):
+            sz_{sz},
+            start_{0},
+            end_{0} {
+            chunk_ = new char[sz];
+        }
 
-struct future_streambuf : public boost::asio::streambuf {
+        ~data_chunk() {
+            delete[] chunk_;
+        }
+
+        size_t write(const char *data, size_t len) {
+            // Can't write more than is left in the chunk
+            size_t write_sz = std::min(sz_ - end_, len);
+
+            if (write_sz == 0)
+                return len;
+
+            memcpy(chunk_ + end_, data, write_sz);
+            end_ += write_sz;
+
+            return write_sz;
+        }
+
+        size_t consume(size_t len) {
+            // Can't consume more than we've populated
+            size_t consume_sz = std::min(end_ - start_, len);
+
+            start_ += consume_sz;
+
+            return consume_sz;
+        }
+
+        char *content() {
+            return chunk_ + start_;
+        }
+
+        bool exhausted() const {
+            return sz_ == end_ && end_ == start_;
+        }
+
+        size_t available() const {
+            return sz_ - end_;
+        }
+
+        size_t used() const {
+            return end_ - start_;
+        }
+
+        void recycle() {
+            start_ = end_ = 0;
+        }
+
+        char *chunk_;
+        size_t sz_;
+        size_t start_, end_;
+    };
+
 public:
-    future_streambuf(size_t chunk = 1024) :
-        boost::asio::streambuf{},
-        chunk{chunk}, 
-        blocking{false},
-        done{false} { }
+    future_chainbuf() :
+        chunk_sz_{4096},
+        sync_sz_{4096},
+        total_sz_{0},
+        waiting_{false},
+        complete_{false},
+        cancel_{false} {
+        chunk_list_.push_front(new data_chunk(chunk_sz_));
+    }
+        
+    future_chainbuf(size_t chunk_sz, size_t sync_sz = 1024) :
+        chunk_sz_{chunk_sz},
+        sync_sz_{sync_sz},
+        total_sz_{0},
+        waiting_{false},
+        complete_{false},
+        cancel_{false} {
+        chunk_list_.push_front(new data_chunk(chunk_sz_));
+    }
+
+    ~future_chainbuf() {
+        cancel();
+
+        for (auto c : chunk_list_) {
+            delete c;
+        }
+    }
+
+    size_t get(char **data) {
+        const std::lock_guard<std::mutex> lock(mutex_);
+
+        if (total_sz_ == 0) {
+            *data = nullptr;
+            return 0;
+        }
+
+        data_chunk *target = chunk_list_.front();
+        *data = target->content();
+        return target->used();
+    }
+
+    void consume(size_t sz) {
+        const std::lock_guard<std::mutex> lock(mutex_);
+
+        data_chunk *target = chunk_list_.front();
+        size_t consumed_sz = 0;
+
+        while (consumed_sz < sz && total_sz_ > 0) {
+            size_t consumed_chunk_sz;
+
+            consumed_chunk_sz = target->consume(sz);
+            consumed_sz += consumed_chunk_sz;
+
+            if (target->exhausted()) {
+                if (chunk_list_.size() == 1) {
+                    target->recycle();
+                    break;
+                } else {
+                    chunk_list_.pop_front();
+                    target = chunk_list_.front();
+                }
+            }
+
+            total_sz_ -= consumed_chunk_sz;
+        }
+    }
+
+    void put_data(const char *data, size_t sz) {
+        const std::lock_guard<std::mutex> lock(mutex_);
+
+        data_chunk *target = chunk_list_.back();
+        size_t written_sz = 0;
+
+        while (written_sz < sz) {
+            size_t written_chunk_sz;
+
+            written_chunk_sz = target->write(data + written_sz, sz - written_sz);
+            written_sz += written_chunk_sz;
+
+            if (target->available() == 0) {
+                target = new data_chunk(chunk_sz_);
+                chunk_list_.push_back(target);
+            }
+        }
+
+        total_sz_ += sz;
+    }
+
+    virtual std::streamsize xsputn(const char_type *s, std::streamsize n) override {
+        put_data(s, n);
+
+        if (size() > sync_sz_)
+            sync();
+
+        return n;
+    }
+
+    virtual int_type overflow(int_type ch) override {
+        put_data((char *) &ch, 1);
+
+        if (size() > sync_sz_)
+            sync();
+
+        return ch;
+    }
+
+    int sync() override {
+        const std::lock_guard<std::mutex> lock(mutex_);
+        try {
+            if (waiting_)
+                wait_promise_.set_value(true);
+        } catch (const std::future_error& e) {
+            ;
+        }
+
+        waiting_ = false;
+
+        return 1;
+    }
+
+    bool running() const {
+        return (!complete_ && !cancel_);
+    }
+
+    size_t size() {
+        const std::lock_guard<std::mutex> lock(mutex_);
+        return total_sz_;
+    }
 
     void reset() {
-        if (blocking)
-            throw std::runtime_error("future_streambuf reset while blocking");
+        const std::lock_guard<std::mutex> lock(mutex_);
 
-        done = false;
-        consume(size());
+        if (waiting_)
+            throw std::runtime_error("reset futurechainbuf while waiting");
+
+        if (chunk_list_.size() == 1) {
+            chunk_list_.front()->recycle();
+        } else {
+            for (auto c : chunk_list_)
+                delete c;
+            chunk_list_.clear();
+            chunk_list_.push_front(new data_chunk(chunk_sz_));
+        }
+
+        total_sz_ = 0;
+        complete_ = false;
+        cancel_ = false;
+        waiting_ = false;
     }
 
     void cancel() {
-        done = true;
+        cancel_ = true;
         sync();
     }
 
     void complete() {
-        done = true;
+        complete_ = true;
         sync();
     }
 
-    bool is_complete() const {
-        return done;
-    }
-
     size_t wait() {
-        if (blocking)
-            throw std::runtime_error("future_streambuf already blocking");
+        if (waiting_)
+            throw std::runtime_error("future_stream already blocking");
 
-        if (done || size())
-            return size();
+        if (total_sz_ > 0 || !running()) {
+            return total_sz_;
+        }
 
-        blocking = true;
-        
-        data_available_pm = std::promise<bool>();
-
-        auto ft = data_available_pm.get_future();
+        mutex_.lock();
+        waiting_ = true;
+        wait_promise_ = std::promise<bool>();
+        auto ft = wait_promise_.get_future();
+        mutex_.unlock();
 
         ft.wait();
 
-        blocking = false;
-
-        return size();
-    }
-
-    template<class Rep, class Period>
-    size_t wait_for(const std::chrono::duration<Rep, Period>& timeout) {
-        if (blocking)
-            throw std::runtime_error("future_stream already blocking");
-
-        if (done || size())
-            return size();
-
-        blocking = true;
-        
-        data_available_pm = std::promise<bool>();
-
-        auto ft = data_available_pm.get_future();
-
-        auto r = ft.wait_for(timeout);
-        if (r == std::future_status::timeout)
-            throw future_stringbuf_timeout();
-        else if (r == std::future_status::deferred)
-            throw std::runtime_error("future_stream blocked with no future");
-
-        blocking = false;
-
-        return size();
-    }
-
-    virtual std::streamsize xsputn(const char_type *s, std::streamsize n) override {
-        auto r = boost::asio::streambuf::xsputn(s, n);
-
-        if (size() >= chunk)
-            sync();
-
-        return r;
-    }
-
-    virtual int_type overflow(int_type ch) override {
-        auto r = boost::asio::streambuf::overflow(ch);
-
-        if (size() >= chunk)
-            sync();
-
-        return r;
-    }
-
-    virtual int sync() override {
-        auto r = boost::asio::streambuf::sync();
-
-        if (blocking) {
-            try {
-                data_available_pm.set_value(true);
-            } catch (const std::future_error& e) {
-                ;
-            }
-        }
-
-        return r;
+        return total_sz_;
     }
 
 protected:
-    size_t chunk;
-    std::atomic<bool> blocking;
-    std::atomic<bool> done;
-    std::promise<bool> data_available_pm;
+    std::mutex mutex_;
+
+    std::list<data_chunk *> chunk_list_;
+
+    size_t chunk_sz_;
+    size_t sync_sz_;
+    size_t total_sz_;
+
+    std::promise<bool> wait_promise_;
+    std::atomic<bool> waiting_;
+
+    std::atomic<bool> complete_;
+    std::atomic<bool> cancel_;
+
 };
 
 
@@ -307,7 +446,7 @@ public:
     boost::beast::tcp_stream& stream() { return stream_; }
 
     // Stream suitable for std::ostream
-    future_streambuf& response_stream() { return response_stream_; }
+    future_chainbuf& response_stream() { return response_stream_; }
 
     // Login validity
     bool login_valid() const { return login_valid_; }
@@ -343,7 +482,7 @@ protected:
     boost::beast::http::request<boost::beast::http::string_body> request_;
 
     boost::beast::http::response<boost::beast::http::buffer_body> response;
-    future_streambuf response_stream_;
+    future_chainbuf response_stream_;
 
     // Request type
     boost::beast::http::verb verb_;

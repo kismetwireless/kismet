@@ -1054,19 +1054,12 @@ void kis_net_beast_httpd_connection::do_read() {
     }
 
     response.result(boost::beast::http::status::ok);
-
     response.set(boost::beast::http::field::transfer_encoding, "chunked");
 
-    // Prep the streaming body
+    // Create the chunked response serializer
     boost::beast::http::response_serializer<boost::beast::http::buffer_body,
         boost::beast::http::fields> sr{response};
 
-    boost::system::error_code error;
-    boost::beast::http::write_header(stream_, sr, error);
-
-    if (error) {
-        return do_close();
-    }
 
     // Spawn the generator thread
     auto generator_launched = std::promise<bool>();
@@ -1086,49 +1079,59 @@ void kis_net_beast_httpd_connection::do_read() {
 
         response_stream_.complete();
     });
+    tr.detach();
 
     generator_ft.wait();
 
-    while (1) {
-        boost::system::error_code error;
-
+    boost::system::error_code error;
+    while (response_stream_.size() || response_stream_.running()) {
         auto sz = response_stream_.size();
 
         if (sz) {
+            // Write the headers once we have body content
+            if (!first_response_write) {
+                boost::beast::http::write_header(stream_, sr, error);
+
+                if (error) {
+                    _MSG_ERROR("(DEBUG) {} {} - Error writing headers - {}", verb_, uri_, error.message());
+                    return do_close();
+                }
+            }
+
+            // we no longer accept header modifiers
             first_response_write = true;
 
-            // This void * cast is awful but I don't how how to resolve it for a buffer body
-            response.body().data = (void *) boost::asio::buffer_cast<const void *>(response_stream_.data());
-            response.body().size = sz;
+            char *body_data;
+            auto chunk_sz = response_stream_.get(&body_data);
+
+            response.body().data = (void *) body_data;
+            response.body().size = chunk_sz;
             response.body().more = true;
 
             boost::beast::http::write(stream_, sr, error);
 
-            response_stream_.consume(sz);
+            response_stream_.consume(chunk_sz);
+
+            // _MSG_INFO("(DEBUG) {} {} - Consumed {}/{} running {}", verb_, uri_, sz, response_stream_.size(), response_stream_.running());
 
             if (error == boost::beast::http::error::need_buffer) {
                 // Beast returns 'need_buffer' when it's completed writing a buffer, configure
                 // as a non-error
                 error = {};
             } else if (error) {
-                do_close();
+                _MSG_INFO("(DEBUG) {} {} - chunk write error {}", verb_, uri_, error.message());
                 response_stream_.cancel();
-                break;
+                return do_close();
             }
         }
-
-        // Only exit if the buffer is complete AND empty
-        if (response_stream_.size() == 0 && response_stream_.is_complete())
-            break;
 
         // If the buffer has any pending data, regardless of error or completeness,
         // this will instantly return, otherwise it will stall waiting for it to be 
         // populated
         response_stream_.wait();
-    }        
+    }
 
-    // This should instantly rejoin because we've completed the populator loop
-    tr.join();
+    // _MSG_INFO("(DEBUG) {} {} - Out of buffer poll loop, remaining {}, running {}", verb_, uri_, response_stream_.size(), response_stream_.running());
 
     // Send the completion record for the chunked response
     response.body().data = nullptr;
@@ -1136,8 +1139,11 @@ void kis_net_beast_httpd_connection::do_read() {
     response.body().more = false;
 
     boost::beast::http::write(stream_, sr, error);
-    if (error) 
+
+    if (error) {
+        _MSG_INFO("(DEBUG) {} {} - Error writing conclusion of stream: {}", verb_, uri_, error.message());
         return do_close();
+    }
 }
 
 void kis_net_beast_httpd_connection::handle_write(bool close, const boost::system::error_code& ec,
@@ -1384,6 +1390,8 @@ void kis_net_web_tracked_endpoint::handle_request(std::shared_ptr<kis_net_beast_
 
         Globalreg::globalreg->entrytracker->serialize(static_cast<std::string>(con->uri()), os, 
                 summary, rename_map);
+
+        os.flush();
 
         if (post_func)
             post_func(output_content);
