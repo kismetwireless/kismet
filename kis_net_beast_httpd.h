@@ -432,7 +432,7 @@ class kis_net_beast_httpd_connection : public std::enable_shared_from_this<kis_n
 public:
     friend class kis_net_beast_httpd;
 
-    kis_net_beast_httpd_connection(boost::asio::ip::tcp::socket socket,
+    kis_net_beast_httpd_connection(boost::beast::tcp_stream& stream,
             std::shared_ptr<kis_net_beast_httpd> httpd);
 
     using uri_param_t = std::unordered_map<std::string, std::string>;
@@ -475,7 +475,7 @@ protected:
 
     std::shared_ptr<kis_net_beast_httpd> httpd;
 
-    boost::beast::tcp_stream stream_;
+    boost::beast::tcp_stream& stream_;
     boost::beast::flat_buffer buffer;
 
     boost::optional<boost::beast::http::request_parser<boost::beast::http::string_body>> parser_;

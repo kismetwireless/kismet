@@ -359,10 +359,14 @@ void kis_net_beast_httpd::handle_connection(const boost::system::error_code& ec,
     if (!ec) {
         std::thread conthread([this, &socket, &socket_moved]() {
                 thread_set_process_name("beast connection");
-                auto mv_socket = std::move(socket);
+
+                auto mv_socket = boost::beast::tcp_stream{std::move(socket)};
                 socket_moved.set_value(true);
-                std::make_shared<kis_net_beast_httpd_connection>(std::move(mv_socket), shared_from_this())->start();
-                });
+
+                while (mv_socket.socket().is_open()) {
+                    std::make_shared<kis_net_beast_httpd_connection>(mv_socket, shared_from_this())->start();
+                }
+            });
         conthread.detach();
     }
 
@@ -804,14 +808,15 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
 
 
 
-kis_net_beast_httpd_connection::kis_net_beast_httpd_connection(boost::asio::ip::tcp::socket socket,
+kis_net_beast_httpd_connection::kis_net_beast_httpd_connection(boost::beast::tcp_stream& socket,
         std::shared_ptr<kis_net_beast_httpd> httpd) :
     httpd{httpd},
-    stream_{std::move(socket)} { }
+    stream_{socket},
+    login_valid_{false},
+    first_response_write{false} { }
 
 void kis_net_beast_httpd_connection::start() {
-    while (stream_.socket().is_open())
-        do_read();
+    do_read();
 }
 
 void kis_net_beast_httpd_connection::set_status(unsigned int status) {
@@ -844,18 +849,6 @@ void kis_net_beast_httpd_connection::set_target_file(const std::string& fname) {
 }
 
 void kis_net_beast_httpd_connection::do_read() {
-    verb_ = {};
-    buffer = {};
-    http_variables_ = {};
-    uri_ = {};
-    uri_params_ = {};
-    http_post = {};
-    response = {};
-    response_stream_.reset();
-    login_valid_ = false;
-    login_role_ = {};
-    first_response_write = false;
-
     parser_.emplace();
     parser_->body_limit(100000);
 
@@ -1062,16 +1055,15 @@ void kis_net_beast_httpd_connection::do_read() {
 
 
     // Spawn the generator thread
-    auto generator_launched = std::promise<bool>();
+    auto generator_launched = std::promise<void>();
     auto generator_ft = generator_launched.get_future();
 
     std::thread tr([this, route, &generator_launched]() {
-        auto ref = shared_from_this();
-
-        generator_launched.set_value(true);
+        generator_launched.set_value();
 
         try {
-            route->invoke(ref);
+            _MSG_INFO("(DEBUG) {} {} invoking route {}", verb_, uri_, route->route());
+            route->invoke(shared_from_this());
         } catch (const std::exception& e) {
             std::ostream os(&response_stream_);
             os << "ERROR: " << e.what();
