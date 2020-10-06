@@ -1029,7 +1029,8 @@ void kis_net_beast_httpd_connection::do_read() {
 
         auto content_type = request_[boost::beast::http::field::content_type];
 
-        if (content_type == "application/x-www-form-urlencoded") {
+        if (content_type == "application/x-www-form-urlencoded" ||
+                content_type == "application/x-www-form-urlencoded; charset=UTF-8") {
             auto decoded_body = httpd->decode_uri(http_post);
             httpd->decode_variables(decoded_body, http_variables_);
 
