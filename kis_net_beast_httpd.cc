@@ -1376,11 +1376,16 @@ void kis_net_web_tracked_endpoint::handle_request(std::shared_ptr<kis_net_beast_
         else
             output_content = content;
 
-        auto summary =
-            con->summarize_with_json(output_content, rename_map);
+        if (pre_func)
+            pre_func(output_content);
+
+        auto summary = con->summarize_with_json(output_content, rename_map);
 
         Globalreg::globalreg->entrytracker->serialize(static_cast<std::string>(con->uri()), os, 
                 summary, rename_map);
+
+        if (post_func)
+            post_func(output_content);
 
     } catch (const std::exception& e) {
         try {

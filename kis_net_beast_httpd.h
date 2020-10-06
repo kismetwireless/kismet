@@ -474,15 +474,24 @@ class kis_net_web_tracked_endpoint : public kis_net_web_endpoint {
 public:
     using gen_func_t = 
         std::function<std::shared_ptr<tracker_element> (std::shared_ptr<kis_net_beast_httpd_connection>)>;
+    using wrapper_func_t = std::function<void (std::shared_ptr<tracker_element>)>;
 
     kis_net_web_tracked_endpoint(std::shared_ptr<tracker_element> content,
-            kis_recursive_timed_mutex *mutex) : 
+            kis_recursive_timed_mutex *mutex,
+            wrapper_func_t pre_func = nullptr,
+            wrapper_func_t post_func = nullptr) : 
         content{content},
-        mutex{mutex} { }
+        mutex{mutex}, 
+        pre_func{pre_func},
+        post_func{post_func} { }
 
-    kis_net_web_tracked_endpoint(gen_func_t generator) :
+    kis_net_web_tracked_endpoint(gen_func_t generator, 
+            wrapper_func_t pre_func = nullptr,
+            wrapper_func_t post_func = nullptr) :
         mutex{nullptr},
-        generator{generator} { }
+        generator{generator},
+        pre_func{pre_func},
+        post_func{post_func} { }
 
     virtual void handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) override;
 
@@ -490,6 +499,8 @@ protected:
     std::shared_ptr<tracker_element> content;
     kis_recursive_timed_mutex *mutex;
     gen_func_t generator;
+    wrapper_func_t pre_func;
+    wrapper_func_t post_func;
 };
 
 // Routes map a templated URL path to a callback generator which creates the content.
