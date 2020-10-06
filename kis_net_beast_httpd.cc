@@ -415,7 +415,7 @@ void kis_net_beast_httpd::set_admin_login(const std::string& username, const std
 }
 
 bool kis_net_beast_httpd::check_admin_login(const std::string& username, const std::string& password) {
-    boost_stringview_constant_time_string_compare_ne compare;
+    constant_time_string_compare_ne compare;
     return !compare(username, admin_username) && !compare(password, admin_password);
 }
 
@@ -875,50 +875,57 @@ void kis_net_beast_httpd_connection::do_read() {
     verb_ = request_.method();
 
     // Extract the auth cookie
-    auto cookie_h = request_.find(AUTH_COOKIE);
-    if (cookie_h != request_.end()) 
-        auth_token_ = static_cast<std::string>(cookie_h->value());
+    auto cookie_h = request_.find(boost::beast::http::field::cookie);
+    if (cookie_h != request_.end()) {
+        auto raw_cookie = cookie_h->value();
+        auto eq_p = raw_cookie.find_first_of("=");
+        if (eq_p != boost::beast::string_view::npos) {
+            auto type = raw_cookie.substr(0, eq_p);
+            auto content = raw_cookie.substr(eq_p + 1, raw_cookie.length());
 
-    // Extract the basic auth
-    auto auth_h = request_.find(boost::beast::http::field::authorization);
-    if (auth_h != request_.end()) {
-        auto sp = auth_h->value().find_first_of(" ");
-
-        if (sp != boost::beast::string_view::npos) {
-            auto auth_type = auth_h->value().substr(0, sp);
-            if (auth_type == "Basic") {
-                auto auth_data = 
-                    base64::decode(static_cast<std::string>(auth_h->value().substr(sp + 1, 
-                                    auth_h->value().length())));
-
-                auto cp = auth_data.find_first_of(":");
-
-                if (cp != std::string::npos) {
-                    auto user = auth_data.substr(0, cp);
-                    auto pass = auth_data.substr(cp + 1, auth_data.length());
-
-                    // Basic auth *always* grants us the login role and overrides a session check
-                    login_valid_ = httpd->check_admin_login(user, pass);
-                    login_role_ = kis_net_beast_httpd::LOGON_ROLE;
-                }
-            }
+            if (type == AUTH_COOKIE) 
+                auth_token_ = static_cast<std::string>(content);
         }
     }
 
-    auto auth = httpd->check_auth_token(auth_token_);
-
-    if (!login_valid_ && auth != nullptr) {
-        // Inherit the tokens role if it's valid and we're not a pw login
+    auto auth_t = httpd->check_auth_token(auth_token_);
+    if (auth_t != nullptr) {
         login_valid_ = true;
-        login_role_ = auth->role();
-    } else if (auth == nullptr) {
-        // Wipe out whatever token was sent if it's not valid
-        auth_token_ = "";
-    }
+        login_role_ = auth_t->role();
+    } else {
+        // _MSG_INFO("(DEBUG) {} {} had auth {} but isn't valid", verb_, uri_, auth_token_);
 
-    if (login_valid_ && auth_token_ == "") {
-        // If we have a valid pw login and no, or an invalid, auth token, create one
-        auth_token_ = httpd->create_auth("web logon", httpd->LOGON_ROLE, time(0) + (60*60*24));
+        // Extract the basic auth
+        auto auth_h = request_.find(boost::beast::http::field::authorization);
+        if (auth_h != request_.end()) {
+            auto sp = auth_h->value().find_first_of(" ");
+
+            if (sp != boost::beast::string_view::npos) {
+                auto auth_type = auth_h->value().substr(0, sp);
+                if (auth_type == "Basic") {
+                    auto auth_data = 
+                        base64::decode(static_cast<std::string>(auth_h->value().substr(sp + 1, 
+                                        auth_h->value().length())));
+
+                    auto cp = auth_data.find_first_of(":");
+
+                    if (cp != std::string::npos) {
+                        auto user = auth_data.substr(0, cp);
+                        auto pass = auth_data.substr(cp + 1, auth_data.length());
+
+                        // Basic auth *always* grants us the login role and overrides a session check
+                        login_valid_ = httpd->check_admin_login(user, pass);
+
+                        if (login_valid_) {
+                            login_role_ = kis_net_beast_httpd::LOGON_ROLE;
+
+                            // If we have a valid pw login and no, or an invalid, auth token, create one
+                            auth_token_ = httpd->create_auth("web logon", httpd->LOGON_ROLE, time(0) + (60*60*24));
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // Look for a route
@@ -1062,7 +1069,7 @@ void kis_net_beast_httpd_connection::do_read() {
         generator_launched.set_value();
 
         try {
-            _MSG_INFO("(DEBUG) {} {} invoking route {}", verb_, uri_, route->route());
+            // _MSG_INFO("(DEBUG) {} {} invoking route {}", verb_, uri_, route->route());
             route->invoke(shared_from_this());
         } catch (const std::exception& e) {
             std::ostream os(&response_stream_);
@@ -1288,8 +1295,7 @@ bool kis_net_beast_route::match_role(bool login, const std::string& role) {
     if (login_ && !login)
         return false;
 
-    boost_stringview_constant_time_string_compare_ne compare;
-
+    constant_time_string_compare_ne compare;
     auto valid = !compare(role_, role);
 
     // If the endpoint allows any role, always accept
@@ -1333,8 +1339,8 @@ kis_net_beast_auth::kis_net_beast_auth(const std::string& token, const std::stri
     time_expires_{0} { }
 
 bool kis_net_beast_auth::check_auth(const boost::beast::string_view& token) const {
-    boost_stringview_constant_time_string_compare_ne compare;
-    return !compare(token_, token);
+    constant_time_string_compare_ne compare;
+    return !compare(token_, static_cast<std::string>(token));
 }
 
 Json::Value kis_net_beast_auth::as_json() {
