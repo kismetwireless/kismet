@@ -839,7 +839,7 @@ int main(int argc, char *argv[], char *envp[]) {
         SpindownKismet();
 
     // Add module registry
-    kis_httpd_registry::create_http_registry(globalregistry);
+    kis_httpd_registry::create_http_registry();
 
     if (globalregistry->fatal_condition)
         SpindownKismet();
