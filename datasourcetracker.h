@@ -290,7 +290,6 @@ protected:
 
 };
 
-class datasource_tracker_httpd_pcap;
 class datasource_tracker_remote_server;
 class dst_incoming_remote;
 
@@ -466,9 +465,6 @@ protected:
     // and want to do channel split
     void calculate_source_hopping(shared_datasource in_ds);
 
-    // Our pcap http interface
-    std::shared_ptr<datasource_tracker_httpd_pcap> httpd_pcap;
-
     // Datasource logging
     int database_log_timer;
     bool database_log_enabled;
@@ -478,40 +474,6 @@ protected:
     size_t tcp_buffer_sz;
 
     friend class datasource_tracker_remote_server;
-};
-
-/* This implements the core 'all data' pcap, and pcap filtered by datasource UUID.
- */
-class datasource_tracker_httpd_pcap : public kis_net_httpd_ringbuf_stream_handler {
-public:
-    datasource_tracker_httpd_pcap() : kis_net_httpd_ringbuf_stream_handler() { 
-        bind_httpd_server();
-    }
-
-    virtual ~datasource_tracker_httpd_pcap() { };
-
-    // HandleGetRequest handles generating a stream so we don't need to implement that
-    // Same for HandlePostRequest
-   
-    // Standard path validation
-    virtual bool httpd_verify_path(const char *path, const char *method) override;
-
-    // We use this to attach the pcap stream
-    virtual KIS_MHD_RETURN httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size) override; 
-
-    // We don't currently handle POSTed data
-    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *con __attribute__((unused))) override {
-        return MHD_NO;
-    }
-
-protected:
-    std::shared_ptr<datasource_tracker> datasourcetracker;
-    std::shared_ptr<packet_chain> packetchain;
-
-    int pack_comp_datasrc;
 };
 
 // Intermediary buffer handler which is responsible for parsing the incoming
