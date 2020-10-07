@@ -1339,9 +1339,9 @@ Json::Value kis_net_beast_auth::as_json() {
     ret["token"] = token_;
     ret["name"] = name_;
     ret["role"] = role_;
-    ret["created"] = time_created_;
-    ret["accessed"] = time_accessed_;
-    ret["expires"] = time_expires_;
+    ret["created"] = (unsigned int) time_created_;
+    ret["accessed"] = (unsigned int) time_accessed_;
+    ret["expires"] = (unsigned int) time_expires_;
 
     return ret;
 }
