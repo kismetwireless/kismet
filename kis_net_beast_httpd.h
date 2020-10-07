@@ -167,6 +167,14 @@ protected:
 
 };
 
+// Future chainbuf, based on stringbuf
+// Provides an inter-thread feeder/consumer model with locking based on futures
+//
+// Can be operated in stream (default) mode where it can be fed from a 
+// std::ostream or similar, or in packet mode (set_packet()) where it operates
+// in a packetized mode where each chunk is either allocated or reserved directly.
+//
+// Once in packet mode it can not be set to stream mode
 class future_chainbuf : public std::stringbuf {
 protected:
     class data_chunk {
@@ -176,6 +184,14 @@ protected:
             start_{0},
             end_{0} {
             chunk_ = new char[sz];
+        }
+
+        data_chunk(const char *data, size_t sz) :
+            sz_{sz},
+            start_{0},
+            end_{sz} {
+            chunk_ = new char[sz];
+            memcpy(chunk_, data, sz);
         }
 
         ~data_chunk() {
@@ -236,7 +252,8 @@ public:
         total_sz_{0},
         waiting_{false},
         complete_{false},
-        cancel_{false} {
+        cancel_{false},
+        packet_{false} {
         chunk_list_.push_front(new data_chunk(chunk_sz_));
     }
         
@@ -246,7 +263,8 @@ public:
         total_sz_{0},
         waiting_{false},
         complete_{false},
-        cancel_{false} {
+        cancel_{false},
+        packet_{false} {
         chunk_list_.push_front(new data_chunk(chunk_sz_));
     }
 
@@ -274,7 +292,11 @@ public:
     void consume(size_t sz) {
         const std::lock_guard<std::mutex> lock(mutex_);
 
+        if (chunk_list_.size() == 0)
+            return;
+
         data_chunk *target = chunk_list_.front();
+
         size_t consumed_sz = 0;
 
         while (consumed_sz < sz && total_sz_ > 0) {
@@ -285,7 +307,13 @@ public:
 
             if (target->exhausted()) {
                 if (chunk_list_.size() == 1) {
-                    target->recycle();
+                    if (packet_) {
+                        chunk_list_.pop_front();
+                        delete target;
+                        target = nullptr;
+                    } else {
+                        target->recycle();
+                    }
                     break;
                 } else {
                     chunk_list_.pop_front();
@@ -300,6 +328,14 @@ public:
 
     void put_data(const char *data, size_t sz) {
         const std::lock_guard<std::mutex> lock(mutex_);
+
+        if (packet_) {
+            data_chunk *target = new data_chunk(data, sz);
+            chunk_list_.push_back(target);
+            total_sz_ += sz;
+            sync();
+            return;
+        }
 
         data_chunk *target = chunk_list_.back();
         size_t written_sz = 0;
@@ -319,7 +355,32 @@ public:
         total_sz_ += sz;
     }
 
+    char *reserve(size_t sz) {
+        const std::lock_guard<std::mutex> lock(mutex_);
+
+        if (!packet_)
+            throw std::runtime_error("cannot reserve in stream mode");
+
+        // Trim the current chunk, and make a new chunk big enough to hold the entire record,
+        // returning a pointer to the data; committed with a call to sync()
+        
+        auto current = chunk_list_.back();
+
+        if (sz < current->available())
+            return current->chunk_ + current->start_;
+
+        auto sized = new data_chunk(std::max(sz, chunk_sz_));
+        chunk_list_.push_back(sized);
+
+        total_sz_ += sz;
+
+        return sized->chunk_;
+    }
+
     virtual std::streamsize xsputn(const char_type *s, std::streamsize n) override {
+        if (packet_)
+            throw std::runtime_error("cannot use stream methods in packet mode");
+
         put_data(s, n);
 
         if (size() > sync_sz_)
@@ -329,6 +390,9 @@ public:
     }
 
     virtual int_type overflow(int_type ch) override {
+        if (packet_)
+            throw std::runtime_error("cannot use stream methods in packet mode");
+
         put_data((char *) &ch, 1);
 
         if (size() > sync_sz_)
@@ -366,14 +430,10 @@ public:
         if (waiting_)
             throw std::runtime_error("reset futurechainbuf while waiting");
 
-        if (chunk_list_.size() == 1) {
-            chunk_list_.front()->recycle();
-        } else {
-            for (auto c : chunk_list_)
-                delete c;
-            chunk_list_.clear();
-            chunk_list_.push_front(new data_chunk(chunk_sz_));
-        }
+        for (auto c : chunk_list_)
+            delete c;
+        chunk_list_.clear();
+        chunk_list_.push_front(new data_chunk(chunk_sz_));
 
         total_sz_ = 0;
         complete_ = false;
@@ -389,6 +449,10 @@ public:
     void complete() {
         complete_ = true;
         sync();
+    }
+
+    void set_packetmode() {
+        packet_ = true;
     }
 
     size_t wait() {
@@ -425,6 +489,7 @@ protected:
     std::atomic<bool> complete_;
     std::atomic<bool> cancel_;
 
+    std::atomic<bool> packet_;
 };
 
 
