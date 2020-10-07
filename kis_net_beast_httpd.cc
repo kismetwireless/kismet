@@ -719,7 +719,13 @@ std::string kis_net_beast_httpd::escape_html(const boost::beast::string_view& ht
 
 bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connection> con) {
     boost::beast::error_code ec;
-    auto uri = static_cast<std::string>(con->uri());
+
+    std::string uri;
+    auto encoding_pos = con->uri().find_first_of("?");
+    if (encoding_pos != con->uri().npos)
+        uri = static_cast<std::string>(con->uri().substr(0, encoding_pos));
+    else
+        uri = static_cast<std::string>(con->uri());
 
     if (uri.length() == 0)
         uri = "/index.html";
