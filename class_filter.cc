@@ -42,39 +42,40 @@ class_filter::class_filter(const std::string& in_id, const std::string& in_descr
 
     auto url = fmt::format("{}/filter", base_uri);
 
-    self_endp =
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>(
-                url, 
-                [this]() -> std::shared_ptr<tracker_element> {
-                    local_locker lock(&mutex);
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+
+    httpd->register_route(url, {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this, url](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    local_locker l(&mutex, url);
                     return self_endp_handler();
-                });
+                }));
 
     auto posturl = fmt::format("{}/set_default", base_uri);
-    default_endp =
-        std::make_shared<kis_net_httpd_simple_post_endpoint>(
-                posturl, 
-                [this](std::ostream& stream, const std::string& uri,
-                    const Json::Value& json,
-                    kis_net_httpd_connection::variable_cache_map& variable_cache) {
-                    local_locker lock(&mutex);
-                    return default_set_endp_handler(stream, json);
-                });
-    
+
+    httpd->register_route(url, {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this, posturl](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    local_locker l(&mutex, posturl);
+                    return default_set_endp_handler(con);
+                }));
 }
 
-int class_filter::default_set_endp_handler(std::ostream& stream, const Json::Value& json) {
+void class_filter::default_set_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    std::ostream stream(&con->response_stream());
+
     try {
-        set_filter_default(filterstring_to_bool(json["default"].asString()));
+        set_filter_default(filterstring_to_bool(con->json()["default"].asString()));
         stream << "Default filter: " << get_filter_default() << "\n";
-        return 200;
+        return;
     } catch (const std::exception& e) {
+        con->set_status(500);
         stream << "Invalid request: " << e.what() << "\n";
-        return 500;
+        return;
     }
 
+    con->set_status(500);
     stream << "Unhandled request\n";
-    return 500;
 }
 
 void class_filter::build_self_content(std::shared_ptr<tracker_element_map> content) {
@@ -127,59 +128,24 @@ class_filter_mac_addr::class_filter_mac_addr(const std::string& in_id, const std
                     });
 
     // Set and clear endpoints
-    macaddr_edit_endp =
-        std::make_shared<kis_net_httpd_path_post_endpoint>(
-                [this](const std::vector<std::string>& path, const std::string& uri) -> bool {
-                    // /filters/class/[id]/[phyname]/set_filter
-                    if (path.size() < 5)
-                        return false;
+    auto seturl = fmt::format("/filters/class/{}/:phyname/set_filter", get_filter_id());
+    auto remurl = fmt::format("/filters/class/{}/:phyname/remove_filter", get_filter_id());
 
-                    if (path[0] != "filters")
-                        return false;
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
-                    if (path[1] != "class")
-                        return false;
+    httpd->register_route(seturl, {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this, seturl](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    local_locker l(&mutex, seturl);
+                    return edit_endp_handler(con);
+                }));
 
-                    if (path[2] != get_filter_id())
-                        return false;
-
-                    if (path[4] == "set_filter")
-                        return true;
-
-                    return false;
-                },
-                [this](std::ostream& stream, const std::vector<std::string>& path, 
-                        const std::string& uri, const Json::Value& json, 
-                        kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
-                    return edit_endp_handler(stream, path, json);
-                }, &mutex);
-
-    macaddr_remove_endp =
-        std::make_shared<kis_net_httpd_path_post_endpoint>(
-                [this](const std::vector<std::string>& path, const std::string& uri) -> bool {
-                    // /filters/class/[id]/[phyname]/remove_filter
-                    if (path.size() < 5)
-                        return false;
-
-                    if (path[0] != "filters")
-                        return false;
-
-                    if (path[1] != "class")
-                        return false;
-
-                    if (path[2] != get_filter_id())
-                        return false;
-
-                    if (path[4] != "remove_filter")
-                        return false;
-
-                    return false;
-                },
-                [this](std::ostream& stream, const std::vector<std::string>& path,
-                        const std::string& uri, const Json::Value& json,
-                        kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
-                    return remove_endp_handler(stream, path, json);
-                }, &mutex);
+    httpd->register_route(remurl, {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this, seturl](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    local_locker l(&mutex, seturl);
+                    return remove_endp_handler(con);
+                }));
 }
 
 class_filter_mac_addr::~class_filter_mac_addr() {
@@ -296,14 +262,16 @@ void class_filter_mac_addr::update_phy_map(std::shared_ptr<eventbus_event> evt) 
     unknown_phy_mac_filter_map.erase(unknown_key);
 }
 
-unsigned int class_filter_mac_addr::edit_endp_handler(std::ostream& stream, 
-        const std::vector<std::string>& path, const Json::Value& json) {
+void class_filter_mac_addr::edit_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    std::ostream stream(&con->response_stream());
+
     try {
-        auto filter = json["filter"];
+        auto filter = con->json()["filter"];
 
         if (!filter.isObject()) {
+            con->set_status(500);
             stream << "Expected 'filter' as a dictionary\n";
-            return 500;
+            return;
         }
 
         for (const auto& i : filter.getMemberNames()) {
@@ -314,30 +282,32 @@ unsigned int class_filter_mac_addr::edit_endp_handler(std::ostream& stream,
                 throw std::runtime_error(fmt::format("Invalid MAC address: '{}'",
                             kishttpd::escape_html(i)));
 
-            // /filters/class/[id]/[phyname]/cmd
-            set_filter(m, path[3], v);
+            auto phy_k = con->uri_params().find(":phyname");
+            set_filter(m, phy_k->second, v);
         }
 
         stream << "Set filter\n";
-        return 200;
-
+        return;
     } catch (const std::exception& e) {
+        con->set_status(500);
         stream << "Error handling request: " << e.what() << "\n";
-        return 500;
+        return;
     }
 
+    con->set_status(500);
     stream << "Unhandled request\n";
-    return 500;
 }
 
-unsigned int class_filter_mac_addr::remove_endp_handler(std::ostream& stream, 
-        const std::vector<std::string>& path, const Json::Value& json) {
+void class_filter_mac_addr::remove_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    std::ostream stream(&con->response_stream());
+
     try {
-        auto filter = json["filter"];
+        auto filter = con->json()["filter"];
 
         if (!filter.isArray()) {
+            con->set_status(500);
             stream << "Expected 'filter' as an array\n";
-            return 500;
+            return;
         }
 
         for (const auto& i : filter) {
@@ -347,20 +317,21 @@ unsigned int class_filter_mac_addr::remove_endp_handler(std::ostream& stream,
                 throw std::runtime_error(fmt::format("Invalid MAC address: '{}'",
                             kishttpd::escape_html(i.asString())));
 
-            // /filters/class/[id]/[phyname]/cmd
-            remove_filter(m, path[3]);
+            auto phy_k = con->uri_params().find(":phyname");
+            remove_filter(m, phy_k->second);
         }
 
         stream << "Removed filter\n";
-        return 200;
+        return;
 
     } catch (const std::exception& e) {
+        con->set_status(500);
         stream << "Error handling request: " << e.what() << "\n";
-        return 500;
+        return;
     }
 
+    con->set_status(500);
     stream << "Unhandled request\n";
-    return 500;
 }
 
 bool class_filter_mac_addr::filter(mac_addr mac, unsigned int phy) {
