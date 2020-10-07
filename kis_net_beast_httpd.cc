@@ -361,7 +361,18 @@ void kis_net_beast_httpd::handle_connection(const boost::system::error_code& ec,
                 socket_moved.set_value(true);
 
                 while (mv_socket.socket().is_open()) {
-                    std::make_shared<kis_net_beast_httpd_connection>(mv_socket, shared_from_this())->start();
+                    auto retain =
+                        std::make_shared<kis_net_beast_httpd_connection>(mv_socket, shared_from_this())->start();
+
+                    if (retain == false)
+                        break;
+                }
+
+                try {
+                    boost::system::error_code ec;
+                    mv_socket.socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send, ec);
+                } catch (std::exception& e) {
+                    ;
                 }
             });
         conthread.detach();
@@ -811,10 +822,6 @@ kis_net_beast_httpd_connection::kis_net_beast_httpd_connection(boost::beast::tcp
     login_valid_{false},
     first_response_write{false} { }
 
-void kis_net_beast_httpd_connection::start() {
-    do_read();
-}
-
 void kis_net_beast_httpd_connection::set_status(unsigned int status) {
     if (first_response_write)
         throw std::runtime_error("tried to set status connection already in progress");
@@ -844,7 +851,7 @@ void kis_net_beast_httpd_connection::set_target_file(const std::string& fname) {
             fmt::format("attachment; filename=\"{}\"", fname));
 }
 
-void kis_net_beast_httpd_connection::do_read() {
+bool kis_net_beast_httpd_connection::start() {
     parser_.emplace();
     parser_->body_limit(100000);
 
@@ -862,7 +869,7 @@ void kis_net_beast_httpd_connection::do_read() {
         std::make_shared<websocket_session>(
                 stream_.release_socket())->do_accept(parser_->release());
                 */
-        return;
+        return do_close();
     }
 
     request_ = boost::beast::http::request<boost::beast::http::string_body>(parser_->release());
@@ -943,7 +950,7 @@ void kis_net_beast_httpd_connection::do_read() {
             if (error) 
                 return do_close();
 
-            return;
+            return true;
         }
 
         if (!route->match_role(login_valid_, login_role_)) {
@@ -961,7 +968,7 @@ void kis_net_beast_httpd_connection::do_read() {
             if (error) 
                 return do_close();
 
-            return;
+            return true;
         }
     } else if (route == nullptr) {
         bool file_served = false;
@@ -988,10 +995,10 @@ void kis_net_beast_httpd_connection::do_read() {
             if (error) 
                 return do_close();
 
-            return;
+            return true;
         }
 
-        return;
+        return true;
     }
 
     append_common_headers(response, uri_);
@@ -1018,7 +1025,7 @@ void kis_net_beast_httpd_connection::do_read() {
         if (error) 
             return do_close();
 
-        return;
+        return true;
     } else if (request_.method() == boost::beast::http::verb::post) {
         // Handle POST data fields
         http_post = request_.body();
@@ -1139,27 +1146,14 @@ void kis_net_beast_httpd_connection::do_read() {
         _MSG_INFO("(DEBUG) {} {} - Error writing conclusion of stream: {}", verb_, uri_, error.message());
         return do_close();
     }
+
+    return true;
 }
 
-void kis_net_beast_httpd_connection::handle_write(bool close, const boost::system::error_code& ec,
-        size_t sz) {
-
-    if (ec) {
-        _MSG_ERROR("(DEBUG) error on connection, closing - {}", ec.message());
-        return do_close();
-    }
-
-    if (close) {
-        return do_close();
-    }
-
-    // Perform another read request
-    do_read();
-}
-
-void kis_net_beast_httpd_connection::do_close() {
+bool kis_net_beast_httpd_connection::do_close() {
     boost::system::error_code ec;
     stream_.socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send, ec);
+    return false;
 }
 
 

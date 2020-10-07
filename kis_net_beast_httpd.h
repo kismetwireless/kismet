@@ -437,7 +437,7 @@ public:
 
     using uri_param_t = std::unordered_map<std::string, std::string>;
 
-    void start();
+    bool start();
 
     boost::beast::http::request<boost::beast::http::string_body>& request() { return request_; }
     boost::beast::http::verb& verb() { return verb_; }
@@ -504,9 +504,7 @@ protected:
 
     std::atomic<bool> first_response_write;
 
-    void do_read();
-    void handle_write(bool close, const boost::system::error_code& ec, size_t sz);
-    void do_close();
+    bool do_close();
 
     template<class Response>
     void append_common_headers(Response& r, boost::beast::string_view uri) {
