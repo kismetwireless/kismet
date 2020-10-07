@@ -289,6 +289,7 @@ public:
                     break;
                 } else {
                     chunk_list_.pop_front();
+                    delete target;
                     target = chunk_list_.front();
                 }
             }
@@ -434,6 +435,7 @@ public:
 
     kis_net_beast_httpd_connection(boost::beast::tcp_stream& stream,
             std::shared_ptr<kis_net_beast_httpd> httpd);
+    virtual ~kis_net_beast_httpd_connection();
 
     using uri_param_t = std::unordered_map<std::string, std::string>;
 
@@ -462,9 +464,11 @@ public:
 
     const boost::beast::http::verb& verb() const { return verb_; }
     const boost::beast::string_view& uri() const { return uri_; }
-    const uri_param_t& uri_params() const { return uri_params_; }
-    const kis_net_beast_httpd::http_var_map_t& http_variables() const { return http_variables_; }
-    const Json::Value& json() const { return json_; }
+
+    // These can't be const for [] to work
+    uri_param_t& uri_params() { return uri_params_; }
+    kis_net_beast_httpd::http_var_map_t& http_variables() { return http_variables_; }
+    Json::Value& json() { return json_; }
 
     static std::string escape_html(const boost::beast::string_view& html) {
         return kis_net_beast_httpd::escape_html(html);

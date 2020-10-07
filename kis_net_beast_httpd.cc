@@ -822,6 +822,8 @@ kis_net_beast_httpd_connection::kis_net_beast_httpd_connection(boost::beast::tcp
     login_valid_{false},
     first_response_write{false} { }
 
+kis_net_beast_httpd_connection::~kis_net_beast_httpd_connection() { }
+
 void kis_net_beast_httpd_connection::set_status(unsigned int status) {
     if (first_response_write)
         throw std::runtime_error("tried to set status connection already in progress");
