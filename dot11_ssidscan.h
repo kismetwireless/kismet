@@ -27,7 +27,6 @@
 #include "eventbus.h"
 #include "globalregistry.h"
 #include "kis_databaselogfile.h"
-#include "kis_net_microhttpd.h"
 #include "timetracker.h"
 #include "trackedelement.h"
 #include "trackedcomponent.h"
@@ -132,13 +131,8 @@ protected:
     // and just manipulate the sources
     std::shared_ptr<tracker_element_uint8> filter_logs;
 
-    // Status/config view endp
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> dot11_ssidscan_status_endp;
-
     // Configure set endp
-    std::shared_ptr<kis_net_httpd_simple_post_endpoint> dot11_ssidscan_config_endp;
-    unsigned int config_endp_handler(std::ostream& stream, const std::string& url,
-            const Json::Value& json, kis_net_httpd_connection::variable_cache_map& variable_cache);
+    void config_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
     // Reference we hold to the device view we populate with matched devices which may
     // include completed devices
