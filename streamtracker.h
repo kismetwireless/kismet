@@ -26,7 +26,7 @@
 #include "globalregistry.h"
 #include "kis_mutex.h"
 #include "trackedelement.h"
-#include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
 #include "devicetracker_component.h"
 
 class streaming_agent {
@@ -187,19 +187,19 @@ protected:
     streaming_agent *agent;
 };
 
-class stream_tracker : public kis_net_httpd_cppstream_handler, public lifetime_global {
+class stream_tracker : public lifetime_global {
 public:
     static std::string global_name() { return "STREAMTRACKER"; }
 
-    static std::shared_ptr<stream_tracker> create_streamtracker(global_registry *in_globalreg) {
-        std::shared_ptr<stream_tracker> mon(new stream_tracker(in_globalreg));
-        in_globalreg->register_lifetime_global(mon);
-        in_globalreg->insert_global(global_name(), mon);
+    static std::shared_ptr<stream_tracker> create_streamtracker() {
+        std::shared_ptr<stream_tracker> mon(new stream_tracker());
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-    stream_tracker(global_registry *in_globalreg);
+    stream_tracker();
 
 public:
     virtual ~stream_tracker();
@@ -207,19 +207,9 @@ public:
     void register_streamer(streaming_agent *in_agent, std::string in_name,
             std::string in_type, std::string in_path, std::string in_description);
     void remove_streamer(double in_id);
-
-    // HTTP API
-    virtual bool httpd_verify_path(const char *path, const char *method) override;
-
-    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream) override;
    
 protected:
     kis_recursive_timed_mutex mutex;
-
-    global_registry *globalreg;
 
     std::shared_ptr<tracker_element_double_map> tracked_stream_map;
 

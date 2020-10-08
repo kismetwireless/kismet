@@ -821,7 +821,7 @@ int main(int argc, char *argv[], char *envp[]) {
         SpindownKismet();
 
     // Create the stream tracking
-    stream_tracker::create_streamtracker(globalregistry);
+    stream_tracker::create_streamtracker();
 
     if (globalregistry->fatal_condition)
         SpindownKismet();
