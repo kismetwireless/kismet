@@ -806,14 +806,14 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
                 std::make_tuple(std::move(body)), std::make_tuple(boost::beast::http::status::ok, 
                         con->request().version())};
 
-            con->append_common_headers(res, uri);
-            res.content_length(size);
+        con->append_common_headers(res, uri);
+        res.content_length(size);
 
-            ec = {};
+        ec = {};
 
-            boost::beast::http::write(con->stream(), res, ec);
+        boost::beast::http::write(con->stream(), res, ec);
 
-            return true;
+        return true;
     }
 
     return false;
