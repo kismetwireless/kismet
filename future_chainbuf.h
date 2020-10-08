@@ -51,20 +51,24 @@ protected:
             sz_{sz},
             start_{0},
             end_{0} {
-            chunk_ = new char[sz];
+            chunk_ = std::shared_ptr<char>(new char[sz], std::default_delete<char[]>());
         }
 
         data_chunk(const char *data, size_t sz) :
             sz_{sz},
             start_{0},
             end_{sz} {
-            chunk_ = new char[sz];
-            memcpy(chunk_, data, sz);
+            chunk_ = std::shared_ptr<char>(new char[sz], std::default_delete<char[]>());
+            memcpy(chunk_.get(), data, sz);
         }
 
-        ~data_chunk() {
-            delete[] chunk_;
-        }
+        data_chunk(std::shared_ptr<char> data, size_t sz) :
+            chunk_{data},
+            sz_{sz},
+            start_{sz},
+            end_{sz} { }
+
+        ~data_chunk() { }
 
         size_t write(const char *data, size_t len) {
             // Can't write more than is left in the chunk
@@ -73,7 +77,7 @@ protected:
             if (write_sz == 0)
                 return len;
 
-            memcpy(chunk_ + end_, data, write_sz);
+            memcpy(chunk_.get() + end_, data, write_sz);
             end_ += write_sz;
 
             return write_sz;
@@ -89,7 +93,7 @@ protected:
         }
 
         char *content() {
-            return chunk_ + start_;
+            return chunk_.get() + start_;
         }
 
         bool exhausted() const {
@@ -108,7 +112,7 @@ protected:
             start_ = end_ = 0;
         }
 
-        char *chunk_;
+        std::shared_ptr<char> chunk_;
         size_t sz_;
         size_t start_, end_;
     };
@@ -204,6 +208,10 @@ public:
     void put_data(const char *data, size_t sz) {
         const std::lock_guard<std::mutex> lock(mutex_);
 
+        // Don't even try if we're shut down
+        if (!running())
+            return;
+
         if (packet_) {
             data_chunk *target = new data_chunk(data, sz);
             chunk_list_.push_back(target);
@@ -230,26 +238,39 @@ public:
         total_sz_ += sz;
     }
 
-    char *reserve(size_t sz) {
+    // Secondary put_data that takes a shared buffer pointer and directly applies it
+    // without a copy
+    void put_data(std::shared_ptr<char> data, size_t sz) {
         const std::lock_guard<std::mutex> lock(mutex_);
 
-        if (!packet_)
-            throw std::runtime_error("cannot reserve in stream mode");
+        // Don't even try
+        if (!running())
+            return;
 
-        // Trim the current chunk, and make a new chunk big enough to hold the entire record,
-        // returning a pointer to the data; committed with a call to sync()
-        
-        auto current = chunk_list_.back();
+        if (packet_) {
+            data_chunk *target = new data_chunk(data, sz);
+            chunk_list_.push_back(target);
+            total_sz_ += sz;
+            sync();
+            return;
+        }
 
-        if (sz < current->available())
-            return current->chunk_ + current->start_;
+        data_chunk *target = chunk_list_.back();
+        size_t written_sz = 0;
 
-        auto sized = new data_chunk(std::max(sz, chunk_sz_));
-        chunk_list_.push_back(sized);
+        while (written_sz < sz) {
+            size_t written_chunk_sz;
+
+            written_chunk_sz = target->write(data.get() + written_sz, sz - written_sz);
+            written_sz += written_chunk_sz;
+
+            if (target->available() == 0) {
+                target = new data_chunk(chunk_sz_);
+                chunk_list_.push_back(target);
+            }
+        }
 
         total_sz_ += sz;
-
-        return sized->chunk_;
     }
 
     virtual std::streamsize xsputn(const char_type *s, std::streamsize n) override {
@@ -352,6 +373,9 @@ public:
     size_t wait_write() {
         if (write_waiting_)
             throw std::runtime_error("future_stream already blocking for write");
+
+        if (!running())
+            return total_sz_;
 
         mutex_.lock();
         write_waiting_ = true;
