@@ -22,7 +22,6 @@
 
 #include "config.h"
 #include "globalregistry.h"
-#include "kis_net_microhttpd.h"
 #include "trackedelement.h"
 #include "devicetracker_component.h"
 #include "phyhandler.h"

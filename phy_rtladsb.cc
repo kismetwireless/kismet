@@ -63,12 +63,13 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
 
 	packetchain->register_handler(&packet_handler, this, CHAINPOS_CLASSIFIER, -100);
 
-    adsb_map_endp = 
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>(
-                "/phy/RTLADSB/map_data", 
-                [this]() -> std::shared_ptr<tracker_element> {
-                    return adsb_map_endp_handler();
-                });
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+
+    httpd->register_route("/phy/RTLADSB/map_data", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    return adsb_map_endp_handler(con);
+                }));
 
     icaodb = std::make_shared<kis_adsb_icao>();
 }
@@ -584,7 +585,8 @@ void kis_rtladsb_phy::decode_cpr(std::shared_ptr<rtladsb_tracked_adsb> adsb,
     adsb->update_location = true;
 }
 
-std::shared_ptr<tracker_element> kis_rtladsb_phy::adsb_map_endp_handler() {
+std::shared_ptr<tracker_element> 
+kis_rtladsb_phy::adsb_map_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
     auto ret_map = std::make_shared<tracker_element_map>();
     auto adsb_view = devicetracker->get_phy_view(phyid);
 

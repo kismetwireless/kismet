@@ -41,7 +41,6 @@
 
 #include "devicetracker.h"
 #include "devicetracker_component.h"
-#include "kis_net_microhttpd.h"
 
 /* Largely a placeholder for future possible data; right now we can't decode
  * much of anything */
