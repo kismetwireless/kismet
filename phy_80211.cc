@@ -79,9 +79,7 @@ int phydot11_packethook_dot11(CHAINCALL_PARMS) {
 }
 
 kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) : 
-    kis_phy_handler(in_globalreg, in_phyid),
-    kis_net_httpd_cppstream_handler() {
-
+    kis_phy_handler(in_globalreg, in_phyid) {
         alertracker =
             Globalreg::fetch_mandatory_global_as<alert_tracker>();
 
@@ -686,49 +684,23 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
         Globalreg::fetch_mandatory_global_as<kis_httpd_registry>();
     httpregistry->register_js_module("kismet_ui_dot11", "js/kismet.ui.dot11.js");
 
-    clients_of_endp =
-        std::make_shared<kis_net_httpd_path_tracked_endpoint>(
-                [this](const std::vector<std::string>& path) -> bool {
-                // /phy/phy80211/clients-of/[key]/clients
-                
-                if (path.size() < 5)
-                    return false;
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
-                if (path[0] != "phy" || path[1] != "phy80211" || path[2] != "clients-of" || 
-                        path[4] != "clients")
-                    return false;
+    httpd->register_route("/phy/phy80211/clients-of/:key/clients", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    auto cl = std::make_shared<tracker_element_vector>();
+                    auto key = string_to_n<device_key>(con->uri_params()[":key"]);
 
-                try {
-                    auto key = string_to_n<device_key>(path[3]);
-                    auto dev = devicetracker->fetch_device(key);
+                    if (key.get_error())
+                        throw std::runtime_error("invalid key");
 
-                    if (dev == nullptr)
-                        return false;
-
-                    auto dot11 =
-                        dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
-
-                    if (dot11 == nullptr)
-                        return false;
-
-                } catch (const std::exception& e) {
-                    return false;
-                }
-
-                return true;
-                },
-                [this](const std::vector<std::string>& path) -> std::shared_ptr<tracker_element> {
-                auto cl = std::make_shared<tracker_element_vector>();
-
-                try {
-                    auto key = string_to_n<device_key>(path[3]);
                     auto dev = devicetracker->fetch_device(key);
 
                     if (dev == nullptr)
                         return cl;
 
-                    auto dot11 =
-                        dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+                    auto dot11 = dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
 
                     if (dot11 == nullptr)
                         return cl;
@@ -740,56 +712,24 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                             cl->push_back(d);
                     }
 
-                } catch (const std::exception& e) {
                     return cl;
-                }
+                }));
 
-                return cl;
-                });
+    httpd->register_route("/phy/phy80211/related-to/:key/devices", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    auto cl = std::make_shared<tracker_element_vector>();
+                    auto key = string_to_n<device_key>(con->uri_params()[":key"]);
 
-    related_to_key_endp =
-        std::make_shared<kis_net_httpd_path_tracked_endpoint>(
-                [this](const std::vector<std::string>& path) -> bool {
-                // /phy/phy80211/related-to/[key]/devices
+                    if (key.get_error())
+                        throw std::runtime_error("invalid key");
 
-                if (path.size() < 5)
-                return false;
-
-                if (path[0] != "phy" || path[1] != "phy80211" || path[2] != "related-to" || 
-                        path[4] != "devices")
-                return false;
-
-                try {
-                auto key = string_to_n<device_key>(path[3]);
-                auto dev = devicetracker->fetch_device(key);
-
-                if (dev == nullptr)
-                return false;
-
-                auto dot11 =
-                dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
-
-                if (dot11 == nullptr)
-                    return false;
-
-                } catch (const std::exception& e) {
-                    return false;
-                }
-
-                return true;
-                },
-                [this](const std::vector<std::string>& path) -> std::shared_ptr<tracker_element> {
-                auto cl = std::make_shared<tracker_element_vector>();
-
-                try {
-                    auto key = string_to_n<device_key>(path[3]);
                     auto dev = devicetracker->fetch_device(key);
 
                     if (dev == nullptr)
                         return cl;
 
-                    auto dot11 =
-                        dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+                    auto dot11 = dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
 
                     if (dot11 == nullptr)
                         return cl;
@@ -827,28 +767,58 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                     };
 
                     find_clients(dev);
-                } catch (const std::exception& e) {
+
                     return cl;
-                }
+                }));
 
-                return cl;
-                });
+    httpd->register_route("/phy/phy80211/by-key/:key/pcap/:mac-handshake", {"GET"}, httpd->RO_ROLE, {"pcap"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    auto key = string_to_n<device_key>(con->uri_params()[":key"]);
 
-    bind_httpd_server();
+                    if (key.get_error())
+                        throw std::runtime_error("invalid key");
+
+                    auto dev = devicetracker->fetch_device(key);
+
+                    if (dev == nullptr)
+                        throw std::runtime_error("unknown device");
+
+                    auto dot11 = dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+
+                    if (dot11 == nullptr)
+                        throw std::runtime_error("not an 802.11 device");
+
+                    return generate_handshake_pcap(con, dev, dot11, "handshake");
+                }));
+
+    httpd->register_route("/phy/phy80211/by-key/:key/pcap/:mac-pmkid", {"GET"}, httpd->RO_ROLE, {"pcap"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    auto key = string_to_n<device_key>(con->uri_params()[":key"]);
+
+                    if (key.get_error())
+                        throw std::runtime_error("invalid key");
+
+                    auto dev = devicetracker->fetch_device(key);
+
+                    if (dev == nullptr)
+                        throw std::runtime_error("unknown device");
+
+                    auto dot11 = dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+
+                    if (dot11 == nullptr)
+                        throw std::runtime_error("not an 802.11 device");
+
+                    return generate_handshake_pcap(con, dev, dot11, "handshake");
+                }));
+
 }
 
 kis_80211_phy::~kis_80211_phy() {
 	packetchain->remove_handler(&phydot11_packethook_wep, CHAINPOS_DECRYPT);
-	packetchain->remove_handler(&phydot11_packethook_dot11, 
-										  CHAINPOS_LLCDISSECT);
-	/*
-	globalreg->packetchain->remove_handler(&phydot11_packethook_dot11data, 
-										  CHAINPOS_DATADISSECT);
-	globalreg->packetchain->remove_handler(&phydot11_packethook_dot11string,
-										  CHAINPOS_DATADISSECT);
-										  */
-	packetchain->remove_handler(&packet_dot11_common_classifier,
-            CHAINPOS_CLASSIFIER);
+	packetchain->remove_handler(&phydot11_packethook_dot11, CHAINPOS_LLCDISSECT);
+	packetchain->remove_handler(&packet_dot11_common_classifier, CHAINPOS_CLASSIFIER);
 
     timetracker->remove_timer(device_idle_timer);
 
@@ -3484,50 +3454,10 @@ std::string kis_80211_phy::crypt_to_simple_string(uint64_t cryptset) {
     return "Other";
 }
 
-bool kis_80211_phy::httpd_verify_path(const char *path, const char *method) {
-    if (strcmp(method, "GET") == 0) {
-        std::vector<std::string> tokenurl = str_tokenize(path, "/");
 
-        // we care about
-        // /phy/phy80211/by-key/[key]/pcap/[mac]-handshake.pcap
-        // /phy/phy80211/by-key/[key]/pcap/[mac]-pmkid.pcap
-        if (tokenurl.size() < 7)
-            return false;
-
-        if (tokenurl[1] != "phy")
-            return false;
-
-        if (tokenurl[2] != "phy80211")
-            return false;
-
-        if (tokenurl[3] != "by-key")
-            return false;
-
-        device_key key(tokenurl[4]);
-        if (key.get_error())
-            return false;
-
-        if (tokenurl[5] != "pcap")
-            return false;
-
-        // Does it exist?
-        if (devicetracker->fetch_device(key) == nullptr)
-            return false;
-
-        // Valid requested file?
-        if (tokenurl[6] == tokenurl[4] + "-handshake.pcap")
-            return true;
-
-        if (tokenurl[6] == tokenurl[4] + "-pmkid.pcap")
-            return true;
-
-    }
-
-    return false;
-}
-
-void kis_80211_phy::generate_handshake_pcap(std::shared_ptr<kis_tracked_device_base> dev, 
-        kis_net_httpd_connection *connection, std::stringstream &stream) {
+void kis_80211_phy::generate_handshake_pcap(std::shared_ptr<kis_net_beast_httpd_connection> con, 
+        std::shared_ptr<kis_tracked_device_base> dev, 
+        std::shared_ptr<dot11_tracked_device> dot11dev, std::string mode) {
 
     // Hardcode the pcap header
     struct pcap_header {
@@ -3548,26 +3478,36 @@ void kis_80211_phy::generate_handshake_pcap(std::shared_ptr<kis_tracked_device_b
         uint32_t caplen;
     } pkt_hdr;
 
-    std::vector<std::string> tokenurl = str_tokenize(connection->url, "/");
-
-    if (tokenurl.size() < 7) {
-        stream << "malformed query\n";
-        return;
-    }
+    std::ostream stream(&con->response_stream());
 
     stream.write((const char *) &hdr, sizeof(hdr));
 
-    if (dev != nullptr) {
-        local_locker dlock(&dev->device_mutex);
+    local_locker dlock(&dev->device_mutex);
 
-        auto dot11dev =
-            dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+    /* Write the beacon */
+    if (dot11dev->get_beacon_packet_present()) {
+        auto packet = dot11dev->get_ssid_beacon_packet();
 
-        if (dot11dev != nullptr) {
-            /* Write the beacon */
-            if (dot11dev->get_beacon_packet_present()) {
-                auto packet = dot11dev->get_ssid_beacon_packet();
+        pkt_hdr.timeval_s = packet->get_ts_sec();
+        pkt_hdr.timeval_us = packet->get_ts_usec();
 
+        pkt_hdr.len = packet->get_data()->length();
+        pkt_hdr.caplen = pkt_hdr.len;
+
+        stream.write((const char *) &pkt_hdr, sizeof(pkt_hdr));
+        stream.write((const char *) packet->get_data()->get().data(), pkt_hdr.len);
+    }
+
+    if (mode == "handshake") {
+        // Write all the handshakes
+        if (dot11dev->has_wpa_key_vec()) {
+            for (const auto& i : *(dot11dev->get_wpa_key_vec())) {
+                auto eapol =
+                    std::static_pointer_cast<dot11_tracked_eapol>(i);
+
+                auto packet = eapol->get_eapol_packet();
+
+                // Make a pcap header
                 pkt_hdr.timeval_s = packet->get_ts_sec();
                 pkt_hdr.timeval_us = packet->get_ts_usec();
 
@@ -3577,102 +3517,22 @@ void kis_80211_phy::generate_handshake_pcap(std::shared_ptr<kis_tracked_device_b
                 stream.write((const char *) &pkt_hdr, sizeof(pkt_hdr));
                 stream.write((const char *) packet->get_data()->get().data(), pkt_hdr.len);
             }
+        }
+    } else if (mode == "pmkid") {
+        // Write just the pmkid
+        if (dot11dev->get_pmkid_present()) {
+            auto packet = dot11dev->get_pmkid_packet();
 
-            if (tokenurl[6] == tokenurl[4] + "-handshake.pcap") {
-                // Write all the handshakes
-                if (dot11dev->has_wpa_key_vec()) {
-                    for (const auto& i : *(dot11dev->get_wpa_key_vec())) {
-                        auto eapol =
-                            std::static_pointer_cast<dot11_tracked_eapol>(i);
+            pkt_hdr.timeval_s = packet->get_ts_sec();
+            pkt_hdr.timeval_us = packet->get_ts_usec();
 
-                        auto packet = eapol->get_eapol_packet();
+            pkt_hdr.len = packet->get_data()->length();
+            pkt_hdr.caplen = pkt_hdr.len;
 
-                        // Make a pcap header
-                        pkt_hdr.timeval_s = packet->get_ts_sec();
-                        pkt_hdr.timeval_us = packet->get_ts_usec();
-
-                        pkt_hdr.len = packet->get_data()->length();
-                        pkt_hdr.caplen = pkt_hdr.len;
-
-                        stream.write((const char *) &pkt_hdr, sizeof(pkt_hdr));
-                        stream.write((const char *) packet->get_data()->get().data(), pkt_hdr.len);
-                    }
-                }
-            } else if (tokenurl[6] == tokenurl[4] + "-pmkid.pcap") {
-                // Write just the pmkid
-                if (dot11dev->get_pmkid_present()) {
-                    auto packet = dot11dev->get_pmkid_packet();
-
-                    pkt_hdr.timeval_s = packet->get_ts_sec();
-                    pkt_hdr.timeval_us = packet->get_ts_usec();
-
-                    pkt_hdr.len = packet->get_data()->length();
-                    pkt_hdr.caplen = pkt_hdr.len;
-
-                    stream.write((const char *) &pkt_hdr, sizeof(pkt_hdr));
-                    stream.write((const char *) packet->get_data()->get().data(), pkt_hdr.len);
-                }
-            }
+            stream.write((const char *) &pkt_hdr, sizeof(pkt_hdr));
+            stream.write((const char *) packet->get_data()->get().data(), pkt_hdr.len);
         }
     }
-}
-
-void kis_80211_phy::httpd_create_stream_response(kis_net_httpd *httpd,
-        kis_net_httpd_connection *connection,
-        const char *url, const char *method, const char *upload_data,
-        size_t *upload_data_size, std::stringstream &stream) {
-
-    if (strcmp(method, "GET") != 0) {
-        return;
-    }
-
-    std::vector<std::string> tokenurl = str_tokenize(url, "/");
-
-    // Most of this is sanity checked in the URL verifier, we just want to make sure
-    // things are still OK
-
-    // /phy/phy80211/by-key/[key]/pcap/[mac]-handshake.pcap
-    // /phy/phy80211/by-key/[key]/pcap/[mac]-pmkid.pcap
-    if (tokenurl.size() < 7) {
-        stream << "invalid query\n";
-        return;
-    }
-
-    device_key key(tokenurl[4]);
-    if (key.get_error()) {
-        stream << "invalid query, invalid key";
-        return;
-    }
-
-    // Does it exist?
-    auto dev = devicetracker->fetch_device(key);
-
-    if (dev == nullptr) {
-        stream << "invalid query, unknown device";
-        return;
-    }
-
-    generate_handshake_pcap(devicetracker->fetch_device(key), connection, stream);
-
-    return;
-}
-
-KIS_MHD_RETURN kis_80211_phy::httpd_post_complete(kis_net_httpd_connection *concls) {
-    bool handled = false;
-
-    std::string stripped = httpd_strip_suffix(concls->url);
-
-    // If we didn't handle it and got here, we don't know what it is, throw an
-    // error.
-    if (!handled) {
-        concls->response_stream << "Invalid request";
-        concls->httpcode = 400;
-    } else {
-        // Return a generic OK. 
-        concls->response_stream << "OK";
-    }
-
-    return MHD_YES;
 }
 
 class phy80211_devicetracker_expire_worker : public device_tracker_view_worker {
