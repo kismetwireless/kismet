@@ -226,7 +226,7 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	phy_80211.cc.o phy_80211_components.cc.o phy_80211_dissectors.cc.o \
 	phy_rtl433.cc.o phy_rtlamr.cc.o phy_rtladsb.cc.o phy_zwave.cc.o \
 	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_btle.cc.o \
-	phy_80211_ssidtracker.cc.o dot11_fingerprint.cc.o kis_dissector_ipdata.cc.o \
+	phy_80211_ssidtracker.cc.o kis_dissector_ipdata.cc.o \
 	manuf.cc.o bluetooth_ids.cc.o adsb_icao.cc.o \
 	logtracker.cc.o kis_ppilogfile.cc.o kis_databaselogfile.cc.o kis_pcapnglogfile.cc.o \
 	messagebus_restclient.cc.o \
