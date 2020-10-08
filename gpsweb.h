@@ -24,14 +24,14 @@
 #include "kis_gps.h"
 #include "timetracker.h"
 #include "globalregistry.h"
-#include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
 
 // GPS WEB
 //
 // Accept GPS location from HTTP POST, allows using a phone browser as a
 // GPS source
 
-class kis_gps_web : public kis_gps, public kis_net_httpd_cppstream_handler {
+class kis_gps_web : public kis_gps {
 public:
     kis_gps_web(shared_gps_builder in_builder);
     virtual ~kis_gps_web();
@@ -40,16 +40,6 @@ public:
 
     virtual bool get_location_valid();
     virtual bool get_device_connected();
-
-    // HTTP api
-    virtual bool httpd_verify_path(const char *path, const char *method);
-
-    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream);
-
-    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *concls);
 
 protected:
     // Last time we calculated the heading, don't do it more than once every 
