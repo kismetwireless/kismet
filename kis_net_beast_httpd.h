@@ -707,6 +707,10 @@ public:
         pre_func{pre_func},
         post_func{post_func} { }
 
+    kis_net_web_tracked_endpoint(gen_func_t generator, kis_recursive_timed_mutex *mutex) :
+        mutex{mutex},
+        generator{generator} { }
+
     virtual void handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) override;
 
 protected:
