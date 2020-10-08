@@ -105,7 +105,7 @@
 
 #include "configfile.h"
 #include "kis_external.h"
-#include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
 #include "messagebus.h"
 #include "trackedelement.h"
 #include "trackedcomponent.h"
@@ -247,18 +247,17 @@ struct plugin_server_info {
 typedef int (*plugin_version_check)(plugin_server_info *);
 
 // Plugin management class
-class plugin_tracker : public lifetime_global,
-    public kis_net_httpd_cppstream_handler {
+class plugin_tracker : public lifetime_global {
 public:
-    static std::shared_ptr<plugin_tracker> create_plugintracker(global_registry *in_globalreg) {
-        std::shared_ptr<plugin_tracker> mon(new plugin_tracker(in_globalreg));
-        in_globalreg->register_lifetime_global(mon);
-        in_globalreg->insert_global("PLUGINTRACKER", mon);
+    static std::shared_ptr<plugin_tracker> create_plugintracker() {
+        std::shared_ptr<plugin_tracker> mon(new plugin_tracker());
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global("PLUGINTRACKER", mon);
         return mon;
     }
 
 private:
-	plugin_tracker(global_registry *in_globalreg);
+	plugin_tracker();
 
 public:
 	static void usage(char *name);
@@ -277,21 +276,14 @@ public:
 	// Shut down the plugins and close the shared files
 	int shutdown_plugins();
 
-    // HTTP API
-    virtual bool httpd_verify_path(const char *path, const char *method);
-
-    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream);
-
 protected:
     kis_recursive_timed_mutex plugin_lock;
 
-	global_registry *globalreg;
+    std::shared_ptr<kis_net_beast_httpd> httpd;
+
 	int plugins_active;
 
-	int ScanDirectory(DIR *in_dir, std::string in_path);
+	int scan_directory(DIR *in_dir, std::string in_path);
 
     // Final vector of registered activated plugins
     std::shared_ptr<tracker_element_vector> plugin_registry_vec;
