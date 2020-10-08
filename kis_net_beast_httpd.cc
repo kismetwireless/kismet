@@ -828,7 +828,10 @@ kis_net_beast_httpd_connection::kis_net_beast_httpd_connection(boost::beast::tcp
     login_valid_{false},
     first_response_write{false} { }
 
-kis_net_beast_httpd_connection::~kis_net_beast_httpd_connection() { }
+kis_net_beast_httpd_connection::~kis_net_beast_httpd_connection() {
+    if (closure_cb)
+        closure_cb(shared_from_this());
+}
 
 void kis_net_beast_httpd_connection::set_status(unsigned int status) {
     if (first_response_write)
@@ -1159,6 +1162,9 @@ bool kis_net_beast_httpd_connection::start() {
 }
 
 bool kis_net_beast_httpd_connection::do_close() {
+    if (closure_cb)
+        closure_cb(shared_from_this());
+
     boost::system::error_code ec;
     stream_.socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send, ec);
     return false;

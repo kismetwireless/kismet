@@ -535,6 +535,12 @@ public:
     kis_net_beast_httpd::http_var_map_t& http_variables() { return http_variables_; }
     Json::Value& json() { return json_; }
 
+    // Optional closure callback to signal to an async operation that there's a problem (for example
+    // long-running packet streams)
+    void set_closure_cb(std::function<void (std::shared_ptr<kis_net_beast_httpd_connection>)> cb) {
+        closure_cb = cb;
+    }
+
     static std::string escape_html(const boost::beast::string_view& html) {
         return kis_net_beast_httpd::escape_html(html);
     }
@@ -543,6 +549,8 @@ protected:
     const std::string AUTH_COOKIE = "KISMET";
 
     std::shared_ptr<kis_net_beast_httpd> httpd;
+
+    std::function<void (std::shared_ptr<kis_net_beast_httpd_connection>)> closure_cb;
 
     boost::beast::tcp_stream& stream_;
     boost::beast::flat_buffer buffer;
