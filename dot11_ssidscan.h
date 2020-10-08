@@ -21,8 +21,6 @@
 
 #include "config.h"
 
-#include "kis_net_microhttpd.h"
-
 #include "devicetracker_view.h"
 #include "eventbus.h"
 #include "globalregistry.h"
