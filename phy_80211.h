@@ -437,8 +437,7 @@ protected:
             std::shared_ptr<dot11_tracked_device> dest_dot11,
             kis_packet *in_pack, dot11_packinfo *dot11info);
 
-    void generate_handshake_pcap(
-            std::shared_ptr<kis_net_beast_httpd_connection> con,
+    void generate_handshake_pcap(std::shared_ptr<kis_net_beast_httpd_connection> con,
             std::shared_ptr<kis_tracked_device_base> dev, 
             std::shared_ptr<dot11_tracked_device> dot11dev, 
             std::string mode);
