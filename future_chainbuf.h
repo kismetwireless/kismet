@@ -38,6 +38,11 @@
 // in a packetized mode where each chunk is either allocated or reserved directly.
 //
 // Once in packet mode it can not be set to stream mode
+//
+// Offers two blocking interfaces:
+// wait() - waits until data is *present in the buffer*, should be called by the consumer
+// wait_write() - waits until the buffer *has flushed data*, should be called by a producer
+//  looking to throttle size buffer size.
 class future_chainbuf : public std::stringbuf {
 protected:
     class data_chunk {
@@ -187,6 +192,13 @@ public:
 
             total_sz_ -= consumed_chunk_sz;
         }
+
+        try {
+            if (write_waiting_)
+                write_wait_promise_.set_value();
+        } catch (const std::future_error& e) {
+            ;
+        }
     }
 
     void put_data(const char *data, size_t sz) {
@@ -268,7 +280,7 @@ public:
         const std::lock_guard<std::mutex> lock(mutex_);
         try {
             if (waiting_)
-                wait_promise_.set_value(true);
+                wait_promise_.set_value();
         } catch (const std::future_error& e) {
             ;
         }
@@ -328,8 +340,23 @@ public:
 
         mutex_.lock();
         waiting_ = true;
-        wait_promise_ = std::promise<bool>();
+        wait_promise_ = std::promise<void>();
         auto ft = wait_promise_.get_future();
+        mutex_.unlock();
+
+        ft.wait();
+
+        return total_sz_;
+    }
+
+    size_t wait_write() {
+        if (write_waiting_)
+            throw std::runtime_error("future_stream already blocking for write");
+
+        mutex_.lock();
+        write_waiting_ = true;
+        write_wait_promise_ = std::promise<void>();
+        auto ft = write_wait_promise_.get_future();
         mutex_.unlock();
 
         ft.wait();
@@ -346,13 +373,17 @@ protected:
     size_t sync_sz_;
     size_t total_sz_;
 
-    std::promise<bool> wait_promise_;
+    std::promise<void> wait_promise_;
     std::atomic<bool> waiting_;
+
+    std::promise<void> write_wait_promise_;
+    std::atomic<bool> write_waiting_;
 
     std::atomic<bool> complete_;
     std::atomic<bool> cancel_;
 
     std::atomic<bool> packet_;
+
 };
 
 
