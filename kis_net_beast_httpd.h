@@ -768,8 +768,8 @@ protected:
     bool login_;
     std::string role_;
 
-    const std::string path_id_pattern = ":([a-zA-Z0-9]+)?";
-    const std::string path_capture_pattern = "(?:([a-zA-Z0-9]+?))";
+    const std::string path_id_pattern = ":([^\\/]+)?";
+    const std::string path_capture_pattern = "(?:([^\\/]+?))";
     const std::regex path_re = std::regex(path_id_pattern);
 
     bool match_types;

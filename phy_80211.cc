@@ -771,7 +771,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                     return cl;
                 }));
 
-    httpd->register_route("/phy/phy80211/by-key/:key/pcap/:mac-handshake", {"GET"}, httpd->RO_ROLE, {"pcap"},
+    httpd->register_route("/phy/phy80211/by-key/:key/pcap/handshake", {"GET"}, httpd->RO_ROLE, {"pcap"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     auto key = string_to_n<device_key>(con->uri_params()[":key"]);
@@ -788,11 +788,13 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
 
                     if (dot11 == nullptr)
                         throw std::runtime_error("not an 802.11 device");
+
+                    con->set_target_file(fmt::format("{}-handshake.pcap", dev->get_macaddr()));
 
                     return generate_handshake_pcap(con, dev, dot11, "handshake");
                 }));
 
-    httpd->register_route("/phy/phy80211/by-key/:key/pcap/:mac-pmkid", {"GET"}, httpd->RO_ROLE, {"pcap"},
+    httpd->register_route("/phy/phy80211/by-key/:key/pcap/handshake-pmkid", {"GET"}, httpd->RO_ROLE, {"pcap"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     auto key = string_to_n<device_key>(con->uri_params()[":key"]);
@@ -810,7 +812,8 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                     if (dot11 == nullptr)
                         throw std::runtime_error("not an 802.11 device");
 
-                    return generate_handshake_pcap(con, dev, dot11, "handshake");
+                    con->set_target_file(fmt::format("{}-pmkid.pcap", dev->get_macaddr()));
+                    return generate_handshake_pcap(con, dev, dot11, "pmkid");
                 }));
 
 }
