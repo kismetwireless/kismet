@@ -237,6 +237,11 @@ int packnum = 0, localdropnum = 0;
 global_registry *globalregistry = NULL;
 
 void SpindownKismet() {
+	// Spin down streams
+	auto streamtracker = Globalreg::fetch_global_as<stream_tracker>();
+	if (streamtracker != nullptr)
+		streamtracker->cancel_streams();
+	
     // Shut down the webserver first
     auto httpd = Globalreg::fetch_global_as<kis_net_httpd>();
     if (httpd != nullptr)
