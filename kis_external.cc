@@ -36,7 +36,6 @@
 #include "protobuf_cpp/eventbus.pb.h"
 
 kis_external_interface::kis_external_interface() :
-    kis_net_httpd_chain_stream_handler(),
     stopped{true},
     cancelled{false},
     timetracker{Globalreg::fetch_mandatory_global_as<time_tracker>()},
@@ -48,7 +47,6 @@ kis_external_interface::kis_external_interface() :
     ipc_out{Globalreg::globalreg->io},
     tcpsocket{Globalreg::globalreg->io},
     eventbus{Globalreg::fetch_mandatory_global_as<event_bus>()},
-    http_bound{false},
     http_session_id{0} {
 
     ext_mutex.set_name("kis_external_interface");
@@ -93,7 +91,7 @@ void kis_external_interface::close_external() {
     // Kill any active http sessions
     for (auto s : http_proxy_session_map) {
         // Fail them
-        s.second->connection->httpcode = 501;
+        s.second->connection->response_stream().cancel();
         // Unlock them and let the cleanup in the thread handle it and close down 
         // the http server session
         s.second->locker->unlock();
@@ -773,11 +771,6 @@ void kis_external_interface::handle_packet_http_register(uint32_t in_seqno,
         const std::string& in_content) {
     local_locker lock(&ext_mutex, "kei::handle_packet_http_register");
 
-    if (!http_bound) {
-        http_bound = true;
-        bind_httpd_server();
-    }
-
     KismetExternalHttp::HttpRegisterUri uri;
 
     if (!uri.ParseFromString(in_content)) {
@@ -786,13 +779,45 @@ void kis_external_interface::handle_packet_http_register(uint32_t in_seqno,
         return;
     }
 
-    struct kis_external_http_uri *exturi = new kis_external_http_uri();
-    
-    exturi->uri = uri.uri();
-    exturi->method = uri.method();
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
-    // Add it to the map of valid URIs
-    http_proxy_uri_map[exturi->method].push_back(exturi);
+    httpd->register_route(uri.uri(), {uri.method()}, httpd->LOGON_ROLE,
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+
+                    local_demand_locker l(&ext_mutex, fmt::format("proxied req {}", con->uri()));
+                    l.lock();
+
+                    auto session = std::make_shared<kis_external_http_session>();
+                    session->connection = con;
+                    session->locker.reset(new conditional_locker<int>());
+                    session->locker->lock();
+
+                    auto sess_id = http_session_id++;
+                    http_proxy_session_map[sess_id] = session;
+
+                    auto var_remap = std::map<std::string, std::string>();
+                    for (const auto v : con->http_variables())
+                        var_remap[v.first] = v.second;
+
+                    send_http_request(sess_id, static_cast<std::string>(con->uri()), 
+                            fmt::format("{}", con->verb()), var_remap);
+
+                    con->set_closure_cb([session]() { session->locker->unlock(-1); });
+
+                    // Unlock the external mutex prior to blocking
+                    l.unlock();
+
+                    // Block until we get a response
+                    session->locker->block_until();
+
+                    // Reacquire the lock on the external interface
+                    l.lock();
+
+                    auto mi = http_proxy_session_map.find(sess_id);
+                    if (mi != http_proxy_session_map.end())
+                        http_proxy_session_map.erase(mi);
+            }));
 }
 
 void kis_external_interface::handle_packet_http_response(uint32_t in_seqno, 
@@ -817,39 +842,38 @@ void kis_external_interface::handle_packet_http_response(uint32_t in_seqno,
 
     auto session = si->second;
 
-    kis_net_httpd_buffer_stream_aux *saux = 
-        (kis_net_httpd_buffer_stream_aux *) session->connection->custom_extension;
-
     // First off, process any headers we're trying to add, they need to come 
     // before data
-    for (int hi = 0; hi < resp.header_content_size() && resp.header_content_size() > 0; hi++) {
-        KismetExternalHttp::SubHttpHeader hh = resp.header_content(hi);
-
-        MHD_add_response_header(session->connection->response, hh.header().c_str(), 
-                hh.content().c_str());
+    try {
+        for (int hi = 0; hi < resp.header_content_size() && resp.header_content_size() > 0; hi++) {
+            KismetExternalHttp::SubHttpHeader hh = resp.header_content(hi);
+            session->connection->append_header(hh.header(), hh.content());
+        }
+    } catch (const std::runtime_error& e) {
+        _MSG_ERROR("Kismet external interface failed setting HTTPRESPONSE headers - {}", e.what());
+        trigger_error("Invalid HTTPRESPONSE header block");
+        return;
     }
 
     // Set any connection state
-    if (resp.has_resultcode()) {
-        session->connection->httpcode = resp.has_resultcode();
+    try {
+        if (resp.has_resultcode()) {
+            session->connection->set_status(resp.resultcode());
+        }
+    } catch (const std::runtime_error& e) {
+        _MSG_ERROR("Kismet external interface failed setting HTTPRESPONSE status code- {}", e.what());
+        trigger_error("invalid HTTPRESPONSE status code");
+        return;
     }
 
     // Copy any response data
     if (resp.has_content() && resp.content().size() > 0) {
-        if (!saux->ringbuf_handler->put_write_buffer_data(resp.content())) {
-            _MSG("Kismet external interface could not put response data into the HTTP "
-                    "buffer for a HTTPRESPONSE session", MSGFLAG_ERROR);
-            // We have to kill this session before we shut down everything else
-            session->connection->httpcode = 501;
-            session->locker->unlock();
-            trigger_error("Unable to write to HTTP buffer in HTTPRESPONSE");
-            return;
-        }
+        session->connection->response_stream().put_data(resp.content().data(), resp.content().size());
     }
 
     // Are we finishing the connection?
     if (resp.has_close_response() && resp.close_response()) {
-        // Unlock this session
+        session->connection->response_stream().complete();
         session->locker->unlock();
     }
 }
@@ -864,15 +888,10 @@ void kis_external_interface::handle_packet_http_auth_request(uint32_t in_seqno,
         return;
     }
 
-    std::shared_ptr<kis_net_httpd_session> s = httpd->create_session(NULL, NULL, 0);
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+    auto token = httpd->create_auth("external", httpd->LOGON_ROLE, 0);
 
-    if (s == NULL) {
-        _MSG("Kismet external interface unable to create a HTTP auth", MSGFLAG_ERROR);
-        trigger_error("Unable to create HTTP auth");
-        return;
-    }
-
-    send_http_auth(s->sessionid);
+    send_http_auth(token);
 }
 
 unsigned int kis_external_interface::send_http_request(uint32_t in_http_sequence, std::string in_uri,
@@ -908,156 +927,5 @@ unsigned int kis_external_interface::send_http_auth(std::string in_cookie) {
     c->set_content(a.SerializeAsString());
 
     return send_packet(c);
-}
-
-bool kis_external_interface::httpd_verify_path(const char *path, const char *method) {
-    local_locker lock(&ext_mutex, "kei::httpd_verify_path");
-
-    // Find all the registered endpoints for this method
-    auto m = http_proxy_uri_map.find(std::string(method));
-
-    if (m == http_proxy_uri_map.end())
-        return false;
-
-    // If an endpoint matches, we're good
-    for (auto e : m->second) {
-        if (e->uri == std::string(path)) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-// When this function gets called, we're inside a thread for the HTTP server;
-// additionally, the HTTP server has it's own thread servicing the chainbuffer
-// on the backend of this connection;
-//
-// Because we are, ourselves, async waiting for the responses from the proxied
-// tool, we need to set a lock and sit on it until the proxy has completed.
-// We don't need to spawn our own thread - we're already our own thread independent
-// of the IO processing system.
-KIS_MHD_RETURN kis_external_interface::httpd_create_stream_response(kis_net_httpd *httpd,
-        kis_net_httpd_connection *connection,
-        const char *url, const char *method, const char *upload_data,
-        size_t *upload_data_size) {
-
-    // Use a demand locker instead of pure scope locker because we need to let it go
-    // before we go into blocking wait
-    local_demand_locker dlock(&ext_mutex, "kei::httpd_create_stream_response");
-    dlock.lock();
-
-    auto m = http_proxy_uri_map.find(std::string(method));
-
-    if (m == http_proxy_uri_map.end()) {
-        connection->httpcode = 501;
-        return MHD_YES;
-    }
-
-    std::map<std::string, std::string> get_remap;
-    for (auto v : connection->variable_cache) 
-        get_remap[v.first] = v.second->str();
-
-    for (auto e : m->second) {
-        if (e->uri == std::string(url)) {
-            // Make a session
-            std::shared_ptr<kis_external_http_session> s(new kis_external_http_session());
-            s->connection = connection;
-            // Lock the waitlock
-            s->locker.reset(new conditional_locker<int>());
-            s->locker->lock();
-
-            // Log the session number
-            uint32_t sess_id = http_session_id++;
-            http_proxy_session_map[sess_id] = s;
-
-            // Send the proxy response
-            send_http_request(sess_id, connection->url, std::string(method), get_remap);
-
-            // Unlock the demand locker
-            dlock.unlock();
-
-            // Block until the external tool sends a connection end; all of the writing
-            // to the stream will be handled inside the handle_http_response handler
-            // and it will unlock us when we've gotten to the end of the stream.
-            s->locker->block_until();
-
-            // Re-acquire the lock
-            dlock.lock();
-
-            // Remove the session from our map
-            auto mi = http_proxy_session_map.find(sess_id);
-            if (mi != http_proxy_session_map.end())
-                http_proxy_session_map.erase(mi);
-
-            // The session code should have been set already here so we don't have anything
-            // else to do except tell the webserver we're done and let our session
-            // de-scope as we exit...
-            return MHD_YES;
-        }
-    }
-
-    connection->httpcode = 501;
-    return MHD_YES;
-}
-
-KIS_MHD_RETURN kis_external_interface::httpd_post_complete(kis_net_httpd_connection *connection) {
-    auto m = http_proxy_uri_map.find(std::string("POST"));
-
-    if (m == http_proxy_uri_map.end()) {
-        connection->httpcode = 501;
-        return MHD_YES;
-    }
-
-    // Use a demand locker instead of pure scope locker because we need to let it go
-    // before we go into blocking wait
-    local_demand_locker dlock(&ext_mutex, "kei::httpd_post_complete");
-    dlock.lock();
-
-    std::map<std::string, std::string> get_remap;
-    for (auto v : connection->variable_cache) 
-        get_remap[v.first] = v.second->str();
-
-    for (auto e : m->second) {
-        if (e->uri == std::string(connection->url)) {
-            // Make a session
-            std::shared_ptr<kis_external_http_session> s(new kis_external_http_session());
-            s->connection = connection;
-            // Lock the waitlock
-            s->locker.reset(new conditional_locker<int>());
-            s->locker->lock();
-
-            // Log the session number
-            uint32_t sess_id = http_session_id++;
-            http_proxy_session_map[sess_id] = s;
-
-            // Send the proxy response
-            send_http_request(sess_id, connection->url, std::string{"POST"}, get_remap);
-
-            // Unlock the demand locker
-            dlock.unlock();
-
-            // Block until the external tool sends a connection end; all of the writing
-            // to the stream will be handled inside the handle_http_response handler
-            // and it will unlock us when we've gotten to the end of the stream.
-            s->locker->block_until();
-
-            // Re-acquire the lock
-            dlock.lock();
-
-            // Remove the session from our map
-            auto mi = http_proxy_session_map.find(sess_id);
-            if (mi != http_proxy_session_map.end())
-                http_proxy_session_map.erase(mi);
-
-            // The session code should have been set already here so we don't have anything
-            // else to do except tell the webserver we're done and let our session
-            // de-scope as we exit...
-            return MHD_YES;
-        }
-    }
-
-    connection->httpcode = 501;
-    return MHD_YES;
 }
 
