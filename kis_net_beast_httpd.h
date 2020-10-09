@@ -214,7 +214,7 @@ public:
 
     // Optional closure callback to signal to an async operation that there's a problem (for example
     // long-running packet streams)
-    void set_closure_cb(std::function<void (std::shared_ptr<kis_net_beast_httpd_connection>)> cb) {
+    void set_closure_cb(std::function<void ()> cb) {
         closure_cb = cb;
     }
 
@@ -227,7 +227,7 @@ protected:
 
     std::shared_ptr<kis_net_beast_httpd> httpd;
 
-    std::function<void (std::shared_ptr<kis_net_beast_httpd_connection>)> closure_cb;
+    std::function<void ()> closure_cb;
 
     boost::beast::tcp_stream& stream_;
     boost::beast::flat_buffer buffer;

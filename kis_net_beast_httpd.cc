@@ -830,7 +830,7 @@ kis_net_beast_httpd_connection::kis_net_beast_httpd_connection(boost::beast::tcp
 
 kis_net_beast_httpd_connection::~kis_net_beast_httpd_connection() {
     if (closure_cb)
-        closure_cb(shared_from_this());
+        closure_cb();
 }
 
 void kis_net_beast_httpd_connection::set_status(unsigned int status) {
@@ -1082,6 +1082,7 @@ bool kis_net_beast_httpd_connection::start() {
     std::thread tr([this, route, &generator_launched]() {
         generator_launched.set_value();
 
+        // _MSG_INFO("invoking stream");
         try {
             // _MSG_INFO("(DEBUG) {} {} invoking route {}", verb_, uri_, route->route());
             route->invoke(shared_from_this());
@@ -1089,6 +1090,7 @@ bool kis_net_beast_httpd_connection::start() {
             std::ostream os(&response_stream_);
             os << "ERROR: " << e.what();
         }
+        // _MSG_INFO("done invoking stream");
 
         response_stream_.complete();
     });
@@ -1162,8 +1164,10 @@ bool kis_net_beast_httpd_connection::start() {
 }
 
 bool kis_net_beast_httpd_connection::do_close() {
-    if (closure_cb)
-        closure_cb(shared_from_this());
+    if (closure_cb) {
+        closure_cb();
+        closure_cb = nullptr;
+    }
 
     boost::system::error_code ec;
     stream_.socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send, ec);
