@@ -231,6 +231,7 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	logtracker.cc.o kis_ppilogfile.cc.o kis_databaselogfile.cc.o kis_pcapnglogfile.cc.o \
 	messagebus_restclient.cc.o \
 	streamtracker.cc.o \
+	pcapng_stream_futurebuf.cc.o \
 	pcapng_stream_ringbuf.cc.o streambuf_stream_buffer.cc.o \
 	devicetracker_httpd_pcap.cc.o phy_80211_httpd_pcap.cc.o \
 	kis_database.cc.o \
