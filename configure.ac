@@ -697,52 +697,6 @@ else
 fi
 AC_SUBST(instgrp)
 
-# We need microhttpd if we're building kismet_server
-if test "$caponly" == 0; then
-    HAVE_LIBMICROHTTPD=0
-    AC_CHECK_LIB([microhttpd], [MHD_start_daemon],
-                 KSLIBS="$KSLIBS -lmicrohttpd" HAVE_LIBMICROHTTPD=1,
-                 HAVE_LIBMICROHTTPD=0)
-    if test "$HAVE_LIBMICROHTTPD" == 0 -a "$caponly" == 0; then
-        AC_MSG_ERROR([libmicrohttpd is needed and is not available])
-    elif test "$HAVE_LIBMICROHTTPD" = 1; then
-        AC_CHECK_HEADER([microhttpd.h], 
-        	AC_DEFINE(HAVE_MICROHTTPD_H, 1, microhttpd is present),
-            AC_MSG_ERROR([microhttpd.h is not available check that libmicrohttpd-dev is installed]))
-    fi
-    
-    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-        #include <microhttpd.h>
-        ]], [[
-        #if MHD_VERSION <= 0x00093700
-        #error MHD_TOO_OLD
-        #endif
-        ]])],[mhd_too_old=0],[mhd_too_old=1])
-    
-    if test "$mhd_too_old" = 1; then
-        AC_MSG_ERROR(sorry - libmicrohttpd is too old. Some distributions such as debian jessie ship a version of libmicrohttpd which has several flaws that break Kismet.  You will need a new version from your distribution backports or from https://www.gnu.org/software/libmicrohttpd/)
-    fi
-    
-    OLIBS="$LIBS"
-    LIBS="$LIBS -lmicrohttpd"
-    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-        #include <microhttpd.h>
-    ]], [[
-        struct MHD_Daemon *microhttpd = NULL;
-        MHD_quiesce_daemon(microhttpd);
-        return 0;
-    ]])],[mhd_quiesce=1],[mhd_quiesce=0])
-    LIBS="$OLIBS"
-    
-    if test "$mhd_quiesce" = 1; then
-        AC_DEFINE(MHD_QUIESCE, 1, Able to use MHD_quiesce_daemon to shut down)
-    else
-        AC_MSG_WARN([Unable to use MHD_quiesce_daemon, this might lead to hangs on shutdown])
-    fi
-
-fi # caponly
-
-
 # Check for process title manipulation stuff, from proftpd configure.in
 AC_CHECK_FUNCS(setproctitle)
 AC_CHECK_HEADERS(libutil.h)

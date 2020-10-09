@@ -29,7 +29,7 @@
 #include "globalregistry.h"
 
 #include "kis_mutex.h"
-#include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
 
 #include "robin_hood.h"
 
@@ -180,13 +180,8 @@ protected:
 
     int tracked_ssid_id;
 
-    std::shared_ptr<kis_net_httpd_simple_post_endpoint> ssid_endp;
-    unsigned int ssid_endpoint_handler(std::ostream& stream, const std::string& uri,
-            const Json::Value& json, kis_net_httpd_connection::variable_cache_map& postvars);
-
-    std::shared_ptr<kis_net_httpd_path_tracked_endpoint> detail_endp;
-    bool detail_endpoint_path(const std::vector<std::string>& path);
-    std::shared_ptr<tracker_element> detail_endpoint_handler(const std::vector<std::string>& path);
+    void ssid_endpoint_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
+    std::shared_ptr<tracker_element> detail_endpoint_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
     int cleanup_timer_id;
 

@@ -111,30 +111,26 @@ dot11_ssid_scan::dot11_ssid_scan() {
     min_scan_seconds->set(config->fetch_opt_uint("dot11_ssidscan_minimum_hop", 30));
     max_contend_cap_seconds->set(config->fetch_opt_uint("dot11_ssidscan_maximum_lock", 30));
 
-    dot11_ssidscan_status_endp =
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/phy/phy80211/ssidscan/status", true,
-                [this]() -> std::shared_ptr<tracker_element> {
-                    auto retmap = std::make_shared<tracker_element_map>();
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
-                    retmap->insert(ssidscan_enabled);
-                    retmap->insert(target_ssids);
-                    retmap->insert(ssidscan_datasources_uuids);
-                    retmap->insert(ignore_after_handshake);
-                    retmap->insert(initial_log_filters);
-                    retmap->insert(filter_logs);
-                    retmap->insert(min_scan_seconds);
-                    retmap->insert(max_contend_cap_seconds);
+    auto status_map = std::make_shared<tracker_element_map>();
+    status_map->insert(ssidscan_enabled);
+    status_map->insert(target_ssids);
+    status_map->insert(ssidscan_datasources_uuids);
+    status_map->insert(ignore_after_handshake);
+    status_map->insert(initial_log_filters);
+    status_map->insert(filter_logs);
+    status_map->insert(min_scan_seconds);
+    status_map->insert(max_contend_cap_seconds);
 
-                    return retmap;
-                }, &mutex);
+    httpd->register_route("/phy/phy80211/ssidscan/status", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(status_map, &mutex));
 
-    dot11_ssidscan_config_endp =
-        std::make_shared<kis_net_httpd_simple_post_endpoint>("/phy/phy80211/ssidscan/config", true,
-                [this](std::ostream& stream, const std::string& url,
-                    const Json::Value& json, 
-                    kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
-                    return config_endp_handler(stream, url, json, variable_cache);
-                }, &mutex);
+    httpd->register_route("/phy/phy80211/ssidscan/config", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    return config_endp_handler(con);
+                }));
 
     // Make the views with no completion functions, we maintain them manually
     target_devices_view =
@@ -170,50 +166,41 @@ void dot11_ssid_scan::handle_eventbus_evt(std::shared_ptr<eventbus_event> evt) {
 
 }
 
-unsigned int dot11_ssid_scan::config_endp_handler(std::ostream& stream, const std::string& url,
-        const Json::Value& json, kis_net_httpd_connection::variable_cache_map& variable_cache) {
+void dot11_ssid_scan::config_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    std::ostream stream(&con->response_stream());
 
-    try {
-        if (!json["ssidscan_enabled"].isNull()) {
-            auto enabled = json["ssidscan_enabled"].asBool();
+    if (!con->json()["ssidscan_enabled"].isNull()) {
+        auto enabled = con->json()["ssidscan_enabled"].asBool();
 
-            if (enabled != ssidscan_enabled->get()) {
-                if (enabled) {
-                    _MSG_INFO("Enabling ssidscan module, this will change the behavior of datasources and logs.");
-                    enable_ssidscan();
-                } else {
-                    _MSG_INFO("Disabling ssidscan module, data sources may remain in unexpected states.");
-                    disable_ssidscan();
-                }
+        if (enabled != ssidscan_enabled->get()) {
+            if (enabled) {
+                _MSG_INFO("Enabling ssidscan module, this will change the behavior of datasources and logs.");
+                enable_ssidscan();
+            } else {
+                _MSG_INFO("Disabling ssidscan module, data sources may remain in unexpected states.");
+                disable_ssidscan();
             }
         }
-
-        if (!json["ignore_after_handshake"].isNull())
-            ignore_after_handshake->set(json["ignore_after_handshake"].asBool());
-
-        if (!json["max_capture_seconds"].isNull()) 
-            max_contend_cap_seconds->set(json["max_capture_seconds"].asBool());
-
-        if (!json["min_scan_seconds"].isNull()) 
-            min_scan_seconds->set(json["min_scan_seconds"].asBool());
-
-        if (json["restrict_log_filters"].isNull()) {
-            auto enabled = json["restrict_log_filters"].asBool();
-
-            if (enabled != filter_logs->get()) {
-                filter_logs->set(enabled);
-
-                // TODO set filters for all existing devices
-            } 
-        }
-
-    } catch (const std::exception& e) {
-        stream << "Unable to configure: " << e.what() << "\n";
-        return 500;
     }
 
-    stream << "Unimplemented\n";
-    return 500;
+    if (!con->json()["ignore_after_handshake"].isNull())
+        ignore_after_handshake->set(con->json()["ignore_after_handshake"].asBool());
+
+    if (!con->json()["max_capture_seconds"].isNull()) 
+        max_contend_cap_seconds->set(con->json()["max_capture_seconds"].asBool());
+
+    if (!con->json()["min_scan_seconds"].isNull()) 
+        min_scan_seconds->set(con->json()["min_scan_seconds"].asBool());
+
+    if (con->json()["restrict_log_filters"].isNull()) {
+        auto enabled = con->json()["restrict_log_filters"].asBool();
+
+        if (enabled != filter_logs->get()) {
+            filter_logs->set(enabled);
+
+            // TODO set filters for all existing devices
+        } 
+    }
 }
 
 bool dot11_ssid_scan::enable_ssidscan() {

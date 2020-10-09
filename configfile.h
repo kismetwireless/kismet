@@ -68,6 +68,9 @@ public:
 	// equal to true, or missing.)
 	int fetch_opt_bool(std::string in_key, int dvalue);
 
+    // Fetch an opt as a simple path
+    std::string fetch_opt_path(const std::string& in_key, const std::string& in_dfl);
+
     // Older API
     int fetch_opt_int(const std::string& in_key, int dvalue);
     unsigned int fetch_opt_uint(const std::string& in_key, unsigned int dvalue);

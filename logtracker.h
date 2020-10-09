@@ -26,7 +26,6 @@
 #include "globalregistry.h"
 #include "kis_mutex.h"
 #include "trackedelement.h"
-#include "kis_net_microhttpd.h"
 #include "devicetracker_component.h"
 #include "streamtracker.h"
 
@@ -127,7 +126,8 @@ protected:
 
 // Logfiles written to disk can be 'block' logs (like the device log), or they can be
 // streaming logs (like gps or pcapng streams); 
-class kis_logfile : public tracker_component, public streaming_agent {
+class kis_logfile : public tracker_component, public streaming_agent, 
+    public std::enable_shared_from_this<kis_logfile> {
 public:
     kis_logfile() :
         tracker_component() {
@@ -222,8 +222,7 @@ protected:
     std::shared_ptr<tracker_element_uint8> log_open;
 };
 
-class log_tracker : public tracker_component, public kis_net_httpd_cppstream_handler, 
-    public lifetime_global, public deferred_startup {
+class log_tracker : public tracker_component, public lifetime_global, public deferred_startup {
 public:
     static std::string global_name() { return "LOGTRACKER"; }
 
@@ -234,15 +233,6 @@ public:
         Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
-
-    // HTTP API
-    virtual bool httpd_verify_path(const char *path, const char *method) override;
-
-    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream) override;
-    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *concls) override;
 
     virtual void trigger_deferred_startup() override;
     virtual void trigger_deferred_shutdown() override;

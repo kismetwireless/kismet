@@ -29,7 +29,7 @@
 #define ASIO_HAS_STD_CHRONO
 #define ASIO_HAS_MOVE
 
-#include "asio.hpp"
+#include "boost/asio.hpp"
 
 // NMEA serial-attached GPS
 // Implemented using ASIO serial
@@ -47,7 +47,7 @@ protected:
 	virtual void start_read_impl() override;
 	virtual void close() override;
 
-	asio::serial_port serialport;
+    boost::asio::serial_port serialport;
 
     // Device
     std::string serial_device;

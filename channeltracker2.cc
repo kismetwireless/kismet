@@ -69,13 +69,18 @@ channel_tracker_v2::channel_tracker_v2(global_registry *in_globalreg) :
                 tracker_element_factory<channel_tracker_v2_channel>(),
                 "channel/frequency entry");
 
-    channels_endp =
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>(
-                "/channels/channels",
-                [this]() -> std::shared_ptr<tracker_element> {
-                    local_locker l(&lock);
-                    return channels_endp_handler();
-                });
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+
+    httpd->register_route("/channels/channels", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection>) {
+                    local_locker l(&lock, "/channels/channels");
+                    auto ret = std::make_shared<tracker_element_map>();
+                    ret->insert(channel_map);
+                    ret->insert(frequency_map);
+                    return ret;
+                }));
+
 
     timer_id = timetracker->register_timer(SERVER_TIMESLICES_SEC, nullptr, 1, 
             [this](int evt_id) -> int {
@@ -96,13 +101,6 @@ channel_tracker_v2::~channel_tracker_v2() {
         packetchain->remove_handler(&packet_chain_handler, CHAINPOS_LOGGING);
 
     Globalreg::globalreg->remove_global("CHANNEL_TRACKER");
-}
-
-std::shared_ptr<tracker_element_map> channel_tracker_v2::channels_endp_handler() {
-    auto ret = std::make_shared<tracker_element_map>();
-    ret->insert(channel_map);
-    ret->insert(frequency_map);
-    return ret;
 }
 
 class channeltracker_v2_device_worker : public device_tracker_view_worker {

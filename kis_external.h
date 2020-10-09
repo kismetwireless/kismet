@@ -37,12 +37,10 @@
 #include <eventbus.h>
 #include "globalregistry.h"
 #include "ipctracker_v2.h"
-#include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
 
-
-
-#include "asio.hpp"
-using asio::ip::tcp;
+#include "boost/asio.hpp"
+using boost::asio::ip::tcp;
 
 // Namespace stub and forward class definition to make deps hopefully easier going forward
 namespace KismetExternal {
@@ -50,19 +48,13 @@ namespace KismetExternal {
 };
 
 struct kis_external_http_session {
-    kis_net_httpd_connection *connection; 
+    std::shared_ptr<kis_net_beast_httpd_connection> connection;
     std::shared_ptr<conditional_locker<int> > locker;
 };
 
-struct kis_external_http_uri {
-    std::string uri;
-    std::string method;
-    bool auth_req;
-};
 
 // External interface API bridge;
-class kis_external_interface : public kis_net_httpd_chain_stream_handler, 
-    public std::enable_shared_from_this<kis_external_interface> {
+class kis_external_interface : public std::enable_shared_from_this<kis_external_interface> {
 public:
     kis_external_interface();
     virtual ~kis_external_interface();
@@ -99,33 +91,6 @@ public:
 
     // We use the raw http server APIs instead of the newer endpoint handlers because we
     // potentially mess with the headers and other internals
-
-    // Webserver proxy interface - standard verifypath
-    virtual bool httpd_verify_path(const char *path, const char *method) override;
-
-    // Called as a connection is being set up;  brokers access with the http
-    // proxy
-    //
-    // Returns:
-    //  MHD_NO  - Streambuffer should not automatically close out the buffer; this
-    //            is used when spawning an independent thread for managing the stream,
-    //            for example with pcap streaming
-    //  MHD_YES - Streambuffer should automatically close the buffer when the
-    //            streamresponse is complete, typically used when streaming a finite
-    //            amount of data through a memchunk buffer like a json serialization
-    virtual KIS_MHD_RETURN httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size) override;
-
-    // Called when a POST event is complete - all data has been uploaded and
-    // cached in the connection info; brokers connections to to the proxy
-    //
-    // Returns:
-    //  MHD_NO  - Streambuffer should not automatically close out the buffer
-    //  MHD_YES - Streambuffer should automatically close the buffer when the
-    //            streamresponse is complete
-    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *con __attribute__((unused))) override;
 
     // Trigger an error
     virtual void trigger_error(const std::string& in_error);
@@ -170,15 +135,15 @@ protected:
     int ping_timer_id;
 
     // Input buffer
-    asio::streambuf in_buf;
-    int handle_read(std::shared_ptr<kis_external_interface> ref, const asio::error_code& ec, size_t sz);
+    boost::asio::streambuf in_buf;
+    int handle_read(std::shared_ptr<kis_external_interface> ref, const boost::system::error_code& ec, size_t sz);
 
     // Pipe IPC
     std::string external_binary;
     std::vector<std::string> external_binary_args;
 
     kis_ipc_record ipc;
-    asio::posix::stream_descriptor ipc_in, ipc_out;
+    boost::asio::posix::stream_descriptor ipc_in, ipc_out;
 
     void start_ipc_read(std::shared_ptr<kis_external_interface> ref);
 
@@ -207,12 +172,6 @@ protected:
     unsigned int send_http_request(uint32_t in_http_sequence, std::string in_uri,
             std::string in_method, std::map<std::string, std::string> in_postdata);
     unsigned int send_http_auth(std::string in_session);
-
-    // Valid URIs, mapped by method (GET, POST, etc); these are matched in
-    // httpd_verify_path and then passed on; if a URI is present here, it's mapped
-    // to true
-    bool http_bound;
-    std::map<std::string, std::vector<struct kis_external_http_uri *> > http_proxy_uri_map;
 
     // HTTP session identities for multi-packet responses
     uint32_t http_session_id;

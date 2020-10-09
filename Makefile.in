@@ -205,9 +205,9 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	datasource_linux_bluetooth.cc.o datasource_rtl433.cc.o datasource_rtlamr.cc.o datasource_rtladsb.cc.o \
 	datasource_ti_cc_2540.cc.o datasource_ti_cc_2531.cc.o datasource_ubertooth_one.cc.o datasource_nrf_51822.cc.o \
 	datasource_nxp_kw41z.cc.o datasource_scan.cc.o \
-	kis_net_microhttpd.cc.o kis_net_microhttpd_handlers.cc.o system_monitor.cc.o \
+	kis_net_beast_httpd.cc.o kis_httpd_registry.cc.o \
+	system_monitor.cc.o \
 	base64.cc.o sha1.cc.o \
-	kis_httpd_websession.cc.o kis_httpd_registry.cc.o \
 	gpstracker.cc.o kis_gps.cc.o gpsnmea_v2.cc.o gpsserial_v3.cc.o gpstcp_v2.cc.o \
 	gpsgpsd_v3.cc.o gpsfake.cc.o gpsweb.cc.o \
 	packetchain.cc.o packet_filter.cc.o class_filter.cc.o \
@@ -224,13 +224,13 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	phy_80211.cc.o phy_80211_components.cc.o phy_80211_dissectors.cc.o \
 	phy_rtl433.cc.o phy_rtlamr.cc.o phy_rtladsb.cc.o phy_zwave.cc.o \
 	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_btle.cc.o \
-	phy_80211_ssidtracker.cc.o dot11_fingerprint.cc.o kis_dissector_ipdata.cc.o \
+	phy_80211_ssidtracker.cc.o kis_dissector_ipdata.cc.o \
 	manuf.cc.o bluetooth_ids.cc.o adsb_icao.cc.o \
 	logtracker.cc.o kis_ppilogfile.cc.o kis_databaselogfile.cc.o kis_pcapnglogfile.cc.o \
 	messagebus_restclient.cc.o \
 	streamtracker.cc.o \
+	pcapng_stream_futurebuf.cc.o \
 	pcapng_stream_ringbuf.cc.o streambuf_stream_buffer.cc.o \
-	devicetracker_httpd_pcap.cc.o phy_80211_httpd_pcap.cc.o \
 	kis_database.cc.o \
 	kismet_server.cc.o 
 
@@ -611,7 +611,7 @@ boostbits:
 	@echo "Scanning boost deps in ASIO"
 	@mv boost boost-old
 	@mkdir boost-raw
-	@bcp --scan --boost=/usr/include `find ./asio -name \*pp | xargs` boost-raw/
+	@bcp --boost=/usr/include beast asio boost-raw 
 	@mv boost-raw/boost boost
 
 release-%:

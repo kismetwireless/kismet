@@ -28,16 +28,13 @@
 #include "base64.h"
 
 log_tracker::log_tracker() :
-    tracker_component(),
-    kis_net_httpd_cppstream_handler() {
+    tracker_component() {
 
     streamtracker =
         Globalreg::fetch_mandatory_global_as<stream_tracker>("STREAMTRACKER");
 
     register_fields();
     reserve_fields(NULL);
-    
-    bind_httpd_server();
 }
 
 log_tracker::~log_tracker() {
@@ -177,6 +174,71 @@ void log_tracker::trigger_deferred_startup() {
         return;
     }
 
+    auto httpd = Globalreg::fetch_global_as<kis_net_beast_httpd>();
+
+    httpd->register_route("/logging/drivers", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(logproto_vec, &tracker_mutex));
+    httpd->register_route("/logging/active", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(logfile_vec, &tracker_mutex));
+
+    httpd->register_route("/logging/by-uuid/:uuid/stop", {"GET", "POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    std::ostream stream(&con->response_stream());
+
+                    auto u = string_to_n<uuid>(con->uri_params()[":uuid"]);
+
+                    if (u.error)
+                        throw std::runtime_error("invalid uuid");
+
+                    local_locker l(&tracker_mutex, static_cast<std::string>(con->uri()));
+
+                    std::shared_ptr<kis_logfile> logfile;
+                    for (auto lfi : *logfile_vec) {
+                        auto lf = std::static_pointer_cast<kis_logfile>(lfi);
+
+                        if (lf->get_log_uuid() == u) {
+                            logfile = lf;
+                            break;
+                        }
+                    }
+
+                    if (logfile == nullptr)
+                        throw std::runtime_error("no such log");
+
+                    _MSG_INFO("Closing log file {} ({})", logfile->get_log_uuid(), logfile->get_log_path());
+                    logfile->close_log();
+
+                    stream << "OK\n";
+                }));
+
+    httpd->register_route("/logging/by-class/:class/start", {"GET", "POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    auto builder = std::shared_ptr<kis_logfile_builder>();
+                    auto lclass = con->uri_params()[":class"];
+
+                    for (auto lfi : *logproto_vec) {
+                        auto lfb = std::static_pointer_cast<kis_logfile_builder>(lfi);
+
+                        if (lfb->get_log_class() == lclass) {
+                            builder = lfb;
+                            break;
+                        }
+                    }
+
+                    if (builder == nullptr)
+                        throw std::runtime_error("invalid logclass");
+
+                    shared_logfile logf = open_log(builder);
+
+                    if (logf == nullptr)
+                        throw std::runtime_error("unable to open log");
+
+                    return logf;
+                }, &tracker_mutex));
+
+
     // Open all of them
     for (auto t : *log_types_vec) {
         auto logtype = get_tracker_value<std::string>(t);
@@ -289,265 +351,5 @@ void log_tracker::usage(const char *argv0) {
 		   " -t, --log-title <title>      Override default log title\n"
 		   " -p, --log-prefix <prefix>    Directory to store log files\n"
 		   " -n, --no-logging             Disable logging entirely\n");
-}
-
-bool log_tracker::httpd_verify_path(const char *path, const char *method) {
-    if (strcmp(method, "GET") == 0) {
-        if (!httpd_can_serialize(path))
-            return false;
-
-        std::string stripped = httpd_strip_suffix(path);
-
-        if (stripped == "/logging/drivers")
-            return true;
-
-        if (stripped == "/logging/active")
-            return true;
-
-        std::vector<std::string> tokenurl = str_tokenize(stripped, "/");
-
-        // /logging/by-uuid/[foo]/stop 
-
-        if (tokenurl.size() < 4)
-            return false;
-
-        if (tokenurl[1] != "logging")
-            return false;
-
-        if (tokenurl[2] == "by-uuid") {
-            if (tokenurl[4] != "stop")
-                return false;
-
-            uuid u(tokenurl[3]);
-            if (u.error)
-                return false;
-
-            local_locker lock(&tracker_mutex);
-
-            for (auto lfi : *logfile_vec) {
-                auto lf = std::static_pointer_cast<kis_logfile>(lfi);
-
-                if (lf->get_log_uuid() == u)
-                    return true;
-            }
-        } else if (tokenurl[2] == "by-class") {
-            if (tokenurl[4] != "start")
-                return false;
-
-            local_locker lock(&tracker_mutex);
-
-            for (auto lfi : *logproto_vec) {
-                auto lfb = std::static_pointer_cast<kis_logfile_builder>(lfi);
-
-                if (lfb->get_log_class() == tokenurl[3])
-                    return true;
-            }
-        }
-
-    } else if (strcmp(method, "POST") == 0) {
-        if (!httpd_can_serialize(path))
-            return false;
-
-        std::string stripped = httpd_strip_suffix(path);
-
-        std::vector<std::string> tokenurl = str_tokenize(stripped, "/");
-
-        // /logging/by-class/[foo]/start + post vars
-
-        if (tokenurl.size() < 4)
-            return false;
-
-        if (tokenurl[1] != "logging")
-            return false;
-
-        if (tokenurl[2] == "by-class") {
-            if (tokenurl[4] != "start")
-                return false;
-
-            local_locker lock(&tracker_mutex);
-
-            for (auto lfi : *logproto_vec) {
-                auto lfb = std::static_pointer_cast<kis_logfile_builder>(lfi);
-
-                if (lfb->get_log_class() == tokenurl[3])
-                    return true;
-            }
-        }
-    }
-
-    return false;
-}
-
-void log_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream) {
-
-    local_locker lock(&tracker_mutex);
-
-    std::string stripped = httpd_strip_suffix(url);
-
-    if (stripped == "/logging/drivers") {
-        Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(url), stream, 
-                logproto_vec, NULL);
-        return;
-    } else if (stripped == "/logging/active") {
-        Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(url), stream, 
-                logfile_vec, NULL);
-        return;
-    }
-
-    std::vector<std::string> tokenurl = str_tokenize(stripped, "/");
-
-    // /logging/by-uuid/[foo]/stop + post vars
-
-    if (tokenurl.size() < 4)
-        return;
-
-    if (tokenurl[1] != "logging")
-        return;
-
-    try {
-        if (tokenurl[2] == "by-uuid") {
-            uuid u(tokenurl[3]);
-            if (u.error) {
-                throw std::runtime_error("invalid uuid");
-            }
-
-            if (!httpd->has_valid_session(connection)) {
-                connection->httpcode = 503;
-                return;
-            }
-
-            local_locker lock(&tracker_mutex);
-
-            std::shared_ptr<kis_logfile> logfile;
-
-            for (auto lfi : *logfile_vec) {
-                auto lf = std::static_pointer_cast<kis_logfile>(lfi);
-
-                if (lf->get_log_uuid() == u) {
-                    logfile = lf;
-                    break;
-                }
-            }
-
-            if (logfile == NULL) {
-                throw std::runtime_error("invalid log uuid");
-            }
-
-            _MSG("Closing log file " + logfile->get_log_uuid().uuid_to_string() + " (" + 
-                    logfile->get_log_path() + ")", MSGFLAG_INFO);
-
-            logfile->close_log();
-
-            stream << "OK";
-            return;
-        } else if (tokenurl[2] == "by-class") {
-            local_locker lock(&tracker_mutex);
-
-            std::shared_ptr<kis_logfile_builder> builder;
-
-            for (auto lfi : *logproto_vec) {
-                auto lfb = std::static_pointer_cast<kis_logfile_builder>(lfi);
-
-                if (lfb->get_log_class() == tokenurl[3]) {
-                    builder = lfb;
-                    break;
-                }
-            }
-
-            if (builder == NULL) 
-                throw std::runtime_error("invalid logclass");
-
-            if (tokenurl[4] == "start") {
-                shared_logfile logf;
-
-                logf = open_log(builder);
-
-                if (logf == NULL) 
-                    throw std::runtime_error("unable to open log");
-
-                Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(url), stream, 
-                        logf, NULL);
-
-                return;
-            }
-        } else {
-            throw std::runtime_error("unknown url");
-        }
-    } catch(const std::exception& e) {
-        stream << "Invalid request: ";
-        stream << e.what();
-        connection->httpcode = 400;
-        return;
-    }
-
-}
-
-KIS_MHD_RETURN log_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
-    Json::Value json;
-
-    try {
-        json = concls->variable_cache_as<Json::Value>("json");
-    } catch(const std::exception& e) {
-        concls->response_stream << "Invalid request: " << e.what() << "\n";
-        concls->httpcode = 400;
-        return MHD_YES;
-    }
-
-    std::string stripped = httpd_strip_suffix(concls->url);
-
-    std::vector<std::string> tokenurl = str_tokenize(stripped, "/");
-
-    // /logging/by-class/[foo]/start + post vars
-
-    if (tokenurl.size() < 4)
-        return MHD_YES;
-
-    if (tokenurl[1] != "logging")
-        return MHD_YES;
-
-    try {
-        if (tokenurl[2] == "by-class") {
-            local_locker lock(&tracker_mutex);
-
-            std::shared_ptr<kis_logfile_builder> builder;
-
-            for (auto lfi : *logproto_vec) {
-                auto lfb = std::static_pointer_cast<kis_logfile_builder>(lfi);
-
-                if (lfb->get_log_class() == tokenurl[3]) {
-                    builder = lfb;
-                    break;
-                }
-            }
-
-            if (builder == NULL) 
-                throw std::runtime_error("invalid logclass");
-
-            if (tokenurl[4] == "start") {
-                auto title = json.get("title", get_log_title()).asString();
-
-                shared_logfile logf;
-
-                logf = open_log(builder, title);
-
-                if (logf == NULL) 
-                    throw std::runtime_error("unable to open log");
-
-                Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(concls->url),
-                        concls->response_stream, logf, NULL);
-                return MHD_YES;
-            }
-        }
-    } catch(const std::exception& e) {
-        concls->response_stream << "Invalid request: ";
-        concls->response_stream << e.what();
-        concls->httpcode = 400;
-        return MHD_YES;
-    }
-
-    return MHD_YES;
 }
 

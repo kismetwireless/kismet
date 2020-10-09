@@ -161,6 +161,31 @@ int hex_str_to_uint8(const std::string& in_str, uint8_t *in_buf, int in_buflen) 
 	return decode_pos;
 }
 
+std::string uint8_to_hex_str(uint8_t *in_buf, int in_buflen) {
+    std::string rs;
+
+    rs.reserve(in_buflen * 2);
+
+    for (int i = 0; i < in_buflen; i++) {
+        char c = in_buf[i];
+
+        auto n = (c >> 4) & 0x0F;
+        if (n <= 9)
+            rs += '0' + n;
+        else
+            rs += 'A' + n - 10;
+
+        auto n2 = c & 0x0F;
+        if (n2 <= 9)
+            rs += '0' + n2;
+        else
+            rs += 'A' + n2 - 10;
+    }
+
+    return rs;
+
+}
+
 int x_to_i(char x) {
     if (isxdigit(x)) {
         if (x <= '9')

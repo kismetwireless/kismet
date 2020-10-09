@@ -32,9 +32,9 @@
 #include "configfile.h"
 #include "datasourcetracker.h"
 #include "kis_endian.h"
-#include "kis_net_microhttpd.h"
 #include "timetracker.h"
 #include "remote_announcement.h"
+#include "kis_net_beast_httpd.h"
 
 kis_server_announce::kis_server_announce() :
     lifetime_global(),
@@ -43,7 +43,7 @@ kis_server_announce::kis_server_announce() :
 
 void kis_server_announce::trigger_deferred_startup() {
     datasourcetracker = Globalreg::fetch_mandatory_global_as<datasource_tracker>();
-    httpdserver = Globalreg::fetch_mandatory_global_as<kis_net_httpd>();
+    httpdserver = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
     auto timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
 

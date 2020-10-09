@@ -28,8 +28,7 @@
 #include "kis_httpd_registry.h"
 
 Kis_Zwave_Phy::Kis_Zwave_Phy(global_registry *in_globalreg, int in_phyid) :
-    kis_phy_handler(in_globalreg, in_phyid),
-    kis_net_httpd_cppstream_handler() {
+    kis_phy_handler(in_globalreg, in_phyid) {
 
     set_phy_name("Z-Wave");
 
@@ -54,19 +53,12 @@ Kis_Zwave_Phy::Kis_Zwave_Phy(global_registry *in_globalreg, int in_phyid) :
     auto httpregistry = 
         Globalreg::fetch_mandatory_global_as<kis_httpd_registry>("WEBREGISTRY");
     httpregistry->register_js_module("kismet_ui_zwave", "js/kismet.ui.zwave.js");
+
+    // TODO implement scan source?
 }
 
 Kis_Zwave_Phy::~Kis_Zwave_Phy() {
 
-}
-
-bool Kis_Zwave_Phy::httpd_verify_path(const char *path, const char *method) {
-    if (strcmp(method, "POST") == 0) {
-        if (strcmp(path, "/phy/phyZwave/post_zwave_json.cmd") == 0)
-            return true;
-    }
-
-    return false;
 }
 
 mac_addr Kis_Zwave_Phy::id_to_mac(uint32_t in_homeid, uint8_t in_devid) {
@@ -211,56 +203,4 @@ bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
 
     return true;
 }
-
-void Kis_Zwave_Phy::httpd_create_stream_response(kis_net_httpd *httpd,
-        kis_net_httpd_connection *connection,
-        const char *url, const char *method, const char *upload_data,
-        size_t *upload_data_size, std::stringstream &stream) {
-
-    return;
-}
-
-KIS_MHD_RETURN Kis_Zwave_Phy::httpd_post_complete(kis_net_httpd_connection *concls) {
-    bool handled = false;
-
-    if (concls->url != "/phy/phyZwave/post_zwave_json.cmd")
-        return MHD_YES;
-   
-    if (concls->variable_cache.find("obj") != concls->variable_cache.end()) {
-        Json::Value json;
-
-        try {
-            std::stringstream ss(concls->variable_cache["obj"]->str());
-            ss >> json;
-        } catch (std::exception& e) {
-            concls->response_stream << "Invalid request: could not parse JSON: " <<
-                e.what();
-            concls->httpcode = 400;
-            return MHD_YES;
-        }
-
-        // If we can't make sense of it, blow up
-        if (!json_to_record(json)) {
-            concls->response_stream << 
-                "Invalid request:  could not convert to Z-Wave device";
-            concls->httpcode = 400;
-            handled = false;
-        } else {
-            handled = true;
-        }
-    }
-
-    // If we didn't handle it and got here, we don't know what it is, throw an
-    // error.
-    if (!handled) {
-        concls->response_stream << "Invalid request";
-        concls->httpcode = 400;
-    } else {
-        // Return a generic OK.  
-        concls->response_stream << "OK";
-    }
-
-    return MHD_YES;
-}
-
 
