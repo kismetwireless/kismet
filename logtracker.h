@@ -126,7 +126,8 @@ protected:
 
 // Logfiles written to disk can be 'block' logs (like the device log), or they can be
 // streaming logs (like gps or pcapng streams); 
-class kis_logfile : public tracker_component, public streaming_agent {
+class kis_logfile : public tracker_component, public streaming_agent, 
+    public std::enable_shared_from_this<kis_logfile> {
 public:
     kis_logfile() :
         tracker_component() {

@@ -48,6 +48,7 @@
 #include "messagebus.h"
 #include "packet.h"
 #include "packetchain.h"
+#include "pcapng_stream_futurebuf.h"
 #include "util.h"
 #include "zstr.hpp"
 
@@ -80,6 +81,9 @@ device_tracker::device_tracker() :
 
     timetracker =
         Globalreg::fetch_mandatory_global_as<time_tracker>();
+
+    streamtracker =
+        Globalreg::fetch_mandatory_global_as<stream_tracker>();
 
     device_base_id =
         entrytracker->register_field("kismet.device.base", 
@@ -484,6 +488,46 @@ device_tracker::device_tracker() :
 
                     std::ostream os(&con->response_stream());
                     os << "Device tag set\n";
+                }));
+
+    httpd->register_route("/devices/pcap/by-key/:key/packets", {"GET"}, "pcap", {"pcapng"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    auto key_k = con->uri_params().find(":key");
+                    auto devkey = string_to_n<device_key>(key_k->second);
+
+                    if (devkey.get_error())
+                        throw std::runtime_error("invalid device key");
+
+                    auto pcapng = std::make_shared<pcapng_stream_packetchain>(con->response_stream(),
+                            [this, devkey](kis_packet *packet) -> bool {
+                                auto devinfo = packet->fetch<kis_tracked_device_info>(pack_comp_device);
+
+                                if (devinfo == nullptr)
+                                    return false;
+
+                                for (const auto& dri : devinfo->devrefs) {
+                                    if (dri.second->get_key() == devkey)
+                                        return true;
+                                }
+
+                                return true;
+                            },
+                            nullptr,
+                            1024*512);
+        
+                    con->set_target_file(fmt::format("kismet-device-{}.pcapng", devkey));
+                    con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
+
+                    auto sid = 
+                        streamtracker->register_streamer(pcapng, fmt::format("kismet-device-{}.pcapng", devkey),
+                            "pcapng", "httpd", 
+                            fmt::format("pcapng of packets for dev key {}", devkey));
+
+                    pcapng->start_stream();
+                    pcapng->block_until_stream_done();
+
+                    streamtracker->remove_streamer(sid);
                 }));
 
 

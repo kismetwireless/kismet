@@ -41,12 +41,12 @@
 #include "packet.h"
 #include "gpstracker.h"
 #include "uuid.h"
+#include "streamtracker.h"
 
 #include "devicetracker.h"
 #include "devicetracker_component.h"
 #include "kis_net_beast_httpd.h"
 #include "phy_80211_components.h"
-#include "phy_80211_httpd_pcap.h"
 #include "phy_80211_ssidtracker.h"
 
 #include "datasource_dot11_scan.h"
@@ -400,6 +400,7 @@ protected:
     std::shared_ptr<device_tracker> devicetracker;
     std::shared_ptr<event_bus> eventbus;
     std::shared_ptr<entry_tracker> entrytracker;
+    std::shared_ptr<stream_tracker> streamtracker;
 
     // Checksum of recent packets for duplication filtering
     uint32_t *recent_packet_checksums;
@@ -514,9 +515,6 @@ protected:
     int device_idle_expiration;
     int device_idle_timer;
     unsigned int device_idle_min_packets;
-
-    // Pcap handlers
-    std::unique_ptr<phy_80211_httpd_pcap> httpd_pcap;
 
     // Do we process control and phy frames?
     bool process_ctl_phy;

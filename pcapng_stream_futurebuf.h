@@ -83,6 +83,7 @@ protected:
     virtual int pcapng_make_idb(unsigned int in_sourcenumber, const std::string& in_interface,
             const std::string& in_description, int in_dlt);
     virtual int pcapng_write_packet(kis_packet *in_packet, kis_datachunk *in_data);
+    virtual int pcapng_write_packet(int interface_t, const struct timeval& ts, const std::string& in_data);
 
     virtual void handle_packet(kis_packet *in_packet);
 

@@ -103,7 +103,6 @@
 #include "gpstracker.h"
 
 #include "devicetracker.h"
-#include "devicetracker_httpd_pcap.h"
 #include "phy_80211.h"
 #include "phy_rtl433.h"
 #include "phy_rtlamr.h"
@@ -881,10 +880,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Create the device tracker
     auto devicetracker = device_tracker::create_device_tracker();
-
-    // Create the pcap tracker
-    auto devicetracker_pcap =
-        std::make_shared<device_tracker_httpd_pcap>();
 
     // Add channel tracking
     channel_tracker_v2::create_channeltracker(globalregistry);

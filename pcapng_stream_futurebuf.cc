@@ -348,6 +348,61 @@ int pcapng_stream_futurebuf::pcapng_write_packet(kis_packet *in_packet, kis_data
     return 1;
 }
 
+int pcapng_stream_futurebuf::pcapng_write_packet(int ng_interface_id, const struct timeval& ts, 
+        const std::string& in_data) {
+    local_locker l(&pcap_mutex, "pcapng_write_packet(2)");
+
+    std::shared_ptr<char> buf;
+
+    // Total buffer size is header + data + options
+    size_t buf_sz = sizeof(pcapng_epb) + PAD_TO_32BIT(in_data.size()) + sizeof(pcapng_option);
+
+    if (!block_until(buf_sz + 4))
+        return 0;
+
+    pcapng_epb *epb;
+    pcapng_option *opt;
+
+    buf = std::shared_ptr<char>(new char[buf_sz + 4], std::default_delete<char[]>());
+    memset(buf.get(), 0, buf_sz + 4);
+
+    epb = reinterpret_cast<pcapng_epb *>(buf.get());
+
+    epb->block_type = PCAPNG_EPB_BLOCK_TYPE;
+    epb->block_length = buf_sz + 4;
+    epb->interface_id = ng_interface_id;
+
+    // Convert timestamp to 10e6 usec precision
+    uint64_t conv_ts;
+    conv_ts = (uint64_t) ts.tv_sec * 1000000L;
+    conv_ts += ts.tv_usec;
+
+    // Split high and low ts
+    epb->timestamp_high = (conv_ts >> 32);
+    epb->timestamp_low = conv_ts;
+
+    epb->captured_length = in_data.size();
+    epb->original_length = in_data.size();
+
+    // Copy the data after the epb header
+    memcpy(buf.get() + sizeof(pcapng_epb), in_data.data(), in_data.size());
+
+    // Place an end option after the data - header + pad32(data)
+    opt = reinterpret_cast<pcapng_option *>(buf.get() + sizeof(pcapng_epb) + PAD_TO_32BIT(in_data.size()));
+    opt->option_code = PCAPNG_OPT_ENDOFOPT;
+    opt->option_length = 0;
+
+    // Final size
+    auto end_sz = reinterpret_cast<uint32_t *>(buf.get() + buf_sz);
+    *end_sz = buf_sz + 4;
+
+    chainbuf.put_data(buf, buf_sz + 4);
+
+    log_size += buf_sz + 4;
+
+    return 1;
+}
+
 void pcapng_stream_futurebuf::handle_packet(kis_packet *in_packet) {
     kis_datachunk *target_datachunk;
 
@@ -384,7 +439,7 @@ pcapng_stream_packetchain::pcapng_stream_packetchain(future_chainbuf& buffer,
             std::function<bool (kis_packet *)> accept_filter,
             std::function<kis_datachunk *(kis_packet *)> data_selector,
             size_t backlog_sz) :
-    pcapng_stream_futurebuf{buffer, accept_filter, data_selector, backlog_sz, true} {
+    pcapng_stream_futurebuf{buffer, accept_filter, data_selector, backlog_sz, false} {
 
 }
 

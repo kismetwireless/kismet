@@ -317,6 +317,7 @@ datasource_tracker::datasource_tracker() :
 
     timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
     eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
+    streamtracker = Globalreg::fetch_mandatory_global_as<stream_tracker>();
 
     proto_id = 
         Globalreg::globalreg->entrytracker->register_field("kismet.datasourcetracker.driver",
@@ -514,6 +515,9 @@ void datasource_tracker::trigger_deferred_startup() {
     alertracker->activate_configured_alert("SOURCEERROR",
             "A data source encountered an error.  Depending on the source configuration "
             "Kismet may automatically attempt to re-open the source.");
+
+    auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
+    pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");
 
     std::vector<std::string> src_vec;
 
@@ -986,18 +990,72 @@ void datasource_tracker::trigger_deferred_startup() {
                 }));
 
 
-    httpd->register_route("/pcap/all_packets", {"GET"}, httpd->LOGON_ROLE, {"pcapng"},
+    httpd->register_route("/pcap/all_packets", {"GET"}, "pcap", {"pcapng"},
             std::make_shared<kis_net_web_function_endpoint>(
-                [](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     // We use the future stalling function in the pcap future streambuf to hold
                     // this thread in wait until the stream is closed, keeping the http connection
                     // going.  The stream is fed from the packetchain callbacks.
                     auto pcapng = std::make_shared<pcapng_stream_packetchain>(con->response_stream(),
                             nullptr, nullptr,
                             1024*512);
+
+                    con->set_target_file("kismet-all-packets.pcapng");
                     con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
+
+                    auto sid = 
+                        streamtracker->register_streamer(pcapng, "kismet-all-packets.pcapng",
+                            "pcapng", "httpd", 
+                            fmt::format("pcapng of all packets"));
+
                     pcapng->start_stream();
                     pcapng->block_until_stream_done();
+
+                    streamtracker->remove_streamer(sid);
+                }));
+
+    httpd->register_route("/datasource/pcap/by-uuid/:uuid/packets", {"GET"}, "pcap", {"pcapng"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    auto dsuuid = string_to_n<uuid>(con->uri_params()[":uuid"]);
+                    if (dsuuid.error)
+                        throw std::runtime_error("invalid uuid");
+
+                    auto ds = find_datasource(dsuuid);
+                    if (ds == nullptr)
+                        throw std::runtime_error("no such datasource");
+
+                    auto dsnum = ds->get_source_number();
+
+                    auto pcapng = std::make_shared<pcapng_stream_packetchain>(con->response_stream(),
+                            [this, dsnum](kis_packet *packet) -> bool {
+                                auto datasrcinfo = packet->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
+
+                                if (datasrcinfo == nullptr)
+                                    return false;
+
+                                if (datasrcinfo->ref_source->get_source_number() != dsnum)
+                                    return false;
+
+                                return true;
+                            },
+                            nullptr,
+                            1024*512);
+
+                    con->set_target_file(fmt::format("kismet-datasource-{}-{}.pcapng", 
+                                ds->get_source_name(), dsuuid));
+                    con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
+
+                    auto sid = 
+                        streamtracker->register_streamer(pcapng, fmt::format("kismet-datasource-{}-{}.pcapng", 
+                                ds->get_source_name(), dsuuid),
+                            "pcapng", "httpd", 
+                            fmt::format("pcapng of packets for datasource {} {}", ds->get_source_name(), dsuuid));
+
+                    pcapng->start_stream();
+                    pcapng->block_until_stream_done();
+
+                    streamtracker->remove_streamer(sid);
                 }));
 
     return;
@@ -1699,179 +1757,7 @@ double datasource_tracker::string_to_rate(std::string in_str, double in_default)
     }
 }
 
-#if 0
-bool datasource_tracker_httpd_pcap::httpd_verify_path(const char *path, const char *method) {
-    if (strcmp(method, "GET") == 0) {
 
-        // Total pcap of all data; we put it in 2 locations
-        if (strcmp(path, "/pcap/all_packets.pcapng") == 0) 
-            return true;
-
-        if (strcmp(path, "/datasource/pcap/all_sources.pcapng") == 0)
-            return true;
-
-        // Alternately, per-source capture:
-        // /datasource/pcap/by-uuid/aa-bb-cc-dd/aa-bb-cc-dd.pcapng
-
-        std::vector<std::string> tokenurl = str_tokenize(path, "/");
-
-        if (tokenurl.size() < 6) {
-            return false;
-        }
-        if (tokenurl[1] == "datasource") {
-            if (tokenurl[2] == "pcap") {
-                if (tokenurl[3] == "by-uuid") {
-                    uuid u(tokenurl[4]);
-
-                    if (u.error) {
-                        return false;
-                    }
-
-                    if (datasourcetracker == NULL) {
-                        datasourcetracker =
-                            Globalreg::fetch_mandatory_global_as<datasource_tracker>("DATASOURCETRACKER");
-                    }
-
-                    if (packetchain == NULL) {
-                        std::shared_ptr<packet_chain> packetchain = 
-                            Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
-                        pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");
-                    }
-
-                    shared_datasource ds = datasourcetracker->find_datasource(u);
-                    
-                    if (ds != NULL)
-                        return true;;
-                }
-            }
-        }
-    }
-
-    return false;
-}
-
-KIS_MHD_RETURN datasource_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *httpd,
-        kis_net_httpd_connection *connection,
-        const char *url, const char *method, const char *upload_data,
-        size_t *upload_data_size) {
-
-    if (strcmp(method, "GET") != 0) {
-        return MHD_YES;
-    }
-
-    auto streamtracker = Globalreg::fetch_mandatory_global_as<stream_tracker>("STREAMTRACKER");
-
-    if (strcmp(url, "/pcap/all_packets.pcapng") == 0 ||
-            strcmp(url, "/datasource/pcap/all_sources.pcapng") == 0) {
-        // At this point we're logged in and have an aux pointer for the
-        // ringbuf aux; We can create our pcap ringbuf stream and attach it.
-        // We need to close down the pcapringbuf during teardown.
-       
-        kis_net_httpd_buffer_stream_aux *saux = 
-            (kis_net_httpd_buffer_stream_aux *) connection->custom_extension;
-       
-        auto *psrb = new pcap_stream_packetchain(Globalreg::globalreg,
-                saux->get_rbhandler(), NULL, NULL);
-
-        streamtracker->register_streamer(psrb, "all_sources.pcapng",
-                "pcapng", "httpd", "pcapng of all packets on all sources");
-
-        auto id = psrb->get_stream_id();
-
-        saux->set_aux(psrb, 
-            [id, streamtracker](kis_net_httpd_buffer_stream_aux *aux) {
-                streamtracker->remove_streamer(id);
-                if (aux->aux != NULL) {
-                    delete (pcap_stream_packetchain *) (aux->aux);
-                }
-            });
-
-        return MHD_NO;
-    }
-
-    // Find per-uuid and make a filtering pcapng
-    std::vector<std::string> tokenurl = str_tokenize(url, "/");
-
-    if (tokenurl.size() < 6) {
-        return MHD_YES;
-    }
-
-    if (tokenurl[1] == "datasource") {
-        if (tokenurl[2] == "pcap") {
-            if (tokenurl[3] == "by-uuid") {
-                uuid u(tokenurl[4]);
-
-                if (u.error) {
-                    return MHD_YES;
-                }
-
-                datasourcetracker =
-                    Globalreg::fetch_mandatory_global_as<datasource_tracker>("DATASOURCETRACKER");
-
-                std::shared_ptr<packet_chain> packetchain = 
-                    Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
-                pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");
-
-                shared_datasource ds = datasourcetracker->find_datasource(u);
-
-                if (ds == NULL)
-                    return MHD_YES;
-
-                if (!httpd->has_valid_session(connection)) {
-                    connection->httpcode = 503;
-                    return MHD_YES;
-                }
-
-                // Get the number of this source for fast compare
-                unsigned int dsnum = ds->get_source_number();
-
-                // Create the pcap stream and attach it to our ringbuf
-                kis_net_httpd_buffer_stream_aux *saux = 
-                    (kis_net_httpd_buffer_stream_aux *) connection->custom_extension;
-
-                // Fetch the datasource component and compare *source numbers*, not
-                // actual UUIDs - a UUID compare is expensive, a numeric compare is not!
-                auto *psrb = new pcap_stream_packetchain(Globalreg::globalreg,
-                        saux->get_rbhandler(), 
-                        [this, dsnum] (kis_packet *packet) -> bool {
-                            packetchain_comp_datasource *datasrcinfo = 
-                                (packetchain_comp_datasource *) 
-                                packet->fetch(pack_comp_datasrc);
-                        
-                            if (datasrcinfo == NULL)
-                                return false;
-
-                            if (datasrcinfo->ref_source->get_source_number() == dsnum)
-                                return true;
-
-                        return false; 
-                        }, NULL);
-
-
-                saux->set_aux(psrb, 
-                    [psrb, streamtracker](kis_net_httpd_buffer_stream_aux *aux) {
-                        streamtracker->remove_streamer(psrb->get_stream_id());
-                        if (aux->aux != NULL) {
-                            delete (kis_net_httpd_buffer_stream_aux *) (aux->aux);
-                        }
-                    });
-
-                streamtracker->register_streamer(psrb, 
-                        ds->get_source_name() + ".pcapng",
-                        "pcapng", "httpd", 
-                        "pcapng of " + ds->get_source_name() + " (" + 
-                        ds->get_source_cap_interface());
-
-                return MHD_NO;
-
-            }
-        }
-    }
-
-    return MHD_YES;
-}
-
-#endif
 
 dst_incoming_remote::dst_incoming_remote(callback_t in_cb) :
     kis_external_interface() {

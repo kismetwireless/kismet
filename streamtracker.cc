@@ -85,7 +85,7 @@ void stream_tracker::cancel_streams() {
     }
 }
 
-void stream_tracker::register_streamer(streaming_agent *in_agent,
+double stream_tracker::register_streamer(std::shared_ptr<streaming_agent> in_agent,
         std::string in_name, std::string in_type, std::string in_path, std::string in_description) {
 
     local_locker lock(&mutex);
@@ -102,6 +102,8 @@ void stream_tracker::register_streamer(streaming_agent *in_agent,
     streamrec->set_log_description(in_description);
 
     tracked_stream_map->insert(in_agent->get_stream_id(), streamrec);
+
+    return in_agent->get_stream_id();
 }
 
 void stream_tracker::remove_streamer(double in_id) {

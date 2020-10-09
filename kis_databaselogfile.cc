@@ -33,7 +33,6 @@ kis_database_logfile::kis_database_logfile():
     kis_logfile(shared_log_builder(NULL)), 
     kis_database(Globalreg::globalreg, "kismetlog"),
     lifetime_global(),
-    kis_net_httpd_ringbuf_stream_handler(),
     message_client(Globalreg::globalreg, nullptr) {
 
     transaction_mutex.set_name("kis_database_logfile_transaction");
@@ -77,8 +76,6 @@ kis_database_logfile::kis_database_logfile():
         Globalreg::fetch_mandatory_global_as<device_tracker>();
 
     db_enabled = false;
-
-    bind_httpd_server();
 }
 
 kis_database_logfile::~kis_database_logfile() {
@@ -90,8 +87,7 @@ kis_database_logfile::~kis_database_logfile() {
 }
 
 void kis_database_logfile::trigger_deferred_startup() {
-    gpstracker = 
-        Globalreg::fetch_mandatory_global_as<gps_tracker>();
+    gpstracker = Globalreg::fetch_mandatory_global_as<gps_tracker>();
 }
 
 void kis_database_logfile::trigger_deferred_shutdown() {
@@ -247,27 +243,31 @@ bool kis_database_logfile::open_log(std::string in_path) {
         snapshot_timeout_timer = -1;
     }
 
-    packet_drop_endp =
-        std::make_shared<kis_net_httpd_simple_post_endpoint>("/logging/kismetdb/pcap/drop", 
-                [this](std::ostream& stream, const std::string& uri,
-                    const Json::Value& json,
-                    kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
-                    return packet_drop_endpoint_handler(stream, uri, json, variable_cache);
-                }, nullptr);
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
-    make_poi_endp =
-        std::make_shared<kis_net_httpd_simple_post_endpoint>("/poi/create_poi", 
-                [this](std::ostream& stream, const std::string& uri,
-                    const Json::Value& json,
-                    kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
-                    return make_poi_endp_handler(stream, uri, json, variable_cache);
-                });
+    httpd->register_route("/logging/kismetdb/pcap/drop", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    return packet_drop_endpoint_handler(con);
+                }));
 
-    list_poi_endp =
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/poi/list_poi", 
-                [this]() -> std::shared_ptr<tracker_element> {
-                    return list_poi_endp_handler();
-                });
+    httpd->register_route("/poi/create_poi", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    return make_poi_endp_handler(con);
+                }));
+
+    httpd->register_route("/poi/list_poi", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    return list_poi_endp_handler(con);
+                }));
+
+    httpd->register_route("/logging/kismetdb/pcap/packets", {"GET", "POST"}, "pcap", {"pcapng"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    return pcapng_endp_handler(con);
+                }));
 
     device_mac_filter = 
         std::make_shared<class_filter_mac_addr>("kismetdb_devices", 
@@ -1362,364 +1362,112 @@ void kis_database_logfile::usage(const char *argv0) {
 
 }
 
-bool kis_database_logfile::httpd_verify_path(const char *path, const char *method) {
-    std::string stripped = httpd_strip_suffix(path);
-    std::string suffix = httpd_get_suffix(path);
 
-    if (stripped.find("/logging/kismetdb/pcap/") == 0 && suffix == "pcapng" && db_enabled)
-        return true;
-
-    return false;
-}
-
-KIS_MHD_RETURN kis_database_logfile::httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size) {
-
+void kis_database_logfile::pcapng_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
     using namespace kissqlite3;
 
-    std::string stripped = httpd_strip_suffix(connection->url);
-    std::string suffix = httpd_get_suffix(connection->url);
-
-    if (!httpd->has_valid_session(connection, true)) {
-        connection->httpcode = 503;
-        return MHD_YES;
-    }
-
-    if (stripped.find("/logging/kismetdb/pcap/") == 0 && suffix == "pcapng") {
-        if (db == nullptr || !db_enabled) {
-            connection->httpcode = 500;
-            return MHD_YES;
-        }
-
-        using namespace kissqlite3;
-        auto query = _SELECT(db, "packets", {"ts_sec", "ts_usec", "datasource", "dlt", "packet"});
-
-        try {
-            if (connection->has_cached_variable("timestamp_start"))
-                query.append_where(AND, _WHERE("ts_sec", GE, 
-                            connection->variable_cache_as<uint64_t>("timestamp_start")));
-
-            if (connection->has_cached_variable("timestamp_end"))
-                query.append_where(AND, _WHERE("ts_sec", LE,
-                            connection->variable_cache_as<uint64_t>("timestamp_end")));
-
-            if (connection->has_cached_variable("datasource"))
-                query.append_where(AND, _WHERE("datasource", LIKE,
-                            connection->variable_cache_as<std::string>("datasource")));
-
-            if (connection->has_cached_variable("device_id"))
-                query.append_where(AND, _WHERE("devkey", LIKE,
-                            connection->variable_cache_as<std::string>("device_id")));
-
-            if (connection->has_cached_variable("dlt"))
-                query.append_where(AND, _WHERE("dlt", EQ,
-                            connection->variable_cache_as<unsigned int>("dlt")));
-
-            if (connection->has_cached_variable("frequency"))
-                query.append_where(AND, _WHERE("frequency", EQ,
-                            connection->variable_cache_as<unsigned long int>("frequency")));
-
-            if (connection->has_cached_variable("frequency_min"))
-                query.append_where(AND, _WHERE("frequency", GE,
-                            connection->variable_cache_as<unsigned long int>("frequency_min")));
-
-            if (connection->has_cached_variable("frequency_max"))
-                query.append_where(AND, _WHERE("frequency", LE,
-                            connection->variable_cache_as<unsigned long int>("frequency_max")));
-
-            /*
-            if (connection->has_cached_variable("channel")) {
-                fprintf(stderr, "debug - channel %s\n", connection->variable_cache_as<std::string>("chnnel").c_str());
-                query.append_where(AND, _WHERE("channel", LIKE,
-                            connection->variable_cache_as<std::string>("channel")));
-            }
-            */
-
-            if (connection->has_cached_variable("signal_min"))
-                query.append_where(AND, _WHERE("signal", GE,
-                            connection->variable_cache_as<unsigned int>("signal_min")));
-
-            if (connection->has_cached_variable("signal_max"))
-                query.append_where(AND, _WHERE("signal", LE, 
-                            connection->variable_cache_as<unsigned int>("signal_max")));
-
-            if (connection->has_cached_variable("address_source")) 
-                query.append_where(AND, _WHERE("sourcemac", LIKE, 
-                            connection->variable_cache_as<std::string>("address_source")));
-
-            if (connection->has_cached_variable("address_dest")) 
-                query.append_where(AND, _WHERE("destmac", LIKE, 
-                            connection->variable_cache_as<std::string>("address_dest")));
-
-            if (connection->has_cached_variable("address_trans")) 
-                query.append_where(AND, _WHERE("transmac", LIKE, 
-                            connection->variable_cache_as<std::string>("address_trans")));
-
-            if (connection->has_cached_variable("location_lat_min"))
-                query.append_where(AND, _WHERE("lat", GE, 
-                            connection->variable_cache_as<double>("location_lat_min")));
-
-            if (connection->has_cached_variable("location_lon_min"))
-                query.append_where(AND, _WHERE("lon", GE, 
-                            connection->variable_cache_as<double>("location_lon_min")));
-
-            if (connection->has_cached_variable("location_lat_max"))
-                query.append_where(AND, _WHERE("lat", LE, 
-                            connection->variable_cache_as<double>("location_lat_max")));
-
-            if (connection->has_cached_variable("location_lon_max"))
-                query.append_where(AND, _WHERE("lon", LE, 
-                            connection->variable_cache_as<double>("location_lon_max")));
-
-            if (connection->has_cached_variable("size_min"))
-                query.append_where(AND, _WHERE("packet_len", GE, 
-                            connection->variable_cache_as<long int>("size_min")));
-
-            if (connection->has_cached_variable("size_max"))
-                query.append_where(AND, _WHERE("packet_len", LE, 
-                            connection->variable_cache_as<long int>("size_max")));
-
-            if (connection->has_cached_variable("limit"))
-                query.append_clause(LIMIT, connection->variable_cache_as<unsigned long>("limit"));
-
-        } catch (const std::exception& e) {
-            connection->httpcode = 500;
-            return MHD_YES;
-        }
-
-        kis_net_httpd_buffer_stream_aux *saux = (kis_net_httpd_buffer_stream_aux *) connection->custom_extension;
-        auto streamtracker = Globalreg::fetch_mandatory_global_as<stream_tracker>();
-
-        auto *dbrb = new pcap_stream_database(Globalreg::globalreg, saux->get_rbhandler());
-
-        saux->set_aux(dbrb,
-                [dbrb,streamtracker](kis_net_httpd_buffer_stream_aux *aux) {
-                streamtracker->remove_streamer(dbrb->get_stream_id());
-                if (aux->aux != NULL) {
-                delete (pcap_stream_database *) (aux->aux);
-                }
-                });
-
-        streamtracker->register_streamer(dbrb, "kismetdb.pcapng",
-                "pcapng", "httpd", "filtered pcapng from kismetdb");
-
-        // Get the list of all the interfaces we know about in the database and push them into the
-        // pcapng handler
-        auto datasource_query = _SELECT(db, "datasources", {"uuid", "name", "interface"});
-
-        for (auto ds : datasource_query)  {
-            dbrb->add_database_interface(sqlite3_column_as<std::string>(ds, 0),
-                    sqlite3_column_as<std::string>(ds, 1),
-                    sqlite3_column_as<std::string>(ds, 2));
-        }
-
-        // Database handler registers itself as timing out so this should be OK to just blitz through
-        // now, we'll block as necessary
-        for (auto p : query) {
-            if (dbrb->pcapng_write_database_packet(
-                        sqlite3_column_as<std::uint64_t>(p, 0),
-                        sqlite3_column_as<std::uint64_t>(p, 1),
-                        sqlite3_column_as<std::string>(p, 2),
-                        sqlite3_column_as<unsigned int>(p, 3),
-                        sqlite3_column_as<std::string>(p, 4)) < 0) {
-                return MHD_YES;
-            }
-        }
-    }
-
-    return MHD_YES;
-}
-
-KIS_MHD_RETURN kis_database_logfile::httpd_post_complete(kis_net_httpd_connection *concls) {
-    std::string stripped = httpd_strip_suffix(concls->url);
-    std::string suffix = httpd_get_suffix(concls->url);
-
-    Json::Value structdata;
-    Json::Value filterdata;
-
-    if (!httpd->has_valid_session(concls, true)) {
-        concls->httpcode = 503;
-        return MHD_YES;
-    }
-
-    if (stripped.find("/logging/kismetdb/pcap/") == 0 && suffix == "pcapng") {
-        if (db == nullptr || !db_enabled) {
-            concls->httpcode = 500;
-            return MHD_YES;
-        }
-
-        try {
-            if (concls->variable_cache.find("json") != concls->variable_cache.end()) {
-                structdata = concls->variable_cache_as<Json::Value>("json");
-
-                filterdata = structdata["filter"];
-
-                if (!filterdata.isNull() && !filterdata.isObject())
-                    throw std::runtime_error("Expected filter to be a dictionary");
-            }
-        } catch(const std::runtime_error& e) {
-            auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
-            auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
-
-            std::ostream stream(streambuf);
-
-            saux->set_aux(streambuf, 
-                    [](kis_net_httpd_buffer_stream_aux *aux) {
-                    if (aux->aux != NULL)
-                    delete((buffer_handler_ostringstream_buf *) (aux->aux));
-                    });
-
-            // Set our sync function which is called by the webserver side before we
-            // clean up...
-            saux->set_sync([](kis_net_httpd_buffer_stream_aux *aux) {
-                    if (aux->aux != NULL) {
-                    ((buffer_handler_ostringstream_buf *) aux->aux)->pubsync();
-                    }
-                    });
-
-            stream << "Invalid request: ";
-            stream << e.what();
-            concls->httpcode = 400;
-            return MHD_YES;
-        }
-    }
-
-    using namespace kissqlite3;
     auto query = _SELECT(db, "packets", {"ts_sec", "ts_usec", "datasource", "dlt", "packet"});
 
-    if (!filterdata.isNull()) {
-        try {
-            if (!filterdata["timestamp_start"].isNull())
-                query.append_where(AND, 
-                        _WHERE("ts_sec", GE, filterdata["timestamp_start"].asUInt64()));
+    auto ts_start_k = con->http_variables().find("timestamp_start");
+    if (ts_start_k != con->http_variables().end()) 
+        query.append_where(AND, _WHERE("ts_sec", GE, string_to_n<uint64_t>(ts_start_k->second)));
 
-            if (!filterdata["timestamp_end"].isNull()) 
-                query.append_where(AND, 
-                        _WHERE("ts_sec", LE, filterdata["timestamp_end"].asUInt64()));
+    auto ts_end_k = con->http_variables().find("timestamp_end");
+    if (ts_end_k != con->http_variables().end()) 
+        query.append_where(AND, _WHERE("ts_sec", LE, string_to_n<uint64_t>(ts_end_k->second)));
 
-            if (!filterdata["datasource"].isNull())
-                query.append_where(AND, 
-                        _WHERE("datasource", LIKE, filterdata["datasource"].asString()));
+    auto datasource_k = con->http_variables().find("datasource");
+    if (datasource_k != con->http_variables().end()) 
+        query.append_where(AND, _WHERE("datasource", LIKE, datasource_k->second));
 
-            if (!filterdata["device_id"].isNull())
-                query.append_where(AND, _WHERE("devkey", LIKE, filterdata["device_id"].asString()));
+    auto deviceid_k = con->http_variables().find("device_id");
+    if (deviceid_k != con->http_variables().end()) 
+        query.append_where(AND, _WHERE("devkey", LIKE, deviceid_k->second));
 
-            if (!filterdata["dlt"].isNull())
-                query.append_where(AND, _WHERE("dlt", EQ, filterdata["dlt"].asInt()));
+    auto dlt_k = con->http_variables().find("dlt");
+    if (dlt_k != con->http_variables().end()) 
+        query.append_where(AND, _WHERE("dlt", EQ, string_to_n<unsigned int>(dlt_k->second)));
 
-            if (!filterdata["frequency"].isNull())
-                query.append_where(AND, 
-                        _WHERE("frequency", EQ, filterdata["frequency"].asUInt64()));
+    auto frequency_k = con->http_variables().find("frequency");
+    if (frequency_k != con->http_variables().end()) 
+        query.append_where(AND, _WHERE("frequency", EQ, string_to_n<unsigned int>(frequency_k->second)));
 
-            if (!filterdata["frequency_min"].isNull()) 
-                query.append_where(AND, 
-                        _WHERE("frequency", GE, filterdata["frequency_min"].asUInt64()));
+    auto frequency_min_k = con->http_variables().find("frequency_min");
+    if (frequency_min_k != con->http_variables().end()) 
+        query.append_where(AND, _WHERE("frequency_min", GE, string_to_n<unsigned int>(frequency_min_k->second)));
 
-            if (!filterdata["frequency_max"].isNull()) 
-                query.append_where(AND, 
-                        _WHERE("frequency", LE, filterdata["frequency_max"].asUInt64()));
+    auto frequency_max_k = con->http_variables().find("frequency_max");
+    if (frequency_max_k != con->http_variables().end()) 
+        query.append_where(AND, _WHERE("frequency_max", LE, string_to_n<unsigned int>(frequency_max_k->second)));
 
-            /*
-            if (filterdata->has_key("channel")) 
-                query.append_where(AND, _WHERE("CHANNEL", LIKE, filterdata->key_as_number("channel")));
-                */
+    auto signal_min_k = con->http_variables().find("signal_min");
+    if (signal_min_k != con->http_variables().end()) 
+        query.append_where(AND, _WHERE("signal_min", GE, string_to_n<unsigned int>(signal_min_k->second)));
 
-            if (!filterdata["signal_min"].isNull())
-                query.append_where(AND, _WHERE("signal", GE, filterdata["signal_min"].asInt()));
+    auto signal_max_k = con->http_variables().find("signal_max");
+    if (signal_max_k != con->http_variables().end()) 
+        query.append_where(AND, _WHERE("signal_max", LE, string_to_n<unsigned int>(signal_max_k->second)));
 
-            if (!filterdata["signal_max"].isNull())
-                query.append_where(AND, _WHERE("signal", LE, filterdata["signal_max"].asInt()));
+    auto address_source_k = con->http_variables().find("address_source");
+    if (address_source_k != con->http_variables().end()) 
+        query.append_where(AND, _WHERE("address_source", LIKE, address_source_k->second));
 
-            if (!filterdata["address_source"].isNull())
-                query.append_where(AND, 
-                        _WHERE("sourcemac", LIKE, filterdata["address_source"].asString()));
+    auto address_dest_k = con->http_variables().find("address_dest");
+    if (address_dest_k != con->http_variables().end()) 
+        query.append_where(AND, _WHERE("address_dest", LIKE, address_dest_k->second));
 
-            if (!filterdata["address_dest"].isNull())
-                query.append_where(AND, 
-                        _WHERE("destmac", LIKE, filterdata["address_dest"].asString()));
+    auto address_trans_k = con->http_variables().find("address_trans");
+    if (address_trans_k != con->http_variables().end()) 
+        query.append_where(AND, _WHERE("address_trans", LIKE, address_trans_k->second));
 
-            if (!filterdata["address_trans"].isNull())
-                query.append_where(AND, 
-                        _WHERE("transmac", LIKE, filterdata["address_trans"].asString()));
+    auto location_lat_min_k = con->http_variables().find("location_lat_min");
+    if (location_lat_min_k != con->http_variables().end()) 
+        query.append_where(AND, _WHERE("location_lat_min", GE, string_to_n<double>(location_lat_min_k->second)));
 
-            if (!filterdata["location_lat_min"].isNull())
-                query.append_where(AND, 
-                        _WHERE("lat", GE, filterdata["location_lat_min"].asDouble()));
+    auto location_lat_max_k = con->http_variables().find("location_lat_max");
+    if (location_lat_max_k != con->http_variables().end()) 
+        query.append_where(AND, _WHERE("location_lat_max", LE, string_to_n<double>(location_lat_max_k->second)));
 
-            if (!filterdata["location_lon_min"].isNull())
-                query.append_where(AND, 
-                        _WHERE("lon", GE, filterdata["location_lon_min"].asDouble()));
+    auto location_lon_min_k = con->http_variables().find("location_lon_min");
+    if (location_lon_min_k != con->http_variables().end()) 
+        query.append_where(AND, _WHERE("location_lon_min", GE, string_to_n<double>(location_lon_min_k->second)));
 
-            if (!filterdata["location_lat_max"].isNull())
-                query.append_where(AND, 
-                        _WHERE("lat", LE, filterdata["location_lat_max"].asDouble()));
+    auto location_lon_max_k = con->http_variables().find("location_lon_max");
+    if (location_lon_max_k != con->http_variables().end()) 
+        query.append_where(AND, _WHERE("location_lon_max", LE, string_to_n<double>(location_lon_max_k->second)));
 
-            if (!filterdata["location_lon_max"].isNull())
-                query.append_where(AND, 
-                        _WHERE("lon", LE, filterdata["location_lon_max"].asDouble()));
+    auto size_min_k = con->http_variables().find("size_min");
+    if (size_min_k != con->http_variables().end()) 
+        query.append_where(AND, _WHERE("size_min", GE, string_to_n<unsigned long int>(size_min_k->second)));
 
-            if (!filterdata["size_min"].isNull())
-                query.append_where(AND, _WHERE("packet_len", GE, filterdata["size_min"].asUInt64()));
-           
-            if (!filterdata["size_max"].isNull())
-                query.append_where(AND, _WHERE("packet_len", LE, filterdata["size_max"].asUInt64()));
+    auto size_max_k = con->http_variables().find("size_max");
+    if (size_max_k != con->http_variables().end()) 
+        query.append_where(AND, _WHERE("size_max", LE, string_to_n<unsigned long int>(size_max_k->second)));
+    
+    auto limit_k = con->http_variables().find("limit");
+    if (limit_k != con->http_variables().end()) 
+        query.append_clause(LIMIT, string_to_n<unsigned long>(limit_k->second));
 
-            if (!filterdata["limit"].isNull())
-                query.append_clause(LIMIT, filterdata["limit"].asUInt());
+    auto pcapng = std::make_shared<pcapng_stream_database>(con->response_stream());
 
-        } catch (const std::exception& e) {
-            auto saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
-            auto streambuf = new buffer_handler_ostringstream_buf(saux->get_rbhandler());
+    con->set_target_file(fmt::format("kismet-dblog.pcapng"));
+    con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
 
-            std::ostream stream(streambuf);
-
-            saux->set_aux(streambuf, 
-                    [](kis_net_httpd_buffer_stream_aux *aux) {
-                    if (aux->aux != NULL)
-                    delete((buffer_handler_ostringstream_buf *) (aux->aux));
-                    });
-
-            // Set our sync function which is called by the webserver side before we
-            // clean up...
-            saux->set_sync([](kis_net_httpd_buffer_stream_aux *aux) {
-                    if (aux->aux != NULL) {
-                    ((buffer_handler_ostringstream_buf *) aux->aux)->pubsync();
-                    }
-                    });
-
-            stream << "Invalid request: ";
-            stream << e.what();
-            concls->httpcode = 400;
-            return MHD_YES;
-        }
-    }
-
-    // std::cout << query << std::endl;
-
-    kis_net_httpd_buffer_stream_aux *saux = (kis_net_httpd_buffer_stream_aux *) concls->custom_extension;
     auto streamtracker = Globalreg::fetch_mandatory_global_as<stream_tracker>();
+    auto sid = 
+        streamtracker->register_streamer(pcapng, fmt::format("kismet-dblog.pcapng"),
+            "pcapng", "httpd", 
+            fmt::format("pcapng of from dblog"));
 
-    auto *dbrb = new pcap_stream_database(Globalreg::globalreg, saux->get_rbhandler());
 
-    saux->set_aux(dbrb,
-            [dbrb,streamtracker](kis_net_httpd_buffer_stream_aux *aux) {
-                streamtracker->remove_streamer(dbrb->get_stream_id());
-                if (aux->aux != NULL) {
-                    delete (pcap_stream_database *) (aux->aux);
-                }
-            });
-
-    streamtracker->register_streamer(dbrb, "kismetdb.pcapng",
-            "pcapng", "httpd", "filtered pcapng from kismetdb");
+    pcapng->start_stream();
 
     // Get the list of all the interfaces we know about in the database and push them into the
     // pcapng handler
     auto datasource_query = _SELECT(db, "datasources", {"uuid", "name", "interface"});
 
     for (auto ds : datasource_query)  {
-        dbrb->add_database_interface(sqlite3_column_as<std::string>(ds, 0),
+        pcapng->add_database_interface(sqlite3_column_as<std::string>(ds, 0),
                 sqlite3_column_as<std::string>(ds, 1),
                 sqlite3_column_as<std::string>(ds, 2));
     }
@@ -1727,59 +1475,49 @@ KIS_MHD_RETURN kis_database_logfile::httpd_post_complete(kis_net_httpd_connectio
     // Database handler registers itself as timing out so this should be OK to just blitz through
     // now, we'll block as necessary
     for (auto p : query) {
-        if (dbrb->pcapng_write_database_packet(
+        if (pcapng->pcapng_write_database_packet(
                     sqlite3_column_as<std::uint64_t>(p, 0),
                     sqlite3_column_as<std::uint64_t>(p, 1),
                     sqlite3_column_as<std::string>(p, 2),
                     sqlite3_column_as<unsigned int>(p, 3),
                     sqlite3_column_as<std::string>(p, 4)) < 0) {
-            return MHD_YES;
+            return;
         }
     }
 
-    return MHD_YES;
+    streamtracker->remove_streamer(sid);
 }
 
-unsigned int kis_database_logfile::packet_drop_endpoint_handler(std::ostream& ostream,
-        const std::string& uri, const Json::Value& json,
-        kis_net_httpd_connection::variable_cache_map& postvars) {
+void kis_database_logfile::packet_drop_endpoint_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    std::ostream ostream(&con->response_stream());
 
     using namespace kissqlite3;
 
     if (!db_enabled) {
+        con->set_status(400);
         ostream << "Illegal request: kismetdb log not enabled\n";
-        return 400;
+        return;
     }
 
-    try {
         auto drop_query = 
-            _DELETE(db, "packets", _WHERE("ts_sec", LE, json["drop_before"].asUInt64()));
-
-    } catch (const std::exception& e) {
-        ostream << e.what() << "\n";
-        return 400;
-    }
+            _DELETE(db, "packets", _WHERE("ts_sec", LE, con->json()["drop_before"].asUInt64()));
 
     ostream << "Packets removed\n";
-    return 200;
 }
 
-unsigned int kis_database_logfile::make_poi_endp_handler(std::ostream& ostream, 
-        const std::string& uri, const Json::Value& json,
-        kis_net_httpd_connection::variable_cache_map& postvars) {
+void kis_database_logfile::make_poi_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    std::ostream ostream(&con->response_stream());
 
-    if (!db_enabled) {
-        ostream << "Illegal request: kismetdb log not enabled\n";
-        return 400;
-    }
+    if (!db_enabled)
+        throw std::runtime_error("kismetdb log not enabled\n");
 
     struct timeval tv;
     gettimeofday(&tv, nullptr);
     std::string poi_data;
 
-    if (!json["note"].isNull()) {
+    if (!con->json()["note"].isNull()) {
         poi_data = "{\"note\": \"" +
-            json_adapter::sanitize_string(json["note"].asString()) +
+            json_adapter::sanitize_string(con->json()["note"].asString()) +
             "\"}";
     }
 
@@ -1791,30 +1529,39 @@ unsigned int kis_database_logfile::make_poi_endp_handler(std::ostream& ostream,
     log_snapshot(loc.get(), tv, "POI", poi_data);
 
     ostream << "POI created\n";
-    return 200;
 }
 
-std::shared_ptr<tracker_element> kis_database_logfile::list_poi_endp_handler() {
+std::shared_ptr<tracker_element> 
+kis_database_logfile::list_poi_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
     return std::make_shared<tracker_element_vector>();
 }
 
-pcap_stream_database::pcap_stream_database(global_registry *in_globalreg,
-        std::shared_ptr<buffer_handler_generic> in_handler) :
-        pcap_stream_ringbuf(Globalreg::globalreg, in_handler, nullptr, nullptr, true),
-        next_pcap_intf_id {0} {
+pcapng_stream_database::pcapng_stream_database(future_chainbuf& buffer) :
+    pcapng_stream_futurebuf(buffer, 
+            nullptr, 
+            nullptr,
+            1024*512,
+            true),
+    next_pcap_intf_id{0} {
+
+}
+
+pcapng_stream_database::~pcapng_stream_database() {
+    chainbuf.cancel();
+}
+
+void pcapng_stream_database::start_stream() {
+    pcapng_stream_futurebuf::start_stream();
 
     // Populate a junk interface
     add_database_interface("0", "lo", "Placeholder for missing interface");
 }
 
-pcap_stream_database::~pcap_stream_database() {
+void pcapng_stream_database::stop_stream(std::string in_reason) {
+    pcapng_stream_futurebuf::stop_stream(in_reason);
 }
 
-void pcap_stream_database::stop_stream(std::string in_reason) {
-    handler->protocol_error();
-}
-
-void pcap_stream_database::add_database_interface(const std::string& in_uuid, const std::string& in_interface,
+void pcapng_stream_database::add_database_interface(const std::string& in_uuid, const std::string& in_interface,
         const std::string& in_name) {
     
     if (db_uuid_intf_map.find(in_uuid) != db_uuid_intf_map.end())
@@ -1827,7 +1574,7 @@ void pcap_stream_database::add_database_interface(const std::string& in_uuid, co
     db_uuid_intf_map[in_uuid] = intf;
 }
 
-int pcap_stream_database::pcapng_write_database_packet(uint64_t time_s, uint64_t time_us,
+int pcapng_stream_database::pcapng_write_database_packet(uint64_t time_s, uint64_t time_us,
         const std::string& interface_uuid, unsigned int dlt, const std::string& data) {
 
     auto pcap_intf_i = db_uuid_intf_map.find(interface_uuid);
@@ -1857,13 +1604,10 @@ int pcap_stream_database::pcapng_write_database_packet(uint64_t time_s, uint64_t
         ng_interface_id = ds_id_rec->second;
     }
 
-    auto blocks = std::vector<data_block>{};
-    blocks.push_back(data_block((uint8_t *) data.data(), data.length()));
-
     struct timeval ts;
     ts.tv_sec = time_s;
     ts.tv_usec = time_us;
 
-    return pcapng_write_packet(ng_interface_id, &ts, blocks);
+    return pcapng_write_packet(ng_interface_id, ts, data);
 }
 

@@ -40,6 +40,7 @@
 #include "kis_mutex.h"
 #include "eventbus.h"
 #include "messagebus.h"
+#include "streamtracker.h"
 
 /* Data source tracker
  *
@@ -413,8 +414,11 @@ protected:
     std::shared_ptr<datasource_tracker> datasourcetracker;
     std::shared_ptr<time_tracker> timetracker;
     std::shared_ptr<event_bus> eventbus;
+    std::shared_ptr<stream_tracker> streamtracker;
 
     kis_recursive_timed_mutex dst_lock;
+
+    int pack_comp_datasrc;
 
     int proto_id;
     int source_id;

@@ -128,11 +128,11 @@ public:
 
     __Proxy(log_paused, uint8_t, bool, bool, log_paused);
 
-    void set_agent(streaming_agent *in_agent) {
+    void set_agent(std::shared_ptr<streaming_agent> in_agent) {
         agent = in_agent;
     }
 
-    streaming_agent *get_agent() {
+    std::shared_ptr<streaming_agent> get_agent() {
         return agent;
     }
 
@@ -184,7 +184,7 @@ protected:
 
     std::shared_ptr<tracker_element_uint8> log_paused;
 
-    streaming_agent *agent;
+    std::shared_ptr<streaming_agent> agent;
 };
 
 class stream_tracker : public lifetime_global {
@@ -204,7 +204,7 @@ private:
 public:
     virtual ~stream_tracker();
 
-    void register_streamer(streaming_agent *in_agent, std::string in_name,
+    double register_streamer(std::shared_ptr<streaming_agent> in_agent, std::string in_name,
             std::string in_type, std::string in_path, std::string in_description);
     void remove_streamer(double in_id);
 

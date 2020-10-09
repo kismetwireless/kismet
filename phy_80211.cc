@@ -55,6 +55,8 @@
 
 #include "boost_like_hash.h"
 
+#include "pcapng_stream_futurebuf.h"
+
 #ifdef HAVE_LIBPCRE
 #include <pcre.h>
 #endif
@@ -80,23 +82,13 @@ int phydot11_packethook_dot11(CHAINCALL_PARMS) {
 
 kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) : 
     kis_phy_handler(in_globalreg, in_phyid) {
-        alertracker =
-            Globalreg::fetch_mandatory_global_as<alert_tracker>();
-
-        packetchain =
-            Globalreg::fetch_mandatory_global_as<packet_chain>();
-
-        timetracker =
-            Globalreg::fetch_mandatory_global_as<time_tracker>();
-
-        devicetracker =
-            Globalreg::fetch_mandatory_global_as<device_tracker>();
-
-        eventbus =
-            Globalreg::fetch_mandatory_global_as<event_bus>();
-
-        entrytracker =
-            Globalreg::fetch_mandatory_global_as<entry_tracker>();
+        alertracker = Globalreg::fetch_mandatory_global_as<alert_tracker>();
+        packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
+        timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
+        devicetracker = Globalreg::fetch_mandatory_global_as<device_tracker>();
+        eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
+        entrytracker = Globalreg::fetch_mandatory_global_as<entry_tracker>();
+        streamtracker = Globalreg::fetch_mandatory_global_as<stream_tracker>();
 
         // Initialize the crc tables
         crc32_init_table_80211(Globalreg::globalreg->crc32_table);
@@ -493,17 +485,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
         device_idle_timer = -1;
     }
 
-#if 0
-	conf_save = Globalreg::globalreg->timestamp.tv_sec;
-
-	ssid_conf = new config_file(Globalreg::globalreg);
-	ssid_conf->parse_config(ssid_conf->expand_log_path(Globalreg::globalreg->kismet_config->fetch_opt("configdir") + "/" + "ssid_map.conf", "", "", 0, 1).c_str());
-    Globalreg::globalreg->insert_global("SSID_CONF_FILE", std::shared_ptr<config_file>(ssid_conf));
-#endif
-
     ssidtracker = phy_80211_ssid_tracker::create_dot11_ssidtracker();
-
-    httpd_pcap.reset(new phy_80211_httpd_pcap());
 
     // Set up the de-duplication list
     recent_packet_checksums_sz = 
@@ -814,6 +796,43 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
 
                     con->set_target_file(fmt::format("{}-pmkid.pcap", dev->get_macaddr()));
                     return generate_handshake_pcap(con, dev, dot11, "pmkid");
+                }));
+
+    httpd->register_route("/phy/phy80211/pcap/by-bssid/:mac/packets.pcapng", {"GET"}, "pcap", {"pcapng"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    auto mac = string_to_n<mac_addr>(con->uri_params()[":mac"]);
+
+                    if (mac.error())
+                        throw std::runtime_error("invalid mac");
+
+                    auto pcapng = std::make_shared<pcapng_stream_packetchain>(con->response_stream(),
+                            [this, mac](kis_packet *packet) -> bool {
+                                auto dot11info = packet->fetch<dot11_packinfo>(pack_comp_80211);
+
+                                if (dot11info == nullptr)
+                                    return false;
+
+                                if (dot11info->bssid_mac == mac)
+                                    return true;
+
+                                return true;
+                            },
+                            nullptr,
+                            1024*512);
+        
+                    con->set_target_file(fmt::format("kismet-80211-bssid-{}.pcapng", mac));
+                    con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
+
+                    auto sid = 
+                        streamtracker->register_streamer(pcapng, fmt::format("kismet-80211-bssid{}.pcapng", mac),
+                            "pcapng", "httpd", 
+                            fmt::format("pcapng of packets for phy80211 bssid  {}", mac));
+
+                    pcapng->start_stream();
+                    pcapng->block_until_stream_done();
+
+                    streamtracker->remove_streamer(sid);
                 }));
 
 }

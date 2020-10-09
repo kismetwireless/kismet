@@ -56,6 +56,7 @@
 #include "kis_database.h"
 #include "eventbus.h"
 #include "robin_hood.h"
+#include "streamtracker.h"
 
 #define KIS_PHY_ANY	-1
 #define KIS_PHY_UNKNOWN -2
@@ -245,6 +246,7 @@ protected:
     std::shared_ptr<event_bus> eventbus;
     std::shared_ptr<alert_tracker> alertracker;
     std::shared_ptr<time_tracker> timetracker;
+    std::shared_ptr<stream_tracker> streamtracker;
 
     void timetracker_event(int eventid);
 
