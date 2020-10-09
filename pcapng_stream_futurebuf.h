@@ -36,6 +36,9 @@
 // future_chainbuf; registers as a stream handler in the streaming subsystem.
 //
 // Can be configured to have a maximum pending buffer size, with discard or stall behavior.
+//
+// Can be stalled until the lifetime of the stream completes, for easy inclusion in http request
+// threads
 
 class pcapng_stream_futurebuf : public streaming_agent, public std::enable_shared_from_this<pcapng_stream_futurebuf> {
 public:
@@ -48,10 +51,15 @@ public:
     virtual ~pcapng_stream_futurebuf();
 
     virtual void stop_stream(std::string in_reason) override;
+
+    virtual void block_until_stream_done();
 protected:
     kis_recursive_timed_mutex pcap_mutex;
 
     future_chainbuf& chainbuf;
+
+    std::promise<void> total_lifetime_promise;
+    std::future<void> total_lifetime_ft;
 
     size_t max_backlog;
     bool block_for_buffer;

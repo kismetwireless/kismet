@@ -44,6 +44,12 @@ pcapng_stream_futurebuf::pcapng_stream_futurebuf(future_chainbuf& buffer,
 }
 
 pcapng_stream_futurebuf::~pcapng_stream_futurebuf() {
+    try {
+        total_lifetime_promise.set_value();
+    } catch (const std::future_error& e) {
+        ;
+    }
+
     chainbuf.cancel();
 }
 
@@ -62,7 +68,18 @@ size_t pcapng_stream_futurebuf::block_until(size_t req_bytes) {
 }
 
 void pcapng_stream_futurebuf::stop_stream(std::string reason) {
+    try {
+        total_lifetime_promise.set_value();
+    } catch (const std::future_error& e) {
+        ;
+    }
+
     chainbuf.cancel();
+}
+
+void pcapng_stream_futurebuf::block_until_stream_done() {
+    total_lifetime_ft = total_lifetime_promise.get_future();
+    total_lifetime_ft.wait();
 }
 
 int pcapng_stream_futurebuf::pcapng_make_shb(const std::string& in_hw, const std::string& in_os, 
