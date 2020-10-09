@@ -55,7 +55,7 @@ protected:
     virtual void trigger_deferred_startup() override;
 
     std::shared_ptr<datasource_tracker> datasourcetracker;
-    std::shared_ptr<kis_net_httpd> httpdserver;
+    std::shared_ptr<kis_net_beast_httpd> httpdserver;
 
     int timerid;
 
