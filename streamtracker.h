@@ -207,6 +207,8 @@ public:
     void register_streamer(streaming_agent *in_agent, std::string in_name,
             std::string in_type, std::string in_path, std::string in_description);
     void remove_streamer(double in_id);
+
+    void cancel_streams();
    
 protected:
     kis_recursive_timed_mutex mutex;

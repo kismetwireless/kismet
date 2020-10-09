@@ -76,6 +76,15 @@ stream_tracker::~stream_tracker() {
     local_locker lock(&mutex);
 }
 
+void stream_tracker::cancel_streams() {
+    local_locker l(&mutex, "cancel streams");
+
+    for (auto s_i : *tracked_stream_map) {
+        auto s = std::static_pointer_cast<streaming_info_record>(s_i.second);
+        s->get_agent()->stop_stream("closing all streams");
+    }
+}
+
 void stream_tracker::register_streamer(streaming_agent *in_agent,
         std::string in_name, std::string in_type, std::string in_path, std::string in_description) {
 
