@@ -329,6 +329,9 @@ int pcapng_stream_futurebuf::pcapng_write_packet(kis_packet *in_packet, kis_data
     epb->captured_length = in_data->length;
     epb->original_length = in_data->length;
 
+    // Copy the data after the epb header
+    memcpy(buf.get() + sizeof(pcapng_epb), in_data->data, in_data->length);
+
     // Place an end option after the data - header + pad32(data)
     opt = reinterpret_cast<pcapng_option *>(buf.get() + sizeof(pcapng_epb) + PAD_TO_32BIT(in_data->length));
     opt->option_code = PCAPNG_OPT_ENDOFOPT;
