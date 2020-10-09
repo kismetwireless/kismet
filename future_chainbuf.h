@@ -213,7 +213,7 @@ public:
 
         data_chunk *target;
 
-        if (chunk_list_.size() == 0) {
+        if (chunk_list_.size() != 0) {
             target = chunk_list_.back();
         } else {
             target = new data_chunk(chunk_sz_);
@@ -267,7 +267,7 @@ public:
 
         data_chunk *target;
 
-        if (chunk_list_.size() == 0) {
+        if (chunk_list_.size() != 0) {
             target = chunk_list_.back();
         } else {
             target = new data_chunk(chunk_sz_);
