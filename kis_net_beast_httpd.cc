@@ -566,6 +566,21 @@ void kis_net_beast_httpd::register_unauth_route(const std::string& route,
 }
 
 std::string kis_net_beast_httpd::create_auth(const std::string& name, const std::string& role, time_t expiry) {
+    local_locker l(&auth_mutex, "add auth");
+
+    // Pull an existing token if one exists for this name
+    for (const auto& a : auth_vec) {
+        if (a->name() == name && a->role() == role) {
+            if (a->expires() < expiry) {
+                a->set_expiration(expiry);
+                store_auth();
+            }
+
+            return a->token();
+        }
+    }
+
+
     std::random_device rnd;
     auto dist = std::uniform_int_distribution<uint8_t>(0, 0xFF);
     uint8_t rdata[16];
@@ -576,7 +591,6 @@ std::string kis_net_beast_httpd::create_auth(const std::string& name, const std:
     auto token = uint8_to_hex_str(rdata, 16);
     auto auth = std::make_shared<kis_net_beast_auth>(token, name, role, expiry);
 
-    local_locker l(&auth_mutex, "add auth");
     auth_vec.emplace_back(auth);
     store_auth();
 
@@ -860,6 +874,13 @@ void kis_net_beast_httpd_connection::set_target_file(const std::string& fname) {
 
     response.set(boost::beast::http::field::content_disposition,
             fmt::format("attachment; filename=\"{}\"", fname));
+}
+
+void kis_net_beast_httpd_connection::append_header(const std::string& header, const std::string& value) {
+    if (first_response_write)
+        throw std::runtime_error("tried to set a header on a connection already in progress");
+
+    response.set(header, value);
 }
 
 bool kis_net_beast_httpd_connection::start() {

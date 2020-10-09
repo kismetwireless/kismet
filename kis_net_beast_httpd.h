@@ -203,6 +203,7 @@ public:
     void set_status(boost::beast::http::status status);
     void set_mime_type(const std::string& type);
     void set_target_file(const std::string& type);
+    void append_header(const std::string& header, const std::string& value);
 
     const boost::beast::http::verb& verb() const { return verb_; }
     const boost::beast::string_view& uri() const { return uri_; }
@@ -484,8 +485,13 @@ public:
     const std::string& name() { return name_; }
     const std::string& role() { return role_; }
 
+    const time_t& expires() { return time_expires_; }
+    const time_t& accessed() { return time_accessed_; }
+    const time_t& created() { return time_created_; }
+
     bool is_valid() const { return time_expires_ == 0 || time_expires_ < time(0); }
     void access() { time_accessed_ = time(0); }
+    void set_expiration(time_t e) { time_expires_ = e; }
 
     Json::Value as_json();
 
