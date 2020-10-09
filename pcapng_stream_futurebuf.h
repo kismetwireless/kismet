@@ -50,6 +50,8 @@ public:
 
     virtual ~pcapng_stream_futurebuf();
 
+    virtual void start_stream();
+
     virtual void stop_stream(std::string in_reason) override;
 
     virtual void block_until_stream_done();
@@ -73,7 +75,7 @@ protected:
     // Map kismet internal interface ID + DLT hash to log interface ID
     std::unordered_map<unsigned int, unsigned int> datasource_id_map;
 
-    virtual size_t block_until(size_t req_bytes);
+    virtual bool block_until(size_t req_bytes);
 
     virtual int pcapng_make_shb(const std::string& in_hw, const std::string& in_os, const std::string& in_app);
 
@@ -98,6 +100,7 @@ public:
             size_t backlog_sz);
     virtual ~pcapng_stream_packetchain();
 
+    virtual void start_stream() override;
     virtual void stop_stream(std::string in_reason) override;
 
 protected:

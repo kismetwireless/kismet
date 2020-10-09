@@ -31,16 +31,15 @@ pcapng_stream_futurebuf::pcapng_stream_futurebuf(future_chainbuf& buffer,
     block_for_buffer{block_for_write}, 
     accept_cb{accept_filter},
     selector_cb{data_selector} {
-        pcap_mutex.set_name("pcapng_stream_futurebuf");
 
-        // Kick us out of stream mode into packet mode
-        chainbuf.set_packetmode();
+    pcap_mutex.set_name("pcapng_stream_futurebuf");
 
-        packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
-        pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
-        pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");
+    // Kick us out of stream mode into packet mode
+    chainbuf.set_packetmode();
 
-        pcapng_make_shb("", "", "Kismet");
+    packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
+    pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
+    pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");
 }
 
 pcapng_stream_futurebuf::~pcapng_stream_futurebuf() {
@@ -53,18 +52,22 @@ pcapng_stream_futurebuf::~pcapng_stream_futurebuf() {
     chainbuf.cancel();
 }
 
-size_t pcapng_stream_futurebuf::block_until(size_t req_bytes) {
+void pcapng_stream_futurebuf::start_stream() {
+    pcapng_make_shb("", "", "Kismet");
+}
+
+bool pcapng_stream_futurebuf::block_until(size_t req_bytes) {
     if (!block_for_buffer)
-        return req_bytes;
+        return chainbuf.size() + req_bytes < max_backlog;
 
     while (chainbuf.size() + req_bytes > max_backlog) {
         if (!chainbuf.running())
-            return 0;
+            return false;
 
         chainbuf.wait_write();
     }
 
-    return req_bytes;
+    return true;
 }
 
 void pcapng_stream_futurebuf::stop_stream(std::string reason) {
@@ -105,7 +108,7 @@ int pcapng_stream_futurebuf::pcapng_make_shb(const std::string& in_hw, const std
     if (in_app.length() > 0)
         buf_sz += sizeof(pcapng_option) + PAD_TO_32BIT(in_app.length());
 
-    if (block_until(buf_sz + 4) == 0)
+    if (!block_until(buf_sz + 4))
         return -1;
 
     buf = std::shared_ptr<char>(new char[buf_sz + 4], std::default_delete<char[]>());
@@ -187,6 +190,26 @@ int pcapng_stream_futurebuf::pcapng_make_idb(kis_datasource *in_datasource, int 
 
 int pcapng_stream_futurebuf::pcapng_make_idb(unsigned int in_sourcenumber, const std::string& in_interface,
         const std::string& in_ifdesc, int in_dlt) {
+    // Calculate the size and if we're going to wait to insert it before we put it into the key map
+    // because if we don't have room and aren't waiting, we need to generate it next time
+    size_t buf_sz;
+
+    buf_sz = sizeof(pcapng_idb);
+
+    // Allocate an end-of-options entry
+    buf_sz += sizeof(pcapng_option);
+
+    // Allocate for all entries
+    if (in_interface.length() > 0)
+        buf_sz += sizeof(pcapng_option_t) + PAD_TO_32BIT(in_interface.length());
+
+    if (in_ifdesc.length() > 0) {
+        buf_sz += sizeof(pcapng_option_t) + PAD_TO_32BIT(in_ifdesc.length());
+    }
+
+    if (!block_until(buf_sz + 4))
+        return 0;
+
     // Put it in the map of datasource IDs to local log IDs.  The sequential 
     // position in the list of IDBs is the size of the map because we never
     // remove from the number map.
@@ -206,23 +229,6 @@ int pcapng_stream_futurebuf::pcapng_make_idb(unsigned int in_sourcenumber, const
 
     pcapng_option *opt;
     size_t opt_offt = 0;
-
-    size_t buf_sz;
-
-    buf_sz = sizeof(pcapng_idb);
-
-    // Allocate an end-of-options entry
-    buf_sz += sizeof(pcapng_option);
-
-    // Allocate for all entries
-    if (in_interface.length() > 0)
-        buf_sz += sizeof(pcapng_option_t) + PAD_TO_32BIT(in_interface.length());
-
-    if (in_ifdesc.length() > 0) {
-        buf_sz += sizeof(pcapng_option_t) + PAD_TO_32BIT(in_ifdesc.length());
-    }
-
-    block_until(buf_sz + 4);
 
     buf = std::shared_ptr<char>(new char[buf_sz + 4], std::default_delete<char[]>());
 
@@ -296,7 +302,8 @@ int pcapng_stream_futurebuf::pcapng_write_packet(kis_packet *in_packet, kis_data
     // Total buffer size is header + data + options
     size_t buf_sz = sizeof(pcapng_epb) + PAD_TO_32BIT(in_data->length) + sizeof(pcapng_option);
 
-    block_until(buf_sz + 4);
+    if (!block_until(buf_sz + 4))
+        return 0;
 
     pcapng_epb *epb;
     pcapng_option *opt;
@@ -338,7 +345,7 @@ int pcapng_stream_futurebuf::pcapng_write_packet(kis_packet *in_packet, kis_data
     return 1;
 }
 
-void  pcapng_stream_futurebuf::handle_packet(kis_packet *in_packet) {
+void pcapng_stream_futurebuf::handle_packet(kis_packet *in_packet) {
     kis_datachunk *target_datachunk;
 
     if (get_stream_paused())
@@ -376,15 +383,21 @@ pcapng_stream_packetchain::pcapng_stream_packetchain(future_chainbuf& buffer,
             size_t backlog_sz) :
     pcapng_stream_futurebuf{buffer, accept_filter, data_selector, backlog_sz, true} {
 
-    packethandler_id = packetchain->register_handler([this](kis_packet *packet) {
-            handle_packet(packet);
-            return 1;
-        }, CHAINPOS_LOGGING, -100);
 }
 
 pcapng_stream_packetchain::~pcapng_stream_packetchain() {
     packetchain->remove_handler(packethandler_id, CHAINPOS_LOGGING);
     chainbuf.cancel();
+}
+
+void pcapng_stream_packetchain::start_stream() {
+    pcapng_stream_futurebuf::start_stream();
+
+    packethandler_id = 
+        packetchain->register_handler([this](kis_packet *packet) {
+            handle_packet(packet);
+            return 1;
+        }, CHAINPOS_LOGGING, -100);
 }
 
 void pcapng_stream_packetchain::stop_stream(std::string in_reason) {
