@@ -557,103 +557,6 @@ void datasource_tracker::trigger_deferred_startup() {
 
     remote_complete_timer = -1;
 
-    while (1) {
-        int r = getopt_long(Globalreg::globalreg->argc, Globalreg::globalreg->argv, "-c:",
-                packetsource_long_options, &option_idx);
-
-        if (r < 0) break;
-
-        if (r == 'c') {
-            used_args = true;
-            src_vec.push_back(std::string(optarg));
-        }
-    }
-
-    if (used_args) {
-        _MSG("Data sources passed on the command line (via -c source), ignoring "
-                "source= definitions in the Kismet config file.", MSGFLAG_INFO);
-    } else {
-        src_vec = Globalreg::globalreg->kismet_config->fetch_opt_vec("source");
-    }
-
-    if (src_vec.size() == 0) {
-        _MSG("No data sources defined; Kismet will not capture anything until "
-                "a source is added.", MSGFLAG_INFO);
-        return;
-    }
-
-    auto stagger_thresh = 
-        Globalreg::globalreg->kismet_config->fetch_opt_uint("source_stagger_threshold", 16);
-    auto simul_open = 
-        Globalreg::globalreg->kismet_config->fetch_opt_uint("source_launch_group", 10);
-    auto simul_open_delay = 
-        Globalreg::globalreg->kismet_config->fetch_opt_uint("source_launch_delay", 10);
-
-    auto launch_func = [](datasource_tracker *dst, std::string src) {
-            dst->open_datasource(src, 
-                    [src](bool success, std::string reason, shared_datasource) {
-                if (success) {
-                    _MSG_INFO("Data source '{}' launched successfully", src);
-                } else {
-                    if (reason.length() != 0) {
-                        _MSG_ERROR("Data source '{}' failed to launch: {}", src, reason);
-                    } else {
-                        _MSG_ERROR("Data source '{}' failed to launch, no error provided.", src);
-                    }
-                }
-            });
-    };
-
-    if (stagger_thresh == 0 || src_vec.size() <= stagger_thresh) {
-        auto source_t = std::thread([launch_func](datasource_tracker *dst, 
-                    const std::vector<std::string>& src_vec) {
-                for (auto i : src_vec) {
-                    launch_func(dst, i);
-                }
-                }, this, src_vec);
-        source_t.detach();
-    } else {
-        std::vector<std::string> work_vec;
-        unsigned int group_number = 0;
-
-        for (auto i : src_vec) {
-            work_vec.push_back(i);
-
-            if (work_vec.size() > simul_open) {
-                // Pass a copy of the work vec so that we can immediately clear it
-                auto launch_t = std::thread([launch_func, simul_open_delay](datasource_tracker *dst,
-                            const std::vector<std::string> src_vec, unsigned int gn) {
-
-                    // All the threads launch more or less at once, so each thread sleeps for
-                    // its allocated amount of time before launching the vector
-                    sleep(gn * simul_open_delay);
-                    _MSG_INFO("Launching local source group {}", gn + 1);
-
-                    for (auto i : src_vec) {
-                        launch_func(dst, i);
-                    }
-                }, this, work_vec, group_number);
-                launch_t.detach();
-
-                work_vec.clear();
-                group_number++;
-            }
-        }
-
-        // Launch the last of the group
-        auto launch_t = std::thread([launch_func, simul_open_delay](datasource_tracker *dst,
-                    const std::vector<std::string> src_vec, unsigned int gn) {
-
-                    sleep(gn * simul_open_delay);
-                    _MSG_INFO("Launching local source group {}", gn);
-
-                    for (auto i : src_vec) {
-                        launch_func(dst, i);
-                    }
-                }, this, work_vec, group_number);
-                launch_t.detach();
-    }
-
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
     httpd->register_route("/datasource/all_sources", {"GET", "POST"}, httpd->RO_ROLE, {},
@@ -1057,6 +960,104 @@ void datasource_tracker::trigger_deferred_startup() {
 
                     streamtracker->remove_streamer(sid);
                 }));
+
+
+    while (1) {
+        int r = getopt_long(Globalreg::globalreg->argc, Globalreg::globalreg->argv, "-c:",
+                packetsource_long_options, &option_idx);
+
+        if (r < 0) break;
+
+        if (r == 'c') {
+            used_args = true;
+            src_vec.push_back(std::string(optarg));
+        }
+    }
+
+    if (used_args) {
+        _MSG("Data sources passed on the command line (via -c source), ignoring "
+                "source= definitions in the Kismet config file.", MSGFLAG_INFO);
+    } else {
+        src_vec = Globalreg::globalreg->kismet_config->fetch_opt_vec("source");
+    }
+
+    if (src_vec.size() == 0) {
+        _MSG("No data sources defined; Kismet will not capture anything until "
+                "a source is added.", MSGFLAG_INFO);
+        return;
+    }
+
+    auto stagger_thresh = 
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("source_stagger_threshold", 16);
+    auto simul_open = 
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("source_launch_group", 10);
+    auto simul_open_delay = 
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("source_launch_delay", 10);
+
+    auto launch_func = [](datasource_tracker *dst, std::string src) {
+            dst->open_datasource(src, 
+                    [src](bool success, std::string reason, shared_datasource) {
+                if (success) {
+                    _MSG_INFO("Data source '{}' launched successfully", src);
+                } else {
+                    if (reason.length() != 0) {
+                        _MSG_ERROR("Data source '{}' failed to launch: {}", src, reason);
+                    } else {
+                        _MSG_ERROR("Data source '{}' failed to launch, no error provided.", src);
+                    }
+                }
+            });
+    };
+
+    if (stagger_thresh == 0 || src_vec.size() <= stagger_thresh) {
+        auto source_t = std::thread([launch_func](datasource_tracker *dst, 
+                    const std::vector<std::string>& src_vec) {
+                for (auto i : src_vec) {
+                    launch_func(dst, i);
+                }
+                }, this, src_vec);
+        source_t.detach();
+    } else {
+        std::vector<std::string> work_vec;
+        unsigned int group_number = 0;
+
+        for (auto i : src_vec) {
+            work_vec.push_back(i);
+
+            if (work_vec.size() > simul_open) {
+                // Pass a copy of the work vec so that we can immediately clear it
+                auto launch_t = std::thread([launch_func, simul_open_delay](datasource_tracker *dst,
+                            const std::vector<std::string> src_vec, unsigned int gn) {
+
+                    // All the threads launch more or less at once, so each thread sleeps for
+                    // its allocated amount of time before launching the vector
+                    sleep(gn * simul_open_delay);
+                    _MSG_INFO("Launching local source group {}", gn + 1);
+
+                    for (auto i : src_vec) {
+                        launch_func(dst, i);
+                    }
+                }, this, work_vec, group_number);
+                launch_t.detach();
+
+                work_vec.clear();
+                group_number++;
+            }
+        }
+
+        // Launch the last of the group
+        auto launch_t = std::thread([launch_func, simul_open_delay](datasource_tracker *dst,
+                    const std::vector<std::string> src_vec, unsigned int gn) {
+
+                    sleep(gn * simul_open_delay);
+                    _MSG_INFO("Launching local source group {}", gn);
+
+                    for (auto i : src_vec) {
+                        launch_func(dst, i);
+                    }
+                }, this, work_vec, group_number);
+                launch_t.detach();
+    }
 
     return;
 }
