@@ -30,7 +30,7 @@
 #include "kis_databaselogfile.h"
 #include "kis_httpd_registry.h"
 #include "messagebus.h"
-#include "pcapng_stream_ringbuf.h"
+#include "pcapng_stream_futurebuf.h"
 #include "streamtracker.h"
 #include "timetracker.h"
 
@@ -985,6 +985,20 @@ void datasource_tracker::trigger_deferred_startup() {
                     }
                 }));
 
+
+    httpd->register_route("/pcap/all_packets", {"GET"}, httpd->LOGON_ROLE, {"pcapng"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    // We use the future stalling function in the pcap future streambuf to hold
+                    // this thread in wait until the stream is closed, keeping the http connection
+                    // going.  The stream is fed from the packetchain callbacks.
+                    auto pcapng = std::make_shared<pcapng_stream_packetchain>(con->response_stream(),
+                            nullptr, nullptr,
+                            1024*512);
+                    con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
+                    pcapng->start_stream();
+                    pcapng->block_until_stream_done();
+                }));
 
     return;
 }
