@@ -55,7 +55,7 @@ class kis_manuf;
 // Field name resolver
 class entry_tracker;
 // HTTP server
-class kis_net_httpd;
+class kis_net_beast_httpd;
 
 #define KISMET_INSTANCE_SERVER	0
 #define KISMET_INSTANCE_DRONE	1

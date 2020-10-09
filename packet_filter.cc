@@ -210,7 +210,7 @@ void packet_filter_mac_addr::set_filter(mac_addr in_mac, const std::string& in_p
         target_block_map_id = filter_any_id;
     else
         throw std::runtime_error(fmt::format("Unknown target block '{}' in filter", 
-                    kishttpd::escape_html(in_block)));
+                    kis_net_beast_httpd_connection::escape_html(in_block)));
 
     if (tracked_phy_key == filter_phy_blocks->end()) {
         // Generate all the required blocks
@@ -301,7 +301,7 @@ void packet_filter_mac_addr::remove_filter(mac_addr in_mac, const std::string& i
         target_block_map_id = filter_any_id;
     } else {
         throw std::runtime_error(fmt::format("Unknown target block '{}' in filter", 
-                    kishttpd::escape_html(in_block)));
+                   kis_net_beast_httpd_connection::escape_html(in_block)));
     }
 
 	if (tracked_phy_key == filter_phy_blocks->end()) {
@@ -388,7 +388,7 @@ void packet_filter_mac_addr::edit_endp_handler(std::shared_ptr<kis_net_beast_htt
 
         if (m.state.error) 
             throw std::runtime_error(fmt::format("Invalid MAC address: '{}'",
-                        kishttpd::escape_html(i)));
+                        con->escape_html(i)));
 
         set_filter(m, con->uri_params()[":phyname"], con->uri_params()[":block"], v);
     }
@@ -413,7 +413,7 @@ void packet_filter_mac_addr::remove_endp_handler(std::shared_ptr<kis_net_beast_h
 
         if (m.state.error) 
             throw std::runtime_error(fmt::format("Invalid MAC address: '{}'",
-                        kishttpd::escape_html(i.asString())));
+                        con->escape_html(i.asString())));
 
         remove_filter(m, con->uri_params()[":phyname"], con->uri_params()[":block"]);
     }

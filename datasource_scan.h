@@ -45,7 +45,6 @@ protected:
     std::shared_ptr<datasource_tracker> datasourcetracker;
     std::shared_ptr<packet_chain> packetchain;
 
-    std::shared_ptr<kis_net_httpd_simple_post_endpoint> scan_result_endp;
     void scan_result_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
     int pack_comp_common, pack_comp_json, pack_comp_datasrc, pack_comp_gps,

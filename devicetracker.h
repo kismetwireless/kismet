@@ -355,10 +355,8 @@ protected:
     // List of views using new API as we transition the rest to the new API
     kis_recursive_timed_mutex view_mutex;
     std::shared_ptr<tracker_element_vector> view_vec;
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> view_endp;
 
     using shared_con = std::shared_ptr<kis_net_beast_httpd_connection>;
-
     std::shared_ptr<tracker_element> multimac_endp_handler(shared_con con);
     std::shared_ptr<tracker_element> all_phys_endp_handler(shared_con con);
 

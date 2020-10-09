@@ -59,7 +59,7 @@ std::shared_ptr<tracker_element> device_tracker::multimac_endp_handler(shared_co
 
         if (ma.state.error) 
             throw std::runtime_error(fmt::format("Invalid MAC address '{}' in 'devices' list",
-                        kishttpd::escape_html(m.asString())));
+                        con->escape_html(m.asString())));
 
         macs.push_back(ma);
     }
@@ -129,7 +129,7 @@ std::shared_ptr<tracker_element> device_tracker::multikey_endp_handler(shared_co
 
         if (ka.get_error()) 
             throw std::runtime_error(fmt::format("Invalid device key '{}' in 'devices' list",
-                        kishttpd::escape_html(k.asString())));
+                        con->escape_html(k.asString())));
 
         keys.push_back(ka);
     }

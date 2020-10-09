@@ -89,12 +89,10 @@
 #include "timetracker.h"
 #include "alertracker.h"
 
-#include "kis_net_microhttpd.h"
 #include "kis_net_beast_httpd.h"
 
 #include "system_monitor.h"
 #include "channeltracker2.h"
-#include "kis_httpd_websession.h"
 #include "kis_httpd_registry.h"
 #include "messagebus_restclient.h"
 #include "streamtracker.h"
@@ -242,7 +240,7 @@ void SpindownKismet() {
 		streamtracker->cancel_streams();
 	
     // Shut down the webserver first
-    auto httpd = Globalreg::fetch_global_as<kis_net_httpd>();
+    auto httpd = Globalreg::fetch_global_as<kis_net_beast_httpd>();
     if (httpd != nullptr)
         httpd->stop_httpd();
 
@@ -781,7 +779,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // HTTP BLOCK
     // Create the HTTPD server, it needs to exist before most things
-    auto microhttpd = kis_net_httpd::create_httpd();
     auto beast = kis_net_beast_httpd::create_httpd();
 
     if (globalregistry->fatal_condition) 
@@ -832,12 +829,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Add the messagebus REST interface
     rest_message_client::create_messageclient();
-
-    if (globalregistry->fatal_condition)
-        SpindownKismet();
-
-    // Add login session
-    kis_httpd_websession::create_websession();
 
     if (globalregistry->fatal_condition)
         SpindownKismet();
@@ -1005,7 +996,7 @@ int main(int argc, char *argv[], char *envp[]) {
     }
     
     _MSG("Starting Kismet web server...", MSGFLAG_INFO);
-    Globalreg::fetch_mandatory_global_as<kis_net_httpd>()->start_httpd();
+    Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>()->start_httpd();
 
     if (globalreg->fatal_condition) {
         SpindownKismet();
@@ -1013,8 +1004,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Independent time and select threads, which has had problems with timing conflicts
     timetracker->spawn_timetracker_thread();
-
-    beast->start_httpd();
 
     std::vector<std::thread> iov;
     iov.reserve(Globalreg::globalreg->n_io_threads);
