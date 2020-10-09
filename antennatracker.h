@@ -20,7 +20,7 @@
 #define __ANTENNATRACKER_H__
 
 #include "config.h"
-#include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
 #include "globalregistry.h"
 #include "trackedcomponent.h"
 #include "kis_mutex.h"
@@ -131,9 +131,6 @@ protected:
     int next_ant_id;
     
     std::shared_ptr<tracker_element_int_map> antenna_id_map;
-
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> antenna_endp;
-
 };
 
 #endif

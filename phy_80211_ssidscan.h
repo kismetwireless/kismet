@@ -21,8 +21,6 @@
 
 #include "config.h"
 
-#include "kis_net_microhttpd.h"
-
 #include "globalregistry.h"
 #include "trackedelement.h"
 #include "trackedcomponent.h"

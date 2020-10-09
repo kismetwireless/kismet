@@ -773,8 +773,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                         }
 
                         var key = opts['data']['kismet.device.base.key'];
-                        var url = '<a href="phy/phy80211/by-key/' + key + '/pcap/' +
-                            key + '-handshake.pcap">' +
+                        var url = '<a href="phy/phy80211/by-key/' + key + '/pcap/handshake.pcap">' +
                             '<i class="fa fa-download"></i> Download Pcap File</a>' +
                             warning;
                         return url;
@@ -798,7 +797,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     title: "PMKID PCAP",
                     draw: function(opts) {
                         var key = opts['data']['kismet.device.base.key'];
-                        var url = '<a href="phy/phy80211/by-key/' + key + '/pcap/' + key + '-pmkid.pcap">' +
+                        var url = '<a href="phy/phy80211/by-key/' + key + '/pcap/handshake-pmkid.pcap">' +
                             '<i class="fa fa-download"></i> Download Pcap File</a>'; 
                         return url;
                     },

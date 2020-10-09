@@ -50,12 +50,13 @@
 #include "devicetracker_component.h"
 #include "trackercomponent_legacy.h"
 #include "timetracker.h"
-#include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
 #include "devicetracker_view.h"
 #include "devicetracker_view_workers.h"
 #include "kis_database.h"
 #include "eventbus.h"
 #include "robin_hood.h"
+#include "streamtracker.h"
 
 #define KIS_PHY_ANY	-1
 #define KIS_PHY_UNKNOWN -2
@@ -63,15 +64,14 @@
 class kis_phy_handler;
 class kis_packet;
 
-class device_tracker : public kis_net_httpd_chain_stream_handler,
-    public time_tracker_event, public lifetime_global, public kis_database, 
+class device_tracker : public lifetime_global, public kis_database, 
     public deferred_startup {
 
 public:
     static std::string global_name() { return "DEVICETRACKER"; }
 
     static std::shared_ptr<device_tracker> create_device_tracker() {
-        std::shared_ptr<device_tracker> mon(new device_tracker(Globalreg::globalreg));
+        std::shared_ptr<device_tracker> mon(new device_tracker());
         Globalreg::globalreg->devicetracker = mon.get();
         Globalreg::globalreg->register_lifetime_global(mon);
         Globalreg::globalreg->register_deferred_global(mon);
@@ -80,7 +80,7 @@ public:
     }
 
 private:
-	device_tracker(global_registry *in_globalreg);
+	device_tracker();
 
 public:
 	virtual ~device_tracker();
@@ -192,19 +192,6 @@ public:
     void set_device_tag(std::shared_ptr<kis_tracked_device_base> in_dev,
             std::string in_tag, std::string in_content);
 
-    // HTTP handlers
-    virtual bool httpd_verify_path(const char *path, const char *method) override;
-
-    virtual KIS_MHD_RETURN httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size) override;
-
-    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *concls) override;
-    
-    // time_tracker event handler
-    virtual int timetracker_event(int eventid) override;
-
     // CLI extension
     static void usage(const char *name);
 
@@ -239,12 +226,14 @@ public:
     std::shared_ptr<tracker_element_string> get_cached_phyname(const std::string& phyname);
 
     // Lock a range of devices
+    void lock_device_range(std::shared_ptr<tracker_element> devices);
     void lock_device_range(std::shared_ptr<tracker_element_vector> devices);
     void lock_device_range(const std::vector<std::shared_ptr<kis_tracked_device_base>>& devices);
     void lock_device_range(std::shared_ptr<tracker_element_map> device_map);
     void lock_device_range(std::shared_ptr<tracker_element_device_key_map> device_map);
     void lock_device_range(std::shared_ptr<tracker_element_mac_map> device_map);
 
+    void unlock_device_range(std::shared_ptr<tracker_element> devices);
     void unlock_device_range(std::shared_ptr<tracker_element_vector> devices);
     void unlock_device_range(const std::vector<std::shared_ptr<kis_tracked_device_base>>& devices);
     void unlock_device_range(std::shared_ptr<tracker_element_map> device_map);
@@ -252,11 +241,14 @@ public:
     void unlock_device_range(std::shared_ptr<tracker_element_mac_map> device_map);
 
 protected:
-	global_registry *globalreg;
     std::shared_ptr<entry_tracker> entrytracker;
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<event_bus> eventbus;
     std::shared_ptr<alert_tracker> alertracker;
+    std::shared_ptr<time_tracker> timetracker;
+    std::shared_ptr<stream_tracker> streamtracker;
+
+    void timetracker_event(int eventid);
 
     unsigned long new_datasource_evt_id, new_device_evt_id;
 
@@ -363,28 +355,16 @@ protected:
     // List of views using new API as we transition the rest to the new API
     kis_recursive_timed_mutex view_mutex;
     std::shared_ptr<tracker_element_vector> view_vec;
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> view_endp;
 
-    // Multimac endpoint using new http API
-    std::shared_ptr<kis_net_httpd_simple_post_endpoint> multimac_endp;
-    unsigned int multimac_endp_handler(std::ostream& stream, const std::string& uri,
-            const Json::Value& json, kis_net_httpd_connection::variable_cache_map& variable_cache);
+    using shared_con = std::shared_ptr<kis_net_beast_httpd_connection>;
+    std::shared_ptr<tracker_element> multimac_endp_handler(shared_con con);
+    std::shared_ptr<tracker_element> all_phys_endp_handler(shared_con con);
 
-    // /phys/all_phys.json endpoint using new simple endpoint API
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> all_phys_endp;
-    std::shared_ptr<tracker_element> all_phys_endp_handler();
     int phy_phyentry_id, phy_phyname_id, phy_devices_count_id, 
         phy_packets_count_id, phy_phyid_id;
 
     // Multikey endpoint
-    std::shared_ptr<kis_net_httpd_simple_post_endpoint> multikey_endp;
-    unsigned int multikey_endp_handler(std::ostream& stream, const std::string& uri,
-            const Json::Value& json, kis_net_httpd_connection::variable_cache_map& variable_cache);
-
-    // Multikey-dict endpoint
-    std::shared_ptr<kis_net_httpd_simple_post_endpoint> multikey_dict_endp;
-    unsigned int multikey_dict_endp_handler(std::ostream& stream, const std::string& uri,
-            const Json::Value& json, kis_net_httpd_connection::variable_cache_map& variable_cache);
+    std::shared_ptr<tracker_element> multikey_endp_handler(shared_con con, bool as_object);
 
 	// Registered PHY types
 	int next_phy_id;

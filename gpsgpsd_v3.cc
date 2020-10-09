@@ -104,7 +104,7 @@ void kis_gps_gpsd_v3::close() {
 }
 
 void kis_gps_gpsd_v3::start_connect(std::shared_ptr<kis_gps_gpsd_v3> ref,
-        const asio::error_code& error, tcp::resolver::iterator endpoints) {
+        const boost::system::error_code& error, tcp::resolver::iterator endpoints) {
     if (stopped)
         return;
 
@@ -113,15 +113,15 @@ void kis_gps_gpsd_v3::start_connect(std::shared_ptr<kis_gps_gpsd_v3> ref,
         stopped = true;
         set_int_device_connected(false);
     } else {
-        asio::async_connect(socket, endpoints,
-                [this, ref](const asio::error_code& ec, tcp::resolver::iterator endpoint) {
+        boost::asio::async_connect(socket, endpoints,
+                [this, ref](const boost::system::error_code& ec, tcp::resolver::iterator endpoint) {
                     handle_connect(ref, ec, endpoint);
                 });
     }
 }
 
 void kis_gps_gpsd_v3::handle_connect(std::shared_ptr<kis_gps_gpsd_v3> ref,
-        const asio::error_code& error, tcp::resolver::iterator endpoint) {
+        const boost::system::error_code& error, tcp::resolver::iterator endpoint) {
 
     if (stopped) {
         return;
@@ -146,10 +146,10 @@ void kis_gps_gpsd_v3::write_gpsd(std::shared_ptr<kis_gps_gpsd_v3> ref, const std
     if (stopped)
         return;
 
-    asio::async_write(socket, asio::buffer(data),
-            [this](const asio::error_code& error, std::size_t) {
+    boost::asio::async_write(socket, boost::asio::buffer(data),
+            [this](const boost::system::error_code& error, std::size_t) {
                 if (error) {
-                    if (error.value() == asio::error::operation_aborted)
+                    if (error.value() == boost::asio::error::operation_aborted)
                         return;
 
                     _MSG_ERROR("(GPS) Error writing GPSD command: {}", error.message());
@@ -159,21 +159,21 @@ void kis_gps_gpsd_v3::write_gpsd(std::shared_ptr<kis_gps_gpsd_v3> ref, const std
 }
 
 void kis_gps_gpsd_v3::start_read(std::shared_ptr<kis_gps_gpsd_v3> ref) {
-    asio::async_read_until(socket, in_buf, '\n',
-            [this, ref](const asio::error_code& error, std::size_t t) {
+    boost::asio::async_read_until(socket, in_buf, '\n',
+            [this, ref](const boost::system::error_code& error, std::size_t t) {
                 handle_read(ref, error, t);
             });
 
 }
 
 void kis_gps_gpsd_v3::handle_read(std::shared_ptr<kis_gps_gpsd_v3> ref,
-        const asio::error_code& error, std::size_t t) {
+        const boost::system::error_code& error, std::size_t t) {
     if (stopped)
         return;
 
     if (error) {
         // Return from aborted errors cleanly
-        if (error.value() == asio::error::operation_aborted)
+        if (error.value() == boost::asio::error::operation_aborted)
             return;
 
         _MSG_ERROR("(GPS) Error reading from GPSD connection {}:{} - {}", host, port, error.message());
@@ -671,7 +671,7 @@ bool kis_gps_gpsd_v3::open_gps(std::string in_opts) {
     _MSG_INFO("(GPS) Connecting to GPSD on {}:{}", host, port);
 
     resolver.async_resolve(tcp::resolver::query(host.c_str(), port.c_str()),
-            [this](const asio::error_code& error, tcp::resolver::iterator endp) {
+            [this](const boost::system::error_code& error, tcp::resolver::iterator endp) {
                 start_connect(shared_from_this(), error, endp);
             });
 

@@ -90,10 +90,10 @@
 #include "timetracker.h"
 #include "alertracker.h"
 
-#include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
+
 #include "system_monitor.h"
 #include "channeltracker2.h"
-#include "kis_httpd_websession.h"
 #include "kis_httpd_registry.h"
 #include "messagebus_restclient.h"
 #include "streamtracker.h"
@@ -102,7 +102,6 @@
 #include "gpstracker.h"
 
 #include "devicetracker.h"
-#include "devicetracker_httpd_pcap.h"
 #include "phy_80211.h"
 #include "phy_rtl433.h"
 #include "phy_rtlamr.h"
@@ -237,8 +236,13 @@ int packnum = 0, localdropnum = 0;
 global_registry *globalregistry = NULL;
 
 void SpindownKismet() {
+	// Spin down streams
+	auto streamtracker = Globalreg::fetch_global_as<stream_tracker>();
+	if (streamtracker != nullptr)
+		streamtracker->cancel_streams();
+	
     // Shut down the webserver first
-    auto httpd = Globalreg::fetch_global_as<kis_net_httpd>();
+    auto httpd = Globalreg::fetch_global_as<kis_net_beast_httpd>();
     if (httpd != nullptr)
         httpd->stop_httpd();
 
@@ -777,7 +781,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // HTTP BLOCK
     // Create the HTTPD server, it needs to exist before most things
-    kis_net_httpd::create_httpd();
+    auto beast = kis_net_beast_httpd::create_httpd();
 
     if (globalregistry->fatal_condition) 
         SpindownKismet();
@@ -820,25 +824,19 @@ int main(int argc, char *argv[], char *envp[]) {
         SpindownKismet();
 
     // Create the stream tracking
-    stream_tracker::create_streamtracker(globalregistry);
+    stream_tracker::create_streamtracker();
 
     if (globalregistry->fatal_condition)
         SpindownKismet();
 
     // Add the messagebus REST interface
-    rest_message_client::create_messageclient(globalregistry);
-
-    if (globalregistry->fatal_condition)
-        SpindownKismet();
-
-    // Add login session
-    kis_httpd_websession::create_websession();
+    rest_message_client::create_messageclient();
 
     if (globalregistry->fatal_condition)
         SpindownKismet();
 
     // Add module registry
-    kis_httpd_registry::create_http_registry(globalregistry);
+    kis_httpd_registry::create_http_registry();
 
     if (globalregistry->fatal_condition)
         SpindownKismet();
@@ -875,10 +873,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Create the device tracker
     auto devicetracker = device_tracker::create_device_tracker();
-
-    // Create the pcap tracker
-    auto devicetracker_pcap =
-        std::make_shared<device_tracker_httpd_pcap>();
 
     // Add channel tracking
     channel_tracker_v2::create_channeltracker(globalregistry);
@@ -950,7 +944,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Start the plugin handler
     if (plugins) {
-        plugintracker = plugin_tracker::create_plugintracker(globalregistry);
+        plugintracker = plugin_tracker::create_plugintracker();
     } else {
         globalregistry->messagebus->inject_message(
             "Plugins disabled on the command line, plugins will NOT be loaded...",
@@ -1006,7 +1000,7 @@ int main(int argc, char *argv[], char *envp[]) {
     }
     
     _MSG("Starting Kismet web server...", MSGFLAG_INFO);
-    Globalreg::fetch_mandatory_global_as<kis_net_httpd>()->start_httpd();
+    Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>()->start_httpd();
 
     if (globalreg->fatal_condition) {
         SpindownKismet();
@@ -1015,10 +1009,16 @@ int main(int argc, char *argv[], char *envp[]) {
     // Independent time and select threads, which has had problems with timing conflicts
     timetracker->spawn_timetracker_thread();
 
-    auto asio_thread = std::thread([]() {
-            asio::io_service::work work(Globalreg::globalreg->io);
-            Globalreg::globalreg->io.run();
-            });
+    std::vector<std::thread> iov;
+    iov.reserve(Globalreg::globalreg->n_io_threads);
+    for (auto i = Globalreg::globalreg->n_io_threads - 1; i > 0; i--) {
+        iov.emplace_back([] () {
+                thread_set_process_name("IO");
+                Globalreg::globalreg->io.run();
+                });
+    }
+
+    boost::asio::io_service::work work(Globalreg::globalreg->io);
 
     while (true) {
         if (Globalreg::globalreg->spindown || Globalreg::globalreg->fatal_condition) 
@@ -1027,6 +1027,10 @@ int main(int argc, char *argv[], char *envp[]) {
         usleep(500000);
     }
 
-    asio_thread.join();
+    for (auto& t : iov) {
+        if (t.joinable())
+            t.join();
+    }
+
 }
 

@@ -2854,6 +2854,33 @@ kismet_ui.AddDeviceRowHighlight({
     }
 });
 
+/* Bodycam hardware of various types */
+kismet_ui.AddDeviceRowHighlight({
+    name: "Bodycams",
+    description: "Body camera devices",
+    priority: 500,
+    defaultcolor: "#0089FF",
+    defaultenable: true,
+    fields: [
+        'kismet.device.base.macaddr',
+        'kismet.device.base.commonname',
+    ],
+    selector: function(data) {
+        try {
+            if (data['kismet.device.base.macaddr'].match("^00:25:DF") != null)
+                return true;
+            if (data['kismet.device.base.macaddr'].match("^12:20:13") != null)
+                return true;
+            if (data['kismet.device.base.common_name'].match("^Axon-X") != null)
+                return true;
+        } catch (e) {
+            return false;
+        }
+
+        return false;
+    }
+});
+
 // We're done loading
 exports.load_complete = 1;
 

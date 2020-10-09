@@ -41,7 +41,6 @@
 
 #include "devicetracker.h"
 #include "devicetracker_component.h"
-#include "kis_net_microhttpd.h"
 
 class bluetooth_tracked_device;
 

@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -26,7 +26,7 @@
 #include "adsb_icao.h"
 #include "devicetracker_component.h"
 #include "globalregistry.h"
-#include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
 #include "phyhandler.h"
 #include "trackedelement.h"
 
@@ -190,8 +190,7 @@ protected:
 
     std::shared_ptr<tracker_element_string> rtl_manuf;
 
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> adsb_map_endp;
-    std::shared_ptr<tracker_element> adsb_map_endp_handler();
+    std::shared_ptr<tracker_element> adsb_map_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
 };
 

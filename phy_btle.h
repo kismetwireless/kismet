@@ -42,7 +42,6 @@
 
 #include "devicetracker.h"
 #include "devicetracker_component.h"
-#include "kis_net_microhttpd.h"
 
 class btle_tracked_advertised_service : public tracker_component {
 public:

@@ -29,9 +29,9 @@
 #define ASIO_HAS_STD_CHRONO
 #define ASIO_HAS_MOVE
 
-#include "asio.hpp"
+#include "boost/asio.hpp"
 
-using asio::ip::tcp;
+using boost::asio::ip::tcp;
 
 // Raw NMEA over TCP, as served from many phone apps
 
@@ -46,9 +46,9 @@ public:
 
 protected:
     void start_connect(std::shared_ptr<kis_gps_tcp_v2> ref, 
-            const asio::error_code& error, tcp::resolver::iterator endpoint_iter);
+            const boost::system::error_code& error, tcp::resolver::iterator endpoint_iter);
     void handle_connect(std::shared_ptr<kis_gps_tcp_v2> ref,
-            const asio::error_code& error, tcp::resolver::iterator endpoint);
+            const boost::system::error_code& error, tcp::resolver::iterator endpoint);
 
     void write_gpsd(std::shared_ptr<kis_gps_tcp_v2> ref, const std::string& data);
 

@@ -32,15 +32,15 @@
 #include "kis_datasource.h"
 #include "trackedelement.h"
 #include "trackedcomponent.h"
-#include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
 #include "entrytracker.h"
 #include "timetracker.h"
-#include "kis_net_microhttpd.h"
 #include "buffer_handler.h"
 #include "trackedrrd.h"
 #include "kis_mutex.h"
 #include "eventbus.h"
 #include "messagebus.h"
+#include "streamtracker.h"
 
 /* Data source tracker
  *
@@ -291,12 +291,10 @@ protected:
 
 };
 
-class datasource_tracker_httpd_pcap;
 class datasource_tracker_remote_server;
 class dst_incoming_remote;
 
-class datasource_tracker : public kis_net_httpd_cppstream_handler, 
-    public lifetime_global, public deferred_startup {
+class datasource_tracker : public lifetime_global, public deferred_startup {
 public:
     static std::string global_name() { return "DATASOURCETRACKER"; }
     static std::shared_ptr<datasource_tracker> create_dst() {
@@ -374,16 +372,6 @@ public:
     // Optional completion function will be called with list of possible sources.
     void list_interfaces(const std::function<void (std::vector<shared_interface>)>& in_cb);
 
-    // HTTP api
-    virtual bool httpd_verify_path(const char *path, const char *method) override;
-
-    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream) override;
-
-    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *concls) override;
-
     // Operate on all data sources currently defined.  The datasource tracker is locked
     // during this operation, making it thread safe.
     void iterate_datasources(datasource_tracker_worker *in_worker);
@@ -426,8 +414,11 @@ protected:
     std::shared_ptr<datasource_tracker> datasourcetracker;
     std::shared_ptr<time_tracker> timetracker;
     std::shared_ptr<event_bus> eventbus;
+    std::shared_ptr<stream_tracker> streamtracker;
 
     kis_recursive_timed_mutex dst_lock;
+
+    int pack_comp_datasrc;
 
     int proto_id;
     int source_id;
@@ -478,57 +469,15 @@ protected:
     // and want to do channel split
     void calculate_source_hopping(shared_datasource in_ds);
 
-    // Our pcap http interface
-    std::shared_ptr<datasource_tracker_httpd_pcap> httpd_pcap;
-
     // Datasource logging
     int database_log_timer;
     bool database_log_enabled;
     std::atomic<bool> database_logging;
 
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> all_sources_endp;
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> defaults_endp;
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> types_endp;
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> list_interfaces_endp;
-
     // Buffer sizes
     size_t tcp_buffer_sz;
 
     friend class datasource_tracker_remote_server;
-};
-
-/* This implements the core 'all data' pcap, and pcap filtered by datasource UUID.
- */
-class datasource_tracker_httpd_pcap : public kis_net_httpd_ringbuf_stream_handler {
-public:
-    datasource_tracker_httpd_pcap() : kis_net_httpd_ringbuf_stream_handler() { 
-        bind_httpd_server();
-    }
-
-    virtual ~datasource_tracker_httpd_pcap() { };
-
-    // HandleGetRequest handles generating a stream so we don't need to implement that
-    // Same for HandlePostRequest
-   
-    // Standard path validation
-    virtual bool httpd_verify_path(const char *path, const char *method) override;
-
-    // We use this to attach the pcap stream
-    virtual KIS_MHD_RETURN httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size) override; 
-
-    // We don't currently handle POSTed data
-    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *con __attribute__((unused))) override {
-        return MHD_NO;
-    }
-
-protected:
-    std::shared_ptr<datasource_tracker> datasourcetracker;
-    std::shared_ptr<packet_chain> packetchain;
-
-    int pack_comp_datasrc;
 };
 
 // Intermediary buffer handler which is responsible for parsing the incoming
@@ -586,7 +535,7 @@ public:
     void stop();
 
     void start_accept();
-    void handle_accept(const asio::error_code& ec, tcp::socket socket);
+    void handle_accept(const boost::system::error_code& ec, tcp::socket socket);
 
 protected:
     std::atomic<bool> stopped;

@@ -48,7 +48,7 @@
 #include "alertracker.h"
 #include "logtracker.h"
 #include "packetchain.h"
-#include "pcapng_stream_ringbuf.h"
+#include "pcapng_stream_futurebuf.h"
 #include "sqlite3_cpp11.h"
 #include "class_filter.h"
 #include "packet_filter.h"
@@ -59,7 +59,7 @@
 // then the builder hooks it, sets the internal builder record, and passed it to
 // the logtracker
 class kis_database_logfile : public kis_logfile, public kis_database, public lifetime_global,
-    public kis_net_httpd_ringbuf_stream_handler, public message_client, public deferred_startup {
+    public message_client, public deferred_startup {
 public:
     static std::string global_name() { return "DATABASELOG"; }
 
@@ -121,16 +121,6 @@ public:
             std::string snaptype, std::string json);
 
     static void usage(const char *argv0);
-
-    // HTTP handlers
-    virtual bool httpd_verify_path(const char *path, const char *method) override;
-
-    virtual KIS_MHD_RETURN httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size) override;
-
-    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *concls) override;
 
     // Messagebus API
     virtual void process_message(std::string in_msg, int in_flags) override;
@@ -229,17 +219,14 @@ protected:
     int alert_timeout_timer;
 
     // Packet clearing API
-    std::shared_ptr<kis_net_httpd_simple_post_endpoint> packet_drop_endp;
-    unsigned int packet_drop_endpoint_handler(std::ostream& stream, const std::string& uri,
-            const Json::Value& json, kis_net_httpd_connection::variable_cache_map& postvars);
+    void packet_drop_endpoint_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
     // POI API
-    std::shared_ptr<kis_net_httpd_simple_post_endpoint> make_poi_endp;
-    unsigned int make_poi_endp_handler(std::ostream& stream, const std::string& uri,
-            const Json::Value& json, kis_net_httpd_connection::variable_cache_map& postvars);
+    void make_poi_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
+    std::shared_ptr<tracker_element> list_poi_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> list_poi_endp;
-    std::shared_ptr<tracker_element> list_poi_endp_handler();
+    // Pcap streaming api
+    void pcapng_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
     // Device log filter
     std::shared_ptr<class_filter_mac_addr> device_mac_filter;
@@ -294,14 +281,14 @@ public:
     }
 };
 
-class pcap_stream_database : public pcap_stream_ringbuf {
+class pcapng_stream_database : public pcapng_stream_futurebuf {
 public:
-    pcap_stream_database(global_registry *in_globalreg, 
-            std::shared_ptr<buffer_handler_generic> in_handler);
+    pcapng_stream_database(future_chainbuf& buffer);
 
-    virtual ~pcap_stream_database();
+    virtual ~pcapng_stream_database();
 
-    virtual void stop_stream(std::string in_reason);
+    virtual void start_stream() override;
+    virtual void stop_stream(std::string in_reason) override;
 
     // Write packet using database metadata, doing a lookup on the interface UUID.  This is more expensive
     // than the numerical lookup but we need to search by UUID regardless and for many single-source feeds
@@ -336,7 +323,6 @@ protected:
 
     std::map<std::string, std::shared_ptr<db_interface>> db_uuid_intf_map;
     int next_pcap_intf_id;
-
 };
 
 

@@ -32,9 +32,8 @@
 #include "kis_datasource.h"
 #include "trackedelement.h"
 #include "trackedcomponent.h"
-#include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
 #include "entrytracker.h"
-#include "kis_net_microhttpd.h"
 #include "kis_mutex.h"
 
 // Custom DLT tracker.

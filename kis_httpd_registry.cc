@@ -22,14 +22,33 @@
 #include "configfile.h"
 #include "kis_httpd_registry.h"
 
-kis_httpd_registry::kis_httpd_registry(global_registry *in_globalreg) :
-    kis_net_httpd_cppstream_handler(), 
+kis_httpd_registry::kis_httpd_registry() :
     lifetime_global() {
     reg_lock.set_name("kis_httpd_registry");
 
-    globalreg = in_globalreg;
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
-    bind_httpd_server();
+    httpd->register_unauth_route("/dynamic.json", {"GET"}, 
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    local_shared_locker(&reg_lock, "/dynamic.json");
+
+                    Json::Value root(Json::objectValue);
+                    Json::Value vec(Json::arrayValue);
+
+                    for (const auto& m : js_module_path_map) {
+                        Json::Value rec(Json::objectValue);
+                        rec["module"] = m.first;
+                        rec["js"] = m.second;
+
+                        vec.append(rec);
+                    }
+
+                    root["dynamicjs"] = vec;
+
+                    std::ostream os(&con->response_stream());
+                    os << root;
+                }));
 }
 
 kis_httpd_registry::~kis_httpd_registry() {
@@ -64,46 +83,4 @@ bool kis_httpd_registry::register_js_module(std::string in_module, std::string i
 
     return true;
 }
-
-bool kis_httpd_registry::httpd_verify_path(const char *path, const char *method) {
-    if (strcmp(method, "GET") != 0)
-        return false;
-
-    if (!httpd_can_serialize(path))
-        return false;
-
-    if (strcmp(path, "/dynamic.json") == 0)
-        return true;
-
-    return false;
-}
-
-void kis_httpd_registry::httpd_create_stream_response(kis_net_httpd *httpd,
-        kis_net_httpd_connection *connection,
-        const char *path, const char *method, const char *upload_data,
-        size_t *upload_data_size, std::stringstream &stream) {
-
-    if (strcmp(method, "GET") != 0)
-        return;
-
-    if (strcmp(path, "/dynamic.json") == 0) {
-        stream << "{\"dynamicjs\": [";
-
-        bool f = true;
-        for (auto m : js_module_path_map) {
-            if (f)
-                f = false;
-            else
-                stream << ",";
-
-            stream << "{\"js\": \"" << m.second << "\", ";
-            stream << "\"module\": \"" << m.first << "\"}";
-        }
-    }
-
-    stream << "] }" << std::endl;
-
-    return;
-}
-
 

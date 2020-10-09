@@ -65,10 +65,8 @@ kis_bluetooth_phy::kis_bluetooth_phy(global_registry *in_globalreg, int in_phyid
     pack_comp_json = packetchain->register_packet_component("JSON");
 
     // Register js module for UI
-    auto httpregistry = 
-        Globalreg::fetch_mandatory_global_as<kis_httpd_registry>();
-    httpregistry->register_js_module("kismet_ui_bluetooth", 
-            "js/kismet.ui.bluetooth.js");
+    auto httpregistry = Globalreg::fetch_mandatory_global_as<kis_httpd_registry>();
+    httpregistry->register_js_module("kismet_ui_bluetooth", "js/kismet.ui.bluetooth.js");
 }
 
 kis_bluetooth_phy::~kis_bluetooth_phy() {

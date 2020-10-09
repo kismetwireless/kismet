@@ -28,7 +28,7 @@
 #define ASIO_HAS_STD_CHRONO
 #define ASIO_HAS_MOVE
 
-#include "asio.hpp"
+#include "boost/asio.hpp"
 
 // Generic NMEA parser for GPS
 
@@ -47,9 +47,9 @@ protected:
     virtual void start_read();
     virtual void start_read_impl() = 0;
     virtual void handle_read(std::shared_ptr<kis_gps_nmea_v2> ref,
-            const asio::error_code& error, std::size_t sz);
+            const boost::system::error_code& error, std::size_t sz);
 
-    asio::streambuf in_buf;
+    boost::asio::streambuf in_buf;
     std::atomic<bool> stopped;
 
     // Have we ever seen data from the device?

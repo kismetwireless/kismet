@@ -65,7 +65,7 @@ void print_help(char *argv) {
     printf("usage: %s [OPTION]\n", argv);
     printf(" -i, --in [filename]          Input kismetdb file\n"
            " -s, --skip-clean             Don't clean (sql vacuum) input database\n"
-           " -j, --json                   Dump stats as a JSON dictionary");
+           " -j, --json                   Dump stats as a JSON dictionary\n");
 }
 
 int main(int argc, char *argv[]) {

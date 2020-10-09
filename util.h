@@ -51,12 +51,16 @@
 #include <mutex>
 #include <condition_variable>
 #include <chrono>
+#include <sstream>
+#include <future>
+#include <exception>
 
 #include <sys/time.h>
 
 #include <pthread.h> 
 
 #include "multi_constexpr.h"
+#include "string_view.hpp"
 
 #include "fmt.h"
 
@@ -421,6 +425,128 @@ struct constant_time_string_compare_ne {
         return r == false;
     }
 
+    bool operator()(const nonstd::string_view& a, const nonstd::string_view& b) const {
+        bool r = true;
+
+        if (a.length() != b.length())
+            r = false;
+
+        for (size_t x = 0; x < a.length() && x < b.length(); x++) {
+            if (a[x] != b[x])
+                r = false;
+        }
+
+        return r == false;
+    }
+
+};
+
+struct future_stringbuf_timeout : public std::exception {
+    const char *what() const throw () {
+        return "timed out";
+    }
+};
+
+struct future_stringbuf : public std::stringbuf {
+public:
+    future_stringbuf(size_t chunk = 1024) :
+        std::stringbuf{},
+        chunk{chunk}, 
+        blocking{false},
+        done{true} { }
+
+    bool is_complete() const { return done; }
+    void complet() {
+        done = true;
+        sync();
+    }
+
+    void cancel() {
+        done = true;
+        sync();
+    }
+
+    size_t size() const { return str().size(); }
+
+    void wait() {
+        if (blocking)
+            throw std::runtime_error("future_stream already blocking");
+
+        if (done || str().size())
+            return;
+
+        blocking = true;
+        
+        data_available_pm = std::promise<bool>();
+
+        auto ft = data_available_pm.get_future();
+
+        ft.wait();
+
+        blocking = false;
+    }
+
+    template<class Rep, class Period>
+    void wait_for(const std::chrono::duration<Rep, Period>& timeout) {
+        if (blocking)
+            throw std::runtime_error("future_stream already blocking");
+
+        if (done || str().size())
+            return;
+
+        blocking = true;
+        
+        data_available_pm = std::promise<bool>();
+
+        auto ft = data_available_pm.get_future();
+
+        auto r = ft.wait_for(timeout);
+        if (r == std::future_status::timeout)
+            throw future_stringbuf_timeout();
+        else if (r == std::future_status::deferred)
+            throw std::runtime_error("future_stream blocked with no future");
+
+        blocking = false;
+    }
+
+    virtual std::streamsize xsputn(const char_type *s, std::streamsize n) override {
+        auto r = std::stringbuf::xsputn(s, n);
+
+        if (str().length() >= chunk)
+            sync();
+
+        return r;
+    }
+
+    virtual int_type overflow(int_type ch) override {
+        auto r = std::stringbuf::overflow(ch);
+
+        if (str().length() >= chunk)
+            sync();
+
+        return r;
+    }
+
+    virtual int sync() override {
+        auto r = std::stringbuf::sync();
+
+        if (blocking) {
+            try {
+                data_available_pm.set_value(true);
+            } catch (const std::future_error& e) {
+                ;
+            }
+        }
+
+        return r;
+    }
+
+
+protected:
+    size_t chunk;
+    std::atomic<bool> blocking;
+    std::atomic<bool> done;
+    std::promise<bool> data_available_pm;
 };
 
 #endif
