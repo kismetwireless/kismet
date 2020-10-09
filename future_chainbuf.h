@@ -206,16 +206,19 @@ public:
     }
 
     void put_data(const char *data, size_t sz) {
-        const std::lock_guard<std::mutex> lock(mutex_);
+        mutex_.lock();
 
         // Don't even try if we're shut down
-        if (!running())
+        if (!running()) {
+            mutex_.unlock();
             return;
+        }
 
         if (packet_) {
             data_chunk *target = new data_chunk(data, sz);
             chunk_list_.push_back(target);
             total_sz_ += sz;
+            mutex_.unlock();
             sync();
             return;
         }
@@ -236,21 +239,26 @@ public:
         }
 
         total_sz_ += sz;
+
+        mutex_.unlock();
     }
 
     // Secondary put_data that takes a shared buffer pointer and directly applies it
     // without a copy
     void put_data(std::shared_ptr<char> data, size_t sz) {
-        const std::lock_guard<std::mutex> lock(mutex_);
+        mutex_.lock();
 
         // Don't even try
-        if (!running())
+        if (!running()) {
+            mutex_.unlock();
             return;
+        }
 
         if (packet_) {
             data_chunk *target = new data_chunk(data, sz);
             chunk_list_.push_back(target);
             total_sz_ += sz;
+            mutex_.unlock();
             sync();
             return;
         }
@@ -271,6 +279,8 @@ public:
         }
 
         total_sz_ += sz;
+
+        mutex_.unlock();
     }
 
     virtual std::streamsize xsputn(const char_type *s, std::streamsize n) override {
