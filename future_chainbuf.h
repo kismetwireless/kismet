@@ -30,6 +30,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "messagebus.h"
+
 // Future chainbuf, based on stringbuf
 // Provides an inter-thread feeder/consumer model with locking based on futures
 //
@@ -54,24 +56,15 @@ protected:
             chunk_ = std::shared_ptr<char>(new char[sz], std::default_delete<char[]>());
         }
 
-        data_chunk(const char *data, size_t sz) :
-            sz_{sz},
-            start_{0},
-            end_{sz} {
-            chunk_ = std::shared_ptr<char>(new char[sz], std::default_delete<char[]>());
-            memcpy(chunk_.get(), data, sz);
-        }
-
         data_chunk(std::shared_ptr<char> data, size_t sz) :
             chunk_{data},
             sz_{sz},
-            start_{sz},
+            start_{0},
             end_{sz} { }
 
         ~data_chunk() { }
 
         size_t write(const char *data, size_t len) {
-            // Can't write more than is left in the chunk
             size_t write_sz = std::min(sz_ - end_, len);
 
             if (write_sz == 0)
@@ -84,7 +77,6 @@ protected:
         }
 
         size_t consume(size_t len) {
-            // Can't consume more than we've populated
             size_t consume_sz = std::min(end_ - start_, len);
 
             start_ += consume_sz;
@@ -125,9 +117,7 @@ public:
         waiting_{false},
         complete_{false},
         cancel_{false},
-        packet_{false} {
-        chunk_list_.push_front(new data_chunk(chunk_sz_));
-    }
+        packet_{false} { }
         
     future_chainbuf(size_t chunk_sz, size_t sync_sz = 1024) :
         chunk_sz_{chunk_sz},
@@ -136,9 +126,7 @@ public:
         waiting_{false},
         complete_{false},
         cancel_{false},
-        packet_{false} {
-        chunk_list_.push_front(new data_chunk(chunk_sz_));
-    }
+        packet_{false} { }
 
     ~future_chainbuf() {
         cancel();
@@ -151,7 +139,7 @@ public:
     size_t get(char **data) {
         const std::lock_guard<std::mutex> lock(mutex_);
 
-        if (total_sz_ == 0) {
+        if (total_sz_ == 0 || chunk_list_.size() == 0) {
             *data = nullptr;
             return 0;
         }
@@ -171,7 +159,7 @@ public:
 
         size_t consumed_sz = 0;
 
-        while (consumed_sz < sz && total_sz_ > 0) {
+        while (consumed_sz < sz && consumed_sz < total_sz_) {
             size_t consumed_chunk_sz;
 
             consumed_chunk_sz = target->consume(sz);
@@ -186,6 +174,7 @@ public:
                     } else {
                         target->recycle();
                     }
+
                     break;
                 } else {
                     chunk_list_.pop_front();
@@ -193,9 +182,12 @@ public:
                     target = chunk_list_.front();
                 }
             }
-
-            total_sz_ -= consumed_chunk_sz;
         }
+
+        if (consumed_sz > total_sz_)
+            total_sz_ = 0;
+        else
+            total_sz_-= consumed_sz;
 
         try {
             if (write_waiting_)
@@ -215,15 +207,19 @@ public:
         }
 
         if (packet_) {
-            data_chunk *target = new data_chunk(data, sz);
-            chunk_list_.push_back(target);
-            total_sz_ += sz;
             mutex_.unlock();
-            sync();
-            return;
+            throw std::runtime_error("can't put char* in packet mode");
         }
 
-        data_chunk *target = chunk_list_.back();
+        data_chunk *target;
+
+        if (chunk_list_.size() == 0) {
+            target = chunk_list_.back();
+        } else {
+            target = new data_chunk(chunk_sz_);
+            chunk_list_.push_back(target);
+        }
+
         size_t written_sz = 0;
 
         while (written_sz < sz) {
@@ -241,6 +237,9 @@ public:
         total_sz_ += sz;
 
         mutex_.unlock();
+
+        if (packet_ || size() > sync_sz_)
+            sync();
     }
 
     // Secondary put_data that takes a shared buffer pointer and directly applies it
@@ -259,11 +258,22 @@ public:
             chunk_list_.push_back(target);
             total_sz_ += sz;
             mutex_.unlock();
-            sync();
+
+            if (packet_ || size() > sync_sz_)
+                sync();
+
             return;
         }
 
-        data_chunk *target = chunk_list_.back();
+        data_chunk *target;
+
+        if (chunk_list_.size() == 0) {
+            target = chunk_list_.back();
+        } else {
+            target = new data_chunk(chunk_sz_);
+            chunk_list_.push_back(target);
+        }
+
         size_t written_sz = 0;
 
         while (written_sz < sz) {
@@ -281,6 +291,10 @@ public:
         total_sz_ += sz;
 
         mutex_.unlock();
+
+        if (packet_ || size() > sync_sz_)
+            sync();
+
     }
 
     virtual std::streamsize xsputn(const char_type *s, std::streamsize n) override {
