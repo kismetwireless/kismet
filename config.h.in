@@ -135,9 +135,6 @@
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 
-/* microhttpd is present */
-#undef HAVE_MICROHTTPD_H
-
 /* pcap/pcap.h */
 #undef HAVE_PCAPPCAP_H
 
@@ -203,9 +200,6 @@
 
 /* system state directory */
 #undef LOCALSTATE_DIR
-
-/* Able to use MHD_quiesce_daemon to shut down */
-#undef MHD_QUIESCE
 
 /* we need to shim isnan */
 #undef MISSING_STD_ISNAN
