@@ -489,7 +489,7 @@ exports.GetDeviceFields = function(selected) {
             rawret.push(cols[i]['field']);
 
         if ('fields' in cols[i] && cols[i]['fields'] != null) 
-            cols[i]['fields'].forEach(function(e) { rawret.push.apply(rawret, e); });
+            rawret.push.apply(rawret, cols[i]['fields']);
     }
 
     for (var i in DeviceRowHighlights) {

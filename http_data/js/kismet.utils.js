@@ -149,7 +149,7 @@ exports.GetDynamicIncludes = function() {
                 var module = data.dynamicjs[p]['module'];
                 var defer = data.dynamicjs[p]['defer'];
 
-                console.log("defer for module", module);
+                //console.log("defer for module", module);
 
                 if (typeof window[module] !== 'undefined' &&
                         window[module].load_complete == 1) {
@@ -311,6 +311,10 @@ exports.RecalcRrdData2 = function(rrddata, type, opt = {}) {
 
     try {
         data = rrddata[record];
+
+        if (typeof(data) === 'number')
+            throw(0);
+
         now = rrddata['kismet.common.rrd.serial_time'];
         start = rrddata['kismet.common.rrd.last_time'];
     } catch (e) {

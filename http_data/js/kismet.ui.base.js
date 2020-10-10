@@ -290,10 +290,10 @@ kismet_ui.AddDeviceColumn('column_packet_rrd', {
 kismet_ui.AddDeviceColumn('column_rrd_minute_hidden', {
     sTitle: 'packets_rrd_min_data',
     field: 
-        ['/kismet.device.base.packets.rrd/kismet.common.rrd.serial_time', 'kismet.common.rrd.serial_time'],
+        ['kismet.device.base.packets.rrd/kismet.common.rrd.serial_time', 'kismet.common.rrd.serial_time'],
     fields: [
-        ['/kismet.device.base.packets.rrd/kismet.common.rrd.minute_vec', 'kismet.common.rrd.minute_vec'],
-        ['/kismet.device.base.packets.rrd/kismet.common.rrd.last_time', 'kismet.common.rrd.last_time'],
+        ['kismet.device.base.packets.rrd/kismet.common.rrd.minute_vec', 'kismet.common.rrd.minute_vec'],
+        ['kismet.device.base.packets.rrd/kismet.common.rrd.last_time', 'kismet.common.rrd.last_time'],
     ],
     name: 'packets_rrd_min_data',
     searchable: false,
