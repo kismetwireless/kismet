@@ -65,7 +65,7 @@ class kis_phy_handler;
 class kis_packet;
 
 class device_tracker : public lifetime_global, public kis_database, 
-    public deferred_startup {
+    public deferred_startup, std::enable_shared_from_this<device_tracker> {
 
 public:
     static std::string global_name() { return "DEVICETRACKER"; }
@@ -410,6 +410,24 @@ protected:
 
     kis_recursive_timed_mutex range_mutex;
 
+};
+
+class devicelist_range_scope_locker {
+public:
+    devicelist_range_scope_locker(std::shared_ptr<device_tracker> tracker,
+            std::shared_ptr<tracker_element> range) :
+        tracker{tracker},
+        range{range} { 
+            tracker->lock_device_range(range);
+        }
+
+    ~devicelist_range_scope_locker() {
+        tracker->unlock_device_range(range);
+    }
+
+private:
+    std::shared_ptr<device_tracker> tracker;
+    std::shared_ptr<tracker_element> range;
 };
 
 class devicelist_scope_locker {
