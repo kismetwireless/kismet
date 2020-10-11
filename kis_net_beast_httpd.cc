@@ -193,6 +193,9 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
         register_static_dir("/", http_data_dir);
     }
 
+    allowed_prefix = 
+        Globalreg::globalreg->kismet_config->fetch_opt("httpd_uri_prefix");
+
     // Basic session management endpoints
     register_unauth_route("/session/check_setup_ok", {"GET"}, 
             std::make_shared<kis_net_web_function_endpoint>(
@@ -833,6 +836,15 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
     return false;
 }
 
+void kis_net_beast_httpd::strip_uri_prefix(boost::beast::string_view& uri_view) {
+    if (allowed_prefix.length() == 0)
+        return;
+
+    if (uri_view.starts_with(allowed_prefix)) {
+        uri_view.remove_prefix(std::min(allowed_prefix.length(), uri_view.size()));
+    }
+}
+
 
 
 kis_net_beast_httpd_connection::kis_net_beast_httpd_connection(boost::beast::tcp_stream& socket,
@@ -908,6 +920,8 @@ bool kis_net_beast_httpd_connection::start() {
 
     uri_ = request_.target();
     verb_ = request_.method();
+
+    httpd->strip_uri_prefix(uri_);
 
     // Extract the auth cookie
     auto cookie_h = request_.find(boost::beast::http::field::cookie);

@@ -122,6 +122,8 @@ public:
 
     bool serve_file(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
+    void strip_uri_prefix(boost::beast::string_view& uri_view);
+
 protected:
     std::atomic<bool> running;
     unsigned int port;
@@ -156,6 +158,8 @@ protected:
 
     bool use_ssl;
     bool serve_files;
+
+    std::string allowed_prefix;
 
     bool allow_cors_;
     std::string allowed_cors_referrer_;
