@@ -59,6 +59,8 @@ public:
     const static std::string LOGON_ROLE;
     const static std::string ANY_ROLE;
     const static std::string RO_ROLE;
+    const static std::string AUTH_COOKIE;
+
 
 private:
     kis_net_beast_httpd(boost::asio::ip::tcp::endpoint& endpoint);
@@ -228,8 +230,6 @@ public:
     }
 
 protected:
-    const std::string AUTH_COOKIE = "KISMET";
-
     std::shared_ptr<kis_net_beast_httpd> httpd;
 
     std::function<void ()> closure_cb;
@@ -289,7 +289,7 @@ protected:
         // Append the session headers
         if (auth_token_.length()) {
             r.set(boost::beast::http::field::set_cookie,
-                    fmt::format("{}={}; Path=/", AUTH_COOKIE, auth_token_));
+                    fmt::format("{}={}; Path=/", httpd->AUTH_COOKIE, auth_token_));
         }
 
         // Turn off caching
@@ -348,6 +348,16 @@ public:
         return summarize_tracker_element(in_data, summary_vec, rename_map);
     }
 };
+
+
+class kis_net_beat_httpd_websocket {
+public:
+
+protected:
+
+};
+
+
 
 class kis_net_web_endpoint {
 public:

@@ -34,6 +34,8 @@ const std::string kis_net_beast_httpd::LOGON_ROLE{"logon"};
 const std::string kis_net_beast_httpd::ANY_ROLE{"any"};
 const std::string kis_net_beast_httpd::RO_ROLE{"readonly"};
 
+const std::string kis_net_beast_httpd::AUTH_COOKIE{"kismet"};
+
 std::shared_ptr<kis_net_beast_httpd> kis_net_beast_httpd::create_httpd() {
     auto httpd_interface = 
         Globalreg::globalreg->kismet_config->fetch_opt_dfl("httpd_bind_address", "0.0.0.0");
@@ -932,7 +934,7 @@ bool kis_net_beast_httpd_connection::start() {
             auto type = raw_cookie.substr(0, eq_p);
             auto content = raw_cookie.substr(eq_p + 1, raw_cookie.length());
 
-            if (type == AUTH_COOKIE) 
+            if (type == httpd->AUTH_COOKIE) 
                 auth_token_ = static_cast<std::string>(content);
         }
     }
