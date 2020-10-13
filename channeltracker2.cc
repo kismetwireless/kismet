@@ -64,19 +64,23 @@ channel_tracker_v2::channel_tracker_v2(global_registry *in_globalreg) :
                 tracker_element_factory<tracker_element_string_map>(),
                 "Usage by named channel");
 
-    channel_entry_id =
     channel_entry_id = 
         entrytracker->register_field("kismet.channeltracker.channel",
                 tracker_element_factory<channel_tracker_v2_channel>(),
                 "channel/frequency entry");
 
-    channels_endp =
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>(
-                "/channels/channels",
-                [this]() -> std::shared_ptr<tracker_element> {
-                    local_locker l(&lock);
-                    return channels_endp_handler();
-                });
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+
+    httpd->register_route("/channels/channels", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection>) {
+                    local_locker l(&lock, "/channels/channels");
+                    auto ret = std::make_shared<tracker_element_map>();
+                    ret->insert(channel_map);
+                    ret->insert(frequency_map);
+                    return ret;
+                }));
+
 
     timer_id = timetracker->register_timer(SERVER_TIMESLICES_SEC, nullptr, 1, 
             [this](int evt_id) -> int {
@@ -97,13 +101,6 @@ channel_tracker_v2::~channel_tracker_v2() {
         packetchain->remove_handler(&packet_chain_handler, CHAINPOS_LOGGING);
 
     Globalreg::globalreg->remove_global("CHANNEL_TRACKER");
-}
-
-std::shared_ptr<tracker_element_map> channel_tracker_v2::channels_endp_handler() {
-    auto ret = std::make_shared<tracker_element_map>();
-    ret->insert(channel_map);
-    ret->insert(frequency_map);
-    return ret;
 }
 
 class channeltracker_v2_device_worker : public device_tracker_view_worker {
@@ -169,7 +166,7 @@ void channel_tracker_v2::update_device_counts(std::unordered_map<double, unsigne
         // Make a frequency
         if (imi == frequency_map->end()) {
             freq_channel =
-                std::make_shared<channel_tracker_v2_channel>(channel_entry_id);
+                entrytracker->get_shared_instance_as<channel_tracker_v2_channel>(channel_entry_id);
             freq_channel->set_frequency(i.first);
             frequency_map->insert(i.first, freq_channel);
         } else {
@@ -202,7 +199,7 @@ int channel_tracker_v2::packet_chain_handler(CHAINCALL_PARMS) {
 
         if (imi == cv2->frequency_map->end()) {
             freq_channel =
-                std::make_shared<channel_tracker_v2_channel>(cv2->channel_entry_id);
+                cv2->entrytracker->get_shared_instance_as<channel_tracker_v2_channel>(cv2->channel_entry_id);
             freq_channel->set_frequency(l1info->freq_khz);
             cv2->frequency_map->insert(l1info->freq_khz, freq_channel);
         } else {
@@ -216,7 +213,7 @@ int channel_tracker_v2::packet_chain_handler(CHAINCALL_PARMS) {
 
             if (smi == cv2->channel_map->end()) {
                 chan_channel =
-                    std::make_shared<channel_tracker_v2_channel>(cv2->channel_entry_id);
+                    cv2->entrytracker->get_shared_instance_as<channel_tracker_v2_channel>(cv2->channel_entry_id);
 
                 chan_channel->set_channel(common->channel);
                 cv2->channel_map->insert(common->channel, chan_channel);

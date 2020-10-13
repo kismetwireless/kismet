@@ -196,11 +196,7 @@
 
                 try {
                     var rate_rrd =
-                        kismet.RecalcRrdData(
-                            data['kismet.packetchain.packets_rrd']['kismet.common.rrd.last_time'],
-                            data['kismet.packetchain.packets_rrd']['kismet.common.rrd.last_time'],
-                            kismet.RRD_SECOND,
-                            data['kismet.packetchain.packets_rrd']['kismet.common.rrd.minute_vec'], {
+                        kismet.RecalcRrdData2(data['kismet.packetchain.packets_rrd'], kismet.RRD_SECOND, {
                                 transform: function(data, opt) {
                                     var slices = 3;
                                     var peak = 0;
@@ -220,11 +216,8 @@
                             });
 
                     var error_rrd =
-                        kismet.RecalcRrdData(
-                            data['kismet.packetchain.error_packets_rrd']['kismet.common.rrd.last_time'],
-                            data['kismet.packetchain.error_packets_rrd']['kismet.common.rrd.last_time'],
-                            kismet.RRD_SECOND,
-                            data['kismet.packetchain.error_packets_rrd']['kismet.common.rrd.minute_vec'], {
+                        kismet.RecalcRrdData2(
+                            data['kismet.packetchain.error_packets_rrd'], kismet.RRD_SECOND, {
                                 transform: function(data, opt) {
                                     var slices = 3;
                                     var peak = 0;
@@ -244,11 +237,8 @@
                             });
 
                     var dupe_rrd =
-                        kismet.RecalcRrdData(
-                            data['kismet.packetchain.dupe_packets_rrd']['kismet.common.rrd.last_time'],
-                            data['kismet.packetchain.dupe_packets_rrd']['kismet.common.rrd.last_time'],
-                            kismet.RRD_SECOND,
-                            data['kismet.packetchain.dupe_packets_rrd']['kismet.common.rrd.minute_vec'], {
+                        kismet.RecalcRrdData2(
+                            data['kismet.packetchain.dupe_packets_rrd'], kismet.RRD_SECOND, {
                                 transform: function(data, opt) {
                                     var slices = 3;
                                     var peak = 0;
@@ -268,11 +258,8 @@
                             });
 
                     var queue_rrd =
-                        kismet.RecalcRrdData(
-                            data['kismet.packetchain.queued_packets_rrd']['kismet.common.rrd.last_time'],
-                            data['kismet.packetchain.queued_packets_rrd']['kismet.common.rrd.last_time'],
-                            kismet.RRD_SECOND,
-                            data['kismet.packetchain.queued_packets_rrd']['kismet.common.rrd.minute_vec'], {
+                        kismet.RecalcRrdData2(
+                            data['kismet.packetchain.queued_packets_rrd'], kismet.RRD_SECOND, {
                                 transform: function(data, opt) {
                                     var slices = 3;
                                     var peak = 0;
@@ -292,11 +279,8 @@
                             });
 
                     var drop_rrd =
-                        kismet.RecalcRrdData(
-                            data['kismet.packetchain.dropped_packets_rrd']['kismet.common.rrd.last_time'],
-                            data['kismet.packetchain.dropped_packets_rrd']['kismet.common.rrd.last_time'],
-                            kismet.RRD_SECOND,
-                            data['kismet.packetchain.dropped_packets_rrd']['kismet.common.rrd.minute_vec'], {
+                        kismet.RecalcRrdData2(
+                            data['kismet.packetchain.dropped_packets_rrd'], kismet.RRD_SECOND, {
                                 transform: function(data, opt) {
                                     var slices = 3;
                                     var peak = 0;

@@ -10,10 +10,12 @@
     <link rel="stylesheet" type="text/css" href="css/jquery.dataTables.min.css" />
     <link rel="stylesheet" type="text/css" href="css/responsive.dataTables.min.css" />
     <link rel="stylesheet" type="text/css" href="css/colReorder.dataTables.min.css" />
+    <link rel="stylesheet" type="text/css" href="css/Control.Loading.css" />
 
     <script src="js/jquery-3.1.0.min.js"></script>
     <script src="js/leaflet.js"></script>
     <script src="js/Leaflet.MultiOptionsPolyline.min.js"></script>
+    <script src="js/Control.Loading.js"></script>
     <script src="js/chroma.min.js"></script>
 
     <script src="js/js.storage.min.js"></script>
@@ -119,7 +121,7 @@
         .resize_wrapper {
             position: relative;
             box-sizing: border-box;
-            height: calc(100% - 95px);
+            height: calc(100% - 105px);
             padding: 0.5em 0.5em 1.5em 0.5em;
             border-radius: 0.5em;
             background-color: #f9f9f9;
@@ -148,7 +150,7 @@
         <i class="fa fa-plane" style="padding-right: 1em;"></i><span id="numplanes">0</span> planes in the past 10 minutes
         </div>
 
-        <div id="plane-detail" style="padding-top: 10px; height: 65px;"></div>
+        <div id="plane-detail" style="padding-top: 10px; height: 75px;"></div>
         <br>
         <div height="100%" class="resize_wrapper">
         <table width="100%" id="adsb_planes" style="font-size: 80%">
@@ -217,16 +219,9 @@
             document.addEventListener(visibilityChange, handleVisibilityChange, false);
         }
 
-        $.urlParam = function(name){
-            var results = new RegExp('[\?&]' + name + '=([^&#]*)').exec(window.location.href);
-            if (results == null) {
-                return null;
-            }
-            return decodeURI(results[1]) || 0;
-        }
-
-        var param_url = $.urlParam('parent_url')
-        var param_prefix = $.urlParam('local_uri_prefix')
+        var urlparam = new URL(window.location.href);
+        var param_url = urlparam.searchParams.get('parent_url') + "/";
+        var param_prefix = urlparam.searchParams.get('local_uri_prefix', "");
 
         if (param_prefix == 0)
             param_prefix=""
@@ -348,7 +343,9 @@
                 var lat2 = data['kismet.adsb.map.max_lat'];
                 var lon2 = data['kismet.adsb.map.max_lon'];
 
-                map = L.map('map');
+                map = L.map('map', {
+                    loadingControl: true
+                });
                 map.fitBounds([[lat1, lon1], [lat2, lon2]])
                 L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     maxZoom: 19,

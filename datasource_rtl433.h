@@ -28,8 +28,7 @@ typedef std::shared_ptr<kis_datasource_rtl433> shared_datasource_rtl433;
 
 class kis_datasource_rtl433 : public kis_datasource {
 public:
-    kis_datasource_rtl433(shared_datasource_builder in_builder, 
-            std::shared_ptr<kis_recursive_timed_mutex> mutex );
+    kis_datasource_rtl433(shared_datasource_builder in_builder);
     virtual ~kis_datasource_rtl433();
 
 protected:
@@ -64,9 +63,8 @@ public:
 
     virtual ~datasource_rtl433_builder() { }
 
-    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this,
-            std::shared_ptr<kis_recursive_timed_mutex> mutex) override {
-        return shared_datasource_rtl433(new kis_datasource_rtl433(in_sh_this, mutex));
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) override {
+        return shared_datasource_rtl433(new kis_datasource_rtl433(in_sh_this));
     }
 
     virtual void initialize() override {

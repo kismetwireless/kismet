@@ -24,9 +24,12 @@ Antennatracker::Antennatracker() {
 
     antenna_id_map = 
         std::make_shared<tracker_element_int_map>();
-    antenna_endp = 
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/antennas/antennas",
-                antenna_id_map, &mutex);
+
+    auto httpd = Globalreg::fetch_global_as<kis_net_beast_httpd>();
+
+    httpd->register_route("/antennas/antennas", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(antenna_id_map, &mutex));
+
     next_ant_id = 0;
 }
 

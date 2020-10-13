@@ -81,38 +81,37 @@ alert_tracker::alert_tracker() : lifetime_global() {
     alert_ref_kismet =
 		register_alert("KISMET", "Server events", sat_day, 0, sat_day, 0, KIS_PHY_ANY);
 
-    define_alert_endp =
-        std::make_shared<kis_net_httpd_simple_post_endpoint>("/alerts/definitions/define_alert",
-                [this](std::ostream& stream, const std::string& uri, 
-                    const Json::Value& json,
-                    kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
-                return define_alert_endpoint(stream, uri, json, variable_cache);
-                });
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
-    raise_alert_endp = 
-        std::make_shared<kis_net_httpd_simple_post_endpoint>("/alerts/raise_alerts",
-                [this](std::ostream& stream, const std::string& uri, 
-                    const Json::Value& json,
-                    kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
-                return raise_alert_endpoint(stream, uri, json, variable_cache);
-                });
+    httpd->register_route("/alerts/definitions/define_alert", {"POST"}, httpd->LOGON_ROLE, {"cmd"}, 
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    return define_alert_endpoint(con);
+                }));
 
-    definitions_endp = 
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/alerts/definitions",
-                alert_defs_vec, &alert_mutex);
+    httpd->register_route("/alerts/raise_alerts", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    return raise_alert_endpoint(con);
+                }));
 
-    all_alerts_endp =
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/alerts/all_alerts",
-                alert_backlog_vec, &alert_mutex);
+    httpd->register_route("/alerts/definitions", {"GET", "POST"}, httpd->RO_ROLE, {}, 
+            std::make_shared<kis_net_web_tracked_endpoint>(alert_defs_vec, &alert_mutex));
 
-    last_alerts_endp = 
-        std::make_shared<kis_net_httpd_path_tracked_endpoint>(
-                [this](const std::vector<std::string>& path) -> bool {
-                return last_alerts_endpoint_path(path);
-                },
-                [this](const std::vector<std::string>& path) -> std::shared_ptr<tracker_element> {
-                return last_alerts_endpoint(path);
-                });
+    httpd->register_route("/alerts/all_alerts", {"GET", "POST"}, httpd->RO_ROLE, {}, 
+            std::make_shared<kis_net_web_tracked_endpoint>(alert_backlog_vec, &alert_mutex));
+
+    httpd->register_route("/alerts/last-time/:timestamp/alerts", {"GET", "POST"}, httpd->RO_ROLE,
+            {}, std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
+                return last_alerts_endpoint(con, false);
+            }));
+
+    httpd->register_route("/alerts/wrapped/last-time/:timestamp/alerts", {"GET", "POST"}, httpd->RO_ROLE,
+            {}, std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
+                return last_alerts_endpoint(con, true);
+            }));
 
 #ifdef PRELUDE
     prelude_alerts = Globalreg::globalreg->kismet_config->fetch_opt_bool("prelude_alerts", true);
@@ -652,45 +651,22 @@ int alert_tracker::find_activated_alert(std::string in_header) {
     return -1;
 }
 
-bool alert_tracker::last_alerts_endpoint_path(const std::vector<std::string>& path) {
-    // /alerts/last-time/[timestamp]/alerts
-    // /alerts/wrapped/last-time/[timestamp]/alerts
-   
-    if (path.size() < 4)
-        return false;
+std::shared_ptr<tracker_element> 
+alert_tracker::last_alerts_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con, bool wrap) {
 
-    // timestamp validated in actual response
-    if (path[0] == "alerts" && path[1] == "last-time" && path[3] == "alerts") {
-        return true;
-    }
-
-    if (path.size() == 5 && path[0] == "alerts" && path[1] == "wrapped" && 
-            path[2] == "last-time" && path[4] == "alerts") {
-        return true;
-    }
-
-    return false;
-}
-
-std::shared_ptr<tracker_element> alert_tracker::last_alerts_endpoint(const std::vector<std::string>& path) {
     std::shared_ptr<tracker_element> transmit;
     std::shared_ptr<tracker_element_map> wrapper;
     std::shared_ptr<tracker_element_vector> msgvec = std::make_shared<tracker_element_vector>(alert_vec_id);
-    bool wrap = false;
     double since_time = 0;
 
-    // timestamp validated in actual response
-    if (path[0] == "alerts" && path[1] == "last-time" && path[3] == "alerts") {
-        wrap = false;
-        std::stringstream ss{path[2]};
-        ss >> since_time;
-    }
+    std::ostream os(&con->response_stream());
 
-    if (path.size() == 5 && path[0] == "alerts" && path[1] == "wrapped" && 
-            path[2] == "last-time" && path[4] == "alerts") {
-        wrap = true;
-        std::stringstream ss{path[3]};
-        ss >> since_time;
+    auto ts_k = con->uri_params().find(":timestamp");
+    try {
+        since_time = string_to_n<double>(ts_k->second);
+    } catch (const std::exception& e) {
+        con->set_status(400);
+        return transmit;
     }
 
     if (wrap) {
@@ -719,11 +695,10 @@ std::shared_ptr<tracker_element> alert_tracker::last_alerts_endpoint(const std::
     return transmit;
 }
 
-unsigned int alert_tracker::define_alert_endpoint(std::ostream& stream, const std::string& uri,
-        const Json::Value& json, kis_net_httpd_connection::variable_cache_map& variable_cache) {
+void alert_tracker::define_alert_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con) {
     try {
-        auto name = json["name"].asString();
-        auto description = json["description"].asString();
+        auto name = con->json()["name"].asString();
+        auto description = con->json()["description"].asString();
 
         alert_time_unit limit_unit;
         int limit_rate;
@@ -731,19 +706,19 @@ unsigned int alert_tracker::define_alert_endpoint(std::ostream& stream, const st
         alert_time_unit burst_unit;
         int burst_rate;
 
-        if (parse_rate_unit(str_lower(json.get("throttle", "").asString()),
+        if (parse_rate_unit(str_lower(con->json().get("throttle", "").asString()),
                     &limit_unit, &limit_rate) < 0) {
             throw std::runtime_error("could not parse throttle limits");
         }
 
-        if (parse_rate_unit(str_lower(json.get("burst", "").asString()),
+        if (parse_rate_unit(str_lower(con->json().get("burst", "").asString()),
                     &burst_unit, &burst_rate) < 0) {
             throw std::runtime_error("could not parse burst limits");
         }
 
         int phyid = KIS_PHY_ANY;
 
-        auto phyname = json.get("phyname", "").asString();
+        auto phyname = con->json().get("phyname", "").asString();
 
         if (phyname != "any" && phyname != "") {
             auto devicetracker = 
@@ -757,41 +732,50 @@ unsigned int alert_tracker::define_alert_endpoint(std::ostream& stream, const st
         }
 
         if (define_alert(name, limit_unit, limit_rate, burst_unit, burst_rate) < 0) {
-            stream << "Could not define alert\n";
-            return 503;
+            con->set_status(503);
+
+            std::ostream os(&con->response_stream());
+            os << "Could not define alert\n";
+            return;
         }
 
         if (activate_configured_alert(name, description, phyid) < 0) {
-            stream << "Could not activate alert\n";
-            return 504;
+            con->set_status(504);
+
+            std::ostream os(&con->response_stream());
+            os << "Could not activate alert after definition\n";
+            return;
         }
 
     } catch (const std::exception& e) {
-        stream << "Invalid request: " << e.what() << "\n";
-        return 400;
-    };
-
-    return 200;
+        con->set_status(400);
+        
+        std::ostream os(&con->response_stream());
+        os << "Invalid requestion: " << e.what() << "\n";
+        return;
+    }
 }
 
-unsigned int alert_tracker::raise_alert_endpoint(std::ostream& stream, const std::string& uri,
-        const Json::Value& json, kis_net_httpd_connection::variable_cache_map& variable_cache) {
+void alert_tracker::raise_alert_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    std::ostream os(&con->response_stream());
+
     try {
-        auto name = json["name"].asString();
-        auto text = json["text"].asString();
+        auto name = con->json()["name"].asString();
+        auto text = con->json()["text"].asString();
 
         auto aref = fetch_alert_ref(name);
 
         if (aref < 0) {
-            stream << "Invalid request:  Unknown alert type\n";
-            return 400;
+            con->set_status(400);
+            os << "Invalid request:  Unknown alert type '" << con->escape_html(name) << "'\n";
+            return;
         }
 
-        auto bssid = json.get("bssid", "").asString();
-        auto source = json.get("source", "").asString();
-        auto dest = json.get("dest", "").asString();
-        auto other = json.get("other", "").asString();
-        auto channel = json.get("channel", "").asString();
+        auto bssid = con->json().get("bssid", "").asString();
+        auto source = con->json().get("source", "").asString();
+        auto dest = con->json().get("dest", "").asString();
+        auto other = con->json().get("other", "").asString();
+        auto channel = con->json().get("channel", "").asString();
 
         mac_addr bssid_mac, source_mac, dest_mac, other_mac;
 
@@ -818,11 +802,11 @@ unsigned int alert_tracker::raise_alert_endpoint(std::ostream& stream, const std
                 channel, text);
 
     } catch (const std::exception& e) {
-        stream << "Invalid request: " << e.what() << "\n";
-        return 400;
+        con->set_status(400);
+        os << "Invalid request: " << e.what() << "\n";
+        return;
     };
 
-    stream << "Success: Alert raised\n";
-    return 200;
+    os << "Alert raised\n";
 }
 

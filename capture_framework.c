@@ -49,6 +49,8 @@
 
 #include "capture_framework.h"
 #include "kis_external_packet.h"
+#include "kis_endian.h"
+#include "remote_announcement.h"
 
 #include "protobuf_c/kismet.pb-c.h"
 #include "protobuf_c/datasource.pb-c.h"
@@ -340,6 +342,8 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
     ch->remote_host = NULL;
     ch->remote_port = 0;
 
+	ch->announced_uuid = NULL;
+
     ch->reverse_server = 0;
 
     ch->cli_sourcedef = NULL;
@@ -372,7 +376,7 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
 
     /* Allocate a much more generous outbound buffer since this is where 
      * packets get queued */
-    ch->out_ringbuf = kis_simple_ringbuf_create(1024 * 256);
+    ch->out_ringbuf = kis_simple_ringbuf_create(1024 * 2048);
 
     if (ch->out_ringbuf == NULL) {
         kis_simple_ringbuf_free(ch->in_ringbuf);
@@ -724,6 +728,7 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
 
     int retry = 1;
     int daemon = 0;
+	int autodetect = 0;
 
     static struct option longopt[] = {
         { "in-fd", required_argument, 0, 1 },
@@ -736,6 +741,7 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         { "fixed-gps", required_argument, 0, 8},
         { "gps-name", required_argument, 0, 9},
         { "host", required_argument, 0, 10},
+        { "autodetect", optional_argument, 0, 11},
         { "help", no_argument, 0, 'h'},
         { 0, 0, 0, 0 }
     };
@@ -795,8 +801,18 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
             caph->remote_host = strdup(parse_hname);
             caph->remote_port = parse_port;
             caph->reverse_server = 1;
+        } else if (r == 11) {
+            autodetect = 1;
+
+            if (optarg != NULL)
+                caph->announced_uuid = strdup(optarg);
         }
     }
+
+    /* Spin looking for the remote announcement */
+    if (autodetect)
+        if (cf_wait_announcement(caph) < 0)
+            return -1;
 
     if (caph->remote_host == NULL && caph->cli_sourcedef != NULL) {
         fprintf(stderr, 
@@ -859,23 +875,26 @@ void cf_print_help(kis_capture_handler_t *caph, const char *argv0) {
     if (caph->remote_capable) {
         fprintf(stderr, "\n%s supports sending data to a remote Kismet server\n"
                 "usage: %s [options]\n"
-                " --connect [host]:[port]     Connect to remote Kismet server on [host] \n"
-                "                             and [port]; typically Kismet accepts remote \n"
-                "                             capture on port 3501.\n"
-                " --host [ip]:[port]          Listen for incoming remote connections on \n"
-                "                             [interface] and [port]; You need to use a different \n"
-                "                             port for each source you define.\n"
-                " --source [source def]       Specify a source to send to the remote \n"
-                "                             Kismet server; only used in conjunction with \n"
-                "                             remote capture.\n"
-                " --disable-retry             Do not attempt to reconnect to a remote server\n"
-                "                             if there is an error; exit immediately\n"
-                " --fixed-gps [lat,lon,alt]   Set a fixed location for this capture (remote only),\n"
-                "                             accepts lat,lon,alt or lat,lon\n"
-                " --gps-name [name]           Set an alternate GPS name for this source\n"
-                " --daemonize                 Background the capture tool and enter daemon\n"
-                "                             mode.\n"
-                " --list                      List supported devices detected\n",
+                " --connect [host]:[port]      Connect to remote Kismet server on [host] \n"
+                "                              and [port]; typically Kismet accepts remote \n"
+                "                              capture on port 3501.\n"
+                " --host [ip]:[port]           Listen for incoming remote connections on \n"
+                "                              [interface] and [port]; You need to use a different \n"
+                "                              port for each source you define.\n"
+                " --source [source def]        Specify a source to send to the remote \n"
+                "                              Kismet server; only used in conjunction with \n"
+                "                              remote capture.\n"
+                " --disable-retry              Do not attempt to reconnect to a remote server\n"
+                "                              if there is an error; exit immediately\n"
+                " --fixed-gps [lat,lon,alt]    Set a fixed location for this capture (remote only),\n"
+                "                              accepts lat,lon,alt or lat,lon\n"
+                " --gps-name [name]            Set an alternate GPS name for this source\n"
+                " --daemonize                  Background the capture tool and enter daemon\n"
+                "                              mode.\n"
+                " --list                       List supported devices detected\n"
+				" --autodetect [uuid:optional] Look for a Kismet server in announcement mode, optionally \n"
+				"                              waiting for a specific server UUID to be seen.  Requires \n"
+				"                              a Kismet server configured for announcement mode.\n",
                 argv0, argv0);
     }
 
@@ -2197,32 +2216,19 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
              * whatever we can; we peek the ringbuffer and then flag off what
              * we've successfully written out */
             ssize_t written_sz;
-            size_t peek_sz;
             size_t peeked_sz;
-            uint8_t *peek_buf;
+            uint8_t *peek_buf = NULL;
 
             pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
-            peek_sz = kis_simple_ringbuf_used(caph->out_ringbuf);
+            peeked_sz = kis_simple_ringbuf_peek_zc(caph->out_ringbuf, (void **) &peek_buf, 0);
 
             /* Don't know how we'd get here... */
-            if (peek_sz == 0) {
+            if (peeked_sz == 0) {
+                kis_simple_ringbuf_peek_free(caph->out_ringbuf, peek_buf);
                 pthread_mutex_unlock(&(caph->out_ringbuf_lock));
                 continue;
             }
-
-            peek_buf = (uint8_t *) malloc(peek_sz);
-
-            if (peek_buf == NULL) {
-                pthread_mutex_unlock(&(caph->out_ringbuf_lock));
-                fprintf(stderr,
-                        "FATAL:  Error during write(): could not allocate write "
-                        "buffer space\n");
-                rv = -1;
-                break;
-            }
-
-            peeked_sz = kis_simple_ringbuf_peek(caph->out_ringbuf, peek_buf, peek_sz);
 
             /* fprintf(stderr, "debug - peeked %lu\n", peeked_sz); */
 
@@ -2234,19 +2240,20 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
 
             if (written_sz < 0) {
                 if (errno != EINTR && errno != EAGAIN && errno != EWOULDBLOCK) {
+                    kis_simple_ringbuf_peek_free(caph->out_ringbuf, peek_buf);
                     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
-                    fprintf(stderr,
-                            "FATAL:  Error during write(): %s\n", strerror(errno));
+                    fprintf(stderr, "FATAL:  Error during write(): %s\n", strerror(errno));
                     free(peek_buf);
                     rv = -1;
                     break;
                 }
             }
 
-            free(peek_buf);
-
             /* Flag it as consumed */
             kis_simple_ringbuf_read(caph->out_ringbuf, NULL, (size_t) written_sz);
+
+            /* Get rid of the peek */
+            kis_simple_ringbuf_peek_free(caph->out_ringbuf, peek_buf);
 
             /* Unlock */
             pthread_mutex_unlock(&(caph->out_ringbuf_lock));
@@ -2297,13 +2304,11 @@ int cf_send_packet(kis_capture_handler_t *caph, const char *packtype,
     /* Frame we'll be sending */
     kismet_external_frame_t *frame;
     /* Size of serialized command data */
-    size_t data_sz;
+    size_t data_sz, rs_sz;
     /* Buffer holding all of it */
     uint8_t *send_buffer;
     /* Calculated checksum */
     uint32_t calc_checksum;
-
-    int r;
 
     kismet_external__command__init(&cmd);
 
@@ -2320,13 +2325,24 @@ int cf_send_packet(kis_capture_handler_t *caph, const char *packtype,
     cmd.content.len = len;
    
     data_sz = kismet_external__command__get_packed_size(&cmd);
-    send_buffer = (uint8_t *) malloc(data_sz + sizeof(kismet_external_frame_t));
 
-    if (send_buffer == NULL) {
-        fprintf(stderr, "FATAL:  Unable to allocate the buffer for writing a packet");
+    /* Directly inject into the ringbuffer with a zero-copy */
+
+    pthread_mutex_lock(&(caph->out_ringbuf_lock));
+
+    rs_sz = kis_simple_ringbuf_reserve(caph->out_ringbuf, (void **) &send_buffer, 
+            data_sz + sizeof(kismet_external_frame_t));
+
+    if (rs_sz != data_sz + sizeof(kismet_external_frame_t)) {
+        /*
+        fprintf(stderr, "FATAL:  Unable to allocate the buffer for writing a packet (%lu/%lu)\n", 
+                rs_sz, data_sz + sizeof(kismet_external_frame_t));
+        kis_simple_ringbuf_reserve_free(caph->out_ringbuf, send_buffer);
+        */
         free(cmd.command);
         free(data);
-        return -1;
+        pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+        return 0;
     }
 
     /* Map to the tx frame */
@@ -2344,14 +2360,14 @@ int cf_send_packet(kis_capture_handler_t *caph, const char *packtype,
 
     frame->data_checksum = htonl(calc_checksum);
 
-    /* Send the whole frame */
-    r = cf_send_raw_bytes(caph, send_buffer, data_sz + sizeof(kismet_external_frame_t));
+    kis_simple_ringbuf_commit(caph->out_ringbuf, send_buffer, rs_sz);
 
-    free(send_buffer);
+    pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+
     free(data);
     free(cmd.command);
 
-    return r;
+    return rs_sz;
 }
 
 int cf_send_message(kis_capture_handler_t *caph, const char *msg, unsigned int flags) {
@@ -2640,7 +2656,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
 
     if (msg)
         free(kemsg.msgtext);
-
+    
     return cf_send_packet(caph, "KDSPROBESOURCEREPORT", buf, buf_len);
 }
 
@@ -2737,6 +2753,17 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
 
         /* Set the capif if we have it */
         keopen.capture_interface = interface->capif;
+    }
+
+    if (msg != NULL && strlen(msg) != 0) {
+        kemsg.msgtext = strdup(msg);
+
+        if (success)
+            kemsg.msgtype = (KismetExternal__MsgbusMessage__MessageType) MSGFLAG_INFO;
+        else
+            kemsg.msgtype = (KismetExternal__MsgbusMessage__MessageType) MSGFLAG_ERROR;
+
+        keopen.message = &kemsg;
     }
 
     /* Always set the dlt */
@@ -2937,6 +2964,17 @@ int cf_send_configresp(kis_capture_handler_t *caph, unsigned int seqno,
 
     keconf.success = &kesuccess;
 
+    if (msg != NULL && strlen(msg) != 0) {
+        kemsg.msgtext = strdup(msg);
+
+        if (success)
+            kemsg.msgtype = (KismetExternal__MsgbusMessage__MessageType) MSGFLAG_INFO;
+        else
+            kemsg.msgtype = (KismetExternal__MsgbusMessage__MessageType) MSGFLAG_ERROR;
+
+        keconf.message = &kemsg;
+    }
+
     /* If we're not hopping, set the single channel response */
     if (!caph->hopping_running && caph->channel != NULL) {
         /* Set the single channel */
@@ -3079,7 +3117,6 @@ int cf_drop_most_caps(kis_capture_handler_t *caph) {
     if (getuid() != 0)
         return 0;
 
-    char errstr[STATUS_MAX];
 #ifdef HAVE_CAPABILITY
 	cap_value_t cap_list[2] = { CAP_NET_ADMIN, CAP_NET_RAW };
 	int cl_len = sizeof(cap_list) / sizeof(cap_value_t);
@@ -3117,15 +3154,17 @@ int cf_drop_most_caps(kis_capture_handler_t *caph) {
 
     return 1;
 #else
+    /*
     snprintf(errstr, STATUS_MAX, "datasource not compiled with libcap capabilities control");
     cf_send_warning(caph, errstr);
+    */
     return 0;
 #endif
 }
 
 int cf_jail_filesystem(kis_capture_handler_t *caph) {
-    char errstr[STATUS_MAX];
 #ifdef SYS_LINUX
+    char errstr[STATUS_MAX];
 
     /* Can't jail filesystem if not running as root */
     if (getuid() != 0)
@@ -3234,6 +3273,80 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph) {
 
 void cf_set_verbose(kis_capture_handler_t *caph, int verbosity) {
     caph->verbose = verbosity;
+}
+
+int cf_wait_announcement(kis_capture_handler_t *caph) {
+    struct sockaddr_in lsin;
+    int sock;
+
+	int r;
+	struct msghdr rcv_msg;
+	struct iovec iov;
+	kismet_remote_announce announcement;
+	struct sockaddr_in recv_addr;
+
+    char *name;
+
+    memset(&lsin, 0, sizeof(struct sockaddr_in));
+    lsin.sin_family = AF_INET;
+    lsin.sin_port = htons(2501);
+    lsin.sin_addr.s_addr = INADDR_ANY;
+
+    if ((sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
+        fprintf(stderr, "ERROR:  Could not create listening socket for announcements: %s\n",
+                strerror(errno));
+		return -1;
+    }
+
+    if (bind(sock, (struct sockaddr *) &lsin, sizeof(lsin)) < 0) {
+        fprintf(stderr, "ERROR:  Could not bind to listening socket for announcements: %s\n",
+                strerror(errno));
+        close(sock);
+		return -1;
+    }
+
+    fprintf(stderr, "INFO: Listening for Kismet server announcements...\n");
+
+    while(1) {
+        iov.iov_base = &announcement;
+        iov.iov_len = sizeof(kismet_remote_announce);
+
+        rcv_msg.msg_name = &recv_addr;
+        rcv_msg.msg_namelen = sizeof(recv_addr);
+        rcv_msg.msg_iov = &iov;
+        rcv_msg.msg_iovlen = 1;
+        rcv_msg.msg_control = NULL;
+        rcv_msg.msg_controllen = 0;
+
+        if ((r = recvmsg(sock, &rcv_msg, 0) < 0)) {
+            fprintf(stderr, "ERROR:  Failed receiving announcement: %s\n", strerror(errno));
+            close(sock);
+			return -1;
+        }
+
+        if (be64toh(announcement.tag) != REMOTE_ANNOUNCE_TAG)
+            fprintf(stderr, "WARNING:  Corrupt/invalid announcement seen, ignoring.\n");
+
+        if (caph->announced_uuid != NULL)
+            if (strncmp(caph->announced_uuid, announcement.uuid, 36) != 0) 
+                continue;
+
+        caph->remote_host = strdup(inet_ntoa(recv_addr.sin_addr));
+        caph->remote_port = ntohl(announcement.remote_port);
+
+        name = strndup(announcement.name, 32);
+
+        fprintf(stderr, "INFO:  Detected Kismet server %s:%u %.36s (%s)\n",
+                caph->remote_host, caph->remote_port,
+                announcement.uuid, strlen(name) > 0 ? name : "no name");
+
+        free(name);
+
+        close(sock);
+
+        return 1;
+    }
+
 }
 
 

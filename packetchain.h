@@ -38,10 +38,11 @@
 
 #include "globalregistry.h"
 #include "kis_mutex.h"
-#include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
 #include "trackedelement.h"
 #include "trackedrrd.h"
 
+#include "moodycamel/blockingconcurrentqueue.h"
 
 /* Packets are added to the packet queue from any thread (including the main 
  * thread).
@@ -163,10 +164,7 @@ protected:
 
     std::thread packet_thread;
 
-    std::mutex packetqueue_cv_mutex;
-    std::condition_variable packetqueue_cv;
-
-    std::queue<kis_packet *> packet_queue;
+    moodycamel::BlockingConcurrentQueue<kis_packet *> packet_queue;
     bool packetchain_shutdown;
 
     // Warning and discard levels for packet queue being full
@@ -188,14 +186,10 @@ protected:
     std::shared_ptr<kis_tracked_rrd<>> packet_drop_rrd;
     int packet_drop_rrd_id;
 
-    std::shared_ptr<tracker_element_map> packet_stats_map;
+    std::shared_ptr<kis_tracked_rrd<>> packet_processed_rrd;
+    int packet_processed_rrd_id;
 
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> packet_stat_endpoint;
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> packet_rate_endpoint;
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> packet_error_endpoint;
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> packet_dupe_endpoint;
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> packet_queue_endpoint;
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> packet_drop_endpoint;
+    std::shared_ptr<tracker_element_map> packet_stats_map;
 };
 
 #endif

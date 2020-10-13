@@ -613,7 +613,7 @@ void tracker_element_serializer::pre_serialize_path(const SharedElementSummary& 
         inter = std::static_pointer_cast<tracker_element_alias>(inter)->get();
 
     try {
-        for (auto p : in_summary->resolved_path) {
+        for (const auto& p : in_summary->resolved_path) {
 #if TE_TYPE_SAFETY == 1
             inter->enforce_type(tracker_type::tracker_map);
 #endif
@@ -650,7 +650,7 @@ void tracker_element_serializer::post_serialize_path(const SharedElementSummary&
         inter = std::static_pointer_cast<tracker_element_alias>(inter)->get();
 
     try {
-        for (auto p : in_summary->resolved_path) {
+        for (const auto& p : in_summary->resolved_path) {
 #if TE_TYPE_SAFETY == 1
             inter->enforce_type(tracker_type::tracker_map);
 #endif
@@ -715,7 +715,7 @@ void tracker_element_summary::parse_path(const std::vector<std::string>& in_path
 
     bool path_full = true;
 
-    for (auto pe : in_path) {
+    for (const auto& pe : in_path) {
         if (pe.length() == 0)
             continue;
 
@@ -750,7 +750,7 @@ shared_tracker_element get_tracker_element_path(const std::vector<std::string>& 
 
     shared_tracker_element next_elem;
 
-    for (auto pe : in_path) {
+    for (const auto& pe : in_path) {
         // Skip empty
         if (pe.length() == 0)
             continue;
@@ -791,7 +791,7 @@ shared_tracker_element get_tracker_element_path(const std::vector<int>& in_path,
 
     shared_tracker_element next_elem;
 
-    for (auto pe : in_path) {
+    for (const auto& pe : in_path) {
         if (pe < 0)
             return nullptr;
 
@@ -882,10 +882,8 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
 
                 auto cn = std::static_pointer_cast<tracker_element_vector>(next_elem);
 
-                for (auto i : *cn) {
-                    std::vector<shared_tracker_element> subret =
-                        get_tracker_element_multi_path(sub_path, i);
-
+                for (const auto& i : *cn) {
+                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i);
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
@@ -896,10 +894,8 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
 
                 auto cn = std::static_pointer_cast<tracker_element_int_map>(next_elem);
 
-                for (auto i : *cn) {
-                    std::vector<shared_tracker_element> subret =
-                        get_tracker_element_multi_path(sub_path, i.second);
-
+                for (const auto& i : *cn) {
+                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
@@ -910,10 +906,8 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
 
                 auto cn = std::static_pointer_cast<tracker_element_string_map>(next_elem);
 
-                for (auto i : *cn) {
-                    std::vector<shared_tracker_element> subret =
-                        get_tracker_element_multi_path(sub_path, i.second);
-
+                for (const auto& i : *cn) {
+                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
@@ -924,10 +918,8 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
 
                 auto cn = std::static_pointer_cast<tracker_element_mac_map>(next_elem);
 
-                for (auto i : *cn) {
-                    std::vector<shared_tracker_element> subret =
-                        get_tracker_element_multi_path(sub_path, i.second);
-
+                for (const auto& i : *cn) {
+                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
@@ -938,10 +930,8 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
 
                 auto cn = std::static_pointer_cast<tracker_element_double_map>(next_elem);
 
-                for (auto i : *cn) {
-                    std::vector<shared_tracker_element> subret =
-                        get_tracker_element_multi_path(sub_path, i.second);
-
+                for (const auto& i : *cn) {
+                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
@@ -1010,10 +1000,8 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
 
                 auto cn = std::static_pointer_cast<tracker_element_vector>(next_elem);
 
-                for (auto i : *cn) {
-                    std::vector<shared_tracker_element> subret =
-                        get_tracker_element_multi_path(sub_path, i);
-
+                for (const auto& i : *cn) {
+                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i);
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
@@ -1024,10 +1012,8 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
 
                 auto cn = std::static_pointer_cast<tracker_element_int_map>(next_elem);
 
-                for (auto i : *cn) {
-                    std::vector<shared_tracker_element> subret =
-                        get_tracker_element_multi_path(sub_path, i.second);
-
+                for (const auto &i : *cn) {
+                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
@@ -1038,10 +1024,8 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
 
                 auto cn = std::static_pointer_cast<tracker_element_string_map>(next_elem);
 
-                for (auto i : *cn) {
-                    std::vector<shared_tracker_element> subret =
-                        get_tracker_element_multi_path(sub_path, i.second);
-
+                for (const auto& i : *cn) {
+                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
@@ -1052,10 +1036,8 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
 
                 auto cn = std::static_pointer_cast<tracker_element_mac_map>(next_elem);
 
-                for (auto i : *cn) {
-                    std::vector<shared_tracker_element> subret =
-                        get_tracker_element_multi_path(sub_path, i.second);
-
+                for (const auto& i : *cn) {
+                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
@@ -1066,10 +1048,8 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
 
                 auto cn = std::static_pointer_cast<tracker_element_double_map>(next_elem);
 
-                for (auto i : *cn) {
-                    std::vector<shared_tracker_element> subret =
-                        get_tracker_element_multi_path(sub_path, i.second);
-
+                for (const auto& i : *cn) {
+                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
                     ret.insert(ret.end(), subret.begin(), subret.end());
                 }
 
@@ -1091,7 +1071,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
 
     auto ret = std::make_shared<tracker_element_vector>();
 
-    for (auto i : *elem)
+    for (const auto& i : *elem)
         ret->push_back(summarize_tracker_element(i, summary, rename_map));
 
     return ret;
@@ -1103,7 +1083,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
 
     auto ret = std::make_shared<tracker_element_int_map>();
 
-    for (auto i : *elem)
+    for (const auto& i : *elem)
         ret->insert(i.first, summarize_tracker_element(i.second, summary, rename_map));
 
     return ret;
@@ -1115,7 +1095,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
 
     auto ret = std::make_shared<tracker_element_double_map>();
 
-    for (auto i : *elem)
+    for (const auto& i : *elem)
         ret->insert(i.first, summarize_tracker_element(i.second, summary, rename_map));
 
     return ret;
@@ -1127,7 +1107,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
 
     auto ret = std::make_shared<tracker_element_string_map>();
 
-    for (auto i : *elem)
+    for (const auto& i : *elem)
         ret->insert(i.first, summarize_tracker_element(i.second, summary, rename_map));
 
     return ret;
@@ -1139,7 +1119,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
 
     auto ret = std::make_shared<tracker_element_mac_map>();
 
-    for (auto i : *elem)
+    for (const auto& i : *elem)
         ret->insert(i.first, summarize_tracker_element(i.second, summary, rename_map));
 
     return ret;
@@ -1151,7 +1131,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
 
     auto ret = std::make_shared<tracker_element_device_key_map>();
 
-    for (auto i : *elem)
+    for (const auto& i : *elem)
         ret->insert(i.first, summarize_tracker_element(i.second, summary, rename_map));
 
     return ret;
@@ -1163,7 +1143,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
 
     auto ret = std::make_shared<tracker_element_hashkey_map>();
 
-    for (auto i : *elem)
+    for (const auto& i : *elem)
         ret->insert(i.first, summarize_tracker_element(i.second, summary, rename_map));
 
     return ret;
@@ -1217,7 +1197,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
 
     unsigned int fn = 0;
 
-    for (auto si : in_summarization) {
+    for (const auto& si : in_summarization) {
         fn++;
 
         if (si->resolved_path.size() == 0)

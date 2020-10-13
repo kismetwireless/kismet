@@ -24,7 +24,6 @@
 #include "datasource_scan.h"
 #include "globalregistry.h"
 #include "kis_datasource.h"
-#include "kis_net_microhttpd_handlers.h"
 
 class bluetooth_scan_source : public datasource_scan_source, public lifetime_global {
 public:

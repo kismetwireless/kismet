@@ -26,6 +26,7 @@
 #include "kis_mutex.h"
 #include "trackedelement.h"
 #include "trackedcomponent.h"
+#include "json/json.h"
 
 #ifdef HAVE_LIBPCRE
 #include <pcre.h>

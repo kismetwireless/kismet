@@ -69,7 +69,7 @@
 
                         // Set the HTML
                         d.html('<p>' + ds + '</p>' +
-                            state['message_list'][x]['kismet.messagebus.message_string']);
+                            kismet.censorMAC(state['message_list'][x]['kismet.messagebus.message_string']));
 
                         // Remove all flagged clases
                         d.removeClass("messagebus_debug");

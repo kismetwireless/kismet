@@ -52,8 +52,34 @@
 #define MAC_LEN_MAX		8
 
 struct mac_addr {
+    constexpr uint64_t bits_to_mask(unsigned int bits) const {
+        return ((uint64_t) -1) << (64 - bits);
+    }
+
+    uint8_t num_left_bits(uint64_t v) const {
+        uint8_t r = 0;
+        for (int b = 0; b < 64; b++) {
+            if ((v >> (63 - b)) & 0x1) {
+                r++;
+                continue;
+            }
+
+            break;
+        }
+
+        return r;
+    }
+
+    mac_addr(mac_addr&& o) noexcept :
+        longmac{o.longmac},
+        maskbits{o.maskbits},
+        state {
+            .len = o.state.len,
+            .error = o.state.error 
+        } { }
+    
     uint64_t longmac;
-    uint64_t longmask;
+    uint8_t maskbits;
 
     struct {
         unsigned int len : 3; // base 0
@@ -83,11 +109,11 @@ struct mac_addr {
     }
 
     void string2long(const char *in) {
-        state.len = 6;
+        state.len = 5;
         state.error = 0;
 
         longmac = 0;
-        longmask = (uint64_t) -1;
+        auto longmask = (uint64_t) -1;
 
         short unsigned int byte;
 
@@ -134,20 +160,21 @@ struct mac_addr {
             nbyte++;
         }
 
+        maskbits = num_left_bits(longmask);
         state.len = len - 1;
     }
 
     constexpr mac_addr() :
         longmac(0),
-        longmask((uint64_t) -1),
+        maskbits{64},
         state {
-            .len = 6,
+            .len = 5,
             .error = 0
         } { }
 
     constexpr mac_addr(const mac_addr& in) :
-        longmac {in.longmac},
-        longmask {in.longmask},
+        longmac{in.longmac},
+        maskbits{in.maskbits},
         state {in.state} { }
 
     mac_addr(const char *in) {
@@ -160,58 +187,53 @@ struct mac_addr {
 
     constexpr mac_addr(int in __attribute__((unused)))  :
         longmac{0},
-        longmask{(uint64_t) -1},
+        maskbits{64},
         state {
-            .len = 6,
+            .len = 5,
             .error = 0
         } { }
 
-    mac_addr(const uint8_t *in, unsigned int len) {
-        state.len = 6;
-        state.error = 0;
-        longmac = 0;
-        longmask = (uint64_t) -1;
-
+    mac_addr(const uint8_t *in, unsigned int len) :
+        longmac{0},
+        maskbits{64},
+        state {
+            .len = len - 1,
+            .error = 0
+        } {
         for (unsigned int x = 0; x < len && x < MAC_LEN_MAX; x++) {
             uint64_t v = in[x];
             longmac |= v << ((MAC_LEN_MAX - x - 1) * 8);
         }
-
-        state.len = len - 1;
     }
 
-    mac_addr(const char *in, unsigned int len) {
-        state.len = 6;
-        state.error = 0;
-        longmac = 0;
-        longmask = (uint64_t) -1;
+    mac_addr(const char *in, unsigned int len) :
+        longmac{0},
+        maskbits{64},
+        state {
+            .len = len - 1,
+            .error = 0
+        } {
 
         for (unsigned int x = 0; x < len && x < MAC_LEN_MAX; x++) {
             uint64_t v = (in[x] & 0xFF);
             longmac |= v << ((MAC_LEN_MAX - x - 1) * 8);
         }
-
-        state.len = len - 1;
     }
 
     // slash-style byte count mask
-    mac_addr(const uint8_t *in, unsigned int len, unsigned int mask) {
-        state.len = 6;
-        state.error = 0;
-
-        longmac = 0;
-        longmask = (uint64_t) -1;
-
+    mac_addr(const uint8_t *in, unsigned int len, uint8_t mask) :
+        longmac{0},
+        maskbits{mask},
+        state {
+            .len = len - 1,
+            .error = 0
+        } {
         for (unsigned int x = 0; x < len && x < MAC_LEN_MAX; x++) {
             longmac |= (uint64_t) in[x] << ((MAC_LEN_MAX - x - 1) * 8);
         }
-
-        longmask = (longmask >> (64 - mask)) << mask;
-
-        state.len = len - 1;
     }
 
-    // Convert a string to a positional search fragment, places fragent
+    // Convert a string to a positional search fragment, places fragment
     // in ret_term and length of fragment in ret_len
     inline static bool prepare_search_term(const std::string& s, uint64_t &ret_term, unsigned int &ret_len) {
         short unsigned int byte;
@@ -268,42 +290,36 @@ struct mac_addr {
         return false;
     }
 
-    // bitwise-and
     constexpr17 bool bitwise_and(const mac_addr& op) const {
         return (longmac & op.longmac);
     }
 
-    // Masked MAC compare
     constexpr17 bool operator== (const mac_addr& op) const {
-        if (longmask < op.longmask)
-            return ((longmac & longmask) == (op.longmac & longmask));
-        return ((longmac & op.longmask) == (op.longmac & op.longmask));
+        if (maskbits < op.maskbits)
+            return ((longmac & bits_to_mask(maskbits)) == (op.longmac & bits_to_mask(maskbits)));
+        return ((longmac & op.bits_to_mask(op.maskbits)) == (op.longmac & bits_to_mask(op.maskbits)));
     }
 
     constexpr17 bool operator== (const uint64_t op) const {
         return longmac == op;
 	}
 
-    // MAC compare
     constexpr17 bool operator!= (const mac_addr& op) const {
-        if (longmask < op.longmask)
-            return ((longmac & longmask) != (op.longmac & longmask));
-        return ((longmac & op.longmask) != (op.longmac & op.longmask));
+        return !(operator==(op));
     }
 
-    // mac less-than-eq
     constexpr17 bool operator<=(const mac_addr& op) const {
-        return (longmac & longmask) == (op.longmac & longmask);
+        return (longmac & bits_to_mask(maskbits)) <= (op.longmac & bits_to_mask(maskbits));
     }
 
     // MAC less-than for STL sorts...
     constexpr17 bool operator< (const mac_addr& op) const {
-        return ((longmac & longmask) < (op.longmac & longmask));
+        return (longmac & bits_to_mask(maskbits)) < (op.longmac & bits_to_mask(maskbits));
     }
 
     mac_addr& operator= (const mac_addr& op) {
         longmac = op.longmac;
-        longmask = op.longmask;
+        maskbits = op.maskbits;
         state = op.state;
         return *this;
     }
@@ -398,6 +414,7 @@ struct mac_addr {
     }
 
     inline std::string mac_mask_to_string() const {
+        auto longmask = bits_to_mask(maskbits);
         switch (state.len) {
             case 0:
                 return fmt::format("{:02X}", 
@@ -459,7 +476,7 @@ std::istream& operator>>(std::istream& is, mac_addr& m);
 namespace std {
     template<> struct hash<mac_addr> {
         std::size_t operator()(mac_addr const& m) const noexcept {
-            auto h = std::hash<uint64_t>{}(m.longmac & m.longmask);
+            auto h = std::hash<uint64_t>{}(m.longmac & m.bits_to_mask(m.maskbits));
             h = h ^ (std::hash<uint64_t>{}(m.state.len));
             return h;
         }

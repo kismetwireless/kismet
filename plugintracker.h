@@ -103,10 +103,10 @@
 #include "globalregistry.h"
 #include "kis_mutex.h"
 
-#include "buffer_handler.h"
 #include "configfile.h"
 #include "kis_external.h"
-#include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
+#include "messagebus.h"
 #include "trackedelement.h"
 #include "trackedcomponent.h"
 
@@ -153,12 +153,6 @@ public:
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
     }
 
@@ -253,18 +247,17 @@ struct plugin_server_info {
 typedef int (*plugin_version_check)(plugin_server_info *);
 
 // Plugin management class
-class plugin_tracker : public lifetime_global,
-    public kis_net_httpd_cppstream_handler {
+class plugin_tracker : public lifetime_global {
 public:
-    static std::shared_ptr<plugin_tracker> create_plugintracker(global_registry *in_globalreg) {
-        std::shared_ptr<plugin_tracker> mon(new plugin_tracker(in_globalreg));
-        in_globalreg->register_lifetime_global(mon);
-        in_globalreg->insert_global("PLUGINTRACKER", mon);
+    static std::shared_ptr<plugin_tracker> create_plugintracker() {
+        std::shared_ptr<plugin_tracker> mon(new plugin_tracker());
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global("PLUGINTRACKER", mon);
         return mon;
     }
 
 private:
-	plugin_tracker(global_registry *in_globalreg);
+	plugin_tracker();
 
 public:
 	static void usage(char *name);
@@ -283,21 +276,14 @@ public:
 	// Shut down the plugins and close the shared files
 	int shutdown_plugins();
 
-    // HTTP API
-    virtual bool httpd_verify_path(const char *path, const char *method);
-
-    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream);
-
 protected:
     kis_recursive_timed_mutex plugin_lock;
 
-	global_registry *globalreg;
+    std::shared_ptr<kis_net_beast_httpd> httpd;
+
 	int plugins_active;
 
-	int ScanDirectory(DIR *in_dir, std::string in_path);
+	int scan_directory(DIR *in_dir, std::string in_path);
 
     // Final vector of registered activated plugins
     std::shared_ptr<tracker_element_vector> plugin_registry_vec;
@@ -311,7 +297,8 @@ protected:
 class external_http_plugin_harness : public kis_external_interface {
 public:
     external_http_plugin_harness(std::string plugin_name, std::string binary) : 
-        kis_external_interface() {
+        kis_external_interface(),
+        plugin_name{plugin_name} {
 
         // Look for someone playing hijinks
         if (binary.find("/") != std::string::npos) {
@@ -321,32 +308,19 @@ public:
         }
 
         external_binary = binary;
-
-        // Grow the IPC buffer
-        ringbuf_handler.reset(new buffer_handler<ringbuf_v2>((1024*1024), (1024*1024)));
-        ringbuf_handler->set_read_buffer_interface(this);
-
-        ipc_remote.reset(new ipc_remote_v2(Globalreg::globalreg, ringbuf_handler));
-
-        // Get the allowed paths for binaries and populate
-        auto bin_paths = Globalreg::globalreg->kismet_config->fetch_opt_vec("helper_binary_path");
-
-        if (bin_paths.size() == 0) {
-            _MSG_ERROR("No 'helper_binary_path' found in kismet.conf; make sure your config files are up "
-                    "to date.  Using the default binary path where Kismet was installed, instead.");
-            bin_paths.push_back("%B");
-        }
-
-        for (auto p : bin_paths) 
-            ipc_remote->add_path(Globalreg::globalreg->kismet_config->expand_log_path(p, "", "", 0, 1));
-
-        auto ret = ipc_remote->launch_kis_binary(external_binary, {});
-
-        if (ret < 0) {
-            _MSG_ERROR("{} failed to launch helper binary '{}'", plugin_name, binary);
-            return;
-        }
     }
+
+    bool start_external_plugin() {
+        if (!run_ipc()) {
+            _MSG_ERROR("{} failed to launch helper binary '{}'", plugin_name, external_binary);
+            return false;
+        }
+
+        return true;
+    }
+
+protected:
+    std::string plugin_name;
 };
 
 #endif

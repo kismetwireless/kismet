@@ -32,16 +32,15 @@
 #include "kis_datasource.h"
 #include "trackedelement.h"
 #include "trackedcomponent.h"
-#include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
 #include "entrytracker.h"
 #include "timetracker.h"
-#include "tcpserver2.h"
-#include "pollabletracker.h"
-#include "kis_net_microhttpd.h"
 #include "buffer_handler.h"
 #include "trackedrrd.h"
 #include "kis_mutex.h"
 #include "eventbus.h"
+#include "messagebus.h"
+#include "streamtracker.h"
 
 /* Data source tracker
  *
@@ -171,7 +170,6 @@ public:
 
 protected:
     std::shared_ptr<kis_recursive_timed_mutex> list_lock;
-
     std::shared_ptr<time_tracker> timetracker;
 
     // Probing instances
@@ -192,6 +190,8 @@ protected:
 
     std::function<void (std::vector<shared_interface>)> list_cb;
     std::atomic<bool> cancelled;
+
+    std::atomic<int> cancel_event_id;
 
     std::vector<shared_interface> listed_sources;
 };
@@ -226,12 +226,6 @@ public:
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
     }
 
@@ -297,52 +291,14 @@ protected:
 
 };
 
-// Intermediary buffer handler which is responsible for parsing the incoming
-// simple packet protocol enough to get a NEWSOURCE command; The resulting source
-// type, definition, uuid, and rbufhandler is passed to the callback function; the cb
-// is responsible for looking up the type, closing the connection if it is invalid, etc.
-class dst_incoming_remote : public kis_external_interface {
+class datasource_tracker_remote_server;
+class dst_incoming_remote;
+
+class datasource_tracker : public lifetime_global, public deferred_startup {
 public:
-    dst_incoming_remote(std::shared_ptr<buffer_handler_generic> in_rbufhandler,
-            std::function<void (dst_incoming_remote *, std::string srctype, std::string srcdef,
-                uuid srcuuid, std::shared_ptr<buffer_handler_generic> handler)> in_cb);
-    ~dst_incoming_remote();
-
-    // Override the dispatch commands to handle the newsource
-    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) override;
-
-    virtual void handle_msg_proxy(const std::string& msg, const int msgtype) override {
-        _MSG(fmt::format("(Remote) - {}", msg), msgtype);
-    }
-
-    virtual void handle_packet_newsource(uint32_t in_seqno, std::string in_packet);
-
-    virtual void kill();
-
-    virtual void handshake_rb(std::thread t) {
-        std::swap(handshake_thread, t);
-    }
-
-    virtual void buffer_error(std::string in_error) override;
-
-protected:
-    // Timeout for killing this connection
-    int timerid;
-
-    std::function<void (dst_incoming_remote *, std::string, std::string, uuid, 
-            std::shared_ptr<buffer_handler_generic> )> cb;
-
-    std::thread handshake_thread;
-};
-
-// Fwd def of datasource pcap feed
-class datasource_tracker_httpd_pcap;
-
-class datasource_tracker : public kis_net_httpd_cppstream_handler, 
-    public lifetime_global, public deferred_startup {
-public:
+    static std::string global_name() { return "DATASOURCETRACKER"; }
     static std::shared_ptr<datasource_tracker> create_dst() {
-        auto mon = std::make_shared<datasource_tracker>();
+        auto mon = std::shared_ptr<datasource_tracker>(new datasource_tracker());
         Globalreg::globalreg->register_lifetime_global(mon);
         Globalreg::globalreg->insert_global(global_name(), mon);
         Globalreg::globalreg->register_deferred_global(mon);
@@ -350,13 +306,11 @@ public:
         return mon;
     }
 
-    // Must be public to accommodate make_shared but should not be called directly
+private:
     datasource_tracker();
 
 public:
     virtual ~datasource_tracker();
-
-    static std::string global_name() { return "DATASOURCETRACKER"; }
 
     // Start up the system once kismet is up and running; this happens just before
     // the main select loop in kismet
@@ -408,8 +362,7 @@ public:
     void open_remote_datasource(dst_incoming_remote *incoming, 
             const std::string& in_type, 
             const std::string& in_definition, 
-            const uuid& in_uuid,
-            std::shared_ptr<buffer_handler_generic> in_handler);
+            const uuid& in_uuid);
 
     // Find a datasource
     shared_datasource find_datasource(const uuid& in_uuid);
@@ -418,16 +371,6 @@ public:
     //
     // Optional completion function will be called with list of possible sources.
     void list_interfaces(const std::function<void (std::vector<shared_interface>)>& in_cb);
-
-    // HTTP api
-    virtual bool httpd_verify_path(const char *path, const char *method) override;
-
-    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream) override;
-
-    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *concls) override;
 
     // Operate on all data sources currently defined.  The datasource tracker is locked
     // during this operation, making it thread safe.
@@ -445,20 +388,37 @@ public:
     // Merge a source into the source list, preserving UUID and source number
     virtual void merge_source(shared_datasource in_source);
 
-protected:
-    // Callback registered with the tcp server for a new connection
-    void new_remote_tcp_connection(int in_fd);
+    // Remote capture info
+    bool remote_enabled() const {
+        return remotecap_enabled;
+    }
 
+    unsigned int remote_port() const {
+        return remotecap_port;
+    }
+
+    std::string remote_listen() const {
+        return remotecap_listen;
+    }
+
+protected:
     // Log the datasources
     virtual void databaselog_write_datasources();
 
-    std::shared_ptr<tcp_server_v2> remote_tcp_server;
+    bool remotecap_enabled;
+    unsigned int remotecap_port;
+    std::string remotecap_listen;
+
+    std::shared_ptr<datasource_tracker_remote_server> remotecap_v4;
 
     std::shared_ptr<datasource_tracker> datasourcetracker;
     std::shared_ptr<time_tracker> timetracker;
     std::shared_ptr<event_bus> eventbus;
+    std::shared_ptr<stream_tracker> streamtracker;
 
     kis_recursive_timed_mutex dst_lock;
+
+    int pack_comp_datasrc;
 
     int proto_id;
     int source_id;
@@ -472,6 +432,10 @@ protected:
     // Sub-workers probing for a source definition
     std::map<unsigned int, shared_dst_source_probe> probing_map;
     std::atomic<unsigned int> next_probe_id;
+
+    // Masked datasource types that won't be used for scan or autoprobing,
+    // for systems where python takes so long to load it causes problems
+    std::vector<std::string> auto_masked_types;
 
     // Sub-workers slated for being removed
     std::vector<shared_dst_source_probe> probing_complete_vec;
@@ -492,7 +456,7 @@ protected:
     int remote_complete_timer;
 
     // Cleanup task
-    int completion_cleanup_id;
+    std::atomic<int> completion_cleanup_id;
     void schedule_cleanup();
 
     // UUIDs to source numbers
@@ -505,55 +469,81 @@ protected:
     // and want to do channel split
     void calculate_source_hopping(shared_datasource in_ds);
 
-    // Our pcap http interface
-    std::shared_ptr<datasource_tracker_httpd_pcap> httpd_pcap;
-
     // Datasource logging
     int database_log_timer;
-    bool database_log_enabled, database_logging;
-
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> all_sources_endp;
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> defaults_endp;
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> types_endp;
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> list_interfaces_endp;
+    bool database_log_enabled;
+    std::atomic<bool> database_logging;
 
     // Buffer sizes
     size_t tcp_buffer_sz;
+
+    friend class datasource_tracker_remote_server;
 };
 
-/* This implements the core 'all data' pcap, and pcap filtered by datasource UUID.
- */
-class datasource_tracker_httpd_pcap : public kis_net_httpd_ringbuf_stream_handler {
+// Intermediary buffer handler which is responsible for parsing the incoming
+// simple packet protocol enough to get a NEWSOURCE command; The resulting source
+// type, definition, uuid, and rbufhandler is passed to the callback function; the cb
+// is responsible for looking up the type, closing the connection if it is invalid, etc.
+class dst_incoming_remote : public kis_external_interface {
 public:
-    datasource_tracker_httpd_pcap() : kis_net_httpd_ringbuf_stream_handler() { 
-        bind_httpd_server();
+    using callback_t = std::function<void (dst_incoming_remote *, std::string, std::string, uuid)>;
+
+    dst_incoming_remote(callback_t in_cb);
+    ~dst_incoming_remote();
+
+    // Override the dispatch commands to handle the new source
+    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) override;
+
+    virtual void handle_msg_proxy(const std::string& msg, const int msgtype) override {
+        _MSG(fmt::format("(Remote) - {}", msg), msgtype);
     }
 
-    virtual ~datasource_tracker_httpd_pcap() { };
+    virtual void handle_packet_newsource(uint32_t in_seqno, std::string in_packet);
 
-    // HandleGetRequest handles generating a stream so we don't need to implement that
-    // Same for HandlePostRequest
-   
-    // Standard path validation
-    virtual bool httpd_verify_path(const char *path, const char *method) override;
+    virtual void kill();
 
-    // We use this to attach the pcap stream
-    virtual KIS_MHD_RETURN httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size) override; 
-
-    // We don't currently handle POSTed data
-    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *con __attribute__((unused))) override {
-        return MHD_NO;
+    virtual void handshake_rb(std::thread t) {
+        std::swap(handshake_thread, t);
     }
 
 protected:
-    std::shared_ptr<datasource_tracker> datasourcetracker;
-    std::shared_ptr<packet_chain> packetchain;
+    virtual void handle_error(const std::string& error) override;
 
-    int pack_comp_datasrc;
+    // Timeout for killing this connection
+    int timerid;
+
+    callback_t cb;
+
+    std::thread handshake_thread;
 };
+
+
+// Remote capture server helper, we need to instantiate this outside of the main dst instance, and we
+// may make multiple copies of it for different types of endpoint
+class datasource_tracker_remote_server {
+public:
+    datasource_tracker_remote_server(const tcp::endpoint& endpoint) :
+        stopped{false},
+        acceptor{Globalreg::globalreg->io, endpoint},
+        incoming_socket{Globalreg::globalreg->io} {
+        datasourcetracker = Globalreg::fetch_mandatory_global_as<datasource_tracker>();
+        start_accept();
+    }
+
+    virtual ~datasource_tracker_remote_server();
+
+    void stop();
+
+    void start_accept();
+    void handle_accept(const boost::system::error_code& ec, tcp::socket socket);
+
+protected:
+    std::atomic<bool> stopped;
+    tcp::acceptor acceptor;
+    tcp::socket incoming_socket;
+    std::shared_ptr<datasource_tracker> datasourcetracker;
+};
+
 
 #endif
 

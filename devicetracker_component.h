@@ -61,16 +61,11 @@ public:
     kis_tracked_ip_data();
     kis_tracked_ip_data(int in_id);
     kis_tracked_ip_data(int in_id, std::shared_ptr<tracker_element_map> e);
+    kis_tracked_ip_data(const kis_tracked_ip_data *p);
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 
@@ -95,16 +90,11 @@ public:
     kis_tracked_signal_data();
     kis_tracked_signal_data(int in_id);
     kis_tracked_signal_data(int in_id, std::shared_ptr<tracker_element_map> e);
+    kis_tracked_signal_data(const kis_tracked_signal_data *p);
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 
@@ -164,16 +154,11 @@ public:
     kis_tracked_seenby_data();
     kis_tracked_seenby_data(int in_id);
     kis_tracked_seenby_data(int in_id, std::shared_ptr<tracker_element_map> e);
+    kis_tracked_seenby_data(const kis_tracked_seenby_data *p);
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 
@@ -225,57 +210,83 @@ public:
         reserve_fields(e);
     }
 
+    kis_tracked_data_bins(const kis_tracked_data_bins *p) :
+        tracker_component{p} {
+
+        __ImportId(packet_rrd_bin_250_id, p);
+        __ImportId(packet_rrd_bin_500_id, p);
+        __ImportId(packet_rrd_bin_1000_id, p);
+        __ImportId(packet_rrd_bin_1500_id, p);
+        __ImportId(packet_rrd_bin_jumbo_id, p);
+
+        reserve_fields(nullptr);
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("kis_tracked_data_bins");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return std::move(dup);
-    }
+    __ProxyDynamicTrackable(packet_rrd_bin_250, kis_tracked_minute_rrd<>, packet_rrd_bin_250, packet_rrd_bin_250_id);
+    __ProxyDynamicTrackable(packet_rrd_bin_500, kis_tracked_minute_rrd<>, packet_rrd_bin_500, packet_rrd_bin_500_id);
+    __ProxyDynamicTrackable(packet_rrd_bin_1000, kis_tracked_minute_rrd<>, packet_rrd_bin_1000, packet_rrd_bin_1000_id);
+    __ProxyDynamicTrackable(packet_rrd_bin_1500, kis_tracked_minute_rrd<>, packet_rrd_bin_1500, packet_rrd_bin_1500_id);
+    __ProxyDynamicTrackable(packet_rrd_bin_jumbo, kis_tracked_minute_rrd<>, packet_rrd_bin_jumbo, packet_rrd_bin_jumbo_id);
 
     void add_sample(size_t size, time_t ts) {
         if (size <= 250)
-            packet_rrd_bin_250->add_sample(1, ts);
+            get_packet_rrd_bin_250()->add_sample(1, ts);
         else if (size <= 500)
-            packet_rrd_bin_500->add_sample(1, ts);
+            get_packet_rrd_bin_500()->add_sample(1, ts);
         else if (size <= 1000)
-            packet_rrd_bin_1000->add_sample(1, ts);
+            get_packet_rrd_bin_1000()->add_sample(1, ts);
         else if (size <= 1500)
-            packet_rrd_bin_1500->add_sample(1, ts);
+            get_packet_rrd_bin_1500()->add_sample(1, ts);
         else
-            packet_rrd_bin_jumbo->add_sample(1, ts);
+            get_packet_rrd_bin_jumbo()->add_sample(1, ts);
     }
 
 protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        register_dynamic_field("kismet.device.packet.bin.250", "RRD of packets up to 250 bytes",
+        packet_rrd_bin_250_id =
+            register_dynamic_field("kismet.device.packet.bin.250", "RRD of packets up to 250 bytes",
                 &packet_rrd_bin_250);
-        register_dynamic_field("kismet.device.packet.bin.500", "RRD of packets up to 500 bytes",
+        packet_rrd_bin_500_id = 
+            register_dynamic_field("kismet.device.packet.bin.500", "RRD of packets up to 500 bytes",
                 &packet_rrd_bin_500);
-        register_dynamic_field("kismet.device.packet.bin.1000", "RRD of packets up to 1000 bytes",
-                &packet_rrd_bin_1000);
-        register_dynamic_field("kismet.device.packet.bin.1500", "RRD of packets up to 1500 bytes",
-                &packet_rrd_bin_1500);
-        register_dynamic_field("kismet.device.packet.bin.jumbo", "RRD of packets over 1500 bytes",
-                &packet_rrd_bin_jumbo);
+        packet_rrd_bin_1000_id = 
+            register_dynamic_field("kismet.device.packet.bin.1000", "RRD of packets up to 1000 bytes",
+                    &packet_rrd_bin_1000);
+        packet_rrd_bin_1500_id =
+            register_dynamic_field("kismet.device.packet.bin.1500", "RRD of packets up to 1500 bytes",
+                    &packet_rrd_bin_1500);
+        packet_rrd_bin_jumbo_id =
+            register_dynamic_field("kismet.device.packet.bin.jumbo", "RRD of packets over 1500 bytes",
+                    &packet_rrd_bin_jumbo);
     }
 
     // Data bins divided by size we track, named by max size
     std::shared_ptr<kis_tracked_minute_rrd<>> packet_rrd_bin_250;
+    int packet_rrd_bin_250_id;
+
     std::shared_ptr<kis_tracked_minute_rrd<>> packet_rrd_bin_500;
+    int packet_rrd_bin_500_id;
+
     std::shared_ptr<kis_tracked_minute_rrd<>> packet_rrd_bin_1000;
+    int packet_rrd_bin_1000_id;
+
     std::shared_ptr<kis_tracked_minute_rrd<>> packet_rrd_bin_1500;
+    int packet_rrd_bin_1500_id;
+
     std::shared_ptr<kis_tracked_minute_rrd<>> packet_rrd_bin_jumbo;
+    int packet_rrd_bin_jumbo_id;
 
 };
 
@@ -333,23 +344,84 @@ public:
         reserve_fields(e);
     }
 
+    kis_tracked_device_base(const kis_tracked_device_base *p) :
+        tracker_component{p} {
+
+        __ImportField(key, p);
+        __ImportField(macaddr, p);
+        __ImportField(phyname, p);
+        __ImportField(phyid, p);
+        __ImportField(devicename, p);
+
+        __ImportId(username_id, p);
+
+        __ImportField(commonname, p);
+        __ImportField(type_string, p);
+        __ImportField(basic_type_set,p );
+        __ImportField(crypt_string, p);
+        __ImportField(basic_crypt_set, p);
+        __ImportField(first_time, p);
+        __ImportField(last_time, p);
+        __ImportField(mod_time, p);
+
+        __ImportField(packets, p);
+        __ImportField(tx_packets, p);
+        __ImportField(rx_packets, p);
+        __ImportField(llc_packets, p);
+        __ImportField(error_packets, p);
+        __ImportField(data_packets, p);
+        __ImportField(crypt_packets, p);
+        __ImportField(filter_packets, p);
+
+
+        __ImportField(datasize, p);
+
+        __ImportId(packets_rrd_id, p);
+        __ImportId(data_rrd_id, p);
+
+        __ImportField(channel, p);
+        __ImportField(frequency, p);
+
+        __ImportId(signal_data_id, p);
+
+        __ImportField(freq_khz_map, p);
+        __ImportField(manuf, p);
+        __ImportField(alert, p);
+
+        __ImportId(tag_map_id, p);
+        __ImportId(tag_entry_id, p);
+
+        __ImportId(location_id, p);
+        __ImportId(location_cloud_id, p);
+        
+        __ImportId(seenby_map_id, p);
+
+        __ImportField(server_uuid, p);
+
+        __ImportId(frequency_val_id, p);
+        __ImportId(seenby_val_id, p);
+
+        __ImportId(related_device_group_id, p);
+
+        reserve_fields(nullptr);
+    }
+
     virtual ~kis_tracked_device_base() { }
 
     virtual uint32_t get_signature() const override {
         return adler32_checksum("kis_tracked_device_base");
     }
 
+    static uint32_t get_static_signature() {
+        return adler32_checksum("kis_tracked_device_base");
+    }
+
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
-        return std::move(dup);
-    }
 
     __Proxy(key, device_key, device_key, device_key, key);
 

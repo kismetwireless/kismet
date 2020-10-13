@@ -77,7 +77,8 @@ exports.renderMac = function(data, type, row, meta) {
     if (typeof(data) === 'undefined') {
         return "<i>n/a</i>";
     }
-    return data;
+
+    return kismet.censorMAC(data);
 }
 
 exports.renderSignal = function(data, type, row, meta) {
@@ -135,11 +136,8 @@ exports.drawPackets = function(dyncolumn, table, row) {
     // We use the aliased field names we extracted from just the minute
     // component of the per-device packet RRD
     var simple_rrd =
-        kismet.RecalcRrdData(
-            data['packet.rrd.last_time'],
-            data['packet.rrd.last_time'],
-            kismet.RRD_SECOND,
-            data['packet.rrd.minute_vec'], {
+        kismet.RecalcRrdData2(data, kismet.RRD_SECOND,
+            {
                 transform: function(data, opt) {
                     var slices = 3;
                     var peak = 0;
@@ -174,6 +172,10 @@ kismet_ui.AddDeviceColumn('column_name', {
     sTitle: 'Name',
     field: 'kismet.device.base.commonname',
     description: 'Device name',
+    renderfunc: function(d, t, r, m) {
+        var dname = kismet.censorMAC(d);
+        return (dname.length > 24) ? dname.substr(0, 23) + '&hellip;' : dname;
+    }
 });
 
 kismet_ui.AddDeviceColumn('column_type', {
@@ -270,8 +272,7 @@ kismet_ui.AddDeviceColumn('column_datasize', {
 // rrd records along with it.
 kismet_ui.AddDeviceColumn('column_packet_rrd', {
     sTitle: 'Packets',
-    field: ['kismet.device.base.packets.rrd/kismet.common.rrd.last_time',
-            'packet.rrd.last_time'],
+    field: ['kismet.device.base.packets.rrd/kismet.common.rrd.last_time', 'packet.rrd.last_time'],
     name: 'packets',
     description: 'Packet history graph',
     renderfunc: function(d, t, r, m) {
@@ -285,10 +286,15 @@ kismet_ui.AddDeviceColumn('column_packet_rrd', {
 });
 
 // Hidden col for packet minute rrd data
+// We MUST define ONE FIELD and then multiple additional fields are permitted
 kismet_ui.AddDeviceColumn('column_rrd_minute_hidden', {
     sTitle: 'packets_rrd_min_data',
-    field: ['kismet.device.base.packets.rrd/kismet.common.rrd.minute_vec',
-            'packet.rrd.minute_vec'],
+    field: 
+        ['kismet.device.base.packets.rrd/kismet.common.rrd.serial_time', 'kismet.common.rrd.serial_time'],
+    fields: [
+        ['kismet.device.base.packets.rrd/kismet.common.rrd.minute_vec', 'kismet.common.rrd.minute_vec'],
+        ['kismet.device.base.packets.rrd/kismet.common.rrd.last_time', 'kismet.common.rrd.last_time'],
+    ],
     name: 'packets_rrd_min_data',
     searchable: false,
     visible: false,
@@ -369,6 +375,9 @@ kismet_ui.AddDeviceColumn('column_manuf', {
     searchable: true,
     visible: false,
     orderable: true,
+    renderfunc: function(d, t, r, m) {
+        return (d.length > 32) ? d.substr(0, 31) + '&hellip;' : d;
+    }
 });
 
 
@@ -398,6 +407,8 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
 
                     if (typeof(name) == 'undefined' || name == "")
                         name = opts['data']['kismet.device.base.macaddr'];
+
+                    name = kismet.censorMAC(name);
 
                     var nameobj = 
                         $('<a>', {
@@ -463,6 +474,9 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 field: "kismet.device.base.macaddr",
                 title: "MAC Address",
                 help: "Unique per-phy address of the transmitting device, when available.  Not all phy types provide MAC addresses, however most do.",
+                draw: function(opts) {
+                    return kismet.censorMAC(opts['value']);
+                }
             },
             {
                 field: "kismet.device.base.manuf",
@@ -953,9 +967,9 @@ kismet_ui.AddDeviceDetail("packets", "Packet Graphs", 10, {
         var ddata = [];
 
         if (('kismet.device.base.packets.rrd' in data)) {
-            mdata = kismet.RecalcRrdData(data['kismet.device.base.packets.rrd']['kismet.common.rrd.last_time'], kismet_ui.last_timestamp, kismet.RRD_SECOND, data['kismet.device.base.packets.rrd']['kismet.common.rrd.minute_vec'], {});
-            hdata = kismet.RecalcRrdData(data['kismet.device.base.packets.rrd']['kismet.common.rrd.last_time'], kismet_ui.last_timestamp, kismet.RRD_MINUTE, data['kismet.device.base.packets.rrd']['kismet.common.rrd.hour_vec'], {});
-            ddata = kismet.RecalcRrdData(data['kismet.device.base.packets.rrd']['kismet.common.rrd.last_time'], kismet_ui.last_timestamp, kismet.RRD_HOUR, data['kismet.device.base.packets.rrd']['kismet.common.rrd.day_vec'], {});
+            mdata = kismet.RecalcRrdData2(data['kismet.device.base.packets.rrd'], kismet.RRD_SECOND);
+            hdata = kismet.RecalcRrdData2(data['kismet.device.base.packets.rrd'], kismet.RRD_MINUTE);
+            ddata = kismet.RecalcRrdData2(data['kismet.device.base.packets.rrd'], kismet.RRD_HOUR);
 
             m.sparkline(mdata, { type: "bar",
                     height: 12,
@@ -985,9 +999,10 @@ kismet_ui.AddDeviceDetail("packets", "Packet Graphs", 10, {
             
 
         if ('kismet.device.base.datasize.rrd' in data) {
-            var dmdata = kismet.RecalcRrdData(data['kismet.device.base.datasize.rrd']['kismet.common.rrd.last_time'], kismet_ui.last_timestamp, kismet.RRD_SECOND, data['kismet.device.base.datasize.rrd']['kismet.common.rrd_minute_vec'], {});
-            var dhdata = kismet.RecalcRrdData(data['kismet.device.base.datasize.rrd']['kismet.common.rrd.last_time'], kismet_ui.last_timestamp, kismet.RRD_MINUTE, data['kismet.device.base.datasize.rrd']['kismet.common.rrd.hour_vec'], {});
-            var dddata = kismet.RecalcRrdData(data['kismet.device.base.datasize.rrd']['kismet.common.rrd.last_time'], kismet_ui.last_timestamp, kismet.RRD_HOUR, data['kismet.device.base.datasize.rrd']['kismet.common.rrd_day_vec'], {});
+            var dmdata = kismet.RecalcRrdData2(data['kismet.device.base.datasize.rrd'], kismet.RRD_SECOND);
+            var dhdata = kismet.RecalcRrdData2(data['kismet.device.base.datasize.rrd'], kismet.RRD_MINUTE);
+            var dddata = kismet.RecalcRrdData2(data['kismet.device.base.datasize.rrd'], kismet.RRD_HOUR);
+
         dm.sparkline(dmdata,
             { type: "bar",
                 height: 12,
@@ -1137,7 +1152,6 @@ function memorydisplay_refresh() {
 
     $.get(local_uri_prefix + "system/status.json")
     .done(function(data) {
-        console.log(data);
         // Common rrd type and source field
         var rrdtype = kismet.RRD_MINUTE;
         var rrddata = 'kismet.common.rrd.hour_vec';
@@ -1154,22 +1168,14 @@ function memorydisplay_refresh() {
         }
 
         var mem_linedata =
-            kismet.RecalcRrdData(
-                data['kismet.system.memory.rrd']['kismet.common.rrd.last_time'],
-                data['kismet.system.timestamp.sec'],
-                rrdtype,
-                data['kismet.system.memory.rrd'][rrddata]);
+            kismet.RecalcRrdData2(data['kismet.system.memory.rrd'], rrdtype);
 
         for (var p in mem_linedata) {
             mem_linedata[p] = Math.round(mem_linedata[p] / 1024);
         }
 
         var dev_linedata =
-            kismet.RecalcRrdData(
-                data['kismet.system.devices.rrd']['kismet.common.rrd.last_time'],
-                data['kismet.system.timestamp.sec'],
-                rrdtype,
-                data['kismet.system.devices.rrd'][rrddata]);
+            kismet.RecalcRrdData2(data['kismet.system.devices.rrd'], rrdtype);
 
         var datasets = [
             {
@@ -1232,6 +1238,355 @@ function memorydisplay_refresh() {
     })
     .always(function() {
         memoryupdate_tid = setTimeout(memorydisplay_refresh, 5000);
+    });
+};
+
+
+/* Sidebar:  Packet queue display
+ *
+ * Packet queue display graphs the amount of packets in the queue, the amount dropped, 
+ * the # of duplicates, and so on
+ */
+kismet_ui_sidebar.AddSidebarItem({
+    id: 'packetqueue_sidebar',
+    listTitle: '<i class="fa fa-area-chart"></i> Packet Rates',
+    clickCallback: function() {
+        exports.PacketQueueMonitor();
+    },
+});
+
+var packetqueueupdate_tid;
+var packetqueue_panel = null;
+
+exports.PacketQueueMonitor = function() {
+    var w = $(window).width() * 0.75;
+    var h = $(window).height() * 0.5;
+    var offty = 20;
+
+    if ($(window).width() < 450 || $(window).height() < 450) {
+        w = $(window).width() - 5;
+        h = $(window).height() - 5;
+        offty = 0;
+    }
+
+    var content =
+        $('<div class="k-pqm-contentdiv">')
+        .append(
+            $('<div id="pqm-tabs" class="tabs-min">')
+        );
+
+    packetqueue_panel = $.jsPanel({
+        id: 'packetqueue',
+        headerTitle: '<i class="fa fa-area-chart" /> Packet Rates',
+        headerControls: {
+            controls: 'closeonly',
+            iconfont: 'jsglyph',
+        },
+        content: content,
+        onclosed: function() {
+            clearTimeout(packetqueue_panel.packetqueueupdate_tid);
+        }
+    }).resize({
+        width: w,
+        height: h
+    }).reposition({
+        my: 'center-top',
+        at: 'center-top',
+        of: 'window',
+        offsetY: offty
+    });
+
+    packetqueue_panel.packetqueue_chart = null;
+    packetqueue_panel.datasource_chart = null;
+
+    var f_pqm_packetqueue = function(div) {
+        packetqueue_panel.pq_content = div;
+    };
+
+    var f_pqm_ds = function(div) {
+        packetqueue_panel.ds_content = div;
+    };
+
+    kismet_ui_tabpane.AddTab({
+        id: 'packetqueue',
+        tabTitle: 'Processing Queue',
+        createCallback: f_pqm_packetqueue,
+        priority: -1001
+    }, 'pqm-tabs');
+
+    kismet_ui_tabpane.AddTab({
+        id: 'datasources-graph',
+        tabTitle: 'Per Datasource',
+        createCallback: f_pqm_ds,
+        priority: -1000
+    }, 'pqm-tabs');
+
+    kismet_ui_tabpane.MakeTabPane($('#pqm-tabs', content), 'pqm-tabs');
+
+    packetqueuedisplay_refresh();
+    datasourcepackets_refresh();
+}
+
+function packetqueuedisplay_refresh() {
+    if (packetqueue_panel == null)
+        return;
+
+    clearTimeout(packetqueue_panel.packetqueueupdate_tid);
+
+    if (packetqueue_panel.is(':hidden'))
+        return;
+
+    $.get(local_uri_prefix + "packetchain/packet_stats.json")
+    .done(function(data) {
+        // Common rrd type and source field
+        var rrdtype = kismet.RRD_MINUTE;
+
+        // Common point titles
+        var pointtitles = new Array();
+
+        for (var x = 60; x > 0; x--) {
+            if (x % 5 == 0) {
+                pointtitles.push(x + 'm');
+            } else {
+                pointtitles.push(' ');
+            }
+        }
+
+        var rate_linedata =
+            kismet.RecalcRrdData2(data['kismet.packetchain.packets_rrd'], rrdtype);
+        var queue_linedata =
+            kismet.RecalcRrdData2(data['kismet.packetchain.queued_packets_rrd'], rrdtype);
+        var drop_linedata =
+            kismet.RecalcRrdData2(data['kismet.packetchain.dropped_packets_rrd'], rrdtype);
+
+        var datasets = [
+            {
+                label: 'Incoming packets',
+                fill: 'false',
+                borderColor: 'black',
+                backgroundColor: 'rgba(100, 100, 100, 0.33)',
+                data: rate_linedata,
+            },
+            {
+                label: 'Processing queue',
+                fill: 'false',
+                borderColor: 'blue',
+                backgroundColor: 'transparent',
+                data: queue_linedata,
+            },
+            {
+                label: 'Dropped / lost packets',
+                fill: 'false',
+                borderColor: 'red',
+                backgroundColor: 'transparent',
+                data: drop_linedata,
+            },
+        ];
+
+        if (packetqueue_panel.packetqueue_chart == null) {
+            packetqueue_panel.pq_content.append(
+                $('<canvas>', {
+                    "id": "pq-canvas",
+                    "width": "100%",
+                    "height": "100%",
+                    "class": "k-mm-canvas",
+                })
+            );
+
+            var canvas = $('#pq-canvas', packetqueue_panel.pq_content);
+
+            packetqueue_panel.packetqueue_chart = new Chart(canvas, {
+                type: 'line',
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        yAxes: [
+                            {
+                                position: "left",
+                                "id": "mem-axis",
+                                ticks: {
+                                    beginAtZero: true,
+                                }
+                            },
+                        ]
+                    },
+                },
+                data: {
+                    labels: pointtitles,
+                    datasets: datasets
+                }
+            });
+
+        } else {
+            packetqueue_panel.packetqueue_chart.data.datasets = datasets;
+            packetqueue_panel.packetqueue_chart.data.labels = pointtitles;
+            packetqueue_panel.packetqueue_chart.update(0);
+        }
+    })
+    .always(function() {
+        packetqueue_panel.packetqueueupdate_tid = setTimeout(packetqueuedisplay_refresh, 5000);
+    });
+};
+
+function datasourcepackets_refresh() {
+    if (packetqueue_panel == null)
+        return;
+
+    clearTimeout(packetqueue_panel.datasourceupdate_tid);
+
+    if (packetqueue_panel.is(':hidden'))
+        return;
+
+    $.get(local_uri_prefix + "datasource/all_sources.json")
+    .done(function(data) {
+        var datasets = [];
+        var num = 0;
+
+        // Common point titles
+        var pointtitles = new Array();
+
+        var rval = $('#pq_ds_range', packetqueue_panel.ds_content).val();
+        var range = kismet.RRD_SECOND;
+
+        if (rval == "hour")
+            range = kismet.RRD_MINUTE;
+        if (rval == "day")
+            range = kismet.RRD_HOUR;
+
+        if (range == kismet.RRD_SECOND || range == kismet.RRD_MINUTE) {
+            for (var x = 60; x > 0; x--) {
+                if (x % 5 == 0) {
+                    if (range == kismet.RRD_SECOND)
+                        pointtitles.push(x + 's');
+                    else
+                        pointtitles.push(x + 'm');
+                } else {
+                    pointtitles.push(' ');
+                }
+            }
+        } else {
+            for (var x = 23; x > 0; x--) {
+                pointtitles.push(x + 'h');
+            }
+        }
+
+        for (var source of data) {
+            var color = parseInt(255 * (num / data.length))
+
+            var linedata;
+
+            if ($('#pq_ds_type', packetqueue_panel.ds_content).val() == "bps")
+                linedata =
+                    kismet.RecalcRrdData2(source['kismet.datasource.packets_datasize_rrd'], 
+                    range,
+                    {
+                        transform: function(data, opt) {
+                            var ret = [];
+
+                            for (var d of data)
+                                ret.push(d / 1024);
+
+                            return ret;
+                        }
+                    });
+            else
+                linedata =
+                    kismet.RecalcRrdData2(source['kismet.datasource.packets_rrd'], range);
+
+            datasets.push({
+                "label": source['kismet.datasource.name'],
+                "borderColor": `hsl(${color}, 100%, 50%)`,
+                "data": linedata,
+                "fill": false,
+            });
+
+            num = num + 1;
+
+        }
+
+        if (packetqueue_panel.datasource_chart == null) {
+            packetqueue_panel.ds_content.append(
+                $('<div>', {
+                    "style": "position: absolute; top: 0px; right: 10px; float: right;"
+                })
+                .append(
+                    $('<select>', {
+                        "id": "pq_ds_type",
+                    })
+                    .append(
+                        $('<option>', {
+                            "value": "pps",
+                            "selected": "selected",
+                        }).text("Packets")
+                    )
+                    .append(
+                        $('<option>', {
+                            "value": "bps",
+                        }).text("Data (kB)")
+                    )
+                )
+                .append(
+                    $('<select>', {
+                        "id": "pq_ds_range",
+                    })
+                    .append(
+                        $('<option>', {
+                            "value": "second",
+                            "selected": "selected",
+                        }).text("Past Minute")
+                    )
+                    .append(
+                        $('<option>', {
+                            "value": "hour",
+                        }).text("Past Hour")
+                    )
+                    .append(
+                        $('<option>', {
+                            "value": "day",
+                        }).text("Past Day")
+                    )
+                )
+            ).append(
+                $('<canvas>', {
+                    "id": "dsg-canvas",
+                    "width": "100%",
+                    "height": "100%",
+                    "class": "k-mm-canvas",
+                })
+            );
+
+            packetqueue_panel.datasource_chart = 
+                new Chart($('#dsg-canvas', packetqueue_panel.ds_content), {
+                "type": "line",
+                "options": {
+                    "responsive": true,
+                    "maintainAspectRatio": false,
+                    "scales": {
+                        "yAxes": [
+                            {
+                                "position": "left",
+                                "id": "pkts-axis",
+                                "ticks": {
+                                    "beginAtZero": true,
+                                }
+                            },
+                        ],
+                    },
+                },
+                "data": {
+                    "labels": pointtitles,
+                    "datasets": datasets,
+                }
+            });
+        } else {
+            packetqueue_panel.datasource_chart.data.datasets = datasets;
+            packetqueue_panel.datasource_chart.data.labels = pointtitles;
+            packetqueue_panel.datasource_chart.update(0);
+        }
+    })
+    .always(function() {
+        packetqueue_panel.datasourceupdate_tid = setTimeout(datasourcepackets_refresh, 1000);
     });
 };
 
@@ -2496,6 +2851,33 @@ kismet_ui.AddDeviceRowHighlight({
         var ts = data['kismet.device.base.last_time'];
 
         return (kismet.timestamp_sec - ts < 10);
+    }
+});
+
+/* Bodycam hardware of various types */
+kismet_ui.AddDeviceRowHighlight({
+    name: "Bodycams",
+    description: "Body camera devices",
+    priority: 500,
+    defaultcolor: "#0089FF",
+    defaultenable: true,
+    fields: [
+        'kismet.device.base.macaddr',
+        'kismet.device.base.commonname',
+    ],
+    selector: function(data) {
+        try {
+            if (data['kismet.device.base.macaddr'].match("^00:25:DF") != null)
+                return true;
+            if (data['kismet.device.base.macaddr'].match("^12:20:13") != null)
+                return true;
+            if (data['kismet.device.base.common_name'].match("^Axon-X") != null)
+                return true;
+        } catch (e) {
+            return false;
+        }
+
+        return false;
     }
 });
 

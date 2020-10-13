@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -26,7 +26,7 @@
 #include "adsb_icao.h"
 #include "devicetracker_component.h"
 #include "globalregistry.h"
-#include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
 #include "phyhandler.h"
 #include "trackedelement.h"
 
@@ -61,19 +61,33 @@ public:
         update_location = false;
     }
 
+    rtladsb_tracked_adsb(const rtladsb_tracked_adsb *p) :
+        tracker_component{p} {
+
+        __ImportField(icao, p);
+        __ImportField(icao_record, p);
+        __ImportField(callsign, p);
+        __ImportField(gsas, p);
+        
+        __ImportField(odd_raw_lat, p);
+        __ImportField(odd_raw_lon, p);
+        __ImportField(odd_ts, p);
+        __ImportField(even_raw_lat, p);
+        __ImportField(even_raw_lon, p);
+        __ImportField(even_ts, p);
+
+        reserve_fields(nullptr);
+        lat = lon = alt = heading = speed = 0;
+        update_location = false;
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("rtladsb_tracked_adsb");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 
@@ -176,8 +190,7 @@ protected:
 
     std::shared_ptr<tracker_element_string> rtl_manuf;
 
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> adsb_map_endp;
-    std::shared_ptr<tracker_element> adsb_map_endp_handler();
+    std::shared_ptr<tracker_element> adsb_map_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
 };
 

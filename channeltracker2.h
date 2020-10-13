@@ -28,7 +28,7 @@
 #include "globalregistry.h"
 #include "kis_mutex.h"
 #include "trackedelement.h"
-#include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
 #include "devicetracker_component.h"
 #include "packetchain.h"
 #include "timetracker.h"
@@ -60,19 +60,25 @@ public:
         // last_device_sec = 0;
     }
 
+    channel_tracker_v2_channel(const channel_tracker_v2_channel* p) :
+        tracker_component{p} {
+
+        __ImportField(channel, p);
+        __ImportField(frequency, p);
+        __ImportField(packets_rrd, p);
+        __ImportField(data_rrd, p);
+        __ImportField(device_rrd, p);
+        __ImportField(signal_data, p);
+        reserve_fields(nullptr);
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("channel_tracker_v2_channel");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 
@@ -164,9 +170,6 @@ protected:
     std::shared_ptr<device_tracker> devicetracker;
     std::shared_ptr<time_tracker> timetracker;
     std::shared_ptr<entry_tracker> entrytracker;
-
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> channels_endp;
-    std::shared_ptr<tracker_element_map> channels_endp_handler();
 
     // packetchain callback
     static int packet_chain_handler(CHAINCALL_PARMS);

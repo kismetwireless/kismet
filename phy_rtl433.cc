@@ -25,6 +25,7 @@
 #include "macaddr.h"
 #include "kis_httpd_registry.h"
 #include "manuf.h"
+#include "messagebus.h"
 
 Kis_RTL433_Phy::Kis_RTL433_Phy(global_registry *in_globalreg, int in_phyid) :
     kis_phy_handler(in_globalreg, in_phyid) {

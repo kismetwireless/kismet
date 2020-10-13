@@ -9,9 +9,12 @@ CC			= @CC@
 LD			= @CXX@
 CCLD		= @CC@
 
+# Set a number of warnings to silent; some of our dependent libraries (asio) and generated code (protobuf)
+# make current gcc/clang awful cranky under -wall
+
 LDFLAGS		+= @LDFLAGS@
-CFLAGS		+= -Wall -Wno-format-truncation -g -I. @NMCFLAGS@ @NLCFLAGS@ @CPPFLAGS@ @PTHREAD_CFLAGS@ @PROTOCCFLAGS@
-CXXFLAGS 	+= -Wall -Wno-format-truncation -g -I. @CXXFLAGS@ @PROTOCFLAGS@ -DKS_STR_ENCODING_NONE
+CFLAGS		+= -Wall -Wno-unknown-warning-option -Wno-format-truncation -Wno-unused-function -g -I. -fPIE @NMCFLAGS@ @NLCFLAGS@ @CPPFLAGS@ @PTHREAD_CFLAGS@ @PROTOCCFLAGS@ @PCAPCFLAGS@ 
+CXXFLAGS 	+= -Wall -Wno-unknown-warning-option -Wno-deprecated-declarations -Wno-format-truncation -Wno-unused-local-typedefs -Wno-unused-function -Wno-infinite-recursion -g -I. -fPIE @CXXFLAGS@ @PROTOCFLAGS@ -DKS_STR_ENCODING_NONE @PCAPCFLAGS@
 CPPFLAGS 	+= @CPPFLAGS@ 
 
 INSTALL		= @INSTALL@
@@ -42,7 +45,7 @@ PTHREADCFLAGS = @PTHREAD_CFLAGS@
 NMFLAGS		= @NMCFLAGS@
 NMLIBS		= @NMLIBS@
 
-PCAPLIBS	= @pcaplnk@
+PCAPLIBS	= @PCAPLIBS@
 
 LIBMLIB		= @LIBMLIB@
 

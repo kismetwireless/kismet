@@ -167,8 +167,13 @@ void dot11_probed_ssid::register_fields() {
         register_dynamic_field("dot11.probedssid.ie_tag_list",
                 "802.11 IE tag list in beacon", &ie_tag_list);
 
+    wps_version_id =
+        register_dynamic_field("dot11.probedssid.wps_version", "WPS version", &wps_version);
     wps_state_id =
         register_dynamic_field("dot11.probedssid.wps_state", "WPS state bitfield", &wps_state);
+    wps_config_methods_id =
+        register_dynamic_field("dot11.probedssid.wps_config_methods", "WPS config methods bitfield",
+            &wps_config_methods);
     wps_manuf_id =
         register_dynamic_field("dot11.probedssid.wps_manuf", "WPS manufacturer", &wps_manuf);
     wps_device_name_id =
@@ -242,8 +247,13 @@ void dot11_advertised_ssid::register_fields() {
                 tracker_element_factory<dot11_11d_tracked_range_info>(0),
                 "dot11d entry");
 
+    wps_version_id =
+        register_dynamic_field("dot11.advertisedssid.wps_version", "WPS version", &wps_version);
     wps_state_id =
         register_dynamic_field("dot11.advertisedssid.wps_state", "bitfield wps state", &wps_state);
+    wps_config_methods_id =
+        register_dynamic_field("dot11.advertisedssid.wps_config_methods",
+                "bitfield wps config methods", &wps_config_methods);
     wps_manuf_id =
         register_dynamic_field("dot11.advertisedssid.wps_manuf", "WPS manufacturer", &wps_manuf);
     wps_device_name_id =
@@ -306,7 +316,8 @@ void dot11_advertised_ssid::set_ietag_content_from_packet(std::shared_ptr<dot11_
         return;
 
     for (auto t : *(tags->tags())) {
-        auto tag = std::make_shared<dot11_tracked_ietag>(ie_tag_content_element_id);
+        auto tag =
+            Globalreg::globalreg->entrytracker->get_shared_instance_as<dot11_tracked_ietag>(ie_tag_content_element_id);
         tag->set_from_tag(t);
         tagmap->insert(tag->get_unique_tag_id(), tag);
     }
@@ -317,7 +328,8 @@ void dot11_advertised_ssid::set_dot11d_vec(std::vector<dot11_packinfo_dot11d_ent
     d11dvec->clear();
 
     for (auto x : vec) {
-        auto ri = std::make_shared<dot11_11d_tracked_range_info>(dot11d_country_entry_id);
+        auto ri =
+            Globalreg::globalreg->entrytracker->get_shared_instance_as<dot11_11d_tracked_range_info>(dot11d_country_entry_id);
         ri->set_startchan(x.startchan);
         ri->set_numchan(x.numchan);
         ri->set_txpower(x.txpower);

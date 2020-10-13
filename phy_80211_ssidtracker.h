@@ -22,7 +22,6 @@
 #include "config.h"
 
 #include <functional>
-#include <unordered_map>
 
 #include "devicetracker.h"
 #include "devicetracker_component.h"
@@ -30,7 +29,9 @@
 #include "globalregistry.h"
 
 #include "kis_mutex.h"
-#include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
+
+#include "robin_hood.h"
 
 
 // Tracked SSID group; a ssid, who has beaconed, probed, and responded for it,
@@ -58,6 +59,25 @@ public:
         reserve_fields(e);
     }
 
+    dot11_tracked_ssid_group(const dot11_tracked_ssid_group *p) :
+        tracker_component{p} {
+
+        __ImportField(ssid_hash, p);
+        __ImportField(ssid, p);
+        __ImportField(ssid_len, p);
+        __ImportField(crypt_set, p);
+        __ImportField(advertising_device_map, p);
+        __ImportField(responding_device_map, p);
+        __ImportField(probing_device_map, p);
+        __ImportField(advertising_device_len, p);
+        __ImportField(responding_device_len, p);
+        __ImportField(probing_device_len, p);
+        __ImportField(first_time, p);
+        __ImportField(last_time, p);
+
+        reserve_fields(nullptr);
+    }
+
     dot11_tracked_ssid_group(int in_id, const std::string& in_ssid, unsigned int in_ssid_len,
             unsigned int in_crypt_set);
 
@@ -67,13 +87,7 @@ public:
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 
@@ -161,18 +175,13 @@ public:
 protected:
     kis_recursive_timed_mutex mutex;
 
-    std::unordered_map<size_t, std::shared_ptr<dot11_tracked_ssid_group>> ssid_map;
+    robin_hood::unordered_node_map<size_t, std::shared_ptr<dot11_tracked_ssid_group>> ssid_map;
     std::shared_ptr<tracker_element_vector> ssid_vector;
 
     int tracked_ssid_id;
 
-    std::shared_ptr<kis_net_httpd_simple_post_endpoint> ssid_endp;
-    unsigned int ssid_endpoint_handler(std::ostream& stream, const std::string& uri,
-            const Json::Value& json, kis_net_httpd_connection::variable_cache_map& postvars);
-
-    std::shared_ptr<kis_net_httpd_path_tracked_endpoint> detail_endp;
-    bool detail_endpoint_path(const std::vector<std::string>& path);
-    std::shared_ptr<tracker_element> detail_endpoint_handler(const std::vector<std::string>& path);
+    void ssid_endpoint_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
+    std::shared_ptr<tracker_element> detail_endpoint_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
     int cleanup_timer_id;
 

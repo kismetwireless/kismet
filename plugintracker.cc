@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -42,13 +42,16 @@ void plugin_registration_data::activate_external_http() {
     if (get_plugin_http_external() != "") {
         external_http = 
             std::make_shared<external_http_plugin_harness>(get_plugin_name(), get_plugin_http_external());
+        external_http->start_external_plugin();
     }
 }
 
-plugin_tracker::plugin_tracker(global_registry *in_globalreg) :
-    lifetime_global(),
-    kis_net_httpd_cppstream_handler() {
-    globalreg = in_globalreg;
+plugin_tracker::plugin_tracker() :
+    lifetime_global() {
+
+    plugin_lock.set_name("plugin_tracker");
+
+    httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
     plugin_registry_vec = std::make_shared<tracker_element_vector>();
 
@@ -63,7 +66,7 @@ plugin_tracker::plugin_tracker(global_registry *in_globalreg) :
     optind = 0;
 
     while (1) {
-        int r = getopt_long(globalreg->argc, globalreg->argv, "-",
+        int r = getopt_long(Globalreg::globalreg->argc, Globalreg::globalreg->argv, "-",
                             plugin_long_options, &option_idx);
 
         if (r < 0) break;
@@ -74,7 +77,7 @@ plugin_tracker::plugin_tracker(global_registry *in_globalreg) :
         }
     }
 
-    if (globalreg->kismet_config->fetch_opt("allowplugins") == "true") {
+    if (Globalreg::globalreg->kismet_config->fetch_opt("allowplugins") == "true") {
         config_disable = 0;
     } else {
         config_disable = 1;
@@ -91,12 +94,11 @@ plugin_tracker::plugin_tracker(global_registry *in_globalreg) :
 
     plugins_active = 1;
 
-    bind_httpd_server();
+    httpd->register_route("/plugins/all_plugins", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(plugin_registry_vec, &plugin_lock));
 }
 
 plugin_tracker::~plugin_tracker() {
-    local_locker lock(&plugin_lock);
-
     // Call the main shutdown, which should kill the vector allocations
     shutdown_plugins();
 }
@@ -108,7 +110,7 @@ void plugin_tracker::usage(char *name __attribute__((unused))) {
 }
 
 int plugin_tracker::scan_plugins() {
-    local_locker lock(&plugin_lock);
+    local_locker lock(&plugin_lock, "scan_plugins");
 
     // Bail if plugins disabled
     if (plugins_active == 0) return 0;
@@ -120,12 +122,12 @@ int plugin_tracker::scan_plugins() {
         _MSG("Could not open system plugin directory (" + plugin_path +
                  "), skipping: " + strerror(errno), MSGFLAG_INFO);
     } else {
-        if (ScanDirectory(plugdir, plugin_path) < 0) return -1;
+        if (scan_directory(plugdir, plugin_path) < 0) return -1;
         closedir(plugdir);
     }
 
     std::string config_path;
-    if ((config_path = globalreg->kismet_config->fetch_opt("configdir")) == "") {
+    if ((config_path = Globalreg::globalreg->kismet_config->fetch_opt("configdir")) == "") {
         _MSG(
             "Failed to find a 'configdir' path in the Kismet config file, "
             "ignoring local plugins.",
@@ -133,13 +135,13 @@ int plugin_tracker::scan_plugins() {
         return 0;
     }
 
-    plugin_path = globalreg->kismet_config->expand_log_path(
+    plugin_path = Globalreg::globalreg->kismet_config->expand_log_path(
         config_path + "/plugins/", "", "", 0, 1);
     if ((plugdir = opendir(plugin_path.c_str())) == NULL) {
         _MSG("Did not find a user plugin directory (" + plugin_path +
                  "), skipping: " + strerror(errno), MSGFLAG_INFO);
     } else {
-        if (ScanDirectory(plugdir, plugin_path) < 0) {
+        if (scan_directory(plugdir, plugin_path) < 0) {
             closedir(plugdir);
             return -1;
         }
@@ -150,7 +152,7 @@ int plugin_tracker::scan_plugins() {
 }
 
 // Scans a directory for sub-directories
-int plugin_tracker::ScanDirectory(DIR *in_dir, std::string in_path) {
+int plugin_tracker::scan_directory(DIR *in_dir, std::string in_path) {
     struct dirent *plugfile;
 
     while ((plugfile = readdir(in_dir)) != NULL) {
@@ -166,7 +168,7 @@ int plugin_tracker::ScanDirectory(DIR *in_dir, std::string in_path) {
             continue;
 
         // Load the plugin manifest
-        config_file cf(globalreg);
+        config_file cf(Globalreg::globalreg);
 
         std::string manifest = in_path + "/" + plugfile->d_name + "/manifest.conf";
 
@@ -300,10 +302,10 @@ int plugin_tracker::activate_plugins() {
     sig_t old_segv = SIG_DFL;
 #endif
 
-    local_locker lock(&plugin_lock);
+    local_locker lock(&plugin_lock, "activate_plugins");
 
     std::shared_ptr<kis_httpd_registry> httpdregistry =
-        Globalreg::fetch_global_as<kis_httpd_registry>(globalreg, "WEBREGISTRY");
+        Globalreg::fetch_global_as<kis_httpd_registry>(Globalreg::globalreg, "WEBREGISTRY");
 
     // Set the new signal handler, remember the old one; if something goes
     // wrong loading the plugins we need to catch it and return a special
@@ -354,9 +356,9 @@ int plugin_tracker::activate_plugins() {
             }
 
             if (sinfo.plugin_api_version != KIS_PLUGINTRACKER_VERSION ||
-                    sinfo.kismet_major != globalreg->version_major ||
-                    sinfo.kismet_minor != globalreg->version_minor ||
-                    sinfo.kismet_tiny != globalreg->version_tiny) {
+                    sinfo.kismet_major != Globalreg::globalreg->version_major ||
+                    sinfo.kismet_minor != Globalreg::globalreg->version_minor ||
+                    sinfo.kismet_tiny != Globalreg::globalreg->version_tiny) {
                 _MSG("Plugin '" + x->get_plugin_path() +
                         "' was compiled "
                         "with a different version of Kismet; Please recompile "
@@ -378,7 +380,7 @@ int plugin_tracker::activate_plugins() {
                 continue;
             }
 
-            if ((act_sym)(globalreg) < 0) {
+            if ((act_sym)(Globalreg::globalreg) < 0) {
                 _MSG("Plugin '" + x->get_plugin_path() + "' failed to activate, "
                         "skipping.", MSGFLAG_ERROR);
                 continue;
@@ -442,7 +444,7 @@ int plugin_tracker::finalize_plugins() {
             if (final_sym == NULL)
                 continue;
 
-            if ((final_sym)(globalreg) < 0) {
+            if ((final_sym)(Globalreg::globalreg) < 0) {
                 _MSG("Plugin '" + pd->get_plugin_path() + "' failed to complete "
                         "activation...", MSGFLAG_ERROR);
                 continue;
@@ -454,7 +456,7 @@ int plugin_tracker::finalize_plugins() {
 }
 
 int plugin_tracker::shutdown_plugins() {
-    local_locker lock(&plugin_lock);
+    local_locker lock(&plugin_lock, "shutdown_plugins");
 
     _MSG("Shutting down plugins...", MSGFLAG_INFO);
 
@@ -463,31 +465,3 @@ int plugin_tracker::shutdown_plugins() {
     return 0;
 }
 
-bool plugin_tracker::httpd_verify_path(const char *path, const char *method) {
-    if (strcmp(method, "GET") != 0) 
-        return false;
-
-    if (!httpd_can_serialize(path))
-        return false;
-
-    std::string stripped = httpd_strip_suffix(path);
-
-    if (stripped == "/plugins/all_plugins")
-        return true;
-
-    return false;
-}
-
-void plugin_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
-        kis_net_httpd_connection *connection,
-        const char *path, const char *method, const char *upload_data,
-        size_t *upload_data_size, std::stringstream &stream) {
-
-    std::string stripped = httpd_strip_suffix(path);
-
-    if (stripped == "/plugins/all_plugins") {
-        local_locker locker(&plugin_lock);
-
-        httpd_serialize(path, stream, plugin_registry_vec, nullptr, connection);
-    }
-}

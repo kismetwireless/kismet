@@ -34,12 +34,12 @@
 
 #include <zlib.h>
 
-#include <unordered_map>
 #include <string>
 
 #include "util.h"
 #include "globalregistry.h"
 
+#include "robin_hood.h"
 #include "trackedelement.h"
 #include "trackedcomponent.h"
 
@@ -66,19 +66,26 @@ public:
             reserve_fields(e);
         }
 
+    tracked_adsb_icao(const tracked_adsb_icao *p) :
+        tracker_component{p} {
+
+        __ImportField(icao, p);
+        __ImportField(regid, p);
+        __ImportField(model_type, p);
+        __ImportField(model, p);
+        __ImportField(owner, p);
+        __ImportField(atype_short, p);
+
+        reserve_fields(nullptr);
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("tracked_adsb_icao");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 
@@ -146,7 +153,7 @@ protected:
     std::shared_ptr<tracked_adsb_icao> unknown_icao;
 
     std::vector<index_pos> index_vec;
-    std::unordered_map<uint32_t, std::shared_ptr<tracked_adsb_icao>> icao_map;
+    robin_hood::unordered_node_map<uint32_t, std::shared_ptr<tracked_adsb_icao>> icao_map;
 };
 
 

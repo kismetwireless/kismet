@@ -66,6 +66,7 @@
 #endif
 
 #include "battery.h"
+#include "fmt.h"
 
 int Fetch_Battery_Linux_ACPI(kis_battery_info *out __attribute__((unused))) {
 #ifdef SYS_LINUX
@@ -169,8 +170,7 @@ int Fetch_Battery_Linux_Sys(kis_battery_info *out __attribute__((unused))) {
     struct stat statbuf;
 
     const char *base_dir = "/sys/class/power_supply/";
-    char bdir[128];
-    char fpath[256];
+    std::string bdir, fpath;
 
     char *line;
     size_t linesz;
@@ -215,17 +215,16 @@ int Fetch_Battery_Linux_Sys(kis_battery_info *out __attribute__((unused))) {
     };
 
     // Are we indexed as bat0 or bat1
-    snprintf(bdir, 128, "%s/BAT0", base_dir);
-    if (stat(bdir, &statbuf) < 0) {
-        snprintf(bdir, 128, "%s/BAT1", base_dir);
-        if (stat(bdir, &statbuf) < 0) {
+    bdir = fmt::format("{}/BAT0", base_dir);
+    if (stat(bdir.c_str(), &statbuf) < 0) {
+        bdir = fmt::format("{}/BAT1", base_dir);
+        if (stat(bdir.c_str(), &statbuf) < 0) {
             return -1;
         }
     }
 
-    snprintf(fpath, 256, "%s/status", bdir);
-    if ((f = fopen(fpath, "r")) == NULL) {
-        printf("Couldn't open %s\n", fpath);
+    fpath = fmt::format("{}/status", bdir);
+    if ((f = fopen(fpath.c_str(), "r")) == NULL) {
         return -1;
     } 
 
@@ -246,9 +245,9 @@ int Fetch_Battery_Linux_Sys(kis_battery_info *out __attribute__((unused))) {
 
     itr = 0;
     while (filepairs[itr].target != NULL) {
-        snprintf(fpath, 128, "%s/%s", bdir, filepairs[itr].filename);
+        fpath = fmt::format("{}/{}", bdir, filepairs[itr].filename);
 
-        if ((f = fopen(fpath, "r")) != NULL) {
+        if ((f = fopen(fpath.c_str(), "r")) != NULL) {
             if (fscanf(f, "%lu", filepairs[itr].target) != 1) {
                 *(filepairs[itr].target) = -1L;
             }

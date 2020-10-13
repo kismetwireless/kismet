@@ -43,48 +43,49 @@ datasource_scan_source::datasource_scan_source(const std::string& uri, const std
     pack_comp_l1info = 
         packetchain->register_packet_component("RADIODATA");
 
-    scan_result_endp =
-        std::make_shared<kis_net_httpd_simple_post_endpoint>(endpoint_uri,
-                [this](std::ostream& stream, const std::string& uri, const Json::Value& json,
-                    kis_net_httpd_connection::variable_cache_map& variable_cache) -> unsigned int {
-                return scan_result_endp_handler(stream, uri, json, variable_cache);
-                });
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+
+    httpd->register_route(endpoint_uri, {"POST"}, "scanreport", {},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    return scan_result_endp_handler(con);
+                }));
 }
 
 datasource_scan_source::~datasource_scan_source() {
 
 }
 
-unsigned int datasource_scan_source::scan_result_endp_handler(std::ostream& stream,
-        const std::string& uri, const Json::Value& json,
-        kis_net_httpd_connection::variable_cache_map& variable_cache) {
-
+void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    std::ostream stream(&con->response_stream());
     kis_packet *packet = nullptr;
 
     try {
         std::shared_ptr<kis_datasource> virtual_source;
 
-        auto uuid_s = json.get("source_uuid", "").asString();
+        auto uuid_s = con->json().get("source_uuid", "").asString();
         uuid src_uuid;
-        auto name = json.get("source_name", "").asString();
+        auto name = con->json().get("source_name", "").asString();
 
         if (uuid_s == "" || name == "") {
+            con->set_status(500);
             stream << "{\"status\": \"source_uuid and source_name required\", \"success\": false}\n";
-            return 500;
+            return;
         }
 
         if (uuid_s != "") {
             src_uuid = uuid(uuid_s);
 
             if (src_uuid.error) {
+                con->set_status(500);
                 stream << "{\"status\": \"invalid source uuid\", \"success\": false}\n";
-                return 500;
+                return;
             }
         }
 
-        if (!json["reports"].isArray()) {
+        if (!con->json()["reports"].isArray()) {
+            con->set_status(500);
             stream << "{\"status\": \"expected 'reports' array\", \"success\": false}\n";
-            return 500;
         }
 
         // Look up the source by either the uuid provided or the uuid we made based on the name
@@ -93,7 +94,7 @@ unsigned int datasource_scan_source::scan_result_endp_handler(std::ostream& stre
         if (virtual_source == nullptr) {
             auto virtual_builder = Globalreg::fetch_mandatory_global_as<datasource_virtual_builder>();
 
-            virtual_source = virtual_builder->build_datasource(virtual_builder, nullptr);
+            virtual_source = virtual_builder->build_datasource(virtual_builder);
 
             auto vs_cast = std::static_pointer_cast<kis_datasource_virtual>(virtual_source);
 
@@ -109,7 +110,7 @@ unsigned int datasource_scan_source::scan_result_endp_handler(std::ostream& stre
             virtual_source->set_source_name(name);
         }
 
-        for (auto r : json["reports"]) {
+        for (auto r : con->json()["reports"]) {
             if (!validate_report(r)) {
                 throw std::runtime_error("invalid report");
             }
@@ -199,18 +200,19 @@ unsigned int datasource_scan_source::scan_result_endp_handler(std::ostream& stre
         }
 
         stream << "{\"status\": \"Scan report accepted\", \"success\": true}\n";
-        return 200;
+        return;
 
     } catch (const std::exception& e) {
         // Free any half-made packets that didn't get injected because of parsing errors
         if (packet != nullptr) 
             packetchain->destroy_packet(packet);
 
+        con->set_status(500);
         stream << "{\"status\": \"" << e.what() << "\", \"success\": false}\n";
-        return 500;
+        return;
     }
 
+    con->set_status(500);
     stream << "{\"status\": \"unhandled request\", \"success\": false}\n";
-    return 500;
 }
 

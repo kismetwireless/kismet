@@ -30,15 +30,13 @@
 
 class base64 {
 public:
-    /* Decode a string; return raw data if it was valid */
-    static std::string decode(std::string in_str);
-
-    // Convert 4 6-bit b64 characters into 3 8-bit standard bytes.
-    // In and out must be able to hold the appropriate amount of data.
-    static void decodeblock(unsigned char *in, unsigned char *out);
-
+    static std::string decode(const std::string& in_str);
+    static std::string encode(const std::string& in_str);
 protected:
-    const static char b64_values[];
+    static inline bool is_base64(unsigned char c) {
+        return (isalnum(c) || (c == '+') || (c == '/'));
+    }
+    static const std::string b64_values;
 };
 
 #endif

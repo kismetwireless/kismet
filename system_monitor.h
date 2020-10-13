@@ -28,7 +28,7 @@
 #include "timetracker.h"
 #include "devicetracker_component.h"
 #include "devicetracker.h"
-#include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
 
 class event_bus;
 
@@ -55,12 +55,6 @@ public:
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
         return std::move(dup);
     }
 
@@ -163,9 +157,9 @@ protected:
     std::shared_ptr<event_bus> eventbus;
     int logopen_evt_id;
 
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> monitor_endp;
-    std::shared_ptr<kis_net_httpd_simple_unauth_tracked_endpoint> user_monitor_endp;
-    std::shared_ptr<kis_net_httpd_simple_tracked_endpoint> timestamp_endp;
+    std::shared_ptr<kis_net_web_tracked_endpoint> monitor_endp;
+    std::shared_ptr<kis_net_web_tracked_endpoint> user_monitor_endp;
+    std::shared_ptr<kis_net_web_tracked_endpoint> timestamp_endp;
 
     std::shared_ptr<device_tracker> devicetracker;
 

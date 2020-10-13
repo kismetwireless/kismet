@@ -141,11 +141,11 @@ int ticc2531_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_
     pthread_mutex_lock(&(localticc2531->usb_mutex));
     r = libusb_bulk_transfer(localticc2531->ticc2531_handle, TICC2531_DATA_EP, rx_buf, rx_max, &actual_len, TICC2531_DATA_TIMEOUT);
     pthread_mutex_unlock(&(localticc2531->usb_mutex));
-
+/*
     if (actual_len == 4) {
-	/* do this as we don't hard reset on a heartbeat then
-	 * but we will try resetting the channel instead
-     */
+	//do this as we don't hard reset on a heartbeat then
+	// but we will try resetting the channel instead
+    //
 	localticc2531->soft_reset++;
 
 	if (localticc2531->soft_reset >= 2) {
@@ -158,10 +158,10 @@ int ticc2531_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_
 	}
         return actual_len;
     }
-
+*/
     if (r < 0) {
         localticc2531->error_ctr++;
-        if (localticc2531->error_ctr >= 500) {
+        if (localticc2531->error_ctr >= 5000) {
             return r;
         } else {
             /*continue on for now*/
@@ -664,6 +664,14 @@ void capture_thread(kis_capture_handler_t *caph) {
             /* the devices look to report a 4 byte counter/heartbeat, skip it */
             if (buf_rx_len <= 7)
                 continue;
+
+            if(usb_buf[0] != 0x00) {
+                printf("invalid 2531 packet?\n");
+                continue;
+            }
+
+            /* insert the channel into the packet header*/
+            usb_buf[2] = (uint8_t)localticc2531->channel;
 
             while (1) {
                 struct timeval tv;

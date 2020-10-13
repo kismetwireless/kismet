@@ -27,7 +27,7 @@
 /* Named mutex debugging */
 #undef DEBUG_MUTEX_NAME
 
-/* cannot support backtrace dumping */
+/* disabled by configure arguments */
 #undef DISABLE_BACKWARD
 
 /* Remove mutex deadlock timeout protection */
@@ -135,29 +135,14 @@
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 
-/* microhttpd is present */
-#undef HAVE_MICROHTTPD_H
-
 /* pcap/pcap.h */
 #undef HAVE_PCAPPCAP_H
-
-/* pcapfileno-capable libwpcap */
-#undef HAVE_PCAP_FILENO
-
-/* Selectablefd-capable libpcap */
-#undef HAVE_PCAP_GETSELFD
 
 /* libpcap header */
 #undef HAVE_PCAP_H
 
-/* Nonblocking-capable libpcap */
-#undef HAVE_PCAP_NONBLOCK
-
 /* System has pipe2 */
 #undef HAVE_PIPE2
-
-/* libpcap supports PPI */
-#undef HAVE_PPI
 
 /* Define to 1 if you have the `pstat' function. */
 #undef HAVE_PSTAT
@@ -215,9 +200,6 @@
 
 /* system state directory */
 #undef LOCALSTATE_DIR
-
-/* Able to use MHD_quiesce_daemon to shut down */
-#undef MHD_QUIESCE
 
 /* we need to shim isnan */
 #undef MISSING_STD_ISNAN
@@ -334,3 +316,6 @@
 #define _(x) x
 #endif
 
+/* asio global defs */
+#define ASIO_HAS_STD_CHRONO
+#define ASIO_HAS_MOVE

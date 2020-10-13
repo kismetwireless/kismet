@@ -21,9 +21,8 @@
 #include "datasource_rtl433.h"
 #include "phy_rtl433.h"
 
-kis_datasource_rtl433::kis_datasource_rtl433(shared_datasource_builder in_builder, 
-        std::shared_ptr<kis_recursive_timed_mutex> mutex) :
-    kis_datasource(in_builder, mutex) {
+kis_datasource_rtl433::kis_datasource_rtl433(shared_datasource_builder in_builder) :
+    kis_datasource(in_builder) {
 
     std::string devnum = munge_to_printable(get_definition_opt("device"));
     if (devnum != "") {

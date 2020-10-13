@@ -23,6 +23,7 @@
 #include "phy_80211.h"
 #include "kis_httpd_registry.h"
 #include "devicetracker.h"
+#include "messagebus.h"
 
 void uav_manuf_match::set_uav_manuf_ssid_regex(const std::string& in_regexstr) {
 #ifdef HAVE_LIBPCRE
@@ -78,8 +79,7 @@ bool uav_manuf_match::match_record(const mac_addr& in_mac, const std::string& in
 
 
 Kis_UAV_Phy::Kis_UAV_Phy(global_registry *in_globalreg, int in_phyid) :
-    kis_phy_handler(in_globalreg, in_phyid),
-    kis_net_httpd_cppstream_handler() {
+    kis_phy_handler(in_globalreg, in_phyid) { 
 
     phyname = "UAV";
 
@@ -116,6 +116,11 @@ Kis_UAV_Phy::Kis_UAV_Phy(global_registry *in_globalreg, int in_phyid) :
     auto uav_lines = Globalreg::globalreg->kismet_config->fetch_opt_vec("uav_match");
     for (auto l : uav_lines)
         parse_manuf_definition(l);
+
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+
+    httpd->register_route("/phy/phyuav/manuf_matchers", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(manuf_match_vec, &uav_mutex));
 
 }
 
@@ -297,44 +302,6 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
     }
 
     return 1;
-}
-
-
-bool Kis_UAV_Phy::httpd_verify_path(const char *path, const char *method) {
-    if (strcmp(method, "GET") == 0) {
-        std::string stripped = httpd_strip_suffix(path);
-
-        if (stripped == "/phy/phyuav/manuf_matchers")
-            return true;
-
-    }
-
-    return false;
-}
-
-void Kis_UAV_Phy::httpd_create_stream_response(kis_net_httpd *httpd,
-        kis_net_httpd_connection *connection,
-        const char *url, const char *method, const char *upload_data,
-        size_t *upload_data_size, std::stringstream &stream) {
-
-    if (strcmp(method, "GET") != 0) {
-        return;
-    }
-
-    std::string stripped = httpd_strip_suffix(url);
-
-    if (stripped == "/phy/phyuav/manuf_matchers") {
-        local_locker lock(&uav_mutex);
-        Globalreg::globalreg->entrytracker->serialize(httpd->get_suffix(url), stream, 
-                manuf_match_vec, NULL);
-        return;
-    }
-
-    return;
-}
-
-KIS_MHD_RETURN Kis_UAV_Phy::httpd_post_complete(kis_net_httpd_connection *concls) {
-    return MHD_YES;
 }
 
 bool Kis_UAV_Phy::parse_manuf_definition(std::string in_def) {

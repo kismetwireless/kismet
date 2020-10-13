@@ -41,7 +41,6 @@
 
 #include "devicetracker.h"
 #include "devicetracker_component.h"
-#include "kis_net_microhttpd.h"
 
 class bluetooth_tracked_device;
 
@@ -80,19 +79,26 @@ public:
         reserve_fields(e);
     }
 
+    bluetooth_tracked_device(const bluetooth_tracked_device *p) :
+        tracker_component{p} {
+
+        __ImportField(service_uuid_vec, p);
+        __ImportField(solicitation_uuid_vec, p);
+        __ImportField(scan_data_bytes, p);
+        __ImportField(service_data_bytes, p);
+        __ImportField(txpower, p);
+        __ImportField(pathloss, p);
+
+        reserve_fields(nullptr);
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("bluetooth_tracked_device");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 

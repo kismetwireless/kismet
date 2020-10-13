@@ -32,6 +32,8 @@
 
 #include "fmt.h"
 
+#include "boost/asio.hpp"
+
 class global_registry;
 
 // Pre-defs for all the things we point to
@@ -53,7 +55,7 @@ class kis_manuf;
 // Field name resolver
 class entry_tracker;
 // HTTP server
-class kis_net_httpd;
+class kis_net_beast_httpd;
 
 #define KISMET_INSTANCE_SERVER	0
 #define KISMET_INSTANCE_DRONE	1
@@ -244,6 +246,10 @@ public:
     void remove_deferred_global(std::shared_ptr<deferred_startup> in_d);
     void start_deferred();
     void shutdown_deferred();
+
+    // Global ASIO contexts and IO threads
+    const int n_io_threads = static_cast<int>(std::thread::hardware_concurrency() * 4);
+    boost::asio::io_context io{n_io_threads};
 
 protected:
     kis_recursive_timed_mutex ext_mutex;

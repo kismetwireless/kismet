@@ -46,20 +46,16 @@ public:
     kis_tracked_location_triplet(int in_id);
     kis_tracked_location_triplet(int in_id, std::shared_ptr<tracker_element_map> e);
 
+    kis_tracked_location_triplet(const kis_tracked_location_triplet *p);
+
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 
     // lat/lon are encoded in the geopoint
-    const double get_lat() const {
+    double get_lat() const {
         return geopoint->at(1);
     }
 
@@ -67,7 +63,7 @@ public:
         geopoint->at(1) = lat;
     }
 
-    const double get_lon() const {
+    double get_lon() const {
         return geopoint->at(0);
     }
 
@@ -119,16 +115,11 @@ public:
     kis_tracked_location();
     kis_tracked_location(int in_id);
     kis_tracked_location(int in_id, std::shared_ptr<tracker_element_map> e);
+    kis_tracked_location(const kis_tracked_location *p);
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 
@@ -175,21 +166,16 @@ public:
     kis_historic_location();
     kis_historic_location(int in_id);
     kis_historic_location(int in_id, std::shared_ptr<tracker_element_map> e);
+    kis_historic_location(const kis_historic_location* p);
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 
     // lat/lon are encoded in the geopoint
-    const double get_lat() const {
+    double get_lat() const {
         return geopoint->at(1);
     }
 
@@ -197,7 +183,7 @@ public:
         geopoint->at(1) = lat;
     }
 
-    const double get_lon() const {
+    double get_lon() const {
         return geopoint->at(0);
     }
 
@@ -235,16 +221,11 @@ public:
     kis_location_history();
     kis_location_history(int in_id);
     kis_location_history(int in_id, std::shared_ptr<tracker_element_map> e);
+    kis_location_history(const kis_location_history *p);
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 

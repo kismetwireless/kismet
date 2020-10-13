@@ -24,7 +24,7 @@
 
 #include "globalregistry.h"
 #include "kis_mutex.h"
-#include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
 #include "packet.h"
 #include "packetchain.h"
 #include "trackedlocation.h"
@@ -144,7 +144,7 @@ public:
 
 /* GPS manager which handles configuring GPS sources and deciding which one
  * is going to be used */
-class gps_tracker : public kis_net_httpd_cppstream_handler, public lifetime_global {
+class gps_tracker : public lifetime_global {
 public:
     static std::string global_name() { return "GPSTRACKER"; }
 
@@ -160,13 +160,6 @@ private:
 
 public:
     virtual ~gps_tracker();
-
-    virtual bool httpd_verify_path(const char *path, const char *method);
-
-    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream);
 
     // Register a gps builer prototype
     void register_gps_builder(shared_gps_builder in_builder);

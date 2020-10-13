@@ -22,7 +22,6 @@
 
 #include "config.h"
 #include "globalregistry.h"
-#include "kis_net_microhttpd.h"
 #include "trackedelement.h"
 #include "devicetracker_component.h"
 #include "phyhandler.h"
@@ -112,19 +111,27 @@ public:
         reserve_fields(e);
     }
 
+    rtlamr_tracked_meter(const rtlamr_tracked_meter *p) :
+        tracker_component{p} {
+
+        __ImportField(meter_id, p);
+        __ImportField(meter_type, p);
+        __ImportField(meter_type_code, p);
+        __ImportField(phy_tamper_flags, p);
+        __ImportField(endpoint_tamper_flags, p);
+        __ImportField(consumption, p);
+        __ImportField(consumption_rrd, p);
+
+        reserve_fields(nullptr);
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("rtlamr_tracked_meter");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 

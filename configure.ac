@@ -41,6 +41,7 @@ BUILD_CAPTURE_TI_CC_2531=0
 BUILD_CAPTURE_UBERTOOTH_ONE=0
 BUILD_CAPTURE_NRF_51822=0
 BUILD_CAPTURE_NXP_KW41Z=0
+BUILD_CAPTURE_RZ_KILLERBEE=0
 
 DATASOURCE_BINS="\$(CAPTURE_KISMETDB)"
 
@@ -425,56 +426,72 @@ AC_SUBST(BUILD_PYTHON_MODULES)
 HAVE_LIBDW=0
 HAVE_LIBBFD=0
 
-AC_CHECK_LIB([dw], [dwarf_begin], HAVE_LIBDW=1)
-AC_CHECK_LIB([bfd], [bfd_alloc], HAVE_LIBBFD=1)
+# Allow disabling mutex timeout, use with caution
+AC_ARG_ENABLE(debuglibs,
+    AS_HELP_STRING([--disable-debuglibs], [Disable libdw and bfd libs which aid in debugging]),
+	[case "${enableval}" in
+	  no) wantdebuglibs=0 ;;
+	   *) wantdebuglibs=1 ;;
+	 esac],
+	[wantdebuglibs=1]
+)
 
-if test "$HAVE_LIBDW" = 1; then
-    AC_CHECK_HEADERS([elfutils/libdw.h elfutils/libdwfl.h dwarf.h], DEF_BW_HAS_LIBDW=1)
-fi
 
-if test "$HAVE_LIBBFD" = 1; then
-    AC_CHECK_HEADERS([bfd.h], DEF_BW_HAS_BFD=1)
-fi
-
-DEF_BW_HAS_UNWIND=0
-DEF_BW_HAS_BACKTRACE=0
-
-BACKTRACE_OK=0
-
-AC_CHECK_HEADERS([unwind.h], DEF_BW_HAS_UNWIND=1)
-AC_CHECK_HEADERS([execinfo.h], DEF_BW_HAS_BACKTRACE=1)
-
-if test "$DEF_BW_HAS_UNWIND" = 1; then
-    BACKTRACE_WARNING="yes - Full debug info available on crash, using unwind"
-    AC_DEFINE(BACKWARD_HAS_UNWIND, 1, unwind stack support)
-    AC_DEFINE(BACKWARD_HAS_BACKTRACE, 0, no backtrace stack support)
-    BACKTRACE_OK=1
-elif test "$DEF_BW_HAS_BACKTRACE" = 1; then
-    BACKTRACE_WARNING="yes - Full debug info available on crash, using backtrace"
-    AC_DEFINE(BACKWARD_HAS_BACKTRACE, 1, backtrace stack support)
-    BACKTRACE_OK=1
-else
+if test "$wantdebuglibs" = 1; then
+    AC_CHECK_LIB([dw], [dwarf_begin], HAVE_LIBDW=1)
+    AC_CHECK_LIB([bfd], [bfd_alloc], HAVE_LIBBFD=1)
+    
+    if test "$HAVE_LIBDW" = 1; then
+        AC_CHECK_HEADERS([elfutils/libdw.h elfutils/libdwfl.h dwarf.h], DEF_BW_HAS_LIBDW=1)
+    fi
+    
+    if test "$HAVE_LIBBFD" = 1; then
+        AC_CHECK_HEADERS([bfd.h], DEF_BW_HAS_BFD=1)
+    fi
+    
+    DEF_BW_HAS_UNWIND=0
+    DEF_BW_HAS_BACKTRACE=0
+    
     BACKTRACE_OK=0
-    BACKTRACE_WARNING="no - Backtraces will not be available on crashes"
-    AC_DEFINE(DISABLE_BACKWARD, 1, cannot support backtrace dumping)
-fi
-
-if test "$BACKTRACE_OK" = 1; then
-    # Libdw is the best support
-    if test "$DEF_BW_HAS_LIBDW" = 1; then
-        AC_DEFINE(BACKWARD_HAS_DW, 1, libdl for stack printing)
-        LIBS="$LIBS -ldw"
-    elif test "$DEF_BW_HAS_BFD" = 1; then
-        AC_DEFINE(BACKWARD_HAS_BFD, 1, libbfd for stack printing)
-        LIBS="$LIBS -lbfd"
+    
+    AC_CHECK_HEADERS([unwind.h], DEF_BW_HAS_UNWIND=1)
+    AC_CHECK_HEADERS([execinfo.h], DEF_BW_HAS_BACKTRACE=1)
+    
+    if test "$DEF_BW_HAS_UNWIND" = 1; then
+        BACKTRACE_WARNING="yes - Full debug info available on crash, using unwind"
+        AC_DEFINE(BACKWARD_HAS_UNWIND, 1, unwind stack support)
+        AC_DEFINE(BACKWARD_HAS_BACKTRACE, 0, no backtrace stack support)
+        BACKTRACE_OK=1
     elif test "$DEF_BW_HAS_BACKTRACE" = 1; then
-        AC_DEFINE(BACKWARD_HAS_BACKTRACE_SYMBOL, 1, backtrace stack support)
-        BACKTRACE_WARNING="partial - Missing libdw or libbfd will not print full stacks on crash"
+        BACKTRACE_WARNING="yes - Full debug info available on crash, using backtrace"
+        AC_DEFINE(BACKWARD_HAS_BACKTRACE, 1, backtrace stack support)
+        BACKTRACE_OK=1
     else
         BACKTRACE_OK=0
         BACKTRACE_WARNING="no - Backtraces will not be available on crashes"
         AC_DEFINE(DISABLE_BACKWARD, 1, cannot support backtrace dumping)
     fi
+    
+    if test "$BACKTRACE_OK" = 1; then
+        # Libdw is the best support
+        if test "$DEF_BW_HAS_LIBDW" = 1; then
+            AC_DEFINE(BACKWARD_HAS_DW, 1, libdl for stack printing)
+            LIBS="$LIBS -ldw"
+        elif test "$DEF_BW_HAS_BFD" = 1; then
+            AC_DEFINE(BACKWARD_HAS_BFD, 1, libbfd for stack printing)
+            LIBS="$LIBS -lbfd"
+        elif test "$DEF_BW_HAS_BACKTRACE" = 1; then
+            AC_DEFINE(BACKWARD_HAS_BACKTRACE_SYMBOL, 1, backtrace stack support)
+            BACKTRACE_WARNING="partial - Missing libdw or libbfd will not print full stacks on crash"
+        else
+            BACKTRACE_OK=0
+            BACKTRACE_WARNING="no - Backtraces will not be available on crashes"
+            AC_DEFINE(DISABLE_BACKWARD, 1, cannot support backtrace dumping)
+        fi
+    fi
+else
+    BACKTRACE_WARNING="no - debug libraries disabled by configure"
+    AC_DEFINE(DISABLE_BACKWARD, 1, disabled by configure arguments)
 fi
 
 # Look for something to define standard int types
@@ -681,52 +698,6 @@ else
 fi
 AC_SUBST(instgrp)
 
-# We need microhttpd if we're building kismet_server
-if test "$caponly" == 0; then
-    HAVE_LIBMICROHTTPD=0
-    AC_CHECK_LIB([microhttpd], [MHD_start_daemon],
-                 KSLIBS="$KSLIBS -lmicrohttpd" HAVE_LIBMICROHTTPD=1,
-                 HAVE_LIBMICROHTTPD=0)
-    if test "$HAVE_LIBMICROHTTPD" == 0 -a "$caponly" == 0; then
-        AC_MSG_ERROR([libmicrohttpd is needed and is not available])
-    elif test "$HAVE_LIBMICROHTTPD" = 1; then
-        AC_CHECK_HEADER([microhttpd.h], 
-        	AC_DEFINE(HAVE_MICROHTTPD_H, 1, microhttpd is present),
-            AC_MSG_ERROR([microhttpd.h is not available check that libmicrohttpd-dev is installed]))
-    fi
-    
-    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-        #include <microhttpd.h>
-        ]], [[
-        #if MHD_VERSION <= 0x00093700
-        #error MHD_TOO_OLD
-        #endif
-        ]])],[mhd_too_old=0],[mhd_too_old=1])
-    
-    if test "$mhd_too_old" = 1; then
-        AC_MSG_ERROR(sorry - libmicrohttpd is too old. Some distributions such as debian jessie ship a version of libmicrohttpd which has several flaws that break Kismet.  You will need a new version from your distribution backports or from https://www.gnu.org/software/libmicrohttpd/)
-    fi
-    
-    OLIBS="$LIBS"
-    LIBS="$LIBS -lmicrohttpd"
-    AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-        #include <microhttpd.h>
-    ]], [[
-        struct MHD_Daemon *microhttpd = NULL;
-        MHD_quiesce_daemon(microhttpd);
-        return 0;
-    ]])],[mhd_quiesce=1],[mhd_quiesce=0])
-    LIBS="$OLIBS"
-    
-    if test "$mhd_quiesce" = 1; then
-        AC_DEFINE(MHD_QUIESCE, 1, Able to use MHD_quiesce_daemon to shut down)
-    else
-        AC_MSG_WARN([Unable to use MHD_quiesce_daemon, this might lead to hangs on shutdown])
-    fi
-
-fi # caponly
-
-
 # Check for process title manipulation stuff, from proftpd configure.in
 AC_CHECK_FUNCS(setproctitle)
 AC_CHECK_HEADERS(libutil.h)
@@ -897,15 +868,26 @@ fi # want headers
 fi # linux
 
 # Look for capability support
-havecap="yes"
-AC_CHECK_LIB([cap], [cap_init],,havecap=no)
-AC_CHECK_HEADER([sys/prctl.h],, havecap=no)
-AC_CHECK_HEADER([sys/capability.h],, havecap=no)
+AC_ARG_ENABLE(libcap,
+    AS_HELP_STRING([--disable-libcap], [Disable libcap capabilities]),
+	[case "${enableval}" in
+	  no) wantlibcap=no ;;
+	   *) wantlibcap=yes ;;
+	 esac],
+	[wantlibcap=yes]
+)
 
-if test "$havecap" = "yes"; then
-AC_DEFINE(HAVE_CAPABILITY, 1, kernel capability support)
-caplibs="-lcap"
-AC_SUBST(caplibs)
+if test "$wantcap" = "yes"; then
+    havecap="yes"
+    AC_CHECK_LIB([cap], [cap_init],,havecap=no)
+    AC_CHECK_HEADER([sys/prctl.h],, havecap=no)
+    AC_CHECK_HEADER([sys/capability.h],, havecap=no)
+    
+    if test "$havecap" = "yes"; then
+    AC_DEFINE(HAVE_CAPABILITY, 1, kernel capability support)
+    caplibs="-lcap"
+    AC_SUBST(caplibs)
+    fi
 fi
 
 AC_ARG_WITH(pcreheaders,
@@ -997,64 +979,50 @@ AC_ARG_ENABLE(prelude,
 ],[wantprelude=no])
 
 
-foundsyspcap=no
+PKG_PROG_PKG_CONFIG
 
-if test "$cygwin" = yes; then
-	pcaplib="wpcap";
-else
-	pcaplib="pcap";
-fi
+# Look for libpcap via pkg-config
+have_libpcap=no
+PKG_CHECK_MODULES([libpcap], [libpcap], [
+    have_libpcap=yes
+    AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib)
 
-AC_CHECK_LIB([${pcaplib}], [pcap_open_live],
-    AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib) foundsyspcap=yes,
-    AC_MSG_ERROR(Libpcap required for proper operation))
+    PCAPLIBS=`pkg-config --libs libpcap`
+    PCAPCFLAGS=`pkg-config --cflags libpcap`
+    pcap=yes
+    ], [
+    AC_MSG_WARN(No libpcap found in pkg-config, will check system paths.)
+    ])
 
-if test "$foundsyspcap" = yes; then
-## if we don't have a pcap.h, do a search for pcap/pcap.h
-AC_CHECK_HEADER([pcap.h],
-	AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) foundsyspcaph=yes)
-    if test "$foundsyspcaph" != yes; then
-		AC_CHECK_HEADER([pcap/pcap.h],
-		AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) AC_DEFINE(HAVE_PCAPPCAP_H, 1, pcap/pcap.h),
-		AC_MSG_ERROR([found libpcap but unable to find pcap.h]))
+# Look for pcap using our legacy mode
+if test "$have_libpcap"x != "yesx"; then
+    AC_CHECK_LIB([pcap], [pcap_open_live],
+        AC_DEFINE(HAVE_LIBPCAP, 1, libpcap packet capture lib) foundsyspcap=yes,
+        AC_MSG_ERROR(Libpcap required for proper operation))
+    
+    if test "$foundsyspcap" = yes; then
+    ## if we don't have a pcap.h, do a search for pcap/pcap.h
+    AC_CHECK_HEADER([pcap.h],
+    	AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) foundsyspcaph=yes)
+        if test "$foundsyspcaph" != yes; then
+    		AC_CHECK_HEADER([pcap/pcap.h],
+    		AC_DEFINE(HAVE_PCAP_H, 1, libpcap header) AC_DEFINE(HAVE_PCAPPCAP_H, 1, pcap/pcap.h),
+    		AC_MSG_ERROR([found libpcap but unable to find pcap.h]))
+        fi
+    
+        PCAPLIBS="-lpcap"
+        PCAPCFLAGS=""
+        pcap=yes
     fi
-# Look for the new PCAP stuff
-AC_CHECK_LIB([pcap], [pcap_setnonblock],
-    AC_DEFINE(HAVE_PCAP_NONBLOCK, 1, Nonblocking-capable libpcap),
-    AC_MSG_WARN(*** You don't appear to have a version of libpcap which supports non-blocking IO.  We'll fake it, but you REALLY should upgrade your libpcap, as it may not support 802.11 capture sources, either. ***))
-
-if test "$cygwin" != yes; then
-AC_CHECK_LIB([${pcaplib}], [pcap_get_selectable_fd],
-	AC_DEFINE(HAVE_PCAP_GETSELFD, 1, Selectablefd-capable libpcap),
-	AC_MSG_ERROR(installed libpcap version does not support features Kismet requires.  Upgrade to a current version of libpcap))
-else
-AC_CHECK_LIB([${pcaplib}], [pcap_fileno],
-	AC_DEFINE(HAVE_PCAP_FILENO, 1, pcapfileno-capable libwpcap),
-	AC_MSG_ERROR(installed libpcap version does not support features Kismet requires.  Upgrade to a current version of libwpcap))
 fi
 
-# Look for PPI support in pcap
-AC_MSG_CHECKING([for PPI support in libpcap])
-OCFL="$CFLAGS"
-CFLAGS="-Werror $CFLAGS"
-AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-		#include <stdio.h>
-		#include <pcap.h>
-		]], [[
-		return DLT_PPI==DLT_PPI;
-		]])],[haveppi=yes],[haveppi=no])
-CFLAGS="$OCFL"
-if test "$haveppi" = "yes"; then
-	AC_MSG_RESULT([yes])
-	AC_DEFINE(HAVE_PPI, 1, libpcap supports PPI)
-else
-	AC_MSG_RESULT([no])
-    AC_MSG_ERROR([found libpcap and pcap.h but unable to compile with PPI support.  Make sure you have a current version of libpcap."])
-fi
+AC_SUBST(PCAPLIBS)
+AC_SUBST(PCAPCFLAGS)
+AC_SUBST(pcap)
 
-pcaplnk="-l${pcaplib}"
-AC_SUBST(pcaplnk)
-pcap="yes"
+if test "$pcap" != "yes"; then
+	AC_MSG_ERROR(Could not find working libpcap.  Libpcap is vital for the majority of Kismet functionality.)
+fi
 
 DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_PCAPFILE)"
 BUILD_CAPTURE_PCAPFILE=1
@@ -1064,15 +1032,6 @@ if test "$linux" = "yes"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_WIFI)"
     BUILD_CAPTURE_LINUX_WIFI=1
 fi
-
-fi
-
-if test "$pcap" != "yes"; then
-	AC_MSG_ERROR(Could not find working libpcap.  Libpcap is vital for the majority of capture sources Kismet supports.  It must be explicitly disabled.)
-fi
-AC_SUBST(pcap)
-
-PKG_PROG_PKG_CONFIG
 
 if test "$caponly" = 0 || test "$want_python" = "yes"; then
     # We only *require* protobuf for C++ and python
@@ -1504,6 +1463,12 @@ DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NRF_51822)"
 BUILD_CAPTURE_NXP_KW41Z=1
 DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NXP_KW41Z)"
 
+BUILD_CAPTURE_RZ_KILLERBEE=0
+if test "$have_usb" = "yes"; then
+    BUILD_CAPTURE_RZ_KILLERBEE=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_RZ_KILLERBEE)"
+fi
+
 
 if test "$darwin" = "yes"; then
 	suidgroup="staff"
@@ -1630,12 +1595,13 @@ AC_SUBST(BUILD_CAPTURE_TI_CC_2531)
 AC_SUBST(BUILD_CAPTURE_UBERTOOTH_ONE)
 AC_SUBST(BUILD_CAPTURE_NRF_51822)
 AC_SUBST(BUILD_CAPTURE_NXP_KW41Z)
+AC_SUBST(BUILD_CAPTURE_RZ_KILLERBEE)
 
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-AC_CONFIG_FILES([Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_sdr_rtlamr/Makefile capture_sdr_rtladsb/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_nrf_51822/Makefile capture_nxp_kw41z/Makefile])
+AC_CONFIG_FILES([Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_sdr_rtlamr/Makefile capture_sdr_rtladsb/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_nrf_51822/Makefile capture_nxp_kw41z/Makefile capture_rz_killerbee/Makefile])
 AC_OUTPUT
 
 echo
@@ -1753,6 +1719,14 @@ else
         echo "no";
 fi
 
+printf "          RZ KILLERBEE: "
+if test "$BUILD_CAPTURE_RZ_KILLERBEE" = 1; then
+        echo "yes";
+else
+        echo "no (libusb-1.0 not available)";
+fi
+
+
 printf "        Python Modules: "
 if test "$BUILD_PYTHON_MODULES" = 1; then
 	echo "yes";
@@ -1826,16 +1800,6 @@ if test "$linux_wireless" != "yes" -a "$linux" = "yes"; then
 	echo "Orinoco, Prism, and just about every other live capture method).  Make "
 	echo "sure this is what you want to do."
     echo "*** WARNING ***"
-fi
-
-if test "$pcap" != "yes" -a "$linux" = "yes"; then
-	echo
-	echo "*** WARNING ***"
-	echo "LibPCAP was not found (or was disabled)."
-	echo "Kismet on Linux without LibPcap cannot capture data locally and will "
-	echo "almost certainly NOT BE WHAT YOU WANT."
-	echo "You need both the libpcap libraries and development headers (called "
-	echo "libpcap-dev or libpcap-devel by most distributions)."
 fi
 
 if test "$havenetlink" != "yes" -a "$linux" = "yes"; then

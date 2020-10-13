@@ -63,6 +63,24 @@ public:
         reserve_fields(e);
     }
 
+    uav_tracked_telemetry(const uav_tracked_telemetry *p) :
+        tracker_component{p} {
+
+        __ImportField(location, p);
+        __ImportField(telem_ts, p);
+        __ImportField(yaw, p);
+        __ImportField(pitch, p);
+        __ImportField(roll, p);
+        __ImportField(height, p);
+        __ImportField(v_north, p);
+        __ImportField(v_east, p);
+        __ImportField(v_up, p);
+        __ImportField(motor_on, p);
+        __ImportField(airborne, p);
+
+        reserve_fields(nullptr);
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("uav_tracked_telemetry");
     }
@@ -71,13 +89,7 @@ public:
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 
@@ -212,6 +224,12 @@ public:
         return adler32_checksum("uav_match");
     }
 
+    virtual std::unique_ptr<tracker_element> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t());
+        return std::move(dup);
+    }
+
     __Proxy(uav_match_name, std::string, std::string, std::string, uav_match_name);
 
     __Proxy(uav_manuf_name, std::string, std::string, std::string, uav_manuf_name);
@@ -276,10 +294,36 @@ public:
         reserve_fields(e);
     }
 
+    uav_tracked_device(const uav_tracked_device *p) :
+        tracker_component{p} {
+
+        __ImportField(uav_manufacturer, p);
+        __ImportField(uav_model, p);
+        __ImportField(uav_serialnumber, p);
+
+        __ImportId(last_telem_loc_id, p);
+
+        __ImportField(uav_telem_history, p);
+        __ImportId(telem_history_entry_id, p);
+
+        __ImportField(uav_match_type, p);
+
+        __ImportId(home_location_id, p);
+        __ImportId(matched_type_id, p);
+
+        reserve_fields(nullptr);
+    }
+
     virtual ~uav_tracked_device() { }
 
     virtual uint32_t get_signature() const override {
         return adler32_checksum("uav_tracked_device");
+    }
+
+    virtual std::unique_ptr<tracker_element> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
+        return std::move(dup);
     }
 
     __Proxy(uav_manufacturer, std::string, std::string, std::string, uav_manufacturer);
@@ -362,15 +406,12 @@ protected:
 };
 
 /* Frankenphy which absorbs other phys */
-class Kis_UAV_Phy : public kis_phy_handler, public kis_net_httpd_cppstream_handler {
+class Kis_UAV_Phy : public kis_phy_handler {
 public:
     virtual ~Kis_UAV_Phy();
 
     Kis_UAV_Phy(global_registry *in_globalreg) :
-        kis_phy_handler(in_globalreg),
-        kis_net_httpd_cppstream_handler() {
-            bind_httpd_server();
-        }
+        kis_phy_handler(in_globalreg) { }
 
     virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg, int in_phyid) {
         return new Kis_UAV_Phy(in_globalreg, in_phyid);
@@ -384,16 +425,6 @@ public:
     // Restore stored UAV records
     virtual void load_phy_storage(shared_tracker_element in_storage,
             shared_tracker_element in_device);
-
-    // HTTPD API
-    virtual bool httpd_verify_path(const char *path, const char *method);
-
-    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream);
-
-    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *concls);
 
 protected:
     bool parse_manuf_definition(std::string def);

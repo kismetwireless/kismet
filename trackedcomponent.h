@@ -36,6 +36,7 @@
 #include "trackedelement.h"
 #include "entrytracker.h"
 #include "kis_mutex.h"
+#include "json/json.h"
 
 
 // Complex trackable unit based on trackertype dataunion.
@@ -703,6 +704,14 @@ class tracker_component : public tracker_element_map {
         return (dtype) (get_tracker_value<dtype>(cvar) & bs); \
     }
 
+// Import from a builder instance and insert into our map
+#define __ImportField(f, b) \
+    f = tracker_element_clone_adaptor(b->f); \
+    insert(f)
+
+#define __ImportId(f, b) \
+    f = b->f
+
     class registered_field {
         // We use negative IDs to indicate dynamic assignment, since this exists for every field
         // in every tracked element we actually do benefit from squeezing the boolean out
@@ -753,6 +762,12 @@ public:
             Globalreg::n_tracked_components++;
         }
 
+    tracker_component(const tracker_component *p) :
+        tracker_element_map(p),
+        registered_fields{nullptr} {
+            Globalreg::n_tracked_components++;
+        }
+
 	virtual ~tracker_component() {
         Globalreg::n_tracked_components--;
 
@@ -762,19 +777,11 @@ public:
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 
     tracker_component(tracker_component&&) = default;
-    tracker_component& operator=(tracker_component&&) = default;
-
     tracker_component(tracker_component&) = delete;
     tracker_component& operator=(tracker_component&) = delete;
 

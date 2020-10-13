@@ -70,5 +70,13 @@ tzsp_source::~tzsp_source() {
     pollabletracker->remove_pollable(tzsp_listener);
 
     Globalreg::globalreg->remove_global(global_name());
+
+    if (tzsp_io_thread.joinable())
+        tzsp_io_thread.join();
+}
+
+void tzsp_source::tzsp_io() {
+    bool first = true;
+
 }
 

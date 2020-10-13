@@ -288,8 +288,6 @@ int main(int argc, char *argv[]) {
             newline = true;
 
             fmt::print(ofile, "{}", parsed_json);
-
-            fprintf(ofile, "%s", json.c_str());
         } catch (const std::exception& e) {
             fmt::print(stderr, "ERROR:  Could not process device JSON: {}", e.what());
             continue;

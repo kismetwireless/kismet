@@ -22,7 +22,6 @@
 
 #include "config.h"
 #include "globalregistry.h"
-#include "kis_net_microhttpd.h"
 #include "trackedelement.h"
 #include "devicetracker_component.h"
 #include "phyhandler.h"
@@ -57,19 +56,22 @@ public:
         reserve_fields(e);
     }
 
+    zwave_tracked_device(const zwave_tracked_device *p) :
+        tracker_component{p} {
+
+        __ImportField(homeid, p);
+        __ImportField(deviceid, p);
+
+        reserve_fields(nullptr);
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("zwave_tracked_device");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 
@@ -90,15 +92,12 @@ protected:
     std::shared_ptr<tracker_element_uint8> deviceid;
 };
 
-class Kis_Zwave_Phy : public kis_phy_handler, public kis_net_httpd_cppstream_handler {
+class Kis_Zwave_Phy : public kis_phy_handler {
 public:
     virtual ~Kis_Zwave_Phy();
 
     Kis_Zwave_Phy(global_registry *in_globalreg) :
-        kis_phy_handler(in_globalreg),
-        kis_net_httpd_cppstream_handler() { 
-            bind_httpd_server();
-        };
+        kis_phy_handler(in_globalreg) { };
 
 	// Build a strong version of ourselves
 	virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg, int in_phyid) {
@@ -106,16 +105,6 @@ public:
 	}
 
     Kis_Zwave_Phy(global_registry *in_globalreg, int in_phyid);
-
-    // HTTPD API
-    virtual bool httpd_verify_path(const char *path, const char *method);
-
-    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream);
-
-    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *concls);
 
 protected:
     std::shared_ptr<packet_chain> packetchain;

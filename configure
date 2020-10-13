@@ -678,11 +678,14 @@ libprotobufc_CFLAGS
 protoc
 protobuf_LIBS
 protobuf_CFLAGS
+pcap
+PCAPCFLAGS
+PCAPLIBS
+libpcap_LIBS
+libpcap_CFLAGS
 PKG_CONFIG_LIBDIR
 PKG_CONFIG_PATH
 PKG_CONFIG
-pcap
-pcaplnk
 LIBPRELUDE_CONFIG_PREFIX
 LIBPRELUDE_PREFIX
 LIBPRELUDE_LIBS
@@ -786,10 +789,12 @@ enable_element_typesafety
 enable_protobuflite
 enable_python_tools
 with_python_interpreter
+enable_debuglibs
 enable_largefile
 enable_mutextimeout
 with_linuxheaders
 enable_linuxwext
+enable_libcap
 with_pcreheaders
 enable_pcre
 enable_prelude
@@ -822,6 +827,8 @@ CXXCPP
 PKG_CONFIG
 PKG_CONFIG_PATH
 PKG_CONFIG_LIBDIR
+libpcap_CFLAGS
+libpcap_LIBS
 protobuf_CFLAGS
 protobuf_LIBS
 libprotobufc_CFLAGS
@@ -1471,10 +1478,12 @@ Optional Features:
                           protobuf
   --disable-python-tools  Disable building Python modules and Python-only data
                           sources
+  --disable-debuglibs     Disable libdw and bfd libs which aid in debugging
   --disable-largefile     omit support for large files
   --disable-mutextimeout  Disable failsafe thread mutex timer, use with
                           caution
   --disable-linuxwext     Disable Linux wireless extensions
+  --disable-libcap        Disable libcap capabilities
   --disable-pcre          Disable PCRE regex
   --enable-prelude        Enable Prelude SIEM as a target for alerts.
   --disable-libnm         Disable libnm networkmanager support
@@ -1518,6 +1527,10 @@ Some influential environment variables:
               directories to add to pkg-config's search path
   PKG_CONFIG_LIBDIR
               path overriding pkg-config's built-in search path
+  libpcap_CFLAGS
+              C compiler flags for libpcap, overriding pkg-config
+  libpcap_LIBS
+              linker flags for libpcap, overriding pkg-config
   protobuf_CFLAGS
               C compiler flags for protobuf, overriding pkg-config
   protobuf_LIBS
@@ -8566,7 +8579,22 @@ fi
 HAVE_LIBDW=0
 HAVE_LIBBFD=0
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for dwarf_begin in -ldw" >&5
+# Allow disabling mutex timeout, use with caution
+# Check whether --enable-debuglibs was given.
+if test "${enable_debuglibs+set}" = set; then :
+  enableval=$enable_debuglibs; case "${enableval}" in
+	  no) wantdebuglibs=0 ;;
+	   *) wantdebuglibs=1 ;;
+	 esac
+else
+  wantdebuglibs=1
+
+fi
+
+
+
+if test "$wantdebuglibs" = 1; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for dwarf_begin in -ldw" >&5
 $as_echo_n "checking for dwarf_begin in -ldw... " >&6; }
 if ${ac_cv_lib_dw_dwarf_begin+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -8606,7 +8634,7 @@ if test "x$ac_cv_lib_dw_dwarf_begin" = xyes; then :
   HAVE_LIBDW=1
 fi
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for bfd_alloc in -lbfd" >&5
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for bfd_alloc in -lbfd" >&5
 $as_echo_n "checking for bfd_alloc in -lbfd... " >&6; }
 if ${ac_cv_lib_bfd_bfd_alloc+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -8647,8 +8675,8 @@ if test "x$ac_cv_lib_bfd_bfd_alloc" = xyes; then :
 fi
 
 
-if test "$HAVE_LIBDW" = 1; then
-    for ac_header in elfutils/libdw.h elfutils/libdwfl.h dwarf.h
+    if test "$HAVE_LIBDW" = 1; then
+        for ac_header in elfutils/libdw.h elfutils/libdwfl.h dwarf.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_cxx_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -8661,10 +8689,10 @@ fi
 
 done
 
-fi
+    fi
 
-if test "$HAVE_LIBBFD" = 1; then
-    for ac_header in bfd.h
+    if test "$HAVE_LIBBFD" = 1; then
+        for ac_header in bfd.h
 do :
   ac_fn_cxx_check_header_mongrel "$LINENO" "bfd.h" "ac_cv_header_bfd_h" "$ac_includes_default"
 if test "x$ac_cv_header_bfd_h" = xyes; then :
@@ -8676,14 +8704,14 @@ fi
 
 done
 
-fi
+    fi
 
-DEF_BW_HAS_UNWIND=0
-DEF_BW_HAS_BACKTRACE=0
+    DEF_BW_HAS_UNWIND=0
+    DEF_BW_HAS_BACKTRACE=0
 
-BACKTRACE_OK=0
+    BACKTRACE_OK=0
 
-for ac_header in unwind.h
+    for ac_header in unwind.h
 do :
   ac_fn_cxx_check_header_mongrel "$LINENO" "unwind.h" "ac_cv_header_unwind_h" "$ac_includes_default"
 if test "x$ac_cv_header_unwind_h" = xyes; then :
@@ -8695,7 +8723,7 @@ fi
 
 done
 
-for ac_header in execinfo.h
+    for ac_header in execinfo.h
 do :
   ac_fn_cxx_check_header_mongrel "$LINENO" "execinfo.h" "ac_cv_header_execinfo_h" "$ac_includes_default"
 if test "x$ac_cv_header_execinfo_h" = xyes; then :
@@ -8708,46 +8736,21 @@ fi
 done
 
 
-if test "$DEF_BW_HAS_UNWIND" = 1; then
-    BACKTRACE_WARNING="yes - Full debug info available on crash, using unwind"
+    if test "$DEF_BW_HAS_UNWIND" = 1; then
+        BACKTRACE_WARNING="yes - Full debug info available on crash, using unwind"
 
 $as_echo "#define BACKWARD_HAS_UNWIND 1" >>confdefs.h
 
 
 $as_echo "#define BACKWARD_HAS_BACKTRACE 0" >>confdefs.h
 
-    BACKTRACE_OK=1
-elif test "$DEF_BW_HAS_BACKTRACE" = 1; then
-    BACKTRACE_WARNING="yes - Full debug info available on crash, using backtrace"
+        BACKTRACE_OK=1
+    elif test "$DEF_BW_HAS_BACKTRACE" = 1; then
+        BACKTRACE_WARNING="yes - Full debug info available on crash, using backtrace"
 
 $as_echo "#define BACKWARD_HAS_BACKTRACE 1" >>confdefs.h
 
-    BACKTRACE_OK=1
-else
-    BACKTRACE_OK=0
-    BACKTRACE_WARNING="no - Backtraces will not be available on crashes"
-
-$as_echo "#define DISABLE_BACKWARD 1" >>confdefs.h
-
-fi
-
-if test "$BACKTRACE_OK" = 1; then
-    # Libdw is the best support
-    if test "$DEF_BW_HAS_LIBDW" = 1; then
-
-$as_echo "#define BACKWARD_HAS_DW 1" >>confdefs.h
-
-        LIBS="$LIBS -ldw"
-    elif test "$DEF_BW_HAS_BFD" = 1; then
-
-$as_echo "#define BACKWARD_HAS_BFD 1" >>confdefs.h
-
-        LIBS="$LIBS -lbfd"
-    elif test "$DEF_BW_HAS_BACKTRACE" = 1; then
-
-$as_echo "#define BACKWARD_HAS_BACKTRACE_SYMBOL 1" >>confdefs.h
-
-        BACKTRACE_WARNING="partial - Missing libdw or libbfd will not print full stacks on crash"
+        BACKTRACE_OK=1
     else
         BACKTRACE_OK=0
         BACKTRACE_WARNING="no - Backtraces will not be available on crashes"
@@ -8755,6 +8758,37 @@ $as_echo "#define BACKWARD_HAS_BACKTRACE_SYMBOL 1" >>confdefs.h
 $as_echo "#define DISABLE_BACKWARD 1" >>confdefs.h
 
     fi
+
+    if test "$BACKTRACE_OK" = 1; then
+        # Libdw is the best support
+        if test "$DEF_BW_HAS_LIBDW" = 1; then
+
+$as_echo "#define BACKWARD_HAS_DW 1" >>confdefs.h
+
+            LIBS="$LIBS -ldw"
+        elif test "$DEF_BW_HAS_BFD" = 1; then
+
+$as_echo "#define BACKWARD_HAS_BFD 1" >>confdefs.h
+
+            LIBS="$LIBS -lbfd"
+        elif test "$DEF_BW_HAS_BACKTRACE" = 1; then
+
+$as_echo "#define BACKWARD_HAS_BACKTRACE_SYMBOL 1" >>confdefs.h
+
+            BACKTRACE_WARNING="partial - Missing libdw or libbfd will not print full stacks on crash"
+        else
+            BACKTRACE_OK=0
+            BACKTRACE_WARNING="no - Backtraces will not be available on crashes"
+
+$as_echo "#define DISABLE_BACKWARD 1" >>confdefs.h
+
+        fi
+    fi
+else
+    BACKTRACE_WARNING="no - debug libraries disabled by configure"
+
+$as_echo "#define DISABLE_BACKWARD 1" >>confdefs.h
+
 fi
 
 # Look for something to define standard int types
@@ -9475,135 +9509,6 @@ $as_echo "yes" >&6; }
 fi
 
 
-# We need microhttpd if we're building kismet_server
-if test "$caponly" == 0; then
-    HAVE_LIBMICROHTTPD=0
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for MHD_start_daemon in -lmicrohttpd" >&5
-$as_echo_n "checking for MHD_start_daemon in -lmicrohttpd... " >&6; }
-if ${ac_cv_lib_microhttpd_MHD_start_daemon+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lmicrohttpd  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char MHD_start_daemon ();
-int
-main ()
-{
-return MHD_start_daemon ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_link "$LINENO"; then :
-  ac_cv_lib_microhttpd_MHD_start_daemon=yes
-else
-  ac_cv_lib_microhttpd_MHD_start_daemon=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_microhttpd_MHD_start_daemon" >&5
-$as_echo "$ac_cv_lib_microhttpd_MHD_start_daemon" >&6; }
-if test "x$ac_cv_lib_microhttpd_MHD_start_daemon" = xyes; then :
-  KSLIBS="$KSLIBS -lmicrohttpd" HAVE_LIBMICROHTTPD=1
-else
-  HAVE_LIBMICROHTTPD=0
-fi
-
-    if test "$HAVE_LIBMICROHTTPD" == 0 -a "$caponly" == 0; then
-        as_fn_error $? "libmicrohttpd is needed and is not available" "$LINENO" 5
-    elif test "$HAVE_LIBMICROHTTPD" = 1; then
-        ac_fn_cxx_check_header_mongrel "$LINENO" "microhttpd.h" "ac_cv_header_microhttpd_h" "$ac_includes_default"
-if test "x$ac_cv_header_microhttpd_h" = xyes; then :
-
-$as_echo "#define HAVE_MICROHTTPD_H 1" >>confdefs.h
-
-else
-  as_fn_error $? "microhttpd.h is not available check that libmicrohttpd-dev is installed" "$LINENO" 5
-fi
-
-
-    fi
-
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-        #include <microhttpd.h>
-
-int
-main ()
-{
-
-        #if MHD_VERSION <= 0x00093700
-        #error MHD_TOO_OLD
-        #endif
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_link "$LINENO"; then :
-  mhd_too_old=0
-else
-  mhd_too_old=1
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-
-    if test "$mhd_too_old" = 1; then
-        as_fn_error $? "sorry - libmicrohttpd is too old. Some distributions such as debian jessie ship a version of libmicrohttpd which has several flaws that break Kismet.  You will need a new version from your distribution backports or from https://www.gnu.org/software/libmicrohttpd/" "$LINENO" 5
-    fi
-
-    OLIBS="$LIBS"
-    LIBS="$LIBS -lmicrohttpd"
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-        #include <microhttpd.h>
-
-int
-main ()
-{
-
-        struct MHD_Daemon *microhttpd = NULL;
-        MHD_quiesce_daemon(microhttpd);
-        return 0;
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_link "$LINENO"; then :
-  mhd_quiesce=1
-else
-  mhd_quiesce=0
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-    LIBS="$OLIBS"
-
-    if test "$mhd_quiesce" = 1; then
-
-$as_echo "#define MHD_QUIESCE 1" >>confdefs.h
-
-    else
-        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Unable to use MHD_quiesce_daemon, this might lead to hangs on shutdown" >&5
-$as_echo "$as_me: WARNING: Unable to use MHD_quiesce_daemon, this might lead to hangs on shutdown" >&2;}
-    fi
-
-fi # caponly
-
-
 # Check for process title manipulation stuff, from proftpd configure.in
 for ac_func in setproctitle
 do :
@@ -9975,8 +9880,21 @@ fi # want headers
 fi # linux
 
 # Look for capability support
-havecap="yes"
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for cap_init in -lcap" >&5
+# Check whether --enable-libcap was given.
+if test "${enable_libcap+set}" = set; then :
+  enableval=$enable_libcap; case "${enableval}" in
+	  no) wantlibcap=no ;;
+	   *) wantlibcap=yes ;;
+	 esac
+else
+  wantlibcap=yes
+
+fi
+
+
+if test "$wantcap" = "yes"; then
+    havecap="yes"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for cap_init in -lcap" >&5
 $as_echo_n "checking for cap_init in -lcap... " >&6; }
 if ${ac_cv_lib_cap_cap_init+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -10023,7 +9941,7 @@ else
   havecap=no
 fi
 
-ac_fn_cxx_check_header_mongrel "$LINENO" "sys/prctl.h" "ac_cv_header_sys_prctl_h" "$ac_includes_default"
+    ac_fn_cxx_check_header_mongrel "$LINENO" "sys/prctl.h" "ac_cv_header_sys_prctl_h" "$ac_includes_default"
 if test "x$ac_cv_header_sys_prctl_h" = xyes; then :
 
 else
@@ -10031,7 +9949,7 @@ else
 fi
 
 
-ac_fn_cxx_check_header_mongrel "$LINENO" "sys/capability.h" "ac_cv_header_sys_capability_h" "$ac_includes_default"
+    ac_fn_cxx_check_header_mongrel "$LINENO" "sys/capability.h" "ac_cv_header_sys_capability_h" "$ac_includes_default"
 if test "x$ac_cv_header_sys_capability_h" = xyes; then :
 
 else
@@ -10040,12 +9958,13 @@ fi
 
 
 
-if test "$havecap" = "yes"; then
+    if test "$havecap" = "yes"; then
 
 $as_echo "#define HAVE_CAPABILITY 1" >>confdefs.h
 
-caplibs="-lcap"
+    caplibs="-lcap"
 
+    fi
 fi
 
 
@@ -10495,289 +10414,6 @@ fi
 
 
 
-foundsyspcap=no
-
-if test "$cygwin" = yes; then
-	pcaplib="wpcap";
-else
-	pcaplib="pcap";
-fi
-
-as_ac_Lib=`$as_echo "ac_cv_lib_${pcaplib}''_pcap_open_live" | $as_tr_sh`
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for pcap_open_live in -l${pcaplib}" >&5
-$as_echo_n "checking for pcap_open_live in -l${pcaplib}... " >&6; }
-if eval \${$as_ac_Lib+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-l${pcaplib}  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char pcap_open_live ();
-int
-main ()
-{
-return pcap_open_live ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_link "$LINENO"; then :
-  eval "$as_ac_Lib=yes"
-else
-  eval "$as_ac_Lib=no"
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-eval ac_res=\$$as_ac_Lib
-	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
-$as_echo "$ac_res" >&6; }
-if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
-
-$as_echo "#define HAVE_LIBPCAP 1" >>confdefs.h
- foundsyspcap=yes
-else
-  as_fn_error $? "Libpcap required for proper operation" "$LINENO" 5
-fi
-
-
-if test "$foundsyspcap" = yes; then
-## if we don't have a pcap.h, do a search for pcap/pcap.h
-ac_fn_cxx_check_header_mongrel "$LINENO" "pcap.h" "ac_cv_header_pcap_h" "$ac_includes_default"
-if test "x$ac_cv_header_pcap_h" = xyes; then :
-
-$as_echo "#define HAVE_PCAP_H 1" >>confdefs.h
- foundsyspcaph=yes
-fi
-
-
-    if test "$foundsyspcaph" != yes; then
-		ac_fn_cxx_check_header_mongrel "$LINENO" "pcap/pcap.h" "ac_cv_header_pcap_pcap_h" "$ac_includes_default"
-if test "x$ac_cv_header_pcap_pcap_h" = xyes; then :
-
-$as_echo "#define HAVE_PCAP_H 1" >>confdefs.h
-
-$as_echo "#define HAVE_PCAPPCAP_H 1" >>confdefs.h
-
-else
-  as_fn_error $? "found libpcap but unable to find pcap.h" "$LINENO" 5
-fi
-
-
-    fi
-# Look for the new PCAP stuff
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for pcap_setnonblock in -lpcap" >&5
-$as_echo_n "checking for pcap_setnonblock in -lpcap... " >&6; }
-if ${ac_cv_lib_pcap_pcap_setnonblock+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lpcap  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char pcap_setnonblock ();
-int
-main ()
-{
-return pcap_setnonblock ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_link "$LINENO"; then :
-  ac_cv_lib_pcap_pcap_setnonblock=yes
-else
-  ac_cv_lib_pcap_pcap_setnonblock=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_pcap_pcap_setnonblock" >&5
-$as_echo "$ac_cv_lib_pcap_pcap_setnonblock" >&6; }
-if test "x$ac_cv_lib_pcap_pcap_setnonblock" = xyes; then :
-
-$as_echo "#define HAVE_PCAP_NONBLOCK 1" >>confdefs.h
-
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: *** You don't appear to have a version of libpcap which supports non-blocking IO.  We'll fake it" >&5
-$as_echo "$as_me: WARNING: *** You don't appear to have a version of libpcap which supports non-blocking IO.  We'll fake it" >&2;}
-fi
-
-
-if test "$cygwin" != yes; then
-as_ac_Lib=`$as_echo "ac_cv_lib_${pcaplib}''_pcap_get_selectable_fd" | $as_tr_sh`
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for pcap_get_selectable_fd in -l${pcaplib}" >&5
-$as_echo_n "checking for pcap_get_selectable_fd in -l${pcaplib}... " >&6; }
-if eval \${$as_ac_Lib+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-l${pcaplib}  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char pcap_get_selectable_fd ();
-int
-main ()
-{
-return pcap_get_selectable_fd ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_link "$LINENO"; then :
-  eval "$as_ac_Lib=yes"
-else
-  eval "$as_ac_Lib=no"
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-eval ac_res=\$$as_ac_Lib
-	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
-$as_echo "$ac_res" >&6; }
-if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
-
-$as_echo "#define HAVE_PCAP_GETSELFD 1" >>confdefs.h
-
-else
-  as_fn_error $? "installed libpcap version does not support features Kismet requires.  Upgrade to a current version of libpcap" "$LINENO" 5
-fi
-
-else
-as_ac_Lib=`$as_echo "ac_cv_lib_${pcaplib}''_pcap_fileno" | $as_tr_sh`
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for pcap_fileno in -l${pcaplib}" >&5
-$as_echo_n "checking for pcap_fileno in -l${pcaplib}... " >&6; }
-if eval \${$as_ac_Lib+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-l${pcaplib}  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char pcap_fileno ();
-int
-main ()
-{
-return pcap_fileno ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_link "$LINENO"; then :
-  eval "$as_ac_Lib=yes"
-else
-  eval "$as_ac_Lib=no"
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-eval ac_res=\$$as_ac_Lib
-	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
-$as_echo "$ac_res" >&6; }
-if eval test \"x\$"$as_ac_Lib"\" = x"yes"; then :
-
-$as_echo "#define HAVE_PCAP_FILENO 1" >>confdefs.h
-
-else
-  as_fn_error $? "installed libpcap version does not support features Kismet requires.  Upgrade to a current version of libwpcap" "$LINENO" 5
-fi
-
-fi
-
-# Look for PPI support in pcap
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for PPI support in libpcap" >&5
-$as_echo_n "checking for PPI support in libpcap... " >&6; }
-OCFL="$CFLAGS"
-CFLAGS="-Werror $CFLAGS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-		#include <stdio.h>
-		#include <pcap.h>
-
-int
-main ()
-{
-
-		return DLT_PPI==DLT_PPI;
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_cxx_try_link "$LINENO"; then :
-  haveppi=yes
-else
-  haveppi=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-CFLAGS="$OCFL"
-if test "$haveppi" = "yes"; then
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-
-$as_echo "#define HAVE_PPI 1" >>confdefs.h
-
-else
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-    as_fn_error $? "found libpcap and pcap.h but unable to compile with PPI support.  Make sure you have a current version of libpcap.\"" "$LINENO" 5
-fi
-
-pcaplnk="-l${pcaplib}"
-
-pcap="yes"
-
-DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_PCAPFILE)"
-BUILD_CAPTURE_PCAPFILE=1
-
-BUILD_CAPTURE_LINUX_WIFI=0
-if test "$linux" = "yes"; then
-    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_WIFI)"
-    BUILD_CAPTURE_LINUX_WIFI=1
-fi
-
-fi
-
-if test "$pcap" != "yes"; then
-	as_fn_error $? "Could not find working libpcap.  Libpcap is vital for the majority of capture sources Kismet supports.  It must be explicitly disabled." "$LINENO" 5
-fi
-
-
 
 
 
@@ -10897,6 +10533,190 @@ $as_echo "yes" >&6; }
 $as_echo "no" >&6; }
 		PKG_CONFIG=""
 	fi
+fi
+
+# Look for libpcap via pkg-config
+have_libpcap=no
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libpcap" >&5
+$as_echo_n "checking for libpcap... " >&6; }
+
+if test -n "$libpcap_CFLAGS"; then
+    pkg_cv_libpcap_CFLAGS="$libpcap_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libpcap\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libpcap") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_libpcap_CFLAGS=`$PKG_CONFIG --cflags "libpcap" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$libpcap_LIBS"; then
+    pkg_cv_libpcap_LIBS="$libpcap_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libpcap\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libpcap") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_libpcap_LIBS=`$PKG_CONFIG --libs "libpcap" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        libpcap_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libpcap" 2>&1`
+        else
+	        libpcap_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libpcap" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$libpcap_PKG_ERRORS" >&5
+
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: No libpcap found in pkg-config" >&5
+$as_echo "$as_me: WARNING: No libpcap found in pkg-config" >&2;}
+
+elif test $pkg_failed = untried; then
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: No libpcap found in pkg-config" >&5
+$as_echo "$as_me: WARNING: No libpcap found in pkg-config" >&2;}
+
+else
+	libpcap_CFLAGS=$pkg_cv_libpcap_CFLAGS
+	libpcap_LIBS=$pkg_cv_libpcap_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+    have_libpcap=yes
+
+$as_echo "#define HAVE_LIBPCAP 1" >>confdefs.h
+
+
+    PCAPLIBS=`pkg-config --libs libpcap`
+    PCAPCFLAGS=`pkg-config --cflags libpcap`
+    pcap=yes
+
+fi
+
+# Look for pcap using our legacy mode
+if test "$have_libpcap"x != "yesx"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for pcap_open_live in -lpcap" >&5
+$as_echo_n "checking for pcap_open_live in -lpcap... " >&6; }
+if ${ac_cv_lib_pcap_pcap_open_live+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lpcap  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char pcap_open_live ();
+int
+main ()
+{
+return pcap_open_live ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+  ac_cv_lib_pcap_pcap_open_live=yes
+else
+  ac_cv_lib_pcap_pcap_open_live=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_pcap_pcap_open_live" >&5
+$as_echo "$ac_cv_lib_pcap_pcap_open_live" >&6; }
+if test "x$ac_cv_lib_pcap_pcap_open_live" = xyes; then :
+
+$as_echo "#define HAVE_LIBPCAP 1" >>confdefs.h
+ foundsyspcap=yes
+else
+  as_fn_error $? "Libpcap required for proper operation" "$LINENO" 5
+fi
+
+
+    if test "$foundsyspcap" = yes; then
+    ## if we don't have a pcap.h, do a search for pcap/pcap.h
+    ac_fn_cxx_check_header_mongrel "$LINENO" "pcap.h" "ac_cv_header_pcap_h" "$ac_includes_default"
+if test "x$ac_cv_header_pcap_h" = xyes; then :
+
+$as_echo "#define HAVE_PCAP_H 1" >>confdefs.h
+ foundsyspcaph=yes
+fi
+
+
+        if test "$foundsyspcaph" != yes; then
+    		ac_fn_cxx_check_header_mongrel "$LINENO" "pcap/pcap.h" "ac_cv_header_pcap_pcap_h" "$ac_includes_default"
+if test "x$ac_cv_header_pcap_pcap_h" = xyes; then :
+
+$as_echo "#define HAVE_PCAP_H 1" >>confdefs.h
+
+$as_echo "#define HAVE_PCAPPCAP_H 1" >>confdefs.h
+
+else
+  as_fn_error $? "found libpcap but unable to find pcap.h" "$LINENO" 5
+fi
+
+
+        fi
+
+        PCAPLIBS="-lpcap"
+        PCAPCFLAGS=""
+        pcap=yes
+    fi
+fi
+
+
+
+
+
+if test "$pcap" != "yes"; then
+	as_fn_error $? "Could not find working libpcap.  Libpcap is vital for the majority of Kismet functionality." "$LINENO" 5
+fi
+
+DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_PCAPFILE)"
+BUILD_CAPTURE_PCAPFILE=1
+
+BUILD_CAPTURE_LINUX_WIFI=0
+if test "$linux" = "yes"; then
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_LINUX_WIFI)"
+    BUILD_CAPTURE_LINUX_WIFI=1
 fi
 
 if test "$caponly" = 0 || test "$want_python" = "yes"; then
@@ -14023,16 +13843,6 @@ if test "$linux_wireless" != "yes" -a "$linux" = "yes"; then
 	echo "Orinoco, Prism, and just about every other live capture method).  Make "
 	echo "sure this is what you want to do."
     echo "*** WARNING ***"
-fi
-
-if test "$pcap" != "yes" -a "$linux" = "yes"; then
-	echo
-	echo "*** WARNING ***"
-	echo "LibPCAP was not found (or was disabled)."
-	echo "Kismet on Linux without LibPcap cannot capture data locally and will "
-	echo "almost certainly NOT BE WHAT YOU WANT."
-	echo "You need both the libpcap libraries and development headers (called "
-	echo "libpcap-dev or libpcap-devel by most distributions)."
 fi
 
 if test "$havenetlink" != "yes" -a "$linux" = "yes"; then

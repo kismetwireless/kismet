@@ -22,61 +22,77 @@
 
 #include "base64.h"
 
-const char base64::b64_values[] = 
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const std::string base64::b64_values{"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"};
 
-void base64::decodeblock(unsigned char *in, unsigned char *out) {
-    out[0] = in[0] << 2 | in[1] >> 4;
-    out[1] = in[1] << 4 | in[2] >> 2;
-    out[2] = in[2] << 6 | in[3] >> 0;
-    out[3] = 0;
-}
+std::string base64::decode(const std::string& in_str) {
+    auto len = in_str.size();
+    int i = 0, j = 0, n = 0;
+    unsigned char c4[4], c3[3];
 
-std::string base64::decode(std::string in_str) {
-    std::string out;
-    unsigned char obuf[4], ibuf[4];
-    int phase, c;
-    unsigned int i;
-    char *pos;
+    std::string ret;
 
-    memset(obuf, 0, 4);
-    memset(ibuf, 0, 4);
+    ret.reserve(len * 0.75);
 
-    // Make a rough guess at the decoded length to optimise sizing
-    out.reserve(in_str.length() * 0.75);
+    while (len-- && (in_str[n] != '=') && is_base64(in_str[n])) {
+        c4[i++] = in_str[n++];
 
-    phase = 0;
+        if (i ==4) {
+            for (i = 0; i < 4; i++)
+                c4[i] = b64_values.find(c4[i]);
 
-    for (i = 0; i < in_str.length(); i++) {
-        c = in_str[i];
+            c3[0] = (c4[0] << 2) + ((c4[1] & 0x30) >> 4);
+            c3[1] = ((c4[1] & 0xf) << 4) + ((c4[2] & 0x3c) >> 2);
+            c3[2] = ((c4[2] & 0x3) << 6) + c4[3];
 
-        if (c == '=') {
-            decodeblock(ibuf, obuf);
-            out.append((char *) obuf, phase);
-            return out;
-        }
+            for (i = 0; (i < 3); i++)
+                ret += c3[i];
 
-        // Find the binary # this digit corresponds to
-        pos = strchr((char *) b64_values, c);
-
-        // Fail on invalid characters
-        if (pos == NULL) {
-            return out;
-        }
-
-        // Get the integer position in the table
-        ibuf[phase] = pos - b64_values;
-
-        phase = (phase + 1) % 4;
-
-        // 4 characters read?
-        if (phase == 0) {
-            decodeblock(ibuf, obuf);
-            out.append((char *) obuf, 3);
-            memset(ibuf, 0, 4);
+            i = 0;
         }
     }
 
-    return out;
+    if (i) {
+        for (j = i; j < 4; j++)
+            c4[j] = 0;
+
+        for (j = 0; j < 4; j++)
+            c4[j] = b64_values.find(c4[j]);
+
+        c3[0] = (c4[0] << 2) + ((c4[1] & 0x30) >> 4);
+        c3[1] = ((c4[1] & 0xf) << 4) + ((c4[2] & 0x3c) >> 2);
+        c3[2] = ((c4[2] & 0x3) << 6) + c4[3];
+
+        for (j = 0; (j < i - 1); j++) 
+            ret += c3[j];
+    }
+
+    return ret;
+}
+
+std::string base64::encode(const std::string& in_str) {
+	std::stringstream ss;
+	size_t pos;
+
+	for (pos = 0; pos < in_str.length(); pos += 3) {
+		ss << b64_values[in_str[pos] >> 2];
+
+		if (pos + 1 < in_str.length()) {
+			ss << b64_values[((in_str[pos] & 0x03) << 4) | ((in_str[pos + 1] & 0xf0) >> 4)];
+		} else {
+			ss << b64_values[((in_str[pos] & 0x03) << 4)];
+		}
+
+		if (pos + 2 < in_str.length()) {
+			ss << b64_values[((in_str[pos + 1] & 0x0f) << 2) | ((in_str[pos + 2] & 0xc0) >> 6)];
+			ss << b64_values[in_str[pos + 2] & 0x3f];
+		} else if (pos + 1 < in_str.length()) {
+			ss << b64_values[((in_str[pos + 1] & 0x0f) << 2)];
+			ss << '=';
+		} else {
+			ss << "==";
+		}
+	}
+
+	return ss.str();
 }
 

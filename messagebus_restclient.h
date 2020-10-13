@@ -30,7 +30,7 @@
 #include "messagebus.h"
 #include "trackedelement.h"
 #include "trackedcomponent.h"
-#include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
 
 class tracked_message : public tracker_component {
 public:
@@ -52,19 +52,23 @@ public:
         reserve_fields(e);
     }
 
+    tracked_message(const tracked_message *p) :
+        tracker_component{p} {
+
+        __ImportField(message, p);
+        __ImportField(flags, p);
+        __ImportField(timestamp, p);
+
+        reserve_fields(nullptr);
+    }
+
     virtual uint32_t get_signature() const override {
         return adler32_checksum("tracked_message");
     }
 
     virtual std::unique_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
-    }
-
-    virtual std::unique_ptr<tracker_element> clone_type(int in_id) override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(in_id));
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);
     }
 
@@ -96,31 +100,23 @@ protected:
     std::shared_ptr<tracker_element_uint64> timestamp;
 };
 
-class rest_message_client : public message_client, public kis_net_httpd_cppstream_handler,
-    public lifetime_global {
+class rest_message_client : public message_client, public lifetime_global {
 public:
     static std::shared_ptr<rest_message_client> 
-        create_messageclient(global_registry *in_globalreg) {
-        std::shared_ptr<rest_message_client> mon(new rest_message_client(in_globalreg, NULL));
-        in_globalreg->register_lifetime_global(mon);
-        in_globalreg->insert_global("REST_MSG_CLIENT", mon);
+        create_messageclient() {
+        std::shared_ptr<rest_message_client> mon(new rest_message_client());
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global("REST_MSG_CLIENT", mon);
         return mon;
     }
 
 private:
-    rest_message_client(global_registry *in_globalreg, void *in_aux);
+    rest_message_client();
 
 public:
 	virtual ~rest_message_client();
 
     virtual void process_message(std::string in_msg, int in_flags) override;
-
-    virtual bool httpd_verify_path(const char *path, const char *method) override;
-
-    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream) override;
 
 protected:
     kis_recursive_timed_mutex msg_mutex;

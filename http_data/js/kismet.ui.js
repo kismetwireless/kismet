@@ -226,7 +226,8 @@ var DeviceRowHighlights = new Array();
  * name: datatable 'name' field (optional)
  * field: Kismet field path, array pair of field path and name, array of fields,
  *  or a function returning one of the above.
- * fields: Multiple fields
+ * fields: Multiple fields.  When multiple fields are defined, ONE field MUST be defined in the
+ *  'field' parameter.  Additional multiple fields may be defined in this parameter.
  * renderfunc: string name of datatable render function, taking DT arguments
  *  (data, type, row, meta), (optional)
  * drawfunc: string name of a draw function, taking arguments:
@@ -484,13 +485,11 @@ exports.GetDeviceFields = function(selected) {
     var cols = exports.GetDeviceColumns();
 
     for (var i in cols) {
-        if ('field' in cols[i]) {
+        if ('field' in cols[i] && cols[i]['field'] != null) 
             rawret.push(cols[i]['field']);
-        }
 
-        if ('fields' in cols[i]) {
+        if ('fields' in cols[i] && cols[i]['fields'] != null) 
             rawret.push.apply(rawret, cols[i]['fields']);
-        }
     }
 
     for (var i in DeviceRowHighlights) {
@@ -667,7 +666,7 @@ exports.DeviceDetailWindow = function(key) {
                         .done(function(fulldata) {
                             fulldata = kismet.sanitizeObject(fulldata);
 
-                            panel.headerTitle("Device: " + fulldata['kismet.device.base.name']);
+                            panel.headerTitle("Device: " + kismet.censorMAC(fulldata['kismet.device.base.commonname']));
 
                             var accordion = $('div#accordion', content);
 

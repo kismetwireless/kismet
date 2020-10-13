@@ -30,8 +30,7 @@
 #include "kis_databaselogfile.h"
 #include "kis_httpd_registry.h"
 #include "messagebus.h"
-#include "pcapng_stream_ringbuf.h"
-#include "socketclient.h"
+#include "pcapng_stream_futurebuf.h"
 #include "streamtracker.h"
 #include "timetracker.h"
 
@@ -148,7 +147,9 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (shared_d
         return;
     }
 
-    for (auto i : *proto_vec) {
+    local_locker lock(probe_lock);
+
+    for (const auto& i : *proto_vec) {
         auto b = std::static_pointer_cast<kis_datasource_builder>(i);
 
         if (!b->get_probe_capable())
@@ -157,17 +158,20 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (shared_d
         unsigned int transaction = ++transaction_id;
 
         // Instantiate a local prober datasource
-        shared_datasource pds = b->build_datasource(b, probe_lock);
+        shared_datasource pds = b->build_datasource(b);
 
-        {
-            local_locker lock(probe_lock);
-            ipc_probe_map[transaction] = pds;
-            ncreated++;
-        }
+        ipc_probe_map[transaction] = pds;
+        ncreated++;
 
+    }
+
+    // Duplicate the launch map so that rapidly terminating sources can't race
+    auto build_map = std::map<unsigned int, shared_datasource>(ipc_probe_map);
+
+    for (const auto& i : build_map) {
         // Set up the cancellation timer
         int cancel_timer = 
-            timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
+            timetracker->register_timer(std::chrono::seconds(10), false, 
                     [this] (int) -> int {
                         _MSG_ERROR("Datasource {} cancelling source probe due to timeout", definition);
                         cancel();
@@ -177,7 +181,7 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (shared_d
         // Log the cancellation timer
         cancel_timer_vec.push_back(cancel_timer);
 
-        pds->probe_interface(definition, transaction, 
+        i.second->probe_interface(definition, i.first, 
                 [cancel_timer, this](unsigned int transaction, bool success, std::string reason) {
                     timetracker->remove_timer(cancel_timer);
                     complete_probe(success, transaction, reason);
@@ -198,10 +202,24 @@ datasource_tracker_source_list::datasource_tracker_source_list(std::shared_ptr<t
     timetracker {Globalreg::fetch_mandatory_global_as<time_tracker>()},
     proto_vec {in_protovec},
     transaction_id {0},
-    cancelled {false} { }
+    cancelled {false} {
+
+    // Set up a cancellation timer
+
+    cancel_event_id = 
+        timetracker->register_timer(std::chrono::seconds(10), false, 
+            [this] (int) -> int {
+                if (cancelled)
+                    return 0;
+                cancel();
+                return 0;
+            });
+}
 
 datasource_tracker_source_list::~datasource_tracker_source_list() {
     cancelled = true;
+
+    timetracker->remove_timer(cancel_event_id);
 
     // Cancel any probing sources and delete them
     for (auto s : list_vec)
@@ -217,21 +235,20 @@ void datasource_tracker_source_list::cancel() {
     if (cancelled)
         return;
 
+    cancelled = true;
+
     // Abort anything already underway
     for (auto i : ipc_list_map) {
         i.second->close_source();
     }
-
-    cancelled = true;
 
     // Trigger the callback
     if (list_cb) 
         list_cb(listed_sources);
 }
 
-void datasource_tracker_source_list::complete_list(std::vector<shared_interface> in_list, unsigned int in_transaction) {
-    local_locker lock(list_lock);
-
+void datasource_tracker_source_list::complete_list(std::vector<shared_interface> in_list,
+        unsigned int in_transaction) {
     // If we're already in cancelled state these callbacks mean nothing, ignore them
     if (cancelled)
         return;
@@ -239,6 +256,8 @@ void datasource_tracker_source_list::complete_list(std::vector<shared_interface>
     for (auto i = in_list.begin(); i != in_list.end(); ++i) {
         listed_sources.push_back(*i);
     }
+
+    local_locker lock(list_lock, "dst_source_list::complete_list");
 
     auto v = ipc_list_map.find(in_transaction);
     if (v != ipc_list_map.end()) {
@@ -269,10 +288,10 @@ void datasource_tracker_source_list::list_sources(std::function<void (std::vecto
         unsigned int transaction = ++transaction_id;
 
         // Instantiate a local lister 
-        shared_datasource pds = b->build_datasource(b, list_lock);
+        shared_datasource pds = b->build_datasource(b);
 
         {
-            local_locker lock(list_lock);
+            local_locker lock(list_lock, "dst_source_list::list_sources");
             ipc_list_map[transaction] = pds;
             list_vec.push_back(pds);
             created_ipc = true;
@@ -291,12 +310,14 @@ void datasource_tracker_source_list::list_sources(std::function<void (std::vecto
 
 
 datasource_tracker::datasource_tracker() :
-    kis_net_httpd_cppstream_handler() {
+    remotecap_enabled{false},
+    remotecap_port{0} {
 
     dst_lock.set_name("datasourcetracker");
 
     timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
     eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
+    streamtracker = Globalreg::fetch_mandatory_global_as<stream_tracker>();
 
     proto_id = 
         Globalreg::globalreg->entrytracker->register_field("kismet.datasourcetracker.driver",
@@ -305,7 +326,7 @@ datasource_tracker::datasource_tracker() :
 
     source_id =
         Globalreg::globalreg->entrytracker->register_field("kismet.datasourcetracker.datasource",
-                tracker_element_factory<kis_datasource>(nullptr, nullptr),
+                tracker_element_factory<kis_datasource>(nullptr),
                 "Datasource");
 
     proto_vec =
@@ -316,59 +337,12 @@ datasource_tracker::datasource_tracker() :
         Globalreg::globalreg->entrytracker->register_and_get_field_as<tracker_element_vector>("kismet.datasourcetracker.sources",
                 tracker_element_factory<tracker_element_vector>(), "Configured sources");
 
-    all_sources_endp =
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/datasource/all_sources",
-                [this]() -> std::shared_ptr<tracker_element> {
-                    local_shared_locker sl(&dst_lock);
-                    auto serial_vec = std::make_shared<tracker_element_vector>(datasource_vec);
-                    return serial_vec;
-                });
-
-    defaults_endp =
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/datasource/defaults",
-                config_defaults, &dst_lock);
-
-    types_endp =
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/datasource/types", 
-                proto_vec, &dst_lock);
-
-    list_interfaces_endp =
-        std::make_shared<kis_net_httpd_simple_tracked_endpoint>("/datasource/list_interfaces", 
-                [this]() -> std::shared_ptr<tracker_element> {
-                    // Locker for waiting for the list callback
-                    auto cl = std::make_shared<conditional_locker<std::vector<shared_interface> >>();
-
-                    cl->lock();
-
-                    // Initiate the open
-                    list_interfaces(
-                        [cl](std::vector<shared_interface> iflist) {
-                            cl->unlock(iflist);
-                        });
-
-                    // Block until the list cmd unlocks us
-                    auto iflist = cl->block_until();
-
-                    auto iv = std::make_shared<tracker_element_vector>();
-
-                    for (auto li : iflist)
-                        iv->push_back(li);
-
-                    return iv;
-                });
-
-    bind_httpd_server();
+    auto_masked_types =
+        Globalreg::globalreg->kismet_config->fetch_opt_vec("mask_datasource_type");
 }
 
 datasource_tracker::~datasource_tracker() {
     Globalreg::globalreg->remove_global("DATASOURCETRACKER");
-
-    if (remote_tcp_server != nullptr) {
-        auto pollabletracker = 
-            Globalreg::fetch_mandatory_global_as<pollable_tracker>();
-        remote_tcp_server->shutdown();
-        pollabletracker->remove_pollable(remote_tcp_server);
-    }
 
     if (completion_cleanup_id >= 0)
         timetracker->remove_timer(completion_cleanup_id);
@@ -399,7 +373,7 @@ void datasource_tracker::databaselog_write_datasources() {
     std::shared_ptr<tracker_element_vector> v;
 
     {
-        local_shared_locker l(&dst_lock);
+        local_shared_locker l(&dst_lock, "datasourcetracker::dblog_write_datasources");
         v = std::make_shared<tracker_element_vector>(datasource_vec);
     }
 
@@ -466,26 +440,25 @@ void datasource_tracker::trigger_deferred_startup() {
         config_defaults->set_retry_on_error(true);
     }
 
-    std::string listen = Globalreg::globalreg->kismet_config->fetch_opt("remote_capture_listen");
-    uint32_t listenport = 
+    remotecap_listen = Globalreg::globalreg->kismet_config->fetch_opt("remote_capture_listen");
+    remotecap_port = 
         Globalreg::globalreg->kismet_config->fetch_opt_uint("remote_capture_port", 0);
 
-    if (listen.length() == 0) {
-        _MSG("No remote_capture_listen= line found in kismet.conf; no remote "
+    if (remotecap_listen.length() == 0) {
+        _MSG("No remote_capture_listen= found in kismet.conf; no remote "
                 "capture will be enabled.", MSGFLAG_INFO);
+        remotecap_enabled = false;
     }
 
-    if (listenport == 0) {
-        _MSG("No remote_capture_port= line found in kismet.conf; no remote "
-                "capture will be enabled.", MSGFLAG_INFO);
+    if (remotecap_port == 0) {
+        _MSG("No remote_capture_port= line in kismet.conf; no remote capture will be enabled.", MSGFLAG_INFO);
+        remotecap_enabled = false;
     }
 
-    config_defaults->set_remote_cap_listen(listen);
-    config_defaults->set_remote_cap_port(listenport);
+    config_defaults->set_remote_cap_listen(remotecap_listen);
+    config_defaults->set_remote_cap_port(remotecap_port);
 
     config_defaults->set_remote_cap_timestamp(Globalreg::globalreg->kismet_config->fetch_opt_bool("override_remote_timestamp", true));
-
-    httpd_pcap = std::make_shared<datasource_tracker_httpd_pcap>();
 
     // Register js module for UI
     std::shared_ptr<kis_httpd_registry> httpregistry = 
@@ -509,29 +482,20 @@ void datasource_tracker::trigger_deferred_startup() {
             timetracker->register_timer(SERVER_TIMESLICES_SEC * lograte, NULL, 1, 
                     [this](int) -> int {
 
-                        {
-                            local_locker l(&dst_lock);
-
-                            if (database_logging) {
-                                _MSG("Attempting to log datasources, but datasources are still "
-                                        "being saved from the last logging attempt.  It's possible "
-                                        "your system is extremely over capacity; try increasing the "
-                                        "delay in 'kis_log_datasource_rate' in kismet_logging.conf",
-                                        MSGFLAG_ERROR);
-                                return 1;
-                            }
-
-                            database_logging = true;
+                        if (database_logging) {
+                            _MSG("Attempting to log datasources, but datasources are still "
+                                    "being saved from the last logging attempt.  It's possible "
+                                    "your system is extremely over capacity; try increasing the "
+                                    "delay in 'kis_log_datasource_rate' in kismet_logging.conf",
+                                    MSGFLAG_ERROR);
+                            return 1;
                         }
+
+                        database_logging = true;
 
                         std::thread t([this] {
                             databaselog_write_datasources();
-
-                            {
-                                local_locker l(&dst_lock);
-                                database_logging = false;
-                            }
-
+                            database_logging = false;
                         });
 
                         t.detach();
@@ -552,6 +516,9 @@ void datasource_tracker::trigger_deferred_startup() {
             "A data source encountered an error.  Depending on the source configuration "
             "Kismet may automatically attempt to re-open the source.");
 
+    auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
+    pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");
+
     std::vector<std::string> src_vec;
 
     int option_idx = 0;
@@ -564,30 +531,436 @@ void datasource_tracker::trigger_deferred_startup() {
     optind = 0;
 
     // Activate remote capture
-    listen = config_defaults->get_remote_cap_listen();
-    listenport = config_defaults->get_remote_cap_port();
-
     if (config_defaults->get_remote_cap_listen().length() != 0 && 
             config_defaults->get_remote_cap_port() != 0) {
-        _MSG("Launching remote capture server on " + listen + ":" + 
-                uint_to_string(listenport), MSGFLAG_INFO);
-        remote_tcp_server = std::make_shared<tcp_server_v2>();
-        if (remote_tcp_server->configure_server(listenport, 1024, listen, std::vector<std::string>()) < 0) {
-            _MSG("Failed to launch remote capture TCP server, check your "
-                    "remote_capture_listen= and remote_capture_port= lines in "
-                    "kismet.conf", MSGFLAG_FATAL);
-            Globalreg::globalreg->fatal_condition = 1;
-        }
-        remote_tcp_server->set_new_connection_cb([this](int fd) -> void {
-                new_remote_tcp_connection(fd);
-                });
+        _MSG_INFO("Launching remote capture server on {} {}", remotecap_listen, remotecap_port);
 
-        auto pollabletracker =
-            Globalreg::fetch_mandatory_global_as<pollable_tracker>();
-        pollabletracker->register_pollable(remote_tcp_server);
-    }
+        try {
+            if (config_defaults->get_remote_cap_listen() == "*" || 
+                    config_defaults->get_remote_cap_listen() == "0.0.0.0") {
+                auto v4_ep = tcp::endpoint(tcp::v4(), config_defaults->get_remote_cap_port());
+                remotecap_v4 = std::make_shared<datasource_tracker_remote_server>(v4_ep);
+            } else {
+                auto v4_ep = 
+                    tcp::endpoint(boost::asio::ip::address_v4::from_string(config_defaults->get_remote_cap_listen()),
+                            config_defaults->get_remote_cap_port());
+                remotecap_v4 = std::make_shared<datasource_tracker_remote_server>(v4_ep);
+            }
+        } catch (const std::exception& e) {
+            _MSG_FATAL("Failed to create IPV4 remote capture server; check your remote_capture_listen= "
+                    "and remote_capture_port= configuration: {}", e.what());
+            Globalreg::globalreg->fatal_condition = 1;
+            remotecap_enabled = false;
+            return;
+        }
+    } 
 
     remote_complete_timer = -1;
+
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+
+    httpd->register_route("/datasource/all_sources", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(datasource_vec, &dst_lock));
+
+    httpd->register_route("/datasource/defaults", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(config_defaults, &dst_lock));
+
+    httpd->register_route("/datasource/types", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(proto_vec, &dst_lock));
+
+    httpd->register_route("/datasource/list_interfaces", {"GET", "POST"}, httpd->LOGON_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    // Locker for waiting for the list callback
+                    auto cl = std::make_shared<conditional_locker<std::vector<shared_interface> >>();
+
+                    cl->lock();
+
+                    // Initiate the open
+                    list_interfaces(
+                        [cl](std::vector<shared_interface> iflist) {
+                            cl->unlock(iflist);
+                        });
+
+                    // Block until the list cmd unlocks us
+                    auto iflist = cl->block_until();
+
+                    auto iv = std::make_shared<tracker_element_vector>();
+
+                    for (auto li : iflist)
+                        iv->push_back(li);
+
+                    return iv;
+                }));
+
+    httpd->register_route("/datasource/by-uuid/:uuid/source", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
+                    auto ds_uuid = string_to_n<uuid>(con->uri_params()[":uuid"]);
+                    
+                    if (ds_uuid.error)
+                        throw std::runtime_error("invalid uuid");
+
+                    auto ds = find_datasource(ds_uuid);
+                    
+                    if (ds == nullptr)
+                        throw std::runtime_error("no such datasource");
+
+                    return ds;
+                }));
+                    
+
+    httpd->register_route("/datasource/add_source", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
+                    shared_datasource r;
+                    std::string error_reason;
+                    bool success;
+
+                    auto definition = con->json()["definition"].asString();
+
+                    auto create_promise = std::promise<void>();
+                    auto create_ft = create_promise.get_future();
+
+                    open_datasource(definition,
+                            [&error_reason, &create_promise, &r, &success](bool cbsuccess, std::string reason,
+                                shared_datasource ds) {
+                                success = cbsuccess;
+                                error_reason = reason;
+                                r = ds;
+                                create_promise.set_value();
+                                });
+
+                    create_ft.wait();
+
+                    if (success) {
+                        return r;
+                    } else {
+                        con->set_status(500);
+                        return std::make_shared<tracker_element_map>();
+                    }
+                }));
+
+    httpd->register_route("/datasource/by-uuid/:uuid/set_channel", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
+                    auto ds_uuid = string_to_n<uuid>(con->uri_params()[":uuid"]);
+                    
+                    if (ds_uuid.error)
+                        throw std::runtime_error("invalid uuid");
+
+                    auto ds = find_datasource(ds_uuid);
+                    
+                    if (ds == nullptr)
+                        throw std::runtime_error("no such datasource");
+
+                    bool set_success = false;
+                    auto set_promise = std::promise<void>();
+                    auto set_ft = set_promise.get_future();
+
+                    if (!con->json()["channel"].isNull()) {
+                        auto ch = con->json()["channel"].asString();
+
+                        _MSG_INFO("Source '{}' ({}) setting channel {}",
+                                ds->get_source_name(), ds->get_source_uuid(), ch);
+
+                        ds->set_channel(ch, 0,
+                                [&set_success, &set_promise](unsigned int, bool success, std::string) {
+                                set_success = success;
+                                set_promise.set_value();
+                                });
+
+                        set_ft.wait();
+
+                        if (set_success) {
+                            return ds;
+                        } else {
+                            con->set_status(500);
+                            return std::make_shared<tracker_element_map>();
+                        }
+                    } else if (!con->json()["channels"].isNull() || !con->json()["rate"].isNull()) {
+                        auto converted_channels = std::vector<std::string>();
+
+                        if (!con->json()["channels"].isNull()) {
+                            for (const auto& ch : con->json()["channels"])
+                                converted_channels.push_back(ch.asString());
+                        } else {
+                            for (const auto& c : *(ds->get_source_hop_vec()))
+                                converted_channels.push_back(get_tracker_value<std::string>(c));
+                        }
+
+                        double rate;
+                        unsigned int shuffle;
+
+                        if (con->json()["rate"].isNull())
+                            rate = ds->get_source_hop_rate();
+                        else 
+                            rate = con->json()["rate"].asDouble();
+
+                        if (con->json()["shuffle"].isNull())
+                            shuffle = ds->get_source_hop_shuffle();
+                        else
+                            shuffle = con->json()["shuffle"].asUInt();
+
+                        _MSG_INFO("Source '{}' ({}) setting channel list and hopping",
+                                ds->get_source_name(), ds->get_source_uuid());
+
+                        ds->set_channel_hop(rate, converted_channels, shuffle,
+                                ds->get_source_hop_offset(), 0,
+                                [&set_success, &set_promise](unsigned int, bool success, std::string) {
+                                set_success = success;
+                                set_promise.set_value();
+                                });
+
+                        set_ft.wait();
+
+                        if (set_success) {
+                            return ds;
+                        } else {
+                            con->set_status(500);
+                            return std::make_shared<tracker_element_map>();
+                        }
+
+                    } else {
+                        throw std::runtime_error("require either 'channel' or 'channels' and 'rate'");
+                    }
+                }));
+
+    httpd->register_route("/datasource/by-uuid/:uuid/set_hop", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
+                    auto ds_uuid = string_to_n<uuid>(con->uri_params()[":uuid"]);
+                    
+                    if (ds_uuid.error)
+                        throw std::runtime_error("invalid uuid");
+
+                    auto ds = find_datasource(ds_uuid);
+                    
+                    if (ds == nullptr)
+                        throw std::runtime_error("no such datasource");
+
+                    bool set_success = false;
+                    auto set_promise = std::promise<void>();
+                    auto set_ft = set_promise.get_future();
+
+
+                    _MSG_INFO("Source '{}' ({}) enabling channel hop on existing channel list",
+                            ds->get_source_name(), ds->get_source_uuid());
+
+                    ds->set_channel_hop(ds->get_source_hop_rate(), 
+                            ds->get_source_hop_vec(),
+                            ds->get_source_hop_shuffle(),
+                            ds->get_source_hop_offset(), 0,
+                            [&set_success, &set_promise](unsigned int, bool success, std::string) {
+                            set_success = success;
+                            set_promise.set_value();
+                            });
+
+                    set_ft.wait();
+
+                    if (set_success) {
+                        return ds;
+                    } else {
+                        con->set_status(500);
+                        return std::make_shared<tracker_element_map>();
+                    }
+                }));
+
+    httpd->register_route("/datasource/by-uuid/:uuid/close_source", {"GET", "POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
+                    auto ds_uuid = string_to_n<uuid>(con->uri_params()[":uuid"]);
+                    
+                    if (ds_uuid.error)
+                        throw std::runtime_error("invalid uuid");
+
+                    auto ds = find_datasource(ds_uuid);
+                    
+                    if (ds == nullptr)
+                        throw std::runtime_error("no such datasource");
+
+                    if (ds->get_source_running()) {
+                        _MSG_INFO("Closing source '{}' ({})", ds->get_source_name(), ds->get_source_uuid());
+                        ds->disable_source();
+                        return(ds);
+                    } else {
+                        throw std::runtime_error("Source already closed");
+                    }
+                }));
+
+    httpd->register_route("/datasource/by-uuid/:uuid/disable_source", {"GET", "POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
+                    auto ds_uuid = string_to_n<uuid>(con->uri_params()[":uuid"]);
+                    
+                    if (ds_uuid.error)
+                        throw std::runtime_error("invalid uuid");
+
+                    auto ds = find_datasource(ds_uuid);
+                    
+                    if (ds == nullptr)
+                        throw std::runtime_error("no such datasource");
+
+                    if (ds->get_source_running()) {
+                        _MSG_INFO("Closing source '{}' ({})", ds->get_source_name(), ds->get_source_uuid());
+                        ds->disable_source();
+                        return(ds);
+                    } else {
+                        throw std::runtime_error("Source already closed");
+                    }
+                }));
+
+    httpd->register_route("/datasource/by-uuid/:uuid/open_source", {"GET", "POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
+                    auto ds_uuid = string_to_n<uuid>(con->uri_params()[":uuid"]);
+                    
+                    if (ds_uuid.error)
+                        throw std::runtime_error("invalid uuid");
+
+                    auto ds = find_datasource(ds_uuid);
+                    
+                    if (ds == nullptr)
+                        throw std::runtime_error("no such datasource");
+
+                    bool set_success = false;
+                    auto set_promise = std::promise<void>();
+                    auto set_ft = set_promise.get_future();
+
+                    if (ds->get_source_running())
+                        throw std::runtime_error("source already running");
+
+                    _MSG_INFO("Re-opening source '{}' ({})", ds->get_source_name(), ds->get_source_uuid());
+
+                    ds->open_interface(ds->get_source_definition(), 0,
+                            [&set_success, &set_promise](unsigned int, bool success, std::string) {
+                            set_success = success;
+                            set_promise.set_value();
+                            });
+
+                    set_ft.wait();
+
+                    if (set_success) {
+                        return ds;
+                    } else {
+                        con->set_status(500);
+                        return std::make_shared<tracker_element_map>();
+                    }
+                }));
+
+    httpd->register_route("/datasource/by-uuid/:uuid/pause_source", {"GET", "POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
+                    auto ds_uuid = string_to_n<uuid>(con->uri_params()[":uuid"]);
+                    
+                    if (ds_uuid.error)
+                        throw std::runtime_error("invalid uuid");
+
+                    auto ds = find_datasource(ds_uuid);
+                    
+                    if (ds == nullptr)
+                        throw std::runtime_error("no such datasource");
+
+                    if (!ds->get_source_paused()) {
+                        _MSG_INFO("Pausing source '{}' ({})", ds->get_source_name(), ds->get_source_uuid());
+                        ds->set_source_paused(true);
+                        return(ds);
+                    } else {
+                        throw std::runtime_error("Source already paused");
+                    }
+                }));
+
+    httpd->register_route("/datasource/by-uuid/:uuid/resume_source", {"GET", "POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
+                    auto ds_uuid = string_to_n<uuid>(con->uri_params()[":uuid"]);
+                    
+                    if (ds_uuid.error)
+                        throw std::runtime_error("invalid uuid");
+
+                    auto ds = find_datasource(ds_uuid);
+                    
+                    if (ds == nullptr)
+                        throw std::runtime_error("no such datasource");
+
+                    if (ds->get_source_paused()) {
+                        _MSG_INFO("Resuming source '{}' ({})", ds->get_source_name(), ds->get_source_uuid());
+                        ds->set_source_paused(false);
+                        return(ds);
+                    } else {
+                        throw std::runtime_error("Source already running");
+                    }
+                }));
+
+
+    httpd->register_route("/pcap/all_packets", {"GET"}, "pcap", {"pcapng"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    // We use the future stalling function in the pcap future streambuf to hold
+                    // this thread in wait until the stream is closed, keeping the http connection
+                    // going.  The stream is fed from the packetchain callbacks.
+                    auto pcapng = std::make_shared<pcapng_stream_packetchain>(con->response_stream(),
+                            nullptr, nullptr,
+                            1024*512);
+
+                    con->set_target_file("kismet-all-packets.pcapng");
+                    con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
+
+                    auto sid = 
+                        streamtracker->register_streamer(pcapng, "kismet-all-packets.pcapng",
+                            "pcapng", "httpd", 
+                            fmt::format("pcapng of all packets"));
+
+                    pcapng->start_stream();
+                    pcapng->block_until_stream_done();
+
+                    streamtracker->remove_streamer(sid);
+                }));
+
+    httpd->register_route("/datasource/pcap/by-uuid/:uuid/packets", {"GET"}, "pcap", {"pcapng"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    auto dsuuid = string_to_n<uuid>(con->uri_params()[":uuid"]);
+                    if (dsuuid.error)
+                        throw std::runtime_error("invalid uuid");
+
+                    auto ds = find_datasource(dsuuid);
+                    if (ds == nullptr)
+                        throw std::runtime_error("no such datasource");
+
+                    auto dsnum = ds->get_source_number();
+
+                    auto pcapng = std::make_shared<pcapng_stream_packetchain>(con->response_stream(),
+                            [this, dsnum](kis_packet *packet) -> bool {
+                                auto datasrcinfo = packet->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
+
+                                if (datasrcinfo == nullptr)
+                                    return false;
+
+                                if (datasrcinfo->ref_source->get_source_number() != dsnum)
+                                    return false;
+
+                                return true;
+                            },
+                            nullptr,
+                            1024*512);
+
+                    con->set_target_file(fmt::format("kismet-datasource-{}-{}.pcapng", 
+                                ds->get_source_name(), dsuuid));
+                    con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
+
+                    auto sid = 
+                        streamtracker->register_streamer(pcapng, fmt::format("kismet-datasource-{}-{}.pcapng", 
+                                ds->get_source_name(), dsuuid),
+                            "pcapng", "httpd", 
+                            fmt::format("pcapng of packets for datasource {} {}", ds->get_source_name(), dsuuid));
+
+                    pcapng->start_stream();
+                    pcapng->block_until_stream_done();
+
+                    streamtracker->remove_streamer(sid);
+                }));
+
 
     while (1) {
         int r = getopt_long(Globalreg::globalreg->argc, Globalreg::globalreg->argv, "-c:",
@@ -690,7 +1063,7 @@ void datasource_tracker::trigger_deferred_startup() {
 }
 
 void datasource_tracker::trigger_deferred_shutdown() {
-    local_locker lock(&dst_lock);
+    local_locker lock(&dst_lock, "datasourcetracker::trigger_deferred_shutdown");
 
     for (auto i : *datasource_vec) {
         std::static_pointer_cast<kis_datasource>(i)->close_source();
@@ -701,7 +1074,7 @@ void datasource_tracker::iterate_datasources(datasource_tracker_worker *in_worke
     std::shared_ptr<tracker_element_vector> immutable_copy;
 
     {
-        local_locker lock(&dst_lock);
+        local_locker lock(&dst_lock, "datasourcetracker::iterate_datasources");
         immutable_copy = std::make_shared<tracker_element_vector>(datasource_vec);
     }
 
@@ -713,7 +1086,7 @@ void datasource_tracker::iterate_datasources(datasource_tracker_worker *in_worke
 }
 
 bool datasource_tracker::remove_datasource(const uuid& in_uuid) {
-    local_locker lock(&dst_lock);
+    local_locker lock(&dst_lock, "datasourcetracker::remove_datasource");
 
     // Look for it in the sources vec and fully close it and get rid of it
     for (auto i = datasource_vec->begin(); i != datasource_vec->end(); ++i) {
@@ -740,7 +1113,7 @@ bool datasource_tracker::remove_datasource(const uuid& in_uuid) {
 }
 
 shared_datasource datasource_tracker::find_datasource(const uuid& in_uuid) {
-    local_shared_locker lock(&dst_lock);
+    local_shared_locker lock(&dst_lock, "datasourcetracker::find_datasource");
 
     for (auto i : *datasource_vec) {
         shared_datasource kds = std::static_pointer_cast<kis_datasource>(i);
@@ -753,7 +1126,7 @@ shared_datasource datasource_tracker::find_datasource(const uuid& in_uuid) {
 }
 
 bool datasource_tracker::close_datasource(const uuid& in_uuid) {
-    local_locker lock(&dst_lock);
+    local_locker lock(&dst_lock, "datasourcetracker::close_datasource");
 
     for (auto i : *datasource_vec) {
         shared_datasource kds = std::static_pointer_cast<kis_datasource>(i);
@@ -773,7 +1146,7 @@ bool datasource_tracker::close_datasource(const uuid& in_uuid) {
 }
 
 int datasource_tracker::register_datasource(shared_datasource_builder in_builder) {
-    local_locker lock(&dst_lock);
+    local_locker lock(&dst_lock, "datasourcetracker::register_datasource");
 
     for (auto i : *proto_vec) {
         shared_datasource_builder b = std::static_pointer_cast<kis_datasource_builder>(i);
@@ -825,7 +1198,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
     // for that driver in the prototype vector, confirm it can open it, and fire
     // the launch command at it
     if (type != "auto") {
-        local_demand_locker lock(&dst_lock);
+        local_demand_locker lock(&dst_lock, "datasourcetracker::open_datasource auto");
         lock.lock();
 
         shared_datasource_builder proto;
@@ -867,19 +1240,38 @@ void datasource_tracker::open_datasource(const std::string& in_source,
     _MSG_INFO("Probing interface '{}' to find datasource type", interface);
 
     // Create a DSTProber to handle the probing
-    shared_dst_source_probe dst_probe(new datasource_tracker_source_probe(in_source, proto_vec));
+    std::shared_ptr<tracker_element_vector> filtered_proto_vec =
+        std::make_shared<tracker_element_vector>();
+
+    for (auto p : *proto_vec) {
+        bool accept = true;
+
+        auto pt = std::static_pointer_cast<kis_datasource_builder>(p);
+
+        for (auto f : auto_masked_types) {
+            if (pt->get_source_type() == f) {
+                accept = false;
+                break;
+            }
+        }
+
+        if (accept)
+            filtered_proto_vec->push_back(p);
+    }
+
+    shared_dst_source_probe dst_probe(new datasource_tracker_source_probe(in_source, filtered_proto_vec));
     unsigned int probeid = ++next_probe_id;
 
     // Record and initiate it
     {
-        local_locker dl(&dst_lock);
+        local_locker dl(&dst_lock, "datasourcetracker::open_datasource probing_map");
         probing_map[probeid] = dst_probe;
     }
 
     // Initiate the probe
     dst_probe->probe_sources([this, probeid, in_cb](shared_datasource_builder builder) {
         // Lock on completion
-        local_demand_locker lock(&dst_lock);
+        local_demand_locker lock(&dst_lock, "datasourcetracker::probe_sources cb lambda");
         lock.lock();
 
         // fprintf(stderr, "debug - moving probe to completed vec\n");
@@ -924,10 +1316,10 @@ void datasource_tracker::open_datasource(const std::string& in_source,
 void datasource_tracker::open_datasource(const std::string& in_source, 
         shared_datasource_builder in_proto,
         const std::function<void (bool, std::string, shared_datasource)>& in_cb) {
-    local_locker lock(&dst_lock);
+    local_locker lock(&dst_lock, "datasourcetracker::open_datasource string");
 
     // Make a data source from the builder
-    shared_datasource ds = in_proto->build_datasource(in_proto, nullptr);
+    shared_datasource ds = in_proto->build_datasource(in_proto);
 
     ds->open_interface(in_source, 0, 
         [this, ds, in_cb] (unsigned int, bool success, std::string reason) {
@@ -943,7 +1335,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
                 // It's 'safe' to put them in the broken source vec because all we do is
                 // clear that vector on a timer; if the source is in error state but
                 // bound elsewhere in the system it won't be removed.
-                local_locker lock(&dst_lock);
+                local_locker lock(&dst_lock, "datasourcetracker::open_datasource string open lambda broken");
                 broken_source_vec.push_back(ds);
                 in_cb(false, reason, ds);
                 schedule_cleanup();
@@ -952,7 +1344,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
 }
 
 void datasource_tracker::merge_source(shared_datasource in_source) {
-    local_locker lock(&dst_lock);
+    local_locker lock(&dst_lock, "datasourcetracker::merge_source");
 
     // Get the UUID and compare it to our map; re-use a UUID if we knew
     // it before, otherwise add a new one
@@ -982,45 +1374,68 @@ void datasource_tracker::merge_source(shared_datasource in_source) {
         }
     }
 
-    datasource_vec->push_back(in_source);
+    bool found_ds = false;
+    for (const auto& dsi : *datasource_vec) {
+        auto ds = std::static_pointer_cast<kis_datasource>(dsi);
+
+        if (ds->get_source_uuid() == in_source->get_source_uuid()) {
+            found_ds = true;
+            break;
+        }
+    }
+
+    if (!found_ds)
+        datasource_vec->push_back(in_source);
 }
 
 void datasource_tracker::list_interfaces(const std::function<void (std::vector<shared_interface>)>& in_cb) {
-    local_locker lock(&dst_lock);
+    local_demand_locker lock(&dst_lock, "datasourcetracker::list_interfaces");
+    lock.lock();
 
     // Create a DSTProber to handle the probing
-    auto dst_list = std::make_shared<datasource_tracker_source_list>(proto_vec);
+    std::shared_ptr<tracker_element_vector> filtered_proto_vec =
+        std::make_shared<tracker_element_vector>();
+
+    for (auto p : *proto_vec) {
+        bool accept = true;
+
+        auto pt = std::static_pointer_cast<kis_datasource_builder>(p);
+
+        for (auto f : auto_masked_types) {
+            if (pt->get_source_type() == f) {
+                accept = false;
+                break;
+            }
+        }
+
+        if (accept)
+            filtered_proto_vec->push_back(p);
+    }
+
+    // Create a DSTProber to handle the probing
+    auto dst_list = std::make_shared<datasource_tracker_source_list>(filtered_proto_vec);
     unsigned int listid = ++next_list_id;
 
     // Record it
     listing_map[listid] = dst_list;
 
-    // Set up a cancellation timer
-    int cancel_timer = 
-        timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
-            [dst_list] (int) -> int {
-                dst_list->cancel();
-                return 0;
-            });
-
+    // Release the mutex before initiating a sources list
+    lock.unlock();
 
     // Initiate the probe
-    dst_list->list_sources([this, cancel_timer, listid, in_cb](std::vector<shared_interface> interfaces) {
-        // We're complete; cancel the timer if it's still around.
-        timetracker->remove_timer(cancel_timer);
-
-        local_demand_locker lock(&dst_lock);
+    dst_list->list_sources([this, listid, in_cb](std::vector<shared_interface> interfaces) {
+        local_demand_locker lock(&dst_lock, "datasourcetracker::list_sources cancel lambda");
         lock.lock();
 
         // Figure out what interfaces are in use by active sources and amend their
         // UUID records in the listing
-        for (auto il = interfaces.begin(); il != interfaces.end(); ++il) {
-            for (auto s : *datasource_vec) {
+        for (const auto& il : interfaces) {
+            for (const auto& s : *datasource_vec) {
                 shared_datasource sds = std::static_pointer_cast<kis_datasource>(s);
                 if (!sds->get_source_remote() &&
-                        ((*il)->get_interface() == sds->get_source_interface() ||
-                         (*il)->get_interface() == sds->get_source_cap_interface())) {
-                    (*il)->set_in_use_uuid(sds->get_source_uuid());
+                        (il->get_interface() == sds->get_source_interface() ||
+                         il->get_interface() == sds->get_source_cap_interface())) {
+                    il->set_in_use_uuid(sds->get_source_uuid());
                     break;
                 }
             }
@@ -1043,14 +1458,12 @@ void datasource_tracker::list_interfaces(const std::function<void (std::vector<s
 }
 
 void datasource_tracker::schedule_cleanup() {
-    local_locker lock(&dst_lock);
-
     if (completion_cleanup_id >= 0)
         return;
 
     completion_cleanup_id = 
         timetracker->register_timer(1, NULL, 0, [this] (int) -> int {
-            local_demand_locker lock(&dst_lock);
+            local_demand_locker lock(&dst_lock, "datasourcetracker::completion_cleanup lambda");
            
             lock.lock();
             auto d_pcv = probing_complete_vec;
@@ -1071,40 +1484,15 @@ void datasource_tracker::schedule_cleanup() {
 
             return 0;
         });
-    //fprintf(stderr, "debug - dst scheduling cleanup as %d\n", completion_cleanup_id);
-}
 
-void datasource_tracker::new_remote_tcp_connection(int in_fd) {
-    // Make a new connection handler with its own mutex
-    auto conn_handler = 
-        std::make_shared<buffer_handler<ringbuf_v2>>((tcp_buffer_sz * 1024), (tcp_buffer_sz * 1024));
-
-    // Bind it to the tcp socket
-    auto socketcli = 
-        std::make_shared<socket_client>(in_fd, conn_handler);
-
-    // Bind a new incoming remote which will pivot to the proper data source type
-    auto incoming_remote = new dst_incoming_remote(conn_handler, 
-                [this] (dst_incoming_remote *i, std::string in_type, std::string in_def, 
-                    uuid in_uuid, std::shared_ptr<buffer_handler_generic> in_handler) {
-            in_handler->remove_read_buffer_interface();
-            open_remote_datasource(i, in_type, in_def, in_uuid, in_handler);
-        });
-
-    conn_handler->set_read_buffer_interface(incoming_remote);
-
-    // Register the connection as pollable
-    auto pollabletracker = 
-        Globalreg::fetch_mandatory_global_as<pollable_tracker>();
-    pollabletracker->register_pollable(socketcli);
 }
 
 void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
-        const std::string& in_type, const std::string& in_definition, const uuid& in_uuid, 
-        std::shared_ptr<buffer_handler_generic> in_handler) {
+        const std::string& in_type, const std::string& in_definition, const uuid& in_uuid) {
+
     shared_datasource merge_target_device;
      
-    local_locker lock(&dst_lock);
+    local_locker lock(&dst_lock, "datasourcetracker::open_remote_datasource");
 
     // Look for an existing datasource with the same UUID
     for (auto p : *datasource_vec) {
@@ -1136,12 +1524,11 @@ void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
 
         auto dup_definition(in_definition);
 
-        // Generate a detached thread for joining the ring buffer; it acts as a blocking
-        // wait for the buffer to be filled
-        incoming->handshake_rb(std::thread([this, merge_target_device, in_handler, dup_definition]  {
-                    merge_target_device->connect_remote(in_handler, dup_definition, NULL);
+        // Merge the socket into the new device
+        incoming->handshake_rb(std::thread([this, merge_target_device, incoming, dup_definition]  {
+                    merge_target_device->connect_remote(incoming->move_tcp_socket(), dup_definition, NULL);
                     calculate_source_hopping(merge_target_device);
-                }));
+                    }));
 
         return;
     }
@@ -1158,8 +1545,8 @@ void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
             lock.unlock();
 
             // Make a data source from the builder
-            shared_datasource ds = b->build_datasource(b, in_handler->get_mutex());
-            ds->connect_remote(in_handler, in_definition,
+            shared_datasource ds = b->build_datasource(b);
+            ds->connect_remote(incoming->move_tcp_socket(), in_definition,
                 [this, ds](unsigned int, bool success, std::string msg) {
                     if (success)
                         merge_source(ds); 
@@ -1175,8 +1562,6 @@ void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
             "'{}' defined as '{}'; make sure that Kismet was compiled with all the "
             "data source drivers and that any necessary plugins have been loaded.",
             in_type, in_definition);
-    in_handler->protocol_error();
-
 }
 
 // Basic DST worker for figuring out how many sources of the same type
@@ -1314,7 +1699,7 @@ void datasource_tracker::calculate_source_hopping(shared_datasource in_ds) {
 }
 
 void datasource_tracker::queue_dead_remote(dst_incoming_remote *in_dead) {
-    local_locker lock(&dst_lock);
+    local_locker lock(&dst_lock, "datasourcetracker::queue_dead_remote");
 
     for (auto x : dst_remote_complete_vec) {
         if (x == in_dead)
@@ -1325,7 +1710,7 @@ void datasource_tracker::queue_dead_remote(dst_incoming_remote *in_dead) {
         remote_complete_timer =
             timetracker->register_timer(1, NULL, 0, 
                 [this] (int) -> int {
-                    local_locker lock(&dst_lock);
+                    local_locker lock(&dst_lock, "datasourcetracker::remote_complete_timer lambda");
 
                     for (auto x : dst_remote_complete_vec) {
                         delete(x);
@@ -1338,464 +1723,6 @@ void datasource_tracker::queue_dead_remote(dst_incoming_remote *in_dead) {
                 });
     }
 
-}
-
-
-bool datasource_tracker::httpd_verify_path(const char *path, const char *method) {
-    std::string stripped = httpd_strip_suffix(path);
-
-    if (strcmp(method, "POST") == 0) {
-        if (stripped == "/datasource/add_source")
-            return true;
-
-        std::vector<std::string> tokenurl = str_tokenize(path, "/");
-
-        if (tokenurl.size() < 5)
-            return false;
-
-        // /datasource/by-uuid/aaa-bbb-cc-dd/source.json 
-        if (tokenurl[1] == "datasource") {
-            if (tokenurl[2] == "by-uuid") {
-                uuid u(tokenurl[3]);
-
-                if (u.error)
-                    return false;
-
-                local_shared_locker lock(&dst_lock);
-
-                if (uuid_source_num_map.find(u) == uuid_source_num_map.end())
-                    return false;
-
-                if (httpd_strip_suffix(tokenurl[4]) == "set_channel") {
-                    return true;
-                }
-
-                if (httpd_strip_suffix(tokenurl[4]) == "set_hop") {
-                    return true;
-                }
-
-                return false;
-            }
-        }
-
-        return false;
-    }
-
-    if (strcmp(method, "GET") == 0) {
-        
-        if (!httpd_can_serialize(path))
-            return false;
-
-        std::vector<std::string> tokenurl = str_tokenize(path, "/");
-
-        if (tokenurl.size() < 5)
-            return false;
-
-        // /datasource/by-uuid/aaa-bbb-cc-dd/source.json 
-        if (tokenurl[1] == "datasource") {
-            if (tokenurl[2] == "by-uuid") {
-                uuid u(tokenurl[3]);
-
-                if (u.error)
-                    return false;
-
-                {
-                    local_shared_locker l(&dst_lock);
-                    if (uuid_source_num_map.find(u) == uuid_source_num_map.end())
-                        return false;
-                }
-
-                if (httpd_strip_suffix(tokenurl[4]) == "source")
-                    return true;
-
-                if (httpd_strip_suffix(tokenurl[4]) == "close_source")
-                    return true;
-
-                if (httpd_strip_suffix(tokenurl[4]) == "open_source")
-                    return true;
-
-                if (httpd_strip_suffix(tokenurl[4]) == "disable_source")
-                    return true;
-
-                if (httpd_strip_suffix(tokenurl[4]) == "enable_source")
-                    return true;
-
-                if (httpd_strip_suffix(tokenurl[4]) == "pause_source")
-                    return true;
-                
-                if (httpd_strip_suffix(tokenurl[4]) == "resume_source")
-                    return true;
-
-                return false;
-            }
-        }
-
-    }
-
-    return false;
-}
-
-void datasource_tracker::httpd_create_stream_response(kis_net_httpd *httpd,
-        kis_net_httpd_connection *connection,
-       const char *path, const char *method, const char *upload_data,
-       size_t *upload_data_size, std::stringstream &stream) {
-
-    if (strcmp(method, "GET") != 0) {
-        return;
-    }
-
-    std::string stripped = httpd_strip_suffix(path);
-
-    if (!httpd_can_serialize(path))
-        return;
-
-
-    std::vector<std::string> tokenurl = str_tokenize(path, "/");
-
-    if (tokenurl.size() < 5) {
-        return;
-    }
-
-    // /datasource/by-uuid/aaa-bbb-cc-dd/source.json 
-    if (tokenurl[1] == "datasource") {
-        if (tokenurl[2] == "by-uuid") {
-            uuid u(tokenurl[3]);
-
-            if (u.error) {
-                return;
-            }
-
-            shared_datasource ds;
-
-            {
-                local_shared_locker lock(&dst_lock);
-                for (auto i : *datasource_vec) {
-                    shared_datasource dsi = std::static_pointer_cast<kis_datasource>(i);
-
-                    if (dsi->get_source_uuid() == u) {
-                        ds = dsi;
-                        break;
-                    }
-                }
-            }
-
-            if (ds == NULL) {
-                stream << "Error";
-                return;
-            }
-
-            if (httpd_strip_suffix(tokenurl[4]) == "source") {
-                httpd_serialize(path, stream, ds, nullptr, connection);
-                return;
-            }
-
-            if (httpd_strip_suffix(tokenurl[4]) == "close_source" ||
-                    httpd_strip_suffix(tokenurl[4]) == "disable_source") {
-                if (ds->get_source_running()) {
-                    _MSG("Closing source '" + ds->get_source_name() + "' from REST "
-                            "interface request.", MSGFLAG_INFO);
-                    ds->disable_source();
-                    stream << "Closing source " << ds->get_source_uuid().uuid_to_string();
-
-                    return;
-                } else {
-                    stream << "Source already closed, disabling source " <<
-                        ds->get_source_uuid().uuid_to_string();
-                    ds->disable_source();
-                    return;
-                }
-            }
-
-            if (httpd_strip_suffix(tokenurl[4]) == "open_source") {
-                if (!ds->get_source_running()) {
-                    _MSG("Re-opening source '" + ds->get_source_name() + "' from REST "
-                            "interface request.", MSGFLAG_INFO);
-                    ds->open_interface(ds->get_source_definition(), 0, NULL);
-                    stream << "Re-opening source";
-
-                    return;
-                } else {
-                    stream << "Source already open";
-                    connection->httpcode = 500;
-                    return;
-                }
-            }
-
-            if (httpd_strip_suffix(tokenurl[4]) == "pause_source") {
-                if (!ds->get_source_paused()) {
-                    _MSG("Pausing source '" + ds->get_source_name() + "' from REST "
-                            "interface request.", MSGFLAG_INFO);
-                    ds->set_source_paused(true);
-                    stream << "Pausing source";
-
-                    return;
-                } else {
-                    stream << "Source already paused";
-                    connection->httpcode = 500;
-                    return;
-                }
-            }
-
-            if (httpd_strip_suffix(tokenurl[4]) == "resume_source") {
-                if (ds->get_source_paused()) {
-                    _MSG("Resuming source '" + ds->get_source_name() + "' from REST "
-                            "interface request.", MSGFLAG_INFO);
-                    ds->set_source_paused(false);
-                    stream << "Resuming source";
-
-                    auto evt = eventbus->get_eventbus_event(event_datasource_resumed());
-                    evt->get_event_content()->insert(event_datasource_resumed(), ds);
-                    eventbus->publish(evt);
-
-                    return;
-                } else {
-                    stream << "Source already running";
-                    connection->httpcode = 500;
-                    return;
-                }
-            }
-            
-            return;
-        }
-    }
-
-}
-
-KIS_MHD_RETURN datasource_tracker::httpd_post_complete(kis_net_httpd_connection *concls) {
-    if (!httpd_can_serialize(concls->url)) {
-        concls->response_stream << "Invalid request, cannot serialize URL";
-        concls->httpcode = 400;
-        return MHD_YES;
-    }
-
-    // All the posts require login
-    if (!httpd->has_valid_session(concls, true)) {
-        return MHD_YES;
-    }
-
-    std::string stripped = httpd_strip_suffix(concls->url);
-
-    Json::Value json;
-
-    try {
-        json = concls->variable_cache_as<Json::Value>("json");
-
-        if (stripped == "/datasource/add_source") {
-            // Locker for waiting for the open callback
-            std::shared_ptr<conditional_locker<shared_datasource> > cl(new conditional_locker<shared_datasource>());
-
-            shared_datasource r;
-            std::string error_reason;
-
-            auto definition = json["definition"].asString();
-
-            cl->lock();
-
-            bool cmd_complete_success = false;
-
-            // Initiate the open
-            open_datasource(definition,
-                    [&error_reason, cl, &cmd_complete_success](bool success, std::string reason, 
-                        shared_datasource ds) {
-
-                        cmd_complete_success = success;
-
-                        // Unlock the locker so we unblock below
-                        if (success) {
-                            cl->unlock(ds);
-                        } else {
-                            error_reason = reason;
-                            cl->unlock(NULL);
-                        }
-                    });
-
-            // Block until the open cmd unlocks us
-            r = cl->block_until();
-
-            if (cmd_complete_success) {
-                httpd_serialize(concls->url, concls->response_stream, r, nullptr, concls);
-                concls->httpcode = 200;
-            } else {
-                concls->response_stream << error_reason;
-                concls->httpcode = 500;
-            }
-
-            return MHD_YES;
-        } 
-
-        // No single url we liked, split and look at the path
-        std::vector<std::string> tokenurl = str_tokenize(concls->url, "/");
-
-        if (tokenurl.size() < 5) {
-            throw std::runtime_error("Unknown URI");
-        }
-
-
-        // /datasource/by-uuid/aaa-bbb-cc-dd/command.cmd / .jcmd
-        if (tokenurl[1] == "datasource" && tokenurl[2] == "by-uuid") {
-            uuid u(tokenurl[3]);
-
-            if (u.error) 
-                throw std::runtime_error("Invalid UUID");
-
-            shared_datasource ds;
-
-            {
-                local_shared_locker lock(&dst_lock);
-
-                if (uuid_source_num_map.find(u) == uuid_source_num_map.end())
-                    throw std::runtime_error("Could not find a source with that UUID");
-
-                for (auto i : *datasource_vec) {
-                    shared_datasource dsi = std::static_pointer_cast<kis_datasource>(i);
-
-                    if (dsi->get_source_uuid() == u) {
-                        ds = dsi;
-                        break;
-                    }
-                }
-
-                if (ds == NULL) {
-                    throw std::runtime_error("Could not find a source with that UUID");
-                }
-            }
-
-            if (httpd_strip_suffix(tokenurl[4]) == "set_channel") {
-                if (!json["channel"].isNull()) {
-                    std::shared_ptr<conditional_locker<std::string> > cl(new conditional_locker<std::string>());
-
-                    auto ch = json["channel"].asString();
-
-                    _MSG_INFO("Setting data source '{}' channel '{}'", ds->get_source_name(), ch);
-
-                    bool cmd_complete_success = false;
-
-                    cl->lock();
-
-                    // Initiate the channel set
-                    ds->set_channel(ch, 0, 
-                            [cl, &cmd_complete_success](unsigned int, bool success, 
-                                std::string reason) {
-                                cmd_complete_success = success;
-                                cl->unlock(reason);
-                            });
-
-                    // Block until the open cmd unlocks us
-                    std::string reason = cl->block_until();
-
-                    if (cmd_complete_success) {
-                        concls->response_stream << "Success";
-                        concls->httpcode = 200;
-                    } else {
-                        concls->response_stream << reason;
-                        concls->httpcode = 500;
-                    }
-                                
-                    return MHD_YES;
-
-                } else {
-                    // We need at least a channels or a rate to kick into hopping mode
-                    if (json["channels"].isNull() && json["rate"].isNull())
-                        throw std::runtime_error("invalid hop command, expected channel, channels, or rate");
-
-                    // Get the channels as a vector, default to the source 
-                    // default if the CGI doesn't define them
-                    std::vector<std::string> converted_channels;
-
-                    if (!json["channels"].isNull()) {
-                        for (auto ch : json["channels"])
-                            converted_channels.push_back(ch.asString());
-                    } else {
-                        for (auto c : *(ds->get_source_hop_vec()))
-                            converted_channels.push_back(get_tracker_value<std::string>(c));
-                    }
-
-                    std::shared_ptr<conditional_locker<std::string> > cl(new conditional_locker<std::string>());
-
-                    // Get the hop rate and the shuffle; default to the source
-                    // state if we don't have them provided
-                    auto rate = json.get("rate", ds->get_source_hop_rate()).asDouble();
-                    auto shuffle = json.get("shuffle", ds->get_source_hop_shuffle()).asUInt();
-
-                    _MSG_INFO("Source '{}' setting new hop rate and channel pattern.", ds->get_source_name());
-
-                    bool cmd_complete_success = false;
-
-                    cl->lock();
-
-                    // Initiate the channel set
-                    ds->set_channel_hop(rate, converted_channels, shuffle, 
-                            ds->get_source_hop_offset(),
-                            0, [cl, &cmd_complete_success](unsigned int, bool success, 
-                                std::string reason) {
-
-                                cmd_complete_success = success;
-
-                                cl->unlock(reason);
-                            });
-
-                    // Block until the open cmd unlocks us
-                    std::string reason = cl->block_until();
-
-                    if (cmd_complete_success) {
-                        concls->response_stream << "Success";
-                        concls->httpcode = 200;
-                    } else {
-                        concls->response_stream << reason;
-                        concls->httpcode = 500;
-                    }
-
-                    return MHD_YES;
-                }
-            } else if (httpd_strip_suffix(tokenurl[4]) == "set_hop") {
-                _MSG("Setting source '" + ds->get_source_name() + "' channel hopping", 
-                        MSGFLAG_INFO);
-
-                bool cmd_complete_success = false;
-                std::shared_ptr<conditional_locker<std::string> > cl(new conditional_locker<std::string>());
-
-                cl->lock();
-
-                // Set it to channel hop using all the current hop attributes
-                ds->set_channel_hop(ds->get_source_hop_rate(),
-                        ds->get_source_hop_vec(),
-                        ds->get_source_hop_shuffle(),
-                        ds->get_source_hop_offset(), 0,
-                        [cl, &cmd_complete_success](unsigned int, bool success, 
-                            std::string reason) {
-
-                            cmd_complete_success = success;
-
-                            cl->unlock(reason);
-                        });
-
-                // Block until the open cmd unlocks us
-                std::string reason = cl->block_until();
-
-                if (cmd_complete_success) {
-                    concls->response_stream << "Success";
-                    concls->httpcode = 200;
-                } else {
-                    concls->response_stream << reason;
-                    concls->httpcode = 500;
-                }
-
-                return MHD_YES;
-            }
-        }
-
-        // Otherwise no URL path we liked
-        concls->response_stream << "Invalid request, invalid URL";
-        concls->httpcode = 400;
-        return MHD_YES;
-    
-    } catch (const std::exception& e) {
-        concls->response_stream << "Invalid request " << e.what();
-        concls->httpcode = 400;
-        return MHD_YES;
-    }
-
-    return MHD_YES;
 }
 
 double datasource_tracker::string_to_rate(std::string in_str, double in_default) {
@@ -1831,194 +1758,19 @@ double datasource_tracker::string_to_rate(std::string in_str, double in_default)
     }
 }
 
-bool datasource_tracker_httpd_pcap::httpd_verify_path(const char *path, const char *method) {
-    if (strcmp(method, "GET") == 0) {
-
-        // Total pcap of all data; we put it in 2 locations
-        if (strcmp(path, "/pcap/all_packets.pcapng") == 0) 
-            return true;
-
-        if (strcmp(path, "/datasource/pcap/all_sources.pcapng") == 0)
-            return true;
-
-        // Alternately, per-source capture:
-        // /datasource/pcap/by-uuid/aa-bb-cc-dd/aa-bb-cc-dd.pcapng
-
-        std::vector<std::string> tokenurl = str_tokenize(path, "/");
-
-        if (tokenurl.size() < 6) {
-            return false;
-        }
-        if (tokenurl[1] == "datasource") {
-            if (tokenurl[2] == "pcap") {
-                if (tokenurl[3] == "by-uuid") {
-                    uuid u(tokenurl[4]);
-
-                    if (u.error) {
-                        return false;
-                    }
-
-                    if (datasourcetracker == NULL) {
-                        datasourcetracker =
-                            Globalreg::fetch_mandatory_global_as<datasource_tracker>("DATASOURCETRACKER");
-                    }
-
-                    if (packetchain == NULL) {
-                        std::shared_ptr<packet_chain> packetchain = 
-                            Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
-                        pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");
-                    }
-
-                    shared_datasource ds = datasourcetracker->find_datasource(u);
-                    
-                    if (ds != NULL)
-                        return true;;
-                }
-            }
-        }
-    }
-
-    return false;
-}
-
-KIS_MHD_RETURN datasource_tracker_httpd_pcap::httpd_create_stream_response(kis_net_httpd *httpd,
-        kis_net_httpd_connection *connection,
-        const char *url, const char *method, const char *upload_data,
-        size_t *upload_data_size) {
-
-    if (strcmp(method, "GET") != 0) {
-        return MHD_YES;
-    }
-
-    auto streamtracker = Globalreg::fetch_mandatory_global_as<stream_tracker>("STREAMTRACKER");
-
-    if (strcmp(url, "/pcap/all_packets.pcapng") == 0 ||
-            strcmp(url, "/datasource/pcap/all_sources.pcapng") == 0) {
-        // At this point we're logged in and have an aux pointer for the
-        // ringbuf aux; We can create our pcap ringbuf stream and attach it.
-        // We need to close down the pcapringbuf during teardown.
-       
-        kis_net_httpd_buffer_stream_aux *saux = 
-            (kis_net_httpd_buffer_stream_aux *) connection->custom_extension;
-       
-        auto *psrb = new pcap_stream_packetchain(Globalreg::globalreg,
-                saux->get_rbhandler(), NULL, NULL);
-
-        streamtracker->register_streamer(psrb, "all_sources.pcapng",
-                "pcapng", "httpd", "pcapng of all packets on all sources");
-
-        auto id = psrb->get_stream_id();
-
-        saux->set_aux(psrb, 
-            [id, streamtracker](kis_net_httpd_buffer_stream_aux *aux) {
-                streamtracker->remove_streamer(id);
-                if (aux->aux != NULL) {
-                    delete (pcap_stream_packetchain *) (aux->aux);
-                }
-            });
-
-        return MHD_NO;
-    }
-
-    // Find per-uuid and make a filtering pcapng
-    std::vector<std::string> tokenurl = str_tokenize(url, "/");
-
-    if (tokenurl.size() < 6) {
-        return MHD_YES;
-    }
-
-    if (tokenurl[1] == "datasource") {
-        if (tokenurl[2] == "pcap") {
-            if (tokenurl[3] == "by-uuid") {
-                uuid u(tokenurl[4]);
-
-                if (u.error) {
-                    return MHD_YES;
-                }
-
-                datasourcetracker =
-                    Globalreg::fetch_mandatory_global_as<datasource_tracker>("DATASOURCETRACKER");
-
-                std::shared_ptr<packet_chain> packetchain = 
-                    Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
-                pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");
-
-                shared_datasource ds = datasourcetracker->find_datasource(u);
-
-                if (ds == NULL)
-                    return MHD_YES;
-
-                if (!httpd->has_valid_session(connection)) {
-                    connection->httpcode = 503;
-                    return MHD_YES;
-                }
-
-                // Get the number of this source for fast compare
-                unsigned int dsnum = ds->get_source_number();
-
-                // Create the pcap stream and attach it to our ringbuf
-                kis_net_httpd_buffer_stream_aux *saux = 
-                    (kis_net_httpd_buffer_stream_aux *) connection->custom_extension;
-
-                // Fetch the datasource component and compare *source numbers*, not
-                // actual UUIDs - a UUID compare is expensive, a numeric compare is not!
-                auto *psrb = new pcap_stream_packetchain(Globalreg::globalreg,
-                        saux->get_rbhandler(), 
-                        [this, dsnum] (kis_packet *packet) -> bool {
-                            packetchain_comp_datasource *datasrcinfo = 
-                                (packetchain_comp_datasource *) 
-                                packet->fetch(pack_comp_datasrc);
-                        
-                            if (datasrcinfo == NULL)
-                                return false;
-
-                            if (datasrcinfo->ref_source->get_source_number() == dsnum)
-                                return true;
-
-                        return false; 
-                        }, NULL);
 
 
-                saux->set_aux(psrb, 
-                    [psrb, streamtracker](kis_net_httpd_buffer_stream_aux *aux) {
-                        streamtracker->remove_streamer(psrb->get_stream_id());
-                        if (aux->aux != NULL) {
-                            delete (kis_net_httpd_buffer_stream_aux *) (aux->aux);
-                        }
-                    });
-
-                streamtracker->register_streamer(psrb, 
-                        ds->get_source_name() + ".pcapng",
-                        "pcapng", "httpd", 
-                        "pcapng of " + ds->get_source_name() + " (" + 
-                        ds->get_source_cap_interface());
-
-                return MHD_NO;
-
-            }
-        }
-    }
-
-    return MHD_YES;
-}
-
-dst_incoming_remote::dst_incoming_remote(std::shared_ptr<buffer_handler_generic> in_rbufhandler,
-        std::function<void (dst_incoming_remote *, std::string, std::string, 
-            uuid, std::shared_ptr<buffer_handler_generic>)> in_cb) :
+dst_incoming_remote::dst_incoming_remote(callback_t in_cb) :
     kis_external_interface() {
-    
+
     cb = in_cb;
 
-    connect_buffer(in_rbufhandler);
-
     timerid =
-        timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 0, 
+        timetracker->register_timer(std::chrono::seconds(10), 0,
             [this] (int) -> int {
-                _MSG("Remote source connected but didn't send a NEWSOURCE control, "
-                        "closing connection.", MSGFLAG_ERROR);
-
-                kill();
-
+            _MSG_ERROR("Incoming connection on remote capture socket, but remote side did "
+                    "not initiate a datasource connection.");
+                close_external();
                 return 0;
             });
 }
@@ -2027,15 +1779,15 @@ dst_incoming_remote::~dst_incoming_remote() {
     // Kill the error timer
     timetracker->remove_timer(timerid);
 
-    // Remove ourselves as a handler
-    if (ringbuf_handler != NULL)
-        ringbuf_handler->remove_read_buffer_interface();
+    close_external();
 
     // Wait for the thread to finish
-    handshake_thread.join();
+    if (handshake_thread.joinable())
+        handshake_thread.join();
 }
 
-bool dst_incoming_remote::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) { if (kis_external_interface::dispatch_rx_packet(c))
+bool dst_incoming_remote::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) { 
+    if (kis_external_interface::dispatch_rx_packet(c))
         return true;
 
     // Simple dispatch override, all we do is look for the new source
@@ -2047,44 +1799,89 @@ bool dst_incoming_remote::dispatch_rx_packet(std::shared_ptr<KismetExternal::Com
     return false;
 }
 
+void dst_incoming_remote::handle_error(const std::string& error) {
+    _MSG_ERROR("(DST SETUP REMOTE ERROR) {}", error);
+
+    kill();
+}
+
 
 void dst_incoming_remote::kill() {
     // Kill the error timer
     timetracker->remove_timer(timerid);
-
-    close_external();
 
     std::shared_ptr<datasource_tracker> datasourcetracker =
         Globalreg::fetch_global_as<datasource_tracker>("DATASOURCETRACKER");
 
     if (datasourcetracker != NULL) 
         datasourcetracker->queue_dead_remote(this);
+
+    // The tcp socket should be moved away from this connection by now; if not, kill it
+    close_external();
 }
 
 void dst_incoming_remote::handle_packet_newsource(uint32_t in_seqno, std::string in_content) {
-    local_locker lock(ext_mutex);
+    local_locker lock(&ext_mutex, "incoming_remote::handle_packet_newsource");
 
     KismetDatasource::NewSource c;
 
     if (!c.ParseFromString(in_content)) {
         _MSG("Could not process incoming remote datsource announcement", MSGFLAG_ERROR);
         kill();
-
         return;
     }
 
-    if (cb != NULL)
-        cb(this, c.sourcetype(), c.definition(), c.uuid(), ringbuf_handler);
-
-    // Zero out the rbuf handler so that it doesn't get closed
-    ringbuf_handler.reset();
+    if (cb != NULL) {
+        cb(this, c.sourcetype(), c.definition(), c.uuid());
+    }
 
     kill();
 }
 
-void dst_incoming_remote::buffer_error(std::string in_error) {
-    _MSG("Incoming remote source failed: " + in_error, MSGFLAG_ERROR);
-    kill();
-    return;
+
+datasource_tracker_remote_server::~datasource_tracker_remote_server() {
+    stop();
+}
+
+void datasource_tracker_remote_server::stop() {
+    stopped = true;
+
+    if (acceptor.is_open()) {
+        try {
+            acceptor.cancel();
+            acceptor.close();
+        } catch (const std::exception& e) {
+            ;
+        }
+    }
+}
+
+void datasource_tracker_remote_server::start_accept() {
+    if (stopped)
+        return;
+
+    acceptor.async_accept(incoming_socket,
+            [this](boost::system::error_code ec) {
+                if (stopped)
+                    return;
+
+                handle_accept(ec, std::move(incoming_socket));
+
+                start_accept();
+            });
+
+}
+
+void datasource_tracker_remote_server::handle_accept(const boost::system::error_code& ec, tcp::socket socket) {
+    if (!ec) {
+        // Bind a new incoming remote which will pivot to the proper data source type
+        auto remote = 
+            std::make_shared<dst_incoming_remote>([this] (dst_incoming_remote *i, std::string in_type, 
+                        std::string in_def, uuid in_uuid) {
+                datasourcetracker->open_remote_datasource(i, in_type, in_def, in_uuid);
+                });
+
+        remote->attach_tcp_socket(socket);
+    }
 }
 

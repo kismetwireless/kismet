@@ -67,6 +67,15 @@ public:
         hash = u.hash;
     }
 
+    uuid(uuid&& o) noexcept :
+        time_low{o.time_low},
+        time_mid{o.time_mid},
+        time_hi{o.time_hi},
+        clock_seq{o.clock_seq},
+        node{o.node},
+        hash{o.hash},
+        error{o.error} { }
+
     uuid(const std::string& in) {
         from_string(in);
     }
@@ -78,9 +87,13 @@ public:
     void from_string(const std::string& in) {
         error = 0;
 
-        if (sscanf(in.c_str(), "%08x-%04hx-%04hx-%04hx-%012lx",
-                    &time_low, &time_mid, &time_hi, &clock_seq, &node) != 5)
+        unsigned long long n;
+
+        if (sscanf(in.c_str(), "%08x-%04hx-%04hx-%04hx-%012llx",
+                    &time_low, &time_mid, &time_hi, &clock_seq, &n) != 5)
             error = 1;
+
+        node = n;
 
         gen_hash();
     }

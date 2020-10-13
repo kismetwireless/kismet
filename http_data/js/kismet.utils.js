@@ -149,7 +149,7 @@ exports.GetDynamicIncludes = function() {
                 var module = data.dynamicjs[p]['module'];
                 var defer = data.dynamicjs[p]['defer'];
 
-                console.log("defer for module", module);
+                //console.log("defer for module", module);
 
                 if (typeof window[module] !== 'undefined' &&
                         window[module].load_complete == 1) {
@@ -292,6 +292,120 @@ exports.RecalcRrdData = function(start, now, type, data, opt = {}) {
     return adj_data;
 }
 
+exports.RecalcRrdData2 = function(rrddata, type, opt = {}) {
+    var record;
+
+    if (type == exports.RRD_SECOND)
+        record = "kismet.common.rrd.minute_vec";
+    else if (type == exports.RRD_MINUTE)
+        record = "kismet.common.rrd.hour_vec";
+    else if (type == exports.RRD_HOUR)
+        record = "kismet.common.rrd.day_vec";
+    else
+        record = "kismet.common.rrd.minute_vec";
+
+    var data = [];
+    var rrd_len;
+    var now;
+    var start;
+
+    try {
+        data = rrddata[record];
+
+        if (typeof(data) === 'number')
+            throw(0);
+
+        now = rrddata['kismet.common.rrd.serial_time'];
+        start = rrddata['kismet.common.rrd.last_time'];
+    } catch (e) {
+        now = 0;
+        start = 0;
+
+        if (type == exports.RRD_SECOND || type == exports.RRD_MINUTE) {
+            data = [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0 
+            ];
+        } else if (type == exports.RRD_HOUR) {
+            data = [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
+                0, 0, 0, 0
+            ];
+        }
+    }
+
+    rrd_len = data.length;
+
+    // Each type value is the number of seconds in each bin of the array
+    //
+    // A bin for a given time is (time / type) % len
+    //
+    // A completely expired RRD is (now - start) > (type * len) and should
+    // be filled with only zeroes
+    //
+    // To zero the array between "then" and "now", we simply calculate
+    // the bin for "then", the bin for "now", and increment-with-modulo 
+    // until we reach "now".
+
+    // Adjusted data we return
+    var adj_data = new Array();
+
+    // Check if we're past the recording bounds of the rrd for this type, if we
+    // are, we don't have to do any shifting or any manipulation, we just fill
+    // the array with zeroes.
+    if ((now - start) > (type * rrd_len)) {
+        for (var ri = 0; ri < rrd_len; ri++) {
+            adj_data.push(0);
+        }
+    } else {
+        // Otherwise, we're valid inside the range of the array.  We know we got
+        // no data between the time of the RRD and now, because if we had, the 
+        // time would be more current.  Figure out how many bins lie between
+        // 'then' and 'now', rescale the array to start at 'now', and fill
+        // in the time we got no data with zeroes
+        
+        var start_bin = (Math.floor(start / type) % rrd_len) + 1;
+        var now_bin = (Math.floor(now / type) % rrd_len) + 1;
+        var sec_offt = Math.max(0, now - start);
+
+        /*
+        console.log("we think we start in bin" + start_bin);
+        console.log("we think now is bin" + now_bin);
+        */
+
+        // Walk the entire array, starting with 'now', and copy zeroes
+        // when we fall into the blank spot between 'start' and 'now' when we
+        // know we received no data
+        for (var ri = 0; ri < rrd_len; ri++) {
+            var slot = (now_bin + ri) % rrd_len;
+
+            if (slot >= start_bin && slot < now_bin)
+                adj_data.push(0);
+            else
+                adj_data.push(data[slot]);
+        }
+    }
+
+    // If we have a transform function in the options, call it, otherwise
+    // return the shifted RRD entry
+    if ('transform' in opt && typeof(opt.transform) === 'function') {
+        var cbopt = {};
+
+        if ('transformopt' in opt)
+            cbopt = opt.cbopt;
+
+        return opt.transform(adj_data, cbopt);
+    }
+
+    return adj_data;
+}
+
 exports.sanitizeId = function(s) {
     return String(s).replace(/[:.&<>"'`=\/\(\)\[\] ]/g, function (s) {
             return '_';
@@ -315,8 +429,17 @@ exports.sanitizeHTML = function(s) {
     });
 }
 
+/* Censor a mac-like string, if the global censor_macs option is turned on; must be called by each
+ * display component */
 exports.censorMAC = function(t) {
-    return t.replace(/([a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}):[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}/, "$1:XX:XX:XX");
+    try {
+        if (window['censor_macs'])
+            return t.replace(/([a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}):[a-fA-F0-9]{2}:[a-fA-F0-9]{2}:[a-fA-F0-9]{2}/g, "$1:XX:XX:XX");
+        else
+            return t;
+    } catch (e) {
+        return t;
+    }
 }
 
 /* Recurse over a complete object (such as from json), finding all strings,
@@ -327,10 +450,7 @@ exports.sanitizeObject = function(o) {
     }
 
     if (typeof(o) === 'string') {
-        if (window['censor_macs'])
-            return exports.censorMAC(exports.sanitizeHTML(o));
-        else
-            return exports.sanitizeHTML(o);
+        return exports.sanitizeHTML(o);
     }
 
     Object.keys(o).forEach(function(key) {

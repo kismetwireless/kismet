@@ -36,56 +36,55 @@
 
 #include <eventbus.h>
 #include "globalregistry.h"
-#include "buffer_handler.h"
-#include "ipc_remote2.h"
-#include "kis_net_microhttpd.h"
+#include "ipctracker_v2.h"
+#include "kis_net_beast_httpd.h"
 
-// Namespace stub and forward class definition to make deps hopefully
-// easier going forward
+#include "boost/asio.hpp"
+using boost::asio::ip::tcp;
+
+// Namespace stub and forward class definition to make deps hopefully easier going forward
 namespace KismetExternal {
     class Command;
 };
 
 struct kis_external_http_session {
-    kis_net_httpd_connection *connection; 
+    std::shared_ptr<kis_net_beast_httpd_connection> connection;
     std::shared_ptr<conditional_locker<int> > locker;
 };
 
-struct kis_external_http_uri {
-    std::string uri;
-    std::string method;
-    bool auth_req;
-};
 
 // External interface API bridge;
-class kis_external_interface : public buffer_interface, kis_net_httpd_chain_stream_handler {
+class kis_external_interface : public std::enable_shared_from_this<kis_external_interface> {
 public:
     kis_external_interface();
-    kis_external_interface(std::shared_ptr<kis_recursive_timed_mutex> mutex);
     virtual ~kis_external_interface();
 
-    // Connect an existing buffer, such as a TCP socket or IPC pipe
-    virtual void connect_buffer(std::shared_ptr<buffer_handler_generic> in_ringbuf);
-
-    // Trigger an error condition and call all the related functions
-    virtual void trigger_error(std::string reason);
-
-    // Buffer interface - called when the attached ringbuffer has data available.
-    virtual void buffer_available(size_t in_amt) override;
-
-    // Buffer interface - handles error on IPC or TCP, called when there is a 
-    // low-level error on the communications stack (process death, etc).
-    // Passes error to the the internal source_error function
-    virtual void buffer_error(std::string in_error) override;
-
-    // Check to see if an IPC binary is available
-    static bool check_ipc(const std::string& in_binary);
-    
+    std::shared_ptr<kis_external_interface> get_shared() {
+        return shared_from_this();
+    }
 
     // Launch the external binary and connect the IPC channel to our buffer
     // interface; most tools will use this unless they support network; 
     // datasources are the primary exception
     virtual bool run_ipc();
+
+    // Attach a tcp socket
+    virtual bool attach_tcp_socket(tcp::socket& socket);
+
+    // Detach a TCP socket (migrate it to another datasource, for instance, while making a remote
+    // capture source)
+    tcp::socket move_tcp_socket() { 
+        if (tcpsocket.is_open())
+            tcpsocket.cancel();
+
+        stopped = true;
+
+        return std::move(tcpsocket);
+    }
+
+
+    // Check to see if an IPC binary is available
+    static bool check_ipc(const std::string& in_binary);
 
     // close the external interface
     virtual void close_external();
@@ -93,34 +92,13 @@ public:
     // We use the raw http server APIs instead of the newer endpoint handlers because we
     // potentially mess with the headers and other internals
 
-    // Webserver proxy interface - standard verifypath
-    virtual bool httpd_verify_path(const char *path, const char *method) override;
-
-    // Called as a connection is being set up;  brokers access with the http
-    // proxy
-    //
-    // Returns:
-    //  MHD_NO  - Streambuffer should not automatically close out the buffer; this
-    //            is used when spawning an independent thread for managing the stream,
-    //            for example with pcap streaming
-    //  MHD_YES - Streambuffer should automatically close the buffer when the
-    //            streamresponse is complete, typically used when streaming a finite
-    //            amount of data through a memchunk buffer like a json serialization
-    virtual KIS_MHD_RETURN httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size) override;
-
-    // Called when a POST event is complete - all data has been uploaded and
-    // cached in the connection info; brokers connections to to the proxy
-    //
-    // Returns:
-    //  MHD_NO  - Streambuffer should not automatically close out the buffer
-    //  MHD_YES - Streambuffer should automatically close the buffer when the
-    //            streamresponse is complete
-    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *con __attribute__((unused))) override;
+    // Trigger an error
+    virtual void trigger_error(const std::string& in_error);
 
 protected:
+    // Handle an error; override in child classes; called when an error causes a shutdown
+    virtual void handle_error(const std::string& error) { }
+
     // Wrap a protobuf'd packet in our network framing and send it, returning the sequence
     // number
     virtual unsigned int send_packet(std::shared_ptr<KismetExternal::Command> c);
@@ -143,31 +121,42 @@ protected:
     unsigned int send_pong(uint32_t ping_seqno);
     unsigned int send_shutdown(std::string reason);
 
-    std::shared_ptr<kis_recursive_timed_mutex> ext_mutex;
+    std::atomic<bool> stopped;
+    std::atomic<bool> cancelled;
 
-    // Communications API.  We implement a buffer interface and listen to the
-    // incoming read buffer, we're agnostic if it's a network or IPC buffer.
-    std::shared_ptr<buffer_handler_generic> ringbuf_handler;
-
-    // If we're an IPC instance, the IPC control.  The ringbuf_handler is associated
-    // with the IPC instance.
-    std::shared_ptr<ipc_remote_v2> ipc_remote;
+    kis_recursive_timed_mutex ext_mutex;
 
     std::shared_ptr<time_tracker> timetracker;
+    std::shared_ptr<ipc_tracker_v2> ipctracker;
 
     std::atomic<uint32_t> seqno;
     std::atomic<time_t> last_pong;
 
+    int ping_timer_id;
+
+    // Input buffer
+    boost::asio::streambuf in_buf;
+    int handle_read(std::shared_ptr<kis_external_interface> ref, const boost::system::error_code& ec, size_t sz);
+
+    // Pipe IPC
     std::string external_binary;
     std::vector<std::string> external_binary_args;
 
-    int ping_timer_id;
+    kis_ipc_record ipc;
+    boost::asio::posix::stream_descriptor ipc_in, ipc_out;
 
-    size_t ipc_buffer_sz;
+    void start_ipc_read(std::shared_ptr<kis_external_interface> ref);
+
+    void ipc_soft_kill();
+    void ipc_hard_kill();
+
+    // TCP socket
+    tcp::socket tcpsocket;
+
+    void start_tcp_read(std::shared_ptr<kis_external_interface> ref);
 
 
     // Eventbus proxy code
-
     std::shared_ptr<event_bus> eventbus;
     std::map<std::string, unsigned long> eventbus_callback_map;
 
@@ -183,11 +172,6 @@ protected:
     unsigned int send_http_request(uint32_t in_http_sequence, std::string in_uri,
             std::string in_method, std::map<std::string, std::string> in_postdata);
     unsigned int send_http_auth(std::string in_session);
-
-    // Valid URIs, mapped by method (GET, POST, etc); these are matched in
-    // httpd_verify_path and then passed on; if a URI is present here, it's mapped
-    // to true
-    std::map<std::string, std::vector<struct kis_external_http_uri *> > http_proxy_uri_map;
 
     // HTTP session identities for multi-packet responses
     uint32_t http_session_id;

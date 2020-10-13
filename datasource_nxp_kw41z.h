@@ -25,6 +25,7 @@
 
 #include "kis_datasource.h"
 #include "dlttracker.h"
+#include "tap_802_15_4.h"
 
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 
@@ -39,19 +40,18 @@ typedef std::shared_ptr<kis_datasource_nxpkw41z> shared_datasource_nxpkw41z;
 #define KDLT_BTLE_RADIO             256
 #endif
 
-#ifndef KDLT_IEEE802_15_4_TAP
-#define KDLT_IEEE802_15_4_TAP       283 
-#endif
-
 #ifndef KDLT_IEEE802_15_4_NOFCS
 #define KDLT_IEEE802_15_4_NOFCS     230
 #endif
 
+#ifndef KDLT_IEEE802_15_4_TAP
+#define KDLT_IEEE802_15_4_TAP       283 
+#endif
+
 class kis_datasource_nxpkw41z : public kis_datasource {
 public:
-    kis_datasource_nxpkw41z(shared_datasource_builder in_builder,
-            std::shared_ptr<kis_recursive_timed_mutex> mutex) :
-        kis_datasource(in_builder, mutex) {
+    kis_datasource_nxpkw41z(shared_datasource_builder in_builder) :
+        kis_datasource(in_builder) {
 
         // Set the capture binary
         set_int_source_ipc_binary("kismet_cap_nxp_kw41z");
@@ -102,9 +102,8 @@ public:
 
     virtual ~datasource_nxpkw41z_builder() { }
 
-    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this,
-            std::shared_ptr<kis_recursive_timed_mutex> mutex) override {
-        return shared_datasource_nxpkw41z(new kis_datasource_nxpkw41z(in_sh_this, mutex));
+    virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) override {
+        return shared_datasource_nxpkw41z(new kis_datasource_nxpkw41z(in_sh_this));
     }
 
     virtual void initialize() override {

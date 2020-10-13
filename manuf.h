@@ -34,13 +34,12 @@
 
 #include <zlib.h>
 
-#include <unordered_map>
 #include <string>
 
-#include "util.h"
 #include "globalregistry.h"
-
+#include "robin_hood.h"
 #include "trackedelement.h"
+#include "util.h"
 
 class kis_manuf {
 public:
@@ -74,7 +73,7 @@ protected:
 
     std::vector<index_pos> index_vec;
 
-    std::unordered_map<uint32_t, manuf_data> oui_map;
+    robin_hood::unordered_node_map<uint32_t, manuf_data> oui_map;
 
     gzFile zmfile;
 

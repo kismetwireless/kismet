@@ -41,12 +41,12 @@
 #include "packet.h"
 #include "gpstracker.h"
 #include "uuid.h"
+#include "streamtracker.h"
 
 #include "devicetracker.h"
 #include "devicetracker_component.h"
-#include "kis_net_microhttpd.h"
+#include "kis_net_beast_httpd.h"
 #include "phy_80211_components.h"
-#include "phy_80211_httpd_pcap.h"
 #include "phy_80211_ssidtracker.h"
 
 #include "datasource_dot11_scan.h"
@@ -143,7 +143,9 @@ class dot11_packinfo : public packet_component {
 
             dot11d_country = "";
 
+            wps_version = 0; 
             wps = DOT11_WPS_NO_WPS;
+            wps_config_methods = 0;
             wps_manuf = "";
             wps_device_name = "";
             wps_model_name = "";
@@ -236,7 +238,9 @@ class dot11_packinfo : public packet_component {
         std::vector<dot11_packinfo_dot11d_entry> dot11d_vec;
 
         // WPS information
+        uint8_t wps_version;
         uint8_t wps;
+        uint16_t wps_config_methods;
         // The field below is useful because some APs use
         // a MAC address with 'Unknown' OUI but will
         // tell their manufacturer in this field:
@@ -296,9 +300,7 @@ class dot11_ssid_alert {
         std::map<mac_addr, int> allow_mac_map;
 };
 
-class kis_80211_phy : public kis_phy_handler, 
-    public kis_net_httpd_cppstream_handler, public time_tracker_event {
-
+class kis_80211_phy : public kis_phy_handler, public time_tracker_event {
 public:
     using ie_tag_tuple = std::tuple<uint8_t, uint32_t, uint8_t>;
 
@@ -367,16 +369,6 @@ public:
     static std::string crypt_to_string(uint64_t cryptset);
     static std::string crypt_to_simple_string(uint64_t cryptset);
 
-    // HTTPD API
-    virtual bool httpd_verify_path(const char *path, const char *method) override;
-
-    virtual void httpd_create_stream_response(kis_net_httpd *httpd,
-            kis_net_httpd_connection *connection,
-            const char *url, const char *method, const char *upload_data,
-            size_t *upload_data_size, std::stringstream &stream) override;
-
-    virtual KIS_MHD_RETURN httpd_post_complete(kis_net_httpd_connection *concls) override;
-
     // time_tracker event handler
     virtual int timetracker_event(int eventid) override;
 
@@ -407,6 +399,8 @@ protected:
     std::shared_ptr<time_tracker> timetracker;
     std::shared_ptr<device_tracker> devicetracker;
     std::shared_ptr<event_bus> eventbus;
+    std::shared_ptr<entry_tracker> entrytracker;
+    std::shared_ptr<stream_tracker> streamtracker;
 
     // Checksum of recent packets for duplication filtering
     uint32_t *recent_packet_checksums;
@@ -444,9 +438,10 @@ protected:
             std::shared_ptr<dot11_tracked_device> dest_dot11,
             kis_packet *in_pack, dot11_packinfo *dot11info);
 
-    void generate_handshake_pcap(std::shared_ptr<kis_tracked_device_base> dev, 
-            kis_net_httpd_connection *connection,
-            std::stringstream &stream);
+    void generate_handshake_pcap(std::shared_ptr<kis_net_beast_httpd_connection> con,
+            std::shared_ptr<kis_tracked_device_base> dev, 
+            std::shared_ptr<dot11_tracked_device> dot11dev, 
+            std::string mode);
 
     int dot11_device_entry_id;
 
@@ -521,21 +516,12 @@ protected:
     int device_idle_timer;
     unsigned int device_idle_min_packets;
 
-    // Pcap handlers
-    std::unique_ptr<phy_80211_httpd_pcap> httpd_pcap;
-
     // Do we process control and phy frames?
     bool process_ctl_phy;
 
     // IE fingerprinting lists
     std::vector<ie_tag_tuple> beacon_ie_fingerprint_list;
     std::vector<ie_tag_tuple> probe_ie_fingerprint_list;
-
-    // New endpoints as we migrate to the simplified API
-    std::shared_ptr<kis_net_httpd_path_tracked_endpoint> clients_of_endp;
-
-    // Related-by API
-    std::shared_ptr<kis_net_httpd_path_tracked_endpoint> related_to_key_endp;
 
     // AP view
     std::shared_ptr<device_tracker_view> ap_view;
