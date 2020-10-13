@@ -34,7 +34,7 @@ const std::string kis_net_beast_httpd::LOGON_ROLE{"logon"};
 const std::string kis_net_beast_httpd::ANY_ROLE{"any"};
 const std::string kis_net_beast_httpd::RO_ROLE{"readonly"};
 
-const std::string kis_net_beast_httpd::AUTH_COOKIE{"kismet"};
+const std::string kis_net_beast_httpd::AUTH_COOKIE{"KISMET"};
 
 std::shared_ptr<kis_net_beast_httpd> kis_net_beast_httpd::create_httpd() {
     auto httpd_interface = 
@@ -458,6 +458,31 @@ void kis_net_beast_httpd::decode_variables(const boost::beast::string_view decod
     }
 }
 
+void kis_net_beast_httpd::decode_cookies(const boost::beast::string_view decoded, http_cookie_map_t& var_map) {
+    boost::beast::string_view::size_type pos = 0;
+    while (pos != boost::beast::string_view::npos) {
+        if (decoded[pos] == ' ') {
+            pos++;
+            continue;
+        }
+            
+        auto eq = decoded.find("=", pos);
+
+        if (eq == boost::beast::string_view::npos)
+            break;
+
+        auto end = decoded.find(";", eq);
+
+        if (end == boost::beast::string_view::npos)
+            end = decoded.length();
+
+        var_map[static_cast<std::string>(decoded.substr(pos, eq - pos))] = 
+            static_cast<std::string>(decoded.substr(eq + 1, end - (eq + 1)));
+
+        pos = end + 1;
+    }
+}
+
 void kis_net_beast_httpd::register_mime_type(const std::string& extension, const std::string& type) {
     local_locker l(&mime_mutex, "beast_httpd::register_mime_type");
     mime_map.emplace(std::make_pair(extension, type));
@@ -864,9 +889,12 @@ kis_net_beast_httpd_connection::kis_net_beast_httpd_connection(boost::beast::tcp
     httpd{httpd},
     stream_{socket},
     login_valid_{false},
-    first_response_write{false} { }
+    first_response_write{false} {
+        Globalreg::n_tracked_http_connections++;
+    }
 
 kis_net_beast_httpd_connection::~kis_net_beast_httpd_connection() {
+    Globalreg::n_tracked_http_connections--;
     if (closure_cb)
         closure_cb();
 }
@@ -945,15 +973,12 @@ bool kis_net_beast_httpd_connection::start() {
     // Extract the auth cookie
     auto cookie_h = request_.find(boost::beast::http::field::cookie);
     if (cookie_h != request_.end()) {
-        auto raw_cookie = cookie_h->value();
-        auto eq_p = raw_cookie.find_first_of("=");
-        if (eq_p != boost::beast::string_view::npos) {
-            auto type = raw_cookie.substr(0, eq_p);
-            auto content = raw_cookie.substr(eq_p + 1, raw_cookie.length());
+        auto cookie_decode = httpd->decode_uri(cookie_h->value());
+        httpd->decode_cookies(cookie_decode, cookies_);
 
-            if (type == httpd->AUTH_COOKIE) 
-                auth_token_ = static_cast<std::string>(content);
-        }
+        auto auth_cookie_k = cookies_.find(httpd->AUTH_COOKIE);
+        if (auth_cookie_k != cookies_.end())
+            auth_token_ = auth_cookie_k->second;
     }
 
     auto auth_t = httpd->check_auth_token(auth_token_);

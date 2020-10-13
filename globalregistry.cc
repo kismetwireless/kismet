@@ -225,4 +225,5 @@ void global_registry::shutdown_deferred() {
 
 std::atomic<unsigned long> Globalreg::n_tracked_fields;
 std::atomic<unsigned long> Globalreg::n_tracked_components;
+std::atomic<unsigned long> Globalreg::n_tracked_http_connections;
 

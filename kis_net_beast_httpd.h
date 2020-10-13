@@ -53,6 +53,7 @@ public:
     static std::shared_ptr<kis_net_beast_httpd> create_httpd();
 
     using http_var_map_t = std::unordered_map<std::string, std::string>;
+    using http_cookie_map_t = std::unordered_map<std::string, std::string>;
 
     virtual void trigger_deferred_startup() override;
 
@@ -77,6 +78,7 @@ public:
 
     static std::string decode_uri(boost::beast::string_view in);
     static void decode_variables(const boost::beast::string_view decoded, http_var_map_t& var_map);
+    static void decode_cookies(const boost::beast::string_view decoded, http_cookie_map_t& cookie_map);
     static std::string escape_html(const boost::beast::string_view& html);
 
     void register_mime_type(const std::string& extension, const std::string& type);
@@ -226,6 +228,7 @@ public:
     // These can't be const for [] to work
     uri_param_t& uri_params() { return uri_params_; }
     kis_net_beast_httpd::http_var_map_t& http_variables() { return http_variables_; }
+    kis_net_beast_httpd::http_cookie_map_t& cookies() { return cookies_; }
     Json::Value& json() { return json_; }
 
     // Optional closure callback to signal to an async operation that there's a problem (for example
@@ -259,11 +262,9 @@ protected:
     bool login_valid_;
     std::string login_role_;
 
-    // All variables
     kis_net_beast_httpd::http_var_map_t http_variables_;
-    // Decoded JSON from post json= or from post json document
     Json::Value json_;
-
+    kis_net_beast_httpd::http_cookie_map_t cookies_;
     std::string auth_token_;
     boost::beast::string_view uri_;
     uri_param_t uri_params_;

@@ -233,6 +233,7 @@ void tracked_system_status::register_fields() {
 
     register_field("kismet.system.num_fields", "number of allocated tracked element fields", &num_fields);
     register_field("kismet.system.num_components", "number of allocated tracked element components", &num_components);
+    register_field("kismet.system.num_http_connections", "number of concurrent http connections", &num_http_connections);
 }
 
 int Systemmonitor::timetracker_event(int eventid) {
@@ -389,5 +390,6 @@ void tracked_system_status::pre_serialize() {
 
     set_num_fields(Globalreg::n_tracked_fields);
     set_num_components(Globalreg::n_tracked_components);
+    set_num_http_connections(Globalreg::n_tracked_http_connections);
 } 
 
