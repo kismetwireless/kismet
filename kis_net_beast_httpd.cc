@@ -570,6 +570,16 @@ void kis_net_beast_httpd::register_unauth_route(const std::string& route,
                 extensions, handler));
 }
 
+void kis_net_beast_httpd::register_websocket_route(const std::string& route, 
+        const std::string& role, const std::list<std::string>& extensions, 
+        std::shared_ptr<kis_net_web_endpoint> handler) {
+    local_locker l(&route_mutex, "beast_httpd::register_websocket_route");
+
+    websocket_route_vec.emplace_back(std::make_shared<kis_net_beast_route>(route, 
+                std::list<boost::beast::http::verb>{}, true, role, extensions, handler));
+
+}
+
 std::string kis_net_beast_httpd::create_auth(const std::string& name, const std::string& role, time_t expiry) {
     local_locker l(&auth_mutex, "add auth");
 
