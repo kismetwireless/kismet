@@ -41,7 +41,6 @@
 
 #include "devicetracker.h"
 #include "devicetracker_component.h"
-#include "kis_net_microhttpd.h"
 
 #ifndef KDLT_IEEE802_15_4_TAP
 #define KDLT_IEEE802_15_4_TAP             283 
