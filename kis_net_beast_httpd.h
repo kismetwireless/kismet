@@ -93,11 +93,16 @@ public:
             std::shared_ptr<kis_net_web_endpoint> handler);
     void remove_route(const std::string& route);
 
+    // These routes do NOT require authentication; this is of course very dangerous and should
+    // be limited to those endpoints used for logging in, etc
     void register_unauth_route(const std::string& route, const std::list<std::string>& verbs, 
             std::shared_ptr<kis_net_web_endpoint> handler);
     void register_unauth_route(const std::string& route, const std::list<std::string>& verbs,
             const std::list<std::string>& extensions, 
             std::shared_ptr<kis_net_web_endpoint> handler);
+
+    // Websocket handlers are their own special things.  All websockets must be authenticated.
+    void register_websocket_route(const std::string& route, std::shared_ptr<kis_net_web_endpoint> handler);
 
 
     // Create an auth entry & return it
@@ -135,6 +140,7 @@ protected:
 
     kis_recursive_timed_mutex route_mutex;
     std::vector<std::shared_ptr<kis_net_beast_route>> route_vec;
+    std::vector<std::shared_ptr<kis_net_beast_route>> websocket_route_vec;
 
     kis_recursive_timed_mutex auth_mutex;
     std::vector<std::shared_ptr<kis_net_beast_auth>> auth_vec;
@@ -154,6 +160,7 @@ protected:
 
     boost::asio::ip::tcp::endpoint endpoint;
     boost::asio::ip::tcp::acceptor acceptor;
+
 
     void start_accept();
     void handle_connection(const boost::system::error_code& ec, boost::asio::ip::tcp::socket socket);
@@ -209,6 +216,7 @@ public:
     void set_status(boost::beast::http::status status);
     void set_mime_type(const std::string& type);
     void set_target_file(const std::string& type);
+    void clear_timeout();
     void append_header(const std::string& header, const std::string& value);
 
     const boost::beast::http::verb& verb() const { return verb_; }

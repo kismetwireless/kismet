@@ -821,6 +821,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                             nullptr,
                             1024*512);
         
+                    con->clear_timeout();
                     con->set_target_file(fmt::format("kismet-80211-bssid-{}.pcapng", mac));
                     con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
 

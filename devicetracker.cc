@@ -516,6 +516,7 @@ device_tracker::device_tracker() :
                             nullptr,
                             1024*512);
         
+                    con->clear_timeout();
                     con->set_target_file(fmt::format("kismet-device-{}.pcapng", devkey));
                     con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
 

@@ -890,6 +890,10 @@ void kis_net_beast_httpd_connection::set_target_file(const std::string& fname) {
             fmt::format("attachment; filename=\"{}\"", fname));
 }
 
+void kis_net_beast_httpd_connection::clear_timeout() {
+    boost::beast::get_lowest_layer(stream_).expires_never();
+}
+
 void kis_net_beast_httpd_connection::append_header(const std::string& header, const std::string& value) {
     if (first_response_write)
         throw std::runtime_error("tried to set a header on a connection already in progress");
@@ -898,6 +902,9 @@ void kis_net_beast_httpd_connection::append_header(const std::string& header, co
 }
 
 bool kis_net_beast_httpd_connection::start() {
+    // Set a default timeout
+    boost::beast::get_lowest_layer(stream_).expires_after(std::chrono::seconds(30));
+
     parser_.emplace();
     parser_->body_limit(100000);
 

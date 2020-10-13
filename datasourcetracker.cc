@@ -903,6 +903,7 @@ void datasource_tracker::trigger_deferred_startup() {
                             nullptr, nullptr,
                             1024*512);
 
+                    con->clear_timeout();
                     con->set_target_file("kismet-all-packets.pcapng");
                     con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
 
@@ -945,6 +946,7 @@ void datasource_tracker::trigger_deferred_startup() {
                             nullptr,
                             1024*512);
 
+                    con->clear_timeout();
                     con->set_target_file(fmt::format("kismet-datasource-{}-{}.pcapng", 
                                 ds->get_source_name(), dsuuid));
                     con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
