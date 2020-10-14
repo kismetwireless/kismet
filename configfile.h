@@ -154,6 +154,9 @@ protected:
             std::map<std::string, std::vector<config_entity> > &target_map,
             std::map<std::string, int> &target_map_dirty);
 
+    std::string process_log_template(const std::string& path, const std::string& logname,
+            const std::string& type, unsigned int iteration);
+
     std::string filename;
 
     std::map<std::string, std::vector<config_entity> > config_map;

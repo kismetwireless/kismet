@@ -367,24 +367,14 @@ void config_file::set_opt_vec(const std::string& in_key, const std::vector<std::
 }
 
 
-// Expand a logfile into a full filename
-// Path/template from config
-// Logfile name to use
-// Logfile type to use
-// Starting number or desired number
-std::string config_file::expand_log_path(const std::string& path, const std::string& logname, 
-        const std::string& type, int start, int overwrite) {
-    local_locker lock(&config_locker);
+std::string config_file::process_log_template(const std::string& path, const std::string& logname,
+        const std::string& type, unsigned int iteration) {
 
     std::string logtemplate;
-    int inc = 0;
-    int incpad = 0;
 
     logtemplate = path;
 
-    for (unsigned int nl = logtemplate.find("%"); nl < logtemplate.length();
-            nl = logtemplate.find("%", nl)) {
-
+    for (unsigned int nl = logtemplate.find("%"); nl < logtemplate.length(); nl = logtemplate.find("%", nl)) {
         char op = logtemplate[nl+1];
         logtemplate.erase(nl, 2);
 
@@ -439,10 +429,9 @@ std::string config_file::expand_log_path(const std::string& path, const std::str
         } else if (op == 'l') {
             logtemplate.insert(nl, type.c_str());
         } else if (op == 'i') {
-            inc = nl;
+            logtemplate.insert(nl, fmt::format("{}", iteration));
         } else if (op == 'I') {
-            inc = nl;
-            incpad = 1;
+            logtemplate.insert(nl, fmt::format("{:06}", iteration));
         } else if (op == 'h') { 
             if (Globalreg::globalreg->homepath == "") {
                 char *pwbuf;
@@ -457,8 +446,7 @@ std::string config_file::expand_log_path(const std::string& path, const std::str
 
                 if (getpwuid_r(getuid(), &pw, pwbuf, pwbuf_sz, &pw_result) != 0 || 
                         pw_result == NULL) {
-                    fprintf(stderr, "ERROR:  Could not explode home directory path, "
-                            "getpwuid() failed.\n");
+                    fprintf(stderr, "ERROR:  Could not explode home directory path, getpwuid() failed.\n");
                     exit(1);
                 } else {
                     logtemplate.insert(nl, pw_result->pw_dir);
@@ -488,111 +476,81 @@ std::string config_file::expand_log_path(const std::string& path, const std::str
         }
     }
 
-    // If we've got an incremental, go back and find it and start testing
-    if (inc) {
-        int found = 0;
+    return logtemplate;
+}
 
+std::string config_file::expand_log_path(const std::string& path, const std::string& logname, 
+        const std::string& type, int start, int overwrite) {
+    local_locker lock(&config_locker);
+
+    auto have_incremental = path.find("%i") != std::string::npos || path.find("%I") != std::string::npos;
+    struct stat filstat;
+
+    if (have_incremental) {
         if (start == 0) {
             // If we don't have a number we want to use, find the next free
-            for (int num = 1; num < 10000; num++) {
-                std::string copied;
-                struct stat filstat;
+            for (unsigned int i = 1; i < 10000; i++) {
+                auto logfile = process_log_template(path, logname, type, i);
 
-                char numstr[6];
-                if (incpad)
-                    snprintf(numstr, 6, "%05d", num);
-                else
-                    snprintf(numstr, 6, "%d", num);
+                if (overwrite)
+                    return logfile;
 
-                copied = logtemplate;
-                copied.insert(inc, numstr);
-                copied += ".gz";
-
-                if (stat(copied.c_str(), &filstat) == 0) {
+                if (stat(logfile.c_str(), &filstat) == 0)
                     continue;
-                }
 
-                copied = logtemplate;
-                copied.insert(inc, numstr);
-                copied += ".bz2";
-
-                if (stat(copied.c_str(), &filstat) == 0) {
+                auto lfgz = logfile + ".gz";
+                if (stat(lfgz.c_str(), &filstat) == 0)
                     continue;
-                }
 
-                copied = logtemplate;
-                copied.insert(inc, numstr);
-
-                if (stat(copied.c_str(), &filstat) == 0) {
+                auto lfbz = logfile + ".bz2";
+                if (stat(lfgz.c_str(), &filstat) == 0)
                     continue;
-                }
 
-                // If we haven't been found with any of our variants, we're
-                // clean, mark us found
+                return logfile;
+            } 
 
-                found = 1;
-                logtemplate = copied;
-                break;
-            }
         } else {
-            // Otherwise find out if this incremental is taken
-            std::string copied = logtemplate;
-            struct stat filstat;
-            char numstr[5];
-            snprintf(numstr, 5, "%d", start);
-            int localfound = 1;
+            auto logfile = process_log_template(path, logname, type, start);
 
-            copied.insert(inc, numstr);
+            if (overwrite)
+                return logfile;
 
-            copied = logtemplate;
-            copied.insert(inc, numstr);
-            copied += ".gz";
+            if (stat(logfile.c_str(), &filstat) == 0)
+                return "";
 
-            if (stat(copied.c_str(), &filstat) == 0 && overwrite != 0) {
-                localfound = 0;
-            }
+            auto lfgz = logfile + ".gz";
+            if (stat(lfgz.c_str(), &filstat) == 0)
+                return "";
 
-            copied = logtemplate;
-            copied.insert(inc, numstr);
-            copied += ".bz2";
+            auto lfbz = logfile + ".bz2";
+            if (stat(lfgz.c_str(), &filstat) == 0)
+                return "";
 
-            if (stat(copied.c_str(), &filstat) == 0 && overwrite != 0) {
-                localfound = 0;
-            }
-
-            copied = logtemplate;
-            copied.insert(inc, numstr);
-
-            if (stat(copied.c_str(), &filstat) == 0 && overwrite != 0) {
-                localfound = 0;
-            }
-
-            // If we haven't been found with any of our variants, we're
-            // clean, mark us found
-
-            found = localfound;
-            if (localfound == 0)
-                logtemplate = "";
-            else
-                logtemplate = copied;
+            return logfile;
         }
 
-
-        if (!found) {
-            fprintf(stderr, "ERROR:  Unable to find a logging file within 100 hits. "
-                    "If you really are logging this many times in 1 day, change "
-                    "log names or edit the source.\n");
-            exit(1);
-        }
-    } else {
-        struct stat filstat;
-
-        if (stat(logtemplate.c_str(), &filstat) != -1 && overwrite == 0) {
-            logtemplate = "";
-        }
+        _MSG_ERROR("Could not allocate file for {} ({}) within a reasonable search, try moving "
+                "similarly named log files out of the logging directory?", logname, type);
+        return "";
     }
 
-    return logtemplate;
+    auto logfile = process_log_template(path, logname, type, 0);
+
+    if (overwrite)
+        return logfile;
+
+    if (stat(logfile.c_str(), &filstat) == 0)
+        return "";
+
+    auto lfgz = logfile + ".gz";
+    if (stat(lfgz.c_str(), &filstat) == 0)
+        return "";
+
+    auto lfbz = logfile + ".bz2";
+    if (stat(lfgz.c_str(), &filstat) == 0)
+        return "";
+
+    return logfile;
 }
 
 uint32_t config_file::fetch_file_checksum() {
