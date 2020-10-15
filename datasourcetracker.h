@@ -35,7 +35,6 @@
 #include "kis_net_beast_httpd.h"
 #include "entrytracker.h"
 #include "timetracker.h"
-#include "buffer_handler.h"
 #include "trackedrrd.h"
 #include "kis_mutex.h"
 #include "eventbus.h"
