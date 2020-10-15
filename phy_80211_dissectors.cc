@@ -634,7 +634,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
 
             // If beacons aren't do a broadcast destination, consider them corrupt.
             if (packinfo->dest_mac != Globalreg::globalreg->broadcast_mac) {
-                fprintf(stderr, "debug - dest mac not broadcast\n");
+                // fprintf(stderr, "debug - dest mac not broadcast\n");
                 packinfo->corrupt = 1;
             }
             
@@ -740,7 +740,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
                     std::shared_ptr<kaitai::kstream> ks(new kaitai::kstream(&pack_stream));
                     action->parse(ks);
                 } catch (const std::exception& e) {
-                    fprintf(stderr, "debug - unable to parse action frame - %s\n", e.what());
+                    // fprintf(stderr, "debug - unable to parse action frame - %s\n", e.what());
                     packinfo->corrupt = 1;
                     in_pack->insert(pack_comp_80211, packinfo);
                     return 0;
@@ -785,7 +785,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
                                 }
 
                             } catch (const std::exception& e) {
-                                fprintf(stderr, "debug - unable to parse rmm neighbor - %s\n", e.what());
+                                // fprintf(stderr, "debug - unable to parse rmm neighbor - %s\n", e.what());
                             }
                         }
                     }
@@ -941,7 +941,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
             packinfo->subtype = packet_sub_data_qos_cf_ack_poll;
             packinfo->header_offset += 2;
         } else {
-            fmt::print(stderr, "debug - unknown type/subtype {} {}\n", packinfo->type, packinfo->subtype);
+            // fmt::print(stderr, "debug - unknown type/subtype {} {}\n", packinfo->type, packinfo->subtype);
             packinfo->corrupt = 1;
             packinfo->subtype = packet_sub_unknown;
             in_pack->insert(pack_comp_80211, packinfo);
@@ -978,7 +978,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
         case distrib_inter:
             // If we aren't long enough to hold a intra-ds packet, bail
             if (chunk->length < 30) {
-                fprintf(stderr, "debug - distrib unknown, chunk %d\n", chunk->length);
+                // fprintf(stderr, "debug - distrib unknown, chunk %d\n", chunk->length);
                 packinfo->corrupt = 1;
                 in_pack->insert(pack_comp_80211, packinfo);
                 return 0;
@@ -1210,14 +1210,6 @@ eap_end:
         }
     }
 
-    // Do a little sanity checking on the BSSID
-    if (packinfo->bssid_mac.state.error == 1 ||
-        packinfo->source_mac.state.error == 1 ||
-        packinfo->dest_mac.state.error == 1) {
-        fprintf(stderr, "debug - mac address error\n");
-        packinfo->corrupt = 1;
-    }
-
     // Populate the common addressing
     common->source = packinfo->source_mac;
     common->dest = packinfo->dest_mac;
@@ -1340,7 +1332,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
             std::shared_ptr<kaitai::kstream> stream_ietags(new kaitai::kstream(&istream_ietags));
             packinfo->ie_tags->parse(stream_ietags);
         } catch (const std::exception& e) {
-            fmt::print(stderr, "debug - IE tag structure corrupt\n");
+            // fmt::print(stderr, "debug - IE tag structure corrupt\n");
             packinfo->corrupt = 1;
             return -1;
         }
@@ -1350,10 +1342,10 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
         (kis_common_info *) in_pack->fetch(pack_comp_common);
 
     // Track if we've seen some of these tags already
-    bool seen_ssid = false;
-    bool seen_basicrates = false;
-    bool seen_extendedrates = false;
-    bool seen_mcsrates = false;
+    // bool seen_ssid = false;
+    // bool seen_basicrates = false;
+    // bool seen_extendedrates = false;
+    // bool seen_mcsrates = false;
     unsigned int wmmtspec_responses = 0;
 
     for (auto ie_tag : *(packinfo->ie_tags->tags())) {
@@ -1385,11 +1377,13 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
 
         // IE 0 SSID
         if (ie_tag->tag_num() == 0) {
+            /*
             if (seen_ssid) {
                 fprintf(stderr, "debug - multiple SSID ie tags?\n");
             }
 
             seen_ssid = true;
+            */
 
             packinfo->ssid_len = ie_tag->tag_data().length();
             packinfo->ssid_csum = kis_80211_phy::ssid_hash(ie_tag->tag_data().data(), 
@@ -1423,19 +1417,24 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
         // IE 50 Extended Rates
         if (ie_tag->tag_num() == 1 || ie_tag->tag_num() == 50) {
             if (ie_tag->tag_num() == 1) {
+                /*
                 if (seen_basicrates) {
                     fprintf(stderr, "debug - seen multiple basicrates?\n");
                 }
 
                 seen_basicrates = true;
+                */
+
             }
 
             if (ie_tag->tag_num() == 50) {
+                /*
                 if (seen_extendedrates) {
                     fprintf(stderr, "debug - seen multiple extendedrates?\n");
                 }
 
                 seen_extendedrates = true;
+                */
             }
 
             if (ie_tag->tag_data().find("\x75\xEB\x49") != std::string::npos) {
@@ -1652,7 +1651,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 qbss->parse(ie_tag->tag_data_stream());
                 packinfo->qbss = qbss;
             } catch (const std::exception& e) {
-                fprintf(stderr, "debug - corrupt QBSS %s\n", e.what());
+                // fprintf(stderr, "debug - corrupt QBSS %s\n", e.what());
                 packinfo->corrupt = 1;
                 return -1;
             }
@@ -1666,7 +1665,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 packinfo->tx_power = std::make_shared<dot11_ie_33_power>();
                 packinfo->tx_power->parse(ie_tag->tag_data_stream());
             } catch (const std::exception& e) {
-                fmt::print(stderr, "debug - corrupt IE33 power: {}\n", e.what());
+                // fmt::print(stderr, "debug - corrupt IE33 power: {}\n", e.what());
             }
 
         }
@@ -1677,16 +1676,18 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 packinfo->supported_channels = std::make_shared<dot11_ie_36_supported_channels>();
                 packinfo->supported_channels->parse(ie_tag->tag_data_stream());
             } catch (const std::exception& e) {
-                fmt::print(stderr, "debug  corrupt ie36 supported channels: {}\n", e.what());
+                // fmt::print(stderr, "debug  corrupt ie36 supported channels: {}\n", e.what());
             }
         }
 
         if (ie_tag->tag_num() == 45) {
+            /*
             if (seen_mcsrates) {
                 fprintf(stderr, "debug - duplicate ie45 mcs rates\n");
             } 
 
             seen_mcsrates = true;
+            */
 
             std::vector<std::string> mcsrates;
 
@@ -1750,7 +1751,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 }
 
             } catch (const std::exception& e) {
-                fprintf(stderr, "debug -corrupt HT\n");
+                // fprintf(stderr, "debug -corrupt HT\n");
                 packinfo->corrupt = 1;
                 return -1;
             }
@@ -1850,7 +1851,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 ht->parse(ie_tag->tag_data_stream());
                 packinfo->dot11ht = ht;
             } catch (const std::exception& e) {
-                fprintf(stderr, "debug - unparsable HT\n");
+                // fprintf(stderr, "debug - unparsable HT\n");
                 // Don't consider unparsable HT a corrupt packet (for now)
                 continue;
             }
@@ -1865,7 +1866,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 ccx1->parse(ie_tag->tag_data_stream());
                 packinfo->beacon_info = munge_to_printable(ccx1->ap_name());
             } catch (const std::exception& e) {
-                fprintf(stderr, "debug - ccx error %s\n", e.what());
+                // fprintf(stderr, "debug - ccx error %s\n", e.what());
                 continue;
             }
 
@@ -1981,7 +1982,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                     packinfo->ccx_txpower = ccx_power->cisco_ccx_txpower();
                 }
             } catch (const std::exception& e) {
-                fprintf(stderr, "debug - ie150 vendor tag error: %s\n", e.what());
+                // fprintf(stderr, "debug - ie150 vendor tag error: %s\n", e.what());
                 // Don't consider this a corrupt packet because ie150 can be highly variable
             }
         }
@@ -1994,7 +1995,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 packinfo->dot11vht = vht;
 
             } catch (const std::exception& e) {
-                fprintf(stderr, "debug - vht 192 error %s\n", e.what());
+                // fprintf(stderr, "debug - vht 192 error %s\n", e.what());
                 // Don't consider this a corrupt packet just because we didn't parse it
             }
 
@@ -2225,7 +2226,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                     }
                 }
             } catch (const std::exception &e) {
-                fprintf(stderr, "debug - 221 ie tag corrupt %s\n", e.what());
+                // fprintf(stderr, "debug - 221 ie tag corrupt %s\n", e.what());
                 packinfo->corrupt = 1;
                 return -1;
             }
