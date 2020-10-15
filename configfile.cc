@@ -487,47 +487,26 @@ std::string config_file::expand_log_path(const std::string& path, const std::str
     struct stat filstat;
 
     if (have_incremental) {
-        if (start == 0) {
-            // If we don't have a number we want to use, find the next free
-            for (unsigned int i = 1; i < 10000; i++) {
-                auto logfile = process_log_template(path, logname, type, i);
-
-                if (overwrite)
-                    return logfile;
-
-                if (stat(logfile.c_str(), &filstat) == 0)
-                    continue;
-
-                auto lfgz = logfile + ".gz";
-                if (stat(lfgz.c_str(), &filstat) == 0)
-                    continue;
-
-                auto lfbz = logfile + ".bz2";
-                if (stat(lfgz.c_str(), &filstat) == 0)
-                    continue;
-
-                return logfile;
-            } 
-
-        } else {
-            auto logfile = process_log_template(path, logname, type, start);
+        // If we don't have a number we want to use, find the next free
+        for (unsigned int i = start; i < 10000; i++) {
+            auto logfile = process_log_template(path, logname, type, i);
 
             if (overwrite)
                 return logfile;
 
             if (stat(logfile.c_str(), &filstat) == 0)
-                return "";
+                continue;
 
             auto lfgz = logfile + ".gz";
             if (stat(lfgz.c_str(), &filstat) == 0)
-                return "";
+                continue;
 
             auto lfbz = logfile + ".bz2";
             if (stat(lfgz.c_str(), &filstat) == 0)
-                return "";
+                continue;
 
             return logfile;
-        }
+        } 
 
         _MSG_ERROR("Could not allocate file for {} ({}) within a reasonable search, try moving "
                 "similarly named log files out of the logging directory?", logname, type);
