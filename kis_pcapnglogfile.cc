@@ -22,10 +22,10 @@
 #include "messagebus.h"
 
 kis_pcapng_logfile::kis_pcapng_logfile(shared_log_builder in_builder) :
-    kis_logfile(in_builder) {
-
-    pcapng_stream = NULL;
-    pcapng_file = NULL;
+    kis_logfile(in_builder),
+    buffer{4096, 1024} {
+    pcapng = nullptr;
+    pcapng_file = nullptr;
 }
 
 kis_pcapng_logfile::~kis_pcapng_logfile() {
@@ -37,24 +37,49 @@ bool kis_pcapng_logfile::open_log(std::string in_path) {
 
     set_int_log_path(in_path);
 
-    // Try to open the logfile for writing as a buffer
-    try {
-        pcapng_file = new file_write_buffer(in_path, 16384);
-    } catch (std::exception& e) {
-        _MSG("Failed to open pcapng dump file '" + in_path + "': " +
-                e.what(), MSGFLAG_ERROR);
+    pcapng_file = fopen(in_path.c_str(), "w");
+
+    if (pcapng_file == nullptr) {
+        _MSG_ERROR("Failed to open pcapng log '{}' - {}",
+                in_path, kis_strerror_r(errno));
         return false;
     }
 
-    // Make a buffer handler stub to write to our file
-    bufferhandler.reset(new buffer_handler<file_write_buffer>(NULL, pcapng_file));
+    pcapng = new pcapng_stream_packetchain(buffer, nullptr, nullptr, 16384);
 
-    // Generate the pcap stream itself
-    pcapng_stream = new pcap_stream_packetchain(Globalreg::globalreg, bufferhandler, NULL, NULL);
-
-    _MSG("Opened pcapng log file '" + in_path + "'", MSGFLAG_INFO);
+    _MSG_INFO("Opened pcapng log file '{}'", in_path);
 
     set_int_log_open(true);
+
+    auto thread_p = std::promise<void>();
+    auto thread_f = thread_p.get_future();
+
+    stream_t = std::thread([this, &thread_p]() {
+            thread_p.set_value();
+
+            while (buffer.running() || buffer.size() > 0) {
+                buffer.wait();
+
+                char *data;
+
+                auto sz = buffer.get(&data);
+
+                if (sz > 0) {
+                    if (fwrite(data, sz, 1, pcapng_file) == 0) {
+                        _MSG_ERROR("Error writing to pcapng log '{}' - {}", get_log_path(),
+                                kis_strerror_r(errno));
+                        close_log();
+                        return;
+                    }
+                }
+
+                buffer.consume(sz);
+            }
+
+        });
+
+    thread_f.wait();
+    pcapng->start_stream();
 
     return true;
 }
@@ -64,13 +89,14 @@ void kis_pcapng_logfile::close_log() {
 
     set_int_log_open(false);
 
-    if (pcapng_stream != NULL) {
-        pcapng_stream->stop_stream("Log closing");
-        delete(pcapng_stream);
-        pcapng_stream = NULL;
-    }
+    buffer.cancel();
 
-    bufferhandler.reset();
-    pcapng_file = NULL;
+    if (stream_t.joinable())
+        stream_t.join();
+
+    if (pcapng_file)
+        fclose(pcapng_file);
+
+    pcapng_file = nullptr;
 }
 

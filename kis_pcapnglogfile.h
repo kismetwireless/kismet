@@ -23,9 +23,7 @@
 
 #include "globalregistry.h"
 #include "logtracker.h"
-
-#include "pcapng_stream_ringbuf.h"
-#include "filewritebuf.h"
+#include "pcapng_stream_futurebuf.h"
 
 class kis_pcapng_logfile : public kis_logfile {
 public:
@@ -36,9 +34,10 @@ public:
     virtual void close_log() override;
 
 protected:
-    pcap_stream_packetchain *pcapng_stream;
-    std::shared_ptr<buffer_handler<file_write_buffer> > bufferhandler;
-    file_write_buffer *pcapng_file;
+    pcapng_stream_packetchain *pcapng;
+    future_chainbuf buffer;
+    FILE *pcapng_file;
+    std::thread stream_t;
 };
 
 class pcapng_logfile_builder : public kis_logfile_builder {
