@@ -752,10 +752,10 @@ protobuf_c/%.pb-c.h: protobuf_definitions/%.proto
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $*.cc -o $@
 
 %.c.d:  %.c $(PROTOBUF_C_H)
-	$(CC) -MM $(CFLAGS) $(CPPFLAGS) -MT $*.c.o $*.c > $*.c.d
+	$(CC) -MM -MP $(CFLAGS) $(CPPFLAGS) -MT $*.c.o $*.c -MF $*.c.d
 
 %.cc.d: %.cc $(PROTOBUF_CPP_H_TARGET)
-	$(CXX) -MM $(CXXFLAGS) $(CPPFLAGS) -MT $*.cc.o $*.cc > $*.cc.d
+	$(CXX) -MM -MP $(CXXFLAGS) $(CPPFLAGS) -MT $*.cc.o $*.cc -MF $*.cc.d
 
 .PRECIOUS: %.c %.cc %.h %.Td %.c.d %.cc.d protobuf_cpp/%.pb.cc protobuf_cpp/%.pb.h protobuf_c/%.pb-c.c protouf_c/%.pb-c.h
 
@@ -784,5 +784,5 @@ include $(wildcard $(patsubst %c.o,%c.d,$(LOGTOOL_KISMETDB_PCAP_O)))
 
 include $(wildcard $(patsubst %c.o,%c.d,$(TOOL_KISMET_DISCOVERY_O)))
 
-.SUFFIXES: .c .cc .o 
+.SUFFIXES: .c .cc .o .d
 
