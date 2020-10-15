@@ -196,6 +196,7 @@ protected:
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<entry_tracker> entrytracker;
     std::shared_ptr<device_tracker> devicetracker;
+    std::shared_ptr<alert_tracker> alertracker;
 
     int pack_comp_common, pack_comp_linkframe, pack_comp_decap, pack_comp_btle;
 
@@ -204,6 +205,8 @@ protected:
     std::unordered_map<uint16_t, std::shared_ptr<tracker_element_string>> btle_uuid_cache;
 
     bool ignore_random;
+
+    int alert_bleedingtooth_ref;
 };
 
 #endif

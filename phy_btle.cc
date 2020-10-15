@@ -36,6 +36,7 @@
 #include "dlttracker.h"
 #include "manuf.h"
 #include "messagebus.h"
+#include "alertracker.h"
 
 #include "phy_btle.h"
 
@@ -174,11 +175,20 @@ kis_btle_phy::kis_btle_phy(global_registry *in_globalreg, int in_phyid) :
         Globalreg::fetch_mandatory_global_as<entry_tracker>();
     devicetracker =
         Globalreg::fetch_mandatory_global_as<device_tracker>();
+    alertracker =
+        Globalreg::fetch_mandatory_global_as<alert_tracker>();
 
     pack_comp_common = packetchain->register_packet_component("COMMON");
 	pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
     pack_comp_decap = packetchain->register_packet_component("DECAP");
     pack_comp_btle = packetchain->register_packet_component("BTLE");
+
+    alert_bleedingtooth_ref =
+        alertracker->activate_configured_alert("BLEEDINGTOOTH",
+                "The BleedingTooth attack (CVE-2020-24490) exploits the lack of bounds "
+                "checking in the BlueZ stack and may lead to execution in the kernel.  "
+                "BleedingTooth attacks use over-sized advertisement packets.",
+                phyid);
 
     packetchain->register_handler(&dissector, this, CHAINPOS_LLCDISSECT, -100);
     packetchain->register_handler(&common_classifier, this, CHAINPOS_CLASSIFIER, -100);
@@ -328,6 +338,18 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
         device->set_manuf(Globalreg::globalreg->manufdb->get_random_manuf());
 
     for (auto ad : *btle_info->btle_decode->advertised_data()) {
+        if (btle_info->btle_decode->pdu_type() == btle_info->btle_decode->pdu_adv_ind() ||
+                btle_info->btle_decode->pdu_type() == btle_info->btle_decode->pdu_adv_scan_ind()) {
+            if (ad->length() > 31) {
+                auto al = fmt::format("Saw a BTLE advertisement packet with an advertised content "
+                        "over 31 bytes; this may indicate a BleedingTooth style attack on the "
+                        "Linux BTLE drivers.");
+                mphy->alertracker->raise_alert(mphy->alert_bleedingtooth_ref, in_pack,
+                        mac_addr{}, device->get_macaddr(), mac_addr{}, mac_addr{},
+                        "FHSS", al);
+            }
+        }
+
         if (ad->type() == BTLE_ADVDATA_FLAGS && ad->length() == 2) {
             uint8_t flags = ad->data().data()[0];
 
