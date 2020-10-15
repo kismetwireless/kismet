@@ -1073,7 +1073,7 @@ bool kis_net_beast_httpd_connection::start() {
             res.set(boost::beast::http::field::content_type, "text/html");
             res.body() = 
                 std::string(fmt::format("<html><head><title>404 not found</title></head>"
-                            "<body><h1>404 Not Found/h1><br>"
+                            "<body><h1>404 Not Found</h1><br>"
                             "<p>Could not find <code>{}</code></p></body></html>\n",
                             httpd->escape_html(static_cast<std::string>(uri_))));
             res.prepare_payload();
