@@ -206,7 +206,7 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	datasource_nxp_kw41z.cc.o datasource_scan.cc.o \
 	kis_net_beast_httpd.cc.o kis_httpd_registry.cc.o \
 	system_monitor.cc.o \
-	base64.cc.o sha1.cc.o \
+	base64.cc.o \
 	gpstracker.cc.o kis_gps.cc.o gpsnmea_v2.cc.o gpsserial_v3.cc.o gpstcp_v2.cc.o \
 	gpsgpsd_v3.cc.o gpsfake.cc.o gpsweb.cc.o \
 	packetchain.cc.o packet_filter.cc.o class_filter.cc.o \
