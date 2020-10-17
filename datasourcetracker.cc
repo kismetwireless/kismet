@@ -726,7 +726,7 @@ void datasource_tracker::trigger_deferred_startup() {
                     }
                 }));
 
-    httpd->register_route("/datasource/by-uuid/:uuid/set_hop", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+    httpd->register_route("/datasource/by-uuid/:uuid/set_hop", {"GET", "POST"}, httpd->LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
                     auto ds_uuid = string_to_n<uuid>(con->uri_params()[":uuid"]);
