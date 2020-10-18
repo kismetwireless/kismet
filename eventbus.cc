@@ -73,7 +73,13 @@ void event_bus::trigger_deferred_startup() {
 
                             std::stringstream ss(boost::beast::buffers_to_string(buf.data()));
                             Json::Value json;
-                            ss >> json;
+
+                            try {
+                                ss >> json;
+                            } catch (const std::exception& e) {
+                                _MSG_ERROR("Invalid eventbus ws request");
+                                return;
+                            }
 
                             if (!json["SUBSCRIBE"].isNull()) {
                                 auto e_k = reg_map.find(json["SUBSCRIBE"].asString());
