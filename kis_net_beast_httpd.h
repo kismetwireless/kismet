@@ -78,6 +78,7 @@ public:
 
     static std::string decode_uri(boost::beast::string_view in);
     static void decode_variables(const boost::beast::string_view decoded, http_var_map_t& var_map);
+    static void decode_get_variables(const boost::beast::string_view decoded, http_var_map_t& var_map);
     static void decode_cookies(const boost::beast::string_view decoded, http_cookie_map_t& cookie_map);
     static std::string escape_html(const boost::beast::string_view& html);
 

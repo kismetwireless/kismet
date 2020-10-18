@@ -473,6 +473,16 @@ void kis_net_beast_httpd::decode_variables(const boost::beast::string_view decod
     }
 }
 
+void kis_net_beast_httpd::decode_get_variables(const boost::beast::string_view uri, http_var_map_t& var_map) {
+    auto q_pos = uri.find_first_of("?");
+    
+    if (q_pos == boost::beast::string_view::npos)
+        return;
+
+    auto uri_decode = kis_net_beast_httpd::decode_uri(uri.substr(q_pos + 1, uri.length()));
+    kis_net_beast_httpd::decode_variables(uri_decode, var_map);
+}
+
 void kis_net_beast_httpd::decode_cookies(const boost::beast::string_view decoded, http_cookie_map_t& var_map) {
     boost::beast::string_view::size_type pos = 0;
     while (pos != boost::beast::string_view::npos) {
@@ -986,6 +996,7 @@ bool kis_net_beast_httpd_connection::start() {
     verb_ = request_.method();
 
     httpd->strip_uri_prefix(uri_);
+    httpd->decode_get_variables(uri_, http_variables_);
 
     // Extract the auth cookie
     auto cookie_h = request_.find(boost::beast::http::field::cookie);
@@ -996,6 +1007,10 @@ bool kis_net_beast_httpd_connection::start() {
         auto auth_cookie_k = cookies_.find(httpd->AUTH_COOKIE);
         if (auth_cookie_k != cookies_.end())
             auth_token_ = auth_cookie_k->second;
+    } else {
+        auto uri_cookie_k = http_variables_.find("KISMET");
+        if (uri_cookie_k != http_variables_.end()) 
+            auth_token_ = uri_cookie_k->second;
     }
 
     auto auth_t = httpd->check_auth_token(auth_token_);
@@ -1030,9 +1045,24 @@ bool kis_net_beast_httpd_connection::start() {
                             login_role_ = kis_net_beast_httpd::LOGON_ROLE;
 
                             // If we have a valid pw login and no, or an invalid, auth token, create one
-                            auth_token_ = httpd->create_auth("web logon", httpd->LOGON_ROLE, time(0) + (60*60*24));
+                            auth_token_ = 
+                                httpd->create_auth("web logon", httpd->LOGON_ROLE, time(0) + (60*60*24));
                         }
                     }
+                }
+            }
+        } else {
+            auto uri_user_k = http_variables_.find("user");
+            auto uri_pass_k = http_variables_.find("password");
+
+            if (uri_user_k != http_variables_.end() && uri_pass_k != http_variables_.end()) {
+                login_valid_ = httpd->check_admin_login(uri_user_k->second, uri_pass_k->second);
+
+                if (login_valid_) {
+                    login_role_ = kis_net_beast_httpd::LOGON_ROLE;
+
+                    auth_token_ =
+                        httpd->create_auth("web logon", httpd->LOGON_ROLE, time(0) + (60*60*24));
                 }
             }
         }
@@ -1422,19 +1452,6 @@ bool kis_net_beast_route::match_url(const std::string& url,
 
         uri_params.emplace(std::make_pair(match_keys[key_num], static_cast<std::string>(i)));
         key_num++;
-    }
-
-
-    // Decode GET params into the variables map
-    const auto& g_k = uri_params.find("GETVARS");
-    if (g_k != uri_params.end()) {
-        if (g_k->second.length() > 1) {
-            // Trim the ? and decode the rest for URL encoding
-            auto uri_decode = 
-                kis_net_beast_httpd::decode_uri(g_k->second.substr(1, g_k->second.length()));
-            // Parse into variables
-            kis_net_beast_httpd::decode_variables(uri_decode, uri_variables);
-        }
     }
 
     return true;
