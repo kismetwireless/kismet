@@ -1565,10 +1565,11 @@ void kis_net_web_websocket_endpoint::close() {
     running = false;
 
     try {
-        ws_.close(boost::beast::websocket::close_code::none);
+        ws_.next_layer().close();
+        // ws_.next_layer().socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
     } catch (const std::exception& e) {
         ;
-    }
+    } 
 }
 
 
@@ -1592,10 +1593,13 @@ void kis_net_web_websocket_endpoint::handle_request(std::shared_ptr<kis_net_beas
         running = false;
         if (se.code() != boost::beast::websocket::error::closed) {
             _MSG_ERROR("Websocket read error: {}", se.code().message());
+        } else {
+            return close();
         }
     } catch (const std::exception& e) {
         running = false;
         _MSG_ERROR("Websocket read error: {}", e.what());
+        return close();
     }
 }
 
