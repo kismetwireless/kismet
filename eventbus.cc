@@ -59,27 +59,65 @@ void event_bus::trigger_deferred_startup() {
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
 
+                std::unordered_map<std::string, unsigned long> reg_map;
+
                 auto ws = 
                     std::make_shared<kis_net_web_websocket_endpoint>(con, 
-                        [](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
+                        [this, &reg_map](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
                             boost::beast::flat_buffer& buf, bool text) {
 
+                            if (!text) {
+                                ws->close();
+                                return;
+                            }
+
+                            std::stringstream ss(boost::beast::buffers_to_string(buf.data()));
+                            Json::Value json;
+                            ss >> json;
+
+                            if (!json["SUBSCRIBE"].isNull()) {
+                                auto e_k = reg_map.find(json["SUBSCRIBE"].asString());
+                                if (e_k != reg_map.end()) {
+                                    remove_listener(e_k->second);
+                                    reg_map.erase(e_k);
+                                }
+
+                                auto id = 
+                                    register_listener(json["SUBSCRIBE"].asString(), 
+                                            [ws, json](std::shared_ptr<eventbus_event> evt) {
+                                            
+                                            boost::asio::streambuf stream;
+                                            std::ostream os(&stream);
+
+                                            Globalreg::globalreg->entrytracker->serialize_with_json_summary("json", os, 
+                                                    evt->get_event_content(), json);
+
+                                            ws->write(stream.data(), true);
+
+                                            });
+                                
+                                reg_map[json["SUBSCRIBE"].asString()] = id;
+                            } 
+
+                            if (!json["UNSUBSCRIBE"].isNull()) {
+                                auto e_k = reg_map.find(json["UNSUBSCRIBE"].asString());
+                                if (e_k != reg_map.end()) {
+                                    remove_listener(e_k->second);
+                                    reg_map.erase(e_k);
+                                }
+
+                            }
                         });
 
-                auto listen_id = 
-                    register_listener("*", [ws](std::shared_ptr<eventbus_event> evt) {
-                            boost::asio::streambuf stream;
-                            std::ostream os(&stream);
+                // Blind-catch all errors b/c we must release our listeners at the end
+                try {
+                    ws->handle_request(con);
+                } catch (const std::exception& e) {
+                    ;
+                }
 
-                            Globalreg::globalreg->entrytracker->serialize("json", os, evt, nullptr);
-
-                            ws->write(stream.data(), true);
-
-                            });
-
-                ws->handle_request(con);
-
-                remove_listener(listen_id);
+                for (auto s : reg_map)
+                    remove_listener(s.second);
 
                 }));
 
@@ -120,13 +158,21 @@ void event_bus::event_queue_dispatcher() {
 
                 if (ch_listeners != callback_table.end()) {
                     for (const auto& cbl : ch_listeners->second) {
-                        cbl->cb(e);
+                        try {
+                            cbl->cb(e);
+                        } catch (const std::exception& e) {
+                            _MSG_ERROR("Error in eventbus handler: {}", e.what());
+                        }
                     }
                 }
 
                 if (ch_all_listeners != callback_table.end()) {
                     for (const auto& cbl : ch_all_listeners->second) {
-                        cbl->cb(e);
+                        try {
+                            cbl->cb(e);
+                        } catch (const std::exception& e) {
+                            ;
+                        }
                     }
                 }
 
