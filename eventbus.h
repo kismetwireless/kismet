@@ -94,7 +94,7 @@ protected:
     }
 };
 
-class event_bus : public lifetime_global {
+class event_bus : public lifetime_global, public deferred_startup {
 public:
     using cb_func = std::function<void (std::shared_ptr<eventbus_event>)>;
 
@@ -103,6 +103,7 @@ public:
     static std::shared_ptr<event_bus> create_eventbus() {
         std::shared_ptr<event_bus> mon(new event_bus());
         Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->register_deferred_global(mon);
         Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
@@ -112,6 +113,8 @@ private:
 
 public:
 	virtual ~event_bus();
+
+    void trigger_deferred_startup() override;
 
     unsigned long register_listener(const std::string& channel, cb_func cb);
     unsigned long register_listener(const std::list<std::string>& channels, cb_func cb);

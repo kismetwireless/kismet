@@ -17,8 +17,12 @@
 */
 
 #include "eventbus.h"
+#include "kis_net_beast_httpd.h"
 
-event_bus::event_bus() {
+event_bus::event_bus() :
+    lifetime_global(),
+    deferred_startup() {
+
     mutex.set_name("event_bus");
     handler_mutex.set_name("event_bus_handler");
 
@@ -46,6 +50,39 @@ event_bus::~event_bus() {
 
     event_cl.unlock(0);
     event_dispatch_t.join();
+}
+
+void event_bus::trigger_deferred_startup() {
+    auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
+
+    httpd->register_websocket_route("/eventbus/events", httpd->RO_ROLE, {"ws"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+
+                auto ws = 
+                    std::make_shared<kis_net_web_websocket_endpoint>(con, 
+                        [](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
+                            boost::beast::flat_buffer& buf, bool text) {
+
+                        });
+
+                auto listen_id = 
+                    register_listener("*", [ws](std::shared_ptr<eventbus_event> evt) {
+                            boost::asio::streambuf stream;
+                            std::ostream os(&stream);
+
+                            Globalreg::globalreg->entrytracker->serialize("json", os, evt, nullptr);
+
+                            ws->write(stream.data(), true);
+
+                            });
+
+                ws->handle_request(con);
+
+                remove_listener(listen_id);
+
+                }));
+
 }
 
 std::shared_ptr<eventbus_event> event_bus::get_eventbus_event(const std::string& event_type) {
