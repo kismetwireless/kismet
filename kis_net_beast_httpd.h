@@ -123,8 +123,10 @@ public:
     void register_static_dir(const std::string& prefix, const std::string& path);
 
 
-    // Find an endpoint
+    // Find an endpoint in the route table
     std::shared_ptr<kis_net_beast_route> find_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
+    // Find a websocket endpoint in the route table
+    std::shared_ptr<kis_net_beast_route> find_websocket_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
 
     const bool& allow_cors() { return allow_cors_; }
@@ -204,6 +206,9 @@ public:
 
     // Raw stream
     boost::beast::tcp_stream& stream() { return stream_; }
+
+    // Relinquish raw stream entirely
+    boost::beast::tcp_stream release_stream() { return std::move(stream_); }
 
     // Stream suitable for std::ostream
     future_chainbuf& response_stream() { return response_stream_; }
@@ -429,6 +434,74 @@ protected:
     gen_func_t generator;
     wrapper_func_t pre_func;
     wrapper_func_t post_func;
+};
+
+class kis_net_web_websocket_endpoint : public kis_net_web_endpoint, 
+    public std::enable_shared_from_this<kis_net_web_websocket_endpoint> {
+public:
+    using handler_func_t = std::function<void (std::shared_ptr<kis_net_web_websocket_endpoint> ws, 
+            boost::beast::flat_buffer& buf, bool text)>;
+
+    kis_net_web_websocket_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con, handler_func_t handler_func) :
+        kis_net_web_endpoint{},
+        ws_{con->release_stream()},
+        handler_cb{handler_func} { }
+
+    virtual ~kis_net_web_websocket_endpoint() { }
+
+    virtual void handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) override;
+
+    int write(const std::string& data, bool text) {
+        return write(data.data(), data.size(), text);
+    }
+
+    int write(const char *data, size_t len, bool text) {
+        boost::asio::streambuf buf;
+        std::ostream os(&buf);
+
+        os.write(data, len);
+
+        return write(buf.data(), text);
+    }
+
+    template<class ConstBufferSequence>
+    int write(const ConstBufferSequence& buffers, bool text) {
+        if (!running)
+            return -1;
+
+        try {
+            if (text)
+                ws_.text(true);
+            else
+                ws_.binary(true);
+
+            ws_.write(buffers);
+        } catch (const boost::beast::system_error& se) {
+            running = false;
+            if (se.code() != boost::beast::websocket::error::closed) {
+                _MSG_ERROR("Websocket error: {}", se.code().message());
+            }
+            return -1;
+        } catch (const std::exception& e) {
+            running = false;
+            _MSG_ERROR("Websocket error: {}", e.what());
+            return -1;
+        }
+
+        return buffers.size();
+    }
+
+    virtual void close();
+
+protected:
+    boost::beast::websocket::stream<boost::beast::tcp_stream> ws_;
+
+    std::promise<void> handle_pr;
+
+    handler_func_t handler_cb;
+
+    std::atomic<bool> running;
+
 };
 
 // Routes map a templated URL path to a callback generator which creates the content.

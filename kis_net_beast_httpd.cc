@@ -267,6 +267,21 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
 
                 os << "Login configured\n";
             }));
+
+    // Test echo websocket
+    register_websocket_route("/debug/echo", LOGON_ROLE, {"ws"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                auto ws = 
+                    std::make_shared<kis_net_web_websocket_endpoint>(con, 
+                        [](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
+                            boost::beast::flat_buffer& buf, bool text) {
+                            // Simple echo protocol
+                            ws->write(boost::asio::buffer_cast<const char *>(buf.data()),
+                                    buf.size(), text);
+                        });
+                ws->handle_request(con);
+                }));
 }
 
 kis_net_beast_httpd::~kis_net_beast_httpd() {
@@ -738,6 +753,17 @@ std::shared_ptr<kis_net_beast_route> kis_net_beast_httpd::find_endpoint(std::sha
     return nullptr;
 }
 
+std::shared_ptr<kis_net_beast_route> kis_net_beast_httpd::find_websocket_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    local_shared_locker l(&route_mutex, "find_websocket_endpoint");
+
+    for (const auto& r : websocket_route_vec) {
+        if (r->match_url(static_cast<const std::string>(con->uri()), con->uri_params_, con->http_variables_))
+            return r;
+    }
+
+    return nullptr;
+}
+
 void kis_net_beast_httpd::register_static_dir(const std::string& prefix, const std::string& path) {
     local_locker l(&static_mutex, "register_static_dir");
     static_dir_vec.emplace_back(static_content_dir(prefix, path));
@@ -954,15 +980,6 @@ bool kis_net_beast_httpd_connection::start() {
         return do_close();
     }
 
-    if (boost::beast::websocket::is_upgrade(parser_->get())) {
-        _MSG_ERROR("(DEBUG) Incoming websocket but we don't deal with it yet");
-        /*
-        std::make_shared<websocket_session>(
-                stream_.release_socket())->do_accept(parser_->release());
-                */
-        return do_close();
-    }
-
     request_ = boost::beast::http::request<boost::beast::http::string_body>(parser_->release());
 
     uri_ = request_.target();
@@ -1019,6 +1036,58 @@ bool kis_net_beast_httpd_connection::start() {
                 }
             }
         }
+    }
+
+    if (boost::beast::websocket::is_upgrade(request_)) {
+        // All websockets must be authenticated, and are resolved in their own routing table
+        auto route = httpd->find_websocket_endpoint(shared_from_this());
+
+        if (route == nullptr) {
+            boost::beast::http::response<boost::beast::http::string_body> 
+                res{boost::beast::http::status::not_found, request_.version()};
+
+            res.set(boost::beast::http::field::server, "Kismet");
+            res.set(boost::beast::http::field::content_type, "text/html");
+            res.body() = 
+                std::string(fmt::format("<html><head><title>404 not found</title></head>"
+                            "<body><h1>404 Not Found</h1><br>"
+                            "<p>Could not find <code>{}</code></p></body></html>\n",
+                            httpd->escape_html(static_cast<std::string>(uri_))));
+            res.prepare_payload();
+
+            boost::system::error_code error;
+
+            boost::beast::http::write(stream_, res, error);
+
+            if (error) 
+                return do_close();
+
+            return true;
+        }
+
+        if (!route->match_role(login_valid_, login_role_)) {
+            boost::beast::http::response<boost::beast::http::string_body> 
+                res{boost::beast::http::status::unauthorized, request_.version()};
+
+            res.set(boost::beast::http::field::server, "Kismet");
+            res.set(boost::beast::http::field::content_type, "text/html");
+            res.body() = std::string("<html><head><title>Permission denied</title></head><body><h1>Permission denied</h1><br><p>This resource requires a login or session token.</p></body></html>\n");
+            res.prepare_payload();
+
+            boost::system::error_code error;
+
+            boost::beast::http::write(stream_, res, error);
+            if (error) 
+                return do_close();
+
+            return true;
+        }
+
+        boost::beast::get_lowest_layer(stream_).expires_never();
+
+        route->invoke(shared_from_this());
+
+        return do_close();
     }
 
     // Look for a route
@@ -1489,6 +1558,44 @@ void kis_net_web_tracked_endpoint::handle_request(std::shared_ptr<kis_net_beast_
         }
 
         os << "Error: " << e.what() << "\n";
+    }
+}
+
+void kis_net_web_websocket_endpoint::close() {
+    running = false;
+
+    try {
+        ws_.close(boost::beast::websocket::close_code::none);
+    } catch (const std::exception& e) {
+        ;
+    }
+}
+
+
+void kis_net_web_websocket_endpoint::handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    try {
+        ws_.set_option(boost::beast::websocket::stream_base::timeout::suggested(
+                    boost::beast::role_type::server));
+
+        ws_.accept(con->request());
+
+        running = true;
+
+        while (running) {
+            boost::beast::flat_buffer buffer;
+
+            ws_.read(buffer);
+
+            handler_cb(shared_from_this(), buffer, ws_.got_text());
+        }
+    } catch (const boost::beast::system_error& se) {
+        running = false;
+        if (se.code() != boost::beast::websocket::error::closed) {
+            _MSG_ERROR("Websocket read error: {}", se.code().message());
+        }
+    } catch (const std::exception& e) {
+        running = false;
+        _MSG_ERROR("Websocket read error: {}", e.what());
     }
 }
 
