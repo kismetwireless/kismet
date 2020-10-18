@@ -1145,11 +1145,11 @@ std::shared_ptr<kis_tracked_device_base>
         if (in_pack == nullptr) {
             new_view_device(device);
             auto evt = eventbus->get_eventbus_event(event_new_device());
-            evt->get_event_content()->insert(event_new_phy(), device);
+            evt->get_event_content()->insert(event_new_device(), device);
             eventbus->publish(evt);
         } else {
             auto evt = eventbus->get_eventbus_event(event_new_device());
-            evt->get_event_content()->insert(event_new_phy(), device);
+            evt->get_event_content()->insert(event_new_device(), device);
             in_pack->process_complete_events.push_back(evt);
         }
     }
