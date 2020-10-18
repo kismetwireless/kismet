@@ -107,8 +107,12 @@ public:
     void register_serializer(const std::string& type, std::shared_ptr<tracker_element_serializer> in_ser);
     void remove_serializer(const std::string& type);
     bool can_serialize(const std::string& type);
-    int serialize(const std::string& type, std::ostream &stream, shared_tracker_element elem,
+
+    int serialize(const std::string& type, std::ostream& stream, shared_tracker_element elem,
             std::shared_ptr<tracker_element_serializer::rename_map> name_map = nullptr);
+
+    int serialize_with_json_summary(const std::string& type, std::ostream& stream, shared_tracker_element elem,
+            const Json::Value& json_summary);
 
 protected:
     kis_recursive_timed_mutex entry_mutex;

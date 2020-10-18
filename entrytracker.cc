@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -276,4 +276,13 @@ int entry_tracker::serialize(const std::string& in_name, std::ostream &stream,
     return -1;
 }
 
+int entry_tracker::serialize_with_json_summary(const std::string& type, std::ostream& stream, 
+        shared_tracker_element elem, const Json::Value& json_summary) {
+    auto name_map = std::make_shared<tracker_element_serializer::rename_map>();
+
+    auto sumelem = 
+        summarize_tracker_element_with_json(elem, json_summary, name_map);
+
+    return serialize(type, stream, sumelem, name_map);
+}
 

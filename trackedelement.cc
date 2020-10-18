@@ -1203,10 +1203,9 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
         if (si->resolved_path.size() == 0)
             continue;
 
-        shared_tracker_element f =
-            get_tracker_element_path(si->resolved_path, in);
+        shared_tracker_element f = get_tracker_element_path(si->resolved_path, in);
 
-        if (f == NULL) {
+        if (f == nullptr) {
             f = Globalreg::globalreg->entrytracker->register_and_get_field("unknown" + int_to_string(fn),
                     tracker_element_factory<tracker_element_int8>(),
                     "unallocated field");
@@ -1243,6 +1242,28 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
     in->post_serialize();
 
     return ret_elem;
+}
+
+std::shared_ptr<tracker_element> summarize_tracker_element_with_json(std::shared_ptr<tracker_element> data, 
+        const Json::Value& json, std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
+
+    auto summary_vec = std::vector<SharedElementSummary>{};
+    auto fields = json.get("fields", Json::Value(Json::arrayValue));
+
+    for (const auto& i : fields) {
+        if (i.isString()) {
+            summary_vec.push_back(std::make_shared<tracker_element_summary>(i.asString()));
+        } else if (i.isArray()) {
+            if (i.size() != 2)
+                throw std::runtime_error("Invalid field mapping, expected [field, name]");
+            summary_vec.push_back(std::make_shared<tracker_element_summary>(i[0].asString(), i[1].asString()));
+        } else {
+            throw std::runtime_error("Invalid field mapping, expected field or [field,rename]");
+        }
+    }
+
+    return summarize_tracker_element(data, summary_vec, rename_map);
+
 }
 
 bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs, 
