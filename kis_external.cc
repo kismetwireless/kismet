@@ -109,6 +109,9 @@ void kis_external_interface::close_external() {
             ;
         }
     }
+
+    if (closure_cb)
+        closure_cb();
 };
 
 void kis_external_interface::ipc_soft_kill() {

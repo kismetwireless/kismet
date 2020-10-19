@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -92,6 +92,12 @@ public:
     // Check to see if an IPC binary is available
     static bool check_ipc(const std::string& in_binary);
 
+    // Set a closure callback, for instance when being driven from a websocket
+    virtual void set_closure_cb(std::function<void ()> cb) {
+        local_locker l(&ext_mutex, "set_closure_cb");
+        closure_cb = cb;
+    }
+
     // close the external interface
     virtual void close_external();
 
@@ -102,6 +108,8 @@ public:
     virtual void trigger_error(const std::string& in_error);
 
 protected:
+    std::function<void (void)> closure_cb;
+
     // Handle an error; override in child classes; called when an error causes a shutdown
     virtual void handle_error(const std::string& error) { }
 
