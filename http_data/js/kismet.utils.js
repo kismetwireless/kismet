@@ -16,20 +16,6 @@ if (typeof(KISMET_URI_PREFIX) !== 'undefined')
 exports.timestamp_sec = 0;
 exports.timestamp_usec = 0;
 
-function update_ts() {
-    $.get(local_uri_prefix + "system/timestamp.json")
-    .done(function(data) {
-        data = exports.sanitizeObject(data);
-        exports.timestamp_sec = data['kismet.system.timestamp.sec'];
-        exports.timestamp_usec = data['ksimet.system.timestamp.usec'];
-    })
-    .always(function() {
-        setTimeout(update_ts, 1000);
-    })
-}
-
-update_ts();
-
 // Make a universal HTML5 storage handler
 exports.storage = Storages.localStorage;
 

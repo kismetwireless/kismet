@@ -140,6 +140,12 @@ exports.OpenEventbusWs = function() {
     }
 };
 
+exports.SubscribeEventbus("TIMESTAMP", [], function(data) {
+    data = kismet.sanitizeObject(data);
+    kismet.timestamp_sec = data['kismet.system.timestamp.sec'];
+    kismet.timestamp_usec = data['ksimet.system.timestamp.usec'];
+});
+
 // exports.SubscribeEventbus("MESSAGE", [], function(e) { console.log(e); });
 
 /* Define some callback functions for the table */
