@@ -188,6 +188,7 @@
         e.stopImmediatePropagation();
     }
 
+    /*
     var packet_refresh = function() {
         if (kismet_ui.window_visible) {
             $.get(local_uri_prefix + "packetchain/packet_stats.json")
@@ -348,6 +349,7 @@
             timerid = setTimeout(packet_refresh, 1000);
         }
     }
+    */
 
     $.fn.packetrate = function(data, inopt) {
         // Get the stored value if one exists
@@ -394,7 +396,156 @@
             maxWidth: 450
         });
 
-        packet_refresh();
+        kismet_ui_base.SubscribeEventbus("PACKETCHAIN_STATS", [], function(data) {
+            data = kismet.sanitizeObject(data);
+
+            try {
+                var rate_rrd =
+                    kismet.RecalcRrdData2(data['kismet.packetchain.packets_rrd'], kismet.RRD_SECOND, {
+                        transform: function(data, opt) {
+                            var slices = 3;
+                            var peak = 0;
+                            var ret = new Array();
+
+                            for (var ri = 0; ri < data.length; ri++) {
+                                peak = Math.max(peak, data[ri]);
+
+                                if ((ri % slices) == (slices - 1)) {
+                                    ret.push(peak);
+                                    peak = 0;
+                                }
+                            }
+
+                            return ret;
+                        }
+                    });
+
+                var error_rrd =
+                    kismet.RecalcRrdData2(
+                        data['kismet.packetchain.error_packets_rrd'], kismet.RRD_SECOND, {
+                            transform: function(data, opt) {
+                                var slices = 3;
+                                var peak = 0;
+                                var ret = new Array();
+
+                                for (var ri = 0; ri < data.length; ri++) {
+                                    peak = Math.max(peak, data[ri]);
+
+                                    if ((ri % slices) == (slices - 1)) {
+                                        ret.push(peak);
+                                        peak = 0;
+                                    }
+                                }
+
+                                return ret;
+                            }
+                        });
+
+                var dupe_rrd =
+                    kismet.RecalcRrdData2(
+                        data['kismet.packetchain.dupe_packets_rrd'], kismet.RRD_SECOND, {
+                            transform: function(data, opt) {
+                                var slices = 3;
+                                var peak = 0;
+                                var ret = new Array();
+
+                                for (var ri = 0; ri < data.length; ri++) {
+                                    peak = Math.max(peak, data[ri]);
+
+                                    if ((ri % slices) == (slices - 1)) {
+                                        ret.push(peak);
+                                        peak = 0;
+                                    }
+                                }
+
+                                return ret;
+                            }
+                        });
+
+                var queue_rrd =
+                    kismet.RecalcRrdData2(
+                        data['kismet.packetchain.queued_packets_rrd'], kismet.RRD_SECOND, {
+                            transform: function(data, opt) {
+                                var slices = 3;
+                                var peak = 0;
+                                var ret = new Array();
+
+                                for (var ri = 0; ri < data.length; ri++) {
+                                    peak = Math.max(peak, data[ri]);
+
+                                    if ((ri % slices) == (slices - 1)) {
+                                        ret.push(peak);
+                                        peak = 0;
+                                    }
+                                }
+
+                                return ret;
+                            }
+                        });
+
+                var drop_rrd =
+                    kismet.RecalcRrdData2(
+                        data['kismet.packetchain.dropped_packets_rrd'], kismet.RRD_SECOND, {
+                            transform: function(data, opt) {
+                                var slices = 3;
+                                var peak = 0;
+                                var ret = new Array();
+
+                                for (var ri = 0; ri < data.length; ri++) {
+                                    peak = Math.max(peak, data[ri]);
+
+                                    if ((ri % slices) == (slices - 1)) {
+                                        ret.push(peak);
+                                        peak = 0;
+                                    }
+                                }
+
+                                return ret;
+                            }
+                        });
+
+                var combo_rrd = [];
+
+                for (var i = 0; i < rate_rrd.length; i++) {
+                    combo_rrd.push([rate_rrd[i], dupe_rrd[i]]);
+                }
+
+
+                packetgraph.sparkline(combo_rrd, {
+                    type: "bar", 
+                    height: 12, 
+                });
+
+                $('#rate', popup_content).sparkline(rate_rrd, {
+                    type: "bar",
+                    height: 12,
+                });
+
+                $('#error', popup_content).sparkline(error_rrd, {
+                    type: "bar",
+                    height: 12,
+                });
+
+                $('#dupe', popup_content).sparkline(dupe_rrd, {
+                    type: "bar",
+                    height: 12,
+                });
+
+                $('#queue', popup_content).sparkline(queue_rrd, {
+                    type: "bar",
+                    height: 12,
+                });
+
+                $('#drop', popup_content).sparkline(drop_rrd, {
+                    type: "bar",
+                    height: 12,
+                });
+
+            } catch (error) {
+
+            }
+
+        });
     };
 
 }(jQuery));
