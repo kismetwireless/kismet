@@ -525,6 +525,7 @@ public:
         stopped{false},
         acceptor{Globalreg::globalreg->io, endpoint},
         incoming_socket{Globalreg::globalreg->io} {
+        acceptor.set_option(boost::asio::socket_base::reuse_address(true));
         datasourcetracker = Globalreg::fetch_mandatory_global_as<datasource_tracker>();
         start_accept();
     }
