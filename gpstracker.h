@@ -21,12 +21,13 @@
 
 #include "config.h"
 
-
+#include "eventbus.h"
 #include "globalregistry.h"
 #include "kis_mutex.h"
 #include "kis_net_beast_httpd.h"
 #include "packet.h"
 #include "packetchain.h"
+#include "timetracker.h"
 #include "trackedlocation.h"
 
 class kis_gps_builder;
@@ -180,6 +181,8 @@ public:
     // Populate packets that don't have a GPS location
     static int kis_gpspack_hook(CHAINCALL_PARMS);
 
+    static std::string event_gps_location() { return "GPS_LOCATION"; }
+
 protected:
     kis_recursive_timed_mutex gpsmanager_mutex;
 
@@ -201,6 +204,10 @@ protected:
     int log_snapshot_timer;
 
     int pack_comp_gps, pack_comp_no_gps;
+
+    std::shared_ptr<time_tracker> timetracker;
+    int event_timer_id;
+    std::shared_ptr<event_bus> eventbus;
 };
 
 #endif

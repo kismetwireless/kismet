@@ -120,11 +120,43 @@ gps_tracker::gps_tracker() :
 
                     return loctrip;
                 }));
+
+    timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
+    eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
+
+    event_timer_id = 
+        timetracker->register_timer(std::chrono::seconds(1), true, 
+                [this](int) -> int {
+                local_shared_locker l(&gpsmanager_mutex, "location event");
+                auto loctrip = std::make_shared<kis_tracked_location_triplet>();
+                auto ue = std::make_shared<tracker_element_uuid>(tracked_uuid_addition_id);
+
+                auto pi = std::unique_ptr<kis_gps_packinfo>(get_best_location());
+                if (pi != nullptr) {
+                    ue->set(pi->gpsuuid);
+                    loctrip->set_lat(pi->lat);
+                    loctrip->set_lon(pi->lon);
+                    loctrip->set_alt(pi->alt);
+                    loctrip->set_speed(pi->speed);
+                    loctrip->set_heading(pi->heading);
+                    loctrip->set_fix(pi->fix);
+                    loctrip->set_valid(pi->fix >= 2);
+                    loctrip->set_time_sec(pi->tv.tv_sec);
+                    loctrip->set_time_usec(pi->tv.tv_usec);
+                    loctrip->insert(ue);
+                } else {
+                    loctrip->set_valid(false);
+                }
+
+                auto evt = eventbus->get_eventbus_event(event_gps_location());
+                evt->get_event_content()->insert(event_gps_location(), loctrip);
+                eventbus->publish(evt);
+
+                return 1;
+                });
 }
 
 gps_tracker::~gps_tracker() {
-    local_locker lock(&gpsmanager_mutex);
-
     Globalreg::globalreg->remove_global("GPSTRACKER");
 
     Globalreg::globalreg->packetchain->remove_handler(&kis_gpspack_hook, CHAINPOS_POSTCAP);
@@ -133,6 +165,7 @@ gps_tracker::~gps_tracker() {
         Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
 
     timetracker->remove_timer(log_snapshot_timer);
+    timetracker->remove_timer(event_timer_id);
 }
 
 void gps_tracker::log_snapshot_gps() {
