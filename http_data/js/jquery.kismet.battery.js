@@ -25,98 +25,88 @@
     var baticon;
     var batoverlay;
 
-    var batinfo_refresh = function() {
-        if (kismet_ui.window_visible) {
-            $.get(local_uri_prefix + "system/status.json")
-                .done(function(data) {
-                    data = kismet.sanitizeObject(data);
+    var batinfo_refresh = function(data) {
+        data = kismet.sanitizeObject(data);
 
-                    baticon.removeClass("fa-refresh");
-                    baticon.removeClass("fa-spin");
-                    baticon.removeClass("fa-battery-0");
-                    baticon.removeClass("fa-battery-1");
-                    baticon.removeClass("fa-battery-2");
-                    baticon.removeClass("fa-battery-3");
-                    baticon.removeClass("fa-battery-4");
-                    baticon.removeClass("fa-plug");
+        baticon.removeClass("fa-refresh");
+        baticon.removeClass("fa-spin");
+        baticon.removeClass("fa-battery-0");
+        baticon.removeClass("fa-battery-1");
+        baticon.removeClass("fa-battery-2");
+        baticon.removeClass("fa-battery-3");
+        baticon.removeClass("fa-battery-4");
+        baticon.removeClass("fa-plug");
 
-                    var p = data['kismet.system.battery.percentage'];
-                    var c = data['kismet.system.battery.charging'];
-                    var a = data['kismet.system.battery.ac'];
+        var p = data['kismet.system.battery.percentage'];
+        var c = data['kismet.system.battery.charging'];
+        var a = data['kismet.system.battery.ac'];
 
-                    if (c === 'charging') {
-                        timetext.text("Charging " + p + "% ");
-                        timetext.show();
+        if (c === 'charging') {
+            timetext.text("Charging " + p + "% ");
+            timetext.show();
 
-                        batoverlay.show();
-                        batoverlay.addClass("battery-blink");
+            batoverlay.show();
+            batoverlay.addClass("battery-blink");
 
-                        if (p < 25)
-                            baticon.addClass("fa-battery-0");
-                        else if (p < 50)
-                            baticon.addClass("fa-battery-1");
-                        else if (p < 75)
-                            baticon.addClass("fa-battery-2");
-                        else if (p < 90)
-                            baticon.addClass("fa-battery-3");
-                        else
-                            baticon.addClass("fa-battery-4");
-                    } else if (c === 'discharging') {
-                        batoverlay.hide();
+            if (p < 25)
+                baticon.addClass("fa-battery-0");
+            else if (p < 50)
+                baticon.addClass("fa-battery-1");
+            else if (p < 75)
+                baticon.addClass("fa-battery-2");
+            else if (p < 90)
+                baticon.addClass("fa-battery-3");
+            else
+                baticon.addClass("fa-battery-4");
+        } else if (c === 'discharging') {
+            batoverlay.hide();
 
-                        if (p < 25)
-                            baticon.addClass("fa-battery-0");
-                        else if (p < 50)
-                            baticon.addClass("fa-battery-1");
-                        else if (p < 75)
-                            baticon.addClass("fa-battery-2");
-                        else if (p < 90)
-                            baticon.addClass("fa-battery-3");
-                        else
-                            baticon.addClass("fa-battery-4");
+            if (p < 25)
+                baticon.addClass("fa-battery-0");
+            else if (p < 50)
+                baticon.addClass("fa-battery-1");
+            else if (p < 75)
+                baticon.addClass("fa-battery-2");
+            else if (p < 90)
+                baticon.addClass("fa-battery-3");
+            else
+                baticon.addClass("fa-battery-4");
 
-                        var s = data['kismet.system.battery.remaining'];
+            var s = data['kismet.system.battery.remaining'];
 
-                        if (s > 0) {
-                            var h = Math.floor(s / 3600);
-                            s -= 3600 * h;
-                            var m = Math.floor(s / 60);
-                            s -= 60 * m;
+            if (s > 0) {
+                var h = Math.floor(s / 3600);
+                s -= 3600 * h;
+                var m = Math.floor(s / 60);
+                s -= 60 * m;
 
-                            if (m < 10)
-                                m = '0' + m
+                if (m < 10)
+                    m = '0' + m
 
-                            timetext.text(p + "% " + h + "h " + m + "m");
-                        } else {
-                            timetext.text(p + "%");
-                        }
+                timetext.text(p + "% " + h + "h " + m + "m");
+            } else {
+                timetext.text(p + "%");
+            }
 
-                        timetext.show();
-                    } else if (a == 1 && p == 0) {
-                        timetext.hide();
-                        baticon.addClass("fa-plug");
-                        batoverlay.hide();
-                    } else if (c === 'charged') {
-                        batoverlay.show();
-                        batoverlay.removeClass("battery-blink")
-                        baticon.addClass("fa-battery-4");
-                        timetext.text("Charged");
-                        timetext.show();
-                    } else {
-                        timetext.text("Unknown");
-                        timetext.show();
-                        baticon.addClass("fa-battery-0");
-                        batoverlay.hide();
-                    }
-
-                })
-                .always(function() {
-                    timerid = setTimeout(batinfo_refresh, 5000);
-                });
+            timetext.show();
+        } else if (a == 1 && p == 0) {
+            timetext.hide();
+            baticon.addClass("fa-plug");
+            batoverlay.hide();
+        } else if (c === 'charged') {
+            batoverlay.show();
+            batoverlay.removeClass("battery-blink")
+            baticon.addClass("fa-battery-4");
+            timetext.text("Charged");
+            timetext.show();
         } else {
-            timerid = setTimeout(batinfo_refresh, 5000);
+            timetext.text("Unknown");
+            timetext.show();
+            baticon.addClass("fa-battery-0");
+            batoverlay.hide();
         }
-    }
+
+    };
 
     $.fn.battery = function(data, inopt) {
         element = $(this);
@@ -157,7 +147,14 @@
             element.append(batholder);
         }
 
-        batinfo_refresh();
+        $.get(local_uri_prefix + "system/status.json")
+        .done(function(data) {
+            batinfo_refresh(data);
+        });
+
+        kismet_ui_base.SubscribeEventbus("BATTERY", [], function(data) {
+            batinfo_refresh(data);
+        });
     };
 
 }(jQuery));
