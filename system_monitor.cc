@@ -45,6 +45,7 @@ Systemmonitor::Systemmonitor() :
 
     devicetracker = Globalreg::fetch_mandatory_global_as<device_tracker>();
     eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
+    timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
 
     status = std::make_shared<tracked_system_status>();
 
@@ -57,9 +58,7 @@ Systemmonitor::Systemmonitor() :
     trigger_tm.tv_sec = time(0) + 1;
     trigger_tm.tv_usec = 0;
 
-    auto timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
-    timer_id = 
-        timetracker->register_timer(0, &trigger_tm, 0, this);
+    timer_id = timetracker->register_timer(0, &trigger_tm, 0, this);
 
     // Link the RRD out of the devicetracker
     status->insert(devicetracker->get_packets_rrd());
@@ -188,6 +187,28 @@ Systemmonitor::Systemmonitor() :
                 kismetdb->log_snapshot(nullptr, tv, "SYSTEM", js.str());
             });
 
+    event_timer_id = 
+        timetracker->register_timer(std::chrono::seconds(1), true, 
+                [this](int) -> int {
+
+                auto tse = std::make_shared<tracker_element_map>();
+
+                tse->insert(status->get_tracker_timestamp_sec());
+                tse->insert(status->get_tracker_timestamp_usec());
+
+                struct timeval now;
+                gettimeofday(&now, NULL);
+
+                status->set_timestamp_sec(now.tv_sec);
+                status->set_timestamp_usec(now.tv_usec);
+
+                auto evt = eventbus->get_eventbus_event(event_timestamp());
+                evt->get_event_content()->insert(event_timestamp(), tse);
+                eventbus->publish(evt);
+
+                return 1;
+                });
+
 }
 
 Systemmonitor::~Systemmonitor() {
@@ -195,11 +216,9 @@ Systemmonitor::~Systemmonitor() {
 
     Globalreg::globalreg->remove_global("SYSTEMMONITOR");
 
-    auto timetracker = Globalreg::fetch_global_as<time_tracker>("TIMETRACKER");
-    if (timetracker != nullptr) {
-        timetracker->remove_timer(timer_id);
-        timetracker->remove_timer(kismetdb_log_timer);
-    }
+    timetracker->remove_timer(timer_id);
+    timetracker->remove_timer(kismetdb_log_timer);
+    timetracker->remove_timer(event_timer_id);
 
     eventbus->remove_listener(logopen_evt_id);
 }

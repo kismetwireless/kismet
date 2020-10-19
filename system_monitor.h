@@ -153,6 +153,8 @@ public:
     // time_tracker callback
     virtual int timetracker_event(int eventid) override;
 
+    static std::string event_timestamp() { return "TIMESTAMP"; }
+
 protected:
     kis_recursive_timed_mutex monitor_mutex;
 
@@ -169,7 +171,10 @@ protected:
 
     long mem_per_page;
 
+    std::shared_ptr<time_tracker> timetracker;
+    int event_timer_id;
     int kismetdb_log_timer;
+
 };
 
 #endif
