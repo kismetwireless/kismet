@@ -885,7 +885,7 @@ void datasource_tracker::trigger_deferred_startup() {
 
                     if (ds->get_source_paused()) {
                         _MSG_INFO("Resuming source '{}' ({})", ds->get_source_name(), ds->get_source_uuid());
-                        ds->set_source_paused(false);
+                        ds->resume_source();
                         return(ds);
                     } else {
                         throw std::runtime_error("Source already running");

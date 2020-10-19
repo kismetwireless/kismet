@@ -429,6 +429,30 @@ void kis_datasource::disable_source() {
     error_timer_id = -1;
 }
 
+void kis_datasource::pause_source() {
+    local_locker lock(&ext_mutex, "datasource::pause_source");
+
+    if (!get_source_paused()) {
+        auto evt = eventbus->get_eventbus_event(event_datasource_paused());
+        evt->get_event_content()->insert(event_datasource_paused(), source_uuid);
+        eventbus->publish(evt);
+    }
+
+    set_source_paused(true);
+}
+
+void kis_datasource::resume_source() {
+    local_locker lock(&ext_mutex, "datasource::pause_source");
+
+    if (get_source_paused()) {
+        auto evt = eventbus->get_eventbus_event(event_datasource_resumed());
+        evt->get_event_content()->insert(event_datasource_resumed(), source_uuid);
+        eventbus->publish(evt);
+    }
+
+    set_source_paused(false);
+}
+
 void kis_datasource::handle_error(const std::string& in_error) {
     if (!quiet_errors && in_error.length()) {
         _MSG_ERROR("Data source '{} / {}' ('{}') encountered an error: {}",
