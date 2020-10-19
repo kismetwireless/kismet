@@ -300,6 +300,14 @@ public:
     virtual void disable_source();
 
 
+    // Pauses a source
+    // Paused sources remain open, but discard any packts
+    virtual void pause_source();
+
+    // Resumes a source
+    virtual void resume_source();
+
+
     // Get an option from the definition
     virtual std::string get_definition_opt(std::string in_opt);
     virtual bool get_definition_opt_bool(std::string in_opt, bool in_default);
@@ -406,18 +414,11 @@ public:
         local_shared_unlocker ul(&ext_mutex);
     }
 
-    static std::string event_datasource_error() {
-        return "DATASOURCE_ERROR";
-    }
-
-    static std::string event_datasource_opened() {
-        return "DATASOURCE_OPENED";
-    }
-
-    static std::string event_datasource_closed() {
-        return "DATASOURCE_CLOSED";
-    }
-
+    static std::string event_datasource_error() { return "DATASOURCE_ERROR"; }
+    static std::string event_datasource_opened() { return "DATASOURCE_OPENED"; }
+    static std::string event_datasource_closed() { return "DATASOURCE_CLOSED"; }
+    static std::string event_datasource_paused() { return "DATASOURCE_PAUSED"; }
+    static std::string event_datasource_resumed() { return "DATASOURCE_RESUMED"; }
 
 protected:
     // Source error; sets error state, fails all pending function callbacks,

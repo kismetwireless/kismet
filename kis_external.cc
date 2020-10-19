@@ -109,6 +109,9 @@ void kis_external_interface::close_external() {
             ;
         }
     }
+
+    if (closure_cb)
+        closure_cb();
 };
 
 void kis_external_interface::ipc_soft_kill() {
@@ -187,6 +190,8 @@ void kis_external_interface::start_ipc_read(std::shared_ptr<kis_external_interfa
             [this, ref](const boost::system::error_code& ec, std::size_t t) {
             if (handle_read(ref, ec, t) > 0)
                 start_ipc_read(ref);
+            else
+                close_external();
             });
 }
 
@@ -204,6 +209,7 @@ void kis_external_interface::start_tcp_read(std::shared_ptr<kis_external_interfa
 
 int kis_external_interface::handle_read(std::shared_ptr<kis_external_interface> ref, 
         const boost::system::error_code& ec, size_t in_amt) {
+
     if (stopped)
         return 0;
 
@@ -213,9 +219,12 @@ int kis_external_interface::handle_read(std::shared_ptr<kis_external_interface> 
     }
 
     if (ec) {
+        stopped = true;
+
         // Exit on aborted errors, we've already been cancelled and this socket is closing out
-        if (ec.value() == boost::asio::error::operation_aborted)
+        if (ec.value() == boost::asio::error::operation_aborted) {
             return -1;
+        }
 
         // Be quiet about EOF
         if (ec.value() == boost::asio::error::eof) {

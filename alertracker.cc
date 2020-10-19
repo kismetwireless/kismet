@@ -332,9 +332,16 @@ int alert_tracker::raise_alert(int in_ref, kis_packet *in_pack,
 
     lock.lock();
 
-    alert_backlog_vec->push_back(std::make_shared<tracked_alert>(alert_entry_id, info));
+    auto alert_t = std::make_shared<tracked_alert>(alert_entry_id, info);
+
+    alert_backlog_vec->push_back(alert_t);
     if ((int) alert_backlog_vec->size() > num_backlog) 
         alert_backlog_vec->erase(alert_backlog_vec->begin());
+
+    // Publish an alert to the eventbus
+    auto event = eventbus->get_eventbus_event(alert_event());
+    event->get_event_content()->insert(alert_event(), alert_t);
+    eventbus->publish(event);
 
     lock.unlock();
 
@@ -376,11 +383,6 @@ int alert_tracker::raise_alert(int in_ref, kis_packet *in_pack,
         }
     }
 
-    // Publish an alert to the eventbus
-    auto event = eventbus->get_eventbus_event(alert_event());
-    event->get_event_content()->insert(alert_event(), std::make_shared<tracked_alert>(alert_entry_id, info));
-    eventbus->publish(event);
-
 	return 1;
 }
 
@@ -403,10 +405,18 @@ int alert_tracker::raise_one_shot(std::string in_header, std::string in_text, in
 	info.text = in_text;
 
     lock.lock();
-	alert_backlog_vec->push_back(std::make_shared<tracked_alert>(alert_entry_id, &info));
-	if ((int) alert_backlog_vec->size() > num_backlog) {
-		alert_backlog_vec->erase(alert_backlog_vec->begin());
-	}
+
+    auto alert_t = std::make_shared<tracked_alert>(alert_entry_id, &info);
+
+    alert_backlog_vec->push_back(alert_t);
+    if ((int) alert_backlog_vec->size() > num_backlog) 
+        alert_backlog_vec->erase(alert_backlog_vec->begin());
+
+    // Publish an alert to the eventbus
+    auto event = eventbus->get_eventbus_event(alert_event());
+    event->get_event_content()->insert(alert_event(), alert_t);
+    eventbus->publish(event);
+
     lock.unlock();
 
 #ifdef PRELUDE
