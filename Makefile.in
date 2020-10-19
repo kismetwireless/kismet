@@ -135,6 +135,9 @@ BUILD_CAPTURE_NRF_51822 = @BUILD_CAPTURE_NRF_51822@
 CAPTURE_NXP_KW41Z = capture_nxp_kw41z/kismet_cap_nxp_kw41z
 BUILD_CAPTURE_NXP_KW41Z = @BUILD_CAPTURE_NXP_KW41Z@
 
+CAPTURE_RZ_KILLERBEE = capture_rz_killerbee/kismet_cap_rz_killerbee
+BUILD_CAPTURE_RZ_KILLERBEE = @BUILD_CAPTURE_RZ_KILLERBEE@
+
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
@@ -203,7 +206,7 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	dlttracker.cc.o antennatracker.cc.o datasourcetracker.cc.o kis_datasource.cc.o \
 	datasource_linux_bluetooth.cc.o datasource_rtl433.cc.o datasource_rtlamr.cc.o datasource_rtladsb.cc.o \
 	datasource_ti_cc_2540.cc.o datasource_ti_cc_2531.cc.o datasource_ubertooth_one.cc.o datasource_nrf_51822.cc.o \
-	datasource_nxp_kw41z.cc.o datasource_scan.cc.o \
+	datasource_nxp_kw41z.cc.o datasource_rz_killerbee.cc.o datasource_scan.cc.o \
 	kis_net_beast_httpd.cc.o kis_httpd_registry.cc.o \
 	system_monitor.cc.o \
 	base64.cc.o \
@@ -222,7 +225,7 @@ PSO	= util.cc.o macaddr.cc.o uuid.cc.o xxhash.cc.o boost_like_hash.cc.o sqlite3_
 	$(PARSERS) \
 	phy_80211.cc.o phy_80211_components.cc.o phy_80211_dissectors.cc.o \
 	phy_rtl433.cc.o phy_rtlamr.cc.o phy_rtladsb.cc.o phy_zwave.cc.o \
-	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_btle.cc.o \
+	phy_bluetooth.cc.o phy_uav_drone.cc.o phy_nrf_mousejack.cc.o phy_btle.cc.o phy_802154.cc.o \
 	phy_80211_ssidtracker.cc.o kis_dissector_ipdata.cc.o \
 	manuf.cc.o bluetooth_ids.cc.o adsb_icao.cc.o \
 	logtracker.cc.o kis_ppilogfile.cc.o kis_databaselogfile.cc.o kis_pcapnglogfile.cc.o \
@@ -349,6 +352,9 @@ $(CAPTURE_NRF_51822): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_NXP_KW41Z): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 	(cd capture_nxp_kw41z && $(MAKE))
 
+$(CAPTURE_RZ_KILLERBEE): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
+	(cd capture_rz_killerbee && $(MAKE))
+
 $(CAPTURE_FREAKLABS_ZIGBEE): FORCE
 	(cd capture_freaklabs_zigbee && $(MAKE))
 
@@ -397,6 +403,11 @@ binsuidinstall: $(DATASOURCE_BINS)
 	@if test "$(BUILD_CAPTURE_NXP_KW41Z)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_NXP_KW41Z) $(BIN)/`basename $(CAPTURE_NXP_KW41Z)`; \
 	fi;
+
+	@if test "$(BUILD_CAPTURE_RZ_KILLERBEE)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_RZ_KILLERBEE) $(BIN)/`basename $(CAPTURE_RZ_KILLERBEE)`; \
+	fi;
+
 
 commoninstall: $(INSTBINS)
 	mkdir -p $(ETC)
@@ -468,6 +479,10 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_NXP_KW41Z)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_NXP_KW41Z) $(BIN)/`basename $(CAPTURE_NXP_KW41Z)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_RZ_KILLERBEE)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_RZ_KILLERBEE) $(BIN)/`basename $(CAPTURE_RZ_KILLERBEE)`; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_SDR_RTL433)"x = "1"x; then \
@@ -681,6 +696,7 @@ clean: all-plugins-clean depclean
 	@(cd capture_ubertooth_one && make clean)
 	@(cd capture_nrf_51822 && make clean)
 	@(cd capture_nxp_kw41z && make clean)
+	@(cd capture_rz_killerbee && make clean)
 
 	@-rm -f $(DATASOURCE_COMMON_A)
 	@-rm -f protobuf_cpp/*.pb.*

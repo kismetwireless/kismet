@@ -654,6 +654,11 @@ void capture_thread(kis_capture_handler_t *caph) {
             }
         }
         if (buf_rx_len > 0) {
+            /* btle channe is part of the packet, zigbee is not*/
+            if((uint8_t)localnxp->channel >= 11 && (uint8_t)localnxp->channel <= 26) {
+                buf[4] = (uint8_t)localnxp->channel;
+            }
+
             while (1) {
                 struct timeval tv;
 
