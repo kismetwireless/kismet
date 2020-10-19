@@ -38,6 +38,9 @@ gps_tracker::gps_tracker() :
 
     gpsmanager_mutex.set_name("gps_tracker");
 
+    timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
+    eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
+
     tracked_uuid_addition_id = 
         Globalreg::globalreg->entrytracker->register_field("kismet.common.location.gps_uuid", 
                 tracker_element_factory<tracker_element_uuid>(),
@@ -64,9 +67,6 @@ gps_tracker::gps_tracker() :
 
     if (database_logging) {
         _MSG("GPS track will be logged to the Kismet logfile", MSGFLAG_INFO);
-
-        std::shared_ptr<time_tracker> timetracker = 
-            Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
 
         log_snapshot_timer =
             timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1, 
@@ -121,9 +121,6 @@ gps_tracker::gps_tracker() :
                     return loctrip;
                 }));
 
-    timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
-    eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
-
     event_timer_id = 
         timetracker->register_timer(std::chrono::seconds(1), true, 
                 [this](int) -> int {
@@ -160,9 +157,6 @@ gps_tracker::~gps_tracker() {
     Globalreg::globalreg->remove_global("GPSTRACKER");
 
     Globalreg::globalreg->packetchain->remove_handler(&kis_gpspack_hook, CHAINPOS_POSTCAP);
-
-    std::shared_ptr<time_tracker> timetracker = 
-        Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
 
     timetracker->remove_timer(log_snapshot_timer);
     timetracker->remove_timer(event_timer_id);
