@@ -191,20 +191,36 @@ Systemmonitor::Systemmonitor() :
         timetracker->register_timer(std::chrono::seconds(1), true, 
                 [this](int) -> int {
 
+                status->pre_serialize();
+
                 auto tse = std::make_shared<tracker_element_map>();
 
                 tse->insert(status->get_tracker_timestamp_sec());
                 tse->insert(status->get_tracker_timestamp_usec());
 
+                /*
                 struct timeval now;
                 gettimeofday(&now, NULL);
 
                 status->set_timestamp_sec(now.tv_sec);
                 status->set_timestamp_usec(now.tv_usec);
+                */
 
                 auto evt = eventbus->get_eventbus_event(event_timestamp());
                 evt->get_event_content()->insert(event_timestamp(), tse);
                 eventbus->publish(evt);
+
+                auto bate = std::make_shared<tracker_element_map>();
+                bate->insert(status->get_tracker_battery_ac());
+                bate->insert(status->get_tracker_battery_perc());
+                bate->insert(status->get_tracker_battery_charging());
+                bate->insert(status->get_tracker_battery_remaining());
+
+                auto bevt = eventbus->get_eventbus_event(event_battery());
+                bevt->get_event_content()->insert(event_battery(), bate);
+                eventbus->publish(bevt);
+
+                status->post_serialize();
 
                 return 1;
                 });

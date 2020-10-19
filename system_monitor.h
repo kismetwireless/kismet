@@ -154,6 +154,7 @@ public:
     virtual int timetracker_event(int eventid) override;
 
     static std::string event_timestamp() { return "TIMESTAMP"; }
+    static std::string event_battery() { return "BATTERY"; }
 
 protected:
     kis_recursive_timed_mutex monitor_mutex;
