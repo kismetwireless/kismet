@@ -132,98 +132,19 @@ int plugins = 1;
 int glob_linewrap = 1;
 int glob_silent = 0;
 
-// Message clients that are attached at the master level
-// Smart standard out client that understands the silence options
-class SmartStdoutMessageClient : public message_client {
-public:
-    SmartStdoutMessageClient(global_registry *in_globalreg, void *in_aux) :
-        message_client(in_globalreg, in_aux) { }
-    virtual ~SmartStdoutMessageClient() { }
-    void process_message(std::string in_msg, int in_flags);
-};
+std::list<std::string> fatal_msg_queue;
 
-void SmartStdoutMessageClient::process_message(std::string in_msg, int in_flags) {
-    if (glob_silent)
-        return;
-
-    if ((in_flags & MSGFLAG_DEBUG)) {
+void print_fatal_messages() {
+    for (auto m : fatal_msg_queue) {
         if (glob_linewrap)
-            fprintf(stdout, "%s", in_line_wrap("DEBUG: " + in_msg, 7, 75).c_str());
+            fprintf(stderr, "%s", in_line_wrap(m, 7, 80).c_str());
         else
-            fprintf(stdout, "DEBUG: %s\n", in_msg.c_str());
-    } else if ((in_flags & MSGFLAG_LOCAL)) {
-        if (glob_linewrap)
-            fprintf(stdout, "%s", in_line_wrap("LOCAL: " + in_msg, 7, 75).c_str());
-        else
-            fprintf(stdout, "LOCAL: %s\n", in_msg.c_str());
-    } else if ((in_flags & MSGFLAG_INFO)) {
-        if (glob_linewrap)
-            fprintf(stdout, "%s", in_line_wrap("INFO: " + in_msg, 6, 75).c_str());
-        else
-            fprintf(stdout, "INFO: %s\n", in_msg.c_str());
-    } else if ((in_flags & MSGFLAG_ERROR)) {
-        if (glob_linewrap)
-            fprintf(stdout, "%s", in_line_wrap("ERROR: " + in_msg, 7, 75).c_str());
-        else
-            fprintf(stdout, "ERROR: %s\n", in_msg.c_str());
-    } else if ((in_flags & MSGFLAG_ALERT)) {
-        if (glob_linewrap)
-            fprintf(stdout, "%s", in_line_wrap("ALERT: " + in_msg, 7, 75).c_str());
-        else
-            fprintf(stdout, "ALERT: %s\n", in_msg.c_str());
-    } else if ((in_flags & MSGFLAG_FATAL)) {
-        if (glob_linewrap)
-            fprintf(stderr, "%s", in_line_wrap("FATAL: " + in_msg, 7, 75).c_str());
-        else
-            fprintf(stderr, "FATAL: %s\n", in_msg.c_str());
-    }
-
-    fflush(stdout);
-    fflush(stderr);
-    
-    return;
-}
-
-// Queue of fatal alert conditions to spew back out at the end
-class FatalQueueMessageClient : public message_client {
-public:
-    FatalQueueMessageClient(global_registry *in_globalreg, void *in_aux) :
-        message_client(in_globalreg, in_aux) { }
-    virtual ~FatalQueueMessageClient() { }
-    void process_message(std::string in_msg, int in_flags);
-    void DumpFatals();
-protected:
-    std::vector<std::string> fatalqueue;
-};
-
-void FatalQueueMessageClient::process_message(std::string in_msg, int in_flags) {
-    // Queue PRINT forced errors differently than fatal conditions
-    if (in_flags & MSGFLAG_PRINT) {
-        fatalqueue.push_back("ERROR: " + in_msg);
-    } else if (in_flags & MSGFLAG_FATAL) {
-        fatalqueue.push_back("FATAL: " + in_msg);
-    }
-
-    if (fatalqueue.size() > 50) {
-        fatalqueue.erase(fatalqueue.begin(), fatalqueue.begin() + (fatalqueue.size() - 50));
-    }
-}
-
-void FatalQueueMessageClient::DumpFatals() {
-    for (unsigned int x = 0; x < fatalqueue.size(); x++) {
-        if (glob_linewrap)
-            fprintf(stderr, "%s", in_line_wrap(fatalqueue[x], 7, 80).c_str());
-        else
-            fprintf(stderr, "%s\n", fatalqueue[x].c_str());
+            fprintf(stderr, "%s\n", m.c_str());
     }
 }
 
 const char *config_base = "kismet.conf";
 const char *pid_base = "kismet_server.pid";
-
-// This needs to be a global but nothing outside of this main file will
-// use it, so we don't have to worry much about putting it in the globalreg.
-FatalQueueMessageClient *fqmescli = NULL;
 
 // Some globals for command line options
 char *configfile = NULL;
@@ -273,8 +194,7 @@ void SpindownKismet() {
         plugintracker->shutdown_plugins();
 
     // Dump fatal errors again
-    if (fqmescli != NULL) //  && globalregistry->fatal_condition) 
-        fqmescli->DumpFatals();
+    print_fatal_messages();
 
     if (daemonize == 0) {
         fprintf(stderr, "WARNING: Kismet changes the configuration of network devices.\n"
@@ -656,25 +576,70 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Entrytracker needs to be allocated before almost everything else, anything which
     // handles serializable data needs it
-    std::shared_ptr<entry_tracker> entrytracker =
-        entry_tracker::create_entrytracker();
+    auto entrytracker = entry_tracker::create_entrytracker();
 
 	// Create the event bus used by inter-code comms
-	event_bus::create_eventbus();
+	auto eventbus = event_bus::create_eventbus();
 
     // First order - create our message bus and our client for outputting
-    message_bus::create_messagebus(globalregistry);
+    auto messagebus = message_bus::create_messagebus();
+    globalreg->messagebus = messagebus;
 
-    // Create a smart stdout client and allocate the fatal message client, 
-    // add them to the messagebus
-    SmartStdoutMessageClient *smartmsgcli = 
-        new SmartStdoutMessageClient(globalregistry, NULL);
-    fqmescli = new FatalQueueMessageClient(globalregistry, NULL);
+    auto msg_listener_id = 
+        eventbus->register_listener(message_bus::event_message(), 
+                [](std::shared_ptr<eventbus_event> evt) {
 
-    // Register the fatal queue with fatal and error messages
-    globalregistry->messagebus->register_client(fqmescli, MSGFLAG_FATAL | MSGFLAG_ERROR);
-    // Register the smart msg printer for everything
-    globalregistry->messagebus->register_client(smartmsgcli, MSGFLAG_ALL);
+                auto msg_k = evt->get_event_content()->find(message_bus::event_message());
+                if (msg_k == evt->get_event_content()->end())
+                    return;
+
+                auto msg = std::static_pointer_cast<tracked_message>(msg_k->second);
+
+                if (msg->get_flags() & MSGFLAG_FATAL) {
+                    fatal_msg_queue.push_back(fmt::format("FATAL - {}", msg->get_message()));
+
+                    if (fatal_msg_queue.size() > 50)
+                        fatal_msg_queue.pop_front();
+                    }
+
+                if (glob_silent)
+                    return;
+
+                if ((msg->get_flags() & MSGFLAG_DEBUG)) {
+                    if (glob_linewrap)
+                        fprintf(stdout, "%s", in_line_wrap("DEBUG: " + msg->get_message(), 7, 75).c_str());
+                    else
+                        fprintf(stdout, "DEBUG: %s\n", msg->get_message().c_str());
+                    } else if ((msg->get_flags() & MSGFLAG_LOCAL)) {
+                        if (glob_linewrap)
+                            fprintf(stdout, "%s", in_line_wrap("LOCAL: " + msg->get_message(), 7, 75).c_str());
+                        else
+                            fprintf(stdout, "LOCAL: %s\n", msg->get_message().c_str());
+                    } else if ((msg->get_flags() & MSGFLAG_INFO)) {
+                        if (glob_linewrap)
+                            fprintf(stdout, "%s", in_line_wrap("INFO: " + msg->get_message(), 6, 75).c_str());
+                        else
+                            fprintf(stdout, "INFO: %s\n", msg->get_message().c_str());
+                    } else if ((msg->get_flags() & MSGFLAG_ERROR)) {
+                        if (glob_linewrap)
+                            fprintf(stdout, "%s", in_line_wrap("ERROR: " + msg->get_message(), 7, 75).c_str());
+                        else
+                            fprintf(stdout, "ERROR: %s\n", msg->get_message().c_str());
+                    } else if ((msg->get_flags() & MSGFLAG_ALERT)) {
+                        if (glob_linewrap)
+                            fprintf(stdout, "%s", in_line_wrap("ALERT: " + msg->get_message(), 7, 75).c_str());
+                        else
+                            fprintf(stdout, "ALERT: %s\n", msg->get_message().c_str());
+                    } else if ((msg->get_flags() & MSGFLAG_FATAL)) {
+                        if (glob_linewrap)
+                            fprintf(stderr, "%s", in_line_wrap("FATAL: " + msg->get_message(), 7, 75).c_str());
+                        else
+                            fprintf(stderr, "FATAL: %s\n", msg->get_message().c_str());
+                    }
+
+                    fflush(stdout);
+                    fflush(stderr);
+                });
 
     // Open, initial parse, and assign the config file
     if (configfilename == "") {
@@ -801,8 +766,7 @@ int main(int argc, char *argv[], char *envp[]) {
 
     if (daemonize) {
         // remove messagebus clients so we stop printing
-        globalregistry->messagebus->remove_client(fqmescli);
-        globalregistry->messagebus->remove_client(smartmsgcli);
+        eventbus->remove_listener(msg_listener_id);
     }
 
     if (conf->fetch_opt("servername") == "") {

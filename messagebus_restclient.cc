@@ -24,8 +24,9 @@
 #include "json_adapter.h"
 
 rest_message_client::rest_message_client() :
-    message_client(Globalreg::globalreg, nullptr),
     lifetime_global() {
+
+    eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
 
     message_vec_id =
         Globalreg::globalreg->entrytracker->register_field("kismet.messagebus.list",
@@ -37,12 +38,22 @@ rest_message_client::rest_message_client() :
                 tracker_element_factory<tracker_element_uint64>(),
                 "message update timestamp");
 
-    message_entry_id =
-        Globalreg::globalreg->entrytracker->register_field("kismet.messagebus.message",
-                tracker_element_factory<tracked_message>(),
-                "Kismet message");
+    listener_id = 
+        eventbus->register_listener(message_bus::event_message(), 
+                [this](std::shared_ptr<eventbus_event> evt) {
 
-    Globalreg::globalreg->messagebus->register_client(this, MSGFLAG_ALL);
+                auto msg_k = evt->get_event_content()->find(message_bus::event_message());
+                if (msg_k == evt->get_event_content()->end())
+                    return;
+
+                auto msg = std::static_pointer_cast<tracked_message>(msg_k->second);
+
+                local_locker l(&msg_mutex, "message event");
+                message_list.push_back(msg);
+
+                if (message_list.size() > 50)
+                    message_list.pop_front();
+                });
 
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
@@ -81,33 +92,10 @@ rest_message_client::rest_message_client() :
 }
 
 rest_message_client::~rest_message_client() {
-    local_eol_locker lock(&msg_mutex);
+    eventbus->remove_listener(listener_id);
 
-    Globalreg::globalreg->messagebus->remove_client(this);
     Globalreg::globalreg->remove_global("REST_MSG_CLIENT");
 
     message_list.clear();
-}
-
-void rest_message_client::process_message(std::string in_msg, int in_flags) {
-    // Don't propagate LOCAL or DEBUG messages
-    if ((in_flags & MSGFLAG_LOCAL) || (in_flags & MSGFLAG_DEBUG))
-        return;
-
-    auto msg =
-        std::make_shared<tracked_message>(message_entry_id);
-
-    msg->set_from_message(in_msg, in_flags);
-
-    {
-        local_locker lock(&msg_mutex);
-
-        message_list.push_back(msg);
-
-        // Hardcode a backlog count right now
-        if (message_list.size() > 50) {
-            message_list.pop_front();
-        }
-    }
 }
 

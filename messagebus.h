@@ -26,8 +26,10 @@
 #include <string>
 #include <vector>
 
+#include "eventbus.h"
 #include "globalregistry.h"
 #include "kis_mutex.h"
+#include "trackedcomponent.h"
 
 // Message flags for queuing data
 #define MSGFLAG_NONE    0
@@ -46,93 +48,132 @@
 // Combine
 #define MSGFLAG_PRINTERROR	(MSGFLAG_ERROR | MSGFLAG_PRINT)
 
-// A subscriber to the message bus.  It subscribes with a mask of 
-// what messages it wants to handle
-class message_client {
+class tracked_message : public tracker_component {
 public:
-    message_client() {
-        fprintf(stderr, "FATAL OOPS: message_client::message_client() called "
-				"with no global registry\n");
-		exit(1);
+    tracked_message() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
     }
 
-    message_client(global_registry *in_globalreg, void *in_aux) {
-        globalreg = in_globalreg;
-		auxptr = in_aux;
+    tracked_message(int in_id) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(NULL);
     }
 
-	virtual ~message_client() { }
+    tracked_message(int in_id, std::shared_ptr<tracker_element_map> e) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
 
-    virtual void process_message(std::string in_msg, int in_flags) = 0;
+    tracked_message(const tracked_message *p) :
+        tracker_component{p} {
+
+        __ImportField(message, p);
+        __ImportField(flags, p);
+        __ImportField(timestamp, p);
+
+        reserve_fields(nullptr);
+    }
+
+    tracked_message(const tracked_message *p, const std::string& in_msg, int in_flags, time_t in_time) :
+        tracker_component{p} {
+
+        __ImportField(message, p);
+        __ImportField(flags, p);
+        __ImportField(timestamp, p);
+
+        reserve_fields(nullptr);
+
+        set_message(in_msg);
+        set_flags(in_flags);
+        set_timestamp(in_time);
+    }
+
+    virtual uint32_t get_signature() const override {
+        return adler32_checksum("tracked_message");
+    }
+
+    virtual std::unique_ptr<tracker_element> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
+        return std::move(dup);
+    }
+
+    __Proxy(message, std::string, std::string, std::string, message);
+    __Proxy(flags, int32_t, int32_t, int32_t, flags);
+    __Proxy(timestamp, uint64_t, time_t, time_t, timestamp);
+
+    void set_from_message(std::string in_msg, int in_flags) {
+        set_message(in_msg);
+        set_flags(in_flags);
+        set_timestamp(time(0));
+    }
+
+    bool operator<(const tracked_message& comp) const {
+        return get_timestamp() < comp.get_timestamp();
+    }
+
 protected:
-    global_registry *globalreg;
-	void *auxptr;
+    virtual void register_fields() override {
+        tracker_component::register_fields();
+
+        register_field("kismet.messagebus.message_string", "Message content", &message);
+        register_field("kismet.messagebus.message_flags", "Message flags (per messagebus.h)", &flags);
+        register_field("kismet.messagebus.message_time", "Message time_t", &timestamp);
+    }
+
+    std::shared_ptr<tracker_element_string> message;
+    std::shared_ptr<tracker_element_int32> flags;
+    std::shared_ptr<tracker_element_uint64> timestamp;
 };
 
-class stdout_message_client : public message_client {
-public:
-    stdout_message_client(global_registry *in_globalreg, void *in_aux) :
-        message_client(in_globalreg, in_aux) { }
-	virtual ~stdout_message_client() { }
-    void process_message(std::string in_msg, int in_flags);
-};
-
+// Minimal stub of a messagebus that just holds the event IDs and passes it all into the eventbus now
 class message_bus : public lifetime_global {
 public:
     static std::string global_name() { return "MESSAGEBUS"; }
 
-    static std::shared_ptr<message_bus> create_messagebus(global_registry *in_globalreg) {
-        std::shared_ptr<message_bus> mon(new message_bus(in_globalreg));
-        in_globalreg->messagebus = mon.get();
-        in_globalreg->register_lifetime_global(mon);
-        in_globalreg->insert_global(global_name(), mon);
+    static std::shared_ptr<message_bus> create_messagebus() {
+        std::shared_ptr<message_bus> mon(new message_bus());
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-    message_bus(global_registry *in_globalreg);
+	message_bus() :
+        lifetime_global() {
+
+        eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
+
+        msg_proto =
+            Globalreg::globalreg->entrytracker->register_and_get_field_as<tracked_message>("kismet.messagebus.message",
+                    tracker_element_factory<tracked_message>(),
+                    "Message");
+    }
 
 public:
-    virtual ~message_bus();
+	virtual ~message_bus() {
+        Globalreg::globalreg->remove_global(global_name());
+    }
 
-    // Inject a message into the bus
-    void inject_message(std::string in_msg, int in_flags);
+    static std::string event_message() {
+        return "MESSAGE";
+    }
 
-    // Link a meessage display system
-    void register_client(message_client *in_subcriber, int in_mask);
-    void remove_client(message_client *in_unsubscriber);
+    void inject_message(const std::string& msg, int flags) {
+        auto tracked_msg = std::make_shared<tracked_message>(msg_proto.get(), msg, flags, time(0));
+        auto evt = eventbus->get_eventbus_event(event_message());
+        evt->get_event_content()->insert(event_message(), tracked_msg);
+        eventbus->publish(evt);
+    }
 
 protected:
-    global_registry *globalreg;
-
-    kis_recursive_timed_mutex handler_mutex;
-
-    typedef struct {
-        message_client *client;
-        int mask;
-    } busclient;
-
-    std::vector<message_bus::busclient *> subscribers;
-
-    class message {
-    public:
-        message(const std::string& in_msg, int in_flags) :
-            msg {in_msg},
-            flags {in_flags} { }
-
-        std::string msg;
-        int flags;
-    }; 
-
-    // Event pool and handler thread
-    kis_recursive_timed_mutex msg_mutex;
-    std::queue<std::shared_ptr<message>> msg_queue;
-    std::thread msg_dispatch_t;
-    conditional_locker<int> msg_cl;
-    std::atomic<bool> shutdown;
-    void msg_queue_dispatcher();
+    std::shared_ptr<event_bus> eventbus;
+    std::shared_ptr<tracked_message> msg_proto;
 };
-
 
 #endif
 

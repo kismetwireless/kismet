@@ -32,8 +32,9 @@
 kis_database_logfile::kis_database_logfile():
     kis_logfile(shared_log_builder(NULL)), 
     kis_database(Globalreg::globalreg, "kismetlog"),
-    lifetime_global(),
-    message_client(Globalreg::globalreg, nullptr) {
+    lifetime_global() {
+
+    eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
 
     transaction_mutex.set_name("kis_database_logfile_transaction");
 
@@ -76,12 +77,12 @@ kis_database_logfile::kis_database_logfile():
         Globalreg::fetch_mandatory_global_as<device_tracker>();
 
     db_enabled = false;
+
+    message_evt_id = 0;
 }
 
 kis_database_logfile::~kis_database_logfile() {
-    auto messagebus = Globalreg::fetch_global_as<message_bus>();
-    if (messagebus != nullptr)
-        messagebus->remove_client(this);
+    eventbus->remove_listener(message_evt_id);
 
     close_log();
 }
@@ -365,9 +366,18 @@ bool kis_database_logfile::open_log(std::string in_path) {
     }
 
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_messages", true)) {
-        auto messagebus = 
-            Globalreg::fetch_mandatory_global_as<message_bus>();
-        messagebus->register_client(this, MSGFLAG_ALL);
+        message_evt_id = 
+            eventbus->register_listener(message_bus::event_message(), 
+                    [this](std::shared_ptr<eventbus_event> evt) {
+
+                    auto msg_k = evt->get_event_content()->find(message_bus::event_message());
+                    if (msg_k == evt->get_event_content()->end())
+                        return;
+
+                    auto msg = std::static_pointer_cast<tracked_message>(msg_k->second);
+
+                    handle_message(msg);
+                    });
     }
 
 
@@ -395,7 +405,6 @@ bool kis_database_logfile::open_log(std::string in_path) {
         });
 
     // Post that we've got the logfile ready
-    auto eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
     auto evt = eventbus->get_eventbus_event(event_log_open());
     eventbus->publish(evt);
 
@@ -837,7 +846,7 @@ int kis_database_logfile::database_upgrade_db() {
     return 1;
 }
 
-void kis_database_logfile::process_message(std::string in_msg, int in_flags) {
+void kis_database_logfile::handle_message(std::shared_ptr<tracked_message> msg) {
     if (!db_enabled)
         return;
 
@@ -867,17 +876,17 @@ void kis_database_logfile::process_message(std::string in_msg, int in_flags) {
 
     std::string msgtype;
 
-    if (in_flags & MSGFLAG_INFO)
+    if (msg->get_flags() & MSGFLAG_INFO)
         msgtype = "INFO";
-    else if (in_flags & MSGFLAG_ERROR)
+    else if (msg->get_flags() & MSGFLAG_ERROR)
         msgtype = "ERROR";
-    else if (in_flags & MSGFLAG_DEBUG)
+    else if (msg->get_flags() & MSGFLAG_DEBUG)
         msgtype = "DEBUG";
-    else if (in_flags & MSGFLAG_FATAL)
+    else if (msg->get_flags() & MSGFLAG_FATAL)
         msgtype = "FATAL";
 
     sqlite3_bind_text(msg_stmt, spos++, msgtype.c_str(), msgtype.length(), SQLITE_TRANSIENT);
-    sqlite3_bind_text(msg_stmt, spos++, in_msg.c_str(), in_msg.length(), SQLITE_TRANSIENT);
+    sqlite3_bind_text(msg_stmt, spos++, msg->get_message().c_str(), msg->get_message().length(), SQLITE_TRANSIENT);
 
     if (sqlite3_step(msg_stmt) != SQLITE_DONE) {
         close_log();

@@ -161,7 +161,7 @@ public:
     // Signal service thread that gets cleaned up at exit
     std::thread signal_service_thread;
     
-    message_bus *messagebus;
+    std::shared_ptr<message_bus> messagebus;
 
     // Globals which should be deprecated in favor of named globals; all code should
     // be migrated to the shared pointer references

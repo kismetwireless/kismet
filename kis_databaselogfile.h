@@ -58,8 +58,7 @@
 // to exist as a global record; we build it like we do any other global record;
 // then the builder hooks it, sets the internal builder record, and passed it to
 // the logtracker
-class kis_database_logfile : public kis_logfile, public kis_database, public lifetime_global,
-    public message_client, public deferred_startup {
+class kis_database_logfile : public kis_logfile, public kis_database, public lifetime_global, public deferred_startup {
 public:
     static std::string global_name() { return "DATABASELOG"; }
 
@@ -121,9 +120,6 @@ public:
             std::string snaptype, std::string json);
 
     static void usage(const char *argv0);
-
-    // Messagebus API
-    virtual void process_message(std::string in_msg, int in_flags) override;
 
     // Direct access to the filters for setting programmatically
     std::shared_ptr<packet_filter_mac_addr> get_packet_filter() { 
@@ -233,6 +229,11 @@ protected:
 
     // Packet log filter
     std::shared_ptr<packet_filter_mac_addr> packet_mac_filter;
+
+    // Eventbus listeners
+    std::shared_ptr<event_bus> eventbus;
+    void handle_message(std::shared_ptr<tracked_message> msg);
+    unsigned long message_evt_id;
 };
 
 class kis_database_logfile_builder : public kis_logfile_builder {

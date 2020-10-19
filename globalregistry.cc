@@ -42,7 +42,6 @@ global_registry::global_registry() {
 
 	next_ext_ref = 0;
 
-	messagebus = NULL;
 	packetchain = NULL;
 	alertracker = NULL;
 	timetracker = NULL;
