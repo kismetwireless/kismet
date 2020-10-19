@@ -270,41 +270,29 @@
         e.stopImmediatePropagation();
     }
 
-    var alert_refresh = function(fetchtime = last_time) {
-        if (kismet_ui.window_visible) {
-            $.get(local_uri_prefix + "alerts/wrapped/last-time/" + fetchtime + "/alerts.json")
-                .done(function(data) {
-                    data = kismet.sanitizeObject(data);
+    var merge_alerts = function(alerts) {
+        alertbg.addClass('ka-top-bg-alert');
 
-                    // Update the timestamp
-                    last_time = data['kismet.alert.timestamp'];
+        $.merge(alerts, alert_list);
+        alert_list = alerts.slice(0, options.max_backlog);
 
-                    // Have we got new alerts?
-                    if (data['kismet.alert.list'].length > 0) {
-                        if (data['kismet.alert.list'][0]['kismet.alert.timestamp'] > last_closed_time) {
-                            alertbg.addClass('ka-top-bg-alert');
-                        }
-
-                        // Reverse, combine in the data var, slice and assign to the alert list
-                        data['kismet.alert.list'].reverse();
-                        $.merge(data['kismet.alert.list'], alert_list);
-                        alert_list = data['kismet.alert.list'].slice(0, options.max_backlog);
-
-                        // Is the dialog showing?  Update it if it is
-                        if (dialog != null) {
-                            populate_alert_content(dialog.content);
-                        }
-                    }
-
-                })
-                .always(function() {
-                    update_tooltips();
-                    timerid = setTimeout(alert_refresh, 1000);
-                });
-        } else {
-            timerid = setTimeout(alert_refresh, 1000);
+        // Is the dialog showing?  Update it if it is
+        if (dialog != null) {
+            populate_alert_content(dialog.content);
         }
 
+        update_tooltips();
+    }
+
+    var alert_refresh = function(fetchtime = last_time) {
+        $.get(local_uri_prefix + "alerts/wrapped/last-time/" + fetchtime + "/alerts.json")
+            .done(function(data) {
+                data = kismet.sanitizeObject(data);
+
+                // Reverse, combine in the data var, slice and assign to the alert list
+                data['kismet.alert.list'].reverse();
+                merge_alerts(data['kismet.alert.list']);
+            })
     }
 
     var populate_alert_content = function(c, showall = false) {
@@ -484,6 +472,11 @@
         });
 
         alert_refresh(0);
+
+        kismet_ui_base.SubscribeEventbus("ALERT", [], function(data) {
+            data = kismet.sanitizeObject(data);
+            merge_alerts([data]);
+        });
     };
 
 }(jQuery));
