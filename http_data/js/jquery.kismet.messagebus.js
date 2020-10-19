@@ -43,63 +43,54 @@
         class_old: "messagebus_old",
     };
 
-    var messagebus_refresh = function(state) {
-        if (kismet_ui.window_visible) {
-            $.get(local_uri_prefix + "messagebus/last-time/" + 
-                state['last_msg_time'] + "/messages.json")
-                .done(function(data) {
-                    data = kismet.sanitizeObject(data);
+    var merge_messages = function(state, messages) {
+        var divs = $('div.messagebus_message', state['element']);
 
-                    state['last_msg_time'] = data['kismet.messagebus.timestamp'];
-                    var divs = $('div.messagebus_message', state['element']);
+        $.merge(messages, state['message_list']);
 
-                    // We should only get items which are new so we merge and then drop
-                    // We merge the existing list into our current data, then assign the 
-                    // trimmed version of the data to the message list
-                    data['kismet.messagebus.list'].reverse();
-                    $.merge(data['kismet.messagebus.list'], state['message_list']);
+        state['message_list'] = messages.slice(0, state['options'].max_messages);
 
-                    state['message_list'] = data['kismet.messagebus.list'].slice(0, state['options'].max_messages);
+        for (var x = 0; x < state['message_list'].length; x++) {
+            var d = divs.eq(x);
 
-                    for (var x = 0; x < state['message_list'].length; x++) {
-                        var d = divs.eq(x);
+            // Compute trimmed date
+            var ds = (new Date(state['message_list'][x]['kismet.messagebus.message_time'] * 1000).toString()).substring(4, 25);
 
-                        // Compute trimmed date
-                        var ds = (new Date(state['message_list'][x]['kismet.messagebus.message_time'] * 1000).toString()).substring(4, 25);
+            // Set the HTML
+            d.html('<p>' + ds + '</p>' +
+                kismet.censorMAC(state['message_list'][x]['kismet.messagebus.message_string']));
 
-                        // Set the HTML
-                        d.html('<p>' + ds + '</p>' +
-                            kismet.censorMAC(state['message_list'][x]['kismet.messagebus.message_string']));
+            // Remove all flagged clases
+            d.removeClass("messagebus_debug");
+            d.removeClass("messagebus_info");
+            d.removeClass("messagebus_error");
+            d.removeClass("messagebus_alert");
+            d.removeClass("messagebus_fatal");
 
-                        // Remove all flagged clases
-                        d.removeClass("messagebus_debug");
-                        d.removeClass("messagebus_info");
-                        d.removeClass("messagebus_error");
-                        d.removeClass("messagebus_alert");
-                        d.removeClass("messagebus_fatal");
+            var f = state['message_list'][x]['kismet.messagebus.message_flags'];
 
-                        var f = state['message_list'][x]['kismet.messagebus.message_flags'];
-
-                        if (f & MSGFLAG_FATAL) {
-                            d.addClass("messagebus_fatal");
-                        } else if (f & MSGFLAG_ALERT) {
-                            d.addClass("messagebus_alert");
-                        } else if (f & MSGFLAG_ERROR) {
-                            d.addClass("messagebus_error");
-                        } else if (f & MSGFLAG_INFO) {
-                            d.addClass("messagebus_info");
-                        } else if (f & MSGFLAG_DEBUG) {
-                            d.addClass("messagebus_debug");
-                        }
-                    }
-
-                })
-        .always(function() {
-            state['timerid'] = setTimeout(function() { messagebus_refresh(state); }, 1500);
-        });
-        } else {
-            state['timerid'] = setTimeout(function() { messagebus_refresh(state); }, 1500);
+            if (f & MSGFLAG_FATAL) {
+                d.addClass("messagebus_fatal");
+            } else if (f & MSGFLAG_ALERT) {
+                d.addClass("messagebus_alert");
+            } else if (f & MSGFLAG_ERROR) {
+                d.addClass("messagebus_error");
+            } else if (f & MSGFLAG_INFO) {
+                d.addClass("messagebus_info");
+            } else if (f & MSGFLAG_DEBUG) {
+                d.addClass("messagebus_debug");
+            }
         }
+    }
+
+    var messagebus_refresh = function(state) {
+        $.get(local_uri_prefix + "messagebus/last-time/" + 
+            state['last_msg_time'] + "/messages.json")
+            .done(function(data) {
+                data['kismet.messagebus.list'].reverse();
+
+                merge_messages(state, data['kismet.messagebus.list']);
+            })
     }
 
     $.fn.messagebus = function(inopt) {
@@ -138,6 +129,12 @@
         }
 
         messagebus_refresh(state);
+
+        kismet_ui_base.SubscribeEventbus("MESSAGE", [], function(data) {
+            data = kismet.sanitizeObject(data);
+            merge_messages(state, [data]);
+        });
+
     };
 
 }(jQuery));

@@ -180,6 +180,8 @@ function load_main_ui() {
         },
     });
 
+    kismet_ui_base.OpenEventbusWs();
+
     // Dynamic load of our plugin js, then continue.  is this the only way to do
     // this?  sure is annoying.
     kismet.LoadDynamicIncludes(function() {

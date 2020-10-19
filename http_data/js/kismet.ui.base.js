@@ -60,6 +60,88 @@ exports.ConfigureAjax = function() {
 
 exports.ConfigureAjax();
 
+var eventbus_ws_listeners = [];
+
+exports.eventbus_ws = null;
+
+exports.SubscribeEventbus = function(topic, fields, callback) {
+    var sub = {
+        "topic": topic,
+        "callback": callback
+    }
+
+    if (fields.length > 0)
+        sub["fields"] = fields;
+
+    eventbus_ws_listeners.push(sub);
+
+    if (exports.eventbus_ws != null && exports.eventbus_ws.readyState == 1) {
+        var sub_req = {
+            "SUBSCRIBE": sub["topic"],
+        };
+
+        if ("fields" in sub)
+            sub_req["fields"] = sub["fields"]
+
+        exports.eventbus_ws.send(JSON.stringify(sub_req));
+    }
+}
+
+exports.OpenEventbusWs = function() {
+    var proto = "";
+
+    if (document.location.protocol == "https:")
+        proto = "wss"
+    else
+        proto = "ws"
+
+    var user = kismet.getStorage('kismet.base.login.username', 'kismet');
+    var pw =  kismet.getStorage('kismet.base.login.password', '');
+
+    var host = new URL(document.URL);
+
+    var ws_url = `${proto}://${host.host}/${local_uri_prefix}eventbus/events.ws?user=${user}&password=${pw}`
+
+    exports.eventbus_ws = new WebSocket(ws_url);
+    
+    exports.eventbus_ws.onclose = function(event) {
+        console.log("eventbus ws closed");
+
+        setTimeout(function() { exports.OpenEventbusWs(); }, 500);
+    };
+
+    exports.eventbus_ws.onmessage = function(event) {
+        try {
+            var json = JSON.parse(event.data);
+
+            for (var x in json) {
+                for (var sub of eventbus_ws_listeners) {
+                    if (sub["topic"] === x) {
+                        sub["callback"](json[x]);
+                    }
+                }
+            }
+        } catch (e) {
+            console.log(e);
+        }
+    }
+
+    exports.eventbus_ws.onopen = function(event) {
+        for (var sub of eventbus_ws_listeners) {
+            var sub_req = {
+                "SUBSCRIBE": sub["topic"],
+            };
+
+            if ("fields" in sub)
+                sub_req["fields"] = sub["fields"]
+
+            exports.eventbus_ws.send(JSON.stringify(sub_req));
+        }
+    }
+};
+
+// exports.SubscribeEventbus("MESSAGE", [], function(e) { console.log(e); });
+
 /* Define some callback functions for the table */
 
 exports.renderLastTime = function(data, type, row, meta) {

@@ -29,6 +29,7 @@ $('<script>')
         src: local_uri_prefix + 'js/spectrum.js'
     });
 
+
 exports.last_timestamp = 0;
 
 // Set panels to close on escape system-wide
