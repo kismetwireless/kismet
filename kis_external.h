@@ -117,6 +117,82 @@ protected:
     // number
     virtual unsigned int send_packet(std::shared_ptr<KismetExternal::Command> c);
 
+    // Central packet dispatch handler
+    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c);
+
+    // Generic msg proxy
+    virtual void handle_msg_proxy(const std::string& msg, const int msgtype); 
+
+    // Packet handlers
+    virtual void handle_packet_message(uint32_t in_seqno, const std::string& in_content);
+    virtual void handle_packet_ping(uint32_t in_seqno, const std::string& in_content);
+    virtual void handle_packet_pong(uint32_t in_seqno, const std::string& in_content);
+    virtual void handle_packet_shutdown(uint32_t in_seqno, const std::string& in_content);
+    virtual void handle_packet_eventbus_register(uint32_t in_seqno, const std::string& in_content);
+    virtual void handle_packet_eventbus_publish(uint32_t in_seqno, const std::string& in_content);
+
+    unsigned int send_ping();
+    unsigned int send_pong(uint32_t ping_seqno);
+    unsigned int send_shutdown(std::string reason);
+
+    std::atomic<bool> stopped;
+    std::atomic<bool> cancelled;
+
+    kis_recursive_timed_mutex ext_mutex;
+
+    std::shared_ptr<time_tracker> timetracker;
+    std::shared_ptr<ipc_tracker_v2> ipctracker;
+
+    std::atomic<uint32_t> seqno;
+    std::atomic<time_t> last_pong;
+
+    int ping_timer_id;
+
+    // Async input
+    boost::asio::streambuf in_buf;
+    int handle_read(std::shared_ptr<kis_external_interface> ref, 
+            const boost::system::error_code& ec, size_t sz);
+
+    // Pipe IPC
+    std::string external_binary;
+    std::vector<std::string> external_binary_args;
+
+    kis_ipc_record ipc;
+    boost::asio::posix::stream_descriptor ipc_in, ipc_out;
+
+    void start_ipc_read(std::shared_ptr<kis_external_interface> ref);
+
+    void ipc_soft_kill();
+    void ipc_hard_kill();
+
+    // TCP socket
+    tcp::socket tcpsocket;
+
+    void start_tcp_read(std::shared_ptr<kis_external_interface> ref);
+
+
+    // Eventbus proxy code
+    std::shared_ptr<event_bus> eventbus;
+    std::map<std::string, unsigned long> eventbus_callback_map;
+
+    void proxy_event(std::shared_ptr<eventbus_event>);
+
+
+    // Webserver proxy code
+
+    virtual void handle_packet_http_register(uint32_t in_seqno, const std::string& in_content);
+    virtual void handle_packet_http_response(uint32_t in_seqno, const std::string& in_content);
+    virtual void handle_packet_http_auth_request(uint32_t in_seqno, const std::string& in_content);
+
+    unsigned int send_http_request(uint32_t in_http_sequence, std::string in_uri,
+            std::string in_method, std::map<std::string, std::string> in_postdata);
+    unsigned int send_http_auth(std::string in_session);
+
+    // HTTP session identities for multi-packet responses
+    uint32_t http_session_id;
+    std::map<uint32_t, std::shared_ptr<kis_external_http_session> > http_proxy_session_map;
+
+public:
     // Handle a packet in a buffer
     template<class ConstBufferSequence>
     int handle_packet(const ConstBufferSequence& buffers) {
@@ -198,80 +274,7 @@ protected:
         return 1;
     }
 
-    // Central packet dispatch handler
-    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c);
 
-    // Generic msg proxy
-    virtual void handle_msg_proxy(const std::string& msg, const int msgtype); 
-
-    // Packet handlers
-    virtual void handle_packet_message(uint32_t in_seqno, const std::string& in_content);
-    virtual void handle_packet_ping(uint32_t in_seqno, const std::string& in_content);
-    virtual void handle_packet_pong(uint32_t in_seqno, const std::string& in_content);
-    virtual void handle_packet_shutdown(uint32_t in_seqno, const std::string& in_content);
-    virtual void handle_packet_eventbus_register(uint32_t in_seqno, const std::string& in_content);
-    virtual void handle_packet_eventbus_publish(uint32_t in_seqno, const std::string& in_content);
-
-    unsigned int send_ping();
-    unsigned int send_pong(uint32_t ping_seqno);
-    unsigned int send_shutdown(std::string reason);
-
-    std::atomic<bool> stopped;
-    std::atomic<bool> cancelled;
-
-    kis_recursive_timed_mutex ext_mutex;
-
-    std::shared_ptr<time_tracker> timetracker;
-    std::shared_ptr<ipc_tracker_v2> ipctracker;
-
-    std::atomic<uint32_t> seqno;
-    std::atomic<time_t> last_pong;
-
-    int ping_timer_id;
-
-    // Async input
-    boost::asio::streambuf in_buf;
-    int handle_read(std::shared_ptr<kis_external_interface> ref, 
-            const boost::system::error_code& ec, size_t sz);
-
-    // Pipe IPC
-    std::string external_binary;
-    std::vector<std::string> external_binary_args;
-
-    kis_ipc_record ipc;
-    boost::asio::posix::stream_descriptor ipc_in, ipc_out;
-
-    void start_ipc_read(std::shared_ptr<kis_external_interface> ref);
-
-    void ipc_soft_kill();
-    void ipc_hard_kill();
-
-    // TCP socket
-    tcp::socket tcpsocket;
-
-    void start_tcp_read(std::shared_ptr<kis_external_interface> ref);
-
-
-    // Eventbus proxy code
-    std::shared_ptr<event_bus> eventbus;
-    std::map<std::string, unsigned long> eventbus_callback_map;
-
-    void proxy_event(std::shared_ptr<eventbus_event>);
-
-
-    // Webserver proxy code
-
-    virtual void handle_packet_http_register(uint32_t in_seqno, const std::string& in_content);
-    virtual void handle_packet_http_response(uint32_t in_seqno, const std::string& in_content);
-    virtual void handle_packet_http_auth_request(uint32_t in_seqno, const std::string& in_content);
-
-    unsigned int send_http_request(uint32_t in_http_sequence, std::string in_uri,
-            std::string in_method, std::map<std::string, std::string> in_postdata);
-    unsigned int send_http_auth(std::string in_session);
-
-    // HTTP session identities for multi-packet responses
-    uint32_t http_session_id;
-    std::map<uint32_t, std::shared_ptr<kis_external_http_session> > http_proxy_session_map;
 };
 
 #endif
