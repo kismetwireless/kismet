@@ -350,10 +350,8 @@ public:
     bool remove_datasource(const uuid& in_uuid);
 
     // Try to instantiate a remote data source
-    void open_remote_datasource(dst_incoming_remote *incoming, 
-            const std::string& in_type, 
-            const std::string& in_definition, 
-            const uuid& in_uuid);
+    std::shared_ptr<kis_datasource> open_remote_datasource(dst_incoming_remote *incoming, 
+            const std::string& in_type, const std::string& in_definition, const uuid& in_uuid);
 
     // Find a datasource
     shared_datasource find_datasource(const uuid& in_uuid);
@@ -475,7 +473,7 @@ protected:
 // simple packet protocol enough to get a NEWSOURCE command; The resulting source
 // type, definition, uuid, and rbufhandler is passed to the callback function; the cb
 // is responsible for looking up the type, closing the connection if it is invalid, etc.
-class dst_incoming_remote : public kis_external_interface {
+class dst_incoming_remote : public kis_datasource {
 public:
     using callback_t = std::function<void (dst_incoming_remote *, std::string, std::string, uuid)>;
 
