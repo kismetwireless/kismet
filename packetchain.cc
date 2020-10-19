@@ -136,9 +136,25 @@ packet_chain::packet_chain() {
             thread_set_process_name("packethandler");
             packet_queue_processor();
             });
+
+    timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
+    eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
+
+    event_timer_id = 
+        timetracker->register_timer(std::chrono::seconds(1), true, 
+                [this](int) -> int {
+
+                auto evt = eventbus->get_eventbus_event(event_packetstats());
+                evt->get_event_content()->insert(event_packetstats(), packet_stats_map);
+                eventbus->publish(evt);
+
+                return 1;
+                });
 }
 
 packet_chain::~packet_chain() {
+    timetracker->remove_timer(event_timer_id);
+
     {
         // Tell the packet thread we're dying and unlock it
         packetchain_shutdown = true;

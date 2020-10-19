@@ -36,9 +36,11 @@
 #include <queue>
 #include <thread>
 
+#include "eventbus.h"
 #include "globalregistry.h"
 #include "kis_mutex.h"
 #include "kis_net_beast_httpd.h"
+#include "timetracker.h"
 #include "trackedelement.h"
 #include "trackedrrd.h"
 
@@ -134,6 +136,8 @@ public:
     int remove_handler(pc_callback in_cb, int in_chain);
 	int remove_handler(int in_id, int in_chain);
 
+    static std::string event_packetstats() { return "PACKETCHAIN_STATS"; }
+
 protected:
     void packet_queue_processor();
 
@@ -190,6 +194,11 @@ protected:
     int packet_processed_rrd_id;
 
     std::shared_ptr<tracker_element_map> packet_stats_map;
+
+    std::shared_ptr<time_tracker> timetracker;
+    int event_timer_id;
+    std::shared_ptr<event_bus> eventbus;
+
 };
 
 #endif
