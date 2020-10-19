@@ -743,7 +743,7 @@ void kis_external_interface::handle_packet_http_register(uint32_t in_seqno,
                     http_proxy_session_map[sess_id] = session;
 
                     auto var_remap = std::map<std::string, std::string>();
-                    for (const auto v : con->http_variables())
+                    for (const auto& v : con->http_variables())
                         var_remap[v.first] = v.second;
 
                     send_http_request(sess_id, static_cast<std::string>(con->uri()), 
