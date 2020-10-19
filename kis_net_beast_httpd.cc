@@ -389,8 +389,7 @@ void kis_net_beast_httpd::handle_connection(const boost::system::error_code& ec,
                 }
 
                 try {
-                    boost::system::error_code ec;
-                    mv_socket.socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send, ec);
+                    mv_socket.socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
                 } catch (std::exception& e) {
                     ;
                 }
@@ -1089,10 +1088,7 @@ bool kis_net_beast_httpd_connection::start() {
 
             boost::beast::http::write(stream_, res, error);
 
-            if (error) 
-                return do_close();
-
-            return true;
+            return do_close();
         }
 
         if (!route->match_role(login_valid_, login_role_)) {
@@ -1101,16 +1097,14 @@ bool kis_net_beast_httpd_connection::start() {
 
             res.set(boost::beast::http::field::server, "Kismet");
             res.set(boost::beast::http::field::content_type, "text/html");
-            res.body() = std::string("<html><head><title>Permission denied</title></head><body><h1>Permission denied</h1><br><p>This resource requires a login or session token.</p></body></html>\n");
+            res.body() = std::string("<html><head><title>401 Permission denied</title></head><body><h1>401 Permission denied</h1><br><p>This resource requires a login or session token.</p></body></html>\n");
             res.prepare_payload();
 
             boost::system::error_code error;
 
             boost::beast::http::write(stream_, res, error);
-            if (error) 
-                return do_close();
 
-            return true;
+            return do_close();
         }
 
         boost::beast::get_lowest_layer(stream_).expires_never();
@@ -1130,7 +1124,7 @@ bool kis_net_beast_httpd_connection::start() {
 
             res.set(boost::beast::http::field::server, "Kismet");
             res.set(boost::beast::http::field::content_type, "text/html");
-            res.body() = std::string("<html><head><title>Incorrect method</title></head><body><h1>Incorrect method/h1><br><p>This method is not valid for this resource.</p></body></html>\n");
+            res.body() = std::string("<html><head><title>405 Incorrect method</title></head><body><h1>405 Incorrect method</h1><br><p>This method is not valid for this resource.</p></body></html>\n");
             res.prepare_payload();
 
             boost::system::error_code error;
@@ -1146,9 +1140,21 @@ bool kis_net_beast_httpd_connection::start() {
             boost::beast::http::response<boost::beast::http::string_body> 
                 res{boost::beast::http::status::unauthorized, request_.version()};
 
+            // We don't generally want to send a WWW-Authorize header because it makes browsers prompt for logins
+            // which interrupts the UI, and curl handles it fine - but wget will not send the auth until it gets
+            // a 401 with a WWW-Authorize then it repeats the request
+            auto ua_h = request_.find(boost::beast::http::field::user_agent);
+            if (ua_h != request_.end()) {
+                auto ua = httpd->decode_uri(ua_h->value());
+
+                if (ua.find_first_of("Wget") == 0) {
+                    res.set(boost::beast::http::field::www_authenticate, "Basic realm=Kismet");
+                }
+            }
+
             res.set(boost::beast::http::field::server, "Kismet");
             res.set(boost::beast::http::field::content_type, "text/html");
-            res.body() = std::string("<html><head><title>Permission denied</title></head><body><h1>Permission denied</h1><br><p>This resource requires a login or session token.</p></body></html>\n");
+            res.body() = std::string("<html><head><title>401 Permission denied</title></head><body><h1>401 Permission denied</h1><br><p>This resource requires a login or session token.</p></body></html>\n");
             res.prepare_payload();
 
             boost::system::error_code error;
@@ -1347,8 +1353,12 @@ bool kis_net_beast_httpd_connection::do_close() {
         closure_cb = nullptr;
     }
 
-    boost::system::error_code ec;
-    stream_.socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send, ec);
+    try {
+        stream_.socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
+    } catch (const std::exception& e) {
+        ;
+    }
+
     return false;
 }
 
@@ -1582,8 +1592,8 @@ void kis_net_web_websocket_endpoint::close() {
     running = false;
 
     try {
-        ws_.next_layer().close();
-        // ws_.next_layer().socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
+        ws_.close(boost::beast::websocket::close_code::none);
+        ws_.next_layer().socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
     } catch (const std::exception& e) {
         ;
     } 
