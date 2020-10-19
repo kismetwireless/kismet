@@ -98,6 +98,14 @@ public:
         closure_cb = cb;
     }
 
+    // Set a write callback, which is called instead of an asio async write, for use for 
+    // instance when being driven from a websocket connection and we need to proxy it
+    // to the ws
+    virtual void set_write_cb(std::function<int (const char *, size_t, std::function<void (int, std::size_t)>)> cb) {
+        local_locker l(&ext_mutex, "set_write_cb");
+        write_cb = cb;
+    }
+
     // close the external interface
     virtual void close_external();
 
@@ -109,6 +117,7 @@ public:
 
 protected:
     std::function<void (void)> closure_cb;
+    std::function<int (const char *, size_t, std::function<void (int, std::size_t)>)> write_cb;
 
     // Handle an error; override in child classes; called when an error causes a shutdown
     virtual void handle_error(const std::string& error) { }

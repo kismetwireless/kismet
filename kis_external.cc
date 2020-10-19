@@ -109,9 +109,6 @@ void kis_external_interface::close_external() {
             ;
         }
     }
-
-    if (closure_cb)
-        closure_cb();
 };
 
 void kis_external_interface::ipc_soft_kill() {
@@ -513,6 +510,19 @@ unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal:
 
                     _MSG_ERROR("Kismet external interface got an error writing a packet to a "
                             "TCP interface: {}", ec.message());
+                    trigger_error("write failure");
+                    return;
+                }
+                });
+    else if (write_cb != nullptr)
+        write_cb(frame_buf, frame_sz,
+                [this](int ec, std::size_t) {
+                if (ec) {
+                    if (ec == boost::asio::error::operation_aborted)
+                        return;
+
+                    _MSG_ERROR("Kismet external interface got error writing a packet to a "
+                            "callback interface.");
                     trigger_error("write failure");
                     return;
                 }
