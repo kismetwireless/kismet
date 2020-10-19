@@ -202,6 +202,10 @@ protected:
     std::map<uint32_t, std::shared_ptr<kis_external_http_session> > http_proxy_session_map;
 
 public:
+    const int result_handle_packet_error = -1;
+    const int result_handle_packet_needbuf = 1;
+    const int result_handle_packet_ok = 2;
+
     // Handle a packet in a buffer
     template<class ConstBufferSequence>
     int handle_packet(const ConstBufferSequence& buffers) {
@@ -218,7 +222,7 @@ public:
             size_t buffamt = in_buf.size();
 
             if (buffamt < sizeof(kismet_external_frame_t)) {
-                return 1;
+                return result_handle_packet_needbuf;
             }
 
             frame = boost::asio::buffer_cast<const kismet_external_frame_t *>(in_buf.data());
@@ -227,7 +231,7 @@ public:
             if (kis_ntoh32(frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
                 _MSG_ERROR("Kismet external interface got command frame with invalid signature");
                 trigger_error("Invalid signature on command frame");
-                return -1;
+                return result_handle_packet_error;
             }
 
             // Check the length
@@ -241,7 +245,7 @@ public:
                         "a legacy Kismet remote capture drone; make sure you have updated to modern "
                         "Kismet on all connected systems.", frame_sz);
                 trigger_error("Command frame too large for buffer");
-                return -1;
+                return result_handle_packet_error;
             }
 
             // If we don't have the whole buffer available, bail on this read
@@ -257,7 +261,7 @@ public:
                         "either the frame is malformed, a network error occurred, or an unsupported tool "
                         "has connected to the external interface API.");
                 trigger_error("command frame has invalid checksum");
-                return -1;
+                return result_handle_packet_error;
             }
 
             // Process the data payload as a protobuf frame
@@ -268,7 +272,7 @@ public:
                         "command frame; either the frame is malformed, a network error occurred, or "
                         "an unsupported tool is connected to the external interface API");
                 trigger_error("unparsable command frame");
-                return -1;
+                trigger_error("command frame has invalid checksum");
             }
 
             in_buf.consume(frame_sz);
@@ -280,7 +284,7 @@ public:
             dispatch_rx_packet(cmd);
         }
 
-        return 1;
+        return result_handle_packet_ok;
     }
 
 
