@@ -1592,7 +1592,7 @@ void kis_net_web_websocket_endpoint::close() {
     running = false;
 
     try {
-        ws_.close(boost::beast::websocket::close_code::none);
+        // ws_.close(boost::beast::websocket::close_code::none);
         ws_.next_layer().socket().shutdown(boost::asio::ip::tcp::socket::shutdown_send);
     } catch (const std::exception& e) {
         ;
