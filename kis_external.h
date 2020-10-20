@@ -284,15 +284,12 @@ public:
     // Handle a buffer with a single frame in it; for instance, fed by the websocket api.  The buffer is not
     // consumed.
     template<class ConstBufferSequence>
-    int handle_external_command(const ConstBufferSequence& data) {
+    int handle_external_command(const ConstBufferSequence& data, size_t sz) {
         const kismet_external_frame_t *frame;
         uint32_t frame_sz, data_sz;
         uint32_t data_checksum;
 
-        // See if we have enough to get a frame header
-        size_t buffamt = data.size();
-
-        if (buffamt < sizeof(kismet_external_frame_t)) {
+        if (sz < sizeof(kismet_external_frame_t)) {
             return result_handle_packet_needbuf;
         }
 
@@ -320,7 +317,7 @@ public:
         }
 
         // If we don't have the whole buffer available, bail on this read
-        if (frame_sz > buffamt) {
+        if (frame_sz > sz) {
             return result_handle_packet_needbuf;
         }
 

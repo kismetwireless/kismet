@@ -1000,7 +1000,7 @@ void datasource_tracker::trigger_deferred_startup() {
 
                         // All remotecap protocol packets are a complete ws message, so if we didn't get enough to
                         // constitute a full packet, throw an error - we're not going to get to build up a buffer
-                        auto ret = remote_ds->handle_external_command(buf.data());
+                        auto ret = remote_ds->handle_external_command(buf.data(), buf.size());
 
                         if (ret != remote_ds->result_handle_packet_ok) {
                             _MSG_ERROR("Unable to handle packet in remote datasource - {}", ret);
@@ -1015,11 +1015,14 @@ void datasource_tracker::trigger_deferred_startup() {
                             [this, remote_ds, ws] (dst_incoming_remote *i, std::string in_type, 
                                 std::string in_def, uuid in_uuid) mutable {
 
+                            // _MSG_DEBUG("triggering open_remote_ds");
                             remote_ds = datasourcetracker->open_remote_datasource(i, in_type, in_def, 
                                     in_uuid, false);
 
-                            if (remote_ds == nullptr && ws != nullptr)
+                            if (remote_ds == nullptr && ws != nullptr) {
+                                // _MSG_DEBUG("remote ds or ws failed");
                                 ws->close();
+                            }
                         });
 
 
@@ -1578,6 +1581,8 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(
      
     local_locker lock(&dst_lock, "datasourcetracker::open_remote_datasource");
 
+    // _MSG_DEBUG("merging incoming {} {} {}", in_type, in_definition, in_uuid);
+
     // Look for an existing datasource with the same UUID
     for (auto p : *datasource_vec) {
         shared_datasource d = std::static_pointer_cast<kis_datasource>(p);
@@ -1637,8 +1642,8 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(
                                 ds->get_source_uuid());
                         merge_source(ds); 
                     } else {
-                        _MSG_INFO("Error connecting new remote source {} ({})",
-                                ds->get_source_name(), ds->get_source_uuid());
+                        _MSG_ERROR("Error connecting new remote source {} ({}) - {}",
+                                ds->get_source_name(), ds->get_source_uuid(), msg);
                         broken_source_vec.push_back(ds);
                     }
                 });
@@ -1876,14 +1881,15 @@ dst_incoming_remote::~dst_incoming_remote() {
 }
 
 bool dst_incoming_remote::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) { 
-    if (kis_external_interface::dispatch_rx_packet(c))
-        return true;
-
     // Simple dispatch override, all we do is look for the new source
     if (c->command() == "KDSNEWSOURCE") {
+        //_MSG_DEBUG("incoming remote got kds newsource");
         handle_packet_newsource(c->seqno(), c->content());
         return true;
     }
+
+    if (kis_external_interface::dispatch_rx_packet(c))
+        return true;
 
     return false;
 }

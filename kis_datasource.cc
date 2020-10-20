@@ -384,6 +384,10 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource *i
         set_int_source_error(true);
         set_int_source_error_reason("Unable to parse interface definition of remote source");
         _MSG("Unable to parse interface definition", MSGFLAG_ERROR);
+
+        if (in_cb)
+            in_cb(0, false, "Unable to parse definition of remote source");
+
         return;
     }
 
