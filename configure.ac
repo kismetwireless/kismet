@@ -980,6 +980,31 @@ AC_ARG_ENABLE(prelude,
 
 PKG_PROG_PKG_CONFIG
 
+AC_ARG_ENABLE([libwebsockets],
+    AS_HELP_STRING([--disable-libwebsockets], [Disable websockets support for remote capture]),
+	[case "${enableval}" in
+	  no) want_libwebsockets=no ;;
+	   *) want_libwebsockets=yes ;;
+	 esac],
+	[want_libwebsockets=yes]
+)
+
+AS_IF([test "x$want_libwebsockets" != "xno"], [
+    PKG_CHECK_MODULES([libwebsockets], [libwebsockets], have_libwebsockets_pkg=yes)
+
+    if test x"$have_libwebsockets_pkg" != "xyes"; then
+        AC_MSG_ERROR([missing libwebsockets])
+    else
+        LIBWSLIBS=`pkg-config --libs libwebsockets`
+        LIBWSFLAGS=`pkg-config --cflags libwebsockets`
+
+        have_libwebsockets="yes"
+        AC_DEFINE(HAVE_LIBWEBSOCKETS, 1, libwebsockets)
+    fi
+])
+AC_SUBST(LIBWSLIBS)
+AC_SUBST(LIBWSCFLAGS)
+
 # Look for libpcap via pkg-config
 have_libpcap=no
 PKG_CHECK_MODULES([libpcap], [libpcap], [
@@ -1610,21 +1635,22 @@ else
 	echo "$suidgroup"
 fi
 
-printf "   Linux WEXT capture : "
-if test "$linux_wireless" = "yes"; then
-	echo "yes"
-elif test "$linux" != "yes"; then
-	echo "n/a (only Linux)"
-else
-	echo "no"
-fi
 printf "        Prelude  SIEM : $wantprelude\n"
-printf "   PCRE Regex Filters : "
+
+printf "            PCRE regex: "
 if test "$wantpcre" = "yes"; then
 	echo "yes"
 else
 	echo "no"
 fi
+
+printf " Websocket datasources: "
+if test "$have_libwebsockets"x = "yesx"; then
+    echo "yes"
+else
+    echo "no (not building remote capture with websockets)"
+fi
+
 printf "LibCapability (enhanced\n"
 printf "   privilege dropping): "
 if test "$havecap" = "yes"; then
@@ -1635,11 +1661,11 @@ else
 	echo "no";
 fi
 
-printf "   OSX/Darwin capture : "
-if test "$darwin" = "yes"; then
+printf "  Linux Wi-Fi capture : "
+if test "$linux_wireless" = "yes"; then
 	echo "yes"
-elif test "$darwin" != "yes"; then
-	echo "n/a (only OSX/Darwin)"
+elif test "$linux" != "yes"; then
+	echo "n/a (only Linux)"
 else
 	echo "no"
 fi
@@ -1662,13 +1688,22 @@ else
     echo "no (will not be able to control NetworkManager, $LIBNM_MISSING_REASON)"
 fi
 
-printf "       Linux Bluetooth: "
+printf "   Linux HCI Bluetooth: "
 if test "$BUILD_CAPTURE_LINUX_BLUETOOTH" = 1; then
 	echo "yes";
 elif test "$linux" != "yes"; then
 	echo "n/a (only Linux)"
 else
 	echo "no (will not be able to track Bluetooth on Linux)";
+fi
+
+printf "   OSX/Darwin capture : "
+if test "$darwin" = "yes"; then
+	echo "yes"
+elif test "$darwin" != "yes"; then
+	echo "n/a (only OSX/Darwin)"
+else
+	echo "no"
 fi
 
 printf "         nRF MouseJack: "
