@@ -351,7 +351,8 @@ public:
 
     // Try to instantiate a remote data source
     std::shared_ptr<kis_datasource> open_remote_datasource(dst_incoming_remote *incoming, 
-            const std::string& in_type, const std::string& in_definition, const uuid& in_uuid);
+            const std::string& in_type, const std::string& in_definition, const uuid& in_uuid,
+            bool connect_tcp);
 
     // Find a datasource
     shared_datasource find_datasource(const uuid& in_uuid);

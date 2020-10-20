@@ -1013,19 +1013,14 @@ void datasource_tracker::trigger_deferred_startup() {
 
                 remote_ds = 
                     std::make_shared<dst_incoming_remote>(
-                            [this, remote_ds, ws, write_cb, closure_cb] (dst_incoming_remote *i, std::string in_type, 
-                            std::string in_def, uuid in_uuid) mutable {
+                            [this, remote_ds, ws] (dst_incoming_remote *i, std::string in_type, 
+                                std::string in_def, uuid in_uuid) mutable {
 
-                            remote_ds = datasourcetracker->open_remote_datasource(i, in_type, in_def, in_uuid);
+                            remote_ds = datasourcetracker->open_remote_datasource(i, in_type, in_def, 
+                                    in_uuid, false);
 
                             if (remote_ds == nullptr && ws != nullptr)
                                 ws->close();
-
-                            if (remote_ds != nullptr) {
-                                remote_ds->set_write_cb(write_cb);
-                                remote_ds->set_closure_cb(closure_cb);
-                            }
-
                         });
 
 
@@ -1575,8 +1570,10 @@ void datasource_tracker::schedule_cleanup() {
 
 }
 
-std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
-        const std::string& in_type, const std::string& in_definition, const uuid& in_uuid) {
+std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(
+        dst_incoming_remote *incoming,
+        const std::string& in_type, const std::string& in_definition, const uuid& in_uuid,
+        bool connect_tcp) {
 
     shared_datasource merge_target_device;
      
@@ -1613,8 +1610,8 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
         auto dup_definition(in_definition);
 
         // Merge the socket into the new device
-        incoming->handshake_rb(std::thread([this, merge_target_device, incoming, dup_definition]  {
-                    merge_target_device->connect_remote(incoming->move_tcp_socket(), dup_definition, NULL);
+        incoming->handshake_rb(std::thread([this, merge_target_device, incoming, dup_definition, connect_tcp]  {
+                    merge_target_device->connect_remote(dup_definition, incoming, connect_tcp, NULL);
                     calculate_source_hopping(merge_target_device);
                     }));
 
@@ -1634,12 +1631,17 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
 
             // Make a data source from the builder
             shared_datasource ds = b->build_datasource(b);
-            ds->connect_remote(incoming->move_tcp_socket(), in_definition,
+            ds->connect_remote(in_definition, incoming, connect_tcp,
                 [this, ds](unsigned int, bool success, std::string msg) {
-                    if (success)
+                    if (success) {
+                        _MSG_INFO("New remote source {} ({}) connected", ds->get_source_name(),
+                                ds->get_source_uuid());
                         merge_source(ds); 
-                    else
+                    } else {
+                        _MSG_INFO("Error connecting new remote source {} ({})",
+                                ds->get_source_name(), ds->get_source_uuid());
                         broken_source_vec.push_back(ds);
+                    }
                 });
 
             return ds;
@@ -1791,10 +1793,9 @@ void datasource_tracker::calculate_source_hopping(shared_datasource in_ds) {
 void datasource_tracker::queue_dead_remote(dst_incoming_remote *in_dead) {
     local_locker lock(&dst_lock, "datasourcetracker::queue_dead_remote");
 
-    for (auto x : dst_remote_complete_vec) {
-        if (x == in_dead)
+    for (auto dds : dst_remote_complete_vec)
+        if (dds == in_dead)
             return;
-    }
 
     if (remote_complete_timer <= 0) {
         remote_complete_timer =
@@ -1802,9 +1803,8 @@ void datasource_tracker::queue_dead_remote(dst_incoming_remote *in_dead) {
                 [this] (int) -> int {
                     local_locker lock(&dst_lock, "datasourcetracker::remote_complete_timer lambda");
 
-                    for (auto x : dst_remote_complete_vec) {
-                        delete(x);
-                    }
+                    for (auto dds : dst_remote_complete_vec)
+                        free(dds);
 
                     dst_remote_complete_vec.clear();
 
@@ -1966,10 +1966,10 @@ void datasource_tracker_remote_server::handle_accept(const boost::system::error_
     if (!ec) {
         // Bind a new incoming remote which will pivot to the proper data source type
         auto remote = 
-            std::make_shared<dst_incoming_remote>([this] (dst_incoming_remote *i, std::string in_type, 
-                        std::string in_def, uuid in_uuid) {
-                datasourcetracker->open_remote_datasource(i, in_type, in_def, in_uuid);
-                });
+            std::make_shared<dst_incoming_remote>([this] (dst_incoming_remote *i, 
+                        std::string in_type, std::string in_def, uuid in_uuid) {
+                    datasourcetracker->open_remote_datasource(i, in_type, in_def, in_uuid, true);
+                    });
 
         remote->attach_tcp_socket(socket);
     }
