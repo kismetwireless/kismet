@@ -1007,7 +1007,6 @@ void datasource_tracker::trigger_deferred_startup() {
                             ws->close();
                             return;
                         }
-                            
 
                         });
 
