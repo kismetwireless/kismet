@@ -1000,7 +1000,7 @@ void datasource_tracker::trigger_deferred_startup() {
 
                         // All remotecap protocol packets are a complete ws message, so if we didn't get enough to
                         // constitute a full packet, throw an error - we're not going to get to build up a buffer
-                        auto ret = remote_ds->handle_packet(buf.data());
+                        auto ret = remote_ds->handle_external_command(buf.data());
 
                         if (ret != remote_ds->result_handle_packet_ok) {
                             _MSG_ERROR("Unable to handle packet in remote datasource - {}", ret);
