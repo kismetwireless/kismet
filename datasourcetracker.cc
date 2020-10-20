@@ -1013,8 +1013,8 @@ void datasource_tracker::trigger_deferred_startup() {
 
                 remote_ds = 
                     std::make_shared<dst_incoming_remote>(
-                            [this, &remote_ds, &ws, write_cb, closure_cb] (dst_incoming_remote *i, std::string in_type, 
-                            std::string in_def, uuid in_uuid) {
+                            [this, remote_ds, ws, write_cb, closure_cb] (dst_incoming_remote *i, std::string in_type, 
+                            std::string in_def, uuid in_uuid) mutable {
 
                             remote_ds = datasourcetracker->open_remote_datasource(i, in_type, in_def, in_uuid);
 
