@@ -206,12 +206,9 @@ public:
     const int result_handle_packet_needbuf = 1;
     const int result_handle_packet_ok = 2;
 
-    // Handle a packet in a buffer
-    template<class ConstBufferSequence>
-    int handle_packet(const ConstBufferSequence& buffers) {
-        local_demand_locker lock(&ext_mutex, "kei::handle_read");
-        lock.lock();
-
+    // Handle a buffer containing a network frame packet
+    template<class BoostBuffer>
+    int handle_packet(BoostBuffer& buffer) {
         const kismet_external_frame_t *frame;
         uint32_t frame_sz, data_sz;
         uint32_t data_checksum;
@@ -219,13 +216,13 @@ public:
         // Consume everything in the buffer that we can
         while (1) {
             // See if we have enough to get a frame header
-            size_t buffamt = in_buf.size();
+            size_t buffamt = buffer.size();
 
             if (buffamt < sizeof(kismet_external_frame_t)) {
                 return result_handle_packet_needbuf;
             }
 
-            frame = boost::asio::buffer_cast<const kismet_external_frame_t *>(in_buf.data());
+            frame = boost::asio::buffer_cast<const kismet_external_frame_t *>(buffer.data());
 
             // Check the frame signature
             if (kis_ntoh32(frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
@@ -272,13 +269,10 @@ public:
                         "command frame; either the frame is malformed, a network error occurred, or "
                         "an unsupported tool is connected to the external interface API");
                 trigger_error("unparsable command frame");
-                trigger_error("command frame has invalid checksum");
+                return result_handle_packet_error;
             }
 
-            in_buf.consume(frame_sz);
-
-            // Unlock before processing, individual commands will lock as needed
-            lock.unlock();
+            buffer.consume(frame_sz);
 
             // Dispatch the received command
             dispatch_rx_packet(cmd);
@@ -287,7 +281,26 @@ public:
         return result_handle_packet_ok;
     }
 
+    // Handle a buffer containing an external command without the frame wrapping; this buffer should
+    // be the exact size of the command, and is not consumed - this API is designed to be called from
+    // a single-frame provider, like a websocket
+    template<class ConstBufferSequence>
+    int handle_external_command(const ConstBufferSequence& buffer) {
+        // Process the data payload as a protobuf frame
+        std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
 
+        if (!cmd->ParseFromString(boost::beast::buffers_to_string(buffer))) {
+            _MSG_ERROR("Kismet external interface could not interpret the payload of the "
+                    "command frame; either the frame is malformed, a network error occurred, or "
+                    "an unsupported tool is connected to the external interface API");
+            trigger_error("unparsable command frame");
+            return result_handle_packet_error;
+        }
+
+        dispatch_rx_packet(cmd);
+
+        return result_handle_packet_ok;
+    }
 };
 
 #endif
