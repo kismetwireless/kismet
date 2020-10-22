@@ -970,6 +970,8 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         goto cleanup;
     }
 
+    ret = 1;
+
     if (caph->in_fd == -1 || caph->out_fd == -1) {
         ret = -1;
         goto cleanup;
@@ -1874,8 +1876,6 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
     /* Clear it out from the buffer */
     kis_simple_ringbuf_read(caph->in_ringbuf, NULL, total_sz);
 
-    pthread_mutex_unlock(&(caph->handler_lock));
-
     return cbret;
 }
 
@@ -2208,7 +2208,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
             }
         }
 
-        if (caph->in_ringbuf == NULL) {
+        if (caph->out_ringbuf == NULL) {
             caph->out_ringbuf = kis_simple_ringbuf_create(1024 * 2048);
 
             if (caph->out_ringbuf == NULL) {
@@ -2348,8 +2348,6 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                         rv = -1;
                         goto cap_loop_fail;
                     }
-
-                    /* fprintf(stderr, "debug - capframework - read %lu\n", amt_buffered); */
 
                     /* See if we have a complete packet to do something with */
                     if (cf_handle_rb_rx_data(caph) < 0) {
@@ -2678,6 +2676,7 @@ int cf_send_packet(kis_capture_handler_t *caph, const char *packtype, uint8_t *d
         return cf_send_ws_packet(caph, &cmd, data, len);
 #endif
     } else {
+        fprintf(stderr, "ERROR:  cf_send_packet with unknown connection type\n");
         return -1;
     }
 }
@@ -3539,8 +3538,9 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph) {
     }
 
     /* Don't enter remote loop at all if we're not doing a remote connection */
-    if (caph->use_tcp == 0 && caph->use_ws == 0)
+    if (caph->use_ipc) {
         return;
+    }
 
     while (1) {
         if (caph->remote_retry && (chpid = fork()) > 0) {
