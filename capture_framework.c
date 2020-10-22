@@ -1610,7 +1610,7 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
             }
 
             if (cbret >= 0) {
-                fprintf(stderr, "DEBUG - launching capture thread\n");
+                /* fprintf(stderr, "DEBUG - launching capture thread\n"); */
                 cf_handler_launch_capture_thread(caph);
             }
 
