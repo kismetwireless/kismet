@@ -977,12 +977,12 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         }
 
         if (user != NULL && token != NULL) 
-            fprintf(stderr, "WARNING:  Ignoring APIKEY and using login information\n");
+            fprintf(stderr, "WARNING: Ignoring APIKEY and using login information\n");
 
         if (endp_arg == NULL)
             endp_arg = strdup("/datasource/remote/remotesource.ws");
         else
-            fprintf(stderr, "INFO:  Using custom endpoint path %s", endp_arg);
+            fprintf(stderr, "INFO: Using custom endpoint path %s\n", endp_arg);
 
         if (user != NULL && password != NULL) {
             snprintf(uri, 1024, "%s?user=%s&password=%s", endp_arg, user, password);
@@ -1038,6 +1038,25 @@ void cf_print_help(kis_capture_handler_t *caph, const char *argv0) {
                 " --tcp                        Use the legacy TCP remote capture protocol, when combined with the\n"
                 "                               --connect option.  The modern protocol uses websockets built into\n"
                 "                               the Kismet server and does not need this option.\n"
+                " --ssl [cafile:optional]      Use SSL to connect to a websocket-enabled Kismet server; optionally\n"
+                "                               provide a custom certificate authority file for validation if the\n"
+                "                               certificate is not publicly valid.  This option may only be used in\n"
+                "                               websockets mode.\n"
+                " --user [username]            Kismet username for a websockets-based remote capture source.  A \n"
+                "                               username and password, or an API key, are required for websockets\n"
+                "                               mode.  A username and password are ONLY used in websockets mode.\n"
+                " --password [password]        Kismet password for a websockets-based remote capture source.  A \n"
+                "                               username and password, or an API key, are required for websockets\n"
+                "                               mode.  A username and password are ONLY used in websockets mode.\n"
+                " --apikey [api key]           A Kismet API key for the 'datasource' role; this may be supplied\n"
+                "                               instead of a username and password for websockets-based remote\n"
+                "                               capture.  An API key is ONLY used in websockets mode.\n"
+                " --endpoint [endpoint]        An alternate endpoint for the websockets connection.  By default\n"
+                "                               remote datasources are terminated at /datasource/remote/remotesource.ws\n"
+                "                               This should typically only be changed when using a HTTP proxy\n"
+                "                               homing the Kismet service under a directory.  Endpoints should include\n"
+                "                               the full path to the websocket endpoint, for example:\n"
+                "                                 --endpoint=/kismet/proxy/datasource/remote/remotesource.ws\n"
                 " --source [source def]        Specify a source to send to the remote \n"
                 "                              Kismet server; only used in conjunction with remote capture.\n"
                 " --disable-retry              Do not attempt to reconnect to a remote server if there is an error; \n"
@@ -1639,7 +1658,7 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
             kismet_datasource__open_source__free_unpacked(open_cmd, NULL);
 
             if (caph->remote_host) {
-                fprintf(stderr, "INFO - %s:%u starting capture...\n",
+                fprintf(stderr, "INFO: %s:%u starting capture...\n",
                         caph->remote_host, caph->remote_port);
             }
 
@@ -2051,7 +2070,7 @@ int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
 
     caph->tcp_fd = client_fd;
 
-    fprintf(stderr, "INFO - Connected to '%s:%u'...\n", caph->remote_host, caph->remote_port);
+    fprintf(stderr, "INFO: Connected to '%s:%u'...\n", caph->remote_host, caph->remote_port);
 
     /* Send the NEWSOURCE command to the Kismet server */
     cf_send_newsource(caph, uuid);
@@ -3635,7 +3654,7 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph) {
             exit(1);
         }
 
-        fprintf(stderr, "INFO - Sleeping 5 seconds before attempting to reconnect to "
+        fprintf(stderr, "INFO: Sleeping 5 seconds before attempting to reconnect to "
                 "remote server\n");
         sleep(5);
     }
