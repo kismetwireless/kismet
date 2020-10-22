@@ -900,7 +900,7 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
             fprintf(stderr, "WARNING: Ignoring --apikey when not in remote mode\n");
     }
 
-    if (caph->tcp_fd && (user != NULL || password != NULL || token != NULL))
+    if (caph->use_tcp && (user != NULL || password != NULL || token != NULL))
         fprintf(stderr, "WARNING: Ignoring user, password, and apikeys in legacy TCP mode\n");
 
     if ((user != NULL || password != NULL) && (user == NULL || password == NULL)) {
@@ -948,7 +948,7 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         if (!caph->use_tcp)
             caph->use_ws = 1;
 
-        if (user == NULL && password == NULL && token == NULL) {
+        if (caph->use_ws && user == NULL && password == NULL && token == NULL) {
             fprintf(stderr, "FATAL: User and password or API key required for remote capture\n");
             ret = -1;
             goto cleanup;
@@ -965,13 +965,6 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         }
 
         caph->lwsuri = strdup(uri);
-
-        if (user != NULL)
-            free(user);
-        if (password != NULL)
-            free(password);
-        if (token != NULL)
-            free(token);
 
         ret = 2;
         goto cleanup;
@@ -1411,8 +1404,10 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
     /* Kismet command */
     KismetExternal__Command *kds_cmd;
 
-    if (len < sizeof(kismet_external_frame_t))
+    if (len < sizeof(kismet_external_frame_t)) {
+        fprintf(stderr, "DEBUG: runt frame\n");
         return -1;
+    }
 
     external_frame = (kismet_external_frame_t *) buffer;
 
@@ -1441,6 +1436,8 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
         fprintf(stderr, "FATAL:  Invalid frame received, unable to unpack command\n");
         return -1;
     }
+
+    /* fprintf(stderr, "DEBUG - got cmd %s\n", kds_cmd->command); */
 
     pthread_mutex_lock(&(caph->handler_lock));
 
@@ -1613,6 +1610,7 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
             }
 
             if (cbret >= 0) {
+                fprintf(stderr, "DEBUG - launching capture thread\n");
                 cf_handler_launch_capture_thread(caph);
             }
 
@@ -1799,8 +1797,8 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
         }
     }
     
-
 finish:
+    pthread_mutex_unlock(&caph->handler_lock);
     kismet_external__command__free_unpacked(kds_cmd, NULL);
 
     return cbret;
@@ -1914,10 +1912,20 @@ int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
 
     /* Reset spindown */
     caph->spindown = 0;
+    caph->shutdown = 0;
 
-    /* Clear the buffers */
-    kis_simple_ringbuf_clear(caph->in_ringbuf);
-    kis_simple_ringbuf_clear(caph->out_ringbuf);
+    caph->in_ringbuf = kis_simple_ringbuf_create(1024 * 16);
+    if (caph->in_ringbuf == NULL) {
+        fprintf(stderr, "FATAL:  Cannot allocate socket ringbuffer\n");
+        return -1;
+    }
+
+    caph->out_ringbuf = kis_simple_ringbuf_create(1024 * 2048);
+    if (caph->out_ringbuf == NULL) {
+        fprintf(stderr, "FATAL:  Cannot allocate socket ringbuffer\n");
+        return -1;
+    }
+
 
     /* Perform a local probe on the source to see if it's valid */
     msgstr[0] = 0;
@@ -2023,9 +2031,7 @@ int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
 }
 
 #ifdef HAVE_LIBWEBSOCKETS
-void ws_sul_connect_attempt(struct lws_sorted_usec_list *sul) {
-    kis_capture_handler_t *caph = lws_container_of(sul, kis_capture_handler_t, lwssul);
-
+void ws_sul_connect_attempt(kis_capture_handler_t *caph, struct lws_sorted_usec_list *sul) {
     char msgstr[STATUS_MAX];
     int cbret;
     cf_params_interface_t *cpi;
@@ -2039,6 +2045,7 @@ void ws_sul_connect_attempt(struct lws_sorted_usec_list *sul) {
 
     /* Reset spindown */
     caph->spindown = 0;
+    caph->shutdown = 0;
 
     msgstr[0] = 0;
     cpi = NULL;
@@ -2082,45 +2089,82 @@ void ws_sul_connect_attempt(struct lws_sorted_usec_list *sul) {
     caph->lwsci.protocol = "kismet-remote";
     caph->lwsci.pwsi = &caph->lwsclientwsi;
 
-    if (!lws_client_connect_via_info(&caph->lwsci))
-        lws_sul_schedule(caph->lwscontext, 0, &caph->lwssul, ws_sul_connect_attempt, 
-                10 * LWS_US_PER_SEC);
-
+    if (!lws_client_connect_via_info(&caph->lwsci)) {
+        caph->spindown = 1;
+        return;
+    }
 }
 
 /* handler which gets dispatched by libwebsockets */
 int ws_remotecap_broker(struct lws *wsi, enum lws_callback_reasons reason,
         void *user, void *in, size_t len) {
 
-    kis_capture_handler_t *caph = 
-        (kis_capture_handler_t *) lws_protocol_vh_priv_get(lws_get_vhost(wsi), lws_get_protocol(wsi));
+    kis_capture_handler_t *caph = (kis_capture_handler_t *) lws_context_user(lws_get_context(wsi));
 
-    kismet_external_frame_t *frame;
+    struct cf_ws_msg *wmsg;
+    int m;
+
     switch (reason) {
         case LWS_CALLBACK_PROTOCOL_INIT:
             caph->lwscontext = lws_get_context(wsi);
             caph->lwsprotocol = lws_get_protocol(wsi);
             caph->lwsvhost = lws_get_vhost(wsi);
-
-            ws_sul_connect_attempt(&caph->lwssul);
+            ws_sul_connect_attempt(caph, &caph->lwssul);
             break;
-
         case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
+            pthread_mutex_lock(&caph->handler_lock);
             caph->lwsclientwsi = NULL;
             caph->spindown = 1;
+            pthread_mutex_unlock(&caph->handler_lock);
+            return -1;
             break;
         case LWS_CALLBACK_CLIENT_ESTABLISHED:
             caph->lwsestablished = 1;
             cf_send_newsource(caph, caph->lwsuuid);
             break;
         case LWS_CALLBACK_CLIENT_WRITEABLE:
-            printf("debug - writeable\n");
+            pthread_mutex_lock(&caph->out_ringbuf_lock);
+
+            wmsg = (struct cf_ws_msg *) lws_ring_get_element(caph->lwsring, &caph->lwstail);
+            if (wmsg == NULL)
+                goto skip;
+
+            m = lws_write(wsi, (unsigned char *) wmsg->payload + LWS_PRE, 
+                    wmsg->len, LWS_WRITE_BINARY);
+
+            if (m != (int) wmsg->len) {
+                caph->shutdown = 1;
+                lws_cancel_service(caph->lwscontext);
+                pthread_mutex_unlock(&caph->out_ringbuf_lock);
+                return -1;
+            }
+
+            lws_ring_consume_single_tail(caph->lwsring, &caph->lwstail, 1);
+
+            if (lws_ring_get_element(caph->lwsring, &caph->lwstail)) {
+                lws_callback_on_writable(wsi);
+            } else if (caph->spindown) {
+                /* If we have no more packets and we're spinning down, finish */
+                caph->shutdown = 1;
+                lws_cancel_service(caph->lwscontext);
+                pthread_mutex_unlock(&caph->out_ringbuf_lock);
+                return -1;
+            }
+
+            /* Signal to any waiting IO that the buffer has some
+             * headroom */
+            pthread_cond_signal(&(caph->out_ringbuf_flush_cond));
+
+skip:
+            pthread_mutex_unlock(&caph->out_ringbuf_lock);
             break;
         case LWS_CALLBACK_CLIENT_CLOSED:
+            pthread_mutex_lock(&caph->handler_lock);
             caph->lwsclientwsi = NULL;
             caph->lwsestablished = 0;
-            caph->spindown = 1;
-            break;
+            caph->shutdown = 1;
+            pthread_mutex_unlock(&caph->handler_lock);
+            return -1;
         case LWS_CALLBACK_CLIENT_RECEIVE:
             if (cf_handle_rx_content(caph, (const uint8_t *) in, len) < 0) {
                 caph->lwsestablished = 0;
@@ -2155,22 +2199,22 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
     int rv = 0;
 
     if (caph->use_tcp || caph->use_ipc) {
-        /* Allocate a smaller incoming ringbuffer since most of our traffic is
-         * on the outgoing channel */
-        caph->in_ringbuf = kis_simple_ringbuf_create(1024 * 16);
-
         if (caph->in_ringbuf == NULL) {
-            fprintf(stderr, "FATAL:  Cannot allocate socket ringbuffer\n");
-            return -1;
+            caph->in_ringbuf = kis_simple_ringbuf_create(1024 * 16);
+
+            if (caph->in_ringbuf == NULL) {
+                fprintf(stderr, "FATAL:  Cannot allocate socket ringbuffer\n");
+                return -1;
+            }
         }
 
-        /* Allocate a much more generous outbound buffer since this is where 
-         * packets get queued */
-        caph->out_ringbuf = kis_simple_ringbuf_create(1024 * 2048);
+        if (caph->in_ringbuf == NULL) {
+            caph->out_ringbuf = kis_simple_ringbuf_create(1024 * 2048);
 
-        if (caph->out_ringbuf == NULL) {
-            fprintf(stderr, "FATAL:  Cannot allocate socket ringbuffer\n");
-            return -1;
+            if (caph->out_ringbuf == NULL) {
+                fprintf(stderr, "FATAL:  Cannot allocate socket ringbuffer\n");
+                return -1;
+            }
         }
 
         if (caph->tcp_fd >= 0) {
@@ -2370,7 +2414,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
     } else if (caph->use_ws) {
 #ifdef HAVE_LIBWEBSOCKETS
         caph->lwsring = 
-            lws_ring_create(sizeof(struct cf_ws_msg), 16, ws_destroy_msg);
+            lws_ring_create(sizeof(struct cf_ws_msg), 1024, ws_destroy_msg);
 
         if (!caph->lwsring) {
             fprintf(stderr, "FATAL:  Cannot allocate websocket ringbuffer\n");
@@ -2431,10 +2475,9 @@ int cf_send_ws_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len)
 
     n = lws_ring_get_count_free_elements(caph->lwsring);
     if (n == 0) {
-        fprintf(stderr, "FATAL: Insufficient space in ws ringbuffer\n");
         pthread_mutex_unlock(&caph->out_ringbuf_lock);
         lws_cancel_service(caph->lwscontext);
-        return -1;
+        return 0;
     }
 
     wsmsg.payload = (char *) malloc(LWS_PRE + len);
@@ -2458,6 +2501,12 @@ int cf_send_ws_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len)
     }
 
     pthread_mutex_unlock(&caph->out_ringbuf_lock);
+
+    pthread_mutex_lock(&caph->handler_lock);
+    if (caph->lwsclientwsi != NULL)
+        lws_callback_on_writable(caph->lwsclientwsi);
+    pthread_mutex_unlock(&caph->handler_lock);
+
     return 1;
 }
 #endif
@@ -2547,10 +2596,8 @@ int cf_send_ws_packet(kis_capture_handler_t *caph, KismetExternal__Command *cmd,
     if (n == 0) {
         free(cmd->command);
         free(data);
-        fprintf(stderr, "FATAL: Insufficient space in ws ringbuffer\n");
         pthread_mutex_unlock(&caph->out_ringbuf_lock);
-        lws_cancel_service(caph->lwscontext);
-        return -1;
+        return 0;
     }
 
     wsmsg.payload = (char *) malloc(LWS_PRE + data_sz + sizeof(kismet_external_frame_t));
@@ -2559,9 +2606,10 @@ int cf_send_ws_packet(kis_capture_handler_t *caph, KismetExternal__Command *cmd,
         free(data);
         fprintf(stderr, "FATAL: Failed to allocate ws buffer\n");
         pthread_mutex_unlock(&caph->out_ringbuf_lock);
-        lws_cancel_service(caph->lwscontext);
         return -1;
     }
+
+    // fprintf(stderr, "DEBUG - queuing ws %s\n", cmd->command);
 
     /* Map to the tx frame */
     frame = (kismet_external_frame_t *) (wsmsg.payload + LWS_PRE);
@@ -2595,7 +2643,12 @@ int cf_send_ws_packet(kis_capture_handler_t *caph, KismetExternal__Command *cmd,
 
     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
 
-    return len;
+    pthread_mutex_lock(&caph->handler_lock);
+    if (caph->lwsclientwsi != NULL)
+        lws_callback_on_writable(caph->lwsclientwsi);
+    pthread_mutex_unlock(&caph->handler_lock);
+
+    return 1;
 }
 
 #endif
@@ -2627,9 +2680,6 @@ int cf_send_packet(kis_capture_handler_t *caph, const char *packtype, uint8_t *d
     } else {
         return -1;
     }
-    
-
-   
 }
 
 int cf_send_message(kis_capture_handler_t *caph, const char *msg, unsigned int flags) {
@@ -3493,7 +3543,7 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph) {
         return;
 
     while (1) {
-        if ((chpid = fork()) > 0) {
+        if (caph->remote_retry && (chpid = fork()) > 0) {
             while (1) {
                 pid_t wpid;
 
@@ -3518,6 +3568,8 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph) {
                  * via the main lws_service loop */
 
                 memset(&caph->lwsinfo, 0, sizeof(struct lws_context_creation_info));
+
+                caph->lwsinfo.user = caph;
 
                 if (caph->lwsusessl)
                     caph->lwsinfo.options = LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
