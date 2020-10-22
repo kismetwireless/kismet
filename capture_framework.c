@@ -753,14 +753,17 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         { "user", required_argument, 0, 14},
         { "password", required_argument, 0, 15},
         { "apikey", required_argument, 0, 16},
+        { "endpoint", required_argument, 0, 17},
         { "help", no_argument, 0, 'h'},
         { 0, 0, 0, 0 }
     };
 
     char *gps_arg = NULL;
-    char *user = NULL, *password = NULL, *token = NULL;
     int pr;
-    char uri[256];
+#ifdef HAVE_LIBWEBSOCKETS
+    char *user = NULL, *password = NULL, *token = NULL, *endp_arg = NULL;
+    char uri[1024];
+#endif
 
     int ret = 0;
 
@@ -867,7 +870,16 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
             ret = -1;
             goto cleanup;
 #endif
-        }
+        } else if (r == 17) {
+#ifdef HAVE_LIBWEBSOCKETS
+            endp_arg = strdup(optarg);
+#else
+            fprintf(stderr, "FATAL: Cannot use custom endpoint when not compiled "
+                    "with websockets support.\n");
+            ret = -1;
+            goto cleanup;
+#endif
+        } 
     }
 
 #ifndef HAVE_LIBWEBSOCKETS
@@ -893,13 +905,16 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
     if (caph->remote_host == NULL) {
         if (caph->cli_sourcedef != NULL) 
             fprintf(stderr, "WARNING: Ignoring --source option when not in remote mode.\n");
+#ifdef HAVE_LIBWEBSOCKETS
         if (user != NULL || password != NULL)
             fprintf(stderr, "WARNING: Ignoring --user and --password options when not in "
                     "remote mode\n");
         if (token != NULL)
             fprintf(stderr, "WARNING: Ignoring --apikey when not in remote mode\n");
+#endif
     }
 
+#ifdef HAVE_LIBWEBSOCKETS
     if (caph->use_tcp && (user != NULL || password != NULL || token != NULL))
         fprintf(stderr, "WARNING: Ignoring user, password, and apikeys in legacy TCP mode\n");
 
@@ -908,6 +923,7 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         ret = -1;
         goto cleanup;
     }
+#endif
 
     if (caph->remote_host == NULL && gps_arg != NULL) {
         fprintf(stderr, "WARNING: Ignoring --fixed-gps option when not in remote mode.\n");
@@ -953,6 +969,7 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
 #endif
         }
 
+#ifdef HAVE_LIBWEBSOCKETS
         if (caph->use_ws && user == NULL && password == NULL && token == NULL) {
             fprintf(stderr, "FATAL: User and password or API key required for remote capture\n");
             ret = -1;
@@ -962,12 +979,15 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         if (user != NULL && token != NULL) 
             fprintf(stderr, "WARNING:  Ignoring APIKEY and using login information\n");
 
-#ifdef HAVE_LIBWEBSOCKETS
+        if (endp_arg == NULL)
+            endp_arg = strdup("/datasource/remote/remotesource.ws");
+        else
+            fprintf(stderr, "INFO:  Using custom endpoint path %s", endp_arg);
+
         if (user != NULL && password != NULL) {
-            snprintf(uri, 254, "/datasource/remote/remotesource.ws?user=%s&password=%s",
-                    user, password);
+            snprintf(uri, 1024, "%s?user=%s&password=%s", endp_arg, user, password);
         } else if (token != NULL) {
-            snprintf(uri, 254, "/datasource/remote/remotesource.ws?KISMET=%s", token);
+            snprintf(uri, 1024, "%s?KISMET=%s", endp_arg, token);
         }
 
         caph->lwsuri = strdup(uri);
@@ -987,12 +1007,17 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
 cleanup:
     if (gps_arg != NULL)
         free(gps_arg);
+
+#ifdef HAVE_LIBWEBSOCKETS
     if (user != NULL)
         free(user);
     if (password != NULL)
         free(password);
     if (token != NULL)
         free(token);
+    if (endp_arg != NULL)
+        free(token);
+#endif
 
     return ret;
 
@@ -2186,7 +2211,6 @@ skip:
 
     return lws_callback_http_dummy(wsi, reason, user, in, len);
 }
-#endif
 
 static void ws_destroy_msg(void *in_msg) {
     struct cf_ws_msg *msg = (struct cf_ws_msg *) in_msg;
@@ -2195,6 +2219,7 @@ static void ws_destroy_msg(void *in_msg) {
     msg->payload = NULL;
     msg->len = 0;
 }
+#endif
 
 int cf_handler_loop(kis_capture_handler_t *caph) {
     fd_set rset, wset;
