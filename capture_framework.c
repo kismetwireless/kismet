@@ -945,8 +945,13 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         caph->daemonize = daemon;
 
         /* If we're not tcp, we're websockets */
-        if (!caph->use_tcp)
+        if (!caph->use_tcp) {
+#ifdef HAVE_LIBWEBSOCKETS
             caph->use_ws = 1;
+#else
+            fprintf(stderr, "FATAL:  Not compiled with libwebsockets support, cannot use websockets remote capture.\n");
+#endif
+        }
 
         if (caph->use_ws && user == NULL && password == NULL && token == NULL) {
             fprintf(stderr, "FATAL: User and password or API key required for remote capture\n");
@@ -957,6 +962,7 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         if (user != NULL && token != NULL) 
             fprintf(stderr, "WARNING:  Ignoring APIKEY and using login information\n");
 
+#ifdef HAVE_LIBWEBSOCKETS
         if (user != NULL && password != NULL) {
             snprintf(uri, 254, "/datasource/remote/remotesource.ws?user=%s&password=%s",
                     user, password);
@@ -965,6 +971,7 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         }
 
         caph->lwsuri = strdup(uri);
+#endif
 
         ret = 2;
         goto cleanup;
