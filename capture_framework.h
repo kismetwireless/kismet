@@ -76,7 +76,7 @@ typedef struct cf_params_spectrum cf_params_spectrum_t;
 
 #ifdef HAVE_LIBWEBSOCKETS
 struct cf_ws_msg {
-    void *payload;
+    char *payload;
     size_t len;
 };
 #endif
@@ -295,10 +295,13 @@ struct kis_capture_handler {
     char *lwssslcapath;
 
     struct lws_context_creation_info lwsinfo;
+    
+    char *lwsuuid;
 #endif
 
     /* Announced UUID, if one is required */
     char *announced_uuid;
+
 
     /* Specified commandline source, used for remote cap */
     char *cli_sourcedef;
@@ -651,11 +654,15 @@ int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph);
 void cf_handler_wait_ringbuffer(kis_capture_handler_t *caph);
 
 
+/* Handle content in a data frame; called from rb rx or ws rx
+ */
+int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, size_t len);
+
 /* Handle data in the rx ringbuffer; called from the select/poll loop.
  * Calls callbacks for packet types automatically when a complete packet is
  * received.
  */
-int cf_handle_rx_data(kis_capture_handler_t *caph);
+int cf_handle_rb_rx_data(kis_capture_handler_t *caph);
 
 
 /* Connect to a network socket, if remote connection is specified; this should
