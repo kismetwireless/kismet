@@ -484,7 +484,7 @@ void kis_net_beast_httpd::decode_get_variables(const boost::beast::string_view u
 
 void kis_net_beast_httpd::decode_cookies(const boost::beast::string_view decoded, http_cookie_map_t& var_map) {
     boost::beast::string_view::size_type pos = 0;
-    while (pos != boost::beast::string_view::npos) {
+    while (pos != boost::beast::string_view::npos && pos < decoded.length()) {
         if (decoded[pos] == ' ') {
             pos++;
             continue;

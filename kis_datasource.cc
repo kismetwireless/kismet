@@ -359,7 +359,7 @@ void kis_datasource::set_channel_hop_list(std::vector<std::string> in_chans,
             get_source_hop_offset(), in_transaction, in_cb);
 }
 
-void kis_datasource::connect_remote(std::string in_definition, kis_datasource *in_remote, 
+void kis_datasource::connect_remote(std::string in_definition, kis_datasource* in_remote, 
         bool in_tcp, configure_callback_t in_cb) {
     local_locker lock(&ext_mutex, "datasource::connect_remote");
 
