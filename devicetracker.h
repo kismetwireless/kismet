@@ -65,7 +65,7 @@ class kis_phy_handler;
 class kis_packet;
 
 class device_tracker : public lifetime_global, public kis_database, 
-    public deferred_startup, std::enable_shared_from_this<device_tracker> {
+    public deferred_startup, public std::enable_shared_from_this<device_tracker> {
 
 public:
     static std::string global_name() { return "DEVICETRACKER"; }

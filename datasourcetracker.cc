@@ -963,6 +963,89 @@ void datasource_tracker::trigger_deferred_startup() {
                     streamtracker->remove_streamer(sid);
                 }));
 
+    httpd->register_websocket_route("/datasource/remote/remotesource", "datasource", {"ws"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+
+                std::shared_ptr<kis_net_web_websocket_endpoint> ws;
+
+                auto write_cb = 
+                    [&ws](const char *data, size_t sz, std::function<void (int, std::size_t)> comp) -> int {
+                        auto ret = ws->write(data, sz, false);
+
+                        if (ret > 0)
+                            ret = 0;
+
+                        comp(ret, sz);
+
+                        return sz;
+                    };
+
+                auto closure_cb = 
+                    [&ws]() {
+                        ws->close();
+                    };
+
+                std::shared_ptr<kis_datasource> remote_ds;
+
+                ws = 
+                    std::make_shared<kis_net_web_websocket_endpoint>(con, 
+                        [this, &remote_ds](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
+                            boost::beast::flat_buffer& buf, bool text) {
+
+                        if (remote_ds == nullptr) {
+                            ws->close();
+                            return;
+                        }
+
+                        // All remotecap protocol packets are a complete ws message, so if we didn't get enough to
+                        // constitute a full packet, throw an error - we're not going to get to build up a buffer
+                        auto ret = remote_ds->handle_external_command(buf.data(), buf.size());
+
+                        if (ret != remote_ds->result_handle_packet_ok) {
+                            _MSG_ERROR("Unable to handle packet in remote datasource - {}", ret);
+                            ws->close();
+                            return;
+                        }
+
+                        });
+
+                remote_ds = 
+                    std::make_shared<dst_incoming_remote>(
+                            [this, remote_ds, ws] (dst_incoming_remote *i, std::string in_type, 
+                                std::string in_def, uuid in_uuid) mutable {
+
+                            // _MSG_DEBUG("triggering open_remote_ds");
+                            remote_ds = datasourcetracker->open_remote_datasource(i, in_type, in_def, 
+                                    in_uuid, false);
+
+                            if (remote_ds == nullptr && ws != nullptr) {
+                                // _MSG_DEBUG("remote ds or ws failed");
+                                ws->close();
+                            }
+                        });
+
+
+                remote_ds->set_write_cb(write_cb);
+                remote_ds->set_closure_cb(closure_cb);
+
+                // Blind-catch all errors b/c we must release our listeners at the end
+                try {
+                    ws->handle_request(con);
+                } catch (const std::exception& e) {
+                    ;
+                }
+
+                if (remote_ds != nullptr) {
+                    if (remote_ds->get_source_running()) {
+                        _MSG_ERROR("Remote datasource {} ({}) closing, remote socket terminated", remote_ds->get_source_name(),
+                                remote_ds->get_source_uuid());
+                        remote_ds->close_source();
+                    }
+                }
+
+                }));
+
 
     while (1) {
         int r = getopt_long(Globalreg::globalreg->argc, Globalreg::globalreg->argv, "-c:",
@@ -1489,12 +1572,16 @@ void datasource_tracker::schedule_cleanup() {
 
 }
 
-void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
-        const std::string& in_type, const std::string& in_definition, const uuid& in_uuid) {
+std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(
+        dst_incoming_remote *incoming,
+        const std::string& in_type, const std::string& in_definition, const uuid& in_uuid,
+        bool connect_tcp) {
 
     shared_datasource merge_target_device;
      
     local_locker lock(&dst_lock, "datasourcetracker::open_remote_datasource");
+
+    // _MSG_DEBUG("merging incoming {} {} {}", in_type, in_definition, in_uuid);
 
     // Look for an existing datasource with the same UUID
     for (auto p : *datasource_vec) {
@@ -1527,12 +1614,12 @@ void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
         auto dup_definition(in_definition);
 
         // Merge the socket into the new device
-        incoming->handshake_rb(std::thread([this, merge_target_device, incoming, dup_definition]  {
-                    merge_target_device->connect_remote(incoming->move_tcp_socket(), dup_definition, NULL);
+        incoming->handshake_rb(std::thread([this, merge_target_device, incoming, dup_definition, connect_tcp]  {
+                    merge_target_device->connect_remote(dup_definition, incoming, connect_tcp, NULL);
                     calculate_source_hopping(merge_target_device);
                     }));
 
-        return;
+        return merge_target_device;
     }
 
     // Otherwise look for a prototype that can handle it
@@ -1548,15 +1635,20 @@ void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
 
             // Make a data source from the builder
             shared_datasource ds = b->build_datasource(b);
-            ds->connect_remote(incoming->move_tcp_socket(), in_definition,
+            ds->connect_remote(in_definition, incoming, connect_tcp,
                 [this, ds](unsigned int, bool success, std::string msg) {
-                    if (success)
+                    if (success) {
+                        _MSG_INFO("New remote source {} ({}) connected", ds->get_source_name(),
+                                ds->get_source_uuid());
                         merge_source(ds); 
-                    else
+                    } else {
+                        _MSG_ERROR("Error connecting new remote source {} ({}) - {}",
+                                ds->get_source_name(), ds->get_source_uuid(), msg);
                         broken_source_vec.push_back(ds);
+                    }
                 });
 
-            return;
+            return ds;
         }
     }
 
@@ -1564,6 +1656,8 @@ void datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
             "'{}' defined as '{}'; make sure that Kismet was compiled with all the "
             "data source drivers and that any necessary plugins have been loaded.",
             in_type, in_definition);
+
+    return nullptr;
 }
 
 // Basic DST worker for figuring out how many sources of the same type
@@ -1703,10 +1797,9 @@ void datasource_tracker::calculate_source_hopping(shared_datasource in_ds) {
 void datasource_tracker::queue_dead_remote(dst_incoming_remote *in_dead) {
     local_locker lock(&dst_lock, "datasourcetracker::queue_dead_remote");
 
-    for (auto x : dst_remote_complete_vec) {
-        if (x == in_dead)
+    for (auto dds : dst_remote_complete_vec)
+        if (dds == in_dead)
             return;
-    }
 
     if (remote_complete_timer <= 0) {
         remote_complete_timer =
@@ -1714,9 +1807,8 @@ void datasource_tracker::queue_dead_remote(dst_incoming_remote *in_dead) {
                 [this] (int) -> int {
                     local_locker lock(&dst_lock, "datasourcetracker::remote_complete_timer lambda");
 
-                    for (auto x : dst_remote_complete_vec) {
-                        delete(x);
-                    }
+                    for (auto dds : dst_remote_complete_vec)
+                        free(dds);
 
                     dst_remote_complete_vec.clear();
 
@@ -1763,7 +1855,7 @@ double datasource_tracker::string_to_rate(std::string in_str, double in_default)
 
 
 dst_incoming_remote::dst_incoming_remote(callback_t in_cb) :
-    kis_external_interface() {
+    kis_datasource() {
 
     cb = in_cb;
 
@@ -1789,14 +1881,15 @@ dst_incoming_remote::~dst_incoming_remote() {
 }
 
 bool dst_incoming_remote::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) { 
-    if (kis_external_interface::dispatch_rx_packet(c))
-        return true;
-
     // Simple dispatch override, all we do is look for the new source
     if (c->command() == "KDSNEWSOURCE") {
+        //_MSG_DEBUG("incoming remote got kds newsource");
         handle_packet_newsource(c->seqno(), c->content());
         return true;
     }
+
+    if (kis_external_interface::dispatch_rx_packet(c))
+        return true;
 
     return false;
 }
@@ -1878,10 +1971,10 @@ void datasource_tracker_remote_server::handle_accept(const boost::system::error_
     if (!ec) {
         // Bind a new incoming remote which will pivot to the proper data source type
         auto remote = 
-            std::make_shared<dst_incoming_remote>([this] (dst_incoming_remote *i, std::string in_type, 
-                        std::string in_def, uuid in_uuid) {
-                datasourcetracker->open_remote_datasource(i, in_type, in_def, in_uuid);
-                });
+            std::make_shared<dst_incoming_remote>([this] (dst_incoming_remote *i, 
+                        std::string in_type, std::string in_def, uuid in_uuid) {
+                    datasourcetracker->open_remote_datasource(i, in_type, in_def, in_uuid, true);
+                    });
 
         remote->attach_tcp_socket(socket);
     }

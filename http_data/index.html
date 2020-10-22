@@ -56,7 +56,6 @@
 <script src="js/kismet.ui.iconbar.js"></script>
 <script src="js/jquery.kismet.battery.js"></script>
 <script src="js/jquery.kismet.alert.js"></script>
-<script src="js/jquery.kismet.auth.js"></script>
 <script src="js/jquery.kismet.gps.js"></script>
 <script src="js/jquery.kismet.packetrate.js"></script>
 
@@ -189,14 +188,6 @@ function load_main_ui() {
     // kismet_ui.CreateDeviceTable($('#devices'));
 
     kismet_ui_iconbar.AddIconbarItem({
-        id: 'login',
-        priority: 100,
-        createCallback: function(div) {
-            div.loginwatcher();
-        }
-    });
-
-    kismet_ui_iconbar.AddIconbarItem({
         id: 'gps',
         priority: 110,
         createCallback: function(div) {
@@ -229,12 +220,6 @@ function load_main_ui() {
     });
 
     kismet_ui_iconbar.makeIconbar($('#iconbar'));
-
-    /*
-    $('#topbar_alert').alert();
-    $('#topbar_login').loginwatcher();
-    $('#topbar_battery').battery();
-    */
 
     kismet_ui.HealthCheck();
 

@@ -359,8 +359,8 @@ void kis_datasource::set_channel_hop_list(std::vector<std::string> in_chans,
             get_source_hop_offset(), in_transaction, in_cb);
 }
 
-void kis_datasource::connect_remote(tcp::socket socket,
-        std::string in_definition, open_callback_t in_cb) {
+void kis_datasource::connect_remote(std::string in_definition, kis_datasource *in_remote, 
+        bool in_tcp, configure_callback_t in_cb) {
     local_locker lock(&ext_mutex, "datasource::connect_remote");
 
     // We can't reconnect failed interfaces that are remote
@@ -384,12 +384,22 @@ void kis_datasource::connect_remote(tcp::socket socket,
         set_int_source_error(true);
         set_int_source_error_reason("Unable to parse interface definition of remote source");
         _MSG("Unable to parse interface definition", MSGFLAG_ERROR);
+
+        if (in_cb)
+            in_cb(0, false, "Unable to parse definition of remote source");
+
         return;
     }
 
-    // Connect the buffer
-    attach_tcp_socket(socket);
+    if (in_tcp)  {
+        attach_tcp_socket(in_remote->tcpsocket);
+    } else {
+        if (in_remote->write_cb != nullptr)
+            write_cb = std::move(in_remote->write_cb);
 
+        if (in_remote->closure_cb != nullptr)
+            closure_cb = std::move(in_remote->closure_cb);
+    }
 
     // Send an opensource
     send_open_source(in_definition, 0, in_cb);

@@ -109,9 +109,6 @@ void kis_external_interface::close_external() {
             ;
         }
     }
-
-    if (closure_cb)
-        closure_cb();
 };
 
 void kis_external_interface::ipc_soft_kill() {
@@ -446,14 +443,6 @@ bool kis_external_interface::run_ipc() {
 
 
 unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal::Command> c) {
-    if (stopped)
-        return 0;
-
-    if (cancelled) {
-        close_external();
-        return 0;
-    }
-
     local_locker lock(&ext_mutex, "kei::send_packet");
 
     // Set the sequence if one wasn't provided
@@ -491,7 +480,19 @@ unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal:
     data_csum = adler32_checksum((const char *) frame->data, content_sz); 
     frame->data_checksum = kis_hton32(data_csum);
 
-    if (ipc_out.is_open())
+    if (write_cb != nullptr)
+        write_cb(frame_buf, frame_sz,
+                [this](int ec, std::size_t) {
+                if (ec) {
+                    if (ec == boost::asio::error::operation_aborted)
+                        return;
+
+                    _MSG_ERROR("Kismet external interface got error writing a packet to a callback interface.");
+                    trigger_error("write failure");
+                    return;
+                }
+                });
+    else if (ipc_out.is_open())
         boost::asio::async_write(ipc_out, boost::asio::buffer(frame_buf, frame_sz),
                 [this](const boost::system::error_code& ec, std::size_t) {
                 if (ec) {
@@ -733,7 +734,7 @@ void kis_external_interface::handle_packet_http_register(uint32_t in_seqno,
                     http_proxy_session_map[sess_id] = session;
 
                     auto var_remap = std::map<std::string, std::string>();
-                    for (const auto v : con->http_variables())
+                    for (const auto& v : con->http_variables())
                         var_remap[v.first] = v.second;
 
                     send_http_request(sess_id, static_cast<std::string>(con->uri()), 

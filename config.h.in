@@ -120,6 +120,9 @@
 /* Define to 1 if you have the <libutil.h> header file. */
 #undef HAVE_LIBUTIL_H
 
+/* libwebsockets */
+#undef HAVE_LIBWEBSOCKETS
+
 /* Linux wireless iwfreq.flag */
 #undef HAVE_LINUX_IWFREQFLAG
 
