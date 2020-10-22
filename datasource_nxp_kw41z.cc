@@ -20,18 +20,6 @@
 
 #include "datasource_nxp_kw41z.h"
 
-bool checksum(uint8_t *payload, uint8_t len) {
-    uint8_t chk = 0;
-    uint8_t checksum = payload[len - 1];
-    chk = payload[1];
-
-    for (int xp = 2; xp < len - 1; xp++) {
-        chk ^= payload[xp];
-    }
-
-    return checksum == chk;
-}
-
 void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
     typedef struct {
         uint8_t monitor_channel;
@@ -64,18 +52,13 @@ void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
         return;
     }
 
-    if (nxp_chunk->data[0] != 0x02 && nxp_chunk->data[1] != 0x4E &&
-        nxp_chunk->data[2] != 0x7F) {
-        // not a packet we are interested in
-        delete (packet);
-        return;
-    }
-
+//we may have to redo the checksum...
+/**
     if (!checksum(nxp_chunk->data, nxp_chunk->length)) {
         delete (packet);
         return;
     }
-
+**/
     // check what type of packet we are
     if (nxp_chunk->data[0] == 0x02 && nxp_chunk->data[1] == 0x86 &&
         nxp_chunk->data[2] == 0x03) {
@@ -104,12 +87,12 @@ void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
         conv_header->tlv[1].type = 10;
         conv_header->tlv[1].length = 1;
         conv_header->tlv[1].value = rssi;
-/**/
+
         // channel
         conv_header->tlv[2].type = 3;
         conv_header->tlv[2].length = 3;
         conv_header->tlv[2].value = channel;  // need to try to pull from some where
-/**/
+
         // size
         conv_header->length =
             sizeof(conv_header) + sizeof(conv_header->tlv) - 4;

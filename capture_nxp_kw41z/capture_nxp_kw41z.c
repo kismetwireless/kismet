@@ -63,6 +63,18 @@ typedef struct {
     unsigned int channel;
 } local_channel_t;
 
+bool checksum(uint8_t *payload, uint8_t len) {
+    uint8_t chk = 0;
+    uint8_t checksum = payload[len - 1];
+    chk = payload[1];
+
+    for (int xp = 2; xp < len - 1; xp++) {
+        chk ^= payload[xp];
+    }
+
+    return checksum == chk;
+}
+
 int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len, uint8_t *resp,
                   size_t resp_len, uint8_t *rx_buf, size_t rx_max) {
 
@@ -295,10 +307,14 @@ int nxp_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
 
     res = nxp_exit_promisc_mode(caph);
 
+    //printf("nxp_exit_promisc_mode res:%d \n",res);
+
     if (res < 0) 
         return res;
 
     res = nxp_enter_promisc_mode(caph, channel);
+
+    //printf("nxp_enter_promisc_mode:%d res:%d \n",channel,res);
 
     return res;
 }
@@ -588,6 +604,8 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     local_channel_t *channel = (local_channel_t *) privchan;
     int r;
 
+    //printf("chancontrol_callback\n");
+
     if (privchan == NULL) {
         return 0;
     }
@@ -653,10 +671,23 @@ void capture_thread(kis_capture_handler_t *caph) {
                 break;
             }
         }
+        //check the checksum
+        if (!checksum(buf,buf_rx_len)) {
+            printf("back checksum\n");
+            buf_rx_len = 0;
+        }
         if (buf_rx_len > 0) {
-            /* btle channe is part of the packet, zigbee is not*/
-            if((uint8_t)localnxp->channel >= 11 && (uint8_t)localnxp->channel <= 26) {
-                buf[4] = (uint8_t)localnxp->channel;
+            //printf("channel:%d prevchannel:%d\n",(uint8_t)localnxp->channel,(uint8_t)localnxp->prevchannel);
+            /* btle channel is part of the packet, zigbee is not*/
+            if((uint8_t)localnxp->prevchannel == 0){
+                if((uint8_t)localnxp->channel >= 11 && (uint8_t)localnxp->channel <= 26) {
+                    buf[4] = (uint8_t)localnxp->channel;
+                }
+            }
+            else {
+                if((uint8_t)localnxp->prevchannel >= 11 && (uint8_t)localnxp->prevchannel <= 26) {
+                    buf[4] = (uint8_t)localnxp->prevchannel;
+                }
             }
 
             while (1) {
