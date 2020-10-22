@@ -372,9 +372,6 @@ public:
     // Access the defaults
     std::shared_ptr<datasource_tracker_defaults> get_config_defaults();
 
-    // Queue a remote handler to be removed
-    void queue_dead_remote(dst_incoming_remote *in_dead);
-
     // Merge a source into the source list, preserving UUID and source number
     virtual void merge_source(shared_datasource in_source);
 
@@ -441,10 +438,6 @@ protected:
     // assignment (mis-defined startup sources, for instance)
     std::vector<shared_datasource> broken_source_vec;
 
-    // Remote connections slated to be removed
-    std::vector<dst_incoming_remote *> dst_remote_complete_vec;
-    int remote_complete_timer;
-
     // Cleanup task
     std::atomic<int> completion_cleanup_id;
     void schedule_cleanup();
@@ -468,6 +461,13 @@ protected:
     size_t tcp_buffer_sz;
 
     friend class datasource_tracker_remote_server;
+};
+
+// Intermediary holder for bridging websockets and dataources so that the websockets can transition from
+// an incoming remote to a full datasource
+struct dst_websocket_ds_bridge {
+    std::shared_ptr<kis_datasource> bridged_ds;
+    kis_recursive_timed_mutex mutex;
 };
 
 // Intermediary buffer handler which is responsible for parsing the incoming

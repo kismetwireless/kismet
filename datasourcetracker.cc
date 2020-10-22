@@ -555,8 +555,6 @@ void datasource_tracker::trigger_deferred_startup() {
         }
     } 
 
-    remote_complete_timer = -1;
-
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
     httpd->register_route("/datasource/all_sources", {"GET", "POST"}, httpd->RO_ROLE, {},
@@ -969,8 +967,68 @@ void datasource_tracker::trigger_deferred_startup() {
 
                 std::shared_ptr<kis_net_web_websocket_endpoint> ws;
 
+                auto ds_bridge = std::make_shared<dst_websocket_ds_bridge>();
+                ds_bridge->mutex.set_name("incoming remote bridge");
+
+                ws = 
+                    std::make_shared<kis_net_web_websocket_endpoint>(con, 
+                        [this, ds_bridge](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
+                            boost::beast::flat_buffer& buf, bool text) {
+
+                        local_locker l(&ds_bridge->mutex, "websocket rx");
+
+                        // _MSG_DEBUG("incoming packet for ds");
+
+                        if (ds_bridge->bridged_ds == nullptr) {
+                            ws->close();
+                            return;
+                        }
+
+                        // All remotecap protocol packets are a complete ws message, so if we didn't get enough to
+                        // constitute a full packet, throw an error - we're not going to get to build up a buffer
+                        auto cmd_ds = ds_bridge->bridged_ds;
+                        auto ret = cmd_ds->handle_external_command(buf.data(), buf.size());
+
+                        if (ret != kis_external_interface::result_handle_packet_ok) {
+                            _MSG_ERROR("Unable to handle packet in remote datasource - {}", ret);
+                            ws->close();
+                            return;
+                        }
+
+                        });
+
+                // _MSG_DEBUG("Making incoming remote bridge");
+                ds_bridge->bridged_ds = 
+                    std::make_shared<dst_incoming_remote>(
+                            [this, ds_bridge, ws] (dst_incoming_remote *initiator, std::string in_type, 
+                                std::string in_def, uuid in_uuid) {
+
+                            local_locker l(&ds_bridge->mutex, "dstincoming completion");
+
+                            // _MSG_DEBUG("Initiating opening full ds");
+                            // Retain a reference to it until we exit this loop
+                            auto initiatior_ds = ds_bridge->bridged_ds;
+
+                            auto new_ds = 
+                                datasourcetracker->open_remote_datasource(initiator, in_type, in_def, 
+                                    in_uuid, false);
+
+                            // _MSG_DEBUG("reassigning old ds");
+                            ds_bridge->bridged_ds = new_ds;
+
+                            if (new_ds == nullptr)
+                                _MSG_ERROR("Failed to map incoming websocket remote datasource");
+
+                            if (new_ds == nullptr && ws != nullptr) {
+                                // _MSG_DEBUG("remote ds failed, got null");
+                                ws->close();
+                            }
+                        });
+
+                // _MSG_DEBUG("made remote bridge");
+
                 auto write_cb = 
-                    [&ws](const char *data, size_t sz, std::function<void (int, std::size_t)> comp) -> int {
+                    [ws](const char *data, size_t sz, std::function<void (int, std::size_t)> comp) -> int {
                         auto ret = ws->write(data, sz, false);
 
                         if (ret > 0)
@@ -982,52 +1040,12 @@ void datasource_tracker::trigger_deferred_startup() {
                     };
 
                 auto closure_cb = 
-                    [&ws]() {
+                    [ws]() {
                         ws->close();
                     };
 
-                std::shared_ptr<kis_datasource> remote_ds;
-
-                ws = 
-                    std::make_shared<kis_net_web_websocket_endpoint>(con, 
-                        [this, &remote_ds](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
-                            boost::beast::flat_buffer& buf, bool text) {
-
-                        if (remote_ds == nullptr) {
-                            ws->close();
-                            return;
-                        }
-
-                        // All remotecap protocol packets are a complete ws message, so if we didn't get enough to
-                        // constitute a full packet, throw an error - we're not going to get to build up a buffer
-                        auto ret = remote_ds->handle_external_command(buf.data(), buf.size());
-
-                        if (ret != remote_ds->result_handle_packet_ok) {
-                            _MSG_ERROR("Unable to handle packet in remote datasource - {}", ret);
-                            ws->close();
-                            return;
-                        }
-
-                        });
-
-                remote_ds = 
-                    std::make_shared<dst_incoming_remote>(
-                            [this, remote_ds, ws] (dst_incoming_remote *i, std::string in_type, 
-                                std::string in_def, uuid in_uuid) mutable {
-
-                            // _MSG_DEBUG("triggering open_remote_ds");
-                            remote_ds = datasourcetracker->open_remote_datasource(i, in_type, in_def, 
-                                    in_uuid, false);
-
-                            if (remote_ds == nullptr && ws != nullptr) {
-                                // _MSG_DEBUG("remote ds or ws failed");
-                                ws->close();
-                            }
-                        });
-
-
-                remote_ds->set_write_cb(write_cb);
-                remote_ds->set_closure_cb(closure_cb);
+                ds_bridge->bridged_ds->set_write_cb(write_cb);
+                ds_bridge->bridged_ds->set_closure_cb(closure_cb);
 
                 // Blind-catch all errors b/c we must release our listeners at the end
                 try {
@@ -1036,11 +1054,13 @@ void datasource_tracker::trigger_deferred_startup() {
                     ;
                 }
 
-                if (remote_ds != nullptr) {
-                    if (remote_ds->get_source_running()) {
-                        _MSG_ERROR("Remote datasource {} ({}) closing, remote socket terminated", remote_ds->get_source_name(),
-                                remote_ds->get_source_uuid());
-                        remote_ds->close_source();
+                if (ds_bridge->bridged_ds != nullptr) {
+                    local_locker l(&ds_bridge->mutex, "dsbridge teardown");
+                    if (ds_bridge->bridged_ds->get_source_running()) {
+                        _MSG_ERROR("Remote datasource {} ({}) closing, remote socket terminated", 
+                                ds_bridge->bridged_ds->get_source_name(),
+                                ds_bridge->bridged_ds->get_source_uuid());
+                        ds_bridge->bridged_ds->close_source();
                     }
                 }
 
@@ -1572,8 +1592,7 @@ void datasource_tracker::schedule_cleanup() {
 
 }
 
-std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(
-        dst_incoming_remote *incoming,
+std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_incoming_remote *incoming,
         const std::string& in_type, const std::string& in_definition, const uuid& in_uuid,
         bool connect_tcp) {
 
@@ -1611,13 +1630,17 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(
         // Explicitly unlock our mutex before running a thread
         lock.unlock();
 
-        auto dup_definition(in_definition);
+        merge_target_device->connect_remote(in_definition, incoming, connect_tcp, nullptr);
+        calculate_source_hopping(merge_target_device);
 
+        /*
         // Merge the socket into the new device
-        incoming->handshake_rb(std::thread([this, merge_target_device, incoming, dup_definition, connect_tcp]  {
+        incoming->handshake_rb(std::thread(
+                    [this, merge_target_device, incoming, dup_definition, connect_tcp]  {
                     merge_target_device->connect_remote(dup_definition, incoming, connect_tcp, NULL);
                     calculate_source_hopping(merge_target_device);
                     }));
+                    */
 
         return merge_target_device;
     }
@@ -1632,6 +1655,8 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(
         if (b->get_source_type() == in_type) {
             // Explicitly unlock the mutex before we fire the connection handler
             lock.unlock();
+
+            // _MSG_DEBUG("Making a new ds to hold incoming remote");
 
             // Make a data source from the builder
             shared_datasource ds = b->build_datasource(b);
@@ -1794,31 +1819,6 @@ void datasource_tracker::calculate_source_hopping(shared_datasource in_ds) {
     }
 }
 
-void datasource_tracker::queue_dead_remote(dst_incoming_remote *in_dead) {
-    local_locker lock(&dst_lock, "datasourcetracker::queue_dead_remote");
-
-    for (auto dds : dst_remote_complete_vec)
-        if (dds == in_dead)
-            return;
-
-    if (remote_complete_timer <= 0) {
-        remote_complete_timer =
-            timetracker->register_timer(1, NULL, 0, 
-                [this] (int) -> int {
-                    local_locker lock(&dst_lock, "datasourcetracker::remote_complete_timer lambda");
-
-                    for (auto dds : dst_remote_complete_vec)
-                        free(dds);
-
-                    dst_remote_complete_vec.clear();
-
-                    remote_complete_timer = 0;
-                    return 0;
-                });
-    }
-
-}
-
 double datasource_tracker::string_to_rate(std::string in_str, double in_default) {
     double v, dv;
 
@@ -1870,6 +1870,8 @@ dst_incoming_remote::dst_incoming_remote(callback_t in_cb) :
 }
 
 dst_incoming_remote::~dst_incoming_remote() {
+    // _MSG_DEBUG("~dst_incoming_remote");
+
     // Kill the error timer
     timetracker->remove_timer(timerid);
 
@@ -1905,12 +1907,6 @@ void dst_incoming_remote::kill() {
     // Kill the error timer
     timetracker->remove_timer(timerid);
 
-    std::shared_ptr<datasource_tracker> datasourcetracker =
-        Globalreg::fetch_global_as<datasource_tracker>("DATASOURCETRACKER");
-
-    if (datasourcetracker != NULL) 
-        datasourcetracker->queue_dead_remote(this);
-
     // The tcp socket should be moved away from this connection by now; if not, kill it
     close_external();
 }
@@ -1918,17 +1914,21 @@ void dst_incoming_remote::kill() {
 void dst_incoming_remote::handle_packet_newsource(uint32_t in_seqno, std::string in_content) {
     local_locker lock(&ext_mutex, "incoming_remote::handle_packet_newsource");
 
+    // _MSG_DEBUG("dst remote new datasource");
+
     KismetDatasource::NewSource c;
 
     if (!c.ParseFromString(in_content)) {
-        _MSG("Could not process incoming remote datsource announcement", MSGFLAG_ERROR);
+        _MSG("Could not process incoming remote datasource announcement", MSGFLAG_ERROR);
         kill();
         return;
     }
 
+    // _MSG_DEBUG("dst remote handling callback");
     if (cb != NULL) {
         cb(this, c.sourcetype(), c.definition(), c.uuid());
     }
+    // _MSG_DEBUG("dst remote done with callback");
 
     kill();
 }
@@ -1971,9 +1971,9 @@ void datasource_tracker_remote_server::handle_accept(const boost::system::error_
     if (!ec) {
         // Bind a new incoming remote which will pivot to the proper data source type
         auto remote = 
-            std::make_shared<dst_incoming_remote>([this] (dst_incoming_remote *i, 
+            std::make_shared<dst_incoming_remote>([this] (dst_incoming_remote *initiator, 
                         std::string in_type, std::string in_def, uuid in_uuid) {
-                    datasourcetracker->open_remote_datasource(i, in_type, in_def, in_uuid, true);
+                    datasourcetracker->open_remote_datasource(initiator, in_type, in_def, in_uuid, true);
                     });
 
         remote->attach_tcp_socket(socket);

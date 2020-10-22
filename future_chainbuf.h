@@ -115,6 +115,7 @@ public:
         sync_sz_{4096},
         total_sz_{0},
         waiting_{false},
+        write_waiting_{false},
         complete_{false},
         cancel_{false},
         packet_{false} { }
@@ -124,6 +125,7 @@ public:
         sync_sz_{sync_sz},
         total_sz_{0},
         waiting_{false},
+        write_waiting_{false},
         complete_{false},
         cancel_{false},
         packet_{false} { }

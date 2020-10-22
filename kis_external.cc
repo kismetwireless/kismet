@@ -109,6 +109,9 @@ void kis_external_interface::close_external() {
             ;
         }
     }
+
+    write_cb = nullptr;
+    closure_cb = nullptr;
 };
 
 void kis_external_interface::ipc_soft_kill() {
