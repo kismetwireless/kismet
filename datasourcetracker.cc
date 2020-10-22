@@ -972,7 +972,7 @@ void datasource_tracker::trigger_deferred_startup() {
 
                 ws = 
                     std::make_shared<kis_net_web_websocket_endpoint>(con, 
-                        [this, ds_bridge](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
+                        [ds_bridge](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
                             boost::beast::flat_buffer& buf, bool text) {
 
                         local_locker l(&ds_bridge->mutex, "websocket rx");
