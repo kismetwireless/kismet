@@ -749,11 +749,12 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         { "host", required_argument, 0, 10 },
         { "autodetect", optional_argument, 0, 11 },
         { "tcp", no_argument, 0, 12 },
-        { "ssl", optional_argument, 0, 13},
+        { "ssl", no_argument, 0, 13},
         { "user", required_argument, 0, 14},
         { "password", required_argument, 0, 15},
         { "apikey", required_argument, 0, 16},
         { "endpoint", required_argument, 0, 17},
+        { "ssl-certificate", required_argument, 0, 18},
         { "help", no_argument, 0, 'h'},
         { 0, 0, 0, 0 }
     };
@@ -835,9 +836,6 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         } else if (r == 13) {
 #ifdef HAVE_LIBWEBSOCKETS
             caph->lwsusessl = 1;
-
-            if (optarg != NULL)
-                caph->lwssslcapath = strdup(optarg);
 #else
             fprintf(stderr, "FATAL: Cannot specify ssl when not compiled with websockets support\n");
             ret = -1;
@@ -877,6 +875,15 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
             fprintf(stderr, "FATAL: Cannot use custom endpoint when not compiled "
                     "with websockets support.\n");
             ret = -1;
+            goto cleanup;
+#endif
+        } else if (r == 18) {
+#ifdef HAVE_LIBWEBSOCKETS
+            caph->lwssslcapath = strdup(optarg);
+#else
+            fprintf(stderr, "FATAL: Cannot use SSL certificates when not compiled "
+                    "with websockets support\n");
+            return -1;
             goto cleanup;
 #endif
         } 
@@ -1030,38 +1037,45 @@ void cf_print_help(kis_capture_handler_t *caph, const char *argv0) {
     if (caph->remote_capable) {
         fprintf(stderr, "\n%s supports sending data to a remote Kismet server\n"
                 "usage: %s [options]\n"
-                " --connect [host]:[port]      Connect to remote Kismet server on [host] and [port]; by default\n"
-                "                               this now uses the new websockets interface built into the Kismet\n"
-                "                               webserver on port 2501; to connect using the legacy remote capture\n"
-                "                               protocol, specify the '--tcp' option and the appropriate port, by\n"
-                "                               default port 3501.\n"
-                " --tcp                        Use the legacy TCP remote capture protocol, when combined with the\n"
-                "                               --connect option.  The modern protocol uses websockets built into\n"
-                "                               the Kismet server and does not need this option.\n"
-                " --ssl [cafile:optional]      Use SSL to connect to a websocket-enabled Kismet server; optionally\n"
-                "                               provide a custom certificate authority file for validation if the\n"
-                "                               certificate is not publicly valid.  This option may only be used in\n"
+                " --connect [host]:[port]      Connect to remote Kismet server on [host] and [port]; by\n"
+                "                               default this now uses the new websockets interface built\n"
+                "                               into the Kismet webserver on port 2501; to connect using\n"
+                "                               the legacy remote capture protocol, specify the '--tcp'\n"
+                "                               option and the appropriate port, by default port 3501.\n"
+                " --tcp                        Use the legacy TCP remote capture protocol, when combined\n"
+                "                               with the --connect option.  The modern protocol uses \n"
+                "                               websockets built into the Kismet server and does not\n"
+                "                               need this option.\n"
+                " --ssl                        Use SSL to connect to a websocket-enabled Kismet server\n"
+                " --ssl-certificate [certfile] Use SSL to connect to a websocket-enabled Kismet server\n"
+                "                               and use the provided certificate authority certificate\n"
+                "                               to validate the server.\n"
+                " --user [username]            Kismet username for a websockets-based remote capture\n"
+                "                               source.  A username and password, or an API key, are\n"
+                "                               required for websockets mode.  A username and password\n"
+                "                               are ONLY used in websockets mode.\n"
+                " --password [password]        Kismet password for a websockets-based remote capture source.\n"
+                "                               A username and password, or an API key, are required for\n"
+                "                               websocket mode.  A username and password are ONLY used in\n"
                 "                               websockets mode.\n"
-                " --user [username]            Kismet username for a websockets-based remote capture source.  A \n"
-                "                               username and password, or an API key, are required for websockets\n"
-                "                               mode.  A username and password are ONLY used in websockets mode.\n"
-                " --password [password]        Kismet password for a websockets-based remote capture source.  A \n"
-                "                               username and password, or an API key, are required for websockets\n"
-                "                               mode.  A username and password are ONLY used in websockets mode.\n"
-                " --apikey [api key]           A Kismet API key for the 'datasource' role; this may be supplied\n"
-                "                               instead of a username and password for websockets-based remote\n"
-                "                               capture.  An API key is ONLY used in websockets mode.\n"
-                " --endpoint [endpoint]        An alternate endpoint for the websockets connection.  By default\n"
-                "                               remote datasources are terminated at /datasource/remote/remotesource.ws\n"
+                " --apikey [api key]           A Kismet API key for the 'datasource' role; this may be\n"
+                "                               supplied instead of a username and password for websockets\n"
+                "                               based remote capture.  An API key is ONLY used in websockets\n"
+                "                               mode.\n"
+                " --endpoint [endpoint]        An alternate endpoint for the websockets connection.  By\n"
+                "                               default remote datasources are terminated at\n"
+                "                                 /datasource/remote/remotesource.ws\n"
                 "                               This should typically only be changed when using a HTTP proxy\n"
-                "                               homing the Kismet service under a directory.  Endpoints should include\n"
-                "                               the full path to the websocket endpoint, for example:\n"
+                "                               homing the Kismet service under a directory.  Endpoints \n"
+                "                               should include the full path to the websocket endpoint, for\n"
+                "                               example:\n"
                 "                                 --endpoint=/kismet/proxy/datasource/remote/remotesource.ws\n"
                 " --source [source def]        Specify a source to send to the remote \n"
                 "                              Kismet server; only used in conjunction with remote capture.\n"
-                " --disable-retry              Do not attempt to reconnect to a remote server if there is an error; \n"
-                "                               exit immediately.  By default a remote capture will attempt to reconnect\n"
-                "                               indefinitely if the server is not available.\n"
+                " --disable-retry              Do not attempt to reconnect to a remote server if there is an\n"
+                "                               error; exit immediately.  By default a remote capture will\n"
+                "                               attempt to reconnect indefinitely if the server is not\n"
+                "                               available.\n"
                 " --fixed-gps [lat,lon,alt]    Set a fixed location for this capture (remote only),\n"
                 "                               accepts lat,lon,alt or lat,lon\n"
                 " --gps-name [name]            Set an alternate GPS name for this source\n"
