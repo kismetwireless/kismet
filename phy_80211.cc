@@ -441,6 +441,10 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
         process_ctl_phy = false;
     }
 
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_ap_signal_from_beacon", true)) {
+        _MSG_INFO("PHY80211 will only process AP signal levels from beacons");
+    } 
+
 	dissect_strings = 0;
 	dissect_all_strings = 0;
 
@@ -1015,18 +1019,28 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         if (dot11info->bssid_mac != Globalreg::globalreg->empty_mac && 
                 !(dot11info->bssid_mac.bitwise_and(globalreg->multicast_mac)) ) {
 
+            unsigned int bflags = UCD_UPDATE_SEENBY;
+
+            if (dot11info->source_mac == dot11info->bssid_mac) {
+                bflags |= (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | 
+                        UCD_UPDATE_LOCATION | UCD_UPDATE_ENCRYPTION);
+
+                if ((d11phy->signal_from_beacon && dot11info->subtype == packet_sub_beacon) ||
+                        !d11phy->signal_from_beacon)
+                    bflags |= UCD_UPDATE_SIGNAL;
+            }
+
             bssid_dev =
                 d11phy->devicetracker->update_common_device(commoninfo, 
                         dot11info->bssid_mac, d11phy, in_pack, 
-                        (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
-                         UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
-                         UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
+                        bflags,
                         "Wi-Fi Device");
         }
 
         if (dot11info->source_mac != dot11info->bssid_mac &&
                 dot11info->source_mac != globalreg->empty_mac && 
                 !(dot11info->source_mac.bitwise_and(globalreg->multicast_mac)) ) {
+
             source_dev =
                 d11phy->devicetracker->update_common_device(commoninfo, 
                         dot11info->source_mac, d11phy, in_pack, 
@@ -1040,12 +1054,11 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->dest_mac != dot11info->bssid_mac &&
                 dot11info->dest_mac != globalreg->empty_mac && 
                 !(dot11info->dest_mac.bitwise_and(globalreg->multicast_mac)) ) {
+
             dest_dev =
                 d11phy->devicetracker->update_common_device(commoninfo, 
                         dot11info->dest_mac, d11phy, in_pack, 
-                        (UCD_UPDATE_FREQUENCIES |
-                         UCD_UPDATE_PACKETS | UCD_UPDATE_EMPTY_LOCATION |
-                         UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
+                        (UCD_UPDATE_SEENBY),
                         "Wi-Fi Device");
         }
 
@@ -1378,12 +1391,21 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
         if (dot11info->bssid_mac != globalreg->empty_mac && 
                 !(dot11info->bssid_mac.bitwise_and(globalreg->multicast_mac)) ) {
+
+            unsigned int bflags = UCD_UPDATE_SEENBY;
+
+            if (dot11info->source_mac == dot11info->bssid_mac) {
+                bflags |= (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | 
+                        UCD_UPDATE_LOCATION | UCD_UPDATE_ENCRYPTION);
+
+                if (!d11phy->signal_from_beacon)
+                    bflags |= UCD_UPDATE_SIGNAL;
+            }
+
             bssid_dev =
                 d11phy->devicetracker->update_common_device(commoninfo, 
                         dot11info->bssid_mac, d11phy, in_pack, 
-                        (update_flags | UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
-                         UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
-                         UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
+                        (update_flags | bflags),
                         "Wi-Fi Device");
         }
 
@@ -1407,9 +1429,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             dest_dev =
                 d11phy->devicetracker->update_common_device(commoninfo,
                         dot11info->dest_mac, d11phy, in_pack, 
-                        (update_flags | UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
-                         UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION | 
-                         UCD_UPDATE_EMPTY_LOCATION),
+                        (update_flags | UCD_UPDATE_SEENBY),
                         "Wi-Fi Device");
         }
 
@@ -1421,9 +1441,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             other_dev =
                 d11phy->devicetracker->update_common_device(commoninfo, 
                         dot11info->other_mac, d11phy, in_pack, 
-                        (update_flags | UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
-                         UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
-                         UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
+                        (update_flags | UCD_UPDATE_SEENBY),
                         "Wi-Fi Device");
         }
 
