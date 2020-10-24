@@ -143,45 +143,45 @@ void event_bus::event_queue_dispatcher() {
 
         // Lock while we examine the queue
         l.lock();
-        auto qs = event_queue.size();
+        std::shared_ptr<eventbus_event> e;
+        if (event_queue.size() > 0) {
+            e = event_queue.front();
+            event_queue.pop();
+        }
         l.unlock();
 
-        if (qs > 0) {
-            l.lock();
-            auto e = event_queue.front();
-            event_queue.pop();
+        if (e != nullptr) {
+            // Lock the handler mutex while we're processing an event
+            local_demand_locker rl(&handler_mutex, "dispatch");
 
-            l.unlock();
+            rl.lock();
 
-            {
-                // Lock the handler mutex while we're processing an event
-                local_locker rl(&handler_mutex, "dispatch");
+            auto ch_listeners = callback_table.find(e->get_event_id());
+            auto ch_all_listeners = callback_table.find("*");
 
-                auto ch_listeners = callback_table.find(e->get_event_id());
-                auto ch_all_listeners = callback_table.find("*");
+            if (ch_listeners == callback_table.end() && ch_all_listeners == callback_table.end()) {
+                continue;
+            }
 
-                if (ch_listeners == callback_table.end() && ch_all_listeners == callback_table.end()) {
-                    continue;
-                }
+            // Copy into a workvec in case one of the event handlers removes itself from the events
+            // in the future
+            std::vector<std::shared_ptr<callback_listener>> workvec;
 
-                // Copy into a workvec in case one of the event handlers removes itself from the events
-                // in the future
-                std::vector<std::shared_ptr<callback_listener>> workvec;
+            if (ch_listeners != callback_table.end()) 
+                for (const auto& cbl : ch_listeners->second) 
+                    workvec.push_back(cbl);
 
-                if (ch_listeners != callback_table.end()) 
-                    for (const auto& cbl : ch_listeners->second) 
-                        workvec.push_back(cbl);
+            if (ch_all_listeners != callback_table.end()) 
+                for (const auto& cbl : ch_all_listeners->second) 
+                    workvec.push_back(cbl);
 
-                if (ch_all_listeners != callback_table.end()) 
-                    for (const auto& cbl : ch_all_listeners->second) 
-                        workvec.push_back(cbl);
+            rl.unlock();
 
-                for (const auto& cbl : workvec) {
-                    try {
-                        cbl->cb(e);
-                    } catch (const std::exception& e) {
-                        _MSG_ERROR("Error in eventbus handler: {}", e.what());
-                    }
+            for (const auto& cbl : workvec) {
+                try {
+                    cbl->cb(e);
+                } catch (const std::exception& e) {
+                    _MSG_ERROR("Error in eventbus handler: {}", e.what());
                 }
             }
 
