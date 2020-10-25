@@ -2944,167 +2944,163 @@ void kis_80211_phy::process_client(std::shared_ptr<kis_tracked_device_base> bssi
         kis_gps_packinfo *pack_gpsinfo,
         kis_data_packinfo *pack_datainfo) {
 
-    // We can't make a bssid device to broadcast, multicast, etc; if we didn't find out, we 
-    // can't process a client, so don't.
+    // Sanity check
     if (bssiddev == nullptr)
         return;
 
-    {
-        // Create and map the client behavior record for this BSSID
-        auto client_map(clientdot11->get_client_map());
-        std::shared_ptr<dot11_client> client_record;
+    // Create the client-side record of association to a given bssid
+    auto client_map(clientdot11->get_client_map());
+    std::shared_ptr<dot11_client> client_record;
 
-        auto cmi = client_map->find(bssiddev->get_macaddr());
-        bool new_client_record = false;
+    auto cmi = client_map->find(bssiddev->get_macaddr());
+    bool new_client_record = false;
 
-        if (cmi == client_map->end()) {
-            client_record = clientdot11->new_client();
-            new_client_record = true;
-            client_map->insert(bssiddev->get_macaddr(), client_record);
-        } else {
-            client_record = 
-                std::static_pointer_cast<dot11_client>(cmi->second);
+    if (cmi == client_map->end()) {
+        client_record = clientdot11->new_client();
+        new_client_record = true;
+        client_map->insert(bssiddev->get_macaddr(), client_record);
+    } else {
+        client_record = 
+            std::static_pointer_cast<dot11_client>(cmi->second);
+    }
+
+    if (new_client_record) {
+        client_record->set_bssid(bssiddev->get_macaddr());
+        client_record->set_first_time(in_pack->ts.tv_sec);
+    }
+
+    if (client_record->get_last_time() < in_pack->ts.tv_sec) {
+        client_record->set_last_time(in_pack->ts.tv_sec);
+    }
+
+    clientdot11->set_last_bssid(bssiddev->get_macaddr());
+
+    if (dot11info->type == packet_management) {
+        // Client-level assoc req advertisements
+        if (dot11info->subtype == packet_sub_association_req) {
+            if (dot11info->tx_power != nullptr) {
+                clientdot11->set_min_tx_power(dot11info->tx_power->min_power());
+                clientdot11->set_max_tx_power(dot11info->tx_power->max_power());
+            }
+
+            if (dot11info->supported_channels != nullptr) {
+                auto clichannels = clientdot11->get_supported_channels();
+                clichannels->clear();
+
+                for (const auto& c : dot11info->supported_channels->supported_channels()) 
+                    clichannels->push_back(c);
+            }
+
+            if ((dot11info->rsn == nullptr || !dot11info->rsn->rsn_capability_mfp_supported()) &&
+                    alertracker->potential_alert(alert_noclientmfp_ref)) {
+                std::string al = "IEEE80211 network BSSID " +
+                    client_record->get_bssid().mac_to_string() +
+                    " client " +
+                    clientdev->get_macaddr().mac_to_string() +
+                    " does not support management frame protection (MFP) which "
+                    "may ease client disassocation or deauthentication";
+
+                alertracker->raise_alert(alert_noclientmfp_ref, in_pack,
+                        dot11info->bssid_mac, dot11info->source_mac,
+                        dot11info->dest_mac, dot11info->other_mac,
+                        dot11info->channel, al);
+            }
         }
 
-        if (new_client_record) {
-            client_record->set_bssid(bssiddev->get_macaddr());
-            client_record->set_first_time(in_pack->ts.tv_sec);
+    } else if (dot11info->type == packet_data) {
+        // Handle the data records for this client association, we're not just a management link
+
+        if (dot11info->fragmented)
+            client_record->inc_num_fragments(1);
+
+        if (dot11info->retry) {
+            client_record->inc_num_retries(1);
+            client_record->inc_datasize_retry(dot11info->datasize);
         }
 
-        if (client_record->get_last_time() < in_pack->ts.tv_sec) {
-            client_record->set_last_time(in_pack->ts.tv_sec);
-        }
+        if (pack_datainfo != NULL) {
+            if (pack_datainfo->proto == proto_eap && pack_datainfo->auxstring != "") {
+                client_record->set_eap_identity(pack_datainfo->auxstring);
+            }
 
-        clientdot11->set_last_bssid(bssiddev->get_macaddr());
-
-        if (dot11info->type == packet_management) {
-            // Client-level assoc req advertisements
-            if (dot11info->subtype == packet_sub_association_req) {
-                if (dot11info->tx_power != nullptr) {
-                    clientdot11->set_min_tx_power(dot11info->tx_power->min_power());
-                    clientdot11->set_max_tx_power(dot11info->tx_power->max_power());
-                }
-
-                if (dot11info->supported_channels != nullptr) {
-                    auto clichannels = clientdot11->get_supported_channels();
-                    clichannels->clear();
-
-                    for (const auto& c : dot11info->supported_channels->supported_channels()) 
-                        clichannels->push_back(c);
-                }
-
-		if ((dot11info->rsn == nullptr || !dot11info->rsn->rsn_capability_mfp_supported()) &&
-                        alertracker->potential_alert(alert_noclientmfp_ref)) {
-                    std::string al = "IEEE80211 network BSSID " +
+            if (pack_datainfo->discover_vendor != "") {
+                if (client_record->get_dhcp_vendor() != "" &&
+                        client_record->get_dhcp_vendor() != pack_datainfo->discover_vendor &&
+                        alertracker->potential_alert(alert_dhcpos_ref)) {
+                    std::string al = "IEEE80211 network BSSID " + 
                         client_record->get_bssid().mac_to_string() +
-                        " client " +
-                        clientdev->get_macaddr().mac_to_string() +
-                        " does not support management frame protection (MFP) which "
-                        "may ease client disassocation or deauthentication";
+                        " client " + 
+                        clientdev->get_macaddr().mac_to_string() + 
+                        "changed advertised DHCP vendor from '" +
+                        client_record->get_dhcp_vendor() + "' to '" +
+                        pack_datainfo->discover_vendor + "' which may indicate "
+                        "client spoofing or impersonation";
 
-                    alertracker->raise_alert(alert_noclientmfp_ref, in_pack,
+                    alertracker->raise_alert(alert_dhcpos_ref, in_pack,
                             dot11info->bssid_mac, dot11info->source_mac,
                             dot11info->dest_mac, dot11info->other_mac,
                             dot11info->channel, al);
                 }
+
+                client_record->set_dhcp_vendor(pack_datainfo->discover_vendor);
             }
 
-        } else if (dot11info->type == packet_data) {
-            // Handle the data records for this client association, we're not just a management link
+            if (pack_datainfo->discover_host != "") {
+                if (client_record->get_dhcp_host() != "" &&
+                        client_record->get_dhcp_host() != pack_datainfo->discover_host &&
+                        alertracker->potential_alert(alert_dhcpname_ref)) {
+                    std::string al = "IEEE80211 network BSSID " + 
+                        client_record->get_bssid().mac_to_string() +
+                        " client " + 
+                        clientdev->get_macaddr().mac_to_string() + 
+                        "changed advertised DHCP hostname from '" +
+                        client_record->get_dhcp_host() + "' to '" +
+                        pack_datainfo->discover_host + "' which may indicate "
+                        "client spoofing or impersonation";
 
-            if (dot11info->fragmented)
-                client_record->inc_num_fragments(1);
-
-            if (dot11info->retry) {
-                client_record->inc_num_retries(1);
-                client_record->inc_datasize_retry(dot11info->datasize);
-            }
-
-            if (pack_datainfo != NULL) {
-                if (pack_datainfo->proto == proto_eap && pack_datainfo->auxstring != "") {
-                    client_record->set_eap_identity(pack_datainfo->auxstring);
+                    alertracker->raise_alert(alert_dhcpname_ref, in_pack,
+                            dot11info->bssid_mac, dot11info->source_mac,
+                            dot11info->dest_mac, dot11info->other_mac,
+                            dot11info->channel, al);
                 }
 
-                if (pack_datainfo->discover_vendor != "") {
-                    if (client_record->get_dhcp_vendor() != "" &&
-                            client_record->get_dhcp_vendor() != pack_datainfo->discover_vendor &&
-                            alertracker->potential_alert(alert_dhcpos_ref)) {
-                        std::string al = "IEEE80211 network BSSID " + 
-                            client_record->get_bssid().mac_to_string() +
-                            " client " + 
-                            clientdev->get_macaddr().mac_to_string() + 
-                            "changed advertised DHCP vendor from '" +
-                            client_record->get_dhcp_vendor() + "' to '" +
-                            pack_datainfo->discover_vendor + "' which may indicate "
-                            "client spoofing or impersonation";
+                client_record->set_dhcp_host(pack_datainfo->discover_host);
+            }
 
-                        alertracker->raise_alert(alert_dhcpos_ref, in_pack,
-                                dot11info->bssid_mac, dot11info->source_mac,
-                                dot11info->dest_mac, dot11info->other_mac,
-                                dot11info->channel, al);
+            if (pack_datainfo->cdp_dev_id != "") {
+                client_record->set_cdp_device(pack_datainfo->cdp_dev_id);
+            }
+
+            if (pack_datainfo->cdp_port_id != "") {
+                client_record->set_cdp_port(pack_datainfo->cdp_port_id);
+            }
+
+            switch(pack_datainfo->proto) {
+                case proto_arp:
+                    if (dot11info->source_mac == clientdev->get_macaddr()) {
+                        client_record->get_ipdata()->set_ip_addr(pack_datainfo->ip_source_addr.s_addr);
+                        client_record->get_ipdata()->set_ip_type(ipdata_arp);
                     }
-
-                    client_record->set_dhcp_vendor(pack_datainfo->discover_vendor);
-                }
-
-                if (pack_datainfo->discover_host != "") {
-                    if (client_record->get_dhcp_host() != "" &&
-                            client_record->get_dhcp_host() != pack_datainfo->discover_host &&
-                            alertracker->potential_alert(alert_dhcpname_ref)) {
-                        std::string al = "IEEE80211 network BSSID " + 
-                            client_record->get_bssid().mac_to_string() +
-                            " client " + 
-                            clientdev->get_macaddr().mac_to_string() + 
-                            "changed advertised DHCP hostname from '" +
-                            client_record->get_dhcp_host() + "' to '" +
-                            pack_datainfo->discover_host + "' which may indicate "
-                            "client spoofing or impersonation";
-
-                        alertracker->raise_alert(alert_dhcpname_ref, in_pack,
-                                dot11info->bssid_mac, dot11info->source_mac,
-                                dot11info->dest_mac, dot11info->other_mac,
-                                dot11info->channel, al);
+                    break;
+                case proto_dhcp_offer:
+                    if (dot11info->dest_mac == clientdev->get_macaddr()) {
+                        client_record->get_ipdata()->set_ip_addr(pack_datainfo->ip_dest_addr.s_addr);
+                        client_record->get_ipdata()->set_ip_netmask(pack_datainfo->ip_netmask_addr.s_addr);
+                        client_record->get_ipdata()->set_ip_gateway(pack_datainfo->ip_gateway_addr.s_addr);
+                        client_record->get_ipdata()->set_ip_type(ipdata_dhcp);
                     }
-
-                    client_record->set_dhcp_host(pack_datainfo->discover_host);
-                }
-
-                if (pack_datainfo->cdp_dev_id != "") {
-                    client_record->set_cdp_device(pack_datainfo->cdp_dev_id);
-                }
-
-                if (pack_datainfo->cdp_port_id != "") {
-                    client_record->set_cdp_port(pack_datainfo->cdp_port_id);
-                }
-
-                switch(pack_datainfo->proto) {
-                    case proto_arp:
-                        if (dot11info->source_mac == clientdev->get_macaddr()) {
-	                    client_record->get_ipdata()->set_ip_addr(pack_datainfo->ip_source_addr.s_addr);
-	                    client_record->get_ipdata()->set_ip_type(ipdata_arp);
-                        }
-                        break;
-                    case proto_dhcp_offer:
-                        if (dot11info->dest_mac == clientdev->get_macaddr()) {
-                            client_record->get_ipdata()->set_ip_addr(pack_datainfo->ip_dest_addr.s_addr);
-                            client_record->get_ipdata()->set_ip_netmask(pack_datainfo->ip_netmask_addr.s_addr);
-                            client_record->get_ipdata()->set_ip_gateway(pack_datainfo->ip_gateway_addr.s_addr);
-                            client_record->get_ipdata()->set_ip_type(ipdata_dhcp);
-                        }
-                        break;
-                    case proto_tcp:
-                    case proto_udp:
-                        if (dot11info->source_mac == clientdev->get_macaddr())
-                            client_record->get_ipdata()->set_ip_addr(pack_datainfo->ip_source_addr.s_addr);
-                        if (dot11info->dest_mac == clientdev->get_macaddr())
-                            client_record->get_ipdata()->set_ip_addr(pack_datainfo->ip_dest_addr.s_addr);
-                        client_record->get_ipdata()->set_ip_type(ipdata_udptcp);
-                        break;
-                    default:
-                        break;
-                }
+                    break;
+                case proto_tcp:
+                case proto_udp:
+                    if (dot11info->source_mac == clientdev->get_macaddr())
+                        client_record->get_ipdata()->set_ip_addr(pack_datainfo->ip_source_addr.s_addr);
+                    if (dot11info->dest_mac == clientdev->get_macaddr())
+                        client_record->get_ipdata()->set_ip_addr(pack_datainfo->ip_dest_addr.s_addr);
+                    client_record->get_ipdata()->set_ip_type(ipdata_udptcp);
+                    break;
+                default:
+                    break;
             }
-
         }
 
         // Update the GPS info
