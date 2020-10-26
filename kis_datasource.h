@@ -485,6 +485,7 @@ protected:
     };
 
     // Tracked commands we need to ack
+    std::atomic<unsigned int> next_transaction;
     std::map<uint32_t, std::shared_ptr<kis_datasource::tracked_command> > command_ack_map;
 
     // Get a command

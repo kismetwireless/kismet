@@ -483,7 +483,7 @@ unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal:
     data_csum = adler32_checksum((const char *) frame->data, content_sz); 
     frame->data_checksum = kis_hton32(data_csum);
 
-    if (write_cb != nullptr)
+    if (write_cb != nullptr) {
         write_cb(frame_buf, frame_sz,
                 [this](int ec, std::size_t) {
                 if (ec) {
@@ -495,7 +495,7 @@ unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal:
                     return;
                 }
                 });
-    else if (ipc_out.is_open())
+    } else if (ipc_out.is_open()) {
         boost::asio::async_write(ipc_out, boost::asio::buffer(frame_buf, frame_sz),
                 [this](const boost::system::error_code& ec, std::size_t) {
                 if (ec) {
@@ -508,7 +508,7 @@ unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal:
                     return;
                 }
                 });
-    else if (tcpsocket.is_open()) 
+    } else if (tcpsocket.is_open()) {
         boost::asio::async_write(tcpsocket, boost::asio::buffer(frame_buf, frame_sz),
                 [this](const boost::system::error_code& ec, std::size_t) {
                 if (ec) {
@@ -521,6 +521,11 @@ unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal:
                     return;
                 }
                 });
+    } else {
+        _MSG_ERROR("Kismet external interface got an error writing packet, no connections");
+        trigger_error("no connections");
+        return 0;
+    }
 
     return c->seqno();
 }
