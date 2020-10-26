@@ -891,7 +891,7 @@ void datasource_tracker::trigger_deferred_startup() {
                 }));
 
 
-    httpd->register_route("/pcap/all_packets", {"GET"}, "pcap", {"pcapng"},
+    httpd->register_route("/pcap/all_packets", {"GET"}, httpd->RO_ROLE, {"pcapng"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     // We use the future stalling function in the pcap future streambuf to hold
@@ -916,7 +916,7 @@ void datasource_tracker::trigger_deferred_startup() {
                     streamtracker->remove_streamer(sid);
                 }));
 
-    httpd->register_route("/datasource/pcap/by-uuid/:uuid/packets", {"GET"}, "pcap", {"pcapng"},
+    httpd->register_route("/datasource/pcap/by-uuid/:uuid/packets", {"GET"}, httpd->RO_ROLE, {"pcapng"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     auto dsuuid = string_to_n<uuid>(con->uri_params()[":uuid"]);

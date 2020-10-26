@@ -802,7 +802,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                     return generate_handshake_pcap(con, dev, dot11, "pmkid");
                 }));
 
-    httpd->register_route("/phy/phy80211/pcap/by-bssid/:mac/packets.pcapng", {"GET"}, "pcap", {"pcapng"},
+    httpd->register_route("/phy/phy80211/pcap/by-bssid/:mac/packets.pcapng", {"GET"}, httpd->RO_ROLE, {"pcapng"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     auto mac = string_to_n<mac_addr>(con->uri_params()[":mac"]);

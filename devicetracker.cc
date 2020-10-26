@@ -490,7 +490,7 @@ device_tracker::device_tracker() :
                     os << "Device tag set\n";
                 }));
 
-    httpd->register_route("/devices/pcap/by-key/:key/packets", {"GET"}, "pcap", {"pcapng"},
+    httpd->register_route("/devices/pcap/by-key/:key/packets", {"GET"}, httpd->RO_ROLE, {"pcapng"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     auto key_k = con->uri_params().find(":key");
