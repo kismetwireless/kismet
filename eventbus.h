@@ -124,7 +124,7 @@ public:
 
     template<typename T>
     void publish(T event) {
-        local_locker l(&mutex);
+        local_locker l(&mutex, "publish");
 
         auto evt_cast = 
             std::static_pointer_cast<eventbus_event>(event);

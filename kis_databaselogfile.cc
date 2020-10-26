@@ -264,7 +264,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
                     return list_poi_endp_handler(con);
                 }));
 
-    httpd->register_route("/logging/kismetdb/pcap/packets", {"GET", "POST"}, "pcap", {"pcapng"},
+    httpd->register_route("/logging/kismetdb/pcap/packets", {"GET", "POST"}, httpd->RO_ROLE, {"pcapng"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     return pcapng_endp_handler(con);

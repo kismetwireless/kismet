@@ -33,6 +33,8 @@ kis_datasource::kis_datasource(shared_datasource_builder in_builder) :
     tracker_component(),
     kis_external_interface() {
 
+    next_transaction = 1;
+
     if (in_builder != nullptr)
         ext_mutex.set_name(fmt::format("kis_datasource({})", in_builder->get_source_type()));
     else
@@ -94,12 +96,17 @@ kis_datasource::~kis_datasource() {
     // be completed!
 }
 
-void kis_datasource::list_interfaces(unsigned int in_transaction, 
-        list_callback_t in_cb) {
+void kis_datasource::list_interfaces(unsigned int in_transaction, list_callback_t in_cb) {
     local_demand_locker lock(&ext_mutex, "datasource::list_interfaces");
     lock.lock();
 
+    if (in_transaction == 0)
+        in_transaction = next_transaction++;
+
     mode_listing = true;
+
+    if (in_transaction == 0)
+        in_transaction = next_transaction++;
 
     // If we can't list interfaces according to our prototype, die 
     // and call the cb instantly
@@ -144,7 +151,13 @@ void kis_datasource::probe_interface(std::string in_definition, unsigned int in_
     local_demand_locker lock(&ext_mutex, "datasource::probe_interface");
     lock.lock();
 
+    if (in_transaction == 0)
+        in_transaction = next_transaction++;
+
     mode_probing = true;
+
+    if (in_transaction == 0)
+        in_transaction = next_transaction++;
 
     set_int_source_definition(in_definition);
 
@@ -200,6 +213,9 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
         open_callback_t in_cb) {
     local_demand_locker lock(&ext_mutex, "datasource::open_interface");
     lock.lock();
+
+    if (in_transaction == 0)
+        in_transaction = next_transaction++;
 
     set_int_source_definition(in_definition);
 
@@ -275,6 +291,9 @@ void kis_datasource::set_channel(std::string in_channel, unsigned int in_transac
     local_demand_locker lock(&ext_mutex, "datasource::set_channel");
     lock.lock();
 
+    if (in_transaction == 0)
+        in_transaction = next_transaction++;
+
     if (!get_source_builder()->get_tune_capable()) {
         if (in_cb != NULL) {
             lock.unlock();
@@ -291,6 +310,9 @@ void kis_datasource::set_channel_hop(double in_rate, std::vector<std::string> in
         bool in_shuffle, unsigned int in_offt, unsigned int in_transaction, 
         configure_callback_t in_cb) {
     local_locker lock(&ext_mutex, "datasource::set_channel_hop");
+
+    if (in_transaction == 0)
+        in_transaction = next_transaction++;
 
     if (!get_source_builder()->get_tune_capable()) {
         if (in_cb != NULL) {
@@ -324,6 +346,9 @@ void kis_datasource::set_channel_hop(double in_rate,
         bool in_shuffle, unsigned int in_offt, unsigned int in_transaction, 
         configure_callback_t in_cb) {
     local_locker lock(&ext_mutex, "datasource::set_channel_hop");
+
+    if (in_transaction == 0)
+        in_transaction = next_transaction++;
 
     if (!get_source_builder()->get_tune_capable()) {
         if (in_cb != NULL) {
@@ -359,7 +384,7 @@ void kis_datasource::set_channel_hop_list(std::vector<std::string> in_chans,
             get_source_hop_offset(), in_transaction, in_cb);
 }
 
-void kis_datasource::connect_remote(std::string in_definition, kis_datasource *in_remote, 
+void kis_datasource::connect_remote(std::string in_definition, kis_datasource* in_remote, 
         bool in_tcp, configure_callback_t in_cb) {
     local_locker lock(&ext_mutex, "datasource::connect_remote");
 
@@ -1349,6 +1374,9 @@ unsigned int kis_datasource::send_probe_source(std::string in_definition,
         unsigned int in_transaction, probe_callback_t in_cb) {
     local_locker lock(&ext_mutex, "datasource::send_probe_source");
 
+    if (in_transaction == 0)
+        in_transaction = next_transaction++;
+
     std::shared_ptr<tracked_command> cmd;
     uint32_t seqno;
 
@@ -1383,6 +1411,9 @@ unsigned int kis_datasource::send_open_source(std::string in_definition,
         unsigned int in_transaction, open_callback_t in_cb) {
     local_locker lock(&ext_mutex, "datasource::send_open_source");
 
+    if (in_transaction == 0)
+        in_transaction = next_transaction++;
+
     std::shared_ptr<tracked_command> cmd;
     uint32_t seqno;
 
@@ -1416,6 +1447,9 @@ unsigned int kis_datasource::send_open_source(std::string in_definition,
 unsigned int kis_datasource::send_configure_channel(std::string in_chan,
         unsigned int in_transaction, configure_callback_t in_cb) {
     local_locker lock(&ext_mutex, "datasource::send_configure_channel");
+
+    if (in_transaction == 0)
+        in_transaction = next_transaction++;
 
     std::shared_ptr<tracked_command> cmd;
     uint32_t seqno;
@@ -1458,7 +1492,9 @@ unsigned int kis_datasource::send_configure_channel_hop(double in_rate,
 
     local_locker lock(&ext_mutex, "datasource::send_configure_channel_hop");
 
-    std::shared_ptr<tracked_command> cmd;
+    if (in_transaction == 0)
+        in_transaction = next_transaction++;
+
     uint32_t seqno;
 
     std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
@@ -1490,7 +1526,7 @@ unsigned int kis_datasource::send_configure_channel_hop(double in_rate,
         return 0;
     }
 
-    cmd.reset(new tracked_command(in_transaction, seqno, this));
+    auto cmd = std::make_shared<tracked_command>(in_transaction, seqno, this);
     cmd->configure_cb = in_cb;
 
     command_ack_map.insert(std::make_pair(seqno, cmd));
@@ -1500,6 +1536,9 @@ unsigned int kis_datasource::send_configure_channel_hop(double in_rate,
 
 unsigned int kis_datasource::send_list_interfaces(unsigned int in_transaction, list_callback_t in_cb) {
     local_locker lock(&ext_mutex, "datasource::send_list_interfaces");
+
+    if (in_transaction == 0)
+        in_transaction = next_transaction++;
 
     std::shared_ptr<tracked_command> cmd;
     uint32_t seqno;

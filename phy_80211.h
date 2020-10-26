@@ -537,6 +537,9 @@ protected:
 
     // Do we keep WPA packets?
     bool keep_eapol_packets;
+
+    // Do we only get signal from beacons?
+    bool signal_from_beacon;
 };
 
 #endif

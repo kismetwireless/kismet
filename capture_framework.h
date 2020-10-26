@@ -35,6 +35,8 @@
  * because it is isolated from the protocol control thread.
  */
 
+#include "config.h"
+
 #include <getopt.h>
 #include <pthread.h>
 #include <fcntl.h>
@@ -50,6 +52,10 @@
 #include <errno.h>
 
 #include <arpa/inet.h>
+
+#ifdef HAVE_LIBWEBSOCKETS
+#include <libwebsockets.h>
+#endif
 
 #include "simple_ringbuf_c.h"
 
@@ -68,6 +74,12 @@ typedef struct cf_params_list_interface cf_params_list_interface_t;
 struct cf_params_spectrum;
 typedef struct cf_params_spectrum cf_params_spectrum_t;
 
+#ifdef HAVE_LIBWEBSOCKETS
+struct cf_ws_msg {
+    char *payload;
+    size_t len;
+};
+#endif
 
 /* List devices callback
  * Called to list devices available
@@ -234,8 +246,7 @@ struct kis_capture_handler {
     /* Capture source type */
     char *capsource_type;
 
-    /* Does this driver support remote capture?  Most should, and it defaults to 
-     * true. */
+    /* Does this driver support remote capture?  Most should, and it defaults to true. */
     int remote_capable;
 
     /* Last time we got a ping */
@@ -244,19 +255,53 @@ struct kis_capture_handler {
     /* Sequence number counter */
     uint32_t seqno;
 
-    /* Descriptor pair */
+    /* Descriptor pair in IPC mode*/
     int in_fd;
     int out_fd;
 
-    /* Listen fd for reverse server mode */
-    int listen_fd;
+    /* Use legacy tcp mode */
+    int use_tcp;
 
-    /* Remote host and port if acting as a remote drone */
+    /* Use IPC mode */
+    int use_ipc;
+
+    /* Use websockets mode */
+    int use_ws;
+
+    /* Remote host and port if acting as a remote drone in TCP mode, also used to
+     * synthesize the websocket info */
     char *remote_host;
     unsigned int remote_port;
 
+    /* Remote host for websocket api */
+#ifdef HAVE_LIBWEBSOCKETS
+    struct lws_context *lwscontext;
+    struct lws_vhost *lwsvhost;
+    const struct lws_protocols *lwsprotocol;
+
+    lws_sorted_usec_list_t lwssul;
+
+    struct lws_ring *lwsring;
+    uint32_t lwstail;
+
+    struct lws_client_connect_info lwsci;
+    struct lws *lwsclientwsi;
+
+    int lwsestablished;
+
+    char *lwsuri;
+
+    int lwsusessl;
+    char *lwssslcapath;
+
+    struct lws_context_creation_info lwsinfo;
+    
+    char *lwsuuid;
+#endif
+
     /* Announced UUID, if one is required */
     char *announced_uuid;
+
 
     /* Specified commandline source, used for remote cap */
     char *cli_sourcedef;
@@ -267,20 +312,24 @@ struct kis_capture_handler {
     /* Kick into daemon mode for remote connections */
     int daemonize;
 
-    /* Do we provide a revere server?  If so, we bind to remote_host on remote_port */
-    int reverse_server;
-
-    /* TCP connection, either server or client */
+    /* TCP client connection */
     int tcp_fd;
 
     /* Die when we hit the end of our write buffer */
     int spindown;
 
-    /* Buffers */
+    /* TCP/IPC buffers */
     kis_simple_ringbuf_t *in_ringbuf;
     kis_simple_ringbuf_t *out_ringbuf;
 
-    /* Lock for output buffer */
+    /* websocket packet queue */
+#ifdef HAVE_LIBWEBSOCKETS
+    struct lws_ring *ring;
+    uint32_t tail;
+#endif
+
+
+    /* Lock for output buffer or output ws ring */
     pthread_mutex_t out_ringbuf_lock;
 
     /* conditional waiter for ringbuf flushing data */
@@ -306,8 +355,7 @@ struct kis_capture_handler {
 
     cf_callback_spectrumconfig spectrumconfig_cb;
 
-
-    /* Arbitrary data blob */
+    /* Arbitrary data blob for capture specific content */
     void *userdata;
 
     /* Capture thread */
@@ -606,11 +654,15 @@ int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph);
 void cf_handler_wait_ringbuffer(kis_capture_handler_t *caph);
 
 
+/* Handle content in a data frame; called from rb rx or ws rx
+ */
+int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, size_t len);
+
 /* Handle data in the rx ringbuffer; called from the select/poll loop.
  * Calls callbacks for packet types automatically when a complete packet is
  * received.
  */
-int cf_handle_rx_data(kis_capture_handler_t *caph);
+int cf_handle_rb_rx_data(kis_capture_handler_t *caph);
 
 
 /* Connect to a network socket, if remote connection is specified; this should
@@ -622,18 +674,19 @@ int cf_handle_rx_data(kis_capture_handler_t *caph);
  *  0   No remote connection specified
  *  1   Successful remote connection
  */
-int cf_handler_remote_connect(kis_capture_handler_t *caph);
+int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph);
 
-/* Launch a network server and wait for a connection, if reverse connection is
- * specified; this should not be needed by capture tools using the framework; 
- * the capture loop will be managed directly via cf_handler_remote_capture
+/* Connect to a websocket endpoint, if remote connection in ws mode;
+ * this should not be needed by capture tools using the framework, the 
+ * capture loop will be managed directly via cf_handler_remote_capture
  *
  * Returns:
- * -1   Error, could not spawn server, process should exist
- *  0   No remote server connection specified
- *  1   Successful remote server launch & incoming connection
+ * -1   Error, could not connect, process should exit
+ *  0   No remote connection specified
+ *  1   Successful remote connection
  */
-int cf_handler_remote_server(kis_capture_handler_t *caph);
+int cf_handler_ws_remote_connect(kis_capture_handler_t *caph);
+
 
 /* Set up a fork loop for remote capture processes.  The normal capture code
  * is run in an independently executed process, allowing for one-shot privilege 
@@ -862,6 +915,16 @@ uint32_t adler32_csum(uint8_t *in_buf, size_t in_len);
 
 /* Wait for an announcement from a Kismet server, populate the connection info */
 int cf_wait_announcement(kis_capture_handler_t *caph);
+
+/* websockets interface */
+#ifdef HAVE_LIBWEBSOCKETS
+static void ws_sul_connect_attmpt(struct lws_sorted_usec_list *sul);
+
+static int ws_remotecap_broker(struct lws *wsi, enum lws_callback_reasons reason,
+        void *user, void *in, size_t len);
+
+static void ws_destroy_msg(void *in_msg);
+#endif
 
 #endif
 

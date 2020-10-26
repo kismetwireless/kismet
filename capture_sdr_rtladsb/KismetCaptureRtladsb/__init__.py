@@ -87,11 +87,9 @@ class KismetRtladsb(object):
             self.have_librtl = False
 
         parser = argparse.ArgumentParser(description='RTLadsb to Kismet bridge - Creates a rtladsb data source on a Kismet server and passes JSON-based records from the rtladsb binary')
-        
-        parser.add_argument('--in-fd', action="store", type=int, dest="infd")
-        parser.add_argument('--out-fd', action="store", type=int, dest="outfd")
-        parser.add_argument('--connect', action="store", dest="connect")
-        parser.add_argument("--source", action="store", dest="source")
+      
+        # Append the default args
+        parser = kismetexternal.ExternalInterface.common_getopt(parser)
         
         self.config = parser.parse_args()
 
@@ -109,7 +107,7 @@ class KismetRtladsb(object):
             self.proberet = self.datasource_probesource(source, options)
 
             if self.proberet == None:
-                print("Could not configure local source {}, check your source options and config.")
+                print(f"Could not configure local source {self.config.source}, check your source options and config.")
                 sys.exit(0)
 
             if not "success" in self.proberet:
@@ -127,7 +125,7 @@ class KismetRtladsb(object):
             print("Connecting to remote server {}".format(self.config.connect))
 
     def run(self):
-        self.kismet = kismetexternal.Datasource(self.config.infd, self.config.outfd, remote = self.config.connect)
+        self.kismet = kismetexternal.Datasource(self.config)
 
         self.kismet.set_configsource_cb(self.datasource_configure)
         self.kismet.set_listinterfaces_cb(self.datasource_listinterfaces)

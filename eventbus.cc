@@ -134,54 +134,55 @@ std::shared_ptr<eventbus_event> event_bus::get_eventbus_event(const std::string&
 }
 
 void event_bus::event_queue_dispatcher() {
-    local_demand_locker l(&mutex);
+    local_demand_locker l(&mutex, "queue dispatch");
 
     while (!shutdown && 
             !Globalreg::globalreg->spindown && 
             !Globalreg::globalreg->fatal_condition &&
             !Globalreg::globalreg->complete) {
+
         // Lock while we examine the queue
         l.lock();
-
+        std::shared_ptr<eventbus_event> e;
         if (event_queue.size() > 0) {
-            auto e = event_queue.front();
+            e = event_queue.front();
             event_queue.pop();
+        }
+        l.unlock();
+
+        if (e != nullptr) {
+            // Lock the handler mutex while we're processing an event
+            local_demand_locker rl(&handler_mutex, "dispatch");
+
+            rl.lock();
 
             auto ch_listeners = callback_table.find(e->get_event_id());
-			auto ch_all_listeners = callback_table.find("*");
+            auto ch_all_listeners = callback_table.find("*");
 
             if (ch_listeners == callback_table.end() && ch_all_listeners == callback_table.end()) {
-                l.unlock();
                 continue;
             }
 
-            // Lock the handler mutex while we're processing an event
-            {
-                local_locker rl(&handler_mutex);
+            // Copy into a workvec in case one of the event handlers removes itself from the events
+            // in the future
+            std::vector<std::shared_ptr<callback_listener>> workvec;
 
-                // Unlock the rest of the eventbus
-                l.unlock();
+            if (ch_listeners != callback_table.end()) 
+                for (const auto& cbl : ch_listeners->second) 
+                    workvec.push_back(cbl);
 
-                if (ch_listeners != callback_table.end()) {
-                    for (const auto& cbl : ch_listeners->second) {
-                        try {
-                            cbl->cb(e);
-                        } catch (const std::exception& e) {
-                            _MSG_ERROR("Error in eventbus handler: {}", e.what());
-                        }
-                    }
+            if (ch_all_listeners != callback_table.end()) 
+                for (const auto& cbl : ch_all_listeners->second) 
+                    workvec.push_back(cbl);
+
+            rl.unlock();
+
+            for (const auto& cbl : workvec) {
+                try {
+                    cbl->cb(e);
+                } catch (const std::exception& e) {
+                    _MSG_ERROR("Error in eventbus handler: {}", e.what());
                 }
-
-                if (ch_all_listeners != callback_table.end()) {
-                    for (const auto& cbl : ch_all_listeners->second) {
-                        try {
-                            cbl->cb(e);
-                        } catch (const std::exception& e) {
-                            ;
-                        }
-                    }
-                }
-
             }
 
             // Loop for more events
@@ -200,7 +201,7 @@ void event_bus::event_queue_dispatcher() {
 }
 
 unsigned long event_bus::register_listener(const std::string& channel, cb_func cb) {
-    local_locker l(&handler_mutex);
+    local_locker l(&handler_mutex, "register listener");
 
     auto cbl = std::make_shared<callback_listener>(std::list<std::string>{channel}, cb, next_cbl_id++);
 
@@ -211,7 +212,7 @@ unsigned long event_bus::register_listener(const std::string& channel, cb_func c
 }
 
 unsigned long event_bus::register_listener(const std::list<std::string>& channels, cb_func cb) {
-    local_locker l(&handler_mutex);
+    local_locker l(&handler_mutex, "register listener (vector)");
 
     auto cbl = std::make_shared<callback_listener>(channels, cb, next_cbl_id++);
 
@@ -225,7 +226,7 @@ unsigned long event_bus::register_listener(const std::list<std::string>& channel
 }
 
 void event_bus::remove_listener(unsigned long id) {
-    local_locker l(&handler_mutex);
+    local_locker l(&handler_mutex, "remove listener");
 
     // Find matching cbl
     auto cbl = callback_id_table.find(id);

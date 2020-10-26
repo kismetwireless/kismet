@@ -991,16 +991,20 @@ AC_ARG_ENABLE([libwebsockets],
 )
 
 AS_IF([test "x$want_libwebsockets" != "xno"], [
-    PKG_CHECK_MODULES([libwebsockets], [libwebsockets], have_libwebsockets_pkg=yes)
+    PKG_CHECK_MODULES([libwebsockets], [libwebsockets >= 3.2.0], have_libwebsockets_pkg=yes)
 
     if test x"$have_libwebsockets_pkg" != "xyes"; then
         AC_MSG_ERROR([missing libwebsockets])
     else
-        LIBWSLIBS=`pkg-config --libs libwebsockets`
-        LIBWSFLAGS=`pkg-config --cflags libwebsockets`
+        AC_CHECK_LIB([websockets], [lws_client_connect_via_info],
+                     [
+                     LIBWSLIBS=`pkg-config --libs libwebsockets`
+                     LIBWSFLAGS=`pkg-config --cflags libwebsockets`
 
-        have_libwebsockets="yes"
-        AC_DEFINE(HAVE_LIBWEBSOCKETS, 1, libwebsockets)
+                     have_libwebsockets="yes"
+                     AC_DEFINE(HAVE_LIBWEBSOCKETS, 1, libwebsockets)
+                     ],
+                     AC_MSG_ERROR("libwebsockets not compiled with client support"))
     fi
 ])
 AC_SUBST(LIBWSLIBS)

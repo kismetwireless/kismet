@@ -281,7 +281,7 @@ public:
 
     // Instantiate from an incoming remote; caller must then assign tcpsocket or callbacks and trigger
     // a datasource open
-    virtual void connect_remote(std::string in_definition, kis_datasource *in_remote, 
+    virtual void connect_remote(std::string in_definition, kis_datasource* in_remote, 
             bool in_tcp, configure_callback_t in_cb);
 
 
@@ -485,6 +485,7 @@ protected:
     };
 
     // Tracked commands we need to ack
+    std::atomic<unsigned int> next_transaction;
     std::map<uint32_t, std::shared_ptr<kis_datasource::tracked_command> > command_ack_map;
 
     // Get a command
