@@ -455,7 +455,7 @@ protected:
 
             // Generate a timeout for 5 seconds from now
             auto src_alias = in_src;
-            timer_id = timetracker->register_timer(SERVER_TIMESLICES_SEC * 15,
+            timer_id = timetracker->register_timer(SERVER_TIMESLICES_SEC * 30,
                     NULL, 0, [src_alias, this](int) -> int {
                     src_alias->cancel_command(command_seq, "Command did not complete");
                     return 0;
