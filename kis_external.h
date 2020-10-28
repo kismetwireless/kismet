@@ -162,12 +162,16 @@ protected:
     int handle_read(std::shared_ptr<kis_external_interface> ref, 
             const boost::system::error_code& ec, size_t sz);
 
+    // Common strand
+    boost::asio::io_service::strand strand_;
+
     // Pipe IPC
     std::string external_binary;
     std::vector<std::string> external_binary_args;
 
     kis_ipc_record ipc;
     boost::asio::posix::stream_descriptor ipc_in, ipc_out;
+
 
     void start_ipc_read(std::shared_ptr<kis_external_interface> ref);
 
