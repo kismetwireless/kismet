@@ -1056,6 +1056,9 @@ void kis_datasource::handle_packet_interfaces_report(uint32_t in_seqno,
         if (rintf.has_hardware())
             intf->set_hardware(rintf.hardware());
 
+        if (rintf.has_capinterface())
+            intf->set_cap_interface(rintf.capinterface());
+
         listed_interfaces.push_back(intf);
     }
 
@@ -1157,6 +1160,9 @@ void kis_datasource::handle_packet_configure_report(uint32_t in_seqno, const std
     if (ci != command_ack_map.end()) {
         auto cb = ci->second->configure_cb;
         auto transaction = ci->second->transaction;
+
+        _MSG_DEBUG("ds configure report seq {} has cb transaction {} success {} msg {}", seq, transaction, report.success().success(), msg);
+
         command_ack_map.erase(ci);
 
         if (cb != nullptr) {
