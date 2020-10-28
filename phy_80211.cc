@@ -1282,8 +1282,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             std::stringstream newdevstr;
 
             if (dest_dot11 == NULL) {
-                _MSG_INFO("Detected new 802.11 Wi-Fi device {}",
-                        dest_dev->get_macaddr().mac_to_string());
+                _MSG_INFO("Detected new 802.11 Wi-Fi device {}", dest_dev->get_macaddr());
 
                 dest_dot11 =
                     d11phy->entrytracker->get_shared_instance_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
@@ -1299,17 +1298,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             dest_dev->set_type_string_ifnot([d11phy]() {
                     return d11phy->devicetracker->get_cached_devicetype("Wi-Fi Client");
                     }, KIS_DEVICE_BASICTYPE_AP);
-
-            if (dot11info->channel != "0" && dot11info->channel != "") {
-                dest_dev->set_channel(dot11info->channel);
-            } else if (pack_l1info != NULL && (pack_l1info->freq_khz != dest_dev->get_frequency() ||
-                    dest_dev->get_channel() == "")) {
-                try {
-                    dest_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
-                } catch (const std::runtime_error& e) {
-                    ;
-                }
-            }
 
             d11phy->devicetracker->update_view_device(dest_dev);
         }
@@ -1564,8 +1552,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
             if (bssid_dev != nullptr)
                 source_dot11->set_last_bssid(bssid_dev->get_macaddr());
-            else
-                source_dot11->set_last_bssid(mac_addr());
 
             if (dot11info->channel != "0" && dot11info->channel != "") {
                 source_dev->set_channel(dot11info->channel);
@@ -1657,8 +1643,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             std::stringstream newdevstr;
 
             if (dest_dot11 == NULL) {
-                _MSG_INFO("Detected new 802.11 Wi-Fi device {}",
-                        dest_dev->get_macaddr().mac_to_string());
+                _MSG_INFO("Detected new 802.11 Wi-Fi device {}", dest_dev->get_macaddr());
 
                 dest_dot11 =
                     d11phy->entrytracker->get_shared_instance_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
@@ -1666,17 +1651,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11_tracked_device::attach_base_parent(dest_dot11, dest_dev);
 
                 dot11info->new_device = true;
-            }
-
-            if (dot11info->channel != "0" && dot11info->channel != "") {
-                dest_dev->set_channel(dot11info->channel);
-            } else if (pack_l1info != NULL && (pack_l1info->freq_khz != dest_dev->get_frequency() ||
-                    dest_dev->get_channel() == "")) {
-                try {
-                    dest_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
-                } catch (const std::runtime_error& e) {
-                    ;
-                }
             }
 
             // If it's from the ess, we're some sort of wired device; set the type
