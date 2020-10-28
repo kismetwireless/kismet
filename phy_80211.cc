@@ -1065,7 +1065,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 d11phy->devicetracker->update_common_device(commoninfo, 
                         dot11info->dest_mac, d11phy, in_pack, 
                         (UCD_UPDATE_SEENBY),
-                        "Wi-Fi Device");
+                        "Wi-Fi Device (Inferred)");
         }
 
         auto dev_group = std::make_shared<tracker_element_vector>();
@@ -1443,7 +1443,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 d11phy->devicetracker->update_common_device(commoninfo,
                         dot11info->dest_mac, d11phy, in_pack, 
                         (update_flags | UCD_UPDATE_SEENBY | UCD_UPDATE_PACKETS),
-                        "Wi-Fi Device");
+                        "Wi-Fi Device (Inferred)");
         }
 
         if (dot11info->other_mac != dot11info->source_mac &&
