@@ -451,7 +451,8 @@ void kis_external_interface::start_write(const char *data, size_t len) {
 
     auto buf = std::make_shared<std::string>(data, len);
 
-    strand_.post([this, buf]() {
+    boost::asio::post(strand_, 
+            [this, buf]() {
             out_bufs.push_back(buf);
 
             if (out_bufs.size() > 1)
