@@ -445,9 +445,9 @@ bool kis_external_interface::run_ipc() {
     return true;
 }
 
-int kis_external_interface::start_write(const char *data, size_t len) {
+void kis_external_interface::start_write(const char *data, size_t len) {
     if (stopped || cancelled)
-        return -1;
+        return;
 
     auto buf = std::make_shared<std::string>(data, len);
 
@@ -460,8 +460,6 @@ int kis_external_interface::start_write(const char *data, size_t len) {
             write_impl();
 
             });
-
-    return len;
 }
 
 void kis_external_interface::write_impl() {
@@ -517,7 +515,7 @@ void kis_external_interface::handle_write(const boost::system::error_code& ec) {
 unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal::Command> c) {
     local_locker lock(&ext_mutex, "kei::send_packet");
 
-    if (stopped)
+    if (stopped || cancelled)
         return 0;
 
     // Set the sequence if one wasn't provided
@@ -555,10 +553,7 @@ unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal:
     data_csum = adler32_checksum((const char *) frame->data, content_sz); 
     frame->data_checksum = kis_hton32(data_csum);
 
-    auto r = start_write(frame_buf, frame_sz);
-
-    if (r < 0)
-        return 0;
+    start_write(frame_buf, frame_sz);
 
     return c->seqno();
 }

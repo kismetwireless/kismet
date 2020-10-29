@@ -166,7 +166,7 @@ protected:
 
     std::list<std::shared_ptr<std::string>> out_bufs;
 
-    int start_write(const char *data, size_t len);
+    void start_write(const char *data, size_t len);
     void write_impl();
     void handle_write(const boost::system::error_code& ec);
 
