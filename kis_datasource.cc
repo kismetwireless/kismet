@@ -388,6 +388,9 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
         bool in_tcp, configure_callback_t in_cb) {
     local_locker lock(&ext_mutex, "datasource::connect_remote");
 
+    stopped = false;
+    cancelled = false;
+
     // We can't reconnect failed interfaces that are remote
     set_int_source_retry(false);
     
