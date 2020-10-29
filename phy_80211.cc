@@ -1598,7 +1598,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
 
                 source_dev->set_type_string_ifonly([d11phy]() {
-                        return d11phy->devicetracker->get_cached_devicetype("Wi-Fi WDS");
+                        return d11phy->devicetracker->get_cached_devicetype("Wi-Fi WDS Device");
                         }, KIS_DEVICE_BASICTYPE_PEER | KIS_DEVICE_BASICTYPE_DEVICE);
             } else if (dot11info->distrib == distrib_adhoc && dot11info->ibss) {
                 // We're some sort of adhoc device
