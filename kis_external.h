@@ -33,6 +33,7 @@
 #include "config.h"
 
 #include <functional>
+#include <list>
 
 #include "endian_magic.h"
 #include "eventbus.h"
@@ -159,8 +160,15 @@ protected:
 
     // Async input
     boost::asio::streambuf in_buf;
+
     int handle_read(std::shared_ptr<kis_external_interface> ref, 
             const boost::system::error_code& ec, size_t sz);
+
+    std::list<std::shared_ptr<std::string>> out_bufs;
+
+    int start_write(const char *data, size_t len);
+    void write_impl();
+    void handle_write(const boost::system::error_code& ec);
 
     // Common strand
     boost::asio::io_service::strand strand_;
