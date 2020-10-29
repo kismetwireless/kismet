@@ -468,14 +468,13 @@ void kis_external_interface::write_impl() {
     if (write_cb != nullptr) {
         write_cb(buf->data(), buf->size(),
                 [this](int ec, std::size_t) {
-                if (ec) {
-                    if (ec == boost::asio::error::operation_aborted)
-                        return;
-
-                    _MSG_ERROR("Kismet external interface got error writing a packet to a callback interface.");
-                    trigger_error("write failure");
-                    return;
-                }
+                    boost::system::error_code errc =
+                        boost::system::errc::make_error_code(boost::system::errc::success);
+                    
+                    if (ec == 0)
+                        errc = boost::asio::error::make_error_code(boost::asio::stream_errc::eof);
+                    
+                    handle_write(errc);
                 });
     } else if (ipc_out.is_open()) {
         boost::asio::async_write(ipc_out, boost::asio::buffer(buf->data(), buf->size()),
@@ -502,8 +501,7 @@ void kis_external_interface::handle_write(const boost::system::error_code& ec) {
             // return;
         }
 
-        _MSG_ERROR("Kismet external interface got an error writing a packet to a "
-                "TCP interface: {}", ec.message());
+        _MSG_ERROR("Kismet external interface got an error writing to external connection: {}", ec.message());
         trigger_error("write failure");
         return;
     }

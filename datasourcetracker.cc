@@ -1034,9 +1034,6 @@ void datasource_tracker::trigger_deferred_startup() {
                     [ws](const char *data, size_t sz, std::function<void (int, std::size_t)> comp) -> int {
                         auto ret = ws->write(data, sz, false);
 
-                        if (ret > 0)
-                            ret = 0;
-
                         comp(ret, sz);
 
                         return sz;
