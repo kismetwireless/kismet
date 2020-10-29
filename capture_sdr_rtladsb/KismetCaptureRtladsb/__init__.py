@@ -277,7 +277,8 @@ class KismetRtladsb(object):
                     dev_index = serial
 
                 intf = kismetexternal.datasource_pb2.SubInterface()
-                intf.interface = "rtladsb-{}".format(dev_index)
+                intf.interface = f"rtladsb-{dev_index}"
+                intf.capinterface = f"rtl-{dev_index}"
                 intf.flags = ""
                 intf.hardware = self.rtlsdr.rtl_get_device_name(i)
                 interfaces.append(intf)
@@ -338,7 +339,7 @@ class KismetRtladsb(object):
         ret = {}
 
         # Does the source look like 'rtladsb-XYZ'?
-        if not source[:8] == "rtladsb-":
+        if not source[:8] == "rtladsb-" and not source[:4] == "rtl-":
             ret["success"] = False
             ret["message"] = "Could not parse which rtlsdr device to use"
             return ret
@@ -407,6 +408,8 @@ class KismetRtladsb(object):
             ret['uuid'] = options['uuid']
         else:
             ret['uuid'] = self.__get_rtlsdr_uuid(intnum)
+
+        ret['capture_interface'] = f"rtl-{devselector}"
 
         self.opts['device'] = intnum
 

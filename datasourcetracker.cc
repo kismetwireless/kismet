@@ -663,12 +663,15 @@ void datasource_tracker::trigger_deferred_startup() {
                                 ds->get_source_name(), ds->get_source_uuid(), ch);
 
                         ds->set_channel(ch, 0,
-                                [&set_success, &set_promise](unsigned int, bool success, std::string) {
+                                [&set_success, &set_promise](unsigned int t, bool success, std::string e) {
+                                // _MSG_DEBUG("ds set channel callback {} {} '{}'", t, success, e);
                                 set_success = success;
                                 set_promise.set_value();
                                 });
 
                         set_ft.wait();
+
+                        // _MSG_DEBUG("ds future unlocked, {}", set_success);
 
                         if (set_success) {
                             return ds;
@@ -1030,9 +1033,6 @@ void datasource_tracker::trigger_deferred_startup() {
                 auto write_cb = 
                     [ws](const char *data, size_t sz, std::function<void (int, std::size_t)> comp) -> int {
                         auto ret = ws->write(data, sz, false);
-
-                        if (ret > 0)
-                            ret = 0;
 
                         comp(ret, sz);
 
@@ -1537,9 +1537,12 @@ void datasource_tracker::list_interfaces(const std::function<void (std::vector<s
         for (const auto& il : interfaces) {
             for (const auto& s : *datasource_vec) {
                 shared_datasource sds = std::static_pointer_cast<kis_datasource>(s);
-                if (!sds->get_source_remote() &&
+
+                if (!sds->get_source_remote() && sds->get_source_running() &&
                         (il->get_interface() == sds->get_source_interface() ||
-                         il->get_interface() == sds->get_source_cap_interface())) {
+                         il->get_interface() == sds->get_source_cap_interface() ||
+                         il->get_cap_interface() == sds->get_source_interface() ||
+                         il->get_cap_interface() == sds->get_source_cap_interface())) {
                     il->set_in_use_uuid(sds->get_source_uuid());
                     break;
                 }

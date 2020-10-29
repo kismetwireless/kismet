@@ -46,6 +46,7 @@ message SubInterface {
     required string interface = 1;
     required string flags = 2;
     optional string hardware = 3;
+    optional string capinterface = 4; // Capture interface mapped below the virtual interface name, ie rtlXYZ-N or wlan0mon
 }
 
 // Packetized data
