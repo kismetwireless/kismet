@@ -503,7 +503,6 @@ void kis_datasource::handle_error(const std::string& in_error) {
     evt->get_event_content()->insert(event_datasource_error(), source_uuid);
     eventbus->publish(evt);
 
-
     handle_source_error();
     cancel_all_commands(in_error);
 
@@ -1007,8 +1006,7 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
 
     // If we got here we're valid; start a PING timer
     if (ping_timer_id <= 0) {
-        ping_timer_id = timetracker->register_timer(SERVER_TIMESLICES_SEC, NULL,
-                1, [this](int) -> int {
+        ping_timer_id = timetracker->register_timer(std::chrono::seconds(1), true, [this](int) -> int {
             local_locker lock(&ext_mutex, "datasource::ping_timer lambda");
             
             if (!get_source_running()) {
@@ -1684,6 +1682,11 @@ void kis_datasource::handle_source_error() {
 
     std::stringstream ss;
 
+    if (ping_timer_id > 0) {
+        timetracker->remove_timer(ping_timer_id);
+        ping_timer_id = -1;
+    }
+
     // Do nothing if we don't handle retry
     if (get_source_remote()) {
         if (get_source_running()) {
@@ -1696,11 +1699,6 @@ void kis_datasource::handle_source_error() {
             alertracker->raise_one_shot("SOURCEERROR", ss.str(), -1);
 
             _MSG(ss.str(), MSGFLAG_ERROR);
-        }
-
-        if (ping_timer_id > 0) {
-            timetracker->remove_timer(ping_timer_id);
-            ping_timer_id = -1;
         }
 
         set_int_source_running(false);
@@ -1720,21 +1718,11 @@ void kis_datasource::handle_source_error() {
             _MSG(ss.str(), MSGFLAG_ERROR);
         }
 
-        if (ping_timer_id > 0) {
-            timetracker->remove_timer(ping_timer_id);
-            ping_timer_id = -1;
-        }
-
         set_int_source_running(false);
 
         return;
     }
     
-    if (ping_timer_id > 0) {
-        timetracker->remove_timer(ping_timer_id);
-        ping_timer_id = -1;
-    }
-
     set_int_source_running(false);
 
     // If we already have an error timer, we're thinking about restarting, 
@@ -1758,8 +1746,7 @@ void kis_datasource::handle_source_error() {
         _MSG(ss.str(), MSGFLAG_ERROR);
 
         // Set a new event to try to re-open the interface
-        error_timer_id = timetracker->register_timer(SERVER_TIMESLICES_SEC * 5,
-                NULL, 0, [this](int) -> int {
+        error_timer_id = timetracker->register_timer(std::chrono::seconds(5), false, [this](int) -> int {
                 local_locker lock(&ext_mutex, "datasource::error_timer lambda");
 
                 error_timer_id = 0;
