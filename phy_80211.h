@@ -116,6 +116,8 @@ class dot11_packinfo : public packet_component {
             subtype = packet_sub_unknown;
             source_mac = mac_addr(0);
             dest_mac = mac_addr(0);
+            transmit_mac = mac_addr(0);
+            receive_mac = mac_addr(0);
             bssid_mac = mac_addr(0);
             other_mac = mac_addr(0);
             distrib = distrib_unknown;
@@ -138,7 +140,7 @@ class dot11_packinfo : public packet_component {
 
             maxrate = 0;
 
-            // Many of thse will not be available until the IE tags are parsed
+            // Many of these will not be available until the IE tags are parsed
             ietag_csum = 0;
 
             dot11d_country = "";
@@ -189,6 +191,8 @@ class dot11_packinfo : public packet_component {
         // Address set
         mac_addr source_mac;
         mac_addr dest_mac;
+        mac_addr transmit_mac;
+        mac_addr receive_mac;
         mac_addr bssid_mac;
         mac_addr other_mac;
 

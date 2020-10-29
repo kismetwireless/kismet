@@ -414,8 +414,6 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
 
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-            packinfo->bssid_mac = mac_addr(0);
-            packinfo->other_mac = mac_addr(0);
 
         } else if (fc->subtype == 8) {
             packinfo->subtype = packet_sub_block_ack_req;
@@ -428,8 +426,6 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
 
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-            packinfo->bssid_mac = mac_addr(0);
-            packinfo->other_mac = mac_addr(0);
 
         } else if (fc->subtype == 9) {
             packinfo->subtype = packet_sub_block_ack;
@@ -453,8 +449,6 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
 
             packinfo->source_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->bssid_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-            packinfo->dest_mac = mac_addr(0);
-            packinfo->other_mac = mac_addr(0);
 
         } else if (fc->subtype == 11) {
             packinfo->subtype = packet_sub_rts;
@@ -467,8 +461,6 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
 
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-            packinfo->bssid_mac = mac_addr(0);
-            packinfo->other_mac = mac_addr(0);
 
         } else if (fc->subtype == 12) {
             packinfo->subtype = packet_sub_cts;
@@ -481,8 +473,6 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
 
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->source_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-            packinfo->bssid_mac = mac_addr(0);
-            packinfo->other_mac = mac_addr(0);
 
         } else if (fc->subtype == 13) {
             packinfo->subtype = packet_sub_ack;
@@ -495,40 +485,23 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
 
             packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
             packinfo->source_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-            packinfo->bssid_mac = mac_addr(0);
-            packinfo->other_mac = mac_addr(0);
 
         } else if (fc->subtype == 14) {
             packinfo->subtype = packet_sub_cf_end;
 
-            packinfo->bssid_mac = mac_addr(0);
-            packinfo->source_mac = mac_addr(0);
-            packinfo->dest_mac = mac_addr(0);
-            packinfo->other_mac = mac_addr(0);
-
         } else if (fc->subtype == 15) {
             packinfo->subtype = packet_sub_cf_end_ack;
-
-            packinfo->bssid_mac = mac_addr(0);
-            packinfo->source_mac = mac_addr(0);
-            packinfo->dest_mac = mac_addr(0);
-            packinfo->other_mac = mac_addr(0);
 
         } else {
             // fmt::print(stderr, "debug - unknown type - {} {}\n", fc->type, fc->subtype);
             packinfo->subtype = packet_sub_unknown;
-
-            packinfo->bssid_mac = mac_addr(0);
-            packinfo->source_mac = mac_addr(0);
-            packinfo->dest_mac = mac_addr(0);
-            packinfo->other_mac = mac_addr(0);
         }
 
         // Fill in the common addressing before we bail on a phy
         common->source = packinfo->source_mac;
         common->dest = packinfo->dest_mac;
         common->network = packinfo->bssid_mac;
-        common->transmitter = packinfo->other_mac;
+        common->transmitter = packinfo->transmit_mac;
         common->type = packet_basic_data;
 
         // Nothing more to do if we get a phy
@@ -984,9 +957,10 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
                 return 0;
             }
 
-            packinfo->dest_mac = mac_addr(addr0, PHY80211_MAC_LEN);
-            packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
-            packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
+            packinfo->receive_mac = mac_addr(addr0, PHY80211_MAC_LEN);
+            packinfo->transmit_mac = mac_addr(addr1, PHY80211_MAC_LEN);
+            packinfo->dest_mac = mac_addr(addr2, PHY80211_MAC_LEN);
+            packinfo->source_mac = mac_addr(addr3, PHY80211_MAC_LEN);
 
             packinfo->distrib = distrib_inter;
 
@@ -1214,7 +1188,7 @@ eap_end:
     common->source = packinfo->source_mac;
     common->dest = packinfo->dest_mac;
     common->network = packinfo->bssid_mac;
-    common->transmitter = packinfo->other_mac;
+    common->transmitter = packinfo->transmit_mac;
     common->type = packet_basic_data;
 
     in_pack->insert(pack_comp_80211, packinfo);
