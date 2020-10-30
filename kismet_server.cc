@@ -972,8 +972,8 @@ int main(int argc, char *argv[], char *envp[]) {
     std::vector<std::thread> iov;
     iov.reserve(Globalreg::globalreg->n_io_threads);
     for (auto i = Globalreg::globalreg->n_io_threads - 1; i > 0; i--) {
-        iov.emplace_back([] () {
-                thread_set_process_name("IO");
+        iov.emplace_back([i] () {
+                thread_set_process_name(fmt::format("IO {}", i));
                 Globalreg::globalreg->io.run();
                 });
     }

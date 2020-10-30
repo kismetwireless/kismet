@@ -188,7 +188,7 @@ void kis_external_interface::start_ipc_read(std::shared_ptr<kis_external_interfa
 
     boost::asio::async_read(ipc_in, in_buf,
             boost::asio::transfer_at_least(sizeof(kismet_external_frame_t)),
-            strand_.wrap([this, ref](const boost::system::error_code& ec, std::size_t t) {
+            boost::asio::bind_executor(strand_, [this, ref](const boost::system::error_code& ec, std::size_t t) {
             if (handle_read(ref, ec, t) > 0)
                 start_ipc_read(ref);
             else
@@ -202,9 +202,11 @@ void kis_external_interface::start_tcp_read(std::shared_ptr<kis_external_interfa
 
     boost::asio::async_read(tcpsocket, in_buf,
             boost::asio::transfer_at_least(sizeof(kismet_external_frame_t)),
-            strand_.wrap([this, ref](const boost::system::error_code& ec, std::size_t t) {
+            boost::asio::bind_executor(strand_, [this, ref](const boost::system::error_code& ec, std::size_t t) {
             if (handle_read(ref, ec, t) >= 0)
                 start_tcp_read(ref);
+            else
+                close_external();
             }));
 }
 
@@ -452,11 +454,13 @@ void kis_external_interface::start_write(const char *data, size_t len) {
     auto buf = std::make_shared<std::string>(data, len);
 
     boost::asio::post(strand_, 
-            [this, buf]() {
+            [this, buf, len]() {
             out_bufs.push_back(buf);
 
-            if (out_bufs.size() > 1)
+            if (out_bufs.size() > 1) {
+                _MSG_DEBUG("external interface writing len {}, bufs queue {} deep", len, out_bufs.size());
                 return;
+            }
 
             write_impl();
 
@@ -474,17 +478,17 @@ void kis_external_interface::write_impl() {
                     
                     if (ec == 0)
                         errc = boost::asio::error::make_error_code(boost::asio::stream_errc::eof);
-                    
-                    handle_write(errc);
+                   
+                    strand_.post([this, errc]() { handle_write(errc); });
                 });
     } else if (ipc_out.is_open()) {
         boost::asio::async_write(ipc_out, boost::asio::buffer(buf->data(), buf->size()),
-                strand_.wrap([this](const boost::system::error_code& ec, std::size_t) {
+                boost::asio::bind_executor(strand_, [this](const boost::system::error_code& ec, std::size_t) {
                     handle_write(ec);
                 }));
     } else if (tcpsocket.is_open()) {
         boost::asio::async_write(tcpsocket, boost::asio::buffer(buf->data(), buf->size()),
-                strand_.wrap([this](const boost::system::error_code& ec, std::size_t) {
+                boost::asio::bind_executor(strand_, [this](const boost::system::error_code& ec, std::size_t) {
                     handle_write(ec);
                 }));
     } else {
@@ -507,8 +511,10 @@ void kis_external_interface::handle_write(const boost::system::error_code& ec) {
         return;
     }
 
-    if (out_bufs.size())
-        write_impl();
+    if (out_bufs.size()) {
+        _MSG_DEBUG("external write finished writing buf, {} remain", out_bufs.size());
+        return write_impl();
+    }
 }
 
 unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal::Command> c) {
