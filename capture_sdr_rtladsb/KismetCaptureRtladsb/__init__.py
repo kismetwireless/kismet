@@ -594,7 +594,13 @@ class KismetRtladsb(object):
 
     def __async_radio_thread(self):
         # This function blocks forever until cancelled
-        self.rtlsdr.read_samples(self.rtl_data_cb, 12, self.usb_buf_sz)
+        try:
+            self.rtlsdr.read_samples(self.rtl_data_cb, 12, self.usb_buf_sz)
+        except rtlsdr.RadioOperationalError as e:
+            if not self.kismet.inSpindown():
+                self.kismet.send_datasource_error_report(message = f"Error reading from RTLSDR: {e}")
+        except Exception as e:
+            self.kismet.send_datasource_error_report(message = f"Error reading from RTLSDR: {e}")
 
         # Always make sure we die
         self.kill_adsb()

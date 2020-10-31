@@ -551,6 +551,14 @@ class ExternalInterface(object):
 
         self.kill()
 
+    def inSpindown(self):
+        """
+        Are we coasting down?
+
+        :return: Boolean
+        """
+        return self.graceful_spindown
+
     def write_raw_packet(self, kedata):
         """
         Wrap a raw piece of data in a Kismet external interface frame and write it;

@@ -390,7 +390,13 @@ class KismetRtlamr(object):
 
     def __async_radio_thread(self):
         # This function blocks forever until cancelled
-        self.rtlsdr.read_samples(self.rtl_data_cb, 12, self.usb_buf_sz)
+        try:
+            self.rtlsdr.read_samples(self.rtl_data_cb, 12, self.usb_buf_sz)
+        except rtlsdr.RadioOperationalError as e:
+            if not self.kismet.inSpindown():
+                self.kismet.send_datasource_error_report(message = f"Error reading from RTLSDR: {e}")
+        except Exception as e:
+            self.kismet.send_datasource_error_report(message = f"Error reading from RTLSDR: {e}")
 
         # Always make sure we die
         self.kill_amr()
@@ -443,6 +449,9 @@ class KismetRtlamr(object):
             return
 
     def rtl_data_cb(self, buf, buflen, ctx):
+        if buflen == 0:
+            raise RuntimeError("received empty data from rtlsdr")
+
         nb = np.ctypeslib.as_array(buf, shape=(buflen,)).astype(np.uint8)
         self.process(nb)
         return 

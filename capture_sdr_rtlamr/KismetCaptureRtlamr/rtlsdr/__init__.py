@@ -1,5 +1,7 @@
 import ctypes
 
+__version__ = "2020.10.01"
+
 class RadioMissingLibrtlsdr(Exception):
     pass
 
@@ -7,6 +9,9 @@ class RadioOpenError(Exception):
     pass
 
 class RadioConfigError(RadioOpenError):
+    pass
+
+class RadioOperationalError(Exception):
     pass
 
 class RtlSdr(object):
@@ -91,7 +96,7 @@ class RtlSdr(object):
 
             self.rtl_read_async = self.rtllib.rtlsdr_read_async
             self.rtl_read_async.argtypes = [ctypes.c_void_p, self.rtl_read_async_cb_t, ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint]
-            self.rtl_read_async.restype = None
+            self.rtl_read_async.restype = ctypes.c_int
 
             self.rtl_cancel_async = self.rtllib.rtlsdr_cancel_async
             self.rtl_cancel_async.argtypes = [ctypes.c_void_p]
@@ -191,7 +196,10 @@ class RtlSdr(object):
         """
         
         rtl_read_async_cb = self.rtl_read_async_cb_t(callback)
-        self.rtl_read_async(self.rtlradio, rtl_read_async_cb, None, nbufs, bufsz)
+        r = self.rtl_read_async(self.rtlradio, rtl_read_async_cb, None, nbufs, bufsz)
+
+        if not r == 0:
+            raise RadioOpenError(f"Error reading from rtlsdr: {r}")
 
     def get_rtl_usb_info(self, index):
         # Allocate memory buffers
