@@ -1009,7 +1009,7 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
 
     // If we got here we're valid; start a PING timer
     if (ping_timer_id <= 0) {
-        ping_timer_id = timetracker->register_timer(std::chrono::seconds(1), true, [this](int) -> int {
+        ping_timer_id = timetracker->register_timer(std::chrono::seconds(5), true, [this](int) -> int {
             local_locker lock(&ext_mutex, "datasource::ping_timer lambda");
             
             if (!get_source_running()) {
