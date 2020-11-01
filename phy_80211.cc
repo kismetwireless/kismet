@@ -1766,17 +1766,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 dot11info->new_device = true;
             }
 
-            if (dot11info->channel != "0" && dot11info->channel != "") {
-                receive_dev->set_channel(dot11info->channel);
-            } else if (pack_l1info != NULL && (pack_l1info->freq_khz != receive_dev->get_frequency() ||
-                    receive_dev->get_channel() == "")) {
-                try {
-                    receive_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
-                } catch (const std::runtime_error& e) {
-                    ;
-                }
-            }
-
             receive_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP | KIS_DEVICE_BASICTYPE_PEER);
             receive_dev->set_tracker_type_string(d11phy->devicetracker->get_cached_devicetype("Wi-Fi WDS AP"));
 
