@@ -531,6 +531,145 @@ device_tracker::device_tracker() :
                     streamtracker->remove_streamer(sid);
                 }));
 
+    httpd->register_route("/devices/alerts/mac/:type/add", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    auto type = con->uri_params()[":type"];
+                    int type_set = 0;
+
+                    if (type == "found")
+                        type_set = 1;
+                    else if (type == "lost")
+                        type_set = 2;
+                    else if (type == "both")
+                        type_set = 3;
+                    else
+                        throw std::runtime_error("Unknown alert type, expected found, lost, or both");
+
+                    std::vector<mac_addr> mac_list;
+
+                    if (!con->json()["mac"].isNull()) {
+                        auto mac = mac_addr(con->json()["mac"].asString());
+
+                        if (mac.error())
+                            throw std::runtime_error("invalid MAC address");
+
+                        mac_list.push_back(mac);
+                    }
+
+                    if (con->json()["macs"].isArray()) {
+                        for (auto jv : con->json()["macs"]) {
+                            auto mac = mac_addr(jv.asString());
+
+                            if (mac.error())
+                                throw std::runtime_error("invalid MAC address in macs list");
+
+                            mac_list.push_back(mac);
+                        }
+                    }
+
+                    if (mac_list.size() == 0) 
+                        throw std::runtime_error("expected MAC address in mac or macs[]");
+
+                    local_locker l(&devicelist_mutex, "devicefound/add");
+
+                    for (auto mi : mac_list) {
+                        auto ek = macdevice_alert_conf_map.find(mi);
+
+                        if (ek != macdevice_alert_conf_map.end())
+                            ek->second |= type_set;
+                        else
+                            macdevice_alert_conf_map[mi] = type_set;
+                    }
+                }));
+
+    httpd->register_route("/devices/alerts/mac/:type/remove", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    auto type = con->uri_params()[":type"];
+                    int type_set = 0;
+
+                    if (type == "found")
+                        type_set = 1;
+                    else if (type == "lost")
+                        type_set = 2;
+                    else if (type == "both")
+                        type_set = 3;
+                    else
+                        throw std::runtime_error("Unknown alert type, expected found, lost, or both");
+
+                    std::vector<mac_addr> mac_list;
+
+                    if (!con->json()["mac"].isNull()) {
+                        auto mac = mac_addr(con->json()["mac"].asString());
+
+                        if (mac.error())
+                            throw std::runtime_error("invalid MAC address");
+
+                        mac_list.push_back(mac);
+                    }
+
+                    if (con->json()["macs"].isArray()) {
+                        for (auto jv : con->json()["macs"]) {
+                            auto mac = mac_addr(jv.asString());
+
+                            if (mac.error())
+                                throw std::runtime_error("invalid MAC address in macs list");
+
+                            mac_list.push_back(mac);
+                        }
+                    }
+
+                    if (mac_list.size() == 0) 
+                        throw std::runtime_error("expected MAC address in mac or macs[]");
+
+                    local_locker l(&devicelist_mutex, "devicefound/remove");
+
+                    for (auto mi : mac_list) {
+                        auto ek = macdevice_alert_conf_map.find(mi);
+
+                        if (ek != macdevice_alert_conf_map.end()) {
+                            ek->second &= ~type_set;
+
+                            if (ek->second == 0) {
+                                for (unsigned int mi2 = 0; mi2 < macdevice_flagged_vec.size(); mi2++) {
+                                    if (mi == macdevice_flagged_vec[mi2]->get_macaddr()) {
+                                        macdevice_flagged_vec.erase(macdevice_flagged_vec.begin() + mi2);
+                                        break;
+                                    }
+                                }
+
+                                macdevice_alert_conf_map.erase(ek);
+                            }
+                        }
+                    }
+                }));
+
+    httpd->register_route("/devices/alerts/mac/:type/macs", {"GET"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element_vector> {
+                    auto type = con->uri_params()[":type"];
+                    int type_set = 0;
+
+                    if (type == "found")
+                        type_set = 1;
+                    else if (type == "lost")
+                        type_set = 2;
+                    else if (type == "both")
+                        type_set = 3;
+                    else
+                        throw std::runtime_error("Unknown alert type, expected found, lost, or both");
+
+                    auto ret = std::make_shared<tracker_element_vector>();
+
+                    for (auto mi : macdevice_alert_conf_map) {
+                        if ((mi.second & type_set))
+                            ret->push_back(std::make_shared<tracker_element_mac_addr>(mi.first));
+                    }
+
+                    return ret;
+                }, &devicelist_mutex));
+
 
     phy_phyentry_id =
         entrytracker->register_field("kismet.phy.phy",
