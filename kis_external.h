@@ -214,6 +214,7 @@ protected:
     std::map<uint32_t, std::shared_ptr<kis_external_http_session> > http_proxy_session_map;
 
 public:
+    static const int result_handle_packet_cancelled = -2;
     static const int result_handle_packet_error = -1;
     static const int result_handle_packet_needbuf = 1;
     static const int result_handle_packet_ok = 2;
