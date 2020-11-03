@@ -299,6 +299,10 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                         throw std::runtime_error("auth creation/deletion is disabled in the kismet configuration");
 
                     auto n_auth_name = con->json()["name"].asString();
+
+                    if (n_auth_name == "web logon")
+                        throw std::runtime_error("cannot remove autoprovisioned web logon");
+
                     remove_auth(n_auth_name);
 
                     std::ostream os(&con->response_stream());
@@ -312,6 +316,9 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                 auto ret = std::make_shared<tracker_element_vector>();
 
                 for (const auto& a : auth_vec) {
+                    if (a->name() == "web logon")
+                        continue;
+
                     // Be lazy and don't generate a full tracked element, this is a super rare endpoint anyhow
                     auto amap = std::make_shared<tracker_element_string_map>();
                     amap->insert(std::make_pair("kismet.httpd.auth.name", 
