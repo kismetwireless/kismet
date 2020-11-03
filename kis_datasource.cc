@@ -433,25 +433,6 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
     send_open_source(in_definition, 0, in_cb);
 }
 
-void kis_datasource::close_source() {
-    local_locker lock(&ext_mutex, "datasource::close_source");
-
-    if (ping_timer_id > 0) {
-        timetracker->remove_timer(ping_timer_id);
-        ping_timer_id = -1;
-    }
-
-    auto evt = eventbus->get_eventbus_event(event_datasource_closed());
-    evt->get_event_content()->insert(event_datasource_closed(), source_uuid);
-    eventbus->publish(evt);
-
-    cancel_all_commands("closing source");
-
-    set_int_source_running(false);
-
-    close_external();
-}
-
 void kis_datasource::disable_source() {
     local_locker lock(&ext_mutex, "datasource::disable_source");
 
@@ -509,8 +490,30 @@ void kis_datasource::handle_error(const std::string& in_error) {
     handle_source_error();
     cancel_all_commands(in_error);
 
-    // Kill any interaction w/ the source
-    close_source();
+    close_external();
+}
+
+void kis_datasource::close_source() {
+    return close_external();
+}
+
+void kis_datasource::close_external() {
+    local_locker lock(&ext_mutex, "datasource::close_external");
+
+    if (ping_timer_id > 0) {
+        timetracker->remove_timer(ping_timer_id);
+        ping_timer_id = -1;
+    }
+
+    auto evt = eventbus->get_eventbus_event(event_datasource_closed());
+    evt->get_event_content()->insert(event_datasource_closed(), source_uuid);
+    eventbus->publish(evt);
+
+    set_int_source_running(false);
+
+    cancel_all_commands("source closed");
+
+    kis_external_interface::close_external();
 }
 
 std::string kis_datasource::get_definition_opt(std::string in_opt) {

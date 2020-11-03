@@ -426,6 +426,8 @@ protected:
     // shuts down the buffer and ipc, and initiates retry if we retry errors
     virtual void handle_error(const std::string& in_reason) override;
 
+    virtual void close_external() override;
+
 
     // Common interface parsing to set our name/uuid/interface and interface
     // config pairs.  Once this is done it will have automatically set any 

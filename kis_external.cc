@@ -46,6 +46,7 @@ kis_external_interface::kis_external_interface() :
     strand_{Globalreg::globalreg->io},
     ipc_in{Globalreg::globalreg->io},
     ipc_out{Globalreg::globalreg->io},
+    ipc_running{false},
     tcpsocket{Globalreg::globalreg->io},
     eventbus{Globalreg::fetch_mandatory_global_as<event_bus>()},
     http_session_id{0} {
@@ -141,6 +142,8 @@ void kis_external_interface::ipc_soft_kill() {
         ipctracker->remove_ipc(ipc.pid);
         kill(ipc.pid, SIGTERM);
     }
+
+    ipc_running = false;
 }
 
 void kis_external_interface::ipc_hard_kill() {
@@ -170,6 +173,7 @@ void kis_external_interface::ipc_hard_kill() {
         kill(ipc.pid, SIGKILL);
     }
 
+    ipc_running = false;
 }
 
 void kis_external_interface::trigger_error(const std::string& in_error) {
@@ -192,13 +196,30 @@ void kis_external_interface::start_ipc_read(std::shared_ptr<kis_external_interfa
     boost::asio::async_read(ipc_in, in_buf,
             boost::asio::transfer_at_least(sizeof(kismet_external_frame_t)),
             boost::asio::bind_executor(strand_, [this, ref](const boost::system::error_code& ec, std::size_t t) {
-            if (handle_read(ref, ec, t) >= 0) {
-                start_ipc_read(ref);
-            } else {
-                if (!cancelled) {
-                    trigger_error("ipc read failed");
+            if (ec) {
+                if (ec.value() == boost::asio::error::operation_aborted) {
+                    if (ipc_running)
+                        return trigger_error("IPC connection aborted");
+
+                    return close_external();
                 }
-            }
+
+                if (ec.value() == boost::asio::error::eof) {
+                    if (ipc_running)
+                        return trigger_error("IPC connection closed");
+
+                    return close_external();
+                }
+
+                return trigger_error(fmt::format("IPC connection error: {}", ec.message()));
+            } 
+
+            auto r = handle_packet(in_buf);
+
+            if (r < 0)
+                return trigger_error("IPC read processing error");
+
+            return start_ipc_read(ref);
             }));
 }
 
@@ -212,43 +233,31 @@ void kis_external_interface::start_tcp_read(std::shared_ptr<kis_external_interfa
     boost::asio::async_read(tcpsocket, in_buf,
             boost::asio::transfer_at_least(sizeof(kismet_external_frame_t)),
             boost::asio::bind_executor(strand_, [this, ref](const boost::system::error_code& ec, std::size_t t) {
-            if (handle_read(ref, ec, t) >= 0) {
-                start_tcp_read(ref);
-            } else {
-                if (!cancelled) {
-                    trigger_error("tcp read failed");
+            if (ec) {
+                if (ec.value() == boost::asio::error::operation_aborted) {
+                    if (!stopped || !cancelled)
+                        return trigger_error("TCP connection aborted");
+
+                    return close_external();
                 }
-            }
 
+                if (ec.value() == boost::asio::error::eof) {
+                    if (!stopped || !cancelled)
+                        return trigger_error("TCP connection closed");
+
+                    return close_external();
+                }
+
+                return trigger_error(fmt::format("TCP connection error: {}", ec.message()));
+            } 
+
+            auto r = handle_packet(in_buf);
+
+            if (r < 0)
+                return trigger_error("TCP read processing error");
+
+            return start_tcp_read(ref);
             }));
-}
-
-int kis_external_interface::handle_read(std::shared_ptr<kis_external_interface> ref, 
-        const boost::system::error_code& ec, size_t in_amt) {
-
-    if (stopped || cancelled) 
-        return result_handle_packet_cancelled;
-
-    if (ec) {
-        // Exit on aborted errors, we've already been cancelled and this socket is closing out
-        if (ec.value() == boost::asio::error::operation_aborted) {
-            if (!cancelled)
-                trigger_error("External API connection closed");
-
-            return -1;
-        }
-
-        if (ec.value() == boost::asio::error::eof) {
-            trigger_error("External socket closed");
-        } else {
-            _MSG_ERROR("External API handler got error reading data: {}", ec.message());
-            trigger_error(ec.message());
-        }
-
-        return -1;
-    }
-
-    return handle_packet(in_buf);
 }
 
 bool kis_external_interface::check_ipc(const std::string& in_binary) {
@@ -451,6 +460,7 @@ bool kis_external_interface::run_ipc() {
 
     stopped = false;
     cancelled = false;
+    ipc_running = true;
 
     start_ipc_read(shared_from_this());
 

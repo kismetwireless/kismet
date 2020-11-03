@@ -161,9 +161,6 @@ protected:
     // Async input
     boost::asio::streambuf in_buf;
 
-    int handle_read(std::shared_ptr<kis_external_interface> ref, 
-            const boost::system::error_code& ec, size_t sz);
-
     std::list<std::shared_ptr<std::string>> out_bufs;
 
     void start_write(const char *data, size_t len);
@@ -179,6 +176,8 @@ protected:
 
     kis_ipc_record ipc;
     boost::asio::posix::stream_descriptor ipc_in, ipc_out;
+
+    std::atomic<bool> ipc_running;
 
 
     void start_ipc_read(std::shared_ptr<kis_external_interface> ref);
