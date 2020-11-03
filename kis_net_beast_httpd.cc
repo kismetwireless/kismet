@@ -271,7 +271,7 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                 os << "Login configured\n";
             }));
 
-    register_route("/auth/apikey/generate", {"POST"}, LOGON_ROLE, {"CMD"},
+    register_route("/auth/apikey/generate", {"POST"}, LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     if (!allow_auth_creation)
@@ -292,7 +292,7 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                     os << token << "\n";
                 }));
 
-    register_route("/auth/apikey/revoke", {"POST"}, LOGON_ROLE, {"CMD"},
+    register_route("/auth/apikey/revoke", {"POST"}, LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     if (!allow_auth_creation)
