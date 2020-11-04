@@ -421,6 +421,7 @@ kis_capture_handler_t *cf_handler_init(const char *in_type) {
     ch->channel_hop_shuffle_spacing = 1;
     ch->channel_hop_failure_list = NULL;
     ch->channel_hop_failure_list_sz = 0;
+    ch->max_channel_hop_rate = 0;
 
     ch->verbose = 0;
 
@@ -1504,7 +1505,9 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
         return -1;
     }
 
-    /* fprintf(stderr, "DEBUG - got cmd %s\n", kds_cmd->command); */
+#if 0
+    fprintf(stderr, "DEBUG - %u got cmd %s\n", getpid(), kds_cmd->command);
+#endif
 
     pthread_mutex_lock(&(caph->handler_lock));
 
@@ -1686,10 +1689,10 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
     } else if (strcasecmp(kds_cmd->command, "KDSCONFIGURE") == 0) {
         KismetDatasource__Configure *conf_cmd;
 
-        double chanhop_rate;
+        double chanhop_rate = 0;
         char **chanhop_channels = NULL;
         void **chanhop_priv_channels = NULL;
-        size_t chanhop_channels_sz, szi;
+        size_t chanhop_channels_sz = 0, szi = 0;
         int chanhop_shuffle = 0, chanhop_shuffle_spacing = 1, chanhop_offset = 0;
         void *translate_chan = NULL;
 
@@ -2313,8 +2316,8 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
             }
 
             if (caph->last_ping != 0 && time(NULL) - caph->last_ping > 15) {
-                fprintf(stderr, "FATAL - Capture source did not get PING from Kismet for "
-                        "over 15 seconds; shutting down\n");
+                fprintf(stderr, "FATAL - Capture source %u did not get PING from Kismet for "
+                        "over 15 seconds; shutting down\n", getpid());
                 pthread_mutex_unlock(&(caph->handler_lock));
                 rv = -1;
                 break;
