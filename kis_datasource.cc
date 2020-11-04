@@ -141,8 +141,6 @@ void kis_datasource::list_interfaces(unsigned int in_transaction, list_callback_
         return;
     }
 
-
-    // Otherwise create and send a list command
     send_list_interfaces(in_transaction, in_cb);
 }
 
@@ -281,6 +279,24 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
 
     // Launch the IPC
     launch_ipc();
+
+    set_int_source_running(true);
+
+    last_pong = time(0);
+
+    // If we got here we're valid; start a PING timer
+    timetracker->remove_timer(ping_timer_id);
+    ping_timer_id = timetracker->register_timer(std::chrono::seconds(5), true, [this](int) -> int {
+        local_locker lock(&ext_mutex, "datasource::ping_timer lambda");
+        
+        if (!get_source_running()) {
+            ping_timer_id = -1;
+            return 0;
+        }
+       
+        send_ping();
+        return 1;
+    });
 
     // Create and send open command
     send_open_source(in_definition, in_transaction, in_cb);
@@ -428,6 +444,24 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
         if (in_remote->closure_cb != nullptr)
             closure_cb = std::move(in_remote->closure_cb);
     }
+
+    in_buf.consume(in_buf.size());
+    out_bufs.clear();
+
+    last_pong = time(0);
+
+    timetracker->remove_timer(ping_timer_id);
+    ping_timer_id = timetracker->register_timer(std::chrono::seconds(5), true, [this](int) -> int {
+        local_locker lock(&ext_mutex, "datasource::ping_timer lambda");
+        
+        if (!get_source_running()) {
+            ping_timer_id = -1;
+            return 0;
+        }
+       
+        send_ping();
+        return 1;
+    });
 
     // Send an opensource
     send_open_source(in_definition, 0, in_cb);
@@ -1007,23 +1041,6 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
         set_int_source_error_reason(msg);
         return;
     } 
-
-    last_pong = time(0);
-
-    // If we got here we're valid; start a PING timer
-    if (ping_timer_id <= 0) {
-        ping_timer_id = timetracker->register_timer(std::chrono::seconds(5), true, [this](int) -> int {
-            local_locker lock(&ext_mutex, "datasource::ping_timer lambda");
-            
-            if (!get_source_running()) {
-                ping_timer_id = -1;
-                return 0;
-            }
-           
-            send_ping();
-            return 1;
-        });
-    }
 }
 
 void kis_datasource::handle_packet_interfaces_report(uint32_t in_seqno, 

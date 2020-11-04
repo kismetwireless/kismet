@@ -165,7 +165,6 @@ protected:
 
     void start_write(const char *data, size_t len);
     void write_impl();
-    void handle_write(const boost::system::error_code& ec);
 
     // Common strand
     boost::asio::io_service::strand strand_;
