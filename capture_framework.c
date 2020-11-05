@@ -3542,6 +3542,9 @@ int cf_drop_most_caps(kis_capture_handler_t *caph) {
 }
 
 int cf_jail_filesystem(kis_capture_handler_t *caph) {
+    /* for now don't jail fs because we need it for flock'ing, revisit this */
+    return 0;
+
 #ifdef SYS_LINUX
     char errstr[STATUS_MAX];
 
