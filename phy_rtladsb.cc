@@ -156,6 +156,59 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
                 packetchain->remove_handler(beast_handler_id, CHAINPOS_LOGGING);
             }));
 
+    httpd->register_websocket_route("/phy/RTLADSB/raw", httpd->RO_ROLE, {"ws"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+
+                auto ws = 
+                    std::make_shared<kis_net_web_websocket_endpoint>(con,
+                        [](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
+                            boost::beast::flat_buffer& buf, bool text) {
+                            // Do nothing on input
+                        });
+
+                auto beast_handler_id = 
+                    packetchain->register_handler(
+                            [this, ws](kis_packet *in_pack) -> int {
+
+                            if (in_pack->error || in_pack->filtered || in_pack->duplicate)
+                                return 0;
+
+                            kis_json_packinfo *json = in_pack->fetch<kis_json_packinfo>(pack_comp_json);
+                            
+                            if (json == NULL)
+                                return 0;
+
+                            if (json->type != "RTLadsb")
+                                return 0;
+
+                            std::stringstream ss(json->json_string);
+                            Json::Value device_json;
+
+                            try {
+                                ss >> device_json;
+
+                                auto adsb_content = 
+                                    fmt::format("*{};\n", device_json["adsb_raw_msg"].asString());
+
+                                ws->write(adsb_content, true);
+                            } catch (std::exception& e) {
+                                return 0;
+                            }
+
+
+                            return 1;
+                    }, CHAINPOS_LOGGING, 1000);
+
+                try {
+                    ws->handle_request(con);
+                } catch (const std::exception& e) {
+                    ;
+                }
+            
+                packetchain->remove_handler(beast_handler_id, CHAINPOS_LOGGING);
+            }));
+
 }
 
 kis_rtladsb_phy::~kis_rtladsb_phy() {
