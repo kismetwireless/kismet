@@ -132,10 +132,12 @@ packet_chain::packet_chain() {
 
     packetchain_shutdown = false;
 
-    packet_thread = std::thread([this]() {
-            thread_set_process_name("packethandler");
-            packet_queue_processor();
-            });
+    for (auto nt = static_cast<int>(std::thread::hardware_concurrency()); nt > 0; nt--) {
+        packet_threads.emplace_back(std::thread([this, nt]() {
+                thread_set_process_name(fmt::format("packethandler {}", nt));
+                packet_queue_processor();
+                }));
+    }
 
     timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
     eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
@@ -159,7 +161,13 @@ packet_chain::~packet_chain() {
         // Tell the packet thread we're dying and unlock it
         packetchain_shutdown = true;
         packet_queue.enqueue(nullptr);
-        packet_thread.join();
+
+        for (auto& t: packet_threads) {
+            if (t.joinable())
+                t.join();
+        }
+
+        // packet_thread.join();
     }
 
     {
