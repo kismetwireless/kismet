@@ -1182,7 +1182,7 @@ void kis_datasource::handle_packet_configure_report(uint32_t in_seqno, const std
         auto cb = ci->second->configure_cb;
         auto transaction = ci->second->transaction;
 
-        _MSG_DEBUG("ds configure report seq {} has cb transaction {} success {} msg {}", seq, transaction, report.success().success(), msg);
+        // _MSG_DEBUG("ds configure report seq {} has cb transaction {} success {} msg {}", seq, transaction, report.success().success(), msg);
 
         command_ack_map.erase(ci);
 
