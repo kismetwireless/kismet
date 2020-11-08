@@ -1706,7 +1706,8 @@ void kis_net_web_websocket_endpoint::handle_request(std::shared_ptr<kis_net_beas
         }
     } catch (const boost::beast::system_error& se) {
         running = false;
-        if (se.code() != boost::beast::websocket::error::closed) {
+        if (se.code() != boost::beast::websocket::error::closed &&
+                se.code() != boost::asio::stream_errc::eof) {
             _MSG_ERROR("Websocket read error: {}", se.code().message());
         } else {
             return close();
