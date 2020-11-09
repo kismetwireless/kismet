@@ -109,8 +109,15 @@ public:
             const std::list<std::string>& extensions, std::shared_ptr<kis_net_web_endpoint> handler);
 
 
-    // Create an auth entry & return it
+    // Create an auth entry & return it; if the auth exists in the system already, throw a runtime exception
     std::string create_auth(const std::string& name, const std::string& role, time_t expiry);
+
+    // Create or find an auth entity; if an auth exists for this name, return the existing token; used during
+    // http basic auth to prevent spamming the auth db with thousands of unique session keys if an API user or
+    // browser doesn't save the returned cookie
+    // If the auth exists but under a different role, throw a runtime exception
+    std::string create_or_find_auth(const std::string& name, const std::string& role, time_t expiry);
+
     // Remove an auth entry based on token
     void remove_auth(const std::string& token);
     void load_auth();
@@ -140,6 +147,9 @@ public:
 protected:
     std::atomic<bool> running;
     unsigned int port;
+
+    bool allow_auth_creation;
+    bool allow_auth_view;
 
     kis_recursive_timed_mutex mime_mutex;
     std::unordered_map<std::string, std::string> mime_map;

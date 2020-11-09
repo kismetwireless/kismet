@@ -451,6 +451,10 @@ public:
     tracker_element_core_scalar(const tracker_element_core_scalar *p) :
         tracker_element{p} { }
 
+    tracker_element_core_scalar(const P& v) :
+        tracker_element{},
+        value{v} { }
+
     // We don't define coercion, subclasses have to do that
     virtual void coercive_set(const std::string& in_str) override = 0;
     virtual void coercive_set(double in_num) override = 0;
@@ -771,6 +775,9 @@ public:
 
     tracker_element_mac_addr(const tracker_element_mac_addr *p) :
         tracker_element_core_scalar<mac_addr>{p} { }
+
+    tracker_element_mac_addr(const mac_addr& m) :
+        tracker_element_core_scalar<mac_addr>{m} { }
 
     virtual tracker_type get_type() const override {
         return tracker_type::tracker_mac_addr;

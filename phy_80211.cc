@@ -1003,12 +1003,14 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
     std::shared_ptr<kis_tracked_device_base> source_dev;
     std::shared_ptr<kis_tracked_device_base> dest_dev;
     std::shared_ptr<kis_tracked_device_base> bssid_dev;
-    std::shared_ptr<kis_tracked_device_base> other_dev;
+    std::shared_ptr<kis_tracked_device_base> receive_dev;
+    std::shared_ptr<kis_tracked_device_base> transmit_dev;
 
     std::shared_ptr<dot11_tracked_device> source_dot11;
     std::shared_ptr<dot11_tracked_device> dest_dot11;
     std::shared_ptr<dot11_tracked_device> bssid_dot11;
-    std::shared_ptr<dot11_tracked_device> other_dot11;
+    std::shared_ptr<dot11_tracked_device> receive_dot11;
+    std::shared_ptr<dot11_tracked_device> transmit_dot11;
 
     if (dot11info->type == packet_management) {
         // Resolve the common structures of management frames; this is a lot of code
@@ -1075,8 +1077,10 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             dev_group->push_back(source_dev);
         if (dest_dev != nullptr)
             dev_group->push_back(dest_dev);
-        if (other_dev != nullptr)
-            dev_group->push_back(other_dev);
+        if (transmit_dev != nullptr)
+            dev_group->push_back(transmit_dev);
+        if (receive_dev != nullptr)
+            dev_group->push_back(receive_dev);
 
         auto rl = devicelist_range_scope_locker(d11phy->devicetracker, dev_group);
 
@@ -1434,15 +1438,30 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                         "Wi-Fi Device (Inferred)");
         }
 
-        if (dot11info->other_mac != dot11info->source_mac &&
-                dot11info->other_mac != dot11info->dest_mac &&
-                dot11info->other_mac != dot11info->bssid_mac &&
-                dot11info->other_mac != globalreg->empty_mac && 
-                !(dot11info->other_mac.bitwise_and(globalreg->multicast_mac)) ) {
+        // WDS transmitter acts like a BSSID, update its signal and location
+        if (dot11info->transmit_mac != dot11info->source_mac &&
+                dot11info->transmit_mac != dot11info->dest_mac &&
+                dot11info->transmit_mac != dot11info->bssid_mac &&
+                dot11info->transmit_mac != globalreg->empty_mac && 
+                !(dot11info->transmit_mac.bitwise_and(globalreg->multicast_mac)) ) {
 
-            other_dev =
+            transmit_dev =
                 d11phy->devicetracker->update_common_device(commoninfo, 
-                        dot11info->other_mac, d11phy, in_pack, 
+                        dot11info->transmit_mac, d11phy, in_pack, 
+                        (update_flags | UCD_UPDATE_FREQUENCIES | UCD_UPDATE_LOCATION |
+                         UCD_UPDATE_ENCRYPTION | UCD_UPDATE_SEENBY | UCD_UPDATE_PACKETS),
+                        "Wi-Fi Device");
+        }
+
+        if (dot11info->receive_mac != dot11info->source_mac &&
+                dot11info->receive_mac != dot11info->dest_mac &&
+                dot11info->receive_mac != dot11info->bssid_mac &&
+                dot11info->receive_mac != globalreg->empty_mac && 
+                !(dot11info->receive_mac.bitwise_and(globalreg->multicast_mac)) ) {
+
+            receive_dev =
+                d11phy->devicetracker->update_common_device(commoninfo, 
+                        dot11info->receive_mac, d11phy, in_pack, 
                         (update_flags | UCD_UPDATE_SEENBY | UCD_UPDATE_PACKETS),
                         "Wi-Fi Device");
         }
@@ -1454,8 +1473,10 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             dev_group->push_back(source_dev);
         if (dest_dev != nullptr)
             dev_group->push_back(dest_dev);
-        if (other_dev != nullptr)
-            dev_group->push_back(other_dev);
+        if (receive_dev != nullptr)
+            dev_group->push_back(receive_dev);
+        if (transmit_dev != nullptr)
+            dev_group->push_back(transmit_dev);
 
         auto rl = devicelist_range_scope_locker(d11phy->devicetracker, dev_group);
 
@@ -1577,7 +1598,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
 
                 source_dev->set_type_string_ifonly([d11phy]() {
-                        return d11phy->devicetracker->get_cached_devicetype("Wi-Fi WDS");
+                        return d11phy->devicetracker->get_cached_devicetype("Wi-Fi WDS Device");
                         }, KIS_DEVICE_BASICTYPE_PEER | KIS_DEVICE_BASICTYPE_DEVICE);
             } else if (dot11info->distrib == distrib_adhoc && dot11info->ibss) {
                 // We're some sort of adhoc device
@@ -1685,46 +1706,78 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             }
         }
 
-        if (other_dev != NULL) {
-            other_dot11 =
-                other_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
+        // WDS transmitter must be a wifi device, and an AP peer
+        if (transmit_dev != NULL) {
+            transmit_dot11 =
+                transmit_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
             std::stringstream newdevstr;
 
-            if (other_dot11 == NULL) {
-                _MSG_INFO("Detected new 802.11 Wi-Fi device {}",
-                        other_dev->get_macaddr().mac_to_string());
+            if (transmit_dot11 == NULL) {
+                _MSG_INFO("Detected new 802.11 Wi-Fi device {}", transmit_dev->get_macaddr());
 
-                dest_dot11 =
+                transmit_dot11 =
                     d11phy->entrytracker->get_shared_instance_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
                 
-                dot11_tracked_device::attach_base_parent(dest_dot11, other_dev);
+                dot11_tracked_device::attach_base_parent(transmit_dot11, transmit_dev);
 
                 dot11info->new_device = true;
             }
 
             if (dot11info->channel != "0" && dot11info->channel != "") {
-                other_dev->set_channel(dot11info->channel);
-            } else if (pack_l1info != NULL && (pack_l1info->freq_khz != other_dev->get_frequency() ||
-                    other_dev->get_channel() == "")) {
+                transmit_dev->set_channel(dot11info->channel);
+            } else if (pack_l1info != NULL && (pack_l1info->freq_khz != transmit_dev->get_frequency() ||
+                    transmit_dev->get_channel() == "")) {
                 try {
-                    other_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
+                    transmit_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
                 } catch (const std::runtime_error& e) {
                     ;
                 }
             }
 
-            other_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP | KIS_DEVICE_BASICTYPE_PEER);
-            other_dev->set_tracker_type_string(d11phy->devicetracker->get_cached_devicetype("Wi-Fi WDS AP"));
+            transmit_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP | KIS_DEVICE_BASICTYPE_PEER);
+            transmit_dev->set_tracker_type_string(d11phy->devicetracker->get_cached_devicetype("Wi-Fi WDS AP"));
 
-            other_dot11->inc_datasize(dot11info->datasize);
+            transmit_dot11->inc_datasize(dot11info->datasize);
 
             if (dot11info->fragmented) {
-                other_dot11->inc_num_fragments(1);
+                transmit_dot11->inc_num_fragments(1);
             }
 
             if (dot11info->retry) {
-                other_dot11->inc_num_retries(1);
-                other_dot11->inc_datasize_retry(dot11info->datasize);
+                transmit_dot11->inc_num_retries(1);
+                transmit_dot11->inc_datasize_retry(dot11info->datasize);
+            }
+        }
+
+        // WDS receiver must also be a wifi device, and an AP peer
+        if (receive_dev != NULL) {
+            receive_dot11 =
+                receive_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
+            std::stringstream newdevstr;
+
+            if (receive_dot11 == NULL) {
+                _MSG_INFO("Detected new 802.11 Wi-Fi device {}", receive_dev->get_macaddr());
+
+                receive_dot11 =
+                    d11phy->entrytracker->get_shared_instance_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
+                
+                dot11_tracked_device::attach_base_parent(receive_dot11, receive_dev);
+
+                dot11info->new_device = true;
+            }
+
+            receive_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_AP | KIS_DEVICE_BASICTYPE_PEER);
+            receive_dev->set_tracker_type_string(d11phy->devicetracker->get_cached_devicetype("Wi-Fi WDS AP"));
+
+            receive_dot11->inc_datasize(dot11info->datasize);
+
+            if (dot11info->fragmented) {
+                receive_dot11->inc_num_fragments(1);
+            }
+
+            if (dot11info->retry) {
+                receive_dot11->inc_num_retries(1);
+                receive_dot11->inc_datasize_retry(dot11info->datasize);
             }
         }
 
@@ -1745,17 +1798,13 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             }
         }
 
-        if (other_dev != NULL) {
-            if (bssid_dev != NULL)
-                d11phy->process_client(other_dev, other_dot11, bssid_dev, bssid_dot11, 
+        // If we're WDS, link source and dest devices as clients of the transmitting WDS AP
+        if (transmit_dev != NULL) {
+            if (source_dev != NULL) 
+                d11phy->process_client(transmit_dev, transmit_dot11, source_dev, source_dot11,
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
-
-            if (source_dev != NULL)
-                d11phy->process_client(other_dev, other_dot11, source_dev, source_dot11, 
-                        in_pack, dot11info, pack_gpsinfo, pack_datainfo);
-
             if (dest_dev != NULL)
-                d11phy->process_client(other_dev, other_dot11, dest_dev, dest_dot11, 
+                d11phy->process_client(transmit_dev, transmit_dot11, source_dev, source_dot11,
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
         }
     }

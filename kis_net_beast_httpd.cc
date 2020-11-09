@@ -123,6 +123,9 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
         register_mime_type(comps[0], comps[1]);
     }
 
+    allow_auth_creation = Globalreg::globalreg->kismet_config->fetch_opt_bool("httpd_allow_auth_creation", true);
+    allow_auth_view = Globalreg::globalreg->kismet_config->fetch_opt_bool("httpd_allow_auth_view", true);
+
     admin_username = Globalreg::globalreg->kismet_config->fetch_opt("httpd_username");
     admin_password = Globalreg::globalreg->kismet_config->fetch_opt("httpd_password");
 
@@ -267,6 +270,75 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
 
                 os << "Login configured\n";
             }));
+
+    register_route("/auth/apikey/generate", {"POST"}, LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    if (!allow_auth_creation)
+                        throw std::runtime_error("auth creation is disabled in the kismet configuration");
+
+                    auto n_auth_name = con->json()["name"].asString();
+                    auto n_auth_role = con->json()["role"].asString();
+                    auto n_duration = con->json()["duration"].asUInt64();
+
+                    time_t expiration = 0;
+
+                    if (n_duration != 0)
+                        expiration = time(0) + n_duration;
+
+                    auto token = create_auth(n_auth_name, n_auth_role, expiration);
+
+                    std::ostream os(&con->response_stream());
+                    os << token << "\n";
+                }));
+
+    register_route("/auth/apikey/revoke", {"POST"}, LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    if (!allow_auth_creation)
+                        throw std::runtime_error("auth creation/deletion is disabled in the kismet configuration");
+
+                    auto n_auth_name = con->json()["name"].asString();
+
+                    if (n_auth_name == "web logon")
+                        throw std::runtime_error("cannot remove autoprovisioned web logon");
+
+                    remove_auth(n_auth_name);
+
+                    std::ostream os(&con->response_stream());
+                    os << "revoked\n";
+                }));
+
+    register_route("/auth/apikey/list", {"GET"}, LOGON_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+               
+                auto ret = std::make_shared<tracker_element_vector>();
+
+                for (const auto& a : auth_vec) {
+                    if (a->name() == "web logon")
+                        continue;
+
+                    // Be lazy and don't generate a full tracked element, this is a super rare endpoint anyhow
+                    auto amap = std::make_shared<tracker_element_string_map>();
+                    amap->insert(std::make_pair("kismet.httpd.auth.name", 
+                                std::make_shared<tracker_element_string>(a->name())));
+                    amap->insert(std::make_pair("kismet.httpd.auth.role",
+                                std::make_shared<tracker_element_string>(a->role())));
+                    amap->insert(std::make_pair("kismet.httpd.auth.expiration",
+                                std::make_shared<tracker_element_uint64>(a->expires())));
+
+                    if (allow_auth_view)
+                        amap->insert(std::make_pair("kismet.httpd.auth.token",
+                                    std::make_shared<tracker_element_string>(a->token())));
+
+                    ret->push_back(amap);
+                }
+
+                return ret;
+
+                }, &auth_mutex));
+
 
     // Test echo websocket
     register_websocket_route("/debug/echo", LOGON_ROLE, {"ws"},
@@ -630,17 +702,12 @@ void kis_net_beast_httpd::register_websocket_route(const std::string& route,
 }
 
 std::string kis_net_beast_httpd::create_auth(const std::string& name, const std::string& role, time_t expiry) {
-    local_locker l(&auth_mutex, "add auth");
+    local_locker l(&auth_mutex, "create_auth");
 
     // Pull an existing token if one exists for this name
     for (const auto& a : auth_vec) {
-        if (a->name() == name && a->role() == role) {
-            if (a->expires() < expiry) {
-                a->set_expiration(expiry);
-                store_auth();
-            }
-
-            return a->token();
+        if (a->name() == name) {
+            throw std::runtime_error("cannot create duplicate auth");
         }
     }
 
@@ -659,6 +726,27 @@ std::string kis_net_beast_httpd::create_auth(const std::string& name, const std:
     store_auth();
 
     return token;
+}
+
+std::string kis_net_beast_httpd::create_or_find_auth(const std::string& name, const std::string& role, time_t expiry) {
+    local_locker l(&auth_mutex, "create_or_find_auth");
+
+    // Pull an existing token if one exists for this name
+    for (const auto& a : auth_vec) {
+        if (a->name() == name) {
+            if (a->role() != role) 
+                throw std::runtime_error("conflicting role for creating or finding auth");
+
+            if (a->expires() < expiry) {
+                a->set_expiration(expiry);
+                store_auth();
+            }
+
+            return a->token();
+        }
+    }
+
+    return create_auth(name, role, expiry);
 }
 
 void kis_net_beast_httpd::remove_auth(const std::string& token) {
@@ -1045,7 +1133,7 @@ bool kis_net_beast_httpd_connection::start() {
 
                             // If we have a valid pw login and no, or an invalid, auth token, create one
                             auth_token_ = 
-                                httpd->create_auth("web logon", httpd->LOGON_ROLE, time(0) + (60*60*24));
+                                httpd->create_or_find_auth("web logon", httpd->LOGON_ROLE, time(0) + (60*60*24));
                         }
                     }
                 }
@@ -1061,7 +1149,7 @@ bool kis_net_beast_httpd_connection::start() {
                     login_role_ = kis_net_beast_httpd::LOGON_ROLE;
 
                     auth_token_ =
-                        httpd->create_auth("web logon", httpd->LOGON_ROLE, time(0) + (60*60*24));
+                        httpd->create_or_find_auth("web logon", httpd->LOGON_ROLE, time(0) + (60*60*24));
                 }
             }
         }
@@ -1618,7 +1706,8 @@ void kis_net_web_websocket_endpoint::handle_request(std::shared_ptr<kis_net_beas
         }
     } catch (const boost::beast::system_error& se) {
         running = false;
-        if (se.code() != boost::beast::websocket::error::closed) {
+        if (se.code() != boost::beast::websocket::error::closed &&
+                se.code() != boost::asio::stream_errc::eof) {
             _MSG_ERROR("Websocket read error: {}", se.code().message());
         } else {
             return close();

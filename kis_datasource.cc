@@ -141,8 +141,6 @@ void kis_datasource::list_interfaces(unsigned int in_transaction, list_callback_
         return;
     }
 
-
-    // Otherwise create and send a list command
     send_list_interfaces(in_transaction, in_cb);
 }
 
@@ -281,6 +279,24 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
 
     // Launch the IPC
     launch_ipc();
+
+    set_int_source_running(true);
+
+    last_pong = time(0);
+
+    // If we got here we're valid; start a PING timer
+    timetracker->remove_timer(ping_timer_id);
+    ping_timer_id = timetracker->register_timer(std::chrono::seconds(5), true, [this](int) -> int {
+        local_locker lock(&ext_mutex, "datasource::ping_timer lambda");
+        
+        if (!get_source_running()) {
+            ping_timer_id = -1;
+            return 0;
+        }
+       
+        send_ping();
+        return 1;
+    });
 
     // Create and send open command
     send_open_source(in_definition, in_transaction, in_cb);
@@ -429,27 +445,26 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
             closure_cb = std::move(in_remote->closure_cb);
     }
 
+    in_buf.consume(in_buf.size());
+    out_bufs.clear();
+
+    last_pong = time(0);
+
+    timetracker->remove_timer(ping_timer_id);
+    ping_timer_id = timetracker->register_timer(std::chrono::seconds(5), true, [this](int) -> int {
+        local_locker lock(&ext_mutex, "datasource::ping_timer lambda");
+        
+        if (!get_source_running()) {
+            ping_timer_id = -1;
+            return 0;
+        }
+       
+        send_ping();
+        return 1;
+    });
+
     // Send an opensource
     send_open_source(in_definition, 0, in_cb);
-}
-
-void kis_datasource::close_source() {
-    local_locker lock(&ext_mutex, "datasource::close_source");
-
-    if (ping_timer_id > 0) {
-        timetracker->remove_timer(ping_timer_id);
-        ping_timer_id = -1;
-    }
-
-    auto evt = eventbus->get_eventbus_event(event_datasource_closed());
-    evt->get_event_content()->insert(event_datasource_closed(), source_uuid);
-    eventbus->publish(evt);
-
-    cancel_all_commands("closing source");
-
-    set_int_source_running(false);
-
-    close_external();
 }
 
 void kis_datasource::disable_source() {
@@ -509,8 +524,30 @@ void kis_datasource::handle_error(const std::string& in_error) {
     handle_source_error();
     cancel_all_commands(in_error);
 
-    // Kill any interaction w/ the source
-    close_source();
+    close_external();
+}
+
+void kis_datasource::close_source() {
+    return close_external();
+}
+
+void kis_datasource::close_external() {
+    local_locker lock(&ext_mutex, "datasource::close_external");
+
+    if (ping_timer_id > 0) {
+        timetracker->remove_timer(ping_timer_id);
+        ping_timer_id = -1;
+    }
+
+    auto evt = eventbus->get_eventbus_event(event_datasource_closed());
+    evt->get_event_content()->insert(event_datasource_closed(), source_uuid);
+    eventbus->publish(evt);
+
+    set_int_source_running(false);
+
+    cancel_all_commands("source closed");
+
+    kis_external_interface::close_external();
 }
 
 std::string kis_datasource::get_definition_opt(std::string in_opt) {
@@ -1004,23 +1041,6 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
         set_int_source_error_reason(msg);
         return;
     } 
-
-    last_pong = time(0);
-
-    // If we got here we're valid; start a PING timer
-    if (ping_timer_id <= 0) {
-        ping_timer_id = timetracker->register_timer(std::chrono::seconds(1), true, [this](int) -> int {
-            local_locker lock(&ext_mutex, "datasource::ping_timer lambda");
-            
-            if (!get_source_running()) {
-                ping_timer_id = -1;
-                return 0;
-            }
-           
-            send_ping();
-            return 1;
-        });
-    }
 }
 
 void kis_datasource::handle_packet_interfaces_report(uint32_t in_seqno, 
@@ -1162,7 +1182,7 @@ void kis_datasource::handle_packet_configure_report(uint32_t in_seqno, const std
         auto cb = ci->second->configure_cb;
         auto transaction = ci->second->transaction;
 
-        _MSG_DEBUG("ds configure report seq {} has cb transaction {} success {} msg {}", seq, transaction, report.success().success(), msg);
+        // _MSG_DEBUG("ds configure report seq {} has cb transaction {} success {} msg {}", seq, transaction, report.success().success(), msg);
 
         command_ack_map.erase(ci);
 

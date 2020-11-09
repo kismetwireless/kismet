@@ -202,19 +202,7 @@ datasource_tracker_source_list::datasource_tracker_source_list(std::shared_ptr<t
     timetracker {Globalreg::fetch_mandatory_global_as<time_tracker>()},
     proto_vec {in_protovec},
     transaction_id {0},
-    cancelled {false} {
-
-    // Set up a cancellation timer
-
-    cancel_event_id = 
-        timetracker->register_timer(std::chrono::seconds(10), false, 
-            [this] (int) -> int {
-                if (cancelled)
-                    return 0;
-                cancel();
-                return 0;
-            });
-}
+    cancelled {false} { }
 
 datasource_tracker_source_list::~datasource_tracker_source_list() {
     cancelled = true;
@@ -230,7 +218,7 @@ datasource_tracker_source_list::~datasource_tracker_source_list() {
 }
 
 void datasource_tracker_source_list::cancel() {
-    local_locker lock(list_lock);
+    local_locker lock(list_lock, "cancel");
 
     if (cancelled)
         return;
@@ -249,6 +237,9 @@ void datasource_tracker_source_list::cancel() {
 
 void datasource_tracker_source_list::complete_list(std::vector<shared_interface> in_list,
         unsigned int in_transaction) {
+
+    local_locker lock(list_lock, "dst_source_list::complete_list");
+
     // If we're already in cancelled state these callbacks mean nothing, ignore them
     if (cancelled)
         return;
@@ -256,8 +247,6 @@ void datasource_tracker_source_list::complete_list(std::vector<shared_interface>
     for (auto i = in_list.begin(); i != in_list.end(); ++i) {
         listed_sources.push_back(*i);
     }
-
-    local_locker lock(list_lock, "dst_source_list::complete_list");
 
     auto v = ipc_list_map.find(in_transaction);
     if (v != ipc_list_map.end()) {
@@ -272,12 +261,16 @@ void datasource_tracker_source_list::complete_list(std::vector<shared_interface>
     }
 }
 
-void datasource_tracker_source_list::list_sources(std::function<void (std::vector<shared_interface>)> in_cb) {
+void datasource_tracker_source_list::list_sources(std::shared_ptr<datasource_tracker_source_list> ref,
+        std::function<void (std::vector<shared_interface>)> in_cb) {
+
     list_cb = in_cb;
 
     std::vector<shared_datasource_builder> remote_builders;
 
     bool created_ipc = false;
+
+    auto self_ref = shared_from_this();
 
     for (auto i : *proto_vec) {
         shared_datasource_builder b = std::static_pointer_cast<kis_datasource_builder>(i);
@@ -298,7 +291,7 @@ void datasource_tracker_source_list::list_sources(std::function<void (std::vecto
         }
 
         pds->list_interfaces(transaction, 
-            [this] (unsigned int transaction, std::vector<shared_interface> interfaces) {
+            [this, self_ref] (unsigned int transaction, std::vector<shared_interface> interfaces) {
                 complete_list(interfaces, transaction);
             });
     }
@@ -306,6 +299,15 @@ void datasource_tracker_source_list::list_sources(std::function<void (std::vecto
     // If we didn't create any IPC events we'll never complete; call cancel directly
     if (!created_ipc)
         cancel();
+
+    cancel_event_id = 
+        timetracker->register_timer(std::chrono::seconds(10), false, 
+            [this, self_ref] (int) -> int {
+                if (cancelled)
+                    return 0;
+                cancel();
+                return 0;
+            });
 }
 
 
@@ -1528,7 +1530,7 @@ void datasource_tracker::list_interfaces(const std::function<void (std::vector<s
     lock.unlock();
 
     // Initiate the probe
-    dst_list->list_sources([this, listid, in_cb](std::vector<shared_interface> interfaces) {
+    dst_list->list_sources(dst_list, [this, listid, in_cb](std::vector<shared_interface> interfaces) {
         local_demand_locker lock(&dst_lock, "datasourcetracker::list_sources cancel lambda");
         lock.lock();
 

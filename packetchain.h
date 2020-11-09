@@ -166,7 +166,8 @@ protected:
     // Packet chain mutex
     kis_recursive_timed_mutex packetchain_mutex;
 
-    std::thread packet_thread;
+    // std::thread packet_thread;
+    std::list<std::thread> packet_threads;
 
     moodycamel::BlockingConcurrentQueue<kis_packet *> packet_queue;
     bool packetchain_shutdown;

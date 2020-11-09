@@ -1418,6 +1418,8 @@ exports.DataSources2 = function() {
     var content =
         $('<div class="k-ds-contentdiv">');
 
+    ds_state['closed'] = 0;
+
     ds_state['panel'] = $.jsPanel({
         id: 'datasources',
         headerTitle: '<i class="fa fa-cogs" /> Data Sources',
@@ -1443,6 +1445,8 @@ exports.DataSources2 = function() {
         },
 
         onclosed: function() {
+            ds_state['closed'] = 1;
+
             if ('datasource_get_tid' in ds_state)
                 clearTimeout(ds_state['datasource_get_tid']);
             if ('datasource_interface_tid' in ds_state)
@@ -1484,6 +1488,9 @@ function datasource_source_refresh(cb) {
             ds_state['defer_source_update'] = false;
         })
         .always(function() {
+            if (ds_state['closed'] == 1)
+                return;
+
             ds_state['datasource_get_tid'] = setTimeout(function() {
                 datasource_source_refresh(cb)
             }, 1000);
@@ -1497,18 +1504,25 @@ function datasource_source_refresh(cb) {
 /* Get the list of potential interfaces */
 function datasource_interface_refresh(cb) {
     var grab_interfaces = function(cb) {
-        $.get(local_uri_prefix + "datasource/list_interfaces.json")
-        .done(function(data) {
-            ds_state['kismet_interfaces'] = kismet.sanitizeObject(data);
-            ds_state['done_interface_update'] = true;
-            cb(data);
-            ds_state['defer_interface_update'] = false;
-        })
-        .always(function() {
+        try {
+            $.ajax({
+                url: local_uri_prefix + "datasource/list_interfaces.json",
+                success: function(data) {
+                    ds_state['kismet_interfaces'] = kismet.sanitizeObject(data);
+                    ds_state['done_interface_update'] = true;
+                    cb(data);
+                    ds_state['defer_interface_update'] = false;
+                },
+                timeout: 30000,
+            });
+        } finally {
+            if (ds_state['closed'] == 1)
+                return;
+
             ds_state['datasource_interface_tid'] = setTimeout(function() {
                 datasource_interface_refresh(cb)
             }, 3000);
-        });
+        }
     };
 
     grab_interfaces(cb);

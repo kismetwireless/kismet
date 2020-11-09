@@ -161,14 +161,10 @@ protected:
     // Async input
     boost::asio::streambuf in_buf;
 
-    int handle_read(std::shared_ptr<kis_external_interface> ref, 
-            const boost::system::error_code& ec, size_t sz);
-
     std::list<std::shared_ptr<std::string>> out_bufs;
 
     void start_write(const char *data, size_t len);
     void write_impl();
-    void handle_write(const boost::system::error_code& ec);
 
     // Common strand
     boost::asio::io_service::strand strand_;
@@ -179,6 +175,8 @@ protected:
 
     kis_ipc_record ipc;
     boost::asio::posix::stream_descriptor ipc_in, ipc_out;
+
+    std::atomic<bool> ipc_running;
 
 
     void start_ipc_read(std::shared_ptr<kis_external_interface> ref);
@@ -214,6 +212,7 @@ protected:
     std::map<uint32_t, std::shared_ptr<kis_external_http_session> > http_proxy_session_map;
 
 public:
+    static const int result_handle_packet_cancelled = -2;
     static const int result_handle_packet_error = -1;
     static const int result_handle_packet_needbuf = 1;
     static const int result_handle_packet_ok = 2;

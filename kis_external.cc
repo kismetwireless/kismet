@@ -46,6 +46,7 @@ kis_external_interface::kis_external_interface() :
     strand_{Globalreg::globalreg->io},
     ipc_in{Globalreg::globalreg->io},
     ipc_out{Globalreg::globalreg->io},
+    ipc_running{false},
     tcpsocket{Globalreg::globalreg->io},
     eventbus{Globalreg::fetch_mandatory_global_as<event_bus>()},
     http_session_id{0} {
@@ -62,6 +63,7 @@ bool kis_external_interface::attach_tcp_socket(tcp::socket& socket) {
 
     stopped = true;
     in_buf.consume(in_buf.size());
+    out_bufs.clear();
 
     if (ipc.pid > 0) {
         _MSG_ERROR("Tried to attach a TCP socket to an external endpoint that already has "
@@ -141,6 +143,8 @@ void kis_external_interface::ipc_soft_kill() {
         ipctracker->remove_ipc(ipc.pid);
         kill(ipc.pid, SIGTERM);
     }
+
+    ipc_running = false;
 }
 
 void kis_external_interface::ipc_hard_kill() {
@@ -170,6 +174,7 @@ void kis_external_interface::ipc_hard_kill() {
         kill(ipc.pid, SIGKILL);
     }
 
+    ipc_running = false;
 }
 
 void kis_external_interface::trigger_error(const std::string& in_error) {
@@ -183,16 +188,42 @@ void kis_external_interface::trigger_error(const std::string& in_error) {
 }
 
 void kis_external_interface::start_ipc_read(std::shared_ptr<kis_external_interface> ref) {
-    if (stopped)
+    if (stopped || cancelled) {
+        handle_packet(in_buf);
         return;
+    }
 
     boost::asio::async_read(ipc_in, in_buf,
             boost::asio::transfer_at_least(sizeof(kismet_external_frame_t)),
-            strand_.wrap([this, ref](const boost::system::error_code& ec, std::size_t t) {
-            if (handle_read(ref, ec, t) > 0)
-                start_ipc_read(ref);
-            else
-                close_external();
+            boost::asio::bind_executor(strand_, [this, ref](const boost::system::error_code& ec, std::size_t t) {
+            if (ec) {
+                if (ec.value() == boost::asio::error::operation_aborted) {
+                    if (ipc_running) {
+                        handle_packet(in_buf);
+                        return trigger_error("IPC connection aborted");
+                    }
+
+                    return close_external();
+                }
+
+                if (ec.value() == boost::asio::error::eof) {
+                    if (ipc_running) {
+                        handle_packet(in_buf);
+                        return trigger_error("IPC connection closed");
+                    }
+
+                    return close_external();
+                }
+
+                return trigger_error(fmt::format("IPC connection error: {}", ec.message()));
+            } 
+
+            auto r = handle_packet(in_buf);
+
+            if (r < 0)
+                return trigger_error("IPC read processing error");
+
+            return start_ipc_read(ref);
             }));
 }
 
@@ -200,45 +231,41 @@ void kis_external_interface::start_tcp_read(std::shared_ptr<kis_external_interfa
     if (stopped)
         return;
 
+    if (cancelled)
+        return;
+
     boost::asio::async_read(tcpsocket, in_buf,
             boost::asio::transfer_at_least(sizeof(kismet_external_frame_t)),
-            strand_.wrap([this, ref](const boost::system::error_code& ec, std::size_t t) {
-            if (handle_read(ref, ec, t) >= 0)
-                start_tcp_read(ref);
+            boost::asio::bind_executor(strand_, [this, ref](const boost::system::error_code& ec, std::size_t t) {
+            if (ec) {
+                if (ec.value() == boost::asio::error::operation_aborted) {
+                    if (!stopped || !cancelled) {
+                        handle_packet(in_buf);
+                        return trigger_error("TCP connection aborted");
+                    }
+
+                    return close_external();
+                }
+
+                if (ec.value() == boost::asio::error::eof) {
+                    if (!stopped || !cancelled) {
+                        handle_packet(in_buf);
+                        return trigger_error("TCP connection closed");
+                    }
+
+                    return close_external();
+                }
+
+                return trigger_error(fmt::format("TCP connection error: {}", ec.message()));
+            } 
+
+            auto r = handle_packet(in_buf);
+
+            if (r < 0)
+                return trigger_error("TCP read processing error");
+
+            return start_tcp_read(ref);
             }));
-}
-
-int kis_external_interface::handle_read(std::shared_ptr<kis_external_interface> ref, 
-        const boost::system::error_code& ec, size_t in_amt) {
-
-    if (stopped)
-        return 0;
-
-    if (cancelled) {
-        close_external();
-        return 0;
-    }
-
-    if (ec) {
-        stopped = true;
-
-        // Exit on aborted errors, we've already been cancelled and this socket is closing out
-        if (ec.value() == boost::asio::error::operation_aborted) {
-            return -1;
-        }
-
-        // Be quiet about EOF
-        if (ec.value() == boost::asio::error::eof) {
-            trigger_error("External socket closed");
-        } else {
-            _MSG_ERROR("External API handler got error reading data: {}", ec.message());
-            trigger_error(ec.message());
-        }
-
-        return -1;
-    }
-
-    return handle_packet(in_buf);
 }
 
 bool kis_external_interface::check_ipc(const std::string& in_binary) {
@@ -275,6 +302,7 @@ bool kis_external_interface::run_ipc() {
 
     stopped = true;
     in_buf.consume(in_buf.size());
+    out_bufs.clear();
 
     if (external_binary == "") {
         _MSG("Kismet external interface did not have an IPC binary to launch", MSGFLAG_ERROR);
@@ -428,17 +456,20 @@ bool kis_external_interface::run_ipc() {
     ipc_out = boost::asio::posix::stream_descriptor(Globalreg::globalreg->io, inpipepair[1]);
     ipc_in = boost::asio::posix::stream_descriptor(Globalreg::globalreg->io, outpipepair[0]);
 
+    auto self_ref = shared_from_this();
+
     ipc = kis_ipc_record(child_pid,
-            [this](const std::string&) {
+            [this, self_ref](const std::string&) {
             close_external();
             },
-            [this](const std::string& err) {
+            [this, self_ref](const std::string& err) {
             trigger_error(err);
             });
     ipctracker->register_ipc(ipc);
 
     stopped = false;
     cancelled = false;
+    ipc_running = true;
 
     start_ipc_read(shared_from_this());
 
@@ -451,12 +482,16 @@ void kis_external_interface::start_write(const char *data, size_t len) {
 
     auto buf = std::make_shared<std::string>(data, len);
 
-    strand_.post([this, buf]() {
+    boost::asio::post(strand_, 
+            [this, buf, len]() {
             out_bufs.push_back(buf);
 
-            if (out_bufs.size() > 1)
+            if (out_bufs.size() > 1) {
+                // _MSG_DEBUG("external interface writing len {}, bufs queue {} deep", len, out_bufs.size());
                 return;
+            }
 
+            // _MSG_DEBUG("external interface triggering writ_impl for len {} bufs depth {}", len, out_bufs.size());
             write_impl();
 
             });
@@ -473,18 +508,68 @@ void kis_external_interface::write_impl() {
                     
                     if (ec == 0)
                         errc = boost::asio::error::make_error_code(boost::asio::stream_errc::eof);
-                    
-                    handle_write(errc);
+                   
+                    strand_.post([this, errc]() { 
+
+                    out_bufs.pop_front();
+
+                    if (errc) {
+                        handle_packet(in_buf);
+
+                        _MSG_ERROR("Kismet external interface got an error writing to callback: {}", errc.message());
+                        trigger_error("write failure");
+                        return;
+                    }
+
+                    if (out_bufs.size()) {
+                        return write_impl();
+                    }
+
+                    });
                 });
     } else if (ipc_out.is_open()) {
         boost::asio::async_write(ipc_out, boost::asio::buffer(buf->data(), buf->size()),
-                strand_.wrap([this](const boost::system::error_code& ec, std::size_t) {
-                    handle_write(ec);
-                }));
+                boost::asio::bind_executor(strand_, [this](const boost::system::error_code& ec, std::size_t) {
+                    out_bufs.pop_front();
+
+                    if (ec) {
+                        handle_packet(in_buf);
+
+                        if (ec.value() == boost::asio::error::operation_aborted) {
+                            return;
+                        }
+
+                        _MSG_ERROR("Kismet external interface got an error writing to external IPC: {}", ec.message());
+                        trigger_error("write failure");
+                        return;
+                    }
+
+                    if (out_bufs.size()) {
+                        return write_impl();
+                    }
+
+                    }));
     } else if (tcpsocket.is_open()) {
         boost::asio::async_write(tcpsocket, boost::asio::buffer(buf->data(), buf->size()),
-                strand_.wrap([this](const boost::system::error_code& ec, std::size_t) {
-                    handle_write(ec);
+                boost::asio::bind_executor(strand_, [this](const boost::system::error_code& ec, std::size_t) {
+                    out_bufs.pop_front();
+
+                    if (ec) {
+                        handle_packet(in_buf);
+
+                        if (ec.value() == boost::asio::error::operation_aborted) {
+                            return;
+                        }
+
+                        _MSG_ERROR("Kismet external interface got an error writing to external IPC: {}", ec.message());
+                        trigger_error("write failure");
+                        return;
+                    }
+
+                    if (out_bufs.size()) {
+                        return write_impl();
+                    }
+
                 }));
     } else {
         _MSG_ERROR("Kismet external interface got an error writing packet, IPC, TCP, callbacks closed");
@@ -492,32 +577,16 @@ void kis_external_interface::write_impl() {
     }
 }
 
-void kis_external_interface::handle_write(const boost::system::error_code& ec) {
-    out_bufs.pop_front();
-
-    if (ec) {
-        if (ec.value() == boost::asio::error::operation_aborted) {
-            _MSG_DEBUG("TCP write operation aborted");
-            // return;
-        }
-
-        _MSG_ERROR("Kismet external interface got an error writing to external connection: {}", ec.message());
-        trigger_error("write failure");
-        return;
-    }
-
-    if (out_bufs.size())
-        write_impl();
-}
-
 unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal::Command> c) {
-    local_locker lock(&ext_mutex, "kei::send_packet");
-
-    if (stopped || cancelled)
+    if (stopped || cancelled) {
+        _MSG_DEBUG("Attempt to send {} on closed external interface", c->command());
         return 0;
+    }
 
     // Set the sequence if one wasn't provided
     if (c->seqno() == 0) {
+        local_locker lock(&ext_mutex, "kei::send_packet");
+
         if (++seqno == 0)
             seqno = 1;
 

@@ -153,12 +153,12 @@ typedef std::shared_ptr<datasource_tracker_source_probe> shared_dst_source_probe
 // IPC sources spawned concurrently, and results aggregated.
 //
 // List requests cancelled after 5 seconds
-class datasource_tracker_source_list {
+class datasource_tracker_source_list : public std::enable_shared_from_this<datasource_tracker_source_list> {
 public:
     datasource_tracker_source_list(std::shared_ptr<tracker_element_vector> in_protovec);
     virtual ~datasource_tracker_source_list();
 
-    void list_sources(std::function<void (std::vector<shared_interface>)> in_cb);
+    void list_sources(std::shared_ptr<datasource_tracker_source_list> ref, std::function<void (std::vector<shared_interface>)> in_cb);
 
     std::string get_definition() { return definition; }
     
