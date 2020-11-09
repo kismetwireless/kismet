@@ -37,30 +37,27 @@
 #include "packet_ieee80211.h"
 
 
-kis_packet::kis_packet(global_registry *in_globalreg) {
-	globalreg = in_globalreg;
-
+kis_packet::kis_packet() {
 	error = 0;
     crc_ok = 0;
 	filtered = 0;
     duplicate = 0;
 
-	// Stock and init the content vector
-	content_vec.resize(MAX_PACKET_COMPONENTS, NULL);
-	/*
-	   for (unsigned int y = 0; y < MAX_PACKET_COMPONENTS; y++)
-	   content_vec[y] = NULL;
-	   */
+    content_vec = new packet_component *[MAX_PACKET_COMPONENTS];
+    for (unsigned int x = 0; x < MAX_PACKET_COMPONENTS; x++)
+        content_vec[x] = nullptr;
 }
 
 kis_packet::~kis_packet() {
-    for (auto pcm : content_vec) {
-        if (pcm == nullptr)
+    for (unsigned int x = 0; x < MAX_PACKET_COMPONENTS; x++) {
+        if (content_vec[x] == nullptr)
             continue;
 
-        if (pcm->self_destruct)
-            delete pcm;
+        if (content_vec[x]->self_destruct)
+            delete content_vec[x];
     }
+
+    delete[] content_vec;
 }
    
 void kis_packet::insert(const unsigned int index, packet_component *data) {
@@ -69,16 +66,16 @@ void kis_packet::insert(const unsigned int index, packet_component *data) {
                     "outside of the maximum bounds {}; this implies the pack_comp_x or _PCM "
                     "index is corrupt.", index, MAX_PACKET_COMPONENTS));
 
-	if (content_vec[index] != NULL)
+	if (content_vec[index] != nullptr)
 		fprintf(stderr, "DEBUG/WARNING: Leaking packet component %u/%s, inserting "
 				"on top of existing\n", index,
-				globalreg->packetchain->fetch_packet_component_name(index).c_str());
+				Globalreg::globalreg->packetchain->fetch_packet_component_name(index).c_str());
 	content_vec[index] = data;
 }
 
 void *kis_packet::fetch(const unsigned int index) const {
 	if (index >= MAX_PACKET_COMPONENTS)
-		return NULL;
+		return nullptr;
 
 	return content_vec[index];
 }
@@ -90,7 +87,7 @@ void kis_packet::erase(const unsigned int index) {
 	// Delete it if we can - both from our array and from 
 	// memory.  Whatever inserted it had better expect this
 	// to happen or it will be very unhappy
-	if (content_vec[index] != NULL) {
+	if (content_vec[index] != nullptr) {
 		if (content_vec[index]->self_destruct)
 			delete content_vec[index];
 
