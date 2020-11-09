@@ -132,19 +132,15 @@ int kis_dlt_radiotap::handle_packet(kis_packet *in_pack) {
 
     packnum++;
 
-	kis_datachunk *decapchunk = 
-		(kis_datachunk *) in_pack->fetch(pack_comp_decap);
+    auto decapchunk = in_pack->fetch<kis_datachunk>(pack_comp_decap);
 
-	if (decapchunk != NULL) {
-		// printf("debug - dltppi frame already decapped\n");
+	if (decapchunk != nullptr) {
 		return 1;
 	}
 
-	kis_datachunk *linkchunk = 
-		(kis_datachunk *) in_pack->fetch(pack_comp_linkframe);
+    auto linkchunk = in_pack->fetch<kis_datachunk>(pack_comp_linkframe);
 
-	if (linkchunk == NULL) {
-		// printf("debug - dltrtap no link\n");
+	if (linkchunk == nullptr) {
 		return 1;
 	}
 
@@ -152,8 +148,7 @@ int kis_dlt_radiotap::handle_packet(kis_packet *in_pack) {
 		return 1;
 	}
 
-	packetchain_comp_datasource *datasrc =
-		(packetchain_comp_datasource *) in_pack->fetch(pack_comp_datasrc);
+    auto datasrc = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
 
     // Everything needs a data source so we know how to checksum
 	if (datasrc == NULL) {
