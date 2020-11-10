@@ -202,7 +202,7 @@ typedef struct {
 } local_channel_t;
 
 int acquire_interface_lock(local_wifi_t *local_wifi) {
-    local_wifi->lock_fd = open("/tmp/.kismet_cap_linux_wifi_interface_lock", O_CREAT | O_WRONLY);
+    local_wifi->lock_fd = open("/tmp/.kismet_cap_linux_wifi_interface_lock", O_CREAT | O_WRONLY, S_IWUSR | S_IWGRP);
 
     if (local_wifi->lock_fd < 0)
         return errno;
