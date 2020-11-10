@@ -54,6 +54,7 @@ kis_datasource::kis_datasource(shared_datasource_builder in_builder) :
     packetchain =
         Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
 
+    pack_comp_report = packetchain->register_packet_component("PACKETREPORT");
 	pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
     pack_comp_l1info = packetchain->register_packet_component("RADIODATA");
     pack_comp_gps = packetchain->register_packet_component("GPS");
@@ -1209,9 +1210,9 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno, const std::str
             return;
     }
 
-    KismetDatasource::DataReport report;
+    auto report = std::make_shared<KismetDatasource::DataReport>();
 
-    if (!report.ParseFromString(in_content)) {
+    if (!report->ParseFromString(in_content)) {
         _MSG(std::string("Kismet datasource driver ") + get_source_builder()->get_source_type() + 
                 std::string(" could not parse the data report, something is wrong with "
                     "the remote capture tool"), MSGFLAG_ERROR);
@@ -1219,87 +1220,89 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno, const std::str
         return;
     }
 
-    if (report.has_message()) 
-        handle_msg_proxy(report.message().msgtext(), report.message().msgtype());
+    if (report->has_message()) 
+        handle_msg_proxy(report->message().msgtext(), report->message().msgtype());
 
-    if (report.has_warning())
-        set_int_source_warning(report.warning());
+    if (report->has_warning())
+        set_int_source_warning(report->warning());
 
     kis_packet *packet = packetchain->generate_packet();
 
+    packet->insert(pack_comp_report, new kis_packreport_packinfo(report));
+
     // Process the data chunk
-    if (report.has_packet()) {
+    if (report->has_packet()) {
         kis_datachunk *datachunk = new kis_datachunk();
 
         if (clobber_timestamp && get_source_remote()) {
             gettimeofday(&(packet->ts), NULL);
         } else {
-            packet->ts.tv_sec = report.packet().time_sec();
-            packet->ts.tv_usec = report.packet().time_usec();
+            packet->ts.tv_sec = report->packet().time_sec();
+            packet->ts.tv_usec = report->packet().time_usec();
         }
 
         // Override the DLT if we have one
         if (get_source_override_linktype()) {
             datachunk->dlt = get_source_override_linktype();
         } else {
-            datachunk->dlt = report.packet().dlt();
+            datachunk->dlt = report->packet().dlt();
         }
 
-        datachunk->copy_data((const uint8_t *) report.packet().data().data(), 
-                report.packet().data().length());
+        // datachunk->copy_data((const uint8_t *) report.packet().data().data(), report.packet().data().length());
 
-        get_source_packet_size_rrd()->add_sample(report.packet().data().length(), time(0));
+        datachunk->set_data(const_cast<char *>(report->packet().data().data()), report->packet().data().length(), false);
 
+        get_source_packet_size_rrd()->add_sample(report->packet().data().length(), time(0));
 
         packet->insert(pack_comp_linkframe, datachunk);
     }
 
     // Process JSON
-    if (report.has_json()) {
+    if (report->has_json()) {
         // fprintf(stderr, "debug - got JSON report- %s\n", report.json().json().c_str());
         kis_json_packinfo *jsoninfo = new kis_json_packinfo();
       
         if (clobber_timestamp && get_source_remote()) {
             gettimeofday(&(packet->ts), NULL);
         } else {
-            packet->ts.tv_sec = report.json().time_sec();
-            packet->ts.tv_usec = report.json().time_usec();
+            packet->ts.tv_sec = report->json().time_sec();
+            packet->ts.tv_usec = report->json().time_usec();
         }
 
-        jsoninfo->type = report.json().type();
-        jsoninfo->json_string = report.json().json();
+        jsoninfo->type = report->json().type();
+        jsoninfo->json_string = report->json().json();
 
         packet->insert(pack_comp_json, jsoninfo);
     }
 
     // Process protobufs
-    if (report.has_buffer()) {
+    if (report->has_buffer()) {
         kis_protobuf_packinfo *bufinfo = new kis_protobuf_packinfo();
 
         if (clobber_timestamp && get_source_remote()) {
             gettimeofday(&(packet->ts), NULL);
         } else {
-            packet->ts.tv_sec = report.buffer().time_sec();
-            packet->ts.tv_usec = report.buffer().time_usec();
+            packet->ts.tv_sec = report->buffer().time_sec();
+            packet->ts.tv_usec = report->buffer().time_usec();
         }
 
-        bufinfo->type = report.buffer().type();
-        bufinfo->buffer_string = report.buffer().buffer();
+        bufinfo->type = report->buffer().type();
+        bufinfo->buffer_string = report->buffer().buffer();
 
         packet->insert(pack_comp_protobuf, bufinfo);
     }
 
     // Signal
-    if (report.has_signal()) {
+    if (report->has_signal()) {
         kis_layer1_packinfo *siginfo = NULL;
-        siginfo = handle_sub_signal(report.signal());
+        siginfo = handle_sub_signal(report->signal());
         packet->insert(pack_comp_l1info, siginfo);
     }
 
     // GPS
-    if (report.has_gps()) {
+    if (report->has_gps()) {
         kis_gps_packinfo *gpsinfo = NULL;
-        gpsinfo = handle_sub_gps(report.gps());
+        gpsinfo = handle_sub_gps(report->gps());
         packet->insert(pack_comp_gps, gpsinfo);
     } else if (suppress_gps) {
         auto nogpsinfo = new kis_no_gps_packinfo();

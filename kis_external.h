@@ -45,6 +45,8 @@
 #include "boost/asio.hpp"
 using boost::asio::ip::tcp;
 
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+
 #include "protobuf_cpp/kismet.pb.h"
 #include "protobuf_cpp/http.pb.h"
 #include "protobuf_cpp/eventbus.pb.h"
@@ -222,7 +224,7 @@ public:
     int handle_packet(BoostBuffer& buffer) {
         const kismet_external_frame_t *frame;
         uint32_t frame_sz, data_sz;
-        uint32_t data_checksum;
+        // uint32_t data_checksum;
 
         // Consume everything in the buffer that we can
         while (1) {
@@ -247,7 +249,9 @@ public:
             frame_sz = data_sz + sizeof(kismet_external_frame);
 
             // If we've got a bogus length, blow it up.  Anything over 8k is assumed to be insane.
-            if ((long int) frame_sz >= 8192) {
+            // The old legacy protocol used the same signature (oversight) so remote tcp streams
+            // can send us bogus info
+            if (frame_sz >= 8192) {
                 _MSG_ERROR("Kismet external interface got a command frame which is too large to "
                         "be processed ({}); either the frame is malformed or you are connecting to "
                         "a legacy Kismet remote capture drone; make sure you have updated to modern "
@@ -261,6 +265,10 @@ public:
                 return result_handle_packet_needbuf;
             }
 
+#if 0
+            // Try disabling rx checksum since TCP should handle this, might get us a little more speed
+            // for a relatively unneeded step since we validate w/in the rest of the handler
+
             // We have a complete payload, checksum 
             data_checksum = adler32_checksum((const char *) frame->data, data_sz);
 
@@ -271,11 +279,15 @@ public:
                 trigger_error("command frame has invalid checksum");
                 return result_handle_packet_error;
             }
+#endif
 
             // Process the data payload as a protobuf frame
             std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
 
-            if (!cmd->ParseFromArray(frame->data, data_sz)) {
+            auto ai = new google::protobuf::io::ArrayInputStream(frame->data, data_sz);
+
+            if (!cmd->ParseFromZeroCopyStream(ai)) {
+                delete(ai);
                 _MSG_ERROR("Kismet external interface could not interpret the payload of the "
                         "command frame; either the frame is malformed, a network error occurred, or "
                         "an unsupported tool is connected to the external interface API");
@@ -283,10 +295,13 @@ public:
                 return result_handle_packet_error;
             }
 
-            buffer.consume(frame_sz);
-
             // Dispatch the received command
             dispatch_rx_packet(cmd);
+
+            delete(ai);
+
+            buffer.consume(frame_sz);
+
         }
 
         return result_handle_packet_ok;
@@ -346,7 +361,10 @@ public:
         // Process the data payload as a protobuf frame
         std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
 
-        if (!cmd->ParseFromArray(frame->data, data_sz)) {
+        auto ai = new google::protobuf::io::ArrayInputStream(frame->data, data_sz);
+
+        if (!cmd->ParseFromZeroCopyStream(ai)) {
+            delete(ai);
             _MSG_ERROR("Kismet external interface could not interpret the payload of the "
                     "command frame; either the frame is malformed, a network error occurred, or "
                     "an unsupported tool is connected to the external interface API");
@@ -356,6 +374,8 @@ public:
 
         // Dispatch the received command
         dispatch_rx_packet(cmd);
+
+        delete(ai);
 
         return result_handle_packet_ok;
     }

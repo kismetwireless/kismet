@@ -209,6 +209,10 @@ public:
         length = 0;
     }
 
+    virtual void set_data(char *in_data, unsigned int in_length, bool copy = true) {
+        set_data((uint8_t *) in_data, in_length, copy);
+    }
+
     // Default to copy=true; it's always safe to copy, it's not always safe not to
     virtual void set_data(uint8_t *in_data, unsigned int in_length, bool copy = true) {
         if (data != NULL && self_data)
