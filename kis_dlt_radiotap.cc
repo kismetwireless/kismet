@@ -151,8 +151,7 @@ int kis_dlt_radiotap::handle_packet(kis_packet *in_pack) {
     auto datasrc = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
 
     // Everything needs a data source so we know how to checksum
-	if (datasrc == NULL) {
-		// printf("debug - no capsrc?\n");
+	if (datasrc == nullptr) {
 		return 1;
 	}
 
