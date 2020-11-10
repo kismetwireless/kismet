@@ -219,6 +219,8 @@ public:
     static const int result_handle_packet_needbuf = 1;
     static const int result_handle_packet_ok = 2;
 
+    std::shared_ptr<KismetExternal::Command> cached_cmd;
+
     // Handle a buffer containing a network frame packet
     template<class BoostBuffer>
     int handle_packet(BoostBuffer& buffer) {
@@ -281,12 +283,15 @@ public:
             }
 #endif
 
-            // Process the data payload as a protobuf frame
-            std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
+            // std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
+
+            // Re-use a cached command
+            if (cached_cmd == nullptr)
+                cached_cmd = std::make_shared<KismetExternal::Command>();
 
             auto ai = new google::protobuf::io::ArrayInputStream(frame->data, data_sz);
 
-            if (!cmd->ParseFromZeroCopyStream(ai)) {
+            if (!cached_cmd->ParseFromZeroCopyStream(ai)) {
                 delete(ai);
                 _MSG_ERROR("Kismet external interface could not interpret the payload of the "
                         "command frame; either the frame is malformed, a network error occurred, or "
@@ -296,12 +301,13 @@ public:
             }
 
             // Dispatch the received command
-            dispatch_rx_packet(cmd);
+            dispatch_rx_packet(cached_cmd);
 
             delete(ai);
 
             buffer.consume(frame_sz);
 
+            cached_cmd->Clear();
         }
 
         return result_handle_packet_ok;
@@ -359,11 +365,15 @@ public:
         }
 
         // Process the data payload as a protobuf frame
-        std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
+        // std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
+        
+        // Re-use a cached command
+        if (cached_cmd == nullptr)
+            cached_cmd = std::make_shared<KismetExternal::Command>();
 
         auto ai = new google::protobuf::io::ArrayInputStream(frame->data, data_sz);
 
-        if (!cmd->ParseFromZeroCopyStream(ai)) {
+        if (!cached_cmd->ParseFromZeroCopyStream(ai)) {
             delete(ai);
             _MSG_ERROR("Kismet external interface could not interpret the payload of the "
                     "command frame; either the frame is malformed, a network error occurred, or "
@@ -373,9 +383,11 @@ public:
         }
 
         // Dispatch the received command
-        dispatch_rx_packet(cmd);
+        dispatch_rx_packet(cached_cmd);
 
         delete(ai);
+
+        cached_cmd->Clear();
 
         return result_handle_packet_ok;
     }
