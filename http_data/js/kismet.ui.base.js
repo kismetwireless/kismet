@@ -100,7 +100,7 @@ exports.OpenEventbusWs = function() {
 
     var host = new URL(document.URL);
 
-    var ws_url = `${proto}://${host.host}/${local_uri_prefix}eventbus/events.ws?user=${user}&password=${pw}`
+    var ws_url = `${proto}://${host.host}/${local_uri_prefix}eventbus/events.ws?user=${encodeURIComponent(user)}&password=${encodeURIComponent(pw)}`
 
     exports.eventbus_ws = new WebSocket(ws_url);
     
