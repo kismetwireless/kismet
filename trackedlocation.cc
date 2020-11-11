@@ -175,13 +175,54 @@ kis_tracked_location::kis_tracked_location(const kis_tracked_location *p) :
     __ImportField(loc_valid, p);
     __ImportField(loc_fix, p);
 
-    __ImportField(avg_lat, p);
-    __ImportField(avg_lon, p);
+    __ImportField(avg_x, p);
+    __ImportField(avg_y, p);
+    __ImportField(avg_z, p);
     __ImportField(avg_alt, p);
     __ImportField(num_avg, p);
     __ImportField(num_alt_avg, p);
 
     reserve_fields(nullptr);
+}
+
+void kis_tracked_location::add_loc_with_avg(double in_lat, double in_lon, double in_alt, 
+        unsigned int fix, double in_speed, double in_heading) {
+    add_loc(in_lat, in_lon, in_alt, fix, in_speed, in_heading);
+
+    if (avg_loc == nullptr) {
+        avg_loc = std::make_shared<kis_tracked_location_triplet>(avg_loc_id);
+        insert(avg_loc);
+    }
+
+    // Convert to vector for average
+    double mod_lat = in_lat * M_PI / 180;
+    double mod_lon = in_lon * M_PI / 180;
+
+    (*avg_x) += cos(mod_lat) * cos(mod_lon);
+    (*avg_y) += cos(mod_lat) * sin(mod_lon);
+    (*avg_z) += sin(mod_lat);
+
+    (*num_avg) += 1;
+
+    if (fix > 2) {
+        (*avg_alt) += in_alt;
+        (*num_alt_avg) += 1;
+    }
+
+    double r_x = avg_x->get() / num_avg->get();
+    double r_y = avg_y->get() / num_avg->get();
+    double r_z = avg_z->get() / num_avg->get();
+
+    double central_lon = atan2(r_y, r_x);
+    double central_sqr = sqrt(r_x * r_x + r_y * r_y);
+    double central_lat = atan2(r_z, central_sqr);
+
+    double r_alt = 0;
+
+    if (num_alt_avg->get() > 0) 
+       r_alt =  avg_alt->get() / num_alt_avg->get();
+
+    avg_loc->set(central_lat * 180 / M_PI, central_lon * 180 / M_PI, r_alt, 3);
 }
 
 void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt, 
@@ -200,11 +241,6 @@ void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt,
     if (max_loc == nullptr) {
         max_loc = std::make_shared<kis_tracked_location_triplet>(max_loc_id);
         insert(max_loc);
-    }
-
-    if (avg_loc == nullptr) {
-        avg_loc = std::make_shared<kis_tracked_location_triplet>(avg_loc_id);
-        insert(avg_loc);
     }
 
     if (last_loc == nullptr) {
@@ -246,49 +282,12 @@ void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt,
         }
     }
 
-    // Append to averaged location
-    (*avg_lat) += (int64_t) (in_lat * precision_multiplier);
-    (*avg_lon) += (int64_t) (in_lon * precision_multiplier);
-    (*num_avg) += 1;
-
-    if (fix > 2) {
-        (*avg_alt) += (int64_t) (in_alt * precision_multiplier);
-        (*num_alt_avg) += 1;
-    }
-
-    double calc_lat, calc_lon, calc_alt;
-
-    calc_lat = (double) (get_tracker_value<int64_t>(avg_lat) / 
-            get_tracker_value<int64_t>(num_avg)) / precision_multiplier;
-    calc_lon = (double) (get_tracker_value<int64_t>(avg_lon) / 
-            get_tracker_value<int64_t>(num_avg)) / precision_multiplier;
-    if (get_tracker_value<int64_t>(num_alt_avg) != 0) {
-        calc_alt = (double) (get_tracker_value<int64_t>(avg_alt) / 
-                get_tracker_value<int64_t>(num_alt_avg)) / precision_multiplier;
-    } else {
-        calc_alt = 0;
-    }
-    avg_loc->set(calc_lat, calc_lon, calc_alt, 3);
-
-    // Are we getting too close to the maximum size of any of our counters?
-    // This would take a really long time but we might as well be safe.  We're
-    // throwing away some of the highest ranges but it's a cheap compare.
-    uint64_t max_size_mask = 0xF000000000000000LL;
-    if ((get_tracker_value<int64_t>(avg_lat) & max_size_mask) ||
-            (get_tracker_value<int64_t>(avg_lon) & max_size_mask) ||
-            (get_tracker_value<int64_t>(avg_alt) & max_size_mask) ||
-            (get_tracker_value<int64_t>(num_avg) & max_size_mask) ||
-            (get_tracker_value<int64_t>(num_alt_avg) & max_size_mask)) {
-        avg_lat->set((int64_t) (calc_lat * precision_multiplier));
-        avg_lon->set((int64_t) (calc_lon * precision_multiplier));
-        avg_alt->set((int64_t) (calc_alt * precision_multiplier));
-        num_avg->set((int64_t) 1);
-        num_alt_avg->set((int64_t) 1);
-    }
 }
 
 void kis_tracked_location::register_fields() {
     tracker_component::register_fields();
+
+    last_location_time = 0;
 
     register_field("kismet.common.location.loc_valid", "location data valid", &loc_valid);
     register_field("kismet.common.location.loc_fix", "location fix precision (2d/3d)", &loc_fix);
@@ -306,8 +305,9 @@ void kis_tracked_location::register_fields() {
         register_dynamic_field("kismet.common.location.last",
                 "Last location", &last_loc);
 
-    register_field("kismet.common.location.avg_lat", "run-time average latitude", &avg_lat);
-    register_field("kismet.common.location.avg_lon", "run-time average longitude", &avg_lon);
+    register_field("kismet.common.location.avg_loc_x", "run-time average latitude", &avg_x);
+    register_field("kismet.common.location.avg_loc_y", "run-time average longitude", &avg_y);
+    register_field("kismet.common.location.avg_loc_z", "run-time average longitude", &avg_z);
     register_field("kismet.common.location.avg_alt", "run-time average altitude", &avg_alt);
     register_field("kismet.common.location.avg_num", "number of run-time average samples", &num_avg);
     register_field("kismet.common.location.avg_alt_num", 
@@ -425,20 +425,28 @@ void kis_location_history::add_sample(std::shared_ptr<kis_historic_location> in_
 
     // We've gotten 100 samples, cascade up to our next bucket
     if (samples_100_cascade >= 100) {
-        double lat, lon, alt, heading, speed, signal, timesec, frequency;
+        double avg_x = 0, avg_y = 0, avg_z = 0, avg_alt = 0;
+
+        double heading, speed, signal, timesec, frequency;
         double num_signal, num_alt;
 
-        lat = lon = alt = heading = speed = signal = timesec = frequency = 0;
+        heading = speed = signal = timesec = frequency = 0;
         num_signal = num_alt = 0;
 
         for (auto g : *samples_100) {
             std::shared_ptr<kis_historic_location> gl =
                 std::static_pointer_cast<kis_historic_location>(g);
 
-            lat += gl->get_lat();
-            lon += gl->get_lon();
+            // Convert to vector for average
+            double mod_lat = gl->get_lat() * M_PI / 180;
+            double mod_lon = gl->get_lon() * M_PI / 180;
+
+            avg_x += cos(mod_lat) * cos(mod_lon);
+            avg_y += cos(mod_lat) * sin(mod_lon);
+            avg_z += sin(mod_lat);
+
             if (gl->get_alt()) {
-                alt += gl->get_alt();
+                avg_alt += gl->get_alt();
                 num_alt++;
             }
 
@@ -457,10 +465,23 @@ void kis_location_history::add_sample(std::shared_ptr<kis_historic_location> in_
         auto aggloc =
             std::make_shared<kis_historic_location>();
 
-        aggloc->set_lat(lat / samples_100->size());
-        aggloc->set_lon(lon / samples_100->size());
-        if (!std::isnan(alt / num_alt))
-            aggloc->set_alt(alt / num_alt);
+        double r_x = avg_x / samples_100->size();
+        double r_y = avg_y / samples_100->size();
+        double r_z = avg_z / samples_100->size();
+
+        double central_lon = atan2(r_y, r_x);
+        double central_sqr = sqrt(r_x * r_x + r_y * r_y);
+        double central_lat = atan2(r_z, central_sqr);
+
+        double r_alt = 0;
+
+        if (num_alt > 0) 
+            r_alt =  avg_alt / num_alt;
+
+        aggloc->set_lat(central_lat * 180 / M_PI);
+        aggloc->set_lon(central_lon * 180 / M_PI);
+        aggloc->set_alt(r_alt);
+
         aggloc->set_heading(heading / samples_100->size());
         aggloc->set_speed(speed / samples_100->size());
         aggloc->set_signal(signal / num_signal);
@@ -477,18 +498,23 @@ void kis_location_history::add_sample(std::shared_ptr<kis_historic_location> in_
 
         if (samples_10k_cascade >= 100) {
             // If we've gotten 100 samples in the 10k bucket, cascade up again
-            lat = lon = alt = heading = speed = signal = timesec = frequency = 0;
+            avg_x = avg_y = avg_z = avg_alt = heading = speed = signal = timesec = frequency = 0;
             num_alt = num_signal = 0;
 
             for (auto g : *samples_10k) {
                 std::shared_ptr<kis_historic_location> gl =
                     std::static_pointer_cast<kis_historic_location>(g);
 
-                lat += gl->get_lat();
-                lon += gl->get_lon();
+                // Convert to vector for average
+                double mod_lat = gl->get_lat() * M_PI / 180;
+                double mod_lon = gl->get_lon() * M_PI / 180;
+
+                avg_x += cos(mod_lat) * cos(mod_lon);
+                avg_y += cos(mod_lat) * sin(mod_lon);
+                avg_z += sin(mod_lat);
                 
                 if (gl->get_alt()) {
-                    alt += gl->get_alt();
+                    avg_alt += gl->get_alt();
                     num_alt++;
                 }
 
@@ -507,10 +533,23 @@ void kis_location_history::add_sample(std::shared_ptr<kis_historic_location> in_
             auto aggloc10 =
                 std::make_shared<kis_historic_location>();
 
-            aggloc10->set_lat(lat / samples_10k->size());
-            aggloc10->set_lon(lon / samples_10k->size());
-            if (!std::isnan(alt / num_alt))
-                    aggloc10->set_alt(alt / num_alt);
+            r_x = avg_x / samples_100->size();
+            r_y = avg_y / samples_100->size();
+            r_z = avg_z / samples_100->size();
+
+            central_lon = atan2(r_y, r_x);
+            central_sqr = sqrt(r_x * r_x + r_y * r_y);
+            central_lat = atan2(r_z, central_sqr);
+
+            r_alt = 0;
+
+            if (num_alt > 0) 
+                r_alt =  avg_alt / num_alt;
+
+            aggloc10->set_lat(central_lat * 180 / M_PI);
+            aggloc10->set_lon(central_lat * 180 / M_PI);
+            aggloc10->set_alt(r_alt);
+
             aggloc10->set_heading(heading / samples_10k->size());
             aggloc10->set_speed(speed / samples_10k->size());
             aggloc10->set_signal(signal / num_signal);

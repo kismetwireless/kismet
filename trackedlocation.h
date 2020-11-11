@@ -110,8 +110,6 @@ protected:
 // min/max/avg location
 class kis_tracked_location : public tracker_component {
 public:
-    const static int precision_multiplier = 1000000;
-
     kis_tracked_location();
     kis_tracked_location(int in_id);
     kis_tracked_location(int in_id, std::shared_ptr<tracker_element_map> e);
@@ -126,6 +124,9 @@ public:
     void add_loc(double in_lat, double in_lon, double in_alt, unsigned int fix,
             double in_speed, double in_heading);
 
+    void add_loc_with_avg(double in_lat, double in_lon, double in_alt, unsigned int fix,
+            double in_speed, double in_heading);
+
     __Proxy(valid, uint8_t, bool, bool, loc_valid);
     __Proxy(fix, uint8_t, unsigned int, unsigned int, loc_fix);
 
@@ -135,11 +136,21 @@ public:
 
     std::shared_ptr<kis_tracked_location_triplet> get_last_loc() { return last_loc; }
 
-    __Proxy(agg_lat, uint64_t, uint64_t, uint64_t, avg_lat);
-    __Proxy(agg_lon, uint64_t, uint64_t, uint64_t, avg_lon);
-    __Proxy(agg_alt, uint64_t, uint64_t, uint64_t, avg_alt);
+    __Proxy(agg_loc_x, double, double, double, avg_x);
+    __Proxy(agg_loc_y, double, double, double, avg_y);
+    __Proxy(agg_loc_z, double, double, double, avg_z);
+
+    __Proxy(agg_alt, double, double, double, avg_alt);
     __Proxy(num_agg, int64_t, int64_t, int64_t, num_avg);
     __Proxy(num_alt_agg, int64_t, int64_t, int64_t, num_alt_avg);
+
+    time_t get_last_location_time() const {
+        return last_location_time;
+    }
+
+    void set_last_location_time(time_t t) {
+        last_location_time = t;
+    }
 
 protected:
     virtual void register_fields() override;
@@ -151,11 +162,15 @@ protected:
     std::shared_ptr<tracker_element_uint8> loc_valid;
     std::shared_ptr<tracker_element_uint8> loc_fix;
 
-    std::shared_ptr<tracker_element_int64> avg_lat;
-    std::shared_ptr<tracker_element_int64> avg_lon;
-    std::shared_ptr<tracker_element_int64> avg_alt;
+    std::shared_ptr<tracker_element_double> avg_x;
+    std::shared_ptr<tracker_element_double> avg_y;
+    std::shared_ptr<tracker_element_double> avg_z;
+
+    std::shared_ptr<tracker_element_double> avg_alt;
     std::shared_ptr<tracker_element_int64> num_avg;
     std::shared_ptr<tracker_element_int64> num_alt_avg;
+
+    time_t last_location_time;
 };
 
 // Historic location track; used in the averaging / rrd historic location.
