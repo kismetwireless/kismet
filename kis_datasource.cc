@@ -1798,6 +1798,11 @@ void kis_datasource::handle_source_error() {
                                 Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
                             alertracker->raise_one_shot("SOURCEOPEN", ss.str(), -1);
 
+      
+#if 0
+                            // None of this should be needed because we should be doing this in the handle
+                            // opensource report function same as if we were opening it originally
+
                             if (get_source_hopping()) {
                                 // Reset the channel hop if we're hopping
                                 set_channel_hop(get_source_hop_rate(),
@@ -1809,6 +1814,8 @@ void kis_datasource::handle_source_error() {
                                 // Reset the fixed channel if we have one
                                 set_channel(get_source_channel(), 0, NULL);
                             }
+#endif
+
                         });
 
                     return 0;
