@@ -136,14 +136,6 @@ public:
 
     std::shared_ptr<kis_tracked_location_triplet> get_last_loc() { return last_loc; }
 
-    __Proxy(agg_loc_x, double, double, double, avg_x);
-    __Proxy(agg_loc_y, double, double, double, avg_y);
-    __Proxy(agg_loc_z, double, double, double, avg_z);
-
-    __Proxy(agg_alt, double, double, double, avg_alt);
-    __Proxy(num_agg, int64_t, int64_t, int64_t, num_avg);
-    __Proxy(num_alt_agg, int64_t, int64_t, int64_t, num_alt_avg);
-
     time_t get_last_location_time() const {
         return last_location_time;
     }
@@ -162,13 +154,8 @@ protected:
     std::shared_ptr<tracker_element_uint8> loc_valid;
     std::shared_ptr<tracker_element_uint8> loc_fix;
 
-    std::shared_ptr<tracker_element_double> avg_x;
-    std::shared_ptr<tracker_element_double> avg_y;
-    std::shared_ptr<tracker_element_double> avg_z;
-
-    std::shared_ptr<tracker_element_double> avg_alt;
-    std::shared_ptr<tracker_element_int64> num_avg;
-    std::shared_ptr<tracker_element_int64> num_alt_avg;
+    double agg_x, agg_y, agg_z, agg_a;
+    uint64_t num_avg, num_alt_avg;
 
     time_t last_location_time;
 };

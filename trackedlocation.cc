@@ -175,13 +175,6 @@ kis_tracked_location::kis_tracked_location(const kis_tracked_location *p) :
     __ImportField(loc_valid, p);
     __ImportField(loc_fix, p);
 
-    __ImportField(avg_x, p);
-    __ImportField(avg_y, p);
-    __ImportField(avg_z, p);
-    __ImportField(avg_alt, p);
-    __ImportField(num_avg, p);
-    __ImportField(num_alt_avg, p);
-
     reserve_fields(nullptr);
 }
 
@@ -198,20 +191,20 @@ void kis_tracked_location::add_loc_with_avg(double in_lat, double in_lon, double
     double mod_lat = in_lat * M_PI / 180;
     double mod_lon = in_lon * M_PI / 180;
 
-    (*avg_x) += cos(mod_lat) * cos(mod_lon);
-    (*avg_y) += cos(mod_lat) * sin(mod_lon);
-    (*avg_z) += sin(mod_lat);
+    agg_x += cos(mod_lat) * cos(mod_lon);
+    agg_y += cos(mod_lat) * sin(mod_lon);
+    agg_z += sin(mod_lat);
 
-    (*num_avg) += 1;
+    num_avg += 1;
 
     if (fix > 2) {
-        (*avg_alt) += in_alt;
-        (*num_alt_avg) += 1;
+        agg_a += in_alt;
+        num_alt_avg += 1;
     }
 
-    double r_x = avg_x->get() / num_avg->get();
-    double r_y = avg_y->get() / num_avg->get();
-    double r_z = avg_z->get() / num_avg->get();
+    double r_x = agg_x / num_avg;
+    double r_y = agg_y / num_avg;
+    double r_z = agg_z / num_avg;
 
     double central_lon = atan2(r_y, r_x);
     double central_sqr = sqrt(r_x * r_x + r_y * r_y);
@@ -219,8 +212,8 @@ void kis_tracked_location::add_loc_with_avg(double in_lat, double in_lon, double
 
     double r_alt = 0;
 
-    if (num_alt_avg->get() > 0) 
-       r_alt =  avg_alt->get() / num_alt_avg->get();
+    if (num_alt_avg > 0) 
+       r_alt =  agg_a / num_alt_avg;
 
     avg_loc->set(central_lat * 180 / M_PI, central_lon * 180 / M_PI, r_alt, 3);
 }
@@ -287,6 +280,8 @@ void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt,
 void kis_tracked_location::register_fields() {
     tracker_component::register_fields();
 
+    agg_x = agg_y = agg_z = agg_a = 0;
+    num_avg = num_alt_avg = 0;
     last_location_time = 0;
 
     register_field("kismet.common.location.loc_valid", "location data valid", &loc_valid);
@@ -304,15 +299,6 @@ void kis_tracked_location::register_fields() {
     last_loc_id =
         register_dynamic_field("kismet.common.location.last",
                 "Last location", &last_loc);
-
-    register_field("kismet.common.location.avg_loc_x", "run-time average latitude", &avg_x);
-    register_field("kismet.common.location.avg_loc_y", "run-time average longitude", &avg_y);
-    register_field("kismet.common.location.avg_loc_z", "run-time average longitude", &avg_z);
-    register_field("kismet.common.location.avg_alt", "run-time average altitude", &avg_alt);
-    register_field("kismet.common.location.avg_num", "number of run-time average samples", &num_avg);
-    register_field("kismet.common.location.avg_alt_num", 
-            "number of run-time average samples (altitude)", &num_alt_avg);
-
 }
 
 kis_historic_location::kis_historic_location() :
