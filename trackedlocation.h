@@ -133,8 +133,11 @@ public:
     void add_loc_with_avg(double in_lat, double in_lon, double in_alt, unsigned int fix,
             double in_speed, double in_heading);
 
-    __Proxy(valid, uint8_t, bool, bool, loc_valid);
     __Proxy(fix, uint8_t, unsigned int, unsigned int, loc_fix);
+
+    bool get_valid() const {
+        return get_fix() >= 2;
+    }
 
     std::shared_ptr<kis_tracked_location_triplet> get_min_loc() { return min_loc; }
     std::shared_ptr<kis_tracked_location_triplet> get_max_loc() { return max_loc; }
@@ -157,7 +160,6 @@ protected:
     std::shared_ptr<kis_tracked_location_triplet> min_loc, max_loc, avg_loc, last_loc;
     int min_loc_id, max_loc_id, avg_loc_id, last_loc_id;
 
-    std::shared_ptr<tracker_element_uint8> loc_valid;
     std::shared_ptr<tracker_element_uint8> loc_fix;
 
     double agg_x, agg_y, agg_z, agg_a;

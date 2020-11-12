@@ -132,7 +132,6 @@ void kis_tracked_location_triplet::register_fields() {
     register_field("kismet.common.location.time_sec", "timestamp (seconds)", &time_sec);
     register_field("kismet.common.location.time_usec", "timestamp (usec)", &time_usec);
     /*
-    register_field("kismet.common.location.valid", "valid location", &valid);
     register_field("kismet.common.location.error_x", "location error (x)", &error_x);
     register_field("kismet.common.location.error_y", "location error (y)", &error_y);
     register_field("kismet.common.location.error_v", "location error (v)", &error_v);
@@ -171,7 +170,6 @@ kis_tracked_location::kis_tracked_location(const kis_tracked_location *p) :
     __ImportId(avg_loc_id, p);
     __ImportId(last_loc_id, p);
 
-    __ImportField(loc_valid, p);
     __ImportField(loc_fix, p);
 
     reserve_fields(nullptr);
@@ -289,7 +287,6 @@ void kis_tracked_location::register_fields() {
     num_avg = num_alt_avg = 0;
     last_location_time = 0;
 
-    register_field("kismet.common.location.loc_valid", "location data valid", &loc_valid);
     register_field("kismet.common.location.loc_fix", "location fix precision (2d/3d)", &loc_fix);
 
     min_loc_id = 
