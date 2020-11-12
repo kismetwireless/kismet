@@ -94,10 +94,11 @@ public:
         r->set_speed(speed);
         r->set_heading(heading);
         r->set_fix(fix);
-        r->set_valid(fix >= 2);
+        /*
         r->set_error_x(error_x);
         r->set_error_y(error_y);
         r->set_error_v(error_v);
+        */
         r->set_time_sec(tv.tv_sec);
         r->set_time_usec(tv.tv_usec);
 

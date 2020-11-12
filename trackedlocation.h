@@ -74,13 +74,18 @@ public:
     __Proxy(alt, double, double, double, alt);
     __Proxy(speed, double, double, double, spd);
     __Proxy(heading, double, double, double, heading);
+    /*
     __Proxy(error_x, double, double, double, error_x);
     __Proxy(error_y, double, double, double, error_y);
     __Proxy(error_v, double, double, double, error_v);
+    */
     __Proxy(fix, uint8_t, uint8_t, uint8_t, fix);
-    __Proxy(valid, uint8_t, bool, bool, valid);
     __Proxy(time_sec, uint64_t, time_t, time_t, time_sec);
     __Proxy(time_usec, uint64_t, uint64_t, uint64_t, time_usec);
+
+    bool get_valid() const {
+        return get_fix() >= 2;
+    }
 
     void set(double in_lat, double in_lon, double in_alt, unsigned int in_fix);
 
@@ -98,11 +103,12 @@ protected:
     std::shared_ptr<tracker_element_double> alt;
     std::shared_ptr<tracker_element_double> spd;
     std::shared_ptr<tracker_element_double> heading;
+    /*
     std::shared_ptr<tracker_element_double> error_x;
     std::shared_ptr<tracker_element_double> error_y;
     std::shared_ptr<tracker_element_double> error_v;
+    */
     std::shared_ptr<tracker_element_uint8> fix;
-    std::shared_ptr<tracker_element_uint8> valid;
     std::shared_ptr<tracker_element_uint64> time_sec;
     std::shared_ptr<tracker_element_uint64> time_usec;
 };

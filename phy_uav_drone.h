@@ -116,8 +116,6 @@ public:
             } else {
                 location->set_fix(2);
             }
-
-            location->set_valid(true);
         }
 
         set_yaw(flight_reg->yaw());

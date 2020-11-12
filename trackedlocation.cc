@@ -53,11 +53,12 @@ kis_tracked_location_triplet::kis_tracked_location_triplet(const kis_tracked_loc
     __ImportField(alt, p);
     __ImportField(spd, p);
     __ImportField(heading, p);
+    /*
     __ImportField(error_x, p);
     __ImportField(error_y, p);
     __ImportField(error_v, p);
+    */
     __ImportField(fix, p);
-    __ImportField(valid, p);
     __ImportField(time_sec, p);
     __ImportField(time_usec, p);
 
@@ -70,7 +71,6 @@ void kis_tracked_location_triplet::set(double in_lat, double in_lon,
     set_lon(in_lon);
     set_alt(in_alt);
     set_fix(in_fix);
-    set_valid(1);
 
     struct timeval tv;
     gettimeofday(&tv, NULL);
@@ -82,7 +82,6 @@ void kis_tracked_location_triplet::set(double in_lat, double in_lon) {
     set_lat(in_lat);
     set_lon(in_lon);
     set_fix(2);
-    set_valid(1);
 
     struct timeval tv;
     gettimeofday(&tv, NULL);
@@ -104,7 +103,6 @@ void kis_tracked_location_triplet::set(kis_gps_packinfo *in_packinfo) {
     set_fix(in_packinfo->fix);
     set_speed(in_packinfo->speed);
     set_heading(in_packinfo->heading);
-    set_valid(in_packinfo->fix >= 2);
     set_time_sec(in_packinfo->tv.tv_sec);
     set_time_usec(in_packinfo->tv.tv_usec);
 }
@@ -117,7 +115,6 @@ kis_tracked_location_triplet&
     set_speed(in.get_speed());
     set_heading(in.get_heading());
     set_fix(in.get_fix());
-    set_valid(in.get_valid());
     set_time_sec(in.get_time_sec());
     set_time_usec(in.get_time_usec());
 
@@ -132,12 +129,14 @@ void kis_tracked_location_triplet::register_fields() {
     register_field("kismet.common.location.speed", "speed (kph)", &spd);
     register_field("kismet.common.location.heading", "heading (degrees)", &heading);
     register_field("kismet.common.location.fix", "gps fix", &fix);
-    register_field("kismet.common.location.valid", "valid location", &valid);
     register_field("kismet.common.location.time_sec", "timestamp (seconds)", &time_sec);
     register_field("kismet.common.location.time_usec", "timestamp (usec)", &time_usec);
+    /*
+    register_field("kismet.common.location.valid", "valid location", &valid);
     register_field("kismet.common.location.error_x", "location error (x)", &error_x);
     register_field("kismet.common.location.error_y", "location error (y)", &error_y);
     register_field("kismet.common.location.error_v", "location error (v)", &error_v);
+    */
 }
 
 void kis_tracked_location_triplet::reserve_fields(std::shared_ptr<tracker_element_map> e) {
@@ -176,6 +175,14 @@ kis_tracked_location::kis_tracked_location(const kis_tracked_location *p) :
     __ImportField(loc_fix, p);
 
     reserve_fields(nullptr);
+
+    agg_x = p->agg_x;
+    agg_y = p->agg_y;
+    agg_z = p->agg_z;
+    num_avg = p->num_avg;
+
+    agg_a = p->agg_a;
+    num_alt_avg = p->num_alt_avg;
 }
 
 void kis_tracked_location::add_loc_with_avg(double in_lat, double in_lon, double in_alt, 
@@ -220,7 +227,6 @@ void kis_tracked_location::add_loc_with_avg(double in_lat, double in_lon, double
 
 void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt, 
         unsigned int fix, double in_speed, double in_heading) {
-    set_valid(1);
 
     if (fix > get_fix()) {
         set_fix(fix);
@@ -247,7 +253,6 @@ void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt,
     last_loc->set_fix(fix);
     last_loc->set_speed(in_speed);
     last_loc->set_heading(in_heading);
-    last_loc->set_valid(1);
 
     if (in_lat < min_loc->get_lat() || min_loc->get_lat() == 0) {
         min_loc->set_lat(in_lat);

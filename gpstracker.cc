@@ -110,12 +110,9 @@ gps_tracker::gps_tracker() :
                         loctrip->set_speed(pi->speed);
                         loctrip->set_heading(pi->heading);
                         loctrip->set_fix(pi->fix);
-                        loctrip->set_valid(pi->fix >= 2);
                         loctrip->set_time_sec(pi->tv.tv_sec);
                         loctrip->set_time_usec(pi->tv.tv_usec);
                         loctrip->insert(ue);
-                    } else {
-                        loctrip->set_valid(false);
                     }
 
                     return loctrip;
@@ -137,12 +134,9 @@ gps_tracker::gps_tracker() :
                     loctrip->set_speed(pi->speed);
                     loctrip->set_heading(pi->heading);
                     loctrip->set_fix(pi->fix);
-                    loctrip->set_valid(pi->fix >= 2);
                     loctrip->set_time_sec(pi->tv.tv_sec);
                     loctrip->set_time_usec(pi->tv.tv_usec);
                     loctrip->insert(ue);
-                } else {
-                    loctrip->set_valid(false);
                 }
 
                 auto evt = eventbus->get_eventbus_event(event_gps_location());
