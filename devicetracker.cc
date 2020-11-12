@@ -1209,34 +1209,43 @@ std::shared_ptr<kis_tracked_device_base>
             (device_location_signal_threshold == 0 || 
              ( device_location_signal_threshold != 0 && pack_l1info != NULL &&
              pack_l1info->signal_dbm >= device_location_signal_threshold))) {
-        device->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
-                pack_gpsinfo->heading);
 
-        // Throttle history cloud to one update per second to prevent floods of
-        // data from swamping the cloud
-        if (track_history_cloud && pack_gpsinfo->fix >= 2 &&
-                in_pack->ts.tv_sec - device->get_location_cloud()->get_last_sample_ts() >= 1) {
-            auto histloc = std::make_shared<kis_historic_location>();
+        if (device->get_location()->get_last_location_time() != time(0)) {
+            device->get_location()->set_last_location_time(time(0));
 
-            histloc->set_lat(pack_gpsinfo->lat);
-            histloc->set_lon(pack_gpsinfo->lon);
-            histloc->set_alt(pack_gpsinfo->alt);
-            histloc->set_speed(pack_gpsinfo->speed);
-            histloc->set_heading(pack_gpsinfo->heading);
+            device->get_location()->add_loc_with_avg(pack_gpsinfo->lat, pack_gpsinfo->lon,
+                    pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
+                    pack_gpsinfo->heading);
 
-            histloc->set_time_sec(in_pack->ts.tv_sec);
+            // Throttle history cloud to one update per second to prevent floods of
+            // data from swamping the cloud
+            if (track_history_cloud && pack_gpsinfo->fix >= 2) {
+                auto histloc = std::make_shared<kis_historic_location>();
 
-            if (pack_l1info != NULL) {
-                histloc->set_frequency(pack_l1info->freq_khz);
-                if (pack_l1info->signal_dbm != 0)
-                    histloc->set_signal(pack_l1info->signal_dbm);
-                else
-                    histloc->set_signal(pack_l1info->signal_rssi);
+                histloc->set_lat(pack_gpsinfo->lat);
+                histloc->set_lon(pack_gpsinfo->lon);
+                histloc->set_alt(pack_gpsinfo->alt);
+                histloc->set_speed(pack_gpsinfo->speed);
+                histloc->set_heading(pack_gpsinfo->heading);
+
+                histloc->set_time_sec(in_pack->ts.tv_sec);
+
+                if (pack_l1info != NULL) {
+                    histloc->set_frequency(pack_l1info->freq_khz);
+                    if (pack_l1info->signal_dbm != 0)
+                        histloc->set_signal(pack_l1info->signal_dbm);
+                    else
+                        histloc->set_signal(pack_l1info->signal_rssi);
+                }
+
+                device->get_location_cloud()->add_sample(histloc);
             }
-
-            device->get_location_cloud()->add_sample(histloc);
+        } else {
+            device->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
+                    pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
+                    pack_gpsinfo->heading);
         }
+
     }
 
 	// Update seenby records for time, frequency, packets
