@@ -1446,6 +1446,8 @@ function packetqueuedisplay_refresh() {
             kismet.RecalcRrdData2(data['kismet.packetchain.queued_packets_rrd'], rrdtype);
         var drop_linedata =
             kismet.RecalcRrdData2(data['kismet.packetchain.dropped_packets_rrd'], rrdtype);
+        var dupe_linedata =
+            kismet.RecalcRrdData2(data['kismet.packetchain.dupe_packets_rrd'], rrdtype);
 
         var datasets = [
             {
@@ -1461,6 +1463,7 @@ function packetqueuedisplay_refresh() {
                 borderColor: 'blue',
                 backgroundColor: 'transparent',
                 data: queue_linedata,
+                pointStyle: 'cross',
             },
             {
                 label: 'Dropped / lost packets',
@@ -1468,6 +1471,15 @@ function packetqueuedisplay_refresh() {
                 borderColor: 'red',
                 backgroundColor: 'transparent',
                 data: drop_linedata,
+                pointStyle: 'star',
+            },
+            {
+                label: 'Ignored duplicates',
+                fill: 'false',
+                borderColor: 'green',
+                backgroundColor: 'transparent',
+                data: dupe_linedata,
+                pointStyle: 'triangle',
             },
         ];
 
