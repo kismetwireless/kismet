@@ -544,6 +544,13 @@ protected:
 
     // Do we only get signal from beacons?
     bool signal_from_beacon;
+
+    // Amount of bssid freq samples to compare true before setting channel
+    unsigned int bssid_freq_comp_samps;
+
+    // Amount of source freq samples to compare true before setting channel
+    unsigned int source_freq_comp_samps;
+
 };
 
 #endif

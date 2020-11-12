@@ -381,6 +381,8 @@ public:
 
         __ImportField(channel, p);
         __ImportField(frequency, p);
+        __ImportField(sample_frequency, p);
+        __ImportField(freq_comps, p);
 
         __ImportId(signal_data_id, p);
 
@@ -544,6 +546,9 @@ public:
 
     __Proxy(channel, std::string, std::string, std::string, channel);
     __Proxy(frequency, double, double, double, frequency);
+    __Proxy(sample_frequency, double, double, double, sample_frequency);
+    __Proxy(freq_comps, double, double, double, freq_comps);
+    
 
     __ProxyTrackable(manuf, tracker_element_string, manuf);
     __Proxy(manuf, std::string, std::string, std::string, manuf);
@@ -674,6 +679,8 @@ protected:
 	// Channel and frequency as per PHY type
     std::shared_ptr<tracker_element_string> channel;
     std::shared_ptr<tracker_element_double> frequency;
+    std::shared_ptr<tracker_element_double> sample_frequency;
+    std::shared_ptr<tracker_element_double> freq_comps;
 
     // Signal data
     int signal_data_id;

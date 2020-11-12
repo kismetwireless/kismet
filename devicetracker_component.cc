@@ -480,6 +480,8 @@ void kis_tracked_device_base::register_fields() {
     register_field("kismet.device.base.freq_khz_map", "packets seen per frequency (khz)", &freq_khz_map);
     register_field("kismet.device.base.channel", "channel (phy specific)", &channel);
     register_field("kismet.device.base.frequency", "frequency", &frequency);
+    register_field("kismet.device.base.sample_frequency", "sample_frequency", &sample_frequency);
+    register_field("kismet.device.base.freq_comps", "freq_comps", &freq_comps);
     register_field("kismet.device.base.manuf", "manufacturer name", &manuf);
     register_field("kismet.device.base.num_alerts", "number of alerts on this device", &alert);
     
