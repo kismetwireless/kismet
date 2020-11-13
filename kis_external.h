@@ -373,8 +373,6 @@ public:
         if (cached_cmd == nullptr) {
             cached_cmd = std::make_shared<KismetExternal::Command>();
         } else {
-            if (cached_cmd->SpaceUsedLong() > 1024 * 16)
-                cached_cmd = std::make_shared<KismetExternal::Command>();
             cached_cmd->Clear();
         }
 
