@@ -220,7 +220,7 @@ public:
     static const int result_handle_packet_needbuf = 1;
     static const int result_handle_packet_ok = 2;
 
-    // std::shared_ptr<KismetExternal::Command> cached_cmd;
+    std::shared_ptr<KismetExternal::Command> cached_cmd;
 
     // Handle a buffer containing a network frame packet
     template<class BoostBuffer>
@@ -287,15 +287,11 @@ public:
             // std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
 
             // Re-use a cached command
-            /*
             if (cached_cmd == nullptr) {
                 cached_cmd = std::make_shared<KismetExternal::Command>();
             } else {
                 cached_cmd->Clear();
             }
-            */
-
-            auto cached_cmd = std::make_shared<KismetExternal::Command>();
 
             auto ai = new google::protobuf::io::ArrayInputStream(frame->data, data_sz);
 
@@ -374,7 +370,6 @@ public:
         // std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
         
         // Re-use a cached command
-        /*
         if (cached_cmd == nullptr) {
             cached_cmd = std::make_shared<KismetExternal::Command>();
         } else {
@@ -382,9 +377,6 @@ public:
                 cached_cmd = std::make_shared<KismetExternal::Command>();
             cached_cmd->Clear();
         }
-        */
-
-        auto cached_cmd = std::make_shared<KismetExternal::Command>();
 
         auto ai = new google::protobuf::io::ArrayInputStream(frame->data, data_sz);
 
