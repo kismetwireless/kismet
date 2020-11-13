@@ -45,6 +45,7 @@
 #include "boost/asio.hpp"
 using boost::asio::ip::tcp;
 
+#include <google/protobuf/message_lite.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
 #include "protobuf_cpp/kismet.pb.h"
@@ -219,7 +220,7 @@ public:
     static const int result_handle_packet_needbuf = 1;
     static const int result_handle_packet_ok = 2;
 
-    std::shared_ptr<KismetExternal::Command> cached_cmd;
+    // std::shared_ptr<KismetExternal::Command> cached_cmd;
 
     // Handle a buffer containing a network frame packet
     template<class BoostBuffer>
@@ -286,8 +287,15 @@ public:
             // std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
 
             // Re-use a cached command
-            if (cached_cmd == nullptr)
+            /*
+            if (cached_cmd == nullptr) {
                 cached_cmd = std::make_shared<KismetExternal::Command>();
+            } else {
+                cached_cmd->Clear();
+            }
+            */
+
+            auto cached_cmd = std::make_shared<KismetExternal::Command>();
 
             auto ai = new google::protobuf::io::ArrayInputStream(frame->data, data_sz);
 
@@ -306,8 +314,6 @@ public:
             delete(ai);
 
             buffer.consume(frame_sz);
-
-            cached_cmd->Clear();
         }
 
         return result_handle_packet_ok;
@@ -368,8 +374,17 @@ public:
         // std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
         
         // Re-use a cached command
-        if (cached_cmd == nullptr)
+        /*
+        if (cached_cmd == nullptr) {
             cached_cmd = std::make_shared<KismetExternal::Command>();
+        } else {
+            if (cached_cmd->SpaceUsedLong() > 1024 * 16)
+                cached_cmd = std::make_shared<KismetExternal::Command>();
+            cached_cmd->Clear();
+        }
+        */
+
+        auto cached_cmd = std::make_shared<KismetExternal::Command>();
 
         auto ai = new google::protobuf::io::ArrayInputStream(frame->data, data_sz);
 
@@ -386,8 +401,6 @@ public:
         dispatch_rx_packet(cached_cmd);
 
         delete(ai);
-
-        cached_cmd->Clear();
 
         return result_handle_packet_ok;
     }
