@@ -175,7 +175,10 @@ struct mac_addr {
     constexpr mac_addr(const mac_addr& in) :
         longmac{in.longmac},
         maskbits{in.maskbits},
-        state {in.state} { }
+        state {
+            .len = in.state.len,
+            .error = in.state.error
+        } { }
 
     mac_addr(const char *in) {
         string2long(in);
