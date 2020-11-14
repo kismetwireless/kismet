@@ -97,7 +97,7 @@ public:
 
     void set(double in_lat, double in_lon, float in_alt, unsigned int in_fix);
     void set(double in_lat, double in_lon);
-    void set(kis_gps_packinfo *in_packinfo);
+    virtual void set(kis_gps_packinfo *in_packinfo);
 
 	inline kis_tracked_location_triplet& operator= (const kis_tracked_location_triplet& in);
 
@@ -142,7 +142,7 @@ public:
     __Proxy(speed, float, float, float, spd);
     __Proxy(heading, float, float, float, heading);
 
-    void set(kis_gps_packinfo *in_packinfo);
+    virtual void set(kis_gps_packinfo *in_packinfo) override;
 
 	inline kis_tracked_location_full& operator= (const kis_tracked_location_full& in);
 
