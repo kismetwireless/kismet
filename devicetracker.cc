@@ -301,13 +301,7 @@ device_tracker::device_tracker() :
     full_refresh_time = globalreg->timestamp.tv_sec;
 
     track_persource_history =
-        globalreg->kismet_config->fetch_opt_bool("keep_datasource_signal_history", true);
-
-    if (!track_persource_history) {
-        _MSG("Per-source signal history tracking disabled.  This may prevent some plugins "
-                "from working.  This can be re-enabled by setting "
-                "keep_datasource_signal_history=true", MSGFLAG_INFO);
-    }
+        globalreg->kismet_config->fetch_opt_bool("keep_per_datasource_stats", false);
 
     // Initialize the view system
     view_vec = std::make_shared<tracker_element_vector>();
@@ -1222,12 +1216,13 @@ std::shared_ptr<kis_tracked_device_base>
         if (pack_l1info != NULL)
             f = pack_l1info->freq_khz;
 
-        // Generate a signal record if we're following per-source signal
         if (track_persource_history) {
+            // Only populate signal, frequency map, etc per-source if we're tracking that
             sc = new packinfo_sig_combo(pack_l1info, pack_gpsinfo);
+            device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f, sc, !ram_no_rrd);
+        } else {
+            device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, 0, 0, false);
         }
-
-        device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f, sc, !ram_no_rrd);
 
         if (map_seenby_views)
             update_view_device(device);

@@ -168,7 +168,7 @@ public:
     __Proxy(num_packets, uint64_t, uint64_t, uint64_t, num_packets);
     __ProxyIncDec(num_packets, uint64_t, uint64_t, num_packets);
 
-    __ProxyTrackable(freq_khz_map, tracker_element_double_map_double, freq_khz_map);
+    __ProxyDynamicTrackable(freq_khz_map, tracker_element_double_map_double, freq_khz_map, freq_khz_map_id);
     __ProxyDynamicTrackable(signal_data, kis_tracked_signal_data, signal_data, signal_data_id);
 
     void inc_frequency_count(int frequency);
@@ -184,6 +184,7 @@ protected:
     std::shared_ptr<tracker_element_uint64> num_packets;
 
     std::shared_ptr<tracker_element_double_map_double> freq_khz_map;
+    int freq_khz_map_id;
     int frequency_val_id;
 
     std::shared_ptr<kis_tracked_signal_data> signal_data;

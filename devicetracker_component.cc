@@ -347,18 +347,19 @@ kis_tracked_seenby_data::kis_tracked_seenby_data(const kis_tracked_seenby_data *
     __ImportField(last_time, p);
     __ImportField(num_packets, p);
 
-    __ImportField(freq_khz_map, p);
-
+    __ImportId(freq_khz_map, p);
+    __ImportId(freq_khz_map_id, p);
     __ImportId(signal_data_id, p);
 
     reserve_fields(nullptr);
 }
 
 void kis_tracked_seenby_data::inc_frequency_count(int frequency) {
-    auto i = freq_khz_map->find(frequency);
+    auto m = get_tracker_freq_khz_map();
+    auto i = m->find(frequency);
 
-    if (i == freq_khz_map->end()) {
-        freq_khz_map->insert(frequency, 1);
+    if (i == m->end()) {
+        m->insert(frequency, 1);
     } else {
         i->second += 1;
     }
@@ -375,7 +376,8 @@ void kis_tracked_seenby_data::register_fields() {
     register_field("kismet.common.seenby.num_packets", 
             "number of packets seen by this device", &num_packets);
 
-    register_field("kismet.common.seenby.freq_khz_map", 
+    freq_khz_map_id =
+        register_dynamic_field("kismet.common.seenby.freq_khz_map", 
             "packets seen per frequency (khz)", &freq_khz_map);
 
     frequency_val_id =
