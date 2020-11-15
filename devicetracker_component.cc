@@ -443,11 +443,12 @@ void kis_tracked_device_base::inc_seenby_count(kis_datasource *source,
 
 void kis_tracked_device_base::register_fields() {
     tracker_component::register_fields();
+    
+    phy_id = 0;
 
     register_field("kismet.device.base.key", "unique device key across phy and server", &key);
     register_field("kismet.device.base.macaddr", "mac address", &macaddr);
     register_field("kismet.device.base.phyname", "phy name", &phyname);
-	register_field("kismet.device.base.phyid", "phy internal id", &phyid);
     register_field("kismet.device.base.name", "printable device name", &devicename);
     username_id = 
         register_dynamic_field("kismet.device.base.username", "user name", &username);
@@ -506,9 +507,6 @@ void kis_tracked_device_base::register_fields() {
         register_field("kismet.device.base.seenby.data",
                 tracker_element_factory<kis_tracked_seenby_data>(),
                 "datasource seen-by data");
-
-    register_field("kismet.device.base.server_uuid", 
-            "UUID of server which saw this device", &server_uuid);
 
     register_field("kismet.device.base.related_devices",
             "Related devices, organized by relationship", &related_devices_map);

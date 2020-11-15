@@ -313,7 +313,7 @@ void Load_Kismet_UUID(global_registry *globalreg) {
         _MSG("Setting server UUID " + confuuid.uuid_to_string() + " from kismet.conf "
                 "(or included file)", MSGFLAG_INFO);
 
-        globalreg->server_uuid = confuuid;
+        globalreg->server_uuid->set(confuuid);
         globalreg->server_uuid_hash = confuuid.hash;
         return;
     }
@@ -339,7 +339,7 @@ void Load_Kismet_UUID(global_registry *globalreg) {
     }
 
     _MSG_INFO("Setting server UUID {}", confuuid.uuid_to_string());
-    globalreg->server_uuid = confuuid;
+    globalreg->server_uuid->set(confuuid);
     globalreg->server_uuid_hash = confuuid.hash;
 }
 

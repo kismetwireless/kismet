@@ -80,7 +80,6 @@ public:
     __Proxy(server_git, std::string, std::string, std::string, server_git);
     __Proxy(build_time, std::string, std::string, std::string, build_time);
 
-    __Proxy(server_uuid, uuid, uuid, uuid, server_uuid);
     __Proxy(server_name, std::string, std::string, std::string, server_name);
     __Proxy(server_description, std::string, std::string, std::string, server_description);
     __Proxy(server_location, std::string, std::string, std::string, server_location);
@@ -113,7 +112,6 @@ protected:
     std::shared_ptr<tracker_element_uint64> timestamp_start_sec;
     std::shared_ptr<tracker_element_uint64> memory;
     std::shared_ptr<tracker_element_string> username;
-    std::shared_ptr<tracker_element_uuid> server_uuid;
     std::shared_ptr<tracker_element_string> server_name;
     std::shared_ptr<tracker_element_string> server_description;
     std::shared_ptr<tracker_element_string> server_location;

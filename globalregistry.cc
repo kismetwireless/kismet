@@ -22,6 +22,7 @@
 #include "globalregistry.h"
 #include "util.h"
 #include "macaddr.h"
+#include "trackedelement.h"
 
 global_registry *Globalreg::globalreg = NULL;
 
@@ -69,6 +70,10 @@ global_registry::global_registry() {
 	checksum_packets = 0;
 
     deferred_started = false;
+
+    server_uuid = std::make_shared<tracker_element_uuid>();
+    server_uuid->set_local_name("kismet.server.uuid");
+
 }
 
 // External globals -- allow other things to tie structs to us

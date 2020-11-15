@@ -351,7 +351,6 @@ public:
         __ImportField(key, p);
         __ImportField(macaddr, p);
         __ImportField(phyname, p);
-        __ImportField(phyid, p);
         __ImportField(devicename, p);
 
         __ImportId(username_id, p);
@@ -396,8 +395,6 @@ public:
         
         __ImportId(seenby_map_id, p);
 
-        __ImportField(server_uuid, p);
-
         __ImportId(frequency_val_id, p);
         __ImportId(seenby_val_id, p);
 
@@ -440,7 +437,13 @@ public:
     __ProxySwappingTrackable(phyname, tracker_element_string, phyname);
     __ProxyGet(phyname, std::string, std::string, phyname);
 
-	__Proxy(phyid, int32_t, int32_t, int32_t, phyid);
+    int get_phyid() const {
+        return phy_id;
+    } 
+
+    void set_phyid(int id) {
+        phy_id = id;
+    }
 
     __ProxyL(devicename, std::string, std::string, std::string, devicename, 
             [this](std::string i) -> bool {
@@ -562,7 +565,9 @@ public:
 
     __ProxyDynamicTrackable(tag_map, tracker_element_string_map, tag_map, tag_map_id);
 
-    __Proxy(server_uuid, uuid, uuid, uuid, server_uuid);
+    void set_server_uuid(std::shared_ptr<tracker_element_uuid> uuid) {
+        insert(uuid);
+    }
 
     __ProxyTrackable(related_devices_map, tracker_element_string_map, related_devices_map);
     void add_related_device(const std::string& in_relationship, const device_key in_key);
@@ -617,7 +622,7 @@ protected:
 
     // Phy name
     std::shared_ptr<tracker_element_string> phyname;
-	std::shared_ptr<tracker_element_int32> phyid;
+    int phy_id;
 
     // Printable name for UI summary.  For APs could be latest SSID, for BT the UAP guess, etc.
     std::shared_ptr<tracker_element_string> devicename;
@@ -700,9 +705,6 @@ protected:
     // Seenby map (mapped by int16 device id)
     std::shared_ptr<tracker_element_int_map> seenby_map;
     int seenby_map_id;
-
-    // Server UUID which generated this device
-    std::shared_ptr<tracker_element_uuid> server_uuid;
 
     // Non-exported local value for frequency count
     int frequency_val_id;
