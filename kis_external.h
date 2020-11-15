@@ -45,6 +45,7 @@
 #include "boost/asio.hpp"
 using boost::asio::ip::tcp;
 
+#include <google/protobuf/message_lite.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
 #include "protobuf_cpp/kismet.pb.h"
@@ -286,8 +287,11 @@ public:
             // std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
 
             // Re-use a cached command
-            if (cached_cmd == nullptr)
+            if (cached_cmd == nullptr) {
                 cached_cmd = std::make_shared<KismetExternal::Command>();
+            } else {
+                cached_cmd->Clear();
+            }
 
             auto ai = new google::protobuf::io::ArrayInputStream(frame->data, data_sz);
 
@@ -306,8 +310,6 @@ public:
             delete(ai);
 
             buffer.consume(frame_sz);
-
-            cached_cmd->Clear();
         }
 
         return result_handle_packet_ok;
@@ -368,8 +370,11 @@ public:
         // std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
         
         // Re-use a cached command
-        if (cached_cmd == nullptr)
+        if (cached_cmd == nullptr) {
             cached_cmd = std::make_shared<KismetExternal::Command>();
+        } else {
+            cached_cmd->Clear();
+        }
 
         auto ai = new google::protobuf::io::ArrayInputStream(frame->data, data_sz);
 
@@ -386,8 +391,6 @@ public:
         dispatch_rx_packet(cached_cmd);
 
         delete(ai);
-
-        cached_cmd->Clear();
 
         return result_handle_packet_ok;
     }

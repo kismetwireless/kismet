@@ -394,7 +394,6 @@ public:
         __ImportId(tag_entry_id, p);
 
         __ImportId(location_id, p);
-        __ImportId(location_cloud_id, p);
         
         __ImportId(seenby_map_id, p);
 
@@ -541,8 +540,6 @@ public:
 
     __ProxyDynamicTrackable(location, kis_tracked_location, location, location_id);
     __ProxyDynamicTrackable(data_rrd, rrdt, data_rrd, data_rrd_id);
-    __ProxyDynamicTrackable(location_cloud, kis_location_history, location_cloud, 
-            location_cloud_id);
 
     __Proxy(channel, std::string, std::string, std::string, channel);
     __Proxy(frequency, double, double, double, frequency);
@@ -705,9 +702,6 @@ protected:
     // Location min/max/avg
     std::shared_ptr<kis_tracked_location> location;
     int location_id;
-
-    std::shared_ptr<kis_location_history> location_cloud;
-    int location_cloud_id;
 
     // Seenby map (mapped by int16 device id)
     std::shared_ptr<tracker_element_int_map> seenby_map;

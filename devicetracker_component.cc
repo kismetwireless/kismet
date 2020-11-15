@@ -494,9 +494,6 @@ void kis_tracked_device_base::register_fields() {
 
     location_id =
         register_dynamic_field("kismet.device.base.location", "location", &location);
-    location_cloud_id =
-        register_dynamic_field("kismet.device.base.location_cloud", 
-                "historic location cloud", &location_cloud);
 
     register_field("kismet.device.base.seenby", "sources that have seen this device", &seenby_map);
 

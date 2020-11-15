@@ -98,7 +98,7 @@ gps_tracker::gps_tracker() :
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     local_shared_locker l(&gpsmanager_mutex, "/gps/location");
-                    auto loctrip = std::make_shared<kis_tracked_location_triplet>();
+                    auto loctrip = std::make_shared<kis_tracked_location_full>();
                     auto ue = std::make_shared<tracker_element_uuid>(tracked_uuid_addition_id);
 
                     auto pi = std::unique_ptr<kis_gps_packinfo>(get_best_location());
@@ -122,7 +122,7 @@ gps_tracker::gps_tracker() :
         timetracker->register_timer(std::chrono::seconds(1), true, 
                 [this](int) -> int {
                 local_shared_locker l(&gpsmanager_mutex, "location event");
-                auto loctrip = std::make_shared<kis_tracked_location_triplet>();
+                auto loctrip = std::make_shared<kis_tracked_location_full>();
                 auto ue = std::make_shared<tracker_element_uuid>(tracked_uuid_addition_id);
 
                 auto pi = std::unique_ptr<kis_gps_packinfo>(get_best_location());

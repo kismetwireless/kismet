@@ -220,6 +220,19 @@ Systemmonitor::Systemmonitor() :
                 bevt->get_event_content()->insert(event_battery(), bate);
                 eventbus->publish(bevt);
 
+                auto sevt = eventbus->get_eventbus_event(event_stats());
+                auto sate = std::make_shared<tracker_element_map>();
+
+                sate->insert(status->get_tracker_num_fields());
+                sate->insert(status->get_tracker_num_components());
+                sate->insert(status->get_tracker_num_http_connections());
+                sate->insert(status->get_tracker_memory());
+                sate->insert(status->get_tracker_devices());
+
+                sevt->get_event_content()->insert(event_stats(), sate);
+                eventbus->publish(sevt);
+
+
                 status->post_serialize();
 
                 return 1;

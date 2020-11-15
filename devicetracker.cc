@@ -300,15 +300,6 @@ device_tracker::device_tracker() :
 
     full_refresh_time = globalreg->timestamp.tv_sec;
 
-    track_history_cloud =
-        globalreg->kismet_config->fetch_opt_bool("keep_location_cloud_history", true);
-
-    if (!track_history_cloud) {
-        _MSG("Location history cloud tracking disabled.  This may prevent some plugins "
-                "from working.  This can be re-enabled by setting "
-                "keep_datasource_signal_history=true", MSGFLAG_INFO);
-    }
-
     track_persource_history =
         globalreg->kismet_config->fetch_opt_bool("keep_datasource_signal_history", true);
 
@@ -1203,12 +1194,10 @@ std::shared_ptr<kis_tracked_device_base>
         }
 	}
 
-    if (((in_flags & UCD_UPDATE_LOCATION) ||
-                ((in_flags & UCD_UPDATE_EMPTY_LOCATION) && !device->has_location_cloud())) &&
-            pack_gpsinfo != NULL &&
-            (device_location_signal_threshold == 0 || 
-             ( device_location_signal_threshold != 0 && pack_l1info != NULL &&
-             pack_l1info->signal_dbm >= device_location_signal_threshold))) {
+    if (((in_flags & UCD_UPDATE_LOCATION) || ((in_flags & UCD_UPDATE_EMPTY_LOCATION))) &&
+            pack_gpsinfo != NULL && (device_location_signal_threshold == 0 || 
+                ( device_location_signal_threshold != 0 && pack_l1info != NULL &&
+                  pack_l1info->signal_dbm >= device_location_signal_threshold))) {
 
         if (device->get_location()->get_last_location_time() != time(0)) {
             device->get_location()->set_last_location_time(time(0));
@@ -1216,30 +1205,6 @@ std::shared_ptr<kis_tracked_device_base>
             device->get_location()->add_loc_with_avg(pack_gpsinfo->lat, pack_gpsinfo->lon,
                     pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
                     pack_gpsinfo->heading);
-
-            // Throttle history cloud to one update per second to prevent floods of
-            // data from swamping the cloud
-            if (track_history_cloud && pack_gpsinfo->fix >= 2) {
-                auto histloc = std::make_shared<kis_historic_location>();
-
-                histloc->set_lat(pack_gpsinfo->lat);
-                histloc->set_lon(pack_gpsinfo->lon);
-                histloc->set_alt(pack_gpsinfo->alt);
-                histloc->set_speed(pack_gpsinfo->speed);
-                histloc->set_heading(pack_gpsinfo->heading);
-
-                histloc->set_time_sec(in_pack->ts.tv_sec);
-
-                if (pack_l1info != NULL) {
-                    histloc->set_frequency(pack_l1info->freq_khz);
-                    if (pack_l1info->signal_dbm != 0)
-                        histloc->set_signal(pack_l1info->signal_dbm);
-                    else
-                        histloc->set_signal(pack_l1info->signal_rssi);
-                }
-
-                device->get_location_cloud()->add_sample(histloc);
-            }
         } else {
             device->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
                     pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,

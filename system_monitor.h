@@ -155,6 +155,7 @@ public:
 
     static std::string event_timestamp() { return "TIMESTAMP"; }
     static std::string event_battery() { return "BATTERY"; }
+    static std::string event_stats() { return "STATISTICS"; }
 
 protected:
     kis_recursive_timed_mutex monitor_mutex;
