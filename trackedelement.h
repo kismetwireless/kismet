@@ -189,6 +189,9 @@ enum class tracker_type {
 
     // IPv4 address
     tracker_ipv4_addr = 27,
+
+    // Double pair for geopoints
+    tracker_pair_double = 28,
 };
 
 class tracker_element {
@@ -1569,6 +1572,85 @@ using tracker_element_vector = tracker_element_core_vector<std::shared_ptr<track
 using tracker_element_vector_double = tracker_element_core_vector<double, tracker_type::tracker_vector_double>;
 using tracker_element_vector_string = tracker_element_core_vector<std::string, tracker_type::tracker_vector_string>;
 
+template<typename T1, typename T2, tracker_type TT>
+class tracker_element_core_pair : public tracker_element {
+public:
+    using pair_t = std::pair<T1, T2>;
+
+    tracker_element_core_pair() :
+        tracker_element() { }
+
+    tracker_element_core_pair(tracker_element_core_pair&& o) noexcept :
+        tracker_element{o},
+        pair{std::move(o.pair)} { }
+
+    tracker_element_core_pair(int id) :
+        tracker_element(id) { }
+
+    tracker_element_core_pair(int id, const pair_t& init_p) :
+        tracker_element(id),
+        pair{init_p} { }
+
+    tracker_element_core_pair(std::shared_ptr<tracker_element_core_pair<T1, T2, TT>> p) :
+        tracker_element_core_pair(p->get_id()) {
+            pair = pair_t(p->pair);
+        }
+
+    tracker_element_core_pair(const tracker_element_core_pair<T1, T2, TT> *p) :
+        tracker_element{p} { }
+
+    virtual tracker_type get_type() const override {
+        return TT;
+    }
+
+    static tracker_type static_type() {
+        return TT;
+    }
+
+    virtual std::unique_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
+        return std::move(dup);
+    }
+
+    virtual bool is_stringable() const override {
+        return false;
+    }
+
+    virtual std::string as_string() const override {
+        return "";
+    }
+
+    virtual bool needs_quotes() const override {
+        return true;
+    }
+
+    virtual void coercive_set(const std::string& in_str) override {
+        throw(std::runtime_error("Cannot coercive_set a scalar pair from a string"));
+    }
+
+    virtual void coercive_set(double in_num) override {
+        throw(std::runtime_error("Cannot coercive_set a scalar pair from a numeric"));
+    }
+
+    // Attempt to coerce one complete item to another
+    virtual void coercive_set(const shared_tracker_element& in_elem) override {
+        throw(std::runtime_error("Cannot coercive_set a scalar pair from an element"));
+    }
+
+    virtual void set(const T1& t1, const T2& t2) {
+        pair = std::make_pair(t1, t2);
+    }
+
+    pair_t& get() {
+        return pair;
+    }
+
+protected:
+    pair_t pair;
+};
+
+using tracker_element_pair_double = tracker_element_core_pair<double, double, tracker_type::tracker_pair_double>;
 
 // Templated generic access functions
 

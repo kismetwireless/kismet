@@ -249,6 +249,8 @@ std::string tracker_element::type_to_string(tracker_type t) {
             return "alias";
         case tracker_type::tracker_ipv4_addr:
             return "ipv4";
+        case tracker_type::tracker_pair_double:
+            return "pair[double, double]";
     }
 
     return "unknown";
@@ -312,6 +314,8 @@ std::string tracker_element::type_to_typestring(tracker_type t) {
             return "tracker_alias";
         case tracker_type::tracker_ipv4_addr:
             return "tracker_ipv4_addr";
+        case tracker_type::tracker_pair_double:
+            return "tracker_pair_double";
     }
 
     return "TrackerUnknown";
@@ -374,6 +378,8 @@ tracker_type tracker_element::typestring_to_type(const std::string& s) {
         return tracker_type::tracker_alias;
     if (s == "tracker_ipv4_addr")
         return tracker_type::tracker_ipv4_addr;
+    if (s == "tracker_pair_double")
+        return tracker_type::tracker_pair_double;
 
     throw std::runtime_error("Unable to interpret tracker type " + s);
 }
@@ -1318,6 +1324,7 @@ bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
         case tracker_type::tracker_vector_string:
         case tracker_type::tracker_hashkey_map:
         case tracker_type::tracker_alias:
+        case tracker_type::tracker_pair_double:
             throw std::runtime_error(fmt::format("Attempted to compare a complex field type, {}",
                         lhs->get_type_as_string()));
     }
@@ -1372,6 +1379,7 @@ bool fast_sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
         case tracker_type::tracker_vector_string:
         case tracker_type::tracker_hashkey_map:
         case tracker_type::tracker_alias:
+        case tracker_type::tracker_pair_double:
             return false;
     }
 

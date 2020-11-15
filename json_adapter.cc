@@ -189,6 +189,8 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
 
     bool as_vector, as_key_vector;
 
+    float_numerical_string<double> dblstr;
+
     // If we're serializing an alias, remap as the aliased element
     if (e->get_type() == tracker_type::tracker_alias) {
         e = std::static_pointer_cast<tracker_element_alias>(e)->get();
@@ -615,6 +617,12 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                     stream << ppendl << indent << "}";
 
                 break;
+            case tracker_type::tracker_pair_double:
+                stream << ppendl << indent << "[" << 
+                    dblstr.as_string(std::get<0>(std::static_pointer_cast<tracker_element_pair_double>(e)->get()))
+                    << ", " << 
+                    dblstr.as_string(std::get<1>(std::static_pointer_cast<tracker_element_pair_double>(e)->get()))
+                    << "]"; 
             default:
                 break;
         }
@@ -680,6 +688,8 @@ void storage_json_adapter::pack(std::ostream &stream, shared_tracker_element e,
 
     // Actual data blob for object
     stream << "\"od\": ";
+
+    float_numerical_string<double> dblstr;
 
     switch (e->get_type()) {
         case tracker_type::tracker_string:
@@ -998,8 +1008,12 @@ void storage_json_adapter::pack(std::ostream &stream, shared_tracker_element e,
             stream.flags(fflags);
 
             break;
-
-
+        case tracker_type::tracker_pair_double:
+            stream << "[" << 
+                dblstr.as_string(std::get<0>(std::static_pointer_cast<tracker_element_pair_double>(e)->get()))
+                << ", " << 
+                dblstr.as_string(std::get<1>(std::static_pointer_cast<tracker_element_pair_double>(e)->get()))
+                << "]"; 
         default:
             break;
     }

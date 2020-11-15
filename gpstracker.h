@@ -87,8 +87,7 @@ public:
     std::shared_ptr<kis_tracked_location_full> as_tracked_full() {
         auto r = std::make_shared<kis_tracked_location_full>();
 
-        r->set_lat(lat);
-        r->set_lon(lon);
+        r->set_location(lat, lon);
         r->set_alt(alt);
         r->set_speed(speed);
         r->set_heading(heading);

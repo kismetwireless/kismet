@@ -64,19 +64,15 @@ public:
 
     // lat/lon are encoded in the geopoint
     double get_lat() const {
-        return geopoint->at(1);
-    }
-
-    void set_lat(double lat) {
-        geopoint->at(1) = lat;
+        return std::get<1>(geopoint->get());
     }
 
     double get_lon() const {
-        return geopoint->at(0);
+        return std::get<0>(geopoint->get());
     }
 
-    void set_lon(double lon) {
-        geopoint->at(0) = lon;
+    void set_location(double lat, double lon) {
+        geopoint->set(lat, lon);
     }
 
     __Proxy(alt, float, float, float, alt);
@@ -105,7 +101,7 @@ protected:
     virtual void register_fields() override;
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;
 
-    std::shared_ptr<tracker_element_vector_double> geopoint;
+    std::shared_ptr<tracker_element_pair_double> geopoint;
     std::shared_ptr<tracker_element_float> alt;
     /*
     std::shared_ptr<tracker_element_double> error_x;
