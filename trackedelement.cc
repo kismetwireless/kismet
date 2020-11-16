@@ -251,6 +251,8 @@ std::string tracker_element::type_to_string(tracker_type t) {
             return "ipv4";
         case tracker_type::tracker_pair_double:
             return "pair[double, double]";
+        case tracker_type::tracker_placeholder_missing:
+            return "placeholder";
     }
 
     return "unknown";
@@ -316,6 +318,8 @@ std::string tracker_element::type_to_typestring(tracker_type t) {
             return "tracker_ipv4_addr";
         case tracker_type::tracker_pair_double:
             return "tracker_pair_double";
+        case tracker_type::tracker_placeholder_missing:
+            return "tracker_placeholder_missing";
     }
 
     return "TrackerUnknown";
@@ -380,6 +384,9 @@ tracker_type tracker_element::typestring_to_type(const std::string& s) {
         return tracker_type::tracker_ipv4_addr;
     if (s == "tracker_pair_double")
         return tracker_type::tracker_pair_double;
+    if (s == "tracker_placeholder_missing")
+        return tracker_type::tracker_placeholder_missing;
+
 
     throw std::runtime_error("Unable to interpret tracker type " + s);
 }
@@ -1212,22 +1219,21 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
         shared_tracker_element f = get_tracker_element_path(si->resolved_path, in);
 
         if (f == nullptr) {
-            f = Globalreg::globalreg->entrytracker->register_and_get_field("unknown" + int_to_string(fn),
-                    tracker_element_factory<tracker_element_int8>(),
+            f = Globalreg::globalreg->entrytracker->register_and_get_field(fmt::format("unknown{}", fn),
+                    tracker_element_factory<tracker_element_placeholder>(),
                     "unallocated field");
-
-            std::static_pointer_cast<tracker_element_int8>(f)->set(0);
         
             if (si->rename.length() != 0) {
-                f->set_local_name(si->rename);
+                // fmt::print("debug - setting summary rename on missing field {} {}\n", fn, si->rename);
+                std::static_pointer_cast<tracker_element_placeholder>(f)->set_name(si->rename);
             } else {
                 // Get the last name of the field in the path, if we can...
                 int lastid = si->resolved_path[si->resolved_path.size() - 1];
 
-                if (lastid < 0)
-                    f->set_local_name("unknown" + int_to_string(fn));
-                else
-                    f->set_local_name(Globalreg::globalreg->entrytracker->get_field_name(lastid));
+                if (lastid >= 0) {
+                    std::static_pointer_cast<tracker_element_placeholder>(f)->set_name(Globalreg::globalreg->entrytracker->get_field_name(lastid));
+                    // fmt::print("debug - setting last id rename on missing field {} {}\n", fn, Globalreg::globalreg->entrytracker->get_field_name(lastid));
+                }
             }
         } 
 
@@ -1325,6 +1331,7 @@ bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
         case tracker_type::tracker_hashkey_map:
         case tracker_type::tracker_alias:
         case tracker_type::tracker_pair_double:
+        case tracker_type::tracker_placeholder_missing:
             throw std::runtime_error(fmt::format("Attempted to compare a complex field type, {}",
                         lhs->get_type_as_string()));
     }
@@ -1380,6 +1387,7 @@ bool fast_sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
         case tracker_type::tracker_hashkey_map:
         case tracker_type::tracker_alias:
         case tracker_type::tracker_pair_double:
+        case tracker_type::tracker_placeholder_missing:
             return false;
     }
 

@@ -53,6 +53,28 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
                 tracker_element_factory<rtladsb_tracked_adsb>(),
                 "RTLADSB adsb");
 
+
+    map_min_lat_id = 
+        Globalreg::globalreg->entrytracker->register_field("kismet.adsb.map.min_lat",
+                tracker_element_factory<tracker_element_double>(),
+                "ADSB map minimum latitude");
+    map_max_lat_id = 
+        Globalreg::globalreg->entrytracker->register_field("kismet.adsb.map.max_lat",
+                tracker_element_factory<tracker_element_double>(),
+                "ADSB map maximum latitude");
+    map_min_lon_id = 
+        Globalreg::globalreg->entrytracker->register_field("kismet.adsb.map.min_lon",
+                tracker_element_factory<tracker_element_double>(),
+                "ADSB map minimum longitude");
+    map_max_lon_id = 
+        Globalreg::globalreg->entrytracker->register_field("kismet.adsb.map.max_lon",
+                tracker_element_factory<tracker_element_double>(),
+                "ADSB map maximum longitude");
+    map_recent_devs_id = 
+        Globalreg::globalreg->entrytracker->register_field("kismet.adsb.map.devices",
+                tracker_element_factory<tracker_element_vector>(),
+                "ADSB map recent devices");
+
     // Make the manuf string
     rtl_manuf = Globalreg::globalreg->manufdb->make_manuf("RTLADSB");
 
@@ -728,29 +750,27 @@ kis_rtladsb_phy::adsb_map_endp_handler(std::shared_ptr<kis_net_beast_httpd_conne
     auto adsb_view = devicetracker->get_phy_view(phyid);
 
     if (adsb_view == nullptr) {
-        auto error = std::make_shared<tracker_element_string>("PHY view tracking disabled or no ADSB devices seen.");
-        error->set_dynamic_entity("kismet.common.error");
+        auto error = 
+            Globalreg::globalreg->entrytracker->register_and_get_field_as<tracker_element_string>(
+                    "kismet.common.error",
+                    tracker_element_factory<tracker_element_string>(),
+                    "Device error");
+        error->set("PHY view tracking disabled or no ADSB devices seen");
         ret_map->insert(error);
         return ret_map;
     }
 
-    auto min_lat = std::make_shared<tracker_element_double>();
-    auto min_lon = std::make_shared<tracker_element_double>();
-    auto max_lat = std::make_shared<tracker_element_double>();
-    auto max_lon = std::make_shared<tracker_element_double>();
-
-    min_lat->set_dynamic_entity("kismet.adsb.map.min_lat");
-    min_lon->set_dynamic_entity("kismet.adsb.map.min_lon");
-    max_lat->set_dynamic_entity("kismet.adsb.map.max_lat");
-    max_lon->set_dynamic_entity("kismet.adsb.map.max_lon");
+    auto min_lat = std::make_shared<tracker_element_double>(map_min_lat_id);
+    auto min_lon = std::make_shared<tracker_element_double>(map_min_lon_id);
+    auto max_lat = std::make_shared<tracker_element_double>(map_max_lat_id);
+    auto max_lon = std::make_shared<tracker_element_double>(map_max_lon_id);
 
     ret_map->insert(min_lat);
     ret_map->insert(min_lon);
     ret_map->insert(max_lat);
     ret_map->insert(max_lon);
 
-    auto recent_devs = std::make_shared<tracker_element_vector>();
-    recent_devs->set_dynamic_entity("kismet.adsb.map.devices");
+    auto recent_devs = std::make_shared<tracker_element_vector>(map_recent_devs_id);
     ret_map->insert(recent_devs);
 
     auto now = time(0);

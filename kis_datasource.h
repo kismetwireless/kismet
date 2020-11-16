@@ -168,7 +168,9 @@ protected:
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
         tracker_component::reserve_fields(e);
 
-        set_local_name("kismet.datasource.type_driver");
+        tracked_id = Globalreg::globalreg->entrytracker->register_field("kismet.datasource.type_driver",
+                tracker_element_factory<tracker_element_map>(),
+                "datasource driver handler");
     }
 
     int datasource_entity_id;

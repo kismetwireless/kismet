@@ -192,41 +192,34 @@ enum class tracker_type {
 
     // Double pair for geopoints
     tracker_pair_double = 28,
+
+    // Placeholder/missing field
+    tracker_placeholder_missing = 29,
 };
 
 class tracker_element {
 public:
     tracker_element() : 
-        tracked_id(-1),
-        local_name{nullptr} { 
+        tracked_id(-1) {
             Globalreg::n_tracked_fields++;
         }
 
     tracker_element(tracker_element&& o) noexcept :
-        tracked_id{o.tracked_id},
-        local_name{o.local_name} { }
+        tracked_id{o.tracked_id} { }
 
     tracker_element( int id) :
-        tracked_id(id),
-        local_name{nullptr} {
+        tracked_id(id) { 
             Globalreg::n_tracked_fields++;
         }
 
     // Inherit from builder
     tracker_element(const tracker_element *p) :
         tracked_id{p->tracked_id} {
-            if (p->local_name)
-                local_name = new std::string(*p->local_name);
-            else
-                local_name = nullptr;
             Globalreg::n_tracked_fields++;
         }
 
     virtual ~tracker_element() {
         Globalreg::n_tracked_fields--;
-
-        if (local_name != nullptr)
-            delete local_name;
     };
 
     // Factory-style for easily making more of the same if we're subclassed
@@ -269,25 +262,6 @@ public:
 
     void set_id(int id) {
         tracked_id = id;
-    }
-
-    void set_local_name(const std::string& in_name) {
-        if (local_name != nullptr)
-            delete local_name;
-
-        local_name = new std::string(in_name);
-    }
-
-    std::string get_local_name() {
-        if (local_name != nullptr)
-            return *local_name;
-
-        return "";
-    }
-
-    void set_dynamic_entity(const std::string& in_name) {
-        set_local_name(in_name);
-        set_id(adler32_checksum(in_name));
     }
 
     void set_type(tracker_type type);
@@ -334,9 +308,6 @@ public:
 
 protected:
     int tracked_id;
-
-    // Overridden name for this instance only
-    std::string *local_name;
 };
 
 std::ostream& operator<<(std::ostream& os, const tracker_element& e);
@@ -374,9 +345,8 @@ public:
 
     tracker_element_alias(const std::string& al, std::shared_ptr<tracker_element> e) :
         tracker_element(),
-        alias_element{e} {
-            set_local_name(al);
-        }
+        alias_element{e},
+        alias_name{al} { }
 
     tracker_element_alias(const tracker_element_alias* p) :
         tracker_element(p) { }
@@ -387,6 +357,10 @@ public:
 
     static tracker_type static_type() {
         return tracker_type::tracker_alias;
+    }
+
+    virtual const std::string& get_alias_name() const {
+        return alias_name;
     }
 
     virtual bool is_stringable() const override {
@@ -428,7 +402,7 @@ public:
 
 protected:
     std::shared_ptr<tracker_element> alias_element;
-
+    std::string alias_name;
 };
 
 // Superclass for generic components for pod-like scalar attributes, though
@@ -1651,6 +1625,55 @@ protected:
 };
 
 using tracker_element_pair_double = tracker_element_core_pair<double, double, tracker_type::tracker_pair_double>;
+
+class tracker_element_placeholder : public tracker_element_core_numeric<uint8_t, tracker_type::tracker_placeholder_missing> {
+public:
+    tracker_element_placeholder() :
+        tracker_element_core_numeric<uint8_t, tracker_type::tracker_placeholder_missing>() { }
+
+    tracker_element_placeholder(tracker_element_placeholder&& o) noexcept :
+        tracker_element_core_numeric<uint8_t, tracker_type::tracker_placeholder_missing>(),
+        placeholder_name{std::move(o.placeholder_name)} { }
+
+    tracker_element_placeholder(int id) :
+        tracker_element_core_numeric<uint8_t, tracker_type::tracker_placeholder_missing>(id) { }
+
+    tracker_element_placeholder(int id, const std::string& name) :
+        tracker_element_core_numeric<uint8_t, tracker_type::tracker_placeholder_missing>{id},
+        placeholder_name{name} { }
+
+    tracker_element_placeholder(std::shared_ptr<tracker_element_placeholder> p) :
+        tracker_element_core_numeric<uint8_t, tracker_type::tracker_placeholder_missing>{p->get_id()},
+        placeholder_name{p->placeholder_name} { }
+
+    tracker_element_placeholder(const tracker_element_placeholder *p) :
+        tracker_element_core_numeric<uint8_t, tracker_type::tracker_placeholder_missing>{p} { }
+
+    virtual tracker_type get_type() const override {
+        return tracker_type::tracker_placeholder_missing;
+    }
+
+    static tracker_type static_type() {
+        return tracker_type::tracker_placeholder_missing;
+    }
+
+    virtual std::unique_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
+        return std::move(dup);
+    }
+
+    void set_name(const std::string& name) {
+        placeholder_name = name;
+    }
+
+    const std::string& get_name() const {
+        return placeholder_name;
+    }
+
+protected:
+    std::string placeholder_name;
+};
 
 // Templated generic access functions
 
