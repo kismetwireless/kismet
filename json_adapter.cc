@@ -618,7 +618,7 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
 
                 break;
             case tracker_type::tracker_pair_double:
-                stream << ppendl << indent << "[" << 
+                stream << "[" << 
                     dblstr.as_string(std::get<0>(std::static_pointer_cast<tracker_element_pair_double>(e)->get()))
                     << ", " << 
                     dblstr.as_string(std::get<1>(std::static_pointer_cast<tracker_element_pair_double>(e)->get()))
