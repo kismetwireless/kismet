@@ -12147,14 +12147,13 @@ if test "x$ac_cv_header_ubertooth_ubertooth_h" = xyes; then :
 #define HAVE_UBERTOOTH_UBERTOOTH_H 1
 _ACEOF
  HAVE_UBERTOOTH_H=yes
+
 $as_echo "#define HAVE_UBERTOOTH_UBERTOOTH_H 1" >>confdefs.h
 
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"ubertooth/ubertooth.h is missing\"" >&5
-$as_echo "$as_me: WARNING: \"ubertooth/ubertooth.h is missing\"" >&2;}
 fi
 
 done
+
 
             for ac_header in ubertooth.h
 do :
@@ -12164,12 +12163,10 @@ if test "x$ac_cv_header_ubertooth_h" = xyes; then :
 #define HAVE_UBERTOOTH_H 1
 _ACEOF
  HAVE_UBERTOOTH_H=yes
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"ubertooth.h is missing\"" >&5
-$as_echo "$as_me: WARNING: \"ubertooth.h is missing\"" >&2;}
 fi
 
 done
+
 
             { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ubertooth_init in -lubertooth" >&5
 $as_echo_n "checking for ubertooth_init in -lubertooth... " >&6; }
@@ -12209,9 +12206,6 @@ fi
 $as_echo "$ac_cv_lib_ubertooth_ubertooth_init" >&6; }
 if test "x$ac_cv_lib_ubertooth_ubertooth_init" = xyes; then :
   HAVE_LIBUBERTOOTH=yes
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: \"libubertooth is missing\"" >&5
-$as_echo "$as_me: WARNING: \"libubertooth is missing\"" >&2;}
 fi
 
 
