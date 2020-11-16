@@ -367,9 +367,9 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                 }
 
                 if (as_vector || as_key_vector)
-                    stream << indent << "]" << ppendl;
+                    stream << ppendl << indent << "]";
                 else
-                    stream << indent << "}" << ppendl;
+                    stream << ppendl << indent << "}";
 
                 break;
             case tracker_type::tracker_mac_map:
