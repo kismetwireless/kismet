@@ -1334,6 +1334,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 source_not_ap = 1;
             } else if (source_dev->get_type_string() == "Wi-Fi Device") {
                 source_not_ap = 1;
+	        } else if (source_dev->get_type_string() == "Wi-Fi Bridged") {
+		        source_not_ap = 1;
             } else {
 		        source_not_ap = 0;
 	        }
@@ -1727,9 +1729,11 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         if (source_dev->get_type_string() == "Wi-Fi Client") {
             source_not_ap = 1;
         } else if (source_dev->get_type_string() == "Wi-Fi Device") {
-	        source_not_ap = 1;
+	    source_not_ap = 1;
+	    } else if (source_dev->get_type_string() == "Wi-Fi Bridged") {
+	    source_not_ap = 1;
         }  else {
-	        source_not_ap = 0;
+	    source_not_ap = 0;
         }
 
         if (source_dev->get_frequency() != 0 && freq_comp_samps_src !=0 && 
