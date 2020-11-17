@@ -1074,7 +1074,7 @@ std::shared_ptr<kis_tracked_device_base>
     }
 
     // Lock the device itself for updating, now that it exists
-    local_locker devlocker(&(device->device_mutex));
+    auto devlocker = devicelist_range_scope_locker(shared_from_this(), device);
 
     // Tag the packet with the base device
 	kis_tracked_device_info *devinfo =
@@ -1304,7 +1304,7 @@ void device_tracker::timetracker_event(int eventid) {
         tracked_vec.erase(std::remove_if(tracked_vec.begin(), tracked_vec.end(),
                 [&](std::shared_ptr<kis_tracked_device_base> d) {
                     // Lock the device itself
-                    local_locker devlocker(&(d->device_mutex));
+                    auto devlocker = devicelist_range_scope_locker(shared_from_this(), d);
 
                     if (ts_now - d->get_last_time() > device_idle_expiration &&
                             (d->get_packets() < device_idle_min_packets || 
@@ -1367,7 +1367,7 @@ void device_tracker::timetracker_event(int eventid) {
         tracked_vec.erase(std::remove_if(tracked_vec.begin() + max_num_devices, tracked_vec.end(),
                 [&](std::shared_ptr<kis_tracked_device_base> d) {
                     // Lock the device itself
-                    local_locker devlocker(&(d->device_mutex));
+                    auto devlocker = devicelist_range_scope_locker(shared_from_this(), d);
 
                     device_itr mi = tracked_map.find(d->get_key());
 
@@ -1616,7 +1616,7 @@ void device_tracker::load_stored_username(std::shared_ptr<kis_tracked_device_bas
         return;
 
     // Lock the device itself
-    local_locker devlocker(&(in_dev->device_mutex));
+    auto devlocker = devicelist_range_scope_locker(shared_from_this(), in_dev);
 
     std::string sql;
     std::string keystring = in_dev->get_key().as_string();
@@ -1669,7 +1669,7 @@ void device_tracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> i
         return;
 
     // Lock the device itself
-    local_locker devlocker(&(in_dev->device_mutex));
+    auto devlocker = devicelist_range_scope_locker(shared_from_this(), in_dev);
 
     std::string sql;
     std::string keystring = in_dev->get_key().as_string();
@@ -1722,7 +1722,7 @@ void device_tracker::set_device_user_name(std::shared_ptr<kis_tracked_device_bas
         std::string in_username) {
 
     // Lock the device itself
-    local_locker devlocker(&(in_dev->device_mutex));
+    auto devlocker = devicelist_range_scope_locker(shared_from_this(), in_dev);
 
     in_dev->set_username(in_username);
 
@@ -1773,7 +1773,7 @@ void device_tracker::set_device_tag(std::shared_ptr<kis_tracked_device_base> in_
         std::string in_tag, std::string in_content) {
 
     // Lock the device itself
-    local_locker devlocker(&(in_dev->device_mutex));
+    auto devlocker = devicelist_range_scope_locker(shared_from_this(), in_dev);
 
     auto e = std::make_shared<tracker_element_string>();
     e->set(in_content);

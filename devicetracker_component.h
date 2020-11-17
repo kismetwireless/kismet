@@ -581,22 +581,13 @@ public:
         kis_internal_id = in_id;
     }
 
-    // Explicit lock and unlock of device
-    virtual void lock() {
-        local_eol_shared_locker lock(&device_mutex);
-    }
-
-    virtual void unlock() {
-        local_shared_unlocker unlock(&device_mutex);
-    }
-
     // Lock our device around serialization
     virtual void pre_serialize() override {
-        local_eol_shared_locker lock(&device_mutex);
+        // local_eol_shared_locker lock(&device_mutex);
     }
 
     virtual void post_serialize() override {
-        local_shared_unlocker unlock(&device_mutex);
+        // local_shared_unlocker unlock(&device_mutex);
     }
 
     // Protective per-device mutex, should be managed by pre/post serialization

@@ -180,7 +180,7 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
         if (basedev->get_macaddr() != dot11info->bssid_mac)
             continue;
 
-        local_locker devlock(&(basedev->device_mutex));
+        auto devlocker = devicelist_range_scope_locker(uavphy->devicetracker, basedev);
 
         if (dot11info->droneid != NULL) {
             try {

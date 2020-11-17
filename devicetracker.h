@@ -419,6 +419,15 @@ public:
             tracker->lock_device_range(range);
         }
 
+    devicelist_range_scope_locker(std::shared_ptr<device_tracker> tracker,
+            std::shared_ptr<kis_tracked_device_base> dev) :
+        tracker{tracker} {
+            auto r = std::make_shared<tracker_element_vector>();
+            r->push_back(dev);
+            range = r;
+            tracker->lock_device_range(range);
+        }
+
     ~devicelist_range_scope_locker() {
         tracker->unlock_device_range(range);
     }
