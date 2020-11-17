@@ -867,66 +867,6 @@ fi # want headers
 
 fi # linux
 
-# Look for bladerf - and a very new one at that
-AC_ARG_ENABLE(bladerf,
-    AS_HELP_STRING([--enable-bladerf], [Enable bladeRF2-wiphy support]),
-    [case "${enableval}" in
-      yes) want_bladerf=yes ;;
-        *) want_bladerf=no ;;
-    esac],
-    [want_bladerf=no]
-)
-
-AS_IF([test "x$want_bladerf" == "xyes"], [
-    AC_CHECK_HEADER([libbladeRF.h], 
-                    [], 
-                    [
-                     AC_MSG_ERROR([missing libbladeRF.h])
-                    ])
-
-    AC_CHECK_LIB([bladeRF], [bladerf_open],
-                 [
-                  LIBBLADERF="-lbladerf2"
-                  have_libbladerf="yes"
-                  AC_DEFINE(HAVE_LIBBLADERF, 1, libbladerf)
-                 ],
-                 [
-                  AC_MSG_ERROR([missing libbladerf2])
-                 ])
-
-	AC_MSG_CHECKING([Required libbladerf2 version])
-	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-            #include <libbladeRF.h>
-			]], [[
-            #if LIBBLADERF_API_VERSION < 0x02020100
-            #error Version too old
-            #endif
-			return 0;
-			]])],
-            [
-             AC_MSG_RESULT([ok])
-            ],[
-             AC_MSG_RESULT([fail])
-             AC_MSG_ERROR([libbladerf2 version too old, you likely need a git version of libbladerf2])
-            ])
-
-	AC_MSG_CHECKING([Required libbladerf2 packet modes])
-	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-            #include <libbladeRF.h>
-			]], [[
-            int x = (int) BLADERF_FORMAT_PACKET_META;
-			return 0;
-			]])],
-            [
-             AC_MSG_RESULT([packet_meta])
-            ],[
-             AC_MSG_RESULT([fail])
-             AC_MSG_ERROR([unable to find PACKET_META format, you likely need a git version of libbladerf2])
-            ])
-
-    BUILD_CAPTURE_BLADERF_WLAN=1
-])
-
 # Look for capability support
 AC_ARG_ENABLE(libcap,
     AS_HELP_STRING([--disable-libcap], [Disable libcap capabilities]),
@@ -1170,6 +1110,79 @@ else
     PROTOCLIBS=`pkg-config --libs libprotobuf-c`
     PROTOCCFLAGS=`pkg-config --cflags libprotobuf-c`
 fi
+
+# Look for bladerf - and a very new one at that
+AC_ARG_ENABLE(bladerf,
+    AS_HELP_STRING([--enable-bladerf], [Enable bladeRF2-wiphy support]),
+    [case "${enableval}" in
+      yes) want_bladerf=yes ;;
+        *) want_bladerf=no ;;
+    esac],
+    [want_bladerf=no]
+)
+
+AS_IF([test "x$want_bladerf" == "xyes"], [
+    PKG_CHECK_MODULES([libbladeRF], [libbladeRF], 
+        [
+        ], 
+        [
+         AC_MSG_ERROR([missing libbladeRF package])
+        ])
+
+    BLADERFLIBS=`pkg-config --libs libbladeRF`
+    BLADERFCFLAGS=`pkg-config --cflags libbladeRF`
+
+    OCFL="$CFLAGS"
+
+    CFLAGS="$CFLAGS $BLADERFCFLAGS"
+
+    AC_CHECK_LIB([bladeRF], [bladerf_open],
+                 [
+                  LIBBLADERF="-lbladerf2"
+                  have_libbladerf="yes"
+                  AC_DEFINE(HAVE_LIBBLADERF, 1, libbladerf)
+                 ],
+                 [
+                  AC_MSG_ERROR([missing libbladerf2])
+                 ])
+
+	AC_MSG_CHECKING([Required libbladerf2 version])
+	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+            #include <libbladeRF.h>
+			]], [[
+            #if LIBBLADERF_API_VERSION < 0x02020100
+            #error Version too old
+            #endif
+			return 0;
+			]])],
+            [
+             AC_MSG_RESULT([ok])
+            ],[
+             AC_MSG_RESULT([fail])
+             AC_MSG_ERROR([libbladerf2 version too old, you likely need a git version of libbladerf2])
+            ])
+
+	AC_MSG_CHECKING([Required libbladerf2 packet modes])
+	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+            #include <libbladeRF.h>
+			]], [[
+            int x = (int) BLADERF_FORMAT_PACKET_META;
+			return 0;
+			]])],
+            [
+             AC_MSG_RESULT([packet_meta])
+            ],[
+             AC_MSG_RESULT([fail])
+             AC_MSG_ERROR([unable to find PACKET_META format, you likely need a git version of libbladerf2])
+            ])
+
+    CFLAGS="$OCFL"
+
+    BUILD_CAPTURE_BLADERF_WLAN=1
+])
+
+AC_SUBST(BLADERFLIBS)
+AC_SUBST(BLADERFCFLAGS)
 
 AC_ARG_WITH(protocc,
 	[  --with-protocc[=PATH]     Custom location of the protoc protobuf compiler],
@@ -1684,7 +1697,27 @@ AC_SUBST(BUILD_CAPTURE_NXP_KW41Z)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-AC_CONFIG_FILES([Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_sdr_rtlamr/Makefile capture_sdr_rtladsb/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_nrf_51822/Makefile capture_nxp_kw41z/Makefile])
+AC_CONFIG_FILES([
+    Makefile 
+    Makefile.inc 
+    packaging/kismet.pc 
+    packaging/systemd/kismet.service 
+    packaging/systemd/debug/kismet-debug.service 
+    capture_linux_bluetooth/Makefile 
+    capture_linux_wifi/Makefile 
+    capture_osx_corewlan_wifi/Makefile 
+    capture_sdr_rtl433/Makefile 
+    capture_sdr_rtlamr/Makefile 
+    capture_sdr_rtladsb/Makefile 
+    capture_freaklabs_zigbee/Makefile 
+    capture_nrf_mousejack/Makefile 
+    capture_ti_cc_2540/Makefile 
+    capture_ti_cc_2531/Makefile 
+    capture_ubertooth_one/Makefile 
+    capture_nrf_51822/Makefile 
+    capture_nxp_kw41z/Makefile
+    capture_bladerf_wiphy/Makefile
+    ])
 AC_OUTPUT
 
 echo
