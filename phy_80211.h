@@ -551,6 +551,8 @@ protected:
     // Amount of source freq samples to compare true before setting channel
     unsigned int source_freq_comp_samps;
 
+    // Only use primary channel data in columns and device info pages for APs
+    bool dot11_ap_channel_from_htdata;
 };
 
 #endif

@@ -1106,6 +1106,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             unsigned int freq_comp_count_ba(0);
             static unsigned int freq_comp_samps_bssid = 
                 globalreg->kismet_config->fetch_opt_uint("bssid_freq_comp_samps", 0);
+            static bool ch_from_dot11ht =
+                globalreg->kismet_config->fetch_opt_bool("dot11_ap_channel_from_htdata", false);
             static unsigned int freq_samp_msg(0);
             unsigned int bssid_ap = 0;
 
@@ -1169,17 +1171,17 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                     bssid_dev->set_sample_frequency(0);
                     bssid_dev->set_freq_comps(0);
                 }
-            } else if (bssid_ap == 1 && dot11info->dot11vht != nullptr && dot11info->dot11ht != nullptr) {
+            } else if (ch_from_dot11ht == true && bssid_ap == 1 && dot11info->dot11ht != nullptr) {
 	            bssid_dev->set_channel(int_to_string(dot11info->dot11ht->primary_channel()));
-            } else if (bssid_ap == 1 && dot11info->channel != "0" && dot11info->channel != "") {
+            } else if (ch_from_dot11ht == false && bssid_ap == 1 && dot11info->channel != "0" && dot11info->channel != "") {
                 bssid_dev->set_channel(dot11info->channel);
-            } else if (bssid_ap == 1 && bssid_dev->get_frequency() != 0) {
+            } else if (ch_from_dot11ht == false && bssid_ap == 1 && bssid_dev->get_frequency() != 0) {
                 try {
                     bssid_dev->set_channel(khz_to_channel(bssid_dev->get_frequency()));
                 } catch (const std::runtime_error& e) {
-                    ;   
+                    ; 
                 }
-            } else if (bssid_ap == 1 && bssid_dev->get_frequency() == 0 && pack_l1info != NULL && pack_l1info->freq_khz != 0) {
+            } else if (freq_comp_samps_bssid == 0 && ch_from_dot11ht == false && bssid_ap == 1 && bssid_dev->get_frequency() == 0 && pack_l1info != NULL && pack_l1info->freq_khz != 0) {
                 try {
                     bssid_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
                 } catch (const std::runtime_error& e) {
@@ -1381,7 +1383,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                     source_dev->set_sample_frequency(0);
                     source_dev->set_freq_comps(0);
                 }
-            } else if (source_not_ap == 1 && dot11info->dot11vht != nullptr && dot11info->dot11ht != nullptr) {
+            } else if (source_not_ap == 1 && dot11info->dot11ht != nullptr) {
 	            source_dev->set_channel(int_to_string(dot11info->dot11ht->primary_channel()));
             } else if (source_not_ap == 1 && dot11info->channel != "0" && dot11info->channel != "") {
                 source_dev->set_channel(dot11info->channel);
@@ -1654,8 +1656,20 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             static unsigned int freq_comp_samps_bssid = 
                 globalreg->kismet_config->fetch_opt_uint("bssid_freq_comp_samps", 0);
 
-            if (freq_comp_samps_bssid == 0 && dot11info->dot11vht != nullptr && dot11info->dot11ht != nullptr) {
+            static bool ch_from_dot11ht = 
+                globalreg->kismet_config->fetch_opt_bool("dot11_ap_channel_from_htdata", false);
+
+            if (ch_from_dot11ht == true && freq_comp_samps_bssid == 0 && dot11info->dot11ht != nullptr) {
 	            bssid_dev->set_channel(int_to_string(dot11info->dot11ht->primary_channel()));
+            } else if (ch_from_dot11ht == false && freq_comp_samps_bssid == 0 && dot11info->channel != "0" && dot11info->channel != "") {
+                bssid_dev->set_channel(dot11info->channel);
+            } else if (ch_from_dot11ht == false && freq_comp_samps_bssid == 0 && pack_l1info != NULL && (pack_l1info->freq_khz != bssid_dev->get_frequency() ||
+                    bssid_dev->get_channel() == "")) {
+                try {
+                    bssid_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
+                } catch (const std::runtime_error& e) {
+                    ;
+                }
             }
 
             if (dot11info->distrib == distrib_adhoc) {
@@ -2495,7 +2509,10 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
     static unsigned int freq_comp_samps_bssid = 
         Globalreg::globalreg->kismet_config->fetch_opt_uint("bssid_freq_comp_samps", 0);
 
-    if (freq_comp_samps_bssid == 0 && dot11info->dot11vht != nullptr && dot11info->dot11ht != nullptr) {
+    static bool ch_from_dot11ht = 
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_ap_channel_from_htdata", false);
+
+    if (ch_from_dot11ht == true && freq_comp_samps_bssid == 0 && dot11info->dot11vht != nullptr && dot11info->dot11ht != nullptr) {
 	    basedev->set_channel(int_to_string(dot11info->dot11ht->primary_channel()));
     }/* else if (freq_comp_samps_bssid == 0 && dot11info->channel != "0" && dot11info->channel != "") {
 	           basedev->set_channel(dot11info->channel);
@@ -2791,10 +2808,14 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
         if (dot11info->dot11vht != nullptr && dot11info->dot11ht != nullptr) {
             // Grab the primary channel from the HT data
             ssid->set_channel(int_to_string(dot11info->dot11ht->primary_channel()));
-            
+
+            static bool ch_from_dot11ht = 
+                Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_ap_channel_from_htdata", false);
+
             static unsigned int freq_comp_samps_bssid = 
                 Globalreg::globalreg->kismet_config->fetch_opt_uint("bssid_freq_comp_samps", 0);
-            if (freq_comp_samps_bssid == 0) {
+            
+            if (ch_from_dot11ht == true && freq_comp_samps_bssid == 0) {
                 basedev->set_channel(int_to_string(dot11info->dot11ht->primary_channel()));
             }
             if (dot11info->dot11vht->channel_width() == dot11_ie_192_vht_op::ch_80) {
