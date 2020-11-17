@@ -1396,6 +1396,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             } else if (source_not_ap == 1 && source_dev->get_frequency() == 0 && pack_l1info != NULL && pack_l1info->freq_khz != 0) {
                 try {
                     source_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
+                    source_dev->inc_frequency_count((int) pack_l1info->freq_khz);
                     //source_dev->set_frequency(pack_l1info->freq_khz);
                     /*_MSG_INFO("Used pack_l1info for {} {}",
                         source_dev->get_type_string(),
@@ -1804,6 +1805,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         } else if (source_dev->get_frequency() == 0 && source_not_ap == 1 && pack_l1info != NULL && pack_l1info->freq_khz != 0) {
             try {
                 source_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
+                source_dev->inc_frequency_count((int) pack_l1info->freq_khz);
                 //source_dev->set_frequency(pack_l1info->freq_khz);
                 /*_MSG_INFO("Used pack_l1info for {} {}",
                     source_dev->get_type_string(),
