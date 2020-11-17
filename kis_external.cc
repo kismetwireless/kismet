@@ -320,10 +320,12 @@ bool kis_external_interface::run_ipc() {
     auto ipc_promise = std::promise<bool>();
     auto ipc_ft = ipc_promise.get_future();
 
+    pid_t child_pid;
+
     // int ipc_strand_no = ipc_strand_g++;
 
     boost::asio::post(strand_, 
-            [this, &ipc_promise /*, ipc_strand_no */]() {
+            [this, &ipc_promise, &child_pid /*, ipc_strand_no */]() mutable {
 
             // _MSG_DEBUG("running on strand {}", ipc_strand_no);
 
@@ -440,7 +442,6 @@ bool kis_external_interface::run_ipc() {
 
             // We don't need to do signal masking because we run a dedicated signal handling thread
 
-            pid_t child_pid;
             char **cmdarg;
 
             if ((child_pid = fork()) < 0) {
@@ -497,18 +498,6 @@ bool kis_external_interface::run_ipc() {
             ipc_out = boost::asio::posix::stream_descriptor(Globalreg::globalreg->io, inpipepair[1]);
             ipc_in = boost::asio::posix::stream_descriptor(Globalreg::globalreg->io, outpipepair[0]);
 
-            auto self_ref = shared_from_this();
-
-            ipc = kis_ipc_record(child_pid,
-                    [this, self_ref](const std::string&) {
-                    close_external();
-                    },
-                    [this, self_ref](const std::string& err) {
-                    trigger_error(err);
-                    });
-
-            ipctracker->register_ipc(ipc);
-
             // _MSG_DEBUG("exiting strand work {}", ipc_strand_no);
             ipc_promise.set_value(true);
             });
@@ -521,6 +510,18 @@ bool kis_external_interface::run_ipc() {
         stopped = false;
         cancelled = false;
         ipc_running = true;
+
+        auto self_ref = shared_from_this();
+
+        ipc = kis_ipc_record(child_pid,
+                [this, self_ref](const std::string&) {
+                close_external();
+                },
+                [this, self_ref](const std::string& err) {
+                trigger_error(err);
+                });
+
+        ipctracker->register_ipc(ipc);
 
         start_ipc_read(shared_from_this());
     }
