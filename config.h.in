@@ -81,6 +81,9 @@
 /* inttypes.h is present */
 #undef HAVE_INTTYPES_H
 
+/* libbladerf */
+#undef HAVE_LIBBLADERF
+
 /* Define to 1 if you have the `cap' library (-lcap). */
 #undef HAVE_LIBCAP
 

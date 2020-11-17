@@ -41,6 +41,7 @@ BUILD_CAPTURE_TI_CC_2531=0
 BUILD_CAPTURE_UBERTOOTH_ONE=0
 BUILD_CAPTURE_NRF_51822=0
 BUILD_CAPTURE_NXP_KW41Z=0
+BUILD_CAPTURE_BLADERF_WLAN=0
 
 DATASOURCE_BINS="\$(CAPTURE_KISMETDB)"
 
@@ -865,6 +866,66 @@ if test "$wantwext" = "yes"; then
 fi # want headers
 
 fi # linux
+
+# Look for bladerf - and a very new one at that
+AC_ARG_ENABLE(bladerf,
+    AS_HELP_STRING([--enable-bladerf], [Enable bladeRF2-wiphy support]),
+    [case "${enableval}" in
+      yes) want_bladerf=yes ;;
+        *) want_bladerf=no ;;
+    esac],
+    [want_bladerf=no]
+)
+
+AS_IF([test "x$want_bladerf" == "xyes"], [
+    AC_CHECK_HEADER([libbladeRF.h], 
+                    [], 
+                    [
+                     AC_MSG_ERROR([missing libbladeRF.h])
+                    ])
+
+    AC_CHECK_LIB([bladeRF], [bladerf_open],
+                 [
+                  LIBBLADERF="-lbladerf2"
+                  have_libbladerf="yes"
+                  AC_DEFINE(HAVE_LIBBLADERF, 1, libbladerf)
+                 ],
+                 [
+                  AC_MSG_ERROR([missing libbladerf2])
+                 ])
+
+	AC_MSG_CHECKING([Required libbladerf2 version])
+	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+            #include <libbladeRF.h>
+			]], [[
+            #if LIBBLADERF_API_VERSION < 0x02020100
+            #error Version too old
+            #endif
+			return 0;
+			]])],
+            [
+             AC_MSG_RESULT([ok])
+            ],[
+             AC_MSG_RESULT([fail])
+             AC_MSG_ERROR([libbladerf2 version too old, you likely need a git version of libbladerf2])
+            ])
+
+	AC_MSG_CHECKING([Required libbladerf2 packet modes])
+	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+            #include <libbladeRF.h>
+			]], [[
+            int x = (int) BLADERF_FORMAT_PACKET_META;
+			return 0;
+			]])],
+            [
+             AC_MSG_RESULT([packet_meta])
+            ],[
+             AC_MSG_RESULT([fail])
+             AC_MSG_ERROR([unable to find PACKET_META format, you likely need a git version of libbladerf2])
+            ])
+
+    BUILD_CAPTURE_BLADERF_WLAN=1
+])
 
 # Look for capability support
 AC_ARG_ENABLE(libcap,
@@ -1787,6 +1848,13 @@ if test "$BUILD_CAPTURE_FREAKLABS_ZIGBEE" = 1; then
 	echo "yes";
 else
 	echo "no (python modules are disabled)";
+fi
+
+printf "         bladeRF-wiphy: "
+if test "$BUILD_CAPTURE_BLADERF_WLAN" = 1; then
+	echo "yes";
+else
+	echo "no (bladeRF support not enabled)";
 fi
 
 printf " lm-sensors monitoring: "

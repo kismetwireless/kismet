@@ -798,6 +798,7 @@ enable_largefile
 enable_mutextimeout
 with_linuxheaders
 enable_linuxwext
+enable_bladerf
 enable_libcap
 with_pcreheaders
 enable_pcre
@@ -1490,6 +1491,7 @@ Optional Features:
   --disable-mutextimeout  Disable failsafe thread mutex timer, use with
                           caution
   --disable-linuxwext     Disable Linux wireless extensions
+  --enable-bladerf        Enable bladeRF2-wiphy support
   --disable-libcap        Disable libcap capabilities
   --disable-pcre          Disable PCRE regex
   --enable-prelude        Enable Prelude SIEM as a target for alerts.
@@ -4166,6 +4168,7 @@ BUILD_CAPTURE_TI_CC_2531=0
 BUILD_CAPTURE_UBERTOOTH_ONE=0
 BUILD_CAPTURE_NRF_51822=0
 BUILD_CAPTURE_NXP_KW41Z=0
+BUILD_CAPTURE_BLADERF_WLAN=0
 
 DATASOURCE_BINS="\$(CAPTURE_KISMETDB)"
 
@@ -9891,6 +9894,155 @@ fi # want headers
 
 fi # linux
 
+# Look for bladerf - and a very new one at that
+# Check whether --enable-bladerf was given.
+if test "${enable_bladerf+set}" = set; then :
+  enableval=$enable_bladerf; case "${enableval}" in
+      yes) want_bladerf=yes ;;
+        *) want_bladerf=no ;;
+    esac
+else
+  want_bladerf=no
+
+fi
+
+
+if test "x$want_bladerf" == "xyes"; then :
+
+    ac_fn_cxx_check_header_mongrel "$LINENO" "libbladeRF.h" "ac_cv_header_libbladeRF_h" "$ac_includes_default"
+if test "x$ac_cv_header_libbladeRF_h" = xyes; then :
+
+else
+
+                     as_fn_error $? "missing libbladeRF.h" "$LINENO" 5
+
+fi
+
+
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for bladerf_open in -lbladeRF" >&5
+$as_echo_n "checking for bladerf_open in -lbladeRF... " >&6; }
+if ${ac_cv_lib_bladeRF_bladerf_open+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lbladeRF  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char bladerf_open ();
+int
+main ()
+{
+return bladerf_open ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+  ac_cv_lib_bladeRF_bladerf_open=yes
+else
+  ac_cv_lib_bladeRF_bladerf_open=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_bladeRF_bladerf_open" >&5
+$as_echo "$ac_cv_lib_bladeRF_bladerf_open" >&6; }
+if test "x$ac_cv_lib_bladeRF_bladerf_open" = xyes; then :
+
+                  LIBBLADERF="-lbladerf2"
+                  have_libbladerf="yes"
+
+$as_echo "#define HAVE_LIBBLADERF 1" >>confdefs.h
+
+
+else
+
+                  as_fn_error $? "missing libbladerf2" "$LINENO" 5
+
+fi
+
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking Required libbladerf2 version" >&5
+$as_echo_n "checking Required libbladerf2 version... " >&6; }
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+            #include <libbladeRF.h>
+
+int
+main ()
+{
+
+            #if LIBBLADERF_API_VERSION < 0x02020100
+            #error Version too old
+            #endif
+			return 0;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+
+             { $as_echo "$as_me:${as_lineno-$LINENO}: result: ok" >&5
+$as_echo "ok" >&6; }
+
+else
+
+             { $as_echo "$as_me:${as_lineno-$LINENO}: result: fail" >&5
+$as_echo "fail" >&6; }
+             as_fn_error $? "libbladerf2 version too old, you likely need a git version of libbladerf2" "$LINENO" 5
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking Required libbladerf2 packet modes" >&5
+$as_echo_n "checking Required libbladerf2 packet modes... " >&6; }
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+            #include <libbladeRF.h>
+
+int
+main ()
+{
+
+            int x = (int) BLADERF_FORMAT_PACKET_META;
+			return 0;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+
+             { $as_echo "$as_me:${as_lineno-$LINENO}: result: packet_meta" >&5
+$as_echo "packet_meta" >&6; }
+
+else
+
+             { $as_echo "$as_me:${as_lineno-$LINENO}: result: fail" >&5
+$as_echo "fail" >&6; }
+             as_fn_error $? "unable to find PACKET_META format, you likely need a git version of libbladerf2" "$LINENO" 5
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+
+    BUILD_CAPTURE_BLADERF_WLAN=1
+
+fi
+
 # Look for capability support
 # Check whether --enable-libcap was given.
 if test "${enable_libcap+set}" = set; then :
@@ -10563,8 +10715,8 @@ if test "x$want_libwebsockets" != "xno"; then :
 
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libwebsockets" >&5
-$as_echo_n "checking for libwebsockets... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libwebsockets >= 3.2.0" >&5
+$as_echo_n "checking for libwebsockets >= 3.2.0... " >&6; }
 
 if test -n "$libwebsockets_CFLAGS"; then
     pkg_cv_libwebsockets_CFLAGS="$libwebsockets_CFLAGS"
@@ -10604,7 +10756,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -10631,7 +10783,7 @@ Alternatively, you may set the environment variables libwebsockets_CFLAGS
 and libwebsockets_LIBS to avoid the need to call pkg-config.
 See the pkg-config man page for more details." "$LINENO" 5
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 	{ { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
 $as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
@@ -10757,7 +10909,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -10778,7 +10930,7 @@ fi
 $as_echo "$as_me: WARNING: No libpcap found in pkg-config" >&2;}
 
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
     { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: No libpcap found in pkg-config" >&5
@@ -10900,8 +11052,8 @@ if test "$caponly" = 0 || test "$want_python" = "yes"; then
     # We only *require* protobuf for C++ and python
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for protobuf" >&5
-$as_echo_n "checking for protobuf... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ${PROTOBUF}" >&5
+$as_echo_n "checking for ${PROTOBUF}... " >&6; }
 
 if test -n "$protobuf_CFLAGS"; then
     pkg_cv_protobuf_CFLAGS="$protobuf_CFLAGS"
@@ -10941,7 +11093,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -10968,7 +11120,7 @@ Alternatively, you may set the environment variables protobuf_CFLAGS
 and protobuf_LIBS to avoid the need to call pkg-config.
 See the pkg-config man page for more details." "$LINENO" 5
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 	{ { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
 $as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
@@ -11057,8 +11209,8 @@ fi  # caponly
 # We need protobuf-c all the time
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libprotobufc" >&5
-$as_echo_n "checking for libprotobufc... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libprotobuf-c" >&5
+$as_echo_n "checking for libprotobuf-c... " >&6; }
 
 if test -n "$libprotobufc_CFLAGS"; then
     pkg_cv_libprotobufc_CFLAGS="$libprotobufc_CFLAGS"
@@ -11098,7 +11250,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -11116,7 +11268,7 @@ fi
 
 	have_protobufc_pkg=no
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 	have_protobufc_pkg=no
 else
@@ -11364,7 +11516,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -11382,7 +11534,7 @@ fi
 
 	havelibnm=no
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 	havelibnm=no
 else
@@ -11494,8 +11646,8 @@ fi
 if test "$havenetlink" = "yes"; then
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libnl30" >&5
-$as_echo_n "checking for libnl30... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libnl-3.0" >&5
+$as_echo_n "checking for libnl-3.0... " >&6; }
 
 if test -n "$libnl30_CFLAGS"; then
     pkg_cv_libnl30_CFLAGS="$libnl30_CFLAGS"
@@ -11535,7 +11687,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -11553,7 +11705,7 @@ fi
 
 	libnl30=no
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 	libnl30=no
 else
@@ -11565,8 +11717,8 @@ $as_echo "yes" >&6; }
 fi
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libnlgenl30" >&5
-$as_echo_n "checking for libnlgenl30... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libnl-genl-3.0" >&5
+$as_echo_n "checking for libnl-genl-3.0... " >&6; }
 
 if test -n "$libnlgenl30_CFLAGS"; then
     pkg_cv_libnlgenl30_CFLAGS="$libnlgenl30_CFLAGS"
@@ -11606,7 +11758,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -11624,7 +11776,7 @@ fi
 
 	libnlgenl30=no
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 	libnlgenl30=no
 else
@@ -11636,8 +11788,8 @@ $as_echo "yes" >&6; }
 fi
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libnl20" >&5
-$as_echo_n "checking for libnl20... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libnl-2.0" >&5
+$as_echo_n "checking for libnl-2.0... " >&6; }
 
 if test -n "$libnl20_CFLAGS"; then
     pkg_cv_libnl20_CFLAGS="$libnl20_CFLAGS"
@@ -11677,7 +11829,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -11695,7 +11847,7 @@ fi
 
 	libnl20=no
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 	libnl20=no
 else
@@ -11707,8 +11859,8 @@ $as_echo "yes" >&6; }
 fi
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libnl1" >&5
-$as_echo_n "checking for libnl1... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libnl-1" >&5
+$as_echo_n "checking for libnl-1... " >&6; }
 
 if test -n "$libnl1_CFLAGS"; then
     pkg_cv_libnl1_CFLAGS="$libnl1_CFLAGS"
@@ -11748,7 +11900,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -11766,7 +11918,7 @@ fi
 
 	libnl1=no
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 	libnl1=no
 else
@@ -11936,8 +12088,8 @@ if test "x$want_usb" != "xno"; then :
 
 
 pkg_failed=no
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libusb" >&5
-$as_echo_n "checking for libusb... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libusb-1.0" >&5
+$as_echo_n "checking for libusb-1.0... " >&6; }
 
 if test -n "$libusb_CFLAGS"; then
     pkg_cv_libusb_CFLAGS="$libusb_CFLAGS"
@@ -11977,7 +12129,7 @@ fi
 
 
 if test $pkg_failed = yes; then
-   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
@@ -12004,7 +12156,7 @@ Alternatively, you may set the environment variables libusb_CFLAGS
 and libusb_LIBS to avoid the need to call pkg-config.
 See the pkg-config man page for more details." "$LINENO" 5
 elif test $pkg_failed = untried; then
-     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 	{ { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
 $as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
@@ -13987,6 +14139,13 @@ if test "$BUILD_CAPTURE_FREAKLABS_ZIGBEE" = 1; then
 	echo "yes";
 else
 	echo "no (python modules are disabled)";
+fi
+
+printf "         bladeRF-wiphy: "
+if test "$BUILD_CAPTURE_BLADERF_WLAN" = 1; then
+	echo "yes";
+else
+	echo "no (bladeRF support not enabled)";
 fi
 
 printf " lm-sensors monitoring: "
