@@ -195,15 +195,15 @@ void kis_datasource::probe_interface(std::string in_definition, unsigned int in_
     // Squelch errors from probe because they're not useful
     quiet_errors = true;
 
+    lock.unlock();
+
     // Launch the IPC
     if (launch_ipc()) {
         // Create and send probe command
         send_probe_source(in_definition, in_transaction, in_cb);
     } else {
         if (in_cb != NULL) {
-            lock.unlock();
             in_cb(in_transaction, false, "Failed to launch IPC to probe source");
-            lock.lock();
         }
     }
 }
@@ -1798,11 +1798,6 @@ void kis_datasource::handle_source_error() {
                                 Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
                             alertracker->raise_one_shot("SOURCEOPEN", ss.str(), -1);
 
-      
-#if 0
-                            // None of this should be needed because we should be doing this in the handle
-                            // opensource report function same as if we were opening it originally
-
                             if (get_source_hopping()) {
                                 // Reset the channel hop if we're hopping
                                 set_channel_hop(get_source_hop_rate(),
@@ -1814,7 +1809,6 @@ void kis_datasource::handle_source_error() {
                                 // Reset the fixed channel if we have one
                                 set_channel(get_source_channel(), 0, NULL);
                             }
-#endif
 
                         });
 
@@ -1826,13 +1820,8 @@ void kis_datasource::handle_source_error() {
 }
 
 bool kis_datasource::launch_ipc() {
-    local_locker lock(&ext_mutex, "datasource::launch_ipc");
-
-    std::stringstream ss;
-
     if (get_source_ipc_binary() == "") {
-        ss << "missing IPC binary name, cannot launch capture tool";
-        trigger_error(ss.str());
+        trigger_error("missing IPC binary definition, can not launch capture tool");
         return false;
     }
 
