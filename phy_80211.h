@@ -407,9 +407,9 @@ protected:
     std::shared_ptr<stream_tracker> streamtracker;
 
     // Checksum of recent packets for duplication filtering
-    uint32_t *recent_packet_checksums;
+    std::atomic<uint32_t> *recent_packet_checksums;
     size_t recent_packet_checksums_sz;
-    unsigned int recent_packet_checksum_pos;
+    std::atomic<unsigned int> recent_packet_checksum_pos;
 
     // Handle advertised SSIDs
     void handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev, 

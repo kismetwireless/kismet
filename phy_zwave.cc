@@ -131,7 +131,7 @@ bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
     if (dmac.state.error)
         return false;
 
-    kis_packet *pack = new kis_packet(Globalreg::globalreg);
+    kis_packet *pack = packetchain->generate_packet();
 
     struct timeval ts;
     gettimeofday(&ts, nullptr);

@@ -259,7 +259,7 @@ std::string packet_chain::fetch_packet_component_name(int in_id) {
 }
 
 kis_packet *packet_chain::generate_packet() {
-    kis_packet *newpack = new kis_packet(Globalreg::globalreg);
+    kis_packet *newpack = new kis_packet();
 
     return newpack;
 }

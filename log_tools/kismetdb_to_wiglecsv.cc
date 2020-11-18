@@ -550,7 +550,12 @@ int main(int argc, char *argv[]) {
 
                 gmtime_r(&timet, &tm);
 
-                ts << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+                char tmstr[256];
+                strftime(tmstr, 255, "%Y-%m-%d %H:%M:%S", &tm);
+                ts << tmstr;
+
+                // because apparently gcc4 is still a thing?
+                // ts << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
 
                 cached = new cache_obj{ts.str(), name, crypt};
 

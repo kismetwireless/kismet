@@ -304,6 +304,12 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
     if (chunk->dlt != KDLT_IEEE802_11)
         return 0;
 
+    // Flat-out dump if it's not big enough to be 80211, don't even bother making a
+    // packinfo record for it because we're completely broken
+    if (chunk->length < 10) {
+        return 0;
+    }
+
     // Compare the checksum and see if we've recently seen this exact packet
     uint32_t chunk_csum = adler32_checksum((const char *) chunk->data, chunk->length);
 
@@ -318,18 +324,12 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
         }
     }
 
-    if (recent_packet_checksums_sz > 0)
+    if (recent_packet_checksums_sz > 0) 
         recent_packet_checksums[(recent_packet_checksum_pos++ % recent_packet_checksums_sz)] = 
             chunk_csum;
 
-    // Flat-out dump if it's not big enough to be 80211, don't even bother making a
-    // packinfo record for it because we're completely broken
-    if (chunk->length < 10) {
-        return 0;
-    }
-
-	kis_layer1_packinfo *pack_l1info =
-		(kis_layer1_packinfo *) in_pack->fetch(pack_comp_l1info);
+    kis_layer1_packinfo *pack_l1info =
+        (kis_layer1_packinfo *) in_pack->fetch(pack_comp_l1info);
 
     kis_common_info *common = 
         (kis_common_info *) in_pack->fetch(pack_comp_common);

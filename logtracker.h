@@ -45,7 +45,6 @@ public:
         tracker_component() {
         register_fields();
         reserve_fields(NULL);
-        set_local_name("kismet.log.type_driver");
         initialize();
     }
 
@@ -53,7 +52,6 @@ public:
         tracker_component(in_id) {
         register_fields();
         reserve_fields(NULL);
-        set_local_name("kismet.log.type_driver");
         initialize();
     }
 
@@ -61,7 +59,6 @@ public:
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
-        set_local_name("kismet.log.type_driver");
         initialize();
     }
 
@@ -75,7 +72,6 @@ public:
         __ImportField(description, p);
 
         reserve_fields(nullptr);
-        set_local_name("kismet.log.type_driver");
         initialize();
     }
 
@@ -108,6 +104,10 @@ public:
 protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
+
+        Globalreg::globalreg->entrytracker->register_field("kismet.log.type_driver",
+                tracker_element_factory<tracker_element_map>(),
+                "logfile driver");
 
         register_field("kismet.logfile.type.class", "class/type", &log_class);
         register_field("kismet.logfile.type.name", "base type name", &log_name);

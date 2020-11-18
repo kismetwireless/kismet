@@ -494,7 +494,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
     // Set up the de-duplication list
     recent_packet_checksums_sz = 
         Globalreg::globalreg->kismet_config->fetch_opt_uint("packet_dedup_size", 2048);
-    recent_packet_checksums = new uint32_t[recent_packet_checksums_sz];
+    recent_packet_checksums = new std::atomic<uint32_t>[recent_packet_checksums_sz];
     for (unsigned int x = 0; x < recent_packet_checksums_sz; x++) {
         recent_packet_checksums[x] = 0;
     }
@@ -725,7 +725,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
 
                     std::function<void (std::shared_ptr<kis_tracked_device_base>)> find_clients = 
                         [&](std::shared_ptr<kis_tracked_device_base> dev) {
-                        local_shared_locker l(&dev->device_mutex);
+                        auto devlocker = devicelist_range_scope_locker(devicetracker, dev);
 
                         // Don't add non-dot11 devices
                         auto dot11 =
@@ -1902,7 +1902,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
                      UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
                     "Wi-Fi Device");
 
-        local_locker bssidlocker(&(bssid_dev->device_mutex));
+        auto devlocker = devicelist_range_scope_locker(d11phy->devicetracker, bssid_dev);
 
         auto bssid_dot11 =
             bssid_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
@@ -2794,9 +2794,18 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
 
     // Add the location data, if any
     if (pack_gpsinfo != NULL && pack_gpsinfo->fix > 1) {
-        ssid->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
-                pack_gpsinfo->heading);
+        auto loc = ssid->get_location();
+
+        if (loc->get_last_location_time() != time(0)) {
+            loc->set_last_location_time(time(0));
+            loc->add_loc_with_avg(pack_gpsinfo->lat, pack_gpsinfo->lon,
+                    pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
+                    pack_gpsinfo->heading);
+        } else {
+            loc->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
+                    pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
+                    pack_gpsinfo->heading);
+        }
 
     }
 
@@ -2863,9 +2872,18 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
 
         // Add the location data, if any
         if (pack_gpsinfo != nullptr && pack_gpsinfo->fix > 1) {
-            probessid->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                    pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
-                    pack_gpsinfo->heading);
+            auto loc = probessid->get_location();
+
+            if (loc->get_last_location_time() != time(0)) {
+                loc->set_last_location_time(time(0));
+                loc->add_loc_with_avg(pack_gpsinfo->lat, pack_gpsinfo->lon,
+                        pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
+                        pack_gpsinfo->heading);
+            } else {
+                loc->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
+                        pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
+                        pack_gpsinfo->heading);
+            }
         }
 
         if (dot11info->dot11r_mobility != nullptr) {
@@ -3142,9 +3160,17 @@ void kis_80211_phy::process_client(std::shared_ptr<kis_tracked_device_base> bssi
 
         // Update the GPS info
         if (pack_gpsinfo != NULL && pack_gpsinfo->fix > 1) {
-            client_record->get_location()->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
-                    pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
-                    pack_gpsinfo->heading);
+            auto loc = client_record->get_location();
+            if (loc->get_last_location_time() != time(0)) {
+                loc->set_last_location_time(time(0));
+                loc->add_loc_with_avg(pack_gpsinfo->lat, pack_gpsinfo->lon,
+                        pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
+                        pack_gpsinfo->heading);
+            } else {
+                loc->add_loc(pack_gpsinfo->lat, pack_gpsinfo->lon,
+                        pack_gpsinfo->alt, pack_gpsinfo->fix, pack_gpsinfo->speed,
+                        pack_gpsinfo->heading);
+            }
         }
 
         // Update the forward map to the bssid
@@ -3552,7 +3578,7 @@ void kis_80211_phy::generate_handshake_pcap(std::shared_ptr<kis_net_beast_httpd_
 
     stream.write((const char *) &hdr, sizeof(hdr));
 
-    local_locker dlock(&dev->device_mutex);
+    auto devlocker = devicelist_range_scope_locker(devicetracker, dev);
 
     /* Write the beacon */
     if (dot11dev->get_beacon_packet_present()) {

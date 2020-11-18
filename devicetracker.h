@@ -304,8 +304,6 @@ protected:
     // Timestamp for the last time we removed a device
     std::atomic<time_t> full_refresh_time;
 
-    // Do we track history clouds?
-    bool track_history_cloud;
     bool track_persource_history;
 
 	// Common device component
@@ -418,6 +416,15 @@ public:
             std::shared_ptr<tracker_element> range) :
         tracker{tracker},
         range{range} { 
+            tracker->lock_device_range(range);
+        }
+
+    devicelist_range_scope_locker(std::shared_ptr<device_tracker> tracker,
+            std::shared_ptr<kis_tracked_device_base> dev) :
+        tracker{tracker} {
+            auto r = std::make_shared<tracker_element_vector>();
+            r->push_back(dev);
+            range = r;
             tracker->lock_device_range(range);
         }
 

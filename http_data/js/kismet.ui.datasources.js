@@ -887,11 +887,19 @@ function update_datasource2(data) {
                     "uuid": uuid
                 };
                 var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
-                $.post(local_uri_prefix + "datasource/by-uuid/"+uuid+"/set_channel.cmd", postdata, "json")
-                .always(function() {
-                        ds_state['defer_command_progress'] = false;
-                    });
 
+                  try {
+                      $.ajax({
+                          url: `${local_uri_prefix}datasource/by-uuid/${uuid}/set_channel.cmd`, 
+                          method: 'POST',
+                          data: postdata,
+                          dataType: 'json',
+                          success: function(data) { },
+                          timeout: 30000,
+                      });
+                  } finally {
+                      ds_state['defer_command_progress'] = false;
+                  }
                 $('button.chanbutton[uuid=' + uuid + ']', ds_state['ds_content']).each(function(i){
                       $(this).removeClass('disable-chan-system');
                       $(this).removeClass('enable-chan-system');
@@ -950,23 +958,31 @@ function update_datasource2(data) {
                             $('.k-ds-modal', sdiv).show();
 
                             var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
-                            $.post(local_uri_prefix + "datasource/by-uuid/"+uuid+"/set_channel.cmd", postdata, "json")
-                            .done(function(data) {
-                                data = kismet.sanitizeObject(data);
-                                for (var u in ds_state['datasources']) {
-                                    if (ds_state['datasources'][u]['kismet.datasource.uuid'] == data['kismet.datasource.uuid']) {
-                                        ds_state['datasources'][u] = data;
-                                        ds_state['remove_pending'].push(uuid);
-                                        update_datasource2(null);
-                                        break;
-                                    }
-                                }
-                            })
-                            .always(function() {
+
+                            try {
+                                $.ajax({
+                                    url: `${local_uri_prefix}datasource/by-uuid/${uuid}/set_channel.cmd`,
+                                    method: 'POST',
+                                    data: postdata,
+                                    dataType: 'json',
+                                    success: function(data) {
+                                        data = kismet.sanitizeObject(data);
+                                        for (var u in ds_state['datasources']) {
+                                            if (ds_state['datasources'][u]['kismet.datasource.uuid'] == data['kismet.datasource.uuid']) {
+                                                ds_state['datasources'][u] = data;
+                                                ds_state['remove_pending'].push(uuid);
+                                                update_datasource2(null);
+                                                break;
+                                            }
+                                        }
+                                    },
+                                    timeout: 30000,
+                                });
+                            } finally {
                                 ds_state['remove_pending'].push(uuid);
                                 ds_state['defer_command_progress'] = false;
                                 sdiv.removeClass("channel_pending");
-                            });
+                            }
 
                             return;
                         } else {
@@ -1014,23 +1030,30 @@ function update_datasource2(data) {
                                 };
 
                                 var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
-                                $.post(local_uri_prefix + "datasource/by-uuid/"+uuid+"/set_channel.cmd", postdata, "json")
-                                    .done(function(data) {
-                                        data = kismet.sanitizeObject(data);
-                                        for (var u in ds_state['datasources']) {
-                                            if (ds_state['datasources'][u]['kismet.datasource.uuid'] == data['kismet.datasource.uuid']) {
-                                                ds_state['datasources'][u] = data;
-                                                ds_state['remove_pending'].push(uuid);
-                                                update_datasource2(null);
-                                                break;
+                                try {
+                                    $.ajax({
+                                        url: `${local_uri_prefix}datasource/by-uuid/${uuid}/set_channel.cmd`,
+                                        method: 'POST',
+                                        data: postdata,
+                                        dataType: 'json',
+                                        success: function(data) {
+                                            data = kismet.sanitizeObject(data);
+                                            for (var u in ds_state['datasources']) {
+                                                if (ds_state['datasources'][u]['kismet.datasource.uuid'] == data['kismet.datasource.uuid']) {
+                                                    ds_state['datasources'][u] = data;
+                                                    ds_state['remove_pending'].push(uuid);
+                                                    update_datasource2(null);
+                                                    break;
+                                                }
                                             }
-                                        }
-                                    })
-                                    .always(function() {
-                                        ds_state['remove_pending'].push(uuid);
-                                        ds_state['defer_command_progress'] = false;
-                                        sdiv.removeClass("channel_pending");
+                                        },
+                                        timeout: 30000,
                                     });
+                                } finally {
+                                    ds_state['remove_pending'].push(uuid);
+                                    ds_state['defer_command_progress'] = false;
+                                    sdiv.removeClass("channel_pending");
+                                }
                             }, 2000);
                         }
                     })
@@ -1177,22 +1200,29 @@ function update_datasource2(data) {
                   "uuid": uuid
               };
               var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
-              $.post(local_uri_prefix + "datasource/by-uuid/"+uuid+"/set_channel.cmd", postdata, "json")
-              .done(function(data) {
-                  data = kismet.sanitizeObject(data);
 
-                  for (var u in ds_state['datasources']) {
-                      if (ds_state['datasources'][u]['kismet.datasource.uuid'] == data['kismet.datasource.uuid']) {
-                          ds_state['datasources'][u] = data;
-                          ds_state['remove_pending'].push(uuid);
-                          update_datasource2(null);
-                          break;
-                      }
-                  }
-              })
-              .always(function() {
-                  ds_state['remove_pending'].push(uuid);
-              });
+                try {
+                    $.ajax({
+                        url: `${local_uri_prefix}datasource/by-uuid/${uuid}/set_channel.cmd`,
+                        method: 'POST',
+                        data: postdata,
+                        dataType: 'json',
+                        success: function(data) {
+                            data = kismet.sanitizeObject(data);
+                            for (var u in ds_state['datasources']) {
+                                if (ds_state['datasources'][u]['kismet.datasource.uuid'] == data['kismet.datasource.uuid']) {
+                                    ds_state['datasources'][u] = data;
+                                    ds_state['remove_pending'].push(uuid);
+                                    update_datasource2(null);
+                                    break;
+                                }
+                            }
+                        },
+                        timeout: 30000,
+                    });
+                } finally {
+                    ds_state['remove_pending'].push(uuid);
+                }
 
               $('button.chanbutton[uuid='+ uuid + ']', ds_state['ds_content']).each(function(i) {
                       $(this).removeClass('enable-chan-system');
@@ -1238,21 +1268,29 @@ function update_datasource2(data) {
               };
 
               var postdata = "json=" + encodeURIComponent(JSON.stringify(jscmd));
-              $.post(local_uri_prefix + "datasource/by-uuid/"+uuid+"/set_channel.cmd", postdata, "json")
-              .done(function(data) {
-                  data = kismet.sanitizeObject(data);
-                  for (var u in ds_state['datasources']) {
-                      if (ds_state['datasources'][u]['kismet.datasource.uuid'] == data['kismet.datasource.uuid']) {
-                          ds_state['datasources'][u] = data;
-                          ds_state['remove_pending'].push(uuid);
-                          update_datasource2(null);
-                          break;
-                      }
-                  }
-              })
-              .always(function() {
-                  ds_state['remove_pending'].push(uuid);
-              });
+
+                try {
+                    $.ajax({
+                        url: `${local_uri_prefix}datasource/by-uuid/${uuid}/set_channel.cmd`,
+                        method: 'POST',
+                        data: postdata,
+                        dataType: 'json',
+                        success: function(data) {
+                            data = kismet.sanitizeObject(data);
+                            for (var u in ds_state['datasources']) {
+                                if (ds_state['datasources'][u]['kismet.datasource.uuid'] == data['kismet.datasource.uuid']) {
+                                    ds_state['datasources'][u] = data;
+                                    ds_state['remove_pending'].push(uuid);
+                                    update_datasource2(null);
+                                    break;
+                                }
+                            }
+                        },
+                        timeout: 30000,
+                    });
+                } finally {
+                    ds_state['remove_pending'].push(uuid);
+                }
 
               $('button.chanbutton[uuid='+ uuid + ']', ds_state['ds_content']).each(function(i) {
                   // Disable all but the first available channel

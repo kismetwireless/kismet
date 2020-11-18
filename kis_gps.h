@@ -180,8 +180,8 @@ protected:
 
     std::shared_ptr<tracker_element_int32> gps_priority;
 
-    std::shared_ptr<kis_tracked_location_triplet> tracked_location;
-    std::shared_ptr<kis_tracked_location_triplet> tracked_last_location;
+    std::shared_ptr<kis_tracked_location_full> tracked_location;
+    std::shared_ptr<kis_tracked_location_full> tracked_last_location;
 
     kis_gps_packinfo *gps_location;
     kis_gps_packinfo *gps_last_location;

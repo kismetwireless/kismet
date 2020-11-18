@@ -84,20 +84,19 @@ public:
         }
     }
 
-    std::shared_ptr<kis_tracked_location_triplet> as_tracked_triplet() {
-        std::shared_ptr<kis_tracked_location_triplet> r =
-            std::make_shared<kis_tracked_location_triplet>();
+    std::shared_ptr<kis_tracked_location_full> as_tracked_full() {
+        auto r = std::make_shared<kis_tracked_location_full>();
 
-        r->set_lat(lat);
-        r->set_lon(lon);
+        r->set_location(lat, lon);
         r->set_alt(alt);
         r->set_speed(speed);
         r->set_heading(heading);
         r->set_fix(fix);
-        r->set_valid(fix >= 2);
+        /*
         r->set_error_x(error_x);
         r->set_error_y(error_y);
         r->set_error_v(error_v);
+        */
         r->set_time_sec(tv.tv_sec);
         r->set_time_usec(tv.tv_usec);
 
@@ -192,7 +191,7 @@ protected:
     // linear search because we'll typically have very few GPS devices
     std::shared_ptr<tracker_element_vector> gps_instances_vec;
 
-    // Extra field we insert into a location triplet
+    // Extra field we insert into a location record
     int tracked_uuid_addition_id;
 
     // Logging function

@@ -51,6 +51,17 @@ class kis_datasource_cap_keyed_object;
 class datasource_tracker;
 class kis_datasource;
 
+class kis_packreport_packinfo : public packet_component {
+public:
+    kis_packreport_packinfo(std::shared_ptr<KismetDatasource::DataReport> r) :
+        report{r} {
+            self_destruct = 1;
+        }
+
+protected:
+    std::shared_ptr<KismetDatasource::DataReport> report;
+};
+
 class kis_datasource_builder : public tracker_component {
 public:
     kis_datasource_builder() :
@@ -157,7 +168,9 @@ protected:
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
         tracker_component::reserve_fields(e);
 
-        set_local_name("kismet.datasource.type_driver");
+        tracked_id = Globalreg::globalreg->entrytracker->register_field("kismet.datasource.type_driver",
+                tracker_element_factory<tracker_element_map>(),
+                "datasource driver handler");
     }
 
     int datasource_entity_id;
@@ -727,7 +740,7 @@ protected:
     std::shared_ptr<packet_chain> packetchain;
 
     // Packet components we inject
-    int pack_comp_linkframe, pack_comp_l1info, pack_comp_gps, pack_comp_no_gps,
+    int pack_comp_report, pack_comp_linkframe, pack_comp_l1info, pack_comp_gps, pack_comp_no_gps,
         pack_comp_datasrc, pack_comp_json, pack_comp_protobuf;
 
 };

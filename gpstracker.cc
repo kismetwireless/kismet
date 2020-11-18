@@ -98,24 +98,20 @@ gps_tracker::gps_tracker() :
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     local_shared_locker l(&gpsmanager_mutex, "/gps/location");
-                    auto loctrip = std::make_shared<kis_tracked_location_triplet>();
+                    auto loctrip = std::make_shared<kis_tracked_location_full>();
                     auto ue = std::make_shared<tracker_element_uuid>(tracked_uuid_addition_id);
 
                     auto pi = std::unique_ptr<kis_gps_packinfo>(get_best_location());
                     if (pi != nullptr) {
                         ue->set(pi->gpsuuid);
-                        loctrip->set_lat(pi->lat);
-                        loctrip->set_lon(pi->lon);
+                        loctrip->set_location(pi->lat, pi->lon);
                         loctrip->set_alt(pi->alt);
                         loctrip->set_speed(pi->speed);
                         loctrip->set_heading(pi->heading);
                         loctrip->set_fix(pi->fix);
-                        loctrip->set_valid(pi->fix >= 2);
                         loctrip->set_time_sec(pi->tv.tv_sec);
                         loctrip->set_time_usec(pi->tv.tv_usec);
                         loctrip->insert(ue);
-                    } else {
-                        loctrip->set_valid(false);
                     }
 
                     return loctrip;
@@ -125,24 +121,20 @@ gps_tracker::gps_tracker() :
         timetracker->register_timer(std::chrono::seconds(1), true, 
                 [this](int) -> int {
                 local_shared_locker l(&gpsmanager_mutex, "location event");
-                auto loctrip = std::make_shared<kis_tracked_location_triplet>();
+                auto loctrip = std::make_shared<kis_tracked_location_full>();
                 auto ue = std::make_shared<tracker_element_uuid>(tracked_uuid_addition_id);
 
                 auto pi = std::unique_ptr<kis_gps_packinfo>(get_best_location());
                 if (pi != nullptr) {
                     ue->set(pi->gpsuuid);
-                    loctrip->set_lat(pi->lat);
-                    loctrip->set_lon(pi->lon);
+                    loctrip->set_location(pi->lat, pi->lon);
                     loctrip->set_alt(pi->alt);
                     loctrip->set_speed(pi->speed);
                     loctrip->set_heading(pi->heading);
                     loctrip->set_fix(pi->fix);
-                    loctrip->set_valid(pi->fix >= 2);
                     loctrip->set_time_sec(pi->tv.tv_sec);
                     loctrip->set_time_usec(pi->tv.tv_usec);
                     loctrip->insert(ue);
-                } else {
-                    loctrip->set_valid(false);
                 }
 
                 auto evt = eventbus->get_eventbus_event(event_gps_location());

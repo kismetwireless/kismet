@@ -158,7 +158,7 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
                      UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
                     "Bluetooth Device");
 
-        local_locker btlocker(&(btdev->device_mutex));
+        auto devlocker = devicelist_range_scope_locker(btphy->devicetracker, btdev);
 
         // Mapped to base name
         auto devname_j = json["name"]; 
@@ -261,7 +261,7 @@ int kis_bluetooth_phy::packet_tracker_bluetooth(CHAINCALL_PARMS) {
     if (basedev == nullptr)
         return 0;
 
-    local_locker bssidlock(&(basedev->device_mutex));
+    auto devlocker = devicelist_range_scope_locker(btphy->devicetracker, basedev);
 
     auto btdev =
         basedev->get_sub_as<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);

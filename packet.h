@@ -85,15 +85,10 @@ public:
     // a vector of device events to publish
     std::vector<std::shared_ptr<eventbus_event>> process_complete_events;
 
-    // Actual vector of bits in the packet
-    std::vector<packet_component *> content_vec;
+    // pre-allocated vector of broken down packet components
+    packet_component **content_vec;
 
-    // Init stuff
-    kis_packet() {
-        fprintf(stderr, "FATAL: kis_packet()\n"); exit(1);
-    }
-
-    kis_packet(global_registry *in_globalreg);
+    kis_packet();
     ~kis_packet();
 
     void insert(const unsigned int index, packet_component *data);
@@ -112,9 +107,6 @@ public:
 
     // Tags applied to the packet
     std::vector<std::string> tag_vec;
-
-protected:
-    global_registry *globalreg;
 };
 
 
@@ -215,6 +207,10 @@ public:
             delete[] data;
         }
         length = 0;
+    }
+
+    virtual void set_data(char *in_data, unsigned int in_length, bool copy = true) {
+        set_data((uint8_t *) in_data, in_length, copy);
     }
 
     // Default to copy=true; it's always safe to copy, it's not always safe not to

@@ -223,8 +223,7 @@ double kis_gps::gps_calc_rad(double lat) {
 }
 
 void kis_gps::update_locations() {
-    tracked_last_location->set_lat(gps_last_location->lat);
-    tracked_last_location->set_lon(gps_last_location->lon);
+    tracked_last_location->set_location(gps_last_location->lat, gps_last_location->lon);
     tracked_last_location->set_alt(gps_last_location->alt);
     tracked_last_location->set_speed(gps_last_location->speed);
     tracked_last_location->set_heading(gps_last_location->heading);
@@ -232,8 +231,7 @@ void kis_gps::update_locations() {
     tracked_last_location->set_time_sec(gps_last_location->tv.tv_sec);
     tracked_last_location->set_time_usec(gps_last_location->tv.tv_usec);
 
-    tracked_location->set_lat(gps_location->lat);
-    tracked_location->set_lon(gps_location->lon);
+    tracked_location->set_location(gps_location->lat, gps_location->lon);
     tracked_location->set_alt(gps_location->alt);
     tracked_location->set_speed(gps_location->speed);
     tracked_location->set_heading(gps_location->heading);

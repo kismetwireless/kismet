@@ -96,7 +96,7 @@ void kis_database_logfile::trigger_deferred_shutdown() {
 }
 
 bool kis_database_logfile::open_log(std::string in_path) {
-    local_locker dbl(&ds_mutex);
+    local_locker dbl(&ds_mutex, "kismetdb open_log");
 
     auto timetracker = 
         Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
@@ -392,7 +392,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
         timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
             [this](int) -> int {
 
-            local_locker dblock(&ds_mutex);
+            local_locker dblock(&ds_mutex, "kismetdb transaction_timer");
 
             in_transaction_sync = true;
 
@@ -412,7 +412,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
 }
 
 void kis_database_logfile::close_log() {
-    local_demand_locker dblock(&ds_mutex);
+    local_demand_locker dblock(&ds_mutex, "kismetdb close_log");
 
     db_lock_with_sync_check(dblock, return);
 
@@ -492,7 +492,7 @@ void kis_database_logfile::close_log() {
 }
 
 int kis_database_logfile::database_upgrade_db() {
-    local_locker dblock(&ds_mutex);
+    local_locker dblock(&ds_mutex, "kismetdb upgrade_db");
 
     std::string sql;
     int r;
@@ -850,7 +850,7 @@ void kis_database_logfile::handle_message(std::shared_ptr<tracked_message> msg) 
     if (!db_enabled)
         return;
 
-    local_demand_locker dblock(&ds_mutex);
+    local_demand_locker dblock(&ds_mutex, "kismetdb handle_message");
     db_lock_with_sync_check(dblock, return);
 
     sqlite3_reset(msg_stmt);
@@ -924,19 +924,21 @@ int kis_database_logfile::log_device(std::shared_ptr<kis_tracked_device_base> d)
 
     std::stringstream sstr;
 
-    // serialize the device
-    int r = Globalreg::globalreg->entrytracker->serialize("json", sstr, d, nullptr);
-   
-    if (r < 0) {
-        _MSG_ERROR("Failure serializing device key {} to the kisdatabaselog", d->get_key());
-        return 0;
-    }
+    {
+        // serialize the device
+        auto devlocker = devicelist_range_scope_locker(devicetracker, d);
+        int r = Globalreg::globalreg->entrytracker->serialize("json", sstr, d, nullptr);
 
+        if (r < 0) {
+            _MSG_ERROR("Failure serializing device key {} to the kisdatabaselog", d->get_key());
+            return 0;
+        }
+    }
 
     std::string streamstring = sstr.str();
 
     {
-        local_demand_locker dblock(&ds_mutex);
+        local_demand_locker dblock(&ds_mutex, "kismetdb log_device");
         db_lock_with_sync_check(dblock, return -1);
 
         sqlite3_reset(device_stmt);
@@ -1059,7 +1061,7 @@ int kis_database_logfile::log_packet(kis_packet *in_pack) {
 
     // Log into the PACKET table if we're a loggable packet (ie, have a link frame)
     if (chunk != nullptr) {
-        local_demand_locker dblock(&ds_mutex);
+        local_demand_locker dblock(&ds_mutex, "kismetdb log_packet");
         db_lock_with_sync_check(dblock, return -1);
 
         sqlite3_reset(packet_stmt);
@@ -1157,7 +1159,7 @@ int kis_database_logfile::log_data(kis_gps_packinfo *gps, struct timeval tv,
     std::string uuidstring = datasource_uuid.uuid_to_string();
 
     {
-        local_demand_locker dblock(&ds_mutex);
+        local_demand_locker dblock(&ds_mutex, "kismetdb log_data");
         db_lock_with_sync_check(dblock, return -1);
 
         sqlite3_reset(data_stmt);
@@ -1237,7 +1239,7 @@ int kis_database_logfile::log_datasource(shared_tracker_element in_datasource) {
     jsonstring = ss.str();
 
     {
-        local_demand_locker dblock(&ds_mutex);
+        local_demand_locker dblock(&ds_mutex, "kismetdb log_datasource");
         db_lock_with_sync_check(dblock, return -1);
 
         sqlite3_reset(datasource_stmt);
@@ -1280,7 +1282,7 @@ int kis_database_logfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
     fractpart = modf(in_alert->get_timestamp(), &intpart);
 
     {
-        local_demand_locker dblock(&ds_mutex);
+        local_demand_locker dblock(&ds_mutex, "kismetdb log_alert");
         db_lock_with_sync_check(dblock, return -1);
 
         sqlite3_reset(alert_stmt);
@@ -1319,7 +1321,7 @@ int kis_database_logfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
     if (!db_enabled)
         return 0;
 
-    local_demand_locker dblock(&ds_mutex);
+    local_demand_locker dblock(&ds_mutex, "kismetdb log_snapshot");
     db_lock_with_sync_check(dblock, return -1);
 
     sqlite3_reset(snapshot_stmt);

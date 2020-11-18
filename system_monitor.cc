@@ -89,7 +89,7 @@ Systemmonitor::Systemmonitor() :
 
     status->set_username(uidstr.str());
 
-    status->set_server_uuid(Globalreg::globalreg->server_uuid);
+    status->insert(Globalreg::globalreg->server_uuid);
 
     status->set_server_version(fmt::format("{}-{}-{}", VERSION_MAJOR, VERSION_MINOR, VERSION_TINY));
     status->set_server_git(VERSION_GIT_COMMIT);
@@ -220,6 +220,19 @@ Systemmonitor::Systemmonitor() :
                 bevt->get_event_content()->insert(event_battery(), bate);
                 eventbus->publish(bevt);
 
+                auto sevt = eventbus->get_eventbus_event(event_stats());
+                auto sate = std::make_shared<tracker_element_map>();
+
+                sate->insert(status->get_tracker_num_fields());
+                sate->insert(status->get_tracker_num_components());
+                sate->insert(status->get_tracker_num_http_connections());
+                sate->insert(status->get_tracker_memory());
+                sate->insert(status->get_tracker_devices());
+
+                sevt->get_event_content()->insert(event_stats(), sate);
+                eventbus->publish(sevt);
+
+
                 status->post_serialize();
 
                 return 1;
@@ -255,7 +268,6 @@ void tracked_system_status::register_fields() {
     register_field("kismet.system.version", "Kismet version string", &server_version);
     register_field("kismet.system.git", "Git commit string", &server_git);
     register_field("kismet.system.build_time", "Server build time", &build_time);
-    register_field("kismet.system.server_uuid", "UUID of kismet server", &server_uuid);
     register_field("kismet.system.server_name", "Arbitrary name of server instance", &server_name);
     register_field("kismet.system.server_description", "Arbitrary server description", &server_description);
     register_field("kismet.system.server_location", "Arbitrary server location string", &server_location);

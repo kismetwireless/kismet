@@ -347,18 +347,19 @@ kis_tracked_seenby_data::kis_tracked_seenby_data(const kis_tracked_seenby_data *
     __ImportField(last_time, p);
     __ImportField(num_packets, p);
 
-    __ImportField(freq_khz_map, p);
-
+    __ImportId(freq_khz_map, p);
+    __ImportId(freq_khz_map_id, p);
     __ImportId(signal_data_id, p);
 
     reserve_fields(nullptr);
 }
 
 void kis_tracked_seenby_data::inc_frequency_count(int frequency) {
-    auto i = freq_khz_map->find(frequency);
+    auto m = get_tracker_freq_khz_map();
+    auto i = m->find(frequency);
 
-    if (i == freq_khz_map->end()) {
-        freq_khz_map->insert(frequency, 1);
+    if (i == m->end()) {
+        m->insert(frequency, 1);
     } else {
         i->second += 1;
     }
@@ -375,7 +376,8 @@ void kis_tracked_seenby_data::register_fields() {
     register_field("kismet.common.seenby.num_packets", 
             "number of packets seen by this device", &num_packets);
 
-    register_field("kismet.common.seenby.freq_khz_map", 
+    freq_khz_map_id =
+        register_dynamic_field("kismet.common.seenby.freq_khz_map", 
             "packets seen per frequency (khz)", &freq_khz_map);
 
     frequency_val_id =
@@ -441,11 +443,12 @@ void kis_tracked_device_base::inc_seenby_count(kis_datasource *source,
 
 void kis_tracked_device_base::register_fields() {
     tracker_component::register_fields();
+    
+    phy_id = 0;
 
     register_field("kismet.device.base.key", "unique device key across phy and server", &key);
     register_field("kismet.device.base.macaddr", "mac address", &macaddr);
     register_field("kismet.device.base.phyname", "phy name", &phyname);
-	register_field("kismet.device.base.phyid", "phy internal id", &phyid);
     register_field("kismet.device.base.name", "printable device name", &devicename);
     username_id = 
         register_dynamic_field("kismet.device.base.username", "user name", &username);
@@ -492,9 +495,6 @@ void kis_tracked_device_base::register_fields() {
 
     location_id =
         register_dynamic_field("kismet.device.base.location", "location", &location);
-    location_cloud_id =
-        register_dynamic_field("kismet.device.base.location_cloud", 
-                "historic location cloud", &location_cloud);
 
     register_field("kismet.device.base.seenby", "sources that have seen this device", &seenby_map);
 
@@ -507,9 +507,6 @@ void kis_tracked_device_base::register_fields() {
         register_field("kismet.device.base.seenby.data",
                 tracker_element_factory<kis_tracked_seenby_data>(),
                 "datasource seen-by data");
-
-    register_field("kismet.device.base.server_uuid", 
-            "UUID of server which saw this device", &server_uuid);
 
     register_field("kismet.device.base.related_devices",
             "Related devices, organized by relationship", &related_devices_map);
