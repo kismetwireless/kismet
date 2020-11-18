@@ -655,6 +655,110 @@ device_tracker::device_tracker() :
                     return ret;
                 }, &devicelist_mutex));
 
+    httpd->register_websocket_route("/devices/monitor", httpd->RO_ROLE, {"ws"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+
+                // consumer-supplied key# per monitor request, timer id of monitor event
+                std::unordered_map<unsigned int, int> key_timer_map;
+
+                auto ws = 
+                    std::make_shared<kis_net_web_websocket_endpoint>(con,
+                        [this, &key_timer_map, con](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
+                            boost::beast::flat_buffer& buf, bool text) {
+
+                        if (!text) {
+                            ws->close();
+                            return;
+                        }
+
+                        std::stringstream ss(boost::beast::buffers_to_string(buf.data()));
+                        Json::Value json;
+
+                        unsigned int req_id;
+
+                        try {
+                            ss >> json;
+                            req_id = json["request"].asUInt();
+
+                            if (!json["ignore"].isNull()) {
+                                auto kt_v = key_timer_map.find(req_id);
+                                if (kt_v != key_timer_map.end()) {
+                                    timetracker->remove_timer(kt_v->second);
+                                    key_timer_map.erase(kt_v);
+                                }
+                            }
+
+                            if (!json["monitor"].isNull()) {
+                                auto dev_k = device_key(json["monitor"].asString());
+                                auto dev_m = mac_addr(json["monitor"].asString());
+                                
+                                if (dev_k.get_error() && dev_m.error())
+                                    throw std::runtime_error("invalid device reference");
+
+                                auto rate = json["rate"].asUInt();
+
+                                // Remove any existing request under this ID
+                                auto kt_v = key_timer_map.find(req_id);
+                                if (kt_v != key_timer_map.end())
+                                    timetracker->remove_timer(kt_v->second);
+
+                                auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
+
+                                // Generate a timer event that goes and looks for the devices and
+                                // serializes them with the fields record
+                                auto tid = 
+                                    timetracker->register_timer(std::chrono::seconds(rate), true,
+                                            [this, con, dev_k, dev_m, json, &ws, rename_map](int) -> int {
+                                                auto d_vec = std::make_shared<tracker_element_vector>();
+                                                
+                                                if (!dev_k.get_error()) {
+                                                    auto dev = fetch_device(dev_k);
+                                                    if (dev != nullptr)
+                                                        d_vec->push_back(dev);
+                                                }
+
+                                                if (!dev_m.error()) {
+                                                    local_shared_locker l(&devicelist_mutex, "monitor ws mac");
+                                                    const auto mmp = tracked_mac_multimap.equal_range(dev_m);
+                                                    for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi)
+                                                        d_vec->push_back(mmpi->second);
+                                                }
+
+                                                if (d_vec->size() == 0)
+                                                    return 1;
+
+                                                devicelist_range_scope_locker(shared_from_this(), d_vec);
+
+                                                for (const auto& d : *d_vec) {
+                                                    std::stringstream ss;
+                                                    entrytracker->serialize_with_json_summary("json", ss,
+                                                            d, json);
+                                                    ws->write(ss.str(), true);
+                                                }
+
+                                                return 1;
+                                            });
+
+                                key_timer_map[req_id] = tid;
+                            }
+
+                        } catch (const std::exception& e) {
+                            _MSG_ERROR("Invalid device monitor request: {}", e.what());
+                            return;
+                        }
+
+                    });
+
+                try {
+                    ws->handle_request(con);
+                } catch (const std::exception& e) {
+                    ;
+                }
+
+                for (const auto t : key_timer_map)
+                    timetracker->remove_timer(t.second);
+            }));
 
     phy_phyentry_id =
         entrytracker->register_field("kismet.phy.phy",
