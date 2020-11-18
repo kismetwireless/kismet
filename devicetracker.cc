@@ -679,10 +679,9 @@ device_tracker::device_tracker() :
 
                         try {
                             ss >> json;
-                            req_id = json["request"].asUInt();
 
-                            if (!json["ignore"].isNull()) {
-                                auto kt_v = key_timer_map.find(req_id);
+                            if (!json["cancel"].isNull()) {
+                                auto kt_v = key_timer_map.find(json["cancel"].asUInt());
                                 if (kt_v != key_timer_map.end()) {
                                     timetracker->remove_timer(kt_v->second);
                                     key_timer_map.erase(kt_v);
@@ -690,6 +689,8 @@ device_tracker::device_tracker() :
                             }
 
                             if (!json["monitor"].isNull()) {
+                                req_id = json["request"].asUInt();
+
                                 auto dev_k = device_key(json["monitor"].asString());
                                 auto dev_m = mac_addr(json["monitor"].asString());
                                 
