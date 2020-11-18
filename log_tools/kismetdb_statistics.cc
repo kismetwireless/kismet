@@ -202,9 +202,12 @@ int main(int argc, char *argv[]) {
             root["device_max_time"] = (uint64_t) max_time;
         } else {
             fmt::print("  Devices: {}\n", n_total_devices);
+            char min_tmstr[256];
+            char max_tmstr[256];
+            strftime(min_tmstr, 255, "%Y-%m-%d %H:%M:%S", &min_tm);
+            strftime(max_tmstr, 255, "%Y-%m-%d %H:%M:%S", &max_tm);
             fmt::print("  Devices seen between: {} ({}) to {} ({})\n",
-                    std::put_time(&min_tm, "%Y-%m-%d %H:%M:%S"), min_time,
-                    std::put_time(&max_tm, "%Y-%m-%d %H:%M:%S"), max_time);
+                    min_tmstr, min_time, max_tmstr, max_time);
         }
 
         auto n_sources_q = _SELECT(db, "datasources", {"count(*)"});

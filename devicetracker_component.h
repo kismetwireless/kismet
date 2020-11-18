@@ -168,7 +168,7 @@ public:
     __Proxy(num_packets, uint64_t, uint64_t, uint64_t, num_packets);
     __ProxyIncDec(num_packets, uint64_t, uint64_t, num_packets);
 
-    __ProxyTrackable(freq_khz_map, tracker_element_double_map_double, freq_khz_map);
+    __ProxyDynamicTrackable(freq_khz_map, tracker_element_double_map_double, freq_khz_map, freq_khz_map_id);
     __ProxyDynamicTrackable(signal_data, kis_tracked_signal_data, signal_data, signal_data_id);
 
     void inc_frequency_count(int frequency);
@@ -184,6 +184,7 @@ protected:
     std::shared_ptr<tracker_element_uint64> num_packets;
 
     std::shared_ptr<tracker_element_double_map_double> freq_khz_map;
+    int freq_khz_map_id;
     int frequency_val_id;
 
     std::shared_ptr<kis_tracked_signal_data> signal_data;
@@ -350,7 +351,6 @@ public:
         __ImportField(key, p);
         __ImportField(macaddr, p);
         __ImportField(phyname, p);
-        __ImportField(phyid, p);
         __ImportField(devicename, p);
 
         __ImportId(username_id, p);
@@ -397,8 +397,6 @@ public:
         
         __ImportId(seenby_map_id, p);
 
-        __ImportField(server_uuid, p);
-
         __ImportId(frequency_val_id, p);
         __ImportId(seenby_val_id, p);
 
@@ -441,7 +439,13 @@ public:
     __ProxySwappingTrackable(phyname, tracker_element_string, phyname);
     __ProxyGet(phyname, std::string, std::string, phyname);
 
-	__Proxy(phyid, int32_t, int32_t, int32_t, phyid);
+    int get_phyid() const {
+        return phy_id;
+    } 
+
+    void set_phyid(int id) {
+        phy_id = id;
+    }
 
     __ProxyL(devicename, std::string, std::string, std::string, devicename, 
             [this](std::string i) -> bool {
@@ -566,7 +570,9 @@ public:
 
     __ProxyDynamicTrackable(tag_map, tracker_element_string_map, tag_map, tag_map_id);
 
-    __Proxy(server_uuid, uuid, uuid, uuid, server_uuid);
+    void set_server_uuid(std::shared_ptr<tracker_element_uuid> uuid) {
+        insert(uuid);
+    }
 
     __ProxyTrackable(related_devices_map, tracker_element_string_map, related_devices_map);
     void add_related_device(const std::string& in_relationship, const device_key in_key);
@@ -580,22 +586,13 @@ public:
         kis_internal_id = in_id;
     }
 
-    // Explicit lock and unlock of device
-    virtual void lock() {
-        local_eol_shared_locker lock(&device_mutex);
-    }
-
-    virtual void unlock() {
-        local_shared_unlocker unlock(&device_mutex);
-    }
-
     // Lock our device around serialization
     virtual void pre_serialize() override {
-        local_eol_shared_locker lock(&device_mutex);
+        // local_eol_shared_locker lock(&device_mutex);
     }
 
     virtual void post_serialize() override {
-        local_shared_unlocker unlock(&device_mutex);
+        // local_shared_unlocker unlock(&device_mutex);
     }
 
     // Protective per-device mutex, should be managed by pre/post serialization
@@ -621,7 +618,7 @@ protected:
 
     // Phy name
     std::shared_ptr<tracker_element_string> phyname;
-	std::shared_ptr<tracker_element_int32> phyid;
+    int phy_id;
 
     // Printable name for UI summary.  For APs could be latest SSID, for BT the UAP guess, etc.
     std::shared_ptr<tracker_element_string> devicename;
@@ -706,9 +703,6 @@ protected:
     // Seenby map (mapped by int16 device id)
     std::shared_ptr<tracker_element_int_map> seenby_map;
     int seenby_map_id;
-
-    // Server UUID which generated this device
-    std::shared_ptr<tracker_element_uuid> server_uuid;
 
     // Non-exported local value for frequency count
     int frequency_val_id;

@@ -186,7 +186,7 @@
 /* Define to 1 if you have the <ubertooth.h> header file. */
 #undef HAVE_UBERTOOTH_H
 
-/* Define to 1 if you have the <ubertooth/ubertooth.h> header file. */
+/* ubertooth.h in ubertooth dir */
 #undef HAVE_UBERTOOTH_UBERTOOTH_H
 
 /* Define to 1 if you have the <unistd.h> header file. */

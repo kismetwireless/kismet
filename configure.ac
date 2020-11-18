@@ -1413,14 +1413,15 @@ AS_IF([test "xwant_ubertooth" != "xno"], [
             LDFLAGS="$LDFLAGS -lbtbb"
 
             AC_CHECK_HEADERS([ubertooth/ubertooth.h], 
-                             HAVE_UBERTOOTH_H=yes AC_DEFINE(HAVE_UBERTOOTH_UBERTOOTH_H, 1, ubertooth.h in ubertooth dir), 
-                             AC_MSG_WARN("ubertooth/ubertooth.h is missing"))
+                             [HAVE_UBERTOOTH_H=yes 
+                              AC_DEFINE(HAVE_UBERTOOTH_UBERTOOTH_H, 1, ubertooth.h in ubertooth dir)], 
+                              [])
+
             AC_CHECK_HEADERS([ubertooth.h], 
-                             HAVE_UBERTOOTH_H=yes, 
-                             AC_MSG_WARN("ubertooth.h is missing"))
+                             HAVE_UBERTOOTH_H=yes, [])
+
             AC_CHECK_LIB([ubertooth], [ubertooth_init], 
-                         HAVE_LIBUBERTOOTH=yes,
-                         AC_MSG_WARN("libubertooth is missing"))
+                         HAVE_LIBUBERTOOTH=yes, [])
 
             if test x"$HAVE_UBERTOOTH_H" != "xyes" -o x"$HAVE_LIBUBERTOOTH" != "xyes"; then
                 AC_MSG_WARN([missing libubertooth, ubertooth-one support will not be built])

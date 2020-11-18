@@ -22,6 +22,7 @@
 #include "globalregistry.h"
 #include "util.h"
 #include "macaddr.h"
+#include "trackedelement.h"
 
 global_registry *Globalreg::globalreg = NULL;
 

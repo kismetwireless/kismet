@@ -66,8 +66,7 @@ kis_tracked_location_triplet::kis_tracked_location_triplet(const kis_tracked_loc
 void kis_tracked_location_triplet::set(double in_lat, double in_lon, 
        float in_alt, unsigned int in_fix) {
 
-    set_lat(in_lat);
-    set_lon(in_lon);
+    set_location(in_lat, in_lon);
     set_alt(in_alt);
     set_fix(in_fix);
 
@@ -78,8 +77,7 @@ void kis_tracked_location_triplet::set(double in_lat, double in_lon,
 }
 
 void kis_tracked_location_triplet::set(double in_lat, double in_lon) {
-    set_lat(in_lat);
-    set_lon(in_lon);
+    set_location(in_lat, in_lon);
     set_fix(2);
 
     struct timeval tv;
@@ -94,8 +92,7 @@ void kis_tracked_location_triplet::set(kis_gps_packinfo *in_packinfo) {
 
     
     if (in_packinfo->lat != 0 && in_packinfo->lon != 0) {
-        set_lat(in_packinfo->lat);
-        set_lon(in_packinfo->lon);
+        set_location(in_packinfo->lat, in_packinfo->lon);
     }
 
     set_alt(in_packinfo->alt);
@@ -106,8 +103,7 @@ void kis_tracked_location_triplet::set(kis_gps_packinfo *in_packinfo) {
 
 kis_tracked_location_triplet& 
     kis_tracked_location_triplet::operator= (const kis_tracked_location_triplet& in) {
-    set_lat(in.get_lat());
-    set_lon(in.get_lon());
+    set_location(in.get_lat(), in.get_lon());
     set_alt(in.get_alt());
     set_fix(in.get_fix());
     set_time_sec(in.get_time_sec());
@@ -133,7 +129,7 @@ void kis_tracked_location_triplet::register_fields() {
 
 void kis_tracked_location_triplet::reserve_fields(std::shared_ptr<tracker_element_map> e) {
     tracker_component::reserve_fields(e);
-    geopoint->set({0, 0});
+    geopoint->set(0, 0);
 }
 
 
@@ -174,8 +170,7 @@ void kis_tracked_location_full::set(kis_gps_packinfo *in_packinfo) {
         return;
 
     if (in_packinfo->lat != 0 && in_packinfo->lon != 0) {
-        set_lat(in_packinfo->lat);
-        set_lon(in_packinfo->lon);
+        set_location(in_packinfo->lat, in_packinfo->lon);
     }
 
     set_alt(in_packinfo->alt);
@@ -187,8 +182,7 @@ void kis_tracked_location_full::set(kis_gps_packinfo *in_packinfo) {
 }
 
 kis_tracked_location_full& kis_tracked_location_full::operator= (const kis_tracked_location_full& in) {
-    set_lat(in.get_lat());
-    set_lon(in.get_lon());
+    set_location(in.get_lat(), in.get_lon());
     set_alt(in.get_alt());
     set_speed(in.get_speed());
     set_heading(in.get_heading());
@@ -314,28 +308,35 @@ void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt,
         insert(last_loc);
     }
 
-    last_loc->set_lat(in_lat);
-    last_loc->set_lon(in_lon);
+    last_loc->set_location(in_lat, in_lon);
     last_loc->set_alt(in_alt);
     last_loc->set_fix(fix);
     last_loc->set_speed(in_speed);
     last_loc->set_heading(in_heading);
 
+    double min_lat = min_loc->get_lat();
+    double max_lat = max_loc->get_lat();
+    double min_lon = min_loc->get_lon();
+    double max_lon = max_loc->get_lon();
+
     if (in_lat < min_loc->get_lat() || min_loc->get_lat() == 0) {
-        min_loc->set_lat(in_lat);
+        min_lat = in_lat;
     }
 
     if (in_lat > max_loc->get_lat() || max_loc->get_lat() == 0) {
-        max_loc->set_lat(in_lat);
+        max_lat = in_lat; 
     }
 
     if (in_lon < min_loc->get_lon() || min_loc->get_lon() == 0) {
-        min_loc->set_lon(in_lon);
+        min_lon = in_lon;
     }
 
     if (in_lon > max_loc->get_lon() || max_loc->get_lon() == 0) {
-        max_loc->set_lon(in_lon);
+        max_lon = in_lon;
     }
+
+    min_loc->set_location(min_lat, min_lon);
+    max_loc->set_location(max_lat, max_lon);
 
     if (fix > 2) {
         if (in_alt < min_loc->get_alt() || min_loc->get_alt() == 0) {

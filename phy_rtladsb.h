@@ -204,6 +204,7 @@ protected:
 
     std::shared_ptr<tracker_element> adsb_map_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
 
+    int map_min_lat_id, map_max_lat_id, map_min_lon_id, map_max_lon_id, map_recent_devs_id;
 };
 
 #endif

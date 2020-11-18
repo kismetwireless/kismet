@@ -134,6 +134,9 @@ public:
 // 
 // Really this just just a big ugly hack to do globals without looking like
 // we're doing globals, but it's a lot nicer for maintenance at least.
+
+class tracker_element_uuid;
+
 class global_registry {
 public:
 	// argc and argv for modules to allow overrides
@@ -141,7 +144,7 @@ public:
 	char **argv;
 	char **envp;
 
-    uuid server_uuid;
+    std::shared_ptr<tracker_element_uuid> server_uuid;
     std::size_t server_uuid_hash;
 
 	// getopt-long number for arguments that don't take a short letter

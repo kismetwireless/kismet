@@ -725,7 +725,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
 
                     std::function<void (std::shared_ptr<kis_tracked_device_base>)> find_clients = 
                         [&](std::shared_ptr<kis_tracked_device_base> dev) {
-                        local_shared_locker l(&dev->device_mutex);
+                        auto devlocker = devicelist_range_scope_locker(devicetracker, dev);
 
                         // Don't add non-dot11 devices
                         auto dot11 =
@@ -2132,7 +2132,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
                      UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
                     "Wi-Fi Device");
 
-        local_locker bssidlocker(&(bssid_dev->device_mutex));
+        auto devlocker = devicelist_range_scope_locker(d11phy->devicetracker, bssid_dev);
 
         auto bssid_dot11 =
             bssid_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
@@ -3835,7 +3835,7 @@ void kis_80211_phy::generate_handshake_pcap(std::shared_ptr<kis_net_beast_httpd_
 
     stream.write((const char *) &hdr, sizeof(hdr));
 
-    local_locker dlock(&dev->device_mutex);
+    auto devlocker = devicelist_range_scope_locker(devicetracker, dev);
 
     /* Write the beacon */
     if (dot11dev->get_beacon_packet_present()) {

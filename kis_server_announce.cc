@@ -123,7 +123,7 @@ void kis_server_announce::trigger_deferred_startup() {
                 announcement.server_ts_sec = htobe64(tv.tv_sec);
                 announcement.server_ts_usec = htobe64(tv.tv_usec);
                
-                auto uuid_str = Globalreg::globalreg->server_uuid.as_string();
+                auto uuid_str = Globalreg::globalreg->server_uuid->get().as_string();
 
                 if (uuid_str.length() != 36)
                     snprintf(announcement.uuid, 36, "INVALID");

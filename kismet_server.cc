@@ -312,18 +312,16 @@ void Load_Kismet_UUID(global_registry *globalreg) {
     if (!confuuid.error) {
         _MSG("Setting server UUID " + confuuid.uuid_to_string() + " from kismet.conf "
                 "(or included file)", MSGFLAG_INFO);
-
-        globalreg->server_uuid = confuuid;
+        globalreg->server_uuid->set(confuuid);
         globalreg->server_uuid_hash = confuuid.hash;
         return;
     }
 
     // Make a custom config
-    std::string conf_dir_path_raw = globalreg->kismet_config->fetch_opt("configdir");
-    std::string config_dir_path = 
-        globalreg->kismet_config->expand_log_path(conf_dir_path_raw, "", "", 0, 1);
+    auto config_dir_path = 
+        globalreg->kismet_config->fetch_opt_path("configdir", "%h/.kismet/");
 
-    std::string uuidconfpath = config_dir_path + "/" + "kismet_server_id.conf";
+    auto uuidconfpath = fmt::format("{}/kismet_server_id.conf", config_dir_path);
 
     config_file uuidconf(globalreg);
     uuidconf.parse_config(uuidconfpath.c_str());
@@ -339,7 +337,7 @@ void Load_Kismet_UUID(global_registry *globalreg) {
     }
 
     _MSG_INFO("Setting server UUID {}", confuuid.uuid_to_string());
-    globalreg->server_uuid = confuuid;
+    globalreg->server_uuid->set(confuuid);
     globalreg->server_uuid_hash = confuuid.hash;
 }
 
@@ -578,6 +576,25 @@ int main(int argc, char *argv[], char *envp[]) {
     // handles serializable data needs it
     auto entrytracker = entry_tracker::create_entrytracker();
 
+    // Allocate the globalreg uuid as soon as we have the entrytracker
+    globalreg->server_uuid = 
+        globalreg->entrytracker->register_and_get_field_as<tracker_element_uuid>("kismet.server.uuid",
+                tracker_element_factory<tracker_element_uuid>(),
+                "unique server UUID");
+
+    // Make the IO threads early
+    boost::asio::io_service::work work(Globalreg::globalreg->io);
+
+    std::vector<std::thread> iov;
+    iov.reserve(Globalreg::globalreg->n_io_threads);
+    for (auto i = Globalreg::globalreg->n_io_threads - 1; i > 0; i--) {
+        iov.emplace_back([i] () {
+                thread_set_process_name(fmt::format("IO {}", i));
+                Globalreg::globalreg->io.run();
+                });
+    }
+
+
 	// Create the event bus used by inter-code comms
 	auto eventbus = event_bus::create_eventbus();
 
@@ -759,7 +776,6 @@ int main(int argc, char *argv[], char *envp[]) {
     entrytracker->register_serializer("ekjson", std::make_shared<ek_json_adapter::serializer>());
     entrytracker->register_serializer("itjson", std::make_shared<it_json_adapter::serializer>());
     entrytracker->register_serializer("prettyjson", std::make_shared<pretty_json_adapter::serializer>());
-    entrytracker->register_serializer("storagejson", std::make_shared<storage_json_adapter::serializer>());
 
     entrytracker->register_serializer("jcmd", std::make_shared<json_adapter::serializer>());
     entrytracker->register_serializer("cmd", std::make_shared<json_adapter::serializer>());
@@ -968,17 +984,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Independent time and select threads, which has had problems with timing conflicts
     timetracker->spawn_timetracker_thread();
-
-    std::vector<std::thread> iov;
-    iov.reserve(Globalreg::globalreg->n_io_threads);
-    for (auto i = Globalreg::globalreg->n_io_threads - 1; i > 0; i--) {
-        iov.emplace_back([i] () {
-                thread_set_process_name(fmt::format("IO {}", i));
-                Globalreg::globalreg->io.run();
-                });
-    }
-
-    boost::asio::io_service::work work(Globalreg::globalreg->io);
 
     while (true) {
         if (Globalreg::globalreg->spindown || Globalreg::globalreg->fatal_condition) 

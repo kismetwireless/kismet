@@ -104,8 +104,7 @@ gps_tracker::gps_tracker() :
                     auto pi = std::unique_ptr<kis_gps_packinfo>(get_best_location());
                     if (pi != nullptr) {
                         ue->set(pi->gpsuuid);
-                        loctrip->set_lat(pi->lat);
-                        loctrip->set_lon(pi->lon);
+                        loctrip->set_location(pi->lat, pi->lon);
                         loctrip->set_alt(pi->alt);
                         loctrip->set_speed(pi->speed);
                         loctrip->set_heading(pi->heading);
@@ -128,8 +127,7 @@ gps_tracker::gps_tracker() :
                 auto pi = std::unique_ptr<kis_gps_packinfo>(get_best_location());
                 if (pi != nullptr) {
                     ue->set(pi->gpsuuid);
-                    loctrip->set_lat(pi->lat);
-                    loctrip->set_lon(pi->lon);
+                    loctrip->set_location(pi->lat, pi->lon);
                     loctrip->set_alt(pi->alt);
                     loctrip->set_speed(pi->speed);
                     loctrip->set_heading(pi->heading);

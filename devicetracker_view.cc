@@ -158,7 +158,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(devi
 
             bool m;
             {
-                local_locker devlocker(&dev->device_mutex);
+                auto devlocker = devicelist_range_scope_locker(devicetracker, dev);
                 m = worker.match_device(dev);
             }
 
@@ -188,7 +188,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_
                 return;
 
             auto dev = std::static_pointer_cast<kis_tracked_device_base>(val);
-            local_shared_locker devlocker(&dev->device_mutex);
+            auto devlocker = devicelist_range_scope_locker(devicetracker, dev);
 
             auto m = worker.match_device(dev);
 
