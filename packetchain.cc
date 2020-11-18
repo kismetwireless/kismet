@@ -63,24 +63,24 @@ packet_chain::packet_chain() {
 
     packet_rate_rrd_id = 
         entrytracker->register_field("kismet.packetchain.packets_rrd",
-                tracker_element_factory<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>>(),
+                tracker_element_factory<kis_tracked_rrd<>>(),
                 "total packet rate rrd");
     packet_rate_rrd = 
-        std::make_shared<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>>(packet_rate_rrd_id);
+        std::make_shared<kis_tracked_rrd<>>(packet_rate_rrd_id);
 
     packet_error_rrd_id = 
         entrytracker->register_field("kismet.packetchain.error_packets_rrd",
-                tracker_element_factory<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>>(),
+                tracker_element_factory<kis_tracked_rrd<>>(),
                 "error packet rate rrd");
     packet_error_rrd =
-        std::make_shared<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>>(packet_error_rrd_id);
+        std::make_shared<kis_tracked_rrd<>>(packet_error_rrd_id);
 
     packet_dupe_rrd_id =
         entrytracker->register_field("kismet.packetchain.dupe_packets_rrd",
-                tracker_element_factory<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>>(),
+                tracker_element_factory<kis_tracked_rrd<>>(),
                 "duplicate packet rate rrd");
     packet_dupe_rrd =
-        std::make_shared<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>>(packet_dupe_rrd_id);
+        std::make_shared<kis_tracked_rrd<>>(packet_dupe_rrd_id);
 
     packet_queue_rrd_id =
         entrytracker->register_field("kismet.packetchain.queued_packets_rrd",
@@ -91,17 +91,17 @@ packet_chain::packet_chain() {
 
     packet_drop_rrd_id =
         entrytracker->register_field("kismet.packetchain.dropped_packets_rrd",
-                tracker_element_factory<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>>(),
+                tracker_element_factory<kis_tracked_rrd<>>(),
                 "lost packet / queue overfull rrd");
     packet_drop_rrd =
-        std::make_shared<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>>(packet_drop_rrd_id);
+        std::make_shared<kis_tracked_rrd<>>(packet_drop_rrd_id);
 
     packet_processed_rrd_id =
         entrytracker->register_field("kismet.packetchain.processed_packets_rrd",
-                tracker_element_factory<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>>(),
+                tracker_element_factory<kis_tracked_rrd<>>(),
                 "processed packet rrd");
     packet_processed_rrd =
-        std::make_shared<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>>(packet_processed_rrd_id);
+        std::make_shared<kis_tracked_rrd<>>(packet_processed_rrd_id);
 
     packet_stats_map = 
         std::make_shared<tracker_element_map>();
