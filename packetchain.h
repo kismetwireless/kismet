@@ -176,22 +176,22 @@ protected:
     unsigned int packet_queue_warning, packet_queue_drop;
     time_t last_packet_queue_user_warning, last_packet_drop_user_warning;
 
-    std::shared_ptr<kis_tracked_rrd<>> packet_rate_rrd;
+    std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>> packet_rate_rrd;
     int packet_rate_rrd_id;
 
-    std::shared_ptr<kis_tracked_rrd<>> packet_error_rrd;
+    std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>> packet_error_rrd;
     int packet_error_rrd_id;
 
-    std::shared_ptr<kis_tracked_rrd<>> packet_dupe_rrd;
+    std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>> packet_dupe_rrd;
     int packet_dupe_rrd_id;
 
     std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>> packet_queue_rrd;
     int packet_queue_rrd_id;
 
-    std::shared_ptr<kis_tracked_rrd<>> packet_drop_rrd;
+    std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>> packet_drop_rrd;
     int packet_drop_rrd_id;
 
-    std::shared_ptr<kis_tracked_rrd<>> packet_processed_rrd;
+    std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_extreme_aggregator>> packet_processed_rrd;
     int packet_processed_rrd_id;
 
     std::shared_ptr<tracker_element_map> packet_stats_map;
