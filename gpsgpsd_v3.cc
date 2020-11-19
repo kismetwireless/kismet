@@ -724,7 +724,7 @@ bool kis_gps_gpsd_v3::open_gps(std::string in_opts) {
 }
 
 bool kis_gps_gpsd_v3::get_location_valid() {
-    local_shared_locker lock(gps_mutex);
+    local_shared_locker lock(gps_mutex, "gpsdv3 get_location_valid");
 
     if (!get_device_connected()) {
         return false;
