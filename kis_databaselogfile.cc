@@ -58,10 +58,12 @@ kis_database_logfile::kis_database_logfile():
     db_enabled = false;
 
     message_evt_id = 0;
+    alert_evt_id = 0;
 }
 
 kis_database_logfile::~kis_database_logfile() {
     eventbus->remove_listener(message_evt_id);
+    eventbus->remove_listener(alert_evt_id);
 
     close_log();
 }
@@ -359,6 +361,18 @@ bool kis_database_logfile::open_log(std::string in_path) {
                     });
     }
 
+    alert_evt_id = 
+        eventbus->register_listener(alert_tracker::alert_event(), 
+                [this](std::shared_ptr<eventbus_event> evt) {
+
+                auto msg_k = evt->get_event_content()->find(alert_tracker::alert_event());
+                if (msg_k == evt->get_event_content()->end())
+                    return;
+
+                auto al = std::static_pointer_cast<tracked_alert>(msg_k->second);
+
+                handle_alert(al);
+                });
 
     db_enabled = true;
 
@@ -659,6 +673,10 @@ int kis_database_logfile::database_upgrade_db() {
     database_set_db_version(6);
 
     return 1;
+}
+
+void kis_database_logfile::handle_alert(std::shared_ptr<tracked_alert> alert) {
+    log_alert(alert);
 }
 
 void kis_database_logfile::handle_message(std::shared_ptr<tracked_message> msg) {

@@ -428,16 +428,6 @@ int alert_tracker::raise_one_shot(std::string in_header, std::string in_text, in
 	// Send the text info
 	_MSG(info.header + " " + info.text, MSGFLAG_ALERT);
 
-    if (log_alerts) {
-        auto dbf =
-            Globalreg::fetch_global_as<kis_database_logfile>("DATABASELOG");
-        if (dbf != NULL) {
-            auto ta = std::make_shared<tracked_alert>(alert_entry_id);
-            ta->from_alert_info(&info);
-            dbf->log_alert(ta);
-        }
-    }
-
 	return 1;
 }
 
