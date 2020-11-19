@@ -1387,6 +1387,12 @@ void datasource_tracker::open_datasource(const std::string& in_source,
         auto i = probing_map.find(probeid);
 
         if (i != probing_map.end()) {
+            // Mark this object for completion when the callback triggers
+            probing_complete_vec.push_back(i->second);
+
+            // Remove us from the active vec
+            probing_map.erase(i);
+
             if (builder == nullptr) {
                 // We couldn't find a type, return an error to our initial open CB
                 auto ss = fmt::format("Unable to find driver for '{}'.  Make sure that any required plugins "
@@ -1401,15 +1407,12 @@ void datasource_tracker::open_datasource(const std::string& in_source,
                 auto ss = fmt::format("Found type '{}' for '{}'", builder->get_source_type(), i->second->get_definition());
                 _MSG(ss, MSGFLAG_INFO);
 
+                // Let go of the lock
+                lock.unlock();
+
                 // Initiate an open w/ a known builder, associate the prototype definition with it
                 open_datasource(i->second->get_definition(), builder, in_cb);
             }
-
-            // Mark this object for completion when the callback triggers
-            probing_complete_vec.push_back(i->second);
-
-            // Remove us from the active vec
-            probing_map.erase(i);
 
             // Schedule a cleanup 
             schedule_cleanup();
