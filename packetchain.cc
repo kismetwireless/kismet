@@ -132,9 +132,15 @@ packet_chain::packet_chain() {
 
     packetchain_shutdown = false;
 
-    for (auto nt = static_cast<int>(std::thread::hardware_concurrency()); nt > 0; nt--) {
-        packet_threads.emplace_back(std::thread([this, nt]() {
-                thread_set_process_name(fmt::format("packethandler {}", nt));
+#if 1
+    auto nt = static_cast<int>(std::thread::hardware_concurrency());
+#else
+    auto nt = int(1);
+#endif
+
+    for (int n = 0; n < nt; n++) {
+        packet_threads.emplace_back(std::thread([this, nt, n]() {
+                thread_set_process_name(fmt::format("packethandler {}/{}", n, nt));
                 packet_queue_processor();
                 }));
     }
