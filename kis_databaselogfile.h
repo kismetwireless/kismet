@@ -160,6 +160,7 @@ protected:
                     "the disk you are logging to can not perform adequately, such as a " \
                     "micro-sd.  Try moving logging to a USB device.", KIS_THREAD_DEADLOCK_TIMEOUT); \
             Globalreg::globalreg->fatal_condition = 1; \
+            throw; \
         } else { \
             throw; \
         } \
