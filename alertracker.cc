@@ -374,15 +374,6 @@ int alert_tracker::raise_alert(int in_ref, kis_packet *in_pack,
 	// Send the text info
 	_MSG(info->header + " " + info->text, MSGFLAG_ALERT);
 
-    if (log_alerts) {
-        auto dbf = 
-            Globalreg::fetch_global_as<kis_database_logfile>("DATABASELOG");
-        if (dbf != NULL) {
-            auto ta = std::make_shared<tracked_alert>(alert_entry_id, info);
-            dbf->log_alert(ta);
-        }
-    }
-
 	return 1;
 }
 
