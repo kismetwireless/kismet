@@ -166,28 +166,6 @@ protected:
         } \
     }
 
-    // Prebaked parameterized statements
-    sqlite3_stmt *device_stmt;
-    const char *device_pz;
-
-    sqlite3_stmt *packet_stmt;
-    const char *packet_pz;
-
-    sqlite3_stmt *datasource_stmt;
-    const char *datasource_pz;
-
-    sqlite3_stmt *data_stmt;
-    const char *data_pz;
-    
-    sqlite3_stmt *alert_stmt;
-    const char *alert_pz;
-
-    sqlite3_stmt *msg_stmt;
-    const char *msg_pz;
-    
-    sqlite3_stmt *snapshot_stmt;
-    const char *snapshot_pz;
-
     static int packet_handler(CHAINCALL_PARMS);
 
     // Keep track of our commit cycles; to avoid thrashing the filesystem with
