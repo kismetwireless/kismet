@@ -135,7 +135,7 @@ public:
             // This will be unlocked when the shared count hits 0 so sit trying to lock it again
             if (mutex.try_lock_for(d) == false) {
 #ifdef DEBUG_MUTEX_NAME
-                throw(std::runtime_error(fmt::format("deadlock: mutex {} not available within {} (shared held by {}, wanted by {})", mutex_name, KIS_THREAD_DEADLOCK_TIMEOUT, lock_name, agent_name)));
+                throw(std::runtime_error(fmt::format("deadlock: mutex {} not available within {} (shared held by {} @ {}, wanted by {})", mutex_name, KIS_THREAD_DEADLOCK_TIMEOUT, lock_name, owner, agent_name)));
 #else
                 throw(std::runtime_error(fmt::format("deadlock: mutex not available within {} (shared held)", KIS_THREAD_DEADLOCK_TIMEOUT)));
 #endif
@@ -166,7 +166,7 @@ public:
         state_mutex.unlock();
         if (mutex.try_lock_for(d) == false) {
 #ifdef DEBUG_MUTEX_NAME
-            throw(std::runtime_error(fmt::format("deadlock: shared mutex {} lock not available within {} (claiming write, held by {}, wanted by {})", mutex_name, KIS_THREAD_DEADLOCK_TIMEOUT, lock_name, agent_name)));
+            throw(std::runtime_error(fmt::format("deadlock: shared mutex {} lock not available within {} (claiming write, held by {} @ {}, wanted by {})", mutex_name, KIS_THREAD_DEADLOCK_TIMEOUT, lock_name, owner, agent_name)));
 #else
             throw(std::runtime_error(fmt::format("deadlock: shared mutex lock not available within {} (claiming write)", KIS_THREAD_DEADLOCK_TIMEOUT)));
 #endif
@@ -198,7 +198,7 @@ public:
             state_mutex.unlock();
             if (mutex.try_lock_for(d) == false) {
 #ifdef DEBUG_MUTEX_NAME
-                throw(std::runtime_error(fmt::format("deadlock: shared mutex {} lock not available within {} (write held by {}, wanted by {})", mutex_name, KIS_THREAD_DEADLOCK_TIMEOUT, lock_name, agent_name)));
+                throw(std::runtime_error(fmt::format("deadlock: shared mutex {} lock not available within {} (write held by {} @ {}, wanted by {})", mutex_name, KIS_THREAD_DEADLOCK_TIMEOUT, lock_name, owner, agent_name)));
 #else
                 throw(std::runtime_error(fmt::format("deadlock: shared mutex lock not available within {} (write held)", KIS_THREAD_DEADLOCK_TIMEOUT)));
 #endif
@@ -218,7 +218,7 @@ public:
             state_mutex.unlock();
             if (mutex.try_lock_for(d) == false) {
 #ifdef DEBUG_MUTEX_NAME
-                throw(std::runtime_error(fmt::format("deadlock: shared mutex {} lock not available within {} (claiming shared held by {}, wanted by {})", mutex_name, KIS_THREAD_DEADLOCK_TIMEOUT, lock_name, agent_name)));
+                throw(std::runtime_error(fmt::format("deadlock: shared mutex {} lock not available within {} (claiming shared held by {} @ {}, wanted by {})", mutex_name, KIS_THREAD_DEADLOCK_TIMEOUT, lock_name, owner, agent_name)));
 #else
                 throw(std::runtime_error(fmt::format("deadlock: shared mutex lock not available within {} (claiming shared)", KIS_THREAD_DEADLOCK_TIMEOUT)));
 #endif
@@ -420,6 +420,30 @@ public:
 #else
             throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
                             "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+#endif
+        }
+#endif
+    }
+
+    local_locker(kis_recursive_timed_mutex *in, const std::string& ln, int lock_seconds) : 
+        lock_name {ln},
+        cpplock {in},
+        s_cpplock {nullptr},
+        hold_lock {true} {
+
+        if (in == nullptr)
+            throw(std::runtime_error("threading failure: mutex is null"));
+
+#ifdef DISABLE_MUTEX_TIMEOUT
+        cpplock->lock();
+#else
+        if (!cpplock->try_lock_for(std::chrono::seconds(lock_seconds), ln)) {
+#ifdef DEBUG_MUTEX_NAME
+            throw(std::runtime_error(fmt::format("deadlock: mutex {} not available within "
+                            "{}", cpplock->mutex_name, lock_seconds)));
+#else
+            throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
+                            "{}", lock_seconds)));
 #endif
         }
 #endif
@@ -725,6 +749,25 @@ public:
 #else
             throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
                             "{}", KIS_THREAD_DEADLOCK_TIMEOUT)));
+#endif
+        }
+#endif
+    }
+
+    local_eol_locker(kis_recursive_timed_mutex *in, const std::string& ln, int timeout_seconds) :
+        lock_name {ln},
+        cpplock {in},
+        s_cpplock {nullptr} {
+#ifdef DISABLE_MUTEX_TIMEOUT
+        cpplock->lock();
+#else
+        if (!cpplock->try_lock_for(std::chrono::seconds(timeout_seconds), lock_name)) {
+#ifdef DEBUG_MUTEX_NAME
+            throw(std::runtime_error(fmt::format("deadlock: mutex {} not available within "
+                            "{}", cpplock->mutex_name, timeout_seconds)));
+#else
+            throw(std::runtime_error(fmt::format("deadlock: mutex not available within "
+                            "{}", timeout_seconds)));
 #endif
         }
 #endif
