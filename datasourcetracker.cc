@@ -55,7 +55,7 @@ datasource_tracker_source_probe::~datasource_tracker_source_probe() {
 
 void datasource_tracker_source_probe::cancel() {
     {
-        local_locker lock(probe_lock);
+        local_locker lock(probe_lock, "dst probe::cancel");
 
         cancelled = true;
 
@@ -80,13 +80,13 @@ void datasource_tracker_source_probe::cancel() {
 }
 
 shared_datasource_builder datasource_tracker_source_probe::get_proto() {
-    local_locker lock(probe_lock);
+    local_locker lock(probe_lock, "dst probe::get_proto");
     return source_builder;
 }
 
 void datasource_tracker_source_probe::complete_probe(bool in_success, unsigned int in_transaction,
         std::string in_reason __attribute__((unused))) {
-    local_locker lock(probe_lock);
+    local_locker lock(probe_lock, "dst probe::complete_probe");
 
     // If we're already in cancelled state these callbacks mean nothing, ignore them, we're going
     // to be torn down so we don't even need to find our transaction
@@ -125,7 +125,7 @@ void datasource_tracker_source_probe::complete_probe(bool in_success, unsigned i
 
 void datasource_tracker_source_probe::probe_sources(std::function<void (shared_datasource_builder)> in_cb) {
     {
-        local_locker lock(probe_lock);
+        local_locker lock(probe_lock, "dst probe::probe_sources assign cb");
         probe_cb = in_cb;
     }
 
@@ -147,7 +147,8 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (shared_d
         return;
     }
 
-    local_locker lock(probe_lock);
+    // We don't actually need to lock here because the proto vec is only changed at construct
+    // local_locker lock(probe_lock, "dst::probe_sources construct vec");
 
     for (const auto& i : *proto_vec) {
         auto b = std::static_pointer_cast<kis_datasource_builder>(i);
@@ -1386,6 +1387,14 @@ void datasource_tracker::open_datasource(const std::string& in_source,
         auto i = probing_map.find(probeid);
 
         if (i != probing_map.end()) {
+            // Mark this object for completion when the callback triggers
+            probing_complete_vec.push_back(i->second);
+
+            auto probe_ref = i->second;
+
+            // Remove us from the active vec
+            probing_map.erase(i);
+
             if (builder == nullptr) {
                 // We couldn't find a type, return an error to our initial open CB
                 auto ss = fmt::format("Unable to find driver for '{}'.  Make sure that any required plugins "
@@ -1400,15 +1409,12 @@ void datasource_tracker::open_datasource(const std::string& in_source,
                 auto ss = fmt::format("Found type '{}' for '{}'", builder->get_source_type(), i->second->get_definition());
                 _MSG(ss, MSGFLAG_INFO);
 
+                // Let go of the lock
+                lock.unlock();
+
                 // Initiate an open w/ a known builder, associate the prototype definition with it
-                open_datasource(i->second->get_definition(), builder, in_cb);
+                open_datasource(probe_ref->get_definition(), builder, in_cb);
             }
-
-            // Mark this object for completion when the callback triggers
-            probing_complete_vec.push_back(i->second);
-
-            // Remove us from the active vec
-            probing_map.erase(i);
 
             // Schedule a cleanup 
             schedule_cleanup();

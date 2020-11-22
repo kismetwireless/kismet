@@ -29,7 +29,8 @@
 kis_gps_gpsd_v3::kis_gps_gpsd_v3(shared_gps_builder in_builder) : 
     kis_gps(in_builder),
     resolver{Globalreg::globalreg->io},
-    socket{Globalreg::globalreg->io} {
+    socket{Globalreg::globalreg->io},
+    strand_{Globalreg::globalreg->io} {
 
     // Defer making buffers until open, because we might be used to make a 
     // builder instance
@@ -101,6 +102,7 @@ void kis_gps_gpsd_v3::close() {
             ;
         }
     }
+
 }
 
 void kis_gps_gpsd_v3::start_connect(std::shared_ptr<kis_gps_gpsd_v3> ref,
@@ -114,9 +116,10 @@ void kis_gps_gpsd_v3::start_connect(std::shared_ptr<kis_gps_gpsd_v3> ref,
         set_int_device_connected(false);
     } else {
         boost::asio::async_connect(socket, endpoints,
+                boost::asio::bind_executor(strand_, 
                 [this, ref](const boost::system::error_code& ec, tcp::resolver::iterator endpoint) {
                     handle_connect(ref, ec, endpoint);
-                });
+                }));
     }
 }
 
@@ -146,6 +149,19 @@ void kis_gps_gpsd_v3::write_gpsd(std::shared_ptr<kis_gps_gpsd_v3> ref, const std
     if (stopped)
         return;
 
+    auto buf = std::make_shared<std::string>(data);
+
+    boost::asio::post(strand_,
+        [this, buf]() {
+            out_bufs.push_back(buf);
+
+            if (out_bufs.size() > 1)
+                return;
+
+            write_impl();
+            });
+
+        /*
     boost::asio::async_write(socket, boost::asio::buffer(data),
             [this](const boost::system::error_code& error, std::size_t) {
                 if (error) {
@@ -155,15 +171,39 @@ void kis_gps_gpsd_v3::write_gpsd(std::shared_ptr<kis_gps_gpsd_v3> ref, const std
                     _MSG_ERROR("(GPS) Error writing GPSD command: {}", error.message());
                     close();
                 }
-            });
+            }); */
+}
+
+void kis_gps_gpsd_v3::write_impl() {
+    auto buf = out_bufs.front();
+
+    if (socket.is_open()) {
+        boost::asio::async_write(socket, boost::asio::buffer(buf->data(), buf->size()),
+                boost::asio::bind_executor(strand_, 
+                    [this](const boost::system::error_code& ec, std::size_t) {
+                        out_bufs.pop_front();
+
+                        if (ec) {
+                            if (ec.value() == boost::asio::error::operation_aborted)
+                                return;
+
+                            _MSG_ERROR("(GPS) Error writing GPSD command: {}", ec.message());
+                            return close();
+                        }
+
+                        if (out_bufs.size())
+                            return write_impl();
+
+                    }));
+    }
 }
 
 void kis_gps_gpsd_v3::start_read(std::shared_ptr<kis_gps_gpsd_v3> ref) {
     boost::asio::async_read_until(socket, in_buf, '\n',
-            [this, ref](const boost::system::error_code& error, std::size_t t) {
+            boost::asio::bind_executor(strand_, 
+                [this, ref](const boost::system::error_code& error, std::size_t t) {
                 handle_read(ref, error, t);
-            });
-
+            }));
 }
 
 void kis_gps_gpsd_v3::handle_read(std::shared_ptr<kis_gps_gpsd_v3> ref,
@@ -640,6 +680,10 @@ bool kis_gps_gpsd_v3::open_gps(std::string in_opts) {
         } catch (const std::exception& e) {
             ;
         }
+
+        strand_.post([this]() {
+            out_bufs.clear();
+            });
     }
 
     std::string proto_host;
@@ -671,15 +715,16 @@ bool kis_gps_gpsd_v3::open_gps(std::string in_opts) {
     _MSG_INFO("(GPS) Connecting to GPSD on {}:{}", host, port);
 
     resolver.async_resolve(tcp::resolver::query(host.c_str(), port.c_str()),
+            boost::asio::bind_executor(strand_, 
             [this](const boost::system::error_code& error, tcp::resolver::iterator endp) {
                 start_connect(shared_from_this(), error, endp);
-            });
+            }));
 
     return 1;
 }
 
 bool kis_gps_gpsd_v3::get_location_valid() {
-    local_shared_locker lock(gps_mutex);
+    local_shared_locker lock(gps_mutex, "gpsdv3 get_location_valid");
 
     if (!get_device_connected()) {
         return false;

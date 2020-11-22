@@ -145,7 +145,7 @@ bool kis_rtlamr_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY), "AMR Meter");
 
-    local_locker bssidlock(&(basedev->device_mutex));
+    auto devlocker = devicelist_range_scope_locker(devicetracker, basedev);
 
     auto meterdev = 
         basedev->get_sub_as<rtlamr_tracked_meter>(rtlamr_meter_id);

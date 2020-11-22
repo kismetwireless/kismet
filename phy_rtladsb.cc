@@ -336,7 +336,7 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
                  UCD_UPDATE_SEENBY), "ADSB");
 
-    local_locker bssidlock(&(basedev->device_mutex));
+    auto devlocker = devicelist_range_scope_locker(devicetracker, basedev);
 
     std::string dn = "Airplane";
 

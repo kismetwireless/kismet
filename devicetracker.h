@@ -278,10 +278,10 @@ protected:
 	std::atomic<int> num_filterpackets;
 
 	// Per-phy #s of packets
-    std::map<int, int> phy_packets;
-	std::map<int, int> phy_datapackets;
-	std::map<int, int> phy_errorpackets;
-	std::map<int, int> phy_filterpackets;
+    std::map<int, std::atomic<int>> phy_packets;
+	std::map<int, std::atomic<int>> phy_datapackets;
+	std::map<int, std::atomic<int>> phy_errorpackets;
+	std::map<int, std::atomic<int>> phy_filterpackets;
 
     // Total packet history
     std::shared_ptr<kis_tracked_rrd<> > packets_rrd;
@@ -367,6 +367,7 @@ protected:
 	// Registered PHY types
 	int next_phy_id;
     robin_hood::unordered_node_map<int, kis_phy_handler *> phy_handler_map;
+    kis_recursive_timed_mutex phy_mutex;
 
     kis_recursive_timed_mutex devicelist_mutex;
 
@@ -405,13 +406,15 @@ protected:
     std::map<std::string, std::shared_ptr<tracker_element_string>> device_phy_name_cache;
     kis_recursive_timed_mutex device_phy_name_cache_mutex;
 
-
     kis_recursive_timed_mutex range_mutex;
-
 };
 
 class devicelist_range_scope_locker {
 public:
+    devicelist_range_scope_locker() :
+        tracker{nullptr},
+        range{nullptr} { }
+
     devicelist_range_scope_locker(std::shared_ptr<device_tracker> tracker,
             std::shared_ptr<tracker_element> range) :
         tracker{tracker},
@@ -419,8 +422,18 @@ public:
             tracker->lock_device_range(range);
         }
 
+    devicelist_range_scope_locker(std::shared_ptr<device_tracker> tracker,
+            std::shared_ptr<kis_tracked_device_base> dev) :
+        tracker{tracker} {
+            auto r = std::make_shared<tracker_element_vector>();
+            r->push_back(dev);
+            range = r;
+            tracker->lock_device_range(range);
+        }
+
     ~devicelist_range_scope_locker() {
-        tracker->unlock_device_range(range);
+        if (range != nullptr && tracker != nullptr)
+            tracker->unlock_device_range(range);
     }
 
 private:

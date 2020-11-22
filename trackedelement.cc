@@ -1222,6 +1222,8 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
             f = Globalreg::globalreg->entrytracker->register_and_get_field(fmt::format("unknown{}", fn),
                     tracker_element_factory<tracker_element_placeholder>(),
                     "unallocated field");
+
+            std::static_pointer_cast<tracker_element_placeholder>(f)->set(0);
         
             if (si->rename.length() != 0) {
                 // fmt::print("debug - setting summary rename on missing field {} {}\n", fn, si->rename);

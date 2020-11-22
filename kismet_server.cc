@@ -582,6 +582,19 @@ int main(int argc, char *argv[], char *envp[]) {
                 tracker_element_factory<tracker_element_uuid>(),
                 "unique server UUID");
 
+    // Make the IO threads early
+    boost::asio::io_service::work work(Globalreg::globalreg->io);
+
+    std::vector<std::thread> iov;
+    iov.reserve(Globalreg::globalreg->n_io_threads);
+    for (auto i = Globalreg::globalreg->n_io_threads - 1; i > 0; i--) {
+        iov.emplace_back([i] () {
+                thread_set_process_name(fmt::format("IO {}", i));
+                Globalreg::globalreg->io.run();
+                });
+    }
+
+
 	// Create the event bus used by inter-code comms
 	auto eventbus = event_bus::create_eventbus();
 
@@ -971,17 +984,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Independent time and select threads, which has had problems with timing conflicts
     timetracker->spawn_timetracker_thread();
-
-    std::vector<std::thread> iov;
-    iov.reserve(Globalreg::globalreg->n_io_threads);
-    for (auto i = Globalreg::globalreg->n_io_threads - 1; i > 0; i--) {
-        iov.emplace_back([i] () {
-                thread_set_process_name(fmt::format("IO {}", i));
-                Globalreg::globalreg->io.run();
-                });
-    }
-
-    boost::asio::io_service::work work(Globalreg::globalreg->io);
 
     while (true) {
         if (Globalreg::globalreg->spindown || Globalreg::globalreg->fatal_condition) 
