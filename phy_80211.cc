@@ -1325,7 +1325,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             static unsigned int freq_comp_samps_src = 
                 globalreg->kismet_config->fetch_opt_uint("source_freq_comp_samps", 0);
             static unsigned int freq_samp_msg(0);
-            unsigned int source_not_ap = 0;
+            unsigned int source_not_ap(0);
+            unsigned int source_bridged(0);
 
             if (freq_samp_msg == 0 && freq_comp_samps_src > 0) {
                 _MSG_INFO("Enabling frequency samping to determine channels");
@@ -1338,12 +1339,14 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 source_not_ap = 1;
 	        } else if (source_dev->get_type_string() == "Wi-Fi Bridged") {
 		        source_not_ap = 1;
+                source_bridged = 1;
             } else {
 		        source_not_ap = 0;
+                source_bridged = 0;
 	        }
 
             if (source_dev->get_frequency() != 0 && freq_comp_samps_src !=0 &&
-                source_not_ap == 1) {
+                source_not_ap == 1 && source_bridged == 0) {
 
                 /*if (source_dev->get_type_string() != "") {
                       _MSG_INFO("SOURCE TYPE A: {} {}",
@@ -1387,17 +1390,27 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 	            source_dev->set_channel(int_to_string(dot11info->dot11ht->primary_channel()));
             } else if (source_not_ap == 1 && dot11info->channel != "0" && dot11info->channel != "") {
                 source_dev->set_channel(dot11info->channel);
-            } else if (source_not_ap == 1 && source_dev->get_frequency() != 0) {
+            } else if (source_bridged == 0 && source_not_ap == 1 && source_dev->get_frequency() != 0) {
                 try {
                     source_dev->set_channel(khz_to_channel(source_dev->get_frequency()));
                 } catch (const std::runtime_error& e) {
                     ;   
                 }
-            } else if (source_not_ap == 1 && source_dev->get_frequency() == 0 && pack_l1info != NULL && pack_l1info->freq_khz != 0) {
+            } else if (source_bridged == 0 && source_not_ap == 1 && source_dev->get_frequency() == 0 && pack_l1info != NULL && pack_l1info->freq_khz != 0) {
                 try {
                     source_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
                     source_dev->inc_frequency_count((int) pack_l1info->freq_khz);
-                    //source_dev->set_frequency(pack_l1info->freq_khz);
+                    /*_MSG_INFO("Used pack_l1info for {} {}",
+                        source_dev->get_type_string(),
+                        source_dev->get_macaddr().mac_to_string());*/
+                } catch (const std::runtime_error& e) {
+                    ;   
+                }
+            } else if (source_bridged == 1 && source_not_ap == 1 && pack_l1info != NULL && pack_l1info->freq_khz != 0) {
+                try {
+                    source_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
+                    source_dev->inc_frequency_count((int) pack_l1info->freq_khz);
+                    source_dev->set_frequency(pack_l1info->freq_khz);
                     /*_MSG_INFO("Used pack_l1info for {} {}",
                         source_dev->get_type_string(),
                         source_dev->get_macaddr().mac_to_string());*/
@@ -1736,84 +1749,103 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             if (bssid_dev != nullptr)
                 source_dot11->set_last_bssid(bssid_dev->get_macaddr());
 
-        unsigned int freq_comp_count_b(0);
-        static unsigned int freq_comp_samps_src = 
-            globalreg->kismet_config->fetch_opt_uint("source_freq_comp_samps", 0);
-        unsigned int source_not_ap = 0;
+            unsigned int freq_comp_count_a(0);
+            static unsigned int freq_comp_samps_src = 
+                globalreg->kismet_config->fetch_opt_uint("source_freq_comp_samps", 0);
+            static unsigned int freq_samp_msg(0);
+            unsigned int source_not_ap(0);
+            unsigned int source_bridged(0);
 
-        if (source_dev->get_type_string() == "Wi-Fi Client") {
-            source_not_ap = 1;
-        } else if (source_dev->get_type_string() == "Wi-Fi Device") {
-	    source_not_ap = 1;
-	    } else if (source_dev->get_type_string() == "Wi-Fi Bridged") {
-	    source_not_ap = 1;
-        }  else {
-	    source_not_ap = 0;
-        }
-
-        if (source_dev->get_frequency() != 0 && freq_comp_samps_src !=0 && 
-            source_not_ap == 1) {
-
-            /*if (source_dev->get_type_string() != "") {
-                  _MSG_INFO("SOURCE TYPE B: {} {}",
-                  source_dev->get_type_string(),
-                  source_not_ap);
-            }*/
-
-            if (source_dev->get_sample_frequency() == 0 && source_dev->get_freq_comps() == 0) {
-                source_dev->set_sample_frequency(source_dev->get_frequency());
+            if (freq_samp_msg == 0 && freq_comp_samps_src > 0) {
+                _MSG_INFO("Enabling frequency samping to determine channels");
+                freq_samp_msg++;
             }
 
-            if (source_dev->get_sample_frequency() != source_dev->get_frequency()) {
-                source_dev->set_sample_frequency(0);
-                source_dev->set_freq_comps(0);
-                /*_MSG_INFO("FREQ_SAMP: mismatch, failure for {}",
-                    source_dev->get_macaddr().mac_to_string());*/
-            } else if (source_dev->get_sample_frequency() == source_dev->get_frequency()) {
-                freq_comp_count_b = source_dev->get_freq_comps();
-                freq_comp_count_b++;
-                source_dev->set_freq_comps(freq_comp_count_b);
-                freq_comp_count_b = 0;
-                /*_MSG_INFO("FREQ_SAMP: matched freq {}, {} times for {}",
+            if (source_dev->get_type_string() == "Wi-Fi Client") {
+                source_not_ap = 1;
+            } else if (source_dev->get_type_string() == "Wi-Fi Device") {
+                source_not_ap = 1;
+	        } else if (source_dev->get_type_string() == "Wi-Fi Bridged") {
+		        source_not_ap = 1;
+                source_bridged = 1;
+            } else {
+		        source_not_ap = 0;
+                source_bridged = 0;
+	        }
+
+            if (source_dev->get_frequency() != 0 && freq_comp_samps_src !=0 &&
+                source_not_ap == 1 && source_bridged == 0) {
+
+                /*if (source_dev->get_type_string() != "") {
+                      _MSG_INFO("SOURCE TYPE A: {} {}",
+                      source_dev->get_type_string(),
+                      source_not_ap);
+                }*/
+
+                if (source_dev->get_sample_frequency() == 0 && source_dev->get_freq_comps() == 0) {
+                    source_dev->set_sample_frequency(source_dev->get_frequency());
+                }
+
+                if (source_dev->get_sample_frequency() != source_dev->get_frequency()) {
+                    source_dev->set_sample_frequency(0);
+                    source_dev->set_freq_comps(0);
+                    /*_MSG_INFO("FREQ_SAMP: mismatch, failure for {}",
+                        source_dev->get_macaddr().mac_to_string());*/
+                } else if (source_dev->get_sample_frequency() == source_dev->get_frequency()) {
+                    freq_comp_count_a = source_dev->get_freq_comps();
+                    freq_comp_count_a++;
+                    source_dev->set_freq_comps(freq_comp_count_a);
+                    freq_comp_count_a = 0;
+                    /*_MSG_INFO("FREQ_SAMP: matched freq {}, {} times for {}",
                     source_dev->get_sample_frequency(),
                     source_dev->get_freq_comps(),
                     source_dev->get_macaddr().mac_to_string());*/
-            }
-
-            if (source_dev->get_freq_comps() >= freq_comp_samps_src) {
-                try {
-                    /*_MSG_INFO("FREQ_SAMP: match, success for {}",
-                        source_dev->get_macaddr().mac_to_string());*/
-                    source_dev->set_channel(khz_to_channel(source_dev->get_sample_frequency()));
-                } catch (const std::runtime_error& e) {
-                    ;   
                 }
-                source_dev->set_frequency(source_dev->get_sample_frequency());
-                source_dev->set_sample_frequency(0);
-                source_dev->set_freq_comps(0);
-            }
-        } else if (dot11info->dot11vht != nullptr && dot11info->dot11ht != nullptr && source_not_ap == 1) {
+
+                if (source_dev->get_freq_comps() >= freq_comp_samps_src) {
+                    try {
+                        /*_MSG_INFO("FREQ_SAMP: match, success for {}",
+                            source_dev->get_macaddr().mac_to_string());*/
+                        source_dev->set_channel(khz_to_channel(source_dev->get_sample_frequency()));
+                    } catch (const std::runtime_error& e) {
+                        ;   
+                    }
+                    source_dev->set_frequency(source_dev->get_sample_frequency());
+                    source_dev->set_sample_frequency(0);
+                    source_dev->set_freq_comps(0);
+                }
+            } else if (source_not_ap == 1 && dot11info->dot11ht != nullptr) {
 	            source_dev->set_channel(int_to_string(dot11info->dot11ht->primary_channel()));
-        } else if (dot11info->channel != "0" && dot11info->channel != "") {
+            } else if (source_not_ap == 1 && dot11info->channel != "0" && dot11info->channel != "") {
                 source_dev->set_channel(dot11info->channel);
-        } else if (source_dev->get_frequency() != 0 && source_not_ap == 1) {
+            } else if (source_bridged == 0 && source_not_ap == 1 && source_dev->get_frequency() != 0) {
                 try {
                     source_dev->set_channel(khz_to_channel(source_dev->get_frequency()));
                 } catch (const std::runtime_error& e) {
                     ;   
                 }
-        } else if (source_dev->get_frequency() == 0 && source_not_ap == 1 && pack_l1info != NULL && pack_l1info->freq_khz != 0) {
-            try {
-                source_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
-                source_dev->inc_frequency_count((int) pack_l1info->freq_khz);
-                //source_dev->set_frequency(pack_l1info->freq_khz);
-                /*_MSG_INFO("Used pack_l1info for {} {}",
-                    source_dev->get_type_string(),
-                    source_dev->get_macaddr().mac_to_string());*/
-            } catch (const std::runtime_error& e) {
+            } else if (source_bridged == 0 && source_not_ap == 1 && source_dev->get_frequency() == 0 && pack_l1info != NULL && pack_l1info->freq_khz != 0) {
+                try {
+                    source_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
+                    source_dev->inc_frequency_count((int) pack_l1info->freq_khz);
+                    /*_MSG_INFO("Used pack_l1info for {} {}",
+                        source_dev->get_type_string(),
+                        source_dev->get_macaddr().mac_to_string());*/
+                } catch (const std::runtime_error& e) {
                     ;   
+                }
+            } else if (source_bridged == 1 && source_not_ap == 1 && pack_l1info != NULL && pack_l1info->freq_khz != 0) {
+                try {
+                    source_dev->set_channel(khz_to_channel(pack_l1info->freq_khz));
+                    source_dev->inc_frequency_count((int) pack_l1info->freq_khz);
+                    source_dev->set_frequency(pack_l1info->freq_khz);
+                    /*_MSG_INFO("Used pack_l1info for {} {}",
+                        source_dev->get_type_string(),
+                        source_dev->get_macaddr().mac_to_string());*/
+                } catch (const std::runtime_error& e) {
+                    ;   
+                }
             }
-        }
 
             if (dot11info->subtype == packet_sub_data_null ||
                     dot11info->subtype == packet_sub_data_qos_null) {
