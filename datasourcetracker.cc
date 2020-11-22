@@ -1390,6 +1390,8 @@ void datasource_tracker::open_datasource(const std::string& in_source,
             // Mark this object for completion when the callback triggers
             probing_complete_vec.push_back(i->second);
 
+            auto probe_ref = i->second;
+
             // Remove us from the active vec
             probing_map.erase(i);
 
@@ -1411,7 +1413,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
                 lock.unlock();
 
                 // Initiate an open w/ a known builder, associate the prototype definition with it
-                open_datasource(i->second->get_definition(), builder, in_cb);
+                open_datasource(probe_ref->get_definition(), builder, in_cb);
             }
 
             // Schedule a cleanup 
