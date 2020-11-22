@@ -322,6 +322,8 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
                  UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
                 "BTLE Device");
 
+    auto lock = devicelist_range_scope_locker(mphy->devicetracker, device);
+
     auto new_dev = false;
 
     auto btle_dev =

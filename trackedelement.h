@@ -87,7 +87,7 @@ public:
     // Generate a cached SP key combination
     static uint64_t gen_spkey(uuid s_uuid, std::string phy);
 
-    bool get_error() { return error; }
+    bool get_error() const { return error; }
 
     uint64_t get_spkey() const {
         return spkey;

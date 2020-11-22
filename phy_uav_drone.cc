@@ -151,8 +151,6 @@ void Kis_UAV_Phy::load_phy_storage(shared_tracker_element in_storage, shared_tra
 int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
     Kis_UAV_Phy *uavphy = (Kis_UAV_Phy *) auxdata;
 
-    devicelist_scope_locker listlocker(uavphy->devicetracker);
-
 	kis_common_info *commoninfo =
 		(kis_common_info *) in_pack->fetch(uavphy->pack_comp_common);
 
@@ -168,6 +166,11 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
 
     if (commoninfo == NULL || dot11info == NULL)
         return 1;
+
+    auto dev_list = std::make_shared<tracker_element_vector>();
+    for (auto di : devinfo->devrefs)
+        dev_list->push_back(di.second);
+    auto devscope = devicelist_range_scope_locker(uavphy->devicetracker, dev_list);
 
     // Try to pull the existing basedev, we don't want to re-parse
     for (auto di : devinfo->devrefs) {

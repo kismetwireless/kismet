@@ -160,32 +160,11 @@ protected:
                     "the disk you are logging to can not perform adequately, such as a " \
                     "micro-sd.  Try moving logging to a USB device.", KIS_THREAD_DEADLOCK_TIMEOUT); \
             Globalreg::globalreg->fatal_condition = 1; \
-            throw std::runtime_error("disk too slow for logging"); \
+            throw; \
+        } else { \
+            throw; \
         } \
-        throw(e); \
     }
-
-    // Prebaked parameterized statements
-    sqlite3_stmt *device_stmt;
-    const char *device_pz;
-
-    sqlite3_stmt *packet_stmt;
-    const char *packet_pz;
-
-    sqlite3_stmt *datasource_stmt;
-    const char *datasource_pz;
-
-    sqlite3_stmt *data_stmt;
-    const char *data_pz;
-    
-    sqlite3_stmt *alert_stmt;
-    const char *alert_pz;
-
-    sqlite3_stmt *msg_stmt;
-    const char *msg_pz;
-    
-    sqlite3_stmt *snapshot_stmt;
-    const char *snapshot_pz;
 
     static int packet_handler(CHAINCALL_PARMS);
 
@@ -234,6 +213,9 @@ protected:
     std::shared_ptr<event_bus> eventbus;
     void handle_message(std::shared_ptr<tracked_message> msg);
     unsigned long message_evt_id;
+
+    void handle_alert(std::shared_ptr<tracked_alert> msg);
+    unsigned long alert_evt_id;
 };
 
 class kis_database_logfile_builder : public kis_logfile_builder {
