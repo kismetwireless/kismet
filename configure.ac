@@ -619,11 +619,6 @@ else
     AC_MSG_RESULT([no])
 fi
 
-OCPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS"
-OLDFLAGS=$LDFLAGS
-LDFLAGS="$CPPFLAGS"
-
 # Do we need libm for math functions?
 AC_MSG_CHECKING([for libm math function in std libs])
 OCFL="$CFLAGS"
