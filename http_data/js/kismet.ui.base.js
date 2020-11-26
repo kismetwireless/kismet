@@ -2830,7 +2830,7 @@ exports.FirstLoginCheck = function(first_login_done_cb) {
                     first_login_done_cb();
                 }
             });
-        } else if (code != 200) {
+        } else if (code == 500) {
             loginpanel = $.jsPanel({
                 id: "login-alert",
                 headerTitle: '<i class="fa fa-exclamation-triangle"></i> Set Login',
@@ -2844,6 +2844,20 @@ exports.FirstLoginCheck = function(first_login_done_cb) {
             });
 
             return true;
+        } else {
+            loginpanel = $.jsPanel({
+                id: "login-alert",
+                headerTitle: '<i class="fa fa-exclamation-triangle"></i> Error connecting',
+                headerControls: {
+                    controls: 'closeonly',
+                    iconfont: 'jsglyph',
+                },
+                contentSize: w + " auto",
+                paneltype: 'modal',
+                content: "Error connecting to Kismet and checking provisioning; try reloading the page!",
+            });
+
+
         }
    });
 
