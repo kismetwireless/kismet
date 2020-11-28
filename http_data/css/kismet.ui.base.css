@@ -202,3 +202,9 @@ div.k-pqm-contentdiv {
     height: 100%;
 }
 
+span.padded {
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+

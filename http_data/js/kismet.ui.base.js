@@ -2069,6 +2069,141 @@ kismet_ui_settings.AddSettingsPane({
     },
 });
 
+function show_role_help(role) {
+    var rolehelp = `Unknown role ${role}; this could be assigned as a custom role for a Kismet plugin.`;
+
+    if (role === "logon")
+        rolehelp = "The logon role is assigned to the primary web interface, external API plugins which automatically request API access, and other privileged instances.  The logon role has access to all endpoints.";
+    else if (role === "readonly")
+        rolehelp = "The readonly role has access to any endpoint which does not modify data.  It can not issue commands to the Kismet server, configure sources, or alter devices.  The readonly role is well suited for external data gathering from a Kismet server.";
+    else if (role === "datasource")
+        rolehelp = "The datasource role allows remote capture over websockets.  This role only has access to the remote capture datasource endpoint.";
+    else if (role === "scanreport")
+        rolehelp = "The scanreport role allows device scan reports.  This role only has access to the scan report endpoint."
+
+
+    var h = $(window).height() / 4;
+    var w = $(window).width() / 2;
+
+    if (w < 450) 
+        w = $(window).width() - 5;
+
+    if (h < 200)
+        h = $(window).height() - 5;
+
+    $.jsPanel({
+        id: "item-help",
+        headerTitle: `Role: ${role}`,
+        headerControls: {
+            controls: 'closeonly',
+            iconfont: 'jsglyph',
+        },
+        paneltype: 'modal',
+        content: `<div style="padding: 10px;"><h3>${role}</h3><p>${rolehelp}`,
+    })
+    .resize({
+        width: w,
+        height: h
+    })
+    .reposition({
+        my: 'center',
+        at: 'center',
+        of: 'window'
+    });
+}
+
+function make_role_help_closure(role) {
+    return function() { show_role_help(role); };
+}
+
+kismet_ui_settings.AddSettingsPane({
+    id: 'base_api_logins',
+    listTitle: "API Keys",
+    create: function(elem) {
+        elem.append($("p").html("Fetching API data..."));
+
+        $.get(local_uri_prefix + "auth/apikey/list.json")
+        .done(function(data) {
+            data = kismet.sanitizeObject(data);
+            elem.empty();
+
+            var tb = $('<table>', {
+                'class': 'apitable'
+            })
+            .append(
+                $('<tr>')
+                .append(
+                    $('<th>').html("Name")
+                )
+                .append(
+                    $('<th>').html("Role")
+                )
+                .append(
+                    $('<th>').html("Key")
+                )
+            );
+
+            elem.append(tb);
+
+            for (var user of data) {
+                var name = user['kismet.httpd.auth.name'];
+                var role = user['kismet.httpd.auth.role'];
+
+                var key;
+
+                if ('kismet.httpd.auth.token' in user) {
+                    key = user['kismet.httpd.auth.token'];
+                } else {
+                    key = "<i>Viewing auth tokens is disabled in the Kismet configuration.</i>";
+                }
+
+                tb.append(
+                    $('<tr>')
+                    .append(
+                        $('<td>').html(name)
+                    )
+                    .append(
+                        $('<td>').html(role)
+                        .append(
+                            $('<i>', {
+                                'class': 'pseudolink fa fa-question-circle',
+                                'style': 'padding-left: 5px;',
+                            })
+                            .on('click', make_role_help_closure(role))
+                        )
+                    )
+                    .append(
+                        $('<td>')
+                        .append(
+                            $('<input>', {
+                                'type': 'text',
+                                'value': key,
+                                'readonly': 'true',
+                                'size': 32,
+                                'id': name.replace(" ", "_"),
+                            })
+                        )
+                        .append(
+                            $('<i>', {
+                                'class': 'copyuri pseudolink fa fa-copy',
+                                'style': 'padding-left: 5px;',
+                                'data-clipboard-target': `#${name.replace(" ", "_")}`, 
+                            })
+                        )
+                    )
+                )
+            }
+
+            new ClipboardJS('.copyuri');
+        });
+    },
+    save: function(elem) {
+        return true;
+    },
+});
+
+
+
 /* Add the messages and channels tabs */
 kismet_ui_tabpane.AddTab({
     id: 'messagebus',
