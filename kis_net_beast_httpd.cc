@@ -312,7 +312,10 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                     if (n_auth_name == "web logon")
                         throw std::runtime_error("cannot remove autoprovisioned web logon");
 
-                    remove_auth(n_auth_name);
+                    auto r = remove_auth(n_auth_name);
+
+                    if (!r) 
+                        throw std::runtime_error("cannot delete unknown auth record");
 
                     std::ostream os(&con->response_stream());
                     os << "revoked\n";
@@ -758,16 +761,18 @@ std::string kis_net_beast_httpd::create_or_find_auth(const std::string& name, co
     return create_auth(name, role, expiry);
 }
 
-void kis_net_beast_httpd::remove_auth(const std::string& auth_name) {
+bool kis_net_beast_httpd::remove_auth(const std::string& auth_name) {
     local_locker l(&auth_mutex, "remove auth");
 
-    for (auto a = auth_vec.cbegin(); a != auth_vec.cend(); ++a) {
+    for (auto a = auth_vec.begin(); a != auth_vec.end(); ++a) {
         if ((*a)->name() == auth_name) {
             auth_vec.erase(a);
             store_auth();
-            return;
+            return true;
         }
     }
+
+    return false;
 }
 
 std::shared_ptr<kis_net_beast_auth> kis_net_beast_httpd::check_auth_token(const boost::beast::string_view& token) {
@@ -1368,6 +1373,12 @@ bool kis_net_beast_httpd_connection::start() {
             // _MSG_INFO("(DEBUG) {} {} invoking route {}", verb_, uri_, route->route());
             route->invoke(shared_from_this());
         } catch (const std::exception& e) {
+            try {
+                set_status(500);
+            } catch (const std::exception& e) {
+                ;
+            }
+
             std::ostream os(&response_stream_);
             os << "ERROR: " << e.what();
         }
@@ -1681,7 +1692,7 @@ void kis_net_web_tracked_endpoint::handle_request(std::shared_ptr<kis_net_beast_
             ;
         }
 
-        os << "Error: " << e.what() << "\n";
+        os << "ERROR: " << e.what() << "\n";
     }
 }
 

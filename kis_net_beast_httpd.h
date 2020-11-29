@@ -119,7 +119,7 @@ public:
     std::string create_or_find_auth(const std::string& name, const std::string& role, time_t expiry);
 
     // Remove an auth entry based on token
-    void remove_auth(const std::string& token);
+    bool remove_auth(const std::string& token);
     void load_auth();
     void store_auth();
 
