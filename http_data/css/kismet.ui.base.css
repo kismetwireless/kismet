@@ -207,4 +207,17 @@ span.padded {
     padding-right: 5px;
 }
 
+table.apitable {
+    border: none;
+}
+
+tr.apihover:hover {
+    background-color: #DDDDDD;
+}
+
+
+th.apith {
+    text-decoration: underline;
+}
+
 

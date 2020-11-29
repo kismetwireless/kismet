@@ -2112,8 +2112,55 @@ function show_role_help(role) {
     });
 }
 
+function delete_role(rolename, elem) {
+    var deltd = $('.deltd', elem);
+
+    var delbt = 
+        $('<button>', {
+            'style': 'background-color: #DDAAAA',
+        })
+        .html(`Delete role &quot;${rolename}&quot;`)
+        .button()
+        .on('click', function() {
+            var pd = {
+                'name': rolename,
+            };
+
+            var postdata = "json=" + encodeURIComponent(JSON.stringify(pd));
+
+            $.post(local_uri_prefix + "auth/apikey/revoke.cmd", postdata)
+            .done(function(data) {
+                var delt = elem.parent();
+
+                elem.remove();
+
+                if ($('tr', delt).length == 1) {
+                    delt.append(
+                        $('<tr>', {
+                            'class': 'noapi'
+                        })
+                        .append(
+                            $('<td>', {
+                                'colspan': 4
+                            })
+                            .html("<i>No API keys defined...</i>")
+                        )
+                    );
+                }
+            })
+        });
+
+    deltd.empty();
+    deltd.append(delbt);
+
+}
+
 function make_role_help_closure(role) {
     return function() { show_role_help(role); };
+}
+
+function make_role_delete_closure(rolename, elem) {
+    return function() { delete_role(rolename, elem); };
 }
 
 kismet_ui_settings.AddSettingsPane({
@@ -2130,16 +2177,29 @@ kismet_ui_settings.AddSettingsPane({
             var tb = $('<table>', {
                 'class': 'apitable'
             })
+
             .append(
                 $('<tr>')
                 .append(
-                    $('<th>').html("Name")
+                    $('<th>', {
+                        'class': 'apith',
+                        'style': 'width: 16em;',
+                    }).html("Name")
                 )
                 .append(
-                    $('<th>').html("Role")
+                    $('<th>', {
+                        'class': 'apith',
+                        'style': 'width: 8em;',
+                    }).html("Role")
                 )
                 .append(
-                    $('<th>').html("Key")
+                    $('<th>', {
+                        'class': 'apith',
+                        'style': 'width: 30em;',
+                    }).html("Key")
+                )
+                .append(
+                    $('<th>')
                 )
             );
 
@@ -2157,8 +2217,12 @@ kismet_ui_settings.AddSettingsPane({
                     key = "<i>Viewing auth tokens is disabled in the Kismet configuration.</i>";
                 }
 
-                tb.append(
-                    $('<tr>')
+                var tr = 
+                    $('<tr>', {
+                        'class': 'apihover'
+                    });
+
+                tr
                     .append(
                         $('<td>').html(name)
                     )
@@ -2191,6 +2255,20 @@ kismet_ui_settings.AddSettingsPane({
                             })
                         )
                     )
+                    .append(
+                        $('<td>', {
+                            'class': 'deltd'
+                        })
+                        .append(
+                            $('<i>', {
+                                'class': 'pseudolink fa fa-trash',
+                            })
+                            .on('click', make_role_delete_closure(name, tr))
+                        )
+                    )
+
+                tb.append(
+                    tr
                 )
             }
 
