@@ -2205,6 +2205,20 @@ kismet_ui_settings.AddSettingsPane({
 
             elem.append(tb);
 
+            if (data.length == 0) {
+                tb.append(
+                    $('<tr>', {
+                        'class': 'noapi'
+                    })
+                    .append(
+                        $('<td>', {
+                            'colspan': 4
+                        })
+                        .html("<i>No API keys defined...</i>")
+                    )
+                );
+            }
+
             for (var user of data) {
                 var name = user['kismet.httpd.auth.name'];
                 var role = user['kismet.httpd.auth.role'];
