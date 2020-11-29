@@ -76,7 +76,7 @@ public:
     unsigned int fetch_port() { return port; }
     bool fetch_using_ssl() { return use_ssl; }
 
-    static std::string decode_uri(boost::beast::string_view in);
+    static std::string decode_uri(boost::beast::string_view in, bool query);
     static void decode_variables(const boost::beast::string_view decoded, http_var_map_t& var_map);
     static void decode_get_variables(const boost::beast::string_view decoded, http_var_map_t& var_map);
     static void decode_cookies(const boost::beast::string_view decoded, http_cookie_map_t& cookie_map);

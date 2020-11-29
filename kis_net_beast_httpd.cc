@@ -486,7 +486,7 @@ void kis_net_beast_httpd::handle_connection(const boost::system::error_code& ec,
     return start_accept();
 }
 
-std::string kis_net_beast_httpd::decode_uri(boost::beast::string_view in) {
+std::string kis_net_beast_httpd::decode_uri(boost::beast::string_view in, bool query) {
     std::string ret;
     ret.reserve(in.length());
 
@@ -499,6 +499,13 @@ std::string kis_net_beast_httpd::decode_uri(boost::beast::string_view in) {
             char c2 = in[p+2] - (in[p+2] <= '9' ? '0' : (in[p+2] <= 'F' ? 'A' : 'a') - 10);
             ret += char(16 * c1 + c2);
             p += 3;
+            continue;
+        }
+
+        // Plusses are spaces in queries but not URIs
+        if (query && in[p] == '+') {
+            ret += ' ';
+            p++;
             continue;
         }
 
@@ -562,7 +569,7 @@ void kis_net_beast_httpd::decode_get_variables(const boost::beast::string_view u
     if (q_pos == boost::beast::string_view::npos)
         return;
 
-    auto uri_decode = kis_net_beast_httpd::decode_uri(uri.substr(q_pos + 1, uri.length()));
+    auto uri_decode = kis_net_beast_httpd::decode_uri(uri.substr(q_pos + 1, uri.length()), false);
     kis_net_beast_httpd::decode_variables(uri_decode, var_map);
 }
 
@@ -1102,7 +1109,7 @@ bool kis_net_beast_httpd_connection::start() {
     // Extract the auth cookie
     auto cookie_h = request_.find(boost::beast::http::field::cookie);
     if (cookie_h != request_.end()) {
-        auto cookie_decode = httpd->decode_uri(cookie_h->value());
+        auto cookie_decode = httpd->decode_uri(cookie_h->value(), true);
         httpd->decode_cookies(cookie_decode, cookies_);
 
         auto auth_cookie_k = cookies_.find(httpd->AUTH_COOKIE);
@@ -1247,7 +1254,7 @@ bool kis_net_beast_httpd_connection::start() {
             // a 401 with a WWW-Authorize then it repeats the request
             auto ua_h = request_.find(boost::beast::http::field::user_agent);
             if (ua_h != request_.end()) {
-                auto ua = httpd->decode_uri(ua_h->value());
+                auto ua = httpd->decode_uri(ua_h->value(), true);
 
                 if (ua.find_first_of("Wget") == 0) {
                     res.set(boost::beast::http::field::www_authenticate, "Basic realm=Kismet");
@@ -1331,7 +1338,7 @@ bool kis_net_beast_httpd_connection::start() {
 
         if (content_type == "application/x-www-form-urlencoded" ||
                 content_type == "application/x-www-form-urlencoded; charset=UTF-8") {
-            auto decoded_body = httpd->decode_uri(http_post);
+            auto decoded_body = httpd->decode_uri(http_post, true);
             httpd->decode_variables(decoded_body, http_variables_);
 
             auto j_k = http_variables_.find("json");
