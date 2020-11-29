@@ -205,6 +205,7 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
     register_unauth_route("/session/check_setup_ok", {"GET"}, 
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                con->set_mime_type("text/plain");
                 std::ostream os(&con->response_stream());
 
                 if (global_login_config) {
@@ -222,14 +223,15 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
     register_route("/session/check_login", {"GET"}, LOGON_ROLE,
             std::make_shared<kis_net_web_function_endpoint>(
                 [](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                con->set_mime_type("text/plain");
                 std::ostream os(&con->response_stream());
-
                 os << "Login valid\n";
             }));
 
     register_route("/session/check_session", {"GET"}, ANY_ROLE,
             std::make_shared<kis_net_web_function_endpoint>(
                 [](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                con->set_mime_type("text/plain");
                 std::ostream os(&con->response_stream());
                 os << "Session valid\n";
             }));
@@ -237,6 +239,9 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
     register_unauth_route("/session/set_password", {"POST"}, 
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+
+                con->set_mime_type("text/plain");
+
                 std::ostream os(&con->response_stream());
 
                 if (global_login_config) {
@@ -274,6 +279,8 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
     register_route("/auth/apikey/generate", {"POST"}, LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    con->set_mime_type("text/plain");
+
                     if (!allow_auth_creation)
                         throw std::runtime_error("auth creation is disabled in the kismet configuration");
 
@@ -295,6 +302,8 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
     register_route("/auth/apikey/revoke", {"POST"}, LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    con->set_mime_type("text/plain");
+
                     if (!allow_auth_creation)
                         throw std::runtime_error("auth creation/deletion is disabled in the kismet configuration");
 
@@ -749,11 +758,11 @@ std::string kis_net_beast_httpd::create_or_find_auth(const std::string& name, co
     return create_auth(name, role, expiry);
 }
 
-void kis_net_beast_httpd::remove_auth(const std::string& token) {
+void kis_net_beast_httpd::remove_auth(const std::string& auth_name) {
     local_locker l(&auth_mutex, "remove auth");
 
     for (auto a = auth_vec.cbegin(); a != auth_vec.cend(); ++a) {
-        if ((*a)->token() == token) {
+        if ((*a)->name() == auth_name) {
             auth_vec.erase(a);
             store_auth();
             return;
