@@ -296,7 +296,7 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                     auto token = create_auth(n_auth_name, n_auth_role, expiration);
 
                     std::ostream os(&con->response_stream());
-                    os << token << "\n";
+                    os << token;
                 }));
 
     register_route("/auth/apikey/revoke", {"POST"}, LOGON_ROLE, {"cmd"},
