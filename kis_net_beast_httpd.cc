@@ -30,7 +30,7 @@
 #include "messagebus.h"
 #include "util.h"
 
-const std::string kis_net_beast_httpd::LOGON_ROLE{"logon"};
+const std::string kis_net_beast_httpd::LOGON_ROLE{"admin"};
 const std::string kis_net_beast_httpd::ANY_ROLE{"any"};
 const std::string kis_net_beast_httpd::RO_ROLE{"readonly"};
 
