@@ -202,9 +202,13 @@ div.k-pqm-contentdiv {
     height: 100%;
 }
 
-span.padded {
-    padding-left: 5px;
+.padded {
     padding-right: 5px;
+}
+
+label.padded {
+    padding-right: 5px;
+    padding-left: 5px;
 }
 
 table.apitable {
