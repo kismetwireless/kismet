@@ -72,7 +72,7 @@ public:
     }
 
     void set_location(double lat, double lon) {
-        geopoint->set(lat, lon);
+        geopoint->set(lon, lat);
     }
 
     __Proxy(alt, float, float, float, alt);

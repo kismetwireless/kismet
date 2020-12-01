@@ -76,7 +76,7 @@ public:
     unsigned int fetch_port() { return port; }
     bool fetch_using_ssl() { return use_ssl; }
 
-    static std::string decode_uri(boost::beast::string_view in);
+    static std::string decode_uri(boost::beast::string_view in, bool query);
     static void decode_variables(const boost::beast::string_view decoded, http_var_map_t& var_map);
     static void decode_get_variables(const boost::beast::string_view decoded, http_var_map_t& var_map);
     static void decode_cookies(const boost::beast::string_view decoded, http_cookie_map_t& cookie_map);
@@ -119,7 +119,7 @@ public:
     std::string create_or_find_auth(const std::string& name, const std::string& role, time_t expiry);
 
     // Remove an auth entry based on token
-    void remove_auth(const std::string& token);
+    bool remove_auth(const std::string& token);
     void load_auth();
     void store_auth();
 

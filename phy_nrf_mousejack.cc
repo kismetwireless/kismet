@@ -143,6 +143,8 @@ int Kis_Mousejack_Phy::CommonClassifierMousejack(CHAINCALL_PARMS) {
                  UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
                 "KB/Mouse");
 
+    auto lock = devicelist_range_scope_locker(mphy->devicetracker, device);
+
     // Figure out what we think it could be; this isn't very precise.  Fingerprinting
     // based on methods in mousejack python.
     if (packdata->length == 6) {
