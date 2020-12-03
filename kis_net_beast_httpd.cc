@@ -1336,8 +1336,8 @@ bool kis_net_beast_httpd_connection::start() {
 
         auto content_type = request_[boost::beast::http::field::content_type];
 
-        if (content_type == "application/x-www-form-urlencoded" ||
-                content_type == "application/x-www-form-urlencoded; charset=UTF-8") {
+        if (boost::beast::iequals(content_type, "application/x-www-form-urlencoded") ||
+                boost::beast::iequals(content_type, "application/x-www-form-urlencoded; charset=UTF-8")) {
             auto decoded_body = httpd->decode_uri(http_post, true);
             httpd->decode_variables(decoded_body, http_variables_);
 
@@ -1350,8 +1350,8 @@ bool kis_net_beast_httpd_connection::start() {
                     ;
                 }
             }
-        } else if (content_type == "application/json" ||
-                content_type == "application/json; charset=UTF-8") {
+        } else if (boost::beast::iequals(content_type, "application/json") ||
+                boost::beast::iequals(content_type, "application/json; charset=UTF-8")) {
             Json::CharReaderBuilder cbuilder;
             cbuilder["collectComments"] = false;
             auto reader = cbuilder.newCharReader();
