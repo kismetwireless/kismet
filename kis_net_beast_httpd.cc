@@ -1350,7 +1350,8 @@ bool kis_net_beast_httpd_connection::start() {
                     ;
                 }
             }
-        } else if (content_type == "application/json") {
+        } else if (content_type == "application/json" ||
+                content_type == "application/json; charset=UTF-8") {
             Json::CharReaderBuilder cbuilder;
             cbuilder["collectComments"] = false;
             auto reader = cbuilder.newCharReader();
