@@ -832,8 +832,8 @@ void kis_net_beast_httpd::load_auth() {
     auth_vec.clear();
 
     auto sessiondb_file = 
-        Globalreg::globalreg->kismet_config->fetch_opt_path("httpd_session_db2", 
-                "%h/.kismet/session.db2");
+        Globalreg::globalreg->kismet_config->fetch_opt_path("httpd_session_db", 
+                "%h/.kismet/session.db");
     auto sf = std::ifstream(sessiondb_file, std::ifstream::binary);
 
     Json::Value json;
