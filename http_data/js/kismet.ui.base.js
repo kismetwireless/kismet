@@ -1493,9 +1493,10 @@ function packetqueuedisplay_refresh() {
             {
                 label: 'Incoming packets (1 min avg)',
                 fill: 'false',
-                borderColor: 'dark-gray',
+                borderColor: 'purple',
                 backgroundColor: 'transparent',
                 data: rate_linedata,
+                pointStyle: 'rect',
             },
             {
                 label: 'Processing queue',
