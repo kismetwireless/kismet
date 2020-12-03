@@ -1471,6 +1471,8 @@ function packetqueuedisplay_refresh() {
             }
         }
 
+        var peak_linedata =
+            kismet.RecalcRrdData2(data['kismet.packetchain.peak_packets_rrd'], rrdtype);
         var rate_linedata =
             kismet.RecalcRrdData2(data['kismet.packetchain.packets_rrd'], rrdtype);
         var queue_linedata =
@@ -1482,10 +1484,17 @@ function packetqueuedisplay_refresh() {
 
         var datasets = [
             {
-                label: 'Incoming packets',
+                label: 'Incoming packets (peak)',
                 fill: 'false',
                 borderColor: 'black',
                 backgroundColor: 'rgba(100, 100, 100, 0.33)',
+                data: peak_linedata,
+            },
+            {
+                label: 'Incoming packets (1 min avg)',
+                fill: 'false',
+                borderColor: 'dark-gray',
+                backgroundColor: 'transparent',
                 data: rate_linedata,
             },
             {
