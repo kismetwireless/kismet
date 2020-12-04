@@ -116,7 +116,7 @@ class ExternalInterface(object):
         parser.add_argument('--out-fd', action="store", type=int, dest="outfd", help="outgoing fd pair (IPC mode only)")
         parser.add_argument('--connect', action="store", dest="connect", help="remote kismet server on host:port; by default this uses websocket mode, to use the legacy tcp mode, specify the --tcp argument")
         parser.add_argument("--source", action="store", dest="source", help="capture source definition, required for remote capture")
-        parser.add_argument("--tcp", action="store_true", default=False, help="enable legacy tcp mode")
+        parser.add_argument("--tcp", action="store_true", default=False, dest="tcp", help="enable legacy tcp mode")
         parser.add_argument("--ssl", action="store_true", default=False, dest="ssl", help="enable SSL")
         parser.add_argument("--ssl-certificate", action="store", dest="sslcertificate", help="provide a SSL CA certificate to validate server")
         parser.add_argument("--user", action="store", dest="user", help="Kismet username for websockets-based remote capture")
@@ -200,12 +200,10 @@ class ExternalInterface(object):
             if self.debug:
                 print("Opening connection to remote host {}:{}".format(self.remote_host, self.remote_port))
 
-            print(self.config.tcp)
-
             if self.config.tcp:
                 self.ext_reader, self.ext_writer = await self.__async_open_tcp_remote()
-
-            self.websocket = await self.__async_open_ws_remote()
+            else:
+                self.websocket = await self.__async_open_ws_remote()
 
         except Exception as e:
             print("Failed to connect to remote host: ", e, file=sys.stderr)
