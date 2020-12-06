@@ -891,14 +891,14 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
     }
 
 #ifndef HAVE_LIBWEBSOCKETS
-    if (caph->use_tcp == 0) {
+    if (caph->remote_host != NULL && caph->use_tcp == 0) {
         fprintf(stderr, "FATAL:  Must specify --tcp when not compiled with websockets support\n");
         ret = -1;
         goto cleanup;
     }
 #endif
 
-    if (caph->use_tcp == 0 && caph->remote_port == 3501) {
+    if (caph->remote_host != NULL && (caph->use_tcp == 0 && caph->remote_port == 3501)) {
         fprintf(stderr, "WARNING: It looks like you're using a legacy TCP remote capture port, but\n"
                 "         did not specify '--tcp'; this probably is not what you want!\n");
     }
