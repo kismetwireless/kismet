@@ -176,6 +176,11 @@ protected:
     unsigned int packet_queue_warning, packet_queue_drop;
     time_t last_packet_queue_user_warning, last_packet_drop_user_warning;
 
+    std::shared_ptr<kis_tracked_rrd<kis_tracked_rrd_default_aggregator,
+        kis_tracked_rrd_prev_pos_extreme_aggregator, 
+        kis_tracked_rrd_prev_pos_extreme_aggregator>> packet_peak_rrd;
+    int packet_peak_rrd_id;
+
     std::shared_ptr<kis_tracked_rrd<>> packet_rate_rrd;
     int packet_rate_rrd_id;
 

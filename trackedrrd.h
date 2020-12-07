@@ -75,7 +75,8 @@ public:
     }
 };
 
-template <class Aggregator = kis_tracked_rrd_default_aggregator>
+template <class M_Aggregator = kis_tracked_rrd_default_aggregator, 
+         class H_Aggregator = M_Aggregator, class D_Aggregator = M_Aggregator>
 class kis_tracked_rrd : public tracker_component {
 public:
     kis_tracked_rrd() :
@@ -114,7 +115,6 @@ public:
         __ImportField(day_vec, p);
 
         __ImportField(blank_val, p);
-        __ImportField(aggregator_name, p);
 
         __ImportId(second_entry_id, p);
         __ImportId(minute_entry_id, p);
@@ -156,7 +156,9 @@ public:
     void add_sample(int64_t in_s, time_t in_time) {
         local_locker l(&mutex, "kis_tracked_rrd add_sample");
 
-        Aggregator agg;
+        M_Aggregator m_agg;
+        H_Aggregator h_agg;
+        D_Aggregator d_agg;
 
         int sec_bucket = in_time % 60;
         int min_bucket = (in_time / 60) % 60;
@@ -177,7 +179,7 @@ public:
                 return;
 
             uint64_t v = *(minute_vec->begin() + sec_bucket);
-            *(minute_vec->begin() + sec_bucket) = agg.combine_element(v, in_s);
+            *(minute_vec->begin() + sec_bucket) = m_agg.combine_element(v, in_s);
         } else {
             // If we haven't seen data in a day, we reset everything because
             // none of it is valid.  This is the simplest case.
@@ -187,26 +189,26 @@ public:
                     if (i - minute_vec->begin() == sec_bucket)
                         *i = in_s;
                     else
-                        *i = agg.default_val();
+                        *i = m_agg.default_val();
                 }
 
                 // Reset the last hour, setting it to a single sample
                 // Get the combined value for the minute
-                int64_t min_val = agg.combine_vector(minute_vec);
+                int64_t min_val = h_agg.combine_vector(minute_vec);
                 for (auto i = hour_vec->begin(); i != hour_vec->end(); ++i) {
                     if (i - hour_vec->begin() == min_bucket)
                         *i = min_val;
                     else
-                        *i = agg.default_val();
+                        *i = h_agg.default_val();
                 }
 
                 // Reset the last day, setting it to a single sample
-                int64_t hr_val = agg.combine_vector(hour_vec);
+                int64_t hr_val = d_agg.combine_vector(hour_vec);
                 for (auto i = day_vec->begin(); i != day_vec->end(); ++i) {
                     if (i - day_vec->begin() == hour_bucket)
                         *i = hr_val;
                     else
-                        *i = agg.default_val();
+                        *i = d_agg.default_val();
                 }
 
                 set_last_time(in_time);
@@ -229,9 +231,9 @@ public:
                     if (i - minute_vec->begin() == sec_bucket)
                         *i = in_s;
                     else
-                        *i = agg.default_val();
+                        *i = m_agg.default_val();
                 }
-                sec_avg = agg.combine_vector(minute_vec);
+                sec_avg = h_agg.combine_vector(minute_vec);
 
                 // We haven't seen anything in this hour, so clear it, set the minute
                 // and get the aggregate
@@ -239,14 +241,14 @@ public:
                     if (i - hour_vec->begin() == min_bucket)
                         *i = sec_avg;
                     else
-                        *i = agg.default_val();
+                        *i = h_agg.default_val();
                 }
-                min_avg = agg.combine_vector(hour_vec);
+                min_avg = d_agg.combine_vector(hour_vec);
 
                 // Fill the hours between the last time we saw data and now with
                 // zeroes; fastforward time
                 for (int h = 0; h < hours_different(last_hour_bucket + 1, hour_bucket); h++) {
-                    *(hour_vec->begin() + ((last_hour_bucket + 1 + h) % 24)) = agg.default_val();
+                    *(hour_vec->begin() + ((last_hour_bucket + 1 + h) % 24)) = d_agg.default_val();
                 }
 
                 *(day_vec->begin() + hour_bucket) = min_avg;
@@ -265,20 +267,19 @@ public:
                     if (i - minute_vec->begin() == sec_bucket)
                         *i = in_s;
                     else
-                        *i = agg.default_val();
+                        *i = m_agg.default_val();
                 }
-                sec_avg = agg.combine_vector(minute_vec);
+                sec_avg = h_agg.combine_vector(minute_vec);
 
                 // Zero between last and current
-                for (int m = 0; 
-                        m < minutes_different(last_min_bucket + 1, min_bucket); m++) {
-                    *(hour_vec->begin() + ((last_min_bucket + 1 + m) % 60)) = agg.default_val();
+                for (int m = 0; m < minutes_different(last_min_bucket + 1, min_bucket); m++) {
+                    *(hour_vec->begin() + ((last_min_bucket + 1 + m) % 60)) = h_agg.default_val();
                 }
 
                 // Set the updated value
                 *(hour_vec->begin() + min_bucket) = sec_avg;;
 
-                min_avg = agg.combine_vector(hour_vec);
+                min_avg = d_agg.combine_vector(hour_vec);
 
                 // Reset the hour
                 *(day_vec->begin() + hour_bucket) = min_avg;
@@ -291,10 +292,10 @@ public:
                 // changes up
                 if (in_time == ltime) {
                     int64_t v = *(minute_vec->begin() + sec_bucket);
-                    *(minute_vec->begin() + sec_bucket) = agg.combine_element(v, in_s);
+                    *(minute_vec->begin() + sec_bucket) = m_agg.combine_element(v, in_s);
                 } else {
                     for (int s = 0; s < minutes_different(last_sec_bucket + 1, sec_bucket); s++) {
-                        *(minute_vec->begin() + ((last_sec_bucket + 1 + s) % 60)) = agg.default_val();
+                        *(minute_vec->begin() + ((last_sec_bucket + 1 + s) % 60)) = m_agg.default_val();
                     }
 
                     *(minute_vec->begin() + sec_bucket) = in_s;
@@ -303,12 +304,12 @@ public:
                 // Update all the averages
                 int64_t sec_avg = 0, min_avg = 0;
 
-                sec_avg = agg.combine_vector(minute_vec);
+                sec_avg = h_agg.combine_vector(minute_vec);
 
                 // Set the minute
                 *(hour_vec->begin() + min_bucket) = sec_avg;
 
-                min_avg = agg.combine_vector(hour_vec);
+                min_avg = d_agg.combine_vector(hour_vec);
 
                 // Set the hour
                 *(day_vec->begin() + hour_bucket) = min_avg;
@@ -322,14 +323,14 @@ public:
         local_eol_locker l(&mutex, "kis_tracked_rrd pre_serialize");
 
         tracker_component::pre_serialize();
-        Aggregator agg;
+        M_Aggregator m_agg;
 
         auto now = time(0);
         set_serial_time(now);
 
         // Update the averages
         if (update_first) {
-            add_sample(agg.default_val(), now);
+            add_sample(m_agg.default_val(), now);
         }
     }
 
@@ -391,7 +392,6 @@ protected:
         register_field("kismet.common.rrd.day_vec", "past day values per hour", &day_vec);
 
         register_field("kismet.common.rrd.blank_val", "blank value", &blank_val);
-        register_field("kismet.common.rrd.aggregator", "aggregator name", &aggregator_name);
 
         second_entry_id = 
             register_field("kismet.common.rrd.second", 
@@ -431,9 +431,8 @@ protected:
             }
         }
 
-        Aggregator agg;
-        (*blank_val).set(agg.default_val());
-        (*aggregator_name).set(agg.name());
+        M_Aggregator m_agg;
+        (*blank_val).set(m_agg.default_val());
     }
 
     kis_recursive_timed_mutex mutex;
@@ -446,7 +445,6 @@ protected:
     std::shared_ptr<tracker_element_vector_double> day_vec;
 
     std::shared_ptr<tracker_element_int64> blank_val;
-    std::shared_ptr<tracker_element_string> aggregator_name;
 
     int second_entry_id;
     int minute_entry_id;
@@ -495,7 +493,6 @@ public:
         __ImportField(serial_time, p);
         __ImportField(minute_vec, p);
         __ImportField(blank_val, p);
-        __ImportField(aggregator_name, p);
 
         __ImportId(second_entry_id, p);
 
@@ -620,7 +617,6 @@ protected:
                     "second value");
 
         register_field("kismet.common.rrd.blank_val", "blank value", &blank_val);
-        register_field("kismet.common.rrd.aggregator", "aggregator name", &aggregator_name);
     } 
 
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override {
@@ -638,7 +634,6 @@ protected:
 
         Aggregator agg;
         (*blank_val).set(agg.default_val());
-        (*aggregator_name).set(agg.name());
     }
 
     kis_recursive_timed_mutex mutex;
@@ -647,7 +642,6 @@ protected:
     std::shared_ptr<tracker_element_uint64> serial_time;
     std::shared_ptr<tracker_element_vector_double> minute_vec;
     std::shared_ptr<tracker_element_int64> blank_val;
-    std::shared_ptr<tracker_element_string> aggregator_name;
 
     int second_entry_id;
 
@@ -703,7 +697,9 @@ public:
 
 // Generic RRD, extreme selector.  If both values are > 0, selects the highest.
 // If both values are below zero, selects the lowest.  If values are mixed,
-// selects the lowest
+// selects the lowest.
+//
+// Averages to the next slot per normal
 class kis_tracked_rrd_extreme_aggregator {
 public:
     // Select the most extreme value
@@ -748,6 +744,55 @@ public:
         return "extreme";
     }
 };
+
+// Selects the most extreme value of the previous range; expects positive values
+class kis_tracked_rrd_prev_pos_extreme_aggregator {
+public:
+    // Select the most extreme value
+    static int64_t combine_element(const int64_t a, const int64_t b) {
+        if (a < 0 && b < 0) {
+            if (a < b)
+                return a;
+
+            return b;
+        } else if (a > 0 && b > 0) {
+            if (a > b)
+                return a;
+
+            return b;
+        } else if (a == 0) {
+            return b;
+        } else if (b == 0) {
+            return a;
+        } else if (a < b) {
+            return a;
+        }
+
+        return b;
+    }
+
+    // Simple average
+    static int64_t combine_vector(std::shared_ptr<tracker_element_vector_double> e) {
+        int64_t most = 0;
+
+        for (auto i : *e) {
+            if (i > most)
+                most = i;
+        }
+
+        return most;
+    }
+
+    // Default 'empty' value, no legit signal would be 0
+    static int64_t default_val() {
+        return (int64_t) 0;
+    }
+
+    static std::string name() {
+        return "prev_pos_extreme";
+    }
+};
+
 
 
 #endif

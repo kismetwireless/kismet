@@ -982,7 +982,7 @@ void kis_external_interface::handle_packet_http_auth_request(uint32_t in_seqno,
     }
 
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
-    auto token = httpd->create_auth("external plugin", httpd->LOGON_ROLE, 0);
+    auto token = httpd->create_or_find_auth("external plugin", httpd->LOGON_ROLE, 0);
 
     send_http_auth(token);
 }

@@ -1205,6 +1205,34 @@ exports.MemoryMonitor = function() {
 
     memory_chart = null;
 
+    var content = 
+        $('<div>', {
+            'style': 'width: 100%; height: 100%;'
+        })
+        .append(
+            $('<div>', {
+                "style": "position: absolute; top: 0px; right: 10px; float: right;"
+            })
+            .append(
+                $('<span>', {
+                    'id': 'k_mm_devs',
+                    'class': 'padded',
+                }).html('#devices')
+            )
+            .append(
+                $('<span>', {
+                    'id': 'k_mm_ram',
+                    'class': 'padded',
+                }).html('#ram')
+            )
+        )
+        .append(
+            $('<canvas>', {
+                'id': 'k-mm-canvas',
+                'style': 'k-mm-canvas'
+            })
+        );
+
     memory_panel = $.jsPanel({
         id: 'memory',
         headerTitle: '<i class="fa fa-tasks" /> Memory use',
@@ -1212,7 +1240,7 @@ exports.MemoryMonitor = function() {
             controls: 'closeonly',
             iconfont: 'jsglyph',
         },
-        content: '<canvas id="k-mm-canvas" style="k-mm-canvas" />',
+        content: content,
         onclosed: function() {
             clearTimeout(memoryupdate_tid);
         }
@@ -1264,6 +1292,9 @@ function memorydisplay_refresh() {
 
         var dev_linedata =
             kismet.RecalcRrdData2(data['kismet.system.devices.rrd'], rrdtype);
+
+        $('#k_mm_devs', memory_panel.content).html(`${dev_linedata[dev_linedata.length - 1]} devices`);
+        $('#k_mm_ram', memory_panel.content).html(`${mem_linedata[mem_linedata.length - 1]} MB`);
 
         var datasets = [
             {
@@ -1440,6 +1471,8 @@ function packetqueuedisplay_refresh() {
             }
         }
 
+        var peak_linedata =
+            kismet.RecalcRrdData2(data['kismet.packetchain.peak_packets_rrd'], rrdtype);
         var rate_linedata =
             kismet.RecalcRrdData2(data['kismet.packetchain.packets_rrd'], rrdtype);
         var queue_linedata =
@@ -1451,11 +1484,19 @@ function packetqueuedisplay_refresh() {
 
         var datasets = [
             {
-                label: 'Incoming packets',
+                label: 'Incoming packets (peak)',
                 fill: 'false',
                 borderColor: 'black',
                 backgroundColor: 'rgba(100, 100, 100, 0.33)',
+                data: peak_linedata,
+            },
+            {
+                label: 'Incoming packets (1 min avg)',
+                fill: 'false',
+                borderColor: 'purple',
+                backgroundColor: 'transparent',
                 data: rate_linedata,
+                pointStyle: 'rect',
             },
             {
                 label: 'Processing queue',
