@@ -30,7 +30,7 @@
 #include "messagebus.h"
 #include "util.h"
 
-const std::string kis_net_beast_httpd::LOGON_ROLE{"logon"};
+const std::string kis_net_beast_httpd::LOGON_ROLE{"admin"};
 const std::string kis_net_beast_httpd::ANY_ROLE{"any"};
 const std::string kis_net_beast_httpd::RO_ROLE{"readonly"};
 
@@ -205,6 +205,7 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
     register_unauth_route("/session/check_setup_ok", {"GET"}, 
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                con->set_mime_type("text/plain");
                 std::ostream os(&con->response_stream());
 
                 if (global_login_config) {
@@ -222,14 +223,15 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
     register_route("/session/check_login", {"GET"}, LOGON_ROLE,
             std::make_shared<kis_net_web_function_endpoint>(
                 [](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                con->set_mime_type("text/plain");
                 std::ostream os(&con->response_stream());
-
                 os << "Login valid\n";
             }));
 
     register_route("/session/check_session", {"GET"}, ANY_ROLE,
             std::make_shared<kis_net_web_function_endpoint>(
                 [](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                con->set_mime_type("text/plain");
                 std::ostream os(&con->response_stream());
                 os << "Session valid\n";
             }));
@@ -237,6 +239,9 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
     register_unauth_route("/session/set_password", {"POST"}, 
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+
+                con->set_mime_type("text/plain");
+
                 std::ostream os(&con->response_stream());
 
                 if (global_login_config) {
@@ -274,6 +279,8 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
     register_route("/auth/apikey/generate", {"POST"}, LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    con->set_mime_type("text/plain");
+
                     if (!allow_auth_creation)
                         throw std::runtime_error("auth creation is disabled in the kismet configuration");
 
@@ -289,12 +296,14 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                     auto token = create_auth(n_auth_name, n_auth_role, expiration);
 
                     std::ostream os(&con->response_stream());
-                    os << token << "\n";
+                    os << token;
                 }));
 
     register_route("/auth/apikey/revoke", {"POST"}, LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    con->set_mime_type("text/plain");
+
                     if (!allow_auth_creation)
                         throw std::runtime_error("auth creation/deletion is disabled in the kismet configuration");
 
@@ -303,7 +312,10 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
                     if (n_auth_name == "web logon")
                         throw std::runtime_error("cannot remove autoprovisioned web logon");
 
-                    remove_auth(n_auth_name);
+                    auto r = remove_auth(n_auth_name);
+
+                    if (!r) 
+                        throw std::runtime_error("cannot delete unknown auth record");
 
                     std::ostream os(&con->response_stream());
                     os << "revoked\n";
@@ -474,7 +486,7 @@ void kis_net_beast_httpd::handle_connection(const boost::system::error_code& ec,
     return start_accept();
 }
 
-std::string kis_net_beast_httpd::decode_uri(boost::beast::string_view in) {
+std::string kis_net_beast_httpd::decode_uri(boost::beast::string_view in, bool query) {
     std::string ret;
     ret.reserve(in.length());
 
@@ -487,6 +499,13 @@ std::string kis_net_beast_httpd::decode_uri(boost::beast::string_view in) {
             char c2 = in[p+2] - (in[p+2] <= '9' ? '0' : (in[p+2] <= 'F' ? 'A' : 'a') - 10);
             ret += char(16 * c1 + c2);
             p += 3;
+            continue;
+        }
+
+        // Plusses are spaces in queries but not URIs
+        if (query && in[p] == '+') {
+            ret += ' ';
+            p++;
             continue;
         }
 
@@ -550,7 +569,7 @@ void kis_net_beast_httpd::decode_get_variables(const boost::beast::string_view u
     if (q_pos == boost::beast::string_view::npos)
         return;
 
-    auto uri_decode = kis_net_beast_httpd::decode_uri(uri.substr(q_pos + 1, uri.length()));
+    auto uri_decode = kis_net_beast_httpd::decode_uri(uri.substr(q_pos + 1, uri.length()), false);
     kis_net_beast_httpd::decode_variables(uri_decode, var_map);
 }
 
@@ -749,16 +768,18 @@ std::string kis_net_beast_httpd::create_or_find_auth(const std::string& name, co
     return create_auth(name, role, expiry);
 }
 
-void kis_net_beast_httpd::remove_auth(const std::string& token) {
+bool kis_net_beast_httpd::remove_auth(const std::string& auth_name) {
     local_locker l(&auth_mutex, "remove auth");
 
-    for (auto a = auth_vec.cbegin(); a != auth_vec.cend(); ++a) {
-        if ((*a)->token() == token) {
+    for (auto a = auth_vec.begin(); a != auth_vec.end(); ++a) {
+        if ((*a)->name() == auth_name) {
             auth_vec.erase(a);
             store_auth();
-            return;
+            return true;
         }
     }
+
+    return false;
 }
 
 std::shared_ptr<kis_net_beast_auth> kis_net_beast_httpd::check_auth_token(const boost::beast::string_view& token) {
@@ -811,8 +832,8 @@ void kis_net_beast_httpd::load_auth() {
     auth_vec.clear();
 
     auto sessiondb_file = 
-        Globalreg::globalreg->kismet_config->fetch_opt_path("httpd_session_db2", 
-                "%h/.kismet/session.db2");
+        Globalreg::globalreg->kismet_config->fetch_opt_path("httpd_session_db", 
+                "%h/.kismet/session.db");
     auto sf = std::ifstream(sessiondb_file, std::ifstream::binary);
 
     Json::Value json;
@@ -1088,7 +1109,7 @@ bool kis_net_beast_httpd_connection::start() {
     // Extract the auth cookie
     auto cookie_h = request_.find(boost::beast::http::field::cookie);
     if (cookie_h != request_.end()) {
-        auto cookie_decode = httpd->decode_uri(cookie_h->value());
+        auto cookie_decode = httpd->decode_uri(cookie_h->value(), true);
         httpd->decode_cookies(cookie_decode, cookies_);
 
         auto auth_cookie_k = cookies_.find(httpd->AUTH_COOKIE);
@@ -1233,7 +1254,7 @@ bool kis_net_beast_httpd_connection::start() {
             // a 401 with a WWW-Authorize then it repeats the request
             auto ua_h = request_.find(boost::beast::http::field::user_agent);
             if (ua_h != request_.end()) {
-                auto ua = httpd->decode_uri(ua_h->value());
+                auto ua = httpd->decode_uri(ua_h->value(), true);
 
                 if (ua.find_first_of("Wget") == 0) {
                     res.set(boost::beast::http::field::www_authenticate, "Basic realm=Kismet");
@@ -1315,9 +1336,9 @@ bool kis_net_beast_httpd_connection::start() {
 
         auto content_type = request_[boost::beast::http::field::content_type];
 
-        if (content_type == "application/x-www-form-urlencoded" ||
-                content_type == "application/x-www-form-urlencoded; charset=UTF-8") {
-            auto decoded_body = httpd->decode_uri(http_post);
+        if (boost::beast::iequals(content_type, "application/x-www-form-urlencoded") ||
+                boost::beast::iequals(content_type, "application/x-www-form-urlencoded; charset=UTF-8")) {
+            auto decoded_body = httpd->decode_uri(http_post, true);
             httpd->decode_variables(decoded_body, http_variables_);
 
             auto j_k = http_variables_.find("json");
@@ -1329,7 +1350,8 @@ bool kis_net_beast_httpd_connection::start() {
                     ;
                 }
             }
-        } else if (content_type == "application/json") {
+        } else if (boost::beast::iequals(content_type, "application/json") ||
+                boost::beast::iequals(content_type, "application/json; charset=UTF-8")) {
             Json::CharReaderBuilder cbuilder;
             cbuilder["collectComments"] = false;
             auto reader = cbuilder.newCharReader();
@@ -1359,6 +1381,12 @@ bool kis_net_beast_httpd_connection::start() {
             // _MSG_INFO("(DEBUG) {} {} invoking route {}", verb_, uri_, route->route());
             route->invoke(shared_from_this());
         } catch (const std::exception& e) {
+            try {
+                set_status(500);
+            } catch (const std::exception& e) {
+                ;
+            }
+
             std::ostream os(&response_stream_);
             os << "ERROR: " << e.what();
         }
@@ -1672,7 +1700,7 @@ void kis_net_web_tracked_endpoint::handle_request(std::shared_ptr<kis_net_beast_
             ;
         }
 
-        os << "Error: " << e.what() << "\n";
+        os << "ERROR: " << e.what() << "\n";
     }
 }
 

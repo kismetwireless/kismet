@@ -3559,7 +3559,7 @@ void kis_80211_phy::generate_handshake_pcap(std::shared_ptr<kis_net_beast_httpd_
     struct pcap_header {
         uint32_t magic = 0xa1b2c3d4;
         uint16_t vmajor = 2;
-        uint16_t vminor = 2;
+        uint16_t vminor = 4;
         int32_t offset = 0;
         uint32_t sigfigs = 0;
         uint32_t len = 8192;

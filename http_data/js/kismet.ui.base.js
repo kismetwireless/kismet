@@ -1205,6 +1205,34 @@ exports.MemoryMonitor = function() {
 
     memory_chart = null;
 
+    var content = 
+        $('<div>', {
+            'style': 'width: 100%; height: 100%;'
+        })
+        .append(
+            $('<div>', {
+                "style": "position: absolute; top: 0px; right: 10px; float: right;"
+            })
+            .append(
+                $('<span>', {
+                    'id': 'k_mm_devs',
+                    'class': 'padded',
+                }).html('#devices')
+            )
+            .append(
+                $('<span>', {
+                    'id': 'k_mm_ram',
+                    'class': 'padded',
+                }).html('#ram')
+            )
+        )
+        .append(
+            $('<canvas>', {
+                'id': 'k-mm-canvas',
+                'style': 'k-mm-canvas'
+            })
+        );
+
     memory_panel = $.jsPanel({
         id: 'memory',
         headerTitle: '<i class="fa fa-tasks" /> Memory use',
@@ -1212,7 +1240,7 @@ exports.MemoryMonitor = function() {
             controls: 'closeonly',
             iconfont: 'jsglyph',
         },
-        content: '<canvas id="k-mm-canvas" style="k-mm-canvas" />',
+        content: content,
         onclosed: function() {
             clearTimeout(memoryupdate_tid);
         }
@@ -1264,6 +1292,9 @@ function memorydisplay_refresh() {
 
         var dev_linedata =
             kismet.RecalcRrdData2(data['kismet.system.devices.rrd'], rrdtype);
+
+        $('#k_mm_devs', memory_panel.content).html(`${dev_linedata[dev_linedata.length - 1]} devices`);
+        $('#k_mm_ram', memory_panel.content).html(`${mem_linedata[mem_linedata.length - 1]} MB`);
 
         var datasets = [
             {
@@ -1440,6 +1471,8 @@ function packetqueuedisplay_refresh() {
             }
         }
 
+        var peak_linedata =
+            kismet.RecalcRrdData2(data['kismet.packetchain.peak_packets_rrd'], rrdtype);
         var rate_linedata =
             kismet.RecalcRrdData2(data['kismet.packetchain.packets_rrd'], rrdtype);
         var queue_linedata =
@@ -1451,11 +1484,19 @@ function packetqueuedisplay_refresh() {
 
         var datasets = [
             {
-                label: 'Incoming packets',
+                label: 'Incoming packets (peak)',
                 fill: 'false',
                 borderColor: 'black',
                 backgroundColor: 'rgba(100, 100, 100, 0.33)',
+                data: peak_linedata,
+            },
+            {
+                label: 'Incoming packets (1 min avg)',
+                fill: 'false',
+                borderColor: 'purple',
+                backgroundColor: 'transparent',
                 data: rate_linedata,
+                pointStyle: 'rect',
             },
             {
                 label: 'Processing queue',
@@ -2068,6 +2109,438 @@ kismet_ui_settings.AddSettingsPane({
         kismet.putStorage('kismet.base.login.password', $('#password', elem).val());
     },
 });
+
+function show_role_help(role) {
+    var rolehelp = `Unknown role ${role}; this could be assigned as a custom role for a Kismet plugin.`;
+
+    if (role === "admin")
+        rolehelp = "The admin role is assigned to the primary web interface, external API plugins which automatically request API access, and other privileged instances.  The admin role has access to all endpoints.";
+    else if (role === "readonly")
+        rolehelp = "The readonly role has access to any endpoint which does not modify data.  It can not issue commands to the Kismet server, configure sources, or alter devices.  The readonly role is well suited for external data gathering from a Kismet server.";
+    else if (role === "datasource")
+        rolehelp = "The datasource role allows remote capture over websockets.  This role only has access to the remote capture datasource endpoint.";
+    else if (role === "scanreport")
+        rolehelp = "The scanreport role allows device scan reports.  This role only has access to the scan report endpoint."
+    else if (role === "__explain__") {
+        rolehelp = "<p>Kismet uses a basic role system to restrict access to API endpoints.  The default roles are:";
+        rolehelp += "<p>&quot;admin&quot; which has access to all API endpoints.";
+        rolehelp += "<p>&quot;readonly&quot; which only has access to endpoints which do not alter devices or change the configuration of the server";
+        rolehelp += "<p>&quot;datasource&quot; which is used for websockets based remote capture and may not access any other endpoints";
+        rolehelp += "<p>&quot;scanreport&quot; which is used for reporting scanning-mode devices";
+        rolehelp += "<p>Plugins or other code may define other roles."
+
+        role = "Kismet API Roles";
+    }
+
+    var h = $(window).height() / 4;
+    var w = $(window).width() / 2;
+
+    if (w < 450) 
+        w = $(window).width() - 5;
+
+    if (h < 200)
+        h = $(window).height() - 5;
+
+    $.jsPanel({
+        id: "item-help",
+        headerTitle: `Role: ${role}`,
+        headerControls: {
+            controls: 'closeonly',
+            iconfont: 'jsglyph',
+        },
+        contentSize: `${w} auto`,
+        paneltype: 'modal',
+        content: `<div style="padding: 10px;"><h3>${role}</h3><p>${rolehelp}`,
+    })
+    .reposition({
+        my: 'center',
+        at: 'center',
+        of: 'window'
+    });
+}
+
+function delete_role(rolename, elem) {
+    var deltd = $('.deltd', elem);
+
+    var delbt = 
+        $('<button>', {
+            'style': 'background-color: #DDAAAA',
+        })
+        .html(`Delete role &quot;${rolename}&quot;`)
+        .button()
+        .on('click', function() {
+            var pd = {
+                'name': rolename,
+            };
+
+            var postdata = "json=" + encodeURIComponent(JSON.stringify(pd));
+
+            $.post(local_uri_prefix + "auth/apikey/revoke.cmd", postdata)
+            .done(function(data) {
+                var delt = elem.parent();
+
+                elem.remove();
+
+                if ($('tr', delt).length == 1) {
+                    delt.append(
+                        $('<tr>', {
+                            'class': 'noapi'
+                        })
+                        .append(
+                            $('<td>', {
+                                'colspan': 4
+                            })
+                            .html("<i>No API keys defined...</i>")
+                        )
+                    );
+                }
+            })
+        });
+
+    deltd.empty();
+    deltd.append(delbt);
+
+}
+
+function make_role_help_closure(role) {
+    return function() { show_role_help(role); };
+}
+
+function make_role_delete_closure(rolename, elem) {
+    return function() { delete_role(rolename, elem); };
+}
+
+kismet_ui_settings.AddSettingsPane({
+    id: 'base_api_logins',
+    listTitle: "API Keys",
+    create: function(elem) {
+        elem.append($("p").html("Fetching API data..."));
+
+        $.get(local_uri_prefix + "auth/apikey/list.json")
+        .done(function(data) {
+            data = kismet.sanitizeObject(data);
+            elem.empty();
+
+            var tb = $('<table>', {
+                'class': 'apitable',
+                'id': 'apikeytable',
+            })
+
+            .append(
+                $('<tr>')
+                .append(
+                    $('<th>', {
+                        'class': 'apith',
+                        'style': 'width: 16em;',
+                    }).html("Name")
+                )
+                .append(
+                    $('<th>', {
+                        'class': 'apith',
+                        'style': 'width: 8em;',
+                    }).html("Role")
+                )
+                .append(
+                    $('<th>', {
+                        'class': 'apith',
+                        'style': 'width: 30em;',
+                    }).html("Key")
+                )
+                .append(
+                    $('<th>')
+                )
+            );
+
+            elem.append(tb);
+
+            if (data.length == 0) {
+                tb.append(
+                    $('<tr>', {
+                        'class': 'noapi'
+                    })
+                    .append(
+                        $('<td>', {
+                            'colspan': 4
+                        })
+                        .html("<i>No API keys defined...</i>")
+                    )
+                );
+            }
+
+            for (var user of data) {
+                var name = user['kismet.httpd.auth.name'];
+                var role = user['kismet.httpd.auth.role'];
+
+                var key;
+
+                if ('kismet.httpd.auth.token' in user) {
+                    key = user['kismet.httpd.auth.token'];
+                } else {
+                    key = "<i>Viewing auth tokens is disabled in the Kismet configuration.</i>";
+                }
+
+                var tr = 
+                    $('<tr>', {
+                        'class': 'apihover'
+                    });
+
+                tr
+                    .append(
+                        $('<td>').html(name)
+                    )
+                    .append(
+                        $('<td>').html(role)
+                        .append(
+                            $('<i>', {
+                                'class': 'pseudolink fa fa-question-circle',
+                                'style': 'padding-left: 5px;',
+                            })
+                            .on('click', make_role_help_closure(role))
+                        )
+                    )
+                    .append(
+                        $('<td>')
+                        .append(
+                            $('<input>', {
+                                'type': 'text',
+                                'value': key,
+                                'readonly': 'true',
+                                'size': 34,
+                                'id': name.replace(" ", "_"),
+                            })
+                        )
+                        .append(
+                            $('<i>', {
+                                'class': 'copyuri pseudolink fa fa-copy',
+                                'style': 'padding-left: 5px;',
+                                'data-clipboard-target': `#${name.replace(" ", "_")}`, 
+                            })
+                        )
+                    )
+                    .append(
+                        $('<td>', {
+                            'class': 'deltd'
+                        })
+                        .append(
+                            $('<i>', {
+                                'class': 'pseudolink fa fa-trash',
+                            })
+                            .on('click', make_role_delete_closure(name, tr))
+                        )
+                    )
+
+                tb.append(
+                    tr
+                )
+            }
+
+            var adddiv = 
+                $('<div>', {
+                    'id': 'addapidiv'
+                })
+                .append(
+                    $('<fieldset>')
+                    .append(
+                        $('<button>', {
+                            'id': 'addapikeybutton',
+                            'class': 'padded',
+                        }).html(`<i class="fa fa-plus"> Create API Key`)
+                    )
+                    .append(
+                        $('<label>', {
+                            'for': 'addapiname',
+                            'class': 'padded',
+                        }).html("Name")
+                    )
+                    .append(
+                        $('<input>', {
+                        'name': 'addapiname',
+                        'id': 'addapiname',
+                        'type': 'text',
+                        'size': 16,
+                        })
+                    )
+                    .append(
+                        $('<label>', {
+                            'for': 'addapirole',
+                            'class': 'padded',
+                        }).html("Role")
+                    )
+                    .append(
+                        $('<select>', {
+                            'name': 'addapirole',
+                            'id': 'addapirole'
+                        })
+                        .append(
+                            $('<option>', {
+                                'value': 'readonly',
+                                'selected': 'true',
+                            }).html("readonly")
+                        )
+                        .append(
+                            $('<option>', {
+                                'value': 'datasource',
+                            }).html("datasource")
+                        )
+                        .append(
+                            $('<option>', {
+                                'value': 'scanreport',
+                            }).html("scanreport")
+                        )
+                        .append(
+                            $('<option>', {
+                                'value': 'admin',
+                            }).html("admin")
+                        )
+                        .append(
+                            $('<option>', {
+                                'value': 'custom',
+                            }).html("<i>custom</i>")
+                        )
+                    )
+                    .append(
+                        $('<input>', {
+                            'name': 'addapiroleother',
+                            'id': 'addapiroleother',
+                            'type': 'text',
+                            'size': 16,
+                        }).hide()
+                    )
+                    .append(
+                        $('<i>', {
+                            'class': 'pseudolink fa fa-question-circle',
+                            'style': 'padding-left: 5px;',
+                        })
+                        .on('click', make_role_help_closure("__explain__"))
+                    )
+                    .append(
+                        $('<div>', {
+                            'id': 'addapierror',
+                            'style': 'color: red;'
+                        }).hide()
+                    )
+                );
+
+            $('#addapikeybutton', adddiv)
+                .button()
+                .on('click', function() {
+                    var name = $('#addapiname').val();
+                    var role_select = $('#addapirole option:selected').text();
+                    var role_input = $('#addapiroleother').val();
+
+                    if (name.length == 0) {
+                        $('#addapierror').show().html("Missing name.");
+                        return;
+                    }
+
+                    if (role_select === "custom" && role_input.length == 0) {
+                        $('#addapierror').show().html("Missing custom role.");
+                        return;
+                    }
+
+                    $('#addapierror').hide();
+
+                    var role = role_select;
+
+                    if (role_select === "custom")
+                        role = role_input;
+
+                    var pd = {
+                        'name': name,
+                        'role': role,
+                        'duration': 0,
+                    };
+
+                    var postdata = "json=" + encodeURIComponent(JSON.stringify(pd));
+
+                    $.post(local_uri_prefix + "auth/apikey/generate.cmd", postdata)
+                    .fail(function(response) {
+                        var rt = kismet.sanitizeObject(response.responseText);
+                        $('#addapierror').show().html(`Failed to add API key: ${rt}`);
+                    })
+                    .done(function(data) {
+                        var key = kismet.sanitizeObject(data);
+
+                        var tr = 
+                            $('<tr>', {
+                                'class': 'apihover'
+                            });
+
+                        tr
+                            .append(
+                                $('<td>').html(name)
+                            )
+                            .append(
+                                $('<td>').html(role)
+                                .append(
+                                    $('<i>', {
+                                        'class': 'pseudolink fa fa-question-circle',
+                                        'style': 'padding-left: 5px;',
+                                    })
+                                    .on('click', make_role_help_closure(role))
+                                )
+                            )
+                            .append(
+                                $('<td>')
+                                .append(
+                                    $('<input>', {
+                                        'type': 'text',
+                                        'value': key,
+                                        'readonly': 'true',
+                                        'size': 34,
+                                        'id': name.replace(" ", "_"),
+                                    })
+                                )
+                                .append(
+                                    $('<i>', {
+                                        'class': 'copyuri pseudolink fa fa-copy',
+                                        'style': 'padding-left: 5px;',
+                                        'data-clipboard-target': `#${name.replace(" ", "_")}`, 
+                                    })
+                                )
+                            )
+                            .append(
+                                $('<td>', {
+                                    'class': 'deltd'
+                                })
+                                .append(
+                                    $('<i>', {
+                                        'class': 'pseudolink fa fa-trash',
+                                    })
+                                    .on('click', make_role_delete_closure(name, tr))
+                                )
+                            );
+
+                        $('#apikeytable').append(tr);
+
+                        $('#addapiname').val('');
+                        $("#addapirole").prop("selectedIndex", 0);
+                        $("#addapirole").show();
+                        $("#addapiroleother").val('').hide();
+                    });
+                });
+
+            $('#addapirole', adddiv).on('change', function(e) {
+                var val = $("#addapirole option:selected" ).text();
+
+                if (val === "custom") {
+                    $(this).hide();
+                    $('#addapiroleother').show();
+                }
+
+            });
+
+            elem.append(adddiv);
+
+            new ClipboardJS('.copyuri');
+        });
+    },
+    save: function(elem) {
+        return true;
+    },
+});
+
+
 
 /* Add the messages and channels tabs */
 kismet_ui_tabpane.AddTab({
@@ -2830,7 +3303,7 @@ exports.FirstLoginCheck = function(first_login_done_cb) {
                     first_login_done_cb();
                 }
             });
-        } else if (code != 200) {
+        } else if (code == 500) {
             loginpanel = $.jsPanel({
                 id: "login-alert",
                 headerTitle: '<i class="fa fa-exclamation-triangle"></i> Set Login',
@@ -2844,6 +3317,20 @@ exports.FirstLoginCheck = function(first_login_done_cb) {
             });
 
             return true;
+        } else {
+            loginpanel = $.jsPanel({
+                id: "login-alert",
+                headerTitle: '<i class="fa fa-exclamation-triangle"></i> Error connecting',
+                headerControls: {
+                    controls: 'closeonly',
+                    iconfont: 'jsglyph',
+                },
+                contentSize: w + " auto",
+                paneltype: 'modal',
+                content: "Error connecting to Kismet and checking provisioning; try reloading the page!",
+            });
+
+
         }
    });
 

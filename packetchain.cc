@@ -61,6 +61,17 @@ packet_chain::packet_chain() {
     auto entrytracker = 
         Globalreg::fetch_mandatory_global_as<entry_tracker>();
 
+    packet_peak_rrd_id = 
+        entrytracker->register_field("kismet.packetchain.peak_packets_rrd",
+                tracker_element_factory<kis_tracked_rrd<kis_tracked_rrd_default_aggregator,
+                    kis_tracked_rrd_prev_pos_extreme_aggregator, 
+                    kis_tracked_rrd_prev_pos_extreme_aggregator>>(),
+                "incoming packets peak rrd");
+    packet_peak_rrd = 
+        std::make_shared<kis_tracked_rrd<kis_tracked_rrd_default_aggregator,
+            kis_tracked_rrd_prev_pos_extreme_aggregator, 
+            kis_tracked_rrd_prev_pos_extreme_aggregator>>(packet_peak_rrd_id);
+
     packet_rate_rrd_id = 
         entrytracker->register_field("kismet.packetchain.packets_rrd",
                 tracker_element_factory<kis_tracked_rrd<>>(),
@@ -105,6 +116,7 @@ packet_chain::packet_chain() {
 
     packet_stats_map = 
         std::make_shared<tracker_element_map>();
+    packet_stats_map->insert(packet_peak_rrd);
     packet_stats_map->insert(packet_rate_rrd);
     packet_stats_map->insert(packet_error_rrd);
     packet_stats_map->insert(packet_dupe_rrd);
@@ -119,6 +131,8 @@ packet_chain::packet_chain() {
     // like chain-level packet processing and worker mutex locked buffer queuing.
     httpd->register_route("/packetchain/packet_stats", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(packet_stats_map, nullptr));
+    httpd->register_route("/packetchain/packet_peak", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(packet_peak_rrd, nullptr));
     httpd->register_route("/packetchain/packet_rate", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(packet_rate_rrd, nullptr));
     httpd->register_route("/packetchain/packet_error", {"GET", "POST"}, httpd->RO_ROLE, {},
@@ -358,6 +372,7 @@ void packet_chain::packet_queue_processor() {
 int packet_chain::process_packet(kis_packet *in_pack) {
     // Total packet rate always gets added, even when we drop, so we can compare
     packet_rate_rrd->add_sample(1, time(0));
+    packet_peak_rrd->add_sample(1, time(0));
 
     if (packet_queue_drop != 0 && packet_queue.size_approx() > packet_queue_drop) {
         time_t offt = time(0) - last_packet_drop_user_warning;

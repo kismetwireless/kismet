@@ -107,7 +107,7 @@ Systemmonitor::Systemmonitor() :
         Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
     monitor_endp = std::make_shared<kis_net_web_tracked_endpoint>(status, &monitor_mutex);
-    httpd->register_route("/system/status", {"GET", "POST"}, httpd->LOGON_ROLE, {}, monitor_endp);
+    httpd->register_route("/system/status", {"GET", "POST"}, httpd->RO_ROLE, {}, monitor_endp);
 
     user_monitor_endp = std::make_shared<kis_net_web_tracked_endpoint>(
             [this](std::shared_ptr<kis_net_beast_httpd_connection>) -> std::shared_ptr<tracker_element> {
@@ -133,7 +133,7 @@ Systemmonitor::Systemmonitor() :
 
                 return tse;
             });
-    httpd->register_route("/system/timestamp", {"GET", "POST"}, httpd->LOGON_ROLE, {}, timestamp_endp);
+    httpd->register_route("/system/timestamp", {"GET", "POST"}, httpd->RO_ROLE, {}, timestamp_endp);
 
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_system_status", true)) {
         auto snap_time_s = 
