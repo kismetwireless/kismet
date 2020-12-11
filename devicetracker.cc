@@ -63,8 +63,10 @@ device_tracker::device_tracker() :
 
     view_mutex.set_name("device_tracker::view_mutex");
     phy_mutex.set_name("device_tracker::phy_mutex");
-    devicelist_mutex.set_name("device_tracker::devicelist_mutex");
+    devicelist_multi.set_name("device_tracker::devicelist multimutex");
     range_mutex.set_name("device_tracker::range_mutex");
+
+    devicelist_multi.set_name("devicetracker::devicelist multimutex");
 
     next_phy_id = 0;
 
@@ -310,61 +312,38 @@ device_tracker::device_tracker() :
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
     httpd->register_route("/devices/views/all_views", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(view_vec, &view_mutex));
+            std::make_shared<kis_net_web_tracked_endpoint>(view_vec, view_mutex));
 
     httpd->register_route("/devices/multimac/devices", {"POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](shared_con con) -> std::shared_ptr<tracker_element> {
                     return multimac_endp_handler(con);
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    lock_device_range(devs);
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    unlock_device_range(devs);
-                }));
+                }, get_devicelist_share()));
 
     httpd->register_route("/devices/multikey/devices", {"POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](shared_con con) -> std::shared_ptr<tracker_element> {
                     return multikey_endp_handler(con, false);
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    lock_device_range(devs);
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    unlock_device_range(devs);
-                }));
+                }, get_devicelist_share()));
 
     httpd->register_route("/devices/multikey/as-object/devices", {"POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](shared_con con) -> std::shared_ptr<tracker_element> {
                     return multikey_endp_handler(con, true);
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    lock_device_range(devs);
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    unlock_device_range(devs);
-                }));
+                }, get_devicelist_share()));
 
     httpd->register_route("/devices/all_devices", {"GET", "POST"}, httpd->RO_ROLE, {"ekjson", "itjson"},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](shared_con con) -> std::shared_ptr<tracker_element> {
                     auto device_ro = std::make_shared<tracker_element_vector>();
-
-                    {
-                        local_locker l(&devicelist_mutex, "all_devices ek/itjson copy");
-                        device_ro->set(immutable_tracked_vec->begin(), immutable_tracked_vec->end());
-                    }
-
+                    device_ro->set(immutable_tracked_vec->begin(), immutable_tracked_vec->end());
                     return device_ro;
                 },
                 [this](std::shared_ptr<tracker_element> devs) {
-                    lock_device_range(devs);
+                    get_devicelist_share().lock();
                 },
                 [this](std::shared_ptr<tracker_element> devs) {
-                    unlock_device_range(devs);
+                    get_devicelist_share().unlock();
                 }));
 
     httpd->register_route("/devices/by-key/:key/device", {"GET", "POST"}, httpd->RO_ROLE, {},
@@ -395,19 +374,12 @@ device_tracker::device_tracker() :
 
                     auto devvec = std::make_shared<tracker_element_vector>();
 
-                    local_shared_locker l(&devicelist_mutex, "devices/by-mac/");
                     const auto mmp = tracked_mac_multimap.equal_range(mac);
                     for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi)
                         devvec->push_back(mmpi->second);
 
                     return devvec;
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    lock_device_range(devs);
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    unlock_device_range(devs);
-                }));
+                }, get_devicelist_share()));
 
     httpd->register_route("/devices/last-time/:timestamp/devices", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
@@ -423,13 +395,7 @@ device_tracker::device_tracker() :
                         });
 
                     return do_readonly_device_work(ts_worker);
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    lock_device_range(devs);
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    unlock_device_range(devs);
-                }));
+                }, get_devicelist_share()));
 
     httpd->register_route("/devices/by-key/:key/set_name", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
@@ -451,7 +417,7 @@ device_tracker::device_tracker() :
 
                     std::ostream os(&con->response_stream());
                     os << "Device name set\n";
-                }));
+                }, get_devicelist_write()));
 
     httpd->register_route("/devices/by-key/:key/set_tag", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
@@ -474,7 +440,7 @@ device_tracker::device_tracker() :
 
                     std::ostream os(&con->response_stream());
                     os << "Device tag set\n";
-                }));
+                }, get_devicelist_write()));
 
     httpd->register_route("/devices/pcap/by-key/:key/packets", {"GET"}, httpd->RO_ROLE, {"pcapng"},
             std::make_shared<kis_net_web_function_endpoint>(
@@ -557,7 +523,7 @@ device_tracker::device_tracker() :
                     if (mac_list.size() == 0) 
                         throw std::runtime_error("expected MAC address in mac or macs[]");
 
-                    local_locker l(&devicelist_mutex, "devicefound/add");
+                    std::lock_guard<kis_multi_mutex> lg(get_devicelist_write());
 
                     for (auto mi : mac_list) {
                         auto ek = macdevice_alert_conf_map.find(mi);
@@ -609,7 +575,7 @@ device_tracker::device_tracker() :
                     if (mac_list.size() == 0) 
                         throw std::runtime_error("expected MAC address in mac or macs[]");
 
-                    local_locker l(&devicelist_mutex, "devicefound/remove");
+                    std::lock_guard<kis_multi_mutex>(get_devicelist_write());
 
                     for (auto mi : mac_list) {
                         auto ek = macdevice_alert_conf_map.find(mi);
@@ -654,7 +620,7 @@ device_tracker::device_tracker() :
                     }
 
                     return ret;
-                }, &devicelist_mutex));
+                }, get_devicelist_share()));
 
     httpd->register_websocket_route("/devices/monitor", httpd->RO_ROLE, {"ws"},
             std::make_shared<kis_net_web_function_endpoint>(
@@ -721,7 +687,7 @@ device_tracker::device_tracker() :
                                                 }
 
                                                 if (!dev_m.error()) {
-                                                    local_shared_locker l(&devicelist_mutex, "monitor ws mac");
+                                                    std::lock_guard<kis_multi_mutex> lg(get_devicelist_write());
                                                     const auto mmp = tracked_mac_multimap.equal_range(dev_m);
                                                     for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi)
                                                         d_vec->push_back(mmpi->second);
@@ -730,7 +696,7 @@ device_tracker::device_tracker() :
                                                 if (d_vec->size() == 0)
                                                     return 1;
 
-                                                devicelist_range_scope_locker(shared_from_this(), d_vec);
+                                                std::lock_guard<kis_multi_mutex>(get_devicelist_write());
 
                                                 for (const auto& d : *d_vec) {
                                                     std::stringstream ss;
@@ -921,7 +887,7 @@ device_tracker::~device_tracker() {
 }
 
 void device_tracker::macdevice_timer_event() {
-    local_locker lock(&devicelist_mutex, "macdevice timer");
+    std::lock_guard<kis_multi_mutex> lg(get_devicelist_write());
 
     time_t now = time(0);
 
@@ -983,7 +949,7 @@ std::string device_tracker::fetch_phy_name(int in_phy) {
 }
 
 int device_tracker::fetch_num_devices() {
-    local_shared_locker lock(&devicelist_mutex, "fetch_num_devices");
+    std::lock_guard<kis_multi_mutex> lg(get_devicelist_share());
 
     return tracked_map.size();
 }
@@ -1044,7 +1010,7 @@ void device_tracker::update_full_refresh() {
 }
 
 std::shared_ptr<kis_tracked_device_base> device_tracker::fetch_device(device_key in_key) {
-    local_shared_locker lock(&devicelist_mutex, "fetch_device");
+    std::lock_guard<kis_multi_mutex> lg(get_devicelist_share());
 
 	device_itr i = tracked_map.find(in_key);
 
@@ -1137,7 +1103,7 @@ std::shared_ptr<kis_tracked_device_base>
     // Updating devices can only happen in serial because we don't know that a device is being
     // created & we don't know how to append the data until we get to the end of processing
     // so the entire chain is perforce locked
-    local_demand_locker list_locker(&devicelist_mutex, "update_common_device");
+    std::lock_guard<kis_multi_mutex> lg(get_devicelist_write());
 
     std::stringstream sstr;
 

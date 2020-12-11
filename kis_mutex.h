@@ -32,6 +32,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <future>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -49,7 +50,245 @@
 // Seconds a lock is allowed to be held before throwing a timeout error
 // Tuning this is a balance between slower systems or systems swapping heavily, 
 // and faulting more quickly.
-#define KIS_THREAD_DEADLOCK_TIMEOUT     60
+#define KIS_THREAD_DEADLOCK_TIMEOUT     30
+
+// A new multi-lock mutex primitive - because when you need to make a new thread
+// primitive, you know you've made excellent choices in your life and code design.
+//
+// Multimutex is designed to be used as a pair of locking elements, where each 
+// half can be locked multiple times by multiple threads.  No single thread is the
+// owner of a multimutex.
+//
+// Consuming code can hold one half of the mutex at a time.  Any attempts to lock
+// the other half will block.
+//
+// This is used in kismet in the packet chain and device tracking list code, where
+// packet decoder threads are expected to be able to manage device locking directly,
+// but the serialization threads must be able to lock the entire chain for a 
+// shared RO output.
+//
+// This mutex is constructed and managed by the kis_multi_mutex_group entity
+//
+class kis_multi_mutex {
+public:
+    kis_multi_mutex(const std::string& lock_nm,
+            unsigned int& lock_tm,
+            std::timed_mutex& state_mutex,
+            std::atomic<unsigned int>& self_count,
+            std::promise<void>& self_promise,
+            std::shared_future<void>& self_ft,
+            std::atomic<unsigned int>& other_count,
+            std::promise<void>& other_promise,
+            std::shared_future<void>& other_ft) :
+        lock_nm{lock_nm},
+        lock_tm{lock_tm},
+        state_mutex{state_mutex},
+        self_count{self_count},
+        self_promise{self_promise},
+        self_ft{self_ft},
+        other_count{other_count},
+        other_promise{other_promise},
+        other_ft{other_ft} { }
+
+    void set_op(const std::string& op) {
+        lock_op = op;
+    }
+
+    const std::string& get_op() const {
+        return lock_op;
+    }
+
+    const std::string& get_name() const {
+        return lock_nm;
+    }
+
+    void lock() {
+        state_mutex.lock();
+
+        // Is the 'other' state locked?
+        if (other_count > 0) {
+            // Copy the shared future
+            std::shared_future<void> other_ft_cp = other_ft;
+
+            state_mutex.unlock();
+
+            if (lock_tm != 0) {
+                try {
+                    auto status = other_ft_cp.wait_for(std::chrono::seconds(lock_tm));
+                    if (status != std::future_status::ready) {
+                        state_mutex.unlock();
+                        throw std::runtime_error("multimutex \"" + get_name() + 
+                                "\" lock() timeout waiting for other lock");
+                    }
+                } catch (const std::exception& e) {
+                    throw;
+                }
+
+                try {
+                    other_ft_cp.get();
+                } catch (const std::exception& e) {
+                    throw;
+                }
+
+            } else {
+                try {
+                    other_ft_cp.wait();
+                    other_ft_cp.get();
+                } catch (const std::exception& e) {
+                    throw;
+                }
+            }
+
+            state_mutex.lock();
+        }
+
+        // The promise and shared future is initialized by the group holder, we don't create it here.
+        // We'll reset it when we unlock all of the held locks.
+
+        // Increment self state
+        self_count.fetch_add(1, std::memory_order_acquire);
+
+        // Release state lock
+        state_mutex.unlock();
+    }
+
+    void unlock() {
+        if (self_count == 0)
+            throw std::runtime_error("multimutex \"" + get_name() + "\" unlock() called when no lock held");
+
+        // Decrement and wake up
+        if (self_count.fetch_sub(1, std::memory_order_release) == 1) {
+            std::lock_guard<std::timed_mutex> lg(state_mutex);
+
+            try {
+                self_promise.set_value();
+            } catch (const std::future_error& fe) {
+                // Ignore if nobody is listening
+            }
+
+            // Reset the future and shared promise
+            self_promise = std::promise<void>();
+            self_ft = std::shared_future<void>(self_promise.get_future());
+        }
+    }
+
+    bool try_lock() {
+        // Lock trying is unbounded currently which means we can't try 
+        // to lock multiple instances in a time-blocked fashion without
+        // some other hijinks; unsure what those hijinks are yet
+
+        std::lock_guard<std::timed_mutex> lg(state_mutex);
+
+        if (other_count == 0) {
+            self_count.fetch_add(1, std::memory_order_acquire);
+            return true;
+        }
+
+        return false;
+    }
+
+protected:
+    // Lock name, inherited from multigroup
+    const std::string lock_nm;
+
+    // Lock timeout, inherited from multigroup
+    unsigned int& lock_tm;
+
+    // Lock op, if set during locking operation
+    std::string lock_op;
+
+    // Shared state mutex, required to change states
+    std::timed_mutex& state_mutex;
+
+    // Self group, where locks operate
+    std::atomic<unsigned int>& self_count;
+    std::promise<void>& self_promise;
+    std::shared_future<void>& self_ft;
+
+    // Other group, which blocks our access
+    std::atomic<unsigned int>& other_count;
+    std::promise<void>& other_promise;
+    std::shared_future<void>& other_ft;
+};
+
+// Multi-mutex group which implements the split pairs.
+//
+// Callers should fetch a write or shared (ro) mutex and use it in a
+// std::lock<kis_multi_mutex>(...) style model
+//
+class kis_multi_mutex_group {
+public:
+    kis_multi_mutex_group() :
+        lock_tm{KIS_THREAD_DEADLOCK_TIMEOUT},
+        lock_nm{"UNKNOWN"},
+        wr_count{0},
+        wr_promise{},
+        wr_future{wr_promise.get_future()},
+        sh_count{0},
+        sh_promise{},
+        sh_future{sh_promise.get_future()},
+        wr_mutex{lock_nm + "_wr", lock_tm, state_mutex,
+                wr_count, wr_promise, wr_future, sh_count, sh_promise, sh_future},
+        sh_mutex{lock_nm + "_sh", lock_tm, state_mutex,
+                sh_count, sh_promise, sh_future, wr_count, wr_promise, wr_future} { }
+
+    kis_multi_mutex_group(const std::string& lk_nm) :
+        lock_tm{KIS_THREAD_DEADLOCK_TIMEOUT},
+        lock_nm{lk_nm},
+        wr_count{0},
+        wr_promise{},
+        wr_future{wr_promise.get_future()},
+        sh_count{0},
+        sh_promise{},
+        sh_future{sh_promise.get_future()},
+        wr_mutex{lock_nm + "_wr", lock_tm, state_mutex,
+                wr_count, wr_promise, wr_future, sh_count, sh_promise, sh_future},
+        sh_mutex{lock_nm + "_sh", lock_tm, state_mutex,
+                sh_count, sh_promise, sh_future, wr_count, wr_promise, wr_future} { }
+
+    void set_name(const std::string& nm) {
+        lock_nm = nm;
+    }
+
+    const std::string& get_name() const {
+        return lock_nm;
+    }
+
+    kis_multi_mutex& make_wr_pair() {
+        return wr_mutex;
+    }
+
+    kis_multi_mutex& make_sh_pair() {
+        return sh_mutex;
+    }
+
+protected:
+    // Lock timeout, default to #define
+    unsigned int lock_tm;
+
+    // Lock name, if assigned
+    std::string lock_nm;
+
+    // Last lock operation, if assigned during the locking operation
+    std::string lock_op;
+
+    // State mutex to change any states and counts
+    std::timed_mutex state_mutex;
+
+    // Write group
+    std::atomic<unsigned int> wr_count;
+    std::promise<void> wr_promise;
+    std::shared_future<void> wr_future;
+
+    // Shared group
+    std::atomic<unsigned int> sh_count;
+    std::promise<void> sh_promise;
+    std::shared_future<void> sh_future;
+
+    // Exposed pairs
+    kis_multi_mutex wr_mutex;
+    kis_multi_mutex sh_mutex;
+};
 
 // Optionally force the custom c++ workaround mutex
 #define ALWAYS_USE_KISMET_MUTEX         0
@@ -234,83 +473,11 @@ public:
     }
 
     void lock(const std::string& agent_name = "UNKNOWN") {
-        state_mutex.lock();
-        // Must wait for shared locks to release before we can acquire a write lock
-        if (shared_owner_count) {
-            state_mutex.unlock();
-            // This will be unlocked when the shared count hits 0
-            mutex.lock();
-
-            state_mutex.lock();
-            lock_name = agent_name;
-            // Set the owner & count
-            owner = std::this_thread::get_id();
-            owner_count = 1;
-            state_mutex.unlock();
-
-            return;
-        }
-
-        // If we're already the owner, increment the recursion counter
-        if (owner_count > 0 && std::this_thread::get_id() == owner) {
-            // Increment the write lock count and we're done
-            owner_count++;
-            state_mutex.unlock();
-            return;
-        }
-
-        // Attempt to acquire and continue; this blocks
-        state_mutex.unlock();
-
-        mutex.lock();
-        state_mutex.lock();
-        owner = std::this_thread::get_id();
-        owner_count = 1;
-
-        state_mutex.unlock();
-
-        return;
+        try_lock_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT), agent_name);
     }
 
     void lock_shared(const std::string& agent_name = "UNKNOWN") {
-        state_mutex.lock();
-
-        // If the lock has a rw hold
-        if (owner_count > 0) {
-            // If it's held by the same thread as trying to lock it, treat it as a rw recursive lock
-            if (std::this_thread::get_id() == owner) {
-                owner_count++;
-                state_mutex.unlock();
-                return;
-            }
-
-            // If we have any other writer lock, we must block until it's gone; the RW 
-            // count hitting 0 will unlock us
-            state_mutex.unlock();
-
-            mutex.lock();
-
-            state_mutex.lock();
-            // We now own the lock, increment RO
-            lock_name = agent_name;
-            shared_owner_count++;
-            state_mutex.unlock();
-            return;
-        }
-
-        if (shared_owner_count == 0) {
-            state_mutex.unlock();
-            // Grab the lock
-            mutex.lock();
-
-            state_mutex.lock();
-        }
-
-        // Increment the RO usage count
-        shared_owner_count++;
-
-        state_mutex.unlock();
-        return;
+        try_lock_shared_for(std::chrono::seconds(KIS_THREAD_DEADLOCK_TIMEOUT), agent_name);
     }
 
     void unlock() {

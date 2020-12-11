@@ -225,20 +225,14 @@ public:
     // Get a cached phyname; use this to de-dup thousands of devices phynames
     std::shared_ptr<tracker_element_string> get_cached_phyname(const std::string& phyname);
 
-    // Lock a range of devices
-    void lock_device_range(std::shared_ptr<tracker_element> devices);
-    void lock_device_range(std::shared_ptr<tracker_element_vector> devices);
-    void lock_device_range(const std::vector<std::shared_ptr<kis_tracked_device_base>>& devices);
-    void lock_device_range(std::shared_ptr<tracker_element_map> device_map);
-    void lock_device_range(std::shared_ptr<tracker_element_device_key_map> device_map);
-    void lock_device_range(std::shared_ptr<tracker_element_mac_map> device_map);
+    // Fetch mutexes for the device list manipulation
+    kis_multi_mutex& get_devicelist_write() {
+        return devicelist_multi.make_wr_pair();
+    }
 
-    void unlock_device_range(std::shared_ptr<tracker_element> devices);
-    void unlock_device_range(std::shared_ptr<tracker_element_vector> devices);
-    void unlock_device_range(const std::vector<std::shared_ptr<kis_tracked_device_base>>& devices);
-    void unlock_device_range(std::shared_ptr<tracker_element_map> device_map);
-    void unlock_device_range(std::shared_ptr<tracker_element_device_key_map> device_map);
-    void unlock_device_range(std::shared_ptr<tracker_element_mac_map> device_map);
+    kis_multi_mutex& get_devicelist_share() {
+        return devicelist_multi.make_sh_pair();
+    }
 
 protected:
     std::shared_ptr<entry_tracker> entrytracker;
@@ -369,7 +363,8 @@ protected:
     robin_hood::unordered_node_map<int, kis_phy_handler *> phy_handler_map;
     kis_recursive_timed_mutex phy_mutex;
 
-    kis_recursive_timed_mutex devicelist_mutex;
+    // New multimutex primitive
+    kis_multi_mutex_group devicelist_multi;
 
     kis_recursive_timed_mutex storing_mutex;
     std::atomic<bool> devices_storing;
@@ -406,39 +401,8 @@ protected:
     std::map<std::string, std::shared_ptr<tracker_element_string>> device_phy_name_cache;
     kis_recursive_timed_mutex device_phy_name_cache_mutex;
 
+    // TO BE CUT
     kis_recursive_timed_mutex range_mutex;
-};
-
-class devicelist_range_scope_locker {
-public:
-    devicelist_range_scope_locker() :
-        tracker{nullptr},
-        range{nullptr} { }
-
-    devicelist_range_scope_locker(std::shared_ptr<device_tracker> tracker,
-            std::shared_ptr<tracker_element> range) :
-        tracker{tracker},
-        range{range} { 
-            tracker->lock_device_range(range);
-        }
-
-    devicelist_range_scope_locker(std::shared_ptr<device_tracker> tracker,
-            std::shared_ptr<kis_tracked_device_base> dev) :
-        tracker{tracker} {
-            auto r = std::make_shared<tracker_element_vector>();
-            r->push_back(dev);
-            range = r;
-            tracker->lock_device_range(range);
-        }
-
-    ~devicelist_range_scope_locker() {
-        if (range != nullptr && tracker != nullptr)
-            tracker->unlock_device_range(range);
-    }
-
-private:
-    std::shared_ptr<device_tracker> tracker;
-    std::shared_ptr<tracker_element> range;
 };
 
 class devicelist_scope_locker {
