@@ -1923,10 +1923,6 @@ void dst_incoming_remote::kill() {
 }
 
 void dst_incoming_remote::handle_packet_newsource(uint32_t in_seqno, std::string in_content) {
-    local_locker lock(&ext_mutex, "incoming_remote::handle_packet_newsource");
-
-    // _MSG_DEBUG("dst remote new datasource");
-
     KismetDatasource::NewSource c;
 
     if (!c.ParseFromString(in_content)) {
@@ -1935,11 +1931,9 @@ void dst_incoming_remote::handle_packet_newsource(uint32_t in_seqno, std::string
         return;
     }
 
-    // _MSG_DEBUG("dst remote handling callback");
     if (cb != NULL) {
         cb(this, c.sourcetype(), c.definition(), c.uuid());
     }
-    // _MSG_DEBUG("dst remote done with callback");
 
     kill();
 }
