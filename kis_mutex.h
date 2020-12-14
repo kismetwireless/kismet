@@ -591,7 +591,7 @@ public:
 
     // Write operation; allow recursion through the owner TID, but do not
     // allow a write lock if ANY thread holds a RO lock
-    bool try_lock(const std::chrono::seconds& d, const std::string& agent_name = "UNKNOWN") {
+    bool try_lock(const std::string& agent_name = "UNKNOWN") {
         state_mutex.lock();
         // Must wait for shared locks to release before we can acquire a write lock
         if (shared_owner_count) 
