@@ -52,243 +52,469 @@
 // and faulting more quickly.
 #define KIS_THREAD_DEADLOCK_TIMEOUT     30
 
-// A new multi-lock mutex primitive - because when you need to make a new thread
-// primitive, you know you've made excellent choices in your life and code design.
-//
-// Multimutex is designed to be used as a pair of locking elements, where each 
-// half can be locked multiple times by multiple threads.  No single thread is the
-// owner of a multimutex.
-//
-// Consuming code can hold one half of the mutex at a time.  Any attempts to lock
-// the other half will block.
-//
-// This is used in kismet in the packet chain and device tracking list code, where
-// packet decoder threads are expected to be able to manage device locking directly,
-// but the serialization threads must be able to lock the entire chain for a 
-// shared RO output.
-//
-// This mutex is constructed and managed by the kis_multi_mutex_group entity
-//
-class kis_multi_mutex {
+// Simple proxy mutex which implements a std::recursive_mutex with a mandatory timer;
+// attempts to lock are translated into timed lock attempts and will throw at the 
+// expiration of the timeout
+class kis_mandatory_mutex {
 public:
-    kis_multi_mutex(const std::string& lock_nm,
-            unsigned int& lock_tm,
-            std::timed_mutex& state_mutex,
-            std::atomic<unsigned int>& self_count,
-            std::promise<void>& self_promise,
-            std::shared_future<void>& self_ft,
-            std::atomic<unsigned int>& other_count,
-            std::promise<void>& other_promise,
-            std::shared_future<void>& other_ft) :
+    kis_mandatory_mutex() :
+        lock_nm{"UNKNOWN"},
+        lock_tm{KIS_THREAD_DEADLOCK_TIMEOUT} { }
+
+    kis_mandatory_mutex(const std::string& lock_nm) :
         lock_nm{lock_nm},
-        lock_tm{lock_tm},
-        state_mutex{state_mutex},
-        self_count{self_count},
-        self_promise{self_promise},
-        self_ft{self_ft},
-        other_count{other_count},
-        other_promise{other_promise},
-        other_ft{other_ft} { }
+        lock_tm{KIS_THREAD_DEADLOCK_TIMEOUT} { }
 
-    void set_op(const std::string& op) {
-        lock_op = op;
+    void set_timeout(unsigned int tm) {
+        lock_tm = tm;
     }
 
-    const std::string& get_op() const {
-        return lock_op;
-    }
-
-    const std::string& get_name() const {
-        return lock_nm;
+    const unsigned int& get_timeout() const {
+        return lock_tm;
     }
 
     void lock() {
-        state_mutex.lock();
+        if (lock_tm != 0) {
+            if (!mutex.try_lock_for(std::chrono::seconds(lock_tm)))
+                throw std::runtime_error("mandatory timed mutex \"" + lock_nm + "\" timed out");
+        } else {
+            mutex.lock();
+        }
+    }
 
-        // Is the 'other' state locked?
+    void unlock() {
+        mutex.unlock();
+    }
+
+    bool try_lock() {
+        if (lock_tm != 0)
+            return mutex.try_lock_for(std::chrono::seconds(lock_tm));
+
+        return mutex.try_lock();
+    }
+
+protected:
+    std::string lock_nm;
+    unsigned int lock_tm;
+
+    std::recursive_timed_mutex mutex;
+};
+
+// Tristate mutex capable of locking "self" multiple times from multiple threads, so long as 
+// 'other' and 'exclusive' are not set
+class kis_tristate_mutex {
+public:
+    kis_tristate_mutex(const std::string& lock_nm,
+            unsigned int& lock_tm,
+            kis_mandatory_mutex& self_mutex,
+            std::atomic<unsigned int>& self_count,
+            std::promise<void>& self_promise,
+            std::shared_future<void>& self_ft,
+            kis_mandatory_mutex& other_mutex,
+            std::atomic<unsigned int>& other_count,
+            std::promise<void>& other_promise,
+            std::shared_future<void>& other_ft,
+            kis_mandatory_mutex& ex_mutex,
+            std::atomic<bool>& ex_locked,
+            std::promise<void>& ex_promise,
+            std::shared_future<void>& ex_ft) :
+    lock_nm{lock_nm},
+    lock_tm{lock_tm},
+    self_mutex{self_mutex},
+    self_count{self_count},
+    self_promise{self_promise},
+    self_ft{self_ft},
+    other_mutex{other_mutex},
+    other_count{other_count},
+    other_promise{other_promise},
+    other_ft{other_ft},
+    ex_mutex{ex_mutex},
+    ex_locked{ex_locked},
+    ex_promise{ex_promise},
+    ex_ft{ex_ft} { }
+
+    void lock() {
+        // Get all 3 state controls at the same time
+        std::unique_lock<kis_mandatory_mutex> self_ul(self_mutex, std::defer_lock);
+        std::unique_lock<kis_mandatory_mutex> other_ul(other_mutex, std::defer_lock);
+        std::unique_lock<kis_mandatory_mutex> ex_ul(ex_mutex, std::defer_lock);
+        std::lock(self_ul, other_ul, ex_ul);
+
+        if (ex_locked) {
+            std::shared_future<void> ex_ft_cp = ex_ft;
+
+            // Wait for the exclusive lock to release, holding the other locks
+            ex_ul.unlock();
+
+            if (lock_tm != 0) {
+                try {
+                    auto status = ex_ft_cp.wait_for(std::chrono::seconds(lock_tm));
+                    if (status != std::future_status::ready) {
+                        throw std::runtime_error("timeout waiting for exclusive lock future");
+                    }
+                } catch (const std::exception& e) {
+                    throw std::runtime_error("tristate_mutex \"" + lock_nm + "\" lock failed: " + e.what());
+                }
+            } else {
+                ex_ft_cp.wait();
+            }
+        }
+
         if (other_count > 0) {
-            // Copy the shared future
             std::shared_future<void> other_ft_cp = other_ft;
 
-            state_mutex.unlock();
+            // Wait for the other pair of the lock
+            other_ul.unlock();
 
             if (lock_tm != 0) {
                 try {
                     auto status = other_ft_cp.wait_for(std::chrono::seconds(lock_tm));
                     if (status != std::future_status::ready) {
-                        state_mutex.unlock();
-                        throw std::runtime_error("multimutex \"" + get_name() + 
-                                "\" lock() timeout waiting for other lock");
+                        throw std::runtime_error("timeout waiting for other future");
                     }
                 } catch (const std::exception& e) {
-                    throw;
+                    throw std::runtime_error("tristate_mutex \"" + lock_nm + "\" lock failed: " + e.what());
                 }
-
-                try {
-                    other_ft_cp.get();
-                } catch (const std::exception& e) {
-                    throw;
-                }
-
             } else {
-                try {
-                    other_ft_cp.wait();
-                    other_ft_cp.get();
-                } catch (const std::exception& e) {
-                    throw;
-                }
+                other_ft_cp.wait();
             }
-
-            state_mutex.lock();
         }
 
-        // The promise and shared future is initialized by the group holder, we don't create it here.
-        // We'll reset it when we unlock all of the held locks.
-
-        // Increment self state
+        // We've got all 3 state locks, and we've discharged exclusive and other restrictions
         self_count.fetch_add(1, std::memory_order_acquire);
-
-        // Release state lock
-        state_mutex.unlock();
     }
 
     void unlock() {
         if (self_count == 0)
-            throw std::runtime_error("multimutex \"" + get_name() + "\" unlock() called when no lock held");
+            throw std::runtime_error("tristate_mutex \"" + lock_nm + "\" unlock() called when no lock held");
 
-        // Decrement and wake up
+        // Decrement and wake up if we hit 0
         if (self_count.fetch_sub(1, std::memory_order_release) == 1) {
-            std::lock_guard<std::timed_mutex> lg(state_mutex);
-
             try {
                 self_promise.set_value();
             } catch (const std::future_error& fe) {
-                // Ignore if nobody is listening
+                // Ignore error if no futures are listening
             }
 
-            // Reset the future and shared promise
+            // Reset the future and base shared promise
             self_promise = std::promise<void>();
             self_ft = std::shared_future<void>(self_promise.get_future());
         }
     }
 
     bool try_lock() {
-        // Lock trying is unbounded currently which means we can't try 
-        // to lock multiple instances in a time-blocked fashion without
-        // some other hijinks; unsure what those hijinks are yet
+        // try_lock is currently time-unbounded which means we can't try to lock
+        // multiple locks with a proper time block; unsure if this will cause
+        // problems yet or not
 
-        std::lock_guard<std::timed_mutex> lg(state_mutex);
-
-        if (other_count == 0) {
-            self_count.fetch_add(1, std::memory_order_acquire);
-            return true;
+        if (ex_locked) {
+            return false;
         }
 
-        return false;
+        if (other_count) {
+            return false;
+        }
+
+        // Get all 3 state controls at the same time
+        std::unique_lock<kis_mandatory_mutex> self_ul(self_mutex, std::defer_lock);
+        std::unique_lock<kis_mandatory_mutex> other_ul(other_mutex, std::defer_lock);
+        std::unique_lock<kis_mandatory_mutex> ex_ul(ex_mutex, std::defer_lock);
+        std::lock(self_ul, other_ul, ex_ul);
+
+        // We've got all 3 state locks, and we've discharged exclusive and other restrictions
+        self_count.fetch_add(1, std::memory_order_acquire);
+
+        return true;
     }
 
 protected:
-    // Lock name, inherited from multigroup
-    const std::string lock_nm;
-
-    // Lock timeout, inherited from multigroup
+    std::string lock_nm;
     unsigned int& lock_tm;
 
-    // Lock op, if set during locking operation
-    std::string lock_op;
-
-    // Shared state mutex, required to change states
-    std::timed_mutex& state_mutex;
-
-    // Self group, where locks operate
+    kis_mandatory_mutex& self_mutex;
     std::atomic<unsigned int>& self_count;
     std::promise<void>& self_promise;
     std::shared_future<void>& self_ft;
 
-    // Other group, which blocks our access
+    kis_mandatory_mutex& other_mutex;
     std::atomic<unsigned int>& other_count;
     std::promise<void>& other_promise;
     std::shared_future<void>& other_ft;
+
+    kis_mandatory_mutex& ex_mutex;
+    std::atomic<bool>& ex_locked;
+    std::promise<void>& ex_promise;
+    std::shared_future<void>& ex_ft;
 };
 
-// Multi-mutex group which implements the split pairs.
-//
-// Callers should fetch a write or shared (ro) mutex and use it in a
-// std::lock<kis_multi_mutex>(...) style model
-//
-class kis_multi_mutex_group {
+class kis_tristate_ex_mutex {
 public:
-    kis_multi_mutex_group() :
-        lock_tm{KIS_THREAD_DEADLOCK_TIMEOUT},
+    kis_tristate_ex_mutex(const std::string& lock_nm,
+            unsigned int& lock_tm,
+            kis_mandatory_mutex& m1_mutex,
+            std::atomic<unsigned int>& m1_count,
+            std::promise<void>& m1_promise,
+            std::shared_future<void>& m1_ft,
+            kis_mandatory_mutex& m2_mutex,
+            std::atomic<unsigned int>& m2_count,
+            std::promise<void>& m2_promise,
+            std::shared_future<void>& m2_ft,
+            kis_mandatory_mutex& ex_mutex,
+            std::atomic<bool>& ex_locked,
+            std::promise<void>& ex_promise,
+            std::shared_future<void>& ex_ft) :
+    lock_nm{lock_nm},
+    lock_tm{lock_tm},
+    m1_mutex{m1_mutex},
+    m1_count{m1_count},
+    m1_promise{m1_promise},
+    m1_ft{m1_ft},
+    m2_mutex{m2_mutex},
+    m2_count{m2_count},
+    m2_promise{m2_promise},
+    m2_ft{m2_ft},
+    ex_mutex{ex_mutex},
+    ex_locked{ex_locked},
+    ex_promise{ex_promise},
+    ex_ft{ex_ft} { }
+
+    void lock() {
+        // Get all 3 state controls at the same time
+        std::unique_lock<kis_mandatory_mutex> m1_ul(m1_mutex, std::defer_lock);
+        std::unique_lock<kis_mandatory_mutex> m2_ul(m2_mutex, std::defer_lock);
+        std::unique_lock<kis_mandatory_mutex> ex_ul(ex_mutex, std::defer_lock);
+        std::lock(m1_ul, m2_ul, ex_ul);
+
+        if (ex_locked)
+            throw std::runtime_error("tristate_mutex \"" + lock_nm + "\" exclusive lock failed, already "
+                    "exclusively locked");
+
+        if (m1_count > 0) {
+            std::shared_future<void> m1_ft_cp = m1_ft;
+
+            // Wait for the m1 pair of the lock
+            m1_ul.unlock();
+
+            if (lock_tm != 0) {
+                try {
+                    auto status = m1_ft_cp.wait_for(std::chrono::seconds(lock_tm));
+                    if (status != std::future_status::ready) {
+                        throw std::runtime_error("timeout waiting for m1 future");
+                    }
+                } catch (const std::exception& e) {
+                    throw std::runtime_error("tristate_mutex \"" + lock_nm + "\" lock failed: " + e.what());
+                }
+            } else {
+                m1_ft_cp.wait();
+            }
+        }
+
+        if (m2_count > 0) {
+            std::shared_future<void> m2_ft_cp = m2_ft;
+
+            // Wait for the m2 pair of the lock
+            m2_ul.unlock();
+
+            if (lock_tm != 0) {
+                try {
+                    auto status = m2_ft_cp.wait_for(std::chrono::seconds(lock_tm));
+                    if (status != std::future_status::ready) {
+                        throw std::runtime_error("timeout waiting for m2 future");
+                    }
+                } catch (const std::exception& e) {
+                    throw std::runtime_error("tristate_mutex \"" + lock_nm + "\" lock failed: " + e.what());
+                }
+            } else {
+                m2_ft_cp.wait();
+            }
+        }
+
+        ex_locked = true;
+    }
+
+    void unlock() {
+        if (!ex_locked)
+            throw std::runtime_error("tristate_mutex \"" + lock_nm + "\" unlock() called when no exclusive lock held");
+
+        ex_locked = false;
+
+        try {
+            ex_promise.set_value();
+        } catch (const std::future_error& fe) {
+            // Ignore error if no futures are listening
+        }
+
+        // Reset the future and base shared promise
+        ex_promise = std::promise<void>();
+        ex_ft = std::shared_future<void>(ex_promise.get_future());
+    }
+
+    bool try_lock() {
+        // try_lock is currently time-unbounded which means we can't try to lock
+        // multiple locks with a proper time block; unsure if this will cause
+        // problems yet or not
+        
+        if (ex_locked)
+            throw std::runtime_error("tristate_mutex \"" + lock_nm + "\" exclusive lock failed, already "
+                    "exclusively locked");
+
+        if (m1_count != 0) {
+            return false;
+        }
+
+        if (m2_count != 0) {
+            return false;
+        }
+
+        std::unique_lock<kis_mandatory_mutex> m1_ul(m1_mutex, std::defer_lock);
+        std::unique_lock<kis_mandatory_mutex> m2_ul(m2_mutex, std::defer_lock);
+        std::unique_lock<kis_mandatory_mutex> ex_ul(ex_mutex, std::defer_lock);
+        std::lock(m1_ul, m2_ul, ex_ul);
+
+        ex_locked.store(true, std::memory_order_acquire);
+
+        return true;
+    }
+
+protected:
+    std::string lock_nm;
+    unsigned int& lock_tm;
+
+    kis_mandatory_mutex& m1_mutex;
+    std::atomic<unsigned int>& m1_count;
+    std::promise<void>& m1_promise;
+    std::shared_future<void>& m1_ft;
+
+    kis_mandatory_mutex& m2_mutex;
+    std::atomic<unsigned int>& m2_count;
+    std::promise<void>& m2_promise;
+    std::shared_future<void>& m2_ft;
+
+    kis_mandatory_mutex& ex_mutex;
+    std::atomic<bool>& ex_locked;
+    std::promise<void>& ex_promise;
+    std::shared_future<void>& ex_ft;
+};
+
+class kis_tristate_mutex_group {
+public:
+    kis_tristate_mutex_group() :
         lock_nm{"UNKNOWN"},
-        wr_count{0},
-        wr_promise{},
-        wr_future{wr_promise.get_future()},
-        sh_count{0},
-        sh_promise{},
-        sh_future{sh_promise.get_future()},
-        wr_mutex{lock_nm + "_wr", lock_tm, state_mutex,
-                wr_count, wr_promise, wr_future, sh_count, sh_promise, sh_future},
-        sh_mutex{lock_nm + "_sh", lock_tm, state_mutex,
-                sh_count, sh_promise, sh_future, wr_count, wr_promise, wr_future} { }
-
-    kis_multi_mutex_group(const std::string& lk_nm) :
         lock_tm{KIS_THREAD_DEADLOCK_TIMEOUT},
-        lock_nm{lk_nm},
-        wr_count{0},
-        wr_promise{},
-        wr_future{wr_promise.get_future()},
-        sh_count{0},
-        sh_promise{},
-        sh_future{sh_promise.get_future()},
-        wr_mutex{lock_nm + "_wr", lock_tm, state_mutex,
-                wr_count, wr_promise, wr_future, sh_count, sh_promise, sh_future},
-        sh_mutex{lock_nm + "_sh", lock_tm, state_mutex,
-                sh_count, sh_promise, sh_future, wr_count, wr_promise, wr_future} { }
+        m1_mutex{"UNKNOWN_M1"},
+        m1_count{0},
+        m1_promise{},
+        m1_ft{m1_promise.get_future()},
+        m2_mutex{"UNKNOWN_M2"},
+        m2_count{0},
+        m2_promise{},
+        m2_ft{m2_promise.get_future()},
+        ex_mutex{"UNKNOWN_EX"},
+        ex_locked{false},
+        ex_promise{},
+        ex_ft{ex_promise.get_future()},
+        m1_tristate(lock_nm + "_WR",
+                lock_tm,
+                m1_mutex, m1_count, m1_promise, m1_ft,
+                m2_mutex, m2_count, m2_promise, m2_ft,
+                ex_mutex, ex_locked, ex_promise, ex_ft),
+        m2_tristate(lock_nm + "_WR",
+                lock_tm,
+                m2_mutex, m2_count, m2_promise, m2_ft,
+                m1_mutex, m1_count, m1_promise, m1_ft,
+                ex_mutex, ex_locked, ex_promise, ex_ft),
+        ex_tristate(lock_nm + "_EX",
+                lock_tm,
+                m1_mutex, m1_count, m1_promise, m1_ft,
+                m2_mutex, m2_count, m2_promise, m2_ft,
+                ex_mutex, ex_locked, ex_promise, ex_ft) { }
 
-    void set_name(const std::string& nm) {
-        lock_nm = nm;
+    kis_tristate_mutex_group(const std::string& lock_nm) :
+        lock_nm{lock_nm},
+        lock_tm{KIS_THREAD_DEADLOCK_TIMEOUT},
+        m1_mutex{lock_nm + "_M1"},
+        m1_count{0},
+        m1_promise{},
+        m1_ft{m1_promise.get_future()},
+        m2_mutex{lock_nm + "_M2"},
+        m2_count{0},
+        m2_promise{},
+        m2_ft{m2_promise.get_future()},
+        ex_mutex{lock_nm + "_EX"},
+        ex_locked{false},
+        ex_promise{},
+        ex_ft{ex_promise.get_future()},
+        m1_tristate(lock_nm + "_WR",
+                lock_tm,
+                m1_mutex, m1_count, m1_promise, m1_ft,
+                m2_mutex, m2_count, m2_promise, m2_ft,
+                ex_mutex, ex_locked, ex_promise, ex_ft),
+        m2_tristate(lock_nm + "_WR",
+                lock_tm,
+                m2_mutex, m2_count, m2_promise, m2_ft,
+                m1_mutex, m1_count, m1_promise, m1_ft,
+                ex_mutex, ex_locked, ex_promise, ex_ft),
+        ex_tristate(lock_nm + "_EX",
+                lock_tm,
+                m1_mutex, m1_count, m1_promise, m1_ft,
+                m2_mutex, m2_count, m2_promise, m2_ft,
+                ex_mutex, ex_locked, ex_promise, ex_ft) { }
+
+    void set_name(const std::string& name) {
+        lock_nm = name;
     }
 
     const std::string& get_name() const {
         return lock_nm;
     }
 
-    kis_multi_mutex& make_wr_pair() {
-        return wr_mutex;
+    void set_timeout(unsigned int timeout) {
+        lock_tm = timeout;
     }
 
-    kis_multi_mutex& make_sh_pair() {
-        return sh_mutex;
+    unsigned int get_timeout() const {
+        return lock_tm;
+    }
+
+    kis_tristate_mutex& get_wr_tristate() {
+        return m1_tristate;
+    }
+
+    kis_tristate_mutex& get_sh_tristate() {
+        return m2_tristate;
+    }
+
+
+    kis_tristate_ex_mutex& get_ex_tristate() {
+        return ex_tristate;
     }
 
 protected:
-    // Lock timeout, default to #define
-    unsigned int lock_tm;
-
-    // Lock name, if assigned
     std::string lock_nm;
 
-    // Last lock operation, if assigned during the locking operation
-    std::string lock_op;
+    unsigned int lock_tm;
 
-    // State mutex to change any states and counts
-    std::timed_mutex state_mutex;
+    kis_mandatory_mutex m1_mutex;
+    std::atomic<unsigned int> m1_count;
+    std::promise<void> m1_promise;
+    std::shared_future<void> m1_ft;
 
-    // Write group
-    std::atomic<unsigned int> wr_count;
-    std::promise<void> wr_promise;
-    std::shared_future<void> wr_future;
+    kis_mandatory_mutex m2_mutex;
+    std::atomic<unsigned int> m2_count;
+    std::promise<void> m2_promise;
+    std::shared_future<void> m2_ft;
 
-    // Shared group
-    std::atomic<unsigned int> sh_count;
-    std::promise<void> sh_promise;
-    std::shared_future<void> sh_future;
+    kis_mandatory_mutex ex_mutex;
+    std::atomic<bool> ex_locked;
+    std::promise<void> ex_promise;
+    std::shared_future<void> ex_ft;
 
-    // Exposed pairs
-    kis_multi_mutex wr_mutex;
-    kis_multi_mutex sh_mutex;
+    kis_tristate_mutex m1_tristate;
+    kis_tristate_mutex m2_tristate;
+    kis_tristate_ex_mutex ex_tristate;
 };
+
+
 
 // Optionally force the custom c++ workaround mutex
 #define ALWAYS_USE_KISMET_MUTEX         0
@@ -362,6 +588,39 @@ public:
 #else
     void set_name(const std::string& name) { }
 #endif
+
+    // Write operation; allow recursion through the owner TID, but do not
+    // allow a write lock if ANY thread holds a RO lock
+    bool try_lock(const std::chrono::seconds& d, const std::string& agent_name = "UNKNOWN") {
+        state_mutex.lock();
+        // Must wait for shared locks to release before we can acquire a write lock
+        if (shared_owner_count) 
+            return false;
+
+        // If we're already the owner, increment the recursion counter
+        if (owner_count > 0 && std::this_thread::get_id() == owner) {
+            // Increment the write lock count and we're done
+            owner_count++;
+            state_mutex.unlock();
+            return true;
+        }
+
+        // Attempt to acquire and continue
+        state_mutex.unlock();
+        if (mutex.try_lock() == false) {
+            return false;
+        }
+        state_mutex.lock();
+
+        lock_name = agent_name;
+
+        // Acquire the owner write lock
+        owner = std::this_thread::get_id();
+        owner_count = 1;
+
+        state_mutex.unlock();
+        return true;
+    }
 
     // Write operation; allow recursion through the owner TID, but do not
     // allow a write lock if ANY thread holds a RO lock
