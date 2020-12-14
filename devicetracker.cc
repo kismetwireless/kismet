@@ -316,19 +316,37 @@ device_tracker::device_tracker() :
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](shared_con con) -> std::shared_ptr<tracker_element> {
                     return multimac_endp_handler(con);
-                }, get_devicelist_share()));
+                },
+                [this](std::shared_ptr<tracker_element> devs) {
+                    get_devicelist_share().lock();
+                },
+                [this](std::shared_ptr<tracker_element> devs) {
+                    get_devicelist_share().unlock();
+                }));
 
     httpd->register_route("/devices/multikey/devices", {"POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](shared_con con) -> std::shared_ptr<tracker_element> {
                     return multikey_endp_handler(con, false);
-                }, get_devicelist_share()));
+                },
+                [this](std::shared_ptr<tracker_element> devs) {
+                    get_devicelist_share().lock();
+                },
+                [this](std::shared_ptr<tracker_element> devs) {
+                    get_devicelist_share().unlock();
+                }));
 
     httpd->register_route("/devices/multikey/as-object/devices", {"POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](shared_con con) -> std::shared_ptr<tracker_element> {
                     return multikey_endp_handler(con, true);
-                }, get_devicelist_share()));
+                },
+                [this](std::shared_ptr<tracker_element> devs) {
+                    get_devicelist_share().lock();
+                },
+                [this](std::shared_ptr<tracker_element> devs) {
+                    get_devicelist_share().unlock();
+                }));
 
     httpd->register_route("/devices/all_devices", {"GET", "POST"}, httpd->RO_ROLE, {"ekjson", "itjson"},
             std::make_shared<kis_net_web_tracked_endpoint>(
@@ -359,6 +377,12 @@ device_tracker::device_tracker() :
                         throw std::runtime_error("nonexistent device key");
 
                     return dev;
+                },
+                [this](std::shared_ptr<tracker_element> devs) {
+                    get_devicelist_share().lock();
+                },
+                [this](std::shared_ptr<tracker_element> devs) {
+                    get_devicelist_share().unlock();
                 }));
 
     httpd->register_route("/devices/by-mac/:mac/devices", {"GET", "POST"}, httpd->RO_ROLE, {},
@@ -377,7 +401,13 @@ device_tracker::device_tracker() :
                         devvec->push_back(mmpi->second);
 
                     return devvec;
-                }, get_devicelist_share()));
+                },
+                [this](std::shared_ptr<tracker_element> devs) {
+                    get_devicelist_share().lock();
+                },
+                [this](std::shared_ptr<tracker_element> devs) {
+                    get_devicelist_share().unlock();
+                }));
 
     httpd->register_route("/devices/last-time/:timestamp/devices", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
@@ -393,7 +423,13 @@ device_tracker::device_tracker() :
                         });
 
                     return do_readonly_device_work(ts_worker);
-                }, get_devicelist_share()));
+                },
+                [this](std::shared_ptr<tracker_element> devs) {
+                    get_devicelist_share().lock();
+                },
+                [this](std::shared_ptr<tracker_element> devs) {
+                    get_devicelist_share().unlock();
+                }));
 
     httpd->register_route("/devices/by-key/:key/set_name", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
@@ -415,7 +451,13 @@ device_tracker::device_tracker() :
 
                     std::ostream os(&con->response_stream());
                     os << "Device name set\n";
-                }, get_devicelist_write()));
+                },
+                [this]() {
+                    get_devicelist_write().lock();
+                },
+                [this]() {
+                    get_devicelist_write().unlock();
+                }));
 
     httpd->register_route("/devices/by-key/:key/set_tag", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
@@ -438,7 +480,13 @@ device_tracker::device_tracker() :
 
                     std::ostream os(&con->response_stream());
                     os << "Device tag set\n";
-                }, get_devicelist_write()));
+                },
+                [this]() {
+                    get_devicelist_write().lock();
+                },
+                [this]() {
+                    get_devicelist_write().unlock();
+                }));
 
     httpd->register_route("/devices/pcap/by-key/:key/packets", {"GET"}, httpd->RO_ROLE, {"pcapng"},
             std::make_shared<kis_net_web_function_endpoint>(
@@ -618,7 +666,13 @@ device_tracker::device_tracker() :
                     }
 
                     return ret;
-                }, get_devicelist_share()));
+                },
+                [this](std::shared_ptr<tracker_element> devs) {
+                    get_devicelist_share().lock();
+                },
+                [this](std::shared_ptr<tracker_element> devs) {
+                    get_devicelist_share().unlock();
+                }));
 
     httpd->register_websocket_route("/devices/monitor", httpd->RO_ROLE, {"ws"},
             std::make_shared<kis_net_web_function_endpoint>(
