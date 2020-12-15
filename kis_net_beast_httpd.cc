@@ -349,7 +349,7 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
 
                 return ret;
 
-                }, &auth_mutex));
+                }, auth_mutex));
 
 
     // Test echo websocket

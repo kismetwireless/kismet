@@ -106,7 +106,7 @@ Systemmonitor::Systemmonitor() :
     auto httpd = 
         Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
-    monitor_endp = std::make_shared<kis_net_web_tracked_endpoint>(status, &monitor_mutex);
+    monitor_endp = std::make_shared<kis_net_web_tracked_endpoint>(status, monitor_mutex);
     httpd->register_route("/system/status", {"GET", "POST"}, httpd->RO_ROLE, {}, monitor_endp);
 
     user_monitor_endp = std::make_shared<kis_net_web_tracked_endpoint>(

@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -91,9 +91,9 @@ gps_tracker::gps_tracker() :
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
     httpd->register_route("/gps/drivers", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(gps_prototypes_vec, &gpsmanager_mutex));
+            std::make_shared<kis_net_web_tracked_endpoint>(gps_prototypes_vec, gpsmanager_mutex));
     httpd->register_route("/gps/all_gps", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(gps_instances_vec, &gpsmanager_mutex));
+            std::make_shared<kis_net_web_tracked_endpoint>(gps_instances_vec, gpsmanager_mutex));
     httpd->register_route("/gps/location", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {

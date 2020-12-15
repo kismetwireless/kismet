@@ -130,19 +130,19 @@ packet_chain::packet_chain() {
     // protecting them behind our own mutex; required, because we're mixing RRDs from different data sources,
     // like chain-level packet processing and worker mutex locked buffer queuing.
     httpd->register_route("/packetchain/packet_stats", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(packet_stats_map, nullptr));
+            std::make_shared<kis_net_web_tracked_endpoint>(packet_stats_map));
     httpd->register_route("/packetchain/packet_peak", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(packet_peak_rrd, nullptr));
+            std::make_shared<kis_net_web_tracked_endpoint>(packet_peak_rrd));
     httpd->register_route("/packetchain/packet_rate", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(packet_rate_rrd, nullptr));
+            std::make_shared<kis_net_web_tracked_endpoint>(packet_rate_rrd));
     httpd->register_route("/packetchain/packet_error", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(packet_error_rrd, nullptr));
+            std::make_shared<kis_net_web_tracked_endpoint>(packet_error_rrd));
     httpd->register_route("/packetchain/packet_dupe", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(packet_dupe_rrd, nullptr));
+            std::make_shared<kis_net_web_tracked_endpoint>(packet_dupe_rrd));
     httpd->register_route("/packetchain/packet_drop", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(packet_drop_rrd, nullptr));
+            std::make_shared<kis_net_web_tracked_endpoint>(packet_drop_rrd));
     httpd->register_route("/packetchain/packet_processed", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(packet_processed_rrd, nullptr));
+            std::make_shared<kis_net_web_tracked_endpoint>(packet_processed_rrd));
 
     packetchain_shutdown = false;
 

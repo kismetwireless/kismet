@@ -561,13 +561,13 @@ void datasource_tracker::trigger_deferred_startup() {
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
     httpd->register_route("/datasource/all_sources", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(datasource_vec, &dst_lock));
+            std::make_shared<kis_net_web_tracked_endpoint>(datasource_vec, dst_lock));
 
     httpd->register_route("/datasource/defaults", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(config_defaults, &dst_lock));
+            std::make_shared<kis_net_web_tracked_endpoint>(config_defaults, dst_lock));
 
     httpd->register_route("/datasource/types", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(proto_vec, &dst_lock));
+            std::make_shared<kis_net_web_tracked_endpoint>(proto_vec, dst_lock));
 
     httpd->register_route("/datasource/list_interfaces", {"GET", "POST"}, httpd->LOGON_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
