@@ -444,6 +444,10 @@ public:
         pre_func{pre_func},
         post_func{post_func} { }
 
+    kis_net_web_tracked_endpoint(std::shared_ptr<tracker_element> content) :
+        content{content},
+        mutex{dfl_mutex} { }
+
     kis_net_web_tracked_endpoint(gen_func_t generator, 
             wrapper_func_t pre_func = nullptr,
             wrapper_func_t post_func = nullptr) :
