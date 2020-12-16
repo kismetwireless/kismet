@@ -95,7 +95,7 @@ plugin_tracker::plugin_tracker() :
     plugins_active = 1;
 
     httpd->register_route("/plugins/all_plugins", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(plugin_registry_vec, &plugin_lock));
+            std::make_shared<kis_net_web_tracked_endpoint>(plugin_registry_vec, plugin_lock));
 }
 
 plugin_tracker::~plugin_tracker() {

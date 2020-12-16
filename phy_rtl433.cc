@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -194,7 +194,10 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY), "RTL433 Sensor");
 
-    auto devlocker = devicelist_range_scope_locker(devicetracker, basedev);
+
+    std::lock(devicetracker->get_devicelist_write(), basedev->device_mutex);
+    std::lock_guard<kis_tristate_mutex> dl_lg(devicetracker->get_devicelist_write(), std::adopt_lock);
+    std::lock_guard<kis_recursive_timed_mutex> d_lg(basedev->device_mutex, std::adopt_lock);
 
     std::string dn = "Sensor";
 
