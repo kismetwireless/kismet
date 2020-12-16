@@ -120,7 +120,7 @@ Kis_UAV_Phy::Kis_UAV_Phy(global_registry *in_globalreg, int in_phyid) :
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
     httpd->register_route("/phy/phyuav/manuf_matchers", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(manuf_match_vec, &uav_mutex));
+            std::make_shared<kis_net_web_tracked_endpoint>(manuf_match_vec, uav_mutex));
 
 }
 
@@ -167,14 +167,8 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
     if (commoninfo == NULL || dot11info == NULL)
         return 1;
 
-    auto dev_list = std::make_shared<tracker_element_vector>();
-    for (auto di : devinfo->devrefs)
-        dev_list->push_back(di.second);
-    auto devscope = devicelist_range_scope_locker(uavphy->devicetracker, dev_list);
-
-    // Try to pull the existing basedev, we don't want to re-parse
     for (auto di : devinfo->devrefs) {
-        std::shared_ptr<kis_tracked_device_base> basedev = di.second;
+        auto basedev = di.second;
 
         if (basedev == NULL)
             return 1;
@@ -183,7 +177,10 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
         if (basedev->get_macaddr() != dot11info->bssid_mac)
             continue;
 
-        auto devlocker = devicelist_range_scope_locker(uavphy->devicetracker, basedev);
+        // Lock the device list
+        std::lock(uavphy->devicetracker->get_devicelist_write(), basedev->device_mutex);
+        std::lock_guard<kis_tristate_mutex> lg_dl(uavphy->devicetracker->get_devicelist_write(), std::adopt_lock);
+        std::lock_guard<kis_recursive_timed_mutex> lg_dev(basedev->device_mutex);
 
         if (dot11info->droneid != NULL) {
             try {
