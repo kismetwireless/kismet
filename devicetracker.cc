@@ -1071,6 +1071,15 @@ std::shared_ptr<kis_tracked_device_base> device_tracker::fetch_device(device_key
 	return NULL;
 }
 
+std::shared_ptr<kis_tracked_device_base> device_tracker::fetch_device_nr(device_key in_key) {
+	device_itr i = tracked_map.find(in_key);
+
+	if (i != tracked_map.end())
+		return i->second;
+
+	return NULL;
+}
+
 int device_tracker::common_tracker(kis_packet *in_pack) {
     local_shared_locker l(&phy_mutex, "common_tracker");
 
@@ -1176,7 +1185,7 @@ std::shared_ptr<kis_tracked_device_base>
     // device record for the same device
     ul_list.lock();
 
-	if ((device = fetch_device(key)) == NULL) {
+	if ((device = fetch_device_nr(key)) == NULL) {
         if (in_flags & UCD_UPDATE_EXISTING_ONLY)
             return NULL;
 
@@ -1610,7 +1619,7 @@ int device_tracker::database_upgrade_db() {
 void device_tracker::add_device(std::shared_ptr<kis_tracked_device_base> device) {
     std::lock_guard<kis_tristate_ex_mutex> lock(get_devicelist_exclusive());
 
-    if (fetch_device(device->get_key()) != NULL) {
+    if (fetch_device_nr(device->get_key()) != NULL) {
         _MSG("device_tracker tried to add device " + device->get_macaddr().mac_to_string() + 
                 " which already exists", MSGFLAG_ERROR);
         return;

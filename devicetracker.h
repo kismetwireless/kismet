@@ -115,8 +115,12 @@ public:
     // components due to timeouts / max device cleanup
     void update_full_refresh();
 
-	// Look for an existing device record
+	// Look for an existing device record under read-only shared lock
     std::shared_ptr<kis_tracked_device_base> fetch_device(device_key in_key);
+
+    // Look for an existing device record, without lock - must be called under some form of existing
+    // lock to be safely used
+    std::shared_ptr<kis_tracked_device_base> fetch_device_nr(device_key in_key);
 
     // Do work on all devices, this applies to the 'all' device view
     std::shared_ptr<tracker_element_vector> do_device_work(device_tracker_view_worker& worker);
