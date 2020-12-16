@@ -38,7 +38,7 @@ stream_tracker::stream_tracker() :
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
     httpd->register_route("/streams/all_streams", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(tracked_stream_map, &mutex));
+            std::make_shared<kis_net_web_tracked_endpoint>(tracked_stream_map, mutex));
     
     httpd->register_route("/streams/by-id/:id/stream_info", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
@@ -50,7 +50,7 @@ stream_tracker::stream_tracker() :
                         throw std::runtime_error("invalid key");
 
                     return s_k->second;
-                }, &mutex));
+                }, mutex));
 
     httpd->register_route("/streams/by-id/:id/close_stream", {"GET", "POST"}, httpd->LOGON_ROLE, {},
             std::make_shared<kis_net_web_function_endpoint>(

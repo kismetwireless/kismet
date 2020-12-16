@@ -177,9 +177,9 @@ void log_tracker::trigger_deferred_startup() {
     auto httpd = Globalreg::fetch_global_as<kis_net_beast_httpd>();
 
     httpd->register_route("/logging/drivers", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(logproto_vec, &tracker_mutex));
+            std::make_shared<kis_net_web_tracked_endpoint>(logproto_vec, tracker_mutex));
     httpd->register_route("/logging/active", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(logfile_vec, &tracker_mutex));
+            std::make_shared<kis_net_web_tracked_endpoint>(logfile_vec, tracker_mutex));
 
     httpd->register_route("/logging/by-uuid/:uuid/stop", {"GET", "POST"}, httpd->LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
@@ -236,7 +236,7 @@ void log_tracker::trigger_deferred_startup() {
                         throw std::runtime_error("unable to open log");
 
                     return logf;
-                }, &tracker_mutex));
+                }, tracker_mutex));
 
 
     // Open all of them
