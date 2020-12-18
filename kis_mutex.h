@@ -52,6 +52,27 @@
 // and faulting more quickly.
 #define KIS_THREAD_DEADLOCK_TIMEOUT     30
 
+class kis_int_shared_mutex {
+public:
+    kis_int_shared_mutex() :
+        mutex{} { };
+
+    void lock() {
+        mutex.lock_shared();
+    }
+
+    void unlock() {
+        mutex.unlock();
+    }
+
+    bool try_lock() {
+        return mutex.try_lock_shared();
+    }
+
+protected:
+    std::shared_mutex mutex;
+};
+
 // Simple proxy mutex which implements a std::recursive_mutex with a mandatory timer;
 // attempts to lock are translated into timed lock attempts and will throw at the 
 // expiration of the timeout
@@ -65,12 +86,24 @@ public:
         lock_nm{lock_nm},
         lock_tm{KIS_THREAD_DEADLOCK_TIMEOUT} { }
 
+    kis_mandatory_mutex(const std::string& lock_nm, unsigned int lock_tm) :
+        lock_nm{lock_nm},
+        lock_tm{lock_tm} { }
+
     void set_timeout(unsigned int tm) {
         lock_tm = tm;
     }
 
     const unsigned int& get_timeout() const {
         return lock_tm;
+    }
+
+    void set_name(const std::string& nm) {
+        lock_nm = nm;
+    }
+
+    const std::string& get_name() const {
+        return lock_nm;
     }
 
     void lock() {
@@ -87,9 +120,6 @@ public:
     }
 
     bool try_lock() {
-        if (lock_tm != 0)
-            return mutex.try_lock_for(std::chrono::seconds(lock_tm));
-
         return mutex.try_lock();
     }
 
@@ -115,7 +145,7 @@ public:
             std::promise<void>& other_promise,
             std::shared_future<void>& other_ft,
             kis_mandatory_mutex& ex_mutex,
-            std::atomic<bool>& ex_locked,
+            std::atomic<unsigned int>& ex_count,
             std::promise<void>& ex_promise,
             std::shared_future<void>& ex_ft) :
     lock_nm{lock_nm},
@@ -129,7 +159,7 @@ public:
     other_promise{other_promise},
     other_ft{other_ft},
     ex_mutex{ex_mutex},
-    ex_locked{ex_locked},
+    ex_count{ex_count},
     ex_promise{ex_promise},
     ex_ft{ex_ft} { }
 
@@ -140,11 +170,13 @@ public:
         std::unique_lock<kis_mandatory_mutex> ex_ul(ex_mutex, std::defer_lock);
         std::lock(self_ul, other_ul, ex_ul);
 
-        if (ex_locked) {
+        if (ex_count > 0) {
             std::shared_future<void> ex_ft_cp = ex_ft;
 
             // Wait for the exclusive lock to release, holding the other locks
-            ex_ul.unlock();
+            // ex_ul.unlock();
+
+            fmt::print(stderr, "debug - tristate {} blocking for exclusive\n", lock_nm);
 
             if (lock_tm != 0) {
                 try {
@@ -164,7 +196,9 @@ public:
             std::shared_future<void> other_ft_cp = other_ft;
 
             // Wait for the other pair of the lock
-            other_ul.unlock();
+            // other_ul.unlock();
+
+            printf("tristate {} blocking waiting for other\n");
 
             if (lock_tm != 0) {
                 try {
@@ -182,14 +216,18 @@ public:
 
         // We've got all 3 state locks, and we've discharged exclusive and other restrictions
         self_count.fetch_add(1, std::memory_order_acquire);
+
+        fmt::print("tristate {} tid {} acquired {}\n", lock_nm, std::this_thread::get_id(), self_count);
     }
 
     void unlock() {
         if (self_count == 0)
             throw std::runtime_error("tristate_mutex \"" + lock_nm + "\" unlock() called when no lock held");
 
+        fmt::print("tristate {} tid {} unlocking, pre-unlock count {}\n", lock_nm, std::this_thread::get_id(), self_count);
         // Decrement and wake up if we hit 0
         if (self_count.fetch_sub(1, std::memory_order_release) == 1) {
+            fmt::print("tristate {} unlocking tid {}\n", lock_nm, std::this_thread::get_id());
             try {
                 self_promise.set_value();
             } catch (const std::future_error& fe) {
@@ -206,20 +244,20 @@ public:
         // try_lock is currently time-unbounded which means we can't try to lock
         // multiple locks with a proper time block; unsure if this will cause
         // problems yet or not
+        
+        // Get all 3 state controls at the same time
+        std::unique_lock<kis_mandatory_mutex> self_ul(self_mutex, std::defer_lock);
+        std::unique_lock<kis_mandatory_mutex> other_ul(other_mutex, std::defer_lock);
+        std::unique_lock<kis_mandatory_mutex> ex_ul(ex_mutex, std::defer_lock);
+        std::lock(self_ul, other_ul, ex_ul);
 
-        if (ex_locked) {
+        if (ex_count) {
             return false;
         }
 
         if (other_count) {
             return false;
         }
-
-        // Get all 3 state controls at the same time
-        std::unique_lock<kis_mandatory_mutex> self_ul(self_mutex, std::defer_lock);
-        std::unique_lock<kis_mandatory_mutex> other_ul(other_mutex, std::defer_lock);
-        std::unique_lock<kis_mandatory_mutex> ex_ul(ex_mutex, std::defer_lock);
-        std::lock(self_ul, other_ul, ex_ul);
 
         // We've got all 3 state locks, and we've discharged exclusive and other restrictions
         self_count.fetch_add(1, std::memory_order_acquire);
@@ -242,7 +280,7 @@ protected:
     std::shared_future<void>& other_ft;
 
     kis_mandatory_mutex& ex_mutex;
-    std::atomic<bool>& ex_locked;
+    std::atomic<unsigned int>& ex_count;
     std::promise<void>& ex_promise;
     std::shared_future<void>& ex_ft;
 };
@@ -260,9 +298,10 @@ public:
             std::promise<void>& m2_promise,
             std::shared_future<void>& m2_ft,
             kis_mandatory_mutex& ex_mutex,
-            std::atomic<bool>& ex_locked,
+            std::atomic<unsigned int>& ex_count,
             std::promise<void>& ex_promise,
-            std::shared_future<void>& ex_ft) :
+            std::shared_future<void>& ex_ft,
+            std::atomic<std::thread::id>& ex_owner) :
     lock_nm{lock_nm},
     lock_tm{lock_tm},
     m1_mutex{m1_mutex},
@@ -274,7 +313,8 @@ public:
     m2_promise{m2_promise},
     m2_ft{m2_ft},
     ex_mutex{ex_mutex},
-    ex_locked{ex_locked},
+    ex_count{ex_count},
+    ex_owner{ex_owner},
     ex_promise{ex_promise},
     ex_ft{ex_ft} { }
 
@@ -285,15 +325,40 @@ public:
         std::unique_lock<kis_mandatory_mutex> ex_ul(ex_mutex, std::defer_lock);
         std::lock(m1_ul, m2_ul, ex_ul);
 
-        if (ex_locked)
-            throw std::runtime_error("tristate_mutex \"" + lock_nm + "\" exclusive lock failed, already "
-                    "exclusively locked");
+        if (ex_count) {
+            if (std::this_thread::get_id() == ex_owner) {
+                ex_count++;
+                return;
+            }
+
+            ex_ul.unlock();
+                
+            std::shared_future<void> ex_ft_cp = ex_ft;
+
+            fmt::print(stderr, "debug - tristate_ex {} waiting for ex lock by {}\n", std::this_thread::get_id(), ex_owner);
+
+            if (lock_tm != 0) {
+                try {
+                    auto status = ex_ft_cp.wait_for(std::chrono::seconds(lock_tm));
+                    if (status != std::future_status::ready) {
+                        throw std::runtime_error("timeout waiting for m1 future");
+                    }
+                } catch (const std::exception& e) {
+                    throw std::runtime_error("tristate_mutex \"" + lock_nm + "\" exclusive lock failed: " + 
+                            e.what());
+                }
+            } else {
+                ex_ft_cp.wait();
+            }
+        }
 
         if (m1_count > 0) {
             std::shared_future<void> m1_ft_cp = m1_ft;
 
             // Wait for the m1 pair of the lock
-            m1_ul.unlock();
+            // m1_ul.unlock();
+
+            fmt::print("tristate_ex tid {} waiting for m1 count {}\n", std::this_thread::get_id(), m1_count);
 
             if (lock_tm != 0) {
                 try {
@@ -313,7 +378,9 @@ public:
             std::shared_future<void> m2_ft_cp = m2_ft;
 
             // Wait for the m2 pair of the lock
-            m2_ul.unlock();
+            // m2_ul.unlock();
+
+            printf("tristate_ex waiting for m2\n");
 
             if (lock_tm != 0) {
                 try {
@@ -329,24 +396,33 @@ public:
             }
         }
 
-        ex_locked = true;
+        ex_count.fetch_add(1, std::memory_order_acquire);
+        ex_owner = std::this_thread::get_id();
     }
 
     void unlock() {
-        if (!ex_locked)
-            throw std::runtime_error("tristate_mutex \"" + lock_nm + "\" unlock() called when no exclusive lock held");
+        std::lock_guard<kis_mandatory_mutex> lg(ex_mutex);
 
-        ex_locked = false;
+        if (!ex_count)
+            throw std::runtime_error("tristate_mutex_ex \"" + lock_nm + "\" unlock() called when no exclusive lock held");
 
-        try {
-            ex_promise.set_value();
-        } catch (const std::future_error& fe) {
-            // Ignore error if no futures are listening
+        if (std::this_thread::get_id() != ex_owner) 
+            throw std::runtime_error("tristate_mutex_ex \"" + lock_nm + "\" unlock() called when not owner of exclusie lock");
+
+        if (ex_count.fetch_sub(1, std::memory_order_release) == 1) {
+            fmt::print(stderr, "tristate_mutex_ex releasing exclusive {}\n", ex_owner);
+
+            try {
+                ex_promise.set_value();
+            } catch (const std::future_error& fe) {
+                // Ignore error if no futures are listening
+            }
+
+            // Reset the future and base shared promise
+            ex_promise = std::promise<void>();
+            ex_ft = std::shared_future<void>(ex_promise.get_future());
+            ex_owner = std::thread::id();
         }
-
-        // Reset the future and base shared promise
-        ex_promise = std::promise<void>();
-        ex_ft = std::shared_future<void>(ex_promise.get_future());
     }
 
     bool try_lock() {
@@ -354,9 +430,13 @@ public:
         // multiple locks with a proper time block; unsure if this will cause
         // problems yet or not
         
-        if (ex_locked)
-            throw std::runtime_error("tristate_mutex \"" + lock_nm + "\" exclusive lock failed, already "
-                    "exclusively locked");
+        std::unique_lock<kis_mandatory_mutex> m1_ul(m1_mutex, std::defer_lock);
+        std::unique_lock<kis_mandatory_mutex> m2_ul(m2_mutex, std::defer_lock);
+        std::unique_lock<kis_mandatory_mutex> ex_ul(ex_mutex, std::defer_lock);
+        std::lock(m1_ul, m2_ul, ex_ul);
+
+        if (ex_count != 0 && std::this_thread::get_id() != ex_owner)
+            return false;
 
         if (m1_count != 0) {
             return false;
@@ -366,12 +446,10 @@ public:
             return false;
         }
 
-        std::unique_lock<kis_mandatory_mutex> m1_ul(m1_mutex, std::defer_lock);
-        std::unique_lock<kis_mandatory_mutex> m2_ul(m2_mutex, std::defer_lock);
-        std::unique_lock<kis_mandatory_mutex> ex_ul(ex_mutex, std::defer_lock);
-        std::lock(m1_ul, m2_ul, ex_ul);
+        ex_count.fetch_add(1, std::memory_order_acquire);
+        ex_owner = std::this_thread::get_id();
 
-        ex_locked.store(true, std::memory_order_acquire);
+        printf("acquired exclusive\n");
 
         return true;
     }
@@ -391,7 +469,8 @@ protected:
     std::shared_future<void>& m2_ft;
 
     kis_mandatory_mutex& ex_mutex;
-    std::atomic<bool>& ex_locked;
+    std::atomic<unsigned int>& ex_count;
+    std::atomic<std::thread::id>& ex_owner;
     std::promise<void>& ex_promise;
     std::shared_future<void>& ex_ft;
 };
@@ -401,33 +480,34 @@ public:
     kis_tristate_mutex_group() :
         lock_nm{"UNKNOWN"},
         lock_tm{KIS_THREAD_DEADLOCK_TIMEOUT},
-        m1_mutex{"UNKNOWN_M1"},
+        m1_mutex{"UNKNOWN_M1", 0},
         m1_count{0},
         m1_promise{},
         m1_ft{m1_promise.get_future()},
-        m2_mutex{"UNKNOWN_M2"},
+        m2_mutex{"UNKNOWN_M2", 0},
         m2_count{0},
         m2_promise{},
         m2_ft{m2_promise.get_future()},
-        ex_mutex{"UNKNOWN_EX"},
-        ex_locked{false},
+        ex_mutex{"UNKNOWN_EX", 0},
+        ex_count{false},
         ex_promise{},
         ex_ft{ex_promise.get_future()},
+        ex_owner{std::thread::id()},
         m1_tristate(lock_nm + "_WR",
                 lock_tm,
                 m1_mutex, m1_count, m1_promise, m1_ft,
                 m2_mutex, m2_count, m2_promise, m2_ft,
-                ex_mutex, ex_locked, ex_promise, ex_ft),
+                ex_mutex, ex_count, ex_promise, ex_ft),
         m2_tristate(lock_nm + "_WR",
                 lock_tm,
                 m2_mutex, m2_count, m2_promise, m2_ft,
                 m1_mutex, m1_count, m1_promise, m1_ft,
-                ex_mutex, ex_locked, ex_promise, ex_ft),
+                ex_mutex, ex_count, ex_promise, ex_ft),
         ex_tristate(lock_nm + "_EX",
                 lock_tm,
                 m1_mutex, m1_count, m1_promise, m1_ft,
                 m2_mutex, m2_count, m2_promise, m2_ft,
-                ex_mutex, ex_locked, ex_promise, ex_ft) { }
+                ex_mutex, ex_count, ex_promise, ex_ft, ex_owner) { }
 
     kis_tristate_mutex_group(const std::string& lock_nm) :
         lock_nm{lock_nm},
@@ -441,27 +521,32 @@ public:
         m2_promise{},
         m2_ft{m2_promise.get_future()},
         ex_mutex{lock_nm + "_EX"},
-        ex_locked{false},
+        ex_count{false},
         ex_promise{},
         ex_ft{ex_promise.get_future()},
+        ex_owner{std::thread::id()},
         m1_tristate(lock_nm + "_WR",
                 lock_tm,
                 m1_mutex, m1_count, m1_promise, m1_ft,
                 m2_mutex, m2_count, m2_promise, m2_ft,
-                ex_mutex, ex_locked, ex_promise, ex_ft),
+                ex_mutex, ex_count, ex_promise, ex_ft),
         m2_tristate(lock_nm + "_WR",
                 lock_tm,
                 m2_mutex, m2_count, m2_promise, m2_ft,
                 m1_mutex, m1_count, m1_promise, m1_ft,
-                ex_mutex, ex_locked, ex_promise, ex_ft),
+                ex_mutex, ex_count, ex_promise, ex_ft),
         ex_tristate(lock_nm + "_EX",
                 lock_tm,
                 m1_mutex, m1_count, m1_promise, m1_ft,
                 m2_mutex, m2_count, m2_promise, m2_ft,
-                ex_mutex, ex_locked, ex_promise, ex_ft) { }
+                ex_mutex, ex_count, ex_promise, ex_ft, ex_owner) { }
 
     void set_name(const std::string& name) {
         lock_nm = name;
+
+        m1_mutex.set_name(lock_nm + "_M1");
+        m2_mutex.set_name(lock_nm + "_M2");
+        ex_mutex.set_name(lock_nm + "_EX");
     }
 
     const std::string& get_name() const {
@@ -505,9 +590,10 @@ protected:
     std::shared_future<void> m2_ft;
 
     kis_mandatory_mutex ex_mutex;
-    std::atomic<bool> ex_locked;
+    std::atomic<unsigned int> ex_count;
     std::promise<void> ex_promise;
     std::shared_future<void> ex_ft;
+    std::atomic<std::thread::id> ex_owner;
 
     kis_tristate_mutex m1_tristate;
     kis_tristate_mutex m2_tristate;

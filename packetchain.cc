@@ -146,7 +146,7 @@ packet_chain::packet_chain() {
 
     packetchain_shutdown = false;
 
-#if 0
+#if 1
     auto nt = static_cast<int>(std::thread::hardware_concurrency());
 #else
     auto nt = int(1);

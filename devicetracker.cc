@@ -63,7 +63,10 @@ device_tracker::device_tracker() :
 
     view_mutex.set_name("device_tracker::view_mutex");
     phy_mutex.set_name("device_tracker::phy_mutex");
+
     devicelist_tristate.set_name("device_tracker::devicelist multimutex");
+    devicelist_tristate.set_timeout(0);
+
     range_mutex.set_name("device_tracker::range_mutex");
 
     next_phy_id = 0;
@@ -1189,9 +1192,8 @@ std::shared_ptr<kis_tracked_device_base>
         if (in_flags & UCD_UPDATE_EXISTING_ONLY)
             return NULL;
 
-        device =
+        device = std::make_shared<kis_tracked_device_base>(device_base_id);
 
-            std::make_shared<kis_tracked_device_base>(device_base_id);
         // Device ID is the size of the vector so a new device always gets put
         // in it's numbered slot
         device->set_kis_internal_id(immutable_tracked_vec->size());
