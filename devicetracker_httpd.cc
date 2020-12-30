@@ -67,7 +67,7 @@ std::shared_ptr<tracker_element> device_tracker::multimac_endp_handler(shared_co
     // Duplicate the mac index so that we're 'immune' to things changing it under us; because we
     // may have quite a number of devices in our query list, this is safest.
     auto devlist_locker =
-        std::unique_lock<kis_tristate_mutex>(get_devicelist_share());
+        std::unique_lock<kis_tristate_mutex_view>(get_devicelist_share());
     auto immutable_copy = 
         std::multimap<mac_addr, std::shared_ptr<kis_tracked_device_base>>{tracked_mac_multimap};
     devlist_locker.unlock();
@@ -83,7 +83,7 @@ std::shared_ptr<tracker_element> device_tracker::multimac_endp_handler(shared_co
 }
 
 std::shared_ptr<tracker_element> device_tracker::all_phys_endp_handler(shared_con con) {
-    auto lg = std::lock_guard<kis_tristate_mutex>(get_devicelist_share());
+    auto lg = std::lock_guard<kis_tristate_mutex_view>(get_devicelist_share());
 
     auto ret_vec = std::make_shared<tracker_element_vector>();
 

@@ -167,6 +167,8 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
     if (commoninfo == NULL || dot11info == NULL)
         return 1;
 
+    auto lk = std::lock_guard<kis_tristate_mutex_view>(uavphy->devicetracker->get_devicelist_write());
+
     for (auto di : devinfo->devrefs) {
         auto basedev = di.second;
 
@@ -177,10 +179,7 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
         if (basedev->get_macaddr() != dot11info->bssid_mac)
             continue;
 
-        // Lock the device list
-        std::lock(uavphy->devicetracker->get_devicelist_write(), basedev->device_mutex);
-        std::lock_guard<kis_tristate_mutex> lg_dl(uavphy->devicetracker->get_devicelist_write(), std::adopt_lock);
-        std::lock_guard<kis_recursive_timed_mutex> lg_dev(basedev->device_mutex);
+        auto lk = std::lock_guard<kis_recursive_timed_mutex>(basedev->device_mutex);
 
         if (dot11info->droneid != NULL) {
             try {
@@ -271,10 +270,8 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
             }
         }
         
-        if (dot11info->new_adv_ssid &&
-                dot11info->type == packet_management && 
-                (dot11info->subtype == packet_sub_beacon ||
-                 dot11info->subtype == packet_sub_probe_resp)) {
+        if (dot11info->new_adv_ssid && dot11info->type == packet_management && 
+                (dot11info->subtype == packet_sub_beacon || dot11info->subtype == packet_sub_probe_resp)) {
 
             for (auto mi : *(uavphy->manuf_match_vec)) {
                 auto m = std::static_pointer_cast<uav_manuf_match>(mi);

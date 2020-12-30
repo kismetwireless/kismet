@@ -230,16 +230,16 @@ public:
     std::shared_ptr<tracker_element_string> get_cached_phyname(const std::string& phyname);
 
     // Fetch mutexes for the device list manipulation
-    kis_tristate_mutex& get_devicelist_write() {
-        return devicelist_tristate.get_wr_tristate();
+    kis_tristate_mutex_view& get_devicelist_write() {
+        return devicelist_ts_write_view;
     }
 
-    kis_tristate_mutex& get_devicelist_share() {
-        return devicelist_tristate.get_sh_tristate();
+    kis_tristate_mutex_view& get_devicelist_share() {
+        return devicelist_ts_read_view;
     }
 
-    kis_tristate_ex_mutex& get_devicelist_exclusive() {
-        return devicelist_tristate.get_ex_tristate();
+    kis_tristate_mutex_view& get_devicelist_exclusive() {
+        return devicelist_ts_excl_view;
     }
 
 protected:
@@ -372,7 +372,10 @@ protected:
     kis_recursive_timed_mutex phy_mutex;
 
     // New multimutex primitive
-    kis_tristate_mutex_group devicelist_tristate;
+    kis_tristate_mutex devicelist_tristate;
+    kis_tristate_mutex_view devicelist_ts_read_view;
+    kis_tristate_mutex_view devicelist_ts_write_view;
+    kis_tristate_mutex_view devicelist_ts_excl_view;
 
     kis_recursive_timed_mutex storing_mutex;
     std::atomic<bool> devices_storing;

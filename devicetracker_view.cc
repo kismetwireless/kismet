@@ -146,11 +146,10 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(devi
         std::shared_ptr<tracker_element_vector> devices) {
     auto ret = std::make_shared<tracker_element_vector>();
     ret->reserve(devices->size());
-    kis_recursive_timed_mutex ret_mutex;
 
     // Lock the whole device list for the duration
     auto dev_lg = 
-        std::lock_guard<kis_tristate_mutex>(devicetracker->get_devicelist_write());
+        std::lock_guard<kis_tristate_mutex_view>(devicetracker->get_devicelist_write());
 
     std::for_each(devices->begin(), devices->end(),
             [&](shared_tracker_element val) {
@@ -163,15 +162,13 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(devi
             bool m;
             {
                 // Lock each device within the overall devicelist write state
-                auto devlocker = 
-                    std::lock_guard<kis_recursive_timed_mutex>(dev->device_mutex);
+                dev->device_mutex.lock();
                 m = worker.match_device(dev);
+                dev->device_mutex.unlock();
             }
 
-            if (m) {
-                local_locker retl(&ret_mutex);
+            if (m) 
                 ret->push_back(dev);
-            }
 
         });
 
@@ -188,7 +185,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_
     ret->reserve(devices->size());
 
     auto ul_devlist =
-        std::lock_guard<kis_tristate_mutex>(devicetracker->get_devicelist_share());
+        std::lock_guard<kis_tristate_mutex_view>(devicetracker->get_devicelist_share());
 
     std::for_each(devices->begin(), devices->end(),
             [&](shared_tracker_element val) {
@@ -615,7 +612,7 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
 
     // Lock shared access to serialize
     auto lg_list =
-        std::lock_guard<kis_tristate_mutex>(devicetracker->get_devicelist_share());
+        std::lock_guard<kis_tristate_mutex_view>(devicetracker->get_devicelist_share());
     Globalreg::globalreg->entrytracker->serialize(static_cast<std::string>(con->uri()), os, transmit, rename_map);
 }
 

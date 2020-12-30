@@ -781,7 +781,7 @@ int kis_database_logfile::log_device(std::shared_ptr<kis_tracked_device_base> d)
     std::stringstream sstr;
 
     {
-        std::lock_guard<kis_tristate_mutex> lg_dl(devicetracker->get_devicelist_share());
+        std::lock_guard<kis_tristate_mutex_view> lg_dl(devicetracker->get_devicelist_share());
         int r = Globalreg::globalreg->entrytracker->serialize("json", sstr, d, nullptr);
 
         if (r < 0) {

@@ -146,7 +146,7 @@ bool kis_rtlamr_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
                  UCD_UPDATE_SEENBY), "AMR Meter");
 
     std::lock(devicetracker->get_devicelist_write(), basedev->device_mutex);
-    std::lock_guard<kis_tristate_mutex> dl_lg(devicetracker->get_devicelist_write(), std::adopt_lock);
+    std::lock_guard<kis_tristate_mutex_view> dl_lg(devicetracker->get_devicelist_write(), std::adopt_lock);
     std::lock_guard<kis_recursive_timed_mutex> d_lg(basedev->device_mutex, std::adopt_lock);
 
     auto meterdev = 

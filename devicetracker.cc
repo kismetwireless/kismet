@@ -59,14 +59,14 @@ int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
 device_tracker::device_tracker() :
     lifetime_global(),
     kis_database(Globalreg::globalreg, "devicetracker"),
-    deferred_startup() {
+    deferred_startup(),
+    devicelist_tristate{},
+    devicelist_ts_read_view{devicelist_tristate, kis_tristate_mutex_view::view_mode::group1},
+    devicelist_ts_write_view{devicelist_tristate, kis_tristate_mutex_view::view_mode::group2},
+    devicelist_ts_excl_view{devicelist_tristate, kis_tristate_mutex_view::view_mode::exclusive} {
 
     view_mutex.set_name("device_tracker::view_mutex");
     phy_mutex.set_name("device_tracker::phy_mutex");
-
-    devicelist_tristate.set_name("device_tracker::devicelist multimutex");
-    devicelist_tristate.set_timeout(0);
-
     range_mutex.set_name("device_tracker::range_mutex");
 
     next_phy_id = 0;
@@ -572,7 +572,7 @@ device_tracker::device_tracker() :
                     if (mac_list.size() == 0) 
                         throw std::runtime_error("expected MAC address in mac or macs[]");
 
-                    std::lock_guard<kis_tristate_mutex> lg(get_devicelist_write());
+                    std::lock_guard<kis_tristate_mutex_view> lg(get_devicelist_write());
 
                     for (auto mi : mac_list) {
                         auto ek = macdevice_alert_conf_map.find(mi);
@@ -624,7 +624,7 @@ device_tracker::device_tracker() :
                     if (mac_list.size() == 0) 
                         throw std::runtime_error("expected MAC address in mac or macs[]");
 
-                    std::lock_guard<kis_tristate_mutex> lg(get_devicelist_write());
+                    std::lock_guard<kis_tristate_mutex_view> lg(get_devicelist_write());
 
                     for (auto mi : mac_list) {
                         auto ek = macdevice_alert_conf_map.find(mi);
@@ -742,7 +742,7 @@ device_tracker::device_tracker() :
                                                 }
 
                                                 if (!dev_m.error()) {
-                                                    std::lock_guard<kis_tristate_mutex> lg(get_devicelist_write());
+                                                    std::lock_guard<kis_tristate_mutex_view> lg(get_devicelist_write());
                                                     const auto mmp = tracked_mac_multimap.equal_range(dev_m);
                                                     for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi)
                                                         d_vec->push_back(mmpi->second);
@@ -751,7 +751,7 @@ device_tracker::device_tracker() :
                                                 if (d_vec->size() == 0)
                                                     return 1;
 
-                                                std::lock_guard<kis_tristate_mutex> lg(get_devicelist_write());
+                                                std::lock_guard<kis_tristate_mutex_view> lg(get_devicelist_write());
 
                                                 for (const auto& d : *d_vec) {
                                                     std::stringstream ss;
@@ -941,7 +941,7 @@ device_tracker::~device_tracker() {
 }
 
 void device_tracker::macdevice_timer_event() {
-    std::lock_guard<kis_tristate_mutex> lg(get_devicelist_write());
+    std::lock_guard<kis_tristate_mutex_view> lg(get_devicelist_write());
 
     time_t now = time(0);
 
@@ -1003,7 +1003,7 @@ std::string device_tracker::fetch_phy_name(int in_phy) {
 }
 
 int device_tracker::fetch_num_devices() {
-    std::lock_guard<kis_tristate_mutex> lg(get_devicelist_share());
+    std::lock_guard<kis_tristate_mutex_view> lg(get_devicelist_share());
 
     return tracked_map.size();
 }
@@ -1064,7 +1064,7 @@ void device_tracker::update_full_refresh() {
 }
 
 std::shared_ptr<kis_tracked_device_base> device_tracker::fetch_device(device_key in_key) {
-    std::lock_guard<kis_tristate_mutex> lg(get_devicelist_share());
+    std::lock_guard<kis_tristate_mutex_view> lg(get_devicelist_share());
 
 	device_itr i = tracked_map.find(in_key);
 
@@ -1166,7 +1166,7 @@ std::shared_ptr<kis_tracked_device_base>
     // Updating devices can only happen in serial because we don't know that a device is being
     // created & we don't know how to append the data until we get to the end of processing
     // so the entire chain is perforce locked
-    std::unique_lock<kis_tristate_ex_mutex> ul_list(get_devicelist_exclusive(), std::defer_lock);
+    std::unique_lock<kis_tristate_mutex_view> ul_list(get_devicelist_exclusive(), std::defer_lock);
 
     std::stringstream sstr;
 
@@ -1222,15 +1222,17 @@ std::shared_ptr<kis_tracked_device_base>
 
     }
 
+#if 0
     // If we're updating an existing device release the devicelist exclusive lock and reacquire it
     // as a write lock and device lock
-    std::unique_lock<kis_tristate_mutex> ul_dl(get_devicelist_write(), std::defer_lock);
+    std::unique_lock<kis_tristate_mutex_view> ul_dl(get_devicelist_write(), std::defer_lock);
     std::unique_lock<kis_recursive_timed_mutex> ul_d(device->device_mutex, std::defer_lock);
 
     if (!new_device) {
         ul_list.unlock();
         std::lock(ul_dl, ul_d);
     }
+#endif
 
     // Tag the packet with the base device
     auto devinfo = in_pack->fetch<kis_tracked_device_info>(pack_comp_device);
@@ -1381,9 +1383,6 @@ std::shared_ptr<kis_tracked_device_base>
         auto mm_pair = std::make_pair(in_mac, device);
         tracked_mac_multimap.insert(mm_pair);
 
-        // Release the devicelist lock before we add it to the views
-        ul_list.unlock();
-
         // If we have no packet info, add it to the device list immediately,
         // otherwise, flag the packet to trigger a new device event at the
         // end of the packet processing stage of the chain
@@ -1397,6 +1396,11 @@ std::shared_ptr<kis_tracked_device_base>
             evt->get_event_content()->insert(event_new_device(), device);
             in_pack->process_complete_events.push_back(evt);
         }
+
+#if 0
+        // Release the devicelist lock before we add it to the views
+        ul_list.unlock();
+#endif
     }
 
     return device;
@@ -1432,7 +1436,7 @@ bool devicetracker_sort_lastseen(std::shared_ptr<kis_tracked_device_base> a,
 
 void device_tracker::timetracker_event(int eventid) {
     if (eventid == device_idle_timer) {
-        std::lock_guard<kis_tristate_ex_mutex> lock(get_devicelist_exclusive());
+        std::lock_guard<kis_tristate_mutex_view> lock(get_devicelist_exclusive());
 
         time_t ts_now = globalreg->timestamp.tv_sec;
         bool purged = false;
@@ -1479,7 +1483,7 @@ void device_tracker::timetracker_event(int eventid) {
             update_full_refresh();
 
     } else if (eventid == max_devices_timer) {
-        std::lock_guard<kis_tristate_ex_mutex> lock(get_devicelist_exclusive());
+        std::lock_guard<kis_tristate_mutex_view> lock(get_devicelist_exclusive());
 
 		// Do nothing if we don't care
 		if (max_num_devices <= 0)
@@ -1619,7 +1623,7 @@ int device_tracker::database_upgrade_db() {
 }
 
 void device_tracker::add_device(std::shared_ptr<kis_tracked_device_base> device) {
-    std::lock_guard<kis_tristate_ex_mutex> lock(get_devicelist_exclusive());
+    std::lock_guard<kis_tristate_mutex_view> lock(get_devicelist_exclusive());
 
     if (fetch_device_nr(device->get_key()) != NULL) {
         _MSG("device_tracker tried to add device " + device->get_macaddr().mac_to_string() + 
@@ -1848,7 +1852,7 @@ void device_tracker::set_device_user_name(std::shared_ptr<kis_tracked_device_bas
 
     std::lock(get_devicelist_write(), in_dev->device_mutex);
     std::lock_guard lg_dl(get_devicelist_write(), std::adopt_lock);
-    std::lock_guard lg_d(in_dev->device_mutex);
+    std::lock_guard lg_d(in_dev->device_mutex, std::adopt_lock);
 
     in_dev->set_username(in_username);
 
@@ -1900,7 +1904,7 @@ void device_tracker::set_device_tag(std::shared_ptr<kis_tracked_device_base> in_
 
     std::lock(get_devicelist_write(), in_dev->device_mutex);
     std::lock_guard lg_dl(get_devicelist_write(), std::adopt_lock);
-    std::lock_guard lg_d(in_dev->device_mutex);
+    std::lock_guard lg_d(in_dev->device_mutex, std::adopt_lock);
 
     auto e = std::make_shared<tracker_element_string>();
     e->set(in_content);
