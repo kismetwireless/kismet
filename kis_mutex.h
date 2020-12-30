@@ -57,230 +57,385 @@
 class kis_tristate_mutex {
 public:
     kis_tristate_mutex() : 
-        state_mask{0},
-        group_1_ct{0},
-        group_2_ct{0},
-        owned_ct{0},
-        owned_pending_ct{0} { }
+        state{0},
+        excl_tid{std::thread::id()},
+        excl_ct{0},
+        excl_pend{0},
+        shared1_ct{0},
+        shared2_ct{0} { }
 
     ~kis_tristate_mutex() {
-        std::lock_guard<std::mutex> lk(state_mutex);
+        std::lock_guard<std::mutex> lk(state_m);
     }
 
     kis_tristate_mutex(const kis_tristate_mutex&) = delete;
     kis_tristate_mutex& operator=(const kis_tristate_mutex&) = delete;
 
-    void lock_group1() {
-        std::unique_lock<std::mutex> lk(state_mutex);
+    void lock_shared_1() {
+        std::unique_lock<std::mutex> lk(state_m);
 
-        // Treat a recursive lock under exclusive ownership as an exclusive lock
-        if ((state_mask & owned_entered) && owned_id == std::this_thread::get_id()) {
-            owned_ct++;
+        auto tid = std::this_thread::get_id();
+
+        // Allow recursive promotion to exclusive
+        if (excl_ct && tid == excl_tid) {
+            return lock_exclusive_nr(lk);
+        }
+
+        // Prevent cross-group deadlock
+        if (shared2_tid_map.find(tid) != shared2_tid_map.end())
+            throw std::runtime_error(fmt::format("deadlock prevented, thread {} attempted to lock shared 1 while holding shared 2", tid));
+
+        auto sh1_tid = shared1_tid_map.find(tid);
+
+        // Allow recursion to happen at all times
+        if (sh1_tid != shared1_tid_map.end()) {
+            sh1_tid->second++;
+            shared1_ct++;
             return;
         }
 
-        // Flag that we're trying to enter group1
-        state_mask |= group1_entered;
-
-        while (!group_1_ct && ((state_mask & group2_entered) || (state_mask & owned_entered))) {
-            cond_1.wait(lk);
-        }
-
-        group_1_ct++;
-    }
-
-    bool try_lock_group1() {
-        std::unique_lock<std::mutex> lk(state_mutex);
-
-        // Recursive
-        if ((state_mask & owned_entered) && owned_id == std::this_thread::get_id()) {
-            owned_ct++;
-            return true;
-        }
-
-        if (group_1_ct == 0 && ((state_mask & group2_entered) || (state_mask & owned_entered)))
-            return false;
-
-        state_mask |= group1_entered;
-        group_1_ct++;
-
-        return true;
-    }
-
-    void unlock_group1() {
-        std::lock_guard<std::mutex> lk(state_mutex);
-
-        if ((state_mask & owned_entered) && owned_id == std::this_thread::get_id())
-            return unlock_exclusive_impl();
-
-        if (group_1_ct == 0)
-            throw std::runtime_error("illegal unlock_group1 when no group1 lock held");
-
-        group_1_ct--;
-
-        if (group_1_ct == 0) {
-            state_mask &= ~group1_entered;
-            cond_1.notify_one();
-        }
-    }
-
-    // Explicit write ops
-    void lock_group2() {
-        std::unique_lock<std::mutex> lk(state_mutex);
-
-        // Treat a recursive lock under exclusive ownership as an exclusive lock
-        if ((state_mask & owned_entered) && owned_id == std::this_thread::get_id()) {
-            owned_ct++;
+        // No contenders
+        if (state == 0 || state == state_shared_1) {
+            state |= state_shared_1;
+            shared1_tid_map[tid] = 1;
+            shared1_ct++;
             return;
         }
 
-        // Flag that we're trying to enter group2
-        state_mask |= group2_entered;
-
-        while (!group_2_ct && ((state_mask & group1_entered) || (state_mask & owned_entered))) {
-            cond_1.wait(lk);
+        // State 1 defers to state 2 first
+        while ((state & state_shared_2)) {
+            state_2_cond.wait(lk);
         }
 
-        group_2_ct++;
+        while ((state & state_excl)) {
+            state_e_cond.wait(lk);
+        }
+
+        // We're trying to get state
+        state |= state_shared_1;
+
+        // Assign to this thread and increment
+        shared1_tid_map[tid] = 1;
+        shared1_ct++;
     }
 
-    bool try_lock_group2() {
-        std::unique_lock<std::mutex> lk(state_mutex);
+    bool try_lock_shared_1() {
+        std::unique_lock<std::mutex> lk(state_m);
 
-        // Handle recursive
-        if ((state_mask & owned_entered) && owned_id == std::this_thread::get_id()) {
-            owned_ct++;
+        auto tid = std::this_thread::get_id();
+
+        if (excl_ct && tid == excl_tid)
+            return try_lock_exclusive_nr(lk);
+
+        if (shared2_tid_map.find(tid) != shared2_tid_map.end())
+            throw std::runtime_error(fmt::format("deadlock prevented, thread {} attempted to lock shared 1 while holding shared 2", tid));
+
+        auto sh1_tid = shared1_tid_map.find(tid);
+
+        if (sh1_tid != shared1_tid_map.end()) {
+            sh1_tid->second++;
+            shared1_ct++;
             return true;
         }
 
-        if (group_2_ct == 0 && ((state_mask & group1_entered) || (state_mask & owned_entered)))
-            return false;
+        if (state == 0 || state == state_shared_1) {
+            state |= state_shared_1;
+            shared1_tid_map[tid] = 1;
+            shared1_ct++;
+            return true;
+        }
 
-        state_mask |= group2_entered;
-        group_2_ct++;
-
-        return true;
+        return false;
     }
 
-    void unlock_group2() {
-        std::unique_lock<std::mutex> lk(state_mutex);
+    void unlock_shared_1() {
+        std::unique_lock<std::mutex> lk(state_m);
 
-        if ((state_mask & owned_entered) && owned_id == std::this_thread::get_id())
-            return unlock_exclusive_impl();
+        auto tid = std::this_thread::get_id();
 
-        if (group_2_ct == 0)
-            throw std::runtime_error("illegal unlock_group2 when no group2 lock held");
+        // Handle promoted recursion
+        if (excl_ct && tid == excl_tid)
+            return unlock_exclusive_nr(lk);
 
-        group_2_ct--;
+        // Safety
+        if (shared1_ct == 0)
+            throw std::runtime_error(fmt::format("invalid usage, thread {} attempted to unlock shared_1 when shared_1 not locked", tid));
 
-        if (group_2_ct == 0) {
-            state_mask &= ~group2_entered;
-            cond_1.notify_one();
+        auto sh1_tid = shared1_tid_map.find(tid);
+
+        if (sh1_tid == shared1_tid_map.end())
+            throw std::runtime_error(fmt::format("invalid usage, thread {} attempted to unlock shared_1 but has no shared_1 lock", tid));
+
+        // Purge thread record
+        if (sh1_tid->second == 1)
+            shared1_tid_map.erase(sh1_tid);
+        else
+            sh1_tid->second--;
+
+        if (shared1_ct == 1) {
+            // We're done with this state, nobody holding it
+            state &= (~state_shared_1);
+            shared1_ct = 0;
+            state_1_cond.notify_one();
+        } else {
+            shared1_ct--;
         }
     }
 
-    // Explicit write ops
+    void lock_shared_2() {
+        std::unique_lock<std::mutex> lk(state_m);
+
+        auto tid = std::this_thread::get_id();
+
+        // Allow recursive promotion to exclusive
+        if (excl_ct && tid == excl_tid)
+            return lock_exclusive_nr(lk);
+
+        // Prevent cross-group deadlock
+        if (shared1_tid_map.find(tid) != shared1_tid_map.end())
+            throw std::runtime_error(fmt::format("deadlock prevented, thread {} attempted to lock shared 2 while holding shared 1", tid));
+
+        auto sh2_tid = shared2_tid_map.find(tid);
+
+        // Allow recursion to happen at all times
+        if (sh2_tid != shared2_tid_map.end()) {
+            sh2_tid->second++;
+            shared2_ct++;
+            return;
+        }
+
+        // No contenders
+        if (state == 0 || state == state_shared_2) {
+            state |= state_shared_2;
+            shared2_tid_map[tid] = 1;
+            shared2_ct++;
+            return;
+        }
+
+        // State 2 defers to state E first
+        while ((state & state_excl)) {
+            state_e_cond.wait(lk);
+        }
+
+        while ((state & state_shared_1)) {
+            state_1_cond.wait(lk);
+        }
+
+        // We're trying to get state
+        state |= state_shared_2;
+
+        // Assign to this thread and increment
+        shared2_tid_map[tid] = 1;
+        shared2_ct++;
+    }
+
+    bool try_lock_shared_2() {
+        std::unique_lock<std::mutex> lk(state_m);
+
+        auto tid = std::this_thread::get_id();
+
+        if (excl_ct && tid == excl_tid)
+            return try_lock_exclusive_nr(lk);
+
+        if (shared1_tid_map.find(tid) != shared1_tid_map.end())
+            throw std::runtime_error(fmt::format("deadlock prevented, thread {} attempted to lock shared 2 while holding shared 1", tid));
+
+        auto sh2_tid = shared2_tid_map.find(tid);
+
+        if (sh2_tid != shared2_tid_map.end()) {
+            sh2_tid->second++;
+            shared2_ct++;
+            return true;
+        }
+
+        if (state == 0 || state == state_shared_2) {
+            state |= state_shared_2;
+            shared2_tid_map[tid] = 1;
+            shared2_ct++;
+            return true;
+        }
+
+        return false;
+    }
+
+    void unlock_shared_2() {
+        std::unique_lock<std::mutex> lk(state_m);
+
+        auto tid = std::this_thread::get_id();
+
+        // Handle promoted recursion
+        if (excl_ct && tid == excl_tid)
+            return unlock_exclusive_nr(lk);
+
+        // Safety
+        if (shared2_ct == 0)
+            throw std::runtime_error(fmt::format("invalid usage, thread {} attempted to unlock shared_2 when shared_2 not locked", tid));
+
+        auto sh2_tid = shared2_tid_map.find(tid);
+
+        if (sh2_tid == shared2_tid_map.end())
+            throw std::runtime_error(fmt::format("invalid usage, thread {} attempted to unlock shared_2 but has no shared_2 lock", tid));
+
+        // Purge thread record
+        if (sh2_tid->second == 1)
+            shared2_tid_map.erase(sh2_tid);
+        else
+            sh2_tid->second--;
+
+        if (shared2_ct == 1) {
+            // We're done with this state, nobody holding it
+            state &= (~state_shared_2);
+            shared2_ct = 0;
+            state_2_cond.notify_one();
+        } else {
+            shared2_ct--;
+        }
+    }
+
     void lock_exclusive() {
-        std::unique_lock<std::mutex> lk(state_mutex);
+        std::unique_lock<std::mutex> lk(state_m);
+        return lock_exclusive_nr(lk);
+    }
 
-        // If this is a recursive lock in the same ownership thread, allow it immediately
-        // otherwise the caller will block
-        if ((state_mask & owned_entered) && owned_ct && owned_id == std::this_thread::get_id()) {
-            owned_ct++;
+    void lock_exclusive_nr(std::unique_lock<std::mutex>& lk) {
+        auto tid = std::this_thread::get_id();
+
+        // Recursive lock
+        if (tid == excl_tid) {
+            excl_ct++;
             return;
         }
 
-        // Flag we're trying to enter exclusive mode
-        state_mask |= owned_entered;
+        // Prevent cross-group deadlock; can lock as exclusive when already exclusive, but cannot lock as exclusive
+        // when we recursively own another state.
+        if (shared1_tid_map.find(tid) != shared1_tid_map.end())
+            throw std::runtime_error(fmt::format("deadlock prevented, thread {} attempted to lock exclusive while holding shared 1", tid));
+        if (shared2_tid_map.find(tid) != shared2_tid_map.end())
+            throw std::runtime_error(fmt::format("deadlock prevented, thread {} attempted to lock exclusive while holding shared 2", tid));
 
-        // Wait for the ownership count of the exclusive owner to discharge
-        owned_pending_ct++;
-
-        // Wait for shared locks to complete
-        while (group_1_ct || group_2_ct) {
-            cond_1.wait(lk);
+        // No contenders
+        if (state == 0) {
+            excl_ct = 1;
+            excl_tid = tid;
+            state |= state_excl;
+            return;
         }
 
-        // Wait for competing owned locks to complete
-        while (owned_ct) {
-            cond_2.wait(lk);
+        // Exclusive defers to 1, 2, then allows a new exclusive lock
+        while ((state & state_shared_1)) {
+            state_1_cond.wait(lk);
         }
 
-        owned_pending_ct--;
+        while ((state & state_shared_2)) {
+            state_2_cond.wait(lk);
+        }
 
-        // Increment and set owner
-        owned_id = std::this_thread::get_id();
-        owned_ct = 1;
+        // While another exclusive lock is held
+        if (excl_ct) {
+            excl_pend++;
+            // Increment the pending count, wait for a wakeup from pending exclusive mode
+            while (excl_ct)
+                state_e2_cond.wait(lk);
+            excl_pend--;
+        }
+
+        state |= state_excl;
+        excl_ct++;
+        excl_tid = tid;
     }
 
     bool try_lock_exclusive() {
-        if ((state_mask & owned_entered) && owned_id == std::this_thread::get_id()) {
-            owned_ct++;
+        std::unique_lock<std::mutex> lk(state_m);
+        return try_lock_exclusive_nr(lk);
+    }
+
+    bool try_lock_exclusive_nr(std::unique_lock<std::mutex>& lk) {
+        auto tid = std::this_thread::get_id();
+
+        if (tid == excl_tid) {
+            excl_ct++;
             return true;
         }
 
-        if (owned_ct && owned_id != std::this_thread::get_id())
-            return false;
+        if (shared1_tid_map.find(tid) != shared1_tid_map.end())
+            throw std::runtime_error(fmt::format("deadlock prevented, thread {} attempted to lock exclusive while holding shared 1", tid));
+        if (shared2_tid_map.find(tid) != shared2_tid_map.end())
+            throw std::runtime_error(fmt::format("deadlock prevented, thread {} attempted to lock exclusive while holding shared 2", tid));
 
-        if ((state_mask & group1_entered) || (state_mask & group2_entered))
-            return false;
+        if (state == 0) {
+            excl_ct = 1;
+            excl_tid = tid;
+            state |= state_excl;
+            return true;
+        }
 
-        state_mask |= owned_entered;
-        owned_id = std::this_thread::get_id();
-        owned_ct = 1;
-
-        return true;
+        return false;
     }
 
     void unlock_exclusive() {
-        std::lock_guard<std::mutex> lk(state_mutex);
-        unlock_exclusive_impl();
+        std::unique_lock<std::mutex> lk(state_m);
+        return unlock_exclusive_nr(lk);
     }
 
-protected:
-    void unlock_exclusive_impl() {
-        if (owned_ct == 0)
-            throw std::runtime_error("illegal unlock_exclusive when no exclusive lock held");
+    void unlock_exclusive_nr(std::unique_lock<std::mutex>& lk) {
+        auto tid = std::this_thread::get_id();
 
-        if (owned_id != std::this_thread::get_id())
-            throw std::runtime_error(fmt::format("illegal unlock_exclusive from {} when not "
-                        "the exclusive lock owner {}", std::this_thread::get_id(), owned_id));
+        // Safety
+        if (!(state & state_excl))
+            throw std::runtime_error(fmt::format("invalid usage, thread {} attempted to unlock exclusive when exclusive not locked", tid));
 
-        owned_ct--;
+        if (tid != excl_tid)
+            throw std::runtime_error(fmt::format("invalid usage, thread {} attempted to unlock exclusive but owned by {}", tid, excl_tid));
 
-        if (owned_ct == 0) {
-            owned_id = std::thread::id();
+        if (excl_ct == 0)
+            throw std::runtime_error(fmt::format("invalid usage, thread {} attempted to unlock exclusive but exclusive count 0", tid));
 
-            // If we have another exclusive ownership, we need to discharge it first because it's
-            // blocking g1 and g2
-            if (owned_pending_ct) {
-                cond_2.notify_one();
+        if (excl_ct == 1) {
+            excl_ct = 0;
+            excl_tid = std::thread::id();
+
+            // Are we done or do we have more exclusive locks queued up
+            if (excl_pend == 0) {
+                // We're done, clear exclusive state, reset, wake up next waiter
+                state &= (~state_excl);
+                state_e_cond.notify_one();
             } else {
-                // Clear ownership
-                state_mask &= ~owned_entered;
-                cond_1.notify_one();
+                // We've got another exclusive lock trying to get in, wake it up and let it absorb the
+                // exclusive lock state.  This may favor exclusive locks over the others; test.
+                state_e2_cond.notify_one();
             }
+        } else {
+            excl_ct--;
         }
     }
 
-    std::mutex state_mutex;
-    std::condition_variable cond_1;
-    std::condition_variable cond_2;
-    std::condition_variable cond_3;
+protected:
+    std::mutex state_m;
 
-    unsigned char state_mask;
+    std::condition_variable state_1_cond;
+    std::condition_variable state_2_cond;
+    std::condition_variable state_e_cond;
+    std::condition_variable state_e2_cond;
 
-    unsigned int group_1_ct;
-    unsigned int group_2_ct;
-    unsigned int owned_ct;
-    unsigned int owned_pending_ct;
+    unsigned int state;
+    static constexpr unsigned int state_shared_1 = (1U << 1);
+    static constexpr unsigned int state_shared_2 = (1U << 2);
+    static constexpr unsigned int state_excl = (1U << 3);
 
-    std::thread::id owned_id;
+    std::thread::id excl_tid;
+    unsigned int excl_ct;
+    unsigned int excl_pend;
 
-    static constexpr unsigned char group1_entered = 1U << 1;
-    static constexpr unsigned char group2_entered = 1U << 2;
-    static constexpr unsigned char owned_entered = 1U << 3;
+    using tid_map_t = std::unordered_map<std::thread::id, unsigned int>;
+    
+    tid_map_t shared1_tid_map;
+    unsigned int shared1_ct;
+
+    tid_map_t shared2_tid_map;
+    unsigned int shared2_ct;
+
 };
+
 
 class kis_default_shared_mutex {
 public:
@@ -291,9 +446,9 @@ public:
     kis_default_shared_mutex(const kis_default_shared_mutex&) = delete;
     kis_default_shared_mutex& operator=(const kis_default_shared_mutex&) = delete;
 
-    void lock() { return base.lock_group1(); }
-    bool try_lock() { return base.try_lock_group1(); }
-    void unlock() { return base.unlock_group1(); }
+    void lock() { return base.lock_shared_1(); }
+    bool try_lock() { return base.try_lock_shared_1(); }
+    void unlock() { return base.unlock_shared_1(); }
 
     void lock_exclusive() { return base.lock_exclusive(); }
     bool try_lock_exclusive() { return base.try_lock_exclusive(); }
@@ -315,9 +470,9 @@ class kis_shared_mutex {
     bool try_lock() { return base.try_lock_exclusive(); }
     void unlock() { return base.unlock_exclusive(); }
 
-    void lock_shared() { return base.lock_group1(); }
-    bool try_lock_shared() { return base.try_lock_group1(); }
-    void unlock_shared() { return base.unlock_group1(); }
+    void lock_shared() { return base.lock_shared_1(); }
+    bool try_lock_shared() { return base.try_lock_shared_1(); }
+    void unlock_shared() { return base.unlock_shared_1(); }
 
 private:
     kis_tristate_mutex base;
@@ -344,10 +499,10 @@ public:
     void lock() { 
         switch (mode) {
             case view_mode::group1:
-                mutex.lock_group1();
+                mutex.lock_shared_1();
                 break;
             case view_mode::group2:
-                mutex.lock_group2();
+                mutex.lock_shared_2();
                 break;
             case view_mode::exclusive:
                 mutex.lock_exclusive();
@@ -358,10 +513,10 @@ public:
     bool try_lock() { 
         switch (mode) {
             case view_mode::group1:
-                return mutex.try_lock_group1();
+                return mutex.try_lock_shared_1();
                 break;
             case view_mode::group2:
-                return mutex.try_lock_group2();
+                return mutex.try_lock_shared_2();
                 break;
             case view_mode::exclusive:
                 return mutex.try_lock_exclusive();
@@ -372,10 +527,10 @@ public:
     void unlock() { 
         switch (mode) {
             case view_mode::group1:
-                return mutex.unlock_group1();
+                return mutex.unlock_shared_1();
                 break;
             case view_mode::group2:
-                return mutex.unlock_group2();
+                return mutex.unlock_shared_2();
                 break;
             case view_mode::exclusive:
                 return mutex.unlock_exclusive();
@@ -460,13 +615,13 @@ public:
 
     void unlock() { return base.unlock_exclusive(); }
 
-    void lock_shared(const std::string name = "") { return base.lock_group1(); }
-    bool try_lock_shared(const std::string name = "") { return base.try_lock_group1(); }
+    void lock_shared(const std::string name = "") { return base.lock_shared_1(); }
+    bool try_lock_shared(const std::string name = "") { return base.try_lock_shared_1(); }
     bool try_lock_shared_for(const std::chrono::seconds& d, const std::string& agent_name = "UNKNOWN") {
         return try_lock_shared();
     }
 
-    void unlock_shared() { return base.unlock_group1(); }
+    void unlock_shared() { return base.unlock_shared_1(); }
 
     void set_name(std::string n) {
         mutex_name = n;
