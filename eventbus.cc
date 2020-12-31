@@ -191,9 +191,6 @@ void event_bus::event_queue_dispatcher() {
 
         // Reset the lock
         event_cl.lock();
-      
-        // Unlock our hold on the system
-        lock.unlock();
 
         // Wait until new events
         event_cl.block_until();

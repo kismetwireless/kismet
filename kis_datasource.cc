@@ -837,6 +837,7 @@ void kis_datasource::handle_packet_probesource_report(uint32_t in_seqno,
 void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno, 
         const std::string& in_content) {
     kis_unique_lock<kis_shared_mutex> lock(ext_mutex, std::defer_lock, "datasource handle_packet_opensource_report");
+    lock.lock();
 
     KismetDatasource::OpenSourceReport report;
 
