@@ -74,7 +74,7 @@ time_tracker::~time_tracker() {
 }
 
 void time_tracker::tick() {
-    local_demand_locker lock(&time_mutex);
+    kis_unique_lock<kis_shared_mutex> lock(time_mutex, std::defer_lock, "time_tracker tick");
 
     // Handle scheduled events
     struct timeval cur_tm;
@@ -98,7 +98,7 @@ void time_tracker::tick() {
     for (auto evt : action_timers) {
         // If we're pending cancellation, throw us out
         if (evt->timer_cancelled) {
-            local_locker rl(&removed_id_mutex);
+            kis_lock_guard<kis_shared_mutex> rl(removed_id_mutex);
             removed_timer_ids.push_back(evt->timer_id);
             continue;
         }
@@ -133,7 +133,7 @@ void time_tracker::tick() {
 
             timer_sort_required = true;
         } else {
-            local_locker rl(&removed_id_mutex);
+            kis_lock_guard<kis_shared_mutex> rl(removed_id_mutex);
             removed_timer_ids.push_back(evt->timer_id);
             continue;
         }
@@ -141,8 +141,10 @@ void time_tracker::tick() {
 
     {
         // Actually remove the timers under dual lock
-        local_locker l(&time_mutex);
-        local_locker rl(&removed_id_mutex);
+        std::lock(time_mutex, removed_id_mutex);
+        kis_lock_guard<kis_shared_mutex> l(time_mutex, std::adopt_lock);
+        kis_lock_guard<kis_shared_mutex> rl(removed_id_mutex, std::adopt_lock);
+        
         for (auto x : removed_timer_ids) {
             auto itr = timer_map.find(x);
 
@@ -165,7 +167,7 @@ void time_tracker::tick() {
 
 void time_tracker::time_dispatcher() {
     while (!shutdown && !Globalreg::globalreg->spindown && !Globalreg::globalreg->fatal_condition) {
-        local_demand_locker lock(&time_mutex, "timetracker::time_dispatcher");
+        kis_unique_lock<kis_shared_mutex> lock(time_mutex, std::defer_lock, "time_tracker time_dispatcher");
 
         // Calculate the next tick
         auto start = std::chrono::system_clock::now();
@@ -193,7 +195,7 @@ void time_tracker::time_dispatcher() {
         for (auto evt : action_timers) {
             // If we're pending cancellation, throw us out
             if (evt->timer_cancelled) {
-                local_locker rl(&removed_id_mutex);
+                kis_lock_guard<kis_shared_mutex> rl(removed_id_mutex);
                 removed_timer_ids.push_back(evt->timer_id);
                 continue;
             }
@@ -228,7 +230,7 @@ void time_tracker::time_dispatcher() {
 
                 timer_sort_required = true;
             } else {
-                local_locker rl(&removed_id_mutex);
+                kis_lock_guard<kis_shared_mutex> rl(removed_id_mutex);
                 removed_timer_ids.push_back(evt->timer_id);
                 continue;
             }
@@ -236,8 +238,10 @@ void time_tracker::time_dispatcher() {
 
         {
             // Actually remove the timers under dual lock
-            local_locker l(&time_mutex);
-            local_locker rl(&removed_id_mutex);
+            std::lock(time_mutex, removed_id_mutex);
+            kis_lock_guard<kis_shared_mutex> l(time_mutex, std::adopt_lock);
+            kis_lock_guard<kis_shared_mutex> rl(removed_id_mutex, std::adopt_lock);
+
             for (auto x : removed_timer_ids) {
                 auto itr = timer_map.find(x);
 
@@ -273,7 +277,7 @@ int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
                                int in_recurring, 
                                int (*in_callback)(TIMEEVENT_PARMS),
                                void *in_parm) {
-    local_locker l(&time_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(time_mutex);
 
     timer_event *evt = new timer_event;
 
@@ -306,7 +310,7 @@ int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
 
 int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
         int in_recurring, time_tracker_event *in_event) {
-    local_locker l(&time_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(time_mutex);
 
     timer_event *evt = new timer_event;
 
@@ -350,7 +354,7 @@ int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
 
 int time_tracker::register_timer(int in_timeslices, struct timeval *in_trigger,
         int in_recurring, std::function<int (int)> in_event) {
-    local_locker l(&time_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(time_mutex);
 
     timer_event *evt = new timer_event;
 
@@ -397,7 +401,7 @@ int time_tracker::register_timer(const slice& in_timeslices,
                                int in_recurring, 
                                int (*in_callback)(TIMEEVENT_PARMS),
                                void *in_parm) {
-    local_locker l(&time_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(time_mutex);
 
     timer_event *evt = new timer_event;
 
@@ -429,7 +433,7 @@ int time_tracker::register_timer(const slice& in_timeslices,
 
 int time_tracker::register_timer(const slice& in_timeslices,
         int in_recurring, std::function<int (int)> in_event) {
-    local_locker l(&time_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(time_mutex);
 
     timer_event *evt = new timer_event;
 
@@ -470,14 +474,14 @@ int time_tracker::remove_timer(int in_timerid) {
     // Removing a timer sets the atomic cancelled and puts us on the abort list;
     // we'll get cleaned out of the main list the next iteration through the main code.
     
-    local_locker lock(&time_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(time_mutex);
 
     auto itr = timer_map.find(in_timerid);
 
     if (itr != timer_map.end()) {
         itr->second->timer_cancelled = true;
 
-        local_locker rl(&removed_id_mutex);
+        kis_lock_guard<kis_shared_mutex> lk(removed_id_mutex);
         removed_timer_ids.push_back(in_timerid);
     } else {
         return 0;

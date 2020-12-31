@@ -342,7 +342,7 @@ void config_file::set_opt_dirty(const std::string& in_key, int in_dirty) {
 }
 
 void config_file::set_opt(const std::string& in_key, const std::string& in_val, int in_dirty) {
-    kis_lock_guard<kis_shared_mutex> lk(config_file, "config_file set_opt");
+    kis_lock_guard<kis_shared_mutex> lk(config_locker, "config_file set_opt");
 
     std::vector<config_entity> v;
     config_entity e(in_val, "::dynamic::");

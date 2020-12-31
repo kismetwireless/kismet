@@ -179,7 +179,7 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
         if (basedev->get_macaddr() != dot11info->bssid_mac)
             continue;
 
-        auto lk = std::lock_guard<kis_recursive_timed_mutex>(basedev->device_mutex);
+        auto lk = std::lock_guard<kis_shared_mutex>(basedev->device_mutex);
 
         if (dot11info->droneid != NULL) {
             try {
@@ -302,7 +302,7 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
 }
 
 bool Kis_UAV_Phy::parse_manuf_definition(std::string in_def) {
-    local_locker lock(&uav_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(uav_mutex);
 
     size_t cpos = in_def.find(':');
 

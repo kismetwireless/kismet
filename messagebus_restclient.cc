@@ -48,7 +48,7 @@ rest_message_client::rest_message_client() :
 
                 auto msg = std::static_pointer_cast<tracked_message>(msg_k->second);
 
-                local_locker l(&msg_mutex, "message event");
+                kis_lock_guard<kis_shared_mutex> lk(msg_mutex, "rest_message_client message_event");
                 message_list.push_back(msg);
 
                 if (message_list.size() > 50)
@@ -63,7 +63,7 @@ rest_message_client::rest_message_client() :
                     auto ts_k = con->uri_params().find(":timestamp");
                     auto ts = string_to_n<long>(ts_k->second);
 
-                    local_locker l(&msg_mutex, "/messagebus/last-time/messages");
+                    kis_lock_guard<kis_shared_mutex> lk(msg_mutex, "/messagebus/last-time/messages");
                     auto wrapper = std::make_shared<tracker_element_map>();
                     auto msgvec = std::make_shared<tracker_element_vector>(message_vec_id);
 
@@ -80,7 +80,7 @@ rest_message_client::rest_message_client() :
     httpd->register_route("/messagebus/all_messages", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-                    local_locker l(&msg_mutex, "/messagebus/all_messages");
+                    kis_lock_guard<kis_shared_mutex> lk(msg_mutex, "/messagebus/all_messages");
 
                     auto ret = std::make_shared<tracker_element_vector>();
                     for (auto i : message_list) 

@@ -109,7 +109,7 @@ public:
 
     virtual void pre_serialize() override {
         // We have to protect our maps so we lock around them
-        local_eol_locker el(&mutex);
+        mutex.lock();
 
         set_advertising_device_len(advertising_device_map->size());
         set_probing_device_len(probing_device_map->size());
@@ -117,7 +117,7 @@ public:
     }
 
     virtual void post_serialize() override {
-        local_unlocker ul(&mutex);
+        mutex.unlock();
     }
 
 protected:

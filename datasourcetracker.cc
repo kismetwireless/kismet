@@ -197,7 +197,6 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (shared_d
 }
 
 datasource_tracker_source_list::datasource_tracker_source_list(std::shared_ptr<tracker_element_vector> in_protovec) :
-    list_lock {std::make_shared<kis_recursive_timed_mutex>()},
     timetracker {Globalreg::fetch_mandatory_global_as<time_tracker>()},
     proto_vec {in_protovec},
     transaction_id {0},
@@ -1607,7 +1606,7 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
 
     shared_datasource merge_target_device;
      
-    kis_lock_guard<kis_shared_mutex> lk(dst_lock, "dst open_remote_datasource");
+    kis_unique_lock<kis_shared_mutex> lock(dst_lock, "dst open_remote_datasource");
 
     // _MSG_DEBUG("merging incoming {} {} {}", in_type, in_definition, in_uuid);
 

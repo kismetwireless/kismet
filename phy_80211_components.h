@@ -265,7 +265,7 @@ public:
 
     void set_allowed_macs(std::vector<mac_addr> mvec);
 
-    bool compare_ssid(std::string ssid, mac_addr mac);
+    bool compare_ssid(const std::string& ssid, mac_addr mac);
 
 protected:
     kis_shared_mutex ssid_mutex;

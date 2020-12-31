@@ -73,11 +73,11 @@ stream_tracker::stream_tracker() :
 }
 
 stream_tracker::~stream_tracker() {
-    local_locker lock(&mutex);
+
 }
 
 void stream_tracker::cancel_streams() {
-    local_locker l(&mutex, "cancel streams");
+    kis_lock_guard<kis_shared_mutex> lk(mutex, "stream_tracker cancel_streams");
 
     for (auto s_i : *tracked_stream_map) {
         auto s = std::static_pointer_cast<streaming_info_record>(s_i.second);
@@ -88,7 +88,7 @@ void stream_tracker::cancel_streams() {
 double stream_tracker::register_streamer(std::shared_ptr<streaming_agent> in_agent,
         std::string in_name, std::string in_type, std::string in_path, std::string in_description) {
 
-    local_locker lock(&mutex);
+    kis_lock_guard<kis_shared_mutex> lk(mutex, "stream_tracker register_streamer");
 
     auto streamrec =
         std::make_shared<streaming_info_record>(info_builder_id);
@@ -107,7 +107,7 @@ double stream_tracker::register_streamer(std::shared_ptr<streaming_agent> in_age
 }
 
 void stream_tracker::remove_streamer(double in_id) {
-    local_locker lock(&mutex);
+    kis_lock_guard<kis_shared_mutex> lk(mutex, "stream_tracker remove_streamer");
 
     auto si = tracked_stream_map->find(in_id);
 

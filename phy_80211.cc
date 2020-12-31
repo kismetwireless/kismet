@@ -730,7 +730,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                             std::unique_lock<kis_tristate_mutex_view>(devicetracker->get_devicelist_share(), 
                                     std::defer_lock);
                         auto dev_locker =
-                            std::unique_lock<kis_recursive_timed_mutex>(dev->device_mutex);
+                            std::unique_lock<kis_shared_mutex>(dev->device_mutex);
 
                         std::lock(list_locker, dev_locker);
 
@@ -1020,7 +1020,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
     std::shared_ptr<dot11_tracked_device> transmit_dot11;
 
     // Mock mutexes for atomic lock later
-    kis_recursive_timed_mutex bssid_junk_mutex, source_junk_mutex, dest_junk_mutex, tx_junk_mutex, rx_junk_mutex;
+    kis_shared_mutex bssid_junk_mutex, source_junk_mutex, dest_junk_mutex, tx_junk_mutex, rx_junk_mutex;
     auto bssid_mutex = &bssid_junk_mutex;
     auto source_mutex = &source_junk_mutex;
     auto dest_mutex = &dest_junk_mutex;
@@ -1112,11 +1112,11 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
         auto list_locker = 
             std::unique_lock<kis_tristate_mutex_view>(d11phy->devicetracker->get_devicelist_write(), std::defer_lock);
-        auto bssid_locker = std::unique_lock<kis_recursive_timed_mutex>(*bssid_mutex, std::defer_lock);
-        auto source_locker = std::unique_lock<kis_recursive_timed_mutex>(*source_mutex, std::defer_lock);
-        auto dest_locker = std::unique_lock<kis_recursive_timed_mutex>(*dest_mutex, std::defer_lock);
-        auto tx_locker = std::unique_lock<kis_recursive_timed_mutex>(*tx_mutex, std::defer_lock);
-        auto rx_locker = std::unique_lock<kis_recursive_timed_mutex>(*rx_mutex, std::defer_lock);
+        auto bssid_locker = std::unique_lock<kis_shared_mutex>(*bssid_mutex, std::defer_lock);
+        auto source_locker = std::unique_lock<kis_shared_mutex>(*source_mutex, std::defer_lock);
+        auto dest_locker = std::unique_lock<kis_shared_mutex>(*dest_mutex, std::defer_lock);
+        auto tx_locker = std::unique_lock<kis_shared_mutex>(*tx_mutex, std::defer_lock);
+        auto rx_locker = std::unique_lock<kis_shared_mutex>(*rx_mutex, std::defer_lock);
 
         std::lock(list_locker, bssid_locker, source_locker, dest_locker, tx_locker, rx_locker);
 
@@ -1431,7 +1431,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             for (const auto& ri : *(bss_worker.getMatchedDevices())) {
                 auto rdev = std::static_pointer_cast<kis_tracked_device_base>(ri);
 
-                std::lock_guard<kis_recursive_timed_mutex> lg(rdev->device_mutex);
+                std::lock_guard<kis_shared_mutex> lg(rdev->device_mutex);
                 rdev->add_related_device("dot11_bssts_similar", bssid_dev->get_key());
             }
         }
@@ -1553,11 +1553,11 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
         auto list_locker = 
             std::unique_lock<kis_tristate_mutex_view>(d11phy->devicetracker->get_devicelist_write(), std::defer_lock);
-        auto bssid_locker = std::unique_lock<kis_recursive_timed_mutex>(*bssid_mutex, std::defer_lock);
-        auto source_locker = std::unique_lock<kis_recursive_timed_mutex>(*source_mutex, std::defer_lock);
-        auto dest_locker = std::unique_lock<kis_recursive_timed_mutex>(*dest_mutex, std::defer_lock);
-        auto tx_locker = std::unique_lock<kis_recursive_timed_mutex>(*tx_mutex, std::defer_lock);
-        auto rx_locker = std::unique_lock<kis_recursive_timed_mutex>(*rx_mutex, std::defer_lock);
+        auto bssid_locker = std::unique_lock<kis_shared_mutex>(*bssid_mutex, std::defer_lock);
+        auto source_locker = std::unique_lock<kis_shared_mutex>(*source_mutex, std::defer_lock);
+        auto dest_locker = std::unique_lock<kis_shared_mutex>(*dest_mutex, std::defer_lock);
+        auto tx_locker = std::unique_lock<kis_shared_mutex>(*tx_mutex, std::defer_lock);
+        auto rx_locker = std::unique_lock<kis_shared_mutex>(*rx_mutex, std::defer_lock);
 
         std::lock(list_locker, bssid_locker, source_locker, dest_locker, tx_locker, rx_locker);
 
@@ -1988,7 +1988,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
             std::unique_lock<kis_tristate_mutex_view>(d11phy->devicetracker->get_devicelist_write(), 
                     std::defer_lock);
         auto dev_locker =
-            std::unique_lock<kis_recursive_timed_mutex>(bssid_dev->device_mutex);
+            std::unique_lock<kis_shared_mutex>(bssid_dev->device_mutex);
         std::lock(list_locker, dev_locker);
 
         auto bssid_dot11 =
@@ -2940,7 +2940,7 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
             dot11info->subtype == packet_sub_association_req ||
             dot11info->subtype == packet_sub_reassociation_req) {
 
-        std::unique_lock<kis_recursive_timed_mutex> lk(basedev->device_mutex);
+        std::unique_lock<kis_shared_mutex> lk(basedev->device_mutex);
 
         auto ssid_itr = probemap->find(dot11info->ssid_csum);
 
@@ -3074,7 +3074,7 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
                 lk.unlock();
                 for (const auto& ri : *(dev_worker.getMatchedDevices())) {
                     auto rdev = std::static_pointer_cast<kis_tracked_device_base>(ri);
-                    std::lock_guard<kis_recursive_timed_mutex> lk(rdev->device_mutex);
+                    std::lock_guard<kis_shared_mutex> lk(rdev->device_mutex);
                     rdev->add_related_device("dot11_uuid_e", basedev->get_key());
                 }
             }
@@ -3679,7 +3679,7 @@ void kis_80211_phy::generate_handshake_pcap(std::shared_ptr<kis_net_beast_httpd_
     auto list_locker = 
         std::unique_lock<kis_tristate_mutex_view>(devicetracker->get_devicelist_write(), std::defer_lock);
     auto dev_locker =
-        std::unique_lock<kis_recursive_timed_mutex>(dev->device_mutex);
+        std::unique_lock<kis_shared_mutex>(dev->device_mutex);
 
     std::lock(list_locker, dev_locker);
 

@@ -32,7 +32,7 @@ std::shared_ptr<tracker_element_vector> tracker_element_worker::do_work(std::sha
 }
 
 void tracker_element_worker::set_matched_elements(std::shared_ptr<tracker_element_vector> elements) {
-    local_locker l(&mutex);
+    kis_lock_guard<kis_shared_mutex> lk(mutex);
     matched->clear();
     matched->set(elements->begin(), elements->end());
 }

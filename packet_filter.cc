@@ -47,7 +47,7 @@ packet_filter::packet_filter(const std::string& in_id, const std::string& in_des
     httpd->register_route(url, {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this, url](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-                    local_locker l(&mutex, url);
+                    kis_lock_guard<kis_shared_mutex> lk(mutex, url);
                     return self_endp_handler();
                 }));
 
@@ -56,7 +56,7 @@ packet_filter::packet_filter(const std::string& in_id, const std::string& in_des
     httpd->register_route(url, {"POST"}, httpd->LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this, posturl](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-                    local_locker l(&mutex, posturl);
+                    kis_lock_guard<kis_shared_mutex> lk(mutex, posturl);
                     return default_set_endp_handler(con);
                 }));
 }
@@ -136,14 +136,14 @@ packet_filter_mac_addr::packet_filter_mac_addr(const std::string& in_id, const s
     httpd->register_route(seturl, {"POST"}, httpd->LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this, seturl](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-                    local_locker l(&mutex, seturl);
+                    kis_lock_guard<kis_shared_mutex> lk(mutex, seturl);
                     return edit_endp_handler(con);
                 }));
 
     httpd->register_route(remurl, {"POST"}, httpd->LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this, seturl](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-                    local_locker l(&mutex, seturl);
+                    kis_lock_guard<kis_shared_mutex> lk(mutex, seturl);
                     return remove_endp_handler(con);
                 }));
 
@@ -157,7 +157,7 @@ packet_filter_mac_addr::~packet_filter_mac_addr() {
 }
 
 void packet_filter_mac_addr::update_phy_map(std::shared_ptr<eventbus_event> evt) {
-    local_locker l(&mutex);
+    kis_lock_guard<kis_shared_mutex> lk(mutex);
 
     if (unknown_phy_mac_filter_map.size() == 0)
         return;
@@ -187,8 +187,9 @@ void packet_filter_mac_addr::update_phy_map(std::shared_ptr<eventbus_event> evt)
     unknown_phy_mac_filter_map.erase(unknown_key);
 }
 
-void packet_filter_mac_addr::set_filter(mac_addr in_mac, const std::string& in_phy, const std::string& in_block, bool value) {
-	local_locker l(&mutex);
+void packet_filter_mac_addr::set_filter(mac_addr in_mac, const std::string& in_phy, 
+        const std::string& in_block, bool value) {
+    kis_lock_guard<kis_shared_mutex> lk(mutex);
 
 	// Build the tracked version of the record, building any containers we need along the way, this
 	// always gets built even for unknown phys
@@ -279,7 +280,7 @@ void packet_filter_mac_addr::set_filter(mac_addr in_mac, const std::string& in_p
 }
 
 void packet_filter_mac_addr::remove_filter(mac_addr in_mac, const std::string& in_phy, const std::string& in_block) {
-	local_locker l(&mutex);
+    kis_lock_guard<kis_shared_mutex> lk(mutex);
 
 	// Build the tracked version of the record, building any containers we need along the way, this
 	// always gets built even for unknown phys
