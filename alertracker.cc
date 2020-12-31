@@ -152,7 +152,7 @@ alert_tracker::alert_tracker() : lifetime_global() {
 }
 
 alert_tracker::~alert_tracker() {
-    local_locker lock(&alert_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(alert_mutex, "~alertracker");
 
     Globalreg::globalreg->remove_global("ALERTTRACKER");
     Globalreg::globalreg->alertracker = NULL;
@@ -190,7 +190,7 @@ void alert_tracker::prelude_init_client(const char *analyzer_name) {
 int alert_tracker::register_alert(std::string in_header, std::string in_description, 
         alert_time_unit in_unit, int in_rate, alert_time_unit in_burstunit,
         int in_burst, int in_phy) {
-    local_locker lock(&alert_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(alert_mutex, "alert_tracker register_alert");
 
     // Bail if this header is registered
     if (alert_name_map.find(in_header) != alert_name_map.end()) {
@@ -234,7 +234,7 @@ int alert_tracker::register_alert(std::string in_header, std::string in_descript
 }
 
 int alert_tracker::fetch_alert_ref(std::string in_header) {
-    local_locker lock(&alert_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(alert_mutex, "alert_tracker fetch_alert_ref");
 
     auto ni = alert_name_map.find(in_header);
 
@@ -278,7 +278,7 @@ int alert_tracker::check_times(shared_alert_def arec) {
 }
 
 int alert_tracker::potential_alert(int in_ref) {
-    local_locker lock(&alert_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(alert_mutex, "alert_tracker potential_alert");
 
     std::map<int, shared_alert_def>::iterator aritr = alert_ref_map.find(in_ref);
 
@@ -294,7 +294,7 @@ int alert_tracker::raise_alert(int in_ref, kis_packet *in_pack,
         mac_addr bssid, mac_addr source, mac_addr dest, 
         mac_addr other, std::string in_channel, std::string in_text) {
 
-    local_demand_locker lock(&alert_mutex);
+    kis_unique_lock<kis_shared_mutex> lock(alert_mutex, std::defer_lock, "alert_tracker raise_alert");
 
     lock.lock();
 
@@ -378,7 +378,7 @@ int alert_tracker::raise_alert(int in_ref, kis_packet *in_pack,
 }
 
 int alert_tracker::raise_one_shot(std::string in_header, std::string in_text, int in_phy) {
-    local_demand_locker lock(&alert_mutex);
+    kis_unique_lock<kis_shared_mutex> lock(alert_mutex, std::defer_lock, "alert_tracker raise_one_shot");
 
 	kis_alert_info info;
 
@@ -577,7 +577,7 @@ int alert_tracker::parse_alert_config(config_file *in_conf) {
 
 int alert_tracker::define_alert(std::string name, alert_time_unit limit_unit, int limit_rate,
         alert_time_unit burst_unit, int burst_rate) {
-    local_locker lock(&alert_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(alert_mutex, "alert_tracker define_alert");
 
     auto ai = alert_conf_map.find(str_upper(name));
     if (ai != alert_conf_map.end()) {
@@ -605,7 +605,7 @@ int alert_tracker::activate_configured_alert(std::string in_header, std::string 
     alert_conf_rec *rec;
 
     {
-        local_locker lock(&alert_mutex);
+        kis_lock_guard<kis_shared_mutex> lk(alert_mutex, "alert_tracker activate_configured_alert");
 
         std::string hdr = str_upper(in_header);
 
@@ -632,7 +632,7 @@ int alert_tracker::activate_configured_alert(std::string in_header, std::string 
 }
 
 int alert_tracker::find_activated_alert(std::string in_header) {
-    local_locker lock(&alert_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(alert_mutex, "alert_tracker find_activated_alert");
 
     for (auto x : alert_ref_map) {
         if (x.second->get_header() == in_header)
@@ -673,7 +673,7 @@ alert_tracker::last_alerts_endpoint(std::shared_ptr<kis_net_beast_httpd_connecti
     }
 
     {
-        local_locker lock(&alert_mutex);
+        kis_lock_guard<kis_shared_mutex> lk(alert_mutex, "alert_tracker last_alerts_endpoint");
 
         for (auto i : *alert_backlog_vec) {
             auto ai = std::static_pointer_cast<tracked_alert>(i);

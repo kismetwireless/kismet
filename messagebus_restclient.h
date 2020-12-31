@@ -50,7 +50,7 @@ public:
 	virtual ~rest_message_client();
 
 protected:
-    kis_recursive_timed_mutex msg_mutex;
+    kis_shared_mutex msg_mutex;
 
     std::shared_ptr<event_bus> eventbus;
 

@@ -143,7 +143,7 @@ public:
     };
 
 protected:
-    kis_recursive_timed_mutex mutex;
+    kis_shared_mutex mutex;
     std::map<char, std::shared_ptr<tracker_element_string>> atype_map;
 
     gzFile zmfile;

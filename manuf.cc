@@ -105,7 +105,7 @@ void kis_manuf::IndexOUI() {
     short int m[3];
     uint32_t last_oui = 0;
 
-    local_locker l(&mutex);
+    kis_lock_guard<kis_shared_mutex> lk(mutex);
 
     if (zmfile == nullptr)
         return;
@@ -169,7 +169,7 @@ std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(mac_addr in_mac) {
         return unknown_manuf;
 
     {
-        local_shared_locker sl(&mutex);
+        kis_shared_lock_guard<kis_shared_mutex> lk(mutex);
 
         // Use the cache first
         if (oui_map.find(soui) != oui_map.end()) {
@@ -201,7 +201,7 @@ std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(mac_addr in_mac) {
     }
 
     {
-        local_locker l(&mutex);
+        kis_lock_guard<kis_shared_mutex> lk(mutex);
 
         gzseek(zmfile, index_vec[matched].pos, SEEK_SET);
 
@@ -259,7 +259,7 @@ std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(uint32_t in_oui) {
         return unknown_manuf;
 
     {
-        local_shared_locker sl(&mutex);
+        kis_shared_lock_guard<kis_shared_mutex> lk(mutex);
 
         // Use the cache first
         if (oui_map.find(soui) != oui_map.end()) {
@@ -291,7 +291,7 @@ std::shared_ptr<tracker_element_string> kis_manuf::lookup_oui(uint32_t in_oui) {
     }
 
     {
-        local_locker l(&mutex); 
+        kis_lock_guard<kis_shared_mutex> lk(mutex);
 
         gzseek(zmfile, index_vec[matched].pos, SEEK_SET);
 

@@ -211,7 +211,7 @@ public:
     void cancel_streams();
    
 protected:
-    kis_recursive_timed_mutex mutex;
+    kis_shared_mutex mutex;
 
     std::shared_ptr<tracker_element_double_map> tracked_stream_map;
 

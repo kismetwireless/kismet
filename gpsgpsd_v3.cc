@@ -667,7 +667,7 @@ void kis_gps_gpsd_v3::handle_read(std::shared_ptr<kis_gps_gpsd_v3> ref,
 }
 
 bool kis_gps_gpsd_v3::open_gps(std::string in_opts) {
-    local_locker lock(gps_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(gps_mutex, "gps_gpsd_v3 open_gps");
 
     if (!kis_gps::open_gps(in_opts))
         return false;
@@ -724,7 +724,7 @@ bool kis_gps_gpsd_v3::open_gps(std::string in_opts) {
 }
 
 bool kis_gps_gpsd_v3::get_location_valid() {
-    local_shared_locker lock(gps_mutex, "gpsdv3 get_location_valid");
+    kis_lock_guard<kis_shared_mutex> lk(gps_mutex, "gps_gpsd_v3 get_location_valid");
 
     if (!get_device_connected()) {
         return false;

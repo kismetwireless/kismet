@@ -31,7 +31,7 @@ kis_httpd_registry::kis_httpd_registry() :
     httpd->register_unauth_route("/dynamic.json", {"GET"}, 
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-                    local_shared_locker(&reg_lock, "/dynamic.json");
+                    kis_shared_lock_guard<kis_shared_mutex> lk(reg_lock, "httpd_registry /dynamic.json");
 
                     Json::Value root(Json::objectValue);
                     Json::Value vec(Json::arrayValue);
@@ -52,12 +52,11 @@ kis_httpd_registry::kis_httpd_registry() :
 }
 
 kis_httpd_registry::~kis_httpd_registry() {
-    local_locker lock(&reg_lock);
 
 }
 
 bool kis_httpd_registry::register_js_module(std::string in_module, std::string in_path) {
-    local_locker lock(&reg_lock);
+    kis_lock_guard<kis_shared_mutex> lk(reg_lock);
 
     if (js_module_path_map.find(in_module) != js_module_path_map.end()) {
         _MSG_ERROR("HTTPD Module Registry: Module '{}' already registered",

@@ -353,7 +353,7 @@ protected:
     std::shared_ptr<tracker_element_vector> immutable_tracked_vec;
 
     // List of views using new API as we transition the rest to the new API
-    kis_recursive_timed_mutex view_mutex;
+    kis_shared_mutex view_mutex;
     std::shared_ptr<tracker_element_vector> view_vec;
 
     using shared_con = std::shared_ptr<kis_net_beast_httpd_connection>;
@@ -369,7 +369,7 @@ protected:
 	// Registered PHY types
 	int next_phy_id;
     robin_hood::unordered_node_map<int, kis_phy_handler *> phy_handler_map;
-    kis_recursive_timed_mutex phy_mutex;
+    kis_shared_mutex phy_mutex;
 
     // New multimutex primitive
     kis_tristate_mutex devicelist_tristate;
@@ -377,13 +377,13 @@ protected:
     kis_tristate_mutex_view devicelist_ts_write_view;
     kis_tristate_mutex_view devicelist_ts_excl_view;
 
-    kis_recursive_timed_mutex storing_mutex;
+    kis_shared_mutex storing_mutex;
     std::atomic<bool> devices_storing;
 
     // If we log devices to the kismet database...
     int databaselog_timer;
     time_t last_database_logged;
-    kis_recursive_timed_mutex databaselog_mutex;
+    kis_shared_mutex databaselog_mutex;
     bool databaselog_logging;
 
     // Do we constrain memory by not tracking RRD data?
@@ -406,14 +406,11 @@ protected:
 
     // Cached device type map
     std::map<std::string, std::shared_ptr<tracker_element_string>> device_type_cache;
-    kis_recursive_timed_mutex device_type_cache_mutex;
+    kis_shared_mutex device_type_cache_mutex;
 
     // Cached phyname map
     std::map<std::string, std::shared_ptr<tracker_element_string>> device_phy_name_cache;
-    kis_recursive_timed_mutex device_phy_name_cache_mutex;
-
-    // TO BE CUT
-    kis_recursive_timed_mutex range_mutex;
+    kis_shared_mutex device_phy_name_cache_mutex;
 };
 
 class devicelist_scope_locker {

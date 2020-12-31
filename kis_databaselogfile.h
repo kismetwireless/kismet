@@ -170,7 +170,7 @@ protected:
 
     // Keep track of our commit cycles; to avoid thrashing the filesystem with
     // commit state we run a 10 second tranasction commit loop
-    kis_recursive_timed_mutex transaction_mutex;
+    kis_shared_mutex transaction_mutex;
     int transaction_timer;
 
     // Packet time limit

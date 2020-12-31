@@ -151,17 +151,17 @@ protected:
     bool allow_auth_creation;
     bool allow_auth_view;
 
-    kis_recursive_timed_mutex mime_mutex;
+    kis_shared_mutex mime_mutex;
     std::unordered_map<std::string, std::string> mime_map;
 
-    kis_recursive_timed_mutex route_mutex;
+    kis_shared_mutex route_mutex;
     std::vector<std::shared_ptr<kis_net_beast_route>> route_vec;
     std::vector<std::shared_ptr<kis_net_beast_route>> websocket_route_vec;
 
-    kis_recursive_timed_mutex auth_mutex;
+    kis_shared_mutex auth_mutex;
     std::vector<std::shared_ptr<kis_net_beast_auth>> auth_vec;
 
-    kis_recursive_timed_mutex static_mutex;
+    kis_shared_mutex static_mutex;
     class static_content_dir {
     public:
         static_content_dir(const std::string& prefix, const std::string& path) :
@@ -407,7 +407,7 @@ public:
         post_func{post_func} { }
 
     kis_net_web_function_endpoint(function_t function,
-            kis_recursive_timed_mutex& mutex,
+            kis_shared_mutex& mutex,
             wrapper_func_t pre_func = nullptr,
             wrapper_func_t post_func = nullptr) : 
         kis_net_web_endpoint{},
@@ -423,8 +423,8 @@ public:
 protected:
     function_t function;
 
-    kis_recursive_timed_mutex& mutex;
-    kis_recursive_timed_mutex dfl_mutex;
+    kis_shared_mutex& mutex;
+    kis_shared_mutex dfl_mutex;
 
     wrapper_func_t pre_func, post_func;
 };
@@ -436,7 +436,7 @@ public:
     using wrapper_func_t = std::function<void (std::shared_ptr<tracker_element>)>;
 
     kis_net_web_tracked_endpoint(std::shared_ptr<tracker_element> content,
-            kis_recursive_timed_mutex& mutex,
+            kis_shared_mutex& mutex,
             wrapper_func_t pre_func = nullptr,
             wrapper_func_t post_func = nullptr) : 
         content{content},
@@ -456,7 +456,7 @@ public:
         pre_func{pre_func},
         post_func{post_func} { }
 
-    kis_net_web_tracked_endpoint(gen_func_t generator, kis_recursive_timed_mutex& mutex) :
+    kis_net_web_tracked_endpoint(gen_func_t generator, kis_shared_mutex& mutex) :
         mutex{mutex},
         generator{generator} { }
 
@@ -465,8 +465,8 @@ public:
 protected:
     std::shared_ptr<tracker_element> content;
 
-    kis_recursive_timed_mutex& mutex;
-    kis_recursive_timed_mutex dfl_mutex;
+    kis_shared_mutex& mutex;
+    kis_shared_mutex dfl_mutex;
 
     gen_func_t generator;
     wrapper_func_t pre_func;

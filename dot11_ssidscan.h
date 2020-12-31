@@ -98,7 +98,7 @@ public:
     virtual ~dot11_ssid_scan();
 
 protected:
-    kis_recursive_timed_mutex mutex;
+    kis_shared_mutex mutex;
 
     // Are we active at all?
     std::shared_ptr<tracker_element_uint8> ssidscan_enabled;

@@ -183,7 +183,7 @@ public:
     static std::string event_gps_location() { return "GPS_LOCATION"; }
 
 protected:
-    kis_recursive_timed_mutex gpsmanager_mutex;
+    kis_shared_mutex gpsmanager_mutex;
 
     std::shared_ptr<tracker_element_vector> gps_prototypes_vec;
 

@@ -72,7 +72,7 @@ public:
 
     virtual int serialize(shared_tracker_element in_elem, std::ostream &stream,
             std::shared_ptr<rename_map> name_map = nullptr) override {
-        local_locker lock(&mutex);
+        kis_lock_guard<kis_shared_mutex> lk(mutex, "ek_json serialize");
 
         if (in_elem->get_type() == tracker_type::tracker_vector) {
             for (auto i : *(std::static_pointer_cast<tracker_element_vector>(in_elem))) {
@@ -108,7 +108,7 @@ public:
 
     virtual int serialize(shared_tracker_element in_elem, std::ostream &stream,
             std::shared_ptr<rename_map> name_map = nullptr) override {
-        local_locker lock(&mutex);
+        kis_lock_guard<kis_shared_mutex> lk(mutex, "it_json serialize");
 
         if (in_elem->get_type() == tracker_type::tracker_vector) {
             for (auto i : *(std::static_pointer_cast<tracker_element_vector>(in_elem))) {

@@ -52,7 +52,8 @@ void kis_datasource_linux_bluetooth::handle_packet_linuxbtdevice(uint32_t in_seq
 
     // If we're paused, throw away this packet
     {
-        local_locker lock(&ext_mutex, "datasource_bluetooth::handle_packet_linuxbtdevice");
+        kis_lock_guard<kis_shared_mutex> lk(ext_mutex, 
+                "kis_datasource_linux_bluetooth handle_packet_linuxbtdevice");
 
         if (get_source_paused())
             return;

@@ -74,7 +74,7 @@ global_registry::global_registry() {
 
 // External globals -- allow other things to tie structs to us
 int global_registry::RegisterGlobal(std::string in_name) {
-    local_locker lock(&ext_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(ext_mutex, "global_registry register_global");
 
     std::map<std::string, int>::iterator i;
 
@@ -89,7 +89,7 @@ int global_registry::RegisterGlobal(std::string in_name) {
 }
 
 int global_registry::FetchGlobalRef(std::string in_name) {
-    local_shared_locker lock(&ext_mutex);
+    kis_shared_lock_guard<kis_shared_mutex> lk(ext_mutex, "global_registry fetch_global_ref");
 
     auto extref = ext_name_map.find(str_lower(in_name));
 
@@ -100,7 +100,7 @@ int global_registry::FetchGlobalRef(std::string in_name) {
 }
 
 std::shared_ptr<void> global_registry::FetchGlobal(int in_ref) {
-    local_shared_locker lock(&ext_mutex);
+    kis_shared_lock_guard<kis_shared_mutex> lk(ext_mutex, "global_registry fetch_global");
 
 	if (ext_data_map.find(in_ref) == ext_data_map.end())
 		return NULL;
@@ -109,7 +109,7 @@ std::shared_ptr<void> global_registry::FetchGlobal(int in_ref) {
 }
 
 std::shared_ptr<void> global_registry::FetchGlobal(std::string in_name) {
-    local_shared_locker lock(&ext_mutex);
+    kis_shared_lock_guard<kis_shared_mutex> lk(ext_mutex, "global_registry fetch_global");
 
 	int ref;
 
@@ -121,7 +121,7 @@ std::shared_ptr<void> global_registry::FetchGlobal(std::string in_name) {
 }
 
 int global_registry::insert_global(int in_ref, std::shared_ptr<void> in_data) {
-    local_locker lock(&ext_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(ext_mutex, "global_registry insert_global");
 
 	ext_data_map[in_ref] = in_data;
 
@@ -129,7 +129,7 @@ int global_registry::insert_global(int in_ref, std::shared_ptr<void> in_data) {
 }
 
 void global_registry::remove_global(int in_ref) {
-    local_locker lock(&ext_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(ext_mutex, "global_registry remove_global");
 
     if (ext_data_map.find(in_ref) != ext_data_map.end()) {
         ext_data_map.erase(ext_data_map.find(in_ref));
@@ -162,13 +162,13 @@ void global_registry::RemoveUsageFunc(usage_func in_cli) {
 }
 
 void global_registry::register_lifetime_global(std::shared_ptr<lifetime_global> in_g) {
-    local_locker lock(&lifetime_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(lifetime_mutex, "global_registry register_lifetime_global");
 
     lifetime_vec.insert(lifetime_vec.begin(), in_g);
 }
 
 void global_registry::Removelifetime_global(std::shared_ptr<lifetime_global> in_g) {
-    local_locker lock(&lifetime_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(lifetime_mutex, "global_registry remove_lifetime_global");
 
     for (auto i = lifetime_vec.begin(); i != lifetime_vec.end(); ++i) {
         if (*i == in_g) {
@@ -179,13 +179,13 @@ void global_registry::Removelifetime_global(std::shared_ptr<lifetime_global> in_
 }
 
 void global_registry::delete_lifetime_globals() {
-    local_locker lock(&lifetime_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(lifetime_mutex, "global_registry delete_lifetime_globals");
 
     lifetime_vec.clear();
 }
 
 void global_registry::register_deferred_global(std::shared_ptr<deferred_startup> in_d) {
-    local_locker lock(&deferred_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(deferred_mutex, "global_registry register_deferred_global");
 
     deferred_vec.push_back(in_d);
 
@@ -194,7 +194,7 @@ void global_registry::register_deferred_global(std::shared_ptr<deferred_startup>
 }
 
 void global_registry::remove_deferred_global(std::shared_ptr<deferred_startup> in_d) {
-    local_locker lock(&deferred_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(deferred_mutex, "global_registry remove_deferred_global");
 
     for (auto i = deferred_vec.begin(); i != deferred_vec.end(); ++i) {
         if ((*i) == in_d) {
@@ -205,7 +205,7 @@ void global_registry::remove_deferred_global(std::shared_ptr<deferred_startup> i
 }
 
 void global_registry::start_deferred() {
-    local_locker lock(&deferred_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(deferred_mutex, "global_registry start_deferred");
 
     deferred_started = true;
     
@@ -215,7 +215,7 @@ void global_registry::start_deferred() {
 }
 
 void global_registry::shutdown_deferred() {
-    local_locker lock(&deferred_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(deferred_mutex, "global_registry shutdown_deferred");
 
     for (auto i : deferred_vec)
         i->trigger_deferred_shutdown();

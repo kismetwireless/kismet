@@ -134,7 +134,7 @@ std::shared_ptr<eventbus_event> event_bus::get_eventbus_event(const std::string&
 }
 
 void event_bus::event_queue_dispatcher() {
-    local_demand_locker l(&mutex, "queue dispatch");
+    kis_unique_lock<kis_shared_mutex> lock(mutex, std::defer_lock, "event_bus event_queue_dispatcher");
 
     while (!shutdown && 
             !Globalreg::globalreg->spindown && 
@@ -142,17 +142,17 @@ void event_bus::event_queue_dispatcher() {
             !Globalreg::globalreg->complete) {
 
         // Lock while we examine the queue
-        l.lock();
+        lock.lock();
         std::shared_ptr<eventbus_event> e;
         if (event_queue.size() > 0) {
             e = event_queue.front();
             event_queue.pop();
         }
-        l.unlock();
+        lock.unlock();
 
         if (e != nullptr) {
             // Lock the handler mutex while we're processing an event
-            local_demand_locker rl(&handler_mutex, "dispatch");
+            kis_unique_lock<kis_shared_mutex> rl(handler_mutex, std::defer_lock, "event_bus dispatch");
 
             rl.lock();
 
@@ -193,7 +193,7 @@ void event_bus::event_queue_dispatcher() {
         event_cl.lock();
       
         // Unlock our hold on the system
-        l.unlock();
+        lock.unlock();
 
         // Wait until new events
         event_cl.block_until();
@@ -201,7 +201,7 @@ void event_bus::event_queue_dispatcher() {
 }
 
 unsigned long event_bus::register_listener(const std::string& channel, cb_func cb) {
-    local_locker l(&handler_mutex, "register listener");
+    kis_lock_guard<kis_shared_mutex> lk(handler_mutex, "event_bus register_listener");
 
     auto cbl = std::make_shared<callback_listener>(std::list<std::string>{channel}, cb, next_cbl_id++);
 
@@ -212,7 +212,7 @@ unsigned long event_bus::register_listener(const std::string& channel, cb_func c
 }
 
 unsigned long event_bus::register_listener(const std::list<std::string>& channels, cb_func cb) {
-    local_locker l(&handler_mutex, "register listener (vector)");
+    kis_lock_guard<kis_shared_mutex> lk(handler_mutex, "event_bus register_listener (vector)");
 
     auto cbl = std::make_shared<callback_listener>(channels, cb, next_cbl_id++);
 
@@ -226,7 +226,7 @@ unsigned long event_bus::register_listener(const std::list<std::string>& channel
 }
 
 void event_bus::remove_listener(unsigned long id) {
-    local_locker l(&handler_mutex, "remove listener");
+    kis_lock_guard<kis_shared_mutex> lk(handler_mutex, "event_bus remove_listener");
 
     // Find matching cbl
     auto cbl = callback_id_table.find(id);

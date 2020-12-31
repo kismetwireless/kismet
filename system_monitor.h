@@ -97,7 +97,7 @@ public:
     virtual void pre_serialize() override;
 
 protected:
-    kis_recursive_timed_mutex monitor_mutex;
+    kis_shared_mutex monitor_mutex;
 
     virtual void register_fields() override;
 
@@ -156,7 +156,7 @@ public:
     static std::string event_stats() { return "STATISTICS"; }
 
 protected:
-    kis_recursive_timed_mutex monitor_mutex;
+    kis_shared_mutex monitor_mutex;
 
     std::shared_ptr<event_bus> eventbus;
     int logopen_evt_id;

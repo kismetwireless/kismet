@@ -98,15 +98,16 @@ public:
 
     // Set a closure callback, for instance when being driven from a websocket
     virtual void set_closure_cb(std::function<void ()> cb) {
-        local_locker l(&ext_mutex, "set_closure_cb");
+        kis_lock_guard<kis_shared_mutex> lk(ext_mutex, "external set_closure_cb");
         closure_cb = cb;
     }
 
     // Set a write callback, which is called instead of an asio async write, for use for 
     // instance when being driven from a websocket connection and we need to proxy it
     // to the ws
-    virtual void set_write_cb(std::function<int (const char *, size_t, std::function<void (int, std::size_t)>)> cb) {
-        local_locker l(&ext_mutex, "set_write_cb");
+    virtual void set_write_cb(std::function<int (const char *, size_t, 
+                std::function<void (int, std::size_t)>)> cb) {
+        kis_lock_guard<kis_shared_mutex> lk(ext_mutex, "external set_write_cb");
         write_cb = cb;
     }
 
@@ -151,7 +152,7 @@ protected:
     std::atomic<bool> stopped;
     std::atomic<bool> cancelled;
 
-    kis_recursive_timed_mutex ext_mutex;
+    kis_shared_mutex ext_mutex;
 
     std::shared_ptr<time_tracker> timetracker;
     std::shared_ptr<ipc_tracker_v2> ipctracker;

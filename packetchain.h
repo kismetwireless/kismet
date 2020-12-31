@@ -161,10 +161,10 @@ protected:
     std::vector<packet_chain::pc_link *> logging_chain;
 
     // Packet component mutex
-    kis_recursive_timed_mutex packetcomp_mutex;
+    kis_shared_mutex packetcomp_mutex;
 
     // Packet chain mutex
-    kis_recursive_timed_mutex packetchain_mutex;
+    kis_shared_mutex packetchain_mutex;
 
     // std::thread packet_thread;
     std::list<std::thread> packet_threads;

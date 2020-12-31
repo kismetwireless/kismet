@@ -91,7 +91,7 @@ protected:
 
     std::string ds_dbfile;
 
-    kis_recursive_timed_mutex ds_mutex;
+    kis_shared_mutex ds_mutex;
 
     sqlite3 *db;
 };

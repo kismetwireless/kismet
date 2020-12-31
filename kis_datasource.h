@@ -421,11 +421,11 @@ public:
     virtual void checksum_packet(kis_packet *in_pack __attribute__((unused))) { return; }
 
     virtual void pre_serialize() override {
-        local_eol_shared_locker l(&ext_mutex, "datasource::pre_serialize");
+        ext_mutex.lock("datasource pre_serialize");
     }
 
     virtual void post_serialize() override {
-        local_shared_unlocker ul(&ext_mutex);
+        ext_mutex.unlock();
     }
 
     static std::string event_datasource_error() { return "DATASOURCE_ERROR"; }

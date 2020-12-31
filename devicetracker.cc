@@ -67,7 +67,6 @@ device_tracker::device_tracker() :
 
     view_mutex.set_name("device_tracker::view_mutex");
     phy_mutex.set_name("device_tracker::phy_mutex");
-    range_mutex.set_name("device_tracker::range_mutex");
 
     next_phy_id = 0;
 
@@ -211,7 +210,7 @@ device_tracker::device_tracker() :
         databaselog_timer =
             timetracker->register_timer(std::chrono::seconds(lograte), 1,
                 [this](int) -> int {
-                    local_locker l(&databaselog_mutex);
+                    kis_lock_guard<kis_shared_mutex> lk(databaselog_mutex);
 
                     if (databaselog_logging) {
                         _MSG("Attempting to log devices, but devices are still being "
@@ -229,7 +228,7 @@ device_tracker::device_tracker() :
                         databaselog_write_devices();
 
                         {
-                            local_locker l(&databaselog_mutex);
+                            kis_lock_guard<kis_shared_mutex> lk(databaselog_mutex);
                             databaselog_logging = false;
                         }
                     });
@@ -967,7 +966,7 @@ void device_tracker::macdevice_timer_event() {
 }
 
 kis_phy_handler *device_tracker::fetch_phy_handler(int in_phy) {
-    local_shared_locker l(&phy_mutex, "fetch_phy_handler");
+    kis_shared_lock_guard<kis_shared_mutex> lk(phy_mutex, "fetch_phy_handler");
 
 	auto i = phy_handler_map.find(in_phy);
 
@@ -978,7 +977,7 @@ kis_phy_handler *device_tracker::fetch_phy_handler(int in_phy) {
 }
 
 kis_phy_handler *device_tracker::fetch_phy_handler_by_name(const std::string& in_name) {
-    local_shared_locker l(&phy_mutex, "fetch_phy_handler_by_name");
+    kis_shared_lock_guard<kis_shared_mutex> lk(phy_mutex, "fetch_phy_handler_by_name");
 
     for (const auto& i : phy_handler_map) {
         if (i.second->fetch_phy_name() == in_name) {
@@ -1014,7 +1013,7 @@ int device_tracker::fetch_num_packets() {
 
 
 int device_tracker::register_phy_handler(kis_phy_handler *in_weak_handler) {
-    local_locker l(&phy_mutex, "register_phy_handler");
+    kis_lock_guard<kis_shared_mutex> lk(phy_mutex, "device_tracker register_phy_handler");
 
 	int num = next_phy_id++;
 
@@ -1084,7 +1083,7 @@ std::shared_ptr<kis_tracked_device_base> device_tracker::fetch_device_nr(device_
 }
 
 int device_tracker::common_tracker(kis_packet *in_pack) {
-    local_shared_locker l(&phy_mutex, "common_tracker");
+    kis_shared_lock_guard<kis_shared_mutex> lk(phy_mutex, "device_tracker common_tracker");
 
     // All the statistics counters are atomic.
     // Phy specific counters are atomic inside a map protected by the phy mutex
@@ -1538,7 +1537,7 @@ void device_tracker::usage(const char *name __attribute__((unused))) {
 }
 
 int device_tracker::database_upgrade_db() {
-    local_locker dblock(&ds_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(ds_mutex);
 
     unsigned int dbv = database_get_db_version();
     std::string sql;
@@ -1644,7 +1643,7 @@ void device_tracker::add_device(std::shared_ptr<kis_tracked_device_base> device)
 }
 
 bool device_tracker::add_view(std::shared_ptr<device_tracker_view> in_view) {
-    local_locker l(&view_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(view_mutex);
 
     for (const auto& i : *view_vec) {
         auto vi = std::static_pointer_cast<device_tracker_view>(i);
@@ -1663,7 +1662,7 @@ bool device_tracker::add_view(std::shared_ptr<device_tracker_view> in_view) {
 }
 
 void device_tracker::remove_view(const std::string& in_id) {
-    local_locker l(&view_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(view_mutex);
         
     for (auto i = view_vec->begin(); i != view_vec->end(); ++i) {
         auto vi = std::static_pointer_cast<device_tracker_view>(*i);
@@ -1675,7 +1674,7 @@ void device_tracker::remove_view(const std::string& in_id) {
 }
 
 void device_tracker::new_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
-    local_shared_locker l(&view_mutex);
+    kis_shared_lock_guard<kis_shared_mutex> lk(view_mutex);
 
     for (const auto& i : *view_vec) {
         auto vi = std::static_pointer_cast<device_tracker_view>(i);
@@ -1684,7 +1683,7 @@ void device_tracker::new_view_device(std::shared_ptr<kis_tracked_device_base> in
 }
 
 void device_tracker::update_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
-    local_shared_locker l(&view_mutex);
+    kis_shared_lock_guard<kis_shared_mutex> lk(view_mutex);
 
     for (const auto& i : *view_vec) {
         auto vi = std::static_pointer_cast<device_tracker_view>(i);
@@ -1693,7 +1692,7 @@ void device_tracker::update_view_device(std::shared_ptr<kis_tracked_device_base>
 }
 
 void device_tracker::remove_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
-    local_shared_locker l(&view_mutex);
+    kis_shared_lock_guard<kis_shared_mutex> lk(view_mutex);
 
     for (const auto& i : *view_vec) {
         auto vi = std::static_pointer_cast<device_tracker_view>(i);
@@ -1702,7 +1701,7 @@ void device_tracker::remove_view_device(std::shared_ptr<kis_tracked_device_base>
 }
 
 std::shared_ptr<device_tracker_view> device_tracker::get_phy_view(int in_phyid) {
-    local_shared_locker l(&view_mutex);
+    kis_shared_lock_guard<kis_shared_mutex> lk(view_mutex);
 
     auto vk = phy_view_map.find(in_phyid);
     if (vk != phy_view_map.end())
@@ -1737,7 +1736,7 @@ void device_tracker::databaselog_write_devices() {
 
 void device_tracker::load_stored_username(std::shared_ptr<kis_tracked_device_base> in_dev) {
     // Lock the database; we're doing a single query
-    local_locker dblock(&ds_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(ds_mutex);
 
     if (!database_valid())
         return;
@@ -1791,7 +1790,7 @@ void device_tracker::load_stored_username(std::shared_ptr<kis_tracked_device_bas
 
 void device_tracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> in_dev) {
     // Lock the database; we're doing a single query
-    local_locker dblock(&ds_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(ds_mutex);
 
     if (!database_valid())
         return;
@@ -1890,7 +1889,7 @@ void device_tracker::set_device_user_name(std::shared_ptr<kis_tracked_device_bas
 
     // Only lock the database while we're inserting
     {
-        local_locker lock(&ds_mutex);
+        kis_lock_guard<kis_shared_mutex> lk(ds_mutex);
         sqlite3_step(stmt);
     }
 
@@ -1953,7 +1952,7 @@ void device_tracker::set_device_tag(std::shared_ptr<kis_tracked_device_base> in_
 
     // Only lock the database while we're inserting
     {
-        local_locker lock(&ds_mutex);
+        kis_lock_guard<kis_shared_mutex> lk(ds_mutex);
         sqlite3_step(stmt);
     }
 
@@ -2003,7 +2002,7 @@ void device_tracker::handle_new_device_event(std::shared_ptr<eventbus_event> evt
 }
 
 std::shared_ptr<tracker_element_string> device_tracker::get_cached_devicetype(const std::string& type) {
-    local_locker l(&device_type_cache_mutex, "device_tracker::get_cached_devicetype");
+    kis_lock_guard<kis_shared_mutex> lk(device_type_cache_mutex, "device_tracker get_cached_devicetype");
 
     auto k = device_type_cache.find(type);
 
@@ -2017,7 +2016,7 @@ std::shared_ptr<tracker_element_string> device_tracker::get_cached_devicetype(co
 }
 
 std::shared_ptr<tracker_element_string> device_tracker::get_cached_phyname(const std::string& phyname) {
-    local_locker l(&device_phy_name_cache_mutex, "device_tracker::get_cached_phyname");
+    kis_lock_guard<kis_shared_mutex> lk(device_phy_name_cache_mutex, "device_tracker get_cached_phyname");
 
     auto k = device_phy_name_cache.find(phyname);
 

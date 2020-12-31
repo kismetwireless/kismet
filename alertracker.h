@@ -418,7 +418,7 @@ public:
     }
 
 protected:
-    kis_recursive_timed_mutex alert_mutex;
+    kis_shared_mutex alert_mutex;
 
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<entry_tracker> entrytracker;

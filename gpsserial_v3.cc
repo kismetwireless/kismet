@@ -115,7 +115,7 @@ void kis_gps_serial_v3::start_read_impl() {
 }
 
 bool kis_gps_serial_v3::open_gps(std::string in_opts) {
-    local_locker lock(gps_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(gps_mutex, "gps_serial_v3 open_gps");
 
     if (!kis_gps::open_gps(in_opts))
         return false;
@@ -193,7 +193,7 @@ bool kis_gps_serial_v3::open_gps(std::string in_opts) {
 }
 
 bool kis_gps_serial_v3::get_location_valid() {
-    local_shared_locker lock(gps_mutex);
+    kis_shared_lock_guard<kis_shared_mutex> lk(gps_mutex, "gps_serial_v3 get_location_valid");
 
     if (gps_location == NULL) {
         return false;
@@ -213,7 +213,7 @@ bool kis_gps_serial_v3::get_location_valid() {
 }
 
 bool kis_gps_serial_v3::get_device_connected() {
-    local_shared_locker lock(gps_mutex);
+    kis_shared_lock_guard<kis_shared_mutex> lk(gps_mutex, "gps_serial_v3 get_device_connected");
 
     return serialport.is_open();
 }

@@ -74,12 +74,11 @@ channel_tracker_v2::channel_tracker_v2(global_registry *in_globalreg) :
     httpd->register_route("/channels/channels", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection>) {
-                    local_locker l(&lock, "/channels/channels");
                     auto ret = std::make_shared<tracker_element_map>();
                     ret->insert(channel_map);
                     ret->insert(frequency_map);
                     return ret;
-                }));
+                }, lock));
 
 
     timer_id = timetracker->register_timer(SERVER_TIMESLICES_SEC, nullptr, 1, 
@@ -90,7 +89,7 @@ channel_tracker_v2::channel_tracker_v2(global_registry *in_globalreg) :
 }
 
 channel_tracker_v2::~channel_tracker_v2() {
-    local_locker locker(&lock);
+    kis_lock_guard<kis_shared_mutex> lk(lock, "~channel_tracker_v2");
 
     auto timetracker = Globalreg::fetch_global_as<time_tracker>("TIMETRACKER");
     if (timetracker != nullptr)
@@ -156,7 +155,7 @@ int channel_tracker_v2::gather_devices_event(int event_id __attribute__((unused)
 }
 
 void channel_tracker_v2::update_device_counts(std::unordered_map<double, unsigned int> in_counts, time_t ts) {
-    local_locker locker(&lock);
+    kis_lock_guard<kis_shared_mutex> lk(lock, "channel_tracker_v2 update_device_counts");
 
     for (auto i : in_counts) {
         auto imi = frequency_map->find(i.first);
@@ -181,7 +180,7 @@ void channel_tracker_v2::update_device_counts(std::unordered_map<double, unsigne
 int channel_tracker_v2::packet_chain_handler(CHAINCALL_PARMS) {
     channel_tracker_v2 *cv2 = (channel_tracker_v2 *) auxdata;
 
-    local_locker locker(&(cv2->lock));
+    kis_lock_guard<kis_shared_mutex> lk(cv2->lock, "channel_tracker_v2 packet_chain_handler");
 
     auto l1info = in_pack->fetch<kis_layer1_packinfo>(cv2->pack_comp_l1data);
 	auto common = in_pack->fetch<kis_common_info>(cv2->pack_comp_common);

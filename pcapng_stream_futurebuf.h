@@ -56,7 +56,7 @@ public:
 
     virtual void block_until_stream_done();
 protected:
-    kis_recursive_timed_mutex pcap_mutex;
+    kis_shared_mutex pcap_mutex;
 
     future_chainbuf& chainbuf;
 

@@ -124,7 +124,7 @@ public:
 
     template<typename T>
     void publish(T event) {
-        local_locker l(&mutex, "publish");
+        kis_lock_guard<kis_shared_mutex> lk(mutex, "eventbus publish");
 
         auto evt_cast = 
             std::static_pointer_cast<eventbus_event>(event);
@@ -137,7 +137,7 @@ protected:
     // We need 2 mutexes - we have to block removing a callback while we're dispatching
     // an event, because we need to not lock up the entire event bus while we're 
     // sending out events
-    kis_recursive_timed_mutex mutex, handler_mutex;
+    kis_shared_mutex mutex, handler_mutex;
 
     int eventbus_event_id;
 

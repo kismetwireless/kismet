@@ -427,7 +427,7 @@ public:
 protected:
     bool parse_manuf_definition(std::string def);
 
-    kis_recursive_timed_mutex uav_mutex;
+    kis_shared_mutex uav_mutex;
 
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<device_tracker> devicetracker;

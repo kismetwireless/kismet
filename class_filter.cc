@@ -47,18 +47,16 @@ class_filter::class_filter(const std::string& in_id, const std::string& in_descr
     httpd->register_route(url, {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this, url](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-                    local_locker l(&mutex, url);
                     return self_endp_handler();
-                }));
+                }, mutex));
 
     auto posturl = fmt::format("{}/set_default", base_uri);
 
     httpd->register_route(url, {"POST"}, httpd->LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this, posturl](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-                    local_locker l(&mutex, posturl);
                     return default_set_endp_handler(con);
-                }));
+                }, mutex));
 }
 
 void class_filter::default_set_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
@@ -136,16 +134,14 @@ class_filter_mac_addr::class_filter_mac_addr(const std::string& in_id, const std
     httpd->register_route(seturl, {"POST"}, httpd->LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this, seturl](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-                    local_locker l(&mutex, seturl);
                     return edit_endp_handler(con);
-                }));
+                }, mutex));
 
     httpd->register_route(remurl, {"POST"}, httpd->LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this, seturl](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-                    local_locker l(&mutex, seturl);
                     return remove_endp_handler(con);
-                }));
+                }, mutex));
 }
 
 class_filter_mac_addr::~class_filter_mac_addr() {
@@ -154,7 +150,7 @@ class_filter_mac_addr::~class_filter_mac_addr() {
 }
 
 void class_filter_mac_addr::set_filter(mac_addr in_mac, const std::string& in_phy, bool value) {
-    local_locker l(&mutex);
+    kis_lock_guard<kis_shared_mutex> lk(mutex, "class_filter_mac_addr set_filter");
 
     // Build the tracked version of the record, building any containers we need along the way, this
     // always gets built even for unknown phys
@@ -192,7 +188,7 @@ void class_filter_mac_addr::set_filter(mac_addr in_mac, const std::string& in_ph
 }
 
 void class_filter_mac_addr::remove_filter(mac_addr in_mac, const std::string& in_phy) {
-    local_locker l(&mutex);
+    kis_lock_guard<kis_shared_mutex> lk(mutex, "class_filter_mac_addr remove_filter");
 
     // Remove it from the tracked version we display
     auto tracked_phy_key = filter_phy_block->find(in_phy);
@@ -233,7 +229,7 @@ void class_filter_mac_addr::remove_filter(mac_addr in_mac, const std::string& in
 }
 
 void class_filter_mac_addr::update_phy_map(std::shared_ptr<eventbus_event> evt) {
-    local_locker l(&mutex);
+    kis_lock_guard<kis_shared_mutex> lk(mutex, "class_filter_mac_addr update_phy_map");
 
     if (unknown_phy_mac_filter_map.size() == 0)
         return;
@@ -333,7 +329,7 @@ void class_filter_mac_addr::remove_endp_handler(std::shared_ptr<kis_net_beast_ht
 }
 
 bool class_filter_mac_addr::filter(mac_addr mac, unsigned int phy) {
-    local_locker l(&mutex);
+    kis_lock_guard<kis_shared_mutex> lk(mutex, "class_filter_mac_addr filter");
 
     auto pi = phy_mac_filter_map.find(phy);
 

@@ -97,7 +97,7 @@ gps_tracker::gps_tracker() :
     httpd->register_route("/gps/location", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-                    local_shared_locker l(&gpsmanager_mutex, "/gps/location");
+                    kis_shared_lock_guard<kis_shared_mutex> lk(gpsmanager_mutex, "");
                     auto loctrip = std::make_shared<kis_tracked_location_full>();
                     auto ue = std::make_shared<tracker_element_uuid>(tracked_uuid_addition_id);
 
@@ -115,12 +115,12 @@ gps_tracker::gps_tracker() :
                     }
 
                     return loctrip;
-                }));
+                }, gpsmanager_mutex));
 
     event_timer_id = 
         timetracker->register_timer(std::chrono::seconds(1), true, 
                 [this](int) -> int {
-                local_shared_locker l(&gpsmanager_mutex, "location event");
+                kis_shared_lock_guard<kis_shared_mutex> lk(gpsmanager_mutex, "gps_tracker location event");
                 auto loctrip = std::make_shared<kis_tracked_location_full>();
                 auto ue = std::make_shared<tracker_element_uuid>(tracked_uuid_addition_id);
 
@@ -163,7 +163,7 @@ void gps_tracker::log_snapshot_gps() {
     if (dbf == NULL)
         return;
 
-    local_shared_locker lock(&gpsmanager_mutex);
+    kis_shared_lock_guard<kis_shared_mutex> lk(gpsmanager_mutex, "gps_tracker log_snapshot_gps");
 
     // Log each GPS
     for (auto d : *gps_instances_vec) {
@@ -180,7 +180,7 @@ void gps_tracker::log_snapshot_gps() {
 }
 
 void gps_tracker::register_gps_builder(shared_gps_builder in_builder) {
-    local_locker lock(&gpsmanager_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(gpsmanager_mutex, "gps_tracker register_gps_builder");
 
     for (auto x : *gps_prototypes_vec) {
         shared_gps_builder gb = std::static_pointer_cast<kis_gps_builder>(x);
@@ -196,7 +196,7 @@ void gps_tracker::register_gps_builder(shared_gps_builder in_builder) {
 }
 
 std::shared_ptr<kis_gps> gps_tracker::create_gps(std::string in_definition) {
-    local_locker lock(&gpsmanager_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(gpsmanager_mutex, "create_gps");
 
     shared_gps gps;
     shared_gps_builder builder;
@@ -266,7 +266,7 @@ std::shared_ptr<kis_gps> gps_tracker::create_gps(std::string in_definition) {
 }
 
 kis_gps_packinfo *gps_tracker::get_best_location() {
-    local_shared_locker lock(&gpsmanager_mutex);
+    kis_shared_lock_guard<kis_shared_mutex> lk(gpsmanager_mutex, "get_best_location");
 
     // Iterate 
     for (auto d : *gps_instances_vec) {

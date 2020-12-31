@@ -25,8 +25,6 @@
 kis_gps::kis_gps(shared_gps_builder in_builder) : 
     tracker_component() {
 
-    gps_mutex = std::make_shared<kis_recursive_timed_mutex>();
-
     register_fields();
     reserve_fields(NULL);
 
@@ -47,7 +45,7 @@ kis_gps::~kis_gps() {
 }
 
 bool kis_gps::open_gps(std::string in_definition) {
-    local_locker lock(gps_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(gps_mutex, "kis_gps open_gps");
 
     set_int_device_connected(false);
     set_int_gps_definition(in_definition);
@@ -223,7 +221,7 @@ double kis_gps::gps_calc_rad(double lat) {
 }
 
 void kis_gps::update_locations() {
-    local_shared_locker lock(gps_mutex, "update_locations");
+    kis_shared_lock_guard<kis_shared_mutex> lk(gps_mutex, "update_locations");
 
     tracked_last_location->set_location(gps_last_location->lat, gps_last_location->lon);
     tracked_last_location->set_alt(gps_last_location->alt);

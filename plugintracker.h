@@ -277,7 +277,7 @@ public:
 	int shutdown_plugins();
 
 protected:
-    kis_recursive_timed_mutex plugin_lock;
+    kis_shared_mutex plugin_lock;
 
     std::shared_ptr<kis_net_beast_httpd> httpd;
 

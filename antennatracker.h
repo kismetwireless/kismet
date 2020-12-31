@@ -126,7 +126,7 @@ public:
     std::shared_ptr<tracked_antenna> get_antenna(int in_antnum);
 
 protected:
-    kis_recursive_timed_mutex mutex;
+    kis_shared_mutex mutex;
 
     int next_ant_id;
     

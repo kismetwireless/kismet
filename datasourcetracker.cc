@@ -36,7 +36,6 @@
 
 datasource_tracker_source_probe::datasource_tracker_source_probe(std::string in_definition, 
         std::shared_ptr<tracker_element_vector> in_protovec) :
-    probe_lock {std::make_shared<kis_recursive_timed_mutex>()},
     timetracker {Globalreg::fetch_mandatory_global_as<time_tracker>()},
     proto_vec {in_protovec},
     transaction_id {0},
@@ -55,7 +54,7 @@ datasource_tracker_source_probe::~datasource_tracker_source_probe() {
 
 void datasource_tracker_source_probe::cancel() {
     {
-        local_locker lock(probe_lock, "dst probe::cancel");
+        kis_lock_guard<kis_shared_mutex> lk(probe_lock, "dstprobe cancel");
 
         cancelled = true;
 
@@ -80,13 +79,13 @@ void datasource_tracker_source_probe::cancel() {
 }
 
 shared_datasource_builder datasource_tracker_source_probe::get_proto() {
-    local_locker lock(probe_lock, "dst probe::get_proto");
+    kis_lock_guard<kis_shared_mutex> lk(probe_lock, "dstprobe get_proto");
     return source_builder;
 }
 
 void datasource_tracker_source_probe::complete_probe(bool in_success, unsigned int in_transaction,
         std::string in_reason __attribute__((unused))) {
-    local_locker lock(probe_lock, "dst probe::complete_probe");
+    kis_lock_guard<kis_shared_mutex> lk(probe_lock, "dstprobe complete_probe");
 
     // If we're already in cancelled state these callbacks mean nothing, ignore them, we're going
     // to be torn down so we don't even need to find our transaction
@@ -125,7 +124,7 @@ void datasource_tracker_source_probe::complete_probe(bool in_success, unsigned i
 
 void datasource_tracker_source_probe::probe_sources(std::function<void (shared_datasource_builder)> in_cb) {
     {
-        local_locker lock(probe_lock, "dst probe::probe_sources assign cb");
+        kis_lock_guard<kis_shared_mutex> lk(probe_lock, "dstprobe probe_sources");
         probe_cb = in_cb;
     }
 
@@ -148,7 +147,6 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (shared_d
     }
 
     // We don't actually need to lock here because the proto vec is only changed at construct
-    // local_locker lock(probe_lock, "dst::probe_sources construct vec");
 
     for (const auto& i : *proto_vec) {
         auto b = std::static_pointer_cast<kis_datasource_builder>(i);
@@ -219,7 +217,7 @@ datasource_tracker_source_list::~datasource_tracker_source_list() {
 }
 
 void datasource_tracker_source_list::cancel() {
-    local_locker lock(list_lock, "cancel");
+    kis_lock_guard<kis_shared_mutex> lk(list_lock, "dstlist cancel");
 
     if (cancelled)
         return;
@@ -239,7 +237,7 @@ void datasource_tracker_source_list::cancel() {
 void datasource_tracker_source_list::complete_list(std::vector<shared_interface> in_list,
         unsigned int in_transaction) {
 
-    local_locker lock(list_lock, "dst_source_list::complete_list");
+    kis_lock_guard<kis_shared_mutex> lk(list_lock, "dstlist complete_list");
 
     // If we're already in cancelled state these callbacks mean nothing, ignore them
     if (cancelled)
@@ -285,7 +283,7 @@ void datasource_tracker_source_list::list_sources(std::shared_ptr<datasource_tra
         shared_datasource pds = b->build_datasource(b);
 
         {
-            local_locker lock(list_lock, "dst_source_list::list_sources");
+            kis_lock_guard<kis_shared_mutex> lk(list_lock, "dstlist list_sources");
             ipc_list_map[transaction] = pds;
             list_vec.push_back(pds);
             created_ipc = true;
@@ -376,7 +374,7 @@ void datasource_tracker::databaselog_write_datasources() {
     std::shared_ptr<tracker_element_vector> v;
 
     {
-        local_shared_locker l(&dst_lock, "datasourcetracker::dblog_write_datasources");
+        kis_lock_guard<kis_shared_mutex> lk(dst_lock, "dst databaselog_write_datasources");
         v = std::make_shared<tracker_element_vector>(datasource_vec);
     }
 
@@ -981,7 +979,7 @@ void datasource_tracker::trigger_deferred_startup() {
                         [ds_bridge](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
                             boost::beast::flat_buffer& buf, bool text) {
 
-                        local_locker l(&ds_bridge->mutex, "websocket rx");
+                        kis_lock_guard<kis_shared_mutex> lk(ds_bridge->mutex, "dst websocket rx");
 
                         // _MSG_DEBUG("incoming packet for ds");
 
@@ -1009,7 +1007,7 @@ void datasource_tracker::trigger_deferred_startup() {
                             [this, ds_bridge, ws] (dst_incoming_remote *initiator, std::string in_type, 
                                 std::string in_def, uuid in_uuid) {
 
-                            local_locker l(&ds_bridge->mutex, "dstincoming completion");
+                            kis_lock_guard<kis_shared_mutex> lk(ds_bridge->mutex, "dst websocket completion");
 
                             // _MSG_DEBUG("Initiating opening full ds");
                             // Retain a reference to it until we exit this loop
@@ -1058,7 +1056,7 @@ void datasource_tracker::trigger_deferred_startup() {
                 }
 
                 if (ds_bridge->bridged_ds != nullptr) {
-                    local_locker l(&ds_bridge->mutex, "dsbridge teardown");
+                    kis_lock_guard<kis_shared_mutex> lk(ds_bridge->mutex, "dst websocket bridge teardown");
                     if (ds_bridge->bridged_ds->get_source_running()) {
                         _MSG_ERROR("Remote datasource {} ({}) closing, remote socket terminated", 
                                 ds_bridge->bridged_ds->get_source_name(),
@@ -1171,7 +1169,7 @@ void datasource_tracker::trigger_deferred_startup() {
 }
 
 void datasource_tracker::trigger_deferred_shutdown() {
-    local_locker lock(&dst_lock, "datasourcetracker::trigger_deferred_shutdown");
+    kis_lock_guard<kis_shared_mutex> lk(dst_lock, "dst trigger_deferred_shutdown");
 
     for (auto i : *datasource_vec) {
         std::static_pointer_cast<kis_datasource>(i)->close_source();
@@ -1182,7 +1180,7 @@ void datasource_tracker::iterate_datasources(datasource_tracker_worker *in_worke
     std::shared_ptr<tracker_element_vector> immutable_copy;
 
     {
-        local_locker lock(&dst_lock, "datasourcetracker::iterate_datasources");
+        kis_lock_guard<kis_shared_mutex> lk(dst_lock, "dst iterate_datasources");
         immutable_copy = std::make_shared<tracker_element_vector>(datasource_vec);
     }
 
@@ -1194,7 +1192,7 @@ void datasource_tracker::iterate_datasources(datasource_tracker_worker *in_worke
 }
 
 bool datasource_tracker::remove_datasource(const uuid& in_uuid) {
-    local_locker lock(&dst_lock, "datasourcetracker::remove_datasource");
+    kis_lock_guard<kis_shared_mutex> lk(dst_lock, "dst remove_datasource");
 
     // Look for it in the sources vec and fully close it and get rid of it
     for (auto i = datasource_vec->begin(); i != datasource_vec->end(); ++i) {
@@ -1221,7 +1219,7 @@ bool datasource_tracker::remove_datasource(const uuid& in_uuid) {
 }
 
 shared_datasource datasource_tracker::find_datasource(const uuid& in_uuid) {
-    local_shared_locker lock(&dst_lock, "datasourcetracker::find_datasource");
+    kis_shared_lock_guard<kis_shared_mutex> lk(dst_lock, "dst find_datasource");
 
     for (auto i : *datasource_vec) {
         shared_datasource kds = std::static_pointer_cast<kis_datasource>(i);
@@ -1234,7 +1232,7 @@ shared_datasource datasource_tracker::find_datasource(const uuid& in_uuid) {
 }
 
 bool datasource_tracker::close_datasource(const uuid& in_uuid) {
-    local_locker lock(&dst_lock, "datasourcetracker::close_datasource");
+    kis_lock_guard<kis_shared_mutex> lk(dst_lock, "dst close_datasource");
 
     for (auto i : *datasource_vec) {
         shared_datasource kds = std::static_pointer_cast<kis_datasource>(i);
@@ -1254,7 +1252,7 @@ bool datasource_tracker::close_datasource(const uuid& in_uuid) {
 }
 
 int datasource_tracker::register_datasource(shared_datasource_builder in_builder) {
-    local_locker lock(&dst_lock, "datasourcetracker::register_datasource");
+    kis_lock_guard<kis_shared_mutex> lk(dst_lock, "dst register_datasource");
 
     for (auto i : *proto_vec) {
         shared_datasource_builder b = std::static_pointer_cast<kis_datasource_builder>(i);
@@ -1306,7 +1304,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
     // for that driver in the prototype vector, confirm it can open it, and fire
     // the launch command at it
     if (type != "auto") {
-        local_demand_locker lock(&dst_lock, "datasourcetracker::open_datasource auto");
+        kis_unique_lock<kis_shared_mutex> lock(dst_lock, std::defer_lock, "dst open_datasource auto");
         lock.lock();
 
         shared_datasource_builder proto;
@@ -1372,14 +1370,14 @@ void datasource_tracker::open_datasource(const std::string& in_source,
 
     // Record and initiate it
     {
-        local_locker dl(&dst_lock, "datasourcetracker::open_datasource probing_map");
+        kis_lock_guard<kis_shared_mutex> lk(dst_lock, "dst open_datasource probing_map");
         probing_map[probeid] = dst_probe;
     }
 
     // Initiate the probe
     dst_probe->probe_sources([this, probeid, in_cb](shared_datasource_builder builder) {
         // Lock on completion
-        local_demand_locker lock(&dst_lock, "datasourcetracker::probe_sources cb lambda");
+        kis_unique_lock<kis_shared_mutex> lock(dst_lock, std::defer_lock, "dst probe_sources lambda");
         lock.lock();
 
         // fprintf(stderr, "debug - moving probe to completed vec\n");
@@ -1429,7 +1427,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
 void datasource_tracker::open_datasource(const std::string& in_source, 
         shared_datasource_builder in_proto,
         const std::function<void (bool, std::string, shared_datasource)>& in_cb) {
-    local_locker lock(&dst_lock, "datasourcetracker::open_datasource string");
+    kis_lock_guard<kis_shared_mutex> lk(dst_lock, "dst open_datasource string");
 
     // Make a data source from the builder
     shared_datasource ds = in_proto->build_datasource(in_proto);
@@ -1448,7 +1446,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
                 // It's 'safe' to put them in the broken source vec because all we do is
                 // clear that vector on a timer; if the source is in error state but
                 // bound elsewhere in the system it won't be removed.
-                local_locker lock(&dst_lock, "datasourcetracker::open_datasource string open lambda broken");
+                kis_lock_guard<kis_shared_mutex> lk(dst_lock, "dst open_datasource string open lambda broken");
                 broken_source_vec.push_back(ds);
                 in_cb(false, reason, ds);
                 schedule_cleanup();
@@ -1457,7 +1455,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
 }
 
 void datasource_tracker::merge_source(shared_datasource in_source) {
-    local_locker lock(&dst_lock, "datasourcetracker::merge_source");
+    kis_lock_guard<kis_shared_mutex> lk(dst_lock, "dst merge_source");
 
     // Get the UUID and compare it to our map; re-use a UUID if we knew
     // it before, otherwise add a new one
@@ -1502,7 +1500,7 @@ void datasource_tracker::merge_source(shared_datasource in_source) {
 }
 
 void datasource_tracker::list_interfaces(const std::function<void (std::vector<shared_interface>)>& in_cb) {
-    local_demand_locker lock(&dst_lock, "datasourcetracker::list_interfaces");
+    kis_unique_lock<kis_shared_mutex> lock(dst_lock, std::defer_lock, "dst list_interfaces");
     lock.lock();
 
     // Create a DSTProber to handle the probing
@@ -1537,7 +1535,7 @@ void datasource_tracker::list_interfaces(const std::function<void (std::vector<s
 
     // Initiate the probe
     dst_list->list_sources(dst_list, [this, listid, in_cb](std::vector<shared_interface> interfaces) {
-        local_demand_locker lock(&dst_lock, "datasourcetracker::list_sources cancel lambda");
+        kis_unique_lock<kis_shared_mutex> lock(dst_lock, std::defer_lock, "dst list_sources cancel lambda");
         lock.lock();
 
         // Figure out what interfaces are in use by active sources and amend their
@@ -1579,7 +1577,7 @@ void datasource_tracker::schedule_cleanup() {
 
     completion_cleanup_id = 
         timetracker->register_timer(1, NULL, 0, [this] (int) -> int {
-            local_demand_locker lock(&dst_lock, "datasourcetracker::completion_cleanup lambda");
+            kis_unique_lock<kis_shared_mutex> lock(dst_lock, std::defer_lock, "dst schedule_cleanup lambda");
            
             lock.lock();
             auto d_pcv = probing_complete_vec;
@@ -1609,7 +1607,7 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
 
     shared_datasource merge_target_device;
      
-    local_locker lock(&dst_lock, "datasourcetracker::open_remote_datasource");
+    kis_lock_guard<kis_shared_mutex> lk(dst_lock, "dst open_remote_datasource");
 
     // _MSG_DEBUG("merging incoming {} {} {}", in_type, in_definition, in_uuid);
 
