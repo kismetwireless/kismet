@@ -421,11 +421,11 @@ public:
     virtual void checksum_packet(kis_packet *in_pack __attribute__((unused))) { return; }
 
     virtual void pre_serialize() override {
-        ext_mutex.lock("datasource pre_serialize");
+        kis_lock_guard<kis_mutex> lk(ext_mutex, kismet::retain_lock, "datasource preserialize");
     }
 
     virtual void post_serialize() override {
-        ext_mutex.unlock();
+        kis_lock_guard<kis_mutex> lk(ext_mutex, std::adopt_lock);
     }
 
     static std::string event_datasource_error() { return "DATASOURCE_ERROR"; }

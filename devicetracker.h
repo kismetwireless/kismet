@@ -229,17 +229,9 @@ public:
     // Get a cached phyname; use this to de-dup thousands of devices phynames
     std::shared_ptr<tracker_element_string> get_cached_phyname(const std::string& phyname);
 
-    // Fetch mutexes for the device list manipulation
-    kis_tristate_mutex_view& get_devicelist_write() {
-        return devicelist_ts_write_view;
-    }
-
-    kis_tristate_mutex_view& get_devicelist_share() {
-        return devicelist_ts_read_view;
-    }
-
-    kis_tristate_mutex_view& get_devicelist_exclusive() {
-        return devicelist_ts_excl_view;
+    // Expose to devicelist mutex for external batch locking
+    kis_mutex& get_devicelist_mutex() {
+        return devicelist_mutex;
     }
 
 protected:

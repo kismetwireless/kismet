@@ -317,10 +317,10 @@ device_tracker::device_tracker() :
                     return multimac_endp_handler(con);
                 },
                 [this](std::shared_ptr<tracker_element> devs) {
-                    get_devicelist_share().lock();
+                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), kismet::retain_lock, "/devices/multimac/devices");
                 },
                 [this](std::shared_ptr<tracker_element> devs) {
-                    get_devicelist_share().unlock();
+                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), std::adopt_lock);
                 }));
 
     httpd->register_route("/devices/multikey/devices", {"POST"}, httpd->RO_ROLE, {},
@@ -329,10 +329,10 @@ device_tracker::device_tracker() :
                     return multikey_endp_handler(con, false);
                 },
                 [this](std::shared_ptr<tracker_element> devs) {
-                    get_devicelist_share().lock();
+                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), kismet::retain_lock, "/devices/multimac/devices");
                 },
                 [this](std::shared_ptr<tracker_element> devs) {
-                    get_devicelist_share().unlock();
+                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), std::adopt_lock);
                 }));
 
     httpd->register_route("/devices/multikey/as-object/devices", {"POST"}, httpd->RO_ROLE, {},
@@ -341,10 +341,10 @@ device_tracker::device_tracker() :
                     return multikey_endp_handler(con, true);
                 },
                 [this](std::shared_ptr<tracker_element> devs) {
-                    get_devicelist_share().lock();
+                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), kismet::retain_lock, "/devices/multikey/as-object/devices");
                 },
                 [this](std::shared_ptr<tracker_element> devs) {
-                    get_devicelist_share().unlock();
+                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), std::adopt_lock);
                 }));
 
     httpd->register_route("/devices/all_devices", {"GET", "POST"}, httpd->RO_ROLE, {"ekjson", "itjson"},
@@ -355,10 +355,10 @@ device_tracker::device_tracker() :
                     return device_ro;
                 },
                 [this](std::shared_ptr<tracker_element> devs) {
-                    get_devicelist_share().lock();
+                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), kismet::retain_lock, "/devices/all_devices");
                 },
                 [this](std::shared_ptr<tracker_element> devs) {
-                    get_devicelist_share().unlock();
+                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), std::adopt_lock);
                 }));
 
     httpd->register_route("/devices/by-key/:key/device", {"GET", "POST"}, httpd->RO_ROLE, {},
@@ -378,10 +378,10 @@ device_tracker::device_tracker() :
                     return dev;
                 },
                 [this](std::shared_ptr<tracker_element> devs) {
-                    get_devicelist_share().lock();
+                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), kismet::retain_lock, "/devices/by-key/device");
                 },
                 [this](std::shared_ptr<tracker_element> devs) {
-                    get_devicelist_share().unlock();
+                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), std::adopt_lock);
                 }));
 
     httpd->register_route("/devices/by-mac/:mac/devices", {"GET", "POST"}, httpd->RO_ROLE, {},
@@ -402,10 +402,10 @@ device_tracker::device_tracker() :
                     return devvec;
                 },
                 [this](std::shared_ptr<tracker_element> devs) {
-                    get_devicelist_share().lock();
+                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), kismet::retain_lock, "/devices/by-mac/devices");
                 },
                 [this](std::shared_ptr<tracker_element> devs) {
-                    get_devicelist_share().unlock();
+                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), std::adopt_lock);
                 }));
 
     httpd->register_route("/devices/last-time/:timestamp/devices", {"GET", "POST"}, httpd->RO_ROLE, {},
@@ -424,10 +424,10 @@ device_tracker::device_tracker() :
                     return do_readonly_device_work(ts_worker);
                 },
                 [this](std::shared_ptr<tracker_element> devs) {
-                    get_devicelist_share().lock();
+                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), kismet::retain_lock, "/devices/last-time/devices");
                 },
                 [this](std::shared_ptr<tracker_element> devs) {
-                    get_devicelist_share().unlock();
+                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), std::adopt_lock);
                 }));
 
     httpd->register_route("/devices/by-key/:key/set_name", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
@@ -452,10 +452,10 @@ device_tracker::device_tracker() :
                     os << "Device name set\n";
                 },
                 [this]() {
-                    get_devicelist_write().lock();
+                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), kismet::retain_lock, "/devices/by-key/set_name");
                 },
                 [this]() {
-                    get_devicelist_write().unlock();
+                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), std::adopt_lock);
                 }));
 
     httpd->register_route("/devices/by-key/:key/set_tag", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
@@ -481,10 +481,10 @@ device_tracker::device_tracker() :
                     os << "Device tag set\n";
                 },
                 [this]() {
-                    get_devicelist_write().lock();
+                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), kismet::retain_lock, "/devices/by-key/set_tag");
                 },
                 [this]() {
-                    get_devicelist_write().unlock();
+                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), std::adopt_lock);
                 }));
 
     httpd->register_route("/devices/pcap/by-key/:key/packets", {"GET"}, httpd->RO_ROLE, {"pcapng"},
@@ -568,7 +568,7 @@ device_tracker::device_tracker() :
                     if (mac_list.size() == 0) 
                         throw std::runtime_error("expected MAC address in mac or macs[]");
 
-                    std::lock_guard<kis_tristate_mutex_view> lg(get_devicelist_write());
+                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex());
 
                     for (auto mi : mac_list) {
                         auto ek = macdevice_alert_conf_map.find(mi);
@@ -620,7 +620,7 @@ device_tracker::device_tracker() :
                     if (mac_list.size() == 0) 
                         throw std::runtime_error("expected MAC address in mac or macs[]");
 
-                    std::lock_guard<kis_tristate_mutex_view> lg(get_devicelist_write());
+                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex());
 
                     for (auto mi : mac_list) {
                         auto ek = macdevice_alert_conf_map.find(mi);
@@ -667,10 +667,10 @@ device_tracker::device_tracker() :
                     return ret;
                 },
                 [this](std::shared_ptr<tracker_element> devs) {
-                    get_devicelist_share().lock();
+                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), kismet::retain_lock, "/devices/alerts/mac/macs");
                 },
                 [this](std::shared_ptr<tracker_element> devs) {
-                    get_devicelist_share().unlock();
+                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), std::adopt_lock);
                 }));
 
     httpd->register_websocket_route("/devices/monitor", httpd->RO_ROLE, {"ws"},
@@ -738,7 +738,7 @@ device_tracker::device_tracker() :
                                                 }
 
                                                 if (!dev_m.error()) {
-                                                    std::lock_guard<kis_tristate_mutex_view> lg(get_devicelist_write());
+                                                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "ws monitor timer gather lambda");
                                                     const auto mmp = tracked_mac_multimap.equal_range(dev_m);
                                                     for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi)
                                                         d_vec->push_back(mmpi->second);
@@ -747,7 +747,7 @@ device_tracker::device_tracker() :
                                                 if (d_vec->size() == 0)
                                                     return 1;
 
-                                                std::lock_guard<kis_tristate_mutex_view> lg(get_devicelist_write());
+                                                kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "ws monitor timer serialize lambda");
 
                                                 for (const auto& d : *d_vec) {
                                                     std::stringstream ss;
@@ -937,7 +937,7 @@ device_tracker::~device_tracker() {
 }
 
 void device_tracker::macdevice_timer_event() {
-    std::lock_guard<kis_tristate_mutex_view> lg(get_devicelist_write());
+    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker macdevice_timer_event");
 
     time_t now = time(0);
 
@@ -974,7 +974,7 @@ kis_phy_handler *device_tracker::fetch_phy_handler(int in_phy) {
 }
 
 kis_phy_handler *device_tracker::fetch_phy_handler_by_name(const std::string& in_name) {
-    kis_shared_lock_guard<kis_mutex> lk(phy_mutex, "fetch_phy_handler_by_name");
+    kis_lock_guard<kis_mutex> lk(phy_mutex, "fetch_phy_handler_by_name");
 
     for (const auto& i : phy_handler_map) {
         if (i.second->fetch_phy_name() == in_name) {
@@ -999,7 +999,7 @@ std::string device_tracker::fetch_phy_name(int in_phy) {
 }
 
 int device_tracker::fetch_num_devices() {
-    std::lock_guard<kis_tristate_mutex_view> lg(get_devicelist_share());
+    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker fetch_num_devices");
 
     return tracked_map.size();
 }
@@ -1060,7 +1060,7 @@ void device_tracker::update_full_refresh() {
 }
 
 std::shared_ptr<kis_tracked_device_base> device_tracker::fetch_device(device_key in_key) {
-    std::lock_guard<kis_tristate_mutex_view> lg(get_devicelist_share());
+    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker fetch_device");
 
 	device_itr i = tracked_map.find(in_key);
 
@@ -1162,7 +1162,8 @@ std::shared_ptr<kis_tracked_device_base>
     // Updating devices can only happen in serial because we don't know that a device is being
     // created & we don't know how to append the data until we get to the end of processing
     // so the entire chain is perforce locked
-    std::unique_lock<kis_tristate_mutex_view> ul_list(get_devicelist_exclusive(), std::defer_lock);
+    kis_unique_lock<kis_mutex> ul_list(get_devicelist_mutex(), std::defer_lock, 
+            "device_tracker update_common_device");
 
     std::stringstream sstr;
 
@@ -1219,6 +1220,11 @@ std::shared_ptr<kis_tracked_device_base>
     }
 
 #if 0
+    // XXX
+    // Retain exclusive lock on device list from above so we don't let anything else
+    // execute... so we dont' have to do the lock shuffle.
+
+
     // If we're updating an existing device release the devicelist exclusive lock and reacquire it
     // as a write lock and device lock
     std::unique_lock<kis_tristate_mutex_view> ul_dl(get_devicelist_write(), std::defer_lock);
@@ -1432,7 +1438,7 @@ bool devicetracker_sort_lastseen(std::shared_ptr<kis_tracked_device_base> a,
 
 void device_tracker::timetracker_event(int eventid) {
     if (eventid == device_idle_timer) {
-        std::lock_guard<kis_tristate_mutex_view> lock(get_devicelist_exclusive());
+        kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker timetracker_event device_idle_timer");
 
         time_t ts_now = globalreg->timestamp.tv_sec;
         bool purged = false;
@@ -1479,7 +1485,7 @@ void device_tracker::timetracker_event(int eventid) {
             update_full_refresh();
 
     } else if (eventid == max_devices_timer) {
-        std::lock_guard<kis_tristate_mutex_view> lock(get_devicelist_exclusive());
+        kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker timetracker_event max_devices_timer");
 
 		// Do nothing if we don't care
 		if (max_num_devices <= 0)
@@ -1619,7 +1625,7 @@ int device_tracker::database_upgrade_db() {
 }
 
 void device_tracker::add_device(std::shared_ptr<kis_tracked_device_base> device) {
-    std::lock_guard<kis_tristate_mutex_view> lock(get_devicelist_exclusive());
+    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker add_device");
 
     if (fetch_device_nr(device->get_key()) != NULL) {
         _MSG("device_tracker tried to add device " + device->get_macaddr().mac_to_string() + 
@@ -1846,8 +1852,9 @@ void device_tracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> i
 void device_tracker::set_device_user_name(std::shared_ptr<kis_tracked_device_base> in_dev,
         std::string in_username) {
 
-    std::lock_guard lg_dl(get_devicelist_write());
-    std::lock_guard lg_d(in_dev->device_mutex);
+    kis_unique_lock<kis_mutex> lk_devicelist(get_devicelist_mutex(), std::defer_lock, "device_tracker set_device_user_name");
+    kis_unique_lock<kis_mutex> lk_device(in_dev->device_mutex, std::defer_lock, "device_tracker set_device_user_name");
+    std::lock(lk_device, lk_devicelist);
 
     in_dev->set_username(in_username);
 
@@ -1897,8 +1904,9 @@ void device_tracker::set_device_user_name(std::shared_ptr<kis_tracked_device_bas
 void device_tracker::set_device_tag(std::shared_ptr<kis_tracked_device_base> in_dev,
         std::string in_tag, std::string in_content) {
 
-    std::lock_guard lg_dl(get_devicelist_write());
-    std::lock_guard lg_d(in_dev->device_mutex);
+    kis_unique_lock<kis_mutex> lk_devicelist(get_devicelist_mutex(), std::defer_lock, "device_tracker set_device_tag");
+    kis_unique_lock<kis_mutex> lk_device(in_dev->device_mutex, std::defer_lock, "device_tracker set_device_tag");
+    std::lock(lk_device, lk_devicelist);
 
     auto e = std::make_shared<tracker_element_string>();
     e->set(in_content);

@@ -86,11 +86,11 @@ public:
     __ProxyGet(list_sz, uint64_t, uint64_t, list_sz);
 
     virtual void pre_serialize() override {
-        mutex.lock_shared();
+        kis_lock_guard<kis_mutex> lk(mutex, kismet::retain_lock, "devicetracker_view serialize");
     }
 
     virtual void post_serialize() override {
-        mutex.unlock_shared();
+        kis_lock_guard<kis_mutex> lk(mutex, std::adopt_lock);
     }
 
     // Do work on the base list of all devices in this view; this makes an immutable copy
