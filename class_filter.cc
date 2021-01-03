@@ -150,7 +150,7 @@ class_filter_mac_addr::~class_filter_mac_addr() {
 }
 
 void class_filter_mac_addr::set_filter(mac_addr in_mac, const std::string& in_phy, bool value) {
-    kis_lock_guard<kis_shared_mutex> lk(mutex, "class_filter_mac_addr set_filter");
+    kis_lock_guard<kis_mutex> lk(mutex, "class_filter_mac_addr set_filter");
 
     // Build the tracked version of the record, building any containers we need along the way, this
     // always gets built even for unknown phys
@@ -188,7 +188,7 @@ void class_filter_mac_addr::set_filter(mac_addr in_mac, const std::string& in_ph
 }
 
 void class_filter_mac_addr::remove_filter(mac_addr in_mac, const std::string& in_phy) {
-    kis_lock_guard<kis_shared_mutex> lk(mutex, "class_filter_mac_addr remove_filter");
+    kis_lock_guard<kis_mutex> lk(mutex, "class_filter_mac_addr remove_filter");
 
     // Remove it from the tracked version we display
     auto tracked_phy_key = filter_phy_block->find(in_phy);
@@ -229,7 +229,7 @@ void class_filter_mac_addr::remove_filter(mac_addr in_mac, const std::string& in
 }
 
 void class_filter_mac_addr::update_phy_map(std::shared_ptr<eventbus_event> evt) {
-    kis_lock_guard<kis_shared_mutex> lk(mutex, "class_filter_mac_addr update_phy_map");
+    kis_lock_guard<kis_mutex> lk(mutex, "class_filter_mac_addr update_phy_map");
 
     if (unknown_phy_mac_filter_map.size() == 0)
         return;
@@ -329,7 +329,7 @@ void class_filter_mac_addr::remove_endp_handler(std::shared_ptr<kis_net_beast_ht
 }
 
 bool class_filter_mac_addr::filter(mac_addr mac, unsigned int phy) {
-    kis_lock_guard<kis_shared_mutex> lk(mutex, "class_filter_mac_addr filter");
+    kis_lock_guard<kis_mutex> lk(mutex, "class_filter_mac_addr filter");
 
     auto pi = phy_mac_filter_map.find(phy);
 

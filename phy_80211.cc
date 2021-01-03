@@ -727,12 +727,9 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                         [&](std::shared_ptr<kis_tracked_device_base> dev) {
 
                         auto list_locker = 
-                            std::unique_lock<kis_tristate_mutex_view>(devicetracker->get_devicelist_share(), 
-                                    std::defer_lock);
+                            std::unique_lock<kis_tristate_mutex_view>(devicetracker->get_devicelist_share());
                         auto dev_locker =
                             std::unique_lock<kis_shared_mutex>(dev->device_mutex);
-
-                        std::lock(list_locker, dev_locker);
 
                         // Don't add non-dot11 devices
                         auto dot11 =
@@ -1111,14 +1108,15 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             rx_mutex = &receive_dev->device_mutex;
 
         auto list_locker = 
-            std::unique_lock<kis_tristate_mutex_view>(d11phy->devicetracker->get_devicelist_write(), std::defer_lock);
+            std::unique_lock<kis_tristate_mutex_view>(d11phy->devicetracker->get_devicelist_write());
+
         auto bssid_locker = std::unique_lock<kis_shared_mutex>(*bssid_mutex, std::defer_lock);
         auto source_locker = std::unique_lock<kis_shared_mutex>(*source_mutex, std::defer_lock);
         auto dest_locker = std::unique_lock<kis_shared_mutex>(*dest_mutex, std::defer_lock);
         auto tx_locker = std::unique_lock<kis_shared_mutex>(*tx_mutex, std::defer_lock);
         auto rx_locker = std::unique_lock<kis_shared_mutex>(*rx_mutex, std::defer_lock);
 
-        std::lock(list_locker, bssid_locker, source_locker, dest_locker, tx_locker, rx_locker);
+        std::lock(bssid_locker, source_locker, dest_locker, tx_locker, rx_locker);
 
         // Do we have a worker we have to call later?  We must defer workers until we release the locks
         // on devices
@@ -1552,14 +1550,15 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             rx_mutex = &receive_dev->device_mutex;
 
         auto list_locker = 
-            std::unique_lock<kis_tristate_mutex_view>(d11phy->devicetracker->get_devicelist_write(), std::defer_lock);
+            std::unique_lock<kis_tristate_mutex_view>(d11phy->devicetracker->get_devicelist_write());
+
         auto bssid_locker = std::unique_lock<kis_shared_mutex>(*bssid_mutex, std::defer_lock);
         auto source_locker = std::unique_lock<kis_shared_mutex>(*source_mutex, std::defer_lock);
         auto dest_locker = std::unique_lock<kis_shared_mutex>(*dest_mutex, std::defer_lock);
         auto tx_locker = std::unique_lock<kis_shared_mutex>(*tx_mutex, std::defer_lock);
         auto rx_locker = std::unique_lock<kis_shared_mutex>(*rx_mutex, std::defer_lock);
 
-        std::lock(list_locker, bssid_locker, source_locker, dest_locker, tx_locker, rx_locker);
+        std::lock(bssid_locker, source_locker, dest_locker, tx_locker, rx_locker);
 
         if (bssid_dev != NULL) {
             bssid_dot11 =
@@ -1985,11 +1984,9 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 
 
         auto list_locker = 
-            std::unique_lock<kis_tristate_mutex_view>(d11phy->devicetracker->get_devicelist_write(), 
-                    std::defer_lock);
+            std::unique_lock<kis_tristate_mutex_view>(d11phy->devicetracker->get_devicelist_write());
         auto dev_locker =
             std::unique_lock<kis_shared_mutex>(bssid_dev->device_mutex);
-        std::lock(list_locker, dev_locker);
 
         auto bssid_dot11 =
             bssid_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
@@ -3677,11 +3674,9 @@ void kis_80211_phy::generate_handshake_pcap(std::shared_ptr<kis_net_beast_httpd_
     stream.write((const char *) &hdr, sizeof(hdr));
 
     auto list_locker = 
-        std::unique_lock<kis_tristate_mutex_view>(devicetracker->get_devicelist_write(), std::defer_lock);
+        std::unique_lock<kis_tristate_mutex_view>(devicetracker->get_devicelist_write());
     auto dev_locker =
         std::unique_lock<kis_shared_mutex>(dev->device_mutex);
-
-    std::lock(list_locker, dev_locker);
 
     /* Write the beacon */
     if (dot11dev->get_beacon_packet_present()) {

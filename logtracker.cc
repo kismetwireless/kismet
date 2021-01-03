@@ -38,7 +38,7 @@ log_tracker::log_tracker() :
 }
 
 log_tracker::~log_tracker() {
-    kis_lock_guard<kis_shared_mutex> lk(tracker_mutex);
+    kis_lock_guard<kis_mutex> lk(tracker_mutex);
 
     Globalreg::globalreg->remove_global("LOGTRACKER");
 
@@ -191,7 +191,7 @@ void log_tracker::trigger_deferred_startup() {
                     if (u.error)
                         throw std::runtime_error("invalid uuid");
 
-                    kis_lock_guard<kis_shared_mutex> lk(tracker_mutex, static_cast<std::string>(con->uri()));
+                    kis_lock_guard<kis_mutex> lk(tracker_mutex, static_cast<std::string>(con->uri()));
 
                     std::shared_ptr<kis_logfile> logfile;
                     for (auto lfi : *logfile_vec) {
@@ -259,7 +259,7 @@ void log_tracker::trigger_deferred_shutdown() {
 }
 
 int log_tracker::register_log(shared_log_builder in_builder) {
-    kis_lock_guard<kis_shared_mutex> lk(tracker_mutex);
+    kis_lock_guard<kis_mutex> lk(tracker_mutex);
 
     for (auto i : *logproto_vec) {
         auto b = std::static_pointer_cast<kis_logfile_builder>(i);
@@ -282,7 +282,7 @@ shared_logfile log_tracker::open_log(std::string in_class) {
 }
 
 shared_logfile log_tracker::open_log(std::string in_class, std::string in_title) {
-    kis_lock_guard<kis_shared_mutex> lk(tracker_mutex);
+    kis_lock_guard<kis_mutex> lk(tracker_mutex);
 
     shared_log_builder target_builder;
 
@@ -302,7 +302,7 @@ shared_logfile log_tracker::open_log(shared_log_builder in_builder) {
 }
 
 shared_logfile log_tracker::open_log(shared_log_builder in_builder, std::string in_title) {
-    kis_lock_guard<kis_shared_mutex> lk(tracker_mutex);
+    kis_lock_guard<kis_mutex> lk(tracker_mutex);
 
     if (in_builder == NULL)
         return NULL;
@@ -338,7 +338,7 @@ shared_logfile log_tracker::open_log(shared_log_builder in_builder, std::string 
 }
 
 int log_tracker::close_log(shared_logfile in_logfile) {
-    kis_lock_guard<kis_shared_mutex> lk(tracker_mutex);
+    kis_lock_guard<kis_mutex> lk(tracker_mutex);
 
     in_logfile->close_log();
 

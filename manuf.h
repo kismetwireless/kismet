@@ -69,7 +69,7 @@ public:
     bool is_unknown_manuf(std::shared_ptr<tracker_element_string> in_manuf);
 
 protected:
-    kis_shared_mutex mutex;
+    kis_mutex mutex;
 
     std::vector<index_pos> index_vec;
 

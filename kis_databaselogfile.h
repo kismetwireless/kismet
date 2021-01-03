@@ -158,7 +158,7 @@ protected:
             fmt::print(stderr, "FATAL: kismetdb log couldn't finish a database transaction within the " \
                     "timeout window for threads ({} seconds).  Usually this happens when " \
                     "the disk you are logging to can not perform adequately, such as a " \
-                    "micro-sd.  Try moving logging to a USB device.", KIS_THREAD_DEADLOCK_TIMEOUT); \
+                    "micro SD.  Try moving logging to a USB device.", KIS_THREAD_TIMEOUT); \
             Globalreg::globalreg->fatal_condition = 1; \
             throw; \
         } else { \
@@ -170,7 +170,7 @@ protected:
 
     // Keep track of our commit cycles; to avoid thrashing the filesystem with
     // commit state we run a 10 second tranasction commit loop
-    kis_shared_mutex transaction_mutex;
+    kis_mutex transaction_mutex;
     int transaction_timer;
 
     // Packet time limit

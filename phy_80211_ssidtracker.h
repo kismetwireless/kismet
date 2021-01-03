@@ -121,7 +121,7 @@ public:
     }
 
 protected:
-    kis_shared_mutex mutex;
+    kis_mutex mutex;
 
     virtual void register_fields() override;
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;
@@ -173,7 +173,7 @@ public:
             std::shared_ptr<kis_tracked_device_base> device);
 
 protected:
-    kis_shared_mutex mutex;
+    kis_mutex mutex;
 
     robin_hood::unordered_node_map<size_t, std::shared_ptr<dot11_tracked_ssid_group>> ssid_map;
     std::shared_ptr<tracker_element_vector> ssid_vector;

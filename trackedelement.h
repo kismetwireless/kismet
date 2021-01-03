@@ -1755,7 +1755,7 @@ public:
     static void pre_serialize_path(const SharedElementSummary& in_summary);
     static void post_serialize_path(const SharedElementSummary& in_summary);
 protected:
-    kis_shared_mutex mutex;
+    kis_mutex mutex;
 };
 
 // Get an element using path semantics

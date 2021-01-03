@@ -268,7 +268,7 @@ public:
     bool compare_ssid(const std::string& ssid, mac_addr mac);
 
 protected:
-    kis_shared_mutex ssid_mutex;
+    kis_mutex ssid_mutex;
 
     virtual void register_fields() override;
 

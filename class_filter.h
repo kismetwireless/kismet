@@ -61,7 +61,7 @@ protected:
         register_field("kismet.classfilter.default", "Default filter (pass/reject)", &filter_default);
     }
 
-    kis_shared_mutex mutex;
+    kis_mutex mutex;
 
     std::string base_uri;
 

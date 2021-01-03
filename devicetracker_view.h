@@ -132,7 +132,7 @@ protected:
         // un-processed; use the view APIs for managing that
     }
 
-    kis_shared_mutex mutex;
+    kis_mutex mutex;
 
     std::shared_ptr<tracker_element_string> view_id;
     std::shared_ptr<tracker_element_uuid> view_uuid;

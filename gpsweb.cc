@@ -93,7 +93,7 @@ kis_gps_web::~kis_gps_web() {
 }
 
 bool kis_gps_web::open_gps(std::string in_opts) {
-    kis_lock_guard<kis_shared_mutex> lk(gps_mutex, "gps_web open_gps");
+    kis_lock_guard<kis_mutex> lk(gps_mutex, "gps_web open_gps");
 
     if (!kis_gps::open_gps(in_opts)) {
         return false;
@@ -105,7 +105,7 @@ bool kis_gps_web::open_gps(std::string in_opts) {
 }
 
 bool kis_gps_web::get_location_valid() {
-    kis_lock_guard<kis_shared_mutex> lk(gps_mutex, "gps_web get_location_valid");
+    kis_lock_guard<kis_mutex> lk(gps_mutex, "gps_web get_location_valid");
 
     if (gps_location == NULL) {
         return false;

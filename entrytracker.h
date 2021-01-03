@@ -115,8 +115,8 @@ public:
             const Json::Value& json_summary);
 
 protected:
-    kis_shared_mutex entry_mutex;
-    kis_shared_mutex serializer_mutex;
+    kis_mutex entry_mutex;
+    kis_mutex serializer_mutex;
 
     int next_field_num;
 

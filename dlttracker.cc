@@ -37,7 +37,7 @@ uint32_t dlt_tracker::register_linktype(const std::string& in_linktype) {
     if (csum < 4096)
         csum += 4096;
 
-    kis_lock_guard<kis_shared_mutex> lk(mutex, "dlt_tracker register_linktype");
+    kis_lock_guard<kis_mutex> lk(mutex, "dlt_tracker register_linktype");
 
     dlt_to_name_map[csum] = str_lower(in_linktype);
 
@@ -45,7 +45,7 @@ uint32_t dlt_tracker::register_linktype(const std::string& in_linktype) {
 }
 
 std::string dlt_tracker::get_linktype_name(uint32_t in_dlt) {
-    kis_lock_guard<kis_shared_mutex> lk(mutex, "dlt_tracker get_linktype_name");
+    kis_lock_guard<kis_mutex> lk(mutex, "dlt_tracker get_linktype_name");
 
     auto i = dlt_to_name_map.find(in_dlt);
 

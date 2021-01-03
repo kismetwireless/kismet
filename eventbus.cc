@@ -134,7 +134,7 @@ std::shared_ptr<eventbus_event> event_bus::get_eventbus_event(const std::string&
 }
 
 void event_bus::event_queue_dispatcher() {
-    kis_unique_lock<kis_shared_mutex> lock(mutex, std::defer_lock, "event_bus event_queue_dispatcher");
+    kis_unique_lock<kis_mutex> lock(mutex, std::defer_lock, "event_bus event_queue_dispatcher");
 
     while (!shutdown && 
             !Globalreg::globalreg->spindown && 
@@ -152,7 +152,7 @@ void event_bus::event_queue_dispatcher() {
 
         if (e != nullptr) {
             // Lock the handler mutex while we're processing an event
-            kis_unique_lock<kis_shared_mutex> rl(handler_mutex, std::defer_lock, "event_bus dispatch");
+            kis_unique_lock<kis_mutex> rl(handler_mutex, std::defer_lock, "event_bus dispatch");
 
             rl.lock();
 
@@ -198,7 +198,7 @@ void event_bus::event_queue_dispatcher() {
 }
 
 unsigned long event_bus::register_listener(const std::string& channel, cb_func cb) {
-    kis_lock_guard<kis_shared_mutex> lk(handler_mutex, "event_bus register_listener");
+    kis_lock_guard<kis_mutex> lk(handler_mutex, "event_bus register_listener");
 
     auto cbl = std::make_shared<callback_listener>(std::list<std::string>{channel}, cb, next_cbl_id++);
 
@@ -209,7 +209,7 @@ unsigned long event_bus::register_listener(const std::string& channel, cb_func c
 }
 
 unsigned long event_bus::register_listener(const std::list<std::string>& channels, cb_func cb) {
-    kis_lock_guard<kis_shared_mutex> lk(handler_mutex, "event_bus register_listener (vector)");
+    kis_lock_guard<kis_mutex> lk(handler_mutex, "event_bus register_listener (vector)");
 
     auto cbl = std::make_shared<callback_listener>(channels, cb, next_cbl_id++);
 
@@ -223,7 +223,7 @@ unsigned long event_bus::register_listener(const std::list<std::string>& channel
 }
 
 void event_bus::remove_listener(unsigned long id) {
-    kis_lock_guard<kis_shared_mutex> lk(handler_mutex, "event_bus remove_listener");
+    kis_lock_guard<kis_mutex> lk(handler_mutex, "event_bus remove_listener");
 
     // Find matching cbl
     auto cbl = callback_id_table.find(id);

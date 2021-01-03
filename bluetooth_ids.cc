@@ -91,7 +91,7 @@ void kis_bt_oid::index_bt_oids() {
     if (zofile == nullptr)
         return;
 
-    kis_lock_guard<kis_shared_mutex> lk(mutex, "kis_btoit index_bt_oids");
+    kis_lock_guard<kis_mutex> lk(mutex, "kis_btoit index_bt_oids");
 
     _MSG_INFO("Indexing Bluetooth OID list");
 
@@ -131,7 +131,7 @@ std::shared_ptr<tracker_element_string> kis_bt_oid::lookup_oid(uint32_t in_oid) 
     if (zofile == nullptr)
         return unknown_oid;
 
-    kis_lock_guard<kis_shared_mutex> lk(mutex, "kis_bt_oit lookup_oid");
+    kis_lock_guard<kis_mutex> lk(mutex, "kis_bt_oit lookup_oid");
 
     if (oid_map.find(in_oid) != oid_map.end())
         return oid_map[in_oid].data;
@@ -271,7 +271,7 @@ void kis_bt_manuf::index_bt_manufs() {
     if (zmfile == nullptr)
         return;
 
-    kis_lock_guard<kis_shared_mutex> lk(mutex, "kis_bt_manuf index_bt_manufs");
+    kis_lock_guard<kis_mutex> lk(mutex, "kis_bt_manuf index_bt_manufs");
 
     _MSG_INFO("Indexing Bluetooth manufacturer list");
 
@@ -311,7 +311,7 @@ std::shared_ptr<tracker_element_string> kis_bt_manuf::lookup_manuf(uint32_t in_i
     if (zmfile == nullptr)
         return unknown_manuf;
 
-    kis_lock_guard<kis_shared_mutex> lk(mutex, "kis_bt_manuf lookup_manuf");
+    kis_lock_guard<kis_mutex> lk(mutex, "kis_bt_manuf lookup_manuf");
 
     if (manuf_map.find(in_id) != manuf_map.end())
         return manuf_map[in_id].manuf;

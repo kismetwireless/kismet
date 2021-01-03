@@ -63,7 +63,7 @@ public:
     std::string get_linktype_name(uint32_t in_dlt);
 
 protected:
-    kis_shared_mutex mutex;
+    kis_mutex mutex;
 
     std::map<uint32_t, std::string> dlt_to_name_map;
 

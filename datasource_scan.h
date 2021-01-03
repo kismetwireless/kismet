@@ -36,7 +36,7 @@ public:
     virtual ~datasource_scan_source();
 
 protected:
-    kis_shared_mutex mutex;
+    kis_mutex mutex;
 
     std::string endpoint_uri;
     std::string virtual_source_type;

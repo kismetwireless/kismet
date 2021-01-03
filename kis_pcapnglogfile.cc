@@ -33,7 +33,7 @@ kis_pcapng_logfile::~kis_pcapng_logfile() {
 }
 
 bool kis_pcapng_logfile::open_log(std::string in_path) {
-    kis_lock_guard<kis_shared_mutex> lk(log_mutex);
+    kis_lock_guard<kis_mutex> lk(log_mutex);
 
     set_int_log_path(in_path);
 
@@ -85,7 +85,7 @@ bool kis_pcapng_logfile::open_log(std::string in_path) {
 }
 
 void kis_pcapng_logfile::close_log() {
-    kis_lock_guard<kis_shared_mutex> lk(log_mutex);
+    kis_lock_guard<kis_mutex> lk(log_mutex);
 
     set_int_log_open(false);
 

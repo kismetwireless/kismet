@@ -143,7 +143,7 @@ public:
     };
 
 protected:
-    kis_shared_mutex mutex;
+    kis_mutex mutex;
     std::map<char, std::shared_ptr<tracker_element_string>> atype_map;
 
     gzFile zmfile;

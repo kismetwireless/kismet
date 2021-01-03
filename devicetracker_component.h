@@ -593,7 +593,7 @@ public:
     // Protective per-device mutex, should be managed by pre/post serialization
     // functions, and by anything modifying the device or any of the per-phy records
     // inside it
-    kis_shared_mutex device_mutex;
+    kis_mutex device_mutex;
 
 protected:
     virtual void register_fields() override;

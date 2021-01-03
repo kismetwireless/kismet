@@ -124,7 +124,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(devi
     // Make a copy of the vector
     std::shared_ptr<tracker_element_vector> immutable_copy;
     {
-        kis_shared_lock_guard<kis_shared_mutex> lk(mutex);
+        kis_lock_guard<kis_mutex> lk(mutex);
         immutable_copy = std::make_shared<tracker_element_vector>(device_list);
     }
 
@@ -135,7 +135,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_
     // Make a copy of the vector
     std::shared_ptr<tracker_element_vector> immutable_copy;
     {
-        kis_shared_lock_guard<kis_shared_mutex> lk(mutex);
+        kis_lock_guard<kis_mutex> lk(mutex);
         immutable_copy = std::make_shared<tracker_element_vector>(device_list);
     }
 
@@ -211,7 +211,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_
 
 void device_tracker_view::new_device(std::shared_ptr<kis_tracked_device_base> device) {
     if (new_cb != nullptr) {
-        kis_lock_guard<kis_shared_mutex> lk(mutex);
+        kis_lock_guard<kis_mutex> lk(mutex);
 
         if (new_cb(device)) {
             auto dpmi = device_presence_map.find(device->get_key());
@@ -232,7 +232,7 @@ void device_tracker_view::update_device(std::shared_ptr<kis_tracked_device_base>
         return;
 
     {
-        kis_lock_guard<kis_shared_mutex> lk(mutex);
+        kis_lock_guard<kis_mutex> lk(mutex);
         bool retain = update_cb(device);
 
         auto dpmi = device_presence_map.find(device->get_key());
@@ -263,7 +263,7 @@ void device_tracker_view::update_device(std::shared_ptr<kis_tracked_device_base>
 }
 
 void device_tracker_view::remove_device(std::shared_ptr<kis_tracked_device_base> device) {
-    kis_lock_guard<kis_shared_mutex> lk(mutex);
+    kis_lock_guard<kis_mutex> lk(mutex);
 
     auto di = device_presence_map.find(device->get_key());
 
@@ -282,7 +282,7 @@ void device_tracker_view::remove_device(std::shared_ptr<kis_tracked_device_base>
 }
 
 void device_tracker_view::add_device_direct(std::shared_ptr<kis_tracked_device_base> device) {
-    kis_lock_guard<kis_shared_mutex> lk(mutex);
+    kis_lock_guard<kis_mutex> lk(mutex);
 
     auto di = device_presence_map.find(device->get_key());
 
@@ -296,7 +296,7 @@ void device_tracker_view::add_device_direct(std::shared_ptr<kis_tracked_device_b
 }
 
 void device_tracker_view::remove_device_direct(std::shared_ptr<kis_tracked_device_base> device) {
-    kis_lock_guard<kis_shared_mutex> lk(mutex);
+    kis_lock_guard<kis_mutex> lk(mutex);
 
     auto di = device_presence_map.find(device->get_key());
 
@@ -513,7 +513,7 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
     // which is protected from the main vector being grown/shrank.  While we're in there, log the total
     // size of the original vector for windowed ops.
     {
-        kis_shared_lock_guard<kis_shared_mutex> lk(mutex);
+        kis_lock_guard<kis_mutex> lk(mutex);
 
         next_work_vec->set(device_list->begin(), device_list->end());
         total_sz_elem->set(next_work_vec->size());

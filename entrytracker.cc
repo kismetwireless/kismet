@@ -33,7 +33,7 @@ entry_tracker::entry_tracker() {
 }
 
 entry_tracker::~entry_tracker() {
-    kis_lock_guard<kis_shared_mutex> lk(entry_mutex, "~entrytracker");
+    kis_lock_guard<kis_mutex> lk(entry_mutex, "~entrytracker");
 
     Globalreg::globalreg->remove_global("ENTRYTRACKER");
 }
@@ -53,7 +53,7 @@ void entry_tracker::trigger_deferred_shutdown() {
 }
 
 void entry_tracker::tracked_fields_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
-    kis_lock_guard<kis_shared_mutex> lk(entry_mutex, "entry_tracker tracked_fields_endp_handler");
+    kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker tracked_fields_endp_handler");
 
     std::ostream stream(&con->response_stream());
 
@@ -88,7 +88,7 @@ void entry_tracker::tracked_fields_endp_handler(std::shared_ptr<kis_net_beast_ht
 int entry_tracker::register_field(const std::string& in_name,
         std::unique_ptr<tracker_element> in_builder,
         const std::string& in_desc) {
-    kis_lock_guard<kis_shared_mutex> lk(entry_mutex, "entry_tracker register_field");
+    kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker register_field");
 
     // std::string lname = str_lower(in_name);
 
@@ -121,7 +121,7 @@ int entry_tracker::register_field(const std::string& in_name,
 std::shared_ptr<tracker_element> entry_tracker::register_and_get_field(const std::string& in_name,
         std::unique_ptr<tracker_element> in_builder,
         const std::string& in_desc) {
-    kis_lock_guard<kis_shared_mutex> lk(entry_mutex, "entry_tracker register_and_get_field");
+    kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker register_and_get_field");
 
     // std::string lname = str_lower(in_name);
 
@@ -153,7 +153,7 @@ std::shared_ptr<tracker_element> entry_tracker::register_and_get_field(const std
 
 
 int entry_tracker::get_field_id(const std::string& in_name) {
-    kis_lock_guard<kis_shared_mutex> lk(entry_mutex, "entry_tracker get_field_id");
+    kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker get_field_id");
 
     // std::string mod_name = str_lower(in_name);
 
@@ -165,7 +165,7 @@ int entry_tracker::get_field_id(const std::string& in_name) {
 }
 
 std::string entry_tracker::get_field_name(int in_id) {
-    kis_lock_guard<kis_shared_mutex> lk(entry_mutex, "entry_tracker get_field_name");
+    kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker get_field_name");
 
     auto iter = field_id_map.find(in_id);
     if (iter == field_id_map.end()) 
@@ -175,7 +175,7 @@ std::string entry_tracker::get_field_name(int in_id) {
 }
 
 std::string entry_tracker::get_field_description(int in_id) {
-    kis_lock_guard<kis_shared_mutex> lk(entry_mutex, "entry_tracker get_field_description");
+    kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker get_field_description");
 
     auto iter = field_id_map.find(in_id);
 
@@ -187,7 +187,7 @@ std::string entry_tracker::get_field_description(int in_id) {
 }
 
 std::shared_ptr<tracker_element> entry_tracker::get_shared_instance(int in_id) {
-    kis_unique_lock<kis_shared_mutex> lock(entry_mutex, std::defer_lock, "entry_tracker get_shared_instance id");
+    kis_unique_lock<kis_mutex> lock(entry_mutex, std::defer_lock, "entry_tracker get_shared_instance id");
 
     lock.lock();
     auto iter = field_id_map.find(in_id);
@@ -200,7 +200,7 @@ std::shared_ptr<tracker_element> entry_tracker::get_shared_instance(int in_id) {
 }
 
 std::shared_ptr<tracker_element> entry_tracker::get_shared_instance(const std::string& in_name) {
-    kis_unique_lock<kis_shared_mutex> lock(entry_mutex, std::defer_lock, "entry_tracker get_shared_instance name");
+    kis_unique_lock<kis_mutex> lock(entry_mutex, std::defer_lock, "entry_tracker get_shared_instance name");
 
     lock.lock();
     auto iter = field_name_map.find(in_name);
@@ -214,7 +214,7 @@ std::shared_ptr<tracker_element> entry_tracker::get_shared_instance(const std::s
 
 void entry_tracker::register_serializer(const std::string& in_name, 
         std::shared_ptr<tracker_element_serializer> in_ser) {
-    kis_lock_guard<kis_shared_mutex> lk(serializer_mutex, "entry_tracker register_serializer");
+    kis_lock_guard<kis_mutex> lk(serializer_mutex, "entry_tracker register_serializer");
     
     if (serializer_map.find(in_name) != serializer_map.end()) {
         _MSG_ERROR("Attempted to register two serializers to type {}", in_name);
@@ -225,7 +225,7 @@ void entry_tracker::register_serializer(const std::string& in_name,
 }
 
 void entry_tracker::remove_serializer(const std::string& in_name) {
-    kis_lock_guard<kis_shared_mutex> lk(serializer_mutex, "entry_tracker remove_serializer");
+    kis_lock_guard<kis_mutex> lk(serializer_mutex, "entry_tracker remove_serializer");
 
     auto i = serializer_map.find(in_name);
 
@@ -235,7 +235,7 @@ void entry_tracker::remove_serializer(const std::string& in_name) {
 }
 
 bool entry_tracker::can_serialize(const std::string& in_name) {
-    kis_lock_guard<kis_shared_mutex> lk(serializer_mutex, "entry_tracker can_serialize");
+    kis_lock_guard<kis_mutex> lk(serializer_mutex, "entry_tracker can_serialize");
 
     auto i = serializer_map.find(in_name);
 
@@ -250,7 +250,7 @@ int entry_tracker::serialize(const std::string& in_name, std::ostream &stream,
         shared_tracker_element e,
         std::shared_ptr<tracker_element_serializer::rename_map> name_map) {
 
-    kis_unique_lock<kis_shared_mutex> lock(serializer_mutex, std::defer_lock, "entry_tracker serialize");
+    kis_unique_lock<kis_mutex> lock(serializer_mutex, std::defer_lock, "entry_tracker serialize");
 
     lock.lock();
     auto dpos = in_name.find_last_of(".");

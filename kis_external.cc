@@ -102,7 +102,7 @@ void kis_external_interface::close_external() {
     stopped = true;
     cancelled = true;
 
-    kis_lock_guard<kis_shared_mutex> lk(ext_mutex, "kei close_external");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "kei close_external");
 
     // Kill any eventbus listeners
     for (const auto& ebid : eventbus_callback_map)
@@ -638,7 +638,7 @@ unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal:
 
     // Set the sequence if one wasn't provided
     if (c->seqno() == 0) {
-        kis_lock_guard<kis_shared_mutex> lk(ext_mutex, "kei send_packet");
+        kis_lock_guard<kis_mutex> lk(ext_mutex, "kei send_packet");
 
         if (++seqno == 0)
             seqno = 1;
@@ -734,7 +734,7 @@ void kis_external_interface::handle_packet_ping(uint32_t in_seqno, const std::st
 }
 
 void kis_external_interface::handle_packet_pong(uint32_t in_seqno, const std::string& in_content) {
-    kis_lock_guard<kis_shared_mutex> lk(ext_mutex, "kei handle_packet_pong");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_pong");
 
     KismetExternal::Pong p;
     if (!p.ParseFromString(in_content)) {
@@ -747,7 +747,7 @@ void kis_external_interface::handle_packet_pong(uint32_t in_seqno, const std::st
 }
 
 void kis_external_interface::handle_packet_shutdown(uint32_t in_seqno, const std::string& in_content) {
-    kis_lock_guard<kis_shared_mutex> lk(ext_mutex, "kei handle_packet_shutdown");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_shutdown");
 
     KismetExternal::ExternalShutdown s;
     if (!s.ParseFromString(in_content)) {
@@ -816,7 +816,7 @@ void kis_external_interface::proxy_event(std::shared_ptr<eventbus_event> evt) {
 
 void kis_external_interface::handle_packet_eventbus_register(uint32_t in_seqno,
         const std::string& in_content) {
-    kis_lock_guard<kis_shared_mutex> lk(ext_mutex, "kei handle_packet_eventbus_register");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_eventbus_register");
 
     KismetEventBus::EventbusRegisterListener evtlisten;
 
@@ -844,7 +844,7 @@ void kis_external_interface::handle_packet_eventbus_register(uint32_t in_seqno,
 
 void kis_external_interface::handle_packet_eventbus_publish(uint32_t in_seqno,
         const std::string& in_content) {
-    kis_lock_guard<kis_shared_mutex> lk(ext_mutex, "kei handle_packet_eventbus_publish");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_eventbus_publish");
     
     KismetEventBus::EventbusPublishEvent evtpub;
 
@@ -862,7 +862,7 @@ void kis_external_interface::handle_packet_eventbus_publish(uint32_t in_seqno,
 
 void kis_external_interface::handle_packet_http_register(uint32_t in_seqno, 
         const std::string& in_content) {
-    kis_lock_guard<kis_shared_mutex> lk(ext_mutex, "kei handle_packet_http_register");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_http_register");
 
     KismetExternalHttp::HttpRegisterUri uri;
 
@@ -877,7 +877,7 @@ void kis_external_interface::handle_packet_http_register(uint32_t in_seqno,
     httpd->register_route(uri.uri(), {uri.method()}, httpd->LOGON_ROLE,
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-                    kis_unique_lock<kis_shared_mutex> l(ext_mutex, std::defer_lock,
+                    kis_unique_lock<kis_mutex> l(ext_mutex, std::defer_lock,
                             fmt::format("proxied req {}", con->uri()));
                     l.lock();
 
@@ -915,7 +915,7 @@ void kis_external_interface::handle_packet_http_register(uint32_t in_seqno,
 
 void kis_external_interface::handle_packet_http_response(uint32_t in_seqno, 
         const std::string& in_content) {
-    kis_lock_guard<kis_shared_mutex> lk(ext_mutex, "kei handle_packet_http_response");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_http_response");
 
     KismetExternalHttp::HttpResponse resp;
 

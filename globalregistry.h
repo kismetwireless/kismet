@@ -255,17 +255,17 @@ public:
     boost::asio::io_context io{n_io_threads};
 
 protected:
-    kis_shared_mutex ext_mutex;
+    kis_mutex ext_mutex;
     // Exernal global references, string to intid
     std::map<std::string, int> ext_name_map;
     // External globals
     std::map<int, std::shared_ptr<void> > ext_data_map;
     std::atomic<int> next_ext_ref;
 
-    kis_shared_mutex lifetime_mutex;
+    kis_mutex lifetime_mutex;
     std::vector<std::shared_ptr<lifetime_global> > lifetime_vec;
 
-    kis_shared_mutex deferred_mutex;
+    kis_mutex deferred_mutex;
     bool deferred_started;
     std::vector<std::shared_ptr<deferred_startup> > deferred_vec;
 };

@@ -599,19 +599,19 @@ void kis_net_beast_httpd::decode_cookies(const boost::beast::string_view decoded
 }
 
 void kis_net_beast_httpd::register_mime_type(const std::string& extension, const std::string& type) {
-    kis_lock_guard<kis_shared_mutex> lk(mime_mutex, "beast_httpd register_mime_type");
+    kis_lock_guard<kis_mutex> lk(mime_mutex, "beast_httpd register_mime_type");
     mime_map.emplace(std::make_pair(extension, type));
 }
 
 void kis_net_beast_httpd::remove_mime_type(const std::string& extension) {
-    kis_lock_guard<kis_shared_mutex> lk(mime_mutex, "beast_httpd remove_mime_type");
+    kis_lock_guard<kis_mutex> lk(mime_mutex, "beast_httpd remove_mime_type");
     auto k = mime_map.find(extension);
     if (k != mime_map.end())
         mime_map.erase(k);
 }
 
 std::string kis_net_beast_httpd::resolve_mime_type(const std::string& extension) {
-    kis_shared_lock_guard<kis_shared_mutex> lk(mime_mutex, "beast_httpd resolve_mime_type");
+    kis_lock_guard<kis_mutex> lk(mime_mutex, "beast_httpd resolve_mime_type");
 
     auto dpos = extension.find_last_of(".");
 
@@ -629,7 +629,7 @@ std::string kis_net_beast_httpd::resolve_mime_type(const std::string& extension)
 }
 
 std::string kis_net_beast_httpd::resolve_mime_type(const boost::beast::string_view& extension) {
-    kis_shared_lock_guard<kis_shared_mutex> lk(mime_mutex, "beast_httpd resolve_mime_type");
+    kis_lock_guard<kis_mutex> lk(mime_mutex, "beast_httpd resolve_mime_type");
 
     auto dpos = extension.find_last_of(".");
 
@@ -653,7 +653,7 @@ void kis_net_beast_httpd::register_route(const std::string& route, const std::li
     if (role.length() == 0)
         throw std::runtime_error("can not register auth http route with no role");
 
-    kis_lock_guard<kis_shared_mutex> lk(route_mutex, "beast_httpd register_route");
+    kis_lock_guard<kis_mutex> lk(route_mutex, "beast_httpd register_route");
 
     std::list<boost::beast::http::verb> b_verbs;
     for (const auto& v : verbs) 
@@ -669,7 +669,7 @@ void kis_net_beast_httpd::register_route(const std::string& route,
     if (role.length() == 0)
         throw std::runtime_error("can not register auth http route with no role");
 
-    kis_lock_guard<kis_shared_mutex> lk(route_mutex, "beast_httpd register_route (extensions)");
+    kis_lock_guard<kis_mutex> lk(route_mutex, "beast_httpd register_route (extensions)");
 
     std::list<boost::beast::http::verb> b_verbs;
     for (const auto& v : verbs) 
@@ -679,7 +679,7 @@ void kis_net_beast_httpd::register_route(const std::string& route,
 }
 
 void kis_net_beast_httpd::remove_route(const std::string& route) {
-    kis_lock_guard<kis_shared_mutex> lk(route_mutex, "beast_httpd remove_route");
+    kis_lock_guard<kis_mutex> lk(route_mutex, "beast_httpd remove_route");
 
     for (auto i = route_vec.begin(); i != route_vec.end(); ++i) {
         if ((*i)->route() == route) {
@@ -692,7 +692,7 @@ void kis_net_beast_httpd::remove_route(const std::string& route) {
 void kis_net_beast_httpd::register_unauth_route(const std::string& route, 
         const std::list<std::string>& verbs,
         std::shared_ptr<kis_net_web_endpoint> handler) {
-    kis_lock_guard<kis_shared_mutex> lk(route_mutex, "beast_httpd register_unauth_route");
+    kis_lock_guard<kis_mutex> lk(route_mutex, "beast_httpd register_unauth_route");
     std::list<boost::beast::http::verb> b_verbs;
     for (const auto& v : verbs) 
         b_verbs.emplace_back(boost::beast::http::string_to_verb(v));
@@ -702,7 +702,7 @@ void kis_net_beast_httpd::register_unauth_route(const std::string& route,
 void kis_net_beast_httpd::register_unauth_route(const std::string& route, 
         const std::list<std::string>& verbs,
         const std::list<std::string>& extensions, std::shared_ptr<kis_net_web_endpoint> handler) {
-    kis_lock_guard<kis_shared_mutex> lk(route_mutex, "beast_httpd register_unauth_route (extensions)");
+    kis_lock_guard<kis_mutex> lk(route_mutex, "beast_httpd register_unauth_route (extensions)");
     std::list<boost::beast::http::verb> b_verbs;
     for (const auto& v : verbs) 
         b_verbs.emplace_back(boost::beast::http::string_to_verb(v));
@@ -713,7 +713,7 @@ void kis_net_beast_httpd::register_unauth_route(const std::string& route,
 void kis_net_beast_httpd::register_websocket_route(const std::string& route, 
         const std::string& role, const std::list<std::string>& extensions, 
         std::shared_ptr<kis_net_web_endpoint> handler) {
-    kis_lock_guard<kis_shared_mutex> lk(route_mutex, "beast_httpd register_websocket_route");
+    kis_lock_guard<kis_mutex> lk(route_mutex, "beast_httpd register_websocket_route");
 
     websocket_route_vec.emplace_back(std::make_shared<kis_net_beast_route>(route, 
                 std::list<boost::beast::http::verb>{}, true, role, extensions, handler));
@@ -721,7 +721,7 @@ void kis_net_beast_httpd::register_websocket_route(const std::string& route,
 }
 
 std::string kis_net_beast_httpd::create_auth(const std::string& name, const std::string& role, time_t expiry) {
-    kis_lock_guard<kis_shared_mutex> lk(auth_mutex, "beast_httpd create_auth");
+    kis_lock_guard<kis_mutex> lk(auth_mutex, "beast_httpd create_auth");
 
     // Pull an existing token if one exists for this name
     for (const auto& a : auth_vec) {
@@ -749,7 +749,7 @@ std::string kis_net_beast_httpd::create_auth(const std::string& name, const std:
 
 std::string kis_net_beast_httpd::create_or_find_auth(const std::string& name, const std::string& role, 
         time_t expiry) {
-    kis_lock_guard<kis_shared_mutex> lk(auth_mutex, "beast_httpd create_or_find_auth");
+    kis_lock_guard<kis_mutex> lk(auth_mutex, "beast_httpd create_or_find_auth");
 
     // Pull an existing token if one exists for this name
     for (const auto& a : auth_vec) {
@@ -770,7 +770,7 @@ std::string kis_net_beast_httpd::create_or_find_auth(const std::string& name, co
 }
 
 bool kis_net_beast_httpd::remove_auth(const std::string& auth_name) {
-    kis_lock_guard<kis_shared_mutex> lk(auth_mutex, "beast_httpd remove_auth");
+    kis_lock_guard<kis_mutex> lk(auth_mutex, "beast_httpd remove_auth");
 
     for (auto a = auth_vec.begin(); a != auth_vec.end(); ++a) {
         if ((*a)->name() == auth_name) {
@@ -784,7 +784,7 @@ bool kis_net_beast_httpd::remove_auth(const std::string& auth_name) {
 }
 
 std::shared_ptr<kis_net_beast_auth> kis_net_beast_httpd::check_auth_token(const boost::beast::string_view& token) {
-    kis_shared_lock_guard<kis_shared_mutex> lk(auth_mutex, "beast_httpd check_auth_token");
+    kis_lock_guard<kis_mutex> lk(auth_mutex, "beast_httpd check_auth_token");
 
     for (const auto& a : auth_vec) {
         if (a->check_auth(token)) 
@@ -795,7 +795,7 @@ std::shared_ptr<kis_net_beast_auth> kis_net_beast_httpd::check_auth_token(const 
 }
 
 void kis_net_beast_httpd::store_auth() {
-    kis_lock_guard<kis_shared_mutex> lk(auth_mutex, "beast_httpd stor_auth");
+    kis_lock_guard<kis_mutex> lk(auth_mutex, "beast_httpd stor_auth");
 
     Json::Value vec(Json::arrayValue);
 
@@ -828,7 +828,7 @@ void kis_net_beast_httpd::store_auth() {
 }
 
 void kis_net_beast_httpd::load_auth() {
-    kis_lock_guard<kis_shared_mutex> lk(auth_mutex, "beast_httpd load_auth");
+    kis_lock_guard<kis_mutex> lk(auth_mutex, "beast_httpd load_auth");
 
     auth_vec.clear();
 
@@ -862,7 +862,7 @@ void kis_net_beast_httpd::load_auth() {
 }
 
 std::shared_ptr<kis_net_beast_route> kis_net_beast_httpd::find_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con) {
-    kis_shared_lock_guard<kis_shared_mutex> lk(route_mutex, "beast_httpd find_endpoint");
+    kis_lock_guard<kis_mutex> lk(route_mutex, "beast_httpd find_endpoint");
 
     for (const auto& r : route_vec) {
         if (r->match_url(static_cast<const std::string>(con->uri()), con->uri_params_, con->http_variables_)) 
@@ -873,7 +873,7 @@ std::shared_ptr<kis_net_beast_route> kis_net_beast_httpd::find_endpoint(std::sha
 }
 
 std::shared_ptr<kis_net_beast_route> kis_net_beast_httpd::find_websocket_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con) {
-    kis_shared_lock_guard<kis_shared_mutex> lk(route_mutex, "beast_httpd find_websocket_endpoint");
+    kis_lock_guard<kis_mutex> lk(route_mutex, "beast_httpd find_websocket_endpoint");
 
     for (const auto& r : websocket_route_vec) {
         if (r->match_url(static_cast<const std::string>(con->uri()), con->uri_params_, con->http_variables_))
@@ -884,7 +884,7 @@ std::shared_ptr<kis_net_beast_route> kis_net_beast_httpd::find_websocket_endpoin
 }
 
 void kis_net_beast_httpd::register_static_dir(const std::string& prefix, const std::string& path) {
-    kis_lock_guard<kis_shared_mutex> lk(static_mutex, "beast_httpd register_static_dir");
+    kis_lock_guard<kis_mutex> lk(static_mutex, "beast_httpd register_static_dir");
     static_dir_vec.emplace_back(static_content_dir(prefix, path));
 }
 
@@ -935,7 +935,7 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
     if (qpos != std::string::npos)
         uri = uri.substr(0, qpos);
 
-    kis_shared_lock_guard<kis_shared_mutex> lk(static_mutex, "beast_httpd serve_file");
+    kis_lock_guard<kis_mutex> lk(static_mutex, "beast_httpd serve_file");
 
     for (auto sd : static_dir_vec) {
         ec = {};
@@ -1658,7 +1658,7 @@ Json::Value kis_net_beast_auth::as_json() {
 
 
 void kis_net_web_tracked_endpoint::handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) {
-    std::lock_guard<kis_shared_mutex> lk(mutex);
+    std::lock_guard<kis_mutex> lk(mutex);
 
     std::ostream os(&con->response_stream());
 
@@ -1702,7 +1702,7 @@ void kis_net_web_tracked_endpoint::handle_request(std::shared_ptr<kis_net_beast_
 }
 
 void kis_net_web_function_endpoint::handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) {
-    std::lock_guard<kis_shared_mutex> lk(mutex);
+    std::lock_guard<kis_mutex> lk(mutex);
 
     try {
         if (pre_func != nullptr)

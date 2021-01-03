@@ -52,7 +52,7 @@ protected:
 
     virtual void set_matched_devices(std::shared_ptr<tracker_element_vector> devices);
 
-    kis_shared_mutex mutex;
+    kis_mutex mutex;
     std::shared_ptr<tracker_element_vector> matched;
 };
 

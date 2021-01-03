@@ -204,7 +204,7 @@ void dot11_ssid_scan::config_endp_handler(std::shared_ptr<kis_net_beast_httpd_co
 }
 
 bool dot11_ssid_scan::enable_ssidscan() {
-    kis_lock_guard<kis_shared_mutex> lk(mutex, "dot11_ssid_scan enable_ssidscan");
+    kis_lock_guard<kis_mutex> lk(mutex, "dot11_ssid_scan enable_ssidscan");
 
     ssidscan_enabled->set(true);
 
@@ -213,7 +213,7 @@ bool dot11_ssid_scan::enable_ssidscan() {
 }
 
 bool dot11_ssid_scan::disable_ssidscan() {
-    kis_lock_guard<kis_shared_mutex> lk(mutex, "dot11_ssid_scan disable_ssidscan");
+    kis_lock_guard<kis_mutex> lk(mutex, "dot11_ssid_scan disable_ssidscan");
 
     ssidscan_enabled->set(true);
 

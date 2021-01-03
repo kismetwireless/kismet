@@ -191,7 +191,7 @@ packet_chain::~packet_chain() {
     }
 
     {
-        kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex);
+        kis_lock_guard<kis_mutex> lk(packetchain_mutex);
 
         Globalreg::globalreg->remove_global("PACKETCHAIN");
         Globalreg::globalreg->packetchain = NULL;
@@ -229,7 +229,7 @@ packet_chain::~packet_chain() {
 }
 
 int packet_chain::register_packet_component(std::string in_component) {
-    kis_lock_guard<kis_shared_mutex> lk(packetcomp_mutex);
+    kis_lock_guard<kis_mutex> lk(packetcomp_mutex);
 
     if (next_componentid >= MAX_PACKET_COMPONENTS) {
         _MSG("Attempted to register more than the maximum defined number of "
@@ -252,7 +252,7 @@ int packet_chain::register_packet_component(std::string in_component) {
 }
 
 int packet_chain::remove_packet_component(int in_id) {
-    kis_lock_guard<kis_shared_mutex> lk(packetcomp_mutex);
+    kis_lock_guard<kis_mutex> lk(packetcomp_mutex);
 
     std::string str;
 
@@ -268,7 +268,7 @@ int packet_chain::remove_packet_component(int in_id) {
 }
 
 std::string packet_chain::fetch_packet_component_name(int in_id) {
-    kis_shared_lock_guard<kis_shared_mutex> lk(packetcomp_mutex);
+    kis_lock_guard<kis_mutex> lk(packetcomp_mutex);
 
     if (component_id_map.find(in_id) == component_id_map.end()) {
 		return "<UNKNOWN>";
@@ -298,7 +298,7 @@ void packet_chain::packet_queue_processor() {
 
         {
             // Lock the chain mutexes until we're done processing this packet
-            kis_shared_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "packet_chain packet_queue_processor");
+            kis_lock_guard<kis_mutex> lk(packetchain_mutex, "packet_chain packet_queue_processor");
 
             // These can only be perturbed inside a sync, which can only occur when
             // the worker thread is in the sync block above, so we shouldn't
@@ -430,7 +430,7 @@ int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux,
         std::function<int (kis_packet *)> in_l_cb, 
         int in_chain, int in_prio) {
 
-    kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex);
+    kis_lock_guard<kis_mutex> lk(packetchain_mutex);
 
     pc_link *link = NULL;
 
@@ -503,7 +503,7 @@ int packet_chain::register_handler(std::function<int (kis_packet *)> in_cb, int 
 }
 
 int packet_chain::remove_handler(int in_id, int in_chain) {
-    kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex);
+    kis_lock_guard<kis_mutex> lk(packetchain_mutex);
 
     unsigned int x;
 
@@ -574,7 +574,7 @@ int packet_chain::remove_handler(int in_id, int in_chain) {
 }
 
 int packet_chain::remove_handler(pc_callback in_cb, int in_chain) {
-    kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex);
+    kis_lock_guard<kis_mutex> lk(packetchain_mutex);
 
     unsigned int x;
 

@@ -52,7 +52,7 @@ kis_ppi_logfile::kis_ppi_logfile(shared_log_builder in_builder) :
 }
 
 bool kis_ppi_logfile::open_log(std::string in_path) {
-    kis_lock_guard<kis_shared_mutex> lk(log_mutex);
+    kis_lock_guard<kis_mutex> lk(log_mutex);
 
     set_int_log_path(in_path);
 
@@ -100,7 +100,7 @@ bool kis_ppi_logfile::open_log(std::string in_path) {
 }
 
 void kis_ppi_logfile::close_log() {
-    kis_lock_guard<kis_shared_mutex> lk(log_mutex);
+    kis_lock_guard<kis_mutex> lk(log_mutex);
 
     set_int_log_open(false);
 
@@ -154,7 +154,7 @@ void kis_ppi_logfile::remove_ppi_callback(dumpfile_ppi_cb in_cb, void *in_aux) {
 int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
     kis_ppi_logfile *ppilog = (kis_ppi_logfile *) auxdata;
 
-    kis_lock_guard<kis_shared_mutex> lk(ppilog->packet_mutex);
+    kis_lock_guard<kis_mutex> lk(ppilog->packet_mutex);
 
     if (ppilog->stream_paused)
         return 1;
@@ -455,7 +455,7 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
 
     // Dump it
     {
-        kis_lock_guard<kis_shared_mutex> lk(ppilog->log_mutex);
+        kis_lock_guard<kis_mutex> lk(ppilog->log_mutex);
         pcap_dump((u_char *) ppilog->dumper, &wh, dump_data);
     }
 

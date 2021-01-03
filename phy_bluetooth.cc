@@ -263,9 +263,8 @@ int kis_bluetooth_phy::packet_tracker_bluetooth(CHAINCALL_PARMS) {
     if (basedev == nullptr)
         return 0;
 
-    std::lock(btphy->devicetracker->get_devicelist_write(), basedev->device_mutex);
-    std::lock_guard<kis_tristate_mutex_view> dl_lg(btphy->devicetracker->get_devicelist_write(), std::adopt_lock);
-    std::lock_guard<kis_shared_mutex> d_lg(basedev->device_mutex, std::adopt_lock);
+    std::lock_guard<kis_tristate_mutex_view> dl_lg(btphy->devicetracker->get_devicelist_write());
+    std::lock_guard<kis_shared_mutex> d_lg(basedev->device_mutex);
 
     auto btdev =
         basedev->get_sub_as<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);

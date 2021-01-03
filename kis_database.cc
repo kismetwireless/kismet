@@ -33,7 +33,7 @@ kis_database::kis_database(global_registry *in_globalreg, std::string in_module_
 }
 
 kis_database::~kis_database() {
-    kis_lock_guard<kis_shared_mutex> lk(ds_mutex);
+    kis_lock_guard<kis_mutex> lk(ds_mutex);
 
     if (db != NULL) {
         sqlite3_close(db);
@@ -55,7 +55,7 @@ bool kis_database::database_open(std::string in_file_path) {
         ds_dbfile = in_file_path;
     }
 
-    kis_lock_guard<kis_shared_mutex> lk(ds_mutex);
+    kis_lock_guard<kis_mutex> lk(ds_mutex);
 
     int r;
 
@@ -102,7 +102,7 @@ bool kis_database::database_open(std::string in_file_path) {
 }
 
 void kis_database::database_close() {
-    kis_lock_guard<kis_shared_mutex> lk(ds_mutex);
+    kis_lock_guard<kis_mutex> lk(ds_mutex);
 
     if (db != NULL) {
         sqlite3_close(db);
@@ -112,7 +112,7 @@ void kis_database::database_close() {
 }
 
 bool kis_database::database_create_master_table() {
-    kis_lock_guard<kis_shared_mutex> lk(ds_mutex);
+    kis_lock_guard<kis_mutex> lk(ds_mutex);
 
     std::string sql;
 
@@ -166,13 +166,13 @@ bool kis_database::database_create_master_table() {
 }
 
 bool kis_database::database_valid() {
-    kis_lock_guard<kis_shared_mutex> lk(ds_mutex);
+    kis_lock_guard<kis_mutex> lk(ds_mutex);
 
     return (db != NULL);
 }
 
 unsigned int kis_database::database_get_db_version() {
-    kis_lock_guard<kis_shared_mutex> lk(ds_mutex);
+    kis_lock_guard<kis_mutex> lk(ds_mutex);
 
     if (db == NULL)
         return 0;
@@ -210,7 +210,7 @@ unsigned int kis_database::database_get_db_version() {
 }
 
 bool kis_database::database_set_db_version(unsigned int version) {
-    kis_lock_guard<kis_shared_mutex> lk(ds_mutex);
+    kis_lock_guard<kis_mutex> lk(ds_mutex);
 
     if (db == NULL)
         return 0;

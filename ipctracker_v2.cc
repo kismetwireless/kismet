@@ -44,7 +44,7 @@ ipc_tracker_v2::~ipc_tracker_v2() {
 }
 
 void ipc_tracker_v2::register_ipc(const kis_ipc_record& ipc) {
-    kis_lock_guard<kis_shared_mutex> lk(mutex, "ipc_tracker_v2 register_ipc");
+    kis_lock_guard<kis_mutex> lk(mutex, "ipc_tracker_v2 register_ipc");
 
     auto ik = ipc_map.find(ipc.pid);
 
@@ -57,7 +57,7 @@ void ipc_tracker_v2::register_ipc(const kis_ipc_record& ipc) {
 }
 
 void ipc_tracker_v2::remove_ipc(pid_t pid) {
-    kis_lock_guard<kis_shared_mutex> lk(mutex, "ipc_tracker_v2 remove_ipc");
+    kis_lock_guard<kis_mutex> lk(mutex, "ipc_tracker_v2 remove_ipc");
 
     auto ik = ipc_map.find(pid);
 
@@ -66,7 +66,7 @@ void ipc_tracker_v2::remove_ipc(pid_t pid) {
 }
 
 void ipc_tracker_v2::soft_kill_all() {
-    kis_lock_guard<kis_shared_mutex> lk(mutex, "ipc_tracker_v2 soft_kill_all");
+    kis_lock_guard<kis_mutex> lk(mutex, "ipc_tracker_v2 soft_kill_all");
 
     for (const auto& p : ipc_map) {
         if (p.second.close_func != nullptr)
@@ -76,7 +76,7 @@ void ipc_tracker_v2::soft_kill_all() {
 }
 
 void ipc_tracker_v2::hard_kill_all() {
-    kis_lock_guard<kis_shared_mutex> lk(mutex, "ipc_tracker_v2 hard_kill_all");
+    kis_lock_guard<kis_mutex> lk(mutex, "ipc_tracker_v2 hard_kill_all");
 
     for (const auto& p : ipc_map) {
         if (p.second.close_func != nullptr)
@@ -103,7 +103,7 @@ void ipc_tracker_v2::shutdown_all(int in_soft_delay, int in_max_delay) {
 
         if ((caught_pid = waitpid(-1, &pid_status, WNOHANG | WUNTRACED)) > 0) {
             {
-                kis_lock_guard<kis_shared_mutex> lk(mutex, "ipc_tracker_v2 shutdown_all");
+                kis_lock_guard<kis_mutex> lk(mutex, "ipc_tracker_v2 shutdown_all");
 
                 auto pk = ipc_map.find(caught_pid);
 
@@ -140,7 +140,7 @@ int ipc_tracker_v2::dead_ipc_reaper_event() {
         kis_ipc_record::error_func_t err_cb;
 
         {
-            kis_lock_guard<kis_shared_mutex> lk(mutex, "ipc_tracker_v2 dead_ipc_reaper_event");
+            kis_lock_guard<kis_mutex> lk(mutex, "ipc_tracker_v2 dead_ipc_reaper_event");
             auto pk = ipc_map.find(caught_pid);
             if (pk != ipc_map.end()) {
                 err_cb = pk->second.error_func;

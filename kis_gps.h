@@ -139,7 +139,7 @@ public:
 
 protected:
     // We share mutexes down to the driver engines so we use a shared
-    kis_shared_mutex gps_mutex;
+    kis_mutex gps_mutex;
 
     // Split out local var-key pairs for the source definition
     std::map<std::string, std::string> source_definition_opts;

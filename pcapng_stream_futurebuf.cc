@@ -273,7 +273,7 @@ int pcapng_stream_futurebuf::pcapng_make_idb(unsigned int in_sourcenumber, const
 }
 
 int pcapng_stream_futurebuf::pcapng_write_packet(kis_packet *in_packet, kis_datachunk *in_data) {
-    kis_lock_guard<kis_shared_mutex> lk(pcap_mutex, "pcapng_futurebuf pcapng_write_packet");
+    kis_lock_guard<kis_mutex> lk(pcap_mutex, "pcapng_futurebuf pcapng_write_packet");
 
     auto datasrcinfo = in_packet->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
 
@@ -350,7 +350,7 @@ int pcapng_stream_futurebuf::pcapng_write_packet(kis_packet *in_packet, kis_data
 
 int pcapng_stream_futurebuf::pcapng_write_packet(int ng_interface_id, const struct timeval& ts, 
         const std::string& in_data) {
-    kis_lock_guard<kis_shared_mutex> lk(pcap_mutex, "pcapng_futurebuf pcapng_write_packet");
+    kis_lock_guard<kis_mutex> lk(pcap_mutex, "pcapng_futurebuf pcapng_write_packet");
 
     std::shared_ptr<char> buf;
 

@@ -153,7 +153,7 @@ Systemmonitor::Systemmonitor() :
                         std::stringstream js;
 
                         {
-                            kis_lock_guard<kis_shared_mutex> lk(monitor_mutex);
+                            kis_lock_guard<kis_mutex> lk(monitor_mutex);
                             Globalreg::globalreg->entrytracker->serialize("json", js, status, NULL);
                         }
 
@@ -180,7 +180,7 @@ Systemmonitor::Systemmonitor() :
                 std::stringstream js;
 
                 {
-                    kis_lock_guard<kis_shared_mutex> lk(monitor_mutex);
+                    kis_lock_guard<kis_mutex> lk(monitor_mutex);
                     Globalreg::globalreg->entrytracker->serialize("json", js, status, NULL);
                 }
 
@@ -241,7 +241,7 @@ Systemmonitor::Systemmonitor() :
 }
 
 Systemmonitor::~Systemmonitor() {
-    kis_lock_guard<kis_shared_mutex> lk(monitor_mutex);
+    kis_lock_guard<kis_mutex> lk(monitor_mutex);
 
     Globalreg::globalreg->remove_global("SYSTEMMONITOR");
 
@@ -284,7 +284,7 @@ void tracked_system_status::register_fields() {
 }
 
 int Systemmonitor::timetracker_event(int eventid) {
-    kis_lock_guard<kis_shared_mutex> lk(monitor_mutex);
+    kis_lock_guard<kis_mutex> lk(monitor_mutex);
 
     int num_devices = devicetracker->fetch_num_devices();
 
@@ -412,7 +412,7 @@ int Systemmonitor::timetracker_event(int eventid) {
 }
 
 void tracked_system_status::pre_serialize() {
-    kis_lock_guard<kis_shared_mutex> lk(monitor_mutex);
+    kis_lock_guard<kis_mutex> lk(monitor_mutex);
 
     kis_battery_info batinfo;
     fetch_battery_info(&batinfo);

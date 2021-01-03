@@ -38,7 +38,7 @@ Antennatracker::~Antennatracker() {
 }
 
 int Antennatracker::add_antenna(uuid in_src, int in_srcnum, int in_adjustment) {
-    kis_lock_guard<kis_shared_mutex> lk(mutex, "antenna add_antenna");
+    kis_lock_guard<kis_mutex> lk(mutex, "antenna add_antenna");
 
     for (auto ai : *antenna_id_map) {
         auto a = std::static_pointer_cast<tracked_antenna>(ai.second);
@@ -66,7 +66,7 @@ int Antennatracker::add_antenna(uuid in_src, int in_srcnum, int in_adjustment) {
 }
 
 int Antennatracker::add_antenna(uuid in_src, int in_srcnum, int in_adjustment, uuid in_ant_uuid) {
-    kis_lock_guard<kis_shared_mutex> lk(mutex, "antennatracker add_antenna");
+    kis_lock_guard<kis_mutex> lk(mutex, "antennatracker add_antenna");
 
     for (auto ai : *antenna_id_map) {
         auto a = std::static_pointer_cast<tracked_antenna>(ai.second);
@@ -90,7 +90,7 @@ int Antennatracker::add_antenna(uuid in_src, int in_srcnum, int in_adjustment, u
 }
 
 int Antennatracker::set_antenna_adjustment(int in_antnum, int in_adjustment) {
-    kis_lock_guard<kis_shared_mutex> lk(mutex, "antennatracker set_antenna_adjustment");
+    kis_lock_guard<kis_mutex> lk(mutex, "antennatracker set_antenna_adjustment");
 
     auto ai = antenna_id_map->find(in_antnum);
 
@@ -104,7 +104,7 @@ int Antennatracker::set_antenna_adjustment(int in_antnum, int in_adjustment) {
 }
 
 std::shared_ptr<tracked_antenna> Antennatracker::get_antenna(int in_antnum) {
-    kis_lock_guard<kis_shared_mutex> lk(mutex, "antennatracker get_antenna");
+    kis_lock_guard<kis_mutex> lk(mutex, "antennatracker get_antenna");
 
     auto ai = antenna_id_map->find(in_antnum);
 
