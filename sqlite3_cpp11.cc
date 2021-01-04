@@ -412,6 +412,11 @@ namespace kissqlite3 {
     }
 
     template<>
+    long long sqlite3_column_as(std::shared_ptr<sqlite3_stmt> stmt, unsigned int column) {
+        return (long long) sqlite3_column_int64(stmt.get(), column);
+    }
+
+    template<>
     unsigned long long sqlite3_column_as(std::shared_ptr<sqlite3_stmt> stmt, unsigned int column) {
         return (unsigned long long) sqlite3_column_int64(stmt.get(), column);
     }
