@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -51,7 +51,7 @@ packet_chain::packet_chain() {
     last_packet_queue_user_warning = 0;
     last_packet_drop_user_warning = 0;
 
-    packetchain_mutex.set_name("packet_chain");
+    // packetchain_mutex.set_name("packet_chain");
 
     packet_queue_warning = 
         Globalreg::globalreg->kismet_config->fetch_opt_uint("packet_log_warning", 0);
@@ -146,7 +146,7 @@ packet_chain::packet_chain() {
 
     packetchain_shutdown = false;
 
-#if 1
+#if 0
     auto nt = static_cast<int>(std::thread::hardware_concurrency());
 #else
     auto nt = int(1);
@@ -191,7 +191,8 @@ packet_chain::~packet_chain() {
     }
 
     {
-        kis_lock_guard<kis_mutex> lk(packetchain_mutex);
+        std::lock_guard<std::shared_mutex> lk(packetchain_mutex);
+        // kis_lock_guard<kis_mutex> lk(packetchain_mutex);
 
         Globalreg::globalreg->remove_global("PACKETCHAIN");
         Globalreg::globalreg->packetchain = NULL;
@@ -298,7 +299,8 @@ void packet_chain::packet_queue_processor() {
 
         {
             // Lock the chain mutexes until we're done processing this packet
-            kis_lock_guard<kis_mutex> lk(packetchain_mutex, "packet_chain packet_queue_processor");
+            // kis_lock_guard<kis_mutex> lk(packetchain_mutex, "packet_chain packet_queue_processor");
+            packetchain_mutex.lock_shared();
 
             // These can only be perturbed inside a sync, which can only occur when
             // the worker thread is in the sync block above, so we shouldn't
@@ -353,6 +355,8 @@ void packet_chain::packet_queue_processor() {
                     pcl->l_callback(packet);
             }
         }
+
+        packetchain_mutex.unlock_shared();
 
         if (packet->error)
             packet_error_rrd->add_sample(1, time(0));
@@ -430,7 +434,8 @@ int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux,
         std::function<int (kis_packet *)> in_l_cb, 
         int in_chain, int in_prio) {
 
-    kis_lock_guard<kis_mutex> lk(packetchain_mutex);
+    // kis_lock_guard<kis_mutex> lk(packetchain_mutex);
+    std::lock_guard<std::shared_mutex> lk(packetchain_mutex);
 
     pc_link *link = NULL;
 
@@ -503,7 +508,8 @@ int packet_chain::register_handler(std::function<int (kis_packet *)> in_cb, int 
 }
 
 int packet_chain::remove_handler(int in_id, int in_chain) {
-    kis_lock_guard<kis_mutex> lk(packetchain_mutex);
+    // kis_lock_guard<kis_mutex> lk(packetchain_mutex);
+    std::lock_guard<std::shared_mutex> lk(packetchain_mutex);
 
     unsigned int x;
 
@@ -574,7 +580,8 @@ int packet_chain::remove_handler(int in_id, int in_chain) {
 }
 
 int packet_chain::remove_handler(pc_callback in_cb, int in_chain) {
-    kis_lock_guard<kis_mutex> lk(packetchain_mutex);
+    // kis_lock_guard<kis_mutex> lk(packetchain_mutex);
+    std::lock_guard<std::shared_mutex> lk(packetchain_mutex);
 
     unsigned int x;
 

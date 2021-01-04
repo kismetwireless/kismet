@@ -175,7 +175,8 @@ public:
                         "unique lock {} when already locked for {}", 
                         std::this_thread::get_id(), mutex.get_name(), op));
 
-        auto r = mutex.try_lock_for(std::chrono::seconds(KIS_THREAD_TIMEOUT));
+        // auto r = mutex.try_lock_for(std::chrono::seconds(KIS_THREAD_TIMEOUT));
+        auto r = mutex.try_lock();
         locked = r;
 
         return r;
