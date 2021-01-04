@@ -143,8 +143,9 @@ int Kis_Mousejack_Phy::CommonClassifierMousejack(CHAINCALL_PARMS) {
                  UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
                 "KB/Mouse");
 
-    std::lock_guard<kis_tristate_mutex_view> lg_dl(mphy->devicetracker->get_devicelist_write());
-    std::lock_guard<kis_shared_mutex> lg_dev(device->device_mutex);
+    kis_unique_lock lk_list(mphy->devicetracker->get_devicelist_mutex(), std::defer_lock, "common_classifier_mousejack");
+    kis_unique_lock lk_device(device->device_mutex, std::defer_lock, "common_classifier_mousejack");
+    std::lock(lk_list, lk_device);
 
     // Figure out what we think it could be; this isn't very precise.  Fingerprinting
     // based on methods in mousejack python.

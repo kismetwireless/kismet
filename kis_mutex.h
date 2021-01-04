@@ -134,7 +134,9 @@ public:
     kis_unique_lock(M& m, const std::string& op) :
         mutex{m},
         op{op} {
-            mutex.lock(op);
+            if (!mutex.try_lock_for(std::chrono::seconds(KIS_THREAD_TIMEOUT)))
+                throw std::runtime_error(fmt::format("potential deadlock: mutex {} not available within "
+                            "timeout period for op {}", mutex.get_name(), op));
         }
 
     kis_unique_lock(M& m, std::defer_lock_t t, const std::string& op = "UNKNOWN") :

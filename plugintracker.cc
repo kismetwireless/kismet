@@ -110,7 +110,7 @@ void plugin_tracker::usage(char *name __attribute__((unused))) {
 }
 
 int plugin_tracker::scan_plugins() {
-    kis_lock_guard<kis_shared_mutex> lk(plugin_lock, "plugin_tracker scan_plugins");
+    kis_lock_guard<kis_mutex> lk(plugin_lock, "plugin_tracker scan_plugins");
 
     // Bail if plugins disabled
     if (plugins_active == 0) return 0;
@@ -302,7 +302,7 @@ int plugin_tracker::activate_plugins() {
     sig_t old_segv = SIG_DFL;
 #endif
 
-    kis_lock_guard<kis_shared_mutex> lk(plugin_lock, "plugin_tracker activate_plugins");
+    kis_lock_guard<kis_mutex> lk(plugin_lock, "plugin_tracker activate_plugins");
 
     std::shared_ptr<kis_httpd_registry> httpdregistry =
         Globalreg::fetch_global_as<kis_httpd_registry>(Globalreg::globalreg, "WEBREGISTRY");
@@ -456,7 +456,7 @@ int plugin_tracker::finalize_plugins() {
 }
 
 int plugin_tracker::shutdown_plugins() {
-    kis_lock_guard<kis_shared_mutex> lk(plugin_lock, "plugin_tracker shutdow_plugins");
+    kis_lock_guard<kis_mutex> lk(plugin_lock, "plugin_tracker shutdow_plugins");
 
     _MSG("Shutting down plugins...", MSGFLAG_INFO);
 

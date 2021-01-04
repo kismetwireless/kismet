@@ -7,7 +7,7 @@
     (at your option) any later version.
 
     Kismet is distributed in the hope that it will be useful,
-      but WITHOUT ANY WARRANTY; without even the implied warranty of
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -167,7 +167,7 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
     if (commoninfo == NULL || dot11info == NULL)
         return 1;
 
-    auto lk = std::lock_guard<kis_tristate_mutex_view>(uavphy->devicetracker->get_devicelist_write());
+    kis_lock_guard<kis_mutex> lk(uavphy->devicetracker->get_devicelist_mutex(), "uav_phy common_classifier");
 
     for (auto di : devinfo->devrefs) {
         auto basedev = di.second;
@@ -179,7 +179,7 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
         if (basedev->get_macaddr() != dot11info->bssid_mac)
             continue;
 
-        auto lk = std::lock_guard<kis_shared_mutex>(basedev->device_mutex);
+        kis_lock_guard<kis_mutex> lk(basedev->device_mutex, "uav_phy common_classifier dev index");
 
         if (dot11info->droneid != NULL) {
             try {
@@ -302,7 +302,7 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
 }
 
 bool Kis_UAV_Phy::parse_manuf_definition(std::string in_def) {
-    kis_lock_guard<kis_shared_mutex> lk(uav_mutex);
+    kis_lock_guard<kis_mutex> lk(uav_mutex);
 
     size_t cpos = in_def.find(':');
 

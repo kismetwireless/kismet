@@ -322,8 +322,9 @@ int kis_btle_phy::common_classifier(CHAINCALL_PARMS) {
                  UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
                 "BTLE Device");
 
-    std::lock_guard<kis_tristate_mutex_view> dl_lg(mphy->devicetracker->get_devicelist_write());
-    std::lock_guard<kis_shared_mutex> d_lg(device->device_mutex);
+    kis_unique_lock lk_list(mphy->devicetracker->get_devicelist_mutex(), std::defer_lock, "btle_phy common_classifier");
+    kis_unique_lock lk_device(device->device_mutex, std::defer_lock, "btle_phy common_classifier");
+    std::lock(lk_list, lk_device);
 
     auto new_dev = false;
 
