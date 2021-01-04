@@ -412,11 +412,19 @@ device_tracker::device_tracker() :
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](shared_con con) -> std::shared_ptr<tracker_element> {
                     auto ts_k = con->uri_params().find(":timestamp");
-                    auto lastts = string_to_n<long>(ts_k->second);
+                    auto tv = string_to_n<long>(ts_k->second);
+
+                    time_t ts;
+
+                    if (tv < 0) {
+                        ts = time(0) + tv;
+                    } else {
+                        ts = tv;
+                    }
 
                     auto ts_worker = device_tracker_view_function_worker(
-                        [lastts](std::shared_ptr<kis_tracked_device_base> d) -> bool {
-                            if (d->get_last_time() <= lastts)
+                        [ts](std::shared_ptr<kis_tracked_device_base> d) -> bool {
+                            if (d->get_last_time() <= ts)
                                 return false;
                             return true;
                         });
