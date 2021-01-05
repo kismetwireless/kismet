@@ -1982,13 +1982,13 @@ int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
     caph->spindown = 0;
     caph->shutdown = 0;
 
-    caph->in_ringbuf = kis_simple_ringbuf_create(1024 * 16);
+    caph->in_ringbuf = kis_simple_ringbuf_create(CAP_FRAMEWORK_RINGBUF_IN_SZ);
     if (caph->in_ringbuf == NULL) {
         fprintf(stderr, "FATAL:  Cannot allocate socket ringbuffer\n");
         return -1;
     }
 
-    caph->out_ringbuf = kis_simple_ringbuf_create(1024 * 2048);
+    caph->out_ringbuf = kis_simple_ringbuf_create(CAP_FRAMEWORK_RINGBUF_OUT_SZ);
     if (caph->out_ringbuf == NULL) {
         fprintf(stderr, "FATAL:  Cannot allocate socket ringbuffer\n");
         return -1;
