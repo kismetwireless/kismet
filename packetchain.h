@@ -35,6 +35,7 @@
 #include <functional>
 #include <queue>
 #include <thread>
+#include <shared_mutex>
 
 #include "eventbus.h"
 #include "globalregistry.h"
