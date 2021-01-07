@@ -717,10 +717,16 @@ device_tracker::device_tracker() :
                             if (!json["monitor"].isNull()) {
                                 req_id = json["request"].asUInt();
 
+                                std::string format_t = "json";
+
+                                if (!json["format"].isNull())
+                                    format_t = json["format"].asString();
+                                    
+                                auto dev_r = json["monitor"].asString();
                                 auto dev_k = device_key(json["monitor"].asString());
                                 auto dev_m = mac_addr(json["monitor"].asString());
                                 
-                                if (dev_k.get_error() && dev_m.error())
+                                if (dev_r != "*" && dev_k.get_error() && dev_m.error())
                                     throw std::runtime_error("invalid device reference");
 
                                 auto rate = json["rate"].asUInt();
@@ -732,36 +738,50 @@ device_tracker::device_tracker() :
 
                                 auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
 
+                                time_t last_tm = 0;
+
                                 // Generate a timer event that goes and looks for the devices and
                                 // serializes them with the fields record
                                 auto tid = 
                                     timetracker->register_timer(std::chrono::seconds(rate), true,
-                                            [this, con, dev_k, dev_m, json, &ws, rename_map](int) -> int {
-                                                auto d_vec = std::make_shared<tracker_element_vector>();
-                                                
-                                                if (!dev_k.get_error()) {
+                                            [this, con, dev_r, dev_k, dev_m, json, &ws, &last_tm, rename_map, format_t](int) -> int {
+                                                if (dev_r == "*") {
+                                                    auto worker = device_tracker_view_function_worker([json, last_tm, format_t, this, ws](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+                                                        if (dev->get_mod_time() > last_tm) {
+                                                            std::stringstream ss;
+                                                            entrytracker->serialize_with_json_summary(format_t, ss, dev, json);
+                                                            ws->write(ss.str(), true);
+                                                        }
+
+                                                        return false;
+                                                    });
+
+                                                    do_device_work(worker);
+                                                } else if (!dev_k.get_error()) {
+                                                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "ws monitor timer serialize lambda");
+
                                                     auto dev = fetch_device(dev_k);
-                                                    if (dev != nullptr)
-                                                        d_vec->push_back(dev);
-                                                }
+                                                    if (dev != nullptr) {
+                                                        if (dev->get_mod_time() > last_tm) {
+                                                            std::stringstream ss;
+                                                            entrytracker->serialize_with_json_summary(format_t, ss, dev, json);
+                                                            ws->write(ss.str(), true);
+                                                        }
+                                                    }
+                                                } else if (!dev_m.error()) {
+                                                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "ws monitor timer serialize lambda");
 
-                                                if (!dev_m.error()) {
-                                                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "ws monitor timer gather lambda");
                                                     const auto mmp = tracked_mac_multimap.equal_range(dev_m);
-                                                    for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi)
-                                                        d_vec->push_back(mmpi->second);
+                                                    for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
+                                                        if (mmpi->second->get_mod_time() > last_tm) {
+                                                            std::stringstream ss;
+                                                            entrytracker->serialize_with_json_summary(format_t, ss, mmpi->second, json);
+                                                            ws->write(ss.str(), true);
+                                                        }
+                                                    }
                                                 }
 
-                                                if (d_vec->size() == 0)
-                                                    return 1;
-
-                                                kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "ws monitor timer serialize lambda");
-
-                                                for (const auto& d : *d_vec) {
-                                                    std::stringstream ss;
-                                                    entrytracker->serialize_with_json_summary("json", ss, d, json);
-                                                    ws->write(ss.str(), true);
-                                                }
+                                                last_tm = time(0);
 
                                                 return 1;
                                             });
