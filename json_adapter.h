@@ -86,9 +86,11 @@ public:
                 stream << "\n";
             }
         } else {
-            // No longer accept invalid data for ekjson, it MUST be a vector as the top-level object
-            stream << "{\"error\": \"Invalid data supplied for ekjson.  Ekjson endpoints can only be serialized from vectors.\"}\n";
-            return -1;
+            json_adapter::pack(stream, in_elem, name_map, false, 0,
+                    [](const std::string& s) { 
+                    return multi_replace_all(s, ".", "_");
+                    });
+            stream << "\n";
         }
 
         return 0;
@@ -116,9 +118,8 @@ public:
                 stream << "\n";
             }
         } else {
-            stream << "<h1>Invalid format for itjson</h1>itjson endpoints can only be used with array or list results\n";
-            return -1;
-            // json_adapter::pack(stream, in_elem, name_map);
+            json_adapter::pack(stream, in_elem, name_map);
+            stream << "\n";
         }
 
         return 1;
