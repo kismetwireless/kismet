@@ -68,11 +68,31 @@ public:
         return mutex.try_lock();
     }
 
+#if defined (GCC_VERSION_MAJOR) && (GCC_VERSION_MAJOR < 4 || (GCC_VERSION_MAJOR == 4 && GCC_VERSION_MINOR < 9))
+    // Old GCC has a broken try_lock_for implementation, work around it by emulating a tlf with our own timers
+    template<class Rep, class Period>
+    bool try_lock_for(const std::chrono::duration<Rep, Period>& timeout_duration) {
+        const int precision_ms = 10;
+        int ms_wait = 0;
+        bool locked = false;
+
+        while (ms_wait < std::chrono::milliseconds(timeout_duration).count()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(precision_ms));
+            ms_wait += precision_ms;
+            locked = mutex.try_lock();
+            if (locked)
+                return true;
+        }
+
+        return false;
+    }
+#else
     template<class Rep, class Period>
     bool try_lock_for(const std::chrono::duration<Rep, Period>& timeout_duration) {
         return mutex.try_lock_for(timeout_duration);
     }
 
+#endif
     template<class Clock, class Duration>
     bool try_lock_until(const std::chrono::time_point<Clock, Duration>& timeout_time) {
         return mutex.try_lock_until(timeout_time);
