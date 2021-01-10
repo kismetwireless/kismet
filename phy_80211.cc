@@ -1022,15 +1022,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
     std::shared_ptr<dot11_tracked_device> receive_dot11;
     std::shared_ptr<dot11_tracked_device> transmit_dot11;
 
-    // Mock mutexes for bulk atomic lock later
-    kis_mutex bssid_junk_mutex, source_junk_mutex, dest_junk_mutex, tx_junk_mutex, rx_junk_mutex;
-    auto bssid_mutex = &bssid_junk_mutex;
-    auto source_mutex = &source_junk_mutex;
-    auto dest_mutex = &dest_junk_mutex;
-    auto tx_mutex = &tx_junk_mutex;
-    auto rx_mutex = &rx_junk_mutex;
-
-
     if (dot11info->type == packet_management) {
         // Resolve the common structures of management frames; this is a lot of code
         // copy and paste, but because this happens *every single packet* we probably 
@@ -1088,30 +1079,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                         (UCD_UPDATE_SEENBY),
                         "Wi-Fi Device (Inferred)");
         }
-
-
-        // Annoyingly complex locking pattern for multi-device operations.
-        //
-        // To use std::lock atomic group locking we need a mutexes for each possible
-        // device; we make a bunch of placeholder junk mutexes for devices we haven't
-        // assigned in this packet.
-        //
-        // We also need write lock on the device list, which can be shared with other
-        // decoders, so long as they all only do atomic locking of all devices.
-        //
-        // Calls to workers must be done as async and collected after we release device
-        // locks.
-
-        if (bssid_dev != nullptr)
-            bssid_mutex = &bssid_dev->device_mutex;
-        if (source_dev != nullptr)
-            source_mutex = &source_dev->device_mutex;
-        if (dest_dev != nullptr)
-            dest_mutex = &dest_dev->device_mutex;
-        if (transmit_dev != nullptr)
-            tx_mutex = &transmit_dev->device_mutex;
-        if (receive_dev != nullptr)
-            rx_mutex = &receive_dev->device_mutex;
 
         auto list_locker = 
             kis_unique_lock<kis_mutex>(d11phy->devicetracker->get_devicelist_mutex(), std::defer_lock);
@@ -1536,18 +1503,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                         (update_flags | UCD_UPDATE_SEENBY | UCD_UPDATE_PACKETS),
                         "Wi-Fi Device");
         }
-
-        // Another instance of the complex locking pattern for atomic locking of the devices
-        if (bssid_dev != nullptr)
-            bssid_mutex = &bssid_dev->device_mutex;
-        if (source_dev != nullptr)
-            source_mutex = &source_dev->device_mutex;
-        if (dest_dev != nullptr)
-            dest_mutex = &dest_dev->device_mutex;
-        if (transmit_dev != nullptr)
-            tx_mutex = &transmit_dev->device_mutex;
-        if (receive_dev != nullptr)
-            rx_mutex = &receive_dev->device_mutex;
 
         auto list_locker = 
             kis_unique_lock<kis_mutex>(d11phy->devicetracker->get_devicelist_mutex(), std::defer_lock,
