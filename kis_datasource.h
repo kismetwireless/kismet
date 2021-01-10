@@ -680,9 +680,6 @@ protected:
     // Timer ID for trying to recover from an error
     int error_timer_id;
 
-    // Timer ID for sending a PING
-    int ping_timer_id;
-
     // Function that gets called when we encounter an error; allows for scheduling
     // bringup, etc
     virtual void handle_source_error();
@@ -729,9 +726,6 @@ protected:
 
     // We've gotten our response from an operation, don't report additional errors
     bool quiet_errors;
-
-    // Last time we saw a PONG
-    time_t last_pong;
 
     // We suppress automatically adding GPS to packets from this source
     bool suppress_gps;
