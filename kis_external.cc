@@ -130,6 +130,9 @@ void kis_external_interface::close_external() {
         }
     }
 
+    if (closure_cb != nullptr)
+        closure_cb();
+
     write_cb = nullptr;
     closure_cb = nullptr;
 };
