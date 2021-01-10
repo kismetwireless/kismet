@@ -813,7 +813,7 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         } else if (r == 7) {
             cf_handler_list_devices(caph);
             cf_handler_free(caph);
-            exit(1);
+            exit(KIS_EXTERNAL_RETCODE_ARGUMENTS);
         } else if (r == 8) {
             gps_arg = strdup(optarg);
         } else if (r == 9) {
@@ -2221,7 +2221,7 @@ int ws_remotecap_broker(struct lws *wsi, enum lws_callback_reasons reason,
 
             /* Signal to any waiting IO that the buffer has some
              * headroom */
-            pthread_cond_signal(&(caph->out_ringbuf_flush_cond));
+            pthread_cond_broadcast(&(caph->out_ringbuf_flush_cond));
 
 skip:
             pthread_mutex_unlock(&caph->out_ringbuf_lock);
@@ -2268,7 +2268,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
 
     if (caph->use_tcp || caph->use_ipc) {
         if (caph->in_ringbuf == NULL) {
-            caph->in_ringbuf = kis_simple_ringbuf_create(1024 * 16);
+            caph->in_ringbuf = kis_simple_ringbuf_create(CAP_FRAMEWORK_RINGBUF_IN_SZ);
 
             if (caph->in_ringbuf == NULL) {
                 fprintf(stderr, "FATAL:  Cannot allocate socket ringbuffer\n");
@@ -2277,7 +2277,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
         }
 
         if (caph->out_ringbuf == NULL) {
-            caph->out_ringbuf = kis_simple_ringbuf_create(1024 * 2048);
+            caph->out_ringbuf = kis_simple_ringbuf_create(CAP_FRAMEWORK_RINGBUF_OUT_SZ);
 
             if (caph->out_ringbuf == NULL) {
                 fprintf(stderr, "FATAL:  Cannot allocate socket ringbuffer\n");
@@ -2474,7 +2474,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
 
                 /* Signal to any waiting IO that the buffer has some
                  * headroom */
-                pthread_cond_signal(&(caph->out_ringbuf_flush_cond));
+                pthread_cond_broadcast(&(caph->out_ringbuf_flush_cond));
             }
         }
     } else if (caph->use_ws) {
@@ -3600,7 +3600,7 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph) {
         if (pid < 0) {
             fprintf(stderr, "FATAL:  Unable to fork child process: %s\n", strerror(errno));
             cf_handler_free(caph);
-            exit(1);
+            exit(KIS_EXTERNAL_RETCODE_FORK);
         } else if (pid > 0) {
             fprintf(stderr, "INFO: Entering daemon mode...\n");
             cf_handler_free(caph);
@@ -3631,7 +3631,7 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph) {
         } else {
             if (caph->use_tcp) {
                 if (cf_handler_tcp_remote_connect(caph) < 1) {
-                    exit(1);
+                    exit(KIS_EXTERNAL_RETCODE_TCP);
                 }
             } else {
 #ifdef HAVE_LIBWEBSOCKETS
@@ -3657,11 +3657,11 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph) {
                 caph->lwscontext = lws_create_context(&caph->lwsinfo);
                 if (!caph->lwscontext) {
                     fprintf(stderr, "FATAL:  Could not create websockets context\n");
-                    exit(1);
+                    exit(KIS_EXTERNAL_RETCODE_WEBSOCKET);
                 }
 #else
                 fprintf(stderr, "FATAL:  Not compiled with websocket support\n");
-                exit(1);
+                exit(KIS_EXTERNAL_RETCODE_WSCOMPILE);
 #endif
             }
 

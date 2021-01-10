@@ -44,5 +44,14 @@ struct kismet_external_frame {
 } __attribute__((packed));
 typedef struct kismet_external_frame kismet_external_frame_t;
 
+/* Error codes from capture binaries */
+#define KIS_EXTERNAL_RETCODE_OK             0
+#define KIS_EXTERNAL_RETCODE_GENERIC        1
+#define KIS_EXTERNAL_RETCODE_ARGUMENTS      2
+#define KIS_EXTERNAL_RETCODE_FORK           3
+#define KIS_EXTERNAL_RETCODE_TCP            4
+#define KIS_EXTERNAL_RETCODE_WEBSOCKET      5
+#define KIS_EXTERNAL_RETCODE_WSCOMPILE      6
+
 #endif
 
