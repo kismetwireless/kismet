@@ -669,9 +669,13 @@ void capture_thread(kis_capture_handler_t *caph) {
                 printf("invalid 2531 packet?\n");
                 continue;
             }
+printf("capturesource-");
+for(int xp = 0;xp < buf_rx_len;xp++)
+    printf("%02X",usb_buf[xp]);
+printf("\n");
 
             /* insert the channel into the packet header*/
-            usb_buf[2] = (uint8_t)localticc2531->channel;
+            //usb_buf[2] = (uint8_t)localticc2531->channel;
 
             while (1) {
                 struct timeval tv;

@@ -47,13 +47,18 @@ void kis_datasource_ticc2531::handle_rx_packet(kis_packet *packet) {
         delete(packet);
         return;
     }
+printf("datasource-");
+for(int xp = 0;xp < cc_len;xp++)
+    printf("%02X",cc_chunk->data[xp]);
+printf("\n");
 
     uint8_t fcs1 = cc_chunk->data[cc_chunk->length - 2];
     uint8_t fcs2 = cc_chunk->data[cc_chunk->length - 1];
     uint8_t crc_ok = fcs2 & (1 << 7);
-    //uint8_t corr = fcs2 & 0x7f;
-    uint8_t channel = cc_chunk->data[2];
-
+    uint8_t corr = fcs2 & 0x7f;
+    //uint8_t channel = cc_chunk->data[2];
+    uint8_t channel = 11;
+printf("crc_ok:%d corr:%d\n",crc_ok,corr);
     if (crc_ok > 0) {
 
         int rssi = (fcs1 + (int) pow(2, 7)) % (int) pow(2, 8) - (int) pow(2, 7) - 73;
@@ -109,6 +114,7 @@ void kis_datasource_ticc2531::handle_rx_packet(kis_packet *packet) {
         packetchain->process_packet(packet);
 
     } else {
+        printf("delete packet\n");
         delete (packet);
         return;
     }
