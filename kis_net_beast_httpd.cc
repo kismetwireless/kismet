@@ -1658,7 +1658,10 @@ Json::Value kis_net_beast_auth::as_json() {
 
 
 void kis_net_web_tracked_endpoint::handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) {
-    std::lock_guard<kis_mutex> lk(mutex);
+    kis_unique_lock<kis_mutex> lk(mutex, std::defer_lock, "tracked endpoint");
+
+    if (use_mutex)
+        lk.lock();
 
     std::ostream os(&con->response_stream());
 
@@ -1702,7 +1705,10 @@ void kis_net_web_tracked_endpoint::handle_request(std::shared_ptr<kis_net_beast_
 }
 
 void kis_net_web_function_endpoint::handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) {
-    std::lock_guard<kis_mutex> lk(mutex);
+    kis_unique_lock<kis_mutex> lk(mutex, std::defer_lock, "function endpoint");
+
+    if (use_mutex)
+        lk.lock();
 
     try {
         if (pre_func != nullptr)
@@ -1749,9 +1755,7 @@ void kis_net_web_websocket_endpoint::handle_request(std::shared_ptr<kis_net_beas
 
         while (running) {
             boost::beast::flat_buffer buffer;
-
             ws_.read(buffer);
-
             handler_cb(shared_from_this(), buffer, ws_.got_text());
         }
     } catch (const boost::beast::system_error& se) {

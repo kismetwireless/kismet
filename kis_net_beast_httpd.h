@@ -403,6 +403,7 @@ public:
         kis_net_web_endpoint{},
         function{function},
         mutex{dfl_mutex},
+        use_mutex{false},
         pre_func{pre_func},
         post_func{post_func} { }
 
@@ -413,6 +414,7 @@ public:
         kis_net_web_endpoint{},
         function{function},
         mutex{mutex},
+        use_mutex{true},
         pre_func{pre_func},
         post_func{post_func} { }
 
@@ -425,6 +427,7 @@ protected:
 
     kis_mutex& mutex;
     kis_mutex dfl_mutex;
+    bool use_mutex;
 
     wrapper_func_t pre_func, post_func;
 };
@@ -441,6 +444,7 @@ public:
             wrapper_func_t post_func = nullptr) : 
         content{content},
         mutex{mutex}, 
+        use_mutex{false},
         pre_func{pre_func},
         post_func{post_func} { }
 
@@ -452,6 +456,7 @@ public:
             wrapper_func_t pre_func = nullptr,
             wrapper_func_t post_func = nullptr) :
         mutex{dfl_mutex},
+        use_mutex{true},
         generator{generator},
         pre_func{pre_func},
         post_func{post_func} { }
@@ -467,6 +472,7 @@ protected:
 
     kis_mutex& mutex;
     kis_mutex dfl_mutex;
+    bool use_mutex;
 
     gen_func_t generator;
     wrapper_func_t pre_func;
