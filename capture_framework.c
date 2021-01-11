@@ -2500,6 +2500,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
 
 
     /* Fall out of select loop */
+
 cap_loop_fail:
     /* Kill the capture thread */
     pthread_mutex_lock(&(caph->out_ringbuf_lock));
@@ -2508,6 +2509,9 @@ cap_loop_fail:
         caph->capture_running = 0;
     }
     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+
+    /* Kill anything pending */
+    pthread_cond_broadcast(&(caph->out_ringbuf_flush_cond));
 
     return rv;
 }
