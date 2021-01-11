@@ -102,7 +102,7 @@ bool kis_database::database_open(std::string in_file_path) {
 }
 
 void kis_database::database_close() {
-    kis_lock_guard<kis_mutex> lk(ds_mutex);
+    kis_lock_guard<kis_mutex> lk(ds_mutex, "database_close");
 
     if (db != NULL) {
         sqlite3_close(db);
