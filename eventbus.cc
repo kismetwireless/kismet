@@ -77,7 +77,8 @@ void event_bus::trigger_deferred_startup() {
                             try {
                                 ss >> json;
                             } catch (const std::exception& e) {
-                                _MSG_ERROR("Invalid eventbus ws request");
+                                _MSG_ERROR("Invalid websocket request (could not parse JSON message) on "
+                                        "/eventbus/events.ws");
                                 return;
                             }
 
@@ -167,13 +168,17 @@ void event_bus::event_queue_dispatcher() {
             // in the future
             std::vector<std::shared_ptr<callback_listener>> workvec;
 
-            if (ch_listeners != callback_table.end()) 
-                for (const auto& cbl : ch_listeners->second) 
+            if (ch_listeners != callback_table.end()) {
+                for (const auto& cbl : ch_listeners->second)  {
                     workvec.push_back(cbl);
+                }
+            }
 
-            if (ch_all_listeners != callback_table.end()) 
-                for (const auto& cbl : ch_all_listeners->second) 
+            if (ch_all_listeners != callback_table.end()) {
+                for (const auto& cbl : ch_all_listeners->second) {
                     workvec.push_back(cbl);
+                }
+            }
 
             rl.unlock();
 
@@ -200,12 +205,14 @@ void event_bus::event_queue_dispatcher() {
 unsigned long event_bus::register_listener(const std::string& channel, cb_func cb) {
     kis_lock_guard<kis_mutex> lk(handler_mutex, "event_bus register_listener");
 
+    /*
     auto cbl = std::make_shared<callback_listener>(std::list<std::string>{channel}, cb, next_cbl_id++);
 
     callback_table[channel].push_back(cbl);
     callback_id_table[cbl->id] = cbl;
+    */
 
-    return cbl->id;
+    return register_listener(std::list<std::string>{channel}, cb);
 }
 
 unsigned long event_bus::register_listener(const std::list<std::string>& channels, cb_func cb) {
@@ -232,12 +239,11 @@ void event_bus::remove_listener(unsigned long id) {
 
     // Match all channels this cbl is subscribed to
     for (auto c : cbl->second->channels) {
-        auto cb_list = callback_table[c];
 
         // remove from each channel
-        for (auto cbi = cb_list.begin(); cbi != cb_list.end(); ++cbi) {
+        for (auto cbi = callback_table[c].begin(); cbi != callback_table[c].end(); ++cbi) {
             if ((*cbi)->id == id) {
-                cb_list.erase(cbi);
+                callback_table[c].erase(cbi);
                 break;
             }
         }
