@@ -83,6 +83,7 @@ struct cf_ws_msg {
 
 #define CAP_FRAMEWORK_RINGBUF_IN_SZ     (1024 * 64)
 #define CAP_FRAMEWORK_RINGBUF_OUT_SZ    (1024 * 1024 * 4)
+#define CAP_FRAMEWORK_WS_BUF_SZ         (1024 * 4)
 
 /* List devices callback
  * Called to list devices available

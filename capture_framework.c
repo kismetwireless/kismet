@@ -2486,7 +2486,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
     } else if (caph->use_ws) {
 #ifdef HAVE_LIBWEBSOCKETS
         caph->lwsring = 
-            lws_ring_create(sizeof(struct cf_ws_msg), 1024, ws_destroy_msg);
+            lws_ring_create(sizeof(struct cf_ws_msg), CAP_FRAMEWORK_WS_BUF_SZ, ws_destroy_msg);
 
         if (!caph->lwsring) {
             fprintf(stderr, "FATAL:  Cannot allocate websocket ringbuffer\n");
