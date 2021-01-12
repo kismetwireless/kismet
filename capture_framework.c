@@ -1280,6 +1280,7 @@ void *cf_int_chanhop_thread(void *arg) {
         if ((r = (caph->chancontrol_cb)(caph, 0, 
                     caph->custom_channel_hop_list[hoppos % caph->channel_hop_list_sz], 
                     errstr)) < 0) {
+            fprintf(stderr, "FATAL:  Datasource channel control callback failed.\n");
             cf_send_error(caph, 0, errstr);
             caph->hopping_running = 0;
             pthread_mutex_unlock(&caph->handler_lock);
@@ -2158,6 +2159,7 @@ void ws_sul_connect_attempt(kis_capture_handler_t *caph, struct lws_sorted_usec_
     caph->lwsci.pwsi = &caph->lwsclientwsi;
 
     if (!lws_client_connect_via_info(&caph->lwsci)) {
+        fprintf(stderr, "FATAL - Datasource could not connect websocket\n");
         caph->spindown = 1;
         return;
     }
@@ -2182,6 +2184,7 @@ int ws_remotecap_broker(struct lws *wsi, enum lws_callback_reasons reason,
         case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
             pthread_mutex_lock(&caph->handler_lock);
             caph->lwsclientwsi = NULL;
+            fprintf(stderr, "FATAL - Datasource could not connect websocket client\n");
             caph->spindown = 1;
             pthread_mutex_unlock(&caph->handler_lock);
             return -1;
@@ -2201,6 +2204,7 @@ int ws_remotecap_broker(struct lws *wsi, enum lws_callback_reasons reason,
                     wmsg->len, LWS_WRITE_BINARY);
 
             if (m != (int) wmsg->len) {
+                fprintf(stderr, "FATAL - Datasource could not write data to websocket\n");
                 caph->shutdown = 1;
                 lws_cancel_service(caph->lwscontext);
                 pthread_mutex_unlock(&caph->out_ringbuf_lock);
@@ -2227,6 +2231,7 @@ skip:
             pthread_mutex_unlock(&caph->out_ringbuf_lock);
             break;
         case LWS_CALLBACK_CLIENT_CLOSED:
+            fprintf(stderr, "FATAL - Datasource websocket closed\n");
             pthread_mutex_lock(&caph->handler_lock);
             caph->lwsclientwsi = NULL;
             caph->lwsestablished = 0;
@@ -2420,6 +2425,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                     /* See if we have a complete packet to do something with */
                     if (cf_handle_rb_rx_data(caph) < 0) {
                         /* Enter spindown if processing an incoming packet failed */
+                        fprintf(stderr, "FATAL:  Datasource processing an incoming control packet failed.\n");
                         cf_handler_spindown(caph);
                     }
                 }
@@ -2492,6 +2498,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
         while (ret >= 0 && !caph->shutdown)
             lws_service(caph->lwscontext, 0);
 
+        fprintf(stderr, "FATAL:  Datasource exiting libwebsocket loop\n");
 #endif
     } else {
         fprintf(stderr, "FATAL:  Could not determine mode?\n");
