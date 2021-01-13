@@ -107,11 +107,16 @@ void kis_gps_gpsd_v3::close() {
 
 void kis_gps_gpsd_v3::start_connect(std::shared_ptr<kis_gps_gpsd_v3> ref,
         const boost::system::error_code& error, tcp::resolver::iterator endpoints) {
+
     if (stopped)
         return;
 
     if (error) {
         _MSG_ERROR("(GPS) Could not resolve gpsd address {}:{} - {}", host, port, error.message());
+        stopped = true;
+        set_int_device_connected(false);
+    } else if (endpoints == tcp::resolver::iterator()) {
+        _MSG_ERROR("(GPS) Could not connect to gpsd {}:{}", host, port);
         stopped = true;
         set_int_device_connected(false);
     } else {
@@ -131,8 +136,10 @@ void kis_gps_gpsd_v3::handle_connect(std::shared_ptr<kis_gps_gpsd_v3> ref,
     }
 
     if (error) {
-        // TODO handle error
-        _MSG_ERROR("(GPS) Could not connect to gpsd {} - {}", endpoint->endpoint(), error.message());
+        if (endpoint == tcp::resolver::iterator())
+            _MSG_ERROR("(GPS) Could not connect to gpsd {}:{} - {}", host, port, error.message());
+        else
+            _MSG_ERROR("(GPS) Could not connect to gpsd {} - {}", endpoint->endpoint(), error.message());
         close();
         return;
     }

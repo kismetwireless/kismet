@@ -125,8 +125,11 @@ void kis_gps_tcp_v2::handle_connect(std::shared_ptr<kis_gps_tcp_v2> ref,
     }
 
     if (error) {
-        // TODO handle error
-        _MSG_ERROR("(GPS) Could not connect to TCP GPS server {} - {}", endpoint->endpoint(), error.message());
+        if (endpoint == tcp::resolver::iterator())
+            _MSG_ERROR("(GPS) Could not connect to TCP GPS {}:{} - {}", host, port, error.message());
+        else
+            _MSG_ERROR("(GPS) Could not connect to TCP GPS server {} - {}", endpoint->endpoint(), 
+                    error.message());
         close();
         return;
     }
