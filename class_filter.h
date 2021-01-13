@@ -36,9 +36,7 @@ public:
     class_filter(const std::string& in_id, const std::string& in_description,
             const std::string& in_type);
 
-    virtual ~class_filter() {
-        local_locker l(&mutex);
-    }
+    virtual ~class_filter() { }
 
     __ProxyGet(filter_id, std::string, std::string, filter_id);
     __ProxyGet(filter_description, std::string, std::string, filter_description);
@@ -63,7 +61,7 @@ protected:
         register_field("kismet.classfilter.default", "Default filter (pass/reject)", &filter_default);
     }
 
-    kis_recursive_timed_mutex mutex;
+    kis_mutex mutex;
 
     std::string base_uri;
 

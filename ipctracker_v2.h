@@ -79,7 +79,7 @@ public:
     void shutdown_all(int in_soft_delay, int in_max_delay);
 
 protected:
-    kis_recursive_timed_mutex mutex;
+    kis_mutex mutex;
     
     std::unordered_map<pid_t, kis_ipc_record> ipc_map;
 

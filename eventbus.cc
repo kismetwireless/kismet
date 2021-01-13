@@ -77,7 +77,8 @@ void event_bus::trigger_deferred_startup() {
                             try {
                                 ss >> json;
                             } catch (const std::exception& e) {
-                                _MSG_ERROR("Invalid eventbus ws request");
+                                _MSG_ERROR("Invalid websocket request (could not parse JSON message) on "
+                                        "/eventbus/events.ws");
                                 return;
                             }
 
@@ -134,7 +135,7 @@ std::shared_ptr<eventbus_event> event_bus::get_eventbus_event(const std::string&
 }
 
 void event_bus::event_queue_dispatcher() {
-    local_demand_locker l(&mutex, "queue dispatch");
+    kis_unique_lock<kis_mutex> lock(mutex, std::defer_lock, "event_bus event_queue_dispatcher");
 
     while (!shutdown && 
             !Globalreg::globalreg->spindown && 
@@ -142,17 +143,17 @@ void event_bus::event_queue_dispatcher() {
             !Globalreg::globalreg->complete) {
 
         // Lock while we examine the queue
-        l.lock();
+        lock.lock();
         std::shared_ptr<eventbus_event> e;
         if (event_queue.size() > 0) {
             e = event_queue.front();
             event_queue.pop();
         }
-        l.unlock();
+        lock.unlock();
 
         if (e != nullptr) {
             // Lock the handler mutex while we're processing an event
-            local_demand_locker rl(&handler_mutex, "dispatch");
+            kis_unique_lock<kis_mutex> rl(handler_mutex, std::defer_lock, "event_bus dispatch");
 
             rl.lock();
 
@@ -167,13 +168,17 @@ void event_bus::event_queue_dispatcher() {
             // in the future
             std::vector<std::shared_ptr<callback_listener>> workvec;
 
-            if (ch_listeners != callback_table.end()) 
-                for (const auto& cbl : ch_listeners->second) 
+            if (ch_listeners != callback_table.end()) {
+                for (const auto& cbl : ch_listeners->second)  {
                     workvec.push_back(cbl);
+                }
+            }
 
-            if (ch_all_listeners != callback_table.end()) 
-                for (const auto& cbl : ch_all_listeners->second) 
+            if (ch_all_listeners != callback_table.end()) {
+                for (const auto& cbl : ch_all_listeners->second) {
                     workvec.push_back(cbl);
+                }
+            }
 
             rl.unlock();
 
@@ -191,9 +196,6 @@ void event_bus::event_queue_dispatcher() {
 
         // Reset the lock
         event_cl.lock();
-      
-        // Unlock our hold on the system
-        l.unlock();
 
         // Wait until new events
         event_cl.block_until();
@@ -201,18 +203,20 @@ void event_bus::event_queue_dispatcher() {
 }
 
 unsigned long event_bus::register_listener(const std::string& channel, cb_func cb) {
-    local_locker l(&handler_mutex, "register listener");
+    kis_lock_guard<kis_mutex> lk(handler_mutex, "event_bus register_listener");
 
+    /*
     auto cbl = std::make_shared<callback_listener>(std::list<std::string>{channel}, cb, next_cbl_id++);
 
     callback_table[channel].push_back(cbl);
     callback_id_table[cbl->id] = cbl;
+    */
 
-    return cbl->id;
+    return register_listener(std::list<std::string>{channel}, cb);
 }
 
 unsigned long event_bus::register_listener(const std::list<std::string>& channels, cb_func cb) {
-    local_locker l(&handler_mutex, "register listener (vector)");
+    kis_lock_guard<kis_mutex> lk(handler_mutex, "event_bus register_listener (vector)");
 
     auto cbl = std::make_shared<callback_listener>(channels, cb, next_cbl_id++);
 
@@ -226,7 +230,7 @@ unsigned long event_bus::register_listener(const std::list<std::string>& channel
 }
 
 void event_bus::remove_listener(unsigned long id) {
-    local_locker l(&handler_mutex, "remove listener");
+    kis_lock_guard<kis_mutex> lk(handler_mutex, "event_bus remove_listener");
 
     // Find matching cbl
     auto cbl = callback_id_table.find(id);
@@ -235,12 +239,11 @@ void event_bus::remove_listener(unsigned long id) {
 
     // Match all channels this cbl is subscribed to
     for (auto c : cbl->second->channels) {
-        auto cb_list = callback_table[c];
 
         // remove from each channel
-        for (auto cbi = cb_list.begin(); cbi != cb_list.end(); ++cbi) {
+        for (auto cbi = callback_table[c].begin(); cbi != callback_table[c].end(); ++cbi) {
             if ((*cbi)->id == id) {
-                cb_list.erase(cbi);
+                callback_table[c].erase(cbi);
                 break;
             }
         }

@@ -57,7 +57,7 @@ public:
     virtual bool register_js_module(std::string in_module, std::string in_path);
 
 protected:
-    kis_recursive_timed_mutex reg_lock;
+    kis_mutex reg_lock;
 
     global_registry *globalreg;
 

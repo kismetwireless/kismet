@@ -165,7 +165,7 @@ public:
     void update_device_counts(std::unordered_map<double, unsigned int> in_counts, time_t in_ts);
 
 protected:
-    kis_recursive_timed_mutex lock;
+    kis_mutex lock;
 
     std::shared_ptr<device_tracker> devicetracker;
     std::shared_ptr<time_tracker> timetracker;

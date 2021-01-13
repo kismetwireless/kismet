@@ -109,7 +109,7 @@ public:
 
     virtual void pre_serialize() override {
         // We have to protect our maps so we lock around them
-        local_eol_locker el(&mutex);
+        mutex.lock();
 
         set_advertising_device_len(advertising_device_map->size());
         set_probing_device_len(probing_device_map->size());
@@ -117,11 +117,11 @@ public:
     }
 
     virtual void post_serialize() override {
-        local_unlocker ul(&mutex);
+        mutex.unlock();
     }
 
 protected:
-    kis_recursive_timed_mutex mutex;
+    kis_mutex mutex;
 
     virtual void register_fields() override;
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;
@@ -173,7 +173,7 @@ public:
             std::shared_ptr<kis_tracked_device_base> device);
 
 protected:
-    kis_recursive_timed_mutex mutex;
+    kis_mutex mutex;
 
     robin_hood::unordered_node_map<size_t, std::shared_ptr<dot11_tracked_ssid_group>> ssid_map;
     std::shared_ptr<tracker_element_vector> ssid_vector;

@@ -165,7 +165,7 @@ public:
     // injecting a builder
 
     virtual ~kis_logfile() { 
-        local_locker l(&log_mutex);
+        kis_lock_guard<kis_mutex> lk(log_mutex, "~kis_logfile");
 
         if (builder != NULL && builder->get_stream()) {
             std::shared_ptr<stream_tracker> streamtracker = 
@@ -180,7 +180,7 @@ public:
     }
 
     virtual bool open_log(std::string in_path) { 
-        local_locker lock(&log_mutex);
+        kis_lock_guard<kis_mutex> lk(log_mutex, "logfile open_log");
 
         set_int_log_path(in_path);
         set_int_log_open(false);
@@ -189,7 +189,7 @@ public:
     }
 
     virtual void close_log() { 
-        local_locker lock(&log_mutex);
+        kis_lock_guard<kis_mutex> lk(log_mutex, "logfile close_log");
 
         set_int_log_open(false);
     }
@@ -214,7 +214,7 @@ protected:
     // Builder/prototype that made us
     shared_log_builder builder;
 
-    kis_recursive_timed_mutex log_mutex;
+    kis_mutex log_mutex;
 
     std::shared_ptr<tracker_element_uuid> log_uuid;
     std::shared_ptr<tracker_element_string> log_description;
@@ -222,7 +222,8 @@ protected:
     std::shared_ptr<tracker_element_uint8> log_open;
 };
 
-class log_tracker : public tracker_component, public lifetime_global, public deferred_startup {
+class log_tracker : public tracker_component, public lifetime_global, public deferred_startup, 
+    std::enable_shared_from_this<log_tracker> {
 public:
     static std::string global_name() { return "LOGTRACKER"; }
 
@@ -265,7 +266,7 @@ protected:
     virtual void register_fields() override;
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;
 
-    kis_recursive_timed_mutex tracker_mutex;
+    kis_mutex tracker_mutex;
 
     std::shared_ptr<stream_tracker> streamtracker;
 

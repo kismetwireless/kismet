@@ -112,7 +112,7 @@ public:
     void cancel();
 
 protected:
-    std::shared_ptr<kis_recursive_timed_mutex> probe_lock;
+    kis_mutex probe_lock;
 
     std::shared_ptr<time_tracker> timetracker;
 
@@ -168,7 +168,7 @@ public:
     void cancel();
 
 protected:
-    std::shared_ptr<kis_recursive_timed_mutex> list_lock;
+    kis_mutex list_lock;
     std::shared_ptr<time_tracker> timetracker;
 
     // Probing instances
@@ -403,7 +403,7 @@ protected:
     std::shared_ptr<event_bus> eventbus;
     std::shared_ptr<stream_tracker> streamtracker;
 
-    kis_recursive_timed_mutex dst_lock;
+    kis_mutex dst_lock;
 
     int pack_comp_datasrc;
 
@@ -467,7 +467,7 @@ protected:
 // an incoming remote to a full datasource
 struct dst_websocket_ds_bridge {
     std::shared_ptr<kis_datasource> bridged_ds;
-    kis_recursive_timed_mutex mutex;
+    kis_mutex mutex;
 };
 
 // Intermediary buffer handler which is responsible for parsing the incoming

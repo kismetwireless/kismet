@@ -673,7 +673,7 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                     help: "The amount of data transmitted by this device",
                 },
                 {
-                    field: "dot11.device/dot11.device.datasize.retry",
+                    field: "dot11.device/dot11.device.datasize_retry",
                     liveupdate: true,
                     title: "Retried Data",
                     draw: kismet_ui.RenderHumanSize,

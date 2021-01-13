@@ -98,7 +98,7 @@ kis_datasource::~kis_datasource() {
 }
 
 void kis_datasource::list_interfaces(unsigned int in_transaction, list_callback_t in_cb) {
-    local_demand_locker lock(&ext_mutex, "datasource::list_interfaces");
+    kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource list_interfaces");
     lock.lock();
 
     if (in_transaction == 0)
@@ -147,7 +147,7 @@ void kis_datasource::list_interfaces(unsigned int in_transaction, list_callback_
 
 void kis_datasource::probe_interface(std::string in_definition, unsigned int in_transaction,
         probe_callback_t in_cb) {
-    local_demand_locker lock(&ext_mutex, "datasource::probe_interface");
+    kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource probe_interface");
     lock.lock();
 
     if (in_transaction == 0)
@@ -210,7 +210,7 @@ void kis_datasource::probe_interface(std::string in_definition, unsigned int in_
 
 void kis_datasource::open_interface(std::string in_definition, unsigned int in_transaction, 
         open_callback_t in_cb) {
-    local_demand_locker lock(&ext_mutex, "datasource::open_interface");
+    kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource open_interface");
     lock.lock();
 
     if (in_transaction == 0)
@@ -288,7 +288,7 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
     // If we got here we're valid; start a PING timer
     timetracker->remove_timer(ping_timer_id);
     ping_timer_id = timetracker->register_timer(std::chrono::seconds(5), true, [this](int) -> int {
-        local_locker lock(&ext_mutex, "datasource::ping_timer lambda");
+        kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource ping_timer lambda");
         
         if (!get_source_running()) {
             ping_timer_id = -1;
@@ -305,7 +305,7 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
 
 void kis_datasource::set_channel(std::string in_channel, unsigned int in_transaction,
         configure_callback_t in_cb) {
-    local_demand_locker lock(&ext_mutex, "datasource::set_channel");
+    kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource set_channel");
     lock.lock();
 
     if (in_transaction == 0)
@@ -326,7 +326,7 @@ void kis_datasource::set_channel(std::string in_channel, unsigned int in_transac
 void kis_datasource::set_channel_hop(double in_rate, std::vector<std::string> in_chans,
         bool in_shuffle, unsigned int in_offt, unsigned int in_transaction, 
         configure_callback_t in_cb) {
-    local_locker lock(&ext_mutex, "datasource::set_channel_hop");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource set_channel_hop");
 
     if (in_transaction == 0)
         in_transaction = next_transaction++;
@@ -362,7 +362,7 @@ void kis_datasource::set_channel_hop(double in_rate,
         std::shared_ptr<tracker_element_vector> in_chans,
         bool in_shuffle, unsigned int in_offt, unsigned int in_transaction, 
         configure_callback_t in_cb) {
-    local_locker lock(&ext_mutex, "datasource::set_channel_hop");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource set_channel_hop");
 
     if (in_transaction == 0)
         in_transaction = next_transaction++;
@@ -403,7 +403,7 @@ void kis_datasource::set_channel_hop_list(std::vector<std::string> in_chans,
 
 void kis_datasource::connect_remote(std::string in_definition, kis_datasource* in_remote, 
         bool in_tcp, configure_callback_t in_cb) {
-    local_locker lock(&ext_mutex, "datasource::connect_remote");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource connect_remote");
 
     stopped = false;
     cancelled = false;
@@ -453,10 +453,16 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
 
     timetracker->remove_timer(ping_timer_id);
     ping_timer_id = timetracker->register_timer(std::chrono::seconds(5), true, [this](int) -> int {
-        local_locker lock(&ext_mutex, "datasource::ping_timer lambda");
+        kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource ping_timer lambda");
         
         if (!get_source_running()) {
             ping_timer_id = -1;
+            return 0;
+        }
+
+        if (time(0) - last_pong > 15) {
+            ping_timer_id = -1;
+            trigger_error("did not get a ping response from the capture binary");
             return 0;
         }
        
@@ -469,7 +475,7 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
 }
 
 void kis_datasource::disable_source() {
-    local_locker lock(&ext_mutex, "datasource::disable_source");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource disable_source");
 
     close_source();
 
@@ -484,7 +490,7 @@ void kis_datasource::disable_source() {
 }
 
 void kis_datasource::pause_source() {
-    local_locker lock(&ext_mutex, "datasource::pause_source");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource pause_source");
 
     if (!get_source_paused()) {
         auto evt = eventbus->get_eventbus_event(event_datasource_paused());
@@ -496,7 +502,7 @@ void kis_datasource::pause_source() {
 }
 
 void kis_datasource::resume_source() {
-    local_locker lock(&ext_mutex, "datasource::pause_source");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource pause_source");
 
     if (get_source_paused()) {
         auto evt = eventbus->get_eventbus_event(event_datasource_resumed());
@@ -533,7 +539,7 @@ void kis_datasource::close_source() {
 }
 
 void kis_datasource::close_external() {
-    local_locker lock(&ext_mutex, "datasource::close_external");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource close_external");
 
     if (ping_timer_id > 0) {
         timetracker->remove_timer(ping_timer_id);
@@ -591,7 +597,7 @@ double kis_datasource::get_definition_opt_double(std::string in_opt, double in_d
 }
 
 bool kis_datasource::parse_interface_definition(std::string in_definition) {
-    local_locker lock(&ext_mutex, "datasource::parse_interface");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource parse_interface");
 
     local_uuid = false;
 
@@ -677,7 +683,7 @@ std::shared_ptr<kis_datasource::tracked_command> kis_datasource::get_command(uin
 }
 
 void kis_datasource::cancel_command(uint32_t in_transaction, std::string in_error) {
-    local_locker lock(&ext_mutex, "datasource::cancel_command");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource cancel_command");
 
     auto i = command_ack_map.find(in_transaction);
     if (i != command_ack_map.end()) {
@@ -717,7 +723,7 @@ void kis_datasource::cancel_command(uint32_t in_transaction, std::string in_erro
 }
 
 void kis_datasource::cancel_all_commands(std::string in_error) {
-    local_locker lock(&ext_mutex, "datasource::cancel_all_commands");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource cancel_all_commands");
 
     // fprintf(stderr, "debug - cancel all commands\n");
 
@@ -778,7 +784,8 @@ void kis_datasource::handle_msg_proxy(const std::string& msg, const int type) {
 
 void kis_datasource::handle_packet_probesource_report(uint32_t in_seqno, 
         const std::string& in_content) {
-    local_demand_locker lock(&ext_mutex, "datasource::handle_packet_probesource_report");
+    kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, 
+            "datasource handle_packet_probesource_report");
     lock.lock();
 
     KismetDatasource::ProbeSourceReport report;
@@ -835,7 +842,8 @@ void kis_datasource::handle_packet_probesource_report(uint32_t in_seqno,
 
 void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno, 
         const std::string& in_content) {
-    local_demand_locker lock(&ext_mutex, "datasource::handle_packet_opensource_report");
+    kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource handle_packet_opensource_report");
+    lock.lock();
 
     KismetDatasource::OpenSourceReport report;
 
@@ -1046,7 +1054,7 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
 
 void kis_datasource::handle_packet_interfaces_report(uint32_t in_seqno, 
         const std::string& in_content) {
-    local_demand_locker lock(&ext_mutex, "datasource::handle_packet_interfaces_report");
+    kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource handle_packet_interfaces_report");
     lock.lock();
 
     listed_interfaces.clear();
@@ -1105,7 +1113,7 @@ void kis_datasource::handle_packet_interfaces_report(uint32_t in_seqno,
 }
 
 void kis_datasource::handle_packet_error_report(uint32_t in_seqno, const std::string& in_content) {
-    local_locker lock(&ext_mutex, "datasource::handle_packet_error_report");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource handle_packet_error_report");
 
     KismetDatasource::ErrorReport report;
 
@@ -1126,7 +1134,7 @@ void kis_datasource::handle_packet_error_report(uint32_t in_seqno, const std::st
 }
 
 void kis_datasource::handle_packet_configure_report(uint32_t in_seqno, const std::string& in_content) {
-    local_demand_locker lock(&ext_mutex, "datasource::handle_packet_configure_report");
+    kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource handle_packet_configure_report");
     lock.lock();
 
     KismetDatasource::ConfigureReport report;
@@ -1204,7 +1212,7 @@ void kis_datasource::handle_packet_configure_report(uint32_t in_seqno, const std
 void kis_datasource::handle_packet_data_report(uint32_t in_seqno, const std::string& in_content) {
     // If we're paused, throw away this packet
     {
-        local_locker lock(&ext_mutex, "datasource::handle_packet_data_report");
+        kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource handle_packet_data_report");
 
         if (get_source_paused())
             return;
@@ -1328,7 +1336,7 @@ void kis_datasource::handle_rx_packet(kis_packet *packet) {
 }
 
 void kis_datasource::handle_packet_warning_report(uint32_t in_seqno, const std::string& in_content) {
-    local_locker lock(&ext_mutex, "datasource::handle_packet_warning_report");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource handle_packet_warning_report");
 
     KismetDatasource::WarningReport report;
 
@@ -1402,7 +1410,7 @@ kis_gps_packinfo *kis_datasource::handle_sub_gps(KismetDatasource::SubGps in_gps
 
 unsigned int kis_datasource::send_probe_source(std::string in_definition,
         unsigned int in_transaction, probe_callback_t in_cb) {
-    local_locker lock(&ext_mutex, "datasource::send_probe_source");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource send_probe_source");
 
     if (in_transaction == 0)
         in_transaction = next_transaction++;
@@ -1439,7 +1447,7 @@ unsigned int kis_datasource::send_probe_source(std::string in_definition,
 
 unsigned int kis_datasource::send_open_source(std::string in_definition,
         unsigned int in_transaction, open_callback_t in_cb) {
-    local_locker lock(&ext_mutex, "datasource::send_open_source");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource send_open_source");
 
     if (in_transaction == 0)
         in_transaction = next_transaction++;
@@ -1476,7 +1484,7 @@ unsigned int kis_datasource::send_open_source(std::string in_definition,
 
 unsigned int kis_datasource::send_configure_channel(std::string in_chan,
         unsigned int in_transaction, configure_callback_t in_cb) {
-    local_locker lock(&ext_mutex, "datasource::send_configure_channel");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource send_configure_channel");
 
     if (in_transaction == 0)
         in_transaction = next_transaction++;
@@ -1520,7 +1528,7 @@ unsigned int kis_datasource::send_configure_channel_hop(double in_rate,
         unsigned int in_transaction,
         configure_callback_t in_cb) {
 
-    local_locker lock(&ext_mutex, "datasource::send_configure_channel_hop");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource send_configure_channel_hop");
 
     if (in_transaction == 0)
         in_transaction = next_transaction++;
@@ -1565,7 +1573,7 @@ unsigned int kis_datasource::send_configure_channel_hop(double in_rate,
 }
 
 unsigned int kis_datasource::send_list_interfaces(unsigned int in_transaction, list_callback_t in_cb) {
-    local_locker lock(&ext_mutex, "datasource::send_list_interfaces");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource send_list_interfaces");
 
     if (in_transaction == 0)
         in_transaction = next_transaction++;
@@ -1700,7 +1708,7 @@ void kis_datasource::register_fields() {
 }
 
 void kis_datasource::handle_source_error() {
-    local_locker lock(&ext_mutex, "datasource::handle_source_error");
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasouce handle_source_error");
 
     // If we're probing or listing we don't do any special handling
     if (mode_listing || mode_probing)
@@ -1773,7 +1781,7 @@ void kis_datasource::handle_source_error() {
 
         // Set a new event to try to re-open the interface
         error_timer_id = timetracker->register_timer(std::chrono::seconds(5), false, [this](int) -> int {
-                local_locker lock(&ext_mutex, "datasource::error_timer lambda");
+                kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource error_timer lambda");
 
                 error_timer_id = 0;
 

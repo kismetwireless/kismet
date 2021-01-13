@@ -336,7 +336,10 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
                  UCD_UPDATE_SEENBY), "ADSB");
 
-    auto devlocker = devicelist_range_scope_locker(devicetracker, basedev);
+    kis_unique_lock lk_list(devicetracker->get_devicelist_mutex(), std::defer_lock, "rtladsb json_to_rtl");
+    kis_unique_lock lk_device(basedev->device_mutex, std::defer_lock, "rtladsb json_to_rtl");
+    std::lock(lk_list, lk_device);
+
 
     std::string dn = "Airplane";
 
@@ -396,6 +399,10 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
                         cs, icao->get_model_type(), icao->get_owner()));
         }
     }
+
+    // Have to update location outside of locks because it needs to promote to exclusive locking
+    lk_list.unlock();
+    lk_device.unlock();
 
     if (adsbdev->update_location) {
         adsbdev->update_location = false;
@@ -775,7 +782,7 @@ kis_rtladsb_phy::adsb_map_endp_handler(std::shared_ptr<kis_net_beast_httpd_conne
 
     auto now = time(0);
 
-    kis_recursive_timed_mutex response_mutex;
+    kis_mutex response_mutex;
 
     // Find all devices active w/in the last 10 minutes, and set their bounding box
     auto recent_worker = 
@@ -792,7 +799,7 @@ kis_rtladsb_phy::adsb_map_endp_handler(std::shared_ptr<kis_net_beast_httpd_conne
                 return false;
             }
 
-            local_locker l(&response_mutex);
+            kis_lock_guard<kis_mutex> lk(response_mutex);
 
             recent_devs->push_back(dev);
 

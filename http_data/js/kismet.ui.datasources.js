@@ -680,7 +680,7 @@ function update_datasource2(data) {
                     $('<div>', {
                         class: "k-ds-modal-message",
                         style: "font-size: 125%; margin-bottom: 5px;",
-                    }).html("some stuff")
+                    }).html("Loading...")
                 ).append(
                     $('<i>', {
                         class: "fa fa-3x fa-cog fa-spin",
@@ -801,7 +801,7 @@ function update_datasource2(data) {
                     $('<div>', {
                         class: "k-ds-modal-message",
                         style: "font-size: 150%; margin-bottom: 10px;",
-                    }).html("some stuff")
+                    }).html("Loading...")
                 ).append(
                     $('<i>', {
                         class: "fa fa-3x fa-cog fa-spin",

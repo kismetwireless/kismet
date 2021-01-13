@@ -585,6 +585,7 @@ int main(int argc, char *argv[], char *envp[]) {
     // Make the IO threads early
     boost::asio::io_service::work work(Globalreg::globalreg->io);
 
+
     std::vector<std::thread> iov;
     iov.reserve(Globalreg::globalreg->n_io_threads);
     for (auto i = Globalreg::globalreg->n_io_threads - 1; i > 0; i--) {

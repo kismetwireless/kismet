@@ -154,7 +154,7 @@ public:
 
     // Add a sample.  Use combinator function 'c' to derive the new sample value
     void add_sample(int64_t in_s, time_t in_time) {
-        local_locker l(&mutex, "kis_tracked_rrd add_sample");
+        kis_lock_guard<kis_mutex> lk(mutex, "kis_tracked_rrd add_sample");
 
         M_Aggregator m_agg;
         H_Aggregator h_agg;
@@ -320,7 +320,7 @@ public:
     }
 
     virtual void pre_serialize() override {
-        local_eol_locker l(&mutex, "kis_tracked_rrd pre_serialize");
+        kis_lock_guard<kis_mutex> lk(mutex, kismet::retain_lock, "kis_tracked_rrd serialize");
 
         tracker_component::pre_serialize();
         M_Aggregator m_agg;
@@ -335,7 +335,7 @@ public:
     }
 
     virtual void post_serialize() override {
-        local_unlocker l(&mutex);
+        kis_lock_guard<kis_mutex> lk(mutex, std::adopt_lock);
     }
 
 protected:
@@ -435,7 +435,7 @@ protected:
         (*blank_val).set(m_agg.default_val());
     }
 
-    kis_recursive_timed_mutex mutex;
+    kis_mutex mutex;
 
     std::shared_ptr<tracker_element_uint64> last_time;
     std::shared_ptr<tracker_element_uint64> serial_time;
@@ -525,7 +525,7 @@ public:
     __Proxy(serial_time, uint64_t, time_t, time_t, serial_time);
 
     void add_sample(int64_t in_s, time_t in_time) {
-        local_locker l(&mutex, "kis_tracked_minute_rrd add_sample");
+        kis_lock_guard<kis_mutex> lk(mutex, "kis_tracked_minute_rrd add_sample");
 
         Aggregator agg;
 
@@ -571,7 +571,8 @@ public:
     }
 
     virtual void pre_serialize() override {
-        local_eol_locker l(&mutex, "kis_tracked_minute_rrd pre-serialize");
+        kis_lock_guard<kis_mutex> lk(mutex, kismet::retain_lock, "kis_tracked_rrd serialize");
+
         tracker_component::pre_serialize();
         Aggregator agg;
 
@@ -585,7 +586,7 @@ public:
     }
 
     virtual void post_serialize() override {
-        local_unlocker l(&mutex);
+        kis_lock_guard<kis_mutex> lk(mutex, std::adopt_lock);
     }
 
 protected:
@@ -636,7 +637,7 @@ protected:
         (*blank_val).set(agg.default_val());
     }
 
-    kis_recursive_timed_mutex mutex;
+    kis_mutex mutex;
 
     std::shared_ptr<tracker_element_uint64> last_time;
     std::shared_ptr<tracker_element_uint64> serial_time;

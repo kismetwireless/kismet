@@ -265,10 +265,10 @@ public:
 
     void set_allowed_macs(std::vector<mac_addr> mvec);
 
-    bool compare_ssid(std::string ssid, mac_addr mac);
+    bool compare_ssid(const std::string& ssid, mac_addr mac);
 
 protected:
-    kis_recursive_timed_mutex ssid_mutex;
+    kis_mutex ssid_mutex;
 
     virtual void register_fields() override;
 

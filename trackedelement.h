@@ -1744,9 +1744,7 @@ public:
 
     using rename_map = std::map<shared_tracker_element, SharedElementSummary>;
 
-    virtual ~tracker_element_serializer() {
-        local_locker lock(&mutex);
-    }
+    virtual ~tracker_element_serializer() { }
 
     virtual int serialize(shared_tracker_element in_elem, 
             std::ostream &stream, std::shared_ptr<rename_map> name_map) = 0;
@@ -1757,7 +1755,7 @@ public:
     static void pre_serialize_path(const SharedElementSummary& in_summary);
     static void post_serialize_path(const SharedElementSummary& in_summary);
 protected:
-    kis_recursive_timed_mutex mutex;
+    kis_mutex mutex;
 };
 
 // Get an element using path semantics

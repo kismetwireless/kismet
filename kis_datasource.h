@@ -421,11 +421,11 @@ public:
     virtual void checksum_packet(kis_packet *in_pack __attribute__((unused))) { return; }
 
     virtual void pre_serialize() override {
-        local_eol_shared_locker l(&ext_mutex, "datasource::pre_serialize");
+        kis_lock_guard<kis_mutex> lk(ext_mutex, kismet::retain_lock, "datasource preserialize");
     }
 
     virtual void post_serialize() override {
-        local_shared_unlocker ul(&ext_mutex);
+        kis_lock_guard<kis_mutex> lk(ext_mutex, std::adopt_lock);
     }
 
     static std::string event_datasource_error() { return "DATASOURCE_ERROR"; }
@@ -680,9 +680,6 @@ protected:
     // Timer ID for trying to recover from an error
     int error_timer_id;
 
-    // Timer ID for sending a PING
-    int ping_timer_id;
-
     // Function that gets called when we encounter an error; allows for scheduling
     // bringup, etc
     virtual void handle_source_error();
@@ -729,9 +726,6 @@ protected:
 
     // We've gotten our response from an operation, don't report additional errors
     bool quiet_errors;
-
-    // Last time we saw a PONG
-    time_t last_pong;
 
     // We suppress automatically adding GPS to packets from this source
     bool suppress_gps;

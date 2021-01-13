@@ -78,9 +78,7 @@ public:
             const std::vector<std::string>& in_aux_path, 
             new_device_cb in_new_cb, updated_device_cb in_upd_cb);
 
-    virtual ~device_tracker_view() {
-        local_locker l(&mutex);
-    }
+    virtual ~device_tracker_view() { }
 
     // Protect proxies w/ mutex
     __ProxyGet(view_id, std::string, std::string, view_id);
@@ -88,11 +86,11 @@ public:
     __ProxyGet(list_sz, uint64_t, uint64_t, list_sz);
 
     virtual void pre_serialize() override {
-        local_eol_shared_locker lock(&mutex);
+        kis_lock_guard<kis_mutex> lk(mutex, kismet::retain_lock, "devicetracker_view serialize");
     }
 
     virtual void post_serialize() override {
-       local_shared_unlocker lock(&mutex);
+        kis_lock_guard<kis_mutex> lk(mutex, std::adopt_lock);
     }
 
     // Do work on the base list of all devices in this view; this makes an immutable copy
@@ -134,7 +132,7 @@ protected:
         // un-processed; use the view APIs for managing that
     }
 
-    kis_recursive_timed_mutex mutex;
+    kis_mutex mutex;
 
     std::shared_ptr<tracker_element_string> view_id;
     std::shared_ptr<tracker_element_uuid> view_uuid;

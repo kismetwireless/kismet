@@ -53,7 +53,7 @@ void dot11_tracked_ssid_alert::register_fields() {
 
 void dot11_tracked_ssid_alert::set_regex(std::string s) {
 #ifdef HAVE_LIBPCRE
-    local_locker lock(&ssid_mutex);
+    kis_lock_guard<kis_mutex> lk(ssid_mutex);
 
     const char *compile_error, *study_error;
     int erroroffset;
@@ -84,7 +84,7 @@ void dot11_tracked_ssid_alert::set_regex(std::string s) {
 }
 
 void dot11_tracked_ssid_alert::set_allowed_macs(std::vector<mac_addr> mvec) {
-    local_locker lock(&ssid_mutex);
+    kis_lock_guard<kis_mutex> lk(ssid_mutex);
 
     allowed_macs_vec->clear();
 
@@ -95,8 +95,8 @@ void dot11_tracked_ssid_alert::set_allowed_macs(std::vector<mac_addr> mvec) {
     }
 }
 
-bool dot11_tracked_ssid_alert::compare_ssid(std::string ssid, mac_addr mac) {
-    local_locker lock(&ssid_mutex);
+bool dot11_tracked_ssid_alert::compare_ssid(const std::string& ssid, mac_addr mac) {
+    kis_lock_guard<kis_mutex> lk(ssid_mutex);
 
 #ifdef HAVE_LIBPCRE
     int rc;

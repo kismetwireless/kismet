@@ -104,7 +104,7 @@ void kis_adsb_icao::index() {
     z_off_t prev_pos;
     uint32_t last_icao = 0;
 
-    local_locker(&mutex, "ICAO index");
+    kis_lock_guard<kis_mutex> lk(mutex, "adsb icao index");
 
     if (zmfile == nullptr)
         return;
@@ -167,7 +167,7 @@ std::shared_ptr<tracked_adsb_icao> kis_adsb_icao::lookup_icao(uint32_t icao) {
     }
 
     {
-        local_shared_locker sl(&mutex, "icao shared lookup");
+        kis_lock_guard<kis_mutex> lk(mutex, "adsb icao lookup");
 
         auto cached = icao_map.find(icao);
         if (cached != icao_map.end())
@@ -192,7 +192,7 @@ std::shared_ptr<tracked_adsb_icao> kis_adsb_icao::lookup_icao(uint32_t icao) {
     }
 
     {
-        local_locker l(&mutex, "icao file lookup");
+        kis_lock_guard<kis_mutex> lk(mutex, "adsb icao file lookup");
 
         gzseek(zmfile, index_vec[matched].pos, SEEK_SET);
     
