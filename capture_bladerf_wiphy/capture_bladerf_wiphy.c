@@ -443,7 +443,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     (*ret_interface)->hardware = strdup("bladeRF Wiphy");
 
-    *dlt = DLT_IEEE802_11_RADIO;
+    *dlt = DLT_IEEE802_11;
 
     (*ret_interface)->capif = strdup(local_wifi->interface);
 
@@ -555,12 +555,11 @@ void capture_thread(kis_capture_handler_t *caph) {
 
         gettimeofday(&ts, NULL);
 
-        if ((ret = cf_send_data(caph, 
-                        NULL, NULL, NULL,
-                        ts, 
-                        DLT_IEEE802_11_RADIO,
-                        bwh_r->len - 4,
-                        (uint8_t *) data)) < 0) {
+        ret = cf_send_data(caph, NULL, NULL, NULL,
+                        ts, DLT_IEEE802_11,
+                        bwh_r->len - 4, (uint8_t *) data + 16);
+
+        if (ret < 0) {
             cf_send_error(caph, 0, "unable to send DATA frame");
             cf_handler_spindown(caph);
             break;
@@ -568,10 +567,7 @@ void capture_thread(kis_capture_handler_t *caph) {
             /* Go into a wait for the write buffer to get flushed */
             cf_handler_wait_ringbuffer(caph);
             continue;
-        } else {
-            break;
         }
-
     }
 
     snprintf(errstr, STATUS_MAX, "%s interface '%s' closed: %d", 
