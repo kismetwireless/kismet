@@ -135,6 +135,9 @@ BUILD_CAPTURE_NRF_51822 = @BUILD_CAPTURE_NRF_51822@
 CAPTURE_NXP_KW41Z = capture_nxp_kw41z/kismet_cap_nxp_kw41z
 BUILD_CAPTURE_NXP_KW41Z = @BUILD_CAPTURE_NXP_KW41Z@
 
+CAPTURE_BLADERF_WIPHY = capture_bladerf_wiphy/kismet_cap_bladerf_wiphy
+BUILD_CAPTURE_BLADERF_WIPHY = @BUILD_CAPTURE_BLADERF_WLAN@
+
 # Capture binaries to build
 DATASOURCE_BINS = @DATASOURCE_BINS@
 
@@ -352,6 +355,9 @@ $(CAPTURE_NXP_KW41Z): $(PROTOBUF_C_H) $(DATASOURCE_COMMON_A) FORCE
 $(CAPTURE_FREAKLABS_ZIGBEE): FORCE
 	(cd capture_freaklabs_zigbee && $(MAKE))
 
+$(CAPTURE_BLADERF_WIPHY): FORCE
+	(cd capture_bladerf_wiphy && $(MAKE))
+
 FORCE:
 
 datasources:	$(DATASOURCE_BINS)
@@ -396,6 +402,10 @@ binsuidinstall: $(DATASOURCE_BINS)
 
 	@if test "$(BUILD_CAPTURE_NXP_KW41Z)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_NXP_KW41Z) $(BIN)/`basename $(CAPTURE_NXP_KW41Z)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_BLADERF_WIPHY)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(SUIDGROUP) -m 4550 $(CAPTURE_BLADERF_WIPHY) $(BIN)/`basename $(CAPTURE_BLADERF_WIPHY)`; \
 	fi;
 
 commoninstall: $(INSTBINS)
@@ -468,6 +478,10 @@ commoninstall: $(INSTBINS)
 
 	@if test "$(BUILD_CAPTURE_NXP_KW41Z)"x = "1"x; then \
 		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_NXP_KW41Z) $(BIN)/`basename $(CAPTURE_NXP_KW41Z)`; \
+	fi;
+
+	@if test "$(BUILD_CAPTURE_BLADERF_WIPHY)"x = "1"x; then \
+		$(INSTALL) -o $(INSTUSR) -g $(INSTGRP) $(CAPTURE_BLADERF_WIPHY) $(BIN)/`basename $(CAPTURE_BLADERF_WIPHY)`; \
 	fi;
 
 	@if test "$(BUILD_CAPTURE_SDR_RTL433)"x = "1"x; then \

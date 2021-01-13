@@ -205,18 +205,29 @@ void local_channel_to_str(local_channel_t *chan, char *chanstr) {
 int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg, 
         unsigned int default_ht20, unsigned int expand_ht20,
         char ***chanlist, size_t *chanlist_sz) {
-    size_t chan_sz;
-    unsigned int ci;
+    size_t chan_sz = 0;
+    unsigned int ci, cp;
     char conv_chan[16];
 
-    chan_sz = MAX_WIFI_HT_CHANNEL;
+    for (ci = 0; ci < MAX_WIFI_HT_CHANNEL; ci++) {
+        if (wifi_ht_channels[ci].chan == 0)
+            continue;
+        chan_sz++;
+    }
 
     *chanlist = (char **) malloc(sizeof(char *) * chan_sz);
 
-    for (ci = 0; ci < chan_sz; ci++) {
+    cp = 0;
+    for (ci = 0; ci < MAX_WIFI_HT_CHANNEL; ci++) {
+        if (wifi_ht_channels[ci].chan == 0)
+            continue;
+
         snprintf(conv_chan, 16, "%u", wifi_ht_channels[ci].chan);
-        (*chanlist)[ci] = strdup(conv_chan);
+        (*chanlist)[cp] = strdup(conv_chan);
+        cp++;
     }
+
+    *chanlist_sz = chan_sz;
 
     return 1;
 }
@@ -582,7 +593,7 @@ int main(int argc, char *argv[]) {
 
     /* fprintf(stderr, "CAPTURE_LINUX_WIFI launched on pid %d\n", getpid()); */
 
-    kis_capture_handler_t *caph = cf_handler_init("brf-wiphy");
+    kis_capture_handler_t *caph = cf_handler_init("bladerf-wiphy");
 
     if (caph == NULL) {
         fprintf(stderr, "FATAL: Could not allocate basic handler data, your system "

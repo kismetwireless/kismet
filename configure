@@ -673,6 +673,7 @@ PROTOCFLAGS
 PROTOLIBS
 PROTOCBIN
 protocc
+BUILD_CAPTURE_BLADERF_WLAN
 BLADERFCFLAGS
 BLADERFLIBS
 libbladeRF_LIBS
@@ -9324,11 +9325,6 @@ else
 $as_echo "no" >&6; }
 fi
 
-OCPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS"
-OLDFLAGS=$LDFLAGS
-LDFLAGS="$CPPFLAGS"
-
 # Do we need libm for math functions?
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for libm math function in std libs" >&5
 $as_echo_n "checking for libm math function in std libs... " >&6; }
@@ -11425,6 +11421,11 @@ fi
 
 
 
+
+
+if test x"$BUILD_CAPTURE_BLADERF_WLAN" = x"1"; then
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_BLADERF_WIPHY)"
+fi
 
 
 # Check whether --with-protocc was given.

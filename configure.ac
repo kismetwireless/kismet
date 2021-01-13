@@ -1179,6 +1179,11 @@ AS_IF([test "x$want_bladerf" == "xyes"], [
 AC_SUBST(BLADERFLIBS)
 AC_SUBST(BLADERFCFLAGS)
 
+AC_SUBST(BUILD_CAPTURE_BLADERF_WLAN)
+if test x"$BUILD_CAPTURE_BLADERF_WLAN" = x"1"; then
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_BLADERF_WIPHY)"
+fi
+
 AC_ARG_WITH(protocc,
 	[  --with-protocc[=PATH]     Custom location of the protoc protobuf compiler],
 	[ PROTOCCBIN=$withval ]
