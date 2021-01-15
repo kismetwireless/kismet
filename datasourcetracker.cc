@@ -1627,7 +1627,10 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
         if (merge_target_device->get_source_running()) {
             _MSG_ERROR("Incoming remote connection for source '{}' matches existing source '{}', "
                     "which is still running.  The running instance will be closed; make sure "
-                    "that multiple remote captures are not running for the same source.",
+                    "that multiple remote captures are not running for the same source.  This may "
+                    "also indicate multiple remote sources with the same serial number or UUID, "
+                    "which may occur with rtlsdr and others.  You may need to set the uuid= "
+                    "parameter in your remote source definition.",
                     in_uuid.uuid_to_string(), merge_target_device->get_source_name());
             merge_target_device->close_source();
         } else {
