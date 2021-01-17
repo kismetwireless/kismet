@@ -118,6 +118,9 @@ public:
     virtual void add_device_direct(std::shared_ptr<kis_tracked_device_base> device);
     virtual void remove_device_direct(std::shared_ptr<kis_tracked_device_base> device);
 
+	// Look for an existing device record under read-only shared lock
+    std::shared_ptr<kis_tracked_device_base> fetch_device(device_key in_key);
+
 protected:
     std::shared_ptr<device_tracker> devicetracker;
 
