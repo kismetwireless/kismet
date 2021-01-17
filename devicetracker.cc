@@ -1107,6 +1107,19 @@ std::shared_ptr<kis_tracked_device_base> device_tracker::fetch_device_nr(device_
 	return NULL;
 }
 
+// Fetch one or more devices by mac address or mac mask
+std::vector<std::shared_ptr<kis_tracked_device_base>> device_tracker::fetch_devices(mac_addr in_mac) {
+    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker fetch_device mac");
+    std::vector<std::shared_ptr<kis_tracked_device_base>> ret;
+   
+    const auto mmp = tracked_mac_multimap.equal_range(in_mac);
+    for (auto mmpi = mmp.first; mmpi != mmp.second; ++mmpi) {
+        ret.push_back(mmpi->second);
+    }
+
+    return ret;
+}
+
 int device_tracker::common_tracker(kis_packet *in_pack) {
     kis_lock_guard<kis_mutex> lk(phy_mutex, "device_tracker common_tracker");
 

@@ -118,6 +118,9 @@ public:
 	// Look for an existing device record under read-only shared lock
     std::shared_ptr<kis_tracked_device_base> fetch_device(device_key in_key);
 
+    // Fetch one or more devices by mac address or mac mask
+    std::vector<std::shared_ptr<kis_tracked_device_base>> fetch_devices(mac_addr in_mac);
+
     // Look for an existing device record, without lock - must be called under some form of existing
     // lock to be safely used
     std::shared_ptr<kis_tracked_device_base> fetch_device_nr(device_key in_key);
