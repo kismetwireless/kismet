@@ -2100,7 +2100,7 @@ int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
 }
 
 #ifdef HAVE_LIBWEBSOCKETS
-void ws_sul_connect_attempt(kis_capture_handler_t *caph, struct lws_sorted_usec_list *sul) {
+void ws_connect_attempt(kis_capture_handler_t *caph) {
     char msgstr[STATUS_MAX];
     int cbret;
     cf_params_interface_t *cpi;
@@ -2179,7 +2179,7 @@ int ws_remotecap_broker(struct lws *wsi, enum lws_callback_reasons reason,
             caph->lwscontext = lws_get_context(wsi);
             caph->lwsprotocol = lws_get_protocol(wsi);
             caph->lwsvhost = lws_get_vhost(wsi);
-            ws_sul_connect_attempt(caph, &caph->lwssul);
+            ws_connect_attempt(caph);
             break;
         case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
             pthread_mutex_lock(&caph->handler_lock);

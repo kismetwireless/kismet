@@ -986,7 +986,7 @@ AC_ARG_ENABLE([libwebsockets],
 )
 
 AS_IF([test "x$want_libwebsockets" != "xno"], [
-    PKG_CHECK_MODULES([libwebsockets], [libwebsockets >= 3.2.0], have_libwebsockets_pkg=yes)
+    PKG_CHECK_MODULES([libwebsockets], [libwebsockets >= 3.1.0], have_libwebsockets_pkg=yes)
 
     if test x"$have_libwebsockets_pkg" != "xyes"; then
         AC_MSG_ERROR([missing libwebsockets])

@@ -283,8 +283,6 @@ struct kis_capture_handler {
     struct lws_vhost *lwsvhost;
     const struct lws_protocols *lwsprotocol;
 
-    lws_sorted_usec_list_t lwssul;
-
     struct lws_ring *lwsring;
     uint32_t lwstail;
 
@@ -922,7 +920,7 @@ int cf_wait_announcement(kis_capture_handler_t *caph);
 
 /* websockets interface */
 #ifdef HAVE_LIBWEBSOCKETS
-static void ws_sul_connect_attmpt(struct lws_sorted_usec_list *sul);
+static void ws_connect_client(kis_capture_handler_t *caph);
 
 static int ws_remotecap_broker(struct lws *wsi, enum lws_callback_reasons reason,
         void *user, void *in, size_t len);
