@@ -2129,8 +2129,8 @@ function show_role_help(role) {
         rolehelp += "<p>&quot;readonly&quot; which only has access to endpoints which do not alter devices or change the configuration of the server";
         rolehelp += "<p>&quot;datasource&quot; which is used for websockets based remote capture and may not access any other endpoints";
         rolehelp += "<p>&quot;scanreport&quot; which is used for reporting scanning-mode devices";
-        rolehelp += "<p>&quot;ADSB&quot; which is used for sharing ADSB feeds";"
-        rolehelp += "<p>Plugins or other code may define other roles."
+        rolehelp += "<p>&quot;ADSB&quot; which is used for sharing ADSB feeds";
+        rolehelp += "<p>Plugins or other code may define other roles.";
 
         role = "Kismet API Roles";
     }
