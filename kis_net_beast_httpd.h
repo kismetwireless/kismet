@@ -92,7 +92,12 @@ public:
     void register_route(const std::string& route, const std::list<std::string>& verbs, 
             const std::string& role, std::shared_ptr<kis_net_web_endpoint> handler);
     void register_route(const std::string& route, const std::list<std::string>& verbs, 
+            const std::list<std::string>& roles, std::shared_ptr<kis_net_web_endpoint> handler);
+    void register_route(const std::string& route, const std::list<std::string>& verbs, 
             const std::string& role, const std::list<std::string>& extensions, 
+            std::shared_ptr<kis_net_web_endpoint> handler);
+    void register_route(const std::string& route, const std::list<std::string>& verbs, 
+            const std::list<std::string>& role, const std::list<std::string>& extensions, 
             std::shared_ptr<kis_net_web_endpoint> handler);
     void remove_route(const std::string& route);
 
@@ -106,6 +111,8 @@ public:
 
     // Websocket handlers are their own special things.  All websockets must be authenticated.
     void register_websocket_route(const std::string& route, const std::string& role, 
+            const std::list<std::string>& extensions, std::shared_ptr<kis_net_web_endpoint> handler);
+    void register_websocket_route(const std::string& route, const std::list<std::string>& roles, 
             const std::list<std::string>& extensions, std::shared_ptr<kis_net_web_endpoint> handler);
 
 

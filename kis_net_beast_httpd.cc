@@ -649,8 +649,17 @@ std::string kis_net_beast_httpd::resolve_mime_type(const boost::beast::string_vi
 
 void kis_net_beast_httpd::register_route(const std::string& route, const std::list<std::string>& verbs,
         const std::string& role, std::shared_ptr<kis_net_web_endpoint> handler) {
-    
+
     if (role.length() == 0)
+        throw std::runtime_error("can not register auth http route with no role");
+
+    return register_route(route, verbs, std::list<std::string>{role}, handler);
+}
+
+void kis_net_beast_httpd::register_route(const std::string& route, const std::list<std::string>& verbs,
+        const std::list<std::string>& roles, std::shared_ptr<kis_net_web_endpoint> handler) {
+    
+    if (roles.size() == 0)
         throw std::runtime_error("can not register auth http route with no role");
 
     kis_lock_guard<kis_mutex> lk(route_mutex, "beast_httpd register_route");
@@ -659,7 +668,7 @@ void kis_net_beast_httpd::register_route(const std::string& route, const std::li
     for (const auto& v : verbs) 
         b_verbs.emplace_back(boost::beast::http::string_to_verb(v));
 
-    route_vec.emplace_back(std::make_shared<kis_net_beast_route>(route, b_verbs, true, role, handler));
+    route_vec.emplace_back(std::make_shared<kis_net_beast_route>(route, b_verbs, true, roles, handler));
 }
 
 void kis_net_beast_httpd::register_route(const std::string& route, 
@@ -669,13 +678,23 @@ void kis_net_beast_httpd::register_route(const std::string& route,
     if (role.length() == 0)
         throw std::runtime_error("can not register auth http route with no role");
 
+    return register_route(route, verbs, std::list<std::string>{role}, extensions, handler);
+}
+
+void kis_net_beast_httpd::register_route(const std::string& route, 
+        const std::list<std::string>& verbs, const std::list<std::string>& roles,
+        const std::list<std::string>& extensions, std::shared_ptr<kis_net_web_endpoint> handler) {
+
+    if (roles.size() == 0)
+        throw std::runtime_error("can not register auth http route with no role");
+
     kis_lock_guard<kis_mutex> lk(route_mutex, "beast_httpd register_route (extensions)");
 
     std::list<boost::beast::http::verb> b_verbs;
     for (const auto& v : verbs) 
         b_verbs.emplace_back(boost::beast::http::string_to_verb(v));
 
-    route_vec.emplace_back(std::make_shared<kis_net_beast_route>(route, b_verbs, true, role, extensions, handler));
+    route_vec.emplace_back(std::make_shared<kis_net_beast_route>(route, b_verbs, true, roles, extensions, handler));
 }
 
 void kis_net_beast_httpd::remove_route(const std::string& route) {
@@ -713,10 +732,16 @@ void kis_net_beast_httpd::register_unauth_route(const std::string& route,
 void kis_net_beast_httpd::register_websocket_route(const std::string& route, 
         const std::string& role, const std::list<std::string>& extensions, 
         std::shared_ptr<kis_net_web_endpoint> handler) {
+    return register_websocket_route(route, std::list<std::string>{role}, extensions, handler);
+}
+
+void kis_net_beast_httpd::register_websocket_route(const std::string& route, 
+        const std::list<std::string>& roles, const std::list<std::string>& extensions, 
+        std::shared_ptr<kis_net_web_endpoint> handler) {
     kis_lock_guard<kis_mutex> lk(route_mutex, "beast_httpd register_websocket_route");
 
     websocket_route_vec.emplace_back(std::make_shared<kis_net_beast_route>(route, 
-                std::list<boost::beast::http::verb>{}, true, role, extensions, handler));
+                std::list<boost::beast::http::verb>{}, true, roles, extensions, handler));
 
 }
 
@@ -1488,7 +1513,7 @@ kis_net_beast_route::kis_net_beast_route(const std::string& route,
     route_{route},
     verbs_{verbs},
     login_{login},
-    roles_{{role}},
+    roles_{std::list<std::string>{role}},
     match_types{false} {
 
     // Generate the keys list
@@ -1513,7 +1538,7 @@ kis_net_beast_route::kis_net_beast_route(const std::string& route,
     route_{route},
     verbs_{verbs},
     login_{login},
-    roles_{{role}},
+    roles_{std::list<std::string>{role}},
     match_types{true} {
 
     // Generate the keys list
