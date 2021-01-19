@@ -97,7 +97,7 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
                     return adsb_map_endp_handler(con);
                 }));
 
-    httpd->register_websocket_route("/phy/RTLADSB/beast", httpd->RO_ROLE, {"ws"},
+    httpd->register_websocket_route("/phy/RTLADSB/beast", {httpd->RO_ROLE, "ADSB"}, {"ws"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
 
@@ -180,7 +180,7 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
                 packetchain->remove_handler(beast_handler_id, CHAINPOS_LOGGING);
             }));
 
-    httpd->register_websocket_route("/phy/RTLADSB/raw", httpd->RO_ROLE, {"ws"},
+    httpd->register_websocket_route("/phy/RTLADSB/raw", {httpd->RO_ROLE, "ADSB"}, {"ws"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
 

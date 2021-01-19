@@ -2121,12 +2121,15 @@ function show_role_help(role) {
         rolehelp = "The datasource role allows remote capture over websockets.  This role only has access to the remote capture datasource endpoint.";
     else if (role === "scanreport")
         rolehelp = "The scanreport role allows device scan reports.  This role only has access to the scan report endpoint."
+    else if (role === "ADSB")
+        rolehelp = "The ADSB role allows access to the combined and device-specific ADSB feeds."
     else if (role === "__explain__") {
         rolehelp = "<p>Kismet uses a basic role system to restrict access to API endpoints.  The default roles are:";
         rolehelp += "<p>&quot;admin&quot; which has access to all API endpoints.";
         rolehelp += "<p>&quot;readonly&quot; which only has access to endpoints which do not alter devices or change the configuration of the server";
         rolehelp += "<p>&quot;datasource&quot; which is used for websockets based remote capture and may not access any other endpoints";
         rolehelp += "<p>&quot;scanreport&quot; which is used for reporting scanning-mode devices";
+        rolehelp += "<p>&quot;ADSB&quot; which is used for sharing ADSB feeds";"
         rolehelp += "<p>Plugins or other code may define other roles."
 
         role = "Kismet API Roles";
@@ -2391,6 +2394,11 @@ kismet_ui_settings.AddSettingsPane({
                             $('<option>', {
                                 'value': 'admin',
                             }).html("admin")
+                        )
+                        .append(
+                            $('<option>', {
+                                'value': 'ADSB',
+                            }).html("ADSB")
                         )
                         .append(
                             $('<option>', {
