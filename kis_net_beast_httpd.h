@@ -568,6 +568,13 @@ public:
     kis_net_beast_route(const std::string& route, const std::list<boost::beast::http::verb>& verbs,
             bool login, const std::string& role, const std::list<std::string>& extensions, 
             std::shared_ptr<kis_net_web_endpoint> handler);
+    kis_net_beast_route(const std::string& route, const std::list<boost::beast::http::verb>& verbs,
+            bool login, const std::list<std::string>& roles, 
+            std::shared_ptr<kis_net_web_endpoint> handler);
+    kis_net_beast_route(const std::string& route, const std::list<boost::beast::http::verb>& verbs,
+            bool login, const std::list<std::string>& roles, 
+            const std::list<std::string>& extensions, 
+            std::shared_ptr<kis_net_web_endpoint> handler);
 
     // Does a URL match this route?  If so, populate uri params and uri variables
     bool match_url(const std::string& url, kis_net_beast_httpd_connection::uri_param_t& uri_params,
@@ -592,7 +599,8 @@ protected:
     std::list<boost::beast::http::verb> verbs_;
 
     bool login_;
-    std::string role_;
+
+    std::list<std::string> roles_;
 
     const std::string path_id_pattern = ":([^\\/]+)?";
     const std::string path_capture_pattern = "(?:([^\\/]+?))";

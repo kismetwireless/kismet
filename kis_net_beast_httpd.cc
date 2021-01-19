@@ -1488,7 +1488,7 @@ kis_net_beast_route::kis_net_beast_route(const std::string& route,
     route_{route},
     verbs_{verbs},
     login_{login},
-    role_{role},
+    roles_{{role}},
     match_types{false} {
 
     // Generate the keys list
@@ -1513,7 +1513,75 @@ kis_net_beast_route::kis_net_beast_route(const std::string& route,
     route_{route},
     verbs_{verbs},
     login_{login},
-    role_{role},
+    roles_{{role}},
+    match_types{true} {
+
+    // Generate the keys list
+    for (auto i = std::sregex_token_iterator(route.begin(), route.end(), path_re); 
+            i != std::sregex_token_iterator(); i++) {
+        match_keys.push_back(static_cast<std::string>(*i));
+    }
+
+    match_keys.push_back("FILETYPE");
+    match_keys.push_back("GETVARS");
+
+    // Generate the file type regex
+    auto ft_regex = std::string("\\.(");
+    if (extensions.size() == 0) {
+        // If passed an empty list we accept all types and resolve during serialization
+        ft_regex += "[A-Za-z0-9]+";
+    } else {
+        bool prepend_pipe = false;
+        for (const auto& i : extensions) {
+            if (prepend_pipe)
+                ft_regex += fmt::format("|{}", i);
+            else
+                ft_regex += fmt::format("{}", i);
+            prepend_pipe = true;
+        }
+    }
+    ft_regex += ")";
+
+    // Generate the extractor expressions
+    auto ext_str = std::regex_replace(route, path_re, path_capture_pattern);
+
+    // Match the RE + filetypes + http variables
+    match_re = std::regex(fmt::format("^{}{}(\\?.*?)?$", ext_str, ft_regex));
+}
+
+kis_net_beast_route::kis_net_beast_route(const std::string& route, 
+        const std::list<boost::beast::http::verb>& verbs, 
+        bool login, const std::list<std::string>& roles, std::shared_ptr<kis_net_web_endpoint> handler) :
+    handler{handler},
+    route_{route},
+    verbs_{verbs},
+    login_{login},
+    roles_{roles},
+    match_types{false} {
+
+    // Generate the keys list
+    for (auto i = std::sregex_token_iterator(route.begin(), route.end(), path_re); 
+            i != std::sregex_token_iterator(); i++) {
+        match_keys.push_back(static_cast<std::string>(*i));
+    }
+
+    match_keys.push_back("GETVARS");
+
+    // Generate the extractor expressions
+    auto ext_str = std::regex_replace(route, path_re, path_capture_pattern);
+    // Match the RE + http variables
+    match_re = std::regex(fmt::format("^{}(\\?.*?)?$", ext_str));
+}
+
+kis_net_beast_route::kis_net_beast_route(const std::string& route, 
+        const std::list<boost::beast::http::verb>& verbs,
+        bool login, const std::list<std::string>& roles,
+        const std::list<std::string>& extensions, std::shared_ptr<kis_net_web_endpoint> handler) :
+    handler{handler},
+    route_{route},
+    verbs_{verbs},
+    login_{login},
+    roles_{roles},
     match_types{true} {
 
     // Generate the keys list
@@ -1596,10 +1664,20 @@ bool kis_net_beast_route::match_role(bool login, const std::string& role) {
         return false;
 
     constant_time_string_compare_ne compare;
-    auto valid = !compare(role_, role);
+    bool valid = false;
+    bool any = false;
+
+    for (const auto& r : roles_) {
+        if (r == kis_net_beast_httpd::ANY_ROLE)
+            any = true;
+
+        auto comp = !compare(r, role);
+        if (comp)
+            valid = comp;
+    }
 
     // If the endpoint allows any role, always accept
-    if (role_ == kis_net_beast_httpd::ANY_ROLE)
+    if (any)
         return true;
 
     // If the supplied role is logon, it can do everything
