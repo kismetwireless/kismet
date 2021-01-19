@@ -198,7 +198,7 @@ protected:
 
     int rtladsb_adsb_id;
 
-    int pack_comp_common, pack_comp_json, pack_comp_meta;
+    int pack_comp_common, pack_comp_json, pack_comp_meta, pack_comp_datasource;
 
     std::shared_ptr<tracker_element_string> rtl_manuf;
 
