@@ -571,11 +571,6 @@ protected:
 class kis_net_beast_route {
 public:
     kis_net_beast_route(const std::string& route, const std::list<boost::beast::http::verb>& verbs,
-            bool login, const std::string& role, std::shared_ptr<kis_net_web_endpoint> handler);
-    kis_net_beast_route(const std::string& route, const std::list<boost::beast::http::verb>& verbs,
-            bool login, const std::string& role, const std::list<std::string>& extensions, 
-            std::shared_ptr<kis_net_web_endpoint> handler);
-    kis_net_beast_route(const std::string& route, const std::list<boost::beast::http::verb>& verbs,
             bool login, const std::list<std::string>& roles, 
             std::shared_ptr<kis_net_web_endpoint> handler);
     kis_net_beast_route(const std::string& route, const std::list<boost::beast::http::verb>& verbs,
