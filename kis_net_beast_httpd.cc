@@ -1618,7 +1618,6 @@ bool kis_net_beast_route::match_verb(boost::beast::http::verb verb) {
 }
 
 bool kis_net_beast_route::match_role(bool login, const std::string& role) {
-    fmt::print("login_ {} login {}\n", login_, login);
     if (login_ && !login)
         return false;
 
@@ -1626,7 +1625,6 @@ bool kis_net_beast_route::match_role(bool login, const std::string& role) {
     bool any = false;
 
     for (const auto& r : roles_) {
-        fmt::print("role: {}\n", r);
         if (r == kis_net_beast_httpd::ANY_ROLE)
             any = true;
 
@@ -1635,8 +1633,6 @@ bool kis_net_beast_route::match_role(bool login, const std::string& role) {
         if (!compare(r, role))
             valid = true;
     }
-
-    fmt::print("any: {}\n", any);
 
     // If the endpoint allows any role, always accept
     if (any)
