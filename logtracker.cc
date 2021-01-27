@@ -28,7 +28,8 @@
 #include "base64.h"
 
 log_tracker::log_tracker() :
-    tracker_component() {
+    tracker_component(),
+    lifetime_global() {
 
     streamtracker =
         Globalreg::fetch_mandatory_global_as<stream_tracker>("STREAMTRACKER");
@@ -38,7 +39,7 @@ log_tracker::log_tracker() :
 }
 
 log_tracker::~log_tracker() {
-    local_locker lock(&tracker_mutex);
+    kis_lock_guard<kis_mutex> lk(tracker_mutex);
 
     Globalreg::globalreg->remove_global("LOGTRACKER");
 
@@ -164,22 +165,12 @@ void log_tracker::trigger_deferred_startup() {
         log_types_vec->push_back(e);
     }
 
-    if (!get_logging_enabled()) {
-        std::shared_ptr<alert_tracker> alertracker =
-            Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
-        alertracker->raise_one_shot("LOGDISABLED", "Logging has been disabled via the Kismet "
-                "config files or the command line.  Pcap, database, and related logs "
-                "will not be saved.", -1);
-        _MSG("Logging disabled, not enabling any log drivers.", MSGFLAG_INFO);
-        return;
-    }
-
     auto httpd = Globalreg::fetch_global_as<kis_net_beast_httpd>();
 
     httpd->register_route("/logging/drivers", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(logproto_vec, &tracker_mutex));
+            std::make_shared<kis_net_web_tracked_endpoint>(logproto_vec, tracker_mutex));
     httpd->register_route("/logging/active", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(logfile_vec, &tracker_mutex));
+            std::make_shared<kis_net_web_tracked_endpoint>(logfile_vec, tracker_mutex));
 
     httpd->register_route("/logging/by-uuid/:uuid/stop", {"GET", "POST"}, httpd->LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
@@ -191,7 +182,7 @@ void log_tracker::trigger_deferred_startup() {
                     if (u.error)
                         throw std::runtime_error("invalid uuid");
 
-                    local_locker l(&tracker_mutex, static_cast<std::string>(con->uri()));
+                    kis_lock_guard<kis_mutex> lk(tracker_mutex, static_cast<std::string>(con->uri()));
 
                     std::shared_ptr<kis_logfile> logfile;
                     for (auto lfi : *logfile_vec) {
@@ -236,8 +227,17 @@ void log_tracker::trigger_deferred_startup() {
                         throw std::runtime_error("unable to open log");
 
                     return logf;
-                }, &tracker_mutex));
+                }, tracker_mutex));
 
+    if (!get_logging_enabled()) {
+        std::shared_ptr<alert_tracker> alertracker =
+            Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
+        alertracker->raise_one_shot("LOGDISABLED", "Logging has been disabled via the Kismet "
+                "config files or the command line.  Pcap, database, and related logs "
+                "will not be saved.", -1);
+        _MSG("Logging disabled, not enabling any log drivers.", MSGFLAG_INFO);
+        return;
+    }
 
     // Open all of them
     for (auto t : *log_types_vec) {
@@ -259,7 +259,7 @@ void log_tracker::trigger_deferred_shutdown() {
 }
 
 int log_tracker::register_log(shared_log_builder in_builder) {
-    local_locker lock(&tracker_mutex);
+    kis_lock_guard<kis_mutex> lk(tracker_mutex);
 
     for (auto i : *logproto_vec) {
         auto b = std::static_pointer_cast<kis_logfile_builder>(i);
@@ -282,7 +282,7 @@ shared_logfile log_tracker::open_log(std::string in_class) {
 }
 
 shared_logfile log_tracker::open_log(std::string in_class, std::string in_title) {
-    local_locker lock(&tracker_mutex);
+    kis_lock_guard<kis_mutex> lk(tracker_mutex);
 
     shared_log_builder target_builder;
 
@@ -302,7 +302,7 @@ shared_logfile log_tracker::open_log(shared_log_builder in_builder) {
 }
 
 shared_logfile log_tracker::open_log(shared_log_builder in_builder, std::string in_title) {
-    local_locker lock(&tracker_mutex);
+    kis_lock_guard<kis_mutex> lk(tracker_mutex);
 
     if (in_builder == NULL)
         return NULL;
@@ -338,7 +338,7 @@ shared_logfile log_tracker::open_log(shared_log_builder in_builder, std::string 
 }
 
 int log_tracker::close_log(shared_logfile in_logfile) {
-    local_locker lock(&tracker_mutex);
+    kis_lock_guard<kis_mutex> lk(tracker_mutex);
 
     in_logfile->close_log();
 

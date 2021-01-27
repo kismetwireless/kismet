@@ -813,7 +813,7 @@ int cf_handler_parse_opts(kis_capture_handler_t *caph, int argc, char *argv[]) {
         } else if (r == 7) {
             cf_handler_list_devices(caph);
             cf_handler_free(caph);
-            exit(1);
+            exit(KIS_EXTERNAL_RETCODE_ARGUMENTS);
         } else if (r == 8) {
             gps_arg = strdup(optarg);
         } else if (r == 9) {
@@ -1280,6 +1280,7 @@ void *cf_int_chanhop_thread(void *arg) {
         if ((r = (caph->chancontrol_cb)(caph, 0, 
                     caph->custom_channel_hop_list[hoppos % caph->channel_hop_list_sz], 
                     errstr)) < 0) {
+            fprintf(stderr, "FATAL:  Datasource channel control callback failed.\n");
             cf_send_error(caph, 0, errstr);
             caph->hopping_running = 0;
             pthread_mutex_unlock(&caph->handler_lock);
@@ -1982,13 +1983,13 @@ int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
     caph->spindown = 0;
     caph->shutdown = 0;
 
-    caph->in_ringbuf = kis_simple_ringbuf_create(1024 * 16);
+    caph->in_ringbuf = kis_simple_ringbuf_create(CAP_FRAMEWORK_RINGBUF_IN_SZ);
     if (caph->in_ringbuf == NULL) {
         fprintf(stderr, "FATAL:  Cannot allocate socket ringbuffer\n");
         return -1;
     }
 
-    caph->out_ringbuf = kis_simple_ringbuf_create(1024 * 2048);
+    caph->out_ringbuf = kis_simple_ringbuf_create(CAP_FRAMEWORK_RINGBUF_OUT_SZ);
     if (caph->out_ringbuf == NULL) {
         fprintf(stderr, "FATAL:  Cannot allocate socket ringbuffer\n");
         return -1;
@@ -2099,7 +2100,7 @@ int cf_handler_tcp_remote_connect(kis_capture_handler_t *caph) {
 }
 
 #ifdef HAVE_LIBWEBSOCKETS
-void ws_sul_connect_attempt(kis_capture_handler_t *caph, struct lws_sorted_usec_list *sul) {
+void ws_connect_attempt(kis_capture_handler_t *caph) {
     char msgstr[STATUS_MAX];
     int cbret;
     cf_params_interface_t *cpi;
@@ -2158,6 +2159,7 @@ void ws_sul_connect_attempt(kis_capture_handler_t *caph, struct lws_sorted_usec_
     caph->lwsci.pwsi = &caph->lwsclientwsi;
 
     if (!lws_client_connect_via_info(&caph->lwsci)) {
+        fprintf(stderr, "FATAL - Datasource could not connect websocket\n");
         caph->spindown = 1;
         return;
     }
@@ -2177,11 +2179,12 @@ int ws_remotecap_broker(struct lws *wsi, enum lws_callback_reasons reason,
             caph->lwscontext = lws_get_context(wsi);
             caph->lwsprotocol = lws_get_protocol(wsi);
             caph->lwsvhost = lws_get_vhost(wsi);
-            ws_sul_connect_attempt(caph, &caph->lwssul);
+            ws_connect_attempt(caph);
             break;
         case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
             pthread_mutex_lock(&caph->handler_lock);
             caph->lwsclientwsi = NULL;
+            fprintf(stderr, "FATAL - Datasource could not connect websocket client\n");
             caph->spindown = 1;
             pthread_mutex_unlock(&caph->handler_lock);
             return -1;
@@ -2201,6 +2204,7 @@ int ws_remotecap_broker(struct lws *wsi, enum lws_callback_reasons reason,
                     wmsg->len, LWS_WRITE_BINARY);
 
             if (m != (int) wmsg->len) {
+                fprintf(stderr, "FATAL - Datasource could not write data to websocket\n");
                 caph->shutdown = 1;
                 lws_cancel_service(caph->lwscontext);
                 pthread_mutex_unlock(&caph->out_ringbuf_lock);
@@ -2221,12 +2225,13 @@ int ws_remotecap_broker(struct lws *wsi, enum lws_callback_reasons reason,
 
             /* Signal to any waiting IO that the buffer has some
              * headroom */
-            pthread_cond_signal(&(caph->out_ringbuf_flush_cond));
+            pthread_cond_broadcast(&(caph->out_ringbuf_flush_cond));
 
 skip:
             pthread_mutex_unlock(&caph->out_ringbuf_lock);
             break;
         case LWS_CALLBACK_CLIENT_CLOSED:
+            fprintf(stderr, "FATAL - Datasource websocket closed\n");
             pthread_mutex_lock(&caph->handler_lock);
             caph->lwsclientwsi = NULL;
             caph->lwsestablished = 0;
@@ -2268,7 +2273,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
 
     if (caph->use_tcp || caph->use_ipc) {
         if (caph->in_ringbuf == NULL) {
-            caph->in_ringbuf = kis_simple_ringbuf_create(1024 * 16);
+            caph->in_ringbuf = kis_simple_ringbuf_create(CAP_FRAMEWORK_RINGBUF_IN_SZ);
 
             if (caph->in_ringbuf == NULL) {
                 fprintf(stderr, "FATAL:  Cannot allocate socket ringbuffer\n");
@@ -2277,7 +2282,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
         }
 
         if (caph->out_ringbuf == NULL) {
-            caph->out_ringbuf = kis_simple_ringbuf_create(1024 * 2048);
+            caph->out_ringbuf = kis_simple_ringbuf_create(CAP_FRAMEWORK_RINGBUF_OUT_SZ);
 
             if (caph->out_ringbuf == NULL) {
                 fprintf(stderr, "FATAL:  Cannot allocate socket ringbuffer\n");
@@ -2420,6 +2425,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                     /* See if we have a complete packet to do something with */
                     if (cf_handle_rb_rx_data(caph) < 0) {
                         /* Enter spindown if processing an incoming packet failed */
+                        fprintf(stderr, "FATAL:  Datasource processing an incoming control packet failed.\n");
                         cf_handler_spindown(caph);
                     }
                 }
@@ -2474,13 +2480,13 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
 
                 /* Signal to any waiting IO that the buffer has some
                  * headroom */
-                pthread_cond_signal(&(caph->out_ringbuf_flush_cond));
+                pthread_cond_broadcast(&(caph->out_ringbuf_flush_cond));
             }
         }
     } else if (caph->use_ws) {
 #ifdef HAVE_LIBWEBSOCKETS
         caph->lwsring = 
-            lws_ring_create(sizeof(struct cf_ws_msg), 1024, ws_destroy_msg);
+            lws_ring_create(sizeof(struct cf_ws_msg), CAP_FRAMEWORK_WS_BUF_SZ, ws_destroy_msg);
 
         if (!caph->lwsring) {
             fprintf(stderr, "FATAL:  Cannot allocate websocket ringbuffer\n");
@@ -2492,6 +2498,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
         while (ret >= 0 && !caph->shutdown)
             lws_service(caph->lwscontext, 0);
 
+        fprintf(stderr, "FATAL:  Datasource exiting libwebsocket loop\n");
 #endif
     } else {
         fprintf(stderr, "FATAL:  Could not determine mode?\n");
@@ -2500,6 +2507,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
 
 
     /* Fall out of select loop */
+
 cap_loop_fail:
     /* Kill the capture thread */
     pthread_mutex_lock(&(caph->out_ringbuf_lock));
@@ -2508,6 +2516,9 @@ cap_loop_fail:
         caph->capture_running = 0;
     }
     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+
+    /* Kill anything pending */
+    pthread_cond_broadcast(&(caph->out_ringbuf_flush_cond));
 
     return rv;
 }
@@ -3600,7 +3611,7 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph) {
         if (pid < 0) {
             fprintf(stderr, "FATAL:  Unable to fork child process: %s\n", strerror(errno));
             cf_handler_free(caph);
-            exit(1);
+            exit(KIS_EXTERNAL_RETCODE_FORK);
         } else if (pid > 0) {
             fprintf(stderr, "INFO: Entering daemon mode...\n");
             cf_handler_free(caph);
@@ -3631,7 +3642,7 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph) {
         } else {
             if (caph->use_tcp) {
                 if (cf_handler_tcp_remote_connect(caph) < 1) {
-                    exit(1);
+                    exit(KIS_EXTERNAL_RETCODE_TCP);
                 }
             } else {
 #ifdef HAVE_LIBWEBSOCKETS
@@ -3657,11 +3668,11 @@ void cf_handler_remote_capture(kis_capture_handler_t *caph) {
                 caph->lwscontext = lws_create_context(&caph->lwsinfo);
                 if (!caph->lwscontext) {
                     fprintf(stderr, "FATAL:  Could not create websockets context\n");
-                    exit(1);
+                    exit(KIS_EXTERNAL_RETCODE_WEBSOCKET);
                 }
 #else
                 fprintf(stderr, "FATAL:  Not compiled with websocket support\n");
-                exit(1);
+                exit(KIS_EXTERNAL_RETCODE_WSCOMPILE);
 #endif
             }
 

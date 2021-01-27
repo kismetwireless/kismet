@@ -81,6 +81,10 @@ struct cf_ws_msg {
 };
 #endif
 
+#define CAP_FRAMEWORK_RINGBUF_IN_SZ     (1024 * 64)
+#define CAP_FRAMEWORK_RINGBUF_OUT_SZ    (1024 * 1024 * 4)
+#define CAP_FRAMEWORK_WS_BUF_SZ         (1024 * 4)
+
 /* List devices callback
  * Called to list devices available
  *
@@ -278,8 +282,6 @@ struct kis_capture_handler {
     struct lws_context *lwscontext;
     struct lws_vhost *lwsvhost;
     const struct lws_protocols *lwsprotocol;
-
-    lws_sorted_usec_list_t lwssul;
 
     struct lws_ring *lwsring;
     uint32_t lwstail;
@@ -918,7 +920,7 @@ int cf_wait_announcement(kis_capture_handler_t *caph);
 
 /* websockets interface */
 #ifdef HAVE_LIBWEBSOCKETS
-static void ws_sul_connect_attmpt(struct lws_sorted_usec_list *sul);
+static void ws_connect_client(kis_capture_handler_t *caph);
 
 static int ws_remotecap_broker(struct lws *wsi, enum lws_callback_reasons reason,
         void *user, void *in, size_t len);

@@ -47,6 +47,8 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
         packetchain->register_packet_component("METABLOB");
 	pack_comp_gps =
         packetchain->register_packet_component("GPS");
+    pack_comp_datasource =
+        packetchain->register_packet_component("KISDATASRC");
 
     rtladsb_adsb_id =
         Globalreg::globalreg->entrytracker->register_field("rtladsb.device",
@@ -95,7 +97,7 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
                     return adsb_map_endp_handler(con);
                 }));
 
-    httpd->register_websocket_route("/phy/RTLADSB/beast", httpd->RO_ROLE, {"ws"},
+    httpd->register_websocket_route("/phy/RTLADSB/beast", {httpd->RO_ROLE, "ADSB"}, {"ws"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
 
@@ -178,7 +180,7 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
                 packetchain->remove_handler(beast_handler_id, CHAINPOS_LOGGING);
             }));
 
-    httpd->register_websocket_route("/phy/RTLADSB/raw", httpd->RO_ROLE, {"ws"},
+    httpd->register_websocket_route("/phy/RTLADSB/raw", {httpd->RO_ROLE, "ADSB"}, {"ws"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
 
@@ -202,6 +204,73 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
                                 return 0;
 
                             if (json->type != "RTLadsb")
+                                return 0;
+
+                            std::stringstream ss(json->json_string);
+                            Json::Value device_json;
+
+                            try {
+                                ss >> device_json;
+
+                                auto adsb_content = 
+                                    fmt::format("*{};\n", device_json["adsb_raw_msg"].asString());
+
+                                ws->write(adsb_content, true);
+                            } catch (std::exception& e) {
+                                return 0;
+                            }
+
+
+                            return 1;
+                    }, CHAINPOS_LOGGING, 1000);
+
+                try {
+                    ws->handle_request(con);
+                } catch (const std::exception& e) {
+                    ;
+                }
+            
+                packetchain->remove_handler(beast_handler_id, CHAINPOS_LOGGING);
+            }));
+
+    httpd->register_websocket_route("/datasource/by-uuid/:uuid/adsb_raw", {httpd->RO_ROLE, "ADSB"}, {"ws"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+
+                auto srcuuid = 
+                    uuid(con->uri_params()[":uuid"]);
+
+                if (srcuuid.error)
+                    throw std::runtime_error("invalid UUID");
+
+                auto ws = 
+                    std::make_shared<kis_net_web_websocket_endpoint>(con,
+                        [](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
+                            boost::beast::flat_buffer& buf, bool text) {
+                            // Do nothing on input
+                        });
+
+                auto beast_handler_id = 
+                    packetchain->register_handler(
+                            [this, ws, srcuuid](kis_packet *in_pack) -> int {
+
+                            if (in_pack->error || in_pack->filtered || in_pack->duplicate)
+                                return 0;
+
+                            auto json = in_pack->fetch<kis_json_packinfo>(pack_comp_json);
+                            
+                            if (json == nullptr)
+                                return 0;
+
+                            if (json->type != "RTLadsb")
+                                return 0;
+
+                            auto src = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasource);
+
+                            if (src == nullptr)
+                                return 0;
+
+                            if (src->ref_source->get_source_uuid() != srcuuid)
                                 return 0;
 
                             std::stringstream ss(json->json_string);
@@ -336,7 +405,10 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
                  UCD_UPDATE_SEENBY), "ADSB");
 
-    auto devlocker = devicelist_range_scope_locker(devicetracker, basedev);
+    kis_unique_lock lk_list(devicetracker->get_devicelist_mutex(), std::defer_lock, "rtladsb json_to_rtl");
+    kis_unique_lock lk_device(basedev->device_mutex, std::defer_lock, "rtladsb json_to_rtl");
+    std::lock(lk_list, lk_device);
+
 
     std::string dn = "Airplane";
 
@@ -396,6 +468,10 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
                         cs, icao->get_model_type(), icao->get_owner()));
         }
     }
+
+    // Have to update location outside of locks because it needs to promote to exclusive locking
+    lk_list.unlock();
+    lk_device.unlock();
 
     if (adsbdev->update_location) {
         adsbdev->update_location = false;
@@ -775,7 +851,7 @@ kis_rtladsb_phy::adsb_map_endp_handler(std::shared_ptr<kis_net_beast_httpd_conne
 
     auto now = time(0);
 
-    kis_recursive_timed_mutex response_mutex;
+    kis_mutex response_mutex;
 
     // Find all devices active w/in the last 10 minutes, and set their bounding box
     auto recent_worker = 
@@ -792,7 +868,7 @@ kis_rtladsb_phy::adsb_map_endp_handler(std::shared_ptr<kis_net_beast_httpd_conne
                 return false;
             }
 
-            local_locker l(&response_mutex);
+            kis_lock_guard<kis_mutex> lk(response_mutex);
 
             recent_devs->push_back(dev);
 

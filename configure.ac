@@ -42,6 +42,7 @@ BUILD_CAPTURE_UBERTOOTH_ONE=0
 BUILD_CAPTURE_NRF_51822=0
 BUILD_CAPTURE_NXP_KW41Z=0
 BUILD_CAPTURE_RZ_KILLERBEE=0
+BUILD_CAPTURE_BLADERF_WLAN=0
 
 DATASOURCE_BINS="\$(CAPTURE_KISMETDB)"
 
@@ -986,7 +987,7 @@ AC_ARG_ENABLE([libwebsockets],
 )
 
 AS_IF([test "x$want_libwebsockets" != "xno"], [
-    PKG_CHECK_MODULES([libwebsockets], [libwebsockets >= 3.2.0], have_libwebsockets_pkg=yes)
+    PKG_CHECK_MODULES([libwebsockets], [libwebsockets >= 3.1.0], have_libwebsockets_pkg=yes)
 
     if test x"$have_libwebsockets_pkg" != "xyes"; then
         AC_MSG_ERROR([missing libwebsockets])
@@ -1104,6 +1105,84 @@ if test x"$have_protobufc_pkg" != "xyes"; then
 else
     PROTOCLIBS=`pkg-config --libs libprotobuf-c`
     PROTOCCFLAGS=`pkg-config --cflags libprotobuf-c`
+fi
+
+# Look for bladerf - and a very new one at that
+AC_ARG_ENABLE(bladerf,
+    AS_HELP_STRING([--enable-bladerf], [Enable bladeRF2-wiphy support]),
+    [case "${enableval}" in
+      yes) want_bladerf=yes ;;
+        *) want_bladerf=no ;;
+    esac],
+    [want_bladerf=no]
+)
+
+AS_IF([test "x$want_bladerf" == "xyes"], [
+    PKG_CHECK_MODULES([libbladeRF], [libbladeRF], 
+        [
+        ], 
+        [
+         AC_MSG_ERROR([missing libbladeRF package])
+        ])
+
+    BLADERFLIBS=`pkg-config --libs libbladeRF`
+    BLADERFCFLAGS=`pkg-config --cflags libbladeRF`
+
+    OCFL="$CFLAGS"
+
+    CFLAGS="$CFLAGS $BLADERFCFLAGS"
+
+    AC_CHECK_LIB([bladeRF], [bladerf_open],
+                 [
+                  LIBBLADERF="-lbladerf2"
+                  have_libbladerf="yes"
+                  AC_DEFINE(HAVE_LIBBLADERF, 1, libbladerf)
+                 ],
+                 [
+                  AC_MSG_ERROR([missing libbladerf2])
+                 ])
+
+	AC_MSG_CHECKING([Required libbladerf2 version])
+	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+            #include <libbladeRF.h>
+			]], [[
+            #if LIBBLADERF_API_VERSION < 0x02020100
+            #error Version too old
+            #endif
+			return 0;
+			]])],
+            [
+             AC_MSG_RESULT([ok])
+            ],[
+             AC_MSG_RESULT([fail])
+             AC_MSG_ERROR([libbladerf2 version too old, you likely need a git version of libbladerf2])
+            ])
+
+	AC_MSG_CHECKING([Required libbladerf2 packet modes])
+	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
+            #include <libbladeRF.h>
+			]], [[
+            int x = (int) BLADERF_FORMAT_PACKET_META;
+			return 0;
+			]])],
+            [
+             AC_MSG_RESULT([packet_meta])
+            ],[
+             AC_MSG_RESULT([fail])
+             AC_MSG_ERROR([unable to find PACKET_META format, you likely need a git version of libbladerf2])
+            ])
+
+    CFLAGS="$OCFL"
+
+    BUILD_CAPTURE_BLADERF_WLAN=1
+])
+
+AC_SUBST(BLADERFLIBS)
+AC_SUBST(BLADERFCFLAGS)
+
+AC_SUBST(BUILD_CAPTURE_BLADERF_WLAN)
+if test x"$BUILD_CAPTURE_BLADERF_WLAN" = x"1"; then
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_BLADERF_WIPHY)"
 fi
 
 AC_ARG_WITH(protocc,
@@ -1626,7 +1705,28 @@ AC_SUBST(BUILD_CAPTURE_RZ_KILLERBEE)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-AC_CONFIG_FILES([Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_sdr_rtlamr/Makefile capture_sdr_rtladsb/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_nrf_51822/Makefile capture_nxp_kw41z/Makefile capture_rz_killerbee/Makefile])
+AC_CONFIG_FILES([
+    Makefile 
+    Makefile.inc 
+    packaging/kismet.pc 
+    packaging/systemd/kismet.service 
+    packaging/systemd/debug/kismet-debug.service 
+    capture_linux_bluetooth/Makefile 
+    capture_linux_wifi/Makefile 
+    capture_osx_corewlan_wifi/Makefile 
+    capture_sdr_rtl433/Makefile 
+    capture_sdr_rtlamr/Makefile 
+    capture_sdr_rtladsb/Makefile 
+    capture_freaklabs_zigbee/Makefile 
+    capture_nrf_mousejack/Makefile 
+    capture_ti_cc_2540/Makefile 
+    capture_ti_cc_2531/Makefile 
+    capture_ubertooth_one/Makefile 
+    capture_nrf_51822/Makefile 
+    capture_nxp_kw41z/Makefile
+    capture_rz_killerbee/Makefile
+    capture_bladerf_wiphy/Makefile
+    ])
 AC_OUTPUT
 
 echo
@@ -1798,6 +1898,13 @@ if test "$BUILD_CAPTURE_FREAKLABS_ZIGBEE" = 1; then
 	echo "yes";
 else
 	echo "no (python modules are disabled)";
+fi
+
+printf "         bladeRF-wiphy: "
+if test "$BUILD_CAPTURE_BLADERF_WLAN" = 1; then
+	echo "yes";
+else
+	echo "no (bladeRF support not enabled)";
 fi
 
 printf " lm-sensors monitoring: "

@@ -132,7 +132,7 @@ public:
     void spawn_timetracker_thread();
 
 protected:
-    kis_recursive_timed_mutex time_mutex;
+    kis_mutex time_mutex;
 
     void time_dispatcher(void);
 
@@ -145,7 +145,7 @@ protected:
     std::map<int, timer_event *> timer_map;
     std::vector<timer_event *> sorted_timers;
 
-    kis_recursive_timed_mutex removed_id_mutex;
+    kis_mutex removed_id_mutex;
     std::vector<int> removed_timer_ids;
 
     std::thread time_dispatch_t;

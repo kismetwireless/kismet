@@ -71,7 +71,7 @@ void dot11_tracked_ssid_group::reserve_fields(std::shared_ptr<tracker_element_ma
 }
 
 void dot11_tracked_ssid_group::add_advertising_device(std::shared_ptr<kis_tracked_device_base> device) {
-    local_locker l(&mutex);
+    kis_lock_guard<kis_mutex> lk(mutex);
     advertising_device_map->insert(device->get_key(), nullptr);
 
     if (device->get_first_time() < get_first_time() || get_first_time() == 0)
@@ -82,7 +82,7 @@ void dot11_tracked_ssid_group::add_advertising_device(std::shared_ptr<kis_tracke
 }
 
 void dot11_tracked_ssid_group::add_probing_device(std::shared_ptr<kis_tracked_device_base> device) {
-    local_locker l(&mutex);
+    kis_lock_guard<kis_mutex> lk(mutex);
     probing_device_map->insert(device->get_key(), nullptr);
 
     if (device->get_first_time() < get_first_time() || get_first_time() == 0)
@@ -93,7 +93,7 @@ void dot11_tracked_ssid_group::add_probing_device(std::shared_ptr<kis_tracked_de
 }
 
 void dot11_tracked_ssid_group::add_responding_device(std::shared_ptr<kis_tracked_device_base> device) {
-    local_locker l(&mutex);
+    kis_lock_guard<kis_mutex> lk(mutex);
     responding_device_map->insert(device->get_key(), nullptr);
 
     if (device->get_first_time() < get_first_time() || get_first_time() == 0)
@@ -298,7 +298,7 @@ void phy_80211_ssid_tracker::ssid_endpoint_handler(std::shared_ptr<kis_net_beast
     // which is protected from the main vector being grown/shrank.  While we're in there, log the total
     // size of the original vector for windowed ops.
     {
-        local_shared_locker l(&mutex);
+        kis_lock_guard<kis_mutex> lk(mutex);
 
         next_work_vec->set(ssid_vector->begin(), ssid_vector->end());
         total_sz_elem->set(next_work_vec->size());
@@ -394,7 +394,7 @@ void phy_80211_ssid_tracker::ssid_endpoint_handler(std::shared_ptr<kis_net_beast
 }
 
 std::shared_ptr<tracker_element> phy_80211_ssid_tracker::detail_endpoint_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
-    local_locker l(&mutex, "phy_80211_ssid_tracker::detail_endpoint_handler");
+    kis_lock_guard<kis_mutex> lk(mutex, "phy_80211_ssid_tracker detail_endpoint_handler");
 
     auto h = string_to_n<size_t>(con->uri_params()[":hash"]);
     auto k = ssid_map.find(h);
@@ -417,7 +417,7 @@ void phy_80211_ssid_tracker::handle_broadcast_ssid(const std::string& ssid, unsi
 
     auto key = kis_80211_phy::ssid_hash(ssid, ssid_len);
 
-    local_locker l(&mutex);
+    kis_lock_guard<kis_mutex> lk(mutex);
 
     auto mapdev = ssid_map.find(key);
 
@@ -443,7 +443,7 @@ void phy_80211_ssid_tracker::handle_response_ssid(const std::string& ssid, unsig
 
     auto key = kis_80211_phy::ssid_hash(ssid, ssid_len);
 
-    local_locker l(&mutex);
+    kis_lock_guard<kis_mutex> lk(mutex);
 
     auto mapdev = ssid_map.find(key);
 
@@ -470,7 +470,7 @@ void phy_80211_ssid_tracker::handle_probe_ssid(const std::string& ssid, unsigned
 
     auto key = kis_80211_phy::ssid_hash(ssid, ssid_len);
 
-    local_locker l(&mutex);
+    kis_lock_guard<kis_mutex> lk(mutex);
 
     auto mapdev = ssid_map.find(key);
 

@@ -54,7 +54,6 @@ config_file::config_file(global_registry *in_globalreg) {
 }
 
 config_file::~config_file() {
-    local_locker lock(&config_locker);
 }
 
 int config_file::parse_config(const char *in_fname) {
@@ -84,7 +83,7 @@ int config_file::parse_config(const char *in_fname) {
 int config_file::parse_config(const char *in_fname,
         std::map<std::string, std::vector<config_entity> > &target_map,
         std::map<std::string, int> &target_map_dirty) {
-    local_locker lock(&config_locker);
+    kis_lock_guard<kis_mutex> lk(config_locker, "configfile parse_config");
 
     FILE *configf;
     char confline[8192];
@@ -234,7 +233,7 @@ int config_file::parse_opt_override(const std::string path) {
 
 
 int config_file::save_config(const char *in_fname) {
-    local_locker lock(&config_locker);
+    kis_lock_guard<kis_mutex> lk(config_locker, "config_file save_config");
 
     FILE *wf = NULL;
 
@@ -254,7 +253,7 @@ int config_file::save_config(const char *in_fname) {
 }
 
 std::string config_file::fetch_opt(std::string in_key) {
-    local_locker lock(&config_locker);
+    kis_lock_guard<kis_mutex> lk(config_locker, "config_file fetch_opt");
 
     auto cmitr = config_map.find(str_lower(in_key));
     // No such key
@@ -280,7 +279,7 @@ std::string config_file::fetch_opt_dfl(std::string in_key, std::string in_dfl) {
 }
 
 std::vector<std::string> config_file::fetch_opt_vec(std::string in_key) {
-    local_locker lock(&config_locker);
+    kis_lock_guard<kis_mutex> lk(config_locker, "config_file fetch_opt_vec");
 
     // Empty vec to return
     std::vector<std::string> eretvec;
@@ -330,7 +329,7 @@ unsigned long config_file::fetch_opt_ulong(const std::string& in_key, unsigned l
 }
 
 int config_file::fetch_opt_dirty(const std::string& in_key) {
-    local_locker lock(&config_locker);
+    kis_lock_guard<kis_mutex> lk(config_locker, "config_file fetch_opt_dirty");
     if (config_map_dirty.find(str_lower(in_key)) == config_map_dirty.end())
         return 0;
 
@@ -338,12 +337,12 @@ int config_file::fetch_opt_dirty(const std::string& in_key) {
 }
 
 void config_file::set_opt_dirty(const std::string& in_key, int in_dirty) {
-    local_locker lock(&config_locker);
+    kis_lock_guard<kis_mutex> lk(config_locker, "config_file set_opt_dirty");
     config_map_dirty[str_lower(in_key)] = in_dirty;
 }
 
 void config_file::set_opt(const std::string& in_key, const std::string& in_val, int in_dirty) {
-    local_locker lock(&config_locker);
+    kis_lock_guard<kis_mutex> lk(config_locker, "config_file set_opt");
 
     std::vector<config_entity> v;
     config_entity e(in_val, "::dynamic::");
@@ -354,7 +353,7 @@ void config_file::set_opt(const std::string& in_key, const std::string& in_val, 
 
 void config_file::set_opt_vec(const std::string& in_key, const std::vector<std::string>& in_val, 
         int in_dirty) {
-    local_locker lock(&config_locker);
+    kis_lock_guard<kis_mutex> lk(config_locker, "config_file set_opt_vec");
 
     std::vector<config_entity> cev;
     for (unsigned int x = 0; x < in_val.size(); x++) {
@@ -481,7 +480,7 @@ std::string config_file::process_log_template(const std::string& path, const std
 
 std::string config_file::expand_log_path(const std::string& path, const std::string& logname, 
         const std::string& type, int start, int overwrite) {
-    local_locker lock(&config_locker);
+    kis_lock_guard<kis_mutex> lk(config_locker, "config_file expand_log_path");
 
     auto have_incremental = path.find("%i") != std::string::npos || path.find("%I") != std::string::npos;
     struct stat filstat;
@@ -533,7 +532,7 @@ std::string config_file::expand_log_path(const std::string& path, const std::str
 }
 
 uint32_t config_file::fetch_file_checksum() {
-    local_locker lock(&config_locker);
+    kis_lock_guard<kis_mutex> lk(config_locker, "config_file fetch_file_checksum");
 
     if (checksum == 0)
         calculate_file_checksum();
@@ -542,7 +541,7 @@ uint32_t config_file::fetch_file_checksum() {
 }
 
 void config_file::calculate_file_checksum() {
-    local_locker lock(&config_locker);
+    kis_lock_guard<kis_mutex> lk(config_locker, "config_file calculate_file_checksum");
 
     std::string cks;
 
@@ -564,7 +563,7 @@ header_value_config::header_value_config() {
 }
 
 void header_value_config::parse_line(const std::string& in_confline) {
-    local_locker l(&mutex);
+    kis_lock_guard<kis_mutex> lk(mutex, "header_value_config parse_line");
 
     auto cpos = in_confline.find(":");
 
@@ -583,22 +582,22 @@ void header_value_config::parse_line(const std::string& in_confline) {
 }
 
 std::string header_value_config::get_header() {
-    local_locker l(&mutex);
+    kis_lock_guard<kis_mutex> lk(mutex, "header_value_config get_header");
     return header;
 }
 
 void header_value_config::set_header(const std::string& in_str) {
-    local_locker l(&mutex);
+    kis_lock_guard<kis_mutex> lk(mutex, "header_value_config set_header");
     header = in_str;
 }
 
 bool header_value_config::has_key(const std::string& in_str) {
-    local_locker l(&mutex);
+    kis_lock_guard<kis_mutex> lk(mutex, "header_value_config has_key");
     return (content_map.find(in_str) != content_map.end());
 }
 
 std::string header_value_config::get_value(const std::string& in_str) {
-    local_locker l(&mutex);
+    kis_lock_guard<kis_mutex> lk(mutex, "header_value_config get_value");
     
     auto vi = content_map.find(in_str);
 
@@ -609,7 +608,7 @@ std::string header_value_config::get_value(const std::string& in_str) {
 }
 
 std::string header_value_config::get_value(const std::string& in_str, const std::string& in_defl) {
-    local_locker l(&mutex);
+    kis_lock_guard<kis_mutex> lk(mutex, "header_value_config get_value");
 
     auto vi = content_map.find(in_str);
 
@@ -620,7 +619,7 @@ std::string header_value_config::get_value(const std::string& in_str, const std:
 }
 
 void header_value_config::erase_key(const std::string& in_key) {
-    local_locker l(&mutex);
+    kis_lock_guard<kis_mutex> lk(mutex, "header_value_config erase_key");
 
     auto vi = content_map.find(in_key);
 

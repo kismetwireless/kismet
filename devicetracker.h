@@ -115,8 +115,15 @@ public:
     // components due to timeouts / max device cleanup
     void update_full_refresh();
 
-	// Look for an existing device record
+	// Look for an existing device record under read-only shared lock
     std::shared_ptr<kis_tracked_device_base> fetch_device(device_key in_key);
+
+    // Fetch one or more devices by mac address or mac mask
+    std::vector<std::shared_ptr<kis_tracked_device_base>> fetch_devices(mac_addr in_mac);
+
+    // Look for an existing device record, without lock - must be called under some form of existing
+    // lock to be safely used
+    std::shared_ptr<kis_tracked_device_base> fetch_device_nr(device_key in_key);
 
     // Do work on all devices, this applies to the 'all' device view
     std::shared_ptr<tracker_element_vector> do_device_work(device_tracker_view_worker& worker);
@@ -225,20 +232,10 @@ public:
     // Get a cached phyname; use this to de-dup thousands of devices phynames
     std::shared_ptr<tracker_element_string> get_cached_phyname(const std::string& phyname);
 
-    // Lock a range of devices
-    void lock_device_range(std::shared_ptr<tracker_element> devices);
-    void lock_device_range(std::shared_ptr<tracker_element_vector> devices);
-    void lock_device_range(const std::vector<std::shared_ptr<kis_tracked_device_base>>& devices);
-    void lock_device_range(std::shared_ptr<tracker_element_map> device_map);
-    void lock_device_range(std::shared_ptr<tracker_element_device_key_map> device_map);
-    void lock_device_range(std::shared_ptr<tracker_element_mac_map> device_map);
-
-    void unlock_device_range(std::shared_ptr<tracker_element> devices);
-    void unlock_device_range(std::shared_ptr<tracker_element_vector> devices);
-    void unlock_device_range(const std::vector<std::shared_ptr<kis_tracked_device_base>>& devices);
-    void unlock_device_range(std::shared_ptr<tracker_element_map> device_map);
-    void unlock_device_range(std::shared_ptr<tracker_element_device_key_map> device_map);
-    void unlock_device_range(std::shared_ptr<tracker_element_mac_map> device_map);
+    // Expose to devicelist mutex for external batch locking
+    kis_mutex& get_devicelist_mutex() {
+        return devicelist_mutex;
+    }
 
 protected:
     std::shared_ptr<entry_tracker> entrytracker;
@@ -351,7 +348,7 @@ protected:
     std::shared_ptr<tracker_element_vector> immutable_tracked_vec;
 
     // List of views using new API as we transition the rest to the new API
-    kis_recursive_timed_mutex view_mutex;
+    kis_mutex view_mutex;
     std::shared_ptr<tracker_element_vector> view_vec;
 
     using shared_con = std::shared_ptr<kis_net_beast_httpd_connection>;
@@ -367,17 +364,18 @@ protected:
 	// Registered PHY types
 	int next_phy_id;
     robin_hood::unordered_node_map<int, kis_phy_handler *> phy_handler_map;
-    kis_recursive_timed_mutex phy_mutex;
+    kis_mutex phy_mutex;
 
-    kis_recursive_timed_mutex devicelist_mutex;
+    // New multimutex primitive
+    kis_mutex devicelist_mutex;
 
-    kis_recursive_timed_mutex storing_mutex;
+    kis_mutex storing_mutex;
     std::atomic<bool> devices_storing;
 
     // If we log devices to the kismet database...
     int databaselog_timer;
     time_t last_database_logged;
-    kis_recursive_timed_mutex databaselog_mutex;
+    kis_mutex databaselog_mutex;
     bool databaselog_logging;
 
     // Do we constrain memory by not tracking RRD data?
@@ -400,45 +398,11 @@ protected:
 
     // Cached device type map
     std::map<std::string, std::shared_ptr<tracker_element_string>> device_type_cache;
-    kis_recursive_timed_mutex device_type_cache_mutex;
+    kis_mutex device_type_cache_mutex;
 
     // Cached phyname map
     std::map<std::string, std::shared_ptr<tracker_element_string>> device_phy_name_cache;
-    kis_recursive_timed_mutex device_phy_name_cache_mutex;
-
-    kis_recursive_timed_mutex range_mutex;
-};
-
-class devicelist_range_scope_locker {
-public:
-    devicelist_range_scope_locker() :
-        tracker{nullptr},
-        range{nullptr} { }
-
-    devicelist_range_scope_locker(std::shared_ptr<device_tracker> tracker,
-            std::shared_ptr<tracker_element> range) :
-        tracker{tracker},
-        range{range} { 
-            tracker->lock_device_range(range);
-        }
-
-    devicelist_range_scope_locker(std::shared_ptr<device_tracker> tracker,
-            std::shared_ptr<kis_tracked_device_base> dev) :
-        tracker{tracker} {
-            auto r = std::make_shared<tracker_element_vector>();
-            r->push_back(dev);
-            range = r;
-            tracker->lock_device_range(range);
-        }
-
-    ~devicelist_range_scope_locker() {
-        if (range != nullptr && tracker != nullptr)
-            tracker->unlock_device_range(range);
-    }
-
-private:
-    std::shared_ptr<device_tracker> tracker;
-    std::shared_ptr<tracker_element> range;
+    kis_mutex device_phy_name_cache_mutex;
 };
 
 class devicelist_scope_locker {

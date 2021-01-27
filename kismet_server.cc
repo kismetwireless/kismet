@@ -81,6 +81,7 @@
 #include "datasource_virtual.h"
 #include "datasource_dot11_scan.h"
 #include "datasource_bluetooth_scan.h"
+#include "datasource_bladerf_wiphy.h"
 
 #include "logtracker.h"
 #include "kis_ppilogfile.h"
@@ -587,6 +588,7 @@ int main(int argc, char *argv[], char *envp[]) {
     // Make the IO threads early
     boost::asio::io_service::work work(Globalreg::globalreg->io);
 
+
     std::vector<std::thread> iov;
     iov.reserve(Globalreg::globalreg->n_io_threads);
     for (auto i = Globalreg::globalreg->n_io_threads - 1; i > 0; i--) {
@@ -899,6 +901,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_nxpkw41z_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rzkillerbee_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_ticc2531_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_bladerf_wiphy_builder()));
 
     // Virtual sources get a special meta-builder
     datasource_virtual_builder::create_virtualbuilder();

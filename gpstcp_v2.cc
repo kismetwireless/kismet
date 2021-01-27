@@ -125,8 +125,11 @@ void kis_gps_tcp_v2::handle_connect(std::shared_ptr<kis_gps_tcp_v2> ref,
     }
 
     if (error) {
-        // TODO handle error
-        _MSG_ERROR("(GPS) Could not connect to TCP GPS server {} - {}", endpoint->endpoint(), error.message());
+        if (endpoint == tcp::resolver::iterator())
+            _MSG_ERROR("(GPS) Could not connect to TCP GPS {}:{} - {}", host, port, error.message());
+        else
+            _MSG_ERROR("(GPS) Could not connect to TCP GPS server {} - {}", endpoint->endpoint(), 
+                    error.message());
         close();
         return;
     }
@@ -140,7 +143,7 @@ void kis_gps_tcp_v2::handle_connect(std::shared_ptr<kis_gps_tcp_v2> ref,
 }
 
 bool kis_gps_tcp_v2::open_gps(std::string in_opts) {
-    local_locker lock(gps_mutex);
+    kis_lock_guard<kis_mutex> lk(gps_mutex, "gps_tcp_v2 open_gps");
 
     if (!kis_gps::open_gps(in_opts))
         return false;
@@ -193,7 +196,7 @@ bool kis_gps_tcp_v2::open_gps(std::string in_opts) {
 }
 
 bool kis_gps_tcp_v2::get_location_valid() {
-    local_shared_locker lock(gps_mutex);
+    kis_lock_guard<kis_mutex> lk(gps_mutex, "gps_tcp_v2 get_location_valid");
 
     if (gps_location == NULL) {
         return false;
@@ -213,7 +216,7 @@ bool kis_gps_tcp_v2::get_location_valid() {
 }
 
 bool kis_gps_tcp_v2::get_device_connected() {
-    local_shared_locker lock(gps_mutex);
+    kis_lock_guard<kis_mutex> lk(gps_mutex, "gps_tcp_v2 get_device_connected");
 
     return socket.is_open();
 }

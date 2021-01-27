@@ -86,15 +86,27 @@ public:
 
     void from_string(const std::string& in) {
         error = 0;
+        time_low = 0;
+        time_mid = 0;
+        time_hi = 0;
+        clock_seq = 0;
+        node = 0;
+        hash = 0;
 
-        unsigned long long n;
+        uint8_t node_f[6];
 
-        if (sscanf(in.c_str(), "%08x-%04hx-%04hx-%04hx-%012llx",
-                    &time_low, &time_mid, &time_hi, &clock_seq, &n) != 5)
+        if (sscanf(in.c_str(), "%08x-%04hx-%04hx-%04hx-%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx",
+                    &time_low, &time_mid, &time_hi, &clock_seq,
+                    &node_f[0], &node_f[1], &node_f[2], &node_f[3], &node_f[4], &node_f[5]) != 10)
             error = 1;
 
-        node = n;
-
+        node =
+            ((uint64_t) node_f[5] << 40) |
+            ((uint64_t) node_f[4] << 32) |
+            ((uint64_t) node_f[3] << 24) |
+            ((uint64_t) node_f[2] << 16) |
+            ((uint64_t) node_f[1] << 8) |
+            ((uint64_t) node_f[0]);
         gen_hash();
     }
 
@@ -112,7 +124,11 @@ public:
         clock_seq |= 0x8000;
         time_mid = (uint16_t) clock_mid;
         time_hi = ((clock_mid >> 16) & 0x0FFF) | 0x1000;
+#ifdef LITTLE_ENDIAN
+        get_random_bytes(reinterpret_cast<uint8_t *>(&node), 6);
+#else
         get_random_bytes(reinterpret_cast<uint8_t *>(&node) + 2, 6);
+#endif
         error = 0;
         gen_hash();
     }
@@ -131,7 +147,11 @@ public:
         clock_seq |= 0x8000;
         time_mid = (uint16_t) clock_mid;
         time_hi = ((clock_mid >> 16) & 0x0FFF) | 0x1000;
+#ifdef LITTLE_ENDIAN
+        memcpy(reinterpret_cast<uint8_t *>(&node), in_node, 6);
+#else
         memcpy(reinterpret_cast<uint8_t *>(&node) + 2, in_node, 6);
+#endif
         error = 0;
         gen_hash();
     }
@@ -141,19 +161,29 @@ public:
     }
 
     std::string uuid_to_string() const {
-        return fmt::format("{:08X}-{:04X}-{:04X}-{:04X}-{:012X}", time_low, time_mid, time_hi, clock_seq, node);
+        return fmt::format("{:08X}-{:04X}-{:04X}-{:04X}-{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}",
+                time_low, time_mid, time_hi, clock_seq, 
+                (uint8_t) (node), (uint8_t) (node >> 8), (uint8_t) (node >> 16),
+                (uint8_t) (node >> 24), (uint8_t) (node >> 32),
+                (uint8_t) (node >> 40));
     }
 
     inline bool operator== (const uuid& op) const {
+        return (hash == op.hash);
+        /*
         return (time_low == op.time_low && time_mid == op.time_mid &&
                 time_hi == op.time_hi && clock_seq == op.clock_seq &&
                 node == op.node);
+                */
     }
 
     inline bool operator!= (const uuid& op) const {
+        return (hash != op.hash);
+        /*
         return (time_low != op.time_low || time_mid != op.time_mid ||
                 time_hi != op.time_hi || clock_seq != op.clock_seq ||
                 node != op.node);
+                */
     }
 
     inline bool operator<= (const uuid& op) const {

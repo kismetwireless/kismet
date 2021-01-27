@@ -725,7 +725,17 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
 
                     std::function<void (std::shared_ptr<kis_tracked_device_base>)> find_clients = 
                         [&](std::shared_ptr<kis_tracked_device_base> dev) {
-                        auto devlocker = devicelist_range_scope_locker(devicetracker, dev);
+
+                        /*
+                        kis_unique_lock<kis_mutex> lk_list(devicetracker->get_devicelist_mutex(),
+                                std::defer_lock, "/phy/phy80211/related-to/devices find_clients");
+                        kis_unique_lock<kis_mutex> lk_device(dev->device_mutex,
+                                std::defer_lock, "/phy/phy80211/related-to/devices find_clients");
+                        std::lock(lk_list, lk_device);
+                        */
+
+                        kis_unique_lock<kis_mutex> lk_device(dev->device_mutex,
+                                "/phy/phy80211/related-to/devices find_clients");
 
                         // Don't add non-dot11 devices
                         auto dot11 =
@@ -952,8 +962,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 		(kis_layer1_packinfo *) in_pack->fetch(d11phy->pack_comp_l1info);
 
 
-    if (pack_l1info != NULL && pack_l1info->signal_dbm > d11phy->signal_too_loud_threshold
-            && pack_l1info->signal_dbm < 0 && 
+    if (pack_l1info != NULL && pack_l1info->signal_dbm > d11phy->signal_too_loud_threshold && 
+            pack_l1info->signal_dbm < 0 && 
             d11phy->alertracker->potential_alert(d11phy->alert_tooloud_ref)) {
 
         std::stringstream ss;
@@ -1070,21 +1080,18 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                         "Wi-Fi Device (Inferred)");
         }
 
-        auto dev_group = std::make_shared<tracker_element_vector>();
-        if (bssid_dev != nullptr)
-            dev_group->push_back(bssid_dev);
-        if (source_dev != nullptr)
-            dev_group->push_back(source_dev);
-        if (dest_dev != nullptr)
-            dev_group->push_back(dest_dev);
-        if (transmit_dev != nullptr)
-            dev_group->push_back(transmit_dev);
-        if (receive_dev != nullptr)
-            dev_group->push_back(receive_dev);
+        auto list_locker = 
+            kis_unique_lock<kis_mutex>(d11phy->devicetracker->get_devicelist_mutex(), std::defer_lock);
 
-        auto rl = devicelist_range_scope_locker(d11phy->devicetracker, dev_group);
+        // Do we have a worker we have to call later?  We must defer workers until we release the locks
+        // on devices
+        bool associate_bssts = false;
+        bool handle_probed_ssid = false;
+        std::function<void ()> handle_probed_ssid_f;
 
         if (bssid_dev != NULL) {
+            kis_lock_guard bssid_lk(bssid_dev->device_mutex, "phy80211 common_classifier");
+
             bssid_dot11 =
                 bssid_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
             std::stringstream newdevstr;
@@ -1121,46 +1128,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
                 // If we have a new device, look for related devices; use the apview to search other APs
                 if ((bsts == 0 || dot11info->new_device) && d11phy->ap_view != nullptr) {
-                    auto bss_worker = 
-                        device_tracker_view_function_worker([in_pack, dot11info, d11phy, bssid_dev](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
-                            auto bssid_dot11 =
-                                dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
-
-                            if (bssid_dot11 == nullptr)
-                                return false;
-
-                            if (dev->get_key() == bssid_dev->get_key())
-                                return false;
-
-                            auto bsts = bssid_dot11->get_bss_timestamp();
-                            auto last_time = dev->get_last_time();
-
-                            // Guesstimate the time shift from the last time we saw the AP to now, at
-                            // second precision
-                            if (last_time < in_pack->ts.tv_sec)
-                                bsts += (in_pack->ts.tv_sec - last_time) * 1'000'000;
-                            else
-                                bsts -= (last_time - in_pack->ts.tv_sec) * 1'000'000;
-
-                            uint64_t diff;
-
-                            if (dot11info->timestamp < bsts)
-                                diff = bsts - dot11info->timestamp;
-                            else
-                                diff = dot11info->timestamp - bsts;
-                            
-                            // fmt::print("debug - looking at bssts for {} vs {} ... {} {} diff {}\n", bssid_dev->get_macaddr(), dev->get_macaddr(), bsts, dot11info->timestamp, diff);
-                            return diff < d11phy->bss_ts_group_usec;
-                        });
-                    d11phy->ap_view->do_readonly_device_work(bss_worker);
-
-                    // Set a bidirectional relationship
-                    for (const auto& ri : *(bss_worker.getMatchedDevices())) {
-                        auto rdev = std::static_pointer_cast<kis_tracked_device_base>(ri);
-
-                        bssid_dev->add_related_device("dot11_bssts_similar", rdev->get_key());
-                        rdev->add_related_device("dot11_bssts_similar", bssid_dev->get_key());
-                    }
+                    associate_bssts = true;
                 }
 
                 uint64_t diff = 0;
@@ -1224,6 +1192,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         }
 
         if (source_dev != NULL) {
+            kis_lock_guard source_lk(source_dev->device_mutex, "phy80211 common_classifier");
+
             source_dot11 =
                 source_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
             std::stringstream newdevstr;
@@ -1274,13 +1244,16 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             if (dot11info->subtype == packet_sub_probe_req ||
                     dot11info->subtype == packet_sub_association_req ||
                     dot11info->subtype == packet_sub_reassociation_req) {
-                d11phy->handle_probed_ssid(source_dev, source_dot11, in_pack, dot11info, pack_gpsinfo);
+                handle_probed_ssid = true;
+                // d11phy->handle_probed_ssid(source_dev, source_dot11, in_pack, dot11info, pack_gpsinfo);
             }
 
             d11phy->devicetracker->update_view_device(source_dev);
         }
 
         if (dest_dev != NULL) {
+            kis_lock_guard dest_lk(dest_dev->device_mutex, "phy80211 common_classifier");
+
             dest_dot11 =
                 dest_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
             std::stringstream newdevstr;
@@ -1308,6 +1281,9 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
         // Safety check that our BSSID device exists
         if (bssid_dev != NULL) {
+            // Perform multi-device correlation under devicelist lock
+            
+            list_locker.lock();
             // Now we've instantiated and mapped all the possible devices and dot11 devices; now
             // populate the per-client records for any which have mgmt communication
             
@@ -1366,7 +1342,69 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                         dot11info->dest_mac, dot11info->other_mac, 
                         dot11info->channel, al);
             }
+
+            list_locker.unlock();
         }
+
+        // BSSTS relationship worker
+        if (associate_bssts) {
+            auto bss_worker = 
+                device_tracker_view_function_worker([in_pack, dot11info, d11phy, bssid_dev](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+                        auto bssid_dot11 =
+                            dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
+
+                        if (bssid_dot11 == nullptr)
+                            return false;
+
+                        if (dev->get_key() == bssid_dev->get_key())
+                            return false;
+
+                        auto bsts = bssid_dot11->get_bss_timestamp();
+                        auto last_time = dev->get_last_time();
+
+                        // Guesstimate the time shift from the last time we saw the AP to now, at
+                        // second precision
+                        if (last_time < in_pack->ts.tv_sec)
+                            bsts += (in_pack->ts.tv_sec - last_time) * 1'000'000;
+                        else
+                            bsts -= (last_time - in_pack->ts.tv_sec) * 1'000'000;
+
+                        uint64_t diff;
+
+                        if (dot11info->timestamp < bsts)
+                            diff = bsts - dot11info->timestamp;
+                        else
+                            diff = dot11info->timestamp - bsts;
+
+                        return diff < d11phy->bss_ts_group_usec;
+                });
+
+            // We have to do write work because we're still holding the device list 
+            // write state 
+            d11phy->ap_view->do_device_work(bss_worker);
+
+            // Lock the bssid device and set all the relationships
+            kis_unique_lock bssid_lk(bssid_dev->device_mutex, std::defer_lock, "phy80211 common_classifier bssts agg");
+            bssid_lk.lock();
+            for (const auto& ri : *(bss_worker.getMatchedDevices())) {
+                auto rdev = std::static_pointer_cast<kis_tracked_device_base>(ri);
+                bssid_dev->add_related_device("dot11_bssts_similar", rdev->get_key());
+            }
+            bssid_lk.unlock();
+
+            // Assign the reverse map for each device under individual lock
+            for (const auto& ri : *(bss_worker.getMatchedDevices())) {
+                auto rdev = std::static_pointer_cast<kis_tracked_device_base>(ri);
+
+                kis_lock_guard<kis_mutex> lg(rdev->device_mutex);
+                rdev->add_related_device("dot11_bssts_similar", bssid_dev->get_key());
+            }
+        }
+
+        // Reap the async ssid probe outside of lock
+        if (handle_probed_ssid)
+            d11phy->handle_probed_ssid(source_dev, source_dot11, in_pack, dot11info, pack_gpsinfo);
+
     } else if (dot11info->type == packet_phy) {
         // Phy packets are so often bogus that we just ignore them for now; if we enable
         // creating devices from them, even on "good" cards like the ath9k we get a flood of
@@ -1466,21 +1504,13 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                         "Wi-Fi Device");
         }
 
-        auto dev_group = std::make_shared<tracker_element_vector>();
-        if (bssid_dev != nullptr)
-            dev_group->push_back(bssid_dev);
-        if (source_dev != nullptr)
-            dev_group->push_back(source_dev);
-        if (dest_dev != nullptr)
-            dev_group->push_back(dest_dev);
-        if (receive_dev != nullptr)
-            dev_group->push_back(receive_dev);
-        if (transmit_dev != nullptr)
-            dev_group->push_back(transmit_dev);
-
-        auto rl = devicelist_range_scope_locker(d11phy->devicetracker, dev_group);
+        auto list_locker = 
+            kis_unique_lock<kis_mutex>(d11phy->devicetracker->get_devicelist_mutex(), std::defer_lock,
+                    "phy80211 common_classifier");
 
         if (bssid_dev != NULL) {
+            kis_lock_guard bssid_lk(bssid_dev->device_mutex, "phy80211 common_classifier");
+
             bssid_dot11 =
                 bssid_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
 
@@ -1555,6 +1585,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         // If we have a source device, we know it's not originating from the same radio as the AP,
         // since source != bssid
         if (source_dev != NULL) {
+            kis_lock_guard source_lk(source_dev->device_mutex, "phy80211 common_classifier");
+
             source_dot11 =
                 source_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
             std::stringstream newdevstr;
@@ -1659,6 +1691,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         }
 
         if (dest_dev != NULL) {
+            kis_lock_guard dest_lk(dest_dev->device_mutex, "phy80211 common_classifier");
+
             dest_dot11 =
                 dest_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
             std::stringstream newdevstr;
@@ -1708,6 +1742,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
         // WDS transmitter must be a wifi device, and an AP peer
         if (transmit_dev != NULL) {
+            kis_lock_guard transmit_lk(transmit_dev->device_mutex, "phy80211 common_classifier");
+
             transmit_dot11 =
                 transmit_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
             std::stringstream newdevstr;
@@ -1751,6 +1787,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
         // WDS receiver must also be a wifi device, and an AP peer
         if (receive_dev != NULL) {
+            kis_lock_guard receive_lk(receive_dev->device_mutex, "phy80211 common_classifier");
+
             receive_dot11 =
                 receive_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
             std::stringstream newdevstr;
@@ -1782,6 +1820,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         }
 
         if (bssid_dev != NULL) {
+            list_locker.lock();
+
             // Map clients
             if (source_dev != NULL) {
                 d11phy->process_client(bssid_dev, bssid_dot11, source_dev, source_dot11, 
@@ -1796,16 +1836,22 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 d11phy->process_wpa_handshake(bssid_dev, bssid_dot11, dest_dev, dest_dot11,
                         in_pack, dot11info);
             }
+
+            list_locker.unlock();
         }
 
         // If we're WDS, link source and dest devices as clients of the transmitting WDS AP
         if (transmit_dev != NULL) {
+            list_locker.lock();
+
             if (source_dev != NULL) 
                 d11phy->process_client(transmit_dev, transmit_dot11, source_dev, source_dot11,
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
             if (dest_dev != NULL)
                 d11phy->process_client(transmit_dev, transmit_dot11, source_dev, source_dot11,
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
+
+            list_locker.unlock();
         }
     }
 
@@ -1902,7 +1948,12 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
                      UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
                     "Wi-Fi Device");
 
-        auto devlocker = devicelist_range_scope_locker(d11phy->devicetracker, bssid_dev);
+        /*
+        kis_unique_lock lk_list(d11phy->devicetracker->get_devicelist_mutex(), std::defer_lock, "dot11_scan_json_classifier");
+        kis_unique_lock lk_device(bssid_dev->device_mutex, std::defer_lock, "dot11_scan_json_classifier");
+        std::lock(lk_list, lk_device);
+        */
+        kis_unique_lock lk_device(bssid_dev->device_mutex, "dot11_scan_json_classifier");
 
         auto bssid_dot11 =
             bssid_dev->get_sub_as<dot11_tracked_device>(d11phy->dot11_device_entry_id);
@@ -2831,6 +2882,8 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
         dot11_packinfo *dot11info,
         kis_gps_packinfo *pack_gpsinfo) {
 
+    // We're called under device list lock so we only lock the device we're interacting with
+
     if (dot11info == nullptr)
         throw std::runtime_error("handle_probed_ssid with null dot11dev");
 
@@ -2839,8 +2892,6 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
 
     if (dot11dev == nullptr)
         throw std::runtime_error("handle_probed_ssid with null dot11dev");
-
-    auto probemap(dot11dev->get_probed_ssid_map());
 
     std::shared_ptr<dot11_probed_ssid> probessid;
 
@@ -2852,6 +2903,9 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
     if (dot11info->subtype == packet_sub_probe_req ||
             dot11info->subtype == packet_sub_association_req ||
             dot11info->subtype == packet_sub_reassociation_req) {
+        kis_unique_lock<kis_mutex> lk(basedev->device_mutex, "handle_probed_ssid");
+
+        auto probemap(dot11dev->get_probed_ssid_map());
 
         auto ssid_itr = probemap->find(dot11info->ssid_csum);
 
@@ -2920,42 +2974,6 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
         if (dot11info->wps_serial_number != "")
             probessid->set_wps_serial_number(dot11info->wps_serial_number);
 
-        if (dot11info->wps_uuid_e != "") {
-            if (probessid->get_wps_uuid_e() != dot11info->wps_uuid_e) {
-                device_tracker_view_function_worker dev_worker(
-                        [this, dot11info, basedev, dot11dev](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
-                            auto bssid_dot11 =
-                                dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
-
-                            if (bssid_dot11 == nullptr) {
-                                return false;
-                            }
-
-                            if (bssid_dot11->has_probed_ssid_map()) {
-                                for (const auto& pi : *bssid_dot11->probed_ssid_map) {
-                                    auto ps = std::static_pointer_cast<dot11_probed_ssid>(pi.second);
-
-                                    if (ps->get_wps_uuid_e() == dot11info->wps_uuid_e)
-                                        return true;
-                                }
-                            }
-
-                        return false;
-                        });
-                devicetracker->do_readonly_device_work(dev_worker);
-
-                // Set a bidirectional relationship
-                for (const auto& ri : *(dev_worker.getMatchedDevices())) {
-                    auto rdev = std::static_pointer_cast<kis_tracked_device_base>(ri);
-
-                    basedev->add_related_device("dot11_uuid_e", rdev->get_key());
-                    rdev->add_related_device("dot11_uuid_e", basedev->get_key());
-                }
-
-                probessid->set_wps_uuid_e(dot11info->wps_uuid_e);
-            }
-        }
-
         // Update the IE listing at the device level
         if (keep_ie_tags_per_bssid) {
             auto taglist = PacketDot11IElist(in_pack, dot11info);
@@ -2981,6 +2999,51 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
 
         // XXHash32 says the canonical representation of the hash is little-endian
         dot11dev->set_probe_fingerprint(htole32(tag_hash.hash()));
+
+        if (dot11info->wps_uuid_e != "") {
+            if (probessid->get_wps_uuid_e() != dot11info->wps_uuid_e) {
+                lk.unlock();
+
+                device_tracker_view_function_worker dev_worker(
+                        [this, dot11info, basedev, dot11dev](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
+                            auto bssid_dot11 =
+                                dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+
+                            if (bssid_dot11 == nullptr) {
+                                return false;
+                            }
+
+                            if (bssid_dot11->has_probed_ssid_map()) {
+                                for (const auto& pi : *bssid_dot11->probed_ssid_map) {
+                                    auto ps = std::static_pointer_cast<dot11_probed_ssid>(pi.second);
+
+                                    if (ps->get_wps_uuid_e() == dot11info->wps_uuid_e)
+                                        return true;
+                                }
+                            }
+
+                        return false;
+                        });
+                devicetracker->do_device_work(dev_worker);
+
+                // Update main device under lock
+                lk.lock();
+                probessid->set_wps_uuid_e(dot11info->wps_uuid_e);
+                // Set a bidirectional relationship
+                for (const auto& ri : *(dev_worker.getMatchedDevices())) {
+                    auto rdev = std::static_pointer_cast<kis_tracked_device_base>(ri);
+                    basedev->add_related_device("dot11_uuid_e", rdev->get_key());
+                }
+                lk.unlock();
+
+                // Update associated devices under single device lock
+                for (const auto& ri : *(dev_worker.getMatchedDevices())) {
+                    auto rdev = std::static_pointer_cast<kis_tracked_device_base>(ri);
+                    kis_lock_guard<kis_mutex> lk(rdev->device_mutex, "handle_probed_ssid wps correlation");
+                    rdev->add_related_device("dot11_uuid_e", basedev->get_key());
+                }
+            }
+        }
 
         // Enter it in the ssid tracker
         ssidtracker->handle_probe_ssid(probessid->get_ssid(), probessid->get_ssid_len(),
@@ -3559,7 +3622,7 @@ void kis_80211_phy::generate_handshake_pcap(std::shared_ptr<kis_net_beast_httpd_
     struct pcap_header {
         uint32_t magic = 0xa1b2c3d4;
         uint16_t vmajor = 2;
-        uint16_t vminor = 2;
+        uint16_t vminor = 4;
         int32_t offset = 0;
         uint32_t sigfigs = 0;
         uint32_t len = 8192;
@@ -3578,7 +3641,12 @@ void kis_80211_phy::generate_handshake_pcap(std::shared_ptr<kis_net_beast_httpd_
 
     stream.write((const char *) &hdr, sizeof(hdr));
 
-    auto devlocker = devicelist_range_scope_locker(devicetracker, dev);
+    /*
+    kis_unique_lock lk_list(devicetracker->get_devicelist_mutex(), std::defer_lock, "generate_handshake_pcap");
+    kis_unique_lock lk_device(dev->device_mutex, std::defer_lock, "generate_handshake_pcap");
+    std::lock(lk_list, lk_device);
+    */
+    kis_unique_lock lk_device(dev->device_mutex, "generate_handshake_pcap");
 
     /* Write the beacon */
     if (dot11dev->get_beacon_packet_present()) {

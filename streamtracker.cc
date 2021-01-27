@@ -38,7 +38,7 @@ stream_tracker::stream_tracker() :
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
     httpd->register_route("/streams/all_streams", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(tracked_stream_map, &mutex));
+            std::make_shared<kis_net_web_tracked_endpoint>(tracked_stream_map, mutex));
     
     httpd->register_route("/streams/by-id/:id/stream_info", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
@@ -50,7 +50,7 @@ stream_tracker::stream_tracker() :
                         throw std::runtime_error("invalid key");
 
                     return s_k->second;
-                }, &mutex));
+                }, mutex));
 
     httpd->register_route("/streams/by-id/:id/close_stream", {"GET", "POST"}, httpd->LOGON_ROLE, {},
             std::make_shared<kis_net_web_function_endpoint>(
@@ -73,11 +73,11 @@ stream_tracker::stream_tracker() :
 }
 
 stream_tracker::~stream_tracker() {
-    local_locker lock(&mutex);
+
 }
 
 void stream_tracker::cancel_streams() {
-    local_locker l(&mutex, "cancel streams");
+    kis_lock_guard<kis_mutex> lk(mutex, "stream_tracker cancel_streams");
 
     for (auto s_i : *tracked_stream_map) {
         auto s = std::static_pointer_cast<streaming_info_record>(s_i.second);
@@ -88,7 +88,7 @@ void stream_tracker::cancel_streams() {
 double stream_tracker::register_streamer(std::shared_ptr<streaming_agent> in_agent,
         std::string in_name, std::string in_type, std::string in_path, std::string in_description) {
 
-    local_locker lock(&mutex);
+    kis_lock_guard<kis_mutex> lk(mutex, "stream_tracker register_streamer");
 
     auto streamrec =
         std::make_shared<streaming_info_record>(info_builder_id);
@@ -107,7 +107,7 @@ double stream_tracker::register_streamer(std::shared_ptr<streaming_agent> in_age
 }
 
 void stream_tracker::remove_streamer(double in_id) {
-    local_locker lock(&mutex);
+    kis_lock_guard<kis_mutex> lk(mutex, "stream_tracker remove_streamer");
 
     auto si = tracked_stream_map->find(in_id);
 

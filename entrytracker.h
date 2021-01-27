@@ -115,8 +115,8 @@ public:
             const Json::Value& json_summary);
 
 protected:
-    kis_recursive_timed_mutex entry_mutex;
-    kis_recursive_timed_mutex serializer_mutex;
+    kis_mutex entry_mutex;
+    kis_mutex serializer_mutex;
 
     int next_field_num;
 

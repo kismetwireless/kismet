@@ -2570,7 +2570,8 @@ void pcap_dispatch_cb(u_char *user, const struct pcap_pkthdr *header,
                         local_wifi->datalink_type,
                         header->caplen, (uint8_t *) data)) < 0) {
             pcap_breakloop(local_wifi->pd);
-            cf_send_error(caph, 0, "unable to send DATA frame");
+            fprintf(stderr, "%s %s/%s could not send packet to Kismet server, terminating.", 
+                    local_wifi->name, local_wifi->interface, local_wifi->cap_interface);
             cf_handler_spindown(caph);
         } else if (ret == 0) {
             /* Go into a wait for the write buffer to get flushed */

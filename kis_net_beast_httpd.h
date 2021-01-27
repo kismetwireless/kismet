@@ -92,7 +92,12 @@ public:
     void register_route(const std::string& route, const std::list<std::string>& verbs, 
             const std::string& role, std::shared_ptr<kis_net_web_endpoint> handler);
     void register_route(const std::string& route, const std::list<std::string>& verbs, 
+            const std::list<std::string>& roles, std::shared_ptr<kis_net_web_endpoint> handler);
+    void register_route(const std::string& route, const std::list<std::string>& verbs, 
             const std::string& role, const std::list<std::string>& extensions, 
+            std::shared_ptr<kis_net_web_endpoint> handler);
+    void register_route(const std::string& route, const std::list<std::string>& verbs, 
+            const std::list<std::string>& role, const std::list<std::string>& extensions, 
             std::shared_ptr<kis_net_web_endpoint> handler);
     void remove_route(const std::string& route);
 
@@ -106,6 +111,8 @@ public:
 
     // Websocket handlers are their own special things.  All websockets must be authenticated.
     void register_websocket_route(const std::string& route, const std::string& role, 
+            const std::list<std::string>& extensions, std::shared_ptr<kis_net_web_endpoint> handler);
+    void register_websocket_route(const std::string& route, const std::list<std::string>& roles, 
             const std::list<std::string>& extensions, std::shared_ptr<kis_net_web_endpoint> handler);
 
 
@@ -151,17 +158,17 @@ protected:
     bool allow_auth_creation;
     bool allow_auth_view;
 
-    kis_recursive_timed_mutex mime_mutex;
+    kis_mutex mime_mutex;
     std::unordered_map<std::string, std::string> mime_map;
 
-    kis_recursive_timed_mutex route_mutex;
+    kis_mutex route_mutex;
     std::vector<std::shared_ptr<kis_net_beast_route>> route_vec;
     std::vector<std::shared_ptr<kis_net_beast_route>> websocket_route_vec;
 
-    kis_recursive_timed_mutex auth_mutex;
+    kis_mutex auth_mutex;
     std::vector<std::shared_ptr<kis_net_beast_auth>> auth_vec;
 
-    kis_recursive_timed_mutex static_mutex;
+    kis_mutex static_mutex;
     class static_content_dir {
     public:
         static_content_dir(const std::string& prefix, const std::string& path) :
@@ -396,18 +403,40 @@ public:
 class kis_net_web_function_endpoint : public kis_net_web_endpoint {
 public:
     using function_t = std::function<void (std::shared_ptr<kis_net_beast_httpd_connection>)>;
+    using wrapper_func_t = std::function<void ()>;
 
-    kis_net_web_function_endpoint(function_t function) :
+    kis_net_web_function_endpoint(function_t function, wrapper_func_t pre_func = nullptr,
+            wrapper_func_t post_func = nullptr) :
         kis_net_web_endpoint{},
-        function{function} { }
+        function{function},
+        mutex{dfl_mutex},
+        use_mutex{false},
+        pre_func{pre_func},
+        post_func{post_func} { }
+
+    kis_net_web_function_endpoint(function_t function,
+            kis_mutex& mutex,
+            wrapper_func_t pre_func = nullptr,
+            wrapper_func_t post_func = nullptr) : 
+        kis_net_web_endpoint{},
+        function{function},
+        mutex{mutex},
+        use_mutex{true},
+        pre_func{pre_func},
+        post_func{post_func} { }
+
     virtual ~kis_net_web_function_endpoint() { }
 
-    virtual void handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) {
-        function(con);
-    }
+    virtual void handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) override;
 
 protected:
     function_t function;
+
+    kis_mutex& mutex;
+    kis_mutex dfl_mutex;
+    bool use_mutex;
+
+    wrapper_func_t pre_func, post_func;
 };
 
 class kis_net_web_tracked_endpoint : public kis_net_web_endpoint {
@@ -417,23 +446,29 @@ public:
     using wrapper_func_t = std::function<void (std::shared_ptr<tracker_element>)>;
 
     kis_net_web_tracked_endpoint(std::shared_ptr<tracker_element> content,
-            kis_recursive_timed_mutex *mutex,
+            kis_mutex& mutex,
             wrapper_func_t pre_func = nullptr,
             wrapper_func_t post_func = nullptr) : 
         content{content},
         mutex{mutex}, 
+        use_mutex{false},
         pre_func{pre_func},
         post_func{post_func} { }
+
+    kis_net_web_tracked_endpoint(std::shared_ptr<tracker_element> content) :
+        content{content},
+        mutex{dfl_mutex} { }
 
     kis_net_web_tracked_endpoint(gen_func_t generator, 
             wrapper_func_t pre_func = nullptr,
             wrapper_func_t post_func = nullptr) :
-        mutex{nullptr},
+        mutex{dfl_mutex},
+        use_mutex{true},
         generator{generator},
         pre_func{pre_func},
         post_func{post_func} { }
 
-    kis_net_web_tracked_endpoint(gen_func_t generator, kis_recursive_timed_mutex *mutex) :
+    kis_net_web_tracked_endpoint(gen_func_t generator, kis_mutex& mutex) :
         mutex{mutex},
         generator{generator} { }
 
@@ -441,7 +476,11 @@ public:
 
 protected:
     std::shared_ptr<tracker_element> content;
-    kis_recursive_timed_mutex *mutex;
+
+    kis_mutex& mutex;
+    kis_mutex dfl_mutex;
+    bool use_mutex;
+
     gen_func_t generator;
     wrapper_func_t pre_func;
     wrapper_func_t post_func;
@@ -532,9 +571,11 @@ protected:
 class kis_net_beast_route {
 public:
     kis_net_beast_route(const std::string& route, const std::list<boost::beast::http::verb>& verbs,
-            bool login, const std::string& role, std::shared_ptr<kis_net_web_endpoint> handler);
+            bool login, const std::list<std::string>& roles, 
+            std::shared_ptr<kis_net_web_endpoint> handler);
     kis_net_beast_route(const std::string& route, const std::list<boost::beast::http::verb>& verbs,
-            bool login, const std::string& role, const std::list<std::string>& extensions, 
+            bool login, const std::list<std::string>& roles, 
+            const std::list<std::string>& extensions, 
             std::shared_ptr<kis_net_web_endpoint> handler);
 
     // Does a URL match this route?  If so, populate uri params and uri variables
@@ -560,7 +601,8 @@ protected:
     std::list<boost::beast::http::verb> verbs_;
 
     bool login_;
-    std::string role_;
+
+    std::list<std::string> roles_;
 
     const std::string path_id_pattern = ":([^\\/]+)?";
     const std::string path_capture_pattern = "(?:([^\\/]+?))";

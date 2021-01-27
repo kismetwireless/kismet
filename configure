@@ -674,6 +674,11 @@ PROTOCFLAGS
 PROTOLIBS
 PROTOCBIN
 protocc
+BUILD_CAPTURE_BLADERF_WLAN
+BLADERFCFLAGS
+BLADERFLIBS
+libbladeRF_LIBS
+libbladeRF_CFLAGS
 libprotobufc_LIBS
 libprotobufc_CFLAGS
 protoc
@@ -806,6 +811,7 @@ enable_prelude
 with_libprelude_prefix
 enable_libwebsockets
 with_protoc
+enable_bladerf
 with_protocc
 enable_libnm
 with_netlink_tiny
@@ -841,6 +847,8 @@ protobuf_CFLAGS
 protobuf_LIBS
 libprotobufc_CFLAGS
 libprotobufc_LIBS
+libbladeRF_CFLAGS
+libbladeRF_LIBS
 libnm_CFLAGS
 libnm_LIBS
 libnl30_CFLAGS
@@ -1495,6 +1503,7 @@ Optional Features:
   --disable-pcre          Disable PCRE regex
   --enable-prelude        Enable Prelude SIEM as a target for alerts.
   --disable-libwebsockets Disable websockets support for remote capture
+  --enable-bladerf        Enable bladeRF2-wiphy support
   --disable-libnm         Disable libnm networkmanager support
   --disable-libusb        Disable libUSB support and any libUSB based data
                           sources
@@ -1552,6 +1561,10 @@ Some influential environment variables:
               C compiler flags for libprotobufc, overriding pkg-config
   libprotobufc_LIBS
               linker flags for libprotobufc, overriding pkg-config
+  libbladeRF_CFLAGS
+              C compiler flags for libbladeRF, overriding pkg-config
+  libbladeRF_LIBS
+              linker flags for libbladeRF, overriding pkg-config
   libnm_CFLAGS
               C compiler flags for libnm, overriding pkg-config
   libnm_LIBS  linker flags for libnm, overriding pkg-config
@@ -4168,6 +4181,7 @@ BUILD_CAPTURE_UBERTOOTH_ONE=0
 BUILD_CAPTURE_NRF_51822=0
 BUILD_CAPTURE_NXP_KW41Z=0
 BUILD_CAPTURE_RZ_KILLERBEE=0
+BUILD_CAPTURE_BLADERF_WLAN=0
 
 DATASOURCE_BINS="\$(CAPTURE_KISMETDB)"
 
@@ -9313,11 +9327,6 @@ else
 $as_echo "no" >&6; }
 fi
 
-OCPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS"
-OLDFLAGS=$LDFLAGS
-LDFLAGS="$CPPFLAGS"
-
 # Do we need libm for math functions?
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for libm math function in std libs" >&5
 $as_echo_n "checking for libm math function in std libs... " >&6; }
@@ -10572,12 +10581,12 @@ if test -n "$libwebsockets_CFLAGS"; then
     pkg_cv_libwebsockets_CFLAGS="$libwebsockets_CFLAGS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libwebsockets >= 3.2.0\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "libwebsockets >= 3.2.0") 2>&5
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libwebsockets >= 3.1.0\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libwebsockets >= 3.1.0") 2>&5
   ac_status=$?
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
-  pkg_cv_libwebsockets_CFLAGS=`$PKG_CONFIG --cflags "libwebsockets >= 3.2.0" 2>/dev/null`
+  pkg_cv_libwebsockets_CFLAGS=`$PKG_CONFIG --cflags "libwebsockets >= 3.1.0" 2>/dev/null`
 		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
@@ -10589,12 +10598,12 @@ if test -n "$libwebsockets_LIBS"; then
     pkg_cv_libwebsockets_LIBS="$libwebsockets_LIBS"
  elif test -n "$PKG_CONFIG"; then
     if test -n "$PKG_CONFIG" && \
-    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libwebsockets >= 3.2.0\""; } >&5
-  ($PKG_CONFIG --exists --print-errors "libwebsockets >= 3.2.0") 2>&5
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libwebsockets >= 3.1.0\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libwebsockets >= 3.1.0") 2>&5
   ac_status=$?
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; then
-  pkg_cv_libwebsockets_LIBS=`$PKG_CONFIG --libs "libwebsockets >= 3.2.0" 2>/dev/null`
+  pkg_cv_libwebsockets_LIBS=`$PKG_CONFIG --libs "libwebsockets >= 3.1.0" 2>/dev/null`
 		      test "x$?" != "x0" && pkg_failed=yes
 else
   pkg_failed=yes
@@ -10615,14 +10624,14 @@ else
         _pkg_short_errors_supported=no
 fi
         if test $_pkg_short_errors_supported = yes; then
-	        libwebsockets_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libwebsockets >= 3.2.0" 2>&1`
+	        libwebsockets_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libwebsockets >= 3.1.0" 2>&1`
         else
-	        libwebsockets_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libwebsockets >= 3.2.0" 2>&1`
+	        libwebsockets_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libwebsockets >= 3.1.0" 2>&1`
         fi
 	# Put the nasty error message in config.log where it belongs
 	echo "$libwebsockets_PKG_ERRORS" >&5
 
-	as_fn_error $? "Package requirements (libwebsockets >= 3.2.0) were not met:
+	as_fn_error $? "Package requirements (libwebsockets >= 3.1.0) were not met:
 
 $libwebsockets_PKG_ERRORS
 
@@ -11186,6 +11195,238 @@ fi
 else
     PROTOCLIBS=`pkg-config --libs libprotobuf-c`
     PROTOCCFLAGS=`pkg-config --cflags libprotobuf-c`
+fi
+
+# Look for bladerf - and a very new one at that
+# Check whether --enable-bladerf was given.
+if test "${enable_bladerf+set}" = set; then :
+  enableval=$enable_bladerf; case "${enableval}" in
+      yes) want_bladerf=yes ;;
+        *) want_bladerf=no ;;
+    esac
+else
+  want_bladerf=no
+
+fi
+
+
+if test "x$want_bladerf" == "xyes"; then :
+
+
+pkg_failed=no
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libbladeRF" >&5
+$as_echo_n "checking for libbladeRF... " >&6; }
+
+if test -n "$libbladeRF_CFLAGS"; then
+    pkg_cv_libbladeRF_CFLAGS="$libbladeRF_CFLAGS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libbladeRF\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libbladeRF") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_libbladeRF_CFLAGS=`$PKG_CONFIG --cflags "libbladeRF" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+if test -n "$libbladeRF_LIBS"; then
+    pkg_cv_libbladeRF_LIBS="$libbladeRF_LIBS"
+ elif test -n "$PKG_CONFIG"; then
+    if test -n "$PKG_CONFIG" && \
+    { { $as_echo "$as_me:${as_lineno-$LINENO}: \$PKG_CONFIG --exists --print-errors \"libbladeRF\""; } >&5
+  ($PKG_CONFIG --exists --print-errors "libbladeRF") 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; then
+  pkg_cv_libbladeRF_LIBS=`$PKG_CONFIG --libs "libbladeRF" 2>/dev/null`
+		      test "x$?" != "x0" && pkg_failed=yes
+else
+  pkg_failed=yes
+fi
+ else
+    pkg_failed=untried
+fi
+
+
+
+if test $pkg_failed = yes; then
+   	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+if $PKG_CONFIG --atleast-pkgconfig-version 0.20; then
+        _pkg_short_errors_supported=yes
+else
+        _pkg_short_errors_supported=no
+fi
+        if test $_pkg_short_errors_supported = yes; then
+	        libbladeRF_PKG_ERRORS=`$PKG_CONFIG --short-errors --print-errors --cflags --libs "libbladeRF" 2>&1`
+        else
+	        libbladeRF_PKG_ERRORS=`$PKG_CONFIG --print-errors --cflags --libs "libbladeRF" 2>&1`
+        fi
+	# Put the nasty error message in config.log where it belongs
+	echo "$libbladeRF_PKG_ERRORS" >&5
+
+
+         as_fn_error $? "missing libbladeRF package" "$LINENO" 5
+
+elif test $pkg_failed = untried; then
+     	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+         as_fn_error $? "missing libbladeRF package" "$LINENO" 5
+
+else
+	libbladeRF_CFLAGS=$pkg_cv_libbladeRF_CFLAGS
+	libbladeRF_LIBS=$pkg_cv_libbladeRF_LIBS
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+
+fi
+
+    BLADERFLIBS=`pkg-config --libs libbladeRF`
+    BLADERFCFLAGS=`pkg-config --cflags libbladeRF`
+
+    OCFL="$CFLAGS"
+
+    CFLAGS="$CFLAGS $BLADERFCFLAGS"
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for bladerf_open in -lbladeRF" >&5
+$as_echo_n "checking for bladerf_open in -lbladeRF... " >&6; }
+if ${ac_cv_lib_bladeRF_bladerf_open+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lbladeRF  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char bladerf_open ();
+int
+main ()
+{
+return bladerf_open ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+  ac_cv_lib_bladeRF_bladerf_open=yes
+else
+  ac_cv_lib_bladeRF_bladerf_open=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_bladeRF_bladerf_open" >&5
+$as_echo "$ac_cv_lib_bladeRF_bladerf_open" >&6; }
+if test "x$ac_cv_lib_bladeRF_bladerf_open" = xyes; then :
+
+                  LIBBLADERF="-lbladerf2"
+                  have_libbladerf="yes"
+
+$as_echo "#define HAVE_LIBBLADERF 1" >>confdefs.h
+
+
+else
+
+                  as_fn_error $? "missing libbladerf2" "$LINENO" 5
+
+fi
+
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking Required libbladerf2 version" >&5
+$as_echo_n "checking Required libbladerf2 version... " >&6; }
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+            #include <libbladeRF.h>
+
+int
+main ()
+{
+
+            #if LIBBLADERF_API_VERSION < 0x02020100
+            #error Version too old
+            #endif
+			return 0;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+
+             { $as_echo "$as_me:${as_lineno-$LINENO}: result: ok" >&5
+$as_echo "ok" >&6; }
+
+else
+
+             { $as_echo "$as_me:${as_lineno-$LINENO}: result: fail" >&5
+$as_echo "fail" >&6; }
+             as_fn_error $? "libbladerf2 version too old, you likely need a git version of libbladerf2" "$LINENO" 5
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking Required libbladerf2 packet modes" >&5
+$as_echo_n "checking Required libbladerf2 packet modes... " >&6; }
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+            #include <libbladeRF.h>
+
+int
+main ()
+{
+
+            int x = (int) BLADERF_FORMAT_PACKET_META;
+			return 0;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_cxx_try_link "$LINENO"; then :
+
+             { $as_echo "$as_me:${as_lineno-$LINENO}: result: packet_meta" >&5
+$as_echo "packet_meta" >&6; }
+
+else
+
+             { $as_echo "$as_me:${as_lineno-$LINENO}: result: fail" >&5
+$as_echo "fail" >&6; }
+             as_fn_error $? "unable to find PACKET_META format, you likely need a git version of libbladerf2" "$LINENO" 5
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+
+    CFLAGS="$OCFL"
+
+    BUILD_CAPTURE_BLADERF_WLAN=1
+
+fi
+
+
+
+
+
+if test x"$BUILD_CAPTURE_BLADERF_WLAN" = x"1"; then
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_BLADERF_WIPHY)"
 fi
 
 
@@ -12536,7 +12777,7 @@ sharedatadir=${sharedatadir}
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_sdr_rtlamr/Makefile capture_sdr_rtladsb/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_nrf_51822/Makefile capture_nxp_kw41z/Makefile capture_rz_killerbee/Makefile"
+ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_sdr_rtlamr/Makefile capture_sdr_rtladsb/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_nrf_51822/Makefile capture_nxp_kw41z/Makefile capture_rz_killerbee/Makefile capture_bladerf_wiphy/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -13249,6 +13490,7 @@ do
     "capture_nrf_51822/Makefile") CONFIG_FILES="$CONFIG_FILES capture_nrf_51822/Makefile" ;;
     "capture_nxp_kw41z/Makefile") CONFIG_FILES="$CONFIG_FILES capture_nxp_kw41z/Makefile" ;;
     "capture_rz_killerbee/Makefile") CONFIG_FILES="$CONFIG_FILES capture_rz_killerbee/Makefile" ;;
+    "capture_bladerf_wiphy/Makefile") CONFIG_FILES="$CONFIG_FILES capture_bladerf_wiphy/Makefile" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac
@@ -14005,6 +14247,13 @@ if test "$BUILD_CAPTURE_FREAKLABS_ZIGBEE" = 1; then
 	echo "yes";
 else
 	echo "no (python modules are disabled)";
+fi
+
+printf "         bladeRF-wiphy: "
+if test "$BUILD_CAPTURE_BLADERF_WLAN" = 1; then
+	echo "yes";
+else
+	echo "no (bladeRF support not enabled)";
 fi
 
 printf " lm-sensors monitoring: "

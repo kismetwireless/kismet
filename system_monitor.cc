@@ -106,7 +106,7 @@ Systemmonitor::Systemmonitor() :
     auto httpd = 
         Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
-    monitor_endp = std::make_shared<kis_net_web_tracked_endpoint>(status, &monitor_mutex);
+    monitor_endp = std::make_shared<kis_net_web_tracked_endpoint>(status, monitor_mutex);
     httpd->register_route("/system/status", {"GET", "POST"}, httpd->RO_ROLE, {}, monitor_endp);
 
     user_monitor_endp = std::make_shared<kis_net_web_tracked_endpoint>(
@@ -153,7 +153,7 @@ Systemmonitor::Systemmonitor() :
                         std::stringstream js;
 
                         {
-                            local_locker l(&monitor_mutex);
+                            kis_lock_guard<kis_mutex> lk(monitor_mutex);
                             Globalreg::globalreg->entrytracker->serialize("json", js, status, NULL);
                         }
 
@@ -180,7 +180,7 @@ Systemmonitor::Systemmonitor() :
                 std::stringstream js;
 
                 {
-                    local_locker l(&monitor_mutex);
+                    kis_lock_guard<kis_mutex> lk(monitor_mutex);
                     Globalreg::globalreg->entrytracker->serialize("json", js, status, NULL);
                 }
 
@@ -241,7 +241,7 @@ Systemmonitor::Systemmonitor() :
 }
 
 Systemmonitor::~Systemmonitor() {
-    local_locker lock(&monitor_mutex);
+    kis_lock_guard<kis_mutex> lk(monitor_mutex);
 
     Globalreg::globalreg->remove_global("SYSTEMMONITOR");
 
@@ -284,7 +284,7 @@ void tracked_system_status::register_fields() {
 }
 
 int Systemmonitor::timetracker_event(int eventid) {
-    local_locker lock(&monitor_mutex);
+    kis_lock_guard<kis_mutex> lk(monitor_mutex);
 
     int num_devices = devicetracker->fetch_num_devices();
 
@@ -412,7 +412,7 @@ int Systemmonitor::timetracker_event(int eventid) {
 }
 
 void tracked_system_status::pre_serialize() {
-    local_locker lock(&monitor_mutex);
+    kis_lock_guard<kis_mutex> lk(monitor_mutex);
 
     kis_battery_info batinfo;
     fetch_battery_info(&batinfo);
