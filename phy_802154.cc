@@ -185,7 +185,9 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 
         hdr_802_15_4_fcf = (_802_15_4_fcf* )&fcf;
 
-        if(hdr_802_15_4_fcf->type == 0x05)
+        
+        //if(hdr_802_15_4_fcf->type == 0x05 || hdr_802_15_4_fcf->type == 0x06)
+        if(hdr_802_15_4_fcf->type > 0x03)
         {
             printf("type %02X currently not supported\n",hdr_802_15_4_fcf->type);
             return 0;
@@ -196,6 +198,12 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             //seq = packdata->data[pkt_ctr];
             pkt_ctr++;
         }
+        else
+        {
+            printf("sns not valid for this header type\n");
+            return 0;
+        }
+        
 
         if(hdr_802_15_4_fcf->dest_addr_mode == 0x01)
         {

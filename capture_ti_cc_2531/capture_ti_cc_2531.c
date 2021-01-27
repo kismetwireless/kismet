@@ -141,6 +141,13 @@ int ticc2531_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_
     pthread_mutex_lock(&(localticc2531->usb_mutex));
     r = libusb_bulk_transfer(localticc2531->ticc2531_handle, TICC2531_DATA_EP, rx_buf, rx_max, &actual_len, TICC2531_DATA_TIMEOUT);
     pthread_mutex_unlock(&(localticc2531->usb_mutex));
+/**
+    for(int xp=0;xp<actual_len;xp++)
+    {
+        printf("%02X",rx_buf[xp]);
+    }
+    printf("\n");
+**/
 /*
     if (actual_len == 4) {
 	//do this as we don't hard reset on a heartbeat then
@@ -660,7 +667,17 @@ void capture_thread(kis_capture_handler_t *caph) {
             /* Skip runt packets caused by timeouts */
             if (buf_rx_len == 1)
                 continue;
-
+/**
+printf("capturesource-");
+for(int xp = 0;xp < buf_rx_len;xp++)
+{
+    if(xp == 7)
+        printf(" ");
+    printf("%02X",usb_buf[xp]);
+}
+    
+printf("\n");
+**/
             /* the devices look to report a 4 byte counter/heartbeat, skip it */
             if (buf_rx_len <= 7)
                 continue;
@@ -669,13 +686,12 @@ void capture_thread(kis_capture_handler_t *caph) {
                 printf("invalid 2531 packet?\n");
                 continue;
             }
-printf("capturesource-");
-for(int xp = 0;xp < buf_rx_len;xp++)
-    printf("%02X",usb_buf[xp]);
-printf("\n");
+
+
+
 
             /* insert the channel into the packet header*/
-            //usb_buf[2] = (uint8_t)localticc2531->channel;
+            usb_buf[2] = (uint8_t)localticc2531->channel;
 
             while (1) {
                 struct timeval tv;

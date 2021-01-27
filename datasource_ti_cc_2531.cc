@@ -42,23 +42,33 @@ void kis_datasource_ticc2531::handle_rx_packet(kis_packet *packet) {
     }
 
     unsigned int cc_payload_len = cc_chunk->data[7] - 0x02;
-    if (cc_payload_len + 8 != cc_chunk->length - 2) {
+    if ((cc_payload_len + 8 != cc_chunk->length - 2) || (cc_payload_len > 104)) {
         // fmt::print(stderr, "debug - cc2531 invalid payload length ({} != {})\n", cc_payload_len + 8, cc_chunk->length - 2);
         delete(packet);
         return;
     }
-printf("datasource-");
-for(int xp = 0;xp < cc_len;xp++)
+//printf("cc_len:%d cc_chunk->data[1]:%d \n",cc_len,cc_chunk->data[1]);
+//printf("cc_payload_len:%d \n",cc_payload_len);
+//printf("cc_payload_len + 8:%d cc_chunk->length - 2:%d \n",(cc_payload_len + 8),(cc_chunk->length - 2));
+/**
+printf("datasource----");
+for(int xp = 0;xp <= cc_len;xp++)
+{
+    if(xp == 7)
+        printf(" ");
     printf("%02X",cc_chunk->data[xp]);
+}
 printf("\n");
-
+**/
     uint8_t fcs1 = cc_chunk->data[cc_chunk->length - 2];
     uint8_t fcs2 = cc_chunk->data[cc_chunk->length - 1];
     uint8_t crc_ok = fcs2 & (1 << 7);
+    uint8_t crc_ok2 = fcs2 & (1 << 6);
     uint8_t corr = fcs2 & 0x7f;
-    //uint8_t channel = cc_chunk->data[2];
-    uint8_t channel = 11;
-printf("crc_ok:%d corr:%d\n",crc_ok,corr);
+    uint8_t channel = cc_chunk->data[2];
+    //uint8_t channel = 11;
+//printf("fcs1:%02X fcs2:%02X\n",fcs1,fcs2);
+//printf("crc_ok:%d crc_ok2:%d\n",crc_ok,crc_ok2);
     if (crc_ok > 0) {
 
         int rssi = (fcs1 + (int) pow(2, 7)) % (int) pow(2, 8) - (int) pow(2, 7) - 73;
