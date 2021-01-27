@@ -192,6 +192,22 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             printf("type %02X currently not supported\n",hdr_802_15_4_fcf->type);
             return 0;
         }
+        if(hdr_802_15_4_fcf->type == 0x00)//beacon
+        {
+            //look for an invalid beacon
+            //beacon should not have security enabled
+            if(hdr_802_15_4_fcf->security == 0x01)
+            {
+                printf("probable invald packet\n");
+                return 0;
+            }
+            //beacon should not have a dest
+            if(hdr_802_15_4_fcf->dest_addr_mode != 0x00)
+            {
+                printf("probable invald packet\n");
+                return 0;
+            }
+        }
         //uint8_t seq;
         if(!hdr_802_15_4_fcf->sns)
         {
