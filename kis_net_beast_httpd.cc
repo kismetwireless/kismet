@@ -1134,6 +1134,26 @@ bool kis_net_beast_httpd_connection::start() {
     httpd->strip_uri_prefix(uri_);
     httpd->decode_get_variables(uri_, http_variables_);
 
+    // Process close headers - http 1.0 always closes unless keepalive, 1.1 never closes unless specified
+    bool client_req_close = false;
+
+    if (request_.version() == 10)
+        client_req_close = true;
+
+    auto client_connection_h = request_.find(boost::beast::http::field::connection);
+    if (client_connection_h != request_.end()) {
+        auto connection_decode = httpd->decode_uri(client_connection_h->value(), true);
+
+        if (request_.version() == 10 && connection_decode == "keep-alive") {
+            client_req_close = false;
+            response.set(boost::beast::http::field::connection, "keep-alive");
+        }
+
+        if (connection_decode == "close") {
+            client_req_close = true;
+        }
+    }
+
     // Extract the auth cookie
     auto cookie_h = request_.find(boost::beast::http::field::cookie);
     if (cookie_h != request_.end()) {
@@ -1267,7 +1287,8 @@ bool kis_net_beast_httpd_connection::start() {
             boost::system::error_code error;
 
             boost::beast::http::write(stream_, res, error);
-            if (error) 
+
+            if (error || client_req_close) 
                 return do_close();
 
             return true;
@@ -1297,7 +1318,8 @@ bool kis_net_beast_httpd_connection::start() {
             boost::system::error_code error;
 
             boost::beast::http::write(stream_, res, error);
-            if (error) 
+
+            if (error || client_req_close) 
                 return do_close();
 
             return true;
@@ -1324,11 +1346,14 @@ bool kis_net_beast_httpd_connection::start() {
 
             boost::beast::http::write(stream_, res, error);
 
-            if (error) 
+            if (error || client_req_close) 
                 return do_close();
 
             return true;
         }
+
+        if (client_req_close)
+            return do_close();
 
         return true;
     }
@@ -1354,7 +1379,8 @@ bool kis_net_beast_httpd_connection::start() {
         response.body().more = false;
 
         boost::beast::http::write(stream_, sr, error);
-        if (error) 
+
+        if (error || client_req_close) 
             return do_close();
 
         return true;
@@ -1487,6 +1513,9 @@ bool kis_net_beast_httpd_connection::start() {
         _MSG_INFO("(DEBUG) {} {} - Error writing conclusion of stream: {}", verb_, uri_, error.message());
         return do_close();
     }
+
+    if (client_req_close)
+        return do_close();
 
     return true;
 }
