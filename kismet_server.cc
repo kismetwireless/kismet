@@ -74,6 +74,7 @@
 #include "datasource_nrf_mousejack.h"
 #include "datasource_ti_cc_2540.h"
 #include "datasource_nrf_51822.h"
+#include "datasource_nrf_52840.h"
 #include "datasource_ubertooth_one.h"
 #include "datasource_nxp_kw41z.h"
 #include "datasource_ti_cc_2531.h"
@@ -899,6 +900,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_nrf51822_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_ubertooth_one_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_nxpkw41z_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_nrf52840_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rzkillerbee_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_ticc2531_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_bladerf_wiphy_builder()));

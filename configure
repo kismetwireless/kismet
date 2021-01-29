@@ -622,6 +622,7 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+BUILD_CAPTURE_NRF_52840
 BUILD_CAPTURE_RZ_KILLERBEE
 BUILD_CAPTURE_NXP_KW41Z
 BUILD_CAPTURE_NRF_51822
@@ -4182,6 +4183,7 @@ BUILD_CAPTURE_NRF_51822=0
 BUILD_CAPTURE_NXP_KW41Z=0
 BUILD_CAPTURE_RZ_KILLERBEE=0
 BUILD_CAPTURE_BLADERF_WLAN=0
+BUILD_CAPTURE_NRF_52840=0
 
 DATASOURCE_BINS="\$(CAPTURE_KISMETDB)"
 
@@ -12565,6 +12567,9 @@ DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NRF_51822)"
 BUILD_CAPTURE_NXP_KW41Z=1
 DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NXP_KW41Z)"
 
+BUILD_CAPTURE_NRF_52840=1
+DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NRF_52840)"
+
 BUILD_CAPTURE_RZ_KILLERBEE=0
 if test "$have_usb" = "yes"; then
     BUILD_CAPTURE_RZ_KILLERBEE=1
@@ -12773,11 +12778,12 @@ sharedatadir=${sharedatadir}
 
 
 
+
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
 #AC_SUBST(CXXFLAGS)
 
-ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_sdr_rtlamr/Makefile capture_sdr_rtladsb/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_nrf_51822/Makefile capture_nxp_kw41z/Makefile capture_rz_killerbee/Makefile capture_bladerf_wiphy/Makefile"
+ac_config_files="$ac_config_files Makefile Makefile.inc packaging/kismet.pc packaging/systemd/kismet.service packaging/systemd/debug/kismet-debug.service capture_linux_bluetooth/Makefile capture_linux_wifi/Makefile capture_osx_corewlan_wifi/Makefile capture_sdr_rtl433/Makefile capture_sdr_rtlamr/Makefile capture_sdr_rtladsb/Makefile capture_freaklabs_zigbee/Makefile capture_nrf_mousejack/Makefile capture_ti_cc_2540/Makefile capture_ti_cc_2531/Makefile capture_ubertooth_one/Makefile capture_nrf_51822/Makefile capture_nxp_kw41z/Makefile capture_rz_killerbee/Makefile capture_bladerf_wiphy/Makefile capture_nrf_52840/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -13491,6 +13497,7 @@ do
     "capture_nxp_kw41z/Makefile") CONFIG_FILES="$CONFIG_FILES capture_nxp_kw41z/Makefile" ;;
     "capture_rz_killerbee/Makefile") CONFIG_FILES="$CONFIG_FILES capture_rz_killerbee/Makefile" ;;
     "capture_bladerf_wiphy/Makefile") CONFIG_FILES="$CONFIG_FILES capture_bladerf_wiphy/Makefile" ;;
+    "capture_nrf_52840/Makefile") CONFIG_FILES="$CONFIG_FILES capture_nrf_52840/Makefile" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
   esac
@@ -14193,6 +14200,11 @@ fi
 
 printf "         NRF51822 BTLE: "
 if test "$BUILD_CAPTURE_NRF_51822" = 1; then
+        echo "yes";
+fi
+
+printf "       NRF52840 Zigbee: "
+if test "$BUILD_CAPTURE_NRF_52840" = 1; then
         echo "yes";
 fi
 

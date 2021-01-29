@@ -124,7 +124,7 @@ printf("\n");
         packetchain->process_packet(packet);
 
     } else {
-        printf("delete packet\n");
+        //printf("delete packet\n");
         delete (packet);
         return;
     }

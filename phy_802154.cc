@@ -131,7 +131,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
     // Is it a packet we care about?
     if (packdata == NULL || (packdata != NULL && (packdata->dlt != KDLT_IEEE802_15_4_NOFCS && packdata->dlt != KDLT_IEEE802_15_4_TAP)))
     {
-        printf("not a packet we care about\n");
+        //printf("not a packet we care about\n");
         return 0;
     }
 
@@ -198,13 +198,60 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             //beacon should not have security enabled
             if(hdr_802_15_4_fcf->security == 0x01)
             {
-                printf("probable invald packet\n");
+                printf("beacon should not have security enabled\n");
                 return 0;
             }
             //beacon should not have a dest
             if(hdr_802_15_4_fcf->dest_addr_mode != 0x00)
             {
-                printf("probable invald packet\n");
+                printf("beacon should not have a dest\n");
+                return 0;
+            }
+            if(hdr_802_15_4_fcf->sns)
+            {
+                printf("sns not valid for this header type\n");
+                return 0;
+            }
+        }
+        if(hdr_802_15_4_fcf->type == 0x01)//data
+        {
+            if(hdr_802_15_4_fcf->dest_addr_mode == 0x01)
+            {
+                printf("data should not have a dest 0x01\n");
+                return 0;
+            }
+        }
+        if(hdr_802_15_4_fcf->type == 0x02)//ack
+        {
+            //ack needs a source
+            if(hdr_802_15_4_fcf->src_addr_mode <= 0x01)
+            {
+                printf("ack needs a source\n");
+                return 0;
+            }
+            if(hdr_802_15_4_fcf->dest_addr_mode == 0x01)
+            {
+                printf("ack should not have a dest 0x01\n");
+                return 0;
+            }
+            //ack should not have security enabled
+            if(hdr_802_15_4_fcf->security == 0x01)
+            {
+                printf("ack should not have security enabled\n");
+                return 0;
+            }
+        }
+        if(hdr_802_15_4_fcf->type == 0x03)//command
+        {
+            //command needs a source
+            if(hdr_802_15_4_fcf->src_addr_mode <= 0x01)
+            {
+                printf("command needs a source\n");
+                return 0;
+            }
+            if(hdr_802_15_4_fcf->sns)
+            {
+                printf("sns not valid for this header type\n");
                 return 0;
             }
         }
@@ -389,6 +436,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
         //network
         //transmitter
 //        printf("insert src->dest\n");
+        //printf("type %02X \n",hdr_802_15_4_fcf->type);
         in_pack->insert(mphy->pack_comp_common, common);
 
     }

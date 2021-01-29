@@ -683,7 +683,7 @@ printf("\n");
                 continue;
 
             if(usb_buf[0] != 0x00) {
-                printf("invalid 2531 packet?\n");
+                //printf("invalid 2531 packet?\n");
                 continue;
             }
 
