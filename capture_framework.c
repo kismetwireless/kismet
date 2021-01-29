@@ -1024,7 +1024,7 @@ cleanup:
     if (token != NULL)
         free(token);
     if (endp_arg != NULL)
-        free(token);
+        free(endp_arg);
 #endif
 
     return ret;
