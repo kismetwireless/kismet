@@ -1058,7 +1058,6 @@ if test "$linux" = "yes"; then
 fi
 
 if test "$caponly" = 0 || test "$want_python" = "yes"; then
-    # We only *require* protobuf for C++ and python
     PKG_CHECK_MODULES([protobuf], [${PROTOBUF}], have_protobuf_pkg=yes)
     if test x"$have_protobuf_pkg" != "xyes"; then
         AC_MSG_ERROR([missing google libprotobuf])
@@ -1106,7 +1105,30 @@ else
     PROTOCCFLAGS=`pkg-config --cflags libprotobuf-c`
 fi
 
-# Look for bladerf - and a very new one at that
+AC_ARG_WITH(protocc,
+	[  --with-protocc[=PATH]     Custom location of the protoc protobuf compiler],
+	[ PROTOCCBIN=$withval ]
+	)
+if test x"$with_protocc" == "x"; then
+    PROTOCCBIN="protoc-c"
+    AC_CHECK_PROG(protocc, [protoc-c], yes)
+    if test x"$protocc" != x"yes"; then
+        AC_MSG_ERROR([missing libprotobuf-c protoc-c compiler])
+    fi
+else
+    PROTOCCBIN=$with_protocc
+fi
+
+AC_SUBST(PROTOCBIN)
+AC_SUBST(PROTOLIBS)
+AC_SUBST(PROTOCFLAGS)
+AC_SUBST(PROTOCCBIN)
+AC_SUBST(PROTOCLIBS)
+AC_SUBST(PROTOCCFLAGS)
+AC_SUBST(PROTOBUF_CPP_O_TARGET)
+AC_SUBST(PROTOBUF_CPP_H_TARGET)
+
+# To use wiphy we need a very recent bladerf, and we need it even when only building for caponly
 AC_ARG_ENABLE(bladerf,
     AS_HELP_STRING([--enable-bladerf], [Enable bladeRF2-wiphy support]),
     [case "${enableval}" in
@@ -1178,34 +1200,11 @@ AS_IF([test "x$want_bladerf" == "xyes"], [
 
 AC_SUBST(BLADERFLIBS)
 AC_SUBST(BLADERFCFLAGS)
-
 AC_SUBST(BUILD_CAPTURE_BLADERF_WLAN)
+
 if test x"$BUILD_CAPTURE_BLADERF_WLAN" = x"1"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_BLADERF_WIPHY)"
 fi
-
-AC_ARG_WITH(protocc,
-	[  --with-protocc[=PATH]     Custom location of the protoc protobuf compiler],
-	[ PROTOCCBIN=$withval ]
-	)
-if test x"$with_protocc" == "x"; then
-    PROTOCCBIN="protoc-c"
-    AC_CHECK_PROG(protocc, [protoc-c], yes)
-    if test x"$protocc" != x"yes"; then
-        AC_MSG_ERROR([missing libprotobuf-c protoc-c compiler])
-    fi
-else
-    PROTOCCBIN=$with_protocc
-fi
-
-AC_SUBST(PROTOCBIN)
-AC_SUBST(PROTOLIBS)
-AC_SUBST(PROTOCFLAGS)
-AC_SUBST(PROTOCCBIN)
-AC_SUBST(PROTOCLIBS)
-AC_SUBST(PROTOCCFLAGS)
-AC_SUBST(PROTOBUF_CPP_O_TARGET)
-AC_SUBST(PROTOBUF_CPP_H_TARGET)
 
 if test "$bsd" = yes; then
 	AC_MSG_CHECKING(for BSD net80211/radiotap support)

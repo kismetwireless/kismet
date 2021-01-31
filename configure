@@ -664,6 +664,11 @@ NMCFLAGS
 NMLIBS
 libnm_LIBS
 libnm_CFLAGS
+BUILD_CAPTURE_BLADERF_WLAN
+BLADERFCFLAGS
+BLADERFLIBS
+libbladeRF_LIBS
+libbladeRF_CFLAGS
 PROTOBUF_CPP_H_TARGET
 PROTOBUF_CPP_O_TARGET
 PROTOCCFLAGS
@@ -673,11 +678,6 @@ PROTOCFLAGS
 PROTOLIBS
 PROTOCBIN
 protocc
-BUILD_CAPTURE_BLADERF_WLAN
-BLADERFCFLAGS
-BLADERFLIBS
-libbladeRF_LIBS
-libbladeRF_CFLAGS
 libprotobufc_LIBS
 libprotobufc_CFLAGS
 protoc
@@ -810,8 +810,8 @@ enable_prelude
 with_libprelude_prefix
 enable_libwebsockets
 with_protoc
-enable_bladerf
 with_protocc
+enable_bladerf
 enable_libnm
 with_netlink_tiny
 enable_libusb
@@ -10908,7 +10908,6 @@ if test "$linux" = "yes"; then
 fi
 
 if test "$caponly" = 0 || test "$want_python" = "yes"; then
-    # We only *require* protobuf for C++ and python
 
 pkg_failed=no
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for protobuf" >&5
@@ -11197,7 +11196,69 @@ else
     PROTOCCFLAGS=`pkg-config --cflags libprotobuf-c`
 fi
 
-# Look for bladerf - and a very new one at that
+
+# Check whether --with-protocc was given.
+if test "${with_protocc+set}" = set; then :
+  withval=$with_protocc;  PROTOCCBIN=$withval
+
+fi
+
+if test x"$with_protocc" == "x"; then
+    PROTOCCBIN="protoc-c"
+    # Extract the first word of "protoc-c", so it can be a program name with args.
+set dummy protoc-c; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_prog_protocc+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$protocc"; then
+  ac_cv_prog_protocc="$protocc" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_protocc="yes"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+fi
+fi
+protocc=$ac_cv_prog_protocc
+if test -n "$protocc"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $protocc" >&5
+$as_echo "$protocc" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+    if test x"$protocc" != x"yes"; then
+        as_fn_error $? "missing libprotobuf-c protoc-c compiler" "$LINENO" 5
+    fi
+else
+    PROTOCCBIN=$with_protocc
+fi
+
+
+
+
+
+
+
+
+
+
+# To use wiphy we need a very recent bladerf, and we need it even when only building for caponly
 # Check whether --enable-bladerf was given.
 if test "${enable_bladerf+set}" = set; then :
   enableval=$enable_bladerf; case "${enableval}" in
@@ -11428,68 +11489,6 @@ fi
 if test x"$BUILD_CAPTURE_BLADERF_WLAN" = x"1"; then
     DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_BLADERF_WIPHY)"
 fi
-
-
-# Check whether --with-protocc was given.
-if test "${with_protocc+set}" = set; then :
-  withval=$with_protocc;  PROTOCCBIN=$withval
-
-fi
-
-if test x"$with_protocc" == "x"; then
-    PROTOCCBIN="protoc-c"
-    # Extract the first word of "protoc-c", so it can be a program name with args.
-set dummy protoc-c; ac_word=$2
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
-$as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_prog_protocc+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  if test -n "$protocc"; then
-  ac_cv_prog_protocc="$protocc" # Let the user override the test.
-else
-as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
-do
-  IFS=$as_save_IFS
-  test -z "$as_dir" && as_dir=.
-    for ac_exec_ext in '' $ac_executable_extensions; do
-  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_prog_protocc="yes"
-    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
-    break 2
-  fi
-done
-  done
-IFS=$as_save_IFS
-
-fi
-fi
-protocc=$ac_cv_prog_protocc
-if test -n "$protocc"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $protocc" >&5
-$as_echo "$protocc" >&6; }
-else
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-fi
-
-
-    if test x"$protocc" != x"yes"; then
-        as_fn_error $? "missing libprotobuf-c protoc-c compiler" "$LINENO" 5
-    fi
-else
-    PROTOCCBIN=$with_protocc
-fi
-
-
-
-
-
-
-
-
-
 
 if test "$bsd" = yes; then
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for BSD net80211/radiotap support" >&5
