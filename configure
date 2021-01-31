@@ -1501,7 +1501,9 @@ Optional Features:
   --disable-libcap        Disable libcap capabilities
   --disable-pcre          Disable PCRE regex
   --enable-prelude        Enable Prelude SIEM as a target for alerts.
-  --disable-libwebsockets Disable websockets support for remote capture
+  --disable-libwebsockets Disable C-based libwebsockets, this will only impact
+                          building remote capture sources. The Kismet server
+                          will still have websockets support.
   --enable-bladerf        Enable bladeRF2-wiphy support
   --disable-libnm         Disable libnm networkmanager support
   --disable-libusb        Disable libUSB support and any libUSB based data
@@ -10663,7 +10665,7 @@ $as_echo "yes" >&6; }
 fi
 
     if test x"$have_libwebsockets_pkg" != "xyes"; then
-        as_fn_error $? "missing libwebsockets" "$LINENO" 5
+        as_fn_error $? "required libwebsockets not available, configure with --disable-websockets to turn off remote capture libwebsockets support.  This will only impact remote capture sources." "$LINENO" 5
     else
         { $as_echo "$as_me:${as_lineno-$LINENO}: checking for lws_client_connect_via_info in -lwebsockets" >&5
 $as_echo_n "checking for lws_client_connect_via_info in -lwebsockets... " >&6; }

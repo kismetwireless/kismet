@@ -977,7 +977,7 @@ AC_ARG_ENABLE(prelude,
 PKG_PROG_PKG_CONFIG
 
 AC_ARG_ENABLE([libwebsockets],
-    AS_HELP_STRING([--disable-libwebsockets], [Disable websockets support for remote capture]),
+    AS_HELP_STRING([--disable-libwebsockets], [Disable C-based libwebsockets, this will only impact building remote capture sources.  The Kismet server will still have websockets support.]),
 	[case "${enableval}" in
 	  no) want_libwebsockets=no ;;
 	   *) want_libwebsockets=yes ;;
@@ -989,7 +989,7 @@ AS_IF([test "x$want_libwebsockets" != "xno"], [
     PKG_CHECK_MODULES([libwebsockets], [libwebsockets >= 3.1.0], have_libwebsockets_pkg=yes)
 
     if test x"$have_libwebsockets_pkg" != "xyes"; then
-        AC_MSG_ERROR([missing libwebsockets])
+        AC_MSG_ERROR([required libwebsockets not available, configure with --disable-websockets to turn off remote capture libwebsockets support.  This will only impact remote capture sources.])
     else
         AC_CHECK_LIB([websockets], [lws_client_connect_via_info],
                      [
