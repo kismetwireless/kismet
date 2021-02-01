@@ -774,15 +774,23 @@ std::string kis_net_beast_httpd::create_auth(const std::string& name, const std:
     return token;
 }
 
-std::string kis_net_beast_httpd::create_or_find_auth(const std::string& name, const std::string& role, 
-        time_t expiry) {
+std::string kis_net_beast_httpd::create_or_find_auth(const std::string& name, 
+        const std::string& role, time_t expiry) {
     kis_lock_guard<kis_mutex> lk(auth_mutex, "beast_httpd create_or_find_auth");
 
     // Pull an existing token if one exists for this name
     for (const auto& a : auth_vec) {
         if (a->name() == name) {
+            /*
             if (a->role() != role) 
-                throw std::runtime_error("conflicting role for creating or finding auth");
+                throw std::runtime_error(fmt::format("conflicting role for creating or finding "
+                            "auth (found existing login for {} tried to create for {})", 
+                            a->role, role));
+                            */
+            
+            // Reset the role to the new one
+            if (a->role() != role) 
+                a->set_role(role);
 
             if (a->expires() < expiry) {
                 a->set_expiration(expiry);
