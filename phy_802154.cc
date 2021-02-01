@@ -81,6 +81,21 @@ uint8_t src_pan[2] = {0x00,0x00};
 uint8_t ext_dest[8];
 uint8_t ext_source[8];
 
+//zigbee header
+struct _zigbee_fcf{
+    unsigned char type : 2;
+    unsigned char proto_ver : 4;
+    unsigned char dis_route : 2;
+    unsigned char multicast : 1;
+    unsigned char security : 1;
+    unsigned char src_route : 1;
+    unsigned char dest : 1;
+    unsigned char ext_src : 1;
+    unsigned char end_dev_initator : 1;
+};
+_zigbee_fcf * hdr_zigbee_fcf;
+
+
 kis_802154_phy::kis_802154_phy(global_registry *in_globalreg, int in_phyid) :
     kis_phy_handler(in_globalreg, in_phyid) {
 
@@ -178,6 +193,8 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 
     //printf("pkt_ctr:%d\n",pkt_ctr);
 
+    int start_of_main_packet = pkt_ctr;
+
     if(packdata->dlt == KDLT_IEEE802_15_4_NOFCS || packdata->dlt == KDLT_IEEE802_15_4_TAP)
     {
         unsigned short fcf = (((short)packdata->data[pkt_ctr+1]) << 8) | (0x00ff & packdata->data[pkt_ctr]);
@@ -226,7 +243,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             //ack needs a source
             if(hdr_802_15_4_fcf->src_addr_mode <= 0x01)
             {
-                printf("ack needs a source\n");
+                //printf("ack needs a source\n");
                 return 0;
             }
             if(hdr_802_15_4_fcf->dest_addr_mode == 0x01)
@@ -246,7 +263,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             //command needs a source
             if(hdr_802_15_4_fcf->src_addr_mode <= 0x01)
             {
-                printf("command needs a source\n");
+                //printf("command needs a source\n");
                 return 0;
             }
             if(hdr_802_15_4_fcf->sns)
@@ -345,46 +362,67 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 
     }
 
+    //ok so we should be able to look at the next byte to be able to find some things out.
+    //one being that if it contains 6LoWPAN info or not.
+    if(hdr_802_15_4_fcf->frame_ver == 1)//Frame Version: IEEE Std 802.15.4-2006 (1)
+    {
+        uint8_t byte7 = packdata->data[pkt_ctr] & (1 << 7);
+        uint8_t byte6 = packdata->data[pkt_ctr] & (1 << 6);
+        if(byte7 > 0 && byte6 > 0)
+        {
+            //LoWPAN fragmentation header
+            printf("possible LoWPAN fragmentation header %02X\n",packdata->data[pkt_ctr]);
+            for(int xps=start_of_main_packet;xps <= pkt_ctr;xps++)
+            {
+                printf("%02X ",packdata->data[xps]);
+            }
+            printf("\n");
+        }
+        else if(byte7 > 0 && byte6 == 0)
+        {
+            //LoWPAN mesh header
+            printf("possible LoWPAN mesh header %02X\n",packdata->data[pkt_ctr]);
+            for(int xps=start_of_main_packet;xps <= pkt_ctr;xps++)
+            {
+                printf("%02X ",packdata->data[xps]);
+            }
+            printf("\n");
+        }
+        else if(byte7 == 0 && byte6 > 0)
+        {
+            //LoWPAN IPv6 addressing header
+            printf("possible LoWPAN IPv6 addressing header %02X\n",packdata->data[pkt_ctr]);
+            for(int xps=start_of_main_packet;xps <= pkt_ctr;xps++)
+            {
+                printf("%02X ",packdata->data[xps]);
+            }
+            printf("\n");
+        }
+    }
+    else if(hdr_802_15_4_fcf->frame_ver == 0)//Frame Version: IEEE Std 802.15.4-2003 (0)
+    {
+        //get the zigbee network layer header
+        unsigned short zigbee_fcf = (((short)packdata->data[pkt_ctr+1]) << 8) | (0x00ff & packdata->data[pkt_ctr]);
+        pkt_ctr+=2;
+
+        hdr_zigbee_fcf = (_zigbee_fcf* )&zigbee_fcf;
+
+        printf("hdr_zigbee_fcf.type:%.02X\n",hdr_zigbee_fcf->type);
+        printf("hdr_zigbee_fcf.proto_ver:%.02X\n",hdr_zigbee_fcf->proto_ver);
+        printf("hdr_zigbee_fcf.dis_route:%.02X\n",hdr_zigbee_fcf->dis_route);
+        printf("hdr_zigbee_fcf.multicast:%.02X\n",hdr_zigbee_fcf->multicast);
+        printf("hdr_zigbee_fcf.security:%.02X\n",hdr_zigbee_fcf->security);
+        printf("hdr_zigbee_fcf.src_route:%.02X\n",hdr_zigbee_fcf->src_route);
+        printf("hdr_zigbee_fcf.dest:%.02X\n",hdr_zigbee_fcf->dest);
+        printf("hdr_zigbee_fcf.ext_src:%.02X\n",hdr_zigbee_fcf->ext_src);
+        printf("hdr_zigbee_fcf.end_dev_initator:%.02X\n",hdr_zigbee_fcf->end_dev_initator);
+        printf("\n");
+
+    }
+    
+
     if(hdr_802_15_4_fcf->src_addr_mode >= 0x02 || hdr_802_15_4_fcf->dest_addr_mode >= 0x02)
     {
-/**
-        if(hdr_802_15_4_fcf->src_addr_mode == 0x03)
-        {
-            printf("src_addr_mode == 0x03\n");
-            for(int xps=0;xps<8;xps++)
-                printf("%02X ",ext_source[xps]);
-            printf("\n");
-        }
-        if(hdr_802_15_4_fcf->src_addr_mode == 0x02)
-        {
-            printf("src_addr_mode == 0x02\n");
-            for(int xps=0;xps<2;xps++)
-                printf("%02X ",src[xps]);
-            printf("\n");
-            for(int xps=0;xps<2;xps++)
-                printf("%02X ",src_pan[xps]);
-            printf("\n");
-        }
-
-        if(hdr_802_15_4_fcf->dest_addr_mode == 0x03)
-        {
-            printf("dest_addr_mode == 0x03\n");
-            for(int xps=0;xps<8;xps++)
-                printf("%02X ",ext_dest[xps]);
-            printf("\n");
-        }
-        if(hdr_802_15_4_fcf->dest_addr_mode == 0x02)
-        {
-            printf("dest_addr_mode == 0x02\n");
-            for(int xps=0;xps<2;xps++)
-                printf("%02X ",dest[xps]);
-            printf("\n");
-            for(int xps=0;xps<2;xps++)
-                printf("%02X ",dest_pan[xps]);
-            printf("\n");
-        }
-**/
-
         common = new kis_common_info;
         common->phyid = mphy->fetch_phy_id();
         //error
