@@ -145,10 +145,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 
     // Is it a packet we care about?
     if (packdata == NULL || (packdata != NULL && (packdata->dlt != KDLT_IEEE802_15_4_NOFCS && packdata->dlt != KDLT_IEEE802_15_4_TAP)))
-    {
-        //printf("not a packet we care about\n");
         return 0;
-    }
 
     // Do we have enough data for an OUI?
     if (packdata->length < 6)
@@ -167,27 +164,14 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
     uint8_t pkt_ctr = 0;
     if(packdata->dlt == KDLT_IEEE802_15_4_TAP)
     {
-        //printf("KDLT_IEEE802_15_4_TAP\n");
         uint64_t tap_header_size = sizeof(zigbee_tap);
-        //printf("tap_header_size:%d\n",tap_header_size);
-
         uint8_t tmp_header[32];memset(tmp_header,0x00,32);
-        //printf("copy over the tmp data\n");
         memcpy(tmp_header, &packdata->data[pkt_ctr], tap_header_size);
-        //printf("set the header\n");
         tap_header = (zigbee_tap *)&tmp_header;
 
         //realy we are going to want to iterate through them to pull them correctly.
-        
         chan = tap_header->tlv[2].value;
-        //printf("pull out the channel:%d\n",chan);
-        
         sigstr = tap_header->tlv[1].value;
-        //printf("pull out the signal:%d\n",sigstr);
-
-        //printf("change the dtl\n");
-        //packdata->dlt = KDLT_IEEE802_15_4_NOFCS;
-        //printf("advance the pkt_ctr\n");
         pkt_ctr += tap_header_size;
     }
 
@@ -202,8 +186,6 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 
         hdr_802_15_4_fcf = (_802_15_4_fcf* )&fcf;
 
-        
-        //if(hdr_802_15_4_fcf->type == 0x05 || hdr_802_15_4_fcf->type == 0x06)
         if(hdr_802_15_4_fcf->type > 0x03)
         {
             printf("type %02X currently not supported\n",hdr_802_15_4_fcf->type);
@@ -406,7 +388,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
         pkt_ctr+=2;
 
         hdr_zigbee_fcf = (_zigbee_fcf* )&zigbee_fcf;
-
+/**
         printf("hdr_zigbee_fcf.type:%.02X\n",hdr_zigbee_fcf->type);
         printf("hdr_zigbee_fcf.proto_ver:%.02X\n",hdr_zigbee_fcf->proto_ver);
         printf("hdr_zigbee_fcf.dis_route:%.02X\n",hdr_zigbee_fcf->dis_route);
@@ -417,7 +399,32 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
         printf("hdr_zigbee_fcf.ext_src:%.02X\n",hdr_zigbee_fcf->ext_src);
         printf("hdr_zigbee_fcf.end_dev_initator:%.02X\n",hdr_zigbee_fcf->end_dev_initator);
         printf("\n");
-
+**/
+        //next part of the packet
+        //Destination 2 bytes reversed
+        unsigned short zigbee_dest = (((short)packdata->data[pkt_ctr+1]) << 8) | (0x00ff & packdata->data[pkt_ctr]);
+        pkt_ctr+=2;
+        //Source 2 bytes reversed
+        unsigned short zigbee_src = (((short)packdata->data[pkt_ctr+1]) << 8) | (0x00ff & packdata->data[pkt_ctr]);
+        pkt_ctr+=2;
+        //Radius 1 byte
+        uint8_t zigbee_radius = packdata->data[pkt_ctr];pkt_ctr++;
+        //seq num 1 byte
+        uint8_t zigbee_seq = packdata->data[pkt_ctr];pkt_ctr++;
+        //Extended source 8 bytes - if set
+        if(hdr_zigbee_fcf->ext_src)
+        {
+            //extended source which is what were are looking for
+            ext_source[7] = packdata->data[pkt_ctr];pkt_ctr++;
+            ext_source[6] = packdata->data[pkt_ctr];pkt_ctr++;
+            ext_source[5] = packdata->data[pkt_ctr];pkt_ctr++;
+            ext_source[4] = packdata->data[pkt_ctr];pkt_ctr++;
+            ext_source[3] = packdata->data[pkt_ctr];pkt_ctr++;
+            ext_source[2] = packdata->data[pkt_ctr];pkt_ctr++;
+            ext_source[1] = packdata->data[pkt_ctr];pkt_ctr++;
+            ext_source[0] = packdata->data[pkt_ctr];pkt_ctr++;
+            hdr_802_15_4_fcf->src_addr_mode = 0x03;
+        }
     }
     
 
@@ -439,11 +446,6 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 //            printf("set source from ext\n");
             common->source = mac_addr(ext_source, 8);
         }
-//        else if(hdr_802_15_4_fcf->src_addr_mode == 0x02 && !hdr_802_15_4_fcf->pan_id_comp)
-//        {
-//            printf("set source from pan\n");
-//            common->source = mac_addr(src_pan, 2);
-//        }
         else if(hdr_802_15_4_fcf->src_addr_mode == 0x02 && hdr_802_15_4_fcf->pan_id_comp)
         {
 //            printf("set source from src\n");
@@ -465,18 +467,10 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 //            printf("set dest from dest\n");
             common->dest = mac_addr(dest, 2);
         }
-//        else if(hdr_802_15_4_fcf->dest_addr_mode == 0x02)
-//        {
-//            printf("set dest from pan\n");
-//            common->dest = mac_addr(dest_pan, 2);
-//        }
 
         //network
         //transmitter
-//        printf("insert src->dest\n");
-        //printf("type %02X \n",hdr_802_15_4_fcf->type);
         in_pack->insert(mphy->pack_comp_common, common);
-
     }
 
     return 1;
@@ -492,7 +486,6 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
         return 0;
 
     // Is it a packet we care about?
-    //printf("commonclassifier802154 packdata->dlt:%d mphy->dlt:%d\n",packdata->dlt,mphy->dlt);
     if (packdata->dlt != mphy->dlt && (packdata->dlt != KDLT_IEEE802_15_4_NOFCS && packdata->dlt != KDLT_IEEE802_15_4_TAP))
         return 0;
 
@@ -502,7 +495,7 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
     if (common == NULL)
         return 0;
 
-    //printf("as source\n");
+    // as source
     // Update with all the options in case we can add signal and frequency
     // in the future
     auto source_dev = 
@@ -523,8 +516,7 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
         source_dev->insert(source_kis_802154);
     }
 
-    //printf("as dest\n");
-    //as destination
+    // as destination
     // Update with all the options in case we can add signal and frequency
     // in the future
     auto dest_dev = 
