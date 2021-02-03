@@ -211,12 +211,22 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
                 printf("sns not valid for this header type\n");
                 return 0;
             }
+            if(hdr_802_15_4_fcf->frame_ver == 0x03)
+            {
+                printf("frame version not valid for this header type\n");
+                return 0;
+            }
         }
         if(hdr_802_15_4_fcf->type == 0x01)//data
         {
             if(hdr_802_15_4_fcf->dest_addr_mode == 0x01)
             {
                 printf("data should not have a dest 0x01\n");
+                return 0;
+            }
+            if(hdr_802_15_4_fcf->frame_ver == 0x03)
+            {
+                printf("frame version not valid for this header type\n");
                 return 0;
             }
         }
@@ -251,6 +261,11 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             if(hdr_802_15_4_fcf->sns)
             {
                 printf("sns not valid for this header type\n");
+                return 0;
+            }
+            if(hdr_802_15_4_fcf->frame_ver == 0x03)
+            {
+                printf("frame version not valid for this header type\n");
                 return 0;
             }
         }
