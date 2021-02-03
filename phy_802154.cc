@@ -249,6 +249,11 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
                 printf("ack should not have security enabled\n");
                 return 0;
             }
+            if(hdr_802_15_4_fcf->sns && hdr_802_15_4_fcf->frame_ver == 0x00)
+            {
+                printf("sns not valid for this header type\n");
+                return 0;
+            }
         }
         if(hdr_802_15_4_fcf->type == 0x03)//command
         {
@@ -400,45 +405,56 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
     {
         //get the zigbee network layer header
         unsigned short zigbee_fcf = (((short)packdata->data[pkt_ctr+1]) << 8) | (0x00ff & packdata->data[pkt_ctr]);
-        pkt_ctr+=2;
-
         hdr_zigbee_fcf = (_zigbee_fcf* )&zigbee_fcf;
-/**
-        printf("hdr_zigbee_fcf.type:%.02X\n",hdr_zigbee_fcf->type);
-        printf("hdr_zigbee_fcf.proto_ver:%.02X\n",hdr_zigbee_fcf->proto_ver);
-        printf("hdr_zigbee_fcf.dis_route:%.02X\n",hdr_zigbee_fcf->dis_route);
-        printf("hdr_zigbee_fcf.multicast:%.02X\n",hdr_zigbee_fcf->multicast);
-        printf("hdr_zigbee_fcf.security:%.02X\n",hdr_zigbee_fcf->security);
-        printf("hdr_zigbee_fcf.src_route:%.02X\n",hdr_zigbee_fcf->src_route);
-        printf("hdr_zigbee_fcf.dest:%.02X\n",hdr_zigbee_fcf->dest);
-        printf("hdr_zigbee_fcf.ext_src:%.02X\n",hdr_zigbee_fcf->ext_src);
-        printf("hdr_zigbee_fcf.end_dev_initator:%.02X\n",hdr_zigbee_fcf->end_dev_initator);
-        printf("\n");
-**/
-        //next part of the packet
-        //Destination 2 bytes reversed
-        unsigned short zigbee_dest = (((short)packdata->data[pkt_ctr+1]) << 8) | (0x00ff & packdata->data[pkt_ctr]);
-        pkt_ctr+=2;
-        //Source 2 bytes reversed
-        unsigned short zigbee_src = (((short)packdata->data[pkt_ctr+1]) << 8) | (0x00ff & packdata->data[pkt_ctr]);
-        pkt_ctr+=2;
-        //Radius 1 byte
-        uint8_t zigbee_radius = packdata->data[pkt_ctr];pkt_ctr++;
-        //seq num 1 byte
-        uint8_t zigbee_seq = packdata->data[pkt_ctr];pkt_ctr++;
-        //Extended source 8 bytes - if set
-        if(hdr_zigbee_fcf->ext_src)
+/**/
+        printf("hdr_802_15_4_fcf.type:%.02X hdr_zigbee_fcf.type:%.02X\n",hdr_802_15_4_fcf->type,hdr_zigbee_fcf->type);
+
+        //trying to see what would be valid or having a valid zigbee header
+        if(
+            (hdr_802_15_4_fcf->type == 0x01 && hdr_zigbee_fcf->type == 0x00)//both data
+            ||
+            (hdr_802_15_4_fcf->type == 0x01 && hdr_zigbee_fcf->type == 0x01)//data 802154 cmd zigbee
+        )
         {
-            //extended source which is what were are looking for
-            ext_source[7] = packdata->data[pkt_ctr];pkt_ctr++;
-            ext_source[6] = packdata->data[pkt_ctr];pkt_ctr++;
-            ext_source[5] = packdata->data[pkt_ctr];pkt_ctr++;
-            ext_source[4] = packdata->data[pkt_ctr];pkt_ctr++;
-            ext_source[3] = packdata->data[pkt_ctr];pkt_ctr++;
-            ext_source[2] = packdata->data[pkt_ctr];pkt_ctr++;
-            ext_source[1] = packdata->data[pkt_ctr];pkt_ctr++;
-            ext_source[0] = packdata->data[pkt_ctr];pkt_ctr++;
-            hdr_802_15_4_fcf->src_addr_mode = 0x03;
+            pkt_ctr+=2;//may need to move the packet counter after knowing it is valid if we are going to look for anything else
+    /**
+            printf("hdr_zigbee_fcf.proto_ver:%.02X\n",hdr_zigbee_fcf->proto_ver);
+            printf("hdr_zigbee_fcf.dis_route:%.02X\n",hdr_zigbee_fcf->dis_route);
+            printf("hdr_zigbee_fcf.multicast:%.02X\n",hdr_zigbee_fcf->multicast);
+            printf("hdr_zigbee_fcf.security:%.02X\n",hdr_zigbee_fcf->security);
+            printf("hdr_zigbee_fcf.src_route:%.02X\n",hdr_zigbee_fcf->src_route);
+            printf("hdr_zigbee_fcf.dest:%.02X\n",hdr_zigbee_fcf->dest);
+            printf("hdr_zigbee_fcf.ext_src:%.02X\n",hdr_zigbee_fcf->ext_src);
+            printf("hdr_zigbee_fcf.end_dev_initator:%.02X\n",hdr_zigbee_fcf->end_dev_initator);
+            printf("\n");
+    /**/
+            uint8_t byte_remain = packdata->length - pkt_ctr;
+            printf("byte_remain:%d\n",byte_remain);
+            //next part of the packet
+            //Destination 2 bytes reversed
+            unsigned short zigbee_dest = (((short)packdata->data[pkt_ctr+1]) << 8) | (0x00ff & packdata->data[pkt_ctr]);
+            pkt_ctr+=2;
+            //Source 2 bytes reversed
+            unsigned short zigbee_src = (((short)packdata->data[pkt_ctr+1]) << 8) | (0x00ff & packdata->data[pkt_ctr]);
+            pkt_ctr+=2;
+            //Radius 1 byte
+            uint8_t zigbee_radius = packdata->data[pkt_ctr];pkt_ctr++;
+            //seq num 1 byte
+            uint8_t zigbee_seq = packdata->data[pkt_ctr];pkt_ctr++;
+            //Extended source 8 bytes - if set
+            if(hdr_zigbee_fcf->ext_src)
+            {
+                //extended source which is what were are looking for
+                ext_source[7] = packdata->data[pkt_ctr];pkt_ctr++;
+                ext_source[6] = packdata->data[pkt_ctr];pkt_ctr++;
+                ext_source[5] = packdata->data[pkt_ctr];pkt_ctr++;
+                ext_source[4] = packdata->data[pkt_ctr];pkt_ctr++;
+                ext_source[3] = packdata->data[pkt_ctr];pkt_ctr++;
+                ext_source[2] = packdata->data[pkt_ctr];pkt_ctr++;
+                ext_source[1] = packdata->data[pkt_ctr];pkt_ctr++;
+                ext_source[0] = packdata->data[pkt_ctr];pkt_ctr++;
+                hdr_802_15_4_fcf->src_addr_mode = 0x03;
+            }
         }
     }
     
