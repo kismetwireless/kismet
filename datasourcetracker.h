@@ -163,7 +163,8 @@ public:
     std::string get_definition() { return definition; }
     
     // Complete a list - when the last one completes we're done
-    void complete_list(std::vector<shared_interface> interfaces, unsigned int in_transaction);
+    void complete_list(std::shared_ptr<kis_datasource> source, 
+            std::vector<shared_interface> interfaces, unsigned int in_transaction);
 
     void cancel();
 

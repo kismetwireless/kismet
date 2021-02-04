@@ -239,7 +239,8 @@ public:
     
     // 'List' callback - called with caller-supplied transaction id and contents,
     // if any, of the interface list command
-    typedef std::function<void (unsigned int, std::vector<shared_interface>)> list_callback_t;
+    typedef std::function<void (std::shared_ptr<kis_datasource> src,
+            unsigned int, std::vector<shared_interface>)> list_callback_t;
 
     // List all interfaces this source can support
     virtual void list_interfaces(unsigned int in_transaction, list_callback_t in_cb);
