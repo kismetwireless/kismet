@@ -482,7 +482,8 @@ protected:
         alert_longssid_ref, alert_disconinvalid_ref, alert_deauthinvalid_ref,
         alert_dhcpclient_ref, alert_wmm_ref, alert_nonce_zero_ref, 
         alert_nonce_duplicate_ref, alert_11kneighborchan_ref, alert_probechan_ref,
-        alert_rtlwifi_p2p_ref, alert_deauthflood_ref, alert_noclientmfp_ref;
+        alert_rtlwifi_p2p_ref, alert_deauthflood_ref, alert_noclientmfp_ref,
+        alert_rtl8195_vdoo_ref;
 
     // Are we allowed to send wepkeys to the client (server config)
     int client_wepkey_allowed;

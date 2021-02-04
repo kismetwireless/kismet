@@ -412,6 +412,13 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 "disconnect it in an attempt to capture handshakes for attacking WPA.",
                 phyid);
 
+    alert_rtl8195_vdoo_ref =
+        alertracker->activate_configured_alert("RTL8195VDOO1406",
+                "Realtek 8195 devices have multiple vulnerabilities in how EAPOL packets "
+                "are processed, leading to code execution as the kernel on the device, as "
+                "detailed in CVE-2020-9395 and VD-1406 and VD-1407");
+
+
     // Threshold
     signal_too_loud_threshold = 
         Globalreg::globalreg->kismet_config->fetch_opt_int("dot11_max_signal", -10);

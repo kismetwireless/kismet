@@ -2687,6 +2687,17 @@ std::shared_ptr<dot11_tracked_eapol>
         if (eap.dot1x_type() != dot11_wpa_eap::dot1x_type_eap_key)
             return NULL;
 
+        // Look for rtl8195 overflows
+        if (eap.dot1x_len() > 512) {
+            alertracker->raise_alert(alert_rtl8195_vdoo_ref, in_pack,
+                    packinfo->bssid_mac, packinfo->source_mac, 
+                    packinfo->dest_mac, packinfo->other_mac,
+                    packinfo->channel,
+                    fmt::format("RSN key frame has a length of {}; lengths greater than "
+                        "512 may be used to exploit RTL8195 driver implementations",
+                        eap.dot1x_len()));
+        }
+
         auto dot1xkey = eap.dot1x_content_key();
 
         auto rsnkey = dot1xkey->key_content_eapolrsn();
