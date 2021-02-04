@@ -18,8 +18,6 @@
 
 #include "datasource_rz_killerbee.h"
 
-#define TLVHEADER
-
 void kis_datasource_rzkillerbee::handle_rx_packet(kis_packet *packet) {
 
     auto rz_chunk = 
@@ -28,7 +26,7 @@ void kis_datasource_rzkillerbee::handle_rx_packet(kis_packet *packet) {
     if(rz_chunk->data[7])
     {
         int rz_payload_len = rz_chunk->data[8];
-#ifdef TLVHEADER
+
         int rssi = rz_chunk->data[6];
         uint8_t channel = rz_chunk->data[5];
 	// We can make a valid payload from this much
@@ -62,23 +60,14 @@ void kis_datasource_rzkillerbee::handle_rx_packet(kis_packet *packet) {
 
         rz_chunk->set_data((uint8_t *)conv_header, conv_buf_len, false);
         rz_chunk->dlt = KDLT_IEEE802_15_4_TAP; 	
-#else	
-        //so this works
-        uint8_t payload[256]; memset(payload,0x00,256);
-        memcpy(payload,&rz_chunk->data[9],rz_payload_len);	
-        // Replace the existing packet data with this and update the DLT
-        rz_chunk->set_data(payload, rz_payload_len, false);
-        rz_chunk->dlt = KDLT_IEEE802_15_4_NOFCS; 
-	
-#endif   
-/**/
+
         auto radioheader = new kis_layer1_packinfo();
         radioheader->signal_type = kis_l1_signal_type_dbm;
         radioheader->signal_dbm = rssi;
         radioheader->freq_khz = (2405 + ((channel - 11) * 5)) * 1000;
         radioheader->channel = fmt::format("{}", (channel));
         packet->insert(pack_comp_radiodata, radioheader);
-/**/
+
 	    // Pass the packet on
         packetchain->process_packet(packet);
     }

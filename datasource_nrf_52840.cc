@@ -18,8 +18,6 @@
 
 #include "datasource_nrf_52840.h"
 
-#define TLVHEADER
-
 unsigned char hextobytel(char s);
 
 void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
@@ -59,7 +57,6 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
     //printf("nrf52840 datasource got a packet\n");
     for(unsigned int i=0;i<nrf_chunk->length;i++)
     {
-        //printf("%c",nrf_chunk->data[i]);
         if(nrf_chunk->data[i] == ':')
         {
             loc[li] = i;
@@ -68,8 +65,7 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
                 break;
         }
     }
-    //printf("\n");
-    //printf("loc[0]:%d loc[1]:%d loc[2]:%d loc[3]:%d\n",loc[0],loc[1],loc[2],loc[3]);
+
     //copy over the packet
     memcpy(c_payload,&nrf_chunk->data[loc[0]+2],(loc[1] - loc[0] - 1 - (strlen("payload")))); 
     c_payload_len = (loc[1] - loc[0] - 1 - (strlen("payload")));
@@ -98,7 +94,7 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
     //uint8_t channel = 11;
     uint8_t channel = nrf_chunk->data[2];
     // No good way to do packet validation that I know of at the moment.    
-#ifdef TLVHEADER
+
     // We can make a valid payload from this much
     auto conv_buf_len = sizeof(zigbee_tap) + nrf_payload_len;
     zigbee_tap *conv_header = reinterpret_cast<zigbee_tap *>(new uint8_t[conv_buf_len]);
@@ -119,29 +115,24 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
     conv_header->tlv[1].type = 10;
     conv_header->tlv[1].length = 1;
     conv_header->tlv[1].value = rssi;
-/**/
+
     //channel
     conv_header->tlv[2].type = 3;
     conv_header->tlv[2].length = 3;
     conv_header->tlv[2].value = channel;
-/**/
+
     //size
     conv_header->length = sizeof(conv_header)+sizeof(conv_header->tlv)-4;
     nrf_chunk->set_data((uint8_t *)conv_header, conv_buf_len, false);
     nrf_chunk->dlt = KDLT_IEEE802_15_4_TAP; 	
-#else
-    // Replace the existing packet data with this and update the DLT
-    nrf_chunk->set_data(payload, nrf_payload_len, false);
-    nrf_chunk->dlt = KDLT_IEEE802_15_4_NOFCS; 
-#endif
-/**/
+
     auto radioheader = new kis_layer1_packinfo();
     radioheader->signal_type = kis_l1_signal_type_dbm;
     radioheader->signal_dbm = rssi;
     radioheader->freq_khz = (2405 + ((channel - 11) * 5)) * 1000;
     radioheader->channel = fmt::format("{}", (channel));
     packet->insert(pack_comp_radiodata, radioheader);
-/**/
+
 	// Pass the packet on
     packetchain->process_packet(packet);	    
 }

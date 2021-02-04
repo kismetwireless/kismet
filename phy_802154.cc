@@ -81,21 +81,6 @@ uint8_t src_pan[2] = {0x00,0x00};
 uint8_t ext_dest[8];
 uint8_t ext_source[8];
 
-//zigbee header
-struct _zigbee_fcf{
-    unsigned char type : 2;
-    unsigned char proto_ver : 4;
-    unsigned char dis_route : 2;
-    unsigned char multicast : 1;
-    unsigned char security : 1;
-    unsigned char src_route : 1;
-    unsigned char dest : 1;
-    unsigned char ext_src : 1;
-    unsigned char end_dev_initator : 1;
-};
-_zigbee_fcf * hdr_zigbee_fcf;
-
-
 kis_802154_phy::kis_802154_phy(global_registry *in_globalreg, int in_phyid) :
     kis_phy_handler(in_globalreg, in_phyid) {
 
@@ -121,11 +106,6 @@ kis_802154_phy::kis_802154_phy(global_registry *in_globalreg, int in_phyid) :
     auto dltt = 
         Globalreg::fetch_mandatory_global_as<dlt_tracker>("DLTTRACKER");
     dlt = KDLT_IEEE802_15_4_NOFCS;
-
-    /*
-    auto httpregistry = 
-        Globalreg::fetch_mandatory_global_as<kis_httpd_registry>("WEBREGISTRY");
-        */
 
     packetchain->register_handler(&dissector802154, this, CHAINPOS_LLCDISSECT, -100);
     packetchain->register_handler(&commonclassifier802154, this, CHAINPOS_CLASSIFIER, -100);
@@ -158,9 +138,6 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
         return 0;
 
     //process the packet
-    //printf("process a packet from within the phy_802154\n");
-    //hurray we make it here
-
     uint8_t pkt_ctr = 0;
     if(packdata->dlt == KDLT_IEEE802_15_4_TAP)
     {
@@ -186,128 +163,103 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 
         hdr_802_15_4_fcf = (_802_15_4_fcf* )&fcf;
 
-        if(hdr_802_15_4_fcf->type > 0x03)
-        {
-            printf("type %02X currently not supported\n",hdr_802_15_4_fcf->type);
+        if(hdr_802_15_4_fcf->type > 0x03) {
+            //printf("type %02X currently not supported\n",hdr_802_15_4_fcf->type);
             return 0;
         }
-        if(hdr_802_15_4_fcf->type == 0x00)//beacon
-        {
+        if(hdr_802_15_4_fcf->type == 0x00) {
+            //beacon
             //look for an invalid beacon
-            //beacon should not have security enabled
-            if(hdr_802_15_4_fcf->security == 0x01)
-            {
-                printf("beacon should not have security enabled\n");
+            if(hdr_802_15_4_fcf->security == 0x01) {
+                //beacon should not have security enabled
                 return 0;
             }
-            //beacon should not have a dest
-            if(hdr_802_15_4_fcf->dest_addr_mode != 0x00)
-            {
-                printf("beacon should not have a dest\n");
+            if(hdr_802_15_4_fcf->dest_addr_mode != 0x00) {
+                //beacon should not have a dest
                 return 0;
             }
-            if(hdr_802_15_4_fcf->sns)
-            {
-                printf("sns not valid for this header type\n");
+            if(hdr_802_15_4_fcf->sns) {
+                //sns not valid for this header type
                 return 0;
             }
-            if(hdr_802_15_4_fcf->frame_ver == 0x03)
-            {
-                printf("frame version not valid for this header type\n");
+            if(hdr_802_15_4_fcf->frame_ver == 0x03) {
+                //frame version not valid for this header type
                 return 0;
             }
         }
-        if(hdr_802_15_4_fcf->type == 0x01)//data
+        if(hdr_802_15_4_fcf->type == 0x01)
         {
-            if(hdr_802_15_4_fcf->dest_addr_mode == 0x01)
-            {
-                printf("data should not have a dest 0x01\n");
+            //data
+            if(hdr_802_15_4_fcf->dest_addr_mode == 0x01) {
+                //data should not have a dest 0x01
                 return 0;
             }
-            if(hdr_802_15_4_fcf->frame_ver == 0x03)
-            {
-                printf("frame version not valid for this header type\n");
+            if(hdr_802_15_4_fcf->frame_ver == 0x03) {
+                //frame version not valid for this header type
                 return 0;
             }
         }
-        if(hdr_802_15_4_fcf->type == 0x02)//ack
-        {
-            //ack needs a source
-            if(hdr_802_15_4_fcf->src_addr_mode <= 0x01)
-            {
-                //printf("ack needs a source\n");
+        if(hdr_802_15_4_fcf->type == 0x02) {
+            //ack
+            if(hdr_802_15_4_fcf->src_addr_mode <= 0x01) {
+                //ack needs a source
                 return 0;
             }
-            if(hdr_802_15_4_fcf->dest_addr_mode == 0x01)
-            {
-                printf("ack should not have a dest 0x01\n");
+            if(hdr_802_15_4_fcf->dest_addr_mode == 0x01) {
+                //ack should not have a dest 0x01
                 return 0;
             }
-            //ack should not have security enabled
-            if(hdr_802_15_4_fcf->security == 0x01)
-            {
-                printf("ack should not have security enabled\n");
+            if(hdr_802_15_4_fcf->security == 0x01) {
+                //ack should not have security enabled
                 return 0;
             }
-            if(hdr_802_15_4_fcf->sns && hdr_802_15_4_fcf->frame_ver == 0x00)
-            {
-                printf("sns not valid for this header type\n");
+            if(hdr_802_15_4_fcf->sns && hdr_802_15_4_fcf->frame_ver == 0x00) {
+                //sns not valid for this header type
                 return 0;
             }
         }
-        if(hdr_802_15_4_fcf->type == 0x03)//command
-        {
-            //command needs a source
-            if(hdr_802_15_4_fcf->src_addr_mode <= 0x01)
-            {
-                //printf("command needs a source\n");
+        if(hdr_802_15_4_fcf->type == 0x03) {
+            //command
+            if(hdr_802_15_4_fcf->src_addr_mode <= 0x01) {
+                //command needs a source
                 return 0;
             }
-            if(hdr_802_15_4_fcf->sns)
-            {
-                printf("sns not valid for this header type\n");
+            if(hdr_802_15_4_fcf->sns) {
+                //sns not valid for this header type
                 return 0;
             }
-            if(hdr_802_15_4_fcf->frame_ver == 0x03)
-            {
-                printf("frame version not valid for this header type\n");
+            if(hdr_802_15_4_fcf->frame_ver == 0x03) {
+                //frame version not valid for this header type
                 return 0;
             }
         }
-        //uint8_t seq;
-        if(!hdr_802_15_4_fcf->sns)
-        {
-            //seq = packdata->data[pkt_ctr];
+
+        if(!hdr_802_15_4_fcf->sns) {
             pkt_ctr++;
         }
-        else
-        {
-            printf("sns not valid for this header type\n");
+        else {
+            //sns not valid for this header type
             return 0;
         }
         
-
-        if(hdr_802_15_4_fcf->dest_addr_mode == 0x01)
-        {
-            if(hdr_802_15_4_fcf->frame_ver == 0)//this address mode is not valid under this spec
-            {
-                printf("this address mode is not valid under this spec\n");
+        //dest address
+        if(hdr_802_15_4_fcf->dest_addr_mode == 0x01) {
+            if(hdr_802_15_4_fcf->frame_ver == 0) {
+                //this address mode is not valid under this spec
                 return 0;
             }
 
             dest[1] = packdata->data[pkt_ctr];
             pkt_ctr++;
         }
-        else if(hdr_802_15_4_fcf->dest_addr_mode == 0x02)
-        {
+        else if(hdr_802_15_4_fcf->dest_addr_mode == 0x02) {
             dest[1] = packdata->data[pkt_ctr];pkt_ctr++;
             dest[0] = packdata->data[pkt_ctr];pkt_ctr++;
 
             dest_pan[1] = packdata->data[pkt_ctr];pkt_ctr++;
             dest_pan[0] = packdata->data[pkt_ctr];pkt_ctr++;
         }
-        else if(hdr_802_15_4_fcf->dest_addr_mode == 0x03)
-        {
+        else if(hdr_802_15_4_fcf->dest_addr_mode == 0x03) {
             //length means we actually have an extended dest
             dest[1] = packdata->data[pkt_ctr];pkt_ctr++;
             dest[0] = packdata->data[pkt_ctr];pkt_ctr++;
@@ -322,19 +274,16 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             ext_dest[0] = packdata->data[pkt_ctr];pkt_ctr++;
         }
 
-        if(hdr_802_15_4_fcf->src_addr_mode == 0x01)
-        {
-            if(hdr_802_15_4_fcf->frame_ver == 0)//this address mode is not valid under this spec
-            {
-                printf("this address mode is not valid under this spec\n");
+        //src address
+        if(hdr_802_15_4_fcf->src_addr_mode == 0x01) {
+            if(hdr_802_15_4_fcf->frame_ver == 0) {
+                //this address mode is not valid under this spec
                 return 0;
             }
             src[1] = packdata->data[pkt_ctr];pkt_ctr++;
         }
-        else if(hdr_802_15_4_fcf->src_addr_mode == 0x02)
-        {
-            if(!hdr_802_15_4_fcf->pan_id_comp)
-            {
+        else if(hdr_802_15_4_fcf->src_addr_mode == 0x02) {
+            if(!hdr_802_15_4_fcf->pan_id_comp) {
                 //src pan
                 src_pan[1] = packdata->data[pkt_ctr];pkt_ctr++;
                 src_pan[0] = packdata->data[pkt_ctr];pkt_ctr++;
@@ -342,12 +291,10 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             src[1] = packdata->data[pkt_ctr];pkt_ctr++;
             src[0] = packdata->data[pkt_ctr];pkt_ctr++;
         }
-        else if(hdr_802_15_4_fcf->src_addr_mode == 0x03)
-        {
+        else if(hdr_802_15_4_fcf->src_addr_mode == 0x03) {
             //srcpan
             //extended source
-            if(!hdr_802_15_4_fcf->pan_id_comp)
-            {
+            if(!hdr_802_15_4_fcf->pan_id_comp) {
                 src_pan[1] = packdata->data[pkt_ctr];pkt_ctr++;
                 src_pan[0] = packdata->data[pkt_ctr];pkt_ctr++;
             }
@@ -364,153 +311,29 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 
     }
 
-    //ok so we should be able to look at the next byte to be able to find some things out.
-    //one being that if it contains 6LoWPAN info or not.
-    if(hdr_802_15_4_fcf->frame_ver == 1)//Frame Version: IEEE Std 802.15.4-2006 (1)
-    {
-        uint8_t byte7 = packdata->data[pkt_ctr] & (1 << 7);
-        uint8_t byte6 = packdata->data[pkt_ctr] & (1 << 6);
-        if(byte7 > 0 && byte6 > 0)
-        {
-            //LoWPAN fragmentation header
-            //printf("possible LoWPAN fragmentation header %02X\n",packdata->data[pkt_ctr]);
-            /**
-            for(int xps=start_of_main_packet;xps <= pkt_ctr;xps++)
-            {
-                printf("%02X ",packdata->data[xps]);
-            }
-            printf("\n");
-            **/
-        }
-        else if(byte7 > 0 && byte6 == 0)
-        {
-            //LoWPAN mesh header
-            //printf("possible LoWPAN mesh header %02X\n",packdata->data[pkt_ctr]);
-            /**
-            for(int xps=start_of_main_packet;xps <= pkt_ctr;xps++)
-            {
-                printf("%02X ",packdata->data[xps]);
-            }
-            printf("\n");
-            **/
-        }
-        else if(byte7 == 0 && byte6 > 0)
-        {
-            //LoWPAN IPv6 addressing header
-            //printf("possible LoWPAN IPv6 addressing header %02X\n",packdata->data[pkt_ctr]);
-            /**
-            for(int xps=start_of_main_packet;xps <= pkt_ctr;xps++)
-            {
-                printf("%02X ",packdata->data[xps]);
-            }
-            printf("\n");
-            **/
-        }
-    }
-    else if(hdr_802_15_4_fcf->frame_ver == 0)//Frame Version: IEEE Std 802.15.4-2003 (0)
-    {
-        //get the zigbee network layer header
-        unsigned short zigbee_fcf = (((short)packdata->data[pkt_ctr+1]) << 8) | (0x00ff & packdata->data[pkt_ctr]);
-        hdr_zigbee_fcf = (_zigbee_fcf* )&zigbee_fcf;
-/**
-        printf("hdr_802_15_4_fcf.type:%.02X hdr_zigbee_fcf.type:%.02X\n",hdr_802_15_4_fcf->type,hdr_zigbee_fcf->type);
-
-        //trying to see what would be valid or having a valid zigbee header
-        if(
-            (hdr_802_15_4_fcf->type == 0x01 && hdr_zigbee_fcf->type == 0x00)//both data
-            ||
-            (hdr_802_15_4_fcf->type == 0x01 && hdr_zigbee_fcf->type == 0x01)//data 802154 cmd zigbee
-        )
-        {
-            pkt_ctr+=2;//may need to move the packet counter after knowing it is valid if we are going to look for anything else
-    
-//            printf("hdr_zigbee_fcf.proto_ver:%.02X\n",hdr_zigbee_fcf->proto_ver);
-//            printf("hdr_zigbee_fcf.dis_route:%.02X\n",hdr_zigbee_fcf->dis_route);
-//            printf("hdr_zigbee_fcf.multicast:%.02X\n",hdr_zigbee_fcf->multicast);
-//            printf("hdr_zigbee_fcf.security:%.02X\n",hdr_zigbee_fcf->security);
-//            printf("hdr_zigbee_fcf.src_route:%.02X\n",hdr_zigbee_fcf->src_route);
-//            printf("hdr_zigbee_fcf.dest:%.02X\n",hdr_zigbee_fcf->dest);
-//            printf("hdr_zigbee_fcf.ext_src:%.02X\n",hdr_zigbee_fcf->ext_src);
-//            printf("hdr_zigbee_fcf.end_dev_initator:%.02X\n",hdr_zigbee_fcf->end_dev_initator);
-//            printf("\n");
-    
-            uint8_t byte_remain = packdata->length - pkt_ctr;
-            printf("byte_remain:%d\n",byte_remain);
-            //next part of the packet
-            //Destination 2 bytes reversed
-            unsigned short zigbee_dest = (((short)packdata->data[pkt_ctr+1]) << 8) | (0x00ff & packdata->data[pkt_ctr]);
-            pkt_ctr+=2;
-            //Source 2 bytes reversed
-            unsigned short zigbee_src = (((short)packdata->data[pkt_ctr+1]) << 8) | (0x00ff & packdata->data[pkt_ctr]);
-            pkt_ctr+=2;
-            //Radius 1 byte
-            uint8_t zigbee_radius = packdata->data[pkt_ctr];pkt_ctr++;
-            //seq num 1 byte
-            uint8_t zigbee_seq = packdata->data[pkt_ctr];pkt_ctr++;
-            //Extended source 8 bytes - if set
-            byte_remain = packdata->length - pkt_ctr;
-            printf("ext_src byte_remain:%d\n",byte_remain);
-            if(hdr_zigbee_fcf->ext_src && byte_remain > 7)
-            {
-
-                //extended source which is what were are looking for
-                ext_source[7] = packdata->data[pkt_ctr];pkt_ctr++;
-                ext_source[6] = packdata->data[pkt_ctr];pkt_ctr++;
-                ext_source[5] = packdata->data[pkt_ctr];pkt_ctr++;
-                ext_source[4] = packdata->data[pkt_ctr];pkt_ctr++;
-                ext_source[3] = packdata->data[pkt_ctr];pkt_ctr++;
-                ext_source[2] = packdata->data[pkt_ctr];pkt_ctr++;
-                ext_source[1] = packdata->data[pkt_ctr];pkt_ctr++;
-                ext_source[0] = packdata->data[pkt_ctr];pkt_ctr++;
-                hdr_802_15_4_fcf->src_addr_mode = 0x03;
-            }
-        }
-/**/
-    }
-    
-
     if(hdr_802_15_4_fcf->src_addr_mode >= 0x02 || hdr_802_15_4_fcf->dest_addr_mode >= 0x02)
     {
         common = new kis_common_info;
         common->phyid = mphy->fetch_phy_id();
-        //error
-        //datasize
-        //channel
-        //common->channel = fmt::format("{}", (chan));
-        //freq_khz
         common->basic_crypt_set = crypt_none;
         common->type = packet_basic_data;
-        //direction
-        //common->direction = packet_direction_to;
-        if(hdr_802_15_4_fcf->src_addr_mode == 0x03)
-        {
-//            printf("set source from ext\n");
+        if(hdr_802_15_4_fcf->src_addr_mode == 0x03) {
             common->source = mac_addr(ext_source, 8);
         }
-        else if(hdr_802_15_4_fcf->src_addr_mode == 0x02 && hdr_802_15_4_fcf->pan_id_comp)
-        {
-//            printf("set source from src\n");
+        else if(hdr_802_15_4_fcf->src_addr_mode == 0x02 && hdr_802_15_4_fcf->pan_id_comp) {
             common->source = mac_addr(src, 2);
         }
-        else if(hdr_802_15_4_fcf->src_addr_mode == 0x02)
-        {
-//            printf("set source from src\n");
+        else if(hdr_802_15_4_fcf->src_addr_mode == 0x02) {
             common->source = mac_addr(src, 2);
         }
 
-        if(hdr_802_15_4_fcf->dest_addr_mode == 0x03)
-        {
-//            printf("set dest from ext\n");
+        if(hdr_802_15_4_fcf->dest_addr_mode == 0x03) {
             common->dest = mac_addr(ext_dest, 8);
         }
-        else if(hdr_802_15_4_fcf->dest_addr_mode == 0x02)
-        {
-//            printf("set dest from dest\n");
+        else if(hdr_802_15_4_fcf->dest_addr_mode == 0x02) {
             common->dest = mac_addr(dest, 2);
         }
 
-        //network
-        //transmitter
         in_pack->insert(mphy->pack_comp_common, common);
     }
 
@@ -522,7 +345,6 @@ int kis_802154_phy::commonclassifier802154(CHAINCALL_PARMS) {
 
     auto packdata = in_pack->fetch<kis_datachunk>(mphy->pack_comp_linkframe);
 
-    //printf("in commonclassifier802154\n");
     if (packdata == nullptr)
         return 0;
 
