@@ -114,7 +114,8 @@ void kis_datasource::list_interfaces(unsigned int in_transaction, list_callback_
     if (!get_source_builder()->get_list_capable()) {
         if (in_cb != NULL) {
             lock.unlock();
-            in_cb(in_transaction, std::vector<shared_interface>());
+            in_cb(std::static_pointer_cast<kis_datasource>(shared_from_this()), in_transaction, 
+                    std::vector<shared_interface>());
         }
 
         return;
@@ -124,7 +125,8 @@ void kis_datasource::list_interfaces(unsigned int in_transaction, list_callback_
     if (!kis_external_interface::check_ipc(get_source_ipc_binary())) {
         if (in_cb != NULL) {
             lock.unlock();
-            in_cb(in_transaction, std::vector<shared_interface>());
+            in_cb(std::static_pointer_cast<kis_datasource>(shared_from_this()), in_transaction, 
+                    std::vector<shared_interface>());
         }
         return;
     }
@@ -136,7 +138,8 @@ void kis_datasource::list_interfaces(unsigned int in_transaction, list_callback_
     if (!launch_ipc()) {
         if (in_cb != NULL) {
             lock.unlock();
-            in_cb(in_transaction, std::vector<shared_interface>());
+            in_cb(std::static_pointer_cast<kis_datasource>(shared_from_this()),
+                    in_transaction, std::vector<shared_interface>());
         }
 
         return;
@@ -703,7 +706,8 @@ void kis_datasource::cancel_command(uint32_t in_transaction, std::string in_erro
         if (cmd->list_cb != NULL) {
             list_callback_t cb = cmd->list_cb;
             cmd->list_cb = NULL;
-            cb(cmd->transaction, std::vector<shared_interface>());
+            cb(std::static_pointer_cast<kis_datasource>(shared_from_this()),
+                    cmd->transaction, std::vector<shared_interface>());
         } else if (cmd->probe_cb != NULL) {
             probe_callback_t cb = cmd->probe_cb;
             cmd->probe_cb = NULL;
@@ -1106,7 +1110,8 @@ void kis_datasource::handle_packet_interfaces_report(uint32_t in_seqno,
         command_ack_map.erase(ci);
 
         if (cb != nullptr) {
-            cb(transaction, listed_interfaces);
+            cb(std::static_pointer_cast<kis_datasource>(shared_from_this()),
+                    transaction, listed_interfaces);
         }
     }
 
@@ -1593,7 +1598,7 @@ unsigned int kis_datasource::send_list_interfaces(unsigned int in_transaction, l
 
     if (seqno == 0) {
         if (in_cb != NULL) {
-            in_cb(in_transaction, std::vector<shared_interface>());
+            in_cb(std::static_pointer_cast<kis_datasource>(shared_from_this()), in_transaction, std::vector<shared_interface>());
         }
 
         return 0;
@@ -1783,7 +1788,7 @@ void kis_datasource::handle_source_error() {
         error_timer_id = timetracker->register_timer(std::chrono::seconds(5), false, [this](int) -> int {
                 kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource error_timer lambda");
 
-                error_timer_id = 0;
+                error_timer_id = -1;
 
                 _MSG("Attempting to re-open source " + get_source_name(), MSGFLAG_INFO);
 

@@ -30,7 +30,8 @@ ipc_tracker_v2::ipc_tracker_v2() :
     dead_reaper_event_id = 
         timetracker->register_timer(std::chrono::seconds(1), true, 
                 [this](int) -> int {
-                return dead_ipc_reaper_event();
+                    dead_ipc_reaper_event();
+                    return 1;
                 });
 }
 
@@ -88,6 +89,8 @@ void ipc_tracker_v2::hard_kill_all() {
 void ipc_tracker_v2::shutdown_all(int in_soft_delay, int in_max_delay) {
     // Remove the dead reaper task
     auto timetracker = Globalreg::fetch_global_as<time_tracker>();
+
+    _MSG_DEBUG("tracker v2 shutdown_all");
     
     if (timetracker != nullptr)
         timetracker->remove_timer(dead_reaper_event_id);
@@ -132,9 +135,6 @@ void ipc_tracker_v2::shutdown_all(int in_soft_delay, int in_max_delay) {
 int ipc_tracker_v2::dead_ipc_reaper_event() {
     int pid_status;
     pid_t caught_pid;
-
-    if (!Globalreg::globalreg->reap_child_procs)
-        return 1;
 
     while ((caught_pid = waitpid(-1, &pid_status, WNOHANG | WUNTRACED)) > 0) {
         kis_ipc_record::error_func_t err_cb;
