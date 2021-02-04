@@ -340,7 +340,7 @@ protected:
 
 typedef std::shared_ptr<tracked_alert_definition> shared_alert_def;
 
-class alert_tracker : public lifetime_global {
+class alert_tracker : public lifetime_global, public deferred_startup {
 public:
 	// Simple struct from reading config lines
 	struct alert_conf_rec {
@@ -357,6 +357,7 @@ public:
         std::shared_ptr<alert_tracker> mon(new alert_tracker());
         Globalreg::globalreg->alertracker = mon.get();
         Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->register_deferred_global(mon);
         Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
@@ -374,6 +375,8 @@ private:
 
 public:
     virtual ~alert_tracker();
+
+    virtual void trigger_deferred_startup() override;
 
     // Register an alert and get an alert reference number back.
     int register_alert(std::string in_header, std::string in_desc, 
@@ -423,6 +426,7 @@ protected:
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<entry_tracker> entrytracker;
     std::shared_ptr<event_bus> eventbus;
+    std::shared_ptr<gps_tracker> gpstracker;
 
     int alert_vec_id, alert_entry_id, alert_timestamp_id, alert_def_id;
 

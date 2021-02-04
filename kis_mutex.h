@@ -34,7 +34,7 @@
 
 #include "fmt.h"
 
-#define KIS_THREAD_TIMEOUT      5
+#define KIS_THREAD_TIMEOUT      30
 
 class kis_mutex {
 private:

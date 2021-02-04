@@ -642,6 +642,7 @@ public:
     bool is_valid() const { return time_expires_ == 0 || time_expires_ < time(0); }
     void access() { time_accessed_ = time(0); }
     void set_expiration(time_t e) { time_expires_ = e; }
+    void set_role(const std::string& r) { role_ = r; }
 
     Json::Value as_json();
 
