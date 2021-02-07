@@ -233,8 +233,8 @@ void datasource_tracker_source_list::cancel() {
         list_cb(listed_sources);
 }
 
-void datasource_tracker_source_list::complete_list(std::vector<shared_interface> in_list,
-        unsigned int in_transaction) {
+void datasource_tracker_source_list::complete_list(std::shared_ptr<kis_datasource> source,
+        std::vector<shared_interface> in_list, unsigned int in_transaction) {
 
     kis_lock_guard<kis_mutex> lk(list_lock, "dstlist complete_list");
 
@@ -251,6 +251,8 @@ void datasource_tracker_source_list::complete_list(std::vector<shared_interface>
         complete_vec.push_back(v->second);
         ipc_list_map.erase(v);
     }
+
+    source->close_source();
 
     // If we've emptied the vec, end
     if (ipc_list_map.size() == 0) {
@@ -289,8 +291,9 @@ void datasource_tracker_source_list::list_sources(std::shared_ptr<datasource_tra
         }
 
         pds->list_interfaces(transaction, 
-            [this, self_ref] (unsigned int transaction, std::vector<shared_interface> interfaces) {
-                complete_list(interfaces, transaction);
+            [this, self_ref] (std::shared_ptr<kis_datasource> src, unsigned int transaction, 
+                std::vector<shared_interface> interfaces) {
+                complete_list(src, interfaces, transaction);
             });
     }
 
@@ -303,7 +306,9 @@ void datasource_tracker_source_list::list_sources(std::shared_ptr<datasource_tra
             [this, self_ref] (int) -> int {
                 if (cancelled)
                     return 0;
+
                 cancel();
+
                 return 0;
             });
 }
