@@ -117,6 +117,45 @@ gps_tracker::gps_tracker() :
                     return loctrip;
                 }, gpsmanager_mutex));
 
+    httpd->register_route("/gps/add_gps", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
+                    std::shared_ptr<kis_gps> new_gps;
+
+                    auto definition = con->json()["definition"].asString();
+
+                    new_gps = create_gps(definition);
+
+                    if (new_gps == nullptr) {
+                        con->set_status(500);
+                        return std::make_shared<tracker_element_map>();
+                    }
+
+                    return new_gps;
+                }));
+
+    httpd->register_route("/gps/by-uuid/:uuid/remove_gps", {"GET"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    std::ostream stream(&con->response_stream());
+
+                    auto gpsuuid = string_to_n<uuid>(con->uri_params()[":uuid"]);
+                    if (gpsuuid.error)
+                        throw std::runtime_error("invalid UUID");
+
+                    auto gps = find_gps(gpsuuid);
+
+                    if (gps == nullptr)
+                        throw std::runtime_error("unknown GPS");
+
+                    if (!remove_gps(gpsuuid))
+                        throw std::runtime_error("could not remove specified GPS");
+
+                    _MSG_INFO("GPS {} ({}) removed", gps->get_gps_name(), gpsuuid);
+
+                    stream << "Removed GPS\n";
+                }));
+
     event_timer_id = 
         timetracker->register_timer(std::chrono::seconds(1), true, 
                 [this](int) -> int {
@@ -263,6 +302,36 @@ std::shared_ptr<kis_gps> gps_tracker::create_gps(std::string in_definition) {
             });
 
     return gps;
+}
+
+bool gps_tracker::remove_gps(uuid in_uuid) {
+    kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, "remove_gps");
+
+    for (unsigned int i = 0; i < gps_instances_vec->size(); i++) {
+        auto gps = std::static_pointer_cast<kis_gps>((*gps_instances_vec)[i]);
+
+        if (gps->get_gps_uuid() == in_uuid) {
+            gps_instances_vec->erase(gps_instances_vec->begin() + i);
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+std::shared_ptr<kis_gps> gps_tracker::find_gps(uuid in_uuid) {
+    kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, "find_gps");
+
+    for (unsigned int i = 0; i < gps_instances_vec->size(); i++) {
+        auto gps = std::static_pointer_cast<kis_gps>((*gps_instances_vec)[i]);
+
+        if (gps->get_gps_uuid() == in_uuid) {
+            return gps;
+        }
+    }
+
+    return nullptr;
 }
 
 kis_gps_packinfo *gps_tracker::get_best_location() {
