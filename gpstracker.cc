@@ -92,12 +92,13 @@ gps_tracker::gps_tracker() :
 
     httpd->register_route("/gps/drivers", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(gps_prototypes_vec, gpsmanager_mutex));
+
     httpd->register_route("/gps/all_gps", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(gps_instances_vec, gpsmanager_mutex));
+
     httpd->register_route("/gps/location", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
-                    kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, "");
                     auto loctrip = std::make_shared<kis_tracked_location_full>();
                     auto ue = std::make_shared<tracker_element_uuid>(tracked_uuid_addition_id);
 
@@ -115,6 +116,63 @@ gps_tracker::gps_tracker() :
                     }
 
                     return loctrip;
+                }, gpsmanager_mutex));
+
+    httpd->register_route("/gps/by-uuid/:uuid/location", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
+                    auto gpsuuid = string_to_n<uuid>(con->uri_params()[":uuid"]);
+                    if (gpsuuid.error)
+                        throw std::runtime_error("invalid UUID");
+
+                    auto gps = find_gps(gpsuuid);
+
+                    if (gps == nullptr)
+                        throw std::runtime_error("unknown GPS");
+
+                    auto loctrip = std::make_shared<kis_tracked_location_full>();
+                    auto ue = std::make_shared<tracker_element_uuid>(tracked_uuid_addition_id);
+
+                    auto pi = gps->get_location();
+                    if (pi != nullptr) {
+                        ue->set(pi->gpsuuid);
+                        loctrip->set_location(pi->lat, pi->lon);
+                        loctrip->set_alt(pi->alt);
+                        loctrip->set_speed(pi->speed);
+                        loctrip->set_heading(pi->heading);
+                        loctrip->set_fix(pi->fix);
+                        loctrip->set_time_sec(pi->tv.tv_sec);
+                        loctrip->set_time_usec(pi->tv.tv_usec);
+                        loctrip->insert(ue);
+                    }
+
+                    return loctrip;
+                }, gpsmanager_mutex));
+
+    httpd->register_route("/gps/all_locations", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
+                    auto ret = std::make_shared<tracker_element_uuid_map>();
+                
+                    for (const auto& g : *gps_instances_vec) {
+                        auto gps = std::static_pointer_cast<kis_gps>(g);
+                        auto loctrip = std::make_shared<kis_tracked_location_full>();
+
+                        auto pi = gps->get_location();
+                        if (pi != nullptr) {
+                            loctrip->set_location(pi->lat, pi->lon);
+                            loctrip->set_alt(pi->alt);
+                            loctrip->set_speed(pi->speed);
+                            loctrip->set_heading(pi->heading);
+                            loctrip->set_fix(pi->fix);
+                            loctrip->set_time_sec(pi->tv.tv_sec);
+                            loctrip->set_time_usec(pi->tv.tv_usec);
+                        }
+
+                        ret->insert(gps->get_gps_uuid(), loctrip);
+                    }
+
+                    return ret;
                 }, gpsmanager_mutex));
 
     httpd->register_route("/gps/add_gps", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
@@ -345,7 +403,7 @@ kis_gps_packinfo *gps_tracker::get_best_location() {
             continue;
 
         if (gps->get_location_valid()) {
-            kis_gps_packinfo *pi = new kis_gps_packinfo(gps->get_location());
+            kis_gps_packinfo *pi = new kis_gps_packinfo(gps->get_location().get());
 
             pi->gpsuuid = gps->get_gps_uuid();
             pi->gpsname  = gps->get_gps_name();

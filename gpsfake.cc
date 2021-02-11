@@ -84,19 +84,19 @@ bool kis_gps_fake::open_gps(std::string in_opts) {
     return true;
 }
 
-kis_gps_packinfo *kis_gps_fake::get_location() {
+std::shared_ptr<kis_gps_packinfo> kis_gps_fake::get_location() {
     kis_lock_guard<kis_mutex> lk(gps_mutex, "gps_fake get_location");
 
     gettimeofday(&(gps_location->tv), NULL);
 
-    return gps_location;
+    return std::make_shared<kis_gps_packinfo>(new kis_gps_packinfo(gps_location)); 
 }
 
-kis_gps_packinfo *kis_gps_fake::get_last_location() {
+std::shared_ptr<kis_gps_packinfo> kis_gps_fake::get_last_location() {
     kis_lock_guard<kis_mutex> lk(gps_mutex, "gps_fake get_last_location");
 
     gettimeofday(&(gps_last_location->tv), NULL);
 
-    return gps_last_location;
+    return std::make_shared<kis_gps_packinfo>(new kis_gps_packinfo(gps_last_location)); 
 }
 

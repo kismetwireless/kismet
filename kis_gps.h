@@ -121,8 +121,13 @@ public:
     __ProxyPrivSplit(gps_reconnect, uint8_t, bool, bool, gps_reconnect);
     __ProxyTrackable(gps_prototype, kis_gps_builder, gps_prototype);
 
-    virtual kis_gps_packinfo *get_location() { return gps_location; }
-    virtual kis_gps_packinfo *get_last_location() { return gps_last_location; }
+    virtual std::shared_ptr<kis_gps_packinfo> get_location() { 
+        return std::make_shared<kis_gps_packinfo>(new kis_gps_packinfo(gps_location)); 
+    }
+
+    virtual std::shared_ptr<kis_gps_packinfo> get_last_location() { 
+        return std::make_shared<kis_gps_packinfo>(new kis_gps_packinfo(gps_last_location)); 
+    }
 
     // Fetch if we have a valid location anymore; per-gps-driver logic 
     // will determine if we consider a value to still be valid
