@@ -419,6 +419,43 @@ void json_adapter::pack(std::ostream &stream, shared_tracker_element e,
                     stream << ppendl << indent << "}";
 
                 break;
+            case tracker_type::tracker_uuid_map:
+                as_vector = std::static_pointer_cast<tracker_element_uuid_map>(e)->as_vector();
+                as_key_vector = std::static_pointer_cast<tracker_element_uuid_map>(e)->as_key_vector();
+
+                if (as_vector || as_key_vector)
+                    stream << ppendl << indent << "[" << ppendl;
+                else
+                    stream << ppendl << indent << "{" << ppendl;
+
+                prepend_comma = false;
+                for (auto i : *(std::static_pointer_cast<tracker_element_uuid_map>(e))) {
+                    if (i.second == nullptr && !as_key_vector)
+                        continue;
+
+                    if (prepend_comma)
+                        stream << "," << ppendl;
+                    prepend_comma = true;
+
+                    if (!as_vector) {
+                        // Mac keys are strings and we push only the mac not the mask */
+                        stream << indent << "\"" << i.first << "\"";
+
+                        if (!as_key_vector)
+                            stream << ": ";
+                    }
+
+                    if (!as_key_vector) {
+                        json_adapter::pack(stream, i.second, name_map, prettyprint, depth + 1, name_permuter);
+                    }
+                }
+
+                if (as_vector || as_key_vector)
+                    stream << ppendl << indent << "]";
+                else
+                    stream << ppendl << indent << "}";
+
+                break;
             case tracker_type::tracker_string_map:
                 as_vector = std::static_pointer_cast<tracker_element_string_map>(e)->as_vector();
                 as_key_vector = std::static_pointer_cast<tracker_element_string_map>(e)->as_key_vector();

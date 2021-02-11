@@ -251,6 +251,8 @@ std::string tracker_element::type_to_string(tracker_type t) {
             return "ipv4";
         case tracker_type::tracker_pair_double:
             return "pair[double, double]";
+        case tracker_type::tracker_uuid_map:
+            return "map[uuid, x]";
         case tracker_type::tracker_placeholder_missing:
             return "placeholder";
     }
@@ -320,6 +322,8 @@ std::string tracker_element::type_to_typestring(tracker_type t) {
             return "tracker_pair_double";
         case tracker_type::tracker_placeholder_missing:
             return "tracker_placeholder_missing";
+        case tracker_type::tracker_uuid_map:
+            return "tracker_uuid_map";
     }
 
     return "TrackerUnknown";
@@ -386,7 +390,8 @@ tracker_type tracker_element::typestring_to_type(const std::string& s) {
         return tracker_type::tracker_pair_double;
     if (s == "tracker_placeholder_missing")
         return tracker_type::tracker_placeholder_missing;
-
+    if (s == "tracker_uuid_map")
+        return tracker_type::tracker_uuid_map;
 
     throw std::runtime_error("Unable to interpret tracker type " + s);
 }
@@ -1150,6 +1155,18 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
     return ret;
 }
 
+std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element_uuid_map> elem,
+        const std::vector<std::shared_ptr<tracker_element_summary>>& summary,
+        std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
+
+    auto ret = std::make_shared<tracker_element_uuid_map>();
+
+    for (const auto& i : *elem) 
+        ret->insert(i.first, summarize_tracker_element(i.second, summary, rename_map));
+
+    return ret;
+}
+
 std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element_hashkey_map> elem,
         const std::vector<std::shared_ptr<tracker_element_summary>>& summary,
         std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
@@ -1191,6 +1208,9 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
                     in_summarization, rename_map);
         case tracker_type::tracker_key_map:
             return summarize_tracker_element(std::static_pointer_cast<tracker_element_device_key_map>(in),
+                    in_summarization, rename_map);
+        case tracker_type::tracker_uuid_map:
+            return summarize_tracker_element(std::static_pointer_cast<tracker_element_uuid_map>(in),
                     in_summarization, rename_map);
         case tracker_type::tracker_hashkey_map:
             return summarize_tracker_element(std::static_pointer_cast<tracker_element_hashkey_map>(in),
@@ -1331,6 +1351,7 @@ bool sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
         case tracker_type::tracker_double_map_double:
         case tracker_type::tracker_vector_string:
         case tracker_type::tracker_hashkey_map:
+        case tracker_type::tracker_uuid_map:
         case tracker_type::tracker_alias:
         case tracker_type::tracker_pair_double:
         case tracker_type::tracker_placeholder_missing:
@@ -1387,6 +1408,7 @@ bool fast_sort_tracker_element_less(const std::shared_ptr<tracker_element> lhs,
         case tracker_type::tracker_double_map_double:
         case tracker_type::tracker_vector_string:
         case tracker_type::tracker_hashkey_map:
+        case tracker_type::tracker_uuid_map:
         case tracker_type::tracker_alias:
         case tracker_type::tracker_pair_double:
         case tracker_type::tracker_placeholder_missing:

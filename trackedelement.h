@@ -195,6 +195,9 @@ enum class tracker_type {
 
     // Placeholder/missing field
     tracker_placeholder_missing = 29,
+
+    // Map of UUIDs
+    tracker_uuid_map = 30,
 };
 
 class tracker_element {
@@ -1393,6 +1396,8 @@ using tracker_element_string_map = tracker_element_core_map<std::unordered_map<s
 // devicekey::element
 using tracker_element_device_key_map = tracker_element_core_map<std::unordered_map<device_key, std::shared_ptr<tracker_element>>, device_key, std::shared_ptr<tracker_element>, tracker_type::tracker_key_map>;
 
+using tracker_element_uuid_map = tracker_element_core_map<std::unordered_map<uuid, std::shared_ptr<tracker_element>>, uuid, std::shared_ptr<tracker_element>, tracker_type::tracker_uuid_map>;
+
 // double::double
 using tracker_element_double_map_double = tracker_element_core_map<std::unordered_map<double, double>, double, double, tracker_type::tracker_double_map_double>;
 
@@ -1815,6 +1820,10 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
         std::shared_ptr<tracker_element_serializer::rename_map>);
 
 std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element_device_key_map>,
+        const std::vector<std::shared_ptr<tracker_element_summary>>&,
+        std::shared_ptr<tracker_element_serializer::rename_map>);
+
+std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<tracker_element_uuid_map>,
         const std::vector<std::shared_ptr<tracker_element_summary>>&,
         std::shared_ptr<tracker_element_serializer::rename_map>);
 
