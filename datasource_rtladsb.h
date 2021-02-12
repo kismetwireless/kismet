@@ -22,6 +22,7 @@
 #include "config.h"
 
 #include "kis_datasource.h"
+#include "datasource_virtual.h"
 
 class kis_datasource_rtladsb;
 typedef std::shared_ptr<kis_datasource_rtladsb> shared_datasource_rtladsb;

@@ -20,6 +20,8 @@
 #include "config.h"
 
 #include "phy_rtladsb.h"
+#include "datasource_virtual.h"
+
 #include "devicetracker.h"
 #include "endian_magic.h"
 #include "macaddr.h"
@@ -38,6 +40,8 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
         Globalreg::fetch_mandatory_global_as<entry_tracker>();
     devicetracker =
         Globalreg::fetch_mandatory_global_as<device_tracker>();
+    datasourcetracker = 
+        Globalreg::fetch_mandatory_global_as<datasource_tracker>();
 
 	pack_comp_common = 
         packetchain->register_packet_component("COMMON");
@@ -91,11 +95,102 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
 
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
+    httpd->register_route("/phy/RTLADSB/proxy/create", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this, httpd](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    uuid src_uuid;
+
+                    if (!con->json()["uuid"].isNull()) {
+                        src_uuid = string_to_n<uuid>(con->json()["uuid"].asString());
+
+                        if (src_uuid.error)
+                            throw std::runtime_error("invalid UUID");
+
+                        auto ds = datasourcetracker->find_datasource(src_uuid);
+
+                        if (ds != nullptr)
+                            throw std::runtime_error("datasource with that UUID already exists");
+                    } else {
+                        src_uuid.generate_random_time_uuid();
+                    }
+
+                    std::string src_name = "ADSB proxy";
+
+                    if (!con->json()["name"].isNull()) {
+                        src_name = con->json()["name"].asString();
+                    }
+
+                    auto virtual_builder = Globalreg::fetch_mandatory_global_as<datasource_virtual_builder>();
+                    auto virtual_source = virtual_builder->build_datasource(virtual_builder);
+
+                    auto vs_cast = std::static_pointer_cast<kis_datasource_virtual>(virtual_source);
+
+                    vs_cast->set_virtual_hardware("ADSB proxy");
+
+                    virtual_source->set_source_uuid(src_uuid);
+                    virtual_source->set_source_key(adler32_checksum(src_uuid.uuid_to_string()));
+                    virtual_source->set_source_name(src_name);
+
+                    datasourcetracker->merge_source(virtual_source);
+
+                    auto uri = fmt::format("/phy/RLADSB/by-uuid/{}/proxy", src_uuid);
+                    httpd->register_websocket_route(uri, {httpd->LOGON_ROLE, "datasource"}, {"ws"},
+                            std::make_shared<kis_net_web_function_endpoint>(
+                                [this, virtual_source](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+
+                                auto ws = 
+                                std::make_shared<kis_net_web_websocket_endpoint>(con,
+                                        [this, virtual_source](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
+                                            boost::beast::flat_buffer& buf, bool text) {
+
+                                            // Inject as a packet so it makes it into logs
+
+                                            if (!text)
+                                                return;
+
+                                            if (buf.size() < 3)
+                                                return;
+
+                                            auto bufstr = boost::beast::buffers_to_string(buf.data());
+
+                                            if (bufstr[0] != '*')
+                                                return;
+
+                                            if (bufstr[bufstr.length() - 1] != ';')
+                                                return;
+
+                                            // Proxy input
+                                            auto packet = packetchain->generate_packet();
+                                            gettimeofday(&(packet->ts), NULL);
+
+                                            kis_json_packinfo *jsoninfo = new kis_json_packinfo();
+
+                                            jsoninfo->type = "RTLadsb";
+
+                                            jsoninfo->json_string = 
+                                                fmt::format("{\"adsb_raw_msg\": \"{}\"}",
+                                                        bufstr.substr(1, bufstr.length() - 2));
+
+                                            packet->insert(pack_comp_json, jsoninfo);
+
+                                            virtual_source->handle_rx_packet(packet);
+
+                                        });
+
+                                try {
+                                    ws->handle_request(con);
+                                } catch (const std::exception& e) {
+                                    ;
+                                }
+                        }));
+
+                }));
+
     httpd->register_route("/phy/RTLADSB/map_data", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     return adsb_map_endp_handler(con);
-                }));
+                }, devicetracker->get_devicelist_mutex()));
 
     httpd->register_websocket_route("/phy/RTLADSB/beast", {httpd->RO_ROLE, "ADSB"}, {"ws"},
             std::make_shared<kis_net_web_function_endpoint>(
