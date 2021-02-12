@@ -2279,6 +2279,8 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
         kis_gps_packinfo *pack_gpsinfo) {
 
     std::shared_ptr<dot11_advertised_ssid> ssid;
+        
+    bool channel_from_ht = false;
 
     if (dot11info->subtype != packet_sub_beacon && dot11info->subtype != packet_sub_probe_resp) {
         return;
@@ -2624,6 +2626,8 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
         // Set the HT and VHT info.  If we have VHT, we assume we must have HT; I've never
         // seen VHT without HT.  We handle HT only later on.
         if (dot11info->dot11vht != nullptr && dot11info->dot11ht != nullptr) {
+            channel_from_ht = true;
+
             // Grab the primary channel from the HT data
             ssid->set_channel(int_to_string(dot11info->dot11ht->primary_channel()));
 
@@ -2661,6 +2665,8 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
             } else if (dot11info->dot11ht->ht_info_chan_offset_below()) {
                 ssid->set_ht_mode("HT40-");
             }
+
+            channel_from_ht = true;
 
             ssid->set_ht_center_1(0);
             ssid->set_ht_center_2(0);
@@ -2725,7 +2731,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
         basedev->set_crypt_string(crypt_to_simple_string(dot11info->cryptset));
     }
 
-    if (ssid->get_channel().length() > 0 &&
+    if (!channel_from_ht && ssid->get_channel().length() > 0 &&
             ssid->get_channel() != dot11info->channel && dot11info->channel != "0") {
 
         if (dot11info->subtype == packet_sub_beacon) {
@@ -2733,7 +2739,8 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
                 fmt::format("IEEE80211 Access Point BSSID {} SSID \"{}\" changed advertised channel "
                         "from {} to {}, which may indicate spoofing or impersonation.  This may also be a "
                         "normal event where the AP seeks a less congested channel.",
-                        basedev->get_macaddr(), ssid->get_ssid(), ssid->get_channel(), dot11info->channel);
+                        basedev->get_macaddr(), ssid->get_ssid(), ssid->get_channel(), 
+                        dot11info->channel);
 
             alertracker->raise_alert(alert_chan_ref, in_pack, 
                     dot11info->bssid_mac, dot11info->source_mac, 
