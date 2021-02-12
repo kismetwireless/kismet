@@ -249,7 +249,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
                     return list_poi_endp_handler(con);
                 }));
 
-    httpd->register_route("/logging/kismetdb/pcap/packets", {"GET", "POST"}, httpd->RO_ROLE, {"pcapng"},
+    httpd->register_route("/logging/kismetdb/pcap/:title", {"GET", "POST"}, httpd->RO_ROLE, {"pcapng"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     return pcapng_endp_handler(con);
@@ -1442,7 +1442,7 @@ void kis_database_logfile::pcapng_endp_handler(std::shared_ptr<kis_net_beast_htt
 
     auto pcapng = std::make_shared<pcapng_stream_database>(con->response_stream());
 
-    con->set_target_file(fmt::format("kismet-dblog.pcapng"));
+    con->set_target_file(fmt::format("{}.pcapng", con->uri_params()[":title"]));
     con->set_closure_cb([pcapng]() { pcapng->stop_stream("http connection lost"); });
 
     auto streamtracker = Globalreg::fetch_mandatory_global_as<stream_tracker>();
