@@ -62,7 +62,7 @@ public:
         return builder;
     }
 
-private:
+protected:
     datasource_virtual_builder(int in_id) :
         kis_datasource_builder(in_id) {
 
