@@ -435,6 +435,10 @@ public:
     static std::string event_datasource_paused() { return "DATASOURCE_PAUSED"; }
     static std::string event_datasource_resumed() { return "DATASOURCE_RESUMED"; }
 
+    // Handle injecting packets into the packet chain after the data report has been received
+    // and processed.  Subclasses can override this to manipulate packet content.
+    virtual void handle_rx_packet(kis_packet *packet);
+
 protected:
     // Source error; sets error state, fails all pending function callbacks,
     // shuts down the buffer and ipc, and initiates retry if we retry errors
@@ -527,10 +531,6 @@ protected:
     virtual void handle_packet_opensource_report(uint32_t in_seqno, const std::string& in_packet);
     virtual void handle_packet_probesource_report(uint32_t in_seqno, const std::string& in_packet);
     virtual void handle_packet_warning_report(uint32_t in_seqno, const std::string& in_packet);
-
-    // Handle injecting packets into the packet chain after the data report has been received
-    // and processed.  Subclasses can override this to manipulate packet content.
-    virtual void handle_rx_packet(kis_packet *packet);
 
     virtual unsigned int send_configure_channel(std::string in_channel, unsigned int in_transaction,
             configure_callback_t in_cb);
