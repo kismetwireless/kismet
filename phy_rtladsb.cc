@@ -96,8 +96,8 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
     httpd->register_route("/phy/RTLADSB/proxy/create", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
-            std::make_shared<kis_net_web_function_endpoint>(
-                [this, httpd](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this, httpd](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
                     uuid src_uuid;
 
                     if (!con->json()["uuid"].isNull()) {
@@ -136,7 +136,9 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
                     auto uri = fmt::format("/phy/RLADSB/by-uuid/{}/proxy", src_uuid);
                     httpd->register_websocket_route(uri, {httpd->LOGON_ROLE, "datasource"}, {"ws"},
                             std::make_shared<kis_net_web_function_endpoint>(
-                                [this, virtual_source](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                                [this, virtual_source, vs_cast](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+
+                                vs_cast->open_virtual_interface();
 
                                 auto ws = 
                                 std::make_shared<kis_net_web_websocket_endpoint>(con,
@@ -182,8 +184,11 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
                                 } catch (const std::exception& e) {
                                     ;
                                 }
+
+                                vs_cast->close_virtual_interface();
                         }));
 
+                    return virtual_source;
                 }));
 
     httpd->register_route("/phy/RTLADSB/map_data", {"GET", "POST"}, httpd->RO_ROLE, {},

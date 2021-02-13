@@ -47,6 +47,14 @@ public:
     void set_virtual_hardware(const std::string& in_hw) {
         set_int_source_hardware(in_hw);
     }
+
+    void open_virtual_interface() {
+        set_int_source_running(true);
+    }
+
+    void close_virtual_interface() {
+        set_int_source_running(false);
+    }
     
 };
 
