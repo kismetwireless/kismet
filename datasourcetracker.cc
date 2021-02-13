@@ -1394,9 +1394,6 @@ void datasource_tracker::open_datasource(const std::string& in_source,
 
             auto probe_ref = i->second;
 
-            // Remove us from the active vec
-            probing_map.erase(i);
-
             if (builder == nullptr) {
                 // We couldn't find a type, return an error to our initial open CB
                 auto ss = fmt::format("Unable to find driver for '{}'.  Make sure that any required plugins "
@@ -1408,8 +1405,7 @@ void datasource_tracker::open_datasource(const std::string& in_source,
                 lock.lock();
             } else {
                 // We got a builder
-                auto ss = fmt::format("Found type '{}' for '{}'", builder->get_source_type(), i->second->get_definition());
-                _MSG(ss, MSGFLAG_INFO);
+                _MSG_INFO("Found type '{}' for '{}'", builder->get_source_type(), i->second->get_definition());
 
                 // Let go of the lock
                 lock.unlock();
@@ -1417,6 +1413,9 @@ void datasource_tracker::open_datasource(const std::string& in_source,
                 // Initiate an open w/ a known builder, associate the prototype definition with it
                 open_datasource(probe_ref->get_definition(), builder, in_cb);
             }
+
+            // Remove us from the active vec
+            probing_map.erase(i);
 
             // Schedule a cleanup 
             schedule_cleanup();

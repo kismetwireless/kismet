@@ -448,7 +448,8 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
         process_ctl_phy = false;
     }
 
-    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_ap_signal_from_beacon", true)) {
+    signal_from_beacon = Globalreg::globalreg->kismet_config->fetch_opt_bool("dot11_ap_signal_from_beacon", true);
+    if (signal_from_beacon) {
         _MSG_INFO("PHY80211 will only process AP signal levels from beacons");
     } 
 

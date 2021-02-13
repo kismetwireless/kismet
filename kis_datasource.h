@@ -197,6 +197,8 @@ public:
     kis_datasource() :
         tracker_component(0),
         kis_external_interface() {
+        error_timer_id = -1;
+        ping_timer_id = -1;
         register_fields();
         reserve_fields(NULL);
     }
@@ -204,6 +206,8 @@ public:
     kis_datasource(int in_id) :
         tracker_component(in_id),
         kis_external_interface() {
+        error_timer_id = -1;
+        ping_timer_id = -1;
         register_fields();
         reserve_fields(NULL);
     }
@@ -211,6 +215,8 @@ public:
     kis_datasource(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id),
         kis_external_interface() {
+        error_timer_id = -1;
+        ping_timer_id = -1;
         register_fields();
         reserve_fields(e);
     }

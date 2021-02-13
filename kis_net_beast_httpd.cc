@@ -1439,9 +1439,11 @@ bool kis_net_beast_httpd_connection::start() {
         generator_launched.set_value();
 
         // _MSG_INFO("invoking stream");
+        auto self_ref = shared_from_this();
+
         try {
             // _MSG_INFO("(DEBUG) {} {} invoking route {}", verb_, uri_, route->route());
-            route->invoke(shared_from_this());
+            route->invoke(self_ref);
         } catch (const std::exception& e) {
             try {
                 set_status(500);
