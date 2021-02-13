@@ -133,7 +133,7 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
 
                     datasourcetracker->merge_source(virtual_source);
 
-                    auto uri = fmt::format("/phy/RLADSB/by-uuid/{}/proxy", src_uuid);
+                    auto uri = fmt::format("/phy/RTLADSB/by-uuid/{}/proxy", src_uuid);
                     httpd->register_websocket_route(uri, {httpd->LOGON_ROLE, "datasource"}, {"ws"},
                             std::make_shared<kis_net_web_function_endpoint>(
                                 [this, virtual_source, vs_cast](std::shared_ptr<kis_net_beast_httpd_connection> con) {
@@ -150,16 +150,20 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
                                             if (!text)
                                                 return;
 
-                                            if (buf.size() < 3)
+                                            if (buf.size() < 4)
                                                 return;
 
                                             auto bufstr = boost::beast::buffers_to_string(buf.data());
 
-                                            if (bufstr[0] != '*')
+                                            if (bufstr[0] != '*') {
+                                                _MSG_DEBUG("Invalid adsb proxy {}", bufstr);
                                                 return;
+                                            }
 
-                                            if (bufstr[bufstr.length() - 1] != ';')
+                                            if (bufstr[bufstr.length() - 2] != ';') {
+                                                _MSG_DEBUG("Invalid adsb proxy {}", bufstr);
                                                 return;
+                                            }
 
                                             // Proxy input
                                             auto packet = packetchain->generate_packet();
@@ -170,8 +174,8 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
                                             jsoninfo->type = "RTLadsb";
 
                                             jsoninfo->json_string = 
-                                                fmt::format("{\"adsb_raw_msg\": \"{}\"}",
-                                                        bufstr.substr(1, bufstr.length() - 2));
+                                                fmt::format("{{\"adsb_raw_msg\": \"{}\"}}",
+                                                        bufstr.substr(1, bufstr.length() - 3));
 
                                             packet->insert(pack_comp_json, jsoninfo);
 
@@ -527,46 +531,47 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     if (is_adsb(json))
         adsbdev = add_adsb(packet, json, basedev);
 
-    if (adsbdev != nullptr) {
-        auto icao = adsbdev->get_icao_record();
+    if (adsbdev == nullptr)
+        return false;
 
-        if (icao != icaodb->get_unknown_icao()) {
-            switch (icao->get_atype_short()) {
-                case '1':
-                case '7':
-                    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Glider"));
-                    break;
-                case '2':
-                    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Balloon"));
-                    break;
-                case '3':
-                    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Blimp"));
-                    break;
-                case '4':
-                case '5':
-                    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Airplane"));
-                    break;
-                case '6':
-                    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Helicopter"));
-                    break;
-                case '8':
-                    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Parachute"));
-                    break;
-                case '9':
-                    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Gyroplane"));
-                    break;
-                default:
-                    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Aircraft"));
-                    break;
-            }
+    auto icao = adsbdev->get_icao_record();
 
-            auto cs = adsbdev->get_callsign();
-            if (cs.length() != 0)
-                cs += " ";
-
-            basedev->set_devicename(fmt::format("{} {} {}",
-                        cs, icao->get_model_type(), icao->get_owner()));
+    if (icao != icaodb->get_unknown_icao()) {
+        switch (icao->get_atype_short()) {
+            case '1':
+            case '7':
+                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Glider"));
+                break;
+            case '2':
+                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Balloon"));
+                break;
+            case '3':
+                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Blimp"));
+                break;
+            case '4':
+            case '5':
+                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Airplane"));
+                break;
+            case '6':
+                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Helicopter"));
+                break;
+            case '8':
+                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Parachute"));
+                break;
+            case '9':
+                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Gyroplane"));
+                break;
+            default:
+                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Aircraft"));
+                break;
         }
+
+        auto cs = adsbdev->get_callsign();
+        if (cs.length() != 0)
+            cs += " ";
+
+        basedev->set_devicename(fmt::format("{} {} {}",
+                    cs, icao->get_model_type(), icao->get_owner()));
     }
 
     // Have to update location outside of locks because it needs to promote to exclusive locking
