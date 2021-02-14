@@ -165,7 +165,7 @@ protected:
     kis_mutex packetcomp_mutex;
 
     // Packet chain mutex
-    std::shared_mutex packetchain_mutex;
+    std::shared_timed_mutex packetchain_mutex;
 
     // std::thread packet_thread;
     std::list<std::thread> packet_threads;

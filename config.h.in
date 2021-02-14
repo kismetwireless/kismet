@@ -54,13 +54,13 @@
 /* kernel capability support */
 #undef HAVE_CAPABILITY
 
-/* define if the compiler supports basic C++11 syntax */
+/* cpp11 available */
 #undef HAVE_CXX11
 
-/* define if the compiler supports basic C++14 syntax */
+/* cpp14 available */
 #undef HAVE_CXX14
 
-/* define if the compiler supports basic C++17 syntax */
+/* cpp17 available */
 #undef HAVE_CXX17
 
 /* Define to 1 if you have the <dwarf.h> header file. */
