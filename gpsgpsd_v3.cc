@@ -48,6 +48,8 @@ kis_gps_gpsd_v3::kis_gps_gpsd_v3(shared_gps_builder in_builder) :
     error_reconnect_timer = 
         timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                 [this](int) -> int {
+                kis_lock_guard<kis_mutex> lk(gps_mutex, "error timer");
+
                 if (socket.is_open())
                     return 1;
 
@@ -62,6 +64,7 @@ kis_gps_gpsd_v3::kis_gps_gpsd_v3(shared_gps_builder in_builder) :
     data_timeout_timer =
         timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                 [this](int) -> int {
+                kis_lock_guard<kis_mutex> lk(gps_mutex, "data timer");
 
                 if (socket.is_open() && time(0) - last_data_time > 30) {
                     close();
@@ -90,6 +93,8 @@ kis_gps_gpsd_v3::~kis_gps_gpsd_v3() {
 }
 
 void kis_gps_gpsd_v3::close() {
+    kis_lock_guard<kis_mutex> lk(gps_mutex, "close");
+
     stopped = true;
     set_int_device_connected(false);
 
@@ -200,7 +205,6 @@ void kis_gps_gpsd_v3::write_impl() {
 
                         if (out_bufs.size())
                             return write_impl();
-
                     }));
     }
 }
@@ -226,8 +230,7 @@ void kis_gps_gpsd_v3::handle_read(std::shared_ptr<kis_gps_gpsd_v3> ref,
             return;
 
         _MSG_ERROR("(GPS) Error reading from GPSD connection {}:{} - {}", host, port, error.message());
-        close();
-        return;
+        return close();
     }
 
     // Pull the buffer
@@ -389,8 +392,7 @@ void kis_gps_gpsd_v3::handle_read(std::shared_ptr<kis_gps_gpsd_v3> ref,
 
         } catch (std::exception& e) {
             _MSG_ERROR("(GPS) Received an invalid JSON record from GPSD {}:{} - '{}'", host, port, e.what());
-            close();
-            return;
+            return close();
         }
     } else if (poll_mode == 0 && line == "GPSD") {
         // Look for a really old gpsd which doesn't do anything intelligent
@@ -676,7 +678,7 @@ void kis_gps_gpsd_v3::handle_read(std::shared_ptr<kis_gps_gpsd_v3> ref,
     lk.unlock();
 
     // Initiate another read
-    start_read(ref);
+    return start_read(ref);
 }
 
 bool kis_gps_gpsd_v3::open_gps(std::string in_opts) {

@@ -117,9 +117,10 @@ public:
     __ProxyPrivSplit(gps_definition, std::string, std::string, std::string, gps_definition);
     __ProxyPrivSplit(gps_priority, int32_t, int32_t, int32_t, gps_priority);
     __ProxyPrivSplit(gps_data_only, uint8_t, bool, bool, gps_data_only);
-    __ProxyPrivSplit(device_connected, uint8_t, bool, bool, gps_connected);
     __ProxyPrivSplit(gps_reconnect, uint8_t, bool, bool, gps_reconnect);
     __ProxyTrackable(gps_prototype, kis_gps_builder, gps_prototype);
+
+    __ProxyPrivSplitM(device_connected, uint8_t, bool, bool, gps_connected, gps_mutex);
 
     virtual std::shared_ptr<kis_gps_packinfo> get_location() { 
         kis_lock_guard<kis_mutex> lk(gps_mutex);
