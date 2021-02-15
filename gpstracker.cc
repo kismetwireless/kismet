@@ -260,6 +260,8 @@ void gps_tracker::log_snapshot_gps() {
     if (dbf == NULL)
         return;
 
+    auto best_loc = std::make_shared<kis_gps_packinfo>(get_best_location());
+
     kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, "gps_tracker log_snapshot_gps");
 
     // Log each GPS
@@ -270,7 +272,7 @@ void gps_tracker::log_snapshot_gps() {
         std::stringstream ss;
         Globalreg::globalreg->entrytracker->serialize("json", ss, d, NULL);
 
-        dbf->log_snapshot(NULL, tv, "GPS", ss.str());
+        dbf->log_snapshot(best_loc.get(), tv, "GPS", ss.str());
     }
 
     return;
