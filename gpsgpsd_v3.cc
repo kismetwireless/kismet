@@ -215,6 +215,8 @@ void kis_gps_gpsd_v3::start_read(std::shared_ptr<kis_gps_gpsd_v3> ref) {
 
 void kis_gps_gpsd_v3::handle_read(std::shared_ptr<kis_gps_gpsd_v3> ref,
         const boost::system::error_code& error, std::size_t t) {
+    kis_unique_lock<kis_mutex> lk(gps_mutex, std::defer_lock, "handle_read");
+
     if (stopped)
         return;
 
@@ -614,8 +616,10 @@ void kis_gps_gpsd_v3::handle_read(std::shared_ptr<kis_gps_gpsd_v3> ref,
     }
 
     // If we've gotten this far in the parser, we've gotten usable data, even if it's not
-    // actionable data (ie status w/ no valid signal is OK, but mangled unparsable nonsense
-    // isn't.)
+    // actionable data (ie status w/ no valid signal is OK, but mangled unparsable nonsense isn't.)
+    
+    lk.lock();
+
     last_data_time = time(0);
 
     if (set_alt || set_speed || set_lat_lon || set_fix || set_heading) {
@@ -669,12 +673,14 @@ void kis_gps_gpsd_v3::handle_read(std::shared_ptr<kis_gps_gpsd_v3> ref,
     // Sync w/ the tracked fields
     update_locations();
 
+    lk.unlock();
+
     // Initiate another read
     start_read(ref);
 }
 
 bool kis_gps_gpsd_v3::open_gps(std::string in_opts) {
-    kis_lock_guard<kis_mutex> lk(gps_mutex, "gps_gpsd_v3 open_gps");
+    kis_unique_lock<kis_mutex> lk(gps_mutex, "gps_gpsd_v3 open_gps");
 
     if (!kis_gps::open_gps(in_opts))
         return false;
@@ -720,6 +726,8 @@ bool kis_gps_gpsd_v3::open_gps(std::string in_opts) {
     stopped = false;
 
     _MSG_INFO("(GPS) Connecting to GPSD on {}:{}", host, port);
+
+    lk.unlock();
 
     resolver.async_resolve(tcp::resolver::query(host.c_str(), port.c_str()),
             boost::asio::bind_executor(strand_, 

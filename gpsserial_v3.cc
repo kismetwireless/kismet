@@ -115,7 +115,7 @@ void kis_gps_serial_v3::start_read_impl() {
 }
 
 bool kis_gps_serial_v3::open_gps(std::string in_opts) {
-    kis_lock_guard<kis_mutex> lk(gps_mutex, "gps_serial_v3 open_gps");
+    kis_unique_lock<kis_mutex> lk(gps_mutex, "gps_serial_v3 open_gps");
 
     if (!kis_gps::open_gps(in_opts))
         return false;
@@ -186,6 +186,8 @@ bool kis_gps_serial_v3::open_gps(std::string in_opts) {
     _MSG_INFO("(GPS) Opened serial port {}@{}", serial_device, baud);
 
     last_data_time = time(0);
+
+    lk.unlock();
 
     start_read();
 

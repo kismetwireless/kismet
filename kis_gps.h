@@ -122,10 +122,12 @@ public:
     __ProxyTrackable(gps_prototype, kis_gps_builder, gps_prototype);
 
     virtual std::shared_ptr<kis_gps_packinfo> get_location() { 
+        kis_lock_guard<kis_mutex> lk(gps_mutex);
         return std::make_shared<kis_gps_packinfo>(new kis_gps_packinfo(gps_location)); 
     }
 
     virtual std::shared_ptr<kis_gps_packinfo> get_last_location() { 
+        kis_lock_guard<kis_mutex> lk(gps_mutex);
         return std::make_shared<kis_gps_packinfo>(new kis_gps_packinfo(gps_last_location)); 
     }
 
