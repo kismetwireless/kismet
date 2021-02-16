@@ -105,7 +105,7 @@ void kis_server_announce::trigger_deferred_startup() {
 
     timetracker->register_timer(std::chrono::seconds(5), true,
             [this](int) -> int {
-                if (announce_sock == 0)
+                if (announce_sock <= 0)
                     return 0;
 
                 kismet_remote_announce announcement;

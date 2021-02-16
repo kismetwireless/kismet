@@ -24,6 +24,7 @@
 
 
 #include "adsb_icao.h"
+#include "datasourcetracker.h"
 #include "devicetracker_component.h"
 #include "globalregistry.h"
 #include "kis_net_beast_httpd.h"
@@ -168,6 +169,8 @@ public:
     static int packet_handler(CHAINCALL_PARMS);
 
 protected:
+    std::shared_ptr<datasource_tracker> datasourcetracker;
+
     std::shared_ptr<kis_adsb_icao> icaodb;
 
     int pack_comp_gps;

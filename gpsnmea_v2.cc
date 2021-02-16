@@ -41,6 +41,8 @@ void kis_gps_nmea_v2::start_read() {
 void kis_gps_nmea_v2::handle_read(std::shared_ptr<kis_gps_nmea_v2> ref,
         const boost::system::error_code& ec, std::size_t sz) {
 
+    kis_unique_lock<kis_mutex> lk(gps_mutex, std::defer_lock, "handle_read");
+
     if (stopped)
         return;
 
@@ -61,8 +63,7 @@ void kis_gps_nmea_v2::handle_read(std::shared_ptr<kis_gps_nmea_v2> ref,
 
     // Ignore blank lines from gpsd
     if (line.empty()) {
-        start_read();
-        return;
+        return start_read();
     }
 
     kis_gps_packinfo *new_location = new kis_gps_packinfo;
@@ -77,8 +78,7 @@ void kis_gps_nmea_v2::handle_read(std::shared_ptr<kis_gps_nmea_v2> ref,
     set_fix = false;
 
     if (line.length() < 4) {
-        start_read();
-        return;
+        return start_read();
     }
 
     // $GPGGA,012527.000,4142.6918,N,07355.8711,W,1,07,1.2,57.8,M,-34.0,M,,0000*57
@@ -239,9 +239,10 @@ void kis_gps_nmea_v2::handle_read(std::shared_ptr<kis_gps_nmea_v2> ref,
 #endif
         }
     } catch (const kis_gps_nmea_v2_soft_fail& e) {
-        start_read();
-        return;
+        return start_read();
     }
+
+    lk.lock();
 
     if (set_alt || set_speed || set_lat_lon || set_fix) {
         ever_seen_gps = true;
@@ -294,6 +295,8 @@ void kis_gps_nmea_v2::handle_read(std::shared_ptr<kis_gps_nmea_v2> ref,
 
     delete new_location;
 
-    start_read();
+    lk.unlock();
+
+    return start_read();
 }
 

@@ -168,6 +168,17 @@ public:
                 (uint8_t) (node >> 40));
     }
 
+    inline bool operator== (const std::size_t op) const {
+        return hash == op;
+    }
+
+    inline bool operator== (const void *op) const {
+        if (op == nullptr && hash == 0)
+            return true;
+
+        return false;
+    }
+
     inline bool operator== (const uuid& op) const {
         return (hash == op.hash);
         /*

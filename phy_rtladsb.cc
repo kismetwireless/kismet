@@ -20,6 +20,8 @@
 #include "config.h"
 
 #include "phy_rtladsb.h"
+#include "datasource_virtual.h"
+
 #include "devicetracker.h"
 #include "endian_magic.h"
 #include "macaddr.h"
@@ -38,6 +40,8 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
         Globalreg::fetch_mandatory_global_as<entry_tracker>();
     devicetracker =
         Globalreg::fetch_mandatory_global_as<device_tracker>();
+    datasourcetracker = 
+        Globalreg::fetch_mandatory_global_as<datasource_tracker>();
 
 	pack_comp_common = 
         packetchain->register_packet_component("COMMON");
@@ -91,11 +95,111 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
 
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
+    httpd->register_route("/phy/RTLADSB/proxy/create", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this, httpd](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
+                    uuid src_uuid;
+
+                    if (!con->json()["uuid"].isNull()) {
+                        src_uuid = string_to_n<uuid>(con->json()["uuid"].asString());
+
+                        if (src_uuid.error)
+                            throw std::runtime_error("invalid UUID");
+
+                        auto ds = datasourcetracker->find_datasource(src_uuid);
+
+                        if (ds != nullptr)
+                            throw std::runtime_error("datasource with that UUID already exists");
+                    } else {
+                        src_uuid.generate_random_time_uuid();
+                    }
+
+                    std::string src_name = "ADSB proxy";
+
+                    if (!con->json()["name"].isNull()) {
+                        src_name = con->json()["name"].asString();
+                    }
+
+                    auto virtual_builder = Globalreg::fetch_mandatory_global_as<datasource_virtual_builder>();
+                    auto virtual_source = virtual_builder->build_datasource(virtual_builder);
+
+                    auto vs_cast = std::static_pointer_cast<kis_datasource_virtual>(virtual_source);
+
+                    vs_cast->set_virtual_hardware("ADSB proxy");
+
+                    virtual_source->set_source_uuid(src_uuid);
+                    virtual_source->set_source_key(adler32_checksum(src_uuid.uuid_to_string()));
+                    virtual_source->set_source_name(src_name);
+
+                    datasourcetracker->merge_source(virtual_source);
+
+                    auto uri = fmt::format("/phy/RTLADSB/by-uuid/{}/proxy", src_uuid);
+                    httpd->register_websocket_route(uri, {httpd->LOGON_ROLE, "datasource"}, {"ws"},
+                            std::make_shared<kis_net_web_function_endpoint>(
+                                [this, virtual_source, vs_cast](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+
+                                vs_cast->open_virtual_interface();
+
+                                auto ws = 
+                                std::make_shared<kis_net_web_websocket_endpoint>(con,
+                                        [this, virtual_source](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
+                                            boost::beast::flat_buffer& buf, bool text) {
+
+                                            // Inject as a packet so it makes it into logs
+
+                                            if (!text)
+                                                return;
+
+                                            if (buf.size() < 4)
+                                                return;
+
+                                            auto bufstr = boost::beast::buffers_to_string(buf.data());
+
+                                            if (bufstr[0] != '*') {
+                                                _MSG_DEBUG("Invalid adsb proxy {}", bufstr);
+                                                return;
+                                            }
+
+                                            if (bufstr[bufstr.length() - 2] != ';') {
+                                                _MSG_DEBUG("Invalid adsb proxy {}", bufstr);
+                                                return;
+                                            }
+
+                                            // Proxy input
+                                            auto packet = packetchain->generate_packet();
+                                            gettimeofday(&(packet->ts), NULL);
+
+                                            kis_json_packinfo *jsoninfo = new kis_json_packinfo();
+
+                                            jsoninfo->type = "RTLadsb";
+
+                                            jsoninfo->json_string = 
+                                                fmt::format("{{\"adsb_raw_msg\": \"{}\"}}",
+                                                        bufstr.substr(1, bufstr.length() - 3));
+
+                                            packet->insert(pack_comp_json, jsoninfo);
+
+                                            virtual_source->handle_rx_packet(packet);
+
+                                        });
+
+                                try {
+                                    ws->handle_request(con);
+                                } catch (const std::exception& e) {
+                                    ;
+                                }
+
+                                vs_cast->close_virtual_interface();
+                        }));
+
+                    return virtual_source;
+                }));
+
     httpd->register_route("/phy/RTLADSB/map_data", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     return adsb_map_endp_handler(con);
-                }));
+                }, devicetracker->get_devicelist_mutex()));
 
     httpd->register_websocket_route("/phy/RTLADSB/beast", {httpd->RO_ROLE, "ADSB"}, {"ws"},
             std::make_shared<kis_net_web_function_endpoint>(
@@ -427,46 +531,47 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
     if (is_adsb(json))
         adsbdev = add_adsb(packet, json, basedev);
 
-    if (adsbdev != nullptr) {
-        auto icao = adsbdev->get_icao_record();
+    if (adsbdev == nullptr)
+        return false;
 
-        if (icao != icaodb->get_unknown_icao()) {
-            switch (icao->get_atype_short()) {
-                case '1':
-                case '7':
-                    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Glider"));
-                    break;
-                case '2':
-                    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Balloon"));
-                    break;
-                case '3':
-                    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Blimp"));
-                    break;
-                case '4':
-                case '5':
-                    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Airplane"));
-                    break;
-                case '6':
-                    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Helicopter"));
-                    break;
-                case '8':
-                    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Parachute"));
-                    break;
-                case '9':
-                    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Gyroplane"));
-                    break;
-                default:
-                    basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Aircraft"));
-                    break;
-            }
+    auto icao = adsbdev->get_icao_record();
 
-            auto cs = adsbdev->get_callsign();
-            if (cs.length() != 0)
-                cs += " ";
-
-            basedev->set_devicename(fmt::format("{} {} {}",
-                        cs, icao->get_model_type(), icao->get_owner()));
+    if (icao != icaodb->get_unknown_icao()) {
+        switch (icao->get_atype_short()) {
+            case '1':
+            case '7':
+                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Glider"));
+                break;
+            case '2':
+                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Balloon"));
+                break;
+            case '3':
+                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Blimp"));
+                break;
+            case '4':
+            case '5':
+                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Airplane"));
+                break;
+            case '6':
+                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Helicopter"));
+                break;
+            case '8':
+                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Parachute"));
+                break;
+            case '9':
+                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Gyroplane"));
+                break;
+            default:
+                basedev->set_tracker_type_string(devicetracker->get_cached_devicetype("Aircraft"));
+                break;
         }
+
+        auto cs = adsbdev->get_callsign();
+        if (cs.length() != 0)
+            cs += " ";
+
+        basedev->set_devicename(fmt::format("{} {} {}",
+                    cs, icao->get_model_type(), icao->get_owner()));
     }
 
     // Have to update location outside of locks because it needs to promote to exclusive locking

@@ -123,36 +123,36 @@ namespace kissqlite3 {
         sql_joining_op
     };
 
-    typedef struct { std::string op = "AND"; } _AND;
-    typedef struct { std::string op = "OR"; } _OR;
+    typedef struct __AND { std::string op = "AND"; } _AND;
+    typedef struct __OR { std::string op = "OR"; } _OR;
 
     static auto AND = _AND{};
     static auto OR = _OR{};
 
-    typedef struct { std::string op = "<>"; } _NEQ;
-    typedef struct { std::string op = "=="; } _EQ;
+    typedef struct __NEQ { std::string op = "<>"; } _NEQ;
+    typedef struct __EQ { std::string op = "=="; } _EQ;
 
     static auto NEQ = _NEQ{};
     static auto EQ = _EQ{};
 
-    typedef struct { std::string op = "<="; } _LE;
-    typedef struct { std::string op = "<"; } _LT;
-    typedef struct { std::string op = ">="; } _GE;
-    typedef struct { std::string op = ">"; } _GT;
-    typedef struct { std::string op = ""; } _NEST;
+    typedef struct __LE { std::string op = "<="; } _LE;
+    typedef struct __LT { std::string op = "<"; } _LT;
+    typedef struct __GE { std::string op = ">="; } _GE;
+    typedef struct __GT { std::string op = ">"; } _GT;
+    typedef struct __NEST { std::string op = ""; } _NEST;
 
     static auto LE = _LE{};
     static auto LT = _LT{};
     static auto GE = _GE{};
     static auto GT = _GT{};
 
-    typedef struct { std::string op = "LIKE"; } _LIKE;
+    typedef struct __LIKE { std::string op = "LIKE"; } _LIKE;
     static auto LIKE = _LIKE{};
 
-    typedef struct { std::string op = "ORDER_BY"; } _ORDERBY;
+    typedef struct __ORDERBY { std::string op = "ORDER_BY"; } _ORDERBY;
     static auto ORDERBY = _ORDERBY{};
 
-    typedef struct { std::string op = "LIMIT"; } _LIMIT;
+    typedef struct __LIMIT { std::string op = "LIMIT"; } _LIMIT;
     static auto LIMIT = _LIMIT{};
 
     struct query_element {

@@ -34,13 +34,13 @@ public:
     kis_gps_fake(shared_gps_builder in_builder);
     virtual ~kis_gps_fake();
 
-    virtual bool open_gps(std::string in_opts);
+    virtual bool open_gps(std::string in_opts) override;
 
-    virtual bool get_location_valid() { return true; };
-    virtual bool get_device_connected() { return true; };
+    virtual bool get_location_valid() override  { return true; };
+    virtual bool get_device_connected() override { return true; };
 
-    virtual kis_gps_packinfo *get_location();
-    virtual kis_gps_packinfo *get_last_location();
+    virtual std::shared_ptr<kis_gps_packinfo> get_location() override;
+    virtual std::shared_ptr<kis_gps_packinfo> get_last_location() override;
 };
 
 class gps_fake_builder : public kis_gps_builder {

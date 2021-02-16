@@ -1324,6 +1324,10 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno, const std::str
 
     // TODO handle spectrum
    
+    handle_rx_packet(packet);
+}
+
+void kis_datasource::handle_rx_packet(kis_packet *packet) {
     packetchain_comp_datasource *datasrcinfo = new packetchain_comp_datasource();
     datasrcinfo->ref_source = this;
 
@@ -1332,10 +1336,6 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno, const std::str
     inc_source_num_packets(1);
     get_source_packet_rrd()->add_sample(1, time(0));
 
-    handle_rx_packet(packet);
-}
-
-void kis_datasource::handle_rx_packet(kis_packet *packet) {
     // Inject the packet into the packetchain if we have one
     packetchain->process_packet(packet);
 }

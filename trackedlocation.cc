@@ -208,12 +208,21 @@ void kis_tracked_location_full::reserve_fields(std::shared_ptr<tracker_element_m
 
 kis_tracked_location::kis_tracked_location() :
     tracker_component(0) {
+    agg_x = agg_y = agg_z = agg_a = 0;
+    num_avg = num_alt_avg = 0;
+    last_location_time = 0;
+
     register_fields();
     reserve_fields(NULL);
 }
 
 kis_tracked_location::kis_tracked_location(int in_id) :
     tracker_component(in_id) { 
+
+    agg_x = agg_y = agg_z = agg_a = 0;
+    num_avg = num_alt_avg = 0;
+    last_location_time = 0;
+
     register_fields();
     reserve_fields(NULL);
 }
@@ -221,12 +230,20 @@ kis_tracked_location::kis_tracked_location(int in_id) :
 kis_tracked_location::kis_tracked_location(int in_id, std::shared_ptr<tracker_element_map> e) : 
     tracker_component(in_id) {
 
+    agg_x = agg_y = agg_z = agg_a = 0;
+    num_avg = num_alt_avg = 0;
+    last_location_time = 0;
+
     register_fields();
     reserve_fields(e);
 }
 
 kis_tracked_location::kis_tracked_location(const kis_tracked_location *p) :
     tracker_component{p} {
+
+    agg_x = agg_y = agg_z = agg_a = 0;
+    num_avg = num_alt_avg = 0;
+    last_location_time = 0;
 
     __ImportId(min_loc_id, p);
     __ImportId(max_loc_id, p);
@@ -351,10 +368,6 @@ void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt,
 
 void kis_tracked_location::register_fields() {
     tracker_component::register_fields();
-
-    agg_x = agg_y = agg_z = agg_a = 0;
-    num_avg = num_alt_avg = 0;
-    last_location_time = 0;
 
     register_field("kismet.common.location.loc_fix", "location fix precision (2d/3d)", &loc_fix);
 

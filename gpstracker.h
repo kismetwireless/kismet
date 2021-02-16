@@ -170,6 +170,8 @@ public:
     // Remove a GPS by UUID
     bool remove_gps(uuid in_uuid);
 
+    std::shared_ptr<kis_gps> find_gps(uuid in_uuid);
+
     // Set a primary GPS
     bool set_primary_gps(uuid in_uuid);
 

@@ -51,8 +51,6 @@ packet_chain::packet_chain() {
     last_packet_queue_user_warning = 0;
     last_packet_drop_user_warning = 0;
 
-    // packetchain_mutex.set_name("packet_chain");
-
     packet_queue_warning = 
         Globalreg::globalreg->kismet_config->fetch_opt_uint("packet_log_warning", 0);
     packet_queue_drop =
@@ -191,8 +189,7 @@ packet_chain::~packet_chain() {
     }
 
     {
-        std::lock_guard<std::shared_mutex> lk(packetchain_mutex);
-        // kis_lock_guard<kis_mutex> lk(packetchain_mutex);
+        std::lock_guard<std::shared_timed_mutex> lk(packetchain_mutex);
 
         Globalreg::globalreg->remove_global("PACKETCHAIN");
         Globalreg::globalreg->packetchain = NULL;
@@ -299,7 +296,6 @@ void packet_chain::packet_queue_processor() {
 
         {
             // Lock the chain mutexes until we're done processing this packet
-            // kis_lock_guard<kis_mutex> lk(packetchain_mutex, "packet_chain packet_queue_processor");
             packetchain_mutex.lock_shared();
 
             // These can only be perturbed inside a sync, which can only occur when
@@ -434,8 +430,7 @@ int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux,
         std::function<int (kis_packet *)> in_l_cb, 
         int in_chain, int in_prio) {
 
-    // kis_lock_guard<kis_mutex> lk(packetchain_mutex);
-    std::lock_guard<std::shared_mutex> lk(packetchain_mutex);
+    std::lock_guard<std::shared_timed_mutex> lk(packetchain_mutex);
 
     pc_link *link = NULL;
 
@@ -508,8 +503,7 @@ int packet_chain::register_handler(std::function<int (kis_packet *)> in_cb, int 
 }
 
 int packet_chain::remove_handler(int in_id, int in_chain) {
-    // kis_lock_guard<kis_mutex> lk(packetchain_mutex);
-    std::lock_guard<std::shared_mutex> lk(packetchain_mutex);
+    auto lk = std::lock_guard<std::shared_timed_mutex>(packetchain_mutex);
 
     unsigned int x;
 
@@ -580,8 +574,7 @@ int packet_chain::remove_handler(int in_id, int in_chain) {
 }
 
 int packet_chain::remove_handler(pc_callback in_cb, int in_chain) {
-    // kis_lock_guard<kis_mutex> lk(packetchain_mutex);
-    std::lock_guard<std::shared_mutex> lk(packetchain_mutex);
+    auto lk = std::lock_guard<std::shared_timed_mutex>(packetchain_mutex);
 
     unsigned int x;
 

@@ -48,6 +48,8 @@ kis_gps_gpsd_v3::kis_gps_gpsd_v3(shared_gps_builder in_builder) :
     error_reconnect_timer = 
         timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                 [this](int) -> int {
+                kis_lock_guard<kis_mutex> lk(gps_mutex, "error timer");
+
                 if (socket.is_open())
                     return 1;
 
@@ -62,6 +64,7 @@ kis_gps_gpsd_v3::kis_gps_gpsd_v3(shared_gps_builder in_builder) :
     data_timeout_timer =
         timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
                 [this](int) -> int {
+                kis_lock_guard<kis_mutex> lk(gps_mutex, "data timer");
 
                 if (socket.is_open() && time(0) - last_data_time > 30) {
                     close();
@@ -90,6 +93,8 @@ kis_gps_gpsd_v3::~kis_gps_gpsd_v3() {
 }
 
 void kis_gps_gpsd_v3::close() {
+    kis_lock_guard<kis_mutex> lk(gps_mutex, "close");
+
     stopped = true;
     set_int_device_connected(false);
 
@@ -200,7 +205,6 @@ void kis_gps_gpsd_v3::write_impl() {
 
                         if (out_bufs.size())
                             return write_impl();
-
                     }));
     }
 }
@@ -215,6 +219,8 @@ void kis_gps_gpsd_v3::start_read(std::shared_ptr<kis_gps_gpsd_v3> ref) {
 
 void kis_gps_gpsd_v3::handle_read(std::shared_ptr<kis_gps_gpsd_v3> ref,
         const boost::system::error_code& error, std::size_t t) {
+    kis_unique_lock<kis_mutex> lk(gps_mutex, std::defer_lock, "handle_read");
+
     if (stopped)
         return;
 
@@ -224,8 +230,7 @@ void kis_gps_gpsd_v3::handle_read(std::shared_ptr<kis_gps_gpsd_v3> ref,
             return;
 
         _MSG_ERROR("(GPS) Error reading from GPSD connection {}:{} - {}", host, port, error.message());
-        close();
-        return;
+        return close();
     }
 
     // Pull the buffer
@@ -387,8 +392,7 @@ void kis_gps_gpsd_v3::handle_read(std::shared_ptr<kis_gps_gpsd_v3> ref,
 
         } catch (std::exception& e) {
             _MSG_ERROR("(GPS) Received an invalid JSON record from GPSD {}:{} - '{}'", host, port, e.what());
-            close();
-            return;
+            return close();
         }
     } else if (poll_mode == 0 && line == "GPSD") {
         // Look for a really old gpsd which doesn't do anything intelligent
@@ -614,8 +618,10 @@ void kis_gps_gpsd_v3::handle_read(std::shared_ptr<kis_gps_gpsd_v3> ref,
     }
 
     // If we've gotten this far in the parser, we've gotten usable data, even if it's not
-    // actionable data (ie status w/ no valid signal is OK, but mangled unparsable nonsense
-    // isn't.)
+    // actionable data (ie status w/ no valid signal is OK, but mangled unparsable nonsense isn't.)
+    
+    lk.lock();
+
     last_data_time = time(0);
 
     if (set_alt || set_speed || set_lat_lon || set_fix || set_heading) {
@@ -669,12 +675,14 @@ void kis_gps_gpsd_v3::handle_read(std::shared_ptr<kis_gps_gpsd_v3> ref,
     // Sync w/ the tracked fields
     update_locations();
 
+    lk.unlock();
+
     // Initiate another read
-    start_read(ref);
+    return start_read(ref);
 }
 
 bool kis_gps_gpsd_v3::open_gps(std::string in_opts) {
-    kis_lock_guard<kis_mutex> lk(gps_mutex, "gps_gpsd_v3 open_gps");
+    kis_unique_lock<kis_mutex> lk(gps_mutex, "gps_gpsd_v3 open_gps");
 
     if (!kis_gps::open_gps(in_opts))
         return false;
@@ -720,6 +728,8 @@ bool kis_gps_gpsd_v3::open_gps(std::string in_opts) {
     stopped = false;
 
     _MSG_INFO("(GPS) Connecting to GPSD on {}:{}", host, port);
+
+    lk.unlock();
 
     resolver.async_resolve(tcp::resolver::query(host.c_str(), port.c_str()),
             boost::asio::bind_executor(strand_, 
