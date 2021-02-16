@@ -1149,18 +1149,22 @@ exports.InitializeDeviceTable = function(element) {
 
     $('tbody', element)
         .on( 'mouseenter', 'td', function () {
-            var device_dt = element.DataTable();
+            try {
+                var device_dt = element.DataTable();
 
-            if (typeof(device_dt.cell(this).index()) === 'Undefined')
-                return;
+                if (typeof(device_dt.cell(this).index()) === 'Undefined')
+                    return;
 
-            var colIdx = device_dt.cell(this).index().column;
-            var rowIdx = device_dt.cell(this).index().row;
+                var colIdx = device_dt.cell(this).index().column;
+                var rowIdx = device_dt.cell(this).index().row;
 
-            // Remove from all cells
-            $(device_dt.cells().nodes()).removeClass('kismet-highlight');
-            // Highlight the td in this row
-            $('td', device_dt.row(rowIdx).nodes()).addClass('kismet-highlight');
+                // Remove from all cells
+                $(device_dt.cells().nodes()).removeClass('kismet-highlight');
+                // Highlight the td in this row
+                $('td', device_dt.row(rowIdx).nodes()).addClass('kismet-highlight');
+            } catch (e) {
+
+            }
         } );
 
 
