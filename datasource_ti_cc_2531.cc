@@ -82,9 +82,9 @@ void kis_datasource_ticc2531::handle_rx_packet(kis_packet *packet) {
         conv_header->tlv[2].value = channel;//need to try to pull from some where, but it is not in the packet
         
         // size
-        conv_header->length = sizeof(conv_header)+sizeof(conv_header->tlv)-4;
-        cc_chunk->set_data((uint8_t *)conv_header, conv_buf_len, false);
-        cc_chunk->dlt = KDLT_IEEE802_15_4_TAP; 	
+        conv_header->length = sizeof(conv_header) + sizeof(conv_header->tlv) - 4;
+        cc_chunk->set_data((uint8_t *) conv_header, conv_buf_len, false);
+        cc_chunk->dlt = KDLT_IEEE802_15_4_TAP;
 
         auto radioheader = new kis_layer1_packinfo();
         radioheader->signal_type = kis_l1_signal_type_dbm;
@@ -93,9 +93,7 @@ void kis_datasource_ticc2531::handle_rx_packet(kis_packet *packet) {
         radioheader->channel = fmt::format("{}", (channel));
         packet->insert(pack_comp_radiodata, radioheader);
 
-        // Pass the packet on
-        packetchain->process_packet(packet);
-
+        kis_datasource::handle_rx_packet(packet);
     } else {
         //printf("delete packet\n");
         delete (packet);

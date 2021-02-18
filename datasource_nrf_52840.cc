@@ -134,7 +134,7 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
     packet->insert(pack_comp_radiodata, radioheader);
 
 	// Pass the packet on
-    packetchain->process_packet(packet);	    
+    kis_datasource::handle_rx_packet(packet);    
 }
 
 unsigned char hextobytel(char s)

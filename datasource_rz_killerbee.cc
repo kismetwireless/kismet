@@ -57,7 +57,6 @@ void kis_datasource_rzkillerbee::handle_rx_packet(kis_packet *packet) {
 
         //size
         conv_header->length = sizeof(conv_header)+sizeof(conv_header->tlv)-4;//remove 4 bytes for the length in the header
-
         rz_chunk->set_data((uint8_t *)conv_header, conv_buf_len, false);
         rz_chunk->dlt = KDLT_IEEE802_15_4_TAP; 	
 
@@ -69,7 +68,7 @@ void kis_datasource_rzkillerbee::handle_rx_packet(kis_packet *packet) {
         packet->insert(pack_comp_radiodata, radioheader);
 
 	    // Pass the packet on
-        packetchain->process_packet(packet);
+        kis_datasource::handle_rx_packet(packet);
     }
     else
     {

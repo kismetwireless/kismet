@@ -107,7 +107,7 @@ void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
         packet->insert(pack_comp_radiodata, radioheader);
 
         // Pass the packet on
-        packetchain->process_packet(packet);
+        kis_datasource::handle_rx_packet(packet);
 
     } else if (nxp_chunk->data[0] == 0x02 && nxp_chunk->data[1] == 0x4E &&
                nxp_chunk->data[2] == 0x7F) {
@@ -177,8 +177,7 @@ void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
         decapchunk->dlt = KDLT_BLUETOOTH_LE_LL;
         packet->insert(pack_comp_decap, decapchunk);
 
-        // Pass the packet on
-        packetchain->process_packet(packet);
+        kis_datasource::handle_rx_packet(packet);
     } else {
         delete (packet);
         return;
