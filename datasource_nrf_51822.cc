@@ -137,9 +137,7 @@ void kis_datasource_nrf51822::handle_rx_packet(kis_packet *packet) {
         decapchunk->dlt = KDLT_BLUETOOTH_LE_LL;
         packet->insert(pack_comp_decap, decapchunk);
 
-        // Pass the packet on
-        // printf("Pass the packet on\n");
-        packetchain->process_packet(packet);
+        kis_datasource::handle_rx_packet(packet);
     }
 }
 

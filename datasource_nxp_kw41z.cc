@@ -204,8 +204,7 @@ void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
         decapchunk->dlt = KDLT_BLUETOOTH_LE_LL;
         packet->insert(pack_comp_decap, decapchunk);
 
-        // Pass the packet on
-        packetchain->process_packet(packet);
+        kis_datasource::handle_rx_packet(packet);
     } else {
         delete (packet);
         return;

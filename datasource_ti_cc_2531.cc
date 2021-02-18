@@ -125,9 +125,8 @@ void kis_datasource_ticc2531::handle_rx_packet(kis_packet *packet) {
         cc_chunk->dlt = KDLT_IEEE802_15_4_NOFCS;
 
 #endif
-        // Pass the packet on
-        packetchain->process_packet(packet);
 
+        kis_datasource::handle_rx_packet(packet);
     } else {
         delete (packet);
         return;
