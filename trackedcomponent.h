@@ -80,16 +80,16 @@ class tracker_component : public tracker_element_map {
 // be a kis_mutex 
 #define __ProxyM(name, ptype, itype, rtype, cvar, mvar) \
     virtual shared_tracker_element get_tracker_##name() { \
-        kis_lock_guard<kis_mutex> lk(mvar); \
+        kis_lock_guard<kis_mutex> lk(mvar, __func__); \
         return (std::shared_ptr<tracker_element>) cvar; \
     } \
     virtual rtype get_##name() { \
-        kis_lock_guard<kis_mutex> lk(mvar); \
+        kis_lock_guard<kis_mutex> lk(mvar, __func__); \
         auto r = get_tracker_value<ptype>(cvar); \
         return (rtype) r; \
     } \
     virtual void set_##name(const itype& in) { \
-        std::lock_guard<kis_mutex> lk(mvar); \
+        kis_lock_guard<kis_mutex> lk(mvar, __func__); \
         set_tracker_value<ptype>(cvar, static_cast<ptype>(in)); \
     }
 
@@ -163,7 +163,7 @@ class tracker_component : public tracker_element_map {
 // Proxydynamic, but protected with a mutex
 #define __ProxyDynamicM(name, ptype, itype, rtype, cvar, id, mutex) \
     virtual shared_tracker_element get_tracker_##name() { \
-        std::lock_guard<kis_mutex> lk(mutex); \
+        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
         if (cvar == nullptr) { \
             using ttype = std::remove_pointer<decltype(cvar.get())>::type; \
             cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ttype>(id); \
@@ -173,7 +173,7 @@ class tracker_component : public tracker_element_map {
         return cvar; \
     } \
     virtual rtype get_##name() { \
-        std::lock_guard<kis_mutex> lk(mutex); \
+        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
         if (cvar == nullptr) { \
             using ttype = std::remove_pointer<decltype(cvar.get())>::type; \
             cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ttype>(id); \
@@ -183,7 +183,7 @@ class tracker_component : public tracker_element_map {
         return (rtype) get_tracker_value<ptype>(cvar); \
     } \
     virtual void set_##name(const itype& in) { \
-        std::lock_guard<kis_mutex> lk(mutex); \
+        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
         if (cvar == nullptr) { \
             using ttype = std::remove_pointer<decltype(cvar.get())>::type; \
             cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ttype>(id); \
@@ -193,7 +193,7 @@ class tracker_component : public tracker_element_map {
         cvar->set((ptype) in); \
     } \
     virtual void set_only_##name(const itype& in) { \
-        std::lock_guard<kis_mutex> lk(mutex); \
+        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
         if (cvar == nullptr) { \
             using ttype = std::remove_pointer<decltype(cvar.get())>::type; \
             cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ttype>(id); \
@@ -273,7 +273,7 @@ class tracker_component : public tracker_element_map {
     } 
 #define __ProxySetM(name, ptype, stype, cvar, mutex) \
     virtual void set_##name(const stype& in) { \
-        std::lock_guard<kis_mutex> lk(mutex); \
+        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
         set_tracker_value<ptype>(cvar, in); \
     } 
 
@@ -313,7 +313,7 @@ class tracker_component : public tracker_element_map {
     } \
     protected: \
     virtual void set_int_##name(const itype& in) { \
-        std::lock_guard<kis_mutex> lk(mutex); \
+        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
         cvar->set((ptype) in); \
     } \
     public:
@@ -352,19 +352,19 @@ class tracker_component : public tracker_element_map {
 // Proxy increment and decrement functions, with mutex
 #define __ProxyIncDecM(name, ptype, rtype, cvar, mutex) \
     virtual void inc_##name() { \
-        std::lock_guard<kis_mutex> lk(mutex); \
+        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
         (*cvar) += 1; \
     } \
     virtual void inc_##name(rtype i) { \
-        std::lock_guard<kis_mutex> lk(mutex); \
+        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
         (*cvar) += (ptype) i; \
     } \
     virtual void dec_##name() { \
-        std::lock_guard<kis_mutex> lk(mutex); \
+        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
         (*cvar) -= 1; \
     } \
     virtual void dec_##name(rtype i) { \
-        std::lock_guard<kis_mutex> lk(mutex); \
+        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
         (*cvar) -= (ptype) i; \
     }
 
@@ -399,11 +399,11 @@ class tracker_component : public tracker_element_map {
 // Proxy add/subtract, with mutex
 #define __ProxyAddSubM(name, ptype, itype, cvar, mutex) \
     virtual void add_##name(itype i) { \
-        std::lock_guard<kis_mutex> lk(mutex); \
+        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
         (*cvar) += (ptype) i; \
     } \
     virtual void sub_##name(itype i) { \
-        std::lock_guard<kis_mutex> lk(mutex); \
+        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
         (*cvar) -= (ptype) i; \
     }
 
@@ -441,7 +441,7 @@ class tracker_component : public tracker_element_map {
         return cvar; \
     } \
     virtual void set_##name(std::shared_ptr<ttype> in) { \
-        std::lock_guard<kis_mutex> lk(mutex);\
+        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
         if (cvar != NULL) \
             erase(cvar); \
         cvar = in; \
@@ -569,7 +569,7 @@ class tracker_component : public tracker_element_map {
 // built), with mutex
 #define __ProxyDynamicTrackableM(name, ttype, cvar, id, mutex) \
     virtual std::shared_ptr<ttype> get_##name() { \
-        std::lock_guard<kis_mutex> lk(mutex); \
+        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
         if (cvar == NULL) { \
             cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ttype>(id); \
             if (cvar != NULL) \
@@ -578,7 +578,7 @@ class tracker_component : public tracker_element_map {
         return cvar; \
     } \
     virtual void set_tracker_##name(std::shared_ptr<ttype> in) { \
-        std::lock_guard<kis_mutex> lk(mutex); \
+        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
         if (cvar != nullptr) \
             erase(cvar); \
         cvar = in; \
@@ -660,11 +660,11 @@ class tracker_component : public tracker_element_map {
 // Proxy bitset functions (name, trackable type, data type, class var), with mutex
 #define __ProxyBitsetM(name, dtype, cvar, mutex) \
     virtual void bitset_##name(dtype bs) { \
-        std::lock_guard<kis_mutex> lk(mutex); \
+        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
         (*cvar) |= bs; \
     } \
     virtual void bitclear_##name(dtype bs) { \
-        std::lock_guard<kis_mutex> lk(mutex); \
+        kis_lock_guard<kis_mutex> lk(mutex, __func__); \
         (*cvar) &= ~(bs); \
     } \
     virtual dtype bitcheck_##name(dtype bs) { \
