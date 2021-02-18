@@ -58,6 +58,30 @@ int rz_killerbee_init(kis_capture_handler_t *caph) {
     if(ret < 0)
         return -1;
 
+/**
+ killerbee
+dev.iSerialNumber:3
+dev.iManufacturer:1
+dev.idVendor:1003
+dev.idProduct:8458
+dev.iProduct:2
+**/
+/**
+normal
+dev.iSerialNumber:3
+dev.iManufacturer:1
+dev.idVendor:1003
+dev.idProduct:8458
+dev.iProduct:2
+**/
+
+    int retval;
+    char desc_string[256];
+    memset(desc_string,0x00,256);
+    retval = libusb_get_string_descriptor_ascii(localrz_killerbee->rz_killerbee_handle, 3, desc_string, sizeof(desc_string));
+    if (retval > 0)
+        printf("  Serial Number:             %s\n", (char *)desc_string);
+
     pthread_mutex_lock(&(localrz_killerbee->usb_mutex));
     ret = libusb_claim_interface(localrz_killerbee->rz_killerbee_handle, 0);
     pthread_mutex_unlock(&(localrz_killerbee->usb_mutex));
