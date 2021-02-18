@@ -344,7 +344,7 @@ public:
     __ProxyM(source_key, uint32_t, uint32_t, uint32_t, source_key, ext_mutex);
 
     // Prototype/driver definition
-    __ProxyTrackableM(source_builder, kis_datasource_builder, source_builder, ext_mutex);
+    __ProxyTrackable(source_builder, kis_datasource_builder, source_builder);
 
     // Read-only access to the source state; this mirrors the state in the capture
     // binary. Set commands queue a command to the binary and then update as
