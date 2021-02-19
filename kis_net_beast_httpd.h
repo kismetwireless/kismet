@@ -25,9 +25,9 @@
 #include <list>
 #include <regex>
 #include <string>
+#include <shared_mutex>
 #include <thread>
 #include <unordered_map>
-
 
 #include "boost/asio.hpp"
 #include "boost/beast.hpp"
@@ -168,7 +168,7 @@ protected:
     kis_mutex auth_mutex;
     std::vector<std::shared_ptr<kis_net_beast_auth>> auth_vec;
 
-    kis_mutex static_mutex;
+    std::shared_timed_mutex static_mutex;
     class static_content_dir {
     public:
         static_content_dir(const std::string& prefix, const std::string& path) :
