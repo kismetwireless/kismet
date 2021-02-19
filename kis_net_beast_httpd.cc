@@ -1038,6 +1038,7 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
 
             boost::beast::http::write(con->stream(), res, ec);
 
+            static_mutex.unlock_shared();
             return true;
         }
 
@@ -1052,9 +1053,11 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
 
         boost::beast::http::write(con->stream(), res, ec);
 
+        static_mutex.unlock_shared();
         return true;
     }
 
+    static_mutex.unlock_shared();
     return false;
 }
 
