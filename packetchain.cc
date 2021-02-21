@@ -45,6 +45,9 @@ public:
 };
 
 packet_chain::packet_chain() {
+    packetcomp_mutex.set_name("packetchain packet_comp");
+    packetchain_mutex.set_name("packetchain packetchain");
+
     next_componentid = 1;
 	next_handlerid = 1;
 
@@ -189,7 +192,7 @@ packet_chain::~packet_chain() {
     }
 
     {
-        std::lock_guard<std::shared_timed_mutex> lk(packetchain_mutex);
+        kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "~packet_chain");
 
         Globalreg::globalreg->remove_global("PACKETCHAIN");
         Globalreg::globalreg->packetchain = NULL;
@@ -296,7 +299,8 @@ void packet_chain::packet_queue_processor() {
 
         {
             // Lock the chain mutexes until we're done processing this packet
-            packetchain_mutex.lock_shared();
+            kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, kismet::shared_lock,
+                    "packet_queue_processor");
 
             // These can only be perturbed inside a sync, which can only occur when
             // the worker thread is in the sync block above, so we shouldn't
@@ -351,8 +355,6 @@ void packet_chain::packet_queue_processor() {
                     pcl->l_callback(packet);
             }
         }
-
-        packetchain_mutex.unlock_shared();
 
         if (packet->error)
             packet_error_rrd->add_sample(1, time(0));
@@ -430,7 +432,7 @@ int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux,
         std::function<int (kis_packet *)> in_l_cb, 
         int in_chain, int in_prio) {
 
-    std::lock_guard<std::shared_timed_mutex> lk(packetchain_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "register_int_handler");
 
     pc_link *link = NULL;
 
@@ -503,7 +505,7 @@ int packet_chain::register_handler(std::function<int (kis_packet *)> in_cb, int 
 }
 
 int packet_chain::remove_handler(int in_id, int in_chain) {
-    auto lk = std::lock_guard<std::shared_timed_mutex>(packetchain_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "remove_handler");
 
     unsigned int x;
 
@@ -574,7 +576,7 @@ int packet_chain::remove_handler(int in_id, int in_chain) {
 }
 
 int packet_chain::remove_handler(pc_callback in_cb, int in_chain) {
-    auto lk = std::lock_guard<std::shared_timed_mutex>(packetchain_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "remove_handler");
 
     unsigned int x;
 

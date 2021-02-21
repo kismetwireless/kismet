@@ -83,7 +83,7 @@ kis_net_beast_httpd::kis_net_beast_httpd(boost::asio::ip::tcp::endpoint& endpoin
     mime_mutex.set_name("kis_net_beast_httpd MIME map");
     route_mutex.set_name("kis_net_beast_httpd route vector");
     auth_mutex.set_name("kis_net_beast_httpd auth");
-    // static_mutex.set_name("kis_net_beast_httpd static");
+    static_mutex.set_name("kis_net_beast_httpd static");
 }
 
 void kis_net_beast_httpd::trigger_deferred_startup() {
@@ -925,8 +925,7 @@ std::shared_ptr<kis_net_beast_route> kis_net_beast_httpd::find_websocket_endpoin
 }
 
 void kis_net_beast_httpd::register_static_dir(const std::string& prefix, const std::string& path) {
-    //kis_lock_guard<kis_mutex> lk(static_mutex, "beast_httpd register_static_dir");
-    std::lock_guard lk(static_mutex);
+    kis_lock_guard<kis_shared_mutex> lk(static_mutex, "beast_httpd register_static_dir");
 
     static_dir_vec.emplace_back(static_content_dir(prefix, path));
 }
@@ -974,8 +973,7 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
     else if (uri.back() == '/') 
         uri += "index.html";
 
-    // kis_lock_guard<kis_mutex> lk(static_mutex, "beast_httpd serve_file");
-    static_mutex.lock_shared();
+    kis_lock_guard<kis_shared_mutex> lk(static_mutex, kismet::shared_lock, "beast_httpd serve_file");
 
     for (auto sd : static_dir_vec) {
         ec = {};
@@ -1038,7 +1036,6 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
 
             boost::beast::http::write(con->stream(), res, ec);
 
-            static_mutex.unlock_shared();
             return true;
         }
 
@@ -1053,11 +1050,9 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
 
         boost::beast::http::write(con->stream(), res, ec);
 
-        static_mutex.unlock_shared();
         return true;
     }
 
-    static_mutex.unlock_shared();
     return false;
 }
 

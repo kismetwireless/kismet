@@ -25,7 +25,6 @@
 #include <list>
 #include <regex>
 #include <string>
-#include <shared_mutex>
 #include <thread>
 #include <unordered_map>
 
@@ -168,7 +167,7 @@ protected:
     kis_mutex auth_mutex;
     std::vector<std::shared_ptr<kis_net_beast_auth>> auth_vec;
 
-    std::shared_timed_mutex static_mutex;
+    kis_shared_mutex static_mutex;
     class static_content_dir {
     public:
         static_content_dir(const std::string& prefix, const std::string& path) :
