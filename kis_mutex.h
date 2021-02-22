@@ -28,6 +28,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <shared_mutex>
 #include <thread>
 
 #include <limits.h>
@@ -68,31 +69,14 @@ public:
         return mutex.try_lock();
     }
 
-#if defined (GCC_VERSION_MAJOR) && (GCC_VERSION_MAJOR < 4 || (GCC_VERSION_MAJOR == 4 && GCC_VERSION_MINOR < 9))
-    // Old GCC has a broken try_lock_for implementation, work around it by emulating a tlf with our own timers
-    template<class Rep, class Period>
-    bool try_lock_for(const std::chrono::duration<Rep, Period>& timeout_duration) {
-        const int precision_ms = 10;
-        int ms_wait = 0;
-        bool locked = false;
+    // Previous workaround for gcc try_lock_for bugs here, but now we require c++14 so we don't
+    // need them
 
-        while (ms_wait < std::chrono::milliseconds(timeout_duration).count()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(precision_ms));
-            ms_wait += precision_ms;
-            locked = mutex.try_lock();
-            if (locked)
-                return true;
-        }
-
-        return false;
-    }
-#else
     template<class Rep, class Period>
     bool try_lock_for(const std::chrono::duration<Rep, Period>& timeout_duration) {
         return mutex.try_lock_for(timeout_duration);
     }
 
-#endif
     template<class Clock, class Duration>
     bool try_lock_until(const std::chrono::time_point<Clock, Duration>& timeout_time) {
         return mutex.try_lock_until(timeout_time);
@@ -101,11 +85,105 @@ public:
     void unlock() {
         return mutex.unlock();
     }
+
+    void lock_shared() {
+        throw std::runtime_error("lock_shared called on non-shared mutex");
+    }
+
+    bool try_lock_shared() {
+        throw std::runtime_error("try_lock_shared called on non-shared mutex");
+    }
+
+    template<class Rep, class Period>
+    bool try_lock_shared_for(const std::chrono::duration<Rep, Period>& timeout_duration) {
+        throw std::runtime_error("try_lock_shared_for called on non-shared mutex");
+    }
+
+    template<class Clock, class Duration>
+    bool try_lock_shared_until(const std::chrono::time_point<Clock, Duration>& timeout_time) {
+        throw std::runtime_error("try_lock_shared_until called on non-shared mutex");
+    }
+
+    void unlock_shared() {
+        throw std::runtime_error("unlock_shared called on non-shared mutex");
+    }
+};
+
+class kis_shared_mutex {
+private:
+    std::shared_timed_mutex mutex;
+    std::string name;
+
+public:
+    kis_shared_mutex() :
+        name{"UNNAMED"} { }
+    kis_shared_mutex(const std::string& name) :
+        name{name} { }
+
+    kis_shared_mutex(const kis_shared_mutex&) = delete;
+    kis_shared_mutex& operator=(const kis_shared_mutex&) = delete;
+
+    ~kis_shared_mutex() = default;
+
+    void set_name(const std::string& name) {
+        this->name = name;
+    }
+
+    const std::string& get_name() const {
+        return name;
+    }
+
+    void lock() {
+        mutex.lock();
+    }
+
+    bool try_lock() {
+        return mutex.try_lock();
+    }
+
+    template<class Rep, class Period>
+    bool try_lock_for(const std::chrono::duration<Rep, Period>& timeout_duration) {
+        return mutex.try_lock_for(timeout_duration);
+    }
+
+    template<class Clock, class Duration>
+    bool try_lock_until(const std::chrono::time_point<Clock, Duration>& timeout_time) {
+        return mutex.try_lock_until(timeout_time);
+    }
+
+    void unlock() {
+        return mutex.unlock();
+    }
+
+    void lock_shared() {
+        mutex.lock_shared();
+    }
+
+    bool try_lock_shared() {
+        return mutex.try_lock_shared();
+    }
+
+    template<class Rep, class Period>
+    bool try_lock_shared_for(const std::chrono::duration<Rep, Period>& timeout_duration) {
+        return mutex.try_lock_shared_for(timeout_duration);
+    }
+
+    template<class Clock, class Duration>
+    bool try_lock_shared_until(const std::chrono::time_point<Clock, Duration>& timeout_time) {
+        return mutex.try_lock_shared_until(timeout_time);
+    }
+
+    void unlock_shared() {
+        return mutex.unlock_shared();
+    }
 };
 
 namespace kismet {
     typedef struct { } retain_lock_t;
     constexpr retain_lock_t retain_lock;
+
+    typedef struct { } shared_lock_t;
+    constexpr shared_lock_t shared_lock;
 }
 
 template<class M>
@@ -114,7 +192,8 @@ public:
     kis_lock_guard(M& m, const std::string& op = "UNKNOWN") :
         mutex{m},
         op{op},
-        retain{false} {
+        retain{false},
+        shared{false} {
             if (!mutex.try_lock_for(std::chrono::seconds(KIS_THREAD_TIMEOUT)))
                 throw std::runtime_error(fmt::format("potential deadlock: mutex {} not available within "
                             "timeout period for op {}", mutex.get_name(), op));
@@ -123,13 +202,25 @@ public:
     kis_lock_guard(M& m, std::adopt_lock_t t, const std::string& op = "UNKNOWN") :
         mutex{m},
         op{op},
-        retain{false} { }
+        retain{false},
+        shared{false} { }
 
     kis_lock_guard(M& m, kismet::retain_lock_t t, const std::string& op = "UNKNOWN") :
         mutex{m},
         op{op},
-        retain{true} {
+        retain{true},
+        shared{false} {
             if (!mutex.try_lock_for(std::chrono::seconds(KIS_THREAD_TIMEOUT)))
+                throw std::runtime_error(fmt::format("potential deadlock: mutex {} not available within "
+                            "timeout period for op {}", mutex.get_name(), op));
+        }
+
+    kis_lock_guard(M& m, kismet::shared_lock_t t, const std::string& op = "UNKNOWN") :
+        mutex{m},
+        op{op},
+        retain{false},
+        shared{true} {
+            if (!mutex.try_lock_shared_for(std::chrono::seconds(KIS_THREAD_TIMEOUT)))
                 throw std::runtime_error(fmt::format("potential deadlock: mutex {} not available within "
                             "timeout period for op {}", mutex.get_name(), op));
         }
@@ -138,7 +229,9 @@ public:
     kis_lock_guard& operator=(const kis_lock_guard&) = delete;
 
     ~kis_lock_guard() {
-        if (!retain)
+        if (shared)
+            mutex.unlock_shared();
+        else if (!retain)
             mutex.unlock();
     }
 
@@ -146,6 +239,7 @@ protected:
     M& mutex;
     std::string op;
     bool retain;
+    bool shared;
 };
 
 template<class M>

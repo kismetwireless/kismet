@@ -35,7 +35,6 @@
 #include <functional>
 #include <queue>
 #include <thread>
-#include <shared_mutex>
 
 #include "eventbus.h"
 #include "globalregistry.h"
@@ -165,7 +164,7 @@ protected:
     kis_mutex packetcomp_mutex;
 
     // Packet chain mutex
-    std::shared_timed_mutex packetchain_mutex;
+    kis_shared_mutex packetchain_mutex;
 
     // std::thread packet_thread;
     std::list<std::thread> packet_threads;

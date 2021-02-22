@@ -925,7 +925,8 @@ std::shared_ptr<kis_net_beast_route> kis_net_beast_httpd::find_websocket_endpoin
 }
 
 void kis_net_beast_httpd::register_static_dir(const std::string& prefix, const std::string& path) {
-    kis_lock_guard<kis_mutex> lk(static_mutex, "beast_httpd register_static_dir");
+    kis_lock_guard<kis_shared_mutex> lk(static_mutex, "beast_httpd register_static_dir");
+
     static_dir_vec.emplace_back(static_content_dir(prefix, path));
 }
 
@@ -972,7 +973,7 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
     else if (uri.back() == '/') 
         uri += "index.html";
 
-    kis_lock_guard<kis_mutex> lk(static_mutex, "beast_httpd serve_file");
+    kis_lock_guard<kis_shared_mutex> lk(static_mutex, kismet::shared_lock, "beast_httpd serve_file");
 
     for (auto sd : static_dir_vec) {
         ec = {};
