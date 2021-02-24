@@ -2510,13 +2510,14 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
 
         // If we have a new ssid and we can consider raising an alert, do the 
         // regex compares to see if we trigger apspoof
-        if (dot11info->ssid_len != 0 &&
-                alertracker->potential_alert(alert_ssidmatch_ref)) {
+        if (dot11info->ssid_len != 0 && alertracker->potential_alert(alert_ssidmatch_ref)) {
             for (const auto& s : *ssid_regex_vec) {
                 std::shared_ptr<dot11_tracked_ssid_alert> sa =
                     std::static_pointer_cast<dot11_tracked_ssid_alert>(s);
 
                 if (sa->compare_ssid(dot11info->ssid, dot11info->source_mac)) {
+                    bool valid = false;
+
                     std::string ntype = 
                         dot11info->subtype == packet_sub_beacon ? std::string("advertising") :
                         std::string("responding for");
