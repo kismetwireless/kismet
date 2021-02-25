@@ -2516,8 +2516,6 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
                     std::static_pointer_cast<dot11_tracked_ssid_alert>(s);
 
                 if (sa->compare_ssid(dot11info->ssid, dot11info->source_mac)) {
-                    bool valid = false;
-
                     std::string ntype = 
                         dot11info->subtype == packet_sub_beacon ? std::string("advertising") :
                         std::string("responding for");
