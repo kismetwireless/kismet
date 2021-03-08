@@ -30,7 +30,6 @@
 #include <boost/beast/core/static_buffer.hpp>
 #include <boost/beast/core/stream_traits.hpp>
 #include <boost/beast/core/detail/clamp.hpp>
-#include <boost/beast/version.hpp>
 #include <boost/asio/steady_timer.hpp>
 #include <boost/core/empty_value.hpp>
 #include <boost/enable_shared_from_this.hpp>
@@ -129,7 +128,8 @@ struct stream<NextLayer, deflateSupported>::impl_type
             boost::empty_init_t{},
             std::forward<Args>(args)...)
         , detail::service::impl_type(
-            this->boost::empty_value<NextLayer>::get().get_executor().context())
+            this->get_context(
+                this->boost::empty_value<NextLayer>::get().get_executor()))
         , timer(this->boost::empty_value<NextLayer>::get().get_executor())
     {
         timeout_opt.handshake_timeout = none();
@@ -208,6 +208,14 @@ struct stream<NextLayer, deflateSupported>::impl_type
 
         // VFALCO Is this needed?
         timer.cancel();
+    }
+
+    void
+    time_out()
+    {
+        timed_out = true;
+        change_status(status::closed);
+        close_socket(get_lowest_layer(stream()));
     }
 
     // Called just before sending
@@ -412,6 +420,12 @@ struct stream<NextLayer, deflateSupported>::impl_type
             {
                 timer.expires_after(
                     timeout_opt.handshake_timeout);
+
+                BOOST_ASIO_HANDLER_LOCATION((
+                    __FILE__, __LINE__,
+                    "websocket::check_stop_now"
+                    ));
+
                 timer.async_wait(
                     timeout_handler<Executor>(
                         ex, this->weak_from_this()));
@@ -428,6 +442,12 @@ struct stream<NextLayer, deflateSupported>::impl_type
                 else
                     timer.expires_after(
                         timeout_opt.idle_timeout);
+
+                BOOST_ASIO_HANDLER_LOCATION((
+                    __FILE__, __LINE__,
+                    "websocket::check_stop_now"
+                    ));
+
                 timer.async_wait(
                     timeout_handler<Executor>(
                         ex, this->weak_from_this()));
@@ -445,13 +465,23 @@ struct stream<NextLayer, deflateSupported>::impl_type
                 idle_counter = 0;
                 timer.expires_after(
                     timeout_opt.handshake_timeout);
+
+                BOOST_ASIO_HANDLER_LOCATION((
+                    __FILE__, __LINE__,
+                    "websocket::check_stop_now"
+                    ));
+
                 timer.async_wait(
                     timeout_handler<Executor>(
                         ex, this->weak_from_this()));
             }
             else
             {
-                BOOST_ASSERT(! is_timer_set());
+                // VFALCO This assert goes off when there's also
+                // a pending read with the timer set. The bigger
+                // fix is to give close its own timeout, instead
+                // of using the handshake timeout.
+                // BOOST_ASSERT(! is_timer_set());
             }
             break;
 
@@ -465,6 +495,22 @@ struct stream<NextLayer, deflateSupported>::impl_type
     }
 
 private:
+    template<class Executor>
+    static net::execution_context&
+    get_context(Executor const& ex,
+        typename std::enable_if< net::execution::is_executor<Executor>::value >::type* = 0)
+    {
+        return net::query(ex, net::execution::context);
+    }
+
+    template<class Executor>
+    static net::execution_context&
+    get_context(Executor const& ex,
+        typename std::enable_if< !net::execution::is_executor<Executor>::value >::type* = 0)
+    {
+        return ex.context();
+    }
+
     bool
     is_timer_set() const
     {
@@ -512,8 +558,7 @@ private:
             switch(impl.status_)
             {
             case status::handshake:
-                impl.timed_out = true;
-                close_socket(get_lowest_layer(impl.stream()));
+                impl.time_out();
                 return;
 
             case status::open:
@@ -524,23 +569,34 @@ private:
                 if( impl.timeout_opt.keep_alive_pings &&
                     impl.idle_counter < 1)
                 {
-                    idle_ping_op<Executor>(sp, get_executor());
+                    {
+                        BOOST_ASIO_HANDLER_LOCATION((
+                            __FILE__, __LINE__,
+                            "websocket::timeout_handler"
+                            ));
 
+                        idle_ping_op<Executor>(sp, get_executor());
+                    }
                     ++impl.idle_counter;
                     impl.timer.expires_after(
                         impl.timeout_opt.idle_timeout / 2);
-                    impl.timer.async_wait(std::move(*this));
+
+                    {
+                        BOOST_ASIO_HANDLER_LOCATION((
+                            __FILE__, __LINE__,
+                            "websocket::timeout_handler"
+                            ));
+
+                        impl.timer.async_wait(std::move(*this));
+                    }
                     return;
                 }
 
-                // timeout
-                impl.timed_out = true;
-                close_socket(get_lowest_layer(impl.stream()));
+                impl.time_out();
                 return;
 
             case status::closing:
-                impl.timed_out = true;
-                close_socket(get_lowest_layer(impl.stream()));
+                impl.time_out();
                 return;
 
             case status::closed:
@@ -580,9 +636,6 @@ build_request(
     this->build_request_pmd(req);
     decorator_opt(req);
     decorator(req);
-    if(! req.count(http::field::user_agent))
-        req.set(http::field::user_agent,
-            BOOST_BEAST_VERSION_STRING);
     return req;
 }
 

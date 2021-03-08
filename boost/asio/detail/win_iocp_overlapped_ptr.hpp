@@ -2,7 +2,7 @@
 // detail/win_iocp_overlapped_ptr.hpp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2020 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -20,8 +20,8 @@
 #if defined(BOOST_ASIO_HAS_IOCP)
 
 #include <boost/asio/io_context.hpp>
+#include <boost/asio/query.hpp>
 #include <boost/asio/detail/handler_alloc_helpers.hpp>
-#include <boost/asio/detail/io_object_executor.hpp>
 #include <boost/asio/detail/memory.hpp>
 #include <boost/asio/detail/noncopyable.hpp>
 #include <boost/asio/detail/win_iocp_overlapped_op.hpp>
@@ -78,13 +78,12 @@ public:
   template <typename Executor, typename Handler>
   void reset(const Executor& ex, Handler handler)
   {
-    const bool native = is_same<Executor, io_context::executor_type>::value;
     win_iocp_io_context* iocp_service = this->get_iocp_service(ex);
 
-    typedef win_iocp_overlapped_op<Handler, io_object_executor<Executor> > op;
+    typedef win_iocp_overlapped_op<Handler, Executor> op;
     typename op::ptr p = { boost::asio::detail::addressof(handler),
       op::ptr::allocate(handler), 0 };
-    p.p = new (p.v) op(handler, io_object_executor<Executor>(ex, native));
+    p.p = new (p.v) op(handler, ex);
 
     BOOST_ASIO_HANDLER_CREATION((ex.context(), *p.p,
           "iocp_service", iocp_service, 0, "overlapped"));
@@ -135,7 +134,20 @@ public:
 
 private:
   template <typename Executor>
-  static win_iocp_io_context* get_iocp_service(const Executor& ex)
+  static win_iocp_io_context* get_iocp_service(const Executor& ex,
+      typename enable_if<
+        can_query<const Executor&, execution::context_t>::value
+      >::type* = 0)
+  {
+    return &use_service<win_iocp_io_context>(
+        boost::asio::query(ex, execution::context));
+  }
+
+  template <typename Executor>
+  static win_iocp_io_context* get_iocp_service(const Executor& ex,
+      typename enable_if<
+        !can_query<const Executor&, execution::context_t>::value
+      >::type* = 0)
   {
     return &use_service<win_iocp_io_context>(ex.context());
   }
@@ -143,7 +155,7 @@ private:
   static win_iocp_io_context* get_iocp_service(
       const io_context::executor_type& ex)
   {
-    return &ex.context().impl_;
+    return &boost::asio::query(ex, execution::context).impl_;
   }
 
   win_iocp_operation* ptr_;

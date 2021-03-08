@@ -2,7 +2,7 @@
 // basic_stream_socket.hpp
 // ~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2020 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -33,7 +33,7 @@ namespace asio {
 #define BOOST_ASIO_BASIC_STREAM_SOCKET_FWD_DECL
 
 // Forward declaration with defaulted arguments.
-template <typename Protocol, typename Executor = executor>
+template <typename Protocol, typename Executor = any_io_executor>
 class basic_stream_socket;
 
 #endif // !defined(BOOST_ASIO_BASIC_STREAM_SOCKET_FWD_DECL)
@@ -254,7 +254,7 @@ public:
    * constructed using the @c basic_stream_socket(const executor_type&)
    * constructor.
    */
-  basic_stream_socket(basic_stream_socket&& other)
+  basic_stream_socket(basic_stream_socket&& other) BOOST_ASIO_NOEXCEPT
     : basic_socket<Protocol, Executor>(std::move(other))
   {
   }
@@ -464,15 +464,19 @@ public:
    * buffers in one go, and how to use it with arrays, boost::array or
    * std::vector.
    */
-  template <typename ConstBufferSequence, typename WriteHandler>
-  BOOST_ASIO_INITFN_RESULT_TYPE(WriteHandler,
+  template <typename ConstBufferSequence,
+      BOOST_ASIO_COMPLETION_TOKEN_FOR(void (boost::system::error_code,
+        std::size_t)) WriteHandler
+          BOOST_ASIO_DEFAULT_COMPLETION_TOKEN_TYPE(executor_type)>
+  BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(WriteHandler,
       void (boost::system::error_code, std::size_t))
   async_send(const ConstBufferSequence& buffers,
-      BOOST_ASIO_MOVE_ARG(WriteHandler) handler)
+      BOOST_ASIO_MOVE_ARG(WriteHandler) handler
+        BOOST_ASIO_DEFAULT_COMPLETION_TOKEN(executor_type))
   {
     return async_initiate<WriteHandler,
       void (boost::system::error_code, std::size_t)>(
-        initiate_async_send(), handler, this,
+        initiate_async_send(this), handler,
         buffers, socket_base::message_flags(0));
   }
 
@@ -513,16 +517,20 @@ public:
    * buffers in one go, and how to use it with arrays, boost::array or
    * std::vector.
    */
-  template <typename ConstBufferSequence, typename WriteHandler>
-  BOOST_ASIO_INITFN_RESULT_TYPE(WriteHandler,
+  template <typename ConstBufferSequence,
+      BOOST_ASIO_COMPLETION_TOKEN_FOR(void (boost::system::error_code,
+        std::size_t)) WriteHandler
+          BOOST_ASIO_DEFAULT_COMPLETION_TOKEN_TYPE(executor_type)>
+  BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(WriteHandler,
       void (boost::system::error_code, std::size_t))
   async_send(const ConstBufferSequence& buffers,
       socket_base::message_flags flags,
-      BOOST_ASIO_MOVE_ARG(WriteHandler) handler)
+      BOOST_ASIO_MOVE_ARG(WriteHandler) handler
+        BOOST_ASIO_DEFAULT_COMPLETION_TOKEN(executor_type))
   {
     return async_initiate<WriteHandler,
       void (boost::system::error_code, std::size_t)>(
-        initiate_async_send(), handler, this, buffers, flags);
+        initiate_async_send(this), handler, buffers, flags);
   }
 
   /// Receive some data on the socket.
@@ -667,15 +675,19 @@ public:
    * multiple buffers in one go, and how to use it with arrays, boost::array or
    * std::vector.
    */
-  template <typename MutableBufferSequence, typename ReadHandler>
-  BOOST_ASIO_INITFN_RESULT_TYPE(ReadHandler,
+  template <typename MutableBufferSequence,
+      BOOST_ASIO_COMPLETION_TOKEN_FOR(void (boost::system::error_code,
+        std::size_t)) ReadHandler
+          BOOST_ASIO_DEFAULT_COMPLETION_TOKEN_TYPE(executor_type)>
+  BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(ReadHandler,
       void (boost::system::error_code, std::size_t))
   async_receive(const MutableBufferSequence& buffers,
-      BOOST_ASIO_MOVE_ARG(ReadHandler) handler)
+      BOOST_ASIO_MOVE_ARG(ReadHandler) handler
+        BOOST_ASIO_DEFAULT_COMPLETION_TOKEN(executor_type))
   {
     return async_initiate<ReadHandler,
       void (boost::system::error_code, std::size_t)>(
-        initiate_async_receive(), handler, this,
+        initiate_async_receive(this), handler,
         buffers, socket_base::message_flags(0));
   }
 
@@ -718,16 +730,20 @@ public:
    * multiple buffers in one go, and how to use it with arrays, boost::array or
    * std::vector.
    */
-  template <typename MutableBufferSequence, typename ReadHandler>
-  BOOST_ASIO_INITFN_RESULT_TYPE(ReadHandler,
+  template <typename MutableBufferSequence,
+      BOOST_ASIO_COMPLETION_TOKEN_FOR(void (boost::system::error_code,
+        std::size_t)) ReadHandler
+          BOOST_ASIO_DEFAULT_COMPLETION_TOKEN_TYPE(executor_type)>
+  BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(ReadHandler,
       void (boost::system::error_code, std::size_t))
   async_receive(const MutableBufferSequence& buffers,
       socket_base::message_flags flags,
-      BOOST_ASIO_MOVE_ARG(ReadHandler) handler)
+      BOOST_ASIO_MOVE_ARG(ReadHandler) handler
+        BOOST_ASIO_DEFAULT_COMPLETION_TOKEN(executor_type))
   {
     return async_initiate<ReadHandler,
       void (boost::system::error_code, std::size_t)>(
-        initiate_async_receive(), handler, this, buffers, flags);
+        initiate_async_receive(this), handler, buffers, flags);
   }
 
   /// Write some data to the socket.
@@ -826,15 +842,19 @@ public:
    * buffers in one go, and how to use it with arrays, boost::array or
    * std::vector.
    */
-  template <typename ConstBufferSequence, typename WriteHandler>
-  BOOST_ASIO_INITFN_RESULT_TYPE(WriteHandler,
+  template <typename ConstBufferSequence,
+      BOOST_ASIO_COMPLETION_TOKEN_FOR(void (boost::system::error_code,
+        std::size_t)) WriteHandler
+          BOOST_ASIO_DEFAULT_COMPLETION_TOKEN_TYPE(executor_type)>
+  BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(WriteHandler,
       void (boost::system::error_code, std::size_t))
   async_write_some(const ConstBufferSequence& buffers,
-      BOOST_ASIO_MOVE_ARG(WriteHandler) handler)
+      BOOST_ASIO_MOVE_ARG(WriteHandler) handler
+        BOOST_ASIO_DEFAULT_COMPLETION_TOKEN(executor_type))
   {
     return async_initiate<WriteHandler,
       void (boost::system::error_code, std::size_t)>(
-        initiate_async_send(), handler, this,
+        initiate_async_send(this), handler,
         buffers, socket_base::message_flags(0));
   }
 
@@ -937,24 +957,45 @@ public:
    * buffers in one go, and how to use it with arrays, boost::array or
    * std::vector.
    */
-  template <typename MutableBufferSequence, typename ReadHandler>
-  BOOST_ASIO_INITFN_RESULT_TYPE(ReadHandler,
+  template <typename MutableBufferSequence,
+      BOOST_ASIO_COMPLETION_TOKEN_FOR(void (boost::system::error_code,
+        std::size_t)) ReadHandler
+          BOOST_ASIO_DEFAULT_COMPLETION_TOKEN_TYPE(executor_type)>
+  BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(ReadHandler,
       void (boost::system::error_code, std::size_t))
   async_read_some(const MutableBufferSequence& buffers,
-      BOOST_ASIO_MOVE_ARG(ReadHandler) handler)
+      BOOST_ASIO_MOVE_ARG(ReadHandler) handler
+        BOOST_ASIO_DEFAULT_COMPLETION_TOKEN(executor_type))
   {
     return async_initiate<ReadHandler,
       void (boost::system::error_code, std::size_t)>(
-        initiate_async_receive(), handler, this,
+        initiate_async_receive(this), handler,
         buffers, socket_base::message_flags(0));
   }
 
 private:
-  struct initiate_async_send
+  // Disallow copying and assignment.
+  basic_stream_socket(const basic_stream_socket&) BOOST_ASIO_DELETED;
+  basic_stream_socket& operator=(const basic_stream_socket&) BOOST_ASIO_DELETED;
+
+  class initiate_async_send
   {
+  public:
+    typedef Executor executor_type;
+
+    explicit initiate_async_send(basic_stream_socket* self)
+      : self_(self)
+    {
+    }
+
+    executor_type get_executor() const BOOST_ASIO_NOEXCEPT
+    {
+      return self_->get_executor();
+    }
+
     template <typename WriteHandler, typename ConstBufferSequence>
     void operator()(BOOST_ASIO_MOVE_ARG(WriteHandler) handler,
-        basic_stream_socket* self, const ConstBufferSequence& buffers,
+        const ConstBufferSequence& buffers,
         socket_base::message_flags flags) const
     {
       // If you get an error on the following line it means that your handler
@@ -962,17 +1003,33 @@ private:
       BOOST_ASIO_WRITE_HANDLER_CHECK(WriteHandler, handler) type_check;
 
       detail::non_const_lvalue<WriteHandler> handler2(handler);
-      self->impl_.get_service().async_send(
-          self->impl_.get_implementation(), buffers, flags,
-          handler2.value, self->impl_.get_implementation_executor());
+      self_->impl_.get_service().async_send(
+          self_->impl_.get_implementation(), buffers, flags,
+          handler2.value, self_->impl_.get_executor());
     }
+
+  private:
+    basic_stream_socket* self_;
   };
 
-  struct initiate_async_receive
+  class initiate_async_receive
   {
+  public:
+    typedef Executor executor_type;
+
+    explicit initiate_async_receive(basic_stream_socket* self)
+      : self_(self)
+    {
+    }
+
+    executor_type get_executor() const BOOST_ASIO_NOEXCEPT
+    {
+      return self_->get_executor();
+    }
+
     template <typename ReadHandler, typename MutableBufferSequence>
     void operator()(BOOST_ASIO_MOVE_ARG(ReadHandler) handler,
-        basic_stream_socket* self, const MutableBufferSequence& buffers,
+        const MutableBufferSequence& buffers,
         socket_base::message_flags flags) const
     {
       // If you get an error on the following line it means that your handler
@@ -980,10 +1037,13 @@ private:
       BOOST_ASIO_READ_HANDLER_CHECK(ReadHandler, handler) type_check;
 
       detail::non_const_lvalue<ReadHandler> handler2(handler);
-      self->impl_.get_service().async_receive(
-          self->impl_.get_implementation(), buffers, flags,
-          handler2.value, self->impl_.get_implementation_executor());
+      self_->impl_.get_service().async_receive(
+          self_->impl_.get_implementation(), buffers, flags,
+          handler2.value, self_->impl_.get_executor());
     }
+
+  private:
+    basic_stream_socket* self_;
   };
 };
 

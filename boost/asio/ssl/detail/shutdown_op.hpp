@@ -2,7 +2,7 @@
 // ssl/detail/shutdown_op.hpp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2020 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -29,6 +29,11 @@ namespace detail {
 class shutdown_op
 {
 public:
+  static BOOST_ASIO_CONSTEXPR const char* tracking_name()
+  {
+    return "ssl::stream<>::async_shutdown";
+  }
+
   engine::want operator()(engine& eng,
       boost::system::error_code& ec,
       std::size_t& bytes_transferred) const

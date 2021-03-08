@@ -8,14 +8,7 @@ Distributed under the Boost Software License, Version 1.0.
 #ifndef BOOST_CORE_NOINIT_ADAPTOR_HPP
 #define BOOST_CORE_NOINIT_ADAPTOR_HPP
 
-#include <boost/config.hpp>
-#if !defined(BOOST_NO_CXX11_ALLOCATOR)
-#include <memory>
-#endif
-#include <new>
-#if !defined(BOOST_NO_CXX11_RVALUE_REFERENCES)
-#include <utility>
-#endif
+#include <boost/core/allocator_access.hpp>
 
 namespace boost {
 
@@ -24,12 +17,7 @@ struct noinit_adaptor
     : A {
     template<class U>
     struct rebind {
-#if !defined(BOOST_NO_CXX11_ALLOCATOR)
-        typedef noinit_adaptor<typename std::allocator_traits<A>::template
-            rebind_alloc<U> > other;
-#else
-        typedef noinit_adaptor<typename A::template rebind<U>::other> other;
-#endif
+        typedef noinit_adaptor<typename allocator_rebind<A, U>::type> other;
     };
 
     noinit_adaptor()
@@ -43,37 +31,24 @@ struct noinit_adaptor
     template<class U>
     noinit_adaptor(const U& u) BOOST_NOEXCEPT
         : A(u) { }
+
+    template<class U>
+    noinit_adaptor(U& u) BOOST_NOEXCEPT
+        : A(u) { }
 #endif
 
     template<class U>
     noinit_adaptor(const noinit_adaptor<U>& u) BOOST_NOEXCEPT
-        : A(static_cast<const U&>(u)) { }
+        : A(static_cast<const A&>(u)) { }
 
     template<class U>
     void construct(U* p) {
         ::new((void*)p) U;
     }
 
-#if !defined(BOOST_NO_CXX11_RVALUE_REFERENCES)
-#if !defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES)
-    template<class U, class V, class... Args>
-    void construct(U* p, V&& v, Args&&... args) {
-        ::new((void*)p) U(std::forward<V>(v), std::forward<Args>(args)...);
-    }
-#else
-    template<class U, class V>
-    void construct(U* p, V&& v) {
-        ::new((void*)p) U(std::forward<V>(v));
-    }
-#endif
-#else
+#if defined(BOOST_NO_CXX11_ALLOCATOR)
     template<class U, class V>
     void construct(U* p, const V& v) {
-        ::new((void*)p) U(v);
-    }
-
-    template<class U, class V>
-    void construct(U* p, V& v) {
         ::new((void*)p) U(v);
     }
 #endif

@@ -111,8 +111,8 @@
 // TR1 features:
 //
 #if (_MSC_VER >= 1700) && defined(_HAS_CXX17) && (_HAS_CXX17 > 0)
-// # define BOOST_HAS_TR1_HASH			// don't know if this is true yet.
-// # define BOOST_HAS_TR1_TYPE_TRAITS	// don't know if this is true yet.
+// # define BOOST_HAS_TR1_HASH          // don't know if this is true yet.
+// # define BOOST_HAS_TR1_TYPE_TRAITS   // don't know if this is true yet.
 # define BOOST_HAS_TR1_UNORDERED_MAP
 # define BOOST_HAS_TR1_UNORDERED_SET
 #endif
@@ -144,6 +144,7 @@
 #  define BOOST_NO_CXX11_FINAL
 #  define BOOST_NO_CXX11_RANGE_BASED_FOR
 #  define BOOST_NO_CXX11_SCOPED_ENUMS
+#  define BOOST_NO_CXX11_OVERRIDE
 #endif // _MSC_VER < 1700
 
 // C++11 features supported by VC++ 12 (aka 2013).
@@ -185,6 +186,7 @@
 #  define BOOST_NO_CXX14_GENERIC_LAMBDAS
 #  define BOOST_NO_CXX14_DIGIT_SEPARATORS
 #  define BOOST_NO_CXX11_THREAD_LOCAL
+#  define BOOST_NO_CXX11_UNRESTRICTED_UNION
 #endif
 // C++11 features supported by VC++ 14 update 3 (aka 2015)
 //

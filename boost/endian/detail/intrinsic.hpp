@@ -18,7 +18,7 @@
   #define __has_builtin(x) 0  // Compatibility with non-clang compilers
 #endif
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && ( !defined(__clang__) || defined(__c2__) )
 //  Microsoft documents these as being compatible since Windows 95 and specifically
 //  lists runtime library support since Visual Studio 2003 (aka 7.1).
 //  Clang/c2 uses the Microsoft rather than GCC intrinsics, so we check for
@@ -45,6 +45,8 @@
 # endif
 # define BOOST_ENDIAN_INTRINSIC_BYTE_SWAP_4(x) __builtin_bswap32(x)
 # define BOOST_ENDIAN_INTRINSIC_BYTE_SWAP_8(x) __builtin_bswap64(x)
+
+# define BOOST_ENDIAN_CONSTEXPR_INTRINSICS
 
 //  Linux systems provide the byteswap.h header, with
 #elif defined(__linux__)

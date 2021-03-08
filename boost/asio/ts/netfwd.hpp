@@ -2,7 +2,7 @@
 // ts/netfwd.hpp
 // ~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2020 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -25,6 +25,12 @@
 # include <boost/asio/detail/date_time_fwd.hpp>
 #endif // defined(BOOST_ASIO_HAS_BOOST_DATE_TIME)
 
+#if !defined(BOOST_ASIO_USE_TS_EXECUTOR_AS_DEFAULT)
+#include <boost/asio/execution/blocking.hpp>
+#include <boost/asio/execution/outstanding_work.hpp>
+#include <boost/asio/execution/relationship.hpp>
+#endif // !defined(BOOST_ASIO_USE_TS_EXECUTOR_AS_DEFAULT)
+
 #if !defined(GENERATING_DOCUMENTATION)
 
 #include <boost/asio/detail/push_options.hpp>
@@ -37,12 +43,65 @@ class execution_context;
 template <typename T, typename Executor>
 class executor_binder;
 
-template <typename Executor>
+#if !defined(BOOST_ASIO_EXECUTOR_WORK_GUARD_DECL)
+#define BOOST_ASIO_EXECUTOR_WORK_GUARD_DECL
+
+template <typename Executor, typename = void>
 class executor_work_guard;
 
-class system_executor;
+#endif // !defined(BOOST_ASIO_EXECUTOR_WORK_GUARD_DECL)
+
+template <typename Blocking, typename Relationship, typename Allocator>
+class basic_system_executor;
+
+#if defined(BOOST_ASIO_USE_TS_EXECUTOR_AS_DEFAULT)
 
 class executor;
+
+typedef executor any_io_executor;
+
+#else // defined(BOOST_ASIO_USE_TS_EXECUTOR_AS_DEFAULT)
+
+namespace execution {
+
+#if !defined(BOOST_ASIO_EXECUTION_ANY_EXECUTOR_FWD_DECL)
+#define BOOST_ASIO_EXECUTION_ANY_EXECUTOR_FWD_DECL
+
+#if defined(BOOST_ASIO_HAS_VARIADIC_TEMPLATES)
+
+template <typename... SupportableProperties>
+class any_executor;
+
+#else // defined(BOOST_ASIO_HAS_VARIADIC_TEMPLATES)
+
+template <typename = void, typename = void, typename = void,
+    typename = void, typename = void, typename = void,
+    typename = void, typename = void, typename = void>
+class any_executor;
+
+#endif // defined(BOOST_ASIO_HAS_VARIADIC_TEMPLATES)
+
+#endif // !defined(BOOST_ASIO_EXECUTION_ANY_EXECUTOR_FWD_DECL)
+
+template <typename U>
+struct context_as_t;
+
+template <typename Property>
+struct prefer_only;
+
+} // namespace execution
+
+typedef execution::any_executor<
+    execution::context_as_t<execution_context&>,
+    execution::blocking_t::never_t,
+    execution::prefer_only<execution::blocking_t::possibly_t>,
+    execution::prefer_only<execution::outstanding_work_t::tracked_t>,
+    execution::prefer_only<execution::outstanding_work_t::untracked_t>,
+    execution::prefer_only<execution::relationship_t::fork_t>,
+    execution::prefer_only<execution::relationship_t::continuation_t>
+  > any_io_executor;
+
+#endif // defined(BOOST_ASIO_USE_TS_EXECUTOR_AS_DEFAULT)
 
 template <typename Executor>
 class strand;
@@ -64,7 +123,7 @@ struct time_traits;
 
 template <typename Clock,
     typename WaitTraits = wait_traits<Clock>,
-    typename Executor = executor>
+    typename Executor = any_io_executor>
 class basic_waitable_timer;
 
 #endif // !defined(BOOST_ASIO_BASIC_WAITABLE_TIMER_FWD_DECL)
@@ -83,7 +142,7 @@ typedef basic_waitable_timer<chrono::high_resolution_clock>
 #if !defined(BOOST_ASIO_BASIC_SOCKET_FWD_DECL)
 #define BOOST_ASIO_BASIC_SOCKET_FWD_DECL
 
-template <typename Protocol, typename Executor = executor>
+template <typename Protocol, typename Executor = any_io_executor>
 class basic_socket;
 
 #endif // !defined(BOOST_ASIO_BASIC_SOCKET_FWD_DECL)
@@ -91,7 +150,7 @@ class basic_socket;
 #if !defined(BOOST_ASIO_BASIC_DATAGRAM_SOCKET_FWD_DECL)
 #define BOOST_ASIO_BASIC_DATAGRAM_SOCKET_FWD_DECL
 
-template <typename Protocol, typename Executor = executor>
+template <typename Protocol, typename Executor = any_io_executor>
 class basic_datagram_socket;
 
 #endif // !defined(BOOST_ASIO_BASIC_DATAGRAM_SOCKET_FWD_DECL)
@@ -100,7 +159,7 @@ class basic_datagram_socket;
 #define BOOST_ASIO_BASIC_STREAM_SOCKET_FWD_DECL
 
 // Forward declaration with defaulted arguments.
-template <typename Protocol, typename Executor = executor>
+template <typename Protocol, typename Executor = any_io_executor>
 class basic_stream_socket;
 
 #endif // !defined(BOOST_ASIO_BASIC_STREAM_SOCKET_FWD_DECL)
@@ -108,7 +167,7 @@ class basic_stream_socket;
 #if !defined(BOOST_ASIO_BASIC_SOCKET_ACCEPTOR_FWD_DECL)
 #define BOOST_ASIO_BASIC_SOCKET_ACCEPTOR_FWD_DECL
 
-template <typename Protocol, typename Executor = executor>
+template <typename Protocol, typename Executor = any_io_executor>
 class basic_socket_acceptor;
 
 #endif // !defined(BOOST_ASIO_BASIC_SOCKET_ACCEPTOR_FWD_DECL)
@@ -185,7 +244,7 @@ class basic_resolver_results;
 #if !defined(BOOST_ASIO_IP_BASIC_RESOLVER_FWD_DECL)
 #define BOOST_ASIO_IP_BASIC_RESOLVER_FWD_DECL
 
-template <typename InternetProtocol, typename Executor = executor>
+template <typename InternetProtocol, typename Executor = any_io_executor>
 class basic_resolver;
 
 #endif // !defined(BOOST_ASIO_IP_BASIC_RESOLVER_FWD_DECL)

@@ -9,6 +9,7 @@
 #define BOOST_WINAPI_ERROR_CODES_HPP_INCLUDED_
 
 #include <boost/winapi/basic_types.hpp>
+#include <boost/winapi/detail/header.hpp>
 
 #ifdef BOOST_HAS_PRAGMA_ONCE
 #pragma once
@@ -3174,5 +3175,7 @@ BOOST_CONSTEXPR_OR_CONST DWORD_ STORE_ERROR_LICENSE_REVOKED_ = 15864;
 
 } // namespace winapi
 } // namespace boost
+
+#include <boost/winapi/detail/footer.hpp>
 
 #endif // BOOST_WINAPI_ERROR_CODES_HPP_INCLUDED_

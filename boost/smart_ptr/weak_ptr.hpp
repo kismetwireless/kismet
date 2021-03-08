@@ -13,10 +13,11 @@
 //  See http://www.boost.org/libs/smart_ptr/ for documentation.
 //
 
-#include <memory> // boost.TR1 include order fix
 #include <boost/smart_ptr/detail/shared_count.hpp>
 #include <boost/smart_ptr/shared_ptr.hpp>
 #include <boost/smart_ptr/detail/sp_noexcept.hpp>
+#include <memory>
+#include <cstddef>
 
 namespace boost
 {
@@ -237,6 +238,21 @@ public:
         return pn < rhs.pn;
     }
 
+    template<class Y> bool owner_equals( weak_ptr<Y> const & rhs ) const BOOST_SP_NOEXCEPT
+    {
+        return pn == rhs.pn;
+    }
+
+    template<class Y> bool owner_equals( shared_ptr<Y> const & rhs ) const BOOST_SP_NOEXCEPT
+    {
+        return pn == rhs.pn;
+    }
+
+    std::size_t owner_hash_value() const BOOST_SP_NOEXCEPT
+    {
+        return pn.hash_value();
+    }
+
 // Tasteless as this may seem, making all members public allows member templates
 // to work in the absence of member template friends. (Matthew Langston)
 
@@ -264,6 +280,46 @@ template<class T> void swap(weak_ptr<T> & a, weak_ptr<T> & b) BOOST_SP_NOEXCEPT
     a.swap(b);
 }
 
+#if defined(__cpp_deduction_guides)
+
+template<class T> weak_ptr( shared_ptr<T> ) -> weak_ptr<T>;
+
+#endif
+
+// hash_value
+
+template< class T > std::size_t hash_value( boost::weak_ptr<T> const & p ) BOOST_SP_NOEXCEPT
+{
+    return p.owner_hash_value();
+}
+
 } // namespace boost
+
+// std::hash, std::equal_to
+
+namespace std
+{
+
+#if !defined(BOOST_NO_CXX11_HDR_FUNCTIONAL)
+
+template<class T> struct hash< ::boost::weak_ptr<T> >
+{
+    std::size_t operator()( ::boost::weak_ptr<T> const & p ) const BOOST_SP_NOEXCEPT
+    {
+        return p.owner_hash_value();
+    }
+};
+
+#endif // #if !defined(BOOST_NO_CXX11_HDR_FUNCTIONAL)
+
+template<class T> struct equal_to< ::boost::weak_ptr<T> >
+{
+    bool operator()( ::boost::weak_ptr<T> const & a, ::boost::weak_ptr<T> const & b ) const BOOST_SP_NOEXCEPT
+    {
+        return a.owner_equals( b );
+    }
+};
+
+} // namespace std
 
 #endif  // #ifndef BOOST_SMART_PTR_WEAK_PTR_HPP_INCLUDED

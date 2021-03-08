@@ -69,8 +69,10 @@ template<bool isRequest>
 class basic_parser
     : private detail::basic_parser_base
 {
-    std::uint64_t body_limit_ =
-        default_body_limit(is_request{});   // max payload body
+    boost::optional<std::uint64_t>
+        body_limit_ =
+            boost::optional<std::uint64_t>(
+                default_body_limit(is_request{}));   // max payload body
     std::uint64_t len_ = 0;                 // size of chunk or body
     std::uint64_t len0_ = 0;                // content length if known
     std::unique_ptr<char[]> buf_;           // temp storage
@@ -127,6 +129,8 @@ class basic_parser
 
     template<bool OtherIsRequest>
     friend class basic_parser;
+
+    friend class basic_parser_test;
 
 protected:
     /// Default constructor
@@ -287,10 +291,11 @@ public:
 
         The default limit is 1MB for requests and 8MB for responses.
 
-        @param v The payload body limit to set
+        @param v An optional integral value representing the body limit.
+        If this is equal to `boost::none`, then the body limit is disabled.
     */
     void
-    body_limit(std::uint64_t v)
+    body_limit(boost::optional<std::uint64_t> v)
     {
         body_limit_ = v;
     }
@@ -622,6 +627,10 @@ protected:
     on_finish_impl(error_code& ec) = 0;
 
 private:
+
+    boost::optional<std::uint64_t>
+    content_length_unchecked() const;
+
     template<class ConstBufferSequence>
     std::size_t
     put_from_stack(

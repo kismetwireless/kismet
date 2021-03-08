@@ -50,9 +50,7 @@ basic_parser<isRequest>::
 content_length() const
 {
     BOOST_ASSERT(is_header_done());
-    if(! (f_ & flagContentLength))
-        return boost::none;
-    return len0_;
+    return content_length_unchecked();
 }
 
 template<bool isRequest>
@@ -449,7 +447,8 @@ finish_header(error_code& ec, std::true_type)
     }
     else if(f_ & flagContentLength)
     {
-        if(len_ > body_limit_)
+        if(body_limit_.has_value() &&
+           len_ > body_limit_)
         {
             ec = error::body_limit;
             return;
@@ -513,7 +512,8 @@ finish_header(error_code& ec, std::false_type)
             f_ |= flagHasBody;
             state_ = state::body0;
 
-            if(len_ > body_limit_)
+            if(body_limit_.has_value() &&
+               len_ > body_limit_)
             {
                 ec = error::body_limit;
                 return;
@@ -575,12 +575,15 @@ basic_parser<isRequest>::
 parse_body_to_eof(char const*& p,
     std::size_t n, error_code& ec)
 {
-    if(n > body_limit_)
+    if(body_limit_.has_value())
     {
-        ec = error::body_limit;
-        return;
+        if (n > *body_limit_)
+        {
+            ec = error::body_limit;
+            return;
+        }
+        *body_limit_ -= n;
     }
-    body_limit_ = body_limit_ - n;
     ec = {};
     n = this->on_body_impl(string_view{p, n}, ec);
     p += n;
@@ -650,12 +653,15 @@ parse_chunk_header(char const*& p0,
         }
         if(size != 0)
         {
-            if(size > body_limit_)
+            if (body_limit_.has_value())
             {
-                ec = error::body_limit;
-                return;
+                if (size > *body_limit_)
+                {
+                    ec = error::body_limit;
+                    return;
+                }
+                *body_limit_ -= size;
             }
-            body_limit_ -= size;
             auto const start = p;
             parse_chunk_extensions(p, pend, ec);
             if(ec)
@@ -786,30 +792,48 @@ do_field(field f,
     // Content-Length
     if(f == field::content_length)
     {
-        if(f_ & flagContentLength)
+        auto bad_content_length = [&ec]
         {
-            // duplicate
             ec = error::bad_content_length;
-            return;
-        }
+        };
 
+        // conflicting field
         if(f_ & flagChunked)
+            return bad_content_length();
+
+        // Content-length may be a comma-separated list of integers
+        auto tokens_unprocessed = 1 +
+            std::count(value.begin(), value.end(), ',');
+        auto tokens = opt_token_list(value);
+        if (tokens.begin() == tokens.end() ||
+            !validate_list(tokens))
+                return bad_content_length();
+
+        auto existing = this->content_length_unchecked();
+        for (auto tok : tokens)
         {
-            // conflicting field
-            ec = error::bad_content_length;
-            return;
+            std::uint64_t v;
+            if (!parse_dec(tok, v))
+                return bad_content_length();
+            --tokens_unprocessed;
+            if (existing.has_value())
+            {
+                if (v != *existing)
+                    return bad_content_length();
+            }
+            else
+            {
+                existing = v;
+            }
         }
 
-        std::uint64_t v;
-        if(! parse_dec(value, v))
-        {
-            ec = error::bad_content_length;
-            return;
-        }
+        if (tokens_unprocessed)
+            return bad_content_length();
 
+        BOOST_ASSERT(existing.has_value());
         ec = {};
-        len_ = v;
-        len0_ = v;
+        len_ = *existing;
+        len0_ = *existing;
         f_ |= flagContentLength;
         return;
     }

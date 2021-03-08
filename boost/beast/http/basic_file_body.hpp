@@ -111,6 +111,12 @@ public:
     /// Move assignment
     value_type& operator=(value_type&& other) = default;
 
+    /// Return the file
+    File& file()
+    {
+        return file_;
+    }
+
     /// Returns `true` if the file is open
     bool
     is_open() const
@@ -357,6 +363,12 @@ get(error_code& ec) ->
     if(ec)
         return boost::none;
 
+    if (nread == 0)
+    {
+        ec = error::short_read;
+        return boost::none;
+    }
+
     // Make sure there is forward progress
     BOOST_ASSERT(nread != 0);
     BOOST_ASSERT(nread <= remain_);
@@ -527,8 +539,8 @@ finish(error_code& ec)
 // operator<< is not supported for file_body
 template<bool isRequest, class File, class Fields>
 std::ostream&
-operator<<(std::ostream& os, message<
-    isRequest, basic_file_body<File>, Fields> const& msg) = delete;
+operator<<(std::ostream&, message<
+    isRequest, basic_file_body<File>, Fields> const&) = delete;
 #endif
 
 } // http

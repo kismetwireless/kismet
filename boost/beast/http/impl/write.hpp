@@ -60,6 +60,10 @@ class write_some_op
             error_code& ec,
             ConstBufferSequence const& buffers)
         {
+            BOOST_ASIO_HANDLER_LOCATION((
+                __FILE__, __LINE__,
+                "http::async_write_some"));
+
             invoked = true;
             ec = {};
             op_.s_.async_write_some(
@@ -93,6 +97,11 @@ public:
             if(ec)
             {
                 BOOST_ASSERT(! f.invoked);
+
+                BOOST_ASIO_HANDLER_LOCATION((
+                    __FILE__, __LINE__,
+                    "http::async_write_some"));
+
                 return net::post(
                     s_.get_executor(),
                     beast::bind_front_handler(
@@ -106,6 +115,10 @@ public:
             // What else could it be?
             BOOST_ASSERT(sr_.is_done());
         }
+
+        BOOST_ASIO_HANDLER_LOCATION((
+            __FILE__, __LINE__,
+            "http::async_write_some"));
 
         return net::post(
             s_.get_executor(),
@@ -191,16 +204,28 @@ public:
             if(Predicate{}(sr_))
             {
                 BOOST_ASIO_CORO_YIELD
-                net::post(
-                    s_.get_executor(),
-                    std::move(*this));
+                {
+                    BOOST_ASIO_HANDLER_LOCATION((
+                        __FILE__, __LINE__,
+                        "http::async_write"));
+
+                    net::post(
+                        s_.get_executor(),
+                        std::move(*this));
+                }
                 goto upcall;
             }
             for(;;)
             {
                 BOOST_ASIO_CORO_YIELD
-                beast::http::async_write_some(
-                    s_, sr_, std::move(*this));
+                {
+                    BOOST_ASIO_HANDLER_LOCATION((
+                        __FILE__, __LINE__,
+                        "http::async_write"));
+
+                    beast::http::async_write_some(
+                        s_, sr_, std::move(*this));
+                }
                 bytes_transferred_ += bytes_transferred;
                 if(ec)
                     goto upcall;
@@ -248,6 +273,10 @@ public:
     void
     operator()()
     {
+        BOOST_ASIO_HANDLER_LOCATION((
+            __FILE__, __LINE__,
+            "http::async_write(msg)"));
+
         async_write(s_, sr_, std::move(*this));
     }
 
@@ -463,7 +492,7 @@ write_some_impl(
 template<
     class AsyncWriteStream,
     bool isRequest, class Body, class Fields,
-    class WriteHandler>
+    BOOST_BEAST_ASYNC_TPARAM2 WriteHandler>
 BOOST_BEAST_ASYNC_RESULT2(WriteHandler)
 async_write_some_impl(
     AsyncWriteStream& stream,
@@ -526,7 +555,7 @@ write_some(
 template<
     class AsyncWriteStream,
     bool isRequest, class Body, class Fields,
-    class WriteHandler>
+    BOOST_BEAST_ASYNC_TPARAM2 WriteHandler>
 BOOST_BEAST_ASYNC_RESULT2(WriteHandler)
 async_write_some(
     AsyncWriteStream& stream,
@@ -608,7 +637,7 @@ write_header(
 template<
     class AsyncWriteStream,
     bool isRequest, class Body, class Fields,
-    class WriteHandler>
+    BOOST_BEAST_ASYNC_TPARAM2 WriteHandler>
 BOOST_BEAST_ASYNC_RESULT2(WriteHandler)
 async_write_header(
     AsyncWriteStream& stream,
@@ -681,7 +710,7 @@ write(
 template<
     class AsyncWriteStream,
     bool isRequest, class Body, class Fields,
-    class WriteHandler>
+    BOOST_BEAST_ASYNC_TPARAM2 WriteHandler>
 BOOST_BEAST_ASYNC_RESULT2(WriteHandler)
 async_write(
     AsyncWriteStream& stream,
@@ -801,14 +830,14 @@ write(
 template<
     class AsyncWriteStream,
     bool isRequest, class Body, class Fields,
-    class WriteHandler>
-typename std::enable_if<
-    is_mutable_body_writer<Body>::value,
-    BOOST_BEAST_ASYNC_RESULT2(WriteHandler)>::type
+    BOOST_BEAST_ASYNC_TPARAM2 WriteHandler>
+BOOST_BEAST_ASYNC_RESULT2(WriteHandler)
 async_write(
     AsyncWriteStream& stream,
     message<isRequest, Body, Fields>& msg,
-    WriteHandler&& handler)
+    WriteHandler&& handler,
+    typename std::enable_if<
+        is_mutable_body_writer<Body>::value>::type*)
 {
     static_assert(
         is_async_write_stream<AsyncWriteStream>::value,
@@ -830,14 +859,14 @@ async_write(
 template<
     class AsyncWriteStream,
     bool isRequest, class Body, class Fields,
-    class WriteHandler>
-typename std::enable_if<
-    ! is_mutable_body_writer<Body>::value,
-    BOOST_BEAST_ASYNC_RESULT2(WriteHandler)>::type
+    BOOST_BEAST_ASYNC_TPARAM2 WriteHandler>
+BOOST_BEAST_ASYNC_RESULT2(WriteHandler)
 async_write(
     AsyncWriteStream& stream,
     message<isRequest, Body, Fields> const& msg,
-    WriteHandler&& handler)
+    WriteHandler&& handler,
+    typename std::enable_if<
+        ! is_mutable_body_writer<Body>::value>::type*)
 {
     static_assert(
         is_async_write_stream<AsyncWriteStream>::value,

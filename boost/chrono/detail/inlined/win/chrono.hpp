@@ -15,6 +15,7 @@
 #include <boost/winapi/time.hpp>
 #include <boost/winapi/timers.hpp>
 #include <boost/winapi/get_last_error.hpp>
+#include <boost/winapi/error_codes.hpp>
 #include <boost/assert.hpp>
 
 namespace boost
@@ -70,7 +71,7 @@ namespace chrono_detail
     {
         boost::winapi::DWORD_ cause =
             ((nanosecs_per_tic <= 0.0L)
-                    ? ERROR_NOT_SUPPORTED
+                    ? boost::winapi::ERROR_NOT_SUPPORTED_
                     : boost::winapi::GetLastError());
         if (::boost::chrono::is_throws(ec)) {
             boost::throw_exception(

@@ -82,7 +82,7 @@ class frame_test;
     To declare the @ref stream object with a @ref tcp_stream in a
     multi-threaded asynchronous program using a strand, you may write:
     @code
-    websocket::stream<tcp_stream> ws{net::io_context::strand(ioc)};
+    websocket::stream<tcp_stream> ws{net::make_strand(ioc)};
     @endcode
     Alternatively, for a single-threaded or synchronous application
     you may write:
@@ -875,12 +875,17 @@ public:
         @li <a href="https://tools.ietf.org/html/rfc7230#section-3.1.1">request-target (RFC7230)</a>
         @li <a href="https://tools.ietf.org/html/rfc7230#section-5.3.1">origin-form (RFC7230)</a>
     */
-    template<class HandshakeHandler>
+    template<
+        BOOST_BEAST_ASYNC_TPARAM1 HandshakeHandler =
+            net::default_completion_token_t<executor_type>
+    >
     BOOST_BEAST_ASYNC_RESULT1(HandshakeHandler)
     async_handshake(
         string_view host,
         string_view target,
-        HandshakeHandler&& handler);
+        HandshakeHandler&& handler =
+            net::default_completion_token_t<
+                executor_type>{});
 
     /** Perform the WebSocket handshake asynchronously in the client role.
 
@@ -956,13 +961,18 @@ public:
         @li <a href="https://tools.ietf.org/html/rfc7230#section-3.1.1">request-target (RFC7230)</a>
         @li <a href="https://tools.ietf.org/html/rfc7230#section-5.3.1">origin-form (RFC7230)</a>
     */
-    template<class HandshakeHandler>
+    template<
+        BOOST_BEAST_ASYNC_TPARAM1 HandshakeHandler =
+            net::default_completion_token_t<executor_type>
+    >
     BOOST_BEAST_ASYNC_RESULT1(HandshakeHandler)
     async_handshake(
         response_type& res,
         string_view host,
         string_view target,
-        HandshakeHandler&& handler);
+        HandshakeHandler&& handler =
+            net::default_completion_token_t<
+                executor_type>{});
 
     //--------------------------------------------------------------------------
     //
@@ -1275,9 +1285,15 @@ public:
         @see
         @li <a href="https://tools.ietf.org/html/rfc6455#section-4.2">Websocket Opening Handshake Server Requirements (RFC6455)</a>
     */
-    template<class AcceptHandler>
+    template<
+        BOOST_BEAST_ASYNC_TPARAM1 AcceptHandler =
+            net::default_completion_token_t<executor_type>
+    >
     BOOST_BEAST_ASYNC_RESULT1(AcceptHandler)
-    async_accept(AcceptHandler&& handler);
+    async_accept(
+        AcceptHandler&& handler =
+            net::default_completion_token_t<
+                executor_type>{});
 
     /** Perform the WebSocket handshake asynchronously in the server role.
 
@@ -1338,17 +1354,21 @@ public:
     */
     template<
         class ConstBufferSequence,
-        class AcceptHandler>
-#if BOOST_BEAST_DOXYGEN
-    void_or_deduced
-#else
-    typename std::enable_if<
-        ! http::detail::is_header<ConstBufferSequence>::value,
-        BOOST_BEAST_ASYNC_RESULT1(AcceptHandler)>::type
-#endif
+        BOOST_BEAST_ASYNC_TPARAM1 AcceptHandler =
+            net::default_completion_token_t<executor_type>
+    >
+    BOOST_BEAST_ASYNC_RESULT1(AcceptHandler)
     async_accept(
         ConstBufferSequence const& buffers,
-        AcceptHandler&& handler);
+        AcceptHandler&& handler =
+            net::default_completion_token_t<
+                executor_type>{}
+#ifndef BOOST_BEAST_DOXYGEN
+        , typename std::enable_if<
+            ! http::detail::is_header<
+            ConstBufferSequence>::value>::type* = 0
+#endif
+    );
 
     /** Perform the WebSocket handshake asynchronously in the server role.
 
@@ -1399,12 +1419,16 @@ public:
     */
     template<
         class Body, class Allocator,
-        class AcceptHandler>
+        BOOST_BEAST_ASYNC_TPARAM1 AcceptHandler =
+            net::default_completion_token_t<executor_type>
+    >
     BOOST_BEAST_ASYNC_RESULT1(AcceptHandler)
     async_accept(
         http::request<Body,
             http::basic_fields<Allocator>> const& req,
-        AcceptHandler&& handler);
+        AcceptHandler&& handler =
+            net::default_completion_token_t<
+                executor_type>{});
 
     //--------------------------------------------------------------------------
     //
@@ -1529,9 +1553,16 @@ public:
         @see
         @li <a href="https://tools.ietf.org/html/rfc6455#section-7.1.2">Websocket Closing Handshake (RFC6455)</a>
     */
-    template<class CloseHandler>
+    template<
+        BOOST_BEAST_ASYNC_TPARAM1 CloseHandler =
+            net::default_completion_token_t<executor_type>
+    >
     BOOST_BEAST_ASYNC_RESULT1(CloseHandler)
-    async_close(close_reason const& cr, CloseHandler&& handler);
+    async_close(
+        close_reason const& cr,
+        CloseHandler&& handler =
+            net::default_completion_token_t<
+                executor_type>{});
 
     //--------------------------------------------------------------------------
     //
@@ -1624,9 +1655,16 @@ public:
         this function. Invocation of the handler will be performed in a
         manner equivalent to using `net::post`.
     */
-    template<class WriteHandler>
+    template<
+        BOOST_BEAST_ASYNC_TPARAM1 WriteHandler =
+            net::default_completion_token_t<executor_type>
+    >
     BOOST_BEAST_ASYNC_RESULT1(WriteHandler)
-    async_ping(ping_data const& payload, WriteHandler&& handler);
+    async_ping(
+        ping_data const& payload,
+        WriteHandler&& handler =
+            net::default_completion_token_t<
+                executor_type>{});
 
     /** Send a websocket pong control frame.
 
@@ -1725,9 +1763,16 @@ public:
         this function. Invocation of the handler will be performed in a
         manner equivalent to using `net::post`.
     */
-    template<class WriteHandler>
+    template<
+        BOOST_BEAST_ASYNC_TPARAM1 WriteHandler =
+            net::default_completion_token_t<executor_type>
+    >
     BOOST_BEAST_ASYNC_RESULT1(WriteHandler)
-    async_pong(ping_data const& payload, WriteHandler&& handler);
+    async_pong(
+        ping_data const& payload,
+        WriteHandler&& handler =
+            net::default_completion_token_t<
+                executor_type>{});
 
     //--------------------------------------------------------------------------
     //
@@ -1879,11 +1924,17 @@ public:
         this function. Invocation of the handler will be performed in a
         manner equivalent to using `net::post`.
     */
-    template<class DynamicBuffer, class ReadHandler>
+    template<
+        class DynamicBuffer,
+        BOOST_BEAST_ASYNC_TPARAM2 ReadHandler =
+            net::default_completion_token_t<
+                executor_type>>
     BOOST_BEAST_ASYNC_RESULT2(ReadHandler)
     async_read(
         DynamicBuffer& buffer,
-        ReadHandler&& handler);
+        ReadHandler&& handler =
+            net::default_completion_token_t<
+                executor_type>{});
 
     //--------------------------------------------------------------------------
 
@@ -2052,12 +2103,18 @@ public:
         this function. Invocation of the handler will be performed in a
         manner equivalent to using `net::post`.
     */
-    template<class DynamicBuffer, class ReadHandler>
+    template<
+        class DynamicBuffer,
+        BOOST_BEAST_ASYNC_TPARAM2 ReadHandler =
+            net::default_completion_token_t<
+                executor_type>>
     BOOST_BEAST_ASYNC_RESULT2(ReadHandler)
     async_read_some(
         DynamicBuffer& buffer,
         std::size_t limit,
-        ReadHandler&& handler);
+        ReadHandler&& handler =
+            net::default_completion_token_t<
+                executor_type>{});
 
     //--------------------------------------------------------------------------
 
@@ -2221,11 +2278,17 @@ public:
         this function. Invocation of the handler will be performed in a
         manner equivalent to using `net::post`.
     */
-    template<class MutableBufferSequence, class ReadHandler>
+    template<
+        class MutableBufferSequence,
+        BOOST_BEAST_ASYNC_TPARAM2 ReadHandler =
+            net::default_completion_token_t<
+                executor_type>>
     BOOST_BEAST_ASYNC_RESULT2(ReadHandler)
     async_read_some(
         MutableBufferSequence const& buffers,
-        ReadHandler&& handler);
+        ReadHandler&& handler =
+            net::default_completion_token_t<
+                executor_type>{});
 
     //--------------------------------------------------------------------------
     //
@@ -2340,11 +2403,15 @@ public:
     */
     template<
         class ConstBufferSequence,
-        class WriteHandler>
+        BOOST_BEAST_ASYNC_TPARAM2 WriteHandler =
+            net::default_completion_token_t<
+                executor_type>>
     BOOST_BEAST_ASYNC_RESULT2(WriteHandler)
     async_write(
         ConstBufferSequence const& buffers,
-        WriteHandler&& handler);
+        WriteHandler&& handler =
+            net::default_completion_token_t<
+                executor_type>{});
 
     /** Write some message data.
 
@@ -2457,137 +2524,18 @@ public:
         this function. Invocation of the handler will be performed in a
         manner equivalent to using `net::post`.
     */
-    template<class ConstBufferSequence, class WriteHandler>
-    BOOST_BEAST_ASYNC_RESULT2(WriteHandler)
-    async_write_some(bool fin,
-        ConstBufferSequence const& buffers, WriteHandler&& handler);
-
-    //
-    // Deprecated
-    //
-
-#if ! BOOST_BEAST_DOXYGEN
-    template<class RequestDecorator>
-    void
-    handshake_ex(
-        string_view host,
-        string_view target,
-        RequestDecorator const& decorator);
-
-    template<class RequestDecorator>
-    void
-    handshake_ex(
-        response_type& res,
-        string_view host,
-        string_view target,
-        RequestDecorator const& decorator);
-
-    template<class RequestDecorator>
-    void
-    handshake_ex(
-        string_view host,
-        string_view target,
-        RequestDecorator const& decorator,
-        error_code& ec);
-
-    template<class RequestDecorator>
-    void
-    handshake_ex(
-        response_type& res,
-        string_view host,
-        string_view target,
-        RequestDecorator const& decorator,
-        error_code& ec);
-
-    template<class RequestDecorator, class HandshakeHandler>
-    BOOST_BEAST_ASYNC_RESULT1(HandshakeHandler)
-    async_handshake_ex(
-        string_view host,
-        string_view target,
-        RequestDecorator const& decorator,
-        HandshakeHandler&& handler);
-
-    template<class RequestDecorator, class HandshakeHandler>
-    BOOST_BEAST_ASYNC_RESULT1(HandshakeHandler)
-    async_handshake_ex(
-        response_type& res,
-        string_view host,
-        string_view target,
-        RequestDecorator const& decorator,
-        HandshakeHandler&& handler);
-
-    template<class ResponseDecorator>
-    void
-    accept_ex(ResponseDecorator const& decorator);
-
-    template<class ResponseDecorator>
-    void
-    accept_ex(
-        ResponseDecorator const& decorator,
-        error_code& ec);
-
-    template<class ConstBufferSequence,
-        class ResponseDecorator>
-    typename std::enable_if<! http::detail::is_header<
-        ConstBufferSequence>::value>::type
-    accept_ex(
-        ConstBufferSequence const& buffers,
-        ResponseDecorator const& decorator);
-
-    template<class ConstBufferSequence, class ResponseDecorator>
-    typename std::enable_if<! http::detail::is_header<
-        ConstBufferSequence>::value>::type
-    accept_ex(
-        ConstBufferSequence const& buffers,
-        ResponseDecorator const& decorator,
-        error_code& ec);
-
-    template<class Body, class Allocator,
-        class ResponseDecorator>
-    void
-    accept_ex(http::request<Body,
-        http::basic_fields<Allocator>> const& req,
-            ResponseDecorator const& decorator);
-
-    template<class Body, class Allocator,
-        class ResponseDecorator>
-    void
-    accept_ex(http::request<Body,
-        http::basic_fields<Allocator>> const& req,
-            ResponseDecorator const& decorator,
-                error_code& ec);
-
-    template<
-        class ResponseDecorator,
-        class AcceptHandler>
-    BOOST_BEAST_ASYNC_RESULT1(AcceptHandler)
-    async_accept_ex(
-        ResponseDecorator const& decorator,
-        AcceptHandler&& handler);
-
     template<
         class ConstBufferSequence,
-        class ResponseDecorator,
-        class AcceptHandler>
-    typename std::enable_if<
-        ! http::detail::is_header<ConstBufferSequence>::value,
-        BOOST_BEAST_ASYNC_RESULT1(AcceptHandler)>::type
-    async_accept_ex(
+        BOOST_BEAST_ASYNC_TPARAM2 WriteHandler =
+            net::default_completion_token_t<
+                executor_type>>
+    BOOST_BEAST_ASYNC_RESULT2(WriteHandler)
+    async_write_some(
+        bool fin,
         ConstBufferSequence const& buffers,
-        ResponseDecorator const& decorator,
-        AcceptHandler&& handler);
-
-    template<
-        class Body, class Allocator,
-        class ResponseDecorator,
-        class AcceptHandler>
-    BOOST_BEAST_ASYNC_RESULT1(AcceptHandler)
-    async_accept_ex(
-        http::request<Body,
-            http::basic_fields<Allocator>> const& req,
-        ResponseDecorator const& decorator,
-        AcceptHandler&& handler);
-#endif
+        WriteHandler&& handler =
+            net::default_completion_token_t<
+                executor_type>{});
 
 private:
     template<class, class>  class accept_op;

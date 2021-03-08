@@ -110,7 +110,7 @@ struct run_read_op
     operator()(
         ReadHandler&& h,
         buffered_read_stream* s,
-        Buffers const& b)
+        Buffers const* b)
     {
         // If you get an error on the following line it means
         // that your handler does not meet the documented type
@@ -124,7 +124,7 @@ struct run_read_op
         read_op<
             Buffers,
             typename std::decay<ReadHandler>::type>(
-                std::forward<ReadHandler>(h), *s, b);
+                std::forward<ReadHandler>(h), *s, *b);
     }
 };
 
@@ -141,7 +141,7 @@ buffered_read_stream(Args&&... args)
 }
 
 template<class Stream, class DynamicBuffer>
-template<class ConstBufferSequence, class WriteHandler>
+template<class ConstBufferSequence, BOOST_BEAST_ASYNC_TPARAM2 WriteHandler>
 BOOST_BEAST_ASYNC_RESULT2(WriteHandler)
 buffered_read_stream<Stream, DynamicBuffer>::
 async_write_some(
@@ -153,7 +153,7 @@ async_write_some(
     static_assert(net::is_const_buffer_sequence<
         ConstBufferSequence>::value,
             "ConstBufferSequence type requirements not met");
-    static_assert(detail::is_invocable<WriteHandler,
+    static_assert(detail::is_completion_token_for<WriteHandler,
         void(error_code, std::size_t)>::value,
             "WriteHandler type requirements not met");
     return next_layer_.async_write_some(buffers,
@@ -212,7 +212,7 @@ read_some(MutableBufferSequence const& buffers,
 }
 
 template<class Stream, class DynamicBuffer>
-template<class MutableBufferSequence, class ReadHandler>
+template<class MutableBufferSequence, BOOST_BEAST_ASYNC_TPARAM2 ReadHandler>
 BOOST_BEAST_ASYNC_RESULT2(ReadHandler)
 buffered_read_stream<Stream, DynamicBuffer>::
 async_read_some(
@@ -233,7 +233,7 @@ async_read_some(
             typename ops::run_read_op{},
             handler,
             this,
-            buffers);
+            &buffers);
 }
 
 } // beast

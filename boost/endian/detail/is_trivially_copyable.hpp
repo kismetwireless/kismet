@@ -9,6 +9,7 @@
 #include <boost/config.hpp>
 #include <boost/type_traits/has_trivial_copy.hpp>
 #include <boost/type_traits/has_trivial_assign.hpp>
+#include <boost/type_traits/has_trivial_destructor.hpp>
 
 #if !defined(BOOST_NO_CXX11_HDR_TYPE_TRAITS)
 # include <type_traits>
@@ -28,7 +29,7 @@ using std::is_trivially_copyable;
 #else
 
 template<class T> struct is_trivially_copyable: boost::integral_constant<bool,
-    boost::has_trivial_copy<T>::value && boost::has_trivial_assign<T>::value> {};
+    boost::has_trivial_copy<T>::value && boost::has_trivial_assign<T>::value && boost::has_trivial_destructor<T>::value> {};
 
 #endif
 

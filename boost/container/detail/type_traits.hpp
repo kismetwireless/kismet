@@ -40,6 +40,7 @@ using ::boost::move_detail::add_const;
 using ::boost::move_detail::add_const_reference;
 using ::boost::move_detail::remove_const;
 using ::boost::move_detail::remove_reference;
+using ::boost::move_detail::remove_cvref;
 using ::boost::move_detail::make_unsigned;
 using ::boost::move_detail::is_floating_point;
 using ::boost::move_detail::is_integral;

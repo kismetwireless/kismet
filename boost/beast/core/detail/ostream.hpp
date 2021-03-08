@@ -42,7 +42,7 @@ class ostream_buffer;
 
 template<class DynamicBuffer, class CharT, class Traits>
 class ostream_buffer
-        <DynamicBuffer, CharT, Traits, true>
+        <DynamicBuffer, CharT, Traits, true> final
     : public std::basic_streambuf<CharT, Traits>
 {
     using int_type = typename
@@ -66,6 +66,7 @@ public:
     ostream_buffer(DynamicBuffer& b)
         : b_(b)
     {
+        b_.prepare(0);
     }
 
     int_type
@@ -99,6 +100,7 @@ public:
         b_.commit(
             (this->pptr() - this->pbase()) *
             sizeof(CharT));
+        this->setp(nullptr, nullptr);
         return 0;
     }
 };
@@ -168,6 +170,7 @@ public:
         b_.commit(
             (this->pptr() - this->pbase()) *
             sizeof(CharT));
+        this->setp(nullptr, nullptr);
         return 0;
     }
 };

@@ -30,7 +30,7 @@ namespace detail {
  */
 struct indeterminate_t
 {
-#if BOOST_WORKAROUND(__BORLANDC__, < 0x0600)
+#if BOOST_WORKAROUND(BOOST_BORLANDC, < 0x0600)
   char dummy_; // BCB would use 8 bytes by default
 #endif
 };
