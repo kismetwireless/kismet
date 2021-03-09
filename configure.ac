@@ -41,8 +41,10 @@ BUILD_CAPTURE_TI_CC_2531=0
 BUILD_CAPTURE_UBERTOOTH_ONE=0
 BUILD_CAPTURE_NRF_51822=0
 BUILD_CAPTURE_NXP_KW41Z=0
+BUILD_CAPTURE_RZ_KILLERBEE=0
 BUILD_CAPTURE_BLADERF_WLAN=0
 BUILD_CAPTURE_PROXY_ADSB=1
+BUILD_CAPTURE_NRF_52840=0
 
 DATASOURCE_BINS="\$(CAPTURE_KISMETDB)"
 
@@ -1567,6 +1569,15 @@ DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NRF_51822)"
 BUILD_CAPTURE_NXP_KW41Z=1
 DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NXP_KW41Z)"
 
+BUILD_CAPTURE_NRF_52840=1
+DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_NRF_52840)"
+
+BUILD_CAPTURE_RZ_KILLERBEE=0
+if test "$have_usb" = "yes"; then
+    BUILD_CAPTURE_RZ_KILLERBEE=1
+    DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_RZ_KILLERBEE)"
+fi
+
 
 if test "$darwin" = "yes"; then
 	suidgroup="staff"
@@ -1694,6 +1705,8 @@ AC_SUBST(BUILD_CAPTURE_UBERTOOTH_ONE)
 AC_SUBST(BUILD_CAPTURE_NRF_51822)
 AC_SUBST(BUILD_CAPTURE_NXP_KW41Z)
 AC_SUBST(BUILD_CAPTURE_PROXY_ADSB)
+AC_SUBST(BUILD_CAPTURE_RZ_KILLERBEE)
+AC_SUBST(BUILD_CAPTURE_NRF_52840)
 
 #AC_SUBST(CPPFLAGS)
 #AC_SUBST(CFLAGS)
@@ -1718,8 +1731,10 @@ AC_CONFIG_FILES([
     capture_ubertooth_one/Makefile 
     capture_nrf_51822/Makefile 
     capture_nxp_kw41z/Makefile
+    capture_rz_killerbee/Makefile
     capture_bladerf_wiphy/Makefile
     capture_proxy_adsb/Makefile
+    capture_nrf_52840/Makefile
     ])
 AC_OUTPUT
 
@@ -1841,12 +1856,25 @@ if test "$BUILD_CAPTURE_NRF_51822" = 1; then
         echo "yes";
 fi
 
+printf "       NRF52840 Zigbee: "
+if test "$BUILD_CAPTURE_NRF_52840" = 1; then
+        echo "yes";
+fi
+
 printf "  NXP KW41Z BLE/Zigbee: "
 if test "$BUILD_CAPTURE_NXP_KW41Z" = 1; then
         echo "yes";
 else
         echo "no";
 fi
+
+printf "          RZ KILLERBEE: "
+if test "$BUILD_CAPTURE_RZ_KILLERBEE" = 1; then
+        echo "yes";
+else
+        echo "no (libusb-1.0 not available)";
+fi
+
 
 printf "        Python Modules: "
 if test "$BUILD_PYTHON_MODULES" = 1; then

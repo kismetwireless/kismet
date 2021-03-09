@@ -16,12 +16,12 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __DATASOURCE_NXP_KW41Z_H__
-#define __DATASOURCE_NXP_KW41Z_H__
+#ifndef __DATASOURCE_RZ_KILLERBEE_H__
+#define __DATASOURCE_RZ_KILLERBEE_H__
 
 #include "config.h"
 
-#define HAVE_NXP_KW41Z_DATASOURCE
+#define HAVE_RZ_KILLERBEE_DATASOURCE
 
 #include "kis_datasource.h"
 #include "dlttracker.h"
@@ -29,43 +29,33 @@
 
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 
-class kis_datasource_nxpkw41z;
-typedef std::shared_ptr<kis_datasource_nxpkw41z> shared_datasource_nxpkw41z;
+class kis_datasource_rzkillerbee;
+typedef std::shared_ptr<kis_datasource_rzkillerbee> shared_datasource_rzkillerbee;
 
-#ifndef KDLT_BLUETOOTH_LE_LL
-#define KDLT_BLUETOOTH_LE_LL        251
-#endif
-
-#ifndef KDLT_BTLE_RADIO
-#define KDLT_BTLE_RADIO             256
+#ifndef KDLT_IEEE802_15_4_TAP
+#define KDLT_IEEE802_15_4_TAP             283 
 #endif
 
 #ifndef KDLT_IEEE802_15_4_NOFCS
-#define KDLT_IEEE802_15_4_NOFCS     230
+#define KDLT_IEEE802_15_4_NOFCS           230
 #endif
 
-#ifndef KDLT_IEEE802_15_4_TAP
-#define KDLT_IEEE802_15_4_TAP       283 
-#endif
-
-class kis_datasource_nxpkw41z : public kis_datasource {
+class kis_datasource_rzkillerbee : public kis_datasource {
 public:
-    kis_datasource_nxpkw41z(shared_datasource_builder in_builder) :
+    kis_datasource_rzkillerbee(shared_datasource_builder in_builder) :
         kis_datasource(in_builder) {
 
         // Set the capture binary
-        set_int_source_ipc_binary("kismet_cap_nxp_kw41z");
+        set_int_source_ipc_binary("kismet_cap_rz_killerbee");
 
-        // We synthesize BTLE_LL_RADIO headers
-        set_int_source_dlt(KDLT_BTLE_RADIO);
+        //set_int_source_dlt(KDLT_IEEE802_15_4_NOFCS);
+        set_int_source_dlt(KDLT_IEEE802_15_4_TAP);
 
-        pack_comp_decap =
-            packetchain->register_packet_component("DECAP");
-        pack_comp_radiodata = 
-            packetchain->register_packet_component("RADIODATA");
+        pack_comp_decap = packetchain->register_packet_component("DECAP");
+        pack_comp_radiodata = packetchain->register_packet_component("RADIODATA");
     }
 
-    virtual ~kis_datasource_nxpkw41z() { };
+    virtual ~kis_datasource_rzkillerbee() { };
 
 protected:
     virtual void handle_rx_packet(kis_packet *packet) override;
@@ -74,9 +64,9 @@ protected:
 };
 
 
-class datasource_nxpkw41z_builder : public kis_datasource_builder {
+class datasource_rzkillerbee_builder : public kis_datasource_builder {
 public:
-    datasource_nxpkw41z_builder(int in_id) :
+    datasource_rzkillerbee_builder(int in_id) :
         kis_datasource_builder(in_id) {
 
         register_fields();
@@ -84,7 +74,7 @@ public:
         initialize();
     }
 
-    datasource_nxpkw41z_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
+    datasource_rzkillerbee_builder(int in_id, std::shared_ptr<tracker_element_map> e) :
         kis_datasource_builder(in_id, e) {
 
         register_fields();
@@ -92,7 +82,7 @@ public:
         initialize();
     }
 
-    datasource_nxpkw41z_builder() :
+    datasource_rzkillerbee_builder() :
         kis_datasource_builder() {
 
         register_fields();
@@ -100,20 +90,20 @@ public:
         initialize();
     }
 
-    virtual ~datasource_nxpkw41z_builder() { }
+    virtual ~datasource_rzkillerbee_builder() { }
 
     virtual shared_datasource build_datasource(shared_datasource_builder in_sh_this) override {
-        return shared_datasource_nxpkw41z(new kis_datasource_nxpkw41z(in_sh_this));
+        return shared_datasource_rzkillerbee(new kis_datasource_rzkillerbee(in_sh_this));
     }
 
     virtual void initialize() override {
         // Set up our basic parameters for the linux wifi driver
         
-        set_source_type("nxp_kw41z");
-        set_source_description("NXP KW41Z with sniffer firmware");
+        set_source_type("rzkillerbee");
+        set_source_description("RZ KILLERBEE");
 
         set_probe_capable(true);
-        set_list_capable(false);
+        set_list_capable(true);
         set_local_capable(true);
         set_remote_capable(true);
         set_passive_capable(false);
