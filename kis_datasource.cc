@@ -442,11 +442,8 @@ void kis_datasource::connect_remote(std::string in_definition, kis_datasource* i
     if (in_tcp)  {
         attach_tcp_socket(in_remote->tcpsocket);
     } else {
-        if (in_remote->write_cb != nullptr)
-            write_cb = std::move(in_remote->write_cb);
-
-        if (in_remote->closure_cb != nullptr)
-            closure_cb = std::move(in_remote->closure_cb);
+        write_cb = in_remote->move_write_cb();
+        closure_cb = in_remote->move_closure_cb();
     }
 
     in_buf.consume(in_buf.size());
