@@ -51,6 +51,8 @@ capture_nrf_51822/kismet_cap_nrf_51822
 capture_ubertooth_one/kismet_cap_ubertooth_one
 capture_nxp_kw41z/kismet_cap_nxp_kw41z
 capture_bladerf_wiphy/kis_cap_bladerf_wiphy
+capture_nrf_52840/kismet_cap_nrf_52840
+capture_rz_killerbee/kismet_cap_rz_killerbee
 kismet_cap_pcapfile
 kismet_cap_kismetdb
 
