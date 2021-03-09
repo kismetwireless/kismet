@@ -81,17 +81,6 @@ public:
     // Attach a tcp socket
     virtual bool attach_tcp_socket(tcp::socket& socket);
 
-    // Detach a TCP socket (migrate it to another datasource, for instance, while making a remote
-    // capture source)
-    tcp::socket move_tcp_socket() { 
-        if (tcpsocket.is_open())
-            tcpsocket.cancel();
-
-        stopped = true;
-
-        return std::move(tcpsocket);
-    }
-
 
     // Check to see if an IPC binary is available
     static bool check_ipc(const std::string& in_binary);
