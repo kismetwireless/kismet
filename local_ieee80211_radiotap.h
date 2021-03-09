@@ -18,9 +18,19 @@
 
 #if defined(__APPLE__)
 #include <libkern/OSByteOrder.h>
+
+#ifndef bswap_16
 #define bswap_16 OSSwapInt16
+#endif
+
+#ifndef bswap_32
 #define bswap_32 OSSwapInt32
+#endif
+
+#ifndef bswap_64
 #define bswap_64 OSSwapInt64
+#endif
+
 #include <machine/endian.h>
 #define le16toh(x) OSSwapLittleToHostInt16(x)
 #define le32toh(x) OSSwapLittleToHostInt32(x)
