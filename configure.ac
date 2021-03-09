@@ -43,6 +43,7 @@ BUILD_CAPTURE_NRF_51822=0
 BUILD_CAPTURE_NXP_KW41Z=0
 BUILD_CAPTURE_RZ_KILLERBEE=0
 BUILD_CAPTURE_BLADERF_WLAN=0
+BUILD_CAPTURE_PROXY_ADSB=1
 BUILD_CAPTURE_NRF_52840=0
 
 DATASOURCE_BINS="\$(CAPTURE_KISMETDB)"
@@ -360,6 +361,7 @@ if test "$want_python"x == "no"x; then
     BUILD_CAPTURE_SDR_RTLAMR=0
     BUILD_CAPTURE_SDR_RTLADSB=0
     BUILD_CAPTURE_FREAKLABS_ZIGBEE=0
+    BUILD_CAPTURE_PROXY_ADSB=0
     AC_MSG_WARN([Disabling Python and Python-related tools])
 else
     if test "$PYTHON_VERSION" == 3; then
@@ -1702,6 +1704,7 @@ AC_SUBST(BUILD_CAPTURE_TI_CC_2531)
 AC_SUBST(BUILD_CAPTURE_UBERTOOTH_ONE)
 AC_SUBST(BUILD_CAPTURE_NRF_51822)
 AC_SUBST(BUILD_CAPTURE_NXP_KW41Z)
+AC_SUBST(BUILD_CAPTURE_PROXY_ADSB)
 AC_SUBST(BUILD_CAPTURE_RZ_KILLERBEE)
 AC_SUBST(BUILD_CAPTURE_NRF_52840)
 
@@ -1730,6 +1733,7 @@ AC_CONFIG_FILES([
     capture_nxp_kw41z/Makefile
     capture_rz_killerbee/Makefile
     capture_bladerf_wiphy/Makefile
+    capture_proxy_adsb/Makefile
     capture_nrf_52840/Makefile
     ])
 AC_OUTPUT
@@ -1905,6 +1909,13 @@ fi
 
 printf "      Freaklabs Zigbee: "
 if test "$BUILD_CAPTURE_FREAKLABS_ZIGBEE" = 1; then
+	echo "yes";
+else
+	echo "no (python modules are disabled)";
+fi
+
+printf "            ADSB Proxy: "
+if test "$BUILD_CAPTURE_PROXY_ADSB" = 1; then
 	echo "yes";
 else
 	echo "no (python modules are disabled)";

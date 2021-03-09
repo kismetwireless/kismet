@@ -47,7 +47,7 @@ typedef struct {
     unsigned int channel;
 } local_channel_t;
 
-int nrf_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len)
+int nrf_write_cmd(kis_capture_handler_t *caph, char *tx_buf, size_t tx_len)
 {
     /*
      * receive
@@ -61,6 +61,10 @@ int nrf_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len)
     write(localnrf->fd,tx_buf,tx_len);
     res = read(localnrf->fd,buf,255);
     pthread_mutex_unlock(&(localnrf->serial_mutex));
+
+    if (res < 0)
+        return res;
+
     return 1;
 }
 
@@ -68,7 +72,7 @@ int nrf_enter_promisc_mode(kis_capture_handler_t *caph)
 {
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
     localnrf->ready = false;
-    nrf_write_cmd(caph,"receive\r\n\r\n",strlen("receive\r\n\r\n"));
+    nrf_write_cmd(caph, "receive\r\n\r\n", strlen("receive\r\n\r\n"));
     localnrf->ready = true;
     return 1;
 }
@@ -85,8 +89,8 @@ int nrf_set_channel(kis_capture_handler_t *caph, uint8_t channel)
 {
     // local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
     nrf_exit_promisc_mode(caph);
-    uint8_t ch[16];
-    sprintf(ch,"channel %d\r\n\r\n",channel);
+    char ch[16];
+    sprintf(ch, "channel %u\r\n\r\n", channel);
     nrf_write_cmd(caph,ch,strlen(ch));
     nrf_enter_promisc_mode(caph);
     return 1;
