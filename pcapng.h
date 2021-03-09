@@ -54,9 +54,9 @@ typedef struct pcap_packet_hdr pcap_packet_hdr_t;
 /* Generic option block */
 struct pcapng_option {
     uint16_t option_code;
-    // Length of actual option data
+    /* Length of actual option data */
     uint16_t option_length;
-    // Must be padded to 32 bit
+    /* Must be padded to 32 bit */
     uint8_t option_data[0];
 } __attribute__((packed));
 typedef struct pcapng_option pcapng_option_t;
@@ -113,15 +113,52 @@ struct pcapng_epb {
     uint32_t timestamp_high;
     uint32_t timestamp_low;
 
-    // Length of actual packet
+    /* Length of actual packet */
     uint32_t captured_length;
     uint32_t original_length;
 
-    // Data must be padded to 32bit
+    /* Data must be padded to 32bit */
     uint8_t data[0];
+
     /* Options go here and must be dynamically calculated */
 } __attribute__((packed));
 typedef struct pcapng_epb pcapng_epb_t;
 #define PCAPNG_EPB_BLOCK_TYPE       6
+
+/* Custom pcapng block */
+struct pcapng_custom {
+    uint32_t block_type;
+    uint32_t block_length;
+    uint32_t custom_pen;
+    
+    /* Data must be padded to 32bit */
+    uint8_t data[0];
+
+    /* Options must be dynamically calculated */
+
+} __attribute__((packed));
+
+/* Kismet IANA PEN */
+#define KISMET_PEN 55922
+
+/* Kismet GPS record, matches PPI GPS definition */
+struct kismet_gps_block {
+    uint8_t magic;
+    uint16_t gps_len;
+    uint32_t gps_fields_present;
+    uint8_t gps_data[0];
+} __attribute__((packed));
+
+#define PCAPNG_GPS_FLAG_LON         0x2
+#define PCAPNG_GPS_FLAG_LAT	    	0x4
+#define PCAPNG_GPS_FLAG_ALT		    0x8
+#define PCAPNG_GPS_FLAG_ALT_G		0x10
+#define PCAPNG_GPS_FLAG_GPSTIME		0x20
+#define PCAPNG_GPS_FLAG_FRACTIME	0x40
+#define PCAPNG_GPS_FLAG_EPH         0x80
+#define PCAPNG_GPS_FLAG_EPV         0x100
+#define PCAPNG_GPS_FLAG_EPT         0x200
+#define PCAPNG_GPS_FLAG_APPID       0x20000000
+#define PCAPNG_GPS_FLAG_DATA        0x40000000 
 
 #endif
