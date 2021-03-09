@@ -36,15 +36,122 @@ typedef struct {
     char *name;
     char *interface;
 
+    speed_t baudrate;
+
+    //we will keep a counter of empty length packets
+    unsigned int error_ctr;
+
     kis_capture_handler_t *caph;
 } local_nrf_t;
+
+int get_baud(int baud)
+{
+    switch (baud) {
+    case 9600:
+        return B9600;
+    case 19200:
+        return B19200;
+    case 38400:
+        return B38400;
+    case 57600:
+        return B57600;
+    case 115200:
+        return B115200;
+    case 230400:
+        return B230400;
+    case 460800:
+        return B460800;
+    case 500000:
+        return B500000;
+    case 576000:
+        return B576000;
+    case 921600:
+        return B921600;
+    case 1000000:
+        return B1000000;
+    case 1152000:
+        return B1152000;
+    case 1500000:
+        return B1500000;
+    case 2000000:
+        return B2000000;
+    case 2500000:
+        return B2500000;
+    case 3000000:
+        return B3000000;
+    case 3500000:
+        return B3500000;
+    case 4000000:
+        return B4000000;
+    default: 
+        return -1;
+    }
+}
+
+bool ping_check(kis_capture_handler_t *caph) {
+    local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
+/**
+PING_REQ = 0x0D
+PING_RESP = 0x0E
+**/
+    uint8_t buf[255];
+    uint16_t ctr = 0;
+    int8_t res = 0;
+    int8_t resp_len = 1;
+    bool found = false;
+    pthread_mutex_lock(&(localnrf->serial_mutex));
+
+    /* lets flush the buffer */
+    tcflush(localnrf->fd, TCIOFLUSH);
+    /* we are transmitting something */
+    res = write(localnrf->fd, 0x0D, 1);
+    if (res < 0) {
+        found = false;
+    }
+    if (resp_len > 0) {
+        /* looking for a response */
+        while (ctr < 5000) {
+            usleep(25);
+            memset(buf,0x00,255);
+            found = false;
+            res = read(localnrf->fd, buf, 255);
+            /* currently if we get something back that is fine and continue */
+            if (res > 0) {
+                found = true;
+                break;
+            }
+            ctr++;
+        }
+    }
+    pthread_mutex_unlock(&(localnrf->serial_mutex));
+    return found;
+}
 
 int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_max) {
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
 
     int actual_len = 0;
-
+    
+    pthread_mutex_lock(&(localnrf->serial_mutex));
     actual_len = read(localnrf->fd,rx_buf,rx_max);
+    pthread_mutex_unlock(&(localnrf->serial_mutex));
+
+    if(actual_len == 0) {
+        localnrf->error_ctr++;
+        if(localnrf->error_ctr > 1000000) {
+            //try to send a ping packet to verify we are actually talking to the correct device
+            if(ping_check(caph)) {
+                localnrf->error_ctr = 0;
+            }
+            else {
+                //we have an error, or possibly the incorrect serial port
+                return -1;
+            }
+        }
+    }
+    else
+        localnrf->error_ctr = 0;
+
     return actual_len;
 }
 
@@ -118,6 +225,10 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     char *device = NULL;
     char errstr[STATUS_MAX];
 
+    char *localbaudratestr = NULL;
+    unsigned int *localbaudrate = NULL;
+
+
     local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
@@ -139,6 +250,25 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         snprintf(msg, STATUS_MAX, "%s expected device= path to serial device in definition",
                 localnrf->name);
         return -1;
+    }
+
+    //try and find the baudrate
+    if ((placeholder_len = cf_find_flag(&placeholder, "baudrate", definition)) > 0) {
+        localbaudratestr = strndup(placeholder, placeholder_len);
+        localbaudrate = (unsigned int *) malloc(sizeof(unsigned int));
+        *localbaudrate = atoi(localbaudratestr); 
+        free(localbaudratestr);
+
+        if (localbaudrate == NULL) {
+            snprintf(msg, STATUS_MAX,
+                    "nrf51822 could not parse baudrate= option provided in source "
+                    "definition");
+            return -1;
+        }
+        //better way of doing this?
+        localnrf->baudrate = get_baud(*localbaudrate);
+    } else {
+        localnrf->baudrate = D_BAUDRATE;
     }
 
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
@@ -168,7 +298,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     bzero(&localnrf->newtio, sizeof(localnrf->newtio)); /* clear struct for new port settings */
 
     /* set the baud rate and flags */
-    localnrf->newtio.c_cflag = BAUDRATE | CRTSCTS | CS8 | CLOCAL | CREAD;
+    localnrf->newtio.c_cflag = localnrf->baudrate | CRTSCTS | CS8 | CLOCAL | CREAD;
 
     /* ignore parity errors */
     localnrf->newtio.c_iflag = IGNPAR;
@@ -231,8 +361,17 @@ void capture_thread(kis_capture_handler_t *caph) {
             for(int xp=0;xp<buf_rx_len;xp++) {
                 if((buf[xp] == 0xAB && xp == 0) || (buf[xp] == 0xAB && buf[xp-1] == 0xBC)) {
                     pkt_start = xp;xp++;
-                    hdr_len = buf[pkt_start+1];
-                    pkt_len = buf[pkt_start+2];
+                    //check the protocol version
+                    if(buf[pkt_start+3] == 0x01)
+                    {
+                        hdr_len = buf[pkt_start+1];
+                        pkt_len = buf[pkt_start+2];
+                    }
+                    else if(buf[pkt_start+3] == 0x02)
+                    {
+                        hdr_len = 0x06;
+                        pkt_len = buf[pkt_start+1];
+                    }
                 }
 
                 /* check the packet_type from the header */

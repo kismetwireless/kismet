@@ -7,7 +7,7 @@
 #define B460800 460800
 #endif
 
-#define BAUDRATE B460800
+#define D_BAUDRATE B460800
 
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
 
