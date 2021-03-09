@@ -40,6 +40,7 @@ typedef struct {
 
     //we will keep a counter of empty length packets
     unsigned int error_ctr;
+    unsigned int ping_ctr;
 
     kis_capture_handler_t *caph;
 } local_nrf_t;
@@ -142,15 +143,21 @@ int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_
             //try to send a ping packet to verify we are actually talking to the correct device
             if(ping_check(caph)) {
                 localnrf->error_ctr = 0;
+                localnrf->ping_ctr = 0;
             }
             else {
                 //we have an error, or possibly the incorrect serial port
-                return -1;
+                localnrf->ping_ctr++;
+                if(localnrf->ping_ctr > 1000000) {
+                    return -1;
+                }
             }
         }
     }
-    else
+    else {
         localnrf->error_ctr = 0;
+        localnrf->ping_ctr = 0;
+    }
 
     return actual_len;
 }
