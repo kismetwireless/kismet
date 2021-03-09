@@ -160,15 +160,17 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
         sigstr = tap_header->tlv[1].value;
         pkt_ctr += tap_header_size;
     }
+
     // Are we more than just a header?
-    if(pkt_ctr >= packdata->length)
+    if (pkt_ctr >= packdata->length)
         return 0;
 
     if (packdata->dlt == KDLT_IEEE802_15_4_NOFCS ||
         packdata->dlt == KDLT_IEEE802_15_4_TAP) {
         // Do we have enough for the frame control field?
-        if(pkt_ctr+2 >= packdata->length)
+        if (pkt_ctr + 2 >= packdata->length)
             return 0;
+
         unsigned short fcf = (((short) packdata->data[pkt_ctr + 1]) << 8) |
             (0x00ff & packdata->data[pkt_ctr]);
 
@@ -201,6 +203,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             if (hdr_802_15_4_fcf->frame_ver == 0x03)
                 return 0;
         }
+
         // Look for invalid Data packet
         if (hdr_802_15_4_fcf->type == DATA_802154) {
             // Data should not have a dest 0x01
@@ -211,6 +214,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             if (hdr_802_15_4_fcf->frame_ver == 0x03)
                 return 0;
         }
+
         // Look for invalid Ack packet
         if (hdr_802_15_4_fcf->type == ACK_802154) {
             // Ack needs a source
@@ -229,6 +233,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             if (hdr_802_15_4_fcf->sns && hdr_802_15_4_fcf->frame_ver == 0x00)
                 return 0;
         }
+
         // Look for invalid Cmd packet
         if (hdr_802_15_4_fcf->type == CMD_802154) {
             // Command needs a source
@@ -257,8 +262,9 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             return 0;
         } else if (hdr_802_15_4_fcf->dest_addr_mode == 0x02) {
             // We would go past the end to check this
-            if((pkt_ctr + 4) >= packdata->length)
+            if ((pkt_ctr + 4) >= packdata->length)
                 return 0;
+
             dest[1] = packdata->data[pkt_ctr];
             dest[0] = packdata->data[pkt_ctr + 1];
             pkt_ctr += 2;
@@ -268,12 +274,14 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             pkt_ctr += 2;
         } else if (hdr_802_15_4_fcf->dest_addr_mode == 0x03) {
             // We would go past the end to check this
-            if((pkt_ctr + 10) >= packdata->length)
+            if ((pkt_ctr + 10) >= packdata->length)
                 return 0;
+
             // Length means we actually have an extended dest
             dest[1] = packdata->data[pkt_ctr];
             dest[0] = packdata->data[pkt_ctr + 1];
             pkt_ctr += 2;
+
             // Extended dest which is what were are looking for
             ext_dest[7] = packdata->data[pkt_ctr];
             pkt_ctr++;
@@ -307,9 +315,11 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
                 src_pan[0] = packdata->data[pkt_ctr + 1];
                 pkt_ctr += 2;
             }
+
             // We would go past the end to check this
-            if((pkt_ctr + 2) >= packdata->length)
+            if ((pkt_ctr + 2) >= packdata->length)
                 return 0;
+
             src[1] = packdata->data[pkt_ctr];
             src[0] = packdata->data[pkt_ctr + 1];
             pkt_ctr += 2;
@@ -318,15 +328,18 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             // extended source
             if (!hdr_802_15_4_fcf->pan_id_comp) {
                 // We would go past the end to check this
-                if((pkt_ctr + 2) >= packdata->length)
+                if ((pkt_ctr + 2) >= packdata->length)
                     return 0;
+
                 src_pan[1] = packdata->data[pkt_ctr];
                 src_pan[0] = packdata->data[pkt_ctr + 1];
                 pkt_ctr += 2;
             }
+
             // We would go past the end to check this
-            if((pkt_ctr + 8) >= packdata->length)
+            if ((pkt_ctr + 8) >= packdata->length)
                 return 0;
+
             // extended source which is what were are looking for
             ext_source[7] = packdata->data[pkt_ctr];
             pkt_ctr++;
@@ -354,6 +367,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
         common->phyid = mphy->fetch_phy_id();
         common->basic_crypt_set = crypt_none;
         common->type = packet_basic_data;
+
         if (hdr_802_15_4_fcf->src_addr_mode == 0x03) {
             common->source = mac_addr(ext_source, 8);
         } else if (hdr_802_15_4_fcf->src_addr_mode == 0x02 &&
