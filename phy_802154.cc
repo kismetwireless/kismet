@@ -136,8 +136,8 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
                 packdata->dlt != KDLT_IEEE802_15_4_TAP)))
         return 0;
 
-    // Do we have enough data for an OUI?
-    if (packdata->length < 6)
+    // Do we have enough data for an OUI? and are within the Zigbee spec
+    if (packdata->length < 6 && packdata->length > 128)
         return 0;
 
     // Did something already classify this?
@@ -146,7 +146,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
     if (common != NULL)
         return 0;
 
-    uint8_t pkt_ctr = 0;
+    unsigned int pkt_ctr = 0;
     if (packdata->dlt == KDLT_IEEE802_15_4_TAP) {
         uint64_t tap_header_size = sizeof(zigbee_tap);
         uint8_t tmp_header[32];
@@ -160,9 +160,15 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
         sigstr = tap_header->tlv[1].value;
         pkt_ctr += tap_header_size;
     }
+    // Are we more than just a header?
+    if(pkt_ctr >= packdata->length)
+        return 0;
 
     if (packdata->dlt == KDLT_IEEE802_15_4_NOFCS ||
         packdata->dlt == KDLT_IEEE802_15_4_TAP) {
+        // Do we have enough for the frame control field?
+        if(pkt_ctr+2 >= packdata->length)
+            return 0;
         unsigned short fcf = (((short) packdata->data[pkt_ctr + 1]) << 8) |
             (0x00ff & packdata->data[pkt_ctr]);
 
@@ -250,6 +256,9 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             // This address mode is not valid under this spec
             return 0;
         } else if (hdr_802_15_4_fcf->dest_addr_mode == 0x02) {
+            // We would go past the end to check this
+            if((pkt_ctr + 4) >= packdata->length)
+                return 0;
             dest[1] = packdata->data[pkt_ctr];
             dest[0] = packdata->data[pkt_ctr + 1];
             pkt_ctr += 2;
@@ -258,6 +267,9 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             dest_pan[0] = packdata->data[pkt_ctr + 1];
             pkt_ctr += 2;
         } else if (hdr_802_15_4_fcf->dest_addr_mode == 0x03) {
+            // We would go past the end to check this
+            if((pkt_ctr + 10) >= packdata->length)
+                return 0;
             // Length means we actually have an extended dest
             dest[1] = packdata->data[pkt_ctr];
             dest[0] = packdata->data[pkt_ctr + 1];
@@ -287,11 +299,17 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             return 0;
         } else if (hdr_802_15_4_fcf->src_addr_mode == 0x02) {
             if (!hdr_802_15_4_fcf->pan_id_comp) {
+                // We would go past the end to check this
+                if((pkt_ctr + 2) >= packdata->length)
+                    return 0;
                 // src pan
                 src_pan[1] = packdata->data[pkt_ctr];
                 src_pan[0] = packdata->data[pkt_ctr + 1];
                 pkt_ctr += 2;
             }
+            // We would go past the end to check this
+            if((pkt_ctr + 2) >= packdata->length)
+                return 0;
             src[1] = packdata->data[pkt_ctr];
             src[0] = packdata->data[pkt_ctr + 1];
             pkt_ctr += 2;
@@ -299,10 +317,16 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             // srcpan
             // extended source
             if (!hdr_802_15_4_fcf->pan_id_comp) {
+                // We would go past the end to check this
+                if((pkt_ctr + 2) >= packdata->length)
+                    return 0;
                 src_pan[1] = packdata->data[pkt_ctr];
                 src_pan[0] = packdata->data[pkt_ctr + 1];
                 pkt_ctr += 2;
             }
+            // We would go past the end to check this
+            if((pkt_ctr + 8) >= packdata->length)
+                return 0;
             // extended source which is what were are looking for
             ext_source[7] = packdata->data[pkt_ctr];
             pkt_ctr++;

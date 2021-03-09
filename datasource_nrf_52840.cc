@@ -44,7 +44,6 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
     uint8_t payload[255];memset(payload,0x00,255);
     char tmp[16];memset(tmp,0x00,16);
     int16_t c_payload_len = 0;
-    int16_t lqi = 0;
     int16_t rssi = 0;
     int16_t loc[4] = {0,0,0,0};
     uint8_t li=0;
@@ -72,11 +71,6 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
     //copy over the power/rssi
     memcpy(tmp,&nrf_chunk->data[loc[1]+2],(loc[2] - loc[1] - 2 - (strlen("lqi"))));
     rssi = atoi(tmp);
-    memset(tmp,0x00,16);
-
-    //copy over the lqi
-    memcpy(tmp,&nrf_chunk->data[loc[2]+2],(loc[3] - loc[2] - 3 - (strlen("time"))));
-    lqi = atoi(tmp);
     memset(tmp,0x00,16);
 
     //convert the string payload to bytes
