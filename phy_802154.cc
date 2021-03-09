@@ -137,7 +137,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
         return 0;
 
     // Do we have enough data for an OUI? and are within the Zigbee spec
-    if (packdata->length < 6 && packdata->length > 128)
+    if (packdata->length < 6 || packdata->length > 128)
         return 0;
 
     // Did something already classify this?
