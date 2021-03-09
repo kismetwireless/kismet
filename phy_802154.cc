@@ -38,6 +38,11 @@
 
 #include "phy_802154.h"
 
+#define BEACON_802154   0x00
+#define DATA_802154     0x01
+#define ACK_802154      0x02
+#define CMD_802154      0x03
+
 typedef struct {
     uint16_t type; //type identifier
     uint16_t length; // number of octets for type in value field (not including padding
@@ -137,7 +142,6 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
     if (common != NULL)
         return 0;
 
-    //process the packet
     uint8_t pkt_ctr = 0;
     if(packdata->dlt == KDLT_IEEE802_15_4_TAP)
     {
@@ -146,13 +150,11 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
         memcpy(tmp_header, &packdata->data[pkt_ctr], tap_header_size);
         tap_header = (zigbee_tap *)&tmp_header;
 
-        //realy we are going to want to iterate through them to pull them correctly.
+        // Really we are going to want to iterate through them to pull them correctly.
         chan = tap_header->tlv[2].value;
         sigstr = tap_header->tlv[1].value;
         pkt_ctr += tap_header_size;
     }
-
-    //printf("pkt_ctr:%d\n",pkt_ctr);
 
     int start_of_main_packet = pkt_ctr;
 
@@ -163,75 +165,77 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 
         hdr_802_15_4_fcf = (_802_15_4_fcf* )&fcf;
 
+        // only parsing specific types of packets
         if(hdr_802_15_4_fcf->type > 0x03) {
-            //printf("type %02X currently not supported\n",hdr_802_15_4_fcf->type);
             return 0;
         }
-        if(hdr_802_15_4_fcf->type == 0x00) {
-            //beacon
-            //look for an invalid beacon
-            if(hdr_802_15_4_fcf->security == 0x01) {
-                //beacon should not have security enabled
+        // Check if the specific packet types are actually valid 
+
+        // Look for an invalid  Beacon
+        if(hdr_802_15_4_fcf->type == BEACON_802154) {
+
+            // Beacon should not have security enabled
+            if(hdr_802_15_4_fcf->security == 0x01)
                 return 0;
-            }
-            if(hdr_802_15_4_fcf->dest_addr_mode != 0x00) {
-                //beacon should not have a dest
+
+            // Beacon should not have a dest
+            if(hdr_802_15_4_fcf->dest_addr_mode != 0x00)
                 return 0;
-            }
-            if(hdr_802_15_4_fcf->sns) {
-                //sns not valid for this header type
+
+            // sns not valid for this header type
+            if(hdr_802_15_4_fcf->sns)
                 return 0;
-            }
-            if(hdr_802_15_4_fcf->frame_ver == 0x03) {
-                //frame version not valid for this header type
+
+            // Frame version not valid for this header type
+            if(hdr_802_15_4_fcf->frame_ver == 0x03)
                 return 0;
-            }
         }
-        if(hdr_802_15_4_fcf->type == 0x01)
+        // Look for invalid Data packet
+        if(hdr_802_15_4_fcf->type == DATA_802154)
         {
-            //data
-            if(hdr_802_15_4_fcf->dest_addr_mode == 0x01) {
-                //data should not have a dest 0x01
+            // Data should not have a dest 0x01
+            if(hdr_802_15_4_fcf->dest_addr_mode == 0x01)
                 return 0;
-            }
-            if(hdr_802_15_4_fcf->frame_ver == 0x03) {
-                //frame version not valid for this header type
+            
+            // Frame version not valid for this header type
+            if(hdr_802_15_4_fcf->frame_ver == 0x03)
                 return 0;
-            }
         }
-        if(hdr_802_15_4_fcf->type == 0x02) {
-            //ack
-            if(hdr_802_15_4_fcf->src_addr_mode <= 0x01) {
-                //ack needs a source
+        // Look for invalid Ack packet
+        if(hdr_802_15_4_fcf->type == ACK_802154) {
+            
+            // Ack needs a source
+            if(hdr_802_15_4_fcf->src_addr_mode <= 0x01)
                 return 0;
-            }
-            if(hdr_802_15_4_fcf->dest_addr_mode == 0x01) {
-                //ack should not have a dest 0x01
+
+            // Ack should not have a dest 0x01
+            if(hdr_802_15_4_fcf->dest_addr_mode == 0x01)
                 return 0;
-            }
-            if(hdr_802_15_4_fcf->security == 0x01) {
-                //ack should not have security enabled
+
+            // Ack should not have security enabled
+            if(hdr_802_15_4_fcf->security == 0x01)
                 return 0;
-            }
-            if(hdr_802_15_4_fcf->sns && hdr_802_15_4_fcf->frame_ver == 0x00) {
-                //sns not valid for this header type
+
+            // sns not valid for this header type
+            if(hdr_802_15_4_fcf->sns && hdr_802_15_4_fcf->frame_ver == 0x00)
                 return 0;
-            }
+
         }
-        if(hdr_802_15_4_fcf->type == 0x03) {
-            //command
-            if(hdr_802_15_4_fcf->src_addr_mode <= 0x01) {
-                //command needs a source
+        // Look for invalid Cmd packet
+        if(hdr_802_15_4_fcf->type == CMD_802154) {
+
+            // Command needs a source
+            if(hdr_802_15_4_fcf->src_addr_mode <= 0x01)
                 return 0;
-            }
-            if(hdr_802_15_4_fcf->sns) {
-                //sns not valid for this header type
+
+            // sns not valid for this header type
+            if(hdr_802_15_4_fcf->sns)
                 return 0;
-            }
-            if(hdr_802_15_4_fcf->frame_ver == 0x03) {
-                //frame version not valid for this header type
+
+            // Frame version not valid for this header type
+            if(hdr_802_15_4_fcf->frame_ver == 0x03)
                 return 0;
-            }
+
         }
 
         if(!hdr_802_15_4_fcf->sns) {
@@ -242,28 +246,26 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             return 0;
         }
         
-        //dest address
+        // dest address
         if(hdr_802_15_4_fcf->dest_addr_mode == 0x01) {
-            if(hdr_802_15_4_fcf->frame_ver == 0) {
-                //this address mode is not valid under this spec
-                return 0;
-            }
-
-            dest[1] = packdata->data[pkt_ctr];
-            pkt_ctr++;
+            // This address mode is not valid under this spec
+            return 0;
         }
         else if(hdr_802_15_4_fcf->dest_addr_mode == 0x02) {
-            dest[1] = packdata->data[pkt_ctr];pkt_ctr++;
-            dest[0] = packdata->data[pkt_ctr];pkt_ctr++;
+            dest[1] = packdata->data[pkt_ctr];
+            dest[0] = packdata->data[pkt_ctr+1];
+            pkt_ctr+=2;
 
-            dest_pan[1] = packdata->data[pkt_ctr];pkt_ctr++;
-            dest_pan[0] = packdata->data[pkt_ctr];pkt_ctr++;
+            dest_pan[1] = packdata->data[pkt_ctr];
+            dest_pan[0] = packdata->data[pkt_ctr+1];
+            pkt_ctr+=2;
         }
         else if(hdr_802_15_4_fcf->dest_addr_mode == 0x03) {
-            //length means we actually have an extended dest
-            dest[1] = packdata->data[pkt_ctr];pkt_ctr++;
-            dest[0] = packdata->data[pkt_ctr];pkt_ctr++;
-            //extended dest which is what were are looking for
+            // Length means we actually have an extended dest
+            dest[1] = packdata->data[pkt_ctr];
+            dest[0] = packdata->data[pkt_ctr+1];
+            pkt_ctr+=2;
+            // Extended dest which is what were are looking for
             ext_dest[7] = packdata->data[pkt_ctr];pkt_ctr++;
             ext_dest[6] = packdata->data[pkt_ctr];pkt_ctr++;
             ext_dest[5] = packdata->data[pkt_ctr];pkt_ctr++;
@@ -274,31 +276,31 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             ext_dest[0] = packdata->data[pkt_ctr];pkt_ctr++;
         }
 
-        //src address
+        // src address
         if(hdr_802_15_4_fcf->src_addr_mode == 0x01) {
-            if(hdr_802_15_4_fcf->frame_ver == 0) {
-                //this address mode is not valid under this spec
-                return 0;
-            }
-            src[1] = packdata->data[pkt_ctr];pkt_ctr++;
+            // This address mode is not valid under this spec
+            return 0;
         }
         else if(hdr_802_15_4_fcf->src_addr_mode == 0x02) {
             if(!hdr_802_15_4_fcf->pan_id_comp) {
-                //src pan
-                src_pan[1] = packdata->data[pkt_ctr];pkt_ctr++;
-                src_pan[0] = packdata->data[pkt_ctr];pkt_ctr++;
+                // src pan
+                src_pan[1] = packdata->data[pkt_ctr];
+                src_pan[0] = packdata->data[pkt_ctr+1];
+                pkt_ctr+=2;
             }
-            src[1] = packdata->data[pkt_ctr];pkt_ctr++;
-            src[0] = packdata->data[pkt_ctr];pkt_ctr++;
+            src[1] = packdata->data[pkt_ctr];
+            src[0] = packdata->data[pkt_ctr+1];
+            pkt_ctr+=2;
         }
         else if(hdr_802_15_4_fcf->src_addr_mode == 0x03) {
-            //srcpan
-            //extended source
+            // srcpan
+            // extended source
             if(!hdr_802_15_4_fcf->pan_id_comp) {
-                src_pan[1] = packdata->data[pkt_ctr];pkt_ctr++;
-                src_pan[0] = packdata->data[pkt_ctr];pkt_ctr++;
+                src_pan[1] = packdata->data[pkt_ctr];
+                src_pan[0] = packdata->data[pkt_ctr+1];
+                pkt_ctr+=2;
             }
-            //extended source which is what were are looking for
+            // extended source which is what were are looking for
             ext_source[7] = packdata->data[pkt_ctr];pkt_ctr++;
             ext_source[6] = packdata->data[pkt_ctr];pkt_ctr++;
             ext_source[5] = packdata->data[pkt_ctr];pkt_ctr++;
@@ -311,6 +313,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 
     }
 
+    // Setting the source and dest
     if(hdr_802_15_4_fcf->src_addr_mode >= 0x02 || hdr_802_15_4_fcf->dest_addr_mode >= 0x02)
     {
         common = new kis_common_info;
