@@ -318,7 +318,7 @@ namespace std {
 
 
 #ifdef __cplusplus
-extern "C" void 	bzero	    (void *, size_t);    // FD_ZERO uses bzero() but doesn't include strings.h
+extern "C" void   bzero     (void *, size_t);    // FD_ZERO uses bzero() but doesn't include strings.h
 
 // Put the selfmade functions into the std-namespace, just in case
 namespace std {

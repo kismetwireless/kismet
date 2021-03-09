@@ -105,10 +105,17 @@ bool dot11_tracked_ssid_alert::compare_ssid(const std::string& ssid, mac_addr ma
     rc = pcre_exec(ssid_re, ssid_study, ssid.c_str(), ssid.length(), 0, 0, ovector, 128);
 
     if (rc > 0) {
-        for (auto m : *allowed_macs_vec) {
-            if (get_tracker_value<mac_addr>(m) != mac)
-                return true;
+        bool valid = false;
+
+        for (const auto& m : *allowed_macs_vec) {
+            if (get_tracker_value<mac_addr>(m) == mac) {
+                valid = true;
+                break;
+            }
         }
+
+        if (!valid)
+            return true;
     }
 #endif
 

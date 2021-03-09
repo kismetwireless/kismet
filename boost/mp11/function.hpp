@@ -188,6 +188,11 @@ template<template<class...> class L, class... T1, class... T2> struct mp_similar
     using type = mp_true;
 };
 
+template<template<class...> class L, class... T> struct mp_similar_impl<L<T...>, L<T...>>
+{
+    using type = mp_true;
+};
+
 template<class T1, class T2, class T3, class... T> struct mp_similar_impl<T1, T2, T3, T...>
 {
     using type = mp_all< typename mp_similar_impl<T1, T2>::type, typename mp_similar_impl<T1, T3>::type, typename mp_similar_impl<T1, T>::type... >;

@@ -9,6 +9,7 @@
 #define BOOST_WINAPI_OVERLAPPED_HPP_INCLUDED_
 
 #include <boost/winapi/basic_types.hpp>
+#include <boost/winapi/detail/header.hpp>
 
 #ifdef BOOST_HAS_PRAGMA_ONCE
 #pragma once
@@ -23,11 +24,6 @@ struct _OVERLAPPED;
 namespace boost {
 namespace winapi {
 
-#ifdef BOOST_MSVC
-#pragma warning(push)
-#pragma warning(disable:4201) // nonstandard extension used : nameless struct/union
-#endif
-
 typedef struct BOOST_MAY_ALIAS _OVERLAPPED {
     ULONG_PTR_ Internal;
     ULONG_PTR_ InternalHigh;
@@ -41,11 +37,9 @@ typedef struct BOOST_MAY_ALIAS _OVERLAPPED {
     HANDLE_    hEvent;
 } OVERLAPPED_, *LPOVERLAPPED_;
 
-#ifdef BOOST_MSVC
-#pragma warning(pop)
-#endif
-
 } // namespace winapi
 } // namespace boost
+
+#include <boost/winapi/detail/footer.hpp>
 
 #endif // BOOST_WINAPI_OVERLAPPED_HPP_INCLUDED_

@@ -193,6 +193,10 @@ public:
     {
     }
 
+    virtual ~suite() = default;
+    suite(suite const&) = delete;
+    suite& operator=(suite const&) = delete;
+
     /** Invokes the test using the specified runner.
 
         Data members are set up here instead of the constructor as a
@@ -634,6 +638,20 @@ run(runner& r)
     (::boost::beast::unit_test::suite::this_suite()->pass(), true) : \
     (::boost::beast::unit_test::suite::this_suite()->fail((reason), __FILE__, __LINE__), false))
 #endif
+
+/** Ensure an exception is thrown
+*/
+#define BEAST_THROWS( EXPR, EXCEP ) \
+    try { \
+        EXPR; \
+        BEAST_FAIL(); \
+    } \
+    catch(EXCEP const&) { \
+        BEAST_PASS(); \
+    } \
+    catch(...) { \
+        BEAST_FAIL(); \
+    }
 
 } // unit_test
 } // beast

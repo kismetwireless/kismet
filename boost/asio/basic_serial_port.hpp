@@ -2,7 +2,7 @@
 // basic_serial_port.hpp
 // ~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2020 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 // Copyright (c) 2008 Rep Invariant Systems, Inc. (info@repinvariant.com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
@@ -22,6 +22,7 @@
   || defined(GENERATING_DOCUMENTATION)
 
 #include <string>
+#include <boost/asio/any_io_executor.hpp>
 #include <boost/asio/async_result.hpp>
 #include <boost/asio/detail/handler_type_requirements.hpp>
 #include <boost/asio/detail/io_object_impl.hpp>
@@ -30,7 +31,6 @@
 #include <boost/asio/detail/type_traits.hpp>
 #include <boost/asio/error.hpp>
 #include <boost/asio/execution_context.hpp>
-#include <boost/asio/executor.hpp>
 #include <boost/asio/serial_port_base.hpp>
 #if defined(BOOST_ASIO_HAS_IOCP)
 # include <boost/asio/detail/win_iocp_serial_port_service.hpp>
@@ -56,13 +56,21 @@ namespace asio {
  * @e Distinct @e objects: Safe.@n
  * @e Shared @e objects: Unsafe.
  */
-template <typename Executor = executor>
+template <typename Executor = any_io_executor>
 class basic_serial_port
   : public serial_port_base
 {
 public:
   /// The type of the executor associated with the object.
   typedef Executor executor_type;
+
+  /// Rebinds the serial port type to another executor.
+  template <typename Executor1>
+  struct rebind_executor
+  {
+    /// The serial port type when rebound to the specified executor.
+    typedef basic_serial_port<Executor1> other;
+  };
 
   /// The native representation of a serial port.
 #if defined(GENERATING_DOCUMENTATION)
@@ -682,15 +690,19 @@ public:
    * buffers in one go, and how to use it with arrays, boost::array or
    * std::vector.
    */
-  template <typename ConstBufferSequence, typename WriteHandler>
-  BOOST_ASIO_INITFN_RESULT_TYPE(WriteHandler,
+  template <typename ConstBufferSequence,
+      BOOST_ASIO_COMPLETION_TOKEN_FOR(void (boost::system::error_code,
+        std::size_t)) WriteHandler
+          BOOST_ASIO_DEFAULT_COMPLETION_TOKEN_TYPE(executor_type)>
+  BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(WriteHandler,
       void (boost::system::error_code, std::size_t))
   async_write_some(const ConstBufferSequence& buffers,
-      BOOST_ASIO_MOVE_ARG(WriteHandler) handler)
+      BOOST_ASIO_MOVE_ARG(WriteHandler) handler
+        BOOST_ASIO_DEFAULT_COMPLETION_TOKEN(executor_type))
   {
     return async_initiate<WriteHandler,
       void (boost::system::error_code, std::size_t)>(
-        initiate_async_write_some(), handler, this, buffers);
+        initiate_async_write_some(this), handler, buffers);
   }
 
   /// Read some data from the serial port.
@@ -793,15 +805,19 @@ public:
    * buffers in one go, and how to use it with arrays, boost::array or
    * std::vector.
    */
-  template <typename MutableBufferSequence, typename ReadHandler>
-  BOOST_ASIO_INITFN_RESULT_TYPE(ReadHandler,
+  template <typename MutableBufferSequence,
+      BOOST_ASIO_COMPLETION_TOKEN_FOR(void (boost::system::error_code,
+        std::size_t)) ReadHandler
+          BOOST_ASIO_DEFAULT_COMPLETION_TOKEN_TYPE(executor_type)>
+  BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(ReadHandler,
       void (boost::system::error_code, std::size_t))
   async_read_some(const MutableBufferSequence& buffers,
-      BOOST_ASIO_MOVE_ARG(ReadHandler) handler)
+      BOOST_ASIO_MOVE_ARG(ReadHandler) handler
+        BOOST_ASIO_DEFAULT_COMPLETION_TOKEN(executor_type))
   {
     return async_initiate<ReadHandler,
       void (boost::system::error_code, std::size_t)>(
-        initiate_async_read_some(), handler, this, buffers);
+        initiate_async_read_some(this), handler, buffers);
   }
 
 private:
@@ -809,38 +825,70 @@ private:
   basic_serial_port(const basic_serial_port&) BOOST_ASIO_DELETED;
   basic_serial_port& operator=(const basic_serial_port&) BOOST_ASIO_DELETED;
 
-  struct initiate_async_write_some
+  class initiate_async_write_some
   {
+  public:
+    typedef Executor executor_type;
+
+    explicit initiate_async_write_some(basic_serial_port* self)
+      : self_(self)
+    {
+    }
+
+    executor_type get_executor() const BOOST_ASIO_NOEXCEPT
+    {
+      return self_->get_executor();
+    }
+
     template <typename WriteHandler, typename ConstBufferSequence>
     void operator()(BOOST_ASIO_MOVE_ARG(WriteHandler) handler,
-        basic_serial_port* self, const ConstBufferSequence& buffers) const
+        const ConstBufferSequence& buffers) const
     {
       // If you get an error on the following line it means that your handler
       // does not meet the documented type requirements for a WriteHandler.
       BOOST_ASIO_WRITE_HANDLER_CHECK(WriteHandler, handler) type_check;
 
       detail::non_const_lvalue<WriteHandler> handler2(handler);
-      self->impl_.get_service().async_write_some(
-          self->impl_.get_implementation(), buffers, handler2.value,
-          self->impl_.get_implementation_executor());
+      self_->impl_.get_service().async_write_some(
+          self_->impl_.get_implementation(), buffers,
+          handler2.value, self_->impl_.get_executor());
     }
+
+  private:
+    basic_serial_port* self_;
   };
 
-  struct initiate_async_read_some
+  class initiate_async_read_some
   {
+  public:
+    typedef Executor executor_type;
+
+    explicit initiate_async_read_some(basic_serial_port* self)
+      : self_(self)
+    {
+    }
+
+    executor_type get_executor() const BOOST_ASIO_NOEXCEPT
+    {
+      return self_->get_executor();
+    }
+
     template <typename ReadHandler, typename MutableBufferSequence>
     void operator()(BOOST_ASIO_MOVE_ARG(ReadHandler) handler,
-        basic_serial_port* self, const MutableBufferSequence& buffers) const
+        const MutableBufferSequence& buffers) const
     {
       // If you get an error on the following line it means that your handler
       // does not meet the documented type requirements for a ReadHandler.
       BOOST_ASIO_READ_HANDLER_CHECK(ReadHandler, handler) type_check;
 
       detail::non_const_lvalue<ReadHandler> handler2(handler);
-      self->impl_.get_service().async_read_some(
-          self->impl_.get_implementation(), buffers, handler2.value,
-          self->impl_.get_implementation_executor());
+      self_->impl_.get_service().async_read_some(
+          self_->impl_.get_implementation(), buffers,
+          handler2.value, self_->impl_.get_executor());
     }
+
+  private:
+    basic_serial_port* self_;
   };
 
 #if defined(BOOST_ASIO_HAS_IOCP)

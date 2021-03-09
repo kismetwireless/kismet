@@ -124,4 +124,9 @@ static constexpr std::size_t prefetch_stride{ 4 * cacheline_length };
 # include <cxxabi.h>
 #endif
 
+#if defined(__OpenBSD__)
+// stacks need mmap(2) with MAP_STACK
+# define BOOST_CONTEXT_USE_MAP_STACK
+#endif
+
 #endif // BOOST_CONTEXT_DETAIL_CONFIG_H

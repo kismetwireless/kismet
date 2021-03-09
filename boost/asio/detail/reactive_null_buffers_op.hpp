@@ -2,7 +2,7 @@
 // detail/reactive_null_buffers_op.hpp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2020 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -16,9 +16,11 @@
 #endif // defined(_MSC_VER) && (_MSC_VER >= 1200)
 
 #include <boost/asio/detail/config.hpp>
+#include <boost/asio/detail/bind_handler.hpp>
 #include <boost/asio/detail/fenced_block.hpp>
 #include <boost/asio/detail/handler_alloc_helpers.hpp>
 #include <boost/asio/detail/handler_invoke_helpers.hpp>
+#include <boost/asio/detail/handler_work.hpp>
 #include <boost/asio/detail/memory.hpp>
 #include <boost/asio/detail/reactor_op.hpp>
 
@@ -34,13 +36,13 @@ class reactive_null_buffers_op : public reactor_op
 public:
   BOOST_ASIO_DEFINE_HANDLER_PTR(reactive_null_buffers_op);
 
-  reactive_null_buffers_op(Handler& handler, const IoExecutor& io_ex)
-    : reactor_op(&reactive_null_buffers_op::do_perform,
+  reactive_null_buffers_op(const boost::system::error_code& success_ec,
+      Handler& handler, const IoExecutor& io_ex)
+    : reactor_op(success_ec, &reactive_null_buffers_op::do_perform,
         &reactive_null_buffers_op::do_complete),
       handler_(BOOST_ASIO_MOVE_CAST(Handler)(handler)),
-      io_executor_(io_ex)
+      work_(handler_, io_ex)
   {
-    handler_work<Handler, IoExecutor>::start(handler_, io_executor_);
   }
 
   static status do_perform(reactor_op*)
@@ -55,9 +57,13 @@ public:
     // Take ownership of the handler object.
     reactive_null_buffers_op* o(static_cast<reactive_null_buffers_op*>(base));
     ptr p = { boost::asio::detail::addressof(o->handler_), o, o };
-    handler_work<Handler, IoExecutor> w(o->handler_, o->io_executor_);
 
     BOOST_ASIO_HANDLER_COMPLETION((*o));
+
+    // Take ownership of the operation's outstanding work.
+    handler_work<Handler, IoExecutor> w(
+        BOOST_ASIO_MOVE_CAST2(handler_work<Handler, IoExecutor>)(
+          o->work_));
 
     // Make a copy of the handler so that the memory can be deallocated before
     // the upcall is made. Even if we're not about to make an upcall, a
@@ -82,7 +88,7 @@ public:
 
 private:
   Handler handler_;
-  IoExecutor io_executor_;
+  handler_work<Handler, IoExecutor> work_;
 };
 
 } // namespace detail

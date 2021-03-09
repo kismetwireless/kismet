@@ -1246,7 +1246,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
                 source_dev->set_type_string_ifnot([d11phy]() { 
                         return d11phy->devicetracker->get_cached_devicetype("Wi-Fi Client"); 
-                        }, KIS_DEVICE_BASICTYPE_CLIENT);
+                        }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
             }
 
             if (dot11info->subtype == packet_sub_probe_req ||
@@ -1282,7 +1282,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             dest_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
             dest_dev->set_type_string_ifnot([d11phy]() {
                     return d11phy->devicetracker->get_cached_devicetype("Wi-Fi Client");
-                    }, KIS_DEVICE_BASICTYPE_AP);
+                    }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
 
             d11phy->devicetracker->update_view_device(dest_dev);
         }
@@ -1631,7 +1631,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
                 source_dev->set_type_string_ifnot([d11phy]() {
                         return d11phy->devicetracker->get_cached_devicetype("Wi-Fi Client");
-                        }, KIS_DEVICE_BASICTYPE_AP);
+                        }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
             } else if (dot11info->distrib == distrib_inter) {
                 // If it's from the ess, we're some sort of wired device; set the type
                 // accordingly
@@ -1648,13 +1648,13 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_WIRED);
                 source_dev->set_type_string_ifnot([d11phy]() {
                         return d11phy->devicetracker->get_cached_devicetype("Wi-Fi Bridged");
-                        }, KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP);
+                        }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
             } else {
                 source_dev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_CLIENT);
 
                 source_dev->set_type_string_ifnot([d11phy]() {
                         return d11phy->devicetracker->get_cached_devicetype("Wi-Fi Client");
-                        }, KIS_DEVICE_BASICTYPE_AP);
+                        }, (KIS_DEVICE_BASICTYPE_CLIENT | KIS_DEVICE_BASICTYPE_AP));
             }
 
             source_dot11->inc_datasize(dot11info->datasize);
@@ -2510,8 +2510,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
 
         // If we have a new ssid and we can consider raising an alert, do the 
         // regex compares to see if we trigger apspoof
-        if (dot11info->ssid_len != 0 &&
-                alertracker->potential_alert(alert_ssidmatch_ref)) {
+        if (dot11info->ssid_len != 0 && alertracker->potential_alert(alert_ssidmatch_ref)) {
             for (const auto& s : *ssid_regex_vec) {
                 std::shared_ptr<dot11_tracked_ssid_alert> sa =
                     std::static_pointer_cast<dot11_tracked_ssid_alert>(s);

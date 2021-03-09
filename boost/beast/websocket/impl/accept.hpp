@@ -215,8 +215,14 @@ public:
 
             // Send response
             BOOST_ASIO_CORO_YIELD
-            http::async_write(
-                impl.stream(), res_, std::move(*this));
+            {
+                BOOST_ASIO_HANDLER_LOCATION((
+                    __FILE__, __LINE__,
+                    "websocket::async_accept"));
+
+                http::async_write(
+                    impl.stream(), res_, std::move(*this));
+            }
             if(impl.check_stop_now(ec))
                 goto upcall;
             if(! ec)
@@ -298,8 +304,14 @@ public:
                 goto upcall;
 
             BOOST_ASIO_CORO_YIELD
-            http::async_read(impl.stream(),
-                impl.rd_buf, p_, std::move(*this));
+            {
+                BOOST_ASIO_HANDLER_LOCATION((
+                    __FILE__, __LINE__,
+                    "websocket::async_accept"));
+
+                http::async_read(impl.stream(),
+                    impl.rd_buf, p_, std::move(*this));
+            }
             if(ec == http::error::end_of_stream)
                 ec = error::closed;
             if(impl.check_stop_now(ec))
@@ -542,7 +554,7 @@ accept(
 
 template<class NextLayer, bool deflateSupported>
 template<
-    class AcceptHandler>
+    BOOST_BEAST_ASYNC_TPARAM1 AcceptHandler>
 BOOST_BEAST_ASYNC_RESULT1(AcceptHandler)
 stream<NextLayer, deflateSupported>::
 async_accept(
@@ -563,41 +575,17 @@ async_accept(
 
 template<class NextLayer, bool deflateSupported>
 template<
-    class ResponseDecorator,
-    class AcceptHandler>
-BOOST_BEAST_ASYNC_RESULT1(AcceptHandler)
-stream<NextLayer, deflateSupported>::
-async_accept_ex(
-    ResponseDecorator const& decorator,
-    AcceptHandler&& handler)
-{
-    static_assert(is_async_stream<next_layer_type>::value,
-        "AsyncStream type requirements not met");
-    static_assert(detail::is_response_decorator<
-        ResponseDecorator>::value,
-            "ResponseDecorator requirements not met");
-    impl_->reset();
-    return net::async_initiate<
-        AcceptHandler,
-        void(error_code)>(
-            run_accept_op{},
-            handler,
-            impl_,
-            decorator,
-            net::const_buffer{});
-}
-
-template<class NextLayer, bool deflateSupported>
-template<
     class ConstBufferSequence,
-    class AcceptHandler>
-typename std::enable_if<
-    ! http::detail::is_header<ConstBufferSequence>::value,
-    BOOST_BEAST_ASYNC_RESULT1(AcceptHandler)>::type
+    BOOST_BEAST_ASYNC_TPARAM1 AcceptHandler>
+BOOST_BEAST_ASYNC_RESULT1(AcceptHandler)
 stream<NextLayer, deflateSupported>::
 async_accept(
     ConstBufferSequence const& buffers,
-    AcceptHandler&& handler)
+    AcceptHandler&& handler,
+    typename std::enable_if<
+        ! http::detail::is_header<
+        ConstBufferSequence>::value>::type*
+)
 {
     static_assert(is_async_stream<next_layer_type>::value,
         "AsyncStream type requirements not met");
@@ -612,46 +600,13 @@ async_accept(
             handler,
             impl_,
             &default_decorate_res,
-            buffers);
-}
-
-template<class NextLayer, bool deflateSupported>
-template<
-    class ConstBufferSequence,
-    class ResponseDecorator,
-    class AcceptHandler>
-typename std::enable_if<
-    ! http::detail::is_header<ConstBufferSequence>::value,
-    BOOST_BEAST_ASYNC_RESULT1(AcceptHandler)>::type
-stream<NextLayer, deflateSupported>::
-async_accept_ex(
-    ConstBufferSequence const& buffers,
-    ResponseDecorator const& decorator,
-    AcceptHandler&& handler)
-{
-    static_assert(is_async_stream<next_layer_type>::value,
-        "AsyncStream type requirements not met");
-    static_assert(net::is_const_buffer_sequence<
-        ConstBufferSequence>::value,
-            "ConstBufferSequence type requirements not met");
-    static_assert(detail::is_response_decorator<
-        ResponseDecorator>::value,
-            "ResponseDecorator requirements not met");
-    impl_->reset();
-    return net::async_initiate<
-        AcceptHandler,
-        void(error_code)>(
-            run_accept_op{},
-            handler,
-            impl_,
-            decorator,
             buffers);
 }
 
 template<class NextLayer, bool deflateSupported>
 template<
     class Body, class Allocator,
-    class AcceptHandler>
+    BOOST_BEAST_ASYNC_TPARAM1 AcceptHandler>
 BOOST_BEAST_ASYNC_RESULT1(AcceptHandler)
 stream<NextLayer, deflateSupported>::
 async_accept(
@@ -669,184 +624,6 @@ async_accept(
             impl_,
             &req,
             &default_decorate_res);
-}
-
-template<class NextLayer, bool deflateSupported>
-template<
-    class Body, class Allocator,
-    class ResponseDecorator,
-    class AcceptHandler>
-BOOST_BEAST_ASYNC_RESULT1(AcceptHandler)
-stream<NextLayer, deflateSupported>::
-async_accept_ex(
-    http::request<Body, http::basic_fields<Allocator>> const& req,
-    ResponseDecorator const& decorator,
-    AcceptHandler&& handler)
-{
-    static_assert(is_async_stream<next_layer_type>::value,
-        "AsyncStream type requirements not met");
-    static_assert(detail::is_response_decorator<
-        ResponseDecorator>::value,
-            "ResponseDecorator requirements not met");
-    impl_->reset();
-    return net::async_initiate<
-        AcceptHandler,
-        void(error_code)>(
-            run_response_op{},
-            handler,
-            impl_,
-            &req,
-            decorator);
-}
-
-//------------------------------------------------------------------------------
-
-template<class NextLayer, bool deflateSupported>
-template<class ResponseDecorator>
-void
-stream<NextLayer, deflateSupported>::
-accept_ex(ResponseDecorator const& decorator)
-{
-#ifndef BOOST_BEAST_ALLOW_DEPRECATED
-    static_assert(sizeof(ResponseDecorator) == 0,
-        BOOST_BEAST_DEPRECATION_STRING);
-#endif
-    static_assert(is_sync_stream<next_layer_type>::value,
-        "SyncStream type requirements not met");
-    static_assert(detail::is_response_decorator<
-        ResponseDecorator>::value,
-            "ResponseDecorator requirements not met");
-    error_code ec;
-    accept_ex(decorator, ec);
-    if(ec)
-        BOOST_THROW_EXCEPTION(system_error{ec});
-}
-
-template<class NextLayer, bool deflateSupported>
-template<class ResponseDecorator>
-void
-stream<NextLayer, deflateSupported>::
-accept_ex(ResponseDecorator const& decorator, error_code& ec)
-{
-#ifndef BOOST_BEAST_ALLOW_DEPRECATED
-    static_assert(sizeof(ResponseDecorator) == 0,
-        BOOST_BEAST_DEPRECATION_STRING);
-#endif
-    static_assert(is_sync_stream<next_layer_type>::value,
-        "SyncStream type requirements not met");
-    static_assert(detail::is_response_decorator<
-        ResponseDecorator>::value,
-            "ResponseDecorator requirements not met");
-    do_accept(
-        net::const_buffer{},
-        decorator, ec);
-}
-
-template<class NextLayer, bool deflateSupported>
-template<
-    class ConstBufferSequence,
-    class ResponseDecorator>
-typename std::enable_if<! http::detail::is_header<
-    ConstBufferSequence>::value>::type
-stream<NextLayer, deflateSupported>::
-accept_ex(
-    ConstBufferSequence const& buffers,
-    ResponseDecorator const &decorator)
-{
-#ifndef BOOST_BEAST_ALLOW_DEPRECATED
-    static_assert(sizeof(ResponseDecorator) == 0,
-        BOOST_BEAST_DEPRECATION_STRING);
-#endif
-    static_assert(is_sync_stream<next_layer_type>::value,
-        "SyncStream type requirements not met");
-    static_assert(net::is_const_buffer_sequence<
-        ConstBufferSequence>::value,
-            "ConstBufferSequence type requirements not met");
-    static_assert(detail::is_response_decorator<
-        ResponseDecorator>::value,
-            "ResponseDecorator requirements not met");
-    error_code ec;
-    accept_ex(buffers, decorator, ec);
-    if(ec)
-        BOOST_THROW_EXCEPTION(system_error{ec});
-}
-
-template<class NextLayer, bool deflateSupported>
-template<
-    class ConstBufferSequence,
-    class ResponseDecorator>
-typename std::enable_if<! http::detail::is_header<
-    ConstBufferSequence>::value>::type
-stream<NextLayer, deflateSupported>::
-accept_ex(
-    ConstBufferSequence const& buffers,
-    ResponseDecorator const& decorator,
-    error_code& ec)
-{
-#ifndef BOOST_BEAST_ALLOW_DEPRECATED
-    static_assert(sizeof(ResponseDecorator) == 0,
-        BOOST_BEAST_DEPRECATION_STRING);
-#endif
-    static_assert(is_sync_stream<next_layer_type>::value,
-        "SyncStream type requirements not met");
-    static_assert(net::is_const_buffer_sequence<
-        ConstBufferSequence>::value,
-            "ConstBufferSequence type requirements not met");
-    static_assert(net::is_const_buffer_sequence<
-        ConstBufferSequence>::value,
-            "ConstBufferSequence type requirements not met");
-    do_accept(buffers, decorator, ec);
-}
-
-template<class NextLayer, bool deflateSupported>
-template<
-    class Body, class Allocator,
-    class ResponseDecorator>
-void
-stream<NextLayer, deflateSupported>::
-accept_ex(
-    http::request<Body,
-        http::basic_fields<Allocator>> const& req,
-    ResponseDecorator const& decorator)
-{
-#ifndef BOOST_BEAST_ALLOW_DEPRECATED
-    static_assert(sizeof(ResponseDecorator) == 0,
-        BOOST_BEAST_DEPRECATION_STRING);
-#endif
-    static_assert(is_sync_stream<next_layer_type>::value,
-        "SyncStream type requirements not met");
-    static_assert(detail::is_response_decorator<
-        ResponseDecorator>::value,
-            "ResponseDecorator requirements not met");
-    error_code ec;
-    accept_ex(req, decorator, ec);
-    if(ec)
-        BOOST_THROW_EXCEPTION(system_error{ec});
-}
-
-template<class NextLayer, bool deflateSupported>
-template<
-    class Body, class Allocator,
-    class ResponseDecorator>
-void
-stream<NextLayer, deflateSupported>::
-accept_ex(
-    http::request<Body,
-        http::basic_fields<Allocator>> const& req,
-    ResponseDecorator const& decorator,
-    error_code& ec)
-{
-#ifndef BOOST_BEAST_ALLOW_DEPRECATED
-    static_assert(sizeof(ResponseDecorator) == 0,
-        BOOST_BEAST_DEPRECATION_STRING);
-#endif
-    static_assert(is_sync_stream<next_layer_type>::value,
-        "SyncStream type requirements not met");
-    static_assert(detail::is_response_decorator<
-        ResponseDecorator>::value,
-            "ResponseDecorator requirements not met");
-    impl_->reset();
-    do_accept(req, decorator, ec);
 }
 
 } // websocket

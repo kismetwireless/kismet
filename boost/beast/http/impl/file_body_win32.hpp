@@ -17,6 +17,8 @@
 #include <boost/beast/core/buffers_range.hpp>
 #include <boost/beast/core/detail/clamp.hpp>
 #include <boost/beast/core/detail/is_invocable.hpp>
+#include <boost/beast/http/error.hpp>
+#include <boost/beast/http/write.hpp>
 #include <boost/beast/http/serializer.hpp>
 #include <boost/asio/async_result.hpp>
 #include <boost/asio/basic_stream_socket.hpp>
@@ -24,6 +26,7 @@
 #include <boost/make_unique.hpp>
 #include <boost/smart_ptr/make_shared_array.hpp>
 #include <boost/winapi/basic_types.hpp>
+#include <boost/winapi/error_codes.hpp>
 #include <boost/winapi/get_last_error.hpp>
 #include <algorithm>
 #include <cstring>
@@ -77,6 +80,11 @@ struct basic_file_body<file_win32>
         value_type(value_type&& other) = default;
         value_type& operator=(value_type&& other) = default;
 
+        file_win32& file()
+        {
+            return file_;
+        }
+
         bool
         is_open() const
         {
@@ -127,14 +135,16 @@ struct basic_file_body<file_win32>
         template<bool isRequest, class Fields>
         writer(header<isRequest, Fields>&, value_type& b)
             : body_(b)
+            , pos_(body_.first_)
         {
+            BOOST_ASSERT(body_.file_.is_open());
         }
 
         void
-        init(error_code&)
+        init(error_code& ec)
         {
             BOOST_ASSERT(body_.file_.is_open());
-            pos_ = body_.first_;
+            ec.clear();
         }
 
         boost::optional<std::pair<const_buffers_type, bool>>
@@ -150,6 +160,11 @@ struct basic_file_body<file_win32>
             auto const nread = body_.file_.read(buf_, n, ec);
             if(ec)
                 return boost::none;
+            if (nread == 0)
+            {
+                ec = error::short_read;
+                return boost::none;
+            }
             BOOST_ASSERT(nread != 0);
             pos_ += nread;
             ec = {};
@@ -323,6 +338,47 @@ public:
     }
 };
 
+// https://github.com/boostorg/beast/issues/1815
+// developer commentary:
+// This function mimics the behaviour of ASIO.
+// Perhaps the correct fix is to insist on the use
+// of an appropriate error_condition to detect
+// connection_reset and connection_refused?
+inline
+error_code
+make_win32_error(
+    boost::winapi::DWORD_ dwError) noexcept
+{
+    // from
+    // https://github.com/boostorg/asio/blob/6534af41b471288091ae39f9ab801594189b6fc9/include/boost/asio/detail/impl/socket_ops.ipp#L842
+    switch(dwError)
+    {
+    case boost::winapi::ERROR_NETNAME_DELETED_:
+        return net::error::connection_reset;
+    case boost::winapi::ERROR_PORT_UNREACHABLE_:
+        return net::error::connection_refused;
+    case boost::winapi::WSAEMSGSIZE_:
+    case boost::winapi::ERROR_MORE_DATA_:
+        return {};
+    }
+    return error_code(
+        static_cast<int>(dwError),
+        system_category());
+}
+
+inline
+error_code
+make_win32_error(
+    error_code ec) noexcept
+{
+    if(ec.category() !=
+        system_category())
+        return ec;
+    return make_win32_error(
+        static_cast<boost::winapi::DWORD_>(
+            ec.value()));
+}
+
 //------------------------------------------------------------------------------
 
 #if BOOST_ASIO_HAS_WINDOWS_OVERLAPPED_PTR
@@ -338,7 +394,6 @@ class write_some_win32_op
         Protocol, Executor>& sock_;
     serializer<isRequest,
         basic_file_body<file_win32>, Fields>& sr_;
-    std::size_t bytes_transferred_ = 0;
     bool header_ = false;
 
 public:
@@ -402,8 +457,8 @@ public:
         {
             // VFALCO This needs review, is 0 the right number?
             // completed immediately (with error?)
-            overlapped.complete(error_code{static_cast<int>(dwError),
-                    system_category()}, 0);
+            overlapped.complete(
+                make_win32_error(dwError), 0);
             return;
         }
         overlapped.release();
@@ -414,14 +469,12 @@ public:
         error_code ec,
         std::size_t bytes_transferred = 0)
     {
-        bytes_transferred_ += bytes_transferred;
-        if(! ec)
+        if(ec)
         {
-            if(header_)
-            {
-                header_ = false;
-                return (*this)();
-            }
+            ec = make_win32_error(ec);
+        }
+        else if(! ec && ! header_)
+        {
             auto& w = sr_.writer_impl();
             w.pos_ += bytes_transferred;
             BOOST_ASSERT(w.pos_ <= w.body_.last_);
@@ -432,7 +485,7 @@ public:
                 BOOST_ASSERT(sr_.is_done());
             }
         }
-        this->complete_now(ec, bytes_transferred_);
+        this->complete_now(ec, bytes_transferred);
     }
 };
 
@@ -520,9 +573,8 @@ write_some(
         0);
     if(! bSuccess)
     {
-        ec.assign(static_cast<int>(
-            boost::winapi::GetLastError()),
-                system_category());
+        ec = detail::make_win32_error(
+            boost::winapi::GetLastError());
         return 0;
     }
     w.pos_ += nNumberOfBytesToWrite;
@@ -545,7 +597,7 @@ write_some(
 template<
     class Protocol, class Executor,
     bool isRequest, class Fields,
-    class WriteHandler>
+    BOOST_BEAST_ASYNC_TPARAM2 WriteHandler>
 BOOST_BEAST_ASYNC_RESULT2(WriteHandler)
 async_write_some(
     net::basic_stream_socket<

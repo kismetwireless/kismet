@@ -3,8 +3,8 @@
 //Distributed under the Boost Software License, Version 1.0. (See accompanying
 //file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#ifndef UUID_274DA366004E11DCB1DDFE2E56D89593
-#define UUID_274DA366004E11DCB1DDFE2E56D89593
+#ifndef BOOST_EXCEPTION_274DA366004E11DCB1DDFE2E56D89593
+#define BOOST_EXCEPTION_274DA366004E11DCB1DDFE2E56D89593
 
 #include <boost/config.hpp>
 
@@ -16,11 +16,17 @@ namespace boost { template <class T> class shared_ptr; }
 namespace boost { namespace exception_detail { using boost::shared_ptr; } }
 #endif
 
-#if defined(__GNUC__) && (__GNUC__*100+__GNUC_MINOR__>301) && !defined(BOOST_EXCEPTION_ENABLE_WARNINGS)
+#if !defined(BOOST_EXCEPTION_ENABLE_WARNINGS)
+#if __GNUC__*100+__GNUC_MINOR__>301
 #pragma GCC system_header
 #endif
-#if defined(_MSC_VER) && !defined(BOOST_EXCEPTION_ENABLE_WARNINGS)
+#ifdef __clang__
+#pragma clang system_header
+#endif
+#ifdef _MSC_VER
 #pragma warning(push,1)
+#pragma warning(disable: 4265)
+#endif
 #endif
 
 namespace
@@ -472,54 +478,10 @@ boost
         {
         return exception_detail::clone_impl<T>(x);
         }
-
-    template <class T>
-    struct
-    BOOST_SYMBOL_VISIBLE
-    wrapexcept:
-        public exception_detail::clone_impl<typename exception_detail::enable_error_info_return_type<T>::type>
-        {
-        typedef exception_detail::clone_impl<typename exception_detail::enable_error_info_return_type<T>::type> base_type;
-        public:
-        explicit
-        wrapexcept( typename exception_detail::enable_error_info_return_type<T>::type const & x ):
-            base_type( x )
-            {
-            }
-
-        ~wrapexcept() BOOST_NOEXCEPT_OR_NOTHROW
-            {
-            }
-        };
-
-    namespace
-    exception_detail
-        {
-        template <class T>
-        struct
-        remove_error_info_injector
-            {
-            typedef T type;
-            };
-
-        template <class T>
-        struct
-        remove_error_info_injector< error_info_injector<T> >
-            {
-            typedef T type;
-            };
-
-        template <class T>
-        inline
-        wrapexcept<typename remove_error_info_injector<T>::type>
-        enable_both( T const & x )
-            {
-            return wrapexcept<typename remove_error_info_injector<T>::type>( enable_error_info( x ) );
-            }
-        }
     }
 
 #if defined(_MSC_VER) && !defined(BOOST_EXCEPTION_ENABLE_WARNINGS)
 #pragma warning(pop)
 #endif
-#endif
+
+#endif // #ifndef BOOST_EXCEPTION_274DA366004E11DCB1DDFE2E56D89593

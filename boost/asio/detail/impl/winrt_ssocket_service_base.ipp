@@ -2,7 +2,7 @@
 // detail/impl/winrt_ssocket_service_base.ipp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2020 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -67,6 +67,7 @@ void winrt_ssocket_service_base::construct(
 void winrt_ssocket_service_base::base_move_construct(
     winrt_ssocket_service_base::base_implementation_type& impl,
     winrt_ssocket_service_base::base_implementation_type& other_impl)
+  BOOST_ASIO_NOEXCEPT
 {
   impl.socket_ = other_impl.socket_;
   other_impl.socket_ = nullptr;
@@ -139,12 +140,8 @@ boost::system::error_code winrt_ssocket_service_base::close(
     winrt_ssocket_service_base::base_implementation_type& impl,
     boost::system::error_code& ec)
 {
-  if (impl.socket_)
-  {
-    delete impl.socket_;
-    impl.socket_ = nullptr;
-  }
-
+  delete impl.socket_;
+  impl.socket_ = nullptr;
   ec = boost::system::error_code();
   return ec;
 }

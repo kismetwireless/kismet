@@ -2,7 +2,7 @@
 // impl/io_context.hpp
 // ~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2020 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -27,10 +27,10 @@
 
 #include <boost/asio/detail/push_options.hpp>
 
-#if !defined(GENERATING_DOCUMENTATION)
-
 namespace boost {
 namespace asio {
+
+#if !defined(GENERATING_DOCUMENTATION)
 
 template <typename Service>
 inline Service& use_service(io_context& ioc)
@@ -49,23 +49,7 @@ inline detail::io_context_impl& use_service<detail::io_context_impl>(
   return ioc.impl_;
 }
 
-} // namespace asio
-} // namespace boost
-
 #endif // !defined(GENERATING_DOCUMENTATION)
-
-#include <boost/asio/detail/pop_options.hpp>
-
-#if defined(BOOST_ASIO_HAS_IOCP)
-# include <boost/asio/detail/win_iocp_io_context.hpp>
-#else
-# include <boost/asio/detail/scheduler.hpp>
-#endif
-
-#include <boost/asio/detail/push_options.hpp>
-
-namespace boost {
-namespace asio {
 
 inline io_context::executor_type
 io_context::get_executor() BOOST_ASIO_NOEXCEPT
@@ -157,10 +141,10 @@ struct io_context::initiate_dispatch
     {
       // Allocate and construct an operation to wrap the handler.
       typedef detail::completion_handler<
-        typename decay<LegacyCompletionHandler>::type> op;
+        typename decay<LegacyCompletionHandler>::type, executor_type> op;
       typename op::ptr p = { detail::addressof(handler2.value),
         op::ptr::allocate(handler2.value), 0 };
-      p.p = new (p.v) op(handler2.value);
+      p.p = new (p.v) op(handler2.value, self->get_executor());
 
       BOOST_ASIO_HANDLER_CREATION((*self, *p.p,
             "io_context", self, 0, "dispatch"));
@@ -172,7 +156,7 @@ struct io_context::initiate_dispatch
 };
 
 template <typename LegacyCompletionHandler>
-BOOST_ASIO_INITFN_RESULT_TYPE(LegacyCompletionHandler, void ())
+BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(LegacyCompletionHandler, void ())
 io_context::dispatch(BOOST_ASIO_MOVE_ARG(LegacyCompletionHandler) handler)
 {
   return async_initiate<LegacyCompletionHandler, void ()>(
@@ -197,10 +181,10 @@ struct io_context::initiate_post
 
     // Allocate and construct an operation to wrap the handler.
     typedef detail::completion_handler<
-      typename decay<LegacyCompletionHandler>::type> op;
+      typename decay<LegacyCompletionHandler>::type, executor_type> op;
     typename op::ptr p = { detail::addressof(handler2.value),
         op::ptr::allocate(handler2.value), 0 };
-    p.p = new (p.v) op(handler2.value);
+    p.p = new (p.v) op(handler2.value, self->get_executor());
 
     BOOST_ASIO_HANDLER_CREATION((*self, *p.p,
           "io_context", self, 0, "post"));
@@ -211,7 +195,7 @@ struct io_context::initiate_post
 };
 
 template <typename LegacyCompletionHandler>
-BOOST_ASIO_INITFN_RESULT_TYPE(LegacyCompletionHandler, void ())
+BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(LegacyCompletionHandler, void ())
 io_context::post(BOOST_ASIO_MOVE_ARG(LegacyCompletionHandler) handler)
 {
   return async_initiate<LegacyCompletionHandler, void ()>(
@@ -231,32 +215,133 @@ io_context::wrap(Handler handler)
 
 #endif // !defined(BOOST_ASIO_NO_DEPRECATED)
 
-inline io_context&
-io_context::executor_type::context() const BOOST_ASIO_NOEXCEPT
+template <typename Allocator, unsigned int Bits>
+io_context::basic_executor_type<Allocator, Bits>&
+io_context::basic_executor_type<Allocator, Bits>::operator=(
+    const basic_executor_type& other) BOOST_ASIO_NOEXCEPT
 {
-  return io_context_;
+  if (this != &other)
+  {
+    io_context* old_io_context = io_context_;
+    io_context_ = other.io_context_;
+    allocator_ = other.allocator_;
+    bits_ = other.bits_;
+    if (Bits & outstanding_work_tracked)
+    {
+      if (io_context_)
+        io_context_->impl_.work_started();
+      if (old_io_context)
+        old_io_context->impl_.work_finished();
+    }
+  }
+  return *this;
 }
 
-inline void
-io_context::executor_type::on_work_started() const BOOST_ASIO_NOEXCEPT
+#if defined(BOOST_ASIO_HAS_MOVE)
+template <typename Allocator, unsigned int Bits>
+io_context::basic_executor_type<Allocator, Bits>&
+io_context::basic_executor_type<Allocator, Bits>::operator=(
+    basic_executor_type&& other) BOOST_ASIO_NOEXCEPT
 {
-  io_context_.impl_.work_started();
+  if (this != &other)
+  {
+    io_context_ = other.io_context_;
+    allocator_ = std::move(other.allocator_);
+    bits_ = other.bits_;
+    if (Bits & outstanding_work_tracked)
+      other.io_context_ = 0;
+  }
+  return *this;
+}
+#endif // defined(BOOST_ASIO_HAS_MOVE)
+
+template <typename Allocator, unsigned int Bits>
+inline bool io_context::basic_executor_type<Allocator,
+    Bits>::running_in_this_thread() const BOOST_ASIO_NOEXCEPT
+{
+  return io_context_->impl_.can_dispatch();
 }
 
-inline void
-io_context::executor_type::on_work_finished() const BOOST_ASIO_NOEXCEPT
+template <typename Allocator, unsigned int Bits>
+template <typename Function>
+void io_context::basic_executor_type<Allocator, Bits>::execute(
+    BOOST_ASIO_MOVE_ARG(Function) f) const
 {
-  io_context_.impl_.work_finished();
+  typedef typename decay<Function>::type function_type;
+
+  // Invoke immediately if the blocking.possibly property is enabled and we are
+  // already inside the thread pool.
+  if ((bits_ & blocking_never) == 0 && io_context_->impl_.can_dispatch())
+  {
+    // Make a local, non-const copy of the function.
+    function_type tmp(BOOST_ASIO_MOVE_CAST(Function)(f));
+
+#if defined(BOOST_ASIO_HAS_STD_EXCEPTION_PTR) \
+  && !defined(BOOST_ASIO_NO_EXCEPTIONS)
+    try
+    {
+#endif // defined(BOOST_ASIO_HAS_STD_EXCEPTION_PTR)
+       //   && !defined(BOOST_ASIO_NO_EXCEPTIONS)
+      detail::fenced_block b(detail::fenced_block::full);
+      boost_asio_handler_invoke_helpers::invoke(tmp, tmp);
+      return;
+#if defined(BOOST_ASIO_HAS_STD_EXCEPTION_PTR) \
+  && !defined(BOOST_ASIO_NO_EXCEPTIONS)
+    }
+    catch (...)
+    {
+      io_context_->impl_.capture_current_exception();
+      return;
+    }
+#endif // defined(BOOST_ASIO_HAS_STD_EXCEPTION_PTR)
+       //   && !defined(BOOST_ASIO_NO_EXCEPTIONS)
+  }
+
+  // Allocate and construct an operation to wrap the function.
+  typedef detail::executor_op<function_type, Allocator, detail::operation> op;
+  typename op::ptr p = { detail::addressof(allocator_),
+      op::ptr::allocate(allocator_), 0 };
+  p.p = new (p.v) op(BOOST_ASIO_MOVE_CAST(Function)(f), allocator_);
+
+  BOOST_ASIO_HANDLER_CREATION((*io_context_, *p.p,
+        "io_context", io_context_, 0, "execute"));
+
+  io_context_->impl_.post_immediate_completion(p.p,
+      (bits_ & relationship_continuation) != 0);
+  p.v = p.p = 0;
 }
 
-template <typename Function, typename Allocator>
-void io_context::executor_type::dispatch(
-    BOOST_ASIO_MOVE_ARG(Function) f, const Allocator& a) const
+#if !defined(BOOST_ASIO_NO_TS_EXECUTORS)
+template <typename Allocator, unsigned int Bits>
+inline io_context& io_context::basic_executor_type<
+    Allocator, Bits>::context() const BOOST_ASIO_NOEXCEPT
+{
+  return *io_context_;
+}
+
+template <typename Allocator, unsigned int Bits>
+inline void io_context::basic_executor_type<Allocator,
+    Bits>::on_work_started() const BOOST_ASIO_NOEXCEPT
+{
+  io_context_->impl_.work_started();
+}
+
+template <typename Allocator, unsigned int Bits>
+inline void io_context::basic_executor_type<Allocator,
+    Bits>::on_work_finished() const BOOST_ASIO_NOEXCEPT
+{
+  io_context_->impl_.work_finished();
+}
+
+template <typename Allocator, unsigned int Bits>
+template <typename Function, typename OtherAllocator>
+void io_context::basic_executor_type<Allocator, Bits>::dispatch(
+    BOOST_ASIO_MOVE_ARG(Function) f, const OtherAllocator& a) const
 {
   typedef typename decay<Function>::type function_type;
 
   // Invoke immediately if we are already inside the thread pool.
-  if (io_context_.impl_.can_dispatch())
+  if (io_context_->impl_.can_dispatch())
   {
     // Make a local, non-const copy of the function.
     function_type tmp(BOOST_ASIO_MOVE_CAST(Function)(f));
@@ -267,58 +352,58 @@ void io_context::executor_type::dispatch(
   }
 
   // Allocate and construct an operation to wrap the function.
-  typedef detail::executor_op<function_type, Allocator, detail::operation> op;
+  typedef detail::executor_op<function_type,
+      OtherAllocator, detail::operation> op;
   typename op::ptr p = { detail::addressof(a), op::ptr::allocate(a), 0 };
   p.p = new (p.v) op(BOOST_ASIO_MOVE_CAST(Function)(f), a);
 
-  BOOST_ASIO_HANDLER_CREATION((this->context(), *p.p,
-        "io_context", &this->context(), 0, "dispatch"));
+  BOOST_ASIO_HANDLER_CREATION((*io_context_, *p.p,
+        "io_context", io_context_, 0, "dispatch"));
 
-  io_context_.impl_.post_immediate_completion(p.p, false);
+  io_context_->impl_.post_immediate_completion(p.p, false);
   p.v = p.p = 0;
 }
 
-template <typename Function, typename Allocator>
-void io_context::executor_type::post(
-    BOOST_ASIO_MOVE_ARG(Function) f, const Allocator& a) const
+template <typename Allocator, unsigned int Bits>
+template <typename Function, typename OtherAllocator>
+void io_context::basic_executor_type<Allocator, Bits>::post(
+    BOOST_ASIO_MOVE_ARG(Function) f, const OtherAllocator& a) const
 {
   typedef typename decay<Function>::type function_type;
 
   // Allocate and construct an operation to wrap the function.
-  typedef detail::executor_op<function_type, Allocator, detail::operation> op;
+  typedef detail::executor_op<function_type,
+      OtherAllocator, detail::operation> op;
   typename op::ptr p = { detail::addressof(a), op::ptr::allocate(a), 0 };
   p.p = new (p.v) op(BOOST_ASIO_MOVE_CAST(Function)(f), a);
 
-  BOOST_ASIO_HANDLER_CREATION((this->context(), *p.p,
-        "io_context", &this->context(), 0, "post"));
+  BOOST_ASIO_HANDLER_CREATION((*io_context_, *p.p,
+        "io_context", io_context_, 0, "post"));
 
-  io_context_.impl_.post_immediate_completion(p.p, false);
+  io_context_->impl_.post_immediate_completion(p.p, false);
   p.v = p.p = 0;
 }
 
-template <typename Function, typename Allocator>
-void io_context::executor_type::defer(
-    BOOST_ASIO_MOVE_ARG(Function) f, const Allocator& a) const
+template <typename Allocator, unsigned int Bits>
+template <typename Function, typename OtherAllocator>
+void io_context::basic_executor_type<Allocator, Bits>::defer(
+    BOOST_ASIO_MOVE_ARG(Function) f, const OtherAllocator& a) const
 {
   typedef typename decay<Function>::type function_type;
 
   // Allocate and construct an operation to wrap the function.
-  typedef detail::executor_op<function_type, Allocator, detail::operation> op;
+  typedef detail::executor_op<function_type,
+      OtherAllocator, detail::operation> op;
   typename op::ptr p = { detail::addressof(a), op::ptr::allocate(a), 0 };
   p.p = new (p.v) op(BOOST_ASIO_MOVE_CAST(Function)(f), a);
 
-  BOOST_ASIO_HANDLER_CREATION((this->context(), *p.p,
-        "io_context", &this->context(), 0, "defer"));
+  BOOST_ASIO_HANDLER_CREATION((*io_context_, *p.p,
+        "io_context", io_context_, 0, "defer"));
 
-  io_context_.impl_.post_immediate_completion(p.p, true);
+  io_context_->impl_.post_immediate_completion(p.p, true);
   p.v = p.p = 0;
 }
-
-inline bool
-io_context::executor_type::running_in_this_thread() const BOOST_ASIO_NOEXCEPT
-{
-  return io_context_.impl_.can_dispatch();
-}
+#endif // !defined(BOOST_ASIO_NO_TS_EXECUTORS)
 
 #if !defined(BOOST_ASIO_NO_DEPRECATED)
 inline io_context::work::work(boost::asio::io_context& io_context)

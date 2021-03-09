@@ -129,7 +129,7 @@ namespace boost {
          BOOST_FORCEINLINE static BOOST_CXX14_CONSTEXPR unsigned make_odd(T& val) BOOST_GCD_NOEXCEPT(T)
          {
             unsigned r = 0;
-            while(0 == (val & 1u))
+            while (T(0) == (val & 1u))
             {
 #ifdef _MSC_VER  // VC++ can't handle operator >>= in constexpr code for some reason
                val = val >> 1;

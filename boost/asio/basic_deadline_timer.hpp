@@ -2,7 +2,7 @@
 // basic_deadline_timer.hpp
 // ~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2020 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -21,6 +21,7 @@
   || defined(GENERATING_DOCUMENTATION)
 
 #include <cstddef>
+#include <boost/asio/any_io_executor.hpp>
 #include <boost/asio/detail/deadline_timer_service.hpp>
 #include <boost/asio/detail/handler_type_requirements.hpp>
 #include <boost/asio/detail/io_object_impl.hpp>
@@ -28,7 +29,6 @@
 #include <boost/asio/detail/throw_error.hpp>
 #include <boost/asio/error.hpp>
 #include <boost/asio/execution_context.hpp>
-#include <boost/asio/executor.hpp>
 #include <boost/asio/time_traits.hpp>
 
 #include <boost/asio/detail/push_options.hpp>
@@ -126,12 +126,20 @@ namespace asio {
  */
 template <typename Time,
     typename TimeTraits = boost::asio::time_traits<Time>,
-    typename Executor = executor>
+    typename Executor = any_io_executor>
 class basic_deadline_timer
 {
 public:
   /// The type of the executor associated with the object.
   typedef Executor executor_type;
+
+  /// Rebinds the timer type to another executor.
+  template <typename Executor1>
+  struct rebind_executor
+  {
+    /// The timer type when rebound to the specified executor.
+    typedef basic_deadline_timer<Time, TimeTraits, Executor1> other;
+  };
 
   /// The time traits type.
   typedef TimeTraits traits_type;
@@ -621,13 +629,17 @@ public:
    * immediate completion, invocation of the handler will be performed in a
    * manner equivalent to using boost::asio::post().
    */
-  template <typename WaitHandler>
-  BOOST_ASIO_INITFN_RESULT_TYPE(WaitHandler,
+  template <
+      BOOST_ASIO_COMPLETION_TOKEN_FOR(void (boost::system::error_code))
+        WaitHandler BOOST_ASIO_DEFAULT_COMPLETION_TOKEN_TYPE(executor_type)>
+  BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(WaitHandler,
       void (boost::system::error_code))
-  async_wait(BOOST_ASIO_MOVE_ARG(WaitHandler) handler)
+  async_wait(
+      BOOST_ASIO_MOVE_ARG(WaitHandler) handler
+        BOOST_ASIO_DEFAULT_COMPLETION_TOKEN(executor_type))
   {
     return async_initiate<WaitHandler, void (boost::system::error_code)>(
-        initiate_async_wait(), handler, this);
+        initiate_async_wait(this), handler);
   }
 
 private:
@@ -636,21 +648,36 @@ private:
   basic_deadline_timer& operator=(
       const basic_deadline_timer&) BOOST_ASIO_DELETED;
 
-  struct initiate_async_wait
+  class initiate_async_wait
   {
+  public:
+    typedef Executor executor_type;
+
+    explicit initiate_async_wait(basic_deadline_timer* self)
+      : self_(self)
+    {
+    }
+
+    executor_type get_executor() const BOOST_ASIO_NOEXCEPT
+    {
+      return self_->get_executor();
+    }
+
     template <typename WaitHandler>
-    void operator()(BOOST_ASIO_MOVE_ARG(WaitHandler) handler,
-        basic_deadline_timer* self) const
+    void operator()(BOOST_ASIO_MOVE_ARG(WaitHandler) handler) const
     {
       // If you get an error on the following line it means that your handler
       // does not meet the documented type requirements for a WaitHandler.
       BOOST_ASIO_WAIT_HANDLER_CHECK(WaitHandler, handler) type_check;
 
       detail::non_const_lvalue<WaitHandler> handler2(handler);
-      self->impl_.get_service().async_wait(
-          self->impl_.get_implementation(), handler2.value,
-          self->impl_.get_implementation_executor());
+      self_->impl_.get_service().async_wait(
+          self_->impl_.get_implementation(),
+          handler2.value, self_->impl_.get_executor());
     }
+
+  private:
+    basic_deadline_timer* self_;
   };
 
   detail::io_object_impl<

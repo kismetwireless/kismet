@@ -2,7 +2,7 @@
 // io_context_strand.hpp
 // ~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2020 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -17,7 +17,8 @@
 
 #include <boost/asio/detail/config.hpp>
 
-#if !defined(BOOST_ASIO_NO_EXTENSIONS)
+#if !defined(BOOST_ASIO_NO_EXTENSIONS) \
+  && !defined(BOOST_ASIO_NO_TS_EXECUTORS)
 
 #include <boost/asio/async_result.hpp>
 #include <boost/asio/detail/handler_type_requirements.hpp>
@@ -183,7 +184,7 @@ public:
    * @code void handler(); @endcode
    */
   template <typename LegacyCompletionHandler>
-  BOOST_ASIO_INITFN_RESULT_TYPE(LegacyCompletionHandler, void ())
+  BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(LegacyCompletionHandler, void ())
   dispatch(BOOST_ASIO_MOVE_ARG(LegacyCompletionHandler) handler)
   {
     return async_initiate<LegacyCompletionHandler, void ()>(
@@ -230,7 +231,7 @@ public:
    * @code void handler(); @endcode
    */
   template <typename LegacyCompletionHandler>
-  BOOST_ASIO_INITFN_RESULT_TYPE(LegacyCompletionHandler, void ())
+  BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(LegacyCompletionHandler, void ())
   post(BOOST_ASIO_MOVE_ARG(LegacyCompletionHandler) handler)
   {
     return async_initiate<LegacyCompletionHandler, void ()>(
@@ -372,5 +373,6 @@ private:
 #include <boost/asio/detail/pop_options.hpp>
 
 #endif // !defined(BOOST_ASIO_NO_EXTENSIONS)
+       //   && !defined(BOOST_ASIO_NO_TS_EXECUTORS)
 
 #endif // BOOST_ASIO_IO_CONTEXT_STRAND_HPP

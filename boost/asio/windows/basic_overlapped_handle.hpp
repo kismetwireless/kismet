@@ -2,7 +2,7 @@
 // windows/basic_overlapped_handle.hpp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2020 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -22,13 +22,13 @@
   || defined(GENERATING_DOCUMENTATION)
 
 #include <cstddef>
+#include <boost/asio/any_io_executor.hpp>
 #include <boost/asio/async_result.hpp>
 #include <boost/asio/detail/io_object_impl.hpp>
 #include <boost/asio/detail/throw_error.hpp>
 #include <boost/asio/detail/win_iocp_handle_service.hpp>
 #include <boost/asio/error.hpp>
 #include <boost/asio/execution_context.hpp>
-#include <boost/asio/executor.hpp>
 
 #if defined(BOOST_ASIO_HAS_MOVE)
 # include <utility>
@@ -51,12 +51,20 @@ namespace windows {
  * @e Distinct @e objects: Safe.@n
  * @e Shared @e objects: Unsafe.
  */
-template <typename Executor = executor>
+template <typename Executor = any_io_executor>
 class basic_overlapped_handle
 {
 public:
   /// The type of the executor associated with the object.
   typedef Executor executor_type;
+
+  /// Rebinds the handle type to another executor.
+  template <typename Executor1>
+  struct rebind_executor
+  {
+    /// The handle type when rebound to the specified executor.
+    typedef basic_overlapped_handle<Executor1> other;
+  };
 
   /// The native representation of a handle.
 #if defined(GENERATING_DOCUMENTATION)

@@ -651,7 +651,7 @@ boostbits:
 	@echo "Scanning boost deps in ASIO"
 	@mv boost boost-old
 	@mkdir boost-raw
-	@bcp --boost=/usr/include beast asio boost-raw 
+	@bcp --boost=../bost/ beast asio boost-raw 
 	@mv boost-raw/boost boost
 
 release-%:

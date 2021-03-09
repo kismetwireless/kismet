@@ -2,7 +2,7 @@
 // basic_signal_set.hpp
 // ~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2020 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -17,6 +17,7 @@
 
 #include <boost/asio/detail/config.hpp>
 
+#include <boost/asio/any_io_executor.hpp>
 #include <boost/asio/async_result.hpp>
 #include <boost/asio/detail/handler_type_requirements.hpp>
 #include <boost/asio/detail/io_object_impl.hpp>
@@ -26,7 +27,8 @@
 #include <boost/asio/detail/type_traits.hpp>
 #include <boost/asio/error.hpp>
 #include <boost/asio/execution_context.hpp>
-#include <boost/asio/executor.hpp>
+
+#include <boost/asio/detail/push_options.hpp>
 
 namespace boost {
 namespace asio {
@@ -91,12 +93,20 @@ namespace asio {
  * that any signals registered using signal_set objects are unblocked in at
  * least one thread.
  */
-template <typename Executor = executor>
+template <typename Executor = any_io_executor>
 class basic_signal_set
 {
 public:
   /// The type of the executor associated with the object.
   typedef Executor executor_type;
+
+  /// Rebinds the signal set type to another executor.
+  template <typename Executor1>
+  struct rebind_executor
+  {
+    /// The signal set type when rebound to the specified executor.
+    typedef basic_signal_set<Executor1> other;
+  };
 
   /// Construct a signal set without adding any signals.
   /**
@@ -503,13 +513,17 @@ public:
    * immediate completion, invocation of the handler will be performed in a
    * manner equivalent to using boost::asio::post().
    */
-  template <typename SignalHandler>
-  BOOST_ASIO_INITFN_RESULT_TYPE(SignalHandler,
+  template <
+    BOOST_ASIO_COMPLETION_TOKEN_FOR(void (boost::system::error_code, int))
+      SignalHandler BOOST_ASIO_DEFAULT_COMPLETION_TOKEN_TYPE(executor_type)>
+  BOOST_ASIO_INITFN_AUTO_RESULT_TYPE(SignalHandler,
       void (boost::system::error_code, int))
-  async_wait(BOOST_ASIO_MOVE_ARG(SignalHandler) handler)
+  async_wait(
+      BOOST_ASIO_MOVE_ARG(SignalHandler) handler
+        BOOST_ASIO_DEFAULT_COMPLETION_TOKEN(executor_type))
   {
     return async_initiate<SignalHandler, void (boost::system::error_code, int)>(
-        initiate_async_wait(), handler, this);
+        initiate_async_wait(this), handler);
   }
 
 private:
@@ -517,21 +531,36 @@ private:
   basic_signal_set(const basic_signal_set&) BOOST_ASIO_DELETED;
   basic_signal_set& operator=(const basic_signal_set&) BOOST_ASIO_DELETED;
 
-  struct initiate_async_wait
+  class initiate_async_wait
   {
+  public:
+    typedef Executor executor_type;
+
+    explicit initiate_async_wait(basic_signal_set* self)
+      : self_(self)
+    {
+    }
+
+    executor_type get_executor() const BOOST_ASIO_NOEXCEPT
+    {
+      return self_->get_executor();
+    }
+
     template <typename SignalHandler>
-    void operator()(BOOST_ASIO_MOVE_ARG(SignalHandler) handler,
-        basic_signal_set* self) const
+    void operator()(BOOST_ASIO_MOVE_ARG(SignalHandler) handler) const
     {
       // If you get an error on the following line it means that your handler
       // does not meet the documented type requirements for a SignalHandler.
       BOOST_ASIO_SIGNAL_HANDLER_CHECK(SignalHandler, handler) type_check;
 
       detail::non_const_lvalue<SignalHandler> handler2(handler);
-      self->impl_.get_service().async_wait(
-          self->impl_.get_implementation(), handler2.value,
-          self->impl_.get_implementation_executor());
+      self_->impl_.get_service().async_wait(
+          self_->impl_.get_implementation(),
+          handler2.value, self_->impl_.get_executor());
     }
+
+  private:
+    basic_signal_set* self_;
   };
 
   detail::io_object_impl<detail::signal_set_service, Executor> impl_;
@@ -539,5 +568,7 @@ private:
 
 } // namespace asio
 } // namespace boost
+
+#include <boost/asio/detail/pop_options.hpp>
 
 #endif // BOOST_ASIO_BASIC_SIGNAL_SET_HPP

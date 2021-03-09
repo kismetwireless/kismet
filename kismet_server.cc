@@ -83,6 +83,7 @@
 #include "datasource_dot11_scan.h"
 #include "datasource_bluetooth_scan.h"
 #include "datasource_bladerf_wiphy.h"
+#include "datasource_adsbproxy.h"
 
 #include "logtracker.h"
 #include "kis_ppilogfile.h"
@@ -904,6 +905,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_rzkillerbee_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_ticc2531_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_bladerf_wiphy_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_adsbproxy_builder()));
 
     // Virtual sources get a special meta-builder
     datasource_virtual_builder::create_virtualbuilder();

@@ -81,17 +81,6 @@ public:
     // Attach a tcp socket
     virtual bool attach_tcp_socket(tcp::socket& socket);
 
-    // Detach a TCP socket (migrate it to another datasource, for instance, while making a remote
-    // capture source)
-    tcp::socket move_tcp_socket() { 
-        if (tcpsocket.is_open())
-            tcpsocket.cancel();
-
-        stopped = true;
-
-        return std::move(tcpsocket);
-    }
-
 
     // Check to see if an IPC binary is available
     static bool check_ipc(const std::string& in_binary);
@@ -102,6 +91,14 @@ public:
         closure_cb = cb;
     }
 
+    // Move a closure cb to a new entity and clear it
+    virtual std::function<void ()> move_closure_cb() {
+        kis_lock_guard<kis_mutex> lk(ext_mutex, "external move_closure_cb");
+        auto ret = closure_cb;
+        closure_cb = nullptr;
+        return ret;
+    }
+
     // Set a write callback, which is called instead of an asio async write, for use for 
     // instance when being driven from a websocket connection and we need to proxy it
     // to the ws
@@ -109,6 +106,14 @@ public:
                 std::function<void (int, std::size_t)>)> cb) {
         kis_lock_guard<kis_mutex> lk(ext_mutex, "external set_write_cb");
         write_cb = cb;
+    }
+
+    virtual std::function<int (const char *, size_t, 
+            std::function<void (int, std::size_t)>)> move_write_cb() {
+        kis_lock_guard<kis_mutex> lk(ext_mutex, "external move_write_cb");
+        auto ret = write_cb;
+        write_cb = nullptr;
+        return ret;
     }
 
     // close the external interface

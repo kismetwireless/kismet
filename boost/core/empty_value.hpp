@@ -59,9 +59,9 @@ public:
 
 #if !defined(BOOST_NO_CXX11_RVALUE_REFERENCES)
 #if !defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES)
-    template<class... Args>
-    explicit empty_value(boost::empty_init_t, Args&&... args)
-        : value_(std::forward<Args>(args)...) { }
+    template<class U, class... Args>
+    empty_value(boost::empty_init_t, U&& value, Args&&... args)
+        : value_(std::forward<U>(value), std::forward<Args>(args)...) { }
 #else
     template<class U>
     empty_value(boost::empty_init_t, U&& value)
@@ -107,9 +107,9 @@ public:
 
 #if !defined(BOOST_NO_CXX11_RVALUE_REFERENCES)
 #if !defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES)
-    template<class... Args>
-    explicit empty_value(boost::empty_init_t, Args&&... args)
-        : T(std::forward<Args>(args)...) { }
+    template<class U, class... Args>
+    empty_value(boost::empty_init_t, U&& value, Args&&... args)
+        : T(std::forward<U>(value), std::forward<Args>(args)...) { }
 #else
     template<class U>
     empty_value(boost::empty_init_t, U&& value)
@@ -138,6 +138,8 @@ public:
 } /* empty_ */
 
 using empty_::empty_value;
+
+BOOST_INLINE_CONSTEXPR empty_init_t empty_init = empty_init_t();
 
 } /* boost */
 

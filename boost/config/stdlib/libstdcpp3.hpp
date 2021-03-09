@@ -125,7 +125,15 @@
 //
 #ifdef __clang__
 
-#if __has_include(<experimental/memory_resource>)
+#if __has_include(<compare>)
+#  define BOOST_LIBSTDCXX_VERSION 100100
+#elif __has_include(<memory_resource>)
+#  define BOOST_LIBSTDCXX_VERSION 90100
+#elif __has_include(<charconv>)
+#  define BOOST_LIBSTDCXX_VERSION 80100
+#elif __has_include(<variant>)
+#  define BOOST_LIBSTDCXX_VERSION 70100
+#elif __has_include(<experimental/memory_resource>)
 #  define BOOST_LIBSTDCXX_VERSION 60100
 #elif __has_include(<experimental/any>)
 #  define BOOST_LIBSTDCXX_VERSION 50100
@@ -231,6 +239,7 @@ extern "C" char *gets (char *__s);
 #  define BOOST_NO_CXX11_HDR_RATIO
 #  define BOOST_NO_CXX11_HDR_SYSTEM_ERROR
 #  define BOOST_NO_CXX11_SMART_PTR
+#  define BOOST_NO_CXX11_HDR_EXCEPTION
 #else
 #  define BOOST_HAS_TR1_COMPLEX_INVERSE_TRIG 
 #  define BOOST_HAS_TR1_COMPLEX_OVERLOADS 

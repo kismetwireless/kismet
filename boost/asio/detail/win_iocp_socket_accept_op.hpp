@@ -2,7 +2,7 @@
 // detail/win_iocp_socket_accept_op.hpp
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
-// Copyright (c) 2003-2019 Christopher M. Kohlhoff (chris at kohlhoff dot com)
+// Copyright (c) 2003-2020 Christopher M. Kohlhoff (chris at kohlhoff dot com)
 //
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -20,10 +20,10 @@
 #if defined(BOOST_ASIO_HAS_IOCP)
 
 #include <boost/asio/detail/bind_handler.hpp>
-#include <boost/asio/detail/buffer_sequence_adapter.hpp>
 #include <boost/asio/detail/fenced_block.hpp>
 #include <boost/asio/detail/handler_alloc_helpers.hpp>
 #include <boost/asio/detail/handler_invoke_helpers.hpp>
+#include <boost/asio/detail/handler_work.hpp>
 #include <boost/asio/detail/memory.hpp>
 #include <boost/asio/detail/operation.hpp>
 #include <boost/asio/detail/socket_ops.hpp>
@@ -55,9 +55,8 @@ public:
       peer_endpoint_(peer_endpoint),
       enable_connection_aborted_(enable_connection_aborted),
       handler_(BOOST_ASIO_MOVE_CAST(Handler)(handler)),
-      io_executor_(io_ex)
+      work_(handler_, io_ex)
   {
-    handler_work<Handler, IoExecutor>::start(handler_, io_executor_);
   }
 
   socket_holder& new_socket()
@@ -84,7 +83,6 @@ public:
     // Take ownership of the operation object.
     win_iocp_socket_accept_op* o(static_cast<win_iocp_socket_accept_op*>(base));
     ptr p = { boost::asio::detail::addressof(o->handler_), o, o };
-    handler_work<Handler, IoExecutor> w(o->handler_, o->io_executor_);
 
     if (owner)
     {
@@ -127,6 +125,11 @@ public:
 
     BOOST_ASIO_HANDLER_COMPLETION((*o));
 
+    // Take ownership of the operation's outstanding work.
+    handler_work<Handler, IoExecutor> w(
+        BOOST_ASIO_MOVE_CAST2(handler_work<Handler, IoExecutor>)(
+          o->work_));
+
     // Make a copy of the handler so that the memory can be deallocated before
     // the upcall is made. Even if we're not about to make an upcall, a
     // sub-object of the handler may be the true owner of the memory associated
@@ -158,7 +161,7 @@ private:
   unsigned char output_buffer_[(sizeof(sockaddr_storage_type) + 16) * 2];
   bool enable_connection_aborted_;
   Handler handler_;
-  IoExecutor io_executor_;
+  handler_work<Handler, IoExecutor> work_;
 };
 
 #if defined(BOOST_ASIO_HAS_MOVE)
@@ -183,9 +186,8 @@ public:
       peer_endpoint_(peer_endpoint),
       enable_connection_aborted_(enable_connection_aborted),
       handler_(BOOST_ASIO_MOVE_CAST(Handler)(handler)),
-      io_executor_(io_ex)
+      work_(handler_, io_ex)
   {
-    handler_work<Handler, IoExecutor>::start(handler_, io_executor_);
   }
 
   socket_holder& new_socket()
@@ -213,7 +215,6 @@ public:
     win_iocp_socket_move_accept_op* o(
         static_cast<win_iocp_socket_move_accept_op*>(base));
     ptr p = { boost::asio::detail::addressof(o->handler_), o, o };
-    handler_work<Handler, IoExecutor> w(o->handler_, o->io_executor_);
 
     if (owner)
     {
@@ -256,6 +257,11 @@ public:
 
     BOOST_ASIO_HANDLER_COMPLETION((*o));
 
+    // Take ownership of the operation's outstanding work.
+    handler_work<Handler, IoExecutor> w(
+        BOOST_ASIO_MOVE_CAST2(handler_work<Handler, IoExecutor>)(
+          o->work_));
+
     // Make a copy of the handler so that the memory can be deallocated before
     // the upcall is made. Even if we're not about to make an upcall, a
     // sub-object of the handler may be the true owner of the memory associated
@@ -292,7 +298,7 @@ private:
   unsigned char output_buffer_[(sizeof(sockaddr_storage_type) + 16) * 2];
   bool enable_connection_aborted_;
   Handler handler_;
-  IoExecutor io_executor_;
+  handler_work<Handler, IoExecutor> work_;
 };
 
 #endif // defined(BOOST_ASIO_HAS_MOVE)
