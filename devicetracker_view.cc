@@ -279,8 +279,8 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(devi
     ret->reserve(devices->size());
 
     // Lock the whole device list for the duration
-    auto dev_lg = 
-        kis_lock_guard<kis_mutex>(devicetracker->get_devicelist_mutex(), "device_tracker_view do_device_work");
+    kis_lock_guard<kis_mutex> dev_lg(devicetracker->get_devicelist_mutex(), 
+            "device_tracker_view do_device_work");
 
     std::for_each(devices->begin(), devices->end(),
             [&](shared_tracker_element val) {
@@ -315,8 +315,8 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_
     auto ret = std::make_shared<tracker_element_vector>();
     ret->reserve(devices->size());
 
-    auto ul_devlist =
-        kis_lock_guard<kis_mutex>(devicetracker->get_devicelist_mutex(), "device_tracker_view do_readonly_device_work");
+    kis_lock_guard<kis_mutex> ul_devlist(devicetracker->get_devicelist_mutex(), 
+            "device_tracker_view do_readonly_device_work");
 
     std::for_each(devices->begin(), devices->end(),
             [&](shared_tracker_element val) {

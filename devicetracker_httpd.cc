@@ -83,7 +83,7 @@ std::shared_ptr<tracker_element> device_tracker::multimac_endp_handler(shared_co
 }
 
 std::shared_ptr<tracker_element> device_tracker::all_phys_endp_handler(shared_con con) {
-    auto lg = kis_lock_guard<kis_mutex>(get_devicelist_mutex());
+    kis_lock_guard<kis_mutex> lg(get_devicelist_mutex());
 
     auto ret_vec = std::make_shared<tracker_element_vector>();
 
