@@ -158,8 +158,10 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
                      UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
                     "Bluetooth Device");
 
-        kis_unique_lock lk_list(btphy->devicetracker->get_devicelist_mutex(), std::defer_lock, "packet_bluetooth_scan_classifier");
-        kis_unique_lock lk_device(btdev->device_mutex, std::defer_lock, "packet_bluetooth_scan_classifier");
+        kis_unique_lock<kis_mutex> lk_list(btphy->devicetracker->get_devicelist_mutex(), 
+                std::defer_lock, "packet_bluetooth_scan_classifier");
+        kis_unique_lock<kis_mutex> lk_device(btdev->device_mutex, std::defer_lock, 
+                "packet_bluetooth_scan_classifier");
         std::lock(lk_list, lk_device);
 
         // Mapped to base name
@@ -263,8 +265,10 @@ int kis_bluetooth_phy::packet_tracker_bluetooth(CHAINCALL_PARMS) {
     if (basedev == nullptr)
         return 0;
 
-    kis_unique_lock lk_list(btphy->devicetracker->get_devicelist_mutex(), std::defer_lock, "packet_tracker_bluetooth");
-    kis_unique_lock lk_device(basedev->device_mutex, std::defer_lock, "packet_tracker_bluetooth");
+    kis_unique_lock<kis_mutex> lk_list(btphy->devicetracker->get_devicelist_mutex(), 
+            std::defer_lock, "packet_tracker_bluetooth");
+    kis_unique_lock<kis_mutex> lk_device(basedev->device_mutex, std::defer_lock, 
+            "packet_tracker_bluetooth");
     std::lock(lk_list, lk_device);
 
 
