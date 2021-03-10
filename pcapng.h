@@ -63,6 +63,14 @@ typedef struct pcapng_option pcapng_option_t;
 #define PCAPNG_OPT_ENDOFOPT     0
 #define PCAPNG_OPT_COMMENT      1
 
+/* pcapng custom block */
+struct pcapng_custom_option {
+    uint16_t option_code;
+    uint16_t option_length;
+    uint32_t option_pen;
+    uint8_t option_data[0];
+} __attribute__((packed));
+
 /* Header block found at start of file */
 struct pcapng_shb {
     uint32_t block_type;
@@ -126,7 +134,7 @@ typedef struct pcapng_epb pcapng_epb_t;
 #define PCAPNG_EPB_BLOCK_TYPE       6
 
 /* Custom pcapng block */
-struct pcapng_custom {
+struct pcapng_custom_block {
     uint32_t block_type;
     uint32_t block_length;
     uint32_t custom_pen;
@@ -142,7 +150,7 @@ struct pcapng_custom {
 #define KISMET_PEN 55922
 
 /* Kismet GPS record, matches PPI GPS definition */
-struct kismet_gps_block {
+struct kismet_gps_chunk {
     uint8_t magic;
     uint16_t gps_len;
     uint32_t gps_fields_present;
