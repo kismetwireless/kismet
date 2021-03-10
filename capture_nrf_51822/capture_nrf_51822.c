@@ -96,6 +96,7 @@ PING_REQ = 0x0D
 PING_RESP = 0x0E
 **/
     uint8_t buf[255];
+    buf[0] = 0x0D;
     uint16_t ctr = 0;
     int8_t res = 0;
     int8_t resp_len = 1;
@@ -105,7 +106,7 @@ PING_RESP = 0x0E
     /* lets flush the buffer */
     tcflush(localnrf->fd, TCIOFLUSH);
     /* we are transmitting something */
-    res = write(localnrf->fd, 0x0D, 1);
+    res = write(localnrf->fd, buf, 1);
     if (res < 0) {
         found = false;
     }

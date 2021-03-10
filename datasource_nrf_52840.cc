@@ -43,7 +43,6 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
     uint8_t c_payload[255];memset(c_payload,0x00,255);
     uint8_t payload[255];memset(payload,0x00,255);
     char tmp[16];memset(tmp,0x00,16);
-    int16_t c_payload_len = 0;
     int16_t rssi = 0;
     int16_t loc[4] = {0,0,0,0};
     uint8_t li=0;
@@ -66,10 +65,24 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
     }
 
     //copy over the packet
-    memcpy(c_payload,&nrf_chunk->data[loc[0]+2],(loc[1] - loc[0] - 1 - (strlen("payload")))); 
-    c_payload_len = (loc[1] - loc[0] - 1 - (strlen("payload")));
+    unsigned int chunk_start = loc[0]+2;
+    unsigned int chunk_str_len = (loc[1] - loc[0] - 1 - (strlen("payload")));
+    unsigned int payload_len = chunk_str_len;
+    if(chunk_start > nrf_chunk->length || chunk_str_len >= nrf_chunk->length) {
+        delete(packet);
+        return;
+    }
+
+    memcpy(c_payload,&nrf_chunk->data[chunk_start],chunk_str_len);
     //copy over the power/rssi
-    memcpy(tmp,&nrf_chunk->data[loc[1]+2],(loc[2] - loc[1] - 2 - (strlen("lqi"))));
+    chunk_start = loc[1]+2;
+    chunk_str_len = (loc[2] - loc[1] - 2 - (strlen("lqi")));
+    if(chunk_start > nrf_chunk->length || chunk_str_len >= nrf_chunk->length) {
+        delete(packet);
+        return;
+    }
+
+    memcpy(tmp,&nrf_chunk->data[chunk_start],chunk_str_len);
     rssi = atoi(tmp);
     memset(tmp,0x00,16);
 
@@ -77,7 +90,7 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
     unsigned char tmpc[2];
     int c = 0;
     int nrf_payload_len = 0;
-    for(int i=0;i<c_payload_len;i++)
+    for(int i=0;i<(int)payload_len;i++)
     {
     	tmpc[0] = hextobytel(c_payload[i]);i++;
         tmpc[1] = hextobytel(c_payload[i]);
