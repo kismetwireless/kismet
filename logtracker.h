@@ -223,7 +223,7 @@ protected:
 };
 
 class log_tracker : public tracker_component, public lifetime_global, public deferred_startup, 
-    std::enable_shared_from_this<log_tracker> {
+    public std::enable_shared_from_this<log_tracker> {
 public:
     static std::string global_name() { return "LOGTRACKER"; }
 

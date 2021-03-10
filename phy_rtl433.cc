@@ -195,8 +195,9 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
                  UCD_UPDATE_SEENBY), "RTL433 Sensor");
 
 
-    kis_unique_lock lk_list(devicetracker->get_devicelist_mutex(), std::defer_lock, "rtl433 json_to_rtl");
-    kis_unique_lock lk_device(basedev->device_mutex, std::defer_lock, "rtl433 json_to_rtl");
+    kis_unique_lock<kis_mutex> lk_list(devicetracker->get_devicelist_mutex(), std::defer_lock, 
+            "rtl433 json_to_rtl");
+    kis_unique_lock<kis_mutex> lk_device(basedev->device_mutex, std::defer_lock, "rtl433 json_to_rtl");
     std::lock(lk_list, lk_device);
 
     std::string dn = "Sensor";

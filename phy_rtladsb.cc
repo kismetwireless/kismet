@@ -509,8 +509,9 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
                  UCD_UPDATE_SEENBY), "ADSB");
 
-    kis_unique_lock lk_list(devicetracker->get_devicelist_mutex(), std::defer_lock, "rtladsb json_to_rtl");
-    kis_unique_lock lk_device(basedev->device_mutex, std::defer_lock, "rtladsb json_to_rtl");
+    kis_unique_lock<kis_mutex> lk_list(devicetracker->get_devicelist_mutex(), 
+            std::defer_lock, "rtladsb json_to_rtl");
+    kis_unique_lock<kis_mutex> lk_device(basedev->device_mutex, std::defer_lock, "rtladsb json_to_rtl");
     std::lock(lk_list, lk_device);
 
 
