@@ -21,25 +21,6 @@
 unsigned char hextobytel(char s);
 
 void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
-    // Must be padded to 32, since we only hold a single 32bit value this is
-    // taken care of for us
-    typedef struct {
-        uint16_t type;   // type identifier
-        uint16_t length; // number of octets for type in value field (not
-                         // including padding
-        uint32_t value;  // data for type
-    } tap_tlv;
-
-    typedef struct {
-        uint8_t version;   // currently zero
-        uint8_t reserved;  // must be zero
-        uint16_t length;   // total length of header and tlvs in octets, min 4
-                           // and must be multiple of 4
-        tap_tlv tlv[3];    // tap tlvs
-        uint8_t payload[0];
-
-        ////payload + fcs per fcs type
-    } zigbee_tap;
 
     auto nrf_chunk = 
         packet->fetch<kis_datachunk>(pack_comp_linkframe);
@@ -113,8 +94,8 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
     // No good way to do packet validation that I know of at the moment.
 
     // We can make a valid payload from this much
-    auto conv_buf_len = sizeof(zigbee_tap) + nrf_payload_len;
-    zigbee_tap *conv_header = reinterpret_cast<zigbee_tap *>(new uint8_t[conv_buf_len]);
+    auto conv_buf_len = sizeof(_802_15_4_tap) + nrf_payload_len;
+    _802_15_4_tap *conv_header = reinterpret_cast<_802_15_4_tap *>(new uint8_t[conv_buf_len]);
     memset(conv_header, 0, conv_buf_len);
 
     // Copy the actual packet payload into the header
@@ -139,7 +120,7 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
     conv_header->tlv[2].value = channel;
 
     // size
-    conv_header->length = sizeof(zigbee_tap); 
+    conv_header->length = sizeof(_802_15_4_tap); 
     nrf_chunk->set_data((uint8_t *) conv_header, conv_buf_len, false);
     nrf_chunk->dlt = KDLT_IEEE802_15_4_TAP;
 

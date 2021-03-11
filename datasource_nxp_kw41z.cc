@@ -94,8 +94,7 @@ void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
         conv_header->tlv[2].value = channel;  // need to try to pull from some where
 
         // size
-        conv_header->length =
-            sizeof(conv_header) + sizeof(conv_header->tlv) - 4;
+        conv_header->length = sizeof(_802_15_4_tap); 
         nxp_chunk->set_data((uint8_t *) conv_header, conv_buf_len, false);
         nxp_chunk->dlt = KDLT_IEEE802_15_4_TAP;
 

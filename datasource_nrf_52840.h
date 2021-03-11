@@ -25,6 +25,7 @@
 
 #include "kis_datasource.h"
 #include "dlttracker.h"
+#include "tap_802_15_4.h"
 
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 
