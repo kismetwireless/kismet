@@ -57,7 +57,6 @@ typedef struct {
     uint8_t payload[0];	        
     ////payload + fcs per fcs type
 } zigbee_tap;
-zigbee_tap * tap_header;
 
 uint8_t chan = 0;
 uint8_t sigstr = 0;
@@ -125,6 +124,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
     auto mphy = static_cast<kis_802154_phy *>(auxdata);
 
     auto packdata = in_pack->fetch<kis_datachunk>(mphy->pack_comp_linkframe);
+    zigbee_tap *tap_header = nullptr;
 
     if (packdata == NULL)
         return 0;
@@ -156,8 +156,8 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 
         // Really we are going to want to iterate through them to pull them
         // correctly.
-        chan = tap_header->tlv[2].value;
-        sigstr = tap_header->tlv[1].value;
+        chan = kis_letoh32(tap_header->tlv[2].value);
+        sigstr = kis_letoh32(tap_header->tlv[1].value);
         pkt_ctr += tap_header_size;
     }
 
