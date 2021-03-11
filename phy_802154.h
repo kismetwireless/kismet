@@ -42,6 +42,8 @@
 #include "devicetracker.h"
 #include "devicetracker_component.h"
 
+#include "tap_802_15_4.h"
+
 #ifndef KDLT_IEEE802_15_4_TAP
 #define KDLT_IEEE802_15_4_TAP             283 
 #endif

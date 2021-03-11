@@ -43,21 +43,6 @@
 #define ACK_802154      0x02
 #define CMD_802154      0x03
 
-typedef struct {
-    uint16_t type; //type identifier
-    uint16_t length; // number of octets for type in value field (not including padding
-    uint32_t value; // data for type
-} tap_tlv;
-
-typedef struct {
-    uint8_t version; // currently zero
-    uint8_t reserved; // must be zero
-    uint16_t length; // total length of header and tlvs in octets, min 4 and must be multiple of 4
-    tap_tlv tlv[3]; //tap tlvs 3 if we get channel later
-    uint8_t payload[0];	        
-    ////payload + fcs per fcs type
-} zigbee_tap;
-
 uint8_t chan = 0;
 uint8_t sigstr = 0;
 
@@ -124,7 +109,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
     auto mphy = static_cast<kis_802154_phy *>(auxdata);
 
     auto packdata = in_pack->fetch<kis_datachunk>(mphy->pack_comp_linkframe);
-    zigbee_tap *tap_header = nullptr;
+    _802_15_4_tap *tap_header = nullptr;
 
     if (packdata == NULL)
         return 0;
@@ -148,11 +133,11 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 
     unsigned int pkt_ctr = 0;
     if (packdata->dlt == KDLT_IEEE802_15_4_TAP) {
-        uint64_t tap_header_size = sizeof(zigbee_tap);
+        uint64_t tap_header_size = sizeof(_802_15_4_tap);
         uint8_t tmp_header[32];
         memset(tmp_header, 0x00, 32);
         memcpy(tmp_header, &packdata->data[pkt_ctr], tap_header_size);
-        tap_header = (zigbee_tap *) &tmp_header;
+        tap_header = (_802_15_4_tap *) &tmp_header;
 
         // Really we are going to want to iterate through them to pull them
         // correctly.
