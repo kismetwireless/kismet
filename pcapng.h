@@ -70,6 +70,7 @@ struct pcapng_custom_option {
     uint32_t option_pen;
     uint8_t option_data[0];
 } __attribute__((packed));
+typedef struct pcapng_custom_option pcapng_custom_option_t;
 
 /* Header block found at start of file */
 struct pcapng_shb {
@@ -90,6 +91,11 @@ typedef struct pcapng_shb pcapng_shb_t;
 #define PCAPNG_OPT_SHB_HW           2
 #define PCAPNG_OPT_SHB_OS           3
 #define PCAPNG_OPT_SHB_USERAPPL     4
+
+#define PCAPNG_OPT_CUSTOM_UTF8          2988
+#define PCAPNG_OPT_CUSTOM_BINARY        2989
+#define PCAPNG_OPT_CUSTOM_UTF8_NOCOPY   19372
+#define PCAPNG_OPT_CUSTOM_BINARY_NOCOPY 19373
 
 
 /* Interface definition */
