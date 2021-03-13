@@ -99,6 +99,28 @@ bool kis_database_logfile::open_log(std::string in_path) {
         return false;
     }
 
+    sqlite3_exec(db, "PRAGMA journal_mode=PERSIST", NULL, NULL, NULL);
+    
+    // Go into transactional mode where we only commit every 10 seconds
+    sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+
+    transaction_timer = 
+        timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
+            [this](int) -> int {
+
+            // local_locker dblock(&ds_mutex, "kismetdb transaction_timer");
+
+            in_transaction_sync = true;
+
+            sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
+            sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
+
+            in_transaction_sync = false;
+
+            return 1;
+        });
+
+
     set_int_log_path(in_path);
     set_int_log_open(true);
 
@@ -378,32 +400,11 @@ bool kis_database_logfile::open_log(std::string in_path) {
                 handle_alert(al);
                 });
 
-    db_enabled = true;
-
-    sqlite3_exec(db, "PRAGMA journal_mode=PERSIST", NULL, NULL, NULL);
-    
-    // Go into transactional mode where we only commit every 10 seconds
-    sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
-
-    transaction_timer = 
-        timetracker->register_timer(SERVER_TIMESLICES_SEC * 10, NULL, 1,
-            [this](int) -> int {
-
-            // local_locker dblock(&ds_mutex, "kismetdb transaction_timer");
-
-            in_transaction_sync = true;
-
-            sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
-            sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
-
-            in_transaction_sync = false;
-
-            return 1;
-        });
-
     // Post that we've got the logfile ready
     auto evt = eventbus->get_eventbus_event(event_log_open());
     eventbus->publish(evt);
+
+    db_enabled = true;
 
     return true;
 }
