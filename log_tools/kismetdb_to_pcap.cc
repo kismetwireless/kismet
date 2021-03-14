@@ -40,6 +40,7 @@
 
 #include <sqlite3.h>
 
+#include "endian_magic.h"
 #include "fmt.h"
 #include "getopt.h"
 #include "json/json.h"
@@ -61,6 +62,55 @@ size_t PAD_TO_32BIT(size_t in) {
     return in;
 }
 
+/* pcapng and ppi conversions */
+
+/*
+ * input: a signed floating point value between -180.0000000 and + 180.0000000, inclusive)
+ * output: a unsigned 32-bit (native endian) value between 0 and 3600000000 (inclusive)
+ */
+u_int32_t double_to_fixed3_7(double in) 
+{
+    if (in < -180 || in >= 180) 
+        return 0;
+    //This may be positive or negative.
+    int32_t scaled_in =  (int32_t) ((in) * (double) 10000000); 
+    //If the input conditions are met, this will now always be positive.
+    u_int32_t  ret = (u_int32_t) (scaled_in +  ((int32_t) 180 * 10000000)); 
+    return ret;
+}
+/*
+ * input: a signed floating point value between -180000.0000 and + 180000.0000, inclusive)
+ * output: a unsigned 32-bit (native endian) value between 0 and 3600000000 (inclusive)
+ */
+u_int32_t double_to_fixed6_4(double in) 
+{
+    if (in < -180000.0001 || in >= 180000.0001) 
+        return 0;
+    //This may be positive or negative.
+    int32_t scaled_in =  (int32_t) ((in) * (double) 10000); 
+    //If the input conditions are met, this will now always be positive.
+    u_int32_t  ret = (u_int32_t) (scaled_in +  ((int32_t) 180000 * 10000)); 
+    return ret;
+}
+/*
+ * input: a positive floating point value between 000.0000000 and 999.9999999
+ * output: a native 32 bit unsigned value between 0 and 999999999
+ */
+u_int32_t double_to_fixed3_6(double in) {
+    u_int32_t ret = (u_int32_t) (in  * (double) 1000000.0);
+    return ret;
+}
+
+/*
+ * input: a signed floating point second counter
+ * output: a native 32 bit nano-second counter
+ */
+u_int32_t double_to_ns(double in) {
+    u_int32_t ret;
+    ret =  in * (double) 1000000000;
+    return ret;
+}
+
 bool string_case_cmp(const std::string& a, const std::string& b) {
     if (a.size() != b.size())
         return false;
@@ -72,6 +122,8 @@ bool string_case_cmp(const std::string& a, const std::string& b) {
 
     return true;
 }
+
+/* Log file we're processing */
 
 class log_file {
 public:
@@ -301,9 +353,15 @@ void write_pcapng_interface(FILE *pcapng_file, unsigned int ngindex, const std::
                     strerror(errno), errno));
 }
 
+void write_pcapng_gps(FILE *pcapng_file, unsigned long ts_sec, unsigned long ts_usec, 
+        double lat, double lon, double alt) {
+
+
+}
+
 void write_pcapng_packet(FILE *pcapng_file, const std::string& packet,
         unsigned long ts_sec, unsigned long ts_usec, const std::string& tag,
-        unsigned int ngindex) {
+        unsigned int ngindex, double lat, double lon, double alt) {
 
     // Assemble the packet in the file in steps to avoid another memcpy
     pcapng_epb_t epb;
@@ -313,6 +371,21 @@ void write_pcapng_packet(FILE *pcapng_file, const std::string& packet,
 
     if (tag.length() > 0) 
         data_sz += sizeof(pcapng_option_t) + PAD_TO_32BIT(tag.length());
+
+    if (lat != 0 && lon != 0) {
+        // Lat, lon, appid
+        size_t gps_len = 12;
+
+        // Altitude
+        if (alt != 0) {
+            gps_len += 4;
+        }
+
+        // Sub-header
+        gps_len += sizeof(kismet_pcapng_gps_chunk_t);
+
+        data_sz += sizeof(pcapng_custom_option_t) + gps_len + PAD_TO_32BIT(gps_len);
+    }
 
     epb.block_type = PCAPNG_EPB_BLOCK_TYPE;
     epb.block_length = data_sz + 4;
@@ -366,6 +439,80 @@ void write_pcapng_packet(FILE *pcapng_file, const std::string& packet,
                             strerror(errno), errno));
     }
 
+    // If we have gps data, tag the packet with a kismet custom GPS entry under the kismet PEN
+    if (lat != 0 && lon != 0) {
+        pcapng_custom_option_t copt;
+        uint32_t gps_fields = 0;
+
+        copt.option_code = PCAPNG_OPT_CUSTOM_BINARY;
+        copt.option_pen = KISMET_IANA_PEN;
+
+        // Lat, lon, appid
+        size_t gps_len = 12;
+
+        gps_fields = PCAPNG_GPS_FLAG_APPID | PCAPNG_GPS_FLAG_LAT | PCAPNG_GPS_FLAG_LON;
+
+        // Altitude
+        if (alt != 0) {
+            gps_len += 4;
+            gps_fields |= PCAPNG_GPS_FLAG_ALT;
+        }
+
+        // PEN + gps header + content
+        copt.option_length = 4 + sizeof(kismet_pcapng_gps_chunk_t) + gps_len;
+
+        // Make a runt header since we can stream out the content
+        kismet_pcapng_gps_chunk_t gps;
+
+        gps.gps_verison = PCAPNG_GPS_VERSION;
+        gps.gps_len = kis_htole16(gps_len);
+        gps.gps_fields_present = kis_htole32(gps_fields);
+
+        if (fwrite(&copt, sizeof(pcapng_custom_option_t), 1, pcapng_file) != 1)
+            throw std::runtime_error(fmt::format("error writing packet gps options: {} (errno {})",
+                        strerror(errno), errno));
+
+        if (fwrite(&gps, sizeof(kismet_pcapng_gps_chunk_t), 1, pcapng_file) != 1)
+            throw std::runtime_error(fmt::format("error writing packet gps options: {} (errno {})",
+                        strerror(errno), errno));
+
+        union block {
+            uint8_t u8;
+            uint16_t u16;
+            uint32_t u32;
+        } u;
+
+        // Lat, lon, alt, appid in that order
+        u.u32 = kis_htole32(double_to_fixed3_7(lat));
+        if (fwrite(&u, sizeof(uint32_t), 1, pcapng_file) != 1) 
+            throw std::runtime_error(fmt::format("error writing packet gps: {} (errno {})",
+                        strerror(errno), errno));
+
+        u.u32 = kis_htole32(double_to_fixed3_7(lon));
+        if (fwrite(&u, sizeof(uint32_t), 1, pcapng_file) != 1) 
+            throw std::runtime_error(fmt::format("error writing packet gps: {} (errno {})",
+                        strerror(errno), errno));
+
+        if (alt != 0) {
+            u.u32 = kis_htole32(double_to_fixed3_7(alt));
+            if (fwrite(&u, sizeof(uint32_t), 1, pcapng_file) != 1) 
+                throw std::runtime_error(fmt::format("error writing packet gps: {} (errno {})",
+                            strerror(errno), errno));
+        }
+
+        u.u32 = kis_htole32(0x0053494B); //KIS0
+        if (fwrite(&u, sizeof(uint32_t), 1, pcapng_file) != 1) 
+            throw std::runtime_error(fmt::format("error writing packet gps: {} (errno {})",
+                        strerror(errno), errno));
+
+        pad_sz = PAD_TO_32BIT(copt.option_length) - copt.option_length;
+
+        if (pad_sz > 0)
+            if (fwrite(&pad, pad_sz, 1, pcapng_file) != 1)
+                throw std::runtime_error(fmt::format("error writing pcapng packet option: {} (errno {})",
+                            strerror(errno), errno));
+    }
+
     opt.option_code = PCAPNG_OPT_ENDOFOPT;
     opt.option_length = 0;
 
@@ -405,6 +552,10 @@ void print_help(char *argv) {
            "                                at most [num] packets\n"
            "     --split-size [size-in-kb]  Split output into multiple files, with each file containing\n"
            "                                at most [kb] bytes\n"
+           "     --skip-gps                 When generating pcapng logs, don't include GPS information\n"
+           "                                via the Kismet PEN custom fields\n"
+           "     --skip-gps-track           When generating pcapng logs, don't include GPS movement\n"
+           "                                track information\n"
            "\n"
            "When splitting output by datasource, the file will be named [outname]-[datasource-uuid].\n"
            "\n"
@@ -427,6 +578,8 @@ int main(int argc, char *argv[]) {
 #define OPT_SPLIT_INTERFACE     5
 #define OPT_OLD_PCAP            6
 #define OPT_DLT                 7
+#define OPT_SKIP_GPS            8
+#define OPT_SKIP_GPSTRACK       9
     static struct option longopt[] = {
         { "in", required_argument, 0, 'i' },
         { "out", required_argument, 0, 'o' },
@@ -441,6 +594,8 @@ int main(int argc, char *argv[]) {
         { "split-packets", required_argument, 0, OPT_SPLIT_PKTS },
         { "split-size", required_argument, 0, OPT_SPLIT_SIZE },
         { "dlt", required_argument, 0, OPT_DLT },
+        { "skip-gps", no_argument, 0, OPT_SKIP_GPS },
+        { "skip-gps-track", no_argument, 0, OPT_SKIP_GPSTRACK },
         { 0, 0, 0, 0 }
     };
 
@@ -454,6 +609,8 @@ int main(int argc, char *argv[]) {
     bool skipclean = false;
     bool pcapng = true;
     bool list_only = false;
+    bool skip_gps = false;
+    bool skip_gps_track = false;
     unsigned int split_packets = 0;
     unsigned int split_size = 0;
     bool split_interface = false;
@@ -518,6 +675,12 @@ int main(int argc, char *argv[]) {
                 exit(1);
             }
             dlt = static_cast<int>(u);
+        } else if (r == OPT_SKIP_GPS) {
+            fmt::print(stderr, "Skipping all GPS data\n");
+            skip_gps = true;
+        } else if (r == OPT_SKIP_GPSTRACK) {
+            fmt::print(stderr, "Skipping GPS movement/track data\n");
+            skip_gps_track = true;
         }
     }
 
@@ -737,7 +900,7 @@ int main(int argc, char *argv[]) {
     }
 
     auto packets_q = _SELECT(db, "packets", 
-            {"ts_sec", "ts_usec", "dlt", "datasource", "packet", "tags"},
+            {"ts_sec", "ts_usec", "dlt", "datasource", "packet", "tags", "lat", "lon", "alt"},
             packet_filter_q);
 
     try {
@@ -748,6 +911,9 @@ int main(int argc, char *argv[]) {
             auto datasource = sqlite3_column_as<std::string>(pkt, 3);
             auto bytes = sqlite3_column_as<std::string>(pkt, 4);
             auto tags = sqlite3_column_as<std::string>(pkt, 5);
+            auto lat = sqlite3_column_as<double>(pkt, 6);
+            auto lon = sqlite3_column_as<double>(pkt, 7);
+            auto alt = sqlite3_column_as<double>(pkt, 8);
 
             if (!pcapng) {
                 std::shared_ptr<log_file> log_interface;
@@ -879,7 +1045,14 @@ int main(int argc, char *argv[]) {
                     ngindex = source_key->second;
                 }
 
-                write_pcapng_packet(log_interface->file, bytes, ts_sec, ts_usec, tags, ngindex);
+                if (skip_gps) {
+                    lat = 0;
+                    lon = 0;
+                    alt = 0;
+                }
+
+                write_pcapng_packet(log_interface->file, bytes, ts_sec, ts_usec, tags, ngindex,
+                        lat, lon, alt);
 
                 log_interface->sz += bytes.size();
                 log_interface->count++;

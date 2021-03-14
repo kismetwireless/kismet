@@ -151,17 +151,21 @@ struct pcapng_custom_block {
     /* Options must be dynamically calculated */
 
 } __attribute__((packed));
+typedef struct pcapng_custom_block pcapng_custom_block_t;
 
 /* Kismet IANA PEN */
-#define KISMET_PEN 55922
+#define KISMET_IANA_PEN 55922
 
 /* Kismet GPS record, matches PPI GPS definition */
-struct kismet_gps_chunk {
-    uint8_t magic;
+struct kismet_pcapng_gps_chunk {
+    uint8_t gps_verison;
     uint16_t gps_len;
     uint32_t gps_fields_present;
     uint8_t gps_data[0];
 } __attribute__((packed));
+typedef struct kismet_pcapng_gps_chunk kismet_pcapng_gps_chunk_t;
+
+#define PCAPNG_GPS_VERSION          0x1
 
 #define PCAPNG_GPS_FLAG_LON         0x2
 #define PCAPNG_GPS_FLAG_LAT	    	0x4
