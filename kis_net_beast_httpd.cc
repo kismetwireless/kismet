@@ -1018,7 +1018,7 @@ bool kis_net_beast_httpd::serve_file(std::shared_ptr<kis_net_beast_httpd_connect
         if (ec == boost::beast::errc::no_such_file_or_directory) {
             continue;
         } else if (ec) {
-            _MSG_ERROR("(DEBUG) {} - {}", uri, ec.message());
+            // _MSG_ERROR("(DEBUG) {} - {}", uri, ec.message());
             continue;
         }
 
@@ -1475,7 +1475,7 @@ bool kis_net_beast_httpd_connection::start() {
                 boost::beast::http::write_header(stream_, sr, error);
 
                 if (error) {
-                    _MSG_ERROR("(DEBUG) {} {} - Error writing headers - {}", verb_, uri_, error.message());
+                    // _MSG_ERROR("(DEBUG) {} {} - Error writing headers - {}", verb_, uri_, error.message());
                     return do_close();
                 }
             }
@@ -1501,7 +1501,7 @@ bool kis_net_beast_httpd_connection::start() {
                 // as a non-error
                 error = {};
             } else if (error) {
-                _MSG_INFO("(DEBUG) {} {} - chunk write error {}", verb_, uri_, error.message());
+                // _MSG_INFO("(DEBUG) {} {} - chunk write error {}", verb_, uri_, error.message());
                 response_stream_.cancel();
                 return do_close();
             }
@@ -1523,7 +1523,7 @@ bool kis_net_beast_httpd_connection::start() {
     boost::beast::http::write(stream_, sr, error);
 
     if (error) {
-        _MSG_INFO("(DEBUG) {} {} - Error writing conclusion of stream: {}", verb_, uri_, error.message());
+        // _MSG_INFO("(DEBUG) {} {} - Error writing conclusion of stream: {}", verb_, uri_, error.message());
         return do_close();
     }
 
@@ -1627,8 +1627,7 @@ bool kis_net_beast_route::match_url(const std::string& url,
         return false;
 
     if (match_values.size() != match_keys.size() + 1) {
-        _MSG_ERROR("(DEBUG) HTTP req {} didn't match enough elements, {} wanted {}", url, match_values.size(),
-                match_keys.size());
+        // _MSG_ERROR("(DEBUG) HTTP req {} didn't match enough elements, {} wanted {}", url, match_values.size(), match_keys.size());
         return false;
     }
 
@@ -1641,7 +1640,7 @@ bool kis_net_beast_route::match_url(const std::string& url,
         }
 
         if (key_num >= match_keys.size()) {
-            _MSG_ERROR("(DEBUG) HTTP req {} matched more values than known keys in route, something is wrong key pos {}", url, key_num);
+            // _MSG_ERROR("(DEBUG) HTTP req {} matched more values than known keys in route, something is wrong key pos {}", url, key_num);
             continue;
         }
 
