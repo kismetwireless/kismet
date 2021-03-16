@@ -158,12 +158,15 @@ typedef struct pcapng_custom_block pcapng_custom_block_t;
 
 /* Kismet GPS record, matches PPI GPS definition */
 struct kismet_pcapng_gps_chunk {
+    uint8_t gps_magic;
     uint8_t gps_verison;
     uint16_t gps_len;
     uint32_t gps_fields_present;
     uint8_t gps_data[0];
 } __attribute__((packed));
 typedef struct kismet_pcapng_gps_chunk kismet_pcapng_gps_chunk_t;
+
+#define PCAPNG_GPS_MAGIC            0x47
 
 #define PCAPNG_GPS_VERSION          0x1
 
@@ -176,7 +179,5 @@ typedef struct kismet_pcapng_gps_chunk kismet_pcapng_gps_chunk_t;
 #define PCAPNG_GPS_FLAG_EPH         0x80
 #define PCAPNG_GPS_FLAG_EPV         0x100
 #define PCAPNG_GPS_FLAG_EPT         0x200
-#define PCAPNG_GPS_FLAG_APPID       0x20000000
-#define PCAPNG_GPS_FLAG_DATA        0x40000000 
 
 #endif

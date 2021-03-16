@@ -464,9 +464,10 @@ void write_pcapng_packet(FILE *pcapng_file, const std::string& packet,
         // Make a runt header since we can stream out the content
         kismet_pcapng_gps_chunk_t gps;
 
+        gps.gps_magic = PCAPNG_GPS_MAGIC;
         gps.gps_verison = PCAPNG_GPS_VERSION;
-        gps.gps_len = kis_htole16(gps_len);
-        gps.gps_fields_present = kis_htole32(gps_fields);
+        gps.gps_len = gps_len;
+        gps.gps_fields_present = gps_fields;
 
         if (fwrite(&copt, sizeof(pcapng_custom_option_t), 1, pcapng_file) != 1)
             throw std::runtime_error(fmt::format("error writing packet gps options: {} (errno {})",
@@ -483,24 +484,24 @@ void write_pcapng_packet(FILE *pcapng_file, const std::string& packet,
         } u;
 
         // Lat, lon, alt, appid in that order
-        u.u32 = kis_htole32(double_to_fixed3_7(lat));
+        u.u32 = double_to_fixed3_7(lat);
         if (fwrite(&u, sizeof(uint32_t), 1, pcapng_file) != 1) 
             throw std::runtime_error(fmt::format("error writing packet gps: {} (errno {})",
                         strerror(errno), errno));
 
-        u.u32 = kis_htole32(double_to_fixed3_7(lon));
+        u.u32 = double_to_fixed3_7(lon);
         if (fwrite(&u, sizeof(uint32_t), 1, pcapng_file) != 1) 
             throw std::runtime_error(fmt::format("error writing packet gps: {} (errno {})",
                         strerror(errno), errno));
 
         if (alt != 0) {
-            u.u32 = kis_htole32(double_to_fixed3_7(alt));
+            u.u32 = double_to_fixed6_4(alt);
             if (fwrite(&u, sizeof(uint32_t), 1, pcapng_file) != 1) 
                 throw std::runtime_error(fmt::format("error writing packet gps: {} (errno {})",
                             strerror(errno), errno));
         }
 
-        u.u32 = kis_htole32(0x0053494B); //KIS0
+        u.u32 = 0x0053494B; //KIS0
         if (fwrite(&u, sizeof(uint32_t), 1, pcapng_file) != 1) 
             throw std::runtime_error(fmt::format("error writing packet gps: {} (errno {})",
                         strerror(errno), errno));
