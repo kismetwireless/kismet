@@ -700,6 +700,11 @@ void kis_database_logfile::handle_message(std::shared_ptr<tracked_message> msg) 
     sqlite3_stmt *msg_stmt;
     const char *msg_pz;
 
+    std::shared_ptr<kis_gps_packinfo> loc;
+
+    if (gpstracker != nullptr) 
+        loc = std::shared_ptr<kis_gps_packinfo>(gpstracker->get_best_location());
+
     sql =
         "INSERT INTO messages "
         "(ts_sec, "
@@ -723,16 +728,9 @@ void kis_database_logfile::handle_message(std::shared_ptr<tracked_message> msg) 
 
     sqlite3_bind_int64(msg_stmt, spos++, time(0));
 
-    if (gpstracker != nullptr) {
-        auto loc = std::shared_ptr<kis_gps_packinfo>(gpstracker->get_best_location());
-
-        if (loc != nullptr && loc->fix >= 2) {
-            sqlite3_bind_double(msg_stmt, spos++, loc->lat);
-            sqlite3_bind_double(msg_stmt, spos++, loc->lon);
-        } else {
-            sqlite3_bind_double(msg_stmt, spos++, 0);
-            sqlite3_bind_double(msg_stmt, spos++, 0);
-        }
+    if (loc != nullptr && loc->fix >= 2) {
+        sqlite3_bind_double(msg_stmt, spos++, loc->lat);
+        sqlite3_bind_double(msg_stmt, spos++, loc->lon);
     } else {
         sqlite3_bind_double(msg_stmt, spos++, 0);
         sqlite3_bind_double(msg_stmt, spos++, 0);
@@ -1295,6 +1293,11 @@ int kis_database_logfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
     sqlite3_stmt *snapshot_stmt;
     const char *snapshot_pz;
 
+    std::shared_ptr<kis_gps_packinfo> loc;
+
+    if (gps == nullptr && gpstracker != nullptr) 
+        loc = std::shared_ptr<kis_gps_packinfo>(gpstracker->get_best_location());
+
     sql =
         "INSERT INTO snapshots "
         "(ts_sec, ts_usec, "
@@ -1321,16 +1324,9 @@ int kis_database_logfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
         sqlite3_bind_double(snapshot_stmt, 3, gps->lat);
         sqlite3_bind_double(snapshot_stmt, 4, gps->lon);
     } else {
-        if (gpstracker != nullptr) {
-            auto loc = std::shared_ptr<kis_gps_packinfo>(gpstracker->get_best_location());
-
-            if (loc != nullptr && loc->fix >= 2) {
-                sqlite3_bind_double(snapshot_stmt, 3, loc->lat);
-                sqlite3_bind_double(snapshot_stmt, 4, loc->lon);
-            } else {
-                sqlite3_bind_int(snapshot_stmt, 3, 0);
-                sqlite3_bind_int(snapshot_stmt, 4, 0);
-            }
+        if (loc != nullptr && loc->fix >= 2) {
+            sqlite3_bind_double(snapshot_stmt, 3, loc->lat);
+            sqlite3_bind_double(snapshot_stmt, 4, loc->lon);
         } else {
             sqlite3_bind_int(snapshot_stmt, 3, 0);
             sqlite3_bind_int(snapshot_stmt, 4, 0);
@@ -1510,16 +1506,15 @@ void kis_database_logfile::make_poi_endp_handler(std::shared_ptr<kis_net_beast_h
     gettimeofday(&tv, nullptr);
     std::string poi_data;
 
+    std::shared_ptr<kis_gps_packinfo> loc;
+    if (gpstracker != nullptr) 
+        loc = std::shared_ptr<kis_gps_packinfo>(gpstracker->get_best_location());
+
     if (!con->json()["note"].isNull()) {
         poi_data = "{\"note\": \"" +
             json_adapter::sanitize_string(con->json()["note"].asString()) +
             "\"}";
     }
-
-    std::shared_ptr<kis_gps_packinfo> loc;
-
-    if (gpstracker != nullptr) 
-        loc = std::shared_ptr<kis_gps_packinfo>(gpstracker->get_best_location());
 
     log_snapshot(loc.get(), tv, "POI", poi_data);
 
