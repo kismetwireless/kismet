@@ -791,6 +791,10 @@ device_tracker::device_tracker() :
 
                         } catch (const std::exception& e) {
                             _MSG_ERROR("Invalid device monitor request: {}", e.what());
+                            if (key_timer_map.size() > 0) {
+                                for (const auto t : key_timer_map)
+                                    timetracker->remove_timer(t.second);
+                            }
                             return;
                         }
 
