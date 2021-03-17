@@ -179,6 +179,10 @@ public:
 
     // Name (last known name, user name, or mac address)
     std::string name;
+    std::string phy_layer;
+    std::string description;
+    std::string channel;
+    std::string crypt;
 };
 
 void print_help(char *argv) {
@@ -465,6 +469,9 @@ int main(int argc, char *argv[]) {
 
                 kml_placemark pl;
                 pl.name = json["kismet.device.base.commonname"].asString();
+                pl.phy_layer = json["kismet.device.base.phyname"].asString();
+                pl.channel = json["kismet.device.base.channel"].asString();
+                pl.crypt = json["kismet.device.base.crypt"].asString();
                 pl.point_vec.push_back(p);
 
                 placemark_vec.push_back(pl);
@@ -499,6 +506,9 @@ int main(int argc, char *argv[]) {
             try {
                 ss >> json;
                 pl.name = json["kismet.device.base.commonname"].asString();
+                pl.phy_layer = json["kismet.device.base.phyname"].asString();
+                pl.channel = json["kismet.device.base.channel"].asString();
+                pl.crypt = json["kismet.device.base.crypt"].asString();
             } catch (const std::exception& e) {
                 fmt::print(stderr, "WARNING:  Could not process device info for '{}', skipping\n", json);
                 continue;
@@ -614,11 +624,32 @@ int main(int argc, char *argv[]) {
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
             "<kml xmlns=\"http://www.opengis.net/kml/2.2\" xmlns:gx=\"http://www.google.com/kml/ext/2.2\">\n"
             "<Document id=\"1\">\n"
+            "<Style id=\"btle\"><LabelStyle><color>#ffFF0000</color></LabelStyle><IconStyle><color>#ffFF0000</color></IconStyle></Style>\n"
+            "<Style id=\"zigbee\"><LabelStyle><color>#ff0000FF</color></LabelStyle><IconStyle><color>#ff0000FF</color></IconStyle></Style>\n"
             "<name>Kismet</name>\n");
+
+//<Folder><name>Valmont Irrigation Australia Pty Ltd</name><description>Valmont Irrigation Australia Pty Ltd</description>
 
     for (auto pl : placemark_vec) {
         fmt::print(ofile, "<Placemark id=\"{}\">", place_num++);
         fmt::print(ofile, "<name>{}</name>", MungeForXML(pl.name));
+
+        // style based on phy layer
+        if(pl.phy_layer == "Bluetooth" || pl.phy_layer == "BTLE") {
+            fmt::print(ofile, "<styleUrl>btle</styleUrl>");
+        }
+        if(pl.phy_layer == "802.15.4") {
+            fmt::print(ofile, "<styleUrl>zigbee</styleUrl>");
+        }
+
+        // add description
+        pl.description = "Name:" + MungeForXML(pl.name) + "\n"; 
+        pl.description += pl.phy_layer + "\n";
+        pl.description += "Channel:" + pl.channel;
+        if(pl.crypt.length() > 0)
+        pl.description += "\nCrypt:" + pl.crypt;
+        fmt::print(ofile, "<description>{}</description>",pl.description);
+
         for (auto p : pl.point_vec) 
             fmt::print(ofile, "<Point id=\"{}\"><coordinates>{},{},{}</coordinates></Point>",
                     point_num++, p.lon, p.lat, p.alt);
