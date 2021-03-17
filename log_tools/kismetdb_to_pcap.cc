@@ -373,8 +373,8 @@ void write_pcapng_packet(FILE *pcapng_file, const std::string& packet,
         data_sz += sizeof(pcapng_option_t) + PAD_TO_32BIT(tag.length());
 
     if (lat != 0 && lon != 0) {
-        // Lat, lon, appid
-        size_t gps_len = 12;
+        // Lat, lon
+        size_t gps_len = 8;
 
         // Altitude
         if (alt != 0) {
@@ -447,10 +447,10 @@ void write_pcapng_packet(FILE *pcapng_file, const std::string& packet,
         copt.option_code = PCAPNG_OPT_CUSTOM_BINARY;
         copt.option_pen = KISMET_IANA_PEN;
 
-        // Lat, lon, appid
-        size_t gps_len = 12;
+        // Lat, lon
+        size_t gps_len = 8;
 
-        gps_fields = PCAPNG_GPS_FLAG_APPID | PCAPNG_GPS_FLAG_LAT | PCAPNG_GPS_FLAG_LON;
+        gps_fields = PCAPNG_GPS_FLAG_LAT | PCAPNG_GPS_FLAG_LON;
 
         // Altitude
         if (alt != 0) {
@@ -483,7 +483,7 @@ void write_pcapng_packet(FILE *pcapng_file, const std::string& packet,
             uint32_t u32;
         } u;
 
-        // Lat, lon, alt, appid in that order
+        // Lat, lon, alt, in that order
         u.u32 = double_to_fixed3_7(lat);
         if (fwrite(&u, sizeof(uint32_t), 1, pcapng_file) != 1) 
             throw std::runtime_error(fmt::format("error writing packet gps: {} (errno {})",
@@ -500,11 +500,6 @@ void write_pcapng_packet(FILE *pcapng_file, const std::string& packet,
                 throw std::runtime_error(fmt::format("error writing packet gps: {} (errno {})",
                             strerror(errno), errno));
         }
-
-        u.u32 = 0x0053494B; //KIS0
-        if (fwrite(&u, sizeof(uint32_t), 1, pcapng_file) != 1) 
-            throw std::runtime_error(fmt::format("error writing packet gps: {} (errno {})",
-                        strerror(errno), errno));
 
         pad_sz = PAD_TO_32BIT(copt.option_length) - copt.option_length;
 
