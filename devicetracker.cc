@@ -744,7 +744,7 @@ device_tracker::device_tracker() :
                                 // serializes them with the fields record
                                 auto tid = 
                                     timetracker->register_timer(std::chrono::seconds(rate), true,
-                                            [this, con, dev_r, dev_k, dev_m, json, &ws, &last_tm, rename_map, format_t](int) -> int {
+                                            [this, con, dev_r, dev_k, dev_m, json, ws, &last_tm, rename_map, format_t](int) -> int {
                                                 if (dev_r == "*") {
                                                     auto worker = device_tracker_view_function_worker([json, last_tm, format_t, this, ws](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
                                                         if (dev->get_mod_time() > last_tm) {
@@ -791,10 +791,6 @@ device_tracker::device_tracker() :
 
                         } catch (const std::exception& e) {
                             _MSG_ERROR("Invalid device monitor request: {}", e.what());
-                            if (key_timer_map.size() > 0) {
-                                for (const auto t : key_timer_map)
-                                    timetracker->remove_timer(t.second);
-                            }
                             return;
                         }
 
