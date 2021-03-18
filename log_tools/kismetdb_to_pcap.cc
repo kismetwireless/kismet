@@ -369,22 +369,23 @@ void write_pcapng_packet(FILE *pcapng_file, const std::string& packet,
     // Always allocate an end-of-options option
     auto data_sz = sizeof(pcapng_epb_t) + PAD_TO_32BIT(packet.size()) + sizeof(pcapng_option_t);
 
+    // Comment tag
     if (tag.length() > 0) 
         data_sz += sizeof(pcapng_option_t) + PAD_TO_32BIT(tag.length());
 
     if (lat != 0 && lon != 0) {
+        // GPS header structure
+        size_t gps_len = sizeof(kismet_pcapng_gps_chunk_t);
+
         // Lat, lon
-        size_t gps_len = 8;
+        gps_len += 8;
 
         // Altitude
         if (alt != 0) {
             gps_len += 4;
         }
 
-        // Sub-header
-        gps_len += sizeof(kismet_pcapng_gps_chunk_t);
-
-        data_sz += sizeof(pcapng_custom_option_t) + gps_len + PAD_TO_32BIT(gps_len);
+        data_sz += sizeof(pcapng_custom_option_t) + PAD_TO_32BIT(gps_len);
     }
 
     epb.block_type = PCAPNG_EPB_BLOCK_TYPE;
@@ -458,7 +459,7 @@ void write_pcapng_packet(FILE *pcapng_file, const std::string& packet,
             gps_fields |= PCAPNG_GPS_FLAG_ALT;
         }
 
-        // PEN + gps header + content
+        // PEN + gps header + content, without padding
         copt.option_length = 4 + sizeof(kismet_pcapng_gps_chunk_t) + gps_len;
 
         // Make a runt header since we can stream out the content
@@ -469,10 +470,12 @@ void write_pcapng_packet(FILE *pcapng_file, const std::string& packet,
         gps.gps_len = gps_len;
         gps.gps_fields_present = gps_fields;
 
+        // Option + PEN custom option header
         if (fwrite(&copt, sizeof(pcapng_custom_option_t), 1, pcapng_file) != 1)
             throw std::runtime_error(fmt::format("error writing packet gps options: {} (errno {})",
                         strerror(errno), errno));
 
+        // GPS header
         if (fwrite(&gps, sizeof(kismet_pcapng_gps_chunk_t), 1, pcapng_file) != 1)
             throw std::runtime_error(fmt::format("error writing packet gps options: {} (errno {})",
                         strerror(errno), errno));
