@@ -40,6 +40,7 @@ pcapng_stream_futurebuf::pcapng_stream_futurebuf(future_chainbuf& buffer,
     packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
     pack_comp_linkframe = packetchain->register_packet_component("LINKFRAME");
     pack_comp_datasrc = packetchain->register_packet_component("KISDATASRC");
+    pack_comp_gpsinfo = packetchain->register_packet_component("GPS");
 }
 
 pcapng_stream_futurebuf::~pcapng_stream_futurebuf() {
@@ -276,6 +277,7 @@ int pcapng_stream_futurebuf::pcapng_write_packet(kis_packet *in_packet, kis_data
     kis_lock_guard<kis_mutex> lk(pcap_mutex, "pcapng_futurebuf pcapng_write_packet");
 
     auto datasrcinfo = in_packet->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
+    auto gpsinfo = in_packet->fetch<kis_gps_packinfo>(pack_comp_gpsinfo);
 
     if (datasrcinfo == nullptr)
         return 0;
@@ -299,9 +301,27 @@ int pcapng_stream_futurebuf::pcapng_write_packet(kis_packet *in_packet, kis_data
 
     std::shared_ptr<char> buf;
 
-    // Total buffer size is header + data + options
-    size_t buf_sz = sizeof(pcapng_epb) + PAD_TO_32BIT(in_data->length) + sizeof(pcapng_option);
+    // Total buffer size starts header + data + options + end of option
+    size_t buf_sz = sizeof(pcapng_epb_t) + PAD_TO_32BIT(in_data->length) + sizeof(pcapng_option_t);
 
+    // Optionally we add the GPS option into the total length
+    size_t gps_len = 0;
+
+    if (gpsinfo != nullptr && gpsinfo->fix >= 2) {
+        // GPS header
+        gps_len = sizeof(kismet_pcapng_gps_chunk_t);
+
+        // Always lat/lon, optionally alt
+        gps_len += 8;
+
+        if (gpsinfo->fix > 2 && gpsinfo->alt != 0)
+            gps_len += 4;
+
+        // Total additional size is custom option block including PEN, and padded custom data
+        buf_sz += sizeof(pcapng_custom_option_t) + PAD_TO_32BIT(gps_len);
+    }
+
+    // Allocate 4 bytes larger to hold the final length
     if (!block_until(buf_sz + 4))
         return 0;
 
@@ -309,7 +329,7 @@ int pcapng_stream_futurebuf::pcapng_write_packet(kis_packet *in_packet, kis_data
     pcapng_option *opt;
 
     buf = std::shared_ptr<char>(new char[buf_sz + 4], std::default_delete<char[]>());
-    memset(buf.get(), 0, buf_sz + 4);
+    memset(buf.get(), 0x00, buf_sz + 4);
 
     epb = reinterpret_cast<pcapng_epb *>(buf.get());
 
@@ -330,10 +350,60 @@ int pcapng_stream_futurebuf::pcapng_write_packet(kis_packet *in_packet, kis_data
     epb->original_length = in_data->length;
 
     // Copy the data after the epb header
-    memcpy(buf.get() + sizeof(pcapng_epb), in_data->data, in_data->length);
+    memcpy(buf.get() + sizeof(pcapng_epb_t), in_data->data, in_data->length);
+
+    // Offset to the end of the epb header + data + pad
+    size_t opt_offt = sizeof(pcapng_epb_t) + PAD_TO_32BIT(in_data->length);
+
+    if (gpsinfo != nullptr && gpsinfo->fix >= 2) {
+        auto gopt = reinterpret_cast<pcapng_custom_option_t *>(buf.get() + opt_offt);
+
+        // Always lat and lon
+        uint32_t gps_fields = PCAPNG_GPS_FLAG_LAT | PCAPNG_GPS_FLAG_LON;
+
+        // lat/lon
+        gps_len = 8;
+
+        if (gpsinfo->fix > 2 && gpsinfo->alt != 0) {
+            gps_len += 4;
+            gps_fields |= PCAPNG_GPS_FLAG_ALT;
+        }
+
+        gopt->option_code = PCAPNG_OPT_CUSTOM_BINARY;
+        gopt->option_pen = KISMET_IANA_PEN;
+
+        // PEN + data, without padding
+        gopt->option_length = 4 + sizeof(kismet_pcapng_gps_chunk_t) + gps_len;
+
+        auto gps = reinterpret_cast<kismet_pcapng_gps_chunk_t *>(gopt->option_data);
+
+        gps->gps_magic = PCAPNG_GPS_MAGIC;
+        gps->gps_verison = PCAPNG_GPS_VERSION;
+        gps->gps_len = gps_len;
+        gps->gps_fields_present = gps_fields;
+
+        size_t field_data_offt = 0;
+
+        auto f = reinterpret_cast<uint32_t *>(gps->gps_data + field_data_offt);
+        *f = double_to_fixed3_7(gpsinfo->lat);
+        field_data_offt += 4;
+
+        f = reinterpret_cast<uint32_t *>(gps->gps_data + field_data_offt);
+        *f = double_to_fixed3_7(gpsinfo->lon);
+        field_data_offt += 4;
+
+        if (gpsinfo->fix > 2 && gpsinfo->alt != 0) {
+            f = reinterpret_cast<uint32_t *>(gps->gps_data + field_data_offt);
+            *f = double_to_fixed6_4(gpsinfo->alt);
+            field_data_offt += 4;
+        }
+
+        // Move the offset by option length + padded content length
+        opt_offt += sizeof(pcapng_option_t) + PAD_TO_32BIT(gopt->option_length);
+    }
 
     // Place an end option after the data - header + pad32(data)
-    opt = reinterpret_cast<pcapng_option *>(buf.get() + sizeof(pcapng_epb) + PAD_TO_32BIT(in_data->length));
+    opt = reinterpret_cast<pcapng_option *>(buf.get() + opt_offt);
     opt->option_code = PCAPNG_OPT_ENDOFOPT;
     opt->option_length = 0;
 
