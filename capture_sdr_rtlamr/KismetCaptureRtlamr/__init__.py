@@ -126,6 +126,10 @@ class KismetRtlamr(object):
         
         self.config = parser.parse_args()
 
+        if (self.config.infd == None or self.config.outfd == None) and self.config.connect == None:
+            print("This tool is launched via Kismet IPC for local capture; see --help and the Kismet documentation to configure it for remote capture.")
+            sys.exit(0)
+
         if not self.config.connect == None and self.config.source == None:
             print("You must specify a source with --source when connecting to a remote Kismet server")
             sys.exit(0)
@@ -196,7 +200,7 @@ class KismetRtlamr(object):
     def run_rtlamr(self):
         self.kismet.add_exit_callback(self.kill_amr)
         self.kismet.add_task(self.__rtl_amr_task)
-        self.open_radio(self.opts['device'])
+        # self.open_radio(self.opts['device'])
 
     # Implement the listinterfaces callback for the datasource api;
     def datasource_listinterfaces(self, seqno):
@@ -351,7 +355,10 @@ class KismetRtlamr(object):
 
         self.opts['device'] = intnum
 
-        ret['success'] = True
+        (ret['success'], ret['message']) = self.open_radio(self.opts['device'])
+
+        if not success:
+            return ret
 
         self.run_rtlamr()
 
@@ -406,13 +413,13 @@ class KismetRtlamr(object):
         try:
             self.rtlsdr.open_radio(rnum, self.frequency, self.rate, gain=self.opts['gain'], autogain=True, ppm=self.opts['ppm'], biastee=self.opts['biastee'])
         except Exception as e:
-            self.kismet.send_datasource_error_report(message = "Error opening RTLSDR for AMR: {}".format(e.args[0]))
-            self.kill_amr()
-            self.kismet.spindown()
+            return [False, f"Error opening RTLSDR device: {e.args[0]}"]
 
         self.rtl_thread = threading.Thread(target=self.__async_radio_thread)
         self.rtl_thread.daemon = True
         self.rtl_thread.start()
+
+        return [True, ""]
 
     async def __rtl_amr_task(self):
         """

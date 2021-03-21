@@ -417,12 +417,10 @@ class KismetRtladsb(object):
 
         self.opts['device'] = intnum
 
-        ret['success'] = True
-
-        (success, ret['message']) = self.open_radio(self.opts['device'])
+        (ret['success'], ret['message']) = self.open_radio(self.opts['device'])
 
         if not success:
-            return ret;
+            return ret
 
         self.run_rtladsb()
 
