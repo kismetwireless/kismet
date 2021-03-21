@@ -62,6 +62,9 @@ typedef struct {
     unsigned int channel;
 } local_channel_t;
 
+#define TICC_USB_ERROR          -1
+#define TICC_USB_UNRESPONSIVE   -5
+
 int ticc2531_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
     local_ticc2531_t *localticc2531 = (local_ticc2531_t *) caph->userdata;
     int ret;
@@ -139,37 +142,16 @@ int ticc2531_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_
     int actual_len, r;
     
     pthread_mutex_lock(&(localticc2531->usb_mutex));
-    r = libusb_bulk_transfer(localticc2531->ticc2531_handle, TICC2531_DATA_EP, rx_buf, rx_max, &actual_len, TICC2531_DATA_TIMEOUT);
-    pthread_mutex_unlock(&(localticc2531->usb_mutex));
-/**
-    for(int xp=0;xp<actual_len;xp++)
-    {
-        printf("%02X",rx_buf[xp]);
-    }
-    printf("\n");
-**/
-/*
-    if (actual_len == 4) {
-	//do this as we don't hard reset on a heartbeat then
-	// but we will try resetting the channel instead
-    //
-	localticc2531->soft_reset++;
 
-	if (localticc2531->soft_reset >= 2) {
-	    localticc2531->ready = false;
-	    ticc2531_exit_promisc_mode(caph);
-            ticc2531_set_channel(caph, localticc2531->channel); 
-	    ticc2531_enter_promisc_mode(caph);
-	    localticc2531->soft_reset = 0;
-	    localticc2531->ready = true;
-	}
-        return actual_len;
-    }
-*/
+    r = libusb_bulk_transfer(localticc2531->ticc2531_handle, TICC2531_DATA_EP, rx_buf, 
+            rx_max, &actual_len, TICC2531_DATA_TIMEOUT);
+
+    pthread_mutex_unlock(&(localticc2531->usb_mutex));
+
     if (r < 0) {
         localticc2531->error_ctr++;
         if (localticc2531->error_ctr >= 5000) {
-            return r;
+            return TICC_USB_UNRESPONSIVE;
         } else {
             /*continue on for now*/
             return 1;
@@ -258,8 +240,13 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
             }
         }
     }
+
     libusb_free_device_list(libusb_devs, 1);
     pthread_mutex_unlock(&(localticc2531->usb_mutex));
+
+    if (!matched_device) {
+        return 0;
+    }
 
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
      * and the location in the bus */
@@ -657,8 +644,15 @@ void capture_thread(kis_capture_handler_t *caph) {
         if (localticc2531->ready) {
             buf_rx_len = ticc2531_receive_payload(caph, usb_buf, 256);
             if (buf_rx_len < 0) {
-                snprintf(errstr, STATUS_MAX, "TI CC 2531 interface 'ticc2531-%u-%u' closed "
-                        "unexpectedly", localticc2531->busno, localticc2531->devno);
+                if (buf_rx_len == TICC_USB_UNRESPONSIVE) {
+                    snprintf(errstr, STATUS_MAX, "TI CC 2531 interface 'ticc2531-%u-%u' has seen "
+                            "no data in a prolonged period of time; sometimes the device "
+                            "sniffer firmware crashes, re-opening device as a precaution", 
+                            localticc2531->busno, localticc2531->devno);
+                } else {
+                    snprintf(errstr, STATUS_MAX, "TI CC 2531 interface 'ticc2531-%u-%u' closed "
+                            "unexpectedly", localticc2531->busno, localticc2531->devno);
+                }
                 cf_send_error(caph, 0, errstr);
                 cf_handler_spindown(caph);
                 break;
@@ -667,17 +661,7 @@ void capture_thread(kis_capture_handler_t *caph) {
             /* Skip runt packets caused by timeouts */
             if (buf_rx_len == 1)
                 continue;
-/**
-printf("capturesource-");
-for(int xp = 0;xp < buf_rx_len;xp++)
-{
-    if(xp == 7)
-        printf(" ");
-    printf("%02X",usb_buf[xp]);
-}
-    
-printf("\n");
-**/
+
             /* the devices look to report a 4 byte counter/heartbeat, skip it */
             if (buf_rx_len <= 7)
                 continue;
@@ -686,9 +670,6 @@ printf("\n");
                 //printf("invalid 2531 packet?\n");
                 continue;
             }
-
-
-
 
             /* insert the channel into the packet header*/
             usb_buf[2] = (uint8_t)localticc2531->channel;
