@@ -93,6 +93,10 @@ class KismetRtladsb(object):
         
         self.config = parser.parse_args()
 
+        if (self.config.infd == None or self.config.outfd == None) and self.config.connect == None:
+            print("This tool is launched via Kismet IPC for local capture; see --help and the Kismet documentation to configure it for remote capture.")
+            sys.exit(0)
+
         if not self.config.connect == None and self.config.source == None:
             print("You must specify a source with --source when connecting to a remote Kismet server")
             sys.exit(0)
@@ -259,7 +263,7 @@ class KismetRtladsb(object):
     def run_rtladsb(self):
         self.kismet.add_exit_callback(self.kill_adsb)
         self.kismet.add_task(self.__rtl_adsb_task)
-        self.open_radio(self.opts['device'])
+        # self.open_radio(self.opts['device'])
 
     # Implement the listinterfaces callback for the datasource api;
     def datasource_listinterfaces(self, seqno):
@@ -414,6 +418,11 @@ class KismetRtladsb(object):
         self.opts['device'] = intnum
 
         ret['success'] = True
+
+        (success, ret['message']) = self.open_radio(self.opts['device'])
+
+        if not success:
+            return ret;
 
         self.run_rtladsb()
 
@@ -610,13 +619,13 @@ class KismetRtladsb(object):
         try:
             self.rtlsdr.open_radio(rnum, self.frequency, self.rate, gain=self.opts['gain'], autogain=True, ppm=self.opts['ppm'], biastee=self.opts['biastee'])
         except Exception as e:
-            self.kismet.send_datasource_error_report(message = "Error opening RTLSDR for ADSB: {}".format(e.args[0]))
-            self.kill_adsb()
-            self.kismet.spindown()
+            return [False, f"Error opening RTLSDR device: {e.args[0]}"]
 
         self.rtl_thread = threading.Thread(target=self.__async_radio_thread)
         self.rtl_thread.daemon = True
         self.rtl_thread.start()
+
+        return [True, ""]
 
     # ADSB parsing functions ported from the dump1090 C implementation
     def adsb_crc(self, data, bits):
