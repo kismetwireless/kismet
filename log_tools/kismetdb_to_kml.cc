@@ -200,6 +200,7 @@ void print_help(char *argv) {
            "                              your home, or other sensitive locations.\n"
            " --basic-location             Use basic average location information instead of computing a\n"
            "                              high-precision location; faster, but less accurate\n"
+           " -g, --group                  Group by type into folders\n"
           );
 }
 
@@ -213,6 +214,7 @@ int main(int argc, char *argv[]) {
         { "skip-clean", no_argument, 0, 's' },
         { "exclude", required_argument, 0, 'e'},
         { "basic-location", no_argument, 0, 'B'},
+        { "group", no_argument, 0, 'g' },
         { 0, 0, 0, 0 }
     };
 
@@ -225,6 +227,7 @@ int main(int argc, char *argv[]) {
     bool force = false;
     bool skipclean = false;
     bool basiclocation = false;
+    bool group_in_folder = false;
 
     std::vector<std::tuple<double, double, double>> exclusion_zones;
 
@@ -266,6 +269,8 @@ int main(int argc, char *argv[]) {
             exclusion_zones.push_back(std::make_tuple(lat, lon, distance));
         } else if (r == 'B') {
             basiclocation = true;
+        } else if (r == 'g') {
+            group_in_folder = true;
         }
     }
 
@@ -425,6 +430,11 @@ int main(int argc, char *argv[]) {
 
     std::vector<kml_placemark> placemark_vec;
 
+    //placemarks by types
+    std::vector<kml_placemark> standard_placemark_vec;
+    std::vector<kml_placemark> zigbee_placemark_vec;
+    std::vector<kml_placemark> bluetooth_placemark_vec;
+
     if (basiclocation) {
         auto basic_q = 
             _SELECT(db, "devices", 
@@ -474,7 +484,21 @@ int main(int argc, char *argv[]) {
                 pl.crypt = json["kismet.device.base.crypt"].asString();
                 pl.point_vec.push_back(p);
 
-                placemark_vec.push_back(pl);
+                if(group_in_folder) {
+                    // style based on phy layer
+                    if(pl.phy_layer == "Bluetooth" || pl.phy_layer == "BTLE") {
+                        bluetooth_placemark_vec.push_back(pl);
+                    }
+                    else if(pl.phy_layer == "802.15.4") {
+                        zigbee_placemark_vec.push_back(pl);
+                    }
+                    else {
+                        standard_placemark_vec.push_back(pl);
+                    }
+                }
+                else {
+                    placemark_vec.push_back(pl);
+                }
             } catch (const std::exception& e) {
                 std::cerr << 
                     fmt::format("WARNING:  Could not process device info for '{}', skipping", json) << std::endl;
@@ -613,7 +637,23 @@ int main(int argc, char *argv[]) {
                 p.alt = pl.avg_alt / pl.avg_alt_num;
 
             pl.point_vec.push_back(p);
-            placemark_vec.push_back(pl);
+
+            if(group_in_folder) {
+                // style based on phy layer
+                if(pl.phy_layer == "Bluetooth" || pl.phy_layer == "BTLE") {
+                    bluetooth_placemark_vec.push_back(pl);
+                }
+                else if(pl.phy_layer == "802.15.4") {
+                    zigbee_placemark_vec.push_back(pl);
+                }
+                else {
+                    standard_placemark_vec.push_back(pl);
+                }
+            }
+            else {
+                placemark_vec.push_back(pl);
+            }
+
         }
     }
 
@@ -630,31 +670,99 @@ int main(int argc, char *argv[]) {
 
 //<Folder><name>Valmont Irrigation Australia Pty Ltd</name><description>Valmont Irrigation Australia Pty Ltd</description>
 
-    for (auto pl : placemark_vec) {
-        fmt::print(ofile, "<Placemark id=\"{}\">", place_num++);
-        fmt::print(ofile, "<name>{}</name>", MungeForXML(pl.name));
+            if(group_in_folder) {
+                fmt::print(ofile, "<Folder>");
+                fmt::print(ofile, "<name>Bluetooth</name>");
+                for (auto pl : bluetooth_placemark_vec) {
+                    fmt::print(ofile, "<Placemark id=\"{}\">", place_num++);
+                    fmt::print(ofile, "<name>{}</name>", MungeForXML(pl.name));
+                    // style based on phy layer
+                    fmt::print(ofile, "<styleUrl>btle</styleUrl>");
+                    // add description
+                    pl.description = "Name:" + MungeForXML(pl.name) + "\n"; 
+                    pl.description += pl.phy_layer + "\n";
+                    pl.description += "Channel:" + pl.channel;
+                    if(pl.crypt.length() > 0)
+                    pl.description += "\nCrypt:" + pl.crypt;
+                    fmt::print(ofile, "<description>{}</description>",pl.description);
 
-        // style based on phy layer
-        if(pl.phy_layer == "Bluetooth" || pl.phy_layer == "BTLE") {
-            fmt::print(ofile, "<styleUrl>btle</styleUrl>");
-        }
-        if(pl.phy_layer == "802.15.4") {
-            fmt::print(ofile, "<styleUrl>zigbee</styleUrl>");
-        }
+                    for (auto p : pl.point_vec) 
+                        fmt::print(ofile, "<Point id=\"{}\"><coordinates>{},{},{}</coordinates></Point>",
+                                point_num++, p.lon, p.lat, p.alt);
+                    fmt::print(ofile, "</Placemark>\n");
+                }
+                fmt::print(ofile, "</Folder>\n");
 
-        // add description
-        pl.description = "Name:" + MungeForXML(pl.name) + "\n"; 
-        pl.description += pl.phy_layer + "\n";
-        pl.description += "Channel:" + pl.channel;
-        if(pl.crypt.length() > 0)
-        pl.description += "\nCrypt:" + pl.crypt;
-        fmt::print(ofile, "<description>{}</description>",pl.description);
+                fmt::print(ofile, "<Folder>");
+                fmt::print(ofile, "<name>802.15.4(Zigbee)</name>");
+                for (auto pl : zigbee_placemark_vec) {
+                    fmt::print(ofile, "<Placemark id=\"{}\">", place_num++);
+                    fmt::print(ofile, "<name>{}</name>", MungeForXML(pl.name));
+                    // style based on phy layer
+                    fmt::print(ofile, "<styleUrl>zigbee</styleUrl>");
+                    // add description
+                    pl.description = "Name:" + MungeForXML(pl.name) + "\n"; 
+                    pl.description += pl.phy_layer + "\n";
+                    pl.description += "Channel:" + pl.channel;
+                    if(pl.crypt.length() > 0)
+                    pl.description += "\nCrypt:" + pl.crypt;
+                    fmt::print(ofile, "<description>{}</description>",pl.description);
 
-        for (auto p : pl.point_vec) 
-            fmt::print(ofile, "<Point id=\"{}\"><coordinates>{},{},{}</coordinates></Point>",
-                    point_num++, p.lon, p.lat, p.alt);
-        fmt::print(ofile, "</Placemark>\n");
-    }
+                    for (auto p : pl.point_vec) 
+                        fmt::print(ofile, "<Point id=\"{}\"><coordinates>{},{},{}</coordinates></Point>",
+                                point_num++, p.lon, p.lat, p.alt);
+                    fmt::print(ofile, "</Placemark>\n");
+                }
+                fmt::print(ofile, "</Folder>\n");
+
+                fmt::print(ofile, "<Folder>");
+                fmt::print(ofile, "<name>Wifi</name>");
+                for (auto pl : standard_placemark_vec) {
+                    fmt::print(ofile, "<Placemark id=\"{}\">", place_num++);
+                    fmt::print(ofile, "<name>{}</name>", MungeForXML(pl.name));
+                    // style based on phy layer
+                    // add description
+                    pl.description = "Name:" + MungeForXML(pl.name) + "\n"; 
+                    pl.description += pl.phy_layer + "\n";
+                    pl.description += "Channel:" + pl.channel;
+                    if(pl.crypt.length() > 0)
+                    pl.description += "\nCrypt:" + pl.crypt;
+                    fmt::print(ofile, "<description>{}</description>",pl.description);
+
+                    for (auto p : pl.point_vec) 
+                        fmt::print(ofile, "<Point id=\"{}\"><coordinates>{},{},{}</coordinates></Point>",
+                                point_num++, p.lon, p.lat, p.alt);
+                    fmt::print(ofile, "</Placemark>\n");
+                }
+                fmt::print(ofile, "</Folder>\n");
+            }
+            else {
+                for (auto pl : placemark_vec) {
+                    fmt::print(ofile, "<Placemark id=\"{}\">", place_num++);
+                    fmt::print(ofile, "<name>{}</name>", MungeForXML(pl.name));
+
+                    // style based on phy layer
+                    if(pl.phy_layer == "Bluetooth" || pl.phy_layer == "BTLE") {
+                        fmt::print(ofile, "<styleUrl>btle</styleUrl>");
+                    }
+                    if(pl.phy_layer == "802.15.4") {
+                        fmt::print(ofile, "<styleUrl>zigbee</styleUrl>");
+                    }
+
+                    // add description
+                    pl.description = "Name:" + MungeForXML(pl.name) + "\n"; 
+                    pl.description += pl.phy_layer + "\n";
+                    pl.description += "Channel:" + pl.channel;
+                    if(pl.crypt.length() > 0)
+                    pl.description += "\nCrypt:" + pl.crypt;
+                    fmt::print(ofile, "<description>{}</description>",pl.description);
+
+                    for (auto p : pl.point_vec) 
+                        fmt::print(ofile, "<Point id=\"{}\"><coordinates>{},{},{}</coordinates></Point>",
+                                point_num++, p.lon, p.lat, p.alt);
+                    fmt::print(ofile, "</Placemark>\n");
+                }
+            }
 
     fmt::print(ofile, "</Document>\n");
     fmt::print(ofile, "</kml>\n");
