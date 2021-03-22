@@ -1171,7 +1171,7 @@ void *cf_int_capture_thread(void *arg) {
         fprintf(stderr, "ERROR - No capture handler defined for capture thread\n");
     }
 
-    cf_send_error(caph, 0, "capture thread ended, source is closed.");
+    // cf_send_error(caph, 0, "capture thread ended, source is closed.");
    
     cf_handler_spindown(caph);
 

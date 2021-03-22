@@ -70,7 +70,7 @@ protected:
     std::function<kis_datachunk *(kis_packet *)> selector_cb;
 
     std::shared_ptr<packet_chain> packetchain;
-    int pack_comp_linkframe, pack_comp_datasrc;
+    int pack_comp_linkframe, pack_comp_datasrc, pack_comp_gpsinfo;
 
     // Map kismet internal interface ID + DLT hash to log interface ID
     std::unordered_map<unsigned int, unsigned int> datasource_id_map;

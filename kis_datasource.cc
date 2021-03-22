@@ -843,7 +843,9 @@ void kis_datasource::handle_packet_probesource_report(uint32_t in_seqno,
 
 void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno, 
         const std::string& in_content) {
-    kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource handle_packet_opensource_report");
+
+    kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, 
+            "datasource handle_packet_opensource_report");
     lock.lock();
 
     KismetDatasource::OpenSourceReport report;
@@ -862,6 +864,11 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
     if (report.has_message()) {
         msg = report.message().msgtext();
     }
+
+    if (!report.success().success()) {
+        trigger_error(msg);
+        set_int_source_error_reason(msg);
+    } 
 
     if (report.has_channels()) {
         source_channels_vec->clear();
@@ -1045,12 +1052,6 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
         }
     }
 
-    // If we were successful, reset our retry attempts
-    if (!report.success().success()) {
-        trigger_error(msg);
-        set_int_source_error_reason(msg);
-        return;
-    } 
 }
 
 void kis_datasource::handle_packet_interfaces_report(uint32_t in_seqno, 
