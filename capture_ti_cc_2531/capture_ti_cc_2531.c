@@ -645,9 +645,9 @@ void capture_thread(kis_capture_handler_t *caph) {
             buf_rx_len = ticc2531_receive_payload(caph, usb_buf, 256);
             if (buf_rx_len < 0) {
                 if (buf_rx_len == TICC_USB_UNRESPONSIVE) {
-                    snprintf(errstr, STATUS_MAX, "TI CC 2531 interface 'ticc2531-%u-%u' has seen "
-                            "no data in a prolonged period of time; sometimes the device "
-                            "sniffer firmware crashes, re-opening device as a precaution", 
+                    snprintf(errstr, STATUS_MAX, "TI CC 2531 interface 'ticc2531-%u-%u' has not seen "
+                            "any data in a prolonged period of time; sometimes the device "
+                            "sniffer firmware crashes, re-opening the datasource as a precaution", 
                             localticc2531->busno, localticc2531->devno);
                 } else {
                     snprintf(errstr, STATUS_MAX, "TI CC 2531 interface 'ticc2531-%u-%u' closed "

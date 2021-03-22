@@ -45,6 +45,9 @@ typedef struct {
     unsigned int channel;
 } local_channel_t;
 
+#define TICC_USB_ERROR          -1
+#define TICC_USB_UNRESPONSIVE   -5
+
 int ticc2540_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
     local_ticc2540_t *localticc2540 = (local_ticc2540_t *) caph->userdata;
     int ret;
@@ -122,7 +125,10 @@ int ticc2540_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_
     int actual_len, r;
     
     pthread_mutex_lock(&(localticc2540->usb_mutex));
-    r = libusb_bulk_transfer(localticc2540->ticc2540_handle, TICC2540_DATA_EP, rx_buf, rx_max, &actual_len, TICC2540_DATA_TIMEOUT);
+
+    r = libusb_bulk_transfer(localticc2540->ticc2540_handle, TICC2540_DATA_EP, 
+            rx_buf, rx_max, &actual_len, TICC2540_DATA_TIMEOUT);
+
     pthread_mutex_unlock(&(localticc2540->usb_mutex));
 
     if (actual_len == 4) {
@@ -145,7 +151,7 @@ int ticc2540_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_
     if (r < 0) {
         localticc2540->error_ctr++;
         if (localticc2540->error_ctr >= 100) {
-            return r;
+            return TICC_USB_UNRESPONSIVE;
         } else {
             /*continue on for now*/
             return 1;
@@ -236,6 +242,10 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     }
     libusb_free_device_list(libusb_devs, 1);
     pthread_mutex_unlock(&(localticc2540->usb_mutex));
+
+    if (!matched_device) {
+        return 0;
+    }
 
     /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
      * and the location in the bus */
@@ -633,8 +643,16 @@ void capture_thread(kis_capture_handler_t *caph) {
         if (localticc2540->ready) {
             buf_rx_len = ticc2540_receive_payload(caph, usb_buf, 256);
             if (buf_rx_len < 0) {
-                snprintf(errstr, STATUS_MAX, "TI CC 2540 interface 'ticc2540-%u-%u' closed "
-                        "unexpectedly", localticc2540->busno, localticc2540->devno);
+                if (buf_rx_len == TICC_USB_UNRESPONSIVE) {
+                    snprintf(errstr, STATUS_MAX, "TI CC 2540 interface 'ticc2540-%u-%u' has "
+                            "not seen any data in a prolonged period of time; sometimes the "
+                            "device sniffer firmware crashes, re-opening the datasource "
+                            "as a precaution", localticc2540->busno, localticc2540->devno);
+                } else {
+                    snprintf(errstr, STATUS_MAX, "TI CC 2540 interface 'ticc2540-%u-%u' closed "
+                            "unexpectedly", localticc2540->busno, localticc2540->devno);
+                }
+
                 cf_send_error(caph, 0, errstr);
                 cf_handler_spindown(caph);
                 break;
