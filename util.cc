@@ -107,7 +107,7 @@ std::string str_lower(const std::string& in_str) {
 
 std::string str_upper(const std::string& in_str) {
     std::string retstr(in_str);
-    std::transform(retstr.begin(), retstr.end(), retstr.begin(), (int(*)(int)) std::tolower);
+    std::transform(retstr.begin(), retstr.end(), retstr.begin(), (int(*)(int)) std::toupper);
     return retstr;
 }
 
