@@ -175,6 +175,7 @@ public:
         __ImportField(channel, p);
         __ImportField(frequency, p);
         __ImportField(location, p);
+        __ImportField(hash, p);
 
         reserve_fields(nullptr);
     }
@@ -194,6 +195,8 @@ public:
     __Proxy(header, std::string, std::string, std::string, header);
     __Proxy(alertclass, std::string, std::string, std::string, alertclass);
     __Proxy(severity, uint8_t, uint8_t, uint8_t, severity);
+
+    __Proxy(hash, uint32_t, uint32_t, uint32_t, hash);
 
     __Proxy(phy, uint32_t, uint32_t, uint32_t, phy);
     __Proxy(timestamp, double, double, double, timestamp);
@@ -224,6 +227,12 @@ public:
         set_channel(info->channel);
         set_text(info->text);
 
+        // calculate hash from some attributes that should be, in total, unique
+        set_hash(adler32_checksum(fmt::format("{} {} {} {} {} {} {} {} {}",
+                        get_header(), get_severity(), get_phy(), get_timestamp(), 
+                        get_transmitter_mac(), get_source_mac(), get_dest_mac(), 
+                        get_other_mac(), get_channel())));
+
         if (info->gps != NULL)
             location->set(info->gps);
     }
@@ -235,6 +244,7 @@ protected:
         register_field("kismet.alert.device_key", "Device key of linked device", &devicekey);
         register_field("kismet.alert.header", "Alert definition", &header);
         register_field("kismet.alert.class", "Alert class", &alertclass);
+        register_field("kismet.alert.hash", "Alert unique hash", &hash);
         register_field("kismet.alert.severity", "Alert severity", &severity);
         register_field("kismet.alert.phy_id", "ID of phy generating alert", &phy);
         register_field("kismet.alert.timestamp", "Timestamp (sec.ms)", &timestamp);
@@ -252,6 +262,7 @@ protected:
     std::shared_ptr<tracker_element_string> header;
     std::shared_ptr<tracker_element_string> alertclass;
     std::shared_ptr<tracker_element_uint8> severity;
+    std::shared_ptr<tracker_element_uint32> hash;
     std::shared_ptr<tracker_element_uint32> phy;
     std::shared_ptr<tracker_element_double> timestamp;
     std::shared_ptr<tracker_element_mac_addr> transmitter_mac;
@@ -529,8 +540,10 @@ protected:
 
     void define_alert_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
     void raise_alert_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
-    std::shared_ptr<tracker_element> last_alerts_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con, 
-            bool wrap);
+
+    std::shared_ptr<tracker_element> last_alerts_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con, bool wrap);
+
+    void alert_dt_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con);
 };
 
 #endif

@@ -23,12 +23,12 @@
 #include <sstream>
 
 #include "alertracker.h"
-#include "devicetracker.h"
-#include "configfile.h"
-
-#include "json_adapter.h"
 #include "base64.h"
+#include "configfile.h"
+#include "devicetracker.h"
+#include "json_adapter.h"
 #include "kis_databaselogfile.h"
+#include "trackedelement_workers.h"
 
 alert_tracker::alert_tracker() : lifetime_global() {
     alert_mutex.set_name("alertracker");
@@ -103,6 +103,12 @@ alert_tracker::alert_tracker() : lifetime_global() {
 
     httpd->register_route("/alerts/all_alerts", {"GET", "POST"}, httpd->RO_ROLE, {}, 
             std::make_shared<kis_net_web_tracked_endpoint>(alert_backlog_vec, alert_mutex));
+
+    httpd->register_route("/alerts/alerts_view", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    return alert_dt_endpoint(con);
+                }));
 
     httpd->register_route("/alerts/last-time/:timestamp/alerts", {"GET", "POST"}, httpd->RO_ROLE,
             {}, std::make_shared<kis_net_web_tracked_endpoint>(
@@ -823,5 +829,204 @@ void alert_tracker::raise_alert_endpoint(std::shared_ptr<kis_net_beast_httpd_con
     };
 
     os << "Alert raised\n";
+}
+
+void alert_tracker::alert_dt_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con) {
+    std::ostream os(&con->response_stream());
+
+    auto summary_vec = std::vector<SharedElementSummary>{};
+    auto rename_map = std::make_shared<tracker_element_serializer::rename_map>();
+
+    auto search_term = std::string{};
+
+    auto search_paths = std::vector<std::vector<int>>{};
+    auto order_field = std::vector<int>{};
+
+    std::shared_ptr<tracker_element_string_map> wrapper_elem;
+    std::shared_ptr<tracker_element> transmit;
+
+    auto length_elem = std::make_shared<tracker_element_uint64>();
+    auto start_elem = std::make_shared<tracker_element_uint64>();
+
+    auto total_sz_elem = std::make_shared<tracker_element_uint64>();
+    auto filtered_sz_elem = std::make_shared<tracker_element_uint64>();
+
+    auto output_alerts_elem = std::make_shared<tracker_element_vector>();
+
+    auto dt_draw_elem = std::make_shared<tracker_element_uint64>();
+
+    try {
+        auto fields = con->json().get("fields", Json::Value(Json::arrayValue));
+
+        for (const auto& i : fields) {
+            if (i.isString()) {
+                summary_vec.push_back(std::make_shared<tracker_element_summary>(i.asString()));
+            } else if (i.isArray()) {
+                if (i.size() != 2)
+                    throw std::runtime_error("Invalid field map, expected [field, rename]");
+
+                summary_vec.push_back(std::make_shared<tracker_element_summary>(i[0].asString(),
+                            i[1].asString()));
+            }
+        }
+    } catch (const std::exception& e) {
+        con->set_status(400);
+        fmt::print(os, "Invalid request: {}\n", e.what());
+    }
+
+    unsigned int in_window_start = 0;
+    unsigned int in_window_len = 0;
+    unsigned int in_dt_draw = 0;
+    std::string in_order_column_num;
+    unsigned int in_order_direction = 0;
+
+    // Parse DT data
+    try {
+        auto column_number_map = con->json()["colmap"];
+
+        if (con->json().get("datatable", false).asBool()) {
+            auto start_k = con->http_variables().find("start");
+            if (start_k != con->http_variables().end()) 
+                in_window_start = string_to_n<unsigned int>(start_k->second);
+
+            auto length_k = con->http_variables().find("length");
+            if (length_k != con->http_variables().end())
+                in_window_len = string_to_n<unsigned int>(length_k->second);
+
+            auto draw_k = con->http_variables().find("draw");
+            if (draw_k != con->http_variables().end())
+                in_dt_draw = string_to_n<unsigned int>(draw_k->second);
+
+            auto search_k = con->http_variables().find("search[value]");
+            if (search_k != con->http_variables().end())
+                search_term = search_k->second;
+
+            if (search_term.length() != 0)
+                for (const auto& svi : summary_vec)
+                    search_paths.push_back(svi->resolved_path);
+
+            auto order_k = con->http_variables().find("order[0][column]");
+            if (order_k != con->http_variables().end())
+                in_order_column_num = order_k->second;
+
+            auto column_index = column_number_map[in_order_column_num];
+            auto orderdir_k = con->http_variables().find("order[0][dir]");
+            if (!column_index.isNull() && orderdir_k != con->http_variables().end()) {
+                if (orderdir_k->second == "asc")
+                    in_order_direction = 1;
+                else
+                    in_order_direction = 0;
+
+                // Resolve the path, we only allow the first one
+                if (column_index.isArray() && column_index.size() > 0) {
+                    if (column_index[0].isArray()) {
+                        // We only allow the first field, but make sure we're not a nested array
+                        if (column_index[0].size() > 0) {
+                            order_field = tracker_element_summary(column_index[0][0].asString()).resolved_path;
+                        }
+                    } else {
+                        // Otherwise get the first array
+                        if (column_index.size() >= 1) {
+                            order_field = tracker_element_summary(column_index[0].asString()).resolved_path;
+                        }
+                    }
+                }
+            }
+
+            if (in_window_len > 500) 
+                in_window_len = 500;
+
+            // Set the window elements for datatables
+            length_elem->set(in_window_len);
+            start_elem->set(in_window_start);
+            dt_draw_elem->set(in_dt_draw);
+
+            // Set up the datatables wrapper
+            wrapper_elem = std::make_shared<tracker_element_string_map>();
+            transmit = wrapper_elem;
+
+            wrapper_elem->insert("draw", dt_draw_elem);
+            wrapper_elem->insert("data", output_alerts_elem);
+            wrapper_elem->insert("recordsTotal", total_sz_elem);
+            wrapper_elem->insert("recordsFiltered", filtered_sz_elem);
+
+            // We transmit the wrapper elem
+            transmit = wrapper_elem;
+        }
+    } catch (const std::exception& e) {
+        con->set_status(400);
+        fmt::print(os, "Invalid request: {}\n", e.what());
+    }
+
+    // vector we do work on
+    auto next_work_vec = std::make_shared<tracker_element_vector>();
+
+    // Copy the alerts under lock; in the future this should populate them from the 
+    // databaselog too perhaps
+    {
+        kis_lock_guard<kis_mutex> lk(alert_mutex, "alertracker dt view copy");
+        next_work_vec->set(alert_backlog_vec->begin(), alert_backlog_vec->end());
+        total_sz_elem->set(next_work_vec->size());
+    }
+
+    if (search_term.length() > 0 && search_paths.size() > 0) {
+        auto worker = tracker_element_icasestringmatch_worker(search_term, search_paths);
+        next_work_vec = worker.do_work(next_work_vec);
+    }
+
+    filtered_sz_elem->set(next_work_vec->size());
+
+    if (in_window_start >= next_work_vec->size())
+        in_window_start = 0;
+
+    start_elem->set(in_window_start);
+
+    tracker_element_vector::iterator si = std::next(next_work_vec->begin(), in_window_start);
+    tracker_element_vector::iterator ei;
+
+    if (in_window_len + in_window_start >= next_work_vec->size() || in_window_len == 0)
+        ei = next_work_vec->end();
+    else
+        ei = std::next(next_work_vec->begin(), in_window_start + in_window_len);
+
+    // Update the end
+    length_elem->set(ei - si);
+
+    // Unfortunately we need to do a stable sort to get a consistent display
+    if (in_order_column_num.length() && order_field.size() > 0) {
+        std::stable_sort(next_work_vec->begin(), next_work_vec->end(),
+                [&](shared_tracker_element a, shared_tracker_element b) -> bool {
+                shared_tracker_element fa;
+                shared_tracker_element fb;
+
+                fa = get_tracker_element_path(order_field, a);
+                fb = get_tracker_element_path(order_field, b);
+
+                if (fa == nullptr) 
+                    return in_order_direction == 0;
+
+                if (fb == nullptr)
+                    return in_order_direction != 0;
+
+                if (in_order_direction == 0)
+                    return fast_sort_tracker_element_less(fa, fb);
+
+                return fast_sort_tracker_element_less(fb, fa);
+            });
+    }
+
+    // Summarize into the output element
+    for (auto i = si; i != ei; ++i) {
+        output_alerts_elem->push_back(summarize_tracker_element(*i, summary_vec, rename_map));
+    }
+
+    // If the transmit wasn't assigned to a wrapper...
+    if (transmit == nullptr)
+        transmit = output_alerts_elem;
+
+    // serialize
+    Globalreg::globalreg->entrytracker->serialize(static_cast<std::string>(con->uri()), os, 
+            transmit, rename_map);
+
 }
 
