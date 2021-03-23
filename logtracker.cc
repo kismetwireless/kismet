@@ -123,10 +123,11 @@ void log_tracker::trigger_deferred_startup() {
     if (!Globalreg::globalreg->kismet_config->fetch_opt_bool("log_config_present", false)) {
         std::shared_ptr<alert_tracker> alertracker =
             Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
-        alertracker->raise_one_shot("CONFIGERROR", "It looks like Kismet is missing "
-                "the kismet_logging.conf config file.  This file was added recently "
-                "in development.  Without it, logging will not perform as expected.  "
-                "You should either install with 'make forceconfigs' from the Kismet "
+        alertracker->raise_one_shot("CONFIGERROR", 
+                "SYSTEM", kis_alert_severity::high,
+                "It looks like Kismet is missing the kismet_logging.conf config file.  This "
+                "file was added recently in development.  Without it, logging will not perform "
+                "as expected.  You should either install with 'make forceconfigs' from the Kismet "
                 "source directory or manually reconcile your config files!", -1);
     }
 
@@ -232,7 +233,9 @@ void log_tracker::trigger_deferred_startup() {
     if (!get_logging_enabled()) {
         std::shared_ptr<alert_tracker> alertracker =
             Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
-        alertracker->raise_one_shot("LOGDISABLED", "Logging has been disabled via the Kismet "
+        alertracker->raise_one_shot("LOGDISABLED", 
+                "SYSTEM", kis_alert_severity::critical,
+                "Logging has been disabled via the Kismet "
                 "config files or the command line.  Pcap, database, and related logs "
                 "will not be saved.", -1);
         _MSG("Logging disabled, not enabling any log drivers.", MSGFLAG_INFO);

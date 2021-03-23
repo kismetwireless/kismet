@@ -974,6 +974,7 @@ int main(int argc, char *argv[], char *envp[]) {
     if (getuid() == 0) {
         alertracker->define_alert("ROOTUSER", sat_second, 1, sat_second, 1);
         auto userref = alertracker->activate_configured_alert("ROOTUSER",
+                "SYSTEM", kis_alert_severity::high,
                 "Kismet is running as root; this is less secure than running Kismet "
                 "as an unprivileged user and installing it as suidroot.  Please consult "
                 "the Kismet README for more information about securely installing Kismet. "

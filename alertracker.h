@@ -46,6 +46,39 @@
 #define PRELUDE_ANALYZER_MANUFACTURER "https://www.kismetwireless.net"
 #endif
 
+// Alert severity categories
+enum class kis_alert_severity {
+    info = 0,
+    low = 5,
+    medium = 10,
+    high = 15,
+    critical = 20,
+};
+
+static kis_alert_severity int_to_alert_severity(unsigned int i) {
+    switch (i) {
+        case static_cast<unsigned int>(kis_alert_severity::info):
+            return kis_alert_severity::info;
+
+        case static_cast<unsigned int>(kis_alert_severity::low):
+            return kis_alert_severity::low;
+
+        case static_cast<unsigned int>(kis_alert_severity::medium):
+            return kis_alert_severity::medium;
+
+        case static_cast<unsigned int>(kis_alert_severity::high):
+            return kis_alert_severity::high;
+
+        case static_cast<unsigned int>(kis_alert_severity::critical):
+            return kis_alert_severity::critical;
+
+        default:
+            throw std::runtime_error("unknown severity level");
+    }
+
+    throw std::runtime_error("unknown severity level");
+}
+
 // TODO:
 // - move packet_component to a tracked system & just use the converted
 //   kis_alert_info in the future...
@@ -74,6 +107,8 @@ public:
     device_key devicekey;
 
     std::string header;
+    std::string alertclass;
+    unsigned int severity;
 	int phy;
 	struct timeval tm;
 	mac_addr bssid;
@@ -129,6 +164,8 @@ public:
 
         __ImportField(devicekey, p);
         __ImportField(header, p);
+        __ImportField(alertclass, p);
+        __ImportField(severity, p);
         __ImportField(phy, p);
         __ImportField(timestamp, p);
         __ImportField(transmitter_mac, p);
@@ -155,6 +192,9 @@ public:
     __Proxy(devicekey, device_key, device_key, device_key, devicekey);
 
     __Proxy(header, std::string, std::string, std::string, header);
+    __Proxy(alertclass, std::string, std::string, std::string, alertclass);
+    __Proxy(severity, uint8_t, uint8_t, uint8_t, severity);
+
     __Proxy(phy, uint32_t, uint32_t, uint32_t, phy);
     __Proxy(timestamp, double, double, double, timestamp);
 
@@ -173,6 +213,8 @@ public:
     void from_alert_info(kis_alert_info *info) {
         set_devicekey(info->devicekey);
         set_header(info->header);
+        set_alertclass(info->alertclass);
+        set_severity(info->severity);
         set_phy(info->phy);
         set_timestamp(ts_to_double(info->tm));
         set_transmitter_mac(info->bssid);
@@ -191,7 +233,9 @@ protected:
         tracker_component::register_fields();
 
         register_field("kismet.alert.device_key", "Device key of linked device", &devicekey);
-        register_field("kismet.alert.header", "Alert type", &header);
+        register_field("kismet.alert.header", "Alert definition", &header);
+        register_field("kismet.alert.class", "Alert class", &alertclass);
+        register_field("kismet.alert.severity", "Alert severity", &severity);
         register_field("kismet.alert.phy_id", "ID of phy generating alert", &phy);
         register_field("kismet.alert.timestamp", "Timestamp (sec.ms)", &timestamp);
         register_field("kismet.alert.transmitter_mac", "Transmitter MAC address", &transmitter_mac);
@@ -206,6 +250,8 @@ protected:
 
     std::shared_ptr<tracker_element_device_key> devicekey;
     std::shared_ptr<tracker_element_string> header;
+    std::shared_ptr<tracker_element_string> alertclass;
+    std::shared_ptr<tracker_element_uint8> severity;
     std::shared_ptr<tracker_element_uint32> phy;
     std::shared_ptr<tracker_element_double> timestamp;
     std::shared_ptr<tracker_element_mac_addr> transmitter_mac;
@@ -251,6 +297,8 @@ public:
         tracker_component{p} {
 
         __ImportField(header, p);
+        __ImportField(alertclass, p);
+        __ImportField(severity, p);
         __ImportField(description, p);
         __ImportField(phy, p);
         __ImportField(limit_unit, p);
@@ -275,6 +323,9 @@ public:
     }
 
     __Proxy(header, std::string, std::string, std::string, header);
+    __Proxy(alertclass, std::string, std::string, std::string, alertclass);
+    __Proxy(severity, uint8_t, uint8_t, uint8_t, severity);
+
     __Proxy(description, std::string, std::string, std::string, description);
     __Proxy(phy, int64_t, int64_t, int64_t, phy);
 
@@ -299,7 +350,10 @@ protected:
     virtual void register_fields() override {
         tracker_component::register_fields();
 
-        register_field("kismet.alert.definition.header", "Alert type", &header);
+        register_field("kismet.alert.definition.header", "Alert name", &header);
+        register_field("kismet.alert.definition.class", "Alert class", &alertclass);
+        register_field("kismet.alert.definition.severity", "Alert severity", &severity);
+
         register_field("kismet.alert.definition.description", "Alert description", &description);
         register_field("kismet.alert.definition.phyid", "Alert phy type", &phy);
         register_field("kismet.alert.definition.limit_unit", 
@@ -319,6 +373,9 @@ protected:
 
     // Alert type and description
     std::shared_ptr<tracker_element_string> header;
+    std::shared_ptr<tracker_element_string> alertclass;
+    std::shared_ptr<tracker_element_uint8> severity;
+
     std::shared_ptr<tracker_element_string> description;
     // Phynum this is linked to
     std::shared_ptr<tracker_element_int64> phy;
@@ -379,8 +436,8 @@ public:
     virtual void trigger_deferred_startup() override;
 
     // Register an alert and get an alert reference number back.
-    int register_alert(std::string in_header, std::string in_desc, 
-            alert_time_unit in_unit, int in_rate, alert_time_unit in_burstunit, 
+    int register_alert(std::string in_header, std::string in_class, kis_alert_severity in_severity,
+            std::string in_desc, alert_time_unit in_unit, int in_rate, alert_time_unit in_burstunit, 
             int in_burst, int in_phy);
 
     // Find a reference from a name
@@ -395,7 +452,8 @@ public:
                    std::string in_channel, std::string in_text);
 
     // Raise a one-shot communications alert
-    int raise_one_shot(std::string in_header, std::string in_text, int in_phy);
+    int raise_one_shot(std::string in_header, std::string in_class, kis_alert_severity in_severity, 
+            std::string in_text, int in_phy);
 
     // parse an alert config string
 	int parse_alert_str(std::string alert_str, std::string *ret_name, 
@@ -410,8 +468,11 @@ public:
             alert_time_unit limit_burst, int burst_rate);
 
 	// Activate a preconfigured alert from a file
-	int activate_configured_alert(std::string in_header, std::string in_desc);
-	int activate_configured_alert(std::string in_header, std::string in_desc, int in_phy);
+	int activate_configured_alert(std::string in_header, std::string in_class, 
+            kis_alert_severity in_severity, std::string in_desc);
+	int activate_configured_alert(std::string in_header, std::string in_class, 
+            kis_alert_severity in_severity,
+            std::string in_desc, int in_phy);
 
     // Find an activated alert
     int find_activated_alert(std::string in_header);

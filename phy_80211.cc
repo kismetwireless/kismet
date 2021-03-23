@@ -158,24 +158,28 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
         // Register the dissector alerts
         alert_netstumbler_ref = 
             alertracker->activate_configured_alert("NETSTUMBLER", 
+                    "PROBE", kis_alert_severity::low,
                     "Netstumbler (and similar older Windows tools) may generate unique "
                     "beacons which can be used to identify these tools in use.  These "
                     "tools and the cards which generate these frames are uncommon.",
                     phyid);
         alert_nullproberesp_ref =
-            alertracker->activate_configured_alert("NULLPROBERESP", 
+            alertracker->activate_configured_alert("NULLPROBERESP",
+                    "DENIAL", kis_alert_severity::medium,
                     "A probe response with a SSID length of 0 can be used to crash the "
                     "firmware in specific older Orinoco cards.  These cards are "
                     "unlikely to be in use in modern systems.",
                     phyid);
         alert_lucenttest_ref =
             alertracker->activate_configured_alert("LUCENTTEST", 
+                    "PROBE", kis_alert_severity::low,
                     "Specific Lucent Orinoco test tools generate identifiable frames, "
                     "which can indicate these tools are in use.  These tools and the "
                     "cards which generate these frames are uncommon.",
                     phyid);
         alert_msfbcomssid_ref =
             alertracker->activate_configured_alert("MSFBCOMSSID", 
+                    "EXPLOIT", kis_alert_severity::medium,
                     "Old versions of the Broadcom Windows drivers (and Linux NDIS drivers) "
                     "are vulnerable to overflow exploits.  The Metasploit framework "
                     "can attack these vulnerabilities.  These drivers are unlikely to "
@@ -184,6 +188,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                     phyid);
         alert_msfdlinkrate_ref =
             alertracker->activate_configured_alert("MSFDLINKRATE", 
+                    "EXPLOIT", kis_alert_severity::medium,
                     "Old versions of the D-Link Windows drivers are vulnerable to "
                     "malformed rate fields.  The Metasploit framework can attack these "
                     "vulnerabilities.  These drivers are unlikely to be found in "
@@ -192,14 +197,16 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                     phyid);
         alert_msfnetgearbeacon_ref =
             alertracker->activate_configured_alert("MSFNETGEARBEACON", 
+                    "EXPLOIT", kis_alert_severity::medium,
                     "Old versions of the Netgear windows drivers are vulnerable to "
                     "malformed beacons.  The Metasploit framework can attack these "
                     "vulnerabilities.  These drivers are unlikely to be found in "
-                "modern systems, but seeing these malformed frames indicates an "
-                "attempted attack is occurring.",
-                phyid);
+                    "modern systems, but seeing these malformed frames indicates an "
+                    "attempted attack is occurring.",
+                    phyid);
     alert_longssid_ref =
         alertracker->activate_configured_alert("LONGSSID", 
+                "EXPLOIT", kis_alert_severity::critical,
                 "The Wi-Fi standard allows for 32 characters in a SSID. "
                 "Historically, some drivers have had vulnerabilities related to "
                 "invalid over-long SSID fields.  Seeing these frames indicates that "
@@ -207,6 +214,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 phyid);
     alert_disconinvalid_ref =
         alertracker->activate_configured_alert("DISCONCODEINVALID", 
+                "EXPLOIT", kis_alert_severity::high,
                 "The 802.11 specification defines reason codes for disconnect "
                 "and deauthentication events.  Historically, various drivers "
                 "have been reported to improperly handle invalid reason codes.  "
@@ -215,6 +223,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 phyid);
     alert_deauthinvalid_ref =
         alertracker->activate_configured_alert("DEAUTHCODEINVALID", 
+                "EXPLOIT", kis_alert_severity::high,
                 "The 802.11 specification defines reason codes for disconnect "
                 "and deauthentication events.  Historically, various drivers "
                 "have been reported to improperly handle invalid reason codes.  "
@@ -223,6 +232,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 phyid);
     alert_wmm_ref =
         alertracker->activate_configured_alert("WMMOVERFLOW",
+                "EXPLOIT", kis_alert_severity::high,
                 "The Wi-Fi standard specifies 24 bytes for WMM IE tags.  Over-sized "
                 "WMM fields may indicate an attempt to exploit bugs in Broadcom chipsets "
                 "using the Broadpwn attack",
@@ -233,6 +243,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
 #endif
     alert_chan_ref =
         alertracker->activate_configured_alert("CHANCHANGE", 
+                "SPOOF", kis_alert_severity::low,
                 "An access point has changed channel.  This may occur on "
                 "enterprise equipment or on personal equipment with automatic "
                 "channel selection, but may also indicate a spoofed or "
@@ -240,12 +251,14 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 phyid);
 	alert_dhcpcon_ref =
 		alertracker->activate_configured_alert("DHCPCONFLICT", 
+                "SPOOF", kis_alert_severity::low,
                 "A DHCP exchange was observed and a client was given an IP via "
                 "DHCP, but is not using the assigned IP.  This may be a "
                 "mis-configured client device, or may indicate client spoofing.",
                 phyid);
 	alert_bcastdcon_ref =
 		alertracker->activate_configured_alert("BCASTDISCON", 
+                "DENIAL", kis_alert_severity::medium,
                 "A broadcast disconnect packet forces all clients on a network "
                 "to disconnect.  While these may rarely occur in some environments, "
                 "typically a broadcast disconnect indicates a denial of service "
@@ -254,12 +267,14 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 phyid);
 	alert_airjackssid_ref = 
 		alertracker->activate_configured_alert("AIRJACKSSID", 
+                "PROBE", kis_alert_severity::low,
                 "Very old wireless tools used the SSID 'Airjack' while configuring "
                 "card state.  It is very unlikely to see these tools in operation "
                 "in modern environments.",
                 phyid);
 	alert_wepflap_ref =
 		alertracker->activate_configured_alert("CRYPTODROP", 
+                "SPOOF", kis_alert_severity::high,
                 "A previously encrypted SSID has stopped advertising encryption.  "
                 "This may rarely occur when a network is reconfigured to an open "
                 "state, but more likely indicates some form of network spoofing or "
@@ -267,6 +282,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 phyid);
 	alert_dhcpname_ref =
 		alertracker->activate_configured_alert("DHCPNAMECHANGE", 
+                "SPOOF", kis_alert_severity::low,
                 "The DHCP protocol allows clients to put the host name and "
                 "DHCP client / vendor / operating system details in the DHCP "
                 "Discovery packet.  These values should old change if the client "
@@ -276,6 +292,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 phyid);
 	alert_dhcpos_ref =
 		alertracker->activate_configured_alert("DHCPOSCHANGE", 
+                "SPOOF", kis_alert_severity::low,
                 "The DHCP protocol allows clients to put the host name and "
                 "DHCP client / vendor / operating system details in the DHCP "
                 "Discovery packet.  These values should old change if the client "
@@ -285,6 +302,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 phyid);
 	alert_adhoc_ref =
 		alertracker->activate_configured_alert("ADHOCCONFLICT", 
+                "SPOOF", kis_alert_severity::high,
                 "The same SSID is being advertised as an access point and as an "
                 "ad-hoc network.  This may indicate a misconfigured or misbehaving "
                 "device, or could indicate an attempt at spoofing or an 'evil twin' "
@@ -292,12 +310,14 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 phyid);
 	alert_ssidmatch_ref =
 		alertracker->activate_configured_alert("APSPOOF", 
+                "SPOOF", kis_alert_severity::high,
                 "Kismet may be given a list of authorized MAC addresses for "
                 "a SSID.  If a beacon or probe response is seen from a MAC address "
                 "not listed in the authorized list, this alert will be raised.",
                 phyid);
 	alert_dot11d_ref =
 		alertracker->activate_configured_alert("DOT11D", 
+                "SPOOF", kis_alert_severity::high,
                 "Conflicting 802.11d (country code) data has been advertised by the "
                 "same SSID.  It is unlikely this is a normal configuration change, "
                 "and can indicate a spoofed or 'evil twin' network, or an attempt "
@@ -307,6 +327,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 phyid);
 	alert_beaconrate_ref =
 		alertracker->activate_configured_alert("BEACONRATE", 
+                "SPOOF", kis_alert_severity::high,
                 "The advertised beacon rate of a SSID has changed.  In an "
                 "enterprise or multi-SSID environment this may indicate a normal "
                 "configuration change, but can also indicate a spoofed or "
@@ -314,12 +335,14 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 phyid);
 	alert_cryptchange_ref =
 		alertracker->activate_configured_alert("ADVCRYPTCHANGE", 
+                "SPOOF", kis_alert_severity::high,
                 "A SSID has changed the advertised supported encryption standards.  "
                 "This may be a normal change when reconfiguring an access point, "
                 "but can also indicate a spoofed or 'evil twin' attack.",
                 phyid);
 	alert_malformmgmt_ref =
 		alertracker->activate_configured_alert("MALFORMMGMT", 
+                "EXPLOIT", kis_alert_severity::medium,
                 "Malformed management frames may indicate errors in the capture "
                 "source driver (such as not discarding corrupted packets), but can "
                 "also be indicative of an attempted attack against drivers which may "
@@ -327,65 +350,80 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 phyid);
 	alert_wpsbrute_ref =
 		alertracker->activate_configured_alert("WPSBRUTE", 
+                "EXPLOIT", kis_alert_severity::critical,
                 "Excessive WPS events may indicate a malformed client, or an "
                 "attack on the WPS system by a tool such as Reaver.",
                 phyid);
     alert_l33t_ref = 
         alertracker->activate_configured_alert("KARMAOUI",
+                "PROBE", kis_alert_severity::medium,
                 "Probe responses from MAC addresses with an OUI of 00:13:37 often "
-                "indicate an Karma AP impersonation attack.",
+                "indicate an Karma AP impersonation attack, such as that performed by a "
+                "Wi-Fi Pineapple device",
                 phyid);
     alert_tooloud_ref =
         alertracker->activate_configured_alert("OVERPOWERED",
+                "OTHER", kis_alert_severity::high,
                 "Signal levels are abnormally high, when using an external amplifier "
                 "this could indicate that the gain is too high.  Over-amplified signals "
                 "may miss packets entirely.",
                 phyid);
     alert_nonce_zero_ref =
         alertracker->activate_configured_alert("NONCEDEGRADE",
+                "EXPLOIT", kis_alert_severity::medium,
                 "A WPA handshake with an empty NONCE was observed; this could indicate "
                 "a WPA degradation attack such as the vanhoefm attack against BSD "
-                "(https://github.com/vanhoefm/blackhat17-pocs/tree/master/openbsd)",
+                "(https://github.com/vanhoefm/blackhat17-pocs/tree/master/openbsd), however "
+                "this may also be generated during partial handshake captures",
                 phyid);
     alert_nonce_duplicate_ref =
         alertracker->activate_configured_alert("NONCEREUSE",
+                "EXPLOIT", kis_alert_severity::high,
                 "A WPA handshake has attempted to re-use a previous nonce value; this may "
                 "indicate an attack against the WPA keystream such as the vanhoefm "
-                "KRACK attack (https://www.krackattacks.com/)");
+                "KRACK attack (https://www.krackattacks.com/), however this may also be a "
+                "normal retransmission of the handshake data packet in a busy environment.");
     alert_atheros_wmmtspec_ref =
         alertracker->activate_configured_alert("WMMTSPEC",
+                "EXPLOIT", kis_alert_severity::high,
                 "Too many WMMTSPEC options were seen in a probe response; this "
                 "may be triggered by CVE-2017-11013 as described at "
                 "https://pleasestopnamingvulnerabilities.com/");
     alert_atheros_rsnloop_ref =
         alertracker->activate_configured_alert("RSNLOOP",
+                "EXPLOIT", kis_alert_severity::high,
                 "Invalid RSN (802.11i) tags in beacon frames can be used to cause "
                 "loops in some Atheros drivers, as described in "
                 "CVE-2017-9714 and https://pleasestopnamingvulnerabilities.com/");
     alert_11kneighborchan_ref =
         alertracker->activate_configured_alert("BCOM11KCHAN",
+                "EXPLOIT", kis_alert_severity::high,
                 "Invalid channels in 802.11k neighbor report frames "
                 "can be used to exploit certain Broadcom HardMAC implementations, typically used "
                 "in mobile devices, as described in "
                 "https://bugs.chromium.org/p/project-zero/issues/detail?id=1289");
     alert_bssts_ref =
         alertracker->activate_configured_alert("BSSTIMESTAMP",
+                "SPOOF", kis_alert_severity::medium,
                 "Access points transmit a high-precision millisecond timestamp to "
                 "coordinate power saving and other time-sensitive events.  Out-of-sequence "
                 "timestamps may indicate spoofing or an 'evil twin' style attack.");
     alert_probechan_ref =
         alertracker->activate_configured_alert("PROBECHAN",
+                "SPOOF", kis_alert_severity::medium,
                 "Probe responses may include the Wi-Fi channel; this ought to be "
                 "identical to the channel advertised in the beacon.  Incorrect channels "
                 "in the probe response may indicate a spoofing or 'evil twin' style attack, "
                 "but can also be indicative of a misbehaving access point or repeater.");
     alert_qcom_extended_ref =
         alertracker->activate_configured_alert("QCOMEXTENDED",
+                "EXPLOIT", kis_alert_severity::high,
                 "IE 127 Extended Capabilities tags should always be 8 bytes; Some versions "
                 "of the Qualcomm drivers are vulnerable to a buffer overflow resulting in "
                 "execution on the host, as detailed in CVE-2019-10539.");
     alert_bad_fixlen_ie =
         alertracker->activate_configured_alert("BADFIXLENIE",
+                "EXPLOIT", kis_alert_severity::high,
                 "IE tags contain nested information in beacon and other management frames. "
                 "Some IE tags have constant fixed lengths; a tag advertising with the "
                 "incorrect length may indicate an attempted buffer overflow attack.  "
@@ -393,11 +431,13 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 "otherwise unknown, malformed tag.");
     alert_rtlwifi_p2p_ref =
         alertracker->activate_configured_alert("RTLWIFIP2P",
+                "EXPLOIT", kis_alert_severity::high,
                 "A bug in the Linux RTLWIFI P2P parsers could result in a crash "
                 "or potential code execution due to malformed notification of "
                 "absence records, as detailed in CVE-2019-17666");
     alert_deauthflood_ref =
         alertracker->activate_configured_alert("DEAUTHFLOOD",
+                "DENIAL", kis_alert_severity::medium,
                 "By spoofing disassociate or deauthenticate packets, an attacker "
                 "may disconnect clients from a network which does not support "
                 "management frame protection (MFP); This can be used to cause a "
@@ -406,6 +446,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 phyid);
     alert_noclientmfp_ref =
         alertracker->activate_configured_alert("NOCLIENTMFP",
+                "SPOOF", kis_alert_severity::low,
                 "Client does not support management frame protection (MFP); By spoofing "
                 "disassociate or deauthenticate packets, an attacker may disconnect it "
                 "from a network. This can be used to cause a denial of service or to "
@@ -414,6 +455,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
 
     alert_rtl8195_vdoo_ref =
         alertracker->activate_configured_alert("RTL8195VD1406",
+                "EXPLOIT", kis_alert_severity::high,
                 "Realtek 8195 devices have multiple vulnerabilities in how EAPOL packets "
                 "are processed, leading to code execution as the kernel on the device, as "
                 "detailed in CVE-2020-9395 and VD-1406 and VD-1407");

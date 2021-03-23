@@ -518,6 +518,7 @@ void datasource_tracker::trigger_deferred_startup() {
 
     alertracker->define_alert("SOURCEERROR", sat_second, 1, sat_second, 10);
     alertracker->activate_configured_alert("SOURCEERROR",
+            "SYSTEM", kis_alert_severity::high,
             "A data source encountered an error.  Depending on the source configuration "
             "Kismet may automatically attempt to re-open the source.");
 

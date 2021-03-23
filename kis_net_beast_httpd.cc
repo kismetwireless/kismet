@@ -154,6 +154,7 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
             return;
         } else {
             alertracker->raise_one_shot("GLOBALHTTPDUSER",
+                    "SYSTEM", kis_alert_severity::info,
                     fmt::format("Found a httpd_username and httpd_password configuration in a global Kismet "
                         "config file, such as kismet.conf, kismet_httpd.conf, or kismet_site.conf.  "
                         "Any login in the user configuration file {} will be ignored.", user_config_path), -1);

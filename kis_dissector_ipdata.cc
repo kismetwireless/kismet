@@ -99,6 +99,7 @@ kis_dissector_ip_data::kis_dissector_ip_data(global_registry *in_globalreg) {
 
 	alert_dhcpclient_ref =
 		globalreg->alertracker->activate_configured_alert("DHCPCLIENTID",
+                "SPOOF", kis_alert_severity::low,
                 "A DHCP client sending a DHCP Discovery packet should "
                 "provide a Client-ID tag (Tag 61) which matches the source "
                 "MAC of the packet.  A client which fails to do so may "

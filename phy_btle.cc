@@ -185,6 +185,7 @@ kis_btle_phy::kis_btle_phy(global_registry *in_globalreg, int in_phyid) :
 
     alert_bleedingtooth_ref =
         alertracker->activate_configured_alert("BLEEDINGTOOTH",
+                "EXPLOIT", kis_alert_severity::high,
                 "The BleedingTooth attack (CVE-2020-24490) exploits the lack of bounds "
                 "checking in the BlueZ stack and may lead to execution in the kernel.  "
                 "BleedingTooth attacks use over-sized advertisement packets.",

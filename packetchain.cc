@@ -384,6 +384,7 @@ int packet_chain::process_packet(kis_packet *in_pack) {
             std::shared_ptr<alert_tracker> alertracker =
                 Globalreg::fetch_mandatory_global_as<alert_tracker>();
             alertracker->raise_one_shot("PACKETLOST", 
+                    "SYSTEM", kis_alert_severity::high,
                     fmt::format("The packet queue has exceeded the maximum size of {}; Kismet "
                         "will start dropping packets.  Your system may not have enough CPU to keep "
                         "up with the packet rate in your environment or other processes may be "
@@ -406,6 +407,7 @@ int packet_chain::process_packet(kis_packet *in_pack) {
 
             auto alertracker = Globalreg::fetch_mandatory_global_as<alert_tracker>();
             alertracker->raise_one_shot("PACKETQUEUE", 
+                    "SYSTEM", kis_alert_severity::medium,
                     fmt::format("The packet queue has a backlog of {} packets; "
                     "your system may not have enough CPU to keep up with the packet rate "
                     "in your environment or you may have other processes taking up CPU.  "

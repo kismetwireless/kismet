@@ -1733,7 +1733,9 @@ void kis_datasource::handle_source_error() {
 
             std::shared_ptr<alert_tracker> alertracker =
                 Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
-            alertracker->raise_one_shot("SOURCEERROR", ss.str(), -1);
+            alertracker->raise_one_shot("SOURCEERROR", 
+                    "SYSTEM", kis_alert_severity::critical,
+                    ss.str(), -1);
 
             _MSG(ss.str(), MSGFLAG_ERROR);
         }
@@ -1750,7 +1752,9 @@ void kis_datasource::handle_source_error() {
 
             std::shared_ptr<alert_tracker> alertracker =
                 Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
-            alertracker->raise_one_shot("SOURCEERROR", ss.str(), -1);
+            alertracker->raise_one_shot("SOURCEERROR", 
+                    "SYSTEM", kis_alert_severity::critical,
+                    ss.str(), -1);
 
             _MSG(ss.str(), MSGFLAG_ERROR);
         }
@@ -1778,7 +1782,9 @@ void kis_datasource::handle_source_error() {
 
         std::shared_ptr<alert_tracker> alertracker =
             Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
-        alertracker->raise_one_shot("SOURCEERROR", ss.str(), -1);
+        alertracker->raise_one_shot("SOURCEERROR", 
+                "SYSTEM", kis_alert_severity::critical,
+                ss.str(), -1);
 
         _MSG(ss.str(), MSGFLAG_ERROR);
 
@@ -1807,7 +1813,9 @@ void kis_datasource::handle_source_error() {
 
                             std::shared_ptr<alert_tracker> alertracker =
                                 Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
-                            alertracker->raise_one_shot("SOURCEOPEN", ss.str(), -1);
+                            alertracker->raise_one_shot("SOURCEOPEN", 
+                                    "SYSTEM", kis_alert_severity::critical,
+                                    ss.str(), -1);
 
                             if (get_source_hopping()) {
                                 // Reset the channel hop if we're hopping

@@ -79,7 +79,10 @@ alert_tracker::alert_tracker() : lifetime_global() {
 
 	// Register a KISMET alert type with no rate restrictions
     alert_ref_kismet =
-		register_alert("KISMET", "Server events", sat_day, 0, sat_day, 0, KIS_PHY_ANY);
+		register_alert("KISMET", 
+                "SYSTEM", kis_alert_severity::info,
+                "Server events", 
+                sat_day, 0, sat_day, 0, KIS_PHY_ANY);
 
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
@@ -191,8 +194,9 @@ void alert_tracker::prelude_init_client(const char *analyzer_name) {
 #endif
 }
 
-int alert_tracker::register_alert(std::string in_header, std::string in_description, 
-        alert_time_unit in_unit, int in_rate, alert_time_unit in_burstunit,
+int alert_tracker::register_alert(std::string in_header, std::string in_class, 
+        kis_alert_severity in_severity,
+        std::string in_description, alert_time_unit in_unit, int in_rate, alert_time_unit in_burstunit,
         int in_burst, int in_phy) {
     kis_lock_guard<kis_mutex> lk(alert_mutex, "alert_tracker register_alert");
 
@@ -221,6 +225,8 @@ int alert_tracker::register_alert(std::string in_header, std::string in_descript
 
     arec->set_alert_ref(next_alert_id++);
     arec->set_header(str_upper(in_header));
+    arec->set_alertclass(str_upper(in_class));
+    arec->set_severity(static_cast<unsigned int>(in_severity));
     arec->set_description(in_description);
     arec->set_limit_unit(in_unit);
     arec->set_limit_rate(in_rate);
@@ -317,7 +323,10 @@ int alert_tracker::raise_alert(int in_ref, kis_packet *in_pack,
     kis_alert_info *info = new kis_alert_info;
 
     info->header = arec->get_header();
+    info->alertclass = arec->get_alertclass();
+    info->severity = arec->get_severity();
     info->phy = arec->get_phy();
+
     gettimeofday(&(info->tm), NULL);
 
     info->bssid = bssid;
@@ -384,12 +393,15 @@ int alert_tracker::raise_alert(int in_ref, kis_packet *in_pack,
 	return 1;
 }
 
-int alert_tracker::raise_one_shot(std::string in_header, std::string in_text, int in_phy) {
+int alert_tracker::raise_one_shot(std::string in_header, std::string in_class, 
+        kis_alert_severity in_severity, std::string in_text, int in_phy) {
     kis_unique_lock<kis_mutex> lock(alert_mutex, std::defer_lock, "alert_tracker raise_one_shot");
 
 	kis_alert_info info;
 
 	info.header = in_header;
+    info.alertclass = in_class;
+    info.severity = static_cast<unsigned int>(in_severity);
 	info.phy = in_phy;
 	gettimeofday(&(info.tm), NULL);
 
@@ -604,11 +616,13 @@ int alert_tracker::define_alert(std::string name, alert_time_unit limit_unit, in
     return 1;
 }
 
-int alert_tracker::activate_configured_alert(std::string in_header, std::string in_desc) {
-	return activate_configured_alert(in_header, in_desc, KIS_PHY_UNKNOWN);
+int alert_tracker::activate_configured_alert(std::string in_header, 
+        std::string in_class, kis_alert_severity in_severity, std::string in_desc) {
+	return activate_configured_alert(in_header, in_class, in_severity, in_desc, KIS_PHY_UNKNOWN);
 }
 
-int alert_tracker::activate_configured_alert(std::string in_header, std::string in_desc, int in_phy) {
+int alert_tracker::activate_configured_alert(std::string in_header, std::string in_class,
+        kis_alert_severity in_severity, std::string in_desc, int in_phy) {
     alert_conf_rec *rec;
 
     {
@@ -634,7 +648,8 @@ int alert_tracker::activate_configured_alert(std::string in_header, std::string 
         }
     }
 
-	return register_alert(rec->header, in_desc, rec->limit_unit, rec->limit_rate, 
+	return register_alert(rec->header, in_class, in_severity, in_desc, 
+            rec->limit_unit, rec->limit_rate, 
             rec->burst_unit, rec->limit_burst, in_phy);
 }
 
@@ -697,6 +712,8 @@ void alert_tracker::define_alert_endpoint(std::shared_ptr<kis_net_beast_httpd_co
     try {
         auto name = con->json()["name"].asString();
         auto description = con->json()["description"].asString();
+        auto alertclass = con->json()["class"].asString();
+        auto severity = int_to_alert_severity(con->json()["severity"].asUInt());
 
         alert_time_unit limit_unit;
         int limit_rate;
@@ -737,7 +754,7 @@ void alert_tracker::define_alert_endpoint(std::shared_ptr<kis_net_beast_httpd_co
             return;
         }
 
-        if (activate_configured_alert(name, description, phyid) < 0) {
+        if (activate_configured_alert(name, alertclass, severity, description, phyid) < 0) {
             con->set_status(504);
 
             std::ostream os(&con->response_stream());

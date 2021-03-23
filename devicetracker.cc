@@ -860,9 +860,11 @@ device_tracker::device_tracker() :
 
     alert_macdevice_found_ref =
         alertracker->activate_configured_alert("DEVICEFOUND",
+                "SYSTEM", kis_alert_severity::high,
                 "A target device has been seen", -1);
     alert_macdevice_lost_ref =
         alertracker->activate_configured_alert("DEVICELOST",
+                "SYSTEM", kis_alert_severity::high,
                 "A target device has timed out", -1);
 
     auto found_vec = 
