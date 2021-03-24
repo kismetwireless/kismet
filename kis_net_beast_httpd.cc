@@ -1840,13 +1840,13 @@ void kis_net_web_websocket_endpoint::handle_request(std::shared_ptr<kis_net_beas
         running = false;
         if (se.code() != boost::beast::websocket::error::closed &&
                 se.code() != boost::asio::stream_errc::eof) {
-            _MSG_ERROR("Websocket read error: {}", se.code().message());
+            // _MSG_ERROR("Websocket read error: {}", se.code().message());
         } else {
             return close();
         }
     } catch (const std::exception& e) {
         running = false;
-        _MSG_ERROR("Websocket read error: {}", e.what());
+        // _MSG_ERROR("Websocket read error: {}", e.what());
         return close();
     }
 }
