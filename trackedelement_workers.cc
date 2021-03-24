@@ -129,6 +129,8 @@ bool tracker_element_regex_worker::match_element(std::shared_ptr<tracker_element
                 val = get_tracker_value<uuid>(fi).uuid_to_string();
             else if (fi->get_type() == tracker_type::tracker_byte_array) 
                 val = std::static_pointer_cast<tracker_element_byte_array>(fi)->get();
+            else if (!Globalreg::globalreg->entrytracker->search_xform(fi, val)) 
+                continue;
             else
                 continue;
 
@@ -185,6 +187,12 @@ bool tracker_element_stringmatch_worker::match_element(std::shared_ptr<tracker_e
             // mac address, do a mac compare
             matched =
                 std::static_pointer_cast<tracker_element_mac_addr>(field)->get().partial_search(mac_query_term, mac_query_term_len);
+        } else {
+            std::string val;
+
+            if (Globalreg::globalreg->entrytracker->search_xform(field, val)) {
+                matched = val.find(query) != std::string::npos;
+            }
         }
 
         if (matched)
@@ -231,6 +239,12 @@ bool tracker_element_icasestringmatch_worker::match_element(std::shared_ptr<trac
             // mac address, do a mac compare
             matched =
                 std::static_pointer_cast<tracker_element_mac_addr>(field)->get().partial_search(mac_query_term, mac_query_term_len);
+        } else {
+            std::string val;
+
+            if (Globalreg::globalreg->entrytracker->search_xform(field, val)) {
+                matched = icasesearch(val, query);
+            }
         }
 
         if (matched)

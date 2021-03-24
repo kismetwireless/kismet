@@ -114,6 +114,15 @@ public:
     int serialize_with_json_summary(const std::string& type, std::ostream& stream, shared_tracker_element elem,
             const Json::Value& json_summary);
 
+    // Optional per-field-id transforms for search functions, must use the search workers or be called
+    // manually
+    void register_search_xform(int in_field_id, std::function<void (std::shared_ptr<tracker_element>,
+                std::string& mapped_str)> in_xform);
+    void remove_search_xform(int in_field_id);
+    // Apply a search transform to a field, returning 'true' if the field was transformable, 
+    // and placing the results in mapped_str
+    bool search_xform(std::shared_ptr<tracker_element> elem, std::string& mapped_str);
+
 protected:
     kis_mutex entry_mutex;
     kis_mutex serializer_mutex;
@@ -135,6 +144,10 @@ protected:
     robin_hood::unordered_node_map<std::string, std::shared_ptr<reserved_field> > field_name_map;
     robin_hood::unordered_node_map<int, std::shared_ptr<reserved_field> > field_id_map;
     robin_hood::unordered_node_map<std::string, std::shared_ptr<tracker_element_serializer> > serializer_map;
+
+    // Field IDs to optional search xform function
+    robin_hood::unordered_node_map<int, std::function<void (std::shared_ptr<tracker_element>, 
+            std::string& mapped_str)>> search_xform_map;
 
     void tracked_fields_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con);
 };

@@ -135,7 +135,10 @@ bool device_tracker_view_regex_worker::match_device(std::shared_ptr<kis_tracked_
                     val = std::static_pointer_cast<tracker_element_byte_array>(fi)->get();
                     break;
                 default:
-                    continue;
+                    if (!Globalreg::globalreg->entrytracker->search_xform(fi, val)) {
+                        continue;
+                    }
+                    break;
             }
 
             int rc;
@@ -172,6 +175,7 @@ bool device_tracker_view_stringmatch_worker::match_device(std::shared_ptr<kis_tr
 
     for (const auto& i : fieldpaths) {
         auto field = get_tracker_element_path(i, device);
+        std::string val;
 
         if (field == nullptr)
             continue;
@@ -196,7 +200,10 @@ bool device_tracker_view_stringmatch_worker::match_device(std::shared_ptr<kis_tr
                 }
                 break;
             default:
-                ;
+                if (Globalreg::globalreg->entrytracker->search_xform(field, val)) {
+                    matched = val.find(query) != std::string::npos;
+                }
+                break;
         }
 
         if (matched)
@@ -228,6 +235,7 @@ bool device_tracker_view_icasestringmatch_worker::match_device(std::shared_ptr<k
 
     for (const auto& i : fieldpaths) {
         auto field = get_tracker_element_path(i, device);
+        std::string val;
 
         if (field == nullptr)
             continue;
@@ -250,7 +258,10 @@ bool device_tracker_view_icasestringmatch_worker::match_device(std::shared_ptr<k
                 }
                 break;
             default:
-                ;
+                if (Globalreg::globalreg->entrytracker->search_xform(field, val)) {
+                    matched = icasesearch(val, query);
+                }
+                break;
         }
 
         if (matched)

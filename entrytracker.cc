@@ -286,3 +286,41 @@ int entry_tracker::serialize_with_json_summary(const std::string& type, std::ost
     return serialize(type, stream, sumelem, name_map);
 }
 
+void entry_tracker::register_search_xform(int in_field_id, std::function<void (std::shared_ptr<tracker_element>,
+            std::string& mapped_str)> in_xform) {
+
+    kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker register_search_xform");
+    search_xform_map[in_field_id] = in_xform;
+}
+
+void entry_tracker::remove_search_xform(int in_field_id) {
+    kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker remove_search_xform");
+
+    auto i = search_xform_map.find(in_field_id);
+
+    if (i != search_xform_map.end())
+        search_xform_map.erase(i);
+
+    return;
+}
+
+bool entry_tracker::search_xform(std::shared_ptr<tracker_element> elem, std::string& mapped_str) {
+    kis_unique_lock<kis_mutex> lk(entry_mutex, std::defer_lock, "entry_tracker search_xform");
+
+    lk.lock();
+
+    auto i = search_xform_map.find(elem->get_id());
+
+    if (i == search_xform_map.end())
+        return false;
+
+    // Copy the function out of the iterator and release the lock while we do the computation
+
+    auto fn = i->second;
+
+    lk.unlock();
+
+    fn(elem, mapped_str);
+
+    return true;
+}
