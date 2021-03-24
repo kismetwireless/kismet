@@ -101,8 +101,8 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
     // Copy the actual packet payload into the header
     memcpy(conv_header->payload, payload, nrf_payload_len);
 
-    conv_header->version = 0;  // currently only one version
-    conv_header->reserved = 0; // must be set to 0
+    conv_header->version = kis_htole16(0);// currently only one version
+    conv_header->reserved = kis_htole16(0);// must be set to 0
 
     // fcs setting
     conv_header->tlv[0].type = kis_htole16(0);
@@ -111,14 +111,14 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
 
     // rssi
     conv_header->tlv[1].type = kis_htole16(10);
-    conv_header->tlv[1].length = kis_htole16(0);
+    conv_header->tlv[1].length = kis_htole16(1);
     conv_header->tlv[1].value = kis_htole32(rssi);
 
     // channel
     conv_header->tlv[2].type = kis_htole16(3);
     conv_header->tlv[2].length = kis_htole16(3);
     conv_header->tlv[2].value = kis_htole32(channel);
-
+   
     // size
     conv_header->length = kis_htole16(sizeof(_802_15_4_tap)); 
     nrf_chunk->set_data((uint8_t *) conv_header, conv_buf_len, false);
