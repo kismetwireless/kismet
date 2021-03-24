@@ -31,6 +31,24 @@ function severity_to_string(sev) {
     }
 }
 
+function severity_to_color(sev) {
+    switch (sev) {
+        case 0:
+            return "#03e3fc";
+        case 5:
+            return "#fbff00";
+        case 10:
+            return "#fce303";
+        case 15:
+            return "#fcba03";
+        case 20:
+            return "#fc031c";
+        default:
+            return "UNKNOWN";
+    }
+
+}
+
 var alertTid = -1;
 var alert_element;
 var alert_status_element;
@@ -336,6 +354,8 @@ function InitializeAlertTable() {
                             ;
                         }
                     }
+
+                    $('td', this.node()).css('background-color', severity_to_color(this.data()['kismet.alert.severity']));
                 });
             },
         });
