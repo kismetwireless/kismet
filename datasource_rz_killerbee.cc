@@ -37,17 +37,17 @@ void kis_datasource_rzkillerbee::handle_rx_packet(kis_packet *packet) {
         // Copy the actual packet payload into the header
         memcpy(conv_header->payload, &rz_chunk->data[9], rz_payload_len);
 
-        conv_header->version = 0;//currently only one version
-        conv_header->reserved = 0;//must be set to 0
+        conv_header->version = kis_htole16(0);// currently only one version
+        conv_header->reserved = kis_htole16(0);// must be set to 0
 
-        // fcs setting
+         // fcs setting
         conv_header->tlv[0].type = kis_htole16(0);
         conv_header->tlv[0].length = kis_htole16(1);
         conv_header->tlv[0].value = kis_htole32(0);
 
         // rssi
         conv_header->tlv[1].type = kis_htole16(10);
-        conv_header->tlv[1].length = kis_htole16(0);
+        conv_header->tlv[1].length = kis_htole16(1);
         conv_header->tlv[1].value = kis_htole32(rssi);
 
         // channel
