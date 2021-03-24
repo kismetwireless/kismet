@@ -245,7 +245,38 @@ protected:
         register_field("kismet.alert.header", "Alert definition", &header);
         register_field("kismet.alert.class", "Alert class", &alertclass);
         register_field("kismet.alert.hash", "Alert unique hash", &hash);
-        register_field("kismet.alert.severity", "Alert severity", &severity);
+
+        auto sev_id =
+            register_field("kismet.alert.severity", "Alert severity", &severity);
+
+        Globalreg::globalreg->entrytracker->register_search_xform(sev_id, 
+                [](std::shared_ptr<tracker_element> elem, std::string& xform) {
+                    auto sev = int_to_alert_severity(get_tracker_value<uint8_t>(elem));
+
+                    switch (sev) {
+                        case kis_alert_severity::info:
+                            xform = "INFO";
+                            break;
+                        case kis_alert_severity::low:
+                            xform = "LOW";
+                            break;
+                        case kis_alert_severity::medium:
+                            xform = "MEDIUM";
+                            break;
+                        case kis_alert_severity::high:
+                            xform = "HIGH";
+                            break;
+                        case kis_alert_severity::critical:
+                            xform = "CRITICAL";
+                            break;
+                        default:
+                            break;
+
+                    }
+
+                });
+
+
         register_field("kismet.alert.phy_id", "ID of phy generating alert", &phy);
         register_field("kismet.alert.timestamp", "Timestamp (sec.ms)", &timestamp);
         register_field("kismet.alert.transmitter_mac", "Transmitter MAC address", &transmitter_mac);
