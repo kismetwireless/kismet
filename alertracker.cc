@@ -110,8 +110,25 @@ alert_tracker::alert_tracker() : lifetime_global() {
                     return alert_dt_endpoint(con);
                 }));
 
-    httpd->register_route("/alerts/last-time/:timestamp/alerts", {"GET", "POST"}, httpd->RO_ROLE,
-            {}, std::make_shared<kis_net_web_tracked_endpoint>(
+    httpd->register_route("/alerts/by-id/:alertid/alert", {"GET", "POST"}, httpd->RO_ROLE, {},
+            std::make_shared<kis_net_web_tracked_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
+                    auto hash_k = con->uri_params().find(":alertid");
+                    auto hash = string_to_n<uint32_t>(hash_k->second);
+
+                    for (const auto& ai : *alert_backlog_vec) {
+                        auto a = std::static_pointer_cast<tracked_alert>(ai);
+
+                        if (a->get_hash() == hash)
+                            return a;
+                    }
+
+                    con->set_status(404);
+                    return std::make_shared<tracker_element_map>();
+                }, alert_mutex));
+
+    httpd->register_route("/alerts/last-time/:timestamp/alerts", {"GET", "POST"}, httpd->RO_ROLE, {}, 
+            std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) -> std::shared_ptr<tracker_element> {
                 return last_alerts_endpoint(con, false);
             }));
