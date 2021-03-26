@@ -649,11 +649,51 @@ exports.AddAlertDetail("alert", "Alert", 0, {
                         return severity_to_string(opts['value']);
                     },
                     help: 'General severity of alert; in increasing severity, alerts are categorized as info, low, medium, high, and critical.',
+                },
+                {
+                    field: 'kismet.alert.timestamp',
+                    title: 'Time',
+                    liveupdate: false,
+                    draw: function(opts) {
+                        console.log(Math.floor(opts['value']));
+                        return kismet_ui.RenderTrimmedTime({'value': Math.floor(opts['value'])});
+                    }
+                },
+                {
+                    field: 'kismet.alert.location/kismet.common.location.geopoint',
+                    filter: function(opts) {
+                        return opts['data']['kismet.alert.location']['kismet.common.location.fix'] >= 2;
+                    },
+                    title: 'Location',
+                    draw: function(opts) {
+                        try {
+                            if (opts['value'][1] == 0 || opts['value'][0] == 0)
+                                return "<i>Unknown</i>";
+
+                            return opts['value'][1] + ", " + opts['value'][0]
+                        } catch (error) {
+                            return "<i>Unknown</i>";
+                        }
+                    },
+                    help: 'Location where alert occurred, either as the location of the Kismet server at the time of the alert or as the location of the packet, if per-packet location was available.',
+                },
+                {
+                    field: 'kismet.alert.text',
+                    title: 'Alert content',
+                    draw: function(opts) {
+                        return kismet.censorMAC(opts['value']);
+                    },
+                    help: 'Human-readable alert content',
                 }
             ]
         })
     }
 });
+
+exports.AddAlertDetail("devel", "Dev/Debug Options", 10000, {
+    render: function(data) {
+        return 'Alert JSON: <a href="alerts/by-id/' + data['kismet.alert.hash'] + '/alert.prettyjson" target="_new">link</a><br />';
+    }});
 
 exports.load_complete = 1;
 
