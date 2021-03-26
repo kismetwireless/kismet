@@ -1,7 +1,7 @@
 (
   typeof define === "function" ? function (m) { define("kismet-ui-dot11-js", m); } :
   typeof exports === "object" ? function (m) { module.exports = m(); } :
-  function(m){ this.kismet_ui_dot11 = m(); }
+  function(m){ this.kismet_ui_alerts = m(); }
 )(function () {
 
 "use strict";
@@ -373,11 +373,9 @@ function InitializeAlertTable() {
         alert_dt.search(JSON.parse(saved_search));
 
     // Set an onclick handler to spawn the device details dialog
-    /*
-    $('tbody', ssid_element).on('click', 'tr', function () {
-        exports.SsidDetailWindow(this.id);
+    $('tbody', alert_element).on('click', 'tr', function () {
+        exports.AlertDetailWindow(this.id);
     } );
-    */
 
     $('tbody', alert_element)
         .on( 'mouseenter', 'td', function () {
@@ -502,6 +500,158 @@ exports.AddAlertColumn('content', {
     name: 'Alert content',
     renderfunc: function(d, t, r, m) {
         return kismet.censorMAC(d);
+    }
+});
+
+exports.AddAlertColumn('hash_hidden', {
+    sTitle: 'Hash key',
+    field: 'kismet.alert.hash',
+    searchable: false,
+    visible: false,
+    orderable: false,
+});
+
+exports.AlertDetails = new Array();
+
+exports.AddAlertDetail = function(id, title, pos, options) {
+    kismet_ui.AddDetail(exports.AlertDetails, id, title, pos, options);
+}
+
+exports.AlertDetailWindow = function(key) {
+    kismet_ui.DetailWindow(key, "Alert Details", 
+        {
+            storage: {},
+        },
+
+        function(panel, options) {
+            var content = panel.content;
+
+            panel.active = true;
+
+            window['storage_detail_' + key] = {};
+            window['storage_detail_' + key]['foobar'] = 'bar';
+
+            panel.updater = function() {
+                if (kismet_ui.window_visible) {
+                    $.get(local_uri_prefix + "alerts/by-id/" + key + "/alert.json")
+                        .done(function(fulldata) {
+                            fulldata = kismet.sanitizeObject(fulldata);
+
+                            $('.loadoops', panel.content).hide();
+
+                            panel.headerTitle(`Alert: ${fulldata['kismet.alert.header']}`);
+
+                            var accordion = $('div#accordion', content);
+
+                            if (accordion.length == 0) {
+                                accordion = $('<div />', {
+                                    id: 'accordion'
+                                });
+
+                                content.append(accordion);
+                            }
+
+                            var detailslist = exports.AlertDetails;
+
+                            for (var dii in detailslist) {
+                                var di = detailslist[dii];
+
+                                // Do we skip?
+                                if ('filter' in di.options &&
+                                    typeof(di.options.filter) === 'function') {
+                                    if (di.options.filter(fulldata) == false) {
+                                        continue;
+                                    }
+                                }
+
+                                var vheader = $('h3#header_' + di.id, accordion);
+
+                                if (vheader.length == 0) {
+                                    vheader = $('<h3>', {
+                                        id: "header_" + di.id,
+                                    })
+                                        .html(di.title);
+
+                                    accordion.append(vheader);
+                                }
+
+                                var vcontent = $('div#' + di.id, accordion);
+
+                                if (vcontent.length == 0) {
+                                    vcontent = $('<div>', {
+                                        id: di.id,
+                                    });
+                                    accordion.append(vcontent);
+                                }
+
+                                // Do we have pre-rendered content?
+                                if ('render' in di.options &&
+                                    typeof(di.options.render) === 'function') {
+                                    vcontent.html(di.options.render(fulldata));
+                                }
+
+                                if ('draw' in di.options && typeof(di.options.draw) === 'function') {
+                                    di.options.draw(fulldata, vcontent, options, 'storage_alert_' + key);
+                                }
+
+                                if ('finalize' in di.options &&
+                                    typeof(di.options.finalize) === 'function') {
+                                    di.options.finalize(fulldata, vcontent, options, 'storage_alert_' + key);
+                                }
+                            }
+                            accordion.accordion({ heightStyle: 'fill' });
+                        })
+                        .fail(function(jqxhr, texterror) {
+                            content.html("<div class=\"loadoops\" style=\"padding: 10px;\"><h1>Oops!</h1><p>An error occurred loading alert details for key <code>" + key + 
+                                "</code>: HTTP code <code>" + jqxhr.status + "</code>, " + texterror + "</div>");
+                        })
+                        .always(function() {
+                            panel.timerid = setTimeout(function() { panel.updater(); }, 1000);
+                        })
+                } else {
+                    panel.timerid = setTimeout(function() { panel.updater(); }, 1000);
+                }
+
+            };
+
+            panel.updater();
+        },
+
+        function(panel, options) {
+            clearTimeout(panel.timerid);
+            panel.active = false;
+            window['storage_alert_' + key] = {};
+        });
+};
+
+exports.AddAlertDetail("alert", "Alert", 0, {
+    draw: function(data, target, options, storage) {
+        target.devicedata(data, {
+            id: "alertdetails",
+            fields: [
+                {
+                    field: 'kismet.alert.header',
+                    title: 'Alert',
+                    liveupdate: false,
+                    help: 'Alert type / identifier; each alert has a unique type name.',
+                },
+                {
+                    field: 'kismet.alert.class',
+                    title: 'Class',
+                    liveupdate: false,
+                    help: 'Each alert has a class, such as spoofing, denial of service, known exploit, etc.',
+                },
+                {
+                    field: 'kismet.alert.severity',
+                    title: 'Severity',
+                    liveupdate: false,
+                    draw: function(opts) {
+                        return severity_to_string(opts['value']);
+                    },
+                    help: 'General severity of alert; in increasing severity, alerts are categorized as info, low, medium, high, and critical.',
+                }
+            ]
+        })
     }
 });
 
