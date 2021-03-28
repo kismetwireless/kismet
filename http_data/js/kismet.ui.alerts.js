@@ -684,7 +684,54 @@ exports.AddAlertDetail("alert", "Alert", 0, {
                         return kismet.censorMAC(opts['value']);
                     },
                     help: 'Human-readable alert content',
-                }
+                },
+                {
+                    groupTitle: 'Addresses',
+                    id: 'addresses',
+                    filter: function(opts) {
+                        return opts['data']['kismet.alert.transmitter_mac'] != '00:00:00:00:00:00' ||
+                            opts['data']['kismet.alert.source_mac'] != '00:00:00:00:00:00' ||
+                            opts['data']['kismet.alert.dest_mac'] != '00:00:00:00:00:00';
+                    },
+                    fields: [
+                        {
+                            field: 'kismet.alert.source_mac',
+                            title: 'Source',
+                            filter: function(opts) {
+                                return opts['value'] !== '00:00:00:00:00:00';
+                            },
+                            draw: function(opts) {
+                                return kismet.censorMAC(opts['value']);
+                            },
+                            help: 'MAC address of the source of the packet triggering this alert.',
+                        },
+                        {
+                            field: 'kismet.alert.transmitter_mac',
+                            title: 'Transmitter',
+                            filter: function(opts) {
+                                return opts['value'] !== '00:00:00:00:00:00' &&
+                                    opts['data']['kismet.alert.source_mac'] !== opts['value'];
+                            },
+                            draw: function(opts) {
+                                return kismet.censorMAC(opts['value']);
+                            },
+                            help: 'MAC address of the transmitter of the packet triggering this alert, if not the same as the source.  On Wi-Fi this is typically the BSSID of the AP',
+                        },
+                        {
+                            field: 'kismet.alert.dest_mac',
+                            title: 'Destination',
+                            filter: function(opts) {
+                                return opts['value'] !== '00:00:00:00:00:00';
+                            },
+                            draw: function(opts) {
+                                if (opts['value'] === 'FF:FF:FF:FF:FF:FF')
+                                    return '<i>All / Broadcast</i>'
+                                return kismet.censorMAC(opts['value']);
+                            },
+                            help: 'MAC address of the destionation the packet triggering this alert.',
+                        },
+                    ]
+                },
             ]
         })
     }
