@@ -448,10 +448,10 @@ void write_pcapng_packet(FILE *pcapng_file, const std::string& packet,
         copt.option_code = PCAPNG_OPT_CUSTOM_BINARY;
         copt.option_pen = KISMET_IANA_PEN;
 
-        // Lat, lon
+        // lon, lat
         size_t gps_len = 8;
 
-        gps_fields = PCAPNG_GPS_FLAG_LAT | PCAPNG_GPS_FLAG_LON;
+        gps_fields = PCAPNG_GPS_FLAG_LON | PCAPNG_GPS_FLAG_LAT;
 
         // Altitude
         if (alt != 0) {
@@ -486,13 +486,13 @@ void write_pcapng_packet(FILE *pcapng_file, const std::string& packet,
             uint32_t u32;
         } u;
 
-        // Lat, lon, alt, in that order
-        u.u32 = double_to_fixed3_7(lat);
+        // Lon, lat, [alt]
+        u.u32 = double_to_fixed3_7(lon);
         if (fwrite(&u, sizeof(uint32_t), 1, pcapng_file) != 1) 
             throw std::runtime_error(fmt::format("error writing packet gps: {} (errno {})",
                         strerror(errno), errno));
 
-        u.u32 = double_to_fixed3_7(lon);
+        u.u32 = double_to_fixed3_7(lat);
         if (fwrite(&u, sizeof(uint32_t), 1, pcapng_file) != 1) 
             throw std::runtime_error(fmt::format("error writing packet gps: {} (errno {})",
                         strerror(errno), errno));

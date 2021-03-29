@@ -358,10 +358,10 @@ int pcapng_stream_futurebuf::pcapng_write_packet(kis_packet *in_packet, kis_data
     if (gpsinfo != nullptr && gpsinfo->fix >= 2) {
         auto gopt = reinterpret_cast<pcapng_custom_option_t *>(buf.get() + opt_offt);
 
-        // Always lat and lon
+        // Always lon and lat
         uint32_t gps_fields = PCAPNG_GPS_FLAG_LAT | PCAPNG_GPS_FLAG_LON;
 
-        // lat/lon
+        // lon/lat
         gps_len = 8;
 
         if (gpsinfo->fix > 2 && gpsinfo->alt != 0) {
@@ -385,11 +385,11 @@ int pcapng_stream_futurebuf::pcapng_write_packet(kis_packet *in_packet, kis_data
         size_t field_data_offt = 0;
 
         auto f = reinterpret_cast<uint32_t *>(gps->gps_data + field_data_offt);
-        *f = double_to_fixed3_7(gpsinfo->lat);
+        *f = double_to_fixed3_7(gpsinfo->lon);
         field_data_offt += 4;
 
         f = reinterpret_cast<uint32_t *>(gps->gps_data + field_data_offt);
-        *f = double_to_fixed3_7(gpsinfo->lon);
+        *f = double_to_fixed3_7(gpsinfo->lat);
         field_data_offt += 4;
 
         if (gpsinfo->fix > 2 && gpsinfo->alt != 0) {
