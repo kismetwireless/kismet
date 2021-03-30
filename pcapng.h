@@ -152,6 +152,7 @@ struct pcapng_custom_block {
 
 } __attribute__((packed));
 typedef struct pcapng_custom_block pcapng_custom_block_t;
+#define PCAPNG_CB_BLOCK_TYPE        0xBAD
 
 /* Kismet IANA PEN */
 #define KISMET_IANA_PEN 55922
@@ -179,5 +180,7 @@ typedef struct kismet_pcapng_gps_chunk kismet_pcapng_gps_chunk_t;
 #define PCAPNG_GPS_FLAG_EPH         0x80
 #define PCAPNG_GPS_FLAG_EPV         0x100
 #define PCAPNG_GPS_FLAG_EPT         0x200
+#define PCAPNG_GPS_TS_HIGH          0x400
+#define PCAPNG_GPS_TS_LOW           0x800
 
 #endif

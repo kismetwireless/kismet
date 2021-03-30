@@ -356,6 +356,106 @@ void write_pcapng_interface(FILE *pcapng_file, unsigned int ngindex, const std::
 void write_pcapng_gps(FILE *pcapng_file, unsigned long ts_sec, unsigned long ts_usec, 
         double lat, double lon, double alt) {
 
+    if (lat == 0 || lon == 0)
+        return;
+
+    pcapng_custom_block cb;
+
+    auto gps_sz = sizeof(kismet_pcapng_gps_chunk_t);
+
+    // lat, lon, and timesttamps
+    gps_sz += 16;
+
+    if (alt != 0)
+        gps_sz += 4;
+
+    auto data_sz = sizeof(pcapng_custom_block) + PAD_TO_32BIT(gps_sz) + sizeof(pcapng_option_t);
+
+    cb.block_type = PCAPNG_CB_BLOCK_TYPE;
+    cb.block_length = data_sz + 4;
+    cb.custom_pen = KISMET_IANA_PEN;
+
+    if (fwrite(&cb, sizeof(pcapng_custom_block_t), 1, pcapng_file) != 1)
+        throw std::runtime_error(fmt::format("error writing pcapng gps packet header: {} (errno {})",
+                strerror(errno), errno));
+
+    kismet_pcapng_gps_chunk_t gps;
+
+    gps.gps_magic = PCAPNG_GPS_MAGIC;
+    gps.gps_verison = PCAPNG_GPS_VERSION;
+    gps.gps_len = 16; // lat, lon, tsh, tsl
+    gps.gps_fields_present = PCAPNG_GPS_FLAG_LON | PCAPNG_GPS_FLAG_LAT |
+        PCAPNG_GPS_TS_HIGH | PCAPNG_GPS_TS_LOW;
+
+    if (alt != 0) {
+        gps.gps_len += 4;
+        gps.gps_fields_present |= PCAPNG_GPS_FLAG_ALT;
+    }
+
+    // GPS header
+    if (fwrite(&gps, sizeof(kismet_pcapng_gps_chunk_t), 1, pcapng_file) != 1)
+        throw std::runtime_error(fmt::format("error writing packet gps options: {} (errno {})",
+                    strerror(errno), errno));
+
+    union block {
+        uint8_t u8;
+        uint16_t u16;
+        uint32_t u32;
+    } u;
+
+    // Lon, lat, [alt]
+    u.u32 = double_to_fixed3_7(lon);
+    if (fwrite(&u, sizeof(uint32_t), 1, pcapng_file) != 1) 
+        throw std::runtime_error(fmt::format("error writing packet gps: {} (errno {})",
+                    strerror(errno), errno));
+
+    u.u32 = double_to_fixed3_7(lat);
+    if (fwrite(&u, sizeof(uint32_t), 1, pcapng_file) != 1) 
+        throw std::runtime_error(fmt::format("error writing packet gps: {} (errno {})",
+                    strerror(errno), errno));
+
+    if (alt != 0) {
+        u.u32 = double_to_fixed6_4(alt);
+        if (fwrite(&u, sizeof(uint32_t), 1, pcapng_file) != 1) 
+            throw std::runtime_error(fmt::format("error writing packet gps: {} (errno {})",
+                        strerror(errno), errno));
+    }
+
+    // TS high and low
+    uint64_t conv_ts = ((uint64_t) ts_sec * 1'000'000L) + ts_usec;
+
+    u.u32 = (conv_ts >> 32);
+    if (fwrite(&u, sizeof(uint32_t), 1, pcapng_file) != 1) 
+        throw std::runtime_error(fmt::format("error writing packet gps: {} (errno {})",
+                    strerror(errno), errno));
+
+    u.u32 = conv_ts;
+    if (fwrite(&u, sizeof(uint32_t), 1, pcapng_file) != 1) 
+        throw std::runtime_error(fmt::format("error writing packet gps: {} (errno {})",
+                    strerror(errno), errno));
+
+    uint32_t pad = 0;
+    auto pad_sz = PAD_TO_32BIT(gps.gps_len) - gps.gps_len;
+
+    if (pad_sz > 0)
+        if (fwrite(&pad, pad_sz, 1, pcapng_file) != 1)
+            throw std::runtime_error(fmt::format("error writing pcapng packet option: {} (errno {})",
+                        strerror(errno), errno));
+
+    // No options
+    pcapng_option_t opt;
+    opt.option_code = PCAPNG_OPT_ENDOFOPT;
+    opt.option_length = 0;
+
+    if (fwrite(&opt, sizeof(pcapng_option_t), 1, pcapng_file) != 1) 
+        throw std::runtime_error(fmt::format("error writing packet end-of-options: {} (errno {})",
+                    strerror(errno), errno));
+
+    data_sz += 4;
+
+    if (fwrite(&data_sz, 4, 1, pcapng_file) != 1)
+        throw std::runtime_error(fmt::format("error writing packet end-of-packet: {} (errno {})",
+                    strerror(errno), errno));
 
 }
 
