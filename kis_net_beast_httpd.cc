@@ -1166,6 +1166,32 @@ bool kis_net_beast_httpd_connection::start() {
         }
     }
 
+    // Handle CORS before auth and route finding; always returns
+    if (request_.method() == boost::beast::http::verb::options && httpd->allow_cors()) {
+        response.result(boost::beast::http::status::ok);
+
+        boost::beast::http::response_serializer<boost::beast::http::buffer_body,
+            boost::beast::http::fields> sr{response};
+
+        boost::system::error_code error;
+        boost::beast::http::write_header(stream_, sr, error);
+
+        if (error) 
+            return do_close();
+
+        // Send the completion record for the chunked response
+        response.body().data = nullptr;
+        response.body().size = 0;
+        response.body().more = false;
+
+        boost::beast::http::write(stream_, sr, error);
+
+        if (error || client_req_close) 
+            return do_close();
+
+        return true;
+    }
+
     // Extract the auth cookie
     auto cookie_h = request_.find(boost::beast::http::field::cookie);
     if (cookie_h != request_.end()) {
@@ -1372,31 +1398,7 @@ bool kis_net_beast_httpd_connection::start() {
 
     append_common_headers(response, uri_);
 
-    if (request_.method() == boost::beast::http::verb::options && httpd->allow_cors()) {
-        // Handle a CORS OPTION request
-        response.result(boost::beast::http::status::ok);
-
-        boost::beast::http::response_serializer<boost::beast::http::buffer_body,
-            boost::beast::http::fields> sr{response};
-
-        boost::system::error_code error;
-        boost::beast::http::write_header(stream_, sr, error);
-
-        if (error) 
-            return do_close();
-
-        // Send the completion record for the chunked response
-        response.body().data = nullptr;
-        response.body().size = 0;
-        response.body().more = false;
-
-        boost::beast::http::write(stream_, sr, error);
-
-        if (error || client_req_close) 
-            return do_close();
-
-        return true;
-    } else if (request_.method() == boost::beast::http::verb::post) {
+    if (request_.method() == boost::beast::http::verb::post) {
         // Handle POST data fields
         http_post = request_.body();
 
