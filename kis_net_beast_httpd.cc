@@ -1168,6 +1168,9 @@ bool kis_net_beast_httpd_connection::start() {
 
     // Handle CORS before auth and route finding; always returns
     if (request_.method() == boost::beast::http::verb::options && httpd->allow_cors()) {
+	std::string uri = "";
+	append_common_headers(response, uri);
+	response.set(boost::beast::http::field::content_length, "0");
         response.result(boost::beast::http::status::ok);
 
         boost::beast::http::response_serializer<boost::beast::http::buffer_body,
