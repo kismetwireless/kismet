@@ -981,7 +981,7 @@ void device_tracker::macdevice_timer_event() {
                         "seconds.", k->get_macaddr(), k->get_commonname(),
                         devicelost_timeout);
             alertracker->raise_alert(alert_macdevice_lost_ref,
-                    nullptr, k->get_macaddr(), mac_addr{0}, 
+                    nullptr, mac_addr{0}, k->get_macaddr(), 
                     mac_addr{0}, mac_addr{0}, k->get_channel(), 
                     alrt);
         } else {
@@ -1219,6 +1219,9 @@ std::shared_ptr<kis_tracked_device_base>
 	packetchain_comp_datasource *pack_datasrc =
 		(packetchain_comp_datasource *) in_pack->fetch(pack_comp_datasrc);
 
+    auto common_info =
+        in_pack->fetch<kis_common_info>(pack_comp_common);
+
     std::shared_ptr<kis_tracked_device_base> device = NULL;
     device_key key;
 
@@ -1301,13 +1304,20 @@ std::shared_ptr<kis_tracked_device_base>
             in_pack->ts.tv_sec - device->get_last_time() > devicefound_timeout))) {
 
             if (k->second & 0x1) {
+                mac_addr dstmac, netmac, transmac;
+
+                if (common_info != nullptr) {
+                    dstmac = common_info->dest;
+                    netmac = common_info->network;
+                    transmac = common_info->transmitter;
+                }
+
                 auto alrt =
-                fmt::format("Monitored device {} ({}) has been found.",
-                        device->get_macaddr(), device->get_commonname());
-                alertracker->raise_alert(alert_macdevice_found_ref,
-                        in_pack, device->get_macaddr(), mac_addr{0}, 
-                        mac_addr{0}, mac_addr{0}, device->get_channel(), 
-                        alrt);
+                    fmt::format("Monitored device {} ({}) has been found.",
+                            device->get_macaddr(), device->get_commonname());
+                   alertracker->raise_alert(alert_macdevice_found_ref,
+                           in_pack, netmac, device->get_macaddr(), dstmac, transmac, 
+                           device->get_channel(), alrt);
             }
             if (k->second & 0x2) {
                 macdevice_flagged_vec.push_back(device);
