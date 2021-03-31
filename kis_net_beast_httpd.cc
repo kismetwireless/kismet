@@ -1170,6 +1170,11 @@ bool kis_net_beast_httpd_connection::start() {
     if (request_.method() == boost::beast::http::verb::options && httpd->allow_cors()) {
         response.result(boost::beast::http::status::ok);
 
+        std::string uri_rewrite = "";
+        append_common_headers(response, uri_rewrite);
+
+        response.set(boost::beast::http::field::content_length, "0");
+
         boost::beast::http::response_serializer<boost::beast::http::buffer_body,
             boost::beast::http::fields> sr{response};
 
