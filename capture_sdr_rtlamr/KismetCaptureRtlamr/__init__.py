@@ -357,7 +357,7 @@ class KismetRtlamr(object):
 
         (ret['success'], ret['message']) = self.open_radio(self.opts['device'])
 
-        if not success:
+        if not ret['success']:
             return ret
 
         self.run_rtlamr()
