@@ -132,7 +132,7 @@ Systemmonitor::Systemmonitor() :
                 status->set_timestamp_usec(now.tv_usec);
 
                 return tse;
-            });
+            }, monitor_mutex);
     httpd->register_route("/system/timestamp", {"GET", "POST"}, httpd->RO_ROLE, {}, timestamp_endp);
 
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_system_status", true)) {
@@ -190,6 +190,7 @@ Systemmonitor::Systemmonitor() :
     event_timer_id = 
         timetracker->register_timer(std::chrono::seconds(1), true, 
                 [this](int) -> int {
+                kis_lock_guard<kis_mutex> lg(monitor_mutex, "system monitor eventtimer");
 
                 status->pre_serialize();
 
@@ -287,6 +288,8 @@ int Systemmonitor::timetracker_event(int eventid) {
     kis_lock_guard<kis_mutex> lk(monitor_mutex);
 
     int num_devices = devicetracker->fetch_num_devices();
+
+    kis_lock_guard<kis_mutex> lg(monitor_mutex, "system monitor timer");
 
     // Grab the devices
     status->set_devices(num_devices);
