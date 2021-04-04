@@ -53,7 +53,8 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
                     return device_endpoint_handler(con);
                 }));
 
-    uri = fmt::format("/device/views/{}/last-time/:timestamp/devices", in_id);
+    uri = fmt::format("/devices/views/{}/last-time/:timestamp/devices", in_id);
+    fmt::print("{}\n", uri);
     httpd->register_route(uri, {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
@@ -89,14 +90,14 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
                     return device_endpoint_handler(con);
                 }));
 
-    uri = fmt::format("/device/views/{}/last-time/:timestamp/devices", in_id);
+    uri = fmt::format("/devices/views/{}/last-time/:timestamp/devices", in_id);
     httpd->register_route(uri, {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     return device_time_endpoint(con);
                 }));
 
-    uri = fmt::format("/device/views/{}/monitor", in_id);
+    uri = fmt::format("/devices/views/{}/monitor", in_id);
     httpd->register_websocket_route(uri, httpd->RO_ROLE, {"ws"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
@@ -243,7 +244,7 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
                     return device_endpoint_handler(con);
                 }));
 
-    uri = fmt::format("/device/views/{}last-time/:timestamp/devices", ss.str());
+    uri = fmt::format("/devices/views/{}last-time/:timestamp/devices", ss.str());
     httpd->register_route(uri, {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
