@@ -670,7 +670,7 @@ exports.AddAlertDetail("alert", "Alert", 0, {
                             if (opts['value'][1] == 0 || opts['value'][0] == 0)
                                 return "<i>Unknown</i>";
 
-                            return opts['value'][1] + ", " + opts['value'][0]
+                            return kismet.censorLocation(opts['value'][1]) + ", " + kismet.censorLocation(opts['value'][0]);
                         } catch (error) {
                             return "<i>Unknown</i>";
                         }

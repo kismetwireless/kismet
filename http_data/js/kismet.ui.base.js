@@ -842,8 +842,8 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                     },
                     draw: function(opts) {
                         var loc =
-                            kismet.ObjectByString(opts['data'], "kismet.device.base.signal/kismet.common.signal.peak_loc/kismet.common.location.geopoint[1]") + ", " +
-                            kismet.ObjectByString(opts['data'], "kismet.device.base.signal/kismet.common.signal.peak_loc/kismet.common.location.geopoint[0]");
+                            kismet.censorLocation(kismet.ObjectByString(opts['data'], "kismet.device.base.signal/kismet.common.signal.peak_loc/kismet.common.location.geopoint[1]")) + ", " +
+                            kismet.censorLocation(kismet.ObjectByString(opts['data'], "kismet.device.base.signal/kismet.common.signal.peak_loc/kismet.common.location.geopoint[0]"));
 
                         return loc;
                     },
@@ -997,7 +997,7 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                             if (opts['value'][1] == 0 || opts['value'][0] == 0)
                                 return "<i>Unknown</i>";
 
-                            return opts['value'][1] + ", " + opts['value'][0]
+                            return kismet.censorLocation(opts['value'][1]) + ", " + kismet.censorLocation(opts['value'][0]);
                         } catch (error) {
                             return "<i>Unknown</i>";
                         }

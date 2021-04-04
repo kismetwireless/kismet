@@ -428,6 +428,18 @@ exports.censorMAC = function(t) {
     }
 }
 
+/* Censor a location by rounding */
+exports.censorLocation = function(t) {
+    try {
+        if (window['censor_location']) 
+            return `${Math.round(t)}.XXXXX`;
+        else
+            return t;
+    } catch (e) {
+        return t;
+    }
+}
+
 /* Recurse over a complete object (such as from json), finding all strings,
  * and escaping them to be 'safe' */
 exports.sanitizeObject = function(o) {
