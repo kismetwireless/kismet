@@ -291,14 +291,15 @@ void kis_datasource::open_interface(std::string in_definition, unsigned int in_t
     // If we got here we're valid; start a PING timer
     timetracker->remove_timer(ping_timer_id);
     ping_timer_id = timetracker->register_timer(std::chrono::seconds(5), true, [this](int) -> int {
-        kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource ping_timer lambda");
-        
+        // kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource ping_timer lambda");
+
         if (!get_source_running()) {
             ping_timer_id = -1;
             return 0;
         }
        
         send_ping();
+
         return 1;
     });
 
