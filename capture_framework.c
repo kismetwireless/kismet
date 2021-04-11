@@ -1184,6 +1184,7 @@ int cf_handler_launch_capture_thread(kis_capture_handler_t *caph) {
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
 
     pthread_mutex_lock(&(caph->handler_lock));
     if (caph->capture_running) {
@@ -1432,6 +1433,7 @@ int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph) {
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
 
     pthread_mutex_lock(&(caph->handler_lock));
     if (caph->hopping_running) {
