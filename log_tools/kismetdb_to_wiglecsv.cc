@@ -378,21 +378,30 @@ int main(int argc, char *argv[]) {
             first_time{t},
             name{s},
             crypto{c},
-            last_time_sec{0} { }
+            last_time_sec{0},
+            type{""} { }
+
+        cache_obj(std::string t, std::string s, std::string c, std::string type) :
+            first_time{t},
+            name{s},
+            crypto{c},
+            last_time_sec{0},
+            type{type} { }
 
         std::string first_time;
         std::string name;
         std::string crypto;
         uint64_t last_time_sec;
+        std::string type;
     };
 
-    std::map<std::string, cache_obj *> device_cache_map;
+    std::map<std::string, std::shared_ptr<cache_obj>> device_cache_map;
 
     if (verbose) 
         fmt::print(stderr, "* Starting to process file, max device cache {}\n", cache_limit);
 
     // CSV headers
-    fmt::print(ofile, "WigleWifi-1.4,appRelease=20190201,model=Kismet,release=2019.02.01.{},"
+    fmt::print(ofile, "WigleWifi-1.4,appRelease=20200401,model=Kismet,release=2020.04.01.{},"
             "device=kismet,display=kismet,board=kismet,brand=kismet\n", db_version);
     fmt::print(ofile, "MAC,SSID,AuthMode,FirstSeen,Channel,RSSI,CurrentLatitude,CurrentLongitude,"
             "AltitudeMeters,AccuracyMeters,Type\n");
@@ -401,9 +410,25 @@ int main(int argc, char *argv[]) {
     std::list<std::string> packet_fields;
 
     if (db_version < 5) {
-        packet_fields = std::list<std::string>{"ts_sec", "sourcemac", "phyname", "lat", "lon", "signal", "frequency"};
+        packet_fields = std::list<std::string>{"ts_sec", "sourcemac", "phyname", "lat", "lon", 
+            "signal", "frequency"};
     } else {
-        packet_fields = std::list<std::string>{"ts_sec", "sourcemac", "phyname", "lat", "lon", "signal", "frequency", "alt", "speed"};
+        packet_fields = std::list<std::string>{"ts_sec", "sourcemac", "phyname", "lat", "lon", 
+            "signal", "frequency", "alt", "speed"};
+    }
+
+    std::list<std::string> bt_fields;
+    switch (db_version) {
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+            bt_fields = std::list<std::string>{"ts_sec", "devmac", "phyname", "lat", "lon"};
+            break;
+        case 5:
+        case 6:
+            bt_fields = std::list<std::string>{"ts_sec", "devmac", "phyname", "lat", "lon", "alt"};
+            break;
     }
 
     auto query = _SELECT(db, "packets", packet_fields,
@@ -412,6 +437,12 @@ int main(int argc, char *argv[]) {
                 "lat", NEQ, 0,
                 AND,
                 "lon", NEQ, 0));
+
+    auto bt_query = _SELECT(db, "data", bt_fields,
+            _WHERE("lat", NEQ, 0,
+                AND,
+                "lon", NEQ, 0));
+    bt_query.append_where( AND, _WHERE("phyname", EQ, "Bluetooth", OR, "phyname", EQ, "BTLE"));
 
     unsigned long n_logs = 0;
     unsigned long n_saved = 0;
@@ -429,10 +460,6 @@ int main(int argc, char *argv[]) {
         if (device_cache_map.size() >= cache_limit) {
             if (verbose)
                 fmt::print(stderr, "* Cleaning cache...\n");
-
-            for (auto i : device_cache_map) {
-                delete(i.second);
-            }
 
             device_cache_map.clear();
         }
@@ -466,7 +493,7 @@ int main(int argc, char *argv[]) {
         }
 
         auto ci = device_cache_map.find(sourcemac);
-        cache_obj *cached = nullptr;
+        std::shared_ptr<cache_obj> cached;
 
         if (ci != device_cache_map.end()) {
             cached = ci->second;
@@ -557,7 +584,7 @@ int main(int argc, char *argv[]) {
                 // because apparently gcc4 is still a thing?
                 // ts << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
 
-                cached = new cache_obj{ts.str(), name, crypt};
+                cached = std::make_shared<cache_obj>(ts.str(), name, crypt);
 
                 device_cache_map[sourcemac] = cached;
 
@@ -596,6 +623,144 @@ int main(int argc, char *argv[]) {
 
         n_saved++;
     }
+
+    // Clear the cache before bluetooth processing
+    device_cache_map.clear();
+
+    for (auto p : bt_query) {
+        // Brute-force cache maintenance; if we're full at the start of the 
+        // processing loop, nuke the ENTIRE cache and rebuild it; this is
+        // cleaner than constantly re-sorting it.
+        if (device_cache_map.size() >= cache_limit) {
+            if (verbose)
+                fmt::print(stderr, "* Cleaning cache...\n");
+
+            device_cache_map.clear();
+        }
+
+        n_logs++;
+        if (n_logs % n_division == 0 && verbose)
+            std::cerr << 
+                fmt::format("* {}%% processed {} records, {} discarded from rate limiting, {} discarded from exclusion zones, {} cached",
+                    (int) (((float) n_logs / (float) n_packets_db) * 100) + 1, 
+                    n_logs, n_discarded_logs_rate, n_discarded_logs_zones, device_cache_map.size()) << std::endl;
+
+        auto ts = sqlite3_column_as<std::uint64_t>(p, 0);
+        auto sourcemac = sqlite3_column_as<std::string>(p, 1);
+        auto phy = sqlite3_column_as<std::string>(p, 2);
+
+        auto lat = 0.0f, lon = 0.0f, alt = 0.0f;
+
+        if (db_version < 5) {
+            lat = sqlite3_column_as<double>(p, 3) / 100000;
+            lon = sqlite3_column_as<double>(p, 4) / 100000;
+        } else {
+            lat = sqlite3_column_as<double>(p, 3);
+            lon = sqlite3_column_as<double>(p, 4);
+            alt = sqlite3_column_as<double>(p, 7);
+        }
+
+        auto ci = device_cache_map.find(sourcemac);
+        std::shared_ptr<cache_obj> cached;
+
+        if (ci != device_cache_map.end()) {
+            cached = ci->second;
+        } else {
+            auto dev_query = _SELECT(db, "devices", {"device"},
+                    _WHERE("devmac", EQ, sourcemac,
+                        AND,
+                        "phyname", EQ, phy));
+
+            auto dev = dev_query.begin();
+
+            if (dev == dev_query.end()) {
+                // printf("Could not find device record for %s\n", sqlite3_column_as<std::string>(p, 0).c_str());
+                continue;
+            }
+
+            // Check to see if we lie in any exclusion zones
+            bool violates_exclusion = false;
+            for (auto ez : exclusion_zones) {
+                if (distance_meters(lat, lon, std::get<0>(ez), std::get<1>(ez)) <= std::get<2>(ez)) {
+                    violates_exclusion = true;
+                    break;
+                }
+            }
+
+            if (violates_exclusion) {
+                n_discarded_logs_zones++;
+                continue;
+            }
+
+            Json::Value json;
+            std::stringstream ss(sqlite3_column_as<std::string>(*dev, 0));
+
+            try {
+                ss >> json;
+
+                auto timestamp = json["kismet.device.base.first_time"].asUInt64();
+                auto type = json["kismet.device.base.type"].asString();
+                auto name = MungeForCSV(json["kismet.device.base.commonname"].asString());
+
+                if (name == sourcemac)
+                    name = "";
+
+                std::time_t timet(timestamp);
+                std::tm tm;
+                std::stringstream ts;
+                auto crypt = std::string{""};
+                auto mod_type = std::string("");
+
+                gmtime_r(&timet, &tm);
+
+                char tmstr[256];
+                strftime(tmstr, 255, "%Y-%m-%d %H:%M:%S", &tm);
+                ts << tmstr;
+
+                if (type == "BTLE") {
+                    crypt = "Misc [LE]";
+                    mod_type = "BLE";
+                } else {
+                    crypt = "Misc [BT]";
+                    mod_type = "BT";
+                }
+
+                cached = std::make_shared<cache_obj>(ts.str(), name, crypt, mod_type);
+
+                device_cache_map[sourcemac] = cached;
+
+            } catch (const std::exception& e) {
+                std::cerr << 
+                    fmt::format("WARNING:  Could not process device info for {}/{}, skipping", sourcemac, phy) << std::endl;
+            }
+        }
+
+        if (cached == nullptr)
+            continue;
+
+        // Rate throttle
+        if (rate_limit != 0 && cached->last_time_sec != 0) {
+            if (cached->last_time_sec + rate_limit < ts) {
+                n_discarded_logs_rate++;
+                continue;
+            }
+        } 
+
+        cached->last_time_sec = ts;
+
+        fmt::print(ofile, "{},{},{},{},{},{},{:3.10f},{:3.10f},{:f},0,{}\n",
+                sourcemac,
+                cached->name,
+                cached->crypto,
+                cached->first_time,
+                0, // channel always 0
+                0, // currently no bt signal in kismet
+                lat, lon, alt,
+                cached->type);
+
+        n_saved++;
+    }
+
 
     if (ofile != stdout) {
         fclose(ofile);
