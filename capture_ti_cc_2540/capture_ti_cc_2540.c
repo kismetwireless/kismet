@@ -35,9 +35,6 @@ typedef struct {
     /* keep track of the soft resets */
     unsigned int soft_reset;
 
-    /* flag to let use know when we are ready to capture */
-    bool ready;
-
     kis_capture_handler_t *caph;
 } local_ticc2540_t;
 
@@ -55,20 +52,20 @@ int ticc2540_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
     uint8_t data;
     /* two step channel process*/
     data = channel & 0xFF;
-    pthread_mutex_lock(&(localticc2540->usb_mutex));
-    ret = libusb_control_transfer(localticc2540->ticc2540_handle, TICC2540_DIR_OUT, TICC2540_SET_CHAN, 0x00, 0x00, &data, 1, TICC2540_TIMEOUT);
-    pthread_mutex_unlock(&(localticc2540->usb_mutex));
 
-    if (ret < 0)
-        return ret;
+    ret = libusb_control_transfer(localticc2540->ticc2540_handle, TICC2540_DIR_OUT, TICC2540_SET_CHAN, 0x00, 0x00, &data, 1, TICC2540_TIMEOUT);
+
+    if (ret < 0) {
+        return TICC_USB_UNRESPONSIVE;
+    }
 
     data = (channel >> 8) & 0xFF;
-    pthread_mutex_lock(&(localticc2540->usb_mutex));
-    ret = libusb_control_transfer(localticc2540->ticc2540_handle, TICC2540_DIR_OUT, TICC2540_SET_CHAN, 0x00, 0x01, &data, 1, TICC2540_TIMEOUT);
-    pthread_mutex_unlock(&(localticc2540->usb_mutex));
-    if (ret < 0)
-        printf("setting channel (LSB) failed!\n");
 
+    ret = libusb_control_transfer(localticc2540->ticc2540_handle, TICC2540_DIR_OUT, TICC2540_SET_CHAN, 0x00, 0x01, &data, 1, TICC2540_TIMEOUT);
+
+    if (ret < 0) {
+        return TICC_USB_UNRESPONSIVE;
+    }
     return ret;
 }
 
@@ -77,9 +74,7 @@ int ticc2540_set_power(kis_capture_handler_t *caph,uint8_t power, int retries) {
     local_ticc2540_t *localticc2540 = (local_ticc2540_t *) caph->userdata;
     int i;
 
-    pthread_mutex_lock(&(localticc2540->usb_mutex));
     /* set power */
-
     ret = libusb_control_transfer(localticc2540->ticc2540_handle, TICC2540_DIR_OUT, TICC2540_SET_POWER, 0x00, power, NULL, 0, TICC2540_TIMEOUT);
 
     /* get power until it is the same as configured in set_power */
@@ -87,15 +82,13 @@ int ticc2540_set_power(kis_capture_handler_t *caph,uint8_t power, int retries) {
         uint8_t data;
         ret = libusb_control_transfer(localticc2540->ticc2540_handle, 0xC0, TICC2540_GET_POWER, 0x00, 0x00, &data, 1, TICC2540_TIMEOUT);
         if (ret < 0) {
-            pthread_mutex_unlock(&(localticc2540->usb_mutex));
             return ret;
         }
         if (data == power) {
-            pthread_mutex_unlock(&(localticc2540->usb_mutex));
             return 0;
         }
     }
-    pthread_mutex_unlock(&(localticc2540->usb_mutex));
+
     return ret;
 }
 
@@ -103,9 +96,7 @@ int ticc2540_enter_promisc_mode(kis_capture_handler_t *caph) {
     int ret;
     local_ticc2540_t *localticc2540 = (local_ticc2540_t *) caph->userdata;
 
-    pthread_mutex_lock(&(localticc2540->usb_mutex));
     ret = libusb_control_transfer(localticc2540->ticc2540_handle, TICC2540_DIR_OUT, TICC2540_SET_START, 0x00, 0x00, NULL, 0, TICC2540_TIMEOUT);
-    pthread_mutex_unlock(&(localticc2540->usb_mutex));
 
     return ret;
 }
@@ -114,9 +105,7 @@ int ticc2540_exit_promisc_mode(kis_capture_handler_t *caph) {
     int ret;
     local_ticc2540_t *localticc2540 = (local_ticc2540_t *) caph->userdata;
 
-    pthread_mutex_lock(&(localticc2540->usb_mutex));
     ret = libusb_control_transfer(localticc2540->ticc2540_handle, TICC2540_DIR_OUT, TICC2540_SET_END, 0x00, 0x00, NULL, 0, TICC2540_TIMEOUT);
-    pthread_mutex_unlock(&(localticc2540->usb_mutex));
 
     return ret;
 }
@@ -125,7 +114,6 @@ int ticc2540_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_
     local_ticc2540_t *localticc2540 = (local_ticc2540_t *) caph->userdata;
     int actual_len, r;
     
-    pthread_mutex_lock(&(localticc2540->usb_mutex));
 
     r = libusb_bulk_transfer(localticc2540->ticc2540_handle, TICC2540_DATA_EP, 
             rx_buf, rx_max, &actual_len, TICC2540_DATA_TIMEOUT);
@@ -138,12 +126,8 @@ int ticc2540_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_
         localticc2540->soft_reset++;
 
         if (localticc2540->soft_reset >= 2) {
-            localticc2540->ready = false;
-            ticc2540_exit_promisc_mode(caph);
             ticc2540_set_channel(caph, localticc2540->channel);
-            ticc2540_enter_promisc_mode(caph);
             localticc2540->soft_reset = 0;
-            localticc2540->ready = true;
         }
 
         return actual_len;
@@ -444,9 +428,6 @@ int open_usb_device(kis_capture_handler_t *caph, char *errstr) {
     
     ticc2540_enter_promisc_mode(caph);
 
-    localticc2540->ready = true;
-
-
     return 1;
 }
 
@@ -616,25 +597,46 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     local_channel_t *channel = (local_channel_t *) privchan;
     int r;
 
+    char errstr[STATUS_MAX];
+    char open_errstr[STATUS_MAX];
+
     if (privchan == NULL) {
         return 0;
     }
 
-    localticc2540->ready = false;
 
     ticc2540_exit_promisc_mode(caph);
 
     r = ticc2540_set_channel(caph, channel->channel);
 
-    if (r < 0)
-        return -1;
+    if (r == TICC_USB_UNRESPONSIVE) {
+        snprintf(errstr, STATUS_MAX, "TI CC 2540 interface 'ticc2540-%u-%u' channel unable to be set"
+        ", re-opening the datasource as a precaution", 
+                localticc2540->busno, localticc2540->devno);
+
+        cf_send_warning(caph, errstr);
+
+        /* close usb */
+        pthread_mutex_lock(&(localticc2540->usb_mutex));
+        if (localticc2540->ticc2540_handle) {
+            libusb_close(localticc2540->ticc2540_handle);
+            localticc2540->ticc2540_handle = NULL;
+        }
+        pthread_mutex_unlock(&(localticc2540->usb_mutex));
+
+        if (open_usb_device(caph, open_errstr) < 0) {
+            snprintf(errstr, STATUS_MAX, "TI CC 2540 interface 'ticc2540-%u-%u' could not be "
+                    "re-opened: %s", localticc2540->busno, localticc2540->devno, open_errstr);
+            cf_send_error(caph, 0, errstr);
+            cf_handler_spindown(caph);
+        }
+        return 1;
+    }
 
     localticc2540->channel = channel->channel;
 
     ticc2540_enter_promisc_mode(caph);
 
-    localticc2540->ready = true;
-   
     return 1;
 }
 
@@ -659,70 +661,68 @@ void capture_thread(kis_capture_handler_t *caph) {
             break;
         }
 
-        if (localticc2540->ready) {
-            buf_rx_len = ticc2540_receive_payload(caph, usb_buf, 256);
-            if (buf_rx_len < 0) {
-                if (buf_rx_len == TICC_USB_UNRESPONSIVE) {
-                    snprintf(errstr, STATUS_MAX, "TI CC 2540 interface 'ticc2540-%u-%u' has "
-                            "not seen any data in a prolonged period of time; sometimes the "
-                            "device sniffer firmware crashes, re-opening the datasource "
-                            "as a precaution", localticc2540->busno, localticc2540->devno);
+        buf_rx_len = ticc2540_receive_payload(caph, usb_buf, 256);
+        if (buf_rx_len < 0) {
+            if (buf_rx_len == TICC_USB_UNRESPONSIVE) {
+                snprintf(errstr, STATUS_MAX, "TI CC 2540 interface 'ticc2540-%u-%u' has "
+                        "not seen any data in a prolonged period of time; sometimes the "
+                        "device sniffer firmware crashes, re-opening the datasource "
+                        "as a precaution", localticc2540->busno, localticc2540->devno);
 
-                    cf_send_warning(caph, errstr);
+                cf_send_warning(caph, errstr);
 
-                    /* close usb */
-                    if (localticc2540->ticc2540_handle) {
-                        libusb_close(localticc2540->ticc2540_handle);
-                        localticc2540->ticc2540_handle = NULL;
-                    }
+                /* close usb */
+                if (localticc2540->ticc2540_handle) {
+                    libusb_close(localticc2540->ticc2540_handle);
+                    localticc2540->ticc2540_handle = NULL;
+                }
 
-                    if (open_usb_device(caph, open_errstr) < 0) {
-                        snprintf(errstr, STATUS_MAX, "TI CC 2540 interface 'ticc2540-%u-%u' could not be "
-                                "re-opened: %s", localticc2540->busno, localticc2540->devno, open_errstr);
-                        cf_send_error(caph, 0, errstr);
-                        cf_handler_spindown(caph);
-                        break;
-                    }
-
-                    continue;
-
-                } else {
-                    snprintf(errstr, STATUS_MAX, "TI CC 2540 interface 'ticc2540-%u-%u' closed "
-                            "unexpectedly", localticc2540->busno, localticc2540->devno);
+                if (open_usb_device(caph, open_errstr) < 0) {
+                    snprintf(errstr, STATUS_MAX, "TI CC 2540 interface 'ticc2540-%u-%u' could not be "
+                            "re-opened: %s", localticc2540->busno, localticc2540->devno, open_errstr);
                     cf_send_error(caph, 0, errstr);
                     cf_handler_spindown(caph);
                     break;
                 }
 
                 continue;
+
+            } else {
+                snprintf(errstr, STATUS_MAX, "TI CC 2540 interface 'ticc2540-%u-%u' closed "
+                        "unexpectedly", localticc2540->busno, localticc2540->devno);
+                cf_send_error(caph, 0, errstr);
+                cf_handler_spindown(caph);
+                break;
             }
 
-            /* Skip runt packets caused by timeouts */
-            if (buf_rx_len == 1)
+            continue;
+        }
+
+        /* Skip runt packets caused by timeouts */
+        if (buf_rx_len == 1)
+            continue;
+
+        /* the devices look to report a 4 byte counter/heartbeat, skip it */
+        if (buf_rx_len <= 7)
+            continue;
+
+        while (1) {
+            struct timeval tv;
+
+            gettimeofday(&tv, NULL);
+
+            if ((r = cf_send_data(caph,
+                            NULL, NULL, NULL,
+                            tv,
+                            0,
+                            buf_rx_len, usb_buf)) < 0) {
+                cf_send_error(caph, 0, "unable to send DATA frame");
+                cf_handler_spindown(caph);
+            } else if (r == 0) {
+                cf_handler_wait_ringbuffer(caph);
                 continue;
-
-            /* the devices look to report a 4 byte counter/heartbeat, skip it */
-            if (buf_rx_len <= 7)
-                continue;
-
-            while (1) {
-                struct timeval tv;
-
-                gettimeofday(&tv, NULL);
-
-                if ((r = cf_send_data(caph,
-                                NULL, NULL, NULL,
-                                tv,
-                                0,
-                                buf_rx_len, usb_buf)) < 0) {
-                    cf_send_error(caph, 0, "unable to send DATA frame");
-                    cf_handler_spindown(caph);
-                } else if (r == 0) {
-                    cf_handler_wait_ringbuffer(caph);
-                    continue;
-                } else {
-                    break;
-                }
+            } else {
+                break;
             }
         }
     }
