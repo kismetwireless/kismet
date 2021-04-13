@@ -537,7 +537,9 @@ int kis_database_logfile::database_upgrade_db() {
 
         "error INT, " // Packet was flagged as invalid
 
-        "tags TEXT" // Arbitrary packet tags
+        "tags TEXT,"  // Arbitrary packet tags
+
+        "datarate REAL" // datarate, if known
         ")";
 
     r = sqlite3_exec(db, sql.c_str(),
@@ -682,7 +684,7 @@ int kis_database_logfile::database_upgrade_db() {
         return -1;
     }
 
-    database_set_db_version(6);
+    database_set_db_version(KISMETDB_LOG_VERSION);
 
     return 1;
 }
@@ -952,8 +954,8 @@ int kis_database_logfile::log_packet(kis_packet *in_pack) {
             "packet_len, signal, "
             "datasource, "
             "dlt, packet, "
-            "error, tags) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            "error, tags, datarate) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         kis_unique_lock<kis_mutex> dblock(ds_mutex, std::defer_lock, "kismetdb log_packet");
         db_lock_with_sync_check(dblock, return -1);
@@ -1022,6 +1024,11 @@ int kis_database_logfile::log_packet(kis_packet *in_pack) {
 
         auto str = tagstream.str();
         sqlite3_bind_text(packet_stmt, sql_pos++, str.c_str(), tagstream.str().length(), SQLITE_TRANSIENT);
+
+        if (radioinfo != nullptr)
+            sqlite3_bind_double(packet_stmt, sql_pos++, radioinfo->datarate / 10);
+        else
+            sqlite3_bind_double(packet_stmt, sql_pos++, 0);
 
         if (sqlite3_step(packet_stmt) != SQLITE_DONE) {
             _MSG("kis_database_logfile unable to insert packet in " +
