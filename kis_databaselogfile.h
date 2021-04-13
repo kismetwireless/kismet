@@ -54,6 +54,10 @@
 #include "packet_filter.h"
 #include "messagebus.h"
 
+// Kismetdb version
+
+#define KISMETDB_LOG_VERSION        7
+
 // This is a bit of a unique case - because so many things plug into this, it has
 // to exist as a global record; we build it like we do any other global record;
 // then the builder hooks it, sets the internal builder record, and passed it to
