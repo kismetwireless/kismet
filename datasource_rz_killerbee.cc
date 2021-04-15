@@ -29,7 +29,7 @@ void kis_datasource_rzkillerbee::handle_rx_packet(kis_packet *packet) {
 
         int rssi = rz_chunk->data[6];
         uint8_t channel = rz_chunk->data[5];
-	// We can make a valid payload from this much
+	    // We can make a valid payload from this much
         auto conv_buf_len = sizeof(_802_15_4_tap) + rz_payload_len;
         _802_15_4_tap *conv_header = reinterpret_cast<_802_15_4_tap *>(new uint8_t[conv_buf_len]);
         memset(conv_header, 0, conv_buf_len);
@@ -40,10 +40,11 @@ void kis_datasource_rzkillerbee::handle_rx_packet(kis_packet *packet) {
         conv_header->version = kis_htole16(0);// currently only one version
         conv_header->reserved = kis_htole16(0);// must be set to 0
 
-         // fcs setting
+        // Killerbee does include the FCS
+        // fcs setting
         conv_header->tlv[0].type = kis_htole16(0);
         conv_header->tlv[0].length = kis_htole16(1);
-        conv_header->tlv[0].value = kis_htole32(0);
+        conv_header->tlv[0].value = kis_htole32(1);
 
         // rssi
         conv_header->tlv[1].type = kis_htole16(10);
