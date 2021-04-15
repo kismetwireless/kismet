@@ -51,7 +51,8 @@ void kis_datasource_ticc2531::handle_rx_packet(kis_packet *packet) {
     //uint8_t corr = fcs2 & 0x7f;
     uint8_t channel = cc_chunk->data[2];
 
-    if (crc_ok > 0) {
+    // check the CRC and check to see if the length, somehow matches the first byte of what should be the fcf
+    if (crc_ok > 0 && (cc_chunk->data[7] != cc_chunk->data[8])) {
 
         int rssi = (fcs1 + (int) pow(2, 7)) % (int) pow(2, 8) - (int) pow(2, 7) - 73;
 
