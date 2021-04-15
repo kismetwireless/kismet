@@ -43,6 +43,8 @@
 Systemmonitor::Systemmonitor() :
     lifetime_global() {
 
+    monitor_mutex.set_name("systemmonitor");
+
     devicetracker = Globalreg::fetch_mandatory_global_as<device_tracker>();
     eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
     timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
@@ -114,7 +116,7 @@ Systemmonitor::Systemmonitor() :
                 auto use = std::make_shared<tracker_element_map>();
                 use->insert(status->get_tracker_username());
                 return use;
-                });
+                }, monitor_mutex);
     httpd->register_unauth_route("/system/user_status", {"GET", "POST"}, {}, user_monitor_endp);
 
     timestamp_endp = 
@@ -147,15 +149,14 @@ Systemmonitor::Systemmonitor() :
                         if (kismetdb == nullptr)
                             return 1;
 
+                        kis_lock_guard<kis_mutex> lk(monitor_mutex);
+
                         struct timeval tv;
                         gettimeofday(&tv, nullptr);
 
                         std::stringstream js;
 
-                        {
-                            kis_lock_guard<kis_mutex> lk(monitor_mutex);
-                            Globalreg::globalreg->entrytracker->serialize("json", js, status, NULL);
-                        }
+                        Globalreg::globalreg->entrytracker->serialize("json", js, status, NULL);
 
                         kismetdb->log_snapshot(nullptr, tv, "SYSTEM", js.str());
 
@@ -174,15 +175,14 @@ Systemmonitor::Systemmonitor() :
                 if (kismetdb == nullptr)
                     return;
 
+                kis_lock_guard<kis_mutex> lk(monitor_mutex);
+
                 struct timeval tv;
                 gettimeofday(&tv, nullptr);
 
                 std::stringstream js;
 
-                {
-                    kis_lock_guard<kis_mutex> lk(monitor_mutex);
-                    Globalreg::globalreg->entrytracker->serialize("json", js, status, NULL);
-                }
+                Globalreg::globalreg->entrytracker->serialize("json", js, status, NULL);
 
                 kismetdb->log_snapshot(nullptr, tv, "SYSTEM", js.str());
             });
