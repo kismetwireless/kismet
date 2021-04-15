@@ -359,7 +359,7 @@ public:
     // Returns a summarized vector (if passed a vector) or summarized device (if passed
     // a summarized device)
     template<typename T>
-    std::shared_ptr<tracker_element> summarize_with_json(const std::shared_ptr<T>& in_data,
+    std::shared_ptr<tracker_element> summarize_with_json(std::shared_ptr<T> in_data,
             std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
         auto summary_vec = std::vector<SharedElementSummary>{};
