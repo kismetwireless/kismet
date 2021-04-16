@@ -242,8 +242,14 @@ void datasource_tracker_source_list::complete_list(std::shared_ptr<kis_datasourc
     if (cancelled)
         return;
 
+    /*
     for (auto i = in_list.begin(); i != in_list.end(); ++i) {
         listed_sources.push_back(*i);
+    }
+    */
+    
+    for (const auto& i : in_list) {
+        listed_sources.push_back(i);
     }
 
     auto v = ipc_list_map.find(in_transaction);
@@ -1538,7 +1544,7 @@ void datasource_tracker::list_interfaces(const std::function<void (std::vector<s
     lock.unlock();
 
     // Initiate the probe
-    dst_list->list_sources(dst_list, [this, listid, in_cb](std::vector<shared_interface> interfaces) {
+    dst_list->list_sources(dst_list, [this, listid, in_cb, dst_list](std::vector<shared_interface> interfaces) {
         kis_unique_lock<kis_mutex> lock(dst_lock, std::defer_lock, "dst list_sources cancel lambda");
         lock.lock();
 
@@ -1560,7 +1566,9 @@ void datasource_tracker::list_interfaces(const std::function<void (std::vector<s
         }
 
         lock.unlock();
+
         in_cb(interfaces);
+
         lock.lock();
 
         auto i = listing_map.find(listid);
