@@ -515,6 +515,8 @@ void kis_datasource::resume_source() {
 }
 
 void kis_datasource::handle_error(const std::string& in_error) {
+    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource handle_error");
+
     if (!quiet_errors && in_error.length()) {
         _MSG_ERROR("Data source '{} / {}' ('{}') encountered an error: {}",
                 get_source_name(), get_source_definition(), get_source_interface(), in_error);
@@ -719,8 +721,6 @@ void kis_datasource::cancel_command(uint32_t in_transaction, std::string in_erro
             cmd->configure_cb = NULL;
             cb(cmd->transaction, false, in_error);
         }
-
-        cmd.reset();
     }
 }
 
