@@ -382,15 +382,6 @@ public:
 };
 
 
-class kis_net_beat_httpd_websocket {
-public:
-
-protected:
-
-};
-
-
-
 class kis_net_web_endpoint {
 public:
     kis_net_web_endpoint() { }
@@ -450,7 +441,7 @@ public:
             wrapper_func_t post_func = nullptr) : 
         content{content},
         mutex{mutex}, 
-        use_mutex{false},
+        use_mutex{true},
         pre_func{pre_func},
         post_func{post_func} { }
 
