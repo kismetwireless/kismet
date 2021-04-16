@@ -285,11 +285,9 @@ void tracked_system_status::register_fields() {
 }
 
 int Systemmonitor::timetracker_event(int eventid) {
-    kis_lock_guard<kis_mutex> lk(monitor_mutex);
+    kis_lock_guard<kis_mutex> lg(monitor_mutex, "system monitor timer");
 
     int num_devices = devicetracker->fetch_num_devices();
-
-    kis_lock_guard<kis_mutex> lg(monitor_mutex, "system monitor timer");
 
     // Grab the devices
     status->set_devices(num_devices);
