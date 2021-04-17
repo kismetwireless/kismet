@@ -60,7 +60,6 @@ struct _802_15_4_fcf{
     unsigned char frame_ver : 2;
     unsigned char src_addr_mode : 2;
 };
-_802_15_4_fcf *hdr_802_15_4_fcf;
 
 uint8_t dest[2] = {0x00, 0x00};
 uint8_t dest_pan[2] = {0x00, 0x00};
@@ -111,6 +110,9 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
     auto packdata = in_pack->fetch<kis_datachunk>(mphy->pack_comp_linkframe);
     _802_15_4_tap *tap_header = nullptr;
 
+    unsigned short fcf = 0;
+    _802_15_4_fcf *hdr_802_15_4_fcf = reinterpret_cast<_802_15_4_fcf *>(&fcf);
+
     if (packdata == NULL)
         return 0;
 
@@ -152,16 +154,15 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 
     if (packdata->dlt == KDLT_IEEE802_15_4_NOFCS ||
         packdata->dlt == KDLT_IEEE802_15_4_TAP) {
+
         // Do we have enough for the frame control field?
         if (pkt_ctr + 2 >= packdata->length)
             return 0;
 
-        unsigned short fcf = (((short) packdata->data[pkt_ctr + 1]) << 8) |
+        fcf = (((short) packdata->data[pkt_ctr + 1]) << 8) |
             (0x00ff & packdata->data[pkt_ctr]);
 
         pkt_ctr += 2;
-
-        hdr_802_15_4_fcf = (_802_15_4_fcf *) &fcf;
 
         // only parsing specific types of packets
         if (hdr_802_15_4_fcf->type > 0x03) {
