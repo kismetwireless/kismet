@@ -815,7 +815,11 @@ shared_tracker_element get_tracker_element_path(const std::vector<int>& in_path,
 
         if (next_elem == nullptr) {
 #if TE_TYPE_SAFETY == 1
-            elem->enforce_type(tracker_type::tracker_map);
+            try {
+                elem->enforce_type(tracker_type::tracker_map);
+            } catch (std::runtime_error& e) {
+                return nullptr;
+            }
 #endif
             next_elem = std::static_pointer_cast<tracker_element_map>(elem)->get_sub(pe);
         } else {
@@ -824,8 +828,13 @@ shared_tracker_element get_tracker_element_path(const std::vector<int>& in_path,
                 next_elem = std::static_pointer_cast<tracker_element_alias>(next_elem)->get();
 
 #if TE_TYPE_SAFETY == 1
-            next_elem->enforce_type(tracker_type::tracker_map);
+            try {
+                elem->enforce_type(tracker_type::tracker_map);
+            } catch (std::runtime_error& e) {
+                return nullptr;
+            }
 #endif
+
             next_elem = std::static_pointer_cast<tracker_element_map>(next_elem)->get_sub(pe);
         }
 
@@ -955,6 +964,30 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
 
                 complex_fulfilled = true;
                 break;
+            } else if (type == tracker_type::tracker_hashkey_map) {
+                std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
+
+                auto cn = std::static_pointer_cast<tracker_element_hashkey_map>(next_elem);
+
+                for (const auto& i : *cn) {
+                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
+                    ret.insert(ret.end(), subret.begin(), subret.end());
+                }
+
+                complex_fulfilled = true;
+                break;
+            } else if (type == tracker_type::tracker_uuid_map) {
+                std::vector<std::string> sub_path(std::next(x, 1), in_path.end());
+
+                auto cn = std::static_pointer_cast<tracker_element_uuid_map>(next_elem);
+
+                for (const auto& i : *cn) {
+                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
+                    ret.insert(ret.end(), subret.begin(), subret.end());
+                }
+
+                complex_fulfilled = true;
+                break;
             }
         }
     }
@@ -1065,6 +1098,30 @@ std::vector<shared_tracker_element> get_tracker_element_multi_path(const std::ve
                 std::vector<int> sub_path(std::next(x, 1), in_path.end());
 
                 auto cn = std::static_pointer_cast<tracker_element_double_map>(next_elem);
+
+                for (const auto& i : *cn) {
+                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
+                    ret.insert(ret.end(), subret.begin(), subret.end());
+                }
+
+                complex_fulfilled = true;
+                break;
+            } else if (type == tracker_type::tracker_hashkey_map) {
+                std::vector<int> sub_path(std::next(x, 1), in_path.end());
+
+                auto cn = std::static_pointer_cast<tracker_element_hashkey_map>(next_elem);
+
+                for (const auto& i : *cn) {
+                    std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
+                    ret.insert(ret.end(), subret.begin(), subret.end());
+                }
+
+                complex_fulfilled = true;
+                break;
+            } else if (type == tracker_type::tracker_uuid_map) {
+                std::vector<int> sub_path(std::next(x, 1), in_path.end());
+
+                auto cn = std::static_pointer_cast<tracker_element_uuid_map>(next_elem);
 
                 for (const auto& i : *cn) {
                     std::vector<shared_tracker_element> subret = get_tracker_element_multi_path(sub_path, i.second);
