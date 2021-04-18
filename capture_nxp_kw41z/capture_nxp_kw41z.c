@@ -123,9 +123,9 @@ int nxp_write_cmd(kis_capture_handler_t *caph, uint8_t *tx_buf, size_t tx_len, u
     } else if (rx_max > 0) {
         res = read(localnxp->fd, rx_buf, rx_max);
 	    if (res < 0) {
-            usleep(25);
             res = 0;
         }
+        usleep(1);
     }
 
     pthread_mutex_unlock(&(localnxp->serial_mutex));
