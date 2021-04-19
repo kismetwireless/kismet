@@ -102,9 +102,13 @@ static char *eir_get_name(const uint8_t *eir, uint16_t eir_len);
 static unsigned int eir_get_flags(const uint8_t *eir, uint16_t eir_len);
 void bdaddr_to_string(const uint8_t *bdaddr, char *str);
 
-int cf_send_btdevice(local_bluetooth_t *localbt, struct mgmt_ev_device_found *dev) {
+int cf_send_btdevice(local_bluetooth_t *localbt,
+        struct mgmt_ev_device_found *dev,
+        KismetDatasource__SubGps *kv_gps) {
+
     KismetLinuxBluetooth__LinuxBluetoothDataReport kereport;
     KismetLinuxBluetooth__SubLinuxBluetoothDevice kebtdev;
+    KismetDatasource__SubGps kegps;
 
     struct timeval tv;
     char address[BDADDR_STR_LEN];
@@ -116,6 +120,8 @@ int cf_send_btdevice(local_bluetooth_t *localbt, struct mgmt_ev_device_found *de
 
     kismet_linux_bluetooth__linux_bluetooth_data_report__init(&kereport);
     kismet_linux_bluetooth__sub_linux_bluetooth_device__init(&kebtdev);
+    kismet_datasource__sub_gps__init(&kegps);
+
 
     gettimeofday(&tv, NULL);
 
@@ -136,8 +142,29 @@ int cf_send_btdevice(local_bluetooth_t *localbt, struct mgmt_ev_device_found *de
 
     kereport.btdevice = &kebtdev;
 
-    /* TODO get a GPS function from capframework and fill it in here */
+    /* TODO Make sure Corey didn't mess the GPS stuff up. */
 
+    if (kv_gps != NULL) {
+        kereport.gps = kv_gps;
+    } else if (localbt->caph->gps_fixed_lat != 0) {
+
+        kegps.lat = localbt->caph->gps_fixed_lat;
+        kegps.lon = localbt->caph->gps_fixed_lon;
+        kegps.alt = localbt->caph->gps_fixed_alt;
+        kegps.fix = 3;
+
+        kegps.time_sec = tv.tv_sec;
+        kegps.time_usec = tv.tv_usec;
+
+        kegps.type = strdup("remote-fixed");
+
+        if (localbt->caph->gps_name != NULL)
+            kegps.name = strdup(localbt->caph->gps_name);
+        else
+            kegps.name = strdup("remote-fixed");
+
+        kereport.gps = &kegps;
+    }
 
     len = kismet_linux_bluetooth__linux_bluetooth_data_report__get_packed_size(&kereport);
     buf = (uint8_t *) malloc(len);
@@ -147,6 +174,11 @@ int cf_send_btdevice(local_bluetooth_t *localbt, struct mgmt_ev_device_found *de
     }
 
     kismet_linux_bluetooth__linux_bluetooth_data_report__pack(&kereport, buf);
+
+    if (kegps.name != NULL)
+        free(kegps.name);
+    if (kegps.type != NULL)
+        free(kegps.type);
 
     return cf_send_packet(localbt->caph, "LBTDATAREPORT", buf, len);
 }
@@ -162,7 +194,7 @@ int mgmt_connect() {
     int fd;
     struct sockaddr_hci addr;
 
-    if ((fd = socket(PF_BLUETOOTH, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, 
+    if ((fd = socket(PF_BLUETOOTH, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK,
                     BTPROTO_HCI)) < 0) {
         return -errno;
     }
@@ -177,13 +209,13 @@ int mgmt_connect() {
         close(fd);
         return err;
     }
-    
+
     return fd;
 }
 
 /* Write a request to the management socket ringbuffer, serviced by the
  * select() loop */
-int mgmt_write_request(int mgmt_fd, uint16_t opcode, uint16_t index, 
+int mgmt_write_request(int mgmt_fd, uint16_t opcode, uint16_t index,
         uint16_t length, const void *param) {
     bluez_mgmt_command_t *cmd;
     size_t pksz = sizeof(bluez_mgmt_command_t) + length;
@@ -226,7 +258,7 @@ int cmd_start_discovery(local_bluetooth_t *localbt) {
     memset(&cp, 0, sizeof(cp));
     cp.type = localbt->scan_type;
 
-    return mgmt_write_request(localbt->mgmt_fd, MGMT_OP_START_DISCOVERY, 
+    return mgmt_write_request(localbt->mgmt_fd, MGMT_OP_START_DISCOVERY,
             localbt->devid, sizeof(cp), &cp);
 }
 
@@ -234,7 +266,7 @@ int cmd_start_discovery(local_bluetooth_t *localbt) {
 int cmd_enable_bredr(local_bluetooth_t *localbt) {
     uint8_t val = 0x01;
 
-    return mgmt_write_request(localbt->mgmt_fd, MGMT_OP_SET_BREDR, localbt->devid, 
+    return mgmt_write_request(localbt->mgmt_fd, MGMT_OP_SET_BREDR, localbt->devid,
             sizeof(val), &val);
 }
 
@@ -242,7 +274,7 @@ int cmd_enable_bredr(local_bluetooth_t *localbt) {
 int cmd_enable_btle(local_bluetooth_t *localbt) {
     uint8_t val = 0x01;
 
-    return mgmt_write_request(localbt->mgmt_fd, MGMT_OP_SET_LE, localbt->devid, 
+    return mgmt_write_request(localbt->mgmt_fd, MGMT_OP_SET_LE, localbt->devid,
             sizeof(val), &val);
 }
 
@@ -254,12 +286,12 @@ int cmd_get_controller_info(local_bluetooth_t *localbt) {
 int cmd_enable_controller(local_bluetooth_t *localbt) {
     uint8_t val = 0x1;
 
-    return mgmt_write_request(localbt->mgmt_fd, MGMT_OP_SET_POWERED, localbt->devid, 
+    return mgmt_write_request(localbt->mgmt_fd, MGMT_OP_SET_POWERED, localbt->devid,
             sizeof(val), &val);
 }
 
 /* Handle controller info response */
-void resp_controller_info(local_bluetooth_t *localbt, uint8_t status, uint16_t len, 
+void resp_controller_info(local_bluetooth_t *localbt, uint8_t status, uint16_t len,
         const void *param) {
     const struct mgmt_rp_read_info *rp = (struct mgmt_rp_read_info *) param;
     char bdaddr[BDADDR_STR_LEN];
@@ -286,13 +318,13 @@ void resp_controller_info(local_bluetooth_t *localbt, uint8_t status, uint16_t l
 
     /* Is BREDR enabled? If not, turn it on */
     if ((supported & MGMT_SETTING_BREDR) && !(current & MGMT_SETTING_BREDR)) {
-        cmd_enable_bredr(localbt);    
+        cmd_enable_bredr(localbt);
         return;
     }
 
     /* Is BLE enabled? If not, turn it on */
     if ((supported & MGMT_SETTING_LE) && !(current & MGMT_SETTING_LE)) {
-        cmd_enable_btle(localbt);    
+        cmd_enable_btle(localbt);
         return;
     }
 
@@ -402,7 +434,7 @@ void evt_device_found(local_bluetooth_t *localbt, uint16_t len, const void *para
         return;
     }
 
-    cf_send_btdevice(localbt, dev);
+    cf_send_btdevice(localbt, dev, NULL);
 }
 
 void handle_mgmt_response(local_bluetooth_t *localbt) {
@@ -425,11 +457,11 @@ void handle_mgmt_response(local_bluetooth_t *localbt) {
     /* caph */
     char errstr[STATUS_MAX];
 
-    while ((bufsz = kis_simple_ringbuf_used(localbt->read_rbuf)) >= 
+    while ((bufsz = kis_simple_ringbuf_used(localbt->read_rbuf)) >=
             sizeof(bluez_mgmt_command_t)) {
         evt = (bluez_mgmt_command_t *) malloc(bufsz);
 
-        if ((peekedsz = kis_simple_ringbuf_peek(localbt->read_rbuf, (void *) evt, bufsz)) < 
+        if ((peekedsz = kis_simple_ringbuf_peek(localbt->read_rbuf, (void *) evt, bufsz)) <
                 sizeof(bluez_mgmt_command_t)) {
             free(evt);
             return;
@@ -445,7 +477,7 @@ void handle_mgmt_response(local_bluetooth_t *localbt) {
         }
 
         /* Consume this object from the buffer */
-        kis_simple_ringbuf_read(localbt->read_rbuf, NULL, 
+        kis_simple_ringbuf_read(localbt->read_rbuf, NULL,
                 sizeof(bluez_mgmt_command_t) + rlength);
 
         /* Ignore events not for us */
@@ -466,7 +498,7 @@ void handle_mgmt_response(local_bluetooth_t *localbt) {
             /* Handle the different opcodes */
             switch (ropcode) {
                 case MGMT_OP_READ_INFO:
-                    resp_controller_info(localbt, crec->status, 
+                    resp_controller_info(localbt, crec->status,
                             rlength - sizeof(struct mgmt_ev_cmd_complete),
                             crec->data);
                     break;
@@ -479,14 +511,14 @@ void handle_mgmt_response(local_bluetooth_t *localbt) {
                     if (crec->status == 0x0A) {
                         break;
                     } else if (crec->status != 0) {
-                        snprintf(errstr, STATUS_MAX, 
+                        snprintf(errstr, STATUS_MAX,
                                 "Bluetooth interface hci%u discovery failed", rindex);
                         cf_send_error(localbt->caph, 0, errstr);
                     }
                     break;
                 case MGMT_OP_SET_BREDR:
                     if (crec->status != 0) {
-                        snprintf(errstr, STATUS_MAX, 
+                        snprintf(errstr, STATUS_MAX,
                                 "Bluetooth interface hci%u enabling BREDR failed", rindex);
                         cf_send_error(localbt->caph, 0, errstr);
                     }
@@ -495,7 +527,7 @@ void handle_mgmt_response(local_bluetooth_t *localbt) {
                     break;
                 case MGMT_OP_SET_LE:
                     if (crec->status != 0) {
-                        snprintf(errstr, STATUS_MAX, 
+                        snprintf(errstr, STATUS_MAX,
                                 "Bluetooth interface hci%u enabling LE failed", rindex);
                         cf_send_error(localbt->caph, 0, errstr);
                     }
@@ -510,7 +542,7 @@ void handle_mgmt_response(local_bluetooth_t *localbt) {
         } else {
             switch (ropcode) {
                 case MGMT_EV_DISCOVERING:
-                    evt_controller_discovering(localbt, 
+                    evt_controller_discovering(localbt,
                             rlength - sizeof(bluez_mgmt_command_t),
                             evt->param);
                     break;
@@ -520,9 +552,9 @@ void handle_mgmt_response(local_bluetooth_t *localbt) {
                             evt->param);
                     break;
                 case MGMT_EV_INDEX_REMOVED:
-                    /* we only get here if rindex matches, so we know our own 
+                    /* we only get here if rindex matches, so we know our own
                      * device got removed */
-                    snprintf(errstr, STATUS_MAX, 
+                    snprintf(errstr, STATUS_MAX,
                             "Bluetooth interface hci%u was removed", rindex);
                     cf_send_error(localbt->caph, 0, errstr);
                     break;
@@ -542,7 +574,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
         char *msg, char **uuid, KismetExternal__Command *frame,
         cf_params_interface_t **ret_interface,
         cf_params_spectrum_t **ret_spectrum) {
-    
+
     char *placeholder = NULL;
     int placeholder_len;
     char *interface;
@@ -560,7 +592,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     int x;
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
-        snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
+        snprintf(msg, STATUS_MAX, "Unable to find interface in definition");
         return 0;
     }
 
@@ -589,13 +621,13 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     for (x = 0; x < 6; x++)
         hwaddr[5 - x] = di.bdaddr.b[x];
 
-    /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
+    /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name
      * and the mac address of the device */
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
         *uuid = strdup(placeholder);
     } else {
         snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%02X%02X%02X%02X%02X%02X",
-                adler32_csum((unsigned char *) "kismet_cap_linux_bluetooth", 
+                adler32_csum((unsigned char *) "kismet_cap_linux_bluetooth",
                     strlen("kismet_cap_linux_bluetooth")) & 0xFFFFFFFF,
                 hwaddr[0] & 0xFF, hwaddr[1] & 0xFF, hwaddr[2] & 0xFF,
                 hwaddr[3] & 0xFF, hwaddr[4] & 0xFF, hwaddr[5] & 0xFF);
@@ -615,7 +647,7 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
         char *device;
         char *flags;
         struct bt_list *next;
-    } bt_list_t; 
+    } bt_list_t;
 
     bt_list_t *devs = NULL;
     size_t num_devs = 0;
@@ -650,7 +682,7 @@ int list_callback(kis_capture_handler_t *caph, uint32_t seqno,
         return 0;
     }
 
-    *interfaces = 
+    *interfaces =
         (cf_params_list_interface_t **) malloc(sizeof(cf_params_list_interface_t *) * num_devs);
 
     i = 0;
@@ -698,7 +730,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     local_bluetooth_t *localbt = (local_bluetooth_t *) caph->userdata;
 
     if ((placeholder_len = cf_parse_interface(&placeholder, definition)) <= 0) {
-        snprintf(msg, STATUS_MAX, "Unable to find interface in definition"); 
+        snprintf(msg, STATUS_MAX, "Unable to find interface in definition");
         return 0;
     }
 
@@ -721,7 +753,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     localbt->devid = devid;
 
     if (ioctl(hci_sock, HCIGETDEVINFO, (void *) &di)) {
-        snprintf(msg, STATUS_MAX, "Unable to get device info: %s", 
+        snprintf(msg, STATUS_MAX, "Unable to get device info: %s",
                 strerror(errno));
         free(interface);
         return 0;
@@ -737,13 +769,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     for (x = 0; x < 6; x++)
         hwaddr[5 - x] = di.bdaddr.b[x];
 
-    /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name 
+    /* Make a spoofed, but consistent, UUID based on the adler32 of the interface name
      * and the mac address of the device */
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
         *uuid = strdup(placeholder);
     } else {
         snprintf(errstr, STATUS_MAX, "%08X-0000-0000-0000-%02X%02X%02X%02X%02X%02X",
-                adler32_csum((unsigned char *) "kismet_cap_linux_bluetooth", 
+                adler32_csum((unsigned char *) "kismet_cap_linux_bluetooth",
                     strlen("kismet_cap_linux_bluetooth")) & 0xFFFFFFFF,
                 hwaddr[0] & 0xFF, hwaddr[1] & 0xFF, hwaddr[2] & 0xFF,
                 hwaddr[3] & 0xFF, hwaddr[4] & 0xFF, hwaddr[5] & 0xFF);
@@ -930,4 +962,3 @@ int main(int argc, char *argv[]) {
 
     return 0;
 }
-
