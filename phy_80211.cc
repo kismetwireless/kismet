@@ -1131,7 +1131,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         }
 
         kis_unique_lock<kis_mutex> list_locker(d11phy->devicetracker->get_devicelist_mutex(),
-                std::defer_lock);
+                "phy80211 common_classifier");
 
         // Do we have a worker we have to call later?  We must defer workers until we release the locks
         // on devices
@@ -1334,7 +1334,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         if (bssid_dev != NULL) {
             // Perform multi-device correlation under devicelist lock
             
-            list_locker.lock();
             // Now we've instantiated and mapped all the possible devices and dot11 devices; now
             // populate the per-client records for any which have mgmt communication
             
@@ -1394,7 +1393,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                         dot11info->channel, al);
             }
 
-            list_locker.unlock();
         }
 
         // BSSTS relationship worker
