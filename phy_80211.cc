@@ -1555,8 +1555,11 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                         "Wi-Fi Device");
         }
 
+        // Lock the whole device list; previously we only guarded during some of the device configuration
+        // but this can lead to memory corruption at serialization time if we change attributes about
+        // the devices below
         kis_unique_lock<kis_mutex> list_locker(d11phy->devicetracker->get_devicelist_mutex(), 
-                std::defer_lock, "phy80211 common_classifier");
+                "phy80211 common_classifier");
 
         if (bssid_dev != NULL) {
             kis_lock_guard<kis_mutex> bssid_lk(bssid_dev->device_mutex, "phy80211 common_classifier");
@@ -1870,8 +1873,6 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         }
 
         if (bssid_dev != NULL) {
-            list_locker.lock();
-
             // Map clients
             if (source_dev != NULL) {
                 d11phy->process_client(bssid_dev, bssid_dot11, source_dev, source_dot11, 
@@ -1886,22 +1887,16 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
                 d11phy->process_wpa_handshake(bssid_dev, bssid_dot11, dest_dev, dest_dot11,
                         in_pack, dot11info);
             }
-
-            list_locker.unlock();
         }
 
         // If we're WDS, link source and dest devices as clients of the transmitting WDS AP
         if (transmit_dev != NULL) {
-            list_locker.lock();
-
             if (source_dev != NULL) 
                 d11phy->process_client(transmit_dev, transmit_dot11, source_dev, source_dot11,
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
             if (dest_dev != NULL)
                 d11phy->process_client(transmit_dev, transmit_dot11, source_dev, source_dot11,
                         in_pack, dot11info, pack_gpsinfo, pack_datainfo);
-
-            list_locker.unlock();
         }
     }
 
