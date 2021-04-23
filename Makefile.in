@@ -184,7 +184,7 @@ LOGTOOL_KISMETDB_CLEAN_O = \
 LOGTOOL_KISMETDB_PCAP = log_tools/kismetdb_to_pcap
 LOGTOOL_KISMETDB_PCAP_O = \
 	log_tools/kismetdb_to_pcap.cc.o \
-	sqlite3_cpp11.cc.o 
+	sqlite3_cpp11.cc.o jsoncpp.cc.o
 
 LOGTOOL_BINS = \
 	$(LOGTOOL_KISMETDB_STRIP) \
