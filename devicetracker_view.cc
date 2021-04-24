@@ -261,7 +261,6 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(devi
     }
 
     return do_device_work(worker, immutable_copy);
-    return do_device_work(worker, device_list);
 }
 
 std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_work(device_tracker_view_worker& worker) {
