@@ -253,7 +253,7 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
 }
 
 std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(device_tracker_view_worker& worker) {
-    // Make a copy of the vector
+    // Make a copy of the vector in case the worker manipulates the original
     std::shared_ptr<tracker_element_vector> immutable_copy;
     {
         kis_lock_guard<kis_mutex> lk(mutex);
@@ -261,10 +261,11 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(devi
     }
 
     return do_device_work(worker, immutable_copy);
+    return do_device_work(worker, device_list);
 }
 
 std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_work(device_tracker_view_worker& worker) {
-    // Make a copy of the vector
+    // Make a copy of the vector in case the worker manipulates the original
     std::shared_ptr<tracker_element_vector> immutable_copy;
     {
         kis_lock_guard<kis_mutex> lk(mutex);
@@ -313,6 +314,13 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(devi
 
 std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_work(device_tracker_view_worker& worker,
         std::shared_ptr<tracker_element_vector> devices) {
+
+    // read-only workers are currently disabled because it may not be reasonable to solve conflicts
+    // at the per-device level, use the locked worker.
+
+    return do_device_work(worker, devices);
+
+#if 0
     auto ret = std::make_shared<tracker_element_vector>();
     ret->reserve(devices->size());
 
@@ -339,6 +347,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_
     worker.finalize();
 
     return ret;
+#endif
 }
 
 std::shared_ptr<kis_tracked_device_base> device_tracker_view::fetch_device(device_key in_key) {

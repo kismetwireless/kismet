@@ -509,11 +509,7 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS |
                  UCD_UPDATE_SEENBY), "ADSB");
 
-    kis_unique_lock<kis_mutex> lk_list(devicetracker->get_devicelist_mutex(), 
-            std::defer_lock, "rtladsb json_to_rtl");
-    kis_unique_lock<kis_mutex> lk_device(basedev->device_mutex, std::defer_lock, "rtladsb json_to_rtl");
-    std::lock(lk_list, lk_device);
-
+    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "rtladsb_json_to_rtl");
 
     std::string dn = "Airplane";
 
@@ -575,9 +571,14 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
                     cs, icao->get_model_type(), icao->get_owner()));
     }
 
+    /*
     // Have to update location outside of locks because it needs to promote to exclusive locking
+    //
+    // No longer true, we do all work under exclusive lock.
+    //
     lk_list.unlock();
     lk_device.unlock();
+    */
 
     if (adsbdev->update_location) {
         adsbdev->update_location = false;

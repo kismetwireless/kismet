@@ -179,8 +179,6 @@ int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
         if (basedev->get_macaddr() != dot11info->bssid_mac)
             continue;
 
-        kis_lock_guard<kis_mutex> lk(basedev->device_mutex, "uav_phy common_classifier dev index");
-
         if (dot11info->droneid != NULL) {
             try {
                 if (dot11info->droneid->subcommand() == 0x00) {
