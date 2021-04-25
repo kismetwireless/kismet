@@ -143,7 +143,7 @@ int nxp_reset(kis_capture_handler_t *caph) {
     nxp_write_cmd(caph, cmd_1, 6, NULL, 0, NULL, 0);
     usleep(100);
     /* lets do some reads, to maybe clear the buffer */
-    for (int i = 0; i < 100; i++) 
+    for (int i = 0; i < 10; i++) 
         nxp_receive_payload(caph, buf, 256);
 
     return 1;
@@ -307,14 +307,10 @@ int nxp_set_channel(kis_capture_handler_t *caph, uint8_t channel) {
 
     res = nxp_exit_promisc_mode(caph);
 
-    //printf("nxp_exit_promisc_mode res:%d \n",res);
-
     if (res < 0) 
         return res;
 
     res = nxp_enter_promisc_mode(caph, channel);
-
-    //printf("nxp_enter_promisc_mode:%d res:%d \n",channel,res);
 
     return res;
 }
@@ -545,6 +541,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     /* newtio.c_lflag = ICANON; */
 
+    localnxp->newtio.c_lflag &= ~ICANON; /* Set non-canonical mode */
+    localnxp->newtio.c_cc[VTIME] = 1; /* Set timeout in deciseconds */
+
     /* flush and set up */
     tcflush(localnxp->fd, TCIFLUSH);
     tcsetattr(localnxp->fd, TCSANOW, &localnxp->newtio);
@@ -604,19 +603,21 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
     local_channel_t *channel = (local_channel_t *) privchan;
     int r;
 
-    //printf("chancontrol_callback\n");
-
     if (privchan == NULL) {
         return 0;
     }
     /* crossing the phy layer */
     if ( (localnxp->prevchannel >= 37 && localnxp->prevchannel <= 39) &&
        (channel->channel >= 11 && channel->channel <= 26) ) {
+        localnxp->ready = false;
         nxp_reset(caph);
+        pthread_mutex_lock(&(localnxp->serial_mutex));
         // clear the buffer
         tcflush(localnxp->fd, TCIOFLUSH);
         usleep(350);
         tcflush(localnxp->fd, TCIOFLUSH);
+        pthread_mutex_unlock(&(localnxp->serial_mutex));
+        localnxp->ready = true;
     }
 
     if (localnxp->ready == true) {
@@ -626,20 +627,24 @@ int chancontrol_callback(kis_capture_handler_t *caph, uint32_t seqno, void *priv
             localnxp->ready = false;
             nxp_reset(caph);
             // clear the buffer
+            pthread_mutex_lock(&(localnxp->serial_mutex));
             tcflush(localnxp->fd, TCIOFLUSH);
             usleep(350);
             tcflush(localnxp->fd, TCIOFLUSH);
+            pthread_mutex_unlock(&(localnxp->serial_mutex));
             r = 1;
             localnxp->ready = true;
         } else {
+            pthread_mutex_lock(&(localnxp->serial_mutex));
             tcflush(localnxp->fd, TCIOFLUSH);
+            pthread_mutex_unlock(&(localnxp->serial_mutex));
             localnxp->ready = true;
             localnxp->prevchannel = channel->channel;
         }
     } else {
 	    r = 0;
     }
-    
+
     return r;
 }
 
@@ -673,7 +678,7 @@ void capture_thread(kis_capture_handler_t *caph) {
         }
         //check the checksum
         if (!checksum(buf,buf_rx_len)) {
-            printf("back checksum\n");
+            //printf("bad checksum\n");
             buf_rx_len = 0;
         }
         if (buf_rx_len > 0) {
