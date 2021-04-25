@@ -824,8 +824,12 @@ exports.HealthCheck = function() {
             .done(function(data) {
                 data = kismet.sanitizeObject(data);
 
-                if (exports.connection_error) {
-                    exports.connection_error_panel.close();
+                if (exports.connection_error && exports.connection_error_panel) {
+                    try {
+                        exports.connection_error_panel.close();
+                    } catch (e) {
+                        ;
+                    }
                 }
 
                 exports.connection_error = 0;
