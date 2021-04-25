@@ -70,29 +70,26 @@ int nrf_write_cmd(kis_capture_handler_t *caph, char *tx_buf, size_t tx_len)
 
 int nrf_enter_promisc_mode(kis_capture_handler_t *caph)
 {
-    local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
-    localnrf->ready = false;
     nrf_write_cmd(caph, "receive\r\n\r\n", strlen("receive\r\n\r\n"));
-    localnrf->ready = true;
     return 1;
 }
 
 int nrf_exit_promisc_mode(kis_capture_handler_t *caph)
 {
-    local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
     nrf_write_cmd(caph,"sleep\r\n\r\n",strlen("sleep\r\n\r\n"));
-    localnrf->ready = false;
     return 1;
 }
 
 int nrf_set_channel(kis_capture_handler_t *caph, uint8_t channel)
 {
-    // local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
+    local_nrf_t *localnrf = (local_nrf_t *) caph->userdata;
+    localnrf->ready = false;
     nrf_exit_promisc_mode(caph);
     char ch[16];
     sprintf(ch, "channel %u\r\n\r\n", channel);
     nrf_write_cmd(caph,ch,strlen(ch));
     nrf_enter_promisc_mode(caph);
+    localnrf->ready = true;
     return 1;
 }
 
@@ -107,14 +104,13 @@ int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_
     int res = 0;
     unsigned int loop_ctr = 0;
 
+    pthread_mutex_lock(&(localnrf->serial_mutex));
+
     while(1) {
-        pthread_mutex_lock(&(localnrf->serial_mutex));
 	    res = read(localnrf->fd,buf,255);
-        pthread_mutex_unlock(&(localnrf->serial_mutex));
 	    if(res > 0)
 	    {
             loop_ctr = 0;
-            //printf("payload-- %s:%d\n", buf, res);
             for(int xp = 0;xp < res;xp++)
             {
                 if(buf[xp] == 'r' && buf[xp+1] == 'e' && buf[xp+2] == 'c') {
@@ -147,10 +143,14 @@ int nrf_receive_payload(kis_capture_handler_t *caph, uint8_t *rx_buf, size_t rx_
 	    {
             // to keep us from looking for a packet when we only got a partial
 		    loop_ctr++;
-		    if(loop_ctr > 10000)
-			    break;
+		    if(loop_ctr > 1)
+            {
+                break;
+            }
 	    }
     }
+    pthread_mutex_unlock(&(localnrf->serial_mutex));
+
     return actual_len;
 }
 
@@ -310,6 +310,9 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
     /* newtio.c_lflag = ICANON; */
 
+    localnrf->newtio.c_lflag &= ~ICANON; /* Set non-canonical mode */
+    localnrf->newtio.c_cc[VTIME] = 1; /* Set timeout in deciseconds */
+
     /* flush and set up */
     tcflush(localnrf->fd, TCIFLUSH);
     tcsetattr(localnrf->fd, TCSANOW, &localnrf->newtio);
@@ -394,25 +397,25 @@ void capture_thread(kis_capture_handler_t *caph) {
             if(buf_rx_len > 0){
                 /* insert the channel into the packet header*/
                 buf[2] = (uint8_t)localnrf->channel;
-            while (1) {
-                struct timeval tv;
+                while (1) {
+                    struct timeval tv;
 
-                gettimeofday(&tv, NULL);
+                    gettimeofday(&tv, NULL);
 
-                if ((r = cf_send_data(caph,
-                                NULL, NULL, NULL,
-                                tv,
-                                0,
-                                buf_rx_len, buf)) < 0) {
-                    cf_send_error(caph, 0, "unable to send DATA frame");
-                    cf_handler_spindown(caph);
-                } else if (r == 0) {
-                    cf_handler_wait_ringbuffer(caph);
-                    continue;
-                } else {
-                    break;
+                    if ((r = cf_send_data(caph,
+                                    NULL, NULL, NULL,
+                                    tv,
+                                    0,
+                                    buf_rx_len, buf)) < 0) {
+                        cf_send_error(caph, 0, "unable to send DATA frame");
+                        cf_handler_spindown(caph);
+                    } else if (r == 0) {
+                        cf_handler_wait_ringbuffer(caph);
+                        continue;
+                    } else {
+                        break;
+                    }
                 }
-            }
             }
 
         }
