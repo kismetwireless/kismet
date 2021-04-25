@@ -827,6 +827,7 @@ exports.HealthCheck = function() {
                 if (exports.connection_error && exports.connection_error_panel) {
                     try {
                         exports.connection_error_panel.close();
+                        exports.connection_error_panel = null;
                     } catch (e) {
                         ;
                     }
@@ -837,7 +838,7 @@ exports.HealthCheck = function() {
                 exports.last_timestamp = data['kismet.system.timestamp.sec'];
             })
             .fail(function() {
-                if (exports.connection_error >= 3) {
+                if (exports.connection_error >= 3 && exports.connection_error_panel == null) {
                     exports.connection_error_panel = $.jsPanel({
                         id: "connection-alert",
                         headerTitle: 'Cannot Connect to Kismet',
