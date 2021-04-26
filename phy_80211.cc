@@ -3514,10 +3514,10 @@ std::string kis_80211_phy::crypt_to_string(uint64_t cryptset) {
     std::string ret;
 
     if (cryptset == crypt_none)
-        return "none";
+        return "Open";
 
     if (cryptset == crypt_unknown)
-        return "unknown";
+        return "Unknown";
 
     if (cryptset & crypt_wps)
         ret = "WPS";
