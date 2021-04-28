@@ -472,8 +472,12 @@ void kis_net_beast_httpd::handle_connection(const boost::system::error_code& ec,
                 socket_moved.set_value(true);
 
                 while (mv_socket.socket().is_open()) {
-                    auto retain =
-                        std::make_shared<kis_net_beast_httpd_connection>(mv_socket, shared_from_this())->start();
+                    // Associate the socket
+                    auto conn = 
+                        std::make_shared<kis_net_beast_httpd_connection>(mv_socket, shared_from_this());
+
+                    // Run the connection
+                    auto retain = conn->start();
 
                     if (retain == false)
                         break;
@@ -485,11 +489,14 @@ void kis_net_beast_httpd::handle_connection(const boost::system::error_code& ec,
                     ;
                 }
             });
+
         conthread.detach();
     }
 
+    // Make sure we know we've moved the socket inside the thread before we leave scope
     socket_moved_ft.wait();
 
+    // Accept another connection
     return start_accept();
 }
 
@@ -1297,7 +1304,9 @@ bool kis_net_beast_httpd_connection::start() {
 
             res.set(boost::beast::http::field::server, "Kismet");
             res.set(boost::beast::http::field::content_type, "text/html");
-            res.body() = std::string("<html><head><title>401 Permission denied</title></head><body><h1>401 Permission denied</h1><br><p>This resource requires a login or session token.</p></body></html>\n");
+            res.body() = std::string("<html><head><title>401 Permission denied</title></head><body>"
+                    "<h1>401 Permission denied</h1><br><p>This resource requires a login or session "
+                    "token.</p></body></html>\n");
             res.prepare_payload();
 
             boost::system::error_code error;
@@ -1451,9 +1460,7 @@ bool kis_net_beast_httpd_connection::start() {
     std::thread tr([this, route, &generator_launched, self_ref]() {
         generator_launched.set_value();
 
-        // _MSG_INFO("invoking stream");
         try {
-            // _MSG_INFO("(DEBUG) {} {} invoking route {}", verb_, uri_, route->route());
             route->invoke(self_ref);
         } catch (const std::exception& e) {
             try {
@@ -1465,7 +1472,6 @@ bool kis_net_beast_httpd_connection::start() {
             std::ostream os(&response_stream_);
             os << "ERROR: " << e.what();
         }
-        // _MSG_INFO("done invoking stream");
 
         response_stream_.complete();
     });
