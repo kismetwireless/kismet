@@ -294,9 +294,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(devi
             bool m;
             {
                 // Lock each device within the overall devicelist write state
-                dev->device_mutex.lock();
                 m = worker.match_device(dev);
-                dev->device_mutex.unlock();
             }
 
             if (m) 

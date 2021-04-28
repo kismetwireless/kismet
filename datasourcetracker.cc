@@ -1005,7 +1005,7 @@ void datasource_tracker::trigger_deferred_startup() {
                         auto ret = cmd_ds->handle_external_command(buf.data(), buf.size());
 
                         if (ret != kis_external_interface::result_handle_packet_ok) {
-                            _MSG_ERROR("Unable to handle packet in remote datasource - {}", ret);
+                            cmd_ds->handle_error(fmt::format("unhandled websocket packet - {}", ret));
                             ws->close();
                             return;
                         }
@@ -1069,13 +1069,10 @@ void datasource_tracker::trigger_deferred_startup() {
                 if (ds_bridge->bridged_ds != nullptr) {
                     kis_lock_guard<kis_mutex> lk(ds_bridge->mutex, "dst websocket bridge teardown");
                     if (ds_bridge->bridged_ds->get_source_running()) {
-                        _MSG_ERROR("Remote datasource {} ({}) closing, remote socket terminated", 
-                                ds_bridge->bridged_ds->get_source_name(),
-                                ds_bridge->bridged_ds->get_source_uuid());
+                        ds_bridge->bridged_ds->handle_error("websocket connection closed");
                         ds_bridge->bridged_ds->close_source();
                     }
                 }
-
                 }));
 
 

@@ -1718,8 +1718,6 @@ void kis_datasource::handle_source_error() {
     if (mode_listing || mode_probing)
         return;
 
-    std::stringstream ss;
-
     if (ping_timer_id > 0) {
         timetracker->remove_timer(ping_timer_id);
         ping_timer_id = -1;
@@ -1728,17 +1726,16 @@ void kis_datasource::handle_source_error() {
     // Do nothing if we don't handle retry
     if (get_source_remote()) {
         if (get_source_running()) {
-            ss << "Source " << get_source_name() << " has encountered an error.  "
+            auto alrt = fmt::format("Source {} ({}) has encountered an error ({}).  "
                 "Remote sources are not locally reconnected; waiting for the remote source "
-                "to reconnect to resume capture.";
+                "to reconnect to resume capture.", get_source_name(), get_source_uuid(), 
+                get_source_error_reason());
 
             std::shared_ptr<alert_tracker> alertracker =
                 Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
-            alertracker->raise_one_shot("SOURCEERROR", 
-                    "SYSTEM", kis_alert_severity::critical,
-                    ss.str(), -1);
+            alertracker->raise_one_shot("SOURCEERROR", "SYSTEM", kis_alert_severity::critical, alrt, -1);
 
-            _MSG(ss.str(), MSGFLAG_ERROR);
+            _MSG(alrt, MSGFLAG_ERROR);
         }
 
         set_int_source_running(false);
@@ -1747,17 +1744,15 @@ void kis_datasource::handle_source_error() {
 
     if (!get_source_retry()) {
         if (get_source_running()) {
-            ss << "Source " << get_source_name() << " has encountered an error but "
+            auto alrt = fmt::format("Source {} ({}) has encountered an error ({}) but "
                 "is not configured to automatically re-try opening; it will remain "
-                "closed.";
+                "closed.", get_source_name(), get_source_uuid(), get_source_error_reason());
 
             std::shared_ptr<alert_tracker> alertracker =
                 Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
-            alertracker->raise_one_shot("SOURCEERROR", 
-                    "SYSTEM", kis_alert_severity::critical,
-                    ss.str(), -1);
+            alertracker->raise_one_shot("SOURCEERROR", "SYSTEM", kis_alert_severity::critical, alrt, -1);
 
-            _MSG(ss.str(), MSGFLAG_ERROR);
+            _MSG(alrt, MSGFLAG_ERROR);
         }
 
         set_int_source_running(false);
@@ -1777,17 +1772,15 @@ void kis_datasource::handle_source_error() {
         inc_int_source_total_retry_attempts(1);
 
         // Notify about it
-        ss << "Source " << get_source_name() << " has encountered an error. "
-            "Kismet will attempt to re-open the source in 5 seconds.  (" <<
-            get_source_retry_attempts() << " failures)";
+        auto alrt = fmt::format("Source {} ({}) has encountered an error ({}) "
+            "Kismet will attempt to re-open the source in 5 seconds.  ({} failures)",
+            get_source_name(), get_source_uuid(), get_source_error_reason(), get_source_retry_attempts());
 
         std::shared_ptr<alert_tracker> alertracker =
             Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
-        alertracker->raise_one_shot("SOURCEERROR", 
-                "SYSTEM", kis_alert_severity::critical,
-                ss.str(), -1);
+        alertracker->raise_one_shot("SOURCEERROR", "SYSTEM", kis_alert_severity::critical, alrt, -1);
 
-        _MSG(ss.str(), MSGFLAG_ERROR);
+        _MSG(alrt, MSGFLAG_ERROR);
 
         // Set a new event to try to re-open the interface
         error_timer_id = timetracker->register_timer(std::chrono::seconds(5), false, [this](int) -> int {
@@ -1803,20 +1796,16 @@ void kis_datasource::handle_source_error() {
                             if (!success)
                                 return;
 
-                            std::stringstream ss;
-
                             auto evt = eventbus->get_eventbus_event(event_datasource_opened());
                             evt->get_event_content()->insert(event_datasource_opened(), source_uuid);
                             eventbus->publish(evt);
 
-                            ss << "Source " << get_source_name() << " successfully "
-                                "re-opened";
+                            auto alrt = fmt::format("Source {} ({}) successfully re-opened",
+                                    get_source_name(), get_source_uuid());
 
                             std::shared_ptr<alert_tracker> alertracker =
                                 Globalreg::fetch_mandatory_global_as<alert_tracker>("ALERTTRACKER");
-                            alertracker->raise_one_shot("SOURCEOPEN", 
-                                    "SYSTEM", kis_alert_severity::critical,
-                                    ss.str(), -1);
+                            alertracker->raise_one_shot("SOURCEOPEN", "SYSTEM", kis_alert_severity::critical, alrt, -1);
 
                             if (get_source_hopping()) {
                                 // Reset the channel hop if we're hopping

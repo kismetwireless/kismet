@@ -1888,12 +1888,6 @@ void device_tracker::load_stored_tags(std::shared_ptr<kis_tracked_device_base> i
 void device_tracker::set_device_user_name(std::shared_ptr<kis_tracked_device_base> in_dev,
         std::string in_username) {
 
-    /*
-    kis_unique_lock<kis_mutex> lk_devicelist(get_devicelist_mutex(), std::defer_lock, "device_tracker set_device_user_name");
-    kis_unique_lock<kis_mutex> lk_device(in_dev->device_mutex, std::defer_lock, "device_tracker set_device_user_name");
-    std::lock(lk_device, lk_devicelist);
-    */
-
     kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "set_device_user_name");
 
     in_dev->set_username(in_username);
@@ -1943,12 +1937,6 @@ void device_tracker::set_device_user_name(std::shared_ptr<kis_tracked_device_bas
 
 void device_tracker::set_device_tag(std::shared_ptr<kis_tracked_device_base> in_dev,
         std::string in_tag, std::string in_content) {
-
-    /*
-    kis_unique_lock<kis_mutex> lk_devicelist(get_devicelist_mutex(), std::defer_lock, "device_tracker set_device_tag");
-    kis_unique_lock<kis_mutex> lk_device(in_dev->device_mutex, std::defer_lock, "device_tracker set_device_tag");
-    std::lock(lk_device, lk_devicelist);
-    */
 
     kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "set_device_tag");
 
