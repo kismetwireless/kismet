@@ -415,6 +415,8 @@ public:
     __ProxyPrivSplitM(source_override_linktype, unsigned int, unsigned int, uint32_t, 
             source_override_linktype, ext_mutex);
 
+    __ProxyGetM(source_error_reason, std::string, std::string, source_error_reason, ext_mutex);
+
     
     // Perform a checksum on a packet after it's decapsulated; this is always
     // called; a source should override it and check flags in the source
@@ -445,11 +447,11 @@ public:
     // and processed.  Subclasses can override this to manipulate packet content.
     virtual void handle_rx_packet(kis_packet *packet);
 
-protected:
     // Source error; sets error state, fails all pending function callbacks,
     // shuts down the buffer and ipc, and initiates retry if we retry errors
     virtual void handle_error(const std::string& in_reason) override;
 
+protected:
     virtual void close_external() override;
 
 
