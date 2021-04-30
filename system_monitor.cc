@@ -62,8 +62,9 @@ Systemmonitor::Systemmonitor() :
 
     timer_id = timetracker->register_timer(0, &trigger_tm, 0, this);
 
-    // Link the RRD out of the devicetracker
-    status->insert(devicetracker->get_packets_rrd());
+    // No longer include the link to the devicetracker rrd since it's not protected under our
+    // mutex here
+    // status->insert(devicetracker->get_packets_rrd());
 
     // Set the startup time
     status->set_timestamp_start_sec(time(0));
