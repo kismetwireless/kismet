@@ -642,7 +642,7 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
     /* Prefer mac80211 channel fetch */
     ret = mac80211_get_chanlist(interface, extended_flags, msg, default_ht20, expand_ht20, chanlist, chanlist_sz);
 
-    if (ret < 0) {
+    if (ret < 0 || chanlist_sz == 0) {
         ret = iwconfig_get_chanlist(interface, msg, &iw_chanlist, &chan_sz);
 
         /* We can't seem to get any channels from this interface, either 
