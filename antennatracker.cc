@@ -19,7 +19,7 @@
 #include "config.h"
 #include "antennatracker.h"
 
-Antennatracker::Antennatracker() {
+antenna_tracker::antenna_tracker() {
     mutex.set_name("antennatracker");
 
     antenna_id_map = 
@@ -30,14 +30,14 @@ Antennatracker::Antennatracker() {
     httpd->register_route("/antennas/antennas", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(antenna_id_map, mutex));
 
-    next_ant_id = 0;
+    next_ant_id = 1;
 }
 
-Antennatracker::~Antennatracker() {
+antenna_tracker::~antenna_tracker() {
     Globalreg::globalreg->remove_global("ANTENNATRACKER");
 }
 
-int Antennatracker::add_antenna(uuid in_src, int in_srcnum, int in_adjustment) {
+int antenna_tracker::add_antenna(uuid in_src, int in_srcnum, int in_adjustment) {
     kis_lock_guard<kis_mutex> lk(mutex, "antenna add_antenna");
 
     for (auto ai : *antenna_id_map) {
@@ -65,7 +65,7 @@ int Antennatracker::add_antenna(uuid in_src, int in_srcnum, int in_adjustment) {
     return ant->get_id();
 }
 
-int Antennatracker::add_antenna(uuid in_src, int in_srcnum, int in_adjustment, uuid in_ant_uuid) {
+int antenna_tracker::add_antenna(uuid in_src, int in_srcnum, int in_adjustment, uuid in_ant_uuid) {
     kis_lock_guard<kis_mutex> lk(mutex, "antennatracker add_antenna");
 
     for (auto ai : *antenna_id_map) {
@@ -89,7 +89,7 @@ int Antennatracker::add_antenna(uuid in_src, int in_srcnum, int in_adjustment, u
     return ant->get_id();
 }
 
-int Antennatracker::set_antenna_adjustment(int in_antnum, int in_adjustment) {
+int antenna_tracker::set_antenna_adjustment(int in_antnum, int in_adjustment) {
     kis_lock_guard<kis_mutex> lk(mutex, "antennatracker set_antenna_adjustment");
 
     auto ai = antenna_id_map->find(in_antnum);
@@ -103,7 +103,7 @@ int Antennatracker::set_antenna_adjustment(int in_antnum, int in_adjustment) {
     return 1;
 }
 
-std::shared_ptr<tracked_antenna> Antennatracker::get_antenna(int in_antnum) {
+std::shared_ptr<tracked_antenna> antenna_tracker::get_antenna(int in_antnum) {
     kis_lock_guard<kis_mutex> lk(mutex, "antennatracker get_antenna");
 
     auto ai = antenna_id_map->find(in_antnum);

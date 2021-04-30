@@ -102,18 +102,18 @@ protected:
 
 };
 
-class Antennatracker : public lifetime_global {
+class antenna_tracker : public lifetime_global {
 public:
-    static std::shared_ptr<Antennatracker> create_at() {
-        auto mon = std::make_shared<Antennatracker>();
+    static std::shared_ptr<antenna_tracker> create_at() {
+        auto mon = std::make_shared<antenna_tracker>();
         Globalreg::globalreg->register_lifetime_global(mon);
         Globalreg::globalreg->insert_global("ANTENNATRACKER", mon);
 
         return mon;
     }
 
-    Antennatracker();
-    virtual ~Antennatracker();
+    antenna_tracker();
+    virtual ~antenna_tracker();
 
     // Add a new antenna
     int add_antenna(uuid in_src, int in_srcnum, int adjustment);

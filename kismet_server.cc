@@ -838,7 +838,7 @@ int main(int argc, char *argv[], char *envp[]) {
         SpindownKismet();
 
     // Create antenna mapper
-    auto anttracker = Antennatracker::create_at();
+    auto anttracker = antenna_tracker::create_at();
 
     if (globalregistry->fatal_condition)
         SpindownKismet();
