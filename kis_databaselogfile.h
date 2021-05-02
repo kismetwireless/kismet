@@ -220,6 +220,8 @@ protected:
 
     void handle_alert(std::shared_ptr<tracked_alert> msg);
     unsigned long alert_evt_id;
+
+    bool log_duplicate_packets;
 };
 
 class kis_database_logfile_builder : public kis_logfile_builder {
