@@ -1832,7 +1832,7 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
 
             if (conf_cmd->hopping->has_shuffle_skip) 
                 chanhop_shuffle_spacing = conf_cmd->hopping->shuffle_skip;
-             else 
+            else 
                 chanhop_shuffle_spacing = caph->channel_hop_shuffle_spacing;
 
             if (conf_cmd->hopping->has_offset)
