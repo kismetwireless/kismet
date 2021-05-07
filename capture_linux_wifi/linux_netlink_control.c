@@ -1032,11 +1032,11 @@ int mac80211_get_chanlist(const char *interface, unsigned int extended_flags, ch
 	nl_cb_set(cb, NL_CB_ACK, NL_CB_CUSTOM, nl80211_ack_cb, &err);
     nl_cb_set(cb, NL_CB_FINISH, NL_CB_CUSTOM, nl80211_finish_cb, &err);
     nl_cb_err(cb, NL_CB_CUSTOM, nl80211_error_cb, &err);
+    
+    genlmsg_put(msg, 0, 0, nl80211_id, 0, NLM_F_DUMP, NL80211_CMD_GET_WIPHY, 0);
 
     nla_put_flag(msg, NL80211_ATTR_SPLIT_WIPHY_DUMP);
     nlmsg_hdr(msg)->nlmsg_flags |= NLM_F_DUMP;
-
-    genlmsg_put(msg, 0, 0, nl80211_id, 0, NLM_F_DUMP, NL80211_CMD_GET_WIPHY, 0);
 
     /* Initialize the empty first channel list item */
     cblock.channel_list = (struct nl80211_channel_list *) malloc(sizeof(struct nl80211_channel_list));
