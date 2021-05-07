@@ -1508,7 +1508,7 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
         return -1;
     }
 
-    fprintf(stderr, "DEBUG - %u got cmd %s\n", getpid(), kds_cmd->command);
+    /* fprintf(stderr, "DEBUG - %u got cmd %s\n", getpid(), kds_cmd->command); */
 
     pthread_mutex_lock(&(caph->handler_lock));
 
