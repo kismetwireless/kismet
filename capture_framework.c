@@ -1508,9 +1508,7 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
         return -1;
     }
 
-#if 0
     fprintf(stderr, "DEBUG - %u got cmd %s\n", getpid(), kds_cmd->command);
-#endif
 
     pthread_mutex_lock(&(caph->handler_lock));
 
@@ -1704,8 +1702,7 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
                 kds_cmd->content.data);
 
         if (conf_cmd == NULL) {
-            fprintf(stderr, "FATAL:  Invalid frame received, unable to unpack "
-                    "KDSCONFIGURE command\n");
+            fprintf(stderr, "FATAL:  Invalid frame received, unable to unpack KDSCONFIGURE command\n");
             cbret = -1;
             goto finish;
         }
@@ -1736,9 +1733,9 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
                 }
 
                 msgstr[0] = 0;
-                cbret = (*(caph->chancontrol_cb))(caph,
-                        kds_cmd->seqno,
-                        translate_chan, msgstr);
+                cbret = (*(caph->chancontrol_cb))(caph, kds_cmd->seqno, translate_chan, msgstr);
+
+                fprintf(stderr, "DEBUG - Channel set %d\n", cbret);
 
                 if (caph->verbose && strlen(msgstr) > 0) {
                     if (cbret >= 0)
@@ -1752,6 +1749,8 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
                     if (caph->channel != NULL)
                         free(caph->channel);
                     caph->channel = strdup(conf_cmd->channel->channel);
+                } else {
+                    fprintf(stderr, "DEBUG - channel set ret %d\n", cbret);
                 }
 
                 /* Send a response based on the channel set success */
@@ -1769,8 +1768,13 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
             }
 
         } else if (conf_cmd->hopping != NULL) {
+            /* fprintf(stderr, "DEBUG - configuring hopping\n"); */
+
             /* Otherwise process hopping */
             if (conf_cmd->hopping->n_channels == 0) {
+                if (caph->verbose)
+                    fprintf(stderr, "ERROR:  No channels provided in hopping configuration.\n");
+
                 cf_send_configresp(caph, kds_cmd->seqno, 0, 
                         "No channels in hopping configuration", NULL);
                 cbret = -1;
@@ -1853,7 +1857,6 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
             goto finish;
         }
     } else {
-        /* fprintf(stderr, "DEBUG - got unhandled request - '%.16s'\n", cap_proto_frame->header.type); */
         cbret = -1;
 
         /* If we have an unknown frame handler, give it a chance to process this
@@ -2428,7 +2431,7 @@ int cf_handler_loop(kis_capture_handler_t *caph) {
                     /* See if we have a complete packet to do something with */
                     if (cf_handle_rb_rx_data(caph) < 0) {
                         /* Enter spindown if processing an incoming packet failed */
-                        fprintf(stderr, "FATAL:  Datasource processing an incoming control packet failed.\n");
+                        fprintf(stderr, "FATAL:  Datasource helper failed, could not process incoming control packet.\n");
                         cf_handler_spindown(caph);
                     }
                 }
@@ -2999,7 +3002,7 @@ int cf_send_proberesp(kis_capture_handler_t *caph, uint32_t seq,
             kechanset.channel = interface->chanset;
             keprobe.channel = &kechanset;
         }
-
+        
         if (interface->channels_len != 0) {
             kechannels.n_channels = interface->channels_len;
             kechannels.channels = interface->channels;
