@@ -751,6 +751,8 @@ struct nl80211_channel_block {
 unsigned int glob_freqlist_default_ht20 = 0;
 unsigned int glob_freqlist_expand_ht20 = 0;
 
+unsigned int glob_in_proper_phy = 0;
+
 static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
     struct nlattr *tb_msg[NL80211_ATTR_MAX + 1];
     struct genlmsghdr *gnlh = (struct genlmsghdr *) nlmsg_data(nlmsg_hdr(msg));
@@ -771,12 +773,28 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
 
     if (tb_msg[NL80211_ATTR_WIPHY_NAME]) {
         if (strcmp(nla_get_string(tb_msg[NL80211_ATTR_WIPHY_NAME]), chanb->phyname) != 0) {
+            fprintf(stderr, "DEBUG - not in matching phy (%s not %s)\n", nla_get_string(tb_msg[NL80211_ATTR_WIPHY_NAME]), chanb->phyname);
+
+            glob_in_proper_phy = 0;
             return NL_SKIP;
+        } else {
+            fprintf(stderr, "DEBUG - got matching phy %s\n", chanb->phyname);
+
+            glob_in_proper_phy = 1;
         }
     }
 
+    if (!glob_in_proper_phy) {
+        fprintf(stderr, "DEBUG - message not for our phy, skipping\n");
+        return NL_SKIP;
+    }
+
     if (tb_msg[NL80211_ATTR_WIPHY_BANDS]) {
+        fprintf(stderr, "DEBUG - processing bands\n");
+
         nla_for_each_nested(nl_band, tb_msg[NL80211_ATTR_WIPHY_BANDS], rem_band) {
+            fprintf(stderr, "DEBUG - band %u\n", nl_band->nla_type + 1);
+
             band_ht40 = band_ht80 = band_ht160 = 0;
 
             nla_parse(tb_band, NL80211_BAND_ATTR_MAX, nla_data(nl_band),
@@ -784,6 +802,8 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
 
             /* If we have a HT capability field, examine it for HT40 */
             if (tb_band[NL80211_BAND_ATTR_HT_CAPA]) {
+                fprintf(stderr, "debug - HT\n");
+
                 __u16 cap = nla_get_u16(tb_band[NL80211_BAND_ATTR_HT_CAPA]);
 
                 /* bit 1 is the HT40 bit */
@@ -797,6 +817,8 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
              * 160?  For now we assume they do...
              */
             if (tb_band[NL80211_BAND_ATTR_VHT_CAPA]) {
+                fprintf(stderr, "debug - HT80\n");
+
                 band_ht80 = 1;
 
                 __u16 cap = nla_get_u32(tb_band[NL80211_BAND_ATTR_VHT_CAPA]);
@@ -810,11 +832,14 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
             }
 
             if (tb_band[NL80211_BAND_ATTR_FREQS]) {
+                fprintf(stderr, "DEBUG - freqs\n");
+
                 nla_for_each_nested(nl_freq, tb_band[NL80211_BAND_ATTR_FREQS], rem_freq) {
                     nla_parse(tb_freq, NL80211_FREQUENCY_ATTR_MAX, nla_data(nl_freq),
                             nla_len(nl_freq), NULL);
 
                     if (!tb_freq[NL80211_FREQUENCY_ATTR_FREQ]) {
+                        fprintf(stderr, "DEBUG - no tb_freq\n");
                         continue;
                     }
 
@@ -822,8 +847,9 @@ static int nl80211_freqlist_cb(struct nl_msg *msg, void *arg) {
                     freq = nla_get_u32(tb_freq[NL80211_FREQUENCY_ATTR_FREQ]);
 
                     if (tb_freq[NL80211_FREQUENCY_ATTR_DISABLED]) {
+                        fprintf(stderr, "DEBUG - freq disabled\n");
                         continue;
-		    }
+                    }
 
                     chan_list_new = (struct nl80211_channel_list *) malloc(sizeof(struct nl80211_channel_list));
 
@@ -1006,6 +1032,9 @@ int mac80211_get_chanlist(const char *interface, unsigned int extended_flags, ch
 	nl_cb_set(cb, NL_CB_ACK, NL_CB_CUSTOM, nl80211_ack_cb, &err);
     nl_cb_set(cb, NL_CB_FINISH, NL_CB_CUSTOM, nl80211_finish_cb, &err);
     nl_cb_err(cb, NL_CB_CUSTOM, nl80211_error_cb, &err);
+
+    nla_put_flag(msg, NL80211_ATTR_SPLIT_WIPHY_DUMP);
+    nlmsg_hdr(msg)->nlmsg_flags |= NLM_F_DUMP;
 
     genlmsg_put(msg, 0, 0, nl80211_id, 0, NLM_F_DUMP, NL80211_CMD_GET_WIPHY, 0);
 
