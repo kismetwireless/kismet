@@ -633,6 +633,7 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
     unsigned int ci;
     char conv_chan[16];
     unsigned int extended_flags = 0;
+    char status[STATUS_MAX];
 
     if (local_wifi->use_ht_channels)
         extended_flags += MAC80211_GET_HT;
@@ -643,18 +644,28 @@ int populate_chanlist(kis_capture_handler_t *caph, char *interface, char *msg,
     ret = mac80211_get_chanlist(interface, extended_flags, msg, default_ht20, expand_ht20, chanlist, chanlist_sz);
 
     if (ret < 0 || chanlist_sz == 0) {
+        snprintf(status, STATUS_MAX, "%s %s/%s could not fetch channels over netlink, falling "
+                "back to WEXT ioctls.  This interface will not be able to tune to HT channels.",
+                local_wifi->name, local_wifi->interface, local_wifi->cap_interface);
+        cf_send_message(caph, msg, MSGFLAG_ERROR);
+
         ret = iwconfig_get_chanlist(interface, msg, &iw_chanlist, &chan_sz);
 
         /* We can't seem to get any channels from this interface, either 
          * through mac80211 or siocgiwfreq so we can't do anything */
         if (ret < 0 || chan_sz == 0) {
-            return 0;
+            snprintf(status, STATUS_MAX, "%s %s/%s could not fetch channels over netlink or "
+                    "via WEXT ioctls.  Can not open device with automatic channels, try "
+                    "specifying a list of channels in the source definition.",
+                    local_wifi->name, local_wifi->interface, local_wifi->cap_interface);
+            cf_send_message(caph, msg, MSGFLAG_ERROR);
+            return -1;
         }
 
         *chanlist = (char **) malloc(sizeof(char *) * chan_sz);
 
         for (ci = 0; ci < chan_sz; ci++) {
-            snprintf(conv_chan, 16, "%u", iw_chanlist[ci]);
+            snprintf(conv_chan, 16, "%u", wifi_freq_to_chan(iw_chanlist[ci]));
             (*chanlist)[ci] = strdup(conv_chan);
         }
         
@@ -2291,9 +2302,6 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     ret = populate_chanlist(caph, local_wifi->cap_interface, errstr, default_ht_20, expand_ht_20,
             &((*ret_interface)->channels), &((*ret_interface)->channels_len));
     if (ret < 0) {
-        snprintf(msg, STATUS_MAX, "%s could not get list of channels from capture "
-                "interface '%s' on '%s': %s", local_wifi->name, local_wifi->cap_interface,
-                local_wifi->interface, errstr);
         return -1;
     }
 
