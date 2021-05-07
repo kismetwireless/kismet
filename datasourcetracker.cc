@@ -1656,8 +1656,19 @@ std::shared_ptr<kis_datasource> datasource_tracker::open_remote_datasource(dst_i
         // Explicitly unlock our mutex before running a thread
         lock.unlock();
 
-        merge_target_device->connect_remote(in_definition, incoming, connect_tcp, nullptr);
-        calculate_source_hopping(merge_target_device);
+        merge_target_device->connect_remote(in_definition, incoming, connect_tcp,
+                [this, merge_target_device](unsigned int, bool success, std::string msg) {
+                    if (success) {
+                        _MSG_INFO("Remote source {} ({}) reconnected", 
+                                merge_target_device->get_source_name(),
+                                merge_target_device->get_source_uuid());
+                        calculate_source_hopping(merge_target_device);
+                    } else {
+                        _MSG_ERROR("Error reconnecting remote source {} ({}) - {}",
+                                merge_target_device->get_source_name(), 
+                                merge_target_device->get_source_uuid(), msg);
+                    }
+                });
 
         /*
         // Merge the socket into the new device
