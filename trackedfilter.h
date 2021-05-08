@@ -23,6 +23,54 @@
 //
 // Provides a framework for fabricating complex queries and filters
 // of tracked objects
+//
+// Designed to be similar to an ELK-style query, where complex operations can
+// be applied to the data.  Ultimately this will be used to form primitives elsewhere
+// in kismet and expose complex queries directly to the API.
+//
+// Possible input from json:
+// {"op": "&&", "filters": 
+//  [ 
+//   {"field": "kismet.device.base.packets", "op": ">=", "value": 50}, 
+//   {"field": "kismet.device.base.signal/kismet.common.signal.max_signal_dbm", "op": ">", "value": -40},
+//   {"field": "dot11.device/dot11.device.last_beaconed_ssid", "op": "regex", "value": "^FOO.*"} 
+//  ] 
+// }
+//
+// Nested conditions:
+// {"op": "||", "filters": 
+// [
+//  {"op": "&&", "filters":
+//  [
+//  {"field": "kismet.device.base.packets", "op": ">=", "value": 50},
+//  {"filed": "kismet.device.base.signal/kismet.common.signal.max_signal_dbm", "op": ">", "value": -40}
+//  ]
+//  },
+//  {"field": "kismet.dot11/dot11.last_beaconed_ssid", "op": "==", "MonitoredSsid"}
+// ]}
+//
+// Operators:
+//  Comparison
+//   '=='           Equal (numeric and string)
+//   '!='           Not equal (numeric and string)
+//   '<'            Less-than (numeric)
+//   '>'            Greater-than (numeric)
+//   '<='           Less-than or equal (numeric)
+//   '>='           Greater-than or equal (numeric)
+//   '&'            Bitwise-and (numeric), evaluated as result
+//   '|'            Bitwise-or (numeric), evaluated as result
+//   '^'            Bitwise-xor (numeric), evaluated as result
+//   'regex'        Matches regex (string)
+//   '!regex'       Does not match regex (string)
+//   'contains'     Simple contains match (string)
+//   '!contains'    Simple does not contain match (string)
+//   'icontains'    Simple contains match, case insensitive (string)
+//   '!icontains'   Simple does not contain match, case insensitive (string)
+//
+// Combinationators:
+//  '&&'     And
+//  '||'     Or
+
 
 #include "config.h"
 
@@ -34,37 +82,29 @@
 #include <pcre.h>
 #endif
 
-#include "structured.h"
+#include "json/json.h"
 #include "trackedelement.h"
-
-// Possible input from json:
-// {"op": "&&", "filters": 
-//  [ 
-//   {"field": "kismet.device.base.packets", "op": ">=", "value": 50}, 
-//   {"field": "kismet.device.base.signal/kismet.common.signal.max_signal_dbm", "op": ">", "value": -40},
-//   {"field": "dot11.device/dot11.device.last_beaconed_ssid", "op": "regex", "value": "^FOO.*"} 
-//  ] 
-// }
 
 class tracked_filter_operation;
 typedef std::shared_ptr<tracked_filter_operation> shared_filter_operation;
 
 class tracked_filter_operation {
 public:
-    enum filter_op_type {
+    enum class filter_op_type {
         // and/or operations contain a vector of sub-ops
         op_and, op_or,
 
         op_equal, op_not_equal,
+
         op_lessthan, op_lessthaneq,
         op_greaterthan, op_greaterthaneq,
-        op_bitand, 
-        op_regex, op_contains,
-        op_strcase_equal, op_strcase_not_equal,
+
+        op_bitand, op_bitor, op_bitxor,
+
+        op_regex, op_notregex,
+        op_contains, op_notcontains, op_icontains, op_noticontains,
     };
 
-    // Generate an arbitrarily complex operation from structured data
-    tracked_filter_operation(structured_data *in_structured);
     // Generate a multi-operation
     tracked_filter_operation(std::string in_op, std::vector<shared_filter_operation> in_filters);
     // Generate a string-based option (regex, ==, !=, contains, string equals)
