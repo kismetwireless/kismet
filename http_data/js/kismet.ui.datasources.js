@@ -612,6 +612,7 @@ function update_datasource2(data) {
         }
 
         if (!found) {
+            // console.log("removing interface", $(this).attr('id'));
             $(this).remove();
         }
     });
@@ -628,6 +629,7 @@ function update_datasource2(data) {
         }
 
         if (!found) {
+            // console.log("removing source", $(this).attr('id'));
             $(this).remove();
         }
     });
@@ -657,7 +659,7 @@ function update_datasource2(data) {
                 )
             ).append(
                 $('<div>', {
-                    id: 'content',
+                    // id: 'content',
                     class: 'k-ds_content',
                 })
             );
@@ -691,7 +693,7 @@ function update_datasource2(data) {
             wrapper.append(table);
             wrapper.append(modal);
 
-            $('#content', idiv).append(wrapper);
+            $('.k-ds_content', idiv).append(wrapper);
 
             idiv.accordion({ collapsible: true, active: false });
 
@@ -741,11 +743,13 @@ function update_datasource2(data) {
 
         idiv.accordion("refresh");
     }
+    // console.log("updating with ", ds_state['kismet_sources'].length);
 
     for (var source of ds_state['kismet_sources']) {
         var sdiv = $('#' + source['kismet.datasource.uuid'], ds_state['ds_content']);
 
         if (sdiv.length == 0) {
+            // console.log("creating new " + source['kismet.datasource.uuid']);
             sdiv = $('<div>', {
                 id: source['kismet.datasource.uuid'],
                 class: 'accordion source',
@@ -778,7 +782,7 @@ function update_datasource2(data) {
                 )
             ).append(
                 $('<div>', {
-                    id: 'content',
+                    // id: 'content',
                     class: 'k-ds_content',
                 })
             );
@@ -812,7 +816,7 @@ function update_datasource2(data) {
             wrapper.append(table);
             wrapper.append(modal);
 
-            $('#content', sdiv).append(wrapper);
+            $('.k-ds_content', sdiv).append(wrapper);
 
             sdiv.accordion({ collapsible: true, active: false });
 

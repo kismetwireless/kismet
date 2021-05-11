@@ -866,6 +866,20 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
         msg = report.message().msgtext();
     }
 
+    if (report.has_uuid() && get_source_uuid() == 0) {
+        // Don't clobber local UUID
+        uuid u(report.uuid());
+        set_source_uuid(u);
+        set_source_key(adler32_checksum(u.uuid_to_string()));
+    } else if (!local_uuid && get_source_uuid() == 0) {
+        // Only generate a new UUID if we don't already have one
+        uuid nuuid;
+        nuuid.generate_time_uuid((uint8_t *) "\x00\x00\x00\x00\x00\x00");
+        set_source_uuid(nuuid);
+        set_source_key(adler32_checksum(nuuid.uuid_to_string()));
+    }
+
+
     if (!report.success().success()) {
         trigger_error(msg);
         set_int_source_error_reason(msg);
@@ -912,17 +926,6 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
     // Only override the source level dlt if it hasn't been set
     if (report.has_dlt() && get_source_dlt() == 0) {
         set_int_source_dlt(report.dlt());
-    }
-
-    if (report.has_uuid()) {
-        uuid u(report.uuid());
-        set_source_uuid(u);
-        set_source_key(adler32_checksum(u.uuid_to_string()));
-    } else if (!local_uuid) {
-        uuid nuuid;
-        nuuid.generate_time_uuid((uint8_t *) "\x00\x00\x00\x00\x00\x00");
-        set_source_uuid(nuuid);
-        set_source_key(adler32_checksum(nuuid.uuid_to_string()));
     }
 
     if (report.has_capture_interface()) {
