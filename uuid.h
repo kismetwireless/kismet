@@ -168,6 +168,21 @@ public:
                 (uint8_t) (node >> 40));
     }
 
+    // Stub compares - this cannot hold the full hash and should only be used to compare to 0
+    inline bool operator== (const unsigned int op) const {
+        if (op != 0)
+            throw std::runtime_error("attempt to compare uuid to non-zero unsigned int");
+
+        return (unsigned int) hash == op;
+    }
+
+    inline bool operator== (const int op) const {
+        if (op != 0)
+            throw std::runtime_error("attempt to compare uuid to non-zero int");
+
+        return (int) hash == op;
+    }
+
     inline bool operator== (const std::size_t op) const {
         return hash == op;
     }
