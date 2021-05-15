@@ -307,14 +307,18 @@
                         if ('iterateTitle' in v) {
                             // console.log('iteratetitle', subid);
 
-                            var it = "";
+                            var title_span = $('<span>');
+                            callopts['title'] = title_span;
 
                             if (typeof(v['iterateTitle']) === 'string')
-                                it = v['iterateTitle'];
+                                title_span.html(v['iterateTitle']);
                             else if (typeof(v['iterateTitle']) === 'function')
-                                it = v['iterateTitle'](callopts);
+                                title_span.html(it = v['iterateTitle'](callopts));
 
-                            cell.append($('<b class="devicedata_subgroup_header">' + it + '</b>'));
+                            cell.append($('<b>', {
+                                'class': 'devicedata_subgroup_header'
+                            }).append(title_span))
+
                             cell.append($('<br />'));
                         }
 

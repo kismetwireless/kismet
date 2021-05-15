@@ -1131,6 +1131,12 @@ kismet_ui.AddDeviceDetail("seenby", "Seen By", 900, {
                 id: "seenby_group",
                 groupIterate: true,
                 iterateTitle: function(opts) {
+                    var this_uuid = opts['value'][opts['index']]['kismet.common.seenby.uuid'];
+                    $.get(`${local_uri_prefix}datasource/by-uuid/${this_uuid}/source.json`)
+                    .done(function(dsdata) {
+                        dsdata = kismet.sanitizeObject(dsdata);
+                        opts['title'].html(`${dsdata['kismet.datasource.name']} (${dsdata['kismet.datasource.capture_interface']}) ${dsdata['kismet.datasource.uuid']}`);
+                    })
                     return opts['value'][opts['index']]['kismet.common.seenby.uuid'];
                 },
                 fields: [
@@ -1142,16 +1148,12 @@ kismet_ui.AddDeviceDetail("seenby", "Seen By", 900, {
                 {
                     field: "kismet.common.seenby.first_time",
                     title: "First Seen",
-                    render: function(opts) {
-                        return new Date(opts['value'] * 1000);
-                    }
+                    draw: kismet_ui.RenderTrimmedTime,
                 },
                 {
                     field: "kismet.common.seenby.last_time",
                     title: "Last Seen",
-                    render: function(opts) {
-                        return new Date(opts['value'] * 1000);
-                    }
+                    draw: kismet_ui.RenderTrimmedTime,
                 },
                 ]
             }]
