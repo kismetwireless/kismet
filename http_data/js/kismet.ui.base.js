@@ -1119,7 +1119,7 @@ kismet_ui.AddDeviceDetail("packets", "Packet Graphs", 10, {
 
 kismet_ui.AddDeviceDetail("seenby", "Seen By", 900, {
     filter: function(data) {
-        return (Object.keys(data['kismet.device.base.seenby']).length > 1);
+        return (Object.keys(data['kismet.device.base.seenby']).length > 0);
     },
     draw: function(data, target, options, storage) {
         target.devicedata(data, {
