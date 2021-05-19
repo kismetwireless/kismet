@@ -183,10 +183,6 @@ public:
         return (int) hash == op;
     }
 
-    inline bool operator== (const std::size_t op) const {
-        return hash == op;
-    }
-
     inline bool operator== (const void *op) const {
         if (op == nullptr && hash == 0)
             return true;
