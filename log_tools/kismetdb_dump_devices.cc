@@ -172,7 +172,10 @@ int main(int argc, char *argv[]) {
     }
 
     /* Open the database and run the vacuum command to clean up any stray journals */
-    sql_r = sqlite3_open(in_fname.c_str(), &db);
+    if (!skipclean)
+        sql_r = sqlite3_open(in_fname.c_str(), &db);
+    else
+        sql_r = sqlite3_open_v2(in_fname.c_str(), &db, SQLITE_OPEN_READONLY, nullptr);
 
     if (sql_r) {
         fprintf(stderr, "ERROR:  Unable to open '%s': %s\n",
