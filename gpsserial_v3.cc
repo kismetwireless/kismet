@@ -68,11 +68,14 @@ kis_gps_serial_v3::kis_gps_serial_v3(shared_gps_builder in_builder) :
 
                     if (get_gps_reconnect()) {
                         _MSG_ERROR("(GPS) No usable data from the serial GPS {} in over 30 seconds, check that "
-                                "the baud rate is correct and the GPS outputs NMEA.",
+                                "you are not running GPSD (it may have started automatically), the baud rate is "
+                                "correct and the GPS outputs standard NMEA.",
                                 serial_device);
                         open_gps(get_gps_definition());
                     } else {
-                        _MSG_ERROR("(GPS) No usable data from the serial GPS {} in over 30 seconds, disconnecting.",
+                        _MSG_ERROR("(GPS) No usable data from the serial GPS {} in over 30 seconds, disconnecting. "
+                                "Check that GPSD is not running (it may have started automatically), that the GPS "
+                                "baud rate is correct, and that the GPS outputs standard NMEA.",
                                 serial_device);
                     }
                 }
