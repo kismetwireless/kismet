@@ -101,6 +101,9 @@ void kis_datasource::list_interfaces(unsigned int in_transaction, list_callback_
     kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource list_interfaces");
     lock.lock();
 
+    set_source_name("list");
+    set_int_source_interface("n/a");
+
     if (in_transaction == 0)
         in_transaction = next_transaction++;
 
@@ -152,6 +155,9 @@ void kis_datasource::probe_interface(std::string in_definition, unsigned int in_
         probe_callback_t in_cb) {
     kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource probe_interface");
     lock.lock();
+
+    set_source_name("probe");
+    set_int_source_interface("n/a");
 
     if (in_transaction == 0)
         in_transaction = next_transaction++;
