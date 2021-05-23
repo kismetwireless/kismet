@@ -331,13 +331,15 @@ namespace kissqlite3 {
         void append_where(const _AND& join_and, const std::list<query_element>& additional_clauses) {
             if (where_clause.size() > 0)
                 where_clause.push_back(AND);
-            where_clause.insert(where_clause.end(), additional_clauses.begin(), additional_clauses.end());
+            where_clause.push_back(query_element(additional_clauses));
+            // where_clause.insert(where_clause.end(), additional_clauses.begin(), additional_clauses.end());
         }
 
         void append_where(const _OR& join_r, const std::list<query_element>& additional_clauses) {
             if (where_clause.size() > 0)
                 where_clause.push_back(OR);
-            where_clause.insert(where_clause.end(), additional_clauses.begin(), additional_clauses.end());
+            where_clause.push_back(query_element(additional_clauses));
+            // where_clause.insert(where_clause.end(), additional_clauses.begin(), additional_clauses.end());
         }
 
         void append_clause(const _LIMIT& limit_r, int limit) {
@@ -368,27 +370,40 @@ namespace kissqlite3 {
             os << " FROM " << table;
 
             if (where_clause.size() > 0) {
-                os << " WHERE (";
+                os << " WHERE ";
 
-                comma = false;
-                for (auto c : where_clause) {
-                    // it'd be nice not to have to look into this like we do
-                    // here but it's good enough for now.  We don't want to 
-                    // add commas around op-only stanzas
-                    
-                    if (c.op_only) {
-                        os << " " << c.op << " ";
-                        comma = false;
-                        continue;
+                std::function<void (const std::list<query_element>)> cat_clause = 
+                    [&os, &cat_clause](const std::list<query_element>& e) { 
+                    os << "(";
+
+                    bool comma = false;
+
+                    for (auto c : e) {
+                        // it'd be nice not to have to look into this like we do
+                        // here but it's good enough for now.  We don't want to 
+                        // add commas around op-only stanzas
+
+                        if (c.op_only) {
+                            if (c.nested_query.size() > 0) {
+                                cat_clause(c.nested_query);
+                            } else {
+                                os << " " << c.op << " ";
+                                comma = false;
+                            }
+                            continue;
+                        }
+
+                        if (comma) 
+                            os << ", ";
+                        comma = true;
+
+                        os << c;
                     }
+                    os << ")";
+                    
+                };
 
-                    if (comma) 
-                        os << ", ";
-                    comma = true;
-
-                    os << c;
-                }
-                os << ")";
+                cat_clause(where_clause);
             }
 
             for (auto c : tail_clause) {
@@ -420,8 +435,9 @@ namespace kissqlite3 {
                     const query_element& c) {
 
                     if (c.nested_query.size() > 0) {
-                        for (auto nc : c.nested_query) 
+                        for (auto nc : c.nested_query) {
                             bind_function(stmt, bind_pos, nc);
+                        }
                     }
 
                     if (c.op_only)
