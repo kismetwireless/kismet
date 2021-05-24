@@ -117,37 +117,49 @@ namespace kissqlite3 {
         os << ";" << std::endl;
 
         if (q.where_clause.size() > 0) {
-            for (auto c : q.where_clause) {
-                if (c.op_only)
-                    continue;
+            std::function<void (unsigned int&, const query_element&)> bind_function = 
+                [&bind_function, &os](unsigned int& bind_pos, const query_element& c) {
 
-                os << "  bind_";
-                
-                switch (c.bind_type) {
-                    case BindType::sql_blob:
-                        os << "blob(\"" << c.value << "\", " << c.value.length() << ")";
-                        break;
-                    case BindType::sql_text:
-                        os << "text(\"" << c.value << "\", " << c.value.length() << ")";
-                        break;
-                    case BindType::sql_int:
-                        os << "int(" << (int) c.num_value << ")";
-                        break;
-                    case BindType::sql_int64:
-                        os << "int64(" << (int64_t) c.num_value << ")";
-                        break;
-                    case BindType::sql_double:
-                        os << "double(" << c.num_value << ")";
-                        break;
-                    case BindType::sql_null:
-                        os << "null(nullptr);";
-                        break;
-                    case BindType::sql_joining_op:
-                        break;
+                    if (c.nested_query.size() > 0) {
+                        for (auto nc : c.nested_query) {
+                            bind_function(bind_pos, nc);
+                        }
+                    }
+
+                    if (c.op_only)
+                        return;
+
+                    os << "  " << bind_pos++ << " bind_";
+
+                    switch (c.bind_type) {
+                        case BindType::sql_blob:
+                            os << "blob(\"" << c.value << "\", " << c.value.length() << ")";
+                            break;
+                        case BindType::sql_text:
+                            os << "text(\"" << c.value << "\", " << c.value.length() << ")";
+                            break;
+                        case BindType::sql_int:
+                            os << "int(" << (int) c.num_value << ")";
+                            break;
+                        case BindType::sql_int64:
+                            os << "int64(" << (int64_t) c.num_value << ")";
+                            break;
+                        case BindType::sql_double:
+                            os << "double(" << c.num_value << ")";
+                            break;
+                        case BindType::sql_null:
+                            os << "null(nullptr);";
+                            break;
+                        case BindType::sql_joining_op:
+                            break;
+                    };
+
+                    os << std::endl;
                 };
 
-                os << std::endl;
-            }
+            unsigned int bind_pos = 1;
+            for (auto c : q.where_clause)
+                bind_function(bind_pos, c);
         }
 
         return os;

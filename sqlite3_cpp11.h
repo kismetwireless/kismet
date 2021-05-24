@@ -431,8 +431,7 @@ namespace kissqlite3 {
                 });
 
             std::function<void (std::shared_ptr<sqlite3_stmt>, unsigned int&, const query_element&)> bind_function = 
-                [&bind_function](std::shared_ptr<sqlite3_stmt> stmt, unsigned int& bind_pos, 
-                    const query_element& c) {
+                [&bind_function](std::shared_ptr<sqlite3_stmt> stmt, unsigned int& bind_pos, const query_element& c) {
 
                     if (c.nested_query.size() > 0) {
                         for (auto nc : c.nested_query) {
