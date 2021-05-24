@@ -428,8 +428,7 @@ int main(int argc, char *argv[]) {
         case 4:
             bt_fields = std::list<std::string>{"ts_sec", "devmac", "phyname", "lat", "lon"};
             break;
-        case 5:
-        case 6:
+        default:
             bt_fields = std::list<std::string>{"ts_sec", "devmac", "phyname", "lat", "lon", "alt"};
             break;
     }
@@ -441,8 +440,8 @@ int main(int argc, char *argv[]) {
                 AND,
                 "lon", NEQ, 0));
 
-    auto bt_query = _SELECT(db, "data", bt_fields);
-    bt_query.append_where(AND, _WHERE("lat", NEQ, 0, AND, "lon", NEQ, 0));
+    auto bt_query = _SELECT(db, "data", bt_fields,
+            _WHERE("lat", NEQ, 0, AND, "lon", NEQ, 0));
     bt_query.append_where(AND, _WHERE("phyname", EQ, "Bluetooth", OR, "phyname", EQ, "BTLE"));
 
     unsigned long n_logs = 0;
