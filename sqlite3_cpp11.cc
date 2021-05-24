@@ -172,6 +172,8 @@ namespace kissqlite3 {
 
     // SELECT (x, y, z) FROM table
     query _SELECT(sqlite3 *db, const std::string& table, const std::list<std::string>& fields) {
+        if (fields.size() == 0)
+            throw std::runtime_error("invalid SQL query, must have some fields");
         return query{db, table, fields};
     }
 
