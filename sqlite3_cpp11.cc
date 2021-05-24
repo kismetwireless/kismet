@@ -69,26 +69,40 @@ namespace kissqlite3 {
         os << ") FROM " << q.table;
 
         if (q.where_clause.size() > 0) {
-            os << " WHERE (";
+            os << " WHERE ";
 
-            comma = false;
-            for (auto c : q.where_clause) {
-                // it'd be nice not to have to look into this like we do
-                // here but it's good enough for now.  We don't want to 
-                // add commas around op-only stanzas
-                if (c.op_only) {
-                    os << " " << c << " ";
-                    comma = false;
-                    continue;
-                }
+            std::function<void (const std::list<query_element>)> cat_clause = 
+                [&os, &cat_clause](const std::list<query_element>& e) { 
+                    os << "(";
 
-                if (comma) 
-                    os << ", ";
-                comma = true;
+                    bool comma = false;
 
-                os << c;
-            }
-            os << ")";
+                    for (auto c : e) {
+                        // it'd be nice not to have to look into this like we do
+                        // here but it's good enough for now.  We don't want to 
+                        // add commas around op-only stanzas
+
+                        if (c.op_only) {
+                            if (c.nested_query.size() > 0) {
+                                cat_clause(c.nested_query);
+                            } else {
+                                os << " " << c.op << " ";
+                                comma = false;
+                            }
+                            continue;
+                        }
+
+                        if (comma) 
+                            os << ", ";
+                        comma = true;
+
+                        os << c;
+                    }
+                    os << ")";
+
+                };
+
+            cat_clause(q.where_clause);
         }
 
         for (auto c : q.tail_clause) {
