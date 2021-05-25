@@ -1000,8 +1000,17 @@ int main(int argc, char *argv[]) {
         packet_filter_q = _WHERE(packet_filter_q, AND, uuid_clause);
     }
 
+    std::list<std::string> packet_fields;
+    if (db_version < 6) {
+        packet_fields = 
+            std::list<std::string>{"ts_sec", "ts_usec", "dlt", "datasource", "packet", "lat", "lon", "alt"};
+    } else {
+        packet_fields = 
+            std::list<std::string>{"ts_sec", "ts_usec", "dlt", "datasource", "packet", "lat", "lon", "alt", "tags"};
+    }
+
     auto packets_q = _SELECT(db, "packets", 
-            {"ts_sec", "ts_usec", "dlt", "datasource", "packet", "tags", "lat", "lon", "alt"},
+            packet_fields,
             packet_filter_q);
 
     auto gps_q = _SELECT(db, "snapshots",
@@ -1036,10 +1045,14 @@ int main(int argc, char *argv[]) {
                 auto pkt_dlt = sqlite3_column_as<unsigned int>(*pkt, 2);
                 auto datasource = sqlite3_column_as<std::string>(*pkt, 3);
                 auto bytes = sqlite3_column_as<std::string>(*pkt, 4);
-                auto tags = sqlite3_column_as<std::string>(*pkt, 5);
-                auto lat = sqlite3_column_as<double>(*pkt, 6);
-                auto lon = sqlite3_column_as<double>(*pkt, 7);
-                auto alt = sqlite3_column_as<double>(*pkt, 8);
+                auto lat = sqlite3_column_as<double>(*pkt, 5);
+                auto lon = sqlite3_column_as<double>(*pkt, 6);
+                auto alt = sqlite3_column_as<double>(*pkt, 7);
+
+                std::string tags;
+
+                if (db_version >= 6)
+                    tags = sqlite3_column_as<std::string>(*pkt, 8);
 
                 if (!pcapng) {
                     std::shared_ptr<log_file> log_interface;
