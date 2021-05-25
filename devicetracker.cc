@@ -315,37 +315,19 @@ device_tracker::device_tracker() :
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](shared_con con) -> std::shared_ptr<tracker_element> {
                     return multimac_endp_handler(con);
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), kismet::retain_lock, "/devices/multimac/devices");
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), std::adopt_lock);
-                }));
+                }, get_devicelist_mutex()));
 
     httpd->register_route("/devices/multikey/devices", {"POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](shared_con con) -> std::shared_ptr<tracker_element> {
                     return multikey_endp_handler(con, false);
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), kismet::retain_lock, "/devices/multimac/devices");
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), std::adopt_lock);
-                }));
+                }, get_devicelist_mutex()));
 
     httpd->register_route("/devices/multikey/as-object/devices", {"POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](shared_con con) -> std::shared_ptr<tracker_element> {
                     return multikey_endp_handler(con, true);
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), kismet::retain_lock, "/devices/multikey/as-object/devices");
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), std::adopt_lock);
-                }));
+                }, get_devicelist_mutex()));
 
     httpd->register_route("/devices/all_devices", {"GET", "POST"}, httpd->RO_ROLE, {"ekjson", "itjson"},
             std::make_shared<kis_net_web_tracked_endpoint>(
@@ -353,13 +335,7 @@ device_tracker::device_tracker() :
                     auto device_ro = std::make_shared<tracker_element_vector>();
                     device_ro->set(immutable_tracked_vec->begin(), immutable_tracked_vec->end());
                     return device_ro;
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), kismet::retain_lock, "/devices/all_devices");
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), std::adopt_lock);
-                }));
+                }, get_devicelist_mutex()));
 
     httpd->register_route("/devices/by-key/:key/device", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
@@ -376,13 +352,7 @@ device_tracker::device_tracker() :
                         throw std::runtime_error("nonexistent device key");
 
                     return dev;
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), kismet::retain_lock, "/devices/by-key/device");
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), std::adopt_lock);
-                }));
+                }, get_devicelist_mutex()));
 
     httpd->register_route("/devices/by-mac/:mac/devices", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
@@ -400,13 +370,7 @@ device_tracker::device_tracker() :
                         devvec->push_back(mmpi->second);
 
                     return devvec;
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), kismet::retain_lock, "/devices/by-mac/devices");
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), std::adopt_lock);
-                }));
+                }, get_devicelist_mutex()));
 
     httpd->register_route("/devices/last-time/:timestamp/devices", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
@@ -430,13 +394,7 @@ device_tracker::device_tracker() :
                         });
 
                     return do_readonly_device_work(ts_worker);
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), kismet::retain_lock, "/devices/last-time/devices");
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), std::adopt_lock);
-                }));
+                }, get_devicelist_mutex()));
 
     httpd->register_route("/devices/by-key/:key/set_name", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
@@ -458,13 +416,7 @@ device_tracker::device_tracker() :
 
                     std::ostream os(&con->response_stream());
                     os << "Device name set\n";
-                },
-                [this]() {
-                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), kismet::retain_lock, "/devices/by-key/set_name");
-                },
-                [this]() {
-                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), std::adopt_lock);
-                }));
+                }, get_devicelist_mutex()));
 
     httpd->register_route("/devices/by-key/:key/set_tag", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
@@ -487,13 +439,7 @@ device_tracker::device_tracker() :
 
                     std::ostream os(&con->response_stream());
                     os << "Device tag set\n";
-                },
-                [this]() {
-                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), kismet::retain_lock, "/devices/by-key/set_tag");
-                },
-                [this]() {
-                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), std::adopt_lock);
-                }));
+                }, get_devicelist_mutex()));
 
     httpd->register_route("/devices/pcap/by-key/:key/packets", {"GET"}, httpd->RO_ROLE, {"pcapng"},
             std::make_shared<kis_net_web_function_endpoint>(
@@ -576,8 +522,6 @@ device_tracker::device_tracker() :
                     if (mac_list.size() == 0) 
                         throw std::runtime_error("expected MAC address in mac or macs[]");
 
-                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex());
-
                     for (auto mi : mac_list) {
                         auto ek = macdevice_alert_conf_map.find(mi);
 
@@ -586,7 +530,7 @@ device_tracker::device_tracker() :
                         else
                             macdevice_alert_conf_map[mi] = type_set;
                     }
-                }));
+                }, get_devicelist_mutex()));
 
     httpd->register_route("/devices/alerts/mac/:type/remove", {"POST"}, httpd->LOGON_ROLE, {"cmd"},
             std::make_shared<kis_net_web_function_endpoint>(
@@ -628,8 +572,6 @@ device_tracker::device_tracker() :
                     if (mac_list.size() == 0) 
                         throw std::runtime_error("expected MAC address in mac or macs[]");
 
-                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex());
-
                     for (auto mi : mac_list) {
                         auto ek = macdevice_alert_conf_map.find(mi);
 
@@ -648,7 +590,7 @@ device_tracker::device_tracker() :
                             }
                         }
                     }
-                }));
+                }, get_devicelist_mutex()));
 
     httpd->register_route("/devices/alerts/mac/:type/macs", {"GET"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
@@ -673,13 +615,7 @@ device_tracker::device_tracker() :
                     }
 
                     return ret;
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), kismet::retain_lock, "/devices/alerts/mac/macs");
-                },
-                [this](std::shared_ptr<tracker_element> devs) {
-                    kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), std::adopt_lock);
-                }));
+                }, get_devicelist_mutex()));
 
     httpd->register_websocket_route("/devices/monitor", httpd->RO_ROLE, {"ws"},
             std::make_shared<kis_net_web_function_endpoint>(
