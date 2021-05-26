@@ -24,7 +24,6 @@
 #include <functional>
 #include <unordered_map>
 
-#include "kis_mutex.h"
 #include "uuid.h"
 #include "trackedelement.h"
 #include "trackedcomponent.h"
@@ -80,18 +79,12 @@ public:
 
     virtual ~device_tracker_view() { }
 
-    // Protect proxies w/ mutex
     __ProxyGet(view_id, std::string, std::string, view_id);
     __ProxyGet(view_description, std::string, std::string, view_description);
     __ProxyGet(list_sz, uint64_t, uint64_t, list_sz);
 
-    virtual void pre_serialize() override {
-        kis_lock_guard<kis_mutex> lk(mutex, kismet::retain_lock, "devicetracker_view serialize");
-    }
-
-    virtual void post_serialize() override {
-        kis_lock_guard<kis_mutex> lk(mutex, std::adopt_lock);
-    }
+    virtual void pre_serialize() override;
+    virtual void post_serialize() override;
 
     // Do work on the base list of all devices in this view; this makes an immutable copy
     // before performing work
@@ -134,8 +127,6 @@ protected:
         // We don't register device_list as a field because we never want to dump it 
         // un-processed; use the view APIs for managing that
     }
-
-    kis_mutex mutex;
 
     std::shared_ptr<tracker_element_string> view_id;
     std::shared_ptr<tracker_element_uuid> view_uuid;

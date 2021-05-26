@@ -32,8 +32,6 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
     new_cb {in_new_cb},
     update_cb {in_update_cb} {
 
-    mutex.set_name(fmt::format("devicetracker_view({})", in_id));
-
     devicetracker = Globalreg::fetch_mandatory_global_as<device_tracker>();
 
     register_fields();
@@ -69,8 +67,6 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
     new_cb {in_new_cb},
     update_cb {in_update_cb} {
 
-    mutex.set_name(fmt::format("devicetracker_view({})", in_id));
-
     devicetracker = Globalreg::fetch_mandatory_global_as<device_tracker>();
 
     register_fields();
@@ -88,14 +84,14 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     return device_endpoint_handler(con);
-                }));
+                }, devicetracker->get_devicelist_mutex()));
 
     uri = fmt::format("/devices/views/{}/last-time/:timestamp/devices", in_id);
     httpd->register_route(uri, {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     return device_time_endpoint(con);
-                }));
+                }, devicetracker->get_devicelist_mutex()));
 
     uri = fmt::format("/devices/views/{}/monitor", in_id);
     httpd->register_websocket_route(uri, httpd->RO_ROLE, {"ws"},
@@ -242,21 +238,29 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
             std::make_shared<kis_net_web_function_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     return device_endpoint_handler(con);
-                }));
+                }, devicetracker->get_devicelist_mutex()));
 
     uri = fmt::format("/devices/views/{}last-time/:timestamp/devices", ss.str());
     httpd->register_route(uri, {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
                     return device_time_endpoint(con);
-                }));
+                }, devicetracker->get_devicelist_mutex()));
+}
+
+void device_tracker_view::pre_serialize() {
+    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), kismet::retain_lock, "devicetracker_view serialize");
+}
+
+void device_tracker_view::post_serialize() {
+    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), std::adopt_lock);
 }
 
 std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(device_tracker_view_worker& worker) {
     // Make a copy of the vector in case the worker manipulates the original
     std::shared_ptr<tracker_element_vector> immutable_copy;
     {
-        kis_lock_guard<kis_mutex> lk(mutex);
+        kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex());
         immutable_copy = std::make_shared<tracker_element_vector>(device_list);
     }
 
@@ -267,7 +271,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_
     // Make a copy of the vector in case the worker manipulates the original
     std::shared_ptr<tracker_element_vector> immutable_copy;
     {
-        kis_lock_guard<kis_mutex> lk(mutex);
+        kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex());
         immutable_copy = std::make_shared<tracker_element_vector>(device_list);
     }
 
@@ -279,7 +283,8 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(devi
     auto ret = std::make_shared<tracker_element_vector>();
     ret->reserve(devices->size());
 
-    // Lock the whole device list for the duration
+    // Lock the whole device list for the duration; we may already hold this lock if we're inside the webserver
+    // but that's OK
     kis_lock_guard<kis_mutex> dev_lg(devicetracker->get_devicelist_mutex(), 
             "device_tracker_view do_device_work");
 
@@ -292,10 +297,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_device_work(devi
             auto dev = std::static_pointer_cast<kis_tracked_device_base>(val);
 
             bool m;
-            {
-                // Lock each device within the overall devicelist write state
-                m = worker.match_device(dev);
-            }
+            m = worker.match_device(dev);
 
             if (m) 
                 ret->push_back(dev);
@@ -348,7 +350,7 @@ std::shared_ptr<tracker_element_vector> device_tracker_view::do_readonly_device_
 }
 
 std::shared_ptr<kis_tracked_device_base> device_tracker_view::fetch_device(device_key in_key) {
-    kis_lock_guard<kis_mutex> lk(mutex, "device_tracker_view fetch_device");
+    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex(), "device_tracker_view fetch_device");
 
     auto present_itr = device_presence_map.find(in_key);
 
@@ -360,7 +362,7 @@ std::shared_ptr<kis_tracked_device_base> device_tracker_view::fetch_device(devic
 
 void device_tracker_view::new_device(std::shared_ptr<kis_tracked_device_base> device) {
     if (new_cb != nullptr) {
-        kis_lock_guard<kis_mutex> lk(mutex);
+        kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex());
 
         if (new_cb(device)) {
             auto dpmi = device_presence_map.find(device->get_key());
@@ -380,7 +382,7 @@ void device_tracker_view::update_device(std::shared_ptr<kis_tracked_device_base>
     if (update_cb == nullptr)
         return;
 
-    kis_lock_guard<kis_mutex> lk(mutex);
+    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex());
     bool retain = update_cb(device);
 
     auto dpmi = device_presence_map.find(device->get_key());
@@ -410,7 +412,7 @@ void device_tracker_view::update_device(std::shared_ptr<kis_tracked_device_base>
 }
 
 void device_tracker_view::remove_device(std::shared_ptr<kis_tracked_device_base> device) {
-    kis_lock_guard<kis_mutex> lk(mutex);
+    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex());
 
     auto di = device_presence_map.find(device->get_key());
 
@@ -429,7 +431,7 @@ void device_tracker_view::remove_device(std::shared_ptr<kis_tracked_device_base>
 }
 
 void device_tracker_view::add_device_direct(std::shared_ptr<kis_tracked_device_base> device) {
-    kis_lock_guard<kis_mutex> lk(mutex);
+    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex());
 
     auto di = device_presence_map.find(device->get_key());
 
@@ -443,7 +445,7 @@ void device_tracker_view::add_device_direct(std::shared_ptr<kis_tracked_device_b
 }
 
 void device_tracker_view::remove_device_direct(std::shared_ptr<kis_tracked_device_base> device) {
-    kis_lock_guard<kis_mutex> lk(mutex);
+    kis_lock_guard<kis_mutex> lk(devicetracker->get_devicelist_mutex());
 
     auto di = device_presence_map.find(device->get_key());
 
@@ -463,9 +465,6 @@ void device_tracker_view::remove_device_direct(std::shared_ptr<kis_tracked_devic
 
 std::shared_ptr<tracker_element> 
 device_tracker_view::device_time_endpoint(std::shared_ptr<kis_net_beast_httpd_connection> con) {
-    // The device worker creates an immutable copy of the device list under its own RO mutex,
-    // so we don't have to lock here.
-    
     auto ret = std::make_shared<tracker_element_vector>();
 
     auto tv_k = con->uri_params().find(":timestamp");
@@ -486,7 +485,7 @@ device_tracker_view::device_time_endpoint(std::shared_ptr<kis_net_beast_httpd_co
                 return true;
                 });
 
-    return do_readonly_device_work(worker);
+    return do_device_work(worker);
 }
 
 void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
@@ -655,9 +654,6 @@ void device_tracker_view::device_endpoint_handler(std::shared_ptr<kis_net_beast_
 
     // Next vector we do work on
     auto next_work_vec = std::make_shared<tracker_element_vector>();
-
-    // Lock the device list
-    kis_lock_guard<kis_mutex> lk(mutex);
 
     // Copy the entire vector list, under lock, to the next work vector; this makes it an independent copy
     // we can sort and manipulate
