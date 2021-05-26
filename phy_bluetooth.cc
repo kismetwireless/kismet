@@ -150,6 +150,9 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
 
         in_pack->insert(btphy->pack_comp_common, commoninfo);
 
+        kis_lock_guard<kis_mutex> lk(btphy->devicetracker->get_devicelist_mutex(), 
+                "packet_bluetooth_scan_json_classifier");
+
         auto btdev =
             btphy->devicetracker->update_common_device(commoninfo,
                     btaddr_mac, btphy, in_pack,
@@ -157,9 +160,6 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
                      UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                      UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION),
                     "Bluetooth Device");
-
-        kis_lock_guard<kis_mutex> lk(btphy->devicetracker->get_devicelist_mutex(), 
-                "packet_bluetooth_scan_json_classifier");
 
         // Mapped to base name
         auto devname_j = json["name"]; 
