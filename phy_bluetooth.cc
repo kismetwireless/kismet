@@ -252,6 +252,9 @@ int kis_bluetooth_phy::packet_tracker_bluetooth(CHAINCALL_PARMS) {
     if (ci == NULL)
         return 0;
 
+    kis_lock_guard<kis_mutex> lk(btphy->devicetracker->get_devicelist_mutex(), 
+            "packet_tracker_bluetooth");
+
     std::shared_ptr<kis_tracked_device_base> basedev =
         btphy->devicetracker->update_common_device(ci, ci->source, btphy, in_pack, 
                 (UCD_UPDATE_SIGNAL | UCD_UPDATE_FREQUENCIES |
@@ -261,9 +264,6 @@ int kis_bluetooth_phy::packet_tracker_bluetooth(CHAINCALL_PARMS) {
 
     if (basedev == nullptr)
         return 0;
-
-    kis_lock_guard<kis_mutex> lk(btphy->devicetracker->get_devicelist_mutex(), 
-            "packet_tracker_bluetooth");
 
     auto btdev =
         basedev->get_sub_as<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);
