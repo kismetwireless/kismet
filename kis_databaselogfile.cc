@@ -132,21 +132,6 @@ bool kis_database_logfile::open_log(std::string in_path) {
         unlink(in_path.c_str());
     }
 
-    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_packets", true)) {
-        _MSG("Saving packets to the Kismet database log.", MSGFLAG_INFO);
-        std::shared_ptr<packet_chain> packetchain =
-            Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
-
-        auto this_ref = shared_from_this();
-        packet_handler_id = 
-            packetchain->register_handler([this, this_ref](kis_packet *packet) -> int {
-                    return log_packet(packet);
-                }, CHAINPOS_LOGGING, -100);
-    } else {
-        packet_handler_id = -1;
-        _MSG_INFO("Packets will not be saved to the Kismet database log.");
-    }
-   
     packet_timeout =
         Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_packet_timeout", 0);
 
@@ -408,6 +393,22 @@ bool kis_database_logfile::open_log(std::string in_path) {
     eventbus->publish(evt);
 
     lk.unlock();
+
+    // Register the log after we have all the filters set and the mutex unlocked
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_packets", true)) {
+        _MSG("Saving packets to the Kismet database log.", MSGFLAG_INFO);
+        std::shared_ptr<packet_chain> packetchain =
+            Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
+
+        auto this_ref = shared_from_this();
+        packet_handler_id = 
+            packetchain->register_handler([this, this_ref](kis_packet *packet) -> int {
+                    return log_packet(packet);
+                }, CHAINPOS_LOGGING, -100);
+    } else {
+        packet_handler_id = -1;
+        _MSG_INFO("Packets will not be saved to the Kismet database log.");
+    }
 
     set_int_log_open(true);
     db_enabled = true;
