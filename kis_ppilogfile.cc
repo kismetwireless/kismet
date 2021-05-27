@@ -96,12 +96,12 @@ bool kis_ppi_logfile::open_log(std::string in_path) {
 
     _MSG_INFO("Opened PPI pcap log file '{}'", in_path);
 
-	packetchain->register_handler(&kis_ppi_logfile::packet_handler, this, CHAINPOS_LOGGING, -100);
+    log_open = true;
+    set_int_log_open(true);
 
     lk.unlock();
 
-    log_open = true;
-    set_int_log_open(true);
+	packetchain->register_handler(&kis_ppi_logfile::packet_handler, this, CHAINPOS_LOGGING, -100);
 
     return true;
 }
