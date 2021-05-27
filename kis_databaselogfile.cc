@@ -392,6 +392,9 @@ bool kis_database_logfile::open_log(std::string in_path) {
     auto evt = eventbus->get_eventbus_event(event_log_open());
     eventbus->publish(evt);
 
+    set_int_log_open(true);
+    db_enabled = true;
+
     lk.unlock();
 
     // Register the log after we have all the filters set and the mutex unlocked
@@ -409,9 +412,6 @@ bool kis_database_logfile::open_log(std::string in_path) {
         packet_handler_id = -1;
         _MSG_INFO("Packets will not be saved to the Kismet database log.");
     }
-
-    set_int_log_open(true);
-    db_enabled = true;
 
     return true;
 }
