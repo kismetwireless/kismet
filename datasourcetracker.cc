@@ -178,7 +178,10 @@ void datasource_tracker_source_probe::probe_sources(std::function<void (shared_d
                     });
 
         // Log the cancellation timer
-        cancel_timer_vec.push_back(cancel_timer);
+        {
+            kis_lock_guard<kis_mutex> lk(probe_lock, "dstprobe probe_sources");
+            cancel_timer_vec.push_back(cancel_timer);
+        }
 
         i.second->probe_interface(definition, i.first, 
                 [cancel_timer, this](unsigned int transaction, bool success, std::string reason) {
