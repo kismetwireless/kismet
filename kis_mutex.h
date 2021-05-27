@@ -37,9 +37,8 @@
 
 #define KIS_THREAD_TIMEOUT      30
 
-class kis_mutex {
+class kis_mutex : public std::recursive_timed_mutex {
 private:
-    std::recursive_timed_mutex mutex;
     std::string name;
 
 public:
@@ -61,30 +60,8 @@ public:
         return name;
     }
 
-    void lock() {
-        mutex.lock();
-    }
-
-    bool try_lock() {
-        return mutex.try_lock();
-    }
-
     // Previous workaround for gcc try_lock_for bugs here, but now we require c++14 so we don't
     // need them
-
-    template<class Rep, class Period>
-    bool try_lock_for(const std::chrono::duration<Rep, Period>& timeout_duration) {
-        return mutex.try_lock_for(timeout_duration);
-    }
-
-    template<class Clock, class Duration>
-    bool try_lock_until(const std::chrono::time_point<Clock, Duration>& timeout_time) {
-        return mutex.try_lock_until(timeout_time);
-    }
-
-    void unlock() {
-        return mutex.unlock();
-    }
 
     void lock_shared() {
         throw std::runtime_error("lock_shared called on non-shared mutex");
@@ -194,9 +171,12 @@ public:
         op{op},
         retain{false},
         shared{false} {
+            mutex.lock();
+            /*
             if (!mutex.try_lock_for(std::chrono::seconds(KIS_THREAD_TIMEOUT)))
                 throw std::runtime_error(fmt::format("potential deadlock: mutex {} not available within "
                             "timeout period for op {}", mutex.get_name(), op));
+                            */
         }
 
     kis_lock_guard(M& m, std::adopt_lock_t t, const std::string& op = "UNKNOWN") :
@@ -210,9 +190,12 @@ public:
         op{op},
         retain{true},
         shared{false} {
+            mutex.lock();
+            /*
             if (!mutex.try_lock_for(std::chrono::seconds(KIS_THREAD_TIMEOUT)))
                 throw std::runtime_error(fmt::format("potential deadlock: mutex {} not available within "
                             "timeout period for op {}", mutex.get_name(), op));
+                            */
         }
 
     kis_lock_guard(M& m, kismet::shared_lock_t t, const std::string& op = "UNKNOWN") :
@@ -220,19 +203,23 @@ public:
         op{op},
         retain{false},
         shared{true} {
+            mutex.lock_shared();
+            /*
             if (!mutex.try_lock_shared_for(std::chrono::seconds(KIS_THREAD_TIMEOUT)))
                 throw std::runtime_error(fmt::format("potential deadlock: mutex {} not available within "
                             "timeout period for op {}", mutex.get_name(), op));
+                            */
         }
 
     kis_lock_guard(const kis_lock_guard&) = delete;
     kis_lock_guard& operator=(const kis_lock_guard&) = delete;
 
     ~kis_lock_guard() {
-        if (shared)
+        if (shared) {
             mutex.unlock_shared();
-        else if (!retain)
+        } else if (!retain) {
             mutex.unlock();
+        }
     }
 
 protected:
@@ -248,9 +235,12 @@ public:
     kis_unique_lock(M& m, const std::string& op) :
         mutex{m},
         op{op} {
+            /*
             if (!mutex.try_lock_for(std::chrono::seconds(KIS_THREAD_TIMEOUT)))
                 throw std::runtime_error(fmt::format("potential deadlock: mutex {} not available within "
                             "timeout period for op {}", mutex.get_name(), op));
+                            */
+            mutex.lock();
             locked = true;
         }
 
@@ -278,11 +268,14 @@ public:
                         "unique lock {} when already locked fo {}", 
                         std::this_thread::get_id(), mutex.get_name(), op));
 
-        locked = true;
-
+        /*
         if (!mutex.try_lock_for(std::chrono::seconds(KIS_THREAD_TIMEOUT)))
             throw std::runtime_error(fmt::format("potential deadlock: mutex {} not available within "
                         "timeout period for op {}", mutex.get_name(), op));
+                        */
+        mutex.lock();
+        locked = true;
+
     }
 
     bool try_lock(const std::string& op = "UNKNOWN") {

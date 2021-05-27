@@ -521,7 +521,7 @@ void kis_datasource::resume_source() {
 }
 
 void kis_datasource::handle_error(const std::string& in_error) {
-    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource handle_error");
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource handle_error");
 
     if (!quiet_errors && in_error.length()) {
         _MSG_ERROR("Data source '{} / {}' ('{}') encountered an error: {}",
@@ -537,8 +537,10 @@ void kis_datasource::handle_error(const std::string& in_error) {
     evt->get_event_content()->insert(event_datasource_error(), source_uuid);
     eventbus->publish(evt);
 
+    lk.unlock();
     handle_source_error();
     cancel_all_commands(in_error);
+    lk.lock();
 
     close_external();
 }
@@ -548,7 +550,7 @@ void kis_datasource::close_source() {
 }
 
 void kis_datasource::close_external() {
-    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource close_external");
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource close_external");
 
     if (ping_timer_id > 0) {
         timetracker->remove_timer(ping_timer_id);
@@ -561,8 +563,8 @@ void kis_datasource::close_external() {
 
     set_int_source_running(false);
 
+    lk.unlock();
     cancel_all_commands("source closed");
-
     kis_external_interface::close_external();
 }
 
@@ -692,7 +694,7 @@ std::shared_ptr<kis_datasource::tracked_command> kis_datasource::get_command(uin
 }
 
 void kis_datasource::cancel_command(uint32_t in_transaction, std::string in_error) {
-    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource cancel_command");
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource cancel_command");
 
     auto i = command_ack_map.find(in_transaction);
     if (i != command_ack_map.end()) {
@@ -712,26 +714,34 @@ void kis_datasource::cancel_command(uint32_t in_transaction, std::string in_erro
         if (cmd->list_cb != NULL) {
             list_callback_t cb = cmd->list_cb;
             cmd->list_cb = NULL;
+            lk.unlock();
             cb(std::static_pointer_cast<kis_datasource>(shared_from_this()),
                     cmd->transaction, std::vector<shared_interface>());
+            lk.lock();
         } else if (cmd->probe_cb != NULL) {
             probe_callback_t cb = cmd->probe_cb;
             cmd->probe_cb = NULL;
+            lk.unlock();
             cb(cmd->transaction, false, in_error);
+            lk.lock();
         } else if (cmd->open_cb != NULL) {
             open_callback_t cb = cmd->open_cb;
             cmd->open_cb = NULL;
+            lk.unlock();
             cb(cmd->transaction, false, in_error);
+            lk.lock();
         } else if (cmd->configure_cb != NULL) {
             configure_callback_t cb = cmd->configure_cb;
             cmd->configure_cb = NULL;
+            lk.unlock();
             cb(cmd->transaction, false, in_error);
+            lk.lock();
         }
     }
 }
 
 void kis_datasource::cancel_all_commands(std::string in_error) {
-    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource cancel_all_commands");
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource cancel_all_commands");
 
     // fprintf(stderr, "debug - cancel all commands\n");
 
@@ -741,7 +751,9 @@ void kis_datasource::cancel_all_commands(std::string in_error) {
         if (i == command_ack_map.end())
             break;
 
+        lk.unlock();
         cancel_command(i->first, in_error);
+        lk.lock();
     }
 
     command_ack_map.clear();
@@ -1423,7 +1435,7 @@ kis_gps_packinfo *kis_datasource::handle_sub_gps(KismetDatasource::SubGps in_gps
 
 unsigned int kis_datasource::send_probe_source(std::string in_definition,
         unsigned int in_transaction, probe_callback_t in_cb) {
-    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource send_probe_source");
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource send_probe_source");
 
     if (in_transaction == 0)
         in_transaction = next_transaction++;
@@ -1444,7 +1456,9 @@ unsigned int kis_datasource::send_probe_source(std::string in_definition,
 
     if (seqno == 0) {
         if (in_cb != NULL) {
+            lk.unlock();
             in_cb(in_transaction, false, "unable to generate command frame");
+            lk.lock();
         }
 
         return 0;
@@ -1460,7 +1474,7 @@ unsigned int kis_datasource::send_probe_source(std::string in_definition,
 
 unsigned int kis_datasource::send_open_source(std::string in_definition,
         unsigned int in_transaction, open_callback_t in_cb) {
-    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource send_open_source");
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource send_open_source");
 
     if (in_transaction == 0)
         in_transaction = next_transaction++;
@@ -1481,7 +1495,9 @@ unsigned int kis_datasource::send_open_source(std::string in_definition,
 
     if (seqno == 0) {
         if (in_cb != NULL) {
+            lk.unlock();
             in_cb(in_transaction, false, "unable to generate command frame");
+            lk.lock();
         }
 
         return 0;
@@ -1497,7 +1513,7 @@ unsigned int kis_datasource::send_open_source(std::string in_definition,
 
 unsigned int kis_datasource::send_configure_channel(std::string in_chan,
         unsigned int in_transaction, configure_callback_t in_cb) {
-    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource send_configure_channel");
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource send_configure_channel");
 
     if (in_transaction == 0)
         in_transaction = next_transaction++;
@@ -1521,7 +1537,9 @@ unsigned int kis_datasource::send_configure_channel(std::string in_chan,
 
     if (seqno == 0) {
         if (in_cb != NULL) {
+            lk.unlock();
             in_cb(in_transaction, false, "unable to generate command frame");
+            lk.lock();
         }
 
         return 0;
@@ -1541,7 +1559,7 @@ unsigned int kis_datasource::send_configure_channel_hop(double in_rate,
         unsigned int in_transaction,
         configure_callback_t in_cb) {
 
-    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource send_configure_channel_hop");
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource send_configure_channel_hop");
 
     if (in_transaction == 0)
         in_transaction = next_transaction++;
@@ -1571,7 +1589,9 @@ unsigned int kis_datasource::send_configure_channel_hop(double in_rate,
 
     if (seqno == 0) {
         if (in_cb != NULL) {
+            lk.unlock();
             in_cb(in_transaction, false, "unable to generate command frame");
+            lk.lock();
         }
 
         return 0;
@@ -1586,7 +1606,7 @@ unsigned int kis_datasource::send_configure_channel_hop(double in_rate,
 }
 
 unsigned int kis_datasource::send_list_interfaces(unsigned int in_transaction, list_callback_t in_cb) {
-    kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource send_list_interfaces");
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "datasource send_list_interfaces");
 
     if (in_transaction == 0)
         in_transaction = next_transaction++;
@@ -1606,7 +1626,9 @@ unsigned int kis_datasource::send_list_interfaces(unsigned int in_transaction, l
 
     if (seqno == 0) {
         if (in_cb != NULL) {
+            lk.unlock();
             in_cb(std::static_pointer_cast<kis_datasource>(shared_from_this()), in_transaction, std::vector<shared_interface>());
+            lk.lock();
         }
 
         return 0;

@@ -61,7 +61,6 @@ device_tracker::device_tracker() :
     kis_database(Globalreg::globalreg, "devicetracker"),
     deferred_startup() {
 
-    view_mutex.set_name("device_tracker::view_mutex");
     phy_mutex.set_name("device_tracker::phy_mutex");
     devicelist_mutex.set_name("devicetracker::devicelist");
 
@@ -309,7 +308,7 @@ device_tracker::device_tracker() :
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
     httpd->register_route("/devices/views/all_views", {"GET", "POST"}, httpd->RO_ROLE, {},
-            std::make_shared<kis_net_web_tracked_endpoint>(view_vec, view_mutex));
+            std::make_shared<kis_net_web_tracked_endpoint>(view_vec, get_devicelist_mutex()));
 
     httpd->register_route("/devices/multimac/devices", {"POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
@@ -976,11 +975,13 @@ int device_tracker::fetch_num_packets() {
 
 
 int device_tracker::register_phy_handler(kis_phy_handler *in_weak_handler) {
-    kis_lock_guard<kis_mutex> lk(phy_mutex, "device_tracker register_phy_handler");
+    kis_unique_lock<kis_mutex> lk(phy_mutex, "device_tracker register_phy_handler");
 
 	int num = next_phy_id++;
 
+    lk.unlock();
 	kis_phy_handler *strongphy = in_weak_handler->create_phy_handler(globalreg, num);
+    lk.lock();
 
 	phy_handler_map[num] = strongphy;
 
@@ -1174,7 +1175,6 @@ std::shared_ptr<kis_tracked_device_base>
 
         device->set_key(key);
 
-        device->device_mutex.set_name(fmt::format("kis_tracked_device({})", key));
         device->set_macaddr(in_mac);
         device->set_tracker_phyname(get_cached_phyname(in_phy->fetch_phy_name()));
 		device->set_phyid(in_phy->fetch_phy_id());
@@ -1613,7 +1613,7 @@ void device_tracker::add_device(std::shared_ptr<kis_tracked_device_base> device)
 }
 
 bool device_tracker::add_view(std::shared_ptr<device_tracker_view> in_view) {
-    kis_lock_guard<kis_mutex> lk(view_mutex);
+    kis_lock_guard<kis_mutex> lk(devicelist_mutex);
 
     for (const auto& i : *view_vec) {
         auto vi = std::static_pointer_cast<device_tracker_view>(i);
@@ -1632,7 +1632,7 @@ bool device_tracker::add_view(std::shared_ptr<device_tracker_view> in_view) {
 }
 
 void device_tracker::remove_view(const std::string& in_id) {
-    kis_lock_guard<kis_mutex> lk(view_mutex);
+    kis_lock_guard<kis_mutex> lk(devicelist_mutex);
         
     for (auto i = view_vec->begin(); i != view_vec->end(); ++i) {
         auto vi = std::static_pointer_cast<device_tracker_view>(*i);
@@ -1644,7 +1644,7 @@ void device_tracker::remove_view(const std::string& in_id) {
 }
 
 void device_tracker::new_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
-    kis_lock_guard<kis_mutex> lk(view_mutex);
+    kis_lock_guard<kis_mutex> lk(devicelist_mutex);
 
     for (const auto& i : *view_vec) {
         auto vi = std::static_pointer_cast<device_tracker_view>(i);
@@ -1653,7 +1653,7 @@ void device_tracker::new_view_device(std::shared_ptr<kis_tracked_device_base> in
 }
 
 void device_tracker::update_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
-    kis_lock_guard<kis_mutex> lk(view_mutex);
+    kis_lock_guard<kis_mutex> lk(devicelist_mutex);
 
     for (const auto& i : *view_vec) {
         auto vi = std::static_pointer_cast<device_tracker_view>(i);
@@ -1662,7 +1662,7 @@ void device_tracker::update_view_device(std::shared_ptr<kis_tracked_device_base>
 }
 
 void device_tracker::remove_view_device(std::shared_ptr<kis_tracked_device_base> in_device) {
-    kis_lock_guard<kis_mutex> lk(view_mutex);
+    kis_lock_guard<kis_mutex> lk(devicelist_mutex);
 
     for (const auto& i : *view_vec) {
         auto vi = std::static_pointer_cast<device_tracker_view>(i);
@@ -1671,7 +1671,7 @@ void device_tracker::remove_view_device(std::shared_ptr<kis_tracked_device_base>
 }
 
 std::shared_ptr<device_tracker_view> device_tracker::get_phy_view(int in_phyid) {
-    kis_lock_guard<kis_mutex> lk(view_mutex);
+    kis_lock_guard<kis_mutex> lk(devicelist_mutex);
 
     auto vk = phy_view_map.find(in_phyid);
     if (vk != phy_view_map.end())

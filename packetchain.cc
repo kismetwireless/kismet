@@ -147,20 +147,7 @@ packet_chain::packet_chain() {
 
     packetchain_shutdown = false;
 
-#if 1
-    auto nt = static_cast<int>(std::thread::hardware_concurrency());
-#else
-    auto nt = int(1);
-#endif
-
-    for (int n = 0; n < nt; n++) {
-        packet_threads.emplace_back(std::thread([this, nt, n]() {
-                thread_set_process_name(fmt::format("packethandler {}/{}", n, nt));
-                packet_queue_processor();
-                }));
-    }
-
-    timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
+   timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
     eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
 
     event_timer_id = 
@@ -225,6 +212,22 @@ packet_chain::~packet_chain() {
             delete(i);
         logging_chain.clear();
 
+    }
+
+}
+
+void packet_chain::start_processing() {
+#if 1
+    auto nt = static_cast<int>(std::thread::hardware_concurrency());
+#else
+    auto nt = int(1);
+#endif
+
+    for (int n = 0; n < nt; n++) {
+        packet_threads.emplace_back(std::thread([this, nt, n]() {
+                thread_set_process_name(fmt::format("packethandler {}/{}", n, nt));
+                packet_queue_processor();
+                }));
     }
 
 }
@@ -299,8 +302,8 @@ void packet_chain::packet_queue_processor() {
 
         {
             // Lock the chain mutexes until we're done processing this packet
-            kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, kismet::shared_lock,
-                    "packet_queue_processor");
+            // kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, kismet::shared_lock, "packet_queue_processor");
+            std::shared_lock<kis_shared_mutex> lk(packetchain_mutex);
 
             // These can only be perturbed inside a sync, which can only occur when
             // the worker thread is in the sync block above, so we shouldn't

@@ -124,7 +124,8 @@ public:
 
     template<typename T>
     void publish(T event) {
-        kis_lock_guard<kis_mutex> lk(mutex, "eventbus publish");
+        // kis_lock_guard<kis_mutex> lk(mutex, "eventbus publish");
+        std::lock_guard<kis_mutex> lk(mutex);
 
         auto evt_cast = 
             std::static_pointer_cast<eventbus_event>(event);

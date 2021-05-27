@@ -581,20 +581,6 @@ public:
         kis_internal_id = in_id;
     }
 
-    // Lock our device around serialization
-    virtual void pre_serialize() override {
-        // local_eol_shared_locker lock(&device_mutex);
-    }
-
-    virtual void post_serialize() override {
-        // local_shared_unlocker unlock(&device_mutex);
-    }
-
-    // Protective per-device mutex, should be managed by pre/post serialization
-    // functions, and by anything modifying the device or any of the per-phy records
-    // inside it
-    kis_mutex device_mutex;
-
 protected:
     virtual void register_fields() override;
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;

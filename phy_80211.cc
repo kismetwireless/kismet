@@ -82,128 +82,125 @@ int phydot11_packethook_dot11(CHAINCALL_PARMS) {
 
 kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) : 
     kis_phy_handler(in_globalreg, in_phyid) {
-        alertracker = Globalreg::fetch_mandatory_global_as<alert_tracker>();
-        packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
-        timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
-        devicetracker = Globalreg::fetch_mandatory_global_as<device_tracker>();
-        eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
-        entrytracker = Globalreg::fetch_mandatory_global_as<entry_tracker>();
-        streamtracker = Globalreg::fetch_mandatory_global_as<stream_tracker>();
 
-        // Initialize the crc tables
-        crc32_init_table_80211(Globalreg::globalreg->crc32_table);
+    alertracker = Globalreg::fetch_mandatory_global_as<alert_tracker>();
+    packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
+    timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
+    devicetracker = Globalreg::fetch_mandatory_global_as<device_tracker>();
+    eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
+    entrytracker = Globalreg::fetch_mandatory_global_as<entry_tracker>();
+    streamtracker = Globalreg::fetch_mandatory_global_as<stream_tracker>();
 
-        set_phy_name("IEEE802.11");
+    // Initialize the crc tables
+    crc32_init_table_80211(Globalreg::globalreg->crc32_table);
 
-        dot11_device_entry_id =
-            Globalreg::globalreg->entrytracker->register_field("dot11.device",
-                    tracker_element_factory<dot11_tracked_device>(),
-                    "IEEE802.11 device");
+    set_phy_name("IEEE802.11");
 
-        // Packet classifier - makes basic records plus dot11 data
-        packetchain->register_handler(&packet_dot11_common_classifier, this,
-                CHAINPOS_CLASSIFIER, -100);
-        packetchain->register_handler(&packet_dot11_scan_json_classifier, this,
-                CHAINPOS_CLASSIFIER, -99);
-        packetchain->register_handler(&phydot11_packethook_wep, this,
-                CHAINPOS_DECRYPT, -100);
-        packetchain->register_handler(&phydot11_packethook_dot11, this,
-                CHAINPOS_LLCDISSECT, -100);
+    dot11_device_entry_id =
+        Globalreg::globalreg->entrytracker->register_field("dot11.device",
+                tracker_element_factory<dot11_tracked_device>(),
+                "IEEE802.11 device");
 
-        // If we haven't registered packet components yet, do so.  We have to
-        // co-exist with the old tracker core for some time
-        pack_comp_80211 =
-            packetchain->register_packet_component("PHY80211");
+    // Packet classifier - makes basic records plus dot11 data
+    packetchain->register_handler(&packet_dot11_common_classifier, this, CHAINPOS_CLASSIFIER, -100);
+    packetchain->register_handler(&packet_dot11_scan_json_classifier, this, CHAINPOS_CLASSIFIER, -99);
+    packetchain->register_handler(&phydot11_packethook_wep, this, CHAINPOS_DECRYPT, -100);
+    packetchain->register_handler(&phydot11_packethook_dot11, this, CHAINPOS_LLCDISSECT, -100);
 
-        pack_comp_basicdata = 
-            packetchain->register_packet_component("BASICDATA");
+    // If we haven't registered packet components yet, do so.  We have to
+    // co-exist with the old tracker core for some time
+    pack_comp_80211 =
+        packetchain->register_packet_component("PHY80211");
 
-        pack_comp_mangleframe = 
-            packetchain->register_packet_component("MANGLEDATA");
+    pack_comp_basicdata = 
+        packetchain->register_packet_component("BASICDATA");
 
-        pack_comp_checksum =
-            packetchain->register_packet_component("CHECKSUM");
+    pack_comp_mangleframe = 
+        packetchain->register_packet_component("MANGLEDATA");
 
-        pack_comp_linkframe = 
-            packetchain->register_packet_component("LINKFRAME");
+    pack_comp_checksum =
+        packetchain->register_packet_component("CHECKSUM");
 
-        pack_comp_decap =
-            packetchain->register_packet_component("DECAP");
+    pack_comp_linkframe = 
+        packetchain->register_packet_component("LINKFRAME");
 
-        pack_comp_common = 
-            packetchain->register_packet_component("COMMON");
+    pack_comp_decap =
+        packetchain->register_packet_component("DECAP");
 
-        pack_comp_datapayload =
-            packetchain->register_packet_component("DATAPAYLOAD");
+    pack_comp_common = 
+        packetchain->register_packet_component("COMMON");
 
-        pack_comp_gps =
-            packetchain->register_packet_component("GPS");
+    pack_comp_datapayload =
+        packetchain->register_packet_component("DATAPAYLOAD");
 
-        pack_comp_l1info =
-            packetchain->register_packet_component("RADIODATA");
+    pack_comp_gps =
+        packetchain->register_packet_component("GPS");
 
-        pack_comp_json =
-            packetchain->register_packet_component("JSON");
+    pack_comp_l1info =
+        packetchain->register_packet_component("RADIODATA");
 
-        ssid_regex_vec =
-            Globalreg::globalreg->entrytracker->register_and_get_field_as<tracker_element_vector>("phy80211.ssid_alerts", 
-                    tracker_element_factory<tracker_element_vector>(),
-                    "Regex SSID alert configuration");
+    pack_comp_json =
+        packetchain->register_packet_component("JSON");
 
-        ssid_regex_vec_element_id =
-            Globalreg::globalreg->entrytracker->register_field("phy80211.ssid_alert", 
-                    tracker_element_factory<dot11_tracked_ssid_alert>(),
-                    "ssid alert");
+    ssid_regex_vec =
+        Globalreg::globalreg->entrytracker->register_and_get_field_as<tracker_element_vector>("phy80211.ssid_alerts", 
+                tracker_element_factory<tracker_element_vector>(),
+                "Regex SSID alert configuration");
 
-        // Register the dissector alerts
-        alert_netstumbler_ref = 
-            alertracker->activate_configured_alert("NETSTUMBLER", 
-                    "PROBE", kis_alert_severity::low,
-                    "Netstumbler (and similar older Windows tools) may generate unique "
-                    "beacons which can be used to identify these tools in use.  These "
-                    "tools and the cards which generate these frames are uncommon.",
-                    phyid);
-        alert_nullproberesp_ref =
-            alertracker->activate_configured_alert("NULLPROBERESP",
-                    "DENIAL", kis_alert_severity::medium,
-                    "A probe response with a SSID length of 0 can be used to crash the "
-                    "firmware in specific older Orinoco cards.  These cards are "
-                    "unlikely to be in use in modern systems.",
-                    phyid);
-        alert_lucenttest_ref =
-            alertracker->activate_configured_alert("LUCENTTEST", 
-                    "PROBE", kis_alert_severity::low,
-                    "Specific Lucent Orinoco test tools generate identifiable frames, "
-                    "which can indicate these tools are in use.  These tools and the "
-                    "cards which generate these frames are uncommon.",
-                    phyid);
-        alert_msfbcomssid_ref =
-            alertracker->activate_configured_alert("MSFBCOMSSID", 
-                    "EXPLOIT", kis_alert_severity::medium,
-                    "Old versions of the Broadcom Windows drivers (and Linux NDIS drivers) "
-                    "are vulnerable to overflow exploits.  The Metasploit framework "
-                    "can attack these vulnerabilities.  These drivers are unlikely to "
-                    "be found in modern systems, but seeing these malformed frames "
-                    "indicates an attempted attack is occurring.",
-                    phyid);
-        alert_msfdlinkrate_ref =
-            alertracker->activate_configured_alert("MSFDLINKRATE", 
-                    "EXPLOIT", kis_alert_severity::medium,
-                    "Old versions of the D-Link Windows drivers are vulnerable to "
-                    "malformed rate fields.  The Metasploit framework can attack these "
-                    "vulnerabilities.  These drivers are unlikely to be found in "
-                    "modern systems, but seeing these malformed frames indicates an "
-                    "attempted attack is occurring.",
-                    phyid);
-        alert_msfnetgearbeacon_ref =
-            alertracker->activate_configured_alert("MSFNETGEARBEACON", 
-                    "EXPLOIT", kis_alert_severity::medium,
-                    "Old versions of the Netgear windows drivers are vulnerable to "
-                    "malformed beacons.  The Metasploit framework can attack these "
-                    "vulnerabilities.  These drivers are unlikely to be found in "
-                    "modern systems, but seeing these malformed frames indicates an "
-                    "attempted attack is occurring.",
-                    phyid);
+    ssid_regex_vec_element_id =
+        Globalreg::globalreg->entrytracker->register_field("phy80211.ssid_alert", 
+                tracker_element_factory<dot11_tracked_ssid_alert>(),
+                "ssid alert");
+
+    // Register the dissector alerts
+    alert_netstumbler_ref = 
+        alertracker->activate_configured_alert("NETSTUMBLER", 
+                "PROBE", kis_alert_severity::low,
+                "Netstumbler (and similar older Windows tools) may generate unique "
+                "beacons which can be used to identify these tools in use.  These "
+                "tools and the cards which generate these frames are uncommon.",
+                phyid);
+    alert_nullproberesp_ref =
+        alertracker->activate_configured_alert("NULLPROBERESP",
+                "DENIAL", kis_alert_severity::medium,
+                "A probe response with a SSID length of 0 can be used to crash the "
+                "firmware in specific older Orinoco cards.  These cards are "
+                "unlikely to be in use in modern systems.",
+                phyid);
+    alert_lucenttest_ref =
+        alertracker->activate_configured_alert("LUCENTTEST", 
+                "PROBE", kis_alert_severity::low,
+                "Specific Lucent Orinoco test tools generate identifiable frames, "
+                "which can indicate these tools are in use.  These tools and the "
+                "cards which generate these frames are uncommon.",
+                phyid);
+    alert_msfbcomssid_ref =
+        alertracker->activate_configured_alert("MSFBCOMSSID", 
+                "EXPLOIT", kis_alert_severity::medium,
+                "Old versions of the Broadcom Windows drivers (and Linux NDIS drivers) "
+                "are vulnerable to overflow exploits.  The Metasploit framework "
+                "can attack these vulnerabilities.  These drivers are unlikely to "
+                "be found in modern systems, but seeing these malformed frames "
+                "indicates an attempted attack is occurring.",
+                phyid);
+    alert_msfdlinkrate_ref =
+        alertracker->activate_configured_alert("MSFDLINKRATE", 
+                "EXPLOIT", kis_alert_severity::medium,
+                "Old versions of the D-Link Windows drivers are vulnerable to "
+                "malformed rate fields.  The Metasploit framework can attack these "
+                "vulnerabilities.  These drivers are unlikely to be found in "
+                "modern systems, but seeing these malformed frames indicates an "
+                "attempted attack is occurring.",
+                phyid);
+    alert_msfnetgearbeacon_ref =
+        alertracker->activate_configured_alert("MSFNETGEARBEACON", 
+                "EXPLOIT", kis_alert_severity::medium,
+                "Old versions of the Netgear windows drivers are vulnerable to "
+                "malformed beacons.  The Metasploit framework can attack these "
+                "vulnerabilities.  These drivers are unlikely to be found in "
+                "modern systems, but seeing these malformed frames indicates an "
+                "attempted attack is occurring.",
+                phyid);
     alert_longssid_ref =
         alertracker->activate_configured_alert("LONGSSID", 
                 "EXPLOIT", kis_alert_severity::critical,
@@ -249,15 +246,15 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 "channel selection, but may also indicate a spoofed or "
                 "'evil twin' network.",
                 phyid);
-	alert_dhcpcon_ref =
-		alertracker->activate_configured_alert("DHCPCONFLICT", 
+    alert_dhcpcon_ref =
+        alertracker->activate_configured_alert("DHCPCONFLICT", 
                 "SPOOF", kis_alert_severity::low,
                 "A DHCP exchange was observed and a client was given an IP via "
                 "DHCP, but is not using the assigned IP.  This may be a "
                 "mis-configured client device, or may indicate client spoofing.",
                 phyid);
-	alert_bcastdcon_ref =
-		alertracker->activate_configured_alert("BCASTDISCON", 
+    alert_bcastdcon_ref =
+        alertracker->activate_configured_alert("BCASTDISCON", 
                 "DENIAL", kis_alert_severity::medium,
                 "A broadcast disconnect packet forces all clients on a network "
                 "to disconnect.  While these may rarely occur in some environments, "
@@ -265,23 +262,23 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 "attack or an attempt to attack the network encryption by forcing "
                 "clients to reconnect.",
                 phyid);
-	alert_airjackssid_ref = 
-		alertracker->activate_configured_alert("AIRJACKSSID", 
+    alert_airjackssid_ref = 
+        alertracker->activate_configured_alert("AIRJACKSSID", 
                 "PROBE", kis_alert_severity::low,
                 "Very old wireless tools used the SSID 'Airjack' while configuring "
                 "card state.  It is very unlikely to see these tools in operation "
                 "in modern environments.",
                 phyid);
-	alert_wepflap_ref =
-		alertracker->activate_configured_alert("CRYPTODROP", 
+    alert_wepflap_ref =
+        alertracker->activate_configured_alert("CRYPTODROP", 
                 "SPOOF", kis_alert_severity::high,
                 "A previously encrypted SSID has stopped advertising encryption.  "
                 "This may rarely occur when a network is reconfigured to an open "
                 "state, but more likely indicates some form of network spoofing or "
                 "'evil twin' attack.",
                 phyid);
-	alert_dhcpname_ref =
-		alertracker->activate_configured_alert("DHCPNAMECHANGE", 
+    alert_dhcpname_ref =
+        alertracker->activate_configured_alert("DHCPNAMECHANGE", 
                 "SPOOF", kis_alert_severity::low,
                 "The DHCP protocol allows clients to put the host name and "
                 "DHCP client / vendor / operating system details in the DHCP "
@@ -290,8 +287,8 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 "operating systems).  Changing values can often indicate a client "
                 "spoofing or MAC cloning attempt.",
                 phyid);
-	alert_dhcpos_ref =
-		alertracker->activate_configured_alert("DHCPOSCHANGE", 
+    alert_dhcpos_ref =
+        alertracker->activate_configured_alert("DHCPOSCHANGE", 
                 "SPOOF", kis_alert_severity::low,
                 "The DHCP protocol allows clients to put the host name and "
                 "DHCP client / vendor / operating system details in the DHCP "
@@ -300,23 +297,23 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 "operating systems).  Changing values can often indicate a client "
                 "spoofing or MAC cloning attempt.",
                 phyid);
-	alert_adhoc_ref =
-		alertracker->activate_configured_alert("ADHOCCONFLICT", 
+    alert_adhoc_ref =
+        alertracker->activate_configured_alert("ADHOCCONFLICT", 
                 "SPOOF", kis_alert_severity::high,
                 "The same SSID is being advertised as an access point and as an "
                 "ad-hoc network.  This may indicate a misconfigured or misbehaving "
                 "device, or could indicate an attempt at spoofing or an 'evil twin' "
                 "attack.",
                 phyid);
-	alert_ssidmatch_ref =
-		alertracker->activate_configured_alert("APSPOOF", 
+    alert_ssidmatch_ref =
+        alertracker->activate_configured_alert("APSPOOF", 
                 "SPOOF", kis_alert_severity::high,
                 "Kismet may be given a list of authorized MAC addresses for "
                 "a SSID.  If a beacon or probe response is seen from a MAC address "
                 "not listed in the authorized list, this alert will be raised.",
                 phyid);
-	alert_dot11d_ref =
-		alertracker->activate_configured_alert("DOT11D", 
+    alert_dot11d_ref =
+        alertracker->activate_configured_alert("DOT11D", 
                 "SPOOF", kis_alert_severity::high,
                 "Conflicting 802.11d (country code) data has been advertised by the "
                 "same SSID.  It is unlikely this is a normal configuration change, "
@@ -325,31 +322,31 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 "frequencies.  802.11d has been phased out and is unlikely to be "
                 "seen on modern devices, but it is still supported by many systems.",
                 phyid);
-	alert_beaconrate_ref =
-		alertracker->activate_configured_alert("BEACONRATE", 
+    alert_beaconrate_ref =
+        alertracker->activate_configured_alert("BEACONRATE", 
                 "SPOOF", kis_alert_severity::high,
                 "The advertised beacon rate of a SSID has changed.  In an "
                 "enterprise or multi-SSID environment this may indicate a normal "
                 "configuration change, but can also indicate a spoofed or "
                 "'evil twin' network.",
                 phyid);
-	alert_cryptchange_ref =
-		alertracker->activate_configured_alert("ADVCRYPTCHANGE", 
+    alert_cryptchange_ref =
+        alertracker->activate_configured_alert("ADVCRYPTCHANGE", 
                 "SPOOF", kis_alert_severity::high,
                 "A SSID has changed the advertised supported encryption standards.  "
                 "This may be a normal change when reconfiguring an access point, "
                 "but can also indicate a spoofed or 'evil twin' attack.",
                 phyid);
-	alert_malformmgmt_ref =
-		alertracker->activate_configured_alert("MALFORMMGMT", 
+    alert_malformmgmt_ref =
+        alertracker->activate_configured_alert("MALFORMMGMT", 
                 "EXPLOIT", kis_alert_severity::medium,
                 "Malformed management frames may indicate errors in the capture "
                 "source driver (such as not discarding corrupted packets), but can "
                 "also be indicative of an attempted attack against drivers which may "
                 "not properly handle malformed frames.",
                 phyid);
-	alert_wpsbrute_ref =
-		alertracker->activate_configured_alert("WPSBRUTE", 
+    alert_wpsbrute_ref =
+        alertracker->activate_configured_alert("WPSBRUTE", 
                 "EXPLOIT", kis_alert_severity::critical,
                 "Excessive WPS events may indicate a malformed client, or an "
                 "attack on the WPS system by a tool such as Reaver.",
@@ -495,26 +492,26 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
         _MSG_INFO("PHY80211 will only process AP signal levels from beacons");
     } 
 
-	dissect_strings = 0;
-	dissect_all_strings = 0;
+    dissect_strings = 0;
+    dissect_all_strings = 0;
 
-	// Load the wep keys from the config file
-	if (load_wepkeys() < 0) {
+    // Load the wep keys from the config file
+    if (load_wepkeys() < 0) {
         Globalreg::globalreg->fatal_condition = 1;
-		return;
-	}
+        return;
+    }
 
     // TODO turn into REST endpoint
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("allowkeytransmit", 0)) {
         _MSG("Allowing Kismet clients to view WEP keys", MSGFLAG_INFO);
         client_wepkey_allowed = 1;
     } else {
-		client_wepkey_allowed = 0;
-	}
+        client_wepkey_allowed = 0;
+    }
 
-	// Build the wep identity
-	for (unsigned int wi = 0; wi < 256; wi++)
-		wep_identity[wi] = wi;
+    // Build the wep identity
+    for (unsigned int wi = 0; wi < 256; wi++)
+        wep_identity[wi] = wi;
 
     // Set up the device timeout
     device_idle_expiration =
@@ -555,7 +552,7 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
 
     for (const auto& l : apspoof_lines) {
         size_t cpos = l.find(':');
-        
+
         if (cpos == std::string::npos) {
             _MSG("Invalid 'apspoof' configuration line, expected 'name:ssid=\"...\","  
                     "validmacs=\"...\" but got '" + l + "'", MSGFLAG_ERROR);
@@ -683,23 +680,23 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                     "IEEE802.11 Access Points",
                     [this](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
                     auto dot11 =
-                        dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+                    dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
 
                     if (dot11 == nullptr)
-                        return false;
+                    return false;
 
                     if (dot11->get_type_set() & (DOT11_DEVICE_TYPE_BEACON_AP | DOT11_DEVICE_TYPE_PROBE_AP |
                                 DOT11_DEVICE_TYPE_ADHOC))
-                        return true;
+                    return true;
 
                     return false;
                     },
                     [this](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
                     auto dot11 =
-                        dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+                    dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
 
                     if (dot11 == nullptr)
-                        return false;
+                    return false;
 
                     if (dot11->get_type_set() & (DOT11_DEVICE_TYPE_BEACON_AP | DOT11_DEVICE_TYPE_PROBE_AP |
                                 DOT11_DEVICE_TYPE_ADHOC))

@@ -77,7 +77,8 @@ void kis_database_logfile::trigger_deferred_shutdown() {
 }
 
 bool kis_database_logfile::open_log(std::string in_path) {
-    kis_lock_guard<kis_mutex> lk(ds_mutex);
+    // kis_lock_guard<kis_mutex> lk(ds_mutex);
+    kis_unique_lock<kis_mutex> lk(ds_mutex, "open_log");
 
     auto timetracker = 
         Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
@@ -405,6 +406,8 @@ bool kis_database_logfile::open_log(std::string in_path) {
     // Post that we've got the logfile ready
     auto evt = eventbus->get_eventbus_event(event_log_open());
     eventbus->publish(evt);
+
+    lk.unlock();
 
     set_int_log_open(true);
     db_enabled = true;

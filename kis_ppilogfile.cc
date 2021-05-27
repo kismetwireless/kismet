@@ -40,6 +40,8 @@ kis_ppi_logfile::kis_ppi_logfile(shared_log_builder in_builder) :
 	dumper = NULL;
     dump_filep = NULL;
 
+    log_open = false;
+
     auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>("PACKETCHAIN");
 
     pack_comp_80211 = packetchain->register_packet_component("PHY80211");
@@ -52,8 +54,10 @@ kis_ppi_logfile::kis_ppi_logfile(shared_log_builder in_builder) :
 }
 
 bool kis_ppi_logfile::open_log(std::string in_path) {
-    kis_lock_guard<kis_mutex> lk(log_mutex);
+    // kis_lock_guard<kis_mutex> lk(log_mutex);
+    kis_unique_lock<kis_mutex> lk(log_mutex, "open_log");
 
+    log_open = false;
     set_int_log_path(in_path);
 
 	dumpfile = NULL;
@@ -92,9 +96,12 @@ bool kis_ppi_logfile::open_log(std::string in_path) {
 
     _MSG_INFO("Opened PPI pcap log file '{}'", in_path);
 
-    set_int_log_open(true);
-
 	packetchain->register_handler(&kis_ppi_logfile::packet_handler, this, CHAINPOS_LOGGING, -100);
+
+    lk.unlock();
+
+    log_open = true;
+    set_int_log_open(true);
 
     return true;
 }
@@ -156,8 +163,12 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
 
     kis_lock_guard<kis_mutex> lk(ppilog->packet_mutex);
 
+    if (!ppilog->log_open)
+        return 1;
+
     if (ppilog->stream_paused)
         return 1;
+
 
     // Grab the mangled frame if we have it, then try to grab up the list of
     // data types and die if we can't get anything

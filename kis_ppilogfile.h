@@ -90,6 +90,8 @@ protected:
         pack_comp_gps, pack_comp_checksum, pack_comp_decap, pack_comp_linkframe;
 
     kis_mutex packet_mutex;
+
+    std::atomic<bool> log_open;
 };
 
 class ppi_logfile_builder : public kis_logfile_builder {

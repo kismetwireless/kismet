@@ -348,7 +348,6 @@ protected:
     std::shared_ptr<tracker_element_vector> immutable_tracked_vec;
 
     // List of views using new API as we transition the rest to the new API
-    kis_mutex view_mutex;
     std::shared_ptr<tracker_element_vector> view_vec;
 
     using shared_con = std::shared_ptr<kis_net_beast_httpd_connection>;

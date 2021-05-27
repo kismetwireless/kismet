@@ -102,7 +102,7 @@ void kis_external_interface::close_external() {
     stopped = true;
     cancelled = true;
 
-    kis_lock_guard<kis_mutex> lk(ext_mutex, "kei close_external");
+    kis_unique_lock<kis_mutex> lk(ext_mutex, "kei close_external");
 
     // Kill any eventbus listeners
     for (const auto& ebid : eventbus_callback_map)
@@ -130,8 +130,11 @@ void kis_external_interface::close_external() {
         }
     }
 
-    if (closure_cb != nullptr)
+    if (closure_cb != nullptr) {
+        lk.unlock();
         closure_cb();
+        lk.lock();
+    }
 
     write_cb = nullptr;
     closure_cb = nullptr;

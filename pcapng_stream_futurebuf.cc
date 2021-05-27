@@ -493,6 +493,8 @@ void pcapng_stream_futurebuf::handle_packet(kis_packet *in_packet) {
     if (target_datachunk->dlt == 0)
         return;
 
+    kis_lock_guard<kis_mutex> lk(pcap_mutex, "pcapng_futurebuf handle_packet");
+
     pcapng_write_packet(in_packet, target_datachunk);
 
     log_packets++;

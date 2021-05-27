@@ -826,7 +826,7 @@ int main(int argc, char *argv[], char *envp[]) {
         SpindownKismet();
 
     // Create the packet chain
-    packet_chain::create_packetchain();
+    auto packetchain = packet_chain::create_packetchain();
 
     if (globalregistry->fatal_condition)
         SpindownKismet();
@@ -996,6 +996,9 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Independent time and select threads, which has had problems with timing conflicts
     timetracker->spawn_timetracker_thread();
+
+    // Start the packetchain
+    packetchain->start_processing();
 
     while (true) {
         if (Globalreg::globalreg->spindown || Globalreg::globalreg->fatal_condition) 
