@@ -1141,8 +1141,7 @@ std::shared_ptr<kis_tracked_device_base>
     // Updating devices can only happen in serial because we don't know that a device is being
     // created & we don't know how to append the data until we get to the end of processing
     // so the entire chain is perforce locked
-    kis_unique_lock<kis_mutex> ul_list(get_devicelist_mutex(), std::defer_lock, 
-            "device_tracker update_common_device");
+    kis_lock_guard<kis_mutex> lg(get_devicelist_mutex(), "device_tracker update_common_device");
 
     std::stringstream sstr;
 
@@ -1162,10 +1161,6 @@ std::shared_ptr<kis_tracked_device_base>
     device_key key;
 
     key = device_key(in_phy->fetch_phyname_hash(), in_mac);
-
-    // Lock before we look up the device, we can't have two threads making a new 
-    // device record for the same device
-    ul_list.lock();
 
 	if ((device = fetch_device_nr(key)) == NULL) {
         if (in_flags & UCD_UPDATE_EXISTING_ONLY)
