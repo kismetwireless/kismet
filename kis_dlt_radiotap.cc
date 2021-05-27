@@ -128,10 +128,6 @@ kis_dlt_radiotap::kis_dlt_radiotap() :
 #define BITNO_2(x) (((x) & 2) ? 1 : 0)
 #define BIT(n)	(1 << n)
 int kis_dlt_radiotap::handle_packet(kis_packet *in_pack) {
-    static int packnum = 0;
-
-    packnum++;
-
     auto decapchunk = in_pack->fetch<kis_datachunk>(pack_comp_decap);
 
 	if (decapchunk != nullptr) {
