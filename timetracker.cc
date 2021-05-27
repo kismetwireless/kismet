@@ -36,7 +36,6 @@ time_tracker::time_tracker() {
     timer_sort_required = true;
 
     Globalreg::globalreg->start_time = time(0);
-	gettimeofday(&(Globalreg::globalreg->timestamp), NULL);
 
     shutdown = false;
 
@@ -86,8 +85,6 @@ void time_tracker::time_dispatcher() {
         // Handle scheduled events
         struct timeval cur_tm;
         gettimeofday(&cur_tm, NULL);
-        Globalreg::globalreg->timestamp.tv_sec = cur_tm.tv_sec;
-        Globalreg::globalreg->timestamp.tv_usec = cur_tm.tv_usec;
 
         // Sort and duplicate the vector to a safe list; we have to re-sort 
         // timers from recurring events

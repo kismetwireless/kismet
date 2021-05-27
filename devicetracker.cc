@@ -297,7 +297,7 @@ device_tracker::device_tracker() :
 		max_devices_timer = -1;
 	}
 
-    full_refresh_time = globalreg->timestamp.tv_sec;
+    full_refresh_time = time(0);
 
     track_persource_history =
         globalreg->kismet_config->fetch_opt_bool("keep_per_datasource_stats", false);
@@ -1023,7 +1023,7 @@ int device_tracker::register_phy_handler(kis_phy_handler *in_weak_handler) {
 }
 
 void device_tracker::update_full_refresh() {
-    full_refresh_time = globalreg->timestamp.tv_sec;
+    full_refresh_time = time(0);
 }
 
 std::shared_ptr<kis_tracked_device_base> device_tracker::fetch_device(device_key in_key) {
@@ -1077,7 +1077,7 @@ int device_tracker::common_tracker(kis_packet *in_pack) {
         (kis_common_info *) in_pack->fetch(pack_comp_common);
 
     if (!ram_no_rrd)
-        packets_rrd->add_sample(1, globalreg->timestamp.tv_sec);
+        packets_rrd->add_sample(1, time(0));
 
     num_packets++;
 
@@ -1247,7 +1247,7 @@ std::shared_ptr<kis_tracked_device_base>
         device->inc_packets();
 
         if (!ram_no_rrd)
-            device->get_packets_rrd()->add_sample(1, globalreg->timestamp.tv_sec);
+            device->get_packets_rrd()->add_sample(1, time(0));
 
         if (pack_common != NULL) {
             if (pack_common->error)
@@ -1259,8 +1259,7 @@ std::shared_ptr<kis_tracked_device_base>
                 device->inc_datasize(pack_common->datasize);
 
                 if (!ram_no_rrd) {
-                    device->get_data_rrd()->add_sample(pack_common->datasize,
-                            globalreg->timestamp.tv_sec);
+                    device->get_data_rrd()->add_sample(pack_common->datasize, time(0));
                 }
 
             } else if (pack_common->type == packet_basic_mgmt ||
@@ -1407,7 +1406,7 @@ void device_tracker::timetracker_event(int eventid) {
     if (eventid == device_idle_timer) {
         kis_lock_guard<kis_mutex> lk(get_devicelist_mutex(), "device_tracker timetracker_event device_idle_timer");
 
-        time_t ts_now = globalreg->timestamp.tv_sec;
+        time_t ts_now = time(0);
         bool purged = false;
 
         // Find all eligible devices, remove them from the tracked vec

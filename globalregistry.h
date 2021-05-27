@@ -191,7 +191,6 @@ public:
 	
     time_t start_time;
     std::string servername;
-	struct timeval timestamp;
 
     std::string etc_dir;
     std::string data_dir;

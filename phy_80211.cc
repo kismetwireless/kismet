@@ -1334,12 +1334,14 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             if (bssid_dot11 != NULL && (dot11info->subtype == packet_sub_disassociation ||
                     dot11info->subtype == packet_sub_deauthentication)) {
                 // if we're w/in time of the last one, update, otherwise clear
-                if (globalreg->timestamp.tv_sec - bssid_dot11->get_client_disconnects_last() > 1)
+                auto now = time(0);
+
+                if (now - bssid_dot11->get_client_disconnects_last() > 1)
                     bssid_dot11->set_client_disconnects(1);
                 else
                     bssid_dot11->inc_client_disconnects(1);
 
-                bssid_dot11->set_client_disconnects_last(globalreg->timestamp.tv_sec);
+                bssid_dot11->set_client_disconnects_last(now);
 
                 if (bssid_dot11->get_client_disconnects() > 10) {
                     if (d11phy->alertracker->potential_alert(d11phy->alert_deauthflood_ref)) {
@@ -1682,12 +1684,14 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
             if (wps) {
                 // if we're w/in time of the last one, update, otherwise clear
-                if (globalreg->timestamp.tv_sec - source_dot11->get_wps_m3_last() > (60 * 5))
+                auto now = time(0);
+
+                if (now - source_dot11->get_wps_m3_last() > (60 * 5))
                     source_dot11->set_wps_m3_count(1);
                 else
                     source_dot11->inc_wps_m3_count(1);
 
-                source_dot11->set_wps_m3_last(globalreg->timestamp.tv_sec);
+                source_dot11->set_wps_m3_last(now);
 
                 if (source_dot11->get_wps_m3_count() > 5) {
                     if (d11phy->alertracker->potential_alert(d11phy->alert_wpsbrute_ref)) {
