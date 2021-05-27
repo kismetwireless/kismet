@@ -419,9 +419,9 @@ protected:
 
     std::list<data_chunk *> chunk_list_;
 
-    size_t chunk_sz_;
-    size_t sync_sz_;
-    size_t total_sz_;
+    std::atomic<size_t> chunk_sz_;
+    std::atomic<size_t> sync_sz_;
+    std::atomic<size_t> total_sz_;
 
     std::promise<void> wait_promise_;
     std::atomic<bool> waiting_;
