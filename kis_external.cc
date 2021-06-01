@@ -171,6 +171,7 @@ void kis_external_interface::ipc_soft_kill() {
 }
 
 void kis_external_interface::ipc_hard_kill() {
+
     stopped = true;
     cancelled = true;
 
@@ -506,7 +507,7 @@ bool kis_external_interface::run_ipc() {
 
             // _MSG_DEBUG("exiting strand work {}", ipc_strand_no);
             ipc_promise.set_value(true);
-            });
+        });
 
     // _MSG_DEBUG("waiting for strand {}", ipc_strand_no);
     auto r = ipc_ft.get();
