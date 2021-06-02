@@ -693,7 +693,7 @@ int main(int argc, char *argv[]) {
             for (auto p : pl.point_vec) {
                 fmt::print(ofile,
                     "<Point "
-                    "id=\"{}\"><coordinates>{},{},{}</coordinates></Point>",
+                    "id=\"{}\"><coordinates>{:3.10f},{:3.10f},{:3.10f}</coordinates></Point>",
                     point_num++, p.lon, p.lat, p.alt);
             }
 
@@ -723,7 +723,7 @@ int main(int argc, char *argv[]) {
             for (auto p : pl.point_vec) {
                 fmt::print(ofile,
                     "<Point "
-                    "id=\"{}\"><coordinates>{},{},{}</coordinates></Point>",
+                    "id=\"{}\"><coordinates>{:3.10f},{:3.10f},{:3.10f}</coordinates></Point>",
                     point_num++, p.lon, p.lat, p.alt);
             }
 
@@ -751,7 +751,7 @@ int main(int argc, char *argv[]) {
             for (auto p : pl.point_vec) {
                 fmt::print(ofile,
                     "<Point "
-                    "id=\"{}\"><coordinates>{},{},{}</coordinates></Point>",
+                    "id=\"{}\"><coordinates>{:3.10f},{:3.10f},{:3.10f}</coordinates></Point>",
                     point_num++, p.lon, p.lat, p.alt);
             }
 
@@ -783,7 +783,7 @@ int main(int argc, char *argv[]) {
             for (auto p : pl.point_vec) {
                 fmt::print(ofile,
                     "<Point "
-                    "id=\"{}\"><coordinates>{},{},{}</coordinates></Point>",
+                    "id=\"{}\"><coordinates>{:3.10f},{:3.10f},{:3.10f}</coordinates></Point>",
                     point_num++, p.lon, p.lat, p.alt);
             }
 
