@@ -2761,6 +2761,40 @@ std::shared_ptr<dot11_tracked_eapol>
         // want to discard the entire packet if something went wrong in the pmkid parsing.
         try {
             if (rsnkey->wpa_key_data_len() != 0) {
+
+                // Look for CVE-2020-27301, a third handshake packet key > 0x101
+                if (rsnkey->key_info_install() &&
+                        rsnkey->key_info_key_ack() &&
+                        packinfo->distrib == distrib_from) {
+
+                    if ((rsnkey->key_info_descriptor_version() == 
+                                dot11_wpa_eap::dot1x_key::eapol_key_rsn::eapol_key_descriptor_version::eapol_key_aes_sha1 || 
+                                rsnkey->key_info_descriptor_version() == 
+                                dot11_wpa_eap::dot1x_key::eapol_key_rsn::eapol_key_descriptor_version::eapol_key_aes_sha1) &&
+                            rsnkey->wpa_key_data_len() > 0x80) {
+                        auto altxt = fmt::format("Suspiciously long WPA AES key in handshake "
+                                "({} bytes) which may be an attempt to exploit the CVE-2020-27302 RTL "
+                                "vulnerability (however chances of seeing this in the wild are "
+                                "likely very slim)", rsnkey->wpa_key_data_len());
+
+                        alertracker->raise_alert(alert_vdoo_2020_27302_ref, in_pack, 
+                                packinfo->bssid_mac, packinfo->source_mac, 
+                                packinfo->dest_mac, packinfo->other_mac, 
+                                packinfo->channel, altxt);
+
+                    } else if (rsnkey->wpa_key_data_len() > 0x101) {
+                        auto altxt = fmt::format("Suspiciously long WPA key in handshake ({} bytes) "
+                                "which may be an attempt to exploit the CVE-2020-27301 RTL "
+                                "vulnerability (however chances of seeing this in the wild are "
+                                "likely very slim)", rsnkey->wpa_key_data_len());
+
+                        alertracker->raise_alert(alert_vdoo_2020_27301_ref, in_pack, 
+                                packinfo->bssid_mac, packinfo->source_mac, 
+                                packinfo->dest_mac, packinfo->other_mac, 
+                                packinfo->channel, altxt);
+                    }
+                }
+
                 std::shared_ptr<dot11_ie> ietags(new dot11_ie());
                 ietags->parse(rsnkey->wpa_key_data_stream());
 

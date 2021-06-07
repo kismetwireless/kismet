@@ -465,6 +465,20 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 "are processed, leading to code execution as the kernel on the device, as "
                 "detailed in CVE-2020-9395 and VD-1406 and VD-1407", 
                 phyid);
+    alert_vdoo_2020_27301_ref = 
+        alertracker->activate_configured_alert("VDOO202027301",
+                "EXPLOIT", kis_alert_severity::high,
+                "Realtek 8710C embedded Wi-Fi modules have multiple vulnerabilities in how "
+                "EAPOL packets are processed, leading to code execution if the attacker knows "
+                "the PSK of the device, as detailed in CVE-2020-27301.",
+                phyid);
+    alert_vdoo_2020_27302_ref = 
+        alertracker->activate_configured_alert("VDOO202027302",
+                "EXPLOIT", kis_alert_severity::high,
+                "Realtek 8710C embedded Wi-Fi modules have multiple vulnerabilities in how "
+                "EAPOL packets are processed, leading to code execution if the attacker knows "
+                "the PSK of the device, as detailed in CVE-2020-27302.",
+                phyid);
 
 
     // Threshold

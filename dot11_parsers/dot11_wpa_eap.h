@@ -198,6 +198,12 @@ public:
                 return m_wpa_key_data_stream;
             }
 
+            enum eapol_key_descriptor_version {
+                eapol_key_rc4_md5 = 0x01,
+                eapol_key_aes_sha1 = 0x02,
+                eapol_key_aes_cmac = 0x03,
+            };
+
             constexpr17 unsigned int key_info_descriptor_version() const {
                 return key_info() & 0x7;
             }
