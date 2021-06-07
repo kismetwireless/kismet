@@ -379,45 +379,52 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 "A WPA handshake has attempted to re-use a previous nonce value; this may "
                 "indicate an attack against the WPA keystream such as the vanhoefm "
                 "KRACK attack (https://www.krackattacks.com/), however this may also be a "
-                "normal retransmission of the handshake data packet in a busy environment.");
+                "normal retransmission of the handshake data packet in a busy environment.",
+                phyid);
     alert_atheros_wmmtspec_ref =
         alertracker->activate_configured_alert("WMMTSPEC",
                 "EXPLOIT", kis_alert_severity::high,
                 "Too many WMMTSPEC options were seen in a probe response; this "
                 "may be triggered by CVE-2017-11013 as described at "
-                "https://pleasestopnamingvulnerabilities.com/");
+                "https://pleasestopnamingvulnerabilities.com/", 
+                phyid);
     alert_atheros_rsnloop_ref =
         alertracker->activate_configured_alert("RSNLOOP",
                 "EXPLOIT", kis_alert_severity::high,
                 "Invalid RSN (802.11i) tags in beacon frames can be used to cause "
                 "loops in some Atheros drivers, as described in "
-                "CVE-2017-9714 and https://pleasestopnamingvulnerabilities.com/");
+                "CVE-2017-9714 and https://pleasestopnamingvulnerabilities.com/", 
+                phyid);
     alert_11kneighborchan_ref =
         alertracker->activate_configured_alert("BCOM11KCHAN",
                 "EXPLOIT", kis_alert_severity::high,
                 "Invalid channels in 802.11k neighbor report frames "
                 "can be used to exploit certain Broadcom HardMAC implementations, typically used "
                 "in mobile devices, as described in "
-                "https://bugs.chromium.org/p/project-zero/issues/detail?id=1289");
+                "https://bugs.chromium.org/p/project-zero/issues/detail?id=1289", 
+                phyid);
     alert_bssts_ref =
         alertracker->activate_configured_alert("BSSTIMESTAMP",
                 "SPOOF", kis_alert_severity::medium,
                 "Access points transmit a high-precision millisecond timestamp to "
                 "coordinate power saving and other time-sensitive events.  Out-of-sequence "
-                "timestamps may indicate spoofing or an 'evil twin' style attack.");
+                "timestamps may indicate spoofing or an 'evil twin' style attack.",
+                phyid);
     alert_probechan_ref =
         alertracker->activate_configured_alert("PROBECHAN",
                 "SPOOF", kis_alert_severity::medium,
                 "Probe responses may include the Wi-Fi channel; this ought to be "
                 "identical to the channel advertised in the beacon.  Incorrect channels "
                 "in the probe response may indicate a spoofing or 'evil twin' style attack, "
-                "but can also be indicative of a misbehaving access point or repeater.");
+                "but can also be indicative of a misbehaving access point or repeater.", 
+                phyid);
     alert_qcom_extended_ref =
         alertracker->activate_configured_alert("QCOMEXTENDED",
                 "EXPLOIT", kis_alert_severity::high,
                 "IE 127 Extended Capabilities tags should always be 8 bytes; Some versions "
                 "of the Qualcomm drivers are vulnerable to a buffer overflow resulting in "
-                "execution on the host, as detailed in CVE-2019-10539.");
+                "execution on the host, as detailed in CVE-2019-10539.", 
+                phyid);
     alert_bad_fixlen_ie =
         alertracker->activate_configured_alert("BADFIXLENIE",
                 "EXPLOIT", kis_alert_severity::high,
@@ -425,13 +432,15 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 "Some IE tags have constant fixed lengths; a tag advertising with the "
                 "incorrect length may indicate an attempted buffer overflow attack.  "
                 "Specific attacks have their own alerts; this indicates a general, but "
-                "otherwise unknown, malformed tag.");
+                "otherwise unknown, malformed tag.", 
+                phyid);
     alert_rtlwifi_p2p_ref =
         alertracker->activate_configured_alert("RTLWIFIP2P",
                 "EXPLOIT", kis_alert_severity::high,
                 "A bug in the Linux RTLWIFI P2P parsers could result in a crash "
                 "or potential code execution due to malformed notification of "
-                "absence records, as detailed in CVE-2019-17666");
+                "absence records, as detailed in CVE-2019-17666", 
+                phyid);
     alert_deauthflood_ref =
         alertracker->activate_configured_alert("DEAUTHFLOOD",
                 "DENIAL", kis_alert_severity::medium,
@@ -449,13 +458,13 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 "from a network. This can be used to cause a denial of service or to "
                 "disconnect it in an attempt to capture handshakes for attacking WPA.",
                 phyid);
-
     alert_rtl8195_vdoo_ref =
         alertracker->activate_configured_alert("RTL8195VD1406",
                 "EXPLOIT", kis_alert_severity::high,
                 "Realtek 8195 devices have multiple vulnerabilities in how EAPOL packets "
                 "are processed, leading to code execution as the kernel on the device, as "
-                "detailed in CVE-2020-9395 and VD-1406 and VD-1407");
+                "detailed in CVE-2020-9395 and VD-1406 and VD-1407", 
+                phyid);
 
 
     // Threshold
