@@ -381,7 +381,7 @@ function InitializeAlertTable() {
         .on( 'mouseenter', 'td', function () {
             var alert_dt = alert_element.DataTable();
 
-            if (typeof(alert_dt.cell(this).index()) === 'Undefined')
+            if (typeof(alert_dt.cell(this).index()) === 'undefined')
                 return;
 
             var colIdx = alert_dt.cell(this).index().column;
