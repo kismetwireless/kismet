@@ -69,6 +69,21 @@ uint8_t src_pan[2] = {0x00, 0x00};
 uint8_t ext_dest[8];
 uint8_t ext_source[8];
 
+//zigbee specific header
+struct fcf_z{
+    unsigned char type : 2;
+    unsigned char proto_ver : 4;
+    unsigned char disc_rt : 2;
+    unsigned char multicast : 1;
+    unsigned char sec : 1;
+    unsigned char src_rt : 1;
+    unsigned char dest : 1;
+    unsigned char ext_src : 1;
+    unsigned char edi : 1;
+};
+fcf_z * fcf_zzh;
+
+
 kis_802154_phy::kis_802154_phy(global_registry *in_globalreg, int in_phyid) :
     kis_phy_handler(in_globalreg, in_phyid) {
 
@@ -345,6 +360,91 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             pkt_ctr++;
         }
     }
+
+
+
+    //how much do we have left?
+    printf("phy packdata->length:%d pkt_ctr:%d \n",packdata->length,pkt_ctr);
+
+    //check 6LowPAN ?
+    //check bit 6 or bit 7
+    if(hdr_802_15_4_fcf->frame_ver == 1 || hdr_802_15_4_fcf->frame_ver == 2 || (packdata->data[pkt_ctr]& (1<<7)) || (packdata->data[pkt_ctr]& (1<<6)))
+    {
+        printf("6LowPAN possible packet:%02X\n",packdata->data[pkt_ctr]);
+
+    }
+    else if(packdata->length > (pkt_ctr+2) && (hdr_802_15_4_fcf->frame_ver == 1 || hdr_802_15_4_fcf->frame_ver == 2))
+    {
+        //kismet --no-console-wrapper --no-ncurses-wrapper -c ~/storage/kismet/drives/Kismet-20210512-21-56-49-1.kismet
+        printf("Try to see if we have a zigbee network layer header\n");
+        unsigned short fcf_zh = (((short)packdata->data[pkt_ctr+1]) << 8) | (0x00ff & packdata->data[pkt_ctr]);
+        pkt_ctr+=2;
+
+        fcf_zzh = (fcf_z* )&fcf_zh;
+
+        printf("struct\n");
+        printf("type:%02X\n",fcf_zzh->type);
+        printf("proto_ver:%02X\n",fcf_zzh->proto_ver);
+        printf("disc_rt:%02X\n",fcf_zzh->disc_rt);
+        printf("multicast:%02X\n",fcf_zzh->multicast);
+        printf("sec:%02X\n",fcf_zzh->sec);
+        printf("src_rt:%02X\n",fcf_zzh->src_rt);
+        printf("dest:%02X\n",fcf_zzh->dest);
+        printf("ext_src:%02X\n",fcf_zzh->ext_src);
+        printf("edi:%02X\n",fcf_zzh->edi);
+
+        //do checks to see if valid or not
+        //https://github.com/niclash/zboss_wireshark/blob/master/modified_files/epan/dissectors/packet-zbee-nwk.c
+
+        //valid proto_ver 0-3
+        if(fcf_zzh->proto_ver < 0 || fcf_zzh->proto_ver > 3) {
+            printf("invalid proto_ver\n");
+            return 1;
+        }
+
+        if(fcf_zzh->type == 0x01)//cmd
+        {
+            printf("cmd pkt\n");
+            unsigned short zzh_dest = (((short)packdata->data[pkt_ctr+1]) << 8) | (0x00ff & packdata->data[pkt_ctr]);
+            pkt_ctr+=2;
+            unsigned short zzh_src = (((short)packdata->data[pkt_ctr+1]) << 8) | (0x00ff & packdata->data[pkt_ctr]);
+            pkt_ctr+=2;
+            unsigned char zzh_radius = packdata->data[pkt_ctr];pkt_ctr++;
+            unsigned char zzh_seq = packdata->data[pkt_ctr];pkt_ctr++;
+
+            if(fcf_zzh->ext_src == 1)
+            {
+                //extended source which is what were are looking for
+                ext_source[7] = packdata->data[pkt_ctr];pkt_ctr++;
+                ext_source[6] = packdata->data[pkt_ctr];pkt_ctr++;
+                ext_source[5] = packdata->data[pkt_ctr];pkt_ctr++;
+                ext_source[4] = packdata->data[pkt_ctr];pkt_ctr++;
+                ext_source[3] = packdata->data[pkt_ctr];pkt_ctr++;
+                ext_source[2] = packdata->data[pkt_ctr];pkt_ctr++;
+                ext_source[1] = packdata->data[pkt_ctr];pkt_ctr++;
+                ext_source[0] = packdata->data[pkt_ctr];pkt_ctr++;
+
+                hdr_802_15_4_fcf->src_addr_mode = 0x03;
+            }
+
+            printf("zzh_dest:%04X\n",zzh_dest);
+            printf("zzh_src:%04X\n",zzh_src);
+            printf("zzh_radius:%02X\n",zzh_radius);
+            printf("zzh_seq:%02X\n",zzh_seq);
+            printf("ext_source ");
+            for(int xps=0;xps<8;xps++)
+                printf("%02X ",ext_source[xps]);
+            printf("\n");
+        }
+        else if(fcf_zzh->type == 0x00)//data
+        {
+            printf("data packet\n");
+        }
+        else {
+            printf("invalid zigbee packet\n");
+        }
+    }
+
 
     // Setting the source and dest
     if (hdr_802_15_4_fcf->src_addr_mode >= 0x02 ||
