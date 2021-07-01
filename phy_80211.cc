@@ -3117,6 +3117,7 @@ void kis_80211_phy::process_client(std::shared_ptr<kis_tracked_device_base> bssi
 
     if (new_client_record) {
         client_record->set_bssid(bssiddev->get_macaddr());
+        client_record->set_bssid_key(bssiddev->get_key());
         client_record->set_first_time(in_pack->ts.tv_sec);
     }
 
@@ -3270,6 +3271,7 @@ void kis_80211_phy::process_client(std::shared_ptr<kis_tracked_device_base> bssi
         }
 
         // Update the forward map to the bssid
+        client_record->set_bssid(bssiddev->get_macaddr());
         client_record->set_bssid_key(bssiddev->get_key());
     }
 
