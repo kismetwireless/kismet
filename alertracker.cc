@@ -145,12 +145,17 @@ alert_tracker::alert_tracker() : lifetime_global() {
     // Start client Prelude
     if (prelude_alerts) {
         int ret;
-        ret = prelude_init(0, NULL);
-        if (ret < 0) {
-            _MSG("alert_tracker - Failed to initialize Prelude SIEM connection", MSGFLAG_FATAL);
+        try {
+            ret = prelude_init(0, NULL);
+            if (ret < 0) 
+                throw Prelude::PreludeError(ret);
+
+        } catch (Prelude::PreludeError const & error) {
+            _MSG_FATAL("Failed to initialize Prelude SIEM connection {}", error.what());
             Globalreg::globalreg->fatal_condition = 1;
             return;
         }
+
         prelude_init_client(PRELUDE_ANALYZER_NAME);
     }
 #endif
@@ -208,8 +213,7 @@ void alert_tracker::prelude_init_client(const char *analyzer_name) {
                 PRELUDE_ANALYZER_CLASS, PRELUDE_ANALYZER_MANUFACTURER, version.c_str());
         prelude_client->start();
     } catch (Prelude::PreludeError const & error) {
-        _MSG(std::string("alert_tracker failed to initialize connection to Prelude: ") + 
-            error.what(), MSGFLAG_FATAL);
+        _MSG_FATAL("alert_tracker failed to initialize connection to Prelude: {}", error.what());
         Globalreg::globalreg->fatal_condition = 1;
 
         return;
@@ -469,48 +473,52 @@ int alert_tracker::raise_prelude_alert(int in_ref, kis_packet *in_pack,
         mac_addr other, std::string in_channel, std::string in_text) {
 
 #ifdef PRELUDE
-    mac_addr emptymac = mac_addr(0);
+    try {
+        mac_addr emptymac = mac_addr(0);
 
-    Prelude::IDMEF idmef;
+        Prelude::IDMEF idmef;
 
-    // Classification
-    idmef.set("alert.classification.text", "Suspicious network detected");
+        // Classification
+        idmef.set("alert.classification.text", "Suspicious Kismet event detected");
 
-    // Source
-    if (source != emptymac) {
-        idmef.set("alert.source(0).node.address(0).category", "mac");
-        idmef.set("alert.source(0).node.address(0).address", source.mac_to_string().c_str());
+        // Source
+        if (source != emptymac) {
+            idmef.set("alert.source(0).node.address(0).category", "mac");
+            idmef.set("alert.source(0).node.address(0).address", source.mac_to_string().c_str());
+        }
+
+        // Target
+        if (dest != emptymac) {
+            idmef.set("alert.target(0).node.address(0).category", "mac");
+            idmef.set("alert.target(0).node.address(0).address", dest.mac_to_string().c_str());
+        }
+
+        // Assessment
+        idmef.set("alert.assessment.impact.severity", "high");
+        idmef.set("alert.assessment.impact.completion", "succeeded");
+        idmef.set("alert.assessment.impact.description", in_text);
+
+        // Additional Data
+        if (bssid != emptymac) {
+            idmef.set("alert.additional_data(>>).meaning", "BSSID");
+            idmef.set("alert.additional_data(-1).data", bssid.mac_to_string().c_str());
+        }
+
+        if (other != emptymac) {
+            idmef.set("alert.additional_data(>>).meaning", "Other");
+            idmef.set("alert.additional_data(-1).data", other.mac_to_string().c_str());
+        }
+
+        idmef.set("alert.additional_data(>>).meaning", "Channel");
+        idmef.set("alert.additional_data(-1).data", in_channel);
+
+        idmef.set("alert.additional_data(>>).meaning", "in_ref");
+        idmef.set("alert.additional_data(-1).data", in_ref);
+
+        prelude_client->sendIDMEF(idmef);
+    } catch (const Prelude::PreludeError& e) {
+        _MSG_ERROR("Could not send alert to Prelude: {}", e.what());
     }
-
-    // Target
-    if (dest != emptymac) {
-        idmef.set("alert.target(0).node.address(0).category", "mac");
-        idmef.set("alert.target(0).node.address(0).address", dest.mac_to_string().c_str());
-    }
-
-    // Assessment
-    idmef.set("alert.assessment.impact.severity", "high");
-    idmef.set("alert.assessment.impact.completion", "succeeded");
-    idmef.set("alert.assessment.impact.description", in_text);
-
-    // Additional Data
-    if (bssid != emptymac) {
-        idmef.set("alert.additional_data(>>).meaning", "BSSID");
-        idmef.set("alert.additional_data(-1).data", bssid.mac_to_string().c_str());
-    }
-
-    if (other != emptymac) {
-        idmef.set("alert.additional_data(>>).meaning", "Other");
-        idmef.set("alert.additional_data(-1).data", other.mac_to_string().c_str());
-    }
-
-    idmef.set("alert.additional_data(>>).meaning", "Channel");
-    idmef.set("alert.additional_data(-1).data", in_channel);
-
-    idmef.set("alert.additional_data(>>).meaning", "in_ref");
-    idmef.set("alert.additional_data(-1).data", in_ref);
-
-    prelude_client->sendIDMEF(idmef);
 #endif
 
     return 0;
@@ -518,22 +526,26 @@ int alert_tracker::raise_prelude_alert(int in_ref, kis_packet *in_pack,
 
 int alert_tracker::raise_prelude_one_shot(std::string in_header, std::string in_text) {
 #ifdef PRELUDE
-    mac_addr emptymac = mac_addr(0);
+    try {
+        mac_addr emptymac = mac_addr(0);
 
-    Prelude::IDMEF idmef;
+        Prelude::IDMEF idmef;
 
-    // Classification
-    idmef.set("alert.classification.text", "Suspicious network detected");
+        // Classification
+        idmef.set("alert.classification.text", "Suspicious network detected");
 
-    // Assessment
-    idmef.set("alert.assessment.impact.severity", "high");
-    idmef.set("alert.assessment.impact.completion", "succeeded");
-    idmef.set("alert.assessment.impact.description", in_text);
+        // Assessment
+        idmef.set("alert.assessment.impact.severity", "high");
+        idmef.set("alert.assessment.impact.completion", "succeeded");
+        idmef.set("alert.assessment.impact.description", in_text);
 
-    idmef.set("alert.additional_data(>>).alert_type", "in_ref");
-    idmef.set("alert.additional_data(-1).data", in_header);
+        idmef.set("alert.additional_data(>>).alert_type", "in_ref");
+        idmef.set("alert.additional_data(-1).data", in_header);
 
-    prelude_client->sendIDMEF(idmef);
+        prelude_client->sendIDMEF(idmef);
+    } catch (const Prelude::PreludeError& e) {
+        _MSG_ERROR("Could not send alert to Prelude: {}", e.what());
+    }
 #endif
 
     return 0;
