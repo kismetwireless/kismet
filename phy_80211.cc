@@ -479,7 +479,14 @@ kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) :
                 "EAPOL packets are processed, leading to code execution if the attacker knows "
                 "the PSK of the device, as detailed in CVE-2020-27302.",
                 phyid);
-
+    alert_formatstring_ref =
+        alertracker->activate_configured_alert("FORMATSTRING",
+                "EXPLOIT", kis_alert_severity::high,
+                "Special characters like percent signs are used to format strings for "
+                "printing in many language.  While legal in a SSID, some systems (historically "
+                "iPhone and related deices) have issues processing them, leading to crashes "
+                "or potential exploits.",
+                phyid);
 
     // Threshold
     signal_too_loud_threshold = 
@@ -2505,6 +2512,23 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
         }
 
         _MSG_INFO("802.11 Wi-Fi device {} advertising {}", basedev->get_macaddr(), ssidstr);
+
+        if (alertracker->potential_alert(alert_formatstring_ref)) {
+            auto ssidtxt = ssid->get_ssid();
+
+            if (ssidtxt.find("%s") != std::string::npos ||
+                    ssidtxt.find("%n") != std::string::npos ||
+                    ssidtxt.find("%p") != std::string::npos) {
+
+                auto al = fmt::format("IEEE80211 Access Point {} broadcasting SSID \"{}\" "
+                        "which contains special formatting characters which may crash some "
+                        "devices", basedev->get_macaddr(), munge_to_printable(ssidtxt));
+                alertracker->raise_alert(alert_formatstring_ref, in_pack,
+                        dot11info->bssid_mac, dot11info->source_mac,
+                        dot11info->dest_mac, dot11info->other_mac,
+                        dot11info->channel, al);
+            }
+        }
 
         if (alertracker->potential_alert(alert_airjackssid_ref) &&
                 ssid->get_ssid() == "AirJack" ) {
