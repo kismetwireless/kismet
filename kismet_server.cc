@@ -116,6 +116,7 @@
 #include "phy_nrf_mousejack.h"
 #include "phy_btle.h"
 #include "phy_802154.h"
+#include "phy_radiation.h"
 
 #include "ipctracker_v2.h"
 #include "manuf.h"
@@ -883,6 +884,7 @@ int main(int argc, char *argv[], char *envp[]) {
     devicetracker->register_phy_handler(new kis_rtlamr_phy(globalregistry));
     devicetracker->register_phy_handler(new kis_rtladsb_phy(globalregistry));
     devicetracker->register_phy_handler(new kis_802154_phy(globalregistry));
+    devicetracker->register_phy_handler(new kis_radiation_phy(globalregistry));
 
     if (globalregistry->fatal_condition) 
         SpindownKismet();
