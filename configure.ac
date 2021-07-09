@@ -34,6 +34,7 @@ BUILD_CAPTURE_OSX_COREWLAN=0
 BUILD_CAPTURE_SDR_RTL433=1
 BUILD_CAPTURE_SDR_RTLAMR=1
 BUILD_CAPTURE_SDR_RTLADSB=1
+BUILD_CAPTURE_BT_GEIGER=1
 BUILD_CAPTURE_FREAKLABS_ZIGBEE=1
 BUILD_CAPTURE_NRF_MOUSEJACK=0
 BUILD_CAPTURE_TI_CC_2540=0
@@ -360,6 +361,7 @@ if test "$want_python"x == "no"x; then
     BUILD_CAPTURE_SDR_RTL433=0
     BUILD_CAPTURE_SDR_RTLAMR=0
     BUILD_CAPTURE_SDR_RTLADSB=0
+    BUILD_CAPTURE_BT_GEIGER=0
     BUILD_CAPTURE_FREAKLABS_ZIGBEE=0
     BUILD_CAPTURE_PROXY_ADSB=0
     AC_MSG_WARN([Disabling Python and Python-related tools])
@@ -371,7 +373,7 @@ else
     if test "$HAVE_PYMOD_SETUPTOOLS" == "no"; then
         AC_MSG_ERROR([Missing python setuptools, if you would like to build without python entirely, use --disable-python-tools, otherwise install python setuptools for your python version])
     else
-        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_SDR_RTLAMR) \$(CAPTURE_SDR_RTLADSB) \$(CAPTURE_FREAKLABS_ZIGBEE)"
+        DATASOURCE_BINS="$DATASOURCE_BINS \$(CAPTURE_SDR_RTL433) \$(CAPTURE_SDR_RTLAMR) \$(CAPTURE_SDR_RTLADSB) \$(CAPTURE_FREAKLABS_ZIGBEE) \$(CAPTURE_BT_GEIGER)"
     fi
 fi
 AC_SUBST(PYTHON)
@@ -1697,6 +1699,7 @@ AC_SUBST(BUILD_CAPTURE_OSX_COREWLAN)
 AC_SUBST(BUILD_CAPTURE_SDR_RTL433)
 AC_SUBST(BUILD_CAPTURE_SDR_RTLAMR)
 AC_SUBST(BUILD_CAPTURE_SDR_RTLADSB)
+AC_SUBST(BUILD_CAPTURE_BT_GEIGER)
 AC_SUBST(BUILD_CAPTURE_FREAKLABS_ZIGBEE)
 AC_SUBST(BUILD_CAPTURE_NRF_MOUSEJACK)
 AC_SUBST(BUILD_CAPTURE_TI_CC_2540)
@@ -1724,6 +1727,7 @@ AC_CONFIG_FILES([
     capture_sdr_rtl433/Makefile 
     capture_sdr_rtlamr/Makefile 
     capture_sdr_rtladsb/Makefile 
+    capture_bt_geiger/Makefile 
     capture_freaklabs_zigbee/Makefile 
     capture_nrf_mousejack/Makefile 
     capture_ti_cc_2540/Makefile 
@@ -1902,6 +1906,13 @@ fi
 
 printf "       RTL-SDR RTLADSB: "
 if test "$BUILD_CAPTURE_SDR_RTLADSB" = 1; then
+        echo "yes";
+else
+        echo "no (python modules are disabled)";
+fi
+
+printf "    BTLE Geiger Sensor: "
+if test "$BUILD_CAPTURE_BT_GEIGER" = 1; then
         echo "yes";
 else
         echo "no (python modules are disabled)";
