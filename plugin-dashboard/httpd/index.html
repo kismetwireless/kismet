@@ -121,9 +121,17 @@ function status() {
         }
 
         last_devs = devices;
+    })
+    .always(function() {
+        setTimeout(status, 1000);
+    });
+}
 
-        var now = (data['kismet.device.packets_rrd']['kismet.common.rrd.last_time'] - 1) % 60;
-        var packets = data['kismet.device.packets_rrd']['kismet.common.rrd.minute_vec'][now];
+function packetchain() {
+    $.get("../../packetchain/packet_stats.json")
+    .done(function(data) {
+        var now = (data['kismet.packetchain.packets_rrd']['kismet.common.rrd.last_time'] - 1) % 60;
+        var packets = data['kismet.packetchain.packets_rrd']['kismet.common.rrd.minute_vec'][now];
 
         $('#numpackets').html(packets);
 
@@ -139,10 +147,10 @@ function status() {
 
         var simple_rrd =
             kismet.RecalcRrdData(
-                data['kismet.device.packets_rrd']['kismet.common.rrd.last_time'],
-                data['kismet.device.packets_rrd']['kismet.common.rrd.last_time'],
+                data['kismet.packetchain.packets_rrd']['kismet.common.rrd.last_time'],
+                data['kismet.packetchain.packets_rrd']['kismet.common.rrd.last_time'],
                 kismet.RRD_SECOND,
-                data['kismet.device.packets_rrd']['kismet.common.rrd.minute_vec']);
+                data['kismet.packetchain.packets_rrd']['kismet.common.rrd.minute_vec']);
 
         var w = $('#pps').width();
         var h = $('#pps').height();
@@ -161,12 +169,11 @@ function status() {
                 nullColor: '#000000',
                 zeroColor: '#000000'
             });
-        })
+    })
     .always(function() {
-        setTimeout(status, 1000);
+        setTimeout(packetchain, 1000);
     });
 }
-
 
 $(function() {
     // Set a global timeout
@@ -208,6 +215,7 @@ $(function() {
 
     datasources();
     status();
+    packetchain();
     $('#channels').channels();
 
     kismet_ui.HealthCheck();

@@ -2746,8 +2746,8 @@ function devsignal_refresh(key, devsignal_panel, devsignal_chart,
     $.get(local_uri_prefix + "devices/by-key/" + key + "/device.json")
     .done(function(data) {
         var title = '<i class="fa fa-signal" /> Signal ' +
-            data['kismet.device.base.macaddr'] + ' ' +
-            data['kismet.device.base.name'];
+            kismet.censorMAC(data['kismet.device.base.macaddr']) + ' ' +
+            kismet.censorMAC(data['kismet.device.base.name']);
         devsignal_panel.headerTitle(title);
 
         var sigicon = $('.k-dsd-arrow', devsignal_panel.content);

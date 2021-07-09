@@ -45,6 +45,7 @@
 #include "sqlite3_cpp11.h"
 #include "fmt.h"
 #include "packet_ieee80211.h"
+#include "version.h"
 
 // Aggressive additional mangle of text to handle converting ',' and '"' to
 // hexcode for CSV
@@ -134,6 +135,10 @@ std::string WifiCryptToString(unsigned long cryptset) {
             authver = "PSK";
         } else if (cryptset & crypt_eap) {
             authver = "EAP";
+        } else if (cryptset & crypt_wpa_owe) {
+            authver = "OWE";
+        } else {
+            authver = "UNKNOWN";
         }
 
         if ((cryptset & crypt_version_wpa) && (cryptset & crypt_version_wpa2)) {
@@ -141,6 +146,8 @@ std::string WifiCryptToString(unsigned long cryptset) {
             ss << "[WPA2-" << authver << "-" << cryptver << "] ";
         } else if (cryptset & crypt_version_wpa2) {
             ss << "[WPA2-" << authver << "-" << cryptver << "] ";
+        } else if ((cryptset & crypt_version_wpa3) || (cryptset & crypt_wpa_owe)) {
+            ss << "[WPA3-" << authver << "-" << cryptver << "] ";
         } else {
             ss << "[WPA-" << authver << "-" << cryptver << "] ";
         }
@@ -404,8 +411,9 @@ int main(int argc, char *argv[]) {
         fmt::print(stderr, "* Starting to process file, max device cache {}\n", cache_limit);
 
     // CSV headers
-    fmt::print(ofile, "WigleWifi-1.4,appRelease=20200401,model=Kismet,release=2020.04.01.{},"
-            "device=kismet,display=kismet,board=kismet,brand=kismet\n", db_version);
+    fmt::print(ofile, "WigleWifi-1.4,appRelease=Kismet{0}{1}{2},model=Kismet,release={0}.{1}.{2}.{3},"
+            "device=kismet,display=kismet,board=kismet,brand=kismet\n", 
+            VERSION_MAJOR, VERSION_MINOR, VERSION_TINY, db_version);
     fmt::print(ofile, "MAC,SSID,AuthMode,FirstSeen,Channel,RSSI,CurrentLatitude,CurrentLongitude,"
             "AltitudeMeters,AccuracyMeters,Type\n");
 

@@ -577,14 +577,18 @@ void kis_net_beast_httpd::decode_variables(const boost::beast::string_view decod
     }
 }
 
-void kis_net_beast_httpd::decode_get_variables(const boost::beast::string_view uri, http_var_map_t& var_map) {
+std::string kis_net_beast_httpd::decode_get_variables(const boost::beast::string_view uri, 
+        http_var_map_t& var_map) {
+
     auto q_pos = uri.find_first_of("?");
     
     if (q_pos == boost::beast::string_view::npos)
-        return;
+        return std::string(uri);
 
     auto uri_decode = kis_net_beast_httpd::decode_uri(uri.substr(q_pos + 1, uri.length()), false);
     kis_net_beast_httpd::decode_variables(uri_decode, var_map);
+
+    return std::string(uri.substr(0, q_pos));
 }
 
 void kis_net_beast_httpd::decode_cookies(const boost::beast::string_view decoded, http_cookie_map_t& var_map) {
@@ -1151,7 +1155,8 @@ bool kis_net_beast_httpd_connection::start() {
     verb_ = request_.method();
 
     httpd->strip_uri_prefix(uri_);
-    httpd->decode_get_variables(uri_, http_variables_);
+    auto trimmed_uri = httpd->decode_get_variables(uri_, http_variables_);
+    uri_ = boost::beast::string_view(trimmed_uri);
 
     // Process close headers - http 1.0 always closes unless keepalive, 1.1 never closes unless specified
     bool client_req_close = false;
@@ -1214,7 +1219,7 @@ bool kis_net_beast_httpd_connection::start() {
         if (auth_cookie_k != cookies_.end())
             auth_token_ = auth_cookie_k->second;
     } else {
-        auto uri_cookie_k = http_variables_.find("KISMET");
+        auto uri_cookie_k = http_variables_.find(httpd->AUTH_COOKIE);
         if (uri_cookie_k != http_variables_.end()) 
             auth_token_ = uri_cookie_k->second;
     }

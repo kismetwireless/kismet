@@ -500,7 +500,7 @@ protected:
         alert_cryptchange_ref, alert_malformmgmt_ref, alert_wpsbrute_ref, 
         alert_l33t_ref, alert_tooloud_ref, alert_atheros_wmmtspec_ref,
         alert_atheros_rsnloop_ref, alert_bssts_ref, alert_qcom_extended_ref,
-        alert_bad_fixlen_ie;
+        alert_bad_fixlen_ie, alert_formatstring_ref;
 
     int signal_too_loud_threshold;
 
