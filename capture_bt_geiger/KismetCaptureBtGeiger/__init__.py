@@ -32,7 +32,17 @@ class Geiger(Peripheral):
         self.cpmUUID = UUID('6861f015-66e0-4a83-a31f-527a34829341')
         self.usvhUUID = UUID('99f35c9e-b165-432c-942e-d5155a19a2f1')
 
-        Peripheral.__init__(self, addr)
+        connected = False
+        for x in range(0, 5):
+            try:
+                Peripheral.__init__(self, addr)
+                connected = True
+                break
+            except Exception as e:
+                continue
+
+        if not connected:
+            raise RuntimeError('could not connect to btgeiger device in 5 tries')
 
         self.service = self.getServiceByUUID(self.svcUUID)
         self.cps = self.service.getCharacteristics(self.cpsUUID)[0]
