@@ -162,8 +162,8 @@ class KismetBtGeiger(object):
         else:
             ret['uuid'] = self.__get_btgeiger_uuid(options['device'])
 
-        ret['channel'] = 0
-        ret['channels'] = [0]
+        ret['channel'] = "0"
+        ret['channels'] = ["0"]
         ret['success'] = True
 
         return ret
@@ -236,7 +236,7 @@ class KismetBtGeiger(object):
             while True:
                 (cps, cpm, usvh) = self.geiger.read()
                 self.kismet.add_task(self.message_queue.put, [{"cps": cps, "cpm": cpm, "usvh": usvh}])
-                time.sleep(500)
+                time.sleep(0.5)
         except Exception as e:
             self.kismet.send_datasource_error_report(message = f"Error reading from BT geiger: {e}")
 
