@@ -119,7 +119,7 @@ class KismetRtlamr(object):
         except rtlsdr.RadioMissingLibrtlsdr:
             self.have_librtl = False
 
-        parser = argparse.ArgumentParser(description='RTL-SDR amr to Kismet bridge - Creates a rtlamr data source on a Kismet server and passes JSON-based records from the rtlamr binary')
+        parser = argparse.ArgumentParser(description='RTL-SDR AMR Kismet datasource')
         
         # Append the default args
         parser = kismetexternal.ExternalInterface.common_getopt(parser)
