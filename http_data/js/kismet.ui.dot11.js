@@ -440,7 +440,22 @@ kismet_ui.AddDeviceDetail("dot11", "Wi-Fi (802.11)", 0, {
                 },
                 help: "If present, the BSSID (MAC address) of the last network this device was part of.  Each Wi-Fi access point, even those with the same SSID, has a unique BSSID.",
                 draw: function(opts) {
-                    return kismet.censorMAC(opts['value']);
+                    var mac = kismet.censorMAC(opts['value']);
+
+                    var container =
+                        $('<span>');
+                    container.append(
+                        $('<span>').html(mac)
+                    );
+                    container.append(
+                        $('<i>', {
+                            'class': 'copyuri pseudolink fa fa-copy',
+                            'style': 'padding-left: 5px;',
+                            'data-clipboard-text': `${mac}`, 
+                        })
+                    );
+
+                    return container;
                 },
 
             },
