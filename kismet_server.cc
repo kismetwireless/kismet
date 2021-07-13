@@ -241,6 +241,7 @@ int usage(char *argv) {
            " -h  --help                   Display this help message\n"
            "     --no-console-wrapper     Disable server console wrapper\n"
            "     --no-ncurses-wrapper     Disable server console wrapper\n"
+           "     --no-ncurses             Disable server console wrapper\n"
            "     --debug                  Disable the console wrapper and the crash\n"
            "                              handling functions, for debugging\n"
            " -c <datasource>              Use the specified datasource\n"
@@ -406,6 +407,7 @@ int main(int argc, char *argv[], char *envp[]) {
     static struct option wrapper_longopt[] = {
         { "no-ncurses-wrapper", no_argument, 0, 'w' },
         { "no-console-wrapper", no_argument, 0, 'w' },
+        { "no-ncurses", no_argument, 0, 'w' },
         { "daemonize", no_argument, 0, 'D' },
         { "debug", no_argument, 0, 'd' },
         { 0, 0, 0, 0 }
