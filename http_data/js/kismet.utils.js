@@ -440,6 +440,39 @@ exports.censorLocation = function(t) {
     }
 }
 
+exports.decoder = new TextDecoder();
+
+/* De-octalize an escaped string, and handle decoding it */
+exports.deoctalize = function(str) {
+    var ret = new Array();
+
+    for (var i = 0; i < str.length; i++) {
+        if (str[i] != '\\') {
+            ret.push(str.charCodeAt(i))
+        } else {
+            if (i + 3 < str.length &&
+                str[i + 1] >= '0' && str[i+1] <= '9' &&
+                str[i + 2] >= '0' && str[i+2] <= '9' &&
+                str[i + 3] >= '0' && str[i+3] <= '9') {
+
+                // console.log(str[i + 1] - '0', str[i + 2] - '0', str[i + 3] - '0')
+
+                var sum = 
+                    ((str[i + 1] - '0') * 64) +
+                    ((str[i + 2] - '0') * 8) +
+                    ((str[i + 3] - '0'));
+
+                ret.push(sum);
+
+                i += 3;
+            }
+        }
+    }
+
+    return exports.decoder.decode(Uint8Array.from(ret))
+}
+
+
 /* Recurse over a complete object (such as from json), finding all strings,
  * and escaping them to be 'safe' */
 exports.sanitizeObject = function(o) {
@@ -448,7 +481,7 @@ exports.sanitizeObject = function(o) {
     }
 
     if (typeof(o) === 'string') {
-        return exports.sanitizeHTML(o);
+        return exports.sanitizeHTML(exports.deoctalize(o));
     }
 
     Object.keys(o).forEach(function(key) {
