@@ -528,7 +528,7 @@ exports.AddDetail = function(container, id, title, pos, options) {
 
 exports.DetailWindow = function(key, title, options, window_cb, close_cb) {
     // Generate a unique ID for this dialog
-    var dialogid = "detailialog" + key;
+    var dialogid = "detaildialog" + key;
     var dialogmatch = '#' + dialogid;
 
     if (jsPanel.activePanels.list.indexOf(dialogid) != -1) {
@@ -744,6 +744,8 @@ exports.DeviceDetailWindow = function(key) {
             };
 
             panel.updater();
+
+            new ClipboardJS('.copyuri');
         },
 
         function(panel, options) {

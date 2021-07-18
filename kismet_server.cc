@@ -84,6 +84,7 @@
 #include "datasource_bluetooth_scan.h"
 #include "datasource_bladerf_wiphy.h"
 #include "datasource_adsbproxy.h"
+#include "datasource_bt_geiger.h"
 
 #include "logtracker.h"
 #include "kis_ppilogfile.h"
@@ -115,6 +116,7 @@
 #include "phy_nrf_mousejack.h"
 #include "phy_btle.h"
 #include "phy_802154.h"
+#include "phy_radiation.h"
 
 #include "ipctracker_v2.h"
 #include "manuf.h"
@@ -239,6 +241,7 @@ int usage(char *argv) {
            " -h  --help                   Display this help message\n"
            "     --no-console-wrapper     Disable server console wrapper\n"
            "     --no-ncurses-wrapper     Disable server console wrapper\n"
+           "     --no-ncurses             Disable server console wrapper\n"
            "     --debug                  Disable the console wrapper and the crash\n"
            "                              handling functions, for debugging\n"
            " -c <datasource>              Use the specified datasource\n"
@@ -404,6 +407,7 @@ int main(int argc, char *argv[], char *envp[]) {
     static struct option wrapper_longopt[] = {
         { "no-ncurses-wrapper", no_argument, 0, 'w' },
         { "no-console-wrapper", no_argument, 0, 'w' },
+        { "no-ncurses", no_argument, 0, 'w' },
         { "daemonize", no_argument, 0, 'D' },
         { "debug", no_argument, 0, 'd' },
         { 0, 0, 0, 0 }
@@ -882,6 +886,7 @@ int main(int argc, char *argv[], char *envp[]) {
     devicetracker->register_phy_handler(new kis_rtlamr_phy(globalregistry));
     devicetracker->register_phy_handler(new kis_rtladsb_phy(globalregistry));
     devicetracker->register_phy_handler(new kis_802154_phy(globalregistry));
+    devicetracker->register_phy_handler(new kis_radiation_phy(globalregistry));
 
     if (globalregistry->fatal_condition) 
         SpindownKismet();
@@ -906,6 +911,7 @@ int main(int argc, char *argv[], char *envp[]) {
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_ticc2531_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_bladerf_wiphy_builder()));
     datasourcetracker->register_datasource(shared_datasource_builder(new datasource_adsbproxy_builder()));
+    datasourcetracker->register_datasource(shared_datasource_builder(new datasource_bt_geiger_builder()));
 
     // Virtual sources get a special meta-builder
     datasource_virtual_builder::create_virtualbuilder();

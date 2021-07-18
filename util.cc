@@ -72,6 +72,20 @@
 
 #include <pthread.h>
 
+// Convert a byte to an octal escape
+std::string d2oa(uint8_t n) {
+    std::string oa;
+    oa = "\\   ";
+
+    int i = 3;
+    while (n != 0 && i >= 0) {
+        oa[i--] =  '0' + ((n % 8) & 0xFF);
+        n = n / 8;
+    }
+
+    return oa;
+}
+
 // Munge text down to printable characters only.  Simpler, cleaner munger than
 // before (and more blatant when munging)
 std::string munge_to_printable(const char *in_data, unsigned int max, int nullterm) {
@@ -85,10 +99,7 @@ std::string munge_to_printable(const char *in_data, unsigned int max, int nullte
 		if ((unsigned char) in_data[i] >= 32 && (unsigned char) in_data[i] <= 126) {
             ret << in_data[i];
 		} else {
-            ret << "\\";
-			ret << ((in_data[i] >> 6) & 0x03) + '0';
-            ret << ((in_data[i] >> 3) & 0x07) + '0';
-			ret << ((in_data[i] >> 0) & 0x07) + '0';
+            ret << d2oa(in_data[i]);
 		}
 	}
 

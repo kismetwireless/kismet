@@ -1,0 +1,1 @@
+ATTR{idVendor}=="0451", ATTR{idProduct}=="16ae", SYMLINK+="ticc2531-%k", MODE="660", GROUP="plugdev"

@@ -69,7 +69,7 @@ public:
         set_source_type("btgeiger");
         set_source_description("Bluetooth enabled geiger counter");
 
-        set_probe_capable(false);
+        set_probe_capable(true);
         set_list_capable(false);
         set_local_capable(true);
         set_remote_capable(true);

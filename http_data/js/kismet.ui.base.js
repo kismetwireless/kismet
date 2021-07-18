@@ -516,7 +516,18 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                         }
                     });
 
-                    return nameobj;
+                    var container =
+                        $('<span>');
+                    container.append(nameobj);
+                    container.append(
+                        $('<i>', {
+                            'class': 'copyuri pseudolink fa fa-copy',
+                            'style': 'padding-left: 5px;',
+                            'data-clipboard-text': `${name}`, 
+                        })
+                    );
+
+                    return container;
                 }
             },
 
@@ -563,7 +574,22 @@ kismet_ui.AddDeviceDetail("base", "Device Info", -1000, {
                 title: "MAC Address",
                 help: "Unique per-phy address of the transmitting device, when available.  Not all phy types provide MAC addresses, however most do.",
                 draw: function(opts) {
-                    return kismet.censorMAC(opts['value']);
+                    var mac = kismet.censorMAC(opts['value']);
+
+                    var container =
+                        $('<span>');
+                    container.append(
+                        $('<span>').html(mac)
+                    );
+                    container.append(
+                        $('<i>', {
+                            'class': 'copyuri pseudolink fa fa-copy',
+                            'style': 'padding-left: 5px;',
+                            'data-clipboard-text': `${mac}`, 
+                        })
+                    );
+
+                    return container;
                 }
             },
             {
