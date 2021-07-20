@@ -74,13 +74,17 @@
 
 // Convert a byte to an octal escape
 std::string d2oa(uint8_t n) {
-    std::string oa;
-    oa = "\\   ";
+    std::string oa = "\\000";
+
+	// make sure n is in the correct range
+	// (currently redundant, since n is declared a uint8, but
+	// protects against future changes)
+	n &= 0377;
 
     int i = 3;
-    while (n != 0 && i >= 0) {
-        oa[i--] =  '0' + ((n % 8) & 0xFF);
-        n = n / 8;
+    while (n > 0) {
+        oa[i--] =  '0' + (n & 07);
+        n >>= 3;
     }
 
     return oa;
@@ -96,9 +100,16 @@ std::string munge_to_printable(const char *in_data, unsigned int max, int nullte
 		if ((unsigned char) in_data[i] == 0 && nullterm == 1)
 			return ret.str();
 
-		if ((unsigned char) in_data[i] >= 32 && (unsigned char) in_data[i] <= 126) {
+		if (in_data[i] == '\\') {
+			// replace any input backslash by two backslashes,
+			// to distinguish it from a backslash created by
+			// the "octalize" process.
+			ret << "\\\\";
+		} else if ((unsigned char) in_data[i] >= 32 && (unsigned char) in_data[i] <= 126) {
             ret << in_data[i];
 		} else {
+			// "octalize" (convert to a printed octal representation)
+			// any characters outside the printable range
             ret << d2oa(in_data[i]);
 		}
 	}
