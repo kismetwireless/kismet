@@ -3,7 +3,6 @@
 #ifndef __NRF51822_H__
 #define __NRF51822_H__
 
-#ifdef __APPLE__
 #ifndef B9600
 #define B9600 9600
 #endif
@@ -57,7 +56,6 @@
 #endif
 #ifndef B4000000
 #define B4000000 4000000
-#endif
 #endif
 
 
