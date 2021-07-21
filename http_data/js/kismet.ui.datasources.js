@@ -698,6 +698,7 @@ function update_datasource2(data) {
             idiv.accordion({ collapsible: true, active: false });
 
             ds_state['ds_content'].append(idiv);
+            ds_state['remove_pending'].push(uuid);
         }
 
         set_row(idiv, 'interface', '<b>Interface</b>', intf['kismet.datasource.probed.interface']);
