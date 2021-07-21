@@ -750,7 +750,6 @@ function update_datasource2(data) {
         var sdiv = $('#' + source['kismet.datasource.uuid'], ds_state['ds_content']);
 
         if (sdiv.length == 0) {
-            // console.log("creating new " + source['kismet.datasource.uuid']);
             sdiv = $('<div>', {
                 id: source['kismet.datasource.uuid'],
                 class: 'accordion source',
@@ -822,6 +821,7 @@ function update_datasource2(data) {
             sdiv.accordion({ collapsible: true, active: false });
 
             ds_state['ds_content'].append(sdiv);
+            ds_state['remove_pending'].push(uuid);
         }
 
         if (typeof(source['kismet.datasource.packets_rrd']) !== 'undefined' &&
