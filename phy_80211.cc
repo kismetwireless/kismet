@@ -2425,6 +2425,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
         if (dot11info->owe_transition != nullptr) {
             ssid->set_owe_bssid(dot11info->owe_transition->bssid());
             ssid->set_owe_ssid_len(dot11info->owe_transition->ssid().length());
+            // owe transition ssid is raw tag content
             ssid->set_owe_ssid(munge_to_printable(dot11info->owe_transition->ssid()));
         }
 
@@ -2518,11 +2519,12 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
 
             if (ssidtxt.find("%s") != std::string::npos ||
                     ssidtxt.find("%n") != std::string::npos ||
-                    ssidtxt.find("%p") != std::string::npos) {
+                    ssidtxt.find("%p") != std::string::npos ||
+                    ssidtxt.find("%@") != std::string::npos) {
 
                 auto al = fmt::format("IEEE80211 Access Point {} broadcasting SSID \"{}\" "
                         "which contains special formatting characters which may crash some "
-                        "devices", basedev->get_macaddr(), munge_to_printable(ssidtxt));
+                        "devices", basedev->get_macaddr(), ssidtxt);
                 alertracker->raise_alert(alert_formatstring_ref, in_pack,
                         dot11info->bssid_mac, dot11info->source_mac,
                         dot11info->dest_mac, dot11info->other_mac,
