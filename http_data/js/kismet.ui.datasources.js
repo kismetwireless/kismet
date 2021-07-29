@@ -692,13 +692,13 @@ function update_datasource2(data) {
 
             wrapper.append(table);
             wrapper.append(modal);
+            modal.hide();
 
             $('.k-ds_content', idiv).append(wrapper);
 
             idiv.accordion({ collapsible: true, active: false });
 
             ds_state['ds_content'].append(idiv);
-            ds_state['remove_pending'].push(uuid);
         }
 
         set_row(idiv, 'interface', '<b>Interface</b>', intf['kismet.datasource.probed.interface']);
@@ -722,7 +722,7 @@ function update_datasource2(data) {
                     var idiv = $('#' + intf, ds_state['ds_content']);
 
                     $('.k-ds-modal-message', idiv).html("Opening datasource...");
-                    $('.k-ds-modal', sdiv).show();
+                    $('.k-ds-modal', idiv).show();
 
                     var jscmd = {
                         "definition": $(this).attr('interface') + ':type=' + $(this).attr('intftype')
@@ -815,13 +815,13 @@ function update_datasource2(data) {
 
             wrapper.append(table);
             wrapper.append(modal);
+            modal.hide();
 
             $('.k-ds_content', sdiv).append(wrapper);
 
             sdiv.accordion({ collapsible: true, active: false });
 
             ds_state['ds_content'].append(sdiv);
-            ds_state['remove_pending'].push(uuid);
         }
 
         if (typeof(source['kismet.datasource.packets_rrd']) !== 'undefined' &&
