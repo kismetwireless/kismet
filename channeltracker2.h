@@ -147,15 +147,15 @@ class channel_tracker_v2 : public lifetime_global {
 public:
     static std::string global_name() { return "CHANNEL_TRACKER"; }
 
-    static std::shared_ptr<channel_tracker_v2> create_channeltracker(global_registry *in_globalreg) {
-        std::shared_ptr<channel_tracker_v2> mon(new channel_tracker_v2(in_globalreg));
-        in_globalreg->register_lifetime_global(mon);
-        in_globalreg->insert_global(global_name(), mon);
+    static std::shared_ptr<channel_tracker_v2> create_channeltracker() {
+        std::shared_ptr<channel_tracker_v2> mon(new channel_tracker_v2());
+        Globalreg::globalreg->register_lifetime_global(mon);
+        Globalreg::globalreg->insert_global(global_name(), mon);
         return mon;
     }
 
 private:
-    channel_tracker_v2(global_registry *in_globalreg);
+    channel_tracker_v2();
 
 public:
     virtual ~channel_tracker_v2();

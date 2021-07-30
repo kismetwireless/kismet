@@ -37,8 +37,8 @@
 #include "manuf.h"
 #include "messagebus.h"
 
-Kis_Mousejack_Phy::Kis_Mousejack_Phy(global_registry *in_globalreg, int in_phyid) :
-    kis_phy_handler(in_globalreg, in_phyid) {
+Kis_Mousejack_Phy::Kis_Mousejack_Phy(int in_phyid) :
+    kis_phy_handler(in_phyid) {
 
     set_phy_name("NrfMousejack");
 

@@ -25,22 +25,26 @@
 #include "packet.h"
 #include "packetchain.h"
 
-class kis_dissector_ip_data : public shared_global_data {
+class kis_dissector_ip_data : public lifetime_global {
 public:
-	kis_dissector_ip_data() { 
-		fprintf(stderr, "FATAL OOPS: kis_dissector_ip_data()\n"); 
-		exit(1); 
-	}
+    static std::string global_name() { return "IPDISSECTOR"; }
 
-	kis_dissector_ip_data(global_registry *in_globalreg);
+    static std::shared_ptr<kis_dissector_ip_data> create_dissector_ip_data() {
+        std::shared_ptr<kis_dissector_ip_data> m(new kis_dissector_ip_data());
+        Globalreg::globalreg->register_lifetime_global(m);
+        Globalreg::globalreg->insert_global(global_name(), m);
+        return m;
+    }
 
+private:
+	kis_dissector_ip_data();
+
+public:
 	virtual int handle_packet(kis_packet *in_pack);
 
 	~kis_dissector_ip_data();
 
 protected:
-	global_registry *globalreg;
-
 	int pack_comp_datapayload, pack_comp_basicdata, pack_comp_common;
 	int alert_dhcpclient_ref;
 };

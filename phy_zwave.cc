@@ -27,8 +27,8 @@
 #include "messagebus.h"
 #include "kis_httpd_registry.h"
 
-Kis_Zwave_Phy::Kis_Zwave_Phy(global_registry *in_globalreg, int in_phyid) :
-    kis_phy_handler(in_globalreg, in_phyid) {
+Kis_Zwave_Phy::Kis_Zwave_Phy(int in_phyid) :
+    kis_phy_handler(in_phyid) {
 
     set_phy_name("Z-Wave");
 

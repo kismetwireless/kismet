@@ -535,15 +535,15 @@ class Kis_RTL433_Phy : public kis_phy_handler {
 public:
     virtual ~Kis_RTL433_Phy();
 
-    Kis_RTL433_Phy(global_registry *in_globalreg) :
-        kis_phy_handler(in_globalreg) { };
+    Kis_RTL433_Phy() :
+        kis_phy_handler() { };
 
 	// Build a strong version of ourselves
-	virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg, int in_phyid) override {
-		return new Kis_RTL433_Phy(in_globalreg, in_phyid);
+	virtual kis_phy_handler *create_phy_handler(int in_phyid) override {
+		return new Kis_RTL433_Phy(in_phyid);
 	}
 
-    Kis_RTL433_Phy(global_registry *in_globalreg, int in_phyid);
+    Kis_RTL433_Phy(int in_phyid);
 
     static int PacketHandler(CHAINCALL_PARMS);
 

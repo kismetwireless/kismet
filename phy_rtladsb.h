@@ -156,15 +156,15 @@ class kis_rtladsb_phy : public kis_phy_handler {
 public:
     virtual ~kis_rtladsb_phy();
 
-    kis_rtladsb_phy(global_registry *in_globalreg) :
-        kis_phy_handler(in_globalreg) { };
+    kis_rtladsb_phy() :
+        kis_phy_handler() { };
 
 	// Build a strong version of ourselves
-	virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg, int in_phyid) override {
-		return new kis_rtladsb_phy(in_globalreg, in_phyid);
+	virtual kis_phy_handler *create_phy_handler(int in_phyid) override {
+		return new kis_rtladsb_phy(in_phyid);
 	}
 
-    kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid);
+    kis_rtladsb_phy(int in_phyid);
 
     static int packet_handler(CHAINCALL_PARMS);
 

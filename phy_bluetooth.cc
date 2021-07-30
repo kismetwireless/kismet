@@ -35,8 +35,8 @@
 #include "devicetracker.h"
 #include "alertracker.h"
 
-kis_bluetooth_phy::kis_bluetooth_phy(global_registry *in_globalreg, int in_phyid) : 
-    kis_phy_handler(in_globalreg, in_phyid) {
+kis_bluetooth_phy::kis_bluetooth_phy(int in_phyid) : 
+    kis_phy_handler(in_phyid) {
 
     alertracker = 
         Globalreg::fetch_mandatory_global_as<alert_tracker>();

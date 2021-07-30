@@ -312,16 +312,16 @@ public:
     ~kis_80211_phy();
 
     // Inherited functionality
-    kis_80211_phy(global_registry *in_globalreg) :
-        kis_phy_handler(in_globalreg) { };
+    kis_80211_phy() :
+        kis_phy_handler() { };
 
     // Build a strong version of ourselves
-    virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg, int in_phyid) override {
-        return new kis_80211_phy(in_globalreg, in_phyid);
+    virtual kis_phy_handler *create_phy_handler(int in_phyid) override {
+        return new kis_80211_phy(in_phyid);
     }
 
     // Strong constructor
-    kis_80211_phy(global_registry *in_globalreg, int in_phyid);
+    kis_80211_phy(int in_phyid);
 
     int wpa_cipher_conv(uint8_t cipher_index);
     int wpa_key_mgt_conv(uint8_t mgt_index);

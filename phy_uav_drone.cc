@@ -78,8 +78,8 @@ bool uav_manuf_match::match_record(const mac_addr& in_mac, const std::string& in
 }
 
 
-Kis_UAV_Phy::Kis_UAV_Phy(global_registry *in_globalreg, int in_phyid) :
-    kis_phy_handler(in_globalreg, in_phyid) { 
+Kis_UAV_Phy::Kis_UAV_Phy(int in_phyid) :
+    kis_phy_handler(in_phyid) { 
 
     phyname = "UAV";
 

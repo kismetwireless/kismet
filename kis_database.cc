@@ -22,14 +22,11 @@
 #include "globalregistry.h"
 #include "util.h"
 
-kis_database::kis_database(global_registry *in_globalreg, std::string in_module_name) :
+kis_database::kis_database(std::string in_module_name) :
         ds_module_name(in_module_name) {
     ds_mutex.set_name(fmt::format("kis_database({})", in_module_name));
 
-    globalreg = in_globalreg;
-
     db = NULL;
-
 }
 
 kis_database::~kis_database() {
@@ -46,9 +43,9 @@ bool kis_database::database_open(std::string in_file_path) {
 
     if (in_file_path.length() == 0) {
         std::string config_dir_path_raw = 
-            globalreg->kismet_config->fetch_opt("configdir");
+            Globalreg::globalreg->kismet_config->fetch_opt("configdir");
         std::string config_dir_path =
-            globalreg->kismet_config->expand_log_path(config_dir_path_raw, "", "", 0, 1);
+            Globalreg::globalreg->kismet_config->expand_log_path(config_dir_path_raw, "", "", 0, 1);
 
         ds_dbfile = config_dir_path + "/" + ds_module_name + ".db3"; 
     } else {
@@ -151,9 +148,9 @@ bool kis_database::database_create_master_table() {
         return false;
     }
 
-    std::string kversion = globalreg->version_major + "." + 
-        globalreg->version_minor + "." +
-        globalreg->version_tiny;
+    std::string kversion = Globalreg::globalreg->version_major + "." + 
+        Globalreg::globalreg->version_minor + "." +
+        Globalreg::globalreg->version_tiny;
 
     sqlite3_bind_text(stmt, 1, kversion.c_str(), kversion.length(), 0);
     sqlite3_bind_int(stmt, 2, 0);
@@ -234,9 +231,9 @@ bool kis_database::database_set_db_version(unsigned int version) {
         return false;
     }
 
-    std::string kversion = globalreg->version_major + "." + 
-        globalreg->version_minor + "." +
-        globalreg->version_tiny;
+    std::string kversion = Globalreg::globalreg->version_major + "." + 
+        Globalreg::globalreg->version_minor + "." +
+        Globalreg::globalreg->version_tiny;
 
     sqlite3_bind_text(stmt, 1, kversion.c_str(), kversion.length(), 0);
     sqlite3_bind_int(stmt, 2, version);

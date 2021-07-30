@@ -94,15 +94,15 @@ protected:
 
 class kis_802154_phy : public kis_phy_handler {
 public:
-    kis_802154_phy(global_registry *in_globalreg) :
-        kis_phy_handler(in_globalreg) { }
+    kis_802154_phy() :
+        kis_phy_handler() { }
 
-    kis_802154_phy(global_registry *in_globalreg, int in_phyid);
+    kis_802154_phy(int in_phyid);
 
     virtual ~kis_802154_phy();
 
-    virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg, int in_phyid) {
-        return new kis_802154_phy(in_globalreg, in_phyid);
+    virtual kis_phy_handler *create_phy_handler(int in_phyid) {
+        return new kis_802154_phy(in_phyid);
     }
 
     static int dissector802154(CHAINCALL_PARMS);

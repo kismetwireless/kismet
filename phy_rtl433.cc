@@ -27,8 +27,8 @@
 #include "manuf.h"
 #include "messagebus.h"
 
-Kis_RTL433_Phy::Kis_RTL433_Phy(global_registry *in_globalreg, int in_phyid) :
-    kis_phy_handler(in_globalreg, in_phyid) {
+Kis_RTL433_Phy::Kis_RTL433_Phy(int in_phyid) :
+    kis_phy_handler(in_phyid) {
 
     set_phy_name("RTL433");
 

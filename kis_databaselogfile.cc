@@ -31,7 +31,7 @@
 
 kis_database_logfile::kis_database_logfile():
     kis_logfile(shared_log_builder(NULL)), 
-    kis_database(Globalreg::globalreg, "kismetlog"),
+    kis_database("kismetlog"),
     lifetime_global() {
 
     eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();

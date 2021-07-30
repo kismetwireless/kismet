@@ -29,9 +29,8 @@
 #include "kis_dissector_ipdata.h"
 #include "phy_80211_packetsignatures.h"
 
-int GetLengthTagOffsets(unsigned int init_offset, 
-						kis_datachunk *in_chunk,
-						std::map<int, std::vector<int> > *tag_cache_map) {
+int get_length_tag_offsets(unsigned int init_offset, 
+        kis_datachunk *in_chunk, std::map<int, std::vector<int> > *tag_cache_map) {
     int cur_tag = 0;
     // Initial offset is 36, that's the first tag
     unsigned int cur_offset = (unsigned int) init_offset;
@@ -80,25 +79,27 @@ int ipdata_packethook(CHAINCALL_PARMS) {
 	return ((kis_dissector_ip_data *) auxdata)->handle_packet(in_pack);
 }
 
-kis_dissector_ip_data::kis_dissector_ip_data(global_registry *in_globalreg) {
-	globalreg = in_globalreg;
+kis_dissector_ip_data::kis_dissector_ip_data() {
+    auto packetchain =
+        Globalreg::fetch_mandatory_global_as<packet_chain>();
 
-	globalreg->insert_global("DISSECTOR_IPDATA", std::shared_ptr<kis_dissector_ip_data>(this));
-
-	globalreg->packetchain->register_handler(&ipdata_packethook, this,
-		 									CHAINPOS_DATADISSECT, -100);
+    packetchain->register_handler(&ipdata_packethook, this,
+            CHAINPOS_DATADISSECT, -100);
 
 	pack_comp_basicdata = 
-		globalreg->packetchain->register_packet_component("BASICDATA");
+		packetchain->register_packet_component("BASICDATA");
 
 	pack_comp_datapayload =
-		globalreg->packetchain->register_packet_component("DATAPAYLOAD");
+		packetchain->register_packet_component("DATAPAYLOAD");
 
 	pack_comp_common = 
-		globalreg->packetchain->register_packet_component("COMMON");
+		packetchain->register_packet_component("COMMON");
+
+    auto alertracker =
+        Globalreg::fetch_mandatory_global_as<alert_tracker>();
 
 	alert_dhcpclient_ref =
-		globalreg->alertracker->activate_configured_alert("DHCPCLIENTID",
+		alertracker->activate_configured_alert("DHCPCLIENTID",
                 "SPOOF", kis_alert_severity::low,
                 "A DHCP client sending a DHCP Discovery packet should "
                 "provide a Client-ID tag (Tag 61) which matches the source "
@@ -108,9 +109,13 @@ kis_dissector_ip_data::kis_dissector_ip_data(global_registry *in_globalreg) {
 }
 
 kis_dissector_ip_data::~kis_dissector_ip_data() {
-	globalreg->insert_global("DISSECTOR_IPDATA", NULL);
+    Globalreg::globalreg->remove_global(global_name());
 
-	globalreg->packetchain->remove_handler(&ipdata_packethook, CHAINPOS_DATADISSECT);
+    auto packetchain =
+        Globalreg::fetch_global_as<packet_chain>();
+
+    if (packetchain != nullptr)
+        packetchain->remove_handler(&ipdata_packethook, CHAINPOS_DATADISSECT);
 }
 
 #define MDNS_PTR_MASK		0xC0
@@ -444,7 +449,7 @@ int kis_dissector_ip_data::handle_packet(kis_packet *in_pack) {
 #endif
 
 		/* DHCP Offer */
-		if (common->dest == globalreg->broadcast_mac &&
+		if (common->dest == Globalreg::globalreg->broadcast_mac &&
 			datainfo->ip_source_port == 67 &&
 			datainfo->ip_dest_port == 68) {
 
@@ -455,7 +460,7 @@ int kis_dissector_ip_data::handle_packet(kis_packet *in_pack) {
 			// This is convenient since it won't return anything that is outside
 			// the context of the packet, we can feed it the length w/out checking 
 			// and we can trust the tags
-			GetLengthTagOffsets(DHCPD_OFFSET + 252, chunk, &dhcp_tag_map);
+			get_length_tag_offsets(DHCPD_OFFSET + 252, chunk, &dhcp_tag_map);
 
 			if (dhcp_tag_map.find(53) != dhcp_tag_map.end() &&
 				dhcp_tag_map[53].size() != 0 &&
@@ -490,7 +495,7 @@ int kis_dissector_ip_data::handle_packet(kis_packet *in_pack) {
 		}
 
 		/* DHCP Discover */
-		if (common->dest == globalreg->broadcast_mac &&
+		if (common->dest == Globalreg::globalreg->broadcast_mac &&
 			datainfo->ip_source_port == 68 &&
 			datainfo->ip_dest_port == 67) {
 
@@ -501,7 +506,7 @@ int kis_dissector_ip_data::handle_packet(kis_packet *in_pack) {
 			// This is convenient since it won't return anything that is outside
 			// the context of the packet, we can feed it the length w/out checking 
 			// and we can trust the tags
-			GetLengthTagOffsets(DHCPD_OFFSET + 252, chunk, &dhcp_tag_map);
+			get_length_tag_offsets(DHCPD_OFFSET + 252, chunk, &dhcp_tag_map);
 
 			if (dhcp_tag_map.find(53) != dhcp_tag_map.end() &&
 				dhcp_tag_map[53].size() != 0 &&

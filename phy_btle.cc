@@ -164,8 +164,8 @@ uint32_t kis_btle_phy::reverse_bits(const uint32_t val) {
 }
 
 
-kis_btle_phy::kis_btle_phy(global_registry *in_globalreg, int in_phyid) :
-    kis_phy_handler(in_globalreg, in_phyid) {
+kis_btle_phy::kis_btle_phy(int in_phyid) :
+    kis_phy_handler(in_phyid) {
 
     set_phy_name("BTLE");
 

@@ -23,8 +23,8 @@
 #include "devicetracker.h"
 #include "macaddr.h"
 
-kis_radiation_phy::kis_radiation_phy(global_registry *in_globalreg, int in_phyid) :
-    kis_phy_handler(in_globalreg, in_phyid) {
+kis_radiation_phy::kis_radiation_phy(int in_phyid) :
+    kis_phy_handler(in_phyid) {
 
     set_phy_name("RADIATION");
 

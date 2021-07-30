@@ -58,7 +58,7 @@ int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
 
 device_tracker::device_tracker() :
     lifetime_global(),
-    kis_database(Globalreg::globalreg, "devicetracker"),
+    kis_database("devicetracker"),
     deferred_startup() {
 
     phy_mutex.set_name("device_tracker::phy_mutex");
@@ -132,7 +132,7 @@ device_tracker::device_tracker() :
 		num_filterpackets = 0;
 
     std::shared_ptr<packet_chain> packetchain =
-        Globalreg::fetch_mandatory_global_as<packet_chain>(globalreg, "PACKETCHAIN");
+        Globalreg::fetch_mandatory_global_as<packet_chain>();
 
 	// Register global packet components used by the device tracker and
 	// subsequent parts
@@ -173,30 +173,30 @@ device_tracker::device_tracker() :
             return 1;
         }, CHAINPOS_TRACKER, 0x7FFF'FFFF);
 
-    if (!globalreg->kismet_config->fetch_opt_bool("track_device_rrds", true)) {
+    if (!Globalreg::globalreg->kismet_config->fetch_opt_bool("track_device_rrds", true)) {
         _MSG("Not tracking historical packet data to save RAM", MSGFLAG_INFO);
         ram_no_rrd = true;
     } else {
         ram_no_rrd = false;
     }
 
-    if (!globalreg->kismet_config->fetch_opt_bool("track_device_seenby_views", true)) {
+    if (!Globalreg::globalreg->kismet_config->fetch_opt_bool("track_device_seenby_views", true)) {
         _MSG("Not building device seenby views to save RAM", MSGFLAG_INFO);
         map_seenby_views = false;
     } else {
         map_seenby_views = true;
     }
 
-    if (!globalreg->kismet_config->fetch_opt_bool("track_device_phy_views", true)) {
+    if (!Globalreg::globalreg->kismet_config->fetch_opt_bool("track_device_phy_views", true)) {
         _MSG("Not building device phy views to save RAM", MSGFLAG_INFO);
         map_phy_views = false;
     } else {
         map_phy_views = true;
     }
 
-    if (globalreg->kismet_config->fetch_opt_bool("kis_log_devices", true)) {
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_devices", true)) {
         unsigned int lograte = 
-            globalreg->kismet_config->fetch_opt_uint("kis_log_device_rate", 30);
+            Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_device_rate", 30);
 
         _MSG("Saving devices to the Kismet database log every " + uint_to_string(lograte) + 
                 " seconds.", MSGFLAG_INFO);
@@ -246,18 +246,18 @@ device_tracker::device_tracker() :
 
     // Preload the vector for speed
     unsigned int preload_sz = 
-        globalreg->kismet_config->fetch_opt_uint("tracker_device_presize", 1000);
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("tracker_device_presize", 1000);
 
     tracked_vec.reserve(preload_sz);
     immutable_tracked_vec->reserve(preload_sz);
 
     // Set up the device timeout
     device_idle_expiration =
-        globalreg->kismet_config->fetch_opt_int("tracker_device_timeout", 0);
+        Globalreg::globalreg->kismet_config->fetch_opt_int("tracker_device_timeout", 0);
 
     if (device_idle_expiration != 0) {
         device_idle_min_packets =
-            globalreg->kismet_config->fetch_opt_uint("tracker_device_packets", 0);
+            Globalreg::globalreg->kismet_config->fetch_opt_uint("tracker_device_packets", 0);
 
         std::stringstream ss;
         ss << "Removing tracked devices which have been inactive for more than " <<
@@ -280,7 +280,7 @@ device_tracker::device_tracker() :
     }
 
 	max_num_devices =
-		globalreg->kismet_config->fetch_opt_uint("tracker_max_devices", 0);
+		Globalreg::globalreg->kismet_config->fetch_opt_uint("tracker_max_devices", 0);
 
 	if (max_num_devices > 0) {
         _MSG_INFO("Limiting maximum number of devices to {}, older devices will be "
@@ -300,7 +300,7 @@ device_tracker::device_tracker() :
     full_refresh_time = time(0);
 
     track_persource_history =
-        globalreg->kismet_config->fetch_opt_bool("keep_per_datasource_stats", false);
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("keep_per_datasource_stats", false);
 
     // Initialize the view system
     view_vec = std::make_shared<tracker_element_vector>();
@@ -868,11 +868,11 @@ device_tracker::~device_tracker() {
         eventbus->remove_listener(new_device_evt_id);
     }
 
-    globalreg->devicetracker = NULL;
-    globalreg->remove_global("DEVICETRACKER");
+    Globalreg::globalreg->devicetracker = NULL;
+    Globalreg::globalreg->remove_global(global_name());
 
     std::shared_ptr<packet_chain> packetchain =
-        Globalreg::fetch_mandatory_global_as<packet_chain>(globalreg, "PACKETCHAIN");
+        Globalreg::fetch_mandatory_global_as<packet_chain>();
     if (packetchain != NULL) {
         packetchain->remove_handler(&Devicetracker_packethook_commontracker,
                 CHAINPOS_TRACKER);
@@ -880,7 +880,7 @@ device_tracker::~device_tracker() {
     }
 
     std::shared_ptr<time_tracker> timetracker = 
-        Globalreg::fetch_global_as<time_tracker>(globalreg, "TIMETRACKER");
+        Globalreg::fetch_global_as<time_tracker>();
     if (timetracker != NULL) {
         timetracker->remove_timer(device_idle_timer);
         timetracker->remove_timer(max_devices_timer);
@@ -980,7 +980,7 @@ int device_tracker::register_phy_handler(kis_phy_handler *in_weak_handler) {
 	int num = next_phy_id++;
 
     lk.unlock();
-	kis_phy_handler *strongphy = in_weak_handler->create_phy_handler(globalreg, num);
+	kis_phy_handler *strongphy = in_weak_handler->create_phy_handler(num);
     lk.lock();
 
 	phy_handler_map[num] = strongphy;
@@ -1179,14 +1179,14 @@ std::shared_ptr<kis_tracked_device_base>
         device->set_tracker_phyname(get_cached_phyname(in_phy->fetch_phy_name()));
 		device->set_phyid(in_phy->fetch_phy_id());
 
-        device->set_server_uuid(globalreg->server_uuid);
+        device->set_server_uuid(Globalreg::globalreg->server_uuid);
 
         device->set_first_time(in_pack->ts.tv_sec);
 
         device->set_tracker_type_string(get_cached_devicetype(in_basic_type));
 
-        if (globalreg->manufdb != NULL) {
-            device->set_manuf(globalreg->manufdb->lookup_oui(in_mac));
+        if (Globalreg::globalreg->manufdb != NULL) {
+            device->set_manuf(Globalreg::globalreg->manufdb->lookup_oui(in_mac));
         }
 
         load_stored_username(device);

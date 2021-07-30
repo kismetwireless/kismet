@@ -26,20 +26,20 @@
 // Sweep record with full data
 class spectrum_sweep : public tracker_component {
 public:
-    spectrum_sweep(global_registry *in_globalreg, int in_id) :
-        tracker_component(in_globalreg, in_id) {
+    spectrum_sweep(int in_id) :
+        tracker_component(in_id) {
         register_fields();
         reserve_fields(NULL);
     }
 
-    spectrum_sweep(global_registry *in_globalreg, int in_id, shared_tracker_element e) :
-        tracker_component(in_globalreg, in_id) {
+    spectrum_sweep(int in_id, shared_tracker_element e) :
+        tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
     }
 
     virtual shared_tracker_element clone_type() {
-        return shared_tracker_element(new spectrum_sweep(globalreg, get_id()));
+        return shared_tracker_element(new spectrum_sweep(get_id()));
     }
 
     virtual void register_fields() {
@@ -78,7 +78,7 @@ protected:
 // Spectrum-specific sub-type of Kismet data sources
 class spectrum_datasource : public kis_datasource {
 public:
-    spectrum_datasource(global_registry *in_globalreg, shared_datasource_builder in_builder);
+    spectrum_datasource(shared_datasource_builder in_builder);
 
     // Configure sweeping
     virtual void set_sweep(uint64_t in_start_mhz, uint64_t in_end_mhz, uint64_t in_num_per_freq,

@@ -408,14 +408,14 @@ class Kis_UAV_Phy : public kis_phy_handler {
 public:
     virtual ~Kis_UAV_Phy();
 
-    Kis_UAV_Phy(global_registry *in_globalreg) :
-        kis_phy_handler(in_globalreg) { }
+    Kis_UAV_Phy() :
+        kis_phy_handler() { }
 
-    virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg, int in_phyid) {
-        return new Kis_UAV_Phy(in_globalreg, in_phyid);
+    virtual kis_phy_handler *create_phy_handler(int in_phyid) {
+        return new Kis_UAV_Phy(in_phyid);
     }
 
-    Kis_UAV_Phy(global_registry *in_globalreg, int in_phyid);
+    Kis_UAV_Phy(int in_phyid);
 
     // Common classifier to make new UAV records
     static int CommonClassifier(CHAINCALL_PARMS);

@@ -25,7 +25,7 @@
 #include "devicetracker_view_workers.h"
 #include "packinfo_signal.h"
 
-channel_tracker_v2::channel_tracker_v2(global_registry *in_globalreg) :
+channel_tracker_v2::channel_tracker_v2() :
     lifetime_global() {
 
     lock.set_name("channeltrackerv2");
@@ -249,22 +249,6 @@ int channel_tracker_v2::packet_chain_handler(CHAINCALL_PARMS) {
         if (common != NULL) {
             chan_channel->get_data_rrd()->add_sample(common->datasize, stime);
         }
-
-        /*
-        // Track unique devices
-        if (globalreg->timestamp.tv_sec != chan_channel->last_device_sec) {
-            chan_channel->last_device_sec = globalreg->timestamp.tv_sec;
-            chan_channel->seen_device_map.clear();
-        }
-        */
-
-        /*
-        chan_channel->seen_device_map[common->device] = true;
-
-        chan_channel->get_device_rrd()->add_sample(
-                chan_channel->seen_device_map.size(),
-                globalreg->timestamp.tv_sec);
-                */
     }
 
     return 1;

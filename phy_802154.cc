@@ -69,8 +69,8 @@ uint8_t src_pan[2] = {0x00, 0x00};
 uint8_t ext_dest[8];
 uint8_t ext_source[8];
 
-kis_802154_phy::kis_802154_phy(global_registry *in_globalreg, int in_phyid) :
-    kis_phy_handler(in_globalreg, in_phyid) {
+kis_802154_phy::kis_802154_phy(int in_phyid) :
+    kis_phy_handler(in_phyid) {
 
     set_phy_name("802.15.4");
 

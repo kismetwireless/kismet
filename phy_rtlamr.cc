@@ -27,8 +27,8 @@
 #include "manuf.h"
 #include "messagebus.h"
 
-kis_rtlamr_phy::kis_rtlamr_phy(global_registry *in_globalreg, int in_phyid) :
-    kis_phy_handler(in_globalreg, in_phyid) {
+kis_rtlamr_phy::kis_rtlamr_phy(int in_phyid) :
+    kis_phy_handler(in_phyid) {
 
     set_phy_name("RTLAMR");
 

@@ -29,8 +29,8 @@
 #include "manuf.h"
 #include "messagebus.h"
 
-kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
-    kis_phy_handler(in_globalreg, in_phyid) {
+kis_rtladsb_phy::kis_rtladsb_phy(int in_phyid) :
+    kis_phy_handler(in_phyid) {
 
     set_phy_name("RTLADSB");
 

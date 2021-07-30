@@ -80,8 +80,8 @@ int phydot11_packethook_dot11(CHAINCALL_PARMS) {
     return ((kis_80211_phy *) auxdata)->packet_dot11_dissector(in_pack);
 }
 
-kis_80211_phy::kis_80211_phy(global_registry *in_globalreg, int in_phyid) : 
-    kis_phy_handler(in_globalreg, in_phyid) {
+kis_80211_phy::kis_80211_phy(int in_phyid) : 
+    kis_phy_handler(in_phyid) {
 
     alertracker = Globalreg::fetch_mandatory_global_as<alert_tracker>();
     packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();

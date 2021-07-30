@@ -59,7 +59,7 @@ class kis_database {
 protected:
     // Initialize a database w/ a known module name; opening the database is done with
     // database_open(...)
-    kis_database(global_registry *in_globalreg, std::string in_module_name);
+    kis_database(std::string in_module_name);
 
 public:
     virtual ~kis_database();
@@ -83,8 +83,6 @@ protected:
     // Force-set db version, to be called after upgrading the db or
     // creating a new db
     virtual bool database_set_db_version(unsigned int in_version);
-
-    global_registry *globalreg;
 
     // Module name and target version, filled in by subclasses during initialization
     std::string ds_module_name;
