@@ -535,6 +535,8 @@ public:
     virtual void close();
 
 protected:
+    virtual void start_read(std::shared_ptr<kis_net_web_websocket_endpoint> ref);
+
     boost::beast::websocket::stream<boost::beast::tcp_stream> ws_;
 
     std::promise<void> handle_pr;
@@ -542,6 +544,7 @@ protected:
     handler_func_t handler_cb;
 
     std::atomic<bool> running;
+    std::promise<void> running_promise;
 
 };
 
