@@ -132,6 +132,13 @@ mac_addr Kis_RTL433_Phy::json_to_mac(Json::Value json) {
             *model = kis_hton16((uint16_t) i.asUInt());
             set_model = true;
         }
+        if (i.isString()) {
+            smodel = i.asString();
+            *checksum = adler32_checksum(smodel.c_str(), smodel.length());
+            int iint = (uint16_t) *checksum;
+            *model = kis_hton16((uint16_t) iint);
+            set_model = true;
+	}
     }
 
     if (!set_model && json.isMember("device")) {
@@ -350,8 +357,12 @@ bool Kis_RTL433_Phy::is_tpms(Json::Value json) {
 bool Kis_RTL433_Phy::is_switch(Json::Value json) {
     auto sw0_j = json["switch0"];
     auto sw1_j = json["switch1"];
+    auto sw2_j = json["switch2"];
+    auto sw3_j = json["switch3"];
+    auto sw4_j = json["switch4"];
+    auto sw5_j = json["switch5"];
 
-    if (!sw0_j.isNull() || !sw1_j.isNull())
+    if (!sw0_j.isNull() || !sw1_j.isNull() || !sw2_j.isNull() || !sw3_j.isNull() || !sw4_j.isNull() || !sw5_j.isNull())
         return true;
 
     return false;
@@ -525,54 +536,53 @@ void Kis_RTL433_Phy::add_tpms(Json::Value json, std::shared_ptr<tracker_element_
 }
 
 void Kis_RTL433_Phy::add_switch(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
+    //{"time" : "2021-08-18 16:16:54", "model" : "Interlogix-Security", "subtype" : "contact", "id" : "a55b4b", "battery_ok" : 1, "switch1" : "OPEN", "switch2" : "OPEN", "switch3" : "OPEN", "switch4" : "OPEN", "switch5" : "OPEN", "raw_message" : "2dd4ac"}
     auto sw0_j = json["switch0"];
     auto sw1_j = json["switch1"];
+    auto sw2_j = json["switch2"];
+    auto sw3_j = json["switch3"];
+    auto sw4_j = json["switch4"];
+    auto sw5_j = json["switch5"];
+    auto model_j = json["model"];
+    auto subtype_j = json["subtype"];
+    auto battery_j = json["battery_ok"];
+    auto msg_j = json["raw_message"];
 
-    if (!sw0_j.isNull() || !sw1_j.isNull()) {
-        auto switchdev = 
+    auto sw_id = json["id"];
+
+    if (sw1_j.isNull() || sw2_j.isNull() || sw3_j.isNull() || sw4_j.isNull() || sw5_j.isNull()) 
+        return;
+
+    auto switchdev = 
             rtlholder->get_sub_as<rtl433_tracked_switch>(rtl433_switch_id);
 
-        if (switchdev == NULL) {
-            switchdev = 
-                std::make_shared<rtl433_tracked_switch>(rtl433_switch_id);
-            rtlholder->insert(switchdev);
-        }
-
-        int x;
-        std::stringstream ss;
-
-        if (!sw0_j.isNull())
-            x = 0;
-        else
-            x = 1;
-
-        switchdev->get_switch_vec()->clear();
-
-        while (1) {
-            int v = 0;
-
-            ss.str("");
-            ss << "switch" << x;
-            x++;
-
-            auto v_j = json[ss.str()];
-
-            if (v_j.isNull())
-                break;
-
-            if (v_j.isString()) {
-                if (v_j.asString() == "OPEN")
-                    v = 1;
-            } else if (v_j.isNumeric()) {
-                v = v_j.asInt();
-            } else {
-                break;
-            }
-
-            auto e = switchdev->make_switch_entry(v);
-            switchdev->get_switch_vec()->push_back(e);
-        }
+    if (switchdev == NULL) {
+        switchdev = 
+            std::make_shared<rtl433_tracked_switch>(rtl433_switch_id);
+        rtlholder->insert(switchdev);
     }
+
+    
+    if (sw1_j.isString()) {
+      switchdev->set_switch1(munge_to_printable(sw1_j.asString()));
+    }
+
+    if (sw2_j.isString()) {
+      switchdev->set_switch2(munge_to_printable(sw2_j.asString()));
+    }
+
+    if (sw3_j.isString()) {
+      switchdev->set_switch3(munge_to_printable(sw3_j.asString()));
+    }
+
+    if (sw4_j.isString()) {
+      switchdev->set_switch4(munge_to_printable(sw4_j.asString()));
+    }
+
+    if (sw5_j.isString()) {
+      switchdev->set_switch5(munge_to_printable(sw5_j.asString()));
+    }
+    
 }
 
 void Kis_RTL433_Phy::add_lightning(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {

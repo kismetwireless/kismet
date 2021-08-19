@@ -494,8 +494,14 @@ public:
     rtl433_tracked_switch(const rtl433_tracked_switch *p) :
         tracker_component{p} {
 
-        __ImportField(switch_vec, p);
-        __ImportId(switch_vec_entry_id, p);
+        //__ImportField(switch_vec, p);
+        //__ImportId(switch_vec_entry_id, p);
+	__ImportField(switch1, p);
+	__ImportField(switch2, p);
+	__ImportField(switch3, p);
+	__ImportField(switch4, p);
+	__ImportField(switch5, p);
+
 
         reserve_fields(nullptr);
     }
@@ -510,24 +516,39 @@ public:
         return std::move(dup);
     }
 
-    __ProxyTrackable(switch_vec, tracker_element_vector, switch_vec);
+    //__ProxyTrackable(switch_vec, tracker_element_vector, switch_vec);
+    __Proxy(switch1, std::string, std::string, std::string, switch1);
+    __Proxy(switch2, std::string, std::string, std::string, switch2);
+    __Proxy(switch3, std::string, std::string, std::string, switch3);
+    __Proxy(switch4, std::string, std::string, std::string, switch4);
+    __Proxy(switch5, std::string, std::string, std::string, switch5);
 
-    shared_tracker_element make_switch_entry(int x) {
-        auto e = std::make_shared<tracker_element_int32>(switch_vec_entry_id, x);
-        return e;
-    }
+    //shared_tracker_element make_switch_entry(int x) {
+    //    auto e = std::make_shared<tracker_element_int32>(switch_vec_entry_id, x);
+    //    return e;
+   // }
 
 protected:
     virtual void register_fields() override {
-        register_field("rtl433.device.switch_vec", "Switch settings", &switch_vec);
-        switch_vec_entry_id = 
-            register_field("rtl433.device.switch.position", 
-                    tracker_element_factory<tracker_element_int32>(),
-                    "Switch position");
+        //register_field("rtl433.device.switch_vec", "Switch settings", &switch_vec);
+        //switch_vec_entry_id = 
+        //    register_field("rtl433.device.switch.position", 
+        //            tracker_element_factory<tracker_element_int32>(),
+        //            "Switch position");
+        register_field("rtl433.device.switch.1", "Switch 1", &switch1);
+        register_field("rtl433.device.switch.2", "Switch 2", &switch2);
+        register_field("rtl433.device.switch.3", "Switch 3", &switch3);
+        register_field("rtl433.device.switch.4", "Switch 4", &switch4);
+        register_field("rtl433.device.switch.5", "Switch 5", &switch5);
     }
 
-    std::shared_ptr<tracker_element_vector> switch_vec;
-    int switch_vec_entry_id;
+    //std::shared_ptr<tracker_element_vector> switch_vec;
+    //int switch_vec_entry_id;
+    std::shared_ptr<tracker_element_string> switch1;
+    std::shared_ptr<tracker_element_string> switch2;
+    std::shared_ptr<tracker_element_string> switch3;
+    std::shared_ptr<tracker_element_string> switch4;
+    std::shared_ptr<tracker_element_string> switch5;
 
 };
 
