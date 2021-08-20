@@ -423,7 +423,7 @@ void packet_filter_mac_addr::remove_endp_handler(std::shared_ptr<kis_net_beast_h
     stream << "Removed filter\n";
 }
 
-bool packet_filter_mac_addr::filter_packet(kis_packet *packet) {
+bool packet_filter_mac_addr::filter_packet(std::shared_ptr<kis_packet> packet) {
     auto common = packet->fetch<kis_common_info>(pack_comp_common);
 
     if (common == nullptr)

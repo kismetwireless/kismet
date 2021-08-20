@@ -349,7 +349,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
     // Setting the source and dest
     if (hdr_802_15_4_fcf->src_addr_mode >= 0x02 ||
         hdr_802_15_4_fcf->dest_addr_mode >= 0x02) {
-        common = new kis_common_info;
+        common = std::make_shared<kis_common_info>();
         common->phyid = mphy->fetch_phy_id();
         common->basic_crypt_set = crypt_none;
         common->type = packet_basic_data;

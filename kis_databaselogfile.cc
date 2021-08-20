@@ -405,7 +405,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
 
         auto this_ref = shared_from_this();
         packet_handler_id = 
-            packetchain->register_handler([this, this_ref](kis_packet *packet) -> int {
+            packetchain->register_handler([this, this_ref](std::shared_ptr<kis_packet> packet) -> int {
                     return log_packet(packet);
                 }, CHAINPOS_LOGGING, -100);
     } else {
@@ -881,7 +881,7 @@ int kis_database_logfile::log_device(std::shared_ptr<kis_tracked_device_base> d)
     return 1;
 }
 
-int kis_database_logfile::log_packet(kis_packet *in_pack) {
+int kis_database_logfile::log_packet(std::shared_ptr<kis_packet> in_pack) {
     if (!db_enabled) {
         return 0;
     }
@@ -901,23 +901,12 @@ int kis_database_logfile::log_packet(kis_packet *in_pack) {
         return 0;
     }
 
-    kis_datachunk *chunk = 
-        (kis_datachunk *) in_pack->fetch(pack_comp_linkframe);
-
-    kis_layer1_packinfo *radioinfo = 
-        (kis_layer1_packinfo *) in_pack->fetch(pack_comp_radiodata);
-
-    kis_gps_packinfo *gpsdata =
-        (kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
-
-    kis_common_info *commoninfo =
-        (kis_common_info *) in_pack->fetch(pack_comp_common);
-
-    packetchain_comp_datasource *datasrc =
-        (packetchain_comp_datasource *) in_pack->fetch(pack_comp_datasource);
-
-    packet_metablob *metablob =
-        (packet_metablob *) in_pack->fetch(pack_comp_metablob);
+    auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_linkframe);
+    auto radioinfo = in_pack->fetch<kis_layer1_packinfo>(pack_comp_radiodata);
+    auto gpsdata = in_pack->fetch<kis_gps_packinfo>(pack_comp_gps);
+    auto commoninfo = in_pack->fetch<kis_common_info>(pack_comp_common);
+    auto datasrc = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasource);
+    auto metablob = in_pack->fetch<packet_metablob>(pack_comp_metablob);
 
     kis_phy_handler *phyh = NULL;
 
@@ -1069,7 +1058,7 @@ int kis_database_logfile::log_packet(kis_packet *in_pack) {
     return 1;
 }
 
-int kis_database_logfile::log_data(kis_gps_packinfo *gps, struct timeval tv, 
+int kis_database_logfile::log_data(std::shared_ptr<kis_gps_packinfo> gps, struct timeval tv, 
         std::string phystring, mac_addr devmac, uuid datasource_uuid, 
         std::string type, std::string json) {
 
@@ -1299,7 +1288,7 @@ int kis_database_logfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
     return 1;
 }
 
-int kis_database_logfile::log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
+int kis_database_logfile::log_snapshot(std::shared_ptr<kis_gps_packinfo> gps, struct timeval tv,
         std::string snaptype, std::string json) {
 
     if (!db_enabled)
@@ -1533,7 +1522,7 @@ void kis_database_logfile::make_poi_endp_handler(std::shared_ptr<kis_net_beast_h
             "\"}";
     }
 
-    log_snapshot(loc.get(), tv, "POI", poi_data);
+    log_snapshot(loc, tv, "POI", poi_data);
 
     ostream << "POI created\n";
 }

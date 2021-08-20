@@ -21,8 +21,8 @@
 #include "pcapng_stream_futurebuf.h"
 
 pcapng_stream_futurebuf::pcapng_stream_futurebuf(future_chainbuf& buffer,
-        std::function<bool (kis_packet *)> accept_filter,
-        std::function<kis_datachunk *(kis_packet *)> data_selector,
+        std::function<bool (std::shared_ptr<kis_packet>)> accept_filter,
+        std::function<std::shared_ptr<kis_datachunk>(std::shared_ptr<kis_packet>)> data_selector,
         size_t backlog_sz,
         bool block_for_write) :
     streaming_agent{},
@@ -273,7 +273,8 @@ int pcapng_stream_futurebuf::pcapng_make_idb(unsigned int in_sourcenumber, const
     return logid;
 }
 
-int pcapng_stream_futurebuf::pcapng_write_packet(kis_packet *in_packet, kis_datachunk *in_data) {
+int pcapng_stream_futurebuf::pcapng_write_packet(std::shared_ptr<kis_packet> in_packet, 
+        std::shared_ptr<kis_datachunk> in_data) {
     kis_lock_guard<kis_mutex> lk(pcap_mutex, "pcapng_futurebuf pcapng_write_packet");
 
     auto datasrcinfo = in_packet->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
@@ -473,8 +474,8 @@ int pcapng_stream_futurebuf::pcapng_write_packet(int ng_interface_id, const stru
     return 1;
 }
 
-void pcapng_stream_futurebuf::handle_packet(kis_packet *in_packet) {
-    kis_datachunk *target_datachunk;
+void pcapng_stream_futurebuf::handle_packet(std::shared_ptr<kis_packet> in_packet) {
+    std::shared_ptr<kis_datachunk> target_datachunk;
 
     if (get_stream_paused())
         return;
@@ -508,8 +509,8 @@ void pcapng_stream_futurebuf::handle_packet(kis_packet *in_packet) {
 
 
 pcapng_stream_packetchain::pcapng_stream_packetchain(future_chainbuf& buffer,
-            std::function<bool (kis_packet *)> accept_filter,
-            std::function<kis_datachunk *(kis_packet *)> data_selector,
+            std::function<bool (std::shared_ptr<kis_packet>)> accept_filter,
+            std::function<std::shared_ptr<kis_datachunk>(std::shared_ptr<kis_packet>)> data_selector,
             size_t backlog_sz) :
     pcapng_stream_futurebuf{buffer, accept_filter, data_selector, backlog_sz, false} {
 
@@ -524,7 +525,7 @@ void pcapng_stream_packetchain::start_stream() {
     pcapng_stream_futurebuf::start_stream();
 
     packethandler_id = 
-        packetchain->register_handler([this](kis_packet *packet) {
+        packetchain->register_handler([this](std::shared_ptr<kis_packet> packet) {
             handle_packet(packet);
             return 1;
         }, CHAINPOS_LOGGING, -100);

@@ -103,7 +103,7 @@ int Kis_Mousejack_Phy::DissectorMousejack(CHAINCALL_PARMS) {
     if (common != NULL)
         return 0;
 
-    common = new kis_common_info;
+    common = std::make_shared<kis_common_info>();
 
     common->phyid = mphy->fetch_phy_id();
     common->basic_crypt_set = crypt_none;

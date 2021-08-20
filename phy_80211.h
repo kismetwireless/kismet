@@ -327,27 +327,29 @@ public:
     int wpa_key_mgt_conv(uint8_t mgt_index);
 
     // Dot11 decoders, wep decryptors, etc
-    int packet_wep_decryptor(kis_packet *in_pack);
+    int packet_wep_decryptor(std::shared_ptr<kis_packet> in_pack);
     // Top-level dissector; decodes basic type and populates the dot11 packet
-    int packet_dot11_dissector(kis_packet *in_pack);
+    int packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack);
     // Expects an existing dot11 packet with the basic type intact, interprets
     // IE tags to the best of our ability
-    int packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo *in_dot11info);
+    int packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack, 
+            std::shared_ptr<dot11_packinfo> in_dot11info);
     // Generate a list of IE tag numbers
-    std::vector<ie_tag_tuple> PacketDot11IElist(kis_packet *in_pack, dot11_packinfo *in_dot11info);
+    std::vector<ie_tag_tuple> PacketDot11IElist(std::shared_ptr<kis_packet> in_pack, 
+            std::shared_ptr<dot11_packinfo> in_dot11info);
 
     // Special decoders, not called as part of a chain
 
     // Is packet a WPS M3 message?  Used to detect Reaver, etc
-    int packet_dot11_wps_m3(kis_packet *in_pack);
+    int packet_dot11_wps_m3(std::shared_ptr<kis_packet> in_pack);
 
     // Is the packet a WPA handshake?  Return an eapol tracker element if so
-    std::shared_ptr<dot11_tracked_eapol> packet_dot11_eapol_handshake(kis_packet *in_pack,
+    std::shared_ptr<dot11_tracked_eapol> packet_dot11_eapol_handshake(std::shared_ptr<kis_packet> in_pack,
             std::shared_ptr<dot11_tracked_device> dot11device);
 
     // static in case some other component wants to use it
-    static kis_datachunk *DecryptWEP(dot11_packinfo *in_packinfo,
-            kis_datachunk *in_chunk, 
+    static std::shared_ptr<kis_datachunk> DecryptWEP(std::shared_ptr<dot11_packinfo> in_packinfo,
+            std::shared_ptr<kis_datachunk> in_chunk, 
             unsigned char *in_key, int in_key_len,
             unsigned char *in_id);
 
@@ -361,7 +363,7 @@ public:
     static int packet_dot11_scan_json_classifier(CHAINCALL_PARMS);
 
     // Dot11 tracker for building phy-specific elements
-    int tracker_dot11(kis_packet *in_pack);
+    int tracker_dot11(std::shared_ptr<kis_packet> in_pack);
 
     int add_filter(std::string in_filter);
     int add_netcli_filter(std::string in_filter);
@@ -414,16 +416,16 @@ protected:
     // Handle advertised SSIDs
     void handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev, 
             std::shared_ptr<dot11_tracked_device> dot11dev,
-            kis_packet *in_pack,
-            dot11_packinfo *dot11info,
-            kis_gps_packinfo *pack_gpsinfo);
+            std::shared_ptr<kis_packet> in_pack,
+            std::shared_ptr<dot11_packinfo> dot11info,
+            std::shared_ptr<kis_gps_packinfo> pack_gpsinfo);
 
     // Handle probed SSIDs
     void handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> basedev, 
             std::shared_ptr<dot11_tracked_device> dot11dev,
-            kis_packet *in_pack,
-            dot11_packinfo *dot11info,
-            kis_gps_packinfo *pack_gpsinfo);
+            std::shared_ptr<kis_packet> in_pack,
+            std::shared_ptr<dot11_packinfo> dot11info,
+            std::shared_ptr<kis_gps_packinfo> pack_gpsinfo);
 
     // Map a device as a client of an acceess point, fill in any data in the
     // per-client records
@@ -431,16 +433,16 @@ protected:
             std::shared_ptr<dot11_tracked_device> bssiddot11,
             std::shared_ptr<kis_tracked_device_base> clientdev,
             std::shared_ptr<dot11_tracked_device> clientdot11,
-            kis_packet *in_pack,
-            dot11_packinfo *dot11info,
-            kis_gps_packinfo *pack_gpsinfo,
-            kis_data_packinfo *pack_datainfo);
+            std::shared_ptr<kis_packet> in_pack,
+            std::shared_ptr<dot11_packinfo> dot11info,
+            std::shared_ptr<kis_gps_packinfo> pack_gpsinfo,
+            std::shared_ptr<kis_data_packinfo> pack_datainfo);
 
     void process_wpa_handshake(std::shared_ptr<kis_tracked_device_base> bssid_dev,
             std::shared_ptr<dot11_tracked_device> bssid_dot11,
             std::shared_ptr<kis_tracked_device_base> dest_dev,
             std::shared_ptr<dot11_tracked_device> dest_dot11,
-            kis_packet *in_pack, dot11_packinfo *dot11info);
+            std::shared_ptr<kis_packet> in_pack, std::shared_ptr<dot11_packinfo> dot11info);
 
     void generate_handshake_pcap(std::shared_ptr<kis_net_beast_httpd_connection> con,
             std::shared_ptr<kis_tracked_device_base> dev, 

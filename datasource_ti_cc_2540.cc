@@ -20,7 +20,7 @@
 
 #include "datasource_ti_cc_2540.h"
 
-void kis_datasource_ticc2540::handle_rx_packet(kis_packet *packet) {
+void kis_datasource_ticc2540::handle_rx_packet(std::shared_ptr<kis_packet> packet) {
     typedef struct {
         uint8_t monitor_channel;
         int8_t signal;
@@ -46,22 +46,16 @@ void kis_datasource_ticc2540::handle_rx_packet(kis_packet *packet) {
     // we can't decipher - we can't even log them sanely!
     
     if (cc_chunk->length < 8) {
-        // fmt::print(stderr, "debug - cc2540 too short ({} < 8)\n", cc_chunk->length);
-        delete(packet);
         return;
     }
 
     unsigned int cc_len = cc_chunk->data[1];
     if (cc_len != cc_chunk->length - 3) {
-        // fmt::print(stderr, "debug - cc2540 invalid packet length ({} != {})\n", cc_len, cc_chunk->length - 3);
-        delete(packet);
         return;
     }
 
     unsigned int cc_payload_len = cc_chunk->data[7] - 0x02;
     if (cc_payload_len + 8 != cc_chunk->length - 2) {
-        // fmt::print(stderr, "debug - cc2540 invalid payload length ({} != {})\n", cc_payload_len + 8, cc_chunk->length - 2);
-        delete(packet);
         return;
     }
 
@@ -115,14 +109,14 @@ void kis_datasource_ticc2540::handle_rx_packet(kis_packet *packet) {
     cc_chunk->dlt = KDLT_BTLE_RADIO;
 
     // Generate a l1 radio header and a decap header since we have it computed already
-    auto radioheader = new kis_layer1_packinfo();
+    auto radioheader = std::make_shared<kis_layer1_packinfo>();
     radioheader->signal_type = kis_l1_signal_type_dbm;
     radioheader->signal_dbm = conv_header->signal;
     radioheader->freq_khz = (2400 + (fcs2 & 0x7F)) * 1000;
     radioheader->channel = fmt::format("{}", (fcs2 & 0x7F));
     packet->insert(pack_comp_radiodata, radioheader);
 
-    auto decapchunk = new kis_datachunk;
+    auto decapchunk = std::make_shared<kis_datachunk>();
     decapchunk->set_data(conv_header->payload, cc_payload_len, false);
     decapchunk->dlt = KDLT_BLUETOOTH_LE_LL;
     packet->insert(pack_comp_decap, decapchunk);

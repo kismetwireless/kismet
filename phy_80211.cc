@@ -887,7 +887,7 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                         throw std::runtime_error("invalid mac");
 
                     auto pcapng = std::make_shared<pcapng_stream_packetchain>(con->response_stream(),
-                            [this, mac](kis_packet *packet) -> bool {
+                            [this, mac](std::shared_ptr<kis_packet> packet) -> bool {
                                 auto dot11info = packet->fetch<dot11_packinfo>(pack_comp_80211);
 
                                 if (dot11info == nullptr)
@@ -1010,25 +1010,21 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         return 0;
 
     // Get the 802.11 info
-    dot11_packinfo *dot11info = 
-        (dot11_packinfo *) in_pack->fetch(d11phy->pack_comp_80211);
+    auto dot11info = in_pack->fetch<dot11_packinfo>(d11phy->pack_comp_80211);
 
-    if (dot11info == NULL)
+    if (dot11info == nullptr)
         return 0;
 
-    kis_common_info *commoninfo = 
-        (kis_common_info *) in_pack->fetch(d11phy->pack_comp_common);
+    auto commoninfo = in_pack->fetch<kis_common_info>(d11phy->pack_comp_common);
 
-    if (commoninfo == NULL) {
-        fprintf(stderr, "debug - packet made it to dot11 classifier with dot11info but no common info\n");
+    if (commoninfo == nullptr) {
         return 0;
     }
 
-	kis_layer1_packinfo *pack_l1info =
-		(kis_layer1_packinfo *) in_pack->fetch(d11phy->pack_comp_l1info);
+    auto pack_l1info = in_pack->fetch<kis_layer1_packinfo>(d11phy->pack_comp_l1info);
 
 
-    if (pack_l1info != NULL && pack_l1info->signal_dbm > d11phy->signal_too_loud_threshold && 
+    if (pack_l1info != nullptr && pack_l1info->signal_dbm > d11phy->signal_too_loud_threshold && 
             pack_l1info->signal_dbm < 0 && 
             d11phy->alertracker->potential_alert(d11phy->alert_tooloud_ref)) {
 
@@ -1063,18 +1059,14 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
     //
     // By never creating a common info record we should prevent any handling of this
     // nonsense;  So far investigation doesn't show much useful in FCS corrupted data.
-    kis_packet_checksum *fcs =
-        (kis_packet_checksum *) in_pack->fetch(d11phy->pack_comp_checksum);
+    auto fcs = in_pack->fetch<kis_packet_checksum>(d11phy->pack_comp_checksum);
 
     if (fcs != NULL && fcs->checksum_valid == 0) {
         return 0;
     }
 
-	kis_gps_packinfo *pack_gpsinfo =
-		(kis_gps_packinfo *) in_pack->fetch(d11phy->pack_comp_gps);
-
-	kis_data_packinfo *pack_datainfo =
-		(kis_data_packinfo *) in_pack->fetch(d11phy->pack_comp_basicdata);
+    auto pack_gpsinfo = in_pack->fetch<kis_gps_packinfo>(d11phy->pack_comp_gps);
+    auto pack_datainfo = in_pack->fetch<kis_data_packinfo>(d11phy->pack_comp_basicdata);
 
     std::shared_ptr<kis_tracked_device_base> source_dev;
     std::shared_ptr<kis_tracked_device_base> dest_dev;
@@ -1098,7 +1090,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         commoninfo->type = packet_basic_mgmt;
         
         if (dot11info->bssid_mac != Globalreg::globalreg->empty_mac && 
-                !(dot11info->bssid_mac.bitwise_and(globalreg->multicast_mac)) ) {
+                !(dot11info->bssid_mac.bitwise_and(Globalreg::globalreg->multicast_mac)) ) {
 
             unsigned int bflags = UCD_UPDATE_SEENBY;
 
@@ -1119,8 +1111,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         }
 
         if (dot11info->source_mac != dot11info->bssid_mac &&
-                dot11info->source_mac != globalreg->empty_mac && 
-                !(dot11info->source_mac.bitwise_and(globalreg->multicast_mac)) ) {
+                dot11info->source_mac != Globalreg::globalreg->empty_mac && 
+                !(dot11info->source_mac.bitwise_and(Globalreg::globalreg->multicast_mac)) ) {
 
             unsigned int bflags = 
                 (UCD_UPDATE_PACKETS | UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION);
@@ -1139,8 +1131,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
         if (dot11info->dest_mac != dot11info->source_mac &&
                 dot11info->dest_mac != dot11info->bssid_mac &&
-                dot11info->dest_mac != globalreg->empty_mac && 
-                !(dot11info->dest_mac.bitwise_and(globalreg->multicast_mac)) ) {
+                dot11info->dest_mac != Globalreg::globalreg->empty_mac && 
+                !(dot11info->dest_mac.bitwise_and(Globalreg::globalreg->multicast_mac)) ) {
 
             dest_dev =
                 d11phy->devicetracker->update_common_device(commoninfo, 
@@ -1390,7 +1382,7 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             // alerts on broadcast deauths
             if  ((dot11info->subtype == packet_sub_disassociation ||
                         dot11info->subtype == packet_sub_deauthentication) &&
-                    dot11info->dest_mac == globalreg->broadcast_mac &&
+                    dot11info->dest_mac == Globalreg::globalreg->broadcast_mac &&
                     d11phy->alertracker->potential_alert(d11phy->alert_bcastdcon_ref)) {
 
                 std::string al = "IEEE80211 Access Point BSSID " +
@@ -1482,8 +1474,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             update_flags = UCD_UPDATE_EXISTING_ONLY;
         }
 
-        if (dot11info->bssid_mac != globalreg->empty_mac && 
-                !(dot11info->bssid_mac.bitwise_and(globalreg->multicast_mac)) ) {
+        if (dot11info->bssid_mac != Globalreg::globalreg->empty_mac && 
+                !(dot11info->bssid_mac.bitwise_and(Globalreg::globalreg->multicast_mac)) ) {
 
             unsigned int bflags = UCD_UPDATE_SEENBY;
 
@@ -1503,8 +1495,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         }
 
         if (dot11info->source_mac != dot11info->bssid_mac &&
-                dot11info->source_mac != globalreg->empty_mac && 
-                !(dot11info->source_mac.bitwise_and(globalreg->multicast_mac)) ) {
+                dot11info->source_mac != Globalreg::globalreg->empty_mac && 
+                !(dot11info->source_mac.bitwise_and(Globalreg::globalreg->multicast_mac)) ) {
 
             unsigned int bflags = 
                 (UCD_UPDATE_PACKETS | UCD_UPDATE_SEENBY | UCD_UPDATE_ENCRYPTION);
@@ -1523,8 +1515,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
 
         if (dot11info->dest_mac != dot11info->source_mac &&
                 dot11info->dest_mac != dot11info->bssid_mac &&
-                dot11info->dest_mac != globalreg->empty_mac && 
-                !(dot11info->dest_mac.bitwise_and(globalreg->multicast_mac)) ) {
+                dot11info->dest_mac != Globalreg::globalreg->empty_mac && 
+                !(dot11info->dest_mac.bitwise_and(Globalreg::globalreg->multicast_mac)) ) {
 
             dest_dev =
                 d11phy->devicetracker->update_common_device(commoninfo,
@@ -1537,8 +1529,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         if (dot11info->transmit_mac != dot11info->source_mac &&
                 dot11info->transmit_mac != dot11info->dest_mac &&
                 dot11info->transmit_mac != dot11info->bssid_mac &&
-                dot11info->transmit_mac != globalreg->empty_mac && 
-                !(dot11info->transmit_mac.bitwise_and(globalreg->multicast_mac)) ) {
+                dot11info->transmit_mac != Globalreg::globalreg->empty_mac && 
+                !(dot11info->transmit_mac.bitwise_and(Globalreg::globalreg->multicast_mac)) ) {
 
             transmit_dev =
                 d11phy->devicetracker->update_common_device(commoninfo, 
@@ -1551,8 +1543,8 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
         if (dot11info->receive_mac != dot11info->source_mac &&
                 dot11info->receive_mac != dot11info->dest_mac &&
                 dot11info->receive_mac != dot11info->bssid_mac &&
-                dot11info->receive_mac != globalreg->empty_mac && 
-                !(dot11info->receive_mac.bitwise_and(globalreg->multicast_mac)) ) {
+                dot11info->receive_mac != Globalreg::globalreg->empty_mac && 
+                !(dot11info->receive_mac.bitwise_and(Globalreg::globalreg->multicast_mac)) ) {
 
             receive_dev =
                 d11phy->devicetracker->update_common_device(commoninfo, 
@@ -1961,7 +1953,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 
         auto ssid_csum = ssid_hash(ssid_str.data(), ssid_str.length());
 
-        commoninfo = new kis_common_info();
+        commoninfo = std::make_shared<kis_common_info>();
 
         commoninfo->type = packet_basic_mgmt;
         commoninfo->direction = packet_direction_from;
@@ -2300,9 +2292,9 @@ void kis_80211_phy::add_wep_key(mac_addr bssid, uint8_t *key, unsigned int len,
 
 void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev,
         std::shared_ptr<dot11_tracked_device> dot11dev,
-        kis_packet *in_pack,
-        dot11_packinfo *dot11info,
-        kis_gps_packinfo *pack_gpsinfo) {
+        std::shared_ptr<kis_packet> in_pack,
+        std::shared_ptr<dot11_packinfo> dot11info,
+        std::shared_ptr<kis_gps_packinfo> pack_gpsinfo) {
 
     std::shared_ptr<dot11_advertised_ssid> ssid;
         
@@ -2341,10 +2333,10 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
             dot11dev->get_snap_next_beacon()) {
 
         // Grab the 80211 frame, if that doesn't exist, grab the link frame
-        kis_datachunk *chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap);
+        auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap);
 
         if (chunk == nullptr)
-            chunk = (kis_datachunk *) in_pack->fetch<kis_datachunk>(pack_comp_linkframe);
+            chunk = in_pack->fetch<kis_datachunk>(pack_comp_linkframe);
 
         if (chunk != nullptr) {
             auto beacon_packet = dot11dev->get_ssid_beacon_packet();
@@ -2369,7 +2361,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
     if (dot11info->subtype == packet_sub_probe_resp) {
         auto resp_ssid_map = dot11dev->get_responded_ssid_map();
 
-        if (resp_ssid_map == NULL) {
+        if (resp_ssid_map == nullptr) {
             fprintf(stderr, "debug - dot11phy::HandleSSID can't find the responded_ssid_map, something is wrong\n");
             return;
         }
@@ -2388,7 +2380,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
     } else {
         auto adv_ssid_map = dot11dev->get_advertised_ssid_map();
 
-        if (adv_ssid_map == NULL) {
+        if (adv_ssid_map == nullptr) {
             fprintf(stderr, "debug - dot11phy::HandleSSID can't find the adv_ssid_map or probe_ssid_map struct, something is wrong\n");
             return;
         }
@@ -2936,9 +2928,9 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
 
 void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> basedev,
         std::shared_ptr<dot11_tracked_device> dot11dev,
-        kis_packet *in_pack,
-        dot11_packinfo *dot11info,
-        kis_gps_packinfo *pack_gpsinfo) {
+        std::shared_ptr<kis_packet> in_pack,
+        std::shared_ptr<dot11_packinfo> dot11info,
+        std::shared_ptr<kis_gps_packinfo> pack_gpsinfo) {
 
     // We're called under device list lock so we only lock the device we're interacting with
 
@@ -3116,10 +3108,10 @@ void kis_80211_phy::process_client(std::shared_ptr<kis_tracked_device_base> bssi
         std::shared_ptr<dot11_tracked_device> bssiddot11,
         std::shared_ptr<kis_tracked_device_base> clientdev,
         std::shared_ptr<dot11_tracked_device> clientdot11,
-        kis_packet *in_pack, 
-        dot11_packinfo *dot11info,
-        kis_gps_packinfo *pack_gpsinfo,
-        kis_data_packinfo *pack_datainfo) {
+        std::shared_ptr<kis_packet> in_pack, 
+        std::shared_ptr<dot11_packinfo> dot11info,
+        std::shared_ptr<kis_gps_packinfo> pack_gpsinfo,
+        std::shared_ptr<kis_data_packinfo> pack_datainfo) {
 
     // Sanity check
     if (bssiddev == nullptr)
@@ -3313,8 +3305,8 @@ void kis_80211_phy::process_wpa_handshake(std::shared_ptr<kis_tracked_device_bas
         std::shared_ptr<dot11_tracked_device> bssid_dot11,
         std::shared_ptr<kis_tracked_device_base> dest_dev,
         std::shared_ptr<dot11_tracked_device> dest_dot11,
-        kis_packet *in_pack,
-        dot11_packinfo *dot11info) {
+        std::shared_ptr<kis_packet> in_pack,
+        std::shared_ptr<dot11_packinfo> dot11info) {
 
     std::shared_ptr<dot11_tracked_eapol> eapol = packet_dot11_eapol_handshake(in_pack, bssid_dot11);
 

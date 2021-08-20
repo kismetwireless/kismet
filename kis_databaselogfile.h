@@ -101,12 +101,12 @@ public:
     virtual time_t get_last_device_log_ts() { return last_device_log; }
 
     // Log a packet
-    virtual int log_packet(kis_packet *in_packet);
+    virtual int log_packet(std::shared_ptr<kis_packet> in_packet);
 
     // Log data that isn't a packet; this is a slightly more clunky API because we 
     // can't derive the data from the simple packet interface.  GPS may be null,
     // and other attributes may be empty, if that data is not available
-    virtual int log_data(kis_gps_packinfo *gps, struct timeval tv, 
+    virtual int log_data(std::shared_ptr<kis_gps_packinfo> gps, struct timeval tv, 
             std::string phystring, mac_addr devmac, uuid datasource_uuid, 
             std::string type, std::string json);
 
@@ -120,7 +120,7 @@ public:
 
     // Log snapshotted data; Slightly clunkier API since it has to allow for
     // entirely generic data
-    virtual int log_snapshot(kis_gps_packinfo *gps, struct timeval tv,
+    virtual int log_snapshot(std::shared_ptr<kis_gps_packinfo> gps, struct timeval tv,
             std::string snaptype, std::string json);
 
     static void usage(const char *argv0);

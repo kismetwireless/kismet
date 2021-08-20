@@ -20,7 +20,7 @@
 
 #include "datasource_nxp_kw41z.h"
 
-void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
+void kis_datasource_nxpkw41z::handle_rx_packet(std::shared_ptr<kis_packet> packet) {
     typedef struct {
         uint8_t monitor_channel;
         int8_t signal;
@@ -46,9 +46,6 @@ void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
     // sanely!
 
     if (nxp_chunk->length < 10) {
-        // fmt::print(stderr, "debug - nxp kw41z too short ({} < 10)\n",
-        // nxp_chunk->length);
-        delete (packet);
         return;
     }
 
@@ -98,7 +95,7 @@ void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
         nxp_chunk->set_data((uint8_t *) conv_header, conv_buf_len, false);
         nxp_chunk->dlt = KDLT_IEEE802_15_4_TAP;
 
-        auto radioheader = new kis_layer1_packinfo();
+        auto radioheader = std::make_shared<kis_layer1_packinfo>();
         radioheader->signal_type = kis_l1_signal_type_rssi;
         radioheader->signal_rssi = rssi * -1;
         //radioheader->freq_khz = (2400 + (channel)) * 1000;
@@ -164,21 +161,20 @@ void kis_datasource_nxpkw41z::handle_rx_packet(kis_packet *packet) {
 
         // Generate a l1 radio header and a decap header since we have it
         // computed already
-        auto radioheader = new kis_layer1_packinfo();
+        auto radioheader = std::make_shared<kis_layer1_packinfo>();
         radioheader->signal_type = kis_l1_signal_type_dbm;
         radioheader->signal_dbm = conv_header->signal;
         radioheader->freq_khz = (2400 + (channel)) * 1000;
         radioheader->channel = fmt::format("{}", (channel));
         packet->insert(pack_comp_radiodata, radioheader);
 
-        auto decapchunk = new kis_datachunk;
+        auto decapchunk = std::make_shared<kis_datachunk>();
         decapchunk->set_data(conv_header->payload, nxp_payload_len, false);
         decapchunk->dlt = KDLT_BLUETOOTH_LE_LL;
         packet->insert(pack_comp_decap, decapchunk);
 
         kis_datasource::handle_rx_packet(packet);
     } else {
-        delete (packet);
         return;
     }
 }

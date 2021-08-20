@@ -180,11 +180,11 @@ protected:
 
     // convert to a device record & push into device tracker, return false
     // if we can't do anything with it
-    bool json_to_rtl(Json::Value in_json, kis_packet *packet);
+    bool json_to_rtl(Json::Value in_json, std::shared_ptr<kis_packet> packet);
 
     bool is_adsb(Json::Value json);
 
-    std::shared_ptr<rtladsb_tracked_adsb> add_adsb(kis_packet *packet, 
+    std::shared_ptr<rtladsb_tracked_adsb> add_adsb(std::shared_ptr<kis_packet> packet, 
             Json::Value json, std::shared_ptr<kis_tracked_device_base> rtlholder);
 
     double f_to_c(double f);
@@ -193,7 +193,7 @@ protected:
     int cpr_nl(double lat);
     int cpr_n(double lat, int odd);
     double cpr_dlon(double lat, int odd);
-    void decode_cpr(std::shared_ptr<rtladsb_tracked_adsb> adsb, kis_packet *packet);
+    void decode_cpr(std::shared_ptr<rtladsb_tracked_adsb> adsb, std::shared_ptr<kis_packet> packet);
 
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<entry_tracker> entrytracker;

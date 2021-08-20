@@ -177,7 +177,7 @@ public:
 
     // Get the 'best' location - returns a NEW gpspackinfo which the caller is 
     // responsible for deleting.
-    kis_gps_packinfo *get_best_location();
+    std::unique_ptr<kis_gps_packinfo> get_best_location();
 
     // Populate packets that don't have a GPS location
     static int kis_gpspack_hook(CHAINCALL_PARMS);

@@ -95,6 +95,10 @@ public:
     void set(double in_lat, double in_lon);
     virtual void set(kis_gps_packinfo *in_packinfo);
 
+    virtual void set(std::shared_ptr<kis_gps_packinfo> in_pi) {
+        set(in_pi.get());
+    }
+
 	inline kis_tracked_location_triplet& operator= (const kis_tracked_location_triplet& in);
 
 protected:

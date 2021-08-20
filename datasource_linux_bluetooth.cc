@@ -75,21 +75,18 @@ void kis_datasource_linux_bluetooth::handle_packet_linuxbtdevice(uint32_t in_seq
     if (report.has_warning())
         set_int_source_warning(report.warning());
 
-    kis_packet *packet = packetchain->generate_packet();
-    bluetooth_packinfo *bpi = new bluetooth_packinfo();
+    auto packet = packetchain->generate_packet();
+    auto bpi = std::make_shared<bluetooth_packinfo>();
 
     packet->insert(pack_comp_btdevice, bpi);
 
-    kis_layer1_packinfo *siginfo = NULL;
-    kis_gps_packinfo *gpsinfo = NULL;
-
     if (report.has_signal()) {
-        siginfo = handle_sub_signal(report.signal());
+        auto siginfo = handle_sub_signal(report.signal());
         packet->insert(pack_comp_l1info, siginfo);
     }
 
     if (report.has_gps()) {
-        gpsinfo = handle_sub_gps(report.gps());
+        auto gpsinfo = handle_sub_gps(report.gps());
         packet->insert(pack_comp_gps, gpsinfo);
     }
 
@@ -128,10 +125,10 @@ void kis_datasource_linux_bluetooth::handle_packet_linuxbtdevice(uint32_t in_seq
     fake_json << "]";
     fake_json << "}";
 
-    auto metablob = new packet_metablob("LINUXBLUETOOTH", fake_json.str());
+    auto metablob = std::make_shared<packet_metablob>("LINUXBLUETOOTH", fake_json.str());
     packet->insert(pack_comp_meta, metablob);
 
-    packetchain_comp_datasource *datasrcinfo = new packetchain_comp_datasource();
+    auto datasrcinfo = std::make_shared<packetchain_comp_datasource>();
     datasrcinfo->ref_source = this;
 
     packet->insert(pack_comp_datasrc, datasrcinfo);

@@ -125,6 +125,9 @@ packet_chain::packet_chain() {
     packet_stats_map->insert(packet_drop_rrd);
     packet_stats_map->insert(packet_processed_rrd);
 
+    packet_pool.set_max(1024);
+    packet_pool.set_reset([](kis_packet *p) { p->reset(); });
+
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
     // We now protect RRDs from complex ops w/ internal mutexes, so we can just share these out directly without
@@ -281,14 +284,13 @@ std::string packet_chain::fetch_packet_component_name(int in_id) {
 	return component_id_map[in_id];
 }
 
-kis_packet *packet_chain::generate_packet() {
-    kis_packet *newpack = new kis_packet();
-
-    return newpack;
+std::shared_ptr<kis_packet> packet_chain::generate_packet() {
+    return packet_pool.acquire();
+    // return std::make_shared<kis_packet>();
 }
 
 void packet_chain::packet_queue_processor() {
-    kis_packet *packet = NULL;
+    std::shared_ptr<kis_packet> packet;
 
     while (!packetchain_shutdown && 
             !Globalreg::globalreg->spindown && 
@@ -311,49 +313,49 @@ void packet_chain::packet_queue_processor() {
 
             for (const auto& pcl : postcap_chain) {
                 if (pcl->callback != nullptr)
-                    pcl->callback(Globalreg::globalreg, pcl->auxdata, packet);
+                    pcl->callback(pcl->auxdata, packet);
                 else if (pcl->l_callback != nullptr)
                     pcl->l_callback(packet);
             }
 
             for (const auto& pcl : llcdissect_chain) {
                 if (pcl->callback != nullptr)
-                    pcl->callback(Globalreg::globalreg, pcl->auxdata, packet);
+                    pcl->callback(pcl->auxdata, packet);
                 else if (pcl->l_callback != nullptr)
                     pcl->l_callback(packet);
             }
 
             for (const auto& pcl : decrypt_chain) {
                 if (pcl->callback != nullptr)
-                    pcl->callback(Globalreg::globalreg, pcl->auxdata, packet);
+                    pcl->callback(pcl->auxdata, packet);
                 else if (pcl->l_callback != nullptr)
                     pcl->l_callback(packet);
             }
 
             for (const auto& pcl : datadissect_chain) {
                 if (pcl->callback != nullptr)
-                    pcl->callback(Globalreg::globalreg, pcl->auxdata, packet);
+                    pcl->callback(pcl->auxdata, packet);
                 else if (pcl->l_callback != nullptr)
                     pcl->l_callback(packet);
             }
 
             for (const auto& pcl : classifier_chain) {
                 if (pcl->callback != nullptr)
-                    pcl->callback(Globalreg::globalreg, pcl->auxdata, packet);
+                    pcl->callback(pcl->auxdata, packet);
                 else if (pcl->l_callback != nullptr)
                     pcl->l_callback(packet);
             }
 
             for (const auto& pcl : tracker_chain) {
                 if (pcl->callback != nullptr)
-                    pcl->callback(Globalreg::globalreg, pcl->auxdata, packet);
+                    pcl->callback(pcl->auxdata, packet);
                 else if (pcl->l_callback != nullptr)
                     pcl->l_callback(packet);
             }
 
             for (const auto& pcl : logging_chain) {
                 if (pcl->callback != nullptr)
-                    pcl->callback(Globalreg::globalreg, pcl->auxdata, packet);
+                    pcl->callback(pcl->auxdata, packet);
                 else if (pcl->l_callback != nullptr)
                     pcl->l_callback(packet);
             }
@@ -367,13 +369,11 @@ void packet_chain::packet_queue_processor() {
 
         packet_processed_rrd->add_sample(1, time(0));
 
-        destroy_packet(packet);
-
         continue;
     }
 }
 
-int packet_chain::process_packet(kis_packet *in_pack) {
+int packet_chain::process_packet(std::shared_ptr<kis_packet> in_pack) {
     // Total packet rate always gets added, even when we drop, so we can compare
     packet_rate_rrd->add_sample(1, time(0));
     packet_peak_rrd->add_sample(1, time(0));
@@ -394,8 +394,6 @@ int packet_chain::process_packet(kis_packet *in_pack) {
                         "taking up the CPU.  You can increase the packet backlog with the "
                         "packet_backlog_limit configuration parameter.", packet_queue_drop), -1);
         }
-
-        destroy_packet(in_pack);
 
         packet_drop_rrd->add_sample(1, time(0));
 
@@ -428,13 +426,8 @@ int packet_chain::process_packet(kis_packet *in_pack) {
     return 1;
 }
 
-void packet_chain::destroy_packet(kis_packet *in_pack) {
-
-	delete in_pack;
-}
-
 int packet_chain::register_int_handler(pc_callback in_cb, void *in_aux,
-        std::function<int (kis_packet *)> in_l_cb, 
+        std::function<int (std::shared_ptr<kis_packet>)> in_l_cb, 
         int in_chain, int in_prio) {
 
     kis_lock_guard<kis_shared_mutex> lk(packetchain_mutex, "register_int_handler");
@@ -505,7 +498,7 @@ int packet_chain::register_handler(pc_callback in_cb, void *in_aux, int in_chain
     return register_int_handler(in_cb, in_aux, NULL, in_chain, in_prio);
 }
 
-int packet_chain::register_handler(std::function<int (kis_packet *)> in_cb, int in_chain, int in_prio) {
+int packet_chain::register_handler(std::function<int (std::shared_ptr<kis_packet>)> in_cb, int in_chain, int in_prio) {
     return register_int_handler(NULL, NULL, in_cb, in_chain, in_prio);
 }
 

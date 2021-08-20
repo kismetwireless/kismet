@@ -152,7 +152,7 @@ mac_addr Kis_RTL433_Phy::json_to_mac(Json::Value json) {
     return mac_addr(bytes, 6);
 }
 
-bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
+bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, std::shared_ptr<kis_packet> packet) {
     std::string err;
     std::string v;
 
@@ -163,11 +163,10 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
         return false;
     }
 
-    kis_common_info *common = 
-        (kis_common_info *) packet->fetch(pack_comp_common);
+    auto common = packet->fetch<kis_common_info>(pack_comp_common);
 
     if (common == NULL) {
-        common = new kis_common_info;
+        common = std::make_shared<kis_common_info>();
         packet->insert(pack_comp_common, common);
     }
 
@@ -614,7 +613,7 @@ int Kis_RTL433_Phy::PacketHandler(CHAINCALL_PARMS) {
     if (in_pack->error || in_pack->filtered || in_pack->duplicate)
         return 0;
 
-    kis_json_packinfo *json = in_pack->fetch<kis_json_packinfo>(rtl433->pack_comp_json);
+    auto json = in_pack->fetch<kis_json_packinfo>(rtl433->pack_comp_json);
     if (json == NULL)
         return 0;
 
@@ -629,9 +628,9 @@ int Kis_RTL433_Phy::PacketHandler(CHAINCALL_PARMS) {
 
         // Copy the JSON as the meta field for logging, if it's valid
         if (rtl433->json_to_rtl(device_json, in_pack)) {
-            packet_metablob *metablob = in_pack->fetch<packet_metablob>(rtl433->pack_comp_meta);
-            if (metablob == NULL) {
-                metablob = new packet_metablob("RTL433", json->json_string);
+            auto metablob = in_pack->fetch<packet_metablob>(rtl433->pack_comp_meta);
+            if (metablob == nullptr) {
+                metablob = std::make_shared<packet_metablob>("RTL433", json->json_string);
                 in_pack->insert(rtl433->pack_comp_meta, metablob);
             }
         }

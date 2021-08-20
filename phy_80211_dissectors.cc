@@ -281,21 +281,20 @@ int kis_80211_phy::wpa_key_mgt_conv(uint8_t mgt_index) {
 }
 
 // This needs to be optimized and it needs to not use casting to do its magic
-int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
+int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
     if (in_pack->error) {
         return 0;
     }
 
     // Extract data, bail if it doesn't exist, make a local copy of what we're
     // inserting into the frame.
-    dot11_packinfo *packinfo;
-    kis_datachunk *chunk = 
-        (kis_datachunk *) in_pack->fetch(pack_comp_decap);
+    std::shared_ptr<dot11_packinfo> packinfo;
+    auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap);
 
     // If we can't grab an 802.11 chunk, grab the raw link frame
-    if (chunk == NULL) {
-        chunk = (kis_datachunk *) in_pack->fetch(pack_comp_linkframe);
-        if (chunk == NULL) {
+    if (chunk == nullptr) {
+        chunk = in_pack->fetch<kis_datachunk>(pack_comp_linkframe);
+        if (chunk == nullptr) {
             return 0;
         }
     }
@@ -328,14 +327,12 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
         recent_packet_checksums[(recent_packet_checksum_pos++ % recent_packet_checksums_sz)] = 
             chunk_csum;
 
-    kis_layer1_packinfo *pack_l1info =
-        (kis_layer1_packinfo *) in_pack->fetch(pack_comp_l1info);
+    auto pack_l1info = in_pack->fetch<kis_layer1_packinfo>(pack_comp_l1info);
 
-    kis_common_info *common = 
-        (kis_common_info *) in_pack->fetch(pack_comp_common);
+    auto common = in_pack->fetch<kis_common_info>(pack_comp_common);
 
     if (common == NULL) {
-        common = new kis_common_info;
+        common = std::make_shared<kis_common_info>();
         in_pack->insert(pack_comp_common, common);
     }
 
@@ -344,7 +341,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
     if (pack_l1info != NULL)
         common->freq_khz = pack_l1info->freq_khz;
 
-    packinfo = new dot11_packinfo;
+    packinfo = std::make_shared<dot11_packinfo>();
 
     frame_control *fc = (frame_control *) chunk->data;
 
@@ -1023,13 +1020,12 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
 
         if (packinfo->cryptset == 0 && dissect_data) {
             // Keep whatever datachunk we already found
-            kis_datachunk *datachunk = 
-                (kis_datachunk *) in_pack->fetch(pack_comp_datapayload);
+            auto datachunk = in_pack->fetch<kis_datachunk>(pack_comp_datapayload);
 
-            if (datachunk == NULL) {
+            if (datachunk == nullptr) {
                 // Don't set a DLT on the data payload, since we don't know what it is
                 // but it's not 802.11.
-                datachunk = new kis_datachunk;
+                datachunk = std::make_shared<kis_datachunk>();
                 datachunk->set_data(chunk->data + packinfo->header_offset,
                                     chunk->length - packinfo->header_offset, false);
                 in_pack->insert(pack_comp_datapayload, datachunk);
@@ -1101,7 +1097,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
                 memcmp(&(chunk->data[LLC_UI_OFFSET + 3]),
                        DOT1X_PROTO, sizeof(DOT1X_PROTO)) == 0) {
 
-                kis_data_packinfo *datainfo = new kis_data_packinfo;
+                auto datainfo = std::make_shared<kis_data_packinfo>();
 
                 datainfo->proto = proto_eap;
 
@@ -1120,7 +1116,6 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
 
                 if (dot1x_version != 1 || dot1x_type != 0 || 
                     offset + EAP_PACKET_SIZE > chunk->length) {
-                    delete datainfo;
                     goto eap_end;
                 }
 
@@ -1134,7 +1129,6 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
                 char *rawid;
 
                 if (offset + eap_length > chunk->length) {
-                    delete datainfo;
                     goto eap_end;
                 }
 
@@ -1196,8 +1190,9 @@ eap_end:
     return 1;
 }
 
-std::vector<kis_80211_phy::ie_tag_tuple> kis_80211_phy::PacketDot11IElist(kis_packet *in_pack, 
-        dot11_packinfo *packinfo) {
+std::vector<kis_80211_phy::ie_tag_tuple> kis_80211_phy::PacketDot11IElist(
+        std::shared_ptr<kis_packet> in_pack, 
+        std::shared_ptr<dot11_packinfo> packinfo) {
     auto ret = std::vector<ie_tag_tuple>{};
 
     if (packinfo->ie_tags == nullptr) {
@@ -1210,15 +1205,11 @@ std::vector<kis_80211_phy::ie_tag_tuple> kis_80211_phy::PacketDot11IElist(kis_pa
                     packinfo->subtype == packet_sub_reassociation_req)) 
             return ret;
 
-        kis_datachunk *chunk = 
-            (kis_datachunk *) in_pack->fetch(pack_comp_decap);
-
         // If we can't grab an 802.11 chunk, grab the raw link frame
-        if (chunk == NULL) {
-            chunk = (kis_datachunk *) in_pack->fetch(pack_comp_linkframe);
-            if (chunk == NULL) {
-                return ret;
-            }
+        auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
+
+        if (chunk == nullptr) {
+            return ret;
         }
 
         // If we don't have a dot11 frame, throw it away
@@ -1270,7 +1261,8 @@ std::vector<kis_80211_phy::ie_tag_tuple> kis_80211_phy::PacketDot11IElist(kis_pa
     return ret;
 }
 
-int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo *packinfo) {
+int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack, 
+        std::shared_ptr<dot11_packinfo> packinfo) {
     // If we can't have IE tags at all
     if (packinfo->type != packet_management || !(
                 packinfo->subtype == packet_sub_beacon ||
@@ -1280,15 +1272,11 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 packinfo->subtype == packet_sub_reassociation_req)) 
         return 0;
 
-    kis_datachunk *chunk = 
-        (kis_datachunk *) in_pack->fetch(pack_comp_decap);
+    auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
 
     // If we can't grab an 802.11 chunk, grab the raw link frame
-    if (chunk == NULL) {
-        chunk = (kis_datachunk *) in_pack->fetch(pack_comp_linkframe);
-        if (chunk == NULL) {
-            return 0;
-        }
+    if (chunk == nullptr) {
+        return 0;
     }
 
     // If we don't have a dot11 frame, throw it away
@@ -1312,8 +1300,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
         }
     }
 
-    kis_common_info *common = 
-        (kis_common_info *) in_pack->fetch(pack_comp_common);
+    auto common = in_pack->fetch<kis_common_info>(pack_comp_common);
 
     // Track if we've seen some of these tags already
     // bool seen_ssid = false;
@@ -2299,11 +2286,12 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
 
 }
 
-kis_datachunk *kis_80211_phy::DecryptWEP(dot11_packinfo *in_packinfo,
-                                               kis_datachunk *in_chunk,
-                                               unsigned char *in_key, int in_key_len,
-                                               unsigned char *in_id) {
-    kis_datachunk *manglechunk = NULL;
+std::shared_ptr<kis_datachunk> kis_80211_phy::DecryptWEP(std::shared_ptr<dot11_packinfo> in_packinfo,
+        std::shared_ptr<kis_datachunk> in_chunk,
+        unsigned char *in_key, int in_key_len,
+        unsigned char *in_id) {
+
+    std::shared_ptr<kis_datachunk> manglechunk;
 
     // printf("debug - decryptwep\n");
     if (in_packinfo->corrupt)
@@ -2350,7 +2338,7 @@ kis_datachunk *kis_80211_phy::DecryptWEP(dot11_packinfo *in_packinfo,
     }
 
     // Allocate the mangled chunk -- 4 byte IV/Key# gone, 4 byte ICV gone
-    manglechunk = new kis_datachunk;
+    manglechunk = std::make_shared<kis_datachunk>();
     manglechunk->dlt = KDLT_IEEE802_11;
 
 #if 0
@@ -2415,7 +2403,6 @@ kis_datachunk *kis_80211_phy::DecryptWEP(dot11_packinfo *in_packinfo,
 
     // If the CRC check failed, delete the moddata
     if (crcfailure) {
-        delete manglechunk;
         return NULL;
     }
 
@@ -2426,19 +2413,21 @@ kis_datachunk *kis_80211_phy::DecryptWEP(dot11_packinfo *in_packinfo,
     return manglechunk;
 }
 
-int kis_80211_phy::packet_wep_decryptor(kis_packet *in_pack) {
-    kis_datachunk *manglechunk = NULL;
+int kis_80211_phy::packet_wep_decryptor(std::shared_ptr<kis_packet> in_pack) {
+    std::shared_ptr<kis_datachunk> manglechunk;
 
     if (in_pack->error)
         return 0;
 
     // Grab the 80211 info, compare, bail
-    dot11_packinfo *packinfo;
-    if ((packinfo = 
-         (dot11_packinfo *) in_pack->fetch(pack_comp_80211)) == NULL)
+    auto packinfo = in_pack->fetch<dot11_packinfo>(pack_comp_80211);
+
+    if (packinfo == nullptr)
         return 0;
+
     if (packinfo->corrupt)
         return 0;
+
     if (packinfo->type != packet_data || 
         (packinfo->subtype != packet_sub_data &&
          packinfo->subtype != packet_sub_data_qos_data))
@@ -2449,15 +2438,10 @@ int kis_80211_phy::packet_wep_decryptor(kis_packet *in_pack) {
         return 0;
 
     // Grab the 80211 frame, if that doesn't exist, grab the link frame
-    kis_datachunk *chunk = 
-        (kis_datachunk *) in_pack->fetch(pack_comp_decap);
+    auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
 
-    if (chunk == NULL) {
-        if ((chunk = 
-             (kis_datachunk *) in_pack->fetch(pack_comp_linkframe)) == NULL) {
-            return 0;
-        }
-    }
+    if (chunk == nullptr)
+        return 0;
 
     // If we don't have a dot11 frame, throw it away
     if (chunk->dlt != KDLT_IEEE802_11)
@@ -2481,39 +2465,33 @@ int kis_80211_phy::packet_wep_decryptor(kis_packet *in_pack) {
 
     in_pack->insert(pack_comp_mangleframe, manglechunk);
 
-    kis_datachunk *datachunk = 
-        (kis_datachunk *) in_pack->fetch(pack_comp_datapayload);
-
-    in_pack->insert(pack_comp_datapayload, NULL);
-
-    if (datachunk != NULL)
-        delete datachunk;
+    in_pack->erase(pack_comp_datapayload);
 
     if (manglechunk->length > packinfo->header_offset) {
-        datachunk = new kis_datachunk;
+        auto datachunk = std::make_shared<kis_datachunk>();
 
         datachunk->set_data(manglechunk->data + packinfo->header_offset,
                             manglechunk->length - packinfo->header_offset,
                             false);
-    }
 
-    in_pack->insert(pack_comp_datapayload, datachunk);
+        in_pack->insert(pack_comp_datapayload, datachunk);
+    }
 
     return 1;
 }
 
-int kis_80211_phy::packet_dot11_wps_m3(kis_packet *in_pack) {
+int kis_80211_phy::packet_dot11_wps_m3(std::shared_ptr<kis_packet> in_pack) {
     if (in_pack->error) {
         return 0;
     }
 
-    // Grab the 80211 info, compare, bail
-    dot11_packinfo *packinfo;
-    if ((packinfo = 
-         (dot11_packinfo *) in_pack->fetch(pack_comp_80211)) == NULL)
+    auto packinfo = in_pack->fetch<dot11_packinfo>(pack_comp_80211);
+    if (packinfo == nullptr)
         return 0;
+
     if (packinfo->corrupt)
         return 0;
+
     if (packinfo->type != packet_data || 
         (packinfo->subtype != packet_sub_data &&
          packinfo->subtype != packet_sub_data_qos_data))
@@ -2524,15 +2502,9 @@ int kis_80211_phy::packet_dot11_wps_m3(kis_packet *in_pack) {
         return 0;
 
     // Grab the 80211 frame, if that doesn't exist, grab the link frame
-    kis_datachunk *chunk = 
-        (kis_datachunk *) in_pack->fetch(pack_comp_decap);
-
-    if (chunk == NULL) {
-        if ((chunk = 
-             (kis_datachunk *) in_pack->fetch(pack_comp_linkframe)) == NULL) {
-            return 0;
-        }
-    }
+    auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
+    if (chunk == nullptr)
+        return 0;
 
     // If we don't have a dot11 frame, throw it away
     if (chunk->dlt != KDLT_IEEE802_11)
@@ -2610,18 +2582,16 @@ int kis_80211_phy::packet_dot11_wps_m3(kis_packet *in_pack) {
 }
 
 std::shared_ptr<dot11_tracked_eapol> 
-    kis_80211_phy::packet_dot11_eapol_handshake(kis_packet *in_pack,
-            std::shared_ptr<dot11_tracked_device> dot11dev) {
+kis_80211_phy::packet_dot11_eapol_handshake(std::shared_ptr<kis_packet> in_pack,
+        std::shared_ptr<dot11_tracked_device> dot11dev) {
 
     if (in_pack->error) {
         return NULL;
     }
 
-    // Grab the 80211 info, compare, bail
-    dot11_packinfo *packinfo;
-    if ((packinfo = (dot11_packinfo *) in_pack->fetch(pack_comp_80211)) == NULL) {
+    auto packinfo = in_pack->fetch<dot11_packinfo>(pack_comp_80211);
+    if (packinfo == nullptr)
         return NULL;
-    }
 
     if (packinfo->corrupt) {
         return NULL;
@@ -2639,14 +2609,9 @@ std::shared_ptr<dot11_tracked_eapol>
     }
 
     // Grab the 80211 frame, if that doesn't exist, grab the link frame
-    kis_datachunk *chunk = 
-        (kis_datachunk *) in_pack->fetch(pack_comp_decap);
-
-    if (chunk == NULL) {
-        if ((chunk = (kis_datachunk *) in_pack->fetch(pack_comp_linkframe)) == NULL) {
-            return NULL;
-        }
-    }
+    auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
+    if (chunk == nullptr)
+        return NULL;
 
     // If we don't have a dot11 frame, throw it away
     if (chunk->dlt != KDLT_IEEE802_11) {

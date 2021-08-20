@@ -42,38 +42,25 @@ kis_packet::kis_packet() {
     crc_ok = 0;
 	filtered = 0;
     duplicate = 0;
-
-    content_vec = new packet_component *[MAX_PACKET_COMPONENTS];
-    for (unsigned int x = 0; x < MAX_PACKET_COMPONENTS; x++)
-        content_vec[x] = nullptr;
 }
 
 kis_packet::~kis_packet() {
-    for (unsigned int x = 0; x < MAX_PACKET_COMPONENTS; x++) {
-        if (content_vec[x] == nullptr)
-            continue;
-
-        if (content_vec[x]->self_destruct)
-            delete content_vec[x];
-    }
-
-    delete[] content_vec;
 }
    
-void kis_packet::insert(const unsigned int index, packet_component *data) {
+void kis_packet::insert(const unsigned int index, std::shared_ptr<packet_component> data) {
 	if (index >= MAX_PACKET_COMPONENTS) 
         throw std::runtime_error(fmt::format("Attempted to reference packet component index {} "
                     "outside of the maximum bounds {}; this implies the pack_comp_x or _PCM "
                     "index is corrupt.", index, MAX_PACKET_COMPONENTS));
 
 	if (content_vec[index] != nullptr)
-		fprintf(stderr, "DEBUG/WARNING: Leaking packet component %u/%s, inserting "
-				"on top of existing\n", index,
-				Globalreg::globalreg->packetchain->fetch_packet_component_name(index).c_str());
+        _MSG_ERROR("Losing packet component {}/{}, inserting on top of existing component",
+                index, Globalreg::globalreg->packetchain->fetch_packet_component_name(index));
+
 	content_vec[index] = data;
 }
 
-void *kis_packet::fetch(const unsigned int index) const {
+std::shared_ptr<packet_component> kis_packet::fetch(const unsigned int index) const {
 	if (index >= MAX_PACKET_COMPONENTS)
 		return nullptr;
 
@@ -84,14 +71,6 @@ void kis_packet::erase(const unsigned int index) {
 	if (index >= MAX_PACKET_COMPONENTS)
 		return;
 
-	// Delete it if we can - both from our array and from 
-	// memory.  Whatever inserted it had better expect this
-	// to happen or it will be very unhappy
-	if (content_vec[index] != nullptr) {
-		if (content_vec[index]->self_destruct)
-			delete content_vec[index];
-
-		content_vec[index] = NULL;
-	}
+    content_vec[index].reset();
 }
 

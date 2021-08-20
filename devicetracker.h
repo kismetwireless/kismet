@@ -143,9 +143,6 @@ public:
 
 	static void usage(char *argv);
 
-	// Common classifier for keeping phy counts
-	int common_tracker(kis_packet *in_packet);
-
     // Add common into to a device.  If necessary, create the new device.
     //
     // The specified mac is used to create the device; for phys with multiple devices
@@ -187,8 +184,10 @@ public:
 // Only update location if we have no existing location
 #define UCD_UPDATE_EMPTY_LOCATION   (1 << 8)
 
-    std::shared_ptr<kis_tracked_device_base> update_common_device(kis_common_info *pack_common,
-            mac_addr in_mac, kis_phy_handler *phy, kis_packet *in_pack, unsigned int in_flags,
+    std::shared_ptr<kis_tracked_device_base> update_common_device(
+            std::shared_ptr<kis_common_info> pack_common,
+            mac_addr in_mac, kis_phy_handler *phy, 
+            std::shared_ptr<kis_packet> in_pack, unsigned int in_flags,
             std::string in_basic_type);
 
     // Set the common name of a device (and log it in the database for future runs)
@@ -247,9 +246,12 @@ protected:
 
     void timetracker_event(int eventid);
 
+	// Common classifier for keeping phy counts
+	int common_tracker(std::shared_ptr<kis_packet>);
+
     unsigned long new_datasource_evt_id, new_device_evt_id;
 
-    int packetchain_tracking_done_id;
+    int packetchain_common_id, packetchain_tracking_done_id;
 
     std::shared_ptr<device_tracker_view> all_view;
 

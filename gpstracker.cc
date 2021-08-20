@@ -102,7 +102,7 @@ gps_tracker::gps_tracker() :
                     auto loctrip = std::make_shared<kis_tracked_location_full>();
                     auto ue = std::make_shared<tracker_element_uuid>(tracked_uuid_addition_id);
 
-                    auto pi = std::unique_ptr<kis_gps_packinfo>(get_best_location());
+                    auto pi = get_best_location();
                     if (pi != nullptr) {
                         ue->set(pi->gpsuuid);
                         loctrip->set_location(pi->lat, pi->lon);
@@ -221,7 +221,7 @@ gps_tracker::gps_tracker() :
                 auto loctrip = std::make_shared<kis_tracked_location_full>();
                 auto ue = std::make_shared<tracker_element_uuid>(tracked_uuid_addition_id);
 
-                auto pi = std::unique_ptr<kis_gps_packinfo>(get_best_location());
+                auto pi = get_best_location();
                 if (pi != nullptr) {
                     ue->set(pi->gpsuuid);
                     loctrip->set_location(pi->lat, pi->lon);
@@ -260,19 +260,19 @@ void gps_tracker::log_snapshot_gps() {
     if (dbf == NULL)
         return;
 
-    auto best_loc = std::make_shared<kis_gps_packinfo>(get_best_location());
-
     kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, "gps_tracker log_snapshot_gps");
 
     // Log each GPS
     for (auto d : *gps_instances_vec) {
+        auto dg = std::static_pointer_cast<kis_gps>(d);
+
         struct timeval tv;
         gettimeofday(&tv, NULL);
 
         std::stringstream ss;
         Globalreg::globalreg->entrytracker->serialize("json", ss, d, NULL);
 
-        dbf->log_snapshot(best_loc.get(), tv, "GPS", ss.str());
+        dbf->log_snapshot(dg->get_location(), tv, "GPS", ss.str());
     }
 
     return;
@@ -394,7 +394,7 @@ std::shared_ptr<kis_gps> gps_tracker::find_gps(uuid in_uuid) {
     return nullptr;
 }
 
-kis_gps_packinfo *gps_tracker::get_best_location() {
+std::unique_ptr<kis_gps_packinfo> gps_tracker::get_best_location() {
     kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, "get_best_location");
 
     // Iterate 
@@ -405,7 +405,7 @@ kis_gps_packinfo *gps_tracker::get_best_location() {
             continue;
 
         if (gps->get_location_valid()) {
-            kis_gps_packinfo *pi = new kis_gps_packinfo(gps->get_location().get());
+            auto pi = std::make_unique<kis_gps_packinfo>(gps->get_location().get());
 
             pi->gpsuuid = gps->get_gps_uuid();
             pi->gpsname  = gps->get_gps_name();
@@ -431,13 +431,13 @@ int gps_tracker::kis_gpspack_hook(CHAINCALL_PARMS) {
     if (in_pack->fetch(gpstracker->pack_comp_no_gps) != NULL)
         return 1;
 
-    kis_gps_packinfo *gpsloc = gpstracker->get_best_location();
+    auto gpsloc = gpstracker->get_best_location();
 
-    if (gpsloc == NULL)
+    if (gpsloc == nullptr)
         return 0;
 
     // Insert into chain; we were given a new location
-    in_pack->insert(gpstracker->pack_comp_gps, gpsloc);
+    in_pack->insert(gpstracker->pack_comp_gps, std::move(gpsloc));
 
     return 1;
 }

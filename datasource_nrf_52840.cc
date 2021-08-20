@@ -20,7 +20,7 @@
 
 unsigned char hextobytel(char s);
 
-void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
+void kis_datasource_nrf52840::handle_rx_packet(std::shared_ptr<kis_packet> packet) {
 
     auto nrf_chunk = 
         packet->fetch<kis_datachunk>(pack_comp_linkframe);
@@ -58,7 +58,6 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
     unsigned int chunk_str_len = (loc[1] - loc[0] - 1 - (strlen("payload")));
     unsigned int payload_len = chunk_str_len;
     if (chunk_start > nrf_chunk->length || chunk_str_len >= nrf_chunk->length) {
-        delete (packet);
         return;
     }
     memcpy(c_payload, &nrf_chunk->data[chunk_start], chunk_str_len);
@@ -67,7 +66,6 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
     chunk_start = loc[1] + 2;
     chunk_str_len = (loc[2] - loc[1] - 2 - (strlen("lqi")));
     if (chunk_start > nrf_chunk->length || chunk_str_len >= nrf_chunk->length) {
-        delete (packet);
         return;
     }
 
@@ -124,7 +122,7 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
     nrf_chunk->set_data((uint8_t *) conv_header, conv_buf_len, false);
     nrf_chunk->dlt = KDLT_IEEE802_15_4_TAP;
 
-    auto radioheader = new kis_layer1_packinfo();
+    auto radioheader = std::make_shared<kis_layer1_packinfo>();
     radioheader->signal_type = kis_l1_signal_type_dbm;
     radioheader->signal_dbm = rssi;
     radioheader->freq_khz = (2405 + ((channel - 11) * 5)) * 1000;
@@ -135,40 +133,39 @@ void kis_datasource_nrf52840::handle_rx_packet(kis_packet *packet) {
     kis_datasource::handle_rx_packet(packet);    
 }
 
-unsigned char hextobytel(char s)
-{
-    if(s == '0')
+unsigned char hextobytel(char s) {
+    if (s == '0')
         return 0x0;
-    else if(s == '1')
+    else if (s == '1')
         return 0x1;
-    else if(s == '2')
+    else if (s == '2')
         return 0x2;
-    else if(s == '3')
+    else if (s == '3')
         return 0x3;
-    else if(s == '4')
+    else if (s == '4')
         return 0x4;
-    else if(s == '5')
+    else if (s == '5')
         return 0x5;
-    else if(s == '6')
+    else if (s == '6')
         return 0x6;
-    else if(s == '7')
+    else if (s == '7')
         return 0x7;
-    else if(s == '8')
+    else if (s == '8')
         return 0x8;
-    else if(s == '9')
+    else if (s == '9')
         return 0x9;
-    else if(s == 'A')
+    else if (s == 'A')
         return 0xA;
-    else if(s == 'B')
+    else if (s == 'B')
         return 0xB;
-    else if(s == 'C')
+    else if (s == 'C')
         return 0xC;
-    else if(s == 'D')
+    else if (s == 'D')
         return 0xD;
-    else if(s == 'E')
+    else if (s == 'E')
         return 0xE;
-    else if(s == 'F')
+    else if (s == 'F')
         return 0xF;
     else
-	return 0x0;
+        return 0x0;
 }

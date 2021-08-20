@@ -151,20 +151,11 @@ void Kis_UAV_Phy::load_phy_storage(shared_tracker_element in_storage, shared_tra
 int Kis_UAV_Phy::CommonClassifier(CHAINCALL_PARMS) {
     Kis_UAV_Phy *uavphy = (Kis_UAV_Phy *) auxdata;
 
-	kis_common_info *commoninfo =
-		(kis_common_info *) in_pack->fetch(uavphy->pack_comp_common);
+	auto commoninfo = in_pack->fetch<kis_common_info>(uavphy->pack_comp_common);
+    auto dot11info = in_pack->fetch<dot11_packinfo>(uavphy->pack_comp_80211);
+	auto devinfo = in_pack->fetch<kis_tracked_device_info>(uavphy->pack_comp_device);
 
-    dot11_packinfo *dot11info = 
-        (dot11_packinfo *) in_pack->fetch(uavphy->pack_comp_80211);
-
-	kis_tracked_device_info *devinfo =
-		(kis_tracked_device_info *) in_pack->fetch(uavphy->pack_comp_device);
-
-	if (devinfo == NULL) {
-        return 1;
-	}
-
-    if (commoninfo == NULL || dot11info == NULL)
+    if (devinfo == nullptr || commoninfo == nullptr || dot11info == nullptr)
         return 1;
 
     kis_lock_guard<kis_mutex> lk(uavphy->devicetracker->get_devicelist_mutex(), "uav_phy common_classifier");

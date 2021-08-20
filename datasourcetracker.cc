@@ -948,7 +948,7 @@ void datasource_tracker::trigger_deferred_startup() {
                     auto dsnum = ds->get_source_number();
 
                     auto pcapng = std::make_shared<pcapng_stream_packetchain>(con->response_stream(),
-                            [this, dsnum](kis_packet *packet) -> bool {
+                            [this, dsnum](std::shared_ptr<kis_packet> packet) -> bool {
                                 auto datasrcinfo = packet->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
 
                                 if (datasrcinfo == nullptr)

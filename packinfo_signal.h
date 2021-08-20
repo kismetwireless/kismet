@@ -38,13 +38,13 @@
 
 class packinfo_sig_combo {
     public:
-        packinfo_sig_combo(kis_layer1_packinfo *l1, kis_gps_packinfo *gp) {
-            lay1 = l1;
-            gps = gp;
-        }
+        packinfo_sig_combo(std::shared_ptr<kis_layer1_packinfo> l1, 
+                std::shared_ptr<kis_gps_packinfo> gp) :
+        lay1{l1},
+        gps{gp} {  }
 
-        kis_layer1_packinfo *lay1;
-        kis_gps_packinfo *gps;
+        std::shared_ptr<kis_layer1_packinfo> lay1;
+        std::shared_ptr<kis_gps_packinfo> gps;
 };
 
 #endif

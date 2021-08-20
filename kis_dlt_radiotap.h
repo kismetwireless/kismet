@@ -49,9 +49,9 @@ private:
 public:
 	virtual ~kis_dlt_radiotap() { };
 
-	virtual int handle_packet(kis_packet *in_pack);
-
 protected:
+	virtual int handle_packet(std::shared_ptr<kis_packet> in_pack) override;
+
     unsigned int update_crc32_80211(unsigned int crc, const unsigned char *data,
             int len, unsigned int poly);
     void crc32_init_table_80211(unsigned int *crc32_table);

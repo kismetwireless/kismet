@@ -66,8 +66,7 @@ public:
     // Time of packet creation
     struct timeval ts;
 
-    // Do we know this is in error from the capture source
-    // itself?
+    // Do we know this is in error from the capture source itself?
     int error;
 
     // Do we know this packet is OK and don't have to run a CRC check on 
@@ -82,28 +81,71 @@ public:
 
     // Did this packet trigger creation of a new device?  Since a 
     // single packet can create multiple devices in some phys, maintain
-    // a vector of device events to publish
+    // a vector of device events to publish when all devices are done
+    // processing
     std::vector<std::shared_ptr<eventbus_event>> process_complete_events;
 
     // pre-allocated vector of broken down packet components
-    packet_component **content_vec;
+    std::shared_ptr<packet_component> content_vec[MAX_PACKET_COMPONENTS];
 
     kis_packet();
     ~kis_packet();
 
-    void insert(const unsigned int index, packet_component *data);
-    void *fetch(const unsigned int index) const;
-    template<class T> T* fetch(const unsigned int index) {
-        return static_cast<T*>(this->fetch(index));
+    kis_packet(kis_packet&& p) {
+        error = p.error;
+        crc_ok = p.crc_ok;
+        filtered = p.filtered;
+        process_complete_events = std::move(p.process_complete_events);
+
+        for (int c = 0; c < MAX_PACKET_COMPONENTS; c++)
+            content_vec[c] = p.content_vec[c];
     }
+
+    void reset() {
+        error = 0;
+        crc_ok = 0;
+        filtered = 0;
+        duplicate = 0;
+
+        process_complete_events.clear();
+
+        for (size_t x = 0; x < MAX_PACKET_COMPONENTS; x++)
+            content_vec[x].reset();
+    }
+
+    // Preferred smart pointers
+    void insert(const unsigned int index, std::shared_ptr<packet_component> data);
+
+    std::shared_ptr<packet_component> fetch(const unsigned int index) const;
+
+    template<class T> 
+    std::shared_ptr<T> fetch() {
+        return nullptr;
+    }
+
+    template<class T, typename... Pn> 
+    std::shared_ptr<T> fetch(const unsigned int index, const Pn& ... args) {
+        auto k = std::static_pointer_cast<T>(this->fetch(index));
+
+        if (k != nullptr)
+            return k;
+
+        return this->fetch<T>(args...);
+    }
+
+    template<class T, typename... Pn>
+    std::shared_ptr<T> fetch_or_add(const unsigned int index, const Pn& ... args) {
+        auto k = std::static_pointer_cast<T>(this->fetch(index));
+
+        if (k != nullptr)
+            return k;
+
+        k = std::make_shared<T>(args...);
+        this->insert(index, k);
+        return k;
+    }
+
     void erase(const unsigned int index);
-
-    inline packet_component *operator[] (const unsigned int& index) const {
-        if (index >= MAX_PACKET_COMPONENTS)
-            return NULL;
-
-        return content_vec[index];
-    }
 
     // Tags applied to the packet
     std::vector<std::string> tag_vec;

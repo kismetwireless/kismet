@@ -38,7 +38,7 @@ kis_dlt_btle_ll_radio::kis_dlt_btle_ll_radio() :
     _MSG("Registering support for DLT_BTLE_LL_RADIO packet header decoding", MSGFLAG_INFO);
 }
 
-int kis_dlt_btle_ll_radio::handle_packet(kis_packet *in_pack) {
+int kis_dlt_btle_ll_radio::handle_packet(std::shared_ptr<kis_packet> in_pack) {
     typedef struct {
         uint8_t monitor_channel;
         int8_t signal;
@@ -92,7 +92,7 @@ int kis_dlt_btle_ll_radio::handle_packet(kis_packet *in_pack) {
     }
 
     // Generate a l1 radio header and a decap header since we have it computed already
-    auto radioheader = new kis_layer1_packinfo();
+    auto radioheader = std::make_shared<kis_layer1_packinfo>();
     radioheader->signal_type = kis_l1_signal_type_dbm;
 
     if (flags & btle_rf_flag_signalvalid)
@@ -125,7 +125,7 @@ int kis_dlt_btle_ll_radio::handle_packet(kis_packet *in_pack) {
     // TODO handle checksum validation
     // TODO handle dewhitening
     
-    decapchunk = new kis_datachunk;
+    decapchunk = std::make_shared<kis_datachunk>();
     decapchunk->set_data(rf_ll->payload, linkchunk->length - sizeof(btle_rf), false);
     decapchunk->dlt = KDLT_BLUETOOTH_LE_LL;
     in_pack->insert(pack_comp_decap, decapchunk);

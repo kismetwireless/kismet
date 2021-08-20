@@ -18,29 +18,23 @@
 
 #include "datasource_ti_cc_2531.h"
 
-void kis_datasource_ticc2531::handle_rx_packet(kis_packet *packet) {
+void kis_datasource_ticc2531::handle_rx_packet(std::shared_ptr<kis_packet> packet) {
 
     auto cc_chunk = packet->fetch<kis_datachunk>(pack_comp_linkframe);
 
     // If we can't validate the basics of the packet at the phy capture level, throw it out.
     
     if (cc_chunk->length < 8) {
-        // fmt::print(stderr, "debug - cc2531 too short ({} < 8)\n", cc_chunk->length);
-        delete(packet);
         return;
     }
 
     unsigned int cc_len = cc_chunk->data[1];
     if (cc_len != cc_chunk->length - 3) {
-        // fmt::print(stderr, "debug - cc2531 invalid packet length ({} != {})\n", cc_len, cc_chunk->length - 3);
-        delete(packet);
         return;
     }
 
     unsigned int cc_payload_len = cc_chunk->data[7] - 0x02;
     if ((cc_payload_len + 8 != cc_chunk->length - 2) || (cc_payload_len > 104)) {
-        // fmt::print(stderr, "debug - cc2531 invalid payload length ({} != {})\n", cc_payload_len + 8, cc_chunk->length - 2);
-        delete(packet);
         return;
     }
 
@@ -87,7 +81,7 @@ void kis_datasource_ticc2531::handle_rx_packet(kis_packet *packet) {
         cc_chunk->set_data((uint8_t *) conv_header, conv_buf_len, false);
         cc_chunk->dlt = KDLT_IEEE802_15_4_TAP;
 
-        auto radioheader = new kis_layer1_packinfo();
+        auto radioheader = std::make_shared<kis_layer1_packinfo>();
         radioheader->signal_type = kis_l1_signal_type_dbm;
         radioheader->signal_dbm = rssi;
         radioheader->freq_khz = (2405 + ((channel - 11) * 5)) * 1000;
@@ -96,8 +90,6 @@ void kis_datasource_ticc2531::handle_rx_packet(kis_packet *packet) {
 
         kis_datasource::handle_rx_packet(packet);
     } else {
-        //printf("delete packet\n");
-        delete (packet);
         return;
     }
 }

@@ -427,7 +427,7 @@ public:
     //
     // Checksum functions should flag the packet as invalid directly via some
     // method recognized by the device categorization stage
-    virtual void checksum_packet(kis_packet *in_pack __attribute__((unused))) { return; }
+    virtual void checksum_packet(std::shared_ptr<kis_packet> in_pack __attribute__((unused))) { return; }
 
     virtual void pre_serialize() override {
         kis_lock_guard<kis_mutex> lk(ext_mutex, kismet::retain_lock, "datasource preserialize");
@@ -445,7 +445,7 @@ public:
 
     // Handle injecting packets into the packet chain after the data report has been received
     // and processed.  Subclasses can override this to manipulate packet content.
-    virtual void handle_rx_packet(kis_packet *packet);
+    virtual void handle_rx_packet(std::shared_ptr<kis_packet> packet);
 
     // Source error; sets error state, fails all pending function callbacks,
     // shuts down the buffer and ipc, and initiates retry if we retry errors
@@ -554,8 +554,8 @@ protected:
 
     // Break out packet generation sub-functions so that custom datasources can easily
     // piggyback onto the decoders
-    virtual kis_gps_packinfo *handle_sub_gps(KismetDatasource::SubGps in_gps);
-    virtual kis_layer1_packinfo *handle_sub_signal(KismetDatasource::SubSignal in_signal);
+    virtual std::shared_ptr<kis_gps_packinfo> handle_sub_gps(KismetDatasource::SubGps in_gps);
+    virtual std::shared_ptr<kis_layer1_packinfo> handle_sub_signal(KismetDatasource::SubSignal in_signal);
 
 
     // Launch the IPC binary

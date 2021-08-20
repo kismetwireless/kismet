@@ -266,12 +266,12 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
     std::istream btle_istream(&btle_membuf);
     auto btle_stream = std::make_shared<kaitai::kstream>(&btle_istream);
 
-    common = new kis_common_info();
+    common = std::make_shared<kis_common_info>();
     common->phyid = mphy->fetch_phy_id();
     common->basic_crypt_set = crypt_none;
     common->type = packet_basic_mgmt;
 
-    auto btle_info = new btle_packinfo();
+    auto btle_info = std::make_shared<btle_packinfo>();
 
     try {
         auto btle = std::make_shared<bluetooth_btle>();
@@ -286,9 +286,7 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
 
         in_pack->insert(mphy->pack_comp_common, common);
         in_pack->insert(mphy->pack_comp_btle, btle_info);
-    } catch (const std::exception& e) {
-        delete(common);
-        delete(btle_info);
+    } catch (...) {
         return 0;
     }
 

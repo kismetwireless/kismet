@@ -30,7 +30,7 @@
 #include "phy_80211_packetsignatures.h"
 
 int get_length_tag_offsets(unsigned int init_offset, 
-        kis_datachunk *in_chunk, std::map<int, std::vector<int> > *tag_cache_map) {
+        std::shared_ptr<kis_datachunk> in_chunk, std::map<int, std::vector<int> > *tag_cache_map) {
     int cur_tag = 0;
     // Initial offset is 36, that's the first tag
     unsigned int cur_offset = (unsigned int) init_offset;
@@ -125,7 +125,7 @@ kis_dissector_ip_data::~kis_dissector_ip_data() {
 // Cache offsets we've looked at in the map so we don't follow them repeatedly
 // Bytelen indicates how many bytes to advance the stream; negative indicates
 // error
-std::string MDNS_Fetchname(kis_datachunk *chunk, unsigned int baseofft, 
+std::string MDNS_Fetchname(std::shared_ptr<kis_datachunk> chunk, unsigned int baseofft, 
 					  unsigned int startofft, std::map<unsigned int, std::string> *name_cache,
 					  int *bytelen) {
 	// If we're fed a bad offset just throw it back
@@ -218,29 +218,27 @@ std::string MDNS_Fetchname(kis_datachunk *chunk, unsigned int baseofft,
 	return dns_str;
 }
 
-int kis_dissector_ip_data::handle_packet(kis_packet *in_pack) {
-	kis_data_packinfo *datainfo = NULL;
+int kis_dissector_ip_data::handle_packet(std::shared_ptr<kis_packet> in_pack) {
+    std::shared_ptr<kis_data_packinfo> datainfo;
 	uint32_t addr;
 
 	if (in_pack->error)
 		return 0;
 
-	kis_datachunk *chunk =
-		(kis_datachunk *) in_pack->fetch(pack_comp_datapayload);
+	auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_datapayload);
 
-	if (chunk == NULL)
+	if (chunk == nullptr)
 		return 0;
 
 	if (chunk->length == 0)
 		return 0;
 
-	kis_common_info *common = 
-		(kis_common_info *) in_pack->fetch(pack_comp_common);
+	auto common = in_pack->fetch<kis_common_info>(pack_comp_common);
 
-	if (common == NULL)
+	if (common == nullptr)
 		return 0;
 
-	datainfo = new kis_data_packinfo;
+	datainfo = std::make_shared<kis_data_packinfo>();
 
 	// CDP cisco discovery frames, good for finding unauthorized APs
 	// +1 for the version frame we compare first
@@ -275,7 +273,6 @@ int kis_dissector_ip_data::handle_packet(kis_packet *in_pack) {
 				if (elemlen < 4) {
 					_MSG("Corrupt CDP frame (possibly an exploit attempt), discarded",
 						 MSGFLAG_ERROR);
-					delete(datainfo);
 					return 0;
 				}
 
@@ -287,7 +284,6 @@ int kis_dissector_ip_data::handle_packet(kis_packet *in_pack) {
 				if (elemlen < 4) {
 					_MSG("Corrupt CDP frame (possibly an exploit attempt), discarded",
 						 MSGFLAG_ERROR);
-					delete(datainfo);
 					return 0;
 				}
 
@@ -471,7 +467,6 @@ int kis_dissector_ip_data::handle_packet(kis_packet *in_pack) {
 
 				// This should never be possible, but let's check
 				if ((DHCPD_OFFSET + 32) >= chunk->length) {
-					delete datainfo;
 					return 0;
 				}
 
@@ -710,9 +705,6 @@ mdns_end:
 		in_pack->insert(pack_comp_basicdata, datainfo);
 		return 1;
 	} // TCP frame
-
-	// Trash the data if we didn't fill it in
-	delete(datainfo);
 
 	return 1;
 }

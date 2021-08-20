@@ -43,14 +43,14 @@ extern "C" {
 // called with allocate should be the amount of space it will use, while the 
 // return value for non-allocate should indicate the new position (absolute new
 // position, not offset!)
-#define DUMPFILE_PPI_PARMS	int in_allocate, kis_packet *in_pack, uint8_t *dump_data, \
+#define DUMPFILE_PPI_PARMS	int in_allocate, std::shared_ptr<kis_packet> in_pack, uint8_t *dump_data, \
     int dump_pos, void *aux
 typedef int (*dumpfile_ppi_cb)(DUMPFILE_PPI_PARMS);
 
 // Filter to return a packet type for logging (used for derivative pcap loggers,
 // like in plugins)
-#define DUMPFILE_PCAP_FILTER_PARMS	kis_packet *in_pack, void *aux
-typedef kis_datachunk *(*dumpfile_pcap_filter_cb)(DUMPFILE_PCAP_FILTER_PARMS);
+#define DUMPFILE_PCAP_FILTER_PARMS	std::shared_ptr<kis_packet> in_pack, void *aux
+typedef std::shared_ptr<kis_datachunk> (*dumpfile_pcap_filter_cb)(DUMPFILE_PCAP_FILTER_PARMS);
 
 // Pcap-based packet writer
 class kis_ppi_logfile : public kis_logfile {

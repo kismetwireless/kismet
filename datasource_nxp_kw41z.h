@@ -68,7 +68,7 @@ public:
     virtual ~kis_datasource_nxpkw41z() { };
 
 protected:
-    virtual void handle_rx_packet(kis_packet *packet) override;
+    virtual void handle_rx_packet(std::shared_ptr<kis_packet> packet) override;
 
     int pack_comp_decap, pack_comp_radiodata;
 };

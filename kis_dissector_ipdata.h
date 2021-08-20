@@ -40,7 +40,7 @@ private:
 	kis_dissector_ip_data();
 
 public:
-	virtual int handle_packet(kis_packet *in_pack);
+	virtual int handle_packet(std::shared_ptr<kis_packet> in_pack);
 
 	~kis_dissector_ip_data();
 

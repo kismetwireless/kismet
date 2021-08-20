@@ -127,7 +127,7 @@ kis_dlt_radiotap::kis_dlt_radiotap() :
 #define BITNO_4(x) (((x) >> 2) ? 2 + BITNO_2((x) >> 2) : BITNO_2((x)))
 #define BITNO_2(x) (((x) & 2) ? 1 : 0)
 #define BIT(n)	(1 << n)
-int kis_dlt_radiotap::handle_packet(kis_packet *in_pack) {
+int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
     auto decapchunk = in_pack->fetch<kis_datachunk>(pack_comp_decap);
 
 	if (decapchunk != nullptr) {
@@ -182,7 +182,7 @@ int kis_dlt_radiotap::handle_packet(kis_packet *in_pack) {
     bool fcs_flag_invalid = false; // Do we have a flag that tells us the fcs is known bad?
     int record_num = 0;
 
-	kis_layer1_packinfo *radioheader = NULL;
+    std::shared_ptr<kis_layer1_packinfo> radioheader;
 
     if (linkchunk->length < sizeof(*hdr)) {
 		// snprintf(errstr, STATUS_MAX, "pcap radiotap converter got corrupted " "Radiotap header length");
@@ -211,8 +211,8 @@ int kis_dlt_radiotap::handle_packet(kis_packet *in_pack) {
         return 0;
     }
 
-	decapchunk = new kis_datachunk;
-	radioheader = new kis_layer1_packinfo;
+    decapchunk = std::make_shared<kis_datachunk>();
+	radioheader = std::make_shared<kis_layer1_packinfo>();
 
 	decapchunk->dlt = KDLT_IEEE802_11;
 	
@@ -357,7 +357,7 @@ int kis_dlt_radiotap::handle_packet(kis_packet *in_pack) {
                     break;
                 case IEEE80211_RADIOTAP_RATE:
 					/* strip basic rate bit & convert to kismet units */
-                    radioheader->datarate = ((u.u8 &~ 0x80) / 2) * 10;
+                    radioheader->datarate = ((float) (u.u8 &~ 0x80) / 2) * 10;
                     break;
                 case IEEE80211_RADIOTAP_ANTENNA:
                     record_antenna = u.u8;
@@ -416,8 +416,6 @@ int kis_dlt_radiotap::handle_packet(kis_packet *in_pack) {
 		_MSG("Pcap Radiotap converter got corrupted Radiotap frame, not "
 			 "long enough for radiotap header plus indicated FCS", MSGFLAG_ERROR);
 		*/
-		delete decapchunk;
-		delete radioheader;
         return 0;
 	}
 
@@ -428,11 +426,11 @@ int kis_dlt_radiotap::handle_packet(kis_packet *in_pack) {
 	in_pack->insert(pack_comp_radiodata, radioheader);
 	in_pack->insert(pack_comp_decap, decapchunk);
 
-	kis_packet_checksum *fcschunk = NULL;
+    std::shared_ptr<kis_packet_checksum> fcschunk;
 
     // If we're slicing the FCS into its own record and we have the space
 	if (fcs_cut && linkchunk->length > 4) {
-		fcschunk = new kis_packet_checksum;
+		fcschunk = std::make_shared<kis_packet_checksum>();
 
 		fcschunk->set_data(&(linkchunk->data[linkchunk->length - 4]), 4);
 
@@ -446,7 +444,7 @@ int kis_dlt_radiotap::handle_packet(kis_packet *in_pack) {
     // If we're not slicing the fcs into its own record, but we know
     // it's bad, we make a junk FCS and set it bad
     if (!fcs_cut && fcs_flag_invalid) {
-        fcschunk = new kis_packet_checksum;
+        fcschunk = std::make_shared<kis_packet_checksum>();
        
         // Set data of all FF, force a copy
         uint8_t junkfcs[] = {0xFF, 0xFF, 0xFF, 0xFF};

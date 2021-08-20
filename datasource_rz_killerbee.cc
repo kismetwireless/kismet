@@ -18,13 +18,12 @@
 
 #include "datasource_rz_killerbee.h"
 
-void kis_datasource_rzkillerbee::handle_rx_packet(kis_packet *packet) {
+void kis_datasource_rzkillerbee::handle_rx_packet(std::shared_ptr<kis_packet> packet) {
 
     auto rz_chunk = 
         packet->fetch<kis_datachunk>(pack_comp_linkframe);
 
-    if(rz_chunk->data[7])
-    {
+    if (rz_chunk->data[7]) {
         int rz_payload_len = rz_chunk->data[8];
 
         int rssi = rz_chunk->data[6];
@@ -61,7 +60,7 @@ void kis_datasource_rzkillerbee::handle_rx_packet(kis_packet *packet) {
         rz_chunk->set_data((uint8_t *)conv_header, conv_buf_len, false);
         rz_chunk->dlt = KDLT_IEEE802_15_4_TAP; 	
 
-        auto radioheader = new kis_layer1_packinfo();
+        auto radioheader = std::make_shared<kis_layer1_packinfo>();
         radioheader->signal_type = kis_l1_signal_type_dbm;
         radioheader->signal_dbm = rssi;
         radioheader->freq_khz = (2405 + ((channel - 11) * 5)) * 1000;
@@ -70,10 +69,7 @@ void kis_datasource_rzkillerbee::handle_rx_packet(kis_packet *packet) {
 
 	    // Pass the packet on
         kis_datasource::handle_rx_packet(packet);
-    }
-    else
-    {
-        delete(packet);
+    } else {
         return;
     }
 }
