@@ -120,6 +120,9 @@ public:
         __ImportField(rtlid, p);
         __ImportField(rtlchannel, p);
         __ImportField(battery, p);
+        __ImportField(rssi, p);
+        __ImportField(snr, p);
+        __ImportField(noise, p);
 
         reserve_fields(nullptr);
     }
@@ -138,6 +141,9 @@ public:
     __Proxy(rtlid, std::string, std::string, std::string, rtlid);
     __Proxy(rtlchannel, std::string, std::string, std::string, rtlchannel);
     __Proxy(battery, std::string, std::string, std::string, battery);
+    __Proxy(rssi, std::string, std::string, std::string, rssi);
+    __Proxy(snr, std::string, std::string, std::string, snr);
+    __Proxy(noise, std::string, std::string, std::string, noise);
 
 protected:
     virtual void register_fields() override {
@@ -147,6 +153,9 @@ protected:
         register_field("rtl433.device.id", "Sensor ID", &rtlid);
         register_field("rtl433.device.rtlchannel", "Sensor sub-channel", &rtlchannel);
         register_field("rtl433.device.battery", "Sensor battery level", &battery);
+        register_field("rtl433.device.rssi", "Sensor rssi level", &rssi);
+        register_field("rtl433.device.snr", "Sensor snr level", &snr);
+        register_field("rtl433.device.noise", "Sensor noise level", &noise);
     }
 
     std::shared_ptr<tracker_element_string> model;
@@ -159,6 +168,9 @@ protected:
 
     // Battery as a string
     std::shared_ptr<tracker_element_string> battery;
+    std::shared_ptr<tracker_element_string> rssi;
+    std::shared_ptr<tracker_element_string> snr;
+    std::shared_ptr<tracker_element_string> noise;
 };
 
 // Thermometer type rtl data, derived from the rtl device.  This adds new
@@ -552,6 +564,73 @@ protected:
 
 };
 
+// Insteon
+class rtl433_tracked_insteon : public tracker_component {
+public:
+    rtl433_tracked_insteon() :
+        tracker_component() {
+        register_fields();
+        reserve_fields(NULL);
+    }
+
+    rtl433_tracked_insteon(int in_id) :
+       tracker_component(in_id) {
+            register_fields();
+            reserve_fields(NULL);
+        }
+
+    rtl433_tracked_insteon(int in_id, std::shared_ptr<tracker_element_map> e) :
+        tracker_component(in_id) {
+        register_fields();
+        reserve_fields(e);
+    }
+
+    rtl433_tracked_insteon(const rtl433_tracked_insteon *p) :
+        tracker_component{p} {
+
+        __ImportField(from_id, p);
+        __ImportField(to_id, p);
+        __ImportField(msg_type, p);
+        __ImportField(msg_str, p);
+        __ImportField(hopsmax, p);
+        __ImportField(hopsleft, p);
+        reserve_fields(nullptr);
+    }
+
+    virtual uint32_t get_signature() const override {
+        return adler32_checksum("rtl433_tracked_insteon");
+    }
+
+    virtual std::unique_ptr<tracker_element> clone_type() override {
+        using this_t = std::remove_pointer<decltype(this)>::type;
+        auto dup = std::unique_ptr<this_t>(new this_t(this));
+        return std::move(dup);
+    }
+
+    __Proxy(from_id, std::string, std::string, std::string, from_id);
+    __Proxy(to_id, std::string, std::string, std::string, to_id);
+    __Proxy(msg_type, std::string, std::string, std::string, msg_type);
+    __Proxy(msg_str, std::string, std::string, std::string, msg_str);
+    __Proxy(hopsmax, std::string, std::string, std::string, hopsmax);
+    __Proxy(hopsleft, std::string, std::string, std::string, hopsleft);
+
+protected:
+    virtual void register_fields() override {
+        register_field("rtl433.device.from_id", "From", &from_id);
+        register_field("rtl433.device.to_id", "To", &to_id);
+        register_field("rtl433.device.msg_type", "Message Type", &msg_type);
+        register_field("rtl433.device.msg_str", "Message String", &msg_str);
+        register_field("rtl433.device.hopsmax", "Hops Max", &hopsmax);
+        register_field("rtl433.device.hopsleft", "Hops Left", &hopsleft);
+    }
+    std::shared_ptr<tracker_element_string> from_id;
+    std::shared_ptr<tracker_element_string> to_id;
+    std::shared_ptr<tracker_element_string> msg_type;
+    std::shared_ptr<tracker_element_string> msg_str;
+    std::shared_ptr<tracker_element_string> hopsmax;
+    std::shared_ptr<tracker_element_string> hopsleft;
+};
+
 class Kis_RTL433_Phy : public kis_phy_handler {
 public:
     virtual ~Kis_RTL433_Phy();
@@ -580,12 +659,14 @@ protected:
     bool is_thermometer(Json::Value json);
     bool is_tpms(Json::Value json);
     bool is_switch(Json::Value json);
+    bool is_insteon(Json::Value json);
     bool is_lightning(Json::Value json);
 
     void add_weather_station(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder);
     void add_thermometer(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder);
     void add_tpms(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder);
     void add_switch(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder);
+    void add_insteon(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder);
     void add_lightning(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder);
 
     double f_to_c(double f);
@@ -598,7 +679,7 @@ protected:
 
     int rtl433_holder_id, rtl433_common_id, rtl433_thermometer_id, 
         rtl433_weatherstation_id, rtl433_tpms_id, rtl433_switch_id,
-        rtl433_lightning_id;
+        rtl433_insteon_id, rtl433_lightning_id;
 
     int pack_comp_common, pack_comp_json, pack_comp_meta;
 

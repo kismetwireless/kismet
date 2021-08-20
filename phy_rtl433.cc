@@ -76,6 +76,11 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(int in_phyid) :
                 tracker_element_factory<rtl433_tracked_switch>(),
                 "RTL433 power switch");
 
+    rtl433_insteon_id =
+        Globalreg::globalreg->entrytracker->register_field("rtl433.device.insteon",
+                tracker_element_factory<rtl433_tracked_insteon>(),
+                "RTL433 Insteon Device");
+
     rtl433_lightning_id =
         Globalreg::globalreg->entrytracker->register_field("rtl433.device.lightningsensor",
                 tracker_element_factory<rtl433_tracked_lightningsensor>(),
@@ -139,6 +144,17 @@ mac_addr Kis_RTL433_Phy::json_to_mac(Json::Value json) {
             *model = kis_hton16((uint16_t) iint);
             set_model = true;
 	}
+    }
+
+    if (json.isMember("from_id")) {
+        Json::Value i = json["from_id"];
+        if (i.isString()) {
+            smodel = i.asString();
+            *checksum = adler32_checksum(smodel.c_str(), smodel.length());
+            int iint = (uint16_t) *checksum;
+            *model = kis_hton16((uint16_t) iint);
+            set_model = true;
+        }
     }
 
     if (!set_model && json.isMember("device")) {
@@ -283,6 +299,33 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, std::shared_ptr<kis_packet> p
             commondev->set_battery(munge_to_printable(battery_j.asString()));
     }
 
+    if (json.isMember("rssi")) {
+        auto rssi_j = json["rssi"];
+
+        if (rssi_j.isNumeric())
+            commondev->set_rssi(int_to_string(rssi_j.asInt()));
+        else if (rssi_j.isString())
+            commondev->set_rssi(munge_to_printable(rssi_j.asString()));
+    }
+
+    if (json.isMember("snr")) {
+        auto snr_j = json["snr"];
+
+        if (snr_j.isNumeric())
+            commondev->set_snr(int_to_string(snr_j.asInt()));
+        else if (snr_j.isString())
+            commondev->set_snr(munge_to_printable(snr_j.asString()));
+    }
+
+    if (json.isMember("noise")) {
+        auto noise_j = json["noise"];
+
+        if (noise_j.isNumeric())
+            commondev->set_noise(int_to_string(noise_j.asInt()));
+        else if (noise_j.isString())
+            commondev->set_noise(munge_to_printable(noise_j.asString()));
+    }
+
     if (is_thermometer(json))
         add_thermometer(json, rtlholder);
 
@@ -294,6 +337,9 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, std::shared_ptr<kis_packet> p
 
     if (is_switch(json))
         add_switch(json, rtlholder);
+
+    if (is_insteon(json))
+        add_insteon(json, rtlholder);
 
     if (is_lightning(json))
         add_lightning(json, rtlholder);
@@ -364,6 +410,21 @@ bool Kis_RTL433_Phy::is_switch(Json::Value json) {
 
     if (!sw0_j.isNull() || !sw1_j.isNull() || !sw2_j.isNull() ||
         !sw3_j.isNull() || !sw4_j.isNull() || !sw5_j.isNull())
+        return true;
+
+    return false;
+}
+
+bool Kis_RTL433_Phy::is_insteon(Json::Value json) {
+    auto from_id_j = json["from_id"];
+    auto to_id_j = json["to_id"];
+    auto msg_type_j = json["msg_type"];
+    auto msg_str_j = json["msg_str"];
+    auto hopsmax_j = json["hopsmax"];
+    auto hopsleft_j = json["hopsleft"];
+
+
+    if (!from_id_j.isNull() || !to_id_j.isNull() || !msg_type_j.isNull() || !msg_str_j.isNull() || !hopsmax_j.isNull() || !hopsleft_j.isNull())
         return true;
 
     return false;
@@ -585,6 +646,53 @@ void Kis_RTL433_Phy::add_switch(Json::Value json, std::shared_ptr<tracker_elemen
     }
     
 }
+
+void Kis_RTL433_Phy::add_insteon(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
+    //{"time" : "2021-08-19 18:52:48", "model" : "Insteon", "from_id" : "CCFF79", "to_id" : "9F39E6", "msg_type" : 7, "msg_str" : "NAK of Group Cleanup Direct Message", "extended" : 0, "hopsmax" : 3, "hopsleft" : 0, "formatted" : "E3 : 9F39E6 : CCFF79 : 39 E7  B7", "mic" : "CRC", "payload" : "E3E6399F79FFCC39E7B7", "cmd_dat" : [57, 231], "mod" : "FSK", "freq1" : 914.909, "freq2" : 915.069, "rssi" : -0.212, "snr" : 25.305, "noise" : -25.517}
+    auto from_id_j = json["from_id"];
+    auto to_id_j = json["to_id"];
+    auto msg_type_j = json["msg_type"];
+    auto msg_str_j = json["msg_str"];
+    auto hopsmax_j = json["hopsmax"];
+    auto hopsleft_j = json["hopsleft"];
+    auto model_j = json["model"];
+
+    if (from_id_j.isNull() || to_id_j.isNull() || msg_type_j.isNull() || msg_str_j.isNull() || hopsmax_j.isNull() || hopsleft_j.isNull())
+        return;
+
+    auto insteondev =
+            rtlholder->get_sub_as<rtl433_tracked_insteon>(rtl433_insteon_id);
+
+    if (insteondev == NULL) {
+        insteondev =
+            std::make_shared<rtl433_tracked_insteon>(rtl433_insteon_id);
+        rtlholder->insert(insteondev);
+    }
+
+
+    if (from_id_j.isString()) {
+      insteondev->set_from_id(munge_to_printable(from_id_j.asString()));
+    }
+
+    if (to_id_j.isString()) {
+      insteondev->set_to_id(munge_to_printable(to_id_j.asString()));
+    }
+
+    if (msg_type_j.isString()) {
+      insteondev->set_msg_type(munge_to_printable(msg_type_j.asString()));
+    }
+
+    if (msg_str_j.isString()) {
+      insteondev->set_msg_str(munge_to_printable(msg_str_j.asString()));
+    }
+    if (hopsmax_j.isString()) {
+      insteondev->set_hopsmax(munge_to_printable(hopsmax_j.asString()));
+    }
+   if (hopsleft_j.isString()) {
+      insteondev->set_hopsleft(munge_to_printable(hopsleft_j.asString()));
+    }
+}
+
 
 void Kis_RTL433_Phy::add_lightning(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
     // {"time" : "2019-02-24 22:12:13", "model" : "Acurite Lightning 6045M", "id" : 15580, "channel" : "B", "temperature_F" : 38.300, "humidity" : 53, "strike_count" : 1, "storm_dist" : 8, "active" : 1, "rfi" : 0, "ussb1" : 0, "battery" : "OK", "exception" : 0, "raw_msg" : "bcdc6f354edb81886e"}
