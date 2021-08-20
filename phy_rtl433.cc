@@ -362,7 +362,8 @@ bool Kis_RTL433_Phy::is_switch(Json::Value json) {
     auto sw4_j = json["switch4"];
     auto sw5_j = json["switch5"];
 
-    if (!sw0_j.isNull() || !sw1_j.isNull() || !sw2_j.isNull() || !sw3_j.isNull() || !sw4_j.isNull() || !sw5_j.isNull())
+    if (!sw0_j.isNull() || !sw1_j.isNull() || !sw2_j.isNull() ||
+        !sw3_j.isNull() || !sw4_j.isNull() || !sw5_j.isNull())
         return true;
 
     return false;
@@ -554,9 +555,9 @@ void Kis_RTL433_Phy::add_switch(Json::Value json, std::shared_ptr<tracker_elemen
         return;
 
     auto switchdev = 
-            rtlholder->get_sub_as<rtl433_tracked_switch>(rtl433_switch_id);
+        rtlholder->get_sub_as<rtl433_tracked_switch>(rtl433_switch_id);
 
-    if (switchdev == NULL) {
+    if (switchdev == nullptr) {
         switchdev = 
             std::make_shared<rtl433_tracked_switch>(rtl433_switch_id);
         rtlholder->insert(switchdev);
