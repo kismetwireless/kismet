@@ -20,7 +20,9 @@
 
 #include "datasource_ti_cc_2540.h"
 
-void kis_datasource_ticc2540::handle_rx_packet(std::shared_ptr<kis_packet> packet) {
+void kis_datasource_ticc2540::handle_rx_datalayer(std::shared_ptr<kis_packet> packet, 
+        const KismetDatasource::SubPacket& report) {
+
     typedef struct {
         uint8_t monitor_channel;
         int8_t signal;
@@ -38,29 +40,31 @@ void kis_datasource_ticc2540::handle_rx_packet(std::shared_ptr<kis_packet> packe
     const uint16_t btle_rf_crc_checked = (1 << 10);
     const uint16_t btle_rf_crc_valid = (1 << 11);
 
-    auto cc_chunk = 
-        packet->fetch<kis_datachunk>(pack_comp_linkframe);
+    auto& rxdata = report.data();
 
     // If we can't validate the basics of the packet at the phy capture level, throw it out.
     // We don't get rid of invalid btle contents, but we do get rid of invalid USB frames that
     // we can't decipher - we can't even log them sanely!
-    
-    if (cc_chunk->length < 8) {
+   
+    if (rxdata.length() < 8) {
+        packet->error = 1;
         return;
     }
 
-    unsigned int cc_len = cc_chunk->data[1];
-    if (cc_len != cc_chunk->length - 3) {
+    unsigned int cc_len = rxdata[1];
+    if (cc_len != rxdata.length() - 3) {
+        packet->error = 1;
         return;
     }
 
-    unsigned int cc_payload_len = cc_chunk->data[7] - 0x02;
-    if (cc_payload_len + 8 != cc_chunk->length - 2) {
+    unsigned int cc_payload_len = rxdata[7] - 0x02;
+    if (cc_payload_len + 8 != rxdata.length() - 2) {
+        packet->error = 1;
         return;
     }
 
-    uint8_t fcs1 = cc_chunk->data[cc_chunk->length - 2];
-    uint8_t fcs2 = cc_chunk->data[cc_chunk->length - 1];
+    uint8_t fcs1 = rxdata[rxdata.length() - 2];
+    uint8_t fcs2 = rxdata[rxdata.length() - 1];
 
     // Convert the channel for the btlell header
     auto bt_channel = fcs2 & 0x7F;
@@ -80,11 +84,13 @@ void kis_datasource_ticc2540::handle_rx_packet(std::shared_ptr<kis_packet> packe
 
     // We can make a valid payload from this much
     auto conv_buf_len = sizeof(btle_rf) + cc_payload_len;
-    btle_rf *conv_header = reinterpret_cast<btle_rf *>(new uint8_t[conv_buf_len]);
-    memset(conv_header, 0, conv_buf_len);
+    std::string conv_buf;
+    conv_buf.resize(conv_buf_len, 0);
+
+    btle_rf *conv_header = reinterpret_cast<btle_rf *>(conv_buf.data());
 
     // Copy the actual packet payload into the header
-    memcpy(conv_header->payload, &cc_chunk->data[8], cc_payload_len);
+    memcpy(conv_header->payload, &rxdata.data()[8], cc_payload_len);
 
     // Set the converted channel
     conv_header->monitor_channel = bt_channel;
@@ -103,10 +109,32 @@ void kis_datasource_ticc2540::handle_rx_packet(std::shared_ptr<kis_packet> packe
 
     conv_header->flags_le = 
         kis_htole16(bits + btle_rf_flag_signalvalid + btle_rf_flag_dewhitened);
-   
-    // Replace the existing packet data with this and update the DLT
-    cc_chunk->set_data((uint8_t *) conv_header, conv_buf_len, false);
-    cc_chunk->dlt = KDLT_BTLE_RADIO;
+
+
+    // Put the modified data into the packet & fill in the rest of the base data info
+    auto datachunk = std::make_shared<kis_datachunk>();
+
+    if (clobber_timestamp && get_source_remote()) {
+        gettimeofday(&(packet->ts), NULL);
+    } else {
+        packet->ts.tv_sec = report.time_sec();
+        packet->ts.tv_usec = report.time_usec();
+    }
+
+    // Override the DLT if we have one
+    if (get_source_override_linktype()) {
+        datachunk->dlt = get_source_override_linktype();
+    } else {
+        datachunk->dlt = report.dlt();
+    }
+
+    packet->set_data(conv_buf);
+    datachunk->set_data(packet->data);
+
+    get_source_packet_size_rrd()->add_sample(conv_buf.length(), time(0));
+
+    packet->insert(pack_comp_linkframe, datachunk);
+
 
     // Generate a l1 radio header and a decap header since we have it computed already
     auto radioheader = std::make_shared<kis_layer1_packinfo>();
@@ -117,10 +145,8 @@ void kis_datasource_ticc2540::handle_rx_packet(std::shared_ptr<kis_packet> packe
     packet->insert(pack_comp_radiodata, radioheader);
 
     auto decapchunk = std::make_shared<kis_datachunk>();
-    decapchunk->set_data(conv_header->payload, cc_payload_len, false);
     decapchunk->dlt = KDLT_BLUETOOTH_LE_LL;
+    decapchunk->set_data(packet->data.substr(sizeof(btle_rf), cc_payload_len));
     packet->insert(pack_comp_decap, decapchunk);
-
-    kis_datasource::handle_rx_packet(packet);
 }
 

@@ -40,6 +40,8 @@
 #include "trackedelement.h"
 #include "trackedcomponent.h"
 
+#include "string_view.hpp"
+
 // This is the main switch for how big the vector is.  If something ever starts
 // bumping up against this we'll need to increase it, but that'll slow down 
 // generating a packet (slightly) so I'm leaving it relatively low.
@@ -52,12 +54,10 @@
 // even when we don't have pcap
 #define KDLT_IEEE802_11			105
 
-// High-level packet component so that we can provide our own destructors
 class packet_component {
 public:
-    packet_component() { self_destruct = 1; };
+    packet_component() { };
     virtual ~packet_component() { }
-    int self_destruct;
 };
 
 // Overall packet container that holds packet information
@@ -79,6 +79,12 @@ public:
     // Are we a duplicate?
     int duplicate;
 
+    // Raw packet data; other packet components refer to this via stringviews
+    // whenever possible to minimize the copy duplication.  It is pre-reserved as a
+    // max packet size block
+    std::string raw_data;
+    nonstd::string_view data;
+
     // Did this packet trigger creation of a new device?  Since a 
     // single packet can create multiple devices in some phys, maintain
     // a vector of device events to publish when all devices are done
@@ -96,6 +102,8 @@ public:
         crc_ok = p.crc_ok;
         filtered = p.filtered;
         process_complete_events = std::move(p.process_complete_events);
+        raw_data = std::move(p.raw_data);
+        data = std::move(p.data);
 
         for (int c = 0; c < MAX_PACKET_COMPONENTS; c++)
             content_vec[c] = p.content_vec[c];
@@ -107,10 +115,23 @@ public:
         filtered = 0;
         duplicate = 0;
 
+        // Reset and re-reserve in case we were resized somehow
+        raw_data = "";
+        raw_data.reserve(MAX_PACKET_LEN);
+
         process_complete_events.clear();
 
         for (size_t x = 0; x < MAX_PACKET_COMPONENTS; x++)
             content_vec[x].reset();
+    }
+
+    void set_data(const std::string& sdata) {
+        raw_data = sdata;
+    }
+
+    template<typename T>
+    void set_data(const T* tdata, size_t len) {
+        raw_data = std::string(tdata, len);
     }
 
     // Preferred smart pointers
@@ -230,58 +251,37 @@ protected:
 // Arbitrary data chunk, decapsulated from the link headers
 class kis_datachunk : public packet_component {
 public:
-    uint8_t *data;
-    unsigned int length;
+    // Data window
+    nonstd::string_view data;
+
+    // Underlying raw data, typically unused
+    std::string raw_data;
+
     int dlt;
     uint16_t source_id;
-    bool self_data;
 
     kis_datachunk() {
-        self_destruct = 1; // Our delete() handles everything
-        self_data = true; // We assume for now we have our own data alloc
-        data = NULL;
-        length = 0;
         source_id = 0;
     }
 
-    virtual ~kis_datachunk() {
-        if (data != NULL && self_data) {
-            delete[] data;
-        }
-        length = 0;
+    virtual ~kis_datachunk() { }
+
+    virtual void set_data(const nonstd::string_view& view) {
+        data = view;
+    }
+    virtual void set_data(std::string& data) {
+        data = nonstd::string_view(data);
     }
 
-    virtual void set_data(char *in_data, unsigned int in_length, bool copy = true) {
-        set_data((uint8_t *) in_data, in_length, copy);
+    virtual void set_raw_data(const std::string& sdata) {
+        raw_data = sdata;
+        data = std::string_view(raw_data);
     }
 
-    // Default to copy=true; it's always safe to copy, it's not always safe not to
-    virtual void set_data(uint8_t *in_data, unsigned int in_length, bool copy = true) {
-        if (data != NULL && self_data)
-            delete[] data;
-
-        if (copy) {
-            data = new uint8_t[in_length];
-            memcpy(data, in_data, in_length);
-            self_data = true;
-        } else {
-            data = in_data;
-            self_data = false;
-        }
-
-        length = in_length;
-    }
-
-    virtual void copy_data(const uint8_t *in_data, unsigned int in_length) {
-        if (data != NULL && self_data)
-            delete[] data;
-
-        data = new uint8_t[in_length];
-        memcpy(data, in_data, in_length);
-        self_data = true;
-
-        length = in_length;
-
+    template<typename T>
+    void set_raw_data(const T* rd, size_t sz) {
+        raw_data = std::string(rd, sz);
+        data = std::string_view(raw_data);
     }
 };
 
@@ -300,15 +300,9 @@ public:
 class kis_packet_checksum : public kis_datachunk {
 public:
     int checksum_valid;
-    uint32_t *checksum_ptr;
 
     kis_packet_checksum() : kis_datachunk() {
         checksum_valid = 0;
-    }
-
-    virtual void set_data(uint8_t *in_data, unsigned int in_length, bool copy = true) {
-        kis_datachunk::set_data(in_data, in_length, copy);
-        checksum_ptr = (uint32_t *) data;
     }
 };
 
@@ -342,8 +336,6 @@ enum kis_packet_direction {
 class kis_common_info : public packet_component {
 public:
     kis_common_info() {
-        self_destruct = 1;
-
         type = packet_basic_unknown;
         direction = packet_direction_unknown;
 
@@ -388,10 +380,7 @@ public:
 // String reference
 class kis_string_info : public packet_component {
 public:
-    kis_string_info() {
-        self_destruct = 1;
-    }
-
+    kis_string_info() { }
     std::vector<std::string> extracted_strings;
 };
 
@@ -423,7 +412,6 @@ enum kis_protocol_info_type {
 class kis_data_packinfo : public packet_component {
 public:
     kis_data_packinfo() {
-        self_destruct = 1; // Safe to delete us
         proto = proto_unknown;
         ip_source_port = 0;
         ip_dest_port = 0;
@@ -476,7 +464,6 @@ enum kis_layer1_packinfo_signal_type {
 class kis_layer1_packinfo : public packet_component {
 public:
     kis_layer1_packinfo() {
-        self_destruct = 1;  // Safe to delete us
         signal_type = kis_l1_signal_type_none;
         signal_dbm = noise_dbm = 0;
         signal_rssi = noise_rssi = 0;
@@ -524,9 +511,7 @@ public:
 // per packet, which is fine for the current design
 class kis_json_packinfo : public packet_component {
 public:
-    kis_json_packinfo() {
-        self_destruct = 1;
-    }
+    kis_json_packinfo() { }
 
     std::string type;
     std::string json_string;
@@ -536,9 +521,7 @@ public:
 // supports one protobuf report per packet, which is fine for the current design.
 class kis_protobuf_packinfo : public packet_component {
 public:
-    kis_protobuf_packinfo() {
-        self_destruct = 1;
-    }
+    kis_protobuf_packinfo() { }
 
     std::string type;
     std::string buffer_string;

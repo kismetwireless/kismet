@@ -42,10 +42,12 @@ kis_packet::kis_packet() {
     crc_ok = 0;
 	filtered = 0;
     duplicate = 0;
+
+    raw_data.reserve(MAX_PACKET_LEN);
+    data = nonstd::string_view(raw_data);
 }
 
-kis_packet::~kis_packet() {
-}
+kis_packet::~kis_packet() { }
    
 void kis_packet::insert(const unsigned int index, std::shared_ptr<packet_component> data) {
 	if (index >= MAX_PACKET_COMPONENTS) 

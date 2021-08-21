@@ -20,7 +20,9 @@
 
 #include "datasource_ubertooth_one.h"
 
-void kis_datasource_ubertooth_one::handle_rx_packet(std::shared_ptr<kis_packet> packet) {
+void kis_datasource_ubertooth_one::handle_rx_datalayer(std::shared_ptr<kis_packet> packet, 
+        const KismetDatasource::SubPacket& report) {
+
     typedef struct {
         uint8_t monitor_channel;
         int8_t signal;
@@ -56,18 +58,17 @@ void kis_datasource_ubertooth_one::handle_rx_packet(std::shared_ptr<kis_packet> 
     const uint16_t btle_rf_crc_valid = (1 << 11);
     */
 
-    auto u1_chunk = 
-        packet->fetch<kis_datachunk>(pack_comp_linkframe);
+    auto& rxdata = report.data();
 
     // If we can't validate the basics of the packet at the phy capture level, throw it out.
     // We don't get rid of invalid btle contents, but we do get rid of invalid USB frames that
     // we can't decipher - we can't even log them sanely!
     
-    if (u1_chunk->length != sizeof(usb_pkt_rx)) {
+    if (rxdata.length() != sizeof(usb_pkt_rx)) {
         return;
     }
 
-    auto usb_rx = reinterpret_cast<usb_pkt_rx *>(u1_chunk->data);
+    const auto usb_rx = reinterpret_cast<const usb_pkt_rx *>(rxdata.data());
 
     auto payload_len = (usb_rx->data[5] & 0x3F) + 6 + 3;
 
@@ -77,8 +78,11 @@ void kis_datasource_ubertooth_one::handle_rx_packet(std::shared_ptr<kis_packet> 
 
 
     auto conv_buf_len = sizeof(btle_rf) + payload_len;
-    btle_rf *conv_header = reinterpret_cast<btle_rf *>(new uint8_t[conv_buf_len]);
-    memset(conv_header, 0, conv_buf_len);
+
+    std::string conv_buf;
+    conv_buf.resize(conv_buf_len, 0);
+
+    btle_rf *conv_header = reinterpret_cast<btle_rf *>(conv_buf.data());
 
     // Copy the actual packet payload into the header
     memcpy(conv_header->payload, usb_rx->data, payload_len);
@@ -110,10 +114,33 @@ void kis_datasource_ubertooth_one::handle_rx_packet(std::shared_ptr<kis_packet> 
 
     conv_header->flags_le = 
         kis_htole16(bits + btle_rf_flag_signalvalid + btle_rf_flag_dewhitened);
-   
-    // Replace the existing packet data with this and update the DLT
-    u1_chunk->set_data((uint8_t *) conv_header, conv_buf_len, false);
-    u1_chunk->dlt = KDLT_BTLE_RADIO;
+
+
+    // Put the modified data into the packet & fill in the rest of the base data info
+    auto datachunk = std::make_shared<kis_datachunk>();
+
+    if (clobber_timestamp && get_source_remote()) {
+        gettimeofday(&(packet->ts), NULL);
+    } else {
+        packet->ts.tv_sec = report.time_sec();
+        packet->ts.tv_usec = report.time_usec();
+    }
+
+    // Override the DLT if we have one
+    if (get_source_override_linktype()) {
+        datachunk->dlt = get_source_override_linktype();
+    } else {
+        datachunk->dlt = report.dlt();
+    }
+
+    packet->set_data(conv_buf);
+    datachunk->set_data(packet->data);
+
+    get_source_packet_size_rrd()->add_sample(conv_buf.length(), time(0));
+
+    packet->insert(pack_comp_linkframe, datachunk);
+
+
 
     // Generate a l1 radio header and a decap header since we have it computed already
     auto radioheader = std::make_shared<kis_layer1_packinfo>();
@@ -123,11 +150,10 @@ void kis_datasource_ubertooth_one::handle_rx_packet(std::shared_ptr<kis_packet> 
     radioheader->channel = fmt::format("{}", conv_header->monitor_channel);
     packet->insert(pack_comp_radiodata, radioheader);
 
-    auto decapchunk = std::make_shared<kis_datachunk>();
-    decapchunk->set_data(conv_header->payload, payload_len, false);
-    decapchunk->dlt = KDLT_BLUETOOTH_LE_LL;
-    packet->insert(pack_comp_decap, decapchunk);
 
-    kis_datasource::handle_rx_packet(packet);
+    auto decapchunk = std::make_shared<kis_datachunk>();
+    decapchunk->dlt = KDLT_BLUETOOTH_LE_LL;
+    decapchunk->set_data(packet->data.substr(sizeof(btle_rf), payload_len));
+    packet->insert(pack_comp_decap, decapchunk);
 }
 

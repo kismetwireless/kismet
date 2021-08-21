@@ -16,11 +16,13 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#include "endian_magic.h"
-
 #include "datasource_nrf_51822.h"
 
-void kis_datasource_nrf51822::handle_rx_packet(std::shared_ptr<kis_packet> packet) {
+#include "endian_magic.h"
+
+void kis_datasource_nrf51822::handle_rx_datalayer(
+    std::shared_ptr<kis_packet> packet,
+    const KismetDatasource::SubPacket &report) {
     typedef struct {
         uint8_t monitor_channel;
         int8_t signal;
@@ -40,7 +42,7 @@ void kis_datasource_nrf51822::handle_rx_packet(std::shared_ptr<kis_packet> packe
     const uint16_t btle_rf_mic_checked = (1 << 12);
     const uint16_t btle_rf_mic_valid = (1 << 13);
 
-    auto cc_chunk = packet->fetch<kis_datachunk>(pack_comp_linkframe);
+    auto &rxdata = report.data();
 
     // If we can't validate the basics of the packet at the phy capture level,
     // throw it out. We don't get rid of invalid btle contents, but we do get
@@ -61,17 +63,17 @@ void kis_datasource_nrf51822::handle_rx_packet(std::shared_ptr<kis_packet> packe
      * if there is a better way to remove the header < 10
      * and remove the padded byte, please update
      * */
-    for (unsigned int xp = 0; xp < cc_chunk->length; xp++) {
+    for (unsigned int xp = 0; xp < rxdata.length(); xp++) {
         if (xp >= 10 && xp != 16) {
-            pkt[pkt_ctr] = cc_chunk->data[xp];
+            pkt[pkt_ctr] = rxdata[xp];
             pkt_ctr++;
         }
     }
 
-    int8_t channel = cc_chunk->data[2];
-    int8_t bt_channel = cc_chunk->data[2];
-    int8_t rssi = cc_chunk->data[3] * -1;             //?
-    int8_t valid_pkt = cc_chunk->data[1] & (1 << 0);  // first byte
+    int8_t channel = rxdata[2];
+    int8_t bt_channel = rxdata[2];
+    int8_t rssi = rxdata[3] * -1;            //?
+    int8_t valid_pkt = rxdata[1] & (1 << 0); // first byte
 
     if (valid_pkt) {
         // make the new header and fill it
@@ -88,11 +90,13 @@ void kis_datasource_nrf51822::handle_rx_packet(std::shared_ptr<kis_packet> packe
             default:
                 bt_channel = channel - 2;
         };
+
         // We can make a valid payload from this much
-        auto conv_buf_len = sizeof(btle_rf) + pkt_ctr;  // cc_payload_len;
-        btle_rf *conv_header =
-            reinterpret_cast<btle_rf *>(new uint8_t[conv_buf_len]);
-        memset(conv_header, 0, conv_buf_len);
+        auto conv_buf_len = sizeof(btle_rf) + pkt_ctr; // cc_payload_len;
+        std::string conv_buf;
+        conv_buf.resize(conv_buf_len, 0);
+
+        btle_rf *conv_header = reinterpret_cast<btle_rf *>(conv_buf.data());
 
         // Copy the actual packet payload into the header
         memcpy(conv_header->payload, &pkt[0], pkt_ctr);
@@ -104,24 +108,48 @@ void kis_datasource_nrf51822::handle_rx_packet(std::shared_ptr<kis_packet> packe
         conv_header->signal = rssi;
 
         uint16_t bits = btle_rf_crc_checked;
-        if (valid_pkt) bits += btle_rf_crc_valid;
+        if (valid_pkt)
+            bits += btle_rf_crc_valid;
         // MIC
         bits += btle_rf_mic_checked;
 
-        if (cc_chunk->data[1] & (1 << 3)) bits += btle_rf_mic_valid;
+        if (rxdata[1] & (1 << 3))
+            bits += btle_rf_mic_valid;
 
         // should change since we know we are valid
         if (pkt_ctr >= 4) {
-            memcpy(conv_header->reference_access_address, conv_header->payload, 4);
+            memcpy(
+                conv_header->reference_access_address, conv_header->payload, 4);
             bits += btle_rf_flag_reference_access_valid;
         }
 
-        conv_header->flags_le = kis_htole16(bits + btle_rf_flag_signalvalid +
-                btle_rf_flag_dewhitened);
+        conv_header->flags_le = kis_htole16(bits + btle_rf_flag_signalvalid + btle_rf_flag_dewhitened);
 
-        // Replace the existing packet data with this and update the DLT
-        cc_chunk->set_data((uint8_t *) conv_header, conv_buf_len, false);
-        cc_chunk->dlt = KDLT_BTLE_RADIO;
+
+        // Put the modified data into the packet & fill in the rest of the base data info
+        auto datachunk = std::make_shared<kis_datachunk>();
+
+        if (clobber_timestamp && get_source_remote()) {
+            gettimeofday(&(packet->ts), NULL);
+        } else {
+            packet->ts.tv_sec = report.time_sec();
+            packet->ts.tv_usec = report.time_usec();
+        }
+
+        // Override the DLT if we have one
+        if (get_source_override_linktype()) {
+            datachunk->dlt = get_source_override_linktype();
+        } else {
+            datachunk->dlt = KDLT_BTLE_RADIO;
+        }
+
+        packet->set_data(conv_buf);
+        datachunk->set_data(packet->data);
+
+        get_source_packet_size_rrd()->add_sample(conv_buf.length(), time(0));
+
+        packet->insert(pack_comp_linkframe, datachunk);
+
 
         // Generate a l1 radio header and a decap header since we have it
         // computed already
@@ -133,8 +161,8 @@ void kis_datasource_nrf51822::handle_rx_packet(std::shared_ptr<kis_packet> packe
         packet->insert(pack_comp_radiodata, radioheader);
 
         auto decapchunk = std::make_shared<kis_datachunk>();
-        decapchunk->set_data(conv_header->payload, pkt_ctr, false);
         decapchunk->dlt = KDLT_BLUETOOTH_LE_LL;
+        decapchunk->set_data(packet->data.substr(sizeof(btle_rf), pkt_ctr));
         packet->insert(pack_comp_decap, decapchunk);
 
         kis_datasource::handle_rx_packet(packet);

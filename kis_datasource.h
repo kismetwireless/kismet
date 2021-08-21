@@ -54,9 +54,7 @@ class kis_datasource;
 class kis_packreport_packinfo : public packet_component {
 public:
     kis_packreport_packinfo(std::shared_ptr<KismetDatasource::DataReport> r) :
-        report{r} {
-            self_destruct = 1;
-        }
+        report{r} { }
 
 protected:
     std::shared_ptr<KismetDatasource::DataReport> report;
@@ -442,6 +440,18 @@ public:
     static std::string event_datasource_closed() { return "DATASOURCE_CLOSED"; }
     static std::string event_datasource_paused() { return "DATASOURCE_PAUSED"; }
     static std::string event_datasource_resumed() { return "DATASOURCE_RESUMED"; }
+
+    // Manipulate incoming packet data before it is inserted into the base packet; Subclasses can use
+    // this to modify the data before it hits the linkframe to minimize copy overhead.  When replacing
+    // this function, replacements MUST implement the full timestamp, RRD update, etc found in the
+    // base function.
+    virtual void handle_rx_datalayer(std::shared_ptr<kis_packet> packet, 
+            const KismetDatasource::SubPacket& report);
+
+    // Manipulate incoming packet json before it is inserted into the base packet; Subclasses can use
+    // this to modify the json before it hits the jsoninfo buffer
+    virtual void handle_rx_jsonlayer(std::shared_ptr<kis_packet> packet,
+            const KismetDatasource::SubJson& report);
 
     // Handle injecting packets into the packet chain after the data report has been received
     // and processed.  Subclasses can override this to manipulate packet content.
@@ -854,7 +864,6 @@ public:
     kis_datasource *ref_source;
 
     packetchain_comp_datasource() {
-        self_destruct = 1;
         ref_source = NULL;
     }
 

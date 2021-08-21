@@ -52,10 +52,10 @@ public:
 protected:
 	virtual int handle_packet(std::shared_ptr<kis_packet> in_pack) override;
 
-    unsigned int update_crc32_80211(unsigned int crc, const unsigned char *data,
+    unsigned int update_crc32_80211(unsigned int crc, const char *data,
             int len, unsigned int poly);
     void crc32_init_table_80211(unsigned int *crc32_table);
-    unsigned int crc32_le_80211(unsigned int *crc32_table, const unsigned char *buf, int len);
+    unsigned int crc32_le_80211(unsigned int *crc32_table, const char *buf, int len);
 
     unsigned int crc32_table[256];
 };

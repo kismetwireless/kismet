@@ -698,9 +698,7 @@ protected:
 // Packinfo references
 class kis_tracked_device_info : public packet_component {
 public:
-	kis_tracked_device_info() {
-		self_destruct = 1;
-	}
+	kis_tracked_device_info() { }
 
     // We don't use mac masks here so an unordered map is safe
     std::unordered_map<mac_addr, std::shared_ptr<kis_tracked_device_base> > devrefs;

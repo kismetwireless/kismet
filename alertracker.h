@@ -93,10 +93,6 @@ public:
 		channel = "0";
 
         gps = NULL;
-
-		// We do NOT self-destruct because we get cached in the alertracker
-		// for playbacks.  It's responsible for discarding us
-		self_destruct = 0;
 	}
 
     virtual ~kis_alert_info() { }
@@ -120,11 +116,7 @@ public:
 
 class kis_alert_component : public packet_component {
 public:
-	kis_alert_component() {
-		// We can self destruct because we won't clear out the vector
-		// of actual alert info
-		self_destruct = 1;
-	}
+	kis_alert_component() { }
 
     std::vector<std::shared_ptr<kis_alert_info>> alert_vec;
 };

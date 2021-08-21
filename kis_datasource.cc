@@ -1265,46 +1265,12 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno, const std::str
 
     // Process the data chunk
     if (report->has_packet()) {
-        auto datachunk = std::make_shared<kis_datachunk>();
-
-        if (clobber_timestamp && get_source_remote()) {
-            gettimeofday(&(packet->ts), NULL);
-        } else {
-            packet->ts.tv_sec = report->packet().time_sec();
-            packet->ts.tv_usec = report->packet().time_usec();
-        }
-
-        // Override the DLT if we have one
-        if (get_source_override_linktype()) {
-            datachunk->dlt = get_source_override_linktype();
-        } else {
-            datachunk->dlt = report->packet().dlt();
-        }
-
-        datachunk->set_data(const_cast<char *>(report->packet().data().data()), 
-                report->packet().data().length(), false);
-
-        get_source_packet_size_rrd()->add_sample(report->packet().data().length(), time(0));
-
-        packet->insert(pack_comp_linkframe, datachunk);
+        handle_rx_datalayer(packet, report->packet());
     }
 
     // Process JSON
     if (report->has_json()) {
-        // fprintf(stderr, "debug - got JSON report- %s\n", report.json().json().c_str());
-        auto jsoninfo = std::make_shared<kis_json_packinfo>();
-      
-        if (clobber_timestamp && get_source_remote()) {
-            gettimeofday(&(packet->ts), NULL);
-        } else {
-            packet->ts.tv_sec = report->json().time_sec();
-            packet->ts.tv_usec = report->json().time_usec();
-        }
-
-        jsoninfo->type = report->json().type();
-        jsoninfo->json_string = report->json().json();
-
-        packet->insert(pack_comp_json, jsoninfo);
+        handle_rx_jsonlayer(packet, report->json());
     }
 
     // Process protobufs
@@ -1342,6 +1308,50 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno, const std::str
     // TODO handle spectrum
    
     handle_rx_packet(packet);
+}
+
+void kis_datasource::handle_rx_datalayer(std::shared_ptr<kis_packet> packet,
+        const KismetDatasource::SubPacket& report) {
+    auto datachunk = std::make_shared<kis_datachunk>();
+
+    if (clobber_timestamp && get_source_remote()) {
+        gettimeofday(&(packet->ts), NULL);
+    } else {
+        packet->ts.tv_sec = report.time_sec();
+        packet->ts.tv_usec = report.time_usec();
+    }
+
+    // Override the DLT if we have one
+    if (get_source_override_linktype()) {
+        datachunk->dlt = get_source_override_linktype();
+    } else {
+        datachunk->dlt = report.dlt();
+    }
+
+    packet->set_data(report.data().data());
+    datachunk->set_data(packet->data);
+
+    get_source_packet_size_rrd()->add_sample(report.data().length(), time(0));
+
+    packet->insert(pack_comp_linkframe, datachunk);
+}
+
+void kis_datasource::handle_rx_jsonlayer(std::shared_ptr<kis_packet> packet,
+        const KismetDatasource::SubJson& report) {
+
+    auto jsoninfo = std::make_shared<kis_json_packinfo>();
+
+    if (clobber_timestamp && get_source_remote()) {
+        gettimeofday(&(packet->ts), NULL);
+    } else {
+        packet->ts.tv_sec = report.time_sec();
+        packet->ts.tv_usec = report.time_usec();
+    }
+
+    jsoninfo->type = report.type();
+    jsoninfo->json_string = report.json();
+
+    packet->insert(pack_comp_json, jsoninfo);
 }
 
 void kis_datasource::handle_rx_packet(std::shared_ptr<kis_packet> packet) {

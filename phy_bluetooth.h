@@ -46,9 +46,7 @@ class bluetooth_tracked_device;
 
 class bluetooth_packinfo : public packet_component {
 public:
-    bluetooth_packinfo() {
-        self_destruct = 1;
-    }
+    bluetooth_packinfo() { }
 
     mac_addr address;
     std::string name;

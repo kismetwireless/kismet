@@ -184,15 +184,13 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 
     std::shared_ptr<kis_layer1_packinfo> radioheader;
 
-    if (linkchunk->length < sizeof(*hdr)) {
-		// snprintf(errstr, STATUS_MAX, "pcap radiotap converter got corrupted " "Radiotap header length");
-		// globalreg->messagebus->inject_message(errstr, MSGFLAG_ERROR);
+    if (linkchunk->data.length() < sizeof(*hdr)) {
         return 0;
     }
 
 	// Assign it to the callback data
-    hdr = (struct ieee80211_radiotap_header *) linkchunk->data;
-    if (linkchunk->length < EXTRACT_LE_16BITS(&hdr->it_len)) {
+    hdr = (struct ieee80211_radiotap_header *) linkchunk->data.data();
+    if (linkchunk->data.length() < EXTRACT_LE_16BITS(&hdr->it_len)) {
 		// snprintf(errstr, STATUS_MAX, "pcap radiotap converter got corrupted " "Radiotap header length");
 		// globalreg->messagebus->inject_message(errstr, MSGFLAG_ERROR);
         return 0;
@@ -201,8 +199,8 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 	// null-statement for-loop
     for (last_presentp = &hdr->it_present;
          (EXTRACT_LE_32BITS(last_presentp) & BIT(IEEE80211_RADIOTAP_EXT)) != 0 &&
-         (u_char *) (last_presentp + 1) <= linkchunk->data + 
-		 EXTRACT_LE_16BITS(&(hdr->it_len)); last_presentp++);
+         (const u_char *) (last_presentp + 1) <= (const u_char *) linkchunk->data.data() + 
+         EXTRACT_LE_16BITS(&(hdr->it_len)); last_presentp++);
 
     /* are there more bitmap extensions than bytes in header? */
     if ((EXTRACT_LE_32BITS(last_presentp) & BIT(IEEE80211_RADIOTAP_EXT)) != 0) {
@@ -216,10 +214,10 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 
 	decapchunk->dlt = KDLT_IEEE802_11;
 	
-    iter = (u_char*)(last_presentp + 1); 
+    iter = (const u_char*) (last_presentp + 1); 
     // Alignment in Radiotap must be done from the beginning of the header, 
     // not from the byte following the last bitmap. 
-    iter_start = (u_char*)(linkchunk->data); 
+    iter_start = (const u_char*) (linkchunk->data.data()); 
 
     bool assigned_signal = false;
 
@@ -411,7 +409,9 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
         record_num++;
     }
 
-	if (EXTRACT_LE_16BITS(&(hdr->it_len)) + fcs_cut > (int) linkchunk->length) {
+    auto offset = EXTRACT_LE_16BITS(&(hdr->it_len));
+
+	if (offset + fcs_cut > (int) linkchunk->data.length()) {
 		/*
 		_MSG("Pcap Radiotap converter got corrupted Radiotap frame, not "
 			 "long enough for radiotap header plus indicated FCS", MSGFLAG_ERROR);
@@ -419,9 +419,7 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
         return 0;
 	}
 
-    decapchunk->set_data(linkchunk->data + EXTRACT_LE_16BITS(&(hdr->it_len)),
-            (linkchunk->length - EXTRACT_LE_16BITS(&(hdr->it_len)) - 
-             fcs_cut), false);
+    decapchunk->set_data(linkchunk->data.substr(offset, linkchunk->data.length() - offset));
 
 	in_pack->insert(pack_comp_radiodata, radioheader);
 	in_pack->insert(pack_comp_decap, decapchunk);
@@ -429,10 +427,10 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
     std::shared_ptr<kis_packet_checksum> fcschunk;
 
     // If we're slicing the FCS into its own record and we have the space
-	if (fcs_cut && linkchunk->length > 4) {
+	if (fcs_cut && linkchunk->data.length() > 4) {
 		fcschunk = std::make_shared<kis_packet_checksum>();
 
-		fcschunk->set_data(&(linkchunk->data[linkchunk->length - 4]), 4);
+        fcschunk->set_data(linkchunk->data.substr(linkchunk->data.length() - 4, 4));
 
         // If we know it's invalid already from the flags, flag it, otherwise
         // it's assumed good until proven otherwise
@@ -446,9 +444,8 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
     if (!fcs_cut && fcs_flag_invalid) {
         fcschunk = std::make_shared<kis_packet_checksum>();
        
-        // Set data of all FF, force a copy
-        uint8_t junkfcs[] = {0xFF, 0xFF, 0xFF, 0xFF};
-        fcschunk->set_data(junkfcs, 4, true);
+        char junkfcs[] = "\xFF\xFF\xFF\xFF";
+        fcschunk->set_raw_data(junkfcs, 4);
 
         fcschunk->checksum_valid = 0;
 
@@ -465,16 +462,14 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 
 		// Compare it and flag the packet
 		uint32_t calc_crc =
-			crc32_le_80211(crc32_table, decapchunk->data, decapchunk->length);
+			crc32_le_80211(crc32_table, decapchunk->data.data(), decapchunk->data.length());
         uint32_t flipped_crc = kis_swap32(calc_crc);
+        uint32_t *checksum_ptr = (uint32_t *) fcschunk->data.data();
 
         // compare both representations
-		if (memcmp(fcschunk->checksum_ptr, &calc_crc, 4) &&
-            memcmp(fcschunk->checksum_ptr, &flipped_crc, 4)) {
-            // fprintf(stderr, "debug - radiotap - %d invalid crc from %s\n", packnum, datasrc->ref_source->get_source_name().c_str());
+		if (memcmp(checksum_ptr, &calc_crc, 4) && memcmp(checksum_ptr, &flipped_crc, 4)) {
 			fcschunk->checksum_valid = 0;
 		} else {
-            // fprintf(stderr, "debug - radiotap - crc valid\n");
 			fcschunk->checksum_valid = 1;
 		}
 	}
@@ -496,7 +491,7 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 #undef BIT
 
 // Taken from the BBN USRP 802.11 encoding code
-unsigned int kis_dlt_radiotap::update_crc32_80211(unsigned int crc, const unsigned char *data,
+unsigned int kis_dlt_radiotap::update_crc32_80211(unsigned int crc, const char *data,
         int len, unsigned int poly) {
 	int i, j;
 	unsigned short ch;
@@ -517,16 +512,16 @@ unsigned int kis_dlt_radiotap::update_crc32_80211(unsigned int crc, const unsign
 
 void kis_dlt_radiotap::crc32_init_table_80211(unsigned int *crc32_table) {
 	int i;
-	unsigned char c;
+	char c;
 
 	for (i = 0; i < 256; ++i) {
-		c = (unsigned char) i;
+		c = i;
 		crc32_table[i] = update_crc32_80211(0, &c, 1, IEEE_802_3_CRC32_POLY);
 	}
 }
 
 unsigned int kis_dlt_radiotap::crc32_le_80211(unsigned int *crc32_table, 
-        const unsigned char *buf, int len) {
+        const char *buf, int len) {
 	int i;
 	unsigned int crc = 0xFFFFFFFF;
 

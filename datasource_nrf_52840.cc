@@ -20,10 +20,10 @@
 
 unsigned char hextobytel(char s);
 
-void kis_datasource_nrf52840::handle_rx_packet(std::shared_ptr<kis_packet> packet) {
+void kis_datasource_nrf52840:::handle_rx_datalayer(std::shared_ptr<kis_packet> packet, 
+        const KismetDatasource::SubPacket& report) {
 
-    auto nrf_chunk = 
-        packet->fetch<kis_datachunk>(pack_comp_linkframe);
+    auto& rxdata = report.data(;
 
     uint8_t c_payload[255];
     memset(c_payload, 0x00, 255);
@@ -44,8 +44,8 @@ void kis_datasource_nrf52840::handle_rx_packet(std::shared_ptr<kis_packet> packe
     */
 
     //printf("nrf52840 datasource got a packet\n");
-    for (unsigned int i = 0; i < nrf_chunk->length; i++) {
-        if (nrf_chunk->data[i] == ':') {
+    for (unsigned int i = 0; i < rxdata.length(); i++) {
+        if (rxdata[i] == ':') {
             loc[li] = i;
             li++;
             if (li > 4)
@@ -57,19 +57,21 @@ void kis_datasource_nrf52840::handle_rx_packet(std::shared_ptr<kis_packet> packe
     unsigned int chunk_start = loc[0] + 2;
     unsigned int chunk_str_len = (loc[1] - loc[0] - 1 - (strlen("payload")));
     unsigned int payload_len = chunk_str_len;
-    if (chunk_start > nrf_chunk->length || chunk_str_len >= nrf_chunk->length) {
+    if (chunk_start > rxdata.length() || chunk_str_len >= rxdata.length()) {
+        packet->error = 1;
         return;
     }
-    memcpy(c_payload, &nrf_chunk->data[chunk_start], chunk_str_len);
+    memcpy(c_payload, &rxdata.data()[chunk_start], chunk_str_len);
 
     // copy over the power/rssi
     chunk_start = loc[1] + 2;
     chunk_str_len = (loc[2] - loc[1] - 2 - (strlen("lqi")));
-    if (chunk_start > nrf_chunk->length || chunk_str_len >= nrf_chunk->length) {
+    if (chunk_start > rxdata.length() || chunk_str_len >= rxdata.length()) {
+        packet->error = 1;
         return;
     }
 
-    memcpy(tmp, &nrf_chunk->data[chunk_start], chunk_str_len);
+    memcpy(tmp, &rxdata.data()[chunk_start], chunk_str_len);
     rssi = atoi(tmp);
     memset(tmp, 0x00, 16);
 
@@ -87,14 +89,15 @@ void kis_datasource_nrf52840::handle_rx_packet(std::shared_ptr<kis_packet> packe
     }
 
     nrf_payload_len = c;
-    uint8_t channel = nrf_chunk->data[2];
+    uint8_t channel = rxdata[2];
 
     // No good way to do packet validation that I know of at the moment.
 
     // We can make a valid payload from this much
     auto conv_buf_len = sizeof(_802_15_4_tap) + nrf_payload_len;
-    _802_15_4_tap *conv_header = reinterpret_cast<_802_15_4_tap *>(new uint8_t[conv_buf_len]);
-    memset(conv_header, 0, conv_buf_len);
+    std::string conv_buf;
+    conv_buf.resize(conv_buf_len, 0);
+    _802_15_4_tap *conv_header = reinterpret_cast<_802_15_4_tap *>(conv_buf.data());
 
     // Copy the actual packet payload into the header
     memcpy(conv_header->payload, payload, nrf_payload_len);
@@ -119,8 +122,29 @@ void kis_datasource_nrf52840::handle_rx_packet(std::shared_ptr<kis_packet> packe
    
     // size
     conv_header->length = kis_htole16(sizeof(_802_15_4_tap)); 
-    nrf_chunk->set_data((uint8_t *) conv_header, conv_buf_len, false);
-    nrf_chunk->dlt = KDLT_IEEE802_15_4_TAP;
+
+
+
+    // Put the modified data into the packet & fill in the rest of the base data info
+    auto datachunk = std::make_shared<kis_datachunk>();
+
+    if (clobber_timestamp && get_source_remote()) {
+        gettimeofday(&(packet->ts), NULL);
+    } else {
+        packet->ts.tv_sec = report.time_sec();
+        packet->ts.tv_usec = report.time_usec();
+    }
+
+    datachunk->dlt = KDLT_IEEE802_15_4_TAP;
+
+    packet->set_data(conv_buf);
+    datachunk->set_data(packet->data);
+
+    get_source_packet_size_rrd()->add_sample(conv_buf.length(), time(0));
+
+    packet->insert(pack_comp_linkframe, datachunk);
+
+
 
     auto radioheader = std::make_shared<kis_layer1_packinfo>();
     radioheader->signal_type = kis_l1_signal_type_dbm;
@@ -128,9 +152,6 @@ void kis_datasource_nrf52840::handle_rx_packet(std::shared_ptr<kis_packet> packe
     radioheader->freq_khz = (2405 + ((channel - 11) * 5)) * 1000;
     radioheader->channel = fmt::format("{}", (channel));
     packet->insert(pack_comp_radiodata, radioheader);
-
-	// Pass the packet on
-    kis_datasource::handle_rx_packet(packet);    
 }
 
 unsigned char hextobytel(char s) {
