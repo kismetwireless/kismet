@@ -127,11 +127,13 @@ public:
 
     void set_data(const std::string& sdata) {
         raw_data = sdata;
+        data = nonstd::string_view{raw_data};
     }
 
     template<typename T>
     void set_data(const T* tdata, size_t len) {
         raw_data = std::string(tdata, len);
+        data = nonstd::string_view{raw_data};
     }
 
     // Preferred smart pointers
@@ -281,7 +283,7 @@ public:
 
     virtual void copy_raw_data(const std::string& sdata) {
         raw_data_ = sdata;
-        nonstd::string_view::operator=(raw_data_);
+        nonstd::string_view::operator=(sdata);
     }
 
     template<typename T>
@@ -293,7 +295,6 @@ public:
     std::string& raw() {
         return raw_data_;
     }
-
 };
 
 // Arbitrary data blob which gets logged into the DATA table in the kismet log
