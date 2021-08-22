@@ -995,7 +995,7 @@ int kis_database_logfile::log_packet(std::shared_ptr<kis_packet> in_pack) {
             sqlite3_bind_double(packet_stmt, sql_pos++, 0);
         }
 
-        sqlite3_bind_int64(packet_stmt, sql_pos++, chunk->length);
+        sqlite3_bind_int64(packet_stmt, sql_pos++, chunk->length());
 
         if (radioinfo != nullptr) {
             sqlite3_bind_int(packet_stmt, sql_pos++, radioinfo->signal_dbm);
@@ -1007,7 +1007,7 @@ int kis_database_logfile::log_packet(std::shared_ptr<kis_packet> in_pack) {
                 sourceuuidstring.length(), SQLITE_TRANSIENT);
 
         sqlite3_bind_int(packet_stmt, sql_pos++, chunk->dlt);
-        sqlite3_bind_blob(packet_stmt, sql_pos++, (const char *) chunk->data, chunk->length, 0);
+        sqlite3_bind_blob(packet_stmt, sql_pos++, (const char *) chunk->data(), chunk->length(), 0);
 
         sqlite3_bind_int(packet_stmt, sql_pos++, in_pack->error);
 

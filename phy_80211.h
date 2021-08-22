@@ -109,7 +109,6 @@ class dot11_packinfo_dot11d_entry {
 class dot11_packinfo : public packet_component {
     public:
         dot11_packinfo() {
-            self_destruct = 1; // Our delete() handles this
             corrupt = 0;
             header_offset = 0;
             type = packet_unknown;

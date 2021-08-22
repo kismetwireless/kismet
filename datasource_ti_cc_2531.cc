@@ -23,7 +23,6 @@ void kis_datasource_ticc2531::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
 
     auto& rxdata = report.data();
 
-
     // If we can't validate the basics of the packet at the phy capture level, throw it out.
    
     if (rxdata.length() < 8) {
@@ -91,11 +90,7 @@ void kis_datasource_ticc2531::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
         }
 
         // Override the DLT if we have one
-        if (get_source_override_linktype()) {
-            datachunk->dlt = get_source_override_linktype();
-        } else {
-            datachunk->dlt = report.dlt();
-        }
+        datachunk->dlt = KDLT_IEEE802_15_4_TAP;
 
         packet->set_data(conv_buf);
         datachunk->set_data(packet->data);

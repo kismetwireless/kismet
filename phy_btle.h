@@ -189,7 +189,7 @@ public:
             shared_tracker_element in_device) override;
 
     /* From the BTLE spec and Wireshark */
-    static uint32_t calc_btle_crc(uint32_t crc_init, uint8_t *data, size_t len);
+    static uint32_t calc_btle_crc(uint32_t crc_init, const char *data, size_t len);
     static uint32_t reverse_bits(const uint32_t val);
 
 protected:

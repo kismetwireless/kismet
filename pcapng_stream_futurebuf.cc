@@ -303,7 +303,7 @@ int pcapng_stream_futurebuf::pcapng_write_packet(std::shared_ptr<kis_packet> in_
     std::shared_ptr<char> buf;
 
     // Total buffer size starts header + data + options + end of option
-    size_t buf_sz = sizeof(pcapng_epb_t) + PAD_TO_32BIT(in_data->length) + sizeof(pcapng_option_t);
+    size_t buf_sz = sizeof(pcapng_epb_t) + PAD_TO_32BIT(in_data->length()) + sizeof(pcapng_option_t);
 
     // Optionally we add the GPS option into the total length
     size_t gps_len = 0;
@@ -347,14 +347,14 @@ int pcapng_stream_futurebuf::pcapng_write_packet(std::shared_ptr<kis_packet> in_
     epb->timestamp_high = (conv_ts >> 32);
     epb->timestamp_low = conv_ts;
 
-    epb->captured_length = in_data->length;
-    epb->original_length = in_data->length;
+    epb->captured_length = in_data->length();
+    epb->original_length = in_data->length();
 
     // Copy the data after the epb header
-    memcpy(buf.get() + sizeof(pcapng_epb_t), in_data->data, in_data->length);
+    memcpy(buf.get() + sizeof(pcapng_epb_t), in_data->data(), in_data->length());
 
     // Offset to the end of the epb header + data + pad
-    size_t opt_offt = sizeof(pcapng_epb_t) + PAD_TO_32BIT(in_data->length);
+    size_t opt_offt = sizeof(pcapng_epb_t) + PAD_TO_32BIT(in_data->length());
 
     if (gpsinfo != nullptr && gpsinfo->fix >= 2) {
         auto gopt = reinterpret_cast<pcapng_custom_option_t *>(buf.get() + opt_offt);

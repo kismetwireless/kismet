@@ -57,7 +57,6 @@ void kis_datasource_nrf51822::handle_rx_datalayer(
     unsigned char pkt[255];
     memset(pkt, 0x00, 255);
     int pkt_ctr = 0;
-    // first lets just print it what we are getting out
 
     /* the packets they have a padded byte at offset 16.
      * if there is a better way to remove the header < 10
@@ -136,12 +135,7 @@ void kis_datasource_nrf51822::handle_rx_datalayer(
             packet->ts.tv_usec = report.time_usec();
         }
 
-        // Override the DLT if we have one
-        if (get_source_override_linktype()) {
-            datachunk->dlt = get_source_override_linktype();
-        } else {
-            datachunk->dlt = KDLT_BTLE_RADIO;
-        }
+        datachunk->dlt = KDLT_BTLE_RADIO;
 
         packet->set_data(conv_buf);
         datachunk->set_data(packet->data);

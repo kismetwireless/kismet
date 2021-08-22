@@ -53,9 +53,7 @@
 
 class btle_packinfo : public packet_component {
 public:
-    btle_packinfo() {
-        self_destruct = 1;
-    }
+    btle_packinfo() { }
 
     std::shared_ptr<bluetooth_btle> btle_decode;
 };
@@ -82,7 +80,7 @@ public:
  *
  * Taken from the Wireshark implementation
  */
-uint32_t kis_btle_phy::calc_btle_crc(uint32_t crc_init, uint8_t *payload, size_t len) {
+uint32_t kis_btle_phy::calc_btle_crc(uint32_t crc_init, const char *payload, size_t len) {
     static const uint16_t btle_crc_next_state_flips[256] = {
         0x0000, 0x32d8, 0x196c, 0x2bb4, 0x0cb6, 0x3e6e, 0x15da, 0x2702,
         0x065b, 0x3483, 0x1f37, 0x2def, 0x0aed, 0x3835, 0x1381, 0x2159,
@@ -240,21 +238,21 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
     // do a checksum now.  We assume the last 3 bytes are the checksum.
     if (!in_pack->crc_ok) {
         // We need at least the AA, header, and CRC bytes
-        if (packdata->length < (4 + 2 + 3)) {
+        if (packdata->length() < (4 + 2 + 3)) {
             in_pack->error = 1;
             return 0;
         }
 
         uint32_t line_crc;
         line_crc = 
-            packdata->data[packdata->length - 3] << 16 |
-            packdata->data[packdata->length - 2] << 8 |
-            packdata->data[packdata->length - 1];
+            packdata->data()[packdata->length() - 3] << 16 |
+            packdata->data()[packdata->length() - 2] << 8 |
+            packdata->data()[packdata->length() - 1];
 
         // Get the CRC as if it was a broadcast; we'll redo this later if we get
         // data packets
-        uint32_t packet_crc = calc_btle_crc(0x555555, packdata->data, 
-                packdata->length - 3);
+        uint32_t packet_crc = 
+            calc_btle_crc(0x555555, packdata->data(), packdata->length() - 3);
 
         if (reverse_bits(packet_crc) != line_crc) {
             in_pack->error = 1;
@@ -262,7 +260,7 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
         }
     }
 
-    membuf btle_membuf((char *) packdata->data, (char *) &packdata->data[packdata->length]);
+    membuf btle_membuf((char *) packdata->data(), (char *) &packdata->data()[packdata->length()]);
     std::istream btle_istream(&btle_membuf);
     auto btle_stream = std::make_shared<kaitai::kstream>(&btle_istream);
 

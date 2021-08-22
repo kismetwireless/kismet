@@ -189,7 +189,7 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
         return 0;
     }
 
-    if (chunk->length > MAX_PACKET_LEN) {
+    if (chunk->length() > MAX_PACKET_LEN) {
         _MSG("Weird frame in pcap logger with the wrong size...", MSGFLAG_ERROR);
         return 0;
     }
@@ -198,7 +198,7 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
 
     unsigned int dump_len = 0;
     if (chunk != NULL)
-        dump_len += chunk->length;
+        dump_len += chunk->length();
 
     u_char *dump_data = NULL;
 
@@ -433,13 +433,13 @@ int kis_ppi_logfile::packet_handler(CHAINCALL_PARMS) {
 
     // copy the packet content in, offset if necessary
     if (chunk != NULL) {
-        memcpy(&(dump_data[dump_offset]), chunk->data, chunk->length);
-        dump_offset += chunk->length;
+        memcpy(&(dump_data[dump_offset]), chunk->data(), chunk->length());
+        dump_offset += chunk->length();
     }
 
     // Lousy little hack to append the FCS after the data in PPI
     if (fcsdata != NULL && chunk != NULL && radioinfo != NULL) {
-        memcpy(&(dump_data[dump_offset]), fcsdata->data, 4);
+        memcpy(&(dump_data[dump_offset]), fcsdata->data(), 4);
         dump_offset += 4;
     }
 

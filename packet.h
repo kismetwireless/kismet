@@ -168,6 +168,14 @@ public:
 
     void erase(const unsigned int index);
 
+    bool has(const unsigned int index) const {
+        if (index >= MAX_PACKET_COMPONENTS)
+            throw std::runtime_error(fmt::format("invalid packet component index {} greater than {}",
+                        index, MAX_PACKET_COMPONENTS));
+
+        return content_vec[index] != nullptr;
+    }
+
     // Tags applied to the packet
     std::vector<std::string> tag_vec;
 };
@@ -249,13 +257,10 @@ protected:
 };
 
 // Arbitrary data chunk, decapsulated from the link headers
-class kis_datachunk : public packet_component {
+class kis_datachunk : public packet_component, public nonstd::string_view {
 public:
-    // Data window
-    nonstd::string_view data;
-
-    // Underlying raw data, typically unused
-    std::string raw_data;
+    // Underlying raw data if this isn't a subset of another chunk
+    std::string raw_data_;
 
     int dlt;
     uint16_t source_id;
@@ -267,22 +272,28 @@ public:
     virtual ~kis_datachunk() { }
 
     virtual void set_data(const nonstd::string_view& view) {
-        data = view;
-    }
-    virtual void set_data(std::string& data) {
-        data = nonstd::string_view(data);
+        nonstd::string_view::operator=(view);
     }
 
-    virtual void set_raw_data(const std::string& sdata) {
-        raw_data = sdata;
-        data = std::string_view(raw_data);
+    virtual void set_data(std::string& data) {
+        nonstd::string_view::operator=(data);
+    }
+
+    virtual void copy_raw_data(const std::string& sdata) {
+        raw_data_ = sdata;
+        nonstd::string_view::operator=(raw_data_);
     }
 
     template<typename T>
-    void set_raw_data(const T* rd, size_t sz) {
-        raw_data = std::string(rd, sz);
-        data = std::string_view(raw_data);
+    void copy_raw_data(const T* rd, size_t sz) {
+        raw_data_ = std::string(rd, sz);
+        nonstd::string_view::operator=(raw_data_);
     }
+
+    std::string& raw() {
+        return raw_data_;
+    }
+
 };
 
 // Arbitrary data blob which gets logged into the DATA table in the kismet log

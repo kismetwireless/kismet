@@ -108,12 +108,7 @@ void kis_datasource_nxpkw41z::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
             packet->ts.tv_usec = report.time_usec();
         }
 
-        // Override the DLT if we have one
-        if (get_source_override_linktype()) {
-            datachunk->dlt = get_source_override_linktype();
-        } else {
-            datachunk->dlt = KDLT_IEEE802_15_4_TAP;
-        }
+        datachunk->dlt = KDLT_IEEE802_15_4_TAP;
 
         packet->set_data(conv_buf);
         datachunk->set_data(packet->data);
@@ -191,12 +186,7 @@ void kis_datasource_nxpkw41z::handle_rx_datalayer(std::shared_ptr<kis_packet> pa
             packet->ts.tv_usec = report.time_usec();
         }
 
-        // Override the DLT if we have one
-        if (get_source_override_linktype()) {
-            datachunk->dlt = get_source_override_linktype();
-        } else {
-            datachunk->dlt = KDLT_BTLE_RADIO;
-        }
+        datachunk->dlt = KDLT_BTLE_RADIO;
 
         packet->set_data(conv_buf);
         datachunk->set_data(packet->data);

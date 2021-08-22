@@ -128,11 +128,8 @@ kis_dlt_radiotap::kis_dlt_radiotap() :
 #define BITNO_2(x) (((x) & 2) ? 1 : 0)
 #define BIT(n)	(1 << n)
 int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
-    auto decapchunk = in_pack->fetch<kis_datachunk>(pack_comp_decap);
-
-	if (decapchunk != nullptr) {
-		return 1;
-	}
+    if (in_pack->has(pack_comp_decap))
+        return 1;
 
     auto linkchunk = in_pack->fetch<kis_datachunk>(pack_comp_linkframe);
 
@@ -170,9 +167,9 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 
 	u2.u64 = 0;
 
-	struct ieee80211_radiotap_header *hdr;
+	const struct ieee80211_radiotap_header *hdr;
 	u_int32_t present, next_present;
-	u_int32_t *presentp, *last_presentp;
+	const u_int32_t *presentp, *last_presentp;
 	enum ieee80211_radiotap_presence bit;
 	int bit0;
 	const u_char *iter;
@@ -184,13 +181,13 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 
     std::shared_ptr<kis_layer1_packinfo> radioheader;
 
-    if (linkchunk->data.length() < sizeof(*hdr)) {
+    if (linkchunk->length() < sizeof(*hdr)) {
         return 0;
     }
 
 	// Assign it to the callback data
-    hdr = (struct ieee80211_radiotap_header *) linkchunk->data.data();
-    if (linkchunk->data.length() < EXTRACT_LE_16BITS(&hdr->it_len)) {
+    hdr = reinterpret_cast<const struct ieee80211_radiotap_header *>(linkchunk->data());
+    if (linkchunk->length() < EXTRACT_LE_16BITS(&hdr->it_len)) {
 		// snprintf(errstr, STATUS_MAX, "pcap radiotap converter got corrupted " "Radiotap header length");
 		// globalreg->messagebus->inject_message(errstr, MSGFLAG_ERROR);
         return 0;
@@ -199,7 +196,7 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 	// null-statement for-loop
     for (last_presentp = &hdr->it_present;
          (EXTRACT_LE_32BITS(last_presentp) & BIT(IEEE80211_RADIOTAP_EXT)) != 0 &&
-         (const u_char *) (last_presentp + 1) <= (const u_char *) linkchunk->data.data() + 
+         (const u_char *) (last_presentp + 1) <= (const u_char *) linkchunk->data() + 
          EXTRACT_LE_16BITS(&(hdr->it_len)); last_presentp++);
 
     /* are there more bitmap extensions than bytes in header? */
@@ -209,7 +206,7 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
         return 0;
     }
 
-    decapchunk = std::make_shared<kis_datachunk>();
+    auto decapchunk = std::make_shared<kis_datachunk>();
 	radioheader = std::make_shared<kis_layer1_packinfo>();
 
 	decapchunk->dlt = KDLT_IEEE802_11;
@@ -217,7 +214,7 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
     iter = (const u_char*) (last_presentp + 1); 
     // Alignment in Radiotap must be done from the beginning of the header, 
     // not from the byte following the last bitmap. 
-    iter_start = (const u_char*) (linkchunk->data.data()); 
+    iter_start = (const u_char*) (linkchunk->data()); 
 
     bool assigned_signal = false;
 
@@ -411,7 +408,7 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 
     auto offset = EXTRACT_LE_16BITS(&(hdr->it_len));
 
-	if (offset + fcs_cut > (int) linkchunk->data.length()) {
+	if (offset + fcs_cut > (int) linkchunk->length()) {
 		/*
 		_MSG("Pcap Radiotap converter got corrupted Radiotap frame, not "
 			 "long enough for radiotap header plus indicated FCS", MSGFLAG_ERROR);
@@ -419,7 +416,7 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
         return 0;
 	}
 
-    decapchunk->set_data(linkchunk->data.substr(offset, linkchunk->data.length() - offset));
+    decapchunk->set_data(linkchunk->substr(offset, linkchunk->length() - offset));
 
 	in_pack->insert(pack_comp_radiodata, radioheader);
 	in_pack->insert(pack_comp_decap, decapchunk);
@@ -427,10 +424,10 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
     std::shared_ptr<kis_packet_checksum> fcschunk;
 
     // If we're slicing the FCS into its own record and we have the space
-	if (fcs_cut && linkchunk->data.length() > 4) {
+	if (fcs_cut && linkchunk->length() > 4) {
 		fcschunk = std::make_shared<kis_packet_checksum>();
 
-        fcschunk->set_data(linkchunk->data.substr(linkchunk->data.length() - 4, 4));
+        fcschunk->set_data(linkchunk->substr(linkchunk->length() - 4, 4));
 
         // If we know it's invalid already from the flags, flag it, otherwise
         // it's assumed good until proven otherwise
@@ -445,7 +442,7 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
         fcschunk = std::make_shared<kis_packet_checksum>();
        
         char junkfcs[] = "\xFF\xFF\xFF\xFF";
-        fcschunk->set_raw_data(junkfcs, 4);
+        fcschunk->copy_raw_data(junkfcs, 4);
 
         fcschunk->checksum_valid = 0;
 
@@ -462,9 +459,10 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 
 		// Compare it and flag the packet
 		uint32_t calc_crc =
-			crc32_le_80211(crc32_table, decapchunk->data.data(), decapchunk->data.length());
+			crc32_le_80211(crc32_table, decapchunk->data(), decapchunk->length());
         uint32_t flipped_crc = kis_swap32(calc_crc);
-        uint32_t *checksum_ptr = (uint32_t *) fcschunk->data.data();
+
+        auto checksum_ptr = reinterpret_cast<const uint32_t *>(fcschunk->data());
 
         // compare both representations
 		if (memcmp(checksum_ptr, &calc_crc, 4) && memcmp(checksum_ptr, &flipped_crc, 4)) {

@@ -20,10 +20,10 @@
 
 unsigned char hextobytel(char s);
 
-void kis_datasource_nrf52840:::handle_rx_datalayer(std::shared_ptr<kis_packet> packet, 
+void kis_datasource_nrf52840::handle_rx_datalayer(std::shared_ptr<kis_packet> packet, 
         const KismetDatasource::SubPacket& report) {
 
-    auto& rxdata = report.data(;
+    auto& rxdata = report.data();
 
     uint8_t c_payload[255];
     memset(c_payload, 0x00, 255);

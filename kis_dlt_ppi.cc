@@ -68,8 +68,8 @@ int kis_dlt_ppi::handle_packet(std::shared_ptr<kis_packet> in_pack) {
         return 1;
     }
 
-    ppi_packet_header *ppi_ph;
-    ppi_field_header *ppi_fh;
+    const ppi_packet_header *ppi_ph;
+    const ppi_field_header *ppi_fh;
     unsigned int ppi_fh_offt = sizeof(ppi_packet_header);
     unsigned int tuint, ph_len;
     unsigned int ppi_dlt = -1;
@@ -79,15 +79,15 @@ int kis_dlt_ppi::handle_packet(std::shared_ptr<kis_packet> in_pack) {
     std::shared_ptr<kis_layer1_packinfo> radioheader;
     std::shared_ptr<kis_gps_packinfo> gpsinfo;
 
-    if (linkchunk->data.length() < sizeof(ppi_packet_header)) {
+    if (linkchunk->length() < sizeof(ppi_packet_header)) {
         _MSG("pcap PPI converter got runt PPI frame", MSGFLAG_ERROR);
         return 0;
     }
 
-    ppi_ph = (ppi_packet_header *) linkchunk->data.data();
+    ppi_ph = reinterpret_cast<const ppi_packet_header *>(linkchunk->data());
     ph_len = kis_letoh16(ppi_ph->pph_len);
     ppi_dlt = kis_letoh32(ppi_ph->pph_dlt);
-    if (ph_len > linkchunk->data.length()) {
+    if (ph_len > linkchunk->length()) {
         _MSG("pcap PPI converter got invalid/runt PPI frame header", MSGFLAG_ERROR);
         return 0;
     }
@@ -95,18 +95,18 @@ int kis_dlt_ppi::handle_packet(std::shared_ptr<kis_packet> in_pack) {
     // Fix broken kismet dumps where kismet logged the wrong size (always
     // size 24) - if we're size 24, we have a PPI 11n common header, and
     // we can fit it all, then we adjust the header size up
-    if (ph_len == 24 && linkchunk->data.length() > 32) {
-        ppi_fh = (ppi_field_header *) &(linkchunk->data[ppi_fh_offt]);
+    if (ph_len == 24 && linkchunk->length() > 32) {
+        ppi_fh = reinterpret_cast<const ppi_field_header *>(&linkchunk->data()[ppi_fh_offt]);
         if (kis_letoh16(ppi_fh->pfh_datatype) == PPI_FIELD_11COMMON) 
             ph_len = 32;
     }
 
-    while (ppi_fh_offt < linkchunk->data.length() && ppi_fh_offt < ph_len) {
-        ppi_fh = (ppi_field_header *) &(linkchunk->data[ppi_fh_offt]);
+    while (ppi_fh_offt < linkchunk->length() && ppi_fh_offt < ph_len) {
+        ppi_fh = reinterpret_cast<const ppi_field_header *>(&linkchunk->data()[ppi_fh_offt]);
         unsigned int fh_len = kis_letoh16(ppi_fh->pfh_datalen);
         unsigned int fh_type = kis_letoh16(ppi_fh->pfh_datatype);
 
-        if (fh_len > linkchunk->data.length() || fh_len > ph_len) {
+        if (fh_len > linkchunk->length() || fh_len > ph_len) {
             _MSG("pcap PPI converter got corrupt/invalid PPI field length", MSGFLAG_ERROR);
             return 0;
         }
@@ -262,18 +262,18 @@ int kis_dlt_ppi::handle_packet(std::shared_ptr<kis_packet> in_pack) {
     decapchunk->dlt = ppi_dlt;
 
     // Alias the decapsulated data
-    auto len = kismin((linkchunk->data.length() - ph_len - applyfcs), (uint32_t) MAX_PACKET_LEN);
-    decapchunk->set_data(linkchunk->data.substr(ph_len, len));
+    auto len = kismin((linkchunk->length() - ph_len - applyfcs), (uint32_t) MAX_PACKET_LEN);
+    decapchunk->set_data(linkchunk->substr(ph_len, len));
 
     if (radioheader != NULL)
         in_pack->insert(pack_comp_radiodata, radioheader);
     in_pack->insert(pack_comp_decap, decapchunk);
 
     std::shared_ptr<kis_packet_checksum> fcschunk;
-    if (applyfcs && linkchunk->data.length() > 4) {
+    if (applyfcs && linkchunk->length() > 4) {
         fcschunk = std::make_shared<kis_packet_checksum>();
 
-        fcschunk->set_data(linkchunk->data.substr(linkchunk->data.length() - 4, 4));
+        fcschunk->set_data(linkchunk->substr(linkchunk->length() - 4, 4));
 
         // Listen to the PPI file for known bad, regardless if we have validate
         // turned on or not

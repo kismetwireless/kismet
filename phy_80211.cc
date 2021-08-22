@@ -710,23 +710,23 @@ kis_80211_phy::kis_80211_phy(int in_phyid) :
                     "IEEE802.11 Access Points",
                     [this](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
                     auto dot11 =
-                    dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+                        dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
 
                     if (dot11 == nullptr)
-                    return false;
+                        return false;
 
                     if (dot11->get_type_set() & (DOT11_DEVICE_TYPE_BEACON_AP | DOT11_DEVICE_TYPE_PROBE_AP |
                                 DOT11_DEVICE_TYPE_ADHOC))
-                    return true;
+                        return true;
 
                     return false;
                     },
                     [this](std::shared_ptr<kis_tracked_device_base> dev) -> bool {
                     auto dot11 =
-                    dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
+                        dev->get_sub_as<dot11_tracked_device>(dot11_device_entry_id);
 
                     if (dot11 == nullptr)
-                    return false;
+                        return false;
 
                     if (dot11->get_type_set() & (DOT11_DEVICE_TYPE_BEACON_AP | DOT11_DEVICE_TYPE_PROBE_AP |
                                 DOT11_DEVICE_TYPE_ADHOC))
@@ -2347,7 +2347,7 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
             beacon_packet->set_dlt(chunk->dlt);
             beacon_packet->set_source(chunk->source_id);
 
-            beacon_packet->get_data()->set(chunk->data, chunk->length);
+            beacon_packet->get_data()->set(chunk->data(), chunk->length());
         }
 
     }

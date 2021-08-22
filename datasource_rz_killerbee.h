@@ -58,7 +58,8 @@ public:
     virtual ~kis_datasource_rzkillerbee() { };
 
 protected:
-    virtual void handle_rx_packet(std::shared_ptr<kis_packet> packet) override;
+    virtual void handle_rx_datalayer(std::shared_ptr<kis_packet> packet, 
+            const KismetDatasource::SubPacket& report) override;
 
     int pack_comp_decap, pack_comp_radiodata;
 };
