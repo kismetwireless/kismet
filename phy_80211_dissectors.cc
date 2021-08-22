@@ -296,8 +296,9 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
     }
 
     // If we don't have a dot11 frame, throw it away
-    if (chunk->dlt != KDLT_IEEE802_11)
+    if (chunk->dlt != KDLT_IEEE802_11) {
         return 0;
+    }
 
     // Flat-out dump if it's not big enough to be 80211, don't even bother making a
     // packinfo record for it because we're completely broken

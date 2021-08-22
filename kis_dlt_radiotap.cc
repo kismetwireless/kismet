@@ -188,8 +188,6 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 	// Assign it to the callback data
     hdr = reinterpret_cast<const struct ieee80211_radiotap_header *>(linkchunk->data());
     if (linkchunk->length() < EXTRACT_LE_16BITS(&hdr->it_len)) {
-		// snprintf(errstr, STATUS_MAX, "pcap radiotap converter got corrupted " "Radiotap header length");
-		// globalreg->messagebus->inject_message(errstr, MSGFLAG_ERROR);
         return 0;
     }
 

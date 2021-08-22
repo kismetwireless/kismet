@@ -1006,8 +1006,9 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
     kis_80211_phy *d11phy = (kis_80211_phy *) auxdata;
 
     // Don't process errors, blocked, or dupes
-    if (in_pack->error || in_pack->filtered || in_pack->duplicate)
+    if (in_pack->error || in_pack->filtered || in_pack->duplicate) {
         return 0;
+    }
 
     // Get the 802.11 info
     auto dot11info = in_pack->fetch<dot11_packinfo>(d11phy->pack_comp_80211);
