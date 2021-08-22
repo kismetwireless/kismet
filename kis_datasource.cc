@@ -1328,7 +1328,7 @@ void kis_datasource::handle_rx_datalayer(std::shared_ptr<kis_packet> packet,
         datachunk->dlt = report.dlt();
     }
 
-    packet->set_data(report.data().data());
+    packet->set_data(report.data());
     datachunk->set_data(packet->data);
 
     get_source_packet_size_rrd()->add_sample(report.data().length(), time(0));
