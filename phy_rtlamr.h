@@ -175,15 +175,15 @@ class kis_rtlamr_phy : public kis_phy_handler {
 public:
     virtual ~kis_rtlamr_phy();
 
-    kis_rtlamr_phy(global_registry *in_globalreg) :
-        kis_phy_handler(in_globalreg) { };
+    kis_rtlamr_phy() :
+        kis_phy_handler() { };
 
 	// Build a strong version of ourselves
-	virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg, int in_phyid) override {
-		return new kis_rtlamr_phy(in_globalreg, in_phyid);
+	virtual kis_phy_handler *create_phy_handler(int in_phyid) override {
+		return new kis_rtlamr_phy(in_phyid);
 	}
 
-    kis_rtlamr_phy(global_registry *in_globalreg, int in_phyid);
+    kis_rtlamr_phy(int in_phyid);
 
     static int PacketHandler(CHAINCALL_PARMS);
 
@@ -193,7 +193,7 @@ protected:
 
     // convert to a device record & push into device tracker, return false
     // if we can't do anything with it
-    bool json_to_rtl(Json::Value in_json, kis_packet *packet);
+    bool json_to_rtl(Json::Value in_json, std::shared_ptr<kis_packet> packet);
 
     bool is_amr_meter(Json::Value json);
 

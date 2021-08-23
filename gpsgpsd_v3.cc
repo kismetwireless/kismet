@@ -624,7 +624,11 @@ void kis_gps_gpsd_v3::handle_read(std::shared_ptr<kis_gps_gpsd_v3> ref,
 
     last_data_time = time(0);
 
+    set_int_gps_data_time(last_data_time);
+
     if (set_alt || set_speed || set_lat_lon || set_fix || set_heading) {
+        set_int_gps_signal_time(last_data_time);
+
         if (gps_location != NULL) {
             // Copy the current location to the last one
             if (gps_last_location != NULL)

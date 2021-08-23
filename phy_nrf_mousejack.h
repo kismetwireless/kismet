@@ -90,15 +90,15 @@ protected:
 
 class Kis_Mousejack_Phy : public kis_phy_handler {
 public:
-    Kis_Mousejack_Phy(global_registry *in_globalreg) :
-        kis_phy_handler(in_globalreg) { }
+    Kis_Mousejack_Phy() :
+        kis_phy_handler() { }
 
-    Kis_Mousejack_Phy(global_registry *in_globalreg, int in_phyid);
+    Kis_Mousejack_Phy(int in_phyid);
 
     virtual ~Kis_Mousejack_Phy();
 
-    virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg, int in_phyid) {
-        return new Kis_Mousejack_Phy(in_globalreg, in_phyid);
+    virtual kis_phy_handler *create_phy_handler(int in_phyid) {
+        return new Kis_Mousejack_Phy(in_phyid);
     }
 
     static int DissectorMousejack(CHAINCALL_PARMS);

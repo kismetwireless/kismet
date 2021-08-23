@@ -46,8 +46,8 @@
 uint8_t chan = 0;
 uint8_t sigstr = 0;
 
-//802.15.4 header
-struct _802_15_4_fcf{
+// 802.15.4 header
+struct _802_15_4_fcf {
     unsigned char type : 3;
     unsigned char security : 1;
     unsigned char pending : 1;
@@ -84,8 +84,8 @@ struct fcf_z{
 fcf_z * fcf_zzh;
 
 
-kis_802154_phy::kis_802154_phy(global_registry *in_globalreg, int in_phyid) :
-    kis_phy_handler(in_globalreg, in_phyid) {
+kis_802154_phy::kis_802154_phy(int in_phyid) :
+    kis_phy_handler(in_phyid) {
 
     set_phy_name("802.15.4");
 
@@ -126,7 +126,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
     _802_15_4_tap *tap_header = nullptr;
 
     unsigned short fcf = 0;
-    _802_15_4_fcf *hdr_802_15_4_fcf = reinterpret_cast<_802_15_4_fcf *>(&fcf);
+    auto hdr_802_15_4_fcf = reinterpret_cast<_802_15_4_fcf *>(&fcf);
 
     if (packdata == NULL)
         return 0;
@@ -139,7 +139,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
         return 0;
 
     // Do we have enough data for an OUI? and are within the Zigbee spec
-    if (packdata->length < 6 || packdata->length > 128)
+    if (packdata->length() < 6 || packdata->length() > 128)
         return 0;
 
     // Did something already classify this?
@@ -153,7 +153,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
         uint64_t tap_header_size = sizeof(_802_15_4_tap);
         uint8_t tmp_header[32];
         memset(tmp_header, 0x00, 32);
-        memcpy(tmp_header, &packdata->data[pkt_ctr], tap_header_size);
+        memcpy(tmp_header, &packdata->data()[pkt_ctr], tap_header_size);
         tap_header = (_802_15_4_tap *) &tmp_header;
 
         // Really we are going to want to iterate through them to pull them
@@ -164,18 +164,18 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
     }
 
     // Are we more than just a header?
-    if (pkt_ctr >= packdata->length)
+    if (pkt_ctr >= packdata->length())
         return 0;
 
     if (packdata->dlt == KDLT_IEEE802_15_4_NOFCS ||
         packdata->dlt == KDLT_IEEE802_15_4_TAP) {
 
         // Do we have enough for the frame control field?
-        if (pkt_ctr + 2 >= packdata->length)
+        if (pkt_ctr + 2 >= packdata->length())
             return 0;
 
-        fcf = (((short) packdata->data[pkt_ctr + 1]) << 8) |
-            (0x00ff & packdata->data[pkt_ctr]);
+        fcf = (((short) packdata->data()[pkt_ctr + 1]) << 8) |
+            (0x00ff & packdata->data()[pkt_ctr]);
 
         pkt_ctr += 2;
 
@@ -263,42 +263,42 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
             return 0;
         } else if (hdr_802_15_4_fcf->dest_addr_mode == 0x02) {
             // We would go past the end to check this
-            if ((pkt_ctr + 4) >= packdata->length)
+            if ((pkt_ctr + 4) >= packdata->length())
                 return 0;
 
-            dest[1] = packdata->data[pkt_ctr];
-            dest[0] = packdata->data[pkt_ctr + 1];
+            dest[1] = packdata->data()[pkt_ctr];
+            dest[0] = packdata->data()[pkt_ctr + 1];
             pkt_ctr += 2;
 
-            dest_pan[1] = packdata->data[pkt_ctr];
-            dest_pan[0] = packdata->data[pkt_ctr + 1];
+            dest_pan[1] = packdata->data()[pkt_ctr];
+            dest_pan[0] = packdata->data()[pkt_ctr + 1];
             pkt_ctr += 2;
         } else if (hdr_802_15_4_fcf->dest_addr_mode == 0x03) {
             // We would go past the end to check this
-            if ((pkt_ctr + 10) >= packdata->length)
+            if ((pkt_ctr + 10) >= packdata->length())
                 return 0;
 
             // Length means we actually have an extended dest
-            dest[1] = packdata->data[pkt_ctr];
-            dest[0] = packdata->data[pkt_ctr + 1];
+            dest[1] = packdata->data()[pkt_ctr];
+            dest[0] = packdata->data()[pkt_ctr + 1];
             pkt_ctr += 2;
 
             // Extended dest which is what were are looking for
-            ext_dest[7] = packdata->data[pkt_ctr];
+            ext_dest[7] = packdata->data()[pkt_ctr];
             pkt_ctr++;
-            ext_dest[6] = packdata->data[pkt_ctr];
+            ext_dest[6] = packdata->data()[pkt_ctr];
             pkt_ctr++;
-            ext_dest[5] = packdata->data[pkt_ctr];
+            ext_dest[5] = packdata->data()[pkt_ctr];
             pkt_ctr++;
-            ext_dest[4] = packdata->data[pkt_ctr];
+            ext_dest[4] = packdata->data()[pkt_ctr];
             pkt_ctr++;
-            ext_dest[3] = packdata->data[pkt_ctr];
+            ext_dest[3] = packdata->data()[pkt_ctr];
             pkt_ctr++;
-            ext_dest[2] = packdata->data[pkt_ctr];
+            ext_dest[2] = packdata->data()[pkt_ctr];
             pkt_ctr++;
-            ext_dest[1] = packdata->data[pkt_ctr];
+            ext_dest[1] = packdata->data()[pkt_ctr];
             pkt_ctr++;
-            ext_dest[0] = packdata->data[pkt_ctr];
+            ext_dest[0] = packdata->data()[pkt_ctr];
             pkt_ctr++;
         }
 
@@ -309,54 +309,54 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
         } else if (hdr_802_15_4_fcf->src_addr_mode == 0x02) {
             if (!hdr_802_15_4_fcf->pan_id_comp) {
                 // We would go past the end to check this
-                if((pkt_ctr + 2) >= packdata->length)
+                if ((pkt_ctr + 2) >= packdata->length())
                     return 0;
                 // src pan
-                src_pan[1] = packdata->data[pkt_ctr];
-                src_pan[0] = packdata->data[pkt_ctr + 1];
+                src_pan[1] = packdata->data()[pkt_ctr];
+                src_pan[0] = packdata->data()[pkt_ctr + 1];
                 pkt_ctr += 2;
             }
 
             // We would go past the end to check this
-            if ((pkt_ctr + 2) >= packdata->length)
+            if ((pkt_ctr + 2) >= packdata->length())
                 return 0;
 
-            src[1] = packdata->data[pkt_ctr];
-            src[0] = packdata->data[pkt_ctr + 1];
+            src[1] = packdata->data()[pkt_ctr];
+            src[0] = packdata->data()[pkt_ctr + 1];
             pkt_ctr += 2;
         } else if (hdr_802_15_4_fcf->src_addr_mode == 0x03) {
             // srcpan
             // extended source
             if (!hdr_802_15_4_fcf->pan_id_comp) {
                 // We would go past the end to check this
-                if ((pkt_ctr + 2) >= packdata->length)
+                if ((pkt_ctr + 2) >= packdata->length())
                     return 0;
 
-                src_pan[1] = packdata->data[pkt_ctr];
-                src_pan[0] = packdata->data[pkt_ctr + 1];
+                src_pan[1] = packdata->data()[pkt_ctr];
+                src_pan[0] = packdata->data()[pkt_ctr + 1];
                 pkt_ctr += 2;
             }
 
             // We would go past the end to check this
-            if ((pkt_ctr + 8) >= packdata->length)
+            if ((pkt_ctr + 8) >= packdata->length())
                 return 0;
 
             // extended source which is what were are looking for
-            ext_source[7] = packdata->data[pkt_ctr];
+            ext_source[7] = packdata->data()[pkt_ctr];
             pkt_ctr++;
-            ext_source[6] = packdata->data[pkt_ctr];
+            ext_source[6] = packdata->data()[pkt_ctr];
             pkt_ctr++;
-            ext_source[5] = packdata->data[pkt_ctr];
+            ext_source[5] = packdata->data()[pkt_ctr];
             pkt_ctr++;
-            ext_source[4] = packdata->data[pkt_ctr];
+            ext_source[4] = packdata->data()[pkt_ctr];
             pkt_ctr++;
-            ext_source[3] = packdata->data[pkt_ctr];
+            ext_source[3] = packdata->data()[pkt_ctr];
             pkt_ctr++;
-            ext_source[2] = packdata->data[pkt_ctr];
+            ext_source[2] = packdata->data()[pkt_ctr];
             pkt_ctr++;
-            ext_source[1] = packdata->data[pkt_ctr];
+            ext_source[1] = packdata->data()[pkt_ctr];
             pkt_ctr++;
-            ext_source[0] = packdata->data[pkt_ctr];
+            ext_source[0] = packdata->data()[pkt_ctr];
             pkt_ctr++;
         }
     }
@@ -449,7 +449,7 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
     // Setting the source and dest
     if (hdr_802_15_4_fcf->src_addr_mode >= 0x02 ||
         hdr_802_15_4_fcf->dest_addr_mode >= 0x02) {
-        common = new kis_common_info;
+        common = std::make_shared<kis_common_info>();
         common->phyid = mphy->fetch_phy_id();
         common->basic_crypt_set = crypt_none;
         common->type = packet_basic_data;

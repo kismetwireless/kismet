@@ -159,6 +159,54 @@ kismet_ui.AddDeviceDetail("rtl433", "RTL-433 (SDR)", 0, {
                 ]
             },
             {
+                field: "rtl433.device/rtl433.device.switch",
+                groupTitle: "Switch",
+                id: "group_switch_data",
+                filterOnEmpty: true,
+                fields: [
+                {
+                    field: "rtl433.device/rtl433.device.switch/rtl433.device.switch.1",
+                    title: "Switch 1",
+                    filterOnEmpty: true,
+                    render: function(opts) {
+                        return opts['value'];
+                    }
+                },
+                {
+                    field: "rtl433.device/rtl433.device.switch/rtl433.device.switch.2",
+                    title: "Switch 2",
+                    filterOnEmpty: true,
+                    render: function(opts) {
+                        return opts['value'];
+                    }
+                },
+                {
+                    field: "rtl433.device/rtl433.device.switch/rtl433.device.switch.3",
+                    title: "Switch 3",
+                    filterOnEmpty: true,
+                    render: function(opts) {
+                        return opts['value'];
+                    }
+                },
+                {
+                    field: "rtl433.device/rtl433.device.switch/rtl433.device.switch.4",
+                    title: "Switch 4",
+                    filterOnEmpty: true,
+                    render: function(opts) {
+                        return opts['value'];
+                    }
+                },
+                {
+                    field: "rtl433.device/rtl433.device.switch/rtl433.device.switch.5",
+                    title: "Switch 5",
+                    filterOnEmpty: true,
+                    render: function(opts) {
+                        return opts['value'];
+                    }
+                },
+                ]
+            },
+            {
                 field: "rtl433.device/rtl433.device.lightningsensor",
                 groupTitle: "Lightning Sensor",
                 id: "group_lightning_data",

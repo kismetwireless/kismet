@@ -37,8 +37,8 @@
 #include "manuf.h"
 #include "messagebus.h"
 
-Kis_Mousejack_Phy::Kis_Mousejack_Phy(global_registry *in_globalreg, int in_phyid) :
-    kis_phy_handler(in_globalreg, in_phyid) {
+Kis_Mousejack_Phy::Kis_Mousejack_Phy(int in_phyid) :
+    kis_phy_handler(in_phyid) {
 
     set_phy_name("NrfMousejack");
 
@@ -94,7 +94,7 @@ int Kis_Mousejack_Phy::DissectorMousejack(CHAINCALL_PARMS) {
         return 0;
 
     // Do we have enough data for an OUI?
-    if (packdata->length < 6)
+    if (packdata->length() < 6)
         return 0;
 
     // Did something already classify this?
@@ -103,12 +103,12 @@ int Kis_Mousejack_Phy::DissectorMousejack(CHAINCALL_PARMS) {
     if (common != NULL)
         return 0;
 
-    common = new kis_common_info;
+    common = std::make_shared<kis_common_info>();
 
     common->phyid = mphy->fetch_phy_id();
     common->basic_crypt_set = crypt_none;
     common->type = packet_basic_data;
-    common->source = mac_addr(packdata->data, 6);
+    common->source = mac_addr(packdata->data(), 6);
 
     in_pack->insert(mphy->pack_comp_common, common);
 
@@ -147,25 +147,25 @@ int Kis_Mousejack_Phy::CommonClassifierMousejack(CHAINCALL_PARMS) {
 
     // Figure out what we think it could be; this isn't very precise.  Fingerprinting
     // based on methods in mousejack python.
-    if (packdata->length == 6) {
+    if (packdata->length() == 6) {
         device->set_manuf(mphy->mj_manuf_amazon);
-    } else if (packdata->length == 10 && packdata->data[0] == 0x00 && packdata->data[1] == 0xC2) {
+    } else if (packdata->length() == 10 && packdata->data()[0] == 0x00 && packdata->data()[1] == '\xc2') {
         // Logitech mouse movement
         device->set_manuf(mphy->mj_manuf_logitech);
-    } else if (packdata->length == 22 && packdata->data[0] == 0x00 && packdata->data[1] == 0xD3) {
+    } else if (packdata->length() == 22 && packdata->data()[0] == 0x00 && packdata->data()[1] == '\xd3') {
         // Logitech keyboard 
         device->set_manuf(mphy->mj_manuf_logitech);
-    } else if (packdata->length == 5 && packdata->data[0] == 0x00 && packdata->data[1] == 0x40) {
+    } else if (packdata->length() == 5 && packdata->data()[0] == 0x00 && packdata->data()[1] == 0x40) {
         // Logitech keepalive
         device->set_manuf(mphy->mj_manuf_logitech);
-    } else if (packdata->length == 10 && packdata->data[0] == 0x00 && packdata->data[1] == 0x4F) {
+    } else if (packdata->length() == 10 && packdata->data()[0] == 0x00 && packdata->data()[1] == 0x4F) {
         // Logitech sleep timer
         device->set_manuf(mphy->mj_manuf_logitech);
-    } else if (packdata->length == 19 && 
-            (packdata->data[0] == 0x08 || packdata->data[0] == 0x0c) &&
-            packdata->data[6] == 0x40) {
+    } else if (packdata->length() == 19 && 
+            (packdata->data()[0] == 0x08 || packdata->data()[0] == 0x0c) &&
+            packdata->data()[6] == 0x40) {
         device->set_manuf(mphy->mj_manuf_microsoft);
-    } else if (packdata->length == 19 && packdata->data[0] == 0x0a) {
+    } else if (packdata->length() == 19 && packdata->data()[0] == 0x0a) {
         device->set_manuf(mphy->mj_manuf_microsoft);
     } else {
         device->set_manuf(mphy->mj_manuf_nrf);

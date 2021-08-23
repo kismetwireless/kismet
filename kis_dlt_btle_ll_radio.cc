@@ -38,7 +38,7 @@ kis_dlt_btle_ll_radio::kis_dlt_btle_ll_radio() :
     _MSG("Registering support for DLT_BTLE_LL_RADIO packet header decoding", MSGFLAG_INFO);
 }
 
-int kis_dlt_btle_ll_radio::handle_packet(kis_packet *in_pack) {
+int kis_dlt_btle_ll_radio::handle_packet(std::shared_ptr<kis_packet> in_pack) {
     typedef struct {
         uint8_t monitor_channel;
         int8_t signal;
@@ -56,15 +56,13 @@ int kis_dlt_btle_ll_radio::handle_packet(kis_packet *in_pack) {
     const uint16_t btle_rf_crc_checked = (1 << 10);
     const uint16_t btle_rf_crc_valid = (1 << 11);
 
-    // Make sure we're not already decapped
-    auto decapchunk = in_pack->fetch<kis_datachunk>(pack_comp_decap);
-    if (decapchunk != NULL) {
+    if (in_pack->has(pack_comp_decap)) {
         return 1;
     }
 
     // Get the link
     auto linkchunk = in_pack->fetch<kis_datachunk>(pack_comp_linkframe);
-    if (linkchunk == NULL) {
+    if (linkchunk == nullptr) {
         return 1;
     }
 
@@ -74,10 +72,10 @@ int kis_dlt_btle_ll_radio::handle_packet(kis_packet *in_pack) {
 
     // Make sure the packet can hold the rf_ll and a little extra - 6 seems good,
     // that's the size of the advertised address info and a packet header
-    if (linkchunk->length < sizeof(btle_rf) + 6)
+    if (linkchunk->length() < sizeof(btle_rf) + 6)
         return 1;
 
-    auto rf_ll = reinterpret_cast<btle_rf *>(linkchunk->data);
+    const auto rf_ll = reinterpret_cast<const btle_rf *>(linkchunk->data());
     auto flags = kis_letoh16(rf_ll->flags_le);
 
     if (flags & btle_rf_crc_checked) {
@@ -92,7 +90,7 @@ int kis_dlt_btle_ll_radio::handle_packet(kis_packet *in_pack) {
     }
 
     // Generate a l1 radio header and a decap header since we have it computed already
-    auto radioheader = new kis_layer1_packinfo();
+    auto radioheader = std::make_shared<kis_layer1_packinfo>();
     radioheader->signal_type = kis_l1_signal_type_dbm;
 
     if (flags & btle_rf_flag_signalvalid)
@@ -125,8 +123,8 @@ int kis_dlt_btle_ll_radio::handle_packet(kis_packet *in_pack) {
     // TODO handle checksum validation
     // TODO handle dewhitening
     
-    decapchunk = new kis_datachunk;
-    decapchunk->set_data(rf_ll->payload, linkchunk->length - sizeof(btle_rf), false);
+    auto decapchunk = std::make_shared<kis_datachunk>();
+    decapchunk->set_data(in_pack->data.substr(sizeof(btle_rf), in_pack->data.length() - sizeof(btle_rf)));
     decapchunk->dlt = KDLT_BLUETOOTH_LE_LL;
     in_pack->insert(pack_comp_decap, decapchunk);
 

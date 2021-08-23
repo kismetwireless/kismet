@@ -27,8 +27,8 @@
 #include "manuf.h"
 #include "messagebus.h"
 
-kis_rtlamr_phy::kis_rtlamr_phy(global_registry *in_globalreg, int in_phyid) :
-    kis_phy_handler(in_globalreg, in_phyid) {
+kis_rtlamr_phy::kis_rtlamr_phy(int in_phyid) :
+    kis_phy_handler(in_phyid) {
 
     set_phy_name("RTLAMR");
 
@@ -95,7 +95,7 @@ mac_addr kis_rtlamr_phy::json_to_mac(Json::Value json) {
     return mac_addr(bytes, 6);
 }
 
-bool kis_rtlamr_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
+bool kis_rtlamr_phy::json_to_rtl(Json::Value json, std::shared_ptr<kis_packet> packet) {
     std::string err;
     std::string v;
 
@@ -124,13 +124,7 @@ bool kis_rtlamr_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
         return false;
     }
 
-    kis_common_info *common = 
-        (kis_common_info *) packet->fetch(pack_comp_common);
-
-    if (common == NULL) {
-        common = new kis_common_info;
-        packet->insert(pack_comp_common, common);
-    }
+    auto common = packet->fetch_or_add<kis_common_info>(pack_comp_common);
 
     common->type = packet_basic_data;
     common->phyid = fetch_phy_id();
@@ -211,8 +205,8 @@ int kis_rtlamr_phy::PacketHandler(CHAINCALL_PARMS) {
     if (in_pack->error || in_pack->filtered || in_pack->duplicate)
         return 0;
 
-    kis_json_packinfo *json = in_pack->fetch<kis_json_packinfo>(rtlamr->pack_comp_json);
-    if (json == NULL)
+    auto json = in_pack->fetch<kis_json_packinfo>(rtlamr->pack_comp_json);
+    if (json == nullptr)
         return 0;
 
     if (json->type != "RTLamr")
@@ -224,13 +218,8 @@ int kis_rtlamr_phy::PacketHandler(CHAINCALL_PARMS) {
     try {
         ss >> device_json;
 
-        if (rtlamr->json_to_rtl(device_json, in_pack)) {
-            packet_metablob *metablob = in_pack->fetch<packet_metablob>(rtlamr->pack_comp_meta);
-            if (metablob == NULL) {
-                metablob = new packet_metablob("RTLAMR", json->json_string);
-                in_pack->insert(rtlamr->pack_comp_meta, metablob);
-            }
-        }
+        if (rtlamr->json_to_rtl(device_json, in_pack)) 
+            in_pack->fetch_or_add<packet_metablob>(rtlamr->pack_comp_meta, "RTLAMR", json->json_string);
     } catch (std::exception& e) {
         fprintf(stderr, "debug - error processing rtl json %s\n", e.what());
         return 0;

@@ -54,9 +54,7 @@ class kis_datasource;
 class kis_packreport_packinfo : public packet_component {
 public:
     kis_packreport_packinfo(std::shared_ptr<KismetDatasource::DataReport> r) :
-        report{r} {
-            self_destruct = 1;
-        }
+        report{r} { }
 
 protected:
     std::shared_ptr<KismetDatasource::DataReport> report;
@@ -427,7 +425,7 @@ public:
     //
     // Checksum functions should flag the packet as invalid directly via some
     // method recognized by the device categorization stage
-    virtual void checksum_packet(kis_packet *in_pack __attribute__((unused))) { return; }
+    virtual void checksum_packet(std::shared_ptr<kis_packet> in_pack __attribute__((unused))) { return; }
 
     virtual void pre_serialize() override {
         kis_lock_guard<kis_mutex> lk(ext_mutex, kismet::retain_lock, "datasource preserialize");
@@ -443,9 +441,21 @@ public:
     static std::string event_datasource_paused() { return "DATASOURCE_PAUSED"; }
     static std::string event_datasource_resumed() { return "DATASOURCE_RESUMED"; }
 
+    // Manipulate incoming packet data before it is inserted into the base packet; Subclasses can use
+    // this to modify the data before it hits the linkframe to minimize copy overhead.  When replacing
+    // this function, replacements MUST implement the full timestamp, RRD update, etc found in the
+    // base function.
+    virtual void handle_rx_datalayer(std::shared_ptr<kis_packet> packet, 
+            const KismetDatasource::SubPacket& report);
+
+    // Manipulate incoming packet json before it is inserted into the base packet; Subclasses can use
+    // this to modify the json before it hits the jsoninfo buffer
+    virtual void handle_rx_jsonlayer(std::shared_ptr<kis_packet> packet,
+            const KismetDatasource::SubJson& report);
+
     // Handle injecting packets into the packet chain after the data report has been received
     // and processed.  Subclasses can override this to manipulate packet content.
-    virtual void handle_rx_packet(kis_packet *packet);
+    virtual void handle_rx_packet(std::shared_ptr<kis_packet> packet);
 
     // Source error; sets error state, fails all pending function callbacks,
     // shuts down the buffer and ipc, and initiates retry if we retry errors
@@ -554,8 +564,8 @@ protected:
 
     // Break out packet generation sub-functions so that custom datasources can easily
     // piggyback onto the decoders
-    virtual kis_gps_packinfo *handle_sub_gps(KismetDatasource::SubGps in_gps);
-    virtual kis_layer1_packinfo *handle_sub_signal(KismetDatasource::SubSignal in_signal);
+    virtual std::shared_ptr<kis_gps_packinfo> handle_sub_gps(KismetDatasource::SubGps in_gps);
+    virtual std::shared_ptr<kis_layer1_packinfo> handle_sub_signal(KismetDatasource::SubSignal in_signal);
 
 
     // Launch the IPC binary
@@ -854,7 +864,6 @@ public:
     kis_datasource *ref_source;
 
     packetchain_comp_datasource() {
-        self_destruct = 1;
         ref_source = NULL;
     }
 

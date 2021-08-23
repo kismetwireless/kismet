@@ -52,13 +52,9 @@
 #include "util.h"
 #include "zstr.hpp"
 
-int Devicetracker_packethook_commontracker(CHAINCALL_PARMS) {
-	return ((device_tracker *) auxdata)->common_tracker(in_pack);
-}
-
 device_tracker::device_tracker() :
     lifetime_global(),
-    kis_database(Globalreg::globalreg, "devicetracker"),
+    kis_database("devicetracker"),
     deferred_startup() {
 
     phy_mutex.set_name("device_tracker::phy_mutex");
@@ -132,7 +128,7 @@ device_tracker::device_tracker() :
 		num_filterpackets = 0;
 
     std::shared_ptr<packet_chain> packetchain =
-        Globalreg::fetch_mandatory_global_as<packet_chain>(globalreg, "PACKETCHAIN");
+        Globalreg::fetch_mandatory_global_as<packet_chain>();
 
 	// Register global packet components used by the device tracker and
 	// subsequent parts
@@ -158,8 +154,11 @@ device_tracker::device_tracker() :
 		packetchain->register_packet_component("KISDATASRC");
 
 	// Common tracker, very early in the tracker chain
-	packetchain->register_handler(&Devicetracker_packethook_commontracker,
-											this, CHAINPOS_TRACKER, -100);
+    packetchain_common_id = 
+        packetchain->register_handler([this](std::shared_ptr<kis_packet> in_packet) -> int {
+                return common_tracker(in_packet);
+            }, CHAINPOS_TRACKER, -100);
+
 
     // Post any events related to the device generated during tracking mode
     // (like a new device being created) at the very END of tracking, so that
@@ -167,36 +166,36 @@ device_tracker::device_tracker() :
     // BEGINNING of the chain, we get only the generic device with none of the
     // phy-specific attachments.
     packetchain_tracking_done_id =
-        packetchain->register_handler([this](kis_packet *in_packet) -> int {
+        packetchain->register_handler([this](std::shared_ptr<kis_packet> in_packet) -> int {
             for (const auto& e : in_packet->process_complete_events)
                 eventbus->publish(e);
             return 1;
-        }, CHAINPOS_TRACKER, 0x7FFF'FFFF);
+        }, CHAINPOS_TRACKER, 0x7FFFFFFF);
 
-    if (!globalreg->kismet_config->fetch_opt_bool("track_device_rrds", true)) {
+    if (!Globalreg::globalreg->kismet_config->fetch_opt_bool("track_device_rrds", true)) {
         _MSG("Not tracking historical packet data to save RAM", MSGFLAG_INFO);
         ram_no_rrd = true;
     } else {
         ram_no_rrd = false;
     }
 
-    if (!globalreg->kismet_config->fetch_opt_bool("track_device_seenby_views", true)) {
+    if (!Globalreg::globalreg->kismet_config->fetch_opt_bool("track_device_seenby_views", true)) {
         _MSG("Not building device seenby views to save RAM", MSGFLAG_INFO);
         map_seenby_views = false;
     } else {
         map_seenby_views = true;
     }
 
-    if (!globalreg->kismet_config->fetch_opt_bool("track_device_phy_views", true)) {
+    if (!Globalreg::globalreg->kismet_config->fetch_opt_bool("track_device_phy_views", true)) {
         _MSG("Not building device phy views to save RAM", MSGFLAG_INFO);
         map_phy_views = false;
     } else {
         map_phy_views = true;
     }
 
-    if (globalreg->kismet_config->fetch_opt_bool("kis_log_devices", true)) {
+    if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_devices", true)) {
         unsigned int lograte = 
-            globalreg->kismet_config->fetch_opt_uint("kis_log_device_rate", 30);
+            Globalreg::globalreg->kismet_config->fetch_opt_uint("kis_log_device_rate", 30);
 
         _MSG("Saving devices to the Kismet database log every " + uint_to_string(lograte) + 
                 " seconds.", MSGFLAG_INFO);
@@ -246,18 +245,18 @@ device_tracker::device_tracker() :
 
     // Preload the vector for speed
     unsigned int preload_sz = 
-        globalreg->kismet_config->fetch_opt_uint("tracker_device_presize", 1000);
+        Globalreg::globalreg->kismet_config->fetch_opt_uint("tracker_device_presize", 1000);
 
     tracked_vec.reserve(preload_sz);
     immutable_tracked_vec->reserve(preload_sz);
 
     // Set up the device timeout
     device_idle_expiration =
-        globalreg->kismet_config->fetch_opt_int("tracker_device_timeout", 0);
+        Globalreg::globalreg->kismet_config->fetch_opt_int("tracker_device_timeout", 0);
 
     if (device_idle_expiration != 0) {
         device_idle_min_packets =
-            globalreg->kismet_config->fetch_opt_uint("tracker_device_packets", 0);
+            Globalreg::globalreg->kismet_config->fetch_opt_uint("tracker_device_packets", 0);
 
         std::stringstream ss;
         ss << "Removing tracked devices which have been inactive for more than " <<
@@ -280,7 +279,7 @@ device_tracker::device_tracker() :
     }
 
 	max_num_devices =
-		globalreg->kismet_config->fetch_opt_uint("tracker_max_devices", 0);
+		Globalreg::globalreg->kismet_config->fetch_opt_uint("tracker_max_devices", 0);
 
 	if (max_num_devices > 0) {
         _MSG_INFO("Limiting maximum number of devices to {}, older devices will be "
@@ -300,7 +299,7 @@ device_tracker::device_tracker() :
     full_refresh_time = time(0);
 
     track_persource_history =
-        globalreg->kismet_config->fetch_opt_bool("keep_per_datasource_stats", false);
+        Globalreg::globalreg->kismet_config->fetch_opt_bool("keep_per_datasource_stats", false);
 
     // Initialize the view system
     view_vec = std::make_shared<tracker_element_vector>();
@@ -450,7 +449,7 @@ device_tracker::device_tracker() :
                         throw std::runtime_error("invalid device key");
 
                     auto pcapng = std::make_shared<pcapng_stream_packetchain>(con->response_stream(),
-                            [this, devkey](kis_packet *packet) -> bool {
+                            [this, devkey](std::shared_ptr<kis_packet> packet) -> bool {
                                 auto devinfo = packet->fetch<kis_tracked_device_info>(pack_comp_device);
 
                                 if (devinfo == nullptr)
@@ -868,20 +867,17 @@ device_tracker::~device_tracker() {
         eventbus->remove_listener(new_device_evt_id);
     }
 
-    globalreg->devicetracker = NULL;
-    globalreg->remove_global("DEVICETRACKER");
+    Globalreg::globalreg->devicetracker = NULL;
+    Globalreg::globalreg->remove_global(global_name());
 
-    std::shared_ptr<packet_chain> packetchain =
-        Globalreg::fetch_mandatory_global_as<packet_chain>(globalreg, "PACKETCHAIN");
-    if (packetchain != NULL) {
-        packetchain->remove_handler(&Devicetracker_packethook_commontracker,
-                CHAINPOS_TRACKER);
+    auto packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
+    if (packetchain != nullptr) {
+        packetchain->remove_handler(packetchain_common_id, CHAINPOS_TRACKER);
         packetchain->remove_handler(packetchain_tracking_done_id, CHAINPOS_TRACKER);
     }
 
-    std::shared_ptr<time_tracker> timetracker = 
-        Globalreg::fetch_global_as<time_tracker>(globalreg, "TIMETRACKER");
-    if (timetracker != NULL) {
+    auto timetracker = Globalreg::fetch_global_as<time_tracker>();
+    if (timetracker != nullptr) {
         timetracker->remove_timer(device_idle_timer);
         timetracker->remove_timer(max_devices_timer);
         timetracker->remove_timer(device_storage_timer);
@@ -980,7 +976,7 @@ int device_tracker::register_phy_handler(kis_phy_handler *in_weak_handler) {
 	int num = next_phy_id++;
 
     lk.unlock();
-	kis_phy_handler *strongphy = in_weak_handler->create_phy_handler(globalreg, num);
+	kis_phy_handler *strongphy = in_weak_handler->create_phy_handler(num);
     lk.lock();
 
 	phy_handler_map[num] = strongphy;
@@ -1059,7 +1055,7 @@ std::vector<std::shared_ptr<kis_tracked_device_base>> device_tracker::fetch_devi
     return ret;
 }
 
-int device_tracker::common_tracker(kis_packet *in_pack) {
+int device_tracker::common_tracker(std::shared_ptr<kis_packet> in_pack) {
     kis_lock_guard<kis_mutex> lk(phy_mutex, "device_tracker common_tracker");
 
     // All the statistics counters are atomic.
@@ -1073,8 +1069,7 @@ int device_tracker::common_tracker(kis_packet *in_pack) {
 		return 0;
 	}
 
-	kis_common_info *pack_common =
-        (kis_common_info *) in_pack->fetch(pack_comp_common);
+    auto pack_common = in_pack->fetch<kis_common_info>(pack_comp_common);
 
     if (!ram_no_rrd)
         packets_rrd->add_sample(1, time(0));
@@ -1135,8 +1130,8 @@ int device_tracker::common_tracker(kis_packet *in_pack) {
 // the access point, source, and destination devices), only the specific common device 
 // being passed will be updated.
 std::shared_ptr<kis_tracked_device_base> 
-    device_tracker::update_common_device(kis_common_info *pack_common, 
-            mac_addr in_mac, kis_phy_handler *in_phy, kis_packet *in_pack, 
+    device_tracker::update_common_device(std::shared_ptr<kis_common_info> pack_common, 
+            mac_addr in_mac, kis_phy_handler *in_phy, std::shared_ptr<kis_packet> in_pack, 
             unsigned int in_flags, std::string in_basic_type) {
 
     // Updating devices can only happen in serial because we don't know that a device is being
@@ -1148,15 +1143,10 @@ std::shared_ptr<kis_tracked_device_base>
 
     bool new_device = false;
 
-	kis_layer1_packinfo *pack_l1info =
-		(kis_layer1_packinfo *) in_pack->fetch(pack_comp_radiodata);
-	kis_gps_packinfo *pack_gpsinfo =
-		(kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
-	packetchain_comp_datasource *pack_datasrc =
-		(packetchain_comp_datasource *) in_pack->fetch(pack_comp_datasrc);
-
-    auto common_info =
-        in_pack->fetch<kis_common_info>(pack_comp_common);
+    auto pack_l1info = in_pack->fetch<kis_layer1_packinfo>(pack_comp_radiodata);
+    auto pack_gpsinfo = in_pack->fetch<kis_gps_packinfo>(pack_comp_gps);
+    auto pack_datasrc = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
+    auto common_info = in_pack->fetch<kis_common_info>(pack_comp_common);
 
     std::shared_ptr<kis_tracked_device_base> device = NULL;
     device_key key;
@@ -1179,14 +1169,14 @@ std::shared_ptr<kis_tracked_device_base>
         device->set_tracker_phyname(get_cached_phyname(in_phy->fetch_phy_name()));
 		device->set_phyid(in_phy->fetch_phy_id());
 
-        device->set_server_uuid(globalreg->server_uuid);
+        device->set_server_uuid(Globalreg::globalreg->server_uuid);
 
         device->set_first_time(in_pack->ts.tv_sec);
 
         device->set_tracker_type_string(get_cached_devicetype(in_basic_type));
 
-        if (globalreg->manufdb != NULL) {
-            device->set_manuf(globalreg->manufdb->lookup_oui(in_mac));
+        if (Globalreg::globalreg->manufdb != NULL) {
+            device->set_manuf(Globalreg::globalreg->manufdb->lookup_oui(in_mac));
         }
 
         load_stored_username(device);
@@ -1200,7 +1190,7 @@ std::shared_ptr<kis_tracked_device_base>
     auto devinfo = in_pack->fetch<kis_tracked_device_info>(pack_comp_device);
 
     if (devinfo == nullptr) {
-        devinfo = new kis_tracked_device_info;
+        devinfo = std::make_shared<kis_tracked_device_info>();
         in_pack->insert(pack_comp_device, devinfo);
 	}
 
@@ -1278,10 +1268,8 @@ std::shared_ptr<kis_tracked_device_base>
             if (pack_l1info->freq_khz != 0)
                 device->set_frequency(pack_l1info->freq_khz);
 
-            packinfo_sig_combo *sc = new packinfo_sig_combo(pack_l1info, pack_gpsinfo);
+            auto sc = std::make_shared<packinfo_sig_combo>(pack_l1info, pack_gpsinfo);
             device->get_signal_data()->append_signal(*sc, !ram_no_rrd, in_pack->ts.tv_sec);
-
-            delete(sc);
 
             device->inc_frequency_count((int) pack_l1info->freq_khz);
         } else if (pack_common != NULL) {
@@ -1325,8 +1313,9 @@ std::shared_ptr<kis_tracked_device_base>
 
         if (track_persource_history) {
             // Only populate signal, frequency map, etc per-source if we're tracking that
-            sc = new packinfo_sig_combo(pack_l1info, pack_gpsinfo);
-            device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f, sc, !ram_no_rrd);
+            auto sc = std::make_shared<packinfo_sig_combo>(pack_l1info, pack_gpsinfo);
+            device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, f, 
+                    sc.get(), !ram_no_rrd);
         } else {
             device->inc_seenby_count(pack_datasrc->ref_source, in_pack->ts.tv_sec, 0, 0, false);
         }

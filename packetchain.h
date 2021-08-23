@@ -40,6 +40,8 @@
 #include "globalregistry.h"
 #include "kis_mutex.h"
 #include "kis_net_beast_httpd.h"
+#include "objectpool.h"
+#include "packet.h"
 #include "timetracker.h"
 #include "trackedelement.h"
 #include "trackedrrd.h"
@@ -85,9 +87,9 @@
 #define CHAINPOS_TRACKER		7
 #define CHAINPOS_LOGGING        8
 
-#define CHAINCALL_PARMS global_registry *globalreg __attribute__ ((unused)), \
+#define CHAINCALL_PARMS \
     void *auxdata __attribute__ ((unused)), \
-    kis_packet *in_pack
+    std::shared_ptr<kis_packet> in_pack
 
 class kis_packet;
 
@@ -116,25 +118,24 @@ public:
     std::string fetch_packet_component_name(int in_id);
 
     // Generate a packet and hand it back
-    kis_packet *generate_packet();
+    std::shared_ptr<kis_packet> generate_packet();
+
     // Inject a packet into the chain
-    int process_packet(kis_packet *in_pack);
-    // Destroy a packet at the end of its life
-    void destroy_packet(kis_packet *in_pack);
+    int process_packet(std::shared_ptr<kis_packet> in_pack);
  
     // Callback and information 
     typedef int (*pc_callback)(CHAINCALL_PARMS);
     typedef struct {
         int priority;
 		packet_chain::pc_callback callback;
-        std::function<int (kis_packet *)> l_callback;
+        std::function<int (std::shared_ptr<kis_packet>)> l_callback;
         void *auxdata;
 		int id;
     } pc_link;
 
     // Register a callback, aux data, a chain to put it in, and the priority 
     int register_handler(pc_callback in_cb, void *in_aux, int in_chain, int in_prio);
-    int register_handler(std::function<int (kis_packet *)> in_cb, int in_chain, int in_prio);
+    int register_handler(std::function<int (std::shared_ptr<kis_packet>)> in_cb, int in_chain, int in_prio);
     int remove_handler(pc_callback in_cb, int in_chain);
 	int remove_handler(int in_id, int in_chain);
 
@@ -145,7 +146,7 @@ protected:
 
     // Common function for both insertion methods
     int register_int_handler(pc_callback in_cb, void *in_aux, 
-            std::function<int (kis_packet *)> in_l_cb, 
+            std::function<int (std::shared_ptr<kis_packet>)> in_l_cb, 
             int in_chain, int in_prio);
 
     int next_componentid, next_handlerid;
@@ -171,7 +172,7 @@ protected:
     // std::thread packet_thread;
     std::list<std::thread> packet_threads;
 
-    moodycamel::BlockingConcurrentQueue<kis_packet *> packet_queue;
+    moodycamel::BlockingConcurrentQueue<std::shared_ptr<kis_packet>> packet_queue;
     bool packetchain_shutdown;
 
     // Warning and discard levels for packet queue being full
@@ -206,6 +207,10 @@ protected:
     std::shared_ptr<time_tracker> timetracker;
     int event_timer_id;
     std::shared_ptr<event_bus> eventbus;
+
+    // Packet & data component pools
+    shared_object_pool<kis_packet> packet_pool;
+    shared_object_pool<kis_datachunk> datachunk_pool;
 
 };
 

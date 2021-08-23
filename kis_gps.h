@@ -120,6 +120,9 @@ public:
     __ProxyPrivSplit(gps_reconnect, uint8_t, bool, bool, gps_reconnect);
     __ProxyTrackable(gps_prototype, kis_gps_builder, gps_prototype);
 
+    __ProxyPrivSplit(gps_data_time, uint64_t, time_t, time_t, gps_data_time);
+    __ProxyPrivSplit(gps_signal_time, uint64_t, time_t, time_t, gps_signal_time);
+
     __ProxyPrivSplitM(device_connected, uint8_t, bool, bool, gps_connected, gps_mutex);
 
     virtual std::shared_ptr<kis_gps_packinfo> get_location() { 
@@ -172,6 +175,11 @@ protected:
 
         register_field("kismet.gps.data_only", 
                 "GPS is used for populating data only, never for live location", &gps_data_only);
+
+        register_field("kismet.gps.data_time",
+                "Unix timestamp of last data from GPS", &gps_data_time);
+        register_field("kismet.gps.signal_time",
+                "Unix timestamp of last signal from GPS", &gps_signal_time);
     }
 
     // Push the locations into the tracked locations and swap
@@ -198,6 +206,9 @@ protected:
     std::shared_ptr<tracker_element_string> gps_definition;
 
     std::shared_ptr<tracker_element_uint8> gps_data_only;
+
+    std::shared_ptr<tracker_element_uint64> gps_data_time;
+    std::shared_ptr<tracker_element_uint64> gps_signal_time;
 };
 
 #endif

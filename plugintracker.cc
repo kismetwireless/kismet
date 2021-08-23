@@ -168,7 +168,7 @@ int plugin_tracker::scan_directory(DIR *in_dir, std::string in_path) {
             continue;
 
         // Load the plugin manifest
-        config_file cf(Globalreg::globalreg);
+        config_file cf;
 
         std::string manifest = in_path + "/" + plugfile->d_name + "/manifest.conf";
 

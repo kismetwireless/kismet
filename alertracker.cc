@@ -327,7 +327,7 @@ int alert_tracker::potential_alert(int in_ref) {
     return check_times(arec);
 }
 
-int alert_tracker::raise_alert(int in_ref, kis_packet *in_pack,
+int alert_tracker::raise_alert(int in_ref, std::shared_ptr<kis_packet> in_pack,
         mac_addr bssid, mac_addr source, mac_addr dest, 
         mac_addr other, std::string in_channel, std::string in_text) {
 
@@ -347,7 +347,7 @@ int alert_tracker::raise_alert(int in_ref, kis_packet *in_pack,
 
     lock.unlock();
 
-    kis_alert_info *info = new kis_alert_info;
+    auto info = std::make_shared<kis_alert_info>();
 
     info->header = arec->get_header();
     info->alertclass = arec->get_alertclass();
@@ -366,7 +366,7 @@ int alert_tracker::raise_alert(int in_ref, kis_packet *in_pack,
     info->text = in_text;
 
     if (gpstracker != nullptr)
-        info->gps = gpstracker->get_best_location();
+        info->gps = std::move(gpstracker->get_best_location());
 
     // Increment and set the timers
     arec->inc_burst_sent(1);
@@ -393,8 +393,8 @@ int alert_tracker::raise_alert(int in_ref, kis_packet *in_pack,
         auto acomp = in_pack->fetch<kis_alert_component>(pack_comp_alert);
 
         // if we don't have an alert container, make one on this packet
-        if (acomp == NULL) {
-            acomp = new kis_alert_component;
+        if (acomp == nullptr) {
+            acomp = std::make_shared<kis_alert_component>();
             in_pack->insert(pack_comp_alert, acomp);
         }
 
@@ -402,9 +402,8 @@ int alert_tracker::raise_alert(int in_ref, kis_packet *in_pack,
         acomp->alert_vec.push_back(info);
 
         // Also get GPS
-        kis_gps_packinfo *pack_gpsinfo =
-            (kis_gps_packinfo *) in_pack->fetch(pack_comp_gps);
-        info->gps = new kis_gps_packinfo(pack_gpsinfo);
+        auto pack_gpsinfo = in_pack->fetch<kis_gps_packinfo>(pack_comp_gps);
+        info->gps = pack_gpsinfo;
     }
 
 #ifdef PRELUDE
@@ -468,7 +467,7 @@ int alert_tracker::raise_one_shot(std::string in_header, std::string in_class,
 	return 1;
 }
 
-int alert_tracker::raise_prelude_alert(int in_ref, kis_packet *in_pack,
+int alert_tracker::raise_prelude_alert(int in_ref, std::shared_ptr<kis_packet> in_pack,
         mac_addr bssid, mac_addr source, mac_addr dest,
         mac_addr other, std::string in_channel, std::string in_text) {
 

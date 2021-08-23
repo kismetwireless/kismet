@@ -156,15 +156,15 @@ class kis_rtladsb_phy : public kis_phy_handler {
 public:
     virtual ~kis_rtladsb_phy();
 
-    kis_rtladsb_phy(global_registry *in_globalreg) :
-        kis_phy_handler(in_globalreg) { };
+    kis_rtladsb_phy() :
+        kis_phy_handler() { };
 
 	// Build a strong version of ourselves
-	virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg, int in_phyid) override {
-		return new kis_rtladsb_phy(in_globalreg, in_phyid);
+	virtual kis_phy_handler *create_phy_handler(int in_phyid) override {
+		return new kis_rtladsb_phy(in_phyid);
 	}
 
-    kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid);
+    kis_rtladsb_phy(int in_phyid);
 
     static int packet_handler(CHAINCALL_PARMS);
 
@@ -180,11 +180,11 @@ protected:
 
     // convert to a device record & push into device tracker, return false
     // if we can't do anything with it
-    bool json_to_rtl(Json::Value in_json, kis_packet *packet);
+    bool json_to_rtl(Json::Value in_json, std::shared_ptr<kis_packet> packet);
 
     bool is_adsb(Json::Value json);
 
-    std::shared_ptr<rtladsb_tracked_adsb> add_adsb(kis_packet *packet, 
+    std::shared_ptr<rtladsb_tracked_adsb> add_adsb(std::shared_ptr<kis_packet> packet, 
             Json::Value json, std::shared_ptr<kis_tracked_device_base> rtlholder);
 
     double f_to_c(double f);
@@ -193,7 +193,7 @@ protected:
     int cpr_nl(double lat);
     int cpr_n(double lat, int odd);
     double cpr_dlon(double lat, int odd);
-    void decode_cpr(std::shared_ptr<rtladsb_tracked_adsb> adsb, kis_packet *packet);
+    void decode_cpr(std::shared_ptr<rtladsb_tracked_adsb> adsb, std::shared_ptr<kis_packet> packet);
 
     std::shared_ptr<packet_chain> packetchain;
     std::shared_ptr<entry_tracker> entrytracker;

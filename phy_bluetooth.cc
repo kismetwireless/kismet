@@ -35,8 +35,8 @@
 #include "devicetracker.h"
 #include "alertracker.h"
 
-kis_bluetooth_phy::kis_bluetooth_phy(global_registry *in_globalreg, int in_phyid) : 
-    kis_phy_handler(in_globalreg, in_phyid) {
+kis_bluetooth_phy::kis_bluetooth_phy(int in_phyid) : 
+    kis_phy_handler(in_phyid) {
 
     alertracker = 
         Globalreg::fetch_mandatory_global_as<alert_tracker>();
@@ -76,19 +76,13 @@ kis_bluetooth_phy::~kis_bluetooth_phy() {
 int kis_bluetooth_phy::common_classifier_bluetooth(CHAINCALL_PARMS) {
     auto btphy = static_cast<kis_bluetooth_phy *>(auxdata);
 
-    bluetooth_packinfo *btpi = 
-        (bluetooth_packinfo *) in_pack->fetch(btphy->pack_comp_btdevice);
+    auto btpi = in_pack->fetch<bluetooth_packinfo>(btphy->pack_comp_btdevice);
 
     if (btpi == NULL) {
         return 0;
     }
 
-    kis_common_info *ci = (kis_common_info *) in_pack->fetch(btphy->pack_comp_common);
-
-    if (ci == NULL) {
-        ci = new kis_common_info();
-        in_pack->insert(btphy->pack_comp_common, ci);
-    }
+    auto ci = in_pack->fetch_or_add<kis_common_info>(btphy->pack_comp_common);
 
     ci->phyid = btphy->fetch_phy_id();
     ci->type = packet_basic_mgmt;
@@ -140,7 +134,7 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
         if (btaddr_mac.state.error)
             throw std::runtime_error("invalid btaddr MAC");
 
-        commoninfo = new kis_common_info();
+        commoninfo = std::make_shared<kis_common_info>();
         commoninfo->phyid = btphy->fetch_phy_id();
         commoninfo->type = packet_basic_mgmt;
         commoninfo->source = btaddr_mac;
@@ -241,15 +235,14 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
 int kis_bluetooth_phy::packet_tracker_bluetooth(CHAINCALL_PARMS) {
     kis_bluetooth_phy *btphy = (kis_bluetooth_phy *) auxdata;
 
-    bluetooth_packinfo *btpi = 
-        (bluetooth_packinfo *) in_pack->fetch(btphy->pack_comp_btdevice);
+    auto btpi = in_pack->fetch<bluetooth_packinfo>(btphy->pack_comp_btdevice);
 
-    if (btpi == NULL)
+    if (btpi == nullptr)
         return 0;
 
-    kis_common_info *ci = (kis_common_info *) in_pack->fetch(btphy->pack_comp_common);
+    auto ci = in_pack->fetch<kis_common_info>(btphy->pack_comp_common);
 
-    if (ci == NULL)
+    if (ci == nullptr)
         return 0;
 
     kis_lock_guard<kis_mutex> lk(btphy->devicetracker->get_devicelist_mutex(), 

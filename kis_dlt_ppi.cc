@@ -43,20 +43,16 @@ kis_dlt_ppi::kis_dlt_ppi() :
         _MSG("Registering support for DLT_PPI packet header decoding", MSGFLAG_INFO);
     }
 
-int kis_dlt_ppi::handle_packet(kis_packet *in_pack) {
-    kis_datachunk *decapchunk = 
-        (kis_datachunk *) in_pack->fetch(pack_comp_decap);
+int kis_dlt_ppi::handle_packet(std::shared_ptr<kis_packet> in_pack) {
+    auto decapchunk = in_pack->fetch<kis_datachunk>(pack_comp_decap);
 
-    if (decapchunk != NULL) {
-        // printf("debug - dltppi frame already decapped\n");
+    if (decapchunk != nullptr) {
         return 1;
     }
 
-    kis_datachunk *linkchunk = 
-        (kis_datachunk *) in_pack->fetch(pack_comp_linkframe);
+    auto linkchunk = in_pack->fetch<kis_datachunk>(pack_comp_linkframe);
 
-    if (linkchunk == NULL) {
-        // printf("debug - dltppi no link\n");
+    if (linkchunk == nullptr) {
         return 1;
     }
 
@@ -64,8 +60,7 @@ int kis_dlt_ppi::handle_packet(kis_packet *in_pack) {
         return 1;
     }
 
-    packetchain_comp_datasource *datasrc =
-        (packetchain_comp_datasource *) in_pack->fetch(pack_comp_datasrc);
+    auto datasrc = in_pack->fetch<packetchain_comp_datasource>(pack_comp_datasrc);
 
     // Everything needs a data source so we know how to checksum
     if (datasrc == NULL) {
@@ -73,26 +68,26 @@ int kis_dlt_ppi::handle_packet(kis_packet *in_pack) {
         return 1;
     }
 
-    ppi_packet_header *ppi_ph;
-    ppi_field_header *ppi_fh;
+    const ppi_packet_header *ppi_ph;
+    const ppi_field_header *ppi_fh;
     unsigned int ppi_fh_offt = sizeof(ppi_packet_header);
     unsigned int tuint, ph_len;
     unsigned int ppi_dlt = -1;
     int applyfcs = 0, fcsknownbad = 0;
 
     // Make a datachunk for the reformatted frame
-    kis_layer1_packinfo *radioheader = NULL;
-    kis_gps_packinfo *gpsinfo = NULL;
+    std::shared_ptr<kis_layer1_packinfo> radioheader;
+    std::shared_ptr<kis_gps_packinfo> gpsinfo;
 
-    if (linkchunk->length < sizeof(ppi_packet_header)) {
+    if (linkchunk->length() < sizeof(ppi_packet_header)) {
         _MSG("pcap PPI converter got runt PPI frame", MSGFLAG_ERROR);
         return 0;
     }
 
-    ppi_ph = (ppi_packet_header *) linkchunk->data;
+    ppi_ph = reinterpret_cast<const ppi_packet_header *>(linkchunk->data());
     ph_len = kis_letoh16(ppi_ph->pph_len);
     ppi_dlt = kis_letoh32(ppi_ph->pph_dlt);
-    if (ph_len > linkchunk->length) {
+    if (ph_len > linkchunk->length()) {
         _MSG("pcap PPI converter got invalid/runt PPI frame header", MSGFLAG_ERROR);
         return 0;
     }
@@ -100,24 +95,19 @@ int kis_dlt_ppi::handle_packet(kis_packet *in_pack) {
     // Fix broken kismet dumps where kismet logged the wrong size (always
     // size 24) - if we're size 24, we have a PPI 11n common header, and
     // we can fit it all, then we adjust the header size up
-    if (ph_len == 24 && linkchunk->length > 32) {
-        ppi_fh = (ppi_field_header *) &(linkchunk->data[ppi_fh_offt]);
+    if (ph_len == 24 && linkchunk->length() > 32) {
+        ppi_fh = reinterpret_cast<const ppi_field_header *>(&linkchunk->data()[ppi_fh_offt]);
         if (kis_letoh16(ppi_fh->pfh_datatype) == PPI_FIELD_11COMMON) 
             ph_len = 32;
     }
 
-    while (ppi_fh_offt < linkchunk->length &&
-            ppi_fh_offt < ph_len) {
-        ppi_fh = (ppi_field_header *) &(linkchunk->data[ppi_fh_offt]);
+    while (ppi_fh_offt < linkchunk->length() && ppi_fh_offt < ph_len) {
+        ppi_fh = reinterpret_cast<const ppi_field_header *>(&linkchunk->data()[ppi_fh_offt]);
         unsigned int fh_len = kis_letoh16(ppi_fh->pfh_datalen);
         unsigned int fh_type = kis_letoh16(ppi_fh->pfh_datatype);
 
-        if (fh_len > linkchunk->length || fh_len > ph_len) {
-            if (radioheader != NULL)
-                delete radioheader;
-
-            _MSG("pcap PPI converter got corrupt/invalid PPI field length",
-                    MSGFLAG_ERROR);
+        if (fh_len > linkchunk->length() || fh_len > ph_len) {
+            _MSG("pcap PPI converter got corrupt/invalid PPI field length", MSGFLAG_ERROR);
             return 0;
         }
 
@@ -131,9 +121,6 @@ int kis_dlt_ppi::handle_packet(kis_packet *in_pack) {
             tuint = kis_letoh16(ppic->flags);
             if ((tuint & PPI_80211_FLAG_INVALFCS) || (tuint & PPI_80211_FLAG_PHYERROR)) {
                 // Junk packets that are FCS or phy compromised
-                if (radioheader != NULL)
-                    delete radioheader;
-
                 return 0;
             }
 
@@ -146,8 +133,8 @@ int kis_dlt_ppi::handle_packet(kis_packet *in_pack) {
                 fcsknownbad = 1;
             }
 
-            if (radioheader == NULL)
-                radioheader = new kis_layer1_packinfo;
+            if (radioheader == nullptr)
+                radioheader = std::make_shared<kis_layer1_packinfo>();
 
             // Channel flags
             tuint = kis_letoh16(ppic->chan_flags);
@@ -177,8 +164,8 @@ int kis_dlt_ppi::handle_packet(kis_packet *in_pack) {
         } else if (fh_type == PPI_FIELD_11NMAC) {
             ppi_11n_mac *ppin = (ppi_11n_mac *) ppi_fh;
 
-            if (radioheader == NULL)
-                radioheader = new kis_layer1_packinfo;
+            if (radioheader == nullptr)
+                radioheader = std::make_shared<kis_layer1_packinfo>();
 
             // Decode greenfield notation
             tuint = kis_letoh16(ppin->flags);
@@ -190,8 +177,8 @@ int kis_dlt_ppi::handle_packet(kis_packet *in_pack) {
         } else if (fh_type == PPI_FIELD_11NMACPHY) {
             ppi_11n_macphy *ppinp = (ppi_11n_macphy *) ppi_fh;
 
-            if (radioheader == NULL)
-                radioheader = new kis_layer1_packinfo;
+            if (radioheader == nullptr)
+                radioheader = std::make_shared<kis_layer1_packinfo>();
 
             // Decode greenfield notation
             tuint = kis_letoh16(ppinp->flags);
@@ -220,8 +207,8 @@ int kis_dlt_ppi::handle_packet(kis_packet *in_pack) {
                         (fields_present & PPI_GPS_FLAG_LON) &&
                         gps_len - data_offt >= 8) {
 
-                    if (gpsinfo == NULL)
-                        gpsinfo = new kis_gps_packinfo;
+                    if (gpsinfo == nullptr)
+                        gpsinfo = std::make_shared<kis_gps_packinfo>();
 
                     u = (block *) &(ppigps->field_data[data_offt]);
                     gpsinfo->lat = fixed3_7_to_double(kis_letoh32(u->u32));
@@ -249,8 +236,8 @@ int kis_dlt_ppi::handle_packet(kis_packet *in_pack) {
                    */
 
                 if ((fields_present & PPI_GPS_FLAG_ALT) && gps_len - data_offt >= 4) {
-                    if (gpsinfo == NULL) {
-                        gpsinfo = new kis_gps_packinfo;
+                    if (gpsinfo == nullptr) {
+                        gpsinfo = std::make_shared<kis_gps_packinfo>();
                         gpsinfo->fix = 0;
                         gpsinfo->gpsname = "PPI";
                     } else {
@@ -270,25 +257,23 @@ int kis_dlt_ppi::handle_packet(kis_packet *in_pack) {
     if (applyfcs)
         applyfcs = 4;
 
-    decapchunk = new kis_datachunk;
+    decapchunk = std::make_shared<kis_datachunk>();
 
     decapchunk->dlt = ppi_dlt;
 
     // Alias the decapsulated data
-    decapchunk->set_data(linkchunk->data + ph_len, 
-            kismin((linkchunk->length - ph_len - applyfcs), 
-                (uint32_t) MAX_PACKET_LEN),
-            false);
+    auto len = kismin((linkchunk->length() - ph_len - applyfcs), (uint32_t) MAX_PACKET_LEN);
+    decapchunk->set_data(linkchunk->substr(ph_len, len));
 
     if (radioheader != NULL)
         in_pack->insert(pack_comp_radiodata, radioheader);
     in_pack->insert(pack_comp_decap, decapchunk);
 
-    kis_packet_checksum *fcschunk = NULL;
-    if (applyfcs && linkchunk->length > 4) {
-        fcschunk = new kis_packet_checksum;
+    std::shared_ptr<kis_packet_checksum> fcschunk;
+    if (applyfcs && linkchunk->length() > 4) {
+        fcschunk = std::make_shared<kis_packet_checksum>();
 
-        fcschunk->set_data(&(linkchunk->data[linkchunk->length - 4]), 4);
+        fcschunk->set_data(linkchunk->substr(linkchunk->length() - 4, 4));
 
         // Listen to the PPI file for known bad, regardless if we have validate
         // turned on or not

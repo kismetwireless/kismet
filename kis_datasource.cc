@@ -1259,58 +1259,23 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno, const std::str
     if (report->has_warning())
         set_int_source_warning(report->warning());
 
-    kis_packet *packet = packetchain->generate_packet();
+    auto packet = packetchain->generate_packet();
 
-    packet->insert(pack_comp_report, new kis_packreport_packinfo(report));
+    packet->insert(pack_comp_report, std::make_shared<kis_packreport_packinfo>(report));
 
     // Process the data chunk
     if (report->has_packet()) {
-        kis_datachunk *datachunk = new kis_datachunk();
-
-        if (clobber_timestamp && get_source_remote()) {
-            gettimeofday(&(packet->ts), NULL);
-        } else {
-            packet->ts.tv_sec = report->packet().time_sec();
-            packet->ts.tv_usec = report->packet().time_usec();
-        }
-
-        // Override the DLT if we have one
-        if (get_source_override_linktype()) {
-            datachunk->dlt = get_source_override_linktype();
-        } else {
-            datachunk->dlt = report->packet().dlt();
-        }
-
-        // datachunk->copy_data((const uint8_t *) report.packet().data().data(), report.packet().data().length());
-
-        datachunk->set_data(const_cast<char *>(report->packet().data().data()), report->packet().data().length(), false);
-
-        get_source_packet_size_rrd()->add_sample(report->packet().data().length(), time(0));
-
-        packet->insert(pack_comp_linkframe, datachunk);
+        handle_rx_datalayer(packet, report->packet());
     }
 
     // Process JSON
     if (report->has_json()) {
-        // fprintf(stderr, "debug - got JSON report- %s\n", report.json().json().c_str());
-        kis_json_packinfo *jsoninfo = new kis_json_packinfo();
-      
-        if (clobber_timestamp && get_source_remote()) {
-            gettimeofday(&(packet->ts), NULL);
-        } else {
-            packet->ts.tv_sec = report->json().time_sec();
-            packet->ts.tv_usec = report->json().time_usec();
-        }
-
-        jsoninfo->type = report->json().type();
-        jsoninfo->json_string = report->json().json();
-
-        packet->insert(pack_comp_json, jsoninfo);
+        handle_rx_jsonlayer(packet, report->json());
     }
 
     // Process protobufs
     if (report->has_buffer()) {
-        kis_protobuf_packinfo *bufinfo = new kis_protobuf_packinfo();
+        auto bufinfo = std::make_shared<kis_protobuf_packinfo>();
 
         if (clobber_timestamp && get_source_remote()) {
             gettimeofday(&(packet->ts), NULL);
@@ -1327,18 +1292,16 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno, const std::str
 
     // Signal
     if (report->has_signal()) {
-        kis_layer1_packinfo *siginfo = NULL;
-        siginfo = handle_sub_signal(report->signal());
+        auto siginfo = handle_sub_signal(report->signal());
         packet->insert(pack_comp_l1info, siginfo);
     }
 
     // GPS
     if (report->has_gps()) {
-        kis_gps_packinfo *gpsinfo = NULL;
-        gpsinfo = handle_sub_gps(report->gps());
+        auto gpsinfo = handle_sub_gps(report->gps());
         packet->insert(pack_comp_gps, gpsinfo);
     } else if (suppress_gps) {
-        auto nogpsinfo = new kis_no_gps_packinfo();
+        auto nogpsinfo = std::make_shared<kis_no_gps_packinfo>();
         packet->insert(pack_comp_no_gps, nogpsinfo);
     }
 
@@ -1347,8 +1310,52 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno, const std::str
     handle_rx_packet(packet);
 }
 
-void kis_datasource::handle_rx_packet(kis_packet *packet) {
-    packetchain_comp_datasource *datasrcinfo = new packetchain_comp_datasource();
+void kis_datasource::handle_rx_datalayer(std::shared_ptr<kis_packet> packet,
+        const KismetDatasource::SubPacket& report) {
+    auto datachunk = std::make_shared<kis_datachunk>();
+
+    if (clobber_timestamp && get_source_remote()) {
+        gettimeofday(&(packet->ts), NULL);
+    } else {
+        packet->ts.tv_sec = report.time_sec();
+        packet->ts.tv_usec = report.time_usec();
+    }
+
+    // Override the DLT if we have one
+    if (get_source_override_linktype()) {
+        datachunk->dlt = get_source_override_linktype();
+    } else {
+        datachunk->dlt = report.dlt();
+    }
+
+    packet->set_data(report.data());
+    datachunk->set_data(packet->data);
+
+    get_source_packet_size_rrd()->add_sample(report.data().length(), time(0));
+
+    packet->insert(pack_comp_linkframe, datachunk);
+}
+
+void kis_datasource::handle_rx_jsonlayer(std::shared_ptr<kis_packet> packet,
+        const KismetDatasource::SubJson& report) {
+
+    auto jsoninfo = std::make_shared<kis_json_packinfo>();
+
+    if (clobber_timestamp && get_source_remote()) {
+        gettimeofday(&(packet->ts), NULL);
+    } else {
+        packet->ts.tv_sec = report.time_sec();
+        packet->ts.tv_usec = report.time_usec();
+    }
+
+    jsoninfo->type = report.type();
+    jsoninfo->json_string = report.json();
+
+    packet->insert(pack_comp_json, jsoninfo);
+}
+
+void kis_datasource::handle_rx_packet(std::shared_ptr<kis_packet> packet) {
+    auto datasrcinfo = std::make_shared<packetchain_comp_datasource>();
     datasrcinfo->ref_source = this;
 
     packet->insert(pack_comp_datasrc, datasrcinfo);
@@ -1377,10 +1384,10 @@ void kis_datasource::handle_packet_warning_report(uint32_t in_seqno, const std::
     set_int_source_warning(report.warning());
 }
 
-kis_layer1_packinfo *kis_datasource::handle_sub_signal(KismetDatasource::SubSignal in_sig) {
+std::shared_ptr<kis_layer1_packinfo> kis_datasource::handle_sub_signal(KismetDatasource::SubSignal in_sig) {
     // Extract l1 info from a KV pair so we can add it to a packet
-    
-    kis_layer1_packinfo *siginfo = new kis_layer1_packinfo();
+   
+    auto siginfo = std::make_shared<kis_layer1_packinfo>();
 
     if (in_sig.has_signal_dbm()) {
         siginfo->signal_type = kis_l1_signal_type_dbm;
@@ -1414,9 +1421,9 @@ kis_layer1_packinfo *kis_datasource::handle_sub_signal(KismetDatasource::SubSign
     return siginfo;
 }
 
-kis_gps_packinfo *kis_datasource::handle_sub_gps(KismetDatasource::SubGps in_gps) {
+std::shared_ptr<kis_gps_packinfo> kis_datasource::handle_sub_gps(KismetDatasource::SubGps in_gps) {
     // Extract a GPS record from a packet and turn it into a packinfo gps log
-    kis_gps_packinfo *gpsinfo = new kis_gps_packinfo();
+    auto gpsinfo = std::make_shared<kis_gps_packinfo>();
 
     gpsinfo->lat = in_gps.lat();
     gpsinfo->lon = in_gps.lon();

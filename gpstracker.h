@@ -48,8 +48,6 @@ typedef std::shared_ptr<kis_gps> shared_gps;
 class kis_gps_packinfo : public packet_component {
 public:
     kis_gps_packinfo() {
-        self_destruct = 1;
-
         merge_partial = false;
         merge_flags = 0;
 
@@ -65,8 +63,6 @@ public:
 
     kis_gps_packinfo(kis_gps_packinfo *src) {
         if (src != NULL) {
-            self_destruct = src->self_destruct;
-
             merge_partial = src->merge_partial;
             merge_flags = src->merge_flags;
 
@@ -137,9 +133,7 @@ public:
 // from the live GPS
 class kis_no_gps_packinfo : public packet_component {
 public:
-    kis_no_gps_packinfo() {
-        self_destruct = 1;
-    }
+    kis_no_gps_packinfo() { }
 };
 
 /* GPS manager which handles configuring GPS sources and deciding which one
@@ -177,7 +171,7 @@ public:
 
     // Get the 'best' location - returns a NEW gpspackinfo which the caller is 
     // responsible for deleting.
-    kis_gps_packinfo *get_best_location();
+    std::unique_ptr<kis_gps_packinfo> get_best_location();
 
     // Populate packets that don't have a GPS location
     static int kis_gpspack_hook(CHAINCALL_PARMS);

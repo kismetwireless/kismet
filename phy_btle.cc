@@ -53,9 +53,7 @@
 
 class btle_packinfo : public packet_component {
 public:
-    btle_packinfo() {
-        self_destruct = 1;
-    }
+    btle_packinfo() { }
 
     std::shared_ptr<bluetooth_btle> btle_decode;
 };
@@ -82,7 +80,7 @@ public:
  *
  * Taken from the Wireshark implementation
  */
-uint32_t kis_btle_phy::calc_btle_crc(uint32_t crc_init, uint8_t *payload, size_t len) {
+uint32_t kis_btle_phy::calc_btle_crc(uint32_t crc_init, const char *payload, size_t len) {
     static const uint16_t btle_crc_next_state_flips[256] = {
         0x0000, 0x32d8, 0x196c, 0x2bb4, 0x0cb6, 0x3e6e, 0x15da, 0x2702,
         0x065b, 0x3483, 0x1f37, 0x2def, 0x0aed, 0x3835, 0x1381, 0x2159,
@@ -164,8 +162,8 @@ uint32_t kis_btle_phy::reverse_bits(const uint32_t val) {
 }
 
 
-kis_btle_phy::kis_btle_phy(global_registry *in_globalreg, int in_phyid) :
-    kis_phy_handler(in_globalreg, in_phyid) {
+kis_btle_phy::kis_btle_phy(int in_phyid) :
+    kis_phy_handler(in_phyid) {
 
     set_phy_name("BTLE");
 
@@ -240,21 +238,21 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
     // do a checksum now.  We assume the last 3 bytes are the checksum.
     if (!in_pack->crc_ok) {
         // We need at least the AA, header, and CRC bytes
-        if (packdata->length < (4 + 2 + 3)) {
+        if (packdata->length() < (4 + 2 + 3)) {
             in_pack->error = 1;
             return 0;
         }
 
         uint32_t line_crc;
         line_crc = 
-            packdata->data[packdata->length - 3] << 16 |
-            packdata->data[packdata->length - 2] << 8 |
-            packdata->data[packdata->length - 1];
+            packdata->data()[packdata->length() - 3] << 16 |
+            packdata->data()[packdata->length() - 2] << 8 |
+            packdata->data()[packdata->length() - 1];
 
         // Get the CRC as if it was a broadcast; we'll redo this later if we get
         // data packets
-        uint32_t packet_crc = calc_btle_crc(0x555555, packdata->data, 
-                packdata->length - 3);
+        uint32_t packet_crc = 
+            calc_btle_crc(0x555555, packdata->data(), packdata->length() - 3);
 
         if (reverse_bits(packet_crc) != line_crc) {
             in_pack->error = 1;
@@ -262,16 +260,16 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
         }
     }
 
-    membuf btle_membuf((char *) packdata->data, (char *) &packdata->data[packdata->length]);
+    membuf btle_membuf((char *) packdata->data(), (char *) &packdata->data()[packdata->length()]);
     std::istream btle_istream(&btle_membuf);
     auto btle_stream = std::make_shared<kaitai::kstream>(&btle_istream);
 
-    common = new kis_common_info();
+    common = std::make_shared<kis_common_info>();
     common->phyid = mphy->fetch_phy_id();
     common->basic_crypt_set = crypt_none;
     common->type = packet_basic_mgmt;
 
-    auto btle_info = new btle_packinfo();
+    auto btle_info = std::make_shared<btle_packinfo>();
 
     try {
         auto btle = std::make_shared<bluetooth_btle>();
@@ -286,9 +284,7 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
 
         in_pack->insert(mphy->pack_comp_common, common);
         in_pack->insert(mphy->pack_comp_btle, btle_info);
-    } catch (const std::exception& e) {
-        delete(common);
-        delete(btle_info);
+    } catch (...) {
         return 0;
     }
 

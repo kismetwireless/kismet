@@ -27,8 +27,8 @@
 #include "manuf.h"
 #include "messagebus.h"
 
-Kis_RTL433_Phy::Kis_RTL433_Phy(global_registry *in_globalreg, int in_phyid) :
-    kis_phy_handler(in_globalreg, in_phyid) {
+Kis_RTL433_Phy::Kis_RTL433_Phy(int in_phyid) :
+    kis_phy_handler(in_phyid) {
 
     set_phy_name("RTL433");
 
@@ -75,6 +75,11 @@ Kis_RTL433_Phy::Kis_RTL433_Phy(global_registry *in_globalreg, int in_phyid) :
         Globalreg::globalreg->entrytracker->register_field("rtl433.device.switch",
                 tracker_element_factory<rtl433_tracked_switch>(),
                 "RTL433 power switch");
+
+    rtl433_insteon_id =
+        Globalreg::globalreg->entrytracker->register_field("rtl433.device.insteon",
+                tracker_element_factory<rtl433_tracked_insteon>(),
+                "RTL433 Insteon Device");
 
     rtl433_lightning_id =
         Globalreg::globalreg->entrytracker->register_field("rtl433.device.lightningsensor",
@@ -132,6 +137,24 @@ mac_addr Kis_RTL433_Phy::json_to_mac(Json::Value json) {
             *model = kis_hton16((uint16_t) i.asUInt());
             set_model = true;
         }
+        if (i.isString()) {
+            smodel = i.asString();
+            *checksum = adler32_checksum(smodel.c_str(), smodel.length());
+            int iint = (uint16_t) *checksum;
+            *model = kis_hton16((uint16_t) iint);
+            set_model = true;
+	}
+    }
+
+    if (json.isMember("from_id")) {
+        Json::Value i = json["from_id"];
+        if (i.isString()) {
+            smodel = i.asString();
+            *checksum = adler32_checksum(smodel.c_str(), smodel.length());
+            int iint = (uint16_t) *checksum;
+            *model = kis_hton16((uint16_t) iint);
+            set_model = true;
+        }
     }
 
     if (!set_model && json.isMember("device")) {
@@ -152,7 +175,7 @@ mac_addr Kis_RTL433_Phy::json_to_mac(Json::Value json) {
     return mac_addr(bytes, 6);
 }
 
-bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
+bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, std::shared_ptr<kis_packet> packet) {
     std::string err;
     std::string v;
 
@@ -163,11 +186,10 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
         return false;
     }
 
-    kis_common_info *common = 
-        (kis_common_info *) packet->fetch(pack_comp_common);
+    auto common = packet->fetch<kis_common_info>(pack_comp_common);
 
     if (common == NULL) {
-        common = new kis_common_info;
+        common = std::make_shared<kis_common_info>();
         packet->insert(pack_comp_common, common);
     }
 
@@ -277,6 +299,33 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
             commondev->set_battery(munge_to_printable(battery_j.asString()));
     }
 
+    if (json.isMember("rssi")) {
+        auto rssi_j = json["rssi"];
+
+        if (rssi_j.isNumeric())
+            commondev->set_rssi(int_to_string(rssi_j.asInt()));
+        else if (rssi_j.isString())
+            commondev->set_rssi(munge_to_printable(rssi_j.asString()));
+    }
+
+    if (json.isMember("snr")) {
+        auto snr_j = json["snr"];
+
+        if (snr_j.isNumeric())
+            commondev->set_snr(int_to_string(snr_j.asInt()));
+        else if (snr_j.isString())
+            commondev->set_snr(munge_to_printable(snr_j.asString()));
+    }
+
+    if (json.isMember("noise")) {
+        auto noise_j = json["noise"];
+
+        if (noise_j.isNumeric())
+            commondev->set_noise(int_to_string(noise_j.asInt()));
+        else if (noise_j.isString())
+            commondev->set_noise(munge_to_printable(noise_j.asString()));
+    }
+
     if (is_thermometer(json))
         add_thermometer(json, rtlholder);
 
@@ -288,6 +337,9 @@ bool Kis_RTL433_Phy::json_to_rtl(Json::Value json, kis_packet *packet) {
 
     if (is_switch(json))
         add_switch(json, rtlholder);
+
+    if (is_insteon(json))
+        add_insteon(json, rtlholder);
 
     if (is_lightning(json))
         add_lightning(json, rtlholder);
@@ -351,8 +403,28 @@ bool Kis_RTL433_Phy::is_tpms(Json::Value json) {
 bool Kis_RTL433_Phy::is_switch(Json::Value json) {
     auto sw0_j = json["switch0"];
     auto sw1_j = json["switch1"];
+    auto sw2_j = json["switch2"];
+    auto sw3_j = json["switch3"];
+    auto sw4_j = json["switch4"];
+    auto sw5_j = json["switch5"];
 
-    if (!sw0_j.isNull() || !sw1_j.isNull())
+    if (!sw0_j.isNull() || !sw1_j.isNull() || !sw2_j.isNull() ||
+        !sw3_j.isNull() || !sw4_j.isNull() || !sw5_j.isNull())
+        return true;
+
+    return false;
+}
+
+bool Kis_RTL433_Phy::is_insteon(Json::Value json) {
+    auto from_id_j = json["from_id"];
+    auto to_id_j = json["to_id"];
+    auto msg_type_j = json["msg_type"];
+    auto msg_str_j = json["msg_str"];
+    auto hopsmax_j = json["hopsmax"];
+    auto hopsleft_j = json["hopsleft"];
+
+
+    if (!from_id_j.isNull() || !to_id_j.isNull() || !msg_type_j.isNull() || !msg_str_j.isNull() || !hopsmax_j.isNull() || !hopsleft_j.isNull())
         return true;
 
     return false;
@@ -526,55 +598,101 @@ void Kis_RTL433_Phy::add_tpms(Json::Value json, std::shared_ptr<tracker_element_
 }
 
 void Kis_RTL433_Phy::add_switch(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
+    //{"time" : "2021-08-18 16:16:54", "model" : "Interlogix-Security", "subtype" : "contact", "id" : "a55b4b", "battery_ok" : 1, "switch1" : "OPEN", "switch2" : "OPEN", "switch3" : "OPEN", "switch4" : "OPEN", "switch5" : "OPEN", "raw_message" : "2dd4ac"}
     auto sw0_j = json["switch0"];
     auto sw1_j = json["switch1"];
+    auto sw2_j = json["switch2"];
+    auto sw3_j = json["switch3"];
+    auto sw4_j = json["switch4"];
+    auto sw5_j = json["switch5"];
+    auto model_j = json["model"];
+    auto subtype_j = json["subtype"];
+    auto battery_j = json["battery_ok"];
+    auto msg_j = json["raw_message"];
 
-    if (!sw0_j.isNull() || !sw1_j.isNull()) {
-        auto switchdev = 
-            rtlholder->get_sub_as<rtl433_tracked_switch>(rtl433_switch_id);
+    auto sw_id = json["id"];
 
-        if (switchdev == NULL) {
-            switchdev = 
-                std::make_shared<rtl433_tracked_switch>(rtl433_switch_id);
-            rtlholder->insert(switchdev);
-        }
+    if (sw1_j.isNull() || sw2_j.isNull() || sw3_j.isNull() || sw4_j.isNull() || sw5_j.isNull()) 
+        return;
 
-        int x;
-        std::stringstream ss;
+    auto switchdev = 
+        rtlholder->get_sub_as<rtl433_tracked_switch>(rtl433_switch_id);
 
-        if (!sw0_j.isNull())
-            x = 0;
-        else
-            x = 1;
+    if (switchdev == nullptr) {
+        switchdev = 
+            std::make_shared<rtl433_tracked_switch>(rtl433_switch_id);
+        rtlholder->insert(switchdev);
+    }
 
-        switchdev->get_switch_vec()->clear();
+    
+    if (sw1_j.isString()) {
+      switchdev->set_switch1(munge_to_printable(sw1_j.asString()));
+    }
 
-        while (1) {
-            int v = 0;
+    if (sw2_j.isString()) {
+      switchdev->set_switch2(munge_to_printable(sw2_j.asString()));
+    }
 
-            ss.str("");
-            ss << "switch" << x;
-            x++;
+    if (sw3_j.isString()) {
+      switchdev->set_switch3(munge_to_printable(sw3_j.asString()));
+    }
 
-            auto v_j = json[ss.str()];
+    if (sw4_j.isString()) {
+      switchdev->set_switch4(munge_to_printable(sw4_j.asString()));
+    }
 
-            if (v_j.isNull())
-                break;
+    if (sw5_j.isString()) {
+      switchdev->set_switch5(munge_to_printable(sw5_j.asString()));
+    }
+    
+}
 
-            if (v_j.isString()) {
-                if (v_j.asString() == "OPEN")
-                    v = 1;
-            } else if (v_j.isNumeric()) {
-                v = v_j.asInt();
-            } else {
-                break;
-            }
+void Kis_RTL433_Phy::add_insteon(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
+    //{"time" : "2021-08-19 18:52:48", "model" : "Insteon", "from_id" : "CCFF79", "to_id" : "9F39E6", "msg_type" : 7, "msg_str" : "NAK of Group Cleanup Direct Message", "extended" : 0, "hopsmax" : 3, "hopsleft" : 0, "formatted" : "E3 : 9F39E6 : CCFF79 : 39 E7  B7", "mic" : "CRC", "payload" : "E3E6399F79FFCC39E7B7", "cmd_dat" : [57, 231], "mod" : "FSK", "freq1" : 914.909, "freq2" : 915.069, "rssi" : -0.212, "snr" : 25.305, "noise" : -25.517}
+    auto from_id_j = json["from_id"];
+    auto to_id_j = json["to_id"];
+    auto msg_type_j = json["msg_type"];
+    auto msg_str_j = json["msg_str"];
+    auto hopsmax_j = json["hopsmax"];
+    auto hopsleft_j = json["hopsleft"];
+    auto model_j = json["model"];
 
-            auto e = switchdev->make_switch_entry(v);
-            switchdev->get_switch_vec()->push_back(e);
-        }
+    if (from_id_j.isNull() || to_id_j.isNull() || msg_type_j.isNull() || msg_str_j.isNull() || hopsmax_j.isNull() || hopsleft_j.isNull())
+        return;
+
+    auto insteondev =
+            rtlholder->get_sub_as<rtl433_tracked_insteon>(rtl433_insteon_id);
+
+    if (insteondev == NULL) {
+        insteondev =
+            std::make_shared<rtl433_tracked_insteon>(rtl433_insteon_id);
+        rtlholder->insert(insteondev);
+    }
+
+
+    if (from_id_j.isString()) {
+      insteondev->set_from_id(munge_to_printable(from_id_j.asString()));
+    }
+
+    if (to_id_j.isString()) {
+      insteondev->set_to_id(munge_to_printable(to_id_j.asString()));
+    }
+
+    if (msg_type_j.isString()) {
+      insteondev->set_msg_type(munge_to_printable(msg_type_j.asString()));
+    }
+
+    if (msg_str_j.isString()) {
+      insteondev->set_msg_str(munge_to_printable(msg_str_j.asString()));
+    }
+    if (hopsmax_j.isString()) {
+      insteondev->set_hopsmax(munge_to_printable(hopsmax_j.asString()));
+    }
+   if (hopsleft_j.isString()) {
+      insteondev->set_hopsleft(munge_to_printable(hopsleft_j.asString()));
     }
 }
+
 
 void Kis_RTL433_Phy::add_lightning(Json::Value json, std::shared_ptr<tracker_element_map> rtlholder) {
     // {"time" : "2019-02-24 22:12:13", "model" : "Acurite Lightning 6045M", "id" : 15580, "channel" : "B", "temperature_F" : 38.300, "humidity" : 53, "strike_count" : 1, "storm_dist" : 8, "active" : 1, "rfi" : 0, "ussb1" : 0, "battery" : "OK", "exception" : 0, "raw_msg" : "bcdc6f354edb81886e"}
@@ -614,7 +732,7 @@ int Kis_RTL433_Phy::PacketHandler(CHAINCALL_PARMS) {
     if (in_pack->error || in_pack->filtered || in_pack->duplicate)
         return 0;
 
-    kis_json_packinfo *json = in_pack->fetch<kis_json_packinfo>(rtl433->pack_comp_json);
+    auto json = in_pack->fetch<kis_json_packinfo>(rtl433->pack_comp_json);
     if (json == NULL)
         return 0;
 
@@ -629,9 +747,9 @@ int Kis_RTL433_Phy::PacketHandler(CHAINCALL_PARMS) {
 
         // Copy the JSON as the meta field for logging, if it's valid
         if (rtl433->json_to_rtl(device_json, in_pack)) {
-            packet_metablob *metablob = in_pack->fetch<packet_metablob>(rtl433->pack_comp_meta);
-            if (metablob == NULL) {
-                metablob = new packet_metablob("RTL433", json->json_string);
+            auto metablob = in_pack->fetch<packet_metablob>(rtl433->pack_comp_meta);
+            if (metablob == nullptr) {
+                metablob = std::make_shared<packet_metablob>("RTL433", json->json_string);
                 in_pack->insert(rtl433->pack_comp_meta, metablob);
             }
         }

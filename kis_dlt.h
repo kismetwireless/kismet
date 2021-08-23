@@ -32,12 +32,12 @@ public:
 	kis_dlt_handler();
 	virtual ~kis_dlt_handler();
 
-	virtual int handle_packet(kis_packet *in_pack) = 0;
-
 	virtual int fetch_dlt() { return dlt; }
 	virtual std::string fetch_dlt_name() { return dlt_name; }
 
 protected:
+	virtual int handle_packet(std::shared_ptr<kis_packet> in_pack) = 0;
+
 	std::string dlt_name;
 	int dlt;
 	int chainid;

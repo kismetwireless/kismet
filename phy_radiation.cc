@@ -23,8 +23,8 @@
 #include "devicetracker.h"
 #include "macaddr.h"
 
-kis_radiation_phy::kis_radiation_phy(global_registry *in_globalreg, int in_phyid) :
-    kis_phy_handler(in_globalreg, in_phyid) {
+kis_radiation_phy::kis_radiation_phy(int in_phyid) :
+    kis_phy_handler(in_phyid) {
 
     set_phy_name("RADIATION");
 
@@ -53,7 +53,7 @@ int kis_radiation_phy::packet_handler(CHAINCALL_PARMS) {
     if (in_pack->error || in_pack->filtered || in_pack->duplicate)
         return 0;
 
-    kis_json_packinfo *json = in_pack->fetch<kis_json_packinfo>(radphy->pack_comp_json);
+    auto json = in_pack->fetch<kis_json_packinfo>(radphy->pack_comp_json);
 
     if (json == nullptr)
         return 0;
@@ -61,11 +61,7 @@ int kis_radiation_phy::packet_handler(CHAINCALL_PARMS) {
     if (json->type != "radiation")
         return 0;
 
-    packet_metablob *metablob = in_pack->fetch<packet_metablob>(radphy->pack_comp_meta);
-    if (metablob == nullptr) {
-        metablob = new packet_metablob("radiation", json->json_string);
-        in_pack->insert(radphy->pack_comp_meta, metablob);
-    }
+    in_pack->fetch_or_add<packet_metablob>(radphy->pack_comp_meta, "radiation", json->json_string);
 
     return 1;
 }

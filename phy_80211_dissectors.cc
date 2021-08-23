@@ -281,37 +281,33 @@ int kis_80211_phy::wpa_key_mgt_conv(uint8_t mgt_index) {
 }
 
 // This needs to be optimized and it needs to not use casting to do its magic
-int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
+int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
     if (in_pack->error) {
         return 0;
     }
 
     // Extract data, bail if it doesn't exist, make a local copy of what we're
     // inserting into the frame.
-    dot11_packinfo *packinfo;
-    kis_datachunk *chunk = 
-        (kis_datachunk *) in_pack->fetch(pack_comp_decap);
+    std::shared_ptr<dot11_packinfo> packinfo;
+    auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
 
-    // If we can't grab an 802.11 chunk, grab the raw link frame
-    if (chunk == NULL) {
-        chunk = (kis_datachunk *) in_pack->fetch(pack_comp_linkframe);
-        if (chunk == NULL) {
-            return 0;
-        }
+    if (chunk == nullptr) {
+        return 0;
     }
 
     // If we don't have a dot11 frame, throw it away
-    if (chunk->dlt != KDLT_IEEE802_11)
+    if (chunk->dlt != KDLT_IEEE802_11) {
         return 0;
+    }
 
     // Flat-out dump if it's not big enough to be 80211, don't even bother making a
     // packinfo record for it because we're completely broken
-    if (chunk->length < 10) {
+    if (chunk->length() < 10) {
         return 0;
     }
 
     // Compare the checksum and see if we've recently seen this exact packet
-    uint32_t chunk_csum = adler32_checksum((const char *) chunk->data, chunk->length);
+    uint32_t chunk_csum = adler32_checksum(chunk->data(), chunk->length());
 
     for (unsigned int c = 0; c < recent_packet_checksums_sz; c++) {
         if (recent_packet_checksums[c] == 0)
@@ -328,14 +324,12 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
         recent_packet_checksums[(recent_packet_checksum_pos++ % recent_packet_checksums_sz)] = 
             chunk_csum;
 
-    kis_layer1_packinfo *pack_l1info =
-        (kis_layer1_packinfo *) in_pack->fetch(pack_comp_l1info);
+    auto pack_l1info = in_pack->fetch<kis_layer1_packinfo>(pack_comp_l1info);
 
-    kis_common_info *common = 
-        (kis_common_info *) in_pack->fetch(pack_comp_common);
+    auto common = in_pack->fetch<kis_common_info>(pack_comp_common);
 
     if (common == NULL) {
-        common = new kis_common_info;
+        common = std::make_shared<kis_common_info>();
         in_pack->insert(pack_comp_common, common);
     }
 
@@ -344,9 +338,9 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
     if (pack_l1info != NULL)
         common->freq_khz = pack_l1info->freq_khz;
 
-    packinfo = new dot11_packinfo;
+    packinfo = std::make_shared<dot11_packinfo>();
 
-    frame_control *fc = (frame_control *) chunk->data;
+   const auto fc = reinterpret_cast<const frame_control *>(chunk->data());
 
     // Inherit the FC privacy flag
     if (fc->wep) {
@@ -357,11 +351,11 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
     uint16_t duration = 0;
 
     // 18 bytes of normal address ranges
-    uint8_t *addr0 = NULL;
-    uint8_t *addr1 = NULL;
-    uint8_t *addr2 = NULL;
+    const uint8_t *addr0 = NULL;
+    const uint8_t *addr1 = NULL;
+    const uint8_t *addr2 = NULL;
     // And an optional 6 bytes of address range for ds=0x03 packets
-    uint8_t *addr3 = NULL;
+    const uint8_t *addr3 = NULL;
 
     // We'll fill these in as we go
     packinfo->type = packet_unknown;
@@ -369,18 +363,18 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
     packinfo->distrib = distrib_unknown;
 
     // Endian swap the duration  ** Optimize this in the future **
-    memcpy(&duration, &(chunk->data[2]), 2);
+    memcpy(&duration, &(chunk->data()[2]), 2);
     duration = kis_ntoh16(duration);
 
     // 2 bytes of sequence and fragment counts
-    wireless_fragseq *sequence;
+    const wireless_fragseq *sequence;
 
     // We always have addr0 even on phy
-    addr0 = &(chunk->data[4]);
+    addr0 = reinterpret_cast<const uint8_t *>(&chunk->data()[4]);
 
     // We may have addr1
-    if (chunk->length >= 16)
-        addr1 = &(chunk->data[10]);
+    if (chunk->length() >= 16)
+        addr1 = reinterpret_cast<const uint8_t *>(&chunk->data()[10]);
 
     if (fc->more_fragments)
         packinfo->fragmented = 1;
@@ -511,19 +505,19 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
 
     // Anything from this point on can't be less than 24 bytes since we need
     // a full 802.11 header, so throw it out
-    if (chunk->length < 24) {
+    if (chunk->length() < 24) {
         packinfo->corrupt = 1;
         in_pack->insert(pack_comp_80211, packinfo);
         return 0;
     }
 
     // We must have room for addr0..2 in 24 bytes
-    addr1 = &(chunk->data[10]);
-    addr2 = &(chunk->data[16]);
-    sequence = (wireless_fragseq *) &(chunk->data[22]);
+    addr1 = reinterpret_cast<const uint8_t *>(&chunk->data()[10]);
+    addr2 = reinterpret_cast<const uint8_t *>(&chunk->data()[16]);
+    sequence = reinterpret_cast<const wireless_fragseq *>(&chunk->data()[22]);
 
     // addr3 goes up to byte 30 so before we can use it, make sure we know we've got the data
-    addr3 = &(chunk->data[24]);
+    addr3 = reinterpret_cast<const uint8_t *>(&chunk->data()[24]);
 
     packinfo->sequence_number = sequence->sequence;
     packinfo->frag_number = sequence->frag;
@@ -553,7 +547,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
             return 0;
         }
 
-        fixed_parameters *fixparm = NULL;
+        const fixed_parameters *fixparm = NULL;
 
         if (fc->subtype == 0) {
             packinfo->subtype = packet_sub_association_req;
@@ -630,7 +624,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
             packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
             uint16_t rcode;
-            memcpy(&rcode, (const char *) &(chunk->data[24]), 2);
+            memcpy(&rcode, (const char *) &(chunk->data()[24]), 2);
 
             packinfo->mgt_reason_code = rcode;
 
@@ -642,7 +636,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
             packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
             uint16_t rcode;
-            memcpy(&rcode, (const char *) &(chunk->data[24]), 2);
+            memcpy(&rcode, (const char *) &(chunk->data()[24]), 2);
 
             packinfo->mgt_reason_code = rcode;
 
@@ -654,11 +648,11 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
             packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
             uint16_t rcode;
-            memcpy(&rcode, (const char *) &(chunk->data[24]), 2);
+            memcpy(&rcode, (const char *) &(chunk->data()[24]), 2);
 
             packinfo->mgt_reason_code = rcode;
         } else if (fc->subtype == 13) {
-            if (chunk->length < 30) {
+            if (chunk->length() < 30) {
                 packinfo->corrupt = 1;
                 in_pack->insert(pack_comp_80211, packinfo);
                 return 0;
@@ -670,7 +664,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
             packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
             packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
         } else if (fc->subtype == 14) {
-            if (chunk->length < 30) {
+            if (chunk->length() < 30) {
                 packinfo->corrupt = 1;
                 in_pack->insert(pack_comp_80211, packinfo);
                 return 0;
@@ -703,8 +697,8 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
             // Action frames can be encrypted; we can't do anything with them if they are.
 
             if (!fc->wep) {
-                membuf pack_membuf((char *) &(chunk->data[packinfo->header_offset]), 
-                        (char *) &(chunk->data[chunk->length]));
+                membuf pack_membuf((char *) &chunk->data()[packinfo->header_offset], 
+                        (char *) &(chunk->data()[chunk->length()]));
                 std::istream pack_stream(&pack_membuf);
 
                 std::shared_ptr<dot11_action> action(new dot11_action());
@@ -767,14 +761,14 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
         } else {
             // If we're not long enough to have the fixparm and look like a normal
             // mgt header, bail.
-            if (chunk->length < 36) {
+            if (chunk->length() < 36) {
                 packinfo->corrupt = 1;
                 in_pack->insert(pack_comp_80211, packinfo);
                 return 0;
             }
 
             packinfo->header_offset = 24;
-            fixparm = (fixed_parameters *) &(chunk->data[24]);
+            fixparm = reinterpret_cast<const fixed_parameters *>(&chunk->data()[24]);
 
             if (fc->subtype == packet_sub_association_req)
                 packinfo->header_offset += 4;
@@ -814,9 +808,8 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
                    "MSF-style poisoned beacon packet for Broadcom drivers detected");
         }
 
-        if (fc->subtype == packet_sub_beacon &&
-            chunk->length >= 1184) {
-            if (memcmp(&(chunk->data[1180]), "\x6a\x39\x58\x01", 4) == 0)
+        if (fc->subtype == packet_sub_beacon && chunk->length() >= 1184) {
+            if (memcmp(&(chunk->data()[1180]), "\x6a\x39\x58\x01", 4) == 0)
                 _ALERT(alert_msfnetgearbeacon_ref, in_pack, packinfo,
                        "MSF-style poisoned options in over-sized beacon for Netgear "
                        "driver attack");
@@ -835,8 +828,8 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
                 packinfo->beacon_interval = kis_letoh16(fixparm->beacon);
 
             packinfo->ietag_csum = 
-                adler32_checksum((const char *) (chunk->data + packinfo->header_offset),
-                                chunk->length - packinfo->header_offset);
+                adler32_checksum((const char *) (chunk->data() + packinfo->header_offset),
+                                chunk->length() - packinfo->header_offset);
 
         } else if (fc->subtype == packet_sub_deauthentication) {
             if ((packinfo->mgt_reason_code >= 25 && packinfo->mgt_reason_code <= 31) ||
@@ -950,7 +943,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
             break;
         case distrib_inter:
             // If we aren't long enough to hold a intra-ds packet, bail
-            if (chunk->length < 30) {
+            if (chunk->length() < 30) {
                 // fprintf(stderr, "debug - distrib unknown, chunk %d\n", chunk->length);
                 packinfo->corrupt = 1;
                 in_pack->insert(pack_comp_80211, packinfo);
@@ -970,7 +963,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
 
         case distrib_unknown:
             // If we aren't long enough to hold a intra-ds packet, bail
-            if (chunk->length < 30) {
+            if (chunk->length() < 30) {
                 packinfo->corrupt = 1;
                 in_pack->insert(pack_comp_80211, packinfo);
                 return 0;
@@ -997,12 +990,12 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
             bool alt_crypt = false;
             // Either way to be useful it has to be 2+ bytes, so check tkip
             // and ccmp at the same time
-            if (packinfo->header_offset + 2 < chunk->length) {
-                if (chunk->data[packinfo->header_offset + 2] == 0) {
+            if (packinfo->header_offset + 2 < chunk->length()) {
+                if (chunk->data()[packinfo->header_offset + 2] == 0) {
                     packinfo->cryptset |= crypt_aes_ccm;
                     common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
                     alt_crypt = true;
-                }  else if (chunk->data[packinfo->header_offset + 1] & 0x20) {
+                }  else if (chunk->data()[packinfo->header_offset + 1] & 0x20) {
                     packinfo->cryptset |= crypt_tkip;
                     common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
                     alt_crypt = true;
@@ -1015,7 +1008,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
             }
         }
 
-        int datasize = chunk->length - packinfo->header_offset;
+        int datasize = chunk->length() - packinfo->header_offset;
         if (datasize > 0) {
             packinfo->datasize = datasize;
             common->datasize = datasize;
@@ -1023,58 +1016,48 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
 
         if (packinfo->cryptset == 0 && dissect_data) {
             // Keep whatever datachunk we already found
-            kis_datachunk *datachunk = 
-                (kis_datachunk *) in_pack->fetch(pack_comp_datapayload);
+            auto datachunk = in_pack->fetch<kis_datachunk>(pack_comp_datapayload);
 
-            if (datachunk == NULL) {
+            if (datachunk == nullptr) {
                 // Don't set a DLT on the data payload, since we don't know what it is
                 // but it's not 802.11.
-                datachunk = new kis_datachunk;
-                datachunk->set_data(chunk->data + packinfo->header_offset,
-                                    chunk->length - packinfo->header_offset, false);
+                datachunk = std::make_shared<kis_datachunk>();
+                datachunk->set_data(chunk->substr(packinfo->header_offset,
+                            chunk->length() - packinfo->header_offset));
                 in_pack->insert(pack_comp_datapayload, datachunk);
             }
 
-            if (datachunk->length > LLC_UI_OFFSET + sizeof(PROBE_LLC_SIGNATURE) && 
-                memcmp(&(datachunk->data[0]), LLC_UI_SIGNATURE,
-                       sizeof(LLC_UI_SIGNATURE)) == 0) {
+            if (datachunk->length() > LLC_UI_OFFSET + sizeof(PROBE_LLC_SIGNATURE) && 
+                memcmp(&(datachunk->data()[0]), LLC_UI_SIGNATURE, sizeof(LLC_UI_SIGNATURE)) == 0) {
                 // Handle the batch of frames that fall under the LLC UI 0x3 frame
-                if (memcmp(&(datachunk->data[LLC_UI_OFFSET]),
+                if (memcmp(&(datachunk->data()[LLC_UI_OFFSET]),
                            PROBE_LLC_SIGNATURE, sizeof(PROBE_LLC_SIGNATURE)) == 0) {
 
                     // Packets that look like netstumber probes...
-                    if (NETSTUMBLER_OFFSET + sizeof(NETSTUMBLER_322_SIGNATURE) < 
-                        datachunk->length && 
-                        memcmp(&(datachunk->data[NETSTUMBLER_OFFSET]),
-                               NETSTUMBLER_322_SIGNATURE, 
-                               sizeof(NETSTUMBLER_322_SIGNATURE)) == 0) {
+                    if (NETSTUMBLER_OFFSET + sizeof(NETSTUMBLER_322_SIGNATURE) < datachunk->length() && 
+                        memcmp(&(datachunk->data()[NETSTUMBLER_OFFSET]),
+                               NETSTUMBLER_322_SIGNATURE, sizeof(NETSTUMBLER_322_SIGNATURE)) == 0) {
                         _ALERT(alert_netstumbler_ref, in_pack, packinfo,
                                "Detected Netstumbler 3.22 probe");
                     }
 
-                    if (NETSTUMBLER_OFFSET + sizeof(NETSTUMBLER_323_SIGNATURE) < 
-                        datachunk->length && 
-                        memcmp(&(datachunk->data[NETSTUMBLER_OFFSET]),
-                               NETSTUMBLER_323_SIGNATURE, 
-                               sizeof(NETSTUMBLER_323_SIGNATURE)) == 0) {
+                    if (NETSTUMBLER_OFFSET + sizeof(NETSTUMBLER_323_SIGNATURE) < datachunk->length() && 
+                        memcmp(&(datachunk->data()[NETSTUMBLER_OFFSET]),
+                               NETSTUMBLER_323_SIGNATURE, sizeof(NETSTUMBLER_323_SIGNATURE)) == 0) {
                         _ALERT(alert_netstumbler_ref, in_pack, packinfo,
                                "Detected Netstumbler 3.23 probe");
                     }
 
-                    if (NETSTUMBLER_OFFSET + sizeof(NETSTUMBLER_330_SIGNATURE) < 
-                        datachunk->length && 
-                        memcmp(&(datachunk->data[NETSTUMBLER_OFFSET]),
-                               NETSTUMBLER_330_SIGNATURE, 
-                               sizeof(NETSTUMBLER_330_SIGNATURE)) == 0) {
+                    if (NETSTUMBLER_OFFSET + sizeof(NETSTUMBLER_330_SIGNATURE) < datachunk->length() && 
+                        memcmp(&(datachunk->data()[NETSTUMBLER_OFFSET]),
+                               NETSTUMBLER_330_SIGNATURE, sizeof(NETSTUMBLER_330_SIGNATURE)) == 0) {
                         _ALERT(alert_netstumbler_ref, in_pack, packinfo,
                                "Detected Netstumbler 3.30 probe");
                     }
 
-                    if (LUCENT_OFFSET + sizeof(LUCENT_TEST_SIGNATURE) < 
-                        datachunk->length && 
-                        memcmp(&(datachunk->data[LUCENT_OFFSET]),
-                               LUCENT_TEST_SIGNATURE, 
-                               sizeof(LUCENT_TEST_SIGNATURE)) == 0) {
+                    if (LUCENT_OFFSET + sizeof(LUCENT_TEST_SIGNATURE) < datachunk->length() && 
+                        memcmp(&(datachunk->data()[LUCENT_OFFSET]),
+                               LUCENT_TEST_SIGNATURE, sizeof(LUCENT_TEST_SIGNATURE)) == 0) {
                         _ALERT(alert_lucenttest_ref, in_pack, packinfo,
                                "Detected Lucent probe/link test");
                     }
@@ -1086,10 +1069,9 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
             } // LLC_UI
 
             // Fortress LLC
-            if ((LLC_UI_OFFSET + 1 + sizeof(FORTRESS_SIGNATURE)) < 
-                datachunk->length && memcmp(&(datachunk->data[LLC_UI_OFFSET]), 
-                                            FORTRESS_SIGNATURE,
-                       sizeof(FORTRESS_SIGNATURE)) == 0) {
+            if ((LLC_UI_OFFSET + 1 + sizeof(FORTRESS_SIGNATURE)) < datachunk->length() && 
+                memcmp(&(datachunk->data()[LLC_UI_OFFSET]), 
+                       FORTRESS_SIGNATURE, sizeof(FORTRESS_SIGNATURE)) == 0) {
                 packinfo->cryptset |= crypt_fortress;
                 common->basic_crypt_set |= KIS_DEVICE_BASICCRYPT_ENCRYPTED;
             }
@@ -1097,11 +1079,10 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
             // Dot1x frames
             // +1 for the version byte at header_offset + hot1x off
             // +3 for the offset past LLC_UI
-            if ((LLC_UI_OFFSET + 4 + sizeof(DOT1X_PROTO)) < chunk->length && 
-                memcmp(&(chunk->data[LLC_UI_OFFSET + 3]),
-                       DOT1X_PROTO, sizeof(DOT1X_PROTO)) == 0) {
+            if ((LLC_UI_OFFSET + 4 + sizeof(DOT1X_PROTO)) < chunk->length() && 
+                memcmp(&(chunk->data()[LLC_UI_OFFSET + 3]), DOT1X_PROTO, sizeof(DOT1X_PROTO)) == 0) {
 
-                kis_data_packinfo *datainfo = new kis_data_packinfo;
+                auto datainfo = std::make_shared<kis_data_packinfo>();
 
                 datainfo->proto = proto_eap;
 
@@ -1112,29 +1093,27 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
                 unsigned int offset = DOT1X_OFFSET;
 
                 // Dot1x bits
-                uint8_t dot1x_version = chunk->data[offset];
-                uint8_t dot1x_type = chunk->data[offset + 1];
+                uint8_t dot1x_version = chunk->data()[offset];
+                uint8_t dot1x_type = chunk->data()[offset + 1];
                 // uint16_t dot1x_length = kis_extract16(&(chunk->data[offset + 2]));
 
                 offset += EAP_OFFSET;
 
                 if (dot1x_version != 1 || dot1x_type != 0 || 
-                    offset + EAP_PACKET_SIZE > chunk->length) {
-                    delete datainfo;
+                    offset + EAP_PACKET_SIZE > chunk->length()) {
                     goto eap_end;
                 }
 
                 // Eap bits
-                uint8_t eap_code = chunk->data[offset];
+                uint8_t eap_code = chunk->data()[offset];
                 // uint8_t eap_id = chunk->data[offset + 1];
-                uint16_t eap_length = kis_extractBE16(&(chunk->data[offset + 2]));
-                uint8_t eap_type = chunk->data[offset + 4];
+                uint16_t eap_length = kis_extractBE16(&(chunk->data()[offset + 2]));
+                uint8_t eap_type = chunk->data()[offset + 4];
 
                 unsigned int rawlen;
                 char *rawid;
 
-                if (offset + eap_length > chunk->length) {
-                    delete datainfo;
+                if (offset + eap_length > chunk->length()) {
                     goto eap_end;
                 }
 
@@ -1163,7 +1142,7 @@ int kis_80211_phy::packet_dot11_dissector(kis_packet *in_pack) {
 
                             rawlen = eap_length - 5;
                             rawid = new char[rawlen + 1];
-                            memcpy(rawid, &(chunk->data[offset + 5]), rawlen);
+                            memcpy(rawid, &(chunk->data()[offset + 5]), rawlen);
                             rawid[rawlen] = 0;
 
                             datainfo->auxstring = munge_to_printable(rawid, rawlen, 1);
@@ -1196,8 +1175,9 @@ eap_end:
     return 1;
 }
 
-std::vector<kis_80211_phy::ie_tag_tuple> kis_80211_phy::PacketDot11IElist(kis_packet *in_pack, 
-        dot11_packinfo *packinfo) {
+std::vector<kis_80211_phy::ie_tag_tuple> kis_80211_phy::PacketDot11IElist(
+        std::shared_ptr<kis_packet> in_pack, 
+        std::shared_ptr<dot11_packinfo> packinfo) {
     auto ret = std::vector<ie_tag_tuple>{};
 
     if (packinfo->ie_tags == nullptr) {
@@ -1210,23 +1190,19 @@ std::vector<kis_80211_phy::ie_tag_tuple> kis_80211_phy::PacketDot11IElist(kis_pa
                     packinfo->subtype == packet_sub_reassociation_req)) 
             return ret;
 
-        kis_datachunk *chunk = 
-            (kis_datachunk *) in_pack->fetch(pack_comp_decap);
-
         // If we can't grab an 802.11 chunk, grab the raw link frame
-        if (chunk == NULL) {
-            chunk = (kis_datachunk *) in_pack->fetch(pack_comp_linkframe);
-            if (chunk == NULL) {
-                return ret;
-            }
+        auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
+
+        if (chunk == nullptr) {
+            return ret;
         }
 
         // If we don't have a dot11 frame, throw it away
         if (chunk->dlt != KDLT_IEEE802_11)
             return ret;
 
-        membuf tags_membuf((char *) &(chunk->data[packinfo->header_offset]), 
-                (char *) &(chunk->data[chunk->length]));
+        membuf tags_membuf((char *) &(chunk->data()[packinfo->header_offset]), 
+                (char *) &(chunk->data()[chunk->length()]));
         std::istream istream_ietags(&tags_membuf);
 
         packinfo->ie_tags = std::make_shared<dot11_ie>();
@@ -1270,7 +1246,8 @@ std::vector<kis_80211_phy::ie_tag_tuple> kis_80211_phy::PacketDot11IElist(kis_pa
     return ret;
 }
 
-int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo *packinfo) {
+int kis_80211_phy::packet_dot11_ie_dissector(std::shared_ptr<kis_packet> in_pack, 
+        std::shared_ptr<dot11_packinfo> packinfo) {
     // If we can't have IE tags at all
     if (packinfo->type != packet_management || !(
                 packinfo->subtype == packet_sub_beacon ||
@@ -1280,15 +1257,11 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 packinfo->subtype == packet_sub_reassociation_req)) 
         return 0;
 
-    kis_datachunk *chunk = 
-        (kis_datachunk *) in_pack->fetch(pack_comp_decap);
+    auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
 
     // If we can't grab an 802.11 chunk, grab the raw link frame
-    if (chunk == NULL) {
-        chunk = (kis_datachunk *) in_pack->fetch(pack_comp_linkframe);
-        if (chunk == NULL) {
-            return 0;
-        }
+    if (chunk == nullptr) {
+        return 0;
     }
 
     // If we don't have a dot11 frame, throw it away
@@ -1296,8 +1269,8 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
         return 0;
 
     if (packinfo->ie_tags == nullptr) {
-        membuf tags_membuf((char *) &(chunk->data[packinfo->header_offset]), 
-                (char *) &(chunk->data[chunk->length]));
+        membuf tags_membuf((char *) &(chunk->data()[packinfo->header_offset]), 
+                (char *) &(chunk->data()[chunk->length()]));
         std::istream istream_ietags(&tags_membuf);
 
         packinfo->ie_tags = std::make_shared<dot11_ie>();
@@ -1312,8 +1285,7 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
         }
     }
 
-    kis_common_info *common = 
-        (kis_common_info *) in_pack->fetch(pack_comp_common);
+    auto common = in_pack->fetch<kis_common_info>(pack_comp_common);
 
     // Track if we've seen some of these tags already
     // bool seen_ssid = false;
@@ -1330,7 +1302,8 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 auto vendor = std::make_shared<dot11_ie_150_vendor>();
                 vendor->parse(ie_tag->tag_data_stream());
 
-                packinfo->ietag_hash_map.insert(std::make_pair(ie_tag_tuple{150, vendor->vendor_oui_int(), vendor->vendor_oui_type()}, hash(ie_tag->tag_data())));
+                packinfo->ietag_hash_map.insert(std::make_pair(ie_tag_tuple{150, vendor->vendor_oui_int(), 
+                    vendor->vendor_oui_type()}, hash(ie_tag->tag_data())));
             } catch (const std::exception& e) {
                 packinfo->corrupt = 1;
                 return -1;
@@ -1340,13 +1313,15 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
                 auto vendor = std::make_shared<dot11_ie_221_vendor>();
                 vendor->parse(ie_tag->tag_data_stream());
 
-                packinfo->ietag_hash_map.insert(std::make_pair(ie_tag_tuple{221, vendor->vendor_oui_int(), vendor->vendor_oui_type()}, hash(ie_tag->tag_data())));
+                packinfo->ietag_hash_map.insert(std::make_pair(ie_tag_tuple{221, vendor->vendor_oui_int(), 
+                    vendor->vendor_oui_type()}, hash(ie_tag->tag_data())));
             } catch (const std::exception& e) {
                 packinfo->corrupt = 1;
                 return -1;
             }
         } else {
-            packinfo->ietag_hash_map.insert(std::make_pair(ie_tag_tuple{ie_tag->tag_num(), 0, 0}, hash(ie_tag->tag_data())));
+            packinfo->ietag_hash_map.insert(std::make_pair(ie_tag_tuple{ie_tag->tag_num(), 0, 0}, 
+                                                           hash(ie_tag->tag_data())));
         }
 
         // IE 0 SSID
@@ -2299,11 +2274,12 @@ int kis_80211_phy::packet_dot11_ie_dissector(kis_packet *in_pack, dot11_packinfo
 
 }
 
-kis_datachunk *kis_80211_phy::DecryptWEP(dot11_packinfo *in_packinfo,
-                                               kis_datachunk *in_chunk,
-                                               unsigned char *in_key, int in_key_len,
-                                               unsigned char *in_id) {
-    kis_datachunk *manglechunk = NULL;
+std::shared_ptr<kis_datachunk> kis_80211_phy::DecryptWEP(std::shared_ptr<dot11_packinfo> in_packinfo,
+        std::shared_ptr<kis_datachunk> in_chunk,
+        unsigned char *in_key, int in_key_len,
+        unsigned char *in_id) {
+
+    std::shared_ptr<kis_datachunk> manglechunk;
 
     // printf("debug - decryptwep\n");
     if (in_packinfo->corrupt)
@@ -2316,8 +2292,8 @@ kis_datachunk *kis_80211_phy::DecryptWEP(dot11_packinfo *in_packinfo,
 
     // printf("debug - decryptwep size len %u offt %u\n", in_chunk->length, in_packinfo->header_offset);
     // Bail on size check
-    if (in_chunk->length < in_packinfo->header_offset ||
-        in_chunk->length - in_packinfo->header_offset <= 8)
+    if (in_chunk->length() < in_packinfo->header_offset ||
+        in_chunk->length() - in_packinfo->header_offset <= 8)
         return NULL;
 
     // printf("debug - decryptwep data header offt %u test head %02x %02x %02x %02x offt %02x %02x %02x %02x\n", in_packinfo->header_offset, in_chunk->data[0], in_chunk->data[1], in_chunk->data[2], in_chunk->data[3], in_chunk->data[in_packinfo->header_offset], in_chunk->data[in_packinfo->header_offset+1], in_chunk->data[in_packinfo->header_offset+2], in_chunk->data[in_packinfo->header_offset+3]);
@@ -2328,9 +2304,9 @@ kis_datachunk *kis_80211_phy::DecryptWEP(dot11_packinfo *in_packinfo,
     memset(pwd, 0, WEPKEY_MAX + 3);
 
     // Extract the IV and add it to the key
-    pwd[0] = in_chunk->data[in_packinfo->header_offset + 0] & 0xFF;
-    pwd[1] = in_chunk->data[in_packinfo->header_offset + 1] & 0xFF;
-    pwd[2] = in_chunk->data[in_packinfo->header_offset + 2] & 0xFF;
+    pwd[0] = in_chunk->data()[in_packinfo->header_offset + 0] & 0xFF;
+    pwd[1] = in_chunk->data()[in_packinfo->header_offset + 1] & 0xFF;
+    pwd[2] = in_chunk->data()[in_packinfo->header_offset + 2] & 0xFF;
 
     // Add the supplied password to the key
     memcpy(pwd + 3, in_key, WEPKEY_MAX);
@@ -2349,20 +2325,11 @@ kis_datachunk *kis_80211_phy::DecryptWEP(dot11_packinfo *in_packinfo,
         keyblock[kbb] = oldkey;
     }
 
+
     // Allocate the mangled chunk -- 4 byte IV/Key# gone, 4 byte ICV gone
-    manglechunk = new kis_datachunk;
-    manglechunk->dlt = KDLT_IEEE802_11;
+    std::string manglebuf;
+    manglebuf.resize(in_chunk->length() - 8);
 
-#if 0
-    manglechunk->length = in_chunk->length - 8;
-    manglechunk->data = new uint8_t[manglechunk->length];
-
-    // Copy the packet headers to the new chunk
-    memcpy(manglechunk->data, in_chunk->data, in_packinfo->header_offset);
-#endif
-    
-    // Copy because we're modifying
-    manglechunk->set_data(in_chunk->data, in_chunk->length - 8, true);
 
     // Decrypt the data payload and check the CRC
     kba = kbb = 0;
@@ -2371,11 +2338,10 @@ kis_datachunk *kis_80211_phy::DecryptWEP(dot11_packinfo *in_packinfo,
     uint8_t icv[4];
 
     // Copy the ICV into the CRC buffer for checking
-    memcpy(icv, &(in_chunk->data[in_chunk->length - 4]), 4);
-    // printf("debug - icv %02x %02x %02x %02x\n", icv[0], icv[1], icv[2], icv[3]);
+    memcpy(icv, &(in_chunk->data()[in_chunk->length() - 4]), 4);
 
     for (unsigned int dpos = in_packinfo->header_offset + 4; 
-         dpos < in_chunk->length - 4; dpos++) {
+         dpos < in_chunk->length() - 4; dpos++) {
         kba = (kba + 1) & 0xFF;
         kbb = (kbb + keyblock[kba]) & 0xFF;
 
@@ -2384,10 +2350,10 @@ kis_datachunk *kis_80211_phy::DecryptWEP(dot11_packinfo *in_packinfo,
         keyblock[kbb] = oldkey;
 
         // Decode the packet into the mangle chunk
-        manglechunk->data[dpos - 4] = 
-            in_chunk->data[dpos] ^ keyblock[(keyblock[kba] + keyblock[kbb]) & 0xFF];
+        manglebuf[dpos - 4] = 
+            in_chunk->data()[dpos] ^ keyblock[(keyblock[kba] + keyblock[kbb]) & 0xFF];
 
-        crc = dot11_wep_crc32_table[(crc ^ manglechunk->data[dpos - 4]) & 0xFF] ^ (crc >> 8);
+        crc = dot11_wep_crc32_table[(crc ^ manglebuf[dpos - 4]) & 0xFF] ^ (crc >> 8);
     }
 
     // Check the CRC
@@ -2415,30 +2381,36 @@ kis_datachunk *kis_80211_phy::DecryptWEP(dot11_packinfo *in_packinfo,
 
     // If the CRC check failed, delete the moddata
     if (crcfailure) {
-        delete manglechunk;
         return NULL;
     }
 
     // Remove the privacy flag in the mangled data
-    frame_control *fc = (frame_control *) manglechunk->data;
+    auto fc = reinterpret_cast<frame_control *>(manglebuf.data());
     fc->wep = 0;
+
+    manglechunk = std::make_shared<kis_datachunk>();
+    manglechunk->dlt = KDLT_IEEE802_11;
+    manglechunk->copy_raw_data(manglebuf);
+
 
     return manglechunk;
 }
 
-int kis_80211_phy::packet_wep_decryptor(kis_packet *in_pack) {
-    kis_datachunk *manglechunk = NULL;
+int kis_80211_phy::packet_wep_decryptor(std::shared_ptr<kis_packet> in_pack) {
+    std::shared_ptr<kis_datachunk> manglechunk;
 
     if (in_pack->error)
         return 0;
 
     // Grab the 80211 info, compare, bail
-    dot11_packinfo *packinfo;
-    if ((packinfo = 
-         (dot11_packinfo *) in_pack->fetch(pack_comp_80211)) == NULL)
+    auto packinfo = in_pack->fetch<dot11_packinfo>(pack_comp_80211);
+
+    if (packinfo == nullptr)
         return 0;
+
     if (packinfo->corrupt)
         return 0;
+
     if (packinfo->type != packet_data || 
         (packinfo->subtype != packet_sub_data &&
          packinfo->subtype != packet_sub_data_qos_data))
@@ -2449,15 +2421,10 @@ int kis_80211_phy::packet_wep_decryptor(kis_packet *in_pack) {
         return 0;
 
     // Grab the 80211 frame, if that doesn't exist, grab the link frame
-    kis_datachunk *chunk = 
-        (kis_datachunk *) in_pack->fetch(pack_comp_decap);
+    auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
 
-    if (chunk == NULL) {
-        if ((chunk = 
-             (kis_datachunk *) in_pack->fetch(pack_comp_linkframe)) == NULL) {
-            return 0;
-        }
-    }
+    if (chunk == nullptr)
+        return 0;
 
     // If we don't have a dot11 frame, throw it away
     if (chunk->dlt != KDLT_IEEE802_11)
@@ -2476,44 +2443,36 @@ int kis_80211_phy::packet_wep_decryptor(kis_packet *in_pack) {
     }
 
     (bwmitr->second)->decrypted++;
-    // printf("debug - flagging packet as decrypted\n");
     packinfo->decrypted = 1;
 
     in_pack->insert(pack_comp_mangleframe, manglechunk);
 
-    kis_datachunk *datachunk = 
-        (kis_datachunk *) in_pack->fetch(pack_comp_datapayload);
+    in_pack->erase(pack_comp_datapayload);
 
-    in_pack->insert(pack_comp_datapayload, NULL);
+    if (manglechunk->length() > packinfo->header_offset) {
+        auto datachunk = std::make_shared<kis_datachunk>();
 
-    if (datachunk != NULL)
-        delete datachunk;
+        datachunk->set_data(manglechunk->substr(packinfo->header_offset, manglechunk->length() - 
+                                                packinfo->header_offset));
 
-    if (manglechunk->length > packinfo->header_offset) {
-        datachunk = new kis_datachunk;
-
-        datachunk->set_data(manglechunk->data + packinfo->header_offset,
-                            manglechunk->length - packinfo->header_offset,
-                            false);
+        in_pack->insert(pack_comp_datapayload, datachunk);
     }
-
-    in_pack->insert(pack_comp_datapayload, datachunk);
 
     return 1;
 }
 
-int kis_80211_phy::packet_dot11_wps_m3(kis_packet *in_pack) {
+int kis_80211_phy::packet_dot11_wps_m3(std::shared_ptr<kis_packet> in_pack) {
     if (in_pack->error) {
         return 0;
     }
 
-    // Grab the 80211 info, compare, bail
-    dot11_packinfo *packinfo;
-    if ((packinfo = 
-         (dot11_packinfo *) in_pack->fetch(pack_comp_80211)) == NULL)
+    auto packinfo = in_pack->fetch<dot11_packinfo>(pack_comp_80211);
+    if (packinfo == nullptr)
         return 0;
+
     if (packinfo->corrupt)
         return 0;
+
     if (packinfo->type != packet_data || 
         (packinfo->subtype != packet_sub_data &&
          packinfo->subtype != packet_sub_data_qos_data))
@@ -2524,31 +2483,25 @@ int kis_80211_phy::packet_dot11_wps_m3(kis_packet *in_pack) {
         return 0;
 
     // Grab the 80211 frame, if that doesn't exist, grab the link frame
-    kis_datachunk *chunk = 
-        (kis_datachunk *) in_pack->fetch(pack_comp_decap);
-
-    if (chunk == NULL) {
-        if ((chunk = 
-             (kis_datachunk *) in_pack->fetch(pack_comp_linkframe)) == NULL) {
-            return 0;
-        }
-    }
+    auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
+    if (chunk == nullptr)
+        return 0;
 
     // If we don't have a dot11 frame, throw it away
     if (chunk->dlt != KDLT_IEEE802_11)
         return 0;
 
-    if (packinfo->header_offset >= chunk->length)
+    if (packinfo->header_offset >= chunk->length())
         return 0;
 
     unsigned int pos = packinfo->header_offset;
 
     uint8_t eapol_llc[] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00, 0x88, 0x8e };
 
-    if (pos + sizeof(eapol_llc) >= chunk->length)
+    if (pos + sizeof(eapol_llc) >= chunk->length())
         return 0;
 
-    if (memcmp(&(chunk->data[pos]), eapol_llc, sizeof(eapol_llc)))
+    if (memcmp(&(chunk->data()[pos]), eapol_llc, sizeof(eapol_llc)))
         return 0;
 
     // printf("debug - potential eapol frame, matched llc\n");
@@ -2557,8 +2510,7 @@ int kis_80211_phy::packet_dot11_wps_m3(kis_packet *in_pack) {
 
     // Make an in-memory zero-copy stream instance to the packet contents after
     // the SNAP/LLC header
-    membuf eapol_membuf((char *) &(chunk->data[pos]), 
-            (char *) &(chunk->data[chunk->length]));
+    membuf eapol_membuf((char *) &(chunk->data()[pos]), (char *) &(chunk->data()[chunk->length()]));
     std::istream eapol_stream(&eapol_membuf);
 
     try {
@@ -2610,18 +2562,16 @@ int kis_80211_phy::packet_dot11_wps_m3(kis_packet *in_pack) {
 }
 
 std::shared_ptr<dot11_tracked_eapol> 
-    kis_80211_phy::packet_dot11_eapol_handshake(kis_packet *in_pack,
-            std::shared_ptr<dot11_tracked_device> dot11dev) {
+kis_80211_phy::packet_dot11_eapol_handshake(std::shared_ptr<kis_packet> in_pack,
+                                            std::shared_ptr<dot11_tracked_device> dot11dev) {
 
     if (in_pack->error) {
         return NULL;
     }
 
-    // Grab the 80211 info, compare, bail
-    dot11_packinfo *packinfo;
-    if ((packinfo = (dot11_packinfo *) in_pack->fetch(pack_comp_80211)) == NULL) {
+    auto packinfo = in_pack->fetch<dot11_packinfo>(pack_comp_80211);
+    if (packinfo == nullptr)
         return NULL;
-    }
 
     if (packinfo->corrupt) {
         return NULL;
@@ -2638,22 +2588,15 @@ std::shared_ptr<dot11_tracked_eapol>
         return NULL;
     }
 
-    // Grab the 80211 frame, if that doesn't exist, grab the link frame
-    kis_datachunk *chunk = 
-        (kis_datachunk *) in_pack->fetch(pack_comp_decap);
+    auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
+    if (chunk == nullptr)
+        return NULL;
 
-    if (chunk == NULL) {
-        if ((chunk = (kis_datachunk *) in_pack->fetch(pack_comp_linkframe)) == NULL) {
-            return NULL;
-        }
-    }
-
-    // If we don't have a dot11 frame, throw it away
     if (chunk->dlt != KDLT_IEEE802_11) {
         return NULL;
     }
 
-    if (packinfo->header_offset >= chunk->length) {
+    if (packinfo->header_offset >= chunk->length()) {
         return NULL;
     }
 
@@ -2661,11 +2604,11 @@ std::shared_ptr<dot11_tracked_eapol>
 
     uint8_t eapol_llc[] = { 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00, 0x88, 0x8e };
 
-    if (pos + sizeof(eapol_llc) >= chunk->length) {
+    if (pos + sizeof(eapol_llc) >= chunk->length()) {
         return NULL;
     }
 
-    if (memcmp(&(chunk->data[pos]), eapol_llc, sizeof(eapol_llc))) {
+    if (memcmp(&(chunk->data()[pos]), eapol_llc, sizeof(eapol_llc))) {
         return NULL;
     }
 
@@ -2673,8 +2616,8 @@ std::shared_ptr<dot11_tracked_eapol>
 
     // Make an in-memory zero-copy stream instance to the packet contents after
     // the SNAP/LLC header
-    membuf eapol_membuf((char *) &(chunk->data[pos]), 
-            (char *) &(chunk->data[chunk->length]));
+    membuf eapol_membuf((char *) &(chunk->data()[pos]), 
+                        (char *) &(chunk->data()[chunk->length()]));
     std::istream eapol_stream(&eapol_membuf);
 
     try {
@@ -2724,7 +2667,7 @@ std::shared_ptr<dot11_tracked_eapol>
         tp->set_dlt(chunk->dlt);
         tp->set_source(chunk->source_id);
 
-        tp->get_data()->set(chunk->data, chunk->length);
+        tp->get_data()->set(chunk->data(), chunk->length());
 
         if (rsnkey->key_info_key_ack() && !rsnkey->key_info_key_mic() &&
                 !rsnkey->key_info_install()) {

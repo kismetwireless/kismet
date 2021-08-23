@@ -46,9 +46,7 @@ class bluetooth_tracked_device;
 
 class bluetooth_packinfo : public packet_component {
 public:
-    bluetooth_packinfo() {
-        self_destruct = 1;
-    }
+    bluetooth_packinfo() { }
 
     mac_addr address;
     std::string name;
@@ -147,17 +145,16 @@ public:
 	virtual ~kis_bluetooth_phy();
 
 	// Inherited functionality
-	kis_bluetooth_phy(global_registry *in_globalreg) :
-		kis_phy_handler(in_globalreg) { };
+	kis_bluetooth_phy() :
+		kis_phy_handler() { };
 
 	// Build a strong version of ourselves
-	virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg,
-											  int in_phyid) {
-		return new kis_bluetooth_phy(in_globalreg, in_phyid);
+	virtual kis_phy_handler *create_phy_handler(int in_phyid) {
+		return new kis_bluetooth_phy(in_phyid);
 	}
 
 	// Strong constructor
-	kis_bluetooth_phy(global_registry *in_globalreg, int in_phyid);
+	kis_bluetooth_phy(int in_phyid);
 
 	// Bluetooth device record classifier to common for the devicetracker layer
 	static int common_classifier_bluetooth(CHAINCALL_PARMS);

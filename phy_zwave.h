@@ -96,15 +96,15 @@ class Kis_Zwave_Phy : public kis_phy_handler {
 public:
     virtual ~Kis_Zwave_Phy();
 
-    Kis_Zwave_Phy(global_registry *in_globalreg) :
-        kis_phy_handler(in_globalreg) { };
+    Kis_Zwave_Phy() :
+        kis_phy_handler() { };
 
 	// Build a strong version of ourselves
-	virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg, int in_phyid) {
-		return new Kis_Zwave_Phy(in_globalreg, in_phyid);
+	virtual kis_phy_handler *create_phy_handler(int in_phyid) {
+		return new Kis_Zwave_Phy(in_phyid);
 	}
 
-    Kis_Zwave_Phy(global_registry *in_globalreg, int in_phyid);
+    Kis_Zwave_Phy(int in_phyid);
 
 protected:
     std::shared_ptr<packet_chain> packetchain;

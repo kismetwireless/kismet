@@ -73,15 +73,15 @@ protected:
 
 class Kis_TICC2540_Phy : public kis_phy_handler {
 public:
-    Kis_TICC2540_Phy(global_registry *in_globalreg) :
-        kis_phy_handler(in_globalreg) { }
+    Kis_TICC2540_Phy() :
+        kis_phy_handler() { }
 
-    Kis_TICC2540_Phy(global_registry *in_globalreg, int in_phyid);
+    Kis_TICC2540_Phy(int in_phyid);
 
     virtual ~Kis_TICC2540_Phy();
 
-    virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg, int in_phyid) {
-        return new Kis_TICC2540_Phy(in_globalreg, in_phyid);
+    virtual kis_phy_handler *create_phy_handler(int in_phyid) {
+        return new Kis_TICC2540_Phy(in_phyid);
     }
 
     static int DissectorTICC2540(CHAINCALL_PARMS);

@@ -331,7 +331,7 @@ void Load_Kismet_UUID(global_registry *globalreg) {
 
     auto uuidconfpath = fmt::format("{}/kismet_server_id.conf", config_dir_path);
 
-    config_file uuidconf(globalreg);
+    config_file uuidconf;
     uuidconf.parse_config(uuidconfpath.c_str());
 
     // Look for a saved uuid
@@ -675,7 +675,7 @@ int main(int argc, char *argv[], char *envp[]) {
                 config_base);
     }
 
-    conf = new config_file(globalregistry);
+    conf = new config_file;
 
     if (override_fname.length() > 0) {
         struct stat sbuf;
@@ -863,7 +863,7 @@ int main(int argc, char *argv[], char *envp[]) {
     auto devicetracker = device_tracker::create_device_tracker();
 
     // Add channel tracking
-    channel_tracker_v2::create_channeltracker(globalregistry);
+    channel_tracker_v2::create_channeltracker();
 
     if (globalregistry->fatal_condition)
         SpindownKismet();
@@ -873,20 +873,20 @@ int main(int argc, char *argv[], char *envp[]) {
     kis_dlt_radiotap::create_dlt();
     kis_dlt_btle_ll_radio::create_dlt();
 
-    new kis_dissector_ip_data(globalregistry);
+    auto ipdissector = kis_dissector_ip_data::create_dissector_ip_data();
 
     // Register the base PHYs
-    devicetracker->register_phy_handler(new kis_80211_phy(globalregistry));
-    devicetracker->register_phy_handler(new Kis_RTL433_Phy(globalregistry));
-    devicetracker->register_phy_handler(new Kis_Zwave_Phy(globalregistry));
-    devicetracker->register_phy_handler(new kis_bluetooth_phy(globalregistry));
-    devicetracker->register_phy_handler(new Kis_UAV_Phy(globalregistry));
-    devicetracker->register_phy_handler(new Kis_Mousejack_Phy(globalregistry));
-    devicetracker->register_phy_handler(new kis_btle_phy(globalregistry));
-    devicetracker->register_phy_handler(new kis_rtlamr_phy(globalregistry));
-    devicetracker->register_phy_handler(new kis_rtladsb_phy(globalregistry));
-    devicetracker->register_phy_handler(new kis_802154_phy(globalregistry));
-    devicetracker->register_phy_handler(new kis_radiation_phy(globalregistry));
+    devicetracker->register_phy_handler(new kis_80211_phy());
+    devicetracker->register_phy_handler(new Kis_RTL433_Phy());
+    devicetracker->register_phy_handler(new Kis_Zwave_Phy());
+    devicetracker->register_phy_handler(new kis_bluetooth_phy());
+    devicetracker->register_phy_handler(new Kis_UAV_Phy());
+    devicetracker->register_phy_handler(new Kis_Mousejack_Phy());
+    devicetracker->register_phy_handler(new kis_btle_phy());
+    devicetracker->register_phy_handler(new kis_rtlamr_phy());
+    devicetracker->register_phy_handler(new kis_rtladsb_phy());
+    devicetracker->register_phy_handler(new kis_802154_phy());
+    devicetracker->register_phy_handler(new kis_radiation_phy());
 
     if (globalregistry->fatal_condition) 
         SpindownKismet();

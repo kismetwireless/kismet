@@ -363,6 +363,7 @@ void kis_net_beast_httpd::trigger_deferred_startup() {
     register_websocket_route("/debug/echo", LOGON_ROLE, {"ws"},
             std::make_shared<kis_net_web_function_endpoint>(
                 [](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                con->stream().expires_never();
                 auto ws = 
                     std::make_shared<kis_net_web_websocket_endpoint>(con, 
                         [](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
@@ -1837,35 +1838,51 @@ void kis_net_web_websocket_endpoint::close() {
     } catch (const std::exception& e) {
         ;
     } 
+
+    try {
+        running_promise.set_value();
+    } catch (const std::future_error& e) {
+        // If somehow we already pulled the future, fail silently
+    }
+}
+
+void kis_net_web_websocket_endpoint::start_read(std::shared_ptr<kis_net_web_websocket_endpoint> ref) {
+    auto buffer = std::make_shared<boost::beast::flat_buffer>();
+
+    ws_.async_read(*buffer, [this, ref, buffer](boost::beast::error_code ec, size_t sz) {
+        if (ec) {
+            // All errors are equal as far as we care, we close down the websocket
+            close();
+            return;
+        }
+
+        try {
+            handler_cb(ref, *buffer, ws_.got_text());
+        } catch (const std::exception& e) {
+            // All handler errors close the websocket
+            close();
+            return;
+        }
+
+        start_read(ref);
+    });
 }
 
 
 void kis_net_web_websocket_endpoint::handle_request(std::shared_ptr<kis_net_beast_httpd_connection> con) {
-    try {
-        ws_.set_option(boost::beast::websocket::stream_base::timeout::suggested(
-                    boost::beast::role_type::server));
+    // Set the default timeouts
+    ws_.set_option(boost::beast::websocket::stream_base::timeout::suggested(
+                boost::beast::role_type::server));
 
-        ws_.accept(con->request());
+    ws_.accept(con->request());
 
-        running = true;
+    running = true;
 
-        while (running) {
-            boost::beast::flat_buffer buffer;
-            ws_.read(buffer);
-            handler_cb(shared_from_this(), buffer, ws_.got_text());
-        }
-    } catch (const boost::beast::system_error& se) {
-        running = false;
-        if (se.code() != boost::beast::websocket::error::closed &&
-                se.code() != boost::asio::stream_errc::eof) {
-            // _MSG_ERROR("Websocket read error: {}", se.code().message());
-        } else {
-            return close();
-        }
-    } catch (const std::exception& e) {
-        running = false;
-        // _MSG_ERROR("Websocket read error: {}", e.what());
-        return close();
-    }
+    auto running_future = running_promise.get_future();
+
+    // Wait for the handlers to finish
+    start_read(shared_from_this());
+
+    running_future.wait();
 }
 

@@ -29,8 +29,8 @@
 #include "manuf.h"
 #include "messagebus.h"
 
-kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
-    kis_phy_handler(in_globalreg, in_phyid) {
+kis_rtladsb_phy::kis_rtladsb_phy(int in_phyid) :
+    kis_phy_handler(in_phyid) {
 
     set_phy_name("RTLADSB");
 
@@ -169,7 +169,7 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
                                             auto packet = packetchain->generate_packet();
                                             gettimeofday(&(packet->ts), NULL);
 
-                                            kis_json_packinfo *jsoninfo = new kis_json_packinfo();
+                                            auto jsoninfo = std::make_shared<kis_json_packinfo>();
 
                                             jsoninfo->type = "RTLadsb";
 
@@ -214,12 +214,12 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
 
                 auto beast_handler_id = 
                     packetchain->register_handler(
-                            [this, ws](kis_packet *in_pack) -> int {
+                            [this, ws](std::shared_ptr<kis_packet> in_pack) -> int {
 
                             if (in_pack->error || in_pack->filtered || in_pack->duplicate)
                                 return 0;
 
-                            kis_json_packinfo *json = in_pack->fetch<kis_json_packinfo>(pack_comp_json);
+                            auto json = in_pack->fetch<kis_json_packinfo>(pack_comp_json);
                             
                             if (json == NULL)
                                 return 0;
@@ -297,12 +297,12 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
 
                 auto beast_handler_id = 
                     packetchain->register_handler(
-                            [this, ws](kis_packet *in_pack) -> int {
+                            [this, ws](std::shared_ptr<kis_packet> in_pack) -> int {
 
                             if (in_pack->error || in_pack->filtered || in_pack->duplicate)
                                 return 0;
 
-                            kis_json_packinfo *json = in_pack->fetch<kis_json_packinfo>(pack_comp_json);
+                            auto json = in_pack->fetch<kis_json_packinfo>(pack_comp_json);
                             
                             if (json == NULL)
                                 return 0;
@@ -356,7 +356,7 @@ kis_rtladsb_phy::kis_rtladsb_phy(global_registry *in_globalreg, int in_phyid) :
 
                 auto beast_handler_id = 
                     packetchain->register_handler(
-                            [this, ws, srcuuid](kis_packet *in_pack) -> int {
+                            [this, ws, srcuuid](std::shared_ptr<kis_packet> in_pack) -> int {
 
                             if (in_pack->error || in_pack->filtered || in_pack->duplicate)
                                 return 0;
@@ -457,7 +457,7 @@ mac_addr kis_rtladsb_phy::json_to_mac(Json::Value json) {
     return mac_addr(bytes, 6);
 }
 
-bool kis_rtladsb_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
+bool kis_rtladsb_phy::json_to_rtl(Json::Value json, std::shared_ptr<kis_packet> packet) {
     std::string err;
     std::string v;
 
@@ -475,13 +475,7 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
         return false;
     }
 
-    kis_common_info *common = 
-        (kis_common_info *) packet->fetch(pack_comp_common);
-
-    if (common == NULL) {
-        common = new kis_common_info;
-        packet->insert(pack_comp_common, common);
-    }
+    auto common = packet->fetch_or_add<kis_common_info>(pack_comp_common);
 
     common->type = packet_basic_data;
     common->phyid = fetch_phy_id();
@@ -584,7 +578,7 @@ bool kis_rtladsb_phy::json_to_rtl(Json::Value json, kis_packet *packet) {
         adsbdev->update_location = false;
 
         // Update the common device with location if we've got a location record now
-        auto gpsinfo = new kis_gps_packinfo();
+        auto gpsinfo = std::make_shared<kis_gps_packinfo>();
 
         gpsinfo->lat = adsbdev->lat;
         gpsinfo->lon = adsbdev->lon;
@@ -618,7 +612,7 @@ bool kis_rtladsb_phy::is_adsb(Json::Value json) {
     return false;
 }
 
-std::shared_ptr<rtladsb_tracked_adsb> kis_rtladsb_phy::add_adsb(kis_packet *packet,
+std::shared_ptr<rtladsb_tracked_adsb> kis_rtladsb_phy::add_adsb(std::shared_ptr<kis_packet> packet,
         Json::Value json, std::shared_ptr<kis_tracked_device_base> rtlholder) {
     auto icao_j = json["icao"];
     bool new_adsb = false;
@@ -745,7 +739,7 @@ int kis_rtladsb_phy::packet_handler(CHAINCALL_PARMS) {
     if (in_pack->error || in_pack->filtered || in_pack->duplicate)
         return 0;
 
-    kis_json_packinfo *json = in_pack->fetch<kis_json_packinfo>(rtladsb->pack_comp_json);
+    auto json = in_pack->fetch<kis_json_packinfo>(rtladsb->pack_comp_json);
     if (json == NULL)
         return 0;
 
@@ -763,11 +757,7 @@ int kis_rtladsb_phy::packet_handler(CHAINCALL_PARMS) {
 
         // Copy the JSON as the meta field for logging, if it's valid
         if (rtladsb->json_to_rtl(device_json, in_pack)) {
-            packet_metablob *metablob = in_pack->fetch<packet_metablob>(rtladsb->pack_comp_meta);
-            if (metablob == NULL) {
-                metablob = new packet_metablob("RTLADSB", json->json_string);
-                in_pack->insert(rtladsb->pack_comp_meta, metablob);
-            }
+             in_pack->fetch_or_add<packet_metablob>(rtladsb->pack_comp_meta, "RTLADSB", json->json_string);;
         }
     } catch (std::exception& e) {
         fprintf(stderr, "debug - error processing rtl json %s\n", e.what());
@@ -871,7 +861,7 @@ double kis_rtladsb_phy::cpr_dlon(double lat, int odd) {
 }
 
 void kis_rtladsb_phy::decode_cpr(std::shared_ptr<rtladsb_tracked_adsb> adsb,
-        kis_packet *packet) {
+        std::shared_ptr<kis_packet> packet) {
     /* This algorithm comes from:
      * http://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html.
      *

@@ -171,15 +171,15 @@ protected:
 
 class kis_btle_phy : public kis_phy_handler {
 public:
-    kis_btle_phy(global_registry *in_globalreg) :
-        kis_phy_handler(in_globalreg) { }
+    kis_btle_phy() :
+        kis_phy_handler() { }
 
-    kis_btle_phy(global_registry *in_globalreg, int in_phyid);
+    kis_btle_phy(int in_phyid);
 
     virtual ~kis_btle_phy();
 
-    virtual kis_phy_handler *create_phy_handler(global_registry *in_globalreg, int in_phyid) override {
-        return new kis_btle_phy(in_globalreg, in_phyid);
+    virtual kis_phy_handler *create_phy_handler(int in_phyid) override {
+        return new kis_btle_phy(in_phyid);
     }
 
     static int dissector(CHAINCALL_PARMS);
@@ -189,7 +189,7 @@ public:
             shared_tracker_element in_device) override;
 
     /* From the BTLE spec and Wireshark */
-    static uint32_t calc_btle_crc(uint32_t crc_init, uint8_t *data, size_t len);
+    static uint32_t calc_btle_crc(uint32_t crc_init, const char *data, size_t len);
     static uint32_t reverse_bits(const uint32_t val);
 
 protected:

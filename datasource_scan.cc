@@ -58,7 +58,7 @@ datasource_scan_source::~datasource_scan_source() {
 
 void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_beast_httpd_connection> con) {
     std::ostream stream(&con->response_stream());
-    kis_packet *packet = nullptr;
+    std::shared_ptr<kis_packet> packet;
 
     try {
         std::shared_ptr<kis_datasource> virtual_source;
@@ -129,7 +129,7 @@ void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_be
             }
 
             // Re-pack the submitted record into json for this packet
-            auto jsoninfo = new kis_json_packinfo();
+            auto jsoninfo = std::make_shared<kis_json_packinfo>();
             jsoninfo->type = json_component_type;
 
             std::stringstream s;
@@ -144,7 +144,7 @@ void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_be
             auto speed = r.get("speed", 0).asDouble();
 
             if (lat != 0 && lon != 0) {
-                auto gpsinfo = new kis_gps_packinfo();
+                auto gpsinfo = std::make_shared<kis_gps_packinfo>();
 
                 gpsinfo->lat = lat;
                 gpsinfo->lon = lon;
@@ -160,11 +160,11 @@ void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_be
                 packet->insert(pack_comp_gps, gpsinfo);
             }
 
-            kis_layer1_packinfo *l1info = nullptr;
+            std::shared_ptr<kis_layer1_packinfo> l1info;
 
             if (!r["signal"].isNull()) {
                 if (l1info == nullptr)
-                    l1info = new kis_layer1_packinfo();
+                    l1info = std::make_shared<kis_layer1_packinfo>();
 
                 l1info->signal_dbm = r["signal"].asInt();
                 l1info->signal_type = kis_l1_signal_type_dbm;
@@ -172,14 +172,14 @@ void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_be
 
             if (!r["freqkhz"].isNull()) {
                 if (l1info == nullptr)
-                    l1info = new kis_layer1_packinfo();
+                    l1info = std::make_shared<kis_layer1_packinfo>();
 
                 l1info->freq_khz = r["freqkhz"].asUInt();
             }
 
             if (!r["channel"].isNull()) {
                 if (l1info == nullptr)
-                    l1info = new kis_layer1_packinfo();
+                    l1info = std::make_shared<kis_layer1_packinfo>();
 
                 l1info->channel = r["channel"].asString();
             }
@@ -187,7 +187,7 @@ void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_be
             if (l1info != nullptr)
                 packet->insert(pack_comp_l1info, l1info);
 
-            auto srcinfo = new packetchain_comp_datasource();
+            auto srcinfo = std::make_shared<packetchain_comp_datasource>();
             srcinfo->ref_source = virtual_source.get();
             packet->insert(pack_comp_datasrc, srcinfo);
 
@@ -203,10 +203,6 @@ void datasource_scan_source::scan_result_endp_handler(std::shared_ptr<kis_net_be
         return;
 
     } catch (const std::exception& e) {
-        // Free any half-made packets that didn't get injected because of parsing errors
-        if (packet != nullptr) 
-            packetchain->destroy_packet(packet);
-
         con->set_status(500);
         stream << "{\"status\": \"" << e.what() << "\", \"success\": false}\n";
         return;

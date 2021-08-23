@@ -25,10 +25,6 @@
 #include "packetchain.h"
 #include "kis_dlt.h"
 
-int kis_dlt_packethook(CHAINCALL_PARMS) {
-	return ((kis_dlt_handler *) auxdata)->handle_packet(in_pack);
-}
-
 kis_dlt_handler::kis_dlt_handler() :
     lifetime_global(), 
     dlt_name {"UNASSIGNED"},
@@ -38,7 +34,9 @@ kis_dlt_handler::kis_dlt_handler() :
         Globalreg::fetch_mandatory_global_as<packet_chain>();
 
 	chainid = 
-		packetchain->register_handler(&kis_dlt_packethook, this,
+        packetchain->register_handler([this](std::shared_ptr<kis_packet> p) -> int {
+                    return handle_packet(p);
+                },
                 CHAINPOS_POSTCAP, 0);
 
 	pack_comp_linkframe =
@@ -62,7 +60,5 @@ kis_dlt_handler::~kis_dlt_handler() {
 
 	if (packetchain != nullptr) 
 		packetchain->remove_handler(chainid, CHAINPOS_POSTCAP);
-
-	chainid = -1;
 }
 

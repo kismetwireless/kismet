@@ -27,8 +27,8 @@
 #include "messagebus.h"
 #include "kis_httpd_registry.h"
 
-Kis_Zwave_Phy::Kis_Zwave_Phy(global_registry *in_globalreg, int in_phyid) :
-    kis_phy_handler(in_globalreg, in_phyid) {
+Kis_Zwave_Phy::Kis_Zwave_Phy(int in_phyid) :
+    kis_phy_handler(in_phyid) {
 
     set_phy_name("Z-Wave");
 
@@ -131,7 +131,7 @@ bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
     if (dmac.state.error)
         return false;
 
-    kis_packet *pack = packetchain->generate_packet();
+    auto pack = packetchain->generate_packet();
 
     struct timeval ts;
     gettimeofday(&ts, nullptr);
@@ -139,7 +139,7 @@ bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
     pack->ts.tv_sec = ts.tv_sec;
     pack->ts.tv_usec = ts.tv_usec;
 
-    kis_common_info *common = new kis_common_info();
+    auto common = std::make_shared<kis_common_info>();
 
     common->type = packet_basic_data;
     common->phyid = fetch_phy_id();
@@ -156,9 +156,6 @@ bool Kis_Zwave_Phy::json_to_record(Json::Value json) {
         devicetracker->update_common_device(common, common->source, this, pack,
                 (UCD_UPDATE_FREQUENCIES | UCD_UPDATE_PACKETS | UCD_UPDATE_LOCATION |
                  UCD_UPDATE_SEENBY), "Z-Wave Node");
-
-    // Get rid of our pseudopacket
-    delete(pack);
 
     basedev->set_manuf(zwave_manuf);
 

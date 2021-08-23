@@ -51,7 +51,8 @@ private:
 public:
 	virtual ~kis_dlt_btle_ll_radio() { };
 
-	virtual int handle_packet(kis_packet *in_pack);
+protected:
+	virtual int handle_packet(std::shared_ptr<kis_packet> in_pack) override;
 };
 
 #endif

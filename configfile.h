@@ -40,8 +40,7 @@ class header_value_config;
 
 class config_file {
 public:
-    config_file();
-	config_file(global_registry *in_globalreg);
+	config_file();
     ~config_file();
 
     int parse_config(const char *in_fname);

@@ -47,6 +47,10 @@
 #include "packet_ieee80211.h"
 #include "version.h"
 
+#ifdef HAVE_LIBPCRE
+#include <pcre.h>
+#endif
+
 // Aggressive additional mangle of text to handle converting ',' and '"' to
 // hexcode for CSV
 std::string MungeForCSV(const std::string& in_data) {
@@ -190,8 +194,55 @@ int main(int argc, char *argv[]) {
         { "rate-limit", required_argument, 0, 'r'},
         { "cache-limit", required_argument, 0, 'c'},
         { "exclude", required_argument, 0, 'e'},
+        { "filter", required_argument, 0, 'F' },
         { 0, 0, 0, 0 }
     };
+
+    struct pcre_filter {
+#ifdef HAVE_LIBPCRE
+        pcre_filter(const std::string& in_regex) {
+            const char *compile_error, *study_error;
+            int err_offt;
+
+            re = pcre_compile(in_regex.c_str(), 0, &compile_error, &err_offt, NULL);
+
+            if (re == nullptr)
+                throw std::runtime_error(fmt::format("Could not parse PCRE Regex: {} at {}",
+                            compile_error, err_offt));
+
+            study = pcre_study(re, 0, &study_error);
+            if (study_error != nullptr) {
+                pcre_free(re);
+                throw std::runtime_error(fmt::format("Could not parse PCRE Regex, optimization "
+                            "failed: {}", study_error));
+            }
+        }
+
+        ~pcre_filter() {
+            if (re != NULL)
+                pcre_free(re);
+            if (study != NULL)
+                pcre_free(study);
+        }
+
+        bool match(const std::string& target) {
+            int rc;
+            int ovector[128];
+
+            rc = pcre_exec(re, study, target.c_str(), target.length(), 0, 0, ovector, 128);
+
+            if (rc >= 0)
+                return true;
+
+            return false;
+        }
+
+        pcre *re;
+        pcre_extra *study;
+#endif
+    };
+
+    std::list<std::shared_ptr<pcre_filter>> pcre_list;
 
     int option_idx = 0;
     optind = 0;
@@ -217,7 +268,7 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         int r = getopt_long(argc, argv, 
-                            "-hi:o:r:c:e:vfs", 
+                            "-hi:o:r:c:e:vfsF:", 
                             longopt, &option_idx);
         if (r < 0) break;
 
@@ -253,6 +304,20 @@ int main(int argc, char *argv[]) {
             }
 
             exclusion_zones.push_back(std::make_tuple(lat, lon, distance));
+        } else if (r == 'F') {
+#ifndef HAVE_LIBPCRE
+            fmt::print(stderr, "ERROR:  We were not compiled with libpcre support, so we "
+                    "can't use regex filters.");
+            exit(1);
+#endif
+
+            try {
+                auto regex = std::make_shared<pcre_filter>(std::string(optarg));
+                pcre_list.push_back(regex);
+            } catch (const std::runtime_error& e) {
+                fmt::print(stderr, "ERROR:  Could not process regex: {}", e.what());
+                exit(1);
+            }
         }
     }
 
@@ -361,7 +426,8 @@ int main(int argc, char *argv[]) {
 
         if (n_packets_db == 0) {
             fmt::print(stderr, "ERROR:  No usable packets in the log file; packets must have GPS information\n"
-                            "        to be usable with Wigle.\n");
+                            "        to be usable with Wigle.  Make sure you have a GPS connected and\n"
+                            "        have a signal lock.\n");
             sqlite3_close(db);
             exit(1);
         }
@@ -389,20 +455,27 @@ int main(int argc, char *argv[]) {
             name{s},
             crypto{c},
             last_time_sec{0},
-            type{""} { }
+            type{""},
+            filtered{false} { }
 
         cache_obj(std::string t, std::string s, std::string c, std::string type) :
             first_time{t},
             name{s},
             crypto{c},
             last_time_sec{0},
-            type{type} { }
+            type{type},
+            filtered{false} { }
+
+        void filter(bool f) {
+            filtered = f;
+        }
 
         std::string first_time;
         std::string name;
         std::string crypto;
         uint64_t last_time_sec;
         std::string type;
+        bool filtered;
     };
 
     std::map<std::string, std::shared_ptr<cache_obj>> device_cache_map;
@@ -596,6 +669,13 @@ int main(int argc, char *argv[]) {
 
                 device_cache_map[sourcemac] = cached;
 
+#ifdef HAVE_LIBPCRE
+                for (const auto& i : pcre_list) {
+                    if (i->match(name))
+                        cached->filter(true);
+                }
+#endif
+
             } catch (const std::exception& e) {
                 std::cerr << 
                     fmt::format("WARNING:  Could not process device info for {}/{}, skipping", sourcemac, phy) << std::endl;
@@ -603,6 +683,9 @@ int main(int argc, char *argv[]) {
         }
 
         if (cached == nullptr)
+            continue;
+
+        if (cached->filtered)
             continue;
 
         // Rate throttle

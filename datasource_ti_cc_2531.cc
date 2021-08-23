@@ -18,51 +18,48 @@
 
 #include "datasource_ti_cc_2531.h"
 
-void kis_datasource_ticc2531::handle_rx_packet(kis_packet *packet) {
+void kis_datasource_ticc2531::handle_rx_datalayer(std::shared_ptr<kis_packet> packet, 
+        const KismetDatasource::SubPacket& report) {
 
-    auto cc_chunk = packet->fetch<kis_datachunk>(pack_comp_linkframe);
+    auto& rxdata = report.data();
 
     // If we can't validate the basics of the packet at the phy capture level, throw it out.
-    
-    if (cc_chunk->length < 8) {
-        // fmt::print(stderr, "debug - cc2531 too short ({} < 8)\n", cc_chunk->length);
-        delete(packet);
+   
+    if (rxdata.length() < 8) {
+        packet->error = 1;
         return;
     }
 
-    unsigned int cc_len = cc_chunk->data[1];
-    if (cc_len != cc_chunk->length - 3) {
-        // fmt::print(stderr, "debug - cc2531 invalid packet length ({} != {})\n", cc_len, cc_chunk->length - 3);
-        delete(packet);
+    unsigned int cc_len = rxdata[1];
+    if (cc_len != rxdata.length() - 3) {
         return;
     }
 
-    unsigned int cc_payload_len = cc_chunk->data[7] - 0x02;
-    if ((cc_payload_len + 8 != cc_chunk->length - 2) || (cc_payload_len > 104)) {
-        // fmt::print(stderr, "debug - cc2531 invalid payload length ({} != {})\n", cc_payload_len + 8, cc_chunk->length - 2);
-        delete(packet);
+    unsigned int cc_payload_len = rxdata[7] - 0x02;
+    if ((cc_payload_len + 8 != rxdata.length() - 2) || (cc_payload_len > 104)) {
         return;
     }
 
-    uint8_t fcs1 = cc_chunk->data[cc_chunk->length - 2];
-    uint8_t fcs2 = cc_chunk->data[cc_chunk->length - 1];
+    uint8_t fcs1 = rxdata[rxdata.length() - 2];
+    uint8_t fcs2 = rxdata[rxdata.length() - 1];
     uint8_t crc_ok = fcs2 & (1 << 7);
-    //uint8_t crc_ok2 = fcs2 & (1 << 6);
-    //uint8_t corr = fcs2 & 0x7f;
-    uint8_t channel = cc_chunk->data[2];
+
+    uint8_t channel = rxdata[2];
 
     // check the CRC and check to see if the length, somehow matches the first byte of what should be the fcf
-    if (crc_ok > 0 && (cc_chunk->data[7] != cc_chunk->data[8])) {
-
+    if (crc_ok > 0 && (rxdata[7] != rxdata[8])) {
         int rssi = (fcs1 + (int) pow(2, 7)) % (int) pow(2, 8) - (int) pow(2, 7) - 73;
 
         // We can make a valid payload from this much
-        auto conv_buf_len = sizeof(_802_15_4_tap) + cc_payload_len;// + (sizeof(tap_tlv))-2;// - 2;
-        _802_15_4_tap *conv_header = reinterpret_cast<_802_15_4_tap *>(new uint8_t[conv_buf_len]);
+        auto conv_buf_len = sizeof(_802_15_4_tap) + cc_payload_len;
+        std::string conv_buf;
+        conv_buf.resize(conv_buf_len, 0);
+
+        _802_15_4_tap *conv_header = reinterpret_cast<_802_15_4_tap *>(conv_buf.data());
         memset(conv_header, 0, conv_buf_len);
 
         // Copy the actual packet payload into the header
-        memcpy(conv_header->payload, &cc_chunk->data[8], cc_payload_len);
+        memcpy(conv_header->payload, &rxdata.data()[8], cc_payload_len);
 
         conv_header->version = kis_htole16(0);// currently only one version
         conv_header->reserved = kis_htole16(0);// must be set to 0
@@ -82,22 +79,35 @@ void kis_datasource_ticc2531::handle_rx_packet(kis_packet *packet) {
         conv_header->tlv[2].length = kis_htole16(3);
         conv_header->tlv[2].value = kis_htole32(channel);
 
-        // size
-        conv_header->length = sizeof(_802_15_4_tap);
-        cc_chunk->set_data((uint8_t *) conv_header, conv_buf_len, false);
-        cc_chunk->dlt = KDLT_IEEE802_15_4_TAP;
+        // Put the modified data into the packet & fill in the rest of the base data info
+        auto datachunk = std::make_shared<kis_datachunk>();
 
-        auto radioheader = new kis_layer1_packinfo();
+        if (clobber_timestamp && get_source_remote()) {
+            gettimeofday(&(packet->ts), NULL);
+        } else {
+            packet->ts.tv_sec = report.time_sec();
+            packet->ts.tv_usec = report.time_usec();
+        }
+
+        // Override the DLT if we have one
+        datachunk->dlt = KDLT_IEEE802_15_4_TAP;
+
+        packet->set_data(conv_buf);
+        datachunk->set_data(packet->data);
+
+        get_source_packet_size_rrd()->add_sample(conv_buf.length(), time(0));
+
+        packet->insert(pack_comp_linkframe, datachunk);
+
+        auto radioheader = std::make_shared<kis_layer1_packinfo>();
         radioheader->signal_type = kis_l1_signal_type_dbm;
         radioheader->signal_dbm = rssi;
         radioheader->freq_khz = (2405 + ((channel - 11) * 5)) * 1000;
         radioheader->channel = fmt::format("{}", (channel));
         packet->insert(pack_comp_radiodata, radioheader);
 
-        kis_datasource::handle_rx_packet(packet);
     } else {
-        //printf("delete packet\n");
-        delete (packet);
+        packet->error = 1;
         return;
     }
 }

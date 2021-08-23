@@ -43,8 +43,8 @@
 class pcapng_stream_futurebuf : public streaming_agent, public std::enable_shared_from_this<pcapng_stream_futurebuf> {
 public:
     pcapng_stream_futurebuf(future_chainbuf& buffer, 
-            std::function<bool (kis_packet *)> accept_filter,
-            std::function<kis_datachunk *(kis_packet *)> data_selector,
+            std::function<bool (std::shared_ptr<kis_packet>)> accept_filter,
+            std::function<std::shared_ptr<kis_datachunk>(std::shared_ptr<kis_packet>)> data_selector,
             size_t backlog_sz,
             bool block_for_write);
 
@@ -66,8 +66,8 @@ protected:
     size_t max_backlog;
     bool block_for_buffer;
 
-    std::function<bool (kis_packet *)> accept_cb;
-    std::function<kis_datachunk *(kis_packet *)> selector_cb;
+    std::function<bool (std::shared_ptr<kis_packet>)> accept_cb;
+    std::function<std::shared_ptr<kis_datachunk>(std::shared_ptr<kis_packet>)> selector_cb;
 
     std::shared_ptr<packet_chain> packetchain;
     int pack_comp_linkframe, pack_comp_datasrc, pack_comp_gpsinfo;
@@ -82,10 +82,11 @@ protected:
     virtual int pcapng_make_idb(kis_datasource *in_datasource, int in_dlt);
     virtual int pcapng_make_idb(unsigned int in_sourcenumber, const std::string& in_interface,
             const std::string& in_description, int in_dlt);
-    virtual int pcapng_write_packet(kis_packet *in_packet, kis_datachunk *in_data);
+    virtual int pcapng_write_packet(std::shared_ptr<kis_packet> in_packet, 
+            std::shared_ptr<kis_datachunk> in_data);
     virtual int pcapng_write_packet(int interface_t, const struct timeval& ts, const std::string& in_data);
 
-    virtual void handle_packet(kis_packet *in_packet);
+    virtual void handle_packet(std::shared_ptr<kis_packet> in_packet);
 
     static size_t PAD_TO_32BIT(size_t in) {
         while (in % 4) in++;
@@ -96,8 +97,8 @@ protected:
 class pcapng_stream_packetchain : public pcapng_stream_futurebuf {
 public:
     pcapng_stream_packetchain(future_chainbuf& buffer, 
-            std::function<bool (kis_packet *)> accept_filter,
-            std::function<kis_datachunk *(kis_packet *)> data_selector,
+            std::function<bool (std::shared_ptr<kis_packet>)> accept_filter,
+            std::function<std::shared_ptr<kis_datachunk>(std::shared_ptr<kis_packet>)> data_selector,
             size_t backlog_sz);
     virtual ~pcapng_stream_packetchain();
 

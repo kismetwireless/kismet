@@ -244,7 +244,11 @@ void kis_gps_nmea_v2::handle_read(std::shared_ptr<kis_gps_nmea_v2> ref,
 
     lk.lock();
 
+    set_int_gps_data_time(time(0));
+
     if (set_alt || set_speed || set_lat_lon || set_fix) {
+        set_int_gps_signal_time(time(0));
+
         ever_seen_gps = true;
 
         if (gps_location != NULL) {
