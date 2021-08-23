@@ -51,36 +51,35 @@ kis_gps_web::kis_gps_web(shared_gps_builder in_builder) :
                         set_spd = true;
                     }
 
-                    // Set up our local gps record
-                    if (gps_last_location != NULL) 
-                        delete gps_last_location;
-
-                    gps_last_location = new kis_gps_packinfo(gps_location);
-
-                    gps_location = new kis_gps_packinfo();
-
-                    gps_location->lat = lat;
-                    gps_location->lon = lon;
-                    gps_location->fix = 2;
+                    auto new_location = packetchain->new_packet_component<kis_gps_packinfo>();
+                    new_location->lat = lat;
+                    new_location->lon = lon;
+                    new_location->fix = 2;
 
                     if (set_alt) {
-                        gps_location->alt = alt;
-                        gps_location->fix = 3;
+                        new_location->alt = alt;
+                        new_location->fix = 3;
                     }
 
                     if (set_spd) 
-                        gps_location->speed = spd;
+                        new_location->speed = spd;
 
-                    gettimeofday(&(gps_location->tv), NULL);
+                    gettimeofday(&(new_location->tv), NULL);
+                    new_location->gpsuuid = get_gps_uuid();
+                    new_location->gpsname = get_gps_name();
 
-                    if (time(0) - last_heading_time > 5 && gps_last_location != NULL &&
-                            gps_last_location->fix >= 2) {
-                        gps_location->heading = 
-                            gps_calc_heading(gps_location->lat, gps_location->lon, 
-                                    gps_last_location->lat, gps_last_location->lon);
-                        last_heading_time = gps_location->tv.tv_sec;
+                    if (time(0) - last_heading_time > 5 &&
+                        gps_location != nullptr && gps_location->fix >= 2) {
+                        new_location->heading = 
+                            gps_calc_heading(new_location->lat, new_location->lon, 
+                                             gps_location->lat, gps_location->lon);
+                        last_heading_time = new_location->tv.tv_sec;
                     }
 
+                    gps_last_location = gps_location;
+                    gps_location = new_location;
+
+                    // Sync w/ the tracked fields
                     update_locations();
 
                     stream << "Updated\n";

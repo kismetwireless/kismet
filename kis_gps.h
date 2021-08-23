@@ -21,15 +21,13 @@
 
 #include "config.h"
 
-#include <pthread.h>
-
-#include "util.h"
-
-#include "globalregistry.h"
-#include "kis_mutex.h"
-#include "trackedelement.h"
 #include "entrytracker.h"
 #include "devicetracker_component.h"
+#include "globalregistry.h"
+#include "kis_mutex.h"
+#include "packetchain.h"
+#include "trackedelement.h"
+#include "util.h"
 
 class kis_gps_location;
 class kis_gps_packinfo;
@@ -127,12 +125,12 @@ public:
 
     virtual std::shared_ptr<kis_gps_packinfo> get_location() { 
         kis_lock_guard<kis_mutex> lk(gps_mutex);
-        return std::make_shared<kis_gps_packinfo>(new kis_gps_packinfo(gps_location)); 
+        return gps_location;
     }
 
     virtual std::shared_ptr<kis_gps_packinfo> get_last_location() { 
         kis_lock_guard<kis_mutex> lk(gps_mutex);
-        return std::make_shared<kis_gps_packinfo>(new kis_gps_packinfo(gps_last_location)); 
+        return gps_last_location;
     }
 
     // Fetch if we have a valid location anymore; per-gps-driver logic 
@@ -185,6 +183,8 @@ protected:
     // Push the locations into the tracked locations and swap
     virtual void update_locations();
 
+    std::shared_ptr<packet_chain> packetchain;
+
     std::shared_ptr<kis_gps_builder> gps_prototype;
 
     std::shared_ptr<tracker_element_string> gps_name;
@@ -199,8 +199,8 @@ protected:
     std::shared_ptr<kis_tracked_location_full> tracked_location;
     std::shared_ptr<kis_tracked_location_full> tracked_last_location;
 
-    kis_gps_packinfo *gps_location;
-    kis_gps_packinfo *gps_last_location;
+    std::shared_ptr<kis_gps_packinfo> gps_last_location;
+    std::shared_ptr<kis_gps_packinfo> gps_location;
 
     std::shared_ptr<tracker_element_uuid> gps_uuid;
     std::shared_ptr<tracker_element_string> gps_definition;

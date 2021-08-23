@@ -66,7 +66,7 @@ void kis_gps_nmea_v2::handle_read(std::shared_ptr<kis_gps_nmea_v2> ref,
         return start_read();
     }
 
-    kis_gps_packinfo *new_location = new kis_gps_packinfo;
+    auto new_location = packetchain->new_packet_component<kis_gps_packinfo>();
     bool set_lat_lon;
     bool set_alt;
     bool set_speed;
@@ -251,53 +251,27 @@ void kis_gps_nmea_v2::handle_read(std::shared_ptr<kis_gps_nmea_v2> ref,
 
         ever_seen_gps = true;
 
-        if (gps_location != NULL) {
-            // Copy the current location to the last one
-            if (gps_last_location != NULL)
-                delete gps_last_location;
-            gps_last_location = new kis_gps_packinfo(gps_location);
-        } else {
-            gps_location = new kis_gps_packinfo();
-        }
+        gettimeofday(&(new_location->tv), NULL);
 
-        // Copy whatever we know about the new location into the current
-        if (set_lat_lon) {
-            gps_location->lat = new_location->lat;
-            gps_location->lon = new_location->lon;
-        }
-
-        if (set_alt)
-            gps_location->alt = new_location->alt;
-
-        if (set_speed) {
-            gps_location->speed = new_location->speed;
-
-            // NMEA reports speed in knots, convert to kph
-            gps_location->speed *= 1.852;
-        }
-
-        if (set_fix) {
-            gps_location->fix = new_location->fix;
-        }
-
-        gettimeofday(&(gps_location->tv), NULL);
+        new_location->gpsuuid = get_gps_uuid();
+        new_location->gpsname = get_gps_name();
 
         if (time(0) - last_heading_time > 5 &&
-                gps_last_location != NULL &&
-                gps_last_location->fix >= 2) {
-            gps_location->heading = 
-                gps_calc_heading(gps_location->lat, gps_location->lon, 
-                        gps_last_location->lat, gps_last_location->lon);
-            last_heading_time = gps_location->tv.tv_sec;
+                gps_location != nullptr && gps_location->fix >= 2) {
+            new_location->heading = 
+                gps_calc_heading(new_location->lat, new_location->lon, 
+                        gps_location->lat, gps_location->lon);
+            last_heading_time = new_location->tv.tv_sec;
         }
+
+        gps_last_location = gps_location;
+        gps_location = new_location;
+
+        // Sync w/ the tracked fields
+        update_locations();
     }
 
     last_data_time = time(0);
-
-    // Sync w/ the tracked fields
-    update_locations();
-
-    delete new_location;
 
     lk.unlock();
 

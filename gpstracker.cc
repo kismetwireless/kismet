@@ -394,23 +394,18 @@ std::shared_ptr<kis_gps> gps_tracker::find_gps(uuid in_uuid) {
     return nullptr;
 }
 
-std::unique_ptr<kis_gps_packinfo> gps_tracker::get_best_location() {
+std::shared_ptr<kis_gps_packinfo> gps_tracker::get_best_location() {
     kis_lock_guard<kis_mutex> lk(gpsmanager_mutex, "get_best_location");
 
     // Iterate 
     for (auto d : *gps_instances_vec) {
-        shared_gps gps = std::static_pointer_cast<kis_gps>(d);
+        auto gps = std::static_pointer_cast<kis_gps>(d);
 
         if (gps->get_gps_data_only())
             continue;
 
         if (gps->get_location_valid()) {
-            auto pi = std::make_unique<kis_gps_packinfo>(gps->get_location().get());
-
-            pi->gpsuuid = gps->get_gps_uuid();
-            pi->gpsname  = gps->get_gps_name();
-
-            return pi;
+            return gps->get_location();
         }
     }
 

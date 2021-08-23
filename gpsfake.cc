@@ -41,7 +41,7 @@ bool kis_gps_fake::open_gps(std::string in_opts) {
     proto_lon = fetch_opt("lon", source_definition_opts);
     proto_alt = fetch_opt("alt", source_definition_opts);
 
-    gps_location = new kis_gps_packinfo();
+    gps_location = packetchain->new_packet_component<kis_gps_packinfo>();
 
     if (proto_lat == "" || proto_lon == "") {
         _MSG("GPSVirtual expected lat= and lon= options.", MSGFLAG_ERROR);
@@ -77,7 +77,10 @@ bool kis_gps_fake::open_gps(std::string in_opts) {
         gps_location->lon << " @ " << gps_location->alt << "m";
     set_int_gps_description(msg.str());
 
-    gps_last_location = new kis_gps_packinfo(gps_location);
+    gps_location->gpsuuid = get_gps_uuid();
+    gps_location->gpsname = get_gps_name();
+
+    gps_last_location = gps_location;
 
     update_locations();
 
@@ -85,18 +88,10 @@ bool kis_gps_fake::open_gps(std::string in_opts) {
 }
 
 std::shared_ptr<kis_gps_packinfo> kis_gps_fake::get_location() {
-    kis_lock_guard<kis_mutex> lk(gps_mutex, "gps_fake get_location");
-
-    gettimeofday(&(gps_location->tv), NULL);
-
-    return std::make_shared<kis_gps_packinfo>(new kis_gps_packinfo(gps_location)); 
-}
-
-std::shared_ptr<kis_gps_packinfo> kis_gps_fake::get_last_location() {
-    kis_lock_guard<kis_mutex> lk(gps_mutex, "gps_fake get_last_location");
-
-    gettimeofday(&(gps_last_location->tv), NULL);
-
-    return std::make_shared<kis_gps_packinfo>(new kis_gps_packinfo(gps_last_location)); 
+    auto upd_location = packetchain->new_packet_component<kis_gps_packinfo>();
+    upd_location->set(gps_location);
+    gettimeofday(&(upd_location->tv), NULL);
+    gps_location = upd_location;
+    return gps_location;
 }
 

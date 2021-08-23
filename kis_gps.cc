@@ -28,6 +28,8 @@ kis_gps::kis_gps(shared_gps_builder in_builder) :
     register_fields();
     reserve_fields(NULL);
 
+    packetchain = Globalreg::fetch_mandatory_global_as<packet_chain>();
+
     // Force the ID
     set_id(Globalreg::globalreg->entrytracker->register_field("kismet.gps.instance", 
             tracker_element_factory<tracker_element_map>(), "GPS"));
@@ -36,8 +38,8 @@ kis_gps::kis_gps(shared_gps_builder in_builder) :
     gps_prototype = in_builder;
     insert(gps_prototype);
 
-    gps_location = new kis_gps_packinfo();
-    gps_last_location = new kis_gps_packinfo();
+    gps_location = packetchain->new_packet_component<kis_gps_packinfo>();
+    gps_last_location = packetchain->new_packet_component<kis_gps_packinfo>();
 }
 
 kis_gps::~kis_gps() {
