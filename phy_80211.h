@@ -109,10 +109,18 @@ class dot11_packinfo_dot11d_entry {
 class dot11_packinfo : public packet_component {
     public:
         dot11_packinfo() {
+            reset();
+        }
+
+        void reset() {
             corrupt = 0;
             header_offset = 0;
             type = packet_unknown;
             subtype = packet_sub_unknown;
+            mgt_reason_code= 0;
+            ssid = "";
+            ssid_len = 0;
+            ssid_blank = 0;
             source_mac = mac_addr(0);
             dest_mac = mac_addr(0);
             transmit_mac = mac_addr(0);
@@ -128,6 +136,7 @@ class dot11_packinfo : public packet_component {
             ibss = 0;
             channel = "0";
             encrypted = 0;
+            qos = 0;
             timestamp = 0;
             sequence_number = 0;
             frag_number = 0;
@@ -167,6 +176,24 @@ class dot11_packinfo : public packet_component {
 
             new_device = false;
             new_adv_ssid = false;
+
+            ietag_hash_map.clear();
+            dot11d_country = "";
+            ie_tags.reset();
+            dot11d_vec.clear();
+
+            qbss.reset();
+            tx_power.reset();
+            supported_channels.reset();
+            dot11r_mobility.reset();
+            dot11ht.reset();
+            owe_transition.reset();
+            rsn.reset();
+            droneid.reset();
+
+            basic_rates.clear();
+            extended_rates.clear();
+            mcs_rates.clear();
         }
 
         // Corrupt 802.11 frame

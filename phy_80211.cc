@@ -1954,7 +1954,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 
         auto ssid_csum = ssid_hash(ssid_str.data(), ssid_str.length());
 
-        commoninfo = std::make_shared<kis_common_info>();
+        commoninfo = d11phy->packetchain->new_packet_component<kis_common_info>();
 
         commoninfo->type = packet_basic_mgmt;
         commoninfo->direction = packet_direction_from;
