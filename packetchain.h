@@ -141,6 +141,23 @@ public:
 
     static std::string event_packetstats() { return "PACKETCHAIN_STATS"; }
 
+    template<typename T>
+    std::shared_ptr<T> new_packet_component() {
+        kis_lock_guard<kis_mutex> lk(packetcomp_mutex);
+
+        auto p = component_pool_map.find(typeid(T).hash_code());
+
+        if (p != component_pool_map.end()) {
+            return std::static_pointer_cast<shared_object_pool<T>>(p->second)->acquire();
+        } else {
+            auto pool = std::make_shared<shared_object_pool<T>>();
+            pool->set_max(1024);
+            pool->set_reset([](T *c) { c->reset(); });
+            component_pool_map.insert(std::make_pair(typeid(T).hash_code(), pool));
+            return pool->acquire();
+        }
+    }
+
 protected:
     void packet_queue_processor();
 
@@ -210,7 +227,8 @@ protected:
 
     // Packet & data component pools
     shared_object_pool<kis_packet> packet_pool;
-    shared_object_pool<kis_datachunk> datachunk_pool;
+
+    std::map<size_t, std::shared_ptr<void>> component_pool_map;
 
 };
 
