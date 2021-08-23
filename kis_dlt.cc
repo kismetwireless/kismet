@@ -30,7 +30,7 @@ kis_dlt_handler::kis_dlt_handler() :
     dlt_name {"UNASSIGNED"},
     dlt {-1} {
 
-    auto packetchain =
+    packetchain =
         Globalreg::fetch_mandatory_global_as<packet_chain>();
 
 	chainid = 

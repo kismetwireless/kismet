@@ -134,7 +134,7 @@ int kis_dlt_ppi::handle_packet(std::shared_ptr<kis_packet> in_pack) {
             }
 
             if (radioheader == nullptr)
-                radioheader = std::make_shared<kis_layer1_packinfo>();
+                radioheader = packetchain->new_packet_component<kis_layer1_packinfo>();
 
             // Channel flags
             tuint = kis_letoh16(ppic->chan_flags);
@@ -165,7 +165,7 @@ int kis_dlt_ppi::handle_packet(std::shared_ptr<kis_packet> in_pack) {
             ppi_11n_mac *ppin = (ppi_11n_mac *) ppi_fh;
 
             if (radioheader == nullptr)
-                radioheader = std::make_shared<kis_layer1_packinfo>();
+                radioheader = packetchain->new_packet_component<kis_layer1_packinfo>();
 
             // Decode greenfield notation
             tuint = kis_letoh16(ppin->flags);
@@ -178,7 +178,7 @@ int kis_dlt_ppi::handle_packet(std::shared_ptr<kis_packet> in_pack) {
             ppi_11n_macphy *ppinp = (ppi_11n_macphy *) ppi_fh;
 
             if (radioheader == nullptr)
-                radioheader = std::make_shared<kis_layer1_packinfo>();
+                radioheader = packetchain->new_packet_component<kis_layer1_packinfo>();
 
             // Decode greenfield notation
             tuint = kis_letoh16(ppinp->flags);
@@ -208,7 +208,7 @@ int kis_dlt_ppi::handle_packet(std::shared_ptr<kis_packet> in_pack) {
                         gps_len - data_offt >= 8) {
 
                     if (gpsinfo == nullptr)
-                        gpsinfo = std::make_shared<kis_gps_packinfo>();
+                        gpsinfo = packetchain->new_packet_component<kis_gps_packinfo>();
 
                     u = (block *) &(ppigps->field_data[data_offt]);
                     gpsinfo->lat = fixed3_7_to_double(kis_letoh32(u->u32));
@@ -237,7 +237,7 @@ int kis_dlt_ppi::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 
                 if ((fields_present & PPI_GPS_FLAG_ALT) && gps_len - data_offt >= 4) {
                     if (gpsinfo == nullptr) {
-                        gpsinfo = std::make_shared<kis_gps_packinfo>();
+                        gpsinfo = packetchain->new_packet_component<kis_gps_packinfo>();
                         gpsinfo->fix = 0;
                         gpsinfo->gpsname = "PPI";
                     } else {
@@ -257,7 +257,7 @@ int kis_dlt_ppi::handle_packet(std::shared_ptr<kis_packet> in_pack) {
     if (applyfcs)
         applyfcs = 4;
 
-    decapchunk = std::make_shared<kis_datachunk>();
+    decapchunk = packetchain->new_packet_component<kis_datachunk>();
 
     decapchunk->dlt = ppi_dlt;
 
@@ -271,7 +271,7 @@ int kis_dlt_ppi::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 
     std::shared_ptr<kis_packet_checksum> fcschunk;
     if (applyfcs && linkchunk->length() > 4) {
-        fcschunk = std::make_shared<kis_packet_checksum>();
+        fcschunk = packetchain->new_packet_component<kis_packet_checksum>();
 
         fcschunk->set_data(linkchunk->substr(linkchunk->length() - 4, 4));
 
