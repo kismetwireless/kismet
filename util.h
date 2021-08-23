@@ -209,18 +209,43 @@ float pair_to_float(int16_t primary, int64_t mantissa);
 int fetch_sys_loadavg(uint8_t *in_avgmaj, uint8_t *in_avgmin);
 #endif
 
-// Adler-32 checksum, derived from rsync, adler-32
-uint32_t adler32_checksum(const void *buf1, size_t len);
-
-// C++ shortcut
-uint32_t adler32_checksum(const std::string& buf1);
-
 // Adler-32 incremental checksum, performs a non-contiguous checksum over 
 // multiple records.
 // Caller must set s1 and s2 to 0 for the initial call and provide them for
 // subsequent calls.
-uint32_t adler32_incremental_checksum(const void *buf1, size_t len, 
-        uint32_t *s1, uint32_t *s2);
+constexpr17 uint32_t adler32_incremental_checksum(const void *in_buf, size_t in_len,
+        uint32_t *s1, uint32_t *s2) {
+    size_t i{0};
+    const uint8_t *buf = (const uint8_t *) in_buf;
+    int CHAR_OFFSET = 0;
+
+    if (in_len < 4)
+        return 0;
+
+    for (i = 0; i < (in_len - 4); i += 4) {
+        *s2 += 4 * (*s1 + buf[i]) + 3 * buf[i + 1] + 
+            2 * buf[i+2] + buf[i + 3] + 
+            10 * CHAR_OFFSET;
+        *s1 += (buf[i + 0] + buf[i + 1] + buf[i + 2] + 
+                buf[i + 3] + 4 * CHAR_OFFSET); 
+    }
+
+    for (; i < in_len; i++) {
+        *s1 += (buf[i] + CHAR_OFFSET); 
+        *s2 += *s1;
+    }
+
+    return (*s1 & 0xffff) + (*s2 << 16);
+}
+
+constexpr17 uint32_t adler32_checksum(const void *in_buf, size_t in_len) {
+    uint32_t s1{0}, s2{0};
+    return adler32_incremental_checksum(in_buf, in_len, &s1, &s2);
+}
+
+constexpr17 uint32_t adler32_checksum(const nonstd::string_view& in_buf) {
+    return adler32_checksum(in_buf.data(), in_buf.length());
+}
 
 // 802.11 checksum functions, derived from the BBN USRP 802.11 code
 #define IEEE_802_3_CRC32_POLY	0xEDB88320
