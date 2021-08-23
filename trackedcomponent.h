@@ -768,6 +768,14 @@ public:
     tracker_component(tracker_component&) = delete;
     tracker_component& operator=(tracker_component&) = delete;
 
+    virtual uint32_t get_signature() const override {
+        return adler32_checksum("generic_tracked_element");
+    }
+
+    static uint32_t get_static_signature() {
+        return adler32_checksum("generic_tracked_element");
+    }
+
     // Return the name via the entrytracker
     virtual std::string get_name();
 
