@@ -117,7 +117,7 @@ void kis_datasource_ubertooth_one::handle_rx_datalayer(std::shared_ptr<kis_packe
 
 
     // Put the modified data into the packet & fill in the rest of the base data info
-    auto datachunk = std::make_shared<kis_datachunk>();
+    auto datachunk = packetchain->new_packet_component<kis_datachunk>();
 
     if (clobber_timestamp && get_source_remote()) {
         gettimeofday(&(packet->ts), NULL);
@@ -143,7 +143,7 @@ void kis_datasource_ubertooth_one::handle_rx_datalayer(std::shared_ptr<kis_packe
 
 
     // Generate a l1 radio header and a decap header since we have it computed already
-    auto radioheader = std::make_shared<kis_layer1_packinfo>();
+    auto radioheader = packetchain->new_packet_component<kis_layer1_packinfo>();
     radioheader->signal_type = kis_l1_signal_type_dbm;
     radioheader->signal_dbm = conv_header->signal;
     radioheader->freq_khz = (usb_rx->channel + 2402) * 1000;
@@ -151,7 +151,7 @@ void kis_datasource_ubertooth_one::handle_rx_datalayer(std::shared_ptr<kis_packe
     packet->insert(pack_comp_radiodata, radioheader);
 
 
-    auto decapchunk = std::make_shared<kis_datachunk>();
+    auto decapchunk = packetchain->new_packet_component<kis_datachunk>();
     decapchunk->dlt = KDLT_BLUETOOTH_LE_LL;
     decapchunk->set_data(packet->data.substr(sizeof(btle_rf), payload_len));
     packet->insert(pack_comp_decap, decapchunk);

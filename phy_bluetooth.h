@@ -48,6 +48,14 @@ class bluetooth_packinfo : public packet_component {
 public:
     bluetooth_packinfo() { }
 
+    void reset() {
+        address = mac_addr{0};
+        name = "";
+        service_uuid_vec.clear();
+        txpower = 0;
+        type = 0;
+    }
+
     mac_addr address;
     std::string name;
     std::vector<uuid> service_uuid_vec;
