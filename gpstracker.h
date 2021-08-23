@@ -48,17 +48,7 @@ typedef std::shared_ptr<kis_gps> shared_gps;
 class kis_gps_packinfo : public packet_component {
 public:
     kis_gps_packinfo() {
-        merge_partial = false;
-        merge_flags = 0;
-
-        lat = lon = alt = speed = heading = 0;
-        precision = 0;
-        fix = 0;
-        tv.tv_sec = 0;
-        tv.tv_usec = 0;
-        error_x = 0;
-        error_y = 0;
-        error_v = 0;
+        reset();
     }
 
     kis_gps_packinfo(kis_gps_packinfo *src) {
@@ -78,6 +68,20 @@ public:
             gpsuuid = src->gpsuuid;
             gpsname = src->gpsname;
         }
+    }
+
+    void reset() {
+        merge_partial = false;
+        merge_flags = 0;
+
+        lat = lon = alt = speed = heading = 0;
+        precision = 0;
+        fix = 0;
+        tv.tv_sec = 0;
+        tv.tv_usec = 0;
+        error_x = 0;
+        error_y = 0;
+        error_v = 0;
     }
 
     std::shared_ptr<kis_tracked_location_full> as_tracked_full() {
@@ -134,6 +138,8 @@ public:
 class kis_no_gps_packinfo : public packet_component {
 public:
     kis_no_gps_packinfo() { }
+
+    void reset() {  }
 };
 
 /* GPS manager which handles configuring GPS sources and deciding which one

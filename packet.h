@@ -273,6 +273,11 @@ public:
 
     virtual ~kis_datachunk() { }
 
+    virtual void reset() {
+        raw_data_ = "";
+        nonstd::string_view::operator=(raw_data_);
+    }
+
     virtual void set_data(const nonstd::string_view& view) {
         nonstd::string_view::operator=(view);
     }
@@ -307,6 +312,11 @@ public:
         meta_type = in_type;
         meta_data = in_data;
     }
+
+    void reset() {
+        meta_type = "";
+        meta_data = "";
+    }
 };
 
 class kis_packet_checksum : public kis_datachunk {
@@ -314,6 +324,11 @@ public:
     int checksum_valid;
 
     kis_packet_checksum() : kis_datachunk() {
+        checksum_valid = 0;
+    }
+
+    void reset() {
+        kis_datachunk::reset();
         checksum_valid = 0;
     }
 };
@@ -348,6 +363,10 @@ enum kis_packet_direction {
 class kis_common_info : public packet_component {
 public:
     kis_common_info() {
+        reset();
+    }
+
+    void reset() {
         type = packet_basic_unknown;
         direction = packet_direction_unknown;
 
@@ -424,6 +443,10 @@ enum kis_protocol_info_type {
 class kis_data_packinfo : public packet_component {
 public:
     kis_data_packinfo() {
+        reset();
+    }
+
+    void reset() {
         proto = proto_unknown;
         ip_source_port = 0;
         ip_dest_port = 0;
@@ -476,6 +499,10 @@ enum kis_layer1_packinfo_signal_type {
 class kis_layer1_packinfo : public packet_component {
 public:
     kis_layer1_packinfo() {
+        reset();
+    }
+
+    void reset() {
         signal_type = kis_l1_signal_type_none;
         signal_dbm = noise_dbm = 0;
         signal_rssi = noise_rssi = 0;
@@ -525,6 +552,11 @@ class kis_json_packinfo : public packet_component {
 public:
     kis_json_packinfo() { }
 
+    void reset() {
+        type = "";
+        json_string = "";
+    }
+
     std::string type;
     std::string json_string;
 };
@@ -534,6 +566,11 @@ public:
 class kis_protobuf_packinfo : public packet_component {
 public:
     kis_protobuf_packinfo() { }
+
+    void reset() {
+        type = "";
+        buffer_string = "";
+    }
 
     std::string type;
     std::string buffer_string;
