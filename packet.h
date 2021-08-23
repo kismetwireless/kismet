@@ -308,9 +308,15 @@ public:
     std::string meta_type;
     std::string meta_data;
 
-    packet_metablob(std::string in_type, std::string in_data) {
+    packet_metablob(const std::string& in_type, const std::string& in_data) :
+        meta_type{in_type},
+        meta_data{in_data} { }
+
+    packet_metablob() {  }
+
+    void set_data(const std::string& in_type, const std::string& in_data) {
         meta_type = in_type;
-        meta_data = in_data;
+        meta_data= in_data;
     }
 
     void reset() {
