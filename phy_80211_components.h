@@ -84,10 +84,11 @@ public:
         return adler32_checksum("dot11_tracked_eapol");
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     __Proxy(eapol_time, double, double, double, eapol_time);
@@ -155,10 +156,11 @@ public:
         return adler32_checksum("dot11_tracked_nonce");
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     __Proxy(eapol_time, double, double, double, eapol_time);
@@ -249,10 +251,11 @@ public:
         return adler32_checksum("dot11_tracked_ssid_alert");
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     __Proxy(group_name, std::string, std::string, std::string, ssid_group_name);
@@ -317,10 +320,11 @@ public:
         return adler32_checksum("dot11_11d_tracked_range_info");
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     __Proxy(startchan, uint32_t, uint32_t, uint32_t, startchan);
@@ -375,10 +379,11 @@ public:
         return adler32_checksum("dot11_tracked_ietag");
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     __Proxy(unique_tag_id, uint32_t, uint32_t, uint32_t, unique_tag_id);
@@ -464,10 +469,11 @@ public:
         return adler32_checksum("dot11_probed_ssid");
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     __Proxy(ssid, std::string, std::string, std::string, ssid);
@@ -645,10 +651,11 @@ public:
         return adler32_checksum("dot11_advertised_ssid");
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     __Proxy(ssid, std::string, std::string, std::string, ssid);
@@ -918,10 +925,11 @@ public:
         return adler32_checksum("dot11_client");
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     __Proxy(bssid, mac_addr, mac_addr, mac_addr, bssid);
@@ -1181,10 +1189,11 @@ public:
         return adler32_checksum("dot11_tracked_device");
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     static void attach_base_parent(std::shared_ptr<dot11_tracked_device> self, 

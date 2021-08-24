@@ -39,14 +39,11 @@
 #include <unordered_map>
 
 #include "fmt.h"
-
+#include "globalregistry.h"
+#include "json/json.h"
 #include "kis_mutex.h"
 #include "macaddr.h"
 #include "uuid.h"
-
-#include "globalregistry.h"
-
-#include "json/json.h"
 
 class entry_tracker;
 class tracker_element;
@@ -226,7 +223,7 @@ public:
     };
 
     // Factory-style for easily making more of the same if we're subclassed
-    virtual std::unique_ptr<tracker_element> clone_type() {
+    virtual std::shared_ptr<tracker_element> clone_type() {
         return nullptr;
     }
 
@@ -317,7 +314,8 @@ std::ostream& operator<<(std::ostream& os, const tracker_element& e);
 std::istream& operator>>(std::istream& is, tracker_element& e);
 std::ostream& operator<<(std::ostream& os, std::shared_ptr<tracker_element> se);
 
-// Generator function for making various elements
+// Basic generator function for making various elements; objects may also prefer pooling allocation
+// to minimize malloc thrash
 template<typename SUB, typename... Args>
 std::unique_ptr<tracker_element> tracker_element_factory(const Args& ... args) {
     auto dup = std::unique_ptr<SUB>(new SUB(args...));
@@ -389,10 +387,11 @@ public:
         throw std::runtime_error("cannot coercively set aliases");
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = Globalreg::new_from_pool<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     std::shared_ptr<tracker_element> get() {
@@ -401,6 +400,15 @@ public:
 
     void set(std::shared_ptr<tracker_element> ae) {
         alias_element = ae;
+    }
+
+    void set_name(const std::string& n) {
+        alias_name = n;
+    }
+
+    void reset() {
+        alias_name = "";
+        alias_element.reset();
     }
 
 protected:
@@ -441,7 +449,7 @@ public:
     virtual void coercive_set(const shared_tracker_element& in_elem) override = 0;
 
     // We don't define cloning, subclasses have to do that
-    virtual std::unique_ptr<tracker_element> clone_type() override = 0;
+    virtual std::shared_ptr<tracker_element> clone_type() override = 0;
 
     P& get() {
         return value;
@@ -506,6 +514,10 @@ public:
         return tracker_type::tracker_string;
     }
 
+    void reset() {
+        value = "";
+    }
+
     virtual bool is_stringable() const override {
         return true;
     }
@@ -522,10 +534,11 @@ public:
     virtual void coercive_set(double in_num) override;
     virtual void coercive_set(const shared_tracker_element& e) override;
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = Globalreg::new_from_pool<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     using tracker_element_core_scalar<std::string>::less_than;
@@ -559,10 +572,11 @@ public:
         return tracker_type::tracker_byte_array;
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = Globalreg::new_from_pool<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     virtual std::string as_string() const override {
@@ -662,6 +676,10 @@ public:
         return tracker_type::tracker_key;
     }
 
+    void reset() {
+        value = device_key{};
+    }
+
     virtual bool is_stringable() const override {
         return true;
     }
@@ -687,10 +705,11 @@ public:
         throw(std::runtime_error("Cannot coercive_set a devicekey from an element"));
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = Globalreg::new_from_pool<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 };
 
@@ -716,6 +735,10 @@ public:
         return tracker_type::tracker_uuid;
     }
 
+    void reset() {
+        value = uuid{};
+    }
+
     virtual bool is_stringable() const override {
         return true;
     }
@@ -732,10 +755,11 @@ public:
     virtual void coercive_set(double in_num) override;
     virtual void coercive_set(const shared_tracker_element& e) override;
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = Globalreg::new_from_pool<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 };
 
@@ -767,6 +791,10 @@ public:
         return tracker_type::tracker_mac_addr;
     }
 
+    void reset() {
+        value = mac_addr{};
+    }
+
     virtual bool is_stringable() const override {
         return true;
     }
@@ -783,10 +811,11 @@ public:
     virtual void coercive_set(double in_num) override;
     virtual void coercive_set(const shared_tracker_element& e) override;
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = Globalreg::new_from_pool<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 };
 
@@ -826,6 +855,10 @@ public:
         return tracker_type::tracker_ipv4_addr;
     }
 
+    void reset() {
+        value = 0;
+    }
+
     virtual bool is_stringable() const override {
         return true;
     }
@@ -846,10 +879,11 @@ public:
     virtual void coercive_set(double in_num) override;
     virtual void coercive_set(const shared_tracker_element& e) override;
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = Globalreg::new_from_pool<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
 };
@@ -892,6 +926,10 @@ public:
 
     static tracker_type static_type() {
         return T;
+    }
+
+    void reset() {
+        value = 0;
     }
 
     virtual bool is_stringable() const override {
@@ -949,10 +987,11 @@ public:
         }
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+        auto r = Globalreg::new_from_pool<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     N& get() {
@@ -1149,10 +1188,15 @@ public:
         return T;
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+        auto r = Globalreg::new_from_pool<this_t>();
+        r->set_id(this->get_id());
+        return r;
+    }
+
+    void reset() {
+        map.clear();
     }
 
     virtual bool is_stringable() const override {
@@ -1439,10 +1483,15 @@ public:
         return TT;
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+        auto r = Globalreg::new_from_pool<this_t>();
+        r->set_id(this->get_id());
+        return r;
+    }
+
+    void reset() {
+        vector.clear();
     }
 
     virtual bool is_stringable() const override {
@@ -1586,10 +1635,16 @@ public:
         return TT;
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+        auto r = Globalreg::new_from_pool<this_t>();
+        r->set_id(this->get_id());
+        return r;
+    }
+
+    void reset() {
+        // do nothing, keep old data until new data is set since a pair has
+        // no reset function; determine if this is safe in the future
     }
 
     virtual bool is_stringable() const override {
@@ -1662,10 +1717,15 @@ public:
         return tracker_type::tracker_placeholder_missing;
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+        auto r = Globalreg::new_from_pool<this_t>();
+        r->set_id(this->get_id());
+        return r;
+    }
+
+    void reset() {
+        placeholder_name = "";
     }
 
     void set_name(const std::string& name) {

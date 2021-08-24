@@ -97,12 +97,11 @@ public:
         return adler32_checksum("kis_datasource_builder");
     }
 
-    // We don't support initializing fields by inheritance since we always get built with
-    // a builder attached
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     virtual ~kis_datasource_builder() { };
@@ -800,11 +799,11 @@ public:
         return adler32_checksum("kis_datasource_interface");
     }
 
-    // We don't support building fields by inheritance
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t());
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     __Proxy(interface, std::string, std::string, std::string, interface);

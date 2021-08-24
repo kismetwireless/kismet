@@ -219,10 +219,11 @@ public:
         return adler32_checksum("kis_tracked_packet");
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = Globalreg::new_from_pool<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     __Proxy(ts_sec, uint64_t, time_t, time_t, ts_sec);
@@ -238,6 +239,14 @@ public:
         set_dlt(in->get_dlt());
         set_source(in->get_source());
         set_data(in->get_data());
+    }
+
+    void reset() {
+        ts_sec->reset();
+        ts_usec->reset();
+        dlt->reset();
+        source->reset();
+        data->reset();
     }
 
 protected:

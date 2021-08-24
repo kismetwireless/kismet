@@ -31,6 +31,7 @@
 
 #include "globalregistry.h"
 #include "kis_mutex.h"
+#include "objectpool.h"
 #include "robin_hood.h"
 #include "trackedelement.h"
 
@@ -62,7 +63,7 @@ public:
     // Register a field name; field names are plain strings, and must be unique for
     // each type; Using namespaces is recommended, ie "plugin.foo.some_field".
     //
-    // A builder instance must be provided as a std::unique_ptr, this instance
+    // A builder instance must be provided as a std::shared_ptr, this instance
     // will be used to construct the field based on the ID in the future.
     //
     // The description is a human-readable description which is published in the field
@@ -71,20 +72,19 @@ public:
     // Return: Registered field number, or negative on error (such as field exists with
     // conflicting type)
     int register_field(const std::string& in_name, 
-            std::unique_ptr<tracker_element> in_builder,
+            std::shared_ptr<tracker_element> in_builder,
             const std::string& in_desc);
 
     // Reserve a field name, and return an instance.  If the field ALREADY EXISTS, return
     // an instance.
     std::shared_ptr<tracker_element> register_and_get_field(const std::string& in_name, 
-            std::unique_ptr<tracker_element> in_builder,
-            const std::string& in_desc);
+            std::shared_ptr<tracker_element> in_builder, const std::string& in_desc);
 
     template<typename TE> 
     std::shared_ptr<TE> register_and_get_field_as(const std::string& in_name,
-            std::unique_ptr<tracker_element> in_builder,
+            std::shared_ptr<tracker_element> in_builder,
             const std::string& in_desc) {
-        return std::static_pointer_cast<TE>(register_and_get_field(in_name, std::move(in_builder),
+        return std::static_pointer_cast<TE>(register_and_get_field(in_name, in_builder,
                     in_desc));
     }
 
@@ -138,7 +138,7 @@ protected:
         std::string field_description;
 
         // Builder instance
-        std::unique_ptr<tracker_element> builder;
+        std::shared_ptr<tracker_element> builder;
     };
 
     robin_hood::unordered_node_map<std::string, std::shared_ptr<reserved_field> > field_name_map;

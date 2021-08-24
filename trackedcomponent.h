@@ -758,7 +758,7 @@ public:
             delete registered_fields;
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
+    virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto dup = std::unique_ptr<this_t>(new this_t(this));
         return std::move(dup);

@@ -48,10 +48,11 @@ public:
 
     kis_tracked_location_triplet(const kis_tracked_location_triplet *p);
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = Globalreg::new_from_pool<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     virtual uint32_t get_signature() const override {
@@ -101,17 +102,20 @@ public:
 
 	inline kis_tracked_location_triplet& operator= (const kis_tracked_location_triplet& in);
 
+    void reset() {
+        geopoint->reset();
+        alt->reset();
+        fix->reset();
+        time_sec->reset();
+        time_usec->reset();
+    }
+
 protected:
     virtual void register_fields() override;
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;
 
     std::shared_ptr<tracker_element_pair_double> geopoint;
     std::shared_ptr<tracker_element_float> alt;
-    /*
-    std::shared_ptr<tracker_element_double> error_x;
-    std::shared_ptr<tracker_element_double> error_y;
-    std::shared_ptr<tracker_element_double> error_v;
-    */
     std::shared_ptr<tracker_element_uint8> fix;
     std::shared_ptr<tracker_element_uint64> time_sec;
     std::shared_ptr<tracker_element_uint64> time_usec;
@@ -125,10 +129,11 @@ public:
 
     kis_tracked_location_full(const kis_tracked_location_full *p);
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = Globalreg::new_from_pool<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     virtual uint32_t get_signature() const override {
@@ -146,6 +151,12 @@ public:
 
 	inline kis_tracked_location_full& operator= (const kis_tracked_location_full& in);
 
+    void reset() {
+        kis_tracked_location_triplet::reset();
+        spd->reset();
+        heading->reset();
+    }
+
 protected:
     virtual void register_fields() override;
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;
@@ -162,10 +173,11 @@ public:
     kis_tracked_location(int in_id, std::shared_ptr<tracker_element_map> e);
     kis_tracked_location(const kis_tracked_location *p);
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = Globalreg::new_from_pool<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     void add_loc(double in_lat, double in_lon, double in_alt, unsigned int fix,
@@ -192,6 +204,24 @@ public:
 
     void set_last_location_time(time_t t) {
         last_location_time = t;
+    }
+
+    void reset() {
+        if (min_loc)
+            min_loc->reset();
+
+        if (max_loc)
+            max_loc->reset();
+
+        if (avg_loc)
+            avg_loc->reset();
+
+        if (last_loc)
+            last_loc->reset();
+
+        agg_x = agg_y = agg_z = agg_a = 0;
+        num_avg = num_alt_avg = 0;
+        last_location_time = 0;
     }
 
 protected:

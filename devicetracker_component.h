@@ -63,10 +63,11 @@ public:
     kis_tracked_ip_data(int in_id, std::shared_ptr<tracker_element_map> e);
     kis_tracked_ip_data(const kis_tracked_ip_data *p);
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     __Proxy(ip_type, int32_t, kis_ipdata_type, kis_ipdata_type, ip_type);
@@ -92,10 +93,11 @@ public:
     kis_tracked_signal_data(int in_id, std::shared_ptr<tracker_element_map> e);
     kis_tracked_signal_data(const kis_tracked_signal_data *p);
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     void append_signal(const kis_layer1_packinfo& lay1, bool update_rrd, time_t rrd_ts);
@@ -156,10 +158,11 @@ public:
     kis_tracked_seenby_data(int in_id, std::shared_ptr<tracker_element_map> e);
     kis_tracked_seenby_data(const kis_tracked_seenby_data *p);
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     __ProxyDynamicTrackable(src_uuid, tracker_element_alias, src_uuid, src_uuid_id);
@@ -227,10 +230,11 @@ public:
         return adler32_checksum("kis_tracked_data_bins");
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     __ProxyDynamicTrackable(packet_rrd_bin_250, kis_tracked_minute_rrd<>, packet_rrd_bin_250, packet_rrd_bin_250_id);
@@ -413,15 +417,14 @@ public:
         return adler32_checksum("kis_tracked_device_base");
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
-
     __Proxy(key, device_key, device_key, device_key, key);
-
     __ProxyL(macaddr, mac_addr, mac_addr, mac_addr, macaddr,
             [this](mac_addr m) -> bool {
 

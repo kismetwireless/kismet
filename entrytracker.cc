@@ -30,6 +30,29 @@ entry_tracker::entry_tracker() {
     serializer_mutex.set_name("entry_tracker_serializer");
 
     next_field_num = 1;
+
+    Globalreg::enable_pool_type<tracker_element_alias>();
+    Globalreg::enable_pool_type<tracker_element_string>();
+    Globalreg::enable_pool_type<tracker_element_byte_array>();
+    Globalreg::enable_pool_type<tracker_element_device_key>();
+    Globalreg::enable_pool_type<tracker_element_uuid>();
+    Globalreg::enable_pool_type<tracker_element_mac_addr>();
+    // We don't actually use ipv4 anywhere in the base codebase and that makes this
+    // a compile error; re-enable once we use it somewhere
+    // Globalreg::enable_pool_type<tracker_element_ipv4_addr>();
+    Globalreg::enable_pool_type<tracker_element_map>();
+    Globalreg::enable_pool_type<tracker_element_int_map>();
+    Globalreg::enable_pool_type<tracker_element_hashkey_map>();
+    Globalreg::enable_pool_type<tracker_element_double_map>();
+    Globalreg::enable_pool_type<tracker_element_mac_map>();
+    Globalreg::enable_pool_type<tracker_element_string_map>();
+    Globalreg::enable_pool_type<tracker_element_device_key_map>();
+    Globalreg::enable_pool_type<tracker_element_uuid_map>();
+    Globalreg::enable_pool_type<tracker_element_double_map_double>();
+    Globalreg::enable_pool_type<tracker_element_vector>();
+    Globalreg::enable_pool_type<tracker_element_vector_double>();
+    Globalreg::enable_pool_type<tracker_element_vector_string>();
+    Globalreg::enable_pool_type<tracker_element_placeholder>();
 }
 
 entry_tracker::~entry_tracker() {
@@ -86,7 +109,7 @@ void entry_tracker::tracked_fields_endp_handler(std::shared_ptr<kis_net_beast_ht
 
 
 int entry_tracker::register_field(const std::string& in_name,
-        std::unique_ptr<tracker_element> in_builder,
+        std::shared_ptr<tracker_element> in_builder,
         const std::string& in_desc) {
     kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker register_field");
 
@@ -109,7 +132,7 @@ int entry_tracker::register_field(const std::string& in_name,
     definition->field_id = next_field_num++;
     definition->field_name = in_name;
     definition->field_description = in_desc;
-    definition->builder = std::move(in_builder);
+    definition->builder = in_builder;
     definition->builder->set_id(definition->field_id);
 
     field_name_map[in_name] = definition;
@@ -119,7 +142,7 @@ int entry_tracker::register_field(const std::string& in_name,
 }
 
 std::shared_ptr<tracker_element> entry_tracker::register_and_get_field(const std::string& in_name,
-        std::unique_ptr<tracker_element> in_builder,
+        std::shared_ptr<tracker_element> in_builder,
         const std::string& in_desc) {
     kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker register_and_get_field");
 
@@ -142,7 +165,7 @@ std::shared_ptr<tracker_element> entry_tracker::register_and_get_field(const std
     definition->field_id = next_field_num++;
     definition->field_name = in_name;
     definition->field_description = in_desc;
-    definition->builder = std::move(in_builder);
+    definition->builder = in_builder;
     definition->builder->set_id(definition->field_id);
 
     field_name_map[in_name] = definition;

@@ -228,7 +228,7 @@ protected:
     // Packet & data component pools
     shared_object_pool<kis_packet> packet_pool;
 
-    std::map<size_t, std::shared_ptr<void>> component_pool_map;
+    std::unordered_map<size_t, std::shared_ptr<void>> component_pool_map;
 
 };
 
