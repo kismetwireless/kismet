@@ -24,13 +24,14 @@
 #include <atomic>
 #include <unistd.h>
 #include <memory>
-
-#include "util.h"
-#include "kis_mutex.h"
-#include "macaddr.h"
-#include "uuid.h"
+#include <typeinfo>
 
 #include "fmt.h"
+#include "kis_mutex.h"
+#include "macaddr.h"
+#include "objectpool.h"
+#include "util.h"
+#include "uuid.h"
 
 #include "boost/asio.hpp"
 
@@ -253,7 +254,6 @@ public:
     const int n_io_threads = static_cast<int>(std::thread::hardware_concurrency() * 4);
     boost::asio::io_context io{n_io_threads};
 
-protected:
     kis_mutex ext_mutex;
     // Exernal global references, string to intid
     std::map<std::string, int> ext_name_map;
@@ -267,6 +267,9 @@ protected:
     kis_mutex deferred_mutex;
     bool deferred_started;
     std::vector<std::shared_ptr<deferred_startup> > deferred_vec;
+
+    kis_mutex pool_map_mutex;
+    std::unordered_map<size_t, std::shared_ptr<void>> object_pool_map;
 };
 
 namespace Globalreg {
@@ -322,6 +325,43 @@ namespace Globalreg {
     std::shared_ptr<T> fetch_mandatory_global_as() {
         return fetch_mandatory_global_as<T>(Globalreg::globalreg, T::global_name());
     }
+
+
+    // Enable pooling for a type, with an optional resetter function.  By default, a returned object 
+    // has 'reset()' called on it during return, and must implement this
+    template<typename T>
+    void enable_pool_type(std::function<void (T*)> resetter = nullptr) {
+        kis_lock_guard<kis_mutex> lk(Globalreg::globalreg->pool_map_mutex);
+
+        auto p = Globalreg::globalreg->object_pool_map.find(typeid(T).hash_code());
+        if (p != Globalreg::globalreg->object_pool_map.end())
+            return;
+
+        auto pool = std::make_shared<shared_object_pool<T>>();
+        pool->set_max(1024);
+        if (resetter)
+            pool->set_reset(resetter);
+        else
+            pool->set_reset([](T *o) { o->reset(); });
+        Globalreg::globalreg->object_pool_map.insert(std::make_pair(typeid(T).hash_code(), pool));
+    }
+
+    // Grab an object from a pool, with an optional fallback creator for generating it if the pool
+    // is not enabled for this type.  By default a uniqueptr is constructed with a generic new
+    template<typename T>
+    std::shared_ptr<T> new_from_pool(std::function<std::shared_ptr<T> ()> fallback_new = nullptr) {
+        kis_lock_guard<kis_mutex> lk(Globalreg::globalreg->pool_map_mutex);
+
+        auto p = Globalreg::globalreg->object_pool_map.find(typeid(T).hash_code());
+        if (p == Globalreg::globalreg->object_pool_map.end()) {
+            if (fallback_new)
+                return fallback_new();
+            return std::make_shared<T>();
+        }
+
+        return std::move(std::static_pointer_cast<shared_object_pool<T>>(p->second)->acquire());
+    }
+
 }
 
 
