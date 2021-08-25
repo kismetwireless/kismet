@@ -38,6 +38,10 @@ gps_tracker::gps_tracker() :
 
     gpsmanager_mutex.set_name("gps_tracker");
 
+    Globalreg::enable_pool_type<kis_tracked_location_triplet>();
+    Globalreg::enable_pool_type<kis_tracked_location>();
+    Globalreg::enable_pool_type<kis_tracked_location_full>();
+
     timetracker = Globalreg::fetch_mandatory_global_as<time_tracker>();
     eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
 
