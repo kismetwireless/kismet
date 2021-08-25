@@ -186,6 +186,7 @@ class dot11_packinfo : public packet_component {
             tx_power.reset();
             supported_channels.reset();
             dot11r_mobility.reset();
+            dot11vht.reset();
             dot11ht.reset();
             owe_transition.reset();
             rsn.reset();
