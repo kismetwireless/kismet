@@ -1726,6 +1726,7 @@ public:
 
     void reset() {
         placeholder_name = "";
+        value = 0;
     }
 
     void set_name(const std::string& name) {
