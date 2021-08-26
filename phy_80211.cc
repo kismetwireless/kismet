@@ -2195,6 +2195,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
         if (ssid->get_crypt_set() != cryptset) {
             if (ssid->get_crypt_set() && cryptset == crypt_none &&
                     d11phy->alertracker->potential_alert(d11phy->alert_wepflap_ref)) {
+                in_pack->tag_vec.push_back("DOT11_BEACON_SSID");
 
                 std::string al = "IEEE80211 Access Point BSSID " +
                     bssid_dev->get_macaddr().mac_to_string() + " SSID \"" +
@@ -2374,6 +2375,9 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
 
             ssid = dot11dev->new_responded_ssid();
 
+            in_pack->tag_vec.push_back("DOT11_RESPONSE_SSID");
+
+
             new_ssid = true;
         } else {
             ssid = std::static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
@@ -2392,6 +2396,8 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
             dot11info->new_adv_ssid = true;
 
             ssid = dot11dev->new_advertised_ssid();
+
+            in_pack->tag_vec.push_back("DOT11_BEACON_SSID");
 
             new_ssid = true;
         } else {
