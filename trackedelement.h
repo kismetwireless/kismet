@@ -256,11 +256,11 @@ public:
     virtual std::string as_string() const = 0;
     virtual bool needs_quotes() const = 0;
 
-    int get_id() const {
+    constexpr14 uint16_t get_id() const {
         return tracked_id;
     }
 
-    void set_id(int id) {
+    void set_id(uint16_t id) {
         tracked_id = id;
     }
 
@@ -307,7 +307,7 @@ public:
     friend std::istream& operator>>(std::istream& is, tracker_element& k);
 
 protected:
-    int tracked_id;
+    uint16_t tracked_id;
 };
 
 std::ostream& operator<<(std::ostream& os, const tracker_element& e);

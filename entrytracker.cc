@@ -175,7 +175,7 @@ std::shared_ptr<tracker_element> entry_tracker::register_and_get_field(const std
 }
 
 
-int entry_tracker::get_field_id(const std::string& in_name) {
+uint16_t entry_tracker::get_field_id(const std::string& in_name) {
     kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker get_field_id");
 
     // std::string mod_name = str_lower(in_name);
@@ -187,7 +187,7 @@ int entry_tracker::get_field_id(const std::string& in_name) {
     return iter->second->field_id;
 }
 
-std::string entry_tracker::get_field_name(int in_id) {
+std::string entry_tracker::get_field_name(uint16_t in_id) {
     kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker get_field_name");
 
     auto iter = field_id_map.find(in_id);
@@ -197,7 +197,7 @@ std::string entry_tracker::get_field_name(int in_id) {
     return iter->second->field_name;
 }
 
-std::string entry_tracker::get_field_description(int in_id) {
+std::string entry_tracker::get_field_description(uint16_t in_id) {
     kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker get_field_description");
 
     auto iter = field_id_map.find(in_id);
@@ -209,7 +209,7 @@ std::string entry_tracker::get_field_description(int in_id) {
     return iter->second->field_description;
 }
 
-std::shared_ptr<tracker_element> entry_tracker::get_shared_instance(int in_id) {
+std::shared_ptr<tracker_element> entry_tracker::get_shared_instance(uint16_t in_id) {
     kis_unique_lock<kis_mutex> lock(entry_mutex, std::defer_lock, "entry_tracker get_shared_instance id");
 
     lock.lock();
@@ -309,14 +309,14 @@ int entry_tracker::serialize_with_json_summary(const std::string& type, std::ost
     return serialize(type, stream, sumelem, name_map);
 }
 
-void entry_tracker::register_search_xform(int in_field_id, std::function<void (std::shared_ptr<tracker_element>,
+void entry_tracker::register_search_xform(uint16_t in_field_id, std::function<void (std::shared_ptr<tracker_element>,
             std::string& mapped_str)> in_xform) {
 
     kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker register_search_xform");
     search_xform_map[in_field_id] = in_xform;
 }
 
-void entry_tracker::remove_search_xform(int in_field_id) {
+void entry_tracker::remove_search_xform(uint16_t in_field_id) {
     kis_lock_guard<kis_mutex> lk(entry_mutex, "entry_tracker remove_search_xform");
 
     auto i = search_xform_map.find(in_field_id);
