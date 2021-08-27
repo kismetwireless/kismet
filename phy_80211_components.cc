@@ -156,12 +156,12 @@ void dot11_probed_ssid::register_fields() {
     register_field("dot11.probedssid.last_time", "last time probed", &last_time);
 
     location_id = 
-        register_dynamic_field("dot11.probedssid.location", "location", &location);
+        register_dynamic_field<kis_tracked_location>("dot11.probedssid.location", "estimated location");
 
-    register_field("dot11.probedssid.dot11r_mobility", 
-            "advertised dot11r mobility support", &dot11r_mobility);
-    register_field("dot11.probedssid.dot11r_mobility_domain_id", 
-            "advertised dot11r mobility domain id", &dot11r_mobility_domain_id);
+    register_dynamic_field<tracker_element_uint8>("dot11.probedssid.dot11r_mobility", 
+            "advertised dot11r mobility support");
+    register_dynamic_field<tracker_element_uint16>("dot11.probedssid.dot11r_mobility_domain_id", 
+            "advertised dot11r mobility domain id");
 
     register_field("dot11.probedssid.crypt_set", "Requested encryption set", &crypt_set);
 
@@ -171,8 +171,8 @@ void dot11_probed_ssid::register_fields() {
             "WPA management protection supported", &wpa_mfp_supported);
 
     ie_tag_list_id =
-        register_dynamic_field("dot11.probedssid.ie_tag_list",
-                "802.11 IE tag list in beacon", &ie_tag_list);
+        register_dynamic_field<tracker_element_vector_double>("dot11.probedssid.ie_tag_list",
+                "802.11 IE tag list in beacon");
 
     wps_version_id =
         register_dynamic_field<tracker_element_uint8>("dot11.probedssid.wps_version", "WPS version");
@@ -301,12 +301,12 @@ void dot11_advertised_ssid::register_fields() {
             "Cisco client management frame protection", &cisco_client_mfp);
 
     ie_tag_list_id =
-        register_dynamic_field("dot11.advertisedssid.ie_tag_list",
-                "802.11 IE tag list in last beacon", &ie_tag_list);
+        register_dynamic_field<tracker_element_vector_double>("dot11.advertisedssid.ie_tag_list",
+                "802.11 IE tag list in last beacon");
 
     ie_tag_content_id =
-        register_dynamic_field("dot11.advertisedssid.ie_tag_content",
-                "802.11 IE tag content of last beacon", &ie_tag_content);
+        register_dynamic_field<tracker_element_int_map>("dot11.advertisedssid.ie_tag_content",
+                "802.11 IE tag content of last beacon");
     ie_tag_content_element_id =
         register_field("dot11.advertisedssid.ie_tag_content_entry",
                 tracker_element_factory<dot11_tracked_ietag>(),

@@ -433,8 +433,8 @@ public:
             __ImportField(bssid, p);
             __ImportField(first_time, p);
             __ImportField(last_time, p);
-            __ImportField(dot11r_mobility, p);
-            __ImportField(dot11r_mobility_domain_id, p);
+            __ImportId(dot11r_mobility_id, p);
+            __ImportId(dot11r_mobility_domain_id_id, p);
 
             __ImportId(location_id, p);
 
@@ -482,16 +482,17 @@ public:
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
 
-    __ProxyDynamicTrackable(location, kis_tracked_location, location, location_id);
+    __ProxyFullyDynamicTrackable(location, kis_tracked_location, location_id);
 
-    __Proxy(dot11r_mobility, uint8_t, bool, bool, dot11r_mobility);
-    __Proxy(dot11r_mobility_domain_id, uint16_t, uint16_t, uint16_t, dot11r_mobility_domain_id);
+    __ProxyFullyDynamic(dot11r_mobility, uint8_t, bool, bool, tracker_element_uint8, dot11r_mobility_id);
+    __ProxyFullyDynamic(dot11r_mobility_domain_id, uint16_t, uint16_t, uint16_t, tracker_element_uint16, 
+                        dot11r_mobility_domain_id_id);
 
     __Proxy(crypt_set, uint64_t, uint64_t, uint64_t, crypt_set);
     __Proxy(wpa_mfp_required, uint8_t, bool, bool, wpa_mfp_required);
     __Proxy(wpa_mfp_supported, uint8_t, bool, bool, wpa_mfp_supported);
 
-    __ProxyDynamicTrackable(ie_tag_list, tracker_element_vector_double, ie_tag_list, ie_tag_list_id);
+    __ProxyFullyDynamicTrackable(ie_tag_list, tracker_element_vector_double, ie_tag_list_id);
 
     __ProxyFullyDynamic(wps_version, uint8_t, uint8_t, uint8_t, tracker_element_uint8, wps_version_id);
     __ProxyFullyDynamic(wps_state, uint32_t, uint32_t, uint32_t, tracker_element_uint32, wps_state_id);
@@ -512,18 +513,16 @@ protected:
     std::shared_ptr<tracker_element_uint64> first_time;
     std::shared_ptr<tracker_element_uint64> last_time;
 
-    std::shared_ptr<tracker_element_uint8> dot11r_mobility;
-    std::shared_ptr<tracker_element_uint16> dot11r_mobility_domain_id;
+    uint16_t dot11r_mobility_id;
+    uint16_t dot11r_mobility_domain_id_id;
 
-    std::shared_ptr<kis_tracked_location> location;
-    int location_id;
+    uint16_t location_id;
 
     std::shared_ptr<tracker_element_uint64> crypt_set;
     std::shared_ptr<tracker_element_uint8> wpa_mfp_required;
     std::shared_ptr<tracker_element_uint8> wpa_mfp_supported;
 
-    std::shared_ptr<tracker_element_vector_double> ie_tag_list;
-    int ie_tag_list_id;
+    uint16_t ie_tag_list_id;
 
     // WPS components
     uint16_t wps_version_id;
@@ -714,9 +713,8 @@ public:
     __Proxy(ccx_txpower, uint8_t, unsigned int, unsigned int, ccx_txpower);
     __Proxy(cisco_client_mfp, uint8_t, bool, bool, cisco_client_mfp);
 
-    __ProxyDynamicTrackable(ie_tag_list, tracker_element_vector_double, ie_tag_list, ie_tag_list_id);
-
-    __ProxyDynamicTrackable(ie_tag_content, tracker_element_int_map, ie_tag_content, ie_tag_content_id);
+    __ProxyFullyDynamicTrackable(ie_tag_list, tracker_element_vector_double, ie_tag_list_id);
+    __ProxyFullyDynamicTrackable(ie_tag_content, tracker_element_int_map, ie_tag_content_id);
 
     void set_ietag_content_from_packet(std::shared_ptr<dot11_ie> tags);
 
@@ -834,13 +832,11 @@ protected:
     std::shared_ptr<tracker_element_uint8> cisco_client_mfp;
 
     // IE tags present, and order
-    std::shared_ptr<tracker_element_vector_double> ie_tag_list;
-    int ie_tag_list_id;
+    uint16_t ie_tag_list_id;
 
     // IE tag contents
-    std::shared_ptr<tracker_element_int_map> ie_tag_content;
-    int ie_tag_content_id;
-    int ie_tag_content_element_id;
+    uint16_t ie_tag_content_id;
+    uint16_t ie_tag_content_element_id;
 };
 
 /* dot11 client
@@ -921,20 +917,20 @@ public:
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
 
-    __ProxyDynamic(dhcp_host, std::string, std::string, std::string, dhcp_host, dhcp_host_id);
-    __ProxyDynamic(dhcp_vendor, std::string, std::string, std::string, dhcp_vendor, dhcp_vendor_id);
+    __ProxyFullyDynamic(dhcp_host, std::string, std::string, std::string, tracker_element_string, dhcp_host_id);
+    __ProxyFullyDynamic(dhcp_vendor, std::string, std::string, std::string, tracker_element_string, dhcp_vendor_id);
 
     __Proxy(tx_cryptset, uint64_t, uint64_t, uint64_t, tx_cryptset);
     __Proxy(rx_cryptset, uint64_t, uint64_t, uint64_t, rx_cryptset);
 
-    __ProxyDynamic(eap_identity, std::string, std::string, std::string, eap_identity, eap_identity_id);
+    __ProxyFullyDynamic(eap_identity, std::string, std::string, std::string, tracker_element_string, eap_identity_id);
 
-    __ProxyDynamic(cdp_device, std::string, std::string, std::string, cdp_device, cdp_device_id);
-    __ProxyDynamic(cdp_port, std::string, std::string, std::string, cdp_port, cdp_port_id);
+    __ProxyFullyDynamic(cdp_device, std::string, std::string, std::string, tracker_element_string, cdp_device_id);
+    __ProxyFullyDynamic(cdp_port, std::string, std::string, std::string, tracker_element_string, cdp_port_id);
 
     __Proxy(decrypted, uint8_t, bool, bool, decrypted);
 
-    __ProxyDynamicTrackable(ipdata, kis_tracked_ip_data, ipdata, ipdata_id);
+    __ProxyFullyDynamicTrackable(ipdata, kis_tracked_ip_data, ipdata_id);
 
     __Proxy(datasize, uint64_t, uint64_t, uint64_t, datasize);
     __ProxyIncDec(datasize, uint64_t, uint64_t, datasize);
@@ -948,7 +944,7 @@ public:
     __Proxy(num_retries, uint64_t, uint64_t, uint64_t, num_retries);
     __ProxyIncDec(num_retries, uint64_t, uint64_t, num_retries);
 
-    __ProxyDynamicTrackable(location, kis_tracked_location, location, location_id);
+    __ProxyFullyDynamicTrackable(location, kis_tracked_location, location_id);
 
 protected:
     virtual void register_fields() override {
@@ -957,22 +953,27 @@ protected:
         register_field("dot11.client.first_time", "first time seen", &first_time);
         register_field("dot11.client.last_time", "last time seen", &last_time);
         register_field("dot11.client.type", "type of client", &client_type);
+
         dhcp_host_id =
-            register_dynamic_field("dot11.client.dhcp_host", "dhcp host", &dhcp_host);
+            register_dynamic_field<tracker_element_string>("dot11.client.dhcp_host", "dhcp host");
         dhcp_vendor_id =
-            register_dynamic_field("dot11.client.dhcp_vendor", "dhcp vendor", &dhcp_vendor);
+            register_dynamic_field<tracker_element_string>("dot11.client.dhcp_vendor", "dhcp vendor");
+
         register_field("dot11.client.tx_cryptset", "bitset of transmitted encryption", &tx_cryptset);
         register_field("dot11.client.rx_cryptset", "bitset of received encryption", &rx_cryptset);
+
         eap_identity_id = 
-            register_dynamic_field("dot11.client.eap_identity", "EAP identity", &eap_identity);
+            register_dynamic_field<tracker_element_string>("dot11.client.eap_identity", "EAP identity");
+
         cdp_device_id = 
-            register_dynamic_field("dot11.client.cdp_device", "CDP device", &cdp_device);
+            register_dynamic_field<tracker_element_string>("dot11.client.cdp_device", "CDP device");
         cdp_port_id =
-            register_dynamic_field("dot11.client.cdp_port", "CDP port", &cdp_port);
+            register_dynamic_field<tracker_element_string>("dot11.client.cdp_port", "CDP port");
+
         register_field("dot11.client.decrypted", "client decrypted", &decrypted);
         
         ipdata_id =
-            register_dynamic_field("dot11.client.ipdata", "IPv4 information", &ipdata);
+            register_dynamic_field<kis_tracked_ip_data>("dot11.client.ipdata", "IPv4 information");
 
         register_field("dot11.client.datasize", "data in bytes", &datasize);
         register_field("dot11.client.datasize_retry", "retry data in bytes", &datasize_retry);
@@ -980,7 +981,7 @@ protected:
         register_field("dot11.client.num_retries", "number of retried packets", &num_retries);
 
         location_id =
-            register_dynamic_field("dot11.client.location", "location", &location);
+            register_dynamic_field<kis_tracked_location>("dot11.client.location", "location");
 
     }
 
@@ -992,36 +993,27 @@ protected:
 
     std::shared_ptr<tracker_element_uint32> client_type;
 
-    std::shared_ptr<tracker_element_string> dhcp_host;
-    int dhcp_host_id;
-
-    std::shared_ptr<tracker_element_string> dhcp_vendor;
-    int dhcp_vendor_id;
+    uint16_t dhcp_host_id;
+    uint16_t dhcp_vendor_id;
 
     std::shared_ptr<tracker_element_uint64> tx_cryptset;
     std::shared_ptr<tracker_element_uint64> rx_cryptset;
 
-    std::shared_ptr<tracker_element_string> eap_identity;
-    int eap_identity_id;
+    uint16_t eap_identity_id;
 
-    std::shared_ptr<tracker_element_string> cdp_device;
-    int cdp_device_id;
-
-    std::shared_ptr<tracker_element_string> cdp_port;
-    int cdp_port_id;
+    uint16_t cdp_device_id;
+    uint16_t cdp_port_id;
 
     std::shared_ptr<tracker_element_uint8> decrypted;
 
-    std::shared_ptr<kis_tracked_ip_data> ipdata;
-    int ipdata_id;
+    uint16_t ipdata_id;
 
     std::shared_ptr<tracker_element_uint64> datasize;
     std::shared_ptr<tracker_element_uint64> datasize_retry;
     std::shared_ptr<tracker_element_uint64> num_fragments;
     std::shared_ptr<tracker_element_uint64> num_retries;
 
-    std::shared_ptr<kis_tracked_location> location;
-    int location_id;
+    uint16_t location_id;
 };
 
 // Bitset of top-level device types for easy sorting/browsing
