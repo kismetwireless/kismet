@@ -1420,6 +1420,14 @@ public:
 
         return i;
     }
+
+    iterator erase(const_iterator i) {
+        return map.erase(i);
+    }
+
+    iterator erase(iterator first, iterator last) {
+        return map.erase(first, last);
+    }
 };
 
 // int::element
