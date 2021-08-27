@@ -493,15 +493,15 @@ public:
 
     __ProxyDynamicTrackable(ie_tag_list, tracker_element_vector_double, ie_tag_list, ie_tag_list_id);
 
-    __ProxyDynamic(wps_version, uint8_t, uint8_t, uint8_t, wps_version, wps_version_id);
-    __ProxyDynamic(wps_state, uint32_t, uint32_t, uint32_t, wps_state, wps_state_id);
-    __ProxyDynamic(wps_config_methods, uint16_t, uint16_t, uint16_t, wps_config_methods, wps_config_methods_id);
-    __ProxyDynamic(wps_manuf, std::string, std::string, std::string, wps_manuf, wps_manuf_id);
-    __ProxyDynamic(wps_device_name, std::string, std::string, std::string, wps_device_name, wps_device_name_id);
-    __ProxyDynamic(wps_model_name, std::string, std::string, std::string, wps_model_name, wps_model_name_id);
-    __ProxyDynamic(wps_model_number, std::string, std::string, std::string, wps_model_number, wps_model_number_id);
-    __ProxyDynamic(wps_serial_number, std::string, std::string, std::string, wps_serial_number, wps_serial_number_id);
-    __ProxyDynamic(wps_uuid_e, std::string, std::string, std::string, wps_uuid_e, wps_uuid_e_id);
+    __ProxyFullyDynamic(wps_version, uint8_t, uint8_t, uint8_t, tracker_element_uint8, wps_version_id);
+    __ProxyFullyDynamic(wps_state, uint32_t, uint32_t, uint32_t, tracker_element_uint32, wps_state_id);
+    __ProxyFullyDynamic(wps_config_methods, uint16_t, uint16_t, uint16_t, tracker_element_uint16, wps_config_methods_id);
+    __ProxyFullyDynamic(wps_manuf, std::string, std::string, std::string, tracker_element_string, wps_manuf_id);
+    __ProxyFullyDynamic(wps_device_name, std::string, std::string, std::string, tracker_element_string, wps_device_name_id);
+    __ProxyFullyDynamic(wps_model_name, std::string, std::string, std::string, tracker_element_string, wps_model_name_id);
+    __ProxyFullyDynamic(wps_model_number, std::string, std::string, std::string, tracker_element_string, wps_model_number_id);
+    __ProxyFullyDynamic(wps_serial_number, std::string, std::string, std::string, tracker_element_string, wps_serial_number_id);
+    __ProxyFullyDynamic(wps_uuid_e, std::string, std::string, std::string, tracker_element_string, wps_uuid_e_id);
 
 protected:
     virtual void register_fields() override;
@@ -526,32 +526,15 @@ protected:
     int ie_tag_list_id;
 
     // WPS components
-    std::shared_ptr<tracker_element_uint8> wps_version;
-    int wps_version_id;
-
-    std::shared_ptr<tracker_element_uint32> wps_state;
-    int wps_state_id;
-
-    std::shared_ptr<tracker_element_uint16> wps_config_methods;
-    int wps_config_methods_id;
-
-    std::shared_ptr<tracker_element_string> wps_manuf;
-    int wps_manuf_id;
-
-    std::shared_ptr<tracker_element_string> wps_device_name;
-    int wps_device_name_id;
-
-    std::shared_ptr<tracker_element_string> wps_model_name;
-    int wps_model_name_id;
-
-    std::shared_ptr<tracker_element_string> wps_model_number;
-    int wps_model_number_id;
-
-    std::shared_ptr<tracker_element_string> wps_serial_number;
-    int wps_serial_number_id;
-
-    std::shared_ptr<tracker_element_byte_array> wps_uuid_e;
-    int wps_uuid_e_id;
+    uint16_t wps_version_id;
+    uint16_t wps_state_id;
+    uint16_t wps_config_methods_id;
+    uint16_t wps_manuf_id;
+    uint16_t wps_device_name_id;
+    uint16_t wps_model_name_id;
+    uint16_t wps_model_number_id;
+    uint16_t wps_serial_number_id;
+    uint16_t wps_uuid_e_id;
 };
 
 /* Advertised SSID
@@ -718,7 +701,7 @@ public:
     __ProxyDynamic(wps_uuid_e, std::string, std::string, std::string, wps_uuid_e,
             wps_uuid_e_id);
 
-    __ProxyDynamicTrackable(location, kis_tracked_location, location, location_id);
+    __ProxyFullyDynamicTrackable(location, kis_tracked_location, location_id);
 
     __Proxy(dot11r_mobility, uint8_t, bool, bool, dot11r_mobility);
     __Proxy(dot11r_mobility_domain_id, uint16_t, uint16_t, uint16_t, 
@@ -834,7 +817,6 @@ protected:
     std::shared_ptr<tracker_element_byte_array> wps_uuid_e;
     int wps_uuid_e_id;
 
-    std::shared_ptr<kis_tracked_location> location;
     int location_id;
 
     // 802.11r mobility/fast roaming advertisements
