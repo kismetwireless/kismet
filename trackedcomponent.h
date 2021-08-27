@@ -117,6 +117,48 @@ class tracker_component : public tracker_element_map {
         cvar->set((ptype) in); \
     }
 
+// Newer dynamic proxy model which doesn't use an instance pointer, only the
+// mapped object
+#define __ProxyFullyDynamic(name, ptype, itype, rtype, ctype, id) \
+    virtual std::shared_ptr<ctype> get_tracker_##name() { \
+        auto ci = this->find(id); \
+        if (ci == this->end()) { \
+            auto cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ctype>(id); \
+            if (cvar != nullptr) {\
+                insert(cvar); \
+                return cvar; \
+            } \
+        } \
+        return std::static_pointer_cast<ctype>(ci->second); \
+    } \
+    virtual rtype get_##name() { \
+        auto ci = this->find(id); \
+        if (ci == this->end()) { \
+            auto cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ctype>(id); \
+            if (cvar != nullptr) {\
+                insert(cvar); \
+                return get_tracker_value<ptype>(cvar); \
+            } \
+        } \
+        return (rtype) get_tracker_value<ptype>(ci->second); \
+    } \
+    virtual void set_##name(const itype& in) { \
+        auto ci = this->find(id); \
+        if (ci == this->end()) { \
+            auto cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ctype>(id); \
+            if (cvar != nullptr) {\
+                insert(cvar); \
+                cvar->set(in); \
+                return; \
+            } \
+        } \
+        std::static_pointer_cast<ctype>(ci->second)->set(in); \
+    } \
+    virtual bool has_##name() { \
+        return this->find(id) != this->end(); \
+    }
+
+
 // Proxy, connected to a dynamic element.  Getting or setting the dynamic element
 // creates it. 
 #define __ProxyDynamic(name, ptype, itype, rtype, cvar, id) \
@@ -502,6 +544,49 @@ class tracker_component : public tracker_element_map {
     } 
 
 
+// Newer dynamic proxy model which doesn't use an instance pointer, only the
+// mapped object
+#define __ProxyFullyDynamicTrackable(name, ctype, id) \
+    virtual std::shared_ptr<ctype> get_tracker_##name() { \
+        auto ci = this->find(id); \
+        if (ci == this->end()) { \
+            auto cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ctype>(id); \
+            if (cvar != nullptr) {\
+                this->insert(cvar); \
+                return cvar; \
+            } \
+        } \
+        return std::static_pointer_cast<ctype>(ci->second); \
+    } \
+    virtual void set_tracker_##name(std::shared_ptr<ctype> v) { \
+        const auto ci = this->find(id); \
+        if (ci != this->end()) { \
+            this->erase(ci); \
+        } \
+        v->set_id(id); \
+        this->insert(v); \
+        return; \
+    } \
+    virtual std::shared_ptr<ctype> get_##name() { \
+        const auto ci = this->find(id); \
+        if (ci == this->end()) { \
+            auto cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ctype>(id); \
+            if (cvar != nullptr) {\
+                this->insert(cvar); \
+                return cvar; \
+            } \
+        } \
+        return std::static_pointer_cast<ctype>(ci->second); \
+    } \
+    virtual bool has_##name() { \
+        return this->find(id) != this->end(); \
+    } \
+    virtual void clear_##name() { \
+        auto ci = this->find(id); \
+        if (ci != this->end()) \
+            this->erase(ci); \
+    }
+
 // Proxy dynamic trackable (value in class may be null and is dynamically
 // built)
 #define __ProxyDynamicTrackable(name, ttype, cvar, id) \
@@ -710,9 +795,11 @@ class tracker_component : public tracker_element_map {
             }
 
             registered_field(int id, shared_tracker_element *assign, bool dynamic) {
+                /*
                 if (assign == nullptr && dynamic)
                     throw std::runtime_error("attempted to assign a dynamic field to "
                             "a null destination");
+                            */
 
                 if (dynamic)
                     this->id = id * -1;
@@ -828,6 +915,24 @@ protected:
         auto rf = std::unique_ptr<registered_field>(new registered_field(id, 
                     reinterpret_cast<shared_tracker_element *>(in_dest), 
                     true));
+
+        registered_fields->push_back(std::move(rf));
+
+        return id;
+    }
+
+    template<typename T>
+    int register_dynamic_field(const std::string& in_name, const std::string& in_desc) {
+        using build_type = T;
+
+        int id = 
+            Globalreg::globalreg->entrytracker->register_field(in_name, 
+                    tracker_element_factory<build_type>(), in_desc);
+
+        if (registered_fields == nullptr)
+            registered_fields = new std::vector<std::unique_ptr<registered_field>>();
+
+        auto rf = std::unique_ptr<registered_field>(new registered_field(id, nullptr, true));
 
         registered_fields->push_back(std::move(rf));
 

@@ -58,7 +58,7 @@ void tracker_component::reserve_fields(std::shared_ptr<tracker_element_map> e) {
                 // proxydynamictrackable can fill it in;
                 *(rf->assign) = nullptr;
                 insert(abs(rf->id), std::shared_ptr<tracker_element>());
-            } else {
+            } else if (rf->assign != nullptr) {
                 // otherwise generate a variable for the destination
                 *(rf->assign) = import_or_new(e, rf->id);
             }
