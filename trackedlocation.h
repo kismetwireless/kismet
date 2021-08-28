@@ -140,8 +140,8 @@ public:
         return adler32_checksum("kis_tracked_location_full");
     }
 
-    __Proxy(speed, float, float, float, spd);
-    __Proxy(heading, float, float, float, heading);
+    __ProxyFullyDynamic(speed, float, float, float, tracker_element_float, spd_id);
+    __ProxyFullyDynamic(heading, float, float, float, tracker_element_float, heading_id);
 
     virtual void set(kis_gps_packinfo *in_packinfo) override;
 
@@ -149,16 +149,16 @@ public:
 
     void reset() {
         kis_tracked_location_triplet::reset();
-        spd->reset();
-        heading->reset();
+        clear_speed();
+        clear_heading();
     }
 
 protected:
     virtual void register_fields() override;
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;
 
-    std::shared_ptr<tracker_element_float> spd;
-    std::shared_ptr<tracker_element_float> heading;
+    uint16_t spd_id;
+    uint16_t heading_id;
 };
 
 // min/max/avg location

@@ -169,8 +169,8 @@ kis_tracked_location_full::kis_tracked_location_full(int in_id,
 kis_tracked_location_full::kis_tracked_location_full(const kis_tracked_location_full *p) :
     kis_tracked_location_triplet{p} {
 
-    __ImportField(spd, p);
-    __ImportField(heading, p);
+    __ImportId(spd_id, p);
+    __ImportId(heading_id, p);
 
     reserve_fields(nullptr);
 }
@@ -214,14 +214,27 @@ kis_tracked_location_full& kis_tracked_location_full::operator= (const kis_track
     else
         clear_time_usec();
 
+    if (in.has_speed())
+        set_speed(in.get_only_speed());
+    else
+        clear_speed();
+
+    if (in.has_heading())
+        set_heading(in.get_only_heading());
+    else
+        clear_heading();
+
     return *this;
 }
 
 void kis_tracked_location_full::register_fields() {
     kis_tracked_location_triplet::register_fields();
 
-    register_field("kismet.common.location.speed", "speed (kph)", &spd);
-    register_field("kismet.common.location.heading", "heading (degrees)", &heading);
+    spd_id =
+        register_dynamic_field<tracker_element_float>("kismet.common.location.speed", "speed (kph)");
+
+    heading_id =
+        register_dynamic_field<tracker_element_float>("kismet.common.location.heading", "heading (degrees)");
 }
 
 void kis_tracked_location_full::reserve_fields(std::shared_ptr<tracker_element_map> e) {
