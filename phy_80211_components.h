@@ -502,7 +502,7 @@ public:
     __ProxyFullyDynamic(wps_model_name, std::string, std::string, std::string, tracker_element_string, wps_model_name_id);
     __ProxyFullyDynamic(wps_model_number, std::string, std::string, std::string, tracker_element_string, wps_model_number_id);
     __ProxyFullyDynamic(wps_serial_number, std::string, std::string, std::string, tracker_element_string, wps_serial_number_id);
-    __ProxyFullyDynamic(wps_uuid_e, std::string, std::string, std::string, tracker_element_string, wps_uuid_e_id);
+    __ProxyFullyDynamic(wps_uuid_e, std::string, std::string, std::string, tracker_element_byte_array, wps_uuid_e_id);
 
 protected:
     virtual void register_fields() override;
@@ -569,7 +569,6 @@ public:
             __ImportField(ssid_hash, p);
 
             __ImportId(owe_ssid_id, p);
-
             __ImportId(owe_ssid_len_id, p);
 
             __ImportId(owe_bssid_id, p);
@@ -645,9 +644,9 @@ public:
 
     __Proxy(ssid_hash, uint64_t, uint64_t, uint64_t, ssid_hash);
 
-    __ProxyDynamic(owe_ssid, std::string, std::string, std::string, owe_ssid, owe_ssid_id);
-    __ProxyDynamic(owe_ssid_len, uint32_t, unsigned, unsigned int, owe_ssid_len, owe_ssid_len_id);
-    __ProxyDynamic(owe_bssid, mac_addr, mac_addr, mac_addr, owe_bssid, owe_bssid_id);
+    __ProxyFullyDynamic(owe_ssid, std::string, std::string, std::string, tracker_element_string, owe_ssid_id);
+    __ProxyFullyDynamic(owe_ssid_len, uint32_t, unsigned int, unsigned int, tracker_element_uint8, owe_ssid_len_id);
+    __ProxyFullyDynamic(owe_bssid, mac_addr, mac_addr, mac_addr, tracker_element_mac_addr, owe_bssid_id);
 
     __Proxy(ssid_beacon, uint8_t, bool, bool, ssid_beacon);
     __Proxy(ssid_probe_response, uint8_t, bool, bool, ssid_probe_response);
@@ -660,7 +659,7 @@ public:
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
 
-    __ProxyDynamic(beacon_info, std::string, std::string, std::string, beacon_info, beacon_info_id);
+    __ProxyFullyDynamic(beacon_info, std::string, std::string, std::string, tracker_element_string, beacon_info_id);
 
     __Proxy(ssid_cloaked, uint8_t, bool, bool, ssid_cloaked);
 
@@ -678,26 +677,26 @@ public:
 
     __Proxy(ietag_checksum, uint32_t, uint32_t, uint32_t, ietag_checksum);
 
-    __ProxyDynamic(dot11d_country, std::string, std::string, std::string, dot11d_country, 
+    __ProxyFullyDynamic(dot11d_country, std::string, std::string, std::string, tracker_element_string, 
             dot11d_country_id);
 
-    __ProxyDynamicTrackable(dot11d_vec, tracker_element_vector, dot11d_vec, dot11d_vec_id);
+    __ProxyFullyDynamicTrackable(dot11d_vec, tracker_element_vector, dot11d_vec_id);
     void set_dot11d_vec(std::vector<dot11_packinfo_dot11d_entry> vec);
 
-    __ProxyDynamic(wps_version, uint8_t, uint8_t, uint8_t, wps_version, wps_version_id);
-    __ProxyDynamic(wps_state, uint32_t, uint32_t, uint32_t, wps_state, wps_state_id);
-    __ProxyDynamic(wps_config_methods, uint16_t, uint16_t, uint16_t, wps_config_methods,
+    __ProxyFullyDynamic(wps_version, uint8_t, uint8_t, uint8_t, tracker_element_uint8, wps_version_id);
+    __ProxyFullyDynamic(wps_state, uint32_t, uint32_t, uint32_t, tracker_element_uint32, wps_state_id);
+    __ProxyFullyDynamic(wps_config_methods, uint16_t, uint16_t, uint16_t, tracker_element_uint16,
             wps_config_methods_id);
-    __ProxyDynamic(wps_manuf, std::string, std::string, std::string, wps_manuf, wps_manuf_id);
-    __ProxyDynamic(wps_device_name, std::string, std::string, std::string, wps_device_name, 
+    __ProxyFullyDynamic(wps_manuf, std::string, std::string, std::string, tracker_element_string, wps_manuf_id);
+    __ProxyFullyDynamic(wps_device_name, std::string, std::string, std::string, tracker_element_string, 
             wps_device_name_id);
-    __ProxyDynamic(wps_model_name, std::string, std::string, std::string, wps_model_name, 
+    __ProxyFullyDynamic(wps_model_name, std::string, std::string, std::string, tracker_element_string,
             wps_model_name_id);
-    __ProxyDynamic(wps_model_number, std::string, std::string, std::string, wps_model_number,
+    __ProxyFullyDynamic(wps_model_number, std::string, std::string, std::string, tracker_element_string,
             wps_model_number_id);
-    __ProxyDynamic(wps_serial_number, std::string, std::string, std::string, wps_serial_number,
+    __ProxyFullyDynamic(wps_serial_number, std::string, std::string, std::string, tracker_element_string,
             wps_serial_number_id);
-    __ProxyDynamic(wps_uuid_e, std::string, std::string, std::string, wps_uuid_e,
+    __ProxyFullyDynamic(wps_uuid_e, std::string, std::string, std::string, tracker_element_string,
             wps_uuid_e_id);
 
     __ProxyFullyDynamicTrackable(location, kis_tracked_location, location_id);
@@ -727,15 +726,16 @@ protected:
         if (e != NULL) {
             // If we're inheriting, it's our responsibility to kick submaps and vectors with
             // complex types as well; since they're not themselves complex objects
-            if (dot11d_vec != nullptr) {
-                for (auto d = dot11d_vec->begin(); d != dot11d_vec->end(); ++d) {
+            if (has_dot11d_vec()) {
+                auto dv = get_dot11d_vec();
+                for (auto d : *dv) {
                     auto din =
                         std::make_shared<dot11_11d_tracked_range_info>(dot11d_country_entry_id,
-                                std::static_pointer_cast<tracker_element_map>(*d));
-
+                                std::static_pointer_cast<tracker_element_map>(d));
                     // And assign it over the same key
-                    *d = std::static_pointer_cast<tracker_element>(din);
+                    d = std::static_pointer_cast<tracker_element>(din);
                 }
+
             }
         }
     }
@@ -745,13 +745,8 @@ protected:
 
     std::shared_ptr<tracker_element_uint64> ssid_hash;
 
-    std::shared_ptr<tracker_element_string> owe_ssid;
     int owe_ssid_id;
-
-    std::shared_ptr<tracker_element_uint32> owe_ssid_len;
     int owe_ssid_len_id;
-
-    std::shared_ptr<tracker_element_mac_addr> owe_bssid;
     int owe_bssid_id;
 
     std::shared_ptr<tracker_element_uint8> ssid_beacon;
@@ -766,7 +761,6 @@ protected:
     std::shared_ptr<tracker_element_uint64> first_time;
     std::shared_ptr<tracker_element_uint64> last_time;
 
-    std::shared_ptr<tracker_element_string> beacon_info;
     int beacon_info_id;
 
     std::shared_ptr<tracker_element_uint8> ssid_cloaked;
@@ -780,39 +774,19 @@ protected:
 
     // IE tag dot11d country / power restrictions from 802.11d; 
     // deprecated but still in use
-    std::shared_ptr<tracker_element_string> dot11d_country;
     int dot11d_country_id;
-
-    std::shared_ptr<tracker_element_vector> dot11d_vec;
     int dot11d_vec_id;
     int dot11d_country_entry_id;
 
     // WPS components
-    std::shared_ptr<tracker_element_uint8> wps_version;
     int wps_version_id;
-
-    std::shared_ptr<tracker_element_uint32> wps_state;
     int wps_state_id;
-
-    std::shared_ptr<tracker_element_uint16> wps_config_methods;
     int wps_config_methods_id;
-
-    std::shared_ptr<tracker_element_string> wps_manuf;
     int wps_manuf_id;
-
-    std::shared_ptr<tracker_element_string> wps_device_name;
     int wps_device_name_id;
-
-    std::shared_ptr<tracker_element_string> wps_model_name;
     int wps_model_name_id;
-
-    std::shared_ptr<tracker_element_string> wps_model_number;
     int wps_model_number_id;
-
-    std::shared_ptr<tracker_element_string> wps_serial_number;
     int wps_serial_number_id;
-
-    std::shared_ptr<tracker_element_byte_array> wps_uuid_e;
     int wps_uuid_e_id;
 
     int location_id;

@@ -202,14 +202,14 @@ void dot11_advertised_ssid::register_fields() {
     register_field("dot11.advertisedssid.ssid_hash", "hashed key of the SSID+Length", &ssid_hash);
 
     owe_ssid_id =
-        register_dynamic_field("dot11.advertisedssid.owe_ssid",
-                "Opportunistic Wireless Encryption (OWE) linked companion SSID", &owe_ssid);
+        register_dynamic_field<tracker_element_string>("dot11.advertisedssid.owe_ssid",
+                "Opportunistic Wireless Encryption (OWE) linked companion SSID");
     owe_ssid_len_id =
-        register_dynamic_field("dot11.advertisedssid.owe_ssid_len",
-                "Opportunistic Wireless Encryption (OWE) SSID length (original bytes)", &owe_ssid_len);
+        register_dynamic_field<tracker_element_uint8>("dot11.advertisedssid.owe_ssid_len",
+                "Opportunistic Wireless Encryption (OWE) SSID length (original bytes)");
     owe_bssid_id =
-        register_dynamic_field("dot11.advertisedssid.owe_bssid",
-                "Opportunistic Wireless Encryption (OWE) companion BSSID", &owe_bssid);
+        register_dynamic_field<tracker_element_mac_addr>("dot11.advertisedssid.owe_bssid",
+                "Opportunistic Wireless Encryption (OWE) companion BSSID");
 
     register_field("dot11.advertisedssid.beacon", "ssid advertised via beacon", &ssid_beacon);
     register_field("dot11.advertisedssid.probe_response", "ssid advertised via probe response", 
@@ -226,8 +226,8 @@ void dot11_advertised_ssid::register_fields() {
     register_field("dot11.advertisedssid.first_time", "first time seen", &first_time);
     register_field("dot11.advertisedssid.last_time", "last time seen", &last_time);
     beacon_info_id =
-        register_dynamic_field("dot11.advertisedssid.beacon_info", 
-                "beacon info / vendor description", &beacon_info);
+        register_dynamic_field<tracker_element_string>("dot11.advertisedssid.beacon_info", 
+                "beacon info / vendor description");
     register_field("dot11.advertisedssid.cloaked", "SSID is hidden / cloaked", &ssid_cloaked);
     register_field("dot11.advertisedssid.crypt_set", "bitfield of encryption options", &crypt_set);
     register_field("dot11.advertisedssid.maxrate", "advertised maximum rate", &maxrate);
@@ -242,11 +242,10 @@ void dot11_advertised_ssid::register_fields() {
             "WPA management protection supported", &wpa_mfp_supported);
 
     dot11d_country_id = 
-        register_dynamic_field("dot11.advertisedssid.dot11d_country", "802.11d country", 
-                &dot11d_country);
+        register_dynamic_field<tracker_element_string>("dot11.advertisedssid.dot11d_country", "802.11d country");
     
     dot11d_vec_id =
-        register_dynamic_field("dot11.advertisedssid.dot11d_list", "802.11d channel list", &dot11d_vec);
+        register_dynamic_field<tracker_element_vector>("dot11.advertisedssid.dot11d_list", "802.11d channel list");
 
     dot11d_country_entry_id =
         register_field("dot11.advertisedssid.dot11d_entry", 
@@ -254,29 +253,25 @@ void dot11_advertised_ssid::register_fields() {
                 "dot11d entry");
 
     wps_version_id =
-        register_dynamic_field("dot11.advertisedssid.wps_version", "WPS version", &wps_version);
+        register_dynamic_field<tracker_element_uint8>("dot11.advertisedssid.wps_version", "WPS version");
     wps_state_id =
-        register_dynamic_field("dot11.advertisedssid.wps_state", "bitfield wps state", &wps_state);
+        register_dynamic_field<tracker_element_uint32>("dot11.advertisedssid.wps_state", "bitfield wps state");
     wps_config_methods_id =
-        register_dynamic_field("dot11.advertisedssid.wps_config_methods",
-                "bitfield wps config methods", &wps_config_methods);
+        register_dynamic_field<tracker_element_uint16>("dot11.advertisedssid.wps_config_methods",
+                "bitfield wps config methods");
     wps_manuf_id =
-        register_dynamic_field("dot11.advertisedssid.wps_manuf", "WPS manufacturer", &wps_manuf);
+        register_dynamic_field<tracker_element_string>("dot11.advertisedssid.wps_manuf", "WPS manufacturer");
     wps_device_name_id =
-        register_dynamic_field("dot11.advertisedssid.wps_device_name", "wps device name", 
-                &wps_device_name);
+        register_dynamic_field<tracker_element_string>("dot11.advertisedssid.wps_device_name", "wps device name");
     wps_model_name_id =
-        register_dynamic_field("dot11.advertisedssid.wps_model_name", "wps model name", 
-                &wps_model_name);
+        register_dynamic_field<tracker_element_string>("dot11.advertisedssid.wps_model_name", "wps model name");
     wps_model_number_id =
-        register_dynamic_field("dot11.advertisedssid.wps_model_number", "wps model number", 
-                &wps_model_number);
+        register_dynamic_field<tracker_element_string>("dot11.advertisedssid.wps_model_number", "wps model number");
     wps_serial_number_id = 
-        register_dynamic_field("dot11.advertisedssid.wps_serial_number", 
-                "wps serial number", &wps_serial_number);
+        register_dynamic_field<tracker_element_string>("dot11.advertisedssid.wps_serial_number", 
+                "wps serial number");
     wps_uuid_e_id =
-        register_dynamic_field("dot11.advertisedssid.wps_uuid_e", "wps euuid",
-                &wps_uuid_e);
+        register_dynamic_field<tracker_element_byte_array>("dot11.advertisedssid.wps_uuid_e", "wps euuid");
 
     location_id = 
         register_dynamic_field<kis_tracked_location>("dot11.advertisedssid.location", "location");
