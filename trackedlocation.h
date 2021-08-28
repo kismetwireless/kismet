@@ -76,20 +76,15 @@ public:
         geopoint->set(lon, lat);
     }
 
-    __Proxy(alt, float, float, float, alt);
+    __ProxyFullyDynamic(alt, float, float, float, tracker_element_float, alt_id);
+    __ProxyFullyDynamic(fix, uint8_t, uint8_t, uint8_t, tracker_element_uint8, fix_id);
+    __ProxyFullyDynamic(time_sec, uint64_t, time_t, time_t, tracker_element_uint64, time_sec_id);
+    __ProxyFullyDynamic(time_usec, uint64_t, uint64_t, uint64_t, tracker_element_uint64, time_usec_id);
 
-    __Proxy(fix, uint8_t, uint8_t, uint8_t, fix);
-    __Proxy(time_sec, uint64_t, time_t, time_t, time_sec);
-    __Proxy(time_usec, uint64_t, uint64_t, uint64_t, time_usec);
-
-    /*
-    __Proxy(error_x, double, double, double, error_x);
-    __Proxy(error_y, double, double, double, error_y);
-    __Proxy(error_v, double, double, double, error_v);
-    */
-
-    bool get_valid() const {
-        return get_fix() >= 2;
+    bool get_valid() {
+        if (has_fix())
+            return get_fix() >= 2;
+        return false;
     }
 
     void set(double in_lat, double in_lon, float in_alt, unsigned int in_fix);
@@ -104,10 +99,10 @@ public:
 
     void reset() {
         geopoint->reset();
-        alt->reset();
-        fix->reset();
-        time_sec->reset();
-        time_usec->reset();
+        clear_alt();
+        clear_fix();
+        clear_time_sec();
+        clear_time_usec();
     }
 
 protected:
@@ -115,10 +110,11 @@ protected:
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;
 
     std::shared_ptr<tracker_element_pair_double> geopoint;
-    std::shared_ptr<tracker_element_float> alt;
-    std::shared_ptr<tracker_element_uint8> fix;
-    std::shared_ptr<tracker_element_uint64> time_sec;
-    std::shared_ptr<tracker_element_uint64> time_usec;
+
+    uint16_t alt_id;
+    uint16_t fix_id;
+    uint16_t time_sec_id;
+    uint16_t time_usec_id;
 };
 
 class kis_tracked_location_full : public kis_tracked_location_triplet {

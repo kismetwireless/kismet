@@ -50,15 +50,10 @@ kis_tracked_location_triplet::kis_tracked_location_triplet(const kis_tracked_loc
     tracker_component{p} {
 
     __ImportField(geopoint, p);
-    __ImportField(alt, p);
-    /*
-    __ImportField(error_x, p);
-    __ImportField(error_y, p);
-    __ImportField(error_v, p);
-    */
-    __ImportField(fix, p);
-    __ImportField(time_sec, p);
-    __ImportField(time_usec, p);
+    __ImportId(alt_id, p);
+    __ImportId(fix_id, p);
+    __ImportId(time_sec_id, p);
+    __ImportId(time_usec_id, p);
 
     reserve_fields(nullptr);
 }
@@ -104,10 +99,26 @@ void kis_tracked_location_triplet::set(kis_gps_packinfo *in_packinfo) {
 kis_tracked_location_triplet& 
     kis_tracked_location_triplet::operator= (const kis_tracked_location_triplet& in) {
     set_location(in.get_lat(), in.get_lon());
-    set_alt(in.get_alt());
-    set_fix(in.get_fix());
-    set_time_sec(in.get_time_sec());
-    set_time_usec(in.get_time_usec());
+
+    if (in.has_alt())
+        set_alt(in.get_only_alt());
+    else
+        clear_alt();
+
+    if (in.has_fix())
+        set_fix(in.get_only_fix());
+    else
+        clear_fix();
+
+    if (in.has_time_sec())
+        set_time_sec(in.get_only_time_sec());
+    else
+        clear_time_sec();
+
+    if (in.has_time_usec())
+        set_time_usec(in.get_only_time_sec());
+    else
+        clear_time_usec();
 
     return *this;
 }
@@ -116,15 +127,14 @@ void kis_tracked_location_triplet::register_fields() {
     tracker_component::register_fields();
 
     register_field("kismet.common.location.geopoint", "[lon, lat] point", &geopoint);
-    register_field("kismet.common.location.alt", "altitude (meters)", &alt);
-    register_field("kismet.common.location.fix", "gps fix", &fix);
-    register_field("kismet.common.location.time_sec", "timestamp (seconds)", &time_sec);
-    register_field("kismet.common.location.time_usec", "timestamp (usec)", &time_usec);
-    /*
-    register_field("kismet.common.location.error_x", "location error (x)", &error_x);
-    register_field("kismet.common.location.error_y", "location error (y)", &error_y);
-    register_field("kismet.common.location.error_v", "location error (v)", &error_v);
-    */
+    alt_id = 
+        register_dynamic_field<tracker_element_float>("kismet.common.location.alt", "altitude (meters)");
+    fix_id =
+        register_dynamic_field<tracker_element_uint8>("kismet.common.location.fix", "gps fix");
+    time_sec_id =
+        register_dynamic_field<tracker_element_uint64>("kismet.common.location.time_sec", "timestamp (seconds)");
+    time_usec_id =
+        register_dynamic_field<tracker_element_uint64>("kismet.common.location.time_usec", "timestamp (usec)");
 }
 
 void kis_tracked_location_triplet::reserve_fields(std::shared_ptr<tracker_element_map> e) {
@@ -183,12 +193,26 @@ void kis_tracked_location_full::set(kis_gps_packinfo *in_packinfo) {
 
 kis_tracked_location_full& kis_tracked_location_full::operator= (const kis_tracked_location_full& in) {
     set_location(in.get_lat(), in.get_lon());
-    set_alt(in.get_alt());
-    set_speed(in.get_speed());
-    set_heading(in.get_heading());
-    set_fix(in.get_fix());
-    set_time_sec(in.get_time_sec());
-    set_time_usec(in.get_time_usec());
+
+    if (in.has_alt())
+        set_alt(in.get_only_alt());
+    else
+        clear_alt();
+
+    if (in.has_fix())
+        set_fix(in.get_only_fix());
+    else
+        clear_fix();
+
+    if (in.has_time_sec())
+        set_time_sec(in.get_only_time_sec());
+    else
+        clear_time_sec();
+
+    if (in.has_time_usec())
+        set_time_usec(in.get_only_time_sec());
+    else
+        clear_time_usec();
 
     return *this;
 }
