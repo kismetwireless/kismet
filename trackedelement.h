@@ -1264,7 +1264,7 @@ public:
         return map.end();
     }
 
-    const_iterator cend() {
+    const_iterator cend() const {
         return map.cend();
     }
 
