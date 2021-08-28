@@ -145,7 +145,7 @@ class tracker_component : public tracker_element_map {
     virtual const rtype get_only_##name() const { \
         const auto ci = this->find(id); \
         if (ci == this->cend()) { \
-            return rtype{}; \
+            return (rtype){}; \
         } \
         return (rtype) get_tracker_value<ptype>(ci->second); \
     } \
