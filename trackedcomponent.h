@@ -122,7 +122,7 @@ class tracker_component : public tracker_element_map {
 #define __ProxyFullyDynamic(name, ptype, itype, rtype, ctype, id) \
     virtual std::shared_ptr<ctype> get_tracker_##name() { \
         auto ci = this->find(id); \
-        if (ci == this->end()) { \
+        if (ci == this->cend()) { \
             auto cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ctype>(id); \
             if (cvar != nullptr) {\
                 insert(cvar); \
@@ -132,8 +132,8 @@ class tracker_component : public tracker_element_map {
         return std::static_pointer_cast<ctype>(ci->second); \
     } \
     virtual rtype get_##name() { \
-        auto ci = this->find(id); \
-        if (ci == this->end()) { \
+        const auto ci = this->find(id); \
+        if (ci == this->cend()) { \
             auto cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ctype>(id); \
             if (cvar != nullptr) {\
                 insert(cvar); \
@@ -142,9 +142,16 @@ class tracker_component : public tracker_element_map {
         } \
         return (rtype) get_tracker_value<ptype>(ci->second); \
     } \
+    virtual const rtype get_only_##name() const { \
+        const auto ci = this->find(id); \
+        if (ci == this->cend()) { \
+            return rtype{}; \
+        } \
+        return (rtype) get_tracker_value<ptype>(ci->second); \
+    } \
     virtual void set_##name(const itype& in) { \
-        auto ci = this->find(id); \
-        if (ci == this->end()) { \
+        const auto ci = this->find(id); \
+        if (ci == this->cend()) { \
             auto cvar = Globalreg::globalreg->entrytracker->get_shared_instance_as<ctype>(id); \
             if (cvar != nullptr) {\
                 insert(cvar); \
@@ -154,8 +161,13 @@ class tracker_component : public tracker_element_map {
         } \
         std::static_pointer_cast<ctype>(ci->second)->set(in); \
     } \
-    virtual bool has_##name() { \
-        return this->find(id) != this->end(); \
+    virtual bool has_##name() const { \
+        return this->find(id) != this->cend(); \
+    } \
+    virtual void clear_##name() { \
+        auto ci = this->find(id); \
+        if (ci != this->end()) \
+            this->erase(ci); \
     }
 
 
