@@ -417,6 +417,11 @@ public:
     const std::string dot11_wpa_handshake_event_base = "DOT11_WPA_HANDSHAKE_BASEDEV";
     const std::string dot11_wpa_handshake_event_dot11 = "DOT11_WPA_HANDSHAKE_DOT11";
 
+    const std::string dot11_new_ssid_device = "DOT11_NEW_SSID_BASEDEV";
+    const std::string dot11_new_advertised_ssid = "DOT11_ADVERTISED_SSID";
+    const std::string dot11_new_probed_ssid = "DOT11_PROBED_SSID";
+    const std::string dot11_new_response_ssid = "DOT11_RESPONSE_SSID";
+
     static size_t ssid_hash(const std::string& ssid, unsigned int ssid_len) {
         auto hash = xx_hash_cpp{};
 
