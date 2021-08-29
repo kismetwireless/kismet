@@ -117,10 +117,10 @@ public:
     __ProxyGet(encodingset, uint64_t, uint64_t, encodingset);
     __ProxyGet(carrierset, uint64_t, uint64_t, carrierset);
 
-    typedef kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator> msig_rrd;
-    __ProxyDynamicTrackable(signal_min_rrd, msig_rrd, signal_min_rrd, signal_min_rrd_id);
+    __ProxyFullyDynamicTrackable(signal_min_rrd, kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>, 
+                                 signal_min_rrd_id);
 
-    __ProxyDynamicTrackable(peak_loc, kis_tracked_location_triplet, peak_loc, peak_loc_id);
+    __ProxyFullyDynamicTrackable(peak_loc, kis_tracked_location_triplet, peak_loc_id);
 
 protected:
     virtual void register_fields() override;
@@ -136,8 +136,7 @@ protected:
 
     std::shared_ptr<tracker_element_string> signal_type;
 
-    int peak_loc_id;
-    std::shared_ptr<kis_tracked_location_triplet> peak_loc;
+    uint16_t peak_loc_id;
 
     std::shared_ptr<tracker_element_double> maxseenrate;
     std::shared_ptr<tracker_element_uint64> encodingset;
@@ -145,8 +144,7 @@ protected:
 
     // Signal record over the past minute, either rssi or dbm.  Devices
     // should not mix rssi and dbm signal reporting.
-    int signal_min_rrd_id;
-    std::shared_ptr<kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator> > signal_min_rrd;
+    uint16_t signal_min_rrd_id;
 
     int sig_type;
 };
@@ -171,8 +169,8 @@ public:
     __Proxy(num_packets, uint64_t, uint64_t, uint64_t, num_packets);
     __ProxyIncDec(num_packets, uint64_t, uint64_t, num_packets);
 
-    __ProxyDynamicTrackable(freq_khz_map, tracker_element_double_map_double, freq_khz_map, freq_khz_map_id);
-    __ProxyDynamicTrackable(signal_data, kis_tracked_signal_data, signal_data, signal_data_id);
+    __ProxyFullyDynamicTrackable(freq_khz_map, tracker_element_double_map_double, freq_khz_map_id);
+    __ProxyFullyDynamicTrackable(signal_data, kis_tracked_signal_data, signal_data_id);
 
     void inc_frequency_count(int frequency);
 
@@ -180,18 +178,16 @@ protected:
     virtual void register_fields() override;
 
     std::shared_ptr<tracker_element_alias> src_uuid;
-    int src_uuid_id;
+    uint16_t src_uuid_id;
 
     std::shared_ptr<tracker_element_uint64> first_time;
     std::shared_ptr<tracker_element_uint64> last_time;
     std::shared_ptr<tracker_element_uint64> num_packets;
 
-    std::shared_ptr<tracker_element_double_map_double> freq_khz_map;
-    int freq_khz_map_id;
-    int frequency_val_id;
+    uint16_t freq_khz_map_id;
+    uint16_t frequency_val_id;
 
-    std::shared_ptr<kis_tracked_signal_data> signal_data;
-    int signal_data_id;
+    uint16_t signal_data_id;
 };
 
 class kis_tracked_data_bins : public tracker_component {
@@ -237,11 +233,11 @@ public:
         return r;
     }
 
-    __ProxyDynamicTrackable(packet_rrd_bin_250, kis_tracked_minute_rrd<>, packet_rrd_bin_250, packet_rrd_bin_250_id);
-    __ProxyDynamicTrackable(packet_rrd_bin_500, kis_tracked_minute_rrd<>, packet_rrd_bin_500, packet_rrd_bin_500_id);
-    __ProxyDynamicTrackable(packet_rrd_bin_1000, kis_tracked_minute_rrd<>, packet_rrd_bin_1000, packet_rrd_bin_1000_id);
-    __ProxyDynamicTrackable(packet_rrd_bin_1500, kis_tracked_minute_rrd<>, packet_rrd_bin_1500, packet_rrd_bin_1500_id);
-    __ProxyDynamicTrackable(packet_rrd_bin_jumbo, kis_tracked_minute_rrd<>, packet_rrd_bin_jumbo, packet_rrd_bin_jumbo_id);
+    __ProxyFullyDynamicTrackable(packet_rrd_bin_250, kis_tracked_minute_rrd<>, packet_rrd_bin_250_id);
+    __ProxyFullyDynamicTrackable(packet_rrd_bin_500, kis_tracked_minute_rrd<>, packet_rrd_bin_500_id);
+    __ProxyFullyDynamicTrackable(packet_rrd_bin_1000, kis_tracked_minute_rrd<>, packet_rrd_bin_1000_id);
+    __ProxyFullyDynamicTrackable(packet_rrd_bin_1500, kis_tracked_minute_rrd<>, packet_rrd_bin_1500_id);
+    __ProxyFullyDynamicTrackable(packet_rrd_bin_jumbo, kis_tracked_minute_rrd<>, packet_rrd_bin_jumbo_id);
 
     void add_sample(size_t size, time_t ts) {
         if (size <= 250)
@@ -261,38 +257,23 @@ protected:
         tracker_component::register_fields();
 
         packet_rrd_bin_250_id =
-            register_dynamic_field("kismet.device.packet.bin.250", "RRD of packets up to 250 bytes",
-                &packet_rrd_bin_250);
+            register_dynamic_field<kis_tracked_minute_rrd<>>("kismet.device.packet.bin.250", "RRD of packets up to 250 bytes");
         packet_rrd_bin_500_id = 
-            register_dynamic_field("kismet.device.packet.bin.500", "RRD of packets up to 500 bytes",
-                &packet_rrd_bin_500);
+            register_dynamic_field<kis_tracked_minute_rrd<>>("kismet.device.packet.bin.500", "RRD of packets up to 500 bytes");
         packet_rrd_bin_1000_id = 
-            register_dynamic_field("kismet.device.packet.bin.1000", "RRD of packets up to 1000 bytes",
-                    &packet_rrd_bin_1000);
+            register_dynamic_field<kis_tracked_minute_rrd<>>("kismet.device.packet.bin.1000", "RRD of packets up to 1000 bytes");
         packet_rrd_bin_1500_id =
-            register_dynamic_field("kismet.device.packet.bin.1500", "RRD of packets up to 1500 bytes",
-                    &packet_rrd_bin_1500);
+            register_dynamic_field<kis_tracked_minute_rrd<>>("kismet.device.packet.bin.1500", "RRD of packets up to 1500 bytes");
         packet_rrd_bin_jumbo_id =
-            register_dynamic_field("kismet.device.packet.bin.jumbo", "RRD of packets over 1500 bytes",
-                    &packet_rrd_bin_jumbo);
+            register_dynamic_field<kis_tracked_minute_rrd<>>("kismet.device.packet.bin.jumbo", "RRD of packets over 1500 bytes");
     }
 
     // Data bins divided by size we track, named by max size
-    std::shared_ptr<kis_tracked_minute_rrd<>> packet_rrd_bin_250;
-    int packet_rrd_bin_250_id;
-
-    std::shared_ptr<kis_tracked_minute_rrd<>> packet_rrd_bin_500;
-    int packet_rrd_bin_500_id;
-
-    std::shared_ptr<kis_tracked_minute_rrd<>> packet_rrd_bin_1000;
-    int packet_rrd_bin_1000_id;
-
-    std::shared_ptr<kis_tracked_minute_rrd<>> packet_rrd_bin_1500;
-    int packet_rrd_bin_1500_id;
-
-    std::shared_ptr<kis_tracked_minute_rrd<>> packet_rrd_bin_jumbo;
-    int packet_rrd_bin_jumbo_id;
-
+    uint16_t packet_rrd_bin_250_id;
+    uint16_t packet_rrd_bin_500_id;
+    uint16_t packet_rrd_bin_1000_id;
+    uint16_t packet_rrd_bin_1500_id;
+    uint16_t packet_rrd_bin_jumbo_id;
 };
 
 
@@ -541,10 +522,10 @@ public:
     __ProxyIncDec(datasize, uint64_t, uint64_t, datasize);
 
     typedef kis_tracked_rrd<> rrdt;
-    __ProxyDynamicTrackable(packets_rrd, rrdt, packets_rrd, packets_rrd_id);
+    __ProxyFullyDynamicTrackable(packets_rrd, kis_tracked_rrd<>, packets_rrd_id);
 
-    __ProxyDynamicTrackable(location, kis_tracked_location, location, location_id);
-    __ProxyDynamicTrackable(data_rrd, rrdt, data_rrd, data_rrd_id);
+    __ProxyFullyDynamicTrackable(location, kis_tracked_location, location_id);
+    __ProxyFullyDynamicTrackable(data_rrd, rrdt, data_rrd_id);
 
     __Proxy(channel, std::string, std::string, std::string, channel);
     __Proxy(frequency, double, double, double, frequency);
@@ -648,18 +629,15 @@ protected:
     std::shared_ptr<tracker_element_uint64> datasize;
 
     // Packets and data RRDs
-    int packets_rrd_id;
-    std::shared_ptr<kis_tracked_rrd<>> packets_rrd;
-
-    int data_rrd_id;
-    std::shared_ptr<kis_tracked_rrd<>> data_rrd;
+    uint16_t packets_rrd_id;
+    uint16_t data_rrd_id;
 
 	// Channel and frequency as per PHY type
     std::shared_ptr<tracker_element_string> channel;
     std::shared_ptr<tracker_element_double> frequency;
 
     // Signal data
-    int signal_data_id;
+    uint16_t signal_data_id;
     std::shared_ptr<kis_tracked_signal_data> signal_data;
 
     // Global frequency distribution
@@ -674,28 +652,27 @@ protected:
 
     // Stringmap of tags
     std::shared_ptr<tracker_element_string_map> tag_map;
-    int tag_map_id;
+    uint16_t tag_map_id;
     // Entry ID for tag map
-    int tag_entry_id;
+    uint16_t tag_entry_id;
 
     // Location min/max/avg
-    std::shared_ptr<kis_tracked_location> location;
-    int location_id;
+    uint16_t location_id;
 
     // Seenby map (mapped by int16 device id)
     std::shared_ptr<tracker_element_int_map> seenby_map;
-    int seenby_map_id;
+    uint16_t seenby_map_id;
 
     // Non-exported local value for frequency count
-    int frequency_val_id;
+    uint16_t frequency_val_id;
 
     // Non-exported local value for seenby content
-    int seenby_val_id;
+    uint16_t seenby_val_id;
 
     // Related devices, keyed by strings.  Each related device group is then a key map
     // presented as a vector
     std::shared_ptr<tracker_element_string_map> related_devices_map;
-    int related_device_group_id;
+    uint16_t related_device_group_id;
 };
 
 // Packinfo references
