@@ -385,6 +385,8 @@ public:
 
         __ImportId(related_device_group_id, p);
 
+        __ImportId(location_cloud_id, p);
+
         reserve_fields(nullptr);
     }
 
@@ -565,6 +567,9 @@ public:
         kis_internal_id = in_id;
     }
 
+    // Optional location cloud
+    __ProxyFullyDynamicTrackable(location_cloud, kis_location_rrd, location_cloud_id);
+
 protected:
     virtual void register_fields() override;
     virtual void reserve_fields(std::shared_ptr<tracker_element_map> e) override;
@@ -673,6 +678,8 @@ protected:
     // presented as a vector
     std::shared_ptr<tracker_element_string_map> related_devices_map;
     uint16_t related_device_group_id;
+
+    uint16_t location_cloud_id;
 };
 
 // Packinfo references

@@ -511,9 +511,12 @@ void kis_tracked_device_base::register_fields() {
     register_field("kismet.device.base.related_devices",
             "Related devices, organized by relationship", &related_devices_map);
 
-    related_device_group_id =
-        register_field("kismet.device.base.related_group", 
-                tracker_element_factory<tracker_element_device_key_map>(), "Related devices, by key");
+    related_device_group_id = register_field("kismet.device.base.related_group",
+        tracker_element_factory<tracker_element_device_key_map>(),
+        "Related devices, by key");
+
+    location_cloud_id = register_dynamic_field<kis_location_rrd>(
+        "kismet.device.base.location_cloud", "RRD-like location history");
 }
 
 void kis_tracked_device_base::reserve_fields(std::shared_ptr<tracker_element_map> e) {
