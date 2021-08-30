@@ -364,20 +364,20 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
 
 
     //how much do we have left?
-    printf("phy packdata->length:%d pkt_ctr:%d \n",packdata->length,pkt_ctr);
+    printf("phy packdata->length:%d pkt_ctr:%d \n",packdata->length(),pkt_ctr);
 
     //check 6LowPAN ?
     //check bit 6 or bit 7
-    if(hdr_802_15_4_fcf->frame_ver == 1 || hdr_802_15_4_fcf->frame_ver == 2 || (packdata->data[pkt_ctr]& (1<<7)) || (packdata->data[pkt_ctr]& (1<<6)))
+    if(hdr_802_15_4_fcf->frame_ver == 1 || hdr_802_15_4_fcf->frame_ver == 2 || (packdata->data()[pkt_ctr]& (1<<7)) || (packdata->data()[pkt_ctr]& (1<<6)))
     {
-        printf("6LowPAN possible packet:%02X\n",packdata->data[pkt_ctr]);
+        printf("6LowPAN possible packet:%02X\n",packdata->data()[pkt_ctr]);
 
     }
-    else if(packdata->length > (pkt_ctr+2) && (hdr_802_15_4_fcf->frame_ver == 1 || hdr_802_15_4_fcf->frame_ver == 2))
+    else if(packdata->length() > (pkt_ctr+2) && (hdr_802_15_4_fcf->frame_ver == 1 || hdr_802_15_4_fcf->frame_ver == 2))
     {
         //kismet --no-console-wrapper --no-ncurses-wrapper -c ~/storage/kismet/drives/Kismet-20210512-21-56-49-1.kismet
         printf("Try to see if we have a zigbee network layer header\n");
-        unsigned short fcf_zh = (((short)packdata->data[pkt_ctr+1]) << 8) | (0x00ff & packdata->data[pkt_ctr]);
+        unsigned short fcf_zh = (((short)packdata->data()[pkt_ctr+1]) << 8) | (0x00ff & packdata->data()[pkt_ctr]);
         pkt_ctr+=2;
 
         fcf_zzh = (fcf_z* )&fcf_zh;
@@ -405,24 +405,24 @@ int kis_802154_phy::dissector802154(CHAINCALL_PARMS) {
         if(fcf_zzh->type == 0x01)//cmd
         {
             printf("cmd pkt\n");
-            unsigned short zzh_dest = (((short)packdata->data[pkt_ctr+1]) << 8) | (0x00ff & packdata->data[pkt_ctr]);
+            unsigned short zzh_dest = (((short)packdata->data()[pkt_ctr+1]) << 8) | (0x00ff & packdata->data()[pkt_ctr]);
             pkt_ctr+=2;
-            unsigned short zzh_src = (((short)packdata->data[pkt_ctr+1]) << 8) | (0x00ff & packdata->data[pkt_ctr]);
+            unsigned short zzh_src = (((short)packdata->data()[pkt_ctr+1]) << 8) | (0x00ff & packdata->data()[pkt_ctr]);
             pkt_ctr+=2;
-            unsigned char zzh_radius = packdata->data[pkt_ctr];pkt_ctr++;
-            unsigned char zzh_seq = packdata->data[pkt_ctr];pkt_ctr++;
+            unsigned char zzh_radius = packdata->data()[pkt_ctr];pkt_ctr++;
+            unsigned char zzh_seq = packdata->data()[pkt_ctr];pkt_ctr++;
 
             if(fcf_zzh->ext_src == 1)
             {
                 //extended source which is what were are looking for
-                ext_source[7] = packdata->data[pkt_ctr];pkt_ctr++;
-                ext_source[6] = packdata->data[pkt_ctr];pkt_ctr++;
-                ext_source[5] = packdata->data[pkt_ctr];pkt_ctr++;
-                ext_source[4] = packdata->data[pkt_ctr];pkt_ctr++;
-                ext_source[3] = packdata->data[pkt_ctr];pkt_ctr++;
-                ext_source[2] = packdata->data[pkt_ctr];pkt_ctr++;
-                ext_source[1] = packdata->data[pkt_ctr];pkt_ctr++;
-                ext_source[0] = packdata->data[pkt_ctr];pkt_ctr++;
+                ext_source[7] = packdata->data()[pkt_ctr];pkt_ctr++;
+                ext_source[6] = packdata->data()[pkt_ctr];pkt_ctr++;
+                ext_source[5] = packdata->data()[pkt_ctr];pkt_ctr++;
+                ext_source[4] = packdata->data()[pkt_ctr];pkt_ctr++;
+                ext_source[3] = packdata->data()[pkt_ctr];pkt_ctr++;
+                ext_source[2] = packdata->data()[pkt_ctr];pkt_ctr++;
+                ext_source[1] = packdata->data()[pkt_ctr];pkt_ctr++;
+                ext_source[0] = packdata->data()[pkt_ctr];pkt_ctr++;
 
                 hdr_802_15_4_fcf->src_addr_mode = 0x03;
             }
