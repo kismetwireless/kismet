@@ -623,10 +623,7 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
             packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
             packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
-            uint16_t rcode;
-            memcpy(&rcode, (const char *) &(chunk->data()[24]), 2);
-
-            packinfo->mgt_reason_code = rcode;
+            packinfo->mgt_reason_code = (uint16_t) *((uint16_t *) &(chunk->data()[24])); 
 
         } else if (fc->subtype == 11) {
             packinfo->subtype = packet_sub_authentication;
@@ -635,10 +632,7 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
             packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
             packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
-            uint16_t rcode;
-            memcpy(&rcode, (const char *) &(chunk->data()[24]), 2);
-
-            packinfo->mgt_reason_code = rcode;
+            packinfo->mgt_reason_code = (uint16_t) *((uint16_t *) &(chunk->data()[24])); 
 
         } else if (fc->subtype == 12) {
             packinfo->subtype = packet_sub_deauthentication;
@@ -647,10 +641,7 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
             packinfo->source_mac = mac_addr(addr1, PHY80211_MAC_LEN);
             packinfo->bssid_mac = mac_addr(addr2, PHY80211_MAC_LEN);
 
-            uint16_t rcode;
-            memcpy(&rcode, (const char *) &(chunk->data()[24]), 2);
-
-            packinfo->mgt_reason_code = rcode;
+            packinfo->mgt_reason_code = (uint16_t) *((uint16_t *) &(chunk->data()[24])); 
         } else if (fc->subtype == 13) {
             if (chunk->length() < 30) {
                 packinfo->corrupt = 1;
