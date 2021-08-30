@@ -222,13 +222,19 @@ constexpr17 uint32_t adler32_incremental_checksum(const void *in_buf, size_t in_
     if (in_len < 4)
         return 0;
 
-    for (i = 0; i < (in_len - 4); i += 4) {
-        ls2 += 4 * (ls1 + buf[i]) + 3 * buf[i + 1] + 2 * buf[i+2] + buf[i + 3];
-        ls1 += (buf[i + 0] + buf[i + 1] + buf[i + 2] + buf[i + 3]); 
+    for (i = 0; i < (in_len - 4); i += 4, buf += 4) {
+        ls2 += (4 * (ls1 + *(buf))) +
+            (3 * *(buf + 1)) +
+            (2 * *(buf+2)) +
+            (*(buf+3));
+        ls1 += (*(buf) +
+                *(buf+1) +
+                *(buf+2) +
+                *(buf + 3));
     }
 
     for (; i < in_len; i++) {
-        ls1 += buf[i]; 
+        ls1 += *(buf + (i % 4));
         ls2 += ls1;
     }
 
