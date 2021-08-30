@@ -48,6 +48,8 @@ packet_chain::packet_chain() {
     packetcomp_mutex.set_name("packetchain packet_comp");
     packetchain_mutex.set_name("packetchain packetchain");
 
+    Globalreg::enable_pool_type<kis_tracked_packet>();
+
     next_componentid = 1;
 	next_handlerid = 1;
 

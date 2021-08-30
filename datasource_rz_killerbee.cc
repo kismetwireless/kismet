@@ -73,7 +73,7 @@ void kis_datasource_rzkillerbee::handle_rx_datalayer(std::shared_ptr<kis_packet>
 
 
         // Put the modified data into the packet & fill in the rest of the base data info
-        auto datachunk = std::make_shared<kis_datachunk>();
+        auto datachunk = packetchain->new_packet_component<kis_datachunk>();
 
         if (clobber_timestamp && get_source_remote()) {
             gettimeofday(&(packet->ts), NULL);
@@ -91,7 +91,7 @@ void kis_datasource_rzkillerbee::handle_rx_datalayer(std::shared_ptr<kis_packet>
         packet->insert(pack_comp_linkframe, datachunk);
 
 
-        auto radioheader = std::make_shared<kis_layer1_packinfo>();
+        auto radioheader = packetchain->new_packet_component<kis_layer1_packinfo>();
         radioheader->signal_type = kis_l1_signal_type_dbm;
         radioheader->signal_dbm = rssi;
         radioheader->freq_khz = (2405 + ((channel - 11) * 5)) * 1000;

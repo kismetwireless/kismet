@@ -96,10 +96,11 @@ public:
         return adler32_checksum("tracked_message");
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = Globalreg::new_from_pool<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     __Proxy(message, std::string, std::string, std::string, message);
@@ -114,6 +115,12 @@ public:
 
     bool operator<(const tracked_message& comp) const {
         return get_timestamp() < comp.get_timestamp();
+    }
+
+    void reset() {
+        message->reset();
+        flags->reset();
+        timestamp->reset();
     }
 
 protected:
@@ -147,6 +154,8 @@ private:
         lifetime_global() {
 
         eventbus = Globalreg::fetch_mandatory_global_as<event_bus>();
+
+        Globalreg::enable_pool_type<tracked_message>();
 
         msg_proto =
             Globalreg::globalreg->entrytracker->register_and_get_field_as<tracked_message>("kismet.messagebus.message",

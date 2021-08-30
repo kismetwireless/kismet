@@ -38,8 +38,11 @@ public:
         reserve_fields(e);
     }
 
-    virtual shared_tracker_element clone_type() {
-        return shared_tracker_element(new spectrum_sweep(get_id()));
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     virtual void register_fields() {

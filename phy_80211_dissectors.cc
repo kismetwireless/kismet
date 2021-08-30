@@ -329,7 +329,7 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
     auto common = in_pack->fetch<kis_common_info>(pack_comp_common);
 
     if (common == NULL) {
-        common = std::make_shared<kis_common_info>();
+        common = packetchain->new_packet_component<kis_common_info>();
         in_pack->insert(pack_comp_common, common);
     }
 
@@ -338,9 +338,9 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
     if (pack_l1info != NULL)
         common->freq_khz = pack_l1info->freq_khz;
 
-    packinfo = std::make_shared<dot11_packinfo>();
+    packinfo = packetchain->new_packet_component<dot11_packinfo>();
 
-   const auto fc = reinterpret_cast<const frame_control *>(chunk->data());
+    const auto fc = reinterpret_cast<const frame_control *>(chunk->data());
 
     // Inherit the FC privacy flag
     if (fc->wep) {
@@ -1021,7 +1021,7 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
             if (datachunk == nullptr) {
                 // Don't set a DLT on the data payload, since we don't know what it is
                 // but it's not 802.11.
-                datachunk = std::make_shared<kis_datachunk>();
+                datachunk = packetchain->new_packet_component<kis_datachunk>();
                 datachunk->set_data(chunk->substr(packinfo->header_offset,
                             chunk->length() - packinfo->header_offset));
                 in_pack->insert(pack_comp_datapayload, datachunk);
@@ -1082,7 +1082,7 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
             if ((LLC_UI_OFFSET + 4 + sizeof(DOT1X_PROTO)) < chunk->length() && 
                 memcmp(&(chunk->data()[LLC_UI_OFFSET + 3]), DOT1X_PROTO, sizeof(DOT1X_PROTO)) == 0) {
 
-                auto datainfo = std::make_shared<kis_data_packinfo>();
+                auto datainfo = packetchain->new_packet_component<kis_data_packinfo>();
 
                 datainfo->proto = proto_eap;
 
@@ -2450,7 +2450,7 @@ int kis_80211_phy::packet_wep_decryptor(std::shared_ptr<kis_packet> in_pack) {
     in_pack->erase(pack_comp_datapayload);
 
     if (manglechunk->length() > packinfo->header_offset) {
-        auto datachunk = std::make_shared<kis_datachunk>();
+        auto datachunk = packetchain->new_packet_component<kis_datachunk>();
 
         datachunk->set_data(manglechunk->substr(packinfo->header_offset, manglechunk->length() - 
                                                 packinfo->header_offset));

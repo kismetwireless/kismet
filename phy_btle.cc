@@ -55,6 +55,10 @@ class btle_packinfo : public packet_component {
 public:
     btle_packinfo() { }
 
+    void reset() {
+        btle_decode.reset();
+    }
+
     std::shared_ptr<bluetooth_btle> btle_decode;
 };
 
@@ -264,12 +268,12 @@ int kis_btle_phy::dissector(CHAINCALL_PARMS) {
     std::istream btle_istream(&btle_membuf);
     auto btle_stream = std::make_shared<kaitai::kstream>(&btle_istream);
 
-    common = std::make_shared<kis_common_info>();
+    common = mphy->packetchain->new_packet_component<kis_common_info>();
     common->phyid = mphy->fetch_phy_id();
     common->basic_crypt_set = crypt_none;
     common->type = packet_basic_mgmt;
 
-    auto btle_info = std::make_shared<btle_packinfo>();
+    auto btle_info = mphy->packetchain->new_packet_component<btle_packinfo>();
 
     try {
         auto btle = std::make_shared<bluetooth_btle>();

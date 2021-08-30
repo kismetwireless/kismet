@@ -1954,7 +1954,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
 
         auto ssid_csum = ssid_hash(ssid_str.data(), ssid_str.length());
 
-        commoninfo = std::make_shared<kis_common_info>();
+        commoninfo = d11phy->packetchain->new_packet_component<kis_common_info>();
 
         commoninfo->type = packet_basic_mgmt;
         commoninfo->direction = packet_direction_from;
@@ -2195,6 +2195,7 @@ int kis_80211_phy::packet_dot11_scan_json_classifier(CHAINCALL_PARMS) {
         if (ssid->get_crypt_set() != cryptset) {
             if (ssid->get_crypt_set() && cryptset == crypt_none &&
                     d11phy->alertracker->potential_alert(d11phy->alert_wepflap_ref)) {
+                in_pack->tag_vec.push_back("DOT11_BEACON_SSID");
 
                 std::string al = "IEEE80211 Access Point BSSID " +
                     bssid_dev->get_macaddr().mac_to_string() + " SSID \"" +
@@ -2359,6 +2360,9 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
 
     bool new_ssid = false;
 
+    bool new_adv_ssid = false;
+    bool new_resp_ssid = false;
+
     if (dot11info->subtype == packet_sub_probe_resp) {
         auto resp_ssid_map = dot11dev->get_responded_ssid_map();
 
@@ -2374,7 +2378,10 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
 
             ssid = dot11dev->new_responded_ssid();
 
+            in_pack->tag_vec.push_back("DOT11_RESPONSE_SSID");
+
             new_ssid = true;
+            new_resp_ssid = true;
         } else {
             ssid = std::static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
         }
@@ -2393,7 +2400,10 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
 
             ssid = dot11dev->new_advertised_ssid();
 
+            in_pack->tag_vec.push_back("DOT11_BEACON_SSID");
+
             new_ssid = true;
+            new_adv_ssid = true;
         } else {
             ssid = std::static_pointer_cast<dot11_advertised_ssid>(ssid_itr->second);
         }
@@ -2925,6 +2935,18 @@ void kis_80211_phy::handle_ssid(std::shared_ptr<kis_tracked_device_base> basedev
         ssidtracker->handle_broadcast_ssid(ssid->get_ssid(), ssid->get_ssid_len(),
                 ssid->get_crypt_set(), basedev);
     }
+
+    if (new_adv_ssid) {
+        auto evt = eventbus->get_eventbus_event(dot11_new_advertised_ssid);
+        evt->get_event_content()->insert(dot11_new_ssid_device, basedev);
+        evt->get_event_content()->insert(dot11_new_advertised_ssid, ssid);
+        eventbus->publish(evt);
+    } else if (new_resp_ssid) {
+        auto evt = eventbus->get_eventbus_event(dot11_new_response_ssid);
+        evt->get_event_content()->insert(dot11_new_ssid_device, basedev);
+        evt->get_event_content()->insert(dot11_new_response_ssid, ssid);
+        eventbus->publish(evt);
+    }
 }
 
 void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> basedev,
@@ -2951,6 +2973,8 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
         return;
     }
 
+    bool new_probessid = false;
+
     if (dot11info->subtype == packet_sub_probe_req ||
             dot11info->subtype == packet_sub_association_req ||
             dot11info->subtype == packet_sub_reassociation_req) {
@@ -2963,6 +2987,8 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
         auto ssid_itr = probemap->find(dot11info->ssid_csum);
 
         if (ssid_itr == probemap->end() || ssid_itr->second == nullptr) {
+            new_probessid = true;
+
             probessid = dot11dev->new_probed_ssid();
 
             probessid->set_ssid(dot11info->ssid);
@@ -3100,6 +3126,13 @@ void kis_80211_phy::handle_probed_ssid(std::shared_ptr<kis_tracked_device_base> 
         // Enter it in the ssid tracker
         ssidtracker->handle_probe_ssid(probessid->get_ssid(), probessid->get_ssid_len(),
                 probessid->get_crypt_set(), basedev);
+
+        if (new_probessid) {
+            auto evt = eventbus->get_eventbus_event(dot11_new_probed_ssid);
+            evt->get_event_content()->insert(dot11_new_ssid_device, basedev);
+            evt->get_event_content()->insert(dot11_new_probed_ssid, probessid);
+            eventbus->publish(evt);
+        }
     }
 
 }

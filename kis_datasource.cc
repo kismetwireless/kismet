@@ -1261,7 +1261,8 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno, const std::str
 
     auto packet = packetchain->generate_packet();
 
-    packet->insert(pack_comp_report, std::make_shared<kis_packreport_packinfo>(report));
+    auto packreport = packetchain->new_packet_component<kis_packreport_packinfo>();
+    packreport->set_report(report);
 
     // Process the data chunk
     if (report->has_packet()) {
@@ -1275,7 +1276,7 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno, const std::str
 
     // Process protobufs
     if (report->has_buffer()) {
-        auto bufinfo = std::make_shared<kis_protobuf_packinfo>();
+        auto bufinfo = packetchain->new_packet_component<kis_protobuf_packinfo>();
 
         if (clobber_timestamp && get_source_remote()) {
             gettimeofday(&(packet->ts), NULL);
@@ -1301,7 +1302,7 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno, const std::str
         auto gpsinfo = handle_sub_gps(report->gps());
         packet->insert(pack_comp_gps, gpsinfo);
     } else if (suppress_gps) {
-        auto nogpsinfo = std::make_shared<kis_no_gps_packinfo>();
+        auto nogpsinfo = packetchain->new_packet_component<kis_no_gps_packinfo>();
         packet->insert(pack_comp_no_gps, nogpsinfo);
     }
 
@@ -1312,7 +1313,8 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno, const std::str
 
 void kis_datasource::handle_rx_datalayer(std::shared_ptr<kis_packet> packet,
         const KismetDatasource::SubPacket& report) {
-    auto datachunk = std::make_shared<kis_datachunk>();
+
+    auto datachunk = packetchain->new_packet_component<kis_datachunk>();
 
     if (clobber_timestamp && get_source_remote()) {
         gettimeofday(&(packet->ts), NULL);
@@ -1338,8 +1340,7 @@ void kis_datasource::handle_rx_datalayer(std::shared_ptr<kis_packet> packet,
 
 void kis_datasource::handle_rx_jsonlayer(std::shared_ptr<kis_packet> packet,
         const KismetDatasource::SubJson& report) {
-
-    auto jsoninfo = std::make_shared<kis_json_packinfo>();
+    auto jsoninfo = packetchain->new_packet_component<kis_json_packinfo>();
 
     if (clobber_timestamp && get_source_remote()) {
         gettimeofday(&(packet->ts), NULL);
@@ -1355,7 +1356,7 @@ void kis_datasource::handle_rx_jsonlayer(std::shared_ptr<kis_packet> packet,
 }
 
 void kis_datasource::handle_rx_packet(std::shared_ptr<kis_packet> packet) {
-    auto datasrcinfo = std::make_shared<packetchain_comp_datasource>();
+    auto datasrcinfo = packetchain->new_packet_component<packetchain_comp_datasource>();
     datasrcinfo->ref_source = this;
 
     packet->insert(pack_comp_datasrc, datasrcinfo);
@@ -1386,8 +1387,7 @@ void kis_datasource::handle_packet_warning_report(uint32_t in_seqno, const std::
 
 std::shared_ptr<kis_layer1_packinfo> kis_datasource::handle_sub_signal(KismetDatasource::SubSignal in_sig) {
     // Extract l1 info from a KV pair so we can add it to a packet
-   
-    auto siginfo = std::make_shared<kis_layer1_packinfo>();
+    auto siginfo = packetchain->new_packet_component<kis_layer1_packinfo>();
 
     if (in_sig.has_signal_dbm()) {
         siginfo->signal_type = kis_l1_signal_type_dbm;
@@ -1423,7 +1423,7 @@ std::shared_ptr<kis_layer1_packinfo> kis_datasource::handle_sub_signal(KismetDat
 
 std::shared_ptr<kis_gps_packinfo> kis_datasource::handle_sub_gps(KismetDatasource::SubGps in_gps) {
     // Extract a GPS record from a packet and turn it into a packinfo gps log
-    auto gpsinfo = std::make_shared<kis_gps_packinfo>();
+    auto gpsinfo = packetchain->new_packet_component<kis_gps_packinfo>();
 
     gpsinfo->lat = in_gps.lat();
     gpsinfo->lon = in_gps.lon();

@@ -48,6 +48,27 @@ typedef std::shared_ptr<kis_gps> shared_gps;
 class kis_gps_packinfo : public packet_component {
 public:
     kis_gps_packinfo() {
+        reset();
+    }
+
+    void set(std::shared_ptr<kis_gps_packinfo> src) {
+        merge_partial = src->merge_partial;
+        merge_flags = src->merge_flags;
+
+        lat = src->lat;
+        lon = src->lon;
+        alt = src->alt;
+        speed = src->speed;
+        heading = src->heading;
+        precision = src->precision;
+        fix = src->fix;
+        tv.tv_sec = src->tv.tv_sec;
+        tv.tv_usec = src->tv.tv_usec;
+        gpsuuid = src->gpsuuid;
+        gpsname = src->gpsname;
+    }
+
+    void reset() {
         merge_partial = false;
         merge_flags = 0;
 
@@ -59,25 +80,6 @@ public:
         error_x = 0;
         error_y = 0;
         error_v = 0;
-    }
-
-    kis_gps_packinfo(kis_gps_packinfo *src) {
-        if (src != NULL) {
-            merge_partial = src->merge_partial;
-            merge_flags = src->merge_flags;
-
-            lat = src->lat;
-            lon = src->lon;
-            alt = src->alt;
-            speed = src->speed;
-            heading = src->heading;
-            precision = src->precision;
-            fix = src->fix;
-            tv.tv_sec = src->tv.tv_sec;
-            tv.tv_usec = src->tv.tv_usec;
-            gpsuuid = src->gpsuuid;
-            gpsname = src->gpsname;
-        }
     }
 
     std::shared_ptr<kis_tracked_location_full> as_tracked_full() {
@@ -134,6 +136,8 @@ public:
 class kis_no_gps_packinfo : public packet_component {
 public:
     kis_no_gps_packinfo() { }
+
+    void reset() {  }
 };
 
 /* GPS manager which handles configuring GPS sources and deciding which one
@@ -169,9 +173,8 @@ public:
     // Set a primary GPS
     bool set_primary_gps(uuid in_uuid);
 
-    // Get the 'best' location - returns a NEW gpspackinfo which the caller is 
-    // responsible for deleting.
-    std::unique_ptr<kis_gps_packinfo> get_best_location();
+    // get the best location (as in the 'best' gps devices first)
+    std::shared_ptr<kis_gps_packinfo> get_best_location();
 
     // Populate packets that don't have a GPS location
     static int kis_gpspack_hook(CHAINCALL_PARMS);

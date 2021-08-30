@@ -40,7 +40,6 @@ public:
     virtual bool get_device_connected() override { return true; };
 
     virtual std::shared_ptr<kis_gps_packinfo> get_location() override;
-    virtual std::shared_ptr<kis_gps_packinfo> get_last_location() override;
 };
 
 class gps_fake_builder : public kis_gps_builder {

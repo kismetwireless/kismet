@@ -204,8 +204,8 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
         return 0;
     }
 
-    auto decapchunk = std::make_shared<kis_datachunk>();
-	radioheader = std::make_shared<kis_layer1_packinfo>();
+    auto decapchunk = packetchain->new_packet_component<kis_datachunk>();
+    radioheader = packetchain->new_packet_component<kis_layer1_packinfo>();
 
 	decapchunk->dlt = KDLT_IEEE802_11;
 	
@@ -423,7 +423,7 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 
     // If we're slicing the FCS into its own record and we have the space
 	if (fcs_cut && linkchunk->length() > 4) {
-		fcschunk = std::make_shared<kis_packet_checksum>();
+        fcschunk = packetchain->new_packet_component<kis_packet_checksum>();
 
         fcschunk->set_data(linkchunk->substr(linkchunk->length() - 4, 4));
 
@@ -437,7 +437,7 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
     // If we're not slicing the fcs into its own record, but we know
     // it's bad, we make a junk FCS and set it bad
     if (!fcs_cut && fcs_flag_invalid) {
-        fcschunk = std::make_shared<kis_packet_checksum>();
+        fcschunk = packetchain->new_packet_component<kis_packet_checksum>();
        
         char junkfcs[] = "\xFF\xFF\xFF\xFF";
         fcschunk->copy_raw_data(junkfcs, 4);

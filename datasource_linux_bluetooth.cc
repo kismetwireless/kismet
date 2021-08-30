@@ -76,7 +76,8 @@ void kis_datasource_linux_bluetooth::handle_packet_linuxbtdevice(uint32_t in_seq
         set_int_source_warning(report.warning());
 
     auto packet = packetchain->generate_packet();
-    auto bpi = std::make_shared<bluetooth_packinfo>();
+
+    auto bpi = packetchain->new_packet_component<bluetooth_packinfo>();
 
     packet->insert(pack_comp_btdevice, bpi);
 
@@ -125,10 +126,11 @@ void kis_datasource_linux_bluetooth::handle_packet_linuxbtdevice(uint32_t in_seq
     fake_json << "]";
     fake_json << "}";
 
-    auto metablob = std::make_shared<packet_metablob>("LINUXBLUETOOTH", fake_json.str());
+    auto metablob = packetchain->new_packet_component<packet_metablob>();
+    metablob->set_data("LINUXBLUETOOTH", fake_json.str());
     packet->insert(pack_comp_meta, metablob);
 
-    auto datasrcinfo = std::make_shared<packetchain_comp_datasource>();
+    auto datasrcinfo = packetchain->new_packet_component<packetchain_comp_datasource>();
     datasrcinfo->ref_source = this;
 
     packet->insert(pack_comp_datasrc, datasrcinfo);

@@ -84,10 +84,11 @@ public:
         return adler32_checksum("dot11_tracked_eapol");
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     __Proxy(eapol_time, double, double, double, eapol_time);
@@ -155,10 +156,11 @@ public:
         return adler32_checksum("dot11_tracked_nonce");
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     __Proxy(eapol_time, double, double, double, eapol_time);
@@ -249,10 +251,11 @@ public:
         return adler32_checksum("dot11_tracked_ssid_alert");
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     __Proxy(group_name, std::string, std::string, std::string, ssid_group_name);
@@ -317,10 +320,11 @@ public:
         return adler32_checksum("dot11_11d_tracked_range_info");
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     __Proxy(startchan, uint32_t, uint32_t, uint32_t, startchan);
@@ -375,10 +379,11 @@ public:
         return adler32_checksum("dot11_tracked_ietag");
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     __Proxy(unique_tag_id, uint32_t, uint32_t, uint32_t, unique_tag_id);
@@ -428,8 +433,8 @@ public:
             __ImportField(bssid, p);
             __ImportField(first_time, p);
             __ImportField(last_time, p);
-            __ImportField(dot11r_mobility, p);
-            __ImportField(dot11r_mobility_domain_id, p);
+            __ImportId(dot11r_mobility_id, p);
+            __ImportId(dot11r_mobility_domain_id_id, p);
 
             __ImportId(location_id, p);
 
@@ -464,10 +469,11 @@ public:
         return adler32_checksum("dot11_probed_ssid");
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     __Proxy(ssid, std::string, std::string, std::string, ssid);
@@ -476,26 +482,27 @@ public:
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
 
-    __ProxyDynamicTrackable(location, kis_tracked_location, location, location_id);
+    __ProxyFullyDynamicTrackable(location, kis_tracked_location, location_id);
 
-    __Proxy(dot11r_mobility, uint8_t, bool, bool, dot11r_mobility);
-    __Proxy(dot11r_mobility_domain_id, uint16_t, uint16_t, uint16_t, dot11r_mobility_domain_id);
+    __ProxyFullyDynamic(dot11r_mobility, uint8_t, bool, bool, tracker_element_uint8, dot11r_mobility_id);
+    __ProxyFullyDynamic(dot11r_mobility_domain_id, uint16_t, uint16_t, uint16_t, tracker_element_uint16, 
+                        dot11r_mobility_domain_id_id);
 
     __Proxy(crypt_set, uint64_t, uint64_t, uint64_t, crypt_set);
     __Proxy(wpa_mfp_required, uint8_t, bool, bool, wpa_mfp_required);
     __Proxy(wpa_mfp_supported, uint8_t, bool, bool, wpa_mfp_supported);
 
-    __ProxyDynamicTrackable(ie_tag_list, tracker_element_vector_double, ie_tag_list, ie_tag_list_id);
+    __ProxyFullyDynamicTrackable(ie_tag_list, tracker_element_vector_double, ie_tag_list_id);
 
-    __ProxyDynamic(wps_version, uint8_t, uint8_t, uint8_t, wps_version, wps_version_id);
-    __ProxyDynamic(wps_state, uint32_t, uint32_t, uint32_t, wps_state, wps_state_id);
-    __ProxyDynamic(wps_config_methods, uint16_t, uint16_t, uint16_t, wps_config_methods, wps_config_methods_id);
-    __ProxyDynamic(wps_manuf, std::string, std::string, std::string, wps_manuf, wps_manuf_id);
-    __ProxyDynamic(wps_device_name, std::string, std::string, std::string, wps_device_name, wps_device_name_id);
-    __ProxyDynamic(wps_model_name, std::string, std::string, std::string, wps_model_name, wps_model_name_id);
-    __ProxyDynamic(wps_model_number, std::string, std::string, std::string, wps_model_number, wps_model_number_id);
-    __ProxyDynamic(wps_serial_number, std::string, std::string, std::string, wps_serial_number, wps_serial_number_id);
-    __ProxyDynamic(wps_uuid_e, std::string, std::string, std::string, wps_uuid_e, wps_uuid_e_id);
+    __ProxyFullyDynamic(wps_version, uint8_t, uint8_t, uint8_t, tracker_element_uint8, wps_version_id);
+    __ProxyFullyDynamic(wps_state, uint32_t, uint32_t, uint32_t, tracker_element_uint32, wps_state_id);
+    __ProxyFullyDynamic(wps_config_methods, uint16_t, uint16_t, uint16_t, tracker_element_uint16, wps_config_methods_id);
+    __ProxyFullyDynamic(wps_manuf, std::string, std::string, std::string, tracker_element_string, wps_manuf_id);
+    __ProxyFullyDynamic(wps_device_name, std::string, std::string, std::string, tracker_element_string, wps_device_name_id);
+    __ProxyFullyDynamic(wps_model_name, std::string, std::string, std::string, tracker_element_string, wps_model_name_id);
+    __ProxyFullyDynamic(wps_model_number, std::string, std::string, std::string, tracker_element_string, wps_model_number_id);
+    __ProxyFullyDynamic(wps_serial_number, std::string, std::string, std::string, tracker_element_string, wps_serial_number_id);
+    __ProxyFullyDynamic(wps_uuid_e, std::string, std::string, std::string, tracker_element_byte_array, wps_uuid_e_id);
 
 protected:
     virtual void register_fields() override;
@@ -506,46 +513,27 @@ protected:
     std::shared_ptr<tracker_element_uint64> first_time;
     std::shared_ptr<tracker_element_uint64> last_time;
 
-    std::shared_ptr<tracker_element_uint8> dot11r_mobility;
-    std::shared_ptr<tracker_element_uint16> dot11r_mobility_domain_id;
+    uint16_t dot11r_mobility_id;
+    uint16_t dot11r_mobility_domain_id_id;
 
-    std::shared_ptr<kis_tracked_location> location;
-    int location_id;
+    uint16_t location_id;
 
     std::shared_ptr<tracker_element_uint64> crypt_set;
     std::shared_ptr<tracker_element_uint8> wpa_mfp_required;
     std::shared_ptr<tracker_element_uint8> wpa_mfp_supported;
 
-    std::shared_ptr<tracker_element_vector_double> ie_tag_list;
-    int ie_tag_list_id;
+    uint16_t ie_tag_list_id;
 
     // WPS components
-    std::shared_ptr<tracker_element_uint8> wps_version;
-    int wps_version_id;
-
-    std::shared_ptr<tracker_element_uint32> wps_state;
-    int wps_state_id;
-
-    std::shared_ptr<tracker_element_uint16> wps_config_methods;
-    int wps_config_methods_id;
-
-    std::shared_ptr<tracker_element_string> wps_manuf;
-    int wps_manuf_id;
-
-    std::shared_ptr<tracker_element_string> wps_device_name;
-    int wps_device_name_id;
-
-    std::shared_ptr<tracker_element_string> wps_model_name;
-    int wps_model_name_id;
-
-    std::shared_ptr<tracker_element_string> wps_model_number;
-    int wps_model_number_id;
-
-    std::shared_ptr<tracker_element_string> wps_serial_number;
-    int wps_serial_number_id;
-
-    std::shared_ptr<tracker_element_byte_array> wps_uuid_e;
-    int wps_uuid_e_id;
+    uint16_t wps_version_id;
+    uint16_t wps_state_id;
+    uint16_t wps_config_methods_id;
+    uint16_t wps_manuf_id;
+    uint16_t wps_device_name_id;
+    uint16_t wps_model_name_id;
+    uint16_t wps_model_number_id;
+    uint16_t wps_serial_number_id;
+    uint16_t wps_uuid_e_id;
 };
 
 /* Advertised SSID
@@ -581,7 +569,6 @@ public:
             __ImportField(ssid_hash, p);
 
             __ImportId(owe_ssid_id, p);
-
             __ImportId(owe_ssid_len_id, p);
 
             __ImportId(owe_bssid_id, p);
@@ -645,10 +632,11 @@ public:
         return adler32_checksum("dot11_advertised_ssid");
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     __Proxy(ssid, std::string, std::string, std::string, ssid);
@@ -656,9 +644,9 @@ public:
 
     __Proxy(ssid_hash, uint64_t, uint64_t, uint64_t, ssid_hash);
 
-    __ProxyDynamic(owe_ssid, std::string, std::string, std::string, owe_ssid, owe_ssid_id);
-    __ProxyDynamic(owe_ssid_len, uint32_t, unsigned, unsigned int, owe_ssid_len, owe_ssid_len_id);
-    __ProxyDynamic(owe_bssid, mac_addr, mac_addr, mac_addr, owe_bssid, owe_bssid_id);
+    __ProxyFullyDynamic(owe_ssid, std::string, std::string, std::string, tracker_element_string, owe_ssid_id);
+    __ProxyFullyDynamic(owe_ssid_len, uint32_t, unsigned int, unsigned int, tracker_element_uint8, owe_ssid_len_id);
+    __ProxyFullyDynamic(owe_bssid, mac_addr, mac_addr, mac_addr, tracker_element_mac_addr, owe_bssid_id);
 
     __Proxy(ssid_beacon, uint8_t, bool, bool, ssid_beacon);
     __Proxy(ssid_probe_response, uint8_t, bool, bool, ssid_probe_response);
@@ -671,7 +659,7 @@ public:
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
 
-    __ProxyDynamic(beacon_info, std::string, std::string, std::string, beacon_info, beacon_info_id);
+    __ProxyFullyDynamic(beacon_info, std::string, std::string, std::string, tracker_element_string, beacon_info_id);
 
     __Proxy(ssid_cloaked, uint8_t, bool, bool, ssid_cloaked);
 
@@ -689,29 +677,29 @@ public:
 
     __Proxy(ietag_checksum, uint32_t, uint32_t, uint32_t, ietag_checksum);
 
-    __ProxyDynamic(dot11d_country, std::string, std::string, std::string, dot11d_country, 
+    __ProxyFullyDynamic(dot11d_country, std::string, std::string, std::string, tracker_element_string, 
             dot11d_country_id);
 
-    __ProxyDynamicTrackable(dot11d_vec, tracker_element_vector, dot11d_vec, dot11d_vec_id);
+    __ProxyFullyDynamicTrackable(dot11d_vec, tracker_element_vector, dot11d_vec_id);
     void set_dot11d_vec(std::vector<dot11_packinfo_dot11d_entry> vec);
 
-    __ProxyDynamic(wps_version, uint8_t, uint8_t, uint8_t, wps_version, wps_version_id);
-    __ProxyDynamic(wps_state, uint32_t, uint32_t, uint32_t, wps_state, wps_state_id);
-    __ProxyDynamic(wps_config_methods, uint16_t, uint16_t, uint16_t, wps_config_methods,
+    __ProxyFullyDynamic(wps_version, uint8_t, uint8_t, uint8_t, tracker_element_uint8, wps_version_id);
+    __ProxyFullyDynamic(wps_state, uint32_t, uint32_t, uint32_t, tracker_element_uint32, wps_state_id);
+    __ProxyFullyDynamic(wps_config_methods, uint16_t, uint16_t, uint16_t, tracker_element_uint16,
             wps_config_methods_id);
-    __ProxyDynamic(wps_manuf, std::string, std::string, std::string, wps_manuf, wps_manuf_id);
-    __ProxyDynamic(wps_device_name, std::string, std::string, std::string, wps_device_name, 
+    __ProxyFullyDynamic(wps_manuf, std::string, std::string, std::string, tracker_element_string, wps_manuf_id);
+    __ProxyFullyDynamic(wps_device_name, std::string, std::string, std::string, tracker_element_string, 
             wps_device_name_id);
-    __ProxyDynamic(wps_model_name, std::string, std::string, std::string, wps_model_name, 
+    __ProxyFullyDynamic(wps_model_name, std::string, std::string, std::string, tracker_element_string,
             wps_model_name_id);
-    __ProxyDynamic(wps_model_number, std::string, std::string, std::string, wps_model_number,
+    __ProxyFullyDynamic(wps_model_number, std::string, std::string, std::string, tracker_element_string,
             wps_model_number_id);
-    __ProxyDynamic(wps_serial_number, std::string, std::string, std::string, wps_serial_number,
+    __ProxyFullyDynamic(wps_serial_number, std::string, std::string, std::string, tracker_element_string,
             wps_serial_number_id);
-    __ProxyDynamic(wps_uuid_e, std::string, std::string, std::string, wps_uuid_e,
+    __ProxyFullyDynamic(wps_uuid_e, std::string, std::string, std::string, tracker_element_string,
             wps_uuid_e_id);
 
-    __ProxyDynamicTrackable(location, kis_tracked_location, location, location_id);
+    __ProxyFullyDynamicTrackable(location, kis_tracked_location, location_id);
 
     __Proxy(dot11r_mobility, uint8_t, bool, bool, dot11r_mobility);
     __Proxy(dot11r_mobility_domain_id, uint16_t, uint16_t, uint16_t, 
@@ -724,9 +712,8 @@ public:
     __Proxy(ccx_txpower, uint8_t, unsigned int, unsigned int, ccx_txpower);
     __Proxy(cisco_client_mfp, uint8_t, bool, bool, cisco_client_mfp);
 
-    __ProxyDynamicTrackable(ie_tag_list, tracker_element_vector_double, ie_tag_list, ie_tag_list_id);
-
-    __ProxyDynamicTrackable(ie_tag_content, tracker_element_int_map, ie_tag_content, ie_tag_content_id);
+    __ProxyFullyDynamicTrackable(ie_tag_list, tracker_element_vector_double, ie_tag_list_id);
+    __ProxyFullyDynamicTrackable(ie_tag_content, tracker_element_int_map, ie_tag_content_id);
 
     void set_ietag_content_from_packet(std::shared_ptr<dot11_ie> tags);
 
@@ -739,15 +726,16 @@ protected:
         if (e != NULL) {
             // If we're inheriting, it's our responsibility to kick submaps and vectors with
             // complex types as well; since they're not themselves complex objects
-            if (dot11d_vec != nullptr) {
-                for (auto d = dot11d_vec->begin(); d != dot11d_vec->end(); ++d) {
+            if (has_dot11d_vec()) {
+                auto dv = get_dot11d_vec();
+                for (auto d : *dv) {
                     auto din =
                         std::make_shared<dot11_11d_tracked_range_info>(dot11d_country_entry_id,
-                                std::static_pointer_cast<tracker_element_map>(*d));
-
+                                std::static_pointer_cast<tracker_element_map>(d));
                     // And assign it over the same key
-                    *d = std::static_pointer_cast<tracker_element>(din);
+                    d = std::static_pointer_cast<tracker_element>(din);
                 }
+
             }
         }
     }
@@ -757,13 +745,8 @@ protected:
 
     std::shared_ptr<tracker_element_uint64> ssid_hash;
 
-    std::shared_ptr<tracker_element_string> owe_ssid;
     int owe_ssid_id;
-
-    std::shared_ptr<tracker_element_uint32> owe_ssid_len;
     int owe_ssid_len_id;
-
-    std::shared_ptr<tracker_element_mac_addr> owe_bssid;
     int owe_bssid_id;
 
     std::shared_ptr<tracker_element_uint8> ssid_beacon;
@@ -778,7 +761,6 @@ protected:
     std::shared_ptr<tracker_element_uint64> first_time;
     std::shared_ptr<tracker_element_uint64> last_time;
 
-    std::shared_ptr<tracker_element_string> beacon_info;
     int beacon_info_id;
 
     std::shared_ptr<tracker_element_uint8> ssid_cloaked;
@@ -792,42 +774,21 @@ protected:
 
     // IE tag dot11d country / power restrictions from 802.11d; 
     // deprecated but still in use
-    std::shared_ptr<tracker_element_string> dot11d_country;
     int dot11d_country_id;
-
-    std::shared_ptr<tracker_element_vector> dot11d_vec;
     int dot11d_vec_id;
     int dot11d_country_entry_id;
 
     // WPS components
-    std::shared_ptr<tracker_element_uint8> wps_version;
     int wps_version_id;
-
-    std::shared_ptr<tracker_element_uint32> wps_state;
     int wps_state_id;
-
-    std::shared_ptr<tracker_element_uint16> wps_config_methods;
     int wps_config_methods_id;
-
-    std::shared_ptr<tracker_element_string> wps_manuf;
     int wps_manuf_id;
-
-    std::shared_ptr<tracker_element_string> wps_device_name;
     int wps_device_name_id;
-
-    std::shared_ptr<tracker_element_string> wps_model_name;
     int wps_model_name_id;
-
-    std::shared_ptr<tracker_element_string> wps_model_number;
     int wps_model_number_id;
-
-    std::shared_ptr<tracker_element_string> wps_serial_number;
     int wps_serial_number_id;
-
-    std::shared_ptr<tracker_element_byte_array> wps_uuid_e;
     int wps_uuid_e_id;
 
-    std::shared_ptr<kis_tracked_location> location;
     int location_id;
 
     // 802.11r mobility/fast roaming advertisements
@@ -845,13 +806,11 @@ protected:
     std::shared_ptr<tracker_element_uint8> cisco_client_mfp;
 
     // IE tags present, and order
-    std::shared_ptr<tracker_element_vector_double> ie_tag_list;
-    int ie_tag_list_id;
+    uint16_t ie_tag_list_id;
 
     // IE tag contents
-    std::shared_ptr<tracker_element_int_map> ie_tag_content;
-    int ie_tag_content_id;
-    int ie_tag_content_element_id;
+    uint16_t ie_tag_content_id;
+    uint16_t ie_tag_content_element_id;
 };
 
 /* dot11 client
@@ -918,10 +877,11 @@ public:
         return adler32_checksum("dot11_client");
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     __Proxy(bssid, mac_addr, mac_addr, mac_addr, bssid);
@@ -931,20 +891,20 @@ public:
     __Proxy(first_time, uint64_t, time_t, time_t, first_time);
     __Proxy(last_time, uint64_t, time_t, time_t, last_time);
 
-    __ProxyDynamic(dhcp_host, std::string, std::string, std::string, dhcp_host, dhcp_host_id);
-    __ProxyDynamic(dhcp_vendor, std::string, std::string, std::string, dhcp_vendor, dhcp_vendor_id);
+    __ProxyFullyDynamic(dhcp_host, std::string, std::string, std::string, tracker_element_string, dhcp_host_id);
+    __ProxyFullyDynamic(dhcp_vendor, std::string, std::string, std::string, tracker_element_string, dhcp_vendor_id);
 
     __Proxy(tx_cryptset, uint64_t, uint64_t, uint64_t, tx_cryptset);
     __Proxy(rx_cryptset, uint64_t, uint64_t, uint64_t, rx_cryptset);
 
-    __ProxyDynamic(eap_identity, std::string, std::string, std::string, eap_identity, eap_identity_id);
+    __ProxyFullyDynamic(eap_identity, std::string, std::string, std::string, tracker_element_string, eap_identity_id);
 
-    __ProxyDynamic(cdp_device, std::string, std::string, std::string, cdp_device, cdp_device_id);
-    __ProxyDynamic(cdp_port, std::string, std::string, std::string, cdp_port, cdp_port_id);
+    __ProxyFullyDynamic(cdp_device, std::string, std::string, std::string, tracker_element_string, cdp_device_id);
+    __ProxyFullyDynamic(cdp_port, std::string, std::string, std::string, tracker_element_string, cdp_port_id);
 
     __Proxy(decrypted, uint8_t, bool, bool, decrypted);
 
-    __ProxyDynamicTrackable(ipdata, kis_tracked_ip_data, ipdata, ipdata_id);
+    __ProxyFullyDynamicTrackable(ipdata, kis_tracked_ip_data, ipdata_id);
 
     __Proxy(datasize, uint64_t, uint64_t, uint64_t, datasize);
     __ProxyIncDec(datasize, uint64_t, uint64_t, datasize);
@@ -958,7 +918,7 @@ public:
     __Proxy(num_retries, uint64_t, uint64_t, uint64_t, num_retries);
     __ProxyIncDec(num_retries, uint64_t, uint64_t, num_retries);
 
-    __ProxyDynamicTrackable(location, kis_tracked_location, location, location_id);
+    __ProxyFullyDynamicTrackable(location, kis_tracked_location, location_id);
 
 protected:
     virtual void register_fields() override {
@@ -967,22 +927,27 @@ protected:
         register_field("dot11.client.first_time", "first time seen", &first_time);
         register_field("dot11.client.last_time", "last time seen", &last_time);
         register_field("dot11.client.type", "type of client", &client_type);
+
         dhcp_host_id =
-            register_dynamic_field("dot11.client.dhcp_host", "dhcp host", &dhcp_host);
+            register_dynamic_field<tracker_element_string>("dot11.client.dhcp_host", "dhcp host");
         dhcp_vendor_id =
-            register_dynamic_field("dot11.client.dhcp_vendor", "dhcp vendor", &dhcp_vendor);
+            register_dynamic_field<tracker_element_string>("dot11.client.dhcp_vendor", "dhcp vendor");
+
         register_field("dot11.client.tx_cryptset", "bitset of transmitted encryption", &tx_cryptset);
         register_field("dot11.client.rx_cryptset", "bitset of received encryption", &rx_cryptset);
+
         eap_identity_id = 
-            register_dynamic_field("dot11.client.eap_identity", "EAP identity", &eap_identity);
+            register_dynamic_field<tracker_element_string>("dot11.client.eap_identity", "EAP identity");
+
         cdp_device_id = 
-            register_dynamic_field("dot11.client.cdp_device", "CDP device", &cdp_device);
+            register_dynamic_field<tracker_element_string>("dot11.client.cdp_device", "CDP device");
         cdp_port_id =
-            register_dynamic_field("dot11.client.cdp_port", "CDP port", &cdp_port);
+            register_dynamic_field<tracker_element_string>("dot11.client.cdp_port", "CDP port");
+
         register_field("dot11.client.decrypted", "client decrypted", &decrypted);
         
         ipdata_id =
-            register_dynamic_field("dot11.client.ipdata", "IPv4 information", &ipdata);
+            register_dynamic_field<kis_tracked_ip_data>("dot11.client.ipdata", "IPv4 information");
 
         register_field("dot11.client.datasize", "data in bytes", &datasize);
         register_field("dot11.client.datasize_retry", "retry data in bytes", &datasize_retry);
@@ -990,7 +955,7 @@ protected:
         register_field("dot11.client.num_retries", "number of retried packets", &num_retries);
 
         location_id =
-            register_dynamic_field("dot11.client.location", "location", &location);
+            register_dynamic_field<kis_tracked_location>("dot11.client.location", "location");
 
     }
 
@@ -1002,36 +967,27 @@ protected:
 
     std::shared_ptr<tracker_element_uint32> client_type;
 
-    std::shared_ptr<tracker_element_string> dhcp_host;
-    int dhcp_host_id;
-
-    std::shared_ptr<tracker_element_string> dhcp_vendor;
-    int dhcp_vendor_id;
+    uint16_t dhcp_host_id;
+    uint16_t dhcp_vendor_id;
 
     std::shared_ptr<tracker_element_uint64> tx_cryptset;
     std::shared_ptr<tracker_element_uint64> rx_cryptset;
 
-    std::shared_ptr<tracker_element_string> eap_identity;
-    int eap_identity_id;
+    uint16_t eap_identity_id;
 
-    std::shared_ptr<tracker_element_string> cdp_device;
-    int cdp_device_id;
-
-    std::shared_ptr<tracker_element_string> cdp_port;
-    int cdp_port_id;
+    uint16_t cdp_device_id;
+    uint16_t cdp_port_id;
 
     std::shared_ptr<tracker_element_uint8> decrypted;
 
-    std::shared_ptr<kis_tracked_ip_data> ipdata;
-    int ipdata_id;
+    uint16_t ipdata_id;
 
     std::shared_ptr<tracker_element_uint64> datasize;
     std::shared_ptr<tracker_element_uint64> datasize_retry;
     std::shared_ptr<tracker_element_uint64> num_fragments;
     std::shared_ptr<tracker_element_uint64> num_retries;
 
-    std::shared_ptr<kis_tracked_location> location;
-    int location_id;
+    uint16_t location_id;
 };
 
 // Bitset of top-level device types for easy sorting/browsing
@@ -1181,10 +1137,11 @@ public:
         return adler32_checksum("dot11_tracked_device");
     }
 
-    virtual std::unique_ptr<tracker_element> clone_type() override {
-        using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::unique_ptr<this_t>(new this_t(this));
-        return std::move(dup);
+    virtual std::shared_ptr<tracker_element> clone_type() override {
+        using this_t = typename std::remove_pointer<decltype(this)>::type;
+        auto r = std::make_shared<this_t>();
+        r->set_id(this->get_id());
+        return r;
     }
 
     static void attach_base_parent(std::shared_ptr<dot11_tracked_device> self, 

@@ -305,8 +305,8 @@ void kis_tracked_signal_data::register_fields() {
     register_field("kismet.common.signal.max_noise", "maximum noise", &max_noise);
 
     peak_loc_id =
-        register_dynamic_field("kismet.common.signal.peak_loc",
-                "location of strongest observed signal", &peak_loc);
+        register_dynamic_field<kis_tracked_location_triplet>("kismet.common.signal.peak_loc",
+                "location of strongest observed signal");
 
     register_field("kismet.common.signal.maxseenrate",
             "maximum observed data rate (phy dependent)", &maxseenrate);
@@ -316,8 +316,8 @@ void kis_tracked_signal_data::register_fields() {
             "bitset of observed carrier types", &carrierset);
 
     signal_min_rrd_id =
-        register_dynamic_field("kismet.common.signal.signal_rrd",
-                "past minute of signal data", &signal_min_rrd);
+        register_dynamic_field<kis_tracked_minute_rrd<kis_tracked_rrd_peak_signal_aggregator>>("kismet.common.signal.signal_rrd",
+                "past minute of signal data");
 }
 
 kis_tracked_seenby_data::kis_tracked_seenby_data() :
@@ -347,7 +347,6 @@ kis_tracked_seenby_data::kis_tracked_seenby_data(const kis_tracked_seenby_data *
     __ImportField(last_time, p);
     __ImportField(num_packets, p);
 
-    __ImportId(freq_khz_map, p);
     __ImportId(freq_khz_map_id, p);
     __ImportId(signal_data_id, p);
 
@@ -377,15 +376,15 @@ void kis_tracked_seenby_data::register_fields() {
             "number of packets seen by this device", &num_packets);
 
     freq_khz_map_id =
-        register_dynamic_field("kismet.common.seenby.freq_khz_map", 
-            "packets seen per frequency (khz)", &freq_khz_map);
+        register_dynamic_field<tracker_element_double_map_double>("kismet.common.seenby.freq_khz_map", 
+            "packets seen per frequency (khz)");
 
     frequency_val_id =
         register_field("kismet.common.seenby.frequency.count",
                 tracker_element_factory<tracker_element_uint64>(), "packets per frequency");
 
     signal_data_id =
-        register_dynamic_field("kismet.common.seenby.signal", "signal data", &signal_data);
+        register_dynamic_field<kis_tracked_signal_data>("kismet.common.seenby.signal", "signal data");
 }
 
 void kis_tracked_device_base::inc_frequency_count(double frequency) {
@@ -474,9 +473,10 @@ void kis_tracked_device_base::register_fields() {
     register_field("kismet.device.base.datasize", "transmitted data in bytes", &datasize);
     
     packets_rrd_id =
-        register_dynamic_field("kismet.device.base.packets.rrd", "packet rate rrd", &packets_rrd);
+        register_dynamic_field<kis_tracked_rrd<>>("kismet.device.base.packets.rrd", "packet rate rrd");
     data_rrd_id =
-        register_dynamic_field("kismet.device.base.datasize.rrd", "packet size rrd", &data_rrd);
+        register_dynamic_field<kis_tracked_rrd<>>("kismet.device.base.datasize.rrd", "packet size rrd");
+
     signal_data_id =
         register_dynamic_field("kismet.device.base.signal", "signal data", &signal_data);
 
@@ -494,7 +494,7 @@ void kis_tracked_device_base::register_fields() {
                 tracker_element_factory<tracker_element_string>(), "arbitrary tag");
 
     location_id =
-        register_dynamic_field("kismet.device.base.location", "location", &location);
+        register_dynamic_field<kis_tracked_location>("kismet.device.base.location", "location");
 
     register_field("kismet.device.base.seenby", "sources that have seen this device", &seenby_map);
 
@@ -511,9 +511,12 @@ void kis_tracked_device_base::register_fields() {
     register_field("kismet.device.base.related_devices",
             "Related devices, organized by relationship", &related_devices_map);
 
-    related_device_group_id =
-        register_field("kismet.device.base.related_group", 
-                tracker_element_factory<tracker_element_device_key_map>(), "Related devices, by key");
+    related_device_group_id = register_field("kismet.device.base.related_group",
+        tracker_element_factory<tracker_element_device_key_map>(),
+        "Related devices, by key");
+
+    location_cloud_id = register_dynamic_field<kis_location_rrd>(
+        "kismet.device.base.location_cloud", "RRD-like location history");
 }
 
 void kis_tracked_device_base::reserve_fields(std::shared_ptr<tracker_element_map> e) {
