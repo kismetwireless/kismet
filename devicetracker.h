@@ -257,11 +257,11 @@ protected:
 
     // Map of seen-by views
     bool map_seenby_views;
-    std::unordered_map<uuid, std::shared_ptr<device_tracker_view>> seenby_view_map;
+    robin_hood::unordered_map<uuid, std::shared_ptr<device_tracker_view>> seenby_view_map;
 
     // Map of phy views
     bool map_phy_views;
-    std::unordered_map<int, std::shared_ptr<device_tracker_view>> phy_view_map;
+    robin_hood::unordered_map<int, std::shared_ptr<device_tracker_view>> phy_view_map;
 
     // Base IDs for tracker components
     int device_list_base_id, device_base_id;
