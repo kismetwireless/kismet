@@ -305,7 +305,8 @@ void kis_tracked_location::add_loc_with_avg(double in_lat, double in_lon, double
     add_loc(in_lat, in_lon, in_alt, fix, in_speed, in_heading);
 
     if (avg_loc == nullptr) {
-        avg_loc = std::make_shared<kis_tracked_location_triplet>(avg_loc_id);
+        avg_loc = Globalreg::new_from_pool<kis_tracked_location_triplet>();
+        avg_loc->set_id(avg_loc_id);
         insert(avg_loc);
     }
 
@@ -348,17 +349,20 @@ void kis_tracked_location::add_loc(double in_lat, double in_lon, double in_alt,
     }
 
     if (min_loc == nullptr) {
-        min_loc = std::make_shared<kis_tracked_location_triplet>(min_loc_id);
+        min_loc = Globalreg::new_from_pool<kis_tracked_location_triplet>();
+        min_loc->set_id(min_loc_id);
         insert(min_loc);
     }
 
     if (max_loc == nullptr) {
-        max_loc = std::make_shared<kis_tracked_location_triplet>(max_loc_id);
+        max_loc = Globalreg::new_from_pool<kis_tracked_location_triplet>();
+        max_loc->set_id(max_loc_id);
         insert(max_loc);
     }
 
     if (last_loc == nullptr) {
-        last_loc = std::make_shared<kis_tracked_location_full>(last_loc_id);
+        last_loc = Globalreg::new_from_pool<kis_tracked_location_full>();
+        last_loc->set_id(last_loc_id);
         insert(last_loc);
     }
 
