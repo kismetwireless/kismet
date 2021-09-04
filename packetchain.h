@@ -42,6 +42,7 @@
 #include "kis_net_beast_httpd.h"
 #include "objectpool.h"
 #include "packet.h"
+#include "robin_hood.h"
 #include "timetracker.h"
 #include "trackedelement.h"
 #include "trackedrrd.h"
@@ -153,7 +154,7 @@ public:
             auto pool = std::make_shared<shared_object_pool<T>>();
             pool->set_max(1024);
             pool->set_reset([](T *c) { c->reset(); });
-            component_pool_map.insert(std::make_pair(typeid(T).hash_code(), pool));
+            component_pool_map.insert({typeid(T).hash_code(), pool});
             return pool->acquire();
         }
     }
@@ -228,7 +229,7 @@ protected:
     // Packet & data component pools
     shared_object_pool<kis_packet> packet_pool;
 
-    std::unordered_map<size_t, std::shared_ptr<void>> component_pool_map;
+    robin_hood::unordered_map<size_t, std::shared_ptr<void>> component_pool_map;
 
 };
 

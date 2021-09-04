@@ -30,6 +30,7 @@
 #include "kis_mutex.h"
 #include "macaddr.h"
 #include "objectpool.h"
+#include "robin_hood.h"
 #include "util.h"
 #include "uuid.h"
 
@@ -269,7 +270,7 @@ public:
     std::vector<std::shared_ptr<deferred_startup> > deferred_vec;
 
     kis_mutex pool_map_mutex;
-    std::unordered_map<size_t, std::shared_ptr<void>> object_pool_map;
+    robin_hood::unordered_map<size_t, std::shared_ptr<void>> object_pool_map;
 };
 
 namespace Globalreg {
@@ -343,7 +344,7 @@ namespace Globalreg {
             pool->set_reset(resetter);
         else
             pool->set_reset([](T *o) { o->reset(); });
-        Globalreg::globalreg->object_pool_map.insert(std::make_pair(typeid(T).hash_code(), pool));
+        Globalreg::globalreg->object_pool_map.insert({typeid(T).hash_code(), pool});
     }
 
     // Grab an object from a pool, with an optional fallback creator for generating it if the pool

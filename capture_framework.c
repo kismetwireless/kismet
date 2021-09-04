@@ -57,7 +57,7 @@
 
 uint32_t adler32_partial_csum(uint8_t *in_buf, size_t in_len,
         uint32_t *s1, uint32_t *s2) {
-	size_t i;
+	size_t i = 0;
 	uint8_t *buf = in_buf;
     uint32_t ls1 = *s1, ls2 = *s2;
 
