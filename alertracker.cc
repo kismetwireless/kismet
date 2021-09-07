@@ -344,7 +344,7 @@ int alert_tracker::raise_alert(int in_ref, std::shared_ptr<kis_packet> in_pack,
 
     if (in_pack != nullptr) {
         in_pack->tag_map["ALERT"] = true;
-        in_pack->tag_map[fmt::format("ALERT-{}", arec->get_header())] = true;
+        in_pack->tag_map[fmt::format("ALERT_{}", arec->get_header())] = true;
     }
 
 
