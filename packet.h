@@ -123,6 +123,8 @@ public:
 
         for (size_t x = 0; x < MAX_PACKET_COMPONENTS; x++)
             content_vec[x].reset();
+
+        tag_map.clear();
     }
 
     void set_data(const std::string& sdata) {
