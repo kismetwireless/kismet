@@ -23,11 +23,13 @@
 
 #include "config.h"
 
+#include <algorithm>
 #include <map>
 #include <iomanip>
 #include <ctime>
 #include <iostream>
 #include <tuple>
+#include <string>
 
 #include <string.h>
 #include <stdio.h>
@@ -650,6 +652,10 @@ void print_help(char *argv) {
            "                                at most [num] packets\n"
            "     --split-size [size-in-kb]  Split output into multiple files, with each file containing\n"
            "                                at most [kb] bytes\n"
+           "     --list-tags                List tags in kismetdb; do not create a pcap file\n"
+           "     --tag [tag]                Only export packets which have a specific tag\n"
+           "                                Specify multiple --tag options to include all packets with\n"
+           "                                those tags.\n"
            "     --skip-gps                 When generating pcapng logs, don't include GPS information\n"
            "                                via the Kismet PEN custom fields\n"
            "     --skip-gps-track           When generating pcapng logs, don't include GPS movement\n"
@@ -678,6 +684,8 @@ int main(int argc, char *argv[]) {
 #define OPT_DLT                 7
 #define OPT_SKIP_GPS            8
 #define OPT_SKIP_GPSTRACK       9
+#define OPT_LIST_TAGS           10
+#define OPT_FILTER_TAG          11
     static struct option longopt[] = {
         { "in", required_argument, 0, 'i' },
         { "out", required_argument, 0, 'o' },
@@ -687,6 +695,8 @@ int main(int argc, char *argv[]) {
         { "force", no_argument, 0, 'f' },
         { "old-pcap", no_argument, 0, OPT_OLD_PCAP },
         { "list-datasources", no_argument, 0, OPT_LIST },
+        { "list-tags", no_argument, 0, OPT_LIST_TAGS },
+        { "tag", required_argument, 0, OPT_FILTER_TAG },
         { "datasource", required_argument, 0, OPT_INTERFACE },
         { "split-datasource", no_argument, 0, OPT_SPLIT_INTERFACE },
         { "split-packets", required_argument, 0, OPT_SPLIT_PKTS },
@@ -709,11 +719,13 @@ int main(int argc, char *argv[]) {
     bool list_only = false;
     bool skip_gps = false;
     bool skip_gps_track = false;
+    bool list_tags = false;
     unsigned int split_packets = 0;
     unsigned int split_size = 0;
     bool split_interface = false;
     std::vector<std::string> raw_interface_vec;
     int dlt = -1;
+    std::map<std::string, bool> tag_filter_map;
 
     int sql_r = 0;
     char *sql_errmsg = NULL;
@@ -762,6 +774,9 @@ int main(int argc, char *argv[]) {
             split_interface = true;
         } else if (r == OPT_LIST) {
             list_only = true;
+        } else if (r == OPT_LIST_TAGS) {
+            list_only = true;
+            list_tags = true;
         } else if (r == OPT_INTERFACE) {
             raw_interface_vec.push_back(std::string(optarg));
         } else if (r == OPT_OLD_PCAP) {
@@ -773,6 +788,10 @@ int main(int argc, char *argv[]) {
                 exit(1);
             }
             dlt = static_cast<int>(u);
+        } else if (r == OPT_FILTER_TAG) {
+            auto str = std::string(optarg);
+            std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+            tag_filter_map[str] = true;
         } else if (r == OPT_SKIP_GPS) {
             fmt::print(stderr, "Skipping all GPS data\n");
             skip_gps = true;
@@ -790,6 +809,11 @@ int main(int argc, char *argv[]) {
 
     if ((out_fname == "" || in_fname == "") && !list_only) {
         fmt::print(stderr, "ERROR: Expected --in [kismetdb file] and --out [pcap file]\n");
+        exit(1);
+    }
+
+    if (in_fname == "") {
+        fmt::print(stderr, "ERROR:  Expected --in [kismetdb file]\n");
         exit(1);
     }
 
@@ -894,7 +918,44 @@ int main(int argc, char *argv[]) {
         exit(0);
     }
 
-    if (list_only) {
+    if (list_tags) {
+        std::map<std::string, bool> tag_map;
+
+        auto tags_q = _SELECT(db, "packets", 
+                              {"DISTINCT tags"},
+                              _WHERE("tags", NEQ, ""));
+
+        for (auto ti : tags_q) {
+            auto t = sqlite3_column_as<std::string>(ti, 0);
+
+            while (t.size()) {
+                auto index = t.find(" ");
+                if (index != std::string::npos) {
+                    tag_map[t.substr(0, index)] = true;
+                    t = t.substr(index + 1);
+
+                    if (t.size() == 0)
+                        tag_map[t] = true;
+                } else {
+                    tag_map[t] = true;
+                    t = "";
+                }
+            }
+        }
+
+        if (tag_map.size() == 0) {
+            fmt::print("No tagged packets found in log.\n");
+            exit(0);
+        }
+
+        fmt::print("Packet tags found in log:\n");
+
+        for (auto ti : tag_map) {
+            fmt::print("    {}\n", ti.first);
+        }
+
+        exit(0);
+    } else if (list_only) {
         int ifnum = 0;
 
         for (auto i : interface_vec) {
@@ -1013,6 +1074,12 @@ int main(int argc, char *argv[]) {
             packet_fields,
             packet_filter_q);
 
+    if (tag_filter_map.size() != 0) {
+        for (auto ti : tag_filter_map) {
+            packets_q.append_where(AND, _WHERE("tags", LIKE, fmt::format("%{}%", ti.first)));
+        }
+    }
+
     auto gps_q = _SELECT(db, "snapshots",
             {"ts_sec", "ts_usec", "json"},
             _WHERE("snaptype", EQ, "GPS"));
@@ -1092,7 +1159,13 @@ int main(int argc, char *argv[]) {
 
                         log_interface->name = fname;
 
-                        log_interface->file = open_pcap_file(fname, force, file_dlt);
+                        try {
+                            log_interface->file = open_pcap_file(fname, force, file_dlt);
+                        } catch (const std::runtime_error& e) {
+                            fmt::print(stderr, "ERROR: Couldn't open {} for writing ({})\n",
+                                       log_interface->name, e.what());
+                            break;
+                        }
                     }
 
                     write_pcap_packet(log_interface->file, bytes, ts_sec, ts_usec);
@@ -1156,7 +1229,13 @@ int main(int argc, char *argv[]) {
 
                         log_interface->name = fname;
 
-                        log_interface->file = open_pcapng_file(fname, force);
+                        try {
+                            log_interface->file = open_pcapng_file(fname, force);
+                        } catch (const std::runtime_error& e) {
+                            fmt::print(stderr, "ERROR: Couldn't open {} for writing ({})\n",
+                                       log_interface->name, e.what());
+                            break;
+                        }
                     }
 
                     auto source_combo = fmt::format("{}-{}", datasource, pkt_dlt);
@@ -1233,6 +1312,22 @@ int main(int argc, char *argv[]) {
                         auto alt = json["kismet.gps.last_location"]["kismet.common.location.alt"].asDouble();
                         auto lat = json["kismet.gps.last_location"]["kismet.common.location.geopoint"][1].asDouble();
                         auto lon = json["kismet.gps.last_location"]["kismet.common.location.geopoint"][0].asDouble();
+
+                        try {
+                            if (single_log->file == nullptr) {
+                                auto fname = out_fname;
+
+                                if (verbose)
+                                    fmt::print(stderr, "* Opening pcapng file {}\n", fname);
+
+                                single_log->name = fname;
+                                single_log->file = open_pcapng_file(fname, force);
+                            }
+                        } catch (const std::runtime_error& e) {
+                            fmt::print(stderr, "ERROR: Couldn't open {} for writing ({})\n",
+                                       single_log->name, e.what());
+                            break;
+                        }
 
                         write_pcapng_gps(single_log->file, ts_sec, ts_usec, lat, lon, alt);
 
