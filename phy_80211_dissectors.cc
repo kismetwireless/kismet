@@ -2640,7 +2640,7 @@ kis_80211_phy::packet_dot11_eapol_handshake(std::shared_ptr<kis_packet> in_pack,
             return NULL;
 
         // Set a packet tag for handshakes
-        in_pack->tag_vec.push_back("DOT11_WPAHANDSHAKE");
+        in_pack->tag_map["DOT11_WPAHANDSHAKE"] = true;
 
         if (!keep_eapol_packets)
             return nullptr;
@@ -2747,7 +2747,7 @@ kis_80211_phy::packet_dot11_eapol_handshake(std::shared_ptr<kis_packet> in_pack,
                             eapol->set_rsnpmkid_bytes(pmkid.pmkid());
 
                             // Tag the packet
-                            in_pack->tag_vec.push_back("DOT11_RSNPMKID");
+                            in_pack->tag_map["DOT11_RSNPMKID"] = true;
                         }
                     }
                 }

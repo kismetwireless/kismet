@@ -1016,11 +1016,11 @@ int kis_database_logfile::log_packet(std::shared_ptr<kis_packet> in_pack) {
         std::stringstream tagstream;
         bool space_needed = false;
 
-        for (auto tag : in_pack->tag_vec) {
+        for (auto tag : in_pack->tag_map) {
             if (space_needed)
                 tagstream << " ";
             space_needed = true;
-            tagstream << tag;
+            tagstream << tag.first;
         }
 
         auto str = tagstream.str();

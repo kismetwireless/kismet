@@ -179,7 +179,7 @@ public:
     }
 
     // Tags applied to the packet
-    std::vector<std::string> tag_vec;
+    robin_hood::unordered_map<std::string, bool> tag_map;
 };
 
 
