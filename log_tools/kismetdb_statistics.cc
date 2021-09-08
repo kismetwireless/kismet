@@ -313,6 +313,54 @@ int main(int argc, char *argv[]) {
             fmt::print("\n");
         }
 
+        // Extract tags
+        std::map<std::string, bool> tag_map;
+
+        auto tags_q = _SELECT(db, "packets", 
+                              {"DISTINCT tags"},
+                              _WHERE("tags", NEQ, ""));
+
+        for (auto ti : tags_q) {
+            auto t = sqlite3_column_as<std::string>(ti, 0);
+
+            while (t.size()) {
+                auto index = t.find(" ");
+                if (index != std::string::npos) {
+                    tag_map[t.substr(0, index)] = true;
+                    t = t.substr(index + 1);
+
+                    if (t.size() == 0)
+                        tag_map[t] = true;
+                } else {
+                    tag_map[t] = true;
+                    t = "";
+                }
+            }
+        }
+
+        Json::Value tag_vec;
+
+        if (outputjson) {
+            for (auto ti : tag_map) {
+                Json::Value tag = ti.first;
+                tag_vec.append(tag);
+            }
+
+            root["packettags"] = tag_vec;
+        } else {
+            fmt::print("  Packet tags found in log:\n    ");
+            bool first = true;
+
+            for (auto ti : tag_map) {
+                if (!first)
+                    fmt::print(" ");
+                first = false;
+                fmt::print("{}", ti.first);
+            }
+
+            fmt::print("\n\n");
+        }
+
         auto range_q = _SELECT(db, "devices",
                 {"min(min_lat)", "min(min_lon)", "max(max_lat)", "max(max_lon)"},
                 _WHERE("min_lat", NEQ, 0, 
