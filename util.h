@@ -213,10 +213,10 @@ int fetch_sys_loadavg(uint8_t *in_avgmaj, uint8_t *in_avgmin);
 // multiple records.
 // Caller must set s1 and s2 to 0 for the initial call and provide them for
 // subsequent calls.
-constexpr17 uint32_t adler32_incremental_checksum(const void *in_buf, size_t in_len,
-        uint32_t *s1, uint32_t *s2) {
+constexpr17 uint32_t adler32_append_checksum(const void *in_buf, size_t in_len, uint32_t cs) {
     size_t i{0};
-    uint32_t ls1 = *s1, ls2 = *s2;
+    uint32_t ls1 = cs & 0xFFFF;
+    uint32_t ls2 = (cs >> 16) & 0xffff;
     const uint32_t *buf = (const uint32_t *) in_buf;
 
     if (in_len < 4)
@@ -265,14 +265,11 @@ constexpr17 uint32_t adler32_incremental_checksum(const void *in_buf, size_t in_
             break;
     }
 
-    *s1 = ls1;
-    *s2 = ls2;
 	return (ls1 & 0xffff) + (ls2 << 16);
 }
 
 constexpr17 uint32_t adler32_checksum(const void *in_buf, size_t in_len) {
-    uint32_t s1{0}, s2{0};
-    return adler32_incremental_checksum(in_buf, in_len, &s1, &s2);
+    return adler32_append_checksum(in_buf, in_len, 0);
 }
 
 constexpr17 uint32_t adler32_checksum(const nonstd::string_view& in_buf) {

@@ -55,10 +55,10 @@
 #include "protobuf_c/kismet.pb-c.h"
 #include "protobuf_c/datasource.pb-c.h"
 
-uint32_t adler32_partial_csum(uint8_t *in_buf, size_t in_len,
-        uint32_t *s1, uint32_t *s2) {
+uint32_t adler32_append_csum(uint8_t *in_buf, size_t in_len, uint32_t cs) {
     size_t i;
-    uint32_t ls1 = *s1, ls2 = *s2;
+    uint32_t ls1 = cs & 0xFFFF;
+    uint32_t ls2 = (cs >> 16) & 0xFFFF;
 
     const uint32_t *buf = (const uint32_t *) in_buf;
 
@@ -108,18 +108,11 @@ uint32_t adler32_partial_csum(uint8_t *in_buf, size_t in_len,
             break;
     }
 
-    *s1 = ls1;
-    *s2 = ls2;
-	return (ls1 & 0xffff) + (ls2 << 16);
+    return (ls1 & 0xffff) + (ls2 << 16);
 }
 
 uint32_t adler32_csum(uint8_t *in_buf, size_t in_len) {
-    uint32_t s1, s2;
-
-    s1 = 0;
-    s2 = 0;
-
-    return adler32_partial_csum(in_buf, in_len, &s1, &s2);
+    return adler32_append_csum(in_buf, in_len, 0);
 }
 
 int cf_parse_interface(char **ret_interface, char *definition) {
