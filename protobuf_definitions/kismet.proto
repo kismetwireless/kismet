@@ -4,16 +4,22 @@ package KismetExternal;
 
 option optimize_for = LITE_RUNTIME;
 
+// DEPRECATED
 // Overall command structure used for all Kismet helper binaries;  Each command
 // is an arbitrary string (command type), with a unique sequence number which is
 // used in responses to the command.
 //
 // The payload of the command (content) is arbitrary, however Kismet uses 
-// Google Protobuf for all embedded commands, and it strongly recommended that
+// Google Protobuf for all embedded commands, and it's strongly recommended that
 // other implementations do as well.
 // 
 // This command is wrapped inside the kismet network structure which defines
 // total length, embeds a checksum, and so on.
+//
+// CURRENT
+// To enable faster serialization with fewer temporary buffers, the command
+// structure is now encoded into the top level kismet_external_frame_v2 structure.
+// The same data is conveyed, but with a single serialization pass.
 
 message Command {
     required string command = 1; // Command type

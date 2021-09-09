@@ -44,6 +44,32 @@ struct kismet_external_frame {
 } __attribute__((packed));
 typedef struct kismet_external_frame kismet_external_frame_t;
 
+#define KIS_EXTERNAL_V2_SIG         0xABCD
+/* v2 wrapper that makes for much more efficient serialization */
+struct kismet_external_frame_v2 {
+    /* Fixed Start-of-packet signature, big endian */
+    uint32_t signature;
+
+    /* Fixed v2 sentinel 0xABCD, taking the place of the original checksum */
+    uint16_t v2_sentinal;
+    /* v2+ version code */
+    uint16_t frame_version;
+
+    /* Size of data payload encoded in data[0], retained in this position for 
+     * compatibility with previous frame */
+    uint32_t data_sz;
+
+    /* Frame type (previously encoded in the external command) */
+    char command[16];
+
+    /* Sequence number */
+    uint32_t seqno;
+
+    /* Encoded payload */
+    uint8_t data[0];
+} __attribute__((packed));
+typedef struct kismet_external_frame_v2 kismet_external_frame_v2_t;
+
 /* Error codes from capture binaries */
 #define KIS_EXTERNAL_RETCODE_OK             0
 #define KIS_EXTERNAL_RETCODE_GENERIC        1
