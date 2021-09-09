@@ -686,44 +686,51 @@ unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal:
 }
 
 bool kis_external_interface::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
+    return dispatch_rx_packet(c->command(), c->seqno(), c->content());
+}
+
+bool kis_external_interface::dispatch_rx_packet(const nonstd::string_view& command,
+        uint32_t seqno, const nonstd::string_view& content) {
     // Simple dispatcher; this should be called by child implementations who
     // add their own commands
-    if (c->command() == "MESSAGE") {
-        handle_packet_message(c->seqno(), c->content());
+    if (command == "MESSAGE") {
+        handle_packet_message(seqno, content);
         return true;
-    } else if (c->command() == "PING") {
-        handle_packet_ping(c->seqno(), c->content());
+    } else if (command == "PING") {
+        handle_packet_ping(seqno, content);
         return true;
-    } else if (c->command() == "PONG") {
-        handle_packet_pong(c->seqno(), c->content());
+    } else if (command == "PONG") {
+        handle_packet_pong(seqno, content);
         return true;
-    } else if (c->command() == "SHUTDOWN") {
-        handle_packet_shutdown(c->seqno(), c->content());
+    } else if (command == "SHUTDOWN") {
+        handle_packet_shutdown(seqno, content);
         return true;
-    } else if (c->command() == "HTTPREGISTERURI") {
-        handle_packet_http_register(c->seqno(), c->content());
+    } else if (command == "HTTPREGISTERURI") {
+        handle_packet_http_register(seqno, content);
         return true;
-    } else if (c->command() == "HTTPRESPONSE") {
-        handle_packet_http_response(c->seqno(), c->content());
+    } else if (command == "HTTPRESPONSE") {
+        handle_packet_http_response(seqno, content);
         return true;
-    } else if (c->command() == "HTTPAUTHREQ") {
-        handle_packet_http_auth_request(c->seqno(), c->content());
+    } else if (command == "HTTPAUTHREQ") {
+        handle_packet_http_auth_request(seqno, content);
         return true;
-    } else if (c->command() == "EVENTBUSREGISTER") {
-        handle_packet_eventbus_register(c->seqno(), c->content());
+    } else if (command == "EVENTBUSREGISTER") {
+        handle_packet_eventbus_register(seqno, content);
         return true;
-    } else if (c->command() == "EVENTBUSPUBLISH") {
-        handle_packet_eventbus_publish(c->seqno(), c->content());
+    } else if (command == "EVENTBUSPUBLISH") {
+        handle_packet_eventbus_publish(seqno, content);
         return true;
     }
 
     return false;
+
 }
 
-void kis_external_interface::handle_packet_message(uint32_t in_seqno, const std::string& in_content) {
+void kis_external_interface::handle_packet_message(uint32_t in_seqno, 
+        const nonstd::string_view& in_content) {
     KismetExternal::MsgbusMessage m;
 
-    if (!m.ParseFromString(in_content)) {
+    if (!m.ParseFromArray(in_content.data(), in_content.size())) {
         _MSG("Kismet external interface got an unparsable MESSAGE", MSGFLAG_ERROR);
         trigger_error("Invalid MESSAGE");
         return;
@@ -736,15 +743,17 @@ void kis_external_interface::handle_msg_proxy(const std::string& msg, const int 
     _MSG(msg, msgtype);
 }
 
-void kis_external_interface::handle_packet_ping(uint32_t in_seqno, const std::string& in_content) {
+void kis_external_interface::handle_packet_ping(uint32_t in_seqno, 
+        const nonstd::string_view& in_content) {
     send_pong(in_seqno);
 }
 
-void kis_external_interface::handle_packet_pong(uint32_t in_seqno, const std::string& in_content) {
+void kis_external_interface::handle_packet_pong(uint32_t in_seqno, 
+        const nonstd::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_pong");
 
     KismetExternal::Pong p;
-    if (!p.ParseFromString(in_content)) {
+    if (!p.ParseFromArray(in_content.data(), in_content.size())) {
         _MSG("Kismet external interface got an unparsable PONG packet", MSGFLAG_ERROR);
         trigger_error("Invalid PONG");
         return;
@@ -753,11 +762,12 @@ void kis_external_interface::handle_packet_pong(uint32_t in_seqno, const std::st
     last_pong = time(0);
 }
 
-void kis_external_interface::handle_packet_shutdown(uint32_t in_seqno, const std::string& in_content) {
+void kis_external_interface::handle_packet_shutdown(uint32_t in_seqno, 
+        const nonstd::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_shutdown");
 
     KismetExternal::ExternalShutdown s;
-    if (!s.ParseFromString(in_content)) {
+    if (!s.ParseFromArray(in_content.data(), in_content.length())) {
         _MSG("Kismet external interface got an unparsable SHUTDOWN", MSGFLAG_ERROR);
         trigger_error("invalid SHUTDOWN");
         return;
@@ -822,12 +832,12 @@ void kis_external_interface::proxy_event(std::shared_ptr<eventbus_event> evt) {
 }
 
 void kis_external_interface::handle_packet_eventbus_register(uint32_t in_seqno,
-        const std::string& in_content) {
+        const nonstd::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_eventbus_register");
 
     KismetEventBus::EventbusRegisterListener evtlisten;
 
-    if (!evtlisten.ParseFromString(in_content)) {
+    if (!evtlisten.ParseFromArray(in_content.data(), in_content.length())) {
         _MSG_ERROR("Kismet external interface got an unparseable EVENTBUSREGISTER");
         trigger_error("Invalid EVENTBUSREGISTER");
         return;
@@ -850,12 +860,12 @@ void kis_external_interface::handle_packet_eventbus_register(uint32_t in_seqno,
 }
 
 void kis_external_interface::handle_packet_eventbus_publish(uint32_t in_seqno,
-        const std::string& in_content) {
+        const nonstd::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_eventbus_publish");
     
     KismetEventBus::EventbusPublishEvent evtpub;
 
-    if (!evtpub.ParseFromString(in_content)) {
+    if (!evtpub.ParseFromArray(in_content.data(), in_content.length())) {
         _MSG_ERROR("Kismet external interface got unparseable EVENTBUSPUBLISH");
         trigger_error("Invalid EVENTBUSPUBLISH");
         return;
@@ -868,12 +878,12 @@ void kis_external_interface::handle_packet_eventbus_publish(uint32_t in_seqno,
 }
 
 void kis_external_interface::handle_packet_http_register(uint32_t in_seqno, 
-        const std::string& in_content) {
+        const nonstd::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_http_register");
 
     KismetExternalHttp::HttpRegisterUri uri;
 
-    if (!uri.ParseFromString(in_content)) {
+    if (!uri.ParseFromArray(in_content.data(), in_content.length())) {
         _MSG("Kismet external interface got an unparsable HTTPREGISTERURI", MSGFLAG_ERROR);
         trigger_error("Invalid HTTPREGISTERURI");
         return;
@@ -921,12 +931,12 @@ void kis_external_interface::handle_packet_http_register(uint32_t in_seqno,
 }
 
 void kis_external_interface::handle_packet_http_response(uint32_t in_seqno, 
-        const std::string& in_content) {
+        const nonstd::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "kei handle_packet_http_response");
 
     KismetExternalHttp::HttpResponse resp;
 
-    if (!resp.ParseFromString(in_content)) {
+    if (!resp.ParseFromArray(in_content.data(), in_content.length())) {
         _MSG("Kismet external interface got an unparsable HTTPRESPONSE", MSGFLAG_ERROR);
         trigger_error("Invalid  HTTPRESPONSE");
         return;
@@ -979,10 +989,10 @@ void kis_external_interface::handle_packet_http_response(uint32_t in_seqno,
 }
 
 void kis_external_interface::handle_packet_http_auth_request(uint32_t in_seqno, 
-        const std::string& in_content) {
+        const nonstd::string_view& in_content) {
     KismetExternalHttp::HttpAuthTokenRequest rt;
 
-    if (!rt.ParseFromString(in_content)) {
+    if (!rt.ParseFromArray(in_content.data(), in_content.length())) {
         _MSG("Kismet external interface got an unparsable HTTPAUTHREQ", MSGFLAG_ERROR);
         trigger_error("Invalid HTTPAUTHREQ");
         return;

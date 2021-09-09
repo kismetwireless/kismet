@@ -138,17 +138,19 @@ protected:
 
     // Central packet dispatch handler
     virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c);
+    virtual bool dispatch_rx_packet(const nonstd::string_view& command, 
+            uint32_t seqno, const nonstd::string_view& content);
 
     // Generic msg proxy
     virtual void handle_msg_proxy(const std::string& msg, const int msgtype); 
 
     // Packet handlers
-    virtual void handle_packet_message(uint32_t in_seqno, const std::string& in_content);
-    virtual void handle_packet_ping(uint32_t in_seqno, const std::string& in_content);
-    virtual void handle_packet_pong(uint32_t in_seqno, const std::string& in_content);
-    virtual void handle_packet_shutdown(uint32_t in_seqno, const std::string& in_content);
-    virtual void handle_packet_eventbus_register(uint32_t in_seqno, const std::string& in_content);
-    virtual void handle_packet_eventbus_publish(uint32_t in_seqno, const std::string& in_content);
+    virtual void handle_packet_message(uint32_t in_seqno, const nonstd::string_view& in_content);
+    virtual void handle_packet_ping(uint32_t in_seqno, const nonstd::string_view& in_content);
+    virtual void handle_packet_pong(uint32_t in_seqno, const nonstd::string_view& in_content);
+    virtual void handle_packet_shutdown(uint32_t in_seqno, const nonstd::string_view& in_content);
+    virtual void handle_packet_eventbus_register(uint32_t in_seqno, const nonstd::string_view& in_content);
+    virtual void handle_packet_eventbus_publish(uint32_t in_seqno, const nonstd::string_view& in_content);
 
     unsigned int send_ping();
     unsigned int send_pong(uint32_t ping_seqno);
@@ -208,9 +210,9 @@ protected:
 
     // Webserver proxy code
 
-    virtual void handle_packet_http_register(uint32_t in_seqno, const std::string& in_content);
-    virtual void handle_packet_http_response(uint32_t in_seqno, const std::string& in_content);
-    virtual void handle_packet_http_auth_request(uint32_t in_seqno, const std::string& in_content);
+    virtual void handle_packet_http_register(uint32_t in_seqno, const nonstd::string_view& in_content);
+    virtual void handle_packet_http_response(uint32_t in_seqno, const nonstd::string_view& in_content);
+    virtual void handle_packet_http_auth_request(uint32_t in_seqno, const nonstd::string_view& in_content);
 
     unsigned int send_http_request(uint32_t in_http_sequence, std::string in_uri,
             std::string in_method, std::map<std::string, std::string> in_postdata);
@@ -325,7 +327,9 @@ public:
     // consumed.
     template<class ConstBufferSequence>
     int handle_external_command(const ConstBufferSequence& data, size_t sz) {
-        const kismet_external_frame_t *frame;
+        const kismet_external_frame_t *frame = nullptr;
+        const kismet_external_frame_v2_t *frame_v2 = nullptr;
+
         uint32_t frame_sz, data_sz;
         uint32_t data_checksum;
 
@@ -342,63 +346,100 @@ public:
             return result_handle_packet_error;
         }
 
-        // Check the length
-        data_sz = kis_ntoh32(frame->data_sz);
-        frame_sz = data_sz + sizeof(kismet_external_frame);
+        // Detect and process the v2 frames
+        if (kis_ntoh16((frame->data_checksum >> 16) & 0xFFFF) == KIS_EXTERNAL_V2_SIG &&
+            kis_ntoh16((frame->data_checksum & 0xFFFF) == 0x02)) {
 
-        // If we've got a bogus length, blow it up.  Anything over 8k is assumed to be insane.
-        if ((long int) frame_sz >= 8192) {
-            _MSG_ERROR("Kismet external interface got a command frame which is too large to "
-                    "be processed ({}); either the frame is malformed or you are connecting to "
-                    "a legacy Kismet remote capture drone; make sure you have updated to modern "
-                    "Kismet on all connected systems.", frame_sz);
-            trigger_error("Command frame too large for buffer");
-            return result_handle_packet_error;
-        }
+            frame_v2 = boost::asio::buffer_cast<const kismet_external_frame_v2_t *>(data);
 
-        // If we don't have the whole buffer available, bail on this read
-        if (frame_sz > sz) {
-            return result_handle_packet_needbuf;
-        }
+            data_sz = kis_ntoh32(frame_v2->data_sz);
+            frame_sz = data_sz + sizeof(kismet_external_frame_v2);
 
-        // We have a complete payload, checksum 
-        data_checksum = adler32_checksum((const char *) frame->data, data_sz);
+            if (frame_sz >= 8192) {
+                _MSG_ERROR("Kismet external interface got a command frame which is too large to "
+                           "be processed ({}); either the frame is malformed or you are connecting to "
+                           "a legacy Kismet remote capture drone; make sure you have updated to modern "
+                           "Kismet on all connected systems.", frame_sz);
+                trigger_error("Command frame too large for buffer");
+                return result_handle_packet_error;
+            }
 
-        if (data_checksum != kis_ntoh32(frame->data_checksum)) {
-            _MSG_ERROR("Kismet external interface got a command frame with an invalid checksum; "
-                    "either the frame is malformed, a network error occurred, or an unsupported tool "
-                    "has connected to the external interface API.");
-            trigger_error("command frame has invalid checksum");
-            return result_handle_packet_error;
-        }
+            // If we don't have the whole buffer available, bail on this read
+            if (frame_sz > sz) {
+                return result_handle_packet_needbuf;
+            }
 
-        // Process the data payload as a protobuf frame
-        // std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
-        
-        // Re-use a cached command
-        if (cached_cmd == nullptr) {
-            cached_cmd = std::make_shared<KismetExternal::Command>();
+            // No checksum anymore
+
+            uint32_t seqno = kis_ntoh32(frame_v2->seqno);
+
+            nonstd::string_view command(frame_v2->command, 16);
+            nonstd::string_view content((const char *) frame_v2->data, data_sz);
+
+            // Dispatch the received command
+            dispatch_rx_packet(command, seqno, content);
+
+            return result_handle_packet_ok;
         } else {
-            cached_cmd->Clear();
-        }
+            // Check the length
+            data_sz = kis_ntoh32(frame->data_sz);
+            frame_sz = data_sz + sizeof(kismet_external_frame);
 
-        auto ai = new google::protobuf::io::ArrayInputStream(frame->data, data_sz);
+            // If we've got a bogus length, blow it up.  Anything over 8k is assumed to be insane.
+            if ((long int) frame_sz >= 8192) {
+                _MSG_ERROR("Kismet external interface got a command frame which is too large to "
+                           "be processed ({}); either the frame is malformed or you are connecting to "
+                           "a legacy Kismet remote capture drone; make sure you have updated to modern "
+                           "Kismet on all connected systems.", frame_sz);
+                trigger_error("Command frame too large for buffer");
+                return result_handle_packet_error;
+            }
 
-        if (!cached_cmd->ParseFromZeroCopyStream(ai)) {
+            // If we don't have the whole buffer available, bail on this read
+            if (frame_sz > sz) {
+                return result_handle_packet_needbuf;
+            }
+
+            // We have a complete payload, checksum 
+            data_checksum = adler32_checksum((const char *) frame->data, data_sz);
+
+            if (data_checksum != kis_ntoh32(frame->data_checksum)) {
+                _MSG_ERROR("Kismet external interface got a command frame with an invalid checksum; "
+                           "either the frame is malformed, a network error occurred, or an unsupported tool "
+                           "has connected to the external interface API.");
+                trigger_error("command frame has invalid checksum");
+                return result_handle_packet_error;
+            }
+
+            // Process the data payload as a protobuf frame
+            // std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
+
+            // Re-use a cached command
+            if (cached_cmd == nullptr) {
+                cached_cmd = std::make_shared<KismetExternal::Command>();
+            } else {
+                cached_cmd->Clear();
+            }
+
+            auto ai = new google::protobuf::io::ArrayInputStream(frame->data, data_sz);
+
+            if (!cached_cmd->ParseFromZeroCopyStream(ai)) {
+                delete(ai);
+                _MSG_ERROR("Kismet external interface could not interpret the payload of the "
+                           "command frame; either the frame is malformed, a network error occurred, or "
+                           "an unsupported tool is connected to the external interface API");
+                trigger_error("unparsable command frame");
+                return result_handle_packet_error;
+            }
+
+            // Dispatch the received command
+            dispatch_rx_packet(cached_cmd);
+
             delete(ai);
-            _MSG_ERROR("Kismet external interface could not interpret the payload of the "
-                    "command frame; either the frame is malformed, a network error occurred, or "
-                    "an unsupported tool is connected to the external interface API");
-            trigger_error("unparsable command frame");
-            return result_handle_packet_error;
+
+            return result_handle_packet_ok;
+
         }
-
-        // Dispatch the received command
-        dispatch_rx_packet(cached_cmd);
-
-        delete(ai);
-
-        return result_handle_packet_ok;
     }
 };
 
