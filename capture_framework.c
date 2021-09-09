@@ -3209,11 +3209,32 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     return cf_send_packet(caph, "KDSOPENSOURCEREPORT", buf, buf_len);
 }
 
+typedef struct {
+    ProtobufCBuffer base;
+    kis_capture_handler_t *caph;
+    size_t offt;
+    uint8_t *send_buffer;
+} cf_protobuf_data_streamer;
+
+static void cf_protobuf_data_streamer_append(ProtobufCBuffer *buffer, size_t len, const uint8_t *data) {
+    cf_protobuf_data_streamer *cfs = (cf_protobuf_data_streamer *) buffer;
+
+    memcpy(cfs->send_buffer + cfs->offt, data, len);
+    cfs->offt += len;
+}
+
 int cf_send_data(kis_capture_handler_t *caph,
         KismetExternal__MsgbusMessage *kv_message,
         KismetDatasource__SubSignal *kv_signal,
         KismetDatasource__SubGps *kv_gps,
         struct timeval ts, uint32_t dlt, uint32_t packet_sz, uint8_t *pack) {
+
+    kismet_external_frame_v2_t *frame;
+    size_t rs_sz;
+    uint8_t *send_buffer;
+    size_t buf_len = 0;
+    uint32_t seqno;
+    cf_protobuf_data_streamer streamer;
 
     KismetDatasource__DataReport kedata;
     KismetDatasource__SubPacket kepkt;
@@ -3261,25 +3282,89 @@ int cf_send_data(kis_capture_handler_t *caph,
         kedata.packet = &kepkt;
     }
 
-    uint8_t *buf;
-    size_t buf_len;
+    if (caph->use_tcp || caph->use_ipc) {
+        /* Shortcut internal state tests to use an optimized streaming method to write to 
+         * the tcp/ipc ringbuffer using a protobuf_c buffer writer.
+         * This is a bunch of code duplication but it's important enough that we get the
+         * maximum speed here */
 
-    buf_len = kismet_datasource__data_report__get_packed_size(&kedata);
-    buf = (uint8_t *) malloc(buf_len);
+        /* Lock the handler and get the next sequence number */
+        pthread_mutex_lock(&(caph->handler_lock));
+        if (++caph->seqno == 0)
+            caph->seqno = 1;
+        seqno = caph->seqno;
+        pthread_mutex_unlock(&(caph->handler_lock));
 
-    if (buf == NULL) {
-        return -1;
+        /* Reserve the buffer space and assemble the packet header just like cf_rb_send_packet */
+        pthread_mutex_lock(&(caph->out_ringbuf_lock));
+
+        buf_len = kismet_datasource__data_report__get_packed_size(&kedata);
+
+        rs_sz = kis_simple_ringbuf_reserve(caph->out_ringbuf, (void **) &send_buffer, 
+                buf_len + sizeof(kismet_external_frame_v2_t));
+
+        if (rs_sz != buf_len + sizeof(kismet_external_frame_v2_t)) {
+            fprintf(stderr, "DEBUG - insufficient size in outgoing buffer for %lu\n", buf_len);
+            pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+            return 0;
+        }
+
+        /* Map to the tx frame */
+        frame = (kismet_external_frame_v2_t *) send_buffer;
+
+        /* Set the signature and data size */
+        frame->signature = htonl(KIS_EXTERNAL_PROTO_SIG);
+        frame->data_sz = htonl(buf_len);
+
+        frame->v2_sentinel = htons(KIS_EXTERNAL_V2_SIG);
+        frame->frame_version = htons(2);
+
+        frame->seqno = htonl(seqno);
+
+        strncpy(frame->command, "KDSDATAREPORT", 32);
+
+        /* Prepare the streamer */
+        memset(&streamer, 0, sizeof(cf_protobuf_data_streamer));
+        streamer.base.append = cf_protobuf_data_streamer_append;
+        streamer.offt = sizeof(kismet_external_frame_v2_t);
+        streamer.send_buffer = send_buffer;
+
+        kismet_datasource__data_report__pack_to_buffer(&kedata, (ProtobufCBuffer *) &streamer);
+
+        kis_simple_ringbuf_commit(caph->out_ringbuf, send_buffer, rs_sz);
+
+        if (kegps.name != NULL)
+            free(kegps.name);
+        if (kegps.type != NULL)
+            free(kegps.type);
+
+        pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+
+        return 1;
+    }  else {
+        /* Otherwise we need to use our legacy mode of serializing the packet into a temp
+         * buffer then putting that into the websocket ring */
+        uint8_t *buf;
+        size_t buf_len;
+
+        buf_len = kismet_datasource__data_report__get_packed_size(&kedata);
+        buf = (uint8_t *) malloc(buf_len);
+
+        if (buf == NULL) {
+            return -1;
+        }
+
+        kismet_datasource__data_report__pack(&kedata, buf);
+
+        if (kegps.name != NULL)
+            free(kegps.name);
+        if (kegps.type != NULL)
+            free(kegps.type);
+
+        return cf_send_packet(caph, "KDSDATAREPORT", buf, buf_len);
     }
-
-    kismet_datasource__data_report__pack(&kedata, buf);
-
-    if (kegps.name != NULL)
-        free(kegps.name);
-    if (kegps.type != NULL)
-        free(kegps.type);
-
-    return cf_send_packet(caph, "KDSDATAREPORT", buf, buf_len);
 }
+
 
 int cf_send_json(kis_capture_handler_t *caph,
         KismetExternal__MsgbusMessage *kv_message,
