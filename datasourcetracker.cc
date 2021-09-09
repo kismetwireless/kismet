@@ -1929,7 +1929,7 @@ bool dst_incoming_remote::dispatch_rx_packet(std::shared_ptr<KismetExternal::Com
 bool dst_incoming_remote::dispatch_rx_packet(const nonstd::string_view& command,
         uint32_t seqno, const nonstd::string_view& content) {
     // Simple dispatch override, all we do is look for the new source
-    if (command == "KDSNEWSOURCE") {
+    if (command.compare("KDSNEWSOURCE") == 0) {
         //_MSG_DEBUG("incoming remote got kds newsource");
         handle_packet_newsource(seqno, content);
         return true;

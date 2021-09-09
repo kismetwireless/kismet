@@ -204,12 +204,19 @@ typedef void (*cf_callback_chanfree)(void *);
  * This callback is only needed to handle custom frames.  This allows a capture
  * handler to define its own custom frames and receive them from the comms later.
  *
+ * Callbacks are passed:
+ *    - Capture framework
+ *    - Sequence
+ *    - Command (up to 32 bytes, must be length-validated)
+ *    - Data
+ *    - Data length
+ *
  * Returns:
  * -1   Error occurred, close source
  *  0   Success, or frame ignored
  */
 typedef int (*cf_callback_unknown)(kis_capture_handler_t *, uint32_t, 
-        KismetExternal__Command *);
+        const char *, const char *, uint32_t);
 
 /* Capture callback
  * Called inside the capture thread as the primary capture mechanism for the source.
@@ -726,7 +733,7 @@ int cf_handler_loop(kis_capture_handler_t *caph);
  */
 int cf_send_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len);
 
-/* Wrap a sub-packet into a KismetExternal__Command, frame it, and send it.
+/* Wrap a serialized sub-packet into a v2 frame, and send it.
  * May be called from any thread.
  *
  * The supplied data buffer will be put into the command payload.

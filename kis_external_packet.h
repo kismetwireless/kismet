@@ -60,7 +60,7 @@ struct kismet_external_frame_v2 {
     uint32_t data_sz;
 
     /* Frame type (previously encoded in the external command) */
-    char command[16];
+    char command[32];
 
     /* Sequence number */
     uint32_t seqno;

@@ -694,31 +694,31 @@ bool kis_external_interface::dispatch_rx_packet(const nonstd::string_view& comma
         uint32_t seqno, const nonstd::string_view& content) {
     // Simple dispatcher; this should be called by child implementations who
     // add their own commands
-    if (command == "MESSAGE") {
+    if (command.compare("MESSAGE") == 0) {
         handle_packet_message(seqno, content);
         return true;
-    } else if (command == "PING") {
+    } else if (command.compare("PING") == 0) {
         handle_packet_ping(seqno, content);
         return true;
-    } else if (command == "PONG") {
+    } else if (command.compare("PONG") == 0) {
         handle_packet_pong(seqno, content);
         return true;
-    } else if (command == "SHUTDOWN") {
+    } else if (command.compare("SHUTDOWN") == 0) {
         handle_packet_shutdown(seqno, content);
         return true;
-    } else if (command == "HTTPREGISTERURI") {
+    } else if (command.compare("HTTPREGISTERURI") == 0) {
         handle_packet_http_register(seqno, content);
         return true;
-    } else if (command == "HTTPRESPONSE") {
+    } else if (command.compare("HTTPRESPONSE") == 0) {
         handle_packet_http_response(seqno, content);
         return true;
-    } else if (command == "HTTPAUTHREQ") {
+    } else if (command.compare("HTTPAUTHREQ") == 0) {
         handle_packet_http_auth_request(seqno, content);
         return true;
-    } else if (command == "EVENTBUSREGISTER") {
+    } else if (command.compare("EVENTBUSREGISTER") == 0) {
         handle_packet_eventbus_register(seqno, content);
         return true;
-    } else if (command == "EVENTBUSPUBLISH") {
+    } else if (command.compare("EVENTBUSPUBLISH") == 0) {
         handle_packet_eventbus_publish(seqno, content);
         return true;
     }
