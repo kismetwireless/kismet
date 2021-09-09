@@ -132,12 +132,54 @@ protected:
     // Handle an error; override in child classes; called when an error causes a shutdown
     virtual void handle_error(const std::string& error) { }
 
-    // Wrap a protobuf'd packet in our network framing and send it, returning the sequence
-    // number
-    virtual unsigned int send_packet(std::shared_ptr<KismetExternal::Command> c);
+    // Wrap a protobuf'd packet in our network framing and send it, returning the sequence number
+    // Uses the legacy v0 protocol
+    unsigned int send_packet(std::shared_ptr<KismetExternal::Command> c);
 
-    // Central packet dispatch handler
+    // Wrap a protobuf packet in a v2 header and transmit it, returning the sequence number
+    template<class T>
+    unsigned int send_packet_v2(const std::string& command, uint32_t in_seqno, const T& content) {
+        if (stopped || cancelled) {
+            _MSG_DEBUG("Attempt to send {} on closed external interface", command);
+            return 0;
+        }
+
+        if (in_seqno == 0) {
+            kis_lock_guard<kis_mutex> lk(ext_mutex, "kei send_packet_v2");
+            if (++seqno == 0)
+                seqno = 1;
+            in_seqno = seqno;
+        }
+
+        // Get the serialized size of our message
+#if GOOGLE_PROTOBUF_VERSION >= 3006001
+        size_t content_sz = content.ByteSizeLong();
+#else
+        size_t content_sz = content.ByteSize();
+#endif
+
+        ssize_t frame_sz = sizeof(kismet_external_frame_v2_t) + content_sz;
+
+        char frame_buf[frame_sz];
+        auto frame = reinterpret_cast<kismet_external_frame_v2_t *>(frame_buf);
+
+        frame->signature = kis_hton32(KIS_EXTERNAL_PROTO_SIG);
+        frame->data_sz = kis_hton32(content_sz);
+        frame->v2_sentinel = KIS_EXTERNAL_V2_SIG;
+        frame->frame_version = 2;
+        strncpy(frame->command, command.c_str(), 16);
+        frame->seqno = kis_hton32(in_seqno);
+
+        content.SerializeToArray(frame->data, content_sz);
+
+        start_write(frame_buf, frame_sz);
+
+        return in_seqno;
+    }
+
+    // Central packet dispatch handler, legacy v0 handler
     virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c);
+    // Central packet dispatch handler, common layer and v2+ handler
     virtual bool dispatch_rx_packet(const nonstd::string_view& command, 
             uint32_t seqno, const nonstd::string_view& content);
 
@@ -189,6 +231,7 @@ protected:
 
     std::atomic<bool> ipc_running;
 
+    std::atomic<unsigned int> protocol_version;
 
     void start_ipc_read(std::shared_ptr<kis_external_interface> ref);
 
@@ -375,6 +418,9 @@ public:
 
             nonstd::string_view command(frame_v2->command, 16);
             nonstd::string_view content((const char *) frame_v2->data, data_sz);
+
+            // If we've gotten this far it's a valid newer protocol, switch to v2 mode
+            protocol_version = 2;
 
             // Dispatch the received command
             dispatch_rx_packet(command, seqno, content);
