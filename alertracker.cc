@@ -333,9 +333,6 @@ int alert_tracker::raise_alert(int in_ref, std::shared_ptr<kis_packet> in_pack,
 
     kis_unique_lock<kis_mutex> lock(alert_mutex, std::defer_lock, "alert_tracker raise_alert");
 
-    if (in_pack != nullptr)
-        in_pack->tag_vec.push_back("ALERT");
-
     lock.lock();
 
     std::map<int, shared_alert_def>::iterator aritr = alert_ref_map.find(in_ref);
@@ -344,6 +341,12 @@ int alert_tracker::raise_alert(int in_ref, std::shared_ptr<kis_packet> in_pack,
         return -1;
 
     shared_alert_def arec = aritr->second;
+
+    if (in_pack != nullptr) {
+        in_pack->tag_map["ALERT"] = true;
+        in_pack->tag_map[fmt::format("ALERT_{}", arec->get_header())] = true;
+    }
+
 
     if (check_times(arec) != 1)
         return 0;

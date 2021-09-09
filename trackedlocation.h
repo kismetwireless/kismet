@@ -187,10 +187,13 @@ public:
         return get_fix() >= 2;
     }
 
+    bool has_min_loc() { return min_loc != nullptr; }
     std::shared_ptr<kis_tracked_location_triplet> get_min_loc() { return min_loc; }
+    bool has_max_loc() { return max_loc != nullptr; }
     std::shared_ptr<kis_tracked_location_triplet> get_max_loc() { return max_loc; }
+    bool has_avg_loc() { return avg_loc != nullptr; }
     std::shared_ptr<kis_tracked_location_triplet> get_avg_loc() { return avg_loc; }
-
+    bool has_last_loc() { return last_loc != nullptr; }
     std::shared_ptr<kis_tracked_location_full> get_last_loc() { return last_loc; }
 
     time_t get_last_location_time() const {

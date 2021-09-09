@@ -187,6 +187,7 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
     int r;
 
     int matched_device = 0;
+    int num_device = 0;
 
     local_ticc2540_t *localticc2540 = (local_ticc2540_t *) caph->userdata;
 
@@ -205,12 +206,23 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     /* Look for interface-bus-dev */
     x = sscanf(interface, "ticc2540-%d-%d", &busno, &devno);
+
+    /* Look for interface-# */
+    if (x != 2) {
+        busno = -1;
+        x = sscanf(interface, "ticc2540-%d", &devno);
+
+        if (x != 1)
+            devno = -1;
+    }
+
     free(interface);
 
     /* If we don't have a valid busno/devno or malformed interface name */
-    if (x != -1 && x != 2) {
+    if (busno == -1 && devno == -1) {
         return 0;
     }
+
     pthread_mutex_lock(&(localticc2540->usb_mutex));
     libusb_devices_cnt = libusb_get_device_list(localticc2540->libusb_ctx, &libusb_devs);
 
@@ -235,13 +247,17 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
                     break;
                 }
             } else {
-                matched_device = 1;
-                busno = libusb_get_bus_number(libusb_devs[i]);
-                devno = libusb_get_device_address(libusb_devs[i]);
-                break;
+                if (num_device == devno) {
+                    busno = libusb_get_bus_number(libusb_devs[i]);
+                    devno = libusb_get_device_address(libusb_devs[i]);
+                    matched_device = 1;
+                    break;
+                }
+                num_device++;
             }
         }
     }
+
     libusb_free_device_list(libusb_devs, 1);
     pthread_mutex_unlock(&(localticc2540->usb_mutex));
 
@@ -470,6 +486,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     int r;
 
     int matched_device = 0;
+    int num_device = 0;
     char cap_if[32];
     
     ssize_t i;
@@ -496,10 +513,19 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     /* Look for interface-bus-dev */
     x = sscanf(interface, "ticc2540-%d-%d", &busno, &devno);
 
+    /* Look for interface-# */
+    if (x != 2) {
+        busno = -1;
+        x = sscanf(interface, "ticc2540-%d", &devno);
+
+        if (x != 1)
+            devno = -1;
+    }
+
     free(interface);
 
     /* If we don't have a valid busno/devno or malformed interface name */
-    if (x != -1 && x != 2) {
+    if (devno == -1 && busno == -1) {
         snprintf(msg, STATUS_MAX, "Malformed ticc2540 interface, expected 'ticc2540' or "
                 "'ticc2540-bus#-dev#'"); 
         return -1;
@@ -533,11 +559,15 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                     break;
                 }
             } else {
-                matched_device = 1;
-                busno = libusb_get_bus_number(libusb_devs[i]);
-                devno = libusb_get_device_address(libusb_devs[i]);
-                localticc2540->matched_dev = libusb_devs[i];
-                break;
+                if (num_device == devno) {
+                    matched_device = 1;
+                    busno = libusb_get_bus_number(libusb_devs[i]);
+                    devno = libusb_get_device_address(libusb_devs[i]);
+                    localticc2540->matched_dev = libusb_devs[i];
+                    break;
+                }
+
+                num_device++;
             }
         }
     }

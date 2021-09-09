@@ -1922,15 +1922,20 @@ dst_incoming_remote::~dst_incoming_remote() {
         handshake_thread.join();
 }
 
-bool dst_incoming_remote::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) { 
+bool dst_incoming_remote::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
+    return dispatch_rx_packet(c->command(), c->seqno(), c->content());
+}
+
+bool dst_incoming_remote::dispatch_rx_packet(const nonstd::string_view& command,
+        uint32_t seqno, const nonstd::string_view& content) {
     // Simple dispatch override, all we do is look for the new source
-    if (c->command() == "KDSNEWSOURCE") {
+    if (command == "KDSNEWSOURCE") {
         //_MSG_DEBUG("incoming remote got kds newsource");
-        handle_packet_newsource(c->seqno(), c->content());
+        handle_packet_newsource(seqno, content);
         return true;
     }
 
-    if (kis_external_interface::dispatch_rx_packet(c))
+    if (kis_external_interface::dispatch_rx_packet(command, seqno, content))
         return true;
 
     return false;
@@ -1951,10 +1956,11 @@ void dst_incoming_remote::kill() {
     close_external();
 }
 
-void dst_incoming_remote::handle_packet_newsource(uint32_t in_seqno, std::string in_content) {
+void dst_incoming_remote::handle_packet_newsource(uint32_t in_seqno, 
+        const nonstd::string_view in_content) {
     KismetDatasource::NewSource c;
 
-    if (!c.ParseFromString(in_content)) {
+    if (!c.ParseFromArray(in_content.data(), in_content.length())) {
         _MSG("Could not process incoming remote datasource announcement", MSGFLAG_ERROR);
         kill();
         return;

@@ -911,8 +911,7 @@ void cf_set_verbose(kis_capture_handler_t *caph, int verbosity);
 #define MSGFLAG_ALERT   KISMET_EXTERNAL__MSGBUS_MESSAGE__MESSAGE_TYPE__ALERT
 #define MSGFLAG_FATAL   KISMET_EXTERNAL__MSGBUS_MESSAGE__MESSAGE_TYPE__FATAL
 
-uint32_t adler32_partial_csum(uint8_t *in_buf, size_t in_len,
-        uint32_t *s1, uint32_t *s2);
+uint32_t adler32_append_csum(uint8_t *in_buf, size_t in_len, uint32_t cs);
 uint32_t adler32_csum(uint8_t *in_buf, size_t in_len);
 
 /* Wait for an announcement from a Kismet server, populate the connection info */

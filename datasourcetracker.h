@@ -485,12 +485,14 @@ public:
 
     // Override the dispatch commands to handle the new source
     virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) override;
+    virtual bool dispatch_rx_packet(const nonstd::string_view& command, 
+            uint32_t seqno, const nonstd::string_view& content) override;
 
     virtual void handle_msg_proxy(const std::string& msg, const int msgtype) override {
         _MSG(fmt::format("(Remote) - {}", msg), msgtype);
     }
 
-    virtual void handle_packet_newsource(uint32_t in_seqno, std::string in_packet);
+    virtual void handle_packet_newsource(uint32_t in_seqno, nonstd::string_view in_packet);
 
     virtual void kill();
 

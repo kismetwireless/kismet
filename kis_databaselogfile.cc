@@ -839,19 +839,21 @@ int kis_database_logfile::log_device(std::shared_ptr<kis_tracked_device_base> d)
             macstring.length(), SQLITE_TRANSIENT);
     sqlite3_bind_int(device_stmt, spos++, d->get_signal_data()->get_max_signal());
 
-    if (d->get_tracker_location() != NULL) {
+    if (d->has_location() && (d->get_location()->has_min_loc() &&
+                              d->get_location()->has_max_loc() &&
+                              d->get_location()->has_avg_loc())) {
         sqlite3_bind_double(device_stmt, spos++, 
-                d->get_location()->get_min_loc()->get_lat());
+                            d->get_location()->get_min_loc()->get_lat());
         sqlite3_bind_double(device_stmt, spos++,
-                d->get_location()->get_min_loc()->get_lon());
+                            d->get_location()->get_min_loc()->get_lon());
         sqlite3_bind_double(device_stmt, spos++,
-                d->get_location()->get_max_loc()->get_lat());
+                            d->get_location()->get_max_loc()->get_lat());
         sqlite3_bind_double(device_stmt, spos++,
-                d->get_location()->get_max_loc()->get_lon());
+                            d->get_location()->get_max_loc()->get_lon());
         sqlite3_bind_double(device_stmt, spos++,
-                d->get_location()->get_avg_loc()->get_lat());
+                            d->get_location()->get_avg_loc()->get_lat());
         sqlite3_bind_double(device_stmt, spos++,
-                d->get_location()->get_avg_loc()->get_lon());
+                            d->get_location()->get_avg_loc()->get_lon());
     } else {
         // Empty location
         sqlite3_bind_double(device_stmt, spos++, 0);
@@ -1014,11 +1016,11 @@ int kis_database_logfile::log_packet(std::shared_ptr<kis_packet> in_pack) {
         std::stringstream tagstream;
         bool space_needed = false;
 
-        for (auto tag : in_pack->tag_vec) {
+        for (auto tag : in_pack->tag_map) {
             if (space_needed)
                 tagstream << " ";
             space_needed = true;
-            tagstream << tag;
+            tagstream << tag.first;
         }
 
         auto str = tagstream.str();

@@ -55,37 +55,64 @@
 #include "protobuf_c/kismet.pb-c.h"
 #include "protobuf_c/datasource.pb-c.h"
 
-uint32_t adler32_partial_csum(uint8_t *in_buf, size_t in_len,
-        uint32_t *s1, uint32_t *s2) {
-	size_t i;
-	uint8_t *buf = in_buf;
-    uint32_t ls1 = *s1, ls2 = *s2;
+uint32_t adler32_append_csum(uint8_t *in_buf, size_t in_len, uint32_t cs) {
+    size_t i;
+    uint32_t ls1 = cs & 0xFFFF;
+    uint32_t ls2 = (cs >> 16) & 0xFFFF;
+
+    const uint32_t *buf = (const uint32_t *) in_buf;
 
     if (in_len < 4)
         return 0;
 
-    for (i = 0; i < (in_len - 4); i += 4) {
-        ls2 += 4 * (ls1 + buf[i]) + 3 * buf[i + 1] + 2 * buf[i+2] + buf[i + 3];
-        ls1 += (buf[i + 0] + buf[i + 1] + buf[i + 2] + buf[i + 3]); 
-	}
+    for (i = 0; i < (in_len - 4); i += 4, buf++) {
+        ls2 += (4 * (ls1 + ((*buf) & 0xFF))) + 
+            (3 * ((*buf >> 8) & 0xFF)) +
+            (2 * ((*buf >> 16) & 0xFF)) + 
+            ((*buf >> 24) & 0xFF);
 
-    for (; i < in_len; i++) {
-        ls1 += buf[i];
-        ls2 += ls1;
-	}
+        ls1 += ((*buf >> 24) & 0xFF) +
+            ((*buf >> 16) & 0xFF) +
+            ((*buf >> 8) & 0xFF) +
+            ((*buf) & 0xFF);
+    }
 
-    *s1 = ls1;
-    *s2 = ls2;
-	return (ls1 & 0xffff) + (ls2 << 16);
+    switch (in_len - i) {
+        case 4:
+            ls1 += ((*buf) & 0xFF);
+            ls2 += ls1;
+            ls1 += ((*buf >> 8) & 0xFF);
+            ls2 += ls1;
+            ls1 += ((*buf >> 16) & 0xFF);
+            ls2 += ls1;
+            ls1 += ((*buf >> 24) & 0xFF);
+            ls2 += ls1;
+            break;
+        case 3:
+            ls1 += ((*buf) & 0xFF);
+            ls2 += ls1;
+            ls1 += ((*buf >> 8) & 0xFF);
+            ls2 += ls1;
+            ls1 += ((*buf >> 16) & 0xFF);
+            ls2 += ls1;
+            break;
+        case 2:
+            ls1 += ((*buf) & 0xFF);
+            ls2 += ls1;
+            ls1 += ((*buf >> 8) & 0xFF);
+            ls2 += ls1;
+            break;
+        case 1:
+            ls1 += ((*buf) & 0xFF);
+            ls2 += ls1;
+            break;
+    }
+
+    return (ls1 & 0xffff) + (ls2 << 16);
 }
 
 uint32_t adler32_csum(uint8_t *in_buf, size_t in_len) {
-    uint32_t s1, s2;
-
-    s1 = 0;
-    s2 = 0;
-
-    return adler32_partial_csum(in_buf, in_len, &s1, &s2);
+    return adler32_append_csum(in_buf, in_len, 0);
 }
 
 int cf_parse_interface(char **ret_interface, char *definition) {

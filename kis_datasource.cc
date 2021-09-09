@@ -760,35 +760,40 @@ void kis_datasource::cancel_all_commands(std::string in_error) {
 }
 
 bool kis_datasource::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
+    return dispatch_rx_packet(c->command(), c->seqno(), c->content());
+}
+
+bool kis_datasource::dispatch_rx_packet(const nonstd::string_view& command,
+        uint32_t seqno, const nonstd::string_view& content) {
     // Handle all the default options first; ping, pong, message, etc are all
     // handled for us by the overhead of the KismetExternal protocol, we only need
     // to worry about our specific ones
-    if (kis_external_interface::dispatch_rx_packet(c))
+    if (kis_external_interface::dispatch_rx_packet(command, seqno, content))
         return true;
 
     // Handle all the KisDataSource sub-protocols
-    if (c->command() == "KDSCONFIGUREREPORT") {
-        handle_packet_configure_report(c->seqno(), c->content());
+    if (command == "KDSCONFIGUREREPORT") {
+        handle_packet_configure_report(seqno, content);
         return true;
-    } else if (c->command() == "KDSDATAREPORT") {
-        handle_packet_data_report(c->seqno(), c->content());
+    } else if (command == "KDSDATAREPORT") {
+        handle_packet_data_report(seqno, content);
         return true;
-    } else if (c->command() == "KDSERRORREPORT") {
-        handle_packet_error_report(c->seqno(), c->content());
+    } else if (command == "KDSERRORREPORT") {
+        handle_packet_error_report(seqno, content);
         return true;
-    } else if (c->command() == "KDSINTERFACESREPORT") {
+    } else if (command == "KDSINTERFACESREPORT") {
         quiet_errors = true;
-        handle_packet_interfaces_report(c->seqno(), c->content());
+        handle_packet_interfaces_report(seqno, content);
         return true;
-    } else if (c->command() == "KDSOPENSOURCEREPORT") {
-        handle_packet_opensource_report(c->seqno(), c->content());
+    } else if (command == "KDSOPENSOURCEREPORT") {
+        handle_packet_opensource_report(seqno, content);
         return true;
-    } else if (c->command() == "KDSPROBESOURCEREPORT") {
+    } else if (command == "KDSPROBESOURCEREPORT") {
         quiet_errors = true;
-        handle_packet_probesource_report(c->seqno(), c->content());
+        handle_packet_probesource_report(seqno, content);
         return true;
-    } else if (c->command() == "KDSWARNINGREPORT") {
-        handle_packet_warning_report(c->seqno(), c->content());
+    } else if (command == "KDSWARNINGREPORT") {
+        handle_packet_warning_report(seqno, content);
         return true;
     }
 
@@ -803,14 +808,14 @@ void kis_datasource::handle_msg_proxy(const std::string& msg, const int type) {
 }
 
 void kis_datasource::handle_packet_probesource_report(uint32_t in_seqno, 
-        const std::string& in_content) {
+        const nonstd::string_view& in_content) {
     kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, 
             "datasource handle_packet_probesource_report");
     lock.lock();
 
     KismetDatasource::ProbeSourceReport report;
 
-    if (!report.ParseFromString(in_content)) {
+    if (!report.ParseFromArray(in_content.data(), in_content.length())) {
         _MSG_ERROR("Kismet datasource driver '{}' could not parse the probe report received "
                 "from the capture tool, something is wrong with the capture binary '{}'",
                 source_builder->get_source_type(), source_ipc_binary->get());
@@ -861,7 +866,7 @@ void kis_datasource::handle_packet_probesource_report(uint32_t in_seqno,
 }
 
 void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno, 
-        const std::string& in_content) {
+        const nonstd::string_view& in_content) {
 
     kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, 
             "datasource handle_packet_opensource_report");
@@ -869,7 +874,7 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
 
     KismetDatasource::OpenSourceReport report;
 
-    if (!report.ParseFromString(in_content)) {
+    if (!report.ParseFromArray(in_content.data(), in_content.length())) {
         _MSG(std::string("Kismet datasource driver ") + get_source_builder()->get_source_type() + 
                 std::string(" could not parse the open report, something is wrong with "
                     "the remote capture tool"), MSGFLAG_ERROR);
@@ -1077,7 +1082,7 @@ void kis_datasource::handle_packet_opensource_report(uint32_t in_seqno,
 }
 
 void kis_datasource::handle_packet_interfaces_report(uint32_t in_seqno, 
-        const std::string& in_content) {
+        const nonstd::string_view& in_content) {
     kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource handle_packet_interfaces_report");
     lock.lock();
 
@@ -1085,7 +1090,7 @@ void kis_datasource::handle_packet_interfaces_report(uint32_t in_seqno,
 
     KismetDatasource::InterfacesReport report;
 
-    if (!report.ParseFromString(in_content)) {
+    if (!report.ParseFromArray(in_content.data(), in_content.length())) {
         _MSG(std::string("Kismet datasource driver ") + get_source_builder()->get_source_type() + 
                 std::string(" could not parse the interface report, something is wrong with "
                     "the remote capture tool"), MSGFLAG_ERROR);
@@ -1137,12 +1142,13 @@ void kis_datasource::handle_packet_interfaces_report(uint32_t in_seqno,
 
 }
 
-void kis_datasource::handle_packet_error_report(uint32_t in_seqno, const std::string& in_content) {
+void kis_datasource::handle_packet_error_report(uint32_t in_seqno, 
+        const nonstd::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource handle_packet_error_report");
 
     KismetDatasource::ErrorReport report;
 
-    if (!report.ParseFromString(in_content)) {
+    if (!report.ParseFromArray(in_content.data(), in_content.length())) {
         _MSG(std::string("Kismet datasource driver ") + get_source_builder()->get_source_type() + 
                 std::string(" could not parse the error report, something is wrong with "
                     "the remote capture tool"), MSGFLAG_ERROR);
@@ -1158,13 +1164,14 @@ void kis_datasource::handle_packet_error_report(uint32_t in_seqno, const std::st
     }
 }
 
-void kis_datasource::handle_packet_configure_report(uint32_t in_seqno, const std::string& in_content) {
+void kis_datasource::handle_packet_configure_report(uint32_t in_seqno, 
+        const nonstd::string_view& in_content) {
     kis_unique_lock<kis_mutex> lock(ext_mutex, std::defer_lock, "datasource handle_packet_configure_report");
     lock.lock();
 
     KismetDatasource::ConfigureReport report;
 
-    if (!report.ParseFromString(in_content)) {
+    if (!report.ParseFromArray(in_content.data(), in_content.length())) {
         _MSG(std::string("Kismet datasource driver ") + get_source_builder()->get_source_type() + 
                 std::string(" could not parse the configure report, something is wrong with "
                     "the remote capture tool"), MSGFLAG_ERROR);
@@ -1234,7 +1241,8 @@ void kis_datasource::handle_packet_configure_report(uint32_t in_seqno, const std
 
 }
 
-void kis_datasource::handle_packet_data_report(uint32_t in_seqno, const std::string& in_content) {
+void kis_datasource::handle_packet_data_report(uint32_t in_seqno, 
+        const nonstd::string_view& in_content) {
     // If we're paused, throw away this packet
     {
         kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource handle_packet_data_report");
@@ -1245,7 +1253,7 @@ void kis_datasource::handle_packet_data_report(uint32_t in_seqno, const std::str
 
     auto report = std::make_shared<KismetDatasource::DataReport>();
 
-    if (!report->ParseFromString(in_content)) {
+    if (!report->ParseFromArray(in_content.data(), in_content.length())) {
         _MSG(std::string("Kismet datasource driver ") + get_source_builder()->get_source_type() + 
                 std::string(" could not parse the data report, something is wrong with "
                     "the remote capture tool"), MSGFLAG_ERROR);
@@ -1368,12 +1376,13 @@ void kis_datasource::handle_rx_packet(std::shared_ptr<kis_packet> packet) {
     packetchain->process_packet(packet);
 }
 
-void kis_datasource::handle_packet_warning_report(uint32_t in_seqno, const std::string& in_content) {
+void kis_datasource::handle_packet_warning_report(uint32_t in_seqno, 
+        const nonstd::string_view& in_content) {
     kis_lock_guard<kis_mutex> lk(ext_mutex, "datasource handle_packet_warning_report");
 
     KismetDatasource::WarningReport report;
 
-    if (!report.ParseFromString(in_content)) {
+    if (!report.ParseFromArray(in_content.data(), in_content.length())) {
         _MSG(std::string("Kismet datasource driver ") + get_source_builder()->get_source_type() + 
                 std::string(" could not parse the warning report, something is wrong with "
                     "the remote capture tool"), MSGFLAG_ERROR);
