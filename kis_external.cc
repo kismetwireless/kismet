@@ -47,6 +47,7 @@ kis_external_interface::kis_external_interface() :
     ipc_in{Globalreg::globalreg->io},
     ipc_out{Globalreg::globalreg->io},
     ipc_running{false},
+    protocol_version{0},
     tcpsocket{Globalreg::globalreg->io},
     eventbus{Globalreg::fetch_mandatory_global_as<event_bus>()},
     http_session_id{0} {
@@ -693,31 +694,31 @@ bool kis_external_interface::dispatch_rx_packet(const nonstd::string_view& comma
         uint32_t seqno, const nonstd::string_view& content) {
     // Simple dispatcher; this should be called by child implementations who
     // add their own commands
-    if (command == "MESSAGE") {
+    if (command.compare("MESSAGE") == 0) {
         handle_packet_message(seqno, content);
         return true;
-    } else if (command == "PING") {
+    } else if (command.compare("PING") == 0) {
         handle_packet_ping(seqno, content);
         return true;
-    } else if (command == "PONG") {
+    } else if (command.compare("PONG") == 0) {
         handle_packet_pong(seqno, content);
         return true;
-    } else if (command == "SHUTDOWN") {
+    } else if (command.compare("SHUTDOWN") == 0) {
         handle_packet_shutdown(seqno, content);
         return true;
-    } else if (command == "HTTPREGISTERURI") {
+    } else if (command.compare("HTTPREGISTERURI") == 0) {
         handle_packet_http_register(seqno, content);
         return true;
-    } else if (command == "HTTPRESPONSE") {
+    } else if (command.compare("HTTPRESPONSE") == 0) {
         handle_packet_http_response(seqno, content);
         return true;
-    } else if (command == "HTTPAUTHREQ") {
+    } else if (command.compare("HTTPAUTHREQ") == 0) {
         handle_packet_http_auth_request(seqno, content);
         return true;
-    } else if (command == "EVENTBUSREGISTER") {
+    } else if (command.compare("EVENTBUSREGISTER") == 0) {
         handle_packet_eventbus_register(seqno, content);
         return true;
-    } else if (command == "EVENTBUSPUBLISH") {
+    } else if (command.compare("EVENTBUSPUBLISH") == 0) {
         handle_packet_eventbus_publish(seqno, content);
         return true;
     }
@@ -778,57 +779,71 @@ void kis_external_interface::handle_packet_shutdown(uint32_t in_seqno,
 }
 
 unsigned int kis_external_interface::send_ping() {
-    std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
+    if (protocol_version == 0) {
+        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
 
-    c->set_command("PING");
+        c->set_command("PING");
 
-    KismetExternal::Ping p;
-    c->set_content(p.SerializeAsString());
+        KismetExternal::Ping p;
+        c->set_content(p.SerializeAsString());
 
-    return send_packet(c);
+        return send_packet(c);
+    } else if (protocol_version == 2) {
+        return send_packet_v2("PING", 0, KismetExternal::Ping{});
+    }
+
+    return -1;
 }
 
 unsigned int kis_external_interface::send_pong(uint32_t ping_seqno) {
-    std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-
-    c->set_command("PONG");
-
     KismetExternal::Pong p;
     p.set_ping_seqno(ping_seqno);
 
-    c->set_content(p.SerializeAsString());
+    if (protocol_version == 0) {
+        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
+        c->set_command("PONG");
+        c->set_content(p.SerializeAsString());
 
-    return send_packet(c);
+        return send_packet(c);
+    } else if (protocol_version == 2) {
+        return send_packet_v2("PONG", 0, p);
+    }
+
+    return -1;
 }
 
 unsigned int kis_external_interface::send_shutdown(std::string reason) {
-    std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-
-    c->set_command("SHUTDOWN");
-
     KismetExternal::ExternalShutdown s;
     s.set_reason(reason);
 
-    c->set_content(s.SerializeAsString());
+    if (protocol_version == 0) {
+        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
+        c->set_command("SHUTDOWN");
+        c->set_content(s.SerializeAsString());
+        return send_packet(c);
+    } else if (protocol_version == 2) {
+        return send_packet_v2("SHUTDOWN", 0, s);
+    }
 
-    return send_packet(c);
+    return -1;
 }
 
 void kis_external_interface::proxy_event(std::shared_ptr<eventbus_event> evt) {
-    auto c = std::make_shared<KismetExternal::Command>();
-
-    c->set_command("EVENT");
-
     std::stringstream ss;
-
     json_adapter::pack(ss, evt);
-
     KismetEventBus::EventbusEvent ebe;
     ebe.set_event_json(ss.str());
 
-    c->set_content(ebe.SerializeAsString());
+    if (protocol_version == 0) {
+        auto c = std::make_shared<KismetExternal::Command>();
+        c->set_command("EVENT");
+        c->set_content(ebe.SerializeAsString());
+        send_packet(c);
+    } else if (protocol_version == 2) {
+        send_packet_v2("EVENT", 0, ebe);
+    }
 
-    send_packet(c);
+    return;
 }
 
 void kis_external_interface::handle_packet_eventbus_register(uint32_t in_seqno,
@@ -1006,10 +1021,6 @@ void kis_external_interface::handle_packet_http_auth_request(uint32_t in_seqno,
 
 unsigned int kis_external_interface::send_http_request(uint32_t in_http_sequence, std::string in_uri,
         std::string in_method, std::map<std::string, std::string> in_vardata) {
-    std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-
-    c->set_command("HTTPREQUEST");
-
     KismetExternalHttp::HttpRequest r;
     r.set_req_id(in_http_sequence);
     r.set_uri(in_uri);
@@ -1021,21 +1032,32 @@ unsigned int kis_external_interface::send_http_request(uint32_t in_http_sequence
         pd->set_content(pi.second);
     }
 
-    c->set_content(r.SerializeAsString());
+    if (protocol_version == 0) {
+        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
+        c->set_command("HTTPREQUEST");
+        c->set_content(r.SerializeAsString());
+        return send_packet(c);
+    } else if (protocol_version == 2) {
+        return send_packet_v2("HTTPREQUEST", 0, r);
+    }
 
-    return send_packet(c);
+    return -1;
 }
 
 unsigned int kis_external_interface::send_http_auth(std::string in_cookie) {
     std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
 
-    c->set_command("HTTPAUTH");
-
     KismetExternalHttp::HttpAuthToken a;
     a.set_token(in_cookie);
 
-    c->set_content(a.SerializeAsString());
+    if (protocol_version == 0) {
+        c->set_command("HTTPAUTH");
+        c->set_content(a.SerializeAsString());
+        return send_packet(c);
+    } else if (protocol_version == 2) {
+        return send_packet_v2("HTTPAUTH", 0, a);
+    }
 
-    return send_packet(c);
+    return -1;
 }
 

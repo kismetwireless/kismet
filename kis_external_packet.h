@@ -51,7 +51,7 @@ struct kismet_external_frame_v2 {
     uint32_t signature;
 
     /* Fixed v2 sentinel 0xABCD, taking the place of the original checksum */
-    uint16_t v2_sentinal;
+    uint16_t v2_sentinel;
     /* v2+ version code */
     uint16_t frame_version;
 
@@ -60,7 +60,7 @@ struct kismet_external_frame_v2 {
     uint32_t data_sz;
 
     /* Frame type (previously encoded in the external command) */
-    char command[16];
+    char command[32];
 
     /* Sequence number */
     uint32_t seqno;

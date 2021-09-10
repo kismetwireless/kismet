@@ -772,27 +772,27 @@ bool kis_datasource::dispatch_rx_packet(const nonstd::string_view& command,
         return true;
 
     // Handle all the KisDataSource sub-protocols
-    if (command == "KDSCONFIGUREREPORT") {
+    if (command.compare("KDSCONFIGUREREPORT") == 0) {
         handle_packet_configure_report(seqno, content);
         return true;
-    } else if (command == "KDSDATAREPORT") {
+    } else if (command.compare("KDSDATAREPORT") == 0) {
         handle_packet_data_report(seqno, content);
         return true;
-    } else if (command == "KDSERRORREPORT") {
+    } else if (command.compare("KDSERRORREPORT") == 0) {
         handle_packet_error_report(seqno, content);
         return true;
-    } else if (command == "KDSINTERFACESREPORT") {
+    } else if (command.compare("KDSINTERFACESREPORT") == 0) {
         quiet_errors = true;
         handle_packet_interfaces_report(seqno, content);
         return true;
-    } else if (command == "KDSOPENSOURCEREPORT") {
+    } else if (command.compare("KDSOPENSOURCEREPORT") == 0) {
         handle_packet_opensource_report(seqno, content);
         return true;
-    } else if (command == "KDSPROBESOURCEREPORT") {
+    } else if (command.compare("KDSPROBESOURCEREPORT") == 0) {
         quiet_errors = true;
         handle_packet_probesource_report(seqno, content);
         return true;
-    } else if (command == "KDSWARNINGREPORT") {
+    } else if (command.compare("KDSWARNINGREPORT") == 0) {
         handle_packet_warning_report(seqno, content);
         return true;
     }
@@ -1223,8 +1223,6 @@ void kis_datasource::handle_packet_configure_report(uint32_t in_seqno,
         auto cb = ci->second->configure_cb;
         auto transaction = ci->second->transaction;
 
-        // _MSG_DEBUG("ds configure report seq {} has cb transaction {} success {} msg {}", seq, transaction, report.success().success(), msg);
-
         command_ack_map.erase(ci);
 
         if (cb != nullptr) {
@@ -1459,16 +1457,19 @@ unsigned int kis_datasource::send_probe_source(std::string in_definition,
     std::shared_ptr<tracked_command> cmd;
     uint32_t seqno;
 
-    std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-
-    c->set_command("KDSPROBESOURCE");
-
     KismetDatasource::ProbeSource probe;
     probe.set_definition(in_definition);
 
-    c->set_content(probe.SerializeAsString());
-
-    seqno = send_packet(c);
+    if (protocol_version == 0) {
+        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
+        c->set_command("KDSPROBESOURCE");
+        c->set_content(probe.SerializeAsString());
+        seqno = send_packet(c);
+    } else if (protocol_version == 2) {
+        seqno = send_packet_v2("KDSPROBESOURCE", 0, probe);
+    } else {
+        seqno = 0;
+    }
 
     if (seqno == 0) {
         if (in_cb != NULL) {
@@ -1498,16 +1499,19 @@ unsigned int kis_datasource::send_open_source(std::string in_definition,
     std::shared_ptr<tracked_command> cmd;
     uint32_t seqno;
 
-    std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-
-    c->set_command("KDSOPENSOURCE");
-
     KismetDatasource::OpenSource o;
     o.set_definition(in_definition);
 
-    c->set_content(o.SerializeAsString());
-
-    seqno = send_packet(c);
+    if (protocol_version == 0) {
+        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
+        c->set_command("KDSOPENSOURCE");
+        c->set_content(o.SerializeAsString());
+        seqno = send_packet(c);
+    } else if (protocol_version == 2) {
+        seqno = send_packet_v2("KDSOPENSOURCE", 0, o);
+    } else {
+        seqno = 0;
+    }
 
     if (seqno == 0) {
         if (in_cb != NULL) {
@@ -1537,19 +1541,22 @@ unsigned int kis_datasource::send_configure_channel(std::string in_chan,
     std::shared_ptr<tracked_command> cmd;
     uint32_t seqno;
 
-    std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-
-    c->set_command("KDSCONFIGURE");
-
     KismetDatasource::Configure o;
     KismetDatasource::SubChanset *ch = new KismetDatasource::SubChanset();
 
     ch->set_channel(in_chan);
     o.set_allocated_channel(ch);
 
-    c->set_content(o.SerializeAsString());
-
-    seqno = send_packet(c);
+    if (protocol_version == 0) {
+        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
+        c->set_command("KDSCONFIGURE");
+        c->set_content(o.SerializeAsString());
+        seqno = send_packet(c);
+    } else if (protocol_version == 2) {
+        seqno = send_packet_v2("KDSCONFIGURE", 0, o);
+    } else {
+        seqno = 0;
+    }
 
     if (seqno == 0) {
         if (in_cb != NULL) {
@@ -1582,10 +1589,6 @@ unsigned int kis_datasource::send_configure_channel_hop(double in_rate,
 
     uint32_t seqno;
 
-    std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-
-    c->set_command("KDSCONFIGURE");
-
     KismetDatasource::Configure o;
     KismetDatasource::SubChanhop *ch = new KismetDatasource::SubChanhop();
 
@@ -1599,9 +1602,16 @@ unsigned int kis_datasource::send_configure_channel_hop(double in_rate,
 
     o.set_allocated_hopping(ch);
 
-    c->set_content(o.SerializeAsString());
-
-    seqno = send_packet(c);
+    if (protocol_version == 0) {
+        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
+        c->set_command("KDSCONFIGURE");
+        c->set_content(o.SerializeAsString());
+        seqno = send_packet(c);
+    } else if (protocol_version == 2) {
+        seqno = send_packet_v2("KDSCONFIGURE", 0, o);
+    } else {
+        seqno = 0;
+    }
 
     if (seqno == 0) {
         if (in_cb != NULL) {
@@ -1630,15 +1640,18 @@ unsigned int kis_datasource::send_list_interfaces(unsigned int in_transaction, l
     std::shared_ptr<tracked_command> cmd;
     uint32_t seqno;
 
-    std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
-
-    c->set_command("KDSLISTINTERFACES");
-
     KismetDatasource::ListInterfaces l;
 
-    c->set_content(l.SerializeAsString());
-
-    seqno = send_packet(c);
+    if (protocol_version == 0) {
+        std::shared_ptr<KismetExternal::Command> c(new KismetExternal::Command());
+        c->set_command("KDSLISTINTERFACES");
+        c->set_content(l.SerializeAsString());
+        seqno = send_packet(c);
+    } else if (protocol_version == 2) {
+        seqno = send_packet_v2("KDSLISTINTERFACES", 0, l);
+    } else {
+        seqno = 0;
+    }
 
     if (seqno == 0) {
         if (in_cb != NULL) {

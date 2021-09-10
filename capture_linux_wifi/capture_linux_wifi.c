@@ -970,8 +970,9 @@ int probe_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition
 
     free(interface);
 
-    if (ret < 0)
+    if (ret < 0) {
         return 0;
+    }
 
     if ((placeholder_len = cf_find_flag(&placeholder, "uuid", definition)) > 0) {
         *uuid = strndup(placeholder, placeholder_len);

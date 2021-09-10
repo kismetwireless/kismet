@@ -132,12 +132,54 @@ protected:
     // Handle an error; override in child classes; called when an error causes a shutdown
     virtual void handle_error(const std::string& error) { }
 
-    // Wrap a protobuf'd packet in our network framing and send it, returning the sequence
-    // number
-    virtual unsigned int send_packet(std::shared_ptr<KismetExternal::Command> c);
+    // Wrap a protobuf'd packet in our network framing and send it, returning the sequence number
+    // Uses the legacy v0 protocol
+    unsigned int send_packet(std::shared_ptr<KismetExternal::Command> c);
 
-    // Central packet dispatch handler
+    // Wrap a protobuf packet in a v2 header and transmit it, returning the sequence number
+    template<class T>
+    unsigned int send_packet_v2(const std::string& command, uint32_t in_seqno, const T& content) {
+        if (stopped || cancelled) {
+            _MSG_DEBUG("Attempt to send {} on closed external interface", command);
+            return 0;
+        }
+
+        if (in_seqno == 0) {
+            kis_lock_guard<kis_mutex> lk(ext_mutex, "kei send_packet_v2");
+            if (++seqno == 0)
+                seqno = 1;
+            in_seqno = seqno;
+        }
+
+        // Get the serialized size of our message
+#if GOOGLE_PROTOBUF_VERSION >= 3006001
+        size_t content_sz = content.ByteSizeLong();
+#else
+        size_t content_sz = content.ByteSize();
+#endif
+
+        ssize_t frame_sz = sizeof(kismet_external_frame_v2_t) + content_sz;
+
+        char frame_buf[frame_sz];
+        auto frame = reinterpret_cast<kismet_external_frame_v2_t *>(frame_buf);
+
+        frame->signature = kis_hton32(KIS_EXTERNAL_PROTO_SIG);
+        frame->data_sz = kis_hton32(content_sz);
+        frame->v2_sentinel = kis_hton16(KIS_EXTERNAL_V2_SIG);
+        frame->frame_version = kis_hton16(2);
+        strncpy(frame->command, command.c_str(), 31);
+        frame->seqno = kis_hton32(in_seqno);
+
+        content.SerializeToArray(frame->data, content_sz);
+
+        start_write(frame_buf, frame_sz);
+
+        return in_seqno;
+    }
+
+    // Central packet dispatch handler, legacy v0 handler
     virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c);
+    // Central packet dispatch handler, common layer and v2+ handler
     virtual bool dispatch_rx_packet(const nonstd::string_view& command, 
             uint32_t seqno, const nonstd::string_view& content);
 
@@ -189,6 +231,7 @@ protected:
 
     std::atomic<bool> ipc_running;
 
+    std::atomic<unsigned int> protocol_version;
 
     void start_ipc_read(std::shared_ptr<kis_external_interface> ref);
 
@@ -233,9 +276,9 @@ public:
     // Handle a buffer containing a network frame packet
     template<class BoostBuffer>
     int handle_packet(BoostBuffer& buffer) {
-        const kismet_external_frame_t *frame;
+        const kismet_external_frame_t *frame = nullptr;
+        const kismet_external_frame_v2_t *frame_v2 = nullptr;
         uint32_t frame_sz, data_sz;
-        // uint32_t data_checksum;
 
         // Consume everything in the buffer that we can
         while (1) {
@@ -247,6 +290,7 @@ public:
             }
 
             frame = boost::asio::buffer_cast<const kismet_external_frame_t *>(buffer.data());
+            frame_v2 = boost::asio::buffer_cast<const kismet_external_frame_v2_t *>(buffer.data());
 
             // Check the frame signature
             if (kis_ntoh32(frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
@@ -255,69 +299,94 @@ public:
                 return result_handle_packet_error;
             }
 
-            // Check the length
-            data_sz = kis_ntoh32(frame->data_sz);
-            frame_sz = data_sz + sizeof(kismet_external_frame);
+            // Detect and process the v2 frames
+            if (kis_ntoh16(frame_v2->v2_sentinel) == KIS_EXTERNAL_V2_SIG &&
+                    kis_ntoh16(frame_v2->frame_version) == 0x02) {
 
-            // If we've got a bogus length, blow it up.  Anything over 8k is assumed to be insane.
-            // The old legacy protocol used the same signature (oversight) so remote tcp streams
-            // can send us bogus info
-            if (frame_sz >= 8192) {
-                _MSG_ERROR("Kismet external interface got a command frame which is too large to "
-                        "be processed ({}); either the frame is malformed or you are connecting to "
-                        "a legacy Kismet remote capture drone; make sure you have updated to modern "
-                        "Kismet on all connected systems.", frame_sz);
-                trigger_error("Command frame too large for buffer");
-                return result_handle_packet_error;
-            }
+                data_sz = kis_ntoh32(frame_v2->data_sz);
+                frame_sz = data_sz + sizeof(kismet_external_frame_v2);
 
-            // If we don't have the whole buffer available, bail on this read
-            if (frame_sz > buffamt) {
-                return result_handle_packet_needbuf;
-            }
+                if (frame_sz >= 8192) {
+                    _MSG_ERROR("Kismet external interface got a command frame which is too large to "
+                            "be processed ({}); either the frame is malformed or you are connecting to "
+                            "a legacy Kismet remote capture drone; make sure you have updated to modern "
+                            "Kismet on all connected systems.", frame_sz);
+                    trigger_error("Command frame too large for buffer");
+                    return result_handle_packet_error;
+                }
 
-#if 0
-            // Try disabling rx checksum since TCP should handle this, might get us a little more speed
-            // for a relatively unneeded step since we validate w/in the rest of the handler
+                // If we don't have the whole buffer available, bail on this read
+                if (frame_sz > buffamt) {
+                    return result_handle_packet_needbuf;
+                }
 
-            // We have a complete payload, checksum 
-            data_checksum = adler32_checksum((const char *) frame->data, data_sz);
+                // No checksum anymore
 
-            if (data_checksum != kis_ntoh32(frame->data_checksum)) {
-                _MSG_ERROR("Kismet external interface got a command frame with an invalid checksum; "
-                        "either the frame is malformed, a network error occurred, or an unsupported tool "
-                        "has connected to the external interface API.");
-                trigger_error("command frame has invalid checksum");
-                return result_handle_packet_error;
-            }
-#endif
+                uint32_t seqno = kis_ntoh32(frame_v2->seqno);
 
-            // std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
+                nonstd::string_view command(frame_v2->command, 32);
 
-            // Re-use a cached command
-            if (cached_cmd == nullptr) {
-                cached_cmd = std::make_shared<KismetExternal::Command>();
+                auto trim_pos = command.find('\0');
+                if (trim_pos != command.npos)
+                    command.remove_suffix(command.size() - trim_pos);
+
+                nonstd::string_view content((const char *) frame_v2->data, data_sz);
+
+                // If we've gotten this far it's a valid newer protocol, switch to v2 mode
+                protocol_version = 2;
+
+                // Dispatch the received command
+                dispatch_rx_packet(command, seqno, content);
+
+                buffer.consume(frame_sz);
             } else {
-                cached_cmd->Clear();
-            }
+                // Check the length
+                data_sz = kis_ntoh32(frame->data_sz);
+                frame_sz = data_sz + sizeof(kismet_external_frame);
 
-            auto ai = new google::protobuf::io::ArrayInputStream(frame->data, data_sz);
+                // If we've got a bogus length, blow it up.  Anything over 8k is assumed to be insane.
+                if ((long int) frame_sz >= 8192) {
+                    _MSG_ERROR("Kismet external interface got a command frame which is too large to "
+                            "be processed ({}); either the frame is malformed or you are connecting to "
+                            "a legacy Kismet remote capture drone; make sure you have updated to modern "
+                            "Kismet on all connected systems.", frame_sz);
+                    trigger_error("Command frame too large for buffer");
+                    return result_handle_packet_error;
+                }
 
-            if (!cached_cmd->ParseFromZeroCopyStream(ai)) {
+                // If we don't have the whole buffer available, bail on this read
+                if (frame_sz > buffamt) {
+                    return result_handle_packet_needbuf;
+                }
+
+                // Process the data payload as a protobuf frame
+                // std::shared_ptr<KismetExternal::Command> cmd(new KismetExternal::Command());
+
+                // Re-use a cached command
+                if (cached_cmd == nullptr) {
+                    cached_cmd = std::make_shared<KismetExternal::Command>();
+                } else {
+                    cached_cmd->Clear();
+                }
+
+                auto ai = new google::protobuf::io::ArrayInputStream(frame->data, data_sz);
+
+                if (!cached_cmd->ParseFromZeroCopyStream(ai)) {
+                    delete(ai);
+                    _MSG_ERROR("Kismet external interface could not interpret the payload of the "
+                            "command frame; either the frame is malformed, a network error occurred, or "
+                            "an unsupported tool is connected to the external interface API");
+                    trigger_error("unparsable command frame");
+                    return result_handle_packet_error;
+                }
+
+                // Dispatch the received command
+                dispatch_rx_packet(cached_cmd);
+
                 delete(ai);
-                _MSG_ERROR("Kismet external interface could not interpret the payload of the "
-                        "command frame; either the frame is malformed, a network error occurred, or "
-                        "an unsupported tool is connected to the external interface API");
-                trigger_error("unparsable command frame");
-                return result_handle_packet_error;
+
+                buffer.consume(frame_sz);
             }
-
-            // Dispatch the received command
-            dispatch_rx_packet(cached_cmd);
-
-            delete(ai);
-
-            buffer.consume(frame_sz);
         }
 
         return result_handle_packet_ok;
@@ -338,6 +407,7 @@ public:
         }
 
         frame = boost::asio::buffer_cast<const kismet_external_frame_t *>(data);
+        frame_v2 = boost::asio::buffer_cast<const kismet_external_frame_v2_t *>(data);
 
         // Check the frame signature
         if (kis_ntoh32(frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
@@ -347,10 +417,8 @@ public:
         }
 
         // Detect and process the v2 frames
-        if (kis_ntoh16((frame->data_checksum >> 16) & 0xFFFF) == KIS_EXTERNAL_V2_SIG &&
-            kis_ntoh16((frame->data_checksum & 0xFFFF) == 0x02)) {
-
-            frame_v2 = boost::asio::buffer_cast<const kismet_external_frame_v2_t *>(data);
+        if (kis_ntoh16(frame_v2->v2_sentinel) == KIS_EXTERNAL_V2_SIG &&
+                kis_ntoh16(frame_v2->frame_version) == 0x02) {
 
             data_sz = kis_ntoh32(frame_v2->data_sz);
             frame_sz = data_sz + sizeof(kismet_external_frame_v2);
@@ -373,8 +441,16 @@ public:
 
             uint32_t seqno = kis_ntoh32(frame_v2->seqno);
 
-            nonstd::string_view command(frame_v2->command, 16);
+            nonstd::string_view command(frame_v2->command, 32);
+
+            auto trim_pos = command.find('\0');
+            if (trim_pos != command.npos)
+                command.remove_suffix(command.size() - trim_pos);
+
             nonstd::string_view content((const char *) frame_v2->data, data_sz);
+
+            // If we've gotten this far it's a valid newer protocol, switch to v2 mode
+            protocol_version = 2;
 
             // Dispatch the received command
             dispatch_rx_packet(command, seqno, content);

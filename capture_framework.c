@@ -1482,85 +1482,36 @@ int cf_handler_launch_hopping_thread(kis_capture_handler_t *caph) {
     return 1;
 }
 
-int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, size_t len) {
+/* Common dispatch layer across v0 and v2 frames */
+int cf_dispatch_rx_content(kis_capture_handler_t *caph, const char *command, 
+        uint32_t seqno, const uint8_t *data, size_t packet_sz) {
+    int cbret = -1;
     char msgstr[STATUS_MAX];
     size_t i;
-
-    kismet_external_frame_t *external_frame;
-
-    /* Incoming size */
-    uint32_t packet_sz;
-
-    /* Incoming checksum */
-    uint32_t data_checksum;
-
-    /* Calculated checksum */
-    uint32_t calc_checksum;
-
-    /* Callback ret */
-    int cbret = -1;
-
-    /* Kismet command */
-    KismetExternal__Command *kds_cmd;
-
-    if (len < sizeof(kismet_external_frame_t)) {
-        fprintf(stderr, "DEBUG: runt frame\n");
-        return -1;
-    }
-
-    external_frame = (kismet_external_frame_t *) buffer;
-
-    /* Check the signature */
-    if (ntohl(external_frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
-        fprintf(stderr, "FATAL: Invalid frame header received\n");
-        return -1;
-    }
-
-    /* If the signature passes, see if we can read the whole frame */
-    packet_sz = ntohl(external_frame->data_sz);
-
-    /* Checksum it */
-    calc_checksum = adler32_csum(external_frame->data, packet_sz);
-    data_checksum = ntohl(external_frame->data_checksum);
-
-    if (calc_checksum != data_checksum) {
-        fprintf(stderr, "FATAL:  Invalid frame received, checksum does not match\n");
-        return -1;
-    }
-
-    /* Unpack the protbuf */
-    kds_cmd = kismet_external__command__unpack(NULL, packet_sz, external_frame->data);
-
-    if (kds_cmd == NULL) {
-        fprintf(stderr, "FATAL:  Invalid frame received, unable to unpack command\n");
-        return -1;
-    }
-
-    /* fprintf(stderr, "DEBUG - %u got cmd %s\n", getpid(), kds_cmd->command); */
 
     pthread_mutex_lock(&(caph->handler_lock));
 
     /* Split into commands and handle them */
-    if (strcasecmp(kds_cmd->command, "PING") == 0) {
+    if (strncasecmp(command, "PING", 32) == 0) {
         caph->last_ping = time(NULL);
-        cf_send_pong(caph, kds_cmd->seqno);
+        cf_send_pong(caph, seqno);
         cbret = 1;
         goto finish;
-    } else if (strcasecmp(kds_cmd->command, "PONG") == 0) {
+    } else if (strncasecmp(command, "PONG", 32) == 0) {
         cbret = 1;
         goto finish;
-    } else if (strcasecmp(kds_cmd->command, "KDSLISTINTERFACES") == 0) {
+    } else if (strncasecmp(command, "KDSLISTINTERFACES", 32) == 0) {
         if (caph->listdevices_cb == NULL) {
             if (caph->verbose)
                 fprintf(stderr, "ERROR: Source does not support listing datasources.\n");
 
-            cf_send_listresp(caph, kds_cmd->seqno, true, "", NULL, 0);
+            cf_send_listresp(caph, seqno, true, "", NULL, 0);
             cbret = -1;
             goto finish;
         } else {
             cf_params_list_interface_t **interfaces = NULL;
             msgstr[0] = 0;
-            cbret = (*(caph->listdevices_cb))(caph, kds_cmd->seqno, msgstr, &interfaces);
+            cbret = (*(caph->listdevices_cb))(caph, seqno, msgstr, &interfaces);
 
             if (caph->verbose && strlen(msgstr) > 0) {
                 if (cbret >= 0)
@@ -1569,7 +1520,7 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
                     fprintf(stderr, "ERROR: %s\n", msgstr);
             }
 
-            cf_send_listresp(caph, kds_cmd->seqno, cbret >= 0, msgstr, 
+            cf_send_listresp(caph, seqno, cbret >= 0, msgstr, 
                     interfaces, cbret < 0 ? 0 : cbret);
 
             if (cbret > 0) {
@@ -1593,13 +1544,12 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
             cf_handler_spindown(caph);
             goto finish;
         }
-    } else if (strcasecmp(kds_cmd->command, "KDSPROBESOURCE") == 0) {
+    } else if (strncasecmp(command, "KDSPROBESOURCE", 32) == 0) {
         if (caph->probe_cb == NULL) {
             if (caph->verbose)
                 fprintf(stderr, "ERROR:  Source does not support automatic probing.\n");
             pthread_mutex_unlock(&(caph->handler_lock));
-            cf_send_proberesp(caph, kds_cmd->seqno,
-                    false, "Source does not support probing", NULL, NULL);
+            cf_send_proberesp(caph, seqno, false, "Source does not support probing", NULL, NULL);
             cbret = -1;
             goto finish;
         } else {
@@ -1611,8 +1561,7 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
             char *uuid = NULL;
 
             /* Unpack the protbuf */
-            probe_cmd = kismet_datasource__probe_source__unpack(NULL, kds_cmd->content.len, 
-                    kds_cmd->content.data);
+            probe_cmd = kismet_datasource__probe_source__unpack(NULL, packet_sz, data);
 
             if (probe_cmd == NULL) {
                 fprintf(stderr, "FATAL:  Invalid frame received, unable to unpack "
@@ -1622,12 +1571,10 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
             }
             
             msgstr[0] = 0;
-            cbret = (*(caph->probe_cb))(caph,
-                    kds_cmd->seqno, probe_cmd->definition,
-                    msgstr, &uuid, kds_cmd, &interfaceparams, &spectrumparams);
+            cbret = (*(caph->probe_cb))(caph, seqno, probe_cmd->definition,
+                    msgstr, &uuid, NULL, &interfaceparams, &spectrumparams);
 
-            cf_send_proberesp(caph, kds_cmd->seqno,
-                    cbret < 0 ? 0 : cbret, msgstr, interfaceparams, spectrumparams);
+            cf_send_proberesp(caph, seqno, cbret < 0 ? 0 : cbret, msgstr, interfaceparams, spectrumparams);
 
             kismet_datasource__probe_source__free_unpacked(probe_cmd, NULL);
 
@@ -1645,13 +1592,13 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
 
             goto finish;
         }
-    } else if (strcasecmp(kds_cmd->command, "KDSOPENSOURCE") == 0) {
+    } else if (strncasecmp(command, "KDSOPENSOURCE", 32) == 0) {
         if (caph->open_cb == NULL) {
             if (caph->verbose)
                 fprintf(stderr, "ERROR: Source cannot be opened (no open function)\n");
 
             pthread_mutex_unlock(&(caph->handler_lock));
-            cf_send_openresp(caph, kds_cmd->seqno,
+            cf_send_openresp(caph, seqno,
                     false, "source cannot be opened", 0, NULL, NULL, NULL);
             cbret = -1;
         } else {
@@ -1665,8 +1612,7 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
             char *uuid = NULL;
 
             /* Unpack the protbuf */
-            open_cmd = kismet_datasource__open_source__unpack(NULL, kds_cmd->content.len, 
-                    kds_cmd->content.data);
+            open_cmd = kismet_datasource__open_source__unpack(NULL, packet_sz, data);
 
             if (open_cmd == NULL) {
                 fprintf(stderr, "FATAL:  Invalid frame received, unable to unpack "
@@ -1677,8 +1623,8 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
             
             msgstr[0] = 0;
             cbret = (*(caph->open_cb))(caph,
-                    kds_cmd->seqno, open_cmd->definition,
-                    msgstr, &dlt, &uuid, kds_cmd,
+                    seqno, open_cmd->definition,
+                    msgstr, &dlt, &uuid, NULL,
                     &interfaceparams, &spectrumparams);
 
             if (caph->verbose && strlen(msgstr) > 0) {
@@ -1688,7 +1634,7 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
                     fprintf(stderr, "ERROR: %s\n", msgstr);
             }
 
-            cf_send_openresp(caph, kds_cmd->seqno,
+            cf_send_openresp(caph, seqno,
                     cbret < 0 ? 0 : cbret, msgstr, dlt, uuid, interfaceparams,
                     spectrumparams);
 
@@ -1715,7 +1661,7 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
 
             goto finish;
         }
-    } else if (strcasecmp(kds_cmd->command, "KDSCONFIGURE") == 0) {
+    } else if (strncasecmp(command, "KDSCONFIGURE", 32) == 0) {
         KismetDatasource__Configure *conf_cmd;
 
         double chanhop_rate = 0;
@@ -1726,8 +1672,7 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
         void *translate_chan = NULL;
 
         /* Unpack the protbuf */
-        conf_cmd = kismet_datasource__configure__unpack(NULL, kds_cmd->content.len, 
-                kds_cmd->content.data);
+        conf_cmd = kismet_datasource__configure__unpack(NULL, packet_sz, data);
 
         if (conf_cmd == NULL) {
             fprintf(stderr, "FATAL:  Invalid frame received, unable to unpack KDSCONFIGURE command\n");
@@ -1742,8 +1687,7 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
                     fprintf(stderr, "ERROR: Source does not support channel setting\n");
 
                 pthread_mutex_unlock(&(caph->handler_lock));
-                cf_send_configresp(caph, kds_cmd->seqno,
-                        0, "Source does not support setting channel", NULL);
+                cf_send_configresp(caph, seqno, 0, "Source does not support setting channel", NULL);
                 cbret = 0;
 
                 kismet_datasource__configure__free_unpacked(conf_cmd, NULL);
@@ -1761,9 +1705,7 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
                 }
 
                 msgstr[0] = 0;
-                cbret = (*(caph->chancontrol_cb))(caph, kds_cmd->seqno, translate_chan, msgstr);
-
-                fprintf(stderr, "DEBUG - Channel set %d\n", cbret);
+                cbret = (*(caph->chancontrol_cb))(caph, seqno, translate_chan, msgstr);
 
                 if (caph->verbose && strlen(msgstr) > 0) {
                     if (cbret >= 0)
@@ -1777,12 +1719,10 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
                     if (caph->channel != NULL)
                         free(caph->channel);
                     caph->channel = strdup(conf_cmd->channel->channel);
-                } else {
-                    fprintf(stderr, "DEBUG - channel set ret %d\n", cbret);
                 }
 
                 /* Send a response based on the channel set success */
-                cf_send_configresp(caph, kds_cmd->seqno, cbret >= 0, msgstr, NULL);
+                cf_send_configresp(caph, seqno, cbret >= 0, msgstr, NULL);
 
                 /* Free our channel copies */
                 if (caph->chanfree_cb != NULL)
@@ -1796,15 +1736,12 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
             }
 
         } else if (conf_cmd->hopping != NULL) {
-            /* fprintf(stderr, "DEBUG - configuring hopping\n"); */
-
             /* Otherwise process hopping */
             if (conf_cmd->hopping->n_channels == 0) {
                 if (caph->verbose)
                     fprintf(stderr, "ERROR:  No channels provided in hopping configuration.\n");
 
-                cf_send_configresp(caph, kds_cmd->seqno, 0, 
-                        "No channels in hopping configuration", NULL);
+                cf_send_configresp(caph, seqno, 0, "No channels in hopping configuration", NULL);
                 cbret = -1;
 
                 kismet_datasource__configure__free_unpacked(conf_cmd, NULL);
@@ -1816,8 +1753,7 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
                 if (caph->verbose)
                     fprintf(stderr, "ERROR:  Source does not support setting channels\n");
 
-                cf_send_configresp(caph, kds_cmd->seqno, 0, 
-                        "Source does not support setting channel", NULL);
+                cf_send_configresp(caph, seqno, 0, "Source does not support setting channel", NULL);
                 cbret = -1;
 
                 kismet_datasource__configure__free_unpacked(conf_cmd, NULL);
@@ -1877,7 +1813,7 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
              * dynamically allocated out of the buffer with cf_get_CHANHOP, as
              * we're now using them for keeping the channel record in the
              * caph */
-            cf_send_configresp(caph, kds_cmd->seqno, 1, NULL, NULL);
+            cf_send_configresp(caph, seqno, 1, NULL, NULL);
             cbret = 1;
 
             kismet_datasource__configure__free_unpacked(conf_cmd, NULL);
@@ -1891,21 +1827,86 @@ int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, siz
          * frame */
         if (caph->unknown_cb != NULL) {
             cbret = 
-                (*(caph->unknown_cb))(caph, kds_cmd->seqno, kds_cmd);
+                (*(caph->unknown_cb))(caph, seqno, command, (const char *) data, packet_sz);
         }
 
         if (cbret < 0) {
             pthread_mutex_unlock(&(caph->handler_lock));
-            cf_send_proberesp(caph, kds_cmd->seqno,
-                    false, "Unsupported request", NULL, NULL);
+            cf_send_proberesp(caph, seqno, false, "Unsupported request", NULL, NULL);
+            return 0;
         }
     }
     
 finish:
     pthread_mutex_unlock(&caph->handler_lock);
-    kismet_external__command__free_unpacked(kds_cmd, NULL);
 
     return cbret;
+}
+
+int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, size_t len) {
+    kismet_external_frame_t *external_frame;
+    kismet_external_frame_v2_t *external_frame_v2;
+
+    /* Incoming size */
+    uint32_t packet_sz;
+
+    /* Incoming seqno */
+    uint32_t seqno;
+
+    /* Legacy v0 command header */
+    KismetExternal__Command *kds_cmd;
+
+    int ret;
+
+    if (len < sizeof(kismet_external_frame_t)) {
+        fprintf(stderr, "DEBUG: runt frame\n");
+        return -1;
+    }
+
+    external_frame = (kismet_external_frame_t *) buffer;
+    external_frame_v2 = (kismet_external_frame_v2_t *) buffer;
+
+    /* Check the signature */
+    if (ntohl(external_frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
+        fprintf(stderr, "FATAL: Invalid frame header received\n");
+        return -1;
+    }
+
+    /* If the signature passes, see if we can read the whole frame */
+    packet_sz = ntohl(external_frame->data_sz);
+
+    if (ntohs(external_frame_v2->v2_sentinel) == KIS_EXTERNAL_V2_SIG &&
+            ntohs(external_frame_v2->frame_version) == 0x02) {
+
+        if (len < packet_sz + sizeof(kismet_external_frame_v2_t)) {
+            fprintf(stderr, "FATAL: Runt v2 packet\n");
+            return -1;
+        }
+
+        seqno = ntohl(external_frame_v2->seqno);
+
+        return cf_dispatch_rx_content(caph, external_frame_v2->command, seqno,
+                external_frame_v2->data, packet_sz);
+    } else {
+        if (len < packet_sz + sizeof(kismet_external_frame_t)) {
+            fprintf(stderr, "FATAL: Runt v0 packet\n");
+            return -1;
+        }
+
+        kds_cmd = kismet_external__command__unpack(NULL, packet_sz, external_frame->data);
+
+        if (kds_cmd == NULL) {
+            fprintf(stderr, "FATAL:  Invalid frame received, unable to unpack v0 command\n");
+            return -1;
+        }
+
+        ret = cf_dispatch_rx_content(caph, kds_cmd->command, kds_cmd->seqno,
+                kds_cmd->content.data, kds_cmd->content.len);
+
+        kismet_external__command__free_unpacked(kds_cmd, NULL);
+
+        return ret;
+    }
 }
 
 
@@ -1916,6 +1917,7 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
     uint8_t *frame_buf;
 
     kismet_external_frame_t *external_frame;
+    kismet_external_frame_v2_t *external_frame_v2;
 
     /* Incoming size */
     uint32_t packet_sz;
@@ -1936,6 +1938,7 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
     }
 
     external_frame = (kismet_external_frame_t *) frame_buf;
+    external_frame_v2 = (kismet_external_frame_v2_t *) frame_buf;
 
     /* Check the signature */
     if (ntohl(external_frame->signature) != KIS_EXTERNAL_PROTO_SIG) {
@@ -1944,9 +1947,15 @@ int cf_handle_rb_rx_data(kis_capture_handler_t *caph) {
         return -1;
     }
 
-    /* If the signature passes, see if we can read the whole frame */
-    packet_sz = ntohl(external_frame->data_sz);
-    total_sz = packet_sz + sizeof(kismet_external_frame_t);
+    packet_sz = ntohl(external_frame_v2->data_sz);
+
+    /* Check for a v2 frame */
+    if (ntohs(external_frame_v2->v2_sentinel) == KIS_EXTERNAL_V2_SIG &&
+            ntohs(external_frame_v2->frame_version) == 0x02) {
+        total_sz = packet_sz + sizeof(kismet_external_frame_v2_t);
+    } else {
+        total_sz = packet_sz + sizeof(kismet_external_frame_t);
+    }
 
     if (total_sz >= kis_simple_ringbuf_size(caph->in_ringbuf)) {
         kis_simple_ringbuf_peek_free(caph->in_ringbuf, frame_buf);
@@ -2633,115 +2642,101 @@ int cf_send_raw_bytes(kis_capture_handler_t *caph, uint8_t *data, size_t len) {
     return -1;
 }
 
-int cf_send_rb_packet(kis_capture_handler_t *caph, KismetExternal__Command *cmd,
+int cf_send_rb_packet(kis_capture_handler_t *caph, const char *command, uint32_t seqno,
         uint8_t *data, size_t len) {
+
     /* Frame we'll be sending */
-    kismet_external_frame_t *frame;
+    kismet_external_frame_v2_t *frame;
     /* Size of serialized command data */
-    size_t data_sz, rs_sz;
+    size_t rs_sz;
     /* Buffer holding all of it */
     uint8_t *send_buffer;
-    /* Calculated checksum */
-    uint32_t calc_checksum;
-
-    data_sz = kismet_external__command__get_packed_size(cmd);
 
     /* Directly inject into the ringbuffer with a zero-copy */
 
     pthread_mutex_lock(&(caph->out_ringbuf_lock));
 
     rs_sz = kis_simple_ringbuf_reserve(caph->out_ringbuf, (void **) &send_buffer, 
-            data_sz + sizeof(kismet_external_frame_t));
+            len + sizeof(kismet_external_frame_v2_t));
 
-    if (rs_sz != data_sz + sizeof(kismet_external_frame_t)) {
-        free(cmd->command);
+    if (rs_sz != len + sizeof(kismet_external_frame_v2_t)) {
+        fprintf(stderr, "DEBUG - insufficient size in outgoing buffer for %lu\n", len);
         free(data);
         pthread_mutex_unlock(&(caph->out_ringbuf_lock));
         return 0;
     }
 
     /* Map to the tx frame */
-    frame = (kismet_external_frame_t *) send_buffer;
+    frame = (kismet_external_frame_v2_t *) send_buffer;
 
     /* Set the signature and data size */
     frame->signature = htonl(KIS_EXTERNAL_PROTO_SIG);
-    frame->data_sz = htonl(data_sz);
+    frame->data_sz = htonl(len);
 
-    /* serialize into the data payload of the frame */
-    kismet_external__command__pack(cmd, frame->data);
+    frame->v2_sentinel = htons(KIS_EXTERNAL_V2_SIG);
+    frame->frame_version = htons(2);
 
-    /* Checksum the data payload */
-    calc_checksum = adler32_csum(frame->data, data_sz);
+    frame->seqno = htonl(seqno);
 
-    frame->data_checksum = htonl(calc_checksum);
+    strncpy(frame->command, command, 32);
+
+    memcpy(frame->data, data, len);
 
     kis_simple_ringbuf_commit(caph->out_ringbuf, send_buffer, rs_sz);
 
     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
 
-    free(cmd->command);
     free(data);
 
     return rs_sz;
 }
 
 #ifdef HAVE_LIBWEBSOCKETS
-int cf_send_ws_packet(kis_capture_handler_t *caph, KismetExternal__Command *cmd,
+int cf_send_ws_packet(kis_capture_handler_t *caph, const char *command, uint32_t seqno,
         uint8_t *data, size_t len) {
     /* Frame we'll be sending */
-    kismet_external_frame_t *frame;
-    /* Size of serialized command data */
-    size_t data_sz;
+    kismet_external_frame_v2_t *frame;
     /* message buffer */
     struct cf_ws_msg wsmsg;
-    /* Calculated checksum */
-    uint32_t calc_checksum;
 
     int n;
-
-    data_sz = kismet_external__command__get_packed_size(cmd);
 
     pthread_mutex_lock(&caph->out_ringbuf_lock);
 
     n = lws_ring_get_count_free_elements(caph->lwsring);
     if (n == 0) {
-        free(cmd->command);
         free(data);
         pthread_mutex_unlock(&caph->out_ringbuf_lock);
         return 0;
     }
 
-    wsmsg.payload = (char *) malloc(LWS_PRE + data_sz + sizeof(kismet_external_frame_t));
+    wsmsg.payload = (char *) malloc(LWS_PRE + len + sizeof(kismet_external_frame_v2_t));
     if (wsmsg.payload == NULL) {
-        free(cmd->command);
         free(data);
         fprintf(stderr, "FATAL: Failed to allocate ws buffer\n");
         pthread_mutex_unlock(&caph->out_ringbuf_lock);
         return -1;
     }
 
-    // fprintf(stderr, "DEBUG - queuing ws %s\n", cmd->command);
-
     /* Map to the tx frame */
-    frame = (kismet_external_frame_t *) (wsmsg.payload + LWS_PRE);
+    frame = (kismet_external_frame_v2_t *) (wsmsg.payload + LWS_PRE);
 
     /* Set the signature and data size */
     frame->signature = htonl(KIS_EXTERNAL_PROTO_SIG);
-    frame->data_sz = htonl(data_sz);
+    frame->data_sz = htonl(len);
 
-    /* serialize into the data payload of the frame */
-    kismet_external__command__pack(cmd, frame->data);
+    frame->v2_sentinel = htons(KIS_EXTERNAL_V2_SIG);
+    frame->frame_version = htons(2);
 
-    /* Checksum the data payload */
-    calc_checksum = adler32_csum(frame->data, data_sz);
+    frame->seqno = htonl(seqno);
+    strncpy(frame->command, command, 32);
 
-    frame->data_checksum = htonl(calc_checksum);
+    memcpy(frame->data, data, len);
 
-    wsmsg.len = data_sz + sizeof(kismet_external_frame_t);
+    wsmsg.len = len + sizeof(kismet_external_frame_v2_t);
 
     n = (int) lws_ring_insert(caph->lwsring, &wsmsg, 1);
     if (n != 1) {
-        free(cmd->command);
         free(data);
         fprintf(stderr, "FATAL:  Failed to queue ws message\n");
         pthread_mutex_unlock(&caph->out_ringbuf_lock);
@@ -2749,7 +2744,6 @@ int cf_send_ws_packet(kis_capture_handler_t *caph, KismetExternal__Command *cmd,
         return -1;
     }
 
-    free(cmd->command);
     free(data);
 
     pthread_mutex_unlock(&(caph->out_ringbuf_lock));
@@ -2766,9 +2760,6 @@ int cf_send_ws_packet(kis_capture_handler_t *caph, KismetExternal__Command *cmd,
 
 int cf_send_packet(kis_capture_handler_t *caph, const char *packtype, uint8_t *data, size_t len) {
     uint32_t seqno;
-    KismetExternal__Command cmd;
-
-    kismet_external__command__init(&cmd);
 
     /* Lock the handler and get the next sequence number */
     pthread_mutex_lock(&(caph->handler_lock));
@@ -2777,16 +2768,11 @@ int cf_send_packet(kis_capture_handler_t *caph, const char *packtype, uint8_t *d
     seqno = caph->seqno;
     pthread_mutex_unlock(&(caph->handler_lock));
 
-    cmd.seqno = seqno;
-    cmd.command = strdup(packtype);
-    cmd.content.data = data;
-    cmd.content.len = len;
-
     if (caph->use_tcp || caph->use_ipc) {
-        return cf_send_rb_packet(caph, &cmd, data, len);
+        return cf_send_rb_packet(caph, packtype, seqno, data, len);
 #ifdef HAVE_LIBWEBSOCKETS
     } else if (caph->use_ws) {
-        return cf_send_ws_packet(caph, &cmd, data, len);
+        return cf_send_ws_packet(caph, packtype, seqno, data, len);
 #endif
     } else {
         fprintf(stderr, "ERROR:  cf_send_packet with unknown connection type\n");
@@ -3226,6 +3212,12 @@ int cf_send_data(kis_capture_handler_t *caph,
         KismetDatasource__SubGps *kv_gps,
         struct timeval ts, uint32_t dlt, uint32_t packet_sz, uint8_t *pack) {
 
+    kismet_external_frame_v2_t *frame;
+    size_t rs_sz;
+    uint8_t *send_buffer;
+    size_t buf_len = 0;
+    uint32_t seqno;
+
     KismetDatasource__DataReport kedata;
     KismetDatasource__SubPacket kepkt;
     KismetDatasource__SubGps kegps;
@@ -3272,25 +3264,83 @@ int cf_send_data(kis_capture_handler_t *caph,
         kedata.packet = &kepkt;
     }
 
-    uint8_t *buf;
-    size_t buf_len;
+    if (caph->use_tcp || caph->use_ipc) {
+        /* Shortcut internal state tests to use an optimized streaming method to write to 
+         * the tcp/ipc ringbuffer using a protobuf_c buffer writer.
+         * This is a bunch of code duplication but it's important enough that we get the
+         * maximum speed here */
 
-    buf_len = kismet_datasource__data_report__get_packed_size(&kedata);
-    buf = (uint8_t *) malloc(buf_len);
+        /* Lock the handler and get the next sequence number */
+        pthread_mutex_lock(&(caph->handler_lock));
+        if (++caph->seqno == 0)
+            caph->seqno = 1;
+        seqno = caph->seqno;
+        pthread_mutex_unlock(&(caph->handler_lock));
 
-    if (buf == NULL) {
-        return -1;
+        /* Reserve the buffer space and assemble the packet header just like cf_rb_send_packet */
+        pthread_mutex_lock(&(caph->out_ringbuf_lock));
+
+        buf_len = kismet_datasource__data_report__get_packed_size(&kedata);
+
+        rs_sz = kis_simple_ringbuf_reserve(caph->out_ringbuf, (void **) &send_buffer, 
+                buf_len + sizeof(kismet_external_frame_v2_t));
+
+        if (rs_sz != buf_len + sizeof(kismet_external_frame_v2_t)) {
+            fprintf(stderr, "DEBUG - insufficient size in outgoing buffer for %lu\n", buf_len);
+            pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+            return 0;
+        }
+
+        /* Map to the tx frame */
+        frame = (kismet_external_frame_v2_t *) send_buffer;
+
+        /* Set the signature and data size */
+        frame->signature = htonl(KIS_EXTERNAL_PROTO_SIG);
+        frame->data_sz = htonl(buf_len);
+
+        frame->v2_sentinel = htons(KIS_EXTERNAL_V2_SIG);
+        frame->frame_version = htons(2);
+
+        frame->seqno = htonl(seqno);
+
+        strncpy(frame->command, "KDSDATAREPORT", 32);
+
+        kismet_datasource__data_report__pack(&kedata, frame->data);
+
+        kis_simple_ringbuf_commit(caph->out_ringbuf, send_buffer, rs_sz);
+
+        pthread_mutex_unlock(&(caph->out_ringbuf_lock));
+
+        if (kegps.name != NULL)
+            free(kegps.name);
+        if (kegps.type != NULL)
+            free(kegps.type);
+
+        return rs_sz;
+    }  else {
+        /* Otherwise we need to use our legacy mode of serializing the packet into a temp
+         * buffer then putting that into the websocket ring */
+        uint8_t *buf;
+        size_t buf_len;
+
+        buf_len = kismet_datasource__data_report__get_packed_size(&kedata);
+        buf = (uint8_t *) malloc(buf_len);
+
+        if (buf == NULL) {
+            return -1;
+        }
+
+        kismet_datasource__data_report__pack(&kedata, buf);
+
+        if (kegps.name != NULL)
+            free(kegps.name);
+        if (kegps.type != NULL)
+            free(kegps.type);
+
+        return cf_send_packet(caph, "KDSDATAREPORT", buf, buf_len);
     }
-
-    kismet_datasource__data_report__pack(&kedata, buf);
-
-    if (kegps.name != NULL)
-        free(kegps.name);
-    if (kegps.type != NULL)
-        free(kegps.type);
-
-    return cf_send_packet(caph, "KDSDATAREPORT", buf, buf_len);
 }
+
 
 int cf_send_json(kis_capture_handler_t *caph,
         KismetExternal__MsgbusMessage *kv_message,

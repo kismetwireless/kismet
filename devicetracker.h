@@ -377,8 +377,7 @@ protected:
     // If we log devices to the kismet database...
     int databaselog_timer;
     time_t last_database_logged;
-    kis_mutex databaselog_mutex;
-    bool databaselog_logging;
+    std::atomic<bool> databaselog_logging;
 
     // Do we constrain memory by not tracking RRD data?
     bool ram_no_rrd;
