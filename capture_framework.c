@@ -1736,8 +1736,6 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, const char *command,
             }
 
         } else if (conf_cmd->hopping != NULL) {
-            /* fprintf(stderr, "DEBUG - configuring hopping\n"); */
-
             /* Otherwise process hopping */
             if (conf_cmd->hopping->n_channels == 0) {
                 if (caph->verbose)
@@ -1835,6 +1833,7 @@ int cf_dispatch_rx_content(kis_capture_handler_t *caph, const char *command,
         if (cbret < 0) {
             pthread_mutex_unlock(&(caph->handler_lock));
             cf_send_proberesp(caph, seqno, false, "Unsupported request", NULL, NULL);
+            return 0;
         }
     }
     
@@ -1842,8 +1841,6 @@ finish:
     pthread_mutex_unlock(&caph->handler_lock);
 
     return cbret;
-
-    return -1;
 }
 
 int cf_handle_rx_content(kis_capture_handler_t *caph, const uint8_t *buffer, size_t len) {
@@ -3209,20 +3206,6 @@ int cf_send_openresp(kis_capture_handler_t *caph, uint32_t seq, unsigned int suc
     return cf_send_packet(caph, "KDSOPENSOURCEREPORT", buf, buf_len);
 }
 
-typedef struct {
-    ProtobufCBuffer base;
-    kis_capture_handler_t *caph;
-    size_t offt;
-    uint8_t *send_buffer;
-} cf_protobuf_data_streamer;
-
-static void cf_protobuf_data_streamer_append(ProtobufCBuffer *buffer, size_t len, const uint8_t *data) {
-    cf_protobuf_data_streamer *cfs = (cf_protobuf_data_streamer *) buffer;
-
-    memcpy(cfs->send_buffer + cfs->offt, data, len);
-    cfs->offt += len;
-}
-
 int cf_send_data(kis_capture_handler_t *caph,
         KismetExternal__MsgbusMessage *kv_message,
         KismetDatasource__SubSignal *kv_signal,
@@ -3234,7 +3217,6 @@ int cf_send_data(kis_capture_handler_t *caph,
     uint8_t *send_buffer;
     size_t buf_len = 0;
     uint32_t seqno;
-    cf_protobuf_data_streamer streamer;
 
     KismetDatasource__DataReport kedata;
     KismetDatasource__SubPacket kepkt;
@@ -3323,24 +3305,18 @@ int cf_send_data(kis_capture_handler_t *caph,
 
         strncpy(frame->command, "KDSDATAREPORT", 32);
 
-        /* Prepare the streamer */
-        memset(&streamer, 0, sizeof(cf_protobuf_data_streamer));
-        streamer.base.append = cf_protobuf_data_streamer_append;
-        streamer.offt = sizeof(kismet_external_frame_v2_t);
-        streamer.send_buffer = send_buffer;
-
-        kismet_datasource__data_report__pack_to_buffer(&kedata, (ProtobufCBuffer *) &streamer);
+        kismet_datasource__data_report__pack(&kedata, frame->data);
 
         kis_simple_ringbuf_commit(caph->out_ringbuf, send_buffer, rs_sz);
+
+        pthread_mutex_unlock(&(caph->out_ringbuf_lock));
 
         if (kegps.name != NULL)
             free(kegps.name);
         if (kegps.type != NULL)
             free(kegps.type);
 
-        pthread_mutex_unlock(&(caph->out_ringbuf_lock));
-
-        return 1;
+        return rs_sz;
     }  else {
         /* Otherwise we need to use our legacy mode of serializing the packet into a temp
          * buffer then putting that into the websocket ring */
