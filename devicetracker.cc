@@ -207,8 +207,6 @@ device_tracker::device_tracker() :
         databaselog_timer =
             timetracker->register_timer(std::chrono::seconds(lograte), 1,
                 [this](int) -> int {
-                    kis_lock_guard<kis_mutex> lk(databaselog_mutex);
-
                     if (databaselog_logging) {
                         _MSG("Attempting to log devices, but devices are still being "
                                 "saved from the last logging attempt.  It's possible your "
@@ -223,11 +221,7 @@ device_tracker::device_tracker() :
                     // Run the device storage in its own thread
                     std::thread t([this] {
                         databaselog_write_devices();
-
-                        {
-                            kis_lock_guard<kis_mutex> lk(databaselog_mutex);
-                            databaselog_logging = false;
-                        }
+                        databaselog_logging = false;
                     });
 
                     // Detach the thread, we don't care about it
