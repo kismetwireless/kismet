@@ -339,8 +339,6 @@ public:
                 dispatch_rx_packet(command, seqno, content);
 
                 buffer.consume(frame_sz);
-
-                return result_handle_packet_ok;
             } else {
                 // Check the length
                 data_sz = kis_ntoh32(frame->data_sz);
@@ -388,8 +386,6 @@ public:
                 delete(ai);
 
                 buffer.consume(frame_sz);
-
-                return result_handle_packet_ok;
             }
         }
 
