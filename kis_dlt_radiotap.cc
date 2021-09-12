@@ -405,16 +405,12 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
     }
 
     auto offset = EXTRACT_LE_16BITS(&(hdr->it_len));
-
-	if (offset + fcs_cut > (int) linkchunk->length()) {
-		/*
-		_MSG("Pcap Radiotap converter got corrupted Radiotap frame, not "
-			 "long enough for radiotap header plus indicated FCS", MSGFLAG_ERROR);
-		*/
+    
+    if (fcs_cut && offset + fcs_cut > (int) linkchunk->length()) {
         return 0;
 	}
 
-    decapchunk->set_data(linkchunk->substr(offset, linkchunk->length() - offset));
+    decapchunk->set_data(linkchunk->substr(offset, linkchunk->length() - offset - fcs_cut));
 
 	in_pack->insert(pack_comp_radiodata, radioheader);
 	in_pack->insert(pack_comp_decap, decapchunk);
@@ -438,7 +434,7 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
     // it's bad, we make a junk FCS and set it bad
     if (!fcs_cut && fcs_flag_invalid) {
         fcschunk = packetchain->new_packet_component<kis_packet_checksum>();
-       
+
         char junkfcs[] = "\xFF\xFF\xFF\xFF";
         fcschunk->copy_raw_data(junkfcs, 4);
 
@@ -451,9 +447,7 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
     // if we have an unknown FCS, and FCS bytes available, we should do a full
     // checksum
 	if (datasrc != NULL && datasrc->ref_source != NULL && fcschunk != NULL &&
-            fcschunk->checksum_valid) {
-
-        // fprintf(stderr, "debug - radiotap - %d %x\n", packnum, *(fcschunk->checksum_ptr) & 0xFFFFFFFF); 
+        fcschunk->checksum_valid) {
 
 		// Compare it and flag the packet
 		uint32_t calc_crc =
@@ -468,6 +462,7 @@ int kis_dlt_radiotap::handle_packet(std::shared_ptr<kis_packet> in_pack) {
 		} else {
 			fcschunk->checksum_valid = 1;
 		}
+
 	}
 
     // If we've validated the FCS and know this packet is junk, flag it at the
