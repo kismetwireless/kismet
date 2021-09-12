@@ -190,6 +190,10 @@ protected:
 
 	// Packet components
 	int pack_comp_btdevice, pack_comp_common, pack_comp_l1info, pack_comp_meta, pack_comp_json;
+
+    std::shared_ptr<tracker_element_string> btdev_bredr;
+    std::shared_ptr<tracker_element_string> btdev_btle;
+    std::shared_ptr<tracker_element_string> btdev_bt;
 };
 
 #endif
