@@ -77,12 +77,12 @@ void kis_database_logfile::trigger_deferred_shutdown() {
 }
 
 bool kis_database_logfile::open_log(std::string in_path) {
-    kis_unique_lock<kis_mutex> lk(ds_mutex, "open_log");
+    // kis_unique_lock<kis_mutex> lk(ds_mutex, "open_log");
 
     auto timetracker = 
         Globalreg::fetch_mandatory_global_as<time_tracker>("TIMETRACKER");
 
-    bool dbr = database_open(in_path);
+    bool dbr = database_open(in_path, SQLITE_OPEN_FULLMUTEX);
 
     if (!dbr) {
         _MSG_FATAL("Unable to open KismetDB log at '{}'; check that the directory exists "
@@ -394,7 +394,7 @@ bool kis_database_logfile::open_log(std::string in_path) {
     set_int_log_open(true);
     db_enabled = true;
 
-    lk.unlock();
+    // lk.unlock();
 
     // Register the log after we have all the filters set and the mutex unlocked
     if (Globalreg::globalreg->kismet_config->fetch_opt_bool("kis_log_packets", true)) {
@@ -420,8 +420,10 @@ void kis_database_logfile::close_log() {
     // the various handlers might be holding locks
 
     {
+#if 0
         kis_unique_lock<kis_mutex> dblock(ds_mutex, std::defer_lock, "kismetdb close_log");
         db_lock_with_sync_check(dblock, return);
+#endif
 
         set_int_log_open(false);
         db_enabled = false;
@@ -462,7 +464,7 @@ void kis_database_logfile::close_log() {
 }
 
 int kis_database_logfile::database_upgrade_db() {
-    kis_lock_guard<kis_mutex> lk(ds_mutex, "kismetdb upgrade_db");
+    // kis_lock_guard<kis_mutex> lk(ds_mutex, "kismetdb upgrade_db");
 
     std::string sql;
     int r;
@@ -755,8 +757,10 @@ void kis_database_logfile::handle_message(std::shared_ptr<tracked_message> msg) 
     sqlite3_bind_text(msg_stmt, spos++, msgtype.c_str(), msgtype.length(), SQLITE_TRANSIENT);
     sqlite3_bind_text(msg_stmt, spos++, msg->get_message().c_str(), msg->get_message().length(), SQLITE_TRANSIENT);
 
+#if 0
     kis_unique_lock<kis_mutex> dblock(ds_mutex, std::defer_lock, "kismetdb handle_message");
     db_lock_with_sync_check(dblock, return);
+#endif
 
     if (sqlite3_step(msg_stmt) != SQLITE_DONE) {
         close_log();
@@ -792,6 +796,9 @@ int kis_database_logfile::log_device(std::shared_ptr<kis_tracked_device_base> d)
 
     std::stringstream sstr;
 
+    // We don't have to lock because we're called by a device worker, which locks
+
+#if 0
     {
         kis_lock_guard<kis_mutex> lg_dl(devicetracker->get_devicelist_mutex(), "database_logfile::log_device");
         int r = Globalreg::globalreg->entrytracker->serialize("json", sstr, d, nullptr);
@@ -801,10 +808,17 @@ int kis_database_logfile::log_device(std::shared_ptr<kis_tracked_device_base> d)
             return 0;
         }
     }
+#endif
+
+    int r = Globalreg::globalreg->entrytracker->serialize("json", sstr, d, nullptr);
+
+    if (r < 0) {
+        _MSG_ERROR("Failure serializing device key {} to the kisdatabaselog", d->get_key());
+        return 0;
+    }
 
     std::string streamstring = sstr.str();
 
-    int r;
     sqlite3_stmt *device_stmt;
     const char *device_pz;
 
@@ -867,8 +881,10 @@ int kis_database_logfile::log_device(std::shared_ptr<kis_tracked_device_base> d)
     sqlite3_bind_blob(device_stmt, spos++, streamstring.c_str(), 
             streamstring.length(), SQLITE_TRANSIENT);
 
+#if 0
     kis_unique_lock<kis_mutex> dblock(ds_mutex, std::defer_lock, "kismetdb log_device");
     db_lock_with_sync_check(dblock, return);
+#endif
 
     if (sqlite3_step(device_stmt) != SQLITE_DONE) {
         _MSG("kis_database_logfile unable to insert device in " +
@@ -1026,8 +1042,10 @@ int kis_database_logfile::log_packet(std::shared_ptr<kis_packet> in_pack) {
         else
             sqlite3_bind_double(packet_stmt, sql_pos++, 0);
 
+#if 0
         kis_unique_lock<kis_mutex> dblock(ds_mutex, std::defer_lock, "kismetdb log_packet");
         db_lock_with_sync_check(dblock, return -1);
+#endif
 
         if (sqlite3_step(packet_stmt) != SQLITE_DONE) {
             _MSG("kis_database_logfile unable to insert packet in " +
@@ -1121,8 +1139,10 @@ int kis_database_logfile::log_data(std::shared_ptr<kis_gps_packinfo> gps, struct
     sqlite3_bind_text(data_stmt, sql_pos++, type.data(), type.length(), SQLITE_TRANSIENT);
     sqlite3_bind_text(data_stmt, sql_pos++, json.data(), json.length(), SQLITE_TRANSIENT);
 
+#if 0
     kis_unique_lock<kis_mutex> dblock(ds_mutex, std::defer_lock, "kismetdb log_data");
     db_lock_with_sync_check(dblock, return -1);
+#endif
 
     if (sqlite3_step(data_stmt) != SQLITE_DONE) {
         _MSG("kis_database_logfile unable to insert data in " +
@@ -1201,8 +1221,10 @@ int kis_database_logfile::log_datasource(shared_tracker_element in_datasource) {
 
     sqlite3_bind_blob(datasource_stmt, 6, jsonstring.data(), jsonstring.length(), SQLITE_TRANSIENT);
 
+#if 0
     kis_unique_lock<kis_mutex> dblock(ds_mutex, std::defer_lock, "kismetdb log_datasource");
     db_lock_with_sync_check(dblock, return -1);
+#endif
 
     if (sqlite3_step(datasource_stmt) != SQLITE_DONE) {
         _MSG("kis_database_logfile unable to insert datasource in " +
@@ -1273,8 +1295,10 @@ int kis_database_logfile::log_alert(std::shared_ptr<tracked_alert> in_alert) {
     sqlite3_bind_text(alert_stmt, 7, headerstring.c_str(), headerstring.length(), SQLITE_TRANSIENT);
     sqlite3_bind_blob(alert_stmt, 8, jsonstring.data(), jsonstring.length(), SQLITE_TRANSIENT);
 
+#if 0
     kis_unique_lock<kis_mutex> dblock(ds_mutex, std::defer_lock, "kismetdb log_alert");
     db_lock_with_sync_check(dblock, return -1);
+#endif
 
     if (sqlite3_step(alert_stmt) != SQLITE_DONE) {
         _MSG("kis_database_logfile unable to insert alert in " +
@@ -1339,8 +1363,10 @@ int kis_database_logfile::log_snapshot(std::shared_ptr<kis_gps_packinfo> gps, st
     sqlite3_bind_text(snapshot_stmt, 5, snaptype.c_str(), snaptype.length(), SQLITE_TRANSIENT);
     sqlite3_bind_text(snapshot_stmt, 6, json.data(), json.length(), SQLITE_TRANSIENT);
 
+#if 0
     kis_unique_lock<kis_mutex> dblock(ds_mutex, std::defer_lock, "kismetdb log_snapshot");
     db_lock_with_sync_check(dblock, return -1);
+#endif
 
     if (sqlite3_step(snapshot_stmt) != SQLITE_DONE) {
         _MSG("kis_database_logfile unable to insert snapshot in " +
