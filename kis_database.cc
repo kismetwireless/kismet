@@ -38,7 +38,7 @@ kis_database::~kis_database() {
     }
 }
 
-bool kis_database::database_open(std::string in_file_path) {
+bool kis_database::database_open(std::string in_file_path, int in_flags) {
     char *sErrMsg = NULL;
 
     if (in_file_path.length() == 0) {
@@ -56,7 +56,10 @@ bool kis_database::database_open(std::string in_file_path) {
 
     int r;
 
-    r = sqlite3_open(ds_dbfile.c_str(), &db);
+    // Always force readwrite/opencreate ... until this bites us
+    in_flags |= SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
+
+    r = sqlite3_open_v2(ds_dbfile.c_str(), &db, in_flags, NULL);
 
     if (r) {
         _MSG("kis_database unable to open file " + ds_dbfile + ": " +
