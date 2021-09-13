@@ -1713,7 +1713,8 @@ void device_tracker::databaselog_write_devices() {
     // Remember the time BEFORE we spend time looking at all the devices
     auto log_time = time(0);
 
-    do_readonly_device_work(worker);
+    // Explicitly use the non-ro worker, because we're phasing out the RO version because of too much contention
+    do_device_work(worker);
 
     // Then update the log; we might catch a few high-change devices twice, but this is
     // safer by far
