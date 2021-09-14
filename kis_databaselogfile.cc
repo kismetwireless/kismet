@@ -416,38 +416,10 @@ bool kis_database_logfile::open_log(std::string in_path) {
 }
 
 void kis_database_logfile::close_log() {
-    // We have to shut down inside lock but not cancel packet handlers while 
-    // the various handlers might be holding locks
-
-    {
 #if 0
-        kis_unique_lock<kis_mutex> dblock(ds_mutex, std::defer_lock, "kismetdb close_log");
-        db_lock_with_sync_check(dblock, return);
+    kis_unique_lock<kis_mutex> dblock(ds_mutex, std::defer_lock, "kismetdb close_log");
+    db_lock_with_sync_check(dblock, return);
 #endif
-
-        set_int_log_open(false);
-        db_enabled = false;
-
-        // End the transaction
-        sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
-
-        sqlite3_exec(db, "PRAGMA journal_mode=DELETE", NULL, NULL, NULL);
-        sqlite3_exec(db, "BEGIN_EXCLUSIVE", NULL, NULL, NULL);
-        sqlite3_exec(db, "COMMIT", NULL, NULL, NULL);
-
-        database_close();
-    }
-
-    // Kill the eventbus subs
-    eventbus->remove_listener(message_evt_id);
-    eventbus->remove_listener(alert_evt_id);
-
-    // Kill the hooks
-    auto packetchain =
-        Globalreg::fetch_global_as<packet_chain>();
-
-    if (packetchain != NULL && packet_handler_id >= 0) 
-        packetchain->remove_handler(packet_handler_id, CHAINPOS_LOGGING);
 
     // Kill the timers
     auto timetracker = 
@@ -461,6 +433,29 @@ void kis_database_logfile::close_log() {
         timetracker->remove_timer(message_timeout_timer);
         timetracker->remove_timer(snapshot_timeout_timer);
     }
+
+    // Kill the eventbus subs
+    eventbus->remove_listener(message_evt_id);
+    eventbus->remove_listener(alert_evt_id);
+
+    // Kill the hooks
+    auto packetchain =
+        Globalreg::fetch_global_as<packet_chain>();
+
+    if (packetchain != NULL && packet_handler_id >= 0) 
+        packetchain->remove_handler(packet_handler_id, CHAINPOS_LOGGING);
+
+    set_int_log_open(false);
+    db_enabled = false;
+
+    // End the transaction
+    sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
+
+    sqlite3_exec(db, "PRAGMA journal_mode=DELETE", NULL, NULL, NULL);
+    sqlite3_exec(db, "BEGIN_EXCLUSIVE", NULL, NULL, NULL);
+    sqlite3_exec(db, "COMMIT", NULL, NULL, NULL);
+
+    database_close();
 }
 
 int kis_database_logfile::database_upgrade_db() {
