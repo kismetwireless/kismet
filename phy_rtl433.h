@@ -508,21 +508,6 @@ public:
         reserve_fields(e);
     }
 
-    rtl433_tracked_switch(const rtl433_tracked_switch *p) :
-        tracker_component{p} {
-
-        //__ImportField(switch_vec, p);
-        //__ImportId(switch_vec_entry_id, p);
-	__ImportField(switch1, p);
-	__ImportField(switch2, p);
-	__ImportField(switch3, p);
-	__ImportField(switch4, p);
-	__ImportField(switch5, p);
-
-
-        reserve_fields(nullptr);
-    }
-
     virtual uint32_t get_signature() const override {
         return adler32_checksum("rtl433_tracked_switch");
     }

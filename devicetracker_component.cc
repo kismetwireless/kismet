@@ -100,33 +100,6 @@ kis_tracked_signal_data::kis_tracked_signal_data(int in_id, std::shared_ptr<trac
         sig_type = 0;
 }
 
-kis_tracked_signal_data::kis_tracked_signal_data(const kis_tracked_signal_data *p) :
-    tracker_component{p} {
-
-    __ImportField(signal_type, p);
-
-    __ImportField(last_signal, p);
-    __ImportField(last_noise, p);
-
-    __ImportField(min_signal, p);
-    __ImportField(min_noise, p);
-
-    __ImportField(max_signal, p);
-    __ImportField(max_noise, p);
-
-    __ImportId(peak_loc_id, p);
-
-    __ImportField(maxseenrate, p);
-    __ImportField(encodingset, p);
-    __ImportField(carrierset, p);
-
-    __ImportId(signal_min_rrd_id, p);
-
-    reserve_fields(nullptr);
-    sig_type = 0;
-    signal_type->set("none");
-}
-
 void  kis_tracked_signal_data::append_signal(const kis_layer1_packinfo& lay1, bool update_rrd, time_t rrd_ts) {
     if (lay1.signal_type == kis_l1_signal_type_dbm && (sig_type == 0 || sig_type == 1)) {
         if (sig_type == 0) {

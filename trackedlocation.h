@@ -46,8 +46,6 @@ public:
     kis_tracked_location_triplet(int in_id);
     kis_tracked_location_triplet(int in_id, std::shared_ptr<tracker_element_map> e);
 
-    kis_tracked_location_triplet(const kis_tracked_location_triplet *p);
-
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = Globalreg::new_from_pool<this_t>();
@@ -123,8 +121,6 @@ public:
     kis_tracked_location_full(int in_id);
     kis_tracked_location_full(int in_id, std::shared_ptr<tracker_element_map> e);
 
-    kis_tracked_location_full(const kis_tracked_location_full *p);
-
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = Globalreg::new_from_pool<this_t>();
@@ -166,7 +162,6 @@ public:
     kis_tracked_location();
     kis_tracked_location(int in_id);
     kis_tracked_location(int in_id, std::shared_ptr<tracker_element_map> e);
-    kis_tracked_location(const kis_tracked_location *p);
 
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;

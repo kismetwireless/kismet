@@ -294,26 +294,6 @@ public:
         reserve_fields(e);
     }
 
-    uav_tracked_device(const uav_tracked_device *p) :
-        tracker_component{p} {
-
-        __ImportField(uav_manufacturer, p);
-        __ImportField(uav_model, p);
-        __ImportField(uav_serialnumber, p);
-
-        __ImportId(last_telem_loc_id, p);
-
-        __ImportField(uav_telem_history, p);
-        __ImportId(telem_history_entry_id, p);
-
-        __ImportField(uav_match_type, p);
-
-        __ImportId(home_location_id, p);
-        __ImportId(matched_type_id, p);
-
-        reserve_fields(nullptr);
-    }
-
     virtual ~uav_tracked_device() { }
 
     virtual uint32_t get_signature() const override {
