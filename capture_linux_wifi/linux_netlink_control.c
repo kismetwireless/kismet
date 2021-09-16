@@ -175,6 +175,8 @@ int mac80211_create_monitor_vif(const char *interface, const char *newinterface,
 
     unsigned int x;
 
+    char *basephy1 = NULL, *basephy2 = NULL;
+
     if (if_nametoindex(newinterface) > 0) {
 	snprintf(errstr, STATUS_MAX,
 		"unable to create monitor vif %s:%s, new vif already exists",
@@ -258,8 +260,25 @@ nla_put_failure:
 
     if (if_nametoindex(newinterface) <= 0) {
         snprintf(errstr, STATUS_MAX, 
-                "creating a monitor interface for %s:%s seemed to work, but couldn't"
+                "creating a monitor interface for %s:%s seemed to work, but couldn't "
                 "find that interface after creation.", interface, newinterface);
+        return -1;
+    }
+
+    basephy1 = mac80211_find_parent(interface);
+    basephy2 = mac80211_find_parent(newinterface);
+
+    if (basephy1 != NULL && basephy2 != NULL && strcmp(basephy1, basephy2) != 0) {
+        free(basephy1);
+        free(basephy2);
+        return 0;
+    } else {
+        snprintf(errstr, STATUS_MAX,
+                "creating a monitor interface for %s:%s seemed to work, but after "
+                "creation, found %s:%s and %s:%s.", interface, newinterface,
+                basephy1, interface, basephy2, newinterface);
+        free(basephy1);
+        free(basephy2);
         return -1;
     }
 
