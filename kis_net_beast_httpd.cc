@@ -1157,6 +1157,11 @@ bool kis_net_beast_httpd_connection::start() {
 
     httpd->strip_uri_prefix(uri_);
     auto trimmed_uri = httpd->decode_get_variables(uri_, http_variables_);
+
+    // Fix any double-slashes which will break the parser/splitter
+    std::regex re("/+/");
+    trimmed_uri = std::regex_replace(trimmed_uri, re, "/"); 
+
     uri_ = boost::beast::string_view(trimmed_uri);
 
     // Process close headers - http 1.0 always closes unless keepalive, 1.1 never closes unless specified
