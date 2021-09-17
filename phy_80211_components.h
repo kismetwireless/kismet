@@ -125,16 +125,6 @@ public:
         reserve_fields(e);
     }
 
-    dot11_tracked_nonce(const dot11_tracked_nonce *p) :
-        tracker_component{p} {
-        __ImportField(eapol_time, p);
-        __ImportField(eapol_msg_num, p);
-        __ImportField(eapol_install, p);
-        __ImportField(eapol_nonce, p);
-        __ImportField(eapol_replay_counter, p);
-        reserve_fields(nullptr);
-    }
-
     virtual uint32_t get_signature() const override {
         return adler32_checksum("dot11_tracked_nonce");
     }
@@ -275,16 +265,6 @@ public:
         reserve_fields(e);
     }
 
-    dot11_11d_tracked_range_info(const dot11_11d_tracked_range_info *p) :
-        tracker_component{p} {
-
-        __ImportField(startchan, p);
-        __ImportField(numchan, p);
-        __ImportField(txpower, p);
-
-        reserve_fields(nullptr);
-    }
-
     virtual uint32_t get_signature() const override {
         return adler32_checksum("dot11_11d_tracked_range_info");
     }
@@ -331,18 +311,6 @@ public:
         register_fields();
         reserve_fields(e);
     }
-
-    dot11_tracked_ietag(const dot11_tracked_ietag *p) {
-        __ImportField(unique_tag_id, p);
-        __ImportField(tag_number, p);
-        __ImportField(tag_oui, p);
-        __ImportField(tag_oui_manuf, p);
-        __ImportField(tag_vendor_or_sub, p);
-        __ImportField(complete_tag_data, p);
-
-        reserve_fields(nullptr);
-    }
-
 
     virtual uint32_t get_signature() const override {
         return adler32_checksum("dot11_tracked_ietag");

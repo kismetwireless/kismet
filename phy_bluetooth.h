@@ -85,19 +85,6 @@ public:
         reserve_fields(e);
     }
 
-    bluetooth_tracked_device(const bluetooth_tracked_device *p) :
-        tracker_component{p} {
-
-        __ImportField(service_uuid_vec, p);
-        __ImportField(solicitation_uuid_vec, p);
-        __ImportField(scan_data_bytes, p);
-        __ImportField(service_data_bytes, p);
-        __ImportField(txpower, p);
-        __ImportField(pathloss, p);
-
-        reserve_fields(nullptr);
-    }
-
     virtual uint32_t get_signature() const override {
         return adler32_checksum("bluetooth_tracked_device");
     }

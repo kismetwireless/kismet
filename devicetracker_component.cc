@@ -51,15 +51,6 @@ kis_tracked_ip_data::kis_tracked_ip_data(int in_id, std::shared_ptr<tracker_elem
     reserve_fields(e);
 }
 
-kis_tracked_ip_data::kis_tracked_ip_data(const kis_tracked_ip_data *p) :
-    tracker_component{p} {
-    __ImportField(ip_type, p);
-    __ImportField(ip_addr_block, p);
-    __ImportField(ip_netmask, p);
-    __ImportField(ip_gateway, p);
-    reserve_fields(nullptr);
-}
-
 void kis_tracked_ip_data::register_fields() {
     tracker_component::register_fields();
 
@@ -309,21 +300,6 @@ kis_tracked_seenby_data::kis_tracked_seenby_data(int in_id, std::shared_ptr<trac
     tracker_component(in_id) {
     register_fields();
     reserve_fields(e);
-}
-
-kis_tracked_seenby_data::kis_tracked_seenby_data(const kis_tracked_seenby_data *p) :
-    tracker_component{p} {
-    
-    __ImportId(src_uuid_id, p);
-
-    __ImportField(first_time, p);
-    __ImportField(last_time, p);
-    __ImportField(num_packets, p);
-
-    __ImportId(freq_khz_map_id, p);
-    __ImportId(signal_data_id, p);
-
-    reserve_fields(nullptr);
 }
 
 void kis_tracked_seenby_data::inc_frequency_count(int frequency) {

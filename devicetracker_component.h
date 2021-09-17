@@ -61,7 +61,6 @@ public:
     kis_tracked_ip_data();
     kis_tracked_ip_data(int in_id);
     kis_tracked_ip_data(int in_id, std::shared_ptr<tracker_element_map> e);
-    kis_tracked_ip_data(const kis_tracked_ip_data *p);
 
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
@@ -153,7 +152,6 @@ public:
     kis_tracked_seenby_data();
     kis_tracked_seenby_data(int in_id);
     kis_tracked_seenby_data(int in_id, std::shared_ptr<tracker_element_map> e);
-    kis_tracked_seenby_data(const kis_tracked_seenby_data *p);
 
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;

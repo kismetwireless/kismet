@@ -111,20 +111,6 @@ public:
         reserve_fields(e);
     }
 
-    rtlamr_tracked_meter(const rtlamr_tracked_meter *p) :
-        tracker_component{p} {
-
-        __ImportField(meter_id, p);
-        __ImportField(meter_type, p);
-        __ImportField(meter_type_code, p);
-        __ImportField(phy_tamper_flags, p);
-        __ImportField(endpoint_tamper_flags, p);
-        __ImportField(consumption, p);
-        __ImportField(consumption_rrd, p);
-
-        reserve_fields(nullptr);
-    }
-
     virtual uint32_t get_signature() const override {
         return adler32_checksum("rtlamr_tracked_meter");
     }

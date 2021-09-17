@@ -56,15 +56,6 @@ public:
         reserve_fields(e);
     }
 
-    zwave_tracked_device(const zwave_tracked_device *p) :
-        tracker_component{p} {
-
-        __ImportField(homeid, p);
-        __ImportField(deviceid, p);
-
-        reserve_fields(nullptr);
-    }
-
     virtual uint32_t get_signature() const override {
         return adler32_checksum("zwave_tracked_device");
     }
