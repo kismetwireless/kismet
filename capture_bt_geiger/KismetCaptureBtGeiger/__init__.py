@@ -21,7 +21,13 @@ import threading
 import time
 import uuid
 
-from bluepy.btle import UUID, Peripheral, DefaultDelegate, BTLEDisconnectError
+have_blepy = False
+
+try:
+    from bluepy.btle import UUID, Peripheral, DefaultDelegate, BTLEDisconnectError
+    have_blepy = True
+except:
+    pass
 
 from . import kismetexternal
 
@@ -150,6 +156,9 @@ class KismetBtGeiger(object):
     def datasource_probesource(self, source, options):
         ret = {}
 
+        if not have_blepy:
+            return None
+
         if not source[:8] == "btgeiger":
             return None
 
@@ -170,6 +179,9 @@ class KismetBtGeiger(object):
 
     def datasource_opensource(self, source, options):
         ret = {}
+
+        if not have_blepy:
+            return ret
 
         if not source[:8] == "btgeiger":
             ret["success"] = False
