@@ -68,9 +68,10 @@ public:
         reserve_fields(e);
     }
 
-    tracked_message(const std::string& in_msg, int in_flags, time_t in_time) :
-        tracker_component{} {
+    tracked_message(int in_id, const std::string& in_msg, int in_flags, time_t in_time) :
+        tracker_component{in_id} {
 
+        register_fields();
         reserve_fields(nullptr);
 
         set_message(in_msg);
@@ -159,8 +160,7 @@ public:
     }
 
     void inject_message(const std::string& msg, int flags) {
-        auto tracked_msg = std::make_shared<tracked_message>(msg, flags, time(0));
-        tracked_msg->set_id(msg_proto->get_id());
+        auto tracked_msg = std::make_shared<tracked_message>(msg_proto->get_id(), msg, flags, time(0));
         auto evt = eventbus->get_eventbus_event(event_message());
         evt->get_event_content()->insert(event_message(), tracked_msg);
         eventbus->publish(evt);
