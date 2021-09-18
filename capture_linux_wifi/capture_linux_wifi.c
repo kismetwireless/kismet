@@ -229,13 +229,15 @@ int try_flock(local_wifi_t *local_wifi, unsigned int tries) {
     /* Spin looking for an exclusive system-wide lock */
     for (attempt = 0; attempt < tries; attempt++) {
         if ((r = flock(local_wifi->lock_fd, LOCK_EX | LOCK_NB)) < 0) {
-            if (errno == EWOULDBLOCK)
+            if (errno == EWOULDBLOCK) {
                 sleep(1);
-            else
+                continue;
+            } else {
                 return -1;
+            }
+        } else {
+            return 1;
         }
-
-        return 0;
     }
 
     return -1;
