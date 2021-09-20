@@ -784,14 +784,6 @@ class tracker_component : public tracker_element_map {
         return (dtype) (get_tracker_value<dtype>(cvar) & bs); \
     }
 
-// Import from a builder instance and insert into our map
-#define __ImportField(f, b) \
-    f = tracker_element_clone_adaptor(b->f); \
-    insert(f)
-
-#define __ImportId(f, b) \
-    f = b->f
-
     class registered_field {
         // We use negative IDs to indicate dynamic assignment, since this exists for every field
         // in every tracked element we actually do benefit from squeezing the boolean out

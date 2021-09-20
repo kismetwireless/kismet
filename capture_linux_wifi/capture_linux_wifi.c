@@ -101,6 +101,7 @@ typedef struct {
 
     char *interface;
     char *cap_interface;
+    char *base_phy;
     char *name;
 
     /* inter-process semaphore for computing interfaces during open */
@@ -225,14 +226,21 @@ int try_flock(local_wifi_t *local_wifi, unsigned int tries) {
         return EINVAL;
     }
 
+    /* Spin looking for an exclusive system-wide lock */
     for (attempt = 0; attempt < tries; attempt++) {
-        if ((r = flock(local_wifi->lock_fd, LOCK_EX | LOCK_NB)) < 0)
-            sleep(1);
-
-        return 0;
+        if ((r = flock(local_wifi->lock_fd, LOCK_EX | LOCK_NB)) < 0) {
+            if (errno == EWOULDBLOCK) {
+                sleep(1);
+                continue;
+            } else {
+                return -1;
+            }
+        } else {
+            return 1;
+        }
     }
 
-    return r;
+    return -1;
 }
 
 void release_flock(local_wifi_t *local_wifi) {
@@ -306,7 +314,8 @@ unsigned int wifi_freq_to_chan(unsigned int in_freq) {
 }
 
 /* Find an interface, based on mode, that shares a parent with the provided
- * interface.
+ * interface.  If somehow we're called with an existing monitor interface,
+ * we'll find it as well.
  *
  * Mode is typically LINUX_WL_MODE_MONITOR
  *
@@ -318,13 +327,13 @@ int find_interface_monitor_by_parent(local_wifi_t *local_wifi, const char *base_
     char errstr[STATUS_MAX];
 
     if (local_wifi->mac80211_socket == NULL)
-        return -1;
+        return 0;
 
     if ((base_parent = mac80211_find_parent(base_ifname)) == NULL)
-        return -1;
+        return 0;
 
     if (getifaddrs(&ifaddr) == -1)
-        return -1;
+        return 0;
 
     for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
         if ((if_parent = mac80211_find_parent(ifa->ifa_name)) == NULL)
@@ -358,7 +367,7 @@ int find_interface_monitor_by_parent(local_wifi_t *local_wifi, const char *base_
     freeifaddrs(ifaddr);
     free(base_parent);
 
-    return -1;
+    return 0;
 }
 
 /* Find the next unused interface number for a given interface name */
@@ -1323,6 +1332,11 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
         local_wifi->cap_interface = NULL;
     }
 
+    if (local_wifi->base_phy) {
+        free(local_wifi->base_phy);
+        local_wifi->base_phy = NULL;
+    }
+
     if (local_wifi->name) {
         free(local_wifi->name);
         local_wifi->name = NULL;
@@ -1738,7 +1752,7 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     } 
 
     if (mode != LINUX_WLEXT_MONITOR) {
-        int existing_ifnum;
+        unsigned int existing_ifnum;
 
         /* If we don't use vifs at all... */
         if (local_wifi->use_mac80211_vif == 0) {
@@ -1748,14 +1762,16 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
              * takes precedence over everything */
             if ((placeholder_len = cf_find_flag(&placeholder, "vif", definition)) > 0) {
                 local_wifi->cap_interface = strndup(placeholder, placeholder_len);
+                local_wifi->base_phy = mac80211_find_parent(local_wifi->cap_interface);
             } else {
                 /* Look for an existing monitor mode interface on the base interface */
                 existing_ifnum = 
                     find_interface_monitor_by_parent(local_wifi, local_wifi->interface);
 
                 if (existing_ifnum > 0) {
-                    if (if_indextoname((unsigned int) existing_ifnum, ifnam) != NULL) {
+                    if (if_indextoname(existing_ifnum, ifnam) != NULL) {
                         local_wifi->cap_interface = strdup(ifnam);
+                        local_wifi->base_phy = mac80211_find_parent(local_wifi->cap_interface);
                         snprintf(errstr, STATUS_MAX, "%s found existing monitor interface "
                                 "'%s' for source interface '%s'",
                                 local_wifi->name, local_wifi->cap_interface, local_wifi->interface);
@@ -1794,10 +1810,14 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
 
             /* Dup our monitor interface name */
             local_wifi->cap_interface = strdup(ifnam);
+            /* Grab our phy name */
+            local_wifi->base_phy = mac80211_find_parent(ifnam);
         }
     } else {
         /* We're already monitor; dup the interface */
         local_wifi->cap_interface = strdup(local_wifi->interface);
+        /* And try to grab the mac80211 phy */
+        local_wifi->base_phy = mac80211_find_parent(local_wifi->interface);
     }
 
     /* We know what we're going to capture from now - either it exists already, or we need 
@@ -2407,7 +2427,13 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
                 local_wifi->name, local_wifi->interface);
     }
 
-    (*ret_interface)->capif = strdup(local_wifi->cap_interface);
+    if (local_wifi->base_phy != NULL) {
+        char ifbuf[1024];
+        snprintf(ifbuf, 1024, "%s:%s", local_wifi->base_phy, local_wifi->cap_interface);
+        (*ret_interface)->capif = strdup(ifbuf);
+    } else {
+        (*ret_interface)->capif = strdup(local_wifi->cap_interface);
+    }
 
     if ((placeholder_len = 
                 cf_find_flag(&placeholder, "channel", definition)) > 0) {
@@ -2631,6 +2657,7 @@ int main(int argc, char *argv[]) {
         .pd = NULL,
         .interface = NULL,
         .cap_interface = NULL,
+        .base_phy = NULL,
         .name = NULL,
         .lock_fd = -1,
         .datalink_type = -1,

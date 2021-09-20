@@ -61,7 +61,6 @@ public:
     kis_tracked_ip_data();
     kis_tracked_ip_data(int in_id);
     kis_tracked_ip_data(int in_id, std::shared_ptr<tracker_element_map> e);
-    kis_tracked_ip_data(const kis_tracked_ip_data *p);
 
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
@@ -91,7 +90,6 @@ public:
     kis_tracked_signal_data();
     kis_tracked_signal_data(int in_id);
     kis_tracked_signal_data(int in_id, std::shared_ptr<tracker_element_map> e);
-    kis_tracked_signal_data(const kis_tracked_signal_data *p);
 
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
@@ -154,7 +152,6 @@ public:
     kis_tracked_seenby_data();
     kis_tracked_seenby_data(int in_id);
     kis_tracked_seenby_data(int in_id, std::shared_ptr<tracker_element_map> e);
-    kis_tracked_seenby_data(const kis_tracked_seenby_data *p);
 
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
@@ -208,18 +205,6 @@ public:
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
-    }
-
-    kis_tracked_data_bins(const kis_tracked_data_bins *p) :
-        tracker_component{p} {
-
-        __ImportId(packet_rrd_bin_250_id, p);
-        __ImportId(packet_rrd_bin_500_id, p);
-        __ImportId(packet_rrd_bin_1000_id, p);
-        __ImportId(packet_rrd_bin_1500_id, p);
-        __ImportId(packet_rrd_bin_jumbo_id, p);
-
-        reserve_fields(nullptr);
     }
 
     virtual uint32_t get_signature() const override {
@@ -328,66 +313,6 @@ public:
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
-    }
-
-    kis_tracked_device_base(const kis_tracked_device_base *p) :
-        tracker_component{p} {
-
-        __ImportField(key, p);
-        __ImportField(macaddr, p);
-        __ImportField(phyname, p);
-        __ImportField(devicename, p);
-
-        __ImportId(username_id, p);
-
-        __ImportField(commonname, p);
-        __ImportField(type_string, p);
-        __ImportField(basic_type_set,p );
-        __ImportField(crypt_string, p);
-        __ImportField(basic_crypt_set, p);
-        __ImportField(first_time, p);
-        __ImportField(last_time, p);
-        __ImportField(mod_time, p);
-
-        __ImportField(packets, p);
-        __ImportField(tx_packets, p);
-        __ImportField(rx_packets, p);
-        __ImportField(llc_packets, p);
-        __ImportField(error_packets, p);
-        __ImportField(data_packets, p);
-        __ImportField(crypt_packets, p);
-        __ImportField(filter_packets, p);
-
-
-        __ImportField(datasize, p);
-
-        __ImportId(packets_rrd_id, p);
-        __ImportId(data_rrd_id, p);
-
-        __ImportField(channel, p);
-        __ImportField(frequency, p);
-
-        __ImportId(signal_data_id, p);
-
-        __ImportField(freq_khz_map, p);
-        __ImportField(manuf, p);
-        __ImportField(alert, p);
-
-        __ImportId(tag_map_id, p);
-        __ImportId(tag_entry_id, p);
-
-        __ImportId(location_id, p);
-        
-        __ImportId(seenby_map_id, p);
-
-        __ImportId(frequency_val_id, p);
-        __ImportId(seenby_val_id, p);
-
-        __ImportId(related_device_group_id, p);
-
-        __ImportId(location_cloud_id, p);
-
-        reserve_fields(nullptr);
     }
 
     virtual ~kis_tracked_device_base() { }

@@ -70,6 +70,7 @@ bool kis_httpd_registry::register_js_module(std::string in_module, std::string i
         return false;
     }
 
+    /*
     if (in_path[0] == '/') {
         _MSG_ERROR("HTTPD Module Registry: Module {} starts with a '/', for newer "
                 "Kismet systems this should be a relative path; check that your plugin "
@@ -77,6 +78,7 @@ bool kis_httpd_registry::register_js_module(std::string in_module, std::string i
                 in_module);
         in_path = in_path.substr(1, in_path.length());
     }
+    */
 
     js_module_path_map[in_module] = in_path;
 

@@ -74,26 +74,6 @@ public:
         update_location = false;
     }
 
-    rtladsb_tracked_adsb(const rtladsb_tracked_adsb *p) :
-        tracker_component{p} {
-
-        __ImportField(icao, p);
-        __ImportField(icao_record, p);
-        __ImportField(callsign, p);
-        __ImportField(gsas, p);
-        
-        __ImportField(odd_raw_lat, p);
-        __ImportField(odd_raw_lon, p);
-        __ImportField(odd_ts, p);
-        __ImportField(even_raw_lat, p);
-        __ImportField(even_raw_lon, p);
-        __ImportField(even_ts, p);
-
-        reserve_fields(nullptr);
-        lat = lon = alt = heading = speed = 0;
-        update_location = false;
-    }
-
     virtual uint32_t get_signature() const override {
         return adler32_checksum("rtladsb_tracked_adsb");
     }

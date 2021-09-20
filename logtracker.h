@@ -62,19 +62,6 @@ public:
         initialize();
     }
 
-    kis_logfile_builder(const kis_logfile_builder *p) :
-        tracker_component{p} {
-
-        __ImportField(log_class, p);
-        __ImportField(log_name, p);
-        __ImportField(stream_log, p);
-        __ImportField(singleton, p);
-        __ImportField(description, p);
-
-        reserve_fields(nullptr);
-        initialize();
-    }
-
     virtual ~kis_logfile_builder() { };
 
     virtual uint32_t get_signature() const override {

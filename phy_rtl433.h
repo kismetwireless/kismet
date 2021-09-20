@@ -113,20 +113,6 @@ public:
         reserve_fields(e);
     }
 
-    rtl433_tracked_common(const rtl433_tracked_common *p) :
-        tracker_component{p} {
-
-        __ImportField(model, p);
-        __ImportField(rtlid, p);
-        __ImportField(rtlchannel, p);
-        __ImportField(battery, p);
-        __ImportField(rssi, p);
-        __ImportField(snr, p);
-        __ImportField(noise, p);
-
-        reserve_fields(nullptr);
-    }
-
     virtual uint32_t get_signature() const override {
         return adler32_checksum("rtl433_tracked_common");
     }
@@ -196,17 +182,6 @@ public:
         reserve_fields(e);
     }
 
-    rtl433_tracked_thermometer(const rtl433_tracked_thermometer *p) :
-        tracker_component{p} {
-
-        __ImportField(temperature, p);
-        __ImportField(temperature_rrd, p);
-        __ImportField(humidity, p);
-        __ImportField(humidity_rrd, p);
-
-        reserve_fields(nullptr);
-    }
-
     virtual uint32_t get_signature() const override {
         return adler32_checksum("rtl433_tracked_thermometer");
     }
@@ -262,25 +237,6 @@ public:
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
-    }
-
-    rtl433_tracked_weatherstation(const rtl433_tracked_weatherstation *p) :
-        tracker_component{p} {
-
-        __ImportField(wind_dir, p);
-        __ImportField(wind_dir_rrd, p);
-        __ImportField(wind_speed, p);
-        __ImportField(wind_speed_rrd, p);
-        __ImportField(wind_gust, p);
-        __ImportField(wind_gust_rrd, p);
-        __ImportField(rain, p);
-        __ImportField(rain_rrd, p);
-        __ImportField(uv_index, p);
-        __ImportField(uv_index_rrd, p);
-        __ImportField(lux, p);
-        __ImportField(lux_rrd, p);
-        
-        reserve_fields(nullptr);
     }
 
     virtual uint32_t get_signature() const override {
@@ -374,17 +330,6 @@ public:
             reserve_fields(e);
         }
 
-    rtl433_tracked_lightningsensor(const rtl433_tracked_lightningsensor *p) :
-        tracker_component{p} {
-
-        __ImportField(strike_count, p);
-        __ImportField(storm_distance, p);
-        __ImportField(storm_active, p);
-        __ImportField(lightning_rfi, p);
-
-        reserve_fields(nullptr);
-    }
-
     virtual uint32_t get_signature() const override {
         return adler32_checksum("rtl433_tracked_lightningsensor");
     }
@@ -436,19 +381,6 @@ public:
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
-    }
-
-    rtl433_tracked_tpms(const rtl433_tracked_tpms *p) :
-        tracker_component{p} {
-
-        __ImportField(pressure_bar, p);
-        __ImportField(pressure_kpa, p);
-        __ImportField(flags, p);
-        __ImportField(state, p);
-        __ImportField(checksum, p);
-        __ImportField(code, p);
-
-        reserve_fields(nullptr);
     }
 
     virtual uint32_t get_signature() const override {
@@ -506,21 +438,6 @@ public:
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
-    }
-
-    rtl433_tracked_switch(const rtl433_tracked_switch *p) :
-        tracker_component{p} {
-
-        //__ImportField(switch_vec, p);
-        //__ImportId(switch_vec_entry_id, p);
-	__ImportField(switch1, p);
-	__ImportField(switch2, p);
-	__ImportField(switch3, p);
-	__ImportField(switch4, p);
-	__ImportField(switch5, p);
-
-
-        reserve_fields(nullptr);
     }
 
     virtual uint32_t get_signature() const override {
@@ -589,18 +506,6 @@ public:
         tracker_component(in_id) {
         register_fields();
         reserve_fields(e);
-    }
-
-    rtl433_tracked_insteon(const rtl433_tracked_insteon *p) :
-        tracker_component{p} {
-
-        __ImportField(from_id, p);
-        __ImportField(to_id, p);
-        __ImportField(msg_type, p);
-        __ImportField(msg_str, p);
-        __ImportField(hopsmax, p);
-        __ImportField(hopsleft, p);
-        reserve_fields(nullptr);
     }
 
     virtual uint32_t get_signature() const override {

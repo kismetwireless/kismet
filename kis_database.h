@@ -67,7 +67,7 @@ public:
     // Open the database file and initialize the KISMET table; if in_path is empty,
     // the database is opened in the local-user settings dir and named according to
     // the module name
-    virtual bool database_open(std::string in_path);
+    virtual bool database_open(std::string in_path, int in_flags = 0);
     virtual void database_close();
 
     virtual bool database_valid();

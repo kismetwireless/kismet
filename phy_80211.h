@@ -579,6 +579,15 @@ protected:
 
     // Do we only get signal from beacons?
     bool signal_from_beacon;
+
+    std::shared_ptr<tracker_element_string> devtype_adhoc;
+    std::shared_ptr<tracker_element_string> devtype_ap;
+    std::shared_ptr<tracker_element_string> devtype_client;
+    std::shared_ptr<tracker_element_string> devtype_wds_dev;
+    std::shared_ptr<tracker_element_string> devtype_wds;
+    std::shared_ptr<tracker_element_string> devtype_wds_ap;
+    std::shared_ptr<tracker_element_string> devtype_bridged;
+    std::shared_ptr<tracker_element_string> devtype_device;
 };
 
 #endif

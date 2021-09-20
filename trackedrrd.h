@@ -104,27 +104,6 @@ public:
         mutex.set_name("kis_tracked_rrd");
     }
 
-    kis_tracked_rrd(const kis_tracked_rrd *p) :
-        tracker_component{p} {
-
-        __ImportField(last_time, p);
-        __ImportField(serial_time, p);
-
-        __ImportField(minute_vec, p);
-        __ImportField(hour_vec, p);
-        __ImportField(day_vec, p);
-
-        __ImportField(blank_val, p);
-
-        __ImportId(second_entry_id, p);
-        __ImportId(minute_entry_id, p);
-        __ImportId(hour_entry_id, p);
-
-        reserve_fields(nullptr);
-        update_first = true;
-        mutex.set_name("kis_tracked_rrd");
-    }
-
     virtual uint32_t get_signature() const override {
         return adler32_checksum("kis_tracked_rrd");
     }
@@ -483,21 +462,6 @@ public:
 
         register_fields();
         reserve_fields(e);
-        update_first = true;
-        mutex.set_name("kis_tracked_minute_rrd");
-    }
-
-    kis_tracked_minute_rrd(const kis_tracked_minute_rrd *p) :
-        tracker_component{p} {
-
-        __ImportField(last_time, p);
-        __ImportField(serial_time, p);
-        __ImportField(minute_vec, p);
-        __ImportField(blank_val, p);
-
-        __ImportId(second_entry_id, p);
-
-        reserve_fields(nullptr);
         update_first = true;
         mutex.set_name("kis_tracked_minute_rrd");
     }

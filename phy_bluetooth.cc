@@ -64,6 +64,10 @@ kis_bluetooth_phy::kis_bluetooth_phy(int in_phyid) :
     pack_comp_meta = packetchain->register_packet_component("METABLOB");
     pack_comp_json = packetchain->register_packet_component("JSON");
 
+    btdev_bredr = devicetracker->get_cached_devicetype("BR/EDR");
+    btdev_btle = devicetracker->get_cached_devicetype("BTLE");
+    btdev_bt = devicetracker->get_cached_devicetype("BT");
+
     // Register js module for UI
     auto httpregistry = Globalreg::fetch_mandatory_global_as<kis_httpd_registry>();
     httpregistry->register_js_module("kismet_ui_bluetooth", "js/kismet.ui.bluetooth.js");
@@ -183,7 +187,7 @@ int kis_bluetooth_phy::packet_bluetooth_scan_json_classifier(CHAINCALL_PARMS) {
             btdev->get_sub_as<bluetooth_tracked_device>(btphy->bluetooth_device_entry_id);
 
         if (btdev_bluetooth == nullptr) {
-            newdevstr << "Detected new Bluetooth device " << btaddr_mac; 
+            newdevstr << "Detected new HCI Bluetooth device " << btaddr_mac; 
 
             if (btdev->get_devicename().length() > 0)
                 newdevstr << " (" << btdev->get_devicename() << ")";
@@ -277,13 +281,13 @@ int kis_bluetooth_phy::packet_tracker_bluetooth(CHAINCALL_PARMS) {
     basedev->bitset_basic_type_set(KIS_DEVICE_BASICTYPE_PEER);
 
     if (btpi->type == 0)
-        basedev->set_tracker_type_string(btphy->devicetracker->get_cached_devicetype("BR/EDR"));
+        basedev->set_tracker_type_string(btphy->btdev_bredr);
     else if (btpi->type == 1)
-        basedev->set_tracker_type_string(btphy->devicetracker->get_cached_devicetype("BTLE"));
+        basedev->set_tracker_type_string(btphy->btdev_btle);
     else if (btpi->type == 2)
-        basedev->set_tracker_type_string(btphy->devicetracker->get_cached_devicetype("BTLE"));
+        basedev->set_tracker_type_string(btphy->btdev_btle);
     else
-        basedev->set_tracker_type_string(btphy->devicetracker->get_cached_devicetype("BT"));
+        basedev->set_tracker_type_string(btphy->btdev_bt);
 
     // Always set the name, but don't forget a name we used to know
     if (btpi->name.length() > 0)

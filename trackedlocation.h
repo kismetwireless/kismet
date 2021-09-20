@@ -46,8 +46,6 @@ public:
     kis_tracked_location_triplet(int in_id);
     kis_tracked_location_triplet(int in_id, std::shared_ptr<tracker_element_map> e);
 
-    kis_tracked_location_triplet(const kis_tracked_location_triplet *p);
-
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = Globalreg::new_from_pool<this_t>();
@@ -123,8 +121,6 @@ public:
     kis_tracked_location_full(int in_id);
     kis_tracked_location_full(int in_id, std::shared_ptr<tracker_element_map> e);
 
-    kis_tracked_location_full(const kis_tracked_location_full *p);
-
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
         auto r = Globalreg::new_from_pool<this_t>();
@@ -166,7 +162,6 @@ public:
     kis_tracked_location();
     kis_tracked_location(int in_id);
     kis_tracked_location(int in_id, std::shared_ptr<tracker_element_map> e);
-    kis_tracked_location(const kis_tracked_location *p);
 
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = typename std::remove_pointer<decltype(this)>::type;
@@ -262,20 +257,6 @@ public:
             reserve_fields(e);
         }
 
-    kis_historic_location(const kis_historic_location *p) :
-        tracker_component{p} {
-
-            __ImportField(geopoint, p);
-            __ImportField(alt, p);
-            __ImportField(heading, p);
-            __ImportField(speed, p);
-            __ImportField(signal, p);
-            __ImportField(frequency, p);
-            __ImportField(time_sec, p);
-
-            reserve_fields(nullptr);
-        }
-
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
         auto r = Globalreg::new_from_pool<this_t>();
@@ -355,16 +336,6 @@ public:
         samples_100_cascade = 0;
     }
 
-    kis_location_rrd(const kis_location_rrd* p) :
-        tracker_component{p} {
-
-        __ImportField(samples_100, p);
-        __ImportField(samples_10k, p);
-        __ImportField(samples_1m, p);
-        __ImportField(last_sample_ts, p);
-
-    }
-
     kis_location_rrd(int in_id, std::shared_ptr<tracker_element_map> e) :
         tracker_component(in_id) {
         register_fields();
@@ -383,7 +354,7 @@ public:
 
     virtual std::shared_ptr<tracker_element> clone_type() override {
         using this_t = std::remove_pointer<decltype(this)>::type;
-        auto dup = std::shared_ptr<this_t>(new this_t(this));
+        auto dup = std::shared_ptr<this_t>(new this_t());
         dup->set_id(get_id());
         return dup;
     }

@@ -85,6 +85,89 @@ kis_gps_web::kis_gps_web(shared_gps_builder in_builder) :
                     stream << "Updated\n";
                 }));
 
+    httpd->register_websocket_route("/gps/web/update", {httpd->LOGON_ROLE, "WEBGPS"}, {"ws"},
+            std::make_shared<kis_net_web_function_endpoint>(
+                [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
+                    auto ws = 
+                        std::make_shared<kis_net_web_websocket_endpoint>(con,
+                                [this](std::shared_ptr<kis_net_web_websocket_endpoint> ws,
+                                    boost::beast::flat_buffer& buf, bool text) {
+
+                                    if (!text) {
+                                        ws->close();
+                                        return;
+                                    }
+
+                                    boost::asio::streambuf stream;
+                                    std::ostream os(&stream);
+
+                                    std::stringstream ss(boost::beast::buffers_to_string(buf.data()));
+                                    Json::Value json;
+
+                                    try {
+                                        ss >> json;
+
+                                        double lat = 0, lon = 0, alt = 0, spd = 0;
+                                        bool set_alt = false, set_spd = false;
+
+                                        lat = json["lat"].asDouble();
+                                        lon = json["lon"].asDouble();
+
+                                        if (!json["alt"].isNull()) {
+                                            alt = json["alt"].asDouble();
+                                            set_alt = true;
+                                        }
+
+                                        if (json["spd"].isNull()) {
+                                            spd = json["spd"].asDouble();
+                                            set_spd = true;
+                                        }
+
+                                        auto new_location = 
+                                            packetchain->new_packet_component<kis_gps_packinfo>();
+                                        new_location->lat = lat;
+                                        new_location->lon = lon;
+                                        new_location->fix = 2;
+
+                                        if (set_alt) {
+                                            new_location->alt = alt;
+                                            new_location->fix = 3;
+                                        }
+
+                                        if (set_spd) 
+                                            new_location->speed = spd;
+
+                                        gettimeofday(&(new_location->tv), NULL);
+                                        new_location->gpsuuid = get_gps_uuid();
+                                        new_location->gpsname = get_gps_name();
+
+                                        if (time(0) - last_heading_time > 5 &&
+                                                gps_location != nullptr && gps_location->fix >= 2) {
+                                            new_location->heading = 
+                                                gps_calc_heading(new_location->lat, new_location->lon, 
+                                                        gps_location->lat, gps_location->lon);
+                                            last_heading_time = new_location->tv.tv_sec;
+                                        }
+
+                                        gps_last_location = gps_location;
+                                        gps_location = new_location;
+
+                                        // Sync w/ the tracked fields
+                                        update_locations();
+
+                                        os << "{\"update\": \"ok\"}";
+
+                                        ws->write(stream.data(), true);
+                                    } catch (const std::exception& e) {
+                                        _MSG_ERROR("Invalid websocket request (could not parse JSON message) on "
+                                                "/gps/web/update.ws");
+                                        os << "{\"update\": \"error\"}";
+                                        return;
+                                    }
+                                });
+                }
+                ));
+
 }
 
 kis_gps_web::~kis_gps_web() {

@@ -66,19 +66,6 @@ public:
             reserve_fields(e);
         }
 
-    tracked_adsb_icao(const tracked_adsb_icao *p) :
-        tracker_component{p} {
-
-        __ImportField(icao, p);
-        __ImportField(regid, p);
-        __ImportField(model_type, p);
-        __ImportField(model, p);
-        __ImportField(owner, p);
-        __ImportField(atype_short, p);
-
-        reserve_fields(nullptr);
-    }
-
     virtual uint32_t get_signature() const override {
         return adler32_checksum("tracked_adsb_icao");
     }

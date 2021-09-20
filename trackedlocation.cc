@@ -46,18 +46,6 @@ kis_tracked_location_triplet::kis_tracked_location_triplet(int in_id,
     reserve_fields(e);
 }
 
-kis_tracked_location_triplet::kis_tracked_location_triplet(const kis_tracked_location_triplet *p) :
-    tracker_component{p} {
-
-    __ImportField(geopoint, p);
-    __ImportId(alt_id, p);
-    __ImportId(fix_id, p);
-    __ImportId(time_sec_id, p);
-    __ImportId(time_usec_id, p);
-
-    reserve_fields(nullptr);
-}
-
 void kis_tracked_location_triplet::set(double in_lat, double in_lon, 
        float in_alt, unsigned int in_fix) {
 
@@ -166,15 +154,6 @@ kis_tracked_location_full::kis_tracked_location_full(int in_id,
     reserve_fields(e);
 }
 
-kis_tracked_location_full::kis_tracked_location_full(const kis_tracked_location_full *p) :
-    kis_tracked_location_triplet{p} {
-
-    __ImportId(spd_id, p);
-    __ImportId(heading_id, p);
-
-    reserve_fields(nullptr);
-}
-
 void kis_tracked_location_full::set(kis_gps_packinfo *in_packinfo) {
     if (in_packinfo == nullptr)
         return;
@@ -273,31 +252,6 @@ kis_tracked_location::kis_tracked_location(int in_id, std::shared_ptr<tracker_el
 
     register_fields();
     reserve_fields(e);
-}
-
-kis_tracked_location::kis_tracked_location(const kis_tracked_location *p) :
-    tracker_component{p} {
-
-    agg_x = agg_y = agg_z = agg_a = 0;
-    num_avg = num_alt_avg = 0;
-    last_location_time = 0;
-
-    __ImportId(min_loc_id, p);
-    __ImportId(max_loc_id, p);
-    __ImportId(avg_loc_id, p);
-    __ImportId(last_loc_id, p);
-
-    __ImportField(loc_fix, p);
-
-    reserve_fields(nullptr);
-
-    agg_x = p->agg_x;
-    agg_y = p->agg_y;
-    agg_z = p->agg_z;
-    num_avg = p->num_avg;
-
-    agg_a = p->agg_a;
-    num_alt_avg = p->num_alt_avg;
 }
 
 void kis_tracked_location::add_loc_with_avg(double in_lat, double in_lon, double in_alt, 
