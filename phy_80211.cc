@@ -1365,6 +1365,14 @@ int kis_80211_phy::packet_dot11_common_classifier(CHAINCALL_PARMS) {
             // Look for DEAUTH floods
             if (bssid_dot11 != NULL && (dot11info->subtype == packet_sub_disassociation ||
                     dot11info->subtype == packet_sub_deauthentication)) {
+
+                if (dot11info->subtype == packet_sub_disassociation) {
+                    in_pack->tag_map["DOT11_DISASSOCIATION"] = true;
+
+                } else if (dot11info->subtype == packet_sub_deauthentication) {
+                    in_pack->tag_map["DOT11_DEAUTHENTICATION"] = true;
+                }
+
                 // if we're w/in time of the last one, update, otherwise clear
                 auto now = time(0);
 
