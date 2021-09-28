@@ -735,9 +735,10 @@ int main(int argc, char *argv[]) {
             "<Style id=\"wifi-ap-open\"><LabelStyle><color>#ff00FF00</color></LabelStyle><IconStyle><color>#ff00FF00</color></IconStyle></Style>\n"
             "<Style id=\"wifi-ap-wep\"><LabelStyle><color>#ff0080FF</color></LabelStyle><IconStyle><color>#ff0080FF</color></IconStyle></Style>\n"
             "<Style id=\"wifi-ap-wpa\"><LabelStyle><color>#ff0000FF</color></LabelStyle><IconStyle><color>#ff0000FF</color></IconStyle></Style>\n"
-            "<Style id=\"wifi-client\"><LabelStyle><color>#ffFFFFFF</color></LabelStyle><IconStyle><color>#ffFFFFFF</color></IconStyle></Style>\n"
-            "<Style id=\"other\"><LabelStyle><color>#ff00FFFF</color></LabelStyle><IconStyle><color>#ff00FFFF</color></IconStyle></Style>\n"
-            "<name>Kismet</name>\n");
+            "<Style id=\"wifi-client\"><LabelStyle><color>#ff00FFFF</color></LabelStyle><IconStyle><color>#ff00FFFF</color></IconStyle></Style>\n"
+            "<Style id=\"other\"><LabelStyle><color>#ff00AAFF</color></LabelStyle><IconStyle><color>#ff00AAFF</color></IconStyle></Style>\n"
+            "<name>Kismet</name>\n"
+            "<open>1</open>");
 
     if (group_in_folder) {
         if (!bluetooth_placemark_vec.empty()) {
@@ -752,6 +753,7 @@ int main(int argc, char *argv[]) {
                 !ap_open_placemark_vec.empty()) {
             fmt::print(ofile, "<Folder>");
             fmt::print(ofile, "<name>Wifi</name>");
+            fmt::print(ofile, "<open>1</open>");
 
             if (!client_placemark_vec.empty()) {
                 add_placemarks_from_vec(ofile, client_placemark_vec, "Client", "wifi-client", point_num, place_num);
@@ -760,6 +762,7 @@ int main(int argc, char *argv[]) {
             if (!ap_wpa_placemark_vec.empty() || !ap_wep_placemark_vec.empty() || !ap_open_placemark_vec.empty()) {
                 fmt::print(ofile, "<Folder>");
                 fmt::print(ofile, "<name>AP</name>");
+                fmt::print(ofile, "<open>1</open>");
 
                 if (!ap_open_placemark_vec.empty()) {
                     add_placemarks_from_vec(ofile, ap_open_placemark_vec, "Open", "wifi-ap-open", point_num, place_num);
