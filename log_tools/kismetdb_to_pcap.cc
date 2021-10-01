@@ -880,6 +880,19 @@ int main(int argc, char *argv[]) {
         exit(0);
     }
 
+    if (verbose) {
+        try {
+            auto data_q = _SELECT(db, "data", {"ts_sec"}, LIMIT, 1);
+            if (data_q.begin() != data_q.end()) {
+                fmt::print(stderr, "WARNING: KismetDB log contains non-packet data logs from datasources\n"
+                        "which do not support traditional pcap, they will not currently be included\n"
+                        "in the generated pcap file.\n");
+            }
+        } catch (...) {
+
+        }
+    }
+
     try {
         if (verbose)
             fmt::print(stderr, "* Collecting info about datasources...\n");
