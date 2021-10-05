@@ -41,13 +41,13 @@
 int pack_comp_alert;
 
 int alertsyslog_chain_hook(CHAINCALL_PARMS) {
-	kis_alert_component *alrtinfo = NULL;
+    std::shared_ptr<kis_alert_component> alrtinfo;
 
 	if (in_pack->error)
 		return 0;
 
 	// Grab the alerts
-	alrtinfo = (kis_alert_component *) in_pack->fetch(pack_comp_alert);
+    alrtinfo = in_pack->fetch<kis_alert_component>(pack_comp_alert);
 
 	if (alrtinfo == NULL)
 		return 0;
