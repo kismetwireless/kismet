@@ -53,6 +53,8 @@ entry_tracker::entry_tracker() {
     Globalreg::enable_pool_type<tracker_element_vector_double>();
     Globalreg::enable_pool_type<tracker_element_vector_string>();
     Globalreg::enable_pool_type<tracker_element_placeholder>();
+
+    Globalreg::enable_pool_type<tracker_element_summary>();
 }
 
 entry_tracker::~entry_tracker() {

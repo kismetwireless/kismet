@@ -1782,6 +1782,8 @@ using SharedElementSummary =  std::shared_ptr<tracker_element_summary>;
 // Element simplification record for summarizing and simplifying records
 class tracker_element_summary {
 public:
+    tracker_element_summary() { };
+
     tracker_element_summary(const std::string& in_path, const std::string& in_rename);
 
     tracker_element_summary(const std::vector<std::string>& in_path, const std::string& in_rename);
@@ -1796,9 +1798,25 @@ public:
     // copy constructor
     tracker_element_summary(const SharedElementSummary& in_c);
 
+
+    void assign(const SharedElementSummary& in_c);
+    void assign(const std::string& in_path, const std::string& in_rename);
+    void assign(const std::vector<std::string>& in_path, const std::string& in_rename);
+    void assign(const std::string& in_path);
+    void assign(const std::vector<std::string>& in_path);
+    void assign(const std::vector<int>& in_path, const std::string& in_rename);
+    void assign(const std::vector<int>& in_path);
+
+
     shared_tracker_element parent_element;
     std::vector<int> resolved_path;
     std::string rename;
+
+    void reset() {
+        parent_element.reset();
+        resolved_path.clear();
+        rename = "";
+    }
 
 protected:
     void parse_path(const std::vector<std::string>& in_path, const std::string& in_rename);
