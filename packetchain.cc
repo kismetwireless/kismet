@@ -241,9 +241,9 @@ int packet_chain::register_packet_component(std::string in_component) {
     kis_lock_guard<kis_mutex> lk(packetcomp_mutex);
 
     if (next_componentid >= MAX_PACKET_COMPONENTS) {
-        _MSG("Attempted to register more than the maximum defined number of "
+        _MSG_FATAL("Attempted to register more than the maximum defined number of "
                 "packet components.  Report this to the kismet developers along "
-                "with a list of any plugins you might be using.", MSGFLAG_FATAL);
+                "with a list of any plugins you might be using.");
         Globalreg::globalreg->fatal_condition = 1;
         return -1;
     }

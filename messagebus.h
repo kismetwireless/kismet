@@ -160,6 +160,12 @@ public:
     }
 
     void inject_message(const std::string& msg, int flags) {
+        // Force fatal messages out to stderr immediately
+        if (flags & MSGFLAG_FATAL) {
+            fprintf(stderr, "FATAL: %s\n", msg.c_str());
+            fflush(stderr);
+        }
+
         auto tracked_msg = std::make_shared<tracked_message>(msg_proto->get_id(), msg, flags, time(0));
         auto evt = eventbus->get_eventbus_event(event_message());
         evt->get_event_content()->insert(event_message(), tracked_msg);

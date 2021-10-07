@@ -88,9 +88,8 @@ bool kis_ppi_logfile::open_log(std::string in_path) {
 
 	dumper = pcap_dump_fopen(dumpfile, dump_filep);
     if (dumper == NULL) {
-        _MSG_FATAL("Unable to open pcap/ppi dump file '{}': {}",
-                in_path, kis_strerror_r(errno));
-        Globalreg::globalreg->fatal_condition = 1;
+        _MSG_FATAL("Unable to open pcap/ppi dump file '{}': {}", in_path, kis_strerror_r(errno));
+        Globalreg::globalreg->fatal_condition = true;
         return false;
 	}
 

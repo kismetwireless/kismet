@@ -966,7 +966,7 @@ int kis_80211_phy::load_wepkeys() {
 
         size_t rwsplit = wepline.find(",");
         if (rwsplit == std::string::npos) {
-            _MSG("Malformed 'wepkey' option in the config file", MSGFLAG_FATAL);
+            _MSG_FATAL("Malformed 'wepkey' option in the config file");
             Globalreg::globalreg->fatal_condition = 1;
 			return -1;
         }
@@ -974,7 +974,7 @@ int kis_80211_phy::load_wepkeys() {
         mac_addr bssid_mac = wepline.substr(0, rwsplit).c_str();
 
         if (bssid_mac.state.error == 1) {
-            _MSG("Malformed 'wepkey' option in the config file", MSGFLAG_FATAL);
+            _MSG_FATAL("Malformed 'wepkey' option in the config file");
             Globalreg::globalreg->fatal_condition = 1;
 			return -1;
         }
@@ -985,8 +985,7 @@ int kis_80211_phy::load_wepkeys() {
         int len = hex_to_uchar((unsigned char *) rawkey.c_str(), key);
 
         if (len != 5 && len != 13 && len != 16) {
-			_MSG("Invalid key '" + rawkey + "' length " + int_to_string(len) + 
-				 " in a wepkey= config file entry", MSGFLAG_FATAL);
+			_MSG_FATAL("Invalid key '{}' length {} in a wepkey= config file entry", rawkey, len);
             Globalreg::globalreg->fatal_condition = 1;
 			return -1;
         }
