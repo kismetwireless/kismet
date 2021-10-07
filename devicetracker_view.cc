@@ -52,7 +52,6 @@ device_tracker_view::device_tracker_view(const std::string& in_id, const std::st
                 }, devicetracker->get_devicelist_mutex()));
 
     uri = fmt::format("/devices/views/{}/last-time/:timestamp/devices", in_id);
-    fmt::print("{}\n", uri);
     httpd->register_route(uri, {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(
                 [this](std::shared_ptr<kis_net_beast_httpd_connection> con) {
