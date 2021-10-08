@@ -35,12 +35,13 @@ kis_datasource_linux_bluetooth::kis_datasource_linux_bluetooth(shared_datasource
     pack_comp_meta = packetchain->register_packet_component("METABLOB");
 }
 
-bool kis_datasource_linux_bluetooth::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
-    if (kis_datasource::dispatch_rx_packet(c))
+bool kis_datasource_linux_bluetooth::dispatch_rx_packet(const nonstd::string_view& command,
+        uint32_t seqno, const nonstd::string_view& content) {
+    if (kis_datasource::dispatch_rx_packet(command, seqno, content))
         return true;
 
-    if (c->command() == "LBTDATAREPORT") {
-        handle_packet_linuxbtdevice(c->seqno(), c->content());
+    if (command.compare("LBTDATAREPORT") == 0) {
+        handle_packet_linuxbtdevice(seqno, content);
         return true;
     }
 
@@ -48,7 +49,7 @@ bool kis_datasource_linux_bluetooth::dispatch_rx_packet(std::shared_ptr<KismetEx
 }
 
 void kis_datasource_linux_bluetooth::handle_packet_linuxbtdevice(uint32_t in_seqno, 
-        std::string in_content) {
+        const nonstd::string_view& in_content) {
 
     // If we're paused, throw away this packet
     {
@@ -61,7 +62,7 @@ void kis_datasource_linux_bluetooth::handle_packet_linuxbtdevice(uint32_t in_seq
 
     KismetLinuxBluetooth::LinuxBluetoothDataReport report;
 
-    if (!report.ParseFromString(in_content)) {
+    if (!report.ParseFromArray(in_content.data(), in_content.length())) {
         _MSG(std::string("Kismet datasource driver ") + get_source_builder()->get_source_type() + 
                 std::string(" could not parse the data report, something is wrong with "
                     "the remote capture tool"), MSGFLAG_ERROR);
