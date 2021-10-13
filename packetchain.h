@@ -231,6 +231,25 @@ protected:
 
     robin_hood::unordered_map<size_t, std::shared_ptr<void>> component_pool_map;
 
+    // Unique lock for packet number and dedupe
+    kis_shared_mutex pack_no_mutex;
+
+    // Next unique packet number
+    std::atomic<uint64_t> unique_packet_no;
+
+    // A simple array of hash to packet ID for the past 1024 unique packets
+    typedef struct packno_map {
+        uint32_t hash;
+        uint64_t packno;
+    } packno_map_t;
+
+    packno_map_t dedupe_list[1024];
+
+    // Current position in the dedupe list
+    std::atomic<unsigned int> dedupe_list_pos;
+
+	int pack_comp_linkframe, pack_comp_decap;
+    
 };
 
 #endif

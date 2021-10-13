@@ -34,9 +34,11 @@ public:
     virtual ~kis_datasource_linux_bluetooth() { };
 
 protected:
-    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) override;
+    virtual bool dispatch_rx_packet(const nonstd::string_view& command,
+                                    uint32_t seqno, const nonstd::string_view& content) override;
   
-    virtual void handle_packet_linuxbtdevice(uint32_t in_seqno, std::string in_content);
+    virtual void handle_packet_linuxbtdevice(uint32_t in_seqno, 
+                                             const nonstd::string_view& in_content);
 
     int pack_comp_btdevice, pack_comp_meta;
 };

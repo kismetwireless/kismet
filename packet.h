@@ -66,6 +66,9 @@ public:
     // Time of packet creation
     struct timeval ts;
 
+    // Unique number of this packet
+    uint64_t packet_no;
+
     // Do we know this is in error from the capture source itself?
     int error;
 
@@ -78,6 +81,9 @@ public:
 
     // Are we a duplicate?
     int duplicate;
+
+    // What hash has been calculated, if any?
+    uint32_t hash;
 
     // Raw packet data; other packet components refer to this via stringviews
     // whenever possible to minimize the copy duplication.  It is pre-reserved as a
@@ -98,9 +104,12 @@ public:
     ~kis_packet();
 
     kis_packet(kis_packet&& p) {
+        packet_no = p.packet_no;
         error = p.error;
         crc_ok = p.crc_ok;
         filtered = p.filtered;
+        duplicate = p.duplicate;
+        hash = p.hash;
         process_complete_events = std::move(p.process_complete_events);
         raw_data = std::move(p.raw_data);
         data = std::move(p.data);
@@ -110,10 +119,13 @@ public:
     }
 
     void reset() {
+        packet_no = 0;
         error = 0;
         crc_ok = 0;
         filtered = 0;
         duplicate = 0;
+
+        hash = 0;
 
         // Reset and re-reserve in case we were resized somehow
         raw_data = "";

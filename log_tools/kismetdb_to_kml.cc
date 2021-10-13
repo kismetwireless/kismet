@@ -26,6 +26,7 @@
 #include <iomanip>
 #include <ctime>
 #include <iostream>
+#include <regex>
 #include <tuple>
 
 #include <string.h>
@@ -204,6 +205,40 @@ void print_help(char *argv) {
           );
 }
 
+// Helper method to add placemarks from a vector to the KML file when grouping placemarks.
+void add_placemarks_from_vec(FILE* ofile, std::vector<kml_placemark>& placemark_vec, std::string folder_name, 
+        std::string style_name, unsigned long& point_num, unsigned long& place_num) {
+    fmt::print(ofile, "<Folder>");
+    fmt::print(ofile, "<name>{}</name>", folder_name);
+    for (auto pl : placemark_vec) {
+        fmt::print(ofile, "<Placemark id=\"{}\">", place_num++);
+        fmt::print(ofile, "<name>{}</name>", MungeForXML(pl.name));
+
+        // style based on phy layer
+        fmt::print(ofile, "<styleUrl>{}</styleUrl>", style_name);
+
+        // add description
+        pl.description = "Name:" + MungeForXML(pl.name) + "\n";
+        pl.description += pl.phy_layer + "\n";
+        pl.description += "Channel:" + pl.channel;
+
+        if (pl.crypt.length() > 0)
+            pl.description += "\nCrypt:" + pl.crypt;
+
+        fmt::print(ofile, "<description>{}</description>", pl.description);
+
+        for (auto p : pl.point_vec) {
+            fmt::print(ofile,
+                "<Point "
+                "id=\"{}\"><coordinates>{:3.10f},{:3.10f},{:3.10f}</coordinates></Point>",
+                point_num++, p.lon, p.lat, p.alt);
+        }
+
+        fmt::print(ofile, "</Placemark>\n");
+    }
+    fmt::print(ofile, "</Folder>\n");
+}
+
 int main(int argc, char *argv[]) {
     static struct option longopt[] = {
         { "in", required_argument, 0, 'i' },
@@ -222,6 +257,7 @@ int main(int argc, char *argv[]) {
     optind = 0;
     opterr = 0;
 
+    const std::regex mac_pattern("^([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2})$"); // regex pattern for MAC address
     std::string in_fname, out_fname;
     bool verbose = false;
     bool force = false;
@@ -434,7 +470,11 @@ int main(int argc, char *argv[]) {
     std::vector<kml_placemark> placemark_vec;
 
     // placemarks by types
-    std::vector<kml_placemark> standard_placemark_vec;
+    std::vector<kml_placemark> ap_open_placemark_vec;
+    std::vector<kml_placemark> ap_wep_placemark_vec;
+    std::vector<kml_placemark> ap_wpa_placemark_vec;
+    std::vector<kml_placemark> client_placemark_vec;
+    std::vector<kml_placemark> other_placemark_vec;
     std::vector<kml_placemark> zigbee_placemark_vec;
     std::vector<kml_placemark> bluetooth_placemark_vec;
 
@@ -494,7 +534,19 @@ int main(int argc, char *argv[]) {
                     } else if (pl.phy_layer == "802.15.4") {
                         zigbee_placemark_vec.push_back(pl);
                     } else {
-                        standard_placemark_vec.push_back(pl);
+                        if (regex_match(pl.name, mac_pattern)) {
+                            client_placemark_vec.push_back(pl);
+                        } else {
+                            if (pl.crypt == "Open") {
+                                ap_open_placemark_vec.push_back(pl);
+                            } else if (pl.crypt.find("WEP") != std::string::npos) {
+                                ap_wep_placemark_vec.push_back(pl);
+                            } else if (pl.crypt.find("WPA") != std::string::npos) {
+                                ap_wpa_placemark_vec.push_back(pl);
+                            } else {
+                                other_placemark_vec.push_back(pl);
+                            }
+                        }
                     }
                 } else {
                     placemark_vec.push_back(pl);
@@ -649,7 +701,19 @@ int main(int argc, char *argv[]) {
                     zigbee_placemark_vec.push_back(pl);
                 }
                 else {
-                    standard_placemark_vec.push_back(pl);
+                    if (regex_match(pl.name, mac_pattern)) {
+                        client_placemark_vec.push_back(pl);
+                    } else {
+                        if (pl.crypt == "Open") {
+                            ap_open_placemark_vec.push_back(pl);
+                        } else if (pl.crypt.find("WEP") != std::string::npos) {
+                            ap_wep_placemark_vec.push_back(pl);
+                        } else if (pl.crypt.find("WPA") != std::string::npos) {
+                            ap_wpa_placemark_vec.push_back(pl);
+                        } else {
+                            other_placemark_vec.push_back(pl);
+                        }
+                    }
                 }
             }
             else {
@@ -667,97 +731,61 @@ int main(int argc, char *argv[]) {
             "<kml xmlns=\"http://www.opengis.net/kml/2.2\" xmlns:gx=\"http://www.google.com/kml/ext/2.2\">\n"
             "<Document id=\"1\">\n"
             "<Style id=\"btle\"><LabelStyle><color>#ffFF0000</color></LabelStyle><IconStyle><color>#ffFF0000</color></IconStyle></Style>\n"
-            "<Style id=\"zigbee\"><LabelStyle><color>#ff0000FF</color></LabelStyle><IconStyle><color>#ff0000FF</color></IconStyle></Style>\n"
-            "<name>Kismet</name>\n");
-
-    //<Folder><name>Valmont Irrigation Australia Pty Ltd</name><description>Valmont Irrigation Australia Pty Ltd</description>
+            "<Style id=\"zigbee\"><LabelStyle><color>#ffFF00FF</color></LabelStyle><IconStyle><color>#ffFF00FF</color></IconStyle></Style>\n"
+            "<Style id=\"wifi-ap-open\"><LabelStyle><color>#ff00FF00</color></LabelStyle><IconStyle><color>#ff00FF00</color></IconStyle></Style>\n"
+            "<Style id=\"wifi-ap-wep\"><LabelStyle><color>#ff0080FF</color></LabelStyle><IconStyle><color>#ff0080FF</color></IconStyle></Style>\n"
+            "<Style id=\"wifi-ap-wpa\"><LabelStyle><color>#ff0000FF</color></LabelStyle><IconStyle><color>#ff0000FF</color></IconStyle></Style>\n"
+            "<Style id=\"wifi-client\"><LabelStyle><color>#ff00FFFF</color></LabelStyle><IconStyle><color>#ff00FFFF</color></IconStyle></Style>\n"
+            "<Style id=\"other\"><LabelStyle><color>#ff00AAFF</color></LabelStyle><IconStyle><color>#ff00AAFF</color></IconStyle></Style>\n"
+            "<name>Kismet</name>\n"
+            "<open>1</open>");
 
     if (group_in_folder) {
-        fmt::print(ofile, "<Folder>");
-        fmt::print(ofile, "<name>Bluetooth</name>");
-        for (auto pl : bluetooth_placemark_vec) {
-            fmt::print(ofile, "<Placemark id=\"{}\">", place_num++);
-            fmt::print(ofile, "<name>{}</name>", MungeForXML(pl.name));
-            // style based on phy layer
-            fmt::print(ofile, "<styleUrl>btle</styleUrl>");
-            // add description
-            pl.description = "Name:" + MungeForXML(pl.name) + "\n";
-            pl.description += pl.phy_layer + "\n";
-            pl.description += "Channel:" + pl.channel;
+        if (!bluetooth_placemark_vec.empty()) {
+            add_placemarks_from_vec(ofile, bluetooth_placemark_vec, "Bluetooth", "btle", point_num, place_num);
+        }
 
-            if (pl.crypt.length() > 0)
-                pl.description += "\nCrypt:" + pl.crypt;
+        if (!zigbee_placemark_vec.empty()) {
+            add_placemarks_from_vec(ofile, zigbee_placemark_vec, "802.15.4(Zigbee)", "zigbee", point_num, place_num);
+        }
 
-            fmt::print(ofile, "<description>{}</description>", pl.description);
+        if (!client_placemark_vec.empty() || !ap_wpa_placemark_vec.empty() || !ap_wep_placemark_vec.empty() || 
+                !ap_open_placemark_vec.empty()) {
+            fmt::print(ofile, "<Folder>");
+            fmt::print(ofile, "<name>Wifi</name>");
+            fmt::print(ofile, "<open>1</open>");
 
-            for (auto p : pl.point_vec) {
-                fmt::print(ofile,
-                    "<Point "
-                    "id=\"{}\"><coordinates>{:3.10f},{:3.10f},{:3.10f}</coordinates></Point>",
-                    point_num++, p.lon, p.lat, p.alt);
+            if (!client_placemark_vec.empty()) {
+                add_placemarks_from_vec(ofile, client_placemark_vec, "Client", "wifi-client", point_num, place_num);
             }
 
-            fmt::print(ofile, "</Placemark>\n");
-        }
-        fmt::print(ofile, "</Folder>\n");
+            if (!ap_wpa_placemark_vec.empty() || !ap_wep_placemark_vec.empty() || !ap_open_placemark_vec.empty()) {
+                fmt::print(ofile, "<Folder>");
+                fmt::print(ofile, "<name>AP</name>");
+                fmt::print(ofile, "<open>1</open>");
 
-        fmt::print(ofile, "<Folder>");
-        fmt::print(ofile, "<name>802.15.4(Zigbee)</name>");
-        for (auto pl : zigbee_placemark_vec) {
-            fmt::print(ofile, "<Placemark id=\"{}\">", place_num++);
-            fmt::print(ofile, "<name>{}</name>", MungeForXML(pl.name));
+                if (!ap_open_placemark_vec.empty()) {
+                    add_placemarks_from_vec(ofile, ap_open_placemark_vec, "Open", "wifi-ap-open", point_num, place_num);
+                }
 
-            // style based on phy layer
-            fmt::print(ofile, "<styleUrl>zigbee</styleUrl>");
+                if (!ap_wep_placemark_vec.empty()) {
+                    add_placemarks_from_vec(ofile, ap_wep_placemark_vec, "WEP", "wifi-ap-wep", point_num, place_num);
+                }
 
-            // add description
-            pl.description = "Name:" + MungeForXML(pl.name) + "\n";
-            pl.description += pl.phy_layer + "\n";
-            pl.description += "Channel:" + pl.channel;
+                if (!ap_wpa_placemark_vec.empty()) {
+                    add_placemarks_from_vec(ofile, ap_wpa_placemark_vec, "WPA", "wifi-ap-wpa", point_num, place_num);
+                }
 
-            if (pl.crypt.length() > 0)
-                pl.description += "\nCrypt:" + pl.crypt;
-
-            fmt::print(ofile, "<description>{}</description>", pl.description);
-
-            for (auto p : pl.point_vec) {
-                fmt::print(ofile,
-                    "<Point "
-                    "id=\"{}\"><coordinates>{:3.10f},{:3.10f},{:3.10f}</coordinates></Point>",
-                    point_num++, p.lon, p.lat, p.alt);
+                fmt::print(ofile, "</Folder>\n");
             }
 
-            fmt::print(ofile, "</Placemark>\n");
+            fmt::print(ofile, "</Folder>\n");
         }
-        fmt::print(ofile, "</Folder>\n");
 
-        fmt::print(ofile, "<Folder>");
-        fmt::print(ofile, "<name>Wifi</name>");
-
-        for (auto pl : standard_placemark_vec) {
-            fmt::print(ofile, "<Placemark id=\"{}\">", place_num++);
-            fmt::print(ofile, "<name>{}</name>", MungeForXML(pl.name));
-
-            // add description
-            pl.description = "Name:" + MungeForXML(pl.name) + "\n";
-            pl.description += pl.phy_layer + "\n";
-            pl.description += "Channel:" + pl.channel;
-
-            if (pl.crypt.length() > 0)
-                pl.description += "\nCrypt:" + pl.crypt;
-
-            fmt::print(ofile, "<description>{}</description>", pl.description);
-
-            for (auto p : pl.point_vec) {
-                fmt::print(ofile,
-                    "<Point "
-                    "id=\"{}\"><coordinates>{:3.10f},{:3.10f},{:3.10f}</coordinates></Point>",
-                    point_num++, p.lon, p.lat, p.alt);
-            }
-
-            fmt::print(ofile, "</Placemark>\n");
+        if (!other_placemark_vec.empty()) {
+            add_placemarks_from_vec(ofile, other_placemark_vec, "Other", "other", point_num, place_num);
         }
-        fmt::print(ofile, "</Folder>\n");
+
     } else {
         for (auto pl : placemark_vec) {
             fmt::print(ofile, "<Placemark id=\"{}\">", place_num++);

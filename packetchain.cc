@@ -34,6 +34,8 @@
 #include "packet.h"
 #include "packetchain.h"
 
+#include "crc32.h"
+
 class SortLinkPriority {
 public:
     inline bool operator() (const packet_chain::pc_link *x, 
@@ -47,6 +49,13 @@ public:
 packet_chain::packet_chain() {
     packetcomp_mutex.set_name("packetchain packet_comp");
     packetchain_mutex.set_name("packetchain packetchain");
+    pack_no_mutex.set_name("packetchain packetno");
+
+    unique_packet_no = 1;
+
+    memset(dedupe_list, 0, sizeof(packno_map_t) * 1024);
+
+    dedupe_list_pos = 0;
 
     Globalreg::enable_pool_type<kis_tracked_packet>();
 
@@ -132,9 +141,10 @@ packet_chain::packet_chain() {
 
     auto httpd = Globalreg::fetch_mandatory_global_as<kis_net_beast_httpd>();
 
-    // We now protect RRDs from complex ops w/ internal mutexes, so we can just share these out directly without
-    // protecting them behind our own mutex; required, because we're mixing RRDs from different data sources,
-    // like chain-level packet processing and worker mutex locked buffer queuing.
+    // We now protect RRDs from complex ops w/ internal mutexes, so we can just share these 
+    // out directly without protecting them behind our own mutex; required, because we're mixing 
+    // RRDs from different data sources, like chain-level packet processing and worker mutex 
+    // locked buffer queuing.
     httpd->register_route("/packetchain/packet_stats", {"GET", "POST"}, httpd->RO_ROLE, {},
             std::make_shared<kis_net_web_tracked_endpoint>(packet_stats_map));
     httpd->register_route("/packetchain/packet_peak", {"GET", "POST"}, httpd->RO_ROLE, {},
@@ -165,6 +175,39 @@ packet_chain::packet_chain() {
 
                 return 1;
                 });
+
+	pack_comp_linkframe = register_packet_component("LINKFRAME");
+	pack_comp_decap = register_packet_component("DECAP");
+
+    // Checksum and dedupe function runs at the end of LLC dissection, which should be
+    // after any phy demangling and DLT demangling
+    register_handler([this](std::shared_ptr<kis_packet> in_pack) -> int {
+        auto chunk = in_pack->fetch<kis_datachunk>(pack_comp_decap, pack_comp_linkframe);
+
+        if (chunk == nullptr)
+            return 1;
+
+        kis_lock_guard<kis_shared_mutex> lk(pack_no_mutex, "hash handler");
+
+        in_pack->hash = crc32_16bytes_prefetch(chunk->data(), chunk->length(), 0);
+
+        for (unsigned int i = 0; i < 1024; i++) {
+            if (dedupe_list[i].hash == in_pack->hash) {
+                in_pack->duplicate = true;
+                in_pack->packet_no = dedupe_list[i].packno;
+            }
+        }
+
+        // Assign a new packet number and cache it in the dedupe
+        if (!in_pack->duplicate) {
+            auto listpos = dedupe_list_pos++ % 1024;
+            in_pack->packet_no = unique_packet_no++;
+            dedupe_list[listpos].hash = in_pack->hash;
+            dedupe_list[listpos].packno = unique_packet_no++;
+        }
+
+        return 1;
+    }, CHAINPOS_LLCDISSECT, 10000);
 }
 
 packet_chain::~packet_chain() {
@@ -241,9 +284,9 @@ int packet_chain::register_packet_component(std::string in_component) {
     kis_lock_guard<kis_mutex> lk(packetcomp_mutex);
 
     if (next_componentid >= MAX_PACKET_COMPONENTS) {
-        _MSG("Attempted to register more than the maximum defined number of "
+        _MSG_FATAL("Attempted to register more than the maximum defined number of "
                 "packet components.  Report this to the kismet developers along "
-                "with a list of any plugins you might be using.", MSGFLAG_FATAL);
+                "with a list of any plugins you might be using.");
         Globalreg::globalreg->fatal_condition = 1;
         return -1;
     }

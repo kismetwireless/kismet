@@ -390,7 +390,8 @@ void signal_thread_handler() {
         }
     }
 
-    Globalreg::globalreg->fatal_condition = true;
+    fprintf(stderr, "EXITING: Signal service thread complete.\n");
+    // Globalreg::globalreg->fatal_condition = true;
     Globalreg::globalreg->spindown = true;
     Globalreg::globalreg->complete = true;
 }
@@ -658,10 +659,16 @@ int main(int argc, char *argv[], char *envp[]) {
                         else
                             fprintf(stdout, "ALERT: %s\n", msg->get_message().c_str());
                     } else if ((msg->get_flags() & MSGFLAG_FATAL)) {
+                        /* These now get printed out as a priority dump to stderr in the messagebus itself
+                         * to make sure we don't have fatal events caught up in the queue during an abort;
+                         * don't print them here.
+                         */
+                        /*
                         if (glob_linewrap)
                             fprintf(stderr, "%s", in_line_wrap("FATAL: " + msg->get_message(), 7, 75).c_str());
                         else
                             fprintf(stderr, "FATAL: %s\n", msg->get_message().c_str());
+                        */
                     }
 
                     fflush(stdout);
@@ -967,6 +974,7 @@ int main(int argc, char *argv[], char *envp[]) {
     globalregistry->start_deferred();
 
     if (globalregistry->fatal_condition) {
+        _MSG_FATAL("Fatal error encountered during startup.");
         SpindownKismet();
     }
 

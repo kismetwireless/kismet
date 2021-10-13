@@ -110,7 +110,7 @@ exports.renderSpeedUnitless = function(kph, precision = 5) {
 }
 
 exports.renderTemperature = function(c, precision = 5) {
-    if (kismet.getStorage('kismet.base.unit.temp') === 'celcius' ||
+    if (kismet.getStorage('kismet.base.unit.temp') === 'celsius' ||
             kismet.getStorage('kismet.base.unit.temp') === '') {
         return c.toFixed(precision) + '&deg; C';
     } else {

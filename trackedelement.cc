@@ -724,6 +724,38 @@ tracker_element_summary::tracker_element_summary(const std::vector<int>& in_path
     resolved_path = in_path;
 }
 
+void tracker_element_summary::assign(const SharedElementSummary& in_c) {
+    parent_element = in_c->parent_element;
+    resolved_path = in_c->resolved_path;
+    rename = in_c->rename;
+}
+
+void tracker_element_summary::assign(const std::string& in_path, const std::string& in_rename) {
+    parse_path(str_tokenize(in_path, "/"), in_rename);
+}
+
+void tracker_element_summary::assign(const std::vector<std::string>& in_path, 
+        const std::string& in_rename) {
+    parse_path(in_path, in_rename);
+}
+
+void tracker_element_summary::assign(const std::string& in_path) {
+    parse_path(str_tokenize(in_path, "/"), "");
+}
+
+void tracker_element_summary::assign(const std::vector<std::string>& in_path) {
+    parse_path(in_path, "");
+}
+
+void tracker_element_summary::assign(const std::vector<int>& in_path, const std::string& in_rename) {
+    resolved_path = in_path;
+    rename = in_rename;
+}
+
+void tracker_element_summary::assign(const std::vector<int>& in_path) {
+    resolved_path = in_path;
+}
+
 void tracker_element_summary::parse_path(const std::vector<std::string>& in_path, 
         const std::string& in_rename) {
 
@@ -1144,7 +1176,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
         const std::vector<std::shared_ptr<tracker_element_summary>>& summary,
         std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
-    auto ret = std::make_shared<tracker_element_vector>();
+    auto ret = Globalreg::new_from_pool<tracker_element_vector>();
 
     for (const auto& i : *elem)
         ret->push_back(summarize_tracker_element(i, summary, rename_map));
@@ -1156,7 +1188,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
         const std::vector<std::shared_ptr<tracker_element_summary>>& summary,
         std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
-    auto ret = std::make_shared<tracker_element_int_map>();
+    auto ret = Globalreg::new_from_pool<tracker_element_int_map>();
 
     for (const auto& i : *elem)
         ret->insert(i.first, summarize_tracker_element(i.second, summary, rename_map));
@@ -1168,7 +1200,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
         const std::vector<std::shared_ptr<tracker_element_summary>>& summary,
         std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
-    auto ret = std::make_shared<tracker_element_double_map>();
+    auto ret = Globalreg::new_from_pool<tracker_element_double_map>();
 
     for (const auto& i : *elem)
         ret->insert(i.first, summarize_tracker_element(i.second, summary, rename_map));
@@ -1180,7 +1212,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
         const std::vector<std::shared_ptr<tracker_element_summary>>& summary,
         std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
-    auto ret = std::make_shared<tracker_element_string_map>();
+    auto ret = Globalreg::new_from_pool<tracker_element_string_map>();
 
     for (const auto& i : *elem)
         ret->insert(i.first, summarize_tracker_element(i.second, summary, rename_map));
@@ -1192,7 +1224,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
         const std::vector<std::shared_ptr<tracker_element_summary>>& summary,
         std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
-    auto ret = std::make_shared<tracker_element_mac_map>();
+    auto ret = Globalreg::new_from_pool<tracker_element_mac_map>();
 
     for (const auto& i : *elem)
         ret->insert(i.first, summarize_tracker_element(i.second, summary, rename_map));
@@ -1204,7 +1236,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
         const std::vector<std::shared_ptr<tracker_element_summary>>& summary,
         std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
-    auto ret = std::make_shared<tracker_element_device_key_map>();
+    auto ret = Globalreg::new_from_pool<tracker_element_device_key_map>();
 
     for (const auto& i : *elem)
         ret->insert(i.first, summarize_tracker_element(i.second, summary, rename_map));
@@ -1216,7 +1248,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
         const std::vector<std::shared_ptr<tracker_element_summary>>& summary,
         std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
-    auto ret = std::make_shared<tracker_element_uuid_map>();
+    auto ret = Globalreg::new_from_pool<tracker_element_uuid_map>();
 
     for (const auto& i : *elem) 
         ret->insert(i.first, summarize_tracker_element(i.second, summary, rename_map));
@@ -1228,7 +1260,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
         const std::vector<std::shared_ptr<tracker_element_summary>>& summary,
         std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
-    auto ret = std::make_shared<tracker_element_hashkey_map>();
+    auto ret = Globalreg::new_from_pool<tracker_element_hashkey_map>();
 
     for (const auto& i : *elem)
         ret->insert(i.first, summarize_tracker_element(i.second, summary, rename_map));
@@ -1241,7 +1273,7 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
         std::shared_ptr<tracker_element_serializer::rename_map> rename_map) {
 
     // Always return a map
-    auto ret_elem = std::make_shared<tracker_element_map>();
+    auto ret_elem = Globalreg::new_from_pool<tracker_element_map>();
 
     if (in == nullptr)
         return ret_elem;
@@ -1322,7 +1354,8 @@ std::shared_ptr<tracker_element> summarize_tracker_element(std::shared_ptr<track
         // object so that when we serialize we can descend the path calling
         // the proper pre-serialization methods
         if (si->rename.length() != 0 || si->resolved_path.size() > 1) {
-            auto sum = std::make_shared<tracker_element_summary>(*si);
+            auto sum = Globalreg::new_from_pool<tracker_element_summary>();
+            sum->assign(si);
             sum->parent_element = in;
             (*rename_map)[f] = sum;
         }
@@ -1343,11 +1376,15 @@ std::shared_ptr<tracker_element> summarize_tracker_element_with_json(std::shared
 
     for (const auto& i : fields) {
         if (i.isString()) {
-            summary_vec.push_back(std::make_shared<tracker_element_summary>(i.asString()));
+            auto sum = Globalreg::new_from_pool<tracker_element_summary>();
+            sum->assign(i.asString());
+            summary_vec.push_back(sum);
         } else if (i.isArray()) {
             if (i.size() != 2)
                 throw std::runtime_error("Invalid field mapping, expected [field, name]");
-            summary_vec.push_back(std::make_shared<tracker_element_summary>(i[0].asString(), i[1].asString()));
+            auto sum = Globalreg::new_from_pool<tracker_element_summary>();
+            sum->assign(i[0].asString(), i[1].asString());
+            summary_vec.push_back(sum);
         } else {
             throw std::runtime_error("Invalid field mapping, expected field or [field,rename]");
         }

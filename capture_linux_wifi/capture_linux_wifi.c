@@ -2428,9 +2428,12 @@ int open_callback(kis_capture_handler_t *caph, uint32_t seqno, char *definition,
     }
 
     if (local_wifi->base_phy != NULL) {
+        /*
         char ifbuf[1024];
         snprintf(ifbuf, 1024, "%s:%s", local_wifi->base_phy, local_wifi->cap_interface);
         (*ret_interface)->capif = strdup(ifbuf);
+        */
+        (*ret_interface)->capif = strdup(local_wifi->cap_interface);
     } else {
         (*ret_interface)->capif = strdup(local_wifi->cap_interface);
     }

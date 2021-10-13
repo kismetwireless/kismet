@@ -139,6 +139,26 @@ struct pcapng_epb {
 typedef struct pcapng_epb pcapng_epb_t;
 #define PCAPNG_EPB_BLOCK_TYPE       6
 
+struct pcapng_epb_hash_option {
+    uint16_t option_code;
+    uint16_t option_length;
+    uint8_t hash_type;
+    uint32_t hash;
+} __attribute__((packed));
+typedef struct pcapng_epb_hash_option pcapng_epb_hash_option_t;
+
+struct pcapng_epb_packetid_option {
+    uint16_t option_code;
+    uint16_t option_length;
+    uint64_t packetid;
+} __attribute__((packed));
+typedef struct pcapng_epb_packetid_option pcapng_epb_packetid_option_t;
+
+#define PCAPNG_OPT_EPB_HASH         3
+#define PCAPNG_OPT_EPB_PACKETID     5
+
+#define PCAPNG_OPT_EPB_HASH_CRC32   2
+
 /* Custom pcapng block */
 struct pcapng_custom_block {
     uint32_t block_type;

@@ -1859,16 +1859,16 @@ kismet_ui_settings.AddSettingsPane({
                 .append(
                     $('<input>', {
                         type: 'radio',
-                        id: 'temp_celcius',
+                        id: 'temp_celsius',
                         name: 'temp',
-                        value: 'celcius',
+                        value: 'celsius',
                     })
                 )
                 .append(
                     $('<label>', {
-                        for: 'temp_celcius',
+                        for: 'temp_celsius',
                     })
-                    .html('Celcius')
+                    .html('Celsius')
                 )
                 .append(
                     $('<input>', {
@@ -1903,8 +1903,8 @@ kismet_ui_settings.AddSettingsPane({
             $('#spd_imperial', elem).attr('checked', 'checked');
         }
 
-        if (kismet.getStorage('kismet.base.unit.temp', 'celcius') === 'celcius') {
-            $('#temp_celcius', elem).attr('checked', 'checked');
+        if (kismet.getStorage('kismet.base.unit.temp', 'celsius') === 'celsius') {
+            $('#temp_celsius', elem).attr('checked', 'checked');
         } else {
             $('#temp_fahrenheit', elem).attr('checked', 'checked');
         }
