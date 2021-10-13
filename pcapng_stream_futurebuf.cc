@@ -322,6 +322,16 @@ int pcapng_stream_futurebuf::pcapng_write_packet(std::shared_ptr<kis_packet> in_
         buf_sz += sizeof(pcapng_custom_option_t) + PAD_TO_32BIT(gps_len);
     }
 
+    if (in_packet->hash != 0) {
+        // CRC32 hash, 1 octet identifier, 4 octet hash
+        buf_sz += PAD_TO_32BIT(sizeof(pcapng_epb_hash_option_t));
+    }
+
+    if (in_packet->packet_no != 0) {
+        // Unique packet number, 8 bytes
+        buf_sz += PAD_TO_32BIT(sizeof(pcapng_epb_packetid_option_t));
+    }
+
     // Allocate 4 bytes larger to hold the final length
     if (!block_until(buf_sz + 4))
         return 0;
@@ -355,6 +365,27 @@ int pcapng_stream_futurebuf::pcapng_write_packet(std::shared_ptr<kis_packet> in_
 
     // Offset to the end of the epb header + data + pad
     size_t opt_offt = sizeof(pcapng_epb_t) + PAD_TO_32BIT(in_data->length());
+
+    if (in_packet->hash != 0) {
+        auto hopt = reinterpret_cast<pcapng_epb_hash_option_t *>(buf.get() + opt_offt);
+
+        hopt->option_code = PCAPNG_OPT_EPB_HASH;
+        hopt->option_length = 5;
+        hopt->hash_type = PCAPNG_OPT_EPB_HASH_CRC32;
+        hopt->hash = in_packet->hash;
+
+        opt_offt += PAD_TO_32BIT(sizeof(pcapng_epb_hash_option_t));
+    }
+
+    if (in_packet->packet_no != 0) {
+        auto popt = reinterpret_cast<pcapng_epb_packetid_option_t *>(buf.get() + opt_offt);
+
+        popt->option_code = PCAPNG_OPT_EPB_PACKETID;
+        popt->option_length = 8;
+        popt->packetid = in_packet->packet_no;
+
+        opt_offt += PAD_TO_32BIT(sizeof(pcapng_epb_packetid_option_t));
+    }
 
     if (gpsinfo != nullptr && gpsinfo->fix >= 2) {
         auto gopt = reinterpret_cast<pcapng_custom_option_t *>(buf.get() + opt_offt);
