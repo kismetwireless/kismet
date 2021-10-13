@@ -306,6 +306,12 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
         return 0;
     }
 
+    if (in_pack->duplicate) {
+        in_pack->filtered = 1;
+        return 0;
+    }
+
+#if 0
     // Compare the checksum and see if we've recently seen this exact packet
     uint32_t chunk_csum = adler32_checksum(chunk->data(), chunk->length());
 
@@ -323,6 +329,8 @@ int kis_80211_phy::packet_dot11_dissector(std::shared_ptr<kis_packet> in_pack) {
     if (recent_packet_checksums_sz > 0) 
         recent_packet_checksums[(recent_packet_checksum_pos++ % recent_packet_checksums_sz)] = 
             chunk_csum;
+
+#endif
 
     auto pack_l1info = in_pack->fetch<kis_layer1_packinfo>(pack_comp_l1info);
 
