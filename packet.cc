@@ -38,10 +38,12 @@
 
 
 kis_packet::kis_packet() {
+    packet_no = 0;
 	error = 0;
     crc_ok = 0;
 	filtered = 0;
     duplicate = 0;
+    hash = 0;
 
     raw_data.reserve(MAX_PACKET_LEN);
     data = nonstd::string_view(raw_data);
