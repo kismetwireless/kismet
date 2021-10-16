@@ -686,10 +686,6 @@ unsigned int kis_external_interface::send_packet(std::shared_ptr<KismetExternal:
     return c->seqno();
 }
 
-bool kis_external_interface::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
-    return dispatch_rx_packet(c->command(), c->seqno(), c->content());
-}
-
 bool kis_external_interface::dispatch_rx_packet(const nonstd::string_view& command,
         uint32_t seqno, const nonstd::string_view& content) {
     // Simple dispatcher; this should be called by child implementations who

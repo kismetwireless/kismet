@@ -177,8 +177,6 @@ protected:
         return in_seqno;
     }
 
-    // Central packet dispatch handler, legacy v0 handler
-    virtual bool dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c);
     // Central packet dispatch handler, common layer and v2+ handler
     virtual bool dispatch_rx_packet(const nonstd::string_view& command, 
             uint32_t seqno, const nonstd::string_view& content);
@@ -381,7 +379,8 @@ public:
                 }
 
                 // Dispatch the received command
-                dispatch_rx_packet(cached_cmd);
+                dispatch_rx_packet(cached_cmd->command(), cached_cmd->seqno(),
+                        cached_cmd->content());
 
                 delete(ai);
 
@@ -509,7 +508,8 @@ public:
             }
 
             // Dispatch the received command
-            dispatch_rx_packet(cached_cmd);
+            dispatch_rx_packet(cached_cmd->command(), cached_cmd->seqno(),
+                    cached_cmd->content());
 
             delete(ai);
 

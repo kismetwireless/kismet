@@ -1922,10 +1922,6 @@ dst_incoming_remote::~dst_incoming_remote() {
         handshake_thread.join();
 }
 
-bool dst_incoming_remote::dispatch_rx_packet(std::shared_ptr<KismetExternal::Command> c) {
-    return dispatch_rx_packet(c->command(), c->seqno(), c->content());
-}
-
 bool dst_incoming_remote::dispatch_rx_packet(const nonstd::string_view& command,
         uint32_t seqno, const nonstd::string_view& content) {
     // Simple dispatch override, all we do is look for the new source
