@@ -880,6 +880,8 @@ public:
 
     virtual ~packetchain_comp_datasource() { }
 
+    virtual bool unique() override { return true; }
+
     void reset() {
         ref_source = nullptr;
     }

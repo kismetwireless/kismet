@@ -51,6 +51,8 @@ public:
         reset();
     }
 
+    virtual bool unique() override { return true; }
+
     void set(std::shared_ptr<kis_gps_packinfo> src) {
         merge_partial = src->merge_partial;
         merge_flags = src->merge_flags;
