@@ -540,9 +540,12 @@ int kis_database_logfile::database_upgrade_db() {
 
         "error INT, " // Packet was flagged as invalid
 
-        "tags TEXT,"  // Arbitrary packet tags
+        "tags TEXT, "  // Arbitrary packet tags
 
-        "datarate REAL" // datarate, if known
+        "datarate REAL, " // datarate, if known
+
+        "hash INT, " // crc32 hash
+        "packetid INT " // packet id (shared with duplicate packets)
         ")";
 
     r = sqlite3_exec(db, sql.c_str(),
@@ -965,8 +968,8 @@ int kis_database_logfile::log_packet(std::shared_ptr<kis_packet> in_pack) {
             "packet_len, signal, "
             "datasource, "
             "dlt, packet, "
-            "error, tags, datarate) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            "error, tags, datarate, hash, packetid) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         r = sqlite3_prepare(db, sql.c_str(), sql.length(), &packet_stmt, &packet_pz);
 
@@ -1036,6 +1039,9 @@ int kis_database_logfile::log_packet(std::shared_ptr<kis_packet> in_pack) {
             sqlite3_bind_double(packet_stmt, sql_pos++, radioinfo->datarate / 10);
         else
             sqlite3_bind_double(packet_stmt, sql_pos++, 0);
+
+        sqlite3_bind_int(packet_stmt, sql_pos++, in_pack->hash);
+        sqlite3_bind_int64(packet_stmt, sql_pos++, in_pack->packet_no);
 
 #if 0
         kis_unique_lock<kis_mutex> dblock(ds_mutex, std::defer_lock, "kismetdb log_packet");
@@ -1461,6 +1467,10 @@ void kis_database_logfile::pcapng_endp_handler(std::shared_ptr<kis_net_beast_htt
     auto size_max_k = con->http_variables().find("size_max");
     if (size_max_k != con->http_variables().end()) 
         query.append_where(AND, _WHERE("size_max", LE, string_to_n<unsigned long int>(size_max_k->second)));
+
+    auto tag_k = con->http_variables().find("tag");
+    if (tag_k != con->http_variables().end())
+        query.append_where(AND, _WHERE("tags", LIKE, tag_k->second));
     
     auto limit_k = con->http_variables().find("limit");
     if (limit_k != con->http_variables().end()) 

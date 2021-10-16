@@ -56,7 +56,7 @@
 
 // Kismetdb version
 
-#define KISMETDB_LOG_VERSION        7
+#define KISMETDB_LOG_VERSION        8
 
 // This is a bit of a unique case - because so many things plug into this, it has
 // to exist as a global record; we build it like we do any other global record;
